@@ -789,6 +789,76 @@ describe("PineAgentRuntime", () => {
     }
   });
 
+  it("queues steering when compaction starts during prompt preflight", async () => {
+    const root = await mkdtemp(path.join(os.tmpdir(), "pine-agent-runtime-"));
+    temporaryDirectories.push(root);
+    const location = {
+      agentDir: path.join(root, "agent"),
+      cwd: path.join(root, "source"),
+      folders: [
+        { access: "read-write" as const, path: path.join(root, "source") },
+      ],
+      sessionsRoot: path.join(root, "sessions"),
+    };
+    await mkdir(location.cwd, { recursive: true });
+    const events: Array<{ type: string; messages?: readonly string[] }> = [];
+    const runtime = new PineAgentRuntime({
+      emit: (event) => events.push(event),
+    });
+
+    try {
+      const created = await runtime.createSession(location);
+      const liveSessions = (
+        runtime as unknown as {
+          liveSessions: Map<string, { session: AgentSession }>;
+        }
+      ).liveSessions;
+      const agentSession = liveSessions.get(created.session.id)?.session;
+      expect(agentSession).toBeDefined();
+      let finishCompaction: (() => void) | undefined;
+      const compaction = new Promise<void>((resolve) => {
+        finishCompaction = resolve;
+      });
+      vi.spyOn(agentSession!, "waitForIdle").mockReturnValue(compaction);
+      const submit = vi
+        .spyOn(agentSession!, "prompt")
+        .mockRejectedValueOnce(
+          new Error(
+            "Cannot submit a prompt while compaction is in progress. Wait for compaction to finish and retry.",
+          ),
+        )
+        .mockResolvedValue(undefined);
+
+      await expect(
+        runtime.prompt(created.session.id, "First", "steer"),
+      ).resolves.toMatchObject({ accepted: true });
+      await expect(
+        runtime.prompt(created.session.id, "Second"),
+      ).resolves.toMatchObject({ accepted: true });
+      expect(
+        events.filter((event) => event.type === "steering-queue").at(-1),
+      ).toMatchObject({ messages: ["First", "Second"] });
+      expect(
+        await runtime.dequeueSteering(created.session.id, "First"),
+      ).toEqual({
+        message: "First",
+        removed: true,
+      });
+      expect(
+        events.filter((event) => event.type === "steering-queue").at(-1),
+      ).toMatchObject({ messages: ["Second"] });
+
+      finishCompaction?.();
+      await vi.waitFor(() => expect(submit).toHaveBeenCalledTimes(2));
+      expect(submit.mock.calls[1]?.[0]).toBe("Second");
+      expect(events.some((event) => event.type === "session-error")).toBe(
+        false,
+      );
+    } finally {
+      await runtime.dispose();
+    }
+  });
+
   it("dequeues one steering message while preserving the rest of both queues", async () => {
     const root = await mkdtemp(path.join(os.tmpdir(), "pine-agent-runtime-"));
     temporaryDirectories.push(root);

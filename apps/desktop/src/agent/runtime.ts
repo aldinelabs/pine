@@ -952,16 +952,13 @@ export class PineAgentRuntime {
 
       // AgentSession.prompt rejects during compaction, so stage steering
       // messages in the runtime and submit them after compaction completes.
+      const queueDuringCompaction =
+        streamingBehavior === "steer" || streamingBehavior === undefined;
       const prompt =
-        streamingBehavior === "steer" &&
+        queueDuringCompaction &&
         (live.session.isCompacting || live.resumingCompactionPrompts)
           ? Promise.resolve().then(() => {
-              live.queuedCompactionPrompts.push({
-                message,
-                approvalMode,
-                locale,
-              });
-              this.resumeQueuedMessagesWhenIdle(live);
+              this.queueCompactionPrompt(live, message, approvalMode, locale);
             })
           : live.session.prompt(message, {
               ...(streamingBehavior ? { streamingBehavior } : {}),
@@ -973,6 +970,19 @@ export class PineAgentRuntime {
       void prompt
         .then(settleAccepted)
         .catch((error: unknown) => {
+          // Compaction can begin inside Pi's asynchronous prompt preflight,
+          // after the isCompacting check above.
+          if (
+            queueDuringCompaction &&
+            !responseSettled &&
+            error instanceof Error &&
+            error.message ===
+              "Cannot submit a prompt while compaction is in progress. Wait for compaction to finish and retry."
+          ) {
+            this.queueCompactionPrompt(live, message, approvalMode, locale);
+            settleAccepted();
+            return;
+          }
           const errorMessage = toErrorMessage(error);
           this.options.emit({
             type: "session-error",
@@ -992,11 +1002,33 @@ export class PineAgentRuntime {
           }
         })
         .finally(() => {
-          if (live.session.isIdle) {
+          if (live.session.isIdle && !live.resumingCompactionPrompts) {
             this.options.emit({ type: "run-state", sessionId, state: "idle" });
           }
         });
     });
+  }
+
+  private emitSteeringQueue(live: LiveAgentSession): void {
+    this.options.emit({
+      type: "steering-queue",
+      sessionId: live.session.sessionId,
+      messages: [
+        ...live.session.getSteeringMessages(),
+        ...live.queuedCompactionPrompts.map(({ message }) => message),
+      ],
+    });
+  }
+
+  private queueCompactionPrompt(
+    live: LiveAgentSession,
+    message: string,
+    approvalMode: PineApprovalMode,
+    locale: "en-US" | "zh-CN",
+  ): void {
+    live.queuedCompactionPrompts.push({ message, approvalMode, locale });
+    this.emitSteeringQueue(live);
+    this.resumeQueuedMessagesWhenIdle(live);
   }
 
   private resumeQueuedMessagesWhenIdle(live: LiveAgentSession): void {
@@ -1009,6 +1041,7 @@ export class PineAgentRuntime {
         while (live.queuedCompactionPrompts.length > 0) {
           const queued = live.queuedCompactionPrompts.shift();
           if (!queued) continue;
+          this.emitSteeringQueue(live);
 
           live.locale = queued.locale;
           live.latestUserPrompt = queued.message;
@@ -1069,13 +1102,22 @@ export class PineAgentRuntime {
     const live = this.getSession(sessionId);
     const steering = [...live.session.getSteeringMessages()];
     const index = steering.indexOf(message);
-    if (index < 0) return { removed: false };
+    if (index < 0) {
+      const stagedIndex = live.queuedCompactionPrompts.findIndex(
+        (queued) => queued.message === message,
+      );
+      if (stagedIndex < 0) return { removed: false };
+      live.queuedCompactionPrompts.splice(stagedIndex, 1);
+      this.emitSteeringQueue(live);
+      return { message, removed: true };
+    }
 
     const followUp = [...live.session.getFollowUpMessages()];
     const [removed] = steering.splice(index, 1);
     live.session.clearQueue();
     for (const queued of steering) await live.session.steer(queued);
     for (const queued of followUp) await live.session.followUp(queued);
+    this.emitSteeringQueue(live);
     return { message: removed, removed: true };
   }
 
@@ -2521,11 +2563,10 @@ export class PineAgentRuntime {
         }
         break;
       case "queue_update":
-        this.options.emit({
-          type: "steering-queue",
-          sessionId,
-          messages: [...event.steering],
-        });
+        {
+          const live = this.liveSessions.get(sessionId);
+          if (live) this.emitSteeringQueue(live);
+        }
         break;
       case "tool_execution_start":
         this.flushPendingMessageUpdates(sessionId);
@@ -2570,6 +2611,7 @@ export class PineAgentRuntime {
       case "compaction_start": {
         const compactionId = randomUUID();
         this.activeCompactionIds.set(sessionId, compactionId);
+        this.options.emit({ type: "run-state", sessionId, state: "running" });
         this.options.emit({
           type: "compaction-start",
           sessionId,
@@ -2602,6 +2644,12 @@ export class PineAgentRuntime {
           });
         }
         this.emitContextUsage(session);
+        if (
+          session.isIdle &&
+          !this.liveSessions.get(sessionId)?.resumingCompactionPrompts
+        ) {
+          this.options.emit({ type: "run-state", sessionId, state: "idle" });
+        }
         break;
       case "auto_retry_end":
         if (!event.success) {
