@@ -76,7 +76,7 @@ function createScroller(followAnimated = false) {
   };
 }
 
-function createAnchoredScroller() {
+function createAnchoredScroller(extraScrollHeight = 0) {
   let engine!: ReturnType<typeof provideMessageScroller>;
   const wrapper = mount(
     defineComponent({
@@ -106,7 +106,9 @@ function createAnchoredScroller() {
 
   Object.defineProperties(viewport, {
     clientHeight: { get: () => 500 },
-    scrollHeight: { get: () => contentHeight + spacerHeight() },
+    scrollHeight: {
+      get: () => contentHeight + spacerHeight() + extraScrollHeight,
+    },
   });
   vi.spyOn(viewport, "getBoundingClientRect").mockImplementation(
     () => new DOMRect(0, 0, 400, 500),
@@ -248,6 +250,19 @@ describe("message scroller user intent", () => {
     scroller.grow(286);
     expect(scroller.viewport.scrollTop).toBe(1936);
     expect(scroller.spacer.hidden).toBe(true);
+    scroller.destroy();
+  });
+
+  it("removes excess scroll range below a newly anchored message", () => {
+    const scroller = createAnchoredScroller(64);
+    scroller.startTurn();
+
+    expect(scroller.viewport.scrollTop).toBe(1936);
+    expect(scroller.spacer.style.height).toBe("322px");
+    expect(
+      scroller.viewport.scrollHeight - scroller.viewport.clientHeight,
+    ).toBe(scroller.viewport.scrollTop);
+
     scroller.destroy();
   });
 

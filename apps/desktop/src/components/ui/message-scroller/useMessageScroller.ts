@@ -744,6 +744,13 @@ function createEngine(props: MessageScrollerProviderProps) {
         viewport,
       }),
     );
+    // The content measurement excludes the spacer, but the browser's actual
+    // scroll range can differ (for example when the content has a min-height).
+    // Keep the requested anchor at the end of that range without leaving
+    // additional space below it.
+    if (spacerHeight > 0) {
+      setSpacerHeight(spacerHeight + targetScrollTop - maxScrollTop(viewport));
+    }
     viewportAnchor = {
       element,
       viewportTop: getRelativeTop(element, viewport),
