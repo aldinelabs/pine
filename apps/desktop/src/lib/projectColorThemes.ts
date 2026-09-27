@@ -44,7 +44,7 @@ const PROJECT_COLOR_THEME_TOKENS = [
 ] as const;
 
 const OKLCH_PATTERN =
-  /^oklch\(\s*([+-]?(?:\d+(?:\.\d*)?|\.\d+))\s+([+-]?(?:\d+(?:\.\d*)?|\.\d+))\s+([+-]?(?:\d+(?:\.\d*)?|\.\d+))(?:\s*\/\s*([+-]?(?:\d+(?:\.\d*)?|\.\d+)%?))?\s*\)$/i;
+  /^oklch\(\s*([+-]?(?:\d+(?:\.\d*)?|\.\d+))(%?)\s+([+-]?(?:\d+(?:\.\d*)?|\.\d+))\s+([+-]?(?:\d+(?:\.\d*)?|\.\d+))(?:\s*\/\s*([+-]?(?:\d+(?:\.\d*)?|\.\d+)%?))?\s*\)$/i;
 
 export const PROJECT_COLOR_THEME_OPTIONS: readonly {
   swatch: string;
@@ -89,8 +89,10 @@ export function applyProjectColorTheme(
       continue;
     }
 
-    const [, lightnessValue, chromaValue, hueValue, alpha] = match;
-    const lightness = Number(lightnessValue);
+    const [, lightnessValue, lightnessUnit, chromaValue, hueValue, alpha] =
+      match;
+    const lightness =
+      Number(lightnessValue) / (lightnessUnit === "%" ? 100 : 1);
     const chroma = Number(chromaValue);
     const hue = (((Number(hueValue) + hueShift) % 360) + 360) % 360;
     const color = `oklch(${formatChannel(lightness)} ${formatChannel(chroma)} ${formatChannel(hue)}${alpha ? ` / ${alpha}` : ""})`;
