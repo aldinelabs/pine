@@ -9,6 +9,12 @@ Starting with 0.4.4, release notes are written in both Chinese and English.
 
 ## [Unreleased]
 
+## [0.6.4] - 2026-09-27
+
+### 修复 / Fixed
+
+- 修复手动压缩期间发送追加消息偶尔报错、未进入队列的问题；消息现在会在压缩完成后继续处理。Fixed an intermittent failure that kept steer messages sent during manual compaction out of the queue; queued messages now continue after compaction completes.
+
 ## [0.6.3] - 2026-09-25
 
 ### 新增 / Added
@@ -300,7 +306,8 @@ Starting with 0.4.4, release notes are written in both Chinese and English.
 - Reproducible main-branch artifacts and a manually gated production release workflow.
 - R2-backed update discovery, verified downloads, and in-app macOS replacement updates.
 
-[Unreleased]: https://github.com/phosphoros-works/pine/compare/v0.6.3...HEAD
+[Unreleased]: https://github.com/phosphoros-works/pine/compare/v0.6.4...HEAD
+[0.6.4]: https://github.com/phosphoros-works/pine/compare/v0.6.3...v0.6.4
 [0.6.3]: https://github.com/phosphoros-works/pine/compare/v0.6.1...v0.6.3
 [0.6.1]: https://github.com/phosphoros-works/pine/compare/v0.6.0...v0.6.1
 [0.6.0]: https://github.com/phosphoros-works/pine/compare/v0.5.4...v0.6.0
