@@ -256,6 +256,8 @@ function createSessionState() {
   const nextBefore = ref<string | undefined>();
   const messageIndexes = new Map<string, number>();
   const toolCallMessageIndexes = new Map<string, number>();
+  const activeMcpToolCalls = new Map<string, string>();
+  const mcpApprovalToolCalls = new Map<string, string>();
 
   function messageIndexFor(messageId: string): number {
     const cached = messageIndexes.get(messageId);
@@ -309,6 +311,30 @@ function createSessionState() {
     toolCallMessageIndexes.clear();
   }
 
+  function approvalToolCallId(toolCallId: string, toolName: string): string {
+    const linked = mcpApprovalToolCalls.get(toolCallId);
+    if (linked) return linked;
+    if (toolCallMessageIndexFor(toolCallId) >= 0) return toolCallId;
+
+    const candidates = [...activeMcpToolCalls].filter(
+      ([, activeName]) =>
+        activeName === toolName ||
+        activeName === "mcp" ||
+        activeName === "mcpScript" ||
+        activeName.startsWith("mcp__"),
+    );
+    if (candidates.length !== 1) return toolCallId;
+
+    const parentId = candidates[0][0];
+    mcpApprovalToolCalls.set(toolCallId, parentId);
+    return parentId;
+  }
+
+  function resetMcpApprovalLinks(): void {
+    activeMcpToolCalls.clear();
+    mcpApprovalToolCalls.clear();
+  }
+
   function patchToolCall(
     toolCallId: string,
     patch: Partial<PineToolCall>,
@@ -337,6 +363,10 @@ function createSessionState() {
     nextBefore,
     messageIndexFor,
     toolCallMessageIndexFor,
+    approvalToolCallId,
+    activeMcpToolCalls,
+    mcpApprovalToolCalls,
+    resetMcpApprovalLinks,
     rememberMessageIndex,
     clearMessageIndexes,
     patchToolCall,
@@ -786,6 +816,7 @@ export const useSessionStore = defineStore("session", () => {
     const {
       messageIndexFor,
       toolCallMessageIndexFor,
+      approvalToolCallId,
       rememberMessageIndex,
       patchToolCall,
     } = state;
@@ -796,6 +827,7 @@ export const useSessionStore = defineStore("session", () => {
         state.notifiedAutoApprovalFailureIds.clear();
         pendingQuestionnaires.value = [];
         reviewingToolCallIds.value = new Set();
+        state.resetMcpApprovalLinks();
         steeringMessages.value = [];
       }
       return;
@@ -815,23 +847,25 @@ export const useSessionStore = defineStore("session", () => {
       return;
     }
     if (event.type === "tool-review") {
+      const toolCallId = approvalToolCallId(event.toolCallId, event.toolName);
       reviewingToolCallIds.value = new Set([
         ...reviewingToolCallIds.value,
-        event.toolCallId,
+        toolCallId,
       ]);
-      patchToolCall(event.toolCallId, {
+      patchToolCall(toolCallId, {
         approval: { state: "reviewing" },
       });
       return;
     }
     if (event.type === "approval-request") {
+      const toolCallId = approvalToolCallId(event.toolCallId, event.toolName);
       const input = event.input as
         { subject?: unknown; description?: unknown } | undefined;
       pendingApprovals.value = [
         ...pendingApprovals.value,
         {
           requestId: event.requestId,
-          toolCallId: event.toolCallId,
+          toolCallId,
           toolName: event.toolName,
           trigger: event.trigger,
           subject:
@@ -853,19 +887,25 @@ export const useSessionStore = defineStore("session", () => {
           description: failure.message,
         });
       }
-      patchToolCall(event.toolCallId, {
+      patchToolCall(toolCallId, {
         approval: { state: "awaiting-user" },
       });
       return;
     }
     if (event.type === "approval-decided") {
+      const toolCallId =
+        state.mcpApprovalToolCalls.get(event.toolCallId) ?? event.toolCallId;
+      state.mcpApprovalToolCalls.delete(event.toolCallId);
       pendingApprovals.value = pendingApprovals.value.filter(
         (approval) => approval.requestId !== event.requestId,
       );
       const remaining = new Set(reviewingToolCallIds.value);
-      remaining.delete(event.toolCallId);
+      if (![...state.mcpApprovalToolCalls.values()].includes(toolCallId)) {
+        remaining.delete(toolCallId);
+      }
       reviewingToolCallIds.value = remaining;
-      patchToolCall(event.toolCallId, {
+      if (remaining.has(toolCallId)) return;
+      patchToolCall(toolCallId, {
         approval: {
           state: event.verdict === "approved" ? "approved" : "denied",
           decidedBy: event.decidedBy,
@@ -952,6 +992,9 @@ export const useSessionStore = defineStore("session", () => {
       event.type === "tool-update" ||
       event.type === "tool-end"
     ) {
+      if (event.type === "tool-start") {
+        state.activeMcpToolCalls.set(event.toolCallId, event.toolName);
+      }
       const now = Date.now();
       let messageIndex = toolCallMessageIndexFor(event.toolCallId);
       if (messageIndex < 0) {
@@ -1023,6 +1066,9 @@ export const useSessionStore = defineStore("session", () => {
         blocks: mergeToolCallBlocks(message.blocks, event.toolCallId, patch),
       };
       rememberMessageIndex(messages.value[messageIndex], messageIndex);
+      if (event.type === "tool-end") {
+        state.activeMcpToolCalls.delete(event.toolCallId);
+      }
       return;
     }
     if (

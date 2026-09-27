@@ -1203,6 +1203,105 @@ describe("session store", () => {
     });
   });
 
+  it("shows nested MCP reviews on the active mcpScript call", async () => {
+    let listener: ((event: PineAgentEvent) => void) | undefined;
+    Object.defineProperty(window, "pine", {
+      configurable: true,
+      value: {
+        onSessionEvent: vi.fn((nextListener) => {
+          listener = nextListener;
+          return () => undefined;
+        }),
+        promptSession: vi.fn().mockResolvedValue({ session }),
+      },
+    });
+    const store = useSessionStore();
+    store.connectAgentEvents();
+    await store.prompt("Run it", session.id);
+
+    listener?.({
+      type: "tool-start",
+      sessionId: session.id,
+      toolCallId: "script-call",
+      toolName: "mcpScript",
+      payload: { code: "await tools.call(...)" },
+    });
+    listener?.({
+      type: "tool-review",
+      sessionId: session.id,
+      toolCallId: "nested-approval",
+      toolName: "canvas-api_submit_assignment",
+      state: "reviewing",
+    });
+
+    expect(store.reviewingToolCallIds.has("script-call")).toBe(true);
+    let block = store.messages[0]?.blocks[0];
+    expect(block?.type === "toolCall" && block.toolCall.approval).toEqual({
+      state: "reviewing",
+    });
+
+    listener?.({
+      type: "approval-decided",
+      sessionId: session.id,
+      requestId: "judge-1",
+      toolCallId: "nested-approval",
+      verdict: "denied",
+      decidedBy: "judge",
+      reason: "Review denied this call.",
+    });
+
+    expect(store.reviewingToolCallIds.has("script-call")).toBe(false);
+    block = store.messages[0]?.blocks[0];
+    expect(block?.type === "toolCall" && block.toolCall.approval).toEqual({
+      state: "denied",
+      decidedBy: "judge",
+      reason: "Review denied this call.",
+    });
+  });
+
+  it("does not attach a nested MCP review when multiple MCP calls are active", async () => {
+    let listener: ((event: PineAgentEvent) => void) | undefined;
+    Object.defineProperty(window, "pine", {
+      configurable: true,
+      value: {
+        onSessionEvent: vi.fn((nextListener) => {
+          listener = nextListener;
+          return () => undefined;
+        }),
+        promptSession: vi.fn().mockResolvedValue({ session }),
+      },
+    });
+    const store = useSessionStore();
+    store.connectAgentEvents();
+    await store.prompt("Run it", session.id);
+
+    for (const toolCallId of ["first", "second"]) {
+      listener?.({
+        type: "tool-start",
+        sessionId: session.id,
+        toolCallId,
+        toolName: "mcpScript",
+      });
+    }
+    listener?.({
+      type: "tool-review",
+      sessionId: session.id,
+      toolCallId: "nested-approval",
+      toolName: "canvas-api_submit_assignment",
+      state: "reviewing",
+    });
+
+    expect(store.reviewingToolCallIds.has("first")).toBe(false);
+    expect(store.reviewingToolCallIds.has("second")).toBe(false);
+    expect(
+      store.messages.every((message) =>
+        message.blocks.every(
+          (block) => block.type !== "toolCall" || !block.toolCall.approval,
+        ),
+      ),
+    ).toBe(true);
+  });
+
   it("reclassifies a sandbox-denied tool result as a denial", async () => {
     let listener: ((event: PineAgentEvent) => void) | undefined;
     Object.defineProperty(window, "pine", {

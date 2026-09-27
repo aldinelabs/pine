@@ -316,6 +316,56 @@ describe("concurrent session state", () => {
     });
   });
 
+  it("keeps nested MCP approvals attached to their parent across tab switches", async () => {
+    const { store, emit } = fixture();
+    for (const summary of [a, b]) {
+      await store.resume(summary.id);
+      emit({
+        type: "tool-start",
+        sessionId: summary.id,
+        toolCallId: "script",
+        toolName: "mcpScript",
+      });
+      emit({
+        type: "tool-review",
+        sessionId: summary.id,
+        toolCallId: "nested",
+        toolName: "remote_tool",
+        state: "reviewing",
+      });
+    }
+    await store.resume(a.id);
+    expect(store.reviewingToolCallIds.has("script")).toBe(true);
+    emit({
+      type: "approval-request",
+      sessionId: a.id,
+      requestId: "approval-a",
+      toolCallId: "nested",
+      toolName: "remote_tool",
+      trigger: "pre-execution",
+    });
+    expect(store.pendingApprovals[0]?.toolCallId).toBe("script");
+    await store.resume(b.id);
+    emit({
+      type: "approval-decided",
+      sessionId: a.id,
+      requestId: "approval-a",
+      toolCallId: "nested",
+      verdict: "denied",
+      decidedBy: "user",
+    });
+    expect(store.reviewingToolCallIds.has("script")).toBe(true);
+    const backgroundBlock = store.stateFor(a.id).messages[0]?.blocks[0];
+    expect(
+      backgroundBlock?.type === "toolCall" && backgroundBlock.toolCall.approval,
+    ).toEqual({ state: "denied", decidedBy: "user" });
+    emit({ type: "run-state", sessionId: a.id, state: "idle" });
+    expect(store.reviewingToolCallIds.has("script")).toBe(true);
+    await store.resume(a.id);
+    expect(store.pendingApprovals).toEqual([]);
+    expect(store.reviewingToolCallIds.size).toBe(0);
+  });
+
   it("retains a closed running view and clears only its interactions when it fails", async () => {
     const { store, emit } = fixture();
     await store.resume(a.id);
