@@ -505,6 +505,11 @@ function createEngine(props: MessageScrollerProviderProps) {
   let spacer: HTMLElement | null = null;
   let spacerGap = 0;
   let spacerHeight = 0;
+  let spacerAnchor: {
+    align: MessageScrollerScrollAlign;
+    element: HTMLElement;
+    scrollMargin: number;
+  } | null = null;
   let mode: Mode = autoScroll() ? "following-bottom" : "free-scrolling";
   let streamingTurn: HTMLElement | null = null;
   let firstItem: HTMLElement | null = null;
@@ -558,6 +563,7 @@ function createEngine(props: MessageScrollerProviderProps) {
       mode !== "anchored-to-message"
     ) {
       mode = "following-bottom";
+      clearSpacer();
     } else if (
       mode === "following-bottom" &&
       next.end &&
@@ -641,6 +647,11 @@ function createEngine(props: MessageScrollerProviderProps) {
     }
   }
 
+  function clearSpacer() {
+    setSpacerHeight(0);
+    spacerAnchor = null;
+  }
+
   function scrollTo(
     top: number,
     {
@@ -682,7 +693,7 @@ function createEngine(props: MessageScrollerProviderProps) {
   }: { behavior?: ScrollBehavior } = {}): boolean {
     if (!viewport) return false;
     setProgrammaticScroll(false);
-    setSpacerHeight(0);
+    clearSpacer();
     streamingTurn = null;
     mode = "free-scrolling";
     scrollTo(0, { behavior });
@@ -696,7 +707,7 @@ function createEngine(props: MessageScrollerProviderProps) {
   }: { behavior?: ScrollBehavior; animated?: boolean } = {}): boolean {
     if (!viewport) return false;
     setProgrammaticScroll(false);
-    setSpacerHeight(0);
+    clearSpacer();
     streamingTurn = null;
     mode = autoScroll() ? "following-bottom" : "free-scrolling";
     scrollTo(maxScrollTop(viewport), {
@@ -717,22 +728,17 @@ function createEngine(props: MessageScrollerProviderProps) {
     scrollToEnd({ behavior: "auto", animated: true });
   }
 
-  function scrollToElement(
-    element: HTMLElement,
-    {
-      align = "start",
-      behavior = "auto",
-      scrollMargin: margin = scrollMargin(),
-    }: MessageScrollerScrollOptions = {},
-    { keepPreviousPeek = false }: { keepPreviousPeek?: boolean } = {},
-  ): boolean {
-    if (!content || !viewport || !content.contains(element)) return false;
+  function updateSpacerForAnchor(): number | null {
+    if (!spacerAnchor || !content || !viewport) return null;
+    const { align, element, scrollMargin: margin } = spacerAnchor;
+    if (!content.contains(element)) {
+      clearSpacer();
+      return null;
+    }
     const targetScrollTop = computeScrollTopForElement({
       align,
       element,
-      scrollMargin: keepPreviousPeek
-        ? margin + scrollPreviousItemPeek()
-        : margin,
+      scrollMargin: margin,
       spacer,
       viewport,
     });
@@ -744,13 +750,32 @@ function createEngine(props: MessageScrollerProviderProps) {
         viewport,
       }),
     );
-    // The content measurement excludes the spacer, but the browser's actual
-    // scroll range can differ (for example when the content has a min-height).
-    // Keep the requested anchor at the end of that range without leaving
-    // additional space below it.
-    if (spacerHeight > 0) {
+    // Reconcile the estimate with the browser's actual scroll range.
+    if (spacerHeight > 0)
       setSpacerHeight(spacerHeight + targetScrollTop - maxScrollTop(viewport));
-    }
+    if (spacerHeight === 0) spacerAnchor = null;
+    return targetScrollTop;
+  }
+
+  function scrollToElement(
+    element: HTMLElement,
+    {
+      align = "start",
+      behavior = "auto",
+      scrollMargin: margin = scrollMargin(),
+    }: MessageScrollerScrollOptions = {},
+    { keepPreviousPeek = false }: { keepPreviousPeek?: boolean } = {},
+  ): boolean {
+    if (!content || !viewport || !content.contains(element)) return false;
+    spacerAnchor = {
+      align,
+      element,
+      scrollMargin: keepPreviousPeek
+        ? margin + scrollPreviousItemPeek()
+        : margin,
+    };
+    const targetScrollTop = updateSpacerForAnchor();
+    if (targetScrollTop === null) return false;
     viewportAnchor = {
       element,
       viewportTop: getRelativeTop(element, viewport),
@@ -1003,6 +1028,9 @@ function createEngine(props: MessageScrollerProviderProps) {
         scrollToEnd({ behavior: "auto", animated: true });
       return;
     }
+    // User scroll intent releases the held viewport position, but the reply
+    // must still consume the remaining tail space as it grows.
+    if (spacerHeight > 0) updateSpacerForAnchor();
     // Markdown, syntax highlighting, fonts, and media may settle after the
     // scroll event. Preserve the first visible message across those async
     // height changes instead of relying on browser scroll anchoring heuristics.
@@ -1105,6 +1133,7 @@ function createEngine(props: MessageScrollerProviderProps) {
     ) {
       streamingTurn = null;
       mode = "following-bottom";
+      clearSpacer();
       lastScrollTop = viewport.scrollTop;
       setAutoscrolling(false);
       return;

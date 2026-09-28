@@ -253,6 +253,38 @@ describe("message scroller user intent", () => {
     scroller.destroy();
   });
 
+  it("keeps shrinking the spacer after the reader scrolls away from the anchor", () => {
+    const scroller = createAnchoredScroller();
+    scroller.startTurn();
+    scroller.context.userScrollIntent("start");
+    scroller.viewport.scrollTop = 1800;
+    scroller.context.syncAfterScroll();
+
+    scroller.grow(100);
+    expect(scroller.viewport.scrollTop).toBe(1800);
+    expect(scroller.spacer.style.height).toBe("286px");
+
+    scroller.grow(300);
+    expect(scroller.viewport.scrollTop).toBe(1800);
+    expect(scroller.spacer.hidden).toBe(true);
+
+    scroller.destroy();
+  });
+
+  it("clears the spacer when the reader returns to the live edge", () => {
+    const scroller = createAnchoredScroller();
+    scroller.startTurn();
+    scroller.context.userScrollIntent("start");
+    scroller.viewport.scrollTop = 1800;
+    scroller.context.syncAfterScroll();
+
+    scroller.viewport.scrollTop = 1936;
+    scroller.context.syncAfterScroll();
+
+    expect(scroller.spacer.hidden).toBe(true);
+    scroller.destroy();
+  });
+
   it("removes excess scroll range below a newly anchored message", () => {
     const scroller = createAnchoredScroller(64);
     scroller.startTurn();
