@@ -95,10 +95,10 @@ function alignment(align?: "left" | "right" | "center"): string {
   white-space: inherit;
 }
 
-/* MarkdownContent allows anywhere wrapping for long prose. Inline code in
-   tables must opt out directly so long paths keep their intrinsic width. */
+/* Keep code wrapping at normal line-break opportunities (such as path
+   separators) without inheriting MarkdownContent's anywhere wrapping. */
 .markdown-table :deep(code.inline-code) {
-  white-space: nowrap;
+  white-space: normal;
   overflow-wrap: normal;
   word-break: normal;
 }
