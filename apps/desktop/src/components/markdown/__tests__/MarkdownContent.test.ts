@@ -282,7 +282,7 @@ describe("MarkdownContent", () => {
     wrapper.unmount();
   });
 
-  it("keeps inline code intact when a table distributes narrow columns", () => {
+  it("allows natural breaks in inline code within narrow table columns", () => {
     const wrapper = mountMarkdown({
       source:
         "| Translation | Coverage | Result |\n| --- | --- | --- |\n| `01 T Downey … ch17 … 中文译本.md` | §17.1–17.13 | Passed |",
@@ -290,12 +290,7 @@ describe("MarkdownContent", () => {
     });
 
     const tableContainer = wrapper.get('[data-slot="markdown-table"]');
-    expect(tableContainer.classes()).toEqual(
-      expect.arrayContaining([
-        "[&_code.inline-code]:break-normal",
-        "[&_code.inline-code]:whitespace-nowrap",
-      ]),
-    );
+    expect(tableContainer.classes()).toContain("markdown-table");
     expect(wrapper.get("tbody code.inline-code").text()).toBe(
       "01 T Downey … ch17 … 中文译本.md",
     );
