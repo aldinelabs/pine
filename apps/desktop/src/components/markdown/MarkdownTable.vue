@@ -30,7 +30,7 @@ function alignment(align?: "left" | "right" | "center"): string {
 <template>
   <div
     data-slot="markdown-table"
-    class="my-6 overflow-hidden rounded-lg [&_code.inline-code]:break-normal [&_code.inline-code]:whitespace-nowrap"
+    class="markdown-table my-6 overflow-hidden rounded-lg"
   >
     <Table>
       <TableHeader class="bg-muted">
@@ -93,5 +93,13 @@ function alignment(align?: "left" | "right" | "center"): string {
 
 .table-cell-content :deep(.text-node) {
   white-space: inherit;
+}
+
+/* MarkdownContent allows anywhere wrapping for long prose. Inline code in
+   tables must opt out directly so long paths keep their intrinsic width. */
+.markdown-table :deep(code.inline-code) {
+  white-space: nowrap;
+  overflow-wrap: normal;
+  word-break: normal;
 }
 </style>
