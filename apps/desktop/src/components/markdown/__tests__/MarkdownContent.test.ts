@@ -27,7 +27,10 @@ const alertDialogCancelStub = {
 
 function mountMarkdown(props: { source: string; final?: boolean } | string) {
   return mount(MarkdownContent, {
-    props: typeof props === "string" ? { source: props } : props,
+    props:
+      typeof props === "string"
+        ? { source: props, final: true }
+        : { final: true, ...props },
     global: {
       plugins: [createAppI18n("zh-CN")],
       stubs: {
@@ -113,16 +116,21 @@ describe("MarkdownContent", () => {
     wrapper.unmount();
   });
 
-  it("renders safe raw HTML and removes unsafe tags", () => {
+  it("renders safe raw HTML and removes unsafe tags", async () => {
     const wrapper = mountMarkdown(
       [
-        "<details><summary>参考答案</summary><ol><li><code>pygame.Surface</code></li></ol></details>",
+        '<details><summary>参考答案</summary><ol><li><code>pygame.Surface</code></li></ol><img src="https://example.com/x.png" onerror="alert(2)"></details>',
         '<script data-test="unsafe">alert(1)</script>',
       ].join("\n\n"),
     );
+    await flushPromises();
 
     expect(wrapper.get("details summary").text()).toBe("参考答案");
     expect(wrapper.get("details ol li code").text()).toBe("pygame.Surface");
+    expect(wrapper.get("details img").attributes("src")).toBe(
+      "https://example.com/x.png",
+    );
+    expect(wrapper.get("details img").attributes("onerror")).toBeUndefined();
     expect(wrapper.find("script").exists()).toBe(false);
     expect(wrapper.text()).not.toContain("alert(1)");
   });
@@ -266,12 +274,13 @@ describe("MarkdownContent", () => {
     expect(wrapper.find('button[aria-label="复制代码"]').exists()).toBe(true);
   });
 
-  it("renders rich Markdown and column alignment in shadcn table cells", () => {
+  it("renders rich Markdown and column alignment in shadcn table cells", async () => {
     const wrapper = mountMarkdown({
       source:
-        "| Name | Count | Details |\n| :--- | ---: | :---: |\n| **Pine** | 2 | [Docs](https://example.com) and `code` |\n| <img src=x onerror=alert(1)> | 3 | Plain text |",
+        "| Name | Count | Details |\n| :--- | ---: | :---: |\n| **Pine** | 2 | [Docs](https://example.com) and `code` |\n| ![alt](https://example.com/x.png) | 3 | Plain text |",
       final: true,
     });
+    await flushPromises();
 
     const table = wrapper.get('[data-slot="table"]');
     expect(table.findAll("th").map((cell) => cell.text())).toEqual([
@@ -282,7 +291,7 @@ describe("MarkdownContent", () => {
     expect(table.get("strong").text()).toBe("Pine");
     expect(table.get("code").text()).toBe("code");
     expect(table.get("a").attributes("target")).toBe("_blank");
-    expect(table.get("img").attributes("src")).toBe("x");
+    expect(table.get("img").attributes("alt")).toBe("alt");
     expect(table.get("img").attributes("onerror")).toBeUndefined();
     wrapper.unmount();
   });
