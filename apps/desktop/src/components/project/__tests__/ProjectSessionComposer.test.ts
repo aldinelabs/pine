@@ -10,11 +10,13 @@ import {
 import type { PineThinkingLevel } from "@/shared/models";
 import { useModelsStore } from "@/stores/models";
 import type { PinePendingApproval } from "@/stores/session";
+import ProjectApprovalCard from "../ProjectApprovalCard.vue";
 import ProjectSessionComposer from "../ProjectSessionComposer.vue";
 
 interface ComposerProps {
   approvalMode?: "let-me-review" | "auto-approve" | "autonomous" | "YOLO";
   isRunning?: boolean;
+  isActive?: boolean;
   pendingApproval?: PinePendingApproval | null;
   steeringMessages?: readonly string[];
 }
@@ -579,5 +581,65 @@ describe("ProjectSessionComposer", () => {
       `before ${pastedText}after`,
     );
     expect(wrapper.emitted("update:attachments")).toBeUndefined();
+  });
+  it("gives consecutive approval cards independent guidance and response state", async () => {
+    const approval: PinePendingApproval = {
+      requestId: "first",
+      toolCallId: "tool-1",
+      toolName: "bash",
+      trigger: "pre-execution",
+    };
+    const wrapper = mountComposer(
+      { pendingApproval: approval },
+      "high",
+      "en-US",
+    );
+    const firstCard = wrapper.getComponent(ProjectApprovalCard);
+    await firstCard
+      .findAll("button")
+      .find((button) => button.text().includes("Reject with guidance"))!
+      .trigger("click");
+    await firstCard.get("input").setValue("Use another command");
+    await firstCard.get("input").trigger("keydown", { key: "Enter" });
+    expect(wrapper.emitted("respond")?.[0]).toEqual([
+      "guide",
+      "Use another command",
+    ]);
+    await wrapper.setProps({
+      pendingApproval: {
+        ...approval,
+        requestId: "second",
+        toolCallId: "tool-2",
+      },
+    });
+    const secondCard = wrapper.getComponent(ProjectApprovalCard);
+    expect(secondCard.vm).not.toBe(firstCard.vm);
+    expect(secondCard.find("input").exists()).toBe(false);
+    await secondCard
+      .findAll("button")
+      .find((button) => button.text().includes("Approve"))!
+      .trigger("click");
+    expect(wrapper.emitted("respond")?.[1]).toEqual(["approve", undefined]);
+    wrapper.unmount();
+  });
+
+  it("ignores approval shortcuts in a hidden tab", async () => {
+    const approval: PinePendingApproval = {
+      requestId: "first",
+      toolCallId: "tool-1",
+      toolName: "bash",
+      trigger: "pre-execution",
+    };
+    const wrapper = mountComposer(
+      { pendingApproval: approval, isActive: false },
+      "high",
+      "en-US",
+    );
+    window.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter" }));
+    expect(wrapper.emitted("respond")).toBeUndefined();
+    await wrapper.setProps({ isActive: true });
+    window.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter" }));
+    expect(wrapper.emitted("respond")?.[0]).toEqual(["approve", undefined]);
+    wrapper.unmount();
   });
 });

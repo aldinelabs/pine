@@ -1,5 +1,6 @@
 import type {
   AbortSessionResult,
+  SessionControlRequest,
   CompactSessionResult,
   DequeueSteeringRequest,
   DequeueSteeringResult,
@@ -217,11 +218,13 @@ export interface PineDesktopApi extends PineWindowApi {
   readPresentedFilePreview: (
     request: PresentedFilePreviewRequest,
   ) => Promise<ProjectFilePreview>;
-  abortSession: () => Promise<AbortSessionResult>;
+  abortSession: (request: SessionControlRequest) => Promise<AbortSessionResult>;
   attachSession: (
     request: AttachSessionRequest,
   ) => Promise<AttachSessionResult>;
-  compactSession: () => Promise<CompactSessionResult>;
+  compactSession: (
+    request: SessionControlRequest,
+  ) => Promise<CompactSessionResult>;
   dequeueSteering: (
     request: DequeueSteeringRequest,
   ) => Promise<DequeueSteeringResult>;

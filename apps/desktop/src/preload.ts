@@ -16,6 +16,7 @@ import {
   SET_APPROVAL_MODE_CHANNEL,
   SESSION_EVENT_CHANNEL,
   type AbortSessionResult,
+  type SessionControlRequest,
   type CompactSessionResult,
   type DequeueSteeringRequest,
   type DequeueSteeringResult,
@@ -229,14 +230,16 @@ const pineApi: PineDesktopApi = {
     request: SetSidebarVibrancyRequest,
   ): Promise<SetSidebarVibrancyResult> =>
     ipcRenderer.invoke(SET_SIDEBAR_VIBRANCY_CHANNEL, request),
-  abortSession: (): Promise<AbortSessionResult> =>
-    ipcRenderer.invoke(ABORT_SESSION_CHANNEL),
+  abortSession: (request: SessionControlRequest): Promise<AbortSessionResult> =>
+    ipcRenderer.invoke(ABORT_SESSION_CHANNEL, request),
   attachSession: (
     request: AttachSessionRequest,
   ): Promise<AttachSessionResult> =>
     ipcRenderer.invoke(ATTACH_SESSION_CHANNEL, request),
-  compactSession: (): Promise<CompactSessionResult> =>
-    ipcRenderer.invoke(COMPACT_SESSION_CHANNEL),
+  compactSession: (
+    request: SessionControlRequest,
+  ): Promise<CompactSessionResult> =>
+    ipcRenderer.invoke(COMPACT_SESSION_CHANNEL, request),
   dequeueSteering: (
     request: DequeueSteeringRequest,
   ): Promise<DequeueSteeringResult> =>

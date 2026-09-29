@@ -633,7 +633,7 @@ const PromptSessionRequestSchema = z.object({
     .enum(["let-me-review", "auto-approve", "autonomous", "YOLO"])
     .optional(),
 });
-const DequeueSteeringRequestSchema = z.object({
+const DequeueSteeringRequestSchema = SessionIdRequestSchema.extend({
   message: z.string().min(1).max(100_000),
 });
 const RespondApprovalRequestSchema = z.object({
@@ -656,7 +656,7 @@ const RespondQuestionnaireRequestSchema = z.object({
       .max(4),
   }),
 });
-const SetApprovalModeRequestSchema = z.object({
+const SetApprovalModeRequestSchema = SessionIdRequestSchema.extend({
   approvalMode: z.enum(["let-me-review", "auto-approve", "autonomous", "YOLO"]),
 });
 const SetContextCompactionStrategyRequestSchema = z.object({
@@ -2269,29 +2269,44 @@ ipcMain.handle(
 
 ipcMain.handle(
   ABORT_SESSION_CHANNEL,
-  async (event): Promise<AbortSessionResult> =>
-    getProjectRuntimes().abort(event.sender.id),
+  async (event, request: unknown): Promise<AbortSessionResult> =>
+    getProjectRuntimes().abort(
+      event.sender.id,
+      SessionIdRequestSchema.parse(request).sessionId,
+    ),
 );
 
 ipcMain.handle(
   COMPACT_SESSION_CHANNEL,
-  async (event): Promise<CompactSessionResult> =>
-    getProjectRuntimes().compact(event.sender.id),
+  async (event, request: unknown): Promise<CompactSessionResult> =>
+    getProjectRuntimes().compact(
+      event.sender.id,
+      SessionIdRequestSchema.parse(request).sessionId,
+    ),
 );
 
 ipcMain.handle(
   DEQUEUE_STEERING_CHANNEL,
   async (event, request: unknown): Promise<DequeueSteeringResult> => {
-    const { message } = DequeueSteeringRequestSchema.parse(request);
-    return getProjectRuntimes().dequeueSteering(event.sender.id, message);
+    const { message, sessionId } = DequeueSteeringRequestSchema.parse(request);
+    return getProjectRuntimes().dequeueSteering(
+      event.sender.id,
+      message,
+      sessionId,
+    );
   },
 );
 
 ipcMain.handle(
   SET_APPROVAL_MODE_CHANNEL,
   async (event, request: unknown): Promise<SetApprovalModeResult> => {
-    const { approvalMode } = SetApprovalModeRequestSchema.parse(request);
-    return getProjectRuntimes().setApprovalMode(event.sender.id, approvalMode);
+    const { approvalMode, sessionId } =
+      SetApprovalModeRequestSchema.parse(request);
+    return getProjectRuntimes().setApprovalMode(
+      event.sender.id,
+      approvalMode,
+      sessionId,
+    );
   },
 );
 
@@ -2446,17 +2461,31 @@ async function initializeApp(): Promise<void> {
         agentEvent.summary,
       );
     } else if (agentEvent.type === "approval-request") {
-      projectRuntimes?.trackApproval(agentEvent.requestId, ownerId);
+      projectRuntimes?.trackApproval(
+        agentEvent.requestId,
+        ownerId,
+        agentEvent.sessionId,
+      );
       requestApprovalAttention(ownerId);
     } else if (agentEvent.type === "approval-decided") {
       projectRuntimes?.forgetApproval(agentEvent.requestId);
       clearApprovalAttention();
     } else if (agentEvent.type === "questionnaire-request") {
-      projectRuntimes?.trackQuestionnaire(agentEvent.requestId, ownerId);
+      projectRuntimes?.trackQuestionnaire(
+        agentEvent.requestId,
+        ownerId,
+        agentEvent.sessionId,
+      );
       requestApprovalAttention(ownerId);
     } else if (agentEvent.type === "questionnaire-decided") {
       projectRuntimes?.forgetQuestionnaire(agentEvent.requestId);
       clearApprovalAttention();
+    }
+    if (
+      agentEvent.type === "run-state" &&
+      (agentEvent.state === "idle" || agentEvent.state === "failed")
+    ) {
+      projectRuntimes?.clearSessionInteractions(agentEvent.sessionId);
     }
     webContents.fromId(ownerId)?.send(SESSION_EVENT_CHANNEL, agentEvent);
   });

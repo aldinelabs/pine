@@ -48,7 +48,11 @@ export interface RespondApprovalRequest {
   guidance?: string;
 }
 
-export interface SetApprovalModeRequest {
+export interface SessionControlRequest {
+  sessionId: string;
+}
+
+export interface SetApprovalModeRequest extends SessionControlRequest {
   approvalMode: PineApprovalMode;
 }
 
@@ -313,7 +317,7 @@ export interface CompactSessionResult {
   compacted: boolean;
 }
 
-export interface DequeueSteeringRequest {
+export interface DequeueSteeringRequest extends SessionControlRequest {
   message: string;
 }
 

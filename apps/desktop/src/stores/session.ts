@@ -1,5 +1,5 @@
 import { acceptHMRUpdate, defineStore } from "pinia";
-import { ref, shallowRef } from "vue";
+import { computed, reactive, ref, shallowRef, toRefs } from "vue";
 import {
   isSandboxDeniedPayload,
   type PineAgentEvent,
@@ -234,21 +234,17 @@ function compactionMessage(
   };
 }
 
-export const useSessionStore = defineStore("session", () => {
-  const modelsStore = useModelsStore();
+function createSessionState() {
   const activeSession = shallowRef<PineSessionSummary | null>(null);
   const messages = ref<PineTranscriptMessage[]>([]);
   const outlineMessages = ref<PineTranscriptMessage[]>([]);
-  const recentSessions = shallowRef<SessionSearchResult[]>([]);
-  const searchResults = shallowRef<SessionSearchResult[]>([]);
-  const isLoadingRecent = ref(false);
-  const isSearching = ref(false);
   const isLoadingMessages = ref(false);
   const isRunning = ref(false);
   const contextUsage = ref<PineContextUsage | null>(null);
   const pendingApprovals = ref<PinePendingApproval[]>([]);
   const pendingQuestionnaires = ref<PinePendingQuestionnaire[]>([]);
   const steeringMessages = ref<string[]>([]);
+  const respondingRequestIds = ref<ReadonlySet<string>>(new Set());
   /** Tool calls currently held by the auto-reviewer (auto-approve). */
   const reviewingToolCallIds = ref<ReadonlySet<string>>(new Set());
   const hasEarlierMessages = ref(false);
@@ -308,64 +304,103 @@ export const useSessionStore = defineStore("session", () => {
     toolCallMessageIndexes.clear();
   }
 
-  // Each open session keeps its own transcript slice so switching tabs never
-  // clobbers a sibling's loaded messages or forces a re-fetch. `messages` (
-  // active projection) points at the focused session's array; keeping the same
-  // array reference across restores lets KeepAlive'd views diff minimally.
-  interface CachedSession {
-    summary: PineSessionSummary | null;
-    messages: PineTranscriptMessage[];
-    outlineMessages: PineTranscriptMessage[];
-    contextUsage: PineContextUsage | null;
-    steeringMessages: string[];
-    hasEarlierMessages: boolean;
-    nextBefore?: string;
-  }
-  const sessionCache = new Map<string, CachedSession>();
-  const staleSessions = new Set<string>();
-  const sessionRunStates = new Map<string, boolean>();
-
-  /** Snapshot the active transcript projection into the session cache. */
-  function syncSessionCache(sessionId: string): void {
-    if (!sessionId) return;
-    sessionCache.set(sessionId, {
-      summary: activeSession.value,
-      messages: messages.value,
-      outlineMessages: outlineMessages.value,
-      contextUsage: contextUsage.value,
-      steeringMessages: steeringMessages.value,
-      hasEarlierMessages: hasEarlierMessages.value,
-      nextBefore: nextBefore.value,
-    });
-  }
-
-  /** Drop a session's cached transcript (e.g. when it is closed/deleted). */
-  function dropSessionCache(sessionId: string): void {
-    sessionCache.delete(sessionId);
-    staleSessions.delete(sessionId);
-    sessionRunStates.delete(sessionId);
-  }
-
-  /** Merge transient runtime or approval details into one visible tool call. */
   function patchToolCall(
     toolCallId: string,
     patch: Partial<PineToolCall>,
   ): void {
-    const messageIndex = toolCallMessageIndexFor(toolCallId);
-    if (messageIndex < 0) return;
-    const message = messages.value[messageIndex];
-    messages.value[messageIndex] = {
+    const index = toolCallMessageIndexFor(toolCallId);
+    if (index < 0) return;
+    const message = messages.value[index];
+    messages.value[index] = {
       ...message,
       blocks: mergeToolCallBlocks(message.blocks, toolCallId, patch),
     };
   }
-  let currentSessionId: string | null = null;
-  let historyLoad: { sessionId: string; promise: Promise<void> } | null = null;
+  return reactive({
+    summary: activeSession,
+    messages,
+    outlineMessages,
+    isLoadingMessages,
+    isRunning,
+    contextUsage,
+    pendingApprovals,
+    pendingQuestionnaires,
+    steeringMessages,
+    reviewingToolCallIds,
+    respondingRequestIds,
+    hasEarlierMessages,
+    nextBefore,
+    messageIndexFor,
+    toolCallMessageIndexFor,
+    rememberMessageIndex,
+    clearMessageIndexes,
+    patchToolCall,
+    historyLoaded: false,
+    historyLoad: null as Promise<void> | null,
+  });
+}
+
+type SessionState = ReturnType<typeof createSessionState>;
+
+export const useSessionStore = defineStore("session", () => {
+  const modelsStore = useModelsStore();
+  const recentSessions = shallowRef<SessionSearchResult[]>([]);
+  const searchResults = shallowRef<SessionSearchResult[]>([]);
+  const isLoadingRecent = ref(false);
+  const isSearching = ref(false);
+  const currentSessionId = ref<string | null>(null);
+  const draftState = ref(createSessionState());
+  const sessionCache = reactive(new Map<string, SessionState>());
+
+  function stateFor(sessionId: string): SessionState {
+    let state = sessionCache.get(sessionId);
+    if (!state) {
+      state = createSessionState();
+      sessionCache.set(sessionId, state);
+    }
+    return state;
+  }
+
+  const activeState = computed(() =>
+    currentSessionId.value
+      ? stateFor(currentSessionId.value)
+      : draftState.value,
+  );
+  function projection<K extends keyof SessionState>(key: K) {
+    return computed({
+      get: () => activeState.value[key],
+      set: (value: SessionState[K]) => {
+        activeState.value[key] = value;
+      },
+    });
+  }
+  const activeSession = projection("summary");
+  const messages = projection("messages");
+  const outlineMessages = projection("outlineMessages");
+  const isLoadingMessages = projection("isLoadingMessages");
+  const isRunning = projection("isRunning");
+  const contextUsage = projection("contextUsage");
+  const pendingApprovals = projection("pendingApprovals");
+  const pendingQuestionnaires = projection("pendingQuestionnaires");
+  const steeringMessages = projection("steeringMessages");
+  const reviewingToolCallIds = projection("reviewingToolCallIds");
+  const hasEarlierMessages = projection("hasEarlierMessages");
+  function dropSessionCache(sessionId: string): void {
+    // Closing a view must not discard a running session or its interaction queue.
+    const state = sessionCache.get(sessionId);
+    if (
+      state &&
+      !state.isRunning &&
+      !state.pendingApprovals.length &&
+      !state.pendingQuestionnaires.length
+    )
+      sessionCache.delete(sessionId);
+  }
   let stopAgentEvents: (() => void) | null = null;
   let searchSequence = 0;
   let recentSequence = 0;
   let activationSequence = 0;
-  let isStartingPrompt = false;
+  let projectEpoch = 0;
 
   function mergeSessionSummary(
     session: PineSessionSummary,
@@ -435,128 +470,98 @@ export const useSessionStore = defineStore("session", () => {
 
   async function resume(sessionId: string): Promise<PineSessionSummary> {
     const sequence = ++activationSequence;
-    currentSessionId = sessionId;
-    isStartingPrompt = false;
-
-    // Restore the cached transcript without re-fetching so switching back to a
-    // tab keeps its messages (same array reference) and never reloads.
-    const cached = sessionCache.get(sessionId);
-    if (cached && cached.summary) {
-      activeSession.value = cached.summary;
-      messages.value = cached.messages;
-      outlineMessages.value = cached.outlineMessages;
-      clearMessageIndexes();
-      contextUsage.value = cached.contextUsage;
-      steeringMessages.value = cached.steeringMessages;
-      isLoadingMessages.value = false;
-      hasEarlierMessages.value = cached.hasEarlierMessages;
-      nextBefore.value = cached.nextBefore;
-      isRunning.value = sessionRunStates.get(sessionId) ?? false;
-      if (staleSessions.has(sessionId)) {
-        staleSessions.delete(sessionId);
-        await loadInitialMessages(sessionId);
-      }
-      return cached.summary;
-    }
-
-    activeSession.value = null;
-    messages.value = [];
-    outlineMessages.value = [];
-    clearMessageIndexes();
-    hasEarlierMessages.value = false;
-    nextBefore.value = undefined;
-    contextUsage.value = null;
-    steeringMessages.value = [];
-    isLoadingMessages.value = true;
-
+    const epoch = projectEpoch;
+    const state = stateFor(sessionId);
+    currentSessionId.value = sessionId;
+    if (state.summary && state.historyLoaded) return state.summary;
+    state.isLoadingMessages = true;
     try {
       const result = await window.pine.resumeSession({ sessionId });
-      const session = upsertRecentSession(result.session);
-      if (sequence !== activationSequence) return result.session;
-
-      modelsStore.setSessionSelection(session.id, session.modelSelection);
-      activeSession.value = session;
-      currentSessionId = session.id;
-      isRunning.value = sessionRunStates.get(session.id) ?? false;
-      contextUsage.value = result.contextUsage ?? null;
-      await loadInitialMessages(session.id);
-      return session;
+      if (epoch !== projectEpoch) return result.session;
+      const summary = upsertRecentSession(result.session);
+      state.summary = mergeSessionSummary(summary, state.summary ?? undefined);
+      modelsStore.setSessionSelection(sessionId, summary.modelSelection);
+      state.contextUsage = state.contextUsage ?? result.contextUsage ?? null;
+      await loadInitialMessages(sessionId);
+      return state.summary;
     } catch (error) {
-      if (sequence === activationSequence) {
-        currentSessionId = null;
-        isLoadingMessages.value = false;
-      }
+      if (sequence === activationSequence) currentSessionId.value = null;
       throw error;
+    } finally {
+      state.isLoadingMessages = false;
     }
   }
 
+  function mergeHistory(
+    source: readonly PineTextMessage[],
+    live: PineTranscriptMessage[],
+  ): PineTranscriptMessage[] {
+    const byId = new Map(
+      toTranscriptMessages(source).map((message) => [message.id, message]),
+    );
+    for (const message of live) byId.set(message.id, message);
+    return [...byId.values()];
+  }
+
   async function loadInitialMessages(sessionId: string): Promise<void> {
-    isLoadingMessages.value = true;
+    const state = stateFor(sessionId);
+    if (state.historyLoaded) return;
+    if (state.historyLoad) return state.historyLoad;
+    state.isLoadingMessages = true;
     const request = (async () => {
       const result = await window.pine.loadSessionMessages({
         includeOutline: true,
         sessionId,
         limit: 50,
       });
-      if (currentSessionId !== sessionId) return;
-      messages.value = toTranscriptMessages(result.messages);
-      outlineMessages.value = toTranscriptMessages(
+      state.messages = mergeHistory(result.messages, state.messages);
+      state.outlineMessages = mergeHistory(
         result.outline ?? result.messages,
+        state.outlineMessages,
       );
-      clearMessageIndexes();
-      hasEarlierMessages.value = result.hasMore;
-      nextBefore.value = result.nextBefore;
-      syncSessionCache(sessionId);
+      state.clearMessageIndexes();
+      state.hasEarlierMessages = result.hasMore;
+      state.nextBefore = result.nextBefore;
+      state.historyLoaded = true;
     })();
-    historyLoad = { sessionId, promise: request };
+    state.historyLoad = request;
     try {
       await request;
     } finally {
-      if (historyLoad?.promise === request) historyLoad = null;
-      if (currentSessionId === sessionId) isLoadingMessages.value = false;
+      state.historyLoad = null;
+      state.isLoadingMessages = false;
     }
   }
 
-  function loadEarlierMessages(): Promise<void> {
-    const sessionId = currentSessionId;
-    if (sessionId && historyLoad?.sessionId === sessionId) {
-      return historyLoad.promise;
-    }
-    if (!sessionId || !hasEarlierMessages.value || !nextBefore.value) {
+  function loadEarlierMessages(
+    sessionId = currentSessionId.value,
+  ): Promise<void> {
+    if (!sessionId) return Promise.resolve();
+    const state = stateFor(sessionId);
+    if (state.historyLoad) return state.historyLoad;
+    if (!state.hasEarlierMessages || !state.nextBefore)
       return Promise.resolve();
-    }
-
-    isLoadingMessages.value = true;
-    const before = nextBefore.value;
+    const before = state.nextBefore;
+    state.isLoadingMessages = true;
     const request = (async () => {
       const result = await window.pine.loadSessionMessages({
         before,
         sessionId,
         limit: 50,
       });
-      if (currentSessionId !== sessionId) return;
-      const earlierMessages = toTranscriptMessages(result.messages);
-      messages.value = [...earlierMessages, ...messages.value];
-      const existingOutlineIds = new Set(
-        outlineMessages.value.map((message) => message.id),
+      state.messages = mergeHistory(result.messages, state.messages);
+      state.outlineMessages = mergeHistory(
+        result.messages,
+        state.outlineMessages,
       );
-      outlineMessages.value = [
-        ...earlierMessages.filter(
-          (message) => !existingOutlineIds.has(message.id),
-        ),
-        ...outlineMessages.value,
-      ];
-      clearMessageIndexes();
-      hasEarlierMessages.value = result.hasMore;
-      nextBefore.value = result.nextBefore;
-      syncSessionCache(sessionId);
+      state.clearMessageIndexes();
+      state.hasEarlierMessages = result.hasMore;
+      state.nextBefore = result.nextBefore;
     })();
-    historyLoad = { sessionId, promise: request };
+    state.historyLoad = request;
     return request.finally(() => {
-      if (historyLoad?.promise === request) {
-        historyLoad = null;
-        if (currentSessionId === sessionId) isLoadingMessages.value = false;
-      }
+      state.historyLoad = null;
+      state.isLoadingMessages = false;
     });
   }
 
@@ -566,10 +571,10 @@ export const useSessionStore = defineStore("session", () => {
     approvalMode?: PineApprovalMode,
     streamingBehavior?: "follow-up" | "steer",
   ): Promise<PineSessionSummary> {
-    const sequence = ++activationSequence;
-    currentSessionId = sessionId ?? null;
-    isStartingPrompt = sessionId === undefined;
-    isRunning.value = true;
+    const sequence = activationSequence;
+    const epoch = projectEpoch;
+    const target = sessionId ? stateFor(sessionId) : draftState.value;
+    target.isRunning = true;
     try {
       const result = await window.pine.promptSession({
         locale: currentAppLocale(),
@@ -578,27 +583,21 @@ export const useSessionStore = defineStore("session", () => {
         ...(approvalMode ? { approvalMode } : {}),
         ...(streamingBehavior ? { streamingBehavior } : {}),
       });
-      const session = {
+      if (epoch !== projectEpoch) return result.session;
+      const summary = upsertRecentSession({
         ...result.session,
         preview: result.session.preview || attachmentMessagePreview(message),
-      };
-      const nextSession = upsertRecentSession(session);
-      if (sequence !== activationSequence) return nextSession;
-
-      modelsStore.setSessionSelection(
-        nextSession.id,
-        nextSession.modelSelection,
-      );
-      isStartingPrompt = false;
-      activeSession.value = nextSession;
-      currentSessionId = nextSession.id;
-      syncSessionCache(nextSession.id);
-      return nextSession;
+      });
+      const state = stateFor(summary.id);
+      state.summary = mergeSessionSummary(summary, state.summary ?? undefined);
+      // Worker events may already have arrived, including the terminal state.
+      if (!sessionId && !state.historyLoaded)
+        state.historyLoaded = state.messages.length > 0;
+      modelsStore.setSessionSelection(summary.id, summary.modelSelection);
+      if (sequence === activationSequence) currentSessionId.value = summary.id;
+      return summary;
     } catch (error) {
-      if (sequence === activationSequence) {
-        isStartingPrompt = false;
-        if (!streamingBehavior) isRunning.value = false;
-      }
+      if (!streamingBehavior) target.isRunning = false;
       throw error;
     }
   }
@@ -606,11 +605,10 @@ export const useSessionStore = defineStore("session", () => {
   async function steer(
     message: string,
     approvalMode?: PineApprovalMode,
+    sessionId = currentSessionId.value,
   ): Promise<void> {
-    const sessionId = currentSessionId;
-    if (!sessionId) {
+    if (!sessionId)
       throw new Error("The running session is not ready for steering yet.");
-    }
     await window.pine.promptSession({
       locale: currentAppLocale(),
       message,
@@ -620,60 +618,98 @@ export const useSessionStore = defineStore("session", () => {
     });
   }
 
-  async function abort(): Promise<void> {
-    await window.pine.abortSession();
+  async function abort(sessionId = currentSessionId.value): Promise<void> {
+    if (sessionId) await window.pine.abortSession({ sessionId });
   }
 
-  async function compactContext(): Promise<boolean> {
-    if (!currentSessionId) return false;
-    const result = await window.pine.compactSession();
-    return result.compacted;
+  async function compactContext(
+    sessionId = currentSessionId.value,
+  ): Promise<boolean> {
+    if (!sessionId) return false;
+    return (await window.pine.compactSession({ sessionId })).compacted;
   }
 
-  async function dequeueSteering(message: string): Promise<string | undefined> {
-    const result = await window.pine.dequeueSteering({ message });
+  async function dequeueSteering(
+    message: string,
+    sessionId = currentSessionId.value,
+  ): Promise<string | undefined> {
+    if (!sessionId) return;
+    const result = await window.pine.dequeueSteering({ message, sessionId });
     return result.removed ? result.message : undefined;
   }
 
   async function setApprovalMode(
     approvalMode: PineApprovalMode,
+    sessionId = currentSessionId.value,
   ): Promise<void> {
-    await window.pine.setApprovalMode({ approvalMode });
+    if (sessionId)
+      await window.pine.setApprovalMode({ approvalMode, sessionId });
   }
 
-  /** Answer the oldest pending approval (approve / reject / guide). */
   async function respondApproval(
     action: PineApprovalAction,
     guidance?: string,
+    requestId?: string,
+    sessionId = currentSessionId.value,
   ): Promise<void> {
-    const pending = pendingApprovals.value[0];
+    if (!sessionId) return;
+    const state = stateFor(sessionId);
+    const pending = requestId
+      ? state.pendingApprovals.find((item) => item.requestId === requestId)
+      : state.pendingApprovals[0];
     if (!pending) return;
-    pendingApprovals.value = pendingApprovals.value.slice(1);
+    if (state.respondingRequestIds.has(pending.requestId)) return;
+    state.respondingRequestIds = new Set([
+      ...state.respondingRequestIds,
+      pending.requestId,
+    ]);
     try {
       await window.pine.respondApproval({
         requestId: pending.requestId,
         action,
         guidance,
       });
-    } catch {
-      // The request may already be gone (session closed, run aborted); the
-      // optimistic removal above matches that outcome.
+      state.pendingApprovals = state.pendingApprovals.filter(
+        (item) => item.requestId !== pending.requestId,
+      );
+    } finally {
+      state.respondingRequestIds = new Set(
+        [...state.respondingRequestIds].filter(
+          (id) => id !== pending.requestId,
+        ),
+      );
     }
   }
 
   async function respondQuestionnaire(
     submission: AskUserQuestionSubmission,
+    requestId?: string,
+    sessionId = currentSessionId.value,
   ): Promise<void> {
-    const pending = pendingQuestionnaires.value[0];
-    if (!pending) return;
-    pendingQuestionnaires.value = pendingQuestionnaires.value.slice(1);
+    if (!sessionId) return;
+    const state = stateFor(sessionId);
+    const pending = requestId
+      ? state.pendingQuestionnaires.find((item) => item.requestId === requestId)
+      : state.pendingQuestionnaires[0];
+    if (!pending || state.respondingRequestIds.has(pending.requestId)) return;
+    state.respondingRequestIds = new Set([
+      ...state.respondingRequestIds,
+      pending.requestId,
+    ]);
     try {
       await window.pine.respondQuestionnaire({
         requestId: pending.requestId,
         submission,
       });
-    } catch {
-      // The run may have been aborted while the user submitted the card.
+      state.pendingQuestionnaires = state.pendingQuestionnaires.filter(
+        (item) => item.requestId !== pending.requestId,
+      );
+    } finally {
+      state.respondingRequestIds = new Set(
+        [...state.respondingRequestIds].filter(
+          (id) => id !== pending.requestId,
+        ),
+      );
     }
   }
 
@@ -689,9 +725,9 @@ export const useSessionStore = defineStore("session", () => {
     searchResults.value = searchResults.value.filter(
       (session) => session.id !== sessionId,
     );
-    dropSessionCache(sessionId);
+    sessionCache.delete(sessionId);
     modelsStore.setSessionSelection(sessionId, undefined);
-    if (currentSessionId === sessionId) startDraft();
+    if (currentSessionId.value === sessionId) startDraft();
     return true;
   }
 
@@ -725,30 +761,31 @@ export const useSessionStore = defineStore("session", () => {
     if (activeSession.value?.id === sessionId) activeSession.value = session;
 
     const cached = sessionCache.get(sessionId);
-    if (cached) sessionCache.set(sessionId, { ...cached, summary: session });
+    if (cached) cached.summary = session;
     return session;
   }
 
   function handleAgentEvent(event: PineAgentEvent): void {
+    const state = stateFor(event.sessionId);
+    const {
+      summary: activeSession,
+      messages,
+      isRunning,
+      contextUsage,
+      pendingApprovals,
+      pendingQuestionnaires,
+      steeringMessages,
+      reviewingToolCallIds,
+    } = toRefs(state);
+    const {
+      messageIndexFor,
+      toolCallMessageIndexFor,
+      rememberMessageIndex,
+      patchToolCall,
+    } = state;
     if (event.type === "run-state") {
-      sessionRunStates.set(
-        event.sessionId,
-        event.state === "running" || event.state === "aborting",
-      );
-      if (
-        event.state === "running" &&
-        isStartingPrompt &&
-        currentSessionId === null
-      ) {
-        currentSessionId = event.sessionId;
-      }
-      if (currentSessionId !== event.sessionId) {
-        staleSessions.add(event.sessionId);
-        return;
-      }
       isRunning.value = event.state === "running" || event.state === "aborting";
-      // Aborted turns resolve pending approvals without a decided event.
-      if (event.state === "idle") {
+      if (event.state === "idle" || event.state === "failed") {
         pendingApprovals.value = [];
         pendingQuestionnaires.value = [];
         reviewingToolCallIds.value = new Set();
@@ -756,25 +793,11 @@ export const useSessionStore = defineStore("session", () => {
       }
       return;
     }
-    if (currentSessionId !== event.sessionId) {
-      staleSessions.add(event.sessionId);
-      if (event.type === "session-updated") {
-        const cached = sessionCache.get(event.sessionId);
-        const summary = upsertRecentSession(
-          mergeSessionSummary(event.summary, cached?.summary ?? undefined),
-        );
-        if (cached) cached.summary = summary;
-      }
-      return;
-    }
     if (event.type === "steering-queue") {
-      if (currentSessionId !== event.sessionId) return;
       steeringMessages.value = [...event.messages];
-      syncSessionCache(event.sessionId);
       return;
     }
     if (event.type === "session-error") {
-      if (currentSessionId !== event.sessionId) return;
       messages.value.push({
         createdAt: new Date().toISOString(),
         id: `error-${event.errorId}`,
@@ -785,7 +808,6 @@ export const useSessionStore = defineStore("session", () => {
       return;
     }
     if (event.type === "tool-review") {
-      if (currentSessionId !== event.sessionId) return;
       reviewingToolCallIds.value = new Set([
         ...reviewingToolCallIds.value,
         event.toolCallId,
@@ -796,7 +818,6 @@ export const useSessionStore = defineStore("session", () => {
       return;
     }
     if (event.type === "approval-request") {
-      if (currentSessionId !== event.sessionId) return;
       const input = event.input as
         { subject?: unknown; description?: unknown } | undefined;
       pendingApprovals.value = [
@@ -821,7 +842,6 @@ export const useSessionStore = defineStore("session", () => {
       return;
     }
     if (event.type === "approval-decided") {
-      if (currentSessionId !== event.sessionId) return;
       pendingApprovals.value = pendingApprovals.value.filter(
         (approval) => approval.requestId !== event.requestId,
       );
@@ -838,7 +858,6 @@ export const useSessionStore = defineStore("session", () => {
       return;
     }
     if (event.type === "questionnaire-request") {
-      if (currentSessionId !== event.sessionId) return;
       pendingQuestionnaires.value = [
         ...pendingQuestionnaires.value,
         {
@@ -850,14 +869,12 @@ export const useSessionStore = defineStore("session", () => {
       return;
     }
     if (event.type === "questionnaire-decided") {
-      if (currentSessionId !== event.sessionId) return;
       pendingQuestionnaires.value = pendingQuestionnaires.value.filter(
         (questionnaire) => questionnaire.requestId !== event.requestId,
       );
       return;
     }
     if (event.type === "session-updated") {
-      if (currentSessionId !== event.sessionId) return;
       const previous =
         activeSession.value?.id === event.sessionId
           ? activeSession.value
@@ -871,7 +888,6 @@ export const useSessionStore = defineStore("session", () => {
       return;
     }
     if (event.type === "context-usage") {
-      if (currentSessionId !== event.sessionId) return;
       const usage: PineContextUsage = {
         tokens: event.tokens,
         contextWindow: event.contextWindow,
@@ -884,10 +900,7 @@ export const useSessionStore = defineStore("session", () => {
       if (cached) cached.contextUsage = usage;
       return;
     }
-    if (
-      (event.type === "compaction-start" || event.type === "compaction-end") &&
-      currentSessionId === event.sessionId
-    ) {
+    if (event.type === "compaction-start" || event.type === "compaction-end") {
       const status: PineCompactionStatus =
         event.type === "compaction-start" ? "running" : event.status;
       const messageIndex = messageIndexFor(`compaction-${event.compactionId}`);
@@ -918,10 +931,9 @@ export const useSessionStore = defineStore("session", () => {
       return;
     }
     if (
-      (event.type === "tool-start" ||
-        event.type === "tool-update" ||
-        event.type === "tool-end") &&
-      currentSessionId === event.sessionId
+      event.type === "tool-start" ||
+      event.type === "tool-update" ||
+      event.type === "tool-end"
     ) {
       const now = Date.now();
       let messageIndex = toolCallMessageIndexFor(event.toolCallId);
@@ -1000,7 +1012,7 @@ export const useSessionStore = defineStore("session", () => {
       (event.type !== "message-start" &&
         event.type !== "message-update" &&
         event.type !== "message-end") ||
-      currentSessionId !== event.sessionId
+      false
     ) {
       return;
     }
@@ -1102,54 +1114,28 @@ export const useSessionStore = defineStore("session", () => {
 
   function startDraft(): void {
     activationSequence += 1;
-    isStartingPrompt = false;
-    activeSession.value = null;
-    currentSessionId = null;
-    messages.value = [];
-    outlineMessages.value = [];
-    clearMessageIndexes();
-    hasEarlierMessages.value = false;
-    nextBefore.value = undefined;
-    contextUsage.value = null;
-    steeringMessages.value = [];
-    pendingApprovals.value = [];
-    pendingQuestionnaires.value = [];
-    reviewingToolCallIds.value = new Set();
-    isRunning.value = false;
-    isLoadingMessages.value = false;
+    currentSessionId.value = null;
+    draftState.value = createSessionState();
   }
 
   function reset(): void {
+    projectEpoch += 1;
     activationSequence += 1;
-    staleSessions.clear();
-    sessionRunStates.clear();
     searchSequence += 1;
     recentSequence += 1;
-    activeSession.value = null;
-    currentSessionId = null;
-    messages.value = [];
-    outlineMessages.value = [];
-    clearMessageIndexes();
+    currentSessionId.value = null;
+    sessionCache.clear();
+    draftState.value = createSessionState();
     recentSessions.value = [];
     searchResults.value = [];
-    sessionCache.clear();
     modelsStore.clearSessionSelections();
     isLoadingRecent.value = false;
     isSearching.value = false;
-    isLoadingMessages.value = false;
-    isRunning.value = false;
-    isStartingPrompt = false;
-    pendingApprovals.value = [];
-    pendingQuestionnaires.value = [];
-    reviewingToolCallIds.value = new Set();
-    hasEarlierMessages.value = false;
-    nextBefore.value = undefined;
-    contextUsage.value = null;
-    steeringMessages.value = [];
   }
 
   return {
     activeSession,
+    stateFor,
     abort,
     connectAgentEvents,
     compactContext,

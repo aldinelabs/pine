@@ -138,7 +138,8 @@ describe("ProjectSessionView file drop", () => {
 
   it("shows a loading indicator while earlier messages are fetched", async () => {
     const { wrapper } = mountView();
-    const sessionStore = useSessionStore();
+    const sessionStore = useSessionStore().stateFor("session-a");
+    await wrapper.setProps({ sessionId: "session-a" });
     sessionStore.hasEarlierMessages = true;
     sessionStore.messages = [
       {
@@ -188,7 +189,8 @@ describe("ProjectSessionView file drop", () => {
 
   it("waits for the target page and hides the history spinner during navigation", async () => {
     const { wrapper } = mountView();
-    const sessionStore = useSessionStore();
+    const sessionStore = useSessionStore().stateFor("session-a");
+    await wrapper.setProps({ sessionId: "session-a" });
     const target = {
       id: "target-message",
       createdAt: "2026-09-03T00:00:00Z",
@@ -209,7 +211,7 @@ describe("ProjectSessionView file drop", () => {
     sessionStore.hasEarlierMessages = true;
     let resolvePage: (() => void) | undefined;
     const loadEarlierMessages = vi
-      .spyOn(sessionStore, "loadEarlierMessages")
+      .spyOn(useSessionStore(), "loadEarlierMessages")
       .mockImplementation(
         () =>
           new Promise<void>((resolve) => {
@@ -234,7 +236,7 @@ describe("ProjectSessionView file drop", () => {
     expect(loadEarlierMessages).toHaveBeenCalledOnce();
   });
 
-  it("steers a running session while its tab is still creating", async () => {
+  it("steers the session owned by a bound tab", async () => {
     const { wrapper } = mountView();
     const sessionStore = useSessionStore();
     const contentTabsStore = useContentTabsStore();
@@ -257,6 +259,7 @@ describe("ProjectSessionView file drop", () => {
     });
     window.pine.promptSession = promptSession;
     await sessionStore.resume(runningSession.id);
+    await wrapper.setProps({ sessionId: runningSession.id });
     sessionStore.isRunning = true;
     contentTabsStore.beginPrompt("session-1", "Initial prompt");
     await flushPromises();
@@ -278,7 +281,8 @@ describe("ProjectSessionView file drop", () => {
 
   it("restores a dequeued steering message and its attachments to the composer", async () => {
     const { wrapper } = mountView();
-    const sessionStore = useSessionStore();
+    const sessionStore = useSessionStore().stateFor("session-a");
+    await wrapper.setProps({ sessionId: "session-a" });
     const attachment = {
       extension: "md",
       modifiedAt: "2026-09-02T12:00:00.000Z",
@@ -324,7 +328,8 @@ describe("ProjectSessionView file drop", () => {
   });
   it("keeps a hidden view on its own transcript while the active session changes", async () => {
     const { wrapper } = mountView();
-    const store = useSessionStore();
+    const store = useSessionStore().stateFor("session-a");
+    await wrapper.setProps({ sessionId: "session-a" });
     store.messages = [
       {
         id: "first-message",
@@ -340,7 +345,7 @@ describe("ProjectSessionView file drop", () => {
       .props("messages");
 
     activeTabId.value = "session-2";
-    store.messages = [
+    useSessionStore().stateFor("session-b").messages = [
       {
         id: "second-message",
         createdAt: "2026-09-03T00:00:00Z",

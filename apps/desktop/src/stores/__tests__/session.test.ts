@@ -132,7 +132,7 @@ describe("session store", () => {
     expect(store.isLoadingMessages).toBe(false);
   });
 
-  it("refreshes a cached session after it streams while another tab is active", async () => {
+  it("applies background stream events without reloading its cached transcript", async () => {
     const updatedMessage = {
       id: "reply",
       blocks: [{ type: "text" as const, text: "Latest reply" }],
@@ -160,10 +160,19 @@ describe("session store", () => {
     await store.resume(session.id);
     store.startDraft();
     listener?.({ type: "run-state", sessionId: session.id, state: "running" });
+    listener?.({
+      type: "message-end",
+      sessionId: session.id,
+      messageId: updatedMessage.id,
+      message: {
+        role: "assistant",
+        content: [{ type: "text", text: "Latest reply" }],
+      },
+    });
 
     await store.resume(session.id);
 
-    expect(loadSessionMessages).toHaveBeenCalledTimes(2);
+    expect(loadSessionMessages).toHaveBeenCalledTimes(1);
     expect(store.messages[0]?.blocks).toEqual(updatedMessage.blocks);
     expect(store.isRunning).toBe(true);
   });
@@ -552,11 +561,12 @@ describe("session store", () => {
     });
     const store = useSessionStore();
 
-    await expect(store.dequeueSteering("Change direction")).resolves.toBe(
-      "Change direction",
-    );
+    await expect(
+      store.dequeueSteering("Change direction", session.id),
+    ).resolves.toBe("Change direction");
     expect(dequeueSteering).toHaveBeenCalledWith({
       message: "Change direction",
+      sessionId: session.id,
     });
   });
 
@@ -568,9 +578,12 @@ describe("session store", () => {
     });
     const store = useSessionStore();
 
-    await store.setApprovalMode("YOLO");
+    await store.setApprovalMode("YOLO", session.id);
 
-    expect(setApprovalMode).toHaveBeenCalledWith({ approvalMode: "YOLO" });
+    expect(setApprovalMode).toHaveBeenCalledWith({
+      approvalMode: "YOLO",
+      sessionId: session.id,
+    });
   });
 
   it("removes a deleted session and clears it when active", async () => {

@@ -9,6 +9,11 @@ Starting with 0.4.4, release notes are written in both Chinese and English.
 
 ## [Unreleased]
 
+### 修复 / Fixed
+
+- 多个会话现在可以同时工作，切换或新建会话 tab 不再中断其他会话；各 tab 保留自己的消息、运行状态和待批准请求。Multiple sessions can now work concurrently; switching or creating a session tab no longer interrupts other sessions, and each tab keeps its own messages, running state, and pending approvals.
+- 修复连续批准卡中第二张无法操作的问题，并避免隐藏 tab 的批准卡响应其他 tab 的快捷键。Fixed subsequent approval cards becoming unresponsive and prevented hidden tabs from handling another tab's approval shortcuts.
+
 ## [0.6.4] - 2026-09-27
 
 ### 修复 / Fixed

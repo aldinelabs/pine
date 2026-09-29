@@ -18,6 +18,8 @@ import type { PinePendingApproval } from "@/stores/session";
 
 const props = defineProps<{
   approval: PinePendingApproval;
+  isActive?: boolean;
+  isResponding?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -30,7 +32,6 @@ const guiding = ref(false);
 // The Input component forwards its root element through `$el`; typing the
 // wrapper keeps the focus call honest on both sides.
 const guidanceInput = ref<{ $el: HTMLInputElement } | null>(null);
-const responded = ref(false);
 
 const triggerKey = computed(() => {
   switch (props.approval.trigger) {
@@ -48,8 +49,7 @@ const triggerKey = computed(() => {
 });
 
 function respond(action: PineApprovalAction, guidanceText?: string): void {
-  if (responded.value) return;
-  responded.value = true;
+  if (props.isResponding) return;
   emit("respond", action, guidanceText);
 }
 
@@ -61,6 +61,7 @@ function submitGuidance(): void {
 // While the guidance input is open the keys are regular text; the
 // shortcuts only apply to the decision buttons.
 function handleShortcut(event: KeyboardEvent): void {
+  if (props.isActive === false) return;
   if (guiding.value || event.metaKey || event.ctrlKey || event.altKey) return;
   if (event.defaultPrevented) return;
   const target = event.target;
@@ -144,7 +145,7 @@ async function startGuidance(): Promise<void> {
               type="button"
               size="sm"
               class="h-8 gap-1 px-2 text-xs"
-              :disabled="!guidance.trim()"
+              :disabled="!guidance.trim() || props.isResponding"
               :aria-label="t('project.approvalRequest.guide')"
               @click="submitGuidance"
             >
@@ -159,6 +160,7 @@ async function startGuidance(): Promise<void> {
           type="button"
           variant="outline"
           size="sm"
+          :disabled="props.isResponding"
           @click="startGuidance"
         >
           {{ t("project.approvalRequest.guide") }}
@@ -169,12 +171,18 @@ async function startGuidance(): Promise<void> {
             type="button"
             variant="outline"
             size="sm"
+            :disabled="props.isResponding"
             @click="respond('reject')"
           >
             {{ t("project.approvalRequest.reject") }}
             <Kbd aria-hidden="true">esc</Kbd>
           </Button>
-          <Button type="button" size="sm" @click="respond('approve')">
+          <Button
+            type="button"
+            size="sm"
+            :disabled="props.isResponding"
+            @click="respond('approve')"
+          >
             {{ t("project.approvalRequest.approve") }}
             <Kbd aria-hidden="true">↵</Kbd>
           </Button>

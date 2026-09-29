@@ -6,8 +6,7 @@ import {
 } from "@/lib/projectFileDrag";
 import { hasSessionDrag, readSessionDrag } from "@/lib/sessionDrag";
 import { FilesIcon } from "@lucide/vue";
-import { storeToRefs } from "pinia";
-import { computed, onMounted, ref, watch, type Ref } from "vue";
+import { computed, onMounted, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { toast } from "vue-sonner";
 import type { PineApprovalAction, PineApprovalMode } from "@/shared/agent";
@@ -51,25 +50,23 @@ const props = defineProps<{
 const contentTabsStore = useContentTabsStore();
 const tabNavigation = useContentTabNavigation();
 const sessionStore = useSessionStore();
-const liveState = storeToRefs(sessionStore);
 const HISTORY_LOAD_THRESHOLD = 240;
-
-// Retaining a panel does not stop reactive updates. A hidden tab
-// must retain its own projection instead of rendering every newly active
-// session's transcript (and reparsing its Markdown) in the hidden DOM.
-function tabValue<T>(source: Ref<T>) {
-  return computed<T>((previous) =>
-    tabNavigation.activeTabId.value === props.tabId || previous === undefined
-      ? source.value
-      : previous,
-  );
-}
-
-const hasEarlierMessages = tabValue(liveState.hasEarlierMessages);
-const isLoadingMessages = tabValue(liveState.isLoadingMessages);
-const isRunning = tabValue(liveState.isRunning);
-const messages = tabValue(liveState.messages);
-const outlineMessages = tabValue(liveState.outlineMessages);
+const isSubmitting = ref(false);
+// A retained tab always observes its own session, including background events.
+const tabState = computed(() =>
+  props.sessionId ? sessionStore.stateFor(props.sessionId) : null,
+);
+const hasEarlierMessages = computed(
+  () => tabState.value?.hasEarlierMessages ?? false,
+);
+const isLoadingMessages = computed(
+  () => tabState.value?.isLoadingMessages ?? false,
+);
+const isRunning = computed(
+  () => isSubmitting.value || (tabState.value?.isRunning ?? false),
+);
+const messages = computed(() => tabState.value?.messages ?? []);
+const outlineMessages = computed(() => tabState.value?.outlineMessages ?? []);
 const transcriptTurns = computed((previous?: PineTranscriptMessage[]) => {
   const allMessages = new Map(
     outlineMessages.value.map((message) => [message.id, message]),
@@ -84,10 +81,14 @@ const transcriptTurns = computed((previous?: PineTranscriptMessage[]) => {
     ? previous
     : next;
 });
-const pendingApprovals = tabValue(liveState.pendingApprovals);
-const pendingQuestionnaires = tabValue(liveState.pendingQuestionnaires);
-const steeringMessages = tabValue(liveState.steeringMessages);
-const reviewingToolCallIds = tabValue(liveState.reviewingToolCallIds);
+const pendingApprovals = computed(() => tabState.value?.pendingApprovals ?? []);
+const pendingQuestionnaires = computed(
+  () => tabState.value?.pendingQuestionnaires ?? [],
+);
+const steeringMessages = computed(() => tabState.value?.steeringMessages ?? []);
+const reviewingToolCallIds = computed(
+  () => tabState.value?.reviewingToolCallIds ?? new Set<string>(),
+);
 const draft = ref("");
 const hasSubmittedPrompt = ref(false);
 const hasConversation = computed(
@@ -130,22 +131,27 @@ onMounted(() => sessionStore.connectAgentEvents());
 watch(approvalMode, (value) => {
   // Prompt requests carry the same value as a fallback; this eager update
   // makes the new policy apply to later tool calls in an already-running turn.
-  void sessionStore.setApprovalMode(value).catch(() => undefined);
+  void sessionStore
+    .setApprovalMode(value, props.sessionId ?? null)
+    .catch(() => undefined);
 });
 
 function submit(message: string): void {
   if (isRunning.value) {
     draft.value = "";
-    void sessionStore.steer(message, approvalMode.value).catch(() => {
-      restoreComposerMessage(message);
-      toast.error(t("errors.sessionPrompt.title"), {
-        description: t("errors.sessionPrompt.description"),
+    void sessionStore
+      .steer(message, approvalMode.value, props.sessionId ?? null)
+      .catch(() => {
+        restoreComposerMessage(message);
+        toast.error(t("errors.sessionPrompt.title"), {
+          description: t("errors.sessionPrompt.description"),
+        });
       });
-    });
     return;
   }
 
   const sessionId = props.sessionId;
+  const projectId = contentTabsStore.projectId;
   if (
     !contentTabsStore.beginPrompt(
       props.tabId,
@@ -155,16 +161,25 @@ function submit(message: string): void {
     return;
   }
   hasSubmittedPrompt.value = true;
+  isSubmitting.value = true;
   draft.value = "";
   void sessionStore
     .prompt(message, sessionId, approvalMode.value)
-    .then((session) => tabNavigation.bindSession(props.tabId, session))
+    .then((session) => {
+      if (contentTabsStore.projectId === projectId)
+        tabNavigation.bindSession(props.tabId, session);
+    })
     .catch(() => {
+      if (contentTabsStore.projectId !== projectId) return;
+      restoreComposerMessage(message);
       tabNavigation.failPrompt(props.tabId);
       hasSubmittedPrompt.value = false;
       toast.error(t("errors.sessionPrompt.title"), {
         description: t("errors.sessionPrompt.description"),
       });
+    })
+    .finally(() => {
+      isSubmitting.value = false;
     });
 }
 
@@ -178,7 +193,10 @@ function restoreComposerMessage(message: string): void {
 
 async function withdrawSteering(message: string): Promise<void> {
   try {
-    const restored = await sessionStore.dequeueSteering(message);
+    const restored = await sessionStore.dequeueSteering(
+      message,
+      props.sessionId ?? null,
+    );
     if (!restored) return;
     restoreComposerMessage(restored);
   } catch {
@@ -190,15 +208,28 @@ function respondToApproval(
   action: PineApprovalAction,
   guidance?: string,
 ): void {
-  void sessionStore.respondApproval(action, guidance);
+  void sessionStore
+    .respondApproval(
+      action,
+      guidance,
+      pendingApproval.value?.requestId,
+      props.sessionId ?? null,
+    )
+    .catch(() => toast.error(t("errors.sessionPrompt.title")));
 }
 
 function respondToQuestionnaire(submission: AskUserQuestionSubmission): void {
-  void sessionStore.respondQuestionnaire(submission);
+  void sessionStore
+    .respondQuestionnaire(
+      submission,
+      pendingQuestionnaire.value?.requestId,
+      props.sessionId ?? null,
+    )
+    .catch(() => toast.error(t("errors.sessionPrompt.title")));
 }
 
 function abort(): void {
-  void sessionStore.abort().catch(() => {
+  void sessionStore.abort(props.sessionId ?? null).catch(() => {
     toast.error(t("errors.sessionAbort.title"), {
       description: t("errors.sessionAbort.description"),
     });
@@ -207,7 +238,7 @@ function abort(): void {
 
 async function loadEarlierMessages(): Promise<void> {
   try {
-    await sessionStore.loadEarlierMessages();
+    await sessionStore.loadEarlierMessages(props.sessionId ?? null);
   } catch (error) {
     toast.error(t("errors.sessionHistory.title"), {
       description: t("errors.sessionHistory.description"),
@@ -405,7 +436,13 @@ async function handleDrop(event: DragEvent): Promise<void> {
         v-model:attachments="attachments"
         v-model:approvalMode="approvalMode"
         :is-running="isRunning"
+        :is-active="tabNavigation.activeTabId.value === props.tabId"
         :pending-approval="pendingApproval"
+        :is-responding="
+          pendingApproval
+            ? tabState?.respondingRequestIds.has(pendingApproval.requestId)
+            : false
+        "
         :pending-questionnaire="pendingQuestionnaire"
         :session-id="props.sessionId"
         :steering-messages="steeringMessages"

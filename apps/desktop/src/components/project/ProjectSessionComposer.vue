@@ -113,6 +113,8 @@ const props = withDefaults(
     sessionId?: string;
     steeringMessages?: readonly string[];
     /** When set, the approval questionnaire replaces the message input. */
+    isActive?: boolean;
+    isResponding?: boolean;
     pendingApproval?: PinePendingApproval | null;
     /** When set, the structured question card replaces the message input. */
     pendingQuestionnaire?: PinePendingQuestionnaire | null;
@@ -446,11 +448,15 @@ function handleRootSubmit(event: Event): void {
 
     <ProjectQuestionnaireCard
       v-if="props.pendingQuestionnaire"
+      :key="props.pendingQuestionnaire.requestId"
       :questionnaire="props.pendingQuestionnaire"
       @respond="(submission) => emit('respondQuestionnaire', submission)"
     />
     <ProjectApprovalCard
       v-else-if="props.pendingApproval"
+      :key="props.pendingApproval.requestId"
+      :is-active="props.isActive"
+      :is-responding="props.isResponding"
       :approval="props.pendingApproval"
       @respond="(action, guidance) => emit('respond', action, guidance)"
     />

@@ -85,44 +85,50 @@ function toGateDecision(request: RespondApprovalRequest): GateDecision {
   return { kind: "deny", reason: "The user rejected this tool call." };
 }
 
-type RuntimeSessionState =
-  | { status: "idle" }
-  | {
-      status: "creating";
-      promise: Promise<PineSessionSummary>;
-    }
-  | {
-      status: "active";
-      summary: PineSessionSummary;
-      contextUsage?: PineContextUsage;
-    };
+interface RuntimeSession {
+  summary: PineSessionSummary;
+  approvalMode: PineApprovalMode;
+  contextUsage?: PineContextUsage;
+}
 
 interface ProjectRuntime {
   approvalMode: PineApprovalMode;
   dataPaths: ProjectDataPaths;
   project: PineProject;
-  session: RuntimeSessionState;
+  focusedSessionId?: string;
+  liveSessions: Map<string, RuntimeSession>;
+  openingSessions: Map<string, Promise<ResumeSessionResult>>;
+  pendingCreations: Set<Promise<PineSessionSummary>>;
   sessions: ProjectSessionService;
 }
 
 export class ProjectRuntimeRegistry {
   async reloadMcp(webContentsId: number): Promise<void> {
-    const session = this.runtimes.get(webContentsId)?.session;
-    if (session?.status === "active")
-      await this.agentHost.reloadMcp?.(session.summary.id);
+    const runtime = this.get(webContentsId);
+    await Promise.all(
+      [...runtime.liveSessions.keys()].map(async (sessionId) => {
+        await this.agentHost.reloadMcp?.(sessionId);
+      }),
+    );
   }
 
   async getMcpStatus(webContentsId: number) {
-    const session = this.runtimes.get(webContentsId)?.session;
-    return session?.status === "active"
+    const session = this.focusedSession(this.runtimes.get(webContentsId));
+    return session
       ? this.agentHost.getMcpStatus?.(session.summary.id)
       : undefined;
   }
   private readonly runtimes = new Map<number, ProjectRuntime>();
   /** approval requestId → owning webContentsId, for response validation. */
-  private readonly pendingApprovals = new Map<string, number>();
+  private readonly pendingApprovals = new Map<
+    string,
+    { webContentsId: number; sessionId?: string }
+  >();
   /** questionnaire requestId → owning webContentsId, for response validation. */
-  private readonly pendingQuestionnaires = new Map<string, number>();
+  private readonly pendingQuestionnaires = new Map<
+    string,
+    { webContentsId: number; sessionId?: string }
+  >();
 
   constructor(
     private readonly agentHost: AgentHost,
@@ -154,7 +160,9 @@ export class ProjectRuntimeRegistry {
       approvalMode: "auto-approve",
       dataPaths,
       project,
-      session: { status: "idle" },
+      liveSessions: new Map(),
+      openingSessions: new Map(),
+      pendingCreations: new Set(),
       sessions,
     });
   }
@@ -225,10 +233,7 @@ export class ProjectRuntimeRegistry {
   ): Promise<PineSessionExportDocument> {
     const runtime = this.get(webContentsId);
     const fallbackApprovalMode =
-      runtime.session.status === "active" &&
-      runtime.session.summary.id === sessionId
-        ? runtime.approvalMode
-        : "auto-approve";
+      runtime.liveSessions.get(sessionId)?.approvalMode ?? "auto-approve";
     return runtime.sessions.exportSession(sessionId, fallbackApprovalMode);
   }
 
@@ -237,12 +242,14 @@ export class ProjectRuntimeRegistry {
     sessionId: string,
   ): Promise<boolean> {
     const runtime = this.get(webContentsId);
-    if (
-      runtime.session.status === "active" &&
-      runtime.session.summary.id === sessionId
-    ) {
-      await this.releaseSession(runtime);
+    await runtime.openingSessions.get(sessionId);
+    if (runtime.liveSessions.has(sessionId)) {
+      await this.agentHost.disposeSession(sessionId);
+      runtime.liveSessions.delete(sessionId);
+      if (runtime.focusedSessionId === sessionId)
+        runtime.focusedSessionId = undefined;
     }
+    this.clearSessionInteractions(sessionId);
     return runtime.sessions.deleteSession(sessionId);
   }
 
@@ -252,12 +259,10 @@ export class ProjectRuntimeRegistry {
     name: string,
   ): Promise<PineSessionSummary> {
     const runtime = this.get(webContentsId);
-    if (
-      runtime.session.status === "active" &&
-      runtime.session.summary.id === sessionId
-    ) {
+    const live = runtime.liveSessions.get(sessionId);
+    if (live) {
       const result = await this.agentHost.renameSession(sessionId, name);
-      runtime.session.summary = result.session;
+      live.summary = result.session;
       return result.session;
     }
     return runtime.sessions.renameSession(sessionId, name);
@@ -321,80 +326,65 @@ export class ProjectRuntimeRegistry {
     sessionId: string,
   ): Promise<ResumeSessionResult> {
     const runtime = this.get(webContentsId);
-    if (
-      runtime.session.status === "active" &&
-      runtime.session.summary.id === sessionId
-    ) {
-      return {
-        session: runtime.session.summary,
-        ...(runtime.session.contextUsage
-          ? { contextUsage: runtime.session.contextUsage }
-          : {}),
-      };
-    }
+    runtime.focusedSessionId = sessionId;
+    const live = runtime.liveSessions.get(sessionId);
+    if (live) return { session: live.summary, contextUsage: live.contextUsage };
+    const pending = runtime.openingSessions.get(sessionId);
+    if (pending) return pending;
 
-    const descriptor = await runtime.sessions.describeSession(sessionId);
-    await this.releaseSession(runtime);
-    const opened = await this.agentHost.openSession(
-      this.location(runtime),
-      descriptor.sessionFile,
-    );
-    runtime.session = {
-      status: "active",
-      summary: opened.session,
-      ...(opened.contextUsage ? { contextUsage: opened.contextUsage } : {}),
-    };
-    return {
-      session: opened.session,
-      ...(opened.contextUsage ? { contextUsage: opened.contextUsage } : {}),
-    };
-  }
-
-  private async ensureActiveSession(
-    webContentsId: number,
-  ): Promise<PineSessionSummary> {
-    const runtime = this.get(webContentsId);
-    if (runtime.session.status === "active") {
-      return runtime.session.summary;
-    }
-    if (runtime.session.status === "creating") return runtime.session.promise;
-
-    const creation = this.agentHost
-      .createSession(this.location(runtime))
-      .then(({ session }) => session);
-    runtime.session = { status: "creating", promise: creation };
-
-    try {
-      const session = await creation;
+    const opening = (async () => {
+      const descriptor = await runtime.sessions.describeSession(sessionId);
       if (this.runtimes.get(webContentsId) !== runtime) {
-        throw new Error("The active project changed while creating a session.");
+        throw new Error("The active project changed while opening a session.");
       }
-      if (
-        runtime.session.status !== "creating" ||
-        runtime.session.promise !== creation
-      ) {
-        throw new Error("Session creation was superseded.");
+      const opened = await this.agentHost.openSession(
+        this.location(runtime),
+        descriptor.sessionFile,
+      );
+      runtime.liveSessions.set(opened.session.id, {
+        summary: opened.session,
+        approvalMode: "auto-approve",
+        contextUsage: opened.contextUsage,
+      });
+      if (this.runtimes.get(webContentsId) !== runtime) {
+        throw new Error("The active project changed while opening a session.");
       }
-
-      runtime.session = { status: "active", summary: session };
-      return session;
-    } catch (error) {
-      if (
-        runtime.session.status === "creating" &&
-        runtime.session.promise === creation
-      ) {
-        runtime.session = { status: "idle" };
-      }
-      throw error;
+      return { session: opened.session, contextUsage: opened.contextUsage };
+    })();
+    runtime.openingSessions.set(sessionId, opening);
+    try {
+      return await opening;
+    } finally {
+      runtime.openingSessions.delete(sessionId);
     }
   }
 
   private async createNewSession(
     webContentsId: number,
+    approvalMode: PineApprovalMode,
   ): Promise<PineSessionSummary> {
     const runtime = this.get(webContentsId);
-    await this.releaseSession(runtime);
-    return this.ensureActiveSession(webContentsId);
+    const creation = this.agentHost
+      .createSession({ ...this.location(runtime), approvalMode })
+      .then(({ session }) => {
+        runtime.liveSessions.set(session.id, {
+          summary: session,
+          approvalMode,
+        });
+        if (this.runtimes.get(webContentsId) !== runtime) {
+          throw new Error(
+            "The active project changed while creating a session.",
+          );
+        }
+        runtime.focusedSessionId = session.id;
+        return session;
+      });
+    runtime.pendingCreations.add(creation);
+    try {
+      return await creation;
+    } finally {
+      runtime.pendingCreations.delete(creation);
+    }
   }
 
   async prompt(
@@ -402,11 +392,14 @@ export class ProjectRuntimeRegistry {
     request: PromptSessionRequest,
   ): Promise<PromptSessionResult> {
     const runtime = this.get(webContentsId);
-    runtime.approvalMode = request.approvalMode ?? "auto-approve";
+    const approvalMode = request.approvalMode ?? "auto-approve";
     const activeSession =
       request.target.kind === "new"
-        ? await this.createNewSession(webContentsId)
+        ? await this.createNewSession(webContentsId, approvalMode)
         : (await this.resume(webContentsId, request.target.sessionId)).session;
+    if (this.runtimes.get(webContentsId) !== runtime) {
+      throw new Error("The active project changed before submitting a prompt.");
+    }
     const attachedPaths = parseAttachmentMessage(request.message)
       .attachments.map((attachment) => attachment.path)
       .filter((attachmentPath) => attachmentPath.length <= 4_096)
@@ -420,56 +413,58 @@ export class ProjectRuntimeRegistry {
       request.message,
       streamingBehavior,
       attachedPaths.length > 0 ? attachedPaths : undefined,
-      runtime.approvalMode,
+      approvalMode,
       ...(request.locale ? [request.locale] : []),
     ] as const;
     const result = await this.agentHost.prompt(...promptArguments);
-    if (
-      runtime.session.status === "active" &&
-      runtime.session.summary.id === result.session.id
-    ) {
-      runtime.session = { status: "active", summary: result.session };
+    const live = runtime.liveSessions.get(result.session.id);
+    if (live) {
+      live.summary = result.session;
+      live.approvalMode = approvalMode;
     }
     return { accepted: result.accepted, session: result.session };
   }
 
-  async abort(webContentsId: number): Promise<{
-    aborted: boolean;
-    sessionId?: string;
-  }> {
-    const runtime = this.get(webContentsId);
-    if (runtime.session.status !== "active") return { aborted: false };
-    const sessionId = runtime.session.summary.id;
-    const result = await this.agentHost.abort(sessionId);
-    return { ...result, sessionId };
+  async abort(
+    webContentsId: number,
+    sessionId?: string,
+  ): Promise<{ aborted: boolean; sessionId?: string }> {
+    const live = this.targetSession(webContentsId, sessionId);
+    if (!live) return { aborted: false };
+    const result = await this.agentHost.abort(live.summary.id);
+    return { ...result, sessionId: live.summary.id };
   }
 
-  async compact(webContentsId: number): Promise<{ compacted: boolean }> {
-    const runtime = this.get(webContentsId);
-    if (runtime.session.status !== "active") return { compacted: false };
-    return this.agentHost.compact(runtime.session.summary.id);
+  async compact(
+    webContentsId: number,
+    sessionId?: string,
+  ): Promise<{ compacted: boolean }> {
+    const live = this.targetSession(webContentsId, sessionId);
+    return live
+      ? this.agentHost.compact(live.summary.id)
+      : { compacted: false };
   }
 
   async dequeueSteering(
     webContentsId: number,
     message: string,
+    sessionId?: string,
   ): Promise<{ message?: string; removed: boolean }> {
-    const runtime = this.get(webContentsId);
-    if (runtime.session.status !== "active") return { removed: false };
-    return this.agentHost.dequeueSteering(runtime.session.summary.id, message);
+    const live = this.targetSession(webContentsId, sessionId);
+    return live
+      ? this.agentHost.dequeueSteering(live.summary.id, message)
+      : { removed: false };
   }
 
   async setApprovalMode(
     webContentsId: number,
     approvalMode: PineApprovalMode,
+    sessionId?: string,
   ): Promise<{ updated: boolean }> {
-    const runtime = this.get(webContentsId);
-    runtime.approvalMode = approvalMode;
-    if (runtime.session.status !== "active") return { updated: false };
-    return this.agentHost.setApprovalMode(
-      runtime.session.summary.id,
-      approvalMode,
-    );
+    const live = this.targetSession(webContentsId, sessionId);
+    if (!live) return { updated: false };
+    live.approvalMode = approvalMode;
+    return this.agentHost.setApprovalMode(live.summary.id, approvalMode);
   }
 
   getModelCatalog(): Promise<PineModelCatalog> {
@@ -564,7 +559,7 @@ export class ProjectRuntimeRegistry {
     strategy: PineContextCompactionStrategy,
   ): Promise<{ updated: boolean }> {
     const hasActiveSession = [...this.runtimes.values()].some(
-      (runtime) => runtime.session.status === "active",
+      (runtime) => runtime.liveSessions.size > 0,
     );
     if (!hasActiveSession) return Promise.resolve({ updated: true });
     return this.agentHost.setContextCompactionStrategy(strategy);
@@ -613,40 +608,36 @@ export class ProjectRuntimeRegistry {
   }
 
   updateContextUsage(sessionId: string, contextUsage: PineContextUsage): void {
-    for (const runtime of this.runtimes.values()) {
-      if (
-        runtime.session.status === "active" &&
-        runtime.session.summary.id === sessionId
-      ) {
-        runtime.session.contextUsage = contextUsage;
-        return;
-      }
-    }
+    const live =
+      this.entryForSession(sessionId)?.runtime.liveSessions.get(sessionId);
+    if (live) live.contextUsage = contextUsage;
   }
 
   updateSessionSummary(sessionId: string, summary: PineSessionSummary): void {
-    for (const runtime of this.runtimes.values()) {
-      if (
-        runtime.session.status === "active" &&
-        runtime.session.summary.id === sessionId
-      ) {
-        runtime.session.summary = summary;
-        return;
-      }
-    }
+    const live =
+      this.entryForSession(sessionId)?.runtime.liveSessions.get(sessionId);
+    if (live) live.summary = summary;
   }
 
   /** Remember which window an approval request was routed to. */
-  trackApproval(requestId: string, webContentsId: number): void {
-    this.pendingApprovals.set(requestId, webContentsId);
+  trackApproval(
+    requestId: string,
+    webContentsId: number,
+    sessionId?: string,
+  ): void {
+    this.pendingApprovals.set(requestId, { webContentsId, sessionId });
   }
 
   forgetApproval(requestId: string): void {
     this.pendingApprovals.delete(requestId);
   }
 
-  trackQuestionnaire(requestId: string, webContentsId: number): void {
-    this.pendingQuestionnaires.set(requestId, webContentsId);
+  trackQuestionnaire(
+    requestId: string,
+    webContentsId: number,
+    sessionId?: string,
+  ): void {
+    this.pendingQuestionnaires.set(requestId, { webContentsId, sessionId });
   }
 
   forgetQuestionnaire(requestId: string): void {
@@ -661,11 +652,11 @@ export class ProjectRuntimeRegistry {
     if (owner === undefined) {
       throw new Error("This approval request is no longer pending.");
     }
-    if (owner !== webContentsId) {
+    if (owner.webContentsId !== webContentsId) {
       throw new Error("Approval request does not belong to this window.");
     }
-    this.pendingApprovals.delete(request.requestId);
     this.agentHost.respondApproval(request.requestId, toGateDecision(request));
+    this.pendingApprovals.delete(request.requestId);
     return { accepted: true };
   }
 
@@ -677,12 +668,23 @@ export class ProjectRuntimeRegistry {
     if (owner === undefined) {
       throw new Error("This questionnaire is no longer pending.");
     }
-    if (owner !== webContentsId) {
+    if (owner.webContentsId !== webContentsId) {
       throw new Error("Questionnaire does not belong to this window.");
     }
-    this.pendingQuestionnaires.delete(request.requestId);
     this.agentHost.respondQuestionnaire(request.requestId, request.submission);
+    this.pendingQuestionnaires.delete(request.requestId);
     return { accepted: true };
+  }
+
+  clearSessionInteractions(sessionId: string): void {
+    for (const [requestId, owner] of this.pendingApprovals) {
+      if (owner.sessionId === sessionId)
+        this.pendingApprovals.delete(requestId);
+    }
+    for (const [requestId, owner] of this.pendingQuestionnaires) {
+      if (owner.sessionId === sessionId)
+        this.pendingQuestionnaires.delete(requestId);
+    }
   }
 
   async dispose(webContentsId: number): Promise<void> {
@@ -690,43 +692,56 @@ export class ProjectRuntimeRegistry {
     if (!runtime) return;
 
     for (const [requestId, owner] of this.pendingApprovals) {
-      if (owner === webContentsId) this.pendingApprovals.delete(requestId);
+      if (owner.webContentsId === webContentsId)
+        this.pendingApprovals.delete(requestId);
     }
     for (const [requestId, owner] of this.pendingQuestionnaires) {
-      if (owner === webContentsId) this.pendingQuestionnaires.delete(requestId);
+      if (owner.webContentsId === webContentsId)
+        this.pendingQuestionnaires.delete(requestId);
     }
     this.runtimes.delete(webContentsId);
-    await this.releaseSession(runtime);
-    await runtime.sessions.dispose();
+    await Promise.allSettled([
+      ...runtime.pendingCreations,
+      ...runtime.openingSessions.values(),
+    ]);
+    try {
+      await Promise.all(
+        [...runtime.liveSessions.keys()].map((sessionId) =>
+          this.agentHost.disposeSession(sessionId),
+        ),
+      );
+    } finally {
+      runtime.liveSessions.clear();
+      await runtime.sessions.dispose();
+    }
   }
 
   private entryForSession(
     sessionId: string,
   ): { runtime: ProjectRuntime; webContentsId: number } | undefined {
     for (const [webContentsId, runtime] of this.runtimes) {
-      if (
-        runtime.session.status === "active" &&
-        runtime.session.summary.id === sessionId
-      ) {
+      if (runtime.liveSessions.has(sessionId)) {
         return { runtime, webContentsId };
       }
     }
     return undefined;
   }
 
-  private async releaseSession(runtime: ProjectRuntime): Promise<void> {
-    const session = runtime.session;
-    runtime.session = { status: "idle" };
+  private focusedSession(runtime?: ProjectRuntime): RuntimeSession | undefined {
+    return runtime?.focusedSessionId
+      ? runtime.liveSessions.get(runtime.focusedSessionId)
+      : undefined;
+  }
 
-    if (session.status === "idle") return;
-    const sessionId =
-      session.status === "active"
-        ? session.summary.id
-        : await session.promise.then(
-            (summary) => summary.id,
-            () => undefined,
-          );
-    if (sessionId) await this.agentHost.disposeSession(sessionId);
+  private targetSession(
+    webContentsId: number,
+    sessionId?: string,
+  ): RuntimeSession | undefined {
+    const runtime = this.get(webContentsId);
+    if (!sessionId) return this.focusedSession(runtime);
+    const live = runtime.liveSessions.get(sessionId);
+    if (!live) throw new Error("Session does not belong to this window.");
+    return live;
   }
 
   private get(webContentsId: number): ProjectRuntime {

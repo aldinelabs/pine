@@ -17,6 +17,7 @@ import type {
   PineSessionSummary,
 } from "../../shared/sessions";
 import type { AgentHost } from "../agentProcessHost";
+import { ProjectSessionService } from "../sessions";
 import { ProjectRuntimeRegistry } from "../projectRuntime";
 
 const temporaryDirectories: string[] = [];
@@ -564,7 +565,11 @@ describe("ProjectRuntimeRegistry", () => {
         target: { kind: "new" },
       });
 
-      expect(disposeSession).toHaveBeenCalledWith(sessionSummary.id);
+      expect(disposeSession).not.toHaveBeenCalled();
+      expect(registry.ownerOfSession(sessionSummary.id)).toBe(5);
+      expect(registry.ownerOfSession(nextSession.id)).toBe(5);
+      await registry.resume(5, sessionSummary.id);
+      expect(disposeSession).not.toHaveBeenCalled();
       expect(createSession).toHaveBeenCalledTimes(2);
       expect(prompt).toHaveBeenCalledWith(
         nextSession.id,
@@ -678,5 +683,133 @@ describe("ProjectRuntimeRegistry", () => {
     await disposal;
     expect(createSession).toHaveBeenCalledOnce();
     expect(disposeSession).toHaveBeenCalledWith(sessionSummary.id);
+  });
+  it("creates concurrent sessions independently and targets controls without changing siblings", async () => {
+    const host = createAgentHost();
+    const setApprovalMode = vi.spyOn(host, "setApprovalMode");
+    const compact = vi.spyOn(host, "compact");
+    const abort = vi.spyOn(host, "abort");
+    const disposeSession = vi.spyOn(host, "disposeSession");
+    const first = deferred<{ session: PineSessionSummary }>();
+    const second = deferred<{ session: PineSessionSummary }>();
+    const other = {
+      ...sessionSummary,
+      id: "0198e338-fb55-7e18-a23e-a7028500f124",
+    };
+    const createSession = vi
+      .spyOn(host, "createSession")
+      .mockReturnValueOnce(first.promise)
+      .mockReturnValueOnce(second.promise);
+    vi.spyOn(host, "prompt").mockImplementation((sessionId) =>
+      Promise.resolve({
+        accepted: true,
+        session: { ...sessionSummary, id: sessionId },
+      }),
+    );
+    const registry = new ProjectRuntimeRegistry(host, "/pine/agent");
+    const { dataRoot, project } = await createRuntimeFixture();
+    await registry.open(1, project, {
+      attachmentsRoot: path.join(dataRoot, "attachments"),
+      cacheRoot: path.join(dataRoot, "cache"),
+      projectRoot: dataRoot,
+      sessionsRoot: path.join(dataRoot, "sessions"),
+    });
+    try {
+      const creatingA = registry.prompt(1, {
+        message: "A",
+        target: { kind: "new" },
+        approvalMode: "let-me-review",
+      });
+      const creatingB = registry.prompt(1, {
+        message: "B",
+        target: { kind: "new" },
+        approvalMode: "YOLO",
+      });
+      second.resolve({ session: other });
+      await creatingB;
+      first.resolve({ session: sessionSummary });
+      await creatingA;
+      expect(createSession).toHaveBeenCalledTimes(2);
+      expect(disposeSession).not.toHaveBeenCalled();
+      expect(registry.ownerOfSession(sessionSummary.id)).toBe(1);
+      expect(registry.ownerOfSession(other.id)).toBe(1);
+      await registry.resume(1, other.id);
+      await registry.abort(1, sessionSummary.id);
+      await registry.compact(1, sessionSummary.id);
+      await registry.setApprovalMode(1, "autonomous", sessionSummary.id);
+      expect(abort).toHaveBeenCalledWith(sessionSummary.id);
+      expect(compact).toHaveBeenCalledWith(sessionSummary.id);
+      expect(setApprovalMode).toHaveBeenCalledWith(
+        sessionSummary.id,
+        "autonomous",
+      );
+      await expect(registry.abort(1, "unknown")).rejects.toThrow(
+        "does not belong",
+      );
+      expect(disposeSession).not.toHaveBeenCalled();
+    } finally {
+      await registry.dispose(1);
+    }
+    expect(disposeSession).toHaveBeenCalledTimes(2);
+  });
+
+  it("coalesces concurrent opens and releases a late open when the project closes", async () => {
+    const host = createAgentHost();
+    const disposeSession = vi.spyOn(host, "disposeSession");
+    const opening = deferred<{ session: PineSessionSummary }>();
+    const openSession = vi
+      .spyOn(host, "openSession")
+      .mockReturnValue(opening.promise);
+    const registry = new ProjectRuntimeRegistry(host, "/pine/agent");
+    const { dataRoot, project } = await createRuntimeFixture();
+    await registry.open(2, project, {
+      attachmentsRoot: path.join(dataRoot, "attachments"),
+      cacheRoot: path.join(dataRoot, "cache"),
+      projectRoot: dataRoot,
+      sessionsRoot: path.join(dataRoot, "sessions"),
+    });
+    const describe = vi
+      .spyOn(ProjectSessionService.prototype, "describeSession")
+      .mockResolvedValue({
+        sessionFile: "/tmp/session.jsonl",
+        summary: sessionSummary,
+      });
+    const first = registry.resume(2, sessionSummary.id);
+    const second = registry.resume(2, sessionSummary.id);
+    const outcomes = Promise.allSettled([first, second]);
+    await vi.waitFor(() => expect(openSession).toHaveBeenCalledOnce());
+    const closing = registry.dispose(2);
+    opening.resolve({ session: sessionSummary });
+    const results = await outcomes;
+    await closing;
+    expect(describe).toHaveBeenCalledOnce();
+    expect(results.every((result) => result.status === "rejected")).toBe(true);
+    expect(disposeSession).toHaveBeenCalledExactlyOnceWith(sessionSummary.id);
+    expect(registry.ownerOfSession(sessionSummary.id)).toBeUndefined();
+  });
+
+  it("expires only the terminated session's pending interactions", () => {
+    const host = createAgentHost();
+    const respondApproval = vi.spyOn(host, "respondApproval");
+    const registry = new ProjectRuntimeRegistry(host, "/pine/agent");
+    registry.trackApproval("a", 1, "session-a");
+    registry.trackApproval("b", 1, "session-b");
+    registry.trackQuestionnaire("q-a", 1, "session-a");
+    registry.clearSessionInteractions("session-a");
+    expect(() =>
+      registry.respondApproval(1, { requestId: "a", action: "approve" }),
+    ).toThrow("no longer pending");
+    expect(() =>
+      registry.respondQuestionnaire(1, {
+        requestId: "q-a",
+        submission: { answers: [], cancelled: true },
+      }),
+    ).toThrow("no longer pending");
+    expect(
+      registry.respondApproval(1, { requestId: "b", action: "approve" }),
+    ).toEqual({ accepted: true });
+    expect(respondApproval).toHaveBeenCalledExactlyOnceWith("b", {
+      kind: "allow",
+    });
   });
 });
