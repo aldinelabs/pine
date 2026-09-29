@@ -9,6 +9,8 @@ vi.mock("electron", () => ({
 }));
 
 class FakeAgentProcess extends EventEmitter {
+  readonly stdout = { resume: vi.fn() };
+  readonly stderr = { resume: vi.fn() };
   readonly requests: AgentWorkerRequest[] = [];
   killed = false;
 
@@ -32,6 +34,16 @@ function createHost() {
 }
 
 describe("AgentProcessHost", () => {
+  it("drains agent output so full pipes cannot block requests", async () => {
+    const { host, process } = createHost();
+    const pending = host.abort("session-1");
+    await vi.waitFor(() => expect(process.requests).toHaveLength(1));
+    expect(process.stdout.resume).toHaveBeenCalledOnce();
+    expect(process.stderr.resume).toHaveBeenCalledOnce();
+    process.emit("exit", 9);
+    await expect(pending).rejects.toThrow("exited unexpectedly");
+  });
+
   it("correlates typed requests and responses", async () => {
     const { host, process } = createHost();
     const location = {

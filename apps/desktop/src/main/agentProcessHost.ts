@@ -32,6 +32,8 @@ import type {
 } from "../agent/protocol";
 
 interface AgentProcess {
+  readonly stdout?: Pick<NodeJS.ReadableStream, "resume"> | null;
+  readonly stderr?: Pick<NodeJS.ReadableStream, "resume"> | null;
   kill(): boolean;
   on(event: "exit", listener: (code: number) => void): this;
   on(event: "message", listener: (message: unknown) => void): this;
@@ -439,6 +441,10 @@ export class AgentProcessHost implements AgentHost {
     });
     const process = this.createProcess();
     this.process = process;
+    // Drain piped output even when no console is attached to a packaged app.
+    // Otherwise a full pipe can prevent the agent from making progress.
+    process.stdout?.resume();
+    process.stderr?.resume();
     process.on("message", (message) => this.handleMessage(message));
     process.on("exit", (code) => {
       if (this.process !== process) return;
