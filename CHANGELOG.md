@@ -9,10 +9,22 @@ Starting with 0.4.4, release notes are written in both Chinese and English.
 
 ## [Unreleased]
 
+## [0.6.5] - 2026-09-29
+
+### 新增 / Added
+
+- 偏好设置新增可选诊断日志，帮助排查项目通信与电脑睡眠、唤醒问题。Preferences now include optional diagnostic logging to help troubleshoot project communication and sleep or wake issues.
+
+### 变更 / Changed
+
+- 多个会话现在可以同时运行；切换或新建 tab 不会中断其他会话，每个 tab 保留自己的对话、运行状态和待处理请求。Multiple sessions can now run concurrently; switching or creating a tab no longer interrupts other sessions, and each tab keeps its own conversation, run status, and pending requests.
+- Markdown 现在可以安全显示 `details`、`summary` 等结构化 HTML，表格中的长行内代码也会在自然分隔处换行。Markdown now safely renders structural HTML such as `details` and `summary`, and long inline code in tables wraps at natural break points.
+
 ### 修复 / Fixed
 
-- 多个会话现在可以同时工作，切换或新建会话 tab 不再中断其他会话；各 tab 保留自己的消息、运行状态和待批准请求。Multiple sessions can now work concurrently; switching or creating a session tab no longer interrupts other sessions, and each tab keeps its own messages, running state, and pending approvals.
-- 修复连续批准卡中第二张无法操作的问题，并避免隐藏 tab 的批准卡响应其他 tab 的快捷键。Fixed subsequent approval cards becoming unresponsive and prevented hidden tabs from handling another tab's approval shortcuts.
+- 修复滚动查看较早消息时，对话末尾的预留空白无法及时收缩的问题。Fixed excess blank space at the end of a conversation while scrolling back through older messages.
+- 修复助手进程输出较多时可能被阻塞的问题。Fixed an issue that could stall the assistant when its process produced a large amount of output.
+- 修复连续批准请求中的后续卡片无法操作的问题；批准快捷键现在只作用于当前 tab。Fixed later cards in a sequence of approval requests becoming unresponsive; approval shortcuts now apply only to the active tab.
 
 ## [0.6.4] - 2026-09-27
 
