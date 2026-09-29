@@ -10,6 +10,7 @@ import {
   dialog,
   ipcMain,
   nativeTheme,
+  powerMonitor,
   protocol,
   shell,
   webContents,
@@ -52,6 +53,7 @@ import {
 import { installWindowShortcuts } from "./main/windowShortcuts";
 import { AppUpdater, readUpdateManifestUrl } from "./main/appUpdater";
 import { AgentProcessHost } from "./main/agentProcessHost";
+import { RuntimeDiagnostics } from "./main/runtimeDiagnostics";
 import { ModelRecommendationService } from "./main/modelRecommendations";
 import {
   ensureWindowsSandboxReady,
@@ -410,6 +412,7 @@ function registerAttachmentImageProtocol(): void {
 nativeTheme.themeSource = "system";
 
 let agentHost: AgentProcessHost | null = null;
+let runtimeDiagnostics: RuntimeDiagnostics | null = null;
 let pineAgentDirectory: string | null = null;
 const modelRecommendations = new ModelRecommendationService();
 const modelMetadata = new ModelMetadataService();
@@ -870,6 +873,19 @@ function getProjectRuntimes(): ProjectRuntimeRegistry {
   return projectRuntimes;
 }
 
+function handleDiagnosticIpc(
+  channel: string,
+  listener: Parameters<typeof ipcMain.handle>[1],
+): void {
+  ipcMain.handle(channel, (event, ...args) =>
+    runtimeDiagnostics
+      ? runtimeDiagnostics.trace(channel, event.sender.id, () =>
+          listener(event, ...args),
+        )
+      : listener(event, ...args),
+  );
+}
+
 function windowForWebContentsId(
   webContentsId: number,
 ): BrowserWindow | undefined {
@@ -1066,6 +1082,25 @@ const createWindow = () => {
     },
   });
   const webContentsId = mainWindow.webContents.id;
+  mainWindow.on("unresponsive", () => {
+    runtimeDiagnostics?.record("window:unresponsive", { webContentsId });
+  });
+  mainWindow.on("responsive", () => {
+    runtimeDiagnostics?.record("window:responsive", { webContentsId });
+  });
+  mainWindow.webContents.on("render-process-gone", (_event, details) => {
+    runtimeDiagnostics?.record("renderer:gone", {
+      webContentsId,
+      reason: details.reason,
+      exitCode: details.exitCode,
+    });
+  });
+  mainWindow.webContents.on("preload-error", (_event, _preloadPath, error) => {
+    runtimeDiagnostics?.record("preload:error", {
+      webContentsId,
+      error: error.message,
+    });
+  });
   installWindowShortcuts(mainWindow.webContents, createWindow);
 
   // Focus stops the approval attention request (Windows flashes until the
@@ -1429,7 +1464,7 @@ ipcMain.handle(
   },
 );
 
-ipcMain.handle(
+handleDiagnosticIpc(
   PICK_ATTACHMENT_FOLDERS_CHANNEL,
   async (event): Promise<PickAttachmentsResult> => {
     const parentWindow = BrowserWindow.fromWebContents(event.sender);
@@ -1518,7 +1553,7 @@ ipcMain.handle(
   },
 );
 
-ipcMain.handle(
+handleDiagnosticIpc(
   PICK_PROJECT_FOLDERS_CHANNEL,
   async (event, request: unknown): Promise<PickProjectFoldersResult> => {
     const { mode } = PickProjectFoldersRequestSchema.parse(request);
@@ -1550,7 +1585,7 @@ ipcMain.handle(
   },
 );
 
-ipcMain.handle(
+handleDiagnosticIpc(
   CREATE_PROJECT_CHANNEL,
   async (_event, request: unknown): Promise<ProjectResult> => {
     const input = ProjectMutationSchema.parse(request);
@@ -1897,14 +1932,14 @@ ipcMain.handle(
   },
 );
 
-ipcMain.handle(CLOSE_PROJECT_CHANNEL, async (event): Promise<void> => {
+handleDiagnosticIpc(CLOSE_PROJECT_CHANNEL, async (event): Promise<void> => {
   // Presenting a file is authorized per run, so closing the project that ran
   // the agent ends those grants with it.
   presentedFiles?.forget(event.sender.id);
   await getProjectRuntimes().dispose(event.sender.id);
 });
 
-ipcMain.handle(
+handleDiagnosticIpc(
   OPEN_PROJECT_CHANNEL,
   async (event, request: unknown): Promise<OpenProjectResult> => {
     const { id } = ProjectIdRequestSchema.parse(request);
@@ -1953,7 +1988,7 @@ ipcMain.handle(
   },
 );
 
-ipcMain.handle(
+handleDiagnosticIpc(
   UPDATE_PROJECT_CHANNEL,
   async (event, request: unknown): Promise<ProjectResult> => {
     const parsed = UpdateProjectRequestSchema.parse(request);
@@ -2100,7 +2135,7 @@ ipcMain.handle(
   },
 );
 
-ipcMain.handle(
+handleDiagnosticIpc(
   SEARCH_SESSIONS_CHANNEL,
   async (event, request: unknown): Promise<SearchSessionsResult> => {
     const { query } = SearchSessionsRequestSchema.parse(request);
@@ -2123,7 +2158,7 @@ ipcMain.handle(
   },
 );
 
-ipcMain.handle(
+handleDiagnosticIpc(
   RESUME_SESSION_CHANNEL,
   async (event, request: unknown): Promise<ResumeSessionResult> => {
     const { sessionId } = SessionIdRequestSchema.parse(request);
@@ -2180,7 +2215,7 @@ ipcMain.handle(
   },
 );
 
-ipcMain.handle(
+handleDiagnosticIpc(
   LOAD_SESSION_MESSAGES_CHANNEL,
   async (event, request: unknown): Promise<LoadSessionMessagesResult> => {
     const { before, includeOutline, limit, sessionId } =
@@ -2277,6 +2312,28 @@ ipcMain.handle(
 // initialization and is ready to create browser windows.
 // Some APIs can only be used after this event occurs.
 async function initializeApp(): Promise<void> {
+  runtimeDiagnostics = new RuntimeDiagnostics(app.getPath("logs"));
+  runtimeDiagnostics.record("app:start", {
+    version: app.getVersion(),
+    electron: process.versions.electron,
+    platform: process.platform,
+  });
+  powerMonitor.on("suspend", () => runtimeDiagnostics?.record("power:suspend"));
+  powerMonitor.on("resume", () => runtimeDiagnostics?.record("power:resume"));
+  powerMonitor.on("lock-screen", () =>
+    runtimeDiagnostics?.record("power:lock-screen"),
+  );
+  powerMonitor.on("unlock-screen", () =>
+    runtimeDiagnostics?.record("power:unlock-screen"),
+  );
+  app.on("child-process-gone", (_event, details) => {
+    runtimeDiagnostics?.record("child-process:gone", {
+      type: details.type,
+      ...(details.name ? { name: details.name } : {}),
+      reason: details.reason,
+      exitCode: details.exitCode,
+    });
+  });
   // Dev runs inside Electron.app, so it cannot use Pine's bundle asset catalog.
   // Preview Apple's generated compatibility image here. Packaged apps retain
   // the native Icon Composer resource; never override it with dock.setIcon().
