@@ -139,8 +139,9 @@ async function confirmExternalLink(): Promise<void> {
       its own `--ms-*` themeable CSS variables set on the `.markstream-vue`
       container, so the primary styling knob below is overriding those variables,
       not per-tag `:deep()` rules (which fought markstream's var-based sizing).
-      `html-policy="escape"` mirrors markdown-it's previous "raw HTML disabled"
-      posture; the built-in `LinkNode` already emits `target="_blank"` +
+      `html-policy="safe"` renders the allowlisted structural HTML used by
+      Markdown documents (such as details/summary) while stripping unsafe tags
+      and attributes. The built-in `LinkNode` already emits `target="_blank"` +
       `rel="noopener noreferrer"`.
     -->
     <!-- New stream deltas fade in (streamdown-style); completed/history
@@ -151,7 +152,7 @@ async function confirmExternalLink(): Promise<void> {
       :nodes="nodes"
       :final="final"
       :parse-options="markdownParseOptions"
-      html-policy="escape"
+      html-policy="safe"
       custom-id="pine-chat"
       :smooth-streaming="false"
       :parse-coalesce-ms="32"

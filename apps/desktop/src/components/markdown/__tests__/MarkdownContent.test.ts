@@ -113,13 +113,18 @@ describe("MarkdownContent", () => {
     wrapper.unmount();
   });
 
-  it("escapes raw HTML so it is never rendered as an element", () => {
+  it("renders safe raw HTML and removes unsafe tags", () => {
     const wrapper = mountMarkdown(
-      '<script data-test="unsafe">alert(1)</script>',
+      [
+        "<details><summary>参考答案</summary><ol><li><code>pygame.Surface</code></li></ol></details>",
+        '<script data-test="unsafe">alert(1)</script>',
+      ].join("\n\n"),
     );
 
+    expect(wrapper.get("details summary").text()).toBe("参考答案");
+    expect(wrapper.get("details ol li code").text()).toBe("pygame.Surface");
     expect(wrapper.find("script").exists()).toBe(false);
-    expect(wrapper.text()).toContain('<script data-test="unsafe">');
+    expect(wrapper.text()).not.toContain("alert(1)");
   });
 
   it("prevents links from navigating the app window", () => {
@@ -277,8 +282,8 @@ describe("MarkdownContent", () => {
     expect(table.get("strong").text()).toBe("Pine");
     expect(table.get("code").text()).toBe("code");
     expect(table.get("a").attributes("target")).toBe("_blank");
-    expect(table.find("img").exists()).toBe(false);
-    expect(table.text()).toContain("<img src=x onerror=alert(1)>");
+    expect(table.get("img").attributes("src")).toBe("x");
+    expect(table.get("img").attributes("onerror")).toBeUndefined();
     wrapper.unmount();
   });
 
