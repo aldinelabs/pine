@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import {
   readPineAgentSettings,
   writeContextCompactionStrategy,
+  writeDiagnosticLoggingEnabled,
   writePineUserProfile,
   writeUtilityModelSelection,
 } from "../pineSettings";
@@ -20,6 +21,24 @@ afterEach(async () => {
 });
 
 describe("Pine agent settings", () => {
+  it("persists diagnostic logging without replacing other preferences", async () => {
+    const agentDir = await mkdtemp(
+      path.join(os.tmpdir(), "pine-logging-settings-"),
+    );
+    temporaryDirectories.push(agentDir);
+    await expect(readPineAgentSettings(agentDir)).resolves.toEqual({});
+    await writeContextCompactionStrategy(agentDir, "passive");
+    await writeDiagnosticLoggingEnabled(agentDir, true);
+    await expect(readPineAgentSettings(agentDir)).resolves.toEqual({
+      contextCompactionStrategy: "passive",
+      diagnosticLoggingEnabled: true,
+    });
+    await writeDiagnosticLoggingEnabled(agentDir, false);
+    await expect(readPineAgentSettings(agentDir)).resolves.toEqual({
+      contextCompactionStrategy: "passive",
+      diagnosticLoggingEnabled: false,
+    });
+  });
   it("persists the context compaction strategy", async () => {
     const agentDir = await mkdtemp(
       path.join(os.tmpdir(), "pine-agent-settings-compaction-"),

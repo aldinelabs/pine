@@ -17,6 +17,7 @@ import {
 const PINE_SETTINGS_FILE = "pine-settings.json";
 
 export interface PineAgentSettings {
+  diagnosticLoggingEnabled?: boolean;
   contextCompactionStrategy?: PineContextCompactionStrategy;
   imageModel?: PineImageModelSelection;
   utilityModel?: PineUtilityModelSelection;
@@ -81,6 +82,9 @@ export async function readPineAgentSettings(
     const userProfile = settings.userProfile;
     const contextCompactionStrategy = settings.contextCompactionStrategy;
     return {
+      ...(typeof settings.diagnosticLoggingEnabled === "boolean"
+        ? { diagnosticLoggingEnabled: settings.diagnosticLoggingEnabled }
+        : {}),
       ...(isPineContextCompactionStrategy(contextCompactionStrategy)
         ? { contextCompactionStrategy }
         : {}),
@@ -127,6 +131,13 @@ export async function writeContextCompactionStrategy(
   contextCompactionStrategy: PineContextCompactionStrategy,
 ): Promise<void> {
   await writePineAgentSettings(agentDir, { contextCompactionStrategy });
+}
+
+export async function writeDiagnosticLoggingEnabled(
+  agentDir: string,
+  diagnosticLoggingEnabled: boolean,
+): Promise<void> {
+  await writePineAgentSettings(agentDir, { diagnosticLoggingEnabled });
 }
 
 async function writePineAgentSettings(

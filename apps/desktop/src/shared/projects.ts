@@ -15,6 +15,8 @@ import type {
   PineContextCompactionStrategy,
   SetContextCompactionStrategyRequest,
   SetContextCompactionStrategyResult,
+  SetDiagnosticLoggingRequest,
+  SetDiagnosticLoggingResult,
 } from "./preferences";
 import type {
   InspectAttachmentsRequest,
@@ -274,6 +276,10 @@ export interface PineDesktopApi extends PineWindowApi {
     request: DeleteCustomProviderRequest,
   ) => Promise<PineModelCatalog>;
   getContextCompactionStrategy: () => Promise<PineContextCompactionStrategy>;
+  getDiagnosticLogging: () => Promise<boolean>;
+  setDiagnosticLogging: (
+    request: SetDiagnosticLoggingRequest,
+  ) => Promise<SetDiagnosticLoggingResult>;
   getUserProfile: () => Promise<PineUserProfile>;
   getTinyFishCredentialStatus: () => Promise<TinyFishCredentialStatus>;
   setTinyFishApiKey: (

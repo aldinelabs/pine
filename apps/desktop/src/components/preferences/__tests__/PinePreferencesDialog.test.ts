@@ -32,6 +32,10 @@ const getContextCompactionStrategy = vi.fn().mockResolvedValue("recommended");
 const setContextCompactionStrategy = vi.fn().mockResolvedValue({
   updated: true,
 });
+const getDiagnosticLogging = vi.fn().mockResolvedValue(false);
+const setDiagnosticLogging = vi.fn(({ enabled }: { enabled: boolean }) =>
+  Promise.resolve({ enabled }),
+);
 
 function installPineApi(platform: string | undefined): void {
   const pineWindow = window as unknown as {
@@ -44,6 +48,8 @@ function installPineApi(platform: string | undefined): void {
       setUserProfile: typeof setUserProfile;
       getContextCompactionStrategy: typeof getContextCompactionStrategy;
       setContextCompactionStrategy: typeof setContextCompactionStrategy;
+      getDiagnosticLogging: typeof getDiagnosticLogging;
+      setDiagnosticLogging: typeof setDiagnosticLogging;
     };
   };
   if (platform === undefined) {
@@ -59,6 +65,8 @@ function installPineApi(platform: string | undefined): void {
     setUserProfile,
     getContextCompactionStrategy,
     setContextCompactionStrategy,
+    getDiagnosticLogging,
+    setDiagnosticLogging,
   };
 }
 
@@ -115,6 +123,10 @@ describe("PinePreferencesDialog", () => {
     setUserProfile.mockClear();
     getContextCompactionStrategy.mockClear();
     setContextCompactionStrategy.mockClear();
+    getDiagnosticLogging.mockReset().mockResolvedValue(false);
+    setDiagnosticLogging
+      .mockReset()
+      .mockImplementation(({ enabled }) => Promise.resolve({ enabled }));
     getTinyFishCredentialStatus.mockResolvedValue({ configured: false });
     setTinyFishApiKey.mockResolvedValue({ configured: true });
     installPineApi(undefined);
@@ -360,6 +372,43 @@ describe("PinePreferencesDialog", () => {
         strategy: "passive",
       }),
     );
+  });
+
+  it("loads and saves diagnostic logging in general preferences", async () => {
+    installPineApi("linux");
+    getDiagnosticLogging.mockResolvedValueOnce(true);
+    const { wrapper } = mountDialog();
+    await flushPromises();
+    const toggle = wrapper.get(
+      '[data-testid="pine-diagnostic-logging-toggle"]',
+    );
+    expect(toggle.attributes("aria-checked")).toBe("true");
+    expect(toggle.attributes("disabled")).toBeUndefined();
+    await toggle.trigger("click");
+    await flushPromises();
+    expect(setDiagnosticLogging).toHaveBeenCalledWith({ enabled: false });
+    expect(toggle.attributes("aria-checked")).toBe("false");
+  });
+
+  it("restores the diagnostic logging toggle when saving fails", async () => {
+    installPineApi("linux");
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    setDiagnosticLogging.mockRejectedValueOnce(
+      new Error("Unable to save settings"),
+    );
+    const { wrapper } = mountDialog();
+    await flushPromises();
+    const toggle = wrapper.get(
+      '[data-testid="pine-diagnostic-logging-toggle"]',
+    );
+    await toggle.trigger("click");
+    await flushPromises();
+    expect(setDiagnosticLogging).toHaveBeenCalledWith({ enabled: true });
+    expect(toggle.attributes("aria-checked")).toBe("false");
+    expect(toggle.attributes("disabled")).toBeUndefined();
+    expect(consoleError).toHaveBeenCalled();
   });
 
   it("shows the compaction description from a focusable help badge", async () => {

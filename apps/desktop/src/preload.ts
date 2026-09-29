@@ -31,9 +31,13 @@ import {
 import {
   GET_CONTEXT_COMPACTION_STRATEGY_CHANNEL,
   SET_CONTEXT_COMPACTION_STRATEGY_CHANNEL,
+  GET_DIAGNOSTIC_LOGGING_CHANNEL,
+  SET_DIAGNOSTIC_LOGGING_CHANNEL,
   type PineContextCompactionStrategy,
   type SetContextCompactionStrategyRequest,
   type SetContextCompactionStrategyResult,
+  type SetDiagnosticLoggingRequest,
+  type SetDiagnosticLoggingResult,
 } from "./shared/preferences";
 import {
   INSPECT_ATTACHMENTS_CHANNEL,
@@ -316,6 +320,12 @@ const pineApi: PineDesktopApi = {
     ipcRenderer.invoke(DELETE_CUSTOM_PROVIDER_CHANNEL, request),
   getContextCompactionStrategy: (): Promise<PineContextCompactionStrategy> =>
     ipcRenderer.invoke(GET_CONTEXT_COMPACTION_STRATEGY_CHANNEL),
+  getDiagnosticLogging: (): Promise<boolean> =>
+    ipcRenderer.invoke(GET_DIAGNOSTIC_LOGGING_CHANNEL),
+  setDiagnosticLogging: (
+    request: SetDiagnosticLoggingRequest,
+  ): Promise<SetDiagnosticLoggingResult> =>
+    ipcRenderer.invoke(SET_DIAGNOSTIC_LOGGING_CHANNEL, request),
   getUserProfile: (): Promise<PineUserProfile> =>
     ipcRenderer.invoke(GET_USER_PROFILE_CHANNEL),
   getTinyFishCredentialStatus: (): Promise<TinyFishCredentialStatus> =>

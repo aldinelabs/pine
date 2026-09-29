@@ -94,6 +94,9 @@ const contextCompactionStrategy = ref<PineContextCompactionStrategy>(
   DEFAULT_CONTEXT_COMPACTION_STRATEGY,
 );
 const isSavingContextCompactionStrategy = ref(false);
+const diagnosticLoggingEnabled = ref(false);
+const isLoadingDiagnosticLogging = ref(true);
+const isSavingDiagnosticLogging = ref(false);
 const PROFILE_AUTOSAVE_DELAY_MS = 500;
 let profileSaveTimer: ReturnType<typeof setTimeout> | undefined;
 let profileSaveQueue: Promise<void> = Promise.resolve();
@@ -160,6 +163,7 @@ watch(isOpen, (open) => {
   void loadUserProfile();
   void loadTinyFishCredentialStatus();
   void loadContextCompactionStrategy();
+  void loadDiagnosticLogging();
 });
 
 watch(
@@ -184,6 +188,7 @@ onMounted(() => {
   void loadUserProfile();
   void loadTinyFishCredentialStatus();
   void loadContextCompactionStrategy();
+  void loadDiagnosticLogging();
 });
 
 function userProfilesEqual(a: PineUserProfile, b: PineUserProfile): boolean {
@@ -314,6 +319,48 @@ async function loadContextCompactionStrategy(): Promise<void> {
       title: t("errors.contextCompactionStrategy.title"),
       description: t("errors.contextCompactionStrategy.description"),
     });
+  }
+}
+
+async function loadDiagnosticLogging(): Promise<void> {
+  if (isSavingDiagnosticLogging.value) return;
+  isLoadingDiagnosticLogging.value = true;
+  try {
+    if (typeof window.pine?.getDiagnosticLogging !== "function") return;
+    diagnosticLoggingEnabled.value = await window.pine.getDiagnosticLogging();
+  } catch (error) {
+    handleError(error, {
+      id: "diagnostic-logging-load",
+      title: t("errors.diagnosticLogging.title"),
+      description: t("errors.diagnosticLogging.description"),
+    });
+  } finally {
+    isLoadingDiagnosticLogging.value = false;
+  }
+}
+
+async function updateDiagnosticLogging(enabled: boolean): Promise<void> {
+  if (
+    isLoadingDiagnosticLogging.value ||
+    isSavingDiagnosticLogging.value ||
+    enabled === diagnosticLoggingEnabled.value
+  )
+    return;
+  const previous = diagnosticLoggingEnabled.value;
+  diagnosticLoggingEnabled.value = enabled;
+  isSavingDiagnosticLogging.value = true;
+  try {
+    const result = await window.pine.setDiagnosticLogging({ enabled });
+    diagnosticLoggingEnabled.value = result.enabled;
+  } catch (error) {
+    diagnosticLoggingEnabled.value = previous;
+    handleError(error, {
+      id: "diagnostic-logging-save",
+      title: t("errors.diagnosticLogging.title"),
+      description: t("errors.diagnosticLogging.description"),
+    });
+  } finally {
+    isSavingDiagnosticLogging.value = false;
   }
 }
 
@@ -632,6 +679,27 @@ function updateSidebarVibrancy(value: boolean): void {
                   :model-value="appearanceStore.sidebarVibrancy"
                   aria-labelledby="pine-sidebar-vibrancy-setting"
                   @update:model-value="updateSidebarVibrancy"
+                />
+              </Field>
+
+              <Field orientation="horizontal">
+                <div class="flex min-w-0 flex-1 flex-col gap-1">
+                  <FieldLabel for="pine-diagnostic-logging-toggle">
+                    {{ t("preferences.diagnosticLogging") }}
+                  </FieldLabel>
+                  <FieldDescription id="pine-diagnostic-logging-description">
+                    {{ t("preferences.diagnosticLoggingDescription") }}
+                  </FieldDescription>
+                </div>
+                <Switch
+                  id="pine-diagnostic-logging-toggle"
+                  data-testid="pine-diagnostic-logging-toggle"
+                  :model-value="diagnosticLoggingEnabled"
+                  :disabled="
+                    isLoadingDiagnosticLogging || isSavingDiagnosticLogging
+                  "
+                  aria-describedby="pine-diagnostic-logging-description"
+                  @update:model-value="updateDiagnosticLogging"
                 />
               </Field>
             </FieldGroup>

@@ -12,12 +12,31 @@ export class RuntimeDiagnostics {
   readonly logPath: string;
   private writes: Promise<void> = Promise.resolve();
   private nextRequestId = 0;
+  private recordingGeneration = 0;
 
-  constructor(logDirectory: string) {
+  constructor(
+    logDirectory: string,
+    private enabled = false,
+  ) {
     this.logPath = path.join(logDirectory, "runtime-diagnostics.jsonl");
   }
 
+  get isEnabled(): boolean {
+    return this.enabled;
+  }
+
+  async setEnabled(enabled: boolean): Promise<void> {
+    if (this.enabled !== enabled) {
+      this.enabled = enabled;
+      this.recordingGeneration += 1;
+    }
+    // Finish any in-flight write before confirming that recording has stopped.
+    await this.flush();
+  }
+
   record(event: string, details: DiagnosticDetails = {}): void {
+    if (!this.enabled) return;
+    const generation = this.recordingGeneration;
     const line = `${JSON.stringify({
       timestamp: new Date().toISOString(),
       event,
@@ -25,6 +44,7 @@ export class RuntimeDiagnostics {
     })}\n`;
     this.writes = this.writes
       .then(async () => {
+        if (!this.enabled || generation !== this.recordingGeneration) return;
         await mkdir(path.dirname(this.logPath), { recursive: true });
         const size = await stat(this.logPath).then(
           (info) => info.size,
@@ -33,10 +53,13 @@ export class RuntimeDiagnostics {
             throw error;
           },
         );
+        if (!this.enabled || generation !== this.recordingGeneration) return;
         if (size + Buffer.byteLength(line) > MAX_LOG_BYTES) {
           await rename(this.logPath, `${this.logPath}.1`);
         }
-        await appendFile(this.logPath, line, { mode: 0o600 });
+        if (this.enabled && generation === this.recordingGeneration) {
+          await appendFile(this.logPath, line, { mode: 0o600 });
+        }
       })
       .catch((error: unknown) => {
         console.error("[Pine diagnostics] Failed to write local log.", error);
@@ -48,20 +71,25 @@ export class RuntimeDiagnostics {
     senderId: number,
     operation: () => T | Promise<T>,
   ): Promise<T> {
+    if (!this.enabled) return operation();
+    const generation = this.recordingGeneration;
+    const record = (event: string, details: DiagnosticDetails) => {
+      if (generation === this.recordingGeneration) this.record(event, details);
+    };
     const startedAt = performance.now();
     const details = { channel, senderId, requestId: ++this.nextRequestId };
     const elapsedMs = () => Math.round(performance.now() - startedAt);
-    this.record("ipc:start", details);
+    record("ipc:start", details);
     // This is observational: long dialogs and operations remain valid.
     const timer = setTimeout(() => {
-      this.record("ipc:pending", { ...details, elapsedMs: elapsedMs() });
+      record("ipc:pending", { ...details, elapsedMs: elapsedMs() });
     }, PENDING_REQUEST_MS);
     try {
       const result = await operation();
-      this.record("ipc:complete", { ...details, elapsedMs: elapsedMs() });
+      record("ipc:complete", { ...details, elapsedMs: elapsedMs() });
       return result;
     } catch (error) {
-      this.record("ipc:error", {
+      record("ipc:error", {
         ...details,
         elapsedMs: elapsedMs(),
         error: (error instanceof Error ? error.message : String(error)).slice(

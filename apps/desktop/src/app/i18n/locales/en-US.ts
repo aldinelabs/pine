@@ -46,6 +46,9 @@ export default {
     themeSystem: "System",
     themeLight: "Light",
     themeDark: "Dark",
+    diagnosticLogging: "Diagnostic logging",
+    diagnosticLoggingDescription:
+      "Record local errors and sleep recovery events to help troubleshoot issues. Keeps the two most recent logs, up to about 2 MB in total. Conversation text is excluded and logs are never uploaded automatically. Turning this off stops recording and keeps existing logs.",
     contextCompactionStrategy: "Context compaction strategy",
     contextCompactionStrategyHelp: "About context compaction strategy",
     contextCompactionStrategyDescription:
@@ -1080,6 +1083,10 @@ export default {
     contextCompactionStrategy: {
       title: "Unable to update context compaction strategy",
       description: "Try again in a moment",
+    },
+    diagnosticLogging: {
+      title: "Unable to update diagnostic logging settings",
+      description: "Please try again later.",
     },
     utilityModel: {
       title: "Unable to update utility model",

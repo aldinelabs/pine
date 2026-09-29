@@ -75,6 +75,7 @@ import {
 import {
   readPineAgentSettings,
   writeContextCompactionStrategy,
+  writeDiagnosticLoggingEnabled,
   writePineUserProfile,
 } from "./agent/pineSettings";
 import {
@@ -100,8 +101,11 @@ import {
   DEFAULT_CONTEXT_COMPACTION_STRATEGY,
   GET_CONTEXT_COMPACTION_STRATEGY_CHANNEL,
   SET_CONTEXT_COMPACTION_STRATEGY_CHANNEL,
+  GET_DIAGNOSTIC_LOGGING_CHANNEL,
+  SET_DIAGNOSTIC_LOGGING_CHANNEL,
   type PineContextCompactionStrategy,
   type SetContextCompactionStrategyResult,
+  type SetDiagnosticLoggingResult,
 } from "./shared/preferences";
 import {
   ATTACHMENT_IMAGE_PROTOCOL,
@@ -1197,6 +1201,30 @@ ipcMain.handle(
   async (): Promise<PineContextCompactionStrategy> =>
     (await readPineAgentSettings(getPineAgentDirectory()))
       .contextCompactionStrategy ?? DEFAULT_CONTEXT_COMPACTION_STRATEGY,
+);
+
+ipcMain.handle(
+  GET_DIAGNOSTIC_LOGGING_CHANNEL,
+  (): boolean => runtimeDiagnostics?.isEnabled ?? false,
+);
+
+ipcMain.handle(
+  SET_DIAGNOSTIC_LOGGING_CHANNEL,
+  async (_event, request: unknown): Promise<SetDiagnosticLoggingResult> => {
+    const { enabled } = z.object({ enabled: z.boolean() }).parse(request);
+    if (!runtimeDiagnostics)
+      throw new Error("Runtime diagnostics are not ready.");
+    await writeDiagnosticLoggingEnabled(getPineAgentDirectory(), enabled);
+    await runtimeDiagnostics.setEnabled(enabled);
+    if (enabled) {
+      runtimeDiagnostics.record("diagnostics:enabled", {
+        version: app.getVersion(),
+        electron: process.versions.electron,
+        platform: process.platform,
+      });
+    }
+    return { enabled };
+  },
 );
 
 ipcMain.handle(
@@ -2312,7 +2340,12 @@ ipcMain.handle(
 // initialization and is ready to create browser windows.
 // Some APIs can only be used after this event occurs.
 async function initializeApp(): Promise<void> {
-  runtimeDiagnostics = new RuntimeDiagnostics(app.getPath("logs"));
+  pineAgentDirectory = path.join(app.getPath("userData"), "agent");
+  const settings = await readPineAgentSettings(pineAgentDirectory);
+  runtimeDiagnostics = new RuntimeDiagnostics(
+    app.getPath("logs"),
+    settings.diagnosticLoggingEnabled ?? false,
+  );
   runtimeDiagnostics.record("app:start", {
     version: app.getVersion(),
     electron: process.versions.electron,
@@ -2356,7 +2389,6 @@ async function initializeApp(): Promise<void> {
   );
   await tinyFishCredentialStore.load();
   agentHost = AgentProcessHost.createDefault();
-  pineAgentDirectory = path.join(app.getPath("userData"), "agent");
   projectsRootPath = path.join(app.getPath("userData"), PROJECTS_DIRECTORY);
   projectRepository = new ProjectRepository(projectsRootPath);
   const releaseConfigPath = app.isPackaged

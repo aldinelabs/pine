@@ -1,4 +1,11 @@
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import {
+  mkdtemp,
+  readFile,
+  readdir,
+  rm,
+  stat,
+  writeFile,
+} from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -10,7 +17,7 @@ describe("RuntimeDiagnostics", () => {
 
   beforeEach(async () => {
     directory = await mkdtemp(path.join(os.tmpdir(), "pine-diagnostics-"));
-    diagnostics = new RuntimeDiagnostics(directory);
+    diagnostics = new RuntimeDiagnostics(directory, true);
   });
 
   afterEach(async () => {
@@ -79,6 +86,16 @@ describe("RuntimeDiagnostics", () => {
     expect((await readFile(`${diagnostics.logPath}.1`)).length).toBe(1_048_576);
     diagnostics.record("power:suspend");
     expect(await records()).toHaveLength(2);
+    await writeFile(diagnostics.logPath, "y".repeat(1_048_576));
+    diagnostics.record("power:resume");
+    expect(await records()).toHaveLength(1);
+    expect(
+      (await readFile(`${diagnostics.logPath}.1`, "utf8")).startsWith("y"),
+    ).toBe(true);
+    expect((await readdir(directory)).sort()).toEqual([
+      "runtime-diagnostics.jsonl",
+      "runtime-diagnostics.jsonl.1",
+    ]);
   });
 
   it("keeps IPC results available when diagnostics cannot be written", async () => {
@@ -87,11 +104,55 @@ describe("RuntimeDiagnostics", () => {
       .mockImplementation(() => {});
     const blockedDirectory = path.join(directory, "file");
     await writeFile(blockedDirectory, "not a directory");
-    diagnostics = new RuntimeDiagnostics(blockedDirectory);
+    diagnostics = new RuntimeDiagnostics(blockedDirectory, true);
     await expect(
       diagnostics.trace("sessions:search", 1, () => ["session"]),
     ).resolves.toEqual(["session"]);
     await diagnostics.flush();
     expect(consoleError).toHaveBeenCalled();
+  });
+
+  it("does not create logs by default and still executes requests", async () => {
+    diagnostics = new RuntimeDiagnostics(directory);
+    diagnostics.record("power:resume");
+    await expect(
+      diagnostics.trace("sessions:search", 1, () => ["session"]),
+    ).resolves.toEqual(["session"]);
+    await diagnostics.flush();
+    await expect(stat(diagnostics.logPath)).rejects.toMatchObject({
+      code: "ENOENT",
+    });
+  });
+
+  it("drops queued writes when disabled and can resume recording", async () => {
+    diagnostics.record("discarded");
+    await diagnostics.setEnabled(false);
+    diagnostics.record("also-discarded");
+    await diagnostics.flush();
+    await expect(stat(diagnostics.logPath)).rejects.toMatchObject({
+      code: "ENOENT",
+    });
+    await diagnostics.setEnabled(true);
+    diagnostics.record("power:resume");
+    expect(await records()).toEqual([
+      expect.objectContaining({ event: "power:resume" }),
+    ]);
+  });
+
+  it("does not record old request completions after disabling and re-enabling", async () => {
+    let resolve!: () => void;
+    const pending = diagnostics.trace(
+      "projects:open",
+      1,
+      () => new Promise<void>((done) => (resolve = done)),
+    );
+    await diagnostics.flush();
+    await diagnostics.setEnabled(false);
+    await diagnostics.setEnabled(true);
+    resolve();
+    await pending;
+    expect((await records()).map((record) => record.event)).toEqual([
+      "ipc:start",
+    ]);
   });
 });

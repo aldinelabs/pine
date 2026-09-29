@@ -17,13 +17,13 @@
 
 ## 复现时收集什么
 
-新版在 `app.getPath("logs")` 下写入 `runtime-diagnostics.jsonl`。macOS 默认位置为 `~/Library/Logs/Pine/runtime-diagnostics.jsonl`。日志超过 1 MiB 时轮换为 `.1`，保留当前和上一份。
+诊断日志默认关闭，在全局「Pine 设置 → 通用 → 诊断日志」中开启，立即生效，重启后保留开关状态。开启后在 `app.getPath("logs")` 下写入 `runtime-diagnostics.jsonl`。macOS 默认位置为 `~/Library/Logs/Pine/runtime-diagnostics.jsonl`。日志超过 1 MiB 时轮换为 `.1`，保留当前和上一份，总量最多约 2 MiB。这是按容量滚动保留，不按天过期。关闭后停止记录，已有日志保留。
 
 日志记录应用版本、睡眠与恢复、锁屏与解锁、renderer 或 utility process 退出、preload 错误，以及项目和会话相关 IPC 的开始、完成、异常与耗时。超过 15 秒尚未完成的请求会写一条 `ipc:pending`；它是观测记录，不会取消请求，目录选择窗口等用户操作可以正常继续。
 
 不记录 IPC 参数、会话正文、搜索内容或成功返回的数据。错误消息和调用栈可能包含本机文件路径。日志仅保存在本机，不自动上传。
 
-请反馈者在故障出现后提供：
+请反馈者先开启诊断日志，再复现；故障出现后提供：
 
 1. 故障发生时间，以及关闭并重新打开 Pine 是否恢复。
 2. 两份诊断日志（如果 `.1` 存在，一并保留）。
