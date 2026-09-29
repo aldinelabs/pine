@@ -6,6 +6,7 @@ import type {
   SessionEntry,
 } from "@earendil-works/pi-coding-agent";
 import type { Api, AssistantMessage, Model } from "@earendil-works/pi-ai";
+import { createAssistantMessageEventStream } from "@earendil-works/pi-ai/utils/event-stream";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   attachedPathsFromSessionEntries,
@@ -559,6 +560,119 @@ describe("parseJudgeRulings", () => {
 });
 
 describe("PineAgentRuntime", () => {
+  it("automatically compacts a resumed 1M session above 400K after settings saves and MCP reload", async () => {
+    const root = await mkdtemp(path.join(os.tmpdir(), "pine-compaction-"));
+    temporaryDirectories.push(root);
+    const location = {
+      agentDir: path.join(root, "agent"),
+      cwd: path.join(root, "source"),
+      folders: [{ access: "read-write" as const, path: root }],
+      sessionsRoot: path.join(root, "sessions"),
+    };
+    await mkdir(location.agentDir, { recursive: true });
+    await mkdir(location.cwd, { recursive: true });
+    await writeFile(
+      path.join(location.agentDir, "models.json"),
+      JSON.stringify({
+        providers: {
+          verify: {
+            api: "openai-completions",
+            apiKey: "verify-key",
+            baseUrl: "http://127.0.0.1:1/v1",
+            models: [
+              {
+                id: "large",
+                name: "Large context regression model",
+                contextWindow: 1_000_000,
+                maxTokens: 8_192,
+                input: ["text"],
+              },
+            ],
+          },
+        },
+      }),
+    );
+    await writeFile(
+      path.join(location.agentDir, "settings.json"),
+      JSON.stringify({
+        defaultProvider: "verify",
+        defaultModel: "large",
+        compaction: { keepRecentTokens: 8 },
+      }),
+    );
+    const runtime = new PineAgentRuntime({ emit: () => undefined });
+    try {
+      const created = await runtime.createSession(location);
+      const internals = runtime as unknown as {
+        liveSessions: Map<string, { session: AgentSession }>;
+      };
+      const session = internals.liveSessions.get(created.session.id)!.session;
+      expect(session.model?.contextWindow).toBe(1_000_000);
+      session.setSessionName("Compaction regression");
+      session.sessionManager.appendMessage({
+        role: "user",
+        content: "Earlier request. ".repeat(100),
+        timestamp: Date.now() - 2_000,
+      });
+      const history: AssistantMessage = {
+        ...assistantMessage(589, 611_712, 0),
+        api: "openai-completions",
+        provider: "verify",
+        model: "large",
+        content: [{ type: "text", text: "Earlier response. ".repeat(100) }],
+        usage: {
+          ...assistantMessage(589, 611_712, 0).usage,
+          output: 1_611,
+          totalTokens: 613_912,
+        },
+        timestamp: Date.now() - 1_000,
+      };
+      session.sessionManager.appendMessage(history);
+      await runtime.disposeSession(created.session.id);
+
+      const reopened = await runtime.openSession(
+        location,
+        created.sessionFile!,
+      );
+      const resumed = internals.liveSessions.get(reopened.session.id)!.session;
+      resumed.setThinkingLevel("off");
+      await runtime.reloadMcp(reopened.session.id);
+      const compactions: string[] = [];
+      resumed.subscribe((event) => {
+        if (event.type === "compaction_start") compactions.push(event.reason);
+      });
+      // Exercise Pi's real compaction and prompt paths without provider requests.
+      resumed.agent.streamFunction = (model) => {
+        const stream = createAssistantMessageEventStream();
+        const response: AssistantMessage = {
+          ...assistantMessage(100, 0, 0),
+          api: model.api,
+          provider: model.provider,
+          model: model.id,
+          content: [{ type: "text", text: "Summarized and continued." }],
+        };
+        stream.push({ type: "start", partial: response });
+        stream.push({ type: "done", reason: "stop", message: response });
+        stream.end();
+        return stream;
+      };
+
+      await resumed.prompt("Continue");
+
+      expect(compactions).toContain("threshold");
+      expect(resumed.sessionManager.getEntries()).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            type: "compaction",
+            tokensBefore: 613_912,
+          }),
+        ]),
+      );
+    } finally {
+      await runtime.dispose();
+    }
+  });
+
   it("loads project MCP configuration and reports a disabled server", async () => {
     const root = await mkdtemp(path.join(os.tmpdir(), "pine-mcp-runtime-"));
     temporaryDirectories.push(root);

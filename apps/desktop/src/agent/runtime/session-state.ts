@@ -1,7 +1,6 @@
 import type {
   AgentSession,
   SessionEntry,
-  SettingsManager,
 } from "@earendil-works/pi-coding-agent";
 import { createHash } from "node:crypto";
 import path from "node:path";
@@ -62,10 +61,6 @@ export interface LiveAgentSession {
   tinyFishApiKey?: string;
   locale: "en-US" | "zh-CN";
   contextCompactionStrategy: PineContextCompactionStrategy;
-  /** Pi's base compaction settings before Pine applies its strategy. */
-  baseCompactionSettings: ReturnType<SettingsManager["getCompactionSettings"]>;
-  /** Original Pi reserve values, captured before Pine overrides each model. */
-  baseModelCompactionReserveTokens: Map<string, number>;
 }
 
 export interface PineAgentRuntimeOptions {

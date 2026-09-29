@@ -22,6 +22,7 @@ Starting with 0.4.4, release notes are written in both Chinese and English.
 
 ### 修复 / Fixed
 
+- 修复“推荐”压缩策略在会话启动或设置更新后失效的问题；大上下文模型现在会在超过 400K tokens 时自动压缩。Fixed the Recommended compaction strategy becoming inactive after session startup or settings updates; models with large context windows now compact automatically above 400K tokens.
 - 修复滚动查看较早消息时，对话末尾的预留空白无法及时收缩的问题。Fixed excess blank space at the end of a conversation while scrolling back through older messages.
 - 修复助手进程输出较多时可能被阻塞的问题。Fixed an issue that could stall the assistant when its process produced a large amount of output.
 - 修复连续批准请求中的后续卡片无法操作的问题；批准快捷键现在只作用于当前 tab。Fixed later cards in a sequence of approval requests becoming unresponsive; approval shortcuts now apply only to the active tab.

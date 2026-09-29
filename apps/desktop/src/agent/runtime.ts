@@ -125,10 +125,8 @@ import {
   toolNamesForMediaGenerationState,
   toolNamesForSkillAuthoringState,
 } from "./runtime/session-state";
-import {
-  getLatestCacheHitRate,
-  recommendedCompactionReserveTokens,
-} from "./runtime/context-metrics";
+import { getLatestCacheHitRate } from "./runtime/context-metrics";
+import { configureContextCompactionSettings } from "./runtime/compaction-settings";
 import {
   AUTONOMOUS_JUDGE_SYSTEM_PROMPT,
   JUDGE_SYSTEM_PROMPT,
@@ -664,7 +662,6 @@ export class PineAgentRuntime {
       location.agentDir,
       { projectTrusted: false },
     );
-    const baseCompactionSettings = settingsManager.getCompactionSettings();
     const contextCompactionStrategy =
       (await readPineAgentSettings(location.agentDir))
         .contextCompactionStrategy ?? DEFAULT_CONTEXT_COMPACTION_STRATEGY;
@@ -700,9 +697,11 @@ export class PineAgentRuntime {
         : {}),
       locale: "en-US",
       contextCompactionStrategy,
-      baseCompactionSettings,
-      baseModelCompactionReserveTokens: new Map(),
     };
+    configureContextCompactionSettings(
+      settingsManager,
+      () => live.contextCompactionStrategy,
+    );
     const computerUse = createComputerUseExtension({
       getApprovalMode: () => live.approvalMode,
       getGate: () => live.gate,
@@ -934,49 +933,6 @@ export class PineAgentRuntime {
     strategy: PineContextCompactionStrategy,
   ): void {
     live.contextCompactionStrategy = strategy;
-    const model = live.session.model;
-    const modelKey = model ? `${model.provider}/${model.id}` : undefined;
-    let baseModelReserveTokens = modelKey
-      ? live.baseModelCompactionReserveTokens.get(modelKey)
-      : undefined;
-
-    if (model && modelKey && baseModelReserveTokens === undefined) {
-      // Resolve unseen models from Pi's original ordinary settings, not from
-      // the recommendation that may have been applied to the previous model.
-      live.session.settingsManager.applyOverrides({
-        compaction: live.baseCompactionSettings,
-      });
-      baseModelReserveTokens =
-        live.session.settingsManager.getCompactionSettings(model).reserveTokens;
-      live.baseModelCompactionReserveTokens.set(
-        modelKey,
-        baseModelReserveTokens,
-      );
-    }
-
-    const recommendedReserveTokens =
-      strategy === "recommended" && model?.contextWindow
-        ? recommendedCompactionReserveTokens(model.contextWindow)
-        : undefined;
-    const modelReserveTokens =
-      recommendedReserveTokens ?? baseModelReserveTokens;
-
-    live.session.settingsManager.applyOverrides({
-      compaction: {
-        ...live.baseCompactionSettings,
-        ...(strategy === "recommended" ? { enabled: true } : {}),
-        ...(recommendedReserveTokens !== undefined
-          ? { reserveTokens: recommendedReserveTokens }
-          : {}),
-        ...(modelKey && modelReserveTokens !== undefined
-          ? {
-              modelOverrides: {
-                [modelKey]: { reserveTokens: modelReserveTokens },
-              },
-            }
-          : {}),
-      },
-    });
   }
 
   private setApprovalMode(
