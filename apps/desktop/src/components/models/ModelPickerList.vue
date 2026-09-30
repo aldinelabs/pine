@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import {
   ArrowLeftIcon,
+  ShieldCheckIcon,
   CheckIcon,
   HeartIcon,
   ImageIcon,
@@ -21,10 +22,12 @@ import { CommandSeparator, useCommand } from "@/components/ui/command";
 import { Spinner } from "@/components/ui/spinner";
 import { cn } from "@/lib/utils";
 import type {
+  PineDecisionsModelDescriptor,
   PineImageModelDescriptor,
   PineModelDescriptor,
   PineProviderDescriptor,
 } from "@/shared/models";
+import { useAutoApprovalStore } from "@/stores/autoApproval";
 import { pineModelKey, useModelsStore } from "@/stores/models";
 import ModelCapabilities from "./ModelCapabilities.vue";
 import ProviderIcon from "./ProviderIcon.vue";
@@ -57,6 +60,7 @@ type PickerRow =
       groupId: string;
     })
   | (PickerRowBase & { kind: "image"; model: PineImageModelDescriptor })
+  | (PickerRowBase & { kind: "decisions"; model: PineDecisionsModelDescriptor })
   | (PickerRowBase & { kind: "provider"; provider: PineProviderDescriptor });
 
 const ROW_HEIGHT = {
@@ -79,7 +83,7 @@ const ROW_CLASS =
 const props = withDefaults(
   defineProps<{
     favoriteKeys: readonly string[];
-    purpose?: "session" | "utility" | "image";
+    purpose?: "session" | "utility" | "image" | "decisions";
     sessionId?: string;
     view: PickerView;
     class?: HTMLAttributes["class"];
@@ -94,6 +98,7 @@ const emit = defineEmits<{
   disconnectProvider: [provider: PineProviderDescriptor];
   editCustomModel: [model: PineModelDescriptor];
   editCustomProvider: [provider: PineProviderDescriptor];
+  selectDecisionsModel: [model: PineDecisionsModelDescriptor];
   selectImageModel: [model: PineImageModelDescriptor];
   selectModel: [model: PineModelDescriptor];
   selectProvider: [provider: PineProviderDescriptor];
@@ -102,11 +107,13 @@ const emit = defineEmits<{
 
 const { t } = useI18n();
 const modelsStore = useModelsStore();
+const autoApprovalStore = useAutoApprovalStore();
 const { filterState } = useCommand();
 const listbox = injectListboxRootContext();
 const contentRef = ref<{ $el?: HTMLElement } | null>(null);
 const scrollElement = ref<HTMLElement | null>(null);
 
+const isDecisionsPurpose = computed(() => props.purpose === "decisions");
 const isImagePurpose = computed(() => props.purpose === "image");
 const sessionSelection = computed(() =>
   modelsStore.selectionFor(props.sessionId),
@@ -262,6 +269,31 @@ const rows = computed<PickerRow[]>(() => {
     });
   }
 
+  if (isDecisionsPurpose.value) {
+    const visible = modelsStore.decisionsModels.filter((model) =>
+      includes(modelRowText(model)),
+    );
+    if (visible.length > 0) {
+      result.push({
+        kind: "heading",
+        heading: "OpenRouter",
+        height: ROW_HEIGHT.heading,
+        id: rowId("heading", "decisions-models"),
+        text: "OpenRouter",
+      });
+      result.push(
+        ...visible.map((model): PickerRow => ({
+          kind: "decisions",
+          model,
+          height: ROW_HEIGHT.model,
+          id: rowId("decisions", model.id),
+          text: modelRowText(model),
+        })),
+      );
+    }
+    return result;
+  }
+
   if (isImagePurpose.value) {
     for (const group of imageModelGroups.value) {
       const visible = group.models.filter((model) =>
@@ -324,7 +356,10 @@ const isEmpty = computed(
   () =>
     !rows.value.some(
       (row) =>
-        row.kind === "model" || row.kind === "image" || row.kind === "provider",
+        row.kind === "model" ||
+        row.kind === "image" ||
+        row.kind === "decisions" ||
+        row.kind === "provider",
     ),
 );
 
@@ -525,6 +560,29 @@ function withSearchReset(action: () => void): void {
         </ListboxItem>
 
         <ListboxItem
+          v-else-if="row.kind === 'decisions'"
+          :class="ROW_CLASS"
+          data-picker-row="decisions"
+          :data-value="`${row.model.providerName} ${row.model.name} ${row.model.id}`"
+          :value="`${row.model.providerName} ${row.model.name} ${row.model.id}`"
+          @select="
+            withSearchReset(() => emit('selectDecisionsModel', row.model))
+          "
+        >
+          <CheckIcon
+            v-if="autoApprovalStore.settings.decisionsModel === row.model.id"
+            aria-hidden="true"
+          />
+          <ShieldCheckIcon v-else aria-hidden="true" />
+          <span class="flex min-w-0 flex-1 flex-col gap-0.5">
+            <span class="truncate">{{ row.model.name }}</span>
+            <span class="truncate text-xs font-normal text-muted-foreground">{{
+              row.model.id
+            }}</span>
+          </span>
+        </ListboxItem>
+
+        <ListboxItem
           v-else-if="row.kind === 'provider'"
           :class="ROW_CLASS"
           data-picker-row="provider"
@@ -711,9 +769,11 @@ function withSearchReset(action: () => void): void {
         {{
           view === "providers"
             ? t("providers.picker.empty")
-            : isImagePurpose
-              ? t("models.picker.imageEmpty")
-              : t("models.picker.empty")
+            : isDecisionsPurpose
+              ? t("models.picker.decisionsEmpty")
+              : isImagePurpose
+                ? t("models.picker.imageEmpty")
+                : t("models.picker.empty")
         }}
       </template>
     </div>

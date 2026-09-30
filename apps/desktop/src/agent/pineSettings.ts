@@ -1,10 +1,13 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { isDecisionsModelId } from "./runtime/decisions-models";
 import type {
   PineImageModelSelection,
   PineUtilityModelSelection,
 } from "../shared/models";
 import {
+  isPineAutoApprovalSettings,
+  type PineAutoApprovalSettings,
   isPineContextCompactionStrategy,
   type PineContextCompactionStrategy,
 } from "../shared/preferences";
@@ -17,6 +20,7 @@ import {
 const PINE_SETTINGS_FILE = "pine-settings.json";
 
 export interface PineAgentSettings {
+  autoApproval?: PineAutoApprovalSettings;
   diagnosticLoggingEnabled?: boolean;
   contextCompactionStrategy?: PineContextCompactionStrategy;
   imageModel?: PineImageModelSelection;
@@ -82,6 +86,10 @@ export async function readPineAgentSettings(
     const userProfile = settings.userProfile;
     const contextCompactionStrategy = settings.contextCompactionStrategy;
     return {
+      ...(isPineAutoApprovalSettings(settings.autoApproval) &&
+      isDecisionsModelId(settings.autoApproval.decisionsModel)
+        ? { autoApproval: settings.autoApproval }
+        : {}),
       ...(typeof settings.diagnosticLoggingEnabled === "boolean"
         ? { diagnosticLoggingEnabled: settings.diagnosticLoggingEnabled }
         : {}),
@@ -138,6 +146,24 @@ export async function writeDiagnosticLoggingEnabled(
   diagnosticLoggingEnabled: boolean,
 ): Promise<void> {
   await writePineAgentSettings(agentDir, { diagnosticLoggingEnabled });
+}
+
+export async function writeAutoApprovalSettings(
+  agentDir: string,
+  autoApproval: PineAutoApprovalSettings,
+): Promise<void> {
+  if (
+    !isPineAutoApprovalSettings(autoApproval) ||
+    !isDecisionsModelId(autoApproval.decisionsModel.trim())
+  ) {
+    throw new Error("Invalid automatic approval settings.");
+  }
+  await writePineAgentSettings(agentDir, {
+    autoApproval: {
+      ...autoApproval,
+      decisionsModel: autoApproval.decisionsModel.trim(),
+    },
+  });
 }
 
 async function writePineAgentSettings(

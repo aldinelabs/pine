@@ -6,6 +6,41 @@ export const GET_DIAGNOSTIC_LOGGING_CHANNEL =
   "preferences:get-diagnostic-logging" as const;
 export const SET_DIAGNOSTIC_LOGGING_CHANNEL =
   "preferences:set-diagnostic-logging" as const;
+export const GET_AUTO_APPROVAL_SETTINGS_CHANNEL =
+  "preferences:get-auto-approval-settings" as const;
+export const SET_AUTO_APPROVAL_SETTINGS_CHANNEL =
+  "preferences:set-auto-approval-settings" as const;
+
+export interface PineAutoApprovalSettings {
+  strategy: "model" | "decisions";
+  decisionsModel: string;
+  confidenceThreshold: number;
+}
+
+export const DEFAULT_AUTO_APPROVAL_SETTINGS: PineAutoApprovalSettings = {
+  strategy: "decisions",
+  decisionsModel: "typesafe/jev-1.13",
+  confidenceThreshold: 0.66,
+};
+
+export function isPineAutoApprovalSettings(
+  value: unknown,
+): value is PineAutoApprovalSettings {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    return false;
+  }
+  const settings = value as Record<string, unknown>;
+  return (
+    (settings.strategy === "model" || settings.strategy === "decisions") &&
+    typeof settings.decisionsModel === "string" &&
+    settings.decisionsModel.trim().length > 0 &&
+    settings.decisionsModel.length <= 256 &&
+    typeof settings.confidenceThreshold === "number" &&
+    Number.isFinite(settings.confidenceThreshold) &&
+    settings.confidenceThreshold >= 0.5 &&
+    settings.confidenceThreshold <= 1
+  );
+}
 
 export interface SetDiagnosticLoggingRequest {
   enabled: boolean;

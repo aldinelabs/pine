@@ -48,6 +48,7 @@ import {
   writeUtilityModelSelection,
 } from "../pineSettings";
 import type { PineContextCompactionStrategy } from "../../shared/preferences";
+import { decisionsModelDescriptors } from "./decisions-models";
 import type { LiveAgentSession } from "./session-state";
 
 interface PendingAuthPrompt {
@@ -182,6 +183,7 @@ export class PineModelService {
       : undefined;
 
     return {
+      decisionsModels: decisionsModelDescriptors(),
       imageModels: imageModelDescriptors(),
       ...(effectiveImageSelection
         ? { imageSelection: effectiveImageSelection }

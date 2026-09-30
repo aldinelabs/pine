@@ -64,7 +64,23 @@ export default {
     modelCatalogRefreshAction: "Refresh now",
     modelCatalogRefreshing: "Refreshing…",
     modelCatalogRefreshed: "Model catalogs refreshed",
-    utilityModel: "Title generation and Auto Approve model",
+    autoApprovalStrategy: "Automatic approval path",
+    autoApprovalModel: "Model review",
+    autoApprovalDecisions: "Decisions screening",
+    autoApprovalModelDescription:
+      "Auto Approve and Autonomous Work use the title generation and review model for every review.",
+    autoApprovalDecisionsDescription:
+      "Decisions screens first. Calls below the confidence threshold go to the title generation and review model for further review. If screening is unavailable, the model reviews the calls. Applies to Auto Approve and Autonomous Work.",
+    decisionsModel: "Decisions screening model",
+    selectDecisionsModel: "Choose model",
+    autoApprovalHelp: "About automatic approval paths",
+    decisionsCredentialMissing:
+      "OpenRouter is not configured. Add a credential in Manage providers or models; model review is used until then.",
+    decisionsConfidenceThreshold: "Screening confidence threshold",
+    decisionsConfidenceHelp: "About the screening confidence threshold",
+    decisionsConfidenceDescription:
+      "Range: 50–100%, default: 66%. Results at or above the threshold take effect directly; other results receive model review.",
+    utilityModel: "Title generation and review model",
     selectUtilityModel: "Choose model",
     noUtilityModelSelected: "No model selected",
     imageModel: "Image generation model",
@@ -130,6 +146,11 @@ export default {
       backToModels: "Back to models",
       browse: "Browse all models…",
       contextWindow: "Context window: {tokens}",
+      decisionsTitle: "Choose a Decisions model",
+      decisionsDescription:
+        "Choose a screening model from the Decisions catalog using your OpenRouter credential.",
+      decisionsSearchPlaceholder: "Search Decisions models",
+      decisionsEmpty: "No matching Decisions models",
       imageTitle: "Choose an image model",
       imageDescription:
         "Search OpenRouter's image models and pick the default for image generation.",
@@ -1091,6 +1112,10 @@ export default {
     contextCompaction: {
       title: "Unable to compact context",
       description: "Try again in a moment",
+    },
+    autoApprovalSettings: {
+      title: "Unable to update automatic approval settings",
+      description: "Please try again later.",
     },
     contextCompactionStrategy: {
       title: "Unable to update context compaction strategy",

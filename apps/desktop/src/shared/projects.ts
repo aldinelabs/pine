@@ -13,6 +13,7 @@ import type {
   SessionEventListener,
 } from "./agent";
 import type {
+  PineAutoApprovalSettings,
   PineContextCompactionStrategy,
   SetContextCompactionStrategyRequest,
   SetContextCompactionStrategyResult,
@@ -278,6 +279,10 @@ export interface PineDesktopApi extends PineWindowApi {
   deleteCustomProvider: (
     request: DeleteCustomProviderRequest,
   ) => Promise<PineModelCatalog>;
+  getAutoApprovalSettings: () => Promise<PineAutoApprovalSettings>;
+  setAutoApprovalSettings: (
+    settings: PineAutoApprovalSettings,
+  ) => Promise<PineAutoApprovalSettings>;
   getContextCompactionStrategy: () => Promise<PineContextCompactionStrategy>;
   getDiagnosticLogging: () => Promise<boolean>;
   setDiagnosticLogging: (

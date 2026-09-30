@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { APP_LOCALE_STORAGE_KEY, createAppI18n } from "@/app/i18n";
 import { Badge } from "@/components/ui/badge";
 import { ToggleGroup } from "@/components/ui/toggle-group";
+import { DEFAULT_AUTO_APPROVAL_SETTINGS } from "@/shared/preferences";
 import type { PineModelCatalog } from "@/shared/models";
 import { createDefaultPineUserProfile } from "@/shared/userProfile";
 import {
@@ -32,6 +33,10 @@ const getContextCompactionStrategy = vi.fn().mockResolvedValue("recommended");
 const setContextCompactionStrategy = vi.fn().mockResolvedValue({
   updated: true,
 });
+const getAutoApprovalSettings = vi
+  .fn()
+  .mockResolvedValue({ ...DEFAULT_AUTO_APPROVAL_SETTINGS });
+const setAutoApprovalSettings = vi.fn((settings) => Promise.resolve(settings));
 const getDiagnosticLogging = vi.fn().mockResolvedValue(false);
 const setDiagnosticLogging = vi.fn(({ enabled }: { enabled: boolean }) =>
   Promise.resolve({ enabled }),
@@ -48,6 +53,8 @@ function installPineApi(platform: string | undefined): void {
       setUserProfile: typeof setUserProfile;
       getContextCompactionStrategy: typeof getContextCompactionStrategy;
       setContextCompactionStrategy: typeof setContextCompactionStrategy;
+      getAutoApprovalSettings: typeof getAutoApprovalSettings;
+      setAutoApprovalSettings: typeof setAutoApprovalSettings;
       getDiagnosticLogging: typeof getDiagnosticLogging;
       setDiagnosticLogging: typeof setDiagnosticLogging;
     };
@@ -65,6 +72,8 @@ function installPineApi(platform: string | undefined): void {
     setUserProfile,
     getContextCompactionStrategy,
     setContextCompactionStrategy,
+    getAutoApprovalSettings,
+    setAutoApprovalSettings,
     getDiagnosticLogging,
     setDiagnosticLogging,
   };
@@ -123,6 +132,12 @@ describe("PinePreferencesDialog", () => {
     setUserProfile.mockClear();
     getContextCompactionStrategy.mockClear();
     setContextCompactionStrategy.mockClear();
+    getAutoApprovalSettings
+      .mockReset()
+      .mockResolvedValue({ ...DEFAULT_AUTO_APPROVAL_SETTINGS });
+    setAutoApprovalSettings
+      .mockReset()
+      .mockImplementation((settings) => Promise.resolve(settings));
     getDiagnosticLogging.mockReset().mockResolvedValue(false);
     setDiagnosticLogging
       .mockReset()
@@ -134,6 +149,23 @@ describe("PinePreferencesDialog", () => {
 
   afterEach(() => {
     installPineApi(undefined);
+  });
+
+  it("places automatic approval below context compaction and uses a help tooltip", async () => {
+    installPineApi("darwin");
+    const { wrapper } = mountDialog();
+    await openSection(wrapper, "执行环境");
+    const labels = wrapper
+      .findAll('[data-slot="field-label"]')
+      .map((label) => label.text());
+    expect(labels.indexOf("自动审批路径")).toBeGreaterThan(
+      labels.indexOf("上下文压缩策略"),
+    );
+    expect(wrapper.find('[aria-label="关于自动审批路径"]').exists()).toBe(true);
+    expect(wrapper.find("#pine-decisions-model").exists()).toBe(false);
+    expect(
+      wrapper.find('[data-testid="pine-decisions-threshold-slider"]').exists(),
+    ).toBe(true);
   });
 
   it("shows the selected utility model name", async () => {

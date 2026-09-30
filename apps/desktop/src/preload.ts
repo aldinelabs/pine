@@ -34,6 +34,9 @@ import {
   SET_CONTEXT_COMPACTION_STRATEGY_CHANNEL,
   GET_DIAGNOSTIC_LOGGING_CHANNEL,
   SET_DIAGNOSTIC_LOGGING_CHANNEL,
+  GET_AUTO_APPROVAL_SETTINGS_CHANNEL,
+  SET_AUTO_APPROVAL_SETTINGS_CHANNEL,
+  type PineAutoApprovalSettings,
   type PineContextCompactionStrategy,
   type SetContextCompactionStrategyRequest,
   type SetContextCompactionStrategyResult,
@@ -321,6 +324,12 @@ const pineApi: PineDesktopApi = {
     request: DeleteCustomProviderRequest,
   ): Promise<PineModelCatalog> =>
     ipcRenderer.invoke(DELETE_CUSTOM_PROVIDER_CHANNEL, request),
+  getAutoApprovalSettings: (): Promise<PineAutoApprovalSettings> =>
+    ipcRenderer.invoke(GET_AUTO_APPROVAL_SETTINGS_CHANNEL),
+  setAutoApprovalSettings: (
+    settings: PineAutoApprovalSettings,
+  ): Promise<PineAutoApprovalSettings> =>
+    ipcRenderer.invoke(SET_AUTO_APPROVAL_SETTINGS_CHANNEL, settings),
   getContextCompactionStrategy: (): Promise<PineContextCompactionStrategy> =>
     ipcRenderer.invoke(GET_CONTEXT_COMPACTION_STRATEGY_CHANNEL),
   getDiagnosticLogging: (): Promise<boolean> =>

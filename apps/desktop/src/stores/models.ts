@@ -170,6 +170,7 @@ export const useModelsStore = defineStore("models", () => {
         )
       : undefined;
   });
+  const decisionsModels = computed(() => catalog.value.decisionsModels ?? []);
   const imageModels = computed(() => catalog.value.imageModels ?? []);
   const imageSelection = computed(() => catalog.value.imageSelection);
   const imageProviderConfigured = computed(
@@ -450,6 +451,7 @@ export const useModelsStore = defineStore("models", () => {
     favoriteModels,
     favoriteModelKeysSnapshot,
     featuredModels,
+    decisionsModels,
     imageModels,
     imageProviderConfigured,
     imageSelectedModel,

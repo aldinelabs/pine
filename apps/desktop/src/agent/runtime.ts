@@ -97,9 +97,11 @@ import {
 import { readPineAgentSettings } from "./pineSettings";
 import { createDefaultPineUserProfile } from "../shared/userProfile";
 import {
+  DEFAULT_AUTO_APPROVAL_SETTINGS,
   DEFAULT_CONTEXT_COMPACTION_STRATEGY,
   type PineContextCompactionStrategy,
 } from "../shared/preferences";
+import { runApprovalReview } from "./runtime/decisions-review";
 import { PineModelService } from "./runtime/model-service";
 import { PineAgentEventForwarder } from "./runtime/event-forwarder";
 import type {
@@ -1264,8 +1266,8 @@ export class PineAgentRuntime {
   }
 
   /**
-   * Structured-output judge: one direct stream call for the whole review batch
-   * against Pine's dedicated utility model, then read every ruling back by ID.
+   * Review each batch through the configured path, using Decisions screening
+   * when enabled and the utility model for any calls requiring further review.
    * Never goes through session.prompt (no recursion into the tool pipeline).
    */
   private async runJudge(
@@ -1273,20 +1275,44 @@ export class PineAgentRuntime {
     requests: JudgeRequest[],
   ): Promise<JudgeRuling[]> {
     if (requests.length === 0) return [];
+    const timeout = AbortSignal.timeout(JUDGE_TIMEOUT_MS);
+    const requestSignals = requests.flatMap((request) =>
+      request.signal ? [request.signal] : [],
+    );
+    const signal = AbortSignal.any([...requestSignals, timeout]);
+    const settings =
+      (await readPineAgentSettings(live.agentDir)).autoApproval ??
+      DEFAULT_AUTO_APPROVAL_SETTINGS;
+    return runApprovalReview({
+      requests,
+      settings,
+      autonomous: live.approvalMode === "autonomous",
+      locale: live.locale,
+      sessionId: live.session.sessionId,
+      signal,
+      resolveApiKey: async () =>
+        (
+          await (
+            await this.getModelRuntime(live.agentDir)
+          ).getAuth("openrouter")
+        )?.auth.apiKey,
+      reviewWithModel: (pending) => this.runModelJudge(live, pending, signal),
+    });
+  }
+
+  private async runModelJudge(
+    live: LiveAgentSession,
+    requests: JudgeRequest[],
+    signal: AbortSignal,
+  ): Promise<JudgeRuling[]> {
+    signal.throwIfAborted();
     const modelRuntime = await this.getModelRuntime(live.agentDir);
     const model = await this.modelService.utilityModel(
       live.agentDir,
       modelRuntime,
     );
     if (!model) throw new Error("No utility model is configured.");
-    const timeout = AbortSignal.timeout(JUDGE_TIMEOUT_MS);
-    const requestSignals = requests.flatMap((request) =>
-      request.signal ? [request.signal] : [],
-    );
-    const signal =
-      requestSignals.length > 0
-        ? AbortSignal.any([...requestSignals, timeout])
-        : timeout;
+    signal.throwIfAborted();
     const autonomous = live.approvalMode === "autonomous";
     const context: Context = {
       systemPrompt: `${autonomous ? AUTONOMOUS_JUDGE_SYSTEM_PROMPT : JUDGE_SYSTEM_PROMPT}${

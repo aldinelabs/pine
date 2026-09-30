@@ -4,6 +4,7 @@ import { defineComponent, h } from "vue";
 import { describe, expect, it, vi } from "vitest";
 import { createAppI18n } from "@/app/i18n";
 import { Command } from "@/components/ui/command";
+import { DEFAULT_AUTO_APPROVAL_SETTINGS } from "@/shared/preferences";
 import type { PineModelCatalog, PineModelDescriptor } from "@/shared/models";
 import { useModelsStore } from "@/stores/models";
 import ModelPickerDialog from "../ModelPickerDialog.vue";
@@ -109,17 +110,25 @@ const customCatalog: PineModelCatalog = {
 };
 
 function mountPicker(
-  purpose: "session" | "utility" | "image" = "session",
+  purpose: "session" | "utility" | "image" | "decisions" = "session",
   catalog: PineModelCatalog = connectedCatalog,
 ) {
   const logoutProvider = vi.fn().mockResolvedValue({ disposed: true });
   const selectModel = vi.fn().mockResolvedValue(undefined);
   const selectUtilityModel = vi.fn().mockResolvedValue(undefined);
   const selectImageModel = vi.fn().mockResolvedValue(undefined);
+  const getAutoApprovalSettings = vi
+    .fn()
+    .mockResolvedValue({ ...DEFAULT_AUTO_APPROVAL_SETTINGS });
+  const setAutoApprovalSettings = vi.fn((settings) =>
+    Promise.resolve(settings),
+  );
   const getModelCatalog = vi.fn().mockResolvedValue(catalog);
   Object.defineProperty(window, "pine", {
     configurable: true,
     value: {
+      getAutoApprovalSettings,
+      setAutoApprovalSettings,
       getModelCatalog,
       logoutProvider,
       selectModel,
@@ -157,6 +166,8 @@ function mountPicker(
   });
 
   return {
+    getAutoApprovalSettings,
+    setAutoApprovalSettings,
     getModelCatalog,
     logoutProvider,
     selectImageModel,
@@ -347,5 +358,59 @@ describe("ModelPickerDialog image model selection", () => {
         .map((item) => item.attributes("data-value")),
     ).toContain("back models");
     expect(wrapper.text()).toContain("OpenRouter");
+  });
+});
+
+describe("ModelPickerDialog Decisions model selection", () => {
+  const decisionsCatalog: PineModelCatalog = {
+    ...connectedCatalog,
+    decisionsModels: [
+      {
+        id: "typesafe/jev-1.13",
+        name: "Jev 1.13",
+        providerId: "openrouter",
+        providerName: "OpenRouter",
+      },
+      {
+        id: "~typesafe/jev-latest",
+        name: "Jev (latest)",
+        providerId: "openrouter",
+        providerName: "OpenRouter",
+      },
+    ],
+  };
+
+  it("lists only Decisions models and saves a catalog selection without touching chat or image models", async () => {
+    const { setAutoApprovalSettings, selectModel, selectImageModel, wrapper } =
+      mountPicker("decisions", decisionsCatalog);
+    expect(wrapper.findAll('[data-picker-row="decisions"]')).toHaveLength(2);
+    expect(wrapper.find('[data-picker-row="model"]').exists()).toBe(false);
+    expect(wrapper.find('[data-picker-row="image"]').exists()).toBe(false);
+    await wrapper
+      .get(
+        '[data-picker-row="decisions"][data-value="OpenRouter Jev (latest) ~typesafe/jev-latest"]',
+      )
+      .trigger("click");
+    await flushPromises();
+    expect(setAutoApprovalSettings).toHaveBeenCalledExactlyOnceWith({
+      ...DEFAULT_AUTO_APPROVAL_SETTINGS,
+      decisionsModel: "~typesafe/jev-latest",
+    });
+    expect(selectModel).not.toHaveBeenCalled();
+    expect(selectImageModel).not.toHaveBeenCalled();
+    expect(wrapper.emitted("update:open")).toContainEqual([false]);
+  });
+
+  it("offers provider management from the Decisions catalog", async () => {
+    const { wrapper } = mountPicker("decisions", decisionsCatalog);
+    await wrapper
+      .get(
+        '[data-picker-row][data-value="manage configure provider service model"]',
+      )
+      .trigger("click");
+    expect(wrapper.text()).toContain("Z.AI");
+    expect(
+      wrapper.find('[data-picker-row][data-value="back models"]').exists(),
+    ).toBe(true);
   });
 });

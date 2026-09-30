@@ -15,10 +15,12 @@ import {
 import { CommandDialog, CommandInput } from "@/components/ui/command";
 import { Spinner } from "@/components/ui/spinner";
 import type {
+  PineDecisionsModelDescriptor,
   PineImageModelDescriptor,
   PineModelDescriptor,
   PineProviderDescriptor,
 } from "@/shared/models";
+import { useAutoApprovalStore } from "@/stores/autoApproval";
 import { useModelsStore } from "@/stores/models";
 import CustomModelDialog from "./CustomModelDialog.vue";
 import CustomProviderDialog from "./CustomProviderDialog.vue";
@@ -30,7 +32,7 @@ type PickerView = "models" | "providers";
 const props = withDefaults(
   defineProps<{
     open: boolean;
-    purpose?: "session" | "utility" | "image";
+    purpose?: "session" | "utility" | "image" | "decisions";
     sessionId?: string;
   }>(),
   { purpose: "session" },
@@ -39,6 +41,8 @@ const emit = defineEmits<{ "update:open": [open: boolean] }>();
 
 const { t } = useI18n();
 const modelsStore = useModelsStore();
+const autoApprovalStore = useAutoApprovalStore();
+const isDecisionsPurpose = computed(() => props.purpose === "decisions");
 const isImagePurpose = computed(() => props.purpose === "image");
 const view = ref<PickerView>("models");
 const isAuthOpen = ref(false);
@@ -61,23 +65,29 @@ const favoriteModelKeysAtOpen = ref<readonly string[]>([]);
 const title = computed(() =>
   view.value === "providers"
     ? t("providers.picker.title")
-    : isImagePurpose.value
-      ? t("models.picker.imageTitle")
-      : t("models.picker.title"),
+    : isDecisionsPurpose.value
+      ? t("models.picker.decisionsTitle")
+      : isImagePurpose.value
+        ? t("models.picker.imageTitle")
+        : t("models.picker.title"),
 );
 const description = computed(() =>
   view.value === "providers"
     ? t("providers.picker.description")
-    : isImagePurpose.value
-      ? t("models.picker.imageDescription")
-      : t("models.picker.description"),
+    : isDecisionsPurpose.value
+      ? t("models.picker.decisionsDescription")
+      : isImagePurpose.value
+        ? t("models.picker.imageDescription")
+        : t("models.picker.description"),
 );
 const searchPlaceholder = computed(() =>
   view.value === "providers"
     ? t("providers.picker.searchPlaceholder")
-    : isImagePurpose.value
-      ? t("models.picker.imageSearchPlaceholder")
-      : t("models.picker.searchPlaceholder"),
+    : isDecisionsPurpose.value
+      ? t("models.picker.decisionsSearchPlaceholder")
+      : isImagePurpose.value
+        ? t("models.picker.imageSearchPlaceholder")
+        : t("models.picker.searchPlaceholder"),
 );
 
 watch(
@@ -193,6 +203,25 @@ async function selectImageModel(
       id: "preferences.image-model",
       title: t("errors.imageModel.title"),
       description: t("errors.imageModel.description"),
+    });
+  }
+}
+
+async function selectDecisionsModel(
+  model: PineDecisionsModelDescriptor,
+): Promise<void> {
+  try {
+    await autoApprovalStore.load();
+    await autoApprovalStore.save({
+      ...autoApprovalStore.settings,
+      decisionsModel: model.id,
+    });
+    emit("update:open", false);
+  } catch (error) {
+    handleError(error, {
+      id: "preferences.decisions-model",
+      title: t("errors.autoApprovalSettings.title"),
+      description: t("errors.autoApprovalSettings.description"),
     });
   }
 }
@@ -314,6 +343,7 @@ async function handleConnected(): Promise<void> {
       @disconnect-provider="requestDisconnect"
       @edit-custom-model="openCustomModelEditor"
       @edit-custom-provider="openCustomProviderEditor"
+      @select-decisions-model="selectDecisionsModel"
       @select-image-model="selectImageModel"
       @select-model="selectModel"
       @select-provider="selectProvider"

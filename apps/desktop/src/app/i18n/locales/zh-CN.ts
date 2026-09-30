@@ -60,7 +60,23 @@ export default {
     modelCatalogRefreshAction: "立即刷新",
     modelCatalogRefreshing: "正在刷新…",
     modelCatalogRefreshed: "模型目录已刷新",
-    utilityModel: "标题生成和自动批准模型",
+    autoApprovalStrategy: "自动审批路径",
+    autoApprovalModel: "大模型审批",
+    autoApprovalDecisions: "Decisions 初筛",
+    autoApprovalModelDescription:
+      "自动批准和自主工作模式均由标题生成与审批模型直接审批。",
+    autoApprovalDecisionsDescription:
+      "先由 Decisions 初筛，确信度低于阈值的调用交给标题生成与审批模型复筛。初筛不可用时也由大模型审批。适用于自动批准和自主工作模式。",
+    decisionsModel: "Decisions 初筛模型",
+    selectDecisionsModel: "选择模型",
+    autoApprovalHelp: "关于自动审批路径",
+    decisionsCredentialMissing:
+      "尚未配置 OpenRouter，可在“管理服务或模型”中添加凭据；配置前使用大模型审批。",
+    decisionsConfidenceThreshold: "初筛确信度阈值",
+    decisionsConfidenceHelp: "关于初筛确信度阈值",
+    decisionsConfidenceDescription:
+      "范围 50–100%，默认 66%。达到阈值的结果直接生效，其他结果由大模型复筛。",
+    utilityModel: "标题生成与审批模型",
     selectUtilityModel: "选择模型",
     noUtilityModelSelected: "未选择任何模型",
     imageModel: "图像生成模型",
@@ -121,6 +137,11 @@ export default {
       backToModels: "返回模型列表",
       browse: "浏览所有模型…",
       contextWindow: "上下文窗口：{tokens}",
+      decisionsTitle: "选择 Decisions 模型",
+      decisionsDescription:
+        "从 Decisions 模型目录选择初筛模型，使用 OpenRouter 凭据。",
+      decisionsSearchPlaceholder: "搜索 Decisions 模型",
+      decisionsEmpty: "没有匹配的 Decisions 模型",
       imageTitle: "选择图像模型",
       imageDescription:
         "在 OpenRouter 的图像模型中搜索，并设定图像生成使用的默认模型。",
@@ -1057,6 +1078,10 @@ export default {
     contextCompaction: {
       title: "无法压缩上下文",
       description: "请稍后重试",
+    },
+    autoApprovalSettings: {
+      title: "无法更新自动审批设置",
+      description: "请稍后重试。",
     },
     contextCompactionStrategy: {
       title: "无法更新上下文压缩策略",

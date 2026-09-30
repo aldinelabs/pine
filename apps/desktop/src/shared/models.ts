@@ -92,7 +92,16 @@ export type PineImageModelSelection = Pick<
   "modelId" | "providerId"
 >;
 
+/** A typed decision model, separate from chat and image generation models. */
+export interface PineDecisionsModelDescriptor {
+  id: string;
+  name: string;
+  providerId: "openrouter";
+  providerName: string;
+}
+
 export interface PineModelCatalog {
+  decisionsModels?: readonly PineDecisionsModelDescriptor[];
   imageModels?: readonly PineImageModelDescriptor[];
   imageSelection?: PineImageModelSelection;
   models: readonly PineModelDescriptor[];

@@ -74,6 +74,7 @@ import {
 } from "./agent/skills/piDiscovery";
 import {
   readPineAgentSettings,
+  writeAutoApprovalSettings,
   writeContextCompactionStrategy,
   writeDiagnosticLoggingEnabled,
   writePineUserProfile,
@@ -98,11 +99,16 @@ import {
   type SetApprovalModeResult,
 } from "./shared/agent";
 import {
+  DEFAULT_AUTO_APPROVAL_SETTINGS,
+  isPineAutoApprovalSettings,
   DEFAULT_CONTEXT_COMPACTION_STRATEGY,
   GET_CONTEXT_COMPACTION_STRATEGY_CHANNEL,
   SET_CONTEXT_COMPACTION_STRATEGY_CHANNEL,
   GET_DIAGNOSTIC_LOGGING_CHANNEL,
   SET_DIAGNOSTIC_LOGGING_CHANNEL,
+  GET_AUTO_APPROVAL_SETTINGS_CHANNEL,
+  SET_AUTO_APPROVAL_SETTINGS_CHANNEL,
+  type PineAutoApprovalSettings,
   type PineContextCompactionStrategy,
   type SetContextCompactionStrategyResult,
   type SetDiagnosticLoggingResult,
@@ -1194,6 +1200,29 @@ ipcMain.handle(
   async (): Promise<PineUserProfile> =>
     (await readPineAgentSettings(getPineAgentDirectory())).userProfile ??
     createDefaultPineUserProfile(),
+);
+
+ipcMain.handle(
+  GET_AUTO_APPROVAL_SETTINGS_CHANNEL,
+  async (): Promise<PineAutoApprovalSettings> =>
+    (await readPineAgentSettings(getPineAgentDirectory())).autoApproval ?? {
+      ...DEFAULT_AUTO_APPROVAL_SETTINGS,
+    },
+);
+
+ipcMain.handle(
+  SET_AUTO_APPROVAL_SETTINGS_CHANNEL,
+  async (_event, request: unknown): Promise<PineAutoApprovalSettings> => {
+    const settings = z
+      .custom<PineAutoApprovalSettings>(isPineAutoApprovalSettings)
+      .parse(request);
+    const normalized = {
+      ...settings,
+      decisionsModel: settings.decisionsModel.trim(),
+    };
+    await writeAutoApprovalSettings(getPineAgentDirectory(), normalized);
+    return normalized;
+  },
 );
 
 ipcMain.handle(
