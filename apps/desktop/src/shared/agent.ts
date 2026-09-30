@@ -39,6 +39,13 @@ export type PineApprovalTrigger =
   | "destructive-pattern"
   | "privileged-execution";
 
+/** A failed automatic review that fell back to manual approval. */
+export interface PineAutoApprovalFailure {
+  /** Shared by requests from the same failed review batch. */
+  id: string;
+  message: string;
+}
+
 export type PineApprovalAction = "approve" | "reject" | "guide";
 
 export interface RespondApprovalRequest {
@@ -229,6 +236,7 @@ export type PineAgentEvent =
       evidence?: string;
       /** Binds the approval card to the immutable worker-side call snapshot. */
       actionDigest?: string;
+      autoApprovalFailure?: PineAutoApprovalFailure;
     }
   | {
       type: "approval-decided";

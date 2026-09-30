@@ -513,6 +513,8 @@ export default {
       },
     },
     approvalRequest: {
+      autoApprovalFailed: "自动审批失败",
+      autoApprovalFallback: "自动审批失败，请手动确认",
       title: "需要确认",
       triggerPreExecution: "Pine 请求在执行前获得确认。",
       triggerSandboxDenied:

@@ -1098,6 +1098,7 @@ export class PineAgentRuntime {
         trigger: request.trigger,
         input: Object.keys(reviewInput).length > 0 ? reviewInput : undefined,
         evidence: request.evidence,
+        autoApprovalFailure: request.autoApprovalFailure,
         actionDigest: pending.actionDigest,
       });
     });

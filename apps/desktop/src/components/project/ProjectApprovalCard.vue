@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref } from "vue";
 import { useI18n } from "vue-i18n";
-import { ArrowUpIcon } from "@lucide/vue";
+import { ArrowUpIcon, TriangleAlertIcon } from "@lucide/vue";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -95,14 +95,24 @@ async function startGuidance(): Promise<void> {
 </script>
 
 <template>
-  <Card>
-    <CardHeader>
+  <Card class="max-h-[min(28rem,60dvh)] min-h-0">
+    <CardHeader class="shrink-0">
       <CardTitle>{{ t("project.approvalRequest.title") }}</CardTitle>
       <CardDescription>
+        <span
+          v-if="approval.autoApprovalFailure"
+          class="mb-1 flex items-center gap-1.5 text-foreground"
+          role="status"
+        >
+          <TriangleAlertIcon class="size-4 shrink-0" aria-hidden="true" />
+          {{ t("project.approvalRequest.autoApprovalFallback") }}
+        </span>
         {{ t(`project.approvalRequest.${triggerKey}`) }}
       </CardDescription>
     </CardHeader>
-    <CardContent class="flex flex-col gap-3">
+    <CardContent
+      class="scroll-fade-y flex min-h-0 flex-col gap-3 overflow-y-auto overscroll-contain"
+    >
       <!-- What is being approved sits between the header and the decision so
            the choice is made with the evidence in view. -->
       <div
@@ -128,7 +138,7 @@ async function startGuidance(): Promise<void> {
           >{{ approval.evidence }}</pre>
       </details>
     </CardContent>
-    <CardFooter class="mt-auto gap-2">
+    <CardFooter class="mt-auto shrink-0 gap-2">
       <!-- Decisions as compact buttons with their shortcut keys; the
            freeform guidance swaps the whole group for an input. -->
       <template v-if="guiding">

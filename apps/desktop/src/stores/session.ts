@@ -1,5 +1,6 @@
 import { acceptHMRUpdate, defineStore } from "pinia";
 import { computed, reactive, ref, shallowRef, toRefs } from "vue";
+import { toast } from "vue-sonner";
 import {
   isSandboxDeniedPayload,
   type PineAgentEvent,
@@ -7,6 +8,7 @@ import {
   type PineApprovalAction,
   type PineApprovalMode,
   type PineApprovalTrigger,
+  type PineAutoApprovalFailure,
   type PineJsonValue,
 } from "@/shared/agent";
 import type {
@@ -21,6 +23,8 @@ import type {
 import { attachmentMessagePreview } from "@/shared/attachments";
 import { parseMessageBlocks } from "@/shared/sessions";
 import { isAppLocale } from "@/app/i18n";
+import enUS from "@/app/i18n/locales/en-US";
+import zhCN from "@/app/i18n/locales/zh-CN";
 import { useModelsStore } from "@/stores/models";
 import type {
   AskUserQuestionParams,
@@ -48,6 +52,7 @@ export interface PinePendingApproval {
   /** The tool call's imperative summary, shown above the raw arguments. */
   description?: string;
   evidence?: string;
+  autoApprovalFailure?: PineAutoApprovalFailure;
 }
 
 export interface PinePendingQuestionnaire {
@@ -335,6 +340,7 @@ function createSessionState() {
     rememberMessageIndex,
     clearMessageIndexes,
     patchToolCall,
+    notifiedAutoApprovalFailureIds: new Set<string>(),
     historyLoaded: false,
     historyLoad: null as Promise<void> | null,
   });
@@ -787,6 +793,7 @@ export const useSessionStore = defineStore("session", () => {
       isRunning.value = event.state === "running" || event.state === "aborting";
       if (event.state === "idle" || event.state === "failed") {
         pendingApprovals.value = [];
+        state.notifiedAutoApprovalFailureIds.clear();
         pendingQuestionnaires.value = [];
         reviewingToolCallIds.value = new Set();
         steeringMessages.value = [];
@@ -834,8 +841,18 @@ export const useSessionStore = defineStore("session", () => {
               ? input.description
               : undefined,
           evidence: event.evidence,
+          autoApprovalFailure: event.autoApprovalFailure,
         },
       ];
+      const failure = event.autoApprovalFailure;
+      if (failure && !state.notifiedAutoApprovalFailureIds.has(failure.id)) {
+        state.notifiedAutoApprovalFailureIds.add(failure.id);
+        const messages = currentAppLocale() === "zh-CN" ? zhCN : enUS;
+        toast.error(messages.project.approvalRequest.autoApprovalFailed, {
+          id: `auto-approval-failed-${failure.id}`,
+          description: failure.message,
+        });
+      }
       patchToolCall(event.toolCallId, {
         approval: { state: "awaiting-user" },
       });

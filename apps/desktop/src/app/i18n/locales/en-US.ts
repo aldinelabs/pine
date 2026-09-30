@@ -543,6 +543,9 @@ export default {
       },
     },
     approvalRequest: {
+      autoApprovalFailed: "Automatic approval failed",
+      autoApprovalFallback:
+        "Automatic approval failed. Please review manually.",
       title: "Approval required",
       triggerPreExecution:
         "Pine requests confirmation before running this operation.",

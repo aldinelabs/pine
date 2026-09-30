@@ -15,6 +15,7 @@ Starting with 0.4.4, release notes are written in both Chinese and English.
 
 ### 变更 / Changed
 
+- 自动审批失败后，手动确认卡片会标明失败原因，并通过通知显示具体错误；较长的审批内容可在卡片内滚动，操作按钮始终可见。When automatic approval fails, the manual review card now identifies the fallback and a notification shows the specific error. Long approval content scrolls within the card while decision buttons stay visible.
 - 通用设置中的诊断日志说明移至帮助图标提示中。The diagnostic logging description in General settings now appears in a help tooltip.
 
 ## [0.6.5] - 2026-09-29

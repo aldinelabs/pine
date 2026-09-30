@@ -1,8 +1,11 @@
 import { createPinia, setActivePinia } from "pinia";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { toast } from "vue-sonner";
 import type { PineAgentEvent } from "@/shared/agent";
 import type { PineSessionSummary, PineTextMessage } from "@/shared/sessions";
 import { useSessionStore } from "../session";
+
+vi.mock("vue-sonner", () => ({ toast: { error: vi.fn() } }));
 
 const a: PineSessionSummary = {
   id: "019cfe51-7166-79b9-a5b9-c652fcca9eab",
@@ -59,7 +62,10 @@ function approval(sessionId: string, requestId: string): PineAgentEvent {
 }
 
 describe("concurrent session state", () => {
-  beforeEach(() => setActivePinia(createPinia()));
+  beforeEach(() => {
+    setActivePinia(createPinia());
+    document.documentElement.lang = "en-US";
+  });
 
   it("keeps background approvals, questions, streaming and run state in their owning session", async () => {
     const { store, emit, api } = fixture();
@@ -143,6 +149,73 @@ describe("concurrent session state", () => {
       action: "approve",
       guidance: undefined,
     });
+  });
+
+  it.each([
+    ["en-US", "Automatic approval failed"],
+    ["zh-CN", "自动审批失败"],
+  ])(
+    "notifies once per failed batch in %s and preserves background failure cards",
+    async (locale, title) => {
+      document.documentElement.lang = locale;
+      const { store, emit } = fixture();
+      await store.resume(a.id);
+      await store.resume(b.id);
+      const failure = {
+        id: "review-batch",
+        message: "HTTP 429: quota exceeded",
+      };
+      for (const requestId of ["fallback-1", "fallback-2"]) {
+        emit({
+          type: "approval-request",
+          sessionId: a.id,
+          requestId,
+          toolCallId: requestId,
+          toolName: "bash",
+          trigger: "sandbox-denied",
+          autoApprovalFailure: failure,
+        });
+      }
+      expect(store.pendingApprovals).toEqual([]);
+      expect(toast.error).toHaveBeenCalledExactlyOnceWith(title, {
+        id: "auto-approval-failed-review-batch",
+        description: failure.message,
+      });
+      await store.resume(a.id);
+      expect(store.pendingApprovals).toHaveLength(2);
+      expect(store.pendingApprovals[0]?.autoApprovalFailure).toEqual(failure);
+      await store.respondApproval("approve", undefined, "fallback-1", a.id);
+      expect(store.pendingApprovals[0]?.requestId).toBe("fallback-2");
+      expect(store.pendingApprovals[0]?.autoApprovalFailure).toEqual(failure);
+      expect(toast.error).toHaveBeenCalledTimes(1);
+      emit({
+        type: "approval-request",
+        sessionId: a.id,
+        requestId: "next-fallback",
+        toolCallId: "next-fallback",
+        toolName: "bash",
+        trigger: "sandbox-denied",
+        autoApprovalFailure: { ...failure, id: "next-batch" },
+      });
+      emit({
+        type: "approval-request",
+        sessionId: a.id,
+        requestId: "late-fallback",
+        toolCallId: "late-fallback",
+        toolName: "bash",
+        trigger: "sandbox-denied",
+        autoApprovalFailure: failure,
+      });
+      expect(toast.error).toHaveBeenCalledTimes(2);
+    },
+  );
+
+  it("does not notify for ordinary manual confirmations", async () => {
+    const { store, emit } = fixture();
+    await store.resume(a.id);
+    emit(approval(a.id, "manual"));
+    expect(store.pendingApprovals[0]?.autoApprovalFailure).toBeUndefined();
+    expect(toast.error).not.toHaveBeenCalled();
   });
 
   it("keeps a failed response available to retry", async () => {

@@ -334,6 +334,9 @@ describe("AutoReviewGate", () => {
         evidence: expect.stringContaining("explicit authorization"),
       }),
     );
+    expect(mocks.requestUserApproval.mock.calls[0][0]).not.toHaveProperty(
+      "autoApprovalFailure",
+    );
     expect(mocks.emit).not.toHaveBeenCalledWith(
       expect.objectContaining({
         type: "approval-decided",
@@ -357,6 +360,10 @@ describe("AutoReviewGate", () => {
       expect.objectContaining({
         toolCallId: "t1",
         evidence: expect.stringContaining("provider down"),
+        autoApprovalFailure: {
+          id: expect.any(String),
+          message: "provider down",
+        },
       }),
     );
     expect(mocks.emit).not.toHaveBeenCalledWith(
@@ -390,6 +397,57 @@ describe("AutoReviewGate", () => {
       expect.objectContaining({
         toolCallId: "t-final",
         evidence: expect.stringContaining("Too many escalations"),
+      }),
+    );
+  });
+
+  it("shares failure metadata across a failed review batch", async () => {
+    const { host, mocks } = createHost();
+    mocks.judge.mockRejectedValue(new Error("HTTP 429: quota exceeded"));
+    const gate = new AutoReviewGate(host);
+
+    const decisions = await Promise.all([
+      gate.reviewPrivilegedCall({
+        toolCallId: "p1",
+        toolName: "bash",
+        subject: "first command",
+        evidence: "Native permissions required.",
+      }),
+      gate.reviewPrivilegedCall({
+        toolCallId: "p2",
+        toolName: "bash",
+        subject: "second command",
+        evidence: "Native permissions required.",
+      }),
+    ]);
+    expect(decisions).toEqual([{ kind: "allow" }, { kind: "allow" }]);
+    const failures = mocks.requestUserApproval.mock.calls.map(
+      ([request]) => request.autoApprovalFailure,
+    );
+    expect(failures[0]).toEqual({
+      id: expect.any(String),
+      message: "HTTP 429: quota exceeded",
+    });
+    expect(failures[1]).toEqual(failures[0]);
+  });
+
+  it("marks an omitted ruling as a failed automatic review", async () => {
+    const { host, mocks } = createHost();
+    mocks.judge.mockResolvedValue([]);
+    const gate = new AutoReviewGate(host);
+
+    await expect(
+      gate.reviewBashCommand({
+        toolCallId: "missing",
+        command: "rm -rf build",
+      }),
+    ).resolves.toEqual({ kind: "allow" });
+    expect(mocks.requestUserApproval).toHaveBeenCalledWith(
+      expect.objectContaining({
+        autoApprovalFailure: {
+          id: expect.any(String),
+          message: "The reviewer omitted this tool call from its rulings.",
+        },
       }),
     );
   });

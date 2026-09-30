@@ -1,7 +1,7 @@
 import { Type } from "typebox";
 import type { Tool } from "@earendil-works/pi-ai";
-import { createHash } from "node:crypto";
-import type { PineAgentEvent } from "../shared/agent";
+import { createHash, randomUUID } from "node:crypto";
+import type { PineAgentEvent, PineAutoApprovalFailure } from "../shared/agent";
 import type { PineApprovalDecision } from "../shared/sessions";
 import type { GateDecision } from "./protocol";
 import { matchDestructive } from "./destructive";
@@ -76,6 +76,7 @@ export interface UserApprovalRequest {
   /** The caller's imperative summary, shown on the approval card. */
   description?: string;
   evidence?: string;
+  autoApprovalFailure?: PineAutoApprovalFailure;
   signal?: AbortSignal;
 }
 
@@ -367,6 +368,7 @@ export class AutoReviewGate implements ToolGate {
       () => undefined,
     );
     let allowed = false;
+    const reviewId = randomUUID();
     const userFallbacks: Promise<void>[] = [];
     const pending: Array<{
       index: number;
@@ -447,9 +449,8 @@ export class AutoReviewGate implements ToolGate {
     try {
       rulings = await this.host.judge(pending.map(({ request }) => request));
     } catch (error) {
-      const reason = `Auto-review unavailable: ${
-        error instanceof Error ? error.message : String(error)
-      }`;
+      const message = error instanceof Error ? error.message : String(error);
+      const reason = `Auto-review unavailable: ${message}`;
       if (this.autonomous) {
         for (const { index, input, sequence } of pending) {
           this.emitDecided(sequence, input.toolCallId, "denied", reason);
@@ -466,6 +467,7 @@ export class AutoReviewGate implements ToolGate {
             subject: input.subject,
             description: input.description,
             evidence: [input.evidence, reason].filter(Boolean).join("\n\n"),
+            autoApprovalFailure: { id: reviewId, message },
             signal: input.signal,
           });
           decisions[index] = decision;
@@ -503,6 +505,10 @@ export class AutoReviewGate implements ToolGate {
           subject: input.subject,
           description: input.description,
           evidence: [input.evidence, reason].filter(Boolean).join("\n\n"),
+          autoApprovalFailure: {
+            id: reviewId,
+            message: "The reviewer omitted this tool call from its rulings.",
+          },
           signal: input.signal,
         });
         decisions[index] = decision;
