@@ -67,7 +67,7 @@ export default {
     modelCatalogRefreshed: "Model catalogs refreshed",
     autoApprovalStrategy: "Automatic approval path",
     autoApprovalModel: "Model review",
-    autoApprovalDecisions: "Decisions screening",
+    autoApprovalDecisions: "Decision model",
     autoApprovalModelDescription:
       "Auto Approve and Autonomous Work use the title generation and review model for every review.",
     autoApprovalDecisionsDescription:

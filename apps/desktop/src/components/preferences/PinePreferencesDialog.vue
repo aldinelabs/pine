@@ -21,6 +21,7 @@ import { useI18n } from "vue-i18n";
 import { toast } from "vue-sonner";
 import { isAppLocale, persistAppLocale } from "@/app/i18n";
 import AutoApprovalSettings from "./AutoApprovalSettings.vue";
+import DecisionsModelSettings from "./DecisionsModelSettings.vue";
 import ModelPickerDialog from "@/components/models/ModelPickerDialog.vue";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -762,6 +763,8 @@ function updateSidebarVibrancy(value: boolean): void {
                   {{ t("preferences.selectImageModel") }}
                 </Button>
               </Field>
+
+              <DecisionsModelSettings />
 
               <Field orientation="horizontal">
                 <div class="flex min-w-0 flex-1 flex-col gap-1">

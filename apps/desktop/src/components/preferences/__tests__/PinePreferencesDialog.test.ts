@@ -158,6 +158,9 @@ describe("PinePreferencesDialog", () => {
     const labels = wrapper
       .findAll('[data-slot="field-label"]')
       .map((label) => label.text());
+    expect(labels.indexOf("Decisions 初筛模型")).toBe(
+      labels.indexOf("图像生成模型") + 1,
+    );
     expect(labels.indexOf("自动审批路径")).toBeGreaterThan(
       labels.indexOf("上下文压缩策略"),
     );

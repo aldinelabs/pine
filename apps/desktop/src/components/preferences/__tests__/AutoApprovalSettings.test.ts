@@ -10,6 +10,8 @@ import {
 import { useAutoApprovalStore } from "@/stores/autoApproval";
 import { useModelsStore } from "@/stores/models";
 import AutoApprovalSettings from "../AutoApprovalSettings.vue";
+import DecisionsModelSettings from "../DecisionsModelSettings.vue";
+import { defineComponent } from "vue";
 
 vi.mock("@/app/errors/errorHandler", () => ({ handleError: vi.fn() }));
 const getSettings = vi.fn();
@@ -23,12 +25,18 @@ const modelPickerStub = {
 
 function mountSettings(locale: "zh-CN" | "en-US" = "zh-CN") {
   const pinia = createPinia();
-  const wrapper = mount(AutoApprovalSettings, {
-    global: {
-      plugins: [pinia, createAppI18n(locale)],
-      stubs: { ModelPickerDialog: modelPickerStub },
+  const wrapper = mount(
+    defineComponent({
+      components: { AutoApprovalSettings, DecisionsModelSettings },
+      template: "<div><DecisionsModelSettings /><AutoApprovalSettings /></div>",
+    }),
+    {
+      global: {
+        plugins: [pinia, createAppI18n(locale)],
+        stubs: { ModelPickerDialog: modelPickerStub },
+      },
     },
-  });
+  );
   return {
     wrapper,
     store: useAutoApprovalStore(pinia),
@@ -57,6 +65,7 @@ describe("automatic approval preferences", () => {
     const { wrapper, store } = mountSettings();
     await flushPromises();
     expect(store.settings.strategy).toBe("decisions");
+    expect(wrapper.getComponent(ToggleGroup).text()).toContain("基于决策模型");
     expect(wrapper.find('[role="slider"]').exists()).toBe(false);
     expect(wrapper.find("input").exists()).toBe(false);
     expect(store.settings).not.toHaveProperty("confidenceThreshold");
@@ -113,15 +122,19 @@ describe("automatic approval preferences", () => {
     });
     expect(store.settings.decisionsModel).toBe("typesafe/jev-1.13");
     expect(
-      wrapper.find('[data-testid="pine-decisions-model-button"]').exists(),
-    ).toBe(false);
+      wrapper
+        .get('[data-testid="pine-decisions-model-button"]')
+        .attributes("disabled"),
+    ).toBeDefined();
     wrapper
       .getComponent(ToggleGroup)
       .vm.$emit("update:modelValue", "decisions");
     await flushPromises();
     expect(
-      wrapper.find('[data-testid="pine-decisions-model-button"]').exists(),
-    ).toBe(true);
+      wrapper
+        .get('[data-testid="pine-decisions-model-button"]')
+        .attributes("disabled"),
+    ).toBeUndefined();
   });
 
   it("ignores invalid or unchanged toggle values", async () => {
@@ -165,6 +178,9 @@ describe("automatic approval preferences", () => {
     const { wrapper } = mountSettings("en-US");
     await flushPromises();
     expect(wrapper.text()).toContain("Automatic approval path");
+    expect(wrapper.getComponent(ToggleGroup).text()).toContain(
+      "Decision model",
+    );
     wrapper.unmount();
     getSettings.mockResolvedValue({
       ...DEFAULT_AUTO_APPROVAL_SETTINGS,
