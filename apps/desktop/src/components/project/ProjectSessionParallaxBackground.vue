@@ -325,7 +325,7 @@ onBeforeUnmount(() => {
         }"
         :class="
           cn(
-            'flex -translate-x-1/2 -translate-y-1/2 items-center justify-center text-chart-2 transition-[left,top,opacity,scale,filter] motion-reduce:transition-none',
+            'flex -translate-x-1/2 -translate-y-1/2 items-center justify-center text-primary transition-[left,top,opacity,scale,filter] motion-reduce:transition-none',
             item.size,
             iconSizeClasses[item.iconSize],
           )
