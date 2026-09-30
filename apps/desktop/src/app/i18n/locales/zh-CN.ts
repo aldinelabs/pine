@@ -43,6 +43,8 @@ export default {
     themeSystem: "跟随系统",
     themeLight: "浅色",
     themeDark: "深色",
+    defaultColorTheme: "Pine 默认颜色主题",
+    defaultColorThemeDescription: "作为通用默认主题；项目强调色优先于此设置。",
     diagnosticLogging: "诊断日志",
     diagnosticLoggingHelp: "关于诊断日志",
     diagnosticLoggingDescription:

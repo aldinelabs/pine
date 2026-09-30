@@ -66,6 +66,11 @@ const originalFolderNames = new Map<string, string>();
 const defaultFolder = computed(() =>
   folders.value.find((folder) => folder.id === defaultFolderId.value),
 );
+const selectedColorThemeOption = computed(() =>
+  PROJECT_COLOR_THEME_OPTIONS.find(
+    (option) => option.value === projectColorTheme.value,
+  ),
+);
 const contextFolders = computed(() =>
   folders.value.filter((folder) => folder.id !== defaultFolderId.value),
 );
@@ -228,6 +233,13 @@ watch(() => props.project, reset, { immediate: true });
               class="w-full"
               aria-labelledby="project-color-theme-label"
             >
+              <span
+                aria-hidden="true"
+                class="size-3 shrink-0 rounded-full ring-1 ring-border"
+                :style="{
+                  backgroundColor: selectedColorThemeOption?.swatch,
+                }"
+              />
               <SelectValue />
             </SelectTrigger>
             <SelectContent>

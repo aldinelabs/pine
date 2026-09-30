@@ -21,7 +21,7 @@ useWindowTabShortcuts();
 const appearanceStore = useAppearanceStore();
 const sessionStore = useSessionStore();
 const projectStore = useProjectStore();
-const { colorScheme } = storeToRefs(appearanceStore);
+const { colorScheme, pineColorTheme } = storeToRefs(appearanceStore);
 const { activeSession } = storeToRefs(sessionStore);
 const { activeProject } = storeToRefs(projectStore);
 
@@ -35,14 +35,19 @@ watchEffect(() => {
 watch(
   () =>
     [
-      activeProject.value?.projectColorTheme ?? "olive",
+      activeProject.value?.projectColorTheme,
+      pineColorTheme.value,
       colorScheme.value,
     ] as const,
-  ([projectColorTheme]) => {
+  ([projectColorTheme, defaultColorTheme]) => {
     const root = document.documentElement;
+    const effectiveColorTheme =
+      projectColorTheme && projectColorTheme !== "olive"
+        ? projectColorTheme
+        : defaultColorTheme;
 
-    root.dataset.projectColorTheme = projectColorTheme;
-    applyProjectColorTheme(root, projectColorTheme);
+    root.dataset.projectColorTheme = effectiveColorTheme;
+    applyProjectColorTheme(root, effectiveColorTheme);
   },
   { immediate: true },
 );

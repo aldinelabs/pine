@@ -46,6 +46,9 @@ export default {
     themeSystem: "System",
     themeLight: "Light",
     themeDark: "Dark",
+    defaultColorTheme: "Pine default color theme",
+    defaultColorThemeDescription:
+      "Used as the default theme; project accent colors take precedence.",
     diagnosticLogging: "Diagnostic logging",
     diagnosticLoggingHelp: "About diagnostic logging",
     diagnosticLoggingDescription:

@@ -44,6 +44,14 @@ import {
 import { Input } from "@/components/ui/input";
 import { Item, ItemContent, ItemMedia, ItemTitle } from "@/components/ui/item";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
@@ -56,7 +64,12 @@ import {
 } from "@/components/ui/tooltip";
 import { useModelsStore } from "@/stores/models";
 import { useUserProfileStore } from "@/stores/userProfile";
-import { isThemePreference, useAppearanceStore } from "@/stores/appearance";
+import {
+  isProjectColorTheme,
+  isThemePreference,
+  useAppearanceStore,
+} from "@/stores/appearance";
+import { PROJECT_COLOR_THEME_OPTIONS } from "@/lib/projectColorThemes";
 import {
   DEFAULT_CONTEXT_COMPACTION_STRATEGY,
   isPineContextCompactionStrategy,
@@ -76,7 +89,7 @@ const { locale, t } = useI18n();
 const appearanceStore = useAppearanceStore();
 const modelsStore = useModelsStore();
 const userProfileStore = useUserProfileStore();
-const { supportsSidebarVibrancy, themePreference } =
+const { supportsSidebarVibrancy, themePreference, pineColorTheme } =
   storeToRefs(appearanceStore);
 const { imageProviderConfigured, imageSelectedModel, utilitySelectedModel } =
   storeToRefs(modelsStore);
@@ -99,6 +112,11 @@ const isSavingContextCompactionStrategy = ref(false);
 const diagnosticLoggingEnabled = ref(false);
 const isLoadingDiagnosticLogging = ref(true);
 const isSavingDiagnosticLogging = ref(false);
+const selectedPineColorThemeOption = computed(() =>
+  PROJECT_COLOR_THEME_OPTIONS.find(
+    (option) => option.value === pineColorTheme.value,
+  ),
+);
 const PROFILE_AUTOSAVE_DELAY_MS = 500;
 let profileSaveTimer: ReturnType<typeof setTimeout> | undefined;
 let profileSaveQueue: Promise<void> = Promise.resolve();
@@ -444,6 +462,11 @@ function updateTheme(value: unknown): void {
   appearanceStore.setThemePreference(value);
 }
 
+function updatePineColorTheme(value: unknown): void {
+  if (typeof value !== "string" || !isProjectColorTheme(value)) return;
+  appearanceStore.setPineColorTheme(value);
+}
+
 function updateSidebarVibrancy(value: boolean): void {
   appearanceStore.setSidebarVibrancy(value);
 }
@@ -665,6 +688,53 @@ function updateSidebarVibrancy(value: boolean): void {
                     {{ t("preferences.themeDark") }}
                   </ToggleGroupItem>
                 </ToggleGroup>
+              </Field>
+
+              <Field orientation="horizontal">
+                <div class="flex min-w-0 flex-1 flex-col gap-1">
+                  <FieldTitle id="pine-color-theme-setting">
+                    {{ t("preferences.defaultColorTheme") }}
+                  </FieldTitle>
+                  <FieldDescription>
+                    {{ t("preferences.defaultColorThemeDescription") }}
+                  </FieldDescription>
+                </div>
+                <Select
+                  :model-value="pineColorTheme"
+                  @update:model-value="updatePineColorTheme"
+                >
+                  <SelectTrigger
+                    class="w-44"
+                    aria-labelledby="pine-color-theme-setting"
+                  >
+                    <span
+                      aria-hidden="true"
+                      class="size-3 shrink-0 rounded-full ring-1 ring-border"
+                      :style="{
+                        backgroundColor: selectedPineColorThemeOption?.swatch,
+                      }"
+                    />
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectGroup>
+                      <SelectItem
+                        v-for="option in PROJECT_COLOR_THEME_OPTIONS"
+                        :key="option.value"
+                        :value="option.value"
+                      >
+                        <span class="flex items-center gap-2">
+                          <span
+                            aria-hidden="true"
+                            class="size-3 rounded-full ring-1 ring-border"
+                            :style="{ backgroundColor: option.swatch }"
+                          />
+                          {{ t(`projects.editor.colorThemes.${option.value}`) }}
+                        </span>
+                      </SelectItem>
+                    </SelectGroup>
+                  </SelectContent>
+                </Select>
               </Field>
 
               <Field v-if="supportsSidebarVibrancy" orientation="horizontal">
