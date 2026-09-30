@@ -9,6 +9,7 @@ import {
 import CodeBlock from "./CodeBlock.vue";
 import MarkdownImage from "./MarkdownImage.vue";
 import MarkdownTable from "./MarkdownTable.vue";
+import { disableMarkdownReplacements } from "./configureMarkdown";
 import "katex/dist/katex.min.css";
 
 enableKatex();
@@ -152,6 +153,7 @@ async function confirmExternalLink(): Promise<void> {
       :nodes="nodes"
       :final="final"
       :parse-options="markdownParseOptions"
+      :custom-markdown-it="disableMarkdownReplacements"
       html-policy="safe"
       custom-id="pine-chat"
       :smooth-streaming="false"

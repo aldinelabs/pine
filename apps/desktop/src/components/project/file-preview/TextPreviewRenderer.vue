@@ -3,6 +3,7 @@ import { computed, useTemplateRef, watch } from "vue";
 import { useEventListener } from "@vueuse/core";
 import { getMarkdown, parseMarkdownToStructure } from "markstream-vue";
 import CodeBlock from "@/components/markdown/CodeBlock.vue";
+import { disableMarkdownReplacements } from "@/components/markdown/configureMarkdown";
 import MarkdownContent from "@/components/markdown/MarkdownContent.vue";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { fileLanguage } from "@/lib/fileLanguage";
@@ -27,10 +28,14 @@ const renderedHtml = computed(
 );
 const markdownNodes = computed(() =>
   rendered.value && language.value === "markdown"
-    ? parseMarkdownToStructure(source.value, getMarkdown("pine-preview"), {
-        final: true,
-        includeSourceMap: true,
-      })
+    ? parseMarkdownToStructure(
+        source.value,
+        disableMarkdownReplacements(getMarkdown("pine-preview")),
+        {
+          final: true,
+          includeSourceMap: true,
+        },
+      )
     : undefined,
 );
 
