@@ -230,7 +230,7 @@ watch(() => props.project, reset, { immediate: true });
             @update:model-value="updateProjectColorTheme"
           >
             <SelectTrigger
-              class="w-full"
+              class="w-full justify-start [&>*:last-child]:ml-auto"
               aria-labelledby="project-color-theme-label"
             >
               <span

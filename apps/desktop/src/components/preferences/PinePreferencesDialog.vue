@@ -704,7 +704,7 @@ function updateSidebarVibrancy(value: boolean): void {
                   @update:model-value="updatePineColorTheme"
                 >
                   <SelectTrigger
-                    class="w-44"
+                    class="w-fit justify-start [&>*:last-child]:ml-auto"
                     aria-labelledby="pine-color-theme-setting"
                   >
                     <span
