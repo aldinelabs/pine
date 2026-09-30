@@ -28,6 +28,7 @@ const props = defineProps<{
   reviewingToolCallIds?: ReadonlySet<string>;
   /** Tool calls waiting for the user's decision (Let Me Review mode). */
   awaitingApprovalToolCallIds?: ReadonlySet<string>;
+  openFile?: (path: string) => boolean;
 }>();
 
 const isUser = computed(() => props.message.role === "user");
@@ -139,6 +140,7 @@ const renderItems = computed<RenderItem[]>(() => {
             :awaiting-approval="
               awaitingApprovalToolCallIds?.has(item.toolCall.id) ?? false
             "
+            :open-file="openFile"
           />
           <ProjectToolCallGroup
             v-else-if="item.kind === 'toolRun'"
@@ -147,6 +149,7 @@ const renderItems = computed<RenderItem[]>(() => {
             :expanded="expandedToolRuns?.has(runKey(item.toolCalls))"
             :reviewing-tool-call-ids="reviewingToolCallIds"
             :awaiting-approval-tool-call-ids="awaitingApprovalToolCallIds"
+            :open-file="openFile"
           />
           <Bubble
             v-else-if="item.kind === 'block' && item.block.type === 'text'"

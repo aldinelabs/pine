@@ -34,6 +34,8 @@ const props = defineProps<{
   reviewing?: boolean;
   /** The call is waiting for the user's decision (Let Me Review mode). */
   awaitingApproval?: boolean;
+  /** Open a project file in Pine when the tool view resolves to a file action. */
+  openFile?: (path: string) => boolean;
 }>();
 const { t } = useI18n();
 const MAX_WEB_PAGE_TITLE_LENGTH = 24;
@@ -961,6 +963,7 @@ const fullText = computed(() => {
     :tool-call="toolCall"
     :reviewing="reviewing"
     :awaiting-approval="awaitingApproval"
+    :open-file="openFile"
   >
     <!-- Offset standalone hit-area padding so the transcript's 12px gap is
          measured between content rows. Nested rows already use 4px + 8px. -->

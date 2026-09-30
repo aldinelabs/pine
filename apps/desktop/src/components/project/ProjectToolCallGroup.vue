@@ -26,6 +26,7 @@ const props = defineProps<{
   reviewingToolCallIds?: ReadonlySet<string>;
   /** Tool calls waiting for the user's decision (Let Me Review mode). */
   awaitingApprovalToolCallIds?: ReadonlySet<string>;
+  openFile?: (path: string) => boolean;
 }>();
 const { locale, t } = useI18n();
 const contentId = useId();
@@ -137,6 +138,7 @@ function toggleExpanded(): void {
             :awaiting-approval="
               props.awaitingApprovalToolCallIds?.has(toolCall.id) ?? false
             "
+            :open-file="openFile"
           />
         </div>
       </div>

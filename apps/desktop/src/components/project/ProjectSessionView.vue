@@ -35,10 +35,12 @@ import { Spinner } from "@/components/ui/spinner";
 import { useContentTabNavigation } from "@/composables/useContentTabNavigation";
 import { useToolActivityExpansion } from "@/composables/useToolActivityExpansion";
 import { useContentTabsStore } from "@/stores/contentTabs";
+import { useProjectStore } from "@/stores/project";
 import { useSessionStore, type PineTranscriptMessage } from "@/stores/session";
 import ProjectSessionParallaxBackground from "./ProjectSessionParallaxBackground.vue";
 import ProjectSessionComposer from "./ProjectSessionComposer.vue";
 import ProjectTranscriptMessage from "./ProjectTranscriptMessage.vue";
+import { toolFileRequest } from "./toolViewAdapter";
 import ProjectTranscriptOutline from "./ProjectTranscriptOutline.vue";
 import { collapsesTranscriptGap } from "./transcriptLayout";
 
@@ -48,10 +50,26 @@ const props = defineProps<{
   tabId: string;
 }>();
 const contentTabsStore = useContentTabsStore();
+const projectStore = useProjectStore();
 const tabNavigation = useContentTabNavigation();
 const sessionStore = useSessionStore();
 const HISTORY_LOAD_THRESHOLD = 240;
 const isSubmitting = ref(false);
+
+function openToolFile(path: string): boolean {
+  const request = toolFileRequest(path, projectStore.activeProject);
+  if (request) {
+    tabNavigation.openFile(request);
+    return true;
+  }
+  const presented = tabNavigation.tabs.value.find(
+    (tab) =>
+      tab.kind === "file" && tab.source === "presented" && tab.path === path,
+  );
+  if (!presented) return false;
+  tabNavigation.activate(presented.id);
+  return true;
+}
 // A retained tab always observes its own session, including background events.
 const tabState = computed(() =>
   props.sessionId ? sessionStore.stateFor(props.sessionId) : null,
@@ -415,6 +433,7 @@ async function handleDrop(event: DragEvent): Promise<void> {
               >
                 <ProjectTranscriptMessage
                   :message="message"
+                  :open-file="openToolFile"
                   :expanded-tool-runs="expandedToolRuns"
                   :reviewing-tool-call-ids="reviewingToolCallIds"
                   :awaiting-approval-tool-call-ids="awaitingApprovalToolCallIds"

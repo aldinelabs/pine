@@ -5,7 +5,8 @@ import {
   SearchIcon,
   ShieldBanIcon,
 } from "@lucide/vue";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+import { createPinia } from "pinia";
 import { createAppI18n } from "@/app/i18n";
 import ProjectToolCallMarker from "../ProjectToolCallMarker.vue";
 
@@ -44,6 +45,268 @@ function mountMarker(decidedBy: "judge" | "user" | "sandbox" | null = "judge") {
 }
 
 describe("ProjectToolCallDialog", () => {
+  it.each([
+    ["read", "src/main.ts", undefined],
+    ["write", "src/main.ts", undefined],
+    [
+      "ui_present_file",
+      "/work/pine/src/main.ts",
+      { details: { path: "/work/pine/src/main.ts" } },
+    ],
+  ] as const)(
+    "opens a completed %s in Pine",
+    async (name, expectedPath, output) => {
+      const openFile = vi.fn(() => true);
+      const wrapper = mount(ProjectToolCallMarker, {
+        attachTo: document.body,
+        props: {
+          toolCall: {
+            id: `${name}-1`,
+            name,
+            status: "complete",
+            input: { path: "src/main.ts" },
+            output,
+          },
+          openFile,
+        },
+        global: { plugins: [createAppI18n("zh-CN")] },
+      });
+      await wrapper.get('button[data-slot="marker"]').trigger("click");
+      expect(openFile).toHaveBeenCalledWith(expectedPath);
+      expect(
+        document.body.querySelector('[data-slot="dialog-content"]'),
+      ).toBeNull();
+      wrapper.unmount();
+    },
+  );
+
+  it("shows search results in a result table", async () => {
+    const wrapper = mount(ProjectToolCallMarker, {
+      attachTo: document.body,
+      props: {
+        toolCall: {
+          id: "search-1",
+          name: "web_search",
+          status: "complete",
+          input: { query: "Pine", domain_type: "news" },
+          output: {
+            content: [
+              {
+                type: "text",
+                text: '<tinyfish_web_data>\n{"results":[{"title":"First","url":"https://example.com/1","snippet":"One"},{"title":"Second","url":"https://example.com/2","snippet":"Two"}]}\n</tinyfish_web_data>',
+              },
+            ],
+          },
+        },
+      },
+      global: { plugins: [createAppI18n("zh-CN")] },
+    });
+    await wrapper.get('button[data-slot="marker"]').trigger("click");
+    expect(
+      document.body.querySelectorAll("[data-web-results] tbody tr"),
+    ).toHaveLength(2);
+    expect(document.body.textContent).toContain("Second");
+    wrapper.unmount();
+  });
+
+  it("renders edit replacements as a Shiki diff block", async () => {
+    const wrapper = mount(ProjectToolCallMarker, {
+      attachTo: document.body,
+      props: {
+        toolCall: {
+          id: "edit-1",
+          name: "edit",
+          status: "complete",
+          input: {
+            path: "src/main.ts",
+            edits: [
+              { oldText: "const value = 1;", newText: "const value = 2;" },
+            ],
+          },
+        },
+      },
+      global: { plugins: [createPinia(), createAppI18n("zh-CN")] },
+    });
+    await wrapper.get('button[data-slot="marker"]').trigger("click");
+    const code = document.body.querySelector('[data-slot="code-block"]');
+    expect(code?.textContent).toContain("-const value = 1;");
+    expect(code?.textContent).toContain("+const value = 2;");
+    wrapper.unmount();
+  });
+
+  it("renders shell output as text and questionnaire answers by question", async () => {
+    const shell = mount(ProjectToolCallMarker, {
+      attachTo: document.body,
+      props: {
+        toolCall: {
+          id: "bash-2",
+          name: "bash",
+          status: "complete",
+          input: { command: "pwd" },
+          output: { content: [{ type: "text", text: "/work/pine\n" }] },
+        },
+      },
+      global: { plugins: [createPinia(), createAppI18n("zh-CN")] },
+    });
+    await shell.get('button[data-slot="marker"]').trigger("click");
+    expect(
+      document.body.querySelector('[data-slot="code-block"]')?.textContent,
+    ).toContain("pwd");
+    expect(document.body.textContent).toContain("/work/pine");
+    shell.unmount();
+
+    const question = mount(ProjectToolCallMarker, {
+      attachTo: document.body,
+      props: {
+        toolCall: {
+          id: "question-1",
+          name: "ask_user_question",
+          status: "complete",
+          input: {
+            questions: [
+              {
+                question: "Which format?",
+                options: [{ label: "PDF" }, { label: "DOCX" }],
+              },
+            ],
+          },
+          output: {
+            details: {
+              answers: [{ question: "Which format?", answer: "PDF" }],
+              cancelled: false,
+            },
+          },
+        },
+      },
+      global: { plugins: [createAppI18n("zh-CN")] },
+    });
+    await question.get('button[data-slot="marker"]').trigger("click");
+    expect(document.body.textContent).toContain("Which format?");
+    expect(document.body.textContent).toContain("PDF");
+    expect(
+      document.body.querySelectorAll('[data-slot="dialog-content"] ol li'),
+    ).toHaveLength(2);
+    expect(
+      document.body.querySelectorAll(
+        '[data-slot="dialog-content"] [data-slot="badge"]',
+      ),
+    ).toHaveLength(1);
+    expect(
+      document.body
+        .querySelector('[data-slot="dialog-content"]')
+        ?.classList.contains("w-fit"),
+    ).toBe(true);
+    question.unmount();
+  });
+
+  it("shows generated files and computer-use images without raw data tables", async () => {
+    const media = mount(ProjectToolCallMarker, {
+      attachTo: document.body,
+      props: {
+        toolCall: {
+          id: "image-1",
+          name: "generate_image",
+          status: "complete",
+          input: {
+            prompt: "Pine tree",
+            input_references: ["data:image/png;base64,aGVsbG8="],
+          },
+          output: {
+            details: {
+              files: [{ path: "/work/pine/tree.png", mimeType: "image/png" }],
+              model: "image-model",
+            },
+          },
+        },
+      },
+      global: { plugins: [createAppI18n("zh-CN")] },
+    });
+    await media.get('button[data-slot="marker"]').trigger("click");
+    expect(document.body.textContent).toContain("/work/pine/tree.png");
+    expect(document.body.textContent).toContain("Pine tree");
+    expect(document.body.textContent).toContain("内嵌图片");
+    expect(document.body.textContent).not.toContain("aGVsbG8=");
+    media.unmount();
+
+    const computer = mount(ProjectToolCallMarker, {
+      attachTo: document.body,
+      props: {
+        toolCall: {
+          id: "screenshot-1",
+          name: "screenshot",
+          status: "complete",
+          input: {},
+          output: {
+            content: [
+              { type: "image", mimeType: "image/png", data: "aGVsbG8=" },
+            ],
+          },
+        },
+      },
+      global: { plugins: [createAppI18n("zh-CN")] },
+    });
+    await computer.get('button[data-slot="marker"]').trigger("click");
+    expect(
+      document.body
+        .querySelector('[data-slot="dialog-content"] img')
+        ?.getAttribute("src"),
+    ).toBe("data:image/png;base64,aGVsbG8=");
+    expect(document.body.querySelector("[data-tool-value-table]")).toBeNull();
+    computer.unmount();
+  });
+
+  it("shows fetched page text and Skill resources by their structure", async () => {
+    const fetch = mount(ProjectToolCallMarker, {
+      attachTo: document.body,
+      props: {
+        toolCall: {
+          id: "fetch-1",
+          name: "web_fetch",
+          status: "complete",
+          input: { urls: ["https://example.com"] },
+          output: {
+            content: [
+              {
+                type: "text",
+                text: '<tinyfish_web_data>{"results":[{"title":"Example","url":"https://example.com","text":"Page body"}]}</tinyfish_web_data>',
+              },
+            ],
+          },
+        },
+      },
+      global: { plugins: [createAppI18n("zh-CN")] },
+    });
+    await fetch.get('button[data-slot="marker"]').trigger("click");
+    expect(
+      document.body.querySelector("[data-web-results] pre")?.textContent,
+    ).toBe("Page body");
+    fetch.unmount();
+
+    const skill = mount(ProjectToolCallMarker, {
+      attachTo: document.body,
+      props: {
+        toolCall: {
+          id: "skill-1",
+          name: "list_skill_resources",
+          status: "complete",
+          input: { name: "example" },
+          output: {
+            details: {
+              resources: [
+                { path: "references/guide.md", kind: "file", size: 120 },
+              ],
+            },
+          },
+        },
+      },
+      global: { plugins: [createAppI18n("zh-CN")] },
+    });
+    await skill.get('button[data-slot="marker"]').trigger("click");
+    expect(document.body.textContent).toContain("references/guide.md");
+    expect(document.body.textContent).toContain("120 B");
+    skill.unmount();
+  });
+
   it.each(["judge", "user"] as const)(
     "distinguishes %s denials from execution failures",
     async (decidedBy) => {
@@ -95,11 +358,10 @@ describe("ProjectToolCallDialog", () => {
     expect(dialogText).toContain("自动审批驳回");
     expect(dialogText).toContain("请改用不会覆盖现有文件的命令。");
     const tables = document.body.querySelectorAll("[data-tool-value-table]");
-    expect(tables).toHaveLength(2);
-    expect(dialogText).toContain("command");
+    expect(tables).toHaveLength(1);
     expect(dialogText).toContain("dangerous-command");
-    expect(dialogText).toContain("[0].type");
-    expect(dialogText).toContain("[0].text");
+    expect(dialogText).not.toContain("[0].type");
+    expect(dialogText).not.toContain("[0].text");
     expect(dialogText).toContain("First paragraph\n\nSecond paragraph");
     expect(dialogText).not.toContain("\\n\\n");
     expect(dialogText).toContain("1.3 秒");

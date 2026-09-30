@@ -13,18 +13,24 @@ import {
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import type { PineToolCall } from "@/shared/sessions";
-import ProjectToolValueTable from "./ProjectToolValueTable.vue";
+import ProjectToolSemanticValue from "./ProjectToolSemanticValue.vue";
 import { isDeniedTool } from "./toolKinds";
+import { toolViewAdapter } from "./toolViewAdapter";
 
 const props = defineProps<{
   toolCall: PineToolCall;
   reviewing?: boolean;
   awaitingApproval?: boolean;
+  openFile?: (path: string) => boolean;
 }>();
 
 const { t } = useI18n();
 const isOpen = ref(false);
 const isDenied = computed(() => isDeniedTool(props.toolCall));
+const view = computed(() => toolViewAdapter(props.toolCall));
+const wideDetails = computed(() =>
+  ["edit", "search", "fetch"].includes(view.value.detail),
+);
 
 type StatusKey =
   | "pending"
@@ -95,6 +101,7 @@ function formatDuration(durationMs: number): string {
 }
 
 function openDialog(): void {
+  if (view.value.filePath && props.openFile?.(view.value.filePath)) return;
   isOpen.value = true;
 }
 </script>
@@ -102,7 +109,10 @@ function openDialog(): void {
 <template>
   <Dialog v-model:open="isOpen">
     <slot :open="openDialog" />
-    <DialogContent class="w-[calc(100vw-2rem)] sm:max-w-4xl">
+    <DialogContent
+      class="w-fit min-w-[min(26rem,calc(100vw-2rem))] max-w-[calc(100vw-2rem)]"
+      :class="wideDetails ? 'sm:max-w-4xl' : 'sm:max-w-2xl'"
+    >
       <DialogHeader class="pr-12">
         <DialogTitle>{{
           t("project.transcript.toolDetails.title")
@@ -112,8 +122,8 @@ function openDialog(): void {
         </DialogDescription>
       </DialogHeader>
 
-      <ScrollArea class="max-h-[70vh] w-full min-w-0 pr-4">
-        <div class="flex w-full min-w-0 flex-col gap-5">
+      <ScrollArea class="max-h-[70vh] max-w-full min-w-0 pr-4">
+        <div class="flex min-w-0 flex-col gap-5">
           <dl
             class="grid grid-cols-[auto_1fr] items-center gap-x-4 gap-y-3 text-sm"
           >
@@ -192,9 +202,10 @@ function openDialog(): void {
             <h3 class="text-sm font-medium">
               {{ t("project.transcript.toolDetails.parameters") }}
             </h3>
-            <ProjectToolValueTable
-              :value="toolCall.input"
-              :empty-label="t('project.transcript.toolDetails.noParameters')"
+            <ProjectToolSemanticValue
+              :tool-call="toolCall"
+              :view="view.detail"
+              section="parameters"
             />
           </section>
 
@@ -203,9 +214,10 @@ function openDialog(): void {
             <h3 class="text-sm font-medium">
               {{ t("project.transcript.toolDetails.result") }}
             </h3>
-            <ProjectToolValueTable
-              :value="toolCall.output"
-              :empty-label="t('project.transcript.toolDetails.noResult')"
+            <ProjectToolSemanticValue
+              :tool-call="toolCall"
+              :view="view.detail"
+              section="result"
             />
           </section>
         </div>
