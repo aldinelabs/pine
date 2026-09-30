@@ -57,7 +57,13 @@ export const READ_PROJECT_FILE_PREVIEW_CHANNEL =
   "project-files:preview" as const;
 export const READ_PRESENTED_FILE_PREVIEW_CHANNEL =
   "project-files:preview-presented" as const;
+export const REOPEN_PRESENTED_TOOL_FILE_CHANNEL =
+  "project-files:reopen-presented-tool-file" as const;
 export const PROJECT_MEDIA_PROTOCOL = "pine-project-media" as const;
+export interface ReopenPresentedToolFileRequest {
+  sessionId: string;
+  toolCallId: string;
+}
 export interface ProjectFilePreviewRequest extends ProjectEntryReference {
   projectId: string;
 }

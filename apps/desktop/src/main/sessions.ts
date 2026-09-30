@@ -624,6 +624,40 @@ export class ProjectSessionService {
     });
   }
 
+  /** Only a successful first-party presentation can restore a preview grant. */
+  async presentedFilePath(
+    sessionId: string,
+    toolCallId: string,
+  ): Promise<string | null> {
+    const metadata = (
+      await this.repository.list(undefined, BACKGROUND_CONTEXT)
+    ).find((session) => session.id === sessionId);
+    if (!metadata) return null;
+
+    return this.withSession(metadata, async (session) => {
+      for (const { message } of indexedTextMessages(
+        await entriesForSession(session),
+      )) {
+        for (const block of message.blocks) {
+          if (block.type !== "toolCall") continue;
+          const call = block.toolCall;
+          if (
+            call.id !== toolCallId ||
+            call.name !== "ui_present_file" ||
+            call.status !== "complete"
+          )
+            continue;
+          const details =
+            typeof call.output === "object" && call.output !== null
+              ? (call.output as { details?: { path?: unknown } }).details
+              : undefined;
+          return typeof details?.path === "string" ? details.path : null;
+        }
+      }
+      return null;
+    });
+  }
+
   async exportSession(
     sessionId: string,
     fallbackApprovalMode: PineApprovalMode,

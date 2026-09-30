@@ -51,7 +51,7 @@ import {
   parseAttachmentMessage,
   type PineAttachment,
 } from "../shared/attachments";
-import { realpath } from "node:fs/promises";
+import { realpath, stat } from "node:fs/promises";
 import path from "node:path";
 
 function pathContains(parentPath: string, candidatePath: string): boolean {
@@ -584,6 +584,33 @@ export class ProjectRuntimeRegistry {
   ): Promise<FilePreviewTarget | null> {
     const runtime = this.entryForSession(sessionId)?.runtime;
     if (!runtime) return null;
+    return this.resolvePresentTargetForRuntime(runtime, filePath);
+  }
+
+  async reopenPresentedToolFile(
+    webContentsId: number,
+    sessionId: string,
+    toolCallId: string,
+  ): Promise<FilePreviewTarget | null> {
+    const runtime = this.get(webContentsId);
+    const filePath = await runtime.sessions.presentedFilePath(
+      sessionId,
+      toolCallId,
+    );
+    if (!filePath) return null;
+    const canonicalPath = await realpath(filePath).catch(() => null);
+    // The original tool result stores its authorized canonical path. Reject a
+    // path that has since become a symlink to a different file.
+    if (canonicalPath !== path.resolve(filePath)) return null;
+    const metadata = await stat(canonicalPath).catch(() => null);
+    if (!metadata?.isFile()) return null;
+    return this.resolvePresentTargetForRuntime(runtime, canonicalPath);
+  }
+
+  private async resolvePresentTargetForRuntime(
+    runtime: ProjectRuntime,
+    filePath: string,
+  ): Promise<FilePreviewTarget | null> {
     if (!path.isAbsolute(filePath) || filePath.includes("\0")) return null;
 
     // Match against canonical roots so a symlinked folder cannot be escaped

@@ -1,4 +1,4 @@
-import { mount } from "@vue/test-utils";
+import { flushPromises, mount } from "@vue/test-utils";
 import {
   AlertCircleIcon,
   GlobeIcon,
@@ -72,13 +72,40 @@ describe("ProjectToolCallDialog", () => {
         global: { plugins: [createAppI18n("zh-CN")] },
       });
       await wrapper.get('button[data-slot="marker"]').trigger("click");
-      expect(openFile).toHaveBeenCalledWith(expectedPath, `${name}-1`);
+      expect(openFile).toHaveBeenCalledWith(
+        expectedPath,
+        expect.objectContaining({ id: `${name}-1`, name }),
+      );
       expect(
         document.body.querySelector('[data-slot="dialog-content"]'),
       ).toBeNull();
       wrapper.unmount();
     },
   );
+
+  it("does not replace a missing presented file with a details dialog", async () => {
+    const openFile = vi.fn().mockResolvedValue(false);
+    const wrapper = mount(ProjectToolCallMarker, {
+      attachTo: document.body,
+      props: {
+        toolCall: {
+          id: "old-present-call",
+          name: "ui_present_file",
+          status: "complete",
+          input: { path: "/Pine/projects/project/tmp/tool_probe.txt" },
+        },
+        openFile,
+      },
+      global: { plugins: [createAppI18n("zh-CN")] },
+    });
+    await wrapper.get('button[data-slot="marker"]').trigger("click");
+    await flushPromises();
+    expect(openFile).toHaveBeenCalledOnce();
+    expect(
+      document.body.querySelector('[data-slot="dialog-content"]'),
+    ).toBeNull();
+    wrapper.unmount();
+  });
 
   it("shows search results in a result table", async () => {
     const wrapper = mount(ProjectToolCallMarker, {

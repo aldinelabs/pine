@@ -228,6 +228,7 @@ import {
   START_PROJECT_FILE_DRAG_CHANNEL,
   READ_PROJECT_FILE_PREVIEW_CHANNEL,
   READ_PRESENTED_FILE_PREVIEW_CHANNEL,
+  REOPEN_PRESENTED_TOOL_FILE_CHANNEL,
   PROJECT_MEDIA_PROTOCOL,
   PROJECT_FILES_CHANGED_CHANNEL,
   SET_WATCHED_PROJECT_DIRECTORIES_CHANNEL,
@@ -525,6 +526,10 @@ const ProjectFilePreviewRequestSchema = ProjectEntryReferenceSchema.extend({
 });
 const PresentedFilePreviewRequestSchema = z.object({
   path: z.string().min(1).max(4096),
+});
+const ReopenPresentedToolFileRequestSchema = z.object({
+  sessionId: z.uuid(),
+  toolCallId: z.string().min(1).max(256),
 });
 
 async function previewPath(ownerId: number, request: unknown): Promise<string> {
@@ -1320,6 +1325,23 @@ ipcMain.handle(
       filePath,
       projectMediaUrl(event.sender.id, { path: filePath }, { presented: true }),
     );
+  },
+);
+
+ipcMain.handle(
+  REOPEN_PRESENTED_TOOL_FILE_CHANNEL,
+  async (event, request: unknown) => {
+    const { sessionId, toolCallId } =
+      ReopenPresentedToolFileRequestSchema.parse(request);
+    const target = await getProjectRuntimes().reopenPresentedToolFile(
+      event.sender.id,
+      sessionId,
+      toolCallId,
+    );
+    if (target?.source === "presented") {
+      presentedFiles?.remember(event.sender.id, target.path);
+    }
+    return target;
   },
 );
 

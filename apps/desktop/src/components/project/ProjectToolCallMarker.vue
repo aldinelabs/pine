@@ -35,7 +35,10 @@ const props = defineProps<{
   /** The call is waiting for the user's decision (Let Me Review mode). */
   awaitingApproval?: boolean;
   /** Open a project file in Pine when the tool view resolves to a file action. */
-  openFile?: (path: string, toolCallId: string) => boolean;
+  openFile?: (
+    path: string,
+    toolCall: PineToolCall,
+  ) => boolean | Promise<boolean>;
 }>();
 const { t } = useI18n();
 const MAX_WEB_PAGE_TITLE_LENGTH = 24;

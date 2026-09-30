@@ -2,6 +2,7 @@
 import { computed, ref } from "vue";
 import { ShieldBanIcon } from "@lucide/vue";
 import { useI18n } from "vue-i18n";
+import { toast } from "vue-sonner";
 import { Badge, type BadgeVariants } from "@/components/ui/badge";
 import {
   Dialog,
@@ -21,7 +22,10 @@ const props = defineProps<{
   toolCall: PineToolCall;
   reviewing?: boolean;
   awaitingApproval?: boolean;
-  openFile?: (path: string, toolCallId: string) => boolean;
+  openFile?: (
+    path: string,
+    toolCall: PineToolCall,
+  ) => boolean | Promise<boolean>;
 }>();
 
 const { t } = useI18n();
@@ -100,12 +104,18 @@ function formatDuration(durationMs: number): string {
   });
 }
 
-function openDialog(): void {
-  if (
-    view.value.filePath &&
-    props.openFile?.(view.value.filePath, props.toolCall.id)
-  )
+async function openDialog(): Promise<void> {
+  if (view.value.filePath && props.openFile) {
+    try {
+      if (await props.openFile(view.value.filePath, props.toolCall)) return;
+    } catch {
+      // A missing file is an action failure, not a reason to show parameters.
+    }
+    toast.error(t("project.filePreview.failedTitle"), {
+      description: t("project.filePreview.failedDescription"),
+    });
     return;
+  }
   isOpen.value = true;
 }
 </script>

@@ -51,6 +51,8 @@ import type {
   ProjectFilePreview,
   ProjectFilePreviewRequest,
   PresentedFilePreviewRequest,
+  ReopenPresentedToolFileRequest,
+  FilePreviewTarget,
   ProjectFileOperation,
   StartProjectFileDragRequest,
   ListProjectDirectoryRequest,
@@ -219,6 +221,9 @@ export interface PineDesktopApi extends PineWindowApi {
   readPresentedFilePreview: (
     request: PresentedFilePreviewRequest,
   ) => Promise<ProjectFilePreview>;
+  reopenPresentedToolFile: (
+    request: ReopenPresentedToolFileRequest,
+  ) => Promise<FilePreviewTarget | null>;
   abortSession: (request: SessionControlRequest) => Promise<AbortSessionResult>;
   attachSession: (
     request: AttachSessionRequest,

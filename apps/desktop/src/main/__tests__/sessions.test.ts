@@ -443,6 +443,68 @@ describe("ProjectSessionService", () => {
     }
   });
 
+  it("finds only the successful presented path in persisted tool history", async () => {
+    const rootPath = await createTemporaryProjectData();
+    const options = serviceOptions(rootPath);
+    await mkdir(options.cwd, { recursive: true });
+    const environment = new NodeExecutionEnv({ cwd: options.cwd });
+    const repository = createRepository(environment, options.sessionsRoot);
+    const session = await createSession(repository, options.cwd);
+    const presentedPath = path.join(rootPath, "tmp", "tool_probe.txt");
+    await appendMessage(
+      session,
+      fauxAssistantMessage(
+        [
+          fauxToolCall(
+            "ui_present_file",
+            { path: presentedPath },
+            { id: "present-ok" },
+          ),
+          fauxToolCall(
+            "ui_present_file",
+            { path: "/private/file" },
+            { id: "present-error" },
+          ),
+          fauxToolCall("read", { path: "/private/file" }, { id: "read-call" }),
+        ],
+        { stopReason: "toolUse" },
+      ),
+    );
+    for (const [toolCallId, toolName, isError, filePath] of [
+      ["present-ok", "ui_present_file", false, presentedPath],
+      ["present-error", "ui_present_file", true, "/private/file"],
+      ["read-call", "read", false, "/private/file"],
+    ] as const) {
+      await appendMessage(session, {
+        role: "toolResult",
+        toolCallId,
+        toolName,
+        content: [{ type: "text", text: "done" }],
+        details: { path: filePath },
+        isError,
+        timestamp: Date.now(),
+      });
+    }
+    const service = await ProjectSessionService.create(options);
+    try {
+      expect(
+        await service.presentedFilePath(session.metadata.id, "present-ok"),
+      ).toBe(presentedPath);
+      expect(
+        await service.presentedFilePath(session.metadata.id, "present-error"),
+      ).toBeNull();
+      expect(
+        await service.presentedFilePath(session.metadata.id, "read-call"),
+      ).toBeNull();
+      expect(
+        await service.presentedFilePath(session.metadata.id, "unknown"),
+      ).toBeNull();
+    } finally {
+      await service.dispose();
+      await environment.cleanup(BACKGROUND_CONTEXT);
+    }
+  });
+
   it("preserves structured tool details when replaying old questionnaires", async () => {
     const rootPath = await createTemporaryProjectData();
     const options = serviceOptions(rootPath);

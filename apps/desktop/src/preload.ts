@@ -151,10 +151,12 @@ import {
   START_PROJECT_FILE_DRAG_CHANNEL,
   READ_PROJECT_FILE_PREVIEW_CHANNEL,
   READ_PRESENTED_FILE_PREVIEW_CHANNEL,
+  REOPEN_PRESENTED_TOOL_FILE_CHANNEL,
   PROJECT_FILES_CHANGED_CHANNEL,
   SET_WATCHED_PROJECT_DIRECTORIES_CHANNEL,
   type ListProjectDirectoryRequest,
   type ListProjectDirectoryResult,
+  type ReopenPresentedToolFileRequest,
   type ProjectFilesChangedEvent,
   type SetWatchedProjectDirectoriesRequest,
 } from "./shared/projectFiles";
@@ -200,6 +202,8 @@ const pineApi: PineDesktopApi = {
     ipcRenderer.invoke(READ_PROJECT_FILE_PREVIEW_CHANNEL, request),
   readPresentedFilePreview: (request) =>
     ipcRenderer.invoke(READ_PRESENTED_FILE_PREVIEW_CHANNEL, request),
+  reopenPresentedToolFile: (request: ReopenPresentedToolFileRequest) =>
+    ipcRenderer.invoke(REOPEN_PRESENTED_TOOL_FILE_CHANNEL, request),
   closeWindow: () => ipcRenderer.invoke(CLOSE_WINDOW_CHANNEL),
   getAppVersion: (): Promise<string> =>
     ipcRenderer.invoke(GET_APP_VERSION_CHANNEL),

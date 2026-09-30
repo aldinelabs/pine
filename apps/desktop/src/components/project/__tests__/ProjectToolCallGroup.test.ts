@@ -1,4 +1,4 @@
-import { mount } from "@vue/test-utils";
+import { flushPromises, mount } from "@vue/test-utils";
 import {
   BookOpenIcon,
   EyeIcon,
@@ -40,7 +40,10 @@ function mountGroup(
     message: PineTranscriptMessage;
     toolCalls: PineToolCall[];
     expanded: boolean;
-    openFile: (path: string, toolCallId: string) => boolean;
+    openFile: (
+      path: string,
+      toolCall: PineToolCall,
+    ) => boolean | Promise<boolean>;
   }> = {},
 ) {
   return mount(ProjectToolCallGroup, {
@@ -168,7 +171,7 @@ describe("ProjectToolCallGroup", () => {
   });
 
   it("opens a presented file from a nested marker without a dialog", async () => {
-    const openFile = vi.fn(() => true);
+    const openFile = vi.fn().mockResolvedValue(true);
     const wrapper = mountGroup({
       expanded: true,
       openFile,
@@ -187,9 +190,10 @@ describe("ProjectToolCallGroup", () => {
       .findComponent(ProjectToolCallMarker)
       .get("button")
       .trigger("click");
+    await flushPromises();
     expect(openFile).toHaveBeenCalledWith(
       "/canonical/project/report.md",
-      "present-in-group",
+      expect.objectContaining({ id: "present-in-group" }),
     );
     expect(
       document.body.querySelector('[data-slot="dialog-content"]'),

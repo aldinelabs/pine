@@ -40,6 +40,7 @@ import { useSessionStore, type PineTranscriptMessage } from "@/stores/session";
 import ProjectSessionParallaxBackground from "./ProjectSessionParallaxBackground.vue";
 import ProjectSessionComposer from "./ProjectSessionComposer.vue";
 import ProjectTranscriptMessage from "./ProjectTranscriptMessage.vue";
+import type { PineToolCall } from "@/shared/sessions";
 import { toolFileRequest } from "./toolViewAdapter";
 import ProjectTranscriptOutline from "./ProjectTranscriptOutline.vue";
 import { collapsesTranscriptGap } from "./transcriptLayout";
@@ -56,8 +57,11 @@ const sessionStore = useSessionStore();
 const HISTORY_LOAD_THRESHOLD = 240;
 const isSubmitting = ref(false);
 
-function openToolFile(path: string, toolCallId: string): boolean {
-  const presentedTarget = contentTabsStore.presentedTargetFor(toolCallId);
+async function openToolFile(
+  path: string,
+  toolCall: PineToolCall,
+): Promise<boolean> {
+  const presentedTarget = contentTabsStore.presentedTargetFor(toolCall.id);
   if (presentedTarget) {
     tabNavigation.activate(contentTabsStore.presentFile(presentedTarget).id);
     return true;
@@ -71,8 +75,17 @@ function openToolFile(path: string, toolCallId: string): boolean {
     (tab) =>
       tab.kind === "file" && tab.source === "presented" && tab.path === path,
   );
-  if (!presented) return false;
-  tabNavigation.activate(presented.id);
+  if (presented) {
+    tabNavigation.activate(presented.id);
+    return true;
+  }
+  if (toolCall.name !== "ui_present_file" || !props.sessionId) return false;
+  const target = await window.pine.reopenPresentedToolFile({
+    sessionId: props.sessionId,
+    toolCallId: toolCall.id,
+  });
+  if (!target) return false;
+  tabNavigation.activate(contentTabsStore.presentFile(target, toolCall.id).id);
   return true;
 }
 // A retained tab always observes its own session, including background events.

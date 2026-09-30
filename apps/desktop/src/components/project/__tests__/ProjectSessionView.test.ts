@@ -11,12 +11,16 @@ import { serializeAttachmentMessage } from "@/shared/attachments";
 import ProjectSessionView from "../ProjectSessionView.vue";
 
 const activeTabId = ref("session-1");
+const navigationTabs = ref([]);
+const activateTab = vi.fn();
 
 vi.mock("@/composables/useContentTabNavigation", () => ({
   useContentTabNavigation: () => ({
     activeTabId: computed(() => activeTabId.value),
+    activate: activateTab,
     bindSession: vi.fn(),
     failPrompt: vi.fn(),
+    tabs: navigationTabs,
   }),
 }));
 
@@ -99,6 +103,55 @@ function mountView() {
 }
 
 describe("ProjectSessionView file drop", () => {
+  it("reopens a historical presented file from the project temporary directory", async () => {
+    const { wrapper } = mountView();
+    const sessionId = "0198e338-fb55-7e18-a23e-a7028500f123";
+    const toolCall = {
+      id: "old-present-call",
+      name: "ui_present_file",
+      status: "complete" as const,
+      input: { path: "/Pine/projects/project/tmp/tool_probe.txt" },
+    };
+    const filePath = "/Pine/projects/project/tmp/tool_probe.txt";
+    const reopen = vi.fn().mockResolvedValue({
+      source: "presented",
+      path: filePath,
+    });
+    Object.defineProperty(window, "pine", {
+      configurable: true,
+      value: { ...window.pine, reopenPresentedToolFile: reopen },
+    });
+    await wrapper.setProps({ sessionId });
+    useSessionStore().stateFor(sessionId).messages = [
+      {
+        id: "historical-message",
+        createdAt: "2026-09-03T00:00:00Z",
+        role: "assistant",
+        status: "complete",
+        blocks: [{ type: "toolCall", toolCall }],
+      },
+    ];
+    await flushPromises();
+
+    const message = wrapper.findComponent({ name: "ProjectTranscriptMessage" });
+    expect(message.exists()).toBe(true);
+    const openFile = message.props("openFile") as (
+      path: string,
+      call: typeof toolCall,
+    ) => Promise<boolean>;
+    expect(await openFile(filePath, toolCall)).toBe(true);
+    expect(reopen).toHaveBeenCalledWith({
+      sessionId,
+      toolCallId: toolCall.id,
+    });
+    const fileTab = useContentTabsStore().tabs.find(
+      (tab) => tab.kind === "file",
+    );
+    expect(fileTab).toMatchObject({ source: "presented", path: filePath });
+    expect(activateTab).toHaveBeenCalledWith(fileTab?.id);
+    wrapper.unmount();
+  });
+
   it("keeps the empty state content above the parallax background", async () => {
     const { wrapper } = mountView();
     await flushPromises();

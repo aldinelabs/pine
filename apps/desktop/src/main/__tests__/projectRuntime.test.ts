@@ -238,6 +238,28 @@ describe("ProjectRuntimeRegistry", () => {
         source: "presented",
       });
 
+      const historicalPath = vi
+        .spyOn(ProjectSessionService.prototype, "presentedFilePath")
+        .mockResolvedValue(await realpath(externalPath));
+      const historicalSessionId = "0198e338-fb55-7e18-a23e-a7028500f999";
+      await expect(
+        registry.reopenPresentedToolFile(
+          1,
+          historicalSessionId,
+          "old-present-call",
+        ),
+      ).resolves.toEqual({
+        path: await realpath(externalPath),
+        source: "presented",
+      });
+      expect(historicalPath).toHaveBeenCalledWith(
+        historicalSessionId,
+        "old-present-call",
+      );
+      historicalPath.mockResolvedValue(path.join(dataRoot, "missing.txt"));
+      await expect(
+        registry.reopenPresentedToolFile(1, sessionId, "missing-present-call"),
+      ).resolves.toBeNull();
       // A symlink inside the folder must not launder an outside file.
       const linkPath = path.join(folderPath, "escape.md");
       await symlink(externalPath, linkPath);
@@ -247,6 +269,11 @@ describe("ProjectRuntimeRegistry", () => {
         path: await realpath(externalPath),
         source: "presented",
       });
+      historicalPath.mockResolvedValue(linkPath);
+      await expect(
+        registry.reopenPresentedToolFile(1, sessionId, "changed-link-call"),
+      ).resolves.toBeNull();
+      historicalPath.mockRestore();
 
       // Deleted files and unknown sessions never become a tab.
       await expect(
