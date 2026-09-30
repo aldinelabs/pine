@@ -17,7 +17,7 @@ export interface PineAutoApprovalSettings {
 }
 
 export const DEFAULT_AUTO_APPROVAL_SETTINGS: PineAutoApprovalSettings = {
-  strategy: "decisions",
+  strategy: "model",
   decisionsModel: "typesafe/jev-1.13",
 };
 

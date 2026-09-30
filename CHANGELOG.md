@@ -11,7 +11,7 @@ Starting with 0.4.4, release notes are written in both Chinese and English.
 
 ### 新增 / Added
 
-- 自动审批默认先用 Decisions 初筛：批准直接放行，需要用户确认时直接显示确认卡片；拒绝或初筛不可用时由大模型复核，可重新批准、拒绝或请求用户确认，并提供理由。全局偏好设置可切换审批路径，从自动同步的模型目录选择 Jev、Solar Decide、Span-01 等初筛模型。Automatic approval now uses Decisions screening by default: allow proceeds directly, and needs_user opens a confirmation card. Denied calls or unavailable screening go to the review model, which can approve, deny, or request user confirmation and provide a rationale. Global preferences offer a path switch and an automatically updated catalog of screening models including Jev, Solar Decide, and Span-01.
+- 自动审批默认由大模型审核，并新增可选的 Decisions 初筛路径：批准直接放行，需要用户确认时直接显示确认卡片；拒绝或初筛不可用时由大模型复核，可重新批准、拒绝或请求用户确认，并提供理由。全局偏好设置可切换审批路径，从自动同步的模型目录选择 Jev、Solar Decide、Span-01 等初筛模型。Automatic approval continues to use model review by default, with an optional Decisions screening path: allow proceeds directly, and needs_user opens a confirmation card. Denied calls or unavailable screening go to the review model, which can approve, deny, or request user confirmation and provide a rationale. Global preferences offer a path switch and an automatically updated catalog of screening models including Jev, Solar Decide, and Span-01.
 
 ### 变更 / Changed
 

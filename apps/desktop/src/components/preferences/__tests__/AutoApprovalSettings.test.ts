@@ -61,10 +61,16 @@ afterEach(() => {
 });
 
 describe("automatic approval preferences", () => {
-  it("defaults to Decisions screening without a threshold setting", async () => {
+  it("defaults to model review and keeps the Decisions selector disabled", async () => {
     const { wrapper, store } = mountSettings();
     await flushPromises();
-    expect(store.settings.strategy).toBe("decisions");
+    expect(store.settings.strategy).toBe("model");
+    expect(wrapper.getComponent(ToggleGroup).props("modelValue")).toBe("model");
+    expect(
+      wrapper
+        .get('[data-testid="pine-decisions-model-button"]')
+        .attributes("disabled"),
+    ).toBeDefined();
     expect(wrapper.getComponent(ToggleGroup).text()).toContain("基于决策模型");
     expect(wrapper.find('[role="slider"]').exists()).toBe(false);
     expect(wrapper.find("input").exists()).toBe(false);
@@ -74,6 +80,7 @@ describe("automatic approval preferences", () => {
   it("loads saved settings and opens the Decisions catalog with credential guidance", async () => {
     getSettings.mockResolvedValue({
       ...DEFAULT_AUTO_APPROVAL_SETTINGS,
+      strategy: "decisions",
     });
     const { wrapper, models } = mountSettings();
     await flushPromises();
@@ -112,6 +119,10 @@ describe("automatic approval preferences", () => {
   });
 
   it("switches paths while preserving the selected Decisions model", async () => {
+    getSettings.mockResolvedValue({
+      ...DEFAULT_AUTO_APPROVAL_SETTINGS,
+      strategy: "decisions",
+    });
     const { wrapper, store } = mountSettings();
     await flushPromises();
     wrapper.getComponent(ToggleGroup).vm.$emit("update:modelValue", "model");
@@ -140,13 +151,17 @@ describe("automatic approval preferences", () => {
   it("ignores invalid or unchanged toggle values", async () => {
     const { wrapper } = mountSettings();
     await flushPromises();
-    for (const value of ["", "unknown", "decisions"]) {
+    for (const value of ["", "unknown", "model"]) {
       wrapper.getComponent(ToggleGroup).vm.$emit("update:modelValue", value);
     }
     expect(setSettings).not.toHaveBeenCalled();
   });
 
   it("locks controls during save and preserves the saved path on failure", async () => {
+    getSettings.mockResolvedValue({
+      ...DEFAULT_AUTO_APPROVAL_SETTINGS,
+      strategy: "decisions",
+    });
     let rejectSave!: (error: Error) => void;
     setSettings.mockImplementation(
       () =>
@@ -170,7 +185,9 @@ describe("automatic approval preferences", () => {
     const { wrapper } = mountSettings();
     await flushPromises();
     expect(wrapper.getComponent(ToggleGroup).props("disabled")).toBe(true);
-    wrapper.getComponent(ToggleGroup).vm.$emit("update:modelValue", "model");
+    wrapper
+      .getComponent(ToggleGroup)
+      .vm.$emit("update:modelValue", "decisions");
     expect(setSettings).not.toHaveBeenCalled();
   });
 
@@ -184,12 +201,12 @@ describe("automatic approval preferences", () => {
     wrapper.unmount();
     getSettings.mockResolvedValue({
       ...DEFAULT_AUTO_APPROVAL_SETTINGS,
-      strategy: "model",
+      strategy: "decisions",
     });
     const reopened = mountSettings("en-US");
     await flushPromises();
     expect(reopened.wrapper.text()).toContain("Automatic approval path");
-    expect(reopened.store.settings.strategy).toBe("model");
+    expect(reopened.store.settings.strategy).toBe("decisions");
     expect(reopened.wrapper.find('[role="slider"]').exists()).toBe(false);
   });
 });
