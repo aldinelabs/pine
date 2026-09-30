@@ -10,6 +10,7 @@ import CodeBlock from "./CodeBlock.vue";
 import MarkdownImage from "./MarkdownImage.vue";
 import MarkdownTable from "./MarkdownTable.vue";
 import { disableMarkdownReplacements } from "./configureMarkdown";
+import { escapeProseDollarDelimiters } from "./escapeProseDollarDelimiters";
 import "katex/dist/katex.min.css";
 
 enableKatex();
@@ -42,7 +43,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 
-defineProps<{
+const props = defineProps<{
   /** Accumulated markdown source. Grows while a message streams. */
   source: string;
   /** True once the stream has completed (message finished). */
@@ -58,6 +59,9 @@ defineProps<{
 // do not track a `.dark` ancestor), so drive it from the app's color scheme.
 const { colorScheme } = storeToRefs(useAppearanceStore());
 const isDark = computed(() => colorScheme.value === "dark");
+const renderedSource = computed(() =>
+  escapeProseDollarDelimiters(props.source),
+);
 const markdownParseOptions = { streamParse: "auto" } as const;
 const { t } = useI18n();
 const pendingExternalUrl = ref<string>();
@@ -149,7 +153,7 @@ async function confirmExternalLink(): Promise<void> {
          content renders without deltas so the animation never applies. -->
     <MarkdownRender
       mode="chat"
-      :content="source"
+      :content="renderedSource"
       :nodes="nodes"
       :final="final"
       :parse-options="markdownParseOptions"
