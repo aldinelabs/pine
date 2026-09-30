@@ -15,6 +15,7 @@ Starting with 0.4.4, release notes are written in both Chinese and English.
 
 ### 变更 / Changed
 
+- 决策模型审批现在明确区分已授权的常规开发、验证与诊断，以及需要额外同意的操作；减少仅因越过沙盒边界或未逐条指定命令而重复确认的倾向，判断不清时优先交由大模型复核。Decision model screening now more clearly distinguishes authorized development, validation, and diagnosis from actions requiring additional consent, aiming to reduce redundant confirmations caused by sandbox boundaries or exact command wording. Ambiguous screening is directed to model review.
 - 自动审批失败后，手动确认卡片会标明失败原因，并通过通知显示具体错误；较长的审批内容可在卡片内滚动，操作按钮始终可见。When automatic approval fails, the manual review card now identifies the fallback and a notification shows the specific error. Long approval content scrolls within the card while decision buttons stay visible.
 - Decisions 初筛模型选择移至图像生成模型下方，并在大模型审批路径下显示为禁用；对应审批路径选项改名为“基于决策模型”。The Decisions screening model selector now appears below the image generation model and remains visible but disabled when using model review. Its approval path option is now named “Decision model”.
 - 通用设置中的诊断日志说明移至帮助图标提示中。The diagnostic logging description in General settings now appears in a help tooltip.
