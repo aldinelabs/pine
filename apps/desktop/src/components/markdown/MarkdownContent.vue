@@ -229,6 +229,7 @@ async function confirmExternalLink(): Promise<void> {
    `text-sm` (14px) — which is what made the prose look oversized. Restore the
    pre-refactor (markdown-it era) sizes here. */
 .markdown-content :deep(.markstream-vue) {
+  --link-color: var(--primary);
   --ms-text-body: 0.875rem; /* text-sm — matches the chat message base */
   --ms-leading-body: 1.75;
   --ms-text-h1: 1.5rem; /* text-2xl */
