@@ -66,16 +66,16 @@ export default {
     autoApprovalModelDescription:
       "自动批准和自主工作模式均由标题生成与审批模型直接审批。",
     autoApprovalDecisionsDescription:
-      "先由 Decisions 初筛，确信度低于阈值的调用交给标题生成与审批模型复筛。初筛不可用时也由大模型审批。适用于自动批准和自主工作模式。",
+      "先由 Decisions 判断能否直接批准。批准概率达到阈值时直接批准；未通过初筛或初筛不可用时，由标题生成与审批模型复核并给出理由，以复核结果为准。适用于自动批准和自主工作模式。",
     decisionsModel: "Decisions 初筛模型",
     selectDecisionsModel: "选择模型",
     autoApprovalHelp: "关于自动审批路径",
     decisionsCredentialMissing:
       "尚未配置 OpenRouter，可在“管理服务或模型”中添加凭据；配置前使用大模型审批。",
-    decisionsConfidenceThreshold: "初筛确信度阈值",
-    decisionsConfidenceHelp: "关于初筛确信度阈值",
+    decisionsConfidenceThreshold: "初筛批准概率阈值",
+    decisionsConfidenceHelp: "关于初筛批准概率阈值",
     decisionsConfidenceDescription:
-      "范围 50–100%，默认 66%。达到阈值的结果直接生效，其他结果由大模型复筛。",
+      "范围 50–100%，默认 66%。批准概率达到阈值时直接批准；低于阈值时交给大模型复核，以复核结果和理由为准。",
     utilityModel: "标题生成与审批模型",
     selectUtilityModel: "选择模型",
     noUtilityModelSelected: "未选择任何模型",

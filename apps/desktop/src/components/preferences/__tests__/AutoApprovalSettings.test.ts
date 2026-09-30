@@ -187,7 +187,7 @@ describe("automatic approval preferences", () => {
     });
     const reopened = mountSettings("en-US");
     await flushPromises();
-    expect(reopened.wrapper.text()).toContain("Screening confidence threshold");
+    expect(reopened.wrapper.text()).toContain("Screening approval threshold");
     expect(reopened.wrapper.getComponent(Slider).props("modelValue")).toEqual([
       81,
     ]);

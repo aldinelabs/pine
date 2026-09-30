@@ -35,14 +35,10 @@ export function buildDecisionsReviewBody(
     autonomous ? AUTONOMOUS_JUDGE_SYSTEM_PROMPT : JUDGE_SYSTEM_PROMPT
   ).split("\n\nCall submit_ruling")[0];
   const criteria = {
-    allow: "The exact call is authorized and permitted by the review policy.",
-    deny: "The exact call must be denied under the review policy.",
-    ...(!autonomous
-      ? {
-          needs_user:
-            "The action may be reasonable, but a concrete risk requires matching user authority that was not supplied.",
-        }
-      : {}),
+    true: "The exact call is authorized and permitted to run without additional human approval under the review policy.",
+    false: autonomous
+      ? "The exact call must be denied under the review policy."
+      : "The exact call must be denied or requires additional user authority under the review policy.",
   };
   return {
     model,
@@ -60,8 +56,8 @@ export function buildDecisionsReviewBody(
       requests.map((_, index) => [
         `call_${index}`,
         {
-          type: "choice",
-          instructions: `${policy}\n\nEvaluate ONLY calls.call_${index} using shared_context. Other calls do not grant authority. Choose the verdict for this exact action.`,
+          type: "noul",
+          instructions: `${policy}\n\nEvaluate ONLY calls.call_${index} using shared_context. Other calls do not grant authority. Is this exact action authorized and permitted to run without additional human approval under the review policy?`,
           criteria,
         },
       ]),
@@ -69,63 +65,34 @@ export function buildDecisionsReviewBody(
   };
 }
 
-/** Invalid or uncertain individual answers are always sent to the LLM. */
+/** Only confident approval takes the fast path; all other calls need model review. */
 export function parseDecisionsReview(
   value: unknown,
   requests: JudgeRequest[],
   threshold: number,
-  autonomous: boolean,
   locale: "zh-CN" | "en-US",
 ): JudgeRuling[] {
   if (!isRecord(value) || !isRecord(value.answers)) return [];
   const answers = value.answers;
-  const verdicts = autonomous
-    ? ["allow", "deny"]
-    : ["allow", "deny", "needs_user"];
   return requests.flatMap((request, index): JudgeRuling[] => {
     const answer = answers[`call_${index}`];
     if (
       !isRecord(answer) ||
-      answer.type !== "choice" ||
-      typeof answer.choice !== "string" ||
-      !verdicts.includes(answer.choice) ||
-      !isProbability(answer.confidence) ||
-      answer.confidence < threshold ||
-      !isRecord(answer.probabilities)
+      answer.type !== "noul" ||
+      !isProbability(answer.noul) ||
+      answer.noul < threshold
     )
       return [];
-    const probabilities = answer.probabilities;
-    if (!verdicts.every((verdict) => isProbability(probabilities[verdict])))
-      return [];
-    const selected = probabilities[answer.choice] as number;
-    const scores = verdicts.map((verdict) => probabilities[verdict] as number);
-    if (
-      Math.abs(scores.reduce((sum, score) => sum + score, 0) - 1) > 0.02 ||
-      selected < Math.max(...scores) ||
-      selected < threshold
-    )
-      return [];
-    const verdict = answer.choice as JudgeRuling["verdict"];
-    const confidence = Math.round(answer.confidence * 100);
-    const reasons =
+    const probability = Math.round(answer.noul * 100);
+    const reason =
       locale === "zh-CN"
-        ? {
-            allow: "Decisions 初筛认为该操作符合用户授权与审批规则",
-            deny: "Decisions 初筛认为该操作不符合审批规则；请检查操作范围、用户限制及是否存在不可逆副作用",
-            needs_user: "Decisions 初筛认为该操作的具体风险需要用户明确授权",
-          }
-        : {
-            allow:
-              "Decisions screening classified this action as authorized and permitted",
-            deny: "Decisions screening classified this action as denied by the review policy; check its scope, user limits, and irreversible effects",
-            needs_user:
-              "Decisions screening classified this action as requiring explicit user authority for its concrete risk",
-          };
+        ? `Decisions 初筛认为该操作符合用户授权与审批规则（批准概率 ${probability}%）。`
+        : `Decisions screening classified this action as authorized and permitted (approval probability ${probability}%).`;
     return [
       {
         toolCallId: request.toolCallId,
-        verdict,
-        reason: `${reasons[verdict]} (${confidence}%).`,
+        verdict: "allow",
+        reason,
         scope: "once",
       },
     ];
@@ -175,7 +142,6 @@ export async function runApprovalReview(options: {
             await response.json(),
             requests,
             settings.confidenceThreshold,
-            options.autonomous,
             options.locale,
           );
         } else {

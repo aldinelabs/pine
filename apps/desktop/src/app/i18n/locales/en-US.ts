@@ -70,16 +70,16 @@ export default {
     autoApprovalModelDescription:
       "Auto Approve and Autonomous Work use the title generation and review model for every review.",
     autoApprovalDecisionsDescription:
-      "Decisions screens first. Calls below the confidence threshold go to the title generation and review model for further review. If screening is unavailable, the model reviews the calls. Applies to Auto Approve and Autonomous Work.",
+      "Decisions checks whether a call can be approved directly. Calls at or above the approval probability threshold are approved; other calls or unavailable screening go to the title generation and review model for a final decision and rationale. Applies to Auto Approve and Autonomous Work.",
     decisionsModel: "Decisions screening model",
     selectDecisionsModel: "Choose model",
     autoApprovalHelp: "About automatic approval paths",
     decisionsCredentialMissing:
       "OpenRouter is not configured. Add a credential in Manage providers or models; model review is used until then.",
-    decisionsConfidenceThreshold: "Screening confidence threshold",
-    decisionsConfidenceHelp: "About the screening confidence threshold",
+    decisionsConfidenceThreshold: "Screening approval threshold",
+    decisionsConfidenceHelp: "About the screening approval threshold",
     decisionsConfidenceDescription:
-      "Range: 50–100%, default: 66%. Results at or above the threshold take effect directly; other results receive model review.",
+      "Range: 50–100%, default: 66%. Approval probabilities at or above the threshold are approved directly; lower probabilities receive model review, whose decision and rationale are final.",
     utilityModel: "Title generation and review model",
     selectUtilityModel: "Choose model",
     noUtilityModelSelected: "No model selected",
