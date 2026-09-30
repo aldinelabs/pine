@@ -707,6 +707,18 @@ export default {
             running: "正在调用工作技能",
             error: "调用工作技能失败",
           },
+          listResources: {
+            label: "列出工作技能资源",
+            complete: "已列出工作技能资源",
+            running: "正在列出工作技能资源",
+            error: "列出工作技能资源失败",
+          },
+          readResource: {
+            label: "读取工作技能资源",
+            complete: "已读取工作技能资源",
+            running: "正在读取工作技能资源",
+            error: "读取工作技能资源失败",
+          },
           create: {
             label: "创建工作技能",
             complete: "已创建{scope}工作技能",

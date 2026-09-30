@@ -4,6 +4,7 @@ import {
   EyeIcon,
   FilePlusIcon,
   FileTextIcon,
+  FolderTreeIcon,
   GlobeIcon,
   MonitorCogIcon,
   PanelTopIcon,
@@ -53,7 +54,13 @@ export const TOOL_KIND_ICON: Record<ToolKind, Component> = {
 };
 
 export type SkillOperation =
-  "activateAuthoring" | "create" | "edit" | "invoke" | "remove";
+  | "activateAuthoring"
+  | "create"
+  | "edit"
+  | "invoke"
+  | "listResources"
+  | "readResource"
+  | "remove";
 
 /** Icons shown for the individual dynamically activated Skill operations. */
 export const SKILL_OPERATION_ICON: Record<SkillOperation, Component> = {
@@ -61,6 +68,8 @@ export const SKILL_OPERATION_ICON: Record<SkillOperation, Component> = {
   create: PlusIcon,
   edit: SquarePenIcon,
   invoke: BookOpenIcon,
+  listResources: FolderTreeIcon,
+  readResource: FileTextIcon,
   remove: Trash2Icon,
 };
 
@@ -95,6 +104,8 @@ const SKILL_OPERATION_KEYS: Record<string, SkillOperation> = {
   create_skill: "create",
   edit_skill: "edit",
   invoke_skill: "invoke",
+  list_skill_resources: "listResources",
+  read_skill_resource: "readResource",
   remove_skill: "remove",
 };
 

@@ -739,6 +739,18 @@ export default {
             running: "Invoking Skill",
             error: "Couldn’t invoke Skill",
           },
+          listResources: {
+            label: "list Skill resources",
+            complete: "Listed Skill resources",
+            running: "Listing Skill resources",
+            error: "Couldn’t list Skill resources",
+          },
+          readResource: {
+            label: "read a Skill resource",
+            complete: "Read Skill resource",
+            running: "Reading Skill resource",
+            error: "Couldn’t read Skill resource",
+          },
           create: {
             label: "create a Skill",
             complete: "Created a {scope} Skill",

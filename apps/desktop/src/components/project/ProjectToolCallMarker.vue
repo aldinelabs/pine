@@ -709,6 +709,8 @@ const presentation = computed(() => {
       : skillScope === "project"
         ? t("project.transcript.tools.skillScopes.project")
         : "";
+  const skillOperation =
+    kind === "skill" ? skillOperationKey(props.toolCall.name) : undefined;
   const target =
     kind === "mcp"
       ? mcpTarget(props.toolCall.name, input)
@@ -727,7 +729,11 @@ const presentation = computed(() => {
                   props.toolCall.id,
                 )
               : kind === "skill"
-                ? skillName
+                ? skillOperation === "readResource" && path
+                  ? skillName
+                    ? `${skillName}/${path}`
+                    : path
+                  : skillName
                 : kind === "media"
                   ? (generatedImageFileName(props.toolCall.output) ??
                     mediaPrompt(input) ??
@@ -751,8 +757,6 @@ const presentation = computed(() => {
     kind === "computer" || kind === "browser"
       ? computerUseOperationKey(props.toolCall.name)
       : undefined;
-  const skillOperation =
-    kind === "skill" ? skillOperationKey(props.toolCall.name) : undefined;
   const mediaOperation =
     kind === "media" ? mediaOperationKey(props.toolCall.name) : undefined;
   const operationPath = computerOperationKey
