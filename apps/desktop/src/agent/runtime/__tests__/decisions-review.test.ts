@@ -25,8 +25,8 @@ const requests: JudgeRequest[] = ["id-b", "id-a", "id-c"].map((toolCallId) => ({
   },
 }));
 
-function answer(probability: number) {
-  return { type: "noul", noul: probability };
+function answer(choice: string, confidence = 0.98) {
+  return { type: "choice", choice, confidence };
 }
 
 function setup() {
@@ -34,9 +34,9 @@ function setup() {
     new Response(
       JSON.stringify({
         answers: {
-          call_0: answer(0.98),
-          call_1: answer(0.05),
-          call_2: answer(0.6),
+          call_0: answer("allow"),
+          call_1: answer("deny"),
+          call_2: answer("needs_user"),
         },
       }),
     ),
@@ -83,14 +83,13 @@ describe("Decisions approval cascade", () => {
     const rulings = await runApprovalReview(options);
     expect(options.reviewWithModel).toHaveBeenCalledExactlyOnceWith([
       requests[1],
-      requests[2],
     ]);
     expect(
       rulings.map(({ toolCallId, verdict }) => [toolCallId, verdict]),
     ).toEqual([
       ["id-b", "allow"],
       ["id-a", "deny"],
-      ["id-c", "deny"],
+      ["id-c", "needs_user"],
     ]);
     expect(rulings.every((ruling) => ruling.scope === "once")).toBe(true);
     expect(rulings[0].reason).toContain("Decisions 初筛");
@@ -102,11 +101,14 @@ describe("Decisions approval cascade", () => {
     expect(body.session_id).toBe("session-1");
     expect(body.state.shared_context).toContain("Do not publish anything.");
     expect(body.state.calls.call_0).toContain("bun test id-b");
-    expect(body.questions.call_0.type).toBe("noul");
-    expect(body.questions.call_0.criteria).toHaveProperty("true");
-    expect(body.questions.call_0.criteria).toHaveProperty("false");
+    expect(body.questions.call_0.type).toBe("choice");
+    expect(Object.keys(body.questions.call_0.criteria)).toEqual([
+      "allow",
+      "deny",
+      "needs_user",
+    ]);
     expect(rulings[1].reason).toBe("LLM decision");
-    expect(rulings[2].reason).toBe("LLM decision");
+    expect(rulings[2].reason).toContain("Decisions 初筛");
     expect(body.questions.call_0.instructions).toContain(
       "untrusted operational evidence",
     );
@@ -126,46 +128,41 @@ describe("Decisions approval cascade", () => {
     expect(options.reviewWithModel).toHaveBeenCalledExactlyOnceWith(requests);
   });
 
-  it("uses the default 66% threshold for individual Decisions answers", async () => {
+  it("applies allow and needs_user directly, regardless of confidence", async () => {
     const { fetchMock, options } = setup();
     fetchMock.mockResolvedValue(
-      new Response(
-        JSON.stringify({
-          answers: {
-            call_0: answer(0.67),
-            call_1: answer(0.65),
-            call_2: answer(0.2),
-          },
-        }),
-      ),
+      Response.json({
+        answers: {
+          call_0: answer("allow", 0.01),
+          call_1: answer("needs_user", 0.01),
+        },
+      }),
     );
-    await runApprovalReview(options);
-    expect(options.reviewWithModel).toHaveBeenCalledExactlyOnceWith([
-      requests[1],
-      requests[2],
+    const rulings = await runApprovalReview({
+      ...options,
+      requests: requests.slice(0, 2),
+    });
+    expect(rulings.map(({ verdict }) => verdict)).toEqual([
+      "allow",
+      "needs_user",
     ]);
-  });
-
-  it("does not require an LLM when every result clears the threshold", async () => {
-    const { options } = setup();
-    await runApprovalReview({ ...options, requests: [requests[0]] });
     expect(options.reviewWithModel).not.toHaveBeenCalled();
   });
 
-  it("accepts the exact approval threshold and sends lower probabilities to review", () => {
+  it("uses the choice without requiring confidence or probability fields", () => {
     expect(
       parseDecisionsReview(
-        { answers: { call_0: answer(0.66) } },
+        { answers: { call_0: { type: "choice", choice: "allow" } } },
         [requests[0]],
-        0.66,
+        false,
         "en-US",
       ),
-    ).toHaveLength(1);
+    ).toMatchObject([{ verdict: "allow" }]);
     expect(
       parseDecisionsReview(
-        { answers: { call_0: answer(0.659) } },
+        { answers: { call_0: answer("deny", 1) } },
         [requests[0]],
-        0.66,
+        false,
         "en-US",
       ),
     ).toEqual([]);
@@ -176,7 +173,7 @@ describe("Decisions approval cascade", () => {
     async (verdict) => {
       const { fetchMock, options } = setup();
       fetchMock.mockResolvedValue(
-        Response.json({ answers: { call_0: answer(0.01) } }),
+        Response.json({ answers: { call_0: answer("deny") } }),
       );
       const reviewed: JudgeRuling = {
         toolCallId: requests[0].toolCallId,
@@ -199,20 +196,18 @@ describe("Decisions approval cascade", () => {
   it.each([
     undefined,
     null,
-    { type: "choice", choice: "allow", confidence: 0.99 },
-    { type: "noul", noul: "0.99" },
-    { type: "noul", noul: NaN },
-    { type: "noul", noul: 1.01 },
-    { type: "noul", noul: -0.01 },
-    { type: "noul" },
+    { type: "noul", noul: 0.99 },
+    { type: "choice" },
+    { type: "choice", choice: "execute" },
+    { type: "choice", choice: null },
   ])("falls back for an invalid individual answer: %j", async (invalid) => {
     const { fetchMock, options } = setup();
     fetchMock.mockResolvedValue(
       Response.json({
         answers: {
           call_0: invalid,
-          call_1: answer(0.98),
-          call_2: answer(0.98),
+          call_1: answer("allow"),
+          call_2: answer("allow"),
         },
       }),
     );
@@ -244,21 +239,23 @@ describe("Decisions approval cascade", () => {
     expect(options.reviewWithModel).toHaveBeenCalledTimes(3);
   });
 
-  it("uses autonomous policy while sending all non-approved calls to model review", async () => {
+  it("preserves autonomous policy without accepting needs_user", async () => {
     const { fetchMock, options } = setup();
     const body = buildDecisionsReviewBody(requests, "model", true, "session");
-    expect(body.questions.call_0.type).toBe("noul");
-    expect(body.questions.call_0.criteria.false).not.toContain(
-      "additional user authority",
-    );
+    expect(body.questions.call_0.type).toBe("choice");
+    expect(Object.keys(body.questions.call_0.criteria)).toEqual([
+      "allow",
+      "deny",
+    ]);
     expect(body.questions.call_0.instructions).toContain(
       "Never return needs_user",
     );
     fetchMock.mockResolvedValue(
       Response.json({
         answers: {
-          call_0: answer(0.01),
-          call_1: answer(0.95),
+          call_0: answer("needs_user"),
+          call_1: answer("allow"),
+          call_2: answer("deny"),
         },
       }),
     );

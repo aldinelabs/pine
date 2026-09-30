@@ -1,4 +1,4 @@
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -46,7 +46,6 @@ describe("Pine agent settings", () => {
     await writeAutoApprovalSettings(agentDir, {
       strategy: "decisions",
       decisionsModel: " typesafe/jev-1.13 ",
-      confidenceThreshold: 0.95,
     });
     await writeDiagnosticLoggingEnabled(agentDir, true);
     await expect(readPineAgentSettings(agentDir)).resolves.toEqual({
@@ -55,26 +54,23 @@ describe("Pine agent settings", () => {
       autoApproval: {
         strategy: "decisions",
         decisionsModel: "typesafe/jev-1.13",
-        confidenceThreshold: 0.95,
       },
     });
     await expect(
       writeAutoApprovalSettings(agentDir, {
         strategy: "decisions",
         decisionsModel: "",
-        confidenceThreshold: 2,
       }),
     ).rejects.toThrow("Invalid automatic approval settings");
     await expect(
       writeAutoApprovalSettings(agentDir, {
         strategy: "decisions",
         decisionsModel: "openai/chat-model",
-        confidenceThreshold: 0.66,
       }),
     ).rejects.toThrow("Invalid automatic approval settings");
     expect(
-      (await readPineAgentSettings(agentDir)).autoApproval?.confidenceThreshold,
-    ).toBe(0.95);
+      (await readPineAgentSettings(agentDir)).autoApproval?.decisionsModel,
+    ).toBe("typesafe/jev-1.13");
   });
 
   it.each([
@@ -92,7 +88,6 @@ describe("Pine agent settings", () => {
       const autoApproval = {
         strategy: "decisions" as const,
         decisionsModel,
-        confidenceThreshold: 0.66,
       };
       await writeAutoApprovalSettings(agentDir, autoApproval);
       expect((await readPineAgentSettings(agentDir)).autoApproval).toEqual(
@@ -109,7 +104,6 @@ describe("Pine agent settings", () => {
     const autoApproval = {
       strategy: "decisions",
       decisionsModel: "future/offline-model",
-      confidenceThreshold: 0.66,
     };
     await writeFile(
       path.join(agentDir, "pine-settings.json"),
@@ -120,25 +114,36 @@ describe("Pine agent settings", () => {
     );
   });
 
+  it("ignores the old threshold and removes it on the next settings save", async () => {
+    const agentDir = await mkdtemp(
+      path.join(os.tmpdir(), "pine-legacy-approval-"),
+    );
+    temporaryDirectories.push(agentDir);
+    const legacy = {
+      strategy: "decisions" as const,
+      decisionsModel: "typesafe/jev-1.13",
+      confidenceThreshold: 0.9,
+    };
+    await writeFile(
+      path.join(agentDir, "pine-settings.json"),
+      JSON.stringify({ autoApproval: legacy }),
+    );
+    expect((await readPineAgentSettings(agentDir)).autoApproval).toEqual({
+      strategy: legacy.strategy,
+      decisionsModel: legacy.decisionsModel,
+    });
+    await writeAutoApprovalSettings(agentDir, legacy);
+    const saved = JSON.parse(
+      await readFile(path.join(agentDir, "pine-settings.json"), "utf8"),
+    );
+    expect(saved.autoApproval).not.toHaveProperty("confidenceThreshold");
+  });
+
   it.each([
     undefined,
-    { strategy: "other", decisionsModel: "model", confidenceThreshold: 0.9 },
-    {
-      strategy: "decisions",
-      decisionsModel: "model",
-      confidenceThreshold: 1.1,
-    },
-    {
-      strategy: "decisions",
-      decisionsModel: "model",
-      confidenceThreshold: 0.4,
-    },
-    { strategy: "decisions", decisionsModel: " ", confidenceThreshold: 0.9 },
-    {
-      strategy: "decisions",
-      decisionsModel: "model",
-      confidenceThreshold: "0.9",
-    },
+    { strategy: "other", decisionsModel: "model" },
+    { strategy: "decisions", decisionsModel: " " },
+    { strategy: "decisions", decisionsModel: 7 },
   ])(
     "ignores absent or invalid approval settings while preserving other settings: %j",
     async (autoApproval) => {

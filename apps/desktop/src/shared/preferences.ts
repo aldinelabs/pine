@@ -14,13 +14,11 @@ export const SET_AUTO_APPROVAL_SETTINGS_CHANNEL =
 export interface PineAutoApprovalSettings {
   strategy: "model" | "decisions";
   decisionsModel: string;
-  confidenceThreshold: number;
 }
 
 export const DEFAULT_AUTO_APPROVAL_SETTINGS: PineAutoApprovalSettings = {
   strategy: "decisions",
   decisionsModel: "typesafe/jev-1.13",
-  confidenceThreshold: 0.66,
 };
 
 export function isPineAutoApprovalSettings(
@@ -34,11 +32,7 @@ export function isPineAutoApprovalSettings(
     (settings.strategy === "model" || settings.strategy === "decisions") &&
     typeof settings.decisionsModel === "string" &&
     settings.decisionsModel.trim().length > 0 &&
-    settings.decisionsModel.length <= 256 &&
-    typeof settings.confidenceThreshold === "number" &&
-    Number.isFinite(settings.confidenceThreshold) &&
-    settings.confidenceThreshold >= 0.5 &&
-    settings.confidenceThreshold <= 1
+    settings.decisionsModel.length <= 256
   );
 }
 

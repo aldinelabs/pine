@@ -87,7 +87,12 @@ export async function readPineAgentSettings(
     const contextCompactionStrategy = settings.contextCompactionStrategy;
     return {
       ...(isPineAutoApprovalSettings(settings.autoApproval)
-        ? { autoApproval: settings.autoApproval }
+        ? {
+            autoApproval: {
+              strategy: settings.autoApproval.strategy,
+              decisionsModel: settings.autoApproval.decisionsModel,
+            },
+          }
         : {}),
       ...(typeof settings.diagnosticLoggingEnabled === "boolean"
         ? { diagnosticLoggingEnabled: settings.diagnosticLoggingEnabled }
@@ -161,7 +166,7 @@ export async function writeAutoApprovalSettings(
   }
   await writePineAgentSettings(agentDir, {
     autoApproval: {
-      ...autoApproval,
+      strategy: autoApproval.strategy,
       decisionsModel: autoApproval.decisionsModel.trim(),
     },
   });

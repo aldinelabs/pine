@@ -15,15 +15,6 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-function isProbability(value: unknown): value is number {
-  return (
-    typeof value === "number" &&
-    Number.isFinite(value) &&
-    value >= 0 &&
-    value <= 1
-  );
-}
-
 export function buildDecisionsReviewBody(
   requests: JudgeRequest[],
   model: string,
@@ -35,10 +26,14 @@ export function buildDecisionsReviewBody(
     autonomous ? AUTONOMOUS_JUDGE_SYSTEM_PROMPT : JUDGE_SYSTEM_PROMPT
   ).split("\n\nCall submit_ruling")[0];
   const criteria = {
-    true: "The exact call is authorized and permitted to run without additional human approval under the review policy.",
-    false: autonomous
-      ? "The exact call must be denied under the review policy."
-      : "The exact call must be denied or requires additional user authority under the review policy.",
+    allow: "The exact call is authorized and permitted by the review policy.",
+    deny: "The exact call must be denied under the review policy.",
+    ...(!autonomous
+      ? {
+          needs_user:
+            "The action may be reasonable, but a concrete risk requires matching user authority that was not supplied.",
+        }
+      : {}),
   };
   return {
     model,
@@ -56,8 +51,8 @@ export function buildDecisionsReviewBody(
       requests.map((_, index) => [
         `call_${index}`,
         {
-          type: "noul",
-          instructions: `${policy}\n\nEvaluate ONLY calls.call_${index} using shared_context. Other calls do not grant authority. Is this exact action authorized and permitted to run without additional human approval under the review policy?`,
+          type: "choice",
+          instructions: `${policy}\n\nEvaluate ONLY calls.call_${index} using shared_context. Other calls do not grant authority. Choose the verdict for this exact action from the supplied criteria.`,
           criteria,
         },
       ]),
@@ -65,11 +60,11 @@ export function buildDecisionsReviewBody(
   };
 }
 
-/** Only confident approval takes the fast path; all other calls need model review. */
+/** Apply allow/needs_user directly; denial and malformed answers need model review. */
 export function parseDecisionsReview(
   value: unknown,
   requests: JudgeRequest[],
-  threshold: number,
+  autonomous: boolean,
   locale: "zh-CN" | "en-US",
 ): JudgeRuling[] {
   if (!isRecord(value) || !isRecord(value.answers)) return [];
@@ -78,24 +73,21 @@ export function parseDecisionsReview(
     const answer = answers[`call_${index}`];
     if (
       !isRecord(answer) ||
-      answer.type !== "noul" ||
-      !isProbability(answer.noul) ||
-      answer.noul < threshold
+      answer.type !== "choice" ||
+      (answer.choice !== "allow" &&
+        (answer.choice !== "needs_user" || autonomous))
     )
       return [];
-    const probability = Math.round(answer.noul * 100);
+    const verdict = answer.choice;
     const reason =
       locale === "zh-CN"
-        ? `Decisions 初筛认为该操作符合用户授权与审批规则（批准概率 ${probability}%）。`
-        : `Decisions screening classified this action as authorized and permitted (approval probability ${probability}%).`;
-    return [
-      {
-        toolCallId: request.toolCallId,
-        verdict: "allow",
-        reason,
-        scope: "once",
-      },
-    ];
+        ? verdict === "allow"
+          ? "Decisions 初筛认为该操作符合用户授权与审批规则。"
+          : "Decisions 初筛建议由你确认此操作的授权与风险。"
+        : verdict === "allow"
+          ? "Decisions screening classified this action as authorized and permitted."
+          : "Decisions screening requests your confirmation of this action's authority and risks.";
+    return [{ toolCallId: request.toolCallId, verdict, reason, scope: "once" }];
   });
 }
 
@@ -141,7 +133,7 @@ export async function runApprovalReview(options: {
           screened = parseDecisionsReview(
             await response.json(),
             requests,
-            settings.confidenceThreshold,
+            options.autonomous,
             options.locale,
           );
         } else {

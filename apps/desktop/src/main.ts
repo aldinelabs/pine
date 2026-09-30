@@ -1217,7 +1217,7 @@ ipcMain.handle(
       .custom<PineAutoApprovalSettings>(isPineAutoApprovalSettings)
       .parse(request);
     const normalized = {
-      ...settings,
+      strategy: settings.strategy,
       decisionsModel: settings.decisionsModel.trim(),
     };
     await writeAutoApprovalSettings(getPineAgentDirectory(), normalized);

@@ -2,7 +2,6 @@ import { createPinia } from "pinia";
 import { flushPromises, mount } from "@vue/test-utils";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createAppI18n } from "@/app/i18n";
-import { Slider } from "@/components/ui/slider";
 import { ToggleGroup } from "@/components/ui/toggle-group";
 import {
   DEFAULT_AUTO_APPROVAL_SETTINGS,
@@ -54,31 +53,21 @@ afterEach(() => {
 });
 
 describe("automatic approval preferences", () => {
-  it("defaults to Decisions screening with a 66% slider", async () => {
+  it("defaults to Decisions screening without a threshold setting", async () => {
     const { wrapper, store } = mountSettings();
     await flushPromises();
     expect(store.settings.strategy).toBe("decisions");
-    expect(wrapper.getComponent(Slider).props("modelValue")).toEqual([66]);
-    expect(
-      wrapper.get('[data-testid="pine-decisions-threshold-value"]').text(),
-    ).toBe("66%");
+    expect(wrapper.find('[role="slider"]').exists()).toBe(false);
     expect(wrapper.find("input").exists()).toBe(false);
-    expect(wrapper.get('[role="slider"]').attributes("aria-labelledby")).toBe(
-      "pine-decisions-threshold-label",
-    );
-    expect(wrapper.get('[role="slider"]').attributes("aria-valuetext")).toBe(
-      "66%",
-    );
+    expect(store.settings).not.toHaveProperty("confidenceThreshold");
   });
 
   it("loads saved settings and opens the Decisions catalog with credential guidance", async () => {
     getSettings.mockResolvedValue({
       ...DEFAULT_AUTO_APPROVAL_SETTINGS,
-      confidenceThreshold: 0.95,
     });
     const { wrapper, models } = mountSettings();
     await flushPromises();
-    expect(wrapper.getComponent(Slider).props("modelValue")).toEqual([95]);
     expect(wrapper.text()).toContain("尚未配置 OpenRouter");
     models.catalog = {
       models: [],
@@ -113,40 +102,38 @@ describe("automatic approval preferences", () => {
     );
   });
 
-  it("shows slider movement immediately and saves only on commit, preserving the model", async () => {
+  it("switches paths while preserving the selected Decisions model", async () => {
     const { wrapper, store } = mountSettings();
     await flushPromises();
-    wrapper.getComponent(Slider).vm.$emit("update:modelValue", [74]);
-    await flushPromises();
-    expect(
-      wrapper.get('[data-testid="pine-decisions-threshold-value"]').text(),
-    ).toBe("74%");
-    expect(setSettings).not.toHaveBeenCalled();
-    wrapper.getComponent(Slider).vm.$emit("valueCommit", [74]);
+    wrapper.getComponent(ToggleGroup).vm.$emit("update:modelValue", "model");
     await flushPromises();
     expect(setSettings).toHaveBeenLastCalledWith({
       ...DEFAULT_AUTO_APPROVAL_SETTINGS,
-      confidenceThreshold: 0.74,
+      strategy: "model",
     });
-    expect(store.settings.confidenceThreshold).toBe(0.74);
-    wrapper.getComponent(ToggleGroup).vm.$emit("update:modelValue", "model");
-    await flushPromises();
-    expect(wrapper.findComponent(Slider).exists()).toBe(false);
     expect(store.settings.decisionsModel).toBe("typesafe/jev-1.13");
-    expect(store.settings.confidenceThreshold).toBe(0.74);
+    expect(
+      wrapper.find('[data-testid="pine-decisions-model-button"]').exists(),
+    ).toBe(false);
+    wrapper
+      .getComponent(ToggleGroup)
+      .vm.$emit("update:modelValue", "decisions");
+    await flushPromises();
+    expect(
+      wrapper.find('[data-testid="pine-decisions-model-button"]').exists(),
+    ).toBe(true);
   });
 
-  it("rejects invalid slider values and toggle deselection", async () => {
+  it("ignores invalid or unchanged toggle values", async () => {
     const { wrapper } = mountSettings();
     await flushPromises();
-    for (const value of [[], [49], [101], [NaN]]) {
-      wrapper.getComponent(Slider).vm.$emit("valueCommit", value);
+    for (const value of ["", "unknown", "decisions"]) {
+      wrapper.getComponent(ToggleGroup).vm.$emit("update:modelValue", value);
     }
-    wrapper.getComponent(ToggleGroup).vm.$emit("update:modelValue", "");
     expect(setSettings).not.toHaveBeenCalled();
   });
 
-  it("locks controls during save and restores the saved threshold on failure", async () => {
+  it("locks controls during save and preserves the saved path on failure", async () => {
     let rejectSave!: (error: Error) => void;
     setSettings.mockImplementation(
       () =>
@@ -156,14 +143,12 @@ describe("automatic approval preferences", () => {
     );
     const { wrapper, store } = mountSettings();
     await flushPromises();
-    wrapper.getComponent(Slider).vm.$emit("update:modelValue", [80]);
-    wrapper.getComponent(Slider).vm.$emit("valueCommit", [80]);
+    wrapper.getComponent(ToggleGroup).vm.$emit("update:modelValue", "model");
     await flushPromises();
     expect(wrapper.getComponent(ToggleGroup).props("disabled")).toBe(true);
     rejectSave(new Error("Disk unavailable"));
     await flushPromises();
-    expect(store.settings.confidenceThreshold).toBe(0.66);
-    expect(wrapper.getComponent(Slider).props("modelValue")).toEqual([66]);
+    expect(store.settings.strategy).toBe("decisions");
     expect(wrapper.getComponent(ToggleGroup).props("disabled")).toBe(false);
   });
 
@@ -183,13 +168,12 @@ describe("automatic approval preferences", () => {
     wrapper.unmount();
     getSettings.mockResolvedValue({
       ...DEFAULT_AUTO_APPROVAL_SETTINGS,
-      confidenceThreshold: 0.81,
+      strategy: "model",
     });
     const reopened = mountSettings("en-US");
     await flushPromises();
-    expect(reopened.wrapper.text()).toContain("Screening approval threshold");
-    expect(reopened.wrapper.getComponent(Slider).props("modelValue")).toEqual([
-      81,
-    ]);
+    expect(reopened.wrapper.text()).toContain("Automatic approval path");
+    expect(reopened.store.settings.strategy).toBe("model");
+    expect(reopened.wrapper.find('[role="slider"]').exists()).toBe(false);
   });
 });

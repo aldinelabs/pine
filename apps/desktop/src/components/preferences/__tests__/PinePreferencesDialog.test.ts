@@ -165,7 +165,7 @@ describe("PinePreferencesDialog", () => {
     expect(wrapper.find("#pine-decisions-model").exists()).toBe(false);
     expect(
       wrapper.find('[data-testid="pine-decisions-threshold-slider"]').exists(),
-    ).toBe(true);
+    ).toBe(false);
   });
 
   it("shows the selected utility model name", async () => {
