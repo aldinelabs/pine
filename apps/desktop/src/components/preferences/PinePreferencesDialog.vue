@@ -684,13 +684,28 @@ function updateSidebarVibrancy(value: boolean): void {
               </Field>
 
               <Field orientation="horizontal">
-                <div class="flex min-w-0 flex-1 flex-col gap-1">
+                <div class="flex min-w-0 flex-1 items-baseline gap-2">
                   <FieldLabel for="pine-diagnostic-logging-toggle">
                     {{ t("preferences.diagnosticLogging") }}
                   </FieldLabel>
-                  <FieldDescription id="pine-diagnostic-logging-description">
-                    {{ t("preferences.diagnosticLoggingDescription") }}
-                  </FieldDescription>
+                  <TooltipProvider :delay-duration="300">
+                    <Tooltip>
+                      <TooltipTrigger as-child>
+                        <Badge
+                          as="button"
+                          type="button"
+                          variant="secondary"
+                          class="size-5 translate-y-px p-0"
+                          :aria-label="t('preferences.diagnosticLoggingHelp')"
+                        >
+                          <CircleHelpIcon aria-hidden="true" />
+                        </Badge>
+                      </TooltipTrigger>
+                      <TooltipContent side="top" :side-offset="4">
+                        {{ t("preferences.diagnosticLoggingDescription") }}
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
                 </div>
                 <Switch
                   id="pine-diagnostic-logging-toggle"
@@ -699,7 +714,6 @@ function updateSidebarVibrancy(value: boolean): void {
                   :disabled="
                     isLoadingDiagnosticLogging || isSavingDiagnosticLogging
                   "
-                  aria-describedby="pine-diagnostic-logging-description"
                   @update:model-value="updateDiagnosticLogging"
                 />
               </Field>

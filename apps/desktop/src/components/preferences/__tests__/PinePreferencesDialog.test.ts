@@ -168,6 +168,28 @@ describe("PinePreferencesDialog", () => {
     ).toBe(false);
   });
 
+  it("places diagnostic logging description in a help tooltip", async () => {
+    const { wrapper } = mountDialog();
+    await openSection(wrapper, "通用");
+    const help = wrapper.get('[aria-label="关于诊断日志"]');
+    expect(help.attributes("type")).toBe("button");
+    expect(wrapper.find("#pine-diagnostic-logging-description").exists()).toBe(
+      false,
+    );
+    expect(
+      wrapper
+        .get('[data-testid="pine-diagnostic-logging-toggle"]')
+        .attributes("aria-describedby"),
+    ).toBeUndefined();
+    expect(wrapper.text()).not.toContain("记录本机错误和睡眠恢复事件");
+    await help.trigger("focus");
+    await flushPromises();
+    expect(
+      document.querySelector('[data-slot="tooltip-content"]')?.textContent,
+    ).toContain("记录本机错误和睡眠恢复事件，便于排查故障。");
+    wrapper.unmount();
+  });
+
   it("shows the selected utility model name", async () => {
     const { pinia, wrapper } = mountDialog();
     const catalog: PineModelCatalog = {

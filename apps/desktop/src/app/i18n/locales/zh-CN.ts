@@ -44,6 +44,7 @@ export default {
     themeLight: "浅色",
     themeDark: "深色",
     diagnosticLogging: "诊断日志",
+    diagnosticLoggingHelp: "关于诊断日志",
     diagnosticLoggingDescription:
       "记录本机错误和睡眠恢复事件，便于排查故障。仅保留最近两份日志，总计最多约 2 MB；不记录会话正文，也不会自动上传。关闭后停止记录，已有日志仍会保留。",
     contextCompactionStrategy: "上下文压缩策略",

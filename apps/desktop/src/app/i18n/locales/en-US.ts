@@ -47,6 +47,7 @@ export default {
     themeLight: "Light",
     themeDark: "Dark",
     diagnosticLogging: "Diagnostic logging",
+    diagnosticLoggingHelp: "About diagnostic logging",
     diagnosticLoggingDescription:
       "Record local errors and sleep recovery events to help troubleshoot issues. Keeps the two most recent logs, up to about 2 MB in total. Conversation text is excluded and logs are never uploaded automatically. Turning this off stops recording and keeps existing logs.",
     contextCompactionStrategy: "Context compaction strategy",
