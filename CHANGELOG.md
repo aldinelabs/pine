@@ -11,7 +11,7 @@ Starting with 0.4.4, release notes are written in both Chinese and English.
 
 ### 新增 / Added
 
-- 自动审批默认先用 Decisions 初筛，高确信度结果直接生效，低确信度或初筛不可用时交给大模型复筛；全局偏好设置可切换审批路径、从模型目录选择初筛模型，并通过 slider 调整默认 66% 的确信度阈值。Automatic approval now uses Decisions screening by default: high-confidence results take effect directly, while uncertain calls or unavailable screening go to the review model. Global preferences offer a path switch, a screening model catalog, and a confidence slider that defaults to 66%.
+- 自动审批默认先用 Decisions 初筛，高确信度结果直接生效，低确信度或初筛不可用时交给大模型复筛；全局偏好设置可切换审批路径、从自动同步的模型目录选择 Jev、Solar Decide、Span-01 等初筛模型，并通过 slider 调整默认 66% 的确信度阈值。Automatic approval now uses Decisions screening by default: high-confidence results take effect directly, while uncertain calls or unavailable screening go to the review model. Global preferences offer a path switch, an automatically updated catalog of screening models including Jev, Solar Decide, and Span-01, and a confidence slider that defaults to 66%.
 
 ## [0.6.5] - 2026-09-29
 

@@ -56,7 +56,7 @@ export default {
     sidebarVibrancyDescription: "使用 macOS 原生模糊材质渲染侧栏",
     modelCatalogRefresh: "模型目录",
     modelCatalogRefreshDescription:
-      "从 Pi 强制获取已配置服务的最新聊天模型列表。",
+      "获取已配置服务的最新聊天模型和 OpenRouter Decisions 模型列表。",
     modelCatalogRefreshAction: "立即刷新",
     modelCatalogRefreshing: "正在刷新…",
     modelCatalogRefreshed: "模型目录已刷新",

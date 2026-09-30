@@ -183,7 +183,7 @@ export class PineModelService {
       : undefined;
 
     return {
-      decisionsModels: decisionsModelDescriptors(),
+      decisionsModels: await decisionsModelDescriptors(agentDir),
       imageModels: imageModelDescriptors(),
       ...(effectiveImageSelection
         ? { imageSelection: effectiveImageSelection }
@@ -230,6 +230,7 @@ export class PineModelService {
         ).join("; ");
         throw new Error(`Could not refresh model catalogs: ${details}`);
       }
+      await decisionsModelDescriptors(agentDir, { force: true });
     } finally {
       clearTimeout(timeout);
     }

@@ -1,6 +1,6 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
-import { isDecisionsModelId } from "./runtime/decisions-models";
+import { decisionsModelDescriptors } from "./runtime/decisions-models";
 import type {
   PineImageModelSelection,
   PineUtilityModelSelection,
@@ -86,8 +86,7 @@ export async function readPineAgentSettings(
     const userProfile = settings.userProfile;
     const contextCompactionStrategy = settings.contextCompactionStrategy;
     return {
-      ...(isPineAutoApprovalSettings(settings.autoApproval) &&
-      isDecisionsModelId(settings.autoApproval.decisionsModel)
+      ...(isPineAutoApprovalSettings(settings.autoApproval)
         ? { autoApproval: settings.autoApproval }
         : {}),
       ...(typeof settings.diagnosticLoggingEnabled === "boolean"
@@ -154,7 +153,9 @@ export async function writeAutoApprovalSettings(
 ): Promise<void> {
   if (
     !isPineAutoApprovalSettings(autoApproval) ||
-    !isDecisionsModelId(autoApproval.decisionsModel.trim())
+    !(await decisionsModelDescriptors(agentDir)).some(
+      (model) => model.id === autoApproval.decisionsModel.trim(),
+    )
   ) {
     throw new Error("Invalid automatic approval settings.");
   }

@@ -377,13 +377,24 @@ describe("ModelPickerDialog Decisions model selection", () => {
         providerId: "openrouter",
         providerName: "OpenRouter",
       },
+      ...[
+        "upstage/solar-decide",
+        "respan/span-01",
+        "respan/span-01-lite",
+        "future/new-model",
+      ].map((id) => ({
+        id,
+        name: id,
+        providerId: "openrouter" as const,
+        providerName: "OpenRouter" as const,
+      })),
     ],
   };
 
   it("lists only Decisions models and saves a catalog selection without touching chat or image models", async () => {
     const { setAutoApprovalSettings, selectModel, selectImageModel, wrapper } =
       mountPicker("decisions", decisionsCatalog);
-    expect(wrapper.findAll('[data-picker-row="decisions"]')).toHaveLength(2);
+    expect(wrapper.findAll('[data-picker-row="decisions"]')).toHaveLength(6);
     expect(wrapper.find('[data-picker-row="model"]').exists()).toBe(false);
     expect(wrapper.find('[data-picker-row="image"]').exists()).toBe(false);
     await wrapper
@@ -399,6 +410,26 @@ describe("ModelPickerDialog Decisions model selection", () => {
     expect(selectModel).not.toHaveBeenCalled();
     expect(selectImageModel).not.toHaveBeenCalled();
     expect(wrapper.emitted("update:open")).toContainEqual([false]);
+  });
+
+  it.each([
+    "upstage/solar-decide",
+    "respan/span-01",
+    "respan/span-01-lite",
+    "future/new-model",
+  ])("selects discovered model %s", async (id) => {
+    const { wrapper, setAutoApprovalSettings } = mountPicker(
+      "decisions",
+      decisionsCatalog,
+    );
+    await wrapper
+      .get(`[data-picker-row="decisions"][data-value="OpenRouter ${id} ${id}"]`)
+      .trigger("click");
+    await flushPromises();
+    expect(setAutoApprovalSettings).toHaveBeenCalledExactlyOnceWith({
+      ...DEFAULT_AUTO_APPROVAL_SETTINGS,
+      decisionsModel: id,
+    });
   });
 
   it("offers provider management from the Decisions catalog", async () => {

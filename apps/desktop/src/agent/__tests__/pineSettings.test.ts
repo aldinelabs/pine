@@ -1,7 +1,7 @@
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   readPineAgentSettings,
   writeAutoApprovalSettings,
@@ -10,6 +10,18 @@ import {
   writePineUserProfile,
   writeUtilityModelSelection,
 } from "../pineSettings";
+
+vi.mock("../runtime/decisions-models", () => ({
+  decisionsModelDescriptors: vi.fn(() =>
+    Promise.resolve([
+      { id: "typesafe/jev-1.13" },
+      { id: "upstage/solar-decide" },
+      { id: "respan/span-01" },
+      { id: "respan/span-01-lite" },
+      { id: "new-provider/new-decisions-model" },
+    ]),
+  ),
+}));
 
 const temporaryDirectories: string[] = [];
 
@@ -63,6 +75,49 @@ describe("Pine agent settings", () => {
     expect(
       (await readPineAgentSettings(agentDir)).autoApproval?.confidenceThreshold,
     ).toBe(0.95);
+  });
+
+  it.each([
+    "upstage/solar-decide",
+    "respan/span-01",
+    "respan/span-01-lite",
+    "new-provider/new-decisions-model",
+  ])(
+    "saves a discovered Decisions model beyond Jev: %s",
+    async (decisionsModel) => {
+      const agentDir = await mkdtemp(
+        path.join(os.tmpdir(), "pine-discovered-approval-"),
+      );
+      temporaryDirectories.push(agentDir);
+      const autoApproval = {
+        strategy: "decisions" as const,
+        decisionsModel,
+        confidenceThreshold: 0.66,
+      };
+      await writeAutoApprovalSettings(agentDir, autoApproval);
+      expect((await readPineAgentSettings(agentDir)).autoApproval).toEqual(
+        autoApproval,
+      );
+    },
+  );
+
+  it("retains a saved model when it is absent from the currently available catalog", async () => {
+    const agentDir = await mkdtemp(
+      path.join(os.tmpdir(), "pine-offline-approval-"),
+    );
+    temporaryDirectories.push(agentDir);
+    const autoApproval = {
+      strategy: "decisions",
+      decisionsModel: "future/offline-model",
+      confidenceThreshold: 0.66,
+    };
+    await writeFile(
+      path.join(agentDir, "pine-settings.json"),
+      JSON.stringify({ autoApproval }),
+    );
+    expect((await readPineAgentSettings(agentDir)).autoApproval).toEqual(
+      autoApproval,
+    );
   });
 
   it.each([

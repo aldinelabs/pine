@@ -60,7 +60,7 @@ export default {
       "Render the sidebar with the native macOS blur material",
     modelCatalogRefresh: "Model catalogs",
     modelCatalogRefreshDescription:
-      "Force Pi to fetch the latest chat models for configured providers.",
+      "Fetch the latest chat models for configured providers and OpenRouter Decisions models.",
     modelCatalogRefreshAction: "Refresh now",
     modelCatalogRefreshing: "Refreshing…",
     modelCatalogRefreshed: "Model catalogs refreshed",
