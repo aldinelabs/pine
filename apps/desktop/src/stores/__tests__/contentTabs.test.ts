@@ -327,6 +327,23 @@ describe("content tabs store", () => {
     expect(store.tabs.some((tab) => tab.id === presented.id)).toBe(true);
   });
 
+  it("remembers the resolved target for a presentation after its tab closes", () => {
+    const store = useContentTabsStore();
+    const target = {
+      source: "presented" as const,
+      path: "/canonical/report.pdf",
+    };
+    const tab = store.presentFile(target, "present-call");
+    store.close(tab.id, "session-1");
+
+    expect(store.presentedTargetFor("present-call")).toEqual(target);
+    expect(
+      store.presentFile(store.presentedTargetFor("present-call")!).id,
+    ).not.toBe(tab.id);
+    store.reset();
+    expect(store.presentedTargetFor("present-call")).toBeUndefined();
+  });
+
   it("opens an existing session tab instead of duplicating it", () => {
     const store = useContentTabsStore();
     store.bindSession("session-1", firstSession);

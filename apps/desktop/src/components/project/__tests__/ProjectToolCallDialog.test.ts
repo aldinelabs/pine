@@ -72,7 +72,7 @@ describe("ProjectToolCallDialog", () => {
         global: { plugins: [createAppI18n("zh-CN")] },
       });
       await wrapper.get('button[data-slot="marker"]').trigger("click");
-      expect(openFile).toHaveBeenCalledWith(expectedPath);
+      expect(openFile).toHaveBeenCalledWith(expectedPath, `${name}-1`);
       expect(
         document.body.querySelector('[data-slot="dialog-content"]'),
       ).toBeNull();

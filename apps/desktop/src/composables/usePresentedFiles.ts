@@ -29,8 +29,8 @@ export function usePresentedFiles({
   const flash = useAttentionFlashStore();
   const { tabs } = storeToRefs(tabsStore);
 
-  function present(target: FilePreviewTarget): void {
-    const tab = tabsStore.presentFile(target);
+  function present(target: FilePreviewTarget, toolCallId: string): void {
+    const tab = tabsStore.presentFile(target, toolCallId);
     reveal(tab.id);
     // A tab the user is already reading needs no attention signal.
     if (!isActive(tab.id)) flash.flash(tab.id);
@@ -40,7 +40,7 @@ export function usePresentedFiles({
     // Main resolves the path into a project or presented target first, so an
     // unresolved request never reaches the renderer.
     if (event.type !== "present-file") return;
-    present(event.target);
+    present(event.target, event.toolCallId);
   }
 
   let stopListening: (() => void) | undefined;

@@ -21,7 +21,7 @@ const props = defineProps<{
   toolCall: PineToolCall;
   reviewing?: boolean;
   awaitingApproval?: boolean;
-  openFile?: (path: string) => boolean;
+  openFile?: (path: string, toolCallId: string) => boolean;
 }>();
 
 const { t } = useI18n();
@@ -101,7 +101,11 @@ function formatDuration(durationMs: number): string {
 }
 
 function openDialog(): void {
-  if (view.value.filePath && props.openFile?.(view.value.filePath)) return;
+  if (
+    view.value.filePath &&
+    props.openFile?.(view.value.filePath, props.toolCall.id)
+  )
+    return;
   isOpen.value = true;
 }
 </script>

@@ -56,7 +56,12 @@ const sessionStore = useSessionStore();
 const HISTORY_LOAD_THRESHOLD = 240;
 const isSubmitting = ref(false);
 
-function openToolFile(path: string): boolean {
+function openToolFile(path: string, toolCallId: string): boolean {
+  const presentedTarget = contentTabsStore.presentedTargetFor(toolCallId);
+  if (presentedTarget) {
+    tabNavigation.activate(contentTabsStore.presentFile(presentedTarget).id);
+    return true;
+  }
   const request = toolFileRequest(path, projectStore.activeProject);
   if (request) {
     tabNavigation.openFile(request);

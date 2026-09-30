@@ -5,7 +5,7 @@ import {
   ShieldBanIcon,
   WandSparklesIcon,
 } from "@lucide/vue";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { createAppI18n } from "@/app/i18n";
 import type { PineToolCall } from "@/shared/sessions";
 import type { PineTranscriptMessage } from "@/stores/session";
@@ -40,6 +40,7 @@ function mountGroup(
     message: PineTranscriptMessage;
     toolCalls: PineToolCall[];
     expanded: boolean;
+    openFile: (path: string, toolCallId: string) => boolean;
   }> = {},
 ) {
   return mount(ProjectToolCallGroup, {
@@ -163,6 +164,36 @@ describe("ProjectToolCallGroup", () => {
     const trigger = wrapper.get('button[data-slot="marker"]');
     expect(trigger.text()).toContain("打开了 2 个文件");
     expect(wrapper.findAllComponents(EyeIcon)).toHaveLength(2);
+    wrapper.unmount();
+  });
+
+  it("opens a presented file from a nested marker without a dialog", async () => {
+    const openFile = vi.fn(() => true);
+    const wrapper = mountGroup({
+      expanded: true,
+      openFile,
+      toolCalls: [
+        {
+          id: "present-in-group",
+          input: { path: "report.md" },
+          name: "ui_present_file",
+          status: "complete",
+          output: { details: { path: "/canonical/project/report.md" } },
+        },
+      ],
+    });
+
+    await wrapper
+      .findComponent(ProjectToolCallMarker)
+      .get("button")
+      .trigger("click");
+    expect(openFile).toHaveBeenCalledWith(
+      "/canonical/project/report.md",
+      "present-in-group",
+    );
+    expect(
+      document.body.querySelector('[data-slot="dialog-content"]'),
+    ).toBeNull();
     wrapper.unmount();
   });
 

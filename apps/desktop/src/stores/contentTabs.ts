@@ -52,6 +52,10 @@ export const useContentTabsStore = defineStore("content-tabs", () => {
   }
 
   const tabs = ref<ProjectContentTab[]>(initialTabs());
+  // Main resolves a presentation to the exact file target, including its
+  // project folder or temporary external-file grant. Keep that association
+  // after a tab closes so its tool marker can reopen the same preview.
+  const presentedTargets = new Map<string, FilePreviewTarget>();
   const projectId = ref<string | null>(null);
   const composerAttachments = ref<Record<string, PineAttachment[]>>({});
   watch(
@@ -121,6 +125,7 @@ export const useContentTabsStore = defineStore("content-tabs", () => {
   watch([tabs, fallbackActiveTabId], persist, { deep: true, flush: "sync" });
 
   function restore(id: string): void {
+    presentedTargets.clear();
     const saved = readContentTabs(id);
     // Suspend writes while replacing one project's state with another's.
     projectId.value = null;
@@ -167,8 +172,18 @@ export const useContentTabsStore = defineStore("content-tabs", () => {
    * tab for the same file so presenting twice refreshes attention instead of
    * duplicating the view.
    */
-  function presentFile(target: FilePreviewTarget): FileContentTab {
+  function presentFile(
+    target: FilePreviewTarget,
+    toolCallId?: string,
+  ): FileContentTab {
+    if (toolCallId) presentedTargets.set(toolCallId, target);
     return ensureFileTab(target);
+  }
+
+  function presentedTargetFor(
+    toolCallId: string,
+  ): FilePreviewTarget | undefined {
+    return presentedTargets.get(toolCallId);
   }
 
   function makeDraftTab(): DraftSessionTab {
@@ -366,6 +381,7 @@ export const useContentTabsStore = defineStore("content-tabs", () => {
   }
 
   function reset(): void {
+    presentedTargets.clear();
     projectId.value = null;
     composerAttachments.value = {};
     nextSessionTabNumber = 2;
@@ -387,6 +403,7 @@ export const useContentTabsStore = defineStore("content-tabs", () => {
     openFile,
     openSession,
     presentFile,
+    presentedTargetFor,
     projectId,
     removeSession,
     reset,

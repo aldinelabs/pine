@@ -28,7 +28,7 @@ const props = defineProps<{
   reviewingToolCallIds?: ReadonlySet<string>;
   /** Tool calls waiting for the user's decision (Let Me Review mode). */
   awaitingApprovalToolCallIds?: ReadonlySet<string>;
-  openFile?: (path: string) => boolean;
+  openFile?: (path: string, toolCallId: string) => boolean;
 }>();
 
 const isUser = computed(() => props.message.role === "user");

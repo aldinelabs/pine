@@ -61,6 +61,10 @@ describe("agent presented files", () => {
       label: "report.pdf",
       source: "presented",
     });
+    expect(tabs.presentedTargetFor("tool-1")).toEqual({
+      source: "presented",
+      path: "/tmp/report.pdf",
+    });
     expect(reveal).toHaveBeenCalledWith(tab.id);
     expect(useAttentionFlashStore().isFlashing(tab.id)).toBe(true);
     // Opening a tab must not move the user's view.
