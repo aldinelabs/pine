@@ -59,6 +59,8 @@ import type {
   ListProjectDirectoryResult,
   ProjectFilesChangedEvent,
   SetWatchedProjectDirectoriesRequest,
+  SetWatchedFilePreviewRequest,
+  FilePreviewChangedEvent,
 } from "./projectFiles";
 import type {
   AttachSessionRequest,
@@ -251,6 +253,12 @@ export interface PineDesktopApi extends PineWindowApi {
   ) => Promise<void>;
   onProjectFilesChanged: (
     listener: (event: ProjectFilesChangedEvent) => void,
+  ) => () => void;
+  setWatchedFilePreview: (
+    request: SetWatchedFilePreviewRequest,
+  ) => Promise<void>;
+  onFilePreviewChanged: (
+    listener: (event: FilePreviewChangedEvent) => void,
   ) => () => void;
   operateProjectFile: (request: ProjectFileOperation) => Promise<void>;
   startProjectFileDrag: (request: StartProjectFileDragRequest) => void;

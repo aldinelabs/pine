@@ -97,6 +97,8 @@ function render(
       readProjectFilePreview: read,
       readPresentedFilePreview: readPresented,
       operateProjectFile: vi.fn().mockResolvedValue(undefined),
+      setWatchedFilePreview: vi.fn().mockResolvedValue(undefined),
+      onFilePreviewChanged: vi.fn().mockReturnValue(vi.fn()),
     },
   });
   const wrapper = mount(ProjectFilePreview, {
@@ -130,6 +132,227 @@ function selectText(
 }
 
 describe("ProjectFilePreview", () => {
+  function notifyPreviewChange(watchId?: string): void {
+    const [request] = vi.mocked(window.pine.setWatchedFilePreview).mock
+      .calls[0];
+    const [listener] = vi.mocked(window.pine.onFilePreviewChanged).mock
+      .calls[0];
+    listener({ watchId: watchId ?? request.watchId });
+  }
+
+  it.each(["project", "presented"] as const)(
+    "refreshes %s Markdown independently of file-tree events and keeps its scroll viewport",
+    async (source) => {
+      const read = vi.fn().mockResolvedValue({
+        ...info,
+        kind: "text",
+        text: "# Before",
+        encoding: "UTF-8",
+      });
+      const wrapper = render(read, read);
+      const target =
+        source === "project"
+          ? { ...file, relativePath: "report.md" }
+          : presentedFile;
+      await wrapper.setProps({ file: target });
+      await flushPromises();
+      const viewport = wrapper.get('[data-slot="scroll-area-viewport"]')
+        .element as HTMLElement;
+      Object.defineProperties(viewport, {
+        scrollHeight: { configurable: true, value: 2000 },
+        clientHeight: { configurable: true, value: 400 },
+      });
+      viewport.scrollTop = 640;
+      read.mockResolvedValue({
+        ...info,
+        kind: "text",
+        text: "# After",
+        encoding: "UTF-8",
+      });
+      notifyPreviewChange();
+      await flushPromises();
+      expect(wrapper.get("h1").text()).toBe("After");
+      expect(wrapper.get('[data-slot="scroll-area-viewport"]').element).toBe(
+        viewport,
+      );
+      expect(viewport.scrollTop).toBe(640);
+      expect(wrapper.get('[role="switch"]').attributes("aria-checked")).toBe(
+        "true",
+      );
+      expect(window.pine.setWatchedFilePreview).toHaveBeenLastCalledWith({
+        watchId: expect.any(String),
+        target:
+          source === "project"
+            ? { source, ...fileRequest, relativePath: "report.md" }
+            : { source, path: "/tmp/report.md" },
+      });
+    },
+  );
+
+  it("keeps source mode and both scroll axes during asynchronous refresh, then clamps a shorter file", async () => {
+    const read = vi.fn().mockResolvedValue({
+      ...info,
+      kind: "text",
+      text: "# Before",
+      encoding: "UTF-8",
+    });
+    const wrapper = render(read);
+    await wrapper.setProps({ file: { ...file, relativePath: "report.md" } });
+    await flushPromises();
+    await wrapper.get('[role="switch"]').trigger("click");
+    await flushPromises();
+    const viewport = wrapper.get('[data-slot="scroll-area-viewport"]')
+      .element as HTMLElement;
+    const code = wrapper.get(".code-preview-scroll").element as HTMLElement;
+    Object.defineProperties(viewport, {
+      scrollHeight: { configurable: true, value: 2000 },
+      clientHeight: { value: 400 },
+    });
+    Object.defineProperties(code, {
+      scrollWidth: { value: 1000 },
+      clientWidth: { value: 400 },
+    });
+    viewport.scrollTop = 640;
+    code.scrollLeft = 180;
+    let resolve!: (value: Preview) => void;
+    read.mockImplementationOnce(
+      () =>
+        new Promise<Preview>((done) => {
+          resolve = done;
+        }),
+    );
+    notifyPreviewChange();
+    await flushPromises();
+    expect(wrapper.find('[role="status"]').exists()).toBe(false);
+    expect(wrapper.get('[data-slot="scroll-area-viewport"]').element).toBe(
+      viewport,
+    );
+    resolve({ ...info, kind: "text", text: "# After", encoding: "UTF-8" });
+    await flushPromises();
+    expect(wrapper.get('[role="switch"]').attributes("aria-checked")).toBe(
+      "false",
+    );
+    expect(wrapper.find("h1").exists()).toBe(false);
+    expect(viewport.scrollTop).toBe(640);
+    expect(code.scrollLeft).toBe(180);
+    Object.defineProperty(viewport, "scrollHeight", { value: 500 });
+    read.mockResolvedValueOnce({
+      ...info,
+      kind: "text",
+      text: "short",
+      encoding: "UTF-8",
+    });
+    notifyPreviewChange();
+    await flushPromises();
+    expect(viewport.scrollTop).toBe(100);
+  });
+
+  it("restores through delayed DOM updates and stops restoring when the user scrolls", async () => {
+    const read = vi.fn().mockResolvedValue({
+      ...info,
+      kind: "text",
+      text: "# Before",
+      encoding: "UTF-8",
+    });
+    const wrapper = render(read);
+    await wrapper.setProps({ file: { ...file, relativePath: "report.md" } });
+    await flushPromises();
+    const viewport = wrapper.get('[data-slot="scroll-area-viewport"]')
+      .element as HTMLElement;
+    Object.defineProperties(viewport, {
+      scrollHeight: { value: 2000 },
+      clientHeight: { value: 400 },
+    });
+    viewport.scrollTop = 640;
+    read.mockResolvedValue({
+      ...info,
+      kind: "text",
+      text: "# After",
+      encoding: "UTF-8",
+    });
+    notifyPreviewChange();
+    await flushPromises();
+    viewport.scrollTop = 0;
+    wrapper
+      .get('[data-slot="markdown-content"]')
+      .element.append(document.createElement("p"));
+    await new Promise((done) => setTimeout(done, 20));
+    expect(viewport.scrollTop).toBe(640);
+    viewport.dispatchEvent(new WheelEvent("wheel"));
+    viewport.scrollTop = 200;
+    wrapper
+      .get('[data-slot="markdown-content"]')
+      .element.append(document.createElement("p"));
+    await new Promise((done) => setTimeout(done, 20));
+    expect(viewport.scrollTop).toBe(200);
+  });
+
+  it("defers background updates, ignores unrelated subscriptions and releases its watch on unmount", async () => {
+    const read = vi.fn().mockResolvedValue({
+      ...info,
+      kind: "text",
+      text: "hi",
+      encoding: "UTF-8",
+    });
+    const wrapper = render(read);
+    await flushPromises();
+    const count = read.mock.calls.length;
+    notifyPreviewChange("unrelated-tab");
+    await flushPromises();
+    expect(read).toHaveBeenCalledTimes(count);
+    await wrapper.setProps({ active: false });
+    notifyPreviewChange();
+    notifyPreviewChange();
+    await flushPromises();
+    expect(read).toHaveBeenCalledTimes(count);
+    await wrapper.setProps({ active: true });
+    await flushPromises();
+    expect(read).toHaveBeenCalledTimes(count + 1);
+    const [request] = vi.mocked(window.pine.setWatchedFilePreview).mock
+      .calls[0];
+    const unsubscribe = vi.mocked(window.pine.onFilePreviewChanged).mock
+      .results[0].value;
+    wrapper.unmount();
+    expect(window.pine.setWatchedFilePreview).toHaveBeenLastCalledWith({
+      watchId: request.watchId,
+      target: null,
+    });
+    expect(unsubscribe).toHaveBeenCalled();
+  });
+
+  it("ignores an obsolete refresh response when another change arrives", async () => {
+    const read = vi.fn().mockResolvedValue({
+      ...info,
+      kind: "text",
+      text: "# Initial",
+      encoding: "UTF-8",
+    });
+    const wrapper = render(read);
+    await wrapper.setProps({ file: { ...file, relativePath: "report.md" } });
+    await flushPromises();
+    let resolve!: (value: Preview) => void;
+    read
+      .mockImplementationOnce(
+        () =>
+          new Promise<Preview>((done) => {
+            resolve = done;
+          }),
+      )
+      .mockResolvedValueOnce({
+        ...info,
+        kind: "text",
+        text: "# Newest",
+        encoding: "UTF-8",
+      });
+    notifyPreviewChange();
+    await flushPromises();
+    notifyPreviewChange();
+    await flushPromises();
+    resolve({ ...info, kind: "text", text: "# Obsolete", encoding: "UTF-8" });
+    await flushPromises();
+    expect(wrapper.get("h1").text()).toBe("Newest");
+  });
+
   it("renders HTML in a sandboxed iframe by default and switches to source", async () => {
     const source =
       '<!doctype html><html><body><h1>Hello</h1><script>window.top.alert("unsafe")</script></body></html>';
@@ -488,6 +711,7 @@ describe("ProjectFilePreview", () => {
         url: "pine-project-media://preview/image",
       });
     const wrapper = render(read);
+    await flushPromises();
     await wrapper.setProps({ file: { ...file, relativePath: "photo.png" } });
     await flushPromises();
     first({ ...info, kind: "text", text: "old", encoding: "UTF-8" });

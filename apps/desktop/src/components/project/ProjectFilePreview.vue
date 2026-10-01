@@ -45,12 +45,12 @@ import { Skeleton } from "@/components/ui/skeleton";
 import {
   fileName as pathBaseName,
   fileTargetPath,
-  projectFileDirectory,
 } from "@/lib/filePreviewTarget";
 import type { AttachmentSelection } from "@/shared/attachments";
 import type {
   ProjectFilePreview,
-  ProjectFilesChangedEvent,
+  FilePreviewTarget,
+  FilePreviewChangedEvent,
 } from "@/shared/projectFiles";
 import type { FileContentTab } from "@/stores/contentTabs";
 import { resolvePreviewRenderer } from "./file-preview/previewRenderer";
@@ -226,39 +226,99 @@ async function openWithDefaultApplication(): Promise<void> {
   }
 }
 
+const watchId = useId();
+const previewTarget = computed<FilePreviewTarget>(() => {
+  const file = props.file;
+  return file.source === "project"
+    ? {
+        source: "project",
+        projectId: file.projectId,
+        folderId: file.folderId,
+        relativePath: file.relativePath,
+      }
+    : { source: "presented", path: file.path };
+});
+const previewKey = computed(() => JSON.stringify(previewTarget.value));
+let watchReady: Promise<void> = Promise.resolve();
+
+function handleFilePreviewChanged(event: FilePreviewChangedEvent): void {
+  if (event.watchId !== watchId) return;
+  attentionFlash.flashOnce(props.file.id);
+  if (props.active) revision.value += 1;
+  else stale.value = true;
+}
+
+const unsubscribeFileWatcher = window.pine.onFilePreviewChanged?.(
+  handleFilePreviewChanged,
+);
 watch(
-  () => [props.file.id, revision.value] as const,
-  async (_value, _previous, onCleanup) => {
+  previewKey,
+  (_key, _previous, onCleanup) => {
+    watchReady =
+      window.pine
+        .setWatchedFilePreview?.({
+          watchId,
+          target: previewTarget.value,
+        })
+        .catch((error: unknown) => {
+          console.error("Failed to watch file preview.", error);
+        }) ?? Promise.resolve();
+    onCleanup(() => {
+      void window.pine
+        .setWatchedFilePreview?.({ watchId, target: null })
+        .catch(() => {});
+    });
+  },
+  { immediate: true },
+);
+
+watch(
+  () => [previewKey.value, revision.value] as const,
+  async ([key], previous, onCleanup) => {
     let active = true;
     onCleanup(() => {
       active = false;
     });
-    preview.value = undefined;
-    viewMode.value = "rendered";
+    const fileChanged = key !== previous?.[0];
+    if (fileChanged) {
+      preview.value = undefined;
+      viewMode.value = "rendered";
+      contentMetadata.value = undefined;
+      previewInverted.value = false;
+      previewZoom.value = [100];
+      if (zoomCommitTimer) clearTimeout(zoomCommitTimer);
+      appliedZoom.value = 100;
+      renderedZoom.value = 100;
+      pendingZoom = 100;
+      stale.value = false;
+    }
     selectedRange.value = undefined;
     menuSelection.value = undefined;
-    contentMetadata.value = undefined;
-    previewInverted.value = false;
-    previewZoom.value = [100];
-    if (zoomCommitTimer) clearTimeout(zoomCommitTimer);
-    appliedZoom.value = 100;
-    renderedZoom.value = 100;
-    pendingZoom = 100;
     failed.value = false;
     try {
-      const file = props.file;
+      // Subscribe before the first read so a write during loading cannot fall
+      // between the content snapshot and installation of the watcher.
+      await watchReady;
+      if (!active) return;
+      const target = previewTarget.value;
       const result =
-        file.source === "project"
+        target.source === "project"
           ? await window.pine.readProjectFilePreview({
-              projectId: file.projectId,
-              folderId: file.folderId,
-              relativePath: file.relativePath,
+              projectId: target.projectId,
+              folderId: target.folderId,
+              relativePath: target.relativePath,
             })
-          : await window.pine.readPresentedFilePreview({ path: file.path });
+          : await window.pine.readPresentedFilePreview({ path: target.path });
       if (active) {
+        if (!fileChanged && "url" in result) {
+          const url = new URL(result.url);
+          url.searchParams.set("revision", String(revision.value));
+          result.url = url.href;
+        }
         preview.value = result;
-        previewInverted.value =
-          capabilities.value.invert && appearanceStore.colorScheme === "dark";
+        if (fileChanged)
+          previewInverted.value =
+            capabilities.value.invert && appearanceStore.colorScheme === "dark";
       }
     } catch {
       if (active) failed.value = true;
@@ -278,24 +338,6 @@ watch(
   },
 );
 
-function handleProjectFilesChanged(event: ProjectFilesChangedEvent): void {
-  const file = props.file;
-  if (file.source !== "project") return;
-  const directory = projectFileDirectory(file.relativePath);
-  const changed = event.folders.some(
-    (folder) =>
-      folder.folderId === file.folderId &&
-      folder.changedDirs.includes(directory),
-  );
-  if (!changed) return;
-  attentionFlash.flashOnce(file.id);
-  if (props.active) revision.value += 1;
-  else stale.value = true;
-}
-
-const unsubscribeFileWatcher = window.pine.onProjectFilesChanged?.(
-  handleProjectFilesChanged,
-);
 watch(
   () => appearanceStore.colorScheme,
   (colorScheme) => {
@@ -361,7 +403,7 @@ onBeforeUnmount(() => {
       :is="renderer.component"
       v-else
       ref="renderer"
-      :key="renderer.id"
+      :key="`${previewKey}:${renderer.id}`"
       class="min-h-0 flex-1"
       :preview="preview"
       :file-name="fileName"

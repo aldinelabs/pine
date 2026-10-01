@@ -232,11 +232,14 @@ import {
   PROJECT_MEDIA_PROTOCOL,
   PROJECT_FILES_CHANGED_CHANNEL,
   SET_WATCHED_PROJECT_DIRECTORIES_CHANNEL,
+  SET_WATCHED_FILE_PREVIEW_CHANNEL,
+  FILE_PREVIEW_CHANGED_CHANNEL,
   MAX_WATCHED_PROJECT_DIRECTORIES,
   MAX_WATCHED_PROJECT_FOLDERS,
   type ListProjectDirectoryResult,
 } from "./shared/projectFiles";
 import { ProjectFileWatcherRegistry } from "./main/projectFileWatcher";
+import { FilePreviewWatcherRegistry } from "./main/filePreviewWatcher";
 import { startProjectFileDrag } from "./main/projectFileDrag";
 import {
   OPAQUE_WINDOW_BACKGROUND,
@@ -430,6 +433,17 @@ const modelMetadata = new ModelMetadataService();
 let projectRuntimes: ProjectRuntimeRegistry | null = null;
 let presentedFiles: PresentedFileRegistry | null = null;
 let projectFileWatchers: ProjectFileWatcherRegistry | null = null;
+const filePreviewWatchers = new FilePreviewWatcherRegistry(
+  (senderId, target) =>
+    target.source === "project"
+      ? previewPath(senderId, target)
+      : presentedFilePath(senderId, target),
+  (senderId, watchId) => {
+    webContents
+      .fromId(senderId)
+      ?.send(FILE_PREVIEW_CHANGED_CHANNEL, { watchId });
+  },
+);
 let projectRepository: ProjectRepository | null = null;
 let appUpdater: AppUpdater | null = null;
 let tinyFishCredentialStore: TinyFishCredentialStore | null = null;
@@ -1138,6 +1152,7 @@ const createWindow = () => {
     attachedPreviewPaths.delete(webContentsId);
     presentedFiles?.forget(webContentsId);
     projectFileWatchers?.disposeSender(webContentsId);
+    filePreviewWatchers.disposeSender(webContentsId);
     void projectRuntimes?.dispose(webContentsId);
   });
   mainWindow.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
@@ -1311,6 +1326,28 @@ ipcMain.handle(
       filePath,
       projectMediaUrl(event.sender.id, entry),
     );
+  },
+);
+
+ipcMain.handle(
+  SET_WATCHED_FILE_PREVIEW_CHANNEL,
+  (event, request: unknown): Promise<void> => {
+    const parsed = z
+      .object({
+        watchId: z.string().min(1).max(200),
+        target: z
+          .discriminatedUnion("source", [
+            ProjectFilePreviewRequestSchema.extend({
+              source: z.literal("project"),
+            }),
+            PresentedFilePreviewRequestSchema.extend({
+              source: z.literal("presented"),
+            }),
+          ])
+          .nullable(),
+      })
+      .parse(request);
+    return filePreviewWatchers.setWatchedPreview(event.sender.id, parsed);
   },
 );
 
@@ -2015,6 +2052,7 @@ handleDiagnosticIpc(CLOSE_PROJECT_CHANNEL, async (event): Promise<void> => {
   // Presenting a file is authorized per run, so closing the project that ran
   // the agent ends those grants with it.
   presentedFiles?.forget(event.sender.id);
+  filePreviewWatchers.disposeSender(event.sender.id);
   await getProjectRuntimes().dispose(event.sender.id);
 });
 
@@ -2111,6 +2149,7 @@ ipcMain.handle(
     const { id } = ProjectIdRequestSchema.parse(request);
     if (getProjectRuntimes().isOpen(event.sender.id, id)) {
       presentedFiles?.forget(event.sender.id);
+      filePreviewWatchers.disposeSender(event.sender.id);
       await getProjectRuntimes().dispose(event.sender.id);
     }
     return { deleted: await getProjectRepository().delete(id) };
@@ -2549,6 +2588,7 @@ app.on("ready", () => {
 
 app.on("will-quit", () => {
   projectFileWatchers?.dispose();
+  filePreviewWatchers.dispose();
   void agentHost?.dispose();
   releaseWindowsSandboxRuntimeAccess();
 });

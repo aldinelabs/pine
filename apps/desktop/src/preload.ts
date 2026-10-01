@@ -154,6 +154,10 @@ import {
   REOPEN_PRESENTED_TOOL_FILE_CHANNEL,
   PROJECT_FILES_CHANGED_CHANNEL,
   SET_WATCHED_PROJECT_DIRECTORIES_CHANNEL,
+  SET_WATCHED_FILE_PREVIEW_CHANNEL,
+  FILE_PREVIEW_CHANGED_CHANNEL,
+  type SetWatchedFilePreviewRequest,
+  type FilePreviewChangedEvent,
   type ListProjectDirectoryRequest,
   type ListProjectDirectoryResult,
   type ReopenPresentedToolFileRequest,
@@ -283,6 +287,19 @@ const pineApi: PineDesktopApi = {
   },
   operateProjectFile: (request) =>
     ipcRenderer.invoke(PROJECT_FILE_OPERATION_CHANNEL, request),
+  setWatchedFilePreview: (
+    request: SetWatchedFilePreviewRequest,
+  ): Promise<void> =>
+    ipcRenderer.invoke(SET_WATCHED_FILE_PREVIEW_CHANNEL, request),
+  onFilePreviewChanged: (
+    listener: (event: FilePreviewChangedEvent) => void,
+  ): (() => void) => {
+    const handler = (_: unknown, event: FilePreviewChangedEvent) =>
+      listener(event);
+    ipcRenderer.on(FILE_PREVIEW_CHANGED_CHANNEL, handler);
+    return () =>
+      ipcRenderer.removeListener(FILE_PREVIEW_CHANGED_CHANNEL, handler);
+  },
   startProjectFileDrag: (request) =>
     ipcRenderer.send(START_PROJECT_FILE_DRAG_CHANNEL, request),
   inspectProjectAttachments: (entries) =>

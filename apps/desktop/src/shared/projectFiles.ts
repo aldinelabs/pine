@@ -84,6 +84,18 @@ export interface PresentedFilePreviewRequest {
 export type FilePreviewTarget =
   | ({ source: "project" } & ProjectFilePreviewRequest)
   | ({ source: "presented" } & PresentedFilePreviewRequest);
+export const SET_WATCHED_FILE_PREVIEW_CHANNEL =
+  "project-files:set-watched-preview" as const;
+export const FILE_PREVIEW_CHANGED_CHANNEL =
+  "project-files:preview-changed" as const;
+export interface SetWatchedFilePreviewRequest {
+  /** Component-owned subscription; null removes it without affecting other tabs. */
+  watchId: string;
+  target: FilePreviewTarget | null;
+}
+export interface FilePreviewChangedEvent {
+  watchId: string;
+}
 export interface ProjectFileMetadata {
   size: number;
   modifiedAt: string;

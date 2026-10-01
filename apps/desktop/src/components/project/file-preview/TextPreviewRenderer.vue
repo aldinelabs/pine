@@ -1,5 +1,11 @@
 <script setup lang="ts">
-import { computed, useTemplateRef, watch } from "vue";
+import {
+  computed,
+  nextTick,
+  onBeforeUnmount,
+  useTemplateRef,
+  watch,
+} from "vue";
 import { useEventListener } from "@vueuse/core";
 import { getMarkdown, parseMarkdownToStructure } from "markstream-vue";
 import CodeBlock from "@/components/markdown/CodeBlock.vue";
@@ -38,6 +44,62 @@ const markdownNodes = computed(() =>
       )
     : undefined,
 );
+
+let stopScrollRestore: (() => void) | undefined;
+watch(source, () => {
+  stopScrollRestore?.();
+  const viewport = content.value?.closest<HTMLElement>(
+    '[data-slot="scroll-area-viewport"]',
+  );
+  const root = content.value;
+  if (!viewport || !root) return;
+  const top = viewport.scrollTop;
+  const left =
+    root.querySelector<HTMLElement>(".code-preview-scroll")?.scrollLeft ?? 0;
+  let stopped = false;
+  const restore = (): void => {
+    if (stopped) return;
+    viewport.scrollTop = Math.min(
+      top,
+      Math.max(0, viewport.scrollHeight - viewport.clientHeight),
+    );
+    const code = root.querySelector<HTMLElement>(".code-preview-scroll");
+    if (code)
+      code.scrollLeft = Math.min(
+        left,
+        Math.max(0, code.scrollWidth - code.clientWidth),
+      );
+  };
+  // Markdown and syntax highlighting can finish after Vue's first DOM update.
+  // Continue through delayed layout changes until the user moves the viewport.
+  const mutations = new MutationObserver(restore);
+  const resize = new ResizeObserver(restore);
+  mutations.observe(root, {
+    childList: true,
+    subtree: true,
+    characterData: true,
+  });
+  resize.observe(root);
+  const inputRoot =
+    viewport.closest<HTMLElement>('[data-slot="scroll-area"]') ?? viewport;
+  const inputs = ["wheel", "pointerdown", "touchstart", "keydown"] as const;
+  function stop(): void {
+    stopped = true;
+    mutations.disconnect();
+    resize.disconnect();
+    for (const input of inputs)
+      inputRoot.removeEventListener(input, stop, true);
+  }
+  for (const input of inputs)
+    inputRoot.addEventListener(input, stop, { capture: true, passive: true });
+  stopScrollRestore = stop;
+  void nextTick(restore);
+});
+watch(
+  () => [props.mode, props.active],
+  () => stopScrollRestore?.(),
+);
+onBeforeUnmount(() => stopScrollRestore?.());
 
 function readSelection(): AttachmentSelection | undefined {
   return props.active && content.value
