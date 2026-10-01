@@ -1,15 +1,24 @@
 // @vitest-environment node
-import { mkdtemp, rm, writeFile, truncate, symlink } from "node:fs/promises";
+import {
+  mkdir,
+  mkdtemp,
+  rm,
+  writeFile,
+  truncate,
+  symlink,
+} from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   MAX_TEXT_PREVIEW_BYTES,
   projectMediaUrl,
   readProjectFilePreview,
   serveProjectMedia,
+  serveProjectMediaRequest,
 } from "../projectFilePreview";
 import { resolveProjectPath } from "../projectFiles";
+import { resolveMarkdownImageSrc } from "../../lib/markdownImage";
 
 let root: string;
 beforeEach(async () => {
@@ -20,6 +29,139 @@ afterEach(async () => {
 });
 
 describe("file preview", () => {
+  async function markdownFixture(presented: boolean) {
+    const directory = path.join(root, "Week 4", "Readings");
+    await mkdir(path.join(directory, "figures-dd"), { recursive: true });
+    const documentPath = path.join(
+      directory,
+      "02T den Dekker 2020 - ch 1 中文译本.md",
+    );
+    const imageSource = "figures-dd/案例%20配图.png";
+    const bytes = Buffer.from(
+      "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+a5f8AAAAASUVORK5CYII=",
+      "base64",
+    );
+    await writeFile(documentPath, `![案例配图](${imageSource})`);
+    await writeFile(path.join(directory, "figures-dd", "案例 配图.png"), bytes);
+    const folder = {
+      id: "f1",
+      name: "Courses",
+      path: root,
+      access: "read-only" as const,
+      isAvailable: true,
+    };
+    const resolvers = {
+      project: vi.fn(async (owner: number, params: Record<string, string>) => {
+        if (owner !== 7 || params.folderId !== "f1")
+          throw new Error("Not authorized");
+        return resolveProjectPath(folder, params.relativePath);
+      }),
+      presented: vi.fn(
+        async (owner: number, params: Record<string, string>) => {
+          if (owner !== 7 || params.path !== documentPath)
+            throw new Error("Not presented");
+          return Promise.resolve(documentPath);
+        },
+      ),
+    };
+    const url = projectMediaUrl(
+      7,
+      presented
+        ? { path: documentPath }
+        : {
+            projectId: "p1",
+            folderId: "f1",
+            relativePath: path.relative(root, documentPath),
+          },
+      { presented },
+    );
+    const preview = await readProjectFilePreview(documentPath, url);
+    expect(preview.kind).toBe("text");
+    if (preview.kind !== "text") throw new Error("Expected Markdown text");
+    return {
+      bytes,
+      directory,
+      documentPath,
+      resolvers,
+      request: (src = imageSource) =>
+        new Request(resolveMarkdownImageSrc(src, preview.url)),
+    };
+  }
+
+  it.each([false, true])(
+    "serves Markdown relative images from the text preview URL (presented=%s)",
+    async (presented) => {
+      const fixture = await markdownFixture(presented);
+      const response = await serveProjectMediaRequest(
+        fixture.request(),
+        7,
+        fixture.resolvers,
+      );
+      expect(response.status).toBe(200);
+      expect(response.headers.get("Content-Type")).toBe("image/png");
+      expect(Buffer.from(await response.arrayBuffer())).toEqual(fixture.bytes);
+      await expect(
+        serveProjectMediaRequest(fixture.request(), 8, fixture.resolvers),
+      ).rejects.toThrow();
+      fixture.resolvers[
+        presented ? "presented" : "project"
+      ].mockRejectedValueOnce(new Error("Revoked"));
+      await expect(
+        serveProjectMediaRequest(fixture.request(), 7, fixture.resolvers),
+      ).rejects.toThrow("Revoked");
+    },
+  );
+
+  it.each([false, true])(
+    "rejects image traversal, escaping symlinks and non-image files (presented=%s)",
+    async (presented) => {
+      const fixture = await markdownFixture(presented);
+      await symlink(os.tmpdir(), path.join(fixture.directory, "escape"));
+      await writeFile(
+        path.join(fixture.directory, "secret.txt"),
+        "not an image",
+      );
+      for (const src of [
+        "../../../outside.png",
+        "escape/outside.png",
+        "%2Ftmp%2Foutside.png",
+        "C%3A%5Coutside.png",
+        "bad%00.png",
+      ]) {
+        await expect(
+          serveProjectMediaRequest(fixture.request(src), 7, fixture.resolvers),
+        ).rejects.toThrow();
+      }
+      const response = await serveProjectMediaRequest(
+        fixture.request("secret.txt"),
+        7,
+        fixture.resolvers,
+      );
+      expect(response.status).toBe(415);
+    },
+  );
+
+  it("allows parent-relative images inside a shared project but confines external documents", async () => {
+    for (const presented of [false, true]) {
+      const fixture = await markdownFixture(presented);
+      await writeFile(
+        path.join(fixture.directory, "..", "shared.png"),
+        fixture.bytes,
+      );
+      const response = serveProjectMediaRequest(
+        fixture.request("../shared.png"),
+        7,
+        fixture.resolvers,
+      );
+      if (presented) await expect(response).rejects.toThrow("outside");
+      else {
+        const result = await response;
+        expect(result.status).toBe(200);
+        expect(Buffer.from(await result.arrayBuffer())).toEqual(fixture.bytes);
+      }
+    }
+  });
+
   it("mints owner-scoped media URLs and flags presented files", () => {
     const projectUrl = new URL(
       projectMediaUrl(7, {

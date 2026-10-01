@@ -2,8 +2,12 @@ import { open } from "node:fs/promises";
 import path from "node:path";
 import { Readable } from "node:stream";
 import type { ProjectFilePreview } from "../shared/projectFiles";
-import { PROJECT_MEDIA_PROTOCOL } from "../shared/projectFiles";
+import {
+  MARKDOWN_IMAGE_PARAM,
+  PROJECT_MEDIA_PROTOCOL,
+} from "../shared/projectFiles";
 import { binaryPreviewFormats } from "./previewFormats";
+import { resolveProjectPath } from "./projectFiles";
 
 export const MAX_TEXT_PREVIEW_BYTES = 2 * 1024 * 1024;
 
@@ -82,13 +86,89 @@ export async function readProjectFilePreview(
       const text = new TextDecoder(encoding, { fatal: true }).decode(contents);
       if (/[\u0000-\u0008\u000e-\u001f]/u.test(text))
         return { ...info, kind: "unsupported", reason: "binary" };
-      return { ...info, kind: "text", text, encoding: encoding.toUpperCase() };
+      return {
+        ...info,
+        kind: "text",
+        text,
+        encoding: encoding.toUpperCase(),
+        url: mediaUrl,
+      };
     } catch {
       return { ...info, kind: "unsupported", reason: "binary" };
     }
   } finally {
     await file.close();
   }
+}
+
+/** Resolve the document grant first, then serve only its relative image assets. */
+export async function serveProjectMediaRequest(
+  request: Request,
+  ownerId: number,
+  resolvers: {
+    project: (
+      ownerId: number,
+      params: Record<string, string>,
+    ) => Promise<string>;
+    presented: (
+      ownerId: number,
+      params: Record<string, string>,
+    ) => Promise<string>;
+  },
+): Promise<Response> {
+  const url = new URL(request.url);
+  const params = Object.fromEntries(url.searchParams);
+  const presented = params[PRESENTED_MEDIA_PARAM] === "1";
+  let filePath = await resolvers[presented ? "presented" : "project"](
+    ownerId,
+    params,
+  );
+  const imageSource = url.searchParams.get(MARKDOWN_IMAGE_PARAM);
+  if (imageSource !== null) {
+    let imagePath = imageSource.split(/[?#]/u)[0];
+    try {
+      imagePath = decodeURIComponent(imagePath);
+    } catch {
+      // A literal percent sign is valid in a local filename.
+    }
+    if (
+      !imagePath ||
+      imagePath.length > 4096 ||
+      /^[a-z][a-z\d+.-]*:/iu.test(imagePath) ||
+      /^[\\/]/u.test(imagePath) ||
+      imagePath.includes("\0")
+    ) {
+      throw new Error("Expected a relative Markdown image path.");
+    }
+    if (presented) {
+      // An external document grants only images in its directory, including
+      // subdirectories. resolveProjectPath also checks symlink confinement.
+      filePath = await resolveProjectPath(
+        {
+          id: "markdown-images",
+          name: "Markdown images",
+          path: path.dirname(filePath),
+          access: "read-only",
+          isAvailable: true,
+        },
+        imagePath,
+      );
+    } else {
+      filePath = await resolvers.project(ownerId, {
+        ...params,
+        relativePath: path.posix.join(
+          path.posix.dirname(params.relativePath),
+          imagePath.replaceAll("\\", "/"),
+        ),
+      });
+    }
+    if (
+      binaryPreviewFormats[path.extname(filePath).toLowerCase()]?.kind !==
+      "image"
+    )
+      return new Response(null, { status: 415 });
+  }
+  return serveProjectMedia(request, filePath);
 }
 
 /** Serves only preview assets, with bounded streaming and byte ranges. */

@@ -60,6 +60,7 @@ export const READ_PRESENTED_FILE_PREVIEW_CHANNEL =
 export const REOPEN_PRESENTED_TOOL_FILE_CHANNEL =
   "project-files:reopen-presented-tool-file" as const;
 export const PROJECT_MEDIA_PROTOCOL = "pine-project-media" as const;
+export const MARKDOWN_IMAGE_PARAM = "markdownImage" as const;
 export interface ReopenPresentedToolFileRequest {
   sessionId: string;
   toolCallId: string;
@@ -103,7 +104,13 @@ export interface ProjectFileMetadata {
 export type OfficeDocumentFormat = "docx" | "xls" | "xlsx" | "pptx";
 export type ProjectFilePreview = ProjectFileMetadata &
   (
-    | { kind: "text"; text: string; encoding: string }
+    | {
+        kind: "text";
+        text: string;
+        encoding: string;
+        /** Owner-scoped document URL used to resolve relative Markdown images. */
+        url?: string;
+      }
     | { kind: "image" | "video" | "pdf"; url: string }
     | { kind: "office"; format: OfficeDocumentFormat; url: string }
     | { kind: "unsupported"; reason: "binary" | "too-large" }

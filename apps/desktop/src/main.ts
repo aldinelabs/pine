@@ -45,10 +45,9 @@ import {
 import { PresentedFileRegistry } from "./main/presentedFiles";
 import { TinyFishCredentialStore } from "./main/tinyfishCredentials";
 import {
-  PRESENTED_MEDIA_PARAM,
   readProjectFilePreview,
   projectMediaUrl,
-  serveProjectMedia,
+  serveProjectMediaRequest,
 } from "./main/projectFilePreview";
 import { installWindowShortcuts } from "./main/windowShortcuts";
 import { AppUpdater, readUpdateManifestUrl } from "./main/appUpdater";
@@ -613,14 +612,10 @@ function registerProjectMediaProtocol(): void {
         .int()
         .positive()
         .parse(url.searchParams.get("owner"));
-      const filePath =
-        url.searchParams.get(PRESENTED_MEDIA_PARAM) === "1"
-          ? await presentedFilePath(
-              ownerId,
-              Object.fromEntries(url.searchParams),
-            )
-          : await previewPath(ownerId, Object.fromEntries(url.searchParams));
-      return await serveProjectMedia(request, filePath);
+      return await serveProjectMediaRequest(request, ownerId, {
+        project: previewPath,
+        presented: presentedFilePath,
+      });
     } catch {
       return new Response(null, { status: 404 });
     }

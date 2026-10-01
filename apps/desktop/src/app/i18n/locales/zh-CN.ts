@@ -9,6 +9,7 @@ export default {
     saving: "正在保存",
   },
   markdown: {
+    imageLoadFailed: "图片加载失败",
     externalLinkTitle: "打开外部链接？",
     externalLinkDescription: "确认后将在默认浏览器中打开以下 URL：",
     openExternalLink: "打开链接",

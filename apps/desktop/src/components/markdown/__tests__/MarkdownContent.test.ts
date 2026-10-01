@@ -3,7 +3,9 @@ import { nextTick } from "vue";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createPinia, setActivePinia } from "pinia";
 import { createAppI18n } from "@/app/i18n";
+import { getMarkdown, parseMarkdownToStructure } from "markstream-vue";
 import MarkdownContent from "../MarkdownContent.vue";
+import { configurePineMarkdown } from "../configureMarkdown";
 
 const passthroughStub = { template: "<div><slot /></div>" };
 const alertDialogStub = {
@@ -25,7 +27,9 @@ const alertDialogCancelStub = {
     '<button v-bind="$attrs" @click="$emit(\'click\', $event)"><slot /></button>',
 };
 
-function mountMarkdown(props: { source: string; final?: boolean } | string) {
+function mountMarkdown(
+  props: { source: string; final?: boolean; documentUrl?: string } | string,
+) {
   return mount(MarkdownContent, {
     props:
       typeof props === "string"
@@ -49,6 +53,95 @@ function mountMarkdown(props: { source: string; final?: boolean } | string) {
 
 describe("MarkdownContent", () => {
   beforeEach(() => setActivePinia(createPinia()));
+
+  it("renders local chat image URLs without markstream stripping the Pine protocol", async () => {
+    const wrapper = mountMarkdown(
+      "![本地配图](/Users/kw/Week%204/案例.png)\n\n![文件 URL](file:///Users/kw/Week%204/figure.png)",
+    );
+    await flushPromises();
+    expect(
+      wrapper.findAll("img").map((image) => image.attributes("src")),
+    ).toEqual([
+      "pine-attachment://local/?p=%2FUsers%2Fkw%2FWeek%204%2F%E6%A1%88%E4%BE%8B.png",
+      "pine-attachment://local/?p=%2FUsers%2Fkw%2FWeek%204%2Ffigure.png",
+    ]);
+    await wrapper.get("img").trigger("error");
+    expect(wrapper.get('[role="status"]').text()).toBe("图片加载失败");
+    await wrapper.setProps({ source: "![新配图](/Users/kw/new.png)" });
+    await flushPromises();
+    expect(wrapper.get("img").attributes("src")).toBe(
+      "pine-attachment://local/?p=%2FUsers%2Fkw%2Fnew.png",
+    );
+    expect(wrapper.find('[role="status"]').exists()).toBe(false);
+    wrapper.unmount();
+  });
+
+  it("resolves document images in paragraphs, lists and tables and updates the base", async () => {
+    const source = [
+      "![案例配图](figures-dd/dd-01-vera-winthagen-eindhoven.png)",
+      "- ![列表配图](figures-dd/list.png)",
+      "| 配图 |\n| --- |\n| ![表格配图](figures-dd/table.png) |",
+    ].join("\n\n");
+    const documentUrl =
+      "pine-project-media://preview/?owner=7&projectId=p1&folderId=f1&relativePath=Readings%2F中文译本.md";
+    const wrapper = mountMarkdown({ source, documentUrl });
+    // File previews supply preparsed nodes, which must use the same image context.
+    await wrapper.setProps({
+      nodes: parseMarkdownToStructure(
+        source,
+        configurePineMarkdown(getMarkdown("pine-preview")),
+        {
+          final: true,
+          includeSourceMap: true,
+        },
+      ),
+    });
+    await flushPromises();
+    const images = wrapper.findAll("img");
+    expect(images).toHaveLength(3);
+    for (const image of images) {
+      const url = new URL(image.attributes("src")!);
+      expect(url.protocol).toBe("pine-project-media:");
+      expect(url.searchParams.get("relativePath")).toBe("Readings/中文译本.md");
+      expect(url.searchParams.get("markdownImage")).toMatch(/^figures-dd\//u);
+    }
+    await wrapper.setProps({
+      documentUrl: documentUrl.replace("Readings", "Other"),
+    });
+    await flushPromises();
+    for (const image of wrapper.findAll("img")) {
+      expect(
+        new URL(image.attributes("src")!).searchParams.get("relativePath"),
+      ).toBe("Other/中文译本.md");
+    }
+    wrapper.unmount();
+  });
+
+  it("parses file images with titles while preserving code and rejecting unsafe image URLs", async () => {
+    const source = [
+      '![文件配图](<FILE:///Users/kw/a b.png> "标题")',
+      "`![代码中的图片](file:///Users/kw/code.png)`",
+      "![危险图片](javascript:alert%281%29)",
+    ].join("\n\n");
+    const wrapper = mountMarkdown(source);
+    await wrapper.setProps({
+      nodes: parseMarkdownToStructure(
+        source,
+        configurePineMarkdown(getMarkdown("pine-preview")),
+        { final: true, includeSourceMap: true },
+      ),
+    });
+    await flushPromises();
+    expect(wrapper.findAll("img")).toHaveLength(1);
+    expect(wrapper.get("img").attributes("src")).toBe(
+      "pine-attachment://local/?p=%2FUsers%2Fkw%2Fa%20b.png",
+    );
+    expect(wrapper.get("img").attributes("title")).toBe("标题");
+    expect(wrapper.get("code").text()).toBe(
+      "![代码中的图片](file:///Users/kw/code.png)",
+    );
+    wrapper.unmount();
+  });
 
   it("renders common Markdown structures", () => {
     const wrapper = mountMarkdown(

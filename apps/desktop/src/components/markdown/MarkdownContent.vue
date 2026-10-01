@@ -9,7 +9,7 @@ import {
 import CodeBlock from "./CodeBlock.vue";
 import MarkdownImage from "./MarkdownImage.vue";
 import MarkdownTable from "./MarkdownTable.vue";
-import { disableMarkdownReplacements } from "./configureMarkdown";
+import { configurePineMarkdown } from "./configureMarkdown";
 import { escapeProseDollarDelimiters } from "./escapeProseDollarDelimiters";
 import "katex/dist/katex.min.css";
 
@@ -24,7 +24,7 @@ setCustomComponents("pine-chat", {
 </script>
 
 <script setup lang="ts">
-import { computed, ref } from "vue";
+import { computed, provide, ref } from "vue";
 import { storeToRefs } from "pinia";
 import MarkdownRender from "markstream-vue";
 import type { BaseNode } from "markstream-vue";
@@ -32,6 +32,7 @@ import { useI18n } from "vue-i18n";
 import { toast } from "vue-sonner";
 import "markstream-vue/index.css";
 import { useAppearanceStore } from "@/stores/appearance";
+import { markdownImageDocumentUrl } from "./markdownImageContext";
 import { Button } from "@/components/ui/button";
 import {
   AlertDialog,
@@ -50,10 +51,17 @@ const props = defineProps<{
   final?: boolean;
   /** Preparsed file preview nodes carrying source line metadata. */
   nodes?: BaseNode[];
+  /** Owner-scoped file preview URL; chat has no base document. */
+  documentUrl?: string;
   /** Muted, small-scale typography for secondary surfaces (thinking
    * panels); tightens markstream's `--ms-*` type scale. */
   compact?: boolean;
 }>();
+
+provide(
+  markdownImageDocumentUrl,
+  computed(() => props.documentUrl),
+);
 
 // markstream themes its code block via the `is-dark` prop (its inline style vars
 // do not track a `.dark` ancestor), so drive it from the app's color scheme.
@@ -158,7 +166,7 @@ async function confirmExternalLink(): Promise<void> {
       :nodes="nodes"
       :final="final"
       :parse-options="markdownParseOptions"
-      :custom-markdown-it="disableMarkdownReplacements"
+      :custom-markdown-it="configurePineMarkdown"
       html-policy="safe"
       custom-id="pine-chat"
       :smooth-streaming="false"

@@ -310,7 +310,7 @@ watch(
             })
           : await window.pine.readPresentedFilePreview({ path: target.path });
       if (active) {
-        if (!fileChanged && "url" in result) {
+        if (!fileChanged && "url" in result && result.url) {
           const url = new URL(result.url);
           url.searchParams.set("revision", String(revision.value));
           result.url = url.href;
