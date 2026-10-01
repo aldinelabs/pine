@@ -305,6 +305,7 @@ async function confirmExternalLink(): Promise<void> {
    panel's previous text-sm size; headings collapse toward body size so
    markdown headings stay inside the muted small-type panel. */
 .markdown-content[data-compact] :deep(.markstream-vue) {
+  color: var(--muted-foreground);
   --ms-text-body: 0.875rem;
   --ms-leading-body: 1.6;
   --ms-text-h1: 0.875rem;
