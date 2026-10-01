@@ -444,6 +444,7 @@ export default {
   },
   project: {
     closeProject: "Close project",
+    toggleRightSidebar: "Toggle right sidebar",
     preferences: "Project settings",
     skills: "Skills",
     preview: {

@@ -146,6 +146,8 @@
   --window-titlebar-leading-extra: 0rem;
   /* Width reserved for the native Windows control overlay. */
   --window-titlebar-controls-width: 3rem;
+  /* Extra trailing project actions (right sidebar toggle plus gap). */
+  --window-titlebar-trailing-actions-width: 2rem;
   --window-titlebar-height: calc(
     var(--window-titlebar-control-height) +
       var(--window-titlebar-padding-block) +
@@ -248,6 +250,8 @@
   --window-titlebar-controls-width: calc(
     100vw - env(titlebar-area-width, 100vw)
   );
+  /* Titlebar end padding, right sidebar toggle and gap before the tabs. */
+  --window-titlebar-trailing-actions-width: 3rem;
 }
 
 .dark {

@@ -1,7 +1,7 @@
 import { flushPromises, mount } from "@vue/test-utils";
 import { createPinia, setActivePinia } from "pinia";
 import { createMemoryHistory, createRouter } from "vue-router";
-import { expect, it, vi } from "vitest";
+import { beforeEach, expect, it, vi } from "vitest";
 import { createAppI18n } from "@/app/i18n";
 import { ROUTE_NAMES } from "@/router/routes";
 import type { PineProject } from "@/shared/projects";
@@ -25,6 +25,10 @@ const project: PineProject = {
   schemaVersion: 1,
   updatedAt: "2026-08-19T12:00:00.000Z",
 };
+
+beforeEach(() => {
+  window.localStorage.clear();
+});
 
 async function mountView(
   closeProject = vi.fn().mockResolvedValue(undefined),
@@ -154,5 +158,28 @@ it("stays on the project when closing it fails", async () => {
 
   expect(projectStore.activeProject).toEqual(project);
   expect(router.currentRoute.value.name).toBe(ROUTE_NAMES.project);
+  wrapper.unmount();
+});
+
+it("opens the right sidebar by default and toggles it independently of the left shortcut", async () => {
+  const { wrapper } = await mountView();
+  await flushPromises();
+  const right = () =>
+    wrapper.get('[data-slot="sidebar"][data-side="right"]').attributes();
+  const toggle = wrapper.get('[data-testid="project-right-sidebar-toggle"]');
+
+  expect(right()["data-state"]).toBe("expanded");
+  expect(toggle.attributes("aria-pressed")).toBe("true");
+
+  await toggle.trigger("click");
+  await flushPromises();
+  expect(right()["data-state"]).toBe("collapsed");
+  expect(toggle.attributes("aria-pressed")).toBe("false");
+
+  window.dispatchEvent(
+    new KeyboardEvent("keydown", { key: "b", metaKey: true }),
+  );
+  await flushPromises();
+  expect(right()["data-state"]).toBe("collapsed");
   wrapper.unmount();
 });

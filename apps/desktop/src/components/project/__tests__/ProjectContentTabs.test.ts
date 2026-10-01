@@ -17,6 +17,7 @@ import { PINE_RELEASES_URL, PINE_REPOSITORY_URL } from "@/shared/window";
 import type { PineSessionSummary } from "@/shared/sessions";
 import { useSessionStore } from "@/stores/session";
 import { useContentTabsStore } from "@/stores/contentTabs";
+import { useProjectRightSidebarStore } from "@/stores/projectRightSidebar";
 import {
   CONTENT_TAB_DRAG_TYPE,
   FILE_TAB_DRAG_TYPE,
@@ -133,7 +134,7 @@ const secondSession: PineSessionSummary = {
 };
 
 describe("ProjectContentTabs", () => {
-  it("uses circular message icons for session tabs and actions", async () => {
+  it("uses a message icon for session tabs and a plus icon for adding", async () => {
     const { wrapper } = await mountTabs();
 
     const sessionIcon = wrapper.get('[role="tab"] svg');
@@ -141,7 +142,7 @@ describe("ProjectContentTabs", () => {
     expect(sessionIcon.attributes("data-icon")).toBe("inline-start");
 
     const addTab = wrapper.get('button[aria-label="Add session tab"]');
-    expect(addTab.get("svg").classes()).toContain("lucide-message-circle-plus");
+    expect(addTab.get("svg").classes()).toContain("lucide-plus");
     wrapper.unmount();
   });
 
@@ -268,6 +269,26 @@ describe("ProjectContentTabs", () => {
       "window-no-drag",
     );
 
+    wrapper.unmount();
+  });
+
+  it("moves tab actions to the edge while the right sidebar is open", async () => {
+    const { wrapper } = await mountTabs();
+    const rightSidebar = useProjectRightSidebarStore();
+    rightSidebar.setOpen(false);
+    await nextTick();
+    const titlebar = () =>
+      wrapper.get('[data-slot="project-content-tabs-titlebar"]').classes();
+    const reserved =
+      "pr-[calc(var(--window-titlebar-controls-width)+var(--window-titlebar-trailing-actions-width))]";
+
+    expect(titlebar()).toContain(reserved);
+
+    rightSidebar.setOpen(true);
+    await nextTick();
+
+    expect(titlebar()).not.toContain(reserved);
+    expect(titlebar()).toContain("pr-3");
     wrapper.unmount();
   });
 

@@ -418,6 +418,7 @@ export default {
   },
   project: {
     closeProject: "关闭项目",
+    toggleRightSidebar: "切换右侧栏",
     preferences: "项目设置",
     skills: "工作技能",
     preview: {
