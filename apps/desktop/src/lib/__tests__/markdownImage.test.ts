@@ -59,6 +59,23 @@ describe("resolveMarkdownImageSrc", () => {
     expect(resolveMarkdownImageSrc("images/a.png")).toBe("images/a.png");
   });
 
+  it("keeps the document's owner and grants when resolving relative images", () => {
+    const documentUrl =
+      "pine-project-media://preview/?owner=7&presented=1&path=%2FReadings%2F中文译本.md";
+    const image = new URL(
+      resolveMarkdownImageSrc("figures-dd/案例%20配图.png", documentUrl),
+    );
+    expect(Object.fromEntries(image.searchParams)).toEqual({
+      owner: "7",
+      presented: "1",
+      path: "/Readings/中文译本.md",
+      markdownImage: "figures-dd/案例%20配图.png",
+    });
+    expect(
+      resolveMarkdownImageSrc("https://example.com/a.png", documentUrl),
+    ).toBe("https://example.com/a.png");
+  });
+
   it("returns empty sources unchanged", () => {
     expect(resolveMarkdownImageSrc("")).toBe("");
   });

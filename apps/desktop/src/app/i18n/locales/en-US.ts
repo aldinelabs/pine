@@ -9,6 +9,7 @@ export default {
     saving: "Saving",
   },
   markdown: {
+    imageLoadFailed: "Image failed to load",
     externalLinkTitle: "Open external link?",
     externalLinkDescription:
       "After you confirm, this URL will open in your default browser:",

@@ -132,6 +132,38 @@ function selectText(
 }
 
 describe("ProjectFilePreview", () => {
+  it.each(["project", "presented"] as const)(
+    "passes the %s document URL through the actual Markdown preview renderer",
+    async (source) => {
+      const url =
+        "pine-project-media://preview/?owner=7&" +
+        (source === "project"
+          ? "projectId=p1&folderId=f1&relativePath=Readings%2Freport.md"
+          : "presented=1&path=%2Ftmp%2Freport.md");
+      const read = vi.fn().mockResolvedValue({
+        ...info,
+        kind: "text",
+        text: "![案例配图](figures-dd/dd-01-vera-winthagen-eindhoven.png)",
+        encoding: "UTF-8",
+        url,
+      });
+      const wrapper = render(read, read);
+      await wrapper.setProps({
+        file:
+          source === "project"
+            ? { ...file, relativePath: "Readings/report.md" }
+            : presentedFile,
+      });
+      await flushPromises();
+      const imageUrl = new URL(wrapper.get("img").attributes("src")!);
+      expect(imageUrl.searchParams.get("markdownImage")).toBe(
+        "figures-dd/dd-01-vera-winthagen-eindhoven.png",
+      );
+      imageUrl.searchParams.delete("markdownImage");
+      expect(imageUrl.href).toBe(new URL(url).href);
+    },
+  );
+
   function notifyPreviewChange(watchId?: string): void {
     const [request] = vi.mocked(window.pine.setWatchedFilePreview).mock
       .calls[0];

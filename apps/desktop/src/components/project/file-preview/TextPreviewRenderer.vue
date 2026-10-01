@@ -9,7 +9,7 @@ import {
 import { useEventListener } from "@vueuse/core";
 import { getMarkdown, parseMarkdownToStructure } from "markstream-vue";
 import CodeBlock from "@/components/markdown/CodeBlock.vue";
-import { disableMarkdownReplacements } from "@/components/markdown/configureMarkdown";
+import { configurePineMarkdown } from "@/components/markdown/configureMarkdown";
 import MarkdownContent from "@/components/markdown/MarkdownContent.vue";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { fileLanguage } from "@/lib/fileLanguage";
@@ -36,7 +36,7 @@ const markdownNodes = computed(() =>
   rendered.value && language.value === "markdown"
     ? parseMarkdownToStructure(
         source.value,
-        disableMarkdownReplacements(getMarkdown("pine-preview")),
+        configurePineMarkdown(getMarkdown("pine-preview")),
         {
           final: true,
           includeSourceMap: true,
@@ -140,6 +140,7 @@ defineExpose({ readSelection });
         class="mx-auto w-full max-w-[var(--session-content-max-width)] py-4"
         :source="source"
         :nodes="markdownNodes"
+        :document-url="preview.kind === 'text' ? preview.url : undefined"
         final
       />
       <CodeBlock
