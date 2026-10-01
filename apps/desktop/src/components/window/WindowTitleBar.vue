@@ -46,12 +46,14 @@ withDefaults(defineProps<{ controlsOnly?: boolean }>(), {
   width: var(--sidebar-width);
 }
 
+/* Keep the whole selector inside :global(); Vue drops anything after a
+   leading :global(...) and would apply the width to the sidebar wrapper. */
 :global(
-    [data-slot="sidebar-wrapper"]:has(
-      [data-slot="sidebar"][data-state="collapsed"]
+  [data-slot="sidebar-wrapper"]:has(
+      [data-slot="sidebar"][data-side="left"][data-state="collapsed"]
     )
-  )
-  .window-titlebar-sidebar-drag-region {
+    .window-titlebar-sidebar-drag-region
+) {
   width: 0;
 }
 
