@@ -61,6 +61,7 @@ const frozenLayoutStyle = computed(() =>
         flex: "none",
         // Fixed sidebar containers lay out against the frozen box too.
         contain: "layout",
+        "--window-resize-delay": `${frozenResize.transitionDelay.value}ms`,
       },
 );
 
@@ -208,7 +209,7 @@ onKeyStroke("k", (event) => {
           :class="[
             'flex items-center gap-1',
             isTrailingControlsAnimated &&
-              'transition-transform duration-500 ease-out-expo',
+              'transition-transform delay-(--window-resize-delay) duration-500 ease-out-expo',
           ]"
           :style="trailingControlsStyle"
         >

@@ -253,6 +253,7 @@ import {
   SET_WINDOW_LAYOUT_CHANNEL,
   PLAN_WINDOW_RESIZE_CHANNEL,
   COMMIT_WINDOW_RESIZE_CHANNEL,
+  WINDOW_RESIZE_STARTED_CHANNEL,
   isPineWindowResizeRequest,
   isPineWindowLayout,
   GET_APP_VERSION_CHANNEL,
@@ -1205,7 +1206,11 @@ ipcMain.handle(
 
 ipcMain.handle(COMMIT_WINDOW_RESIZE_CHANNEL, (event): Promise<void> => {
   const window = BrowserWindow.fromWebContents(event.sender);
-  return window ? commitWindowResize(window) : Promise.resolve();
+  if (!window) return Promise.resolve();
+  return commitWindowResize(window, (startedAt) => {
+    if (!event.sender.isDestroyed())
+      event.sender.send(WINDOW_RESIZE_STARTED_CHANNEL, startedAt);
+  });
 });
 
 ipcMain.handle(GET_APP_VERSION_CHANNEL, (): string => app.getVersion());

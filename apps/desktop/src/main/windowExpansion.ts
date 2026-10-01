@@ -128,12 +128,14 @@ function animateBounds(
   window: BrowserWindow,
   from: Rectangle,
   to: Rectangle,
+  onStart?: (startedAt: number) => void,
 ): Promise<void> {
   stopAnimation(window);
   return new Promise((resolve) => {
     // Frame-by-frame on every platform: the native macOS animation cannot use
     // the renderer's easing curve.
     const startedAt = Date.now();
+    onStart?.(startedAt);
     const timer = setInterval(() => {
       if (window.isDestroyed()) return stopAnimation(window);
       const progress = Math.min(
@@ -219,10 +221,17 @@ export function planWindowResize(
   return to.width - from.width;
 }
 
-/** Runs the planned resize; resolves when it settles or is interrupted. */
-export function commitWindowResize(window: BrowserWindow): Promise<void> {
+/**
+ * Runs the planned resize; resolves when it settles or is interrupted.
+ * `onStart` receives the animation clock's start (epoch ms) so the renderer
+ * can align matching CSS transitions with the window's own timeline.
+ */
+export function commitWindowResize(
+  window: BrowserWindow,
+  onStart?: (startedAt: number) => void,
+): Promise<void> {
   const planned = plannedResizes.get(window);
   plannedResizes.delete(window);
   if (!planned || window.isDestroyed()) return Promise.resolve();
-  return animateBounds(window, planned.from, planned.to);
+  return animateBounds(window, planned.from, planned.to, onStart);
 }

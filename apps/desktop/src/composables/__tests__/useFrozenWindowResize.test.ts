@@ -1,5 +1,8 @@
 import { afterEach, expect, it, vi } from "vitest";
-import { useFrozenWindowResize } from "../useFrozenWindowResize";
+import {
+  useFrozenWindowResize,
+  WINDOW_EDGE_LATENCY_MS,
+} from "../useFrozenWindowResize";
 
 afterEach(() => {
   Reflect.deleteProperty(window, "pine");
@@ -55,4 +58,44 @@ it("reports skipped resizes so callers can fall back", async () => {
   ).resolves.toBe(false);
   expect(beforeCommit).not.toHaveBeenCalled();
   expect(commitWindowResize).not.toHaveBeenCalled();
+});
+
+it("aligns matching transitions with the window animation clock", async () => {
+  let notifyStarted: (startedAt: number) => void = () => {};
+  let finishResize = () => {};
+  const unsubscribe = vi.fn();
+  Object.defineProperty(window, "pine", {
+    configurable: true,
+    value: {
+      planWindowResize: vi.fn().mockResolvedValue(-256),
+      commitWindowResize: vi.fn(
+        () => new Promise<void>((resolve) => (finishResize = resolve)),
+      ),
+      onWindowResizeStarted: vi.fn((listener: (startedAt: number) => void) => {
+        notifyStarted = listener;
+        return unsubscribe;
+      }),
+    },
+  });
+  const onCommitStart = vi.fn();
+  const resize = useFrozenWindowResize();
+
+  const running = resize.run(
+    { kind: "toggle-right-sidebar", open: false },
+    { onCommitStart },
+  );
+  await vi.waitFor(() =>
+    expect(window.pine.commitWindowResize).toHaveBeenCalledOnce(),
+  );
+  expect(onCommitStart).not.toHaveBeenCalled();
+
+  vi.spyOn(Date, "now").mockReturnValue(1_000);
+  notifyStarted(980);
+  expect(onCommitStart).toHaveBeenCalledExactlyOnceWith(-256);
+  expect(resize.transitionDelay.value).toBe(WINDOW_EDGE_LATENCY_MS - 20);
+  vi.restoreAllMocks();
+
+  finishResize();
+  await expect(running).resolves.toBe(true);
+  expect(unsubscribe).toHaveBeenCalled();
 });

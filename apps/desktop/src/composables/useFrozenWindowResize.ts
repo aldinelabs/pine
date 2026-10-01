@@ -4,11 +4,21 @@ import type { PineWindowResizeRequest } from "@/shared/window";
 interface FrozenResizeHooks {
   /** Runs while frozen, before the window starts moving. */
   beforeCommit?: (delta: number) => void;
-  /** Runs as the window animation starts; start matching CSS transitions here. */
+  /**
+   * Runs when the window animation starts; start matching CSS transitions
+   * here, delayed by `transitionDelay` so they share the window's timeline.
+   */
   onCommitStart?: (delta: number) => void;
   /** Runs in the same tick as the unfreeze, so both land in one layout. */
   afterCommit?: () => void;
 }
+
+/**
+ * How much later than the window's animation clock the visible window edge
+ * moves. Transitions that follow the edge are delayed by this much; ~5ms was
+ * the zero-crossing when sampling the controls against the viewport edge.
+ */
+export const WINDOW_EDGE_LATENCY_MS = 5;
 
 function nextFrame(): Promise<void> {
   return new Promise((resolve) => requestAnimationFrame(() => resolve()));
@@ -22,6 +32,8 @@ function nextFrame(): Promise<void> {
 export function useFrozenWindowResize() {
   const frozenWidth = ref<number | null>(null);
   const isResizing = ref(false);
+  /** CSS transition-delay (ms, may be negative) aligning with the window. */
+  const transitionDelay = ref(0);
 
   /** Returns false when the window was not resized (caller should fall back). */
   async function run(
@@ -42,9 +54,22 @@ export function useFrozenWindowResize() {
       await nextFrame();
       await nextFrame();
 
+      const startCommit = (startedAt = Date.now()) => {
+        transitionDelay.value =
+          WINDOW_EDGE_LATENCY_MS - (Date.now() - startedAt);
+        hooks.onCommitStart?.(delta);
+      };
+      const stopListening = pine.onWindowResizeStarted?.((startedAt) => {
+        stopListening?.();
+        startCommit(startedAt);
+      });
       const committed = pine.commitWindowResize();
-      hooks.onCommitStart?.(delta);
-      await committed;
+      if (!stopListening) startCommit();
+      try {
+        await committed;
+      } finally {
+        stopListening?.();
+      }
 
       hooks.afterCommit?.();
       frozenWidth.value = null;
@@ -58,6 +83,7 @@ export function useFrozenWindowResize() {
       return true;
     } finally {
       frozenWidth.value = null;
+      transitionDelay.value = 0;
       isResizing.value = false;
     }
   }
@@ -65,6 +91,7 @@ export function useFrozenWindowResize() {
   return {
     frozenWidth: readonly(frozenWidth),
     isResizing: readonly(isResizing),
+    transitionDelay: readonly(transitionDelay),
     run,
   };
 }

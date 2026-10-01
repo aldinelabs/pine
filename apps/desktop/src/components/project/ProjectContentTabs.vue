@@ -405,7 +405,7 @@ watch(activeSession, (session) => {
       data-slot="project-content-tabs-titlebar"
       :class="
         cn(
-          'window-drag pointer-events-auto relative z-30 flex h-[var(--window-titlebar-height)] shrink-0 items-center gap-2 pr-3 pl-3 transition-[padding] duration-500 ease-out-expo',
+          'window-drag pointer-events-auto relative z-30 flex h-[var(--window-titlebar-height)] shrink-0 items-center gap-2 pr-3 pl-3 transition-[padding] delay-(--window-resize-delay) duration-500 ease-out-expo',
           shouldReserveTrailingControlsSpace &&
             'pr-[calc(var(--window-titlebar-controls-width)+var(--window-titlebar-trailing-actions-width))]',
           shouldReserveWindowControlsSpace &&

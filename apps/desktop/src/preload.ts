@@ -172,6 +172,7 @@ import {
   SET_WINDOW_LAYOUT_CHANNEL,
   PLAN_WINDOW_RESIZE_CHANNEL,
   COMMIT_WINDOW_RESIZE_CHANNEL,
+  WINDOW_RESIZE_STARTED_CHANNEL,
   GET_APP_VERSION_CHANNEL,
   OPEN_EXTERNAL_URL_CHANNEL,
   type PineWindowLayout,
@@ -219,6 +220,12 @@ const pineApi: PineDesktopApi = {
   planWindowResize: (request: PineWindowResizeRequest) =>
     ipcRenderer.invoke(PLAN_WINDOW_RESIZE_CHANNEL, request),
   commitWindowResize: () => ipcRenderer.invoke(COMMIT_WINDOW_RESIZE_CHANNEL),
+  onWindowResizeStarted: (listener: (startedAt: number) => void) => {
+    const handler = (_event: unknown, startedAt: number) => listener(startedAt);
+    ipcRenderer.on(WINDOW_RESIZE_STARTED_CHANNEL, handler);
+    return () =>
+      ipcRenderer.removeListener(WINDOW_RESIZE_STARTED_CHANNEL, handler);
+  },
   getAppVersion: (): Promise<string> =>
     ipcRenderer.invoke(GET_APP_VERSION_CHANNEL),
   downloadUpdate: (): Promise<DownloadUpdateResult> =>

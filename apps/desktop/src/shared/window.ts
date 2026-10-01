@@ -7,6 +7,7 @@ export const CLOSE_WINDOW_CHANNEL = "window:close" as const;
 export const SET_WINDOW_LAYOUT_CHANNEL = "window:set-layout" as const;
 export const PLAN_WINDOW_RESIZE_CHANNEL = "window:plan-resize" as const;
 export const COMMIT_WINDOW_RESIZE_CHANNEL = "window:commit-resize" as const;
+export const WINDOW_RESIZE_STARTED_CHANNEL = "window:resize-started" as const;
 export const GET_APP_VERSION_CHANNEL = "app:get-version" as const;
 export const OPEN_EXTERNAL_URL_CHANNEL = "shell:open-external" as const;
 
@@ -77,6 +78,8 @@ export interface PineWindowApi {
   planWindowResize: (request: PineWindowResizeRequest) => Promise<number>;
   /** Animates the planned resize; resolves when it settles. */
   commitWindowResize: () => Promise<void>;
+  /** Fires when a committed resize starts, with its clock start (epoch ms). */
+  onWindowResizeStarted: (listener: (startedAt: number) => void) => () => void;
   downloadUpdate?: () => Promise<import("./updates").DownloadUpdateResult>;
   getAppVersion: () => Promise<string>;
   installUpdate?: () => Promise<import("./updates").InstallUpdateResult>;
