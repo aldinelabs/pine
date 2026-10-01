@@ -69,6 +69,21 @@ export function projectWithRightSidebarSize(current: Rectangle): WindowSize {
   };
 }
 
+export function rightSidebarWidthChange(open: boolean): number {
+  return open ? RIGHT_SIDEBAR_WIDTH : -RIGHT_SIDEBAR_WIDTH;
+}
+
+/**
+ * Accumulates sidebar toggles made while maximized or fullscreen. Opposite
+ * toggles cancel out, so the debt never exceeds one sidebar width.
+ */
+export function deferWidthChange(pending: number, open: boolean): number {
+  return Math.max(
+    -RIGHT_SIDEBAR_WIDTH,
+    Math.min(RIGHT_SIDEBAR_WIDTH, pending + rightSidebarWidthChange(open)),
+  );
+}
+
 /**
  * Adds or removes the right sidebar's width so the content area keeps its
  * size. The left edge stays put unless the window would leave the work area.
@@ -76,10 +91,10 @@ export function projectWithRightSidebarSize(current: Rectangle): WindowSize {
 export function rightSidebarBounds(
   current: Rectangle,
   workArea: Rectangle,
-  open: boolean,
+  widthChange: number,
   minWidth: number,
 ): Rectangle | null {
-  const requested = current.width + (open ? 1 : -1) * RIGHT_SIDEBAR_WIDTH;
+  const requested = current.width + widthChange;
   const width = Math.min(Math.max(requested, minWidth), workArea.width);
   if (width === current.width) return null;
   return {
@@ -114,6 +129,9 @@ const plannedResizes = new WeakMap<
   BrowserWindow,
   { from: Rectangle; to: Rectangle }
 >();
+/** Sidebar width owed by windows toggled while maximized or fullscreen. */
+const deferredWidthChanges = new WeakMap<BrowserWindow, number>();
+const windowsWatchingRestore = new WeakSet<BrowserWindow>();
 
 /** Interrupted animations still settle so waiting renderers can unfreeze. */
 function stopAnimation(window: BrowserWindow): void {
@@ -164,6 +182,7 @@ export function applyWindowLayout(
   // Resizing must stay enabled while animating; setBounds respects it on
   // some platforms.
   window.setResizable(true);
+  if (!isProject) deferredWidthChanges.delete(window);
 
   if (!isProject && window.isFullScreen()) {
     window.once("leave-full-screen", () => applyWindowLayout(window, layout));
@@ -197,13 +216,17 @@ export function planWindowResize(
   request: PineWindowResizeRequest,
 ): number {
   plannedResizes.delete(window);
-  if (
-    window.isDestroyed() ||
-    !window.isResizable() ||
-    window.isMaximized() ||
-    window.isFullScreen()
-  )
+  if (window.isDestroyed()) return 0;
+  // Checked before isResizable(): macOS reports fullscreen windows as not
+  // resizable. Only project windows can be maximized or fullscreen.
+  if (window.isMaximized() || window.isFullScreen()) {
+    // macOS ignores setBounds in fullscreen and leaves maximized on it, so
+    // apply the sidebar's width once the window is restored instead.
+    if (request.kind === "toggle-right-sidebar")
+      deferRightSidebarWidth(window, request.open);
     return 0;
+  }
+  if (!window.isResizable()) return 0;
   stopAnimation(window);
   const from = window.getBounds();
   const { workArea } = screen.getDisplayMatching(from);
@@ -213,7 +236,7 @@ export function planWindowResize(
       : rightSidebarBounds(
           from,
           workArea,
-          request.open,
+          rightSidebarWidthChange(request.open),
           window.getMinimumSize()[0],
         );
   if (!to) return 0;
@@ -234,4 +257,40 @@ export function commitWindowResize(
   plannedResizes.delete(window);
   if (!planned || window.isDestroyed()) return Promise.resolve();
   return animateBounds(window, planned.from, planned.to, onStart);
+}
+
+function deferRightSidebarWidth(window: BrowserWindow, open: boolean): void {
+  const pending = deferWidthChange(deferredWidthChanges.get(window) ?? 0, open);
+  if (pending === 0) deferredWidthChanges.delete(window);
+  else deferredWidthChanges.set(window, pending);
+  if (windowsWatchingRestore.has(window)) return;
+  windowsWatchingRestore.add(window);
+  // Defer past the event so the restored frame is in place before measuring.
+  const onRestore = () => setTimeout(() => applyDeferredWidth(window), 0);
+  window.on("leave-full-screen", onRestore);
+  window.on("unmaximize", onRestore);
+}
+
+/** Catches up on sidebar toggles made while maximized or fullscreen. */
+function applyDeferredWidth(window: BrowserWindow): void {
+  const pending = deferredWidthChanges.get(window);
+  if (
+    !pending ||
+    window.isDestroyed() ||
+    window.isMaximized() ||
+    window.isFullScreen()
+  )
+    return;
+  deferredWidthChanges.delete(window);
+  const from = window.getBounds();
+  const { workArea } = screen.getDisplayMatching(from);
+  const to = rightSidebarBounds(
+    from,
+    workArea,
+    pending,
+    window.getMinimumSize()[0],
+  );
+  // The content legitimately changes width here, so this resize is not
+  // frozen in the renderer.
+  if (to) void animateBounds(window, from, to);
 }

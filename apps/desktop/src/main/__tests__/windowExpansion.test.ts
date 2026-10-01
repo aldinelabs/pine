@@ -7,6 +7,7 @@ import {
   interpolateBounds,
   projectWithRightSidebarSize,
   resizedBounds,
+  deferWidthChange,
   rightSidebarBounds,
 } from "../windowExpansion";
 
@@ -59,12 +60,12 @@ describe("window layout sizing", () => {
   it("adds and removes the right sidebar width from the right edge", () => {
     const bounds = { x: 100, y: 60, width: 1120, height: 840 };
 
-    expect(rightSidebarBounds(bounds, workArea, true, 720)).toEqual({
+    expect(rightSidebarBounds(bounds, workArea, 256, 720)).toEqual({
       ...bounds,
       width: 1376,
     });
     expect(
-      rightSidebarBounds({ ...bounds, width: 1376 }, workArea, false, 720),
+      rightSidebarBounds({ ...bounds, width: 1376 }, workArea, -256, 720),
     ).toEqual({ ...bounds, width: 1120 });
   });
 
@@ -73,7 +74,7 @@ describe("window layout sizing", () => {
       rightSidebarBounds(
         { x: 300, y: 60, width: 1120, height: 840 },
         workArea,
-        true,
+        256,
         720,
       ),
     ).toMatchObject({ x: 136, width: 1376 });
@@ -81,7 +82,7 @@ describe("window layout sizing", () => {
       rightSidebarBounds(
         { x: 0, y: 60, width: 1400, height: 840 },
         workArea,
-        true,
+        256,
         720,
       ),
     ).toMatchObject({ x: 0, width: 1512 });
@@ -89,7 +90,7 @@ describe("window layout sizing", () => {
       rightSidebarBounds(
         { x: 0, y: 60, width: 800, height: 840 },
         workArea,
-        false,
+        -256,
         720,
       ),
     ).toMatchObject({ width: 720 });
@@ -97,10 +98,18 @@ describe("window layout sizing", () => {
       rightSidebarBounds(
         { x: 0, y: 60, width: 720, height: 840 },
         workArea,
-        false,
+        -256,
         720,
       ),
     ).toBeNull();
+  });
+
+  it("accumulates sidebar toggles made while maximized or fullscreen", () => {
+    expect(deferWidthChange(0, true)).toBe(256);
+    expect(deferWidthChange(256, false)).toBe(0);
+    expect(deferWidthChange(0, false)).toBe(-256);
+    expect(deferWidthChange(256, true)).toBe(256);
+    expect(deferWidthChange(-256, false)).toBe(-256);
   });
 
   it("eases out towards the target bounds", () => {
