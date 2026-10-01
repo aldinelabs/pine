@@ -11,8 +11,16 @@ Starting with 0.4.4, release notes are written in both Chinese and English.
 
 ### 修复 / Fixed
 
-- 曾编辑过上下文的旧会话现在可自动恢复打开、搜索和导出，并保留原始消息与上下文编辑；重命名后仍可继续对话。Older conversations with context edits now automatically become accessible for opening, searching, and exporting while preserving original messages and context edits; they remain resumable after renaming.
+
+## [0.7.1] - 2026-10-01
+
+### 修复 / Fixed
+
+- Markdown 中的代码块、表格、提示块、图表和工具提示现在跟随 Pine 当前主题使用一致配色，嵌套内容也能清晰显示。Markdown code blocks, tables, callouts, diagrams, and tooltips now use consistent colors from Pine’s active theme, including nested content.
+- MCP 工具请求审批时，审批卡片和状态现在会关联到发起调用的 MCP 工具，并在审批完成后正确更新。Approval cards and status for MCP tool requests now appear on the parent MCP call and update correctly after a decision.
+- 曾编辑过上下文的旧会话现在可恢复打开、搜索和导出，并保留原始消息与上下文编辑；重命名后仍可继续对话。Older conversations with context edits can now be opened, searched, and exported while preserving original messages and context edits; they remain resumable after renaming.
 - 单个会话文件读取失败不再阻止同项目其他会话显示和更新。An unreadable conversation file no longer prevents other conversations in the same project from appearing or updating.
+- 文件预览现在会自动刷新项目文件和临时文件；刷新 Markdown 或源码时保留滚动位置和显示模式。File previews now refresh automatically for project and temporary files, while Markdown and source views keep their scroll position and display mode.
 
 ## [0.7.0] - 2026-10-01
 
