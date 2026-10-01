@@ -111,8 +111,8 @@ async function openDialog(): Promise<void> {
     } catch {
       // A missing file is an action failure, not a reason to show parameters.
     }
-    toast.error(t("project.filePreview.failedTitle"), {
-      description: t("project.filePreview.failedDescription"),
+    toast.error(t("project.preview.failedTitle"), {
+      description: t("project.preview.failedDescription"),
     });
     return;
   }
