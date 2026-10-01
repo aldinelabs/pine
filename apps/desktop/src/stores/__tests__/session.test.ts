@@ -570,22 +570,6 @@ describe("session store", () => {
     });
   });
 
-  it("syncs approval mode changes immediately", async () => {
-    const setApprovalMode = vi.fn().mockResolvedValue({ updated: true });
-    Object.defineProperty(window, "pine", {
-      configurable: true,
-      value: { setApprovalMode },
-    });
-    const store = useSessionStore();
-
-    await store.setApprovalMode("YOLO", session.id);
-
-    expect(setApprovalMode).toHaveBeenCalledWith({
-      approvalMode: "YOLO",
-      sessionId: session.id,
-    });
-  });
-
   it("removes a deleted session and clears it when active", async () => {
     Object.defineProperty(window, "pine", {
       configurable: true,

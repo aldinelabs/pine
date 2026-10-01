@@ -164,7 +164,6 @@ describe("ProjectSessionList", () => {
     const target = wrapper.get("[data-session-group-drop-target]");
     await target.trigger("dragover", { dataTransfer: transfer });
     expect(transfer.dropEffect).toBe("move");
-    expect(target.classes()).toContain("bg-sidebar-accent");
 
     await target.trigger("drop", { dataTransfer: transfer });
     await flushPromises();

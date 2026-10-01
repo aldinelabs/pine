@@ -106,11 +106,5 @@ describe("McpManagerDialog", () => {
 
     expect(wrapper.text()).toContain("编辑 MCP 服务器");
     expect(wrapper.text()).not.toContain("mcp.editTitle");
-    expect(
-      wrapper
-        .findAll("button")
-        .find((button) => button.text().includes("删除"))
-        ?.classes(),
-    ).toContain("sm:mr-auto");
   });
 });

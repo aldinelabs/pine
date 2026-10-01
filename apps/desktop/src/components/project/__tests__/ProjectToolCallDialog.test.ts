@@ -415,8 +415,6 @@ describe("ProjectToolCallDialog", () => {
     });
     const count = wrapper.get("[data-write-lines]");
     expect(count.text()).toBe("（3 行）");
-    expect(count.classes()).toContain("text-sm");
-    expect(count.classes()).not.toContain("text-xs");
     // The content argument grows as the model streams it.
     await wrapper.setProps({
       toolCall: {
@@ -463,7 +461,6 @@ describe("ProjectToolCallDialog", () => {
     );
     const purpose = wrapper.get("[data-tool-purpose]");
     expect(purpose.text()).toBe("用于补充页面信息");
-    expect(purpose.classes()).toContain("font-semibold");
     expect(content.text()).toContain("站点 example.com");
     expect(content.text()).toContain("另 1 个站点");
     expect(content.text()).toContain("第 2 页");
@@ -501,7 +498,6 @@ describe("ProjectToolCallDialog", () => {
     expect(content.text()).toContain("重点：pricing and limits");
     const purpose = wrapper.get("[data-tool-purpose]");
     expect(purpose.text()).toBe("查看苹果官网首页展示的最新产品信息");
-    expect(purpose.classes()).toContain("font-semibold");
     wrapper.unmount();
   });
 

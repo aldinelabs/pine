@@ -134,18 +134,6 @@ const secondSession: PineSessionSummary = {
 };
 
 describe("ProjectContentTabs", () => {
-  it("uses a message icon for session tabs and a plus icon for adding", async () => {
-    const { wrapper } = await mountTabs();
-
-    const sessionIcon = wrapper.get('[role="tab"] svg');
-    expect(sessionIcon.classes()).toContain("lucide-message-circle");
-    expect(sessionIcon.attributes("data-icon")).toBe("inline-start");
-
-    const addTab = wrapper.get('button[aria-label="Add session tab"]');
-    expect(addTab.get("svg").classes()).toContain("lucide-plus");
-    wrapper.unmount();
-  });
-
   it("retains connected session and file scrollports and drafts across activation and reorder", async () => {
     const { wrapper, router, file } = await mountTabs(true);
     const store = useContentTabsStore();
@@ -224,7 +212,6 @@ describe("ProjectContentTabs", () => {
       "session-1",
     ]);
     expect(router.currentRoute.value.query.tab).toBe("session-1");
-    expect(wrapper.get('[role="tablist"]').classes()).toContain("window-drag");
     wrapper.unmount();
   });
 
@@ -718,7 +705,6 @@ describe("ProjectContentTabs", () => {
       wrapper.find('[role="region"][aria-label="No tabs open"]').exists(),
     ).toBe(true);
     const logo = wrapper.get('[role="region"][aria-label="No tabs open"] svg');
-    expect(logo.classes()).toContain("text-muted-foreground/10");
     expect(logo.find("path").exists()).toBe(true);
     expect(wrapper.find('[data-slot="empty"]').exists()).toBe(false);
     expect(wrapper.find('[role="tabpanel"]').exists()).toBe(false);

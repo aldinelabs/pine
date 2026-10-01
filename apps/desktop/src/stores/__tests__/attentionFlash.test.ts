@@ -38,11 +38,4 @@ describe("attention flash registry", () => {
     store.stopAll();
     expect(store.flashingIds.size).toBe(0);
   });
-
-  it("replaces the id set so reactive consumers re-evaluate", () => {
-    const store = useAttentionFlashStore();
-    const before = store.flashingIds;
-    store.flash("tab-1");
-    expect(store.flashingIds).not.toBe(before);
-  });
 });

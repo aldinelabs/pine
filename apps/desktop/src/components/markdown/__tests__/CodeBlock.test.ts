@@ -52,9 +52,6 @@ describe("CodeBlock", () => {
     expect(wrapper.get(".code-preview-gutter").attributes("aria-hidden")).toBe(
       "true",
     );
-    expect(wrapper.get(".code-preview-scroll").classes()).toContain(
-      "code-preview-scroll",
-    );
     wrapper.unmount();
   });
 

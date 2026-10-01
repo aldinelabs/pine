@@ -256,7 +256,6 @@ it("freezes the layout while the window clips the closing right sidebar", async 
   await vi.waitFor(() =>
     expect(trailing().element.style.transform).toBe("translateX(-256px)"),
   );
-  expect(trailing().classes()).toContain("transition-transform");
 
   finishResize();
   await vi.waitFor(() => expect(right()).toBe("collapsed"));

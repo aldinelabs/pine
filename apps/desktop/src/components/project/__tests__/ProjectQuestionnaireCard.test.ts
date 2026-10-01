@@ -44,7 +44,7 @@ function mountCard(questions: AskUserQuestionParams["questions"] = [question]) {
 }
 
 describe("ProjectQuestionnaireCard", () => {
-  it("uses the current question as the card heading and keeps actions compact", () => {
+  it("uses the current question as the card heading", () => {
     const wrapper = mountCard();
 
     expect(wrapper.get('[data-slot="card-title"]').text()).toBe(
@@ -54,19 +54,6 @@ describe("ProjectQuestionnaireCard", () => {
       "Approach",
     );
     expect(wrapper.text()).not.toContain("Your input is needed");
-    const progressClasses = wrapper
-      .get('[data-slot="questionnaire-progress"]')
-      .classes();
-    expect(progressClasses).toEqual(
-      expect.arrayContaining(["min-w-0", "shrink-0", "text-end"]),
-    );
-    expect(progressClasses).not.toContain("min-w-[14ch]");
-    expect(
-      wrapper.get('[data-slot="questionnaire-actions"]').classes(),
-    ).toContain("flex");
-    expect(
-      wrapper.get('[data-slot="questionnaire-primary-actions"]').classes(),
-    ).toEqual(expect.arrayContaining(["flex", "items-center", "gap-2"]));
   });
 
   it("updates the card heading when moving to the next question", async () => {

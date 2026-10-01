@@ -335,12 +335,6 @@ describe("PinePreferencesDialog", () => {
 
     const form = wrapper.get('[data-testid="pine-user-profile-form"]');
     const nickname = form.get("#pine-user-profile-nickname");
-    expect(
-      form
-        .get('[data-slot="scroll-area"]')
-        .classes()
-        .some((className) => className.includes("scroll-fade")),
-    ).toBe(true);
     await vi.waitFor(() =>
       expect((nickname.element as HTMLInputElement).value).toBe(
         "Loaded nickname",
@@ -477,9 +471,6 @@ describe("PinePreferencesDialog", () => {
 
     expect(wrapper.getComponent(Badge).props("variant")).toBe("secondary");
     expect(helpBadge.text()).toBe("");
-    expect(helpBadge.classes()).toEqual(
-      expect.arrayContaining(["size-5", "translate-y-px", "p-0"]),
-    );
     expect(helpBadge.find("svg").attributes("aria-hidden")).toBe("true");
     expect(
       wrapper

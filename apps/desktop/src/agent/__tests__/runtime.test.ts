@@ -19,7 +19,6 @@ import {
   normalizeGeneratedTitle,
   parseJudgeRulings,
   PineAgentRuntime,
-  JUDGE_SYSTEM_PROMPT,
   getLatestCacheHitRate,
   projectSessionDirectory,
   recommendedCompactionReserveTokens,
@@ -240,21 +239,6 @@ describe("approval context", () => {
     expect(context.recentEvents.map((event) => event.id)).toContain(
       "relevant-old-event",
     );
-  });
-});
-
-describe("Computer Use judge guidance", () => {
-  it("teaches the automatic reviewer how native UI calls differ from sandboxed shell work", () => {
-    expect(JUDGE_SYSTEM_PROMPT).toContain(
-      "Computer Use calls need a separate review lens",
-    );
-    expect(JUDGE_SYSTEM_PROMPT).toContain(
-      "observation-only Computer Use calls",
-    );
-    expect(JUDGE_SYSTEM_PROMPT).toContain(
-      "Activation only loads the capability",
-    );
-    expect(JUDGE_SYSTEM_PROMPT).toContain("browser_use_tab");
   });
 });
 

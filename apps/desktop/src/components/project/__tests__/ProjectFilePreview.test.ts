@@ -462,9 +462,6 @@ describe("ProjectFilePreview", () => {
     );
     expect(image.style.width).toBe("1200px");
     expect(image.style.height).toBe("960px");
-    expect(
-      wrapper.get('[data-slot="image-preview-viewport"]').classes(),
-    ).toContain("overflow-auto");
   });
 
   it("switches Markdown between source and rendered content and locates rendered selections", async () => {

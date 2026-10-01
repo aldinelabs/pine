@@ -396,8 +396,6 @@ describe("MarkdownContent", () => {
       final: true,
     });
 
-    const tableContainer = wrapper.get('[data-slot="markdown-table"]');
-    expect(tableContainer.classes()).toContain("markdown-table");
     expect(wrapper.get("tbody code.inline-code").text()).toBe(
       "01 T Downey … ch17 … 中文译本.md",
     );

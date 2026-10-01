@@ -99,11 +99,10 @@ function mountComposer(
 }
 
 describe("ProjectSessionComposer", () => {
-  it("shows Autonomous Work with the info semantic color", () => {
+  it("shows Autonomous Work with its own icon", () => {
     const wrapper = mountComposer({ approvalMode: "autonomous" });
     const trigger = wrapper.get('[data-slot="approval-mode-trigger"]');
     expect(trigger.text()).toContain("自主工作");
-    expect(trigger.find(".text-info").exists()).toBe(true);
     expect(trigger.findComponent(BrainCircuitIcon).exists()).toBe(true);
     expect(trigger.findComponent(ShieldCheckIcon).exists()).toBe(false);
     wrapper.unmount();

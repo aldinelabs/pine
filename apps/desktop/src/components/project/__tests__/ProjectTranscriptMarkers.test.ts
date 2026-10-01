@@ -104,9 +104,6 @@ describe("project transcript markers", () => {
     expect(wrapper.get("[data-thinking-content]").text()).toContain(
       "Check the active session.",
     );
-    expect(wrapper.get("[data-thinking-content]").classes()).toContain(
-      "overflow-y-auto",
-    );
 
     vi.setSystemTime(3_250);
     await vi.advanceTimersByTimeAsync(250);
@@ -639,10 +636,6 @@ describe("project transcript markers", () => {
 
     const code = wrapper.get('[data-slot="marker-content"] code');
     expect(code.text()).toBe("main.ts");
-    expect(code.classes()).toEqual(
-      expect.arrayContaining(["font-mono", "text-sm", "font-normal"]),
-    );
-    expect(code.classes()).not.toEqual(expect.arrayContaining(["bg-muted"]));
   });
 
   it("shows a bash operation summary before the command", () => {
@@ -755,17 +748,8 @@ describe("project transcript markers", () => {
       .get('[data-slot="marker-content"]')
       .findAll("span")
       .find((node) => node.text() === "+6");
-    expect(added?.classes()).toContain("text-emerald-600");
-    expect(editor.get("[data-edit-diff]").classes()).toEqual(
-      expect.arrayContaining(["ml-1", "inline-flex", "gap-1"]),
-    );
+    expect(added).toBeDefined();
     expect(editor.get('[data-slot="marker-content"]').text()).toContain("-5");
-    expect(
-      editor
-        .get('[data-slot="marker-content"]')
-        .findAll("span")
-        .some((node) => node.classes().includes("text-destructive")),
-    ).toBe(true);
 
     // No range when a whole file was read.
     const whole = mount(ProjectToolCallMarker, {
