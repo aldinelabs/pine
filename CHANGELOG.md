@@ -7,19 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Starting with 0.4.4, release notes are written in both Chinese and English.
 从 0.4.4 起，发布记录使用中英双语。
 
-## [Unreleased]
+## [0.7.0] - 2026-10-01
 
 ### 新增 / Added
 
 - 自动审批默认由大模型审核，并新增可选的 Decisions 初筛路径：批准直接放行，需要用户确认时直接显示确认卡片；拒绝或初筛不可用时由大模型复核，可重新批准、拒绝或请求用户确认，并提供理由。全局偏好设置可切换审批路径，从自动同步的模型目录选择 Jev、Solar Decide、Span-01 等初筛模型。Automatic approval continues to use model review by default, with an optional Decisions screening path: allow proceeds directly, and needs_user opens a confirmation card. Denied calls or unavailable screening go to the review model, which can approve, deny, or request user confirmation and provide a rationale. Global preferences offer a path switch and an automatically updated catalog of screening models including Jev, Solar Decide, and Span-01.
+- 全局偏好设置可选择 Pine 默认强调色，提供八种配色；新项目和未单独设置颜色的项目会使用该配色。Global preferences now let you choose Pine’s default accent from eight themes; new projects and projects without their own accent use that color.
 
 ### 变更 / Changed
 
-- 点击读取、写入或打开文件的工具标记时，现在会直接在 Pine 中预览文件；编辑差异以及网页搜索、网页抓取、命令、问答、技能、图像和电脑操作的详情也更易阅读。Clicking a read, write, or present-file tool marker now opens the file preview in Pine; edit diffs and the details of web, command, question, Skill, image, and Computer Use tools are also easier to read.
+- 点击读取、写入或打开文件的工具标记时，现在会直接在 Pine 中预览文件；历史调用也可重新打开仍存在的呈现文件。Clicking a read, write, or present-file tool marker now opens the file preview in Pine; historical calls can also reopen presented files that still exist.
+- 工具详情会按工具类型呈现：编辑显示代码差异，网页搜索结果使用表格；状态和审批信息布局更紧凑，对话框宽度会随内容调整。Tool details now match each tool: edits show code diffs and web search results use a table. Status and approval information use a more compact layout, and the dialog width adjusts to its content.
 - 决策模型审批现在明确区分已授权的常规开发、验证与诊断，以及需要额外同意的操作；减少仅因越过沙盒边界或未逐条指定命令而重复确认的倾向，判断不清时优先交由大模型复核。Decision model screening now more clearly distinguishes authorized development, validation, and diagnosis from actions requiring additional consent, aiming to reduce redundant confirmations caused by sandbox boundaries or exact command wording. Ambiguous screening is directed to model review.
 - 自动审批失败后，手动确认卡片会标明失败原因，并通过通知显示具体错误；较长的审批内容可在卡片内滚动，操作按钮始终可见。When automatic approval fails, the manual review card now identifies the fallback and a notification shows the specific error. Long approval content scrolls within the card while decision buttons stay visible.
 - Decisions 初筛模型选择移至图像生成模型下方，并在大模型审批路径下显示为禁用；对应审批路径选项改名为“基于决策模型”。The Decisions screening model selector now appears below the image generation model and remains visible but disabled when using model review. Its approval path option is now named “Decision model”.
 - 通用设置中的诊断日志说明移至帮助图标提示中。The diagnostic logging description in General settings now appears in a help tooltip.
+- 会话页背景图标和 Markdown 链接现在使用当前强调色；Markdown 正文中的美元符号和 `(c)` 会按原文显示，不再被误解为数学标记或自动替换。Session background icons and Markdown links now follow the active accent color. Dollar signs and `(c)` in Markdown prose are preserved instead of being mistaken for math delimiters or automatically replaced.
 
 ## [0.6.5] - 2026-09-29
 
