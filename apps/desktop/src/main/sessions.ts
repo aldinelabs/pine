@@ -5,7 +5,6 @@ import {
   type JsonlSessionMetadata,
   type Session,
 } from "@earendil-works/pi-agent-core";
-import { NodeExecutionEnv } from "@earendil-works/pi-agent-core/node";
 import { mkdir, stat } from "node:fs/promises";
 import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
@@ -34,6 +33,7 @@ import {
   type PineAttachment,
 } from "../shared/attachments";
 import { parseMessageBlocks } from "../shared/sessions";
+import { PineSessionFileSystem } from "./sessionFileSystem";
 
 const SEARCH_RESULT_LIMIT = 50;
 const SEARCH_INDEX_FILE = "session-search.sqlite";
@@ -473,7 +473,7 @@ function quoteFtsQuery(query: string): string {
 
 export class ProjectSessionService {
   private readonly database: DatabaseSync;
-  private readonly environment: NodeExecutionEnv;
+  private readonly environment: PineSessionFileSystem;
   private readonly liveSessions = new Map<
     string,
     Session<JsonlSessionMetadata>
@@ -485,7 +485,7 @@ export class ProjectSessionService {
     sessionsRoot: string,
     databasePath: string,
   ) {
-    this.environment = new NodeExecutionEnv({ cwd });
+    this.environment = new PineSessionFileSystem({ cwd });
     this.repository = new JsonlSessionRepo({
       fileSystem: this.environment,
       sessionsRoot,
@@ -713,6 +713,26 @@ export class ProjectSessionService {
     ).find((session) => session.id === sessionId);
     if (!metadata) throw new Error("Session not found in the active project.");
 
+    if (await this.environment.isLegacyV3Session(metadata.path)) {
+      // A core Session.setName commit would migrate v3 to v4, which the
+      // coding agent cannot resume. Keep its file format and context edits.
+      const liveSession = this.liveSessions.get(metadata.id);
+      if (liveSession) {
+        await liveSession.close(BACKGROUND_CONTEXT);
+        this.liveSessions.delete(metadata.id);
+      }
+      // SessionManager tolerates malformed lines. Validate the full document
+      // before allowing a rename to append to a genuinely damaged source.
+      await this.readSessionDocument(metadata);
+      // The main bundle is CJS; coding-agent only exposes an ESM import entry.
+      const { SessionManager } =
+        await import("@earendil-works/pi-coding-agent");
+      SessionManager.open(metadata.path).appendSessionInfo(name);
+      const summary = await this.readSessionDocument(metadata);
+      await this.refreshIndex();
+      return summary;
+    }
+
     const summary = await this.withSession(metadata, async (session) => {
       await session.setName(name, BACKGROUND_CONTEXT);
       return this.readSessionDocument(metadata, undefined, session);
@@ -817,27 +837,39 @@ export class ProjectSessionService {
     const changedDocuments: SessionDocument[] = [];
 
     for (const metadata of metadataList) {
-      const sourceMtimeMs = (await stat(metadata.path)).mtimeMs;
-      const indexedSession = indexedSessions.get(metadata.id);
-      if (indexedSession?.source_mtime_ms === sourceMtimeMs) {
-        if (Number(indexedSession.message_count) > 0) {
+      try {
+        const sourceMtimeMs = (await stat(metadata.path)).mtimeMs;
+        const indexedSession = indexedSessions.get(metadata.id);
+        if (indexedSession?.source_mtime_ms === sourceMtimeMs) {
+          if (Number(indexedSession.message_count) > 0) {
+            retainedSessionIds.add(metadata.id);
+          } else if (!this.liveSessions.has(metadata.id)) {
+            await this.repository.delete(metadata, BACKGROUND_CONTEXT);
+          }
+          continue;
+        }
+
+        const document = await this.readSessionDocument(
+          metadata,
+          sourceMtimeMs,
+        );
+        if (!document.hasUserMessage) {
+          if (!this.liveSessions.has(metadata.id)) {
+            await this.repository.delete(metadata, BACKGROUND_CONTEXT);
+          }
+          continue;
+        }
+
+        retainedSessionIds.add(metadata.id);
+        changedDocuments.push(document);
+      } catch (error) {
+        // Preserve any last good index row, leave the source untouched, and
+        // retry next refresh. One broken file must not hide healthy sessions.
+        if (indexedSessions.has(metadata.id)) {
           retainedSessionIds.add(metadata.id);
-        } else if (!this.liveSessions.has(metadata.id)) {
-          await this.repository.delete(metadata, BACKGROUND_CONTEXT);
         }
-        continue;
+        console.warn(`Failed to index session ${metadata.path}`, error);
       }
-
-      const document = await this.readSessionDocument(metadata, sourceMtimeMs);
-      if (!document.hasUserMessage) {
-        if (!this.liveSessions.has(metadata.id)) {
-          await this.repository.delete(metadata, BACKGROUND_CONTEXT);
-        }
-        continue;
-      }
-
-      retainedSessionIds.add(metadata.id);
-      changedDocuments.push(document);
     }
 
     const deleteStatement = this.database.prepare(

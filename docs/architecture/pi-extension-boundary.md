@@ -23,6 +23,16 @@ Opening a workspace initializes the session repository and search index without 
 
 Empty Pi sessions are excluded from the derived search index and deleted through `JsonlSessionRepo`. Sessions created or resumed by the current runtime are protected from cleanup while live, preventing a concurrent history refresh from racing the first message write. An abandoned empty session is removed the next time the workspace is opened and its history is refreshed.
 
+### Legacy session compatibility and healing
+
+The published Pi 0.87.1 packages use two session representations: the coding agent writes v3 JSONL, while `JsonlSessionRepo` imports v3 records into a logical v4 view. Its legacy reader does not recognize `context_edit`, although the coding agent writes and applies it.
+
+`PineSessionFileSystem` normalizes unsupported, structurally valid v3 records into opaque custom metadata during streaming reads. It preserves their IDs, parent links, timestamps, and full payloads across the importer's repeated scans. This automatically restores access to previously unreadable conversations without rewriting their files or modifying installed Pi packages. History and exports retain original messages; the agent reads the original v3 file and still applies context omissions and replacements. Native v4 records, malformed records, and torn trailing lines are left to upstream validation.
+
+Renaming a closed v3 conversation appends a v3 `session_info` record through `SessionManager`; a core `Session.setName` commit would upgrade the source to v4, which the coding agent cannot resume. Any cached core read handle is closed first. Native v4 sessions continue to use the core repository.
+
+Index refresh isolates failures while reading individual session documents. It leaves unreadable files intact, retains any last successful index row, logs the failing path, and retries on subsequent refreshes. Only successfully read sessions can be classified as empty and removed. This recovery covers unsupported legacy metadata; it does not invent missing messages or silently discard malformed JSON or broken entry references.
+
 The SQLite FTS5 database under `.pine/cache/` is a derived, disposable index. It uses the trigram tokenizer for Latin and CJK substring search, stores source modification times for incremental refresh, and can be rebuilt entirely from Pi JSONL files.
 
 If CLI integration is needed later, extract the search engine behind a shared package and add a thin `/pine-resume` Pi extension adapter. Do not patch or shadow the built-in `/resume` command.

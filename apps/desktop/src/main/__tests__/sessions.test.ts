@@ -10,15 +10,23 @@ import {
   type Session,
 } from "@earendil-works/pi-agent-core";
 import { NodeExecutionEnv } from "@earendil-works/pi-agent-core/node";
+import { SessionManager } from "@earendil-works/pi-coding-agent";
 import {
   fauxAssistantMessage,
   fauxThinking,
   fauxToolCall,
 } from "@earendil-works/pi-ai/providers/faux";
-import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import {
+  appendFile,
+  mkdir,
+  mkdtemp,
+  readFile,
+  rm,
+  writeFile,
+} from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   PINE_APPROVAL_DECISION_ENTRY,
   PINE_APPROVAL_MODE_ENTRY,
@@ -125,6 +133,208 @@ async function appendCompaction(
 }
 
 describe("ProjectSessionService", () => {
+  it("heals legacy context edits for history reads without changing agent context or the source file", async () => {
+    const rootPath = await createTemporaryProjectData();
+    const options = serviceOptions(rootPath);
+    await mkdir(options.cwd, { recursive: true });
+    const manager = SessionManager.create(
+      options.cwd,
+      path.join(options.sessionsRoot, "legacy"),
+    );
+    const omittedId = manager.appendMessage({
+      role: "user",
+      content: "Original omitted message",
+      timestamp: Date.now(),
+    });
+    manager.appendMessage(fauxAssistantMessage("Original reply"));
+    manager.appendContextEdit(omittedId, null);
+    const replacedId = manager.appendMessage({
+      role: "user",
+      content: "Original replaced message",
+      timestamp: Date.now(),
+    });
+    manager.appendContextEdit(replacedId, { content: "Replacement context" });
+    manager.appendMessage({
+      role: "user",
+      content: "Latest message",
+      timestamp: Date.now(),
+    });
+    const sessionFile = manager.getSessionFile()!;
+    const sessionId = manager.getSessionId();
+    const original = await readFile(sessionFile, "utf8");
+    const service = await ProjectSessionService.create(options);
+
+    try {
+      await expect(service.search("Latest message")).resolves.toEqual([
+        expect.objectContaining({ id: sessionId }),
+      ]);
+      const page = await service.loadMessages(sessionId, undefined, 1);
+      expect(page.messages.map(textOf)).toEqual(["Latest message"]);
+      const earlier = await service.loadMessages(sessionId, page.nextBefore);
+      expect(earlier.messages.map(textOf)).toEqual([
+        "Original omitted message",
+        "Original reply",
+        "Original replaced message",
+      ]);
+      const exported = await service.exportSession(sessionId, "auto-approve");
+      expect(exported.markdown).toContain("Original omitted message");
+      expect(exported.markdown).toContain("Latest message");
+      expect((await service.attachmentForSession(sessionId)).path).toBe(
+        sessionFile,
+      );
+      expect(await readFile(sessionFile, "utf8")).toBe(original);
+
+      const reopened = SessionManager.open(sessionFile);
+      expect(reopened.buildSessionContext()).toEqual(
+        manager.buildSessionContext(),
+      );
+      expect(JSON.stringify(reopened.buildSessionContext())).not.toContain(
+        "Original omitted message",
+      );
+      expect(JSON.stringify(reopened.buildSessionContext())).toContain(
+        "Replacement context",
+      );
+      reopened.appendMessage({
+        role: "user",
+        content: "Continued message",
+        timestamp: Date.now(),
+      });
+      await expect(service.search("Continued message")).resolves.toHaveLength(
+        1,
+      );
+      expect((await service.resumeSession(sessionId)).summary.id).toBe(
+        sessionId,
+      );
+    } finally {
+      await service.dispose();
+    }
+  });
+
+  it("isolates unreadable sessions, retains their last index, and retries after repair", async () => {
+    const rootPath = await createTemporaryProjectData();
+    const options = serviceOptions(rootPath);
+    await mkdir(options.cwd, { recursive: true });
+    const environment = new NodeExecutionEnv({ cwd: options.cwd });
+    const repository = createRepository(environment, options.sessionsRoot);
+    const damaged = await createSession(repository, options.cwd);
+    await appendMessage(damaged, {
+      role: "user",
+      content: "Previously indexed",
+      timestamp: Date.now(),
+    });
+    const damagedMetadata = damaged.metadata;
+    await damaged.close(BACKGROUND_CONTEXT);
+    const original = await readFile(damagedMetadata.path, "utf8");
+    const service = await ProjectSessionService.create(options);
+    const warning = vi
+      .spyOn(console, "warn")
+      .mockImplementation(() => undefined);
+
+    try {
+      await expect(service.search("")).resolves.toHaveLength(1);
+      await appendFile(damagedMetadata.path, "{broken json}\n", "utf8");
+      const healthy = await createSession(repository, options.cwd);
+      await appendMessage(healthy, {
+        role: "user",
+        content: "New healthy conversation",
+        timestamp: Date.now(),
+      });
+      await healthy.close(BACKGROUND_CONTEXT);
+      const unindexed = await createSession(repository, options.cwd);
+      const unindexedPath = unindexed.metadata.path;
+      await unindexed.close(BACKGROUND_CONTEXT);
+      await appendFile(unindexedPath, "{broken json}\n", "utf8");
+      const unindexedSource = await readFile(unindexedPath, "utf8");
+      await expect(service.search("")).resolves.toHaveLength(2);
+      await expect(
+        service.search("New healthy conversation"),
+      ).resolves.toHaveLength(1);
+      await expect(service.loadMessages(damagedMetadata.id)).rejects.toThrow();
+      expect(warning).toHaveBeenCalled();
+      expect(await readFile(damagedMetadata.path, "utf8")).toBe(
+        `${original}{broken json}\n`,
+      );
+      expect(await readFile(unindexedPath, "utf8")).toBe(unindexedSource);
+      await writeFile(damagedMetadata.path, original, "utf8");
+      await expect(
+        service.loadMessages(damagedMetadata.id),
+      ).resolves.toMatchObject({
+        messages: [{ blocks: [{ text: "Previously indexed" }] }],
+      });
+      await expect(service.search("")).resolves.toHaveLength(2);
+    } finally {
+      await service.dispose();
+      await repository.close(BACKGROUND_CONTEXT);
+      await environment.cleanup(BACKGROUND_CONTEXT);
+    }
+  });
+
+  it("keeps healed v3 sessions resumable after renaming and restarting", async () => {
+    const rootPath = await createTemporaryProjectData();
+    const options = serviceOptions(rootPath);
+    await mkdir(options.cwd, { recursive: true });
+    const manager = SessionManager.create(
+      options.cwd,
+      path.join(options.sessionsRoot, "legacy"),
+    );
+    const targetId = manager.appendMessage({
+      role: "user",
+      content: "Rename this legacy conversation",
+      timestamp: Date.now(),
+    });
+    manager.appendMessage(fauxAssistantMessage("Reply before context edit"));
+    manager.appendContextEdit(targetId, null);
+    const sessionFile = manager.getSessionFile()!;
+    const original = await readFile(sessionFile, "utf8");
+    const sessionId = manager.getSessionId();
+    let service = await ProjectSessionService.create(options);
+
+    try {
+      // Also exercise invalidation of a cached legacy read handle.
+      await service.resumeSession(sessionId);
+      expect(
+        (await service.renameSession(sessionId, "Recovered conversation")).name,
+      ).toBe("Recovered conversation");
+      expect((await readFile(sessionFile, "utf8")).startsWith(original)).toBe(
+        true,
+      );
+      const reopened = SessionManager.open(sessionFile);
+      expect(reopened.getSessionId()).toBe(sessionId);
+      expect(reopened.getSessionName()).toBe("Recovered conversation");
+      expect(reopened.buildSessionContext()).toEqual(
+        manager.buildSessionContext(),
+      );
+      reopened.appendMessage({
+        role: "user",
+        content: "Continue after rename",
+        timestamp: Date.now(),
+      });
+      await service.dispose();
+      service = await ProjectSessionService.create(options);
+      await expect(service.search("Continue after rename")).resolves.toEqual([
+        expect.objectContaining({
+          id: sessionId,
+          name: "Recovered conversation",
+        }),
+      ]);
+      expect(
+        (await service.loadMessages(sessionId)).messages.map(textOf),
+      ).toEqual([
+        "Rename this legacy conversation",
+        "Reply before context edit",
+        "Continue after rename",
+      ]);
+      await appendFile(sessionFile, "{broken json}\n", "utf8");
+      const damagedSource = await readFile(sessionFile, "utf8");
+      await expect(
+        service.renameSession(sessionId, "Should fail"),
+      ).rejects.toThrow();
+      expect(await readFile(sessionFile, "utf8")).toBe(damagedSource);
+    } finally {
+      await service.dispose();
+    }
+  });
+
   it("creates a new persistent Pi session", async () => {
     const rootPath = await createTemporaryProjectData();
     const options = serviceOptions(rootPath);

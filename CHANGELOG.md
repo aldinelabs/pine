@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Starting with 0.4.4, release notes are written in both Chinese and English.
 从 0.4.4 起，发布记录使用中英双语。
 
+## [Unreleased]
+
+### 修复 / Fixed
+
+- 曾编辑过上下文的旧会话现在可自动恢复打开、搜索和导出，并保留原始消息与上下文编辑；重命名后仍可继续对话。Older conversations with context edits now automatically become accessible for opening, searching, and exporting while preserving original messages and context edits; they remain resumable after renaming.
+- 单个会话文件读取失败不再阻止同项目其他会话显示和更新。An unreadable conversation file no longer prevents other conversations in the same project from appearing or updating.
+
 ## [0.7.0] - 2026-10-01
 
 ### 新增 / Added
@@ -339,7 +346,7 @@ Starting with 0.4.4, release notes are written in both Chinese and English.
 - Reproducible main-branch artifacts and a manually gated production release workflow.
 - R2-backed update discovery, verified downloads, and in-app macOS replacement updates.
 
-[Unreleased]: https://github.com/phosphoros-works/pine/compare/v0.6.4...HEAD
+[Unreleased]: https://github.com/phosphoros-works/pine/compare/v0.7.0...HEAD
 [0.6.4]: https://github.com/phosphoros-works/pine/compare/v0.6.3...v0.6.4
 [0.6.3]: https://github.com/phosphoros-works/pine/compare/v0.6.1...v0.6.3
 [0.6.1]: https://github.com/phosphoros-works/pine/compare/v0.6.0...v0.6.1
