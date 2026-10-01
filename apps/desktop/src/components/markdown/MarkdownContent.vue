@@ -140,10 +140,11 @@ async function confirmExternalLink(): Promise<void> {
   >
     <!--
       markstream-vue streams Markdown into the DOM as `content` grows (no per-token
-      full re-render, no trailing-character lag). It styles every element through
-      its own `--ms-*` themeable CSS variables set on the `.markstream-vue`
-      container, so the primary styling knob below is overriding those variables,
-      not per-tag `:deep()` rules (which fought markstream's var-based sizing).
+      full re-render, no trailing-character lag). It styles content through
+      themeable CSS variables on the `.markstream-vue` container. The overrides
+      below map those variables to Pine's semantic palette, including for nested
+      Markdown renderers inside table cells; per-tag `:deep()` rules fought
+      markstream's variable-based sizing.
       `html-policy="safe"` renders the allowlisted structural HTML used by
       Markdown documents (such as details/summary) while stripping unsafe tags
       and attributes. The built-in `LinkNode` already emits `target="_blank"` +
@@ -233,7 +234,49 @@ async function confirmExternalLink(): Promise<void> {
    `text-sm` (14px) — which is what made the prose look oversized. Restore the
    pre-refactor (markdown-it era) sizes here. */
 .markdown-content :deep(.markstream-vue) {
+  color: var(--foreground);
   --link-color: var(--primary);
+  --inline-code-bg: var(--muted);
+  --inline-code-fg: var(--foreground);
+  --inline-code-border: var(--border);
+  --code-bg: var(--muted);
+  --code-fg: var(--foreground);
+  --code-border: var(--border);
+  --code-header-bg: var(--muted);
+  --code-selection-bg: color-mix(in oklab, var(--accent) 30%, transparent);
+  --code-line-number: var(--muted-foreground);
+  --code-action-fg: var(--muted-foreground);
+  --code-action-hover-bg: var(--accent);
+  --code-action-hover-fg: var(--accent-foreground);
+  --code-action-active-bg: var(--primary);
+  --code-action-active-fg: var(--primary-foreground);
+  --table-border: var(--border);
+  --table-header-bg: var(--muted);
+  --blockquote-border: color-mix(
+    in oklab,
+    var(--muted-foreground) 20%,
+    transparent
+  );
+  --list-marker: color-mix(in oklab, var(--muted-foreground) 50%, transparent);
+  --list-counter-marker: var(--muted-foreground);
+  --hr-border: var(--border);
+  --admonition-bg: var(--muted);
+  --admonition-border: var(--border);
+  --admonition-fg: var(--foreground);
+  --admonition-muted: var(--muted-foreground);
+  --admonition-header-bg: color-mix(in oklab, var(--muted) 50%, transparent);
+  --tooltip-bg: var(--popover);
+  --tooltip-fg: var(--popover-foreground);
+  --tooltip-border: var(--border);
+  --modal-bg: var(--popover);
+  --modal-fg: var(--popover-foreground);
+  --diagram-bg: var(--muted);
+  --diagram-border: var(--border);
+  --diagram-header-bg: var(--muted);
+  --loading-spinner: var(--muted-foreground);
+  --loading-shimmer: color-mix(in oklab, var(--muted) 50%, transparent);
+  --image-placeholder-bg: var(--muted);
+  --focus-ring: var(--ring);
   --ms-text-body: 0.875rem; /* text-sm — matches the chat message base */
   --ms-leading-body: 1.75;
   --ms-text-h1: 1.5rem; /* text-2xl */
