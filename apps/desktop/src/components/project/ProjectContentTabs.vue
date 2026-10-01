@@ -94,7 +94,7 @@ const shouldReserveWindowControlsSpace = computed(
 // tab actions can move flush to the content edge.
 const rightSidebar = useProjectRightSidebarStore();
 const shouldReserveTrailingControlsSpace = computed(
-  () => !rightSidebar.open || isMobile.value,
+  () => !rightSidebar.open || rightSidebar.isClosing || isMobile.value,
 );
 
 const tabButtons = new Map<string, HTMLButtonElement>();

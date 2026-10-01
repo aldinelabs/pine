@@ -6,6 +6,7 @@ import { createAppI18n } from "@/app/i18n";
 import { ROUTE_NAMES } from "@/router/routes";
 import type { PineProject } from "@/shared/projects";
 import { useProjectStore } from "@/stores/project";
+import { PROJECT_RIGHT_SIDEBAR_STORAGE_KEY } from "@/stores/projectRightSidebar";
 import ProjectView from "../ProjectView.vue";
 
 const project: PineProject = {
@@ -33,10 +34,18 @@ beforeEach(() => {
 async function mountView(
   closeProject = vi.fn().mockResolvedValue(undefined),
   platform: "darwin" | "win32" = "darwin",
+  windowApi: Record<string, unknown> = {},
 ) {
   Object.defineProperty(window, "pine", {
     configurable: true,
-    value: { closeProject, platform },
+    value: {
+      closeProject,
+      platform,
+      setWindowLayout: vi.fn().mockResolvedValue(undefined),
+      planWindowResize: vi.fn().mockResolvedValue(0),
+      commitWindowResize: vi.fn().mockResolvedValue(undefined),
+      ...windowApi,
+    },
   });
   const pinia = createPinia();
   setActivePinia(pinia);
@@ -181,5 +190,77 @@ it("opens the right sidebar by default and toggles it independently of the left 
   );
   await flushPromises();
   expect(right()["data-state"]).toBe("collapsed");
+  wrapper.unmount();
+});
+
+it.each([
+  [null, true],
+  ["false", false],
+])(
+  "unlocks the project layout and fits the remembered right sidebar (%s)",
+  async (stored, fits) => {
+    if (stored)
+      window.localStorage.setItem(PROJECT_RIGHT_SIDEBAR_STORAGE_KEY, stored);
+    const setWindowLayout = vi.fn().mockResolvedValue(undefined);
+    const planWindowResize = vi.fn().mockResolvedValue(0);
+    const { wrapper } = await mountView(
+      vi.fn().mockResolvedValue(undefined),
+      "darwin",
+      { setWindowLayout, planWindowResize },
+    );
+    await flushPromises();
+
+    expect(setWindowLayout).toHaveBeenCalledExactlyOnceWith("project");
+    expect(planWindowResize.mock.calls).toEqual(
+      fits ? [[{ kind: "fit-right-sidebar" }]] : [],
+    );
+    wrapper.unmount();
+  },
+);
+
+it("freezes the layout while the window clips the closing right sidebar", async () => {
+  let finishResize = () => {};
+  const commitWindowResize = vi.fn(
+    () => new Promise<void>((resolve) => (finishResize = resolve)),
+  );
+  const planWindowResize = vi
+    .fn()
+    .mockResolvedValueOnce(0)
+    .mockResolvedValueOnce(-256);
+  const { wrapper } = await mountView(
+    vi.fn().mockResolvedValue(undefined),
+    "darwin",
+    { planWindowResize, commitWindowResize },
+  );
+  await flushPromises();
+  const root = () => wrapper.get<HTMLElement>('[data-slot="sidebar-wrapper"]');
+  const right = () =>
+    wrapper
+      .get('[data-slot="sidebar"][data-side="right"]')
+      .attributes("data-state");
+
+  await wrapper
+    .get('[data-testid="project-right-sidebar-toggle"]')
+    .trigger("click");
+  await vi.waitFor(() => expect(commitWindowResize).toHaveBeenCalledOnce());
+
+  expect(planWindowResize).toHaveBeenLastCalledWith({
+    kind: "toggle-right-sidebar",
+    open: false,
+  });
+  expect(root().element.style.width).toBe(`${window.innerWidth}px`);
+  expect(root().element.style.contain).toBe("layout");
+  expect(right()).toBe("expanded");
+  const trailing = () =>
+    wrapper.get<HTMLElement>('[data-testid="project-trailing-controls"]');
+  await vi.waitFor(() =>
+    expect(trailing().element.style.transform).toBe("translateX(-256px)"),
+  );
+  expect(trailing().classes()).toContain("transition-transform");
+
+  finishResize();
+  await vi.waitFor(() => expect(right()).toBe("collapsed"));
+  expect(root().element.style.width).toBe("");
+  expect(trailing().element.style.transform).toBe("");
   wrapper.unmount();
 });

@@ -241,9 +241,20 @@ import { ProjectFileWatcherRegistry } from "./main/projectFileWatcher";
 import { FilePreviewWatcherRegistry } from "./main/filePreviewWatcher";
 import { startProjectFileDrag } from "./main/projectFileDrag";
 import {
+  applyWindowLayout,
+  commitWindowResize,
+  planWindowResize,
+  PROJECT_LIST_WINDOW_SIZE,
+} from "./main/windowExpansion";
+import {
   OPAQUE_WINDOW_BACKGROUND,
   SET_SIDEBAR_VIBRANCY_CHANNEL,
   CLOSE_WINDOW_CHANNEL,
+  SET_WINDOW_LAYOUT_CHANNEL,
+  PLAN_WINDOW_RESIZE_CHANNEL,
+  COMMIT_WINDOW_RESIZE_CHANNEL,
+  isPineWindowResizeRequest,
+  isPineWindowLayout,
   GET_APP_VERSION_CHANNEL,
   OPEN_EXTERNAL_URL_CHANNEL,
   TRANSPARENT_WINDOW_BACKGROUND,
@@ -1088,8 +1099,12 @@ const createWindow = () => {
             height: 56,
           },
         }),
-    width: 1120,
-    height: 840,
+    // Starts in the fixed-size project list layout; the renderer unlocks
+    // resizing and widens the window when a project opens.
+    ...PROJECT_LIST_WINDOW_SIZE,
+    resizable: false,
+    maximizable: false,
+    fullscreenable: false,
     minWidth: 720,
     minHeight: 540,
     show: false,
@@ -1171,6 +1186,26 @@ const createWindow = () => {
 
 ipcMain.handle(CLOSE_WINDOW_CHANNEL, (event): void => {
   BrowserWindow.fromWebContents(event.sender)?.close();
+});
+
+ipcMain.handle(SET_WINDOW_LAYOUT_CHANNEL, (event, layout: unknown): void => {
+  const window = BrowserWindow.fromWebContents(event.sender);
+  if (window && isPineWindowLayout(layout)) applyWindowLayout(window, layout);
+});
+
+ipcMain.handle(
+  PLAN_WINDOW_RESIZE_CHANNEL,
+  (event, request: unknown): number => {
+    const window = BrowserWindow.fromWebContents(event.sender);
+    return window && isPineWindowResizeRequest(request)
+      ? planWindowResize(window, request)
+      : 0;
+  },
+);
+
+ipcMain.handle(COMMIT_WINDOW_RESIZE_CHANNEL, (event): Promise<void> => {
+  const window = BrowserWindow.fromWebContents(event.sender);
+  return window ? commitWindowResize(window) : Promise.resolve();
 });
 
 ipcMain.handle(GET_APP_VERSION_CHANNEL, (): string => app.getVersion());

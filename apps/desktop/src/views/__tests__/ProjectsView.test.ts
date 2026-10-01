@@ -42,6 +42,7 @@ async function mountView(
   projects: PineProject[],
   platform: "darwin" | "win32" = "darwin",
   openProject = vi.fn().mockResolvedValue({ opened: true, project }),
+  setWindowLayout = vi.fn().mockResolvedValue(undefined),
 ) {
   Object.defineProperty(window, "pine", {
     configurable: true,
@@ -49,6 +50,7 @@ async function mountView(
       listProjects: vi.fn().mockResolvedValue({ projects }),
       openProject,
       platform,
+      setWindowLayout,
     },
   });
   const pinia = createPinia();
@@ -78,6 +80,14 @@ async function mountView(
 }
 
 describe("ProjectsView", () => {
+  it("locks the window to the fixed project list layout", async () => {
+    const setWindowLayout = vi.fn().mockResolvedValue(undefined);
+    const wrapper = await mountView([], "darwin", undefined, setWindowLayout);
+
+    expect(setWindowLayout).toHaveBeenCalledExactlyOnceWith("projects");
+    wrapper.unmount();
+  });
+
   beforeEach(() => {
     setActivePinia(createPinia());
   });

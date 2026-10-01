@@ -169,8 +169,13 @@ import {
   CLOSE_TAB_REQUESTED_CHANNEL,
   NEW_TAB_REQUESTED_CHANNEL,
   CLOSE_WINDOW_CHANNEL,
+  SET_WINDOW_LAYOUT_CHANNEL,
+  PLAN_WINDOW_RESIZE_CHANNEL,
+  COMMIT_WINDOW_RESIZE_CHANNEL,
   GET_APP_VERSION_CHANNEL,
   OPEN_EXTERNAL_URL_CHANNEL,
+  type PineWindowLayout,
+  type PineWindowResizeRequest,
   type SetSidebarVibrancyRequest,
   type SetSidebarVibrancyResult,
 } from "./shared/window";
@@ -209,6 +214,11 @@ const pineApi: PineDesktopApi = {
   reopenPresentedToolFile: (request: ReopenPresentedToolFileRequest) =>
     ipcRenderer.invoke(REOPEN_PRESENTED_TOOL_FILE_CHANNEL, request),
   closeWindow: () => ipcRenderer.invoke(CLOSE_WINDOW_CHANNEL),
+  setWindowLayout: (layout: PineWindowLayout) =>
+    ipcRenderer.invoke(SET_WINDOW_LAYOUT_CHANNEL, layout),
+  planWindowResize: (request: PineWindowResizeRequest) =>
+    ipcRenderer.invoke(PLAN_WINDOW_RESIZE_CHANNEL, request),
+  commitWindowResize: () => ipcRenderer.invoke(COMMIT_WINDOW_RESIZE_CHANNEL),
   getAppVersion: (): Promise<string> =>
     ipcRenderer.invoke(GET_APP_VERSION_CHANNEL),
   downloadUpdate: (): Promise<DownloadUpdateResult> =>

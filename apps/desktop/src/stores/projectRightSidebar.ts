@@ -19,6 +19,12 @@ export const useProjectRightSidebarStore = defineStore(
   "project-right-sidebar",
   () => {
     const open = ref(readOpen());
+    /**
+     * True while the window clips a closing sidebar: the sidebar is still
+     * expanded, but the content titlebar already makes room for the trailing
+     * window controls that follow the moving window edge.
+     */
+    const isClosing = ref(false);
 
     function setOpen(value: boolean): void {
       open.value = value;
@@ -36,6 +42,10 @@ export const useProjectRightSidebarStore = defineStore(
       setOpen(!open.value);
     }
 
-    return { open, setOpen, toggle };
+    function setClosing(value: boolean): void {
+      isClosing.value = value;
+    }
+
+    return { open, isClosing, setOpen, setClosing, toggle };
   },
 );

@@ -161,6 +161,7 @@ async function deleteProject(): Promise<void> {
 }
 
 onMounted(() => {
+  void window.pine?.setWindowLayout?.("projects");
   projectStore.loadProjects().catch((error: unknown) => {
     handleError(error, {
       id: "project.list",

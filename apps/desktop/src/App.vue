@@ -54,7 +54,7 @@ watch(
 </script>
 
 <template>
-  <main id="pine-root" class="h-full">
+  <main id="pine-root" class="h-full overflow-x-clip">
     <RouterView />
     <Toaster :theme="colorScheme" />
   </main>
