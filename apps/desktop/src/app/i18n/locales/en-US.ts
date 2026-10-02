@@ -449,6 +449,7 @@ export default {
       heading: "Todos",
       progress: "{completed}/{total}",
       viewDetails: "View details…",
+      empty: "Pine hasn’t made a plan yet",
       more: "+{count} more",
       moreDetails: "+{count} more ({details})",
       hiddenCompleted: "{count} completed",

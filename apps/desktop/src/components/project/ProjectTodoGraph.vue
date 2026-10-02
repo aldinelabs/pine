@@ -1,6 +1,13 @@
 <script setup lang="ts">
 import { useResizeObserver } from "@vueuse/core";
-import { computed, nextTick, onMounted, ref, watch } from "vue";
+import {
+  computed,
+  nextTick,
+  onBeforeUnmount,
+  onMounted,
+  ref,
+  watch,
+} from "vue";
 import { useI18n } from "vue-i18n";
 import {
   layoutTodoGraph,
@@ -13,6 +20,11 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 
 const props = defineProps<{
@@ -23,9 +35,11 @@ const props = defineProps<{
 const emit = defineEmits<{ select: [] }>();
 const { t } = useI18n();
 
-const LANE_WIDTH = 14;
-/** The sidebar button's horizontal padding (`px-3`). */
-const TEXT_INSET = 12;
+const LANE_WIDTH = 11;
+/** Space between the graph and the sidebar's right edge. */
+const GRAPH_INSET = 4;
+/** Space between a label and the graph. */
+const GRAPH_GAP = 6;
 const NODE_RADIUS = 4;
 const CURVE = 14;
 /** A button is `h-9`; the first text line's centre sits at half of it. */
@@ -84,6 +98,34 @@ function edgePath(edge: TodoGraphEdge): string {
   return `M ${fromX} ${fromY} V ${toY - bend} Q ${fromX} ${toY} ${toX} ${toY}`;
 }
 
+/**
+ * A hovered row lets its label run under the graph (see the button's
+ * `hover:pr-3`). Only when it still does not fit does the tooltip show the
+ * full text, and the check waits for that padding transition to finish.
+ */
+const TOOLTIP_SETTLE_MS = 200;
+const tooltipIndex = ref<number | null>(null);
+let tooltipTimer: ReturnType<typeof setTimeout> | undefined;
+
+function isTruncated(index: number): boolean {
+  const truncated = rowElements.value[index]?.querySelectorAll(".truncate");
+  return Array.from(truncated ?? []).some(
+    (element) => element.scrollWidth > element.clientWidth,
+  );
+}
+
+function onTooltipOpen(index: number, open: boolean): void {
+  clearTimeout(tooltipTimer);
+  if (!open) {
+    if (tooltipIndex.value === index) tooltipIndex.value = null;
+    return;
+  }
+  tooltipTimer = setTimeout(() => {
+    tooltipIndex.value = isTruncated(index) ? index : null;
+  }, TOOLTIP_SETTLE_MS);
+}
+onBeforeUnmount(() => clearTimeout(tooltipTimer));
+
 function statusLabel(task: Task): string {
   return t(`project.todos.statuses.${task.status}`);
 }
@@ -95,7 +137,7 @@ function statusLabel(task: Task): string {
       data-testid="project-todo-graph"
       aria-hidden="true"
       class="pointer-events-none absolute top-0"
-      :style="{ right: `${TEXT_INSET}px` }"
+      :style="{ right: `${GRAPH_INSET}px` }"
       :width="gutterWidth"
       :height="height"
     >
@@ -151,44 +193,61 @@ function statusLabel(task: Task): string {
         data-testid="project-todo-row"
         :data-status="row.task.status"
       >
-        <SidebarMenuButton
-          class="h-auto min-h-9 py-2"
-          :style="{ paddingRight: `${TEXT_INSET + gutterWidth + 8}px` }"
-          :title="
-            row.task.description
-              ? sanitizeTaskText(row.task.description)
-              : sanitizeTaskText(row.task.subject)
-          "
-          @click="emit('select')"
+        <Tooltip
+          :open="tooltipIndex === index"
+          @update:open="(open) => onTooltipOpen(index, open)"
         >
-          <span class="sr-only">{{ statusLabel(row.task) }}</span>
-          <span class="flex min-w-0 flex-col">
-            <span class="flex min-w-0 gap-1.5">
-              <span class="text-muted-foreground shrink-0 tabular-nums">
-                #{{ row.task.id }}
+          <TooltipTrigger as-child>
+            <SidebarMenuButton
+              class="h-auto min-h-9 py-2 pr-(--todo-gutter) hover:pr-3 focus-visible:pr-3"
+              :style="{
+                '--todo-gutter': `${gutterWidth + GRAPH_INSET + GRAPH_GAP}px`,
+              }"
+              @click="emit('select')"
+            >
+              <span class="sr-only">{{ statusLabel(row.task) }}</span>
+              <span class="flex min-w-0 flex-col">
+                <span class="flex min-w-0 gap-1.5">
+                  <span class="text-muted-foreground shrink-0 tabular-nums">
+                    #{{ row.task.id }}
+                  </span>
+                  <span
+                    :class="
+                      cn(
+                        'truncate',
+                        row.task.status === 'in_progress' &&
+                          'text-primary font-medium',
+                        row.task.status === 'completed' &&
+                          'text-muted-foreground line-through',
+                      )
+                    "
+                  >
+                    {{ sanitizeTaskText(row.task.subject) }}
+                  </span>
+                </span>
+                <span
+                  v-if="
+                    row.task.status === 'in_progress' && row.task.activeForm
+                  "
+                  class="text-muted-foreground truncate text-xs"
+                >
+                  {{ sanitizeTaskText(row.task.activeForm) }}
+                </span>
               </span>
-              <span
-                :class="
-                  cn(
-                    'truncate',
-                    row.task.status === 'in_progress' &&
-                      'text-primary font-medium',
-                    row.task.status === 'completed' &&
-                      'text-muted-foreground line-through',
-                  )
-                "
-              >
-                {{ sanitizeTaskText(row.task.subject) }}
-              </span>
-            </span>
+            </SidebarMenuButton>
+          </TooltipTrigger>
+          <TooltipContent side="left" class="flex-col items-start">
+            <span
+              >#{{ row.task.id }} {{ sanitizeTaskText(row.task.subject) }}</span
+            >
             <span
               v-if="row.task.status === 'in_progress' && row.task.activeForm"
-              class="text-muted-foreground truncate text-xs"
+              class="opacity-70"
             >
               {{ sanitizeTaskText(row.task.activeForm) }}
             </span>
-          </span>
-        </SidebarMenuButton>
+          </TooltipContent>
+        </Tooltip>
       </SidebarMenuItem>
     </SidebarMenu>
   </div>

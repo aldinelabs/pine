@@ -9,6 +9,7 @@ import {
   type TaskState,
 } from "@pine/rpiv-todo";
 import { Button } from "@/components/ui/button";
+import { Empty, EmptyDescription, EmptyHeader } from "@/components/ui/empty";
 import {
   SidebarGroup,
   SidebarGroupContent,
@@ -16,7 +17,6 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-  SidebarMenuSkeleton,
 } from "@/components/ui/sidebar";
 import { useSessionStore } from "@/stores/session";
 import ProjectTodoGraph from "./ProjectTodoGraph.vue";
@@ -91,14 +91,12 @@ const moreLabel = computed(() => {
       </template>
     </SidebarGroupLabel>
 
-    <!-- Until the agent writes a list, a placeholder keeps the module in
-         place instead of making the sidebar jump when the first task lands. -->
     <SidebarGroupContent v-if="!hasTasks || !layout">
-      <SidebarMenu data-testid="project-todo-placeholder" aria-hidden="true">
-        <SidebarMenuItem v-for="index in 3" :key="index">
-          <SidebarMenuSkeleton />
-        </SidebarMenuItem>
-      </SidebarMenu>
+      <Empty data-testid="project-todo-placeholder" class="p-3">
+        <EmptyHeader>
+          <EmptyDescription>{{ t("project.todos.empty") }}</EmptyDescription>
+        </EmptyHeader>
+      </Empty>
     </SidebarGroupContent>
 
     <SidebarGroupContent v-else>

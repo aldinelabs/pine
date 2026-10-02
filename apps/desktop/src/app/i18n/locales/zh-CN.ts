@@ -423,6 +423,7 @@ export default {
       heading: "任务清单",
       progress: "{completed}/{total}",
       viewDetails: "查看详情…",
+      empty: "Pine 还没有做出规划",
       more: "另有 {count} 项",
       moreDetails: "另有 {count} 项（{details}）",
       hiddenCompleted: "{count} 项已完成",

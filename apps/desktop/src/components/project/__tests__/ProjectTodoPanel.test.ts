@@ -1,7 +1,7 @@
 import { flushPromises, mount } from "@vue/test-utils";
 import { createPinia, setActivePinia } from "pinia";
 import { defineComponent, h } from "vue";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Task, TaskState } from "@pine/rpiv-todo";
 import { createAppI18n } from "@/app/i18n";
 import { SidebarProvider } from "@/components/ui/sidebar";
@@ -40,7 +40,7 @@ describe("ProjectTodoPanel", () => {
     document.body.innerHTML = "";
   });
 
-  it("shows a placeholder instead of tasks until there is a visible one", () => {
+  it("shows a note instead of tasks until there is a visible one", () => {
     for (const wrapper of [
       mountPanel(null),
       mountPanel(
@@ -60,8 +60,8 @@ describe("ProjectTodoPanel", () => {
       expect(wrapper.text()).toContain("任务清单");
       expect(wrapper.text()).not.toContain("/");
       expect(
-        wrapper.findAll('[data-sidebar="menu-skeleton"]').length,
-      ).toBeGreaterThan(0);
+        wrapper.get('[data-testid="project-todo-placeholder"]').text(),
+      ).toBe("Pine 还没有做出规划");
       expect(wrapper.find('[data-testid="project-todo-row"]').exists()).toBe(
         false,
       );
@@ -171,5 +171,44 @@ describe("ProjectTodoPanel", () => {
     await flushPromises();
 
     expect(document.body.textContent).toContain("全部任务");
+  });
+
+  describe("tooltip", () => {
+    afterEach(() => {
+      vi.useRealTimers();
+      Reflect.deleteProperty(HTMLElement.prototype, "scrollWidth");
+    });
+
+    async function focusFirstRow(scrollWidth: number) {
+      vi.useFakeTimers();
+      Object.defineProperty(HTMLElement.prototype, "scrollWidth", {
+        configurable: true,
+        value: scrollWidth,
+      });
+      const wrapper = mountPanel({
+        tasks: [
+          { id: 1, subject: "A very long task subject", status: "pending" },
+        ],
+        nextId: 2,
+      });
+      await wrapper.get("button[data-sidebar='menu-button']").trigger("focus");
+      await vi.advanceTimersByTimeAsync(250);
+      await flushPromises();
+    }
+
+    it("shows the full text on the left once a label still truncates", async () => {
+      await focusFirstRow(500);
+      const content = document.body.querySelector(
+        '[data-slot="tooltip-content"]',
+      );
+      expect(content?.textContent).toContain("#1 A very long task subject");
+    });
+
+    it("stays away when the label fits", async () => {
+      await focusFirstRow(0);
+      expect(
+        document.body.querySelector('[data-slot="tooltip-content"]'),
+      ).toBeNull();
+    });
   });
 });
