@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { MessageCircleIcon, PlusIcon, XIcon } from "@lucide/vue";
+import { MessageSquareTextIcon, PlusIcon, XIcon } from "@lucide/vue";
 import { storeToRefs } from "pinia";
 import type { ComponentPublicInstance } from "vue";
 import {
@@ -339,7 +339,7 @@ function getTabLabel(tab: ProjectContentTab): string {
 
 function tabIcon(tab: ProjectContentTab) {
   return tab.kind === "session"
-    ? MessageCircleIcon
+    ? MessageSquareTextIcon
     : fileIcon(fileTargetPath(tab));
 }
 
