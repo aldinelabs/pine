@@ -16,6 +16,7 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  SidebarMenuSkeleton,
 } from "@/components/ui/sidebar";
 import { useSessionStore } from "@/stores/session";
 import ProjectTodoGraph from "./ProjectTodoGraph.vue";
@@ -77,21 +78,30 @@ const moreLabel = computed(() => {
 </script>
 
 <template>
-  <SidebarGroup
-    v-if="hasTasks && counts && layout"
-    data-testid="project-todo-panel"
-  >
+  <SidebarGroup data-testid="project-todo-panel">
     <SidebarGroupLabel>
       {{ t("project.todos.heading") }}
-      {{
-        t("project.todos.progress", {
-          completed: counts.completed,
-          total: counts.total,
-        })
-      }}
+      <template v-if="hasTasks && counts">
+        {{
+          t("project.todos.progress", {
+            completed: counts.completed,
+            total: counts.total,
+          })
+        }}
+      </template>
     </SidebarGroupLabel>
 
-    <SidebarGroupContent>
+    <!-- Until the agent writes a list, a placeholder keeps the module in
+         place instead of making the sidebar jump when the first task lands. -->
+    <SidebarGroupContent v-if="!hasTasks || !layout">
+      <SidebarMenu data-testid="project-todo-placeholder" aria-hidden="true">
+        <SidebarMenuItem v-for="index in 3" :key="index">
+          <SidebarMenuSkeleton />
+        </SidebarMenuItem>
+      </SidebarMenu>
+    </SidebarGroupContent>
+
+    <SidebarGroupContent v-else>
       <ProjectTodoGraph
         :tasks="layout.visible"
         :is-running="session.isRunning"

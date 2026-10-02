@@ -40,23 +40,39 @@ describe("ProjectTodoPanel", () => {
     document.body.innerHTML = "";
   });
 
-  it("stays hidden without visible tasks", () => {
+  it("shows a placeholder instead of tasks until there is a visible one", () => {
+    for (const wrapper of [
+      mountPanel(null),
+      mountPanel(
+        {
+          tasks: [
+            { id: 1, subject: "Done", status: "completed" },
+            { id: 2, subject: "Gone", status: "deleted" },
+          ],
+          nextId: 3,
+        },
+        [1],
+      ),
+    ]) {
+      expect(wrapper.find('[data-testid="project-todo-panel"]').exists()).toBe(
+        true,
+      );
+      expect(wrapper.text()).toContain("任务清单");
+      expect(wrapper.text()).not.toContain("/");
+      expect(
+        wrapper.findAll('[data-sidebar="menu-skeleton"]').length,
+      ).toBeGreaterThan(0);
+      expect(wrapper.find('[data-testid="project-todo-row"]').exists()).toBe(
+        false,
+      );
+      expect(
+        wrapper.find('[data-testid="project-todo-details"]').exists(),
+      ).toBe(false);
+    }
+    const populated = mountPanel({ tasks: [pending(1)], nextId: 2 });
     expect(
-      mountPanel(null).find('[data-testid="project-todo-panel"]').exists(),
+      populated.find('[data-testid="project-todo-placeholder"]').exists(),
     ).toBe(false);
-    const onlyFaded = mountPanel(
-      {
-        tasks: [
-          { id: 1, subject: "Done", status: "completed" },
-          { id: 2, subject: "Gone", status: "deleted" },
-        ],
-        nextId: 3,
-      },
-      [1],
-    );
-    expect(onlyFaded.find('[data-testid="project-todo-panel"]').exists()).toBe(
-      false,
-    );
   });
 
   it("renders progress, node statuses, and the active form", () => {
