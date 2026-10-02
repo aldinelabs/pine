@@ -94,7 +94,13 @@ jobs:
         if: inputs.release_version != ''
         env:
           RELEASE_VERSION: ${{ inputs.release_version }}
-        run: bun apps/desktop/scripts/apply-release-version.mjs
+        shell: bash
+        run: >-
+          bun -e 'const p = "apps/desktop/package.json";
+          const j = await Bun.file(p).json();
+          j.version = process.env.RELEASE_VERSION;
+          await Bun.write(p, JSON.stringify(j, null, 2) + "\n");
+          console.log("apps/desktop version set to " + j.version)'
 
       - name: Backport the newest Pi model catalogs
         run: |
@@ -206,7 +212,13 @@ jobs:
         if: inputs.release_version != ''
         env:
           RELEASE_VERSION: ${{ inputs.release_version }}
-        run: bun apps/desktop/scripts/apply-release-version.mjs
+        shell: bash
+        run: >-
+          bun -e 'const p = "apps/desktop/package.json";
+          const j = await Bun.file(p).json();
+          j.version = process.env.RELEASE_VERSION;
+          await Bun.write(p, JSON.stringify(j, null, 2) + "\n");
+          console.log("apps/desktop version set to " + j.version)'
 
       - name: Backport the newest Pi model catalogs
         shell: pwsh
