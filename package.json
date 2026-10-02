@@ -17,7 +17,6 @@
     "test": "bun run --filter @pine/desktop test:run",
     "test:coverage": "bun run --filter @pine/desktop test:coverage",
     "typecheck": "bun run --filter @pine/desktop typecheck",
-    "backport:models": "bun run apps/desktop/scripts/backport-models.mjs",
     "shadcn:add": "bun run apps/desktop/scripts/shadcn-add.mjs",
     "verify:pi": "bun run apps/desktop/scripts/verify-pi-agent.mjs"
   },

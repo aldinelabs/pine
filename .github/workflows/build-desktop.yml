@@ -102,15 +102,6 @@ jobs:
           await Bun.write(p, JSON.stringify(j, null, 2) + "\n");
           console.log("apps/desktop version set to " + j.version)'
 
-      - name: Backport the newest Pi model catalogs
-        run: |
-          if bun run backport:models; then
-            :
-          else
-            bun run backport:models --restore || exit $?
-            echo "::warning::model backport failed; packaging the released catalogs"
-          fi
-
       - name: Build computer-use runtime
         env:
           PINE_COMPUTER_USE_ARCH: ${{ matrix.arch }}
@@ -219,17 +210,6 @@ jobs:
           j.version = process.env.RELEASE_VERSION;
           await Bun.write(p, JSON.stringify(j, null, 2) + "\n");
           console.log("apps/desktop version set to " + j.version)'
-
-      - name: Backport the newest Pi model catalogs
-        shell: pwsh
-        run: |
-          bun run backport:models
-          if ($LASTEXITCODE -ne 0) {
-            bun run backport:models --restore
-            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-            Write-Output "::warning::model backport failed; packaging the released catalogs"
-            exit 0
-          }
 
       - name: Build computer-use runtime
         run: bun run --filter @pine/computer-use-runtime build

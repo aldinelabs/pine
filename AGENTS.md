@@ -37,11 +37,9 @@
 
 ## Pi 依赖同步
 
-- **基线是 npm 发布版**：Pine 运行的 `@earendil-works/pi-*` 永远以 `bun.lock` 里解析出的发布版本为准，不做整包覆盖；本地 `dev` / `build` 不自动改动 `node_modules`，桌面端 CI 构建会在打包前自动跑一次 `backport:models`，让安装包带上最新模型目录。
-- Pi 的内置模型目录是上游发版时生成的快照，npm 版本可能比上游 `main` 落后数周。`bun run backport:models` 浅克隆上游到 `.pi-src/`（已 gitignore），构建上游 `packages/ai`，只把生成的目录数据（`image-models.generated.js`、`models.generated.js`、`providers/*.models.js`、`providers/data/*.json`）回填进已安装的 npm 包——不动任何要执行的代码，也不改版本号或 lockfile。
-- 首次回填会把 npm 原文件备份到 `.pi-backport-backup/`（已 gitignore），因此 `bun run backport:models --restore` 可离线还原；`--check` 报告当前是不是回填状态；`--ref <tag|sha>` 可指定上游来源。
-- `bun run verify:pi` 会用 mock provider 真跑一轮 agent 并断言请求里带 system prompt 和工具定义。它不随 backport 自动运行（需要绑定本地端口），但排查"agent 没有工具"这类问题时应该先跑它。
-- 不要重新引入"构建前自动同步整包"的机制：上游 `main` 不是 API 契约，部分覆盖曾让 agent 静默丢失全部工具和 system prompt。原因与历史见 `docs/architecture/pi-model-backport.md`。
+- Pine 运行的 `@earendil-works/pi-*` 以 `bun.lock` 里解析出的 npm 发布版本为准，包括 `pi-ai` 自带的模型目录；不对 `node_modules` 做任何覆盖或回填，本地 `dev` / `build` 与 CI 打包都不改动已安装的包。
+- 想拿到新模型，升级依赖（更新 `bun.lock`）即可；不要重新引入从上游 `main` 回填目录或整包的机制（曾让 agent 静默丢失全部工具和 system prompt）。
+- `bun run verify:pi` 会用 mock provider 真跑一轮 agent 并断言请求里带 system prompt 和工具定义（需要绑定本地端口）；排查"agent 没有工具"这类问题时先跑它。
 
 ## CHANGELOG 与发布记录
 
