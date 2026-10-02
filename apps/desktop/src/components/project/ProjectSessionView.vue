@@ -43,7 +43,10 @@ import ProjectTranscriptMessage from "./ProjectTranscriptMessage.vue";
 import type { PineToolCall } from "@/shared/sessions";
 import { toolFileRequest } from "./toolViewAdapter";
 import ProjectTranscriptOutline from "./ProjectTranscriptOutline.vue";
-import { collapsesTranscriptGap } from "./transcriptLayout";
+import {
+  collapsesTranscriptGap,
+  transcriptMessageRenderSignature,
+} from "./transcriptLayout";
 
 const { t } = useI18n();
 const props = defineProps<{
@@ -161,6 +164,17 @@ const expandedToolRuns = useToolActivityExpansion({ messages, isRunning });
  * MessageScrollerContent `gap-8` down to that rhythm.
  */
 const TOOL_CALL_TURN_MARGIN_CLASS = "-mt-5";
+
+/** Per-message `v-memo` key: only the transcript state a message reads. */
+function messageRenderSignature(message: PineTranscriptMessage): string {
+  return transcriptMessageRenderSignature(message, {
+    expandedToolRuns: expandedToolRuns.value,
+    reviewingToolCallIds: reviewingToolCallIds.value,
+    awaitingApprovalToolCallIds: awaitingApprovalToolCallIds.value,
+    isRunning: isRunning.value,
+    hasRewriteHandler: Boolean(props.sessionId),
+  });
+}
 
 onMounted(() => sessionStore.connectAgentEvents());
 
@@ -457,10 +471,8 @@ async function handleDrop(event: DragEvent): Promise<void> {
                 :key="message.id"
                 v-memo="[
                   message,
-                  expandedToolRuns,
-                  reviewingToolCallIds,
-                  awaitingApprovalToolCallIds,
-                  isRunning,
+                  messageRenderSignature(message),
+                  collapsesTranscriptGap(messages, index),
                 ]"
                 :message-id="message.id"
                 :scroll-anchor="message.role === 'user'"
