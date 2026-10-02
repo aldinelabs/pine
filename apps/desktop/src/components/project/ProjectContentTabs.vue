@@ -17,7 +17,7 @@ import { handleError } from "@/app/errors/errorHandler";
 import { PineLogo } from "@/components/pine";
 import { Button } from "@/components/ui/button";
 import GitHubLogo from "@/components/window/GitHubLogo.vue";
-import { PINE_RELEASES_URL, PINE_REPOSITORY_URL } from "@/shared/window";
+import { PINE_REPOSITORY_URL } from "@/shared/window";
 import { Separator } from "@/components/ui/separator";
 import { useSidebar } from "@/components/ui/sidebar";
 import { WINDOW_TAB_CLOSE_HANDLER_KEY } from "@/composables/useWindowTabShortcuts";
@@ -51,25 +51,10 @@ const { activeTab: activeContentTab, activeTabId, tabs } = tabNavigation;
 const { activeSession } = storeToRefs(sessionStore);
 const windowCloseTabHandler = inject(WINDOW_TAB_CLOSE_HANDLER_KEY, null);
 
-// App version is only surfaced as passive text in the empty state; a failure
-// to fetch it simply leaves the badge blank.
-const pineVersion = ref<string | null>(null);
-onMounted(() => {
-  window.pine
-    .getAppVersion()
-    .then((version) => {
-      pineVersion.value = version;
-    })
-    .catch(() => undefined);
-});
-
 function openRepository(): void {
   void window.pine.openExternalUrl(PINE_REPOSITORY_URL);
 }
 
-function openReleases(): void {
-  void window.pine.openExternalUrl(PINE_RELEASES_URL);
-}
 const sessionTabs = computed(() =>
   tabs.value.filter((tab) => tab.kind === "session"),
 );
@@ -623,19 +608,6 @@ watch(activeSession, (session) => {
         class="pointer-events-none size-64 text-muted-foreground/10 select-none"
       />
       <WindowShortcutHints />
-      <div
-        class="pointer-events-none absolute inset-x-0 bottom-0 flex min-h-12 items-center justify-end pl-5 pr-2 py-2"
-      >
-        <Button
-          v-if="pineVersion"
-          data-testid="pine-version"
-          variant="outline"
-          class="pointer-events-auto"
-          @click="openReleases"
-        >
-          {{ t("project.contentTabs.version", { version: pineVersion }) }}
-        </Button>
-      </div>
     </div>
   </div>
 </template>

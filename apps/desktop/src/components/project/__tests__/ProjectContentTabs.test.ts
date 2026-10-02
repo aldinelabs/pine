@@ -13,7 +13,7 @@ import {
   WINDOW_TAB_CLOSE_HANDLER_KEY,
   type WindowTabCloseHandler,
 } from "@/composables/useWindowTabShortcuts";
-import { PINE_RELEASES_URL, PINE_REPOSITORY_URL } from "@/shared/window";
+import { PINE_REPOSITORY_URL } from "@/shared/window";
 import type { PineSessionSummary } from "@/shared/sessions";
 import { useSessionStore } from "@/stores/session";
 import { useContentTabsStore } from "@/stores/contentTabs";
@@ -709,9 +709,7 @@ describe("ProjectContentTabs", () => {
     expect(wrapper.find('[data-slot="empty"]').exists()).toBe(false);
     expect(wrapper.find('[role="tabpanel"]').exists()).toBe(false);
     await flushPromises();
-    expect(wrapper.get('[data-testid="pine-version"]').text()).toBe(
-      "Version 0.1.0",
-    );
+    expect(wrapper.find('[data-testid="pine-version"]').exists()).toBe(false);
     await wrapper.get('button[aria-label="Add session tab"]').trigger("click");
     await flushPromises();
     expect(wrapper.find('[role="tabpanel"]').exists()).toBe(true);
@@ -771,20 +769,6 @@ describe("ProjectContentTabs", () => {
     expect(window.pine.openExternalUrl).toHaveBeenCalledWith(
       PINE_REPOSITORY_URL,
     );
-    wrapper.unmount();
-  });
-
-  it("opens the project releases page from the version button", async () => {
-    const { wrapper } = await mountTabs();
-    await wrapper
-      .get('button[aria-label="Close New session"]')
-      .trigger("click");
-    await flushPromises();
-    const version = wrapper.get('[data-testid="pine-version"]');
-    expect(version.element.tagName).toBe("BUTTON");
-    await version.trigger("click");
-    await flushPromises();
-    expect(window.pine.openExternalUrl).toHaveBeenCalledWith(PINE_RELEASES_URL);
     wrapper.unmount();
   });
 

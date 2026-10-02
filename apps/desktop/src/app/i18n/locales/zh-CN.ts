@@ -447,6 +447,7 @@ export default {
       },
     },
     preferences: "项目设置",
+    version: "版本 {version}",
     skills: "工作技能",
     preview: {
       metadata: "文件元数据",
@@ -482,7 +483,6 @@ export default {
       moreActions: "更多操作",
       closeTab: "关闭 {name}",
       tabListLabel: "已打开的内容",
-      version: "版本 {version}",
       openRepository: "打开 GitHub 仓库",
       shortcuts: {
         newTab: "新建标签页",

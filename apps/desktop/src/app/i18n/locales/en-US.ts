@@ -473,6 +473,7 @@ export default {
       },
     },
     preferences: "Project settings",
+    version: "Version {version}",
     skills: "Skills",
     preview: {
       metadata: "File metadata",
@@ -510,7 +511,6 @@ export default {
       moreActions: "More actions",
       closeTab: "Close {name}",
       tabListLabel: "Open content",
-      version: "Version {version}",
       openRepository: "Open GitHub repository",
       shortcuts: {
         newTab: "New tab",

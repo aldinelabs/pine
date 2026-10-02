@@ -1,7 +1,13 @@
 <script setup lang="ts">
-import { Files, Info, MessagesSquare, Settings2 } from "@lucide/vue";
+import {
+  Files,
+  GitCommitHorizontal,
+  Info,
+  MessagesSquare,
+  Settings2,
+} from "@lucide/vue";
 import { storeToRefs } from "pinia";
-import { computed, watch } from "vue";
+import { computed, onMounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import {
   useProjectSidebarStore,
@@ -21,6 +27,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useProjectStore } from "@/stores/project";
 import { useUpdaterStore } from "@/stores/updater";
+import { PINE_RELEASES_URL } from "@/shared/window";
 import ProjectFileTree from "./ProjectFileTree.vue";
 import ProjectSessionList from "./ProjectSessionList.vue";
 import RetainedPanel from "./RetainedPanel.vue";
@@ -34,6 +41,20 @@ const emit = defineEmits<{
 const projectStore = useProjectStore();
 const { activeProject } = storeToRefs(projectStore);
 const { isAvailable } = storeToRefs(useUpdaterStore());
+// A failed version lookup simply hides the version item.
+const pineVersion = ref<string | null>(null);
+onMounted(() => {
+  window.pine
+    .getAppVersion()
+    .then((version) => {
+      pineVersion.value = version;
+    })
+    .catch(() => undefined);
+});
+
+function openReleases(): void {
+  void window.pine.openExternalUrl(PINE_RELEASES_URL);
+}
 const sidebarStore = useProjectSidebarStore();
 const route = useRoute();
 const router = useRouter();
@@ -108,6 +129,12 @@ watch(
 
     <SidebarFooter>
       <SidebarMenu>
+        <SidebarMenuItem>
+          <SidebarMenuButton @click="emit('editProject')">
+            <Settings2 aria-hidden="true" />
+            <span>{{ t("project.preferences") }}</span>
+          </SidebarMenuButton>
+        </SidebarMenuItem>
         <SidebarMenuItem v-if="isAvailable">
           <SidebarMenuButton
             class="text-info hover:text-info"
@@ -117,10 +144,10 @@ watch(
             <span>{{ t("updater.sidebar") }}</span>
           </SidebarMenuButton>
         </SidebarMenuItem>
-        <SidebarMenuItem>
-          <SidebarMenuButton @click="emit('editProject')">
-            <Settings2 aria-hidden="true" />
-            <span>{{ t("project.preferences") }}</span>
+        <SidebarMenuItem v-else-if="pineVersion">
+          <SidebarMenuButton data-testid="pine-version" @click="openReleases">
+            <GitCommitHorizontal aria-hidden="true" />
+            <span>{{ t("project.version", { version: pineVersion }) }}</span>
           </SidebarMenuButton>
         </SidebarMenuItem>
       </SidebarMenu>

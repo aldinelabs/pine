@@ -1,14 +1,25 @@
 import { flushPromises, mount } from "@vue/test-utils";
 import { createPinia, setActivePinia } from "pinia";
 import { createMemoryHistory, createRouter } from "vue-router";
-import { beforeEach, expect, it } from "vitest";
+import { beforeEach, expect, it, vi } from "vitest";
 import { createAppI18n } from "@/app/i18n";
 import { useProjectStore } from "@/stores/project";
 import { useProjectSidebarStore } from "@/stores/projectSidebar";
+import { PINE_RELEASES_URL } from "@/shared/window";
 import { useUpdaterStore } from "@/stores/updater";
 import ProjectSidebar from "../ProjectSidebar.vue";
 
-beforeEach(() => localStorage.clear());
+const slot = { template: "<div><slot /></div>" };
+const buttonSlot = { template: "<button><slot /></button>" };
+
+beforeEach(() => {
+  localStorage.clear();
+  window.pine = {
+    getAppVersion: vi.fn().mockResolvedValue("0.1.0"),
+    openExternalUrl: vi.fn().mockResolvedValue(undefined),
+  } as unknown as typeof window.pine;
+});
+
 it("restores the project tab and persists navigation without changing the active conversation", async () => {
   const pinia = createPinia();
   setActivePinia(pinia);
@@ -38,7 +49,6 @@ it("restores the project tab and persists navigation without changing the active
     ],
   });
   await router.push("/projects/one?tab=conversation");
-  const slot = { template: "<div><slot /></div>" };
   const wrapper = mount(ProjectSidebar, {
     global: {
       plugins: [pinia, router, createAppI18n("zh-CN")],
@@ -83,8 +93,8 @@ it("restores the project tab and persists navigation without changing the active
   expect(wrapper.get("[data-sessions-scroll]").element).toBe(sessions);
   expect(sessions.scrollTop).toBe(720);
   const footerText = wrapper.text();
-  expect(footerText.indexOf("新版本 Pine 可用")).toBeLessThan(
-    footerText.indexOf("项目设置"),
+  expect(footerText.indexOf("项目设置")).toBeLessThan(
+    footerText.indexOf("新版本 Pine 可用"),
   );
   expect(footerText).not.toContain("工作技能");
   expect(footerText).not.toContain("MCP");
@@ -94,5 +104,47 @@ it("restores the project tab and persists navigation without changing the active
   expect(tabs[0].attributes("data-state")).toBe("active");
   expect(sidebarStore.stateFor("two").tab).toBe("files");
   expect(wrapper.get("[data-files-scroll]").element).not.toBe(files);
+  wrapper.unmount();
+});
+
+it("shows the version item that opens releases until an update replaces it", async () => {
+  const pinia = createPinia();
+  setActivePinia(pinia);
+  const router = createRouter({
+    history: createMemoryHistory(),
+    routes: [{ path: "/", component: { template: "<div />" } }],
+  });
+  const wrapper = mount(ProjectSidebar, {
+    global: {
+      plugins: [pinia, router, createAppI18n("zh-CN")],
+      stubs: {
+        Sidebar: slot,
+        SidebarContent: slot,
+        SidebarFooter: slot,
+        SidebarHeader: slot,
+        SidebarMenu: slot,
+        SidebarMenuButton: buttonSlot,
+        SidebarMenuItem: slot,
+        SidebarRail: true,
+        ProjectFileTree: true,
+        ProjectSessionList: true,
+      },
+    },
+  });
+  await flushPromises();
+  const version = wrapper.get('[data-testid="pine-version"]');
+  expect(version.text()).toBe("版本 0.1.0");
+  await version.trigger("click");
+  expect(window.pine.openExternalUrl).toHaveBeenCalledWith(PINE_RELEASES_URL);
+
+  useUpdaterStore().update = {
+    changelog: "Changes",
+    internalVersion: "2.0.0",
+    publishedAt: "2026-09-15",
+    version: "2.0.0",
+  };
+  await flushPromises();
+  expect(wrapper.find('[data-testid="pine-version"]').exists()).toBe(false);
+  expect(wrapper.text()).toContain("新版本 Pine 可用");
   wrapper.unmount();
 });
