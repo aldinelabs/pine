@@ -1,6 +1,6 @@
 import { mount } from "@vue/test-utils";
 import { createPinia, setActivePinia } from "pinia";
-import { defineComponent, h, nextTick } from "vue";
+import { defineComponent, h } from "vue";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { Task, TaskState } from "@pine/rpiv-todo";
 import { createAppI18n } from "@/app/i18n";
@@ -59,7 +59,7 @@ describe("ProjectTodoPanel", () => {
     );
   });
 
-  it("renders progress, statuses, dependencies, and the active form", () => {
+  it("renders progress, node statuses, and the active form", () => {
     const wrapper = mountPanel({
       tasks: [
         { id: 1, subject: "Research", status: "completed" },
@@ -69,7 +69,7 @@ describe("ProjectTodoPanel", () => {
           status: "in_progress",
           activeForm: "building the panel",
         },
-        pending(3, { blockedBy: [2] }),
+        pending(3),
         { id: 4, subject: "Dropped", status: "deleted" },
       ],
       nextId: 5,
@@ -84,15 +84,41 @@ describe("ProjectTodoPanel", () => {
       "pending",
     ]);
     expect(rows[1]?.text()).toContain("building the panel");
-    expect(rows[2]?.text()).toContain("#3");
-    expect(rows[2]?.text()).toContain("依赖 #2");
+    const nodes = wrapper.findAll('[data-testid="project-todo-node"]');
+    expect(nodes.map((node) => node.attributes("data-status"))).toEqual([
+      "completed",
+      "in_progress",
+      "pending",
+    ]);
   });
 
-  it("omits ids when no task has dependencies", () => {
-    const wrapper = mountPanel({ tasks: [pending(1)], nextId: 2 });
-    expect(
-      wrapper.find('[data-testid="project-todo-row"]').text(),
-    ).not.toContain("#1");
+  it("draws edges only when a task depends on another", () => {
+    const flat = mountPanel({ tasks: [pending(1), pending(2)], nextId: 3 });
+    expect(flat.findAll('[data-testid="project-todo-edge"]')).toHaveLength(0);
+    expect(flat.text()).not.toContain("#");
+
+    const linked = mountPanel({
+      tasks: [
+        { id: 1, subject: "Design", status: "completed" },
+        pending(2, { blockedBy: [1] }),
+        pending(3, { blockedBy: [1] }),
+        pending(4, { blockedBy: [2, 3] }),
+      ],
+      nextId: 5,
+    });
+    const edges = linked.findAll('[data-testid="project-todo-edge"]');
+    expect(edges).toHaveLength(4);
+    // Only edges from the completed dependency no longer block anything.
+    expect(edges.map((edge) => edge.attributes("data-satisfied"))).toEqual([
+      "true",
+      "true",
+      "false",
+      "false",
+    ]);
+    const lanes = linked
+      .findAll('[data-testid="project-todo-node"]')
+      .map((node) => node.attributes("data-lane"));
+    expect(new Set(lanes).size).toBe(2);
   });
 
   it("fits the row budget and expands on demand", async () => {
@@ -116,21 +142,5 @@ describe("ProjectTodoPanel", () => {
     await overflow.trigger("click");
     expect(rows()).toHaveLength(14);
     expect(overflow.text()).toBe("收起");
-  });
-
-  it("collapses with the keyboard shortcut and shows the expand hint", async () => {
-    const wrapper = mountPanel({ tasks: [pending(1)], nextId: 2 });
-    expect(
-      wrapper.find('[data-testid="project-todo-expand-hint"]').exists(),
-    ).toBe(false);
-
-    window.dispatchEvent(
-      new KeyboardEvent("keydown", { key: "T", metaKey: true, shiftKey: true }),
-    );
-    await nextTick();
-
-    const hint = wrapper.get('[data-testid="project-todo-expand-hint"]');
-    expect(hint.text()).toContain("展开");
-    expect(hint.text()).toContain("⌘");
   });
 });

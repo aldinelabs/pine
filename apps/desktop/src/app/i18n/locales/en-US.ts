@@ -448,8 +448,6 @@ export default {
     todos: {
       heading: "Todos",
       progress: "{completed}/{total}",
-      toggle: "Collapse or expand todos",
-      expandHint: "{key} to expand",
       showAll: "View all todos",
       more: "+{count} more",
       moreDetails: "+{count} more ({details})",

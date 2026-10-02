@@ -422,8 +422,6 @@ export default {
     todos: {
       heading: "任务清单",
       progress: "{completed}/{total}",
-      toggle: "折叠或展开任务清单",
-      expandHint: "按 {key} 展开",
       showAll: "查看全部任务",
       more: "另有 {count} 项",
       moreDetails: "另有 {count} 项（{details}）",
