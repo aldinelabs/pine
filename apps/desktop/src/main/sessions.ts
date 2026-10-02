@@ -1,11 +1,9 @@
-import {
-  BACKGROUND_CONTEXT,
-  JsonlSessionRepo,
-  type Entry,
-  type JsonlSessionMetadata,
-  type Session,
-} from "@earendil-works/pi-agent-core";
-import { mkdir, stat } from "node:fs/promises";
+import type {
+  SessionEntry as Entry,
+  SessionInfo,
+  SessionManager,
+} from "@earendil-works/pi-coding-agent";
+import { mkdir, readdir, readFile, stat, unlink } from "node:fs/promises";
 import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import sanitizeFilename from "sanitize-filename";
@@ -33,7 +31,6 @@ import {
   type PineAttachment,
 } from "../shared/attachments";
 import { parseMessageBlocks } from "../shared/sessions";
-import { PineSessionFileSystem } from "./sessionFileSystem";
 import { replayTodoState } from "@pine/rpiv-todo";
 
 const SEARCH_RESULT_LIMIT = 50;
@@ -47,11 +44,6 @@ export interface PineSessionExportDocument {
   markdown: string;
 }
 
-export interface PineSessionHandle {
-  session: Session<JsonlSessionMetadata>;
-  summary: PineSessionSummary;
-}
-
 export interface PineSessionDescriptor {
   sessionFile: string;
   summary: PineSessionSummary;
@@ -61,6 +53,36 @@ export interface ProjectSessionServiceOptions {
   cacheRoot: string;
   cwd: string;
   sessionsRoot: string;
+}
+
+interface SessionMetadata {
+  createdAt: number;
+  id: string;
+  path: string;
+}
+
+// The main bundle is CJS; coding-agent only exposes an ESM import entry.
+async function loadSessionManager(): Promise<typeof SessionManager> {
+  return (await import("@earendil-works/pi-coding-agent")).SessionManager;
+}
+
+/**
+ * SessionManager skips malformed lines. A damaged file must fail instead, so
+ * it is neither indexed from partial history nor appended to by a rename.
+ */
+async function assertWellFormed(sessionFile: string): Promise<void> {
+  const text = await readFile(sessionFile, "utf8");
+  for (const line of text.split("\n")) {
+    if (line.trim()) JSON.parse(line);
+  }
+}
+
+function metadataOf(info: SessionInfo): SessionMetadata {
+  return { id: info.id, path: info.path, createdAt: info.created.getTime() };
+}
+
+function entryTimestamp(entry: Entry): number {
+  return Date.parse(entry.timestamp);
 }
 
 interface SessionDocument extends PineSessionSummary {
@@ -145,7 +167,7 @@ function thinkingDurationMs(
   entry: Extract<Entry, { type: "message" }>,
 ): number | undefined {
   const startedAt = entry.message.timestamp;
-  const endedAt = entry.timestamp;
+  const endedAt = entryTimestamp(entry);
   if (typeof startedAt !== "number" || Number.isNaN(endedAt)) return undefined;
   return Math.max(0, endedAt - startedAt);
 }
@@ -169,12 +191,14 @@ function indexedTextMessages(entries: Entry[]): IndexedTextMessage[] {
   const toolOwners = new Map<string, PineTextMessage>();
   const approvalDecisions = approvalDecisionsFromEntries(entries);
 
-  for (const entry of entries) {
+  for (const [index, entry] of entries.entries()) {
+    // Entries are append-only, so file position is a stable cursor.
+    const cursor = index + 1;
     if (entry.type === "compaction") {
       messages.push({
-        cursor: entry.seq,
+        cursor,
         message: {
-          createdAt: new Date(entry.timestamp).toISOString(),
+          createdAt: new Date(entryTimestamp(entry)).toISOString(),
           id: `compaction-${entry.id}`,
           role: "assistant",
           blocks: [
@@ -263,13 +287,13 @@ function indexedTextMessages(entries: Entry[]): IndexedTextMessage[] {
       createdAt:
         typeof messageTimestamp === "number"
           ? new Date(messageTimestamp).toISOString()
-          : new Date(entry.timestamp).toISOString(),
+          : new Date(entryTimestamp(entry)).toISOString(),
       id: entry.id,
       role: entry.message.role,
       blocks: blocksWithApproval,
       ...(hasThinking ? { thinkingDurationMs: thinkingDurationMs(entry) } : {}),
     };
-    messages.push({ cursor: entry.seq, message });
+    messages.push({ cursor, message });
     for (const block of blocksWithApproval) {
       if (block.type === "toolCall") toolOwners.set(block.toolCall.id, message);
     }
@@ -447,7 +471,9 @@ function sessionUpdatedAt(
 
     const messageTimestamp = entry.message.timestamp;
     const timestamp =
-      typeof messageTimestamp === "number" ? messageTimestamp : entry.timestamp;
+      typeof messageTimestamp === "number"
+        ? messageTimestamp
+        : entryTimestamp(entry);
     if (!Number.isNaN(timestamp)) {
       latestTimestamp = Math.max(latestTimestamp, timestamp);
     }
@@ -474,23 +500,11 @@ function quoteFtsQuery(query: string): string {
 
 export class ProjectSessionService {
   private readonly database: DatabaseSync;
-  private readonly environment: PineSessionFileSystem;
-  private readonly liveSessions = new Map<
-    string,
-    Session<JsonlSessionMetadata>
-  >();
-  private readonly repository: JsonlSessionRepo;
 
   private constructor(
-    private readonly cwd: string,
-    sessionsRoot: string,
+    private readonly sessionsRoot: string,
     databasePath: string,
   ) {
-    this.environment = new PineSessionFileSystem({ cwd });
-    this.repository = new JsonlSessionRepo({
-      fileSystem: this.environment,
-      sessionsRoot,
-    });
     this.database = new DatabaseSync(databasePath, { timeout: 5_000 });
     const schemaVersion = this.database.prepare("PRAGMA user_version").get() as
       { user_version: number } | undefined;
@@ -524,52 +538,36 @@ export class ProjectSessionService {
     await mkdir(options.sessionsRoot, { recursive: true });
 
     return new ProjectSessionService(
-      options.cwd,
       options.sessionsRoot,
       path.join(cacheDirectory, SEARCH_INDEX_FILE),
     );
   }
 
-  async createSession(): Promise<PineSessionHandle> {
-    const session = await this.repository.create(
-      { cwd: this.cwd },
-      BACKGROUND_CONTEXT,
+  // Each project keeps its sessions in its own subdirectory of the root, and
+  // history stays visible across projects and default-folder changes.
+  private async listSessions(): Promise<SessionMetadata[]> {
+    const manager = await loadSessionManager();
+    const directories = (
+      await readdir(this.sessionsRoot, { withFileTypes: true })
+    )
+      .filter((entry) => entry.isDirectory())
+      .map((entry) => path.join(this.sessionsRoot, entry.name));
+    const sessions = await Promise.all(
+      directories.map((directory) => manager.listAll(directory)),
     );
-    await session.createBranch("main", null, BACKGROUND_CONTEXT);
-    const metadata = session.metadata;
-    this.liveSessions.set(metadata.id, session);
-
-    return {
-      session,
-      summary: {
-        id: metadata.id,
-        createdAt: new Date(metadata.createdAt).toISOString(),
-        updatedAt: new Date(metadata.createdAt).toISOString(),
-        messageCount: 0,
-      },
-    };
+    return sessions.flat().map(metadataOf);
   }
 
-  async resumeSession(sessionId: string): Promise<PineSessionHandle> {
-    const metadata = (
-      await this.repository.list(undefined, BACKGROUND_CONTEXT)
-    ).find((session) => session.id === sessionId);
-    if (!metadata) throw new Error("Session not found in the active project.");
-
-    const session =
-      this.liveSessions.get(metadata.id) ??
-      (await this.repository.open(metadata, BACKGROUND_CONTEXT));
-    this.liveSessions.set(metadata.id, session);
-    return {
-      session,
-      summary: await this.readSessionDocument(metadata, undefined, session),
-    };
+  private async findSession(
+    sessionId: string,
+  ): Promise<SessionMetadata | undefined> {
+    return (await this.listSessions()).find(
+      (session) => session.id === sessionId,
+    );
   }
 
   async describeSession(sessionId: string): Promise<PineSessionDescriptor> {
-    const metadata = (
-      await this.repository.list(undefined, BACKGROUND_CONTEXT)
-    ).find((session) => session.id === sessionId);
+    const metadata = await this.findSession(sessionId);
     if (!metadata) throw new Error("Session not found in the active project.");
 
     return {
@@ -600,13 +598,11 @@ export class ProjectSessionService {
     limit = 50,
     includeOutline = false,
   ): Promise<LoadSessionMessagesResult> {
-    const metadata = (
-      await this.repository.list(undefined, BACKGROUND_CONTEXT)
-    ).find((session) => session.id === sessionId);
+    const metadata = await this.findSession(sessionId);
     if (!metadata) throw new Error("Session not found in the active project.");
 
-    return this.withSession(metadata, async (session) => {
-      const entries = await entriesForSession(session);
+    return this.withSession(metadata, (session) => {
+      const entries = session.getEntries();
       const messages = indexedTextMessages(entries);
       const end = before
         ? messageCursorIndex(messages, before)
@@ -636,15 +632,11 @@ export class ProjectSessionService {
     sessionId: string,
     toolCallId: string,
   ): Promise<string | null> {
-    const metadata = (
-      await this.repository.list(undefined, BACKGROUND_CONTEXT)
-    ).find((session) => session.id === sessionId);
+    const metadata = await this.findSession(sessionId);
     if (!metadata) return null;
 
-    return this.withSession(metadata, async (session) => {
-      for (const { message } of indexedTextMessages(
-        await entriesForSession(session),
-      )) {
+    return this.withSession(metadata, (session) => {
+      for (const { message } of indexedTextMessages(session.getEntries())) {
         for (const block of message.blocks) {
           if (block.type !== "toolCall") continue;
           const call = block.toolCall;
@@ -669,13 +661,11 @@ export class ProjectSessionService {
     sessionId: string,
     fallbackApprovalMode: PineApprovalMode,
   ): Promise<PineSessionExportDocument> {
-    const metadata = (
-      await this.repository.list(undefined, BACKGROUND_CONTEXT)
-    ).find((session) => session.id === sessionId);
+    const metadata = await this.findSession(sessionId);
     if (!metadata) throw new Error("Session not found in the active project.");
 
     return this.withSession(metadata, async (session) => {
-      const entries = await entriesForSession(session);
+      const entries = session.getEntries();
       const summary = await this.readSessionDocument(
         metadata,
         undefined,
@@ -694,17 +684,10 @@ export class ProjectSessionService {
   }
 
   async deleteSession(sessionId: string): Promise<boolean> {
-    const metadata = (
-      await this.repository.list(undefined, BACKGROUND_CONTEXT)
-    ).find((session) => session.id === sessionId);
+    const metadata = await this.findSession(sessionId);
     if (!metadata) return false;
 
-    const liveSession = this.liveSessions.get(sessionId);
-    if (liveSession) {
-      await liveSession.close(BACKGROUND_CONTEXT);
-      this.liveSessions.delete(sessionId);
-    }
-    await this.repository.delete(metadata, BACKGROUND_CONTEXT);
+    await unlink(metadata.path);
     this.database
       .prepare("DELETE FROM session_search WHERE session_id = ?")
       .run(sessionId);
@@ -715,35 +698,14 @@ export class ProjectSessionService {
     sessionId: string,
     name: string,
   ): Promise<PineSessionSummary> {
-    const metadata = (
-      await this.repository.list(undefined, BACKGROUND_CONTEXT)
-    ).find((session) => session.id === sessionId);
+    const metadata = await this.findSession(sessionId);
     if (!metadata) throw new Error("Session not found in the active project.");
 
-    if (await this.environment.isLegacyV3Session(metadata.path)) {
-      // A core Session.setName commit would migrate v3 to v4, which the
-      // coding agent cannot resume. Keep its file format and context edits.
-      const liveSession = this.liveSessions.get(metadata.id);
-      if (liveSession) {
-        await liveSession.close(BACKGROUND_CONTEXT);
-        this.liveSessions.delete(metadata.id);
-      }
-      // SessionManager tolerates malformed lines. Validate the full document
-      // before allowing a rename to append to a genuinely damaged source.
-      await this.readSessionDocument(metadata);
-      // The main bundle is CJS; coding-agent only exposes an ESM import entry.
-      const { SessionManager } =
-        await import("@earendil-works/pi-coding-agent");
-      SessionManager.open(metadata.path).appendSessionInfo(name);
-      const summary = await this.readSessionDocument(metadata);
-      await this.refreshIndex();
-      return summary;
-    }
-
-    const summary = await this.withSession(metadata, async (session) => {
-      await session.setName(name, BACKGROUND_CONTEXT);
-      return this.readSessionDocument(metadata, undefined, session);
-    });
+    // SessionManager tolerates malformed lines. Validate the full document
+    // before allowing a rename to append to a genuinely damaged source.
+    await this.readSessionDocument(metadata);
+    (await loadSessionManager()).open(metadata.path).appendSessionInfo(name);
+    const summary = await this.readSessionDocument(metadata);
     await this.refreshIndex();
     return summary;
   }
@@ -812,26 +774,13 @@ export class ProjectSessionService {
     return rows.map(rowToSearchResult);
   }
 
-  async dispose(): Promise<void> {
-    try {
-      await Promise.all(
-        [...this.liveSessions.values()].map((session) =>
-          session.close(BACKGROUND_CONTEXT),
-        ),
-      );
-      this.liveSessions.clear();
-    } finally {
-      await this.repository.close(BACKGROUND_CONTEXT);
-      this.database.close();
-      await this.environment.cleanup(BACKGROUND_CONTEXT);
-    }
+  dispose(): Promise<void> {
+    this.database.close();
+    return Promise.resolve();
   }
 
   private async refreshIndex(): Promise<void> {
-    const metadataList = await this.repository.list(
-      undefined,
-      BACKGROUND_CONTEXT,
-    );
+    const metadataList = await this.listSessions();
     const indexedRows = this.database
       .prepare(
         "SELECT session_id, source_mtime_ms, message_count FROM session_search",
@@ -850,8 +799,8 @@ export class ProjectSessionService {
         if (indexedSession?.source_mtime_ms === sourceMtimeMs) {
           if (Number(indexedSession.message_count) > 0) {
             retainedSessionIds.add(metadata.id);
-          } else if (!this.liveSessions.has(metadata.id)) {
-            await this.repository.delete(metadata, BACKGROUND_CONTEXT);
+          } else {
+            await unlink(metadata.path);
           }
           continue;
         }
@@ -861,9 +810,7 @@ export class ProjectSessionService {
           sourceMtimeMs,
         );
         if (!document.hasUserMessage) {
-          if (!this.liveSessions.has(metadata.id)) {
-            await this.repository.delete(metadata, BACKGROUND_CONTEXT);
-          }
+          await unlink(metadata.path);
           continue;
         }
 
@@ -918,9 +865,9 @@ export class ProjectSessionService {
   }
 
   private async readSessionDocument(
-    metadata: JsonlSessionMetadata,
+    metadata: SessionMetadata,
     sourceMtimeMs?: number,
-    openedSession?: Session<JsonlSessionMetadata>,
+    openedSession?: SessionManager,
   ): Promise<SessionDocument> {
     if (!openedSession) {
       return this.withSession(metadata, (session) =>
@@ -928,10 +875,9 @@ export class ProjectSessionService {
       );
     }
 
-    const session = openedSession;
-    const entries = await entriesForSession(session);
+    const entries = openedSession.getEntries();
     const preview = firstUserMessage(entries);
-    const name = (await session.getName(BACKGROUND_CONTEXT))?.trim();
+    const name = openedSession.getSessionName()?.trim();
     const resolvedSourceMtimeMs =
       sourceMtimeMs ?? (await stat(metadata.path)).mtimeMs;
 
@@ -954,24 +900,11 @@ export class ProjectSessionService {
   }
 
   private async withSession<T>(
-    metadata: JsonlSessionMetadata,
-    callback: (session: Session<JsonlSessionMetadata>) => Promise<T>,
+    metadata: SessionMetadata,
+    callback: (session: SessionManager) => Promise<T> | T,
   ): Promise<T> {
-    const liveSession = this.liveSessions.get(metadata.id);
-    if (liveSession) return callback(liveSession);
-
-    const session = await this.repository.open(metadata, BACKGROUND_CONTEXT);
-    try {
-      return await callback(session);
-    } finally {
-      await session.close(BACKGROUND_CONTEXT);
-    }
+    await assertWellFormed(metadata.path);
+    const manager = (await loadSessionManager()).open(metadata.path);
+    return callback(manager);
   }
-}
-
-async function entriesForSession(
-  session: Session<JsonlSessionMetadata>,
-): Promise<Entry[]> {
-  const entries = await session.findEntries(undefined, BACKGROUND_CONTEXT);
-  return entries.reverse();
 }

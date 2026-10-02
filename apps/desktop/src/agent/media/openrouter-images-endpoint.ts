@@ -1,8 +1,8 @@
 import type {
   AssistantImages,
-  ImagesApi,
+  ImageApi,
   ImagesInputContent,
-  ImagesModel,
+  ImageModel,
   Usage,
 } from "@earendil-works/pi-ai";
 
@@ -33,7 +33,7 @@ export interface ImagesEndpointRequest {
   apiKey: string;
   /** Injectable for tests; defaults to the global fetch. */
   fetch?: typeof globalThis.fetch;
-  model: ImagesModel<ImagesApi>;
+  model: ImageModel<ImageApi>;
   input?: readonly ImagesInputContent[];
   parameters?: Record<string, unknown>;
   prompt: string;
@@ -62,7 +62,7 @@ interface ErrorBody {
   message?: string;
 }
 
-export function imagesEndpointUrl(model: ImagesModel<ImagesApi>): string {
+export function imagesEndpointUrl(model: ImageModel<ImageApi>): string {
   return `${model.baseUrl.replace(/\/+$/u, "")}/images`;
 }
 
@@ -116,7 +116,7 @@ export async function generateImagesViaEndpoint(
       "content-type": "application/json",
     };
     for (const [key, value] of Object.entries(model.headers ?? {})) {
-      if (value !== null) headers[key] = value;
+      if (typeof value === "string") headers[key] = value;
     }
 
     const response = await (request.fetch ?? globalThis.fetch)(
@@ -191,7 +191,7 @@ function providerErrorMessage(raw: string): string | undefined {
  */
 function parseUsage(
   raw: ImagesEndpointUsage | undefined,
-  model: ImagesModel<ImagesApi>,
+  model: ImageModel<ImageApi>,
 ): Usage | undefined {
   if (!raw) return undefined;
   const input = raw.prompt_tokens ?? 0;

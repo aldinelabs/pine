@@ -1,19 +1,19 @@
 import { describe, expect, it, vi } from "vitest";
-import type { ExtensionContext } from "@earendil-works/pi-coding-agent";
+import type { ExtensionToolContext } from "@earendil-works/pi-coding-agent";
 import type { TaskDetails } from "@pine/rpiv-todo";
 import { createTodoToolDefinition } from "../todoTool";
 
 function contextWithBranch(branch: unknown[]) {
   const getBranch = vi.fn(() => branch);
   return {
-    ctx: { sessionManager: { getBranch } } as unknown as ExtensionContext,
+    ctx: { sessionManager: { getBranch } } as unknown as ExtensionToolContext,
     getBranch,
   };
 }
 
 async function call(
   tool: ReturnType<typeof createTodoToolDefinition>,
-  ctx: ExtensionContext,
+  ctx: ExtensionToolContext,
   params: Parameters<typeof tool.execute>[1],
 ) {
   const result = await tool.execute("call", params, undefined, undefined, ctx);

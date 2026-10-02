@@ -276,8 +276,9 @@ export class PineAgentRuntime {
             })
           : live.session.prompt(message, {
               ...(streamingBehavior ? { streamingBehavior } : {}),
-              preflightResult: (success) => {
-                if (success) settleAccepted();
+              // Pi only reports a disposition for accepted prompts.
+              preflightResult: () => {
+                settleAccepted();
               },
               source: "interactive",
             });

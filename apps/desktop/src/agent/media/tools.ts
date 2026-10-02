@@ -3,11 +3,11 @@ import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import type {
   AssistantImages,
-  ImagesApi,
+  ImageApi,
   ImagesContext,
   ImagesInputContent,
   ImageContent,
-  ImagesModel,
+  ImageModel,
 } from "@earendil-works/pi-ai";
 import {
   defineTool,
@@ -103,7 +103,7 @@ function withSequence(filePath: string, sequence: number): string {
 export interface GenerateImageRequest {
   apiKey: string;
   input?: readonly ImagesInputContent[];
-  model: ImagesModel<ImagesApi>;
+  model: ImageModel<ImageApi>;
   prompt: string;
   parameters?: Record<string, unknown>;
   signal?: AbortSignal;
@@ -144,7 +144,7 @@ export interface MediaGenerationToolOptions {
  * output modalities instead of waiting for a Pi release.
  */
 export function imageTransportFor(
-  model: ImagesModel<ImagesApi>,
+  model: ImageModel<ImageApi>,
 ): "chat" | "images" {
   return model.output.includes("text") ? "chat" : "images";
 }

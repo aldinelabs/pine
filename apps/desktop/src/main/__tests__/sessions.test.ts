@@ -1,15 +1,5 @@
 // @vitest-environment node
-import {
-  BACKGROUND_CONTEXT,
-  branchTip,
-  insertEntry,
-  JsonlSessionRepo,
-  setValue,
-  type AgentMessage,
-  type JsonlSessionMetadata,
-  type Session,
-} from "@earendil-works/pi-agent-core";
-import { NodeExecutionEnv } from "@earendil-works/pi-agent-core/node";
+import type { AgentMessage } from "@earendil-works/pi-agent-core";
 import { SessionManager } from "@earendil-works/pi-coding-agent";
 import {
   fauxAssistantMessage,
@@ -64,72 +54,62 @@ function textOf(message: Pick<PineTextMessage, "blocks">): string {
     .join("");
 }
 
-function createRepository(
-  environment: NodeExecutionEnv,
-  sessionsRoot: string,
-): JsonlSessionRepo {
-  return new JsonlSessionRepo({ fileSystem: environment, sessionsRoot });
+interface TestRepository {
+  sessionsRoot: string;
 }
 
-async function createSession(
-  repository: JsonlSessionRepo,
+interface TestSession {
+  manager: SessionManager;
+  metadata: { id: string; path: string };
+  setName(name: string): Promise<void>;
+}
+
+function createRepository(sessionsRoot: string): TestRepository {
+  return { sessionsRoot };
+}
+
+function createSession(
+  repository: TestRepository,
   cwd: string,
-): Promise<Session<JsonlSessionMetadata>> {
-  const session = await repository.create({ cwd }, BACKGROUND_CONTEXT);
-  await session.createBranch("main", null, BACKGROUND_CONTEXT);
-  return session;
-}
-
-async function mainBranch(
-  session: Session<JsonlSessionMetadata>,
-): Promise<NonNullable<Awaited<ReturnType<typeof session.branch>>>> {
-  const branch = await session.branch("main", BACKGROUND_CONTEXT);
-  if (!branch) throw new Error("Expected a main session branch.");
-  return branch;
+): Promise<TestSession> {
+  const manager = SessionManager.create(
+    cwd,
+    path.join(repository.sessionsRoot, path.basename(cwd)),
+  );
+  return Promise.resolve({
+    manager,
+    metadata: { id: manager.getSessionId(), path: manager.getSessionFile()! },
+    setName: (name) => {
+      manager.appendSessionInfo(name);
+      return Promise.resolve();
+    },
+  });
 }
 
 async function appendMessage(
-  session: Session<JsonlSessionMetadata>,
+  session: TestSession,
   message: AgentMessage,
 ): Promise<void> {
-  await (await mainBranch(session)).appendMessage(message, BACKGROUND_CONTEXT);
+  session.manager.appendMessage(message as never);
+  return Promise.resolve();
 }
 
 async function appendCustomEntry(
-  session: Session<JsonlSessionMetadata>,
+  session: TestSession,
   customType: string,
   data: Record<string, string>,
 ): Promise<void> {
-  await (
-    await mainBranch(session)
-  ).appendCustomEntry(customType, data, BACKGROUND_CONTEXT);
+  session.manager.appendCustomEntry(customType, data);
+  return Promise.resolve();
 }
 
 async function appendCompaction(
-  session: Session<JsonlSessionMetadata>,
+  session: TestSession,
   summary: string,
   tokensBefore: number,
 ): Promise<void> {
-  const branch = await mainBranch(session);
-  const parentId = await branch.getTipId(BACKGROUND_CONTEXT);
-  const id = session.idGenerator.next();
-  await session.mutate(async (mutator) => {
-    await mutator.commit(
-      [
-        insertEntry({
-          id,
-          parentId,
-          type: "compaction",
-          summary,
-          retainedTail: [],
-          tokensBefore,
-          fromHook: false,
-        }),
-        setValue(branchTip("main"), id),
-      ],
-      BACKGROUND_CONTEXT,
-    );
-  }, BACKGROUND_CONTEXT);
+  session.manager.appendCompaction(summary, null, tokensBefore);
+  return Promise.resolve();
 }
 
 describe("ProjectSessionService", () => {
@@ -202,9 +182,6 @@ describe("ProjectSessionService", () => {
       await expect(service.search("Continued message")).resolves.toHaveLength(
         1,
       );
-      expect((await service.resumeSession(sessionId)).summary.id).toBe(
-        sessionId,
-      );
     } finally {
       await service.dispose();
     }
@@ -214,8 +191,7 @@ describe("ProjectSessionService", () => {
     const rootPath = await createTemporaryProjectData();
     const options = serviceOptions(rootPath);
     await mkdir(options.cwd, { recursive: true });
-    const environment = new NodeExecutionEnv({ cwd: options.cwd });
-    const repository = createRepository(environment, options.sessionsRoot);
+    const repository = createRepository(options.sessionsRoot);
     const damaged = await createSession(repository, options.cwd);
     await appendMessage(damaged, {
       role: "user",
@@ -223,7 +199,6 @@ describe("ProjectSessionService", () => {
       timestamp: Date.now(),
     });
     const damagedMetadata = damaged.metadata;
-    await damaged.close(BACKGROUND_CONTEXT);
     const original = await readFile(damagedMetadata.path, "utf8");
     const service = await ProjectSessionService.create(options);
     const warning = vi
@@ -239,10 +214,13 @@ describe("ProjectSessionService", () => {
         content: "New healthy conversation",
         timestamp: Date.now(),
       });
-      await healthy.close(BACKGROUND_CONTEXT);
       const unindexed = await createSession(repository, options.cwd);
+      await appendMessage(unindexed, {
+        role: "user",
+        content: "Never indexed",
+        timestamp: Date.now(),
+      });
       const unindexedPath = unindexed.metadata.path;
-      await unindexed.close(BACKGROUND_CONTEXT);
       await appendFile(unindexedPath, "{broken json}\n", "utf8");
       const unindexedSource = await readFile(unindexedPath, "utf8");
       await expect(service.search("")).resolves.toHaveLength(2);
@@ -264,8 +242,6 @@ describe("ProjectSessionService", () => {
       await expect(service.search("")).resolves.toHaveLength(2);
     } finally {
       await service.dispose();
-      await repository.close(BACKGROUND_CONTEXT);
-      await environment.cleanup(BACKGROUND_CONTEXT);
     }
   });
 
@@ -290,8 +266,6 @@ describe("ProjectSessionService", () => {
     let service = await ProjectSessionService.create(options);
 
     try {
-      // Also exercise invalidation of a cached legacy read handle.
-      await service.resumeSession(sessionId);
       expect(
         (await service.renameSession(sessionId, "Recovered conversation")).name,
       ).toBe("Recovered conversation");
@@ -335,32 +309,14 @@ describe("ProjectSessionService", () => {
     }
   });
 
-  it("creates a new persistent Pi session", async () => {
-    const rootPath = await createTemporaryProjectData();
-    const options = serviceOptions(rootPath);
-    await mkdir(options.cwd, { recursive: true });
-    const service = await ProjectSessionService.create(options);
-
-    try {
-      const { session, summary } = await service.createSession();
-
-      expect(session.metadata.id).toBe(summary.id);
-      expect(summary.messageCount).toBe(0);
-      await expect(service.search("")).resolves.toEqual([]);
-    } finally {
-      await service.dispose();
-    }
-  });
-
   it("searches session names and message content in English and Chinese", async () => {
     const rootPath = await createTemporaryProjectData();
     const options = serviceOptions(rootPath);
     await mkdir(options.cwd, { recursive: true });
-    const environment = new NodeExecutionEnv({ cwd: options.cwd });
-    const repository = createRepository(environment, options.sessionsRoot);
+    const repository = createRepository(options.sessionsRoot);
     await createSession(repository, path.join(rootPath, "other-source"));
     const session = await createSession(repository, options.cwd);
-    await session.setName("Search architecture", BACKGROUND_CONTEXT);
+    await session.setName("Search architecture");
     await appendMessage(session, {
       role: "user",
       content: "Investigate SQLite 全文搜索 for previous sessions",
@@ -373,9 +329,6 @@ describe("ProjectSessionService", () => {
       await expect(service.search("")).resolves.toEqual([
         expect.objectContaining({ id: metadata.id }),
       ]);
-      await expect(
-        repository.list(undefined, BACKGROUND_CONTEXT),
-      ).resolves.toEqual([expect.objectContaining({ id: metadata.id })]);
       await expect(service.search("SQLite")).resolves.toEqual([
         expect.objectContaining({
           id: metadata.id,
@@ -388,12 +341,8 @@ describe("ProjectSessionService", () => {
       await expect(service.search("全")).resolves.toEqual([
         expect.objectContaining({ id: metadata.id }),
       ]);
-
-      const resumed = await service.resumeSession(metadata.id);
-      expect(resumed.session.metadata.path).toBe(metadata.path);
     } finally {
       await service.dispose();
-      await environment.cleanup(BACKGROUND_CONTEXT);
     }
   });
 
@@ -406,8 +355,7 @@ describe("ProjectSessionService", () => {
       mkdir(previousCwd, { recursive: true }),
       mkdir(nextCwd, { recursive: true }),
     ]);
-    const environment = new NodeExecutionEnv({ cwd: previousCwd });
-    const repository = createRepository(environment, sessionsRoot);
+    const repository = createRepository(sessionsRoot);
     const previousSession = await createSession(repository, previousCwd);
     await appendMessage(previousSession, {
       role: "user",
@@ -441,7 +389,6 @@ describe("ProjectSessionService", () => {
       );
     } finally {
       await service.dispose();
-      await environment.cleanup(BACKGROUND_CONTEXT);
     }
   });
 
@@ -449,10 +396,9 @@ describe("ProjectSessionService", () => {
     const rootPath = await createTemporaryProjectData();
     const options = serviceOptions(rootPath);
     await mkdir(options.cwd, { recursive: true });
-    const environment = new NodeExecutionEnv({ cwd: options.cwd });
-    const repository = createRepository(environment, options.sessionsRoot);
+    const repository = createRepository(options.sessionsRoot);
     const session = await createSession(repository, options.cwd);
-    await session.setName("Architecture review", BACKGROUND_CONTEXT);
+    await session.setName("Architecture review");
     await appendMessage(session, {
       role: "user",
       content: "Review the event flow",
@@ -473,7 +419,6 @@ describe("ProjectSessionService", () => {
       );
     } finally {
       await service.dispose();
-      await environment.cleanup(BACKGROUND_CONTEXT);
     }
   });
 
@@ -481,8 +426,7 @@ describe("ProjectSessionService", () => {
     const rootPath = await createTemporaryProjectData();
     const options = serviceOptions(rootPath);
     await mkdir(options.cwd, { recursive: true });
-    const environment = new NodeExecutionEnv({ cwd: options.cwd });
-    const repository = createRepository(environment, options.sessionsRoot);
+    const repository = createRepository(options.sessionsRoot);
     const session = await createSession(repository, options.cwd);
     for (const content of ["one", "two", "three", "four"]) {
       await appendMessage(session, {
@@ -525,7 +469,6 @@ describe("ProjectSessionService", () => {
       expect(earlier.hasMore).toBe(false);
     } finally {
       await service.dispose();
-      await environment.cleanup(BACKGROUND_CONTEXT);
     }
   });
 
@@ -533,9 +476,13 @@ describe("ProjectSessionService", () => {
     const rootPath = await createTemporaryProjectData();
     const options = serviceOptions(rootPath);
     await mkdir(options.cwd, { recursive: true });
-    const environment = new NodeExecutionEnv({ cwd: options.cwd });
-    const repository = createRepository(environment, options.sessionsRoot);
+    const repository = createRepository(options.sessionsRoot);
     const session = await createSession(repository, options.cwd);
+    await appendMessage(session, {
+      role: "user",
+      content: "Start",
+      timestamp: Date.now(),
+    });
     const snapshot = {
       tasks: [{ id: 1, subject: "Plan", status: "in_progress" as const }],
       nextId: 2,
@@ -565,7 +512,6 @@ describe("ProjectSessionService", () => {
       expect(page).not.toHaveProperty("todos");
     } finally {
       await service.dispose();
-      await environment.cleanup(BACKGROUND_CONTEXT);
     }
   });
 
@@ -616,8 +562,8 @@ describe("ProjectSessionService", () => {
       ]);
       expect(newest.nextBefore).toBe("seq:3");
 
-      // loadMessages intentionally reopens closed sessions. Legacy imports
-      // remint entry IDs on every open, but their sequence numbers are stable.
+      // loadMessages reopens the file each time; cursors are entry positions,
+      // which stay stable because session files are append-only.
       const earlier = await service.loadMessages(
         sessionId,
         newest.nextBefore,
@@ -637,8 +583,7 @@ describe("ProjectSessionService", () => {
     const rootPath = await createTemporaryProjectData();
     const options = serviceOptions(rootPath);
     await mkdir(options.cwd, { recursive: true });
-    const environment = new NodeExecutionEnv({ cwd: options.cwd });
-    const repository = createRepository(environment, options.sessionsRoot);
+    const repository = createRepository(options.sessionsRoot);
     const session = await createSession(repository, options.cwd);
     const toolCallId = "call-read-main";
     await appendMessage(
@@ -689,7 +634,6 @@ describe("ProjectSessionService", () => {
       ]);
     } finally {
       await service.dispose();
-      await environment.cleanup(BACKGROUND_CONTEXT);
     }
   });
 
@@ -697,8 +641,7 @@ describe("ProjectSessionService", () => {
     const rootPath = await createTemporaryProjectData();
     const options = serviceOptions(rootPath);
     await mkdir(options.cwd, { recursive: true });
-    const environment = new NodeExecutionEnv({ cwd: options.cwd });
-    const repository = createRepository(environment, options.sessionsRoot);
+    const repository = createRepository(options.sessionsRoot);
     const session = await createSession(repository, options.cwd);
     const presentedPath = path.join(rootPath, "tmp", "tool_probe.txt");
     await appendMessage(
@@ -751,7 +694,6 @@ describe("ProjectSessionService", () => {
       ).toBeNull();
     } finally {
       await service.dispose();
-      await environment.cleanup(BACKGROUND_CONTEXT);
     }
   });
 
@@ -759,8 +701,7 @@ describe("ProjectSessionService", () => {
     const rootPath = await createTemporaryProjectData();
     const options = serviceOptions(rootPath);
     await mkdir(options.cwd, { recursive: true });
-    const environment = new NodeExecutionEnv({ cwd: options.cwd });
-    const repository = createRepository(environment, options.sessionsRoot);
+    const repository = createRepository(options.sessionsRoot);
     const session = await createSession(repository, options.cwd);
     const toolCallId = "call-questionnaire-main";
     const details = {
@@ -808,7 +749,6 @@ describe("ProjectSessionService", () => {
       );
     } finally {
       await service.dispose();
-      await environment.cleanup(BACKGROUND_CONTEXT);
     }
   });
 
@@ -816,8 +756,7 @@ describe("ProjectSessionService", () => {
     const rootPath = await createTemporaryProjectData();
     const options = serviceOptions(rootPath);
     await mkdir(options.cwd, { recursive: true });
-    const environment = new NodeExecutionEnv({ cwd: options.cwd });
-    const repository = createRepository(environment, options.sessionsRoot);
+    const repository = createRepository(options.sessionsRoot);
     const session = await createSession(repository, options.cwd);
     const toolCallId = "call-denied-main";
     await appendMessage(
@@ -866,7 +805,6 @@ describe("ProjectSessionService", () => {
       });
     } finally {
       await service.dispose();
-      await environment.cleanup(BACKGROUND_CONTEXT);
     }
   });
 
@@ -874,10 +812,9 @@ describe("ProjectSessionService", () => {
     const rootPath = await createTemporaryProjectData();
     const options = serviceOptions(rootPath);
     await mkdir(options.cwd, { recursive: true });
-    const environment = new NodeExecutionEnv({ cwd: options.cwd });
-    const repository = createRepository(environment, options.sessionsRoot);
+    const repository = createRepository(options.sessionsRoot);
     const session = await createSession(repository, options.cwd);
-    await session.setName("Export me", BACKGROUND_CONTEXT);
+    await session.setName("Export me");
     await appendCustomEntry(session, PINE_APPROVAL_MODE_ENTRY, {
       approvalMode: "YOLO",
     });
@@ -904,7 +841,6 @@ describe("ProjectSessionService", () => {
       expect(result.markdown).toContain("Done.");
     } finally {
       await service.dispose();
-      await environment.cleanup(BACKGROUND_CONTEXT);
     }
   });
 
@@ -912,10 +848,14 @@ describe("ProjectSessionService", () => {
     const rootPath = await createTemporaryProjectData();
     const options = serviceOptions(rootPath);
     await mkdir(options.cwd, { recursive: true });
-    const environment = new NodeExecutionEnv({ cwd: options.cwd });
-    const repository = createRepository(environment, options.sessionsRoot);
+    const repository = createRepository(options.sessionsRoot);
     const session = await createSession(repository, options.cwd);
-    await session.setName("CON", BACKGROUND_CONTEXT);
+    await appendMessage(session, {
+      role: "user",
+      content: "Start",
+      timestamp: Date.now(),
+    });
+    await session.setName("CON");
     const metadata = session.metadata;
     const service = await ProjectSessionService.create(options);
 
@@ -925,7 +865,6 @@ describe("ProjectSessionService", () => {
       expect(result.fileName).toBe(`conversation-${metadata.id}.md`);
     } finally {
       await service.dispose();
-      await environment.cleanup(BACKGROUND_CONTEXT);
     }
   });
 
@@ -933,8 +872,7 @@ describe("ProjectSessionService", () => {
     const rootPath = await createTemporaryProjectData();
     const options = serviceOptions(rootPath);
     await mkdir(options.cwd, { recursive: true });
-    const environment = new NodeExecutionEnv({ cwd: options.cwd });
-    const repository = createRepository(environment, options.sessionsRoot);
+    const repository = createRepository(options.sessionsRoot);
     const session = await createSession(repository, options.cwd);
     await appendMessage(
       session,
@@ -962,7 +900,6 @@ describe("ProjectSessionService", () => {
       });
     } finally {
       await service.dispose();
-      await environment.cleanup(BACKGROUND_CONTEXT);
     }
   });
 
@@ -970,8 +907,7 @@ describe("ProjectSessionService", () => {
     const rootPath = await createTemporaryProjectData();
     const options = serviceOptions(rootPath);
     await mkdir(options.cwd, { recursive: true });
-    const environment = new NodeExecutionEnv({ cwd: options.cwd });
-    const repository = createRepository(environment, options.sessionsRoot);
+    const repository = createRepository(options.sessionsRoot);
     const session = await createSession(repository, options.cwd);
     await appendMessage(session, {
       role: "user",
@@ -1008,7 +944,6 @@ describe("ProjectSessionService", () => {
       ]);
     } finally {
       await service.dispose();
-      await environment.cleanup(BACKGROUND_CONTEXT);
     }
   });
 
@@ -1016,8 +951,7 @@ describe("ProjectSessionService", () => {
     const rootPath = await createTemporaryProjectData();
     const options = serviceOptions(rootPath);
     await mkdir(options.cwd, { recursive: true });
-    const environment = new NodeExecutionEnv({ cwd: options.cwd });
-    const repository = createRepository(environment, options.sessionsRoot);
+    const repository = createRepository(options.sessionsRoot);
     const session = await createSession(repository, options.cwd);
     await appendMessage(session, {
       role: "user",
@@ -1034,7 +968,6 @@ describe("ProjectSessionService", () => {
       await expect(service.deleteSession(metadata.id)).resolves.toBe(false);
     } finally {
       await service.dispose();
-      await environment.cleanup(BACKGROUND_CONTEXT);
     }
   });
 
@@ -1042,8 +975,7 @@ describe("ProjectSessionService", () => {
     const rootPath = await createTemporaryProjectData();
     const options = serviceOptions(rootPath);
     await mkdir(options.cwd, { recursive: true });
-    const environment = new NodeExecutionEnv({ cwd: options.cwd });
-    const repository = createRepository(environment, options.sessionsRoot);
+    const repository = createRepository(options.sessionsRoot);
     const session = await createSession(repository, options.cwd);
     await appendMessage(session, {
       role: "user",
@@ -1069,7 +1001,6 @@ describe("ProjectSessionService", () => {
       ]);
     } finally {
       await service.dispose();
-      await environment.cleanup(BACKGROUND_CONTEXT);
     }
   });
 });

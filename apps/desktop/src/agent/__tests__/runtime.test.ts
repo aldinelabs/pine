@@ -868,7 +868,7 @@ describe("PineAgentRuntime", () => {
       });
       vi.spyOn(agentSession!, "prompt").mockImplementation(
         async (_message, options) => {
-          options?.preflightResult?.(true);
+          options?.preflightResult?.("started");
           await running;
         },
       );

@@ -1,4 +1,4 @@
-import type { ImagesApi, ImagesModel } from "@earendil-works/pi-ai";
+import type { ImageApi, ImageModel } from "@earendil-works/pi-ai";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   imagesEndpointBody,
@@ -22,9 +22,10 @@ afterEach(() => {
 });
 
 function imageModel(
-  overrides: Partial<ImagesModel<ImagesApi>> = {},
-): ImagesModel<ImagesApi> {
+  overrides: Partial<ImageModel<ImageApi>> = {},
+): ImageModel<ImageApi> {
   return {
+    type: "image",
     api: "openrouter-images",
     baseUrl: "https://openrouter.ai/api/v1",
     cost: { cacheRead: 2, cacheWrite: 0, input: 8, output: 8 },
@@ -56,7 +57,7 @@ function stubFetch(handler: () => ReturnType<typeof response>) {
   return mock;
 }
 
-function request(model: ImagesModel<ImagesApi>) {
+function request(model: ImageModel<ImageApi>) {
   return {
     apiKey: "sk-or-test",
     model,
