@@ -515,8 +515,6 @@ watch(activeSession, (session) => {
         />
       </div>
 
-      <ProjectTabsOverflowMenu v-if="tabs.length" />
-
       <Button
         v-if="!tabs.length"
         class="window-no-drag pointer-events-auto"
@@ -537,6 +535,8 @@ watch(activeSession, (session) => {
       >
         <PlusIcon />
       </Button>
+
+      <ProjectTabsOverflowMenu v-if="tabs.length" />
     </div>
 
     <div
