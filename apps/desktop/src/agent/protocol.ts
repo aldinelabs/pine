@@ -1,6 +1,7 @@
 import type {
   PineAgentEvent,
   PineApprovalMode,
+  PineMessageRewriteTarget,
   PineApprovalTrigger,
   PineJsonValue,
 } from "../shared/agent";
@@ -82,6 +83,7 @@ export type AgentWorkerRequest =
       attachedPaths?: string[];
       approvalMode?: PineApprovalMode;
       streamingBehavior?: "followUp" | "steer";
+      rewrite?: PineMessageRewriteTarget;
     }
   | {
       id: string;

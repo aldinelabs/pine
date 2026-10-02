@@ -687,6 +687,50 @@ export const useSessionStore = defineStore("session", () => {
     }
   }
 
+  /**
+   * Replace an earlier user message and continue the session from it. The
+   * edited message and everything after it leave the transcript immediately;
+   * the rewritten message arrives back through the normal agent events.
+   */
+  async function rewrite(
+    sessionId: string,
+    messageId: string,
+    message: string,
+    approvalMode?: PineApprovalMode,
+  ): Promise<void> {
+    const state = stateFor(sessionId);
+    const index = state.messages.findIndex((item) => item.id === messageId);
+    if (index < 0) throw new Error("The message to edit is not loaded.");
+    const userMessagesAfter = state.messages
+      .slice(index + 1)
+      .filter((item) => item.role === "user").length;
+    const previousMessages = state.messages;
+    const previousOutline = state.outlineMessages;
+    const outlineIndex = state.outlineMessages.findIndex(
+      (item) => item.id === messageId,
+    );
+    state.messages = state.messages.slice(0, index);
+    if (outlineIndex >= 0)
+      state.outlineMessages = state.outlineMessages.slice(0, outlineIndex);
+    state.clearMessageIndexes();
+    state.isRunning = true;
+    try {
+      await window.pine.promptSession({
+        locale: currentAppLocale(),
+        message,
+        target: { kind: "session", sessionId },
+        rewrite: { messageId, userMessagesAfter },
+        ...(approvalMode ? { approvalMode } : {}),
+      });
+    } catch (error) {
+      state.messages = previousMessages;
+      state.outlineMessages = previousOutline;
+      state.clearMessageIndexes();
+      state.isRunning = false;
+      throw error;
+    }
+  }
+
   async function steer(
     message: string,
     approvalMode?: PineApprovalMode,
@@ -1291,6 +1335,7 @@ export const useSessionStore = defineStore("session", () => {
     respondQuestionnaire,
     resume,
     reviewingToolCallIds,
+    rewrite,
     search,
     searchResults,
     setApprovalMode,

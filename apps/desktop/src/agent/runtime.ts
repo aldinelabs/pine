@@ -19,7 +19,10 @@ import {
   type McpToolApprovalRequest,
 } from "pi-mcp-adapter";
 import { loadMcpConfig } from "pi-mcp-adapter/config";
-import { type PineApprovalMode } from "../shared/agent";
+import {
+  type PineApprovalMode,
+  type PineMessageRewriteTarget,
+} from "../shared/agent";
 import type {
   AddCustomModelRequest,
   DeleteCustomModelRequest,
@@ -119,6 +122,7 @@ import {
   computerUseActiveFromSessionEntries,
   mediaGenerationActiveFromSessionEntries,
   projectSessionDirectory,
+  rewriteTargetEntryId,
   sessionSummary,
   skillAuthoringActiveFromSessionEntries,
   textFromMessageContent,
@@ -241,8 +245,10 @@ export class PineAgentRuntime {
     attachedPaths: readonly string[] = [],
     approvalMode: PineApprovalMode = "auto-approve",
     locale: "en-US" | "zh-CN" = "en-US",
+    rewrite?: PineMessageRewriteTarget,
   ): Promise<AgentWorkerPromptResult> {
     const live = this.getSession(sessionId);
+    if (rewrite) await this.rewindToUserMessage(live, rewrite);
     live.locale = locale;
     this.setApprovalMode(live, approvalMode);
     await live.attachedPaths.grant(attachedPaths);
@@ -322,6 +328,45 @@ export class PineAgentRuntime {
           }
         });
     });
+  }
+
+  /**
+   * Move the session leaf to just before the edited user message. The
+   * abandoned tail stays in the append-only file as an inactive branch.
+   */
+  private async rewindToUserMessage(
+    live: LiveAgentSession,
+    rewrite: PineMessageRewriteTarget,
+  ): Promise<void> {
+    if (
+      !live.session.isIdle ||
+      live.session.isCompacting ||
+      live.resumingCompactionPrompts
+    ) {
+      throw new Error(
+        "Wait for the current response to finish before editing.",
+      );
+    }
+    const manager = live.session.sessionManager;
+    let targetId = rewriteTargetEntryId(manager.getBranch(), rewrite);
+    // Pi treats navigating to the current leaf as a no-op, so a trailing user
+    // message rewinds through its parent instead.
+    if (targetId === manager.getLeafId()) {
+      const parent = manager.getEntry(targetId)?.parentId;
+      const parentEntry = parent ? manager.getEntry(parent) : undefined;
+      if (
+        !parentEntry ||
+        (parentEntry.type === "message" && parentEntry.message.role === "user")
+      ) {
+        throw new Error("This message cannot be edited yet.");
+      }
+      targetId = parentEntry.id;
+    }
+    const result = await live.session.navigateTree(targetId);
+    if (result.cancelled) throw new Error("Editing the message was cancelled.");
+    live.authorizationGrants = authorizationGrantsFromSessionEntries(
+      manager.getBranch(),
+    );
   }
 
   private emitSteeringQueue(live: LiveAgentSession): void {

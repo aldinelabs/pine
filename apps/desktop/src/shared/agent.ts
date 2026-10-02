@@ -296,6 +296,18 @@ export interface PinePresentFileEvent {
 export type PineSessionEvent =
   Exclude<PineAgentEvent, { type: "present-file" }> | PinePresentFileEvent;
 
+/**
+ * Identifies an earlier user message to rewrite. The transcript drops that
+ * message and everything after it, and the session continues from the edited
+ * text. Live messages carry renderer-only ids, so the position counted from the
+ * end of the active branch is the fallback when the id is not an entry id.
+ */
+export interface PineMessageRewriteTarget {
+  messageId: string;
+  /** Number of later user messages on the active branch. */
+  userMessagesAfter: number;
+}
+
 export interface PromptSessionRequest {
   locale?: "en-US" | "zh-CN";
   message: string;
@@ -309,6 +321,8 @@ export interface PromptSessionRequest {
   /** Sandbox/permission mode for the targeted session. Defaults to
    * `auto-approve` when omitted. */
   approvalMode?: PineApprovalMode;
+  /** Rewrite history from this user message instead of appending. */
+  rewrite?: PineMessageRewriteTarget;
 }
 
 export interface PromptSessionResult {

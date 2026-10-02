@@ -511,6 +511,77 @@ describe("session store", () => {
     });
   });
 
+  it("drops the edited message and its tail before rewriting history", async () => {
+    const text = (id: string, role: "assistant" | "user") => ({
+      createdAt: "2026-10-02T00:00:00.000Z",
+      id,
+      role,
+      blocks: [{ type: "text" as const, text: id }],
+    });
+    const promptSession = vi.fn().mockResolvedValue({ session });
+    Object.defineProperty(window, "pine", {
+      configurable: true,
+      value: {
+        loadSessionMessages: vi.fn().mockResolvedValue({
+          hasMore: false,
+          messages: [
+            text("u1", "user"),
+            text("a1", "assistant"),
+            text("u2", "user"),
+            text("a2", "assistant"),
+          ],
+        }),
+        promptSession,
+        resumeSession: vi.fn().mockResolvedValue({ session }),
+      },
+    });
+    const store = useSessionStore();
+    await store.resume(session.id);
+
+    await store.rewrite(session.id, "u1", "Edited", "auto-approve");
+
+    expect(store.messages.map((message) => message.id)).toEqual([]);
+    expect(store.outlineMessages).toEqual([]);
+    expect(store.isRunning).toBe(true);
+    expect(promptSession).toHaveBeenCalledWith({
+      approvalMode: "auto-approve",
+      locale: "en-US",
+      message: "Edited",
+      rewrite: { messageId: "u1", userMessagesAfter: 1 },
+      target: { kind: "session", sessionId: session.id },
+    });
+  });
+
+  it("restores the transcript when a rewrite is rejected", async () => {
+    Object.defineProperty(window, "pine", {
+      configurable: true,
+      value: {
+        loadSessionMessages: vi.fn().mockResolvedValue({
+          hasMore: false,
+          messages: [
+            {
+              createdAt: "2026-10-02T00:00:00.000Z",
+              id: "u1",
+              role: "user",
+              blocks: [{ type: "text", text: "u1" }],
+            },
+          ],
+        }),
+        promptSession: vi.fn().mockRejectedValue(new Error("busy")),
+        resumeSession: vi.fn().mockResolvedValue({ session }),
+      },
+    });
+    const store = useSessionStore();
+    await store.resume(session.id);
+
+    await expect(store.rewrite(session.id, "u1", "Edited")).rejects.toThrow(
+      "busy",
+    );
+
+    expect(store.messages.map((message) => message.id)).toEqual(["u1"]);
+    expect(store.isRunning).toBe(false);
+  });
+
   it("queues steering on the active session and exposes pi queue updates", async () => {
     let listener: ((event: PineAgentEvent) => void) | undefined;
     const promptSession = vi.fn().mockResolvedValue({ session });

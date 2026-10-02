@@ -32,6 +32,7 @@ async function handleRequest(request: AgentWorkerRequest): Promise<void> {
         request.attachedPaths,
         request.approvalMode,
         request.locale,
+        request.rewrite,
       );
       break;
     case "session:abort":

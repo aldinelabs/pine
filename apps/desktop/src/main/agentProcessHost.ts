@@ -2,7 +2,10 @@ import { utilityProcess } from "electron";
 import { randomUUID } from "node:crypto";
 import path from "node:path";
 import type { McpStatusSnapshot } from "pi-mcp-adapter";
-import type { PineApprovalMode } from "../shared/agent";
+import type {
+  PineApprovalMode,
+  PineMessageRewriteTarget,
+} from "../shared/agent";
 import type { PineContextCompactionStrategy } from "../shared/preferences";
 import type { AskUserQuestionSubmission } from "@pine/rpiv-ask-user-question";
 import type {
@@ -64,6 +67,7 @@ export interface AgentHost {
     attachedPaths?: readonly string[],
     approvalMode?: PineApprovalMode,
     locale?: "en-US" | "zh-CN",
+    rewrite?: PineMessageRewriteTarget,
   ): Promise<AgentWorkerPromptResult>;
   renameSession(
     sessionId: string,
@@ -191,6 +195,7 @@ export class AgentProcessHost implements AgentHost {
     attachedPaths?: readonly string[],
     approvalMode?: PineApprovalMode,
     locale: "en-US" | "zh-CN" = "en-US",
+    rewrite?: PineMessageRewriteTarget,
   ): Promise<AgentWorkerPromptResult> {
     return this.request({
       type: "session:prompt",
@@ -200,6 +205,7 @@ export class AgentProcessHost implements AgentHost {
       ...(attachedPaths?.length ? { attachedPaths: [...attachedPaths] } : {}),
       ...(approvalMode ? { approvalMode } : {}),
       locale,
+      ...(rewrite ? { rewrite } : {}),
     });
   }
 

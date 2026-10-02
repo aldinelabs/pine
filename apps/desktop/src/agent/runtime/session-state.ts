@@ -4,7 +4,11 @@ import type {
 } from "@earendil-works/pi-coding-agent";
 import { createHash } from "node:crypto";
 import path from "node:path";
-import type { PineAgentEvent, PineApprovalMode } from "../../shared/agent";
+import type {
+  PineAgentEvent,
+  PineApprovalMode,
+  PineMessageRewriteTarget,
+} from "../../shared/agent";
 import type { McpStatusSnapshot } from "pi-mcp-adapter";
 import type { PineProviderAuthEvent } from "../../shared/models";
 import type { PineContextCompactionStrategy } from "../../shared/preferences";
@@ -287,6 +291,26 @@ function isAuthorizationGrant(value: unknown): value is AuthorizationGrant {
     typeof grant.actionDigest === "string" &&
     typeof grant.createdAt === "string"
   );
+}
+
+/**
+ * Resolve the user message entry a rewrite starts from. Messages loaded from
+ * history carry their entry id; live messages only have renderer ids, so their
+ * position from the end of the active branch identifies them instead.
+ */
+export function rewriteTargetEntryId(
+  branch: readonly SessionEntry[],
+  target: PineMessageRewriteTarget,
+): string {
+  const userEntries = branch.filter(
+    (entry) => entry.type === "message" && entry.message.role === "user",
+  );
+  const byId = userEntries.find((entry) => entry.id === target.messageId);
+  if (byId) return byId.id;
+  const byPosition = userEntries.at(-1 - target.userMessagesAfter);
+  if (!byPosition)
+    throw new Error("The message to edit is no longer in history.");
+  return byPosition.id;
 }
 
 export function authorizationGrantsFromSessionEntries(

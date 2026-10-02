@@ -393,6 +393,12 @@ export class ProjectRuntimeRegistry {
   ): Promise<PromptSessionResult> {
     const runtime = this.get(webContentsId);
     const approvalMode = request.approvalMode ?? "auto-approve";
+    if (
+      request.rewrite &&
+      (request.target.kind !== "session" || request.streamingBehavior)
+    ) {
+      throw new Error("Only an idle existing session can rewrite history.");
+    }
     const activeSession =
       request.target.kind === "new"
         ? await this.createNewSession(webContentsId, approvalMode)
@@ -416,7 +422,17 @@ export class ProjectRuntimeRegistry {
       approvalMode,
       ...(request.locale ? [request.locale] : []),
     ] as const;
-    const result = await this.agentHost.prompt(...promptArguments);
+    const result = request.rewrite
+      ? await this.agentHost.prompt(
+          activeSession.id,
+          request.message,
+          undefined,
+          attachedPaths.length > 0 ? attachedPaths : undefined,
+          approvalMode,
+          request.locale,
+          request.rewrite,
+        )
+      : await this.agentHost.prompt(...promptArguments);
     const live = runtime.liveSessions.get(result.session.id);
     if (live) {
       live.summary = result.session;

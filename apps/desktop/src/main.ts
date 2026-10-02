@@ -667,6 +667,12 @@ const PromptSessionRequestSchema = z.object({
   approvalMode: z
     .enum(["let-me-review", "auto-approve", "autonomous", "YOLO"])
     .optional(),
+  rewrite: z
+    .object({
+      messageId: z.string().min(1).max(200),
+      userMessagesAfter: z.number().int().min(0).max(1_000_000),
+    })
+    .optional(),
 });
 const DequeueSteeringRequestSchema = SessionIdRequestSchema.extend({
   message: z.string().min(1).max(100_000),

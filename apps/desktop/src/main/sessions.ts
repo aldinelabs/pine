@@ -602,7 +602,9 @@ export class ProjectSessionService {
     if (!metadata) throw new Error("Session not found in the active project.");
 
     return this.withSession(metadata, (session) => {
-      const entries = session.getEntries();
+      // Edited history leaves abandoned entries in the file; only the active
+      // branch (ending at the last appended entry) is the transcript.
+      const entries = session.getBranch();
       const messages = indexedTextMessages(entries);
       const end = before
         ? messageCursorIndex(messages, before)
@@ -665,7 +667,7 @@ export class ProjectSessionService {
     if (!metadata) throw new Error("Session not found in the active project.");
 
     return this.withSession(metadata, async (session) => {
-      const entries = session.getEntries();
+      const entries = session.getBranch();
       const summary = await this.readSessionDocument(
         metadata,
         undefined,
@@ -875,7 +877,7 @@ export class ProjectSessionService {
       );
     }
 
-    const entries = openedSession.getEntries();
+    const entries = openedSession.getBranch();
     const preview = firstUserMessage(entries);
     const name = openedSession.getSessionName()?.trim();
     const resolvedSourceMtimeMs =
