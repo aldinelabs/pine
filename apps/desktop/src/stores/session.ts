@@ -30,6 +30,12 @@ import type {
   AskUserQuestionParams,
   AskUserQuestionSubmission,
 } from "@pine/rpiv-ask-user-question";
+import {
+  isTaskDetails,
+  taskStateFromDetails,
+  TODO_TOOL_NAME,
+  type TaskState,
+} from "@pine/rpiv-todo";
 
 function currentAppLocale(): "en-US" | "zh-CN" {
   const locale = document.documentElement.lang;
@@ -254,6 +260,13 @@ function createSessionState() {
   const reviewingToolCallIds = ref<ReadonlySet<string>>(new Set());
   const hasEarlierMessages = ref(false);
   const nextBefore = ref<string | undefined>();
+  /** The model's task list, replaced whole by every `todo` result. */
+  const todos = ref<TaskState | null>(null);
+  /**
+   * Completed tasks already shown for a full turn. They leave the panel when
+   * the next run starts, so finished work gets out of the way.
+   */
+  const hiddenCompletedTodoIds = ref<ReadonlySet<number>>(new Set());
   const messageIndexes = new Map<string, number>();
   const toolCallMessageIndexes = new Map<string, number>();
   const activeMcpToolCalls = new Map<string, string>();
@@ -335,6 +348,34 @@ function createSessionState() {
     mcpApprovalToolCalls.clear();
   }
 
+  function setTodos(next: TaskState): void {
+    const completed = new Set(
+      next.tasks
+        .filter((task) => task.status === "completed")
+        .map((task) => task.id),
+    );
+    // A cleared list restarts its ids, so earlier hidden ids no longer apply.
+    const restarted = todos.value !== null && next.nextId < todos.value.nextId;
+    hiddenCompletedTodoIds.value = restarted
+      ? new Set()
+      : new Set(
+          [...hiddenCompletedTodoIds.value].filter((id) => completed.has(id)),
+        );
+    todos.value = next;
+  }
+
+  function hideCompletedTodos(): void {
+    const completed = (todos.value?.tasks ?? []).filter(
+      (task) => task.status === "completed",
+    );
+    if (completed.every((task) => hiddenCompletedTodoIds.value.has(task.id)))
+      return;
+    hiddenCompletedTodoIds.value = new Set([
+      ...hiddenCompletedTodoIds.value,
+      ...completed.map((task) => task.id),
+    ]);
+  }
+
   function patchToolCall(
     toolCallId: string,
     patch: Partial<PineToolCall>,
@@ -361,6 +402,10 @@ function createSessionState() {
     respondingRequestIds,
     hasEarlierMessages,
     nextBefore,
+    todos,
+    hiddenCompletedTodoIds,
+    setTodos,
+    hideCompletedTodos,
     messageIndexFor,
     toolCallMessageIndexFor,
     approvalToolCallId,
@@ -421,6 +466,8 @@ export const useSessionStore = defineStore("session", () => {
   const steeringMessages = projection("steeringMessages");
   const reviewingToolCallIds = projection("reviewingToolCallIds");
   const hasEarlierMessages = projection("hasEarlierMessages");
+  const todos = projection("todos");
+  const hiddenCompletedTodoIds = projection("hiddenCompletedTodoIds");
   function dropSessionCache(sessionId: string): void {
     // Closing a view must not discard a running session or its interaction queue.
     const state = sessionCache.get(sessionId);
@@ -555,6 +602,8 @@ export const useSessionStore = defineStore("session", () => {
         result.outline ?? result.messages,
         state.outlineMessages,
       );
+      // A live todo result that arrived during the load is newer.
+      if (result.todos && !state.todos) state.setTodos(result.todos);
       state.clearMessageIndexes();
       state.hasEarlierMessages = result.hasMore;
       state.nextBefore = result.nextBefore;
@@ -821,6 +870,9 @@ export const useSessionStore = defineStore("session", () => {
       patchToolCall,
     } = state;
     if (event.type === "run-state") {
+      if (event.state === "running" && !isRunning.value) {
+        state.hideCompletedTodos();
+      }
       isRunning.value = event.state === "running" || event.state === "aborting";
       if (event.state === "idle" || event.state === "failed") {
         pendingApprovals.value = [];
@@ -1068,6 +1120,19 @@ export const useSessionStore = defineStore("session", () => {
       rememberMessageIndex(messages.value[messageIndex], messageIndex);
       if (event.type === "tool-end") {
         state.activeMcpToolCalls.delete(event.toolCallId);
+        const details =
+          typeof event.payload === "object" &&
+          event.payload !== null &&
+          !Array.isArray(event.payload)
+            ? event.payload.details
+            : undefined;
+        if (
+          event.toolName === TODO_TOOL_NAME &&
+          !event.isError &&
+          isTaskDetails(details)
+        ) {
+          state.setTodos(taskStateFromDetails(details));
+        }
       }
       return;
     }
@@ -1207,6 +1272,7 @@ export const useSessionStore = defineStore("session", () => {
     dequeueSteering,
     dropSessionCache,
     hasEarlierMessages,
+    hiddenCompletedTodoIds,
     isLoadingRecent,
     isLoadingMessages,
     isRunning,
@@ -1231,6 +1297,7 @@ export const useSessionStore = defineStore("session", () => {
     startDraft,
     steer,
     steeringMessages,
+    todos,
   };
 });
 

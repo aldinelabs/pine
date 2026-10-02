@@ -9,6 +9,12 @@ import {
 import { computed, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { Marker, MarkerContent, MarkerIcon } from "@/components/ui/marker";
+import {
+  isTaskDetails,
+  sanitizeTaskText,
+  TASK_STATUSES,
+  type TaskStatus,
+} from "@pine/rpiv-todo";
 import { UI_PRESENT_FILE_TOOL_NAME } from "@/shared/agent";
 import type { PineToolCall } from "@/shared/sessions";
 import ProjectToolCallDialog from "./ProjectToolCallDialog.vue";
@@ -193,6 +199,62 @@ function computerUseOperationVariant(
   if (parameterKey === "app" && !appDisplayName(input)) return "NoApp";
   if (parameterKey === "target" && !target) return "NoTarget";
   return undefined;
+}
+
+type TodoOperation =
+  | "create"
+  | "start"
+  | "complete"
+  | "reopen"
+  | "update"
+  | "delete"
+  | "get"
+  | "list"
+  | "clear";
+
+/** A status change reads as its own verb ("Completed todo …"). */
+function todoOperation(input: Record<string, unknown>): TodoOperation {
+  const action = firstString(input, ["action"]);
+  if (action === "update") {
+    const status = firstString(input, ["status"]);
+    if (status === "in_progress") return "start";
+    if (status === "completed") return "complete";
+    if (status === "pending") return "reopen";
+    if (status === "deleted") return "delete";
+    return "update";
+  }
+  return action === "create" ||
+    action === "delete" ||
+    action === "get" ||
+    action === "list" ||
+    action === "clear"
+    ? action
+    : "update";
+}
+
+/**
+ * The subject a todo call is about. Updates name a task by id, so the subject
+ * comes from the result's snapshot, falling back to `#id` like upstream.
+ */
+function todoTarget(input: Record<string, unknown>, output: unknown): string {
+  const action = firstString(input, ["action"]);
+  if (action === "create") {
+    return compactInline(
+      sanitizeTaskText(firstString(input, ["subject"]) ?? ""),
+    );
+  }
+  if (action === "list") {
+    const status = firstString(input, ["status"]);
+    return status && TASK_STATUSES.includes(status as TaskStatus)
+      ? t(`project.todos.statuses.${status}`)
+      : "";
+  }
+  if (typeof input.id !== "number") return "";
+  const details = inputRecord(output).details;
+  const subject = isTaskDetails(details)
+    ? details.tasks.find((task) => task.id === input.id)?.subject
+    : undefined;
+  return subject ? compactInline(sanitizeTaskText(subject)) : `#${input.id}`;
 }
 
 /** Tools whose meaning is more specific than their generic kind. */
@@ -836,6 +898,37 @@ const presentation = computed(() => {
       targetMono,
       purpose: compactPurpose,
       faviconDataUrl,
+      after: "",
+    };
+  }
+  if (kind === "todo") {
+    // The tool rejects bad calls in-band, so a completed call can still fail.
+    const rejection = firstString(
+      inputRecord(inputRecord(props.toolCall.output).details),
+      ["error"],
+    );
+    if (state === "error" || rejection) {
+      return {
+        before: t("project.transcript.tools.todo.error"),
+        operation: undefined,
+        separator: "",
+        target: rejection ?? "",
+        targetMono: false,
+        purpose: undefined,
+        faviconDataUrl: undefined,
+        after: "",
+      };
+    }
+    return {
+      before: t(
+        `project.transcript.tools.todo.${todoOperation(input)}.${state === "running" ? "running" : "complete"}`,
+      ),
+      operation: undefined,
+      separator: "",
+      target: todoTarget(input, props.toolCall.output),
+      targetMono: false,
+      purpose: undefined,
+      faviconDataUrl: undefined,
       after: "",
     };
   }

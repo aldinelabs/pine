@@ -12,6 +12,7 @@ import ProjectContentTabs from "@/components/project/ProjectContentTabs.vue";
 import ProjectDialog from "@/components/project/ProjectDialog.vue";
 import ProjectRightSidebar from "@/components/project/ProjectRightSidebar.vue";
 import ProjectSidebar from "@/components/project/ProjectSidebar.vue";
+import ProjectTodoPanel from "@/components/project/ProjectTodoPanel.vue";
 import PineUpdateDialog from "@/components/updates/PineUpdateDialog.vue";
 import WindowTitleBar from "@/components/window/WindowTitleBar.vue";
 import { Button } from "@/components/ui/button";
@@ -173,7 +174,12 @@ onKeyStroke("k", (event) => {
       ]"
       :open="rightSidebar.open"
     >
-      <ProjectRightSidebar />
+      <ProjectRightSidebar>
+        <!-- The upper half holds the model's task list. -->
+        <div class="max-h-1/2 min-h-0 overflow-y-auto">
+          <ProjectTodoPanel />
+        </div>
+      </ProjectRightSidebar>
     </SidebarProvider>
 
     <!-- Electron applies overlapping drag/no-drag regions in DOM order.

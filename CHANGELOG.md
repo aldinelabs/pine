@@ -9,6 +9,10 @@ Starting with 0.4.4, release notes are written in both Chinese and English.
 
 ## [Unreleased]
 
+### 新增 / Added
+
+- Agent 处理多步骤工作时会维护一份任务清单，显示在右侧栏上半部分：可以看到正在做什么、已完成什么、还剩什么。清单可用 ⌘/Ctrl+⇧+T 折叠，点击可查看按状态分组的全部任务；重新打开会话后清单依然保留。When working through multi-step tasks, the agent now keeps a task list shown in the upper half of the right sidebar, so you can see what it is doing, what is done, and what remains. Collapse it with ⌘/Ctrl+⇧+T, click it to see every task grouped by status, and find it intact when you reopen the conversation.
+
 ### 修复 / Fixed
 
 - 暗色模式下，Markdown 中的表格表头、行内代码、代码块和图表现在跟随当前项目配色，不再显示为橄榄绿。In dark mode, Markdown table headers, inline code, code blocks, and diagrams now follow the current project color instead of appearing olive green.

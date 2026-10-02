@@ -6,6 +6,7 @@ import {
   FileTextIcon,
   FolderTreeIcon,
   GlobeIcon,
+  ListTodoIcon,
   MonitorCogIcon,
   PanelTopIcon,
   PlugIcon,
@@ -18,6 +19,7 @@ import {
   WrenchIcon,
 } from "@lucide/vue";
 import type { Component } from "vue";
+import { TODO_TOOL_NAME } from "@pine/rpiv-todo";
 import { UI_PRESENT_FILE_TOOL_NAME } from "@/shared/agent";
 import type { PineToolCall } from "@/shared/sessions";
 
@@ -34,6 +36,7 @@ export type ToolKind =
   | "read"
   | "search"
   | "skill"
+  | "todo"
   | "write";
 
 /** Icon shown for each tool call, keyed by its kind. */
@@ -50,6 +53,7 @@ export const TOOL_KIND_ICON: Record<ToolKind, Component> = {
   read: FileTextIcon,
   search: SearchIcon,
   skill: WandSparklesIcon,
+  todo: ListTodoIcon,
   write: FilePlusIcon,
 };
 
@@ -90,6 +94,7 @@ export const TOOL_KIND_ORDER: readonly ToolKind[] = [
   "search",
   "fetch",
   "presentFile",
+  "todo",
   "media",
   "mcp",
   "computer",
@@ -140,6 +145,7 @@ export function toolKind(name: string): ToolKind {
   )
     return "mcp";
   if (normalized === UI_PRESENT_FILE_TOOL_NAME) return "presentFile";
+  if (normalized === TODO_TOOL_NAME) return "todo";
   if (normalized.startsWith("browser_")) return "browser";
   if (
     [

@@ -3,6 +3,7 @@ import {
   BookOpenIcon,
   CircleHelpIcon,
   EyeIcon,
+  ListTodoIcon,
   MonitorCogIcon,
   PanelTopIcon,
   PlusIcon,
@@ -615,6 +616,61 @@ describe("project transcript markers", () => {
       toolCall: { ...wrapper.props("toolCall"), status: "complete" },
     });
     expect(content.text()).toBe("已打开 quarterly.md");
+  });
+
+  it("describes todo calls by their task", async () => {
+    const wrapper = mount(ProjectToolCallMarker, {
+      props: {
+        toolCall: {
+          id: "tool-todo",
+          input: { action: "update", id: 2, status: "completed" },
+          name: "todo",
+          status: "running",
+        },
+      },
+      global: { plugins: [createAppI18n("zh-CN")] },
+    });
+    const content = wrapper.get('[data-slot="marker-content"]');
+    // Without a result yet, an update can only name the task by id.
+    expect(content.text()).toBe("正在完成任务 #2");
+
+    await wrapper.setProps({
+      toolCall: {
+        ...wrapper.props("toolCall"),
+        status: "complete",
+        output: {
+          content: [{ type: "text", text: "Updated #2" }],
+          details: {
+            action: "update",
+            params: {},
+            tasks: [{ id: 2, subject: "Write tests", status: "completed" }],
+            nextId: 3,
+          },
+        },
+      },
+    });
+    expect(content.text()).toBe("完成任务 Write tests");
+    expect(wrapper.findComponent(ListTodoIcon).exists()).toBe(true);
+
+    await wrapper.setProps({
+      toolCall: {
+        id: "tool-todo",
+        input: { action: "update", id: 9, status: "completed" },
+        name: "todo",
+        status: "complete",
+        output: {
+          content: [{ type: "text", text: "Error: #9 not found" }],
+          details: {
+            action: "update",
+            params: {},
+            tasks: [],
+            nextId: 1,
+            error: "#9 not found",
+          },
+        },
+      },
+    });
+    expect(content.text()).toBe("任务清单操作被拒绝：#9 not found");
   });
 
   it("shows the filename when a read completes", () => {
