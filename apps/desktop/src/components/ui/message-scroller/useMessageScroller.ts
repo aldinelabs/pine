@@ -1061,7 +1061,10 @@ function createEngine(props: MessageScrollerProviderProps) {
         {
           root: viewport,
           rootMargin: `${-(scrollMargin() + scrollPreviousItemPeek())}px 0px 0px 0px`,
-          threshold: [0, 0.01, 0.5, 1],
+          // Only isIntersecting is read. Extra ratio thresholds fired a
+          // callback (and a visibility sync) for every partial crossing while
+          // layout animations shifted the whole transcript.
+          threshold: 0,
         },
       );
     }
