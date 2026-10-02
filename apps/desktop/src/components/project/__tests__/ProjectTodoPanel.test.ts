@@ -1,4 +1,4 @@
-import { mount } from "@vue/test-utils";
+import { flushPromises, mount } from "@vue/test-utils";
 import { createPinia, setActivePinia } from "pinia";
 import { defineComponent, h } from "vue";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -95,7 +95,8 @@ describe("ProjectTodoPanel", () => {
   it("draws edges only when a task depends on another", () => {
     const flat = mountPanel({ tasks: [pending(1), pending(2)], nextId: 3 });
     expect(flat.findAll('[data-testid="project-todo-edge"]')).toHaveLength(0);
-    expect(flat.text()).not.toContain("#");
+    expect(flat.text()).toContain("#1");
+    expect(flat.text()).toContain("#2");
 
     const linked = mountPanel({
       tasks: [
@@ -142,5 +143,17 @@ describe("ProjectTodoPanel", () => {
     await overflow.trigger("click");
     expect(rows()).toHaveLength(14);
     expect(overflow.text()).toBe("收起");
+  });
+
+  it("opens every task from the details button below the list", async () => {
+    const wrapper = mountPanel({ tasks: [pending(1)], nextId: 2 });
+    const details = wrapper.get('[data-testid="project-todo-details"]');
+    expect(details.text()).toBe("查看详情…");
+    expect(document.body.textContent).not.toContain("全部任务");
+
+    await details.trigger("click");
+    await flushPromises();
+
+    expect(document.body.textContent).toContain("全部任务");
   });
 });

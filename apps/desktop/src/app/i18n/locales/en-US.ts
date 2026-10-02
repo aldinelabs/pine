@@ -448,7 +448,7 @@ export default {
     todos: {
       heading: "Todos",
       progress: "{completed}/{total}",
-      showAll: "View all todos",
+      viewDetails: "View details…",
       more: "+{count} more",
       moreDetails: "+{count} more ({details})",
       hiddenCompleted: "{count} completed",

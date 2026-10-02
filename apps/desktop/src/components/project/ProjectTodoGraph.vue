@@ -65,8 +65,9 @@ watch(
 );
 useResizeObserver(root, measure);
 
+/** Lane 0 hugs the right edge, so nodes keep their place as lanes appear. */
 function laneX(lane: number): number {
-  return lane * LANE_WIDTH + LANE_WIDTH / 2;
+  return gutterWidth.value - (lane + 0.5) * LANE_WIDTH;
 }
 
 /**
@@ -94,7 +95,7 @@ function statusLabel(task: Task): string {
       data-testid="project-todo-graph"
       aria-hidden="true"
       class="pointer-events-none absolute top-0"
-      :style="{ left: `${TEXT_INSET}px` }"
+      :style="{ right: `${TEXT_INSET}px` }"
       :width="gutterWidth"
       :height="height"
     >
@@ -152,7 +153,7 @@ function statusLabel(task: Task): string {
       >
         <SidebarMenuButton
           class="h-auto min-h-9 py-2"
-          :style="{ paddingLeft: `${TEXT_INSET + gutterWidth + 8}px` }"
+          :style="{ paddingRight: `${TEXT_INSET + gutterWidth + 8}px` }"
           :title="
             row.task.description
               ? sanitizeTaskText(row.task.description)
@@ -162,18 +163,23 @@ function statusLabel(task: Task): string {
         >
           <span class="sr-only">{{ statusLabel(row.task) }}</span>
           <span class="flex min-w-0 flex-col">
-            <span
-              :class="
-                cn(
-                  'truncate',
-                  row.task.status === 'in_progress' &&
-                    'text-primary font-medium',
-                  row.task.status === 'completed' &&
-                    'text-muted-foreground line-through',
-                )
-              "
-            >
-              {{ sanitizeTaskText(row.task.subject) }}
+            <span class="flex min-w-0 gap-1.5">
+              <span class="text-muted-foreground shrink-0 tabular-nums">
+                #{{ row.task.id }}
+              </span>
+              <span
+                :class="
+                  cn(
+                    'truncate',
+                    row.task.status === 'in_progress' &&
+                      'text-primary font-medium',
+                    row.task.status === 'completed' &&
+                      'text-muted-foreground line-through',
+                  )
+                "
+              >
+                {{ sanitizeTaskText(row.task.subject) }}
+              </span>
             </span>
             <span
               v-if="row.task.status === 'in_progress' && row.task.activeForm"

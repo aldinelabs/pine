@@ -4,14 +4,13 @@ import { computed, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import {
   DEFAULT_MAX_PANEL_LINES,
-  selectHasActive,
   selectOverlayLayout,
   selectTodoCounts,
   type TaskState,
 } from "@pine/rpiv-todo";
+import { Button } from "@/components/ui/button";
 import {
   SidebarGroup,
-  SidebarGroupAction,
   SidebarGroupContent,
   SidebarGroupLabel,
   SidebarMenu,
@@ -46,9 +45,6 @@ const panelState = computed<TaskState | null>(() => {
 const hasTasks = computed(() => Boolean(panelState.value?.tasks.length));
 const counts = computed(() =>
   panelState.value ? selectTodoCounts(panelState.value) : null,
-);
-const hasActive = computed(
-  () => panelState.value !== null && selectHasActive(panelState.value),
 );
 /** The heading counts against the row budget, as in the upstream overlay. */
 const layout = computed(() => {
@@ -86,30 +82,14 @@ const moreLabel = computed(() => {
     data-testid="project-todo-panel"
   >
     <SidebarGroupLabel>
-      <span
-        aria-hidden="true"
-        :class="[
-          'size-1.5 shrink-0 rounded-full',
-          hasActive ? 'bg-primary' : 'ring-muted-foreground ring-1 ring-inset',
-        ]"
-      />
-      <span class="ml-2">{{ t("project.todos.heading") }}</span>
-      <span class="text-muted-foreground ml-1.5 tabular-nums">
-        {{
-          t("project.todos.progress", {
-            completed: counts.completed,
-            total: counts.total,
-          })
-        }}
-      </span>
+      {{ t("project.todos.heading") }}
+      {{
+        t("project.todos.progress", {
+          completed: counts.completed,
+          total: counts.total,
+        })
+      }}
     </SidebarGroupLabel>
-    <SidebarGroupAction
-      :title="t('project.todos.showAll')"
-      @click="isListOpen = true"
-    >
-      <ListTreeIcon />
-      <span class="sr-only">{{ t("project.todos.showAll") }}</span>
-    </SidebarGroupAction>
 
     <SidebarGroupContent>
       <ProjectTodoGraph
@@ -131,6 +111,16 @@ const moreLabel = computed(() => {
           </SidebarMenuButton>
         </SidebarMenuItem>
       </SidebarMenu>
+      <Button
+        variant="outline"
+        size="sm"
+        class="mt-2 w-full"
+        data-testid="project-todo-details"
+        @click="isListOpen = true"
+      >
+        <ListTreeIcon data-icon="inline-start" />
+        {{ t("project.todos.viewDetails") }}
+      </Button>
     </SidebarGroupContent>
   </SidebarGroup>
 

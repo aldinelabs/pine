@@ -422,7 +422,7 @@ export default {
     todos: {
       heading: "任务清单",
       progress: "{completed}/{total}",
-      showAll: "查看全部任务",
+      viewDetails: "查看详情…",
       more: "另有 {count} 项",
       moreDetails: "另有 {count} 项（{details}）",
       hiddenCompleted: "{count} 项已完成",
