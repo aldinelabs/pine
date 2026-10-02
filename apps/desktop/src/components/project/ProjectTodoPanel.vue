@@ -9,7 +9,6 @@ import {
   type TaskState,
 } from "@pine/rpiv-todo";
 import { Button } from "@/components/ui/button";
-import { Empty, EmptyDescription, EmptyHeader } from "@/components/ui/empty";
 import {
   SidebarGroup,
   SidebarGroupContent,
@@ -92,11 +91,13 @@ const moreLabel = computed(() => {
     </SidebarGroupLabel>
 
     <SidebarGroupContent v-if="!hasTasks || !layout">
-      <Empty data-testid="project-todo-placeholder" class="p-3">
-        <EmptyHeader>
-          <EmptyDescription>{{ t("project.todos.empty") }}</EmptyDescription>
-        </EmptyHeader>
-      </Empty>
+      <SidebarMenu data-testid="project-todo-placeholder">
+        <SidebarMenuItem>
+          <SidebarMenuButton as="div" class="pointer-events-none">
+            {{ t("project.todos.empty") }}
+          </SidebarMenuButton>
+        </SidebarMenuItem>
+      </SidebarMenu>
     </SidebarGroupContent>
 
     <SidebarGroupContent v-else>

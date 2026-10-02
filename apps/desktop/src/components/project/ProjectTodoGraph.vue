@@ -36,8 +36,11 @@ const emit = defineEmits<{ select: [] }>();
 const { t } = useI18n();
 
 const LANE_WIDTH = 11;
-/** Space between the graph and the sidebar's right edge. */
-const GRAPH_INSET = 4;
+/**
+ * Space between the graph and the sidebar's right edge, matching the labels'
+ * left inset. The scroll container hides its scrollbar so it never eats into it.
+ */
+const GRAPH_INSET = 12;
 /** Space between a label and the graph. */
 const GRAPH_GAP = 6;
 const NODE_RADIUS = 4;
