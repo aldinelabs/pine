@@ -3,14 +3,11 @@
 import {
   LIST_BACKGROUND_TASKS_CHANNEL,
   READ_BACKGROUND_TASK_OUTPUT_CHANNEL,
-  RERUN_BACKGROUND_TASK_CHANNEL,
-  STOP_ALL_BACKGROUND_TASKS_CHANNEL,
   STOP_BACKGROUND_TASK_CHANNEL,
   type BackgroundTaskRequest,
   type BackgroundTaskResult,
   type ListBackgroundTasksResult,
   type ReadBackgroundTaskOutputResult,
-  type StopAllBackgroundTasksResult,
 } from "./shared/backgroundTasks";
 import { contextBridge, ipcRenderer, webUtils } from "electron";
 import {
@@ -283,14 +280,6 @@ const pineApi: PineDesktopApi = {
     request: BackgroundTaskRequest,
   ): Promise<BackgroundTaskResult> =>
     ipcRenderer.invoke(STOP_BACKGROUND_TASK_CHANNEL, request),
-  stopAllBackgroundTasks: (
-    request: SessionControlRequest,
-  ): Promise<StopAllBackgroundTasksResult> =>
-    ipcRenderer.invoke(STOP_ALL_BACKGROUND_TASKS_CHANNEL, request),
-  rerunBackgroundTask: (
-    request: BackgroundTaskRequest,
-  ): Promise<BackgroundTaskResult> =>
-    ipcRenderer.invoke(RERUN_BACKGROUND_TASK_CHANNEL, request),
   readBackgroundTaskOutput: (
     request: BackgroundTaskRequest,
   ): Promise<ReadBackgroundTaskOutputResult> =>

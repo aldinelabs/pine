@@ -260,7 +260,7 @@ export class BackgroundTaskRegistry {
     return snapshot(task);
   }
 
-  async stopAllRunning(
+  private async stopAllRunning(
     kind: BackgroundTaskKillKind = "user",
   ): Promise<{ stopped: number; failures: string[] }> {
     const running = [...this.tasks.values()].filter(
@@ -279,27 +279,6 @@ export class BackgroundTaskRegistry {
       }),
     );
     return { stopped, failures };
-  }
-
-  /** Start a finished task's command again under the same options. */
-  async rerun(
-    idOrPrefix: string,
-    overrides: StartBackgroundTaskOptions = {},
-  ): Promise<BackgroundTaskSnapshot> {
-    const task = this.resolve(idOrPrefix);
-    return this.start(task.command, {
-      name: task.name,
-      ...(task.description !== undefined
-        ? { description: task.description }
-        : {}),
-      ...(task.timeoutSeconds !== undefined
-        ? { timeoutSeconds: task.timeoutSeconds }
-        : {}),
-      notifyOnCompletion: task.notifyOnCompletion,
-      triggerOnCompletion: task.triggerOnCompletion,
-      privileged: task.privileged,
-      ...overrides,
-    });
   }
 
   /** A bounded read of the output file, from its head or its tail. */

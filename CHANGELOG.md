@@ -11,7 +11,7 @@ Starting with 0.4.4, release notes are written in both Chinese and English.
 
 ### 新增 / Added
 
-- Agent 可以在后台运行耗时命令，同时继续处理其他工作；右侧栏下半部分显示运行状态，可查看实时日志、停止或重新运行任务，任务结束后会在对话中通知。The agent can run long commands in the background while continuing other work. The lower half of the right sidebar shows task status and lets you inspect live logs, stop tasks, or rerun them, with a notification in the conversation when they finish.
+- Agent 可以在后台运行耗时命令，同时继续处理其他工作；右侧栏下半部分显示运行状态，可查看实时日志或停止单个进程，任务结束后会在对话中通知。The agent can run long commands in the background while continuing other work. The lower half of the right sidebar shows task status and lets you inspect live logs, stop individual processes, with a notification in the conversation when they finish.
 
 - Agent 处理多步骤工作时会维护一份任务清单，显示在右侧栏上半部分：可以看到正在做什么、已完成什么、还剩什么。任务之间有先后依赖时，会用节点和连线表示谁在等谁；点击清单可查看按状态分组的全部任务，重新打开会话后清单依然保留。When working through multi-step tasks, the agent now keeps a task list in the upper half of the right sidebar, so you can see what it is doing, what is done, and what remains. When tasks depend on each other, nodes and lines show which one is waiting on which; click the list to see every task grouped by status, and find it intact when you reopen the conversation.
 

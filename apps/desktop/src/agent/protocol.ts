@@ -27,7 +27,6 @@ import type {
   BackgroundTaskResult,
   ListBackgroundTasksResult,
   ReadBackgroundTaskOutputResult,
-  StopAllBackgroundTasksResult,
 } from "../shared/backgroundTasks";
 
 export interface AgentFolderGrant {
@@ -141,14 +140,9 @@ export type AgentWorkerRequest =
     }
   | {
       id: string;
-      type: "background:stop" | "background:rerun";
+      type: "background:stop";
       sessionId: string;
       taskId: string;
-    }
-  | {
-      id: string;
-      type: "background:stop-all";
-      sessionId: string;
     }
   | {
       id: string;
@@ -272,7 +266,6 @@ export type AgentWorkerResult =
   | McpStatusSnapshot
   | ListBackgroundTasksResult
   | BackgroundTaskResult
-  | StopAllBackgroundTasksResult
   | ReadBackgroundTaskOutputResult
   | AgentWorkerSessionResult
   | AgentWorkerPromptResult

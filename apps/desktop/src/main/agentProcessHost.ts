@@ -6,7 +6,6 @@ import type {
   BackgroundTaskResult,
   ListBackgroundTasksResult,
   ReadBackgroundTaskOutputResult,
-  StopAllBackgroundTasksResult,
 } from "../shared/backgroundTasks";
 import type {
   PineApprovalMode,
@@ -54,13 +53,6 @@ export interface AgentHost {
   getMcpStatus?(sessionId: string): Promise<McpStatusSnapshot>;
   listBackgroundTasks?(sessionId: string): Promise<ListBackgroundTasksResult>;
   stopBackgroundTask?(
-    sessionId: string,
-    taskId: string,
-  ): Promise<BackgroundTaskResult>;
-  stopAllBackgroundTasks?(
-    sessionId: string,
-  ): Promise<StopAllBackgroundTasksResult>;
-  rerunBackgroundTask?(
     sessionId: string,
     taskId: string,
   ): Promise<BackgroundTaskResult>;
@@ -190,19 +182,6 @@ export class AgentProcessHost implements AgentHost {
     taskId: string,
   ): Promise<BackgroundTaskResult> {
     return this.request({ type: "background:stop", sessionId, taskId });
-  }
-
-  stopAllBackgroundTasks(
-    sessionId: string,
-  ): Promise<StopAllBackgroundTasksResult> {
-    return this.request({ type: "background:stop-all", sessionId });
-  }
-
-  rerunBackgroundTask(
-    sessionId: string,
-    taskId: string,
-  ): Promise<BackgroundTaskResult> {
-    return this.request({ type: "background:rerun", sessionId, taskId });
   }
 
   readBackgroundTaskOutput(

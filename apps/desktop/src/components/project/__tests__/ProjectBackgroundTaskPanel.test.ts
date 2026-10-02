@@ -66,10 +66,6 @@ describe("ProjectBackgroundTaskPanel", () => {
         stopBackgroundTask: vi
           .fn()
           .mockResolvedValue({ task: { ...running, status: "killed" } }),
-        stopAllBackgroundTasks: vi
-          .fn()
-          .mockResolvedValue({ stopped: 2, failures: [] }),
-        rerunBackgroundTask: vi.fn().mockResolvedValue({ task: running }),
       },
     });
   });
@@ -86,7 +82,7 @@ describe("ProjectBackgroundTaskPanel", () => {
     ).toBe("暂无后台进程");
   });
 
-  it("shows statuses, running count and unseen completions", () => {
+  it("shows process icons, names and durations in a single row", () => {
     const wrapper = mountPanel([
       running,
       { ...running, id: "failed", status: "failed", name: "Tests" },
@@ -97,10 +93,16 @@ describe("ProjectBackgroundTaskPanel", () => {
         .map((row) => row.attributes("data-status")),
     ).toEqual(["running", "failed"]);
     expect(wrapper.text()).toContain("1 个运行中");
-    expect(wrapper.find('[aria-label="未读"]').exists()).toBe(true);
+    expect(wrapper.text()).not.toContain("失败");
+    const button = wrapper.get(
+      '[data-testid="project-background-task-row"] [data-sidebar="menu-button"]',
+    );
+    expect(button.attributes("aria-label")).toBe("Build: 运行中");
+    expect(button.find(".text-sm").text()).toBe("Build");
+    expect(button.find(".tabular-nums").classes()).toContain("ml-auto");
   });
 
-  it("opens task details and acknowledges finished notices", async () => {
+  it("opens process details", async () => {
     const wrapper = mountPanel([{ ...running, status: "completed" }]);
     await wrapper
       .get(
@@ -108,47 +110,21 @@ describe("ProjectBackgroundTaskPanel", () => {
       )
       .trigger("click");
     expect(useBackgroundTasksStore().inspectedTaskId).toBe(running.id);
-    expect(wrapper.find('[aria-label="未读"]').exists()).toBe(false);
   });
 
-  it("stops and reruns the selected task", async () => {
+  it("stops a running process and offers no action for finished processes", async () => {
     const wrapper = mountPanel([
       running,
       { ...running, id: "finished", status: "completed" },
     ]);
+    expect(wrapper.findAll('[data-sidebar="menu-action"]')).toHaveLength(1);
     await wrapper
       .get('[data-testid="project-background-task-stop"]')
-      .trigger("click");
-    await wrapper
-      .get('[data-testid="project-background-task-rerun"]')
       .trigger("click");
     await flushPromises();
     expect(window.pine.stopBackgroundTask).toHaveBeenCalledWith({
       sessionId,
       taskId: running.id,
     });
-    expect(window.pine.rerunBackgroundTask).toHaveBeenCalledWith({
-      sessionId,
-      taskId: "finished",
-    });
-  });
-
-  it("stops all running tasks and clears unread notices", async () => {
-    const wrapper = mountPanel([
-      running,
-      { ...running, id: "second" },
-      { ...running, id: "done", status: "completed" },
-    ]);
-    await wrapper
-      .get('[data-testid="project-background-task-stop-all"]')
-      .trigger("click");
-    await wrapper
-      .get('[data-testid="project-background-task-mark-read"]')
-      .trigger("click");
-    await flushPromises();
-    expect(window.pine.stopAllBackgroundTasks).toHaveBeenCalledWith({
-      sessionId,
-    });
-    expect(useBackgroundTasksStore().unseenFinishedIds.size).toBe(0);
   });
 });

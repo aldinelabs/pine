@@ -86,16 +86,15 @@ it("delivers background completions through the live session and kills tasks on 
       100,
     );
     expect(read.content).toBe("hello");
-    const rerun = await runtime.rerunBackgroundTask(
-      created.session.id,
-      finished.id,
-    );
+    await live.backgroundTasks.start("printf silent", {
+      privileged: true,
+      triggerOnCompletion: false,
+    });
     await vi.waitFor(() => expect(send).toHaveBeenCalledTimes(2));
     expect(send.mock.calls[1]?.[1]).toEqual({
       deliverAs: "followUp",
       triggerTurn: false,
     });
-    expect(rerun.task.id).not.toBe(finished.id);
     const long = await live.backgroundTasks.start("sleep 60", {
       privileged: true,
     });

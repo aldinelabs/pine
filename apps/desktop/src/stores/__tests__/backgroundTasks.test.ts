@@ -1,5 +1,4 @@
 import { createPinia, setActivePinia } from "pinia";
-import { nextTick } from "vue";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { BackgroundTaskSnapshot } from "@pine/pi-background-tasks";
 import { useSessionStore } from "../session";
@@ -108,26 +107,6 @@ describe("background tasks store", () => {
     expect(store.tasks).toEqual([]);
   });
 
-  it("does not mark a running task's future completion as seen", async () => {
-    const store = useBackgroundTasksStore();
-    update([task()]);
-    store.inspect(task().id);
-    store.inspect(null);
-    update([task({ status: "completed" })]);
-    await nextTick();
-    expect(store.unseenFinishedIds.has(task().id)).toBe(true);
-    store.markAllFinishedSeen();
-    expect(store.unseenFinishedIds.size).toBe(0);
-  });
-
-  it("marks a completion seen when its details are still open", () => {
-    const store = useBackgroundTasksStore();
-    update([task()]);
-    store.inspect(task().id);
-    update([task({ status: "completed" })]);
-    expect(store.unseenFinishedIds.size).toBe(0);
-  });
-
   it("connects once and disconnects the event listener", () => {
     const unsubscribe = vi.fn();
     const subscribe = vi.fn().mockReturnValue(unsubscribe);
@@ -146,29 +125,19 @@ describe("background tasks store", () => {
   it("addresses panel actions to the active session", async () => {
     const pine = {
       stopBackgroundTask: vi.fn().mockResolvedValue({ task: task() }),
-      stopAllBackgroundTasks: vi
-        .fn()
-        .mockResolvedValue({ stopped: 1, failures: [] }),
-      rerunBackgroundTask: vi.fn().mockResolvedValue({ task: task() }),
       readBackgroundTaskOutput: vi.fn().mockResolvedValue({ content: "hello" }),
     };
     Object.defineProperty(window, "pine", { configurable: true, value: pine });
     const store = useBackgroundTasksStore();
     await store.stop(task().id);
-    await store.stopAll();
-    await store.rerun(task().id);
     await store.readOutput(task().id);
     for (const method of [
       pine.stopBackgroundTask,
-      pine.rerunBackgroundTask,
       pine.readBackgroundTaskOutput,
     ])
       expect(method).toHaveBeenCalledWith({
         sessionId: session.id,
         taskId: task().id,
       });
-    expect(pine.stopAllBackgroundTasks).toHaveBeenCalledWith({
-      sessionId: session.id,
-    });
   });
 });

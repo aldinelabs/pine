@@ -277,15 +277,19 @@ describe("stopping", () => {
     await expect(registry.stop(id)).rejects.toThrow("did not exit within");
   });
 
-  it("stops every running task and reports the rest", async () => {
+  it("disposes running tasks while retaining finished results", async () => {
     const { registry, runs } = createRegistry();
     await registry.start("a");
     const finished = await registry.start("b");
     await registry.start("c");
     runs[1]?.exit(0);
     await settled(registry, finished.id);
-    const result = await registry.stopAllRunning();
-    expect(result).toEqual({ stopped: 2, failures: [] });
+    await registry.dispose();
+    expect(registry.snapshots().map((task) => task.status)).toEqual([
+      "killed",
+      "completed",
+      "killed",
+    ]);
   });
 
   it("shuts tasks down quietly when the session is disposed", async () => {
@@ -400,30 +404,5 @@ describe("output", () => {
     const { id } = await registry.start("quiet");
     const logs = await registry.readLogs(id, 100, true);
     expect(logs.text).toContain("(no output yet)");
-  });
-});
-
-describe("rerun", () => {
-  it("starts the same command again with the same options", async () => {
-    const { registry, runs, executorFor } = createRegistry();
-    const first = await registry.start("make", {
-      name: "Compile",
-      timeoutSeconds: 60,
-      privileged: true,
-    });
-    runs[0]?.exit(0);
-    await settled(registry, first.id);
-    const again = await registry.rerun(first.id, {
-      triggerOnCompletion: false,
-    });
-    expect(again).toMatchObject({
-      name: "Compile",
-      command: "make",
-      timeoutSeconds: 60,
-      privileged: true,
-      triggerOnCompletion: false,
-    });
-    expect(again.id).not.toBe(first.id);
-    expect(executorFor).toHaveBeenLastCalledWith(true);
   });
 });

@@ -52,7 +52,6 @@ import {
   type BackgroundTaskResult,
   type ListBackgroundTasksResult,
   type ReadBackgroundTaskOutputResult,
-  type StopAllBackgroundTasksResult,
 } from "../shared/backgroundTasks";
 import type { GateDecision } from "../agent/protocol";
 import {
@@ -145,28 +144,6 @@ export class ProjectRuntimeRegistry {
     );
   }
 
-  async stopAllBackgroundTasks(
-    webContentsId: number,
-    sessionId: string,
-  ): Promise<StopAllBackgroundTasksResult> {
-    const live = this.requireBackgroundSession(webContentsId, sessionId);
-    return this.backgroundHost("stopAllBackgroundTasks")(live.summary.id);
-  }
-
-  async rerunBackgroundTask(
-    webContentsId: number,
-    request: BackgroundTaskRequest,
-  ): Promise<BackgroundTaskResult> {
-    const live = this.requireBackgroundSession(
-      webContentsId,
-      request.sessionId,
-    );
-    return this.backgroundHost("rerunBackgroundTask")(
-      live.summary.id,
-      request.taskId,
-    );
-  }
-
   async readBackgroundTaskOutput(
     webContentsId: number,
     request: BackgroundTaskRequest,
@@ -192,11 +169,7 @@ export class ProjectRuntimeRegistry {
   }
 
   private backgroundHost<
-    K extends
-      | "stopBackgroundTask"
-      | "stopAllBackgroundTasks"
-      | "rerunBackgroundTask"
-      | "readBackgroundTaskOutput",
+    K extends "stopBackgroundTask" | "readBackgroundTaskOutput",
   >(method: K): NonNullable<AgentHost[K]> {
     const fn = this.agentHost[method];
     if (!fn) throw new Error("Background tasks are unavailable.");

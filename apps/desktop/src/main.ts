@@ -81,13 +81,10 @@ import {
 import {
   LIST_BACKGROUND_TASKS_CHANNEL,
   READ_BACKGROUND_TASK_OUTPUT_CHANNEL,
-  RERUN_BACKGROUND_TASK_CHANNEL,
-  STOP_ALL_BACKGROUND_TASKS_CHANNEL,
   STOP_BACKGROUND_TASK_CHANNEL,
   type BackgroundTaskResult,
   type ListBackgroundTasksResult,
   type ReadBackgroundTaskOutputResult,
-  type StopAllBackgroundTasksResult,
 } from "./shared/backgroundTasks";
 import {
   ABORT_SESSION_CHANNEL,
@@ -2472,24 +2469,6 @@ ipcMain.handle(
   STOP_BACKGROUND_TASK_CHANNEL,
   async (event, request: unknown): Promise<BackgroundTaskResult> =>
     getProjectRuntimes().stopBackgroundTask(
-      event.sender.id,
-      BackgroundTaskRequestSchema.parse(request),
-    ),
-);
-
-ipcMain.handle(
-  STOP_ALL_BACKGROUND_TASKS_CHANNEL,
-  async (event, request: unknown): Promise<StopAllBackgroundTasksResult> =>
-    getProjectRuntimes().stopAllBackgroundTasks(
-      event.sender.id,
-      SessionIdRequestSchema.parse(request).sessionId,
-    ),
-);
-
-ipcMain.handle(
-  RERUN_BACKGROUND_TASK_CHANNEL,
-  async (event, request: unknown): Promise<BackgroundTaskResult> =>
-    getProjectRuntimes().rerunBackgroundTask(
       event.sender.id,
       BackgroundTaskRequestSchema.parse(request),
     ),

@@ -133,10 +133,6 @@ describe("ProjectRuntimeRegistry", () => {
     const readOutput = vi.fn().mockResolvedValue({ content: "output" });
     host.listBackgroundTasks = listTasks;
     host.stopBackgroundTask = stopTask;
-    host.stopAllBackgroundTasks = vi
-      .fn()
-      .mockResolvedValue({ stopped: 0, failures: [] });
-    host.rerunBackgroundTask = vi.fn().mockResolvedValue({ task: {} });
     host.readBackgroundTaskOutput = readOutput;
     const registry = new ProjectRuntimeRegistry(host, "/pine/agent");
     const { dataRoot, project } = await createRuntimeFixture();
@@ -157,8 +153,6 @@ describe("ProjectRuntimeRegistry", () => {
       const request = { sessionId: sessionSummary.id, taskId: "b1234abcd" };
       await registry.listBackgroundTasks(1, request.sessionId);
       await registry.stopBackgroundTask(1, request);
-      await registry.stopAllBackgroundTasks(1, request.sessionId);
-      await registry.rerunBackgroundTask(1, request);
       await registry.readBackgroundTaskOutput(1, request);
       expect(stopTask).toHaveBeenCalledWith(request.sessionId, request.taskId);
       expect(readOutput).toHaveBeenCalledWith(
@@ -168,16 +162,12 @@ describe("ProjectRuntimeRegistry", () => {
       );
       for (const method of [
         "stopBackgroundTask",
-        "rerunBackgroundTask",
         "readBackgroundTaskOutput",
       ] as const) {
         await expect(registry[method](2, request)).rejects.toThrow(
           "Session does not belong to this window",
         );
       }
-      await expect(
-        registry.stopAllBackgroundTasks(2, request.sessionId),
-      ).rejects.toThrow("Session does not belong to this window");
       expect(await registry.listBackgroundTasks(2, request.sessionId)).toEqual({
         tasks: [],
       });

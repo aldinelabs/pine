@@ -81,7 +81,6 @@ import {
   type BackgroundTaskResult,
   type ListBackgroundTasksResult,
   type ReadBackgroundTaskOutputResult,
-  type StopAllBackgroundTasksResult,
 } from "../shared/backgroundTasks";
 import type {
   AskUserQuestionParams,
@@ -1092,29 +1091,6 @@ export class PineAgentRuntime {
   ): Promise<BackgroundTaskResult> {
     return {
       task: await this.backgroundTasksFor(sessionId).stop(taskId, "user"),
-    };
-  }
-
-  stopAllBackgroundTasks(
-    sessionId: string,
-  ): Promise<StopAllBackgroundTasksResult> {
-    return this.backgroundTasksFor(sessionId).stopAllRunning("user");
-  }
-
-  /**
-   * A rerun from the panel is the user's own launch: it reuses the task's
-   * permissions without review, and its notification is shown without waking
-   * the agent, as upstream's dock rerun does.
-   */
-  async rerunBackgroundTask(
-    sessionId: string,
-    taskId: string,
-  ): Promise<BackgroundTaskResult> {
-    return {
-      task: await this.backgroundTasksFor(sessionId).rerun(taskId, {
-        notifyOnCompletion: true,
-        triggerOnCompletion: false,
-      }),
     };
   }
 

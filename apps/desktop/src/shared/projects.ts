@@ -3,7 +3,6 @@ import type {
   BackgroundTaskResult,
   ListBackgroundTasksResult,
   ReadBackgroundTaskOutputResult,
-  StopAllBackgroundTasksResult,
 } from "./backgroundTasks";
 import type {
   AbortSessionResult,
@@ -238,12 +237,6 @@ export interface PineDesktopApi extends PineWindowApi {
     request: SessionControlRequest,
   ) => Promise<ListBackgroundTasksResult>;
   stopBackgroundTask: (
-    request: BackgroundTaskRequest,
-  ) => Promise<BackgroundTaskResult>;
-  stopAllBackgroundTasks: (
-    request: SessionControlRequest,
-  ) => Promise<StopAllBackgroundTasksResult>;
-  rerunBackgroundTask: (
     request: BackgroundTaskRequest,
   ) => Promise<BackgroundTaskResult>;
   readBackgroundTaskOutput: (

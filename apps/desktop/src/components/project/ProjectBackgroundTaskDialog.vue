@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { CopyIcon, RotateCcwIcon, SquareIcon } from "@lucide/vue";
+import { CopyIcon, SquareIcon } from "@lucide/vue";
 import { useIntervalFn, useNow } from "@vueuse/core";
 import { storeToRefs } from "pinia";
 import { computed, nextTick, onBeforeUnmount, ref, watch } from "vue";
@@ -199,18 +199,6 @@ async function stop(): Promise<void> {
     });
   }
 }
-
-async function rerun(): Promise<void> {
-  if (!task.value) return;
-  try {
-    const started = await store.rerun(task.value.id);
-    store.inspect(started.id);
-  } catch (error) {
-    toast.error(t("project.backgroundTasks.rerunFailed"), {
-      description: error instanceof Error ? error.message : String(error),
-    });
-  }
-}
 </script>
 
 <template>
@@ -301,10 +289,6 @@ async function rerun(): Promise<void> {
         <Button v-if="isRunning" variant="outline" @click="stop">
           <SquareIcon data-icon="inline-start" />
           {{ t("project.backgroundTasks.stop") }}
-        </Button>
-        <Button v-else variant="outline" @click="rerun">
-          <RotateCcwIcon data-icon="inline-start" />
-          {{ t("project.backgroundTasks.rerun") }}
         </Button>
       </DialogFooter>
     </DialogContent>

@@ -74,15 +74,6 @@ async function handleRequest(request: AgentWorkerRequest): Promise<void> {
         request.taskId,
       );
       break;
-    case "background:stop-all":
-      result = await runtime.stopAllBackgroundTasks(request.sessionId);
-      break;
-    case "background:rerun":
-      result = await runtime.rerunBackgroundTask(
-        request.sessionId,
-        request.taskId,
-      );
-      break;
     case "background:output":
       result = await runtime.readBackgroundTaskOutput(
         request.sessionId,
