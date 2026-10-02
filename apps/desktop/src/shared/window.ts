@@ -12,8 +12,6 @@ export const WINDOW_RESIZE_STARTED_CHANNEL = "window:resize-started" as const;
 export const GET_APP_VERSION_CHANNEL = "app:get-version" as const;
 export const OPEN_EXTERNAL_URL_CHANNEL = "shell:open-external" as const;
 
-export const PINE_REPOSITORY_URL =
-  "https://github.com/phosphoros-works/pine" as const;
 export const PINE_RELEASES_URL =
   "https://github.com/phosphoros-works/pine/releases" as const;
 

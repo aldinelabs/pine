@@ -521,7 +521,6 @@ export default {
       moreActions: "更多操作",
       closeTab: "关闭 {name}",
       tabListLabel: "已打开的内容",
-      openRepository: "打开 GitHub 仓库",
       shortcuts: {
         newTab: "新建标签页",
         closeTab: "关闭标签页",

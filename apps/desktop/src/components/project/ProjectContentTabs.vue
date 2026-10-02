@@ -16,8 +16,6 @@ import { useI18n } from "vue-i18n";
 import { handleError } from "@/app/errors/errorHandler";
 import { PineLogo } from "@/components/pine";
 import { Button } from "@/components/ui/button";
-import GitHubLogo from "@/components/window/GitHubLogo.vue";
-import { PINE_REPOSITORY_URL } from "@/shared/window";
 import { Separator } from "@/components/ui/separator";
 import { useSidebar } from "@/components/ui/sidebar";
 import { WINDOW_TAB_CLOSE_HANDLER_KEY } from "@/composables/useWindowTabShortcuts";
@@ -50,10 +48,6 @@ const sessionStore = useSessionStore();
 const { activeTab: activeContentTab, activeTabId, tabs } = tabNavigation;
 const { activeSession } = storeToRefs(sessionStore);
 const windowCloseTabHandler = inject(WINDOW_TAB_CLOSE_HANDLER_KEY, null);
-
-function openRepository(): void {
-  void window.pine.openExternalUrl(PINE_REPOSITORY_URL);
-}
 
 const sessionTabs = computed(() =>
   tabs.value.filter((tab) => tab.kind === "session"),
@@ -547,17 +541,6 @@ watch(activeSession, (session) => {
           class="window-drag min-w-0 flex-1 self-stretch"
         />
       </div>
-
-      <Button
-        v-if="!tabs.length"
-        class="window-no-drag pointer-events-auto"
-        variant="ghost"
-        size="icon-sm"
-        :aria-label="t('project.contentTabs.openRepository')"
-        @click="openRepository"
-      >
-        <GitHubLogo />
-      </Button>
 
       <Button
         v-if="!tabs.length"

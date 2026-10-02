@@ -549,7 +549,6 @@ export default {
       moreActions: "More actions",
       closeTab: "Close {name}",
       tabListLabel: "Open content",
-      openRepository: "Open GitHub repository",
       shortcuts: {
         newTab: "New tab",
         closeTab: "Close tab",

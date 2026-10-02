@@ -13,7 +13,6 @@ import {
   WINDOW_TAB_CLOSE_HANDLER_KEY,
   type WindowTabCloseHandler,
 } from "@/composables/useWindowTabShortcuts";
-import { PINE_REPOSITORY_URL } from "@/shared/window";
 import type { PineSessionSummary } from "@/shared/sessions";
 import { useSessionStore } from "@/stores/session";
 import { useContentTabsStore } from "@/stores/contentTabs";
@@ -754,22 +753,6 @@ describe("ProjectContentTabs", () => {
     list.element.dispatchEvent(swipe);
     expect(list.element.scrollLeft).toBe(60);
     expect(swipe.defaultPrevented).toBe(false);
-  });
-
-  it("opens the project repository in the system browser from the empty state", async () => {
-    const { wrapper } = await mountTabs();
-    await wrapper
-      .get('button[aria-label="Close New session"]')
-      .trigger("click");
-    await flushPromises();
-    const github = wrapper.get('button[aria-label="Open GitHub repository"]');
-    expect(github.find("svg").exists()).toBe(true);
-    await github.trigger("click");
-    await flushPromises();
-    expect(window.pine.openExternalUrl).toHaveBeenCalledWith(
-      PINE_REPOSITORY_URL,
-    );
-    wrapper.unmount();
   });
 
   it("exports the active session from the top-right actions menu", async () => {
