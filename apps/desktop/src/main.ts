@@ -244,11 +244,11 @@ import {
   applyWindowLayout,
   commitWindowResize,
   planWindowResize,
-  PROJECT_LIST_WINDOW_SIZE,
 } from "./main/windowExpansion";
 import {
   DARK_WINDOW_BACKGROUND,
   LIGHT_WINDOW_BACKGROUND,
+  PROJECT_LIST_WINDOW_SIZE,
   SET_SIDEBAR_VIBRANCY_CHANNEL,
   SET_WINDOW_BACKGROUND_CHANNEL,
   isWindowBackgroundColor,

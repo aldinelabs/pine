@@ -51,6 +51,7 @@ import { FlickeringGrid } from "@/components/ui/flickering-grid";
 import WindowTitleBar from "@/components/window/WindowTitleBar.vue";
 import { ROUTE_NAMES } from "@/router/routes";
 import type { PineProject } from "@/shared/projects";
+import { PROJECT_LIST_WINDOW_SIZE } from "@/shared/window";
 import { useProjectStore } from "@/stores/project";
 
 const { t } = useI18n();
@@ -178,10 +179,18 @@ onMounted(() => {
     :aria-busy="isProjectOpening ? 'true' : undefined"
     :inert="isProjectOpening"
   >
+    <!-- Sized to the list window rather than the viewport, so the window
+         animating to or from a project never re-seeds the grid. -->
     <FlickeringGrid
       aria-hidden="true"
-      class="pointer-events-none absolute inset-0 [mask-image:radial-gradient(ellipse_at_center,white_0%,transparent_76%)]"
-      :style="{ opacity: 0.7 }"
+      class="pointer-events-none absolute top-1/2 left-1/2 -translate-1/2 [mask-image:radial-gradient(ellipse_at_center,white_0%,transparent_76%)]"
+      :style="{
+        opacity: 0.7,
+        width: `${PROJECT_LIST_WINDOW_SIZE.width}px`,
+        height: `${PROJECT_LIST_WINDOW_SIZE.height}px`,
+      }"
+      :width="PROJECT_LIST_WINDOW_SIZE.width"
+      :height="PROJECT_LIST_WINDOW_SIZE.height"
       :flicker-chance="0.1"
       :grid-gap="6"
       color="oklch(0.56 0.09 107.3)"

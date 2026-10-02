@@ -1,11 +1,11 @@
 import { screen, type BrowserWindow, type Rectangle } from "electron";
-import type {
-  PineWindowLayout,
-  PineWindowResizeRequest,
+import {
+  PROJECT_LIST_WINDOW_SIZE,
+  type PineWindowLayout,
+  type PineWindowResizeRequest,
 } from "../shared/window";
 
-/** The project list is a fixed-size window; projects need room for two sidebars. */
-export const PROJECT_LIST_WINDOW_SIZE = { width: 1120, height: 840 } as const;
+/** Projects need room for two sidebars. */
 export const PROJECT_WINDOW_WIDTH = 1376;
 /** Matches the renderer's 16rem right sidebar. */
 export const RIGHT_SIDEBAR_WIDTH = 256;

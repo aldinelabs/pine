@@ -29,6 +29,9 @@ export function isWindowBackgroundColor(value: unknown): value is string {
 
 export type PinePlatform = NodeJS.Platform;
 
+/** The project list is a fixed-size window. */
+export const PROJECT_LIST_WINDOW_SIZE = { width: 1120, height: 840 } as const;
+
 /** `projects` locks the window to the list size; `project` unlocks it. */
 export type PineWindowLayout = "projects" | "project";
 
