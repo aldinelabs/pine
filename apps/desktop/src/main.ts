@@ -247,8 +247,11 @@ import {
   PROJECT_LIST_WINDOW_SIZE,
 } from "./main/windowExpansion";
 import {
-  OPAQUE_WINDOW_BACKGROUND,
+  DARK_WINDOW_BACKGROUND,
+  LIGHT_WINDOW_BACKGROUND,
   SET_SIDEBAR_VIBRANCY_CHANNEL,
+  SET_WINDOW_BACKGROUND_CHANNEL,
+  isWindowBackgroundColor,
   CLOSE_WINDOW_CHANNEL,
   SET_WINDOW_LAYOUT_CHANNEL,
   PLAN_WINDOW_RESIZE_CHANNEL,
@@ -1085,9 +1088,32 @@ async function ensureAppWindowsSandboxReady(): Promise<boolean> {
   }
 }
 
+/**
+ * The opaque colour each window paints where the page has not drawn yet, e.g.
+ * the edge revealed while it resizes. Vibrancy keeps the window transparent.
+ */
+const windowBackgrounds = new WeakMap<
+  BrowserWindow,
+  { color: string; vibrancy: boolean }
+>();
+
+function applyWindowBackground(window: BrowserWindow): void {
+  const background = windowBackgrounds.get(window);
+  if (!background || window.isDestroyed()) return;
+  window.setBackgroundColor(
+    background.vibrancy ? TRANSPARENT_WINDOW_BACKGROUND : background.color,
+  );
+}
+
 const createWindow = () => {
+  // Matches the theme before the renderer reports its exact colour, so a dark
+  // window never opens white.
+  const backgroundColor = nativeTheme.shouldUseDarkColors
+    ? DARK_WINDOW_BACKGROUND
+    : LIGHT_WINDOW_BACKGROUND;
   const mainWindow = new BrowserWindow({
     title: "Pine",
+    backgroundColor,
     icon: appIconPath,
     titleBarStyle: "hidden",
     ...(process.platform === "darwin"
@@ -1120,6 +1146,10 @@ const createWindow = () => {
       scrollBounce: true,
       preload: path.join(__dirname, "preload.js"),
     },
+  });
+  windowBackgrounds.set(mainWindow, {
+    color: backgroundColor,
+    vibrancy: false,
   });
   const webContentsId = mainWindow.webContents.id;
   mainWindow.on("unresponsive", () => {
@@ -1187,6 +1217,14 @@ const createWindow = () => {
 
 ipcMain.handle(CLOSE_WINDOW_CHANNEL, (event): void => {
   BrowserWindow.fromWebContents(event.sender)?.close();
+});
+
+ipcMain.handle(SET_WINDOW_BACKGROUND_CHANNEL, (event, color: unknown): void => {
+  const window = BrowserWindow.fromWebContents(event.sender);
+  const background = window && windowBackgrounds.get(window);
+  if (!window || !background || !isWindowBackgroundColor(color)) return;
+  background.color = color;
+  applyWindowBackground(window);
 });
 
 ipcMain.handle(SET_WINDOW_LAYOUT_CHANNEL, (event, layout: unknown): void => {
@@ -2469,9 +2507,11 @@ ipcMain.handle(
     window.setVibrancy(enabled ? "sidebar" : null);
     // An opaque window background covers the native vibrancy material, so it
     // must become fully transparent while the effect is enabled.
-    window.setBackgroundColor(
-      enabled ? TRANSPARENT_WINDOW_BACKGROUND : OPAQUE_WINDOW_BACKGROUND,
-    );
+    const background = windowBackgrounds.get(window);
+    if (background) {
+      background.vibrancy = enabled;
+      applyWindowBackground(window);
+    }
     return { applied: true };
   },
 );

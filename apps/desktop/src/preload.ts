@@ -169,6 +169,7 @@ import {
   CLOSE_TAB_REQUESTED_CHANNEL,
   NEW_TAB_REQUESTED_CHANNEL,
   CLOSE_WINDOW_CHANNEL,
+  SET_WINDOW_BACKGROUND_CHANNEL,
   SET_WINDOW_LAYOUT_CHANNEL,
   PLAN_WINDOW_RESIZE_CHANNEL,
   COMMIT_WINDOW_RESIZE_CHANNEL,
@@ -215,6 +216,8 @@ const pineApi: PineDesktopApi = {
   reopenPresentedToolFile: (request: ReopenPresentedToolFileRequest) =>
     ipcRenderer.invoke(REOPEN_PRESENTED_TOOL_FILE_CHANNEL, request),
   closeWindow: () => ipcRenderer.invoke(CLOSE_WINDOW_CHANNEL),
+  setWindowBackground: (color: string) =>
+    ipcRenderer.invoke(SET_WINDOW_BACKGROUND_CHANNEL, color),
   setWindowLayout: (layout: PineWindowLayout) =>
     ipcRenderer.invoke(SET_WINDOW_LAYOUT_CHANNEL, layout),
   planWindowResize: (request: PineWindowResizeRequest) =>

@@ -4,6 +4,7 @@ export const CLOSE_TAB_REQUESTED_CHANNEL =
   "window:close-tab-requested" as const;
 export const NEW_TAB_REQUESTED_CHANNEL = "window:new-tab-requested" as const;
 export const CLOSE_WINDOW_CHANNEL = "window:close" as const;
+export const SET_WINDOW_BACKGROUND_CHANNEL = "window:set-background" as const;
 export const SET_WINDOW_LAYOUT_CHANNEL = "window:set-layout" as const;
 export const PLAN_WINDOW_RESIZE_CHANNEL = "window:plan-resize" as const;
 export const COMMIT_WINDOW_RESIZE_CHANNEL = "window:commit-resize" as const;
@@ -17,7 +18,14 @@ export const PINE_RELEASES_URL =
   "https://github.com/phosphoros-works/pine/releases" as const;
 
 export const TRANSPARENT_WINDOW_BACKGROUND = "#00000000" as const;
-export const OPAQUE_WINDOW_BACKGROUND = "#FFFFFFFF" as const;
+/** Initial opaque backgrounds until the renderer reports its theme colour. */
+export const LIGHT_WINDOW_BACKGROUND = "#FFFFFFFF" as const;
+export const DARK_WINDOW_BACKGROUND = "#0C0C09FF" as const;
+
+/** `#RRGGBB`, the opaque colour the window paints behind the page. */
+export function isWindowBackgroundColor(value: unknown): value is string {
+  return typeof value === "string" && /^#[0-9a-f]{6}$/i.test(value);
+}
 
 export type PinePlatform = NodeJS.Platform;
 
@@ -70,6 +78,11 @@ export interface PineWindowApi {
     listener: import("./updates").UpdateEventListener,
   ) => () => void;
   closeWindow: () => Promise<void>;
+  /**
+   * Sets the opaque colour shown where the page has not painted yet, such as
+   * the edge of a window that is still resizing.
+   */
+  setWindowBackground: (color: string) => Promise<void>;
   setWindowLayout: (layout: PineWindowLayout) => Promise<void>;
   /**
    * Plans a project window resize and returns the width change in CSS pixels

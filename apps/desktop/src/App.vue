@@ -5,6 +5,7 @@ import { RouterView } from "vue-router";
 import { formatWindowTitle } from "@/app/windowTitle";
 import { Toaster } from "@/components/ui/sonner";
 import { applyProjectColorTheme } from "@/lib/projectColorThemes";
+import { syncWindowBackground } from "@/lib/windowBackground";
 import {
   WINDOW_TAB_CLOSE_HANDLER_KEY,
   type WindowTabCloseHandler,
@@ -48,6 +49,7 @@ watch(
 
     root.dataset.projectColorTheme = effectiveColorTheme;
     applyProjectColorTheme(root, effectiveColorTheme);
+    syncWindowBackground(root);
   },
   { immediate: true },
 );
