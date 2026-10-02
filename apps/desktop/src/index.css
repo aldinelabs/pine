@@ -254,7 +254,7 @@
   --window-titlebar-trailing-actions-width: 3rem;
 }
 
-.dark {
+:root.dark {
   --pine-olive-background: oklch(0.153 0.006 107.1);
   --background: var(--pine-olive-background);
   --pine-olive-foreground: oklch(0.988 0.003 106.5);

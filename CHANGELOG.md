@@ -9,6 +9,10 @@ Starting with 0.4.4, release notes are written in both Chinese and English.
 
 ## [Unreleased]
 
+### 修复 / Fixed
+
+- 暗色模式下，Markdown 中的表格表头、行内代码、代码块和图表现在跟随当前项目配色，不再显示为橄榄绿。In dark mode, Markdown table headers, inline code, code blocks, and diagrams now follow the current project color instead of appearing olive green.
+
 ## [0.7.2] - 2026-10-01
 
 ### 修复 / Fixed
