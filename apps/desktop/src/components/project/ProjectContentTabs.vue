@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { MessageCircleIcon, PlusIcon, XIcon } from "@lucide/vue";
+import { useIntersectionObserver } from "@vueuse/core";
 import { storeToRefs } from "pinia";
 import type { ComponentPublicInstance } from "vue";
 import {
@@ -101,6 +102,19 @@ const tabButtons = new Map<string, HTMLButtonElement>();
 const tabList = useTemplateRef<HTMLDivElement>("tabList");
 const tabItems = useTemplateRef<HTMLDivElement>("tabItems");
 const tabListHasOverflow = ref<boolean | null>(null);
+const trailingAddTab = useTemplateRef<{ $el: HTMLElement }>("trailingAddTab");
+/** The "+" after the last tab is fully inside the tab list's viewport. */
+const isTrailingAddTabVisible = ref(true);
+const isAddTabDocked = computed(
+  () => !tabs.value.length || !isTrailingAddTabVisible.value,
+);
+useIntersectionObserver(
+  () => trailingAddTab.value?.$el,
+  ([entry]) => {
+    if (entry) isTrailingAddTabVisible.value = entry.isIntersecting;
+  },
+  { root: tabList, threshold: 1 },
+);
 let tabListResizeObserver: ResizeObserver | null = null;
 let closingTab = false;
 let tabShiftAnimationScheduled = false;
@@ -507,6 +521,18 @@ watch(activeSession, (session) => {
               </Button>
             </div>
           </template>
+          <Button
+            v-if="tabs.length"
+            ref="trailingAddTab"
+            data-slot="project-content-add-tab-trailing"
+            class="window-no-drag pointer-events-auto shrink-0"
+            variant="ghost"
+            size="icon-sm"
+            :aria-label="t('project.contentTabs.addTab')"
+            @click="tabNavigation.createSessionTab"
+          >
+            <PlusIcon />
+          </Button>
         </div>
         <div
           aria-hidden="true"
@@ -526,7 +552,10 @@ watch(activeSession, (session) => {
         <GitHubLogo />
       </Button>
 
+      <!-- Docked copy: takes over once the trailing one has scrolled away. -->
       <Button
+        v-if="isAddTabDocked"
+        data-slot="project-content-add-tab-docked"
         class="window-no-drag pointer-events-auto"
         variant="ghost"
         size="icon-sm"

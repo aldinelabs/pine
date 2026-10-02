@@ -718,6 +718,59 @@ describe("ProjectContentTabs", () => {
     wrapper.unmount();
   });
 
+  it("trails the new-tab button after the last tab and docks it once it scrolls out of view", async () => {
+    const observers: {
+      callback: IntersectionObserverCallback;
+      targets: Element[];
+    }[] = [];
+    vi.stubGlobal(
+      "IntersectionObserver",
+      class {
+        entry = { callback: undefined as never, targets: [] as Element[] };
+        constructor(callback: IntersectionObserverCallback) {
+          this.entry.callback = callback as never;
+          observers.push(this.entry);
+        }
+        observe(target: Element) {
+          this.entry.targets.push(target);
+        }
+        unobserve() {}
+        disconnect() {}
+      },
+    );
+    try {
+      const { wrapper } = await mountTabs();
+      useContentTabsStore().bindSession("session-1", firstSession);
+      await flushPromises();
+      const trailing = '[data-slot="project-content-add-tab-trailing"]';
+      const docked = '[data-slot="project-content-add-tab-docked"]';
+      expect(
+        wrapper
+          .get('[data-slot="project-content-tab-items"]')
+          .find(trailing)
+          .exists(),
+      ).toBe(true);
+      expect(wrapper.find(docked).exists()).toBe(false);
+
+      const observer = observers.find((entry) =>
+        entry.targets.includes(wrapper.get(trailing).element),
+      );
+      expect(observer).toBeDefined();
+      observer?.callback(
+        [{ isIntersecting: false } as IntersectionObserverEntry],
+        {} as IntersectionObserver,
+      );
+      await nextTick();
+      expect(wrapper.find(docked).exists()).toBe(true);
+
+      await wrapper.get(docked).trigger("click");
+      await flushPromises();
+      expect(wrapper.findAll('[role="tab"]')).toHaveLength(2);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
   it("opens the project repository in the system browser from the empty state", async () => {
     const { wrapper } = await mountTabs();
     await wrapper
