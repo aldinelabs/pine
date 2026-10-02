@@ -11,6 +11,7 @@ import SessionSearchOverlay from "@/components/sessions/SessionSearchOverlay.vue
 import ProjectContentTabs from "@/components/project/ProjectContentTabs.vue";
 import ProjectDialog from "@/components/project/ProjectDialog.vue";
 import ProjectRightSidebar from "@/components/project/ProjectRightSidebar.vue";
+import ProjectRightSidebarTools from "@/components/project/ProjectRightSidebarTools.vue";
 import ProjectSidebar from "@/components/project/ProjectSidebar.vue";
 import ProjectTodoPanel from "@/components/project/ProjectTodoPanel.vue";
 import PineUpdateDialog from "@/components/updates/PineUpdateDialog.vue";
@@ -181,6 +182,9 @@ onKeyStroke("k", (event) => {
         >
           <ProjectTodoPanel />
         </div>
+        <template #footer>
+          <ProjectRightSidebarTools />
+        </template>
       </ProjectRightSidebar>
     </SidebarProvider>
 

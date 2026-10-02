@@ -13,6 +13,10 @@ Starting with 0.4.4, release notes are written in both Chinese and English.
 
 - Agent 处理多步骤工作时会维护一份任务清单，显示在右侧栏上半部分：可以看到正在做什么、已完成什么、还剩什么。任务之间有先后依赖时，会用节点和连线表示谁在等谁；点击清单可查看按状态分组的全部任务，重新打开会话后清单依然保留。When working through multi-step tasks, the agent now keeps a task list in the upper half of the right sidebar, so you can see what it is doing, what is done, and what remains. When tasks depend on each other, nodes and lines show which one is waiting on which; click the list to see every task grouped by status, and find it intact when you reopen the conversation.
 
+### 变更 / Changed
+
+- “工作技能”和“MCP 服务器”入口从左侧栏底部移到了右侧栏底部，工作技能在上、MCP 服务器在下。The Work Skills and MCP Servers entries moved from the bottom of the left sidebar to the bottom of the right sidebar, with Work Skills above MCP Servers.
+
 ### 修复 / Fixed
 
 - 暗色模式下，Markdown 中的表格表头、行内代码、代码块和图表现在跟随当前项目配色，不再显示为橄榄绿。In dark mode, Markdown table headers, inline code, code blocks, and diagrams now follow the current project color instead of appearing olive green.
