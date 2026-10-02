@@ -93,6 +93,7 @@ async function stop(task: BackgroundTaskSnapshot): Promise<void> {
           :data-status="task.status"
         >
           <SidebarMenuButton
+            class="group-has-data-[sidebar=menu-action]/menu-item:pr-3"
             :aria-label="`${task.name}: ${t(`project.backgroundTasks.statuses.${task.status}`)}`"
             @click="store.inspect(task.id)"
           >
@@ -109,13 +110,17 @@ async function stop(task: BackgroundTaskSnapshot): Promise<void> {
             <span class="min-w-0 flex-1 truncate text-sm">{{ task.name }}</span>
             <span
               class="text-muted-foreground ml-auto shrink-0 text-xs tabular-nums"
+              :class="{
+                'group-hover/menu-item:opacity-0 group-focus-within/menu-item:opacity-0':
+                  task.status === 'running',
+              }"
             >
               {{ runtime(task) }}
             </span>
           </SidebarMenuButton>
           <SidebarMenuAction
             v-if="task.status === 'running'"
-            show-on-hover
+            class="right-3 opacity-0 group-hover/menu-item:opacity-100 group-focus-within/menu-item:opacity-100"
             :aria-label="t('project.backgroundTasks.stop')"
             :title="t('project.backgroundTasks.stop')"
             data-testid="project-background-task-stop"
