@@ -9,6 +9,8 @@ Starting with 0.4.4, release notes are written in both Chinese and English.
 
 ## [Unreleased]
 
+## [0.7.2] - 2026-10-01
+
 ### 修复 / Fixed
 
 - Markdown 文件预览现在能显示相对于文档目录引用的本地图片；聊天中的本地绝对路径和 `file://` 图片也能正常显示。Markdown file previews now display local images referenced relative to the document directory; local absolute-path and `file://` images in chat also display correctly.
