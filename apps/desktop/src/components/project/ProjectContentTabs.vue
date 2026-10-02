@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { MessageCircleIcon, PlusIcon, XIcon } from "@lucide/vue";
-import { useIntersectionObserver } from "@vueuse/core";
 import { storeToRefs } from "pinia";
 import type { ComponentPublicInstance } from "vue";
 import {
@@ -99,22 +98,10 @@ const shouldReserveTrailingControlsSpace = computed(
 );
 
 const tabButtons = new Map<string, HTMLButtonElement>();
+const tabStrip = useTemplateRef<HTMLDivElement>("tabStrip");
 const tabList = useTemplateRef<HTMLDivElement>("tabList");
 const tabItems = useTemplateRef<HTMLDivElement>("tabItems");
 const tabListHasOverflow = ref<boolean | null>(null);
-const trailingAddTab = useTemplateRef<{ $el: HTMLElement }>("trailingAddTab");
-/** The "+" after the last tab is fully inside the tab list's viewport. */
-const isTrailingAddTabVisible = ref(true);
-const isAddTabDocked = computed(
-  () => !tabs.value.length || !isTrailingAddTabVisible.value,
-);
-useIntersectionObserver(
-  () => trailingAddTab.value?.$el,
-  ([entry]) => {
-    if (entry) isTrailingAddTabVisible.value = entry.isIntersecting;
-  },
-  { root: tabList, threshold: 1 },
-);
 let tabListResizeObserver: ResizeObserver | null = null;
 let closingTab = false;
 let tabShiftAnimationScheduled = false;
@@ -129,6 +116,24 @@ function updateTabListOverflow(): void {
   const viewport = tabList.value;
   if (!viewport) return;
   tabListHasOverflow.value = viewport.scrollWidth > viewport.clientWidth;
+}
+
+/**
+ * A mouse wheel only scrolls vertically, so turn it into horizontal motion.
+ * Horizontal trackpad swipes already scroll the list and pass through.
+ */
+function scrollTabListWithWheel(event: WheelEvent): void {
+  const viewport = tabList.value;
+  if (!viewport || viewport.scrollWidth <= viewport.clientWidth) return;
+  if (Math.abs(event.deltaY) <= Math.abs(event.deltaX)) return;
+  event.preventDefault();
+  const delta =
+    event.deltaMode === WheelEvent.DOM_DELTA_LINE
+      ? event.deltaY * 16
+      : event.deltaMode === WheelEvent.DOM_DELTA_PAGE
+        ? event.deltaY * viewport.clientWidth
+        : event.deltaY;
+  viewport.scrollLeft += delta;
 }
 
 function tabElementKey(element: HTMLElement): string {
@@ -208,7 +213,7 @@ function endTabDrag(): void {
 function leaveTabList(event: DragEvent): void {
   if (
     !(event.relatedTarget instanceof Node) ||
-    !tabList.value?.contains(event.relatedTarget)
+    !tabStrip.value?.contains(event.relatedTarget)
   )
     dropPosition.value = null;
 }
@@ -427,15 +432,14 @@ watch(activeSession, (session) => {
         )
       "
     >
+      <!-- The tab list shrinks to its tabs, so "+" trails the last tab and,
+           once the tabs overflow, stays put at the strip's end. -->
       <div
-        ref="tabList"
-        data-slot="project-content-tab-list"
-        role="tablist"
-        :aria-label="t('project.contentTabs.tabListLabel')"
-        class="scroll-fade-x pointer-events-auto flex min-w-0 flex-1 justify-start overflow-x-auto no-scrollbar"
+        ref="tabStrip"
+        data-slot="project-content-tab-strip"
         :class="
           cn(
-            tabListHasOverflow === false && 'scroll-fade-none',
+            'flex min-w-0 flex-1 items-center gap-1 self-stretch',
             draggingTabId ? 'window-no-drag' : 'window-drag',
           )
         "
@@ -444,96 +448,114 @@ watch(activeSession, (session) => {
         @dragleave="leaveTabList"
       >
         <div
-          ref="tabItems"
-          data-slot="project-content-tab-items"
-          class="window-drag flex min-w-max shrink-0 items-center gap-1 py-1"
+          ref="tabList"
+          data-slot="project-content-tab-list"
+          role="tablist"
+          :aria-label="t('project.contentTabs.tabListLabel')"
+          @wheel="scrollTabListWithWheel"
+          class="scroll-fade-x pointer-events-auto flex min-w-0 flex-initial justify-start self-stretch overflow-x-auto no-scrollbar"
+          :class="
+            cn(
+              tabListHasOverflow === false && 'scroll-fade-none',
+              draggingTabId ? 'window-no-drag' : 'window-drag',
+            )
+          "
         >
-          <template v-for="(tab, index) in tabs" :key="tab.id">
-            <Separator
-              v-if="index > 0"
-              :data-tab-separator-id="tab.id"
-              orientation="vertical"
-              :class="
-                cn(
-                  'project-content-tab-separator window-no-drag h-7 self-center transition-opacity',
-                  shouldShowSeparator(index) ? 'opacity-100' : 'opacity-0',
-                )
-              "
-            />
-
-            <div
-              data-slot="project-content-tab"
-              :class="
-                cn(
-                  'window-no-drag group/tab relative flex h-8 w-40 min-w-40 items-center rounded-2xl',
-                  // Presented tabs keep a warning pulse until acknowledged;
-                  // file changes use a one-shot info pulse.
-                  attentionFlash.isFlashing(tab.id) && 'attention-flash',
-                  attentionFlash.isFlashingOnce(tab.id) && [
-                    'attention-flash',
-                    'attention-flash-once',
-                  ],
-                )
-              "
-              :data-tab-id="tab.id"
-              :draggable="true"
-              @dragstart="startTabDrag($event, tab)"
-              @dragend="endTabDrag"
-              @dragover="dragOverTab($event, tab.id)"
-              @drop="dropTab"
-              @pointerenter="attentionFlash.stop(tab.id)"
-            >
-              <span
-                v-if="
-                  dropPosition?.tabId === tab.id && draggingTabId !== tab.id
-                "
-                aria-hidden="true"
-                class="pointer-events-none absolute inset-y-1 w-0.5 rounded-full bg-primary"
-                :class="dropPosition.side === 'before' ? '-left-1' : '-right-1'"
-              />
-              <Button
-                :id="`project-content-tab-${tab.id}`"
-                :ref="(element) => setTabButton(tab.id, element)"
-                role="tab"
-                :aria-controls="`project-content-panel-${tab.id}`"
-                :aria-selected="activeTabId === tab.id"
-                :tabindex="activeTabId === tab.id ? 0 : -1"
-                :variant="activeTabId === tab.id ? 'secondary' : 'ghost'"
-                size="sm"
-                class="h-8 w-full min-w-0 justify-start group-hover/tab:pr-10 group-has-[:focus-visible]/tab:pr-10"
-                @click="activateTab(tab.id)"
-                @keydown="moveTabFocus(index, $event)"
-              >
-                <component :is="tabIcon(tab)" data-icon="inline-start" />
-                <span class="truncate">{{ getTabLabel(tab) }}</span>
-              </Button>
-
-              <Button
-                class="pointer-events-none absolute inset-y-0 right-2 my-auto opacity-0 transition-opacity group-hover/tab:pointer-events-auto group-hover/tab:opacity-100 group-has-[:focus-visible]/tab:pointer-events-auto group-has-[:focus-visible]/tab:opacity-100"
-                variant="ghost"
-                size="icon-xs"
-                :aria-label="
-                  t('project.contentTabs.closeTab', { name: getTabLabel(tab) })
-                "
-                @click.stop="closeTab(tab.id)"
-              >
-                <XIcon />
-              </Button>
-            </div>
-          </template>
-          <Button
-            v-if="tabs.length"
-            ref="trailingAddTab"
-            data-slot="project-content-add-tab-trailing"
-            class="window-no-drag pointer-events-auto shrink-0"
-            variant="ghost"
-            size="icon-sm"
-            :aria-label="t('project.contentTabs.addTab')"
-            @click="tabNavigation.createSessionTab"
+          <div
+            ref="tabItems"
+            data-slot="project-content-tab-items"
+            class="window-drag flex min-w-max shrink-0 items-center gap-1 py-1"
           >
-            <PlusIcon />
-          </Button>
+            <template v-for="(tab, index) in tabs" :key="tab.id">
+              <Separator
+                v-if="index > 0"
+                :data-tab-separator-id="tab.id"
+                orientation="vertical"
+                :class="
+                  cn(
+                    'project-content-tab-separator window-no-drag h-7 self-center transition-opacity',
+                    shouldShowSeparator(index) ? 'opacity-100' : 'opacity-0',
+                  )
+                "
+              />
+
+              <div
+                data-slot="project-content-tab"
+                :class="
+                  cn(
+                    'window-no-drag group/tab relative flex h-8 w-40 min-w-40 items-center rounded-2xl',
+                    // Presented tabs keep a warning pulse until acknowledged;
+                    // file changes use a one-shot info pulse.
+                    attentionFlash.isFlashing(tab.id) && 'attention-flash',
+                    attentionFlash.isFlashingOnce(tab.id) && [
+                      'attention-flash',
+                      'attention-flash-once',
+                    ],
+                  )
+                "
+                :data-tab-id="tab.id"
+                :draggable="true"
+                @dragstart="startTabDrag($event, tab)"
+                @dragend="endTabDrag"
+                @dragover="dragOverTab($event, tab.id)"
+                @drop="dropTab"
+                @pointerenter="attentionFlash.stop(tab.id)"
+              >
+                <span
+                  v-if="
+                    dropPosition?.tabId === tab.id && draggingTabId !== tab.id
+                  "
+                  aria-hidden="true"
+                  class="pointer-events-none absolute inset-y-1 w-0.5 rounded-full bg-primary"
+                  :class="
+                    dropPosition.side === 'before' ? '-left-1' : '-right-1'
+                  "
+                />
+                <Button
+                  :id="`project-content-tab-${tab.id}`"
+                  :ref="(element) => setTabButton(tab.id, element)"
+                  role="tab"
+                  :aria-controls="`project-content-panel-${tab.id}`"
+                  :aria-selected="activeTabId === tab.id"
+                  :tabindex="activeTabId === tab.id ? 0 : -1"
+                  :variant="activeTabId === tab.id ? 'secondary' : 'ghost'"
+                  size="sm"
+                  class="h-8 w-full min-w-0 justify-start group-hover/tab:pr-10 group-has-[:focus-visible]/tab:pr-10"
+                  @click="activateTab(tab.id)"
+                  @keydown="moveTabFocus(index, $event)"
+                >
+                  <component :is="tabIcon(tab)" data-icon="inline-start" />
+                  <span class="truncate">{{ getTabLabel(tab) }}</span>
+                </Button>
+
+                <Button
+                  class="pointer-events-none absolute inset-y-0 right-2 my-auto opacity-0 transition-opacity group-hover/tab:pointer-events-auto group-hover/tab:opacity-100 group-has-[:focus-visible]/tab:pointer-events-auto group-has-[:focus-visible]/tab:opacity-100"
+                  variant="ghost"
+                  size="icon-xs"
+                  :aria-label="
+                    t('project.contentTabs.closeTab', {
+                      name: getTabLabel(tab),
+                    })
+                  "
+                  @click.stop="closeTab(tab.id)"
+                >
+                  <XIcon />
+                </Button>
+              </div>
+            </template>
+          </div>
         </div>
+        <Button
+          v-if="tabs.length"
+          data-slot="project-content-add-tab"
+          class="window-no-drag pointer-events-auto shrink-0"
+          variant="ghost"
+          size="icon-sm"
+          :aria-label="t('project.contentTabs.addTab')"
+          @click="tabNavigation.createSessionTab"
+        >
+          <PlusIcon />
+        </Button>
         <div
           aria-hidden="true"
           data-slot="project-content-tab-drag-space"
@@ -552,10 +574,8 @@ watch(activeSession, (session) => {
         <GitHubLogo />
       </Button>
 
-      <!-- Docked copy: takes over once the trailing one has scrolled away. -->
       <Button
-        v-if="isAddTabDocked"
-        data-slot="project-content-add-tab-docked"
+        v-if="!tabs.length"
         class="window-no-drag pointer-events-auto"
         variant="ghost"
         size="icon-sm"

@@ -718,57 +718,44 @@ describe("ProjectContentTabs", () => {
     wrapper.unmount();
   });
 
-  it("trails the new-tab button after the last tab and docks it once it scrolls out of view", async () => {
-    const observers: {
-      callback: IntersectionObserverCallback;
-      targets: Element[];
-    }[] = [];
-    vi.stubGlobal(
-      "IntersectionObserver",
-      class {
-        entry = { callback: undefined as never, targets: [] as Element[] };
-        constructor(callback: IntersectionObserverCallback) {
-          this.entry.callback = callback as never;
-          observers.push(this.entry);
-        }
-        observe(target: Element) {
-          this.entry.targets.push(target);
-        }
-        unobserve() {}
-        disconnect() {}
-      },
+  it("keeps one new-tab button right after the tab list", async () => {
+    const { wrapper } = await mountTabs();
+    useContentTabsStore().bindSession("session-1", firstSession);
+    await flushPromises();
+    const buttons = wrapper.findAll('button[aria-label="Add session tab"]');
+    expect(buttons).toHaveLength(1);
+    const strip = wrapper.get('[data-slot="project-content-tab-strip"]');
+    const list = strip.get('[data-slot="project-content-tab-list"]');
+    expect(list.element.nextElementSibling).toBe(buttons[0]?.element);
+    expect(list.classes()).toContain("flex-initial");
+
+    await buttons[0]?.trigger("click");
+    await flushPromises();
+    expect(wrapper.findAll('[role="tab"]')).toHaveLength(2);
+  });
+
+  it("scrolls the overflowing tab list sideways with a mouse wheel", async () => {
+    const { wrapper } = await mountTabs();
+    const list = wrapper.get<HTMLElement>(
+      '[data-slot="project-content-tab-list"]',
     );
-    try {
-      const { wrapper } = await mountTabs();
-      useContentTabsStore().bindSession("session-1", firstSession);
-      await flushPromises();
-      const trailing = '[data-slot="project-content-add-tab-trailing"]';
-      const docked = '[data-slot="project-content-add-tab-docked"]';
-      expect(
-        wrapper
-          .get('[data-slot="project-content-tab-items"]')
-          .find(trailing)
-          .exists(),
-      ).toBe(true);
-      expect(wrapper.find(docked).exists()).toBe(false);
+    Object.defineProperty(list.element, "scrollWidth", { value: 800 });
+    Object.defineProperty(list.element, "clientWidth", { value: 300 });
+    list.element.scrollLeft = 0;
 
-      const observer = observers.find((entry) =>
-        entry.targets.includes(wrapper.get(trailing).element),
-      );
-      expect(observer).toBeDefined();
-      observer?.callback(
-        [{ isIntersecting: false } as IntersectionObserverEntry],
-        {} as IntersectionObserver,
-      );
-      await nextTick();
-      expect(wrapper.find(docked).exists()).toBe(true);
+    const wheel = new WheelEvent("wheel", { deltaY: 60, cancelable: true });
+    list.element.dispatchEvent(wheel);
+    expect(list.element.scrollLeft).toBe(60);
+    expect(wheel.defaultPrevented).toBe(true);
 
-      await wrapper.get(docked).trigger("click");
-      await flushPromises();
-      expect(wrapper.findAll('[role="tab"]')).toHaveLength(2);
-    } finally {
-      vi.unstubAllGlobals();
-    }
+    const swipe = new WheelEvent("wheel", {
+      deltaX: 40,
+      deltaY: 5,
+      cancelable: true,
+    });
+    list.element.dispatchEvent(swipe);
+    expect(list.element.scrollLeft).toBe(60);
+    expect(swipe.defaultPrevented).toBe(false);
   });
 
   it("opens the project repository in the system browser from the empty state", async () => {
