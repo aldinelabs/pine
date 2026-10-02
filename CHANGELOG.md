@@ -9,19 +9,27 @@ Starting with 0.4.4, release notes are written in both Chinese and English.
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-10-02
+
 ### 新增 / Added
 
-- Agent 可以在后台运行耗时命令，同时继续处理其他工作；右侧栏下半部分显示运行状态，可查看实时日志或停止单个进程，任务结束后会在对话中通知。The agent can run long commands in the background while continuing other work. The lower half of the right sidebar shows task status and lets you inspect live logs, stop individual processes, with a notification in the conversation when they finish.
-
-- Agent 处理多步骤工作时会维护一份任务清单，显示在右侧栏上半部分：可以看到正在做什么、已完成什么、还剩什么。任务之间有先后依赖时，会用节点和连线表示谁在等谁；点击清单可查看按状态分组的全部任务，重新打开会话后清单依然保留。When working through multi-step tasks, the agent now keeps a task list in the upper half of the right sidebar, so you can see what it is doing, what is done, and what remains. When tasks depend on each other, nodes and lines show which one is waiting on which; click the list to see every task grouped by status, and find it intact when you reopen the conversation.
+- 项目工作区现在包含右侧栏，可并排查看 Agent 的任务清单和后台命令；任务依赖以图形呈现，后台命令支持查看实时日志、停止运行，并在完成后收到对话通知。Project workspaces now include a right sidebar for the agent's task list and background commands. Task dependencies appear as a graph; background commands provide live logs, can be stopped, and notify you in the conversation when they finish.
+- Agent 可维护跨会话保留的任务清单，展示多步骤工作的进度和依赖关系；点击任务清单可查看按状态分组的全部任务。The agent can maintain a task list that persists across conversations, showing progress and dependencies for multi-step work; click the list to view all tasks grouped by status.
+- 可以编辑已发送的用户消息，并从该消息处重写会话历史、继续对话。You can edit a sent message and rewrite the conversation from that point, then continue chatting.
+- 项目空状态会根据侧栏内容展示相应预览，帮助识别可用的工作区功能。Project empty states now show previews tailored to the sidebar content, helping you discover workspace features.
+- 侧栏底部现在显示 Pine 的应用版本。The Pine app version is now shown at the bottom of the sidebar.
 
 ### 变更 / Changed
 
-- “工作技能”和“MCP 服务器”入口从左侧栏底部移到了右侧栏底部，工作技能在上、MCP 服务器在下。The Work Skills and MCP Servers entries moved from the bottom of the left sidebar to the bottom of the right sidebar, with Work Skills above MCP Servers.
+- 项目工作区调整为适配侧栏的新布局；标签栏、新建标签按钮和右侧栏间距经过整理。The project workspace now uses a layout designed for its sidebars, with a refined tab bar, new-tab button, and right-sidebar spacing.
+- “工作技能”和“MCP 服务器”入口从左侧栏底部移至右侧栏底部。Work Skills and MCP Servers moved from the bottom of the left sidebar to the bottom of the right sidebar.
 
 ### 修复 / Fixed
 
 - 暗色模式下，Markdown 中的表格表头、行内代码、代码块和图表现在跟随当前项目配色，不再显示为橄榄绿。In dark mode, Markdown table headers, inline code, code blocks, and diagrams now follow the current project color instead of appearing olive green.
+- 修复右侧栏、窗口缩放和全屏切换时的布局问题，并让新建项目页背景与主题保持一致。Fixed layout issues with the right sidebar, window resizing, and full-screen changes; the new-project background now matches the active theme.
+- 改进长对话的消息渲染和可见区域跟踪，减少滚动与切换会话时不必要的更新。Improved message rendering and visibility tracking in long conversations, reducing unnecessary updates while scrolling or switching sessions.
+- 修复任务清单空状态提示、标签页及后台命令详情中的若干显示问题。Fixed several display issues in the task-list empty state, tabs, and background-command details.
 
 ## [0.7.2] - 2026-10-01
 
