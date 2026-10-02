@@ -453,7 +453,7 @@ watch(activeSession, (session) => {
           role="tablist"
           :aria-label="t('project.contentTabs.tabListLabel')"
           @wheel="scrollTabListWithWheel"
-          class="scroll-fade-x pointer-events-auto flex min-w-0 flex-initial justify-start self-stretch overflow-x-auto no-scrollbar"
+          class="scroll-fade-x pointer-events-auto flex min-w-0 flex-initial items-center justify-start self-stretch overflow-x-auto no-scrollbar"
           :class="
             cn(
               tabListHasOverflow === false && 'scroll-fade-none',
