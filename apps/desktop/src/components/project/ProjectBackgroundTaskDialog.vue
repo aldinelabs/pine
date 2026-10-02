@@ -142,16 +142,16 @@ const details = computed(() => {
   if (!current) return [];
   return [
     { key: "duration", value: duration.value },
-    { key: "started", value: formatTime(current.startTime) },
-    ...(current.endTime
-      ? [{ key: "ended", value: formatTime(current.endTime) }]
-      : []),
     {
       key: "permissions",
       value: current.privileged
         ? t("project.backgroundTasks.native")
         : t("project.backgroundTasks.sandboxed"),
     },
+    { key: "started", value: formatTime(current.startTime) },
+    ...(current.endTime
+      ? [{ key: "ended", value: formatTime(current.endTime) }]
+      : []),
     ...(current.timeoutSeconds
       ? [
           {
@@ -208,9 +208,15 @@ async function stop(): Promise<void> {
       class="max-h-[85vh] gap-4 overflow-hidden sm:max-w-2xl"
     >
       <DialogHeader>
-        <DialogTitle class="truncate">
-          {{ task?.name ?? t("project.backgroundTasks.heading") }}
-        </DialogTitle>
+        <div class="flex min-w-0 items-center gap-2 pr-6">
+          <DialogTitle class="min-w-0 truncate">
+            {{ task?.name ?? t("project.backgroundTasks.heading") }}
+          </DialogTitle>
+          <Badge v-if="task" :variant="statusVariant" class="shrink-0">
+            <Spinner v-if="isRunning" data-icon="inline-start" />
+            {{ t(`project.backgroundTasks.statuses.${task.status}`) }}
+          </Badge>
+        </div>
         <DialogDescription :class="!task && 'sr-only'">
           <template v-if="task">
             {{ task.id }}
@@ -222,22 +228,20 @@ async function stop(): Promise<void> {
       </DialogHeader>
 
       <div v-if="task" class="flex min-h-0 flex-col gap-4 overflow-y-auto">
-        <div class="flex flex-wrap items-center gap-2">
-          <Badge :variant="statusVariant">
-            <Spinner v-if="isRunning" data-icon="inline-start" />
-            {{ t(`project.backgroundTasks.statuses.${task.status}`) }}
-          </Badge>
-          <span
+        <dl class="grid grid-cols-1 gap-x-6 gap-y-3 sm:grid-cols-2">
+          <div
             v-for="detail in details"
             :key="detail.key"
-            class="text-muted-foreground inline-flex gap-1 text-xs"
+            class="flex min-w-0 flex-col gap-1"
           >
-            <span>{{ t(`project.backgroundTasks.dialog.${detail.key}`) }}</span>
-            <span class="text-foreground tabular-nums">
+            <dt class="text-muted-foreground text-xs">
+              {{ t(`project.backgroundTasks.dialog.${detail.key}`) }}
+            </dt>
+            <dd class="text-sm tabular-nums wrap-break-word">
               {{ detail.value }}
-            </span>
-          </span>
-        </div>
+            </dd>
+          </div>
+        </dl>
 
         <p
           v-if="task.error"
