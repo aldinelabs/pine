@@ -128,6 +128,7 @@ apps/
 packages/
   computer-use-runtime/           Computer Use 的平台运行时与工具规格
   rpiv-ask-user-question/         Agent 结构化提问（选项卡片）运行时
+  rpiv-todo/                      Agent 任务清单协议与状态运行时
 docs/                            产品、架构与执行环境文档
 ```
 

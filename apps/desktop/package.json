@@ -38,6 +38,7 @@
     "@lucide/vue": "1.50.0",
     "@pine/computer-use-runtime": "workspace:*",
     "@pine/rpiv-ask-user-question": "workspace:*",
+    "@pine/rpiv-todo": "workspace:*",
     "@tanstack/vue-virtual": "3.13.37",
     "@vue-office/docx": "1.6.3",
     "@vue-office/excel": "1.7.14",
