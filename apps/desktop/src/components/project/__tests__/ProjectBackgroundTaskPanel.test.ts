@@ -78,7 +78,11 @@ describe("ProjectBackgroundTaskPanel", () => {
     const wrapper = mountPanel();
     expect(wrapper.text()).toContain("后台进程");
     expect(
-      wrapper.get('[data-testid="project-background-task-placeholder"]').text(),
+      wrapper
+        .get(
+          '[data-testid="project-background-task-placeholder"] [data-testid="project-sidebar-empty-label"]',
+        )
+        .text(),
     ).toBe("暂无后台进程");
   });
 

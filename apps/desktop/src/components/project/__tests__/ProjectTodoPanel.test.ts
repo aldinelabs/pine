@@ -61,7 +61,7 @@ describe("ProjectTodoPanel", () => {
       expect(wrapper.text()).not.toContain("/");
       expect(
         wrapper.get('[data-testid="project-todo-placeholder"]').text(),
-      ).toBe("暂无任务。从哪里开始？");
+      ).toBe("暂无任务");
       expect(wrapper.find('[data-testid="project-todo-row"]').exists()).toBe(
         false,
       );

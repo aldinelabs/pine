@@ -26,6 +26,7 @@ import {
 import { Spinner } from "@/components/ui/spinner";
 import { useBackgroundTasksStore } from "@/stores/backgroundTasks";
 import ProjectBackgroundTaskDialog from "./ProjectBackgroundTaskDialog.vue";
+import ProjectSidebarEmptyState from "./ProjectSidebarEmptyState.vue";
 
 const { t } = useI18n();
 const store = useBackgroundTasksStore();
@@ -66,24 +67,25 @@ async function stop(task: BackgroundTaskSnapshot): Promise<void> {
 </script>
 
 <template>
-  <SidebarGroup data-testid="project-background-task-panel">
+  <SidebarGroup
+    data-testid="project-background-task-panel"
+    :class="{ 'h-full min-h-0': tasks.length === 0 }"
+  >
     <SidebarGroupLabel>
       {{ t("project.backgroundTasks.heading") }}
       <span v-if="runningCount > 0" class="ml-auto tabular-nums">
         {{ t("project.backgroundTasks.running", { count: runningCount }) }}
       </span>
     </SidebarGroupLabel>
-    <SidebarGroupContent>
-      <SidebarMenu
+    <SidebarGroupContent
+      :class="{ 'flex min-h-0 flex-1 flex-col': tasks.length === 0 }"
+    >
+      <ProjectSidebarEmptyState
         v-if="tasks.length === 0"
+        kind="processes"
+        :label="t('project.backgroundTasks.empty')"
         data-testid="project-background-task-placeholder"
-      >
-        <SidebarMenuItem>
-          <SidebarMenuButton as="div" class="pointer-events-none">
-            {{ t("project.backgroundTasks.empty") }}
-          </SidebarMenuButton>
-        </SidebarMenuItem>
-      </SidebarMenu>
+      />
 
       <SidebarMenu v-else>
         <SidebarMenuItem

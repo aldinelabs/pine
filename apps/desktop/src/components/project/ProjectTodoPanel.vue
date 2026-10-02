@@ -18,6 +18,7 @@ import {
 import { useSessionStore } from "@/stores/session";
 import ProjectTodoGraph from "./ProjectTodoGraph.vue";
 import ProjectTodoListDialog from "./ProjectTodoListDialog.vue";
+import ProjectSidebarEmptyState from "./ProjectSidebarEmptyState.vue";
 
 const { t } = useI18n();
 const session = useSessionStore();
@@ -75,7 +76,10 @@ const moreLabel = computed(() => {
 </script>
 
 <template>
-  <SidebarGroup data-testid="project-todo-panel">
+  <SidebarGroup
+    data-testid="project-todo-panel"
+    :class="{ 'h-full min-h-0': !hasTasks || !layout }"
+  >
     <SidebarGroupLabel>
       {{ t("project.todos.heading") }}
       <span v-if="hasTasks && counts" class="ml-auto tabular-nums">
@@ -88,14 +92,15 @@ const moreLabel = computed(() => {
       </span>
     </SidebarGroupLabel>
 
-    <SidebarGroupContent v-if="!hasTasks || !layout">
-      <SidebarMenu data-testid="project-todo-placeholder">
-        <SidebarMenuItem>
-          <SidebarMenuButton as="div" class="pointer-events-none">
-            {{ t("project.todos.empty") }}
-          </SidebarMenuButton>
-        </SidebarMenuItem>
-      </SidebarMenu>
+    <SidebarGroupContent
+      v-if="!hasTasks || !layout"
+      class="flex min-h-0 flex-1 flex-col"
+    >
+      <ProjectSidebarEmptyState
+        kind="todos"
+        :label="t('project.todos.empty')"
+        data-testid="project-todo-placeholder"
+      />
     </SidebarGroupContent>
 
     <SidebarGroupContent v-else>
