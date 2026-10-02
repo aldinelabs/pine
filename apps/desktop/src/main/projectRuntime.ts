@@ -46,6 +46,14 @@ import {
   type PineSessionExportDocument,
 } from "./sessions";
 import type { AgentHost } from "./agentProcessHost";
+import {
+  BACKGROUND_TASK_OUTPUT_TAIL_BYTES,
+  type BackgroundTaskRequest,
+  type BackgroundTaskResult,
+  type ListBackgroundTasksResult,
+  type ReadBackgroundTaskOutputResult,
+  type StopAllBackgroundTasksResult,
+} from "../shared/backgroundTasks";
 import type { GateDecision } from "../agent/protocol";
 import {
   parseAttachmentMessage,
@@ -110,6 +118,89 @@ export class ProjectRuntimeRegistry {
         await this.agentHost.reloadMcp?.(sessionId);
       }),
     );
+  }
+
+  /** Background task requests act only on a session this window owns. */
+  async listBackgroundTasks(
+    webContentsId: number,
+    sessionId: string,
+  ): Promise<ListBackgroundTasksResult> {
+    // A session that is not live yet has no tasks.
+    const live = this.get(webContentsId).liveSessions.get(sessionId);
+    if (!live || !this.agentHost.listBackgroundTasks) return { tasks: [] };
+    return this.agentHost.listBackgroundTasks(live.summary.id);
+  }
+
+  async stopBackgroundTask(
+    webContentsId: number,
+    request: BackgroundTaskRequest,
+  ): Promise<BackgroundTaskResult> {
+    const live = this.requireBackgroundSession(
+      webContentsId,
+      request.sessionId,
+    );
+    return this.backgroundHost("stopBackgroundTask")(
+      live.summary.id,
+      request.taskId,
+    );
+  }
+
+  async stopAllBackgroundTasks(
+    webContentsId: number,
+    sessionId: string,
+  ): Promise<StopAllBackgroundTasksResult> {
+    const live = this.requireBackgroundSession(webContentsId, sessionId);
+    return this.backgroundHost("stopAllBackgroundTasks")(live.summary.id);
+  }
+
+  async rerunBackgroundTask(
+    webContentsId: number,
+    request: BackgroundTaskRequest,
+  ): Promise<BackgroundTaskResult> {
+    const live = this.requireBackgroundSession(
+      webContentsId,
+      request.sessionId,
+    );
+    return this.backgroundHost("rerunBackgroundTask")(
+      live.summary.id,
+      request.taskId,
+    );
+  }
+
+  async readBackgroundTaskOutput(
+    webContentsId: number,
+    request: BackgroundTaskRequest,
+  ): Promise<ReadBackgroundTaskOutputResult> {
+    const live = this.requireBackgroundSession(
+      webContentsId,
+      request.sessionId,
+    );
+    return this.backgroundHost("readBackgroundTaskOutput")(
+      live.summary.id,
+      request.taskId,
+      BACKGROUND_TASK_OUTPUT_TAIL_BYTES,
+    );
+  }
+
+  private requireBackgroundSession(
+    webContentsId: number,
+    sessionId: string,
+  ): RuntimeSession {
+    const live = this.targetSession(webContentsId, sessionId);
+    if (!live) throw new Error("Session does not belong to this window.");
+    return live;
+  }
+
+  private backgroundHost<
+    K extends
+      | "stopBackgroundTask"
+      | "stopAllBackgroundTasks"
+      | "rerunBackgroundTask"
+      | "readBackgroundTaskOutput",
+  >(method: K): NonNullable<AgentHost[K]> {
+    const fn = this.agentHost[method];
+    if (!fn) throw new Error("Background tasks are unavailable.");
+    return fn.bind(this.agentHost) as NonNullable<AgentHost[K]>;
   }
 
   async getMcpStatus(webContentsId: number) {

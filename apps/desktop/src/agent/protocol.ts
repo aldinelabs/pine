@@ -23,6 +23,12 @@ import type { PineContextUsage, PineSessionSummary } from "../shared/sessions";
 import type { PineContextCompactionStrategy } from "../shared/preferences";
 import type { AskUserQuestionSubmission } from "@pine/rpiv-ask-user-question";
 import type { McpStatusSnapshot } from "pi-mcp-adapter";
+import type {
+  BackgroundTaskResult,
+  ListBackgroundTasksResult,
+  ReadBackgroundTaskOutputResult,
+  StopAllBackgroundTasksResult,
+} from "../shared/backgroundTasks";
 
 export interface AgentFolderGrant {
   access: "read-only" | "read-write";
@@ -127,6 +133,29 @@ export type AgentWorkerRequest =
       id: string;
       type: "mcp:status";
       sessionId: string;
+    }
+  | {
+      id: string;
+      type: "background:list";
+      sessionId: string;
+    }
+  | {
+      id: string;
+      type: "background:stop" | "background:rerun";
+      sessionId: string;
+      taskId: string;
+    }
+  | {
+      id: string;
+      type: "background:stop-all";
+      sessionId: string;
+    }
+  | {
+      id: string;
+      type: "background:output";
+      sessionId: string;
+      taskId: string;
+      maxBytes: number;
     }
   | {
       id: string;
@@ -241,6 +270,10 @@ export interface AgentWorkerPromptResult extends AgentWorkerSessionResult {
 
 export type AgentWorkerResult =
   | McpStatusSnapshot
+  | ListBackgroundTasksResult
+  | BackgroundTaskResult
+  | StopAllBackgroundTasksResult
+  | ReadBackgroundTaskOutputResult
   | AgentWorkerSessionResult
   | AgentWorkerPromptResult
   | PineModelCatalog

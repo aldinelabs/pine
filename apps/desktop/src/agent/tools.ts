@@ -1,4 +1,4 @@
-import { createHash } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { createSandboxFileIO, withFileExecutionSignal } from "./sandbox/files";
 import { constants } from "node:fs";
 import {
@@ -73,6 +73,11 @@ import {
 } from "./tinyfishTools";
 import { createMediaGenerationToolDefinitions } from "./media/tools";
 import { createTodoToolDefinition } from "./todoTool";
+import {
+  BackgroundTaskRegistry,
+  type BackgroundTaskRegistryOptions,
+} from "@pine/pi-background-tasks/registry";
+import { createBackgroundTaskToolDefinitions } from "./backgroundTaskTools";
 
 interface FileIO {
   access(path: string, mode: number): Promise<void>;
@@ -247,6 +252,15 @@ export interface PineToolPermissionContext {
   ) => Promise<AskUserQuestionSubmission>;
   /** Opens a file tab for the user without moving their focus. */
   presentFile?: (toolCallId: string, filePath: string) => void;
+  /** Gives the session `bg_run` and the other background task tools. */
+  backgroundTasks?: PineBackgroundTaskContext;
+}
+
+export interface PineBackgroundTaskContext {
+  onChange(): void;
+  sendCompletionNotification: BackgroundTaskRegistryOptions["sendCompletionNotification"];
+  /** Receives the session's registry so the runtime can list and stop tasks. */
+  attach(registry: BackgroundTaskRegistry): void;
 }
 
 export interface PineMediaGenerationContext {
@@ -636,6 +650,61 @@ export async function createPineToolDefinitions(
       })
     : null;
 
+  const backgroundTaskContext = permissions?.backgroundTasks;
+  const backgroundTaskTools: ToolDefinition[] = [];
+  if (backgroundTaskContext) {
+    const sandboxedOperations = createScopedBashOperations(
+      policy,
+      canonicalBashTemporaryDirectory,
+      loginPath,
+      runtimeFiles,
+    );
+    const nativeOperations = isWindows
+      ? createLocalPowerShellOperations()
+      : createLocalBashOperations();
+    const registry = new BackgroundTaskRegistry({
+      cwd: location.cwd,
+      // Inside the project's temporary directory, so read and sandboxed
+      // shell can open the full output.
+      outputDirectory: path.join(
+        canonicalBashTemporaryDirectory,
+        "background-tasks",
+        randomUUID(),
+      ),
+      executor: (privileged) =>
+        privileged
+          ? {
+              exec: (command, cwd, options) =>
+                nativeOperations.exec(command, cwd, {
+                  ...options,
+                  env: createNativeBashEnvironment(
+                    { ...process.env },
+                    loginPath,
+                    location.cwd,
+                  ),
+                }),
+            }
+          : sandboxedOperations,
+      onChange: () => backgroundTaskContext.onChange(),
+      ...(backgroundTaskContext.sendCompletionNotification
+        ? {
+            sendCompletionNotification:
+              backgroundTaskContext.sendCompletionNotification,
+          }
+        : {}),
+    });
+    backgroundTaskContext.attach(registry);
+    backgroundTaskTools.push(
+      ...createBackgroundTaskToolDefinitions({
+        registry,
+        getApprovalMode,
+        getGate,
+        sandboxAvailable: !isWindows,
+        shellName,
+      }),
+    );
+  }
+
   const mediaGeneration = permissions?.mediaGeneration;
   const activateMediaGeneration = mediaGeneration
     ? () => mediaGeneration.activate()
@@ -676,6 +745,7 @@ export async function createPineToolDefinitions(
     ...(uiPresentFileTool ? [uiPresentFileTool] : []),
     ...(askUserQuestionTool ? [askUserQuestionTool] : []),
     createTodoToolDefinition(),
+    ...backgroundTaskTools,
     ...tinyFishTools,
     ...mediaTools,
   ] as ToolDefinition[];

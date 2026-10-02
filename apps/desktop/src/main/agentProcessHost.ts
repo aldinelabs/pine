@@ -3,6 +3,12 @@ import { randomUUID } from "node:crypto";
 import path from "node:path";
 import type { McpStatusSnapshot } from "pi-mcp-adapter";
 import type {
+  BackgroundTaskResult,
+  ListBackgroundTasksResult,
+  ReadBackgroundTaskOutputResult,
+  StopAllBackgroundTasksResult,
+} from "../shared/backgroundTasks";
+import type {
   PineApprovalMode,
   PineMessageRewriteTarget,
 } from "../shared/agent";
@@ -46,6 +52,23 @@ interface AgentProcess {
 export interface AgentHost {
   reloadMcp?(sessionId: string): Promise<{ updated: boolean }>;
   getMcpStatus?(sessionId: string): Promise<McpStatusSnapshot>;
+  listBackgroundTasks?(sessionId: string): Promise<ListBackgroundTasksResult>;
+  stopBackgroundTask?(
+    sessionId: string,
+    taskId: string,
+  ): Promise<BackgroundTaskResult>;
+  stopAllBackgroundTasks?(
+    sessionId: string,
+  ): Promise<StopAllBackgroundTasksResult>;
+  rerunBackgroundTask?(
+    sessionId: string,
+    taskId: string,
+  ): Promise<BackgroundTaskResult>;
+  readBackgroundTaskOutput?(
+    sessionId: string,
+    taskId: string,
+    maxBytes: number,
+  ): Promise<ReadBackgroundTaskOutputResult>;
   abort(sessionId: string): Promise<{ aborted: boolean }>;
   compact(sessionId: string): Promise<{ compacted: boolean }>;
   dequeueSteering(
@@ -156,6 +179,43 @@ export class AgentProcessHost implements AgentHost {
 
   getMcpStatus(sessionId: string): Promise<McpStatusSnapshot> {
     return this.request({ type: "mcp:status", sessionId });
+  }
+
+  listBackgroundTasks(sessionId: string): Promise<ListBackgroundTasksResult> {
+    return this.request({ type: "background:list", sessionId });
+  }
+
+  stopBackgroundTask(
+    sessionId: string,
+    taskId: string,
+  ): Promise<BackgroundTaskResult> {
+    return this.request({ type: "background:stop", sessionId, taskId });
+  }
+
+  stopAllBackgroundTasks(
+    sessionId: string,
+  ): Promise<StopAllBackgroundTasksResult> {
+    return this.request({ type: "background:stop-all", sessionId });
+  }
+
+  rerunBackgroundTask(
+    sessionId: string,
+    taskId: string,
+  ): Promise<BackgroundTaskResult> {
+    return this.request({ type: "background:rerun", sessionId, taskId });
+  }
+
+  readBackgroundTaskOutput(
+    sessionId: string,
+    taskId: string,
+    maxBytes: number,
+  ): Promise<ReadBackgroundTaskOutputResult> {
+    return this.request({
+      type: "background:output",
+      sessionId,
+      taskId,
+      maxBytes,
+    });
   }
   private process: AgentProcess | null = null;
   private ready: Promise<void> | null = null;

@@ -315,6 +315,82 @@ const describeSandbox = describe.runIf(
   process.platform === "darwin" && !process.env.CODEX_SANDBOX,
 );
 describeSandbox("createPineToolDefinitions", () => {
+  it("adds the background task tools and hands the session its registry", async () => {
+    const { location } = await createFixture();
+    const attach = vi.fn();
+
+    const tools = await createPineToolDefinitions(
+      location,
+      createFakeGate(),
+      undefined,
+      {
+        getApprovalMode: () => "auto-approve",
+        getGate: () => null,
+        backgroundTasks: {
+          onChange: vi.fn(),
+          sendCompletionNotification: vi.fn(),
+          attach,
+        },
+      },
+    );
+
+    expect(tools.map((tool) => tool.name)).toEqual(
+      expect.arrayContaining(["bg_run", "bg_status", "bg_logs", "bg_kill"]),
+    );
+    expect(attach).toHaveBeenCalledTimes(1);
+    const registry = attach.mock.calls[0]?.[0] as {
+      dispose(): Promise<void>;
+      snapshots(): unknown[];
+    };
+    expect(registry.snapshots()).toEqual([]);
+    await registry.dispose();
+  });
+
+  it("runs background tasks in the project sandbox and keeps their output readable", async () => {
+    const { location, readWrite } = await createFixture();
+    const attach = vi.fn();
+    const notify = vi.fn();
+    const tools = await createPineToolDefinitions(
+      location,
+      createFakeGate(),
+      undefined,
+      {
+        getApprovalMode: () => "auto-approve",
+        getGate: () => null,
+        backgroundTasks: {
+          onChange: vi.fn(),
+          sendCompletionNotification: notify,
+          attach,
+        },
+      },
+    );
+    const run = tools.find((tool) => tool.name === "bg_run");
+    const result = await run!.execute(
+      "call",
+      {
+        name: "Print",
+        command: "pwd && echo sandboxed",
+      },
+      undefined,
+      undefined,
+      {} as never,
+    );
+    const registry = attach.mock.calls[0]?.[0] as {
+      snapshots(): Array<{ id: string; status: string; outputPath: string }>;
+      readOutput(id: string, maxBytes: number): Promise<{ content: string }>;
+    };
+    const [task] = registry.snapshots();
+    expect(result.details).toMatchObject({ task: { privileged: false } });
+    await vi.waitFor(
+      () => expect(registry.snapshots()[0]?.status).toBe("completed"),
+      { timeout: 15_000 },
+    );
+    const output = await registry.readOutput(task.id, 1000);
+    expect(output.content).toContain(await realpath(readWrite));
+    expect(output.content).toContain("sandboxed");
+    expect(notify).toHaveBeenCalledTimes(1);
+  });
+
   it("registers Pi's four default tools with Pine-owned operations, plus todo", async () => {
     const { location } = await createFixture();
 

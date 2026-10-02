@@ -1,6 +1,10 @@
 import { parseAttachmentMessage, type PineAttachment } from "./attachments";
 import type { PineModelSelection } from "./models";
 import type { TaskState } from "@pine/rpiv-todo";
+import {
+  backgroundTaskNotificationTask,
+  type BackgroundTaskSnapshot,
+} from "@pine/pi-background-tasks";
 
 export const SEARCH_SESSIONS_CHANNEL = "sessions:search" as const;
 export const RESUME_SESSION_CHANNEL = "sessions:resume" as const;
@@ -81,6 +85,8 @@ export type PineContentBlock =
   | { type: "thinking"; thinking: string }
   | { type: "toolCall"; toolCall: PineToolCall }
   | { type: "compaction"; compaction: PineCompaction }
+  /** A background task's terminal notification, as delivered to the model. */
+  | { type: "backgroundTask"; task: BackgroundTaskSnapshot }
   | { type: "error"; error: PineSessionError };
 
 export interface PineTextMessage {
@@ -145,6 +151,10 @@ export function parseMessageBlocks(message: unknown): PineContentBlock[] {
   }
 
   const record = message as Record<string, unknown>;
+  if (record.role === "custom") {
+    const task = backgroundTaskNotificationTask(record);
+    return task ? [{ type: "backgroundTask", task }] : [];
+  }
   let blocks = parseContentBlocks(record.content);
   if (record.role === "user") {
     blocks = blocks.flatMap((block): PineContentBlock[] => {
@@ -184,6 +194,19 @@ export function parseMessageBlocks(message: unknown): PineContentBlock[] {
   }
 
   return blocks;
+}
+
+/**
+ * The transcript role of a Pi message. A background task notification is a
+ * custom message, shown among the assistant's output like compaction.
+ */
+export function transcriptRole(message: unknown): "assistant" | "user" | null {
+  if (typeof message !== "object" || message === null) return null;
+  const record = message as Record<string, unknown>;
+  if (record.role === "assistant" || record.role === "user") return record.role;
+  if (record.role === "custom" && backgroundTaskNotificationTask(record))
+    return "assistant";
+  return null;
 }
 
 export function contentBlocksToText(

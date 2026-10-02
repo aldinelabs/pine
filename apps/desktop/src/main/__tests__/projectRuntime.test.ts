@@ -126,6 +126,67 @@ afterEach(async () => {
 });
 
 describe("ProjectRuntimeRegistry", () => {
+  it("keeps background task controls within their owning window", async () => {
+    const host = createAgentHost();
+    const listTasks = vi.fn().mockResolvedValue({ tasks: [] });
+    const stopTask = vi.fn().mockResolvedValue({ task: {} });
+    const readOutput = vi.fn().mockResolvedValue({ content: "output" });
+    host.listBackgroundTasks = listTasks;
+    host.stopBackgroundTask = stopTask;
+    host.stopAllBackgroundTasks = vi
+      .fn()
+      .mockResolvedValue({ stopped: 0, failures: [] });
+    host.rerunBackgroundTask = vi.fn().mockResolvedValue({ task: {} });
+    host.readBackgroundTaskOutput = readOutput;
+    const registry = new ProjectRuntimeRegistry(host, "/pine/agent");
+    const { dataRoot, project } = await createRuntimeFixture();
+    const paths = {
+      attachmentsRoot: path.join(dataRoot, "attachments"),
+      cacheRoot: path.join(dataRoot, "cache"),
+      projectRoot: dataRoot,
+      sessionsRoot: path.join(dataRoot, "sessions"),
+    };
+    await registry.open(1, project, paths);
+    await registry.open(2, project, paths);
+    try {
+      expect(await registry.listBackgroundTasks(1, sessionSummary.id)).toEqual({
+        tasks: [],
+      });
+      expect(listTasks).not.toHaveBeenCalled();
+      await registry.prompt(1, { message: "Start", target: { kind: "new" } });
+      const request = { sessionId: sessionSummary.id, taskId: "b1234abcd" };
+      await registry.listBackgroundTasks(1, request.sessionId);
+      await registry.stopBackgroundTask(1, request);
+      await registry.stopAllBackgroundTasks(1, request.sessionId);
+      await registry.rerunBackgroundTask(1, request);
+      await registry.readBackgroundTaskOutput(1, request);
+      expect(stopTask).toHaveBeenCalledWith(request.sessionId, request.taskId);
+      expect(readOutput).toHaveBeenCalledWith(
+        request.sessionId,
+        request.taskId,
+        128 * 1024,
+      );
+      for (const method of [
+        "stopBackgroundTask",
+        "rerunBackgroundTask",
+        "readBackgroundTaskOutput",
+      ] as const) {
+        await expect(registry[method](2, request)).rejects.toThrow(
+          "Session does not belong to this window",
+        );
+      }
+      await expect(
+        registry.stopAllBackgroundTasks(2, request.sessionId),
+      ).rejects.toThrow("Session does not belong to this window");
+      expect(await registry.listBackgroundTasks(2, request.sessionId)).toEqual({
+        tasks: [],
+      });
+    } finally {
+      await registry.dispose(1);
+      await registry.dispose(2);
+    }
+  });
+
   it("routes questionnaire answers only from the owning window", () => {
     const agentHost = createAgentHost();
     const respondQuestionnaire = vi.fn();

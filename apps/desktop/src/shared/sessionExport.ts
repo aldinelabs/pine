@@ -89,6 +89,12 @@ function appendBlock(lines: string[], block: PineContentBlock): void {
     lines.push(`> Context compaction: ${block.compaction.status}`);
     return;
   }
+  if (block.type === "backgroundTask") {
+    lines.push(
+      `> Background task ${block.task.name} (${block.task.id}): ${block.task.status}`,
+    );
+    return;
+  }
   lines.push(`> Error: ${block.error.message}`);
 }
 

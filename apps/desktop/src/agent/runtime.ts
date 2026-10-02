@@ -74,6 +74,15 @@ import {
   type UserApprovalRequest,
 } from "./gate";
 import { createPineToolDefinitions, PineAttachedPathAccess } from "./tools";
+import type { BackgroundTaskNotificationMessage } from "@pine/pi-background-tasks";
+import type { BackgroundTaskRegistry } from "@pine/pi-background-tasks/registry";
+import {
+  BACKGROUND_TASK_OUTPUT_TAIL_BYTES,
+  type BackgroundTaskResult,
+  type ListBackgroundTasksResult,
+  type ReadBackgroundTaskOutputResult,
+  type StopAllBackgroundTasksResult,
+} from "../shared/backgroundTasks";
 import type {
   AskUserQuestionParams,
   AskUserQuestionSubmission,
@@ -179,6 +188,7 @@ export {
 export type { PineAgentRuntimeOptions } from "./runtime/session-state";
 
 const JUDGE_TIMEOUT_MS = 60_000;
+const BACKGROUND_TASKS_EVENT_MS = 200;
 const TITLE_TIMEOUT_MS = 30_000;
 export class PineAgentRuntime {
   private readonly liveSessions = new Map<string, LiveAgentSession>();
@@ -539,6 +549,9 @@ export class PineAgentRuntime {
       });
     }
     if (!live.session.isIdle) await live.session.abort();
+    // Tasks stopped by the session closing do not notify the model.
+    await live.backgroundTasks?.dispose();
+    clearTimeout(live.backgroundTaskEmitTimer);
     await live.computerUseController?.dispose();
     live.unsubscribe();
     await live.session.settingsManager.flush();
@@ -900,6 +913,14 @@ export class PineAgentRuntime {
           this.requestQuestionnaire(live, toolCallId, params, signal),
         presentFile: (toolCallId, filePath) =>
           this.presentFile(live, toolCallId, filePath),
+        backgroundTasks: {
+          onChange: () => this.scheduleBackgroundTasksEvent(live),
+          sendCompletionNotification: (message, options) =>
+            this.deliverBackgroundTaskNotification(live, message, options),
+          attach: (registry) => {
+            live.backgroundTasks = registry;
+          },
+        },
       },
     );
     const customTools = [...pineTools];
@@ -1059,6 +1080,124 @@ export class PineAgentRuntime {
     await live.session.reload();
     this.syncApprovalModeTools(live);
     return { updated: true };
+  }
+
+  listBackgroundTasks(sessionId: string): ListBackgroundTasksResult {
+    return { tasks: this.backgroundTasksFor(sessionId).snapshots() };
+  }
+
+  async stopBackgroundTask(
+    sessionId: string,
+    taskId: string,
+  ): Promise<BackgroundTaskResult> {
+    return {
+      task: await this.backgroundTasksFor(sessionId).stop(taskId, "user"),
+    };
+  }
+
+  stopAllBackgroundTasks(
+    sessionId: string,
+  ): Promise<StopAllBackgroundTasksResult> {
+    return this.backgroundTasksFor(sessionId).stopAllRunning("user");
+  }
+
+  /**
+   * A rerun from the panel is the user's own launch: it reuses the task's
+   * permissions without review, and its notification is shown without waking
+   * the agent, as upstream's dock rerun does.
+   */
+  async rerunBackgroundTask(
+    sessionId: string,
+    taskId: string,
+  ): Promise<BackgroundTaskResult> {
+    return {
+      task: await this.backgroundTasksFor(sessionId).rerun(taskId, {
+        notifyOnCompletion: true,
+        triggerOnCompletion: false,
+      }),
+    };
+  }
+
+  readBackgroundTaskOutput(
+    sessionId: string,
+    taskId: string,
+    maxBytes: number,
+  ): Promise<ReadBackgroundTaskOutputResult> {
+    return this.backgroundTasksFor(sessionId).readOutput(
+      taskId,
+      Math.max(0, Math.min(maxBytes, BACKGROUND_TASK_OUTPUT_TAIL_BYTES)),
+    );
+  }
+
+  private backgroundTasksFor(sessionId: string): BackgroundTaskRegistry {
+    const registry = this.getSession(sessionId).backgroundTasks;
+    if (!registry) throw new Error("This session has no background tasks.");
+    return registry;
+  }
+
+  private scheduleBackgroundTasksEvent(live: LiveAgentSession): void {
+    if (live.backgroundTaskEmitTimer) return;
+    live.backgroundTaskEmitTimer = setTimeout(() => {
+      live.backgroundTaskEmitTimer = undefined;
+      const registry = live.backgroundTasks;
+      const sessionId = live.session?.sessionId;
+      if (!registry || !sessionId || !this.liveSessions.has(sessionId)) return;
+      this.options.emit({
+        type: "background-tasks",
+        sessionId,
+        tasks: registry.snapshots(),
+      });
+    }, BACKGROUND_TASKS_EVENT_MS);
+  }
+
+  /**
+   * Hand a finished task's notification to the session. A wake-up on an idle
+   * session starts a turn outside `prompt`, so this reports its run state.
+   */
+  private async deliverBackgroundTaskNotification(
+    live: LiveAgentSession,
+    message: BackgroundTaskNotificationMessage,
+    options: { triggerTurn: boolean },
+  ): Promise<void> {
+    const session = live.session;
+    const sessionId = session.sessionId;
+    if (!this.liveSessions.has(sessionId)) return;
+    if (session.isCompacting || live.resumingCompactionPrompts) {
+      await session.waitForIdle();
+    }
+    if (!this.liveSessions.has(sessionId)) return;
+    const startsTurn = options.triggerTurn && session.isIdle;
+    if (!startsTurn) {
+      await session.sendCustomMessage(message, {
+        deliverAs: "followUp",
+        triggerTurn: options.triggerTurn,
+      });
+      return;
+    }
+    live.gate?.resetTurn();
+    this.options.emit({ type: "run-state", sessionId, state: "running" });
+    void session
+      .sendCustomMessage(message, { deliverAs: "followUp", triggerTurn: true })
+      .catch((error: unknown) => {
+        const errorMessage = toErrorMessage(error);
+        this.options.emit({
+          type: "session-error",
+          sessionId,
+          errorId: randomUUID(),
+          message: errorMessage,
+        });
+        this.options.emit({
+          type: "run-state",
+          sessionId,
+          state: "failed",
+          error: errorMessage,
+        });
+      })
+      .finally(() => {
+        if (session.isIdle) {
+          this.options.emit({ type: "run-state", sessionId, state: "idle" });
+        }
+      });
   }
 
   getMcpStatus(sessionId: string): McpStatusSnapshot {

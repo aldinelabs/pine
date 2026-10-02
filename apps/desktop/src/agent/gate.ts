@@ -103,7 +103,8 @@ export interface GateHost {
 
 export interface BashReviewInput {
   toolCallId: string;
-  toolName?: "bash" | "powershell";
+  /** Defaults to `bash`; `bg_run` reviews its sandboxed launches here too. */
+  toolName?: string;
   command: string;
   /** The caller's imperative summary, shown on the approval card. */
   description?: string;

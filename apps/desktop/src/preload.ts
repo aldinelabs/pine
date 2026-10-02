@@ -1,5 +1,17 @@
 // See the Electron documentation for details on how to use preload scripts:
 // https://www.electronjs.org/docs/latest/tutorial/process-model#preload-scripts
+import {
+  LIST_BACKGROUND_TASKS_CHANNEL,
+  READ_BACKGROUND_TASK_OUTPUT_CHANNEL,
+  RERUN_BACKGROUND_TASK_CHANNEL,
+  STOP_ALL_BACKGROUND_TASKS_CHANNEL,
+  STOP_BACKGROUND_TASK_CHANNEL,
+  type BackgroundTaskRequest,
+  type BackgroundTaskResult,
+  type ListBackgroundTasksResult,
+  type ReadBackgroundTaskOutputResult,
+  type StopAllBackgroundTasksResult,
+} from "./shared/backgroundTasks";
 import { contextBridge, ipcRenderer, webUtils } from "electron";
 import {
   LIST_MCP_SERVERS_CHANNEL,
@@ -263,6 +275,26 @@ const pineApi: PineDesktopApi = {
     ipcRenderer.invoke(SET_SIDEBAR_VIBRANCY_CHANNEL, request),
   abortSession: (request: SessionControlRequest): Promise<AbortSessionResult> =>
     ipcRenderer.invoke(ABORT_SESSION_CHANNEL, request),
+  listBackgroundTasks: (
+    request: SessionControlRequest,
+  ): Promise<ListBackgroundTasksResult> =>
+    ipcRenderer.invoke(LIST_BACKGROUND_TASKS_CHANNEL, request),
+  stopBackgroundTask: (
+    request: BackgroundTaskRequest,
+  ): Promise<BackgroundTaskResult> =>
+    ipcRenderer.invoke(STOP_BACKGROUND_TASK_CHANNEL, request),
+  stopAllBackgroundTasks: (
+    request: SessionControlRequest,
+  ): Promise<StopAllBackgroundTasksResult> =>
+    ipcRenderer.invoke(STOP_ALL_BACKGROUND_TASKS_CHANNEL, request),
+  rerunBackgroundTask: (
+    request: BackgroundTaskRequest,
+  ): Promise<BackgroundTaskResult> =>
+    ipcRenderer.invoke(RERUN_BACKGROUND_TASK_CHANNEL, request),
+  readBackgroundTaskOutput: (
+    request: BackgroundTaskRequest,
+  ): Promise<ReadBackgroundTaskOutputResult> =>
+    ipcRenderer.invoke(READ_BACKGROUND_TASK_OUTPUT_CHANNEL, request),
   attachSession: (
     request: AttachSessionRequest,
   ): Promise<AttachSessionResult> =>

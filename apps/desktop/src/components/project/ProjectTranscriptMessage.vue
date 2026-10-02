@@ -17,6 +17,7 @@ import {
 } from "@/shared/sessions";
 import type { PineTranscriptMessage } from "@/stores/session";
 import ProjectAttachmentList from "./ProjectAttachmentList.vue";
+import ProjectBackgroundTaskMarker from "./ProjectBackgroundTaskMarker.vue";
 import ProjectCompactionMarker from "./ProjectCompactionMarker.vue";
 import ProjectErrorMarker from "./ProjectErrorMarker.vue";
 import ProjectThinkingMarker from "./ProjectThinkingMarker.vue";
@@ -211,6 +212,12 @@ const renderItems = computed<RenderItem[]>(() => {
               item.kind === 'block' && item.block.type === 'compaction'
             "
             :compaction="item.block.compaction"
+          />
+          <ProjectBackgroundTaskMarker
+            v-else-if="
+              item.kind === 'block' && item.block.type === 'backgroundTask'
+            "
+            :task="item.block.task"
           />
           <ProjectToolCallMarker
             v-else-if="item.kind === 'toolCall'"

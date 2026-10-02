@@ -15,6 +15,11 @@ import {
   TASK_STATUSES,
   type TaskStatus,
 } from "@pine/rpiv-todo";
+import {
+  BG_KILL_TOOL_NAME,
+  BG_LOGS_TOOL_NAME,
+  BG_STATUS_TOOL_NAME,
+} from "@pine/pi-background-tasks";
 import { UI_PRESENT_FILE_TOOL_NAME } from "@/shared/agent";
 import type { PineToolCall } from "@/shared/sessions";
 import ProjectToolCallDialog from "./ProjectToolCallDialog.vue";
@@ -211,6 +216,34 @@ type TodoOperation =
   | "get"
   | "list"
   | "clear";
+
+type BackgroundOperation = "run" | "status" | "logs" | "kill";
+
+function backgroundOperation(name: string): BackgroundOperation {
+  const normalized = name.toLowerCase().split(/[.:/]/).at(-1) ?? name;
+  if (normalized === BG_STATUS_TOOL_NAME) return "status";
+  if (normalized === BG_LOGS_TOOL_NAME) return "logs";
+  if (normalized === BG_KILL_TOOL_NAME) return "kill";
+  return "run";
+}
+
+/** The task a background call is about: its name, else the id it named. */
+function backgroundTarget(
+  operation: BackgroundOperation,
+  input: Record<string, unknown>,
+  output: unknown,
+): string {
+  if (operation === "status") return "";
+  const task = inputRecord(inputRecord(inputRecord(output).details).task);
+  return (
+    firstString(task, ["name"]) ??
+    firstString(
+      input,
+      operation === "run" ? ["name", "description"] : ["taskId"],
+    ) ??
+    ""
+  );
+}
 
 /** A status change reads as its own verb ("Completed todo …"). */
 function todoOperation(input: Record<string, unknown>): TodoOperation {
@@ -898,6 +931,21 @@ const presentation = computed(() => {
       targetMono,
       purpose: compactPurpose,
       faviconDataUrl,
+      after: "",
+    };
+  }
+  if (kind === "background") {
+    const operation = backgroundOperation(props.toolCall.name);
+    return {
+      before: t(
+        `project.transcript.tools.background.${operation}.${state === "running" || state === "error" ? state : "complete"}`,
+      ),
+      operation: undefined,
+      separator: "",
+      target: backgroundTarget(operation, input, props.toolCall.output),
+      targetMono: false,
+      purpose: undefined,
+      faviconDataUrl: undefined,
       after: "",
     };
   }

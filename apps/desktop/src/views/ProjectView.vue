@@ -1,13 +1,14 @@
 <script setup lang="ts">
 import { House, PanelRight } from "@lucide/vue";
 import { onKeyStroke } from "@vueuse/core";
-import { computed, onMounted, ref } from "vue";
+import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { useRouter } from "vue-router";
 import { handleError } from "@/app/errors/errorHandler";
 import { PineLogo } from "@/components/pine";
 import PinePreferencesDialog from "@/components/preferences/PinePreferencesDialog.vue";
 import SessionSearchOverlay from "@/components/sessions/SessionSearchOverlay.vue";
+import ProjectBackgroundTaskPanel from "@/components/project/ProjectBackgroundTaskPanel.vue";
 import ProjectContentTabs from "@/components/project/ProjectContentTabs.vue";
 import ProjectDialog from "@/components/project/ProjectDialog.vue";
 import ProjectRightSidebar from "@/components/project/ProjectRightSidebar.vue";
@@ -23,7 +24,9 @@ import {
   SidebarTrigger,
 } from "@/components/ui/sidebar";
 import { ROUTE_NAMES } from "@/router/routes";
+import { useBackgroundTasksStore } from "@/stores/backgroundTasks";
 import { useProjectStore } from "@/stores/project";
+import { useSessionStore } from "@/stores/session";
 import { useProjectRightSidebarStore } from "@/stores/projectRightSidebar";
 import { useFrozenWindowResize } from "@/composables/useFrozenWindowResize";
 
@@ -34,6 +37,8 @@ const isProjectSettingsOpen = ref(false);
 const isUpdateOpen = ref(false);
 const rightSidebar = useProjectRightSidebarStore();
 const projectStore = useProjectStore();
+const backgroundTasks = useBackgroundTasksStore();
+const sessionStore = useSessionStore();
 const isWindowsPlatform = computed(() => window.pine?.platform === "win32");
 
 async function closeProject(): Promise<void> {
@@ -131,7 +136,17 @@ async function toggleRightSidebar(): Promise<void> {
   if (!resized) rightSidebar.setOpen(open);
 }
 
+onBeforeUnmount(() => backgroundTasks.disconnect());
+watch(
+  () => sessionStore.activeSession?.id,
+  (sessionId) => {
+    if (sessionId) void backgroundTasks.load(sessionId).catch(() => undefined);
+  },
+  { immediate: true },
+);
+
 onMounted(async () => {
+  backgroundTasks.connect();
   await window.pine?.setWindowLayout?.("project");
   if (!rightSidebar.open) return;
   await frozenResize.run(
@@ -176,11 +191,13 @@ onKeyStroke("k", (event) => {
       :open="rightSidebar.open"
     >
       <ProjectRightSidebar>
-        <!-- The upper half holds the model's task list. -->
-        <div
-          class="scroll-fade-y no-scrollbar max-h-1/2 min-h-0 overflow-y-auto"
-        >
+        <!-- The upper half holds the model's task list; background tasks
+             take the rest. -->
+        <div class="scroll-fade-y no-scrollbar min-h-0 flex-1 overflow-y-auto">
           <ProjectTodoPanel />
+        </div>
+        <div class="scroll-fade-y no-scrollbar min-h-0 flex-1 overflow-y-auto">
+          <ProjectBackgroundTaskPanel />
         </div>
         <template #footer>
           <ProjectRightSidebarTools />

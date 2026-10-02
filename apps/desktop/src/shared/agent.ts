@@ -1,4 +1,5 @@
 import type { PineSessionSummary } from "./sessions";
+import type { BackgroundTaskSnapshot } from "@pine/pi-background-tasks";
 import type { FilePreviewTarget } from "./projectFiles";
 import type {
   AskUserQuestionParams,
@@ -276,6 +277,12 @@ export type PineAgentEvent =
       toolCallId: string;
       /** Absolute path the agent asked to present, before main resolves it. */
       path: string;
+    }
+  | {
+      /** Every task of the session, after any of them changed. */
+      type: "background-tasks";
+      sessionId: string;
+      tasks: BackgroundTaskSnapshot[];
     };
 
 /**

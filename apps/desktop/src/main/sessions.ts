@@ -32,6 +32,7 @@ import {
 } from "../shared/attachments";
 import { parseMessageBlocks } from "../shared/sessions";
 import { replayTodoState } from "@pine/rpiv-todo";
+import { backgroundTaskNotificationTask } from "@pine/pi-background-tasks";
 
 const SEARCH_RESULT_LIMIT = 50;
 const SEARCH_INDEX_FILE = "session-search.sqlite";
@@ -210,6 +211,20 @@ function indexedTextMessages(entries: Entry[]): IndexedTextMessage[] {
               },
             },
           ],
+        },
+      });
+      continue;
+    }
+    if (entry.type === "custom_message") {
+      const task = backgroundTaskNotificationTask(entry);
+      if (!task) continue;
+      messages.push({
+        cursor,
+        message: {
+          createdAt: new Date(entryTimestamp(entry)).toISOString(),
+          id: entry.id,
+          role: "assistant",
+          blocks: [{ type: "backgroundTask", task }],
         },
       });
       continue;

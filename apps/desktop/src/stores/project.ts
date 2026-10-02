@@ -8,11 +8,13 @@ import type {
   UpdateProjectRequest,
 } from "@/shared/projects";
 import { useContentTabsStore } from "./contentTabs";
+import { useBackgroundTasksStore } from "./backgroundTasks";
 import { useSessionStore } from "./session";
 
 export const useProjectStore = defineStore("project", () => {
   const contentTabsStore = useContentTabsStore();
   const sessionStore = useSessionStore();
+  const backgroundTasksStore = useBackgroundTasksStore();
   const projects = shallowRef<PineProject[]>([]);
   const activeProject = shallowRef<PineProject | null>(null);
   const isLoadingProjects = ref(false);
@@ -64,6 +66,7 @@ export const useProjectStore = defineStore("project", () => {
 
       const { project } = result;
       sessionStore.reset();
+      backgroundTasksStore.reset();
       contentTabsStore.restore(project.id);
       activeProject.value = project;
       return result;
@@ -82,6 +85,7 @@ export const useProjectStore = defineStore("project", () => {
       if (activeProject.value?.id === project.id) {
         activeProject.value = project;
         sessionStore.reset();
+        backgroundTasksStore.reset();
         contentTabsStore.restore(project.id);
       }
       return project;
@@ -122,6 +126,7 @@ export const useProjectStore = defineStore("project", () => {
       if (activeProject.value?.id === id) {
         activeProject.value = null;
         sessionStore.reset();
+        backgroundTasksStore.reset();
         contentTabsStore.reset();
       }
     } finally {
@@ -133,6 +138,7 @@ export const useProjectStore = defineStore("project", () => {
     await window.pine.closeProject();
     activeProject.value = null;
     sessionStore.reset();
+    backgroundTasksStore.reset();
     contentTabsStore.reset();
   }
 

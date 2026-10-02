@@ -1,3 +1,4 @@
+import type { BackgroundTaskRegistry } from "@pine/pi-background-tasks/registry";
 import type {
   AgentSession,
   SessionEntry,
@@ -65,6 +66,10 @@ export interface LiveAgentSession {
   tinyFishApiKey?: string;
   locale: "en-US" | "zh-CN";
   contextCompactionStrategy: PineContextCompactionStrategy;
+  /** The session's `bg_run` tasks; they stop when the session is disposed. */
+  backgroundTasks?: BackgroundTaskRegistry;
+  /** Coalesces task changes, including streamed output, into one event. */
+  backgroundTaskEmitTimer?: ReturnType<typeof setTimeout>;
 }
 
 export interface PineAgentRuntimeOptions {

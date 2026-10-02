@@ -79,6 +79,17 @@ import {
   writePineUserProfile,
 } from "./agent/pineSettings";
 import {
+  LIST_BACKGROUND_TASKS_CHANNEL,
+  READ_BACKGROUND_TASK_OUTPUT_CHANNEL,
+  RERUN_BACKGROUND_TASK_CHANNEL,
+  STOP_ALL_BACKGROUND_TASKS_CHANNEL,
+  STOP_BACKGROUND_TASK_CHANNEL,
+  type BackgroundTaskResult,
+  type ListBackgroundTasksResult,
+  type ReadBackgroundTaskOutputResult,
+  type StopAllBackgroundTasksResult,
+} from "./shared/backgroundTasks";
+import {
   ABORT_SESSION_CHANNEL,
   COMPACT_SESSION_CHANNEL,
   APPROVAL_RESPONSE_CHANNEL,
@@ -644,6 +655,9 @@ const SearchSessionsRequestSchema = z.object({
 });
 const SessionIdRequestSchema = z.object({
   sessionId: z.uuid(),
+});
+const BackgroundTaskRequestSchema = SessionIdRequestSchema.extend({
+  taskId: z.string().trim().min(1).max(64),
 });
 const RenameSessionRequestSchema = SessionIdRequestSchema.extend({
   name: z.string().trim().min(1).max(200),
@@ -2442,6 +2456,51 @@ ipcMain.handle(
     getProjectRuntimes().abort(
       event.sender.id,
       SessionIdRequestSchema.parse(request).sessionId,
+    ),
+);
+
+ipcMain.handle(
+  LIST_BACKGROUND_TASKS_CHANNEL,
+  async (event, request: unknown): Promise<ListBackgroundTasksResult> =>
+    getProjectRuntimes().listBackgroundTasks(
+      event.sender.id,
+      SessionIdRequestSchema.parse(request).sessionId,
+    ),
+);
+
+ipcMain.handle(
+  STOP_BACKGROUND_TASK_CHANNEL,
+  async (event, request: unknown): Promise<BackgroundTaskResult> =>
+    getProjectRuntimes().stopBackgroundTask(
+      event.sender.id,
+      BackgroundTaskRequestSchema.parse(request),
+    ),
+);
+
+ipcMain.handle(
+  STOP_ALL_BACKGROUND_TASKS_CHANNEL,
+  async (event, request: unknown): Promise<StopAllBackgroundTasksResult> =>
+    getProjectRuntimes().stopAllBackgroundTasks(
+      event.sender.id,
+      SessionIdRequestSchema.parse(request).sessionId,
+    ),
+);
+
+ipcMain.handle(
+  RERUN_BACKGROUND_TASK_CHANNEL,
+  async (event, request: unknown): Promise<BackgroundTaskResult> =>
+    getProjectRuntimes().rerunBackgroundTask(
+      event.sender.id,
+      BackgroundTaskRequestSchema.parse(request),
+    ),
+);
+
+ipcMain.handle(
+  READ_BACKGROUND_TASK_OUTPUT_CHANNEL,
+  async (event, request: unknown): Promise<ReadBackgroundTaskOutputResult> =>
+    getProjectRuntimes().readBackgroundTaskOutput(
+      event.sender.id,
+      BackgroundTaskRequestSchema.parse(request),
     ),
 );
 

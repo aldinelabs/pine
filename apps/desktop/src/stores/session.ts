@@ -21,7 +21,7 @@ import type {
   SessionSearchResult,
 } from "@/shared/sessions";
 import { attachmentMessagePreview } from "@/shared/attachments";
-import { parseMessageBlocks } from "@/shared/sessions";
+import { parseMessageBlocks, transcriptRole } from "@/shared/sessions";
 import { isAppLocale } from "@/app/i18n";
 import enUS from "@/app/i18n/locales/en-US";
 import zhCN from "@/app/i18n/locales/zh-CN";
@@ -68,12 +68,7 @@ export interface PinePendingQuestionnaire {
 }
 
 function messageRole(value: PineJsonValue): "assistant" | "user" | null {
-  if (typeof value !== "object" || value === null || Array.isArray(value)) {
-    return null;
-  }
-  return value.role === "assistant" || value.role === "user"
-    ? value.role
-    : null;
+  return transcriptRole(value);
 }
 
 function blocksHasThinking(blocks: readonly PineContentBlock[]): boolean {

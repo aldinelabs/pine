@@ -65,6 +65,31 @@ async function handleRequest(request: AgentWorkerRequest): Promise<void> {
     case "mcp:status":
       result = runtime.getMcpStatus(request.sessionId);
       break;
+    case "background:list":
+      result = runtime.listBackgroundTasks(request.sessionId);
+      break;
+    case "background:stop":
+      result = await runtime.stopBackgroundTask(
+        request.sessionId,
+        request.taskId,
+      );
+      break;
+    case "background:stop-all":
+      result = await runtime.stopAllBackgroundTasks(request.sessionId);
+      break;
+    case "background:rerun":
+      result = await runtime.rerunBackgroundTask(
+        request.sessionId,
+        request.taskId,
+      );
+      break;
+    case "background:output":
+      result = await runtime.readBackgroundTaskOutput(
+        request.sessionId,
+        request.taskId,
+        request.maxBytes,
+      );
+      break;
     case "models:catalog":
       result = await runtime.getModelCatalog(request.agentDir);
       break;

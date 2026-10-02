@@ -1,4 +1,11 @@
 import type {
+  BackgroundTaskRequest,
+  BackgroundTaskResult,
+  ListBackgroundTasksResult,
+  ReadBackgroundTaskOutputResult,
+  StopAllBackgroundTasksResult,
+} from "./backgroundTasks";
+import type {
   AbortSessionResult,
   SessionControlRequest,
   CompactSessionResult,
@@ -227,6 +234,21 @@ export interface PineDesktopApi extends PineWindowApi {
     request: ReopenPresentedToolFileRequest,
   ) => Promise<FilePreviewTarget | null>;
   abortSession: (request: SessionControlRequest) => Promise<AbortSessionResult>;
+  listBackgroundTasks: (
+    request: SessionControlRequest,
+  ) => Promise<ListBackgroundTasksResult>;
+  stopBackgroundTask: (
+    request: BackgroundTaskRequest,
+  ) => Promise<BackgroundTaskResult>;
+  stopAllBackgroundTasks: (
+    request: SessionControlRequest,
+  ) => Promise<StopAllBackgroundTasksResult>;
+  rerunBackgroundTask: (
+    request: BackgroundTaskRequest,
+  ) => Promise<BackgroundTaskResult>;
+  readBackgroundTaskOutput: (
+    request: BackgroundTaskRequest,
+  ) => Promise<ReadBackgroundTaskOutputResult>;
   attachSession: (
     request: AttachSessionRequest,
   ) => Promise<AttachSessionResult>;

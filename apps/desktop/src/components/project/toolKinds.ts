@@ -1,4 +1,5 @@
 import {
+  ActivityIcon,
   BookOpenIcon,
   ClapperboardIcon,
   EyeIcon,
@@ -20,10 +21,12 @@ import {
 } from "@lucide/vue";
 import type { Component } from "vue";
 import { TODO_TOOL_NAME } from "@pine/rpiv-todo";
+import { BACKGROUND_TASK_TOOL_NAMES } from "@pine/pi-background-tasks";
 import { UI_PRESENT_FILE_TOOL_NAME } from "@/shared/agent";
 import type { PineToolCall } from "@/shared/sessions";
 
 export type ToolKind =
+  | "background"
   | "bash"
   | "browser"
   | "computer"
@@ -41,6 +44,7 @@ export type ToolKind =
 
 /** Icon shown for each tool call, keyed by its kind. */
 export const TOOL_KIND_ICON: Record<ToolKind, Component> = {
+  background: ActivityIcon,
   bash: SquareTerminal,
   browser: PanelTopIcon,
   computer: MonitorCogIcon,
@@ -100,6 +104,7 @@ export const TOOL_KIND_ORDER: readonly ToolKind[] = [
   "computer",
   "browser",
   "bash",
+  "background",
   "skill",
   "generic",
 ];
@@ -146,6 +151,8 @@ export function toolKind(name: string): ToolKind {
     return "mcp";
   if (normalized === UI_PRESENT_FILE_TOOL_NAME) return "presentFile";
   if (normalized === TODO_TOOL_NAME) return "todo";
+  if ((BACKGROUND_TASK_TOOL_NAMES as readonly string[]).includes(normalized))
+    return "background";
   if (normalized.startsWith("browser_")) return "browser";
   if (
     [
