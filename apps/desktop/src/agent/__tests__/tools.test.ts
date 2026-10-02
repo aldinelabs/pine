@@ -795,7 +795,11 @@ describeSandbox("createPineToolDefinitions", () => {
         await expect(
           run("printf 'permission denied\\n'; exit 0"),
         ).resolves.toBeDefined();
-        await expect(run("exit 141")).rejects.toThrow("141");
+        // A plain nonzero exit is a tool error result, not a thrown error.
+        await expect(run("exit 141")).resolves.toMatchObject({
+          isError: true,
+          structuredContent: { exit_code: 141 },
+        });
         await expect(
           run("printf 'permission denied\\n' >&2; exit 1"),
         ).rejects.toThrow("may be a sandbox restriction");
@@ -1100,7 +1104,7 @@ describeSandbox("createPineToolDefinitions", () => {
           undefined,
           undefined as never,
         ),
-      ).rejects.toThrow();
+      ).resolves.toMatchObject({ isError: true });
 
       expect(gate.reviewDenial).not.toHaveBeenCalled();
     },
