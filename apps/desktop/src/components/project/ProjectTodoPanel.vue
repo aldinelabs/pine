@@ -81,14 +81,14 @@ const moreLabel = computed(() => {
   <SidebarGroup data-testid="project-todo-panel">
     <SidebarGroupLabel>
       {{ t("project.todos.heading") }}
-      <template v-if="hasTasks && counts">
+      <span v-if="hasTasks && counts" class="ml-auto tabular-nums">
         {{
           t("project.todos.progress", {
             completed: counts.completed,
             total: counts.total,
           })
         }}
-      </template>
+      </span>
     </SidebarGroupLabel>
 
     <SidebarGroupContent v-if="!hasTasks || !layout">
