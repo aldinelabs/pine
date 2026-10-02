@@ -18,10 +18,10 @@ import ProjectTodoPanel from "@/components/project/ProjectTodoPanel.vue";
 import PineUpdateDialog from "@/components/updates/PineUpdateDialog.vue";
 import WindowTitleBar from "@/components/window/WindowTitleBar.vue";
 import { Button } from "@/components/ui/button";
+import { Separator } from "@/components/ui/separator";
 import {
   SidebarInset,
   SidebarProvider,
-  SidebarSeparator,
   SidebarTrigger,
 } from "@/components/ui/sidebar";
 import { ROUTE_NAMES } from "@/router/routes";
@@ -197,7 +197,7 @@ onKeyStroke("k", (event) => {
         <div class="scroll-fade-y no-scrollbar min-h-0 flex-1 overflow-y-auto">
           <ProjectTodoPanel />
         </div>
-        <SidebarSeparator />
+        <Separator />
         <div class="scroll-fade-y no-scrollbar min-h-0 flex-1 overflow-y-auto">
           <ProjectBackgroundTaskPanel />
         </div>
