@@ -176,7 +176,7 @@ onKeyStroke("k", (event) => {
     >
       <ProjectRightSidebar>
         <!-- The upper half holds the model's task list. -->
-        <div class="max-h-1/2 min-h-0 overflow-y-auto">
+        <div class="scroll-fade-y max-h-1/2 min-h-0 overflow-y-auto">
           <ProjectTodoPanel />
         </div>
       </ProjectRightSidebar>
