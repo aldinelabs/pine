@@ -448,7 +448,6 @@ export default {
     todos: {
       heading: "Todos",
       progress: "{completed}/{total}",
-      viewDetails: "View details…",
       empty: "No tasks yet. Where to start?",
       more: "+{count} more",
       moreDetails: "+{count} more ({details})",

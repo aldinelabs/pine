@@ -65,9 +65,6 @@ describe("ProjectTodoPanel", () => {
       expect(wrapper.find('[data-testid="project-todo-row"]').exists()).toBe(
         false,
       );
-      expect(
-        wrapper.find('[data-testid="project-todo-details"]').exists(),
-      ).toBe(false);
     }
     const populated = mountPanel({ tasks: [pending(1)], nextId: 2 });
     expect(
@@ -161,13 +158,14 @@ describe("ProjectTodoPanel", () => {
     expect(overflow.text()).toBe("收起");
   });
 
-  it("opens every task from the details button below the list", async () => {
+  it("opens every task by clicking a todo", async () => {
     const wrapper = mountPanel({ tasks: [pending(1)], nextId: 2 });
-    const details = wrapper.get('[data-testid="project-todo-details"]');
-    expect(details.text()).toBe("查看详情…");
+    expect(wrapper.text()).not.toContain("查看详情");
     expect(document.body.textContent).not.toContain("全部任务");
 
-    await details.trigger("click");
+    await wrapper
+      .get('[data-testid="project-todo-row"] button')
+      .trigger("click");
     await flushPromises();
 
     expect(document.body.textContent).toContain("全部任务");

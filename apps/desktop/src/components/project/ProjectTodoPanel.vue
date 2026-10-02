@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { ListTreeIcon } from "@lucide/vue";
 import { computed, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import {
@@ -8,7 +7,6 @@ import {
   selectTodoCounts,
   type TaskState,
 } from "@pine/rpiv-todo";
-import { Button } from "@/components/ui/button";
 import {
   SidebarGroup,
   SidebarGroupContent,
@@ -120,16 +118,6 @@ const moreLabel = computed(() => {
           </SidebarMenuButton>
         </SidebarMenuItem>
       </SidebarMenu>
-      <Button
-        variant="outline"
-        size="sm"
-        class="mt-2 w-full"
-        data-testid="project-todo-details"
-        @click="isListOpen = true"
-      >
-        <ListTreeIcon data-icon="inline-start" />
-        {{ t("project.todos.viewDetails") }}
-      </Button>
     </SidebarGroupContent>
   </SidebarGroup>
 

@@ -461,7 +461,6 @@ export default {
     todos: {
       heading: "任务清单",
       progress: "{completed}/{total}",
-      viewDetails: "查看详情…",
       empty: "暂无任务。从哪里开始？",
       more: "另有 {count} 项",
       moreDetails: "另有 {count} 项（{details}）",
