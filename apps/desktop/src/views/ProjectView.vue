@@ -21,6 +21,7 @@ import { Button } from "@/components/ui/button";
 import {
   SidebarInset,
   SidebarProvider,
+  SidebarSeparator,
   SidebarTrigger,
 } from "@/components/ui/sidebar";
 import { ROUTE_NAMES } from "@/router/routes";
@@ -196,6 +197,7 @@ onKeyStroke("k", (event) => {
         <div class="scroll-fade-y no-scrollbar min-h-0 flex-1 overflow-y-auto">
           <ProjectTodoPanel />
         </div>
+        <SidebarSeparator />
         <div class="scroll-fade-y no-scrollbar min-h-0 flex-1 overflow-y-auto">
           <ProjectBackgroundTaskPanel />
         </div>

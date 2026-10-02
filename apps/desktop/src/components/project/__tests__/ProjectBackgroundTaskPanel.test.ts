@@ -80,10 +80,10 @@ describe("ProjectBackgroundTaskPanel", () => {
 
   it("keeps an empty module in the sidebar", () => {
     const wrapper = mountPanel();
-    expect(wrapper.text()).toContain("后台任务");
+    expect(wrapper.text()).toContain("后台进程");
     expect(
       wrapper.get('[data-testid="project-background-task-placeholder"]').text(),
-    ).toBe("没有后台任务");
+    ).toBe("暂无后台进程");
   });
 
   it("shows statuses, running count and unseen completions", () => {
