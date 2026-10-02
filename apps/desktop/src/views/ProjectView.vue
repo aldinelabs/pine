@@ -192,14 +192,20 @@ onKeyStroke("k", (event) => {
       :open="rightSidebar.open"
     >
       <ProjectRightSidebar>
-        <!-- The upper half holds the model's task list; background tasks
-             take the rest. -->
-        <div class="scroll-fade-y no-scrollbar min-h-0 flex-1 overflow-y-auto">
-          <ProjectTodoPanel />
-        </div>
-        <Separator />
-        <div class="scroll-fade-y no-scrollbar min-h-0 flex-1 overflow-y-auto">
-          <ProjectBackgroundTaskPanel />
+        <!-- Like the left session list, keep section spacing inside one
+             container so SidebarContent's gap does not surround separators. -->
+        <div class="flex min-h-0 flex-1 flex-col">
+          <div
+            class="scroll-fade-y no-scrollbar min-h-0 flex-1 overflow-y-auto"
+          >
+            <ProjectTodoPanel />
+          </div>
+          <Separator />
+          <div
+            class="scroll-fade-y no-scrollbar min-h-0 flex-1 overflow-y-auto"
+          >
+            <ProjectBackgroundTaskPanel />
+          </div>
         </div>
         <template #footer>
           <ProjectRightSidebarTools />

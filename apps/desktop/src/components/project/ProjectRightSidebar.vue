@@ -13,7 +13,7 @@ import {
       aria-hidden="true"
       class="window-drag h-[var(--window-titlebar-height)] shrink-0"
     />
-    <SidebarHeader>
+    <SidebarHeader v-if="$slots.header">
       <slot name="header" />
     </SidebarHeader>
 
