@@ -12,4 +12,9 @@ export default defineConfig({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  // Workspace packages are served as source. Left to discovery, one added
+  // while the dev server runs is pre-bundled and then goes stale on edits.
+  optimizeDeps: {
+    exclude: ["@pine/rpiv-ask-user-question", "@pine/rpiv-todo"],
+  },
 });
