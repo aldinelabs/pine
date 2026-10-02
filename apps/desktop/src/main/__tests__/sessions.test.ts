@@ -529,6 +529,46 @@ describe("ProjectSessionService", () => {
     }
   });
 
+  it("replays the todo list with the first history page", async () => {
+    const rootPath = await createTemporaryProjectData();
+    const options = serviceOptions(rootPath);
+    await mkdir(options.cwd, { recursive: true });
+    const environment = new NodeExecutionEnv({ cwd: options.cwd });
+    const repository = createRepository(environment, options.sessionsRoot);
+    const session = await createSession(repository, options.cwd);
+    const snapshot = {
+      tasks: [{ id: 1, subject: "Plan", status: "in_progress" as const }],
+      nextId: 2,
+    };
+    for (const [index, tasks] of [[], snapshot.tasks].entries()) {
+      await appendMessage(session, {
+        role: "toolResult",
+        toolCallId: `todo-${index}`,
+        toolName: "todo",
+        content: [{ type: "text", text: "Updated" }],
+        details: { action: "update", params: {}, tasks, nextId: index + 1 },
+        isError: false,
+        timestamp: Date.now(),
+      });
+    }
+    const service = await ProjectSessionService.create(options);
+
+    try {
+      const first = await service.loadMessages(
+        session.metadata.id,
+        undefined,
+        50,
+        true,
+      );
+      expect(first.todos).toEqual(snapshot);
+      const page = await service.loadMessages(session.metadata.id);
+      expect(page).not.toHaveProperty("todos");
+    } finally {
+      await service.dispose();
+      await environment.cleanup(BACKGROUND_CONTEXT);
+    }
+  });
+
   it("keeps history cursors stable when a legacy session is reopened", async () => {
     const rootPath = await createTemporaryProjectData();
     const options = serviceOptions(rootPath);

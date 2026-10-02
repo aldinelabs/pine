@@ -34,6 +34,7 @@ import {
 } from "../shared/attachments";
 import { parseMessageBlocks } from "../shared/sessions";
 import { PineSessionFileSystem } from "./sessionFileSystem";
+import { replayTodoState } from "@pine/rpiv-todo";
 
 const SEARCH_RESULT_LIMIT = 50;
 const SEARCH_INDEX_FILE = "session-search.sqlite";
@@ -605,7 +606,8 @@ export class ProjectSessionService {
     if (!metadata) throw new Error("Session not found in the active project.");
 
     return this.withSession(metadata, async (session) => {
-      const messages = indexedTextMessages(await entriesForSession(session));
+      const entries = await entriesForSession(session);
+      const messages = indexedTextMessages(entries);
       const end = before
         ? messageCursorIndex(messages, before)
         : messages.length;
@@ -619,7 +621,12 @@ export class ProjectSessionService {
         ...(start > 0 && page[0]
           ? { nextBefore: messageCursor(page[0].cursor) }
           : {}),
-        ...(includeOutline ? { outline: outlineMessages(messages) } : {}),
+        ...(includeOutline
+          ? {
+              outline: outlineMessages(messages),
+              todos: replayTodoState(entries),
+            }
+          : {}),
       };
     });
   }

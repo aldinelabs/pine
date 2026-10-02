@@ -1,5 +1,6 @@
 import { parseAttachmentMessage, type PineAttachment } from "./attachments";
 import type { PineModelSelection } from "./models";
+import type { TaskState } from "@pine/rpiv-todo";
 
 export const SEARCH_SESSIONS_CHANNEL = "sessions:search" as const;
 export const RESUME_SESSION_CHANNEL = "sessions:resume" as const;
@@ -264,6 +265,11 @@ export interface LoadSessionMessagesResult {
   nextBefore?: string;
   /** All user turns, kept separate from the paginated transcript body. */
   outline?: PineTextMessage[];
+  /**
+   * The model's task list replayed from the whole session, sent with the
+   * first page because earlier pages may never be loaded.
+   */
+  todos?: TaskState;
 }
 
 export interface ExportSessionRequest {

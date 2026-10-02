@@ -315,7 +315,7 @@ const describeSandbox = describe.runIf(
   process.platform === "darwin" && !process.env.CODEX_SANDBOX,
 );
 describeSandbox("createPineToolDefinitions", () => {
-  it("registers Pi's four default tool names with Pine-owned operations", async () => {
+  it("registers Pi's four default tools with Pine-owned operations, plus todo", async () => {
     const { location } = await createFixture();
 
     const tools = await createPineToolDefinitions(location);
@@ -325,6 +325,7 @@ describeSandbox("createPineToolDefinitions", () => {
       "bash",
       "edit",
       "write",
+      "todo",
     ]);
     const scratchDirectory = path.join(
       path.dirname(location.sessionsRoot),

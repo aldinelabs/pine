@@ -72,6 +72,7 @@ import {
   type TinyFishToolFactoryOptions,
 } from "./tinyfishTools";
 import { createMediaGenerationToolDefinitions } from "./media/tools";
+import { createTodoToolDefinition } from "./todoTool";
 
 interface FileIO {
   access(path: string, mode: number): Promise<void>;
@@ -674,6 +675,7 @@ export async function createPineToolDefinitions(
     ...(privilegedShellTool ? [privilegedShellTool] : []),
     ...(uiPresentFileTool ? [uiPresentFileTool] : []),
     ...(askUserQuestionTool ? [askUserQuestionTool] : []),
+    createTodoToolDefinition(),
     ...tinyFishTools,
     ...mediaTools,
   ] as ToolDefinition[];
