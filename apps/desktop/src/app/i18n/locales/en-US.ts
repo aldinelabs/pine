@@ -604,6 +604,12 @@ export default {
       submit: "Submit",
     },
     transcript: {
+      copyMessage: "Copy message",
+      copyMessageFailed: "Couldn’t copy the message",
+      editMessage: "Edit message",
+      editMessageFailed: "Couldn’t resend the edited message",
+      editMessageLabel: "Edited message",
+      sendEditedMessage: "Send",
       error: "Error",
       emptyDescription: "Start with a question, a task, or a bold idea.",
       emptyTitle: "Imagine what’s possible",

@@ -121,15 +121,16 @@ function cancel(): void {
 </script>
 
 <template>
-  <Card data-slot="questionnaire-card">
+  <Card data-slot="questionnaire-card" class="max-h-[min(32rem,60dvh)] min-h-0">
     <Questionnaire
       :key="questionnaire.requestId"
+      class="min-h-0 flex-1"
       v-model:item="activeItem"
       :items="items"
       shortcuts="letters"
       @submit="handleSubmit"
     >
-      <CardHeader>
+      <CardHeader class="shrink-0">
         <div class="flex items-start justify-between gap-3">
           <div class="flex min-w-0 flex-col gap-1.5">
             <CardTitle>{{ activeQuestion?.question }}</CardTitle>
@@ -144,7 +145,9 @@ function cancel(): void {
         </div>
       </CardHeader>
 
-      <CardContent>
+      <CardContent
+        class="scroll-fade-y min-h-0 overflow-y-auto overscroll-contain"
+      >
         <QuestionnaireItem
           v-for="(question, questionIndex) in questionnaire.questionnaire
             .questions"
@@ -180,7 +183,7 @@ function cancel(): void {
           </QuestionnaireChoices>
           <div
             v-if="selectedPreviews[questionIndex]"
-            class="mt-3 max-h-52 overflow-auto rounded-lg bg-muted/60 p-3"
+            class="scroll-fade-y mt-3 max-h-52 overflow-auto overscroll-contain rounded-lg bg-muted/60 p-3"
           >
             <MarkdownContent
               :source="selectedPreviews[questionIndex] ?? ''"
@@ -193,7 +196,7 @@ function cancel(): void {
         </QuestionnaireItem>
       </CardContent>
 
-      <CardFooter>
+      <CardFooter class="shrink-0">
         <QuestionnaireActions class="flex justify-end">
           <QuestionnairePrevious class="me-auto">
             {{ t("project.questionnaireRequest.previous") }}

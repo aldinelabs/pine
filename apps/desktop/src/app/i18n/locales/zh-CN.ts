@@ -570,6 +570,12 @@ export default {
       submit: "提交",
     },
     transcript: {
+      copyMessage: "复制消息",
+      copyMessageFailed: "无法复制消息",
+      editMessage: "编辑消息",
+      editMessageFailed: "无法重新发送编辑后的消息",
+      editMessageLabel: "编辑后的消息",
+      sendEditedMessage: "发送",
       error: "错误",
       emptyDescription: "从一个问题、一项任务，或一个大胆的想法开始。",
       emptyTitle: "不妨大胆想象",

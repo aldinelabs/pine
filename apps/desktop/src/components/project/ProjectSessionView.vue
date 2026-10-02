@@ -219,6 +219,26 @@ function submit(message: string): void {
     });
 }
 
+async function rewriteMessage(
+  messageId: string,
+  message: string,
+): Promise<boolean> {
+  const sessionId = props.sessionId;
+  if (!sessionId || isRunning.value) return false;
+  try {
+    await sessionStore.rewrite(
+      sessionId,
+      messageId,
+      message,
+      approvalMode.value,
+    );
+    return true;
+  } catch {
+    toast.error(t("project.transcript.editMessageFailed"));
+    return false;
+  }
+}
+
 function restoreComposerMessage(message: string): void {
   const parsed = parseAttachmentMessage(message);
   draft.value = [parsed.prompt, draft.value]
@@ -440,6 +460,7 @@ async function handleDrop(event: DragEvent): Promise<void> {
                   expandedToolRuns,
                   reviewingToolCallIds,
                   awaitingApprovalToolCallIds,
+                  isRunning,
                 ]"
                 :message-id="message.id"
                 :scroll-anchor="message.role === 'user'"
@@ -455,6 +476,10 @@ async function handleDrop(event: DragEvent): Promise<void> {
                   :expanded-tool-runs="expandedToolRuns"
                   :reviewing-tool-call-ids="reviewingToolCallIds"
                   :awaiting-approval-tool-call-ids="awaitingApprovalToolCallIds"
+                  :can-rewrite="!isRunning"
+                  :rewrite-message="
+                    props.sessionId ? rewriteMessage : undefined
+                  "
                 />
               </MessageScrollerItem>
             </MessageScrollerContent>

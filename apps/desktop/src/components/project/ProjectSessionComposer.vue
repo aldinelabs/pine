@@ -463,7 +463,8 @@ function handleRootSubmit(event: Event): void {
     <template v-else>
       <div
         v-if="props.steeringMessages.length > 0"
-        class="mb-2 flex flex-col items-end gap-2"
+        data-slot="staged-steering-messages"
+        class="scroll-fade-y no-scrollbar mb-2 flex max-h-64 flex-col items-end gap-2 overflow-y-auto overscroll-contain"
       >
         <div
           v-for="(steeringMessage, index) in props.steeringMessages"
@@ -481,8 +482,12 @@ function handleRootSubmit(event: Event): void {
             <Undo2Icon />
           </Button>
           <Bubble align="end" variant="outline">
-            <BubbleContent class="border-dashed whitespace-pre-wrap">
-              {{ attachmentMessagePreview(steeringMessage) }}
+            <BubbleContent class="border-dashed">
+              <div
+                class="scroll-fade-y max-h-32 overflow-y-auto overscroll-contain whitespace-pre-wrap"
+              >
+                {{ attachmentMessagePreview(steeringMessage) }}
+              </div>
             </BubbleContent>
           </Bubble>
         </div>
@@ -537,7 +542,7 @@ function handleRootSubmit(event: Event): void {
           <InputGroupTextarea
             :id="messageId"
             v-model="message"
-            class="session-composer-input max-h-48 min-h-[var(--session-composer-control-height)] pt-3.5 pb-3.5 text-sm leading-5"
+            class="session-composer-input scroll-fade-y max-h-48 min-h-[var(--session-composer-control-height)] overflow-y-auto overscroll-contain pt-3.5 pb-3.5 text-sm leading-5"
             :placeholder="
               props.isRunning
                 ? t('project.composer.steeringPlaceholder')
