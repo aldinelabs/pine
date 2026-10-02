@@ -1,5 +1,4 @@
 import {
-  ActivityIcon,
   BookOpenIcon,
   ClapperboardIcon,
   EyeIcon,
@@ -17,6 +16,7 @@ import {
   SquareTerminal,
   Trash2Icon,
   WandSparklesIcon,
+  WorkflowIcon,
   WrenchIcon,
 } from "@lucide/vue";
 import type { Component } from "vue";
@@ -44,7 +44,7 @@ export type ToolKind =
 
 /** Icon shown for each tool call, keyed by its kind. */
 export const TOOL_KIND_ICON: Record<ToolKind, Component> = {
-  background: ActivityIcon,
+  background: WorkflowIcon,
   bash: SquareTerminal,
   browser: PanelTopIcon,
   computer: MonitorCogIcon,
