@@ -11,6 +11,16 @@ on:
         required: false
         type: boolean
         default: false
+      source_ref:
+        description: Full commit SHA to build; defaults to the triggering commit
+        required: false
+        type: string
+        default: ""
+      release_version:
+        description: Version to stamp into apps/desktop/package.json before building
+        required: false
+        type: string
+        default: ""
     secrets:
       WINDOWS_CERTIFICATE_BASE64:
         required: false
@@ -19,6 +29,9 @@ on:
 
 permissions:
   contents: read
+
+env:
+  BUILD_SHA: ${{ inputs.source_ref || github.sha }}
 
 concurrency:
   group: desktop-build-${{ github.workflow }}-${{ github.ref }}
@@ -31,6 +44,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v7
+        with:
+          ref: ${{ env.BUILD_SHA }}
 
       - name: Setup Node for Vitest
         uses: actions/setup-node@v7
@@ -60,6 +75,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v7
+        with:
+          ref: ${{ env.BUILD_SHA }}
 
       - name: Setup Node for Electron Forge
         uses: actions/setup-node@v7
@@ -72,6 +89,12 @@ jobs:
 
       - name: Install dependencies
         run: bun install --frozen-lockfile
+
+      - name: Apply release version
+        if: inputs.release_version != ''
+        env:
+          RELEASE_VERSION: ${{ inputs.release_version }}
+        run: bun apps/desktop/scripts/apply-release-version.mjs
 
       - name: Backport the newest Pi model catalogs
         run: |
@@ -138,7 +161,7 @@ jobs:
           ARCH: ${{ matrix.arch }}
         run: |
           VERSION=$(bun -p "require('./apps/desktop/package.json').version")
-          SHORT_SHA=${GITHUB_SHA::7}
+          SHORT_SHA=${BUILD_SHA::7}
           SOURCE=$(find apps/desktop/out/make -type f -name '*.dmg' -print -quit)
           if [ -z "$SOURCE" ]; then
             echo "No DMG was produced" >&2
@@ -152,7 +175,7 @@ jobs:
       - name: Upload installer artifact
         uses: actions/upload-artifact@v6
         with:
-          name: pine-darwin-${{ matrix.arch }}-${{ github.sha }}
+          name: pine-darwin-${{ matrix.arch }}-${{ env.BUILD_SHA }}
           path: release-assets/${{ steps.installer.outputs.name }}
           if-no-files-found: error
           retention-days: 14
@@ -164,6 +187,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v7
+        with:
+          ref: ${{ env.BUILD_SHA }}
 
       - name: Setup Node for Electron Forge
         uses: actions/setup-node@v7
@@ -176,6 +201,12 @@ jobs:
 
       - name: Install dependencies
         run: bun install --frozen-lockfile
+
+      - name: Apply release version
+        if: inputs.release_version != ''
+        env:
+          RELEASE_VERSION: ${{ inputs.release_version }}
+        run: bun apps/desktop/scripts/apply-release-version.mjs
 
       - name: Backport the newest Pi model catalogs
         shell: pwsh
@@ -268,7 +299,7 @@ jobs:
         shell: pwsh
         run: |
           $version = bun -p "require('./apps/desktop/package.json').version"
-          $shortSha = $env:GITHUB_SHA.Substring(0, 7)
+          $shortSha = $env:BUILD_SHA.Substring(0, 7)
           $makeDirectory = "apps/desktop/out/make/squirrel.windows/x64"
           $setup = Get-ChildItem $makeDirectory -File -Filter "*.exe" | Select-Object -First 1
           $package = Get-ChildItem $makeDirectory -File -Filter "*.nupkg" | Select-Object -First 1
@@ -286,7 +317,7 @@ jobs:
       - name: Upload Windows installer artifact
         uses: actions/upload-artifact@v6
         with:
-          name: pine-win32-x64-${{ github.sha }}
+          name: pine-win32-x64-${{ env.BUILD_SHA }}
           path: release-assets/*
           if-no-files-found: error
           retention-days: 14

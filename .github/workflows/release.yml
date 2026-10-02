@@ -2,6 +2,14 @@ name: release
 
 on:
   workflow_dispatch:
+    inputs:
+      source_commit:
+        description: >-
+          Optional commit (short or full SHA) to build. Uses that commit's
+          code with the version and CHANGELOG of the selected branch.
+        required: false
+        type: string
+        default: ""
 
 permissions:
   contents: write
@@ -18,6 +26,7 @@ jobs:
       version: ${{ steps.metadata.outputs.version }}
       tag: ${{ steps.metadata.outputs.tag }}
       short_sha: ${{ steps.metadata.outputs.short_sha }}
+      source_sha: ${{ steps.metadata.outputs.source_sha }}
       notes_file: ${{ steps.metadata.outputs.notes_file }}
       changelog_file: ${{ steps.metadata.outputs.changelog_file }}
       r2_enabled: ${{ steps.metadata.outputs.r2_enabled }}
@@ -47,6 +56,7 @@ jobs:
         id: metadata
         env:
           RELEASES_FILE: ${{ runner.temp }}/releases.json
+          SOURCE_COMMIT: ${{ inputs.source_commit }}
         run: bun apps/desktop/scripts/prepare-release.mjs
 
       - name: Validate R2 credentials
@@ -79,6 +89,8 @@ jobs:
     secrets: inherit
     with:
       require_windows_signing: false
+      source_ref: ${{ needs.precheck.outputs.source_sha }}
+      release_version: ${{ needs.precheck.outputs.version }}
 
   publish:
     name: Publish release
@@ -93,7 +105,7 @@ jobs:
       - name: Download installers
         uses: actions/download-artifact@v7
         with:
-          pattern: pine-*-${{ github.sha }}
+          pattern: pine-*-${{ needs.precheck.outputs.source_sha }}
           path: release-assets
           merge-multiple: true
 
@@ -196,10 +208,11 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ needs.precheck.outputs.tag }}
           VERSION: ${{ needs.precheck.outputs.version }}
+          SOURCE_SHA: ${{ needs.precheck.outputs.source_sha }}
         run: >-
           gh release create "$TAG"
           release-assets/*.dmg release-assets/*.exe release-assets/*.nupkg
           release-assets/RELEASES release-assets/SHA256SUMS
-          --target "$GITHUB_SHA"
+          --target "$SOURCE_SHA"
           --title "Pine ${VERSION}"
           --notes-file release-metadata/release-notes.md

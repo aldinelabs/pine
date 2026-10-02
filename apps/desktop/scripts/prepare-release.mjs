@@ -74,9 +74,40 @@ if (previousTag) {
   }
 }
 
-const sha = execFileSync("git", ["rev-parse", "HEAD"], {
-  encoding: "utf8",
-}).trim();
+const sourceCommit = (process.env.SOURCE_COMMIT ?? "").trim();
+if (sourceCommit && !/^[0-9a-fA-F]{7,40}$/.test(sourceCommit)) {
+  throw new Error(
+    `source_commit must be a 7-40 character commit hash, received ${sourceCommit}`,
+  );
+}
+let sha;
+try {
+  sha = execFileSync(
+    "git",
+    [
+      "rev-parse",
+      "--verify",
+      "--end-of-options",
+      `${sourceCommit || "HEAD"}^{commit}`,
+    ],
+    { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] },
+  ).trim();
+} catch {
+  throw new Error(
+    `source_commit ${sourceCommit} does not resolve to a unique commit`,
+  );
+}
+if (sourceCommit) {
+  try {
+    execFileSync("git", ["merge-base", "--is-ancestor", sha, "HEAD"], {
+      stdio: "ignore",
+    });
+  } catch {
+    throw new Error(
+      `source_commit ${sha} is not part of the selected branch history`,
+    );
+  }
+}
 const shortSha = sha.slice(0, 7);
 const tag = `v${version}`;
 const repository = process.env.GITHUB_REPOSITORY ?? "";
@@ -154,6 +185,7 @@ const outputs = {
   version,
   tag,
   short_sha: shortSha,
+  source_sha: sha,
   notes_file: notesFile,
   changelog_file: changelogFile,
   r2_enabled: String(r2Enabled),
