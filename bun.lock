@@ -15,12 +15,13 @@
       "dependencies": {
         "@anthropic-ai/sandbox-runtime": "0.0.75",
         "@earendil-works/pi-agent-core": "1.0.0",
-        "@earendil-works/pi-ai": "1.0.0",
+        "@earendil-works/pi-ai": "latest",
         "@earendil-works/pi-coding-agent": "1.0.0",
         "@fontsource-variable/jetbrains-mono": "5.3.0",
         "@lobehub/icons-static-svg": "1.95.0",
         "@lucide/vue": "1.50.0",
         "@pine/computer-use-runtime": "workspace:*",
+        "@pine/pi-background-tasks": "workspace:*",
         "@pine/rpiv-ask-user-question": "workspace:*",
         "@pine/rpiv-todo": "workspace:*",
         "@tanstack/vue-virtual": "3.13.37",
@@ -94,6 +95,13 @@
     "packages/computer-use-runtime": {
       "name": "@pine/computer-use-runtime",
       "version": "0.1.0",
+    },
+    "packages/pi-background-tasks": {
+      "name": "@pine/pi-background-tasks",
+      "version": "0.1.0",
+      "dependencies": {
+        "typebox": "1.3.30",
+      },
     },
     "packages/rpiv-ask-user-question": {
       "name": "@pine/rpiv-ask-user-question",
@@ -544,6 +552,8 @@
     "@pine/computer-use-runtime": ["@pine/computer-use-runtime@workspace:packages/computer-use-runtime"],
 
     "@pine/desktop": ["@pine/desktop@workspace:apps/desktop"],
+
+    "@pine/pi-background-tasks": ["@pine/pi-background-tasks@workspace:packages/pi-background-tasks"],
 
     "@pine/rpiv-ask-user-question": ["@pine/rpiv-ask-user-question@workspace:packages/rpiv-ask-user-question"],
 

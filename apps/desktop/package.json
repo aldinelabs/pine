@@ -37,6 +37,7 @@
     "@lobehub/icons-static-svg": "1.95.0",
     "@lucide/vue": "1.50.0",
     "@pine/computer-use-runtime": "workspace:*",
+    "@pine/pi-background-tasks": "workspace:*",
     "@pine/rpiv-ask-user-question": "workspace:*",
     "@pine/rpiv-todo": "workspace:*",
     "@tanstack/vue-virtual": "3.13.37",
