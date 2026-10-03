@@ -38,7 +38,6 @@ export default {
       edit: "Edit",
       actions: "Actions for {name}",
       loading: "Measuring usage…",
-      total: "{size} in total",
       sessions: "Sessions {size}",
       attachments: "Attachments {size}",
       temporary: "Temporary files {size}",

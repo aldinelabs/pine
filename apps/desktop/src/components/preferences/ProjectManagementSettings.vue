@@ -184,16 +184,6 @@ onMounted(() => {
         <ItemContent class="min-w-0">
           <ItemTitle class="w-full">
             <span class="truncate">{{ displayName(project) }}</span>
-            <span
-              v-if="usage.get(project.id)"
-              class="ml-auto shrink-0 font-normal text-muted-foreground"
-            >
-              {{
-                t("preferences.projectManagement.total", {
-                  size: size(usage.get(project.id)?.total),
-                })
-              }}
-            </span>
           </ItemTitle>
           <ItemDescription class="truncate">
             {{

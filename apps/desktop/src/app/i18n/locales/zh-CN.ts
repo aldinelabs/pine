@@ -36,7 +36,6 @@ export default {
       edit: "编辑",
       actions: "{name} 操作",
       loading: "正在统计占用…",
-      total: "共 {size}",
       sessions: "会话 {size}",
       attachments: "附件 {size}",
       temporary: "临时文件 {size}",
