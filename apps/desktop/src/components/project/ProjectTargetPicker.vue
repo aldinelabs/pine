@@ -76,11 +76,17 @@ function created(project: PineProject): void {
         type="button"
         variant="ghost"
         size="sm"
+        :aria-label="
+          t('project.composer.sendTo', { name: displayName(selected) })
+        "
         :title="t('project.composer.sendToLabel')"
       >
-        <span class="truncate">
-          {{ t("project.composer.sendTo", { name: displayName(selected) }) }}
-        </span>
+        <InboxIcon
+          v-if="isTemporaryWorkspace(props.projectId)"
+          data-icon="inline-start"
+        />
+        <FolderIcon v-else data-icon="inline-start" />
+        <span class="truncate">{{ displayName(selected) }}</span>
         <ChevronDownIcon data-icon="inline-end" />
       </Button>
     </DropdownMenuTrigger>
