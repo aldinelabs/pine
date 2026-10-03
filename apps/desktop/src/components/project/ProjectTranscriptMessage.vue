@@ -273,7 +273,7 @@ const renderItems = computed<RenderItem[]>(() => {
                 ref="editInput"
                 v-model="editDraft"
                 data-slot="user-message-editor"
-                class="scroll-fade-y max-h-80 min-h-0 w-auto max-w-full min-w-16 overflow-y-auto overscroll-contain rounded-none border-0 bg-transparent p-0 text-sm leading-relaxed focus-visible:ring-0 md:text-sm dark:bg-transparent"
+                class="scroll-fade-y max-h-80 min-h-0 w-auto max-w-full min-w-16 overflow-y-auto rounded-none border-0 bg-transparent p-0 text-sm leading-relaxed focus-visible:ring-0 md:text-sm dark:bg-transparent"
                 :aria-label="t('project.transcript.editMessageLabel')"
                 @keydown="handleEditKeydown"
               />
@@ -348,7 +348,7 @@ const renderItems = computed<RenderItem[]>(() => {
             <BubbleContent>
               <div
                 data-slot="user-message-text"
-                class="scroll-fade-y max-h-80 overflow-y-auto overscroll-contain whitespace-pre-wrap"
+                class="scroll-fade-y max-h-80 overflow-y-auto whitespace-pre-wrap"
               >
                 {{ text }}
               </div>
