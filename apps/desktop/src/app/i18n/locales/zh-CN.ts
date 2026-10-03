@@ -46,6 +46,9 @@ export default {
     themeDark: "深色",
     defaultColorTheme: "Pine 默认颜色主题",
     defaultColorThemeDescription: "作为通用默认主题；项目强调色优先于此设置。",
+    completionSignal: "完成工作后发出信号",
+    completionSignalDescription:
+      "Pine 在后台完成一轮工作后，发送桌面通知并提醒你回来查看。",
     diagnosticLogging: "诊断日志",
     diagnosticLoggingHelp: "关于诊断日志",
     diagnosticLoggingDescription:
@@ -1244,6 +1247,10 @@ export default {
     contextCompactionRoute: {
       title: "无法更新上下文压缩途径",
       description: "请稍后重试",
+    },
+    completionSignal: {
+      title: "无法更新完成信号设置",
+      description: "请稍后重试。",
     },
     diagnosticLogging: {
       title: "无法更新诊断日志设置",

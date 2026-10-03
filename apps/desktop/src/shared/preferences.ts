@@ -10,6 +10,10 @@ export const GET_DIAGNOSTIC_LOGGING_CHANNEL =
   "preferences:get-diagnostic-logging" as const;
 export const SET_DIAGNOSTIC_LOGGING_CHANNEL =
   "preferences:set-diagnostic-logging" as const;
+export const GET_COMPLETION_SIGNAL_CHANNEL =
+  "preferences:get-completion-signal" as const;
+export const SET_COMPLETION_SIGNAL_CHANNEL =
+  "preferences:set-completion-signal" as const;
 export const GET_AUTO_APPROVAL_SETTINGS_CHANNEL =
   "preferences:get-auto-approval-settings" as const;
 export const SET_AUTO_APPROVAL_SETTINGS_CHANNEL =
@@ -45,6 +49,14 @@ export interface SetDiagnosticLoggingRequest {
 }
 
 export interface SetDiagnosticLoggingResult {
+  enabled: boolean;
+}
+
+export interface SetCompletionSignalRequest {
+  enabled: boolean;
+}
+
+export interface SetCompletionSignalResult {
   enabled: boolean;
 }
 

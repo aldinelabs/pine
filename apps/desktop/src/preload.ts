@@ -45,11 +45,15 @@ import {
   SET_CONTEXT_COMPACTION_STRATEGY_CHANNEL,
   GET_DIAGNOSTIC_LOGGING_CHANNEL,
   SET_DIAGNOSTIC_LOGGING_CHANNEL,
+  GET_COMPLETION_SIGNAL_CHANNEL,
+  SET_COMPLETION_SIGNAL_CHANNEL,
   GET_AUTO_APPROVAL_SETTINGS_CHANNEL,
   SET_AUTO_APPROVAL_SETTINGS_CHANNEL,
   type PineAutoApprovalSettings,
   type PineContextCompactionRoute,
   type PineContextCompactionStrategy,
+  type SetCompletionSignalRequest,
+  type SetCompletionSignalResult,
   type SetContextCompactionRouteRequest,
   type SetContextCompactionRouteResult,
   type SetContextCompactionStrategyRequest,
@@ -407,6 +411,12 @@ const pineApi: PineDesktopApi = {
     request: SetDiagnosticLoggingRequest,
   ): Promise<SetDiagnosticLoggingResult> =>
     ipcRenderer.invoke(SET_DIAGNOSTIC_LOGGING_CHANNEL, request),
+  getCompletionSignal: (): Promise<boolean> =>
+    ipcRenderer.invoke(GET_COMPLETION_SIGNAL_CHANNEL),
+  setCompletionSignal: (
+    request: SetCompletionSignalRequest,
+  ): Promise<SetCompletionSignalResult> =>
+    ipcRenderer.invoke(SET_COMPLETION_SIGNAL_CHANNEL, request),
   getUserProfile: (): Promise<PineUserProfile> =>
     ipcRenderer.invoke(GET_USER_PROFILE_CHANNEL),
   getTinyFishCredentialStatus: (): Promise<TinyFishCredentialStatus> =>

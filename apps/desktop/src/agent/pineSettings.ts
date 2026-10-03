@@ -24,6 +24,7 @@ const PINE_SETTINGS_FILE = "pine-settings.json";
 export interface PineAgentSettings {
   autoApproval?: PineAutoApprovalSettings;
   diagnosticLoggingEnabled?: boolean;
+  completionSignalEnabled?: boolean;
   contextCompactionStrategy?: PineContextCompactionStrategy;
   contextCompactionRoute?: PineContextCompactionRoute;
   imageModel?: PineImageModelSelection;
@@ -101,6 +102,9 @@ export async function readPineAgentSettings(
       ...(typeof settings.diagnosticLoggingEnabled === "boolean"
         ? { diagnosticLoggingEnabled: settings.diagnosticLoggingEnabled }
         : {}),
+      ...(typeof settings.completionSignalEnabled === "boolean"
+        ? { completionSignalEnabled: settings.completionSignalEnabled }
+        : {}),
       ...(isPineContextCompactionStrategy(contextCompactionStrategy)
         ? { contextCompactionStrategy }
         : {}),
@@ -164,6 +168,13 @@ export async function writeDiagnosticLoggingEnabled(
   diagnosticLoggingEnabled: boolean,
 ): Promise<void> {
   await writePineAgentSettings(agentDir, { diagnosticLoggingEnabled });
+}
+
+export async function writeCompletionSignalEnabled(
+  agentDir: string,
+  completionSignalEnabled: boolean,
+): Promise<void> {
+  await writePineAgentSettings(agentDir, { completionSignalEnabled });
 }
 
 export async function writeAutoApprovalSettings(

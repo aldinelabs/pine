@@ -50,6 +50,9 @@ export default {
     defaultColorTheme: "Pine default color theme",
     defaultColorThemeDescription:
       "Used as the default theme; project accent colors take precedence.",
+    completionSignal: "Signal when work is done",
+    completionSignalDescription:
+      "When Pine finishes a run in the background, show a desktop notification and draw your attention back.",
     diagnosticLogging: "Diagnostic logging",
     diagnosticLoggingHelp: "About diagnostic logging",
     diagnosticLoggingDescription:
@@ -1287,6 +1290,10 @@ export default {
     contextCompactionRoute: {
       title: "Unable to update context compaction method",
       description: "Try again in a moment",
+    },
+    completionSignal: {
+      title: "Unable to update completion signal settings",
+      description: "Please try again later.",
     },
     diagnosticLogging: {
       title: "Unable to update diagnostic logging settings",

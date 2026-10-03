@@ -10,6 +10,7 @@ import {
   dialog,
   ipcMain,
   nativeTheme,
+  Notification,
   powerMonitor,
   protocol,
   shell,
@@ -53,6 +54,10 @@ import { installWindowShortcuts } from "./main/windowShortcuts";
 import { AppUpdater, readUpdateManifestUrl } from "./main/appUpdater";
 import { AgentProcessHost } from "./main/agentProcessHost";
 import { RuntimeDiagnostics } from "./main/runtimeDiagnostics";
+import {
+  CompletionSignalTracker,
+  type PineCompletedRun,
+} from "./main/completionSignal";
 import { ModelRecommendationService } from "./main/modelRecommendations";
 import {
   ensureWindowsSandboxReady,
@@ -76,6 +81,7 @@ import {
   writeAutoApprovalSettings,
   writeContextCompactionRoute,
   writeContextCompactionStrategy,
+  writeCompletionSignalEnabled,
   writeDiagnosticLoggingEnabled,
   writePineUserProfile,
 } from "./agent/pineSettings";
@@ -117,11 +123,14 @@ import {
   SET_CONTEXT_COMPACTION_STRATEGY_CHANNEL,
   GET_DIAGNOSTIC_LOGGING_CHANNEL,
   SET_DIAGNOSTIC_LOGGING_CHANNEL,
+  GET_COMPLETION_SIGNAL_CHANNEL,
+  SET_COMPLETION_SIGNAL_CHANNEL,
   GET_AUTO_APPROVAL_SETTINGS_CHANNEL,
   SET_AUTO_APPROVAL_SETTINGS_CHANNEL,
   type PineAutoApprovalSettings,
   type PineContextCompactionRoute,
   type PineContextCompactionStrategy,
+  type SetCompletionSignalResult,
   type SetContextCompactionRouteResult,
   type SetContextCompactionStrategyResult,
   type SetDiagnosticLoggingResult,
@@ -459,6 +468,8 @@ let pineAgentDirectory: string | null = null;
 const modelRecommendations = new ModelRecommendationService();
 const modelMetadata = new ModelMetadataService();
 let projectRuntimes: ProjectRuntimeRegistry | null = null;
+let completionSignalEnabled = false;
+const completionSignals = new CompletionSignalTracker();
 let presentedFiles: PresentedFileRegistry | null = null;
 let projectFileWatchers: ProjectFileWatcherRegistry | null = null;
 const filePreviewWatchers = new FilePreviewWatcherRegistry(
@@ -1026,22 +1037,81 @@ function broadcastUpdateEvent(event: PineUpdateEvent): void {
   }
 }
 
+/** Keep shown notifications referenced so their click handlers survive GC. */
+const sessionNotifications = new Set<Notification>();
+const SESSION_NOTIFICATION_BODY_LIMIT = 280;
+
+function ownerWindow(ownerId: number): BrowserWindow | undefined {
+  const sender = webContents.fromId(ownerId);
+  const window = sender ? BrowserWindow.fromWebContents(sender) : undefined;
+  return window && !window.isDestroyed() ? window : undefined;
+}
+
+/**
+ * Show a desktop notification titled with the session name. Clicking it
+ * brings the owning window back to the front.
+ */
+function showSessionNotification(
+  window: BrowserWindow,
+  sessionId: string,
+  text: string,
+): void {
+  if (!Notification.isSupported()) return;
+  const summary = projectRuntimes?.sessionSummary(sessionId);
+  const title =
+    summary?.name ||
+    summary?.preview ||
+    (isChineseLocale() ? "新会话" : "New session");
+  const body = text.replaceAll(/\s+/g, " ").trim();
+  const notification = new Notification({
+    title,
+    body:
+      body.length > SESSION_NOTIFICATION_BODY_LIMIT
+        ? `${body.slice(0, SESSION_NOTIFICATION_BODY_LIMIT - 1)}…`
+        : body,
+  });
+  sessionNotifications.add(notification);
+  const release = (): void => {
+    sessionNotifications.delete(notification);
+  };
+  notification.on("click", () => {
+    release();
+    if (window.isDestroyed()) return;
+    if (window.isMinimized()) window.restore();
+    window.show();
+    window.focus();
+  });
+  notification.on("close", release);
+  notification.on("failed", release);
+  notification.show();
+}
+
 /** macOS dock bounce id for the pending approval attention request. */
 let approvalBounceId: number | null = null;
 
 /**
- * Surface a pending approval at the OS level: the dock icon bounces on
- * macOS and the taskbar button flashes on Windows until the decision (or
+ * Surface a pending approval at the OS level: a desktop notification while
+ * the window is in the background, and a dock icon that keeps bouncing on
+ * macOS or a flashing taskbar button on Windows until the decision (or
  * window focus) clears it.
  */
-function requestApprovalAttention(ownerId: number): void {
+function requestApprovalAttention(ownerId: number, sessionId: string): void {
+  const window = ownerWindow(ownerId);
+  if (window && !window.isFocused()) {
+    showSessionNotification(
+      window,
+      sessionId,
+      isChineseLocale()
+        ? "Pine 需要询问您一些问题。"
+        : "Pine needs to ask you a few questions.",
+    );
+  }
   if (process.platform === "darwin") {
-    approvalBounceId = app.dock?.bounce("informational") ?? null;
+    if (approvalBounceId !== null) app.dock?.cancelBounce(approvalBounceId);
+    approvalBounceId = app.dock?.bounce("critical") ?? null;
     return;
   }
   if (process.platform === "win32") {
-    const sender = webContents.fromId(ownerId);
-    const window = sender ? BrowserWindow.fromWebContents(sender) : undefined;
     window?.flashFrame(true);
   }
 }
@@ -1056,6 +1126,23 @@ function clearApprovalAttention(): void {
     for (const window of BrowserWindow.getAllWindows()) {
       window.flashFrame(false);
     }
+  }
+}
+
+/**
+ * Tell the user a session finished on its own: a desktop notification with
+ * the session title and final reply, plus a single dock bounce on macOS or a
+ * flashing taskbar button on Windows. Skipped while the owning window is
+ * focused, since the user is already looking at Pine.
+ */
+function signalCompletedRun(run: PineCompletedRun, ownerId: number): void {
+  const window = ownerWindow(ownerId);
+  if (!window || window.isFocused()) return;
+  showSessionNotification(window, run.sessionId, run.text);
+  if (process.platform === "darwin") {
+    app.dock?.bounce("informational");
+  } else if (process.platform === "win32") {
+    window.flashFrame(true);
   }
 }
 
@@ -1356,6 +1443,21 @@ ipcMain.handle(
   async (): Promise<PineContextCompactionRoute> =>
     (await readPineAgentSettings(getPineAgentDirectory()))
       .contextCompactionRoute ?? DEFAULT_CONTEXT_COMPACTION_ROUTE,
+);
+
+ipcMain.handle(
+  GET_COMPLETION_SIGNAL_CHANNEL,
+  (): boolean => completionSignalEnabled,
+);
+
+ipcMain.handle(
+  SET_COMPLETION_SIGNAL_CHANNEL,
+  async (_event, request: unknown): Promise<SetCompletionSignalResult> => {
+    const { enabled } = z.object({ enabled: z.boolean() }).parse(request);
+    await writeCompletionSignalEnabled(getPineAgentDirectory(), enabled);
+    completionSignalEnabled = enabled;
+    return { enabled };
+  },
 );
 
 ipcMain.handle(
@@ -2595,6 +2697,7 @@ ipcMain.handle(
 async function initializeApp(): Promise<void> {
   pineAgentDirectory = path.join(app.getPath("userData"), "agent");
   const settings = await readPineAgentSettings(pineAgentDirectory);
+  completionSignalEnabled = settings.completionSignalEnabled ?? false;
   runtimeDiagnostics = new RuntimeDiagnostics(
     app.getPath("logs"),
     settings.diagnosticLoggingEnabled ?? false,
@@ -2680,7 +2783,14 @@ async function initializeApp(): Promise<void> {
       return;
     }
     const ownerId = projectRuntimes?.ownerOfSession(agentEvent.sessionId);
-    if (ownerId === undefined) return;
+    if (ownerId === undefined) {
+      completionSignals.forget(agentEvent.sessionId);
+      return;
+    }
+    const completedRun = completionSignals.observe(agentEvent);
+    if (completedRun && completionSignalEnabled) {
+      signalCompletedRun(completedRun, ownerId);
+    }
     if (agentEvent.type === "present-file") {
       void forwardPresentedFile(agentEvent, ownerId);
       return;
@@ -2704,7 +2814,7 @@ async function initializeApp(): Promise<void> {
         ownerId,
         agentEvent.sessionId,
       );
-      requestApprovalAttention(ownerId);
+      requestApprovalAttention(ownerId, agentEvent.sessionId);
     } else if (agentEvent.type === "approval-decided") {
       projectRuntimes?.forgetApproval(agentEvent.requestId);
       clearApprovalAttention();
@@ -2714,7 +2824,7 @@ async function initializeApp(): Promise<void> {
         ownerId,
         agentEvent.sessionId,
       );
-      requestApprovalAttention(ownerId);
+      requestApprovalAttention(ownerId, agentEvent.sessionId);
     } else if (agentEvent.type === "questionnaire-decided") {
       projectRuntimes?.forgetQuestionnaire(agentEvent.requestId);
       clearApprovalAttention();

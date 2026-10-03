@@ -22,6 +22,8 @@ import type {
   PineAutoApprovalSettings,
   PineContextCompactionRoute,
   PineContextCompactionStrategy,
+  SetCompletionSignalRequest,
+  SetCompletionSignalResult,
   SetContextCompactionRouteRequest,
   SetContextCompactionRouteResult,
   SetContextCompactionStrategyRequest,
@@ -320,6 +322,10 @@ export interface PineDesktopApi extends PineWindowApi {
   setDiagnosticLogging: (
     request: SetDiagnosticLoggingRequest,
   ) => Promise<SetDiagnosticLoggingResult>;
+  getCompletionSignal: () => Promise<boolean>;
+  setCompletionSignal: (
+    request: SetCompletionSignalRequest,
+  ) => Promise<SetCompletionSignalResult>;
   getUserProfile: () => Promise<PineUserProfile>;
   getTinyFishCredentialStatus: () => Promise<TinyFishCredentialStatus>;
   setTinyFishApiKey: (

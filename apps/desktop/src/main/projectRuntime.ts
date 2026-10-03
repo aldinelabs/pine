@@ -733,6 +733,11 @@ export class ProjectRuntimeRegistry {
     if (live) live.contextUsage = contextUsage;
   }
 
+  sessionSummary(sessionId: string): PineSessionSummary | undefined {
+    return this.entryForSession(sessionId)?.runtime.liveSessions.get(sessionId)
+      ?.summary;
+  }
+
   updateSessionSummary(sessionId: string, summary: PineSessionSummary): void {
     const live =
       this.entryForSession(sessionId)?.runtime.liveSessions.get(sessionId);

@@ -116,6 +116,9 @@ const contextCompactionRoute = ref<PineContextCompactionRoute>(
   DEFAULT_CONTEXT_COMPACTION_ROUTE,
 );
 const isSavingContextCompactionRoute = ref(false);
+const completionSignalEnabled = ref(false);
+const isLoadingCompletionSignal = ref(true);
+const isSavingCompletionSignal = ref(false);
 const diagnosticLoggingEnabled = ref(false);
 const isLoadingDiagnosticLogging = ref(true);
 const isSavingDiagnosticLogging = ref(false);
@@ -191,6 +194,7 @@ watch(isOpen, (open) => {
   void loadTinyFishCredentialStatus();
   void loadContextCompactionStrategy();
   void loadContextCompactionRoute();
+  void loadCompletionSignal();
   void loadDiagnosticLogging();
 });
 
@@ -217,6 +221,7 @@ onMounted(() => {
   void loadTinyFishCredentialStatus();
   void loadContextCompactionStrategy();
   void loadContextCompactionRoute();
+  void loadCompletionSignal();
   void loadDiagnosticLogging();
 });
 
@@ -362,6 +367,48 @@ async function loadContextCompactionRoute(): Promise<void> {
       title: t("errors.contextCompactionRoute.title"),
       description: t("errors.contextCompactionRoute.description"),
     });
+  }
+}
+
+async function loadCompletionSignal(): Promise<void> {
+  if (isSavingCompletionSignal.value) return;
+  isLoadingCompletionSignal.value = true;
+  try {
+    if (typeof window.pine?.getCompletionSignal !== "function") return;
+    completionSignalEnabled.value = await window.pine.getCompletionSignal();
+  } catch (error) {
+    handleError(error, {
+      id: "completion-signal-load",
+      title: t("errors.completionSignal.title"),
+      description: t("errors.completionSignal.description"),
+    });
+  } finally {
+    isLoadingCompletionSignal.value = false;
+  }
+}
+
+async function updateCompletionSignal(enabled: boolean): Promise<void> {
+  if (
+    isLoadingCompletionSignal.value ||
+    isSavingCompletionSignal.value ||
+    enabled === completionSignalEnabled.value
+  )
+    return;
+  const previous = completionSignalEnabled.value;
+  completionSignalEnabled.value = enabled;
+  isSavingCompletionSignal.value = true;
+  try {
+    const result = await window.pine.setCompletionSignal({ enabled });
+    completionSignalEnabled.value = result.enabled;
+  } catch (error) {
+    completionSignalEnabled.value = previous;
+    handleError(error, {
+      id: "completion-signal-update",
+      title: t("errors.completionSignal.title"),
+      description: t("errors.completionSignal.description"),
+    });
+  } finally {
+    isSavingCompletionSignal.value = false;
   }
 }
 
@@ -799,6 +846,26 @@ function updateSidebarVibrancy(value: boolean): void {
                   :model-value="appearanceStore.sidebarVibrancy"
                   aria-labelledby="pine-sidebar-vibrancy-setting"
                   @update:model-value="updateSidebarVibrancy"
+                />
+              </Field>
+
+              <Field orientation="horizontal">
+                <div class="flex min-w-0 flex-1 flex-col gap-1">
+                  <FieldTitle id="pine-completion-signal-setting">
+                    {{ t("preferences.completionSignal") }}
+                  </FieldTitle>
+                  <FieldDescription>
+                    {{ t("preferences.completionSignalDescription") }}
+                  </FieldDescription>
+                </div>
+                <Switch
+                  data-testid="pine-completion-signal-toggle"
+                  :model-value="completionSignalEnabled"
+                  :disabled="
+                    isLoadingCompletionSignal || isSavingCompletionSignal
+                  "
+                  aria-labelledby="pine-completion-signal-setting"
+                  @update:model-value="updateCompletionSignal"
                 />
               </Field>
 
