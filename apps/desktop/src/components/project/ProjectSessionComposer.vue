@@ -74,10 +74,7 @@ import { useDraftProjectOpener } from "@/composables/useDraftProjectOpener";
 import { useProjectDisplayName } from "@/composables/useProjectDisplayName";
 import { projectIconComponent } from "@/lib/projectIcons";
 import { projectNameMatches } from "@/lib/projectNameMatches";
-import {
-  TEMPORARY_WORKSPACE_PROJECT_ID,
-  type PineProject,
-} from "@/shared/projects";
+import type { PineProject } from "@/shared/projects";
 import { useProjectStore } from "@/stores/project";
 import { cn } from "@/lib/utils";
 import type { PineApprovalAction, PineApprovalMode } from "@/shared/agent";
@@ -132,8 +129,6 @@ const props = withDefaults(
     projectId: string;
     /** Absent for a draft, which can still choose its project. */
     sessionId?: string;
-    /** A new draft first asks for a project name instead of a prompt. */
-    choosingProject?: boolean;
     steeringMessages?: readonly string[];
     /** When set, the approval questionnaire replaces the message input. */
     isActive?: boolean;
@@ -256,27 +251,31 @@ function confirmYoloMode(): void {
 onMounted(() => void modelsStore.load());
 
 /*
- * Choosing a project: until the user picks one, the composer's input is a
- * project name with live suggestions. The chosen project's chip then moves
- * to the project picker beside Send (a view transition), and the composer
- * turns into the ordinary message input.
+ * Choosing a project by name: in a draft, a message that starts with "@"
+ * suggests projects matching the rest of it. Choosing one clears the
+ * mention and carries the project's chip to the picker beside Send (a view
+ * transition).
  */
 const projectStore = useProjectStore();
 const displayName = useProjectDisplayName();
 const openForDraft = useDraftProjectOpener();
-const projectQuery = ref("");
+const dismissedMention = ref<string | null>(null);
 const committingProject = ref<PineProject | null>(null);
 const isMovingProject = ref(false);
 const isInputFocused = ref(false);
 const highlightedIndex = ref(0);
 const chooserListId = `${messageId}-projects`;
 const projectMoveName = `pine-draft-project-${messageId.replace(/[^a-zA-Z0-9_-]/g, "-")}`;
-const isChoosingProject = computed(
-  () =>
-    Boolean(props.choosingProject) &&
-    !props.sessionId &&
-    !hasPendingInterruption.value,
+const projectMention = computed(() =>
+  !props.sessionId &&
+  !props.isRunning &&
+  !hasPendingInterruption.value &&
+  message.value.startsWith("@") &&
+  !message.value.includes("\n")
+    ? message.value.slice(1)
+    : null,
 );
+const projectQuery = computed(() => projectMention.value ?? "");
 const projectMatches = computed(() =>
   projectNameMatches(projectStore.projects, projectQuery.value, displayName),
 );
@@ -291,20 +290,14 @@ const chooserChipProject = computed(
 );
 const isChooserOpen = computed(
   () =>
-    isChoosingProject.value &&
+    projectMention.value !== null &&
+    dismissedMention.value !== message.value &&
     !committingProject.value &&
     isInputFocused.value &&
     props.isActive,
 );
-const inputValue = computed({
-  get: () => (isChoosingProject.value ? projectQuery.value : message.value),
-  set: (value: string) => {
-    if (isChoosingProject.value) projectQuery.value = value;
-    else message.value = value;
-  },
-});
 const chooserInputAttrs = computed(() =>
-  isChoosingProject.value
+  isChooserOpen.value
     ? {
         role: "combobox",
         "aria-autocomplete": "list" as const,
@@ -320,15 +313,6 @@ const chooserInputAttrs = computed(() =>
 watch(projectMatches, () => {
   highlightedIndex.value = 0;
 });
-
-watch(
-  () => isChoosingProject.value && props.isActive,
-  (shouldFocus) => {
-    if (!shouldFocus) return;
-    void nextTick(() => document.getElementById(messageId)?.focus());
-  },
-  { immediate: true },
-);
 
 /** Let the browser carry the chip from the input to the picker. */
 async function moveChosenProject(update: () => void): Promise<void> {
@@ -355,40 +339,48 @@ async function moveChosenProject(update: () => void): Promise<void> {
 
 async function chooseProject(project: PineProject): Promise<void> {
   if (committingProject.value) return;
+  const mention = message.value;
   committingProject.value = project;
-  projectQuery.value = "";
+  message.value = "";
   try {
-    if (!(await openForDraft(project.id))) return;
-    await moveChosenProject(() => emit("selectProject", project.id));
+    if (!(await openForDraft(project.id))) {
+      message.value = mention;
+      return;
+    }
+    if (project.id === props.projectId) emit("selectProject", project.id);
+    else await moveChosenProject(() => emit("selectProject", project.id));
   } finally {
     committingProject.value = null;
   }
 }
 
-function handleChooserKeydown(event: KeyboardEvent): void {
-  if (event.isComposing) return;
+/** Returns whether the chooser handled the key. */
+function handleChooserKeydown(event: KeyboardEvent): boolean {
+  if (event.isComposing) return false;
   const count = projectMatches.value.length;
   if (event.key === "ArrowDown" || event.key === "ArrowUp") {
     event.preventDefault();
-    if (!count) return;
+    if (!count) return true;
     const step = event.key === "ArrowDown" ? 1 : -1;
     highlightedIndex.value = (highlightedIndex.value + step + count) % count;
     document
       .getElementById(`${chooserListId}-${highlightedIndex.value}`)
       ?.scrollIntoView({ block: "nearest" });
-    return;
+    return true;
   }
-  if (event.key === "Enter" && !event.shiftKey) {
+  // Without a match, Enter sends the message as written.
+  if (event.key === "Enter" && !event.shiftKey && highlightedProject.value) {
     event.preventDefault();
-    if (highlightedProject.value) void chooseProject(highlightedProject.value);
-    return;
+    void chooseProject(highlightedProject.value);
+    return true;
   }
   if (event.key === "Escape") {
     event.preventDefault();
     event.stopPropagation();
-    const noProject = projectStore.projectById(TEMPORARY_WORKSPACE_PROJECT_ID);
-    if (noProject) void chooseProject(noProject);
+    dismissedMention.value = message.value;
+    return true;
   }
+  return false;
 }
 
 function submitMessage(): void {
@@ -465,8 +457,6 @@ interface PastedImage {
  * attachment storage by the main process; ordinary text keeps native paste.
  */
 async function handlePaste(event: ClipboardEvent): Promise<void> {
-  // A project name only takes plain text, which native paste handles.
-  if (isChoosingProject.value) return;
   const files = Array.from(event.clipboardData?.files ?? []);
   if (files.length > 0) {
     const paths: string[] = [];
@@ -543,10 +533,7 @@ function removeAttachment(path: string): void {
 }
 
 function handleKeydown(event: KeyboardEvent): void {
-  if (isChoosingProject.value) {
-    handleChooserKeydown(event);
-    return;
-  }
+  if (isChooserOpen.value && handleChooserKeydown(event)) return;
   if (event.key !== "Enter" || event.shiftKey || event.isComposing) return;
 
   event.preventDefault();
@@ -688,7 +675,7 @@ function handleRootSubmit(event: Event): void {
                 align="inline-start"
               >
                 <span
-                  v-if="isChoosingProject"
+                  v-if="isChooserOpen || committingProject"
                   data-slot="project-chooser-chip"
                   class="flex h-[var(--session-composer-action-size)] min-w-[var(--session-composer-action-size)] max-w-48 items-center justify-center gap-2 rounded-full bg-secondary text-secondary-foreground [&>svg]:size-4 [&>svg]:shrink-0"
                   :class="committingProject ? 'px-3' : 'px-0'"
@@ -738,17 +725,17 @@ function handleRootSubmit(event: Event): void {
 
               <InputGroupTextarea
                 :id="messageId"
-                v-model="inputValue"
+                v-model="message"
                 v-bind="chooserInputAttrs"
                 class="session-composer-input scroll-fade-y max-h-48 min-h-[var(--session-composer-control-height)] overflow-y-auto overscroll-contain pt-3.5 pb-3.5 text-sm leading-5"
                 :placeholder="
-                  isChoosingProject
-                    ? committingProject
-                      ? ''
-                      : t('project.composer.chooseProjectPlaceholder')
+                  committingProject
+                    ? ''
                     : props.isRunning
                       ? t('project.composer.steeringPlaceholder')
-                      : t('project.composer.placeholder')
+                      : props.sessionId
+                        ? t('project.composer.placeholder')
+                        : t('project.composer.draftPlaceholder')
                 "
                 @focus="isInputFocused = true"
                 @blur="isInputFocused = false"
@@ -762,9 +749,7 @@ function handleRootSubmit(event: Event): void {
               >
                 <!-- A draft still chooses its project right beside Send. -->
                 <ProjectTargetPicker
-                  v-if="
-                    !props.sessionId && !props.isRunning && !isChoosingProject
-                  "
+                  v-if="!props.sessionId && !props.isRunning"
                   :project-id="props.projectId"
                   :transition-name="
                     isMovingProject ? projectMoveName : undefined

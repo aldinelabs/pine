@@ -62,9 +62,10 @@ async function loadProjects(): Promise<void> {
   }
   // Restored tabs of a project deleted meanwhile cannot open again.
   const known = new Set(projectStore.projects.map((project) => project.id));
-  for (const projectId of new Set(
-    contentTabsStore.tabs.map((tab) => tab.projectId),
-  )) {
+  for (const projectId of new Set([
+    ...contentTabsStore.tabs.map((tab) => tab.projectId),
+    contentTabsStore.lastDraftProjectId,
+  ])) {
     if (!known.has(projectId)) contentTabsStore.removeProject(projectId);
   }
 }

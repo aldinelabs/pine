@@ -417,7 +417,15 @@ watch(
       const result = await projectStore.ensureOpen(tab.projectId);
       if (sequence !== activationSequence) return;
       if (!result.opened) {
-        // Another window owns this project and main has focused it.
+        // Another window owns this project and main has focused it. A draft
+        // that only defaulted there starts in No Project instead.
+        if (tab.kind === "session" && tab.state === "draft") {
+          contentTabsStore.setDraftProject(
+            tab.id,
+            TEMPORARY_WORKSPACE_PROJECT_ID,
+          );
+          return;
+        }
         toast.info(t("projects.openElsewhere"));
         tabNavigation.close(tab.id);
         return;

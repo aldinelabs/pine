@@ -23,8 +23,6 @@ export type FileContentTab = {
 } & FilePreviewTarget;
 
 export interface DraftSessionTab {
-  /** The composer asks for a project name before the first message. */
-  choosingProject?: boolean;
   id: string;
   kind: "session";
   projectId: string;
@@ -56,19 +54,46 @@ function sessionLabel(session: PineSessionSummary): string | undefined {
   return session.name || session.preview;
 }
 
+/** Where new drafts go: the project the user last chose for one. */
+export const LAST_DRAFT_PROJECT_STORAGE_KEY = "pine.last-draft-project";
+
+function readLastDraftProject(): string {
+  try {
+    return (
+      window.localStorage.getItem(LAST_DRAFT_PROJECT_STORAGE_KEY) ||
+      TEMPORARY_WORKSPACE_PROJECT_ID
+    );
+  } catch {
+    return TEMPORARY_WORKSPACE_PROJECT_ID;
+  }
+}
+
 export const useContentTabsStore = defineStore("content-tabs", () => {
   let nextSessionTabNumber = 2;
+  const lastDraftProjectId = ref(readLastDraftProject());
 
   function initialTabs(): ProjectContentTab[] {
     return [
       {
-        choosingProject: true,
         id: "session-1",
         kind: "session",
-        projectId: TEMPORARY_WORKSPACE_PROJECT_ID,
+        projectId: lastDraftProjectId.value,
         state: "draft",
       },
     ];
+  }
+
+  /** Remember a project the user chose for a draft, for the next draft. */
+  function rememberDraftProject(projectId: string): void {
+    lastDraftProjectId.value = projectId;
+    try {
+      if (projectId === TEMPORARY_WORKSPACE_PROJECT_ID)
+        window.localStorage.removeItem(LAST_DRAFT_PROJECT_STORAGE_KEY);
+      else
+        window.localStorage.setItem(LAST_DRAFT_PROJECT_STORAGE_KEY, projectId);
+    } catch {
+      // The next draft then starts in No Project.
+    }
   }
 
   const saved = readContentTabs();
@@ -198,29 +223,25 @@ export const useContentTabsStore = defineStore("content-tabs", () => {
     return presentedTargets.get(toolCallId);
   }
 
-  function makeDraftTab(
-    projectId: string,
-    choosingProject = false,
-  ): DraftSessionTab {
+  function makeDraftTab(projectId: string): DraftSessionTab {
     while (
       tabs.value.some((tab) => tab.id === `session-${nextSessionTabNumber}`)
     )
       nextSessionTabNumber += 1;
-    const tab: DraftSessionTab = {
-      ...(choosingProject ? { choosingProject } : {}),
+    const tab = {
       id: `session-${nextSessionTabNumber}`,
-      kind: "session",
+      kind: "session" as const,
       projectId,
-      state: "draft",
+      state: "draft" as const,
     };
     nextSessionTabNumber += 1;
     return tab;
   }
 
   /**
-   * Open a new-session tab. Without a project, the draft first asks for one
-   * (defaulting to No Project); reusing a draft retargets it only when a
-   * project is given.
+   * Open a new-session tab. New drafts go to the project last chosen for a
+   * draft unless one is given; reusing a draft retargets it only when one is
+   * given.
    */
   function createSessionTab({
     projectId,
@@ -239,29 +260,19 @@ export const useContentTabsStore = defineStore("content-tabs", () => {
       );
     }
 
-    const tab = makeDraftTab(
-      projectId ?? TEMPORARY_WORKSPACE_PROJECT_ID,
-      !projectId,
-    );
+    const tab = makeDraftTab(projectId ?? lastDraftProjectId.value);
     tabs.value = [...tabs.value, tab];
     return tab;
   }
 
-  /**
-   * Change where a draft will be sent, which also ends choosing a project.
-   * Bound sessions keep their project.
-   */
+  /** Change where a draft will be sent. Bound sessions keep their project. */
   function setDraftProject(tabId: string, projectId: string): boolean {
     const target = tabs.value.find((tab) => tab.id === tabId);
     if (target?.kind !== "session" || target.state !== "draft") return false;
-    if (target.projectId === projectId && !target.choosingProject) return true;
-    const next: DraftSessionTab = {
-      id: target.id,
-      kind: "session",
-      projectId,
-      state: "draft",
-    };
-    tabs.value = tabs.value.map((tab) => (tab.id === tabId ? next : tab));
+    if (target.projectId === projectId) return true;
+    tabs.value = tabs.value.map((tab) =>
+      tab.id === tabId ? { ...target, projectId } : tab,
+    );
     return true;
   }
 
@@ -449,6 +460,8 @@ export const useContentTabsStore = defineStore("content-tabs", () => {
 
   /** Close every tab of a deleted project. */
   function removeProject(projectId: string): void {
+    if (lastDraftProjectId.value === projectId)
+      rememberDraftProject(TEMPORARY_WORKSPACE_PROJECT_ID);
     const remaining = tabs.value.filter((tab) => tab.projectId !== projectId);
     if (remaining.length === tabs.value.length) return;
     tabs.value = remaining.length > 0 ? remaining : initialTabs();
@@ -474,12 +487,14 @@ export const useContentTabsStore = defineStore("content-tabs", () => {
     createSessionTab,
     failPrompt,
     fallbackActiveTabId,
+    lastDraftProjectId,
     moveSessionToProject,
     moveTab,
     openFile,
     openSession,
     presentFile,
     presentedTargetFor,
+    rememberDraftProject,
     removeProject,
     removeSession,
     reset,

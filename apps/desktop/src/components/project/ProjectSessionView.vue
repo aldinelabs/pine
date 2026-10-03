@@ -271,18 +271,10 @@ async function rewriteMessage(
 }
 
 /** A draft may still change the project its first message goes to. */
-const isChoosingProject = computed(() => {
-  const tab = contentTabsStore.tabs.find((tab) => tab.id === props.tabId);
-  return (
-    tab?.kind === "session" &&
-    tab.state === "draft" &&
-    Boolean(tab.choosingProject)
-  );
-});
-
 function selectDraftProject(projectId: string): void {
   if (props.sessionId || isRunning.value) return;
-  contentTabsStore.setDraftProject(props.tabId, projectId);
+  if (contentTabsStore.setDraftProject(props.tabId, projectId))
+    contentTabsStore.rememberDraftProject(projectId);
 }
 
 function restoreComposerMessage(message: string): void {
@@ -561,7 +553,6 @@ async function handleDrop(event: DragEvent): Promise<void> {
         :project-id="props.projectId"
         :session-id="props.sessionId"
         :steering-messages="steeringMessages"
-        :choosing-project="isChoosingProject"
         @select-project="selectDraftProject"
         @abort="abort"
         @respond="respondToApproval"

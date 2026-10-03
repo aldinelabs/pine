@@ -21,7 +21,6 @@ import ProjectSessionComposer from "../ProjectSessionComposer.vue";
 
 interface ComposerProps {
   approvalMode?: "let-me-review" | "auto-approve" | "autonomous" | "YOLO";
-  choosingProject?: boolean;
   isRunning?: boolean;
   isActive?: boolean;
   pendingApproval?: PinePendingApproval | null;
@@ -119,7 +118,7 @@ function testProject(id: string, name: string): PineProject {
 }
 
 async function mountChooser() {
-  const wrapper = mountComposer({ choosingProject: true, isActive: true });
+  const wrapper = mountComposer({ isActive: true });
   const projectStore = useProjectStore();
   showProject(testProject(TEMPORARY_WORKSPACE_PROJECT_ID, "Temporary"));
   projectStore.projects = [
@@ -145,22 +144,22 @@ function optionNames(): string[] {
 }
 
 describe("ProjectSessionComposer", () => {
-  it("asks a new draft for a project name and chooses the match with Enter", async () => {
+  it("suggests projects only for a draft message that starts with @", async () => {
     const { wrapper, input, ensureOpen } = await mountChooser();
-    expect(input.attributes("placeholder")).toBe("输入项目名称……");
-    expect(input.attributes("role")).toBe("combobox");
-    expect(wrapper.find('[data-slot="attachment-menu-trigger"]').exists()).toBe(
-      false,
+    expect(input.attributes("placeholder")).toBe(
+      "描述任务，或输入 @ 选择项目……",
     );
-    expect(wrapper.find('[data-slot="project-target-trigger"]').exists()).toBe(
-      false,
-    );
-    expect(optionNames()).toEqual(["无项目", "Courses", "Pine", "Recipes"]);
+    await input.setValue("hello @pine");
+    expect(input.attributes("role")).toBeUndefined();
+    expect(optionNames()).toEqual([]);
 
-    await input.setValue("pe");
+    await input.setValue("@");
+    expect(input.attributes("role")).toBe("combobox");
+    expect(optionNames()).toEqual(["无项目", "Courses", "Pine", "Recipes"]);
+    await input.setValue("@pe");
     // Names starting with the query come before names containing it.
     expect(optionNames()).toEqual(["Recipes"]);
-    await input.setValue("p");
+    await input.setValue("@p");
     expect(optionNames()).toEqual(["Pine", "Recipes"]);
     await input.trigger("keydown", { key: "ArrowDown" });
     await input.trigger("keydown", { key: "Enter" });
@@ -169,38 +168,33 @@ describe("ProjectSessionComposer", () => {
     expect(ensureOpen).toHaveBeenCalledWith("recipes");
     expect(wrapper.emitted("selectProject")).toEqual([["recipes"]]);
     expect(wrapper.emitted("submit")).toBeUndefined();
-    // The project name never becomes the message.
-    expect(wrapper.emitted("update:modelValue")).toBeUndefined();
+    // The mention is cleared rather than sent.
+    expect(wrapper.emitted("update:modelValue")?.at(-1)).toEqual([""]);
     wrapper.unmount();
   });
 
-  it("skips choosing with Escape and ignores Enter without a match", async () => {
+  it("sends an unmatched @ message and closes suggestions with Escape", async () => {
     const { wrapper, input } = await mountChooser();
-    await input.setValue("zzz");
+    await input.setValue("@pi");
+    await input.trigger("keydown", { key: "Escape" });
+    expect(optionNames()).toEqual([]);
+    expect(wrapper.emitted("selectProject")).toBeUndefined();
+
+    await input.setValue("@zzz");
     expect(document.body.textContent).toContain("没有匹配的项目");
     await input.trigger("keydown", { key: "Enter" });
     await flushPromises();
     expect(wrapper.emitted("selectProject")).toBeUndefined();
-
-    await input.trigger("keydown", { key: "Escape" });
-    await flushPromises();
-    expect(wrapper.emitted("selectProject")).toEqual([
-      [TEMPORARY_WORKSPACE_PROJECT_ID],
-    ]);
+    expect(wrapper.emitted("submit")).toEqual([["@zzz"]]);
     wrapper.unmount();
   });
 
-  it("returns to the message input once a project is chosen", async () => {
+  it("does not suggest projects in an existing session", async () => {
     const { wrapper, input } = await mountChooser();
-    await wrapper.setProps({ choosingProject: false });
+    await wrapper.setProps({ sessionId: "session-1" });
+    await input.setValue("@p");
     expect(input.attributes("role")).toBeUndefined();
-    expect(input.attributes("placeholder")).toBe("描述任务、明确需求……");
-    expect(wrapper.find('[data-slot="attachment-menu-trigger"]').exists()).toBe(
-      true,
-    );
-    expect(wrapper.find('[data-slot="project-target-trigger"]').exists()).toBe(
-      true,
-    );
+    expect(optionNames()).toEqual([]);
     wrapper.unmount();
   });
 
