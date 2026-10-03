@@ -11,7 +11,7 @@ vi.mock("../pi-vcc.js", () => ({
     pi.on("context", () => contextResult);
   },
   registerRecallTool: (pi: ExtensionAPI) => {
-    pi.registerTool({ name: "vcc_recall" } as never);
+    pi.registerTool({ name: "recall" } as never);
   },
 }));
 
@@ -54,7 +54,7 @@ describe("createSemanticCompactionExtension", () => {
     expect(handlers.get("context")?.()).toBe(contextResult);
   });
 
-  it("registers vcc_recall for the runtime to activate by route", () => {
-    expect(loadExtension(() => false).tools).toEqual(["vcc_recall"]);
+  it("registers recall for the runtime to activate by route", () => {
+    expect(loadExtension(() => false).tools).toEqual(["recall"]);
   });
 });

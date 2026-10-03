@@ -20,7 +20,7 @@ import {
 } from "pi-mcp-adapter";
 import { loadMcpConfig } from "pi-mcp-adapter/config";
 import {
-  VCC_RECALL_TOOL_NAME,
+  RECALL_TOOL_NAME,
   type PineApprovalMode,
   type PineMessageRewriteTarget,
 } from "../shared/agent";
@@ -955,7 +955,7 @@ export class PineAgentRuntime {
       READ_SKILL_RESOURCE_TOOL_NAME,
       ACTIVATE_SKILL_AUTHORING_TOOL_NAME,
       ...SKILL_AUTHORING_DYNAMIC_TOOL_NAMES,
-      VCC_RECALL_TOOL_NAME,
+      RECALL_TOOL_NAME,
     ];
 
     const { session } = await createAgentSession({

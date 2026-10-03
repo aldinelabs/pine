@@ -59,9 +59,9 @@ describe("rewriteTargetEntryId", () => {
 });
 
 describe("toolNamesForCompactionRoute", () => {
-  const tools = ["read", "vcc_recall", "bash"];
+  const tools = ["read", "recall", "bash"];
 
-  it("only exposes vcc_recall on the semantic route", () => {
+  it("only exposes recall on the semantic route", () => {
     expect(toolNamesForCompactionRoute(tools, "semantic")).toEqual(tools);
     expect(toolNamesForCompactionRoute(tools, "model")).toEqual([
       "read",

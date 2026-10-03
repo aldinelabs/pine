@@ -745,7 +745,7 @@ function readRangeSuffix(input: Record<string, unknown>): string {
   return end === undefined ? `:${start}` : `:${start}-${end}`;
 }
 
-/** What a `vcc_recall` call looked up: its query, touched files, or entries. */
+/** What a `recall` call looked up: its query, touched files, or entries. */
 function recallTarget(input: Record<string, unknown>): string {
   const query = firstString(input, ["query"]);
   if (query) return compactInline(query);

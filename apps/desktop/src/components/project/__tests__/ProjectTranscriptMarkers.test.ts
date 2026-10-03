@@ -625,7 +625,7 @@ describe("project transcript markers", () => {
         toolCall: {
           id: "tool-recall",
           input: { query: "auth token" },
-          name: "vcc_recall",
+          name: "recall",
           status: "running",
         },
       },
@@ -635,7 +635,7 @@ describe("project transcript markers", () => {
     const content = wrapper.get('[data-slot="marker-content"]');
     expect(content.text()).toContain("正在历史记录中查找");
     expect(content.text()).toContain("auth token");
-    expect(content.text()).not.toContain("vcc_recall");
+    expect(content.text()).not.toContain("recall");
     expect(wrapper.findComponent(HistoryIcon).exists()).toBe(true);
 
     await wrapper.setProps({

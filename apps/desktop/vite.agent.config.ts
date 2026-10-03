@@ -2,10 +2,22 @@ import { defineConfig } from "vite";
 import { cpSync, mkdirSync } from "node:fs";
 import { builtinModules, createRequire } from "node:module";
 import path from "node:path";
+import { RECALL_TOOL_NAME } from "./src/shared/agent";
 
 const adapterRoot = path.dirname(
   createRequire(import.meta.url).resolve("pi-mcp-adapter"),
 );
+
+// pi-vcc names its tool, the summary footer that points at it, and the filter
+// that keeps it from matching its own calls all after `vcc_recall`. Rewrite
+// them together so the model sees Pine's tool name. Each listed file must
+// still contain the name, so a pi-vcc upgrade that moves it fails the build.
+const PI_VCC_RECALL_TOOL_NAME = "vcc_recall";
+const PI_VCC_RECALL_SOURCES = [
+  "/@sting8k/pi-vcc/src/core/format.ts",
+  "/@sting8k/pi-vcc/src/core/search-entries.ts",
+  "/@sting8k/pi-vcc/src/tools/recall.ts",
+];
 
 // Pi is ESM-only and relies on `import.meta.url`. Keep the isolated agent
 // process and all of its chunks in ESM instead of emitting runtime `require()`
@@ -13,6 +25,21 @@ const adapterRoot = path.dirname(
 export default defineConfig(({ mode }) => ({
   base: "./",
   plugins: [
+    {
+      name: "rename-pi-vcc-recall-tool",
+      transform(source, id) {
+        if (!id.includes("/@sting8k/pi-vcc/src/")) return;
+        if (
+          PI_VCC_RECALL_SOURCES.some((file) => id.endsWith(file)) &&
+          !source.includes(PI_VCC_RECALL_TOOL_NAME)
+        ) {
+          throw new Error(
+            `pi-vcc no longer names ${PI_VCC_RECALL_TOOL_NAME} in ${id}; update the rename in vite.agent.config.ts.`,
+          );
+        }
+        return source.replaceAll(PI_VCC_RECALL_TOOL_NAME, RECALL_TOOL_NAME);
+      },
+    },
     {
       name: "copy-pi-mcp-adapter-assets",
       transform(source, id) {

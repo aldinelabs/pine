@@ -23,10 +23,7 @@ import {
 import type { Component } from "vue";
 import { TODO_TOOL_NAME } from "@pine/rpiv-todo";
 import { BACKGROUND_TASK_TOOL_NAMES } from "@pine/pi-background-tasks";
-import {
-  UI_PRESENT_FILE_TOOL_NAME,
-  VCC_RECALL_TOOL_NAME,
-} from "@/shared/agent";
+import { UI_PRESENT_FILE_TOOL_NAME, RECALL_TOOL_NAME } from "@/shared/agent";
 import type { PineToolCall } from "@/shared/sessions";
 
 export type ToolKind =
@@ -158,7 +155,7 @@ export function toolKind(name: string): ToolKind {
     return "mcp";
   if (normalized === UI_PRESENT_FILE_TOOL_NAME) return "presentFile";
   if (normalized === TODO_TOOL_NAME) return "todo";
-  if (normalized === VCC_RECALL_TOOL_NAME) return "recall";
+  if (normalized === RECALL_TOOL_NAME) return "recall";
   if ((BACKGROUND_TASK_TOOL_NAMES as readonly string[]).includes(normalized))
     return "background";
   if (normalized.startsWith("browser_")) return "browser";

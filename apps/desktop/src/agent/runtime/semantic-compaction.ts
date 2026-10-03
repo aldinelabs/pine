@@ -8,7 +8,7 @@ import { registerBeforeCompactHook, registerRecallTool } from "./pi-vcc.js";
 const PI_VCC_CONFIG_FILE = "pi-vcc-config.json";
 
 /**
- * pi-vcc's algorithmic compaction and its `vcc_recall` tool. Compaction only
+ * pi-vcc's algorithmic compaction and its `recall` tool. Compaction only
  * runs while the semantic route is selected; the runtime activates the tool
  * on the same condition. Pine skips pi-vcc's `/pi-vcc` commands and settings
  * scaffold.

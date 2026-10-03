@@ -6,7 +6,7 @@ import type {
 import { createHash } from "node:crypto";
 import path from "node:path";
 import {
-  VCC_RECALL_TOOL_NAME,
+  RECALL_TOOL_NAME,
   type PineAgentEvent,
   type PineApprovalMode,
   type PineMessageRewriteTarget,
@@ -175,13 +175,13 @@ export function toolNamesForApprovalMode(
   return tinyFishEnabled ? [...result, ...networkTools] : result;
 }
 
-/** `vcc_recall` searches pi-vcc summaries' history, so it follows the route. */
+/** `recall` searches pi-vcc summaries' history, so it follows the route. */
 export function toolNamesForCompactionRoute(
   toolNames: readonly string[],
   route: PineContextCompactionRoute,
 ): string[] {
   if (route === "semantic") return [...toolNames];
-  return toolNames.filter((name) => name !== VCC_RECALL_TOOL_NAME);
+  return toolNames.filter((name) => name !== RECALL_TOOL_NAME);
 }
 
 export function toolNamesForComputerUseState(

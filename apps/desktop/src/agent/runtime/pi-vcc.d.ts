@@ -5,5 +5,9 @@ export declare const registerBeforeCompactHook: (
   piVersion?: string,
 ) => void;
 
-/** Registers the `vcc_recall` tool, which searches the current session file. */
+/**
+ * Registers pi-vcc's session history search, which only reads the current
+ * session file. Its name is RECALL_TOOL_NAME once vite.agent.config.ts has
+ * rewritten pi-vcc's `vcc_recall`.
+ */
 export declare const registerRecallTool: (pi: ExtensionAPI) => void;
