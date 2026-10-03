@@ -624,6 +624,7 @@ export default {
       loadHistory: "加载更早的消息",
       loadingHistory: "正在加载",
       outline: "对话大纲",
+      outlineAttachments: "[附件]",
       outlineEmpty: "发送消息后，回合会显示在这里。",
       thinking: "思考过程",
       thinkingActive: "正在思考（{duration}）",

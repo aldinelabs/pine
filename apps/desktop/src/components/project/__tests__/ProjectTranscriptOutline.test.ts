@@ -140,4 +140,54 @@ describe("ProjectTranscriptOutline navigation", () => {
     expect(scrollToMessage).toHaveBeenCalledTimes(1);
     wrapper.unmount();
   });
+
+  it("labels attachment-only turns instead of rendering an empty row", () => {
+    const attachmentTurn: PineTranscriptMessage = {
+      ...turn("files"),
+      blocks: [
+        {
+          type: "attachments",
+          attachments: [
+            {
+              id: "a1",
+              kind: "file",
+              name: "notes.pdf",
+              path: "/tmp/notes.pdf",
+            },
+          ] as never,
+        },
+      ],
+    };
+    const wrapper = mount(
+      defineComponent({
+        setup() {
+          provideMessageScroller({ autoScroll: false });
+          return () =>
+            h(ProjectTranscriptOutline, {
+              turns: [turn("a"), attachmentTurn, turn("b")],
+            });
+        },
+      }),
+      {
+        global: {
+          plugins: [createAppI18n("en-US")],
+          stubs: {
+            HoverCard: { template: "<div><slot /></div>" },
+            HoverCardTrigger: { template: "<div><slot /></div>" },
+            HoverCardContent: { template: "<div><slot /></div>" },
+          },
+        },
+      },
+    );
+
+    const items = wrapper
+      .get('[data-slot="project-transcript-outline-menu"]')
+      .findAll("button");
+    expect(items.map((item) => item.text())).toEqual([
+      "a",
+      "[Attachment]",
+      "b",
+    ]);
+    wrapper.unmount();
+  });
 });

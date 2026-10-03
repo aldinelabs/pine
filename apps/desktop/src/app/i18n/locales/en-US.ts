@@ -659,6 +659,7 @@ export default {
       loadHistory: "Load earlier messages",
       loadingHistory: "Loading",
       outline: "Conversation outline",
+      outlineAttachments: "[Attachment]",
       outlineEmpty: "Your turns will appear here after you send a message.",
       thinking: "Reasoning",
       thinkingActive: "Thinking ({duration})",

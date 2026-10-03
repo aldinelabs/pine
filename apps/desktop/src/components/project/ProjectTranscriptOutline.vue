@@ -81,11 +81,15 @@ function excerpt(text: string): string {
 }
 
 function messageExcerpt(message: PineTranscriptMessage): string {
-  return excerpt(
+  const text = excerpt(
     message.blocks
       .map((block) => (block.type === "text" ? block.text : ""))
       .join("\n"),
   );
+  if (text) return text;
+  return message.blocks.some((block) => block.type === "attachments")
+    ? t("project.transcript.outlineAttachments")
+    : "";
 }
 
 async function scrollToTurn(messageId: string): Promise<void> {
