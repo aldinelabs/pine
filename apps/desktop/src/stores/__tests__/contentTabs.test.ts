@@ -53,6 +53,7 @@ describe("content tabs store", () => {
     const store = useContentTabsStore();
     expect(store.tabs).toEqual([
       {
+        choosingProject: true,
         id: "session-1",
         kind: "session",
         projectId: TEMPORARY_WORKSPACE_PROJECT_ID,
@@ -62,6 +63,21 @@ describe("content tabs store", () => {
     store.bindSession("session-1", firstSession);
     expect(store.createSessionTab()).toMatchObject({
       projectId: TEMPORARY_WORKSPACE_PROJECT_ID,
+    });
+  });
+
+  it("asks for a project only in drafts opened without one", () => {
+    const store = useContentTabsStore();
+    expect(store.tabs[0]).toMatchObject({ choosingProject: true });
+    // Choosing a project, even the one already shown, ends choosing.
+    store.setDraftProject("session-1", TEMPORARY_WORKSPACE_PROJECT_ID);
+    expect(store.tabs[0]).not.toHaveProperty("choosingProject");
+
+    expect(
+      store.createSessionTab({ reuseDraft: false, projectId: "one" }),
+    ).not.toHaveProperty("choosingProject");
+    expect(store.createSessionTab({ reuseDraft: false })).toMatchObject({
+      choosingProject: true,
     });
   });
 
@@ -246,6 +262,7 @@ describe("content tabs store", () => {
     expect(restored.tabs).toEqual([
       { id: "session-1", kind: "session", projectId: "one", state: "draft" },
       {
+        choosingProject: true,
         id: "session-2",
         kind: "session",
         projectId: TEMPORARY_WORKSPACE_PROJECT_ID,
@@ -266,6 +283,7 @@ describe("content tabs store", () => {
     const store = useContentTabsStore();
     expect(store.tabs).toEqual([
       {
+        choosingProject: true,
         id: "session-1",
         kind: "session",
         projectId: TEMPORARY_WORKSPACE_PROJECT_ID,
@@ -373,6 +391,7 @@ describe("content tabs store", () => {
     store.reset();
     expect(store.tabs).toEqual([
       {
+        choosingProject: true,
         id: "session-1",
         kind: "session",
         projectId: TEMPORARY_WORKSPACE_PROJECT_ID,

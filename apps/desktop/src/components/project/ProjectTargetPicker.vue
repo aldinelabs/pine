@@ -3,8 +3,6 @@ import { ChevronDownIcon, PlusIcon } from "@lucide/vue";
 import { storeToRefs } from "pinia";
 import { computed, ref } from "vue";
 import { useI18n } from "vue-i18n";
-import { toast } from "vue-sonner";
-import { handleError } from "@/app/errors/errorHandler";
 import { InputGroupButton } from "@/components/ui/input-group";
 import {
   DropdownMenu,
@@ -17,6 +15,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { useDraftProjectOpener } from "@/composables/useDraftProjectOpener";
 import { useProjectDisplayName } from "@/composables/useProjectDisplayName";
 import { projectIconComponent } from "@/lib/projectIcons";
 import { isTemporaryWorkspace, type PineProject } from "@/shared/projects";
@@ -28,7 +27,11 @@ import ProjectDialog from "./ProjectDialog.vue";
  * creates the session in. Choosing a project also moves the sidebars and
  * accent colour to it, since the draft tab now belongs there.
  */
-const props = defineProps<{ projectId: string }>();
+const props = defineProps<{
+  projectId: string;
+  /** Pairs the trigger with the composer's chooser chip while it moves here. */
+  transitionName?: string;
+}>();
 const emit = defineEmits<{ select: [projectId: string] }>();
 
 const { t } = useI18n();
@@ -36,24 +39,12 @@ const projectStore = useProjectStore();
 const { projects } = storeToRefs(projectStore);
 const displayName = useProjectDisplayName();
 const isCreateOpen = ref(false);
+const openForDraft = useDraftProjectOpener();
 const selected = computed(() => projectStore.projectById(props.projectId));
 
 async function select(projectId: unknown): Promise<void> {
   if (typeof projectId !== "string" || projectId === props.projectId) return;
-  try {
-    const result = await projectStore.ensureOpen(projectId);
-    if (!result.opened) {
-      toast.info(t("projects.openElsewhere"));
-      return;
-    }
-    emit("select", projectId);
-  } catch (error) {
-    handleError(error, {
-      id: `project.open.${projectId}`,
-      title: t("errors.projectOpen.title"),
-      description: t("errors.projectOpen.description"),
-    });
-  }
+  if (await openForDraft(projectId)) emit("select", projectId);
 }
 
 function openCreateDialog(): void {
@@ -74,6 +65,11 @@ function created(project: PineProject): void {
       <InputGroupButton
         data-slot="project-target-trigger"
         class="min-w-0 text-muted-foreground"
+        :style="
+          props.transitionName
+            ? { viewTransitionName: props.transitionName }
+            : undefined
+        "
         size="sm"
         :aria-label="
           t('project.composer.sendTo', { name: displayName(selected) })

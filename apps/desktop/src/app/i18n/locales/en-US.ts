@@ -595,6 +595,11 @@ export default {
     composer: {
       sendTo: "Send to {name}",
       sendToLabel: "Choose the project for this session",
+      chooseProjectLabel: "Projects",
+      chooseProjectPlaceholder: "Type a project name…",
+      chooseProjectHint: "choose",
+      skipProjectHint: "no project",
+      noProjectMatches: "No matching projects",
       label: "Session message",
       placeholder: "Describe a task or clarify what you need…",
       steeringPlaceholder: "Add requirements or change direction…",

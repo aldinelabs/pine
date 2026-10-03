@@ -45,6 +45,7 @@ const stateSchema = z.object({
         kind: z.literal("session"),
         state: z.enum(["draft", "creating"]),
         projectId: id,
+        choosingProject: z.boolean().optional(),
       }),
     ]),
   ),
@@ -83,6 +84,9 @@ export function readContentTabs(): ContentTabState | null {
       const tab: ProjectContentTab =
         saved.kind === "session" && saved.state !== "bound"
           ? {
+              ...(saved.choosingProject && saved.state === "draft"
+                ? { choosingProject: true }
+                : {}),
               id: saved.id,
               kind: "session",
               projectId: saved.projectId,

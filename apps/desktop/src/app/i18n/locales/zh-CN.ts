@@ -566,6 +566,11 @@ export default {
     composer: {
       sendTo: "发送到 {name}",
       sendToLabel: "选择新会话所在的项目",
+      chooseProjectLabel: "项目",
+      chooseProjectPlaceholder: "输入项目名称……",
+      chooseProjectHint: "选择",
+      skipProjectHint: "不选择项目",
+      noProjectMatches: "没有匹配的项目",
       label: "会话消息",
       placeholder: "描述任务、明确需求……",
       steeringPlaceholder: "追加要求、改变方向……",

@@ -9,12 +9,19 @@ import {
 } from "@/shared/attachments";
 import type { PineThinkingLevel } from "@/shared/models";
 import { useModelsStore } from "@/stores/models";
+import { showProject } from "@/stores/__tests__/showProject";
+import { useProjectStore } from "@/stores/project";
+import {
+  TEMPORARY_WORKSPACE_PROJECT_ID,
+  type PineProject,
+} from "@/shared/projects";
 import type { PinePendingApproval } from "@/stores/session";
 import ProjectApprovalCard from "../ProjectApprovalCard.vue";
 import ProjectSessionComposer from "../ProjectSessionComposer.vue";
 
 interface ComposerProps {
   approvalMode?: "let-me-review" | "auto-approve" | "autonomous" | "YOLO";
+  choosingProject?: boolean;
   isRunning?: boolean;
   isActive?: boolean;
   pendingApproval?: PinePendingApproval | null;
@@ -76,6 +83,7 @@ function mountComposer(
   useModelsStore().catalog = catalog;
   return mount(ProjectSessionComposer, {
     props: { projectId: "project-1", ...props },
+    attachTo: document.body,
     global: {
       plugins: [pinia, createAppI18n(locale)],
       stubs: {
@@ -98,7 +106,104 @@ function mountComposer(
   });
 }
 
+function testProject(id: string, name: string): PineProject {
+  return {
+    createdAt: "",
+    defaultFolderId: "folder",
+    folders: [],
+    id,
+    name,
+    schemaVersion: 1,
+    updatedAt: "",
+  };
+}
+
+async function mountChooser() {
+  const wrapper = mountComposer({ choosingProject: true, isActive: true });
+  const projectStore = useProjectStore();
+  showProject(testProject(TEMPORARY_WORKSPACE_PROJECT_ID, "Temporary"));
+  projectStore.projects = [
+    testProject(TEMPORARY_WORKSPACE_PROJECT_ID, "Temporary"),
+    testProject("courses", "Courses"),
+    testProject("pine", "Pine"),
+    testProject("recipes", "Recipes"),
+  ];
+  const ensureOpen = vi
+    .spyOn(projectStore, "ensureOpen")
+    .mockResolvedValue({ opened: true } as never);
+  await wrapper.setProps({ projectId: TEMPORARY_WORKSPACE_PROJECT_ID });
+  const input = wrapper.get("textarea");
+  await input.trigger("focus");
+  await flushPromises();
+  return { wrapper, input, ensureOpen };
+}
+
+function optionNames(): string[] {
+  return Array.from(
+    document.querySelectorAll('[data-slot="project-name-option"]'),
+  ).map((option) => option.textContent?.trim() ?? "");
+}
+
 describe("ProjectSessionComposer", () => {
+  it("asks a new draft for a project name and chooses the match with Enter", async () => {
+    const { wrapper, input, ensureOpen } = await mountChooser();
+    expect(input.attributes("placeholder")).toBe("输入项目名称……");
+    expect(input.attributes("role")).toBe("combobox");
+    expect(wrapper.find('[data-slot="attachment-menu-trigger"]').exists()).toBe(
+      false,
+    );
+    expect(wrapper.find('[data-slot="project-target-trigger"]').exists()).toBe(
+      false,
+    );
+    expect(optionNames()).toEqual(["无项目", "Courses", "Pine", "Recipes"]);
+
+    await input.setValue("pe");
+    // Names starting with the query come before names containing it.
+    expect(optionNames()).toEqual(["Recipes"]);
+    await input.setValue("p");
+    expect(optionNames()).toEqual(["Pine", "Recipes"]);
+    await input.trigger("keydown", { key: "ArrowDown" });
+    await input.trigger("keydown", { key: "Enter" });
+    await flushPromises();
+
+    expect(ensureOpen).toHaveBeenCalledWith("recipes");
+    expect(wrapper.emitted("selectProject")).toEqual([["recipes"]]);
+    expect(wrapper.emitted("submit")).toBeUndefined();
+    // The project name never becomes the message.
+    expect(wrapper.emitted("update:modelValue")).toBeUndefined();
+    wrapper.unmount();
+  });
+
+  it("skips choosing with Escape and ignores Enter without a match", async () => {
+    const { wrapper, input } = await mountChooser();
+    await input.setValue("zzz");
+    expect(document.body.textContent).toContain("没有匹配的项目");
+    await input.trigger("keydown", { key: "Enter" });
+    await flushPromises();
+    expect(wrapper.emitted("selectProject")).toBeUndefined();
+
+    await input.trigger("keydown", { key: "Escape" });
+    await flushPromises();
+    expect(wrapper.emitted("selectProject")).toEqual([
+      [TEMPORARY_WORKSPACE_PROJECT_ID],
+    ]);
+    wrapper.unmount();
+  });
+
+  it("returns to the message input once a project is chosen", async () => {
+    const { wrapper, input } = await mountChooser();
+    await wrapper.setProps({ choosingProject: false });
+    expect(input.attributes("role")).toBeUndefined();
+    expect(input.attributes("placeholder")).toBe("描述任务、明确需求……");
+    expect(wrapper.find('[data-slot="attachment-menu-trigger"]').exists()).toBe(
+      true,
+    );
+    expect(wrapper.find('[data-slot="project-target-trigger"]').exists()).toBe(
+      true,
+    );
+    wrapper.unmount();
+  });
+
   it("shows Autonomous Work with its own icon", () => {
     const wrapper = mountComposer({ approvalMode: "autonomous" });
     const trigger = wrapper.get('[data-slot="approval-mode-trigger"]');

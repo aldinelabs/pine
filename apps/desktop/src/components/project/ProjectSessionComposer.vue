@@ -17,7 +17,7 @@ import {
   Undo2Icon,
 } from "@lucide/vue";
 import { storeToRefs } from "pinia";
-import { computed, onMounted, ref, useId } from "vue";
+import { computed, nextTick, onMounted, ref, useId, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { toast } from "vue-sonner";
 import ModelCapabilities from "@/components/models/ModelCapabilities.vue";
@@ -29,6 +29,7 @@ import ProjectAttachmentList from "@/components/project/ProjectAttachmentList.vu
 import SessionSearchOverlay from "@/components/sessions/SessionSearchOverlay.vue";
 import ContextUsageIndicator from "@/components/project/ContextUsageIndicator.vue";
 import ProjectTargetPicker from "@/components/project/ProjectTargetPicker.vue";
+import ProjectNameChooserList from "@/components/project/ProjectNameChooserList.vue";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -63,7 +64,21 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import {
+  Popover,
+  PopoverAnchor,
+  PopoverContent,
+} from "@/components/ui/popover";
 import { Slider } from "@/components/ui/slider";
+import { useDraftProjectOpener } from "@/composables/useDraftProjectOpener";
+import { useProjectDisplayName } from "@/composables/useProjectDisplayName";
+import { projectIconComponent } from "@/lib/projectIcons";
+import { projectNameMatches } from "@/lib/projectNameMatches";
+import {
+  TEMPORARY_WORKSPACE_PROJECT_ID,
+  type PineProject,
+} from "@/shared/projects";
+import { useProjectStore } from "@/stores/project";
 import { cn } from "@/lib/utils";
 import type { PineApprovalAction, PineApprovalMode } from "@/shared/agent";
 import {
@@ -117,6 +132,8 @@ const props = withDefaults(
     projectId: string;
     /** Absent for a draft, which can still choose its project. */
     sessionId?: string;
+    /** A new draft first asks for a project name instead of a prompt. */
+    choosingProject?: boolean;
     steeringMessages?: readonly string[];
     /** When set, the approval questionnaire replaces the message input. */
     isActive?: boolean;
@@ -238,6 +255,142 @@ function confirmYoloMode(): void {
 
 onMounted(() => void modelsStore.load());
 
+/*
+ * Choosing a project: until the user picks one, the composer's input is a
+ * project name with live suggestions. The chosen project's chip then moves
+ * to the project picker beside Send (a view transition), and the composer
+ * turns into the ordinary message input.
+ */
+const projectStore = useProjectStore();
+const displayName = useProjectDisplayName();
+const openForDraft = useDraftProjectOpener();
+const projectQuery = ref("");
+const committingProject = ref<PineProject | null>(null);
+const isMovingProject = ref(false);
+const isInputFocused = ref(false);
+const highlightedIndex = ref(0);
+const chooserListId = `${messageId}-projects`;
+const projectMoveName = `pine-draft-project-${messageId.replace(/[^a-zA-Z0-9_-]/g, "-")}`;
+const isChoosingProject = computed(
+  () =>
+    Boolean(props.choosingProject) &&
+    !props.sessionId &&
+    !hasPendingInterruption.value,
+);
+const projectMatches = computed(() =>
+  projectNameMatches(projectStore.projects, projectQuery.value, displayName),
+);
+const highlightedProject = computed(
+  () => projectMatches.value[highlightedIndex.value] ?? null,
+);
+const chooserChipProject = computed(
+  () =>
+    committingProject.value ??
+    highlightedProject.value ??
+    projectStore.projectById(props.projectId),
+);
+const isChooserOpen = computed(
+  () =>
+    isChoosingProject.value &&
+    !committingProject.value &&
+    isInputFocused.value &&
+    props.isActive,
+);
+const inputValue = computed({
+  get: () => (isChoosingProject.value ? projectQuery.value : message.value),
+  set: (value: string) => {
+    if (isChoosingProject.value) projectQuery.value = value;
+    else message.value = value;
+  },
+});
+const chooserInputAttrs = computed(() =>
+  isChoosingProject.value
+    ? {
+        role: "combobox",
+        "aria-autocomplete": "list" as const,
+        "aria-expanded": isChooserOpen.value,
+        "aria-controls": chooserListId,
+        "aria-activedescendant": highlightedProject.value
+          ? `${chooserListId}-${highlightedIndex.value}`
+          : undefined,
+      }
+    : {},
+);
+
+watch(projectMatches, () => {
+  highlightedIndex.value = 0;
+});
+
+watch(
+  () => isChoosingProject.value && props.isActive,
+  (shouldFocus) => {
+    if (!shouldFocus) return;
+    void nextTick(() => document.getElementById(messageId)?.focus());
+  },
+  { immediate: true },
+);
+
+/** Let the browser carry the chip from the input to the picker. */
+async function moveChosenProject(update: () => void): Promise<void> {
+  const reduceMotion = window.matchMedia?.(
+    "(prefers-reduced-motion: reduce)",
+  ).matches;
+  if (!document.startViewTransition || reduceMotion) {
+    update();
+    return;
+  }
+  isMovingProject.value = true;
+  await nextTick();
+  const transition = document.startViewTransition(async () => {
+    update();
+    await nextTick();
+    await nextTick();
+  });
+  try {
+    await transition.finished;
+  } finally {
+    isMovingProject.value = false;
+  }
+}
+
+async function chooseProject(project: PineProject): Promise<void> {
+  if (committingProject.value) return;
+  committingProject.value = project;
+  projectQuery.value = "";
+  try {
+    if (!(await openForDraft(project.id))) return;
+    await moveChosenProject(() => emit("selectProject", project.id));
+  } finally {
+    committingProject.value = null;
+  }
+}
+
+function handleChooserKeydown(event: KeyboardEvent): void {
+  if (event.isComposing) return;
+  const count = projectMatches.value.length;
+  if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+    event.preventDefault();
+    if (!count) return;
+    const step = event.key === "ArrowDown" ? 1 : -1;
+    highlightedIndex.value = (highlightedIndex.value + step + count) % count;
+    document
+      .getElementById(`${chooserListId}-${highlightedIndex.value}`)
+      ?.scrollIntoView({ block: "nearest" });
+    return;
+  }
+  if (event.key === "Enter" && !event.shiftKey) {
+    event.preventDefault();
+    if (highlightedProject.value) void chooseProject(highlightedProject.value);
+    return;
+  }
+  if (event.key === "Escape") {
+    event.preventDefault();
+    event.stopPropagation();
+    const noProject = projectStore.projectById(TEMPORARY_WORKSPACE_PROJECT_ID);
+    if (noProject) void chooseProject(noProject);
+  }
+}
+
 function submitMessage(): void {
   const normalizedMessage = message.value.trim();
   if (!normalizedMessage && attachments.value.length === 0) return;
@@ -312,6 +465,8 @@ interface PastedImage {
  * attachment storage by the main process; ordinary text keeps native paste.
  */
 async function handlePaste(event: ClipboardEvent): Promise<void> {
+  // A project name only takes plain text, which native paste handles.
+  if (isChoosingProject.value) return;
   const files = Array.from(event.clipboardData?.files ?? []);
   if (files.length > 0) {
     const paths: string[] = [];
@@ -388,6 +543,10 @@ function removeAttachment(path: string): void {
 }
 
 function handleKeydown(event: KeyboardEvent): void {
+  if (isChoosingProject.value) {
+    handleChooserKeydown(event);
+    return;
+  }
   if (event.key !== "Enter" || event.shiftKey || event.isComposing) return;
 
   event.preventDefault();
@@ -509,109 +668,161 @@ function handleRootSubmit(event: Event): void {
         </div>
       </div>
 
-      <InputGroup
-        class="session-composer-control flex-col items-stretch min-h-[var(--session-composer-control-height)] rounded-[var(--session-composer-control-radius)] has-[textarea]:rounded-[var(--session-composer-control-radius)]"
-      >
-        <ProjectAttachmentList
-          v-if="attachments.length > 0"
-          class="session-composer-attachments shrink-0 w-full px-[var(--session-composer-control-inset)] pt-[var(--session-composer-control-inset)] pb-0"
-          :attachments="attachments"
-          removable
-          surface="composer"
-          @remove="removeAttachment"
-        />
-
-        <div class="flex w-full items-center">
-          <InputGroupAddon class="self-end py-1.5 pl-2.5" align="inline-start">
-            <DropdownMenu>
-              <DropdownMenuTrigger as-child>
-                <InputGroupButton
-                  data-slot="attachment-menu-trigger"
-                  class="size-[var(--session-composer-action-size)] shrink-0 rounded-full"
-                  size="icon-sm"
-                  type="button"
-                  variant="secondary"
-                  :aria-label="t('project.composer.addAttachment')"
-                >
-                  <PlusIcon />
-                </InputGroupButton>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" side="top">
-                <DropdownMenuGroup>
-                  <DropdownMenuItem @select="pickAttachments('file')">
-                    <FileIcon />
-                    {{ t("project.composer.addFile") }}
-                  </DropdownMenuItem>
-                  <DropdownMenuItem @select="pickAttachments('directory')">
-                    <FolderIcon />
-                    {{ t("project.composer.addFolder") }}
-                  </DropdownMenuItem>
-                  <DropdownMenuItem @select="openSessionPicker">
-                    <HistoryIcon />
-                    {{ t("project.composer.addSession") }}
-                  </DropdownMenuItem>
-                </DropdownMenuGroup>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </InputGroupAddon>
-
-          <InputGroupTextarea
-            :id="messageId"
-            v-model="message"
-            class="session-composer-input scroll-fade-y max-h-48 min-h-[var(--session-composer-control-height)] overflow-y-auto overscroll-contain pt-3.5 pb-3.5 text-sm leading-5"
-            :placeholder="
-              props.isRunning
-                ? t('project.composer.steeringPlaceholder')
-                : t('project.composer.placeholder')
-            "
-            @keydown="handleKeydown"
-            @paste="handlePaste"
-          />
-
-          <InputGroupAddon
-            class="max-w-[50%] self-end py-1.5 pr-2.5"
-            align="inline-end"
+      <Popover :open="isChooserOpen">
+        <PopoverAnchor as-child>
+          <InputGroup
+            class="session-composer-control flex-col items-stretch min-h-[var(--session-composer-control-height)] rounded-[var(--session-composer-control-radius)] has-[textarea]:rounded-[var(--session-composer-control-radius)]"
           >
-            <!-- A draft still chooses its project right beside Send. -->
-            <ProjectTargetPicker
-              v-if="!props.sessionId && !props.isRunning"
-              :project-id="props.projectId"
-              @select="emit('selectProject', $event)"
+            <ProjectAttachmentList
+              v-if="attachments.length > 0"
+              class="session-composer-attachments shrink-0 w-full px-[var(--session-composer-control-inset)] pt-[var(--session-composer-control-inset)] pb-0"
+              :attachments="attachments"
+              removable
+              surface="composer"
+              @remove="removeAttachment"
             />
-            <Tooltip>
-              <TooltipTrigger as-child>
-                <InputGroupButton
-                  class="size-[var(--session-composer-action-size)] shrink-0 rounded-full"
-                  size="icon-sm"
-                  variant="default"
-                  :disabled="!canSubmit"
-                  :aria-label="
-                    isSteering
-                      ? t('project.composer.steer')
-                      : props.isRunning
-                        ? t('project.composer.stop')
-                        : t('project.composer.send')
+
+            <div class="flex w-full items-center">
+              <InputGroupAddon
+                class="self-end py-1.5 pl-2.5"
+                align="inline-start"
+              >
+                <span
+                  v-if="isChoosingProject"
+                  data-slot="project-chooser-chip"
+                  class="flex h-[var(--session-composer-action-size)] min-w-[var(--session-composer-action-size)] max-w-48 items-center justify-center gap-2 rounded-full bg-secondary text-secondary-foreground [&>svg]:size-4 [&>svg]:shrink-0"
+                  :class="committingProject ? 'px-3' : 'px-0'"
+                  :style="
+                    isMovingProject
+                      ? { viewTransitionName: projectMoveName }
+                      : undefined
                   "
-                  @click="handlePrimaryAction"
+                  aria-hidden="true"
                 >
-                  <CornerDownRightIcon v-if="isSteering" />
-                  <SquareIcon v-else-if="props.isRunning" />
-                  <ArrowUpIcon v-else />
-                </InputGroupButton>
-              </TooltipTrigger>
-              <TooltipContent side="top">
-                {{
-                  isSteering
-                    ? t("project.composer.steer")
+                  <component :is="projectIconComponent(chooserChipProject)" />
+                  <span v-if="committingProject" class="truncate text-sm">
+                    {{ displayName(committingProject) }}
+                  </span>
+                </span>
+                <DropdownMenu v-else>
+                  <DropdownMenuTrigger as-child>
+                    <InputGroupButton
+                      data-slot="attachment-menu-trigger"
+                      class="size-[var(--session-composer-action-size)] shrink-0 rounded-full"
+                      size="icon-sm"
+                      type="button"
+                      variant="secondary"
+                      :aria-label="t('project.composer.addAttachment')"
+                    >
+                      <PlusIcon />
+                    </InputGroupButton>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="start" side="top">
+                    <DropdownMenuGroup>
+                      <DropdownMenuItem @select="pickAttachments('file')">
+                        <FileIcon />
+                        {{ t("project.composer.addFile") }}
+                      </DropdownMenuItem>
+                      <DropdownMenuItem @select="pickAttachments('directory')">
+                        <FolderIcon />
+                        {{ t("project.composer.addFolder") }}
+                      </DropdownMenuItem>
+                      <DropdownMenuItem @select="openSessionPicker">
+                        <HistoryIcon />
+                        {{ t("project.composer.addSession") }}
+                      </DropdownMenuItem>
+                    </DropdownMenuGroup>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </InputGroupAddon>
+
+              <InputGroupTextarea
+                :id="messageId"
+                v-model="inputValue"
+                v-bind="chooserInputAttrs"
+                class="session-composer-input scroll-fade-y max-h-48 min-h-[var(--session-composer-control-height)] overflow-y-auto overscroll-contain pt-3.5 pb-3.5 text-sm leading-5"
+                :placeholder="
+                  isChoosingProject
+                    ? committingProject
+                      ? ''
+                      : t('project.composer.chooseProjectPlaceholder')
                     : props.isRunning
-                      ? t("project.composer.stop")
-                      : t("project.composer.send")
-                }}
-              </TooltipContent>
-            </Tooltip>
-          </InputGroupAddon>
-        </div>
-      </InputGroup>
+                      ? t('project.composer.steeringPlaceholder')
+                      : t('project.composer.placeholder')
+                "
+                @focus="isInputFocused = true"
+                @blur="isInputFocused = false"
+                @keydown="handleKeydown"
+                @paste="handlePaste"
+              />
+
+              <InputGroupAddon
+                class="max-w-[50%] self-end py-1.5 pr-2.5"
+                align="inline-end"
+              >
+                <!-- A draft still chooses its project right beside Send. -->
+                <ProjectTargetPicker
+                  v-if="
+                    !props.sessionId && !props.isRunning && !isChoosingProject
+                  "
+                  :project-id="props.projectId"
+                  :transition-name="
+                    isMovingProject ? projectMoveName : undefined
+                  "
+                  @select="emit('selectProject', $event)"
+                />
+                <Tooltip>
+                  <TooltipTrigger as-child>
+                    <InputGroupButton
+                      class="size-[var(--session-composer-action-size)] shrink-0 rounded-full"
+                      size="icon-sm"
+                      variant="default"
+                      :disabled="!canSubmit"
+                      :aria-label="
+                        isSteering
+                          ? t('project.composer.steer')
+                          : props.isRunning
+                            ? t('project.composer.stop')
+                            : t('project.composer.send')
+                      "
+                      @click="handlePrimaryAction"
+                    >
+                      <CornerDownRightIcon v-if="isSteering" />
+                      <SquareIcon v-else-if="props.isRunning" />
+                      <ArrowUpIcon v-else />
+                    </InputGroupButton>
+                  </TooltipTrigger>
+                  <TooltipContent side="top">
+                    {{
+                      isSteering
+                        ? t("project.composer.steer")
+                        : props.isRunning
+                          ? t("project.composer.stop")
+                          : t("project.composer.send")
+                    }}
+                  </TooltipContent>
+                </Tooltip>
+              </InputGroupAddon>
+            </div>
+          </InputGroup>
+        </PopoverAnchor>
+        <PopoverContent
+          side="top"
+          align="start"
+          :side-offset="8"
+          class="w-72 p-1"
+          @open-auto-focus.prevent
+          @close-auto-focus.prevent
+        >
+          <ProjectNameChooserList
+            :list-id="chooserListId"
+            :matches="projectMatches"
+            :highlighted="highlightedIndex"
+            @highlight="highlightedIndex = $event"
+            @select="chooseProject"
+          />
+        </PopoverContent>
+      </Popover>
     </template>
 
     <SessionSearchOverlay

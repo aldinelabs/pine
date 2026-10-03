@@ -23,6 +23,8 @@ export type FileContentTab = {
 } & FilePreviewTarget;
 
 export interface DraftSessionTab {
+  /** The composer asks for a project name before the first message. */
+  choosingProject?: boolean;
   id: string;
   kind: "session";
   projectId: string;
@@ -60,6 +62,7 @@ export const useContentTabsStore = defineStore("content-tabs", () => {
   function initialTabs(): ProjectContentTab[] {
     return [
       {
+        choosingProject: true,
         id: "session-1",
         kind: "session",
         projectId: TEMPORARY_WORKSPACE_PROJECT_ID,
@@ -195,24 +198,29 @@ export const useContentTabsStore = defineStore("content-tabs", () => {
     return presentedTargets.get(toolCallId);
   }
 
-  function makeDraftTab(projectId: string): DraftSessionTab {
+  function makeDraftTab(
+    projectId: string,
+    choosingProject = false,
+  ): DraftSessionTab {
     while (
       tabs.value.some((tab) => tab.id === `session-${nextSessionTabNumber}`)
     )
       nextSessionTabNumber += 1;
-    const tab = {
+    const tab: DraftSessionTab = {
+      ...(choosingProject ? { choosingProject } : {}),
       id: `session-${nextSessionTabNumber}`,
-      kind: "session" as const,
+      kind: "session",
       projectId,
-      state: "draft" as const,
+      state: "draft",
     };
     nextSessionTabNumber += 1;
     return tab;
   }
 
   /**
-   * Open a new-session tab. New drafts go to the temporary workspace unless a
-   * project is given; reusing a draft retargets it only when one is given.
+   * Open a new-session tab. Without a project, the draft first asks for one
+   * (defaulting to No Project); reusing a draft retargets it only when a
+   * project is given.
    */
   function createSessionTab({
     projectId,
@@ -231,19 +239,29 @@ export const useContentTabsStore = defineStore("content-tabs", () => {
       );
     }
 
-    const tab = makeDraftTab(projectId ?? TEMPORARY_WORKSPACE_PROJECT_ID);
+    const tab = makeDraftTab(
+      projectId ?? TEMPORARY_WORKSPACE_PROJECT_ID,
+      !projectId,
+    );
     tabs.value = [...tabs.value, tab];
     return tab;
   }
 
-  /** Change where a draft will be sent. Bound sessions keep their project. */
+  /**
+   * Change where a draft will be sent, which also ends choosing a project.
+   * Bound sessions keep their project.
+   */
   function setDraftProject(tabId: string, projectId: string): boolean {
     const target = tabs.value.find((tab) => tab.id === tabId);
     if (target?.kind !== "session" || target.state !== "draft") return false;
-    if (target.projectId === projectId) return true;
-    tabs.value = tabs.value.map((tab) =>
-      tab.id === tabId ? { ...target, projectId } : tab,
-    );
+    if (target.projectId === projectId && !target.choosingProject) return true;
+    const next: DraftSessionTab = {
+      id: target.id,
+      kind: "session",
+      projectId,
+      state: "draft",
+    };
+    tabs.value = tabs.value.map((tab) => (tab.id === tabId ? next : tab));
     return true;
   }
 
