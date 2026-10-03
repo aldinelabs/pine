@@ -88,9 +88,7 @@ describe("window close navigation", () => {
     setActivePinia(pinia);
     const router = createRouter({
       history: createMemoryHistory(),
-      routes: [
-        { path: "/", component: {} },
-      ],
+      routes: [{ path: "/", component: {} }],
     });
     await router.push({ path: "/", query: { tab: "session-1" } });
 
