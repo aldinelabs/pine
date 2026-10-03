@@ -30,6 +30,29 @@ export default {
     failed: "The update could not be installed.",
   },
   preferences: {
+    projectManagement: {
+      title: "Projects",
+      description:
+        "Manage every project and the data Pine keeps for it in its data directory. Project folders themselves are never changed.",
+      create: "New Project",
+      edit: "Edit",
+      actions: "Actions for {name}",
+      loading: "Measuring usage…",
+      total: "{size} in total",
+      sessions: "Sessions {size}",
+      attachments: "Attachments {size}",
+      temporary: "Temporary files {size}",
+      cache: "Search cache {size}",
+      clearTemporary: "Clear temporary files",
+      clearAttachments: "Clear attachments…",
+      cleared: "Cleared {size}",
+      clearFailed: "Could not clear the data",
+      loadFailed: "Could not measure data usage",
+      clearAttachmentsTitle: "Clear attachments of “{name}”?",
+      clearAttachmentsDescription:
+        "Pasted images and long text ({size}) will be deleted. Earlier messages that reference them can no longer preview those attachments.",
+      clearAttachmentsAction: "Clear Attachments",
+    },
     title: "Pine Settings",
     description:
       "Manage how Pine looks, which models it uses, and how it works with you.",
@@ -38,6 +61,7 @@ export default {
       general: "General",
       models: "Harness",
       personalization: "User profile",
+      projects: "Projects",
     },
     sectionsLabel: "Settings sections",
     language: "Language",

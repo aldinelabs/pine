@@ -18,6 +18,7 @@ import {
   PROJECT_SESSIONS_DIRECTORY,
   PROJECT_SKILLS_DIRECTORY,
   PROJECT_SKILLS_SETTINGS_FILE,
+  PROJECT_TEMPORARY_DIRECTORY,
   PROJECT_COLOR_THEMES,
   TEMPORARY_WORKSPACE_DIRECTORY,
   TEMPORARY_WORKSPACE_FOLDER_ID,
@@ -69,6 +70,7 @@ export interface ProjectDataPaths {
   sessionsRoot: string;
   skillsRoot?: string;
   skillsSettingsPath?: string;
+  temporaryRoot?: string;
 }
 
 /** Stored name; the renderer shows a localized label instead. */
@@ -272,6 +274,7 @@ export class ProjectRepository {
       sessionsRoot: path.join(projectRoot, PROJECT_SESSIONS_DIRECTORY),
       skillsRoot: path.join(projectRoot, PROJECT_SKILLS_DIRECTORY),
       skillsSettingsPath: path.join(projectRoot, PROJECT_SKILLS_SETTINGS_FILE),
+      temporaryRoot: path.join(projectRoot, PROJECT_TEMPORARY_DIRECTORY),
     };
   }
 

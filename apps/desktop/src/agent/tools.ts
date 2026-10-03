@@ -41,6 +41,7 @@ import {
 } from "@pine/rpiv-ask-user-question";
 import type { AgentFolderGrant, AgentSessionLocation } from "./protocol";
 import { UI_PRESENT_FILE_TOOL_NAME } from "../shared/agent";
+import { PROJECT_TEMPORARY_DIRECTORY } from "../shared/projects";
 import {
   createNativeBashEnvironment,
   resolveLoginPath,
@@ -294,7 +295,7 @@ export async function createPineToolDefinitions(
     : "privileged_bash";
   const bashTemporaryDirectory = path.join(
     path.dirname(location.sessionsRoot),
-    "tmp",
+    PROJECT_TEMPORARY_DIRECTORY,
     createHash("sha256")
       .update(await realpath(location.cwd))
       .digest("hex")

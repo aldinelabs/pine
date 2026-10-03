@@ -127,6 +127,11 @@ import {
   PICK_PROJECT_FOLDERS_CHANNEL,
   UPDATE_PROJECT_CHANNEL,
   UPDATE_PROJECT_SESSION_GROUPS_CHANNEL,
+  CLEAR_PROJECT_STORAGE_CHANNEL,
+  PROJECT_STORAGE_CHANNEL,
+  type ClearProjectStorageRequest,
+  type ProjectStorageResult,
+  type ProjectStorageUsage,
   type CreateProjectRequest,
   type DeleteProjectResult,
   type ListProjectsResult,
@@ -307,6 +312,12 @@ const pineApi: PineDesktopApi = {
     ipcRenderer.invoke(DEQUEUE_STEERING_CHANNEL, request),
   closeProject: (request: ProjectIdRequest): Promise<void> =>
     ipcRenderer.invoke(CLOSE_PROJECT_CHANNEL, request),
+  getProjectStorage: (): Promise<ProjectStorageResult> =>
+    ipcRenderer.invoke(PROJECT_STORAGE_CHANNEL),
+  clearProjectStorage: (
+    request: ClearProjectStorageRequest,
+  ): Promise<ProjectStorageUsage> =>
+    ipcRenderer.invoke(CLEAR_PROJECT_STORAGE_CHANNEL, request),
   createProject: (request: CreateProjectRequest): Promise<ProjectResult> =>
     ipcRenderer.invoke(CREATE_PROJECT_CHANNEL, request),
   deleteProject: (request: ProjectIdRequest): Promise<DeleteProjectResult> =>

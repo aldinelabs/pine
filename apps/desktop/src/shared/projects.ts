@@ -120,6 +120,8 @@ export const PROJECT_CACHE_DIRECTORY = "cache" as const;
 /** Pine-managed storage for attachments pasted without a filesystem path. */
 export const PROJECT_ATTACHMENTS_DIRECTORY = "attachments" as const;
 export const PROJECT_SKILLS_DIRECTORY = "skills" as const;
+/** The agent's temporary storage: scratch files and background task output. */
+export const PROJECT_TEMPORARY_DIRECTORY = "tmp" as const;
 export const PROJECT_SKILLS_SETTINGS_FILE = "skills.json" as const;
 
 /**
@@ -147,6 +149,30 @@ export const UPDATE_PROJECT_SESSION_GROUPS_CHANNEL =
   "project:update-session-groups" as const;
 export const DELETE_PROJECT_CHANNEL = "project:delete" as const;
 export const PICK_PROJECT_FOLDERS_CHANNEL = "project:pick-folders" as const;
+export const PROJECT_STORAGE_CHANNEL = "project:storage" as const;
+export const CLEAR_PROJECT_STORAGE_CHANNEL = "project:clear-storage" as const;
+
+/** Bytes Pine keeps for a project outside the project's own folders. */
+export interface ProjectStorageUsage {
+  projectId: string;
+  attachments: number;
+  cache: number;
+  sessions: number;
+  temporary: number;
+  total: number;
+}
+
+/** Data a user may clear; history and settings are never cleared here. */
+export type ClearableProjectStorage = "attachments" | "temporary";
+
+export interface ClearProjectStorageRequest {
+  id: string;
+  kind: ClearableProjectStorage;
+}
+
+export interface ProjectStorageResult {
+  usage: ProjectStorageUsage[];
+}
 
 export type ProjectFolderAccess = "read-only" | "read-write";
 
@@ -273,6 +299,10 @@ export interface PineDesktopApi extends PineWindowApi {
     request: DequeueSteeringRequest,
   ) => Promise<DequeueSteeringResult>;
   closeProject: (request: ProjectIdRequest) => Promise<void>;
+  getProjectStorage: () => Promise<ProjectStorageResult>;
+  clearProjectStorage: (
+    request: ClearProjectStorageRequest,
+  ) => Promise<ProjectStorageUsage>;
   createProject: (request: CreateProjectRequest) => Promise<ProjectResult>;
   deleteProject: (request: ProjectIdRequest) => Promise<DeleteProjectResult>;
   deleteSession: (

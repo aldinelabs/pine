@@ -2,6 +2,7 @@
 import { handleError } from "@/app/errors/errorHandler";
 import {
   CircleHelpIcon,
+  FolderKanbanIcon,
   SettingsIcon,
   SlidersHorizontalIcon,
   SparklesIcon,
@@ -22,6 +23,7 @@ import { toast } from "vue-sonner";
 import { isAppLocale, persistAppLocale } from "@/app/i18n";
 import AutoApprovalSettings from "./AutoApprovalSettings.vue";
 import DecisionsModelSettings from "./DecisionsModelSettings.vue";
+import ProjectManagementSettings from "./ProjectManagementSettings.vue";
 import ModelPickerDialog from "@/components/models/ModelPickerDialog.vue";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -86,7 +88,7 @@ import {
   type PineUserProfile,
 } from "@/shared/userProfile";
 
-type PreferenceSection = "general" | "models" | "personalization";
+type PreferenceSection = "general" | "models" | "personalization" | "projects";
 
 const { locale, t } = useI18n();
 const appearanceStore = useAppearanceStore();
@@ -174,6 +176,11 @@ const sections = computed<
     icon: UserRoundIcon,
     id: "personalization",
     label: t("preferences.sections.personalization"),
+  },
+  {
+    icon: FolderKanbanIcon,
+    id: "projects",
+    label: t("preferences.sections.projects"),
   },
 ]);
 
@@ -1097,6 +1104,9 @@ function updateSidebarVibrancy(value: boolean): void {
 
               <DecisionsModelSettings />
             </FieldGroup>
+          </div>
+          <div v-else-if="activeSection === 'projects'" class="p-6">
+            <ProjectManagementSettings />
           </div>
         </ScrollArea>
       </div>

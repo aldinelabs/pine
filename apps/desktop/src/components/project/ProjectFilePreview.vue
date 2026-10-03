@@ -46,6 +46,7 @@ import {
   fileName as pathBaseName,
   fileTargetPath,
 } from "@/lib/filePreviewTarget";
+import { formatBytes } from "@/lib/formatBytes";
 import type { AttachmentSelection } from "@/shared/attachments";
 import type {
   ProjectFilePreview,
@@ -162,12 +163,9 @@ const fileType = computed(() => {
     t(`project.preview.${preview.value?.kind === "text" ? "text" : "file"}`)
   );
 });
-const fileSize = computed(() => {
-  const size = preview.value?.size ?? 0;
-  const unit =
-    size >= 1024 ** 3 ? 3 : size >= 1024 ** 2 ? 2 : size >= 1024 ? 1 : 0;
-  return `${new Intl.NumberFormat(locale.value, { maximumFractionDigits: unit ? 1 : 0 }).format(size / 1024 ** unit)} ${["B", "KB", "MB", "GB"][unit]}`;
-});
+const fileSize = computed(() =>
+  formatBytes(preview.value?.size ?? 0, locale.value),
+);
 const lineCount = computed(() =>
   preview.value?.kind === "text"
     ? preview.value.text.split(/\r\n|\r|\n/).length

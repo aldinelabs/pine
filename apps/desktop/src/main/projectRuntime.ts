@@ -887,6 +887,13 @@ export class ProjectRuntimeRegistry {
     }
   }
 
+  /** Live sessions of a project in every window. */
+  liveSessionIdsOf(projectId: string): string[] {
+    return [...this.runtimes.values()].flatMap((windowRuntimes) => [
+      ...(windowRuntimes.get(projectId)?.liveSessions.keys() ?? []),
+    ]);
+  }
+
   /** The project that owns a live session, if any window holds it. */
   projectOfLiveSession(sessionId: string): PineProject | undefined {
     return this.entryForSession(sessionId)?.runtime.project;

@@ -68,6 +68,10 @@ import {
 import { ModelMetadataService } from "./main/modelMetadata";
 import { ProjectRepository } from "./main/projects/projectRepository";
 import {
+  clearProjectStorage,
+  measureProjectStorage,
+} from "./main/projects/projectStorage";
+import {
   collectSkillResources,
   PineSkillRepository,
 } from "./agent/skills/repository";
@@ -187,6 +191,10 @@ import {
   CREATE_PROJECT_CHANNEL,
   CLOSE_PROJECT_CHANNEL,
   DELETE_PROJECT_CHANNEL,
+  PROJECT_STORAGE_CHANNEL,
+  CLEAR_PROJECT_STORAGE_CHANNEL,
+  type ProjectStorageResult,
+  type ProjectStorageUsage,
   LIST_PROJECTS_CHANNEL,
   OPEN_PROJECT_CHANNEL,
   PICK_PROJECT_FOLDERS_CHANNEL,
@@ -2490,6 +2498,72 @@ ipcMain.handle(
   },
 );
 
+/**
+ * Sessions that are mid-run or still own a running background task. Their
+ * project's temporary files are in use, so they cannot be cleared.
+ */
+const runningSessions = new Set<string>();
+const sessionsWithRunningTasks = new Set<string>();
+
+function trackSessionWork(agentEvent: PineAgentEvent): void {
+  if (agentEvent.type === "run-state") {
+    if (agentEvent.state === "running" || agentEvent.state === "aborting")
+      runningSessions.add(agentEvent.sessionId);
+    else runningSessions.delete(agentEvent.sessionId);
+  } else if (agentEvent.type === "background-tasks") {
+    if (agentEvent.tasks.some((task) => task.status === "running"))
+      sessionsWithRunningTasks.add(agentEvent.sessionId);
+    else sessionsWithRunningTasks.delete(agentEvent.sessionId);
+  }
+}
+
+function projectHasRunningWork(projectId: string): boolean {
+  return getProjectRuntimes()
+    .liveSessionIdsOf(projectId)
+    .some(
+      (sessionId) =>
+        runningSessions.has(sessionId) ||
+        sessionsWithRunningTasks.has(sessionId),
+    );
+}
+
+const ClearProjectStorageRequestSchema = z.object({
+  id: z.uuid(),
+  kind: z.enum(["attachments", "temporary"]),
+});
+
+ipcMain.handle(
+  PROJECT_STORAGE_CHANNEL,
+  async (): Promise<ProjectStorageResult> => {
+    const repository = getProjectRepository();
+    const projects = await repository.list();
+    return {
+      usage: await Promise.all(
+        projects.map((project) =>
+          measureProjectStorage(project.id, repository.dataPaths(project.id)),
+        ),
+      ),
+    };
+  },
+);
+
+ipcMain.handle(
+  CLEAR_PROJECT_STORAGE_CHANNEL,
+  async (_event, request: unknown): Promise<ProjectStorageUsage> => {
+    const { id, kind } = ClearProjectStorageRequestSchema.parse(request);
+    const repository = getProjectRepository();
+    await repository.get(id);
+    if (kind === "temporary" && projectHasRunningWork(id)) {
+      throw new Error(
+        "A session of this project is still running; try again once it finishes.",
+      );
+    }
+    const dataPaths = repository.dataPaths(id);
+    await clearProjectStorage(dataPaths, kind);
+    return measureProjectStorage(id, dataPaths);
+  },
+);
+
 // Serialize filesystem operations so concurrent drags cannot overwrite one another.
 let projectFileOperationQueue: Promise<void> = Promise.resolve();
 ipcMain.handle(PROJECT_FILE_OPERATION_CHANNEL, (event, request: unknown) => {
@@ -2912,6 +2986,7 @@ async function initializeApp(): Promise<void> {
       completionSignals.forget(agentEvent.sessionId);
       return;
     }
+    trackSessionWork(agentEvent);
     const completedRun = completionSignals.observe(agentEvent);
     if (completedRun && completionSignalEnabled) {
       signalCompletedRun(completedRun, ownerId);
