@@ -359,8 +359,13 @@ async function chooseProject(project: PineProject): Promise<void> {
       isMentioning.value = true;
       return;
     }
-    if (project.id === props.projectId) emit("selectProject", project.id);
-    else await moveChosenProject(() => emit("selectProject", project.id));
+    // Even the current project moves, so choosing always lands visibly. The
+    // chip leaves in the same update: two elements sharing the transition's
+    // name would abort it.
+    await moveChosenProject(() => {
+      committingProject.value = null;
+      emit("selectProject", project.id);
+    });
   } finally {
     committingProject.value = null;
   }
@@ -696,7 +701,7 @@ function handleRootSubmit(event: Event): void {
                 <span
                   v-if="isMentioning || committingProject"
                   data-slot="project-chooser-chip"
-                  class="flex h-[var(--session-composer-action-size)] min-w-[var(--session-composer-action-size)] max-w-48 items-center justify-center gap-2 rounded-full bg-secondary text-secondary-foreground [&>svg]:size-4 [&>svg]:shrink-0"
+                  class="-ml-1 flex h-[var(--session-composer-action-size)] min-w-[var(--session-composer-action-size)] max-w-48 items-center justify-center gap-2 rounded-full bg-secondary text-secondary-foreground [&>svg]:size-4 [&>svg]:shrink-0"
                   :class="committingProject ? 'px-3' : 'px-0'"
                   :style="
                     isMovingProject
@@ -776,7 +781,12 @@ function handleRootSubmit(event: Event): void {
               >
                 <!-- A draft still chooses its project right beside Send. -->
                 <ProjectTargetPicker
-                  v-if="!props.sessionId && !props.isRunning"
+                  v-if="
+                    !props.sessionId &&
+                    !props.isRunning &&
+                    !isMentioning &&
+                    !committingProject
+                  "
                   :project-id="props.projectId"
                   :transition-name="
                     isMovingProject ? PROJECT_MOVE_TRANSITION_NAME : undefined
