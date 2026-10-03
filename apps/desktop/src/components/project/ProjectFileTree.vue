@@ -100,6 +100,19 @@ const unsubscribeLocalProjectFilesChanged = onProjectFilesChanged(() => {
 });
 
 const items = ref<ProjectTreeNode[]>([]);
+/**
+ * A project with a single available folder lists that folder's entries
+ * directly; the root row only appears once there are several folders.
+ */
+const isFlat = computed(
+  () =>
+    items.value.length === 1 &&
+    !items.value[0].isUnavailable &&
+    activeProject.value?.folders.length === 1,
+);
+const displayItems = computed(() =>
+  isFlat.value ? (items.value[0].children ?? []) : items.value,
+);
 const loadingDirectories = new Map<string, Promise<void>>();
 const sidebarStore = useProjectSidebarStore();
 const expanded = computed<string[]>({
@@ -365,6 +378,16 @@ function resetRoots(): void {
       name: folder.name,
       relativePath: "",
     })) ?? [];
+  // Without a visible root row, the root must count as expanded.
+  const flatRoot = items.value.length === 1 ? items.value[0] : undefined;
+  if (
+    flatRoot &&
+    !flatRoot.isUnavailable &&
+    activeProject.value?.folders.length === 1 &&
+    !expanded.value.includes(nodeKey(flatRoot))
+  ) {
+    expanded.value = [...expanded.value, nodeKey(flatRoot)];
+  }
   void refresh()
     .catch((error) =>
       handleError(error, {
@@ -645,7 +668,10 @@ async function drop(event: DragEvent, node: ProjectTreeNode): Promise<void> {
   )
     return;
   try {
-    const sources = readProjectEntryDrag(event.dataTransfer);
+    const dragged = readProjectEntryDrag(event.dataTransfer);
+    // A project root cannot be moved; dropping it somewhere does nothing.
+    const sources = dragged?.filter((source) => source.relativePath !== "");
+    if (dragged && !sources?.length) return;
     const target = reference(node);
     const paths = sources ? [] : externalFilePaths(event.dataTransfer);
     if (!sources && !paths.length) return;
@@ -878,7 +904,7 @@ onUnmounted(() => {
     v-else
     ref="treeRoot"
     :expanded="expanded"
-    :items="items"
+    :items="displayItems"
     :get-key="nodeKey"
     :get-children="(item) => item.children"
     class="scroll-fade no-scrollbar relative h-full overflow-y-auto p-2 outline-none"

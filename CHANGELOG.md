@@ -19,8 +19,13 @@ Starting with 0.4.4, release notes are written in both Chinese and English.
 
 ### 变更 / Changed
 
+- 只有一个文件夹的项目（包括“无项目”），左侧文件栏直接平铺显示其中的文件和子文件夹，不再多出一层根目录；添加了额外上下文文件夹的项目保持原样。For projects with a single folder (including No Project), the Files sidebar lists its files and subfolders directly without an extra root row; projects with additional context folders look as before.
 - 删除项目改在项目设置对话框中进行。Deleting a project now happens in the project settings dialog.
 - 升级后，此前各项目中打开的标签页不会恢复，工作区从一个新会话开始。After updating, tabs previously open in each project are not restored; the workspace starts with a new session.
+
+### 修复 / Fixed
+
+- 在文件栏中误拖动项目根目录并放下时，不再弹出“Cannot move or delete a project root”错误，操作会被直接忽略。Dropping a project's root folder after an accidental drag in the Files sidebar no longer shows a "Cannot move or delete a project root" error; the drop is simply ignored.
 
 ## [0.8.1] - 2026-10-02
 

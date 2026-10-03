@@ -37,6 +37,8 @@ function mountTree(
   readDirectory?: (
     request: ListProjectDirectoryRequest,
   ) => Promise<ListProjectDirectoryResult>,
+  // A project with extra context folders keeps a row per folder root.
+  withContextFolder = true,
 ) {
   const router = createRouter({
     history: createMemoryHistory(),
@@ -59,6 +61,17 @@ function mountTree(
         access,
         isAvailable: true,
       },
+      ...(withContextFolder
+        ? [
+            {
+              id: "0a3f6a52-4f3b-4d6e-a3f6-6f6e2f2f7a11",
+              name: "context",
+              path: "/context",
+              access: "read-only" as const,
+              isAvailable: true,
+            },
+          ]
+        : []),
     ],
   });
   const listProjectDirectory = vi.fn(
@@ -685,5 +698,36 @@ describe("ProjectFileTree", () => {
     expect(setWatchedProjectDirectories).toHaveBeenLastCalledWith({
       folders: [],
     });
+  });
+
+  it("lists a single-folder project's entries without a root row", async () => {
+    const { wrapper, operateProjectFile } = mountTree(
+      "read-write",
+      undefined,
+      false,
+    );
+    await flushPromises();
+
+    expect(wrapper.find('[data-path=""]').exists()).toBe(false);
+    expect(wrapper.find('[data-path="docs"]').exists()).toBe(true);
+    expect(wrapper.find('[data-path="notes.md"]').exists()).toBe(true);
+
+    // Dropping the project root somewhere is ignored rather than an error.
+    const target = wrapper.get('[data-path="docs"]');
+    const data = new Map<string, string>([
+      [
+        PROJECT_ENTRY_DRAG_TYPE,
+        JSON.stringify([{ folderId, projectId: "p1", relativePath: "" }]),
+      ],
+    ]);
+    await target.trigger("drop", {
+      dataTransfer: {
+        types: [PROJECT_ENTRY_DRAG_TYPE],
+        getData: (type: string) => data.get(type) ?? "",
+        files: [],
+      },
+    });
+    await flushPromises();
+    expect(operateProjectFile).not.toHaveBeenCalled();
   });
 });
