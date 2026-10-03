@@ -40,6 +40,7 @@
     "@pine/pi-background-tasks": "workspace:*",
     "@pine/rpiv-ask-user-question": "workspace:*",
     "@pine/rpiv-todo": "workspace:*",
+    "@sting8k/pi-vcc": "0.8.1",
     "@tanstack/vue-virtual": "3.13.37",
     "@vue-office/docx": "1.6.3",
     "@vue-office/excel": "1.7.14",

@@ -11,7 +11,7 @@
     },
     "apps/desktop": {
       "name": "@pine/desktop",
-      "version": "0.7.2",
+      "version": "0.8.0",
       "dependencies": {
         "@anthropic-ai/sandbox-runtime": "0.0.75",
         "@earendil-works/pi-agent-core": "1.0.0",
@@ -24,6 +24,7 @@
         "@pine/pi-background-tasks": "workspace:*",
         "@pine/rpiv-ask-user-question": "workspace:*",
         "@pine/rpiv-todo": "workspace:*",
+        "@sting8k/pi-vcc": "0.8.1",
         "@tanstack/vue-virtual": "3.13.37",
         "@vue-office/docx": "1.6.3",
         "@vue-office/excel": "1.7.14",
@@ -652,6 +653,8 @@
     "@stablelib/base64": ["@stablelib/base64@1.0.1", "", {}, "sha512-1bnPQqSxSuc3Ii6MhBysoWCg58j97aUjuCSZrGSmDxNqtytIi0k8utUenAwTZN4V5mXXYGsVUI9zeBqy+jBOSQ=="],
 
     "@standard-schema/spec": ["@standard-schema/spec@1.1.0", "", {}, "sha512-l2aFy5jALhniG5HgqrD6jXLi/rUWrKvqN/qJx6yoJsgKhblVd+iqqU4RCXavm/jPityDo5TCvKMnpjKnOriy0w=="],
+
+    "@sting8k/pi-vcc": ["@sting8k/pi-vcc@0.8.1", "", { "peerDependencies": { "@earendil-works/pi-coding-agent": ">=0.74.0 <2.0.0", "typebox": ">=1.1.24 <2.0.0" } }, "sha512-EiXqqYY3QmwkrOLgRuTfIz+IxGG9pc/VTTJ3Aan05bMd/AVMYjA1OxUVtuTrD/GVgW30pBClWpnjg4ZjZm3v0Q=="],
 
     "@swc/helpers": ["@swc/helpers@0.5.23", "", { "dependencies": { "tslib": "^2.8.0" } }, "sha512-5lSsMOTXURePglDfvuAQUqkGek9Hg2kksOYay2m0+XR++b2NWYL/4sWyuvVBIs8oKnJaxkdi9whaL/sqN13afw=="],
 
