@@ -15,37 +15,6 @@ const PROJECT_COLOR_THEME_VALUES = Object.keys(
   PROJECT_COLOR_THEME_HUES,
 ) as ProjectColorTheme[];
 
-const PROJECT_COLOR_THEME_TOKENS = [
-  "background",
-  "foreground",
-  "card",
-  "card-foreground",
-  "popover",
-  "popover-foreground",
-  "primary",
-  "primary-foreground",
-  "secondary",
-  "secondary-foreground",
-  "muted",
-  "muted-foreground",
-  "accent",
-  "accent-foreground",
-  "border",
-  "input",
-  "ring",
-  "sidebar",
-  "sidebar-foreground",
-  "sidebar-primary",
-  "sidebar-primary-foreground",
-  "sidebar-accent",
-  "sidebar-accent-foreground",
-  "sidebar-border",
-  "sidebar-ring",
-] as const;
-
-const OKLCH_PATTERN =
-  /^oklch\(\s*([+-]?(?:\d+(?:\.\d*)?|\.\d+))(%?)\s+([+-]?(?:\d+(?:\.\d*)?|\.\d+))\s+([+-]?(?:\d+(?:\.\d*)?|\.\d+))(?:\s*\/\s*([+-]?(?:\d+(?:\.\d*)?|\.\d+)%?))?\s*\)$/i;
-
 export const PROJECT_COLOR_THEME_OPTIONS: readonly {
   swatch: string;
   value: ProjectColorTheme;
@@ -54,49 +23,13 @@ export const PROJECT_COLOR_THEME_OPTIONS: readonly {
   value,
 }));
 
-function getHueShift(value: ProjectColorTheme): number {
+/**
+ * How far a theme turns Pine's olive hues, in (-180, 180]. `index.css`
+ * applies it as `--pine-hue-shift` for each `data-project-color-theme`.
+ */
+export function projectColorThemeHueShift(value: ProjectColorTheme): number {
   const difference =
     PROJECT_COLOR_THEME_HUES[value] - PROJECT_COLOR_THEME_HUES.olive;
 
-  return ((((difference + 180) % 360) + 360) % 360) - 180;
-}
-
-function formatChannel(value: number): string {
-  return String(Number(value.toFixed(3)));
-}
-
-/** Rotates interface token hues; status and chart colors keep Pine defaults. */
-export function applyProjectColorTheme(
-  root: HTMLElement,
-  value: ProjectColorTheme,
-): void {
-  if (value === "olive") {
-    for (const token of PROJECT_COLOR_THEME_TOKENS) {
-      root.style.removeProperty(`--${token}`);
-    }
-    return;
-  }
-
-  const hueShift = getHueShift(value);
-  const oliveColors = getComputedStyle(root);
-
-  for (const token of PROJECT_COLOR_THEME_TOKENS) {
-    const source = oliveColors.getPropertyValue(`--pine-olive-${token}`).trim();
-    const match = OKLCH_PATTERN.exec(source);
-
-    if (!match) {
-      root.style.removeProperty(`--${token}`);
-      continue;
-    }
-
-    const [, lightnessValue, lightnessUnit, chromaValue, hueValue, alpha] =
-      match;
-    const lightness =
-      Number(lightnessValue) / (lightnessUnit === "%" ? 100 : 1);
-    const chroma = Number(chromaValue);
-    const hue = (((Number(hueValue) + hueShift) % 360) + 360) % 360;
-    const color = `oklch(${formatChannel(lightness)} ${formatChannel(chroma)} ${formatChannel(hue)}${alpha ? ` / ${alpha}` : ""})`;
-
-    root.style.setProperty(`--${token}`, color);
-  }
+  return Number((((((difference + 180) % 360) + 360) % 360) - 180).toFixed(3));
 }

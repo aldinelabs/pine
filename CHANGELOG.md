@@ -26,6 +26,7 @@ Starting with 0.4.4, release notes are written in both Chinese and English.
 
 ### 修复 / Fixed
 
+- 切换到使用强调色的项目时不再明显卡顿，与切换到默认配色的项目一样快。Switching to a project with an accent color no longer stutters; it is as fast as switching to one with the default colors.
 - ⌘W / Ctrl+W 重新只关闭当前标签页，⌘T / Ctrl+T 重新可以新建会话；没有标签页时 ⌘W 才关闭窗口。⌘W / Ctrl+W closes the current tab again, and ⌘T / Ctrl+T opens a new session again; ⌘W closes the window only when no tabs are left.
 - 关闭最后一个标签页后，左侧栏和强调色会回到“无项目”，不再停留在刚关闭的标签页所属的项目。After the last tab closes, the sidebars and accent color return to No Project instead of staying on the closed tab's project.
 - 在文件栏中误拖动项目根目录，或把文件夹拖到自己（或自己的子文件夹）上并放下时，不再弹出 “Cannot move…” 错误，操作会被直接忽略。Dropping a project's root folder, or a folder onto itself or its own subfolder, after an accidental drag in the Files sidebar no longer shows a "Cannot move…" error; the drop is simply ignored.

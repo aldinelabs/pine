@@ -1,33 +1,38 @@
-import { describe, expect, it, vi } from "vitest";
-import { applyProjectColorTheme } from "../projectColorThemes";
+import { readFileSync } from "node:fs";
+import path from "node:path";
+import { describe, expect, it } from "vitest";
+import { PROJECT_COLOR_THEMES } from "@/shared/projects";
+import { projectColorThemeHueShift } from "../projectColorThemes";
 
-describe("applyProjectColorTheme", () => {
-  it.each([
-    ["oklch(0.228 0.013 107.4)", "oklch(0.228 0.013 255)"],
-    ["oklch(22.8% .013 107.4)", "oklch(0.228 0.013 255)"],
-  ])("rotates the olive color from %s", (source, expected) => {
-    const root = document.createElement("div");
-    vi.spyOn(window, "getComputedStyle").mockReturnValue({
-      getPropertyValue: (name: string) =>
-        name === "--pine-olive-primary" ? source : "",
-    } as CSSStyleDeclaration);
+const css = readFileSync(path.resolve(__dirname, "../../index.css"), "utf8");
 
-    applyProjectColorTheme(root, "blue");
+describe("project color themes", () => {
+  it.each(PROJECT_COLOR_THEMES.filter((theme) => theme !== "olive"))(
+    "turns %s by its hue shift in CSS",
+    (theme) => {
+      const rule = new RegExp(
+        String.raw`:root\[data-project-color-theme="${theme}"\] \{\s*--pine-hue-shift: ([-\d.]+);`,
+      ).exec(css);
+      expect(Number(rule?.[1])).toBe(projectColorThemeHueShift(theme));
+    },
+  );
 
-    expect(root.style.getPropertyValue("--primary")).toBe(expected);
+  it("keeps blue's shift in (-180, 180]", () => {
+    expect(projectColorThemeHueShift("blue")).toBe(147.6);
+    expect(projectColorThemeHueShift("violet")).toBe(-174.4);
+    expect(projectColorThemeHueShift("olive")).toBe(0);
   });
 
-  it("preserves the alpha channel in minified colors", () => {
-    const root = document.createElement("div");
-    vi.spyOn(window, "getComputedStyle").mockReturnValue({
-      getPropertyValue: (name: string) =>
-        name === "--pine-olive-border" ? "oklch(100% 0 0/.1)" : "",
-    } as CSSStyleDeclaration);
-
-    applyProjectColorTheme(root, "blue");
-
-    expect(root.style.getPropertyValue("--border")).toBe(
-      "oklch(1 0 147.6 / .1)",
-    );
+  it("rotates every interface token but leaves status colors alone", () => {
+    const rotated =
+      /:root\[data-project-color-theme\]:not\(\[data-project-color-theme="olive"\]\) \{([^}]*)\}/.exec(
+        css,
+      )?.[1];
+    for (const token of ["background", "primary", "sidebar-ring", "border"])
+      expect(rotated).toContain(
+        `--${token}: oklch(\n    from var(--pine-olive-${token})`,
+      );
+    expect(rotated).not.toContain("--destructive");
+    expect(rotated).not.toContain("--chart-1");
   });
 });

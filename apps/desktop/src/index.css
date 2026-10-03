@@ -528,6 +528,117 @@ html.sidebar-vibrancy [data-slot="alert-dialog-overlay"] {
   }
 }
 
+/*
+ * Project accent colours rotate the hue of the interface tokens; status and
+ * chart colours keep Pine's defaults. Switching only changes the root's
+ * data-project-color-theme, so the browser recomputes styles once instead
+ * of script reading and writing every token.
+ */
+:root[data-project-color-theme="red"] {
+  --pine-hue-shift: -82.4;
+}
+:root[data-project-color-theme="rose"] {
+  --pine-hue-shift: -117.4;
+}
+:root[data-project-color-theme="orange"] {
+  --pine-hue-shift: -62.4;
+}
+:root[data-project-color-theme="green"] {
+  --pine-hue-shift: 42.6;
+}
+:root[data-project-color-theme="blue"] {
+  --pine-hue-shift: 147.6;
+}
+:root[data-project-color-theme="yellow"] {
+  --pine-hue-shift: -17.4;
+}
+:root[data-project-color-theme="violet"] {
+  --pine-hue-shift: -174.4;
+}
+:root[data-project-color-theme]:not([data-project-color-theme="olive"]) {
+  --background: oklch(
+    from var(--pine-olive-background) l c calc(h + var(--pine-hue-shift))
+  );
+  --foreground: oklch(
+    from var(--pine-olive-foreground) l c calc(h + var(--pine-hue-shift))
+  );
+  --card: oklch(
+    from var(--pine-olive-card) l c calc(h + var(--pine-hue-shift))
+  );
+  --card-foreground: oklch(
+    from var(--pine-olive-card-foreground) l c calc(h + var(--pine-hue-shift))
+  );
+  --popover: oklch(
+    from var(--pine-olive-popover) l c calc(h + var(--pine-hue-shift))
+  );
+  --popover-foreground: oklch(
+    from var(--pine-olive-popover-foreground) l c
+      calc(h + var(--pine-hue-shift))
+  );
+  --primary: oklch(
+    from var(--pine-olive-primary) l c calc(h + var(--pine-hue-shift))
+  );
+  --primary-foreground: oklch(
+    from var(--pine-olive-primary-foreground) l c
+      calc(h + var(--pine-hue-shift))
+  );
+  --secondary: oklch(
+    from var(--pine-olive-secondary) l c calc(h + var(--pine-hue-shift))
+  );
+  --secondary-foreground: oklch(
+    from var(--pine-olive-secondary-foreground) l c
+      calc(h + var(--pine-hue-shift))
+  );
+  --muted: oklch(
+    from var(--pine-olive-muted) l c calc(h + var(--pine-hue-shift))
+  );
+  --muted-foreground: oklch(
+    from var(--pine-olive-muted-foreground) l c calc(h + var(--pine-hue-shift))
+  );
+  --accent: oklch(
+    from var(--pine-olive-accent) l c calc(h + var(--pine-hue-shift))
+  );
+  --accent-foreground: oklch(
+    from var(--pine-olive-accent-foreground) l c calc(h + var(--pine-hue-shift))
+  );
+  --border: oklch(
+    from var(--pine-olive-border) l c calc(h + var(--pine-hue-shift))
+  );
+  --input: oklch(
+    from var(--pine-olive-input) l c calc(h + var(--pine-hue-shift))
+  );
+  --ring: oklch(
+    from var(--pine-olive-ring) l c calc(h + var(--pine-hue-shift))
+  );
+  --sidebar: oklch(
+    from var(--pine-olive-sidebar) l c calc(h + var(--pine-hue-shift))
+  );
+  --sidebar-foreground: oklch(
+    from var(--pine-olive-sidebar-foreground) l c
+      calc(h + var(--pine-hue-shift))
+  );
+  --sidebar-primary: oklch(
+    from var(--pine-olive-sidebar-primary) l c calc(h + var(--pine-hue-shift))
+  );
+  --sidebar-primary-foreground: oklch(
+    from var(--pine-olive-sidebar-primary-foreground) l c
+      calc(h + var(--pine-hue-shift))
+  );
+  --sidebar-accent: oklch(
+    from var(--pine-olive-sidebar-accent) l c calc(h + var(--pine-hue-shift))
+  );
+  --sidebar-accent-foreground: oklch(
+    from var(--pine-olive-sidebar-accent-foreground) l c
+      calc(h + var(--pine-hue-shift))
+  );
+  --sidebar-border: oklch(
+    from var(--pine-olive-sidebar-border) l c calc(h + var(--pine-hue-shift))
+  );
+  --sidebar-ring: oklch(
+    from var(--pine-olive-sidebar-ring) l c calc(h + var(--pine-hue-shift))
+  );
+}
+
 /* A draft's project chip moving from the input to the project picker. */
 ::view-transition-group(pine-draft-project),
 ::view-transition-old(pine-draft-project),
