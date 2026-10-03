@@ -65,14 +65,13 @@ export default {
     sidebarVibrancy: "侧栏模糊效果",
     sidebarVibrancyDescription: "使用 macOS 原生模糊材质渲染侧栏",
     modelCatalogRefresh: "模型目录",
-    modelCatalogRefreshDescription:
-      "获取已配置服务的最新聊天模型和 OpenRouter Decisions 模型列表。",
+    modelCatalogRefreshDescription: "获取已配置服务的最新模型列表。",
     modelCatalogRefreshAction: "立即刷新",
     modelCatalogRefreshing: "正在刷新…",
     modelCatalogRefreshed: "模型目录已刷新",
     autoApprovalStrategy: "自动审批路径",
     autoApprovalModel: "大模型审批",
-    autoApprovalDecisions: "基于决策模型",
+    autoApprovalDecisions: "基于决策模型（Beta）",
     autoApprovalModelDescription:
       "自动批准和自主工作模式均由标题生成与审批模型直接审批。",
     autoApprovalDecisionsDescription:

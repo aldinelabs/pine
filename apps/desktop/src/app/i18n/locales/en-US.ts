@@ -71,13 +71,13 @@ export default {
       "Render the sidebar with the native macOS blur material",
     modelCatalogRefresh: "Model catalogs",
     modelCatalogRefreshDescription:
-      "Fetch the latest chat models for configured providers and OpenRouter Decisions models.",
+      "Fetch the latest model lists for configured providers.",
     modelCatalogRefreshAction: "Refresh now",
     modelCatalogRefreshing: "Refreshing…",
     modelCatalogRefreshed: "Model catalogs refreshed",
     autoApprovalStrategy: "Automatic approval path",
     autoApprovalModel: "Model review",
-    autoApprovalDecisions: "Decision model",
+    autoApprovalDecisions: "Decision model (Beta)",
     autoApprovalModelDescription:
       "Auto Approve and Autonomous Work use the title generation and review model for every review.",
     autoApprovalDecisionsDescription:
