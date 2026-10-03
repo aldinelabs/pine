@@ -11,6 +11,7 @@ export interface ProjectEntry {
 
 export interface ListProjectDirectoryRequest {
   folderId: string;
+  projectId: string;
   relativePath: string;
 }
 
@@ -31,6 +32,7 @@ export const MAX_WATCHED_PROJECT_DIRECTORIES = 2_048;
 
 export interface WatchedProjectFolder {
   folderId: string;
+  projectId: string;
   /** Portable relative paths of the directories to watch. "" is the root. */
   directories: string[];
 }
@@ -42,6 +44,7 @@ export interface SetWatchedProjectDirectoriesRequest {
 
 export interface ProjectFolderFileChanges {
   folderId: string;
+  projectId: string;
   /** Portable relative paths of watched directories whose contents changed. */
   changedDirs: string[];
 }
@@ -62,12 +65,11 @@ export const REOPEN_PRESENTED_TOOL_FILE_CHANNEL =
 export const PROJECT_MEDIA_PROTOCOL = "pine-project-media" as const;
 export const MARKDOWN_IMAGE_PARAM = "markdownImage" as const;
 export interface ReopenPresentedToolFileRequest {
+  projectId: string;
   sessionId: string;
   toolCallId: string;
 }
-export interface ProjectFilePreviewRequest extends ProjectEntryReference {
-  projectId: string;
-}
+export type ProjectFilePreviewRequest = ProjectEntryReference;
 /**
  * A file the agent asked the user to look at, addressed by absolute path
  * because it lives outside every project folder. The main process only serves

@@ -2,7 +2,6 @@ import { DOMWrapper, flushPromises, mount } from "@vue/test-utils";
 import { createPinia, setActivePinia } from "pinia";
 import { createMemoryHistory, createRouter } from "vue-router";
 import { useContentTabsStore } from "@/stores/contentTabs";
-import { useProjectStore } from "@/stores/project";
 import { useAppearanceStore } from "@/stores/appearance";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createAppI18n } from "@/app/i18n";
@@ -13,6 +12,7 @@ import ProjectFilePreview from "../ProjectFilePreview.vue";
 import ProjectHtmlPreview from "../ProjectHtmlPreview.vue";
 import ProjectOfficePreview from "../ProjectOfficePreview.vue";
 import ProjectPdfPreview from "../ProjectPdfPreview.vue";
+import { showProject } from "@/stores/__tests__/showProject";
 
 vi.mock("@/lib/codeHighlight", () => ({
   codeToHtml: vi
@@ -79,6 +79,7 @@ const presentedFile = {
   label: "report.md",
   source: "presented" as const,
   path: "/tmp/report.md",
+  projectId: "p1",
 };
 const wrappers: ReturnType<typeof mount>[] = [];
 function render(
@@ -87,6 +88,8 @@ function render(
 ) {
   const pinia = createPinia();
   setActivePinia(pinia);
+  // The window's first draft belongs to the previewed file's project.
+  useContentTabsStore().setDraftProject("session-1", "p1");
   const router = createRouter({
     history: createMemoryHistory(),
     routes: [{ path: "/", component: {} }],
@@ -495,7 +498,7 @@ describe("ProjectFilePreview", () => {
       "Send selection to tab…",
     );
 
-    useProjectStore().activeProject = {
+    showProject({
       id: "p1",
       name: "Project",
       schemaVersion: 1,
@@ -503,7 +506,7 @@ describe("ProjectFilePreview", () => {
       updatedAt: "",
       defaultFolderId: "f1",
       folders: [],
-    };
+    });
     window.pine.inspectProjectAttachments = vi.fn().mockResolvedValue({
       attachments: [
         {
@@ -559,7 +562,7 @@ describe("ProjectFilePreview", () => {
     await flushPromises();
     const trigger = wrapper.get('button[aria-haspopup="menu"]');
     expect(trigger.text()).toBe("Send selection to tab…");
-    useProjectStore().activeProject = {
+    showProject({
       id: "p1",
       name: "Project",
       schemaVersion: 1,
@@ -567,7 +570,7 @@ describe("ProjectFilePreview", () => {
       updatedAt: "",
       defaultFolderId: "f1",
       folders: [],
-    };
+    });
     window.pine.inspectProjectAttachments = vi.fn().mockResolvedValue({
       attachments: [
         {
@@ -671,9 +674,11 @@ describe("ProjectFilePreview", () => {
       messageCount: 0,
     };
     store.bindSession("session-1", session);
-    const draft = store.createSessionTab();
+    const draft = store.createSessionTab({ projectId: "p1" });
+    // A session of another project cannot read this file.
+    store.openSession({ ...session, id: "s2", name: "Elsewhere" }, "p2");
     store.openFile(fileRequest);
-    useProjectStore().activeProject = {
+    showProject({
       id: "p1",
       name: "Project",
       schemaVersion: 1,
@@ -681,7 +686,7 @@ describe("ProjectFilePreview", () => {
       updatedAt: "",
       defaultFolderId: "f1",
       folders: [],
-    };
+    });
     const attachment = {
       name: "main.py",
       path: "/project/src/main.py",
@@ -839,7 +844,7 @@ describe("ProjectFilePreview", () => {
     await wrapper.get('[data-action="open-default"]').trigger("click");
     expect(window.pine.operateProjectFile).toHaveBeenCalledWith({
       action: "open",
-      target: { folderId: "f1", relativePath: "src/main.py" },
+      target: { folderId: "f1", projectId: "p1", relativePath: "src/main.py" },
     });
     pdf.vm.$emit("rendering-failed", new Error("invalid PDF"));
     await flushPromises();

@@ -2,8 +2,8 @@ import { mount } from "@vue/test-utils";
 import { createPinia, setActivePinia } from "pinia";
 import { expect, it } from "vitest";
 import { createAppI18n } from "@/app/i18n";
-import { useProjectStore } from "@/stores/project";
 import ProjectRightSidebarTools from "../ProjectRightSidebarTools.vue";
+import { showProject } from "@/stores/__tests__/showProject";
 
 function dialogStub(name: string) {
   return {
@@ -16,7 +16,7 @@ function dialogStub(name: string) {
 it("lists work skills above MCP servers and opens each manager", async () => {
   const pinia = createPinia();
   setActivePinia(pinia);
-  useProjectStore().activeProject = {
+  showProject({
     id: "one",
     name: "One",
     createdAt: "",
@@ -24,7 +24,7 @@ it("lists work skills above MCP servers and opens each manager", async () => {
     schemaVersion: 1,
     defaultFolderId: "folder",
     folders: [],
-  };
+  });
   const slot = { template: "<div><slot /></div>" };
   const wrapper = mount(ProjectRightSidebarTools, {
     global: {

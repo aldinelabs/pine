@@ -24,6 +24,8 @@ export function readProjectEntryDrag(
         entry !== null &&
         "folderId" in entry &&
         typeof entry.folderId === "string" &&
+        "projectId" in entry &&
+        typeof entry.projectId === "string" &&
         "relativePath" in entry &&
         typeof entry.relativePath === "string",
     )

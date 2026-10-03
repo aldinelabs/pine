@@ -75,7 +75,7 @@ function mountComposer(
   });
   useModelsStore().catalog = catalog;
   return mount(ProjectSessionComposer, {
-    props,
+    props: { projectId: "project-1", ...props },
     global: {
       plugins: [pinia, createAppI18n(locale)],
       stubs: {
@@ -310,6 +310,7 @@ describe("ProjectSessionComposer", () => {
     await flushPromises();
 
     expect(attachSession).toHaveBeenCalledWith({
+      projectId: "project-1",
       sessionId: "019cfe51-7166-79b9-a5b9-c652fcca9eab",
     });
     expect(wrapper.text()).toContain("Architecture review.jsonl");
@@ -447,6 +448,7 @@ describe("ProjectSessionComposer", () => {
       bytes: expect.any(Uint8Array),
       mimeType: "image/png",
       name: "image.png",
+      projectId: "project-1",
     });
     expect(wrapper.emitted("update:attachments")).toContainEqual([
       [savedAttachment],
@@ -533,6 +535,7 @@ describe("ProjectSessionComposer", () => {
     expect(savePastedAttachment).toHaveBeenCalledWith({
       mimeType: "text/plain",
       name: "pasted-text.txt",
+      projectId: "project-1",
       text: pastedText,
     });
     expect(wrapper.emitted("update:attachments")).toContainEqual([

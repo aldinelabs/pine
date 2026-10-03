@@ -21,6 +21,7 @@ import { resolveProjectPath } from "./projectFiles";
 
 export const ProjectEntryReferenceSchema = z.object({
   folderId: z.uuid(),
+  projectId: z.uuid(),
   relativePath: z.string().max(4096),
 });
 const nameSchema = z

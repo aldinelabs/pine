@@ -7,8 +7,7 @@ import {
   Settings2,
 } from "@lucide/vue";
 import { storeToRefs } from "pinia";
-import { computed, onMounted, ref, watch } from "vue";
-import { useRoute, useRouter } from "vue-router";
+import { computed, onMounted, ref } from "vue";
 import {
   useProjectSidebarStore,
   type ProjectSidebarTab,
@@ -25,11 +24,14 @@ import {
   SidebarRail,
 } from "@/components/ui/sidebar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useProjectDisplayName } from "@/composables/useProjectDisplayName";
+import { isTemporaryWorkspace } from "@/shared/projects";
 import { useProjectStore } from "@/stores/project";
 import { useUpdaterStore } from "@/stores/updater";
 import { PINE_RELEASES_URL } from "@/shared/window";
 import ProjectFileTree from "./ProjectFileTree.vue";
 import ProjectSessionList from "./ProjectSessionList.vue";
+import ProjectScope from "./ProjectScope.vue";
 import RetainedPanel from "./RetainedPanel.vue";
 
 const { t } = useI18n();
@@ -39,7 +41,16 @@ const emit = defineEmits<{
   showUpdate: [];
 }>();
 const projectStore = useProjectStore();
-const { activeProject } = storeToRefs(projectStore);
+const { activeProject, currentProjectId, openProjectIds } =
+  storeToRefs(projectStore);
+const displayName = useProjectDisplayName();
+/**
+ * Every project open in this window keeps its sidebar mounted, so switching
+ * tabs between projects only swaps which one is visible.
+ */
+const sidebarProjectIds = computed(() =>
+  [...openProjectIds.value].filter((id) => projectStore.projectById(id)),
+);
 const { isAvailable } = storeToRefs(useUpdaterStore());
 // A failed version lookup simply hides the version item.
 const pineVersion = ref<string | null>(null);
@@ -56,32 +67,10 @@ function openReleases(): void {
   void window.pine.openExternalUrl(PINE_RELEASES_URL);
 }
 const sidebarStore = useProjectSidebarStore();
-const route = useRoute();
-const router = useRouter();
 const activeTab = computed<ProjectSidebarTab>({
-  get() {
-    const requested = route.query.sidebar;
-    if (
-      route.params.projectId === activeProject.value?.id &&
-      (requested === "files" || requested === "sessions")
-    )
-      return requested;
-    return activeProject.value
-      ? sidebarStore.stateFor(activeProject.value.id).tab
-      : "sessions";
-  },
-  set(tab) {
-    if (activeProject.value) sidebarStore.setTab(activeProject.value.id, tab);
-    void router.replace({ query: { ...route.query, sidebar: tab } });
-  },
+  get: () => sidebarStore.stateFor(currentProjectId.value).tab,
+  set: (tab) => sidebarStore.setTab(currentProjectId.value, tab),
 });
-watch(
-  [() => activeProject.value?.id, activeTab],
-  ([projectId, tab]) => {
-    if (projectId) sidebarStore.setTab(projectId, tab);
-  },
-  { immediate: true },
-);
 </script>
 
 <template>
@@ -93,7 +82,7 @@ watch(
     <Tabs v-model="activeTab" class="flex min-h-0 flex-1 flex-col">
       <SidebarHeader>
         <div class="truncate px-2 text-sm font-medium">
-          {{ activeProject?.name }}
+          {{ displayName(activeProject) }}
         </div>
         <TabsList class="w-full">
           <TabsTrigger value="files">
@@ -109,19 +98,29 @@ watch(
 
       <SidebarContent class="relative overflow-hidden">
         <TabsContent value="files" force-mount as-child>
-          <RetainedPanel
-            :key="activeProject?.id"
-            :active="activeTab === 'files'"
-          >
-            <ProjectFileTree />
+          <RetainedPanel :active="activeTab === 'files'">
+            <RetainedPanel
+              v-for="projectId in sidebarProjectIds"
+              :key="projectId"
+              :active="projectId === currentProjectId"
+            >
+              <ProjectScope :project-id="projectId">
+                <ProjectFileTree />
+              </ProjectScope>
+            </RetainedPanel>
           </RetainedPanel>
         </TabsContent>
         <TabsContent value="sessions" force-mount as-child>
-          <RetainedPanel
-            :key="activeProject?.id"
-            :active="activeTab === 'sessions'"
-          >
-            <ProjectSessionList @search="emit('searchSessions')" />
+          <RetainedPanel :active="activeTab === 'sessions'">
+            <RetainedPanel
+              v-for="projectId in sidebarProjectIds"
+              :key="projectId"
+              :active="projectId === currentProjectId"
+            >
+              <ProjectScope :project-id="projectId">
+                <ProjectSessionList @search="emit('searchSessions')" />
+              </ProjectScope>
+            </RetainedPanel>
           </RetainedPanel>
         </TabsContent>
       </SidebarContent>
@@ -129,7 +128,7 @@ watch(
 
     <SidebarFooter>
       <SidebarMenu>
-        <SidebarMenuItem>
+        <SidebarMenuItem v-if="!isTemporaryWorkspace(currentProjectId)">
           <SidebarMenuButton @click="emit('editProject')">
             <Settings2 aria-hidden="true" />
             <span>{{ t("project.preferences") }}</span>

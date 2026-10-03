@@ -8,6 +8,7 @@ import { useProjectSidebarStore } from "@/stores/projectSidebar";
 import { PINE_RELEASES_URL } from "@/shared/window";
 import { useUpdaterStore } from "@/stores/updater";
 import ProjectSidebar from "../ProjectSidebar.vue";
+import { showProject } from "@/stores/__tests__/showProject";
 
 const slot = { template: "<div><slot /></div>" };
 const buttonSlot = { template: "<button><slot /></button>" };
@@ -20,11 +21,11 @@ beforeEach(() => {
   } as unknown as typeof window.pine;
 });
 
-it("restores the project tab and persists navigation without changing the active conversation", async () => {
+it("restores each project's sidebar tab and keeps every open project's panels", async () => {
   const pinia = createPinia();
   setActivePinia(pinia);
   const projectStore = useProjectStore();
-  projectStore.activeProject = {
+  showProject({
     id: "one",
     name: "One",
     createdAt: "",
@@ -32,7 +33,7 @@ it("restores the project tab and persists navigation without changing the active
     schemaVersion: 1,
     defaultFolderId: "folder",
     folders: [],
-  };
+  });
   const sidebarStore = useProjectSidebarStore();
   useUpdaterStore().update = {
     changelog: "Changes",
@@ -44,11 +45,9 @@ it("restores the project tab and persists navigation without changing the active
   sidebarStore.setTab("two", "files");
   const router = createRouter({
     history: createMemoryHistory(),
-    routes: [
-      { path: "/projects/:projectId", component: { template: "<div />" } },
-    ],
+    routes: [{ path: "/", component: { template: "<div />" } }],
   });
-  await router.push("/projects/one?tab=conversation");
+  await router.push("/?tab=conversation");
   const wrapper = mount(ProjectSidebar, {
     global: {
       plugins: [pinia, router, createAppI18n("zh-CN")],
@@ -73,10 +72,8 @@ it("restores the project tab and persists navigation without changing the active
   expect(tabs[0].attributes("data-state")).toBe("active");
   await tabs[1].trigger("mousedown", { button: 0 });
   await flushPromises();
-  expect(router.currentRoute.value.query).toEqual({
-    tab: "conversation",
-    sidebar: "sessions",
-  });
+  // The sidebar tab is UI state of the project, not of the route.
+  expect(router.currentRoute.value.query).toEqual({ tab: "conversation" });
   expect(sidebarStore.stateFor("one").tab).toBe("sessions");
   const sessions = wrapper.get<HTMLElement>("[data-sessions-scroll]").element;
   sessions.scrollTop = 720;
@@ -98,12 +95,19 @@ it("restores the project tab and persists navigation without changing the active
   );
   expect(footerText).not.toContain("工作技能");
   expect(footerText).not.toContain("MCP");
-  projectStore.activeProject = { ...projectStore.activeProject, id: "two" };
-  await router.push("/projects/two");
+  showProject({ ...projectStore.activeProject!, id: "two" });
   await flushPromises();
   expect(tabs[0].attributes("data-state")).toBe("active");
   expect(sidebarStore.stateFor("two").tab).toBe("files");
-  expect(wrapper.get("[data-files-scroll]").element).not.toBe(files);
+  // Switching projects swaps visible panels; project one's tree survives.
+  const fileTrees = wrapper.findAll("[data-files-scroll]");
+  expect(fileTrees).toHaveLength(2);
+  expect(fileTrees[0].element).toBe(files);
+  expect(files.scrollTop).toBe(340);
+
+  showProject({ ...projectStore.activeProject!, id: "one" });
+  await flushPromises();
+  expect(tabs[1].attributes("data-state")).toBe("active");
   wrapper.unmount();
 });
 

@@ -2,6 +2,10 @@ import { mkdir, mkdtemp, readFile, rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
+import {
+  TEMPORARY_WORKSPACE_FOLDER_ID,
+  TEMPORARY_WORKSPACE_PROJECT_ID,
+} from "../../shared/projects";
 import { ProjectRepository } from "../projects/projectRepository";
 
 const temporaryDirectories: string[] = [];
@@ -51,8 +55,60 @@ describe("ProjectRepository", () => {
       readFile(path.join(folderPath, ".pine", "project.json")),
     ).rejects.toMatchObject({ code: "ENOENT" });
     await expect(repository.list()).resolves.toEqual([
+      expect.objectContaining({ id: TEMPORARY_WORKSPACE_PROJECT_ID }),
       expect.objectContaining({ id: project.id, name: "Pine" }),
     ]);
+  });
+
+  it("keeps a fixed temporary workspace inside Pine's data", async () => {
+    const userData = await createTemporaryDirectory("pine-user-data-");
+    const projectsRoot = path.join(userData, "projects");
+    const repository = new ProjectRepository(projectsRoot);
+
+    const [workspace] = await repository.list();
+    const workspacePath = path.join(
+      projectsRoot,
+      TEMPORARY_WORKSPACE_PROJECT_ID,
+      "workspace",
+    );
+    expect(workspace).toMatchObject({
+      id: TEMPORARY_WORKSPACE_PROJECT_ID,
+      defaultFolderId: TEMPORARY_WORKSPACE_FOLDER_ID,
+      folders: [
+        {
+          access: "read-write",
+          id: TEMPORARY_WORKSPACE_FOLDER_ID,
+          isAvailable: true,
+          path: workspacePath,
+        },
+      ],
+    });
+    await expect(
+      repository.update(TEMPORARY_WORKSPACE_PROJECT_ID, {
+        defaultFolderId: TEMPORARY_WORKSPACE_FOLDER_ID,
+        folders: workspace.folders,
+        name: "Renamed",
+      }),
+    ).rejects.toThrow("cannot be changed or deleted");
+    await expect(
+      repository.delete(TEMPORARY_WORKSPACE_PROJECT_ID),
+    ).rejects.toThrow("cannot be changed or deleted");
+
+    // Session groups organize its sessions and stay editable.
+    const groups = [
+      {
+        id: "11111111-1111-4111-8111-111111111111",
+        name: "Drafts",
+        sessionIds: [],
+      },
+    ];
+    await repository.updateSessionGroups(
+      TEMPORARY_WORKSPACE_PROJECT_ID,
+      groups,
+    );
+    await expect(
+      repository.get(TEMPORARY_WORKSPACE_PROJECT_ID),
+    ).resolves.toMatchObject({ sessionGroups: groups });
   });
 
   it("rejects duplicate and nested project folders", async () => {

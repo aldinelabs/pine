@@ -1,9 +1,8 @@
 <script setup lang="ts">
-import { House, PanelRight } from "@lucide/vue";
+import { PanelRight } from "@lucide/vue";
 import { onKeyStroke } from "@vueuse/core";
 import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
-import { useRouter } from "vue-router";
 import { handleError } from "@/app/errors/errorHandler";
 import { PineLogo } from "@/components/pine";
 import PinePreferencesDialog from "@/components/preferences/PinePreferencesDialog.vue";
@@ -24,15 +23,15 @@ import {
   SidebarProvider,
   SidebarTrigger,
 } from "@/components/ui/sidebar";
-import { ROUTE_NAMES } from "@/router/routes";
+import { isTemporaryWorkspace } from "@/shared/projects";
 import { useBackgroundTasksStore } from "@/stores/backgroundTasks";
+import { useContentTabsStore } from "@/stores/contentTabs";
 import { useProjectStore } from "@/stores/project";
 import { useSessionStore } from "@/stores/session";
 import { useProjectRightSidebarStore } from "@/stores/projectRightSidebar";
 import { useFrozenWindowResize } from "@/composables/useFrozenWindowResize";
 
 const { t } = useI18n();
-const router = useRouter();
 const isSessionSearchOpen = ref(false);
 const isProjectSettingsOpen = ref(false);
 const isUpdateOpen = ref(false);
@@ -40,22 +39,68 @@ const rightSidebar = useProjectRightSidebarStore();
 const projectStore = useProjectStore();
 const backgroundTasks = useBackgroundTasksStore();
 const sessionStore = useSessionStore();
+const contentTabsStore = useContentTabsStore();
 const isWindowsPlatform = computed(() => window.pine?.platform === "win32");
+/** The settings dialog edits the active tab's project, never the built-in one. */
+const editableProject = computed(() =>
+  projectStore.activeProject &&
+  !isTemporaryWorkspace(projectStore.activeProject.id)
+    ? projectStore.activeProject
+    : null,
+);
 
-async function closeProject(): Promise<void> {
+async function loadProjects(): Promise<void> {
   try {
-    await projectStore.closeProject();
+    await projectStore.loadProjects();
   } catch (error) {
     handleError(error, {
-      id: "project.close",
-      title: t("errors.projectClose.title"),
-      description: t("errors.projectClose.description"),
+      id: "project.list",
+      title: t("errors.projectOpen.title"),
+      description: t("errors.projectOpen.description"),
     });
     return;
   }
-
-  await router.push({ name: ROUTE_NAMES.projects });
+  // Restored tabs of a project deleted meanwhile cannot open again.
+  const known = new Set(projectStore.projects.map((project) => project.id));
+  for (const projectId of new Set(
+    contentTabsStore.tabs.map((tab) => tab.projectId),
+  )) {
+    if (!known.has(projectId)) contentTabsStore.removeProject(projectId);
+  }
 }
+
+/**
+ * A project stays open while a tab uses it, and for a grace period after,
+ * so closing and reopening a tab is instant. Idle projects without running
+ * or waiting sessions are then released; the temporary workspace never is,
+ * because every new draft starts there.
+ */
+const PROJECT_RELEASE_DELAY_MS = 60_000;
+const unusedSince = new Map<string, number>();
+function releaseUnusedProjects(): void {
+  const used = new Set([
+    projectStore.currentProjectId,
+    ...contentTabsStore.tabs.map((tab) => tab.projectId),
+  ]);
+  const now = Date.now();
+  for (const projectId of projectStore.openProjectIds) {
+    if (used.has(projectId) || isTemporaryWorkspace(projectId)) {
+      unusedSince.delete(projectId);
+      continue;
+    }
+    const since = unusedSince.get(projectId) ?? now;
+    unusedSince.set(projectId, since);
+    if (now - since < PROJECT_RELEASE_DELAY_MS) continue;
+    if (sessionStore.hasActiveWork(projectId)) continue;
+    unusedSince.delete(projectId);
+    void projectStore.closeProject(projectId).catch(() => undefined);
+  }
+}
+const releaseTimer = window.setInterval(
+  releaseUnusedProjects,
+  PROJECT_RELEASE_DELAY_MS / 4,
+);
+onBeforeUnmount(() => window.clearInterval(releaseTimer));
 
 // While the window animates, the right sidebar switches state without its
 // CSS transition: the moving window edge reveals or clips it instead.
@@ -148,6 +193,8 @@ watch(
 
 onMounted(async () => {
   backgroundTasks.connect();
+  sessionStore.connectAgentEvents();
+  void loadProjects();
   await window.pine?.setWindowLayout?.("project");
   if (!rightSidebar.open) return;
   await frozenResize.run(
@@ -230,15 +277,6 @@ onKeyStroke("k", (event) => {
         </span>
         <PinePreferencesDialog v-if="isWindowsPlatform" />
         <SidebarTrigger />
-        <Button
-          variant="ghost"
-          size="icon-sm"
-          :aria-label="t('project.closeProject')"
-          :title="t('project.closeProject')"
-          @click="closeProject"
-        >
-          <House aria-hidden="true" />
-        </Button>
       </template>
       <template #trailing>
         <div
@@ -269,9 +307,9 @@ onKeyStroke("k", (event) => {
     <SessionSearchOverlay v-model:open="isSessionSearchOpen" />
     <PineUpdateDialog v-model:open="isUpdateOpen" />
     <ProjectDialog
-      v-if="projectStore.activeProject"
+      v-if="editableProject"
       v-model:open="isProjectSettingsOpen"
-      :project="projectStore.activeProject"
+      :project="editableProject"
     />
   </SidebarProvider>
 </template>

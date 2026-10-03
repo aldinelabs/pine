@@ -122,6 +122,22 @@ export const PROJECT_ATTACHMENTS_DIRECTORY = "attachments" as const;
 export const PROJECT_SKILLS_DIRECTORY = "skills" as const;
 export const PROJECT_SKILLS_SETTINGS_FILE = "skills.json" as const;
 
+/**
+ * The built-in project for work that belongs to no project. It lives inside
+ * Pine's data directory, always exists, and cannot be renamed, edited or
+ * deleted. Fixed UUIDs keep it addressable through the ordinary project IPC.
+ */
+export const TEMPORARY_WORKSPACE_PROJECT_ID =
+  "00000000-0000-4000-8000-000000000001" as const;
+export const TEMPORARY_WORKSPACE_FOLDER_ID =
+  "00000000-0000-4000-8000-000000000002" as const;
+/** Working directory of the temporary workspace inside its project root. */
+export const TEMPORARY_WORKSPACE_DIRECTORY = "workspace" as const;
+
+export function isTemporaryWorkspace(projectId: string | undefined): boolean {
+  return projectId === TEMPORARY_WORKSPACE_PROJECT_ID;
+}
+
 export const LIST_PROJECTS_CHANNEL = "project:list" as const;
 export const CREATE_PROJECT_CHANNEL = "project:create" as const;
 export const CLOSE_PROJECT_CHANNEL = "project:close" as const;
@@ -256,7 +272,7 @@ export interface PineDesktopApi extends PineWindowApi {
   dequeueSteering: (
     request: DequeueSteeringRequest,
   ) => Promise<DequeueSteeringResult>;
-  closeProject: () => Promise<void>;
+  closeProject: (request: ProjectIdRequest) => Promise<void>;
   createProject: (request: CreateProjectRequest) => Promise<ProjectResult>;
   deleteProject: (request: ProjectIdRequest) => Promise<DeleteProjectResult>;
   deleteSession: (

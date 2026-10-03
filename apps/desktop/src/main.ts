@@ -189,6 +189,7 @@ import {
   OPEN_PROJECT_CHANNEL,
   PICK_PROJECT_FOLDERS_CHANNEL,
   PROJECTS_DIRECTORY,
+  isTemporaryWorkspace,
   PROJECT_ATTACHMENTS_DIRECTORY,
   PROJECT_COLOR_THEMES,
   UPDATE_PROJECT_CHANNEL,
@@ -265,6 +266,7 @@ import { FilePreviewWatcherRegistry } from "./main/filePreviewWatcher";
 import { startProjectFileDrag } from "./main/projectFileDrag";
 import {
   applyWindowLayout,
+  PROJECT_WINDOW_WIDTH,
   commitWindowResize,
   planWindowResize,
 } from "./main/windowExpansion";
@@ -362,10 +364,12 @@ const SavePastedAttachmentRequestSchema = z.union([
       ),
     mimeType: z.enum(PASTED_IMAGE_MIME_TYPES),
     name: z.string().max(MAX_PASTED_ATTACHMENT_NAME_LENGTH).optional(),
+    projectId: z.uuid(),
   }),
   z.object({
     mimeType: z.literal("text/plain"),
     name: z.string().max(MAX_PASTED_ATTACHMENT_NAME_LENGTH).optional(),
+    projectId: z.uuid(),
     text: z
       .string()
       .refine((text) => text.trim().length > 0)
@@ -574,13 +578,12 @@ const SetGlobalSkillEnabledRequestSchema = z.object({
   name: SkillNameSchema,
   projectId: z.uuid(),
 });
-const ProjectFilePreviewRequestSchema = ProjectEntryReferenceSchema.extend({
-  projectId: z.uuid(),
-});
+const ProjectFilePreviewRequestSchema = ProjectEntryReferenceSchema;
 const PresentedFilePreviewRequestSchema = z.object({
   path: z.string().min(1).max(4096),
 });
 const ReopenPresentedToolFileRequestSchema = z.object({
+  projectId: z.uuid(),
   sessionId: z.uuid(),
   toolCallId: z.string().min(1).max(256),
 });
@@ -665,15 +668,19 @@ const UpdateProjectRequestSchema = ProjectMutationSchema.safeExtend({
   id: z.uuid(),
 });
 const SearchSessionsRequestSchema = z.object({
+  projectId: z.uuid(),
   query: z.string().max(500),
 });
 const SessionIdRequestSchema = z.object({
   sessionId: z.uuid(),
 });
+const ProjectSessionRequestSchema = SessionIdRequestSchema.extend({
+  projectId: z.uuid(),
+});
 const BackgroundTaskRequestSchema = SessionIdRequestSchema.extend({
   taskId: z.string().trim().min(1).max(64),
 });
-const RenameSessionRequestSchema = SessionIdRequestSchema.extend({
+const RenameSessionRequestSchema = ProjectSessionRequestSchema.extend({
   name: z.string().trim().min(1).max(200),
 });
 const LoadSessionMessagesRequestSchema = z.object({
@@ -682,14 +689,19 @@ const LoadSessionMessagesRequestSchema = z.object({
   before: z.string().min(1).max(128).optional(),
   includeOutline: z.boolean().optional(),
   limit: z.number().int().min(1).max(100).optional(),
+  projectId: z.uuid(),
   sessionId: z.uuid(),
 });
 const PromptSessionRequestSchema = z.object({
   locale: z.enum(["en-US", "zh-CN"]).default("en-US"),
   message: z.string().trim().min(1).max(100_000),
   target: z.discriminatedUnion("kind", [
-    z.object({ kind: z.literal("new") }),
-    z.object({ kind: z.literal("session"), sessionId: z.uuid() }),
+    z.object({ kind: z.literal("new"), projectId: z.uuid() }),
+    z.object({
+      kind: z.literal("session"),
+      projectId: z.uuid(),
+      sessionId: z.uuid(),
+    }),
   ]),
   streamingBehavior: z.enum(["follow-up", "steer"]).optional(),
   approvalMode: z
@@ -830,6 +842,7 @@ const ProviderAuthResponseRequestSchema = z.object({
 const ProviderAuthLoginIdSchema = z.object({ loginId: z.uuid() });
 const SelectModelRequestSchema = z.object({
   modelId: z.string().trim().min(1).max(500),
+  projectId: z.uuid().optional(),
   providerId: z.string().trim().min(1).max(200),
   sessionId: z.uuid().optional(),
   thinkingLevel: z.enum([
@@ -857,23 +870,22 @@ const ProviderAuthUrlSchema = z.url().refine((url) => {
     return false;
   }
 });
-const ListProjectDirectoryRequestSchema = z.object({
-  folderId: z.uuid(),
-  relativePath: z.string().max(4_096),
-});
+const ListProjectDirectoryRequestSchema = ProjectEntryReferenceSchema;
 const SetWatchedProjectDirectoriesRequestSchema = z.object({
   folders: z
     .array(
       z.object({
         folderId: z.uuid(),
+        projectId: z.uuid(),
         directories: z.array(z.string().max(4_096)),
       }),
     )
     .max(MAX_WATCHED_PROJECT_FOLDERS)
     .refine(
       (folders) =>
-        new Set(folders.map((folder) => folder.folderId)).size ===
-        folders.length,
+        new Set(
+          folders.map((folder) => `${folder.projectId}/${folder.folderId}`),
+        ).size === folders.length,
       "Folder IDs must be unique.",
     )
     .refine(
@@ -1239,12 +1251,10 @@ const createWindow = () => {
             height: 56,
           },
         }),
-    // Starts in the fixed-size project list layout; the renderer unlocks
-    // resizing and widens the window when a project opens.
-    ...PROJECT_LIST_WINDOW_SIZE,
-    resizable: false,
-    maximizable: false,
-    fullscreenable: false,
+    // Pine opens straight into the workspace, so the window starts in the
+    // resizable project layout.
+    width: PROJECT_WINDOW_WIDTH,
+    height: PROJECT_LIST_WINDOW_SIZE.height,
     minWidth: 720,
     minHeight: 540,
     show: false,
@@ -1589,10 +1599,11 @@ ipcMain.handle(
 ipcMain.handle(
   REOPEN_PRESENTED_TOOL_FILE_CHANNEL,
   async (event, request: unknown) => {
-    const { sessionId, toolCallId } =
+    const { projectId, sessionId, toolCallId } =
       ReopenPresentedToolFileRequestSchema.parse(request);
     const target = await getProjectRuntimes().reopenPresentedToolFile(
       event.sender.id,
+      projectId,
       sessionId,
       toolCallId,
     );
@@ -1856,9 +1867,10 @@ ipcMain.handle(
     const parsed = SavePastedAttachmentRequestSchema.parse(request);
     const attachmentsRoot = getProjectRuntimes().attachmentsRootFor(
       event.sender.id,
+      parsed.projectId,
     );
     if (!attachmentsRoot) {
-      throw new Error("No project is open in this window.");
+      throw new Error("The project is not open in this window.");
     }
 
     const isText = parsed.mimeType === "text/plain";
@@ -2113,7 +2125,10 @@ async function mcpCatalog(
 ): Promise<PineMcpCatalog> {
   const catalog = await listMcpServers(await mcpProjectCwd(projectId));
   if (getProjectRuntimes().isOpen(event.sender.id, projectId)) {
-    const status = await getProjectRuntimes().getMcpStatus(event.sender.id);
+    const status = await getProjectRuntimes().getMcpStatus(
+      event.sender.id,
+      projectId,
+    );
     if (status) catalog.status = status;
   }
   return catalog;
@@ -2142,7 +2157,7 @@ ipcMain.handle(
     const cwd = await mcpProjectCwd(parsed.projectId);
     await saveMcpServer(cwd, parsed);
     if (getProjectRuntimes().isOpen(event.sender.id, parsed.projectId))
-      await getProjectRuntimes().reloadMcp(event.sender.id);
+      await getProjectRuntimes().reloadMcp(event.sender.id, parsed.projectId);
     return mcpCatalog(event, parsed.projectId);
   },
 );
@@ -2154,7 +2169,7 @@ ipcMain.handle(
     const cwd = await mcpProjectCwd(parsed.projectId);
     await removeMcpServer(cwd, parsed);
     if (getProjectRuntimes().isOpen(event.sender.id, parsed.projectId))
-      await getProjectRuntimes().reloadMcp(event.sender.id);
+      await getProjectRuntimes().reloadMcp(event.sender.id, parsed.projectId);
     return mcpCatalog(event, parsed.projectId);
   },
 );
@@ -2269,20 +2284,30 @@ ipcMain.handle(
   },
 );
 
-handleDiagnosticIpc(CLOSE_PROJECT_CHANNEL, async (event): Promise<void> => {
-  // Presenting a file is authorized per run, so closing the project that ran
-  // the agent ends those grants with it.
-  presentedFiles?.forget(event.sender.id);
-  filePreviewWatchers.disposeSender(event.sender.id);
-  await getProjectRuntimes().dispose(event.sender.id);
-});
+handleDiagnosticIpc(
+  CLOSE_PROJECT_CHANNEL,
+  async (event, request: unknown): Promise<void> => {
+    const { id } = ProjectIdRequestSchema.parse(request);
+    // Presented-file grants belong to the window rather than one project, so
+    // they stay until the window itself goes away.
+    await getProjectRuntimes().close(event.sender.id, id);
+  },
+);
 
 handleDiagnosticIpc(
   OPEN_PROJECT_CHANNEL,
   async (event, request: unknown): Promise<OpenProjectResult> => {
     const { id } = ProjectIdRequestSchema.parse(request);
     const repository = getProjectRepository();
-    const currentOwnerId = getProjectRuntimes().ownerOfProject(id);
+    // Opening again must not restart a runtime the window already holds.
+    if (getProjectRuntimes().isOpen(event.sender.id, id)) {
+      return { opened: true, project: await repository.open(id) };
+    }
+    // Every window needs the temporary workspace for new drafts, so it is the
+    // one project several windows may hold; its sessions stay single-window.
+    const currentOwnerId = isTemporaryWorkspace(id)
+      ? undefined
+      : getProjectRuntimes().ownerOfProject(id);
     if (currentOwnerId !== undefined && currentOwnerId !== event.sender.id) {
       const project = await repository.open(id);
       const existingWindow = windowForWebContentsId(currentOwnerId);
@@ -2293,7 +2318,10 @@ handleDiagnosticIpc(
       await getProjectRuntimes().dispose(currentOwnerId);
     }
 
-    const pending = pendingProjectOpens.get(id);
+    const pendingKey = isTemporaryWorkspace(id)
+      ? `${id}:${event.sender.id}`
+      : id;
+    const pending = pendingProjectOpens.get(pendingKey);
     if (pending) {
       const targetWindow = windowForWebContentsId(pending.webContentsId);
       if (targetWindow && pending.webContentsId !== event.sender.id) {
@@ -2312,15 +2340,15 @@ handleDiagnosticIpc(
       );
       return project;
     })();
-    pendingProjectOpens.set(id, {
+    pendingProjectOpens.set(pendingKey, {
       promise: opening,
       webContentsId: event.sender.id,
     });
     try {
       return { opened: true, project: await opening };
     } finally {
-      if (pendingProjectOpens.get(id)?.promise === opening) {
-        pendingProjectOpens.delete(id);
+      if (pendingProjectOpens.get(pendingKey)?.promise === opening) {
+        pendingProjectOpens.delete(pendingKey);
       }
     }
   },
@@ -2368,11 +2396,8 @@ ipcMain.handle(
   DELETE_PROJECT_CHANNEL,
   async (event, request: unknown): Promise<DeleteProjectResult> => {
     const { id } = ProjectIdRequestSchema.parse(request);
-    if (getProjectRuntimes().isOpen(event.sender.id, id)) {
-      presentedFiles?.forget(event.sender.id);
-      filePreviewWatchers.disposeSender(event.sender.id);
-      await getProjectRuntimes().dispose(event.sender.id);
-    }
+    const ownerId = getProjectRuntimes().ownerOfProject(id);
+    if (ownerId !== undefined) await getProjectRuntimes().close(ownerId, id);
     return { deleted: await getProjectRepository().delete(id) };
   },
 );
@@ -2439,11 +2464,12 @@ ipcMain.handle(
 ipcMain.handle(
   LIST_PROJECT_DIRECTORY_CHANNEL,
   async (event, request: unknown): Promise<ListProjectDirectoryResult> => {
-    const { folderId, relativePath } =
+    const { folderId, projectId, relativePath } =
       ListProjectDirectoryRequestSchema.parse(request);
     return {
       entries: await getProjectRuntimes().listDirectory(
         event.sender.id,
+        projectId,
         folderId,
         relativePath,
       ),
@@ -2457,9 +2483,10 @@ ipcMain.handle(
     const parsed = SetWatchedProjectDirectoriesRequestSchema.parse(request);
     if (!projectFileWatchers) {
       projectFileWatchers = new ProjectFileWatcherRegistry(
-        (senderId, folderId, relativePath) =>
+        (senderId, projectId, folderId, relativePath) =>
           getProjectRuntimes().resolveDirectory(
             senderId,
+            projectId,
             folderId,
             relativePath,
           ),
@@ -2477,9 +2504,13 @@ ipcMain.handle(
 handleDiagnosticIpc(
   SEARCH_SESSIONS_CHANNEL,
   async (event, request: unknown): Promise<SearchSessionsResult> => {
-    const { query } = SearchSessionsRequestSchema.parse(request);
+    const { projectId, query } = SearchSessionsRequestSchema.parse(request);
     return {
-      sessions: await getProjectRuntimes().search(event.sender.id, query),
+      sessions: await getProjectRuntimes().search(
+        event.sender.id,
+        projectId,
+        query,
+      ),
     };
   },
 );
@@ -2487,9 +2518,10 @@ handleDiagnosticIpc(
 ipcMain.handle(
   ATTACH_SESSION_CHANNEL,
   async (event, request: unknown): Promise<AttachSessionResult> => {
-    const { sessionId } = SessionIdRequestSchema.parse(request);
+    const { projectId, sessionId } = ProjectSessionRequestSchema.parse(request);
     const attachment = await getProjectRuntimes().attachmentForSession(
       event.sender.id,
+      projectId,
       sessionId,
     );
     registerAttachmentPreviewPaths(event.sender.id, [attachment.path]);
@@ -2500,18 +2532,19 @@ ipcMain.handle(
 handleDiagnosticIpc(
   RESUME_SESSION_CHANNEL,
   async (event, request: unknown): Promise<ResumeSessionResult> => {
-    const { sessionId } = SessionIdRequestSchema.parse(request);
-    return getProjectRuntimes().resume(event.sender.id, sessionId);
+    const { projectId, sessionId } = ProjectSessionRequestSchema.parse(request);
+    return getProjectRuntimes().resume(event.sender.id, projectId, sessionId);
   },
 );
 
 ipcMain.handle(
   DELETE_SESSION_CHANNEL,
   async (event, request: unknown): Promise<DeleteSessionResult> => {
-    const { sessionId } = SessionIdRequestSchema.parse(request);
+    const { projectId, sessionId } = ProjectSessionRequestSchema.parse(request);
     return {
       deleted: await getProjectRuntimes().deleteSession(
         event.sender.id,
+        projectId,
         sessionId,
       ),
     };
@@ -2521,9 +2554,10 @@ ipcMain.handle(
 ipcMain.handle(
   EXPORT_SESSION_CHANNEL,
   async (event, request: unknown): Promise<ExportSessionResult> => {
-    const { sessionId } = SessionIdRequestSchema.parse(request);
+    const { projectId, sessionId } = ProjectSessionRequestSchema.parse(request);
     const document = await getProjectRuntimes().exportSession(
       event.sender.id,
+      projectId,
       sessionId,
     );
     const parentWindow = BrowserWindow.fromWebContents(event.sender);
@@ -2543,10 +2577,12 @@ ipcMain.handle(
 ipcMain.handle(
   RENAME_SESSION_CHANNEL,
   async (event, request: unknown): Promise<RenameSessionResult> => {
-    const { name, sessionId } = RenameSessionRequestSchema.parse(request);
+    const { name, projectId, sessionId } =
+      RenameSessionRequestSchema.parse(request);
     return {
       session: await getProjectRuntimes().renameSession(
         event.sender.id,
+        projectId,
         sessionId,
         name,
       ),
@@ -2557,10 +2593,11 @@ ipcMain.handle(
 handleDiagnosticIpc(
   LOAD_SESSION_MESSAGES_CHANNEL,
   async (event, request: unknown): Promise<LoadSessionMessagesResult> => {
-    const { before, includeOutline, limit, sessionId } =
+    const { before, includeOutline, limit, projectId, sessionId } =
       LoadSessionMessagesRequestSchema.parse(request);
     return getProjectRuntimes().loadMessages(
       event.sender.id,
+      projectId,
       sessionId,
       before,
       limit,

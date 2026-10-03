@@ -33,6 +33,9 @@ import { useProjectRightSidebarStore } from "@/stores/projectRightSidebar";
 import type { ProjectContentTab } from "@/stores/contentTabs";
 import { useContentTabsStore } from "@/stores/contentTabs";
 import { useSessionStore } from "@/stores/session";
+import { useProjectStore } from "@/stores/project";
+import { Spinner } from "@/components/ui/spinner";
+import { toast } from "vue-sonner";
 import ProjectSessionView from "./ProjectSessionView.vue";
 import ProjectFilePreview from "./ProjectFilePreview.vue";
 import ProjectTabsOverflowMenu from "./ProjectTabsOverflowMenu.vue";
@@ -45,6 +48,7 @@ const contentTabsStore = useContentTabsStore();
 const attentionFlash = useAttentionFlashStore();
 const tabNavigation = useContentTabNavigation();
 const sessionStore = useSessionStore();
+const projectStore = useProjectStore();
 const { activeTab: activeContentTab, activeTabId, tabs } = tabNavigation;
 const { activeSession } = storeToRefs(sessionStore);
 const windowCloseTabHandler = inject(WINDOW_TAB_CLOSE_HANDLER_KEY, null);
@@ -368,19 +372,50 @@ function moveTabFocus(index: number, event: KeyboardEvent): void {
   void nextTick(() => tabButtons.get(tab.id)?.focus({ preventScroll: true }));
 }
 
+/**
+ * The active tab decides the window's project: switching tabs moves the
+ * sidebars and accent colour to the tab's project, opening its runtime on
+ * first use. Other projects stay open, so switching back costs nothing.
+ */
+let activationSequence = 0;
 watch(
-  activeContentTab,
-  (tab) => {
-    if (!tab || tab.kind !== "session") return;
+  () => {
+    const tab = activeContentTab.value;
+    return tab?.kind === "session" && tab.state === "bound"
+      ? `${tab.id}:${tab.projectId}:${tab.sessionId}`
+      : `${tab?.id}:${tab?.projectId}:${tab?.kind === "session" ? tab.state : "file"}`;
+  },
+  async () => {
+    const tab = activeContentTab.value;
+    if (!tab) return;
+    const sequence = ++activationSequence;
+    projectStore.setCurrentProject(tab.projectId);
 
-    if (tab.state === "draft") {
+    if (tab.kind === "session" && tab.state === "draft") {
       sessionStore.startDraft();
+    }
+    try {
+      const result = await projectStore.ensureOpen(tab.projectId);
+      if (sequence !== activationSequence) return;
+      if (!result.opened) {
+        // Another window owns this project and main has focused it.
+        toast.info(t("projects.openElsewhere"));
+        tabNavigation.close(tab.id);
+        return;
+      }
+    } catch (error) {
+      if (sequence !== activationSequence) return;
+      handleError(error, {
+        id: `project.open.${tab.projectId}`,
+        title: t("errors.projectOpen.title"),
+        description: t("errors.projectOpen.description"),
+      });
       return;
     }
-    if (tab.state === "creating") return;
-    if (activeSession.value?.id === tab.sessionId) return;
 
-    void sessionStore.resume(tab.sessionId).catch((error) => {
+    if (tab.kind !== "session" || tab.state !== "bound") return;
+    if (activeSession.value?.id === tab.sessionId) return;
+    void sessionStore.resume(tab.projectId, tab.sessionId).catch((error) => {
       handleError(error, {
         id: "sessions.tabs.resume",
         title: t("errors.sessionResume.title"),
@@ -407,7 +442,7 @@ watch(activeSession, (session) => {
           shouldReserveTrailingControlsSpace &&
             'pr-[calc(var(--window-titlebar-controls-width)+var(--window-titlebar-trailing-actions-width))]',
           shouldReserveWindowControlsSpace &&
-            'pl-[calc(var(--window-titlebar-leading-offset)+var(--window-titlebar-leading-extra)+var(--window-titlebar-control-height)+0.25rem+var(--window-titlebar-home-action-width)+0.75rem)]',
+            'pl-[calc(var(--window-titlebar-leading-offset)+var(--window-titlebar-leading-extra)+var(--window-titlebar-control-height)+0.75rem)]',
         )
       "
     >
@@ -531,7 +566,7 @@ watch(activeSession, (session) => {
           variant="ghost"
           size="icon-sm"
           :aria-label="t('project.contentTabs.addTab')"
-          @click="tabNavigation.createSessionTab"
+          @click="tabNavigation.createSessionTab()"
         >
           <PlusIcon />
         </Button>
@@ -548,7 +583,7 @@ watch(activeSession, (session) => {
         variant="ghost"
         size="icon-sm"
         :aria-label="t('project.contentTabs.addTab')"
-        @click="tabNavigation.createSessionTab"
+        @click="tabNavigation.createSessionTab()"
       >
         <PlusIcon />
       </Button>
@@ -563,14 +598,23 @@ watch(activeSession, (session) => {
       <RetainedPanel
         v-for="tab in tabs"
         :id="`project-content-panel-${tab.id}`"
-        :key="`${contentTabsStore.projectId}:${tab.id}`"
+        :key="tab.id"
         role="tabpanel"
         :aria-labelledby="`project-content-tab-${tab.id}`"
         :active="activeTabId === tab.id"
       >
+        <!-- A tab's views talk to its project's runtime, so they wait
+             for the project to open in this window. -->
+        <div
+          v-if="!projectStore.isOpen(tab.projectId)"
+          class="flex flex-1 items-center justify-center"
+        >
+          <Spinner class="text-muted-foreground" />
+        </div>
         <ProjectSessionView
-          v-if="tab.kind === 'session'"
+          v-else-if="tab.kind === 'session'"
           :tab-id="tab.id"
+          :project-id="tab.projectId"
           :session-id="tab.state === 'bound' ? tab.sessionId : undefined"
         />
         <ProjectFilePreview

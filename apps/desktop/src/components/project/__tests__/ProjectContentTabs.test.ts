@@ -23,6 +23,7 @@ import {
 } from "@/lib/contentTabDrag";
 import { SESSION_DRAG_TYPE } from "@/lib/sessionDrag";
 import ProjectContentTabs from "../ProjectContentTabs.vue";
+import { TEMPORARY_WORKSPACE_PROJECT_ID } from "@/shared/projects";
 
 const sidebar = vi.hoisted(() => ({
   state: "expanded",
@@ -92,6 +93,9 @@ async function mountTabs(withFile = false) {
         hasMore: false,
         messages: [],
       }),
+      openProject: vi.fn(({ id }: { id: string }) =>
+        Promise.resolve({ opened: true, project: { id } }),
+      ),
       resumeSession: vi.fn(({ sessionId }) =>
         Promise.resolve({
           session: sessionId === firstSession.id ? firstSession : secondSession,
@@ -594,6 +598,7 @@ describe("ProjectContentTabs", () => {
     await wrapper.findAll('[role="tab"]')[0].trigger("click");
     await flushPromises();
     expect(window.pine.resumeSession).toHaveBeenCalledWith({
+      projectId: TEMPORARY_WORKSPACE_PROJECT_ID,
       sessionId: firstSession.id,
     });
     expect(sessionView.mounts).toBe(2);
@@ -628,7 +633,10 @@ describe("ProjectContentTabs", () => {
     const store = useContentTabsStore();
     store.bindSession("session-1", firstSession);
     await flushPromises();
-    const second = store.openSession(secondSession);
+    const second = store.openSession(
+      secondSession,
+      TEMPORARY_WORKSPACE_PROJECT_ID,
+    );
     await router.push({ query: { tab: second.id } });
     await flushPromises();
     const draft = store.createSessionTab();
@@ -650,7 +658,10 @@ describe("ProjectContentTabs", () => {
     const store = useContentTabsStore();
     store.bindSession("session-1", firstSession);
     await flushPromises();
-    const second = store.openSession(secondSession);
+    const second = store.openSession(
+      secondSession,
+      TEMPORARY_WORKSPACE_PROJECT_ID,
+    );
     await router.push({ query: { tab: second.id } });
     await flushPromises();
     const resume = vi.spyOn(useSessionStore(), "resume");
@@ -665,11 +676,15 @@ describe("ProjectContentTabs", () => {
     expect(router.currentRoute.value.query.tab).toBe(second.id);
     expect(sessionView.unmounts).toBe(1);
     expect(resume).not.toHaveBeenCalled();
-    const reopened = store.openSession(firstSession);
+    const reopened = store.openSession(
+      firstSession,
+      TEMPORARY_WORKSPACE_PROJECT_ID,
+    );
     await router.push({ query: { tab: reopened.id } });
     await flushPromises();
     expect(loadMessages).toHaveBeenCalledExactlyOnceWith({
       includeOutline: true,
+      projectId: TEMPORARY_WORKSPACE_PROJECT_ID,
       sessionId: firstSession.id,
       limit: 50,
     });
@@ -772,7 +787,10 @@ describe("ProjectContentTabs", () => {
     await new DOMWrapper(exportAction).trigger("click");
     await flushPromises();
 
-    expect(exportSession).toHaveBeenCalledWith({ sessionId: firstSession.id });
+    expect(exportSession).toHaveBeenCalledWith({
+      projectId: TEMPORARY_WORKSPACE_PROJECT_ID,
+      sessionId: firstSession.id,
+    });
     wrapper.unmount();
   });
 

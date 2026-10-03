@@ -5,6 +5,20 @@ import type { PineContextUsage, PineSessionSummary } from "@/shared/sessions";
 import { useModelsStore } from "../models";
 import { useSessionStore } from "../session";
 
+const PROJECT_ID = "7f48c81c-f1dc-4be6-a8ee-55729ef647ba";
+
+/** Seed a project's session list through the store's own loader. */
+async function seedRecent(
+  store: ReturnType<typeof useSessionStore>,
+  sessions: PineSessionSummary[],
+): Promise<void> {
+  const pine = window.pine as unknown as Record<string, unknown>;
+  const original = pine.searchSessions;
+  pine.searchSessions = vi.fn().mockResolvedValue({ sessions });
+  await store.loadRecent(PROJECT_ID);
+  pine.searchSessions = original;
+}
+
 const session: PineSessionSummary = {
   id: "019cfe51-7166-79b9-a5b9-c652fcca9eab",
   createdAt: "2026-07-14T00:00:00.000Z",
@@ -42,8 +56,8 @@ describe("session store", () => {
     });
     const store = useSessionStore();
 
-    const firstSearch = store.search("old");
-    await store.search("new");
+    const firstSearch = store.search(PROJECT_ID, "old");
+    await store.search(PROJECT_ID, "new");
     resolveFirst?.({ sessions: [] });
     await firstSearch;
 
@@ -74,7 +88,9 @@ describe("session store", () => {
     });
     const store = useSessionStore();
 
-    await expect(store.resume(session.id)).resolves.toEqual(sessionWithModel);
+    await expect(store.resume(PROJECT_ID, session.id)).resolves.toEqual(
+      sessionWithModel,
+    );
     expect(store.activeSession).toEqual(sessionWithModel);
     expect(store.contextUsage).toEqual(contextUsage);
     expect(useModelsStore().selectionFor(session.id)).toEqual(
@@ -104,7 +120,7 @@ describe("session store", () => {
     });
     const store = useSessionStore();
 
-    await store.resume(session.id);
+    await store.resume(PROJECT_ID, session.id);
     const firstArray = store.messages;
     expect(loadSessionMessages).toHaveBeenCalledTimes(1);
     expect(store.isLoadingMessages).toBe(false);
@@ -120,7 +136,7 @@ describe("session store", () => {
     // its persisted usage snapshot without re-fetching from disk.
     store.startDraft();
     expect(store.contextUsage).toBeNull();
-    await store.resume(session.id);
+    await store.resume(PROJECT_ID, session.id);
     expect(store.messages).toBe(firstArray);
     expect(store.contextUsage).toEqual(contextUsage);
     expect(useModelsStore().selectionFor(session.id)).toEqual({
@@ -157,7 +173,7 @@ describe("session store", () => {
     });
     const store = useSessionStore();
     store.connectAgentEvents();
-    await store.resume(session.id);
+    await store.resume(PROJECT_ID, session.id);
     store.startDraft();
     listener?.({ type: "run-state", sessionId: session.id, state: "running" });
     listener?.({
@@ -170,7 +186,7 @@ describe("session store", () => {
       },
     });
 
-    await store.resume(session.id);
+    await store.resume(PROJECT_ID, session.id);
 
     expect(loadSessionMessages).toHaveBeenCalledTimes(1);
     expect(store.messages[0]?.blocks).toEqual(updatedMessage.blocks);
@@ -210,11 +226,12 @@ describe("session store", () => {
     });
     const store = useSessionStore();
 
-    await store.resume(session.id);
+    await store.resume(PROJECT_ID, session.id);
     await store.loadEarlierMessages();
 
     expect(loadSessionMessages).toHaveBeenNthCalledWith(2, {
       before: "newer-message",
+      projectId: PROJECT_ID,
       sessionId: session.id,
       limit: 50,
     });
@@ -258,7 +275,7 @@ describe("session store", () => {
       },
     });
     const store = useSessionStore();
-    await store.resume(session.id);
+    await store.resume(PROJECT_ID, session.id);
 
     const first = store.loadEarlierMessages();
     const second = store.loadEarlierMessages();
@@ -312,7 +329,7 @@ describe("session store", () => {
     });
     const store = useSessionStore();
 
-    await store.resume(session.id);
+    await store.resume(PROJECT_ID, session.id);
 
     expect(store.messages.map((message) => message.id)).toEqual([
       "newer-message",
@@ -337,7 +354,7 @@ describe("session store", () => {
     });
     const store = useSessionStore();
 
-    await store.resume(session.id);
+    await store.resume(PROJECT_ID, session.id);
     await store.deleteSession(session.id);
 
     // Re-resume must re-fetch because the cached slice was dropped.
@@ -358,9 +375,9 @@ describe("session store", () => {
       },
     });
     const store = useSessionStore();
-    store.recentSessions = [session];
+    await seedRecent(store, [session]);
 
-    await store.resume(session.id);
+    await store.resume(PROJECT_ID, session.id);
 
     expect(store.activeSession?.name).toBe("Session search");
   });
@@ -374,11 +391,11 @@ describe("session store", () => {
     });
     const store = useSessionStore();
 
-    await expect(store.loadRecent()).resolves.toEqual([session]);
+    await expect(store.loadRecent(PROJECT_ID)).resolves.toEqual([session]);
 
-    expect(store.recentSessions).toEqual([session]);
+    expect(store.recentSessionsFor(PROJECT_ID)).toEqual([session]);
     expect(store.searchResults).toEqual([]);
-    expect(store.isLoadingRecent).toBe(false);
+    expect(store.isLoadingRecentFor(PROJECT_ID)).toBe(false);
   });
 
   it("renames a session across recent, search, active, and cached state", async () => {
@@ -400,19 +417,22 @@ describe("session store", () => {
       },
     });
     const store = useSessionStore();
-    store.recentSessions = [session];
+    await seedRecent(store, [session]);
     store.searchResults = [{ ...session, snippet: "matching text" }];
-    await store.resume(session.id);
+    await store.resume(PROJECT_ID, session.id);
 
     await expect(
       store.renameSession(session.id, "Renamed conversation"),
     ).resolves.toEqual(renamed);
 
     expect(renameSession).toHaveBeenCalledWith({
+      projectId: PROJECT_ID,
       sessionId: session.id,
       name: "Renamed conversation",
     });
-    expect(store.recentSessions[0]?.name).toBe("Renamed conversation");
+    expect(store.recentSessionsFor(PROJECT_ID)[0]?.name).toBe(
+      "Renamed conversation",
+    );
     expect(store.searchResults[0]).toEqual(
       expect.objectContaining({
         name: "Renamed conversation",
@@ -422,7 +442,7 @@ describe("session store", () => {
     expect(store.activeSession?.name).toBe("Renamed conversation");
 
     store.startDraft();
-    await store.resume(session.id);
+    await store.resume(PROJECT_ID, session.id);
     expect(store.activeSession?.name).toBe("Renamed conversation");
   });
 
@@ -438,7 +458,7 @@ describe("session store", () => {
       },
     });
     const store = useSessionStore();
-    await store.resume(session.id);
+    await store.resume(PROJECT_ID, session.id);
 
     store.startDraft();
 
@@ -455,9 +475,9 @@ describe("session store", () => {
     });
     const store = useSessionStore();
 
-    await store.prompt("Describe the task");
+    await store.prompt("Describe the task", { projectId: PROJECT_ID });
 
-    expect(store.recentSessions).toEqual([
+    expect(store.recentSessionsFor(PROJECT_ID)).toEqual([
       expect.objectContaining({
         id: session.id,
         preview: "Describe the task",
@@ -467,7 +487,7 @@ describe("session store", () => {
     expect(promptSession).toHaveBeenCalledWith({
       locale: "en-US",
       message: "Describe the task",
-      target: { kind: "new" },
+      target: { kind: "new", projectId: PROJECT_ID },
     });
   });
 
@@ -479,7 +499,7 @@ describe("session store", () => {
       value: { promptSession },
     });
 
-    await useSessionStore().prompt("描述任务");
+    await useSessionStore().prompt("描述任务", { projectId: PROJECT_ID });
 
     expect(promptSession).toHaveBeenCalledWith(
       expect.objectContaining({ locale: "zh-CN" }),
@@ -500,14 +520,21 @@ describe("session store", () => {
       },
     });
     const store = useSessionStore();
-    await store.resume(session.id);
+    await store.resume(PROJECT_ID, session.id);
 
-    await store.prompt("Continue here", session.id);
+    await store.prompt("Continue here", {
+      projectId: PROJECT_ID,
+      sessionId: session.id,
+    });
 
     expect(promptSession).toHaveBeenCalledWith({
       locale: "en-US",
       message: "Continue here",
-      target: { kind: "session", sessionId: session.id },
+      target: {
+        kind: "session",
+        projectId: PROJECT_ID,
+        sessionId: session.id,
+      },
     });
   });
 
@@ -536,7 +563,7 @@ describe("session store", () => {
       },
     });
     const store = useSessionStore();
-    await store.resume(session.id);
+    await store.resume(PROJECT_ID, session.id);
 
     await store.rewrite(session.id, "u1", "Edited", "auto-approve");
 
@@ -548,7 +575,11 @@ describe("session store", () => {
       locale: "en-US",
       message: "Edited",
       rewrite: { messageId: "u1", userMessagesAfter: 1 },
-      target: { kind: "session", sessionId: session.id },
+      target: {
+        kind: "session",
+        projectId: PROJECT_ID,
+        sessionId: session.id,
+      },
     });
   });
 
@@ -572,7 +603,7 @@ describe("session store", () => {
       },
     });
     const store = useSessionStore();
-    await store.resume(session.id);
+    await store.resume(PROJECT_ID, session.id);
 
     await expect(store.rewrite(session.id, "u1", "Edited")).rejects.toThrow(
       "busy",
@@ -602,9 +633,14 @@ describe("session store", () => {
     });
     const store = useSessionStore();
     store.connectAgentEvents();
-    await store.resume(session.id);
+    await store.resume(PROJECT_ID, session.id);
 
-    await store.prompt("Change direction", session.id, "auto-approve", "steer");
+    await store.prompt(
+      "Change direction",
+      { projectId: PROJECT_ID, sessionId: session.id },
+      "auto-approve",
+      "steer",
+    );
     listener?.({
       type: "steering-queue",
       sessionId: session.id,
@@ -614,7 +650,11 @@ describe("session store", () => {
     expect(promptSession).toHaveBeenCalledWith({
       locale: "en-US",
       message: "Change direction",
-      target: { kind: "session", sessionId: session.id },
+      target: {
+        kind: "session",
+        projectId: PROJECT_ID,
+        sessionId: session.id,
+      },
       approvalMode: "auto-approve",
       streamingBehavior: "steer",
     });
@@ -654,12 +694,12 @@ describe("session store", () => {
       },
     });
     const store = useSessionStore();
-    store.recentSessions = [session];
-    await store.resume(session.id);
+    await seedRecent(store, [session]);
+    await store.resume(PROJECT_ID, session.id);
 
     await expect(store.deleteSession(session.id)).resolves.toBe(true);
 
-    expect(store.recentSessions).toEqual([]);
+    expect(store.recentSessionsFor(PROJECT_ID)).toEqual([]);
     expect(store.activeSession).toBeNull();
     expect(store.messages).toEqual([]);
   });
@@ -685,7 +725,7 @@ describe("session store", () => {
     });
     const store = useSessionStore();
     store.connectAgentEvents();
-    const prompt = store.prompt("Hello");
+    const prompt = store.prompt("Hello", { projectId: PROJECT_ID });
 
     listener?.({
       type: "run-state",
@@ -746,7 +786,7 @@ describe("session store", () => {
     });
     const store = useSessionStore();
     store.connectAgentEvents();
-    await store.prompt("Try the provider");
+    await store.prompt("Try the provider", { projectId: PROJECT_ID });
 
     listener?.({
       type: "message-end",
@@ -793,7 +833,7 @@ describe("session store", () => {
     });
     const store = useSessionStore();
     store.connectAgentEvents();
-    await store.prompt("Keep working");
+    await store.prompt("Keep working", { projectId: PROJECT_ID });
 
     listener?.({
       type: "compaction-start",
@@ -856,7 +896,9 @@ describe("session store", () => {
       });
       const store = useSessionStore();
       store.connectAgentEvents();
-      const prompt = store.prompt("Inspect the file");
+      const prompt = store.prompt("Inspect the file", {
+        projectId: PROJECT_ID,
+      });
       const messageId = "assistant-with-tool";
 
       listener?.({
@@ -966,7 +1008,7 @@ describe("session store", () => {
     });
     const store = useSessionStore();
     store.connectAgentEvents();
-    await store.prompt("go");
+    await store.prompt("go", { projectId: PROJECT_ID });
     const sessionId = session.id;
     const messageId = "assistant-streaming-tool";
 
@@ -1056,7 +1098,7 @@ describe("session store", () => {
     });
     const store = useSessionStore();
     store.connectAgentEvents();
-    await store.prompt("go");
+    await store.prompt("go", { projectId: PROJECT_ID });
 
     listener?.({
       type: "message-update",
@@ -1092,7 +1134,7 @@ describe("session store", () => {
     });
     const store = useSessionStore();
     store.connectAgentEvents();
-    await store.prompt("Describe the task");
+    await store.prompt("Describe the task", { projectId: PROJECT_ID });
 
     const summaryWithoutDisplayFields = { ...session };
     delete summaryWithoutDisplayFields.name;
@@ -1103,7 +1145,9 @@ describe("session store", () => {
     });
 
     expect(store.activeSession?.preview).toBe("Describe the task");
-    expect(store.recentSessions[0]?.preview).toBe("Describe the task");
+    expect(store.recentSessionsFor(PROJECT_ID)[0]?.preview).toBe(
+      "Describe the task",
+    );
   });
 
   it("ignores late events from a session after opening a new tab", async () => {
@@ -1124,7 +1168,7 @@ describe("session store", () => {
     });
     const store = useSessionStore();
     store.connectAgentEvents();
-    await store.resume(session.id);
+    await store.resume(PROJECT_ID, session.id);
     store.startDraft();
 
     listener?.({
@@ -1162,7 +1206,10 @@ describe("session store", () => {
     });
     const store = useSessionStore();
     store.connectAgentEvents();
-    await store.prompt("Hello", session.id);
+    await store.prompt("Hello", {
+      projectId: PROJECT_ID,
+      sessionId: session.id,
+    });
 
     listener?.({
       type: "context-usage",
@@ -1208,7 +1255,10 @@ describe("session store", () => {
     });
     const store = useSessionStore();
     store.connectAgentEvents();
-    await store.prompt("Run it", session.id);
+    await store.prompt("Run it", {
+      projectId: PROJECT_ID,
+      sessionId: session.id,
+    });
 
     listener?.({
       type: "message-end",
@@ -1272,7 +1322,10 @@ describe("session store", () => {
     });
     const store = useSessionStore();
     store.connectAgentEvents();
-    await store.prompt("Run it", session.id);
+    await store.prompt("Run it", {
+      projectId: PROJECT_ID,
+      sessionId: session.id,
+    });
 
     listener?.({
       type: "tool-start",
@@ -1328,7 +1381,10 @@ describe("session store", () => {
     });
     const store = useSessionStore();
     store.connectAgentEvents();
-    await store.prompt("Run it", session.id);
+    await store.prompt("Run it", {
+      projectId: PROJECT_ID,
+      sessionId: session.id,
+    });
 
     for (const toolCallId of ["first", "second"]) {
       listener?.({
@@ -1371,7 +1427,10 @@ describe("session store", () => {
     });
     const store = useSessionStore();
     store.connectAgentEvents();
-    await store.prompt("Run it", session.id);
+    await store.prompt("Run it", {
+      projectId: PROJECT_ID,
+      sessionId: session.id,
+    });
 
     listener?.({
       type: "message-end",

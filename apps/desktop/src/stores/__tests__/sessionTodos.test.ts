@@ -5,6 +5,8 @@ import type { PineAgentEvent } from "@/shared/agent";
 import type { PineSessionSummary } from "@/shared/sessions";
 import { useSessionStore } from "../session";
 
+const PROJECT_ID = "7f48c81c-f1dc-4be6-a8ee-55729ef647ba";
+
 const session: PineSessionSummary = {
   id: "019cfe51-7166-79b9-a5b9-c652fcca9eab",
   createdAt: "2026-07-14T00:00:00.000Z",
@@ -39,7 +41,7 @@ async function resumedStore() {
   });
   const store = useSessionStore();
   store.connectAgentEvents();
-  await store.resume(session.id);
+  await store.resume(PROJECT_ID, session.id);
   return {
     store,
     emit: (event: PineAgentEvent) => listener?.(event),

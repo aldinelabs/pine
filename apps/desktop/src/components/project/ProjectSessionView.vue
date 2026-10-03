@@ -50,6 +50,8 @@ import {
 
 const { t } = useI18n();
 const props = defineProps<{
+  /** The tab's project; for a draft, where its first message is sent. */
+  projectId: string;
   sessionId?: string;
   tabId: string;
 }>();
@@ -66,10 +68,15 @@ async function openToolFile(
 ): Promise<boolean> {
   const presentedTarget = contentTabsStore.presentedTargetFor(toolCall.id);
   if (presentedTarget) {
-    tabNavigation.activate(contentTabsStore.presentFile(presentedTarget).id);
+    tabNavigation.activate(
+      contentTabsStore.presentFile(presentedTarget, props.projectId).id,
+    );
     return true;
   }
-  const request = toolFileRequest(path, projectStore.activeProject);
+  const request = toolFileRequest(
+    path,
+    projectStore.projectById(props.projectId),
+  );
   if (request) {
     tabNavigation.openFile(request);
     return true;
@@ -84,11 +91,14 @@ async function openToolFile(
   }
   if (toolCall.name !== "ui_present_file" || !props.sessionId) return false;
   const target = await window.pine.reopenPresentedToolFile({
+    projectId: props.projectId,
     sessionId: props.sessionId,
     toolCallId: toolCall.id,
   });
   if (!target) return false;
-  tabNavigation.activate(contentTabsStore.presentFile(target, toolCall.id).id);
+  tabNavigation.activate(
+    contentTabsStore.presentFile(target, props.projectId, toolCall.id).id,
+  );
   return true;
 }
 // A retained tab always observes its own session, including background events.
@@ -201,7 +211,7 @@ function submit(message: string): void {
   }
 
   const sessionId = props.sessionId;
-  const projectId = contentTabsStore.projectId;
+  const projectId = props.projectId;
   if (
     !contentTabsStore.beginPrompt(
       props.tabId,
@@ -213,14 +223,21 @@ function submit(message: string): void {
   hasSubmittedPrompt.value = true;
   isSubmitting.value = true;
   draft.value = "";
-  void sessionStore
-    .prompt(message, sessionId, approvalMode.value)
+  void projectStore
+    .ensureOpen(projectId)
+    .then((result) => {
+      // Another window owns the project; main has focused that window.
+      if (!result.opened) throw new Error("The project is open elsewhere.");
+      return sessionStore.prompt(
+        message,
+        { projectId, sessionId },
+        approvalMode.value,
+      );
+    })
     .then((session) => {
-      if (contentTabsStore.projectId === projectId)
-        tabNavigation.bindSession(props.tabId, session);
+      tabNavigation.bindSession(props.tabId, session);
     })
     .catch(() => {
-      if (contentTabsStore.projectId !== projectId) return;
       restoreComposerMessage(message);
       tabNavigation.failPrompt(props.tabId);
       hasSubmittedPrompt.value = false;
@@ -251,6 +268,12 @@ async function rewriteMessage(
     toast.error(t("project.transcript.editMessageFailed"));
     return false;
   }
+}
+
+/** A draft may still change the project its first message goes to. */
+function selectDraftProject(projectId: string): void {
+  if (props.sessionId || isRunning.value) return;
+  contentTabsStore.setDraftProject(props.tabId, projectId);
 }
 
 function restoreComposerMessage(message: string): void {
@@ -382,7 +405,11 @@ async function handleDrop(event: DragEvent): Promise<void> {
     if (!transfer) return;
     const sessionId = readSessionDrag(transfer);
     if (sessionId) {
-      const result = await window.pine.attachSession({ sessionId });
+      // Sessions are dragged from the sidebar, which shows this project.
+      const result = await window.pine.attachSession({
+        projectId: sessionStore.projectOf(sessionId) ?? props.projectId,
+        sessionId,
+      });
       const byPath = new Map(
         attachments.value.map((attachment) => [attachment.path, attachment]),
       );
@@ -390,7 +417,11 @@ async function handleDrop(event: DragEvent): Promise<void> {
       attachments.value = [...byPath.values()];
       return;
     }
-    const entries = readProjectEntryDrag(transfer);
+    // Files from another project's tree stay outside this session's sandbox.
+    const entries = readProjectEntryDrag(transfer)?.filter(
+      (entry) => entry.projectId === props.projectId,
+    );
+    if (entries?.length === 0) return;
     const paths = entries ? [] : externalFilePaths(transfer);
     if (!entries && !paths.length) return;
     const result = entries
@@ -518,8 +549,10 @@ async function handleDrop(event: DragEvent): Promise<void> {
             : false
         "
         :pending-questionnaire="pendingQuestionnaire"
+        :project-id="props.projectId"
         :session-id="props.sessionId"
         :steering-messages="steeringMessages"
+        @select-project="selectDraftProject"
         @abort="abort"
         @respond="respondToApproval"
         @respond-questionnaire="respondToQuestionnaire"

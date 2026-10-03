@@ -324,9 +324,10 @@ export interface PromptSessionRequest {
   locale?: "en-US" | "zh-CN";
   message: string;
   target:
-    | { kind: "new" }
+    | { kind: "new"; projectId: string }
     | {
         kind: "session";
+        projectId: string;
         sessionId: string;
       };
   streamingBehavior?: "follow-up" | "steer";

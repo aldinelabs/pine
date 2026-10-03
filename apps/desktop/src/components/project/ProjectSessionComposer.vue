@@ -28,6 +28,7 @@ import ProjectQuestionnaireCard from "@/components/project/ProjectQuestionnaireC
 import ProjectAttachmentList from "@/components/project/ProjectAttachmentList.vue";
 import SessionSearchOverlay from "@/components/sessions/SessionSearchOverlay.vue";
 import ContextUsageIndicator from "@/components/project/ContextUsageIndicator.vue";
+import ProjectTargetPicker from "@/components/project/ProjectTargetPicker.vue";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -81,6 +82,7 @@ import type {
 } from "@/stores/session";
 import type { AskUserQuestionSubmission } from "@pine/rpiv-ask-user-question";
 import { pineModelKey, useModelsStore } from "@/stores/models";
+import { useSessionStore } from "@/stores/session";
 
 type ApprovalMode = PineApprovalMode;
 
@@ -103,6 +105,7 @@ const emit = defineEmits<{
   abort: [];
   respond: [action: PineApprovalAction, guidance?: string];
   respondQuestionnaire: [submission: AskUserQuestionSubmission];
+  selectProject: [projectId: string];
   submit: [message: string];
   withdrawSteering: [message: string];
 }>();
@@ -110,6 +113,9 @@ const emit = defineEmits<{
 const props = withDefaults(
   defineProps<{
     isRunning?: boolean;
+    /** The tab's project; pasted files are stored in its Pine data. */
+    projectId: string;
+    /** Absent for a draft, which can still choose its project. */
     sessionId?: string;
     steeringMessages?: readonly string[];
     /** When set, the approval questionnaire replaces the message input. */
@@ -128,6 +134,7 @@ const approvalMode = defineModel<ApprovalMode>("approvalMode", {
 });
 const { t } = useI18n();
 const modelsStore = useModelsStore();
+const sessionStore = useSessionStore();
 const { favoriteModels, featuredModels } = storeToRefs(modelsStore);
 const selection = computed(() => modelsStore.selectionFor(props.sessionId));
 const selectedModel = computed(() =>
@@ -280,7 +287,12 @@ function openSessionPicker(): void {
 
 async function attachSession(session: SessionSearchResult): Promise<void> {
   try {
-    const result = await window.pine.attachSession({ sessionId: session.id });
+    // The palette lists this project's sessions.
+    const projectId = sessionStore.projectOf(session.id) ?? props.projectId;
+    const result = await window.pine.attachSession({
+      projectId,
+      sessionId: session.id,
+    });
     mergeAttachments([result.attachment]);
   } catch {
     toast.error(t("project.composer.sessionAttachmentFailed"));
@@ -334,7 +346,10 @@ async function handlePaste(event: ClipboardEvent): Promise<void> {
         merged.push(...result.attachments);
       }
       for (const image of pastedImages) {
-        const result = await window.pine.savePastedAttachment(image);
+        const result = await window.pine.savePastedAttachment({
+          ...image,
+          projectId: props.projectId,
+        });
         merged.push(result.attachment);
       }
       mergeAttachments(merged);
@@ -355,6 +370,7 @@ async function handlePaste(event: ClipboardEvent): Promise<void> {
   try {
     const result = await window.pine.savePastedAttachment({
       mimeType: "text/plain",
+      projectId: props.projectId,
       name: "pasted-text.txt",
       text: pastedText,
     });
@@ -664,128 +680,138 @@ function handleRootSubmit(event: Event): void {
         <ContextUsageIndicator />
       </div>
 
-      <DropdownMenu>
-        <DropdownMenuTrigger as-child>
-          <Button
-            data-slot="model-selector-trigger"
-            class="min-w-0"
-            type="button"
-            variant="ghost"
-            size="sm"
-          >
-            <span class="truncate">
-              {{ selectedModel?.name ?? t("project.composer.selectModel") }}
-            </span>
-            <span
-              v-if="selectedModel && selection"
-              data-slot="model-selector-thinking-level"
-              :class="
-                cn(
-                  'shrink-0 text-muted-foreground',
-                  thinkingLevelTextClass(selection.thinkingLevel),
-                )
-              "
-            >
-              · {{ t(`models.thinkingLevels.${selection.thinkingLevel}`) }}
-            </span>
-            <ChevronDownIcon data-icon="inline-end" />
-          </Button>
-        </DropdownMenuTrigger>
+      <div class="flex min-w-0 items-center gap-1">
+        <ProjectTargetPicker
+          v-if="!props.sessionId && !props.isRunning"
+          :project-id="props.projectId"
+          @select="emit('selectProject', $event)"
+        />
 
-        <DropdownMenuContent side="top" align="end" class="w-72">
-          <template v-if="featuredModels.length > 0">
-            <DropdownMenuLabel>
-              {{
-                favoriteModels.length > 0
-                  ? t("models.favorites")
-                  : t("models.recent")
-              }}
-            </DropdownMenuLabel>
-            <DropdownMenuRadioGroup
-              :model-value="selectedModel ? pineModelKey(selectedModel) : ''"
-              @update:model-value="selectFeaturedModel"
+        <DropdownMenu>
+          <DropdownMenuTrigger as-child>
+            <Button
+              data-slot="model-selector-trigger"
+              class="min-w-0"
+              type="button"
+              variant="ghost"
+              size="sm"
             >
-              <DropdownMenuRadioItem
-                v-for="model in featuredModels"
-                :key="pineModelKey(model)"
-                data-slot="model-option"
-                :value="pineModelKey(model)"
+              <span class="truncate">
+                {{ selectedModel?.name ?? t("project.composer.selectModel") }}
+              </span>
+              <span
+                v-if="selectedModel && selection"
+                data-slot="model-selector-thinking-level"
+                :class="
+                  cn(
+                    'shrink-0 text-muted-foreground',
+                    thinkingLevelTextClass(selection.thinkingLevel),
+                  )
+                "
               >
-                <span class="flex min-w-0 flex-1 flex-col gap-0.5">
-                  <span class="truncate">{{ model.name }}</span>
-                  <span
-                    class="flex min-w-0 items-center gap-1 text-xs text-muted-foreground"
-                  >
-                    <ProviderIcon
-                      :provider-id="model.providerId"
-                      :provider-name="model.providerName"
-                    />
-                    <span class="truncate">{{ model.providerName }}</span>
-                    <ModelCapabilities
-                      class="ml-1"
-                      :model="model"
-                      :recommended="modelsStore.isRecommended(model)"
-                    />
-                  </span>
-                </span>
-              </DropdownMenuRadioItem>
-            </DropdownMenuRadioGroup>
-            <DropdownMenuSeparator />
-          </template>
+                · {{ t(`models.thinkingLevels.${selection.thinkingLevel}`) }}
+              </span>
+              <ChevronDownIcon data-icon="inline-end" />
+            </Button>
+          </DropdownMenuTrigger>
 
-          <DropdownMenuGroup>
-            <DropdownMenuItem @select="openModelPicker">
-              <SearchIcon />
-              {{ t("models.picker.browse") }}
-            </DropdownMenuItem>
-          </DropdownMenuGroup>
-
-          <template v-if="selectedModel && thinkingLevels.length > 1">
-            <DropdownMenuSeparator />
-            <div data-slot="reasoning-effort-control" class="w-full">
-              <DropdownMenuLabel class="flex items-center justify-between">
-                <span>{{ t("models.reasoning") }}</span>
-                <span
-                  v-if="activeThinkingLevel"
-                  :class="thinkingLevelTextClass(activeThinkingLevel)"
-                >
-                  {{ t(`models.thinkingLevels.${activeThinkingLevel}`) }}
-                </span>
+          <DropdownMenuContent side="top" align="end" class="w-72">
+            <template v-if="featuredModels.length > 0">
+              <DropdownMenuLabel>
+                {{
+                  favoriteModels.length > 0
+                    ? t("models.favorites")
+                    : t("models.recent")
+                }}
               </DropdownMenuLabel>
+              <DropdownMenuRadioGroup
+                :model-value="selectedModel ? pineModelKey(selectedModel) : ''"
+                @update:model-value="selectFeaturedModel"
+              >
+                <DropdownMenuRadioItem
+                  v-for="model in featuredModels"
+                  :key="pineModelKey(model)"
+                  data-slot="model-option"
+                  :value="pineModelKey(model)"
+                >
+                  <span class="flex min-w-0 flex-1 flex-col gap-0.5">
+                    <span class="truncate">{{ model.name }}</span>
+                    <span
+                      class="flex min-w-0 items-center gap-1 text-xs text-muted-foreground"
+                    >
+                      <ProviderIcon
+                        :provider-id="model.providerId"
+                        :provider-name="model.providerName"
+                      />
+                      <span class="truncate">{{ model.providerName }}</span>
+                      <ModelCapabilities
+                        class="ml-1"
+                        :model="model"
+                        :recommended="modelsStore.isRecommended(model)"
+                      />
+                    </span>
+                  </span>
+                </DropdownMenuRadioItem>
+              </DropdownMenuRadioGroup>
+              <DropdownMenuSeparator />
+            </template>
 
-              <div class="px-3 pb-4">
-                <Tooltip :disabled="!thinkingLevelTooltip(activeThinkingLevel)">
-                  <Slider
-                    v-model="thinkingLevelSliderValue"
-                    data-slot="reasoning-effort-slider"
-                    class="reasoning-effort-slider"
-                    :min="0"
-                    :max="thinkingLevels.length - 1"
-                    :step="1"
-                    :aria-label="t('models.reasoning')"
+            <DropdownMenuGroup>
+              <DropdownMenuItem @select="openModelPicker">
+                <SearchIcon />
+                {{ t("models.picker.browse") }}
+              </DropdownMenuItem>
+            </DropdownMenuGroup>
+
+            <template v-if="selectedModel && thinkingLevels.length > 1">
+              <DropdownMenuSeparator />
+              <div data-slot="reasoning-effort-control" class="w-full">
+                <DropdownMenuLabel class="flex items-center justify-between">
+                  <span>{{ t("models.reasoning") }}</span>
+                  <span
+                    v-if="activeThinkingLevel"
+                    :class="thinkingLevelTextClass(activeThinkingLevel)"
                   >
-                    <template #thumb>
-                      <TooltipTrigger as-child>
-                        <span />
-                      </TooltipTrigger>
-                    </template>
-                  </Slider>
-                  <TooltipContent
-                    v-if="thinkingLevelTooltip(activeThinkingLevel)"
-                    data-slot="reasoning-effort-tooltip"
-                    side="top"
-                    align="center"
-                    :side-offset="8"
-                    class="max-w-80 whitespace-normal"
+                    {{ t(`models.thinkingLevels.${activeThinkingLevel}`) }}
+                  </span>
+                </DropdownMenuLabel>
+
+                <div class="px-3 pb-4">
+                  <Tooltip
+                    :disabled="!thinkingLevelTooltip(activeThinkingLevel)"
                   >
-                    {{ thinkingLevelTooltip(activeThinkingLevel) }}
-                  </TooltipContent>
-                </Tooltip>
+                    <Slider
+                      v-model="thinkingLevelSliderValue"
+                      data-slot="reasoning-effort-slider"
+                      class="reasoning-effort-slider"
+                      :min="0"
+                      :max="thinkingLevels.length - 1"
+                      :step="1"
+                      :aria-label="t('models.reasoning')"
+                    >
+                      <template #thumb>
+                        <TooltipTrigger as-child>
+                          <span />
+                        </TooltipTrigger>
+                      </template>
+                    </Slider>
+                    <TooltipContent
+                      v-if="thinkingLevelTooltip(activeThinkingLevel)"
+                      data-slot="reasoning-effort-tooltip"
+                      side="top"
+                      align="center"
+                      :side-offset="8"
+                      class="max-w-80 whitespace-normal"
+                    >
+                      {{ thinkingLevelTooltip(activeThinkingLevel) }}
+                    </TooltipContent>
+                  </Tooltip>
+                </div>
               </div>
-            </div>
-          </template>
-        </DropdownMenuContent>
-      </DropdownMenu>
+            </template>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
     </div>
 
     <AlertDialog v-model:open="isYoloConfirmationOpen">

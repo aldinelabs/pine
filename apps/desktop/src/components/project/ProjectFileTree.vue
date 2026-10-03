@@ -8,7 +8,6 @@ import {
   Trash2,
 } from "@lucide/vue";
 import { TreeItem, TreeRoot, TreeVirtualizer } from "reka-ui";
-import { storeToRefs } from "pinia";
 import {
   computed,
   nextTick,
@@ -65,6 +64,7 @@ import { useProjectSidebarStore } from "@/stores/projectSidebar";
 import { useProjectStore } from "@/stores/project";
 import { useContentTabsStore } from "@/stores/contentTabs";
 import { useContentTabNavigation } from "@/composables/useContentTabNavigation";
+import { useScopedProject } from "@/composables/useScopedProject";
 import { useProjectFileChanges } from "@/composables/useProjectFileChanges";
 
 interface ProjectTreeNode extends ProjectEntry {
@@ -79,7 +79,14 @@ const { t } = useI18n();
 const projectStore = useProjectStore();
 const contentTabsStore = useContentTabsStore();
 const tabNavigation = useContentTabNavigation();
-const { activeProject } = storeToRefs(projectStore);
+// Retained per project: always show this panel's project.
+const activeProject = useScopedProject();
+/** Only the visible project's tree keeps directory watchers in main. */
+const isCurrentProject = computed(
+  () =>
+    activeProject.value !== null &&
+    activeProject.value.id === projectStore.currentProjectId,
+);
 const { onProjectFilesChanged } = useProjectFileChanges();
 const unsubscribeLocalProjectFilesChanged = onProjectFilesChanged(() => {
   void refresh()
@@ -376,8 +383,11 @@ async function readDirectory(
   folderId: string,
   relativePath: string,
 ): Promise<ProjectTreeNode[]> {
+  const projectId = activeProject.value?.id;
+  if (!projectId) return [];
   const result = await window.pine.listProjectDirectory({
     folderId,
+    projectId,
     relativePath,
   });
   return result.entries
@@ -475,15 +485,16 @@ function previewFile(node: ProjectTreeNode): void {
     !activeProject.value
   )
     return;
-  tabNavigation.openFile({
-    projectId: activeProject.value.id,
-    ...reference(node),
-  });
+  tabNavigation.openFile(reference(node));
 }
 
 function reference(node: unknown): ProjectEntryReference {
   if (!isProjectTreeNode(node)) throw new Error("Invalid tree entry.");
-  return { folderId: node.folderId, relativePath: node.relativePath };
+  return {
+    folderId: node.folderId,
+    projectId: requireProjectId(),
+    relativePath: node.relativePath,
+  };
 }
 
 function writable(node: ProjectTreeNode): boolean {
@@ -495,9 +506,16 @@ function writable(node: ProjectTreeNode): boolean {
   );
 }
 
+function requireProjectId(): string {
+  const projectId = activeProject.value?.id;
+  if (!projectId) throw new Error("No project is shown.");
+  return projectId;
+}
+
 function parentReference(node: ProjectTreeNode): ProjectEntryReference {
   return {
     folderId: node.folderId,
+    projectId: requireProjectId(),
     relativePath: node.relativePath.split("/").slice(0, -1).join("/"),
   };
 }
@@ -703,12 +721,14 @@ function watchedDirectories(folderId: string): string[] {
 }
 
 function syncWatchSet(): void {
-  if (isUnmounted) return;
+  if (isUnmounted || !isCurrentProject.value) return;
+  const project = activeProject.value;
   const folders =
-    activeProject.value?.folders
+    project?.folders
       .filter((folder) => folder.isAvailable)
       .map((folder) => ({
         folderId: folder.id,
+        projectId: project.id,
         directories: watchedDirectories(folder.id),
       })) ?? [];
   void window.pine.setWatchedProjectDirectories({ folders }).catch(() => {
@@ -723,11 +743,13 @@ function scheduleWatchSync(): void {
 }
 
 function onWatcherEvent(event: ProjectFilesChangedEvent): void {
-  const activeFolderIds = new Set(
-    activeProject.value?.folders.map((folder) => folder.id) ?? [],
-  );
-  for (const { folderId, changedDirs } of event.folders) {
-    if (!activeFolderIds.has(folderId)) continue;
+  const projectId = activeProject.value?.id;
+  for (const {
+    folderId,
+    projectId: changedProjectId,
+    changedDirs,
+  } of event.folders) {
+    if (changedProjectId !== projectId) continue;
     const pending = pendingWatchedChanges.get(folderId) ?? new Set<string>();
     for (const dir of changedDirs) pending.add(dir);
     pendingWatchedChanges.set(folderId, pending);
@@ -798,9 +820,29 @@ async function applyWatchedChanges(
 }
 
 const unsubscribeWatcher = window.pine.onProjectFilesChanged(onWatcherEvent);
-watch(activeProject, resetRoots, { immediate: true });
+// Reset only when the project's folders change, not on every metadata save.
 watch(
-  [() => activeProject.value, expanded, openFileDirectories],
+  () =>
+    JSON.stringify(
+      activeProject.value?.folders.map(({ id, isAvailable, name, path }) => ({
+        id,
+        isAvailable,
+        name,
+        path,
+      })) ?? null,
+    ),
+  resetRoots,
+  { immediate: true },
+);
+// A hidden project's tree stops watching; catch up when it is shown again.
+watch(isCurrentProject, (current, wasCurrent) => {
+  if (!current || wasCurrent === undefined) return;
+  void refresh()
+    .catch(() => undefined)
+    .finally(scheduleWatchSync);
+});
+watch(
+  [() => activeProject.value, isCurrentProject, expanded, openFileDirectories],
   () => scheduleWatchSync(),
   {
     immediate: true,
@@ -815,6 +857,7 @@ onUnmounted(() => {
   clearTimeout(syncWatchTimer);
   activeRowAnimations.forEach((animation) => animation.cancel());
   pendingWatchedChanges.clear();
+  if (!isCurrentProject.value) return;
   void window.pine.setWatchedProjectDirectories({ folders: [] }).catch(() => {
     // The renderer may already be shutting down.
   });

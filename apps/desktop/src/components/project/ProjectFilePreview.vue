@@ -134,8 +134,11 @@ watch(viewMode, () => {
 const tabsStore = useContentTabsStore();
 const appearanceStore = useAppearanceStore();
 const attentionFlash = useAttentionFlashStore();
+// Only sessions of the file's own project can read it from their sandbox.
 const sessionTabs = computed(() =>
-  tabsStore.tabs.filter((tab) => tab.kind === "session"),
+  tabsStore.tabs.filter(
+    (tab) => tab.kind === "session" && tab.projectId === props.file.projectId,
+  ),
 );
 const { isSending, sendFile, sendFileToNewSession } = useFileToSession();
 const failed = ref(false);
@@ -215,6 +218,7 @@ async function openWithDefaultApplication(): Promise<void> {
       action: "open",
       target: {
         folderId: target.folderId,
+        projectId: target.projectId,
         relativePath: target.relativePath,
       },
     });

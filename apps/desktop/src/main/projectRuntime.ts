@@ -113,8 +113,8 @@ interface ProjectRuntime {
 }
 
 export class ProjectRuntimeRegistry {
-  async reloadMcp(webContentsId: number): Promise<void> {
-    const runtime = this.get(webContentsId);
+  async reloadMcp(webContentsId: number, projectId: string): Promise<void> {
+    const runtime = this.get(webContentsId, projectId);
     await Promise.all(
       [...runtime.liveSessions.keys()].map(async (sessionId) => {
         await this.agentHost.reloadMcp?.(sessionId);
@@ -128,7 +128,7 @@ export class ProjectRuntimeRegistry {
     sessionId: string,
   ): Promise<ListBackgroundTasksResult> {
     // A session that is not live yet has no tasks.
-    const live = this.get(webContentsId).liveSessions.get(sessionId);
+    const live = this.liveEntry(webContentsId, sessionId)?.session;
     if (!live || !this.agentHost.listBackgroundTasks) return { tasks: [] };
     return this.agentHost.listBackgroundTasks(live.summary.id);
   }
@@ -179,13 +179,16 @@ export class ProjectRuntimeRegistry {
     return fn.bind(this.agentHost) as NonNullable<AgentHost[K]>;
   }
 
-  async getMcpStatus(webContentsId: number) {
-    const session = this.focusedSession(this.runtimes.get(webContentsId));
+  async getMcpStatus(webContentsId: number, projectId: string) {
+    const session = this.focusedSession(
+      this.runtimes.get(webContentsId)?.get(projectId),
+    );
     return session
       ? this.agentHost.getMcpStatus?.(session.summary.id)
       : undefined;
   }
-  private readonly runtimes = new Map<number, ProjectRuntime>();
+  /** webContentsId → projectId → runtime. A window may hold many projects. */
+  private readonly runtimes = new Map<number, Map<string, ProjectRuntime>>();
   /** approval requestId → owning webContentsId, for response validation. */
   private readonly pendingApprovals = new Map<
     string,
@@ -216,14 +219,18 @@ export class ProjectRuntimeRegistry {
       throw new Error("The project's default folder is unavailable.");
     }
 
-    await this.dispose(webContentsId);
+    // Reopening applies updated project settings to fresh sessions.
+    await this.close(webContentsId, project.id);
 
     const sessions = await ProjectSessionService.create({
       cacheRoot: dataPaths.cacheRoot,
       cwd: defaultFolder.path,
       sessionsRoot: dataPaths.sessionsRoot,
     });
-    this.runtimes.set(webContentsId, {
+    const windowRuntimes =
+      this.runtimes.get(webContentsId) ?? new Map<string, ProjectRuntime>();
+    this.runtimes.set(webContentsId, windowRuntimes);
+    windowRuntimes.set(project.id, {
       approvalMode: "auto-approve",
       dataPaths,
       project,
@@ -235,19 +242,34 @@ export class ProjectRuntimeRegistry {
   }
 
   isOpen(webContentsId: number, projectId: string): boolean {
-    return this.runtimes.get(webContentsId)?.project.id === projectId;
+    return this.runtimes.get(webContentsId)?.has(projectId) ?? false;
   }
 
   ownerOfProject(projectId: string): number | undefined {
-    for (const [webContentsId, runtime] of this.runtimes) {
-      if (runtime.project.id === projectId) return webContentsId;
+    for (const [webContentsId, windowRuntimes] of this.runtimes) {
+      if (windowRuntimes.has(projectId)) return webContentsId;
     }
     return undefined;
   }
 
-  /** Attachment storage root for the project open in this window. */
-  attachmentsRootFor(webContentsId: number): string | undefined {
-    return this.runtimes.get(webContentsId)?.dataPaths.attachmentsRoot;
+  /** Whether any session of this open project is live in the agent host. */
+  hasLiveSessions(webContentsId: number, projectId: string): boolean {
+    const runtime = this.runtimes.get(webContentsId)?.get(projectId);
+    return Boolean(
+      runtime &&
+      (runtime.liveSessions.size > 0 ||
+        runtime.openingSessions.size > 0 ||
+        runtime.pendingCreations.size > 0),
+    );
+  }
+
+  /** Attachment storage root for one project open in this window. */
+  attachmentsRootFor(
+    webContentsId: number,
+    projectId: string,
+  ): string | undefined {
+    return this.runtimes.get(webContentsId)?.get(projectId)?.dataPaths
+      .attachmentsRoot;
   }
 
   /**
@@ -257,7 +279,7 @@ export class ProjectRuntimeRegistry {
    */
   isInsideGrantedFolder(candidatePath: string): boolean {
     const resolvedPath = path.resolve(candidatePath);
-    for (const runtime of this.runtimes.values()) {
+    for (const runtime of this.allRuntimes()) {
       for (const folder of runtime.project.folders) {
         if (pathContains(folder.path, resolvedPath)) return true;
       }
@@ -267,19 +289,21 @@ export class ProjectRuntimeRegistry {
 
   async search(
     webContentsId: number,
+    projectId: string,
     query: string,
   ): Promise<SessionSearchResult[]> {
-    return this.get(webContentsId).sessions.search(query);
+    return this.get(webContentsId, projectId).sessions.search(query);
   }
 
   async loadMessages(
     webContentsId: number,
+    projectId: string,
     sessionId: string,
     before?: string,
     limit?: number,
     includeOutline?: boolean,
   ): Promise<LoadSessionMessagesResult> {
-    return this.get(webContentsId).sessions.loadMessages(
+    return this.get(webContentsId, projectId).sessions.loadMessages(
       sessionId,
       before,
       limit,
@@ -289,16 +313,20 @@ export class ProjectRuntimeRegistry {
 
   async attachmentForSession(
     webContentsId: number,
+    projectId: string,
     sessionId: string,
   ): Promise<PineAttachment> {
-    return this.get(webContentsId).sessions.attachmentForSession(sessionId);
+    return this.get(webContentsId, projectId).sessions.attachmentForSession(
+      sessionId,
+    );
   }
 
   async exportSession(
     webContentsId: number,
+    projectId: string,
     sessionId: string,
   ): Promise<PineSessionExportDocument> {
-    const runtime = this.get(webContentsId);
+    const runtime = this.get(webContentsId, projectId);
     const fallbackApprovalMode =
       runtime.liveSessions.get(sessionId)?.approvalMode ?? "auto-approve";
     return runtime.sessions.exportSession(sessionId, fallbackApprovalMode);
@@ -306,9 +334,10 @@ export class ProjectRuntimeRegistry {
 
   async deleteSession(
     webContentsId: number,
+    projectId: string,
     sessionId: string,
   ): Promise<boolean> {
-    const runtime = this.get(webContentsId);
+    const runtime = this.get(webContentsId, projectId);
     await runtime.openingSessions.get(sessionId);
     if (runtime.liveSessions.has(sessionId)) {
       await this.agentHost.disposeSession(sessionId);
@@ -322,10 +351,11 @@ export class ProjectRuntimeRegistry {
 
   async renameSession(
     webContentsId: number,
+    projectId: string,
     sessionId: string,
     name: string,
   ): Promise<PineSessionSummary> {
-    const runtime = this.get(webContentsId);
+    const runtime = this.get(webContentsId, projectId);
     const live = runtime.liveSessions.get(sessionId);
     if (live) {
       const result = await this.agentHost.renameSession(sessionId, name);
@@ -339,9 +369,13 @@ export class ProjectRuntimeRegistry {
     webContentsId: number,
     entries: ProjectEntryReference[],
   ): Promise<string[]> {
-    const { project } = this.get(webContentsId);
     return Promise.all(
-      entries.map((entry) => resolveProjectEntry(project.folders, entry)),
+      entries.map((entry) =>
+        resolveProjectEntry(
+          this.get(webContentsId, entry.projectId).project.folders,
+          entry,
+        ),
+      ),
     );
   }
 
@@ -350,7 +384,7 @@ export class ProjectRuntimeRegistry {
     entry: ProjectEntryReference,
   ): string {
     return resolveProjectEntryForNativeDrag(
-      this.get(webContentsId).project.folders,
+      this.get(webContentsId, entry.projectId).project.folders,
       entry,
     );
   }
@@ -360,16 +394,25 @@ export class ProjectRuntimeRegistry {
     request: ProjectFileOperation,
     native: ProjectFileNativeActions,
   ): Promise<void> {
-    const { project } = this.get(webContentsId);
+    const { project } = this.get(webContentsId, request.target.projectId);
+    if (
+      request.action === "move" &&
+      request.sources.some(
+        (source) => source.projectId !== request.target.projectId,
+      )
+    ) {
+      throw new Error("Files can only be moved within one project.");
+    }
     await operateProjectFile(project.folders, request, native);
   }
 
   async listDirectory(
     webContentsId: number,
+    projectId: string,
     folderId: string,
     relativePath: string,
   ): Promise<ProjectEntry[]> {
-    const runtime = this.get(webContentsId);
+    const runtime = this.get(webContentsId, projectId);
     return listProjectDirectory(
       this.getFolder(runtime.project, folderId),
       relativePath,
@@ -378,10 +421,11 @@ export class ProjectRuntimeRegistry {
 
   async resolveDirectory(
     webContentsId: number,
+    projectId: string,
     folderId: string,
     relativePath: string,
   ): Promise<string> {
-    const runtime = this.get(webContentsId);
+    const runtime = this.get(webContentsId, projectId);
     return resolveProjectPath(
       this.getFolder(runtime.project, folderId),
       relativePath,
@@ -390,9 +434,14 @@ export class ProjectRuntimeRegistry {
 
   async resume(
     webContentsId: number,
+    projectId: string,
     sessionId: string,
   ): Promise<ResumeSessionResult> {
-    const runtime = this.get(webContentsId);
+    const runtime = this.get(webContentsId, projectId);
+    const owner = this.entryForSession(sessionId);
+    if (owner && owner.webContentsId !== webContentsId) {
+      throw new Error("This session is open in another window.");
+    }
     runtime.focusedSessionId = sessionId;
     const live = runtime.liveSessions.get(sessionId);
     if (live) return { session: live.summary, contextUsage: live.contextUsage };
@@ -401,8 +450,8 @@ export class ProjectRuntimeRegistry {
 
     const opening = (async () => {
       const descriptor = await runtime.sessions.describeSession(sessionId);
-      if (this.runtimes.get(webContentsId) !== runtime) {
-        throw new Error("The active project changed while opening a session.");
+      if (!this.isCurrent(webContentsId, runtime)) {
+        throw new Error("The project closed while opening a session.");
       }
       const opened = await this.agentHost.openSession(
         this.location(runtime),
@@ -413,8 +462,8 @@ export class ProjectRuntimeRegistry {
         approvalMode: "auto-approve",
         contextUsage: opened.contextUsage,
       });
-      if (this.runtimes.get(webContentsId) !== runtime) {
-        throw new Error("The active project changed while opening a session.");
+      if (!this.isCurrent(webContentsId, runtime)) {
+        throw new Error("The project closed while opening a session.");
       }
       return { session: opened.session, contextUsage: opened.contextUsage };
     })();
@@ -428,9 +477,10 @@ export class ProjectRuntimeRegistry {
 
   private async createNewSession(
     webContentsId: number,
+    projectId: string,
     approvalMode: PineApprovalMode,
   ): Promise<PineSessionSummary> {
-    const runtime = this.get(webContentsId);
+    const runtime = this.get(webContentsId, projectId);
     const creation = this.agentHost
       .createSession({ ...this.location(runtime), approvalMode })
       .then(({ session }) => {
@@ -438,10 +488,8 @@ export class ProjectRuntimeRegistry {
           summary: session,
           approvalMode,
         });
-        if (this.runtimes.get(webContentsId) !== runtime) {
-          throw new Error(
-            "The active project changed while creating a session.",
-          );
+        if (!this.isCurrent(webContentsId, runtime)) {
+          throw new Error("The project closed while creating a session.");
         }
         runtime.focusedSessionId = session.id;
         return session;
@@ -458,7 +506,7 @@ export class ProjectRuntimeRegistry {
     webContentsId: number,
     request: PromptSessionRequest,
   ): Promise<PromptSessionResult> {
-    const runtime = this.get(webContentsId);
+    const runtime = this.get(webContentsId, request.target.projectId);
     const approvalMode = request.approvalMode ?? "auto-approve";
     if (
       request.rewrite &&
@@ -468,10 +516,20 @@ export class ProjectRuntimeRegistry {
     }
     const activeSession =
       request.target.kind === "new"
-        ? await this.createNewSession(webContentsId, approvalMode)
-        : (await this.resume(webContentsId, request.target.sessionId)).session;
-    if (this.runtimes.get(webContentsId) !== runtime) {
-      throw new Error("The active project changed before submitting a prompt.");
+        ? await this.createNewSession(
+            webContentsId,
+            request.target.projectId,
+            approvalMode,
+          )
+        : (
+            await this.resume(
+              webContentsId,
+              request.target.projectId,
+              request.target.sessionId,
+            )
+          ).session;
+    if (!this.isCurrent(webContentsId, runtime)) {
+      throw new Error("The project closed before submitting a prompt.");
     }
     const attachedPaths = parseAttachmentMessage(request.message)
       .attachments.map((attachment) => attachment.path)
@@ -510,7 +568,7 @@ export class ProjectRuntimeRegistry {
 
   async abort(
     webContentsId: number,
-    sessionId?: string,
+    sessionId: string,
   ): Promise<{ aborted: boolean; sessionId?: string }> {
     const live = this.targetSession(webContentsId, sessionId);
     if (!live) return { aborted: false };
@@ -520,7 +578,7 @@ export class ProjectRuntimeRegistry {
 
   async compact(
     webContentsId: number,
-    sessionId?: string,
+    sessionId: string,
   ): Promise<{ compacted: boolean }> {
     const live = this.targetSession(webContentsId, sessionId);
     return live
@@ -531,7 +589,7 @@ export class ProjectRuntimeRegistry {
   async dequeueSteering(
     webContentsId: number,
     message: string,
-    sessionId?: string,
+    sessionId: string,
   ): Promise<{ message?: string; removed: boolean }> {
     const live = this.targetSession(webContentsId, sessionId);
     return live
@@ -542,7 +600,7 @@ export class ProjectRuntimeRegistry {
   async setApprovalMode(
     webContentsId: number,
     approvalMode: PineApprovalMode,
-    sessionId?: string,
+    sessionId: string,
   ): Promise<{ updated: boolean }> {
     const live = this.targetSession(webContentsId, sessionId);
     if (!live) return { updated: false };
@@ -610,8 +668,16 @@ export class ProjectRuntimeRegistry {
     webContentsId: number,
     request: SelectModelRequest,
   ): Promise<{ disposed: boolean }> {
-    if (request.sessionId) {
-      await this.resume(webContentsId, request.sessionId);
+    if (
+      request.sessionId &&
+      !this.liveEntry(webContentsId, request.sessionId)
+    ) {
+      const projectId =
+        request.projectId ??
+        (await this.projectOfStoredSession(webContentsId, request.sessionId));
+      if (!projectId)
+        throw new Error("Session does not belong to this window.");
+      await this.resume(webContentsId, projectId, request.sessionId);
     }
     return this.agentHost.selectModel(
       this.agentDir,
@@ -641,7 +707,7 @@ export class ProjectRuntimeRegistry {
   setContextCompactionStrategy(
     strategy: PineContextCompactionStrategy,
   ): Promise<{ updated: boolean }> {
-    const hasActiveSession = [...this.runtimes.values()].some(
+    const hasActiveSession = this.allRuntimes().some(
       (runtime) => runtime.liveSessions.size > 0,
     );
     if (!hasActiveSession) return Promise.resolve({ updated: true });
@@ -651,7 +717,7 @@ export class ProjectRuntimeRegistry {
   setContextCompactionRoute(
     route: PineContextCompactionRoute,
   ): Promise<{ updated: boolean }> {
-    const hasActiveSession = [...this.runtimes.values()].some(
+    const hasActiveSession = this.allRuntimes().some(
       (runtime) => runtime.liveSessions.size > 0,
     );
     if (!hasActiveSession) return Promise.resolve({ updated: true });
@@ -682,10 +748,11 @@ export class ProjectRuntimeRegistry {
 
   async reopenPresentedToolFile(
     webContentsId: number,
+    projectId: string,
     sessionId: string,
     toolCallId: string,
   ): Promise<FilePreviewTarget | null> {
-    const runtime = this.get(webContentsId);
+    const runtime = this.get(webContentsId, projectId);
     const filePath = await runtime.sessions.presentedFilePath(
       sessionId,
       toolCallId,
@@ -812,9 +879,20 @@ export class ProjectRuntimeRegistry {
     }
   }
 
+  /** Release one project this window no longer shows. */
+  async close(webContentsId: number, projectId: string): Promise<void> {
+    const windowRuntimes = this.runtimes.get(webContentsId);
+    const runtime = windowRuntimes?.get(projectId);
+    if (!windowRuntimes || !runtime) return;
+    windowRuntimes.delete(projectId);
+    if (windowRuntimes.size === 0) this.runtimes.delete(webContentsId);
+    await this.disposeRuntime(runtime);
+  }
+
+  /** Release every project of a window that closed or reloaded. */
   async dispose(webContentsId: number): Promise<void> {
-    const runtime = this.runtimes.get(webContentsId);
-    if (!runtime) return;
+    const windowRuntimes = this.runtimes.get(webContentsId);
+    if (!windowRuntimes) return;
 
     for (const [requestId, owner] of this.pendingApprovals) {
       if (owner.webContentsId === webContentsId)
@@ -825,10 +903,21 @@ export class ProjectRuntimeRegistry {
         this.pendingQuestionnaires.delete(requestId);
     }
     this.runtimes.delete(webContentsId);
+    await Promise.all(
+      [...windowRuntimes.values()].map((runtime) =>
+        this.disposeRuntime(runtime),
+      ),
+    );
+  }
+
+  private async disposeRuntime(runtime: ProjectRuntime): Promise<void> {
     await Promise.allSettled([
       ...runtime.pendingCreations,
       ...runtime.openingSessions.values(),
     ]);
+    for (const sessionId of runtime.liveSessions.keys()) {
+      this.clearSessionInteractions(sessionId);
+    }
     try {
       await Promise.all(
         [...runtime.liveSessions.keys()].map((sessionId) =>
@@ -841,13 +930,54 @@ export class ProjectRuntimeRegistry {
     }
   }
 
+  private allRuntimes(): ProjectRuntime[] {
+    return [...this.runtimes.values()].flatMap((windowRuntimes) => [
+      ...windowRuntimes.values(),
+    ]);
+  }
+
+  private isCurrent(webContentsId: number, runtime: ProjectRuntime): boolean {
+    return (
+      this.runtimes.get(webContentsId)?.get(runtime.project.id) === runtime
+    );
+  }
+
   private entryForSession(
     sessionId: string,
   ): { runtime: ProjectRuntime; webContentsId: number } | undefined {
-    for (const [webContentsId, runtime] of this.runtimes) {
-      if (runtime.liveSessions.has(sessionId)) {
-        return { runtime, webContentsId };
+    for (const [webContentsId, windowRuntimes] of this.runtimes) {
+      for (const runtime of windowRuntimes.values()) {
+        if (runtime.liveSessions.has(sessionId)) {
+          return { runtime, webContentsId };
+        }
       }
+    }
+    return undefined;
+  }
+
+  /** The open project in this window whose history holds the session. */
+  private async projectOfStoredSession(
+    webContentsId: number,
+    sessionId: string,
+  ): Promise<string | undefined> {
+    for (const runtime of this.runtimes.get(webContentsId)?.values() ?? []) {
+      const found = await runtime.sessions
+        .describeSession(sessionId)
+        .then(() => true)
+        .catch(() => false);
+      if (found) return runtime.project.id;
+    }
+    return undefined;
+  }
+
+  /** A live session of any project open in this window. */
+  private liveEntry(
+    webContentsId: number,
+    sessionId: string,
+  ): { runtime: ProjectRuntime; session: RuntimeSession } | undefined {
+    for (const runtime of this.runtimes.get(webContentsId)?.values() ?? []) {
+      const session = runtime.liveSessions.get(sessionId);
+      if (session) return { runtime, session };
     }
     return undefined;
   }
@@ -860,18 +990,16 @@ export class ProjectRuntimeRegistry {
 
   private targetSession(
     webContentsId: number,
-    sessionId?: string,
-  ): RuntimeSession | undefined {
-    const runtime = this.get(webContentsId);
-    if (!sessionId) return this.focusedSession(runtime);
-    const live = runtime.liveSessions.get(sessionId);
+    sessionId: string,
+  ): RuntimeSession {
+    const live = this.liveEntry(webContentsId, sessionId)?.session;
     if (!live) throw new Error("Session does not belong to this window.");
     return live;
   }
 
-  private get(webContentsId: number): ProjectRuntime {
-    const runtime = this.runtimes.get(webContentsId);
-    if (!runtime) throw new Error("No project is open in this window.");
+  private get(webContentsId: number, projectId: string): ProjectRuntime {
+    const runtime = this.runtimes.get(webContentsId)?.get(projectId);
+    if (!runtime) throw new Error("The project is not open in this window.");
     return runtime;
   }
 

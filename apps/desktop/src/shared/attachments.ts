@@ -42,6 +42,8 @@ export const MAX_PASTED_TEXT_BYTES = 5 * 1024 * 1024;
 
 export interface SavePastedImageAttachmentRequest {
   bytes: Uint8Array;
+  /** Project whose Pine-managed storage keeps the pasted file. */
+  projectId: string;
   mimeType: PastedImageMimeType;
   /** Original clipboard file name, used as the display name when present. */
   name?: string;
@@ -49,6 +51,7 @@ export interface SavePastedImageAttachmentRequest {
 
 export interface SavePastedTextAttachmentRequest {
   mimeType: "text/plain";
+  projectId: string;
   name?: string;
   text: string;
 }

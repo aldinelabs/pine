@@ -236,6 +236,8 @@ export interface ProviderLoginResult {
 export type SelectModelRequest = PineModelSelection & {
   /** The conversation whose persisted model should change. Omit for defaults. */
   sessionId?: string;
+  /** Project that owns `sessionId`; required to resume it when not live. */
+  projectId?: string;
 };
 export type SelectUtilityModelRequest = PineUtilityModelSelection;
 export type SelectImageModelRequest = PineImageModelSelection;

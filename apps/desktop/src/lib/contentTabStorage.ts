@@ -2,7 +2,12 @@ import { z } from "zod";
 import { fileTargetKey } from "@/lib/filePreviewTarget";
 import type { ProjectContentTab } from "@/stores/contentTabs";
 
-export const CONTENT_TABS_STORAGE_PREFIX = "pine.content-tabs.v1:";
+/**
+ * One tab list per window. sessionStorage survives a reload of this window;
+ * localStorage carries the most recently changed window into the next launch.
+ * The per-project v1 lists are intentionally not migrated.
+ */
+export const CONTENT_TABS_STORAGE_KEY = "pine.content-tabs.v2";
 const id = z.string().min(1);
 const stateSchema = z.object({
   activeTabId: z.string().nullable(),
@@ -25,6 +30,7 @@ const stateSchema = z.object({
         source: z.literal("presented"),
         label: z.string(),
         path: z.string().min(1),
+        projectId: id,
       }),
       z.object({
         id,
@@ -32,11 +38,13 @@ const stateSchema = z.object({
         state: z.literal("bound"),
         sessionId: id,
         label: z.string().optional(),
+        projectId: id,
       }),
       z.object({
         id,
         kind: z.literal("session"),
         state: z.enum(["draft", "creating"]),
+        projectId: id,
       }),
     ]),
   ),
@@ -47,13 +55,19 @@ export interface ContentTabState {
   activeTabId: string | null;
 }
 
-export function readContentTabs(projectId: string): ContentTabState | null {
+function readStored(storage: () => Storage): unknown {
   try {
+    return JSON.parse(storage().getItem(CONTENT_TABS_STORAGE_KEY) ?? "null");
+  } catch {
+    return null;
+  }
+}
+
+export function readContentTabs(): ContentTabState | null {
+  try {
+    const reloaded = readStored(() => window.sessionStorage);
     const parsed = stateSchema.safeParse(
-      JSON.parse(
-        window.localStorage.getItem(CONTENT_TABS_STORAGE_PREFIX + projectId) ??
-          "null",
-      ),
+      reloaded ?? readStored(() => window.localStorage),
     );
     if (!parsed.success) return null;
     const ids = new Set<string>();
@@ -64,15 +78,16 @@ export function readContentTabs(projectId: string): ContentTabState | null {
       // so a restart cannot resume that tab without widening what this window
       // may read. Drop it instead of restoring a tab that could never load.
       if (saved.kind === "file" && saved.source === "presented") continue;
-      if (
-        ids.has(saved.id) ||
-        (saved.kind === "file" && saved.projectId !== projectId)
-      )
-        continue;
+      if (ids.has(saved.id)) continue;
       // A process restart cannot continue an unbound in-flight prompt.
       const tab: ProjectContentTab =
         saved.kind === "session" && saved.state !== "bound"
-          ? { id: saved.id, kind: "session", state: "draft" }
+          ? {
+              id: saved.id,
+              kind: "session",
+              projectId: saved.projectId,
+              state: "draft",
+            }
           : saved;
       const identity =
         tab.kind === "file"
@@ -97,16 +112,16 @@ export function readContentTabs(projectId: string): ContentTabState | null {
   }
 }
 
-export function writeContentTabs(
-  projectId: string,
-  state: ContentTabState,
-): void {
-  try {
-    window.localStorage.setItem(
-      CONTENT_TABS_STORAGE_PREFIX + projectId,
-      JSON.stringify(state),
-    );
-  } catch {
-    // Storage failures must not interrupt tab navigation.
+export function writeContentTabs(state: ContentTabState): void {
+  const value = JSON.stringify(state);
+  for (const storage of [
+    () => window.sessionStorage,
+    () => window.localStorage,
+  ]) {
+    try {
+      storage().setItem(CONTENT_TABS_STORAGE_KEY, value);
+    } catch {
+      // Storage failures must not interrupt tab navigation.
+    }
   }
 }

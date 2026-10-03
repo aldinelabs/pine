@@ -34,7 +34,7 @@ describe("ContextUsageIndicator", () => {
     });
     const pinia = createPinia();
     setActivePinia(pinia);
-    await useSessionStore().resume("session-1");
+    await useSessionStore().resume("project-1", "session-1");
 
     const wrapper = mount(ContextUsageIndicator, {
       global: {
@@ -82,7 +82,7 @@ describe("ContextUsageIndicator", () => {
     });
     const pinia = createPinia();
     setActivePinia(pinia);
-    await useSessionStore().resume("session-2");
+    await useSessionStore().resume("project-1", "session-2");
 
     const wrapper = mount(ContextUsageIndicator, {
       global: {

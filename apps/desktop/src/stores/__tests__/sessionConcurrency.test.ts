@@ -5,6 +5,8 @@ import type { PineAgentEvent } from "@/shared/agent";
 import type { PineSessionSummary, PineTextMessage } from "@/shared/sessions";
 import { useSessionStore } from "../session";
 
+const PROJECT_ID = "7f48c81c-f1dc-4be6-a8ee-55729ef647ba";
+
 vi.mock("vue-sonner", () => ({ toast: { error: vi.fn() } }));
 
 const a: PineSessionSummary = {
@@ -69,9 +71,9 @@ describe("concurrent session state", () => {
 
   it("keeps background approvals, questions, streaming and run state in their owning session", async () => {
     const { store, emit, api } = fixture();
-    await store.resume(a.id);
+    await store.resume(PROJECT_ID, a.id);
     emit({ type: "run-state", sessionId: a.id, state: "running" });
-    await store.resume(b.id);
+    await store.resume(PROJECT_ID, b.id);
     emit({ type: "run-state", sessionId: b.id, state: "running" });
     emit(approval(a.id, "a-1"));
     emit(approval(b.id, "b-1"));
@@ -116,7 +118,7 @@ describe("concurrent session state", () => {
       "b-1",
     ]);
     emit({ type: "run-state", sessionId: b.id, state: "idle" });
-    await store.resume(a.id);
+    await store.resume(PROJECT_ID, a.id);
     expect(store.isRunning).toBe(true);
     expect(store.pendingQuestionnaires[0]?.requestId).toBe("question-a");
     expect(store.messages[0]?.blocks).toEqual([
@@ -128,7 +130,7 @@ describe("concurrent session state", () => {
 
   it("responds to each request once and preserves the next card across an in-flight response", async () => {
     const { store, api, emit } = fixture();
-    await store.resume(a.id);
+    await store.resume(PROJECT_ID, a.id);
     emit(approval(a.id, "first"));
     emit(approval(a.id, "second"));
     const response = deferred<{ accepted: boolean }>();
@@ -136,7 +138,7 @@ describe("concurrent session state", () => {
     const first = store.respondApproval("approve", undefined, "first", a.id);
     await store.respondApproval("reject", undefined, "first", a.id);
     expect(api.respondApproval).toHaveBeenCalledTimes(1);
-    await store.resume(b.id);
+    await store.resume(PROJECT_ID, b.id);
     response.resolve({ accepted: true });
     await first;
     expect(store.pendingApprovals).toEqual([]);
@@ -159,8 +161,8 @@ describe("concurrent session state", () => {
     async (locale, title) => {
       document.documentElement.lang = locale;
       const { store, emit } = fixture();
-      await store.resume(a.id);
-      await store.resume(b.id);
+      await store.resume(PROJECT_ID, a.id);
+      await store.resume(PROJECT_ID, b.id);
       const failure = {
         id: "review-batch",
         message: "HTTP 429: quota exceeded",
@@ -181,7 +183,7 @@ describe("concurrent session state", () => {
         id: "auto-approval-failed-review-batch",
         description: failure.message,
       });
-      await store.resume(a.id);
+      await store.resume(PROJECT_ID, a.id);
       expect(store.pendingApprovals).toHaveLength(2);
       expect(store.pendingApprovals[0]?.autoApprovalFailure).toEqual(failure);
       await store.respondApproval("approve", undefined, "fallback-1", a.id);
@@ -212,7 +214,7 @@ describe("concurrent session state", () => {
 
   it("does not notify for ordinary manual confirmations", async () => {
     const { store, emit } = fixture();
-    await store.resume(a.id);
+    await store.resume(PROJECT_ID, a.id);
     emit(approval(a.id, "manual"));
     expect(store.pendingApprovals[0]?.autoApprovalFailure).toBeUndefined();
     expect(toast.error).not.toHaveBeenCalled();
@@ -220,7 +222,7 @@ describe("concurrent session state", () => {
 
   it("keeps a failed response available to retry", async () => {
     const { store, api, emit } = fixture();
-    await store.resume(a.id);
+    await store.resume(PROJECT_ID, a.id);
     emit(approval(a.id, "first"));
     api.respondApproval.mockRejectedValueOnce(new Error("IPC failure"));
     await expect(store.respondApproval("approve")).rejects.toThrow(
@@ -239,7 +241,7 @@ describe("concurrent session state", () => {
       hasMore: boolean;
     }>();
     api.loadSessionMessages.mockReturnValueOnce(history.promise);
-    const loading = store.resume(a.id);
+    const loading = store.resume(PROJECT_ID, a.id);
     await vi.waitFor(() =>
       expect(api.loadSessionMessages).toHaveBeenCalledOnce(),
     );
@@ -249,7 +251,7 @@ describe("concurrent session state", () => {
       messageId: "reply",
       message: { role: "assistant", content: [{ type: "text", text: "Live" }] },
     });
-    await store.resume(b.id);
+    await store.resume(PROJECT_ID, b.id);
     history.resolve({
       messages: [
         {
@@ -269,7 +271,7 @@ describe("concurrent session state", () => {
     });
     await loading;
     expect(store.activeSession?.id).toBe(b.id);
-    await store.resume(a.id);
+    await store.resume(PROJECT_ID, a.id);
     expect(store.messages.map((message) => message.id)).toEqual([
       "old",
       "reply",
@@ -284,22 +286,22 @@ describe("concurrent session state", () => {
       session: PineSessionSummary;
     }>();
     api.promptSession.mockReturnValueOnce(result.promise);
-    const prompting = store.prompt("Start A");
-    await store.resume(b.id);
+    const prompting = store.prompt("Start A", { projectId: PROJECT_ID });
+    await store.resume(PROJECT_ID, b.id);
     emit({ type: "run-state", sessionId: a.id, state: "running" });
     emit(approval(a.id, "a-card"));
     result.resolve({ accepted: true, session: a });
     await prompting;
     expect(store.activeSession?.id).toBe(b.id);
-    await store.resume(a.id);
+    await store.resume(PROJECT_ID, a.id);
     expect(store.isRunning).toBe(true);
     expect(store.pendingApprovals[0]?.requestId).toBe("a-card");
   });
 
   it("explicitly addresses controls even when another session is focused", async () => {
     const { store, api } = fixture();
-    await store.resume(a.id);
-    await store.resume(b.id);
+    await store.resume(PROJECT_ID, a.id);
+    await store.resume(PROJECT_ID, b.id);
     await store.abort(a.id);
     await store.compactContext(a.id);
     await store.setApprovalMode("let-me-review", a.id);
@@ -319,7 +321,7 @@ describe("concurrent session state", () => {
   it("keeps nested MCP approvals attached to their parent across tab switches", async () => {
     const { store, emit } = fixture();
     for (const summary of [a, b]) {
-      await store.resume(summary.id);
+      await store.resume(PROJECT_ID, summary.id);
       emit({
         type: "tool-start",
         sessionId: summary.id,
@@ -334,7 +336,7 @@ describe("concurrent session state", () => {
         state: "reviewing",
       });
     }
-    await store.resume(a.id);
+    await store.resume(PROJECT_ID, a.id);
     expect(store.reviewingToolCallIds.has("script")).toBe(true);
     emit({
       type: "approval-request",
@@ -345,7 +347,7 @@ describe("concurrent session state", () => {
       trigger: "pre-execution",
     });
     expect(store.pendingApprovals[0]?.toolCallId).toBe("script");
-    await store.resume(b.id);
+    await store.resume(PROJECT_ID, b.id);
     emit({
       type: "approval-decided",
       sessionId: a.id,
@@ -361,20 +363,20 @@ describe("concurrent session state", () => {
     ).toEqual({ state: "denied", decidedBy: "user" });
     emit({ type: "run-state", sessionId: a.id, state: "idle" });
     expect(store.reviewingToolCallIds.has("script")).toBe(true);
-    await store.resume(a.id);
+    await store.resume(PROJECT_ID, a.id);
     expect(store.pendingApprovals).toEqual([]);
     expect(store.reviewingToolCallIds.size).toBe(0);
   });
 
   it("retains a closed running view and clears only its interactions when it fails", async () => {
     const { store, emit } = fixture();
-    await store.resume(a.id);
+    await store.resume(PROJECT_ID, a.id);
     emit({ type: "run-state", sessionId: a.id, state: "running" });
     emit(approval(a.id, "a-card"));
     const state = store.stateFor(a.id);
     store.dropSessionCache(a.id);
     expect(store.stateFor(a.id)).toBe(state);
-    await store.resume(b.id);
+    await store.resume(PROJECT_ID, b.id);
     emit(approval(b.id, "b-card"));
     emit({ type: "run-state", sessionId: a.id, state: "failed" });
     expect(state.pendingApprovals).toEqual([]);

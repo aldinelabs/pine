@@ -4,6 +4,8 @@ import type { PineSessionEvent } from "@/shared/agent";
 import type { FilePreviewTarget } from "@/shared/projectFiles";
 import { useAttentionFlashStore } from "@/stores/attentionFlash";
 import { useContentTabsStore } from "@/stores/contentTabs";
+import { useProjectStore } from "@/stores/project";
+import { useSessionStore } from "@/stores/session";
 
 export interface PresentedFileSurfaces {
   /** Bring a tab into view without activating it or moving the user's focus. */
@@ -27,10 +29,19 @@ export function usePresentedFiles({
 }: PresentedFileSurfaces): void {
   const tabsStore = useContentTabsStore();
   const flash = useAttentionFlashStore();
+  const sessionStore = useSessionStore();
+  const projectStore = useProjectStore();
   const { tabs } = storeToRefs(tabsStore);
 
-  function present(target: FilePreviewTarget, toolCallId: string): void {
-    const tab = tabsStore.presentFile(target, toolCallId);
+  function present(
+    target: FilePreviewTarget,
+    sessionId: string,
+    toolCallId: string,
+  ): void {
+    // The tab joins the project of the session that presented it.
+    const projectId =
+      sessionStore.projectOf(sessionId) ?? projectStore.currentProjectId;
+    const tab = tabsStore.presentFile(target, projectId, toolCallId);
     reveal(tab.id);
     // A tab the user is already reading needs no attention signal.
     if (!isActive(tab.id)) flash.flash(tab.id);
@@ -40,7 +51,7 @@ export function usePresentedFiles({
     // Main resolves the path into a project or presented target first, so an
     // unresolved request never reaches the renderer.
     if (event.type !== "present-file") return;
-    present(event.target, event.toolCallId);
+    present(event.target, event.sessionId, event.toolCallId);
   }
 
   let stopListening: (() => void) | undefined;

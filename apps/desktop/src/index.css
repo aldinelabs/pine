@@ -140,8 +140,6 @@
   );
   --window-titlebar-control-height: 2rem;
   --window-titlebar-padding-block: 0.75rem;
-  /* Width of the icon-sm home button that follows the sidebar toggle. */
-  --window-titlebar-home-action-width: 1.75rem;
   --window-titlebar-leading-offset: 5.5625rem;
   --window-titlebar-leading-extra: 0rem;
   /* Width reserved for the native Windows control overlay. */

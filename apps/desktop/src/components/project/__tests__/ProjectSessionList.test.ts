@@ -8,8 +8,8 @@ import { createAppI18n } from "@/app/i18n";
 import type { PineProject } from "@/shared/projects";
 import type { PineSessionSummary } from "@/shared/sessions";
 import { useContentTabsStore } from "@/stores/contentTabs";
-import { useProjectStore } from "@/stores/project";
 import ProjectSessionList from "../ProjectSessionList.vue";
+import { showProject } from "@/stores/__tests__/showProject";
 
 const session: PineSessionSummary = {
   createdAt: "2026-08-25T00:00:00.000Z",
@@ -52,7 +52,7 @@ describe("ProjectSessionList", () => {
         searchSessions: vi.fn().mockResolvedValue({ sessions: [session] }),
       },
     });
-    useProjectStore().activeProject = project;
+    showProject(project);
     const wrapper = mount(ProjectSessionList, {
       global: {
         plugins: [pinia, router, createAppI18n("en-US")],
@@ -116,7 +116,7 @@ describe("ProjectSessionList", () => {
         updateProjectSessionGroups,
       },
     });
-    useProjectStore().activeProject = groupedProject;
+    showProject(groupedProject);
     const slotStub = { template: "<div><slot /></div>" };
     const wrapper = mount(ProjectSessionList, {
       global: {
@@ -200,7 +200,7 @@ describe("ProjectSessionList", () => {
         inspectProjectAttachments,
       },
     });
-    useProjectStore().activeProject = project;
+    showProject(project);
     const store = useContentTabsStore();
     const file = store.openFile({
       projectId: project.id,
@@ -259,7 +259,7 @@ describe("ProjectSessionList", () => {
     });
     const tabsStore = useContentTabsStore();
     tabsStore.bindSession("session-1", session);
-    useProjectStore().activeProject = project;
+    showProject(project);
     const wrapper = mount(ProjectSessionList, {
       global: {
         plugins: [pinia, router, createAppI18n("en-US")],
@@ -310,8 +310,7 @@ describe("ProjectSessionList", () => {
       configurable: true,
       value: { searchSessions },
     });
-    const projectStore = useProjectStore();
-    projectStore.activeProject = project;
+    showProject(project);
 
     mount(ProjectSessionList, {
       global: {
@@ -329,7 +328,7 @@ describe("ProjectSessionList", () => {
     await flushPromises();
     expect(searchSessions).toHaveBeenCalledTimes(1);
 
-    projectStore.activeProject = {
+    showProject({
       ...project,
       defaultFolderId: "9e775dc8-27f1-4eaf-89c9-e5b1b4a65ae5",
       folders: [
@@ -343,7 +342,7 @@ describe("ProjectSessionList", () => {
         },
       ],
       updatedAt: "2026-08-26T00:00:00.000Z",
-    };
+    });
     await flushPromises();
 
     expect(searchSessions).toHaveBeenCalledTimes(2);
@@ -376,7 +375,7 @@ describe("ProjectSessionList", () => {
     });
     const tabsStore = useContentTabsStore();
     tabsStore.bindSession("session-1", session);
-    useProjectStore().activeProject = project;
+    showProject(project);
     const wrapper = mount(ProjectSessionList, {
       global: {
         plugins: [pinia, router, createAppI18n("en-US")],
@@ -417,7 +416,10 @@ describe("ProjectSessionList", () => {
     expect(exportAction).toBeDefined();
     await exportAction?.trigger("click");
     await flushPromises();
-    expect(exportSession).toHaveBeenCalledWith({ sessionId: session.id });
+    expect(exportSession).toHaveBeenCalledWith({
+      projectId: project.id,
+      sessionId: session.id,
+    });
 
     const renameAction = wrapper
       .findAll('[data-slot="context-menu-item"]')
@@ -434,6 +436,7 @@ describe("ProjectSessionList", () => {
     await flushPromises();
 
     expect(renameSession).toHaveBeenCalledWith({
+      projectId: project.id,
       sessionId: session.id,
       name: "Renamed conversation",
     });
@@ -473,7 +476,7 @@ describe("ProjectSessionList", () => {
       configurable: true,
       value: { searchSessions: vi.fn().mockResolvedValue({ sessions }) },
     });
-    useProjectStore().activeProject = project;
+    showProject(project);
     const slotStub = { template: "<div><slot /></div>" };
     const wrapper = mount(ProjectSessionList, {
       global: {

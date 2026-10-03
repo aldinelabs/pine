@@ -6,7 +6,6 @@ import { useContentTabsStore } from "@/stores/contentTabs";
 import { injectTreeRootContext } from "reka-ui";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createAppI18n } from "@/app/i18n";
-import { useProjectStore } from "@/stores/project";
 import { PROJECT_SIDEBAR_STORAGE_PREFIX } from "@/stores/projectSidebar";
 import type {
   ListProjectDirectoryRequest,
@@ -14,6 +13,7 @@ import type {
 } from "@/shared/projectFiles";
 import { PROJECT_ENTRY_DRAG_TYPE } from "@/lib/projectFileDrag";
 import ProjectFileTree from "../ProjectFileTree.vue";
+import { showProject } from "@/stores/__tests__/showProject";
 
 // happy-dom has no layout. Keep the real tree and menus, rendering the visible
 // tree items in place of viewport measurements only.
@@ -44,7 +44,7 @@ function mountTree(
   });
   const pinia = createPinia();
   setActivePinia(pinia);
-  useProjectStore().activeProject = {
+  showProject({
     id: "p1",
     name: "Project",
     schemaVersion: 1,
@@ -60,7 +60,7 @@ function mountTree(
         isAvailable: true,
       },
     ],
-  };
+  });
   const listProjectDirectory = vi.fn(
     readDirectory ??
       (({ relativePath }: ListProjectDirectoryRequest) =>
@@ -425,6 +425,7 @@ describe("ProjectFileTree", () => {
     ).toBe("true");
     expect(restored.listProjectDirectory).toHaveBeenCalledWith({
       folderId: restored.folderId,
+      projectId: "p1",
       relativePath: "docs",
     });
     expect(restored.wrapper.find('[data-path="notes.md"]').exists()).toBe(true);
@@ -528,10 +529,11 @@ describe("ProjectFileTree", () => {
       .trigger("dragstart", { dataTransfer: transfer });
     expect(transfer.effectAllowed).toBe("copyMove");
     expect(JSON.parse(data.get(PROJECT_ENTRY_DRAG_TYPE)!)).toEqual([
-      { folderId, relativePath: "notes.md" },
+      { folderId, projectId: "p1", relativePath: "notes.md" },
     ]);
     expect(startProjectFileDrag).toHaveBeenCalledWith({
       folderId,
+      projectId: "p1",
       relativePath: "notes.md",
     });
     await wrapper
@@ -544,11 +546,12 @@ describe("ProjectFileTree", () => {
     await flushPromises();
     expect(operateProjectFile).toHaveBeenCalledWith({
       action: "move",
-      target: { folderId, relativePath: "docs" },
-      sources: [{ folderId, relativePath: "notes.md" }],
+      target: { folderId, projectId: "p1", relativePath: "docs" },
+      sources: [{ folderId, projectId: "p1", relativePath: "notes.md" }],
     });
     expect(listProjectDirectory).toHaveBeenCalledWith({
       folderId,
+      projectId: "p1",
       relativePath: "docs",
     });
   });
@@ -565,7 +568,7 @@ describe("ProjectFileTree", () => {
     await flushPromises();
     expect(operateProjectFile).toHaveBeenCalledWith({
       action: "move-external",
-      target: { folderId, relativePath: "docs" },
+      target: { folderId, projectId: "p1", relativePath: "docs" },
       paths: ["/external/notes.md"],
     });
   });
@@ -593,7 +596,7 @@ describe("ProjectFileTree", () => {
     await flushPromises();
     expect(operateProjectFile).toHaveBeenCalledWith({
       action: "rename",
-      target: { folderId, relativePath: "notes.md" },
+      target: { folderId, projectId: "p1", relativePath: "notes.md" },
       name: "renamed.md",
     });
   });
@@ -631,11 +634,12 @@ describe("ProjectFileTree", () => {
     listProjectDirectory.mockClear();
     const listener = onProjectFilesChanged.mock.calls[0]?.[0];
     expect(listener).toBeTypeOf("function");
-    listener({ folders: [{ folderId, changedDirs: [""] }] });
+    listener({ folders: [{ folderId, projectId: "p1", changedDirs: [""] }] });
     await new Promise((resolve) => setTimeout(resolve, 250));
     await flushPromises();
     expect(listProjectDirectory).toHaveBeenCalledWith({
       folderId,
+      projectId: "p1",
       relativePath: "",
     });
   });
@@ -658,9 +662,9 @@ describe("ProjectFileTree", () => {
     await expandRoot(wrapper);
     listProjectDirectory.mockClear();
     const listener = onProjectFilesChanged.mock.calls[0]?.[0];
-    listener({ folders: [{ folderId, changedDirs: [""] }] });
+    listener({ folders: [{ folderId, projectId: "p1", changedDirs: [""] }] });
     await flushPromises();
-    listener({ folders: [{ folderId, changedDirs: [""] }] });
+    listener({ folders: [{ folderId, projectId: "p1", changedDirs: [""] }] });
     expect(listProjectDirectory).toHaveBeenCalledTimes(1);
     releases.shift()?.();
     await flushPromises();

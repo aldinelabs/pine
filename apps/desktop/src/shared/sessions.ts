@@ -232,7 +232,14 @@ export interface SessionSearchResult extends PineSessionSummary {
   snippet?: string;
 }
 
+/** Addresses one session inside a project this window has open. */
+export interface ProjectSessionReference {
+  projectId: string;
+  sessionId: string;
+}
+
 export interface SearchSessionsRequest {
+  projectId: string;
   query: string;
 }
 
@@ -240,9 +247,7 @@ export interface SearchSessionsResult {
   sessions: SessionSearchResult[];
 }
 
-export interface ResumeSessionRequest {
-  sessionId: string;
-}
+export type ResumeSessionRequest = ProjectSessionReference;
 
 export interface PineContextUsage {
   tokens: number | null;
@@ -258,28 +263,24 @@ export interface ResumeSessionResult {
   contextUsage?: PineContextUsage;
 }
 
-export interface DeleteSessionRequest {
-  sessionId: string;
-}
+export type DeleteSessionRequest = ProjectSessionReference;
 
 export interface DeleteSessionResult {
   deleted: boolean;
 }
 
-export interface RenameSessionRequest {
+export interface RenameSessionRequest extends ProjectSessionReference {
   name: string;
-  sessionId: string;
 }
 
 export interface RenameSessionResult {
   session: PineSessionSummary;
 }
 
-export interface LoadSessionMessagesRequest {
+export interface LoadSessionMessagesRequest extends ProjectSessionReference {
   before?: string;
   includeOutline?: boolean;
   limit?: number;
-  sessionId: string;
 }
 
 export interface LoadSessionMessagesResult {
@@ -295,18 +296,14 @@ export interface LoadSessionMessagesResult {
   todos?: TaskState;
 }
 
-export interface ExportSessionRequest {
-  sessionId: string;
-}
+export type ExportSessionRequest = ProjectSessionReference;
 
 export interface ExportSessionResult {
   path?: string;
   saved: boolean;
 }
 
-export interface AttachSessionRequest {
-  sessionId: string;
-}
+export type AttachSessionRequest = ProjectSessionReference;
 
 export interface AttachSessionResult {
   attachment: PineAttachment;

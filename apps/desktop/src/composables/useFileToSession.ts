@@ -21,23 +21,33 @@ export function useFileToSession() {
     target: string | PineSessionSummary | null,
     selection?: AttachmentSelection,
   ): Promise<void> {
-    const origin = project.activeProject;
-    if (!origin || origin.id !== file.projectId) return;
+    if (!project.isOpen(file.projectId)) return;
     pending.value += 1;
     try {
       const result = await window.pine.inspectProjectAttachments([
-        { folderId: file.folderId, relativePath: file.relativePath },
+        {
+          folderId: file.folderId,
+          projectId: file.projectId,
+          relativePath: file.relativePath,
+        },
       ]);
-      // Do not deliver late inspection results into another project or a closed tab.
-      if (project.activeProject !== origin) return;
+      // Do not deliver late results once the project has closed. A file only
+      // goes to sessions of its own project, whose sandbox can read it.
+      if (!project.isOpen(file.projectId)) return;
       const tab =
         target === null
-          ? tabs.createSessionTab({ reuseDraft: false })
+          ? tabs.createSessionTab({
+              projectId: file.projectId,
+              reuseDraft: false,
+            })
           : typeof target === "string"
             ? tabs.tabs.find(
-                (tab) => tab.id === target && tab.kind === "session",
+                (tab) =>
+                  tab.id === target &&
+                  tab.kind === "session" &&
+                  tab.projectId === file.projectId,
               )
-            : tabs.openSession(target);
+            : tabs.openSession(target, file.projectId);
       const attachments = selection
         ? result.attachments.map((attachment) => ({ ...attachment, selection }))
         : result.attachments;

@@ -12,6 +12,7 @@ import {
   useWindowTabShortcuts,
 } from "@/composables/useWindowTabShortcuts";
 import { useAppearanceStore } from "@/stores/appearance";
+import { useProjectDisplayName } from "@/composables/useProjectDisplayName";
 import { useSessionStore } from "@/stores/session";
 import { useProjectStore } from "@/stores/project";
 
@@ -25,11 +26,13 @@ const projectStore = useProjectStore();
 const { colorScheme, pineColorTheme } = storeToRefs(appearanceStore);
 const { activeSession } = storeToRefs(sessionStore);
 const { activeProject } = storeToRefs(projectStore);
+const displayName = useProjectDisplayName();
 
+// The title and accent colour follow the active tab's project.
 watchEffect(() => {
   document.title = formatWindowTitle({
     sessionName: activeSession.value?.name,
-    projectName: activeProject.value?.name,
+    projectName: displayName(activeProject.value) || undefined,
   });
 });
 

@@ -305,7 +305,8 @@ const pineApi: PineDesktopApi = {
     request: DequeueSteeringRequest,
   ): Promise<DequeueSteeringResult> =>
     ipcRenderer.invoke(DEQUEUE_STEERING_CHANNEL, request),
-  closeProject: (): Promise<void> => ipcRenderer.invoke(CLOSE_PROJECT_CHANNEL),
+  closeProject: (request: ProjectIdRequest): Promise<void> =>
+    ipcRenderer.invoke(CLOSE_PROJECT_CHANNEL, request),
   createProject: (request: CreateProjectRequest): Promise<ProjectResult> =>
     ipcRenderer.invoke(CREATE_PROJECT_CHANNEL, request),
   deleteProject: (request: ProjectIdRequest): Promise<DeleteProjectResult> =>

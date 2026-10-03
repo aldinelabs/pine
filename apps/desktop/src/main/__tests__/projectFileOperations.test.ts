@@ -40,8 +40,10 @@ const native = {
   reveal: vi.fn(),
   copyPath: vi.fn(),
 };
+const PROJECT_ID = "00000000-0000-4000-8000-0000000000aa";
 const ref = (folder: PineProjectFolder, relativePath = "") => ({
   folderId: folder.id,
+  projectId: PROJECT_ID,
   relativePath,
 });
 afterEach(async () => {

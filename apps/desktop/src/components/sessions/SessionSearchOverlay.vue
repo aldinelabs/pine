@@ -16,6 +16,7 @@ import {
 import { Spinner } from "@/components/ui/spinner";
 import { useContentTabNavigation } from "@/composables/useContentTabNavigation";
 import type { SessionSearchResult } from "@/shared/sessions";
+import { useProjectStore } from "@/stores/project";
 import { useSessionStore } from "@/stores/session";
 import SessionCommandInput from "./SessionCommandInput.vue";
 import SessionSnippet from "./SessionSnippet.vue";
@@ -32,6 +33,7 @@ const emit = defineEmits<{
 
 const { locale, t } = useI18n();
 const tabNavigation = useContentTabNavigation();
+const projectStore = useProjectStore();
 const sessionStore = useSessionStore();
 const { activeSessionTab } = tabNavigation;
 const { isSearching, searchResults } = storeToRefs(sessionStore);
@@ -51,7 +53,7 @@ const dateFormatter = computed(
 
 const runSearch = useDebounceFn(async () => {
   try {
-    await sessionStore.search(query.value);
+    await sessionStore.search(projectStore.currentProjectId, query.value);
   } catch (error) {
     handleError(error, {
       id: "sessions.search",
@@ -83,7 +85,9 @@ function sessionSnippet(session: SessionSearchResult): string | undefined {
 }
 
 function selectSession(session: SessionSearchResult): void {
-  if (props.purpose !== "attach") tabNavigation.openSession(session);
+  const projectId = sessionStore.projectOf(session.id);
+  if (props.purpose !== "attach" && projectId)
+    tabNavigation.openSession(session, projectId);
   emit("select", session);
   emit("update:open", false);
 }

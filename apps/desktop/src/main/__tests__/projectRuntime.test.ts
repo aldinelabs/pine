@@ -127,6 +127,70 @@ afterEach(async () => {
 });
 
 describe("ProjectRuntimeRegistry", () => {
+  it("holds several projects in one window and closes them separately", async () => {
+    const agentHost = createAgentHost();
+    const secondSession = { ...sessionSummary, id: crypto.randomUUID() };
+    const createSession = vi
+      .fn()
+      .mockResolvedValueOnce({ session: sessionSummary })
+      .mockResolvedValueOnce({ session: secondSession });
+    const disposeSession = vi.fn().mockResolvedValue({ disposed: true });
+    agentHost.createSession = createSession;
+    agentHost.disposeSession = disposeSession;
+    const registry = new ProjectRuntimeRegistry(agentHost, "/pine/agent");
+    const first = await createRuntimeFixture();
+    const second = await createRuntimeFixture();
+    const secondProject = {
+      ...second.project,
+      id: "2c1a9f0e-5f7e-4d43-9a39-5a0f8a1c1d22",
+    };
+    const pathsFor = (dataRoot: string) => ({
+      attachmentsRoot: path.join(dataRoot, "attachments"),
+      cacheRoot: path.join(dataRoot, "cache"),
+      projectRoot: dataRoot,
+      sessionsRoot: path.join(dataRoot, "sessions"),
+    });
+
+    try {
+      await registry.open(1, first.project, pathsFor(first.dataRoot));
+      await registry.open(1, secondProject, pathsFor(second.dataRoot));
+      expect(registry.isOpen(1, first.project.id)).toBe(true);
+      expect(registry.isOpen(1, secondProject.id)).toBe(true);
+
+      await registry.prompt(1, {
+        message: "First",
+        target: { kind: "new", projectId: first.project.id },
+      });
+      await registry.prompt(1, {
+        message: "Second",
+        target: { kind: "new", projectId: secondProject.id },
+      });
+      expect(createSession).toHaveBeenNthCalledWith(
+        2,
+        expect.objectContaining({ cwd: second.project.folders[0].path }),
+      );
+
+      await registry.close(1, first.project.id);
+      expect(registry.isOpen(1, first.project.id)).toBe(false);
+      expect(disposeSession).toHaveBeenCalledWith(sessionSummary.id);
+      expect(disposeSession).not.toHaveBeenCalledWith(secondSession.id);
+      // Live-session controls still resolve the remaining project.
+      await expect(registry.abort(1, secondSession.id)).resolves.toMatchObject({
+        sessionId: secondSession.id,
+      });
+      await expect(
+        registry.listDirectory(
+          1,
+          first.project.id,
+          first.project.folders[0].id,
+          "",
+        ),
+      ).rejects.toThrow("not open in this window");
+    } finally {
+      await registry.dispose(1);
+    }
+  });
+
   it("keeps background task controls within their owning window", async () => {
     const host = createAgentHost();
     const listTasks = vi.fn().mockResolvedValue({ tasks: [] });
@@ -150,7 +214,10 @@ describe("ProjectRuntimeRegistry", () => {
         tasks: [],
       });
       expect(listTasks).not.toHaveBeenCalled();
-      await registry.prompt(1, { message: "Start", target: { kind: "new" } });
+      await registry.prompt(1, {
+        message: "Start",
+        target: { kind: "new", projectId: project.id },
+      });
       const request = { sessionId: sessionSummary.id, taskId: "b1234abcd" };
       await registry.listBackgroundTasks(1, request.sessionId);
       await registry.stopBackgroundTask(1, request);
@@ -227,11 +294,13 @@ describe("ProjectRuntimeRegistry", () => {
       });
       const prompted = await registry.prompt(1, {
         message: "Start",
-        target: { kind: "new" },
+        target: { kind: "new", projectId: project.id },
       });
       registry.updateContextUsage(prompted.session.id, contextUsage);
 
-      await expect(registry.resume(1, prompted.session.id)).resolves.toEqual({
+      await expect(
+        registry.resume(1, project.id, prompted.session.id),
+      ).resolves.toEqual({
         session: prompted.session,
         contextUsage,
       });
@@ -258,7 +327,7 @@ describe("ProjectRuntimeRegistry", () => {
       });
       const prompted = await registry.prompt(1, {
         message: "Start",
-        target: { kind: "new" },
+        target: { kind: "new", projectId: project.id },
       });
       const sessionId = prompted.session.id;
 
@@ -297,6 +366,7 @@ describe("ProjectRuntimeRegistry", () => {
       await expect(
         registry.reopenPresentedToolFile(
           1,
+          project.id,
           historicalSessionId,
           "old-present-call",
         ),
@@ -310,7 +380,12 @@ describe("ProjectRuntimeRegistry", () => {
       );
       historicalPath.mockResolvedValue(path.join(dataRoot, "missing.txt"));
       await expect(
-        registry.reopenPresentedToolFile(1, sessionId, "missing-present-call"),
+        registry.reopenPresentedToolFile(
+          1,
+          project.id,
+          sessionId,
+          "missing-present-call",
+        ),
       ).resolves.toBeNull();
       // A symlink inside the folder must not launder an outside file.
       const linkPath = path.join(folderPath, "escape.md");
@@ -323,7 +398,12 @@ describe("ProjectRuntimeRegistry", () => {
       });
       historicalPath.mockResolvedValue(linkPath);
       await expect(
-        registry.reopenPresentedToolFile(1, sessionId, "changed-link-call"),
+        registry.reopenPresentedToolFile(
+          1,
+          project.id,
+          sessionId,
+          "changed-link-call",
+        ),
       ).resolves.toBeNull();
       historicalPath.mockRestore();
 
@@ -360,11 +440,15 @@ describe("ProjectRuntimeRegistry", () => {
       });
       await registry.prompt(1, {
         message: "Start",
-        target: { kind: "new" },
+        target: { kind: "new", projectId: project.id },
       });
       await registry.prompt(1, {
         message: "Continue",
-        target: { kind: "session", sessionId: sessionSummary.id },
+        target: {
+          kind: "session",
+          projectId: project.id,
+          sessionId: sessionSummary.id,
+        },
       });
       expect(createSession).toHaveBeenCalledOnce();
       expect(createSession).toHaveBeenCalledWith(
@@ -398,7 +482,7 @@ describe("ProjectRuntimeRegistry", () => {
       });
       await registry.prompt(1, {
         message: "Conversation A",
-        target: { kind: "new" },
+        target: { kind: "new", projectId: project.id },
       });
 
       await registry.selectModel(1, {
@@ -451,11 +535,11 @@ describe("ProjectRuntimeRegistry", () => {
       });
       await registry.prompt(1, {
         message: "Start",
-        target: { kind: "new" },
+        target: { kind: "new", projectId: project.id },
       });
 
       await expect(
-        registry.dequeueSteering(1, "Change direction"),
+        registry.dequeueSteering(1, "Change direction", sessionSummary.id),
       ).resolves.toEqual({ message: "Change direction", removed: true });
       expect(dequeueSteering).toHaveBeenCalledWith(
         sessionSummary.id,
@@ -481,11 +565,16 @@ describe("ProjectRuntimeRegistry", () => {
       });
       await registry.prompt(7, {
         message: "Start",
-        target: { kind: "new" },
+        target: { kind: "new", projectId: project.id },
       });
 
       await expect(
-        registry.renameSession(7, sessionSummary.id, "Renamed session"),
+        registry.renameSession(
+          7,
+          project.id,
+          sessionSummary.id,
+          "Renamed session",
+        ),
       ).resolves.toEqual(
         expect.objectContaining({
           id: sessionSummary.id,
@@ -517,12 +606,12 @@ describe("ProjectRuntimeRegistry", () => {
         sessionsRoot: path.join(dataRoot, "sessions"),
       });
       await expect(
-        registry.listDirectory(2, project.folders[0].id, ""),
+        registry.listDirectory(2, project.id, project.folders[0].id, ""),
       ).resolves.toEqual([
         { kind: "file", name: "README.md", relativePath: "README.md" },
       ]);
       await expect(
-        registry.listDirectory(2, crypto.randomUUID(), ""),
+        registry.listDirectory(2, project.id, crypto.randomUUID(), ""),
       ).rejects.toThrow("Folder not found in the active project.");
     } finally {
       await registry.dispose(2);
@@ -547,7 +636,7 @@ describe("ProjectRuntimeRegistry", () => {
       await expect(
         registry.prompt(3, {
           message: "Imagine what is possible",
-          target: { kind: "new" },
+          target: { kind: "new", projectId: project.id },
         }),
       ).resolves.toEqual({
         accepted: true,
@@ -594,7 +683,7 @@ describe("ProjectRuntimeRegistry", () => {
       });
       await registry.prompt(8, {
         message,
-        target: { kind: "new" },
+        target: { kind: "new", projectId: project.id },
       });
 
       expect(prompt).toHaveBeenCalledWith(
@@ -636,18 +725,18 @@ describe("ProjectRuntimeRegistry", () => {
       });
       await registry.prompt(5, {
         message: "First conversation",
-        target: { kind: "new" },
+        target: { kind: "new", projectId: project.id },
       });
 
       await registry.prompt(5, {
         message: "Start over",
-        target: { kind: "new" },
+        target: { kind: "new", projectId: project.id },
       });
 
       expect(disposeSession).not.toHaveBeenCalled();
       expect(registry.ownerOfSession(sessionSummary.id)).toBe(5);
       expect(registry.ownerOfSession(nextSession.id)).toBe(5);
-      await registry.resume(5, sessionSummary.id);
+      await registry.resume(5, project.id, sessionSummary.id);
       expect(disposeSession).not.toHaveBeenCalled();
       expect(createSession).toHaveBeenCalledTimes(2);
       expect(prompt).toHaveBeenCalledWith(
@@ -678,12 +767,16 @@ describe("ProjectRuntimeRegistry", () => {
       });
       await registry.prompt(6, {
         message: "Start here",
-        target: { kind: "new" },
+        target: { kind: "new", projectId: project.id },
       });
 
       await registry.prompt(6, {
         message: "Continue here",
-        target: { kind: "session", sessionId: sessionSummary.id },
+        target: {
+          kind: "session",
+          projectId: project.id,
+          sessionId: sessionSummary.id,
+        },
         approvalMode: "let-me-review",
       });
 
@@ -715,11 +808,11 @@ describe("ProjectRuntimeRegistry", () => {
       });
       await registry.prompt(9, {
         message: "Start here",
-        target: { kind: "new" },
+        target: { kind: "new", projectId: project.id },
       });
 
       await expect(
-        registry.setApprovalMode(9, "let-me-review"),
+        registry.setApprovalMode(9, "let-me-review", sessionSummary.id),
       ).resolves.toEqual({ updated: true });
       expect(setApprovalMode).toHaveBeenCalledWith(
         sessionSummary.id,
@@ -750,14 +843,14 @@ describe("ProjectRuntimeRegistry", () => {
     });
     const creation = registry.prompt(4, {
       message: "Start",
-      target: { kind: "new" },
+      target: { kind: "new", projectId: project.id },
     });
     await Promise.resolve();
     const disposal = registry.dispose(4);
     creationDeferred.resolve({ session: sessionSummary });
 
     await expect(creation).rejects.toThrow(
-      "The active project changed while creating a session.",
+      "The project closed while creating a session.",
     );
     await disposal;
     expect(createSession).toHaveBeenCalledOnce();
@@ -796,12 +889,12 @@ describe("ProjectRuntimeRegistry", () => {
     try {
       const creatingA = registry.prompt(1, {
         message: "A",
-        target: { kind: "new" },
+        target: { kind: "new", projectId: project.id },
         approvalMode: "let-me-review",
       });
       const creatingB = registry.prompt(1, {
         message: "B",
-        target: { kind: "new" },
+        target: { kind: "new", projectId: project.id },
         approvalMode: "YOLO",
       });
       second.resolve({ session: other });
@@ -812,7 +905,7 @@ describe("ProjectRuntimeRegistry", () => {
       expect(disposeSession).not.toHaveBeenCalled();
       expect(registry.ownerOfSession(sessionSummary.id)).toBe(1);
       expect(registry.ownerOfSession(other.id)).toBe(1);
-      await registry.resume(1, other.id);
+      await registry.resume(1, project.id, other.id);
       await registry.abort(1, sessionSummary.id);
       await registry.compact(1, sessionSummary.id);
       await registry.setApprovalMode(1, "autonomous", sessionSummary.id);
@@ -853,8 +946,8 @@ describe("ProjectRuntimeRegistry", () => {
         sessionFile: "/tmp/session.jsonl",
         summary: sessionSummary,
       });
-    const first = registry.resume(2, sessionSummary.id);
-    const second = registry.resume(2, sessionSummary.id);
+    const first = registry.resume(2, project.id, sessionSummary.id);
+    const second = registry.resume(2, project.id, sessionSummary.id);
     const outcomes = Promise.allSettled([first, second]);
     await vi.waitFor(() => expect(openSession).toHaveBeenCalledOnce());
     const closing = registry.dispose(2);

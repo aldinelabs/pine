@@ -6,62 +6,28 @@ import {
   type Router,
   type RouterHistory,
 } from "vue-router";
-import { useProjectStore } from "@/stores/project";
 import { ROUTE_NAMES } from "./routes";
-
-declare module "vue-router" {
-  interface RouteMeta {
-    requiresProject?: boolean;
-  }
-}
 
 const routes: RouteRecordRaw[] = [
   {
     path: "/",
-    redirect: { name: ROUTE_NAMES.projects },
-  },
-  {
-    path: "/projects",
-    name: ROUTE_NAMES.projects,
-    component: () => import("@/views/ProjectsView.vue"),
-  },
-  {
-    path: "/projects/:projectId",
-    name: ROUTE_NAMES.project,
+    name: ROUTE_NAMES.workspace,
     component: () => import("@/views/ProjectView.vue"),
-    meta: { requiresProject: true },
   },
   {
     path: "/:pathMatch(.*)*",
-    redirect: { name: ROUTE_NAMES.projects },
+    redirect: { name: ROUTE_NAMES.workspace },
   },
 ];
 
+/**
+ * Pine has a single workspace view. The open tabs, not the route, decide
+ * which project the window shows; the route only carries UI state such as
+ * the active tab, so the Pinia instance is accepted for API stability.
+ */
 export function createAppRouter(
-  pinia: Pinia,
+  _pinia: Pinia,
   history: RouterHistory = createWebHashHistory(),
 ): Router {
-  const router = createRouter({
-    history,
-    routes,
-  });
-
-  router.beforeEach((to) => {
-    if (!to.meta.requiresProject) return true;
-
-    const projectId = to.params.projectId;
-    if (typeof projectId !== "string") {
-      return { name: ROUTE_NAMES.projects };
-    }
-
-    const projectStore = useProjectStore(pinia);
-    if (projectStore.activeProject?.id === projectId) return true;
-
-    return projectStore
-      .openProject(projectId)
-      .then((result) => (result.opened ? true : { name: ROUTE_NAMES.projects }))
-      .catch(() => ({ name: ROUTE_NAMES.projects }));
-  });
-
-  return router;
+  return createRouter({ history, routes });
 }

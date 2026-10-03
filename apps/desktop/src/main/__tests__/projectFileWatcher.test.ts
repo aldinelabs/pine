@@ -9,14 +9,18 @@ describe("ProjectFileWatcherRegistry", () => {
   let registry: ProjectFileWatcherRegistry;
   let changes: Array<{
     senderId: number;
-    folders: Array<{ folderId: string; changedDirs: string[] }>;
+    folders: Array<{
+      folderId: string;
+      projectId: string;
+      changedDirs: string[];
+    }>;
   }>;
 
   beforeEach(async () => {
     root = await mkdtemp(path.join(tmpdir(), "pine-watch-"));
     changes = [];
     registry = new ProjectFileWatcherRegistry(
-      async (_senderId, _folderId, relativePath) =>
+      async (_senderId, _projectId, _folderId, relativePath) =>
         realpath(path.resolve(root, relativePath)),
       (senderId, folders) => changes.push({ senderId, folders }),
       { changeDebounceMs: 30 },
@@ -37,13 +41,13 @@ describe("ProjectFileWatcherRegistry", () => {
 
   it("reports changes in watched directories", async () => {
     await registry.setWatchedDirectories(1, {
-      folders: [{ folderId: "f1", directories: [""] }],
+      folders: [{ folderId: "f1", projectId: "p1", directories: [""] }],
     });
     await writeFile(path.join(root, "new.txt"), "data");
     await waitForChange();
     expect(changes.at(-1)?.senderId).toBe(1);
     expect(changes.at(-1)?.folders).toEqual([
-      { folderId: "f1", changedDirs: [""] },
+      { folderId: "f1", projectId: "p1", changedDirs: [""] },
     ]);
   }, 10_000);
 
@@ -52,7 +56,7 @@ describe("ProjectFileWatcherRegistry", () => {
     const { mkdir } = await import("node:fs/promises");
     await mkdir(sub);
     await registry.setWatchedDirectories(1, {
-      folders: [{ folderId: "f1", directories: ["", "sub"] }],
+      folders: [{ folderId: "f1", projectId: "p1", directories: ["", "sub"] }],
     });
     // Full-state sync without "f1" closes its watchers; changes are ignored.
     await registry.setWatchedDirectories(1, { folders: [] });
@@ -63,7 +67,7 @@ describe("ProjectFileWatcherRegistry", () => {
 
   it("is safe to dispose twice", async () => {
     await registry.setWatchedDirectories(1, {
-      folders: [{ folderId: "f1", directories: [""] }],
+      folders: [{ folderId: "f1", projectId: "p1", directories: [""] }],
     });
     registry.dispose();
     expect(() => registry.dispose()).not.toThrow();
@@ -76,7 +80,7 @@ describe("ProjectFileWatcherRegistry", () => {
     });
     registry.dispose();
     registry = new ProjectFileWatcherRegistry(
-      async (_senderId, _folderId, relativePath) => {
+      async (_senderId, _projectId, _folderId, relativePath) => {
         await resolutionBlocked;
         return realpath(path.resolve(root, relativePath));
       },
@@ -85,7 +89,7 @@ describe("ProjectFileWatcherRegistry", () => {
     );
 
     const staleUpdate = registry.setWatchedDirectories(1, {
-      folders: [{ folderId: "f1", directories: [""] }],
+      folders: [{ folderId: "f1", projectId: "p1", directories: [""] }],
     });
     await registry.setWatchedDirectories(1, { folders: [] });
     releaseResolution?.();
@@ -111,7 +115,7 @@ describe("ProjectFileWatcherRegistry", () => {
     );
 
     const pendingUpdate = registry.setWatchedDirectories(1, {
-      folders: [{ folderId: "f1", directories: [""] }],
+      folders: [{ folderId: "f1", projectId: "p1", directories: [""] }],
     });
     registry.disposeSender(1);
     releaseResolution?.();

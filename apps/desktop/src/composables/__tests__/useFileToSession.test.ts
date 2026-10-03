@@ -8,6 +8,7 @@ import { handleError } from "@/app/errors/errorHandler";
 import { useContentTabsStore } from "@/stores/contentTabs";
 import { useProjectStore } from "@/stores/project";
 import { useFileToSession } from "../useFileToSession";
+import { showProject } from "@/stores/__tests__/showProject";
 
 vi.mock("@/app/errors/errorHandler", () => ({ handleError: vi.fn() }));
 const file = { projectId: "p1", folderId: "f1", relativePath: "notes.md" };
@@ -37,7 +38,7 @@ async function setup() {
   });
   await router.push("/");
   const project = useProjectStore();
-  project.activeProject = {
+  showProject({
     id: "p1",
     name: "Project",
     schemaVersion: 1,
@@ -45,8 +46,10 @@ async function setup() {
     updatedAt: "",
     defaultFolderId: "f1",
     folders: [],
-  };
+  });
   const store = useContentTabsStore();
+  // Files only go to sessions of their own project.
+  store.setDraftProject("session-1", "p1");
   const source = store.openFile(file);
   await router.push({ query: { tab: source.id } });
   const inspect = vi.fn().mockResolvedValue({ attachments: [attachment] });
@@ -102,7 +105,7 @@ describe("file to session delivery", () => {
     await sender.sendFile(file, "session-1");
     await flushPromises();
     expect(inspect).toHaveBeenCalledWith([
-      { folderId: "f1", relativePath: "notes.md" },
+      { folderId: "f1", projectId: "p1", relativePath: "notes.md" },
     ]);
     expect(store.attachmentsFor("session-1")).toEqual([existing, attachment]);
     expect(router.currentRoute.value.query.tab).toBe("session-1");
@@ -124,7 +127,15 @@ describe("file to session delivery", () => {
     expect(store.attachmentsFor(target!.id)).toEqual([attachment]);
   });
 
-  it.each(["close", "switch"])(
+  it("does not attach a file to a session of another project", async () => {
+    const { store, sender } = await setup();
+    store.setDraftProject("session-1", "p2");
+    await sender.sendFile(file, "session-1");
+    await flushPromises();
+    expect(store.attachmentsFor("session-1")).toEqual([]);
+  });
+
+  it.each(["close", "release"])(
     "discards late results after %s",
     async (action) => {
       const { store, project, sender, inspect, router, source } = await setup();
@@ -136,7 +147,7 @@ describe("file to session delivery", () => {
       );
       const pending = sender.sendFile(file, "session-1");
       if (action === "close") store.close("session-1", source.id);
-      else project.activeProject = { ...project.activeProject!, id: "p2" };
+      else project.openProjectIds = new Set();
       resolve({ attachments: [attachment] });
       await pending;
       await flushPromises();

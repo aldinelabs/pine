@@ -4,10 +4,15 @@ import { createMemoryHistory, createRouter } from "vue-router";
 import { beforeEach, expect, it, vi } from "vitest";
 import { createAppI18n } from "@/app/i18n";
 import { ROUTE_NAMES } from "@/router/routes";
-import type { PineProject } from "@/shared/projects";
+import {
+  TEMPORARY_WORKSPACE_FOLDER_ID,
+  TEMPORARY_WORKSPACE_PROJECT_ID,
+  type PineProject,
+} from "@/shared/projects";
 import { useProjectStore } from "@/stores/project";
 import { PROJECT_RIGHT_SIDEBAR_STORAGE_KEY } from "@/stores/projectRightSidebar";
 import ProjectView from "../ProjectView.vue";
+import { showProject } from "@/stores/__tests__/showProject";
 
 const project: PineProject = {
   createdAt: "2026-08-19T12:00:00.000Z",
@@ -27,6 +32,22 @@ const project: PineProject = {
   updatedAt: "2026-08-19T12:00:00.000Z",
 };
 
+const temporaryWorkspace: PineProject = {
+  ...project,
+  defaultFolderId: TEMPORARY_WORKSPACE_FOLDER_ID,
+  folders: [
+    {
+      access: "read-write",
+      id: TEMPORARY_WORKSPACE_FOLDER_ID,
+      isAvailable: true,
+      name: "Temporary Workspace",
+      path: "/pine/projects/temporary/workspace",
+    },
+  ],
+  id: TEMPORARY_WORKSPACE_PROJECT_ID,
+  name: "Temporary Workspace",
+};
+
 beforeEach(() => {
   window.localStorage.clear();
 });
@@ -40,6 +61,10 @@ async function mountView(
     configurable: true,
     value: {
       closeProject,
+      listProjects: vi.fn().mockResolvedValue({
+        projects: [temporaryWorkspace, project],
+      }),
+      onSessionEvent: vi.fn().mockReturnValue(() => undefined),
       platform,
       setWindowLayout: vi.fn().mockResolvedValue(undefined),
       planWindowResize: vi.fn().mockResolvedValue(0),
@@ -50,26 +75,18 @@ async function mountView(
   const pinia = createPinia();
   setActivePinia(pinia);
   const projectStore = useProjectStore();
-  projectStore.activeProject = project;
+  showProject(project);
   const router = createRouter({
     history: createMemoryHistory(),
     routes: [
       {
-        path: "/projects",
-        name: ROUTE_NAMES.projects,
-        component: { template: "<div />" },
-      },
-      {
-        path: "/projects/:projectId",
-        name: ROUTE_NAMES.project,
+        path: "/",
+        name: ROUTE_NAMES.workspace,
         component: { template: "<div />" },
       },
     ],
   });
-  await router.push({
-    name: ROUTE_NAMES.project,
-    params: { projectId: project.id },
-  });
+  await router.push({ name: ROUTE_NAMES.workspace });
   const wrapper = mount(ProjectView, {
     global: {
       plugins: [pinia, router, createAppI18n("zh-CN")],
@@ -96,21 +113,28 @@ async function mountView(
   return { closeProject, projectStore, router, wrapper };
 }
 
-it("renders the home action beside the sidebar toggle", async () => {
+it("has no route back to a project list", async () => {
   const { wrapper } = await mountView();
   const leading = wrapper.get('[data-slot="window-titlebar-leading"]');
-  const home = leading.get('[aria-label="关闭项目"]');
 
   expect(
     wrapper.get('[data-slot="window-titlebar-sidebar-drag-region"]').classes(),
   ).toContain("window-drag");
-
-  expect(leading.element.children).toHaveLength(2);
+  expect(leading.element.children).toHaveLength(1);
   expect(leading.element.firstElementChild?.getAttribute("data-slot")).toBe(
     "sidebar-trigger",
   );
-  expect(home.attributes("title")).toBe("关闭项目");
-  expect(home.text()).toBe("");
+  expect(leading.find('[aria-label="关闭项目"]').exists()).toBe(false);
+  wrapper.unmount();
+});
+
+it("does not offer settings for the temporary workspace", async () => {
+  const { projectStore, wrapper } = await mountView();
+  await flushPromises();
+  projectStore.setCurrentProject(TEMPORARY_WORKSPACE_PROJECT_ID);
+  await flushPromises();
+
+  expect(wrapper.find("[data-project-dialog]").exists()).toBe(false);
   wrapper.unmount();
 });
 
@@ -142,31 +166,6 @@ it("places the Windows logo and preferences before navigation controls", async (
   expect(leading.element.firstElementChild?.getAttribute("data-slot")).toBe(
     "window-titlebar-logo-slot",
   );
-  wrapper.unmount();
-});
-
-it("closes the active project and returns to the project list", async () => {
-  const { closeProject, projectStore, router, wrapper } = await mountView();
-
-  await wrapper.get('[aria-label="关闭项目"]').trigger("click");
-  await flushPromises();
-
-  expect(closeProject).toHaveBeenCalledTimes(1);
-  expect(projectStore.activeProject).toBeNull();
-  expect(router.currentRoute.value.name).toBe(ROUTE_NAMES.projects);
-  wrapper.unmount();
-});
-
-it("stays on the project when closing it fails", async () => {
-  const { projectStore, router, wrapper } = await mountView(
-    vi.fn().mockRejectedValue(new Error("close failed")),
-  );
-
-  await wrapper.get('[aria-label="关闭项目"]').trigger("click");
-  await flushPromises();
-
-  expect(projectStore.activeProject).toEqual(project);
-  expect(router.currentRoute.value.name).toBe(ROUTE_NAMES.project);
   wrapper.unmount();
 });
 

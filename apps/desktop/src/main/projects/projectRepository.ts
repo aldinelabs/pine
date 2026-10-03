@@ -19,6 +19,10 @@ import {
   PROJECT_SKILLS_DIRECTORY,
   PROJECT_SKILLS_SETTINGS_FILE,
   PROJECT_COLOR_THEMES,
+  TEMPORARY_WORKSPACE_DIRECTORY,
+  TEMPORARY_WORKSPACE_FOLDER_ID,
+  TEMPORARY_WORKSPACE_PROJECT_ID,
+  isTemporaryWorkspace,
   type PineProject,
   type PineSessionGroup,
   type ProjectFolderInput,
@@ -65,6 +69,15 @@ export interface ProjectDataPaths {
   sessionsRoot: string;
   skillsRoot?: string;
   skillsSettingsPath?: string;
+}
+
+/** Stored name; the renderer shows a localized label instead. */
+const TEMPORARY_WORKSPACE_NAME = "Temporary Workspace";
+
+function assertEditable(id: string): void {
+  if (isTemporaryWorkspace(id)) {
+    throw new Error("The temporary workspace cannot be changed or deleted.");
+  }
 }
 
 function isFileSystemError(error: unknown, code: string): boolean {
@@ -141,6 +154,7 @@ export class ProjectRepository {
   constructor(private readonly projectsRoot: string) {}
 
   async list(): Promise<PineProject[]> {
+    await this.ensureTemporaryWorkspace();
     let entries;
     try {
       entries = await readdir(this.projectsRoot, { withFileTypes: true });
@@ -164,6 +178,9 @@ export class ProjectRepository {
     return projects
       .filter((project): project is PineProject => project !== null)
       .sort((left, right) => {
+        // The temporary workspace always leads the list.
+        if (isTemporaryWorkspace(left.id)) return -1;
+        if (isTemporaryWorkspace(right.id)) return 1;
         const leftTime = Date.parse(left.lastOpenedAt ?? left.updatedAt);
         const rightTime = Date.parse(right.lastOpenedAt ?? right.updatedAt);
         return rightTime - leftTime;
@@ -209,6 +226,7 @@ export class ProjectRepository {
   }
 
   async update(id: string, input: ProjectMutationInput): Promise<PineProject> {
+    assertEditable(id);
     const current = await this.read(id);
     const folders = await this.normalizeFolders(input.folders, current.folders);
     const project = this.validateProject({
@@ -239,6 +257,7 @@ export class ProjectRepository {
   }
 
   async delete(id: string): Promise<boolean> {
+    assertEditable(id);
     const project = await this.read(id);
     await rm(this.projectRoot(project.id), { recursive: true, force: false });
     return true;
@@ -298,7 +317,49 @@ export class ProjectRepository {
     return path.join(this.projectRoot(id), PROJECT_METADATA_FILE);
   }
 
+  /**
+   * Create the temporary workspace on first use and pin its fixed fields, so
+   * a hand-edited or relocated data directory cannot change what it is.
+   */
+  async ensureTemporaryWorkspace(): Promise<void> {
+    const id = TEMPORARY_WORKSPACE_PROJECT_ID;
+    const projectRoot = this.projectRoot(id);
+    const workspacePath = path.join(projectRoot, TEMPORARY_WORKSPACE_DIRECTORY);
+    await mkdir(workspacePath, { recursive: true });
+
+    let current: StoredProject | null = null;
+    try {
+      current = parseProject(await readFile(this.metadataPath(id), "utf8"));
+    } catch {
+      // Missing or damaged metadata is rebuilt from the fixed fields.
+    }
+    const now = new Date().toISOString();
+    const pinned: StoredProject = {
+      createdAt: current?.createdAt ?? now,
+      defaultFolderId: TEMPORARY_WORKSPACE_FOLDER_ID,
+      folders: [
+        {
+          access: "read-write",
+          id: TEMPORARY_WORKSPACE_FOLDER_ID,
+          name: TEMPORARY_WORKSPACE_NAME,
+          path: workspacePath,
+        },
+      ],
+      id,
+      ...(current?.lastOpenedAt ? { lastOpenedAt: current.lastOpenedAt } : {}),
+      name: TEMPORARY_WORKSPACE_NAME,
+      projectColorTheme: "olive",
+      schemaVersion: PROJECT_SCHEMA_VERSION,
+      sessionGroups: current?.sessionGroups ?? [],
+      updatedAt: current?.updatedAt ?? now,
+    };
+    if (JSON.stringify(current) !== JSON.stringify(pinned)) {
+      await this.write(pinned);
+    }
+  }
+
   private async read(id: string): Promise<StoredProject> {
+    if (isTemporaryWorkspace(id)) await this.ensureTemporaryWorkspace();
     try {
       return parseProject(await readFile(this.metadataPath(id), "utf8"));
     } catch (error) {

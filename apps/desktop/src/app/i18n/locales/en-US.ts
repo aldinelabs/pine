@@ -279,6 +279,10 @@ export default {
   },
   projects: {
     title: "Projects",
+    temporaryWorkspace: "Temporary Workspace",
+    temporaryWorkspaceDescription: "Quick work that belongs to no project",
+    openElsewhere: "Open in another window",
+    deleteAction: "Delete Project",
     welcomeTitle: "Let's get things done",
     description:
       "Organize sessions and choose exactly which folders AI can access.",
@@ -565,6 +569,8 @@ export default {
       },
     },
     composer: {
+      sendTo: "Send to {name}",
+      sendToLabel: "Choose the project for this session",
       label: "Session message",
       placeholder: "Describe a task or clarify what you need…",
       steeringPlaceholder: "Add requirements or change direction…",

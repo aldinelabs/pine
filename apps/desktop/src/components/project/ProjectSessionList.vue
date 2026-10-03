@@ -9,7 +9,6 @@ import {
   Trash2,
 } from "@lucide/vue";
 import { useEventListener } from "@vueuse/core";
-import { storeToRefs } from "pinia";
 import { computed, onUnmounted, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { handleError } from "@/app/errors/errorHandler";
@@ -40,6 +39,7 @@ import {
 } from "@/components/ui/sidebar";
 import { useContentTabNavigation } from "@/composables/useContentTabNavigation";
 import { useFileToSession } from "@/composables/useFileToSession";
+import { useScopedProject } from "@/composables/useScopedProject";
 import { useSessionExport } from "@/composables/useSessionExport";
 import { FILE_TAB_DRAG_TYPE, hasFileTabDrag } from "@/lib/contentTabDrag";
 import { readSessionDrag, writeSessionDrag } from "@/lib/sessionDrag";
@@ -168,8 +168,14 @@ function dropOnGroup(event: DragEvent, group: PineSessionGroup): void {
   void moveSessionToGroup(sessionId, group.id);
 }
 const { activeSessionTab } = tabNavigation;
-const { activeProject } = storeToRefs(projectStore);
-const { isLoadingRecent, recentSessions } = storeToRefs(sessionStore);
+// Retained per project: always list this panel's project.
+const activeProject = useScopedProject();
+const recentSessions = computed(() =>
+  sessionStore.recentSessionsFor(activeProject.value?.id),
+);
+const isLoadingRecent = computed(() =>
+  sessionStore.isLoadingRecentFor(activeProject.value?.id),
+);
 const sessionPendingDelete = ref<PineSessionSummary | null>(null);
 const isDeleteDialogOpen = ref(false);
 const sessionPendingRename = ref<PineSessionSummary | null>(null);
@@ -234,7 +240,9 @@ function sessionTitle(session: PineSessionSummary): string {
 
 async function loadRecentSessions(): Promise<void> {
   try {
-    await sessionStore.loadRecent();
+    const projectId = activeProject.value?.id;
+    if (!projectId) return;
+    await sessionStore.loadRecent(projectId);
     nowMs.value = Date.now();
   } catch (error) {
     handleError(error, {
@@ -247,7 +255,8 @@ async function loadRecentSessions(): Promise<void> {
 
 function openSession(session: PineSessionSummary): void {
   openGroupId.value = null;
-  tabNavigation.openSession(session);
+  const projectId = activeProject.value?.id;
+  if (projectId) tabNavigation.openSession(session, projectId);
 }
 
 function sessionsForGroup(group: PineSessionGroup): PineSessionSummary[] {
@@ -329,7 +338,7 @@ async function saveGroup(name: string): Promise<void> {
 
   isSavingGroup.value = true;
   try {
-    await projectStore.updateSessionGroups(groups);
+    await updateSessionGroups(groups);
     isGroupDialogOpen.value = false;
   } catch (error) {
     handleError(error, {
@@ -348,7 +357,7 @@ async function deleteGroup(): Promise<void> {
 
   isDeletingGroup.value = true;
   try {
-    await projectStore.updateSessionGroups(
+    await updateSessionGroups(
       conversationGroups.value.filter((candidate) => candidate.id !== group.id),
     );
     isGroupDeleteDialogOpen.value = false;
@@ -379,7 +388,7 @@ async function moveSessionToGroup(
   if (target) target.sessionIds = [...target.sessionIds, sessionId];
 
   try {
-    await projectStore.updateSessionGroups(groups);
+    await updateSessionGroups(groups);
   } catch (error) {
     handleError(error, {
       id: "sessions.group.move",
@@ -387,6 +396,12 @@ async function moveSessionToGroup(
       description: t("errors.sessionRename.description"),
     });
   }
+}
+
+async function updateSessionGroups(groups: PineSessionGroup[]): Promise<void> {
+  const projectId = activeProject.value?.id;
+  if (!projectId) throw new Error("No project is shown.");
+  await projectStore.updateSessionGroups(projectId, groups);
 }
 
 function startSessionDrag(event: DragEvent, session: PineSessionSummary): void {
@@ -431,7 +446,9 @@ watch(
           <SidebarMenuItem>
             <SidebarMenuButton
               :is-active="activeSessionTab?.state === 'draft'"
-              @click="tabNavigation.createSessionTab"
+              @click="
+                tabNavigation.createSessionTab({ projectId: activeProject?.id })
+              "
             >
               <Plus aria-hidden="true" />
               <span>{{ t("sessions.newSession") }}</span>

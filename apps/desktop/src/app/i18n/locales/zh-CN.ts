@@ -261,6 +261,10 @@ export default {
   },
   projects: {
     title: "项目",
+    temporaryWorkspace: "临时工作空间",
+    temporaryWorkspaceDescription: "不属于任何项目的临时工作",
+    openElsewhere: "已在其他窗口中打开",
+    deleteAction: "删除项目",
     welcomeTitle: "让我们携手把事情做好",
     description: "组织会话，并明确指定 AI 可以访问的文件夹。",
     createAction: "新建项目",
@@ -536,6 +540,8 @@ export default {
       },
     },
     composer: {
+      sendTo: "发送到 {name}",
+      sendToLabel: "选择新会话所在的项目",
       label: "会话消息",
       placeholder: "描述任务、明确需求……",
       steeringPlaceholder: "追加要求、改变方向……",

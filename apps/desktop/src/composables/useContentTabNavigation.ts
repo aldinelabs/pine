@@ -16,11 +16,7 @@ export function useContentTabNavigation() {
   const activeTabId = computed(() => {
     const queryValue = route.query[CONTENT_TAB_QUERY];
     const requestedId = Array.isArray(queryValue) ? queryValue[0] : queryValue;
-    if (
-      requestedId &&
-      (!store.projectId || route.params.projectId === store.projectId) &&
-      tabs.value.some((tab) => tab.id === requestedId)
-    ) {
+    if (requestedId && tabs.value.some((tab) => tab.id === requestedId)) {
       return requestedId;
     }
     const fallbackId = store.fallbackActiveTabId;
@@ -42,9 +38,8 @@ export function useContentTabNavigation() {
   );
 
   watch(
-    () => [route.params.projectId, route.query[CONTENT_TAB_QUERY]] as const,
-    ([projectId, queryValue]) => {
-      if (projectId !== store.projectId) return;
+    () => route.query[CONTENT_TAB_QUERY],
+    (queryValue) => {
       const tabId = Array.isArray(queryValue) ? queryValue[0] : queryValue;
       if (tabId) store.setActiveTab(tabId);
     },
@@ -60,12 +55,12 @@ export function useContentTabNavigation() {
     void (replace ? router.replace(location) : router.push(location));
   }
 
-  function createSessionTab(): void {
-    navigate(store.createSessionTab().id);
+  function createSessionTab(options?: { projectId?: string }): void {
+    navigate(store.createSessionTab(options).id);
   }
 
-  function openSession(session: PineSessionSummary): void {
-    navigate(store.openSession(session, activeTabId.value).id);
+  function openSession(session: PineSessionSummary, projectId: string): void {
+    navigate(store.openSession(session, projectId, activeTabId.value).id);
   }
 
   function openFile(file: ProjectFilePreviewRequest): void {

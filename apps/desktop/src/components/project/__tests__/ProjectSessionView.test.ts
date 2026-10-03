@@ -53,6 +53,9 @@ function mountView() {
       getPathForFile: (file: File) => `/tmp/${file.name}`,
       inspectAttachments,
       onSessionEvent: () => () => undefined,
+      openProject: vi.fn(({ id }: { id: string }) =>
+        Promise.resolve({ opened: true, project: { id } }),
+      ),
     },
   });
 
@@ -74,7 +77,7 @@ function mountView() {
       '<div data-slot="message-viewport-stub"><button data-slot="programmatic-scroll-stub" @click="emitProgrammaticScroll" /><slot /></div>',
   };
   const wrapper = mount(ProjectSessionView, {
-    props: { tabId: "session-1" },
+    props: { projectId: "p1", tabId: "session-1" },
     global: {
       plugins: [pinia, createAppI18n("zh-CN")],
       stubs: {
@@ -141,13 +144,18 @@ describe("ProjectSessionView file drop", () => {
     ) => Promise<boolean>;
     expect(await openFile(filePath, toolCall)).toBe(true);
     expect(reopen).toHaveBeenCalledWith({
+      projectId: "p1",
       sessionId,
       toolCallId: toolCall.id,
     });
     const fileTab = useContentTabsStore().tabs.find(
       (tab) => tab.kind === "file",
     );
-    expect(fileTab).toMatchObject({ source: "presented", path: filePath });
+    expect(fileTab).toMatchObject({
+      path: filePath,
+      projectId: "p1",
+      source: "presented",
+    });
     expect(activateTab).toHaveBeenCalledWith(fileTab?.id);
     wrapper.unmount();
   });
@@ -311,7 +319,7 @@ describe("ProjectSessionView file drop", () => {
       session: runningSession,
     });
     window.pine.promptSession = promptSession;
-    await sessionStore.resume(runningSession.id);
+    await sessionStore.resume("p1", runningSession.id);
     await wrapper.setProps({ sessionId: runningSession.id });
     sessionStore.isRunning = true;
     contentTabsStore.beginPrompt("session-1", "Initial prompt");
@@ -323,7 +331,11 @@ describe("ProjectSessionView file drop", () => {
     expect(promptSession).toHaveBeenCalledWith({
       locale: "en-US",
       message: "Change direction",
-      target: { kind: "session", sessionId: runningSession.id },
+      target: {
+        kind: "session",
+        projectId: "p1",
+        sessionId: runningSession.id,
+      },
       approvalMode: "auto-approve",
       streamingBehavior: "steer",
     });
@@ -477,7 +489,9 @@ describe("ProjectSessionView file drop", () => {
 
   it("adds internal tree entries through the existing attachment system and deduplicates them", async () => {
     const { wrapper } = mountView();
-    const entries = [{ folderId: "folder-1", relativePath: "notes.md" }];
+    const entries = [
+      { folderId: "folder-1", projectId: "p1", relativePath: "notes.md" },
+    ];
     const inspectProjectAttachments = vi.fn().mockResolvedValue({
       attachments: [
         {
@@ -545,6 +559,7 @@ describe("ProjectSessionView file drop", () => {
     await flushPromises();
 
     expect(attachSession).toHaveBeenCalledWith({
+      projectId: "p1",
       sessionId: "019cfe51-7166-79b9-a5b9-c652fcca9eab",
     });
     expect(

@@ -77,9 +77,9 @@ const targetSession = computed<PineSessionSummary | null>(() => {
   const tab = activeSessionTab.value;
   if (!tab) return null;
   return (
-    sessionStore.recentSessions.find(
-      (session) => session.id === tab.sessionId,
-    ) ??
+    sessionStore
+      .recentSessionsFor(tab.projectId)
+      .find((session) => session.id === tab.sessionId) ??
     (sessionStore.activeSession?.id === tab.sessionId
       ? sessionStore.activeSession
       : null)
@@ -95,6 +95,7 @@ const fileTarget = computed(() =>
   activeFileTab.value?.source === "project"
     ? {
         folderId: activeFileTab.value.folderId,
+        projectId: activeFileTab.value.projectId,
         relativePath: activeFileTab.value.relativePath,
       }
     : null,
@@ -183,11 +184,15 @@ async function submitFileDialog(): Promise<void> {
     // The tab is keyed by path, so a renamed file needs a fresh preview.
     if (succeeded) tabNavigation.close(tabId);
   } else {
-    const folderId = activeProject.value?.defaultFolderId;
-    if (!folderId) return;
+    const project = activeProject.value;
+    if (!project) return;
     succeeded = await operateProjectFile({
       action: "create",
-      target: { folderId, relativePath: "" },
+      target: {
+        folderId: project.defaultFolderId,
+        projectId: project.id,
+        relativePath: "",
+      },
       name,
       kind: "directory",
     });
