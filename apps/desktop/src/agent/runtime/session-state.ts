@@ -12,7 +12,10 @@ import type {
 } from "../../shared/agent";
 import type { McpStatusSnapshot } from "pi-mcp-adapter";
 import type { PineProviderAuthEvent } from "../../shared/models";
-import type { PineContextCompactionStrategy } from "../../shared/preferences";
+import type {
+  PineContextCompactionRoute,
+  PineContextCompactionStrategy,
+} from "../../shared/preferences";
 import type { PineSessionSummary } from "../../shared/sessions";
 import {
   PINE_AUTHORIZATION_GRANT_ENTRY,
@@ -66,6 +69,7 @@ export interface LiveAgentSession {
   tinyFishApiKey?: string;
   locale: "en-US" | "zh-CN";
   contextCompactionStrategy: PineContextCompactionStrategy;
+  contextCompactionRoute: PineContextCompactionRoute;
   /** The session's `bg_run` tasks; they stop when the session is disposed. */
   backgroundTasks?: BackgroundTaskRegistry;
   /** Coalesces task changes, including streamed output, into one event. */

@@ -11,7 +11,10 @@ import type {
   PineApprovalMode,
   PineMessageRewriteTarget,
 } from "../shared/agent";
-import type { PineContextCompactionStrategy } from "../shared/preferences";
+import type {
+  PineContextCompactionRoute,
+  PineContextCompactionStrategy,
+} from "../shared/preferences";
 import type { AskUserQuestionSubmission } from "@pine/rpiv-ask-user-question";
 import type {
   AddCustomModelRequest,
@@ -142,6 +145,9 @@ export interface AgentHost {
   setTinyFishApiKey(apiKey: string | undefined): Promise<{ updated: boolean }>;
   setContextCompactionStrategy(
     strategy: PineContextCompactionStrategy,
+  ): Promise<{ updated: boolean }>;
+  setContextCompactionRoute(
+    route: PineContextCompactionRoute,
   ): Promise<{ updated: boolean }>;
   subscribe(listener: (event: PineRuntimeEvent) => void): () => void;
   /** Resolve a pending user-approval round trip inside the agent worker. */
@@ -419,6 +425,15 @@ export class AgentProcessHost implements AgentHost {
     return this.request({
       type: "runtime:set-context-compaction-strategy",
       strategy,
+    });
+  }
+
+  setContextCompactionRoute(
+    route: PineContextCompactionRoute,
+  ): Promise<{ updated: boolean }> {
+    return this.request({
+      type: "runtime:set-context-compaction-route",
+      route,
     });
   }
 

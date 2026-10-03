@@ -74,6 +74,7 @@ import {
 import {
   readPineAgentSettings,
   writeAutoApprovalSettings,
+  writeContextCompactionRoute,
   writeContextCompactionStrategy,
   writeDiagnosticLoggingEnabled,
   writePineUserProfile,
@@ -108,7 +109,10 @@ import {
 import {
   DEFAULT_AUTO_APPROVAL_SETTINGS,
   isPineAutoApprovalSettings,
+  DEFAULT_CONTEXT_COMPACTION_ROUTE,
   DEFAULT_CONTEXT_COMPACTION_STRATEGY,
+  GET_CONTEXT_COMPACTION_ROUTE_CHANNEL,
+  SET_CONTEXT_COMPACTION_ROUTE_CHANNEL,
   GET_CONTEXT_COMPACTION_STRATEGY_CHANNEL,
   SET_CONTEXT_COMPACTION_STRATEGY_CHANNEL,
   GET_DIAGNOSTIC_LOGGING_CHANNEL,
@@ -116,7 +120,9 @@ import {
   GET_AUTO_APPROVAL_SETTINGS_CHANNEL,
   SET_AUTO_APPROVAL_SETTINGS_CHANNEL,
   type PineAutoApprovalSettings,
+  type PineContextCompactionRoute,
   type PineContextCompactionStrategy,
+  type SetContextCompactionRouteResult,
   type SetContextCompactionStrategyResult,
   type SetDiagnosticLoggingResult,
 } from "./shared/preferences";
@@ -713,6 +719,9 @@ const SetApprovalModeRequestSchema = SessionIdRequestSchema.extend({
 });
 const SetContextCompactionStrategyRequestSchema = z.object({
   strategy: z.enum(["passive", "recommended"]),
+});
+const SetContextCompactionRouteRequestSchema = z.object({
+  route: z.enum(["model", "semantic"]),
 });
 const LoginProviderRequestSchema = z.object({
   authType: z.enum(["api_key", "oauth"]),
@@ -1343,6 +1352,13 @@ ipcMain.handle(
 );
 
 ipcMain.handle(
+  GET_CONTEXT_COMPACTION_ROUTE_CHANNEL,
+  async (): Promise<PineContextCompactionRoute> =>
+    (await readPineAgentSettings(getPineAgentDirectory()))
+      .contextCompactionRoute ?? DEFAULT_CONTEXT_COMPACTION_ROUTE,
+);
+
+ipcMain.handle(
   GET_DIAGNOSTIC_LOGGING_CHANNEL,
   (): boolean => runtimeDiagnostics?.isEnabled ?? false,
 );
@@ -1376,6 +1392,19 @@ ipcMain.handle(
       SetContextCompactionStrategyRequestSchema.parse(request);
     await writeContextCompactionStrategy(getPineAgentDirectory(), strategy);
     await projectRuntimes?.setContextCompactionStrategy(strategy);
+    return { updated: true };
+  },
+);
+
+ipcMain.handle(
+  SET_CONTEXT_COMPACTION_ROUTE_CHANNEL,
+  async (
+    _event,
+    request: unknown,
+  ): Promise<SetContextCompactionRouteResult> => {
+    const { route } = SetContextCompactionRouteRequestSchema.parse(request);
+    await writeContextCompactionRoute(getPineAgentDirectory(), route);
+    await projectRuntimes?.setContextCompactionRoute(route);
     return { updated: true };
   },
 );

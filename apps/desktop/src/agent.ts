@@ -156,6 +156,9 @@ async function handleRequest(request: AgentWorkerRequest): Promise<void> {
     case "runtime:set-context-compaction-strategy":
       result = runtime.setContextCompactionStrategy(request.strategy);
       break;
+    case "runtime:set-context-compaction-route":
+      result = runtime.setContextCompactionRoute(request.route);
+      break;
   }
 
   parentPort.postMessage({

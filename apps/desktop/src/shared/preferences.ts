@@ -2,6 +2,10 @@ export const GET_CONTEXT_COMPACTION_STRATEGY_CHANNEL =
   "preferences:get-context-compaction-strategy" as const;
 export const SET_CONTEXT_COMPACTION_STRATEGY_CHANNEL =
   "preferences:set-context-compaction-strategy" as const;
+export const GET_CONTEXT_COMPACTION_ROUTE_CHANNEL =
+  "preferences:get-context-compaction-route" as const;
+export const SET_CONTEXT_COMPACTION_ROUTE_CHANNEL =
+  "preferences:set-context-compaction-route" as const;
 export const GET_DIAGNOSTIC_LOGGING_CHANNEL =
   "preferences:get-diagnostic-logging" as const;
 export const SET_DIAGNOSTIC_LOGGING_CHANNEL =
@@ -60,5 +64,25 @@ export interface SetContextCompactionStrategyRequest {
 }
 
 export interface SetContextCompactionStrategyResult {
+  updated: boolean;
+}
+
+/** How compaction summaries are produced: an LLM call or pi-vcc's extraction. */
+export type PineContextCompactionRoute = "model" | "semantic";
+
+export const DEFAULT_CONTEXT_COMPACTION_ROUTE =
+  "model" satisfies PineContextCompactionRoute;
+
+export function isPineContextCompactionRoute(
+  value: unknown,
+): value is PineContextCompactionRoute {
+  return value === "model" || value === "semantic";
+}
+
+export interface SetContextCompactionRouteRequest {
+  route: PineContextCompactionRoute;
+}
+
+export interface SetContextCompactionRouteResult {
   updated: boolean;
 }

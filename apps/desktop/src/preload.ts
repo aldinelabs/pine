@@ -39,6 +39,8 @@ import {
   type SessionEventListener,
 } from "./shared/agent";
 import {
+  GET_CONTEXT_COMPACTION_ROUTE_CHANNEL,
+  SET_CONTEXT_COMPACTION_ROUTE_CHANNEL,
   GET_CONTEXT_COMPACTION_STRATEGY_CHANNEL,
   SET_CONTEXT_COMPACTION_STRATEGY_CHANNEL,
   GET_DIAGNOSTIC_LOGGING_CHANNEL,
@@ -46,7 +48,10 @@ import {
   GET_AUTO_APPROVAL_SETTINGS_CHANNEL,
   SET_AUTO_APPROVAL_SETTINGS_CHANNEL,
   type PineAutoApprovalSettings,
+  type PineContextCompactionRoute,
   type PineContextCompactionStrategy,
+  type SetContextCompactionRouteRequest,
+  type SetContextCompactionRouteResult,
   type SetContextCompactionStrategyRequest,
   type SetContextCompactionStrategyResult,
   type SetDiagnosticLoggingRequest,
@@ -394,6 +399,8 @@ const pineApi: PineDesktopApi = {
     ipcRenderer.invoke(SET_AUTO_APPROVAL_SETTINGS_CHANNEL, settings),
   getContextCompactionStrategy: (): Promise<PineContextCompactionStrategy> =>
     ipcRenderer.invoke(GET_CONTEXT_COMPACTION_STRATEGY_CHANNEL),
+  getContextCompactionRoute: (): Promise<PineContextCompactionRoute> =>
+    ipcRenderer.invoke(GET_CONTEXT_COMPACTION_ROUTE_CHANNEL),
   getDiagnosticLogging: (): Promise<boolean> =>
     ipcRenderer.invoke(GET_DIAGNOSTIC_LOGGING_CHANNEL),
   setDiagnosticLogging: (
@@ -453,6 +460,10 @@ const pineApi: PineDesktopApi = {
     request: SetContextCompactionStrategyRequest,
   ): Promise<SetContextCompactionStrategyResult> =>
     ipcRenderer.invoke(SET_CONTEXT_COMPACTION_STRATEGY_CHANNEL, request),
+  setContextCompactionRoute: (
+    request: SetContextCompactionRouteRequest,
+  ): Promise<SetContextCompactionRouteResult> =>
+    ipcRenderer.invoke(SET_CONTEXT_COMPACTION_ROUTE_CHANNEL, request),
   setUserProfile: (profile: PineUserProfile): Promise<SetUserProfileResult> =>
     ipcRenderer.invoke(SET_USER_PROFILE_CHANNEL, profile),
   onProviderAuthEvent: (listener: ProviderAuthEventListener): (() => void) => {

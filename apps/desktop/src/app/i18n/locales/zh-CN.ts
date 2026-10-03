@@ -56,6 +56,12 @@ export default {
       "推荐设置会在上下文达到 80% 时压缩，并将触发上限限制在 400K Token。",
     contextCompactionPassive: "消极压缩",
     contextCompactionRecommended: "使用推荐设置",
+    contextCompactionRoute: "上下文压缩途径",
+    contextCompactionRouteHelp: "关于上下文压缩途径",
+    contextCompactionRouteDescription:
+      "大模型会调用当前模型撰写摘要。语义化算法不调用模型，直接从对话中提取目标、文件改动、提交和简要记录，压缩更快且不消耗 Token。",
+    contextCompactionRouteModel: "大模型",
+    contextCompactionRouteSemantic: "语义化算法（Beta）",
     sidebarVibrancy: "侧栏模糊效果",
     sidebarVibrancyDescription: "使用 macOS 原生模糊材质渲染侧栏",
     modelCatalogRefresh: "模型目录",
@@ -1219,6 +1225,10 @@ export default {
     },
     contextCompactionStrategy: {
       title: "无法更新上下文压缩策略",
+      description: "请稍后重试",
+    },
+    contextCompactionRoute: {
+      title: "无法更新上下文压缩途径",
       description: "请稍后重试",
     },
     diagnosticLogging: {

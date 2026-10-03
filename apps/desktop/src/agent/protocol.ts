@@ -20,7 +20,10 @@ import type {
   UpdateCustomProviderRequest,
 } from "../shared/models";
 import type { PineContextUsage, PineSessionSummary } from "../shared/sessions";
-import type { PineContextCompactionStrategy } from "../shared/preferences";
+import type {
+  PineContextCompactionRoute,
+  PineContextCompactionStrategy,
+} from "../shared/preferences";
 import type { AskUserQuestionSubmission } from "@pine/rpiv-ask-user-question";
 import type { McpStatusSnapshot } from "pi-mcp-adapter";
 import type {
@@ -244,6 +247,11 @@ export type AgentWorkerRequest =
       id: string;
       type: "runtime:set-context-compaction-strategy";
       strategy: PineContextCompactionStrategy;
+    }
+  | {
+      id: string;
+      type: "runtime:set-context-compaction-route";
+      route: PineContextCompactionRoute;
     };
 
 export type AgentWorkerRequestInput = AgentWorkerRequest extends infer TRequest

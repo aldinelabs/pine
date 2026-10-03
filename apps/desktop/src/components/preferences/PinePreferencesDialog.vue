@@ -71,8 +71,11 @@ import {
 } from "@/stores/appearance";
 import { PROJECT_COLOR_THEME_OPTIONS } from "@/lib/projectColorThemes";
 import {
+  DEFAULT_CONTEXT_COMPACTION_ROUTE,
   DEFAULT_CONTEXT_COMPACTION_STRATEGY,
+  isPineContextCompactionRoute,
   isPineContextCompactionStrategy,
+  type PineContextCompactionRoute,
   type PineContextCompactionStrategy,
 } from "@/shared/preferences";
 import {
@@ -109,6 +112,10 @@ const contextCompactionStrategy = ref<PineContextCompactionStrategy>(
   DEFAULT_CONTEXT_COMPACTION_STRATEGY,
 );
 const isSavingContextCompactionStrategy = ref(false);
+const contextCompactionRoute = ref<PineContextCompactionRoute>(
+  DEFAULT_CONTEXT_COMPACTION_ROUTE,
+);
+const isSavingContextCompactionRoute = ref(false);
 const diagnosticLoggingEnabled = ref(false);
 const isLoadingDiagnosticLogging = ref(true);
 const isSavingDiagnosticLogging = ref(false);
@@ -183,6 +190,7 @@ watch(isOpen, (open) => {
   void loadUserProfile();
   void loadTinyFishCredentialStatus();
   void loadContextCompactionStrategy();
+  void loadContextCompactionRoute();
   void loadDiagnosticLogging();
 });
 
@@ -208,6 +216,7 @@ onMounted(() => {
   void loadUserProfile();
   void loadTinyFishCredentialStatus();
   void loadContextCompactionStrategy();
+  void loadContextCompactionRoute();
   void loadDiagnosticLogging();
 });
 
@@ -342,6 +351,20 @@ async function loadContextCompactionStrategy(): Promise<void> {
   }
 }
 
+async function loadContextCompactionRoute(): Promise<void> {
+  if (typeof window.pine?.getContextCompactionRoute !== "function") return;
+  try {
+    contextCompactionRoute.value =
+      await window.pine.getContextCompactionRoute();
+  } catch (error) {
+    handleError(error, {
+      id: "context-compaction-route-load",
+      title: t("errors.contextCompactionRoute.title"),
+      description: t("errors.contextCompactionRoute.description"),
+    });
+  }
+}
+
 async function loadDiagnosticLogging(): Promise<void> {
   if (isSavingDiagnosticLogging.value) return;
   isLoadingDiagnosticLogging.value = true;
@@ -406,6 +429,31 @@ async function updateContextCompactionStrategy(value: unknown): Promise<void> {
     });
   } finally {
     isSavingContextCompactionStrategy.value = false;
+  }
+}
+
+async function updateContextCompactionRoute(value: unknown): Promise<void> {
+  if (
+    !isPineContextCompactionRoute(value) ||
+    value === contextCompactionRoute.value ||
+    isSavingContextCompactionRoute.value
+  ) {
+    return;
+  }
+  const previous = contextCompactionRoute.value;
+  contextCompactionRoute.value = value;
+  isSavingContextCompactionRoute.value = true;
+  try {
+    await window.pine.setContextCompactionRoute({ route: value });
+  } catch (error) {
+    contextCompactionRoute.value = previous;
+    handleError(error, {
+      id: "context-compaction-route-save",
+      title: t("errors.contextCompactionRoute.title"),
+      description: t("errors.contextCompactionRoute.description"),
+    });
+  } finally {
+    isSavingContextCompactionRoute.value = false;
   }
 }
 
@@ -795,46 +843,33 @@ function updateSidebarVibrancy(value: boolean): void {
             <FieldGroup>
               <Field orientation="horizontal">
                 <div class="flex min-w-0 flex-1 flex-col gap-1">
-                  <FieldTitle id="pine-utility-model-setting">
-                    {{ t("preferences.utilityModel") }}
+                  <FieldTitle id="pine-model-catalog-refresh-setting">
+                    {{ t("preferences.modelCatalogRefresh") }}
                   </FieldTitle>
                   <FieldDescription>
-                    {{
-                      utilitySelectedModel?.name ??
-                      t("preferences.noUtilityModelSelected")
-                    }}
+                    {{ t("preferences.modelCatalogRefreshDescription") }}
                   </FieldDescription>
                 </div>
                 <Button
-                  data-testid="pine-utility-model-button"
+                  data-testid="pine-model-catalog-refresh-button"
                   variant="outline"
                   size="sm"
-                  aria-labelledby="pine-utility-model-setting"
-                  @click="isUtilityModelPickerOpen = true"
+                  :disabled="isRefreshingModelCatalog"
+                  :aria-busy="isRefreshingModelCatalog"
+                  aria-labelledby="pine-model-catalog-refresh-setting"
+                  @click="refreshModelCatalog"
                 >
-                  {{ t("preferences.selectUtilityModel") }}
+                  <Spinner
+                    v-if="isRefreshingModelCatalog"
+                    data-icon="inline-start"
+                  />
+                  {{
+                    isRefreshingModelCatalog
+                      ? t("preferences.modelCatalogRefreshing")
+                      : t("preferences.modelCatalogRefreshAction")
+                  }}
                 </Button>
               </Field>
-
-              <Field orientation="horizontal">
-                <div class="flex min-w-0 flex-1 flex-col gap-1">
-                  <FieldTitle id="pine-image-model-setting">
-                    {{ t("preferences.imageModel") }}
-                  </FieldTitle>
-                  <FieldDescription>{{ imageModelSummary }}</FieldDescription>
-                </div>
-                <Button
-                  data-testid="pine-image-model-button"
-                  variant="outline"
-                  size="sm"
-                  aria-labelledby="pine-image-model-setting"
-                  @click="isImageModelPickerOpen = true"
-                >
-                  {{ t("preferences.selectImageModel") }}
-                </Button>
-              </Field>
-
-              <DecisionsModelSettings />
 
               <Field orientation="horizontal">
                 <div class="flex min-w-0 flex-1 flex-col gap-1">
@@ -906,37 +941,94 @@ function updateSidebarVibrancy(value: boolean): void {
                 </ToggleGroup>
               </Field>
 
+              <Field orientation="horizontal">
+                <div class="flex min-w-0 flex-1 items-baseline gap-2">
+                  <FieldTitle id="pine-context-compaction-route-setting">
+                    {{ t("preferences.contextCompactionRoute") }}
+                  </FieldTitle>
+                  <TooltipProvider :delay-duration="300">
+                    <Tooltip>
+                      <TooltipTrigger as-child>
+                        <Badge
+                          as="button"
+                          type="button"
+                          variant="secondary"
+                          class="size-5 translate-y-px p-0"
+                          :aria-label="
+                            t('preferences.contextCompactionRouteHelp')
+                          "
+                        >
+                          <CircleHelpIcon aria-hidden="true" />
+                        </Badge>
+                      </TooltipTrigger>
+                      <TooltipContent side="top" :side-offset="4">
+                        {{ t("preferences.contextCompactionRouteDescription") }}
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                </div>
+                <ToggleGroup
+                  type="single"
+                  variant="outline"
+                  size="sm"
+                  :disabled="isSavingContextCompactionRoute"
+                  :model-value="contextCompactionRoute"
+                  aria-labelledby="pine-context-compaction-route-setting"
+                  @update:model-value="updateContextCompactionRoute"
+                >
+                  <ToggleGroupItem value="model">
+                    {{ t("preferences.contextCompactionRouteModel") }}
+                  </ToggleGroupItem>
+                  <ToggleGroupItem value="semantic">
+                    {{ t("preferences.contextCompactionRouteSemantic") }}
+                  </ToggleGroupItem>
+                </ToggleGroup>
+              </Field>
+
               <AutoApprovalSettings />
 
               <Field orientation="horizontal">
                 <div class="flex min-w-0 flex-1 flex-col gap-1">
-                  <FieldTitle id="pine-model-catalog-refresh-setting">
-                    {{ t("preferences.modelCatalogRefresh") }}
+                  <FieldTitle id="pine-utility-model-setting">
+                    {{ t("preferences.utilityModel") }}
                   </FieldTitle>
                   <FieldDescription>
-                    {{ t("preferences.modelCatalogRefreshDescription") }}
+                    {{
+                      utilitySelectedModel?.name ??
+                      t("preferences.noUtilityModelSelected")
+                    }}
                   </FieldDescription>
                 </div>
                 <Button
-                  data-testid="pine-model-catalog-refresh-button"
+                  data-testid="pine-utility-model-button"
                   variant="outline"
                   size="sm"
-                  :disabled="isRefreshingModelCatalog"
-                  :aria-busy="isRefreshingModelCatalog"
-                  aria-labelledby="pine-model-catalog-refresh-setting"
-                  @click="refreshModelCatalog"
+                  aria-labelledby="pine-utility-model-setting"
+                  @click="isUtilityModelPickerOpen = true"
                 >
-                  <Spinner
-                    v-if="isRefreshingModelCatalog"
-                    data-icon="inline-start"
-                  />
-                  {{
-                    isRefreshingModelCatalog
-                      ? t("preferences.modelCatalogRefreshing")
-                      : t("preferences.modelCatalogRefreshAction")
-                  }}
+                  {{ t("preferences.selectUtilityModel") }}
                 </Button>
               </Field>
+
+              <Field orientation="horizontal">
+                <div class="flex min-w-0 flex-1 flex-col gap-1">
+                  <FieldTitle id="pine-image-model-setting">
+                    {{ t("preferences.imageModel") }}
+                  </FieldTitle>
+                  <FieldDescription>{{ imageModelSummary }}</FieldDescription>
+                </div>
+                <Button
+                  data-testid="pine-image-model-button"
+                  variant="outline"
+                  size="sm"
+                  aria-labelledby="pine-image-model-setting"
+                  @click="isImageModelPickerOpen = true"
+                >
+                  {{ t("preferences.selectImageModel") }}
+                </Button>
+              </Field>
+
+              <DecisionsModelSettings />
             </FieldGroup>
           </div>
         </ScrollArea>

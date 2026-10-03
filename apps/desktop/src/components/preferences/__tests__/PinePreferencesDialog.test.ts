@@ -33,6 +33,10 @@ const getContextCompactionStrategy = vi.fn().mockResolvedValue("recommended");
 const setContextCompactionStrategy = vi.fn().mockResolvedValue({
   updated: true,
 });
+const getContextCompactionRoute = vi.fn().mockResolvedValue("model");
+const setContextCompactionRoute = vi.fn().mockResolvedValue({
+  updated: true,
+});
 const getAutoApprovalSettings = vi
   .fn()
   .mockResolvedValue({ ...DEFAULT_AUTO_APPROVAL_SETTINGS });
@@ -53,6 +57,8 @@ function installPineApi(platform: string | undefined): void {
       setUserProfile: typeof setUserProfile;
       getContextCompactionStrategy: typeof getContextCompactionStrategy;
       setContextCompactionStrategy: typeof setContextCompactionStrategy;
+      getContextCompactionRoute: typeof getContextCompactionRoute;
+      setContextCompactionRoute: typeof setContextCompactionRoute;
       getAutoApprovalSettings: typeof getAutoApprovalSettings;
       setAutoApprovalSettings: typeof setAutoApprovalSettings;
       getDiagnosticLogging: typeof getDiagnosticLogging;
@@ -72,6 +78,8 @@ function installPineApi(platform: string | undefined): void {
     setUserProfile,
     getContextCompactionStrategy,
     setContextCompactionStrategy,
+    getContextCompactionRoute,
+    setContextCompactionRoute,
     getAutoApprovalSettings,
     setAutoApprovalSettings,
     getDiagnosticLogging,
@@ -132,6 +140,8 @@ describe("PinePreferencesDialog", () => {
     setUserProfile.mockClear();
     getContextCompactionStrategy.mockClear();
     setContextCompactionStrategy.mockClear();
+    getContextCompactionRoute.mockClear();
+    setContextCompactionRoute.mockClear();
     getAutoApprovalSettings
       .mockReset()
       .mockResolvedValue({ ...DEFAULT_AUTO_APPROVAL_SETTINGS });
@@ -421,6 +431,32 @@ describe("PinePreferencesDialog", () => {
     await vi.waitFor(() =>
       expect(setContextCompactionStrategy).toHaveBeenCalledWith({
         strategy: "passive",
+      }),
+    );
+  });
+
+  it("defaults the compaction route to the model and persists changes", async () => {
+    installPineApi("linux");
+    const { wrapper } = mountDialog();
+    await openSection(wrapper, "执行环境");
+    await vi.waitFor(() =>
+      expect(getContextCompactionRoute).toHaveBeenCalled(),
+    );
+    const group = wrapper
+      .findAllComponents(ToggleGroup)
+      .find(
+        (candidate) =>
+          candidate.attributes("aria-labelledby") ===
+          "pine-context-compaction-route-setting",
+      );
+
+    expect(group?.props("modelValue")).toBe("model");
+    expect(group?.text()).toContain("语义化算法（Beta）");
+    group?.vm.$emit("update:modelValue", "semantic");
+
+    await vi.waitFor(() =>
+      expect(setContextCompactionRoute).toHaveBeenCalledWith({
+        route: "semantic",
       }),
     );
   });

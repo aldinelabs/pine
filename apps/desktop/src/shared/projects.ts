@@ -20,7 +20,10 @@ import type {
 } from "./agent";
 import type {
   PineAutoApprovalSettings,
+  PineContextCompactionRoute,
   PineContextCompactionStrategy,
+  SetContextCompactionRouteRequest,
+  SetContextCompactionRouteResult,
   SetContextCompactionStrategyRequest,
   SetContextCompactionStrategyResult,
   SetDiagnosticLoggingRequest,
@@ -312,6 +315,7 @@ export interface PineDesktopApi extends PineWindowApi {
     settings: PineAutoApprovalSettings,
   ) => Promise<PineAutoApprovalSettings>;
   getContextCompactionStrategy: () => Promise<PineContextCompactionStrategy>;
+  getContextCompactionRoute: () => Promise<PineContextCompactionRoute>;
   getDiagnosticLogging: () => Promise<boolean>;
   setDiagnosticLogging: (
     request: SetDiagnosticLoggingRequest,
@@ -324,6 +328,9 @@ export interface PineDesktopApi extends PineWindowApi {
   setContextCompactionStrategy: (
     request: SetContextCompactionStrategyRequest,
   ) => Promise<SetContextCompactionStrategyResult>;
+  setContextCompactionRoute: (
+    request: SetContextCompactionRouteRequest,
+  ) => Promise<SetContextCompactionRouteResult>;
   setUserProfile: (profile: PineUserProfile) => Promise<SetUserProfileResult>;
   getPathForFile: (file: File) => string;
   inspectAttachments: (

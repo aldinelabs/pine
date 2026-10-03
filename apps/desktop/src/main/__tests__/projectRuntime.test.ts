@@ -57,6 +57,7 @@ function createAgentHost(): AgentHost {
     selectImageModel: vi.fn().mockResolvedValue({ updated: true }),
     setTinyFishApiKey: vi.fn().mockResolvedValue({ updated: true }),
     setContextCompactionStrategy: vi.fn().mockResolvedValue({ updated: true }),
+    setContextCompactionRoute: vi.fn().mockResolvedValue({ updated: true }),
     openSession: vi.fn().mockResolvedValue({ session: sessionSummary }),
     prompt: vi.fn().mockResolvedValue({
       accepted: true,

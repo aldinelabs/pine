@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   readPineAgentSettings,
   writeAutoApprovalSettings,
+  writeContextCompactionRoute,
   writeContextCompactionStrategy,
   writeDiagnosticLoggingEnabled,
   writePineUserProfile,
@@ -190,6 +191,19 @@ describe("Pine agent settings", () => {
 
     await expect(readPineAgentSettings(agentDir)).resolves.toEqual({
       contextCompactionStrategy: "passive",
+    });
+  });
+
+  it("persists the context compaction route", async () => {
+    const agentDir = await mkdtemp(
+      path.join(os.tmpdir(), "pine-agent-settings-compaction-route-"),
+    );
+    temporaryDirectories.push(agentDir);
+
+    await writeContextCompactionRoute(agentDir, "semantic");
+
+    await expect(readPineAgentSettings(agentDir)).resolves.toEqual({
+      contextCompactionRoute: "semantic",
     });
   });
 

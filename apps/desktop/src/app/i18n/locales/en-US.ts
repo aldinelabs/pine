@@ -60,6 +60,12 @@ export default {
       "Recommended settings compact at 80% context usage, capped at 400K tokens.",
     contextCompactionPassive: "Passive compaction",
     contextCompactionRecommended: "Use recommended settings",
+    contextCompactionRoute: "Context compaction method",
+    contextCompactionRouteHelp: "About context compaction methods",
+    contextCompactionRouteDescription:
+      "Model asks the current model to write the summary. Semantic algorithm makes no model call: it extracts goals, file changes, commits, and a brief transcript from the conversation, so compaction is faster and uses no tokens.",
+    contextCompactionRouteModel: "Model",
+    contextCompactionRouteSemantic: "Semantic algorithm (Beta)",
     sidebarVibrancy: "Sidebar blur",
     sidebarVibrancyDescription:
       "Render the sidebar with the native macOS blur material",
@@ -1261,6 +1267,10 @@ export default {
     },
     contextCompactionStrategy: {
       title: "Unable to update context compaction strategy",
+      description: "Try again in a moment",
+    },
+    contextCompactionRoute: {
+      title: "Unable to update context compaction method",
       description: "Try again in a moment",
     },
     diagnosticLogging: {

@@ -8,7 +8,9 @@ import type {
 import {
   isPineAutoApprovalSettings,
   type PineAutoApprovalSettings,
+  isPineContextCompactionRoute,
   isPineContextCompactionStrategy,
+  type PineContextCompactionRoute,
   type PineContextCompactionStrategy,
 } from "../shared/preferences";
 import {
@@ -23,6 +25,7 @@ export interface PineAgentSettings {
   autoApproval?: PineAutoApprovalSettings;
   diagnosticLoggingEnabled?: boolean;
   contextCompactionStrategy?: PineContextCompactionStrategy;
+  contextCompactionRoute?: PineContextCompactionRoute;
   imageModel?: PineImageModelSelection;
   utilityModel?: PineUtilityModelSelection;
   userProfile?: PineUserProfile;
@@ -85,6 +88,7 @@ export async function readPineAgentSettings(
     const utilityModel = settings.utilityModel;
     const userProfile = settings.userProfile;
     const contextCompactionStrategy = settings.contextCompactionStrategy;
+    const contextCompactionRoute = settings.contextCompactionRoute;
     return {
       ...(isPineAutoApprovalSettings(settings.autoApproval)
         ? {
@@ -99,6 +103,9 @@ export async function readPineAgentSettings(
         : {}),
       ...(isPineContextCompactionStrategy(contextCompactionStrategy)
         ? { contextCompactionStrategy }
+        : {}),
+      ...(isPineContextCompactionRoute(contextCompactionRoute)
+        ? { contextCompactionRoute }
         : {}),
       ...(isModelSelection(imageModel) ? { imageModel } : {}),
       ...(isModelSelection(utilityModel) ? { utilityModel } : {}),
@@ -143,6 +150,13 @@ export async function writeContextCompactionStrategy(
   contextCompactionStrategy: PineContextCompactionStrategy,
 ): Promise<void> {
   await writePineAgentSettings(agentDir, { contextCompactionStrategy });
+}
+
+export async function writeContextCompactionRoute(
+  agentDir: string,
+  contextCompactionRoute: PineContextCompactionRoute,
+): Promise<void> {
+  await writePineAgentSettings(agentDir, { contextCompactionRoute });
 }
 
 export async function writeDiagnosticLoggingEnabled(

@@ -5,7 +5,10 @@ import type {
   FilePreviewTarget,
 } from "../shared/projectFiles";
 import type { PineProject, PineProjectFolder } from "../shared/projects";
-import type { PineContextCompactionStrategy } from "../shared/preferences";
+import type {
+  PineContextCompactionRoute,
+  PineContextCompactionStrategy,
+} from "../shared/preferences";
 import type {
   PineApprovalMode,
   PromptSessionRequest,
@@ -643,6 +646,16 @@ export class ProjectRuntimeRegistry {
     );
     if (!hasActiveSession) return Promise.resolve({ updated: true });
     return this.agentHost.setContextCompactionStrategy(strategy);
+  }
+
+  setContextCompactionRoute(
+    route: PineContextCompactionRoute,
+  ): Promise<{ updated: boolean }> {
+    const hasActiveSession = [...this.runtimes.values()].some(
+      (runtime) => runtime.liveSessions.size > 0,
+    );
+    if (!hasActiveSession) return Promise.resolve({ updated: true });
+    return this.agentHost.setContextCompactionRoute(route);
   }
 
   ownerOfSession(sessionId: string): number | undefined {

@@ -109,7 +109,9 @@ import { readPineAgentSettings } from "./pineSettings";
 import { createDefaultPineUserProfile } from "../shared/userProfile";
 import {
   DEFAULT_AUTO_APPROVAL_SETTINGS,
+  DEFAULT_CONTEXT_COMPACTION_ROUTE,
   DEFAULT_CONTEXT_COMPACTION_STRATEGY,
+  type PineContextCompactionRoute,
   type PineContextCompactionStrategy,
 } from "../shared/preferences";
 import { runApprovalReview } from "./runtime/decisions-review";
@@ -141,6 +143,7 @@ import {
 } from "./runtime/session-state";
 import { getLatestCacheHitRate } from "./runtime/context-metrics";
 import { configureContextCompactionSettings } from "./runtime/compaction-settings";
+import { createSemanticCompactionExtension } from "./runtime/semantic-compaction";
 import {
   AUTONOMOUS_JUDGE_SYSTEM_PROMPT,
   JUDGE_SYSTEM_PROMPT,
@@ -701,6 +704,15 @@ export class PineAgentRuntime {
     return this.modelService.setContextCompactionStrategy(strategy);
   }
 
+  setContextCompactionRoute(route: PineContextCompactionRoute): {
+    updated: boolean;
+  } {
+    for (const live of this.liveSessions.values()) {
+      live.contextCompactionRoute = route;
+    }
+    return { updated: true };
+  }
+
   private async registerSession(
     location: AgentSessionLocation,
     sessionManager: SessionManager,
@@ -722,9 +734,12 @@ export class PineAgentRuntime {
       location.agentDir,
       { projectTrusted: false },
     );
+    const pineSettings = await readPineAgentSettings(location.agentDir);
     const contextCompactionStrategy =
-      (await readPineAgentSettings(location.agentDir))
-        .contextCompactionStrategy ?? DEFAULT_CONTEXT_COMPACTION_STRATEGY;
+      pineSettings.contextCompactionStrategy ??
+      DEFAULT_CONTEXT_COMPACTION_STRATEGY;
+    const contextCompactionRoute =
+      pineSettings.contextCompactionRoute ?? DEFAULT_CONTEXT_COMPACTION_ROUTE;
     const attachedPaths = new PineAttachedPathAccess();
     await attachedPaths.grant(
       attachedPathsFromSessionEntries(sessionManager.getEntries()),
@@ -757,6 +772,7 @@ export class PineAgentRuntime {
         : {}),
       locale: "en-US",
       contextCompactionStrategy,
+      contextCompactionRoute,
     };
     configureContextCompactionSettings(
       settingsManager,
@@ -851,6 +867,10 @@ export class PineAgentRuntime {
             });
           },
         },
+        createSemanticCompactionExtension({
+          agentDir: location.agentDir,
+          isEnabled: () => live.contextCompactionRoute === "semantic",
+        }),
         {
           name: "pi-mcp-adapter",
           factory: createMcpAdapter({
