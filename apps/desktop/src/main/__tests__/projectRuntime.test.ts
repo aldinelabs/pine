@@ -5,6 +5,7 @@ import {
   realpath,
   rm,
   symlink,
+  stat,
   writeFile,
 } from "node:fs/promises";
 import os from "node:os";
@@ -19,6 +20,8 @@ import type {
 import type { AgentHost } from "../agentProcessHost";
 import { ProjectSessionService } from "../sessions";
 import { ProjectRuntimeRegistry } from "../projectRuntime";
+import { TEMPORARY_WORKSPACE_PROJECT_ID } from "../../shared/projects";
+import { projectSessionDirectory } from "../../shared/sessionPaths";
 
 const temporaryDirectories: string[] = [];
 const sessionSummary: PineSessionSummary = {
@@ -127,6 +130,103 @@ afterEach(async () => {
 });
 
 describe("ProjectRuntimeRegistry", () => {
+  it("moves a temporary workspace session into a project after confirmation", async () => {
+    const agentHost = createAgentHost();
+    const createSession = vi
+      .fn()
+      .mockResolvedValue({ session: sessionSummary });
+    const disposeSession = vi.fn().mockResolvedValue({ disposed: true });
+    agentHost.createSession = createSession;
+    agentHost.disposeSession = disposeSession;
+    const registry = new ProjectRuntimeRegistry(agentHost, "/pine/agent");
+    const temporary = await createRuntimeFixture();
+    const destination = await createRuntimeFixture();
+    const workspace = {
+      ...temporary.project,
+      id: TEMPORARY_WORKSPACE_PROJECT_ID,
+    };
+    const pathsFor = (dataRoot: string) => ({
+      attachmentsRoot: path.join(dataRoot, "attachments"),
+      cacheRoot: path.join(dataRoot, "cache"),
+      projectRoot: dataRoot,
+      sessionsRoot: path.join(dataRoot, "sessions"),
+    });
+    const sessionFile = path.join(temporary.dataRoot, "session.jsonl");
+    await writeFile(sessionFile, "{}\n");
+    vi.spyOn(
+      ProjectSessionService.prototype,
+      "describeSession",
+    ).mockResolvedValue({ sessionFile, summary: sessionSummary });
+
+    try {
+      await registry.open(1, workspace, pathsFor(temporary.dataRoot));
+      await registry.prompt(1, {
+        message: "Draft",
+        target: { kind: "new", projectId: workspace.id },
+      });
+      expect(createSession).toHaveBeenCalledWith(
+        expect.objectContaining({ temporaryWorkspace: true }),
+      );
+
+      registry.scheduleTeleport(sessionSummary.id, destination.project.id);
+      expect(registry.takeScheduledTeleport(sessionSummary.id)).toBe(
+        destination.project.id,
+      );
+      await expect(
+        registry.teleportSession(
+          sessionSummary.id,
+          destination.project,
+          pathsFor(destination.dataRoot),
+        ),
+      ).resolves.toEqual({ fromProjectId: workspace.id, webContentsId: 1 });
+
+      expect(disposeSession).toHaveBeenCalledWith(sessionSummary.id);
+      expect(registry.isOpen(1, destination.project.id)).toBe(true);
+      expect(registry.ownerOfSession(sessionSummary.id)).toBeUndefined();
+      await expect(
+        stat(
+          path.join(
+            projectSessionDirectory(
+              path.join(destination.dataRoot, "sessions"),
+              destination.project.folders[0].path,
+            ),
+            "session.jsonl",
+          ),
+        ),
+      ).resolves.toBeDefined();
+      await expect(stat(sessionFile)).rejects.toMatchObject({
+        code: "ENOENT",
+      });
+    } finally {
+      await registry.dispose(1);
+    }
+  });
+
+  it("only lets temporary workspace sessions move", async () => {
+    const registry = new ProjectRuntimeRegistry(
+      createAgentHost(),
+      "/pine/agent",
+    );
+    const { dataRoot, project } = await createRuntimeFixture();
+    try {
+      await registry.open(1, project, {
+        attachmentsRoot: path.join(dataRoot, "attachments"),
+        cacheRoot: path.join(dataRoot, "cache"),
+        projectRoot: dataRoot,
+        sessionsRoot: path.join(dataRoot, "sessions"),
+      });
+      await registry.prompt(1, {
+        message: "Start",
+        target: { kind: "new", projectId: project.id },
+      });
+      expect(() =>
+        registry.scheduleTeleport(sessionSummary.id, crypto.randomUUID()),
+      ).toThrow("Only temporary workspace sessions can move.");
+    } finally {
+      await registry.dispose(1);
+    }
+  });
+
   it("holds several projects in one window and closes them separately", async () => {
     const agentHost = createAgentHost();
     const secondSession = { ...sessionSummary, id: crypto.randomUUID() };

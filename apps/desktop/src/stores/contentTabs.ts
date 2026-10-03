@@ -418,6 +418,17 @@ export const useContentTabsStore = defineStore("content-tabs", () => {
     return activeTabId;
   }
 
+  /** Tabs of a session that moved to another project follow it there. */
+  function moveSessionToProject(sessionId: string, projectId: string): void {
+    tabs.value = tabs.value.map((tab) =>
+      tab.kind === "session" &&
+      tab.state === "bound" &&
+      tab.sessionId === sessionId
+        ? { ...tab, projectId }
+        : tab,
+    );
+  }
+
   /** Close every tab of a deleted project. */
   function removeProject(projectId: string): void {
     const remaining = tabs.value.filter((tab) => tab.projectId !== projectId);
@@ -445,6 +456,7 @@ export const useContentTabsStore = defineStore("content-tabs", () => {
     createSessionTab,
     failPrompt,
     fallbackActiveTabId,
+    moveSessionToProject,
     moveTab,
     openFile,
     openSession,

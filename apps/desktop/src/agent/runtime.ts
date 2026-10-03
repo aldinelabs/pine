@@ -49,6 +49,9 @@ import {
 } from "../shared/sessions";
 import { attachmentMessagePreview } from "../shared/attachments";
 import {
+  type AgentHostReply,
+  type AgentHostRequest,
+  type AgentHostResponse,
   type AgentSessionLocation,
   type AgentWorkerPromptResult,
   type AgentWorkerSessionResult,
@@ -200,6 +203,15 @@ export class PineAgentRuntime {
   private readonly pendingQuestionnaires = new Map<
     string,
     PendingQuestionnaire
+  >();
+  /** Replies main owes to tool calls waiting on a host request. */
+  private readonly pendingHostRequests = new Map<
+    string,
+    {
+      sessionId: string;
+      resolve: (response: AgentHostResponse) => void;
+      reject: (error: Error) => void;
+    }
   >();
   private readonly titleGenerationAttempts = new Set<string>();
   private readonly titleGenerationInFlight = new Set<string>();
@@ -532,6 +544,7 @@ export class PineAgentRuntime {
 
     this.liveSessions.delete(sessionId);
     this.eventForwarder.clearSession(sessionId);
+    this.rejectHostRequests(sessionId, "The session was closed.");
     for (const [requestId, pending] of this.pendingApprovals) {
       if (pending.sessionId !== sessionId) continue;
       this.pendingApprovals.delete(requestId);
@@ -565,6 +578,7 @@ export class PineAgentRuntime {
 
   async dispose(): Promise<{ disposed: boolean }> {
     this.modelService.dispose();
+    this.rejectHostRequests(null, "The agent runtime was disposed.");
     for (const [requestId, pending] of this.pendingApprovals) {
       this.pendingApprovals.delete(requestId);
       pending.resolve({
@@ -935,6 +949,10 @@ export class PineAgentRuntime {
           this.requestQuestionnaire(live, toolCallId, params, signal),
         presentFile: (toolCallId, filePath) =>
           this.presentFile(live, toolCallId, filePath),
+        workspace: {
+          requestHost: (request) => this.requestHost(live, request),
+          getLocale: () => live.locale,
+        },
         backgroundTasks: {
           onChange: () => this.scheduleBackgroundTasksEvent(live),
           sendCompletionNotification: (message, options) =>
@@ -1360,6 +1378,39 @@ export class PineAgentRuntime {
       toolCallId,
       path: filePath,
     });
+  }
+
+  private requestHost(
+    live: LiveAgentSession,
+    request: AgentHostRequest,
+  ): Promise<AgentHostResponse> {
+    const sessionId = live.session.sessionId;
+    const requestId = randomUUID();
+    return new Promise<AgentHostResponse>((resolve, reject) => {
+      this.pendingHostRequests.set(requestId, { sessionId, resolve, reject });
+      this.options.emit({
+        type: "host-request",
+        sessionId,
+        requestId,
+        request,
+      });
+    });
+  }
+
+  resolveHostRequest(requestId: string, reply: AgentHostReply): void {
+    const pending = this.pendingHostRequests.get(requestId);
+    if (!pending) return;
+    this.pendingHostRequests.delete(requestId);
+    if (reply.ok) pending.resolve(reply.response);
+    else pending.reject(new Error(reply.error));
+  }
+
+  private rejectHostRequests(sessionId: string | null, reason: string): void {
+    for (const [requestId, pending] of this.pendingHostRequests) {
+      if (sessionId !== null && pending.sessionId !== sessionId) continue;
+      this.pendingHostRequests.delete(requestId);
+      pending.reject(new Error(reason));
+    }
   }
 
   private requestQuestionnaire(

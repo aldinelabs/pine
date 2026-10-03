@@ -74,6 +74,10 @@ import {
 import { createMediaGenerationToolDefinitions } from "./media/tools";
 import { createTodoToolDefinition } from "./todoTool";
 import {
+  createWorkspaceToolDefinitions,
+  type PineWorkspaceToolContext,
+} from "./workspaceTools";
+import {
   BackgroundTaskRegistry,
   type BackgroundTaskRegistryOptions,
 } from "@pine/pi-background-tasks/registry";
@@ -252,6 +256,8 @@ export interface PineToolPermissionContext {
   ) => Promise<AskUserQuestionSubmission>;
   /** Opens a file tab for the user without moving their focus. */
   presentFile?: (toolCallId: string, filePath: string) => void;
+  /** Listing and moving to projects, for temporary-workspace sessions only. */
+  workspace?: Omit<PineWorkspaceToolContext, "requestQuestionnaire">;
   /** Gives the session `bg_run` and the other background task tools. */
   backgroundTasks?: PineBackgroundTaskContext;
 }
@@ -579,6 +585,12 @@ export async function createPineToolDefinitions(
     });
   };
 
+  const workspace = permissions?.workspace;
+  const workspaceTools =
+    location.temporaryWorkspace && workspace && requestQuestionnaire
+      ? createWorkspaceToolDefinitions({ ...workspace, requestQuestionnaire })
+      : [];
+
   const uiPresentFileTool = presentFile
     ? gateFileTool(
         createPresentFileTool(policy),
@@ -743,6 +755,7 @@ export async function createPineToolDefinitions(
     gatedWriteTool,
     ...(privilegedShellTool ? [privilegedShellTool] : []),
     ...(uiPresentFileTool ? [uiPresentFileTool] : []),
+    ...workspaceTools,
     ...(askUserQuestionTool ? [askUserQuestionTool] : []),
     createTodoToolDefinition(),
     ...backgroundTaskTools,

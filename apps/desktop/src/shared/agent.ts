@@ -12,6 +12,8 @@ import type {
  * carries a raw path across the boundary.
  */
 export const UI_PRESENT_FILE_TOOL_NAME = "ui_present_file" as const;
+export const UI_LIST_PROJECT_TOOL_NAME = "ui_list_project" as const;
+export const UI_TELEPORT_TOOL_NAME = "ui_teleport" as const;
 /**
  * pi-vcc's session history search, available on the semantic compaction route.
  * vite.agent.config.ts renames pi-vcc's `vcc_recall` to this at build time.
@@ -288,7 +290,32 @@ export type PineAgentEvent =
       type: "background-tasks";
       sessionId: string;
       tasks: BackgroundTaskSnapshot[];
+    }
+  | {
+      /**
+       * A tool needs an answer only main has, such as the user's projects.
+       * Main replies to the worker directly; the renderer never sees it.
+       */
+      type: "host-request";
+      sessionId: string;
+      requestId: string;
+      request: PineHostRequest;
     };
+
+/** Kept structurally equal to the worker's `AgentHostRequest`. */
+export type PineHostRequest =
+  { kind: "list-projects" } | { kind: "teleport"; projectId: string };
+
+/**
+ * A temporary-workspace session moved into a project after its run ended.
+ * Its tabs follow it; the transcript is unchanged.
+ */
+export interface PineSessionTeleportedEvent {
+  type: "session-teleported";
+  sessionId: string;
+  fromProjectId: string;
+  projectId: string;
+}
 
 /**
  * A presented file after the main process resolved its absolute path into a
@@ -306,7 +333,9 @@ export interface PinePresentFileEvent {
 
 /** Events the renderer receives: worker events, plus main-resolved additions. */
 export type PineSessionEvent =
-  Exclude<PineAgentEvent, { type: "present-file" }> | PinePresentFileEvent;
+  | Exclude<PineAgentEvent, { type: "present-file" | "host-request" }>
+  | PinePresentFileEvent
+  | PineSessionTeleportedEvent;
 
 /**
  * Identifies an earlier user message to rewrite. The transcript drops that

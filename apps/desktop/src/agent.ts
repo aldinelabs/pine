@@ -177,6 +177,11 @@ parentPort.on("message", (event) => {
     runtime.resolveApproval(inbound.requestId, inbound.decision);
     return;
   }
+  if (inbound.type === "host:response") {
+    const { requestId, ...reply } = inbound;
+    runtime.resolveHostRequest(requestId, reply);
+    return;
+  }
   if (inbound.type === "questionnaire:response") {
     runtime.resolveQuestionnaire(inbound.requestId, inbound.submission);
     return;

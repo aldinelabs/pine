@@ -4,7 +4,6 @@ import type {
   SessionEntry,
 } from "@earendil-works/pi-coding-agent";
 import { createHash } from "node:crypto";
-import path from "node:path";
 import {
   RECALL_TOOL_NAME,
   type PineAgentEvent,
@@ -98,16 +97,7 @@ export interface PendingQuestionnaire {
   onAbort?: () => void;
 }
 
-function encodeCwd(cwd: string): string {
-  return `--${cwd.replace(/^[/\\]/, "").replace(/[/\\:]/g, "-")}--`;
-}
-
-export function projectSessionDirectory(
-  sessionsRoot: string,
-  cwd: string,
-): string {
-  return path.join(sessionsRoot, encodeCwd(cwd));
-}
+export { projectSessionDirectory } from "../../shared/sessionPaths";
 
 export function sessionSummary(session: AgentSession): PineSessionSummary {
   const header = session.sessionManager.getHeader();

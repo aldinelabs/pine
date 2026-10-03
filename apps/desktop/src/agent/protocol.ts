@@ -48,10 +48,31 @@ export interface AgentSessionLocation {
   sessionsRoot: string;
   /** In-memory TinyFish credential; never written to a session file. */
   tinyFishApiKey?: string;
+  /** Pine's built-in temporary workspace, whose sessions may move to a project. */
+  temporaryWorkspace?: boolean;
   /** Initial permission mode for the session. YOLO bypasses all Pine sandbox,
    * folder, and approval controls; omitted defaults to `auto-approve`. */
   approvalMode?: PineApprovalMode;
 }
+
+/** A user project as the agent sees it when choosing where to move. */
+export interface AgentHostProject {
+  id: string;
+  name: string;
+  defaultFolderPath: string;
+  folders: { access: "read-only" | "read-write"; name: string; path: string }[];
+}
+
+/** Questions only the main process can answer, asked from inside a tool. */
+export type AgentHostRequest =
+  { kind: "list-projects" } | { kind: "teleport"; projectId: string };
+
+export type AgentHostResponse =
+  | { kind: "list-projects"; projects: AgentHostProject[] }
+  | { kind: "teleport"; projectName: string; cwd: string };
+
+export type AgentHostReply =
+  { ok: true; response: AgentHostResponse } | { ok: false; error: string };
 
 /** How a gate resolved an escalated tool call. */
 export type GateDecision =
@@ -61,6 +82,7 @@ export type GateDecision =
 export type AgentWorkerInbound =
   | AgentWorkerRequest
   | { type: "approval:response"; requestId: string; decision: GateDecision }
+  | ({ type: "host:response"; requestId: string } & AgentHostReply)
   | {
       type: "questionnaire:response";
       requestId: string;

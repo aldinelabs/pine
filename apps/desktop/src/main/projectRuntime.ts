@@ -4,7 +4,12 @@ import type {
   ProjectEntry,
   FilePreviewTarget,
 } from "../shared/projectFiles";
-import type { PineProject, PineProjectFolder } from "../shared/projects";
+import {
+  isTemporaryWorkspace,
+  type PineProject,
+  type PineProjectFolder,
+} from "../shared/projects";
+import { projectSessionDirectory } from "../shared/sessionPaths";
 import type {
   PineContextCompactionRoute,
   PineContextCompactionStrategy,
@@ -61,7 +66,7 @@ import {
   parseAttachmentMessage,
   type PineAttachment,
 } from "../shared/attachments";
-import { realpath, stat } from "node:fs/promises";
+import { mkdir, realpath, rename, stat } from "node:fs/promises";
 import path from "node:path";
 
 function pathContains(parentPath: string, candidatePath: string): boolean {
@@ -194,6 +199,8 @@ export class ProjectRuntimeRegistry {
     string,
     { webContentsId: number; sessionId?: string }
   >();
+  /** Temporary-workspace session → project it moves to when its run ends. */
+  private readonly pendingTeleports = new Map<string, string>();
   /** questionnaire requestId → owning webContentsId, for response validation. */
   private readonly pendingQuestionnaires = new Map<
     string,
@@ -869,6 +876,7 @@ export class ProjectRuntimeRegistry {
   }
 
   clearSessionInteractions(sessionId: string): void {
+    this.pendingTeleports.delete(sessionId);
     for (const [requestId, owner] of this.pendingApprovals) {
       if (owner.sessionId === sessionId)
         this.pendingApprovals.delete(requestId);
@@ -877,6 +885,65 @@ export class ProjectRuntimeRegistry {
       if (owner.sessionId === sessionId)
         this.pendingQuestionnaires.delete(requestId);
     }
+  }
+
+  /** The project that owns a live session, if any window holds it. */
+  projectOfLiveSession(sessionId: string): PineProject | undefined {
+    return this.entryForSession(sessionId)?.runtime.project;
+  }
+
+  /** Remember a confirmed move; it runs once the session's run ends. */
+  scheduleTeleport(sessionId: string, projectId: string): void {
+    const project = this.projectOfLiveSession(sessionId);
+    if (!project || !isTemporaryWorkspace(project.id)) {
+      throw new Error("Only temporary workspace sessions can move.");
+    }
+    this.pendingTeleports.set(sessionId, projectId);
+  }
+
+  takeScheduledTeleport(sessionId: string): string | undefined {
+    const projectId = this.pendingTeleports.get(sessionId);
+    this.pendingTeleports.delete(sessionId);
+    return projectId;
+  }
+
+  /**
+   * Move an idle temporary-workspace session into a project of the same
+   * window: release it, move its file into the project's session storage,
+   * and let the renderer resume it there with the project's folders.
+   */
+  async teleportSession(
+    sessionId: string,
+    project: PineProject,
+    dataPaths: ProjectDataPaths,
+  ): Promise<{ fromProjectId: string; webContentsId: number }> {
+    const entry = this.entryForSession(sessionId);
+    if (!entry || !isTemporaryWorkspace(entry.runtime.project.id)) {
+      throw new Error("The session is no longer in the temporary workspace.");
+    }
+    const { runtime: source, webContentsId } = entry;
+    if (!this.isOpen(webContentsId, project.id)) {
+      await this.open(webContentsId, project, dataPaths);
+    }
+    const target = this.get(webContentsId, project.id);
+    const descriptor = await source.sessions.describeSession(sessionId);
+
+    await this.agentHost.disposeSession(sessionId);
+    source.liveSessions.delete(sessionId);
+    if (source.focusedSessionId === sessionId)
+      source.focusedSessionId = undefined;
+    this.clearSessionInteractions(sessionId);
+
+    const directory = projectSessionDirectory(
+      target.dataPaths.sessionsRoot,
+      this.getFolder(target.project, target.project.defaultFolderId).path,
+    );
+    await mkdir(directory, { recursive: true });
+    await rename(
+      descriptor.sessionFile,
+      path.join(directory, path.basename(descriptor.sessionFile)),
+    );
+    return { fromProjectId: source.project.id, webContentsId };
   }
 
   /** Release one project this window no longer shows. */
@@ -1034,6 +1101,9 @@ export class ProjectRuntimeRegistry {
         runtime.dataPaths.skillsSettingsPath ??
         path.join(runtime.dataPaths.projectRoot, "skills.json"),
       sessionsRoot: runtime.dataPaths.sessionsRoot,
+      ...(isTemporaryWorkspace(runtime.project.id)
+        ? { temporaryWorkspace: true }
+        : {}),
       ...(tinyFishApiKey ? { tinyFishApiKey } : {}),
     };
   }

@@ -1,6 +1,10 @@
 import { createPinia, setActivePinia } from "pinia";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { SANDBOX_DENIED_MESSAGE, type PineAgentEvent } from "@/shared/agent";
+import {
+  SANDBOX_DENIED_MESSAGE,
+  type PineAgentEvent,
+  type PineSessionEvent,
+} from "@/shared/agent";
 import type { PineContextUsage, PineSessionSummary } from "@/shared/sessions";
 import { useModelsStore } from "../models";
 import { useSessionStore } from "../session";
@@ -380,6 +384,38 @@ describe("session store", () => {
     await store.resume(PROJECT_ID, session.id);
 
     expect(store.activeSession?.name).toBe("Session search");
+  });
+
+  it("moves a teleported session between project lists", async () => {
+    let listener!: (event: PineSessionEvent) => void;
+    Object.defineProperty(window, "pine", {
+      configurable: true,
+      value: {
+        onSessionEvent: (next: typeof listener) => {
+          listener = next;
+          return () => undefined;
+        },
+        searchSessions: vi
+          .fn()
+          .mockResolvedValueOnce({ sessions: [session] })
+          .mockResolvedValueOnce({ sessions: [] }),
+      },
+    });
+    const store = useSessionStore();
+    store.connectAgentEvents();
+    await store.loadRecent(PROJECT_ID);
+    await store.loadRecent("destination");
+
+    listener({
+      type: "session-teleported",
+      sessionId: session.id,
+      fromProjectId: PROJECT_ID,
+      projectId: "destination",
+    });
+
+    expect(store.recentSessionsFor(PROJECT_ID)).toEqual([]);
+    expect(store.recentSessionsFor("destination")).toEqual([session]);
+    expect(store.projectOf(session.id)).toBe("destination");
   });
 
   it("loads recent sessions separately from search results", async () => {

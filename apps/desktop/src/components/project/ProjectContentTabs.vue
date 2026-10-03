@@ -306,6 +306,16 @@ watch(
 // too, and `usePresentedFiles` prunes the rest when a tab is closed.
 watch(activeTabId, (tabId) => attentionFlash.stop(tabId), { immediate: true });
 
+// A confirmed ui_teleport moves a session out of the temporary workspace;
+// its tabs follow, which also switches the sidebars to the new project.
+onMounted(() => {
+  const stop = window.pine.onSessionEvent((event) => {
+    if (event.type === "session-teleported")
+      contentTabsStore.moveSessionToProject(event.sessionId, event.projectId);
+  });
+  onBeforeUnmount(stop);
+});
+
 usePresentedFiles({
   reveal: (tabId) => {
     // The tab may not be mounted yet when the presentation arrives.

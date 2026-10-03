@@ -38,6 +38,7 @@ import type {
   AgentWorkerRequestInput,
   AgentWorkerResult,
   AgentWorkerSessionResult,
+  AgentHostReply,
   GateDecision,
   PineRuntimeEvent,
 } from "../agent/protocol";
@@ -152,6 +153,8 @@ export interface AgentHost {
   subscribe(listener: (event: PineRuntimeEvent) => void): () => void;
   /** Resolve a pending user-approval round trip inside the agent worker. */
   respondApproval(requestId: string, decision: GateDecision): void;
+  /** Answer a tool's host request inside the worker. */
+  respondHostRequest?(requestId: string, reply: AgentHostReply): void;
   /** Resolve a pending structured-question round trip inside the worker. */
   respondQuestionnaire(
     requestId: string,
@@ -452,6 +455,10 @@ export class AgentProcessHost implements AgentHost {
       requestId,
       decision,
     });
+  }
+
+  respondHostRequest(requestId: string, reply: AgentHostReply): void {
+    this.process?.postMessage({ type: "host:response", requestId, ...reply });
   }
 
   respondQuestionnaire(

@@ -32,6 +32,7 @@ import {
 import path from "node:path";
 import { z } from "zod";
 import { ProjectRuntimeRegistry } from "./main/projectRuntime";
+import { toErrorMessage, type AgentHostReply } from "./agent/protocol";
 import {
   listMcpServers,
   saveMcpServer,
@@ -107,6 +108,7 @@ import {
   type DequeueSteeringResult,
   type PineAgentEvent,
   type PinePresentFileEvent,
+  type PineSessionTeleportedEvent,
   type PromptSessionResult,
   type RespondApprovalRequest,
   type RespondQuestionnaireRequest,
@@ -642,6 +644,92 @@ async function forwardPresentedFile(
     ...event,
     target,
   } satisfies PinePresentFileEvent);
+}
+
+/**
+ * Answer a tool that needs main: the user's project library, or a confirmed
+ * move of a temporary-workspace session. A move only checks and records the
+ * target here; it happens once the session's current run ends.
+ */
+async function answerHostRequest(
+  event: Extract<PineAgentEvent, { type: "host-request" }>,
+  ownerId: number,
+): Promise<void> {
+  const reply = await (async (): Promise<AgentHostReply> => {
+    try {
+      const projects = (await getProjectRepository().list()).filter(
+        (project) => !isTemporaryWorkspace(project.id),
+      );
+      if (event.request.kind === "list-projects") {
+        return {
+          ok: true,
+          response: {
+            kind: "list-projects",
+            projects: projects.map((project) => ({
+              id: project.id,
+              name: project.name,
+              defaultFolderPath:
+                project.folders.find(
+                  (folder) => folder.id === project.defaultFolderId,
+                )?.path ?? "",
+              folders: project.folders.map(({ access, name, path }) => ({
+                access,
+                name,
+                path,
+              })),
+            })),
+          },
+        };
+      }
+      const { projectId } = event.request;
+      const project = projects.find((candidate) => candidate.id === projectId);
+      if (!project) throw new Error("That project does not exist.");
+      const defaultFolder = project.folders.find(
+        (folder) => folder.id === project.defaultFolderId,
+      );
+      if (!defaultFolder?.isAvailable)
+        throw new Error("The project's default folder is unavailable.");
+      const projectOwner = getProjectRuntimes().ownerOfProject(project.id);
+      if (projectOwner !== undefined && projectOwner !== ownerId)
+        throw new Error("That project is open in another Pine window.");
+      getProjectRuntimes().scheduleTeleport(event.sessionId, project.id);
+      return {
+        ok: true,
+        response: {
+          kind: "teleport",
+          projectName: project.name,
+          cwd: defaultFolder.path,
+        },
+      };
+    } catch (error) {
+      return { ok: false, error: toErrorMessage(error) };
+    }
+  })();
+  agentHost?.respondHostRequest(event.requestId, reply);
+}
+
+async function teleportSession(
+  sessionId: string,
+  projectId: string,
+): Promise<void> {
+  try {
+    const repository = getProjectRepository();
+    const project = await repository.open(projectId);
+    const { fromProjectId, webContentsId } =
+      await getProjectRuntimes().teleportSession(
+        sessionId,
+        project,
+        repository.dataPaths(projectId),
+      );
+    webContents.fromId(webContentsId)?.send(SESSION_EVENT_CHANNEL, {
+      type: "session-teleported",
+      sessionId,
+      fromProjectId,
+      projectId,
+    } satisfies PineSessionTeleportedEvent);
+  } catch (error) {
+    console.error("Failed to move a temporary workspace session.", error);
+  }
 }
 
 function registerProjectMediaProtocol(): void {
@@ -2832,6 +2920,10 @@ async function initializeApp(): Promise<void> {
       void forwardPresentedFile(agentEvent, ownerId);
       return;
     }
+    if (agentEvent.type === "host-request") {
+      void answerHostRequest(agentEvent, ownerId);
+      return;
+    }
     if (agentEvent.type === "context-usage") {
       projectRuntimes?.updateContextUsage(agentEvent.sessionId, {
         tokens: agentEvent.tokens,
@@ -2866,13 +2958,20 @@ async function initializeApp(): Promise<void> {
       projectRuntimes?.forgetQuestionnaire(agentEvent.requestId);
       clearApprovalAttention();
     }
+    let teleportProjectId: string | undefined;
     if (
       agentEvent.type === "run-state" &&
       (agentEvent.state === "idle" || agentEvent.state === "failed")
     ) {
+      teleportProjectId = projectRuntimes?.takeScheduledTeleport(
+        agentEvent.sessionId,
+      );
       projectRuntimes?.clearSessionInteractions(agentEvent.sessionId);
     }
     webContents.fromId(ownerId)?.send(SESSION_EVENT_CHANNEL, agentEvent);
+    if (teleportProjectId) {
+      void teleportSession(agentEvent.sessionId, teleportProjectId);
+    }
   });
   createWindow();
 }

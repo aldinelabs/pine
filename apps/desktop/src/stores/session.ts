@@ -3,7 +3,7 @@ import { computed, reactive, ref, shallowRef, toRefs } from "vue";
 import { toast } from "vue-sonner";
 import {
   isSandboxDeniedPayload,
-  type PineAgentEvent,
+  type PineSessionEvent,
   type PineAssistantMessageUpdate,
   type PineApprovalAction,
   type PineApprovalMode,
@@ -995,7 +995,38 @@ export const useSessionStore = defineStore("session", () => {
     return session;
   }
 
-  function handleAgentEvent(event: PineAgentEvent): void {
+  /** A temporary-workspace session now lives in another project. */
+  function moveSessionToProject(
+    sessionId: string,
+    fromProjectId: string,
+    projectId: string,
+  ): void {
+    sessionProjects.set(sessionId, projectId);
+    const moved =
+      recentSessionsFor(fromProjectId).find(
+        (session) => session.id === sessionId,
+      ) ?? sessionCache.get(sessionId)?.summary;
+    if (recentByProject.value.has(fromProjectId)) {
+      setRecent(
+        fromProjectId,
+        recentSessionsFor(fromProjectId).filter(
+          (session) => session.id !== sessionId,
+        ),
+      );
+    }
+    if (moved && recentByProject.value.has(projectId))
+      upsertRecentSession(projectId, moved);
+  }
+
+  function handleAgentEvent(event: PineSessionEvent): void {
+    if (event.type === "session-teleported") {
+      moveSessionToProject(
+        event.sessionId,
+        event.fromProjectId,
+        event.projectId,
+      );
+      return;
+    }
     const state = stateFor(event.sessionId);
     const {
       summary: activeSession,

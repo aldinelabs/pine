@@ -162,6 +162,17 @@ describe("content tabs store", () => {
     expect(reloadStore().tabs).toEqual([]);
   });
 
+  it("moves a teleported session's tab to its new project", () => {
+    const store = useContentTabsStore();
+    store.bindSession("session-1", firstSession);
+    store.moveSessionToProject(firstSession.id, "one");
+    expect(store.tabs[0]).toMatchObject({
+      projectId: "one",
+      sessionId: firstSession.id,
+      state: "bound",
+    });
+  });
+
   it("closes every tab of a deleted project", () => {
     const store = useContentTabsStore();
     store.setDraftProject("session-1", "one");
