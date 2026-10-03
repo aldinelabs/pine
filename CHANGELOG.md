@@ -9,6 +9,24 @@ Starting with 0.4.4, release notes are written in both Chinese and English.
 
 ## [Unreleased]
 
+## [0.8.1] - 2026-10-02
+
+### 新增 / Added
+
+- 偏好设置新增“上下文压缩途径”：默认由大模型撰写摘要；也可选择“语义化算法（Beta）”，不调用模型，直接从对话中提取目标、文件改动、提交和简要记录，压缩更快且不消耗 Token。Preferences now include a context compaction method: by default the model writes the summary, or you can choose the Semantic algorithm (Beta), which extracts goals, file changes, commits, and brief notes from the conversation without a model call, so compaction is faster and uses no tokens.
+- 选择语义化算法后，Agent 可在压缩后的对话中查找更早的历史记录；对话中以独立图标显示查找的关键词、改动过的文件或最近的记录。With the semantic algorithm selected, the agent can look up earlier history after compaction; these lookups appear in the conversation with their own icon, showing the query, touched files, or recent entries searched.
+
+### 变更 / Changed
+
+- Agent 的任务清单更有针对性：只在多步骤、中高复杂度的工作中创建，并拆成具体步骤，在工作过程中持续更新，避免为简单请求创建清单或长期不更新。The agent's task list is now more selective: it is created only for multi-step, medium-to-high complexity work, split into concrete steps, and kept current as the work progresses, instead of appearing for simple requests or going stale.
+- 基于决策模型的自动审批路径现标注为 Beta；模型目录说明更简短，执行环境设置项的顺序也已重新整理。The Decisions-based automatic approval path is now labeled Beta; the model catalog description is shorter, and the execution environment settings are reordered.
+
+### 修复 / Fixed
+
+- 只包含附件、没有文字的消息现在会在对话大纲中显示“[附件]”，不再是空白条目。Messages containing only attachments now appear as “[Attachment]” in the conversation outline instead of a blank entry.
+- 鼠标滚轮停在没有溢出内容的消息气泡上时，现在会继续滚动整个对话。Scrolling with the mouse wheel over a message bubble that has no overflowing content now scrolls the conversation instead of stopping.
+- 技能管理对话框不再被较长的技能列表撑大。The skill manager dialog no longer stretches when the skill list is long.
+
 ## [0.8.0] - 2026-10-02
 
 ### 新增 / Added
