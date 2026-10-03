@@ -88,7 +88,7 @@ it("lists every project with Pine's data usage", async () => {
   const rows = wrapper.findAll('[data-slot="project-management-row"]');
 
   expect(rows).toHaveLength(2);
-  expect(rows[0].text()).toContain("临时工作空间");
+  expect(rows[0].text()).toContain("无项目");
   expect(rows[1].text()).toContain("/Users/me/pine");
   expect(rows[1].text()).toContain("临时文件 10 GB");
   expect(rows[1].text()).toContain("附件 2 MB");

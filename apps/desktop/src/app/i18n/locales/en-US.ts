@@ -303,7 +303,7 @@ export default {
   },
   projects: {
     title: "Projects",
-    temporaryWorkspace: "Temporary Workspace",
+    temporaryWorkspace: "No Project",
     temporaryWorkspaceDescription: "Quick work that belongs to no project",
     openElsewhere: "Open in another window",
     deleteAction: "Delete Project",

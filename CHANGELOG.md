@@ -11,9 +11,9 @@ Starting with 0.4.4, release notes are written in both Chinese and English.
 
 ### 新增 / Added
 
-- Pine 启动后直接进入工作区，不再先显示项目列表。新会话通过输入框右下角的“发送到 {项目} ▼”选择所在项目，默认是“临时工作空间”：它位于 Pine 的数据目录中，用于不属于任何项目的临时工作，不能重命名、修改或删除。Pine now opens straight into the workspace instead of a project list. A new session picks its project from "Send to {project} ▼" at the bottom right of the composer; the default is the Temporary Workspace, which lives in Pine's data directory for work that belongs to no project and cannot be renamed, edited, or deleted.
+- Pine 启动后直接进入工作区，不再先显示项目列表。新会话通过输入框中发送按钮左侧的项目选择器决定所在项目，默认是“无项目”：会话保存在 Pine 的数据目录中，用于不属于任何项目的临时工作，“无项目”不能重命名、修改或删除。Pine now opens straight into the workspace instead of a project list. A new session picks its project from the project picker beside the send button; the default is No Project, which keeps work that belongs to no project in Pine's data directory and cannot be renamed, edited, or deleted.
 - 一个窗口中的标签页可以来自不同项目。切换标签页时，左右侧栏、强调色和窗口标题会随当前标签页的项目切换，已打开项目的侧栏状态会保留。Tabs in one window can now come from different projects. Switching tabs moves the sidebars, accent color, and window title to that tab's project, and each open project keeps its sidebar state.
-- 临时工作空间中的会话可以让 Agent 列出你的项目，并在征得你确认后把会话移动到某个项目中，之后在该项目的文件夹中继续。In the Temporary Workspace, the agent can list your projects and, after you confirm, move the session into one of them so it continues in that project's folders.
+- “无项目”中的会话可以让 Agent 列出你的项目，并在征得你确认后把会话移动到某个项目中，之后在该项目的文件夹中继续。In a No Project session, the agent can list your projects and, after you confirm, move the session into one of them so it continues in that project's folders.
 - 设置中新增“项目管理”：列出所有项目，可以新建、编辑项目，并查看 Pine 为每个项目保存的会话、临时文件、附件和搜索缓存占用；临时文件和附件可以单独清理。Settings now include Projects: every project in one list, where you can create and edit projects, see how much space Pine uses for each project's sessions, temporary files, attachments, and search cache, and clear temporary files or attachments.
 
 ### 变更 / Changed

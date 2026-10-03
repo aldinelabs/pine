@@ -60,8 +60,8 @@ function confirmationQuestion(
       {
         header: zh ? "移动会话" : "Move session",
         question: zh
-          ? `要把这个会话从临时工作空间移动到“${project.name}”吗？之后的回复会在 ${project.defaultFolderPath} 中进行，并使用该项目的文件夹权限。`
-          : `Move this session from the temporary workspace to "${project.name}"? Later replies will work in ${project.defaultFolderPath} with that project's folder access.`,
+          ? `要把这个会话移动到项目“${project.name}”吗？之后的回复会在 ${project.defaultFolderPath} 中进行，并使用该项目的文件夹权限。`
+          : `Move this session to the project "${project.name}"? Later replies will work in ${project.defaultFolderPath} with that project's folder access.`,
         options: [
           {
             label: zh ? "移动" : "Move",
@@ -70,10 +70,10 @@ function confirmationQuestion(
               : "The session continues in that project once this reply ends.",
           },
           {
-            label: zh ? "留在临时工作空间" : "Keep it here",
+            label: zh ? "保持无项目" : "Keep it here",
             description: zh
-              ? "会话保持在临时工作空间。"
-              : "The session stays in the temporary workspace.",
+              ? "会话继续不属于任何项目。"
+              : "The session stays outside any project.",
           },
         ],
       },

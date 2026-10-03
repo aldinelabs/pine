@@ -285,7 +285,7 @@ export default {
   },
   projects: {
     title: "项目",
-    temporaryWorkspace: "临时工作空间",
+    temporaryWorkspace: "无项目",
     temporaryWorkspaceDescription: "不属于任何项目的临时工作",
     openElsewhere: "已在其他窗口中打开",
     deleteAction: "删除项目",
