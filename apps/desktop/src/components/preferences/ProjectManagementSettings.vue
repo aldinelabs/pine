@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import {
-  FolderIcon,
   InboxIcon,
   MoreHorizontalIcon,
   PencilIcon,
@@ -180,8 +179,7 @@ onMounted(() => {
         size="sm"
       >
         <ItemMedia variant="icon">
-          <InboxIcon v-if="isTemporaryWorkspace(project.id)" />
-          <FolderIcon v-else />
+          <InboxIcon />
         </ItemMedia>
         <ItemContent class="min-w-0">
           <ItemTitle class="w-full">

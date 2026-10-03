@@ -1,11 +1,11 @@
 <script setup lang="ts">
-import { ChevronDownIcon, FolderIcon, InboxIcon, PlusIcon } from "@lucide/vue";
+import { ChevronDownIcon, InboxIcon, PlusIcon } from "@lucide/vue";
 import { storeToRefs } from "pinia";
 import { computed, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import { toast } from "vue-sonner";
 import { handleError } from "@/app/errors/errorHandler";
-import { Button } from "@/components/ui/button";
+import { InputGroupButton } from "@/components/ui/input-group";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -70,25 +70,19 @@ function created(project: PineProject): void {
 <template>
   <DropdownMenu>
     <DropdownMenuTrigger as-child>
-      <Button
+      <InputGroupButton
         data-slot="project-target-trigger"
-        class="min-w-0 rounded-full text-muted-foreground"
-        type="button"
-        variant="ghost"
+        class="min-w-0 text-muted-foreground"
         size="sm"
         :aria-label="
           t('project.composer.sendTo', { name: displayName(selected) })
         "
         :title="t('project.composer.sendToLabel')"
       >
-        <InboxIcon
-          v-if="isTemporaryWorkspace(props.projectId)"
-          data-icon="inline-start"
-        />
-        <FolderIcon v-else data-icon="inline-start" />
+        <InboxIcon data-icon="inline-start" />
         <span class="truncate">{{ displayName(selected) }}</span>
         <ChevronDownIcon data-icon="inline-end" />
-      </Button>
+      </InputGroupButton>
     </DropdownMenuTrigger>
 
     <DropdownMenuContent side="top" align="end" class="w-72">
@@ -105,8 +99,7 @@ function created(project: PineProject): void {
           data-slot="project-target-option"
           :value="project.id"
         >
-          <InboxIcon v-if="isTemporaryWorkspace(project.id)" />
-          <FolderIcon v-else />
+          <InboxIcon />
           <span class="flex min-w-0 flex-col gap-0.5">
             <span class="truncate">{{ displayName(project) }}</span>
             <span
