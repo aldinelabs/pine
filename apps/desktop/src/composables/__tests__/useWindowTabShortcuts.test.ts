@@ -17,8 +17,8 @@ describe("window close navigation", () => {
     const router = createRouter({
       history: createMemoryHistory(),
       routes: [
-        { path: "/project", component: {}, meta: { requiresProject: true } },
-        { path: "/projects", component: {} },
+        // The workspace is the only route, as in the app.
+        { path: "/", component: {} },
       ],
     });
     const store = useContentTabsStore();
@@ -28,7 +28,7 @@ describe("window close navigation", () => {
       relativePath: "notes.txt",
     });
     await router.push({
-      path: "/project",
+      path: "/",
       query: { tab: file.id, sidebar: "files" },
     });
     let requestClose!: () => void;
@@ -78,11 +78,6 @@ describe("window close navigation", () => {
     await flushPromises();
     expect(store.tabs).toHaveLength(2);
     expect(router.currentRoute.value.query.tab).not.toBe(firstDraft);
-    await router.push("/projects");
-    requestNewTab();
-    requestClose();
-    expect(closeWindow).toHaveBeenCalledTimes(2);
-    expect(store.tabs).toHaveLength(2);
     wrapper.unmount();
     expect(unsubscribe).toHaveBeenCalledOnce();
     expect(unsubscribeNewTab).toHaveBeenCalledOnce();
@@ -94,10 +89,10 @@ describe("window close navigation", () => {
     const router = createRouter({
       history: createMemoryHistory(),
       routes: [
-        { path: "/project", component: {}, meta: { requiresProject: true } },
+        { path: "/", component: {} },
       ],
     });
-    await router.push({ path: "/project", query: { tab: "session-1" } });
+    await router.push({ path: "/", query: { tab: "session-1" } });
 
     let requestClose!: () => void;
     const closeTab = vi.fn<WindowTabCloseHandler>();

@@ -5,7 +5,6 @@ import {
   type InjectionKey,
   type Ref,
 } from "vue";
-import { useRoute } from "vue-router";
 import { useContentTabNavigation } from "./useContentTabNavigation";
 import { useContentTabsStore } from "@/stores/contentTabs";
 
@@ -15,7 +14,6 @@ export const WINDOW_TAB_CLOSE_HANDLER_KEY: InjectionKey<
 > = Symbol("window-tab-close-handler");
 
 export function useWindowTabShortcuts(): void {
-  const route = useRoute();
   const navigation = useContentTabNavigation();
   const tabs = useContentTabsStore();
   const closeTabHandler = inject(WINDOW_TAB_CLOSE_HANDLER_KEY);
@@ -23,11 +21,10 @@ export function useWindowTabShortcuts(): void {
   let unsubscribeNewTab: (() => void) | undefined;
   onMounted(() => {
     unsubscribeNewTab = window.pine.onNewTabRequested(() => {
-      if (!route.meta.requiresProject) return;
       navigation.activate(tabs.createSessionTab({ reuseDraft: false }).id);
     });
     unsubscribe = window.pine.onCloseTabRequested(() => {
-      if (route.meta.requiresProject && navigation.activeTab.value) {
+      if (navigation.activeTab.value) {
         const tabId = navigation.activeTabId.value;
         if (closeTabHandler?.value) closeTabHandler.value(tabId);
         else navigation.close(tabId);
