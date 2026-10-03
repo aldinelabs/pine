@@ -72,7 +72,7 @@ function created(project: PineProject): void {
     <DropdownMenuTrigger as-child>
       <Button
         data-slot="project-target-trigger"
-        class="min-w-0"
+        class="min-w-0 rounded-full text-muted-foreground"
         type="button"
         variant="ghost"
         size="sm"

@@ -568,7 +568,16 @@ function handleRootSubmit(event: Event): void {
             @paste="handlePaste"
           />
 
-          <InputGroupAddon class="self-end py-1.5 pr-2.5" align="inline-end">
+          <InputGroupAddon
+            class="max-w-[50%] self-end py-1.5 pr-2.5"
+            align="inline-end"
+          >
+            <!-- A draft still chooses its project right beside Send. -->
+            <ProjectTargetPicker
+              v-if="!props.sessionId && !props.isRunning"
+              :project-id="props.projectId"
+              @select="emit('selectProject', $event)"
+            />
             <Tooltip>
               <TooltipTrigger as-child>
                 <InputGroupButton
@@ -680,138 +689,128 @@ function handleRootSubmit(event: Event): void {
         <ContextUsageIndicator />
       </div>
 
-      <div class="flex min-w-0 items-center gap-1">
-        <ProjectTargetPicker
-          v-if="!props.sessionId && !props.isRunning"
-          :project-id="props.projectId"
-          @select="emit('selectProject', $event)"
-        />
-
-        <DropdownMenu>
-          <DropdownMenuTrigger as-child>
-            <Button
-              data-slot="model-selector-trigger"
-              class="min-w-0"
-              type="button"
-              variant="ghost"
-              size="sm"
+      <DropdownMenu>
+        <DropdownMenuTrigger as-child>
+          <Button
+            data-slot="model-selector-trigger"
+            class="min-w-0"
+            type="button"
+            variant="ghost"
+            size="sm"
+          >
+            <span class="truncate">
+              {{ selectedModel?.name ?? t("project.composer.selectModel") }}
+            </span>
+            <span
+              v-if="selectedModel && selection"
+              data-slot="model-selector-thinking-level"
+              :class="
+                cn(
+                  'shrink-0 text-muted-foreground',
+                  thinkingLevelTextClass(selection.thinkingLevel),
+                )
+              "
             >
-              <span class="truncate">
-                {{ selectedModel?.name ?? t("project.composer.selectModel") }}
-              </span>
-              <span
-                v-if="selectedModel && selection"
-                data-slot="model-selector-thinking-level"
-                :class="
-                  cn(
-                    'shrink-0 text-muted-foreground',
-                    thinkingLevelTextClass(selection.thinkingLevel),
-                  )
-                "
+              · {{ t(`models.thinkingLevels.${selection.thinkingLevel}`) }}
+            </span>
+            <ChevronDownIcon data-icon="inline-end" />
+          </Button>
+        </DropdownMenuTrigger>
+
+        <DropdownMenuContent side="top" align="end" class="w-72">
+          <template v-if="featuredModels.length > 0">
+            <DropdownMenuLabel>
+              {{
+                favoriteModels.length > 0
+                  ? t("models.favorites")
+                  : t("models.recent")
+              }}
+            </DropdownMenuLabel>
+            <DropdownMenuRadioGroup
+              :model-value="selectedModel ? pineModelKey(selectedModel) : ''"
+              @update:model-value="selectFeaturedModel"
+            >
+              <DropdownMenuRadioItem
+                v-for="model in featuredModels"
+                :key="pineModelKey(model)"
+                data-slot="model-option"
+                :value="pineModelKey(model)"
               >
-                · {{ t(`models.thinkingLevels.${selection.thinkingLevel}`) }}
-              </span>
-              <ChevronDownIcon data-icon="inline-end" />
-            </Button>
-          </DropdownMenuTrigger>
-
-          <DropdownMenuContent side="top" align="end" class="w-72">
-            <template v-if="featuredModels.length > 0">
-              <DropdownMenuLabel>
-                {{
-                  favoriteModels.length > 0
-                    ? t("models.favorites")
-                    : t("models.recent")
-                }}
-              </DropdownMenuLabel>
-              <DropdownMenuRadioGroup
-                :model-value="selectedModel ? pineModelKey(selectedModel) : ''"
-                @update:model-value="selectFeaturedModel"
-              >
-                <DropdownMenuRadioItem
-                  v-for="model in featuredModels"
-                  :key="pineModelKey(model)"
-                  data-slot="model-option"
-                  :value="pineModelKey(model)"
-                >
-                  <span class="flex min-w-0 flex-1 flex-col gap-0.5">
-                    <span class="truncate">{{ model.name }}</span>
-                    <span
-                      class="flex min-w-0 items-center gap-1 text-xs text-muted-foreground"
-                    >
-                      <ProviderIcon
-                        :provider-id="model.providerId"
-                        :provider-name="model.providerName"
-                      />
-                      <span class="truncate">{{ model.providerName }}</span>
-                      <ModelCapabilities
-                        class="ml-1"
-                        :model="model"
-                        :recommended="modelsStore.isRecommended(model)"
-                      />
-                    </span>
-                  </span>
-                </DropdownMenuRadioItem>
-              </DropdownMenuRadioGroup>
-              <DropdownMenuSeparator />
-            </template>
-
-            <DropdownMenuGroup>
-              <DropdownMenuItem @select="openModelPicker">
-                <SearchIcon />
-                {{ t("models.picker.browse") }}
-              </DropdownMenuItem>
-            </DropdownMenuGroup>
-
-            <template v-if="selectedModel && thinkingLevels.length > 1">
-              <DropdownMenuSeparator />
-              <div data-slot="reasoning-effort-control" class="w-full">
-                <DropdownMenuLabel class="flex items-center justify-between">
-                  <span>{{ t("models.reasoning") }}</span>
+                <span class="flex min-w-0 flex-1 flex-col gap-0.5">
+                  <span class="truncate">{{ model.name }}</span>
                   <span
-                    v-if="activeThinkingLevel"
-                    :class="thinkingLevelTextClass(activeThinkingLevel)"
+                    class="flex min-w-0 items-center gap-1 text-xs text-muted-foreground"
                   >
-                    {{ t(`models.thinkingLevels.${activeThinkingLevel}`) }}
+                    <ProviderIcon
+                      :provider-id="model.providerId"
+                      :provider-name="model.providerName"
+                    />
+                    <span class="truncate">{{ model.providerName }}</span>
+                    <ModelCapabilities
+                      class="ml-1"
+                      :model="model"
+                      :recommended="modelsStore.isRecommended(model)"
+                    />
                   </span>
-                </DropdownMenuLabel>
+                </span>
+              </DropdownMenuRadioItem>
+            </DropdownMenuRadioGroup>
+            <DropdownMenuSeparator />
+          </template>
 
-                <div class="px-3 pb-4">
-                  <Tooltip
-                    :disabled="!thinkingLevelTooltip(activeThinkingLevel)"
+          <DropdownMenuGroup>
+            <DropdownMenuItem @select="openModelPicker">
+              <SearchIcon />
+              {{ t("models.picker.browse") }}
+            </DropdownMenuItem>
+          </DropdownMenuGroup>
+
+          <template v-if="selectedModel && thinkingLevels.length > 1">
+            <DropdownMenuSeparator />
+            <div data-slot="reasoning-effort-control" class="w-full">
+              <DropdownMenuLabel class="flex items-center justify-between">
+                <span>{{ t("models.reasoning") }}</span>
+                <span
+                  v-if="activeThinkingLevel"
+                  :class="thinkingLevelTextClass(activeThinkingLevel)"
+                >
+                  {{ t(`models.thinkingLevels.${activeThinkingLevel}`) }}
+                </span>
+              </DropdownMenuLabel>
+
+              <div class="px-3 pb-4">
+                <Tooltip :disabled="!thinkingLevelTooltip(activeThinkingLevel)">
+                  <Slider
+                    v-model="thinkingLevelSliderValue"
+                    data-slot="reasoning-effort-slider"
+                    class="reasoning-effort-slider"
+                    :min="0"
+                    :max="thinkingLevels.length - 1"
+                    :step="1"
+                    :aria-label="t('models.reasoning')"
                   >
-                    <Slider
-                      v-model="thinkingLevelSliderValue"
-                      data-slot="reasoning-effort-slider"
-                      class="reasoning-effort-slider"
-                      :min="0"
-                      :max="thinkingLevels.length - 1"
-                      :step="1"
-                      :aria-label="t('models.reasoning')"
-                    >
-                      <template #thumb>
-                        <TooltipTrigger as-child>
-                          <span />
-                        </TooltipTrigger>
-                      </template>
-                    </Slider>
-                    <TooltipContent
-                      v-if="thinkingLevelTooltip(activeThinkingLevel)"
-                      data-slot="reasoning-effort-tooltip"
-                      side="top"
-                      align="center"
-                      :side-offset="8"
-                      class="max-w-80 whitespace-normal"
-                    >
-                      {{ thinkingLevelTooltip(activeThinkingLevel) }}
-                    </TooltipContent>
-                  </Tooltip>
-                </div>
+                    <template #thumb>
+                      <TooltipTrigger as-child>
+                        <span />
+                      </TooltipTrigger>
+                    </template>
+                  </Slider>
+                  <TooltipContent
+                    v-if="thinkingLevelTooltip(activeThinkingLevel)"
+                    data-slot="reasoning-effort-tooltip"
+                    side="top"
+                    align="center"
+                    :side-offset="8"
+                    class="max-w-80 whitespace-normal"
+                  >
+                    {{ thinkingLevelTooltip(activeThinkingLevel) }}
+                  </TooltipContent>
+                </Tooltip>
               </div>
-            </template>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </div>
+            </div>
+          </template>
+        </DropdownMenuContent>
+      </DropdownMenu>
     </div>
 
     <AlertDialog v-model:open="isYoloConfirmationOpen">
