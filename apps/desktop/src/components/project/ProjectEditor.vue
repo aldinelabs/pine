@@ -12,6 +12,17 @@ import {
   FieldTitle,
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupButton,
+  InputGroupInput,
+} from "@/components/ui/input-group";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Select,
@@ -34,10 +45,12 @@ import type {
   PineProject,
   ProjectColorTheme,
   ProjectFolderInput,
+  ProjectIcon,
   ProjectMutationInput,
 } from "@/shared/projects";
-import { PROJECT_COLOR_THEMES } from "@/shared/projects";
+import { PROJECT_COLOR_THEMES, PROJECT_ICONS } from "@/shared/projects";
 import { PROJECT_COLOR_THEME_OPTIONS } from "@/lib/projectColorThemes";
+import { PROJECT_ICON_COMPONENTS } from "@/lib/projectIcons";
 
 interface Props {
   isSaving?: boolean;
@@ -60,6 +73,8 @@ const emit = defineEmits<{
 const { t } = useI18n();
 const name = ref("");
 const projectColorTheme = ref<ProjectColorTheme>("olive");
+const projectIcon = ref<ProjectIcon>("inbox");
+const isIconPickerOpen = ref(false);
 const folders = ref<EditorProjectFolder[]>([]);
 const defaultFolderId = ref("");
 const originalFolderNames = new Map<string, string>();
@@ -93,6 +108,7 @@ function reset(): void {
   originalFolderNames.clear();
   name.value = props.project?.name ?? "";
   projectColorTheme.value = props.project?.projectColorTheme ?? "olive";
+  projectIcon.value = props.project?.projectIcon ?? "inbox";
   folders.value = props.project?.folders.map((folder) => ({ ...folder })) ?? [];
   defaultFolderId.value = props.project?.defaultFolderId ?? "";
   const selectedDefaultFolder = folders.value.find(
@@ -183,6 +199,11 @@ function updateProjectColorTheme(value: unknown): void {
   }
 }
 
+function selectProjectIcon(icon: ProjectIcon): void {
+  projectIcon.value = icon;
+  isIconPickerOpen.value = false;
+}
+
 function toFolderInput(folder: EditorProjectFolder): ProjectFolderInput {
   return {
     access: folder.access,
@@ -199,6 +220,7 @@ function submit(): void {
     folders: folders.value.map(toFolderInput),
     name: name.value.trim(),
     projectColorTheme: projectColorTheme.value,
+    projectIcon: projectIcon.value,
   });
 }
 
@@ -213,13 +235,53 @@ watch(() => props.project, reset, { immediate: true });
           <FieldLabel for="project-name">
             {{ t("projects.editor.nameLabel") }}
           </FieldLabel>
-          <Input
-            id="project-name"
-            v-model="name"
-            maxlength="100"
-            autocomplete="off"
-            :placeholder="t('projects.editor.namePlaceholder')"
-          />
+          <InputGroup>
+            <InputGroupAddon>
+              <Popover v-model:open="isIconPickerOpen">
+                <PopoverTrigger as-child>
+                  <InputGroupButton
+                    data-slot="project-icon-trigger"
+                    size="icon-xs"
+                    :aria-label="t('projects.editor.iconLabel')"
+                    :title="t('projects.editor.iconLabel')"
+                  >
+                    <component :is="PROJECT_ICON_COMPONENTS[projectIcon]" />
+                  </InputGroupButton>
+                </PopoverTrigger>
+                <PopoverContent align="start" class="w-auto p-2">
+                  <div
+                    role="listbox"
+                    class="grid grid-cols-8 gap-1"
+                    :aria-label="t('projects.editor.iconLabel')"
+                  >
+                    <Button
+                      v-for="icon in PROJECT_ICONS"
+                      :key="icon"
+                      data-slot="project-icon-option"
+                      :data-icon-name="icon"
+                      type="button"
+                      role="option"
+                      size="icon-sm"
+                      :variant="icon === projectIcon ? 'secondary' : 'ghost'"
+                      :aria-selected="icon === projectIcon"
+                      :aria-label="icon"
+                      :title="icon"
+                      @click="selectProjectIcon(icon)"
+                    >
+                      <component :is="PROJECT_ICON_COMPONENTS[icon]" />
+                    </Button>
+                  </div>
+                </PopoverContent>
+              </Popover>
+            </InputGroupAddon>
+            <InputGroupInput
+              id="project-name"
+              v-model="name"
+              maxlength="100"
+              autocomplete="off"
+              :placeholder="t('projects.editor.namePlaceholder')"
+            />
+          </InputGroup>
         </Field>
 
         <Field>

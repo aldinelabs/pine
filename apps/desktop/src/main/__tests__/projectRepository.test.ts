@@ -1,4 +1,4 @@
-import { mkdir, mkdtemp, readFile, rm } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
@@ -50,7 +50,11 @@ describe("ProjectRepository", () => {
         "utf8",
       ),
     ) as unknown;
-    expect(metadata).toMatchObject({ id: project.id, schemaVersion: 1 });
+    expect(metadata).toMatchObject({
+      id: project.id,
+      projectIcon: "inbox",
+      schemaVersion: 1,
+    });
     await expect(
       readFile(path.join(folderPath, ".pine", "project.json")),
     ).rejects.toMatchObject({ code: "ENOENT" });
@@ -212,5 +216,43 @@ describe("ProjectRepository", () => {
         sessionGroups,
       }),
     );
+  });
+
+  it("keeps a chosen project icon and repairs unknown ones", async () => {
+    const userData = await createTemporaryDirectory("pine-user-data-");
+    const folderPath = await createTemporaryDirectory("pine-project-folder-");
+    const projectsRoot = path.join(userData, "projects");
+    const repository = new ProjectRepository(projectsRoot);
+    const folderId = "cde9a86c-7632-43ac-96d6-c41ddeddce0e";
+    const input = {
+      defaultFolderId: folderId,
+      folders: [
+        {
+          access: "read-write" as const,
+          id: folderId,
+          name: "source",
+          path: folderPath,
+        },
+      ],
+      name: "Pine",
+    };
+    const project = await repository.create({ ...input, projectIcon: "code" });
+    await repository.update(project.id, input);
+    await expect(repository.get(project.id)).resolves.toMatchObject({
+      projectIcon: "code",
+    });
+
+    const metadataPath = path.join(projectsRoot, project.id, "project.json");
+    const metadata = JSON.parse(await readFile(metadataPath, "utf8")) as Record<
+      string,
+      unknown
+    >;
+    await writeFile(
+      metadataPath,
+      JSON.stringify({ ...metadata, projectIcon: "not-an-icon" }),
+    );
+    await expect(repository.get(project.id)).resolves.toMatchObject({
+      projectIcon: "inbox",
+    });
   });
 });

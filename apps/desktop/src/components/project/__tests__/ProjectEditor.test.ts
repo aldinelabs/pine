@@ -82,8 +82,35 @@ describe("ProjectEditor", () => {
         ],
         name: project.name,
         projectColorTheme: "olive",
+        projectIcon: "inbox",
       },
     ]);
+  });
+
+  it("submits the icon chosen next to the project name", async () => {
+    const wrapper = mount(ProjectEditor, {
+      props: { project: { ...project, projectIcon: "code" } },
+      attachTo: document.body,
+      global: { plugins: [createAppI18n("zh-CN")] },
+    });
+
+    await wrapper.get('[data-slot="project-icon-trigger"]').trigger("click");
+    const option = document.body.querySelector<HTMLElement>(
+      '[data-slot="project-icon-option"][data-icon-name="rocket"]',
+    );
+    expect(
+      document.body
+        .querySelector('[data-icon-name="code"]')
+        ?.getAttribute("aria-selected"),
+    ).toBe("true");
+    option?.click();
+    await wrapper.vm.$nextTick();
+    await wrapper.get("form").trigger("submit");
+
+    expect(wrapper.emitted("submit")?.[0]?.[0]).toMatchObject({
+      projectIcon: "rocket",
+    });
+    wrapper.unmount();
   });
 
   it("removes an additional context folder without removing the default", async () => {

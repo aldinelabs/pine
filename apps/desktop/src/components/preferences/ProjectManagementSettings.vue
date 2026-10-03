@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import {
-  InboxIcon,
   MoreHorizontalIcon,
   PencilIcon,
   PlusIcon,
@@ -44,6 +43,7 @@ import {
 import { Spinner } from "@/components/ui/spinner";
 import { useProjectDisplayName } from "@/composables/useProjectDisplayName";
 import { formatBytes } from "@/lib/formatBytes";
+import { projectIconComponent } from "@/lib/projectIcons";
 import {
   isTemporaryWorkspace,
   type ClearableProjectStorage,
@@ -179,7 +179,7 @@ onMounted(() => {
         size="sm"
       >
         <ItemMedia variant="icon">
-          <InboxIcon />
+          <component :is="projectIconComponent(project)" />
         </ItemMedia>
         <ItemContent class="min-w-0">
           <ItemTitle class="w-full">

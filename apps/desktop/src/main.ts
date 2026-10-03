@@ -202,6 +202,7 @@ import {
   isTemporaryWorkspace,
   PROJECT_ATTACHMENTS_DIRECTORY,
   PROJECT_COLOR_THEMES,
+  PROJECT_ICONS,
   UPDATE_PROJECT_CHANNEL,
   UPDATE_PROJECT_SESSION_GROUPS_CHANNEL,
   type DeleteProjectResult,
@@ -535,6 +536,7 @@ const ProjectMutationSchema = z
     folders: z.array(ProjectFolderInputSchema).min(1),
     name: z.string().trim().min(1).max(100),
     projectColorTheme: z.enum(PROJECT_COLOR_THEMES).default("olive"),
+    projectIcon: z.enum(PROJECT_ICONS).optional(),
   })
   .superRefine((project, context) => {
     const defaultFolder = project.folders.find(
@@ -2460,6 +2462,7 @@ handleDiagnosticIpc(
       folders: parsed.folders,
       name: parsed.name,
       projectColorTheme: parsed.projectColorTheme,
+      projectIcon: parsed.projectIcon,
     };
     const repository = getProjectRepository();
     const project = await repository.update(id, input);

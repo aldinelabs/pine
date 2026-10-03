@@ -343,6 +343,7 @@ export default {
         "Set the project name and the folders its sessions can access.",
       nameLabel: "Project name",
       namePlaceholder: "My new project",
+      iconLabel: "Project icon",
       colorThemeLabel: "Project accent color",
       colorThemes: {
         olive: "Pine Default",

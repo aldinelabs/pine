@@ -189,6 +189,44 @@ export const PROJECT_COLOR_THEMES = [
 
 export type ProjectColorTheme = (typeof PROJECT_COLOR_THEMES)[number];
 
+/** Lucide icon names a project can show; the first is the default. */
+export const PROJECT_ICONS = [
+  "inbox",
+  "folder",
+  "code",
+  "terminal",
+  "database",
+  "server",
+  "globe",
+  "smartphone",
+  "rocket",
+  "bot",
+  "brain",
+  "flask-conical",
+  "book-open",
+  "notebook-pen",
+  "graduation-cap",
+  "briefcase",
+  "chart-line",
+  "calculator",
+  "palette",
+  "pen-tool",
+  "camera",
+  "film",
+  "music",
+  "gamepad-2",
+  "house",
+  "heart",
+  "leaf",
+  "plane",
+  "shopping-bag",
+  "wrench",
+  "star",
+  "sparkles",
+] as const;
+
+export type ProjectIcon = (typeof PROJECT_ICONS)[number];
+
 export interface ProjectFolderInput {
   access: ProjectFolderAccess;
   id: string;
@@ -214,6 +252,7 @@ export interface PineProject {
   lastOpenedAt?: string;
   name: string;
   projectColorTheme?: ProjectColorTheme;
+  projectIcon?: ProjectIcon;
   schemaVersion: 1;
   sessionGroups?: PineSessionGroup[];
   updatedAt: string;
@@ -224,6 +263,7 @@ export interface ProjectMutationInput {
   folders: ProjectFolderInput[];
   name: string;
   projectColorTheme?: ProjectColorTheme;
+  projectIcon?: ProjectIcon;
 }
 
 export type CreateProjectRequest = ProjectMutationInput;

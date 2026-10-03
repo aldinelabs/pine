@@ -20,6 +20,7 @@ import {
   PROJECT_SKILLS_SETTINGS_FILE,
   PROJECT_TEMPORARY_DIRECTORY,
   PROJECT_COLOR_THEMES,
+  PROJECT_ICONS,
   TEMPORARY_WORKSPACE_DIRECTORY,
   TEMPORARY_WORKSPACE_FOLDER_ID,
   TEMPORARY_WORKSPACE_PROJECT_ID,
@@ -56,6 +57,7 @@ const StoredProjectSchema = z.object({
     .union([z.enum(PROJECT_COLOR_THEMES), z.literal("neutral")])
     .transform((theme) => (theme === "neutral" ? "olive" : theme))
     .default("olive"),
+  projectIcon: z.enum(PROJECT_ICONS).catch("inbox"),
   schemaVersion: z.literal(PROJECT_SCHEMA_VERSION),
   sessionGroups: z.array(ProjectSessionGroupSchema).default([]),
   updatedAt: z.iso.datetime(),
@@ -199,6 +201,7 @@ export class ProjectRepository {
       id: randomUUID(),
       name: input.name,
       projectColorTheme: input.projectColorTheme ?? "olive",
+      projectIcon: input.projectIcon ?? "inbox",
       schemaVersion: PROJECT_SCHEMA_VERSION,
       sessionGroups: [],
       updatedAt: now,
@@ -237,6 +240,7 @@ export class ProjectRepository {
       folders,
       name: input.name,
       projectColorTheme: input.projectColorTheme ?? current.projectColorTheme,
+      projectIcon: input.projectIcon ?? current.projectIcon,
       sessionGroups: current.sessionGroups,
       updatedAt: new Date().toISOString(),
     });
@@ -352,6 +356,7 @@ export class ProjectRepository {
       ...(current?.lastOpenedAt ? { lastOpenedAt: current.lastOpenedAt } : {}),
       name: TEMPORARY_WORKSPACE_NAME,
       projectColorTheme: "olive",
+      projectIcon: "inbox",
       schemaVersion: PROJECT_SCHEMA_VERSION,
       sessionGroups: current?.sessionGroups ?? [],
       updatedAt: current?.updatedAt ?? now,

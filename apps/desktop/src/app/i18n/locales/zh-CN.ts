@@ -322,6 +322,7 @@ export default {
       dialogDescription: "设置项目名称和会话可访问的文件夹。",
       nameLabel: "项目名称",
       namePlaceholder: "我的新项目",
+      iconLabel: "项目图标",
       colorThemeLabel: "项目强调色",
       colorThemes: {
         olive: "Pine 默认",

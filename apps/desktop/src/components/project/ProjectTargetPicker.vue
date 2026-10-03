@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ChevronDownIcon, InboxIcon, PlusIcon } from "@lucide/vue";
+import { ChevronDownIcon, PlusIcon } from "@lucide/vue";
 import { storeToRefs } from "pinia";
 import { computed, ref } from "vue";
 import { useI18n } from "vue-i18n";
@@ -18,6 +18,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useProjectDisplayName } from "@/composables/useProjectDisplayName";
+import { projectIconComponent } from "@/lib/projectIcons";
 import { isTemporaryWorkspace, type PineProject } from "@/shared/projects";
 import { useProjectStore } from "@/stores/project";
 import ProjectDialog from "./ProjectDialog.vue";
@@ -79,7 +80,10 @@ function created(project: PineProject): void {
         "
         :title="t('project.composer.sendToLabel')"
       >
-        <InboxIcon data-icon="inline-start" />
+        <component
+          :is="projectIconComponent(selected)"
+          data-icon="inline-start"
+        />
         <span class="truncate">{{ displayName(selected) }}</span>
         <ChevronDownIcon data-icon="inline-end" />
       </InputGroupButton>
@@ -99,7 +103,7 @@ function created(project: PineProject): void {
           data-slot="project-target-option"
           :value="project.id"
         >
-          <InboxIcon />
+          <component :is="projectIconComponent(project)" />
           <span class="flex min-w-0 flex-col gap-0.5">
             <span class="truncate">{{ displayName(project) }}</span>
             <span
