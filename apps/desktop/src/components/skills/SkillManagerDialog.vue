@@ -359,72 +359,81 @@ watch(activeScope, () => {
               class="grid min-h-0 grid-cols-[14rem_auto_minmax(0,1fr)] overflow-hidden"
             >
               <aside class="relative min-h-0 overflow-hidden bg-muted/20">
-                <ScrollArea
-                  class="absolute inset-0 min-h-0 overflow-hidden [&_[data-slot=scroll-area-viewport]]:scroll-fade-y"
-                >
-                  <ItemGroup class="gap-2 p-3">
-                    <Item
-                      as="button"
-                      type="button"
-                      variant="muted"
-                      size="sm"
-                      class="min-h-20 justify-center hover:bg-muted"
-                      @click="startCreating"
-                    >
-                      <ItemMedia variant="icon">
-                        <PlusIcon />
-                      </ItemMedia>
-                      <ItemContent class="flex-none">
-                        <ItemTitle>{{ t("skills.new") }}</ItemTitle>
-                      </ItemContent>
-                    </Item>
-                    <Item
-                      v-for="skill in skills"
-                      :key="`${skill.managedBy ?? 'pine'}:${skill.name}`"
-                      :variant="
-                        skill.name === selectedName && !isCreating
-                          ? 'muted'
-                          : 'default'
-                      "
-                      size="sm"
-                      role="listitem"
-                      class="min-w-0 hover:bg-muted"
-                    >
-                      <ItemContent class="min-w-0">
-                        <button
-                          type="button"
-                          class="min-w-0 text-left"
-                          @click="
-                            selectSkillSafely(
-                              skill.name,
-                              skill.managedBy ?? 'pine',
-                            )
-                          "
-                        >
-                          <ItemTitle class="w-full">{{ skill.name }}</ItemTitle>
-                          <ItemDescription>
-                            {{ skill.description }}
-                          </ItemDescription>
-                        </button>
-                      </ItemContent>
-                      <ItemActions
-                        v-if="scope === 'global' && skill.managedBy !== 'pi'"
-                        class="mr-1 shrink-0"
+                <!-- ScrollAreaRoot sets an inline `position: relative`, so the
+                  absolute positioning lives on a wrapper to keep the list out
+                  of the grid row's height. -->
+                <div class="absolute inset-0">
+                  <ScrollArea
+                    class="size-full overflow-hidden [&_[data-slot=scroll-area-viewport]]:scroll-fade-y"
+                  >
+                    <ItemGroup class="gap-2 p-3">
+                      <Item
+                        as="button"
+                        type="button"
+                        variant="muted"
+                        size="sm"
+                        class="min-h-20 justify-center hover:bg-muted"
+                        @click="startCreating"
                       >
-                        <Switch
-                          :model-value="skill.enabled !== false"
-                          :disabled="togglingNames.has(skill.name)"
-                          :aria-label="
-                            t('skills.globalEnabledLabel', { name: skill.name })
-                          "
-                          @update:model-value="
-                            setGlobalSkillEnabled(skill, $event)
-                          "
-                        />
-                      </ItemActions>
-                    </Item>
-                  </ItemGroup>
-                </ScrollArea>
+                        <ItemMedia variant="icon">
+                          <PlusIcon />
+                        </ItemMedia>
+                        <ItemContent class="flex-none">
+                          <ItemTitle>{{ t("skills.new") }}</ItemTitle>
+                        </ItemContent>
+                      </Item>
+                      <Item
+                        v-for="skill in skills"
+                        :key="`${skill.managedBy ?? 'pine'}:${skill.name}`"
+                        :variant="
+                          skill.name === selectedName && !isCreating
+                            ? 'muted'
+                            : 'default'
+                        "
+                        size="sm"
+                        role="listitem"
+                        class="min-w-0 hover:bg-muted"
+                      >
+                        <ItemContent class="min-w-0">
+                          <button
+                            type="button"
+                            class="min-w-0 text-left"
+                            @click="
+                              selectSkillSafely(
+                                skill.name,
+                                skill.managedBy ?? 'pine',
+                              )
+                            "
+                          >
+                            <ItemTitle class="w-full">{{
+                              skill.name
+                            }}</ItemTitle>
+                            <ItemDescription>
+                              {{ skill.description }}
+                            </ItemDescription>
+                          </button>
+                        </ItemContent>
+                        <ItemActions
+                          v-if="scope === 'global' && skill.managedBy !== 'pi'"
+                          class="mr-1 shrink-0"
+                        >
+                          <Switch
+                            :model-value="skill.enabled !== false"
+                            :disabled="togglingNames.has(skill.name)"
+                            :aria-label="
+                              t('skills.globalEnabledLabel', {
+                                name: skill.name,
+                              })
+                            "
+                            @update:model-value="
+                              setGlobalSkillEnabled(skill, $event)
+                            "
+                          />
+                        </ItemActions>
+                      </Item>
+                    </ItemGroup>
+                  </ScrollArea>
+                </div>
               </aside>
 
               <Separator orientation="vertical" />
