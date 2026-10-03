@@ -14,6 +14,7 @@ import {
   type WindowTabCloseHandler,
 } from "@/composables/useWindowTabShortcuts";
 import type { PineSessionSummary } from "@/shared/sessions";
+import { useProjectStore } from "@/stores/project";
 import { useSessionStore } from "@/stores/session";
 import { useContentTabsStore } from "@/stores/contentTabs";
 import { useProjectRightSidebarStore } from "@/stores/projectRightSidebar";
@@ -836,6 +837,19 @@ describe("ProjectContentTabs", () => {
     await router.push({ query: { tab: tab.id } });
     await flushPromises();
     expect(element.classList.contains("attention-flash")).toBe(false);
+    wrapper.unmount();
+  });
+
+  it("falls back to No Project when the last tab closes", async () => {
+    const { wrapper } = await mountTabs();
+    const store = useContentTabsStore();
+    const projectStore = useProjectStore();
+    projectStore.setCurrentProject("some-other-project");
+    for (const tab of [...store.tabs]) store.close(tab.id, "");
+    await flushPromises();
+
+    expect(store.tabs).toHaveLength(0);
+    expect(projectStore.currentProjectId).toBe(TEMPORARY_WORKSPACE_PROJECT_ID);
     wrapper.unmount();
   });
 });

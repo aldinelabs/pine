@@ -13,6 +13,7 @@ import {
   watch,
 } from "vue";
 import { useI18n } from "vue-i18n";
+import { TEMPORARY_WORKSPACE_PROJECT_ID } from "@/shared/projects";
 import { handleError } from "@/app/errors/errorHandler";
 import { PineLogo } from "@/components/pine";
 import { Button } from "@/components/ui/button";
@@ -397,7 +398,15 @@ watch(
   },
   async () => {
     const tab = activeContentTab.value;
-    if (!tab) return;
+    if (!tab) {
+      // With no tab left, the sidebars fall back to No Project.
+      activationSequence += 1;
+      projectStore.setCurrentProject(TEMPORARY_WORKSPACE_PROJECT_ID);
+      void projectStore
+        .ensureOpen(TEMPORARY_WORKSPACE_PROJECT_ID)
+        .catch(() => undefined);
+      return;
+    }
     const sequence = ++activationSequence;
     projectStore.setCurrentProject(tab.projectId);
 

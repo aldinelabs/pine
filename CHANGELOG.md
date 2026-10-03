@@ -25,6 +25,7 @@ Starting with 0.4.4, release notes are written in both Chinese and English.
 
 ### 修复 / Fixed
 
+- 关闭最后一个标签页后，左侧栏和强调色会回到“无项目”，不再停留在刚关闭的标签页所属的项目。After the last tab closes, the sidebars and accent color return to No Project instead of staying on the closed tab's project.
 - 在文件栏中误拖动项目根目录并放下时，不再弹出“Cannot move or delete a project root”错误，操作会被直接忽略。Dropping a project's root folder after an accidental drag in the Files sidebar no longer shows a "Cannot move or delete a project root" error; the drop is simply ignored.
 
 ## [0.8.1] - 2026-10-02
