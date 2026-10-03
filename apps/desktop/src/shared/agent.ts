@@ -12,6 +12,8 @@ import type {
  * carries a raw path across the boundary.
  */
 export const UI_PRESENT_FILE_TOOL_NAME = "ui_present_file" as const;
+/** pi-vcc's session history search, available on the semantic compaction route. */
+export const VCC_RECALL_TOOL_NAME = "vcc_recall" as const;
 
 export const PROMPT_SESSION_CHANNEL = "sessions:prompt" as const;
 export const ABORT_SESSION_CHANNEL = "sessions:abort" as const;

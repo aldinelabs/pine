@@ -3,15 +3,15 @@ import type {
   ExtensionAPI,
   InlineExtension,
 } from "@earendil-works/pi-coding-agent";
-import { registerBeforeCompactHook } from "./pi-vcc.js";
+import { registerBeforeCompactHook, registerRecallTool } from "./pi-vcc.js";
 
 const PI_VCC_CONFIG_FILE = "pi-vcc-config.json";
-const RECALL_NOTE_SEPARATOR = "\n\n---\n\nUse `vcc_recall`";
 
 /**
- * pi-vcc's algorithmic compaction, active only while the semantic route is
- * selected. Only its compaction hook is registered: Pine does not expose the
- * `vcc_recall` tool or the `/pi-vcc` commands, and skips its settings scaffold.
+ * pi-vcc's algorithmic compaction and its `vcc_recall` tool. Compaction only
+ * runs while the semantic route is selected; the runtime activates the tool
+ * on the same condition. Pine skips pi-vcc's `/pi-vcc` commands and settings
+ * scaffold.
  */
 export function createSemanticCompactionExtension(options: {
   agentDir: string;
@@ -27,6 +27,7 @@ export function createSemanticCompactionExtension(options: {
         PI_VCC_CONFIG_FILE,
       );
       registerBeforeCompactHook(gateBeforeCompact(pi, options.isEnabled));
+      registerRecallTool(pi);
     },
   };
 }
@@ -39,8 +40,7 @@ function gateBeforeCompact(
     (pi.on as (event: string, handler: unknown) => void)(
       event,
       event === "session_before_compact"
-        ? async (...args: unknown[]) =>
-            isEnabled() ? withoutRecallNote(await handler(...args)) : undefined
+        ? (...args: unknown[]) => (isEnabled() ? handler(...args) : undefined)
         : handler,
     )) as ExtensionAPI["on"];
   return new Proxy(pi, {
@@ -50,17 +50,4 @@ function gateBeforeCompact(
       return typeof value === "function" ? value.bind(target) : value;
     },
   });
-}
-
-/** Pine does not expose `vcc_recall`, so drop the summary footer that names it. */
-function withoutRecallNote(result: unknown): unknown {
-  const compaction = (result as { compaction?: { summary?: unknown } })
-    ?.compaction;
-  if (typeof compaction?.summary !== "string") return result;
-  const index = compaction.summary.lastIndexOf(RECALL_NOTE_SEPARATOR);
-  if (index < 0) return result;
-  return {
-    ...(result as object),
-    compaction: { ...compaction, summary: compaction.summary.slice(0, index) },
-  };
 }

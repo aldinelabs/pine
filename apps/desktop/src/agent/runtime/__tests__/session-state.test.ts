@@ -1,6 +1,9 @@
 import type { SessionEntry } from "@earendil-works/pi-coding-agent";
 import { describe, expect, it } from "vitest";
-import { rewriteTargetEntryId } from "../session-state";
+import {
+  rewriteTargetEntryId,
+  toolNamesForCompactionRoute,
+} from "../session-state";
 
 function messageEntry(
   id: string,
@@ -52,5 +55,17 @@ describe("rewriteTargetEntryId", () => {
         userMessagesAfter: 2,
       }),
     ).toThrow();
+  });
+});
+
+describe("toolNamesForCompactionRoute", () => {
+  const tools = ["read", "vcc_recall", "bash"];
+
+  it("only exposes vcc_recall on the semantic route", () => {
+    expect(toolNamesForCompactionRoute(tools, "semantic")).toEqual(tools);
+    expect(toolNamesForCompactionRoute(tools, "model")).toEqual([
+      "read",
+      "bash",
+    ]);
   });
 });

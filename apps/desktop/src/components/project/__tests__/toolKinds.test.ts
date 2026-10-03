@@ -2,6 +2,7 @@ import {
   BookOpenIcon,
   ClapperboardIcon,
   EyeIcon,
+  HistoryIcon,
   MonitorCogIcon,
   PanelTopIcon,
   PlugIcon,
@@ -31,6 +32,11 @@ describe("Computer Use tool kinds", () => {
   it("uses a dedicated kind for presented files", () => {
     expect(toolKind("ui_present_file")).toBe("presentFile");
     expect(TOOL_KIND_ICON.presentFile).toBe(EyeIcon);
+  });
+
+  it("uses a dedicated kind for session history recall", () => {
+    expect(toolKind("vcc_recall")).toBe("recall");
+    expect(TOOL_KIND_ICON.recall).toBe(HistoryIcon);
   });
 
   it("recognizes adapter proxy, script, and namespaced MCP tools", () => {

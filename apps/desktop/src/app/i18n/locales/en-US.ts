@@ -710,6 +710,10 @@ export default {
           active: "Searching {count} times",
           complete: "Searched {count} times",
         },
+        recall: {
+          active: "Searching history {count} times",
+          complete: "Searched history {count} times",
+        },
         fetch: {
           active: "Fetching {count} web pages",
           complete: "Fetched {count} web pages",
@@ -753,6 +757,7 @@ export default {
         mcp: "MCP operation",
         read: "read",
         search: "search",
+        recall: "history search",
         fetch: "web fetch",
         presentFile: "present file",
         background: "background process",
@@ -1200,6 +1205,15 @@ export default {
           complete: { before: "Searched for ", after: "" },
           error: { before: "Couldn’t search for ", after: "" },
           running: { before: "Searching for ", after: "" },
+        },
+        recall: {
+          complete: { before: "Searched history for ", after: "" },
+          error: { before: "Couldn’t search history for ", after: "" },
+          running: { before: "Searching history for ", after: "" },
+        },
+        recallTargets: {
+          recent: "recent entries",
+          touched: "touched files",
         },
         fetch: {
           complete: { before: "Fetched ", after: "" },

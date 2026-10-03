@@ -745,6 +745,20 @@ function readRangeSuffix(input: Record<string, unknown>): string {
   return end === undefined ? `:${start}` : `:${start}-${end}`;
 }
 
+/** What a `vcc_recall` call looked up: its query, touched files, or entries. */
+function recallTarget(input: Record<string, unknown>): string {
+  const query = firstString(input, ["query"]);
+  if (query) return compactInline(query);
+  if (input.mode === "touched") {
+    return t("project.transcript.tools.recallTargets.touched");
+  }
+  const expand = Array.isArray(input.expand)
+    ? input.expand.filter((value) => typeof value === "number")
+    : [];
+  if (expand.length) return expand.map((index) => `#${index}`).join(", ");
+  return t("project.transcript.tools.recallTargets.recent");
+}
+
 /** Per-hunk tally of touched lines (streaming-safe). */
 function editDiff(
   input: Record<string, unknown>,
@@ -840,7 +854,9 @@ const presentation = computed(() => {
                     "")
                   : path
                     ? `${filename(path)}${suffix}`
-                    : props.toolCall.name;
+                    : kind === "recall"
+                      ? recallTarget(input)
+                      : props.toolCall.name;
   const targetMono =
     kind === "bash" ||
     kind === "read" ||

@@ -20,6 +20,7 @@ import {
 } from "pi-mcp-adapter";
 import { loadMcpConfig } from "pi-mcp-adapter/config";
 import {
+  VCC_RECALL_TOOL_NAME,
   type PineApprovalMode,
   type PineMessageRewriteTarget,
 } from "../shared/agent";
@@ -137,6 +138,7 @@ import {
   skillAuthoringActiveFromSessionEntries,
   textFromMessageContent,
   toolNamesForApprovalMode,
+  toolNamesForCompactionRoute,
   toolNamesForComputerUseState,
   toolNamesForMediaGenerationState,
   toolNamesForSkillAuthoringState,
@@ -709,6 +711,7 @@ export class PineAgentRuntime {
   } {
     for (const live of this.liveSessions.values()) {
       live.contextCompactionRoute = route;
+      this.syncApprovalModeTools(live);
     }
     return { updated: true };
   }
@@ -952,6 +955,7 @@ export class PineAgentRuntime {
       READ_SKILL_RESOURCE_TOOL_NAME,
       ACTIVATE_SKILL_AUTHORING_TOOL_NAME,
       ...SKILL_AUTHORING_DYNAMIC_TOOL_NAMES,
+      VCC_RECALL_TOOL_NAME,
     ];
 
     const { session } = await createAgentSession({
@@ -1070,7 +1074,10 @@ export class PineAgentRuntime {
       toolNamesForMediaGenerationState(
         toolNamesForComputerUseState(
           toolNamesForSkillAuthoringState(
-            [...live.availableToolNames, ...mcpToolNames],
+            toolNamesForCompactionRoute(
+              [...live.availableToolNames, ...mcpToolNames],
+              live.contextCompactionRoute,
+            ),
             live.skillAuthoringActive,
           ),
           live.computerUseActive,

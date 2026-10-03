@@ -5,10 +5,11 @@ import type {
 } from "@earendil-works/pi-coding-agent";
 import { createHash } from "node:crypto";
 import path from "node:path";
-import type {
-  PineAgentEvent,
-  PineApprovalMode,
-  PineMessageRewriteTarget,
+import {
+  VCC_RECALL_TOOL_NAME,
+  type PineAgentEvent,
+  type PineApprovalMode,
+  type PineMessageRewriteTarget,
 } from "../../shared/agent";
 import type { McpStatusSnapshot } from "pi-mcp-adapter";
 import type { PineProviderAuthEvent } from "../../shared/models";
@@ -172,6 +173,15 @@ export function toolNamesForApprovalMode(
     ...withoutBash.slice(insertionIndex),
   ];
   return tinyFishEnabled ? [...result, ...networkTools] : result;
+}
+
+/** `vcc_recall` searches pi-vcc summaries' history, so it follows the route. */
+export function toolNamesForCompactionRoute(
+  toolNames: readonly string[],
+  route: PineContextCompactionRoute,
+): string[] {
+  if (route === "semantic") return [...toolNames];
+  return toolNames.filter((name) => name !== VCC_RECALL_TOOL_NAME);
 }
 
 export function toolNamesForComputerUseState(

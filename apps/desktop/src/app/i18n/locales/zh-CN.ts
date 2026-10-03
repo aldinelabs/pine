@@ -675,6 +675,10 @@ export default {
           active: "正在搜索 {count} 次",
           complete: "搜索了 {count} 次",
         },
+        recall: {
+          active: "正在查找 {count} 次历史记录",
+          complete: "查找了 {count} 次历史记录",
+        },
         fetch: {
           active: "正在抓取 {count} 个网页",
           complete: "抓取了 {count} 个网页",
@@ -718,6 +722,7 @@ export default {
         mcp: "MCP 操作",
         read: "读取",
         search: "搜索",
+        recall: "历史记录查找",
         fetch: "网页抓取",
         presentFile: "打开文件",
         background: "后台进程",
@@ -1159,6 +1164,15 @@ export default {
           complete: { before: "已搜索 ", after: "" },
           error: { before: "搜索 ", after: " 失败" },
           running: { before: "正在搜索 ", after: "" },
+        },
+        recall: {
+          complete: { before: "已在历史记录中查找 ", after: "" },
+          error: { before: "在历史记录中查找 ", after: " 失败" },
+          running: { before: "正在历史记录中查找 ", after: "" },
+        },
+        recallTargets: {
+          recent: "最近的记录",
+          touched: "改动过的文件",
         },
         fetch: {
           complete: { before: "已抓取 ", after: "" },

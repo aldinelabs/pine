@@ -10,6 +10,7 @@ import {
   SquarePenIcon,
   Trash2Icon,
   WandSparklesIcon,
+  HistoryIcon,
 } from "@lucide/vue";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { nextTick } from "vue";
@@ -616,6 +617,41 @@ describe("project transcript markers", () => {
       toolCall: { ...wrapper.props("toolCall"), status: "complete" },
     });
     expect(content.text()).toBe("已打开 quarterly.md");
+  });
+
+  it("describes history recall calls by what they looked up", async () => {
+    const wrapper = mount(ProjectToolCallMarker, {
+      props: {
+        toolCall: {
+          id: "tool-recall",
+          input: { query: "auth token" },
+          name: "vcc_recall",
+          status: "running",
+        },
+      },
+      global: { plugins: [createAppI18n("zh-CN")] },
+    });
+
+    const content = wrapper.get('[data-slot="marker-content"]');
+    expect(content.text()).toContain("正在历史记录中查找");
+    expect(content.text()).toContain("auth token");
+    expect(content.text()).not.toContain("vcc_recall");
+    expect(wrapper.findComponent(HistoryIcon).exists()).toBe(true);
+
+    await wrapper.setProps({
+      toolCall: {
+        ...wrapper.props("toolCall"),
+        input: { mode: "touched" },
+        status: "complete",
+      },
+    });
+    expect(content.text()).toContain("已在历史记录中查找");
+    expect(content.text()).toContain("改动过的文件");
+
+    await wrapper.setProps({
+      toolCall: { ...wrapper.props("toolCall"), input: { expand: [3, 7] } },
+    });
+    expect(content.text()).toContain("#3, #7");
   });
 
   it("describes todo calls by their task", async () => {
