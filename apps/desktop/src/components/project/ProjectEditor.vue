@@ -54,6 +54,7 @@ const props = withDefaults(defineProps<Props>(), {
 });
 const emit = defineEmits<{
   cancel: [];
+  delete: [];
   submit: [input: ProjectMutationInput];
 }>();
 const { t } = useI18n();
@@ -432,6 +433,18 @@ watch(() => props.project, reset, { immediate: true });
     </ScrollArea>
 
     <DialogFooter class="shrink-0 px-6 py-4">
+      <Button
+        v-if="project"
+        data-action="delete-project"
+        type="button"
+        variant="ghost"
+        class="mr-auto text-destructive hover:text-destructive"
+        :disabled="isSaving"
+        @click="emit('delete')"
+      >
+        <Trash2 data-icon="inline-start" />
+        {{ t("projects.deleteAction") }}
+      </Button>
       <Button type="button" variant="outline" @click="emit('cancel')">
         {{ t("common.cancel") }}
       </Button>

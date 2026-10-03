@@ -30,6 +30,16 @@ function mountEditor(value: PineProject | null = project) {
 }
 
 describe("ProjectEditor", () => {
+  it("offers deletion only when editing an existing project", async () => {
+    const wrapper = mountEditor();
+    await wrapper.get('[data-action="delete-project"]').trigger("click");
+    expect(wrapper.emitted("delete")).toHaveLength(1);
+
+    expect(
+      mountEditor(null).find('[data-action="delete-project"]').exists(),
+    ).toBe(false);
+  });
+
   it("renders the selected default folder without editable controls", async () => {
     const wrapper = mountEditor({
       ...project,

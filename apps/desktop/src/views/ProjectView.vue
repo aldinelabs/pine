@@ -55,8 +55,8 @@ async function loadProjects(): Promise<void> {
   } catch (error) {
     handleError(error, {
       id: "project.list",
-      title: t("errors.projectOpen.title"),
-      description: t("errors.projectOpen.description"),
+      title: t("errors.projectList.title"),
+      description: t("errors.projectList.description"),
     });
     return;
   }

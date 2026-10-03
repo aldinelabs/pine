@@ -1,6 +1,17 @@
 <script setup lang="ts">
+import { ref } from "vue";
 import { useI18n } from "vue-i18n";
 import { handleError } from "@/app/errors/errorHandler";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import {
   Dialog,
   DialogContent,
@@ -19,8 +30,10 @@ interface Props {
 const props = withDefaults(defineProps<Props>(), { project: null });
 const open = defineModel<boolean>("open", { default: false });
 const emit = defineEmits<{
+  deleted: [projectId: string];
   saved: [project: PineProject];
 }>();
+const isDeleteConfirmOpen = ref(false);
 const { t } = useI18n();
 const projectStore = useProjectStore();
 
@@ -47,6 +60,23 @@ async function save(input: ProjectMutationInput): Promise<void> {
     });
   }
 }
+/** Deleting closes the project's tabs and removes only Pine's own data. */
+async function deleteProject(): Promise<void> {
+  const project = props.project;
+  if (!project) return;
+  isDeleteConfirmOpen.value = false;
+  try {
+    await projectStore.deleteProject(project.id);
+    open.value = false;
+    emit("deleted", project.id);
+  } catch (error) {
+    handleError(error, {
+      id: `project.delete.${project.id}`,
+      title: t("errors.projectDelete.title"),
+      description: t("errors.projectDelete.description"),
+    });
+  }
+}
 </script>
 
 <template>
@@ -67,8 +97,31 @@ async function save(input: ProjectMutationInput): Promise<void> {
         :project="project"
         :is-saving="projectStore.isSavingProject"
         @cancel="open = false"
+        @delete="isDeleteConfirmOpen = true"
         @submit="save"
       />
     </DialogContent>
   </Dialog>
+
+  <AlertDialog v-model:open="isDeleteConfirmOpen">
+    <AlertDialogContent>
+      <AlertDialogHeader>
+        <AlertDialogTitle>{{ t("projects.deleteTitle") }}</AlertDialogTitle>
+        <AlertDialogDescription>
+          {{ t("projects.deleteDescription", { name: project?.name ?? "" }) }}
+        </AlertDialogDescription>
+      </AlertDialogHeader>
+      <AlertDialogFooter>
+        <AlertDialogCancel>{{ t("common.cancel") }}</AlertDialogCancel>
+        <AlertDialogAction
+          data-action="confirm-delete-project"
+          variant="destructive"
+          :disabled="projectStore.isSavingProject"
+          @click="deleteProject"
+        >
+          {{ t("common.delete") }}
+        </AlertDialogAction>
+      </AlertDialogFooter>
+    </AlertDialogContent>
+  </AlertDialog>
 </template>
