@@ -1,4 +1,5 @@
 import {
+  AtSignIcon,
   BookOpenIcon,
   BotIcon,
   BrainIcon,
@@ -74,10 +75,14 @@ export const PROJECT_ICON_COMPONENTS: Record<ProjectIcon, Component> = {
   sparkles: SparklesIcon,
 };
 
-/** The icon a project shows; "No Project" always keeps the default. */
+/**
+ * The icon a project shows. No Project shows "@", the key that chooses a
+ * project in the composer.
+ */
 export function projectIconComponent(
   project: Pick<PineProject, "id" | "projectIcon"> | null | undefined,
 ): Component {
-  if (!project || isTemporaryWorkspace(project.id)) return InboxIcon;
+  if (!project) return InboxIcon;
+  if (isTemporaryWorkspace(project.id)) return AtSignIcon;
   return PROJECT_ICON_COMPONENTS[project.projectIcon ?? "inbox"] ?? InboxIcon;
 }

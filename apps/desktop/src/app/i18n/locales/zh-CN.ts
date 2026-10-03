@@ -567,6 +567,7 @@ export default {
       sendTo: "发送到 {name}",
       sendToLabel: "选择新会话所在的项目",
       chooseProjectLabel: "项目",
+      chooseProjectPlaceholder: "输入项目名称……",
       chooseProjectHint: "选择",
       skipProjectHint: "关闭",
       noProjectMatches: "没有匹配的项目",

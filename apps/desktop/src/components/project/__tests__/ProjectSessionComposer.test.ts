@@ -144,7 +144,7 @@ function optionNames(): string[] {
 }
 
 describe("ProjectSessionComposer", () => {
-  it("suggests projects only for a draft message that starts with @", async () => {
+  it("turns a leading @ into project suggestions and chooses with Enter", async () => {
     const { wrapper, input, ensureOpen } = await mountChooser();
     expect(input.attributes("placeholder")).toBe(
       "描述任务，或输入 @ 选择项目……",
@@ -152,15 +152,26 @@ describe("ProjectSessionComposer", () => {
     await input.setValue("hello @pine");
     expect(input.attributes("role")).toBeUndefined();
     expect(optionNames()).toEqual([]);
+    await input.setValue("");
 
     await input.setValue("@");
+    await flushPromises();
+    // The "@" becomes the input's icon instead of text.
+    expect((input.element as HTMLTextAreaElement).value).toBe("");
     expect(input.attributes("role")).toBe("combobox");
+    expect(input.attributes("placeholder")).toBe("输入项目名称……");
+    expect(wrapper.find('[data-slot="project-chooser-chip"]').exists()).toBe(
+      true,
+    );
     expect(optionNames()).toEqual(["无项目", "Courses", "Pine", "Recipes"]);
-    await input.setValue("@pe");
+    await input.setValue("pe");
     // Names starting with the query come before names containing it.
     expect(optionNames()).toEqual(["Recipes"]);
-    await input.setValue("@p");
+    await input.setValue("p");
     expect(optionNames()).toEqual(["Pine", "Recipes"]);
+    expect(
+      wrapper.get('button[aria-label="发送消息"]').attributes("disabled"),
+    ).toBeDefined();
     await input.trigger("keydown", { key: "ArrowDown" });
     await input.trigger("keydown", { key: "Enter" });
     await flushPromises();
@@ -168,24 +179,33 @@ describe("ProjectSessionComposer", () => {
     expect(ensureOpen).toHaveBeenCalledWith("recipes");
     expect(wrapper.emitted("selectProject")).toEqual([["recipes"]]);
     expect(wrapper.emitted("submit")).toBeUndefined();
-    // The mention is cleared rather than sent.
     expect(wrapper.emitted("update:modelValue")?.at(-1)).toEqual([""]);
+    expect(input.attributes("role")).toBeUndefined();
     wrapper.unmount();
   });
 
-  it("sends an unmatched @ message and closes suggestions with Escape", async () => {
+  it("leaves project suggestions with Escape or Backspace and never sends a name", async () => {
     const { wrapper, input } = await mountChooser();
-    await input.setValue("@pi");
-    await input.trigger("keydown", { key: "Escape" });
-    expect(optionNames()).toEqual([]);
-    expect(wrapper.emitted("selectProject")).toBeUndefined();
-
-    await input.setValue("@zzz");
+    await input.setValue("@");
+    await flushPromises();
+    await input.setValue("zzz");
     expect(document.body.textContent).toContain("没有匹配的项目");
     await input.trigger("keydown", { key: "Enter" });
     await flushPromises();
     expect(wrapper.emitted("selectProject")).toBeUndefined();
-    expect(wrapper.emitted("submit")).toEqual([["@zzz"]]);
+    expect(wrapper.emitted("submit")).toBeUndefined();
+
+    // Escape keeps the text as the message.
+    await input.trigger("keydown", { key: "Escape" });
+    expect(input.attributes("role")).toBeUndefined();
+    expect((input.element as HTMLTextAreaElement).value).toBe("zzz");
+
+    await input.setValue("");
+    await input.setValue("@");
+    await flushPromises();
+    expect(input.attributes("role")).toBe("combobox");
+    await input.trigger("keydown", { key: "Backspace" });
+    expect(input.attributes("role")).toBeUndefined();
     wrapper.unmount();
   });
 

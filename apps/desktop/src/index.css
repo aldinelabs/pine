@@ -527,3 +527,11 @@ html.sidebar-vibrancy [data-slot="alert-dialog-overlay"] {
     cursor: pointer;
   }
 }
+
+/* A draft's project chip moving from the input to the project picker. */
+::view-transition-group(pine-draft-project),
+::view-transition-old(pine-draft-project),
+::view-transition-new(pine-draft-project) {
+  animation-duration: 500ms;
+  animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+}

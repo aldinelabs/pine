@@ -596,6 +596,7 @@ export default {
       sendTo: "Send to {name}",
       sendToLabel: "Choose the project for this session",
       chooseProjectLabel: "Projects",
+      chooseProjectPlaceholder: "Type a project name…",
       chooseProjectHint: "choose",
       skipProjectHint: "close",
       noProjectMatches: "No matching projects",
