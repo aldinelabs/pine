@@ -230,7 +230,7 @@ watch(() => props.project, reset, { immediate: true });
 <template>
   <form class="flex min-h-0 flex-col" @submit.prevent="submit">
     <ScrollArea class="min-h-0 flex-1">
-      <FieldGroup class="gap-5 px-6 py-5">
+      <FieldGroup class="gap-5 px-6 py-2">
         <Field>
           <FieldLabel for="project-name">
             {{ t("projects.editor.nameLabel") }}
@@ -494,13 +494,13 @@ watch(() => props.project, reset, { immediate: true });
       </FieldGroup>
     </ScrollArea>
 
-    <DialogFooter class="shrink-0 px-6 py-4">
+    <DialogFooter class="shrink-0 px-6 pt-4 pb-6">
       <Button
         v-if="project"
         data-action="delete-project"
         type="button"
-        variant="ghost"
-        class="mr-auto text-destructive hover:text-destructive"
+        variant="destructive"
+        class="mr-auto"
         :disabled="isSaving"
         @click="emit('delete')"
       >
