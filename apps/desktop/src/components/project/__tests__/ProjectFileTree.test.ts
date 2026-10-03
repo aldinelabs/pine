@@ -729,5 +729,20 @@ describe("ProjectFileTree", () => {
     });
     await flushPromises();
     expect(operateProjectFile).not.toHaveBeenCalled();
+
+    // Nor is dropping a folder onto itself.
+    data.set(
+      PROJECT_ENTRY_DRAG_TYPE,
+      JSON.stringify([{ folderId, projectId: "p1", relativePath: "docs" }]),
+    );
+    await target.trigger("drop", {
+      dataTransfer: {
+        types: [PROJECT_ENTRY_DRAG_TYPE],
+        getData: (type: string) => data.get(type) ?? "",
+        files: [],
+      },
+    });
+    await flushPromises();
+    expect(operateProjectFile).not.toHaveBeenCalled();
   });
 });

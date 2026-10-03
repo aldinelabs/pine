@@ -670,9 +670,18 @@ async function drop(event: DragEvent, node: ProjectTreeNode): Promise<void> {
   try {
     const dragged = readProjectEntryDrag(event.dataTransfer);
     // A project root cannot be moved; dropping it somewhere does nothing.
-    const sources = dragged?.filter((source) => source.relativePath !== "");
-    if (dragged && !sources?.length) return;
     const target = reference(node);
+    // Nor can a folder move into itself or one of its own subfolders.
+    const sources = dragged?.filter(
+      (source) =>
+        source.relativePath !== "" &&
+        !(
+          source.folderId === target.folderId &&
+          (target.relativePath === source.relativePath ||
+            target.relativePath.startsWith(`${source.relativePath}/`))
+        ),
+    );
+    if (dragged && !sources?.length) return;
     const paths = sources ? [] : externalFilePaths(event.dataTransfer);
     if (!sources && !paths.length) return;
     if (!expanded.value.includes(nodeKey(node)))
