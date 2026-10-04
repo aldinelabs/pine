@@ -602,7 +602,7 @@ export default {
       noProjectMatches: "No matching projects",
       label: "Session message",
       placeholder: "Describe a task or clarify what you need…",
-      draftPlaceholder: "Describe a task, or type {'@'} to choose a project…",
+      draftPlaceholder: "Describe a task, or type {'@'} to choose a project",
       steeringPlaceholder: "Add requirements or change direction…",
       addAttachment: "Add attachment",
       addFile: "Add file",

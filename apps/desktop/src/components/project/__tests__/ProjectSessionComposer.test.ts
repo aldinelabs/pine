@@ -146,9 +146,7 @@ function optionNames(): string[] {
 describe("ProjectSessionComposer", () => {
   it("turns a leading @ into project suggestions and chooses with Enter", async () => {
     const { wrapper, input, ensureOpen } = await mountChooser();
-    expect(input.attributes("placeholder")).toBe(
-      "描述任务，或输入 @ 选择项目……",
-    );
+    expect(input.attributes("placeholder")).toBe("描述任务，或输入 @ 选择项目");
     await input.setValue("hello @pine");
     expect(input.attributes("role")).toBeUndefined();
     expect(optionNames()).toEqual([]);

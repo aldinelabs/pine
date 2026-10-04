@@ -573,7 +573,7 @@ export default {
       noProjectMatches: "没有匹配的项目",
       label: "会话消息",
       placeholder: "描述任务、明确需求……",
-      draftPlaceholder: "描述任务，或输入 {'@'} 选择项目……",
+      draftPlaceholder: "描述任务，或输入 {'@'} 选择项目",
       steeringPlaceholder: "追加要求、改变方向……",
       addAttachment: "添加附件",
       addFile: "添加文件",
