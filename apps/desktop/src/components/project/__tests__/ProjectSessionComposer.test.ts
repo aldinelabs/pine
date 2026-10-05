@@ -207,33 +207,39 @@ describe("ProjectSessionComposer", () => {
     wrapper.unmount();
   });
 
-  it("sends Shift+Tab to the prompt when nothing is focused", () => {
+  it("focuses the prompt with Cmd+L or Ctrl+L", () => {
     const wrapper = mountComposer({ isActive: true });
     const textarea = wrapper.find("textarea").element;
-    (document.activeElement as HTMLElement | null)?.blur();
+    const button = wrapper.find("button").element;
+    button.focus();
     const tab = new KeyboardEvent("keydown", { key: "Tab", cancelable: true });
     window.dispatchEvent(tab);
     expect(tab.defaultPrevented).toBe(false);
-    expect(document.activeElement).not.toBe(textarea);
 
-    const shiftTab = new KeyboardEvent("keydown", {
-      key: "Tab",
-      shiftKey: true,
+    const cmdL = new KeyboardEvent("keydown", {
+      key: "l",
+      metaKey: true,
       cancelable: true,
     });
-    window.dispatchEvent(shiftTab);
-    expect(shiftTab.defaultPrevented).toBe(true);
+    window.dispatchEvent(cmdL);
+    expect(cmdL.defaultPrevented).toBe(true);
     expect(document.activeElement).toBe(textarea);
 
+    button.focus();
+    window.dispatchEvent(
+      new KeyboardEvent("keydown", { key: "l", ctrlKey: true }),
+    );
+    expect(document.activeElement).toBe(textarea);
+    wrapper.unmount();
+  });
+
+  it("ignores Cmd+L in a hidden tab", () => {
+    const wrapper = mountComposer({ isActive: false });
     const button = wrapper.find("button").element;
     button.focus();
-    const next = new KeyboardEvent("keydown", {
-      key: "Tab",
-      shiftKey: true,
-      cancelable: true,
-    });
-    window.dispatchEvent(next);
-    expect(next.defaultPrevented).toBe(false);
+    window.dispatchEvent(
+      new KeyboardEvent("keydown", { key: "l", metaKey: true }),
+    );
     expect(document.activeElement).toBe(button);
     wrapper.unmount();
   });

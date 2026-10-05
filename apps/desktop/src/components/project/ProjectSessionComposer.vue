@@ -255,21 +255,17 @@ function confirmYoloMode(): void {
 
 onMounted(() => void modelsStore.load());
 
-// With nothing focused yet, Shift+Tab lands in the prompt rather than at the
-// end of the window's tab order; Tab keeps its usual order.
+// ⌘L / Ctrl+L jumps to the prompt from anywhere on the page.
 useEventListener(window, "keydown", (event: KeyboardEvent) => {
   if (
     !props.isActive ||
-    event.key !== "Tab" ||
-    !event.shiftKey ||
+    event.key.toLowerCase() !== "l" ||
+    !(event.metaKey || event.ctrlKey) ||
+    event.shiftKey ||
     event.altKey ||
-    event.ctrlKey ||
-    event.metaKey ||
     event.defaultPrevented
   )
     return;
-  const focused = document.activeElement;
-  if (focused && focused !== document.body) return;
   const input = document.getElementById(messageId);
   if (!(input instanceof HTMLTextAreaElement)) return;
   event.preventDefault();
