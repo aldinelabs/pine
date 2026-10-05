@@ -1,7 +1,7 @@
 {
   "name": "@pine/desktop",
   "productName": "Pine",
-  "version": "0.8.1",
+  "version": "0.10.0",
   "description": "Pine desktop client",
   "main": ".vite/build/main.js",
   "private": true,

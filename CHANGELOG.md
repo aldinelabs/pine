@@ -9,6 +9,8 @@ Every release section here has a matching section in the Chinese changelog.
 
 ## [Unreleased]
 
+## [0.10.0] - 2026-10-05
+
 ### Added
 
 - Pine now opens straight into the workspace instead of a project list. A new session picks its project from the project picker beside the send button. No Project keeps work that belongs to no project in Pine's data directory and cannot be renamed, edited, or deleted.
@@ -21,12 +23,17 @@ Every release section here has a matching section in the Chinese changelog.
 - Files, folders, or sessions from the sidebar can be dragged onto a session tab at the top to attach them to that session's input and switch to the tab.
 - No Project's sidebar opens on Sessions and lists recent sessions from every project, each labelled with its project; clicking one opens it in that project. Session groups are not available in No Project.
 - Settings now include Projects: every project in one list, where you can create and edit projects, see how much space Pine uses for each project's sessions, temporary files, attachments, and search cache, and clear temporary files or attachments.
+- Preferences now include Signal when work is done (on by default): when a session stops on its own, a desktop notification shows the session title and the final reply, and the Dock icon bounces once on macOS or the taskbar button flashes on Windows. Approval and question requests notify too, and the Dock icon keeps bouncing until you return to Pine.
+- Shell commands (bash / privileged_bash) that run longer than 60 seconds no longer keep you waiting: they keep running in the background, the agent immediately gets the task ID and recent output and continues when the command finishes, and you can follow the log or stop it from the right sidebar. Commands with an explicit timeout are still killed when it expires.
 
 ### Changed
 
 - For projects with a single folder (including No Project), the Files sidebar lists its files and subfolders directly without an extra root row; projects with additional context folders look as before.
 - Deleting a project now happens in the project settings dialog.
 - After updating, tabs previously open in each project are not restored; the workspace starts with a new session.
+- When your time zone or system language suggests mainland China, the agent notes that default package registries may be slow and asks you once before switching to domestic mirrors, preferring per-command mirror options over editing configuration files.
+- The update dialog shows release notes in the interface language.
+- The task graph shows the in-progress task as a small spinning loader, and nodes at the graph's edges are no longer clipped.
 
 ### Fixed
 
@@ -34,6 +41,8 @@ Every release section here has a matching section in the Chinese changelog.
 - ⌘W / Ctrl+W closes the current tab again, and ⌘T / Ctrl+T opens a new session again; ⌘W closes the window only when no tabs are left.
 - After the last tab closes, the sidebars and accent color return to No Project instead of staying on the closed tab's project.
 - Dropping a project's root folder, or a folder onto itself or its own subfolder, after an accidental drag in the Files sidebar no longer shows a "Cannot move…" error; the drop is simply ignored.
+- Commands run by the agent no longer hang until a timeout on credential, SSH host key, pager, or confirmation prompts.
+- The focus ring on the custom answer field of a question card stays visible.
 
 ## [0.8.1] - 2026-10-02
 
