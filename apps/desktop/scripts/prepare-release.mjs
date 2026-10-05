@@ -2,7 +2,10 @@ import { execFileSync } from "node:child_process";
 import { appendFileSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import {
+  CHANGELOG_FILES,
   extractChangelogSection,
+  extractReleaseChangelogs,
+  formatBilingualChangelog,
   isReleaseVersion,
 } from "../src/release/changelog.ts";
 
@@ -49,28 +52,37 @@ if (collidingTags.length > 0) {
 }
 
 const previousTag = releases[0]?.tag_name ?? "";
-const changelogPath = join(repositoryRoot, "CHANGELOG.md");
-const changelog = readFileSync(changelogPath, "utf8");
-const section = extractChangelogSection(changelog, version);
+const changelogs = extractReleaseChangelogs(
+  Object.fromEntries(
+    Object.entries(CHANGELOG_FILES).map(([locale, file]) => [
+      locale,
+      readFileSync(join(repositoryRoot, file), "utf8"),
+    ]),
+  ),
+  version,
+);
 
 if (previousTag) {
-  try {
-    const previousChangelog = execFileSync(
-      "git",
-      ["show", `${previousTag}:CHANGELOG.md`],
-      { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] },
-    );
+  for (const file of Object.values(CHANGELOG_FILES)) {
+    let previousChangelog;
     try {
-      extractChangelogSection(previousChangelog, version);
-      throw new Error(
-        `CHANGELOG.md section ${version} already existed at ${previousTag}`,
+      previousChangelog = execFileSync(
+        "git",
+        ["show", `${previousTag}:${file}`],
+        { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] },
       );
-    } catch (error) {
-      if (!String(error).includes("has no release section")) throw error;
+    } catch {
+      continue;
     }
-  } catch (error) {
-    if (String(error).includes(`already existed at ${previousTag}`))
-      throw error;
+    try {
+      extractChangelogSection(previousChangelog, version, file);
+    } catch {
+      // No dated section for this version yet: it was not released before.
+      continue;
+    }
+    throw new Error(
+      `${file} section ${version} already existed at ${previousTag}`,
+    );
   }
 }
 
@@ -115,7 +127,7 @@ const compareUrl = previousTag
   ? `https://github.com/${repository}/compare/${encodeURIComponent(previousTag)}...${encodeURIComponent(tag)}`
   : "";
 const notes = [
-  section.body,
+  formatBilingualChangelog(changelogs),
   "",
   "---",
   "",
@@ -175,9 +187,9 @@ if (r2Enabled) {
 
 const runnerTemp = process.env.RUNNER_TEMP ?? join(repositoryRoot, ".tmp");
 const notesFile = join(runnerTemp, "release-notes.md");
-const changelogFile = join(runnerTemp, "release-changelog.md");
+const changelogFile = join(runnerTemp, "release-changelogs.json");
 writeFileSync(notesFile, `${notes}\n`);
-writeFileSync(changelogFile, `${section.body}\n`);
+writeFileSync(changelogFile, `${JSON.stringify(changelogs, null, 2)}\n`);
 
 const outputPath = process.env.GITHUB_OUTPUT;
 if (!outputPath) throw new Error("GITHUB_OUTPUT is required");

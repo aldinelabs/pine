@@ -7,6 +7,7 @@ import {
   writeFileSync,
 } from "node:fs";
 import path from "node:path";
+import { formatBilingualChangelog } from "../src/release/changelog.ts";
 
 function required(name) {
   const value = process.env[name];
@@ -25,7 +26,7 @@ const version = required("RELEASE_VERSION");
 const internalVersion = required("INTERNAL_VERSION");
 const publicBaseUrl = required("R2_PUBLIC_BASE_URL").replace(/\/$/, "");
 const prefix = process.env.R2_PREFIX ?? "";
-const changelog = readFileSync(required("CHANGELOG_FILE"), "utf8").trim();
+const changelogs = JSON.parse(readFileSync(required("CHANGELOG_FILE"), "utf8"));
 const files = readdirSync(assetsDirectory);
 const assets = {};
 
@@ -59,7 +60,9 @@ const manifest = {
   version,
   internalVersion,
   publishedAt: new Date().toISOString(),
-  changelog,
+  // Versions before per-language changelogs read only this field.
+  changelog: formatBilingualChangelog(changelogs),
+  changelogs,
   assets,
 };
 writeFileSync(

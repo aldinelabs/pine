@@ -127,7 +127,7 @@ jobs:
         if: needs.precheck.outputs.r2_enabled == 'true'
         env:
           ASSETS_DIRECTORY: release-assets
-          CHANGELOG_FILE: release-metadata/release-changelog.md
+          CHANGELOG_FILE: release-metadata/release-changelogs.json
           INTERNAL_VERSION: ${{ needs.precheck.outputs.short_sha }}
           R2_PREFIX: ${{ needs.precheck.outputs.r2_prefix }}
           R2_PUBLIC_BASE_URL: ${{ needs.precheck.outputs.r2_public_base_url }}

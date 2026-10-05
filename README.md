@@ -96,8 +96,9 @@ Windows 首次使用受限 Agent 工具前，在“设置 → 通用 → Windows
 ### 发布
 
 正式版本以 `apps/desktop/package.json` 的 SemVer 版本为准。发布前在
-[`CHANGELOG.md`](./CHANGELOG.md) 添加同版本、带日期的章节，然后手动运行 GitHub
-Actions 的 `release` workflow。预检会拒绝已被任一 GitHub Release 使用的版本；
+[`CHANGELOG.zh-CN.md`](./CHANGELOG.zh-CN.md)（中文）和 [`CHANGELOG.md`](./CHANGELOG.md)（英文）
+各添加同版本、同日期、条目一一对应的章节，然后手动运行 GitHub Actions 的 `release`
+workflow。Release 正文先列中文、再列英文；`update.json` 同时带两种语言，应用内更新提示按界面语言显示。预检会拒绝已被任一 GitHub Release 使用的版本；
 安装包名称同时包含外部版本和构建 commit 的七位短 hash。
 
 可选的 Cloudflare R2 latest 镜像在 [`.pine/release.json`](./.pine/release.json)
