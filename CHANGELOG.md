@@ -38,10 +38,7 @@ Every release section here has a matching section in the Chinese changelog.
 
 ### Fixed
 
-- Switching to a project with an accent color no longer stutters; it is as fast as switching to one with the default colors.
-- ⌘W / Ctrl+W closes the current tab again, and ⌘T / Ctrl+T opens a new session again; ⌘W closes the window only when no tabs are left.
-- After the last tab closes, the sidebars and accent color return to No Project instead of staying on the closed tab's project.
-- Dropping a project's root folder, or a folder onto itself or its own subfolder, after an accidental drag in the Files sidebar no longer shows a "Cannot move…" error; the drop is simply ignored.
+- Dropping a folder onto itself or its own subfolder in the Files sidebar no longer shows a "Cannot move…" error; the drop is simply ignored.
 - Commands run by the agent no longer hang until a timeout on credential, SSH host key, pager, or confirmation prompts.
 - The focus ring on the custom answer field of a question card stays visible.
 
