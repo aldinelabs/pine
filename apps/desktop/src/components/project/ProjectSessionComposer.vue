@@ -850,7 +850,7 @@ function handleRootSubmit(event: Event): void {
           side="top"
           align="start"
           :side-offset="8"
-          class="w-72 p-1"
+          class="w-72 p-1.5"
           @open-auto-focus.prevent
           @close-auto-focus.prevent
         >

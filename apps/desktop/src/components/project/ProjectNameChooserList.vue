@@ -29,7 +29,7 @@ defineExpose({ optionId });
 </script>
 
 <template>
-  <div class="flex flex-col gap-1">
+  <div class="flex flex-col gap-1.5">
     <div
       :id="props.listId"
       role="listbox"
@@ -44,7 +44,7 @@ defineExpose({ optionId });
         data-slot="project-name-option"
         :aria-selected="index === props.highlighted"
         :data-highlighted="index === props.highlighted ? '' : undefined"
-        class="relative flex min-h-7 cursor-default items-center gap-2 rounded-xl px-2 py-1.5 text-sm outline-hidden select-none data-highlighted:bg-muted data-highlighted:text-foreground [&_svg:not([class*=size-])]:size-4 [&_svg]:shrink-0"
+        class="relative flex cursor-default items-center gap-2.5 rounded-2xl px-3 py-2 text-sm outline-hidden select-none data-highlighted:bg-accent data-highlighted:text-accent-foreground [&_svg:not([class*=size-])]:size-4 [&_svg]:shrink-0"
         @mousedown.prevent
         @mousemove="emit('highlight', index)"
         @click="emit('select', project)"
@@ -60,7 +60,7 @@ defineExpose({ optionId });
       </p>
     </div>
     <p
-      class="flex items-center gap-3 border-t px-2 pt-1.5 text-xs text-muted-foreground"
+      class="flex items-center gap-3 border-t px-3 pt-1.5 pb-0.5 text-xs text-muted-foreground"
     >
       <span class="flex items-center gap-1">
         <Kbd>↵</Kbd>{{ t("project.composer.chooseProjectHint") }}
