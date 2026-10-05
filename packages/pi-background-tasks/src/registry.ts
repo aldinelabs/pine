@@ -42,6 +42,17 @@ export interface StartBackgroundTaskOptions {
   privileged?: boolean;
 }
 
+/** A running command handed to `adopt`. */
+export interface AdoptedProcess {
+  /** Settles when the process ends; rejects when it was aborted. */
+  run: Promise<{ exitCode: number | null }>;
+  /** Aborting it stops the process. */
+  controller: AbortController;
+  /** Output produced before the handover. */
+  output: Buffer;
+  startTime: number;
+}
+
 export interface BackgroundTaskRegistryOptions {
   cwd: string;
   /** Directory for the task output files. */
@@ -154,6 +165,52 @@ export class BackgroundTaskRegistry {
     command: string,
     options: StartBackgroundTaskOptions = {},
   ): Promise<BackgroundTaskSnapshot> {
+    const task = await this.createTask(command, options);
+    let run: Promise<{ exitCode: number | null }>;
+    try {
+      run = this.options
+        .executor(task.privileged)
+        .exec(task.command, this.options.cwd, {
+          onData: (data) => this.append(task, data),
+          signal: task.controller.signal,
+        });
+    } catch (error) {
+      run = Promise.reject(
+        error instanceof Error ? error : new Error(String(error)),
+      );
+    }
+    this.track(task, run);
+    return snapshot(task);
+  }
+
+  /**
+   * Take over a command that is already running, such as a foreground shell
+   * call that outlived its wait. The caller keeps the process: it routes the
+   * remaining output through `append`, and aborting `controller` must stop it.
+   * Output captured before the handover is written first.
+   */
+  async adopt(
+    command: string,
+    adopted: AdoptedProcess,
+    options: StartBackgroundTaskOptions = {},
+  ): Promise<{
+    snapshot: BackgroundTaskSnapshot;
+    append: (data: Buffer) => void;
+  }> {
+    const task = await this.createTask(command, options, adopted);
+    this.append(task, adopted.output);
+    this.track(task, adopted.run);
+    return {
+      snapshot: snapshot(task),
+      append: (data) => this.append(task, data),
+    };
+  }
+
+  private async createTask(
+    command: string,
+    options: StartBackgroundTaskOptions,
+    adopted?: Pick<AdoptedProcess, "controller" | "startTime">,
+  ): Promise<BackgroundTask> {
     const normalizedCommand = command.trim();
     if (!normalizedCommand) throw new Error("Background command is empty");
     this.assertOpen();
@@ -185,14 +242,14 @@ export class BackgroundTaskRegistry {
       status: "running",
       outputPath,
       cwd: this.options.cwd,
-      startTime: this.now(),
+      startTime: adopted?.startTime ?? this.now(),
       bytesWritten: 0,
       notified: false,
       notifyOnCompletion: options.notifyOnCompletion ?? true,
       triggerOnCompletion: options.triggerOnCompletion ?? false,
       ...(timeoutSeconds !== undefined ? { timeoutSeconds } : {}),
       privileged: options.privileged === true,
-      controller: new AbortController(),
+      controller: adopted?.controller ?? new AbortController(),
       stream: createWriteStream(outputPath, { flags: "a" }),
       finalized: false,
       done,
@@ -203,25 +260,20 @@ export class BackgroundTaskRegistry {
       this.kill(task, "output_cap");
     });
     this.tasks.set(id, task);
+    return task;
+  }
 
-    let run: Promise<{ exitCode: number | null }>;
-    try {
-      run = this.options
-        .executor(task.privileged)
-        .exec(normalizedCommand, this.options.cwd, {
-          onData: (data) => this.append(task, data),
-          signal: task.controller.signal,
-        });
-    } catch (error) {
-      run = Promise.reject(
-        error instanceof Error ? error : new Error(String(error)),
-      );
-    }
+  /** Settle the task when its run ends, and enforce its timeout. */
+  private track(
+    task: BackgroundTask,
+    run: Promise<{ exitCode: number | null }>,
+  ): void {
     void run.then(
       ({ exitCode }) => this.settle(task, exitCode),
       (error: unknown) => this.settle(task, null, error),
     );
 
+    const { timeoutSeconds } = task;
     if (timeoutSeconds !== undefined) {
       task.timeoutHandle = setTimeout(() => {
         if (task.status !== "running") return;
@@ -231,7 +283,6 @@ export class BackgroundTaskRegistry {
       }, timeoutSeconds * 1000);
     }
     this.changed();
-    return snapshot(task);
   }
 
   /** Stop a running task and wait for its process to exit. */

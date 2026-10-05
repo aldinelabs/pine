@@ -406,3 +406,77 @@ describe("output", () => {
     expect(logs.text).toContain("(no output yet)");
   });
 });
+
+describe("adopting a running command", () => {
+  function runningProcess(startTime = 1_000) {
+    let resolve!: (value: { exitCode: number | null }) => void;
+    let reject!: (error: Error) => void;
+    const run = new Promise<{ exitCode: number | null }>((res, rej) => {
+      resolve = res;
+      reject = rej;
+    });
+    const controller = new AbortController();
+    controller.signal.addEventListener("abort", () =>
+      reject(new Error("aborted")),
+    );
+    return {
+      process: {
+        run,
+        controller,
+        output: Buffer.from("before\n"),
+        startTime,
+      },
+      exit: (code: number | null) => resolve({ exitCode: code }),
+    };
+  }
+
+  it("keeps earlier output, appends later output, and notifies on exit", async () => {
+    const { registry, notifications, executorFor } = createRegistry();
+    const adopted = runningProcess();
+    const { snapshot, append } = await registry.adopt(
+      "bun install",
+      adopted.process,
+      { name: "Install", triggerOnCompletion: true },
+    );
+    expect(snapshot).toMatchObject({
+      status: "running",
+      startTime: 1_000,
+      triggerOnCompletion: true,
+    });
+    expect(executorFor).not.toHaveBeenCalled();
+    append(Buffer.from("after\n"));
+    adopted.exit(0);
+    await settled(registry, snapshot.id);
+    expect(registry.snapshot(snapshot.id).status).toBe("completed");
+    expect(await readFile(snapshot.outputPath, "utf8")).toBe("before\nafter\n");
+    expect(notifications).toHaveLength(1);
+    expect(notifications[0]?.triggerTurn).toBe(true);
+  });
+
+  it("stops the adopted process through its controller", async () => {
+    const { registry } = createRegistry();
+    const adopted = runningProcess();
+    const { snapshot } = await registry.adopt("sleep 100", adopted.process);
+    const stopped = await registry.stop(snapshot.id);
+    expect(adopted.process.controller.signal.aborted).toBe(true);
+    expect(stopped.status).toBe("killed");
+  });
+
+  it("enforces the remaining timeout", async () => {
+    vi.useFakeTimers();
+    try {
+      const { registry } = createRegistry();
+      const adopted = runningProcess();
+      const { snapshot } = await registry.adopt("sleep 100", adopted.process, {
+        timeoutSeconds: 3,
+      });
+      await vi.advanceTimersByTimeAsync(3_000);
+      await vi.waitFor(() =>
+        expect(registry.snapshot(snapshot.id).status).toBe("failed"),
+      );
+      expect(adopted.process.controller.signal.aborted).toBe(true);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});
