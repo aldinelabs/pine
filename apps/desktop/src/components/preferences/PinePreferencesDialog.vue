@@ -73,6 +73,7 @@ import {
 } from "@/stores/appearance";
 import { PROJECT_COLOR_THEME_OPTIONS } from "@/lib/projectColorThemes";
 import {
+  DEFAULT_COMPLETION_SIGNAL_ENABLED,
   DEFAULT_CONTEXT_COMPACTION_ROUTE,
   DEFAULT_CONTEXT_COMPACTION_STRATEGY,
   isPineContextCompactionRoute,
@@ -120,7 +121,7 @@ const contextCompactionRoute = ref<PineContextCompactionRoute>(
   DEFAULT_CONTEXT_COMPACTION_ROUTE,
 );
 const isSavingContextCompactionRoute = ref(false);
-const completionSignalEnabled = ref(false);
+const completionSignalEnabled = ref(DEFAULT_COMPLETION_SIGNAL_ENABLED);
 const isLoadingCompletionSignal = ref(true);
 const isSavingCompletionSignal = ref(false);
 const diagnosticLoggingEnabled = ref(false);

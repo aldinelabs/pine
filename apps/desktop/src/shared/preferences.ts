@@ -60,6 +60,9 @@ export interface SetCompletionSignalResult {
   enabled: boolean;
 }
 
+/** Signal finished work unless the user turned it off. */
+export const DEFAULT_COMPLETION_SIGNAL_ENABLED = true;
+
 export type PineContextCompactionStrategy = "passive" | "recommended";
 
 export const DEFAULT_CONTEXT_COMPACTION_STRATEGY =

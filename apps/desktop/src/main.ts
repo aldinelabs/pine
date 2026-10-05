@@ -136,6 +136,7 @@ import {
   type PineAutoApprovalSettings,
   type PineContextCompactionRoute,
   type PineContextCompactionStrategy,
+  DEFAULT_COMPLETION_SIGNAL_ENABLED,
   type SetCompletionSignalResult,
   type SetContextCompactionRouteResult,
   type SetContextCompactionStrategyResult,
@@ -486,7 +487,7 @@ let pineAgentDirectory: string | null = null;
 const modelRecommendations = new ModelRecommendationService();
 const modelMetadata = new ModelMetadataService();
 let projectRuntimes: ProjectRuntimeRegistry | null = null;
-let completionSignalEnabled = false;
+let completionSignalEnabled = DEFAULT_COMPLETION_SIGNAL_ENABLED;
 const completionSignals = new CompletionSignalTracker();
 let presentedFiles: PresentedFileRegistry | null = null;
 let projectFileWatchers: ProjectFileWatcherRegistry | null = null;
@@ -2921,7 +2922,8 @@ ipcMain.handle(
 async function initializeApp(): Promise<void> {
   pineAgentDirectory = path.join(app.getPath("userData"), "agent");
   const settings = await readPineAgentSettings(pineAgentDirectory);
-  completionSignalEnabled = settings.completionSignalEnabled ?? false;
+  completionSignalEnabled =
+    settings.completionSignalEnabled ?? DEFAULT_COMPLETION_SIGNAL_ENABLED;
   runtimeDiagnostics = new RuntimeDiagnostics(
     app.getPath("logs"),
     settings.diagnosticLoggingEnabled ?? false,
