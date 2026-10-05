@@ -202,7 +202,7 @@ describe("ProjectRuntimeRegistry", () => {
     }
   });
 
-  it("only lets temporary workspace sessions move", async () => {
+  it("lets project sessions move but not into their own project", async () => {
     const registry = new ProjectRuntimeRegistry(
       createAgentHost(),
       "/pine/agent",
@@ -220,8 +220,13 @@ describe("ProjectRuntimeRegistry", () => {
         target: { kind: "new", projectId: project.id },
       });
       expect(() =>
-        registry.scheduleTeleport(sessionSummary.id, crypto.randomUUID()),
-      ).toThrow("Only temporary workspace sessions can move.");
+        registry.scheduleTeleport(sessionSummary.id, project.id),
+      ).toThrow("The session is already in that project.");
+      const destination = crypto.randomUUID();
+      registry.scheduleTeleport(sessionSummary.id, destination);
+      expect(registry.takeScheduledTeleport(sessionSummary.id)).toBe(
+        destination,
+      );
     } finally {
       await registry.dispose(1);
     }

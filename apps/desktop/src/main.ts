@@ -661,7 +661,7 @@ async function forwardPresentedFile(
 
 /**
  * Answer a tool that needs main: the user's project library, or a confirmed
- * move of a temporary-workspace session. A move only checks and records the
+ * move of a session to another project. A move only checks and records the
  * target here; it happens once the session's current run ends.
  */
 async function answerHostRequest(
@@ -674,6 +674,9 @@ async function answerHostRequest(
         (project) => !isTemporaryWorkspace(project.id),
       );
       if (event.request.kind === "list-projects") {
+        const currentId = getProjectRuntimes().projectOfLiveSession(
+          event.sessionId,
+        )?.id;
         return {
           ok: true,
           response: {
@@ -681,6 +684,7 @@ async function answerHostRequest(
             projects: projects.map((project) => ({
               id: project.id,
               name: project.name,
+              ...(project.id === currentId ? { current: true } : {}),
               defaultFolderPath:
                 project.folders.find(
                   (folder) => folder.id === project.defaultFolderId,
@@ -741,7 +745,7 @@ async function teleportSession(
       projectId,
     } satisfies PineSessionTeleportedEvent);
   } catch (error) {
-    console.error("Failed to move a temporary workspace session.", error);
+    console.error("Failed to move a session to another project.", error);
   }
 }
 

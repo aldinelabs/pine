@@ -48,8 +48,10 @@ export interface AgentSessionLocation {
   sessionsRoot: string;
   /** In-memory TinyFish credential; never written to a session file. */
   tinyFishApiKey?: string;
-  /** Pine's built-in temporary workspace, whose sessions may move to a project. */
+  /** Pine's built-in temporary workspace ("No Project"). */
   temporaryWorkspace?: boolean;
+  /** The user-facing name of the session's project, for the agent's context. */
+  projectName?: string;
   /** Initial permission mode for the session. YOLO bypasses all Pine sandbox,
    * folder, and approval controls; omitted defaults to `auto-approve`. */
   approvalMode?: PineApprovalMode;
@@ -59,6 +61,8 @@ export interface AgentSessionLocation {
 export interface AgentHostProject {
   id: string;
   name: string;
+  /** The project the asking session currently runs in. */
+  current?: boolean;
   defaultFolderPath: string;
   folders: { access: "read-only" | "read-write"; name: string; path: string }[];
 }

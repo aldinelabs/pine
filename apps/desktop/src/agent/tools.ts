@@ -257,8 +257,11 @@ export interface PineToolPermissionContext {
   ) => Promise<AskUserQuestionSubmission>;
   /** Opens a file tab for the user without moving their focus. */
   presentFile?: (toolCallId: string, filePath: string) => void;
-  /** Listing and moving to projects, for temporary-workspace sessions only. */
-  workspace?: Omit<PineWorkspaceToolContext, "requestQuestionnaire">;
+  /** Listing the user's projects and moving the session between them. */
+  workspace?: Omit<
+    PineWorkspaceToolContext,
+    "requestQuestionnaire" | "currentProject"
+  >;
   /** Gives the session `bg_run` and the other background task tools. */
   backgroundTasks?: PineBackgroundTaskContext;
 }
@@ -588,8 +591,15 @@ export async function createPineToolDefinitions(
 
   const workspace = permissions?.workspace;
   const workspaceTools =
-    location.temporaryWorkspace && workspace && requestQuestionnaire
-      ? createWorkspaceToolDefinitions({ ...workspace, requestQuestionnaire })
+    workspace && requestQuestionnaire
+      ? createWorkspaceToolDefinitions({
+          ...workspace,
+          requestQuestionnaire,
+          currentProject: {
+            name: location.projectName,
+            temporaryWorkspace: location.temporaryWorkspace === true,
+          },
+        })
       : [];
 
   const uiPresentFileTool = presentFile

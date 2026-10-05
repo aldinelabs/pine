@@ -909,9 +909,9 @@ export class ProjectRuntimeRegistry {
   /** Remember a confirmed move; it runs once the session's run ends. */
   scheduleTeleport(sessionId: string, projectId: string): void {
     const project = this.projectOfLiveSession(sessionId);
-    if (!project || !isTemporaryWorkspace(project.id)) {
-      throw new Error("Only temporary workspace sessions can move.");
-    }
+    if (!project) throw new Error("The session is no longer open.");
+    if (project.id === projectId)
+      throw new Error("The session is already in that project.");
     this.pendingTeleports.set(sessionId, projectId);
   }
 
@@ -922,9 +922,9 @@ export class ProjectRuntimeRegistry {
   }
 
   /**
-   * Move an idle temporary-workspace session into a project of the same
-   * window: release it, move its file into the project's session storage,
-   * and let the renderer resume it there with the project's folders.
+   * Move an idle session into another project of the same window: release
+   * it, move its file into that project's session storage, and let the
+   * renderer resume it there with the project's folders.
    */
   async teleportSession(
     sessionId: string,
@@ -932,9 +932,9 @@ export class ProjectRuntimeRegistry {
     dataPaths: ProjectDataPaths,
   ): Promise<{ fromProjectId: string; webContentsId: number }> {
     const entry = this.entryForSession(sessionId);
-    if (!entry || !isTemporaryWorkspace(entry.runtime.project.id)) {
-      throw new Error("The session is no longer in the temporary workspace.");
-    }
+    if (!entry) throw new Error("The session is no longer open.");
+    if (entry.runtime.project.id === project.id)
+      throw new Error("The session is already in that project.");
     const { runtime: source, webContentsId } = entry;
     if (!this.isOpen(webContentsId, project.id)) {
       await this.open(webContentsId, project, dataPaths);
@@ -1117,7 +1117,7 @@ export class ProjectRuntimeRegistry {
       sessionsRoot: runtime.dataPaths.sessionsRoot,
       ...(isTemporaryWorkspace(runtime.project.id)
         ? { temporaryWorkspace: true }
-        : {}),
+        : { projectName: runtime.project.name }),
       ...(tinyFishApiKey ? { tinyFishApiKey } : {}),
     };
   }

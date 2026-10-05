@@ -27,6 +27,16 @@ export interface PineWorkspaceToolContext {
     signal?: AbortSignal,
   ): Promise<AskUserQuestionSubmission>;
   getLocale(): "en-US" | "zh-CN";
+  /** Where the session runs now; the prompt tells the agent so. */
+  currentProject: { name?: string; temporaryWorkspace: boolean };
+}
+
+type CurrentProject = PineWorkspaceToolContext["currentProject"];
+
+function currentPlace(current: CurrentProject): string {
+  return current.temporaryWorkspace || !current.name
+    ? "No Project, Pine's temporary workspace that belongs to no project"
+    : `the Pine project "${current.name}"`;
 }
 
 function describeProject(project: AgentHostProject): string {
@@ -38,7 +48,9 @@ function describeProject(project: AgentHostProject): string {
         })`,
     )
     .join("\n");
-  return `- ${project.name} (id: ${project.id})\n${folders}`;
+  return `- ${project.name} (id: ${project.id})${
+    project.current ? " (current: this session runs here)" : ""
+  }\n${folders}`;
 }
 
 async function listProjects(
@@ -52,9 +64,11 @@ async function listProjects(
 
 function confirmationQuestion(
   project: AgentHostProject,
+  current: CurrentProject,
   locale: "en-US" | "zh-CN",
 ): AskUserQuestionParams {
   const zh = locale === "zh-CN";
+  const inProject = !current.temporaryWorkspace && current.name;
   return {
     questions: [
       {
@@ -70,10 +84,18 @@ function confirmationQuestion(
               : "The session continues in that project once this reply ends.",
           },
           {
-            label: zh ? "保持无项目" : "Keep it here",
+            label: zh
+              ? inProject
+                ? `留在“${current.name}”`
+                : "保持无项目"
+              : "Keep it here",
             description: zh
-              ? "会话继续不属于任何项目。"
-              : "The session stays outside any project.",
+              ? inProject
+                ? "会话继续在当前项目中进行。"
+                : "会话继续不属于任何项目。"
+              : inProject
+                ? `The session stays in "${current.name}".`
+                : "The session stays outside any project.",
           },
         ],
       },
@@ -82,19 +104,20 @@ function confirmationQuestion(
 }
 
 /**
- * Tools that only sessions of the temporary workspace get: listing the
- * user's projects and moving the session into one of them. Moving always
- * asks the user first, even in modes that otherwise run without approval.
+ * Listing the user's projects and moving the session into another one, for
+ * every session. Moving always asks the user first, even in modes that
+ * otherwise run without approval.
  */
 export function createWorkspaceToolDefinitions(
   context: PineWorkspaceToolContext,
 ): ToolDefinition[] {
+  const { currentProject } = context;
+  const here = currentPlace(currentProject);
   const listTool = defineTool({
     name: UI_LIST_PROJECT_TOOL_NAME,
     label: "List Projects",
-    description:
-      "List the user's Pine projects with their names, ids, and folder paths. This session runs in Pine's temporary workspace, which belongs to no project.",
-    promptSnippet: `Use ${UI_LIST_PROJECT_TOOL_NAME} to see the user's Pine projects when the work turns out to belong to one`,
+    description: `List the user's Pine projects with their names, ids, and folder paths; the project this session runs in is marked as current. This session runs in ${here}.`,
+    promptSnippet: `This session runs in ${here}. Use ${UI_LIST_PROJECT_TOOL_NAME} to see the user's Pine projects and their folders, for example to check whether a request belongs to another project`,
     parameters: Type.Object({}),
     execute: async () => {
       const projects = await listProjects(context);
@@ -120,12 +143,18 @@ export function createWorkspaceToolDefinitions(
   const teleportTool = defineTool({
     name: UI_TELEPORT_TOOL_NAME,
     label: "Move Session to Project",
-    description:
-      "Move this session from the temporary workspace into one of the user's projects. Pine asks the user to confirm first. When confirmed, the move happens after the current reply ends; later turns run in the project's working directory with its folder access.",
-    promptSnippet: `Use ${UI_TELEPORT_TOOL_NAME} when work started in the temporary workspace belongs in one of the user's projects`,
+    description: `Move this session from ${here} into another of the user's Pine projects. Pine asks the user to confirm first. When confirmed, the move happens after the current reply ends; later turns run in that project's working directory with its folder access.`,
+    promptSnippet: `Use ${UI_TELEPORT_TOOL_NAME} to offer moving this session into the project the user's request belongs to`,
     promptGuidelines: [
-      `Call ${UI_LIST_PROJECT_TOOL_NAME} first and pass the chosen project's id.`,
-      `The user is always asked to confirm. If they decline, keep working in the temporary workspace.`,
+      `Before starting work on a request, check whether it fits ${here}. If it clearly belongs to another project, because it names that project or refers to code, files, or folders that live in another project's folders rather than this session's, call ${UI_LIST_PROJECT_TOOL_NAME} and then ${UI_TELEPORT_TOOL_NAME} with that project's id to offer the move right away. Do not ask about it in plain text first and do not work around the wrong folders: the tool itself asks the user to confirm.`,
+      ...(currentProject.temporaryWorkspace
+        ? [
+            `In No Project, also offer the move as soon as the work turns out to belong to one of the user's existing projects.`,
+          ]
+        : []),
+      `Do not offer a move when the fit is only uncertain, for general questions that need no project files, or after the user has declined moving this session.`,
+      `Pass an id from ${UI_LIST_PROJECT_TOOL_NAME}; the current project cannot be chosen.`,
+      `If the user declines, keep working where the session is.`,
       `After a confirmed move, finish the reply briefly: the new folders are only available from the next turn.`,
     ],
     parameters: teleportParams,
@@ -140,10 +169,15 @@ export function createWorkspaceToolDefinitions(
           `No project has id ${params.projectId}. Call ${UI_LIST_PROJECT_TOOL_NAME} for the current list.`,
         );
       }
+      if (project.current) {
+        throw new Error(
+          `This session already runs in ${project.name}; there is nothing to move.`,
+        );
+      }
 
       const submission = await context.requestQuestionnaire(
         toolCallId,
-        confirmationQuestion(project, context.getLocale()),
+        confirmationQuestion(project, currentProject, context.getLocale()),
         signal,
       );
       const choice = submission.answers[0];
@@ -157,10 +191,14 @@ export function createWorkspaceToolDefinitions(
           content: [
             {
               type: "text" as const,
-              text: `The user did not move the session to ${project.name}; it stays in the temporary workspace.${note ? ` The user said: ${note}` : ""}`,
+              text: `The user did not move the session to ${project.name}; it stays in ${here}. Do not offer this move again in this session.${note ? ` The user said: ${note}` : ""}`,
             },
           ],
-          details: { moved: false, projectId: project.id },
+          details: {
+            moved: false,
+            projectId: project.id,
+            projectName: project.name,
+          },
         };
       }
 
@@ -175,10 +213,14 @@ export function createWorkspaceToolDefinitions(
         content: [
           {
             type: "text" as const,
-            text: `The user confirmed. This session moves to ${response.projectName} when this reply ends; from the next turn the working directory is ${response.cwd}. Finish this reply without starting new work in the temporary workspace.`,
+            text: `The user confirmed. This session moves to ${response.projectName} when this reply ends; from the next turn the working directory is ${response.cwd}. Finish this reply without starting new work in ${here}.`,
           },
         ],
-        details: { moved: true, projectId: project.id },
+        details: {
+          moved: true,
+          projectId: project.id,
+          projectName: project.name,
+        },
       };
     },
   });
