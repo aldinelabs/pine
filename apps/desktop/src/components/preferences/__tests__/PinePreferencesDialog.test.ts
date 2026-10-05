@@ -161,6 +161,23 @@ describe("PinePreferencesDialog", () => {
     installPineApi(undefined);
   });
 
+  it("opens at the section a caller asks for", async () => {
+    installPineApi("darwin");
+    const { pinia, wrapper } = mountDialog();
+    // Opening reloads models; the catalog is not what this test covers.
+    vi.spyOn(useModelsStore(pinia), "load").mockResolvedValue(undefined);
+    const current = () =>
+      wrapper.get('[data-slot="item"][aria-current="true"]').text();
+
+    (wrapper.vm as unknown as { open(section: string): void }).open("projects");
+    await flushPromises();
+    expect(current()).toContain("项目管理");
+
+    (wrapper.vm as unknown as { open(section: string): void }).open("general");
+    await flushPromises();
+    expect(current()).toContain("通用");
+  });
+
   it("places automatic approval below context compaction and uses a help tooltip", async () => {
     installPineApi("darwin");
     const { wrapper } = mountDialog();

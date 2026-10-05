@@ -100,6 +100,8 @@ const { imageProviderConfigured, imageSelectedModel, utilitySelectedModel } =
   storeToRefs(modelsStore);
 const isOpen = ref(false);
 const activeSection = ref<PreferenceSection>("general");
+// The section an `open` call asks for; plain opens start at General.
+let requestedSection: PreferenceSection | null = null;
 const isUtilityModelPickerOpen = ref(false);
 const isImageModelPickerOpen = ref(false);
 const isTinyFishCredentialDialogOpen = ref(false);
@@ -195,7 +197,8 @@ watch(isOpen, (open) => {
     void flushUserProfileSave();
     return;
   }
-  activeSection.value = "general";
+  activeSection.value = requestedSection ?? "general";
+  requestedSection = null;
   void modelsStore.load();
   void loadUserProfile();
   void loadTinyFishCredentialStatus();
@@ -572,6 +575,18 @@ function updatePineColorTheme(value: unknown): void {
 function updateSidebarVibrancy(value: boolean): void {
   appearanceStore.setSidebarVibrancy(value);
 }
+
+/** Open the preferences at a section, e.g. from No Project's sidebar. */
+function open(section: PreferenceSection = "general"): void {
+  if (isOpen.value) {
+    activeSection.value = section;
+    return;
+  }
+  requestedSection = section;
+  isOpen.value = true;
+}
+
+defineExpose({ open });
 </script>
 
 <template>

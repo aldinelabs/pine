@@ -1,7 +1,14 @@
 <script setup lang="ts">
 import { PanelRight } from "@lucide/vue";
 import { onKeyStroke } from "@vueuse/core";
-import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
+import {
+  computed,
+  onBeforeUnmount,
+  onMounted,
+  ref,
+  useTemplateRef,
+  watch,
+} from "vue";
 import { useI18n } from "vue-i18n";
 import { handleError } from "@/app/errors/errorHandler";
 import { PineLogo } from "@/components/pine";
@@ -34,6 +41,11 @@ import { useFrozenWindowResize } from "@/composables/useFrozenWindowResize";
 const { t } = useI18n();
 const isSessionSearchOpen = ref(false);
 const isProjectSettingsOpen = ref(false);
+// Only one titlebar position renders the preferences dialog per platform.
+const preferencesDialog =
+  useTemplateRef<InstanceType<typeof PinePreferencesDialog>>(
+    "preferencesDialog",
+  );
 const isUpdateOpen = ref(false);
 const rightSidebar = useProjectRightSidebarStore();
 const projectStore = useProjectStore();
@@ -220,6 +232,7 @@ onKeyStroke("k", (event) => {
   >
     <ProjectSidebar
       @edit-project="isProjectSettingsOpen = true"
+      @manage-projects="preferencesDialog?.open('projects')"
       @search-sessions="isSessionSearchOpen = true"
       @show-update="isUpdateOpen = true"
     />
@@ -276,7 +289,10 @@ onKeyStroke("k", (event) => {
             class="pointer-events-none size-4 fill-current text-foreground select-none"
           />
         </span>
-        <PinePreferencesDialog v-if="isWindowsPlatform" />
+        <PinePreferencesDialog
+          v-if="isWindowsPlatform"
+          ref="preferencesDialog"
+        />
         <SidebarTrigger />
       </template>
       <template #trailing>
@@ -300,7 +316,10 @@ onKeyStroke("k", (event) => {
           >
             <PanelRight aria-hidden="true" />
           </Button>
-          <PinePreferencesDialog v-if="!isWindowsPlatform" />
+          <PinePreferencesDialog
+            v-if="!isWindowsPlatform"
+            ref="preferencesDialog"
+          />
         </div>
       </template>
     </WindowTitleBar>

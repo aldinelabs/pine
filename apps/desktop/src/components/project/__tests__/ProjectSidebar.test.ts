@@ -199,3 +199,40 @@ it("lands No Project on the all-projects session list", async () => {
   expect(wrapper.find("[data-project-sessions]").exists()).toBe(false);
   wrapper.unmount();
 });
+
+it("offers project management instead of settings in No Project", async () => {
+  const pinia = createPinia();
+  setActivePinia(pinia);
+  useProjectStore().setCurrentProject(TEMPORARY_WORKSPACE_PROJECT_ID);
+  const router = createRouter({
+    history: createMemoryHistory(),
+    routes: [{ path: "/", component: { template: "<div />" } }],
+  });
+  const wrapper = mount(ProjectSidebar, {
+    global: {
+      plugins: [pinia, router, createAppI18n("zh-CN")],
+      stubs: {
+        Sidebar: slot,
+        SidebarContent: slot,
+        SidebarFooter: slot,
+        SidebarHeader: slot,
+        SidebarMenu: slot,
+        SidebarMenuButton: buttonSlot,
+        SidebarMenuItem: slot,
+        SidebarRail: true,
+        AllProjectsSessionList: true,
+      },
+    },
+  });
+  await flushPromises();
+
+  expect(wrapper.text()).not.toContain("项目设置");
+  const manage = wrapper
+    .findAll("button")
+    .find((button) => button.text() === "管理项目");
+  if (!manage) throw new Error("Missing the manage projects item");
+  await manage.trigger("click");
+  expect(wrapper.emitted("manageProjects")).toHaveLength(1);
+  expect(wrapper.emitted("editProject")).toBeUndefined();
+  wrapper.unmount();
+});

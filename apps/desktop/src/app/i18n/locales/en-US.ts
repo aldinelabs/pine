@@ -548,6 +548,7 @@ export default {
       },
     },
     preferences: "Project settings",
+    manageProjects: "Manage projects",
     version: "Version {version}",
     skills: "Skills",
     preview: {

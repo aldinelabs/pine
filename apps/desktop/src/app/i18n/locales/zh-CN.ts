@@ -521,6 +521,7 @@ export default {
       },
     },
     preferences: "项目设置",
+    manageProjects: "管理项目",
     version: "版本 {version}",
     skills: "工作技能",
     preview: {

@@ -1,6 +1,7 @@
 import { flushPromises, mount } from "@vue/test-utils";
 import { createPinia, setActivePinia } from "pinia";
 import { createMemoryHistory, createRouter } from "vue-router";
+import type { SetupContext } from "vue";
 import { beforeEach, expect, it, vi } from "vitest";
 import { createAppI18n } from "@/app/i18n";
 import { ROUTE_NAMES } from "@/router/routes";
@@ -13,6 +14,8 @@ import { useProjectStore } from "@/stores/project";
 import { PROJECT_RIGHT_SIDEBAR_STORAGE_KEY } from "@/stores/projectRightSidebar";
 import ProjectView from "../ProjectView.vue";
 import { showProject } from "@/stores/__tests__/showProject";
+
+const openPreferences = vi.fn();
 
 const project: PineProject = {
   createdAt: "2026-08-19T12:00:00.000Z",
@@ -92,6 +95,9 @@ async function mountView(
       plugins: [pinia, router, createAppI18n("zh-CN")],
       stubs: {
         PinePreferencesDialog: {
+          setup(_props: unknown, { expose }: SetupContext) {
+            expose({ open: openPreferences });
+          },
           template: '<button data-pine-preferences type="button" />',
         },
         ProjectContentTabs: { template: "<div />" },
@@ -100,9 +106,9 @@ async function mountView(
           template: '<div data-project-dialog :data-open="String(open)" />',
         },
         ProjectSidebar: {
-          emits: ["editProject"],
+          emits: ["editProject", "manageProjects"],
           template:
-            '<button type="button" data-edit-project @click="$emit(\'editProject\')" />',
+            '<div><button type="button" data-edit-project @click="$emit(\'editProject\')" /><button type="button" data-manage-projects @click="$emit(\'manageProjects\')" /></div>',
         },
         SessionSearchOverlay: { template: "<div />" },
         PineUpdateDialog: { template: "<div />" },
@@ -149,6 +155,16 @@ it("still opens project settings from the sidebar", async () => {
   expect(wrapper.get("[data-project-dialog]").attributes("data-open")).toBe(
     "true",
   );
+  wrapper.unmount();
+});
+
+it("opens project management in preferences from No Project's sidebar", async () => {
+  openPreferences.mockClear();
+  const { wrapper } = await mountView();
+
+  await wrapper.get("[data-manage-projects]").trigger("click");
+
+  expect(openPreferences).toHaveBeenCalledWith("projects");
   wrapper.unmount();
 });
 

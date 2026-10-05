@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import {
   Files,
+  FolderKanban,
   GitCommitHorizontal,
   Info,
   MessagesSquare,
@@ -38,6 +39,7 @@ import RetainedPanel from "./RetainedPanel.vue";
 const { t } = useI18n();
 const emit = defineEmits<{
   editProject: [];
+  manageProjects: [];
   searchSessions: [];
   showUpdate: [];
 }>();
@@ -143,8 +145,17 @@ watch(
 
     <SidebarFooter>
       <SidebarMenu>
-        <SidebarMenuItem v-if="!isTemporaryWorkspace(currentProjectId)">
-          <SidebarMenuButton @click="emit('editProject')">
+        <SidebarMenuItem>
+          <!-- No Project has no settings of its own; it manages every project
+               instead. -->
+          <SidebarMenuButton
+            v-if="isTemporaryWorkspace(currentProjectId)"
+            @click="emit('manageProjects')"
+          >
+            <FolderKanban aria-hidden="true" />
+            <span>{{ t("project.manageProjects") }}</span>
+          </SidebarMenuButton>
+          <SidebarMenuButton v-else @click="emit('editProject')">
             <Settings2 aria-hidden="true" />
             <span>{{ t("project.preferences") }}</span>
           </SidebarMenuButton>
