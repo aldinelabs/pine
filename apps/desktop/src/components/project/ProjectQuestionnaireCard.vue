@@ -145,8 +145,10 @@ function cancel(): void {
         </div>
       </CardHeader>
 
+      <!-- The padding keeps answers' focus rings inside the scroll area; the
+        negative margin keeps the card's spacing. -->
       <CardContent
-        class="scroll-fade-y min-h-0 overflow-y-auto overscroll-contain"
+        class="scroll-fade-y -my-1 min-h-0 overflow-y-auto overscroll-contain py-1"
       >
         <QuestionnaireItem
           v-for="(question, questionIndex) in questionnaire.questionnaire
