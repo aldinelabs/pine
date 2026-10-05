@@ -20,6 +20,10 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { useSidebar } from "@/components/ui/sidebar";
 import { WINDOW_TAB_CLOSE_HANDLER_KEY } from "@/composables/useWindowTabShortcuts";
+import {
+  dragContainsAttachments,
+  useAttachmentDrop,
+} from "@/composables/useAttachmentDrop";
 import { useContentTabNavigation } from "@/composables/useContentTabNavigation";
 import { usePresentedFiles } from "@/composables/usePresentedFiles";
 import { cn } from "@/lib/utils";
@@ -95,6 +99,9 @@ const draggingTabId = ref<string | null>(null);
 const dropPosition = ref<{ tabId: string; side: "before" | "after" } | null>(
   null,
 );
+/** The session tab that files or a session are being dragged over. */
+const attachmentDropTabId = ref<string | null>(null);
+const { attachDrop } = useAttachmentDrop();
 
 function updateTabListOverflow(): void {
   const viewport = tabList.value;
@@ -198,12 +205,42 @@ function leaveTabList(event: DragEvent): void {
   if (
     !(event.relatedTarget instanceof Node) ||
     !tabStrip.value?.contains(event.relatedTarget)
-  )
+  ) {
     dropPosition.value = null;
+    attachmentDropTabId.value = null;
+  }
+}
+
+/** Files and sessions dropped on a session tab attach to its composer. */
+function dragAttachmentsOverTab(event: DragEvent, tabId?: string): void {
+  const tab = tabId ? tabs.value.find((item) => item.id === tabId) : undefined;
+  if (tab?.kind !== "session" || !dragContainsAttachments(event)) {
+    attachmentDropTabId.value = null;
+    return;
+  }
+  event.preventDefault();
+  event.stopPropagation();
+  if (event.dataTransfer) event.dataTransfer.dropEffect = "copy";
+  attachmentDropTabId.value = tab.id;
+}
+
+function dropAttachmentsOnTab(event: DragEvent): void {
+  const tabId = attachmentDropTabId.value;
+  attachmentDropTabId.value = null;
+  const tab = tabs.value.find((item) => item.id === tabId);
+  if (tab?.kind !== "session" || !dragContainsAttachments(event)) return;
+  event.preventDefault();
+  event.stopPropagation();
+  activateTab(tab.id);
+  void attachDrop(event.dataTransfer, tab.id, tab.projectId);
 }
 
 function dragOverTab(event: DragEvent, tabId?: string): void {
-  if (!draggingTabId.value || !event.dataTransfer) return;
+  if (!draggingTabId.value) {
+    dragAttachmentsOverTab(event, tabId);
+    return;
+  }
+  if (!event.dataTransfer) return;
   event.preventDefault();
   event.stopPropagation();
   event.dataTransfer.dropEffect = "move";
@@ -226,6 +263,10 @@ function dragOverTab(event: DragEvent, tabId?: string): void {
 }
 
 function dropTab(event: DragEvent): void {
+  if (!draggingTabId.value) {
+    dropAttachmentsOnTab(event);
+    return;
+  }
   const tabId = event.dataTransfer?.getData(CONTENT_TAB_DRAG_TYPE);
   if (!tabId || tabId !== draggingTabId.value || !dropPosition.value) return;
   event.preventDefault();
@@ -535,9 +576,13 @@ watch(activeSession, (session) => {
                   )
                 "
                 :data-tab-id="tab.id"
+                :data-attachment-drop="
+                  attachmentDropTabId === tab.id || undefined
+                "
                 :draggable="true"
                 @dragstart="startTabDrag($event, tab)"
                 @dragend="endTabDrag"
+                @dragenter="dragOverTab($event, tab.id)"
                 @dragover="dragOverTab($event, tab.id)"
                 @drop="dropTab"
                 @pointerenter="attentionFlash.stop(tab.id)"
@@ -561,7 +606,13 @@ watch(activeSession, (session) => {
                   :tabindex="activeTabId === tab.id ? 0 : -1"
                   :variant="activeTabId === tab.id ? 'secondary' : 'ghost'"
                   size="sm"
-                  class="h-8 w-full min-w-0 justify-start group-hover/tab:pr-10 group-has-[:focus-visible]/tab:pr-10"
+                  :class="
+                    cn(
+                      'h-8 w-full min-w-0 justify-start group-hover/tab:pr-10 group-has-[:focus-visible]/tab:pr-10',
+                      attachmentDropTabId === tab.id &&
+                        'ring-2 ring-primary ring-inset',
+                    )
+                  "
                   @click="activateTab(tab.id)"
                   @keydown="moveTabFocus(index, $event)"
                 >

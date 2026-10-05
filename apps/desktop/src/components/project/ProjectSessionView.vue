@@ -1,10 +1,8 @@
 <script setup lang="ts">
 import {
-  containsFileDrag,
-  externalFilePaths,
-  readProjectEntryDrag,
-} from "@/lib/projectFileDrag";
-import { hasSessionDrag, readSessionDrag } from "@/lib/sessionDrag";
+  dragContainsAttachments,
+  useAttachmentDrop,
+} from "@/composables/useAttachmentDrop";
 import { FilesIcon } from "@lucide/vue";
 import { computed, onMounted, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
@@ -59,6 +57,7 @@ const contentTabsStore = useContentTabsStore();
 const projectStore = useProjectStore();
 const tabNavigation = useContentTabNavigation();
 const sessionStore = useSessionStore();
+const { attachDrop } = useAttachmentDrop();
 const HISTORY_LOAD_THRESHOLD = 240;
 const isSubmitting = ref(false);
 
@@ -369,12 +368,6 @@ async function ensureTranscriptMessageLoaded(messageId: string): Promise<void> {
   }
 }
 
-function dragContainsAttachments(event: DragEvent): boolean {
-  return (
-    containsFileDrag(event.dataTransfer) || hasSessionDrag(event.dataTransfer)
-  );
-}
-
 function handleDragEnter(event: DragEvent): void {
   if (!dragContainsAttachments(event)) return;
   event.preventDefault();
@@ -401,43 +394,7 @@ async function handleDrop(event: DragEvent): Promise<void> {
   fileDragDepth = 0;
   isDraggingFiles.value = false;
 
-  try {
-    const transfer = event.dataTransfer;
-    if (!transfer) return;
-    const sessionId = readSessionDrag(transfer);
-    if (sessionId) {
-      // Sessions are dragged from the sidebar, which shows this project.
-      const result = await window.pine.attachSession({
-        projectId: sessionStore.projectOf(sessionId) ?? props.projectId,
-        sessionId,
-      });
-      const byPath = new Map(
-        attachments.value.map((attachment) => [attachment.path, attachment]),
-      );
-      byPath.set(result.attachment.path, result.attachment);
-      attachments.value = [...byPath.values()];
-      return;
-    }
-    // Files from another project's tree stay outside this session's sandbox.
-    const entries = readProjectEntryDrag(transfer)?.filter(
-      (entry) => entry.projectId === props.projectId,
-    );
-    if (entries?.length === 0) return;
-    const paths = entries ? [] : externalFilePaths(transfer);
-    if (!entries && !paths.length) return;
-    const result = entries
-      ? await window.pine.inspectProjectAttachments(entries)
-      : await window.pine.inspectAttachments({ paths });
-    const byPath = new Map(
-      attachments.value.map((attachment) => [attachment.path, attachment]),
-    );
-    for (const attachment of result.attachments) {
-      byPath.set(attachment.path, attachment);
-    }
-    attachments.value = [...byPath.values()];
-  } catch {
-    toast.error(t("project.composer.attachmentDropFailed"));
-  }
+  await attachDrop(event.dataTransfer, props.tabId, props.projectId);
 }
 </script>
 

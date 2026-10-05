@@ -22,6 +22,7 @@ import {
   CONTENT_TAB_DRAG_TYPE,
   FILE_TAB_DRAG_TYPE,
 } from "@/lib/contentTabDrag";
+import { PROJECT_ENTRY_DRAG_TYPE } from "@/lib/projectFileDrag";
 import { SESSION_DRAG_TYPE } from "@/lib/sessionDrag";
 import ProjectContentTabs from "../ProjectContentTabs.vue";
 import { TEMPORARY_WORKSPACE_PROJECT_ID } from "@/shared/projects";
@@ -214,6 +215,53 @@ describe("ProjectContentTabs", () => {
     expect(useContentTabsStore().tabs.map((tab) => tab.id)).toEqual([
       file!.id,
       "session-1",
+    ]);
+    expect(router.currentRoute.value.query.tab).toBe("session-1");
+    wrapper.unmount();
+  });
+
+  it("attaches files dropped on a session tab and switches to it", async () => {
+    const { router, wrapper, file } = await mountTabs(true);
+    await router.push({ path: "/", query: { tab: file!.id } });
+    await flushPromises();
+    const session = useContentTabsStore().tabs.find(
+      (tab) => tab.id === "session-1",
+    )!;
+    const entry = {
+      projectId: session.projectId,
+      folderId: "f1",
+      relativePath: "notes.md",
+    };
+    const attachment = {
+      extension: "md",
+      kind: "file" as const,
+      modifiedAt: "2026-10-05T00:00:00Z",
+      name: "notes.md",
+      path: "/project/notes.md",
+      size: 4,
+    };
+    const inspect = vi.fn().mockResolvedValue({ attachments: [attachment] });
+    Object.assign(window.pine, { inspectProjectAttachments: inspect });
+    const transfer = {
+      types: [PROJECT_ENTRY_DRAG_TYPE],
+      getData: () => JSON.stringify([entry]),
+      dropEffect: "none",
+    };
+    const fileTab = wrapper.get(`[data-tab-id="${file!.id}"]`);
+    const sessionTab = wrapper.get('[data-tab-id="session-1"]');
+
+    await fileTab.trigger("dragover", { dataTransfer: transfer });
+    expect(fileTab.attributes("data-attachment-drop")).toBeUndefined();
+    await sessionTab.trigger("dragover", { dataTransfer: transfer });
+    expect(sessionTab.attributes("data-attachment-drop")).toBe("true");
+    expect(transfer.dropEffect).toBe("copy");
+    await sessionTab.trigger("drop", { dataTransfer: transfer });
+    await flushPromises();
+
+    expect(sessionTab.attributes("data-attachment-drop")).toBeUndefined();
+    expect(inspect).toHaveBeenCalledWith([entry]);
+    expect(useContentTabsStore().attachmentsFor("session-1")).toEqual([
+      attachment,
     ]);
     expect(router.currentRoute.value.query.tab).toBe("session-1");
     wrapper.unmount();
