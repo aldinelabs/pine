@@ -83,6 +83,13 @@ import {
   type BackgroundTaskRegistryOptions,
 } from "@pine/pi-background-tasks/registry";
 import { createBackgroundTaskToolDefinitions } from "./backgroundTaskTools";
+import {
+  FOREGROUND_SOFT_LIMIT_SECONDS,
+  MovedToBackgroundError,
+  movedToBackgroundResult,
+  runInShellCall,
+  withForegroundPromotion,
+} from "./foreground-promotion";
 
 interface FileIO {
   access(path: string, mode: number): Promise<void>;
@@ -343,13 +350,21 @@ export async function createPineToolDefinitions(
     runtimeFiles,
   );
 
+  // Set once background tasks are wired below; until then, and in sessions
+  // without them, shell calls simply wait for their command.
+  let backgroundRegistry: BackgroundTaskRegistry | null = null;
+  const getBackgroundRegistry = () => backgroundRegistry;
+
   // Approval changes authority, not the user's shell environment.
   const nativeShellTool = (
     isWindows ? createPowerShellToolDefinition : createBashToolDefinition
   )(location.cwd, {
-    operations: isWindows
-      ? createLocalPowerShellOperations()
-      : createLocalBashOperations(),
+    operations: withForegroundPromotion(
+      isWindows
+        ? createLocalPowerShellOperations()
+        : createLocalBashOperations(),
+      { getRegistry: getBackgroundRegistry, privileged: true },
+    ),
     spawnHook: (context) => ({
       ...context,
       env: createNativeBashEnvironment(context.env, loginPath, location.cwd),
@@ -397,11 +412,14 @@ export async function createPineToolDefinitions(
   const shellTool = (
     isWindows ? createPowerShellToolDefinition : createBashToolDefinition
   )(location.cwd, {
-    operations: createScopedBashOperations(
-      policy,
-      canonicalBashTemporaryDirectory,
-      loginPath,
-      runtimeFiles,
+    operations: withForegroundPromotion(
+      createScopedBashOperations(
+        policy,
+        canonicalBashTemporaryDirectory,
+        loginPath,
+        runtimeFiles,
+      ),
+      { getRegistry: getBackgroundRegistry, privileged: false },
     ),
   });
 
@@ -421,11 +439,14 @@ export async function createPineToolDefinitions(
     }),
     timeout: Type.Optional(
       Type.Number({
-        description: "Timeout in seconds (optional, no default timeout)",
+        description: `Optional hard limit in seconds; the command is killed when it is exceeded. Independently, a command still running after ${FOREGROUND_SOFT_LIMIT_SECONDS} seconds moves to the background, where the remaining limit still applies.`,
       }),
     ),
   });
   const sandboxGuidance = ` Ordinary ${shellName} can read only shared project folders, user-attached files/directories, this project's temporary directory, and installed system/application/toolchain runtime files. Ancestor directories can be listed for toolchain discovery without granting access to sibling file contents. Reading or listing other external paths, private configs, and unrelated projects is blocked even in Auto Approve mode. Use ${privilegedShellName} directly for those external reads and explain the required access; each call requires approval. Writes are limited to read-write shared folders and this project's temporary directory. System temporary storage, network access, and local servers are blocked. Use ${privilegedShellName} with approval when native capabilities are needed. Some runtime-protected configuration files also require native approval.`;
+  const backgroundGuidance = permissions?.backgroundTasks
+    ? ` A command still running after ${FOREGROUND_SOFT_LIMIT_SECONDS} seconds is not killed: it moves to the background and the call returns its task ID; its completion arrives as a background task notification.`
+    : "";
   const pineShellTool = defineTool({
     ...shellTool,
     parameters: pineShellParams,
@@ -460,14 +481,12 @@ export async function createPineToolDefinitions(
       }
 
       try {
-        return await shellTool.execute(
-          toolCallId,
-          params,
-          signal,
-          onUpdate,
-          ctx,
+        return await runInShellCall(description, () =>
+          shellTool.execute(toolCallId, params, signal, onUpdate, ctx),
         );
       } catch (error) {
+        if (error instanceof MovedToBackgroundError)
+          return movedToBackgroundResult(error);
         if (error instanceof SandboxCommandPermissionError) {
           throw new Error(
             `${error.message}\n\nPermission diagnostic (not verified sandbox evidence):\n${error.outputTail.trim()}`,
@@ -476,7 +495,7 @@ export async function createPineToolDefinitions(
         throw error;
       }
     },
-    description: `${shellTool.description}${sandboxGuidance} The shell is ${isWindows ? "PowerShell without a profile" : "zsh with no user startup files"}. The scratch directory is ${JSON.stringify(canonicalBashTemporaryDirectory)}. Keep diagnostic stderr visible. Explicitly describe what each command does in the description field, written first, in the same language as the user's messages.`,
+    description: `${shellTool.description}${sandboxGuidance} The shell is ${isWindows ? "PowerShell without a profile" : "zsh with no user startup files"}. The scratch directory is ${JSON.stringify(canonicalBashTemporaryDirectory)}. Keep diagnostic stderr visible. Explicitly describe what each command does in the description field, written first, in the same language as the user's messages.${backgroundGuidance}`,
     promptSnippet: `${shellTool.promptSnippet}. Reads are restricted to shared folders, attachments, project temporary storage and runtime files; use ${privilegedShellName} directly to read or list other external paths, subject to approval. Use the project temporary directory for temporary files; always write description before command, in the user's language`,
   });
 
@@ -515,15 +534,23 @@ export async function createPineToolDefinitions(
               }
             }
             if (signal?.aborted) throw new Error("aborted");
-            return nativeShellTool.execute(
-              toolCallId,
-              params,
-              signal,
-              onUpdate,
-              ctx,
-            );
+            try {
+              return await runInShellCall(params.description, () =>
+                nativeShellTool.execute(
+                  toolCallId,
+                  params,
+                  signal,
+                  onUpdate,
+                  ctx,
+                ),
+              );
+            } catch (error) {
+              if (error instanceof MovedToBackgroundError)
+                return movedToBackgroundResult(error);
+              throw error;
+            }
           },
-          description: `Run a ${isWindows ? "PowerShell" : "shell"} command with the user's native permissions, outside Pine's project sandbox. Every call requires a fresh approval unless YOLO mode is active. Use it directly for out-of-project filesystem access, network access, system temporary storage, external writes, GUI application control, or another operation that ordinary ${shellName} explicitly reports was denied by the project sandbox. State the needed external access in description. Do not use it for normal project commands or ordinary command errors.`,
+          description: `Run a ${isWindows ? "PowerShell" : "shell"} command with the user's native permissions, outside Pine's project sandbox. Every call requires a fresh approval unless YOLO mode is active. Use it directly for out-of-project filesystem access, network access, system temporary storage, external writes, GUI application control, or another operation that ordinary ${shellName} explicitly reports was denied by the project sandbox. State the needed external access in description. Do not use it for normal project commands or ordinary command errors.${backgroundGuidance}`,
           promptSnippet: `Use ${privilegedShellName} directly for app/GUI control, external process control, out-of-project filesystem access, or after ordinary ${shellName} explicitly says the project sandbox denied an operation. Calls receive a fresh review before native execution unless YOLO mode is active. State why native privileges are required in description before composing command.`,
         })
       : null;
@@ -717,6 +744,7 @@ export async function createPineToolDefinitions(
         : {}),
     });
     backgroundTaskContext.attach(registry);
+    backgroundRegistry = registry;
     backgroundTaskTools.push(
       ...createBackgroundTaskToolDefinitions({
         registry,
