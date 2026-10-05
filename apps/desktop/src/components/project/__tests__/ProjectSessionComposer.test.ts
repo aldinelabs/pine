@@ -207,18 +207,31 @@ describe("ProjectSessionComposer", () => {
     wrapper.unmount();
   });
 
-  it("sends the first Tab to the prompt when nothing is focused", () => {
+  it("sends Shift+Tab to the prompt when nothing is focused", () => {
     const wrapper = mountComposer({ isActive: true });
     const textarea = wrapper.find("textarea").element;
     (document.activeElement as HTMLElement | null)?.blur();
     const tab = new KeyboardEvent("keydown", { key: "Tab", cancelable: true });
     window.dispatchEvent(tab);
-    expect(tab.defaultPrevented).toBe(true);
+    expect(tab.defaultPrevented).toBe(false);
+    expect(document.activeElement).not.toBe(textarea);
+
+    const shiftTab = new KeyboardEvent("keydown", {
+      key: "Tab",
+      shiftKey: true,
+      cancelable: true,
+    });
+    window.dispatchEvent(shiftTab);
+    expect(shiftTab.defaultPrevented).toBe(true);
     expect(document.activeElement).toBe(textarea);
 
     const button = wrapper.find("button").element;
     button.focus();
-    const next = new KeyboardEvent("keydown", { key: "Tab", cancelable: true });
+    const next = new KeyboardEvent("keydown", {
+      key: "Tab",
+      shiftKey: true,
+      cancelable: true,
+    });
     window.dispatchEvent(next);
     expect(next.defaultPrevented).toBe(false);
     expect(document.activeElement).toBe(button);

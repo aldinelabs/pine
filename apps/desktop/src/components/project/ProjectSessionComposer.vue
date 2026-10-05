@@ -255,13 +255,13 @@ function confirmYoloMode(): void {
 
 onMounted(() => void modelsStore.load());
 
-// With nothing focused yet, the first Tab lands in the prompt rather than
-// at the start of the window's tab order.
+// With nothing focused yet, Shift+Tab lands in the prompt rather than at the
+// end of the window's tab order; Tab keeps its usual order.
 useEventListener(window, "keydown", (event: KeyboardEvent) => {
   if (
     !props.isActive ||
     event.key !== "Tab" ||
-    event.shiftKey ||
+    !event.shiftKey ||
     event.altKey ||
     event.ctrlKey ||
     event.metaKey ||
