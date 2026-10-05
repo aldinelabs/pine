@@ -353,16 +353,36 @@ async function moveChosenProject(update: () => void): Promise<void> {
   }
   isMovingProject.value = true;
   await nextTick();
+  // Only the chip animates; the rest of the page stays live rather than
+  // being snapshotted and cross-faded.
+  const root = document.documentElement;
+  root.dataset.movingDraftProject = "";
   const transition = document.startViewTransition(async () => {
     update();
-    await nextTick();
     await nextTick();
   });
   try {
     await transition.finished;
   } finally {
+    delete root.dataset.movingDraftProject;
     isMovingProject.value = false;
   }
+}
+
+/**
+ * Resolve once a project switch has rendered and painted, and the window
+ * has had a moment for the work it started, so the move animates smoothly.
+ */
+function afterProjectSwitch(): Promise<void> {
+  return new Promise((resolve) => {
+    requestAnimationFrame(() =>
+      requestAnimationFrame(() => {
+        if (typeof window.requestIdleCallback === "function")
+          window.requestIdleCallback(() => resolve(), { timeout: 300 });
+        else resolve();
+      }),
+    );
+  });
 }
 
 async function chooseProject(project: PineProject): Promise<void> {
@@ -377,12 +397,16 @@ async function chooseProject(project: PineProject): Promise<void> {
       isMentioning.value = true;
       return;
     }
+    // Switch first, while the chip still shows the project in the input and
+    // the picker stays hidden; animate only once the switch has painted.
+    emit("selectProject", project.id);
+    await nextTick();
+    await afterProjectSwitch();
     // Even the current project moves, so choosing always lands visibly. The
     // chip leaves in the same update: two elements sharing the transition's
     // name would abort it.
     await moveChosenProject(() => {
       committingProject.value = null;
-      emit("selectProject", project.id);
     });
   } finally {
     committingProject.value = null;

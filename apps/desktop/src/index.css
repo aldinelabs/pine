@@ -640,6 +640,10 @@ html.sidebar-vibrancy [data-slot="alert-dialog-overlay"] {
 }
 
 /* A draft's project chip moving from the input to the project picker. */
+:root[data-moving-draft-project] {
+  view-transition-name: none;
+}
+
 ::view-transition-group(pine-draft-project),
 ::view-transition-old(pine-draft-project),
 ::view-transition-new(pine-draft-project) {
