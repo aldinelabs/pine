@@ -149,10 +149,12 @@ export function createWorkspaceToolDefinitions(
       `Before starting work on a request, check whether it fits ${here}. If it clearly belongs to another project, because it names that project or refers to code, files, or folders that live in another project's folders rather than this session's, call ${UI_LIST_PROJECT_TOOL_NAME} and then ${UI_TELEPORT_TOOL_NAME} with that project's id to offer the move right away. Do not ask about it in plain text first and do not work around the wrong folders: the tool itself asks the user to confirm.`,
       ...(currentProject.temporaryWorkspace
         ? [
-            `In No Project, also offer the move as soon as the work turns out to belong to one of the user's existing projects.`,
+            `In No Project, triage the user's first message before doing anything else. Ask yourself whether you have everything the request needs. If it is a genuinely global task, such as a general question, writing, research, or work on files the user attached or named by full path, do it here. If something it depends on is missing and would have to be inferred, such as "the report", "my notes", "the app", a codebase, or files you cannot locate from the message, the request most likely belongs to one of the user's projects: call ${UI_LIST_PROJECT_TOOL_NAME} first, before searching the disk or asking the user to clarify. If a project plausibly fits, call ${UI_TELEPORT_TOOL_NAME} with its id to offer the move; if none does, continue here or ask for what is missing.`,
+            `Do not triage again after that first message, and do not offer a move once the user has declined.`,
           ]
-        : []),
-      `Do not offer a move when the fit is only uncertain, for general questions that need no project files, or after the user has declined moving this session.`,
+        : [
+            `Do not offer a move when the fit is only uncertain, for general questions that need no project files, or after the user has declined moving this session.`,
+          ]),
       `Pass an id from ${UI_LIST_PROJECT_TOOL_NAME}; the current project cannot be chosen.`,
       `If the user declines, keep working where the session is.`,
       `After a confirmed move, finish the reply briefly: the new folders are only available from the next turn.`,

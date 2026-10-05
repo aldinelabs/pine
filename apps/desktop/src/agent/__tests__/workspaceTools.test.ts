@@ -92,8 +92,14 @@ describe("project workspace tools", () => {
     );
     const noProject = setup({ answers: [], cancelled: true });
     expect(noProject.list.promptSnippet).toContain("No Project");
-    expect(noProject.teleport.promptGuidelines?.join("\n")).toContain(
-      "In No Project",
+    const triage = noProject.teleport.promptGuidelines?.join("\n");
+    expect(triage).toContain("triage the user's first message");
+    expect(triage).toContain("genuinely global task");
+    expect(triage).toContain(
+      "call ui_list_project first, before searching the disk",
+    );
+    expect(inProject.teleport.promptGuidelines?.join("\n")).not.toContain(
+      "triage",
     );
   });
 

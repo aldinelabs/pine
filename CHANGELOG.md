@@ -34,6 +34,7 @@ Every release section here has a matching section in the Chinese changelog.
 - When your time zone or system language suggests mainland China, the agent notes that default package registries may be slow and asks you once before switching to domestic mirrors, preferring per-command mirror options over editing configuration files.
 - The update dialog shows release notes in the interface language.
 - The task graph shows the in-progress task as a small spinning loader, and nodes at the graph's edges are no longer clipped.
+- After your first message in No Project, the agent now judges whether it is a genuinely global task: if the request depends on something it cannot find, such as "the report", "my notes", or a codebase, it checks your project list first and offers to move the session to a fitting project; requests that lack nothing are simply done in No Project.
 
 ### Fixed
 
