@@ -770,6 +770,10 @@ export default {
           active: "Presenting {count} files",
           complete: "Presented {count} files",
         },
+        project: {
+          active: "Running {count} project actions",
+          complete: "Ran {count} project actions",
+        },
         background: {
           active: "Managing {count} background processes",
           complete: "Managed {count} background processes",
@@ -800,6 +804,7 @@ export default {
         recall: "history search",
         fetch: "web fetch",
         presentFile: "present file",
+        project: "project action",
         background: "background process",
         todo: "todos",
         skill: "Skill",
@@ -891,6 +896,19 @@ export default {
           complete: "Presented ",
           error: "Couldn’t present ",
           running: "Presenting ",
+        },
+        project: {
+          list: {
+            complete: "Listed projects",
+            error: "Couldn’t list projects",
+            running: "Listing projects",
+          },
+          teleport: {
+            complete: "Moved to project ",
+            declined: "Didn’t move to project ",
+            error: "Couldn’t move to project ",
+            running: "Asking to move to project ",
+          },
         },
         background: {
           run: {

@@ -3,6 +3,8 @@ import {
   ClapperboardIcon,
   EyeIcon,
   FilePlusIcon,
+  FolderInputIcon,
+  FolderSearchIcon,
   FileTextIcon,
   FolderTreeIcon,
   GlobeIcon,
@@ -23,7 +25,12 @@ import {
 import type { Component } from "vue";
 import { TODO_TOOL_NAME } from "@pine/rpiv-todo";
 import { BACKGROUND_TASK_TOOL_NAMES } from "@pine/pi-background-tasks";
-import { UI_PRESENT_FILE_TOOL_NAME, RECALL_TOOL_NAME } from "@/shared/agent";
+import {
+  RECALL_TOOL_NAME,
+  UI_LIST_PROJECT_TOOL_NAME,
+  UI_PRESENT_FILE_TOOL_NAME,
+  UI_TELEPORT_TOOL_NAME,
+} from "@/shared/agent";
 import type { PineToolCall } from "@/shared/sessions";
 
 export type ToolKind =
@@ -37,6 +44,7 @@ export type ToolKind =
   | "media"
   | "mcp"
   | "presentFile"
+  | "project"
   | "read"
   | "recall"
   | "search"
@@ -56,6 +64,7 @@ export const TOOL_KIND_ICON: Record<ToolKind, Component> = {
   media: ClapperboardIcon,
   mcp: PlugIcon,
   presentFile: EyeIcon,
+  project: FolderInputIcon,
   read: FileTextIcon,
   recall: HistoryIcon,
   search: SearchIcon,
@@ -110,6 +119,7 @@ export const TOOL_KIND_ORDER: readonly ToolKind[] = [
   "bash",
   "background",
   "skill",
+  "project",
   "generic",
 ];
 
@@ -138,6 +148,8 @@ export function mediaOperationKey(name: string): MediaOperation | undefined {
 
 /** Resolve the most specific icon for a tool call, including Skill operations. */
 export function toolIconForName(name: string): Component {
+  if (normalizedName(name) === UI_LIST_PROJECT_TOOL_NAME)
+    return FolderSearchIcon;
   const skillOperation = skillOperationKey(name);
   if (skillOperation) return SKILL_OPERATION_ICON[skillOperation];
   const mediaOperation = mediaOperationKey(name);
@@ -145,8 +157,12 @@ export function toolIconForName(name: string): Component {
   return TOOL_KIND_ICON[toolKind(name)];
 }
 
+function normalizedName(name: string): string {
+  return name.toLowerCase().split(/[.:/]/).at(-1) ?? name;
+}
+
 export function toolKind(name: string): ToolKind {
-  const normalized = name.toLowerCase().split(/[.:/]/).at(-1) ?? name;
+  const normalized = normalizedName(name);
   if (
     normalized === "mcp" ||
     normalized === "mcpscript" ||
@@ -154,6 +170,11 @@ export function toolKind(name: string): ToolKind {
   )
     return "mcp";
   if (normalized === UI_PRESENT_FILE_TOOL_NAME) return "presentFile";
+  if (
+    normalized === UI_LIST_PROJECT_TOOL_NAME ||
+    normalized === UI_TELEPORT_TOOL_NAME
+  )
+    return "project";
   if (normalized === TODO_TOOL_NAME) return "todo";
   if (normalized === RECALL_TOOL_NAME) return "recall";
   if ((BACKGROUND_TASK_TOOL_NAMES as readonly string[]).includes(normalized))

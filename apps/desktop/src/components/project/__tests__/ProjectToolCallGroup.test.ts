@@ -2,6 +2,8 @@ import { flushPromises, mount } from "@vue/test-utils";
 import {
   BookOpenIcon,
   EyeIcon,
+  FolderInputIcon,
+  FolderSearchIcon,
   ShieldBanIcon,
   WandSparklesIcon,
 } from "@lucide/vue";
@@ -167,6 +169,54 @@ describe("ProjectToolCallGroup", () => {
     const trigger = wrapper.get('button[data-slot="marker"]');
     expect(trigger.text()).toContain("打开了 2 个文件");
     expect(wrapper.findAllComponents(EyeIcon)).toHaveLength(2);
+    wrapper.unmount();
+  });
+
+  it("describes listing projects and moving the session", () => {
+    const wrapper = mountGroup({
+      expanded: true,
+      toolCalls: [
+        {
+          id: "t-list",
+          input: {},
+          name: "ui_list_project",
+          status: "complete",
+        },
+        {
+          id: "t-move",
+          input: { projectId: "p-courses" },
+          name: "ui_teleport",
+          status: "complete",
+          output: {
+            details: {
+              moved: true,
+              projectId: "p-courses",
+              projectName: "Courses",
+            },
+          },
+        },
+        {
+          id: "t-declined",
+          input: { projectId: "p-pine" },
+          name: "ui_teleport",
+          status: "complete",
+          output: {
+            details: { moved: false, projectId: "p-pine", projectName: "Pine" },
+          },
+        },
+      ],
+    });
+
+    const text = wrapper.text();
+    expect(text).toContain("处理了 3 次项目操作");
+    expect(text).toContain("已查看项目列表");
+    expect(text).toContain("已移动到项目 Courses");
+    expect(text).toContain("未移动到项目 Pine");
+    expect(text).not.toContain("ui_teleport");
+    expect(wrapper.findAllComponents(FolderSearchIcon)).toHaveLength(1);
+    expect(wrapper.findAllComponents(FolderInputIcon).length).toBeGreaterThan(
+      0,
+    );
     wrapper.unmount();
   });
 

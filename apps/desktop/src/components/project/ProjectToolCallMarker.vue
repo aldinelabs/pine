@@ -6,6 +6,7 @@ import {
   EyeIcon,
   ShieldBanIcon,
 } from "@lucide/vue";
+import { getActivePinia } from "pinia";
 import { computed, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { Marker, MarkerContent, MarkerIcon } from "@/components/ui/marker";
@@ -20,7 +21,12 @@ import {
   BG_LOGS_TOOL_NAME,
   BG_STATUS_TOOL_NAME,
 } from "@pine/pi-background-tasks";
-import { UI_PRESENT_FILE_TOOL_NAME } from "@/shared/agent";
+import { useProjectDisplayName } from "@/composables/useProjectDisplayName";
+import {
+  UI_LIST_PROJECT_TOOL_NAME,
+  UI_PRESENT_FILE_TOOL_NAME,
+} from "@/shared/agent";
+import { useProjectStore } from "@/stores/project";
 import type { PineToolCall } from "@/shared/sessions";
 import ProjectToolCallDialog from "./ProjectToolCallDialog.vue";
 import {
@@ -52,6 +58,9 @@ const props = defineProps<{
   ) => boolean | Promise<boolean>;
 }>();
 const { t } = useI18n();
+// Markers also render outside the app shell (dialogs, previews) without Pinia.
+const projectStore = getActivePinia() ? useProjectStore() : null;
+const projectDisplayName = useProjectDisplayName();
 const MAX_WEB_PAGE_TITLE_LENGTH = 24;
 
 function normalizedToolName(name: string): string {
@@ -990,6 +999,42 @@ const presentation = computed(() => {
       operation: undefined,
       separator: "",
       target: todoTarget(input, props.toolCall.output),
+      targetMono: false,
+      purpose: undefined,
+      faviconDataUrl: undefined,
+      after: "",
+    };
+  }
+  if (kind === "project") {
+    const tense = state === "running" || state === "error" ? state : "complete";
+    if (normalizedToolName(props.toolCall.name) === UI_LIST_PROJECT_TOOL_NAME) {
+      return {
+        before: t(`project.transcript.tools.project.list.${tense}`),
+        operation: undefined,
+        separator: "",
+        target: "",
+        targetMono: false,
+        purpose: undefined,
+        faviconDataUrl: undefined,
+        after: "",
+      };
+    }
+    const details = inputRecord(inputRecord(props.toolCall.output).details);
+    const projectId =
+      firstString(details, ["projectId"]) ??
+      firstString(input, ["projectId"]) ??
+      "";
+    const project = projectStore?.projectById(projectId);
+    // A finished move the user turned down reads as declined, not done.
+    const outcome =
+      tense === "complete" && details.moved !== true ? "declined" : tense;
+    return {
+      before: t(`project.transcript.tools.project.teleport.${outcome}`),
+      operation: undefined,
+      separator: "",
+      target: project
+        ? projectDisplayName(project)
+        : (firstString(details, ["projectName"]) ?? projectId),
       targetMono: false,
       purpose: undefined,
       faviconDataUrl: undefined,

@@ -735,6 +735,10 @@ export default {
           active: "正在打开 {count} 个文件",
           complete: "打开了 {count} 个文件",
         },
+        project: {
+          active: "正在处理 {count} 次项目操作",
+          complete: "处理了 {count} 次项目操作",
+        },
         background: {
           active: "正在管理 {count} 次后台进程",
           complete: "管理了 {count} 次后台进程",
@@ -765,6 +769,7 @@ export default {
         recall: "历史记录查找",
         fetch: "网页抓取",
         presentFile: "打开文件",
+        project: "项目操作",
         background: "后台进程",
         todo: "任务清单",
         skill: "工作技能",
@@ -856,6 +861,19 @@ export default {
           complete: "已打开 ",
           error: "无法打开 ",
           running: "正在打开 ",
+        },
+        project: {
+          list: {
+            complete: "已查看项目列表",
+            error: "无法读取项目列表",
+            running: "正在查看项目列表",
+          },
+          teleport: {
+            complete: "已移动到项目 ",
+            declined: "未移动到项目 ",
+            error: "无法移动到项目 ",
+            running: "正在请求移动到项目 ",
+          },
         },
         background: {
           run: {
