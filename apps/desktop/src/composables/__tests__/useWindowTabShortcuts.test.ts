@@ -129,4 +129,69 @@ describe("window close navigation", () => {
     expect(useContentTabsStore().tabs).toHaveLength(1);
     wrapper.unmount();
   });
+
+  it("switches tabs with Cmd+Option+Left and Right, wrapping around", async () => {
+    const pinia = createPinia();
+    setActivePinia(pinia);
+    const router = createRouter({
+      history: createMemoryHistory(),
+      routes: [{ path: "/", component: {} }],
+    });
+    const store = useContentTabsStore();
+    const first = store.tabs[0];
+    const second = store.openFile({
+      projectId: "p1",
+      folderId: "f1",
+      relativePath: "a.txt",
+    });
+    const third = store.openFile({
+      projectId: "p1",
+      folderId: "f1",
+      relativePath: "b.txt",
+    });
+    await router.push({ path: "/", query: { tab: first.id } });
+    Object.defineProperty(window, "pine", {
+      configurable: true,
+      value: {
+        onNewTabRequested: () => () => undefined,
+        onCloseTabRequested: () => () => undefined,
+        closeWindow: vi.fn().mockResolvedValue(undefined),
+      },
+    });
+    const wrapper = mount(
+      defineComponent({
+        setup() {
+          useWindowTabShortcuts();
+          return () => null;
+        },
+      }),
+      { global: { plugins: [pinia, router] } },
+    );
+    const press = async (key: string, init: KeyboardEventInit) => {
+      const event = new KeyboardEvent("keydown", {
+        key,
+        cancelable: true,
+        ...init,
+      });
+      window.dispatchEvent(event);
+      await flushPromises();
+      return event;
+    };
+
+    expect(
+      (await press("ArrowRight", { metaKey: true, altKey: true }))
+        .defaultPrevented,
+    ).toBe(true);
+    expect(router.currentRoute.value.query.tab).toBe(second.id);
+    await press("ArrowRight", { ctrlKey: true, altKey: true });
+    expect(router.currentRoute.value.query.tab).toBe(third.id);
+    await press("ArrowRight", { metaKey: true, altKey: true });
+    expect(router.currentRoute.value.query.tab).toBe(first.id);
+    await press("ArrowLeft", { metaKey: true, altKey: true });
+    expect(router.currentRoute.value.query.tab).toBe(third.id);
+    const plain = await press("ArrowLeft", { metaKey: true });
+    expect(plain.defaultPrevented).toBe(false);
+    expect(router.currentRoute.value.query.tab).toBe(third.id);
+    wrapper.unmount();
+  });
 });

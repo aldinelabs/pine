@@ -1,3 +1,4 @@
+import { useEventListener } from "@vueuse/core";
 import {
   inject,
   onMounted,
@@ -32,6 +33,27 @@ export function useWindowTabShortcuts(): void {
         void window.pine.closeWindow();
       }
     });
+  });
+  // ⌘⌥← / ⌘⌥→ step through the tabs, wrapping at either end.
+  useEventListener(window, "keydown", (event: KeyboardEvent) => {
+    const step =
+      event.key === "ArrowLeft" ? -1 : event.key === "ArrowRight" ? 1 : 0;
+    if (
+      !step ||
+      !event.altKey ||
+      !(event.metaKey || event.ctrlKey) ||
+      event.shiftKey ||
+      event.defaultPrevented
+    )
+      return;
+    const list = tabs.tabs;
+    if (list.length < 2) return;
+    event.preventDefault();
+    const index = list.findIndex(
+      (tab) => tab.id === navigation.activeTabId.value,
+    );
+    const next = list[(index + step + list.length) % list.length];
+    if (next) navigation.activate(next.id);
   });
   onUnmounted(() => {
     unsubscribe?.();

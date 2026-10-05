@@ -17,6 +17,7 @@ Starting with 0.4.4, release notes are written in both Chinese and English.
 - “无项目”中的会话可以让 Agent 列出你的项目，并在征得你确认后把会话移动到某个项目中，之后在该项目的文件夹中继续。In a No Project session, the agent can list your projects and, after you confirm, move the session into one of them so it continues in that project's folders.
 - 项目可以设置图标：在项目设置中点击名称左侧的图标，从一组图标中选择；项目选择器和“项目管理”列表会显示该图标。Projects can now have an icon: click the icon left of the name in project settings to pick one, and it shows in the project picker and the Projects list in Settings.
 - 在会话页面按 ⌘L / Ctrl+L 可以随时聚焦消息输入框。On a session page, press ⌘L / Ctrl+L to jump to the message input at any time.
+- 按 ⌘⌥← / ⌘⌥→（Windows 和 Linux 上为 Ctrl+Alt+← / →）切换到上一个 / 下一个标签页，到两端时循环。Press ⌘⌥← / ⌘⌥→ (Ctrl+Alt+← / → on Windows and Linux) to switch to the previous or next tab, wrapping around at either end.
 - 设置中新增“项目管理”：列出所有项目，可以新建、编辑项目，并查看 Pine 为每个项目保存的会话、临时文件、附件和搜索缓存占用；临时文件和附件可以单独清理。Settings now include Projects: every project in one list, where you can create and edit projects, see how much space Pine uses for each project's sessions, temporary files, attachments, and search cache, and clear temporary files or attachments.
 
 ### 变更 / Changed
