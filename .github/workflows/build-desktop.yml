@@ -1,9 +1,6 @@
 name: build-desktop
 
 on:
-  push:
-    branches:
-      - main
   workflow_call:
     inputs:
       require_windows_signing:
@@ -35,7 +32,7 @@ env:
 
 concurrency:
   group: desktop-build-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: ${{ github.event_name == 'push' }}
+  cancel-in-progress: false
 
 jobs:
   check:

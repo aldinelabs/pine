@@ -27,9 +27,9 @@ Pine 尝试为这类场景提供一个桌面端 Agent harness：
 
 | 项目 | 情况                                                                  |
 | ---- | --------------------------------------------------------------------- |
-| 版本 | `0.8.1`（开发者预览）                                                 |
+| 版本 | `0.10.0`（开发者预览）                                                |
 | 打包 | Electron Forge：macOS（Apple Silicon / Intel）DMG、Windows x64 安装包 |
-| CI   | `main` 每次 push 构建 macOS / Windows 产物；正式版本仅手动发布        |
+| CI   | 仅在手动运行 `release` workflow 时构建并发布 macOS / Windows 安装包   |
 
 | 平台    | 支持情况 |
 | ------- | -------- |
