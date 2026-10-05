@@ -58,6 +58,28 @@ export async function resolveLoginPath(
 }
 
 /**
+ * Settings that make common tools fail fast instead of waiting for input
+ * nobody can give. Agent commands have no terminal, so a credential, SSH host
+ * key or confirmation prompt would otherwise hang until a timeout. Homebrew's
+ * implicit update is skipped because it often stalls on slow networks.
+ */
+export function createNonInteractiveEnvironment(
+  platform: NodeJS.Platform = process.platform,
+): Record<string, string> {
+  return {
+    GIT_TERMINAL_PROMPT: "0",
+    GCM_INTERACTIVE: "never",
+    GIT_SSH_COMMAND: "ssh -o BatchMode=yes",
+    GIT_PAGER: "cat",
+    ...(platform === "win32" ? {} : { PAGER: "cat" }),
+    DEBIAN_FRONTEND: "noninteractive",
+    PIP_NO_INPUT: "1",
+    npm_config_yes: "true",
+    HOMEBREW_NO_AUTO_UPDATE: "1",
+  };
+}
+
+/**
  * Build the environment for Pine's bash tool.
  *
  * Preserve HOME and the login PATH for consistent path resolution. They do not
@@ -90,6 +112,7 @@ export function createBashEnvironment(
     BUN_INSTALL_CACHE_DIR: path.join(temporaryDirectory, "bun-cache"),
     XDG_CACHE_HOME: path.join(temporaryDirectory, "xdg-cache"),
     npm_config_cache: path.join(temporaryDirectory, "npm-cache"),
+    ...createNonInteractiveEnvironment(),
   };
   for (const [name, value] of Object.entries(source)) {
     if (name.startsWith("LC_")) result[name] = value;
@@ -97,13 +120,17 @@ export function createBashEnvironment(
   return result;
 }
 
-/** Native execution inherits the host environment in every approval mode. */
+/**
+ * Native execution inherits the host environment in every approval mode. The
+ * non-interactive defaults only fill gaps: a value the user set wins.
+ */
 export function createNativeBashEnvironment(
   environment: NodeJS.ProcessEnv,
   loginPath: string,
   cwd: string,
 ): NodeJS.ProcessEnv {
   return {
+    ...createNonInteractiveEnvironment(),
     ...environment,
     PATH: [path.join(cwd, "node_modules", ".bin"), loginPath]
       .filter(Boolean)

@@ -47,6 +47,24 @@ describe("createBashEnvironment", () => {
     expect(environment.LC_ALL).toBe("zh_CN.UTF-8");
   });
 
+  it("keeps tools from waiting for interactive input", () => {
+    const environment = createBashEnvironment(
+      { GIT_SSH_COMMAND: "ssh -i key" },
+      "/pine/tmp",
+      "/usr/bin:/bin",
+      "/project",
+    );
+
+    expect(environment).toMatchObject({
+      GIT_TERMINAL_PROMPT: "0",
+      GIT_SSH_COMMAND: "ssh -o BatchMode=yes",
+      GIT_PAGER: "cat",
+      PIP_NO_INPUT: "1",
+      npm_config_yes: "true",
+      HOMEBREW_NO_AUTO_UPDATE: "1",
+    });
+  });
+
   it("falls back to a temporary home when the source has none", () => {
     const environment = createBashEnvironment(
       {},
@@ -79,5 +97,17 @@ describe("native execution environment", () => {
     expect(result).toMatchObject(source);
     expect(result.PATH).toBe("/project/node_modules/.bin:/usr/bin");
     expect(source).not.toHaveProperty("PATH");
+  });
+
+  it("adds non-interactive defaults without overriding the user's values", () => {
+    const result = createNativeBashEnvironment(
+      { GIT_SSH_COMMAND: "ssh -i ~/.ssh/work", PAGER: "less" },
+      "/usr/bin",
+      "/project",
+    );
+    expect(result.GIT_SSH_COMMAND).toBe("ssh -i ~/.ssh/work");
+    expect(result.PAGER).toBe("less");
+    expect(result.GIT_TERMINAL_PROMPT).toBe("0");
+    expect(result.HOMEBREW_NO_AUTO_UPDATE).toBe("1");
   });
 });
