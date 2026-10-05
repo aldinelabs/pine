@@ -207,6 +207,24 @@ describe("ProjectSessionComposer", () => {
     wrapper.unmount();
   });
 
+  it("sends the first Tab to the prompt when nothing is focused", () => {
+    const wrapper = mountComposer({ isActive: true });
+    const textarea = wrapper.find("textarea").element;
+    (document.activeElement as HTMLElement | null)?.blur();
+    const tab = new KeyboardEvent("keydown", { key: "Tab", cancelable: true });
+    window.dispatchEvent(tab);
+    expect(tab.defaultPrevented).toBe(true);
+    expect(document.activeElement).toBe(textarea);
+
+    const button = wrapper.find("button").element;
+    button.focus();
+    const next = new KeyboardEvent("keydown", { key: "Tab", cancelable: true });
+    window.dispatchEvent(next);
+    expect(next.defaultPrevented).toBe(false);
+    expect(document.activeElement).toBe(button);
+    wrapper.unmount();
+  });
+
   it("does not suggest projects in an existing session", async () => {
     const { wrapper, input } = await mountChooser();
     await wrapper.setProps({ sessionId: "session-1" });

@@ -17,6 +17,7 @@ import {
   SquareIcon,
   Undo2Icon,
 } from "@lucide/vue";
+import { useEventListener } from "@vueuse/core";
 import { storeToRefs } from "pinia";
 import { computed, nextTick, onMounted, ref, useId, watch } from "vue";
 import { useI18n } from "vue-i18n";
@@ -253,6 +254,27 @@ function confirmYoloMode(): void {
 }
 
 onMounted(() => void modelsStore.load());
+
+// With nothing focused yet, the first Tab lands in the prompt rather than
+// at the start of the window's tab order.
+useEventListener(window, "keydown", (event: KeyboardEvent) => {
+  if (
+    !props.isActive ||
+    event.key !== "Tab" ||
+    event.shiftKey ||
+    event.altKey ||
+    event.ctrlKey ||
+    event.metaKey ||
+    event.defaultPrevented
+  )
+    return;
+  const focused = document.activeElement;
+  if (focused && focused !== document.body) return;
+  const input = document.getElementById(messageId);
+  if (!(input instanceof HTMLTextAreaElement)) return;
+  event.preventDefault();
+  input.focus();
+});
 
 /*
  * Choosing a project by name: typing "@" first in a draft's empty input
