@@ -42,6 +42,7 @@ import { useFileToSession } from "@/composables/useFileToSession";
 import { useScopedProject } from "@/composables/useScopedProject";
 import { useSessionExport } from "@/composables/useSessionExport";
 import { FILE_TAB_DRAG_TYPE, hasFileTabDrag } from "@/lib/contentTabDrag";
+import { groupSessionsByDate } from "@/lib/sessionDateGroups";
 import { readSessionDrag, writeSessionDrag } from "@/lib/sessionDrag";
 import type { PineSessionGroup } from "@/shared/projects";
 import type { PineSessionSummary } from "@/shared/sessions";
@@ -53,37 +54,6 @@ import SessionGroupDialog from "@/components/sessions/SessionGroupDialog.vue";
 import SessionContextMenu from "@/components/sessions/SessionContextMenu.vue";
 import SessionDeleteDialog from "@/components/sessions/SessionDeleteDialog.vue";
 import SessionRenameDialog from "@/components/sessions/SessionRenameDialog.vue";
-
-const DAY_MS = 24 * 60 * 60 * 1000;
-
-type SessionGroupKey = "pastThreeDays" | "pastWeek" | "pastMonth" | "older";
-
-const SESSION_GROUP_WINDOWS: readonly {
-  key: SessionGroupKey;
-  labelKey: string;
-  maxAgeMs: number;
-}[] = [
-  {
-    key: "pastThreeDays",
-    labelKey: "sessions.groupPastThreeDays",
-    maxAgeMs: 3 * DAY_MS,
-  },
-  {
-    key: "pastWeek",
-    labelKey: "sessions.groupPastWeek",
-    maxAgeMs: 7 * DAY_MS,
-  },
-  {
-    key: "pastMonth",
-    labelKey: "sessions.groupPastMonth",
-    maxAgeMs: 30 * DAY_MS,
-  },
-  {
-    key: "older",
-    labelKey: "sessions.groupOlder",
-    maxAgeMs: Number.POSITIVE_INFINITY,
-  },
-];
 
 const { t } = useI18n();
 const emit = defineEmits<{
@@ -211,27 +181,10 @@ const conversationGroups = computed(
   () => activeProject.value?.sessionGroups ?? [],
 );
 
-// Sessions arrive sorted by `updatedAt` descending, so filtering keeps the
-// original order inside every group. Boundaries use rolling windows from the
-// last reload rather than calendar days.
+// Boundaries use rolling windows from the last reload, not calendar days.
 const nowMs = ref(Date.now());
-
-function sessionGroupKeyFor(session: PineSessionSummary): SessionGroupKey {
-  const age = nowMs.value - new Date(session.updatedAt).getTime();
-  return (
-    SESSION_GROUP_WINDOWS.find((window) => age <= window.maxAgeMs)?.key ??
-    "older"
-  );
-}
-
 const dateSessionGroups = computed(() =>
-  SESSION_GROUP_WINDOWS.map((window) => ({
-    key: window.key,
-    label: t(window.labelKey),
-    sessions: recentSessions.value.filter(
-      (session) => sessionGroupKeyFor(session) === window.key,
-    ),
-  })).filter((group) => group.sessions.length > 0),
+  groupSessionsByDate(recentSessions.value, nowMs.value, t),
 );
 
 function sessionTitle(session: PineSessionSummary): string {

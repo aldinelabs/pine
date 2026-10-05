@@ -18,6 +18,7 @@ import type {
   PineSessionSummary,
   PineTextMessage,
   PineToolCall,
+  ProjectSessionSearchResult,
   SessionSearchResult,
 } from "@/shared/sessions";
 import { attachmentMessagePreview } from "@/shared/attachments";
@@ -427,6 +428,10 @@ export const useSessionStore = defineStore("session", () => {
     ReadonlyMap<string, SessionSearchResult[]>
   >(new Map());
   const loadingRecentProjects = ref<ReadonlySet<string>>(new Set());
+  /** The newest sessions of every project, for No Project's sidebar. */
+  const allRecentSessions = shallowRef<ProjectSessionSearchResult[]>([]);
+  const isLoadingAllRecent = ref(false);
+  let allRecentSequence = 0;
   /** Which project each known session belongs to. */
   const sessionProjects = new Map<string, string>();
   const searchResults = shallowRef<SessionSearchResult[]>([]);
@@ -522,11 +527,15 @@ export const useSessionStore = defineStore("session", () => {
 
   /** The project that owns a session this window has seen. */
   function projectOf(sessionId: string): string | undefined {
-    return sessionProjects.get(sessionId);
+    return (
+      sessionProjects.get(sessionId) ??
+      allRecentSessions.value.find((session) => session.id === sessionId)
+        ?.projectId
+    );
   }
 
   function requireProjectOf(sessionId: string): string {
-    const projectId = sessionProjects.get(sessionId);
+    const projectId = projectOf(sessionId);
     if (!projectId) throw new Error("The session's project is unknown.");
     return projectId;
   }
@@ -547,6 +556,45 @@ export const useSessionStore = defineStore("session", () => {
     };
   }
 
+  function byNewest(
+    left: PineSessionSummary,
+    right: PineSessionSummary,
+  ): number {
+    return (
+      new Date(right.updatedAt).getTime() - new Date(left.updatedAt).getTime()
+    );
+  }
+
+  /** Keep the cross-project list in step with one session's latest state. */
+  function upsertAllRecent(projectId: string, session: PineSessionSummary) {
+    const previous = allRecentSessions.value.find(
+      (candidate) => candidate.id === session.id,
+    );
+    allRecentSessions.value = [
+      { ...mergeSessionSummary(session, previous), projectId },
+      ...allRecentSessions.value.filter(
+        (candidate) => candidate.id !== session.id,
+      ),
+    ].sort(byNewest);
+  }
+
+  async function loadAllRecent(): Promise<ProjectSessionSearchResult[]> {
+    const sequence = ++allRecentSequence;
+    isLoadingAllRecent.value = true;
+    try {
+      const { sessions } = await window.pine.listAllRecentSessions();
+      if (sequence === allRecentSequence) {
+        for (const session of sessions)
+          if (!sessionProjects.has(session.id))
+            sessionProjects.set(session.id, session.projectId);
+        allRecentSessions.value = sessions;
+      }
+      return sessions;
+    } finally {
+      if (sequence === allRecentSequence) isLoadingAllRecent.value = false;
+    }
+  }
+
   function upsertRecentSession(
     projectId: string,
     session: PineSessionSummary,
@@ -561,12 +609,9 @@ export const useSessionStore = defineStore("session", () => {
       [
         nextSession,
         ...recent.filter((candidate) => candidate.id !== session.id),
-      ].sort(
-        (left, right) =>
-          new Date(right.updatedAt).getTime() -
-          new Date(left.updatedAt).getTime(),
-      ),
+      ].sort(byNewest),
     );
+    upsertAllRecent(projectId, nextSession);
     return nextSession;
   }
 
@@ -944,6 +989,9 @@ export const useSessionStore = defineStore("session", () => {
     searchResults.value = searchResults.value.filter(
       (session) => session.id !== sessionId,
     );
+    allRecentSessions.value = allRecentSessions.value.filter(
+      (session) => session.id !== sessionId,
+    );
     sessionCache.delete(sessionId);
     sessionProjects.delete(sessionId);
     modelsStore.setSessionSelection(sessionId, undefined);
@@ -966,6 +1014,7 @@ export const useSessionStore = defineStore("session", () => {
         (session) => session.id === sessionId,
       ) ??
       searchResults.value.find((session) => session.id === sessionId) ??
+      allRecentSessions.value.find((session) => session.id === sessionId) ??
       (activeSession.value?.id === sessionId
         ? activeSession.value
         : undefined) ??
@@ -988,6 +1037,9 @@ export const useSessionStore = defineStore("session", () => {
     searchResults.value = searchResults.value.map((candidate) =>
       candidate.id === sessionId ? { ...candidate, ...session } : candidate,
     );
+    allRecentSessions.value = allRecentSessions.value.map((candidate) =>
+      candidate.id === sessionId ? { ...candidate, ...session } : candidate,
+    );
     if (activeSession.value?.id === sessionId) activeSession.value = session;
 
     const cached = sessionCache.get(sessionId);
@@ -1002,6 +1054,9 @@ export const useSessionStore = defineStore("session", () => {
     projectId: string,
   ): void {
     sessionProjects.set(sessionId, projectId);
+    allRecentSessions.value = allRecentSessions.value.map((session) =>
+      session.id === sessionId ? { ...session, projectId } : session,
+    );
     const moved =
       recentSessionsFor(fromProjectId).find(
         (session) => session.id === sessionId,
@@ -1478,6 +1533,9 @@ export const useSessionStore = defineStore("session", () => {
     draftState.value = createSessionState();
     recentByProject.value = new Map();
     loadingRecentProjects.value = new Set();
+    allRecentSequence += 1;
+    allRecentSessions.value = [];
+    isLoadingAllRecent.value = false;
     searchResults.value = [];
     modelsStore.clearSessionSelections();
     isSearching.value = false;
@@ -1486,6 +1544,9 @@ export const useSessionStore = defineStore("session", () => {
   return {
     activate,
     activeSession,
+    allRecentSessions,
+    isLoadingAllRecent,
+    loadAllRecent,
     forgetProject,
     hasActiveWork,
     isLoadingRecentFor,

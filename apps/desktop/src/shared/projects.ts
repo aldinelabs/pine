@@ -88,6 +88,7 @@ import type {
   ResumeSessionResult,
   SearchSessionsRequest,
   SearchSessionsResult,
+  ListAllRecentSessionsResult,
 } from "./sessions";
 import type { PineWindowApi } from "./window";
 import type { PineUserProfile, SetUserProfileResult } from "./userProfile";
@@ -476,6 +477,8 @@ export interface PineDesktopApi extends PineWindowApi {
   searchSessions: (
     request: SearchSessionsRequest,
   ) => Promise<SearchSessionsResult>;
+  /** The newest sessions of every project, each tagged with its project. */
+  listAllRecentSessions: () => Promise<ListAllRecentSessionsResult>;
   onSessionEvent: (listener: SessionEventListener) => () => void;
   respondApproval: (
     request: RespondApprovalRequest,

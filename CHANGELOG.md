@@ -19,6 +19,7 @@ Starting with 0.4.4, release notes are written in both Chinese and English.
 - 在会话页面按 ⌘L / Ctrl+L 可以随时聚焦消息输入框。On a session page, press ⌘L / Ctrl+L to jump to the message input at any time.
 - 按 ⌘⌥← / ⌘⌥→（Windows 和 Linux 上为 Ctrl+Alt+← / →）切换到上一个 / 下一个标签页，到两端时循环。Press ⌘⌥← / ⌘⌥→ (Ctrl+Alt+← / → on Windows and Linux) to switch to the previous or next tab, wrapping around at either end.
 - 可以把文件、文件夹或侧栏中的会话拖到顶部的会话标签页上，作为附件添加到该会话的输入框，并切换到该标签页。Files, folders, or sessions from the sidebar can be dragged onto a session tab at the top to attach them to that session's input and switch to the tab.
+- “无项目”的左侧栏默认显示“会话”，列出所有项目的最近会话，每条会话下方注明所属项目；点击会话会在其所属项目中打开。“无项目”中不提供会话分组。No Project's sidebar opens on Sessions and lists recent sessions from every project, each labelled with its project; clicking one opens it in that project. Session groups are not available in No Project.
 - 设置中新增“项目管理”：列出所有项目，可以新建、编辑项目，并查看 Pine 为每个项目保存的会话、临时文件、附件和搜索缓存占用；临时文件和附件可以单独清理。Settings now include Projects: every project in one list, where you can create and edit projects, see how much space Pine uses for each project's sessions, temporary files, attachments, and search cache, and clear temporary files or attachments.
 
 ### 变更 / Changed

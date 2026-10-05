@@ -5,6 +5,7 @@ import { beforeEach, expect, it, vi } from "vitest";
 import { createAppI18n } from "@/app/i18n";
 import { useProjectStore } from "@/stores/project";
 import { useProjectSidebarStore } from "@/stores/projectSidebar";
+import { TEMPORARY_WORKSPACE_PROJECT_ID } from "@/shared/projects";
 import { PINE_RELEASES_URL } from "@/shared/window";
 import { useUpdaterStore } from "@/stores/updater";
 import ProjectSidebar from "../ProjectSidebar.vue";
@@ -150,5 +151,51 @@ it("shows the version item that opens releases until an update replaces it", asy
   await flushPromises();
   expect(wrapper.find('[data-testid="pine-version"]').exists()).toBe(false);
   expect(wrapper.text()).toContain("新版本 Pine 可用");
+  wrapper.unmount();
+});
+
+it("lands No Project on the all-projects session list", async () => {
+  const pinia = createPinia();
+  setActivePinia(pinia);
+  const sidebarStore = useProjectSidebarStore();
+  sidebarStore.setTab(TEMPORARY_WORKSPACE_PROJECT_ID, "files");
+  showProject({
+    id: TEMPORARY_WORKSPACE_PROJECT_ID,
+    name: "Temporary",
+    createdAt: "",
+    updatedAt: "",
+    schemaVersion: 1,
+    defaultFolderId: "folder",
+    folders: [],
+  });
+  const router = createRouter({
+    history: createMemoryHistory(),
+    routes: [{ path: "/", component: { template: "<div />" } }],
+  });
+  await router.push("/");
+  const wrapper = mount(ProjectSidebar, {
+    global: {
+      plugins: [pinia, router, createAppI18n("zh-CN")],
+      stubs: {
+        Sidebar: slot,
+        SidebarContent: slot,
+        SidebarFooter: slot,
+        SidebarHeader: slot,
+        SidebarMenu: slot,
+        SidebarMenuButton: slot,
+        SidebarMenuItem: slot,
+        SidebarRail: true,
+        ProjectFileTree: true,
+        ProjectSessionList: { template: "<div data-project-sessions />" },
+        AllProjectsSessionList: { template: "<div data-all-sessions />" },
+      },
+    },
+  });
+  await flushPromises();
+  expect(sidebarStore.stateFor(TEMPORARY_WORKSPACE_PROJECT_ID).tab).toBe(
+    "sessions",
+  );
+  expect(wrapper.find("[data-all-sessions]").exists()).toBe(true);
+  expect(wrapper.find("[data-project-sessions]").exists()).toBe(false);
   wrapper.unmount();
 });

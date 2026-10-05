@@ -294,6 +294,13 @@ export class ProjectRuntimeRegistry {
     return false;
   }
 
+  /** A session index some window already has open, so reads can reuse it. */
+  openSessionService(projectId: string): ProjectSessionService | undefined {
+    return this.allRuntimes().find(
+      (runtime) => runtime.project.id === projectId,
+    )?.sessions;
+  }
+
   async search(
     webContentsId: number,
     projectId: string,

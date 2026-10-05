@@ -7,7 +7,7 @@ import {
   Settings2,
 } from "@lucide/vue";
 import { storeToRefs } from "pinia";
-import { computed, onMounted, ref } from "vue";
+import { computed, onMounted, ref, watch } from "vue";
 import {
   useProjectSidebarStore,
   type ProjectSidebarTab,
@@ -29,6 +29,7 @@ import { isTemporaryWorkspace } from "@/shared/projects";
 import { useProjectStore } from "@/stores/project";
 import { useUpdaterStore } from "@/stores/updater";
 import { PINE_RELEASES_URL } from "@/shared/window";
+import AllProjectsSessionList from "./AllProjectsSessionList.vue";
 import ProjectFileTree from "./ProjectFileTree.vue";
 import ProjectSessionList from "./ProjectSessionList.vue";
 import ProjectScope from "./ProjectScope.vue";
@@ -71,6 +72,16 @@ const activeTab = computed<ProjectSidebarTab>({
   get: () => sidebarStore.stateFor(currentProjectId.value).tab,
   set: (tab) => sidebarStore.setTab(currentProjectId.value, tab),
 });
+// No Project has no files of its own worth browsing first; its sidebar
+// always lands on the sessions of every project.
+watch(
+  currentProjectId,
+  (projectId) => {
+    if (isTemporaryWorkspace(projectId))
+      sidebarStore.setTab(projectId, "sessions");
+  },
+  { immediate: true },
+);
 </script>
 
 <template>
@@ -117,7 +128,11 @@ const activeTab = computed<ProjectSidebarTab>({
               :key="projectId"
               :active="projectId === currentProjectId"
             >
-              <ProjectScope :project-id="projectId">
+              <AllProjectsSessionList
+                v-if="isTemporaryWorkspace(projectId)"
+                @search="emit('searchSessions')"
+              />
+              <ProjectScope v-else :project-id="projectId">
                 <ProjectSessionList @search="emit('searchSessions')" />
               </ProjectScope>
             </RetainedPanel>

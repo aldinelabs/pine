@@ -247,6 +247,7 @@ import {
   RENAME_SESSION_CHANNEL,
   RESUME_SESSION_CHANNEL,
   SEARCH_SESSIONS_CHANNEL,
+  LIST_ALL_RECENT_SESSIONS_CHANNEL,
   type AttachSessionResult,
   type DeleteSessionResult,
   type ExportSessionResult,
@@ -254,7 +255,9 @@ import {
   type RenameSessionResult,
   type ResumeSessionResult,
   type SearchSessionsResult,
+  type ListAllRecentSessionsResult,
 } from "./shared/sessions";
+import { listAllRecentSessions } from "./main/recentSessions";
 import {
   PROJECT_FILE_OPERATION_CHANNEL,
   PROJECT_FILE_ATTACHMENTS_CHANNEL,
@@ -2663,6 +2666,21 @@ ipcMain.handle(
       );
     }
     return projectFileWatchers.setWatchedDirectories(event.sender.id, parsed);
+  },
+);
+
+handleDiagnosticIpc(
+  LIST_ALL_RECENT_SESSIONS_CHANNEL,
+  async (): Promise<ListAllRecentSessionsResult> => {
+    const repository = getProjectRepository();
+    const runtimes = getProjectRuntimes();
+    return {
+      sessions: await listAllRecentSessions(await repository.list(), {
+        dataPaths: (projectId) => repository.dataPaths(projectId),
+        openSessionService: (projectId) =>
+          runtimes.openSessionService(projectId),
+      }),
+    };
   },
 );
 

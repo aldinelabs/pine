@@ -7,6 +7,8 @@ import {
 } from "@pine/pi-background-tasks";
 
 export const SEARCH_SESSIONS_CHANNEL = "sessions:search" as const;
+export const LIST_ALL_RECENT_SESSIONS_CHANNEL =
+  "sessions:list-all-recent" as const;
 export const RESUME_SESSION_CHANNEL = "sessions:resume" as const;
 export const LOAD_SESSION_MESSAGES_CHANNEL = "sessions:messages" as const;
 export const DELETE_SESSION_CHANNEL = "sessions:delete" as const;
@@ -245,6 +247,15 @@ export interface SearchSessionsRequest {
 
 export interface SearchSessionsResult {
   sessions: SessionSearchResult[];
+}
+
+/** A recent session listed together with the project it belongs to. */
+export interface ProjectSessionSearchResult extends SessionSearchResult {
+  projectId: string;
+}
+
+export interface ListAllRecentSessionsResult {
+  sessions: ProjectSessionSearchResult[];
 }
 
 export type ResumeSessionRequest = ProjectSessionReference;
