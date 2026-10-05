@@ -29,7 +29,7 @@ import { cn } from "@/lib/utils";
 
 const props = defineProps<{
   tasks: readonly Task[];
-  /** The in-progress node pulses only while the agent is working. */
+  /** The in-progress loader spins only while the agent is working. */
   isRunning: boolean;
 }>();
 const emit = defineEmits<{ select: [] }>();
@@ -44,6 +44,8 @@ const GRAPH_INSET = 12;
 /** Space between a label and the graph. */
 const GRAPH_GAP = 6;
 const NODE_RADIUS = 4;
+/** The in-progress node is a small loader, slightly larger than a dot. */
+const SPINNER_RADIUS = 4.5;
 const CURVE = 14;
 /** A button is `h-9`; the first text line's centre sits at half of it. */
 const FIRST_LINE_CENTER = 18;
@@ -139,7 +141,7 @@ function statusLabel(task: Task): string {
     <svg
       data-testid="project-todo-graph"
       aria-hidden="true"
-      class="pointer-events-none absolute top-0"
+      class="pointer-events-none absolute top-0 overflow-visible"
       :style="{ right: `${GRAPH_INSET}px` }"
       :width="gutterWidth"
       :height="height"
@@ -157,14 +159,34 @@ function statusLabel(task: Task): string {
         class="stroke-muted-foreground/50"
       />
       <g v-for="(row, index) in layout.rows" :key="row.task.id">
-        <circle
+        <g
           v-if="row.task.status === 'in_progress'"
-          :cx="laneX(row.lane)"
-          :cy="centers[index]"
-          :r="NODE_RADIUS + 3"
-          :class="cn('fill-primary/20', isRunning && 'animate-pulse')"
-        />
+          data-testid="project-todo-node"
+          :data-status="row.task.status"
+          :data-lane="row.lane"
+          :transform="`translate(${laneX(row.lane)} ${centers[index]})`"
+        >
+          <circle
+            :r="SPINNER_RADIUS"
+            stroke-width="1.5"
+            class="fill-sidebar stroke-primary/25"
+          />
+          <circle
+            :r="SPINNER_RADIUS"
+            stroke-width="1.5"
+            stroke-linecap="round"
+            pathLength="100"
+            stroke-dasharray="30 100"
+            :class="
+              cn(
+                'fill-none stroke-primary origin-center [transform-box:fill-box]',
+                isRunning && 'animate-spin',
+              )
+            "
+          />
+        </g>
         <circle
+          v-else
           data-testid="project-todo-node"
           :data-status="row.task.status"
           :data-lane="row.lane"
@@ -173,11 +195,9 @@ function statusLabel(task: Task): string {
           :r="NODE_RADIUS"
           stroke-width="1.5"
           :class="
-            row.task.status === 'in_progress'
-              ? 'fill-primary stroke-primary'
-              : row.task.status === 'completed'
-                ? 'fill-muted-foreground/60 stroke-muted-foreground/60'
-                : 'fill-sidebar stroke-muted-foreground'
+            row.task.status === 'completed'
+              ? 'fill-muted-foreground/60 stroke-muted-foreground/60'
+              : 'fill-sidebar stroke-muted-foreground'
           "
         />
       </g>
