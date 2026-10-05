@@ -15,14 +15,19 @@ import {
 } from "@/components/ui/dialog";
 import { Progress } from "@/components/ui/progress";
 import { Spinner } from "@/components/ui/spinner";
+import { updateChangelogFor } from "@/shared/updates";
 import { useUpdaterStore } from "@/stores/updater";
 
 const open = defineModel<boolean>("open", { default: false });
-const { t } = useI18n();
+const { locale, t } = useI18n();
 const updater = useUpdaterStore();
 const { error, phase, progress, update } = storeToRefs(updater);
 const isBusy = computed(
   () => phase.value === "downloading" || phase.value === "installing",
+);
+
+const changelog = computed(() =>
+  update.value ? updateChangelogFor(update.value, locale.value) : "",
 );
 
 function handleOpenChanged(value: boolean): void {
@@ -42,7 +47,7 @@ function handleOpenChanged(value: boolean): void {
       </DialogHeader>
 
       <div class="max-h-72 overflow-y-auto rounded-xl bg-muted/50 p-4">
-        <MarkdownContent :source="update?.changelog ?? ''" final />
+        <MarkdownContent :source="changelog" final />
       </div>
 
       <div v-if="phase === 'downloading'" class="flex flex-col gap-2">

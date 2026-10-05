@@ -68,6 +68,25 @@ describe("app updater", () => {
     ).toThrow("configured R2 origin");
   });
 
+  it("keeps per-language notes and ignores unusable ones", () => {
+    expect(parseUpdateManifest(manifest, manifestUrl).changelogs).toBe(
+      undefined,
+    );
+    expect(
+      parseUpdateManifest(
+        {
+          ...manifest,
+          changelogs: {
+            "zh-CN": "- 更新。",
+            "en-US": " ",
+            "fr-FR": "- Mise à jour.",
+          },
+        },
+        manifestUrl,
+      ).changelogs,
+    ).toEqual({ "zh-CN": "- 更新。" });
+  });
+
   it("reports a newer compatible release", async () => {
     const updater = new AppUpdater({
       arch: "arm64",

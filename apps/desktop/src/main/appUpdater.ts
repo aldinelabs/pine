@@ -10,12 +10,13 @@ import {
 } from "node:fs/promises";
 import path from "node:path";
 import type { AutoUpdater } from "electron";
-import type {
-  DownloadUpdateResult,
-  InstallUpdateResult,
-  PineUpdateEvent,
-  PineUpdateInfo,
-  UpdateCheckResult,
+import {
+  UPDATE_CHANGELOG_LOCALES,
+  type DownloadUpdateResult,
+  type InstallUpdateResult,
+  type PineUpdateEvent,
+  type PineUpdateInfo,
+  type UpdateCheckResult,
 } from "../shared/updates";
 
 interface UpdateAsset {
@@ -121,6 +122,20 @@ function requireString(
   return value;
 }
 
+/** Per-language notes are optional: the combined changelog covers their absence. */
+function parseChangelogs(
+  value: unknown,
+): PineUpdateInfo["changelogs"] | undefined {
+  if (!value || typeof value !== "object") return undefined;
+  const changelogs: NonNullable<PineUpdateInfo["changelogs"]> = {};
+  for (const locale of UPDATE_CHANGELOG_LOCALES) {
+    const changelog = (value as Record<string, unknown>)[locale];
+    if (typeof changelog === "string" && changelog.trim().length > 0)
+      changelogs[locale] = changelog;
+  }
+  return Object.keys(changelogs).length > 0 ? changelogs : undefined;
+}
+
 export function parseUpdateManifest(
   input: unknown,
   manifestUrl: string,
@@ -142,6 +157,7 @@ export function parseUpdateManifest(
   const changelog = requireString(value.changelog, "changelog", {
     nonEmpty: true,
   });
+  const changelogs = parseChangelogs(value.changelogs);
   const publishedAt = requireString(value.publishedAt, "publishedAt", {
     nonEmpty: true,
   });
@@ -185,6 +201,7 @@ export function parseUpdateManifest(
   return {
     assets,
     changelog,
+    ...(changelogs ? { changelogs } : {}),
     internalVersion,
     publishedAt,
     schemaVersion: 1,
@@ -328,6 +345,7 @@ export class AppUpdater {
       status: "available",
       update: {
         changelog: manifest.changelog,
+        ...(manifest.changelogs ? { changelogs: manifest.changelogs } : {}),
         internalVersion: manifest.internalVersion,
         publishedAt: manifest.publishedAt,
         version: manifest.version,
