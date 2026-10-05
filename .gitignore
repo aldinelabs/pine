@@ -39,3 +39,6 @@ HANDOFF*
 # Finder (MacOS) folder config
 .DS_Store
 
+
+# Temporary clone used while researching file previews
+.pine-tmp-file-viewer/
