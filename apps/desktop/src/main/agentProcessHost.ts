@@ -1,4 +1,5 @@
-import { utilityProcess } from "electron";
+import { app, utilityProcess } from "electron";
+import { SYSTEM_LANGUAGES_ENV } from "../agent/network-region";
 import { randomUUID } from "node:crypto";
 import path from "node:path";
 import type { McpStatusSnapshot } from "pi-mcp-adapter";
@@ -219,6 +220,10 @@ export class AgentProcessHost implements AgentHost {
       utilityProcess.fork(path.join(__dirname, "agent.mjs"), [], {
         serviceName: "Pine Agent",
         stdio: "pipe",
+        env: {
+          ...process.env,
+          [SYSTEM_LANGUAGES_ENV]: app.getPreferredSystemLanguages().join(","),
+        },
       }),
     );
   }

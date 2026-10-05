@@ -112,6 +112,10 @@ import {
 import { readPineAgentSettings } from "./pineSettings";
 import { createDefaultPineUserProfile } from "../shared/userProfile";
 import {
+  localNetworkRegionSignals,
+  networkRegionSystemPrompt,
+} from "./network-region";
+import {
   DEFAULT_AUTO_APPROVAL_SETTINGS,
   DEFAULT_CONTEXT_COMPACTION_ROUTE,
   DEFAULT_CONTEXT_COMPACTION_STRATEGY,
@@ -851,6 +855,12 @@ export class PineAgentRuntime {
                 approvalModeSystemPrompt(live.approvalMode);
               event.systemPromptOptions.sections.pine_time =
                 systemPromptWithCurrentMonth("").trim();
+              const networkRegion = networkRegionSystemPrompt(
+                localNetworkRegionSignals(),
+              );
+              if (networkRegion)
+                event.systemPromptOptions.sections.pine_network_region =
+                  networkRegion;
               const skillList = skillRepository.promptList();
               if (skillList)
                 event.systemPromptOptions.sections.pine_skills = skillList;
