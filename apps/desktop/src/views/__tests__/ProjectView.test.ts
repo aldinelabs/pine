@@ -213,7 +213,7 @@ it.each([
   ["false", false],
 ])(
   "unlocks the project layout and fits the remembered right sidebar (%s)",
-  async (stored, fits) => {
+  async (stored, open) => {
     if (stored)
       window.localStorage.setItem(PROJECT_RIGHT_SIDEBAR_STORAGE_KEY, stored);
     const setWindowLayout = vi.fn().mockResolvedValue(undefined);
@@ -226,9 +226,9 @@ it.each([
     await flushPromises();
 
     expect(setWindowLayout).toHaveBeenCalledExactlyOnceWith("project");
-    expect(planWindowResize.mock.calls).toEqual(
-      fits ? [[{ kind: "fit-right-sidebar" }]] : [],
-    );
+    expect(planWindowResize.mock.calls).toEqual([
+      [{ kind: "fit-right-sidebar", open }],
+    ]);
     wrapper.unmount();
   },
 );

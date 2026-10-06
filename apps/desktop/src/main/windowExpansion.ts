@@ -69,6 +69,25 @@ export function projectWithRightSidebarSize(current: Rectangle): WindowSize {
   };
 }
 
+/**
+ * Fits the project window to the remembered right sidebar. Windows open
+ * sized for the sidebar, so a closed sidebar gives its width back only on
+ * the window's first fit; later fits (reloads) keep the user's size.
+ */
+export function projectWindowSize(
+  current: Rectangle,
+  open: boolean,
+  isFirstFit: boolean,
+): WindowSize {
+  if (open) return projectWithRightSidebarSize(current);
+  return {
+    width: isFirstFit
+      ? Math.min(current.width, PROJECT_WINDOW_WIDTH - RIGHT_SIDEBAR_WIDTH)
+      : current.width,
+    height: current.height,
+  };
+}
+
 export function rightSidebarWidthChange(open: boolean): number {
   return open ? RIGHT_SIDEBAR_WIDTH : -RIGHT_SIDEBAR_WIDTH;
 }
@@ -132,6 +151,7 @@ const plannedResizes = new WeakMap<
 /** Sidebar width owed by windows toggled while maximized or fullscreen. */
 const deferredWidthChanges = new WeakMap<BrowserWindow, number>();
 const windowsWatchingRestore = new WeakSet<BrowserWindow>();
+const fittedWindows = new WeakSet<BrowserWindow>();
 
 /** Interrupted animations still settle so waiting renderers can unfreeze. */
 function stopAnimation(window: BrowserWindow): void {
@@ -219,6 +239,9 @@ export function planWindowResize(
   if (window.isDestroyed()) return 0;
   // Checked before isResizable(): macOS reports fullscreen windows as not
   // resizable. Only project windows can be maximized or fullscreen.
+  const isFirstFit =
+    request.kind === "fit-right-sidebar" && !fittedWindows.has(window);
+  if (request.kind === "fit-right-sidebar") fittedWindows.add(window);
   if (window.isMaximized() || window.isFullScreen()) {
     // macOS ignores setBounds in fullscreen and leaves maximized on it, so
     // apply the sidebar's width once the window is restored instead.
@@ -232,7 +255,11 @@ export function planWindowResize(
   const { workArea } = screen.getDisplayMatching(from);
   const to =
     request.kind === "fit-right-sidebar"
-      ? resizedBounds(from, workArea, projectWithRightSidebarSize(from))
+      ? resizedBounds(
+          from,
+          workArea,
+          projectWindowSize(from, request.open, isFirstFit),
+        )
       : rightSidebarBounds(
           from,
           workArea,

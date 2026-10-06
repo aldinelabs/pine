@@ -54,7 +54,7 @@ it("reports skipped resizes so callers can fall back", async () => {
   const beforeCommit = vi.fn();
 
   await expect(
-    resize.run({ kind: "fit-right-sidebar" }, { beforeCommit }),
+    resize.run({ kind: "fit-right-sidebar", open: true }, { beforeCommit }),
   ).resolves.toBe(false);
   expect(beforeCommit).not.toHaveBeenCalled();
   expect(commitWindowResize).not.toHaveBeenCalled();

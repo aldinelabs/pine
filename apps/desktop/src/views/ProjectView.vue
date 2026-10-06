@@ -209,10 +209,18 @@ onMounted(async () => {
   sessionStore.connectAgentEvents();
   void loadProjects();
   await window.pine?.setWindowLayout?.("project");
-  if (!rightSidebar.open) return;
+  const open = rightSidebar.open;
   await frozenResize.run(
-    { kind: "fit-right-sidebar" },
-    { ...growingWindowHooks, afterCommit: resetTrailingControls },
+    { kind: "fit-right-sidebar", open },
+    open
+      ? { ...growingWindowHooks, afterCommit: resetTrailingControls }
+      : {
+          onCommitStart: (delta) => {
+            isTrailingControlsAnimated.value = true;
+            trailingControlsShift.value = delta;
+          },
+          afterCommit: resetTrailingControls,
+        },
   );
   resetTrailingControls();
 });

@@ -5,6 +5,7 @@ vi.mock("electron", () => ({ screen: {} }));
 import {
   easeOutExpo,
   interpolateBounds,
+  projectWindowSize,
   projectWithRightSidebarSize,
   resizedBounds,
   deferWidthChange,
@@ -26,6 +27,22 @@ describe("window layout sizing", () => {
     expect(
       resizedBounds(listBounds, workArea, { width: 1376, height: 840 }),
     ).toEqual({ x: 68, y: 60, width: 1376, height: 840 });
+  });
+
+  it("gives back the right sidebar width only on a window's first closed fit", () => {
+    const opened = { ...listBounds, width: 1376 };
+    expect(projectWindowSize(opened, false, true)).toEqual({
+      width: 1120,
+      height: 840,
+    });
+    expect(projectWindowSize(opened, false, false)).toEqual({
+      width: 1376,
+      height: 840,
+    });
+    expect(projectWindowSize(listBounds, true, true)).toEqual({
+      width: 1376,
+      height: 840,
+    });
   });
 
   it("restores the fixed project list size", () => {

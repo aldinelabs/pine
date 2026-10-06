@@ -42,7 +42,7 @@ export function isPineWindowLayout(value: unknown): value is PineWindowLayout {
  * sidebar never changes the window width.
  */
 export type PineWindowResizeRequest =
-  | { kind: "fit-right-sidebar" }
+  | { kind: "fit-right-sidebar"; open: boolean }
   | { kind: "toggle-right-sidebar"; open: boolean };
 
 export function isPineWindowResizeRequest(
@@ -50,9 +50,9 @@ export function isPineWindowResizeRequest(
 ): value is PineWindowResizeRequest {
   if (typeof value !== "object" || value === null || !("kind" in value))
     return false;
-  if (value.kind === "fit-right-sidebar") return true;
   return (
-    value.kind === "toggle-right-sidebar" &&
+    (value.kind === "fit-right-sidebar" ||
+      value.kind === "toggle-right-sidebar") &&
     "open" in value &&
     typeof value.open === "boolean"
   );
