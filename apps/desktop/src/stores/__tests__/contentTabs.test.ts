@@ -102,6 +102,21 @@ describe("content tabs store", () => {
     expect(store.tabs[0]).toMatchObject({ projectId: "two", state: "bound" });
   });
 
+  it("asks a newly opened draft's composer for focus once", () => {
+    const store = useContentTabsStore();
+    expect(store.composerFocusTabId).toBeNull();
+
+    const draft = store.createSessionTab({ reuseDraft: false });
+    expect(store.composerFocusTabId).toBe(draft.id);
+    store.clearComposerFocus("other");
+    expect(store.composerFocusTabId).toBe(draft.id);
+    store.clearComposerFocus(draft.id);
+    expect(store.composerFocusTabId).toBeNull();
+
+    const reused = store.createSessionTab();
+    expect(store.composerFocusTabId).toBe(reused.id);
+  });
+
   it("keeps each tab's project through creation and binding", () => {
     const store = useContentTabsStore();
     store.setDraftProject("session-1", "one");

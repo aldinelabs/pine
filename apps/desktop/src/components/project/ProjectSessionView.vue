@@ -4,7 +4,7 @@ import {
   useAttachmentDrop,
 } from "@/composables/useAttachmentDrop";
 import { FilesIcon } from "@lucide/vue";
-import { computed, onMounted, ref, watch } from "vue";
+import { computed, nextTick, onMounted, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { toast } from "vue-sonner";
 import type { PineApprovalAction, PineApprovalMode } from "@/shared/agent";
@@ -60,6 +60,22 @@ const sessionStore = useSessionStore();
 const { attachDrop } = useAttachmentDrop();
 const HISTORY_LOAD_THRESHOLD = 240;
 const isSubmitting = ref(false);
+const composer = ref<InstanceType<typeof ProjectSessionComposer> | null>(null);
+const isActive = computed(
+  () => tabNavigation.activeTabId.value === props.tabId,
+);
+
+// A newly opened tab lands in its composer once it is shown.
+watch(
+  () => isActive.value && contentTabsStore.composerFocusTabId === props.tabId,
+  async (shouldFocus) => {
+    if (!shouldFocus) return;
+    contentTabsStore.clearComposerFocus(props.tabId);
+    await nextTick();
+    composer.value?.focus();
+  },
+  { immediate: true, flush: "post" },
+);
 
 async function openToolFile(
   path: string,
@@ -495,11 +511,12 @@ async function handleDrop(event: DragEvent): Promise<void> {
       </div>
 
       <ProjectSessionComposer
+        ref="composer"
         v-model="draft"
         v-model:attachments="attachments"
         v-model:approvalMode="approvalMode"
         :is-running="isRunning"
-        :is-active="tabNavigation.activeTabId.value === props.tabId"
+        :is-active="isActive"
         :pending-approval="pendingApproval"
         :is-responding="
           pendingApproval

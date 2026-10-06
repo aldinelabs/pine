@@ -98,6 +98,8 @@ export const useContentTabsStore = defineStore("content-tabs", () => {
 
   const saved = readContentTabs();
   const tabs = ref<ProjectContentTab[]>(saved?.tabs ?? initialTabs());
+  /** A tab whose composer should take focus once it is shown. */
+  const composerFocusTabId = ref<string | null>(null);
   // Main resolves a presentation to the exact file target, including its
   // project folder or temporary external-file grant. Keep that association
   // after a tab closes so its tool marker can reopen the same preview.
@@ -253,6 +255,7 @@ export const useContentTabsStore = defineStore("content-tabs", () => {
     );
     if (reuseDraft && existingDraft) {
       if (projectId) setDraftProject(existingDraft.id, projectId);
+      composerFocusTabId.value = existingDraft.id;
       return (
         tabs.value.find(
           (tab): tab is DraftSessionTab => tab.id === existingDraft.id,
@@ -262,6 +265,7 @@ export const useContentTabsStore = defineStore("content-tabs", () => {
 
     const tab = makeDraftTab(projectId ?? lastDraftProjectId.value);
     tabs.value = [...tabs.value, tab];
+    composerFocusTabId.value = tab.id;
     return tab;
   }
 
@@ -469,8 +473,13 @@ export const useContentTabsStore = defineStore("content-tabs", () => {
       fallbackActiveTabId.value = tabs.value[0]?.id ?? null;
   }
 
+  function clearComposerFocus(tabId: string): void {
+    if (composerFocusTabId.value === tabId) composerFocusTabId.value = null;
+  }
+
   function reset(): void {
     presentedTargets.clear();
+    composerFocusTabId.value = null;
     composerAttachments.value = {};
     nextSessionTabNumber = 2;
     fallbackActiveTabId.value = null;
@@ -482,8 +491,10 @@ export const useContentTabsStore = defineStore("content-tabs", () => {
     attachmentsFor,
     beginPrompt,
     bindSession,
+    clearComposerFocus,
     close,
     composerAttachments,
+    composerFocusTabId,
     createSessionTab,
     failPrompt,
     fallbackActiveTabId,

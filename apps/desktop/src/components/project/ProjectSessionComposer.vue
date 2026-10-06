@@ -255,6 +255,12 @@ function confirmYoloMode(): void {
 
 onMounted(() => void modelsStore.load());
 
+function focus(): void {
+  document.getElementById(messageId)?.focus({ preventScroll: true });
+}
+
+defineExpose({ focus });
+
 // ⌘L / Ctrl+L jumps to the prompt from anywhere on the page.
 useEventListener(window, "keydown", (event: KeyboardEvent) => {
   if (
@@ -266,10 +272,10 @@ useEventListener(window, "keydown", (event: KeyboardEvent) => {
     event.defaultPrevented
   )
     return;
-  const input = document.getElementById(messageId);
-  if (!(input instanceof HTMLTextAreaElement)) return;
+  if (!(document.getElementById(messageId) instanceof HTMLTextAreaElement))
+    return;
   event.preventDefault();
-  input.focus();
+  focus();
 });
 
 /*
