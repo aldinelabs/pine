@@ -9,6 +9,20 @@ Every release section here has a matching section in the Chinese changelog.
 
 ## [Unreleased]
 
+## [0.10.1] - 2026-10-07
+
+### Changed
+
+- A newly opened session tab places the cursor in its message input right away.
+
+### Fixed
+
+- Long conversations stay smooth as they grow: the transcript no longer slows down the longer a session gets.
+- Open background session tabs no longer slow down the one you are using.
+- Scrolling and streaming replies drop fewer frames in long conversations.
+- Collapsed thinking blocks and tool-call groups no longer cost rendering time.
+- When the right sidebar is closed on launch, the window no longer keeps extra width reserved for it.
+
 ## [0.10.0] - 2026-10-05
 
 ### Added
