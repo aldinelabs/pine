@@ -134,7 +134,7 @@ onBeforeUnmount(() => {
     :data-autoscrolling="autoscrolling ? '' : undefined"
     :class="
       cn(
-        'size-full min-h-0 min-w-0 scroll-fade-y no-scrollbar overflow-y-auto overscroll-contain contain-content outline-none',
+        'message-scroller-fade size-full min-h-0 min-w-0 no-scrollbar overflow-y-auto overscroll-contain contain-content outline-none',
         props.class,
       )
     "
@@ -149,3 +149,50 @@ onBeforeUnmount(() => {
     <slot />
   </div>
 </template>
+
+<style scoped>
+/*
+ * Edge fades keyed to the engine's scrollable state rather than shadcn's
+ * scroll-fade-y. That utility animates registered custom properties on a
+ * scroll timeline; they cannot run on the compositor, so every scroll frame
+ * waited on main-thread style and a full-viewport mask repaint, and frames
+ * dropped whenever the main thread was briefly busy. Here the mask changes
+ * only when an edge is crossed, with a short transition.
+ */
+.message-scroller-fade {
+  --_fade-size: min(12%, calc(var(--spacing) * 10));
+  -webkit-mask-image: linear-gradient(
+    to bottom,
+    transparent 0,
+    #000 var(--scroll-fade-t, 0px),
+    #000 calc(100% - var(--scroll-fade-b, 0px)),
+    transparent 100%
+  );
+  mask-image: linear-gradient(
+    to bottom,
+    transparent 0,
+    #000 var(--scroll-fade-t, 0px),
+    #000 calc(100% - var(--scroll-fade-b, 0px)),
+    transparent 100%
+  );
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  transition:
+    --scroll-fade-t 200ms ease-out,
+    --scroll-fade-b 200ms ease-out;
+}
+
+.message-scroller-fade[data-scrollable~="start"] {
+  --scroll-fade-t: var(--_fade-size);
+}
+
+.message-scroller-fade[data-scrollable~="end"] {
+  --scroll-fade-b: var(--_fade-size);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .message-scroller-fade {
+    transition: none;
+  }
+}
+</style>
