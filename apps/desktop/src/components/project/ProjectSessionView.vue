@@ -4,7 +4,7 @@ import {
   useAttachmentDrop,
 } from "@/composables/useAttachmentDrop";
 import { FilesIcon } from "@lucide/vue";
-import { computed, nextTick, onMounted, ref, watch } from "vue";
+import { computed, nextTick, onMounted, ref, useTemplateRef, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { toast } from "vue-sonner";
 import type { PineApprovalAction, PineApprovalMode } from "@/shared/agent";
@@ -59,6 +59,16 @@ const tabNavigation = useContentTabNavigation();
 const sessionStore = useSessionStore();
 const { attachDrop } = useAttachmentDrop();
 const HISTORY_LOAD_THRESHOLD = 240;
+/**
+ * The transcript renders a window ending at the newest message. While the
+ * reader follows the live end it is trimmed back to RENDER_WINDOW_KEEP once it
+ * grows past RENDER_WINDOW_MAX, so a long session costs what a freshly opened
+ * one does. Scrolling up reveals trimmed messages a page at a time before
+ * fetching older history.
+ */
+const RENDER_WINDOW_MAX = 120;
+const RENDER_WINDOW_KEEP = 60;
+const RENDER_WINDOW_PAGE = 50;
 const isSubmitting = ref(false);
 const composer = ref<InstanceType<typeof ProjectSessionComposer> | null>(null);
 const isActive = computed(
@@ -130,6 +140,61 @@ const isRunning = computed(
   () => isSubmitting.value || (tabState.value?.isRunning ?? false),
 );
 const messages = computed(() => tabState.value?.messages ?? []);
+const scroller = useTemplateRef<{ isFollowingBottom?: () => boolean }>(
+  "scroller",
+);
+/** The first rendered message; null renders from the oldest loaded one. */
+const windowStartId = ref<string | null>(null);
+const renderStart = computed(() => {
+  const id = windowStartId.value;
+  if (!id) return 0;
+  const index = messages.value.findIndex((message) => message.id === id);
+  // A rewrite can remove the first rendered message; keep the recent tail.
+  return index >= 0
+    ? index
+    : Math.max(0, messages.value.length - RENDER_WINDOW_KEEP);
+});
+/**
+ * The messages the transcript renders. A background tab holds its last frame:
+ * stream updates for it only land in the store, and the view catches up in a
+ * single render when the tab is shown again.
+ */
+const renderedMessages = computed(
+  (previous?: readonly PineTranscriptMessage[]) => {
+    if (!isActive.value && previous) return previous;
+    const start = renderStart.value;
+    return start > 0 ? messages.value.slice(start) : messages.value;
+  },
+);
+
+function setWindowStart(index: number): void {
+  windowStartId.value = index > 0 ? (messages.value[index]?.id ?? null) : null;
+}
+
+function trimRenderWindow(): void {
+  if (isTranscriptNavigationActive.value) return;
+  const count = messages.value.length;
+  if (count - renderStart.value <= RENDER_WINDOW_MAX) return;
+  // Only content above a reader pinned to the live end is safe to drop.
+  if (!scroller.value?.isFollowingBottom?.()) return;
+  setWindowStart(count - RENDER_WINDOW_KEEP);
+}
+
+/** Reveal trimmed messages above the window; false when none are left. */
+function revealEarlierMessages(): boolean {
+  const start = renderStart.value;
+  if (start === 0) return false;
+  setWindowStart(Math.max(0, start - RENDER_WINDOW_PAGE));
+  return true;
+}
+
+watch(() => messages.value.length, trimRenderWindow);
+watch(
+  () => props.sessionId,
+  () => {
+    windowStartId.value = null;
+  },
+);
 const outlineMessages = computed(() => tabState.value?.outlineMessages ?? []);
 const transcriptTurns = computed((previous?: PineTranscriptMessage[]) => {
   const allMessages = new Map(
@@ -364,6 +429,7 @@ function handleTranscriptScroll(
   if (!(viewport instanceof HTMLElement)) return;
   if (isProgrammaticScroll || isTranscriptNavigationActive.value) return;
   if (viewport.scrollTop <= HISTORY_LOAD_THRESHOLD) {
+    if (revealEarlierMessages()) return;
     void loadEarlierMessages().catch(() => undefined);
   }
 }
@@ -379,9 +445,12 @@ async function ensureTranscriptMessageLoaded(messageId: string): Promise<void> {
       throw new Error(`Transcript message ${messageId} was not loaded`);
     }
   }
-  if (!messages.value.some((message) => message.id === messageId)) {
+  const index = messages.value.findIndex((message) => message.id === messageId);
+  if (index < 0) {
     throw new Error(`Transcript message ${messageId} was not found`);
   }
+  // Keep the message before the target rendered for the scroll peek.
+  if (index <= renderStart.value) setWindowStart(Math.max(0, index - 1));
 }
 
 function handleDragEnter(event: DragEvent): void {
@@ -416,7 +485,9 @@ async function handleDrop(event: DragEvent): Promise<void> {
 
 <template>
   <MessageScrollerProvider
+    ref="scroller"
     auto-scroll
+    :active="isActive"
     default-scroll-position="last-anchor"
     :scroll-previous-item-peek="64"
     :follow-animated="isRunning"
@@ -459,7 +530,7 @@ async function handleDrop(event: DragEvent): Promise<void> {
               class="session-transcript-content mx-auto py-8"
               spacer-class="h-16"
             >
-              <Empty v-if="!messages.length && !isLoadingMessages">
+              <Empty v-if="!renderedMessages.length && !isLoadingMessages">
                 <EmptyHeader>
                   <PineCharacter decorative size="lg" />
                   <EmptyTitle class="font-semibold">
@@ -472,17 +543,17 @@ async function handleDrop(event: DragEvent): Promise<void> {
               </Empty>
 
               <MessageScrollerItem
-                v-for="(message, index) in messages"
+                v-for="(message, index) in renderedMessages"
                 :key="message.id"
                 v-memo="[
                   message,
                   messageRenderSignature(message),
-                  collapsesTranscriptGap(messages, index),
+                  collapsesTranscriptGap(renderedMessages, index),
                 ]"
                 :message-id="message.id"
                 :scroll-anchor="message.role === 'user'"
                 :class="
-                  collapsesTranscriptGap(messages, index)
+                  collapsesTranscriptGap(renderedMessages, index)
                     ? TOOL_CALL_TURN_MARGIN_CLASS
                     : undefined
                 "
