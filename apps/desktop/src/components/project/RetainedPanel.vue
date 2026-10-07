@@ -8,6 +8,9 @@ const props = defineProps<{ active: boolean }>();
 // Unvisited panels do not mount their expensive views.
 // Opacity hides the whole subtree immediately: descendants with transition-all
 // can otherwise animate inherited visibility and leak through for one frame.
+// content-visibility: hidden skips style, layout and paint for the hidden
+// subtree while keeping its cached layout and scroll offsets, so background
+// panels cost nothing per frame however much content they retain.
 const visited = ref(false);
 
 watch(
@@ -26,6 +29,7 @@ watch(
     :style="{
       visibility: active ? undefined : 'hidden',
       opacity: active ? undefined : 0,
+      contentVisibility: active ? undefined : 'hidden',
     }"
     :inert="!active"
     :aria-hidden="active ? undefined : true"

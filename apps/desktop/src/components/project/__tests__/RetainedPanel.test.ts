@@ -32,6 +32,8 @@ it("mounts lazily and retains connected, measurable content until closed", async
   expect(wrapper.element.style.visibility).toBe("hidden");
   // Root opacity suppresses children whose transition-all delays visibility.
   expect(wrapper.element.style.opacity).toBe("0");
+  // Hidden panels skip rendering work but keep their layout state.
+  expect(wrapper.element.style.contentVisibility).toBe("hidden");
   expect(wrapper.element.style.display).not.toBe("none");
   expect(wrapper.attributes("hidden")).toBeUndefined();
 
@@ -43,6 +45,7 @@ it("mounts lazily and retains connected, measurable content until closed", async
   expect(wrapper.element.inert).toBe(false);
   expect(wrapper.attributes("aria-hidden")).toBeUndefined();
   expect(wrapper.element.style.opacity).toBe("");
+  expect(wrapper.element.style.contentVisibility).toBe("");
   expect(mounted).toHaveBeenCalledTimes(1);
   expect(unmounted).not.toHaveBeenCalled();
   wrapper.unmount();
