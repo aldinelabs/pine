@@ -1,5 +1,5 @@
 import { mount } from "@vue/test-utils";
-import { defineComponent } from "vue";
+import { defineComponent, nextTick, reactive } from "vue";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { animateScrollTop } from "@/lib/animateScroll";
 import {
@@ -11,10 +11,11 @@ vi.mock("@/lib/animateScroll", () => ({ animateScrollTop: vi.fn() }));
 
 function createScroller(followAnimated = false) {
   let engine!: ReturnType<typeof provideMessageScroller>;
+  const props = reactive({ autoScroll: true, followAnimated, active: true });
   const wrapper = mount(
     defineComponent({
       setup() {
-        engine = provideMessageScroller({ autoScroll: true, followAnimated });
+        engine = provideMessageScroller(props);
         return () => null;
       },
     }),
@@ -50,6 +51,8 @@ function createScroller(followAnimated = false) {
   context.syncAfterScroll();
   return {
     context,
+    props,
+    content,
     viewport,
     grow() {
       height += 100;
@@ -341,6 +344,52 @@ describe("message scroller user intent", () => {
     scroller.grow();
 
     expect(viewport.scrollTop).toBe(1600);
+    scroller.destroy();
+  });
+
+  it("defers changes while hidden and snaps to the live end when shown", async () => {
+    const scroller = createScroller(true);
+    const { props, viewport } = scroller;
+    expect(viewport.scrollTop).toBe(1500);
+
+    props.active = false;
+    await nextTick();
+    scroller.grow();
+    scroller.grow();
+    expect(viewport.scrollTop).toBe(1500);
+
+    props.active = true;
+    await nextTick();
+    expect(viewport.scrollTop).toBe(1700);
+    // Catching up after a background stream must not glide.
+    expect(animateScrollTop).not.toHaveBeenCalled();
+    scroller.destroy();
+  });
+
+  it("anchors a new turn appended while the oldest messages are trimmed", () => {
+    const scroller = createScroller();
+    const { content, context, viewport } = scroller;
+    const turn = (id: string, top: number) => {
+      const element = document.createElement("div");
+      element.dataset.messageId = id;
+      element.dataset.scrollAnchor = "true";
+      vi.spyOn(element, "getBoundingClientRect").mockImplementation(
+        () => new DOMRect(0, top - viewport.scrollTop, 400, 50),
+      );
+      return element;
+    };
+    const trimmed = document.createElement("div");
+    trimmed.dataset.messageId = "trimmed";
+    content.prepend(trimmed, turn("old-turn", 200));
+    context.handleContentChange();
+    expect(viewport.scrollTop).toBe(1500);
+
+    trimmed.remove();
+    content.append(turn("new-turn", 1500));
+    context.handleContentChange();
+
+    // The new turn, not the retained older one, takes the anchor position.
+    expect(viewport.scrollTop).toBe(1436);
     scroller.destroy();
   });
 

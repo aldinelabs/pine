@@ -2,9 +2,13 @@
 import type { MessageScrollerProviderProps } from "./useMessageScroller";
 import { provideMessageScroller } from "./useMessageScroller";
 
-const props = defineProps<MessageScrollerProviderProps>();
+const props = withDefaults(defineProps<MessageScrollerProviderProps>(), {
+  active: true,
+});
 
-provideMessageScroller(props);
+const engine = provideMessageScroller(props);
+
+defineExpose({ isFollowingBottom: engine.context.isFollowingBottom });
 </script>
 
 <template>

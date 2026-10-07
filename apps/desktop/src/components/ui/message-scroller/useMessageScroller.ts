@@ -47,6 +47,10 @@ export interface MessageScrollerProviderProps {
    * false so hydrating or re-entering a finished conversation snaps to the
    * last anchor without an animation. */
   followAnimated?: boolean;
+  /** False while the transcript is hidden (a background tab). Content and
+   * resize handling are deferred until it is shown again, so a hidden
+   * transcript never forces layout or runs follow animations. */
+  active?: boolean;
 }
 
 // -----------------------------------------------------------------------------
@@ -474,6 +478,8 @@ export interface MessageScrollerContext {
   setViewportElement: (element: HTMLElement | null) => void;
   setPreserveScrollOnPrepend: (value: boolean) => void;
   syncAfterScroll: () => void;
+  /** Whether the viewport is pinned to the live end of the transcript. */
+  isFollowingBottom: () => boolean;
   userScrollIntent: (direction?: MessageScrollerScrollDirection) => void;
 }
 
@@ -499,6 +505,7 @@ function createEngine(props: MessageScrollerProviderProps) {
     props.scrollPreviousItemPeek ?? DEFAULT_SCROLL_PREVIOUS_ITEM_PEEK;
   const scrollMargin = () => props.scrollMargin ?? DEFAULT_SCROLL_MARGIN;
   const followAnimated = () => props.followAnimated ?? false;
+  const isActive = () => props.active ?? true;
 
   let viewport: HTMLElement | null = null;
   let content: HTMLElement | null = null;
@@ -526,7 +533,11 @@ function createEngine(props: MessageScrollerProviderProps) {
   let cancelScrollAnimation: (() => void) | null = null;
   let visibilityObserver: IntersectionObserver | null = null;
   let visibilityConsumers = 0;
+  /** Content or size changes that arrived while the transcript was hidden. */
+  let suspendedChanges = false;
   const messageElements = new Map<string, HTMLElement>();
+  /** Message elements already seen by handleContentChange. */
+  const knownItems = new WeakSet<HTMLElement>();
   const visibleMessageIds = new Set<string>();
   const handledScrollAnchors = new WeakSet<HTMLElement>();
 
@@ -588,6 +599,10 @@ function createEngine(props: MessageScrollerProviderProps) {
   }
 
   function scheduleStateCommit() {
+    if (!isActive()) {
+      suspendedChanges = true;
+      return;
+    }
     if (stateFrame === null) {
       stateFrame = window.requestAnimationFrame(() => {
         stateFrame = null;
@@ -598,6 +613,10 @@ function createEngine(props: MessageScrollerProviderProps) {
 
   function scheduleVisibilitySync() {
     if (visibilityConsumers === 0) return;
+    if (!isActive()) {
+      suspendedChanges = true;
+      return;
+    }
     if (visibilityFrame === null) {
       visibilityFrame = window.requestAnimationFrame(() => {
         visibilityFrame = null;
@@ -933,6 +952,8 @@ function createEngine(props: MessageScrollerProviderProps) {
     children: HTMLElement[],
     previousCount: number,
     previousFirst: HTMLElement | null,
+    added: HTMLElement[],
+    appended: HTMLElement[],
   ) {
     if (flushPendingScrollToMessage()) return;
     if (mode === "settling-jump" && isProgrammaticScroll.value) {
@@ -958,24 +979,25 @@ function createEngine(props: MessageScrollerProviderProps) {
       applyViewportAnchorRestore();
       return;
     }
-    if (children.length > previousCount) {
-      const anchor = findFirstAnchorFrom(children, previousCount);
-      if (anchor) {
-        if (
-          autoScroll() &&
-          mode === "following-bottom" &&
-          hasMultipleAnchorsFrom(children, previousCount)
-        ) {
-          scrollToEnd({ behavior: "auto" });
-          return;
-        }
-        scrollToElement(anchor, { align: "start" }, { keepPreviousPeek: true });
-        handledScrollAnchors.add(anchor);
+    // New turns are found among the appended elements rather than by index:
+    // the transcript trims its oldest messages while following the bottom,
+    // so the previous count no longer marks where new content starts.
+    const anchor = findFirstAnchorFrom(appended, 0);
+    if (anchor) {
+      if (
+        autoScroll() &&
+        mode === "following-bottom" &&
+        hasMultipleAnchorsFrom(appended, 0)
+      ) {
+        scrollToEnd({ behavior: "auto" });
         return;
       }
+      scrollToElement(anchor, { align: "start" }, { keepPreviousPeek: true });
+      handledScrollAnchors.add(anchor);
+      return;
     }
     if (children.length === previousCount) {
-      const anchor = findFirstUnhandledAnchor(children, handledScrollAnchors);
+      const anchor = findFirstUnhandledAnchor(added, handledScrollAnchors);
       if (anchor) {
         scrollToElement(anchor, { align: "start" }, { keepPreviousPeek: true });
         handledScrollAnchors.add(anchor);
@@ -993,19 +1015,44 @@ function createEngine(props: MessageScrollerProviderProps) {
     }
   }
 
+  /** Record the current items; returns the new ones and those after every
+   * previously known item. */
+  function syncItems(children: HTMLElement[]): {
+    added: HTMLElement[];
+    appended: HTMLElement[];
+  } {
+    const added: HTMLElement[] = [];
+    let lastKnownIndex = -1;
+    children.forEach((child, index) => {
+      if (knownItems.has(child)) lastKnownIndex = index;
+      else added.push(child);
+    });
+    for (const child of added) knownItems.add(child);
+    itemCount = children.length;
+    firstItem = children[0] ?? null;
+    return { added, appended: children.slice(lastKnownIndex + 1) };
+  }
+
   function handleContentChange() {
     if (!content) return;
+    if (!isActive()) {
+      suspendedChanges = true;
+      return;
+    }
     const children = getMessageChildren(content, spacer);
     const previousCount = itemCount;
     const previousFirst = firstItem;
-    itemCount = children.length;
-    firstItem = children[0] ?? null;
+    const { added, appended } = syncItems(children);
 
-    applyContentChange(children, previousCount, previousFirst);
+    applyContentChange(children, previousCount, previousFirst, added, appended);
     if (!isProgrammaticScroll.value) captureViewportAnchor();
   }
 
   function handleResize() {
+    if (!isActive()) {
+      suspendedChanges = true;
+      return;
+    }
     if (mode === "settling-jump" && isProgrammaticScroll.value) {
       scheduleStateCommit();
       scheduleVisibilitySync();
@@ -1181,6 +1228,30 @@ function createEngine(props: MessageScrollerProviderProps) {
     captureViewportAnchor();
   }
 
+  function isFollowingBottom(): boolean {
+    return autoScroll() && mode === "following-bottom";
+  }
+
+  /** Catch up once a hidden transcript is shown again. */
+  function onActiveChange() {
+    if (!isActive() || !content || !viewport) return;
+    const hadChanges = suspendedChanges;
+    suspendedChanges = false;
+    if (isFollowingBottom() && itemCount > 0) {
+      // Snap to the live end; whatever streamed in meanwhile must not glide.
+      syncItems(getMessageChildren(content, spacer));
+      scrollToEnd({ behavior: "auto" });
+      return;
+    }
+    if (hadChanges) {
+      handleContentChange();
+      handleResize();
+      return;
+    }
+    scheduleStateCommit();
+    scheduleVisibilitySync();
+  }
+
   function onAutoScrollChange() {
     if (autoScroll() && mode === "following-bottom" && itemCount > 0) {
       scrollToEnd({ behavior: "auto" });
@@ -1233,6 +1304,7 @@ function createEngine(props: MessageScrollerProviderProps) {
     setViewportElement,
     setPreserveScrollOnPrepend,
     syncAfterScroll,
+    isFollowingBottom,
     userScrollIntent,
   };
 
@@ -1240,6 +1312,7 @@ function createEngine(props: MessageScrollerProviderProps) {
     context,
     registerMessage,
     applyDefaultScrollPosition,
+    onActiveChange,
     onAutoScrollChange,
     destroy,
   };
@@ -1257,6 +1330,12 @@ export function provideMessageScroller(props: MessageScrollerProviderProps) {
   watch(
     () => props.autoScroll ?? false,
     () => engine.onAutoScrollChange(),
+  );
+  // Post flush: the panel is visible again, so measurements are real.
+  watch(
+    () => props.active ?? true,
+    () => engine.onActiveChange(),
+    { flush: "post" },
   );
 
   onMounted(() => {
