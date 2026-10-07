@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useMountedWhileOpen } from "@/composables/useMountedWhileOpen";
 import { ChevronRightIcon } from "@lucide/vue";
 import {
   computed,
@@ -24,6 +25,8 @@ const contentId = useId();
 const thinkingContent = useTemplateRef<HTMLElement>("thinkingContent");
 const scroller = useOptionalMessageScrollerContext();
 const isExpanded = ref(false);
+/** Matches the 500ms grid-rows collapse transition below. */
+const isContentMounted = useMountedWhileOpen(isExpanded, 500);
 const isFollowingThinking = ref(true);
 const hasThinkingUserScrollIntent = ref(false);
 const now = ref(Date.now());
@@ -211,6 +214,7 @@ onBeforeUnmount(() => {
     >
       <div class="min-h-0 overflow-hidden">
         <div
+          v-if="isContentMounted"
           ref="thinkingContent"
           data-thinking-content
           class="scroll-fade no-scrollbar mt-3 max-h-64 overflow-y-auto overscroll-contain pl-6 pr-3 text-sm text-muted-foreground"

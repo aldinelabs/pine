@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useMountedWhileOpen } from "@/composables/useMountedWhileOpen";
 import { ChevronRightIcon, ShieldBanIcon } from "@lucide/vue";
 import { computed, ref, useId, watch } from "vue";
 import { useI18n } from "vue-i18n";
@@ -34,6 +35,8 @@ const props = defineProps<{
 const { locale, t } = useI18n();
 const contentId = useId();
 const isExpanded = ref(false);
+/** Matches the 500ms grid-rows collapse transition below. */
+const isContentMounted = useMountedWhileOpen(isExpanded, 500);
 
 const anyRunning = computed(() =>
   props.toolCalls.some((toolCall) => isRunningTool(toolCall)),
@@ -130,7 +133,7 @@ function toggleExpanded(): void {
     >
       <div class="min-h-0 overflow-hidden">
         <!-- Header gap: 8px + 4px row padding. Between rows: 4px + 8px. -->
-        <div class="mt-2 flex flex-col gap-1 pl-6">
+        <div v-if="isContentMounted" class="mt-2 flex flex-col gap-1 pl-6">
           <ProjectToolCallMarker
             v-for="toolCall in toolCalls"
             :key="toolCall.id"
