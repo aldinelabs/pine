@@ -1,5 +1,6 @@
 import { createPinia, setActivePinia } from "pinia";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { effect, isReactive } from "vue";
 import {
   SANDBOX_DENIED_MESSAGE,
   type PineAgentEvent,
@@ -195,6 +196,42 @@ describe("session store", () => {
     expect(loadSessionMessages).toHaveBeenCalledTimes(1);
     expect(store.messages[0]?.blocks).toEqual(updatedMessage.blocks);
     expect(store.isRunning).toBe(true);
+  });
+
+  it("keeps transcript messages as plain records and replaces the array on change", () => {
+    let listener: ((event: PineAgentEvent) => void) | undefined;
+    Object.defineProperty(window, "pine", {
+      configurable: true,
+      value: {
+        onSessionEvent: vi.fn((callback) => {
+          listener = callback;
+          return () => undefined;
+        }),
+      },
+    });
+    const store = useSessionStore();
+    store.connectAgentEvents();
+    const state = store.stateFor(session.id);
+    const seen: unknown[] = [];
+    effect(() => seen.push(state.messages));
+    const stream = (text: string) =>
+      listener?.({
+        type: "message-update",
+        sessionId: session.id,
+        messageId: "streaming",
+        updates: [{ type: "text-start", contentIndex: 0, text }],
+      });
+
+    stream("Hel");
+    stream("Hello");
+
+    expect(seen).toHaveLength(3);
+    expect(new Set(seen).size).toBe(3);
+    expect(isReactive(state.messages)).toBe(false);
+    expect(isReactive(state.messages[0])).toBe(false);
+    expect(state.messages[0]?.blocks).toEqual([
+      { type: "text", text: "Hello" },
+    ]);
   });
 
   it("loads the earlier page with the cursor returned by the initial page", async () => {

@@ -245,8 +245,11 @@ function compactionMessage(
 
 function createSessionState() {
   const activeSession = shallowRef<PineSessionSummary | null>(null);
-  const messages = ref<PineTranscriptMessage[]>([]);
-  const outlineMessages = ref<PineTranscriptMessage[]>([]);
+  // Transcript messages are immutable records replaced on every change, so
+  // only the arrays are reactive. Deep refs proxied and tracked every block
+  // and tool payload, which made rendering cost grow with the session.
+  const messages = shallowRef<PineTranscriptMessage[]>([]);
+  const outlineMessages = shallowRef<PineTranscriptMessage[]>([]);
   const isLoadingMessages = ref(false);
   const isRunning = ref(false);
   const contextUsage = ref<PineContextUsage | null>(null);
@@ -317,6 +320,16 @@ function createSessionState() {
     }
   }
 
+  /** Replace (or append, without an index) one message; returns its index. */
+  function putMessage(message: PineTranscriptMessage, index = -1): number {
+    const next = [...messages.value];
+    const target = index < 0 ? next.length : index;
+    next[target] = message;
+    messages.value = next;
+    rememberMessageIndex(message, target);
+    return target;
+  }
+
   function clearMessageIndexes(): void {
     messageIndexes.clear();
     toolCallMessageIndexes.clear();
@@ -381,10 +394,13 @@ function createSessionState() {
     const index = toolCallMessageIndexFor(toolCallId);
     if (index < 0) return;
     const message = messages.value[index];
-    messages.value[index] = {
-      ...message,
-      blocks: mergeToolCallBlocks(message.blocks, toolCallId, patch),
-    };
+    putMessage(
+      {
+        ...message,
+        blocks: mergeToolCallBlocks(message.blocks, toolCallId, patch),
+      },
+      index,
+    );
   }
   return reactive({
     summary: activeSession,
@@ -412,6 +428,7 @@ function createSessionState() {
     resetMcpApprovalLinks,
     rememberMessageIndex,
     clearMessageIndexes,
+    putMessage,
     patchToolCall,
     notifiedAutoApprovalFailureIds: new Set<string>(),
     historyLoaded: false,
@@ -1097,7 +1114,7 @@ export const useSessionStore = defineStore("session", () => {
       messageIndexFor,
       toolCallMessageIndexFor,
       approvalToolCallId,
-      rememberMessageIndex,
+      putMessage,
       patchToolCall,
     } = state;
     if (event.type === "run-state") {
@@ -1120,7 +1137,7 @@ export const useSessionStore = defineStore("session", () => {
       return;
     }
     if (event.type === "session-error") {
-      messages.value.push({
+      putMessage({
         createdAt: new Date().toISOString(),
         id: `error-${event.errorId}`,
         role: "assistant",
@@ -1263,13 +1280,7 @@ export const useSessionStore = defineStore("session", () => {
             ],
           }
         : compactionMessage(event.compactionId, status);
-      if (messageIndex < 0) {
-        messages.value.push(nextMessage);
-        rememberMessageIndex(nextMessage, messages.value.length - 1);
-      } else {
-        messages.value[messageIndex] = nextMessage;
-        rememberMessageIndex(nextMessage, messageIndex);
-      }
+      putMessage(nextMessage, messageIndex);
       return;
     }
     if (
@@ -1283,7 +1294,7 @@ export const useSessionStore = defineStore("session", () => {
       const now = Date.now();
       let messageIndex = toolCallMessageIndexFor(event.toolCallId);
       if (messageIndex < 0) {
-        messages.value.push({
+        messageIndex = putMessage({
           createdAt: new Date(now).toISOString(),
           id: `tool-${event.toolCallId}`,
           role: "assistant",
@@ -1299,8 +1310,6 @@ export const useSessionStore = defineStore("session", () => {
             },
           ],
         });
-        messageIndex = messages.value.length - 1;
-        rememberMessageIndex(messages.value[messageIndex], messageIndex);
       }
 
       const message = messages.value[messageIndex];
@@ -1346,11 +1355,13 @@ export const useSessionStore = defineStore("session", () => {
             }
           : {}),
       };
-      messages.value[messageIndex] = {
-        ...message,
-        blocks: mergeToolCallBlocks(message.blocks, event.toolCallId, patch),
-      };
-      rememberMessageIndex(messages.value[messageIndex], messageIndex);
+      putMessage(
+        {
+          ...message,
+          blocks: mergeToolCallBlocks(message.blocks, event.toolCallId, patch),
+        },
+        messageIndex,
+      );
       if (event.type === "tool-end") {
         state.activeMcpToolCalls.delete(event.toolCallId);
         const details =
@@ -1418,13 +1429,7 @@ export const useSessionStore = defineStore("session", () => {
         ...(thinkingStatus ? { thinkingStatus } : {}),
         ...(thinkingStartedAt ? { thinkingStartedAt } : {}),
       };
-      if (previousIndex < 0) {
-        messages.value.push(nextMessage);
-        rememberMessageIndex(nextMessage, messages.value.length - 1);
-      } else {
-        messages.value[previousIndex] = nextMessage;
-        rememberMessageIndex(nextMessage, previousIndex);
-      }
+      putMessage(nextMessage, previousIndex);
       return;
     }
 
@@ -1459,13 +1464,7 @@ export const useSessionStore = defineStore("session", () => {
       ...(thinkingStartedAt ? { thinkingStartedAt } : {}),
     };
 
-    if (previousIndex < 0) {
-      messages.value.push(nextMessage);
-      rememberMessageIndex(nextMessage, messages.value.length - 1);
-    } else {
-      messages.value[previousIndex] = nextMessage;
-      rememberMessageIndex(nextMessage, previousIndex);
-    }
+    putMessage(nextMessage, previousIndex);
   }
 
   function connectAgentEvents(): void {
