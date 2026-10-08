@@ -138,12 +138,13 @@ let profileSaveQueue: Promise<void> = Promise.resolve();
 const canSaveTinyFishApiKey = computed(
   () => tinyFishApiKey.value.trim().length > 0 && !isSavingTinyFishApiKey.value,
 );
+const COMMUNICATION_STYLE_DESCRIPTION_KEYS = {
+  "calm-professional": "preferences.userProfileStyleCalmDescription",
+  "warm-friendly": "preferences.userProfileStyleWarmDescription",
+  monet: "preferences.userProfileStyleMonetDescription",
+} as const;
 const communicationStyleDescription = computed(() =>
-  t(
-    profileDraft.communicationStyle === "calm-professional"
-      ? "preferences.userProfileStyleCalmDescription"
-      : "preferences.userProfileStyleWarmDescription",
-  ),
+  t(COMMUNICATION_STYLE_DESCRIPTION_KEYS[profileDraft.communicationStyle]),
 );
 const technicalBackgroundDescription = computed(() =>
   t(
@@ -684,6 +685,9 @@ defineExpose({ open });
                   </ToggleGroupItem>
                   <ToggleGroupItem value="warm-friendly" class="flex-1">
                     {{ t("preferences.userProfileStyleWarm") }}
+                  </ToggleGroupItem>
+                  <ToggleGroupItem value="monet" class="flex-1 font-serif">
+                    {{ t("preferences.userProfileStyleMonet") }}
                   </ToggleGroupItem>
                 </ToggleGroup>
                 <FieldDescription>

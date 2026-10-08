@@ -5,6 +5,7 @@
  */
 @import "@fontsource-variable/inter";
 @import "@fontsource-variable/jetbrains-mono";
+@import "@fontsource-variable/noto-serif";
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn-vue/tailwind.css";
@@ -224,6 +225,8 @@
   --font-jetbrains-mono:
     "JetBrains Mono Variable", ui-monospace, SFMono-Regular, Menlo, Monaco,
     Consolas, "Sarasa Gothic SC", monospace, system-ui;
+  --font-noto-serif:
+    "Noto Serif Variable", "Noto Serif", Georgia, "Songti SC", serif;
   --font-heading: var(--font-ui);
   --font-mono: var(--font-jetbrains-mono);
   --shadow-2xs: 0 1px 3px 0px oklch(0 0 0 / 0.05);
@@ -338,6 +341,7 @@
 @theme inline {
   --font-heading: var(--font-ui);
   --font-sans: var(--font-ui);
+  --font-serif: var(--font-noto-serif);
   --font-mono: var(--font-jetbrains-mono);
   --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
   --color-background: var(--background);

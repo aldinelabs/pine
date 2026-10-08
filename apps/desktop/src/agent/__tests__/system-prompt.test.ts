@@ -49,6 +49,19 @@ describe("systemPromptWithUserProfile", () => {
     expect(prompt).toContain("Always lead with the conclusion.");
     expect(prompt).toContain("正在学习桌面应用开发。");
   });
+
+  it("applies the Monet communication style", () => {
+    const prompt = systemPromptWithUserProfile("base prompt", {
+      communicationStyle: "monet",
+      customInstructions: "",
+      nickname: "",
+      personalDetails: "",
+      technicalBackground: "enthusiast",
+    });
+
+    expect(prompt).toContain("help the user think more clearly");
+    expect(prompt).not.toContain("emotionally supportive");
+  });
 });
 
 describe("approvalModeSystemPrompt", () => {

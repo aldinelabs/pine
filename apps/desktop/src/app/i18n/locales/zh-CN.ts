@@ -129,6 +129,9 @@ export default {
     userProfileStyleLabel: "语言风格",
     userProfileStyleCalm: "冷静专业",
     userProfileStyleWarm: "热情亲和",
+    userProfileStyleMonet: "Monet",
+    userProfileStyleMonetDescription:
+      "像一位坦率的对话伙伴：不迎合、不浮夸，诚实说出不确定之处，有判断也有品味，帮你把事情想得更清楚。",
     userProfileStyleCalmDescription:
       "说话简练直接，以效率和表意为中心，保持严肃、学术和强协作感。",
     userProfileStyleWarmDescription:

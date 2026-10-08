@@ -137,6 +137,9 @@ export default {
     userProfileStyleLabel: "Communication style",
     userProfileStyleCalm: "Calm & professional",
     userProfileStyleWarm: "Warm & friendly",
+    userProfileStyleMonet: "Monet",
+    userProfileStyleMonetDescription:
+      "A candid dialogue partner: no flattery, no hype, specific about uncertainty, with real judgment and taste, helping you think more clearly.",
     userProfileStyleCalmDescription:
       "Use concise, direct language centered on efficiency and precise meaning, with a serious, academic, collaborative tone.",
     userProfileStyleWarmDescription:
