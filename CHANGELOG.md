@@ -9,6 +9,12 @@ Every release section here has a matching section in the Chinese changelog.
 
 ## [Unreleased]
 
+## [0.10.2] - 2026-10-09
+
+### Added
+
+- Preferences now offer a third communication style, Monet: a candid dialogue partner that avoids flattery and hype, is specific about uncertainty, and gives its own judgment to help you think more clearly.
+
 ## [0.10.1] - 2026-10-07
 
 ### Changed
