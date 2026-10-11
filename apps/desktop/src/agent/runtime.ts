@@ -1182,8 +1182,9 @@ export class PineAgentRuntime {
   }
 
   /**
-   * Hand a finished task's notification to the session. A wake-up on an idle
-   * session starts a turn outside `prompt`, so this reports its run state.
+   * Hand a finished task's notification to the session. A running turn takes
+   * it as steering before its next model call; a wake-up on an idle session
+   * starts a turn outside `prompt`, so this reports its run state.
    */
   private async deliverBackgroundTaskNotification(
     live: LiveAgentSession,
@@ -1200,7 +1201,7 @@ export class PineAgentRuntime {
     const startsTurn = options.triggerTurn && session.isIdle;
     if (!startsTurn) {
       await session.sendCustomMessage(message, {
-        deliverAs: "followUp",
+        deliverAs: "steer",
         triggerTurn: options.triggerTurn,
       });
       return;
@@ -1208,7 +1209,7 @@ export class PineAgentRuntime {
     live.gate?.resetTurn();
     this.options.emit({ type: "run-state", sessionId, state: "running" });
     void session
-      .sendCustomMessage(message, { deliverAs: "followUp", triggerTurn: true })
+      .sendCustomMessage(message, { deliverAs: "steer", triggerTurn: true })
       .catch((error: unknown) => {
         const errorMessage = toErrorMessage(error);
         this.options.emit({

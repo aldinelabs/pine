@@ -173,7 +173,7 @@ export function movedToBackgroundResult(error: MovedToBackgroundError) {
       ? `Last output so far:\n${outputTail}`
       : "It has printed no output so far, which can mean it is stuck waiting on the network or on input.",
     `Full output: ${task.outputPath}`,
-    "Its completion is delivered as <background-task-notification> and starts a follow-up turn; do not sleep or poll to wait. Use bg_logs to inspect it, or bg_kill if it looks stuck, then fix the cause instead of rerunning the same command.",
+    "Its completion is delivered as <background-task-notification>, mid-turn if you are still working or as a new turn otherwise; do not sleep or poll to wait. Use bg_logs to inspect it, or bg_kill if it looks stuck, then fix the cause instead of rerunning the same command.",
   ].join("\n\n");
   return {
     content: [{ type: "text" as const, text }],

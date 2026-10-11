@@ -7,7 +7,7 @@ import type { BackgroundTaskRegistry } from "@pine/pi-background-tasks/registry"
 import { expect, it, vi } from "vitest";
 import { PineAgentRuntime } from "../runtime";
 
-it("delivers background completions through the live session and kills tasks on close", async () => {
+async function createLocation() {
   const root = await mkdtemp(path.join(os.tmpdir(), "pine-bg-runtime-"));
   const location = {
     agentDir: path.join(root, "agent"),
@@ -41,6 +41,11 @@ it("delivers background completions through the live session and kills tasks on 
     path.join(location.agentDir, "settings.json"),
     JSON.stringify({ defaultProvider: "verify", defaultModel: "offline" }),
   );
+  return { root, location };
+}
+
+it("delivers background completions through the live session and kills tasks on close", async () => {
+  const { root, location } = await createLocation();
   const emit = vi.fn();
   const runtime = new PineAgentRuntime({ emit });
   try {
@@ -69,7 +74,7 @@ it("delivers background completions through the live session and kills tasks on 
         customType: "background-task-notification",
         content: expect.stringContaining("<status>completed</status>"),
       }),
-      { deliverAs: "followUp", triggerTurn: true },
+      { deliverAs: "steer", triggerTurn: true },
     );
     expect(
       runtime.listBackgroundTasks(created.session.id).tasks[0],
@@ -92,7 +97,7 @@ it("delivers background completions through the live session and kills tasks on 
     });
     await vi.waitFor(() => expect(send).toHaveBeenCalledTimes(2));
     expect(send.mock.calls[1]?.[1]).toEqual({
-      deliverAs: "followUp",
+      deliverAs: "steer",
       triggerTurn: false,
     });
     const long = await live.backgroundTasks.start("sleep 60", {
@@ -101,6 +106,44 @@ it("delivers background completions through the live session and kills tasks on 
     await runtime.disposeSession(created.session.id);
     expect(live.backgroundTasks.snapshot(long.id).status).toBe("killed");
     expect(send).toHaveBeenCalledTimes(2);
+  } finally {
+    await runtime.dispose();
+    await rm(root, { recursive: true, force: true });
+  }
+}, 15_000);
+
+it("steers completions into a running turn before its next model call", async () => {
+  const { root, location } = await createLocation();
+  const runtime = new PineAgentRuntime({ emit: vi.fn() });
+  try {
+    const created = await runtime.createSession(location);
+    const internals = runtime as unknown as {
+      liveSessions: Map<
+        string,
+        { session: AgentSession; backgroundTasks: BackgroundTaskRegistry }
+      >;
+    };
+    const live = internals.liveSessions.get(created.session.id)!;
+    const state = live.session as unknown as { _isAgentRunActive: boolean };
+    state._isAgentRunActive = true;
+    const steer = vi.spyOn(live.session.agent, "steer");
+    const followUp = vi.spyOn(live.session.agent, "followUp");
+    await live.backgroundTasks.start("printf hello", {
+      name: "Quick",
+      privileged: true,
+      triggerOnCompletion: true,
+    });
+    await vi.waitFor(() => expect(steer).toHaveBeenCalledTimes(1));
+    expect(steer).toHaveBeenCalledWith(
+      expect.objectContaining({
+        role: "custom",
+        customType: "background-task-notification",
+        content: expect.stringContaining("<status>completed</status>"),
+      }),
+    );
+    expect(followUp).not.toHaveBeenCalled();
+    expect(live.session.getSteeringMessages()).toEqual([]);
+    state._isAgentRunActive = false;
   } finally {
     await runtime.dispose();
     await rm(root, { recursive: true, force: true });
