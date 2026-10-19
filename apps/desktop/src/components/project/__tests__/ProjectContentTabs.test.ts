@@ -17,6 +17,7 @@ import type { PineSessionSummary } from "@/shared/sessions";
 import { useProjectStore } from "@/stores/project";
 import { useSessionStore } from "@/stores/session";
 import { useContentTabsStore } from "@/stores/contentTabs";
+import { useWorkbenchStore } from "@/stores/workbench";
 import {
   CONTENT_TAB_DRAG_TYPE,
   FILE_TAB_DRAG_TYPE,
@@ -310,14 +311,26 @@ describe("ProjectContentTabs", () => {
     wrapper.unmount();
   });
 
-  it("keeps tab actions clear of the trailing titlebar controls", async () => {
+  it("moves tab actions to the edge while the workbench is open", async () => {
     const { wrapper } = await mountTabs();
+    const workbench = useWorkbenchStore();
+    const titlebar = () =>
+      wrapper.get('[data-slot="project-content-tabs-titlebar"]').classes();
+    const reserved =
+      "pr-[calc(var(--window-titlebar-controls-width)+var(--window-titlebar-trailing-actions-width))]";
 
-    expect(
-      wrapper.get('[data-slot="project-content-tabs-titlebar"]').classes(),
-    ).toContain(
-      "pr-[calc(var(--window-titlebar-controls-width)+var(--window-titlebar-trailing-actions-width))]",
-    );
+    expect(titlebar()).toContain(reserved);
+
+    workbench.setDisplayedOpen(true);
+    await nextTick();
+    expect(titlebar()).not.toContain(reserved);
+    expect(titlebar()).toContain("pr-3");
+
+    // A closing workbench already makes room for the controls riding the
+    // shrinking window edge.
+    workbench.setClosing(true);
+    await nextTick();
+    expect(titlebar()).toContain(reserved);
     wrapper.unmount();
   });
 
@@ -830,51 +843,6 @@ describe("ProjectContentTabs", () => {
       projectId: TEMPORARY_WORKSPACE_PROJECT_ID,
       sessionId: firstSession.id,
     });
-    wrapper.unmount();
-  });
-
-  it("flashes a presented file tab until the user hovers or opens it", async () => {
-    const { wrapper, router } = await mountTabs();
-    const store = useContentTabsStore();
-
-    for (const listener of sessionEventListeners) {
-      listener({
-        type: "present-file",
-        sessionId: firstSession.id,
-        toolCallId: "tool-1",
-        path: "/tmp/report.pdf",
-        target: { source: "presented", path: "/tmp/report.pdf" },
-      });
-    }
-    await flushPromises();
-
-    const tab = store.tabs.at(-1)!;
-    const element = wrapper.get<HTMLElement>(
-      `[data-tab-id="${tab.id}"]`,
-    ).element;
-    expect(element.classList.contains("attention-flash")).toBe(true);
-    // The active session tab is untouched: presenting must not steal focus.
-    expect(router.currentRoute.value.query.tab).toBe("session-1");
-
-    await wrapper.get(`[data-tab-id="${tab.id}"]`).trigger("pointerenter");
-    expect(element.classList.contains("attention-flash")).toBe(false);
-
-    // Presenting again re-arms the signal, and opening the tab clears it.
-    for (const listener of sessionEventListeners) {
-      listener({
-        type: "present-file",
-        sessionId: firstSession.id,
-        toolCallId: "tool-2",
-        path: "/tmp/report.pdf",
-        target: { source: "presented", path: "/tmp/report.pdf" },
-      });
-    }
-    await flushPromises();
-    expect(element.classList.contains("attention-flash")).toBe(true);
-
-    await router.push({ query: { tab: tab.id } });
-    await flushPromises();
-    expect(element.classList.contains("attention-flash")).toBe(false);
     wrapper.unmount();
   });
 

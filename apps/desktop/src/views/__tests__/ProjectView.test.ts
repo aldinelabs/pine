@@ -188,13 +188,80 @@ it("places the Windows logo and preferences before navigation controls", async (
   wrapper.unmount();
 });
 
-it("has no right sidebar", async () => {
-  const { wrapper } = await mountView();
+it("opens the workbench beside the conversation and widens the window for it", async () => {
+  const planWindowResize = vi.fn().mockResolvedValue(0);
+  const { wrapper } = await mountView(
+    vi.fn().mockResolvedValue(undefined),
+    "darwin",
+    { planWindowResize },
+  );
+  await flushPromises();
+  const toggle = wrapper.get('[data-testid="project-workbench-toggle"]');
+  const workbenchSidebar = () =>
+    wrapper
+      .get('[data-testid="project-workbench-provider"] [data-slot="sidebar"]')
+      .attributes("data-state");
+
+  expect(toggle.attributes("aria-pressed")).toBe("false");
+  expect(workbenchSidebar()).toBe("collapsed");
+
+  await toggle.trigger("click");
+  await flushPromises();
+
+  expect(planWindowResize).toHaveBeenLastCalledWith({
+    kind: "set-workbench",
+    open: true,
+  });
+  expect(toggle.attributes("aria-pressed")).toBe("true");
+  expect(workbenchSidebar()).toBe("expanded");
+  expect(
+    wrapper
+      .get<HTMLElement>('[data-testid="project-workbench-provider"]')
+      .element.style.getPropertyValue("--sidebar-width"),
+  ).toBe("25rem");
+
+  // The left sidebar's shortcut leaves the workbench alone.
+  window.dispatchEvent(
+    new KeyboardEvent("keydown", { key: "b", metaKey: true }),
+  );
+  await flushPromises();
+  expect(workbenchSidebar()).toBe("expanded");
+  wrapper.unmount();
+});
+
+it("follows the agent's workbench commands for the active session", async () => {
+  const listeners: ((event: unknown) => void)[] = [];
+  const { wrapper } = await mountView(
+    vi.fn().mockResolvedValue(undefined),
+    "darwin",
+    {
+      onSessionEvent: vi.fn((listener: (event: unknown) => void) => {
+        listeners.push(listener);
+        return () => undefined;
+      }),
+    },
+  );
+  await flushPromises();
+
+  for (const listener of listeners)
+    listener({
+      type: "workbench-command",
+      sessionId: "draft",
+      toolCallId: "call-1",
+      command: { kind: "open", panel: "tasks" },
+    });
   await flushPromises();
 
   expect(
-    wrapper.find('[data-slot="sidebar"][data-side="right"]').exists(),
-  ).toBe(false);
+    wrapper
+      .get('[data-testid="project-workbench-toggle"]')
+      .attributes("aria-pressed"),
+  ).toBe("true");
+  expect(
+    wrapper
+      .findAll('[data-testid="workbench-card"]')
+      .map((card) => card.attributes("data-panel")),
+  ).toEqual(["artifacts", "tasks"]);
   wrapper.unmount();
 });
 
@@ -221,6 +288,7 @@ it.each([
     expect(setWindowLayout).toHaveBeenCalledExactlyOnceWith("project");
     expect(planWindowResize.mock.calls).toEqual([
       [{ kind: "fit-sidebar", open }],
+      [{ kind: "set-workbench", open: false }],
     ]);
     expect(useProjectSidebarVisibilityStore().open).toBe(open);
     wrapper.unmount();
@@ -261,6 +329,7 @@ it("slides the closing sidebar on the window's timeline with a fixed-width conte
   );
   const planWindowResize = vi
     .fn()
+    .mockResolvedValueOnce(0)
     .mockResolvedValueOnce(0)
     .mockResolvedValueOnce(-256);
   const { wrapper } = await mountView(

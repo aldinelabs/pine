@@ -601,7 +601,7 @@ describeSandbox("createPineToolDefinitions", () => {
       const canonical = path.join(await realpath(readOnly), "notes.md");
       expect(presentFile).toHaveBeenCalledWith("present-call", canonical);
       expect(result.content[0]).toMatchObject({
-        text: `Opened ${canonical} in a new background tab. The user was not switched to it.`,
+        text: `Showing ${canonical} in the workbench preview and the session's artifacts.`,
       });
     });
 

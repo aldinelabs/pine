@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { PanelRight } from "@lucide/vue";
 import { onKeyStroke } from "@vueuse/core";
 import {
   computed,
@@ -17,7 +18,9 @@ import ProjectContentTabs from "@/components/project/ProjectContentTabs.vue";
 import ProjectDialog from "@/components/project/ProjectDialog.vue";
 import ProjectSidebar from "@/components/project/ProjectSidebar.vue";
 import PineUpdateDialog from "@/components/updates/PineUpdateDialog.vue";
+import ProjectWorkbench from "@/components/workbench/ProjectWorkbench.vue";
 import WindowTitleBar from "@/components/window/WindowTitleBar.vue";
+import { Button } from "@/components/ui/button";
 import {
   SidebarInset,
   SidebarProvider,
@@ -30,6 +33,8 @@ import { useProjectStore } from "@/stores/project";
 import { useSessionStore } from "@/stores/session";
 import { useProjectSidebarVisibilityStore } from "@/stores/projectSidebarVisibility";
 import { useFrozenWindowResize } from "@/composables/useFrozenWindowResize";
+import { useWorkbenchEvents } from "@/composables/useWorkbenchEvents";
+import { useWorkbenchStore } from "@/stores/workbench";
 
 const { t } = useI18n();
 const isSessionSearchOpen = ref(false);
@@ -41,6 +46,8 @@ const preferencesDialog =
   );
 const isUpdateOpen = ref(false);
 const sidebar = useProjectSidebarVisibilityStore();
+const workbench = useWorkbenchStore();
+useWorkbenchEvents();
 const projectStore = useProjectStore();
 const backgroundTasks = useBackgroundTasksStore();
 const sessionStore = useSessionStore();
@@ -198,7 +205,65 @@ async function setSidebarOpen(open: boolean): Promise<void> {
   frozenInsetWidth.value = null;
   resetTrailingControls();
   if (!resized) sidebar.setOpen(open);
+  void syncWorkbench();
 }
+
+// While the window animates, the workbench switches state without its CSS
+// transition: the moving window edge reveals or clips it instead.
+const isWorkbenchInstant = ref(false);
+
+async function resizeWorkbench(open: boolean): Promise<void> {
+  const setInstantly = () => {
+    isWorkbenchInstant.value = true;
+    workbench.setDisplayedOpen(open);
+  };
+  const resized = await frozenResize.run(
+    { kind: "set-workbench", open },
+    open
+      ? {
+          beforeCommit: (delta) => {
+            setInstantly();
+            growingWindowHooks.beforeCommit(delta);
+          },
+          onCommitStart: growingWindowHooks.onCommitStart,
+          afterCommit: resetTrailingControls,
+        }
+      : {
+          onCommitStart: (delta) => {
+            workbench.setClosing(true);
+            followShrinkingWindow(delta);
+          },
+          afterCommit: () => {
+            setInstantly();
+            workbench.setClosing(false);
+            resetTrailingControls();
+          },
+        },
+  );
+  isWorkbenchInstant.value = false;
+  workbench.setClosing(false);
+  resetTrailingControls();
+  if (!resized) workbench.setDisplayedOpen(open);
+}
+
+/**
+ * Brings the column in line with the active session's workbench. The user,
+ * the agent, and switching sessions all change that layout; the window
+ * follows one resize at a time and catches up on whatever changed meanwhile.
+ */
+let isWorkbenchReady = false;
+async function syncWorkbench(force = false): Promise<void> {
+  if (!isWorkbenchReady || frozenResize.isResizing.value) return;
+  const open = workbench.activeLayout.open;
+  if (!force && open === workbench.displayedOpen) return;
+  await resizeWorkbench(open);
+  if (workbench.activeLayout.open !== workbench.displayedOpen)
+    void syncWorkbench();
+}
+watch(
+  () => workbench.activeLayout.open,
+  () => void syncWorkbench(),
+);
 
 onBeforeUnmount(() => backgroundTasks.disconnect());
 watch(
@@ -225,6 +290,10 @@ onMounted(async () => {
         },
   );
   resetTrailingControls();
+  // Main remembers whether the window already holds the workbench, so a
+  // reload neither adds its width twice nor leaves a closed one's width.
+  isWorkbenchReady = true;
+  await syncWorkbench(true);
 });
 
 onKeyStroke("k", (event) => {
@@ -258,6 +327,22 @@ onKeyStroke("k", (event) => {
       <ProjectContentTabs />
     </SidebarInset>
 
+    <!-- A separate provider keeps useSidebar() inside the inset bound to the
+         left sidebar. It is controlled without listening to update:open so
+         the shared Cmd/Ctrl+B shortcut only toggles the left sidebar. -->
+    <SidebarProvider
+      data-testid="project-workbench-provider"
+      :class="[
+        'min-h-0 w-auto flex-none',
+        isWorkbenchInstant &&
+          '[&_[data-slot=sidebar-container]]:transition-none! [&_[data-slot=sidebar-gap]]:transition-none!',
+      ]"
+      :style="{ '--sidebar-width': '25rem' }"
+      :open="workbench.displayedOpen"
+    >
+      <ProjectWorkbench />
+    </SidebarProvider>
+
     <!-- Electron applies overlapping drag/no-drag regions in DOM order.
          Register window controls after the content titlebar's drag region. -->
     <WindowTitleBar controls-only>
@@ -289,6 +374,17 @@ onKeyStroke("k", (event) => {
           ]"
           :style="trailingControlsStyle"
         >
+          <Button
+            data-testid="project-workbench-toggle"
+            variant="ghost"
+            size="icon-sm"
+            :aria-label="t('project.workbench.toggle')"
+            :aria-pressed="workbench.activeLayout.open"
+            :title="t('project.workbench.toggle')"
+            @click="workbench.toggle()"
+          >
+            <PanelRight aria-hidden="true" />
+          </Button>
           <PinePreferencesDialog
             v-if="!isWindowsPlatform"
             ref="preferencesDialog"

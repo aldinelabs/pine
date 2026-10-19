@@ -28,6 +28,8 @@ import { useBackgroundTasksStore } from "@/stores/backgroundTasks";
 import ProjectBackgroundTaskDialog from "./ProjectBackgroundTaskDialog.vue";
 import ProjectSidebarEmptyState from "./ProjectSidebarEmptyState.vue";
 
+/** In a workbench card, whose header already names the panel. */
+defineProps<{ embedded?: boolean }>();
 const { t } = useI18n();
 const store = useBackgroundTasksStore();
 const { tasks, runningCount, inspectedTaskId } = storeToRefs(store);
@@ -74,7 +76,7 @@ async function stop(task: BackgroundTaskSnapshot): Promise<void> {
     data-testid="project-background-task-panel"
     :class="{ 'h-full min-h-0': tasks.length === 0 }"
   >
-    <SidebarGroupLabel>
+    <SidebarGroupLabel v-if="!embedded">
       {{ t("project.backgroundTasks.heading") }}
       <span v-if="runningCount > 0" class="ml-auto tabular-nums">
         {{ t("project.backgroundTasks.running", { count: runningCount }) }}

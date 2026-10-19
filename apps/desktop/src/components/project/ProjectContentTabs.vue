@@ -25,7 +25,6 @@ import {
   useAttachmentDrop,
 } from "@/composables/useAttachmentDrop";
 import { useContentTabNavigation } from "@/composables/useContentTabNavigation";
-import { usePresentedFiles } from "@/composables/usePresentedFiles";
 import { cn } from "@/lib/utils";
 import { fileIcon } from "@/lib/fileIcon";
 import { fileTargetPath } from "@/lib/filePreviewTarget";
@@ -34,6 +33,7 @@ import {
   writeContentTabDrag,
 } from "@/lib/contentTabDrag";
 import { useAttentionFlashStore } from "@/stores/attentionFlash";
+import { useWorkbenchStore } from "@/stores/workbench";
 import type { ProjectContentTab } from "@/stores/contentTabs";
 import { useContentTabsStore } from "@/stores/contentTabs";
 import { useSessionStore } from "@/stores/session";
@@ -76,6 +76,12 @@ watch(
 );
 const shouldReserveWindowControlsSpace = computed(
   () => sidebarState.value === "collapsed" || isMobile.value,
+);
+// The open workbench sits under the trailing titlebar controls, so the tab
+// actions can move flush to the content edge.
+const workbench = useWorkbenchStore();
+const shouldReserveTrailingControlsSpace = computed(
+  () => !workbench.displayedOpen || workbench.isClosing || isMobile.value,
 );
 
 const tabButtons = new Map<string, HTMLButtonElement>();
@@ -338,8 +344,14 @@ watch(
 );
 
 // Opening a flashing tab is the user's acknowledgement; hovering it counts
-// too, and `usePresentedFiles` prunes the rest when a tab is closed.
+// too, and closing a tab drops its flash.
 watch(activeTabId, (tabId) => attentionFlash.stop(tabId), { immediate: true });
+watch(
+  () => tabs.value.map((tab) => tab.id),
+  (ids) => attentionFlash.retain(ids),
+  { flush: "sync" },
+);
+onBeforeUnmount(() => attentionFlash.stopAll());
 
 // A confirmed ui_teleport moves a session to another project;
 // its tabs follow, which also switches the sidebars to the new project.
@@ -349,14 +361,6 @@ onMounted(() => {
       contentTabsStore.moveSessionToProject(event.sessionId, event.projectId);
   });
   onBeforeUnmount(stop);
-});
-
-usePresentedFiles({
-  reveal: (tabId) => {
-    // The tab may not be mounted yet when the presentation arrives.
-    void nextTick(() => revealTab(tabId));
-  },
-  isActive: (tabId) => tabId === activeTabId.value,
 });
 
 function getTabLabel(tab: ProjectContentTab): string {
@@ -499,7 +503,9 @@ watch(activeSession, (session) => {
       data-slot="project-content-tabs-titlebar"
       :class="
         cn(
-          'window-drag pointer-events-auto relative z-30 flex h-[var(--window-titlebar-height)] shrink-0 items-center gap-2 pr-[calc(var(--window-titlebar-controls-width)+var(--window-titlebar-trailing-actions-width))] pl-3 transition-[padding] delay-(--window-resize-delay) duration-500 ease-out-expo',
+          'window-drag pointer-events-auto relative z-30 flex h-[var(--window-titlebar-height)] shrink-0 items-center gap-2 pr-3 pl-3 transition-[padding] delay-(--window-resize-delay) duration-500 ease-out-expo',
+          shouldReserveTrailingControlsSpace &&
+            'pr-[calc(var(--window-titlebar-controls-width)+var(--window-titlebar-trailing-actions-width))]',
           shouldReserveWindowControlsSpace &&
             'pl-[calc(var(--window-titlebar-leading-offset)+var(--window-titlebar-leading-extra)+var(--window-titlebar-control-height)+0.75rem)]',
         )

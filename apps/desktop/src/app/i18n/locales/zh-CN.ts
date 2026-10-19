@@ -457,6 +457,28 @@ export default {
   },
   project: {
     closeProject: "关闭项目",
+    workbench: {
+      toggle: "切换工作台",
+      switchPanel: "切换面板",
+      addCard: "添加卡片",
+      closeCard: "关闭卡片",
+      panels: {
+        artifacts: "产出文件",
+        todos: "待办",
+        tasks: "后台任务",
+        preview: "预览",
+      },
+      artifacts: {
+        empty: "Pine 在此对话中展示的文件会出现在这里。",
+        openFailed: "无法打开此文件",
+      },
+      preview: {
+        empty: "从产出文件中选择一个文件在此预览。",
+        failed: "无法加载此文件",
+        unsupported: "无法预览此文件",
+        openInTab: "在标签页中打开",
+      },
+    },
     backgroundTasks: {
       heading: "后台进程",
       running: "{count} 个运行中",
@@ -738,6 +760,10 @@ export default {
           active: "正在打开 {count} 个文件",
           complete: "打开了 {count} 个文件",
         },
+        workbench: {
+          active: "正在调整工作台",
+          complete: "调整了工作台",
+        },
         project: {
           active: "正在处理 {count} 次项目操作",
           complete: "处理了 {count} 次项目操作",
@@ -772,6 +798,7 @@ export default {
         recall: "历史记录查找",
         fetch: "网页抓取",
         presentFile: "打开文件",
+        workbench: "工作台调整",
         project: "项目操作",
         background: "后台进程",
         todo: "任务清单",

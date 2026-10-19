@@ -654,3 +654,69 @@ html.sidebar-vibrancy [data-slot="alert-dialog-overlay"] {
   animation-duration: 500ms;
   animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
 }
+
+/*
+ * The workbench extends the main area, so its column keeps the page
+ * background and its cards are tinted surfaces rather than outlined ones: an
+ * outer ring would be clipped by the split view's panels. Both steps mix the
+ * foreground into the background, so they follow every color theme; inside a
+ * card, hover rows, skeletons, and empty-state icons sit one step darker.
+ */
+[data-workbench] {
+  /*
+   * One corner rule for the cards: everything inside sits at the same inset,
+   * and its radius is the card's minus that inset, so nested corners stay
+   * concentric. The card radius is Card's own.
+   */
+  --workbench-radius: min(var(--radius-4xl), 24px);
+  --workbench-inset: 0.5rem;
+  --workbench-inner-radius: calc(
+    var(--workbench-radius) - var(--workbench-inset)
+  );
+  --workbench-card: color-mix(
+    in oklab,
+    var(--foreground) 3.5%,
+    var(--background)
+  );
+  --workbench-card-raised: color-mix(
+    in oklab,
+    var(--foreground) 7%,
+    var(--background)
+  );
+}
+
+:root.dark [data-workbench] {
+  /*
+   * One corner rule for the cards: everything inside sits at the same inset,
+   * and its radius is the card's minus that inset, so nested corners stay
+   * concentric. The card radius is Card's own.
+   */
+  --workbench-radius: min(var(--radius-4xl), 24px);
+  --workbench-inset: 0.5rem;
+  --workbench-inner-radius: calc(
+    var(--workbench-radius) - var(--workbench-inset)
+  );
+  --workbench-card: color-mix(
+    in oklab,
+    var(--foreground) 7%,
+    var(--background)
+  );
+  --workbench-card-raised: color-mix(
+    in oklab,
+    var(--foreground) 12%,
+    var(--background)
+  );
+}
+
+[data-workbench]
+  [data-slot="card"]
+  :is([data-slot="button"], [data-sidebar="menu-button"]) {
+  border-radius: var(--workbench-inner-radius);
+}
+
+[data-workbench] [data-slot="card"] {
+  --card: var(--workbench-card);
+  --muted: var(--workbench-card-raised);
+  --accent: var(--workbench-card-raised);
+  --sidebar-accent: var(--workbench-card-raised);
+}

@@ -38,12 +38,14 @@ export function isPineWindowLayout(value: unknown): value is PineWindowLayout {
 }
 
 /**
- * Project window resizes driven by the sidebar, which widens or narrows the
- * window at its right edge so the content keeps its width.
+ * Project window resizes driven by the sidebar and the workbench, which widen
+ * or narrow the window at its right edge so the content keeps its width.
+ * Setting the workbench is idempotent per window.
  */
 export type PineWindowResizeRequest =
   | { kind: "fit-sidebar"; open: boolean }
-  | { kind: "toggle-sidebar"; open: boolean };
+  | { kind: "toggle-sidebar"; open: boolean }
+  | { kind: "set-workbench"; open: boolean };
 
 export function isPineWindowResizeRequest(
   value: unknown,
@@ -51,7 +53,9 @@ export function isPineWindowResizeRequest(
   if (typeof value !== "object" || value === null || !("kind" in value))
     return false;
   return (
-    (value.kind === "fit-sidebar" || value.kind === "toggle-sidebar") &&
+    (value.kind === "fit-sidebar" ||
+      value.kind === "toggle-sidebar" ||
+      value.kind === "set-workbench") &&
     "open" in value &&
     typeof value.open === "boolean"
   );

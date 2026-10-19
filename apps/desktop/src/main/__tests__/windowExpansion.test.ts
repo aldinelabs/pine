@@ -9,7 +9,7 @@ import {
   projectWithSidebarSize,
   resizedBounds,
   deferWidthChange,
-  sidebarBounds,
+  rightEdgeBounds,
 } from "../windowExpansion";
 
 const workArea = { x: 0, y: 25, width: 1512, height: 920 };
@@ -75,18 +75,18 @@ describe("window layout sizing", () => {
   it("adds and removes the sidebar width at the right edge", () => {
     const bounds = { x: 100, y: 60, width: 864, height: 840 };
 
-    expect(sidebarBounds(bounds, workArea, 256, 720)).toEqual({
+    expect(rightEdgeBounds(bounds, workArea, 256, 720)).toEqual({
       ...bounds,
       width: 1120,
     });
     expect(
-      sidebarBounds({ ...bounds, width: 1120 }, workArea, -256, 720),
+      rightEdgeBounds({ ...bounds, width: 1120 }, workArea, -256, 720),
     ).toEqual(bounds);
   });
 
   it("keeps sidebar resizing inside the work area and minimum width", () => {
     expect(
-      sidebarBounds(
+      rightEdgeBounds(
         { x: 500, y: 60, width: 864, height: 840 },
         workArea,
         256,
@@ -94,7 +94,7 @@ describe("window layout sizing", () => {
       ),
     ).toMatchObject({ x: 392, width: 1120 });
     expect(
-      sidebarBounds(
+      rightEdgeBounds(
         { x: 0, y: 60, width: 1400, height: 840 },
         workArea,
         256,
@@ -102,7 +102,7 @@ describe("window layout sizing", () => {
       ),
     ).toMatchObject({ x: 0, width: 1512 });
     expect(
-      sidebarBounds(
+      rightEdgeBounds(
         { x: 0, y: 60, width: 800, height: 840 },
         workArea,
         -256,
@@ -110,7 +110,7 @@ describe("window layout sizing", () => {
       ),
     ).toMatchObject({ x: 0, width: 720 });
     expect(
-      sidebarBounds(
+      rightEdgeBounds(
         { x: 0, y: 60, width: 720, height: 840 },
         workArea,
         -256,
@@ -125,6 +125,10 @@ describe("window layout sizing", () => {
     expect(deferWidthChange(0, false)).toBe(-256);
     expect(deferWidthChange(256, true)).toBe(256);
     expect(deferWidthChange(-256, false)).toBe(-256);
+    // The workbench owes its own, wider column.
+    expect(deferWidthChange(0, true, 400)).toBe(400);
+    expect(deferWidthChange(400, true, 400)).toBe(400);
+    expect(deferWidthChange(400, false, 400)).toBe(0);
   });
 
   it("eases out towards the target bounds", () => {

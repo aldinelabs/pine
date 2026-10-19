@@ -484,6 +484,28 @@ export default {
   },
   project: {
     closeProject: "Close project",
+    workbench: {
+      toggle: "Toggle workbench",
+      switchPanel: "Switch panel",
+      addCard: "Add card",
+      closeCard: "Close card",
+      panels: {
+        artifacts: "Artifacts",
+        todos: "Todos",
+        tasks: "Background tasks",
+        preview: "Preview",
+      },
+      artifacts: {
+        empty: "Files Pine shows you in this conversation appear here.",
+        openFailed: "Couldn’t open this file",
+      },
+      preview: {
+        empty: "Pick a file from Artifacts to preview it here.",
+        failed: "Couldn’t load this file",
+        unsupported: "This file can’t be previewed",
+        openInTab: "Open in tab",
+      },
+    },
     todos: {
       heading: "Todos",
       progress: "{completed}/{total}",
@@ -773,6 +795,10 @@ export default {
           active: "Presenting {count} files",
           complete: "Presented {count} files",
         },
+        workbench: {
+          active: "Arranging the workbench",
+          complete: "Arranged the workbench",
+        },
         project: {
           active: "Running {count} project actions",
           complete: "Ran {count} project actions",
@@ -807,6 +833,7 @@ export default {
         recall: "history search",
         fetch: "web fetch",
         presentFile: "present file",
+        workbench: "workbench change",
         project: "project action",
         background: "background process",
         todo: "todos",

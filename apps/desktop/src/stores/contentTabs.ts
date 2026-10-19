@@ -219,6 +219,14 @@ export const useContentTabsStore = defineStore("content-tabs", () => {
     return ensureFileTab(target, projectId);
   }
 
+  /** Remembers where a presented file resolved, without opening a tab. */
+  function rememberPresentedTarget(
+    toolCallId: string,
+    target: FilePreviewTarget,
+  ): void {
+    presentedTargets.set(toolCallId, target);
+  }
+
   function presentedTargetFor(
     toolCallId: string,
   ): FilePreviewTarget | undefined {
@@ -505,6 +513,7 @@ export const useContentTabsStore = defineStore("content-tabs", () => {
     openSession,
     presentFile,
     presentedTargetFor,
+    rememberPresentedTarget,
     rememberDraftProject,
     removeProject,
     removeSession,

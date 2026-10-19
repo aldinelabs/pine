@@ -20,6 +20,8 @@ import ProjectTodoGraph from "./ProjectTodoGraph.vue";
 import ProjectTodoListDialog from "./ProjectTodoListDialog.vue";
 import ProjectSidebarEmptyState from "./ProjectSidebarEmptyState.vue";
 
+/** In a workbench card, whose header already names the panel. */
+defineProps<{ embedded?: boolean }>();
 const { t } = useI18n();
 const session = useSessionStore();
 
@@ -80,7 +82,7 @@ const moreLabel = computed(() => {
     data-testid="project-todo-panel"
     :class="{ 'h-full min-h-0': !hasTasks || !layout }"
   >
-    <SidebarGroupLabel>
+    <SidebarGroupLabel v-if="!embedded">
       {{ t("project.todos.heading") }}
       <span v-if="hasTasks && counts" class="ml-auto tabular-nums">
         {{

@@ -1,6 +1,7 @@
 import type { PineSessionSummary } from "./sessions";
 import type { BackgroundTaskSnapshot } from "@pine/pi-background-tasks";
 import type { FilePreviewTarget } from "./projectFiles";
+import type { WorkbenchCommand } from "./workbench";
 import type {
   AskUserQuestionParams,
   AskUserQuestionSubmission,
@@ -284,6 +285,13 @@ export type PineAgentEvent =
       toolCallId: string;
       /** Absolute path the agent asked to present, before main resolves it. */
       path: string;
+    }
+  | {
+      /** Rearranges the workbench beside the session's conversation. */
+      type: "workbench-command";
+      sessionId: string;
+      toolCallId: string;
+      command: WorkbenchCommand;
     }
   | {
       /** Every task of the session, after any of them changed. */

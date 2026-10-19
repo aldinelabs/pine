@@ -9,6 +9,8 @@ import {
 export const PROJECT_WINDOW_WIDTH = PROJECT_LIST_WINDOW_SIZE.width;
 /** Matches the renderer's 16rem sidebar. */
 export const SIDEBAR_WIDTH = 256;
+/** Matches the renderer's 25rem workbench column. */
+export const WORKBENCH_WIDTH = 400;
 export const WINDOW_RESIZE_DURATION_MS = 500;
 const FRAME_INTERVAL_MS = 1000 / 60;
 
@@ -93,22 +95,23 @@ export function sidebarWidthChange(open: boolean): number {
 }
 
 /**
- * Accumulates sidebar toggles made while maximized or fullscreen. Opposite
- * toggles cancel out, so the debt never exceeds one sidebar width.
+ * Accumulates toggles of one column made while maximized or fullscreen.
+ * Opposite toggles cancel out, so the debt never exceeds the column's width.
  */
-export function deferWidthChange(pending: number, open: boolean): number {
-  return Math.max(
-    -SIDEBAR_WIDTH,
-    Math.min(SIDEBAR_WIDTH, pending + sidebarWidthChange(open)),
-  );
+export function deferWidthChange(
+  pending: number,
+  open: boolean,
+  width = SIDEBAR_WIDTH,
+): number {
+  return Math.max(-width, Math.min(width, pending + (open ? width : -width)));
 }
 
 /**
- * Adds or removes the sidebar's width so the content area keeps its size.
- * The left edge stays put unless the window would leave the work area: moving
+ * Adds or removes a column's width so the content area keeps its size. The
+ * left edge stays put unless the window would leave the work area: moving
  * the window origin while animating makes the page jitter.
  */
-export function sidebarBounds(
+export function rightEdgeBounds(
   current: Rectangle,
   workArea: Rectangle,
   widthChange: number,
@@ -149,8 +152,21 @@ const plannedResizes = new WeakMap<
   BrowserWindow,
   { from: Rectangle; to: Rectangle }
 >();
-/** Sidebar width owed by windows toggled while maximized or fullscreen. */
-const deferredWidthChanges = new WeakMap<BrowserWindow, number>();
+type ResizableColumn = "sidebar" | "workbench";
+const COLUMN_WIDTH: Record<ResizableColumn, number> = {
+  sidebar: SIDEBAR_WIDTH,
+  workbench: WORKBENCH_WIDTH,
+};
+/** Column widths owed by windows toggled while maximized or fullscreen. */
+const deferredWidthChanges = new WeakMap<
+  BrowserWindow,
+  Record<ResizableColumn, number>
+>();
+/**
+ * Windows whose width includes the open workbench. Setting the workbench is
+ * idempotent, so reloads and session switches never add its width twice.
+ */
+const windowsWithWorkbench = new WeakSet<BrowserWindow>();
 const windowsWatchingRestore = new WeakSet<BrowserWindow>();
 const fittedWindows = new WeakSet<BrowserWindow>();
 
@@ -203,7 +219,10 @@ export function applyWindowLayout(
   // Resizing must stay enabled while animating; setBounds respects it on
   // some platforms.
   window.setResizable(true);
-  if (!isProject) deferredWidthChanges.delete(window);
+  if (!isProject) {
+    deferredWidthChanges.delete(window);
+    windowsWithWorkbench.delete(window);
+  }
 
   if (!isProject && window.isFullScreen()) {
     window.once("leave-full-screen", () => applyWindowLayout(window, layout));
@@ -243,14 +262,24 @@ export function planWindowResize(
   const isFirstFit =
     request.kind === "fit-sidebar" && !fittedWindows.has(window);
   if (request.kind === "fit-sidebar") fittedWindows.add(window);
+  if (
+    request.kind === "set-workbench" &&
+    windowsWithWorkbench.has(window) === request.open
+  )
+    return 0;
   if (window.isMaximized() || window.isFullScreen()) {
     // macOS ignores setBounds in fullscreen and leaves maximized on it, so
-    // apply the sidebar's width once the window is restored instead.
+    // apply the column's width once the window is restored instead.
     if (request.kind === "toggle-sidebar")
-      deferSidebarWidth(window, request.open);
+      deferColumnWidth(window, "sidebar", request.open);
+    if (request.kind === "set-workbench") {
+      markWorkbench(window, request.open);
+      deferColumnWidth(window, "workbench", request.open);
+    }
     return 0;
   }
   if (!window.isResizable()) return 0;
+  if (request.kind === "set-workbench") markWorkbench(window, request.open);
   stopAnimation(window);
   const from = window.getBounds();
   const { workArea } = screen.getDisplayMatching(from);
@@ -261,10 +290,14 @@ export function planWindowResize(
           workArea,
           projectWindowSize(from, request.open, isFirstFit),
         )
-      : sidebarBounds(
+      : rightEdgeBounds(
           from,
           workArea,
-          sidebarWidthChange(request.open),
+          request.kind === "set-workbench"
+            ? request.open
+              ? WORKBENCH_WIDTH
+              : -WORKBENCH_WIDTH
+            : sidebarWidthChange(request.open),
           window.getMinimumSize()[0],
         );
   if (!to) return 0;
@@ -287,10 +320,26 @@ export function commitWindowResize(
   return animateBounds(window, planned.from, planned.to, onStart);
 }
 
-function deferSidebarWidth(window: BrowserWindow, open: boolean): void {
-  const pending = deferWidthChange(deferredWidthChanges.get(window) ?? 0, open);
-  if (pending === 0) deferredWidthChanges.delete(window);
-  else deferredWidthChanges.set(window, pending);
+function markWorkbench(window: BrowserWindow, open: boolean): void {
+  if (open) windowsWithWorkbench.add(window);
+  else windowsWithWorkbench.delete(window);
+}
+
+function deferColumnWidth(
+  window: BrowserWindow,
+  column: ResizableColumn,
+  open: boolean,
+): void {
+  const pending = deferredWidthChanges.get(window) ?? {
+    sidebar: 0,
+    workbench: 0,
+  };
+  pending[column] = deferWidthChange(
+    pending[column],
+    open,
+    COLUMN_WIDTH[column],
+  );
+  deferredWidthChanges.set(window, pending);
   if (windowsWatchingRestore.has(window)) return;
   windowsWatchingRestore.add(window);
   // Defer past the event so the restored frame is in place before measuring.
@@ -299,9 +348,10 @@ function deferSidebarWidth(window: BrowserWindow, open: boolean): void {
   window.on("unmaximize", onRestore);
 }
 
-/** Catches up on sidebar toggles made while maximized or fullscreen. */
+/** Catches up on column toggles made while maximized or fullscreen. */
 function applyDeferredWidth(window: BrowserWindow): void {
-  const pending = deferredWidthChanges.get(window);
+  const columns = deferredWidthChanges.get(window);
+  const pending = columns ? columns.sidebar + columns.workbench : 0;
   if (
     !pending ||
     window.isDestroyed() ||
@@ -312,7 +362,12 @@ function applyDeferredWidth(window: BrowserWindow): void {
   deferredWidthChanges.delete(window);
   const from = window.getBounds();
   const { workArea } = screen.getDisplayMatching(from);
-  const to = sidebarBounds(from, workArea, pending, window.getMinimumSize()[0]);
+  const to = rightEdgeBounds(
+    from,
+    workArea,
+    pending,
+    window.getMinimumSize()[0],
+  );
   // The content legitimately changes width here, so this resize is not
   // frozen in the renderer.
   if (to) void animateBounds(window, from, to);

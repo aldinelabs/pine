@@ -959,6 +959,15 @@ export class PineAgentRuntime {
           this.requestQuestionnaire(live, toolCallId, params, signal),
         presentFile: (toolCallId, filePath) =>
           this.presentFile(live, toolCallId, filePath),
+        workbench: {
+          sendCommand: (toolCallId, command) =>
+            this.options.emit({
+              type: "workbench-command",
+              sessionId: live.session.sessionId,
+              toolCallId,
+              command,
+            }),
+        },
         workspace: {
           requestHost: (request) => this.requestHost(live, request),
           getLocale: () => live.locale,
@@ -1373,10 +1382,10 @@ export class PineAgentRuntime {
   }
 
   /**
-   * Ask the renderer to open a file the user should look at. Main resolves the
-   * absolute path into a tab target, so this stays fire-and-forget: the tool
-   * already proved the path readable, and no part of opening a tab can fail in
-   * a way the agent needs to act on.
+   * Ask the renderer to show a file the user should look at. Main resolves the
+   * absolute path into a preview target, so this stays fire-and-forget: the
+   * tool already proved the path readable, and no part of showing it can fail
+   * in a way the agent needs to act on.
    */
   private presentFile(
     live: LiveAgentSession,
