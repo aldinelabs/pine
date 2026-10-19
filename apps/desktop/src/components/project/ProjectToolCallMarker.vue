@@ -28,6 +28,11 @@ import {
 } from "@/shared/agent";
 import { useProjectStore } from "@/stores/project";
 import type { PineToolCall } from "@/shared/sessions";
+import {
+  UI_WORKBENCH_ARRANGE_TOOL_NAME,
+  UI_WORKBENCH_CLOSE_TOOL_NAME,
+  isWorkbenchPanel,
+} from "@/shared/workbench";
 import ProjectToolCallDialog from "./ProjectToolCallDialog.vue";
 import {
   isDeniedTool,
@@ -75,6 +80,35 @@ function isAskUserQuestionTool(name: string): boolean {
 
 function isPresentFileTool(name: string): boolean {
   return normalizedToolName(name) === UI_PRESENT_FILE_TOOL_NAME;
+}
+
+/** Reads a workbench call as a sentence: "Showed Todos in the workbench". */
+function workbenchLabel(
+  name: string,
+  input: Record<string, unknown>,
+  state: "complete" | "error" | "running",
+  t: (key: string, values?: Record<string, unknown>) => string,
+): string {
+  const panelName = (value: unknown) =>
+    isWorkbenchPanel(value) ? t(`project.workbench.panels.${value}`) : "";
+  const base = "project.transcript.tools.workbench";
+  const tool = normalizedToolName(name);
+  if (tool === UI_WORKBENCH_ARRANGE_TOOL_NAME) {
+    const panels = [input.top, input.bottom].filter(isWorkbenchPanel);
+    const [top, bottom] = panels;
+    if (state !== "complete" || !top) return t(`${base}.arrange.${state}`);
+    return bottom && bottom !== top
+      ? t(`${base}.arrange.complete`, {
+          top: panelName(top),
+          bottom: panelName(bottom),
+        })
+      : t(`${base}.arrange.completeSingle`, { panel: panelName(top) });
+  }
+  if (tool === UI_WORKBENCH_CLOSE_TOOL_NAME)
+    return isWorkbenchPanel(input.panel)
+      ? t(`${base}.closeCard.${state}`, { panel: panelName(input.panel) })
+      : t(`${base}.close.${state}`);
+  return t(`${base}.open.${state}`, { panel: panelName(input.panel) });
 }
 
 function isComputerUseActivationTool(name: string): boolean {
@@ -1050,6 +1084,27 @@ const presentation = computed(() => {
       separator: "",
       target,
       targetMono: true,
+      purpose: undefined,
+      faviconDataUrl: undefined,
+      after: "",
+    };
+  }
+  if (kind === "workbench") {
+    return {
+      before: workbenchLabel(
+        props.toolCall.name,
+        input,
+        state === "running" || state === "error" || state === "complete"
+          ? state
+          : state === "denied"
+            ? "error"
+            : "running",
+        t,
+      ),
+      operation: undefined,
+      separator: "",
+      target: undefined,
+      targetMono: false,
       purpose: undefined,
       faviconDataUrl: undefined,
       after: "",

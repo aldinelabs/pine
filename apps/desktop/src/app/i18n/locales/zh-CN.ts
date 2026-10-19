@@ -893,6 +893,29 @@ export default {
           error: "无法打开 ",
           running: "正在打开 ",
         },
+        workbench: {
+          open: {
+            complete: "已在工作台显示{panel}",
+            error: "无法在工作台显示{panel}",
+            running: "正在工作台显示{panel}",
+          },
+          closeCard: {
+            complete: "已关闭{panel}卡片",
+            error: "无法关闭{panel}卡片",
+            running: "正在关闭{panel}卡片",
+          },
+          close: {
+            complete: "已关闭工作台",
+            error: "无法关闭工作台",
+            running: "正在关闭工作台",
+          },
+          arrange: {
+            complete: "已将工作台排布为上方{top}、下方{bottom}",
+            completeSingle: "已让工作台只显示{panel}",
+            error: "无法排布工作台",
+            running: "正在排布工作台",
+          },
+        },
         project: {
           list: {
             complete: "已查看项目列表",

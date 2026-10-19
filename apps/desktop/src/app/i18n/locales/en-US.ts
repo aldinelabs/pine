@@ -928,6 +928,29 @@ export default {
           error: "Couldn’t present ",
           running: "Presenting ",
         },
+        workbench: {
+          open: {
+            complete: "Showed {panel} in the workbench",
+            error: "Couldn’t show {panel} in the workbench",
+            running: "Showing {panel} in the workbench",
+          },
+          closeCard: {
+            complete: "Closed the {panel} card",
+            error: "Couldn’t close the {panel} card",
+            running: "Closing the {panel} card",
+          },
+          close: {
+            complete: "Closed the workbench",
+            error: "Couldn’t close the workbench",
+            running: "Closing the workbench",
+          },
+          arrange: {
+            complete: "Arranged the workbench: {top} above {bottom}",
+            completeSingle: "Arranged the workbench to show only {panel}",
+            error: "Couldn’t arrange the workbench",
+            running: "Arranging the workbench",
+          },
+        },
         project: {
           list: {
             complete: "Listed projects",

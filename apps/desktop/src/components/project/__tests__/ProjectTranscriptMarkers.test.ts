@@ -619,6 +619,50 @@ describe("project transcript markers", () => {
     expect(content.text()).toBe("已打开 quarterly.md");
   });
 
+  it("describes workbench calls as sentences", () => {
+    const cases = [
+      {
+        name: "ui_workbench_open",
+        input: { panel: "todos" },
+        expected: "已在工作台显示待办",
+      },
+      {
+        name: "ui_workbench_close",
+        input: { panel: "preview" },
+        expected: "已关闭预览卡片",
+      },
+      { name: "ui_workbench_close", input: {}, expected: "已关闭工作台" },
+      {
+        name: "ui_workbench_arrange",
+        input: { top: "preview", bottom: "artifacts", split: 60 },
+        expected: "已将工作台排布为上方预览、下方产出文件",
+      },
+      {
+        name: "ui_workbench_arrange",
+        input: { top: "tasks", bottom: null },
+        expected: "已让工作台只显示后台任务",
+      },
+    ];
+    for (const testCase of cases) {
+      const wrapper = mount(ProjectToolCallMarker, {
+        props: {
+          toolCall: {
+            id: "tool-workbench",
+            input: testCase.input,
+            name: testCase.name,
+            status: "complete",
+          },
+        },
+        global: { plugins: [createAppI18n("zh-CN")] },
+      });
+
+      expect(wrapper.get('[data-slot="marker-content"]').text()).toBe(
+        testCase.expected,
+      );
+      wrapper.unmount();
+    }
+  });
+
   it("describes history recall calls by what they looked up", async () => {
     const wrapper = mount(ProjectToolCallMarker, {
       props: {
