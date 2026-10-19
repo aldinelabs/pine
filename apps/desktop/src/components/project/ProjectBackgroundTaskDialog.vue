@@ -43,7 +43,10 @@ const {
   now,
   pause: pauseClock,
   resume: resumeClock,
-} = useNow({ interval: 1000, controls: true });
+} = useNow({
+  scheduler: (callback) => useIntervalFn(callback, 1000),
+  controls: true,
+});
 watch(
   [open, isRunning],
   ([isOpen, running]) => {

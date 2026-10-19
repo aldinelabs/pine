@@ -5,7 +5,7 @@ import {
   CircleXIcon,
   SquareIcon,
 } from "@lucide/vue";
-import { useNow } from "@vueuse/core";
+import { useIntervalFn, useNow } from "@vueuse/core";
 import { storeToRefs } from "pinia";
 import { computed, watch } from "vue";
 import { useI18n } from "vue-i18n";
@@ -33,7 +33,10 @@ const store = useBackgroundTasksStore();
 const { tasks, runningCount, inspectedTaskId } = storeToRefs(store);
 
 // Running tasks show their elapsed time, so the panel ticks only while one runs.
-const { now, pause, resume } = useNow({ interval: 1000, controls: true });
+const { now, pause, resume } = useNow({
+  scheduler: (callback) => useIntervalFn(callback, 1000),
+  controls: true,
+});
 watch(
   runningCount,
   (count) => {
