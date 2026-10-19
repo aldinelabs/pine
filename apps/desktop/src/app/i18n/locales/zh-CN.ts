@@ -460,6 +460,7 @@ export default {
     workbench: {
       toggle: "切换工作台",
       switchPanel: "切换面板",
+      resize: "调整工作台宽度",
       addCard: "添加卡片",
       closeCard: "关闭卡片",
       panels: {

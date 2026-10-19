@@ -487,6 +487,7 @@ export default {
     workbench: {
       toggle: "Toggle workbench",
       switchPanel: "Switch panel",
+      resize: "Resize workbench",
       addCard: "Add card",
       closeCard: "Close card",
       panels: {

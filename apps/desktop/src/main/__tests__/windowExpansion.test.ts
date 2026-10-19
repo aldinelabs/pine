@@ -10,6 +10,7 @@ import {
   resizedBounds,
   deferWidthChange,
   rightEdgeBounds,
+  workbenchWidthChange,
 } from "../windowExpansion";
 
 const workArea = { x: 0, y: 25, width: 1512, height: 920 };
@@ -129,6 +130,13 @@ describe("window layout sizing", () => {
     expect(deferWidthChange(0, true, 400)).toBe(400);
     expect(deferWidthChange(400, true, 400)).toBe(400);
     expect(deferWidthChange(400, false, 400)).toBe(0);
+  });
+
+  it("gives back the workbench's current width, within its bounds", () => {
+    expect(workbenchWidthChange(true, 400)).toBe(400);
+    expect(workbenchWidthChange(false, 560)).toBe(-560);
+    expect(workbenchWidthChange(true, 100)).toBe(320);
+    expect(workbenchWidthChange(false, 4000)).toBe(-720);
   });
 
   it("eases out towards the target bounds", () => {

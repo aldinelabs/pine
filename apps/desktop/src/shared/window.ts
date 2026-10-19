@@ -40,24 +40,28 @@ export function isPineWindowLayout(value: unknown): value is PineWindowLayout {
 /**
  * Project window resizes driven by the sidebar and the workbench, which widen
  * or narrow the window at its right edge so the content keeps its width.
- * Setting the workbench is idempotent per window.
+ * Setting the workbench is idempotent per window; `width` is the column's
+ * current width, which the user can change while it is open.
  */
 export type PineWindowResizeRequest =
   | { kind: "fit-sidebar"; open: boolean }
   | { kind: "toggle-sidebar"; open: boolean }
-  | { kind: "set-workbench"; open: boolean };
+  | { kind: "set-workbench"; open: boolean; width: number };
 
 export function isPineWindowResizeRequest(
   value: unknown,
 ): value is PineWindowResizeRequest {
   if (typeof value !== "object" || value === null || !("kind" in value))
     return false;
+  if (!("open" in value) || typeof value.open !== "boolean") return false;
+  if (value.kind === "fit-sidebar" || value.kind === "toggle-sidebar")
+    return true;
   return (
-    (value.kind === "fit-sidebar" ||
-      value.kind === "toggle-sidebar" ||
-      value.kind === "set-workbench") &&
-    "open" in value &&
-    typeof value.open === "boolean"
+    value.kind === "set-workbench" &&
+    "width" in value &&
+    typeof value.width === "number" &&
+    Number.isFinite(value.width) &&
+    value.width > 0
   );
 }
 

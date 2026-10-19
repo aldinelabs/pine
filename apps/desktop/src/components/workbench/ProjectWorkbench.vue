@@ -9,6 +9,7 @@ import { Sidebar } from "@/components/ui/sidebar";
 import type { WorkbenchPanel } from "@/shared/workbench";
 import { useWorkbenchStore } from "@/stores/workbench";
 import WorkbenchCard from "./WorkbenchCard.vue";
+import WorkbenchResizeHandle from "./WorkbenchResizeHandle.vue";
 
 interface PanelHandle {
   collapse: () => void;
@@ -63,7 +64,8 @@ const panelClass = computed(() =>
 </script>
 
 <template>
-  <!-- The column extends the main area: same background, no divider. -->
+  <!-- The column extends the main area: same background, no divider.
+       The resize handle overlays the conversation, so it takes no width. -->
   <Sidebar
     side="right"
     collapsible="offcanvas"
@@ -71,6 +73,7 @@ const panelClass = computed(() =>
     data-workbench
     class="group-data-[side=right]:border-l-0 [&>[data-slot=sidebar-inner]]:bg-background"
   >
+    <WorkbenchResizeHandle />
     <div
       aria-hidden="true"
       class="window-drag h-[var(--window-titlebar-height)] shrink-0"

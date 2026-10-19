@@ -55,3 +55,15 @@ export function clampWorkbenchSplit(split: number): number {
     Math.min(Math.max(split, WORKBENCH_MIN_SPLIT), WORKBENCH_MAX_SPLIT),
   );
 }
+
+/** The column's width in CSS pixels; the user drags its leading edge. */
+export const WORKBENCH_DEFAULT_WIDTH = 400;
+export const WORKBENCH_MIN_WIDTH = 320;
+export const WORKBENCH_MAX_WIDTH = 720;
+
+export function clampWorkbenchWidth(width: number): number {
+  if (!Number.isFinite(width)) return WORKBENCH_DEFAULT_WIDTH;
+  return Math.round(
+    Math.min(Math.max(width, WORKBENCH_MIN_WIDTH), WORKBENCH_MAX_WIDTH),
+  );
+}

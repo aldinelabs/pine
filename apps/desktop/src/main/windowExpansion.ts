@@ -1,4 +1,5 @@
 import { screen, type BrowserWindow, type Rectangle } from "electron";
+import { clampWorkbenchWidth } from "../shared/workbench";
 import {
   PROJECT_LIST_WINDOW_SIZE,
   type PineWindowLayout,
@@ -9,8 +10,6 @@ import {
 export const PROJECT_WINDOW_WIDTH = PROJECT_LIST_WINDOW_SIZE.width;
 /** Matches the renderer's 16rem sidebar. */
 export const SIDEBAR_WIDTH = 256;
-/** Matches the renderer's 25rem workbench column. */
-export const WORKBENCH_WIDTH = 400;
 export const WINDOW_RESIZE_DURATION_MS = 500;
 const FRAME_INTERVAL_MS = 1000 / 60;
 
@@ -95,6 +94,15 @@ export function sidebarWidthChange(open: boolean): number {
 }
 
 /**
+ * The workbench gives back its current width when it closes, which differs
+ * from the width it opened with once the user drags its edge.
+ */
+export function workbenchWidthChange(open: boolean, width: number): number {
+  const columnWidth = clampWorkbenchWidth(width);
+  return open ? columnWidth : -columnWidth;
+}
+
+/**
  * Accumulates toggles of one column made while maximized or fullscreen.
  * Opposite toggles cancel out, so the debt never exceeds the column's width.
  */
@@ -153,10 +161,6 @@ const plannedResizes = new WeakMap<
   { from: Rectangle; to: Rectangle }
 >();
 type ResizableColumn = "sidebar" | "workbench";
-const COLUMN_WIDTH: Record<ResizableColumn, number> = {
-  sidebar: SIDEBAR_WIDTH,
-  workbench: WORKBENCH_WIDTH,
-};
 /** Column widths owed by windows toggled while maximized or fullscreen. */
 const deferredWidthChanges = new WeakMap<
   BrowserWindow,
@@ -271,10 +275,15 @@ export function planWindowResize(
     // macOS ignores setBounds in fullscreen and leaves maximized on it, so
     // apply the column's width once the window is restored instead.
     if (request.kind === "toggle-sidebar")
-      deferColumnWidth(window, "sidebar", request.open);
+      deferColumnWidth(window, "sidebar", request.open, SIDEBAR_WIDTH);
     if (request.kind === "set-workbench") {
       markWorkbench(window, request.open);
-      deferColumnWidth(window, "workbench", request.open);
+      deferColumnWidth(
+        window,
+        "workbench",
+        request.open,
+        clampWorkbenchWidth(request.width),
+      );
     }
     return 0;
   }
@@ -294,9 +303,7 @@ export function planWindowResize(
           from,
           workArea,
           request.kind === "set-workbench"
-            ? request.open
-              ? WORKBENCH_WIDTH
-              : -WORKBENCH_WIDTH
+            ? workbenchWidthChange(request.open, request.width)
             : sidebarWidthChange(request.open),
           window.getMinimumSize()[0],
         );
@@ -329,16 +336,13 @@ function deferColumnWidth(
   window: BrowserWindow,
   column: ResizableColumn,
   open: boolean,
+  width: number,
 ): void {
   const pending = deferredWidthChanges.get(window) ?? {
     sidebar: 0,
     workbench: 0,
   };
-  pending[column] = deferWidthChange(
-    pending[column],
-    open,
-    COLUMN_WIDTH[column],
-  );
+  pending[column] = deferWidthChange(pending[column], open, width);
   deferredWidthChanges.set(window, pending);
   if (windowsWatchingRestore.has(window)) return;
   windowsWatchingRestore.add(window);

@@ -218,7 +218,7 @@ async function resizeWorkbench(open: boolean): Promise<void> {
     workbench.setDisplayedOpen(open);
   };
   const resized = await frozenResize.run(
-    { kind: "set-workbench", open },
+    { kind: "set-workbench", open, width: workbench.width },
     open
       ? {
           beforeCommit: (delta) => {
@@ -334,10 +334,10 @@ onKeyStroke("k", (event) => {
       data-testid="project-workbench-provider"
       :class="[
         'min-h-0 w-auto flex-none',
-        isWorkbenchInstant &&
+        (isWorkbenchInstant || workbench.isResizing) &&
           '[&_[data-slot=sidebar-container]]:transition-none! [&_[data-slot=sidebar-gap]]:transition-none!',
       ]"
-      :style="{ '--sidebar-width': '25rem' }"
+      :style="{ '--sidebar-width': `${workbench.width}px` }"
       :open="workbench.displayedOpen"
     >
       <ProjectWorkbench />

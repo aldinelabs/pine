@@ -3,6 +3,7 @@ import { beforeEach, expect, it } from "vitest";
 import {
   DRAFT_WORKBENCH_KEY,
   WORKBENCH_STORAGE_KEY,
+  WORKBENCH_WIDTH_STORAGE_KEY,
   useWorkbenchStore,
 } from "../workbench";
 
@@ -65,4 +66,26 @@ it("remembers layouts across stores without the drag-only rearrangement bump", (
 it("ignores corrupt storage", () => {
   window.localStorage.setItem(WORKBENCH_STORAGE_KEY, "{not json");
   expect(useWorkbenchStore().activeLayout.open).toBe(false);
+});
+
+it("shares one clamped width and stores it when a drag ends", () => {
+  const store = useWorkbenchStore();
+  expect(store.width).toBe(400);
+
+  store.setResizing(true);
+  store.setWidth(512.4);
+  store.setWidth(9999);
+  expect(store.width).toBe(720);
+  expect(window.localStorage.getItem(WORKBENCH_WIDTH_STORAGE_KEY)).toBeNull();
+  store.setWidth(512);
+  store.setResizing(false);
+  expect(store.isResizing).toBe(false);
+
+  setActivePinia(createPinia());
+  expect(useWorkbenchStore().width).toBe(512);
+});
+
+it("falls back to the default width for a stored non-number", () => {
+  window.localStorage.setItem(WORKBENCH_WIDTH_STORAGE_KEY, "wide");
+  expect(useWorkbenchStore().width).toBe(400);
 });

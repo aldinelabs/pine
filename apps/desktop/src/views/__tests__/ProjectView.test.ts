@@ -211,6 +211,7 @@ it("opens the workbench beside the conversation and widens the window for it", a
   expect(planWindowResize).toHaveBeenLastCalledWith({
     kind: "set-workbench",
     open: true,
+    width: 400,
   });
   expect(toggle.attributes("aria-pressed")).toBe("true");
   expect(workbenchSidebar()).toBe("expanded");
@@ -218,7 +219,7 @@ it("opens the workbench beside the conversation and widens the window for it", a
     wrapper
       .get<HTMLElement>('[data-testid="project-workbench-provider"]')
       .element.style.getPropertyValue("--sidebar-width"),
-  ).toBe("25rem");
+  ).toBe("400px");
 
   // The left sidebar's shortcut leaves the workbench alone.
   window.dispatchEvent(
@@ -288,7 +289,7 @@ it.each([
     expect(setWindowLayout).toHaveBeenCalledExactlyOnceWith("project");
     expect(planWindowResize.mock.calls).toEqual([
       [{ kind: "fit-sidebar", open }],
-      [{ kind: "set-workbench", open: false }],
+      [{ kind: "set-workbench", open: false, width: 400 }],
     ]);
     expect(useProjectSidebarVisibilityStore().open).toBe(open);
     wrapper.unmount();

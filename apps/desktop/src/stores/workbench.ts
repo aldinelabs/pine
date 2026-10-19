@@ -14,6 +14,8 @@ import {
 } from "@/lib/workbenchLayout";
 import {
   clampWorkbenchSplit,
+  clampWorkbenchWidth,
+  WORKBENCH_DEFAULT_WIDTH,
   type WorkbenchCommand,
   type WorkbenchPanel,
   type WorkbenchPosition,
@@ -23,6 +25,7 @@ import { useSessionStore } from "@/stores/session";
 export const WORKBENCH_STORAGE_KEY = "pine.workbench.v1";
 /** Layouts of new conversations, until their session exists. */
 export const DRAFT_WORKBENCH_KEY = "draft";
+export const WORKBENCH_WIDTH_STORAGE_KEY = "pine.workbench-width.v1";
 /** Only the most recently arranged sessions keep their layout. */
 const MAX_STORED_LAYOUTS = 200;
 
@@ -43,6 +46,17 @@ function readLayouts(): Map<string, WorkbenchLayout> {
   return layouts;
 }
 
+function readWidth(): number {
+  try {
+    const stored = window.localStorage.getItem(WORKBENCH_WIDTH_STORAGE_KEY);
+    return stored === null
+      ? WORKBENCH_DEFAULT_WIDTH
+      : clampWorkbenchWidth(Number(stored));
+  } catch {
+    return WORKBENCH_DEFAULT_WIDTH;
+  }
+}
+
 /**
  * The workbench of each session: whether it is open, which cards it stacks,
  * and the file in its preview. The column follows the active session; a
@@ -60,6 +74,10 @@ export const useWorkbenchStore = defineStore("workbench", () => {
   const displayedOpen = ref(false);
   /** The column still shows while the window edge clips it away. */
   const isClosing = ref(false);
+  /** One width for every session, so switching sessions never resizes. */
+  const width = ref(readWidth());
+  /** The user is dragging the column's edge. */
+  const isResizing = ref(false);
 
   const activeKey = computed(
     () => sessionStore.activeSession?.id ?? DRAFT_WORKBENCH_KEY,
@@ -142,6 +160,24 @@ export const useWorkbenchStore = defineStore("workbench", () => {
     update(activeKey.value, (layout) => ({ ...layout, split: next }), false);
   }
 
+  function setWidth(next: number): void {
+    width.value = clampWorkbenchWidth(next);
+  }
+
+  /** Stores the width once a drag ends rather than on every frame. */
+  function setResizing(resizing: boolean): void {
+    isResizing.value = resizing;
+    if (resizing) return;
+    try {
+      window.localStorage.setItem(
+        WORKBENCH_WIDTH_STORAGE_KEY,
+        String(width.value),
+      );
+    } catch {
+      // The width still applies until the window reloads.
+    }
+  }
+
   function setDisplayedOpen(open: boolean): void {
     displayedOpen.value = open;
   }
@@ -156,6 +192,8 @@ export const useWorkbenchStore = defineStore("workbench", () => {
     arrangement,
     displayedOpen,
     isClosing,
+    isResizing,
+    width,
     apply,
     closeCard,
     layoutFor,
@@ -166,7 +204,9 @@ export const useWorkbenchStore = defineStore("workbench", () => {
     setClosing,
     setDisplayedOpen,
     setOpen,
+    setResizing,
     setSplit,
+    setWidth,
     showPanel,
     toggle,
   };
