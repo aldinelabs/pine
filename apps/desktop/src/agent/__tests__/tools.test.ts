@@ -18,6 +18,7 @@ import type { ToolGate } from "../gate";
 import {
   createPineToolDefinitions,
   hasPermissionDiagnostic,
+  mentionsSystemTemporaryPath,
   PineAttachedPathAccess,
   PineToolAccessPolicy,
   SandboxCommandPermissionError,
@@ -1533,6 +1534,54 @@ describeSandbox("createPineToolDefinitions", () => {
       "zsh:1: operation not permitted: ps",
     );
     expect(error.outputTail).toContain("operation not permitted");
+  });
+
+  describe("system temporary storage denials", () => {
+    it("recognizes /tmp and /private/tmp paths only", () => {
+      expect(
+        mentionsSystemTemporaryPath(
+          "zsh:2: operation not permitted: /tmp/zh_linh2.txt",
+        ),
+      ).toBe(true);
+      expect(
+        mentionsSystemTemporaryPath(
+          "PermissionError: [Errno 1] Operation not permitted: '/private/tmp/out.json'",
+        ),
+      ).toBe(true);
+      expect(
+        mentionsSystemTemporaryPath("touch: /tmp: Permission denied"),
+      ).toBe(true);
+      expect(
+        mentionsSystemTemporaryPath(
+          "zsh:1: operation not permitted: /Users/me/project/tmp/out.txt",
+        ),
+      ).toBe(false);
+      expect(
+        mentionsSystemTemporaryPath("operation not permitted: /tmpfiles/x"),
+      ).toBe(false);
+    });
+
+    it.runIf(process.platform !== "win32")(
+      "points /tmp scratch denials at $TMPDIR before privileged execution",
+      () => {
+        const error = new SandboxCommandPermissionError(
+          "zsh:2: operation not permitted: /tmp/zh_linh2.txt",
+        );
+        expect(error.message).toContain('use "$TMPDIR"');
+        expect(error.message).toContain("instead of escalating");
+        expect(error.message).toContain(
+          "Use privileged_bash only if the command must access an existing /tmp path",
+        );
+      },
+    );
+
+    it("keeps the privileged hint for other denials", () => {
+      const error = new SandboxCommandPermissionError(
+        "zsh:1: operation not permitted: /Users/me/Desktop/a.txt",
+      );
+      expect(error.message).toMatch(/Use privileged_(?:bash|powershell)/);
+      expect(error.message).not.toContain("$TMPDIR");
+    });
   });
 
   it("executes the approved parameter snapshot even if the caller mutates its object", async () => {

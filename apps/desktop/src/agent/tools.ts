@@ -64,6 +64,7 @@ export {
 export {
   SandboxCommandPermissionError,
   hasPermissionDiagnostic,
+  mentionsSystemTemporaryPath,
 } from "./bash-execution";
 import type { ToolGate } from "./gate";
 import type { PineApprovalMode } from "../shared/agent";

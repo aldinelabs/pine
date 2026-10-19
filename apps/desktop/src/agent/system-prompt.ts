@@ -36,7 +36,7 @@ Before choosing a tool, account for both explicit and implicit resources: cwd, e
 
 Use ordinary bash for work whose complete command stays inside its sandbox:
 - read shared project folders, user-attached files or directories, the project $TMPDIR, and installed system/application/toolchain runtime files;
-- write only to read-write shared project folders and the project $TMPDIR;
+- write only to read-write shared project folders and the project $TMPDIR; system /tmp is not writable, so put scratch files, here-document outputs, and intermediate scripts in $TMPDIR, never /tmp;
 - run finite project commands whose child processes may be stopped when the call ends.
 
 Use privileged_bash directly when it is available and any part of the command needs:
@@ -54,7 +54,7 @@ After an unexpected ordinary-bash failure, classify it before retrying:
 
 Never switch backends and replay a failed command verbatim without checking whether it partially ran and which exact resource was blocked. Preserve successful partial work, narrow the follow-up to the missing capability, and do not use native execution merely to avoid diagnosing a command error.
 
-Use $TMPDIR rather than /tmp for sandboxed scratch files, and quote paths because they may contain spaces. The shell and child processes share that environment; here-documents are supported. Prefer file tools for substantial edits and scripts. File tools also run inside the kernel sandbox and may request approval for external paths; an attachment grants read access, not write access. Keep diagnostic stderr visible: a failed runtime check does not establish that a package is missing. If access is denied, use the applicable tool and smallest sufficient scope instead of searching the whole machine, cycling through equivalent commands, or rewriting working code merely to avoid approval.
+Quote paths because they may contain spaces. The shell and child processes share that environment; here-documents are supported. Prefer file tools for substantial edits and scripts. File tools also run inside the kernel sandbox and may request approval for external paths; an attachment grants read access, not write access. Keep diagnostic stderr visible: a failed runtime check does not establish that a package is missing. If access is denied, use the applicable tool and smallest sufficient scope instead of searching the whole machine, cycling through equivalent commands, or rewriting working code merely to avoid approval.
 
 Project-specific instructions and reusable skills may appear later in this prompt. Follow them when relevant, while treating the user's current request as the goal to satisfy.`;
 
@@ -76,7 +76,10 @@ export function systemPromptForPlatform(
       "macOS TCC, ACL, an upstream sandbox",
       "Windows ACLs, UAC, an upstream sandbox",
     )
-    .replaceAll("Use $TMPDIR rather than /tmp", "Use $env:PINE_TMPDIR")
+    .replaceAll(
+      "system /tmp is not writable, so put scratch files, here-document outputs, and intermediate scripts in $TMPDIR, never /tmp",
+      "put scratch files and intermediate scripts in $env:PINE_TMPDIR",
+    )
     .replaceAll(
       "here-documents are supported",
       "PowerShell here-strings are supported",

@@ -31,6 +31,17 @@ describe("systemPromptForPlatform", () => {
 
     expect(prompt).toContain("privileged_powershell");
     expect(prompt).not.toContain("privileged_bash");
+    expect(prompt).toContain("in $env:PINE_TMPDIR");
+    expect(prompt).not.toContain("/tmp");
+  });
+
+  it("states the /tmp rule alongside the writable locations", () => {
+    const writeRule = PINE_SYSTEM_PROMPT.split("\n").find((line) =>
+      line.startsWith("- write only to"),
+    );
+
+    expect(writeRule).toContain("system /tmp is not writable");
+    expect(writeRule).toContain("in $TMPDIR, never /tmp");
   });
 });
 

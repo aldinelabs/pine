@@ -16,9 +16,16 @@ export class SandboxCommandPermissionError extends Error {
         ? "privileged_powershell"
         : "privileged_bash";
     super(
-      `The command failed inside the project sandbox and reported a permission-related error. This may be a sandbox restriction or an ordinary OS/application permission failure. Use ${privilegedShell} for this operation if it genuinely requires capabilities outside the project sandbox.`,
+      process.platform !== "win32" && mentionsSystemTemporaryPath(outputTail)
+        ? `The command failed inside the project sandbox while accessing system temporary storage (/tmp), which ordinary bash cannot use. For scratch files the command creates itself, use "$TMPDIR" (this project's temporary directory) and retry with ordinary bash instead of escalating. Use ${privilegedShell} only if the command must access an existing /tmp path created outside Pine. Check for partial effects first: commands after the failed step may already have run.`
+        : `The command failed inside the project sandbox and reported a permission-related error. This may be a sandbox restriction or an ordinary OS/application permission failure. Use ${privilegedShell} for this operation if it genuinely requires capabilities outside the project sandbox.`,
     );
   }
+}
+
+/** Whether output names a path under the system /tmp (or /private/tmp). */
+export function mentionsSystemTemporaryPath(output: string): boolean {
+  return /(?:^|[\s:'"`=(])(?:\/private)?\/tmp(?=[/\s:'"`)]|$)/m.test(output);
 }
 
 /** A diagnostic hint only; no command-specific error codes or authorization. */
