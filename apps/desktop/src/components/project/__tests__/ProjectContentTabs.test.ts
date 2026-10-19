@@ -17,7 +17,6 @@ import type { PineSessionSummary } from "@/shared/sessions";
 import { useProjectStore } from "@/stores/project";
 import { useSessionStore } from "@/stores/session";
 import { useContentTabsStore } from "@/stores/contentTabs";
-import { useProjectRightSidebarStore } from "@/stores/projectRightSidebar";
 import {
   CONTENT_TAB_DRAG_TYPE,
   FILE_TAB_DRAG_TYPE,
@@ -311,23 +310,14 @@ describe("ProjectContentTabs", () => {
     wrapper.unmount();
   });
 
-  it("moves tab actions to the edge while the right sidebar is open", async () => {
+  it("keeps tab actions clear of the trailing titlebar controls", async () => {
     const { wrapper } = await mountTabs();
-    const rightSidebar = useProjectRightSidebarStore();
-    rightSidebar.setOpen(false);
-    await nextTick();
-    const titlebar = () =>
-      wrapper.get('[data-slot="project-content-tabs-titlebar"]').classes();
-    const reserved =
-      "pr-[calc(var(--window-titlebar-controls-width)+var(--window-titlebar-trailing-actions-width))]";
 
-    expect(titlebar()).toContain(reserved);
-
-    rightSidebar.setOpen(true);
-    await nextTick();
-
-    expect(titlebar()).not.toContain(reserved);
-    expect(titlebar()).toContain("pr-3");
+    expect(
+      wrapper.get('[data-slot="project-content-tabs-titlebar"]').classes(),
+    ).toContain(
+      "pr-[calc(var(--window-titlebar-controls-width)+var(--window-titlebar-trailing-actions-width))]",
+    );
     wrapper.unmount();
   });
 

@@ -484,7 +484,6 @@ export default {
   },
   project: {
     closeProject: "Close project",
-    toggleRightSidebar: "Toggle right sidebar",
     todos: {
       heading: "Todos",
       progress: "{completed}/{total}",

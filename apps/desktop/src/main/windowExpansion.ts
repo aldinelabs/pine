@@ -5,10 +5,10 @@ import {
   type PineWindowResizeRequest,
 } from "../shared/window";
 
-/** Projects need room for two sidebars. */
-export const PROJECT_WINDOW_WIDTH = 1376;
-/** Matches the renderer's 16rem right sidebar. */
-export const RIGHT_SIDEBAR_WIDTH = 256;
+/** Projects open at the list size with the sidebar open. */
+export const PROJECT_WINDOW_WIDTH = PROJECT_LIST_WINDOW_SIZE.width;
+/** Matches the renderer's 16rem sidebar. */
+export const SIDEBAR_WIDTH = 256;
 export const WINDOW_RESIZE_DURATION_MS = 500;
 const FRAME_INTERVAL_MS = 1000 / 60;
 
@@ -61,8 +61,8 @@ export function resizedBounds(
   };
 }
 
-/** Opening a project with the right sidebar never shrinks a wider window. */
-export function projectWithRightSidebarSize(current: Rectangle): WindowSize {
+/** Opening a project with the sidebar never shrinks a wider window. */
+export function projectWithSidebarSize(current: Rectangle): WindowSize {
   return {
     width: Math.max(current.width, PROJECT_WINDOW_WIDTH),
     height: current.height,
@@ -70,7 +70,7 @@ export function projectWithRightSidebarSize(current: Rectangle): WindowSize {
 }
 
 /**
- * Fits the project window to the remembered right sidebar. Windows open
+ * Fits the project window to the remembered sidebar. Windows open
  * sized for the sidebar, so a closed sidebar gives its width back only on
  * the window's first fit; later fits (reloads) keep the user's size.
  */
@@ -79,17 +79,17 @@ export function projectWindowSize(
   open: boolean,
   isFirstFit: boolean,
 ): WindowSize {
-  if (open) return projectWithRightSidebarSize(current);
+  if (open) return projectWithSidebarSize(current);
   return {
     width: isFirstFit
-      ? Math.min(current.width, PROJECT_WINDOW_WIDTH - RIGHT_SIDEBAR_WIDTH)
+      ? Math.min(current.width, PROJECT_WINDOW_WIDTH - SIDEBAR_WIDTH)
       : current.width,
     height: current.height,
   };
 }
 
-export function rightSidebarWidthChange(open: boolean): number {
-  return open ? RIGHT_SIDEBAR_WIDTH : -RIGHT_SIDEBAR_WIDTH;
+export function sidebarWidthChange(open: boolean): number {
+  return open ? SIDEBAR_WIDTH : -SIDEBAR_WIDTH;
 }
 
 /**
@@ -98,16 +98,17 @@ export function rightSidebarWidthChange(open: boolean): number {
  */
 export function deferWidthChange(pending: number, open: boolean): number {
   return Math.max(
-    -RIGHT_SIDEBAR_WIDTH,
-    Math.min(RIGHT_SIDEBAR_WIDTH, pending + rightSidebarWidthChange(open)),
+    -SIDEBAR_WIDTH,
+    Math.min(SIDEBAR_WIDTH, pending + sidebarWidthChange(open)),
   );
 }
 
 /**
- * Adds or removes the right sidebar's width so the content area keeps its
- * size. The left edge stays put unless the window would leave the work area.
+ * Adds or removes the sidebar's width so the content area keeps its size.
+ * The left edge stays put unless the window would leave the work area: moving
+ * the window origin while animating makes the page jitter.
  */
-export function rightSidebarBounds(
+export function sidebarBounds(
   current: Rectangle,
   workArea: Rectangle,
   widthChange: number,
@@ -240,13 +241,13 @@ export function planWindowResize(
   // Checked before isResizable(): macOS reports fullscreen windows as not
   // resizable. Only project windows can be maximized or fullscreen.
   const isFirstFit =
-    request.kind === "fit-right-sidebar" && !fittedWindows.has(window);
-  if (request.kind === "fit-right-sidebar") fittedWindows.add(window);
+    request.kind === "fit-sidebar" && !fittedWindows.has(window);
+  if (request.kind === "fit-sidebar") fittedWindows.add(window);
   if (window.isMaximized() || window.isFullScreen()) {
     // macOS ignores setBounds in fullscreen and leaves maximized on it, so
     // apply the sidebar's width once the window is restored instead.
-    if (request.kind === "toggle-right-sidebar")
-      deferRightSidebarWidth(window, request.open);
+    if (request.kind === "toggle-sidebar")
+      deferSidebarWidth(window, request.open);
     return 0;
   }
   if (!window.isResizable()) return 0;
@@ -254,16 +255,16 @@ export function planWindowResize(
   const from = window.getBounds();
   const { workArea } = screen.getDisplayMatching(from);
   const to =
-    request.kind === "fit-right-sidebar"
+    request.kind === "fit-sidebar"
       ? resizedBounds(
           from,
           workArea,
           projectWindowSize(from, request.open, isFirstFit),
         )
-      : rightSidebarBounds(
+      : sidebarBounds(
           from,
           workArea,
-          rightSidebarWidthChange(request.open),
+          sidebarWidthChange(request.open),
           window.getMinimumSize()[0],
         );
   if (!to) return 0;
@@ -286,7 +287,7 @@ export function commitWindowResize(
   return animateBounds(window, planned.from, planned.to, onStart);
 }
 
-function deferRightSidebarWidth(window: BrowserWindow, open: boolean): void {
+function deferSidebarWidth(window: BrowserWindow, open: boolean): void {
   const pending = deferWidthChange(deferredWidthChanges.get(window) ?? 0, open);
   if (pending === 0) deferredWidthChanges.delete(window);
   else deferredWidthChanges.set(window, pending);
@@ -311,12 +312,7 @@ function applyDeferredWidth(window: BrowserWindow): void {
   deferredWidthChanges.delete(window);
   const from = window.getBounds();
   const { workArea } = screen.getDisplayMatching(from);
-  const to = rightSidebarBounds(
-    from,
-    workArea,
-    pending,
-    window.getMinimumSize()[0],
-  );
+  const to = sidebarBounds(from, workArea, pending, window.getMinimumSize()[0]);
   // The content legitimately changes width here, so this resize is not
   // frozen in the renderer.
   if (to) void animateBounds(window, from, to);

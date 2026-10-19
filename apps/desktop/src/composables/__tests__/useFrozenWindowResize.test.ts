@@ -30,7 +30,7 @@ it("freezes at the widened width before committing an expansion", async () => {
   let frozenDuringCommit: number | null = null;
 
   const resized = await resize.run(
-    { kind: "toggle-right-sidebar", open: true },
+    { kind: "toggle-sidebar", open: true },
     {
       beforeCommit: () => {
         events.push("before");
@@ -54,7 +54,7 @@ it("reports skipped resizes so callers can fall back", async () => {
   const beforeCommit = vi.fn();
 
   await expect(
-    resize.run({ kind: "fit-right-sidebar", open: true }, { beforeCommit }),
+    resize.run({ kind: "fit-sidebar", open: true }, { beforeCommit }),
   ).resolves.toBe(false);
   expect(beforeCommit).not.toHaveBeenCalled();
   expect(commitWindowResize).not.toHaveBeenCalled();
@@ -81,7 +81,7 @@ it("aligns matching transitions with the window animation clock", async () => {
   const resize = useFrozenWindowResize();
 
   const running = resize.run(
-    { kind: "toggle-right-sidebar", open: false },
+    { kind: "toggle-sidebar", open: false },
     { onCommitStart },
   );
   await vi.waitFor(() =>

@@ -1,9 +1,9 @@
 import { createPinia, setActivePinia } from "pinia";
 import { beforeEach, expect, it } from "vitest";
 import {
-  PROJECT_RIGHT_SIDEBAR_STORAGE_KEY,
-  useProjectRightSidebarStore,
-} from "../projectRightSidebar";
+  PROJECT_SIDEBAR_VISIBILITY_STORAGE_KEY,
+  useProjectSidebarVisibilityStore,
+} from "../projectSidebarVisibility";
 
 beforeEach(() => {
   window.localStorage.clear();
@@ -11,7 +11,7 @@ beforeEach(() => {
 });
 
 it("starts open and toggles open state", () => {
-  const store = useProjectRightSidebarStore();
+  const store = useProjectSidebarVisibilityStore();
 
   expect(store.open).toBe(true);
   store.toggle();
@@ -21,11 +21,11 @@ it("starts open and toggles open state", () => {
 });
 
 it("remembers the open state across stores", () => {
-  useProjectRightSidebarStore().setOpen(false);
-  expect(window.localStorage.getItem(PROJECT_RIGHT_SIDEBAR_STORAGE_KEY)).toBe(
-    "false",
-  );
+  useProjectSidebarVisibilityStore().setOpen(false);
+  expect(
+    window.localStorage.getItem(PROJECT_SIDEBAR_VISIBILITY_STORAGE_KEY),
+  ).toBe("false");
 
   setActivePinia(createPinia());
-  expect(useProjectRightSidebarStore().open).toBe(false);
+  expect(useProjectSidebarVisibilityStore().open).toBe(false);
 });

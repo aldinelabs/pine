@@ -11,7 +11,10 @@ import {
   type PineProject,
 } from "@/shared/projects";
 import { useProjectStore } from "@/stores/project";
-import { PROJECT_RIGHT_SIDEBAR_STORAGE_KEY } from "@/stores/projectRightSidebar";
+import {
+  PROJECT_SIDEBAR_VISIBILITY_STORAGE_KEY,
+  useProjectSidebarVisibilityStore,
+} from "@/stores/projectSidebarVisibility";
 import ProjectView from "../ProjectView.vue";
 import { showProject } from "@/stores/__tests__/showProject";
 
@@ -185,26 +188,13 @@ it("places the Windows logo and preferences before navigation controls", async (
   wrapper.unmount();
 });
 
-it("opens the right sidebar by default and toggles it independently of the left shortcut", async () => {
+it("has no right sidebar", async () => {
   const { wrapper } = await mountView();
   await flushPromises();
-  const right = () =>
-    wrapper.get('[data-slot="sidebar"][data-side="right"]').attributes();
-  const toggle = wrapper.get('[data-testid="project-right-sidebar-toggle"]');
 
-  expect(right()["data-state"]).toBe("expanded");
-  expect(toggle.attributes("aria-pressed")).toBe("true");
-
-  await toggle.trigger("click");
-  await flushPromises();
-  expect(right()["data-state"]).toBe("collapsed");
-  expect(toggle.attributes("aria-pressed")).toBe("false");
-
-  window.dispatchEvent(
-    new KeyboardEvent("keydown", { key: "b", metaKey: true }),
-  );
-  await flushPromises();
-  expect(right()["data-state"]).toBe("collapsed");
+  expect(
+    wrapper.find('[data-slot="sidebar"][data-side="right"]').exists(),
+  ).toBe(false);
   wrapper.unmount();
 });
 
@@ -212,10 +202,13 @@ it.each([
   [null, true],
   ["false", false],
 ])(
-  "unlocks the project layout and fits the remembered right sidebar (%s)",
+  "unlocks the project layout and fits the remembered sidebar (%s)",
   async (stored, open) => {
     if (stored)
-      window.localStorage.setItem(PROJECT_RIGHT_SIDEBAR_STORAGE_KEY, stored);
+      window.localStorage.setItem(
+        PROJECT_SIDEBAR_VISIBILITY_STORAGE_KEY,
+        stored,
+      );
     const setWindowLayout = vi.fn().mockResolvedValue(undefined);
     const planWindowResize = vi.fn().mockResolvedValue(0);
     const { wrapper } = await mountView(
@@ -227,13 +220,41 @@ it.each([
 
     expect(setWindowLayout).toHaveBeenCalledExactlyOnceWith("project");
     expect(planWindowResize.mock.calls).toEqual([
-      [{ kind: "fit-right-sidebar", open }],
+      [{ kind: "fit-sidebar", open }],
     ]);
+    expect(useProjectSidebarVisibilityStore().open).toBe(open);
     wrapper.unmount();
   },
 );
 
-it("freezes the layout while the window clips the closing right sidebar", async () => {
+it("toggles the sidebar with the shortcut and remembers it", async () => {
+  const planWindowResize = vi.fn().mockResolvedValue(0);
+  const { wrapper } = await mountView(
+    vi.fn().mockResolvedValue(undefined),
+    "darwin",
+    { planWindowResize },
+  );
+  await flushPromises();
+  const left = () =>
+    useProjectSidebarVisibilityStore().open ? "expanded" : "collapsed";
+
+  window.dispatchEvent(
+    new KeyboardEvent("keydown", { key: "b", metaKey: true }),
+  );
+  await flushPromises();
+
+  expect(planWindowResize).toHaveBeenLastCalledWith({
+    kind: "toggle-sidebar",
+    open: false,
+  });
+  expect(left()).toBe("collapsed");
+  expect(
+    window.localStorage.getItem(PROJECT_SIDEBAR_VISIBILITY_STORAGE_KEY),
+  ).toBe("false");
+  wrapper.unmount();
+});
+
+it("slides the closing sidebar on the window's timeline with a fixed-width content area", async () => {
   let finishResize = () => {};
   const commitWindowResize = vi.fn(
     () => new Promise<void>((resolve) => (finishResize = resolve)),
@@ -249,32 +270,27 @@ it("freezes the layout while the window clips the closing right sidebar", async 
   );
   await flushPromises();
   const root = () => wrapper.get<HTMLElement>('[data-slot="sidebar-wrapper"]');
-  const right = () =>
-    wrapper
-      .get('[data-slot="sidebar"][data-side="right"]')
-      .attributes("data-state");
+  const inset = () => wrapper.get<HTMLElement>('[data-slot="sidebar-inset"]');
+  const trailing = () =>
+    wrapper.get<HTMLElement>('[data-testid="project-trailing-controls"]');
+  const visibility = useProjectSidebarVisibilityStore();
 
-  await wrapper
-    .get('[data-testid="project-right-sidebar-toggle"]')
-    .trigger("click");
+  await wrapper.get('[data-sidebar="trigger"]').trigger("click");
   await vi.waitFor(() => expect(commitWindowResize).toHaveBeenCalledOnce());
 
   expect(planWindowResize).toHaveBeenLastCalledWith({
-    kind: "toggle-right-sidebar",
+    kind: "toggle-sidebar",
     open: false,
   });
   expect(root().element.style.width).toBe(`${window.innerWidth}px`);
   expect(root().element.style.contain).toBe("layout");
-  expect(right()).toBe("expanded");
-  const trailing = () =>
-    wrapper.get<HTMLElement>('[data-testid="project-trailing-controls"]');
-  await vi.waitFor(() =>
-    expect(trailing().element.style.transform).toBe("translateX(-256px)"),
-  );
+  expect(inset().element.style.flexGrow).toBe("0");
+  await vi.waitFor(() => expect(visibility.open).toBe(false));
+  expect(trailing().element.style.transform).toBe("translateX(-256px)");
 
   finishResize();
-  await vi.waitFor(() => expect(right()).toBe("collapsed"));
-  expect(root().element.style.width).toBe("");
+  await vi.waitFor(() => expect(root().element.style.width).toBe(""));
+  expect(inset().element.style.flexGrow).toBe("");
   expect(trailing().element.style.transform).toBe("");
   wrapper.unmount();
 });

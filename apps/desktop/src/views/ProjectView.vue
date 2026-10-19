@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { PanelRight } from "@lucide/vue";
 import { onKeyStroke } from "@vueuse/core";
 import {
   computed,
@@ -14,17 +13,11 @@ import { handleError } from "@/app/errors/errorHandler";
 import { PineLogo } from "@/components/pine";
 import PinePreferencesDialog from "@/components/preferences/PinePreferencesDialog.vue";
 import SessionSearchOverlay from "@/components/sessions/SessionSearchOverlay.vue";
-import ProjectBackgroundTaskPanel from "@/components/project/ProjectBackgroundTaskPanel.vue";
 import ProjectContentTabs from "@/components/project/ProjectContentTabs.vue";
 import ProjectDialog from "@/components/project/ProjectDialog.vue";
-import ProjectRightSidebar from "@/components/project/ProjectRightSidebar.vue";
-import ProjectRightSidebarTools from "@/components/project/ProjectRightSidebarTools.vue";
 import ProjectSidebar from "@/components/project/ProjectSidebar.vue";
-import ProjectTodoPanel from "@/components/project/ProjectTodoPanel.vue";
 import PineUpdateDialog from "@/components/updates/PineUpdateDialog.vue";
 import WindowTitleBar from "@/components/window/WindowTitleBar.vue";
-import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
 import {
   SidebarInset,
   SidebarProvider,
@@ -35,7 +28,7 @@ import { useBackgroundTasksStore } from "@/stores/backgroundTasks";
 import { useContentTabsStore } from "@/stores/contentTabs";
 import { useProjectStore } from "@/stores/project";
 import { useSessionStore } from "@/stores/session";
-import { useProjectRightSidebarStore } from "@/stores/projectRightSidebar";
+import { useProjectSidebarVisibilityStore } from "@/stores/projectSidebarVisibility";
 import { useFrozenWindowResize } from "@/composables/useFrozenWindowResize";
 
 const { t } = useI18n();
@@ -47,7 +40,7 @@ const preferencesDialog =
     "preferencesDialog",
   );
 const isUpdateOpen = ref(false);
-const rightSidebar = useProjectRightSidebarStore();
+const sidebar = useProjectSidebarVisibilityStore();
 const projectStore = useProjectStore();
 const backgroundTasks = useBackgroundTasksStore();
 const sessionStore = useSessionStore();
@@ -115,9 +108,6 @@ const releaseTimer = window.setInterval(
 );
 onBeforeUnmount(() => window.clearInterval(releaseTimer));
 
-// While the window animates, the right sidebar switches state without its
-// CSS transition: the moving window edge reveals or clips it instead.
-const isRightSidebarInstant = ref(false);
 const frozenResize = useFrozenWindowResize();
 const frozenLayoutStyle = computed(() =>
   frozenResize.frozenWidth.value === null
@@ -130,6 +120,22 @@ const frozenLayoutStyle = computed(() =>
         "--window-resize-delay": `${frozenResize.transitionDelay.value}ms`,
       },
 );
+
+// While the sidebar slides with the window, the content keeps its width and
+// is pushed along, so its right edge rides the moving window edge.
+const inset = useTemplateRef<InstanceType<typeof SidebarInset>>("inset");
+const frozenInsetWidth = ref<number | null>(null);
+const frozenInsetStyle = computed(() =>
+  frozenInsetWidth.value === null
+    ? undefined
+    : { width: `${frozenInsetWidth.value}px`, flex: "none" },
+);
+
+function freezeInset(): void {
+  const element: unknown = inset.value?.$el;
+  if (element instanceof HTMLElement)
+    frozenInsetWidth.value = element.offsetWidth;
+}
 
 // The trailing window controls sit at the frozen layout's right edge. A
 // transform with the window's own duration and easing keeps them on the
@@ -153,46 +159,45 @@ const growingWindowHooks = {
   },
 };
 
+/** Rides the right edge of a narrowing window inwards. */
+function followShrinkingWindow(delta: number): void {
+  isTrailingControlsAnimated.value = true;
+  trailingControlsShift.value = delta;
+}
+
 function resetTrailingControls(): void {
   isTrailingControlsAnimated.value = false;
   trailingControlsShift.value = 0;
 }
 
-async function toggleRightSidebar(): Promise<void> {
-  if (frozenResize.isResizing.value) return;
-  const open = !rightSidebar.open;
-  const setInstantly = () => {
-    isRightSidebarInstant.value = true;
-    rightSidebar.setOpen(open);
-  };
+/**
+ * Every sidebar toggle (trigger, rail, Cmd/Ctrl+B) lands here: the window
+ * gains or gives back the sidebar's width at its right edge while the
+ * sidebar's own transition, on the window's timeline, pushes the content.
+ */
+async function setSidebarOpen(open: boolean): Promise<void> {
+  if (frozenResize.isResizing.value || open === sidebar.open) return;
   const resized = await frozenResize.run(
-    { kind: "toggle-right-sidebar", open },
-    open
-      ? {
-          beforeCommit: (delta) => {
-            setInstantly();
-            growingWindowHooks.beforeCommit(delta);
-          },
-          onCommitStart: growingWindowHooks.onCommitStart,
-          afterCommit: resetTrailingControls,
-        }
-      : {
-          onCommitStart: (delta) => {
-            rightSidebar.setClosing(true);
-            isTrailingControlsAnimated.value = true;
-            trailingControlsShift.value = delta;
-          },
-          afterCommit: () => {
-            setInstantly();
-            rightSidebar.setClosing(false);
-            resetTrailingControls();
-          },
-        },
+    { kind: "toggle-sidebar", open },
+    {
+      beforeCommit: (delta) => {
+        freezeInset();
+        if (open) growingWindowHooks.beforeCommit(delta);
+      },
+      onCommitStart: (delta) => {
+        sidebar.setOpen(open);
+        if (open) growingWindowHooks.onCommitStart();
+        else followShrinkingWindow(delta);
+      },
+      afterCommit: () => {
+        frozenInsetWidth.value = null;
+        resetTrailingControls();
+      },
+    },
   );
-  isRightSidebarInstant.value = false;
-  rightSidebar.setClosing(false);
+  frozenInsetWidth.value = null;
   resetTrailingControls();
-  if (!resized) rightSidebar.setOpen(open);
+  if (!resized) sidebar.setOpen(open);
 }
 
 onBeforeUnmount(() => backgroundTasks.disconnect());
@@ -209,16 +214,13 @@ onMounted(async () => {
   sessionStore.connectAgentEvents();
   void loadProjects();
   await window.pine?.setWindowLayout?.("project");
-  const open = rightSidebar.open;
+  const open = sidebar.open;
   await frozenResize.run(
-    { kind: "fit-right-sidebar", open },
+    { kind: "fit-sidebar", open },
     open
       ? { ...growingWindowHooks, afterCommit: resetTrailingControls }
       : {
-          onCommitStart: (delta) => {
-            isTrailingControlsAnimated.value = true;
-            trailingControlsShift.value = delta;
-          },
+          onCommitStart: followShrinkingWindow,
           afterCommit: resetTrailingControls,
         },
   );
@@ -233,10 +235,13 @@ onKeyStroke("k", (event) => {
 </script>
 
 <template>
+  <!-- Controlled without a v-model: setSidebarOpen decides when the open
+       state changes, so the window can resize around it first. -->
   <SidebarProvider
-    class="relative h-full min-h-0 [&_[data-slot=sidebar-container]]:duration-500 [&_[data-slot=sidebar-container]]:ease-out-expo [&_[data-slot=sidebar-gap]]:duration-500 [&_[data-slot=sidebar-gap]]:ease-out-expo"
+    class="relative h-full min-h-0 [&_[data-slot=sidebar-container]]:delay-(--window-resize-delay) [&_[data-slot=sidebar-container]]:duration-500 [&_[data-slot=sidebar-container]]:ease-out-expo [&_[data-slot=sidebar-gap]]:delay-(--window-resize-delay) [&_[data-slot=sidebar-gap]]:duration-500 [&_[data-slot=sidebar-gap]]:ease-out-expo"
     :style="frozenLayoutStyle"
-    :default-open="true"
+    :open="sidebar.open"
+    @update:open="setSidebarOpen"
   >
     <ProjectSidebar
       @edit-project="isProjectSettingsOpen = true"
@@ -245,42 +250,13 @@ onKeyStroke("k", (event) => {
       @show-update="isUpdateOpen = true"
     />
 
-    <SidebarInset class="min-h-0 overflow-hidden">
+    <SidebarInset
+      ref="inset"
+      class="min-h-0 overflow-hidden"
+      :style="frozenInsetStyle"
+    >
       <ProjectContentTabs />
     </SidebarInset>
-
-    <!-- A separate provider keeps useSidebar() inside the inset bound to the
-         left sidebar. It is controlled without listening to update:open so
-         the shared Cmd/Ctrl+B shortcut only toggles the left sidebar. -->
-    <SidebarProvider
-      :class="[
-        'min-h-0 w-auto flex-none',
-        isRightSidebarInstant &&
-          '[&_[data-slot=sidebar-container]]:transition-none! [&_[data-slot=sidebar-gap]]:transition-none!',
-      ]"
-      :open="rightSidebar.open"
-    >
-      <ProjectRightSidebar>
-        <!-- Like the left session list, keep section spacing inside one
-             container so SidebarContent's gap does not surround separators. -->
-        <div class="flex min-h-0 flex-1 flex-col">
-          <div
-            class="scroll-fade-y no-scrollbar min-h-0 flex-1 overflow-y-auto"
-          >
-            <ProjectTodoPanel />
-          </div>
-          <Separator />
-          <div
-            class="scroll-fade-y no-scrollbar min-h-0 flex-1 overflow-y-auto"
-          >
-            <ProjectBackgroundTaskPanel />
-          </div>
-        </div>
-        <template #footer>
-          <ProjectRightSidebarTools />
-        </template>
-      </ProjectRightSidebar>
-    </SidebarProvider>
 
     <!-- Electron applies overlapping drag/no-drag regions in DOM order.
          Register window controls after the content titlebar's drag region. -->
@@ -313,17 +289,6 @@ onKeyStroke("k", (event) => {
           ]"
           :style="trailingControlsStyle"
         >
-          <Button
-            data-testid="project-right-sidebar-toggle"
-            variant="ghost"
-            size="icon-sm"
-            :aria-label="t('project.toggleRightSidebar')"
-            :aria-pressed="rightSidebar.open"
-            :title="t('project.toggleRightSidebar')"
-            @click="toggleRightSidebar"
-          >
-            <PanelRight aria-hidden="true" />
-          </Button>
           <PinePreferencesDialog
             v-if="!isWindowsPlatform"
             ref="preferencesDialog"

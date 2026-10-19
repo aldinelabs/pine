@@ -6,43 +6,41 @@ import {
   easeOutExpo,
   interpolateBounds,
   projectWindowSize,
-  projectWithRightSidebarSize,
+  projectWithSidebarSize,
   resizedBounds,
   deferWidthChange,
-  rightSidebarBounds,
+  sidebarBounds,
 } from "../windowExpansion";
 
 const workArea = { x: 0, y: 25, width: 1512, height: 920 };
 const listBounds = { x: 196, y: 60, width: 1120, height: 840 };
 
 describe("window layout sizing", () => {
-  it("widens projects with the right sidebar around the window centre without shrinking wider windows", () => {
-    expect(projectWithRightSidebarSize(listBounds)).toEqual({
-      width: 1376,
-      height: 840,
-    });
-    expect(
-      projectWithRightSidebarSize({ ...listBounds, width: 1500, height: 900 }),
-    ).toEqual({ width: 1500, height: 900 });
-    expect(
-      resizedBounds(listBounds, workArea, { width: 1376, height: 840 }),
-    ).toEqual({ x: 68, y: 60, width: 1376, height: 840 });
-  });
-
-  it("gives back the right sidebar width only on a window's first closed fit", () => {
-    const opened = { ...listBounds, width: 1376 };
-    expect(projectWindowSize(opened, false, true)).toEqual({
+  it("opens projects with the sidebar at the list size without shrinking wider windows", () => {
+    expect(projectWithSidebarSize(listBounds)).toEqual({
       width: 1120,
       height: 840,
     });
-    expect(projectWindowSize(opened, false, false)).toEqual({
-      width: 1376,
+    expect(
+      projectWithSidebarSize({ ...listBounds, width: 1500, height: 900 }),
+    ).toEqual({ width: 1500, height: 900 });
+    expect(
+      projectWithSidebarSize({ ...listBounds, width: 864, height: 840 }),
+    ).toEqual({ width: 1120, height: 840 });
+  });
+
+  it("gives back the sidebar width only on a window's first closed fit", () => {
+    expect(projectWindowSize(listBounds, false, true)).toEqual({
+      width: 864,
       height: 840,
     });
-    expect(projectWindowSize(listBounds, true, true)).toEqual({
-      width: 1376,
+    expect(projectWindowSize(listBounds, false, false)).toEqual({
+      width: 1120,
       height: 840,
     });
+    expect(
+      projectWindowSize({ ...listBounds, width: 864 }, true, true),
+    ).toEqual({ width: 1120, height: 840 });
   });
 
   it("restores the fixed project list size", () => {
@@ -74,29 +72,29 @@ describe("window layout sizing", () => {
     ).toBeNull();
   });
 
-  it("adds and removes the right sidebar width from the right edge", () => {
-    const bounds = { x: 100, y: 60, width: 1120, height: 840 };
+  it("adds and removes the sidebar width at the right edge", () => {
+    const bounds = { x: 100, y: 60, width: 864, height: 840 };
 
-    expect(rightSidebarBounds(bounds, workArea, 256, 720)).toEqual({
+    expect(sidebarBounds(bounds, workArea, 256, 720)).toEqual({
       ...bounds,
-      width: 1376,
+      width: 1120,
     });
     expect(
-      rightSidebarBounds({ ...bounds, width: 1376 }, workArea, -256, 720),
-    ).toEqual({ ...bounds, width: 1120 });
+      sidebarBounds({ ...bounds, width: 1120 }, workArea, -256, 720),
+    ).toEqual(bounds);
   });
 
-  it("keeps right sidebar resizing inside the work area and minimum width", () => {
+  it("keeps sidebar resizing inside the work area and minimum width", () => {
     expect(
-      rightSidebarBounds(
-        { x: 300, y: 60, width: 1120, height: 840 },
+      sidebarBounds(
+        { x: 500, y: 60, width: 864, height: 840 },
         workArea,
         256,
         720,
       ),
-    ).toMatchObject({ x: 136, width: 1376 });
+    ).toMatchObject({ x: 392, width: 1120 });
     expect(
-      rightSidebarBounds(
+      sidebarBounds(
         { x: 0, y: 60, width: 1400, height: 840 },
         workArea,
         256,
@@ -104,15 +102,15 @@ describe("window layout sizing", () => {
       ),
     ).toMatchObject({ x: 0, width: 1512 });
     expect(
-      rightSidebarBounds(
+      sidebarBounds(
         { x: 0, y: 60, width: 800, height: 840 },
         workArea,
         -256,
         720,
       ),
-    ).toMatchObject({ width: 720 });
+    ).toMatchObject({ x: 0, width: 720 });
     expect(
-      rightSidebarBounds(
+      sidebarBounds(
         { x: 0, y: 60, width: 720, height: 840 },
         workArea,
         -256,

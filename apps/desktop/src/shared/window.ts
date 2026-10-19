@@ -38,12 +38,12 @@ export function isPineWindowLayout(value: unknown): value is PineWindowLayout {
 }
 
 /**
- * Project window resizes driven by the right sidebar. The primary left
- * sidebar never changes the window width.
+ * Project window resizes driven by the sidebar, which widens or narrows the
+ * window at its right edge so the content keeps its width.
  */
 export type PineWindowResizeRequest =
-  | { kind: "fit-right-sidebar"; open: boolean }
-  | { kind: "toggle-right-sidebar"; open: boolean };
+  | { kind: "fit-sidebar"; open: boolean }
+  | { kind: "toggle-sidebar"; open: boolean };
 
 export function isPineWindowResizeRequest(
   value: unknown,
@@ -51,8 +51,7 @@ export function isPineWindowResizeRequest(
   if (typeof value !== "object" || value === null || !("kind" in value))
     return false;
   return (
-    (value.kind === "fit-right-sidebar" ||
-      value.kind === "toggle-right-sidebar") &&
+    (value.kind === "fit-sidebar" || value.kind === "toggle-sidebar") &&
     "open" in value &&
     typeof value.open === "boolean"
   );

@@ -34,7 +34,6 @@ import {
   writeContentTabDrag,
 } from "@/lib/contentTabDrag";
 import { useAttentionFlashStore } from "@/stores/attentionFlash";
-import { useProjectRightSidebarStore } from "@/stores/projectRightSidebar";
 import type { ProjectContentTab } from "@/stores/contentTabs";
 import { useContentTabsStore } from "@/stores/contentTabs";
 import { useSessionStore } from "@/stores/session";
@@ -77,12 +76,6 @@ watch(
 );
 const shouldReserveWindowControlsSpace = computed(
   () => sidebarState.value === "collapsed" || isMobile.value,
-);
-// The open right sidebar sits under the trailing titlebar controls, so the
-// tab actions can move flush to the content edge.
-const rightSidebar = useProjectRightSidebarStore();
-const shouldReserveTrailingControlsSpace = computed(
-  () => !rightSidebar.open || rightSidebar.isClosing || isMobile.value,
 );
 
 const tabButtons = new Map<string, HTMLButtonElement>();
@@ -506,9 +499,7 @@ watch(activeSession, (session) => {
       data-slot="project-content-tabs-titlebar"
       :class="
         cn(
-          'window-drag pointer-events-auto relative z-30 flex h-[var(--window-titlebar-height)] shrink-0 items-center gap-2 pr-3 pl-3 transition-[padding] delay-(--window-resize-delay) duration-500 ease-out-expo',
-          shouldReserveTrailingControlsSpace &&
-            'pr-[calc(var(--window-titlebar-controls-width)+var(--window-titlebar-trailing-actions-width))]',
+          'window-drag pointer-events-auto relative z-30 flex h-[var(--window-titlebar-height)] shrink-0 items-center gap-2 pr-[calc(var(--window-titlebar-controls-width)+var(--window-titlebar-trailing-actions-width))] pl-3 transition-[padding] delay-(--window-resize-delay) duration-500 ease-out-expo',
           shouldReserveWindowControlsSpace &&
             'pl-[calc(var(--window-titlebar-leading-offset)+var(--window-titlebar-leading-extra)+var(--window-titlebar-control-height)+0.75rem)]',
         )

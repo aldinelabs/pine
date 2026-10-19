@@ -457,7 +457,6 @@ export default {
   },
   project: {
     closeProject: "关闭项目",
-    toggleRightSidebar: "切换右侧栏",
     backgroundTasks: {
       heading: "后台进程",
       running: "{count} 个运行中",
