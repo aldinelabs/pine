@@ -4,6 +4,7 @@ import {
   useAttachmentDrop,
 } from "@/composables/useAttachmentDrop";
 import { FilesIcon } from "@lucide/vue";
+import { useEventListener } from "@vueuse/core";
 import { computed, nextTick, onMounted, ref, useTemplateRef, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { toast } from "vue-sonner";
@@ -409,6 +410,32 @@ function abort(): void {
     });
   });
 }
+
+/** Esc already belongs to whatever dialog, menu, or list is open. */
+const OPEN_OVERLAY_SELECTOR = [
+  '[role="dialog"][data-state="open"]',
+  '[role="alertdialog"][data-state="open"]',
+  '[role="menu"][data-state="open"]',
+  '[role="listbox"][data-state="open"]',
+].join(", ");
+
+/**
+ * Esc interrupts the running turn of the visible conversation, wherever focus
+ * is. It yields to anything that already gives Esc a meaning: inputs that
+ * handle it, open overlays, and a pending approval or question, where Esc
+ * answers rather than stops.
+ */
+function interruptOnEscape(event: KeyboardEvent): void {
+  if (event.key !== "Escape" || event.isComposing || event.defaultPrevented)
+    return;
+  if (event.metaKey || event.ctrlKey || event.altKey || event.shiftKey) return;
+  if (!isActive.value || !isRunning.value || isSubmitting.value) return;
+  if (pendingApproval.value || pendingQuestionnaire.value) return;
+  if (document.querySelector(OPEN_OVERLAY_SELECTOR)) return;
+  event.preventDefault();
+  abort();
+}
+useEventListener(window, "keydown", interruptOnEscape);
 
 async function loadEarlierMessages(): Promise<void> {
   try {

@@ -1,11 +1,11 @@
 import { PROJECT_ENTRY_DRAG_TYPE } from "@/lib/projectFileDrag";
 import { SESSION_DRAG_TYPE } from "@/lib/sessionDrag";
-import { flushPromises, mount } from "@vue/test-utils";
+import { flushPromises, mount, type VueWrapper } from "@vue/test-utils";
 import { computed, ref } from "vue";
 import { useSessionStore } from "@/stores/session";
 import { useContentTabsStore } from "@/stores/contentTabs";
 import { createPinia, setActivePinia } from "pinia";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { createAppI18n } from "@/app/i18n";
 import { serializeAttachmentMessage } from "@/shared/attachments";
 import ProjectSessionView from "../ProjectSessionView.vue";
@@ -14,6 +14,12 @@ const activeTabId = ref("session-1");
 const navigationTabs = ref([]);
 const activateTab = vi.fn();
 let followingBottom = true;
+/** Views listen on the window, so none may outlive its test. */
+const mountedViews: VueWrapper[] = [];
+
+afterEach(() => {
+  for (const view of mountedViews.splice(0)) view.unmount();
+});
 
 vi.mock("@/composables/useContentTabNavigation", () => ({
   useContentTabNavigation: () => ({
@@ -106,6 +112,7 @@ function mountView() {
       },
     },
   });
+  mountedViews.push(wrapper);
   return { inspectAttachments, wrapper };
 }
 
@@ -671,5 +678,79 @@ describe("ProjectSessionView file drop", () => {
     expect(wrapper.find('[data-slot="attachment-drop-overlay"]').exists()).toBe(
       false,
     );
+  });
+});
+
+describe("ProjectSessionView Esc interrupt", () => {
+  async function mountRunningView() {
+    const { wrapper } = mountView();
+    const sessionStore = useSessionStore();
+    const runningSession = {
+      id: "019cfe51-7166-79b9-a5b9-c652fcca9eab",
+      createdAt: "2026-07-14T00:00:00.000Z",
+      updatedAt: "2026-07-14T00:00:00.000Z",
+      messageCount: 1,
+    };
+    const abortSession = vi.fn().mockResolvedValue(undefined);
+    window.pine.loadSessionMessages = vi.fn().mockResolvedValue({
+      hasMore: false,
+      messages: [],
+    });
+    window.pine.resumeSession = vi.fn().mockResolvedValue({
+      session: runningSession,
+    });
+    window.pine.abortSession = abortSession;
+    await sessionStore.resume("p1", runningSession.id);
+    await wrapper.setProps({ sessionId: runningSession.id });
+    sessionStore.isRunning = true;
+    await flushPromises();
+    return { abortSession, sessionId: runningSession.id };
+  }
+
+  function pressEscape(init: KeyboardEventInit = {}): KeyboardEvent {
+    const event = new KeyboardEvent("keydown", {
+      key: "Escape",
+      bubbles: true,
+      cancelable: true,
+      ...init,
+    });
+    window.dispatchEvent(event);
+    return event;
+  }
+
+  it("interrupts the running turn of the visible conversation", async () => {
+    const { abortSession, sessionId } = await mountRunningView();
+
+    const event = pressEscape();
+
+    expect(event.defaultPrevented).toBe(true);
+    expect(abortSession).toHaveBeenCalledWith({ sessionId });
+  });
+
+  it("leaves Esc to open overlays, IME composition, and hidden tabs", async () => {
+    const { abortSession } = await mountRunningView();
+    const dialog = document.createElement("div");
+    dialog.setAttribute("role", "dialog");
+    dialog.dataset.state = "open";
+    document.body.append(dialog);
+
+    pressEscape();
+    dialog.remove();
+    pressEscape({ isComposing: true });
+    activeTabId.value = "session-2";
+    await flushPromises();
+    pressEscape();
+
+    expect(abortSession).not.toHaveBeenCalled();
+  });
+
+  it("does nothing while idle", async () => {
+    const { abortSession } = await mountRunningView();
+    useSessionStore().isRunning = false;
+    await flushPromises();
+
+    pressEscape();
+
+    expect(abortSession).not.toHaveBeenCalled();
   });
 });

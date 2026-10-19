@@ -66,6 +66,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { Kbd } from "@/components/ui/kbd";
 import {
   Popover,
   PopoverAnchor,
@@ -870,6 +871,11 @@ function handleRootSubmit(event: Event): void {
                           ? t("project.composer.stop")
                           : t("project.composer.send")
                     }}
+                    <Kbd
+                      v-if="props.isRunning && !isSteering"
+                      aria-hidden="true"
+                      >esc</Kbd
+                    >
                   </TooltipContent>
                 </Tooltip>
               </InputGroupAddon>
