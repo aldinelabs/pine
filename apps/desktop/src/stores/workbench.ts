@@ -15,6 +15,7 @@ import {
 import {
   clampWorkbenchSplit,
   clampWorkbenchWidth,
+  highlightedPanel,
   WORKBENCH_DEFAULT_WIDTH,
   type WorkbenchCommand,
   type WorkbenchPanel,
@@ -78,6 +79,12 @@ export const useWorkbenchStore = defineStore("workbench", () => {
   const width = ref(readWidth());
   /** The user is dragging the column's edge. */
   const isResizing = ref(false);
+  /**
+   * Cards the agent pointed the user at, per session. They pulse until the
+   * user reaches the card or it leaves the workbench, and never outlive the
+   * window: a highlight is a nudge, not part of the layout.
+   */
+  const highlights = reactive(new Map<string, Set<WorkbenchPanel>>());
 
   const activeKey = computed(
     () => sessionStore.activeSession?.id ?? DRAFT_WORKBENCH_KEY,
@@ -121,11 +128,33 @@ export const useWorkbenchStore = defineStore("workbench", () => {
     }
     if (rearranged) arrangement.value += 1;
     save();
+    const highlighted = highlights.get(key);
+    if (!highlighted) return;
+    for (const panel of highlighted)
+      if (!next.open || !panelPosition(next, panel)) highlighted.delete(panel);
+    if (!highlighted.size) highlights.delete(key);
   }
 
   /** Applies an agent's `ui_workbench_*` command to its session. */
   function apply(key: string, command: WorkbenchCommand): void {
     update(key, (layout) => applyWorkbenchCommand(layout, command));
+    const panel = highlightedPanel(command);
+    const layout = layoutFor(key);
+    if (!panel || !layout.open || !panelPosition(layout, panel)) return;
+    const highlighted = highlights.get(key) ?? new Set<WorkbenchPanel>();
+    highlighted.add(panel);
+    highlights.set(key, highlighted);
+  }
+
+  function isHighlighted(panel: WorkbenchPanel): boolean {
+    return highlights.get(activeKey.value)?.has(panel) ?? false;
+  }
+
+  /** The user reached a highlighted card, so it stops pulsing. */
+  function acknowledge(panel: WorkbenchPanel): void {
+    const highlighted = highlights.get(activeKey.value);
+    if (!highlighted?.delete(panel)) return;
+    if (!highlighted.size) highlights.delete(activeKey.value);
   }
 
   function present(key: string, preview: WorkbenchPreview): void {
@@ -187,6 +216,7 @@ export const useWorkbenchStore = defineStore("workbench", () => {
   }
 
   return {
+    acknowledge,
     activeKey,
     activeLayout,
     arrangement,
@@ -196,6 +226,7 @@ export const useWorkbenchStore = defineStore("workbench", () => {
     width,
     apply,
     closeCard,
+    isHighlighted,
     layoutFor,
     panelPosition: (panel: WorkbenchPanel) =>
       panelPosition(activeLayout.value, panel),

@@ -1,7 +1,8 @@
 /**
  * The workbench is the column beside the conversation. It stacks at most two
  * cards; each card shows one panel. The agent arranges it with the `ui_`
- * workbench tools, and the user with the card headers.
+ * workbench tools, and the user with the card headers. The agent can also
+ * highlight a card to point the user at it, the way presented tabs pulse.
  */
 export const WORKBENCH_PANELS = ["artifacts", "tasks", "preview"] as const;
 export type WorkbenchPanel = (typeof WORKBENCH_PANELS)[number];
@@ -23,8 +24,16 @@ export const UI_WORKBENCH_TOOL_NAMES = [
 ] as const;
 
 export type WorkbenchCommand =
-  /** Shows a panel, at the given position or in the first free card. */
-  | { kind: "open"; panel: WorkbenchPanel; position?: WorkbenchPosition }
+  /**
+   * Shows a panel, at the given position or in the first free card, and can
+   * highlight its card until the user acknowledges it.
+   */
+  | {
+      kind: "open";
+      panel: WorkbenchPanel;
+      position?: WorkbenchPosition;
+      highlight?: boolean;
+    }
   /** Closes the card showing a panel, or the whole workbench without one. */
   | { kind: "close"; panel?: WorkbenchPanel }
   /** Replaces both cards at once; no cards closes the workbench. */
@@ -33,7 +42,19 @@ export type WorkbenchCommand =
       top: WorkbenchPanel | null;
       bottom: WorkbenchPanel | null;
       split?: number;
+      /** A card of the new arrangement to highlight. */
+      highlight?: WorkbenchPanel;
     };
+
+/** The panel whose card a command highlights, if any. */
+export function highlightedPanel(
+  command: WorkbenchCommand,
+): WorkbenchPanel | undefined {
+  if (command.kind === "open")
+    return command.highlight ? command.panel : undefined;
+  if (command.kind === "arrange") return command.highlight;
+  return undefined;
+}
 
 export function isWorkbenchPanel(value: unknown): value is WorkbenchPanel {
   return (WORKBENCH_PANELS as readonly unknown[]).includes(value);

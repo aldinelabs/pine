@@ -93,3 +93,42 @@ it("falls back to the default width for a stored non-number", () => {
   window.localStorage.setItem(WORKBENCH_WIDTH_STORAGE_KEY, "wide");
   expect(useWorkbenchStore().width).toBe(400);
 });
+
+it("highlights a card until the user reaches it or it leaves", () => {
+  const store = useWorkbenchStore();
+  store.apply(DRAFT_WORKBENCH_KEY, {
+    kind: "arrange",
+    top: "artifacts",
+    bottom: "tasks",
+    highlight: "tasks",
+  });
+  expect(store.isHighlighted("tasks")).toBe(true);
+  expect(store.isHighlighted("artifacts")).toBe(false);
+
+  store.acknowledge("tasks");
+  expect(store.isHighlighted("tasks")).toBe(false);
+
+  store.apply(DRAFT_WORKBENCH_KEY, {
+    kind: "open",
+    panel: "tasks",
+    highlight: true,
+  });
+  expect(store.isHighlighted("tasks")).toBe(true);
+  store.closeCard("tasks");
+  expect(store.isHighlighted("tasks")).toBe(false);
+  // Reopening the card does not bring back a dropped highlight.
+  store.showPanel("bottom", "tasks");
+  expect(store.isHighlighted("tasks")).toBe(false);
+});
+
+it("keeps a background session's highlight for when it becomes active", () => {
+  const store = useWorkbenchStore();
+  store.apply("session-1", { kind: "open", panel: "preview", highlight: true });
+
+  expect(store.isHighlighted("preview")).toBe(false);
+  expect(
+    JSON.stringify(
+      JSON.parse(window.localStorage.getItem(WORKBENCH_STORAGE_KEY) ?? "{}"),
+    ),
+  ).not.toContain("highlight");
+});

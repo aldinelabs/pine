@@ -64,4 +64,51 @@ describe("workbench tools", () => {
       text: "Workbench now shows preview.",
     });
   });
+
+  it("highlights the opened panel's card", async () => {
+    const { run, sendCommand } = setup();
+    const result = await run(UI_WORKBENCH_OPEN_TOOL_NAME, {
+      panel: "tasks",
+      highlight: true,
+    });
+
+    expect(sendCommand).toHaveBeenCalledWith("call-1", {
+      kind: "open",
+      panel: "tasks",
+      highlight: true,
+    });
+    expect(result.content[0]).toMatchObject({
+      text: "Highlighting the tasks panel in the workbench.",
+    });
+  });
+
+  it("highlights only an arranged card", async () => {
+    const { run, sendCommand } = setup();
+    await run(UI_WORKBENCH_ARRANGE_TOOL_NAME, {
+      top: "artifacts",
+      bottom: "tasks",
+      highlight: "tasks",
+    });
+    const missed = await run(UI_WORKBENCH_ARRANGE_TOOL_NAME, {
+      top: "preview",
+      bottom: null,
+      highlight: "tasks",
+    });
+
+    expect(sendCommand.mock.calls).toEqual([
+      [
+        "call-1",
+        {
+          kind: "arrange",
+          top: "artifacts",
+          bottom: "tasks",
+          highlight: "tasks",
+        },
+      ],
+      ["call-1", { kind: "arrange", top: "preview", bottom: null }],
+    ]);
+    expect(missed.content[0]).toMatchObject({
+      text: "Workbench now shows preview. Did not highlight tasks: it is not one of the arranged cards.",
+    });
+  });
 });

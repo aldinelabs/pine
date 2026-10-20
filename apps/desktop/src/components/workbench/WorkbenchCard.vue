@@ -26,6 +26,7 @@ import {
 } from "@/shared/workbench";
 import { useContentTabNavigation } from "@/composables/useContentTabNavigation";
 import { fileName, fileTargetPath } from "@/lib/filePreviewTarget";
+import { cn } from "@/lib/utils";
 import { useBackgroundTasksStore } from "@/stores/backgroundTasks";
 import { useContentTabsStore } from "@/stores/contentTabs";
 import { useProjectStore } from "@/stores/project";
@@ -98,7 +99,19 @@ const summary = computed(() => {
     data-testid="workbench-card"
     :data-panel="panel"
     :data-position="position"
-    class="h-full min-h-0 gap-0 rounded-(--workbench-radius) py-0 shadow-none ring-0"
+    :data-highlighted="workbench.isHighlighted(panel) || undefined"
+    :class="
+      cn(
+        'h-full min-h-0 gap-0 rounded-(--workbench-radius) py-0 shadow-none ring-0',
+        // The agent pointed the user here: the same pulse as a presented tab.
+        // The splitter clips anything outside the card, so the border is an
+        // inset outline instead of the pulse's outer shadow.
+        workbench.isHighlighted(panel) &&
+          'attention-flash outline-1 -outline-offset-1 outline-(--attention-flash-color) [--attention-flash-box-shadow:none]',
+      )
+    "
+    @pointerenter="workbench.acknowledge(panel)"
+    @focusin="workbench.acknowledge(panel)"
   >
     <!-- Header controls sit at the card's inset on every side, so their
          pills stay concentric with its corners. -->
