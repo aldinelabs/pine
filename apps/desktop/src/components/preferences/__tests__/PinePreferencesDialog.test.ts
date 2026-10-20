@@ -380,7 +380,8 @@ describe("PinePreferencesDialog", () => {
         ].includes(group.attributes("aria-labelledby") ?? ""),
       );
 
-    expect(styleGroup?.props("modelValue")).toBe("calm-professional");
+    // Monet is the default style.
+    expect(styleGroup?.props("modelValue")).toBe("monet");
     expect(backgroundGroup?.props("modelValue")).toBe("enthusiast");
 
     await nickname.setValue("  小 Pine  ");

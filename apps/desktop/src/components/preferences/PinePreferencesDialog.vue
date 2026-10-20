@@ -683,11 +683,11 @@ defineExpose({ open });
                   <ToggleGroupItem value="calm-professional" class="flex-1">
                     {{ t("preferences.userProfileStyleCalm") }}
                   </ToggleGroupItem>
-                  <ToggleGroupItem value="warm-friendly" class="flex-1">
-                    {{ t("preferences.userProfileStyleWarm") }}
-                  </ToggleGroupItem>
                   <ToggleGroupItem value="monet" class="flex-1 font-serif">
                     {{ t("preferences.userProfileStyleMonet") }}
+                  </ToggleGroupItem>
+                  <ToggleGroupItem value="warm-friendly" class="flex-1">
+                    {{ t("preferences.userProfileStyleWarm") }}
                   </ToggleGroupItem>
                 </ToggleGroup>
                 <FieldDescription>

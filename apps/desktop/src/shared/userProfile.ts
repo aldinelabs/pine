@@ -20,7 +20,7 @@ export interface SetUserProfileResult {
 
 export function createDefaultPineUserProfile(): PineUserProfile {
   return {
-    communicationStyle: "calm-professional",
+    communicationStyle: "monet",
     customInstructions: "",
     nickname: "",
     personalDetails: "",
