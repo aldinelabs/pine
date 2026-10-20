@@ -209,6 +209,21 @@ describe("message scroller user intent", () => {
     scroller.destroy();
   });
 
+  it("releases the view to the reader from the first scrolled pixel", () => {
+    const scroller = createScroller();
+    const { context, viewport } = scroller;
+    expect(context.heldByScroller.value).toBe(true);
+    context.userScrollIntent();
+    viewport.scrollTop -= 1;
+    context.syncAfterScroll();
+    expect(context.heldByScroller.value).toBe(false);
+    context.userScrollIntent("end");
+    viewport.scrollTop += 1;
+    context.syncAfterScroll();
+    expect(context.heldByScroller.value).toBe(true);
+    scroller.destroy();
+  });
+
   it("preserves the visible message when content above it settles", () => {
     const scroller = createScroller();
     const { context, viewport } = scroller;
@@ -253,6 +268,17 @@ describe("message scroller user intent", () => {
     scroller.grow(286);
     expect(scroller.viewport.scrollTop).toBe(1936);
     expect(scroller.spacer.hidden).toBe(true);
+    scroller.destroy();
+  });
+
+  it("holds the view while a new turn is anchored, until the reader scrolls", () => {
+    const scroller = createAnchoredScroller();
+    scroller.startTurn();
+    expect(scroller.context.heldByScroller.value).toBe(true);
+    scroller.grow(100);
+    expect(scroller.context.heldByScroller.value).toBe(true);
+    scroller.context.userScrollIntent("start");
+    expect(scroller.context.heldByScroller.value).toBe(false);
     scroller.destroy();
   });
 

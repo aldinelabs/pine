@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { HTMLAttributes } from "vue";
-import { onBeforeUnmount, onMounted, useTemplateRef } from "vue";
+import { computed, onBeforeUnmount, onMounted, useTemplateRef } from "vue";
 import { cn } from "@/lib/utils";
 import { useMessageScrollerContext } from "./useMessageScroller";
 
@@ -12,9 +12,19 @@ const props = defineProps<{
 const {
   handleContentChange,
   handleResize,
+  heldByScroller,
   setContentElement,
   setSpacerElement,
 } = useMessageScrollerContext();
+
+/**
+ * While the scroller follows the bottom or holds a new turn's anchor, the
+ * tail sticks to the viewport's bottom edge, where it rests anyway. A growing
+ * reply then scrolls under it instead of pushing it down for the frames the
+ * scroll takes to catch up. The reader's first scroll releases it, so it
+ * moves with the transcript from the first pixel.
+ */
+const pinsTail = computed(() => heldByScroller.value);
 
 const contentRef = useTemplateRef<HTMLElement>("content");
 const spacerRef = useTemplateRef<HTMLElement>("spacer");
@@ -71,15 +81,23 @@ onBeforeUnmount(() => {
       hidden
       :class="props.spacerClass"
     />
-    <!-- Below the spacer and outside the items: while a reply is anchored,
-         the spacer gives way so the tail rests at the viewport's bottom and
-         stays put as the reply grows; otherwise it scrolls like the
-         transcript. The tail cancels the item gap and spaces itself, so it
-         can animate that space away with its content. -->
+    <!-- Below the spacer and outside the items. It takes up the room a short
+         transcript leaves and keeps its content at the bottom, so the
+         content sits at the viewport's bottom from the start and a growing
+         reply never pushes it down. The tail cancels the item gap and spaces
+         itself, so it can animate that space away with its content. It lets
+         clicks through to the transcript under it; its content opts back
+         in. `bottom-8` matches the content's bottom padding. -->
     <div
       v-if="$slots.tail"
       data-message-scroller-tail=""
-      class="-mt-8 empty:hidden"
+      :data-pinned="pinsTail ? '' : undefined"
+      :class="
+        cn(
+          'pointer-events-none -mt-8 flex grow flex-col justify-end empty:hidden',
+          pinsTail && 'sticky bottom-8 z-10',
+        )
+      "
     >
       <slot name="tail" />
     </div>

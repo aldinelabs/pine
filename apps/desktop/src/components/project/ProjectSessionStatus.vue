@@ -42,7 +42,7 @@ const hasTasks = computed(() => tasks.value.length > 0);
       data-testid="project-session-status"
       class="pt-8"
     >
-      <div class="flex items-start gap-2">
+      <div class="flex items-start gap-2 *:pointer-events-auto">
         <Transition :css="false" @enter="card.onEnter" @leave="card.onLeave">
           <ProjectTodoCard
             v-if="hasTodos"
