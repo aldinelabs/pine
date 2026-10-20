@@ -111,7 +111,8 @@ export const TodoParamsSchema = Type.Object({
   ),
   blockedBy: Type.Optional(
     Type.Array(Type.Number(), {
-      description: "Initial blockedBy ids (create only)",
+      description:
+        "Ids of the tasks this one depends on (required for create; [] when it depends on none)",
     }),
   ),
   addBlockedBy: Type.Optional(
@@ -164,7 +165,7 @@ export const TODO_PROMPT_GUIDELINES = [
   "Never mark a task completed if tests are failing, the implementation is partial, or you hit unresolved errors — keep it in_progress and create a new task for the blocker instead.",
   "Task status is a 4-state machine: pending → in_progress → completed, plus deleted as a tombstone. Pass activeForm (present-continuous label, e.g. 'researching existing tool') when marking in_progress.",
   'To change a task\'s status, call update with the task id and the target status, e.g. {"action":"update","id":3,"status":"completed"} or {"action":"update","id":3,"status":"in_progress","activeForm":"writing tests"}. status is the field that changes the task; an update without a mutable field (status or another) is rejected.',
-  "Use blockedBy to express dependencies (A is blocked by B). On create, pass blockedBy as the initial set. On update, use addBlockedBy / removeBlockedBy (additive merge — do not resend the full array). Cycles are rejected.",
+  "Every task states its dependencies (A is blocked by B). On create, blockedBy is required: list the tasks this one needs finished first, or pass [] only when it truly depends on none. On update, use addBlockedBy / removeBlockedBy (additive merge — do not resend the full array). Cycles are rejected.",
   "list hides tombstoned (deleted) tasks by default; pass includeDeleted:true to see them. Pass status to filter by a single status. Use list to re-check the current state before updating when you are unsure.",
   "Subject must be short and imperative (e.g. 'Research existing tool'); description is for long-form detail. activeForm is a present-continuous label shown while in_progress.",
 ] as const;

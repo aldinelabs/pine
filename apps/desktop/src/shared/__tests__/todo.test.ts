@@ -29,7 +29,7 @@ function run(
 
 function withTasks(...subjects: string[]): TaskState {
   return subjects.reduce(
-    (state, subject) => run(state, "create", { subject }).state,
+    (state, subject) => run(state, "create", { subject, blockedBy: [] }).state,
     emptyTaskState(),
   );
 }
@@ -38,6 +38,7 @@ describe("todo reducer", () => {
   it("creates pending tasks with sequential ids", () => {
     const created = run(emptyTaskState(), "create", {
       subject: "Write the parser",
+      blockedBy: [],
     });
     expect(created.text).toBe("Created #1: Write the parser (pending)");
     expect(created.state).toEqual({
@@ -46,6 +47,10 @@ describe("todo reducer", () => {
     });
     expect(run(emptyTaskState(), "create", { subject: "  " }).text).toBe(
       "Error: subject required for create",
+    );
+    // Every task states its dependencies, even when it has none.
+    expect(run(emptyTaskState(), "create", { subject: "A" }).text).toBe(
+      "Error: blockedBy required for create: list the ids this task depends on, or [] when it depends on none",
     );
   });
 
@@ -92,6 +97,7 @@ describe("todo reducer", () => {
   it("merges metadata and deletes null keys", () => {
     let state = run(emptyTaskState(), "create", {
       subject: "A",
+      blockedBy: [],
       metadata: { area: "ui", size: 2 },
     }).state;
     state = run(state, "update", {
@@ -201,7 +207,7 @@ describe("todo replay and layout", () => {
       1, 4, 5,
     ]);
     expect(oldestCompletedKept.hiddenCompleted).toBe(2);
-    state = run(state, "create", { subject: "F" }).state;
+    state = run(state, "create", { subject: "F", blockedBy: [] }).state;
 
     const truncated = selectOverlayLayout(state, 3);
     expect(truncated.visible.map((task) => task.id)).toEqual([4, 5]);
@@ -214,7 +220,7 @@ describe("todo replay and layout", () => {
     state = run(state, "update", { id: 2, addBlockedBy: [1] }).state;
     state = run(state, "update", { id: 1, status: "completed" }).state;
     expect(selectShowTaskIds(state)).toBe(true);
-    state = run(state, "create", { subject: "C" }).state;
+    state = run(state, "create", { subject: "C", blockedBy: [] }).state;
     state = run(state, "delete", { id: 3 }).state;
     expect(selectTodoCounts(state)).toEqual({
       total: 2,

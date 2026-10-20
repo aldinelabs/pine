@@ -45,6 +45,7 @@ describe("todo tool", () => {
     const created = await call(tool, ctx, {
       action: "create",
       subject: "Next task",
+      blockedBy: [],
     });
     // A parallel call runs before the first result reaches the branch.
     const started = await call(tool, ctx, {
@@ -70,6 +71,7 @@ describe("todo tool", () => {
     const result = await call(tool, ctx, {
       action: "create",
       subject: "Task",
+      blockedBy: [],
       metadata,
     });
     metadata.area = "changed";
@@ -78,6 +80,7 @@ describe("todo tool", () => {
     expect(result.details.params).toEqual({
       action: "create",
       subject: "Task",
+      blockedBy: [],
       metadata: { area: "ui" },
     });
   });

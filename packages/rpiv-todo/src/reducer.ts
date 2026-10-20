@@ -147,6 +147,12 @@ export function applyTaskMutation(
       if (!params.subject?.trim()) {
         return errorResult(state, "subject required for create");
       }
+      if (!params.blockedBy) {
+        return errorResult(
+          state,
+          "blockedBy required for create: list the ids this task depends on, or [] when it depends on none",
+        );
+      }
       for (const dependency of params.blockedBy ?? []) {
         const dependencyTask = state.tasks.find(
           (task) => task.id === dependency,
