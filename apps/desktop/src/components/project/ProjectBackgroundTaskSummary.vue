@@ -17,19 +17,15 @@ import {
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { useBackgroundTasksStore } from "@/stores/backgroundTasks";
-import ProjectBackgroundTaskDialog from "./ProjectBackgroundTaskDialog.vue";
 
 /**
  * The background-process half of the status card. Each row opens the
- * process's details; a running one can be stopped from its row.
+ * process's details (see `ProjectBackgroundTaskInspector`); a running one can
+ * be stopped from its row.
  */
 const { t } = useI18n();
 const store = useBackgroundTasksStore();
-const {
-  visibleTasks: tasks,
-  runningCount,
-  inspectedTaskId,
-} = storeToRefs(store);
+const { visibleTasks: tasks, runningCount } = storeToRefs(store);
 
 /** Running processes first, then the most recently finished. */
 const ordered = computed(() => {
@@ -58,13 +54,6 @@ watch(
 function runtime(task: BackgroundTaskSnapshot): string {
   return formatDuration((task.endTime ?? now.value.getTime()) - task.startTime);
 }
-
-const isDialogOpen = computed({
-  get: () => inspectedTaskId.value !== null,
-  set: (open) => {
-    if (!open) store.inspect(null);
-  },
-});
 
 async function stop(task: BackgroundTaskSnapshot): Promise<void> {
   try {
@@ -145,10 +134,5 @@ async function stop(task: BackgroundTaskSnapshot): Promise<void> {
         </Button>
       </li>
     </ul>
-
-    <ProjectBackgroundTaskDialog
-      v-model:open="isDialogOpen"
-      :task-id="inspectedTaskId"
-    />
   </div>
 </template>

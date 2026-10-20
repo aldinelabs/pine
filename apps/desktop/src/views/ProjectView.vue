@@ -14,6 +14,7 @@ import { handleError } from "@/app/errors/errorHandler";
 import { PineLogo } from "@/components/pine";
 import PinePreferencesDialog from "@/components/preferences/PinePreferencesDialog.vue";
 import SessionSearchOverlay from "@/components/sessions/SessionSearchOverlay.vue";
+import ProjectBackgroundTaskInspector from "@/components/project/ProjectBackgroundTaskInspector.vue";
 import ProjectContentTabs from "@/components/project/ProjectContentTabs.vue";
 import ProjectDialog from "@/components/project/ProjectDialog.vue";
 import ProjectSidebar from "@/components/project/ProjectSidebar.vue";
@@ -413,6 +414,7 @@ onKeyStroke("k", (event) => {
 
     <SessionSearchOverlay v-model:open="isSessionSearchOpen" />
     <PineUpdateDialog v-model:open="isUpdateOpen" />
+    <ProjectBackgroundTaskInspector />
     <ProjectDialog
       v-if="editableProject"
       v-model:open="isProjectSettingsOpen"
