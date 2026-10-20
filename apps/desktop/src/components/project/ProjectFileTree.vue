@@ -397,9 +397,25 @@ function resetRoots(): void {
     )
     .finally(() => {
       if (currentGeneration !== generation) return;
-      disclosureAnimationsEnabled.value = true;
+      void enableDisclosureAnimations(currentGeneration);
       scheduleWatchSync();
     });
+}
+
+/**
+ * Turns disclosure animations on once the loaded tree has painted. Turned on
+ * with the load, the tree's own height transition grows the whole first view
+ * in at once.
+ */
+async function enableDisclosureAnimations(
+  currentGeneration: number,
+): Promise<void> {
+  await nextTick();
+  await new Promise<void>((resolve) =>
+    requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+  );
+  if (currentGeneration === generation)
+    disclosureAnimationsEnabled.value = true;
 }
 
 async function readDirectory(

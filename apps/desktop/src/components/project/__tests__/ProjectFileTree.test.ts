@@ -1,5 +1,5 @@
 import { DOMWrapper, flushPromises, mount } from "@vue/test-utils";
-import { defineComponent, h } from "vue";
+import { defineComponent, h, nextTick } from "vue";
 import { createPinia, setActivePinia } from "pinia";
 import { createMemoryHistory, createRouter } from "vue-router";
 import { useContentTabsStore } from "@/stores/contentTabs";
@@ -407,7 +407,16 @@ describe("ProjectFileTree", () => {
 
       await flushPromises();
 
+      // The loaded tree renders without its height transition, so the first
+      // view does not grow in.
       expect(animate).not.toHaveBeenCalled();
+      expect(wrapper.find(".overflow-hidden").classes()).not.toContain(
+        "transition-[height]",
+      );
+
+      // Once that view has painted, later disclosures animate.
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      await nextTick();
       expect(wrapper.find(".overflow-hidden").classes()).toContain(
         "transition-[height]",
       );
