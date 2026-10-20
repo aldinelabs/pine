@@ -29,7 +29,7 @@ export const DEFAULT_WORKBENCH_LAYOUT: Readonly<WorkbenchLayout> = {
   open: false,
   top: "artifacts",
   bottom: "preview",
-  split: 50,
+  split: 40,
   preview: null,
 };
 

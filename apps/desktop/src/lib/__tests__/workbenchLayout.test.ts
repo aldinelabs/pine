@@ -121,7 +121,7 @@ describe("workbench layout", () => {
       open: true,
       top: "preview",
       bottom: null,
-      split: 50,
+      split: 40,
       preview: null,
     });
   });
