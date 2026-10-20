@@ -492,6 +492,7 @@ export default {
       closeCard: "Close card",
       panels: {
         artifacts: "Artifacts",
+        tasks: "Background processes",
         preview: "Preview",
       },
       artifacts: {
@@ -526,6 +527,8 @@ export default {
     },
     backgroundTasks: {
       heading: "Background processes",
+      running: "{count} running",
+      empty: "No background processes",
       stop: "Stop",
       native: "Native permissions",
       sandboxed: "Project sandbox",

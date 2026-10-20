@@ -7,6 +7,7 @@ import {
 } from "@lucide/vue";
 import { computed, type Component } from "vue";
 import { useI18n } from "vue-i18n";
+import ProjectBackgroundTaskPanel from "@/components/project/ProjectBackgroundTaskPanel.vue";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import {
@@ -25,6 +26,7 @@ import {
 } from "@/shared/workbench";
 import { useContentTabNavigation } from "@/composables/useContentTabNavigation";
 import { fileName, fileTargetPath } from "@/lib/filePreviewTarget";
+import { useBackgroundTasksStore } from "@/stores/backgroundTasks";
 import { useContentTabsStore } from "@/stores/contentTabs";
 import { useProjectStore } from "@/stores/project";
 import { useSessionStore } from "@/stores/session";
@@ -39,9 +41,11 @@ const props = defineProps<{
 const { t } = useI18n();
 const workbench = useWorkbenchStore();
 const session = useSessionStore();
+const backgroundTasks = useBackgroundTasksStore();
 
 const PANEL_COMPONENTS: Record<WorkbenchPanel, Component> = {
   artifacts: WorkbenchArtifactsPanel,
+  tasks: ProjectBackgroundTaskPanel,
   preview: WorkbenchPreviewPanel,
 };
 
@@ -80,6 +84,10 @@ function openPreviewInTab(): void {
 const summary = computed(() => {
   if (props.panel === "preview" && previewTarget.value)
     return fileName(fileTargetPath(previewTarget.value));
+  if (props.panel === "tasks" && backgroundTasks.runningCount > 0)
+    return t("project.backgroundTasks.running", {
+      count: backgroundTasks.runningCount,
+    });
   return "";
 });
 </script>

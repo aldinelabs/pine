@@ -126,17 +126,17 @@ describe("workbench layout", () => {
     });
   });
 
-  it("drops the retired todo and process cards from stored layouts", () => {
+  it("drops the retired todo card from stored layouts", () => {
     expect(
       parseWorkbenchLayout({
         open: true,
         top: "todos",
-        bottom: "artifacts",
+        bottom: "tasks",
         split: 40,
       }),
-    ).toMatchObject({ open: true, top: "artifacts", bottom: null });
+    ).toMatchObject({ open: true, top: "tasks", bottom: null });
     expect(
-      parseWorkbenchLayout({ open: true, top: "tasks", bottom: "todos" }),
+      parseWorkbenchLayout({ open: true, top: "todos", bottom: null }),
     ).toMatchObject({ open: false, top: null, bottom: null });
   });
 });

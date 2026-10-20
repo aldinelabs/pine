@@ -465,6 +465,7 @@ export default {
       closeCard: "关闭卡片",
       panels: {
         artifacts: "产出文件",
+        tasks: "后台进程",
         preview: "预览",
       },
       artifacts: {
@@ -480,6 +481,8 @@ export default {
     },
     backgroundTasks: {
       heading: "后台进程",
+      running: "{count} 个运行中",
+      empty: "暂无后台进程",
       stop: "停止",
       native: "本机权限",
       sandboxed: "项目沙盒",
