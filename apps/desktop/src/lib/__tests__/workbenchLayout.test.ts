@@ -19,39 +19,39 @@ const single: WorkbenchLayout = {
 };
 
 describe("workbench layout", () => {
-  it("opens a panel in the first free card, else replaces the bottom one", () => {
-    expect(openPanel(single, "tasks")).toMatchObject({
+  it("opens a panel in the first free card", () => {
+    expect(openPanel(single, "preview")).toMatchObject({
       open: true,
       top: "artifacts",
-      bottom: "tasks",
+      bottom: "preview",
     });
-    expect(openPanel({ ...single, bottom: "todos" }, "tasks")).toMatchObject({
-      top: "artifacts",
-      bottom: "tasks",
-    });
+    expect(
+      openPanel({ ...closed, top: null, bottom: null }, "preview"),
+    ).toMatchObject({ open: true, top: "preview", bottom: null });
   });
 
   it("keeps a visible panel in place, or swaps it to the requested card", () => {
-    const both = { ...single, bottom: "todos" as const };
-    expect(openPanel(both, "todos")).toMatchObject({
+    const both = { ...single, bottom: "preview" as const };
+    expect(openPanel(both, "preview")).toMatchObject({
       top: "artifacts",
-      bottom: "todos",
-    });
-    expect(openPanel(both, "todos", "top")).toMatchObject({
-      top: "todos",
-      bottom: "artifacts",
+      bottom: "preview",
     });
     expect(openPanel(both, "preview", "top")).toMatchObject({
       top: "preview",
-      bottom: "todos",
+      bottom: "artifacts",
+    });
+    // A hidden panel takes over the requested card.
+    expect(openPanel(single, "preview", "top")).toMatchObject({
+      top: "preview",
+      bottom: null,
     });
   });
 
   it("moves the remaining card up and closes with the last card", () => {
-    const both = { ...single, bottom: "todos" as const };
+    const both = { ...single, bottom: "preview" as const };
     expect(closePanel(both, "artifacts")).toMatchObject({
       open: true,
-      top: "todos",
+      top: "preview",
       bottom: null,
     });
     // The last card is kept for the next time the workbench opens.
@@ -60,7 +60,7 @@ describe("workbench layout", () => {
       top: "artifacts",
     });
     expect(closePanel(both)).toMatchObject({ open: false, top: "artifacts" });
-    expect(closePanel(single, "tasks")).toBe(single);
+    expect(closePanel(single, "preview")).toBe(single);
   });
 
   it("arranges both cards at once and clamps the split", () => {
@@ -68,17 +68,17 @@ describe("workbench layout", () => {
       applyWorkbenchCommand(closed, {
         kind: "arrange",
         top: null,
-        bottom: "tasks",
+        bottom: "preview",
         split: 95,
       }),
-    ).toMatchObject({ open: true, top: "tasks", bottom: null, split: 80 });
+    ).toMatchObject({ open: true, top: "preview", bottom: null, split: 80 });
     expect(
       applyWorkbenchCommand(single, {
         kind: "arrange",
-        top: "todos",
-        bottom: "todos",
+        top: "preview",
+        bottom: "preview",
       }),
-    ).toMatchObject({ top: "todos", bottom: null });
+    ).toMatchObject({ top: "preview", bottom: null });
     expect(
       applyWorkbenchCommand(single, {
         kind: "arrange",
@@ -113,16 +113,30 @@ describe("workbench layout", () => {
       parseWorkbenchLayout({
         open: true,
         top: "bogus",
-        bottom: "tasks",
+        bottom: "preview",
         split: "wide",
         preview: { target: { source: "presented" } },
       }),
     ).toEqual({
       open: true,
-      top: "tasks",
+      top: "preview",
       bottom: null,
       split: 50,
       preview: null,
     });
+  });
+
+  it("drops the retired todo and process cards from stored layouts", () => {
+    expect(
+      parseWorkbenchLayout({
+        open: true,
+        top: "todos",
+        bottom: "artifacts",
+        split: 40,
+      }),
+    ).toMatchObject({ open: true, top: "artifacts", bottom: null });
+    expect(
+      parseWorkbenchLayout({ open: true, top: "tasks", bottom: "todos" }),
+    ).toMatchObject({ open: false, top: null, bottom: null });
   });
 });

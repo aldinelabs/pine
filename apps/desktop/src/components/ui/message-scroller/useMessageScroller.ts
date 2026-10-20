@@ -172,7 +172,9 @@ function getMessageChildren(
 ): HTMLElement[] {
   return Array.from(content.children).filter(
     (child): child is HTMLElement =>
-      child instanceof HTMLElement && child !== spacer,
+      child instanceof HTMLElement &&
+      child !== spacer &&
+      !child.hasAttribute("data-message-scroller-tail"),
   );
 }
 

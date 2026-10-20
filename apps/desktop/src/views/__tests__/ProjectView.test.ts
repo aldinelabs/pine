@@ -249,7 +249,7 @@ it("follows the agent's workbench commands for the active session", async () => 
       type: "workbench-command",
       sessionId: "draft",
       toolCallId: "call-1",
-      command: { kind: "open", panel: "tasks" },
+      command: { kind: "open", panel: "preview" },
     });
   await flushPromises();
 
@@ -262,7 +262,7 @@ it("follows the agent's workbench commands for the active session", async () => 
     wrapper
       .findAll('[data-testid="workbench-card"]')
       .map((card) => card.attributes("data-panel")),
-  ).toEqual(["artifacts", "tasks"]);
+  ).toEqual(["artifacts", "preview"]);
   wrapper.unmount();
 });
 

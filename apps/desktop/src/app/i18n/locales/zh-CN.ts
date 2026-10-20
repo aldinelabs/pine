@@ -465,8 +465,6 @@ export default {
       closeCard: "关闭卡片",
       panels: {
         artifacts: "产出文件",
-        todos: "待办",
-        tasks: "后台任务",
         preview: "预览",
       },
       artifacts: {
@@ -482,8 +480,6 @@ export default {
     },
     backgroundTasks: {
       heading: "后台进程",
-      running: "{count} 个运行中",
-      empty: "暂无后台进程",
       stop: "停止",
       native: "本机权限",
       sandboxed: "项目沙盒",
@@ -522,13 +518,6 @@ export default {
     todos: {
       heading: "任务清单",
       progress: "{completed}/{total}",
-      empty: "暂无任务。从哪里开始？",
-      more: "另有 {count} 项",
-      moreDetails: "另有 {count} 项（{details}）",
-      hiddenCompleted: "{count} 项已完成",
-      hiddenPending: "{count} 项待处理",
-      detailSeparator: "，",
-      showLess: "收起",
       blockedBy: "依赖 {ids}",
       statuses: {
         pending: "待处理",

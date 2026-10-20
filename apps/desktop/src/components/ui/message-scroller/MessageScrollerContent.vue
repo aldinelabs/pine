@@ -71,5 +71,17 @@ onBeforeUnmount(() => {
       hidden
       :class="props.spacerClass"
     />
+    <!-- Below the spacer and outside the items: while a reply is anchored,
+         the spacer gives way so the tail rests at the viewport's bottom and
+         stays put as the reply grows; otherwise it scrolls like the
+         transcript. The tail cancels the item gap and spaces itself, so it
+         can animate that space away with its content. -->
+    <div
+      v-if="$slots.tail"
+      data-message-scroller-tail=""
+      class="-mt-8 empty:hidden"
+    >
+      <slot name="tail" />
+    </div>
   </div>
 </template>

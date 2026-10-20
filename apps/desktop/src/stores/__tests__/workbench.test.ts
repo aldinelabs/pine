@@ -21,7 +21,7 @@ it("starts closed and toggles the active session's workbench", () => {
   expect(store.activeLayout).toMatchObject({
     open: true,
     top: "artifacts",
-    bottom: "todos",
+    bottom: "preview",
   });
 });
 
@@ -29,21 +29,25 @@ it("keeps each session's layout apart and lets new sessions inherit the draft's"
   const store = useWorkbenchStore();
   store.apply(DRAFT_WORKBENCH_KEY, {
     kind: "arrange",
-    top: "tasks",
+    top: "preview",
     bottom: null,
   });
-  store.apply("session-1", { kind: "open", panel: "preview", position: "top" });
+  store.apply("session-1", {
+    kind: "open",
+    panel: "artifacts",
+    position: "top",
+  });
 
   expect(store.layoutFor("session-1")).toMatchObject({
     open: true,
-    top: "preview",
+    top: "artifacts",
     bottom: null,
   });
   expect(store.layoutFor("session-2")).toMatchObject({
     open: true,
-    top: "tasks",
+    top: "preview",
   });
-  expect(store.layoutFor(DRAFT_WORKBENCH_KEY).top).toBe("tasks");
+  expect(store.layoutFor(DRAFT_WORKBENCH_KEY).top).toBe("preview");
 });
 
 it("remembers layouts across stores without the drag-only rearrangement bump", () => {

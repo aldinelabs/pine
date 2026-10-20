@@ -3,12 +3,7 @@
  * cards; each card shows one panel. The agent arranges it with the `ui_`
  * workbench tools, and the user with the card headers.
  */
-export const WORKBENCH_PANELS = [
-  "artifacts",
-  "todos",
-  "tasks",
-  "preview",
-] as const;
+export const WORKBENCH_PANELS = ["artifacts", "preview"] as const;
 export type WorkbenchPanel = (typeof WORKBENCH_PANELS)[number];
 
 export const WORKBENCH_POSITIONS = ["top", "bottom"] as const;

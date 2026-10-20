@@ -5,11 +5,8 @@ import {
   SquareArrowOutUpRight,
   XIcon,
 } from "@lucide/vue";
-import { selectTodoCounts } from "@pine/rpiv-todo";
 import { computed, type Component } from "vue";
 import { useI18n } from "vue-i18n";
-import ProjectBackgroundTaskPanel from "@/components/project/ProjectBackgroundTaskPanel.vue";
-import ProjectTodoPanel from "@/components/project/ProjectTodoPanel.vue";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import {
@@ -28,7 +25,6 @@ import {
 } from "@/shared/workbench";
 import { useContentTabNavigation } from "@/composables/useContentTabNavigation";
 import { fileName, fileTargetPath } from "@/lib/filePreviewTarget";
-import { useBackgroundTasksStore } from "@/stores/backgroundTasks";
 import { useContentTabsStore } from "@/stores/contentTabs";
 import { useProjectStore } from "@/stores/project";
 import { useSessionStore } from "@/stores/session";
@@ -43,17 +39,11 @@ const props = defineProps<{
 const { t } = useI18n();
 const workbench = useWorkbenchStore();
 const session = useSessionStore();
-const backgroundTasks = useBackgroundTasksStore();
 
 const PANEL_COMPONENTS: Record<WorkbenchPanel, Component> = {
   artifacts: WorkbenchArtifactsPanel,
-  todos: ProjectTodoPanel,
-  tasks: ProjectBackgroundTaskPanel,
   preview: WorkbenchPreviewPanel,
 };
-
-/** Panels shared with the old sidebar drop their own heading in a card. */
-const EMBEDDABLE_PANELS = new Set<WorkbenchPanel>(["todos", "tasks"]);
 
 const selected = computed({
   get: () => props.panel,
@@ -90,19 +80,6 @@ function openPreviewInTab(): void {
 const summary = computed(() => {
   if (props.panel === "preview" && previewTarget.value)
     return fileName(fileTargetPath(previewTarget.value));
-  if (props.panel === "todos" && session.todos) {
-    const counts = selectTodoCounts(session.todos);
-    return counts.total
-      ? t("project.todos.progress", {
-          completed: counts.completed,
-          total: counts.total,
-        })
-      : "";
-  }
-  if (props.panel === "tasks" && backgroundTasks.runningCount > 0)
-    return t("project.backgroundTasks.running", {
-      count: backgroundTasks.runningCount,
-    });
   return "";
 });
 </script>
@@ -203,10 +180,7 @@ const summary = computed(() => {
           :key="panel"
           class="scroll-fade-y no-scrollbar absolute inset-0 overflow-y-auto"
         >
-          <component
-            :is="PANEL_COMPONENTS[panel]"
-            v-bind="EMBEDDABLE_PANELS.has(panel) ? { embedded: true } : {}"
-          />
+          <component :is="PANEL_COMPONENTS[panel]" />
         </div>
       </Transition>
     </CardContent>

@@ -28,7 +28,7 @@ export interface WorkbenchLayout {
 export const DEFAULT_WORKBENCH_LAYOUT: Readonly<WorkbenchLayout> = {
   open: false,
   top: "artifacts",
-  bottom: "todos",
+  bottom: "preview",
   split: 50,
   preview: null,
 };

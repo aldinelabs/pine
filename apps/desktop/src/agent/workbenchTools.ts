@@ -21,19 +21,13 @@ export interface PineWorkbenchToolContext {
 }
 
 const PANEL_DESCRIPTIONS =
-  "artifacts: files presented in this session; todos: this session's task list; tasks: background processes started with bg_run; preview: the file last presented or picked from artifacts";
+  "artifacts: files presented in this session; preview: the file last presented or picked from artifacts";
 
 // Spelled out rather than mapped so the schemas keep their literal types.
 function panelSchema(description: string) {
-  return Type.Union(
-    [
-      Type.Literal("artifacts"),
-      Type.Literal("todos"),
-      Type.Literal("tasks"),
-      Type.Literal("preview"),
-    ],
-    { description },
-  );
+  return Type.Union([Type.Literal("artifacts"), Type.Literal("preview")], {
+    description,
+  });
 }
 
 function positionSchema(description: string) {
@@ -44,13 +38,7 @@ function positionSchema(description: string) {
 
 function slotSchema(position: WorkbenchPosition) {
   return Type.Union(
-    [
-      Type.Literal("artifacts"),
-      Type.Literal("todos"),
-      Type.Literal("tasks"),
-      Type.Literal("preview"),
-      Type.Null(),
-    ],
+    [Type.Literal("artifacts"), Type.Literal("preview"), Type.Null()],
     { description: `Panel for the ${position} card, or null for none.` },
   );
 }
@@ -82,7 +70,7 @@ export function createWorkbenchToolDefinitions(
     name: UI_WORKBENCH_OPEN_TOOL_NAME,
     label: "Open Workbench Panel",
     description: `Show a panel in the workbench, the column beside this conversation that stacks up to two cards. Opens the workbench if it is closed. Panels: ${PANEL_DESCRIPTIONS}.`,
-    promptSnippet: `Use ${UI_WORKBENCH_OPEN_TOOL_NAME} to show the user the todo list, background tasks, or presented files beside the conversation when following them helps`,
+    promptSnippet: `Use ${UI_WORKBENCH_OPEN_TOOL_NAME} to show the user presented files beside the conversation when following them helps`,
     promptGuidelines: [
       `${UI_PRESENT_FILE_TOOL_NAME} already shows its file in the workbench preview; do not open the preview panel separately for it.`,
       `Change the workbench only when it helps the user follow the current work; the user arranges it too, so do not undo their layout without a reason.`,

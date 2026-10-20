@@ -64,13 +64,18 @@ it("applies workbench commands to the session that sent them", () => {
     type: "workbench-command",
     sessionId: "session-2",
     toolCallId: "call-2",
-    command: { kind: "arrange", top: "tasks", bottom: "todos", split: 30 },
+    command: {
+      kind: "arrange",
+      top: "artifacts",
+      bottom: "preview",
+      split: 30,
+    },
   });
 
   expect(useWorkbenchStore().layoutFor("session-2")).toMatchObject({
     open: true,
-    top: "tasks",
-    bottom: "todos",
+    top: "artifacts",
+    bottom: "preview",
     split: 30,
   });
   wrapper.unmount();

@@ -140,4 +140,36 @@ describe("background tasks store", () => {
         taskId: task().id,
       });
   });
+
+  it("fades finished tasks once a turn ends with nothing running", () => {
+    const store = useBackgroundTasksStore();
+    const endTurn = (sessionId = session.id) =>
+      store.handleEvent({ type: "run-state", sessionId, state: "idle" });
+    update([task(), task({ id: "done", status: "completed" })]);
+
+    // A task still runs, so the finished one stays beside it.
+    endTurn();
+    expect(store.visibleTasks.map((value) => value.id)).toEqual([
+      "b1234abcd",
+      "done",
+    ]);
+
+    update([
+      task({ status: "failed" }),
+      task({ id: "done", status: "completed" }),
+    ]);
+    endTurn("session-b");
+    expect(store.visibleTasks).toHaveLength(2);
+    endTurn();
+    expect(store.visibleTasks).toEqual([]);
+    expect(store.tasks).toHaveLength(2);
+
+    // A task started later shows again.
+    update([
+      task({ status: "failed" }),
+      task({ id: "done", status: "completed" }),
+      task({ id: "next" }),
+    ]);
+    expect(store.visibleTasks.map((value) => value.id)).toEqual(["next"]);
+  });
 });

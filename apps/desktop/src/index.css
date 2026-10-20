@@ -43,6 +43,18 @@
   user-select: none;
 }
 
+/* The session's todo and process cards: inner surfaces sit one inset inside
+   the card, so their corners stay concentric with its own, and lists show
+   five 1.5rem rows before scrolling. */
+@utility status-card {
+  --status-card-radius: min(var(--radius-4xl), 24px);
+  --status-card-inset: calc(var(--spacing) * 1.5);
+  --status-card-inner-radius: calc(
+    var(--status-card-radius) - var(--status-card-inset)
+  );
+  --status-card-list-height: 7.5rem;
+}
+
 @utility window-no-drag {
   -webkit-app-region: no-drag;
   app-region: no-drag;

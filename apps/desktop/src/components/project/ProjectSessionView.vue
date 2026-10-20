@@ -42,6 +42,7 @@ import ProjectTranscriptMessage from "./ProjectTranscriptMessage.vue";
 import type { PineToolCall } from "@/shared/sessions";
 import { toolFileRequest } from "./toolViewAdapter";
 import ProjectTranscriptOutline from "./ProjectTranscriptOutline.vue";
+import ProjectSessionStatus from "./ProjectSessionStatus.vue";
 import {
   collapsesTranscriptGap,
   transcriptMessageRenderSignature,
@@ -411,6 +412,8 @@ function abort(): void {
   });
 }
 
+const NO_HIDDEN_TODOS: ReadonlySet<number> = new Set();
+
 /** Esc already belongs to whatever dialog, menu, or list is open. */
 const OPEN_OVERLAY_SELECTOR = [
   '[role="dialog"][data-state="open"]',
@@ -597,6 +600,16 @@ async function handleDrop(event: DragEvent): Promise<void> {
                   "
                 />
               </MessageScrollerItem>
+
+              <template #tail>
+                <ProjectSessionStatus
+                  :todos="tabState?.todos ?? null"
+                  :hidden-completed-ids="
+                    tabState?.hiddenCompletedTodoIds ?? NO_HIDDEN_TODOS
+                  "
+                  :is-running="isRunning"
+                />
+              </template>
             </MessageScrollerContent>
           </MessageScrollerViewport>
         </MessageScroller>

@@ -492,8 +492,6 @@ export default {
       closeCard: "Close card",
       panels: {
         artifacts: "Artifacts",
-        todos: "Todos",
-        tasks: "Background tasks",
         preview: "Preview",
       },
       artifacts: {
@@ -510,13 +508,6 @@ export default {
     todos: {
       heading: "Todos",
       progress: "{completed}/{total}",
-      empty: "No tasks yet. Where to start?",
-      more: "+{count} more",
-      moreDetails: "+{count} more ({details})",
-      hiddenCompleted: "{count} completed",
-      hiddenPending: "{count} pending",
-      detailSeparator: ", ",
-      showLess: "Show less",
       blockedBy: "after {ids}",
       statuses: {
         pending: "Pending",
@@ -535,8 +526,6 @@ export default {
     },
     backgroundTasks: {
       heading: "Background processes",
-      running: "{count} running",
-      empty: "No background processes",
       stop: "Stop",
       native: "Native permissions",
       sandboxed: "Project sandbox",

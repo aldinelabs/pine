@@ -623,8 +623,8 @@ describe("project transcript markers", () => {
     const cases = [
       {
         name: "ui_workbench_open",
-        input: { panel: "todos" },
-        expected: "已在工作台显示待办",
+        input: { panel: "artifacts" },
+        expected: "已在工作台显示产出文件",
       },
       {
         name: "ui_workbench_close",
@@ -639,8 +639,8 @@ describe("project transcript markers", () => {
       },
       {
         name: "ui_workbench_arrange",
-        input: { top: "tasks", bottom: null },
-        expected: "已让工作台只显示后台任务",
+        input: { top: "preview", bottom: null },
+        expected: "已让工作台只显示预览",
       },
     ];
     for (const testCase of cases) {

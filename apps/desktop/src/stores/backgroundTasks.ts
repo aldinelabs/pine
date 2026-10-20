@@ -24,6 +24,8 @@ export const useBackgroundTasksStore = defineStore("backgroundTasks", () => {
   let stopEvents: (() => void) | null = null;
   /** The task whose details are open, from the panel or a transcript notice. */
   const inspectedTaskId = ref<string | null>(null);
+  /** Finished tasks each session no longer shows on its process card. */
+  const hiddenTaskIds = reactive(new Map<string, ReadonlySet<string>>());
 
   const sessionId = computed(() => sessionStore.activeSession?.id ?? null);
   /** Running tasks first, then failures, stops, and completions. */
@@ -36,6 +38,31 @@ export const useBackgroundTasksStore = defineStore("backgroundTasks", () => {
   const runningCount = computed(
     () => tasks.value.filter((task) => task.status === "running").length,
   );
+  /** The tasks the process card lists: every task that has not faded. */
+  const visibleTasks = computed(() => {
+    const hidden = sessionId.value
+      ? hiddenTaskIds.get(sessionId.value)
+      : undefined;
+    return hidden
+      ? tasks.value.filter((task) => !hidden.has(task.id))
+      : tasks.value;
+  });
+
+  /**
+   * Once a turn ends with nothing left running, the session's finished tasks
+   * fade from the card. A turn that ends while a task still runs keeps them,
+   * so related results stay together until the work settles.
+   */
+  function fadeFinishedTasks(targetSessionId: string): void {
+    const current = tasksBySession.get(targetSessionId) ?? NO_TASKS;
+    if (current.some((task) => task.status === "running")) return;
+    const hidden = hiddenTaskIds.get(targetSessionId);
+    if (current.every((task) => hidden?.has(task.id))) return;
+    hiddenTaskIds.set(
+      targetSessionId,
+      new Set([...(hidden ?? []), ...current.map((task) => task.id)]),
+    );
+  }
   function setTasks(
     targetSessionId: string,
     next: readonly BackgroundTaskSnapshot[],
@@ -47,6 +74,11 @@ export const useBackgroundTasksStore = defineStore("backgroundTasks", () => {
   function handleEvent(event: PineSessionEvent): void {
     if (event.type === "background-tasks")
       setTasks(event.sessionId, event.tasks);
+    else if (
+      event.type === "run-state" &&
+      (event.state === "idle" || event.state === "failed")
+    )
+      fadeFinishedTasks(event.sessionId);
   }
 
   function connect(): void {
@@ -111,11 +143,13 @@ export const useBackgroundTasksStore = defineStore("backgroundTasks", () => {
     generation += 1;
     revisions.clear();
     tasksBySession.clear();
+    hiddenTaskIds.clear();
     inspectedTaskId.value = null;
   }
 
   return {
     tasks,
+    visibleTasks,
     runningCount,
     inspectedTaskId,
     inspect,

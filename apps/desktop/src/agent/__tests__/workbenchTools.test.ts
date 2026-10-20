@@ -34,11 +34,14 @@ describe("workbench tools", () => {
 
   it("sends open and close commands for the calling tool", async () => {
     const { run, sendCommand } = setup();
-    await run(UI_WORKBENCH_OPEN_TOOL_NAME, { panel: "tasks", position: "top" });
+    await run(UI_WORKBENCH_OPEN_TOOL_NAME, {
+      panel: "preview",
+      position: "top",
+    });
     await run(UI_WORKBENCH_CLOSE_TOOL_NAME, {});
 
     expect(sendCommand.mock.calls).toEqual([
-      ["call-1", { kind: "open", panel: "tasks", position: "top" }],
+      ["call-1", { kind: "open", panel: "preview", position: "top" }],
       ["call-1", { kind: "close" }],
     ]);
   });
@@ -46,19 +49,19 @@ describe("workbench tools", () => {
   it("drops a duplicate bottom card and clamps the split", async () => {
     const { run, sendCommand } = setup();
     const result = await run(UI_WORKBENCH_ARRANGE_TOOL_NAME, {
-      top: "todos",
-      bottom: "todos",
+      top: "preview",
+      bottom: "preview",
       split: 5,
     });
 
     expect(sendCommand).toHaveBeenCalledWith("call-1", {
       kind: "arrange",
-      top: "todos",
+      top: "preview",
       bottom: null,
       split: 20,
     });
     expect(result.content[0]).toMatchObject({
-      text: "Workbench now shows todos.",
+      text: "Workbench now shows preview.",
     });
   });
 });
