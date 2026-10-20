@@ -13,6 +13,7 @@ import { toast } from "vue-sonner";
 import { Button } from "@/components/ui/button";
 import { codeToHtml } from "@/lib/codeHighlight";
 import { cn } from "@/lib/utils";
+import type { FileLineRange } from "@/shared/projectFiles";
 import { useAppearanceStore } from "@/stores/appearance";
 
 /**
@@ -31,6 +32,13 @@ const props = defineProps<{
   node: CodeBlockNodeProps;
   loading?: boolean;
   layout?: "block" | "preview";
+  /** Preview layout only: line ranges to tint. */
+  highlightLines?: readonly FileLineRange[];
+  /**
+   * Preview layout only: marks this line so a scroll container can bring it
+   * into view; the mark spans the highlighted range that starts there.
+   */
+  revealLine?: number;
 }>();
 
 const { colorScheme } = storeToRefs(useAppearanceStore());
@@ -43,6 +51,27 @@ const lineNumbers = computed(() =>
     (_, index) => index + 1,
   ),
 );
+/** Lines never wrap in the preview layout, so line N sits at a fixed offset. */
+function lineBand(start: number, end: number): Record<string, string> {
+  return {
+    top: `calc(var(--code-preview-padding) + ${start - 1} * var(--code-preview-line))`,
+    height: `calc(${end - start + 1} * var(--code-preview-line))`,
+  };
+}
+const highlightBands = computed(() =>
+  props.layout === "preview"
+    ? (props.highlightLines ?? []).map(({ start, end }) => ({
+        key: `${start}-${end}`,
+        style: lineBand(start, end),
+      }))
+    : [],
+);
+const revealBand = computed(() => {
+  const line = props.revealLine;
+  if (props.layout !== "preview" || line === undefined) return undefined;
+  const range = props.highlightLines?.find(({ start }) => start === line);
+  return lineBand(line, range?.end ?? line);
+});
 const isLoading = computed(
   () => props.loading === true || props.node.loading === true,
 );
@@ -185,6 +214,21 @@ async function copyCode(): Promise<void> {
       >
         <div :class="layout === 'preview' ? 'code-preview' : undefined">
           <div
+            v-for="band in highlightBands"
+            :key="band.key"
+            class="code-preview-line-highlight"
+            data-slot="code-line-highlight"
+            aria-hidden="true"
+            :style="band.style"
+          />
+          <div
+            v-if="revealBand"
+            class="code-preview-reveal"
+            data-slot="code-reveal"
+            aria-hidden="true"
+            :style="revealBand"
+          />
+          <div
             v-if="layout === 'preview'"
             class="code-preview-gutter"
             aria-hidden="true"
@@ -261,8 +305,27 @@ async function copyCode(): Promise<void> {
 
 /* File previews keep line numbers fixed while long lines scroll inside the code area. */
 .code-highlight[data-layout="preview"] .code-preview {
+  --code-preview-padding: 1rem;
+  --code-preview-line: calc(0.875rem * 1.5);
+  position: relative;
+  /* Line highlights paint below the code but above the block's background. */
+  isolation: isolate;
   display: flex;
   min-width: 0;
+}
+
+.code-highlight[data-layout="preview"] .code-preview-line-highlight,
+.code-highlight[data-layout="preview"] .code-preview-reveal {
+  position: absolute;
+  inset-inline: 0;
+  pointer-events: none;
+}
+
+/* The agent's attention color, as on presented tabs and highlighted cards. */
+.code-highlight[data-layout="preview"] .code-preview-line-highlight {
+  z-index: -1;
+  background-color: color-mix(in oklch, var(--color-warning) 16%, transparent);
+  box-shadow: inset 2px 0 0 var(--color-warning);
 }
 
 .code-highlight[data-layout="preview"] .code-preview-gutter {

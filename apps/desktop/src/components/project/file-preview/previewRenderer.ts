@@ -1,6 +1,6 @@
 import type { Component } from "vue";
 import type { AttachmentSelection } from "@/shared/attachments";
-import type { ProjectFilePreview } from "@/shared/projectFiles";
+import type { FileReveal, ProjectFilePreview } from "@/shared/projectFiles";
 
 export type PreviewDisplayMode = "code" | "rendered";
 export type RenderablePreview = Exclude<
@@ -18,6 +18,8 @@ export interface PreviewRendererProps {
   renderZoom: number;
   inverted: boolean;
   selectionLabel: string;
+  /** Line to scroll to and lines to tint; only text renderers use it. */
+  reveal?: FileReveal;
 }
 
 export interface PreviewRendererMetadata {

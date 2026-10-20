@@ -118,6 +118,79 @@ export type ProjectFilePreview = ProjectFileMetadata &
     | { kind: "unsupported"; reason: "binary" | "too-large" }
   );
 
+/** Larger files preview as unsupported rather than as text. */
+export const MAX_TEXT_PREVIEW_BYTES = 2 * 1024 * 1024;
+
+/**
+ * Decodes file bytes the way the previewer does: UTF-16 with a byte order
+ * mark, otherwise strict UTF-8. Returns null for content that is not text.
+ */
+export function decodePreviewText(
+  contents: Uint8Array,
+): { text: string; encoding: string } | null {
+  const encoding =
+    contents[0] === 0xff && contents[1] === 0xfe
+      ? "utf-16le"
+      : contents[0] === 0xfe && contents[1] === 0xff
+        ? "utf-16be"
+        : "utf-8";
+  try {
+    const text = new TextDecoder(encoding, { fatal: true }).decode(contents);
+    if (/[\u0000-\u0008\u000e-\u001f]/u.test(text)) return null;
+    return { text, encoding: encoding.toUpperCase() };
+  } catch {
+    return null;
+  }
+}
+
+/** Splits text the way the previewer numbers its lines. */
+export function countPreviewLines(text: string): number {
+  return text.split(/\r\n|\r|\n/).length;
+}
+
+/** Inclusive, 1-based line range of a text file. */
+export interface FileLineRange {
+  start: number;
+  end: number;
+}
+
+/**
+ * Where a text preview opens: the line scrolled into view and the line ranges
+ * tinted for the reader. Lines refer to the file's source, so a file shown
+ * with a location renders as source even when it could render as a document.
+ */
+export interface FileReveal {
+  line: number;
+  highlights: FileLineRange[];
+}
+
+export const MAX_FILE_REVEAL_HIGHLIGHTS = 20;
+
+function isLineNumber(value: unknown): value is number {
+  return typeof value === "number" && Number.isInteger(value) && value >= 1;
+}
+
+/** Reads a stored or forwarded reveal, dropping anything malformed. */
+export function parseFileReveal(value: unknown): FileReveal | undefined {
+  if (typeof value !== "object" || value === null) return undefined;
+  const stored = value as Record<string, unknown>;
+  if (!isLineNumber(stored.line)) return undefined;
+  const highlights = Array.isArray(stored.highlights)
+    ? stored.highlights
+        .filter(
+          (range): range is FileLineRange =>
+            typeof range === "object" &&
+            range !== null &&
+            isLineNumber((range as FileLineRange).start) &&
+            isLineNumber((range as FileLineRange).end) &&
+            (range as FileLineRange).end >= (range as FileLineRange).start,
+        )
+        .slice(0, MAX_FILE_REVEAL_HIGHLIGHTS)
+        .map(({ start, end }) => ({ start, end }))
+    : [];
+  return { line: stored.line, highlights };
+}
+
 export type ProjectFileOperation =
   | {
       action: "create";

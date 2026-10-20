@@ -41,7 +41,15 @@ import {
 } from "@pine/rpiv-ask-user-question";
 import type { AgentFolderGrant, AgentSessionLocation } from "./protocol";
 import { UI_PRESENT_FILE_TOOL_NAME } from "../shared/agent";
+import {
+  MAX_FILE_REVEAL_HIGHLIGHTS,
+  MAX_TEXT_PREVIEW_BYTES,
+  countPreviewLines,
+  decodePreviewText,
+  type FileReveal,
+} from "../shared/projectFiles";
 import { PROJECT_TEMPORARY_DIRECTORY } from "../shared/projects";
+import { binaryPreviewFormats } from "../shared/previewFormats";
 import {
   createNativeBashEnvironment,
   resolveLoginPath,
@@ -268,7 +276,11 @@ export interface PineToolPermissionContext {
     signal?: AbortSignal,
   ) => Promise<AskUserQuestionSubmission>;
   /** Shows a file in the workbench preview without moving the user's focus. */
-  presentFile?: (toolCallId: string, filePath: string) => void;
+  presentFile?: (
+    toolCallId: string,
+    filePath: string,
+    reveal?: FileReveal,
+  ) => void;
   /** Gives the session the `ui_workbench_*` tools. */
   workbench?: PineWorkbenchToolContext;
   /** Listing the user's projects and moving the session between them. */
@@ -294,6 +306,49 @@ export interface PineMediaGenerationContext {
   resolveOpenRouterApiKey(): Promise<string | undefined>;
   /** The image model the user picked in the composer's model selector. */
   imageModelId?(): Promise<string | undefined> | string | undefined;
+}
+
+/**
+ * Checks a presented file's line targets against the file the preview will
+ * show. Lines only make sense for files the previewer shows as text, so a
+ * location on any other file, or past its last line, is the agent's mistake
+ * to correct rather than something to drop silently.
+ */
+async function resolveFileReveal(
+  filePath: string,
+  size: number,
+  params: {
+    line?: number;
+    highlight_lines?: { start: number; end?: number }[];
+  },
+): Promise<FileReveal | undefined> {
+  const highlights = (params.highlight_lines ?? []).map(({ start, end }) => ({
+    start,
+    end: end ?? start,
+  }));
+  if (params.line === undefined && !highlights.length) return undefined;
+  const inverted = highlights.find(({ start, end }) => end < start);
+  if (inverted)
+    throw new Error(
+      `Highlight range ${inverted.start}-${inverted.end} ends before it starts.`,
+    );
+  const text =
+    !binaryPreviewFormats[path.extname(filePath).toLowerCase()] &&
+    size <= MAX_TEXT_PREVIEW_BYTES
+      ? decodePreviewText(await readFile(filePath))
+      : null;
+  if (!text)
+    throw new Error(
+      "line and highlight_lines only apply to files previewed as text (UTF-8 or UTF-16, up to 2 MB). Present this file without them.",
+    );
+  const lineCount = countPreviewLines(text.text);
+  const last = Math.max(params.line ?? 0, ...highlights.map(({ end }) => end));
+  if (last > lineCount)
+    throw new Error(
+      `Line ${last} is past the end of the file, which has ${lineCount} line${lineCount === 1 ? "" : "s"}.`,
+    );
+  highlights.sort((a, b) => a.start - b.start);
+  return { line: params.line ?? highlights[0]?.start ?? 1, highlights };
 }
 
 export async function createPineToolDefinitions(
@@ -583,16 +638,46 @@ export async function createPineToolDefinitions(
         description:
           "Path of the file to open for the user. A project-relative path is preferred; an absolute path is required for files outside the shared project folders.",
       }),
+      line: Type.Optional(
+        Type.Integer({
+          minimum: 1,
+          description:
+            "Text files only: 1-based line to scroll into view. Defaults to the first highlighted line.",
+        }),
+      ),
+      highlight_lines: Type.Optional(
+        Type.Array(
+          Type.Object({
+            start: Type.Integer({
+              minimum: 1,
+              description: "First line of the range, 1-based.",
+            }),
+            end: Type.Optional(
+              Type.Integer({
+                minimum: 1,
+                description:
+                  "Last line of the range, inclusive. Omit it for one line.",
+              }),
+            ),
+          }),
+          {
+            maxItems: MAX_FILE_REVEAL_HIGHLIGHTS,
+            description:
+              "Text files only: line ranges to tint so the user finds the part you mean.",
+          },
+        ),
+      ),
     });
     return defineTool({
       name: UI_PRESENT_FILE_TOOL_NAME,
       label: "Present File",
       description:
-        "Show a file in the workbench beside the conversation: it is listed under the session's artifacts and opened in the preview card, while the user stays in the conversation. Use this when the user asks to see a file or when showing the file is clearer than describing it. Presenting a path outside the shared project folders and the user's attachments needs approval, because Pine must read that path to display it.",
+        "Show a file in the workbench beside the conversation: it is listed under the session's artifacts and opened in the preview card, while the user stays in the conversation. For a text file you can scroll to a line and tint line ranges; the preview then shows the file's source, so Markdown and HTML appear as source rather than rendered. Use this when the user asks to see a file or when showing the file is clearer than describing it. Presenting a path outside the shared project folders and the user's attachments needs approval, because Pine must read that path to display it.",
       promptSnippet: `Use ${UI_PRESENT_FILE_TOOL_NAME} to open a file the user should look at, instead of only naming it in prose`,
       promptGuidelines: [
         `${UI_PRESENT_FILE_TOOL_NAME} shows the file beside the conversation without moving the user's focus, so say what you presented and why rather than assuming they read it.`,
         `Pass the file's project-relative path when it has one. Directories, missing files, and unsupported content are reported back to you.`,
+        `When you discuss specific lines of a text file, pass highlight_lines (and line if the first range is not where the user should start) instead of quoting long passages.`,
         `Present only the files that matter to the current request; opening several tabs at once costs the user attention.`,
       ],
       parameters: params,
@@ -608,16 +693,32 @@ export async function createPineToolDefinitions(
         if (!metadata?.isFile()) {
           throw new Error(`Expected a readable file, not: ${requested}`);
         }
+        const reveal = await resolveFileReveal(
+          authorizedPath,
+          metadata.size,
+          inputParams,
+        );
         if (signal?.aborted) throw new Error("aborted");
-        presentFile?.(toolCallId, authorizedPath);
+        presentFile?.(toolCallId, authorizedPath, reveal);
+        const where = reveal
+          ? ` at line ${reveal.line}${
+              reveal.highlights.length
+                ? `, highlighting ${reveal.highlights
+                    .map(({ start, end }) =>
+                      start === end ? `${start}` : `${start}-${end}`,
+                    )
+                    .join(", ")}`
+                : ""
+            }`
+          : "";
         return {
           content: [
             {
               type: "text" as const,
-              text: `Showing ${authorizedPath} in the workbench preview and the session's artifacts.`,
+              text: `Showing ${authorizedPath}${where} in the workbench preview and the session's artifacts.`,
             },
           ],
-          details: { path: authorizedPath },
+          details: { path: authorizedPath, ...(reveal ? { reveal } : {}) },
         };
       },
     });

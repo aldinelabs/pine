@@ -1,4 +1,4 @@
-import type { OfficeDocumentFormat } from "../shared/projectFiles";
+import type { OfficeDocumentFormat } from "./projectFiles";
 
 export type BinaryPreviewFormat =
   | { kind: "image" | "video" | "pdf"; mimeType: string }

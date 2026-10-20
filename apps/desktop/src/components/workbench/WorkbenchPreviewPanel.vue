@@ -64,6 +64,10 @@ const renderer = computed(() => {
     ? resolvePreviewRenderer(previewRenderers, value, filePath.value)
     : undefined;
 });
+/** Line targets refer to the source, so a located text file shows as source. */
+const reveal = computed(() =>
+  preview.value?.kind === "text" ? current.value?.reveal : undefined,
+);
 
 function projectIdOfSession(): string {
   const sessionId = sessionStore.activeSession?.id;
@@ -102,7 +106,7 @@ async function regrant(): Promise<boolean> {
   if (!next) return false;
   contentTabs.rememberPresentedTarget(toolCallId, next);
   if (JSON.stringify(next) === previewKey.value) return true;
-  workbench.preview({ target: next, toolCallId });
+  workbench.preview({ ...current.value, target: next, toolCallId });
   return false;
 }
 
@@ -198,7 +202,8 @@ watch(
         :file-name="fileName"
         :file-path="filePath"
         :active="true"
-        mode="rendered"
+        :mode="reveal ? 'code' : 'rendered'"
+        :reveal="reveal"
         :zoom="100"
         :render-zoom="100"
         :inverted="false"

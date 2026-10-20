@@ -4,12 +4,14 @@ import { Readable } from "node:stream";
 import type { ProjectFilePreview } from "../shared/projectFiles";
 import {
   MARKDOWN_IMAGE_PARAM,
+  MAX_TEXT_PREVIEW_BYTES,
   PROJECT_MEDIA_PROTOCOL,
+  decodePreviewText,
 } from "../shared/projectFiles";
-import { binaryPreviewFormats } from "./previewFormats";
+import { binaryPreviewFormats } from "../shared/previewFormats";
 import { resolveProjectPath } from "./projectFiles";
 
-export const MAX_TEXT_PREVIEW_BYTES = 2 * 1024 * 1024;
+export { MAX_TEXT_PREVIEW_BYTES };
 
 /**
  * Marks a project-media URL that serves a presented file rather than a project
@@ -75,27 +77,16 @@ export async function readProjectFilePreview(
     }
     if (length > metadata.size)
       return { ...info, kind: "unsupported", reason: "too-large" };
-    const contents = bytes.subarray(0, length);
-    const encoding =
-      contents[0] === 0xff && contents[1] === 0xfe
-        ? "utf-16le"
-        : contents[0] === 0xfe && contents[1] === 0xff
-          ? "utf-16be"
-          : "utf-8";
-    try {
-      const text = new TextDecoder(encoding, { fatal: true }).decode(contents);
-      if (/[\u0000-\u0008\u000e-\u001f]/u.test(text))
-        return { ...info, kind: "unsupported", reason: "binary" };
-      return {
-        ...info,
-        kind: "text",
-        text,
-        encoding: encoding.toUpperCase(),
-        url: mediaUrl,
-      };
-    } catch {
-      return { ...info, kind: "unsupported", reason: "binary" };
-    }
+    const text = decodePreviewText(bytes.subarray(0, length));
+    return text === null
+      ? { ...info, kind: "unsupported", reason: "binary" }
+      : {
+          ...info,
+          kind: "text",
+          text: text.text,
+          encoding: text.encoding,
+          url: mediaUrl,
+        };
   } finally {
     await file.close();
   }

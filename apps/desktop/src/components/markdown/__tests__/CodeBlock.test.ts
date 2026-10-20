@@ -55,6 +55,45 @@ describe("CodeBlock", () => {
     wrapper.unmount();
   });
 
+  it("tints highlighted line ranges and marks the line to reveal", () => {
+    vi.mocked(codeToHtml).mockReturnValue(new Promise(() => {}));
+    const wrapper = mount(CodeBlock, {
+      props: {
+        layout: "preview",
+        node: { ...node, code: "a\nb\nc\nd\ne" },
+        highlightLines: [
+          { start: 2, end: 3 },
+          { start: 5, end: 5 },
+        ],
+        revealLine: 2,
+      },
+    });
+
+    const bands = wrapper.findAll('[data-slot="code-line-highlight"]');
+    expect(bands.map((band) => band.attributes("style"))).toEqual([
+      expect.stringContaining("1 * var(--code-preview-line)"),
+      expect.stringContaining("4 * var(--code-preview-line)"),
+    ]);
+    // The reveal mark spans the range that starts at the revealed line.
+    expect(
+      wrapper.get('[data-slot="code-reveal"]').attributes("style"),
+    ).toContain("height: calc(2 * var(--code-preview-line))");
+    wrapper.unmount();
+  });
+
+  it("ignores line targets outside the preview layout", () => {
+    vi.mocked(codeToHtml).mockReturnValue(new Promise(() => {}));
+    const wrapper = mount(CodeBlock, {
+      props: { node, highlightLines: [{ start: 1, end: 1 }], revealLine: 1 },
+    });
+
+    expect(wrapper.find('[data-slot="code-line-highlight"]').exists()).toBe(
+      false,
+    );
+    expect(wrapper.find('[data-slot="code-reveal"]').exists()).toBe(false);
+    wrapper.unmount();
+  });
+
   it("preserves indentation and blank lines when highlighting fails", async () => {
     vi.mocked(codeToHtml).mockRejectedValue(new Error("Unknown language"));
     const wrapper = mount(CodeBlock, { props: { node } });

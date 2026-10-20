@@ -99,7 +99,66 @@ watch(
   () => [props.mode, props.active],
   () => stopScrollRestore?.(),
 );
-onBeforeUnmount(() => stopScrollRestore?.());
+
+/**
+ * Brings the agent's requested line to the middle of the view, or its range
+ * to the top when the range is taller than the view. The card around the
+ * preview may still be resizing, so the line stays put until the user scrolls
+ * or the layout has had time to settle.
+ */
+let stopReveal: (() => void) | undefined;
+function followReveal(): (() => void) | undefined {
+  const root = content.value;
+  const viewport = root?.closest<HTMLElement>(
+    '[data-slot="scroll-area-viewport"]',
+  );
+  if (!root || !viewport) return undefined;
+  const reveal = (): void => {
+    const band = root.querySelector<HTMLElement>('[data-slot="code-reveal"]');
+    if (!band) return;
+    const view = viewport.getBoundingClientRect();
+    const target = band.getBoundingClientRect();
+    viewport.scrollTop +=
+      target.top -
+      view.top -
+      Math.max(0, (viewport.clientHeight - target.height) / 2);
+    const code = root.querySelector<HTMLElement>(".code-preview-scroll");
+    if (code) code.scrollLeft = 0;
+  };
+  const resize = new ResizeObserver(reveal);
+  resize.observe(viewport);
+  resize.observe(root);
+  const inputRoot =
+    viewport.closest<HTMLElement>('[data-slot="scroll-area"]') ?? viewport;
+  const inputs = ["wheel", "pointerdown", "touchstart", "keydown"] as const;
+  const timer = setTimeout(stop, 1_000);
+  function stop(): void {
+    clearTimeout(timer);
+    resize.disconnect();
+    for (const input of inputs)
+      inputRoot.removeEventListener(input, stop, true);
+  }
+  for (const input of inputs)
+    inputRoot.addEventListener(input, stop, { capture: true, passive: true });
+  reveal();
+  return stop;
+}
+watch(
+  () => props.reveal,
+  async (reveal) => {
+    stopReveal?.();
+    stopReveal = undefined;
+    if (!reveal) return;
+    await nextTick();
+    // A newer reveal may have replaced this one while the DOM updated.
+    if (props.reveal === reveal) stopReveal = followReveal();
+  },
+  { immediate: true },
+);
+onBeforeUnmount(() => {
+  stopScrollRestore?.();
+  stopReveal?.();
+});
 
 function readSelection(): AttachmentSelection | undefined {
   return props.active && content.value
@@ -151,6 +210,8 @@ defineExpose({ readSelection });
           code: source,
           language: source.length > 200_000 ? 'text' : language,
         }"
+        :highlight-lines="reveal?.highlights"
+        :reveal-line="reveal?.line"
       />
     </div>
   </ScrollArea>

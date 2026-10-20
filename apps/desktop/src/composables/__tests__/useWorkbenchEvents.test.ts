@@ -80,3 +80,42 @@ it("applies workbench commands to the session that sent them", () => {
   });
   wrapper.unmount();
 });
+
+it("keeps a presented file's line targets and drops malformed ones", () => {
+  const wrapper = mountListener();
+  const target = { source: "presented" as const, path: "/tmp/notes.ts" };
+
+  listener?.({
+    type: "present-file",
+    sessionId: "session-1",
+    toolCallId: "call-1",
+    path: target.path,
+    target,
+    reveal: {
+      line: 12,
+      highlights: [
+        { start: 12, end: 14 },
+        { start: 9, end: 3 },
+      ],
+    },
+  });
+  listener?.({
+    type: "present-file",
+    sessionId: "session-2",
+    toolCallId: "call-2",
+    path: target.path,
+    target,
+    reveal: { line: 0, highlights: [] },
+  });
+
+  expect(useWorkbenchStore().layoutFor("session-1").preview).toEqual({
+    target,
+    toolCallId: "call-1",
+    reveal: { line: 12, highlights: [{ start: 12, end: 14 }] },
+  });
+  expect(useWorkbenchStore().layoutFor("session-2").preview).toEqual({
+    target,
+    toolCallId: "call-2",
+  });
+  wrapper.unmount();
+});

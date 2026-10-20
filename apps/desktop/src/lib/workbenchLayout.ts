@@ -1,4 +1,8 @@
-import type { FilePreviewTarget } from "@/shared/projectFiles";
+import {
+  parseFileReveal,
+  type FilePreviewTarget,
+  type FileReveal,
+} from "@/shared/projectFiles";
 import {
   clampWorkbenchSplit,
   isWorkbenchPanel,
@@ -7,10 +11,14 @@ import {
   type WorkbenchPosition,
 } from "@/shared/workbench";
 
-/** The file in the preview card, and the tool call that presented it. */
+/**
+ * The file in the preview card, the tool call that presented it, and where
+ * the agent asked the preview to open.
+ */
 export interface WorkbenchPreview {
   target: FilePreviewTarget;
   toolCallId?: string;
+  reveal?: FileReveal;
 }
 
 /**
@@ -150,6 +158,7 @@ export function parseWorkbenchLayout(value: unknown): WorkbenchLayout | null {
   const slot = (key: "top" | "bottom") =>
     isWorkbenchPanel(stored[key]) ? stored[key] : null;
   const preview = stored.preview as Record<string, unknown> | null | undefined;
+  const reveal = parseFileReveal(preview?.reveal);
   return normalize({
     open: stored.open === true,
     top: slot("top"),
@@ -165,6 +174,7 @@ export function parseWorkbenchLayout(value: unknown): WorkbenchLayout | null {
             ...(typeof preview.toolCallId === "string"
               ? { toolCallId: preview.toolCallId }
               : {}),
+            ...(reveal ? { reveal } : {}),
           }
         : null,
   });

@@ -569,10 +569,16 @@ describeSandbox("createPineToolDefinitions", () => {
         },
       );
       const tool = tools.find((candidate) => candidate.name === TOOL_NAME);
-      const present = (filePath: string) =>
+      const present = (
+        filePath: string,
+        location: {
+          line?: number;
+          highlight_lines?: { start: number; end?: number }[];
+        } = {},
+      ) =>
         tool!.execute(
           "present-call",
-          { path: filePath },
+          { path: filePath, ...location },
           undefined,
           undefined,
           undefined as never,
@@ -599,10 +605,59 @@ describeSandbox("createPineToolDefinitions", () => {
       // The path is realpath'd, so the renderer is handed the same canonical
       // path the access policy approved.
       const canonical = path.join(await realpath(readOnly), "notes.md");
-      expect(presentFile).toHaveBeenCalledWith("present-call", canonical);
+      expect(presentFile).toHaveBeenCalledWith(
+        "present-call",
+        canonical,
+        undefined,
+      );
       expect(result.content[0]).toMatchObject({
         text: `Showing ${canonical} in the workbench preview and the session's artifacts.`,
       });
+    });
+
+    it("passes line targets for a text file", async () => {
+      const { present, presentFile, readWrite } = await setup();
+      await writeFile(path.join(readWrite, "notes.ts"), "a\nb\nc\nd\n");
+
+      const result = await present("notes.ts", {
+        highlight_lines: [{ start: 4 }, { start: 2, end: 3 }],
+      });
+
+      const reveal = {
+        line: 2,
+        highlights: [
+          { start: 2, end: 3 },
+          { start: 4, end: 4 },
+        ],
+      };
+      expect(presentFile).toHaveBeenCalledWith(
+        "present-call",
+        path.join(await realpath(readWrite), "notes.ts"),
+        reveal,
+      );
+      expect(result.content[0]).toMatchObject({
+        text: expect.stringContaining("at line 2, highlighting 2-3, 4 in"),
+      });
+      expect(result.details).toMatchObject({ reveal });
+    });
+
+    it("rejects line targets past the end or on non-text files", async () => {
+      const { present, presentFile, readWrite } = await setup();
+      await writeFile(path.join(readWrite, "notes.ts"), "a\nb");
+      await writeFile(path.join(readWrite, "image.png"), "a\nb");
+      await writeFile(path.join(readWrite, "blob.bin"), Buffer.from([0, 1, 2]));
+
+      await expect(present("notes.ts", { line: 3 })).rejects.toThrow(
+        "Line 3 is past the end of the file, which has 2 lines.",
+      );
+      await expect(
+        present("notes.ts", { highlight_lines: [{ start: 2, end: 1 }] }),
+      ).rejects.toThrow("ends before it starts");
+      for (const file of ["image.png", "blob.bin"])
+        await expect(present(file, { line: 1 })).rejects.toThrow(
+          "only apply to files previewed as text",
+        );
+      expect(presentFile).not.toHaveBeenCalled();
     });
 
     it("resolves a relative path against the session folder", async () => {
@@ -614,6 +669,7 @@ describeSandbox("createPineToolDefinitions", () => {
       expect(presentFile).toHaveBeenCalledWith(
         "present-call",
         path.join(await realpath(readWrite), "notes.md"),
+        undefined,
       );
     });
 
@@ -631,6 +687,7 @@ describeSandbox("createPineToolDefinitions", () => {
       expect(withAttachment.presentFile).toHaveBeenCalledWith(
         "present-call",
         await realpath(attached),
+        undefined,
       );
       expect(withAttachment.gate.reviewDenial).not.toHaveBeenCalled();
       // Presenting the same path without the grant is what needs approval.
@@ -652,6 +709,7 @@ describeSandbox("createPineToolDefinitions", () => {
       expect(presentFile).toHaveBeenCalledWith(
         "present-call",
         await realpath(external),
+        undefined,
       );
     });
 

@@ -1,5 +1,6 @@
 import { onBeforeUnmount, onMounted } from "vue";
 import type { PineSessionEvent } from "@/shared/agent";
+import { parseFileReveal } from "@/shared/projectFiles";
 import { useContentTabsStore } from "@/stores/contentTabs";
 import { useWorkbenchStore } from "@/stores/workbench";
 
@@ -17,9 +18,11 @@ export function useWorkbenchEvents(): void {
     if (event.type === "present-file") {
       // Main resolved the path already, so the renderer never sees a raw one.
       contentTabs.rememberPresentedTarget(event.toolCallId, event.target);
+      const reveal = parseFileReveal(event.reveal);
       workbench.present(event.sessionId, {
         target: event.target,
         toolCallId: event.toolCallId,
+        ...(reveal ? { reveal } : {}),
       });
     } else if (event.type === "workbench-command") {
       workbench.apply(event.sessionId, event.command);

@@ -78,6 +78,7 @@ import {
   type UserApprovalRequest,
 } from "./gate";
 import { createPineToolDefinitions, PineAttachedPathAccess } from "./tools";
+import type { FileReveal } from "../shared/projectFiles";
 import type { BackgroundTaskNotificationMessage } from "@pine/pi-background-tasks";
 import type { BackgroundTaskRegistry } from "@pine/pi-background-tasks/registry";
 import {
@@ -957,8 +958,8 @@ export class PineAgentRuntime {
         },
         requestQuestionnaire: (toolCallId, params, signal) =>
           this.requestQuestionnaire(live, toolCallId, params, signal),
-        presentFile: (toolCallId, filePath) =>
-          this.presentFile(live, toolCallId, filePath),
+        presentFile: (toolCallId, filePath, reveal) =>
+          this.presentFile(live, toolCallId, filePath, reveal),
         workbench: {
           sendCommand: (toolCallId, command) =>
             this.options.emit({
@@ -1391,12 +1392,14 @@ export class PineAgentRuntime {
     live: LiveAgentSession,
     toolCallId: string,
     filePath: string,
+    reveal?: FileReveal,
   ): void {
     this.options.emit({
       type: "present-file",
       sessionId: live.session.sessionId,
       toolCallId,
       path: filePath,
+      ...(reveal ? { reveal } : {}),
     });
   }
 
