@@ -144,9 +144,9 @@ function freezeInset(): void {
     frozenInsetWidth.value = element.offsetWidth;
 }
 
-// The trailing window controls sit at the frozen layout's right edge. A
-// transform with the window's own duration and easing keeps them on the
-// moving window edge without reflowing anything.
+// The trailing window controls and the workbench column sit at the frozen
+// layout's right edge. A transform with the window's own duration and easing
+// keeps them on the moving window edge without reflowing anything.
 const trailingControlsShift = ref(0);
 const isTrailingControlsAnimated = ref(false);
 const trailingControlsStyle = computed(() =>
@@ -182,6 +182,13 @@ function resetTrailingControls(): void {
  * gains or gives back the sidebar's width at its right edge while the
  * sidebar's own transition, on the window's timeline, pushes the content.
  */
+/**
+ * While the left sidebar resizes the window, the workbench column rides the
+ * window edge with the trailing controls. When the workbench itself resizes
+ * it, the edge reveals or clips the column instead.
+ */
+const isWorkbenchOnWindowEdge = ref(false);
+
 async function setSidebarOpen(open: boolean): Promise<void> {
   if (frozenResize.isResizing.value || open === sidebar.open) return;
   const resized = await frozenResize.run(
@@ -189,6 +196,7 @@ async function setSidebarOpen(open: boolean): Promise<void> {
     {
       beforeCommit: (delta) => {
         freezeInset();
+        isWorkbenchOnWindowEdge.value = true;
         if (open) growingWindowHooks.beforeCommit(delta);
       },
       onCommitStart: (delta) => {
@@ -198,11 +206,13 @@ async function setSidebarOpen(open: boolean): Promise<void> {
       },
       afterCommit: () => {
         frozenInsetWidth.value = null;
+        isWorkbenchOnWindowEdge.value = false;
         resetTrailingControls();
       },
     },
   );
   frozenInsetWidth.value = null;
+  isWorkbenchOnWindowEdge.value = false;
   resetTrailingControls();
   if (!resized) sidebar.setOpen(open);
   void syncWorkbench();
@@ -334,10 +344,18 @@ onKeyStroke("k", (event) => {
       data-testid="project-workbench-provider"
       :class="[
         'min-h-0 w-auto flex-none',
+        isWorkbenchOnWindowEdge &&
+          '[&_[data-slot=sidebar-container]]:translate-x-(--window-edge-shift)',
+        isWorkbenchOnWindowEdge &&
+          isTrailingControlsAnimated &&
+          '[&_[data-slot=sidebar-container]]:transition-[left,right,width,translate]',
         (isWorkbenchInstant || workbench.isResizing) &&
           '[&_[data-slot=sidebar-container]]:transition-none! [&_[data-slot=sidebar-gap]]:transition-none!',
       ]"
-      :style="{ '--sidebar-width': `${workbench.width}px` }"
+      :style="{
+        '--sidebar-width': `${workbench.width}px`,
+        '--window-edge-shift': `${trailingControlsShift}px`,
+      }"
       :open="workbench.displayedOpen"
     >
       <ProjectWorkbench />

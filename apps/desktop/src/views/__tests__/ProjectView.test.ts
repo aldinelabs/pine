@@ -343,6 +343,8 @@ it("slides the closing sidebar on the window's timeline with a fixed-width conte
   const inset = () => wrapper.get<HTMLElement>('[data-slot="sidebar-inset"]');
   const trailing = () =>
     wrapper.get<HTMLElement>('[data-testid="project-trailing-controls"]');
+  const workbenchColumn = () =>
+    wrapper.get<HTMLElement>('[data-testid="project-workbench-provider"]');
   const visibility = useProjectSidebarVisibilityStore();
 
   await wrapper.get('[data-sidebar="trigger"]').trigger("click");
@@ -357,10 +359,20 @@ it("slides the closing sidebar on the window's timeline with a fixed-width conte
   expect(inset().element.style.flexGrow).toBe("0");
   await vi.waitFor(() => expect(visibility.open).toBe(false));
   expect(trailing().element.style.transform).toBe("translateX(-256px)");
+  // The workbench column rides the narrowing window edge too.
+  expect(
+    workbenchColumn().element.style.getPropertyValue("--window-edge-shift"),
+  ).toBe("-256px");
+  expect(workbenchColumn().classes()).toContain(
+    "[&_[data-slot=sidebar-container]]:translate-x-(--window-edge-shift)",
+  );
 
   finishResize();
   await vi.waitFor(() => expect(root().element.style.width).toBe(""));
   expect(inset().element.style.flexGrow).toBe("");
   expect(trailing().element.style.transform).toBe("");
+  expect(workbenchColumn().classes()).not.toContain(
+    "[&_[data-slot=sidebar-container]]:translate-x-(--window-edge-shift)",
+  );
   wrapper.unmount();
 });
