@@ -32,9 +32,19 @@ describe("ProjectFileWatcherRegistry", () => {
     await rm(root, { recursive: true, force: true });
   });
 
-  async function waitForChange(): Promise<void> {
-    for (let i = 0; i < 100 && changes.length === 0; i += 1) {
-      await new Promise((resolve) => setTimeout(resolve, 25));
+  /**
+   * Repeats a change until the watcher reports one. On macOS `fs.watch` is
+   * backed by FSEvents, whose stream only reports events after it has
+   * started; under load a write right after `watch()` can predate the stream
+   * and is lost rather than late, so a single write cannot be waited out.
+   */
+  async function waitForChange(change: () => Promise<void>): Promise<void> {
+    const deadline = Date.now() + 8_000;
+    while (changes.length === 0 && Date.now() < deadline) {
+      await change();
+      for (let i = 0; i < 10 && changes.length === 0; i += 1) {
+        await new Promise((resolve) => setTimeout(resolve, 25));
+      }
     }
     expect(changes.length).toBeGreaterThan(0);
   }
@@ -43,8 +53,10 @@ describe("ProjectFileWatcherRegistry", () => {
     await registry.setWatchedDirectories(1, {
       folders: [{ folderId: "f1", projectId: "p1", directories: [""] }],
     });
-    await writeFile(path.join(root, "new.txt"), "data");
-    await waitForChange();
+    let writes = 0;
+    await waitForChange(() =>
+      writeFile(path.join(root, "new.txt"), `data ${(writes += 1)}`),
+    );
     expect(changes.at(-1)?.senderId).toBe(1);
     expect(changes.at(-1)?.folders).toEqual([
       { folderId: "f1", projectId: "p1", changedDirs: [""] },
