@@ -48,6 +48,49 @@ it("freezes at the widened width before committing an expansion", async () => {
   expect(resize.isResizing.value).toBe(false);
 });
 
+it("stays frozen until the page takes the window's new width", async () => {
+  const { events } = installPine(256);
+  const startWidth = window.innerWidth;
+  const resize = useFrozenWindowResize();
+  let framesAfterCommit = 0;
+  vi.spyOn(window, "requestAnimationFrame").mockImplementation((callback) => {
+    if (events.includes("commit")) {
+      framesAfterCommit += 1;
+      // The page catches up two frames after the window stops.
+      if (framesAfterCommit === 2)
+        Object.defineProperty(window, "innerWidth", {
+          configurable: true,
+          value: startWidth + 256,
+        });
+      events.push(`frame ${window.innerWidth - startWidth}`);
+    }
+    callback(0);
+    return 0;
+  });
+
+  await resize.run(
+    { kind: "toggle-sidebar", open: true },
+    {
+      afterCommit: () => {
+        events.push("after");
+        expect(resize.frozenWidth.value).toBe(startWidth + 256);
+      },
+    },
+  );
+
+  expect(events.slice(0, 4)).toEqual([
+    "commit",
+    "frame 0",
+    "frame 256",
+    "after",
+  ]);
+  Object.defineProperty(window, "innerWidth", {
+    configurable: true,
+    value: startWidth,
+  });
+  vi.restoreAllMocks();
+});
+
 it("reports skipped resizes so callers can fall back", async () => {
   const { commitWindowResize } = installPine(0);
   const resize = useFrozenWindowResize();

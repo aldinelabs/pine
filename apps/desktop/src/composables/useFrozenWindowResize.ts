@@ -20,8 +20,25 @@ interface FrozenResizeHooks {
  */
 export const WINDOW_EDGE_LATENCY_MS = 5;
 
+/** How long to wait for the page to take the window's new width. */
+const SETTLE_FRAMES = 12;
+
 function nextFrame(): Promise<void> {
   return new Promise((resolve) => requestAnimationFrame(() => resolve()));
+}
+
+/**
+ * The page learns of the window's final bounds a little after the native
+ * animation reports done. Unfreezing before then lays the new layout out at
+ * the old width for a frame, and centred content jumps sideways and back.
+ */
+async function settleAtWidth(width: number): Promise<void> {
+  for (
+    let frame = 0;
+    frame < SETTLE_FRAMES && Math.abs(window.innerWidth - width) >= 1;
+    frame += 1
+  )
+    await nextFrame();
 }
 
 /**
@@ -44,6 +61,7 @@ export function useFrozenWindowResize() {
     if (isResizing.value || !pine?.planWindowResize) return false;
     isResizing.value = true;
     try {
+      const startWidth = window.innerWidth;
       const delta = await pine.planWindowResize(request);
       if (delta === 0) return false;
 
@@ -70,6 +88,7 @@ export function useFrozenWindowResize() {
       } finally {
         stopListening?.();
       }
+      await settleAtWidth(startWidth + delta);
 
       hooks.afterCommit?.();
       frozenWidth.value = null;
