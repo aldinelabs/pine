@@ -57,6 +57,32 @@ it("glides from the old height to the new one as rows come and go", () => {
   wrapper.unmount();
 });
 
+it("restarts only its own glide, from the height on screen", () => {
+  const cancel = vi.fn();
+  const { wrapper, animate } = mountGlide();
+  animate.mockImplementation(
+    () => Object.assign(new EventTarget(), { cancel }) as unknown as Animation,
+  );
+  const otherAnimation = { cancel: vi.fn() };
+  Object.assign(wrapper.element, { getAnimations: () => [otherAnimation] });
+
+  contentHeight = 48;
+  notify();
+  contentHeight = 72;
+  notify();
+  contentHeight = 96;
+  notify();
+
+  expect(cancel).toHaveBeenCalledOnce();
+  expect(otherAnimation.cancel).not.toHaveBeenCalled();
+  // offsetHeight is mocked to the content's height mid-glide.
+  expect(animate).toHaveBeenLastCalledWith(
+    [{ height: "96px" }, { height: "96px" }],
+    expect.anything(),
+  );
+  wrapper.unmount();
+});
+
 it("ignores resizes that keep the height", () => {
   contentHeight = 48;
   const { wrapper, animate } = mountGlide();

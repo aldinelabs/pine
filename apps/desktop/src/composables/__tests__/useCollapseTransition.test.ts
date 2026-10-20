@@ -48,7 +48,7 @@ it("makes room beside a neighbour, then blurs in", () => {
   onEnter(element, () => {});
 
   expect(steps(animate)).toEqual([
-    [["width", "marginInlineStart"], OUT, 0, "none"],
+    [["width", "height", "marginInlineStart"], OUT, 0, "none"],
     [["opacity", "transform", "filter"], IN_OUT, 200, "backwards"],
   ]);
   expect(animate.mock.calls[0]?.[0][0]).toMatchObject({
@@ -65,7 +65,7 @@ it("blurs out, then gives its room back to the neighbour", () => {
 
   expect(steps(animate)).toEqual([
     [["opacity", "transform", "filter"], IN_OUT, 0, "forwards"],
-    [["width", "marginInlineEnd"], OUT, 350, "forwards"],
+    [["width", "height", "marginInlineEnd"], OUT, 350, "forwards"],
   ]);
 });
 

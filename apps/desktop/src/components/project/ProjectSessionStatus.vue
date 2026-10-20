@@ -40,7 +40,13 @@ const hasTasks = computed(() => tasks.value.length > 0);
     <!-- Animated boxes carry no padding, border or gap of their own: a box
          collapsing to nothing must take all of its space with it, or that
          space vanishes in one frame when it is removed. -->
-    <div v-if="hasTodos || hasTasks" data-testid="project-session-status">
+    <!-- Bottom-aligned, so while its room grows the cards already sit where
+         they will reveal, above the composer, rather than hang below. -->
+    <div
+      v-if="hasTodos || hasTasks"
+      data-testid="project-session-status"
+      class="flex flex-col justify-end"
+    >
       <!-- Stands in for the transcript's item gap. -->
       <div class="flex items-stretch gap-2 pt-8">
         <Transition :css="false" @enter="card.onEnter" @leave="card.onLeave">

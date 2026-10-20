@@ -22,7 +22,9 @@ const SHOWN: Keyframe = {
 
 /**
  * Which way the element makes room. `height` always does, for the content
- * below or above it; `width` only beside a neighbour, which slides aside.
+ * below or above it; `width` only beside a neighbour, which slides aside. A
+ * `width` room also grows from no height, so a row that stretches its items
+ * to the tallest one eases to its new height rather than snapping.
  */
 export type CollapseAxis = "height" | "width";
 
@@ -55,8 +57,8 @@ function room(
     ? Number.parseFloat(getComputedStyle(parent).columnGap) || 0
     : 0;
   return [
-    { width: "0px", [side]: `${-gap}px` },
-    { width: `${width}px`, [side]: "0px" },
+    { width: "0px", height: "0px", [side]: `${-gap}px` },
+    { width: `${width}px`, height: `${height}px`, [side]: "0px" },
   ];
 }
 

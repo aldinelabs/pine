@@ -12,6 +12,8 @@ export function useHeightGlide(
 ): void {
   let observer: ResizeObserver | null = null;
   let last: number | null = null;
+  /** Only its own glide; the element may run other animations too. */
+  let gliding: Animation | null = null;
 
   function glide(): void {
     const element = box.value;
@@ -22,19 +24,20 @@ export function useHeightGlide(
     last = next;
     if (previous === null || previous === next) return;
     if (typeof element.animate !== "function") return;
-    const running = element.getAnimations();
     // Layout height, unaffected by the transforms of an enclosing reveal.
-    const from = running.length > 0 ? element.offsetHeight : previous;
-    for (const animation of running) animation.cancel();
+    const from = gliding ? element.offsetHeight : previous;
+    gliding?.cancel();
     // Clips the rows still sliding in or out.
     element.style.overflow = "hidden";
     const animation = element.animate(
       [{ height: `${from}px` }, { height: `${next}px` }],
       { duration: DURATION_MS, easing: EASE_OUT_EXPO },
     );
+    gliding = animation;
     animation.addEventListener(
       "finish",
       () => {
+        gliding = null;
         element.style.overflow = "";
       },
       { once: true },
