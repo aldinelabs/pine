@@ -88,7 +88,7 @@ afterEach(() => {
   for (const wrapper of wrappers.splice(0)) wrapper.unmount();
 });
 
-it("shows a short todo list in full, with the active form while in progress", () => {
+it("shows a short todo list in full, with what the active task is doing", () => {
   const wrapper = mountCard({
     nextId: 4,
     tasks: [
@@ -100,12 +100,34 @@ it("shows a short todo list in full, with the active form while in progress", ()
 
   expect(todoRows(wrapper)).toEqual([
     ["completed", "Task 1"],
-    ["in_progress", "Writing task 2"],
+    ["in_progress", "Task 2"],
     ["pending", "Task 3"],
   ]);
   expect(
+    wrapper
+      .findAll("[data-testid=project-todo-detail]")
+      .map((detail) => detail.text()),
+  ).toEqual(["Writing task 2"]);
+  // Nodes sit on each row's first line, below the taller active row.
+  expect(
+    wrapper
+      .findAll("[data-testid=project-todo-node]")
+      .map((node) => node.attributes("cy") ?? node.attributes("transform")),
+  ).toEqual(["12", "translate(5.5 36)", "76"]);
+  expect(
     wrapper.find("[data-testid=project-background-task-summary]").exists(),
   ).toBe(false);
+});
+
+it("falls back to the description for the active task", () => {
+  const wrapper = mountCard({
+    nextId: 2,
+    tasks: [task(1, "in_progress", { description: "Run the full check" })],
+  });
+
+  expect(wrapper.get("[data-testid=project-todo-detail]").text()).toBe(
+    "Run the full check",
+  );
 });
 
 it("lists every todo, whatever the card's height, so the graph stays whole", () => {

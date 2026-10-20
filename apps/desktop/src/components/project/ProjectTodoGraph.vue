@@ -23,15 +23,37 @@ const NODE_RADIUS = 4;
 /** The in-progress node is a small loader, slightly larger than a dot. */
 const SPINNER_RADIUS = 4.5;
 const CURVE = 8;
-/** Rows are a single `h-6` line, so their centres need no measuring. */
+/**
+ * A row is an `h-6` line; the task in progress adds an `h-4` line for what it
+ * is doing. Fixed heights let the node centres be computed, not measured.
+ */
 const ROW_HEIGHT = 24;
+const DETAIL_HEIGHT = 16;
 
 const layout = computed(() => layoutTodoGraph(props.tasks));
 const gutterWidth = computed(() => layout.value.laneCount * LANE_WIDTH);
-const height = computed(() => layout.value.rows.length * ROW_HEIGHT);
 
+/** What the task in progress is doing, under its subject. */
+function detail(task: Task): string | null {
+  if (task.status !== "in_progress") return null;
+  const text = task.activeForm || task.description;
+  return text ? sanitizeTaskText(text) : null;
+}
+
+/** Each row's top, and the graph's full height last. */
+const offsets = computed(() => {
+  const result = [0];
+  for (const row of layout.value.rows) {
+    const top = result.at(-1) ?? 0;
+    result.push(top + ROW_HEIGHT + (detail(row.task) ? DETAIL_HEIGHT : 0));
+  }
+  return result;
+});
+const height = computed(() => offsets.value.at(-1) ?? 0);
+
+/** Nodes sit on a row's first line. */
 function centerY(index: number): number {
-  return index * ROW_HEIGHT + ROW_HEIGHT / 2;
+  return (offsets.value[index] ?? 0) + ROW_HEIGHT / 2;
 }
 
 /** Lane 0 hugs the right edge, so nodes keep their place as lanes appear. */
@@ -51,15 +73,6 @@ function edgePath(edge: TodoGraphEdge): string {
   if (fromX === toX) return `M ${fromX} ${fromY} V ${toY}`;
   const bend = Math.min(CURVE, toY - fromY);
   return `M ${fromX} ${fromY} V ${toY - bend} Q ${fromX} ${toY} ${toX} ${toY}`;
-}
-
-/** An in-progress task reads as what the agent is doing right now. */
-function rowText(task: Task): string {
-  return sanitizeTaskText(
-    task.status === "in_progress" && task.activeForm
-      ? task.activeForm
-      : task.subject,
-  );
 }
 </script>
 
@@ -139,25 +152,34 @@ function rowText(task: Task): string {
         data-testid="project-todo-row"
         :data-task-id="row.task.id"
         :data-status="row.task.status"
-        class="flex h-6 min-w-0 items-center gap-1.5"
+        class="flex min-w-0 flex-col"
       >
-        <span class="sr-only">{{
-          t(`project.todos.statuses.${row.task.status}`)
-        }}</span>
-        <span class="text-muted-foreground shrink-0 tabular-nums">
-          #{{ row.task.id }}
+        <span class="flex h-6 min-w-0 items-center gap-1.5">
+          <span class="sr-only">{{
+            t(`project.todos.statuses.${row.task.status}`)
+          }}</span>
+          <span class="text-muted-foreground shrink-0 tabular-nums">
+            #{{ row.task.id }}
+          </span>
+          <span
+            :class="
+              cn(
+                'truncate',
+                row.task.status === 'in_progress' && 'text-primary font-medium',
+                row.task.status === 'completed' &&
+                  'text-muted-foreground line-through',
+              )
+            "
+          >
+            {{ sanitizeTaskText(row.task.subject) }}
+          </span>
         </span>
         <span
-          :class="
-            cn(
-              'truncate',
-              row.task.status === 'in_progress' && 'text-primary font-medium',
-              row.task.status === 'completed' &&
-                'text-muted-foreground line-through',
-            )
-          "
+          v-if="detail(row.task)"
+          data-testid="project-todo-detail"
+          class="text-muted-foreground h-4 truncate text-xs leading-4"
         >
-          {{ rowText(row.task) }}
+          {{ detail(row.task) }}
         </span>
       </li>
     </ul>
