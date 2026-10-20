@@ -12,7 +12,9 @@ import ProjectTodoCard from "./ProjectTodoCard.vue";
  * What the session is working through, at the end of the transcript: the
  * todo list and the background processes, side by side, each as wide as its
  * content. Cards grow in and shrink away, so the transcript glides rather
- * than jumps when one appears or fades.
+ * than jumps when one appears or fades. While the transcript follows its
+ * bottom the cards hold still above the composer and the reply scrolls under
+ * them; only the cards themselves take clicks.
  */
 const props = defineProps<{
   todos: TaskState | null;
@@ -23,7 +25,7 @@ const props = defineProps<{
 }>();
 const { visibleTasks: tasks } = storeToRefs(useBackgroundTasksStore());
 const row = useCollapseTransition("height");
-const card = useCollapseTransition("both");
+const card = useCollapseTransition("width");
 
 const hasTodos = computed(() =>
   Boolean(
@@ -35,25 +37,25 @@ const hasTasks = computed(() => tasks.value.length > 0);
 
 <template>
   <Transition :css="false" @enter="row.onEnter" @leave="row.onLeave">
-    <!-- The top padding stands in for the transcript's item gap, so it
-         collapses along with the cards. -->
-    <div
-      v-if="hasTodos || hasTasks"
-      data-testid="project-session-status"
-      class="pt-8"
-    >
-      <div class="flex items-start gap-2 *:pointer-events-auto">
+    <!-- Animated boxes carry no padding, border or gap of their own: a box
+         collapsing to nothing must take all of its space with it, or that
+         space vanishes in one frame when it is removed. -->
+    <div v-if="hasTodos || hasTasks" data-testid="project-session-status">
+      <!-- Stands in for the transcript's item gap. -->
+      <div class="flex items-stretch gap-2 pt-8">
         <Transition :css="false" @enter="card.onEnter" @leave="card.onLeave">
-          <ProjectTodoCard
-            v-if="hasTodos"
-            class="min-w-0"
-            :todos="todos"
-            :hidden-completed-ids="hiddenCompletedIds"
-            :is-running="isRunning"
-          />
+          <div v-if="hasTodos" class="pointer-events-auto flex min-w-0">
+            <ProjectTodoCard
+              :todos="todos"
+              :hidden-completed-ids="hiddenCompletedIds"
+              :is-running="isRunning"
+            />
+          </div>
         </Transition>
         <Transition :css="false" @enter="card.onEnter" @leave="card.onLeave">
-          <ProjectBackgroundTaskCard v-if="hasTasks" class="min-w-0" />
+          <div v-if="hasTasks" class="pointer-events-auto flex min-w-0">
+            <ProjectBackgroundTaskCard />
+          </div>
         </Transition>
       </div>
     </div>

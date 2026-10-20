@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import type { TaskState } from "@pine/rpiv-todo";
 import { computed } from "vue";
-import { Card } from "@/components/ui/card";
 import { visibleTodoState } from "@/lib/sessionStatus";
+import ProjectStatusCard from "./ProjectStatusCard.vue";
 import ProjectTodoSummary from "./ProjectTodoSummary.vue";
 
 /**
@@ -24,16 +24,11 @@ const visible = computed(() => {
 </script>
 
 <template>
-  <Card
-    v-if="visible && todos"
-    size="sm"
-    data-testid="project-todo-card"
-    class="status-card w-fit max-w-full gap-0 p-(--status-card-inset) shadow-none"
-  >
+  <ProjectStatusCard v-if="visible && todos" data-testid="project-todo-card">
     <ProjectTodoSummary
       :visible="visible"
       :todos="todos"
       :is-running="isRunning"
     />
-  </Card>
+  </ProjectStatusCard>
 </template>
