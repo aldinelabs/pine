@@ -739,11 +739,12 @@ export class PineSkillRepository {
         `    <name>${escapeXml(skill.name)}</name>`,
         `    <description>${escapeXml(skill.description)}</description>`,
         `    <scope>${scope}</scope>`,
+        `    <location>${escapeXml(skill.filePath)}</location>`,
         "  </skill>",
       ]),
       "</available_skills>",
     ];
-    return `The following skills provide specialized instructions. When a task matches, call invoke_skill with the exact skill name before proceeding. Do not read skill files directly.\n\n${lines.join("\n")}`;
+    return `The following skills provide specialized instructions. When a task matches, call invoke_skill with the exact skill name before proceeding; do not load instructions by reading skill files. Each location is the skill's actual SKILL.md path on disk, which may differ from other skill lists in this prompt; use it only when the user asks to open, inspect, or locate the file.\n\n${lines.join("\n")}`;
   }
 
   private root(scope: PineSkillScope): string {

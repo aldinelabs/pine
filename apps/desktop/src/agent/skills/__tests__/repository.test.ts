@@ -183,6 +183,9 @@ metadata:
     expect(repository.promptList()).toContain(
       "Review documents and apply the project review checklist.",
     );
+    expect(repository.promptList()).toContain(
+      `<location>${path.join(skillRoot, "SKILL.md")}</location>`,
+    );
 
     const read = await repository.read("project", "document-review");
     expect(read.skillDirectory).toBe(skillRoot);
