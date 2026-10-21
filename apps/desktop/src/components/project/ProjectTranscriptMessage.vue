@@ -348,7 +348,7 @@ const renderItems = computed<RenderItem[]>(() => {
             <BubbleContent>
               <div
                 data-slot="user-message-text"
-                class="transcript-prose scroll-fade-y max-h-80 overflow-y-auto whitespace-pre-wrap"
+                class="scroll-fade-y max-h-80 overflow-y-auto whitespace-pre-wrap"
               >
                 {{ text }}
               </div>

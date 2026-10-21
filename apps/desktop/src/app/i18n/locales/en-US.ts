@@ -92,8 +92,8 @@ export default {
       "Model asks the current model to write the summary. Semantic algorithm makes no model call: it extracts goals, file changes, commits, and a brief transcript from the conversation, so compaction is faster and uses no tokens.",
     contextCompactionRouteModel: "Model",
     contextCompactionRouteSemantic: "Semantic algorithm (Beta)",
-    transcriptSerif: "Serif message text",
-    transcriptSerifDescription: "Show conversation messages in a serif font",
+    transcriptSerif: "Serif replies",
+    transcriptSerifDescription: "Show assistant replies in a serif font",
     sidebarVibrancy: "Sidebar blur",
     sidebarVibrancyDescription:
       "Render the sidebar with the native macOS blur material",
