@@ -523,7 +523,10 @@ body {
  * Headings follow the prose instead of the UI heading font; code keeps its
  * explicit monospace font.
  */
-html.transcript-serif .transcript-prose {
+html.transcript-serif .transcript-prose,
+html.transcript-serif .transcript-prose .markstream-vue {
+  /* markstream declares --ms-font-sans on .markstream-vue itself, so the
+     override must target that element rather than an ancestor. */
   --ms-font-sans: var(--font-serif);
   font-family: var(--font-serif);
 }
