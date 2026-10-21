@@ -20,3 +20,13 @@ SHA-256:
 - `SarasaGothicSC-Regular.woff2`: `9e248463aebae1866485491661e821907e521af3b36b7dfd6fedd759de1df081`
 - `SarasaGothicSC-SemiBold.woff2`: `9bb040f60823014344659b5db3c294286ff8dbf7355284f2db474442ceab01c0`
 - `SarasaGothicSC-Bold.woff2`: `d8aa471073d22b0a79e993de545f83ffea2c82a5187a4b8d738a3db7bbaec7be`
+
+## Noto Serif dashes
+
+`noto-serif-dashes-normal.ttf` is a subset of Noto Serif containing only the
+en dash (U+2013) and em dash (U+2014). It is listed ahead of Lustria in the
+serif reading stack so dashes use Noto Serif's glyphs. Copied from the Sober
+project (`apps/web/public/fonts/`).
+
+- Source: https://github.com/notofonts/latin-greek-cyrillic
+- License: SIL Open Font License 1.1

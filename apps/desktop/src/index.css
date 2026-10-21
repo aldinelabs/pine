@@ -6,10 +6,32 @@
 @import "@fontsource-variable/inter";
 @import "@fontsource-variable/jetbrains-mono";
 @import "@fontsource-variable/noto-serif";
+@import "@fontsource-variable/noto-serif-sc";
+@import "@fontsource/lustria";
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn-vue/tailwind.css";
 @import "./styles/shadcn-vue.css";
+
+/*
+ * Lustria's en/em dashes are out of place in running text; this 3KB subset
+ * renders only U+2013/U+2014 from Noto Serif ahead of Lustria.
+ */
+@font-face {
+  font-family: "Noto Serif Dash";
+  src: url("./assets/fonts/noto-serif-dashes-normal.ttf") format("truetype");
+  unicode-range: U+2013, U+2014;
+  font-weight: 100 900;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: "Noto Serif Dash";
+  src: url("./assets/fonts/noto-serif-dashes-normal.ttf") format("truetype");
+  unicode-range: U+2013, U+2014;
+  font-weight: 100 900;
+  font-style: italic;
+}
 
 @font-face {
   font-family: "Sarasa Gothic SC";
@@ -237,8 +259,11 @@
   --font-jetbrains-mono:
     "JetBrains Mono Variable", ui-monospace, SFMono-Regular, Menlo, Monaco,
     Consolas, "Sarasa Gothic SC", monospace, system-ui;
-  --font-noto-serif:
-    "Noto Serif Variable", "Noto Serif", Georgia, "Songti SC", serif;
+  /* Same serif stack as Sober: Lustria for Latin text with Noto Serif's
+     dashes, Noto Serif SC for CJK. Chinese UI drops Lustria (see below). */
+  --font-reading-serif:
+    "Noto Serif Dash", "Lustria", "Noto Serif Variable",
+    "Noto Serif SC Variable", Georgia, "Songti SC", serif;
   --font-heading: var(--font-ui);
   --font-mono: var(--font-jetbrains-mono);
   --shadow-2xs: 0 1px 3px 0px oklch(0 0 0 / 0.05);
@@ -353,7 +378,7 @@
 @theme inline {
   --font-heading: var(--font-ui);
   --font-sans: var(--font-ui);
-  --font-serif: var(--font-noto-serif);
+  --font-serif: var(--font-reading-serif);
   --font-mono: var(--font-jetbrains-mono);
   --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
   --ease-in-out-expo: cubic-bezier(0.87, 0, 0.13, 1);
@@ -523,16 +548,22 @@ body {
  * Headings follow the prose instead of the UI heading font; code keeps its
  * explicit monospace font.
  */
+html:lang(zh-CN) {
+  --font-reading-serif:
+    "Noto Serif Dash", "Noto Serif Variable", "Noto Serif SC Variable",
+    "Songti SC", serif;
+}
+
 html.transcript-serif .transcript-prose,
 html.transcript-serif .transcript-prose .markstream-vue {
   /* markstream declares --ms-font-sans on .markstream-vue itself, so the
      override must target that element rather than an ancestor. */
-  --ms-font-sans: var(--font-serif);
-  font-family: var(--font-serif);
+  --ms-font-sans: var(--font-reading-serif);
+  font-family: var(--font-reading-serif);
 }
 
 html.transcript-serif .transcript-prose :is(h1, h2, h3, h4, h5, h6) {
-  font-family: var(--font-serif);
+  font-family: var(--font-reading-serif);
 }
 
 html.sidebar-vibrancy body {
