@@ -9,6 +9,8 @@ export const THEME_PREFERENCE_STORAGE_KEY = "pine.theme-preference";
 export const PINE_COLOR_THEME_STORAGE_KEY = "pine.color-theme";
 export const SIDEBAR_VIBRANCY_STORAGE_KEY = "pine.sidebar-vibrancy";
 export const SIDEBAR_VIBRANCY_CLASS = "sidebar-vibrancy";
+export const TRANSCRIPT_SERIF_STORAGE_KEY = "pine.transcript-serif";
+export const TRANSCRIPT_SERIF_CLASS = "transcript-serif";
 
 export type ColorScheme = "light" | "dark";
 export type ThemePreference = "system" | ColorScheme;
@@ -58,6 +60,14 @@ function readStoredSidebarVibrancy(): boolean {
   }
 }
 
+function readStoredTranscriptSerif(): boolean {
+  try {
+    return window.localStorage.getItem(TRANSCRIPT_SERIF_STORAGE_KEY) === "true";
+  } catch {
+    return false;
+  }
+}
+
 function isMacOSPlatform(): boolean {
   return window.pine?.platform === "darwin";
 }
@@ -68,6 +78,7 @@ export const useAppearanceStore = defineStore("appearance", () => {
   const colorScheme = ref<ColorScheme>("light");
   const supportsSidebarVibrancy = ref(isMacOSPlatform());
   const sidebarVibrancy = ref(false);
+  const transcriptSerif = ref(readStoredTranscriptSerif());
 
   let isInitialized = false;
   let mediaQuery: MediaQueryList | null = null;
@@ -91,6 +102,13 @@ export const useAppearanceStore = defineStore("appearance", () => {
     void window.pine?.setSidebarVibrancy({ enabled: sidebarVibrancy.value });
   }
 
+  function applyTranscriptSerif(): void {
+    document.documentElement.classList.toggle(
+      TRANSCRIPT_SERIF_CLASS,
+      transcriptSerif.value,
+    );
+  }
+
   function handleSystemColorSchemeChange(): void {
     if (themePreference.value === "system") applyColorScheme();
   }
@@ -102,6 +120,7 @@ export const useAppearanceStore = defineStore("appearance", () => {
     mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
     mediaQuery.addEventListener("change", handleSystemColorSchemeChange);
     applyColorScheme();
+    applyTranscriptSerif();
     if (supportsSidebarVibrancy.value) {
       sidebarVibrancy.value = readStoredSidebarVibrancy();
       applySidebarVibrancy();
@@ -146,6 +165,21 @@ export const useAppearanceStore = defineStore("appearance", () => {
     }
   }
 
+  function setTranscriptSerif(enabled: boolean): void {
+    transcriptSerif.value = enabled;
+    applyTranscriptSerif();
+
+    try {
+      window.localStorage.setItem(
+        TRANSCRIPT_SERIF_STORAGE_KEY,
+        enabled ? "true" : "false",
+      );
+    } catch {
+      // The selected font still applies for this session if storage is
+      // unavailable.
+    }
+  }
+
   return {
     colorScheme,
     initialize,
@@ -154,7 +188,9 @@ export const useAppearanceStore = defineStore("appearance", () => {
     setThemePreference,
     sidebarVibrancy,
     setSidebarVibrancy,
+    setTranscriptSerif,
     supportsSidebarVibrancy,
     themePreference,
+    transcriptSerif,
   };
 });

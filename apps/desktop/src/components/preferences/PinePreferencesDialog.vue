@@ -578,6 +578,10 @@ function updateSidebarVibrancy(value: boolean): void {
   appearanceStore.setSidebarVibrancy(value);
 }
 
+function updateTranscriptSerif(value: boolean): void {
+  appearanceStore.setTranscriptSerif(value);
+}
+
 /** Open the preferences at a section, e.g. from No Project's sidebar. */
 function open(section: PreferenceSection = "general"): void {
   if (isOpen.value) {
@@ -857,6 +861,23 @@ defineExpose({ open });
                     </SelectGroup>
                   </SelectContent>
                 </Select>
+              </Field>
+
+              <Field orientation="horizontal">
+                <div class="flex min-w-0 flex-1 flex-col gap-1">
+                  <FieldTitle id="pine-transcript-serif-setting">
+                    {{ t("preferences.transcriptSerif") }}
+                  </FieldTitle>
+                  <FieldDescription>
+                    {{ t("preferences.transcriptSerifDescription") }}
+                  </FieldDescription>
+                </div>
+                <Switch
+                  data-testid="pine-transcript-serif-toggle"
+                  :model-value="appearanceStore.transcriptSerif"
+                  aria-labelledby="pine-transcript-serif-setting"
+                  @update:model-value="updateTranscriptSerif"
+                />
               </Field>
 
               <Field v-if="supportsSidebarVibrancy" orientation="horizontal">

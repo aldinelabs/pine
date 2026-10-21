@@ -243,7 +243,7 @@ const renderItems = computed<RenderItem[]>(() => {
             class="w-full"
             :variant="'ghost'"
           >
-            <BubbleContent class="w-full">
+            <BubbleContent class="transcript-prose w-full">
               <MarkdownContent
                 :source="item.block.text"
                 :final="message.status === 'complete'"
@@ -348,7 +348,7 @@ const renderItems = computed<RenderItem[]>(() => {
             <BubbleContent>
               <div
                 data-slot="user-message-text"
-                class="scroll-fade-y max-h-80 overflow-y-auto whitespace-pre-wrap"
+                class="transcript-prose scroll-fade-y max-h-80 overflow-y-auto whitespace-pre-wrap"
               >
                 {{ text }}
               </div>

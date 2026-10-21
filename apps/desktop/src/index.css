@@ -518,6 +518,20 @@ body {
  * (`SidebarInset`) keeps its opaque `bg-background`, so the blur is only
  * visible across the sidebar region.
  */
+/*
+ * Optional serif body text for conversation messages (Preferences → General).
+ * Headings follow the prose instead of the UI heading font; code keeps its
+ * explicit monospace font.
+ */
+html.transcript-serif .transcript-prose {
+  --ms-font-sans: var(--font-serif);
+  font-family: var(--font-serif);
+}
+
+html.transcript-serif .transcript-prose :is(h1, h2, h3, h4, h5, h6) {
+  font-family: var(--font-serif);
+}
+
 html.sidebar-vibrancy body {
   background: transparent;
 }
