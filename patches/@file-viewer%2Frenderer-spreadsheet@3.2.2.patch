@@ -1,0 +1,18 @@
+diff --git a/dist/spreadsheet.js b/dist/spreadsheet.js
+index a669167a4a5a02cde5da847be4ffdf7d1ef15444..7ee869335df488925a2fbd149f07bb7a16c67843 100644
+--- a/dist/spreadsheet.js
++++ b/dist/spreadsheet.js
+@@ -1276,6 +1276,13 @@ const renderFileViewerSpreadsheet = async (buffer, target, type, context) => {
+             }),
+         });
+         enableEVirtTableShadowEventTargeting(table.ctx);
++        // Pine: expose the table and the active sheet name so the host can read
++        // the selected cell range, which the renderer does not report.
++        tableHost.dataset.pineSpreadsheet = '';
++        tableHost.pineSpreadsheet = {
++            table: () => table,
++            sheetName: () => { var _a; return (_a = getActiveSheet()) === null || _a === void 0 ? void 0 : _a.name; },
++        };
+         table.on('onScrollX', scheduleViewportLoad);
+         table.on('onScrollY', scheduleViewportLoad);
+         table.on('resize', scheduleViewportLoad);

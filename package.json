@@ -26,9 +26,9 @@
   },
   "packageManager": "bun@1.3.4",
   "trustedDependencies": [
-    "@vue-office/docx",
-    "@vue-office/excel",
-    "@vue-office/pptx",
     "electron-winstaller"
-  ]
+  ],
+  "patchedDependencies": {
+    "@file-viewer/renderer-spreadsheet@3.2.2": "patches/@file-viewer%2Frenderer-spreadsheet@3.2.2.patch"
+  }
 }
