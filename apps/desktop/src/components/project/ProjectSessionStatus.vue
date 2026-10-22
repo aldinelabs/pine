@@ -48,7 +48,7 @@ const hasTasks = computed(() => tasks.value.length > 0);
       class="flex flex-col justify-end"
     >
       <!-- Stands in for the transcript's item gap. -->
-      <div class="flex items-stretch gap-2 pt-8">
+      <div class="flex items-stretch gap-3 pt-8">
         <Transition :css="false" @enter="card.onEnter" @leave="card.onLeave">
           <div v-if="hasTodos" class="pointer-events-auto flex min-w-0">
             <ProjectTodoCard
