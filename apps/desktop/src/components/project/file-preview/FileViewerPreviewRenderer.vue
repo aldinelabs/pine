@@ -42,7 +42,7 @@ import {
 } from "@/lib/spreadsheetSelection";
 import { cn } from "@/lib/utils";
 import type { AttachmentSelection } from "@/shared/attachments";
-import { previewExtension, previewTypeAliases } from "@/shared/previewFormats";
+import { previewExtension } from "@/shared/previewFormats";
 import { useAppearanceStore } from "@/stores/appearance";
 import type {
   PreviewRendererEvents,
@@ -161,12 +161,7 @@ function viewerOptions(
  */
 async function viewerSource(signal: AbortSignal): Promise<FileViewerSource> {
   const preview = props.preview;
-  const type = previewTypeAliases[extension.value];
-  const source = {
-    filename: props.fileName,
-    size: preview.size,
-    ...(type ? { type } : {}),
-  };
+  const source = { filename: props.fileName, size: preview.size };
   if (preview.kind === "text")
     return {
       ...source,

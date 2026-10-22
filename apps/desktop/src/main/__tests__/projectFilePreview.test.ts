@@ -251,7 +251,6 @@ describe("file preview", () => {
 
   it.each([
     "image.PNG",
-    "clip.mp4",
     "document.PDF",
     "report.DOCX",
     "legacy.XLS",
@@ -276,8 +275,20 @@ describe("file preview", () => {
     },
   );
 
+  it("streams videos of any size through a video preview", async () => {
+    const file = path.join(root, "huge.MOV");
+    await writeFile(file, "");
+    await truncate(file, MAX_DOCUMENT_PREVIEW_BYTES + 1);
+    expect(
+      await readProjectFilePreview(file, "pine-project-media://preview/?mov"),
+    ).toMatchObject({
+      kind: "video",
+      url: "pine-project-media://preview/?mov",
+    });
+  });
+
   it("does not read documents larger than the preview limit", async () => {
-    const file = path.join(root, "huge.mp4");
+    const file = path.join(root, "huge.pdf");
     await writeFile(file, "");
     await truncate(file, MAX_DOCUMENT_PREVIEW_BYTES + 1);
     expect(

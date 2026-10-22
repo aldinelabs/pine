@@ -114,6 +114,8 @@ export type ProjectFilePreview = ProjectFileMetadata &
       }
     /** Rendered by file-viewer from the bytes behind the owner-scoped URL. */
     | { kind: "document"; url: string }
+    /** Played by a native video element that streams byte ranges. */
+    | { kind: "video"; url: string }
     | {
         kind: "unsupported";
         reason: "binary" | "too-large" | "document-too-large";

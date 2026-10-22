@@ -862,42 +862,53 @@ describe("ProjectFilePreview", () => {
     expect(wrapper.text()).toContain("640 × 480");
   });
 
-  it("reports video dimensions and duration and pauses it in the background", async () => {
-    fileViewer.state.rendererId = "video";
-    fileViewer.state.zoom = false;
-    fileViewer.state.text = false;
+  it("plays video natively with dimensions and duration", async () => {
     const wrapper = render(
-      documentPreview("pine-project-media://preview/clip"),
+      vi.fn().mockResolvedValue({
+        ...info,
+        kind: "video",
+        url: "pine-project-media://preview/video",
+      }),
     );
-    await wrapper.setProps({
-      file: { ...file, relativePath: "media/clip.mov" },
+    await flushPromises();
+    const video = wrapper.get("video");
+    expect(video.attributes()).toMatchObject({
+      src: "pine-project-media://preview/video",
+      controls: "",
+      preload: "metadata",
     });
-    const viewer = await mountedViewer(wrapper);
-    expect(fetch).toHaveBeenCalledWith(
-      "pine-project-media://preview/clip",
-      expect.anything(),
-    );
-    expect(viewer.source).toMatchObject({ filename: "clip.mov", type: "mp4" });
-    expect(new TextDecoder().decode(viewer.source?.buffer as ArrayBuffer)).toBe(
-      "document bytes",
-    );
-    const video = wrapper.get("video").element;
-    Object.defineProperties(video, {
+    expect(video.attributes("autoplay")).toBeUndefined();
+    expect(fileViewer.state.instances).toHaveLength(0);
+    expect(fetch).not.toHaveBeenCalled();
+    Object.defineProperties(video.element, {
       videoWidth: { value: 1920 },
       videoHeight: { value: 1080 },
       duration: { value: 65 },
     });
-    video.dispatchEvent(new Event("loadedmetadata"));
-    await flushPromises();
+    await video.trigger("loadedmetadata");
     expect(wrapper.text()).toContain("1920 × 1080");
     expect(wrapper.text()).toContain("1:05");
-    expect(wrapper.find('[role="toolbar"]').exists()).toBe(false);
+    await video.trigger("error");
+    expect(wrapper.text()).toContain("Unable to preview file");
+  });
 
+  it("pauses background video without resetting its playback position", async () => {
+    const wrapper = render(
+      vi.fn().mockResolvedValue({
+        ...info,
+        kind: "video",
+        url: "pine-project-media://preview/video",
+      }),
+    );
+    await flushPromises();
+    const video = wrapper.get("video").element;
     const pause = vi.spyOn(video, "pause");
+    video.currentTime = 42;
     await wrapper.setProps({ active: false });
     expect(pause).toHaveBeenCalledTimes(1);
     await wrapper.setProps({ active: true });
     expect(wrapper.get("video").element).toBe(video);
+    expect(video.currentTime).toBe(42);
     expect(pause).toHaveBeenCalledTimes(1);
     wrapper.unmount();
     expect(pause).toHaveBeenCalledTimes(2);

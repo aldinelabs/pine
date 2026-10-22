@@ -52,6 +52,7 @@ import { PROJECT_TEMPORARY_DIRECTORY } from "../shared/projects";
 import {
   documentPreviewExtensions,
   previewExtension,
+  videoPreviewExtensions,
 } from "../shared/previewFormats";
 import {
   createNativeBashEnvironment,
@@ -335,8 +336,10 @@ async function resolveFileReveal(
     throw new Error(
       `Highlight range ${inverted.start}-${inverted.end} ends before it starts.`,
     );
+  const extension = previewExtension(filePath);
   const text =
-    !documentPreviewExtensions.has(previewExtension(filePath)) &&
+    !documentPreviewExtensions.has(extension) &&
+    !videoPreviewExtensions.has(extension) &&
     size <= MAX_TEXT_PREVIEW_BYTES
       ? decodePreviewText(await readFile(filePath))
       : null;

@@ -139,12 +139,7 @@ const documentExtensionList = [
   "heic",
   "heif",
   "jxl",
-  // Audio and video
-  "mp4",
-  "m4v",
-  "mov",
-  "webm",
-  "ogv",
+  // Audio
   "mp3",
   "mpeg",
   "wav",
@@ -221,14 +216,16 @@ export const imagePreviewExtensions: ReadonlySet<string> = new Set([
 ]);
 
 /**
- * Video containers the browser plays that file-viewer does not register by
- * name; they open with the renderer of the listed type.
+ * Videos play in a native video element, which streams byte ranges instead of
+ * reading the whole file like file-viewer.
  */
-export const previewTypeAliases: Readonly<Record<string, string>> = {
-  m4v: "mp4",
-  mov: "mp4",
-  ogv: "webm",
-};
+export const videoPreviewExtensions: ReadonlySet<string> = new Set([
+  "mp4",
+  "m4v",
+  "mov",
+  "webm",
+  "ogv",
+]);
 
 const mimeTypes: Readonly<Record<string, string>> = {
   png: "image/png",
@@ -275,6 +272,7 @@ export function isServedPreviewFile(filePath: string): boolean {
   const extension = previewExtension(filePath);
   return (
     documentPreviewExtensions.has(extension) ||
+    videoPreviewExtensions.has(extension) ||
     renderedTextExtensions.has(extension)
   );
 }

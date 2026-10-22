@@ -5,8 +5,8 @@ import {
   isServedPreviewFile,
   previewExtension,
   previewMimeType,
-  previewTypeAliases,
   renderedTextExtensions,
+  videoPreviewExtensions,
 } from "../previewFormats";
 
 /** Renderers that ship in `@file-viewer/preset-all`. */
@@ -22,6 +22,7 @@ describe("preview formats", () => {
   it("routes every format the bundled preset renders", () => {
     const routed = new Set([
       ...documentPreviewExtensions,
+      ...videoPreviewExtensions,
       ...renderedTextExtensions,
     ]);
     const missing = presetRenderers
@@ -34,10 +35,9 @@ describe("preview formats", () => {
   });
 
   it("only routes formats a bundled renderer accepts", () => {
-    const rendered = new Set([
-      ...presetRenderers.flatMap((definition) => definition.extensions),
-      ...Object.keys(previewTypeAliases),
-    ]);
+    const rendered = new Set<string>(
+      presetRenderers.flatMap((definition) => definition.extensions),
+    );
     const unknown = [
       ...documentPreviewExtensions,
       ...renderedTextExtensions,
@@ -50,6 +50,7 @@ describe("preview formats", () => {
     expect(previewExtension("C:\\work\\.env")).toBe("");
     expect(isServedPreviewFile("/a/Report.PDF")).toBe(true);
     expect(isServedPreviewFile("/a/table.csv")).toBe(true);
+    expect(isServedPreviewFile("/a/clip.mov")).toBe(true);
     expect(isServedPreviewFile("/a/main.py")).toBe(false);
     expect(previewMimeType("/a/clip.MOV")).toBe("video/quicktime");
     expect(previewMimeType("/a/model.step")).toBe("application/octet-stream");

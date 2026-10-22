@@ -5,6 +5,7 @@ import {
   renderedTextExtensions,
 } from "@/shared/previewFormats";
 import TextPreviewRenderer from "./TextPreviewRenderer.vue";
+import VideoPreviewRenderer from "./VideoPreviewRenderer.vue";
 import type { PreviewRenderer } from "./previewRenderer";
 
 const noControls = { zoom: false, invert: false, renderToggle: false };
@@ -42,5 +43,11 @@ export const previewRenderers: readonly PreviewRenderer[] = [
       renderToggle:
         fileLanguage(filePath) === "markdown" || hasRenderedView(filePath),
     }),
+  },
+  {
+    id: "video",
+    component: VideoPreviewRenderer,
+    supports: ({ preview }) => preview.kind === "video",
+    capabilities: () => noControls,
   },
 ];

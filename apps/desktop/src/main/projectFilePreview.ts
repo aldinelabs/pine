@@ -16,6 +16,7 @@ import {
   previewExtension,
   previewMimeType,
   renderedTextExtensions,
+  videoPreviewExtensions,
 } from "../shared/previewFormats";
 import { resolveProjectPath } from "./projectFiles";
 
@@ -60,6 +61,8 @@ export async function readProjectFilePreview(
       modifiedAt: metadata.mtime.toISOString(),
     };
     const extension = previewExtension(filePath);
+    if (videoPreviewExtensions.has(extension))
+      return { ...info, kind: "video", url: mediaUrl };
     const document =
       metadata.size > MAX_DOCUMENT_PREVIEW_BYTES
         ? ({
