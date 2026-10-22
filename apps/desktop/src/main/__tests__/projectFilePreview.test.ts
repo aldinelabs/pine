@@ -18,6 +18,7 @@ import {
   serveProjectMediaRequest,
 } from "../projectFilePreview";
 import { resolveProjectPath } from "../projectFiles";
+import { MAX_DOCUMENT_PREVIEW_BYTES } from "../../shared/projectFiles";
 import { resolveMarkdownImageSrc } from "../../lib/markdownImage";
 
 let root: string;
@@ -249,12 +250,17 @@ describe("file preview", () => {
   });
 
   it.each([
-    ["image.PNG", "image"],
-    ["clip.mp4", "video"],
-    ["document.PDF", "pdf"],
+    "image.PNG",
+    "clip.mp4",
+    "document.PDF",
+    "report.DOCX",
+    "legacy.XLS",
+    "slides.PPTX",
+    "drawing.dwg",
+    "archive.zip",
   ])(
-    "returns a media URL for %s without reading the whole file",
-    async (name, kind) => {
+    "returns a document URL for %s without reading the whole file",
+    async (name) => {
       const file = path.join(root, name);
       await writeFile(file, "");
       await truncate(file, MAX_TEXT_PREVIEW_BYTES * 10);
@@ -263,28 +269,37 @@ describe("file preview", () => {
           file,
           "pine-project-media://preview/?test",
         ),
-      ).toMatchObject({ kind, url: "pine-project-media://preview/?test" });
+      ).toMatchObject({
+        kind: "document",
+        url: "pine-project-media://preview/?test",
+      });
     },
   );
 
-  it.each([
-    ["report.DOCX", "docx"],
-    ["legacy.XLS", "xls"],
-    ["budget.XLSX", "xlsx"],
-    ["slides.PPTX", "pptx"],
-  ])("returns an Office preview for %s", async (name, format) => {
-    const file = path.join(root, name);
+  it("does not read documents larger than the preview limit", async () => {
+    const file = path.join(root, "huge.mp4");
     await writeFile(file, "");
-    await truncate(file, MAX_TEXT_PREVIEW_BYTES * 10);
+    await truncate(file, MAX_DOCUMENT_PREVIEW_BYTES + 1);
     expect(
-      await readProjectFilePreview(
-        file,
-        "pine-project-media://preview/?office",
-      ),
+      await readProjectFilePreview(file, "pine-project-media://preview/?huge"),
+    ).toMatchObject({ kind: "unsupported", reason: "document-too-large" });
+  });
+
+  it("reads text formats with a rendered view as text until they are too large", async () => {
+    const small = path.join(root, "table.csv");
+    await writeFile(small, "a,b\n1,2\n");
+    expect(
+      await readProjectFilePreview(small, "pine-project-media://preview/?csv"),
+    ).toMatchObject({ kind: "text", text: "a,b\n1,2\n" });
+
+    const large = path.join(root, "large.svg");
+    await writeFile(large, "");
+    await truncate(large, MAX_TEXT_PREVIEW_BYTES * 2);
+    expect(
+      await readProjectFilePreview(large, "pine-project-media://preview/?svg"),
     ).toMatchObject({
-      kind: "office",
-      format,
-      url: "pine-project-media://preview/?office",
+      kind: "document",
+      url: "pine-project-media://preview/?svg",
     });
   });
 });
@@ -326,7 +341,7 @@ describe("media streaming", () => {
     },
   );
 
-  it("supports HEAD and never serves text through the media protocol", async () => {
+  it("supports HEAD and never serves source code through the media protocol", async () => {
     const file = path.join(root, "image.svg");
     await writeFile(file, "<svg />");
     const response = await serveProjectMedia(
@@ -342,7 +357,7 @@ describe("media streaming", () => {
       (
         await serveProjectMedia(
           new Request("https://preview.test"),
-          path.join(root, "index.html"),
+          path.join(root, "main.py"),
         )
       ).status,
     ).toBe(415);

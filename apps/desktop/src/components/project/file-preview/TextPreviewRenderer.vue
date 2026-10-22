@@ -15,7 +15,6 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { fileLanguage } from "@/lib/fileLanguage";
 import { filePreviewSelection } from "@/lib/filePreviewSelection";
 import type { AttachmentSelection } from "@/shared/attachments";
-import ProjectHtmlPreview from "../ProjectHtmlPreview.vue";
 import type {
   PreviewRendererEvents,
   PreviewRendererProps,
@@ -29,9 +28,6 @@ const source = computed(() =>
 );
 const language = computed(() => fileLanguage(props.filePath));
 const rendered = computed(() => props.mode === "rendered");
-const renderedHtml = computed(
-  () => rendered.value && language.value === "html",
-);
 const markdownNodes = computed(() =>
   rendered.value && language.value === "markdown"
     ? parseMarkdownToStructure(
@@ -176,16 +172,7 @@ defineExpose({ readSelection });
 </script>
 
 <template>
-  <ProjectHtmlPreview
-    v-if="renderedHtml"
-    class="h-full min-h-0"
-    :source="source"
-    :title="fileName"
-    :zoom="zoom"
-    @zoom-wheel="emit('zoomWheel', $event)"
-  />
   <ScrollArea
-    v-else
     class="h-full min-h-0 min-w-0 [&_[data-slot=scroll-area-viewport]]:scroll-fade"
   >
     <div

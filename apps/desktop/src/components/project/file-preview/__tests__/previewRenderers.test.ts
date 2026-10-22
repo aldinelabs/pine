@@ -5,57 +5,72 @@ import type { PreviewRenderer } from "../previewRenderer";
 import { previewRenderers } from "../previewRenderers";
 
 const info = { size: 12, modifiedAt: "2026-09-24T00:00:00Z" };
+const document = {
+  ...info,
+  kind: "document" as const,
+  url: "preview://document",
+};
+
+function text(source: string) {
+  return { ...info, kind: "text" as const, text: source, encoding: "UTF-8" };
+}
 
 describe("file preview renderer registry", () => {
   it("lets a new renderer replace a built-in for selected formats", () => {
     const replacement: PreviewRenderer = {
       id: "replacement-pdf",
       component: defineComponent({ template: "<div />" }),
-      supports: (preview) => preview.kind === "pdf",
+      supports: ({ filePath }) => filePath.endsWith(".pdf"),
       capabilities: () => ({ zoom: true, invert: false, renderToggle: false }),
     };
     const renderers = [replacement, ...previewRenderers];
-    const pdf = { ...info, kind: "pdf" as const, url: "preview://pdf" };
-    const office = {
-      ...info,
-      kind: "office" as const,
-      format: "docx" as const,
-      url: "preview://docx",
-    };
 
-    expect(resolvePreviewRenderer(renderers, pdf, "report.pdf")).toBe(
-      replacement,
-    );
-    expect(resolvePreviewRenderer(renderers, office, "report.docx")?.id).toBe(
-      "office",
-    );
-  });
-
-  it("derives controls from the selected renderer and display mode", () => {
-    const text = {
-      ...info,
-      kind: "text" as const,
-      text: "<h1>Report</h1>",
-      encoding: "UTF-8",
-    };
-    const renderer = resolvePreviewRenderer(
-      previewRenderers,
-      text,
-      "index.html",
-    );
     expect(
-      renderer?.capabilities({
-        preview: text,
-        filePath: "index.html",
+      resolvePreviewRenderer(renderers, {
+        preview: document,
+        filePath: "report.pdf",
         mode: "rendered",
       }),
-    ).toEqual({ zoom: true, invert: false, renderToggle: true });
+    ).toBe(replacement);
     expect(
-      renderer?.capabilities({
-        preview: text,
-        filePath: "index.html",
+      resolvePreviewRenderer(renderers, {
+        preview: document,
+        filePath: "report.docx",
+        mode: "rendered",
+      })?.id,
+    ).toBe("file-viewer");
+  });
+
+  it.each([
+    ["index.html", "rendered", "file-viewer"],
+    ["index.html", "code", "text"],
+    ["data.csv", "rendered", "file-viewer"],
+    ["notes.md", "rendered", "text"],
+    ["main.py", "rendered", "text"],
+  ] as const)(
+    "routes %s in %s mode to the %s renderer",
+    (filePath, mode, id) => {
+      const preview = text("content");
+      const renderer = resolvePreviewRenderer(previewRenderers, {
+        preview,
+        filePath,
+        mode,
+      });
+      expect(renderer?.id).toBe(id);
+    },
+  );
+
+  it("offers the source switch only for text with a rendered view", () => {
+    const capabilities = (filePath: string) =>
+      resolvePreviewRenderer(previewRenderers, {
+        preview: text("content"),
+        filePath,
         mode: "code",
-      }),
-    ).toEqual({ zoom: false, invert: false, renderToggle: true });
+      })?.capabilities({ preview: text("content"), filePath, mode: "code" });
+
+    expect(capabilities("index.html")?.renderToggle).toBe(true);
+    expect(capabilities("diagram.mmd")?.renderToggle).toBe(true);
+    expect(capabilities("notes.md")?.renderToggle).toBe(true);
+    expect(capabilities("main.py")?.renderToggle).toBe(false);
   });
 });

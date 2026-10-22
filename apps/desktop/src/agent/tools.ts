@@ -49,7 +49,10 @@ import {
   type FileReveal,
 } from "../shared/projectFiles";
 import { PROJECT_TEMPORARY_DIRECTORY } from "../shared/projects";
-import { binaryPreviewFormats } from "../shared/previewFormats";
+import {
+  documentPreviewExtensions,
+  previewExtension,
+} from "../shared/previewFormats";
 import {
   createNativeBashEnvironment,
   resolveLoginPath,
@@ -333,7 +336,7 @@ async function resolveFileReveal(
       `Highlight range ${inverted.start}-${inverted.end} ends before it starts.`,
     );
   const text =
-    !binaryPreviewFormats[path.extname(filePath).toLowerCase()] &&
+    !documentPreviewExtensions.has(previewExtension(filePath)) &&
     size <= MAX_TEXT_PREVIEW_BYTES
       ? decodePreviewText(await readFile(filePath))
       : null;

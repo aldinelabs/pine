@@ -58,16 +58,21 @@ const previewKey = computed(() => JSON.stringify(target.value));
 const preview = ref<ProjectFilePreview>();
 const failed = ref(false);
 const revision = ref(0);
-const renderer = computed(() => {
-  const value = preview.value;
-  return value && value.kind !== "unsupported"
-    ? resolvePreviewRenderer(previewRenderers, value, filePath.value)
-    : undefined;
-});
 /** Line targets refer to the source, so a located text file shows as source. */
 const reveal = computed(() =>
   preview.value?.kind === "text" ? current.value?.reveal : undefined,
 );
+const mode = computed(() => (reveal.value ? "code" : "rendered"));
+const renderer = computed(() => {
+  const value = preview.value;
+  return value && value.kind !== "unsupported"
+    ? resolvePreviewRenderer(previewRenderers, {
+        preview: value,
+        filePath: filePath.value,
+        mode: mode.value,
+      })
+    : undefined;
+});
 
 function projectIdOfSession(): string {
   const sessionId = sessionStore.activeSession?.id;
@@ -202,8 +207,9 @@ watch(
         :file-name="fileName"
         :file-path="filePath"
         :active="true"
-        :mode="reveal ? 'code' : 'rendered'"
+        :mode="mode"
         :reveal="reveal"
+        compact
         :zoom="100"
         :render-zoom="100"
         :inverted="false"

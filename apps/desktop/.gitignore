@@ -90,3 +90,6 @@ typings/
 
 # Electron-Forge
 out/
+
+# file-viewer runtime assets copied by its Vite plugin during development
+public/file-viewer/

@@ -103,7 +103,6 @@ export interface ProjectFileMetadata {
   size: number;
   modifiedAt: string;
 }
-export type OfficeDocumentFormat = "docx" | "xls" | "xlsx" | "pptx";
 export type ProjectFilePreview = ProjectFileMetadata &
   (
     | {
@@ -113,13 +112,19 @@ export type ProjectFilePreview = ProjectFileMetadata &
         /** Owner-scoped document URL used to resolve relative Markdown images. */
         url?: string;
       }
-    | { kind: "image" | "video" | "pdf"; url: string }
-    | { kind: "office"; format: OfficeDocumentFormat; url: string }
-    | { kind: "unsupported"; reason: "binary" | "too-large" }
+    /** Rendered by file-viewer from the bytes behind the owner-scoped URL. */
+    | { kind: "document"; url: string }
+    | {
+        kind: "unsupported";
+        reason: "binary" | "too-large" | "document-too-large";
+      }
   );
 
 /** Larger files preview as unsupported rather than as text. */
 export const MAX_TEXT_PREVIEW_BYTES = 2 * 1024 * 1024;
+
+/** Documents are read whole into the renderer, so larger ones are not previewed. */
+export const MAX_DOCUMENT_PREVIEW_BYTES = 512 * 1024 * 1024;
 
 /**
  * Decodes file bytes the way the previewer does: UTF-16 with a byte order

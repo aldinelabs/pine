@@ -4,11 +4,19 @@ import { Readable } from "node:stream";
 import type { ProjectFilePreview } from "../shared/projectFiles";
 import {
   MARKDOWN_IMAGE_PARAM,
+  MAX_DOCUMENT_PREVIEW_BYTES,
   MAX_TEXT_PREVIEW_BYTES,
   PROJECT_MEDIA_PROTOCOL,
   decodePreviewText,
 } from "../shared/projectFiles";
-import { binaryPreviewFormats } from "../shared/previewFormats";
+import {
+  documentPreviewExtensions,
+  imagePreviewExtensions,
+  isServedPreviewFile,
+  previewExtension,
+  previewMimeType,
+  renderedTextExtensions,
+} from "../shared/previewFormats";
 import { resolveProjectPath } from "./projectFiles";
 
 export { MAX_TEXT_PREVIEW_BYTES };
@@ -51,14 +59,23 @@ export async function readProjectFilePreview(
       size: metadata.size,
       modifiedAt: metadata.mtime.toISOString(),
     };
-    const extension = path.extname(filePath).toLowerCase();
-    const format = binaryPreviewFormats[extension];
-    if (format)
-      return format.kind === "office"
-        ? { ...info, kind: "office", format: format.format, url: mediaUrl }
-        : { ...info, kind: format.kind, url: mediaUrl };
+    const extension = previewExtension(filePath);
+    const document =
+      metadata.size > MAX_DOCUMENT_PREVIEW_BYTES
+        ? ({
+            ...info,
+            kind: "unsupported",
+            reason: "document-too-large",
+          } as const)
+        : ({ ...info, kind: "document", url: mediaUrl } as const);
+    if (documentPreviewExtensions.has(extension)) return document;
+    // Text formats with a rendered view fall back to it when the source is
+    // too large or not decodable as text.
+    const rendered = renderedTextExtensions.has(extension)
+      ? document
+      : undefined;
     if (metadata.size > MAX_TEXT_PREVIEW_BYTES)
-      return { ...info, kind: "unsupported", reason: "too-large" };
+      return rendered ?? { ...info, kind: "unsupported", reason: "too-large" };
 
     // Bound the read even if another process grows the file after stat().
     const bytes = Buffer.alloc(
@@ -76,10 +93,10 @@ export async function readProjectFilePreview(
       length += bytesRead;
     }
     if (length > metadata.size)
-      return { ...info, kind: "unsupported", reason: "too-large" };
+      return rendered ?? { ...info, kind: "unsupported", reason: "too-large" };
     const text = decodePreviewText(bytes.subarray(0, length));
     return text === null
-      ? { ...info, kind: "unsupported", reason: "binary" }
+      ? (rendered ?? { ...info, kind: "unsupported", reason: "binary" })
       : {
           ...info,
           kind: "text",
@@ -153,10 +170,7 @@ export async function serveProjectMediaRequest(
         ),
       });
     }
-    if (
-      binaryPreviewFormats[path.extname(filePath).toLowerCase()]?.kind !==
-      "image"
-    )
+    if (!imagePreviewExtensions.has(previewExtension(filePath)))
       return new Response(null, { status: 415 });
   }
   return serveProjectMedia(request, filePath);
@@ -167,9 +181,9 @@ export async function serveProjectMedia(
   request: Request,
   filePath: string,
 ): Promise<Response> {
-  const extension = path.extname(filePath).toLowerCase();
-  const mime = binaryPreviewFormats[extension]?.mimeType;
-  if (!mime) return new Response(null, { status: 415 });
+  if (!isServedPreviewFile(filePath))
+    return new Response(null, { status: 415 });
+  const mime = previewMimeType(filePath);
   if (request.method !== "GET" && request.method !== "HEAD")
     return new Response(null, { status: 405 });
   const file = await open(filePath, "r");

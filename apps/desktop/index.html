@@ -6,7 +6,7 @@
     <link rel="icon" type="image/png" href="/resources/icon.png" />
     <meta
       http-equiv="Content-Security-Policy"
-      content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https: http: pine-attachment: pine-project-media:; media-src 'self' pine-project-media:; font-src 'self' data:; connect-src 'self' pine-project-media: ws: http://localhost:*; worker-src 'self'"
+      content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https: http: pine-attachment: pine-project-media:; media-src 'self' blob: data: pine-project-media:; font-src 'self' data: blob:; connect-src 'self' blob: data: pine-project-media: ws: http://localhost:*; worker-src 'self' blob:; frame-src 'self' blob: data:"
     />
     <title>Pine</title>
   </head>

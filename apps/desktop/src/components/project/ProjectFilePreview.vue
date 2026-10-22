@@ -56,6 +56,7 @@ import type {
 import type { FileContentTab } from "@/stores/contentTabs";
 import { resolvePreviewRenderer } from "./file-preview/previewRenderer";
 import type {
+  PreviewRendererCapabilities,
   PreviewRendererHandle,
   PreviewRendererMetadata,
 } from "./file-preview/previewRenderer";
@@ -80,19 +81,38 @@ const rendererInstance = useTemplateRef<PreviewRendererHandle>("renderer");
 const renderer = computed(() => {
   const value = preview.value;
   return value && value.kind !== "unsupported"
-    ? resolvePreviewRenderer(previewRenderers, value, filePath.value)
+    ? resolvePreviewRenderer(previewRenderers, {
+        preview: value,
+        filePath: filePath.value,
+        mode: viewMode.value,
+      })
     : undefined;
 });
-const capabilities = computed(() => {
+/** Controls the mounted renderer reported after loading its content. */
+const loadedCapabilities = ref<Partial<PreviewRendererCapabilities>>({});
+const capabilities = computed<PreviewRendererCapabilities>(() => {
   const value = preview.value;
   if (!renderer.value || !value || value.kind === "unsupported")
     return { zoom: false, invert: false, renderToggle: false };
-  return renderer.value.capabilities({
-    preview: value,
-    filePath: filePath.value,
-    mode: viewMode.value,
-  });
+  return {
+    ...renderer.value.capabilities({
+      preview: value,
+      filePath: filePath.value,
+      mode: viewMode.value,
+    }),
+    ...loadedCapabilities.value,
+  };
 });
+const zoomMin = computed(() => capabilities.value.zoomMin ?? 50);
+const zoomMax = computed(() => capabilities.value.zoomMax ?? 200);
+// The first time the renderer can invert, follow the app's color scheme.
+let inversionFollowsScheme = true;
+watch(
+  () => renderer.value?.id,
+  () => {
+    loadedCapabilities.value = {};
+  },
+);
 const rendered = computed(
   () => capabilities.value.renderToggle && viewMode.value === "rendered",
 );
@@ -117,6 +137,29 @@ function handleSelectionChange(
 
 function handleMetadataChange(metadata: PreviewRendererMetadata): void {
   contentMetadata.value = { ...contentMetadata.value, ...metadata };
+}
+
+function handleCapabilitiesChange(
+  next: Partial<PreviewRendererCapabilities>,
+): void {
+  loadedCapabilities.value = next;
+  if (next.invert && inversionFollowsScheme) {
+    inversionFollowsScheme = false;
+    previewInverted.value = appearanceStore.colorScheme === "dark";
+  }
+}
+
+/** The renderer fitted or zoomed by itself; show its level without re-applying it. */
+function handleZoomChange(value: number): void {
+  if (zoomCommitTimer) clearTimeout(zoomCommitTimer);
+  if (zoomFrame !== undefined) {
+    cancelAnimationFrame(zoomFrame);
+    zoomFrame = undefined;
+  }
+  pendingZoom = value;
+  previewZoom.value = [value];
+  appliedZoom.value = value;
+  renderedZoom.value = value;
 }
 
 function updateMenu(open: boolean): void {
@@ -201,7 +244,10 @@ function commitZoom(value: number[]): void {
 function handlePreviewWheel(event: WheelEvent): void {
   if (!capabilities.value.zoom || !(event.ctrlKey || event.metaKey)) return;
   event.preventDefault();
-  const next = Math.max(50, Math.min(200, zoom.value - event.deltaY * 0.5));
+  const next = Math.max(
+    zoomMin.value,
+    Math.min(zoomMax.value, zoom.value - event.deltaY * 0.5),
+  );
   previewZoom.value = [Math.round(next)];
   scheduleZoom(Math.round(next));
   if (zoomCommitTimer) clearTimeout(zoomCommitTimer);
@@ -287,6 +333,8 @@ watch(
       viewMode.value = "rendered";
       contentMetadata.value = undefined;
       previewInverted.value = false;
+      inversionFollowsScheme = true;
+      loadedCapabilities.value = {};
       previewZoom.value = [100];
       if (zoomCommitTimer) clearTimeout(zoomCommitTimer);
       appliedZoom.value = 100;
@@ -396,7 +444,10 @@ onBeforeUnmount(() => {
           t(
             preview.kind === "unsupported" && preview.reason === "too-large"
               ? "project.preview.tooLarge"
-              : "project.preview.unsupportedDescription",
+              : preview.kind === "unsupported" &&
+                  preview.reason === "document-too-large"
+                ? "project.preview.documentTooLarge"
+                : "project.preview.unsupportedDescription",
           )
         }}</EmptyDescription>
       </EmptyHeader>
@@ -418,6 +469,8 @@ onBeforeUnmount(() => {
       :selection-label="t('project.preview.selectedContent')"
       @failed="failed = true"
       @metadata-change="handleMetadataChange"
+      @capabilities-change="handleCapabilitiesChange"
+      @zoom-change="handleZoomChange"
       @selection-change="handleSelectionChange"
       @zoom-wheel="handlePreviewWheel"
     />
@@ -450,8 +503,8 @@ onBeforeUnmount(() => {
         <Slider
           v-model="previewZoom"
           class="w-28"
-          :min="50"
-          :max="200"
+          :min="zoomMin"
+          :max="zoomMax"
           :step="10"
           :aria-label="t('project.preview.zoom')"
           :title="t('project.preview.zoomValue', { value: zoom })"

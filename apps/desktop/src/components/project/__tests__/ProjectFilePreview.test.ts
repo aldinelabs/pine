@@ -9,9 +9,7 @@ import { codeToHtml } from "@/lib/codeHighlight";
 import { Slider } from "@/components/ui/slider";
 import type { ProjectFilePreview as Preview } from "@/shared/projectFiles";
 import ProjectFilePreview from "../ProjectFilePreview.vue";
-import ProjectHtmlPreview from "../ProjectHtmlPreview.vue";
-import ProjectOfficePreview from "../ProjectOfficePreview.vue";
-import ProjectPdfPreview from "../ProjectPdfPreview.vue";
+import FileViewerPreviewRenderer from "../file-preview/FileViewerPreviewRenderer.vue";
 import { showProject } from "@/stores/__tests__/showProject";
 
 vi.mock("@/lib/codeHighlight", () => ({
@@ -19,46 +17,112 @@ vi.mock("@/lib/codeHighlight", () => ({
     .fn()
     .mockResolvedValue('<pre class="shiki"><code>highlighted</code></pre>'),
 }));
-vi.mock("vue-pdf-embed/dist/index.essential.mjs", () => ({
-  GlobalWorkerOptions: { workerSrc: "" },
-  default: {
-    name: "VuePdfEmbed",
-    props: {
-      source: { type: String, required: true },
-      width: Number,
-      textLayer: Boolean,
-    },
-    emits: ["loaded", "loading-failed", "rendering-failed"],
-    template:
-      '<div data-pdf-engine="vue-pdf-embed"><span>PDF selected text</span></div>',
-  },
+const fileViewer = vi.hoisted(() => {
+  interface FakeViewer {
+    container: HTMLElement;
+    options: Record<string, unknown>;
+    source?: Record<string, unknown>;
+    scale: number;
+    page: number;
+    load: ReturnType<typeof vi.fn>;
+    applyViewState: ReturnType<typeof vi.fn>;
+    fitToView: ReturnType<typeof vi.fn>;
+    search: ReturnType<typeof vi.fn>;
+    updateOptions: ReturnType<typeof vi.fn>;
+    [key: string]: unknown;
+  }
+  const state = {
+    rendererId: "pdf",
+    zoom: true,
+    pageCount: 0,
+    text: true,
+    fail: false,
+    instances: [] as FakeViewer[],
+  };
+  const contents: Record<string, string> = {
+    pdf: '<div class="pdf-page"><span>PDF selected text</span></div>',
+    "office-word-openxml":
+      "<section><span>Document selected text</span></section>",
+    image: '<img alt="" src="data:image/png;base64,aGVsbG8=">',
+    video: "<video controls></video>",
+    code: '<div class="html-viewer"><iframe class="html-preview-frame" sandbox=""></iframe></div>',
+    "spreadsheet-openxml": "<div data-pine-spreadsheet></div>",
+  };
+  function searchState(query: string, total: number, currentIndex: number) {
+    return Promise.resolve({
+      query,
+      total,
+      currentIndex,
+      current: null,
+      matches: [],
+    });
+  }
+  function createViewer(
+    container: HTMLElement,
+    {
+      options,
+      onEvent,
+    }: { options: Record<string, unknown>; onEvent: (event: unknown) => void },
+  ): FakeViewer {
+    const zoomState = () => ({
+      scale: viewer.scale,
+      label: `${Math.round(viewer.scale * 100)}%`,
+      canZoomIn: true,
+      canZoomOut: true,
+      canReset: true,
+      minScale: 0.25,
+      maxScale: 4,
+    });
+    const viewState = () => ({ page: viewer.page, pageCount: state.pageCount });
+    const viewer: FakeViewer = {
+      container,
+      options,
+      scale: 0.9,
+      page: 1,
+      load: vi.fn((source: Record<string, unknown>) => {
+        viewer.source = source;
+        if (state.fail)
+          return Promise.reject(new Error("Unreadable document."));
+        container.innerHTML = contents[state.rendererId] ?? "<div></div>";
+        // Images report their size once loaded, after the viewer settles.
+        const image = container.querySelector("img");
+        if (image) Object.defineProperty(image, "complete", { value: false });
+        return Promise.resolve({});
+      }),
+      getRenderer: () => ({ id: state.rendererId, load: () => undefined }),
+      getCapabilities: () => ({ zoom: state.zoom }),
+      getZoomState: zoomState,
+      getViewState: viewState,
+      getDocumentTextChunks: () => (state.text ? [{ text: "text" }] : []),
+      applyViewState: vi.fn((next: { scale?: number; page?: number }) => {
+        if (next.scale) viewer.scale = next.scale;
+        if (next.page) viewer.page = next.page;
+        return Promise.resolve(viewState());
+      }),
+      fitToView: vi.fn(() => {
+        viewer.scale = 0.75;
+        onEvent({ type: "zoom-change", payload: zoomState() });
+        return Promise.resolve({ applied: true });
+      }),
+      search: vi.fn((query: string) => searchState(query, 2, 0)),
+      nextSearchResult: vi.fn(() => searchState("", 2, 1)),
+      previousSearchResult: vi.fn(),
+      clearSearch: vi.fn(() => searchState("", 0, -1)),
+      updateOptions: vi.fn(),
+      destroy: vi.fn(() => Promise.resolve()),
+    };
+    state.instances.push(viewer);
+    return viewer;
+  }
+  return { state, createViewer };
+});
+vi.mock("@file-viewer/core", () => ({
+  createViewer: fileViewer.createViewer,
+  setDefaultFileViewerAssetBaseUrl: vi.fn(),
 }));
-vi.mock("@vue-office/docx", () => ({
-  default: {
-    name: "VueOfficeDocx",
-    props: ["src"],
-    emits: ["error", "cellSelected", "cellsSelected", "switchSheet"],
-    template:
-      '<div data-office-engine="docx" :data-source="src"><span>Document selected text</span></div>',
-  },
-}));
-vi.mock("@vue-office/excel", () => ({
-  default: {
-    name: "VueOfficeExcel",
-    props: ["src", "options"],
-    emits: ["error", "cellSelected", "cellsSelected", "switchSheet"],
-    template:
-      '<div data-office-engine="excel" :data-source="src" :data-legacy-xls="options?.xls || undefined" />',
-  },
-}));
-vi.mock("@vue-office/pptx", () => ({
-  default: {
-    name: "VueOfficePptx",
-    props: ["src"],
-    emits: ["error", "cellSelected", "cellsSelected", "switchSheet"],
-    template:
-      '<div data-office-engine="pptx" :data-source="src"><span>Document selected text</span></div>',
-  },
+vi.mock("@file-viewer/preset-all", () => ({
+  allRenderers: { id: "file-viewer-preset-all" },
+  setDefaultFullAssetBaseUrl: vi.fn(),
 }));
 const info = { size: 2048, modifiedAt: "2026-09-04T12:00:00Z" };
 const fileRequest = {
@@ -94,6 +158,10 @@ function render(
     history: createMemoryHistory(),
     routes: [{ path: "/", component: {} }],
   });
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(() => Promise.resolve(new Response("document bytes"))),
+  );
   Object.defineProperty(window, "pine", {
     configurable: true,
     value: {
@@ -114,11 +182,32 @@ function render(
 }
 afterEach(() => {
   wrappers.splice(0).forEach((wrapper) => wrapper.unmount());
+  Object.assign(fileViewer.state, {
+    rendererId: "pdf",
+    zoom: true,
+    pageCount: 0,
+    text: true,
+    fail: false,
+    instances: [],
+  });
   window.getSelection()?.removeAllRanges();
   vi.mocked(codeToHtml).mockResolvedValue(
     '<pre class="shiki"><code>highlighted</code></pre>',
   );
 });
+
+async function mountedViewer(wrapper: ReturnType<typeof mount>) {
+  await vi.waitFor(() => {
+    expect(fileViewer.state.instances.length).toBeGreaterThan(0);
+    expect(wrapper.find('[role="status"]').exists()).toBe(false);
+  });
+  await flushPromises();
+  return fileViewer.state.instances.at(-1)!;
+}
+
+function documentPreview(url = "pine-project-media://preview/document") {
+  return vi.fn().mockResolvedValue({ ...info, kind: "document", url });
+}
 
 function selectText(
   start: Node,
@@ -388,9 +477,11 @@ describe("ProjectFilePreview", () => {
     expect(wrapper.get("h1").text()).toBe("Newest");
   });
 
-  it("renders HTML in a sandboxed iframe by default and switches to source", async () => {
-    const source =
-      '<!doctype html><html><body><h1>Hello</h1><script>window.top.alert("unsafe")</script></body></html>';
+  it("renders HTML through file-viewer by default, scales its frame and switches to source", async () => {
+    fileViewer.state.rendererId = "code";
+    fileViewer.state.zoom = false;
+    fileViewer.state.text = false;
+    const source = "<!doctype html><html><body><h1>Hello</h1></body></html>";
     const wrapper = render(
       vi.fn().mockResolvedValue({
         ...info,
@@ -402,15 +493,16 @@ describe("ProjectFilePreview", () => {
     await wrapper.setProps({
       file: { ...file, relativePath: "public/index.html" },
     });
-    await flushPromises();
-
-    const htmlPreview = wrapper.findComponent(ProjectHtmlPreview);
-    expect(htmlPreview.exists()).toBe(true);
-    const frame = htmlPreview.get("iframe");
-    expect(frame.attributes("srcdoc")).toBe(source);
-    expect(frame.attributes("sandbox")).toBe("allow-same-origin");
-    expect(frame.attributes("referrerpolicy")).toBe("no-referrer");
-    expect(frame.attributes("title")).toBe("index.html");
+    const viewer = await mountedViewer(wrapper);
+    expect(viewer.source?.filename).toBe("index.html");
+    expect(new TextDecoder().decode(viewer.source?.buffer as ArrayBuffer)).toBe(
+      source,
+    );
+    expect(viewer.options).toMatchObject({
+      toolbar: false,
+      zoomGestures: false,
+      text: { toolbar: false },
+    });
 
     const mode = wrapper.get('[role="switch"]');
     expect(mode.attributes("aria-checked")).toBe("true");
@@ -419,52 +511,58 @@ describe("ProjectFilePreview", () => {
     slider.vm.$emit("update:modelValue", [150]);
     slider.vm.$emit("valueCommit", [150]);
     await flushPromises();
-    expect(htmlPreview.props("zoom")).toBe(150);
-    expect(frame.attributes("style")).toContain("transform: scale(1.5)");
+    expect(
+      wrapper.get('[data-slot="file-viewer"]').attributes("style"),
+    ).toContain("--pine-frame-zoom: 1.5");
     expect(wrapper.get('[aria-label="File metadata"]').text()).toContain(
       "HTML",
     );
 
     await mode.trigger("click");
     await flushPromises();
-    expect(wrapper.findComponent(ProjectHtmlPreview).exists()).toBe(false);
+    expect(wrapper.find('[data-slot="file-viewer"]').exists()).toBe(false);
     expect(wrapper.find("pre.shiki").exists()).toBe(true);
     expect(wrapper.findComponent(Slider).exists()).toBe(false);
+    expect(viewer.destroy).toHaveBeenCalled();
   });
 
-  it("zooms an image preview with a trackpad pinch without changing ordinary scrolling", async () => {
-    const wrapper = render(
-      vi.fn().mockResolvedValue({
-        ...info,
-        kind: "image",
-        url: "data:image/png;base64,aGVsbG8=",
-      }),
-    );
-    await flushPromises();
-    const image = wrapper.get<HTMLImageElement>("img").element;
-    Object.defineProperties(image, {
-      naturalWidth: { value: 1000 },
-      naturalHeight: { value: 800 },
-    });
-    image.dispatchEvent(new Event("load"));
-    await flushPromises();
-    expect(image.style.width).toBe("1000px");
-    const section = wrapper.element;
+  it("follows the viewer's fitted zoom and applies committed zoom levels", async () => {
+    fileViewer.state.rendererId = "image";
+    fileViewer.state.text = false;
+    const wrapper = render(documentPreview());
+    const viewer = await mountedViewer(wrapper);
+    expect(wrapper.get('[aria-label="File metadata"]').text()).toContain("90%");
     const ordinaryWheel = new WheelEvent("wheel", {
       bubbles: true,
       cancelable: true,
       deltaY: -40,
     });
-    section.dispatchEvent(ordinaryWheel);
+    wrapper.element.dispatchEvent(ordinaryWheel);
     expect(ordinaryWheel.defaultPrevented).toBe(false);
 
-    await wrapper.trigger("wheel", { ctrlKey: true, deltaY: -40 });
+    vi.useFakeTimers();
+    try {
+      await wrapper.trigger("wheel", { ctrlKey: true, deltaY: -40 });
+      vi.advanceTimersByTime(200);
+    } finally {
+      vi.useRealTimers();
+    }
     await flushPromises();
     expect(wrapper.get('[aria-label="File metadata"]').text()).toContain(
-      "120%",
+      "110%",
     );
-    expect(image.style.width).toBe("1200px");
-    expect(image.style.height).toBe("960px");
+    expect(viewer.applyViewState).toHaveBeenCalledWith(
+      { scale: 1.1 },
+      { notify: false },
+    );
+
+    const fit = wrapper
+      .findAll("button")
+      .find((button) => button.text() === "Fit width")!;
+    await fit.trigger("click");
+    await flushPromises();
+    expect(viewer.fitToView).toHaveBeenCalledWith("width");
+    expect(wrapper.get('[aria-label="File metadata"]').text()).toContain("75%");
   });
 
   it("switches Markdown between source and rendered content and locates rendered selections", async () => {
@@ -741,17 +839,19 @@ describe("ProjectFilePreview", () => {
       )
       .mockResolvedValueOnce({
         ...info,
-        kind: "image",
+        kind: "document",
         url: "pine-project-media://preview/image",
       });
+    fileViewer.state.rendererId = "image";
     const wrapper = render(read);
     await flushPromises();
     await wrapper.setProps({ file: { ...file, relativePath: "photo.png" } });
     await flushPromises();
     first({ ...info, kind: "text", text: "old", encoding: "UTF-8" });
-    await flushPromises();
-    expect(wrapper.get("img").attributes("src")).toBe(
+    await mountedViewer(wrapper);
+    expect(fetch).toHaveBeenLastCalledWith(
       "pine-project-media://preview/image",
+      expect.anything(),
     );
     expect(wrapper.find("pre").exists()).toBe(false);
     Object.defineProperties(wrapper.get("img").element, {
@@ -762,82 +862,103 @@ describe("ProjectFilePreview", () => {
     expect(wrapper.text()).toContain("640 × 480");
   });
 
-  it("renders video controls and dimensions with duration", async () => {
+  it("reports video dimensions and duration and pauses it in the background", async () => {
+    fileViewer.state.rendererId = "video";
+    fileViewer.state.zoom = false;
+    fileViewer.state.text = false;
     const wrapper = render(
-      vi.fn().mockResolvedValue({
-        ...info,
-        kind: "video",
-        url: "pine-project-media://preview/video",
-      }),
+      documentPreview("pine-project-media://preview/clip"),
     );
-    await flushPromises();
-    const video = wrapper.get("video");
-    expect(video.attributes()).toMatchObject({
-      controls: "",
-      preload: "metadata",
+    await wrapper.setProps({
+      file: { ...file, relativePath: "media/clip.mov" },
     });
-    expect(video.attributes("autoplay")).toBeUndefined();
-    Object.defineProperties(video.element, {
+    const viewer = await mountedViewer(wrapper);
+    expect(fetch).toHaveBeenCalledWith(
+      "pine-project-media://preview/clip",
+      expect.anything(),
+    );
+    expect(viewer.source).toMatchObject({ filename: "clip.mov", type: "mp4" });
+    expect(new TextDecoder().decode(viewer.source?.buffer as ArrayBuffer)).toBe(
+      "document bytes",
+    );
+    const video = wrapper.get("video").element;
+    Object.defineProperties(video, {
       videoWidth: { value: 1920 },
       videoHeight: { value: 1080 },
       duration: { value: 65 },
     });
-    await video.trigger("loadedmetadata");
+    video.dispatchEvent(new Event("loadedmetadata"));
+    await flushPromises();
     expect(wrapper.text()).toContain("1920 × 1080");
     expect(wrapper.text()).toContain("1:05");
-    await video.trigger("error");
-    expect(wrapper.text()).toContain("Unable to preview file");
+    expect(wrapper.find('[role="toolbar"]').exists()).toBe(false);
+
+    const pause = vi.spyOn(video, "pause");
+    await wrapper.setProps({ active: false });
+    expect(pause).toHaveBeenCalledTimes(1);
+    await wrapper.setProps({ active: true });
+    expect(wrapper.get("video").element).toBe(video);
+    expect(pause).toHaveBeenCalledTimes(1);
+    wrapper.unmount();
+    expect(pause).toHaveBeenCalledTimes(2);
   });
 
-  it("renders PDF documents with the PDF library and reports page count", async () => {
-    const wrapper = render(
-      vi.fn().mockResolvedValue({
-        ...info,
-        kind: "pdf",
-        url: "pine-project-media://preview/document",
-      }),
-    );
+  it("renders paged documents with page, search and inversion controls", async () => {
+    fileViewer.state.pageCount = 3;
+    const wrapper = render(documentPreview());
     useAppearanceStore().colorScheme = "dark";
-    await flushPromises();
-    await vi.waitFor(() => {
-      expect(wrapper.findComponent(ProjectPdfPreview).exists()).toBe(true);
+    const viewer = await mountedViewer(wrapper);
+    expect(fetch).toHaveBeenCalledWith(
+      "pine-project-media://preview/document",
+      expect.anything(),
+    );
+    expect(viewer.source).toMatchObject({ filename: "main.py" });
+    expect(viewer.options).toMatchObject({
+      pdf: { toolbar: false },
+      locale: "en-US",
     });
-    const pdfPreview = wrapper.findComponent(ProjectPdfPreview);
-    const pdf = pdfPreview.findComponent({ name: "VuePdfEmbed" });
-    expect(pdf.exists()).toBe(true);
-    expect(pdf.props()).toMatchObject({
-      source: "pine-project-media://preview/document",
-      textLayer: true,
-    });
-    expect(pdfPreview.props("inverted")).toBe(true);
+    expect(wrapper.get("footer").text()).toContain("3 pages");
+
+    const surface = wrapper.get('[data-slot="file-viewer"]');
     const invertSwitch = wrapper.get('[role="switch"]');
     expect(invertSwitch.attributes("aria-checked")).toBe("true");
     expect(wrapper.get("footer label").text()).toBe("Invert colors");
-    const slider = wrapper.findComponent(Slider);
-    expect(slider.exists()).toBe(true);
-    expect(slider.attributes("aria-label")).toBe("Zoom");
-    slider.vm.$emit("update:modelValue", [150]);
-    await flushPromises();
-    expect(pdfPreview.props("renderZoom")).toBe(100);
-    slider.vm.$emit("valueCommit", [150]);
-    await flushPromises();
-    expect(pdfPreview.props("zoom")).toBe(150);
-    expect(pdfPreview.props("renderZoom")).toBe(150);
-    expect(wrapper.get("footer").text()).toContain("150%");
+    expect(surface.classes()).toContain("pine-file-viewer-inverted");
+    // Inverted pages are light underneath, so the viewer stays in light mode.
+    expect(surface.attributes("data-viewer-theme")).toBe("light");
     await invertSwitch.trigger("click");
-    expect(pdfPreview.props("inverted")).toBe(false);
-    pdf.vm.$emit("loaded", { numPages: 3 });
+    expect(surface.classes()).not.toContain("pine-file-viewer-inverted");
+    expect(surface.attributes("data-viewer-theme")).toBe("dark");
+    expect(viewer.updateOptions).toHaveBeenLastCalledWith({ theme: "dark" });
+
+    await wrapper.get('[aria-label="Next page"]').trigger("click");
     await flushPromises();
-    expect(wrapper.get("footer").text()).toContain("3 pages");
-    const pdfText = pdf.get("span").element.firstChild!;
-    selectText(pdfText, 0, pdfText, "PDF selected text".length);
-    await pdfPreview.get(".scroll-fade").trigger("pointerup");
-    expect(pdfPreview.emitted("selectionChange")?.at(-1)?.[0]).toEqual({
-      startLine: 1,
-      endLine: 1,
-      label: "Selected content",
-      text: "PDF selected text",
-    });
+    expect(viewer.applyViewState).toHaveBeenCalledWith(
+      { page: 2 },
+      { action: "page-step", source: "user" },
+    );
+    const page = wrapper.get<HTMLInputElement>('[aria-label="Page"]');
+    expect(page.element.value).toBe("2");
+    page.element.value = "9";
+    await page.trigger("change");
+    await flushPromises();
+    expect(viewer.applyViewState).toHaveBeenLastCalledWith(
+      { page: 3 },
+      { action: "page-step", source: "user" },
+    );
+
+    const search = wrapper.get('input[type="search"]');
+    await search.setValue("pine");
+    await vi.waitFor(() => expect(viewer.search).toHaveBeenCalledWith("pine"));
+    await flushPromises();
+    expect(wrapper.get('[role="toolbar"]').text()).toContain("1/2");
+    await search.trigger("keydown", { key: "Enter" });
+    await flushPromises();
+    expect(wrapper.get('[role="toolbar"]').text()).toContain("2/2");
+
+    const text = surface.get("span").element.firstChild!;
+    selectText(text, 0, text, "PDF selected text".length);
+    await surface.trigger("pointerup");
     expect(wrapper.get('button[aria-haspopup="menu"]').text()).toContain(
       "Send selection to tab",
     );
@@ -846,139 +967,61 @@ describe("ProjectFilePreview", () => {
       action: "open",
       target: { folderId: "f1", projectId: "p1", relativePath: "src/main.py" },
     });
-    pdf.vm.$emit("rendering-failed", new Error("invalid PDF"));
-    await flushPromises();
-    expect(wrapper.text()).toContain("Unable to preview file");
   });
 
-  it.each([
-    ["docx", "docx"],
-    ["xls", "excel"],
-    ["xlsx", "excel"],
-    ["pptx", "pptx"],
-  ] as const)(
-    "renders %s documents with vue-office",
-    async (format, engine) => {
-      const source = "pine-project-media://preview/" + format;
-      const wrapper = render(
-        vi.fn().mockResolvedValue({
-          ...info,
-          kind: "office",
-          format,
-          url: source,
-        }),
-      );
-      useAppearanceStore().colorScheme = "dark";
-      await vi.waitFor(() => {
-        expect(wrapper.findComponent(ProjectOfficePreview).exists()).toBe(true);
-      });
-      const officePreview = wrapper.findComponent(ProjectOfficePreview);
-      if (format === "xls" || format === "xlsx") {
-        expect(
-          officePreview.find('[data-slot="office-preview-sizer"]').exists(),
-        ).toBe(false);
-      }
-      expect(officePreview.props("inverted")).toBe(true);
-      const slider = wrapper.findComponent(Slider);
-      slider.vm.$emit("update:modelValue", [130]);
-      slider.vm.$emit("valueCommit", [130]);
-      await flushPromises();
-      expect(officePreview.props("zoom")).toBe(130);
-      expect(officePreview.props("renderZoom")).toBe(130);
-      const invertSwitch = wrapper.get('[role="switch"]');
-      expect(invertSwitch.attributes("aria-checked")).toBe("true");
-      await invertSwitch.trigger("click");
-      expect(officePreview.props("inverted")).toBe(false);
-      await vi.waitFor(() => {
-        const viewer = officePreview.find(`[data-office-engine="${engine}"]`);
-        expect(viewer.exists()).toBe(true);
-        expect(viewer.attributes("data-source")).toBe(source);
-        expect(viewer.attributes("data-legacy-xls")).toBe(
-          format === "xls" ? "true" : undefined,
-        );
-      });
-      if (format === "xls" || format === "xlsx") {
-        const excel = officePreview.findComponent({ name: "VueOfficeExcel" });
-        expect(excel.element.getAttribute("style") ?? "").not.toContain("zoom");
-        const options = excel.props("options") as {
-          transformData: (value: unknown) => unknown;
-        };
-        const workbook = [
-          {
-            name: "Sheet1",
-            cols: { 0: { width: 80 } },
-            styles: [{ font: { size: 10 } }],
-            rows: {
-              0: {
-                height: 20,
-                cells: { 0: { text: "Name" }, 1: { text: "Value" } },
-              },
-              1: { cells: { 0: { text: "Pine" }, 1: { text: 42 } } },
-            },
+  it("sends a spreadsheet cell range with its sheet location", async () => {
+    fileViewer.state.rendererId = "spreadsheet-openxml";
+    const wrapper = render(documentPreview());
+    await mountedViewer(wrapper);
+    const values = [
+      ["Name", "Value"],
+      ["Pine", 42],
+    ];
+    const table = wrapper.get("[data-pine-spreadsheet]")
+      .element as HTMLElement & {
+      pineSpreadsheet?: unknown;
+    };
+    table.pineSpreadsheet = {
+      sheetName: () => "Sheet1",
+      table: () => ({
+        ctx: {
+          selector: { enable: true, xArr: [0, 2], yArr: [0, 1] },
+          database: {
+            getVirtualBodyCell: (row: number, column: number) =>
+              column === 0
+                ? { column: { key: "__index" }, row: { __k: String(row) } }
+                : {
+                    column: { key: `c${column - 1}` },
+                    row: { __k: String(row) },
+                    getValue: () => values[row][column - 1],
+                  },
           },
-        ];
-        options.transformData(workbook);
-        expect(workbook[0].rows[0].height).toBe(26);
-        expect(workbook[0].cols[0].width).toBe(104);
-        expect(workbook[0].styles[0].font.size).toBe(13);
-        excel.vm.$emit("cellsSelected", {
-          startRowIndex: 0,
-          startColumnIndex: 0,
-          endRowIndex: 1,
-          endColumnIndex: 1,
-        });
-        await flushPromises();
-        expect(officePreview.emitted("selectionChange")?.at(-1)?.[0]).toEqual({
-          startLine: 1,
-          endLine: 2,
-          label: "Selected content · Sheet1!A1:B2",
-          text: "Name\tValue\nPine\t42",
-        });
-      } else {
-        const documentText = officePreview.get("span").element.firstChild!;
-        selectText(
-          documentText,
-          0,
-          documentText,
-          "Document selected text".length,
-        );
-        await officePreview.get(".scroll-fade").trigger("pointerup");
-        expect(officePreview.emitted("selectionChange")?.at(-1)?.[0]).toEqual({
-          startLine: 1,
-          endLine: 1,
-          label: "Selected content",
-          text: "Document selected text",
-        });
-      }
-      expect(wrapper.get('button[aria-haspopup="menu"]').text()).toContain(
-        "Send selection to tab",
-      );
-      officePreview.vm.$emit("failed");
-      await flushPromises();
-      expect(wrapper.text()).toContain("Unable to preview file");
-    },
-  );
-
-  it("pauses background video without resetting its playback position", async () => {
-    const wrapper = render(
-      vi.fn().mockResolvedValue({
-        ...info,
-        kind: "video",
-        url: "pine-project-media://preview/video",
+        },
       }),
+    };
+    await wrapper.get('[data-slot="file-viewer"]').trigger("pointerup");
+    expect(
+      wrapper
+        .findComponent(FileViewerPreviewRenderer)
+        .emitted("selectionChange")
+        ?.at(-1)?.[0],
+    ).toEqual({
+      startLine: 1,
+      endLine: 2,
+      label: "Selected content · Sheet1!A1:B2",
+      text: "Name\tValue\nPine\t42",
+    });
+    expect(wrapper.get('button[aria-haspopup="menu"]').text()).toContain(
+      "Send selection to tab",
     );
-    await flushPromises();
-    const video = wrapper.get("video").element;
-    const pause = vi.spyOn(video, "pause");
-    video.currentTime = 42;
-    await wrapper.setProps({ active: false });
-    expect(pause).toHaveBeenCalledTimes(1);
-    await wrapper.setProps({ active: true });
-    expect(wrapper.get("video").element).toBe(video);
-    expect(video.currentTime).toBe(42);
-    expect(pause).toHaveBeenCalledTimes(1);
-    wrapper.unmount();
-    expect(pause).toHaveBeenCalledTimes(2);
+  });
+
+  it("shows the failed state when the document cannot be rendered", async () => {
+    fileViewer.state.fail = true;
+    const wrapper = render(documentPreview());
+    await vi.waitFor(() =>
+      expect(wrapper.text()).toContain("Unable to preview file"),
+    );
   });
 
   it("shows unsupported and error states and allows retrying", async () => {

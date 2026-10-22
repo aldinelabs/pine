@@ -20,6 +20,8 @@ export interface PreviewRendererProps {
   selectionLabel: string;
   /** Line to scroll to and lines to tint; only text renderers use it. */
   reveal?: FileReveal;
+  /** The workbench card shows the content alone, without in-preview controls. */
+  compact?: boolean;
 }
 
 export interface PreviewRendererMetadata {
@@ -34,6 +36,10 @@ export type PreviewRendererEvents = {
   metadataChange: [metadata: PreviewRendererMetadata];
   selectionChange: [selection: AttachmentSelection | undefined];
   zoomWheel: [event: WheelEvent];
+  /** Controls a renderer can only offer once its content has loaded. */
+  capabilitiesChange: [capabilities: Partial<PreviewRendererCapabilities>];
+  /** The renderer changed its own zoom, in percent (fit, gestures). */
+  zoomChange: [zoom: number];
 };
 
 export interface PreviewRendererHandle {
@@ -44,6 +50,9 @@ export interface PreviewRendererCapabilities {
   zoom: boolean;
   invert: boolean;
   renderToggle: boolean;
+  /** Zoom bounds in percent; the preview defaults to 50–200. */
+  zoomMin?: number;
+  zoomMax?: number;
 }
 
 export interface PreviewRendererContext {
@@ -56,7 +65,7 @@ export interface PreviewRendererContext {
 export interface PreviewRenderer {
   id: string;
   component: Component;
-  supports: (preview: RenderablePreview, filePath: string) => boolean;
+  supports: (context: PreviewRendererContext) => boolean;
   capabilities: (
     context: PreviewRendererContext,
   ) => PreviewRendererCapabilities;
@@ -64,8 +73,7 @@ export interface PreviewRenderer {
 
 export function resolvePreviewRenderer(
   renderers: readonly PreviewRenderer[],
-  preview: RenderablePreview,
-  filePath: string,
+  context: PreviewRendererContext,
 ): PreviewRenderer | undefined {
-  return renderers.find((renderer) => renderer.supports(preview, filePath));
+  return renderers.find((renderer) => renderer.supports(context));
 }
