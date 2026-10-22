@@ -568,7 +568,7 @@ export default {
       unsupportedDescription:
         "目前支持文本与代码、图片、音视频、PDF、Office 文档、压缩包、邮件、电子书、CAD 图纸和 3D 模型等格式。",
       tooLarge: "文本文件超过 2 MB，暂不支持预览。",
-      documentTooLarge: "文件超过 512 MB，暂不支持预览。",
+      documentTooLarge: "文件超过 1 GB，暂不支持预览。",
       documentControls: "文档控件",
       search: "搜索文档",
       searchPrevious: "上一个结果",

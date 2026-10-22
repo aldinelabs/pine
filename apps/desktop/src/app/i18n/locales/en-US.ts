@@ -596,7 +596,7 @@ export default {
       unsupportedDescription:
         "Text and code, images, audio and video, PDF, Office documents, archives, email, e-books, CAD drawings, 3D models, and more are supported.",
       tooLarge: "Text files larger than 2 MB cannot be previewed yet.",
-      documentTooLarge: "Files larger than 512 MB cannot be previewed yet.",
+      documentTooLarge: "Files larger than 1 GB cannot be previewed yet.",
       documentControls: "Document controls",
       search: "Search document",
       searchPrevious: "Previous match",

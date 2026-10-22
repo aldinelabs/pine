@@ -126,7 +126,7 @@ export type ProjectFilePreview = ProjectFileMetadata &
 export const MAX_TEXT_PREVIEW_BYTES = 2 * 1024 * 1024;
 
 /** Documents are read whole into the renderer, so larger ones are not previewed. */
-export const MAX_DOCUMENT_PREVIEW_BYTES = 512 * 1024 * 1024;
+export const MAX_DOCUMENT_PREVIEW_BYTES = 1024 * 1024 * 1024;
 
 /**
  * Decodes file bytes the way the previewer does: UTF-16 with a byte order
