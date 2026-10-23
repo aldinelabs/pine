@@ -11,8 +11,11 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { resolvePreviewRenderer } from "@/components/project/file-preview/previewRenderer";
 import { previewRenderers } from "@/components/project/file-preview/previewRenderers";
+import { changedLineRanges } from "@/lib/changedLines";
+import { fileLanguage } from "@/lib/fileLanguage";
 import { fileName as baseName, fileTargetPath } from "@/lib/filePreviewTarget";
 import type {
+  FileLineRange,
   FilePreviewChangedEvent,
   FilePreviewTarget,
   ProjectFilePreview,
@@ -27,6 +30,10 @@ import { useWorkbenchStore } from "@/stores/workbench";
  * size, without zoom, selection, or file actions. The card's "Open in tab"
  * switches to the full previewer.
  */
+const emit = defineEmits<{
+  /** The file changed in a way the preview cannot mark line by line. */
+  contentChanged: [];
+}>();
 const { t } = useI18n();
 const workbench = useWorkbenchStore();
 const contentTabs = useContentTabsStore();
@@ -58,6 +65,8 @@ const previewKey = computed(() => JSON.stringify(target.value));
 const preview = ref<ProjectFilePreview>();
 const failed = ref(false);
 const revision = ref(0);
+/** Lines the file gained when it last changed on disk. */
+const changedLines = ref<FileLineRange[]>();
 /** Line targets refer to the source, so a located text file shows as source. */
 const reveal = computed(() =>
   preview.value?.kind === "text" ? current.value?.reveal : undefined,
@@ -115,6 +124,34 @@ async function regrant(): Promise<boolean> {
   return false;
 }
 
+/**
+ * Marks what a change on disk touched: the new lines when the source is on
+ * screen, otherwise the whole card.
+ */
+function showChange(
+  before: ProjectFilePreview | undefined,
+  after: ProjectFilePreview,
+): void {
+  if (!before) return;
+  if (before.kind === "text" && after.kind === "text") {
+    if (before.text === after.text) return;
+    const showsSource =
+      renderer.value?.id === "text" &&
+      (mode.value === "code" || fileLanguage(filePath.value) !== "markdown");
+    const ranges = changedLineRanges(before.text, after.text);
+    if (showsSource && ranges.length) {
+      changedLines.value = ranges;
+      return;
+    }
+  } else if (
+    before.kind === after.kind &&
+    before.size === after.size &&
+    before.modifiedAt === after.modifiedAt
+  )
+    return;
+  emit("contentChanged");
+}
+
 const watchId = useId();
 const unsubscribe = window.pine.onFilePreviewChanged?.(
   (event: FilePreviewChangedEvent) => {
@@ -136,7 +173,11 @@ watch(
       active = false;
     });
     const value = target.value;
-    if (key !== previous?.[0]) preview.value = undefined;
+    const reloaded = key === previous?.[0];
+    if (!reloaded) {
+      preview.value = undefined;
+      changedLines.value = undefined;
+    }
     failed.value = false;
     if (!value) return;
     // Watching for changes is best effort; it must never block the read.
@@ -154,7 +195,9 @@ watch(
         if (await regrant()) return read(value);
         throw error;
       });
-      if (active) preview.value = result;
+      if (!active) return;
+      if (reloaded) showChange(preview.value, result);
+      preview.value = result;
     } catch {
       if (active) failed.value = true;
     }
@@ -209,6 +252,7 @@ watch(
         :active="true"
         :mode="mode"
         :reveal="reveal"
+        :changed-lines="changedLines"
         compact
         :zoom="100"
         :render-zoom="100"

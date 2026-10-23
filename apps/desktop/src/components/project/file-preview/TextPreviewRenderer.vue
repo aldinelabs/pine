@@ -199,6 +199,7 @@ defineExpose({ readSelection });
         }"
         :highlight-lines="reveal?.highlights"
         :reveal-line="reveal?.line"
+        :changed-lines="changedLines"
       />
     </div>
   </ScrollArea>

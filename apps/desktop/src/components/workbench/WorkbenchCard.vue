@@ -27,6 +27,7 @@ import {
 import { useContentTabNavigation } from "@/composables/useContentTabNavigation";
 import { fileName, fileTargetPath } from "@/lib/filePreviewTarget";
 import { cn } from "@/lib/utils";
+import { useAttentionFlashStore } from "@/stores/attentionFlash";
 import { useBackgroundTasksStore } from "@/stores/backgroundTasks";
 import { useContentTabsStore } from "@/stores/contentTabs";
 import { useProjectStore } from "@/stores/project";
@@ -43,6 +44,9 @@ const { t } = useI18n();
 const workbench = useWorkbenchStore();
 const session = useSessionStore();
 const backgroundTasks = useBackgroundTasksStore();
+const attentionFlash = useAttentionFlashStore();
+/** The panel's content changed in a way it cannot point at itself. */
+const changeFlashId = computed(() => `workbench-card:${props.position}`);
 
 const PANEL_COMPONENTS: Record<WorkbenchPanel, Component> = {
   artifacts: WorkbenchArtifactsPanel,
@@ -108,6 +112,9 @@ const summary = computed(() => {
         // inset outline instead of the pulse's outer shadow.
         workbench.isHighlighted(panel) &&
           'attention-flash outline-1 -outline-offset-1 outline-(--attention-flash-color) [--attention-flash-box-shadow:none]',
+        // A one-shot info pulse, as on a content tab whose file changed.
+        attentionFlash.isFlashingOnce(changeFlashId) &&
+          'attention-flash attention-flash-once',
       )
     "
     @pointerenter="workbench.acknowledge(panel)"
@@ -201,7 +208,10 @@ const summary = computed(() => {
           :key="panel"
           class="scroll-fade-y no-scrollbar absolute inset-0 overflow-y-auto"
         >
-          <component :is="PANEL_COMPONENTS[panel]" />
+          <component
+            :is="PANEL_COMPONENTS[panel]"
+            @content-changed="attentionFlash.flashOnce(changeFlashId)"
+          />
         </div>
       </Transition>
     </CardContent>

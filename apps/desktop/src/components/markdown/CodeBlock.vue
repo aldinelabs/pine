@@ -39,6 +39,11 @@ const props = defineProps<{
    * into view; the mark spans the highlighted range that starts there.
    */
   revealLine?: number;
+  /**
+   * Preview layout only: lines that changed since the file was last read.
+   * Each new array tints them once and fades.
+   */
+  changedLines?: readonly FileLineRange[];
 }>();
 
 const { colorScheme } = storeToRefs(useAppearanceStore());
@@ -66,6 +71,21 @@ const highlightBands = computed(() =>
       }))
     : [],
 );
+/** Counts updates, so each one restarts the fade even on the same lines. */
+const changeGeneration = ref(0);
+watch(
+  () => props.changedLines,
+  () => {
+    changeGeneration.value += 1;
+  },
+);
+const changeBands = computed(() => {
+  if (props.layout !== "preview" || !props.changedLines?.length) return [];
+  return props.changedLines.map(({ start, end }) => ({
+    key: `${changeGeneration.value}:${start}-${end}`,
+    style: lineBand(start, end),
+  }));
+});
 const revealBand = computed(() => {
   const line = props.revealLine;
   if (props.layout !== "preview" || line === undefined) return undefined;
@@ -222,6 +242,14 @@ async function copyCode(): Promise<void> {
             :style="band.style"
           />
           <div
+            v-for="band in changeBands"
+            :key="band.key"
+            class="code-preview-line-change"
+            data-slot="code-line-change"
+            aria-hidden="true"
+            :style="band.style"
+          />
+          <div
             v-if="revealBand"
             class="code-preview-reveal"
             data-slot="code-reveal"
@@ -315,6 +343,7 @@ async function copyCode(): Promise<void> {
 }
 
 .code-highlight[data-layout="preview"] .code-preview-line-highlight,
+.code-highlight[data-layout="preview"] .code-preview-line-change,
 .code-highlight[data-layout="preview"] .code-preview-reveal {
   position: absolute;
   inset-inline: 0;
@@ -326,6 +355,36 @@ async function copyCode(): Promise<void> {
   z-index: -1;
   background-color: color-mix(in oklch, var(--color-warning) 16%, transparent);
   box-shadow: inset 2px 0 0 var(--color-warning);
+}
+
+/* Lines the file just gained, in the info color of file-change pulses. They
+   hold long enough to find, then fade away. */
+.code-highlight[data-layout="preview"] .code-preview-line-change {
+  z-index: -1;
+  background-color: color-mix(in oklch, var(--color-info) 16%, transparent);
+  box-shadow: inset 2px 0 0 var(--color-info);
+  opacity: 0;
+  animation: code-line-change 3s forwards;
+}
+
+@keyframes code-line-change {
+  0% {
+    opacity: 0;
+    animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  10% {
+    opacity: 1;
+  }
+
+  55% {
+    opacity: 1;
+    animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  100% {
+    opacity: 0;
+  }
 }
 
 .code-highlight[data-layout="preview"] .code-preview-gutter {

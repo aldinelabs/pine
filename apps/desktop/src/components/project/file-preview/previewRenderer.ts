@@ -1,6 +1,10 @@
 import type { Component } from "vue";
 import type { AttachmentSelection } from "@/shared/attachments";
-import type { FileReveal, ProjectFilePreview } from "@/shared/projectFiles";
+import type {
+  FileLineRange,
+  FileReveal,
+  ProjectFilePreview,
+} from "@/shared/projectFiles";
 
 export type PreviewDisplayMode = "code" | "rendered";
 export type RenderablePreview = Exclude<
@@ -20,6 +24,8 @@ export interface PreviewRendererProps {
   selectionLabel: string;
   /** Line to scroll to and lines to tint; only text renderers use it. */
   reveal?: FileReveal;
+  /** Lines that changed when the file was last re-read; only source views tint them. */
+  changedLines?: readonly FileLineRange[];
   /** The workbench card shows the content alone, without in-preview controls. */
   compact?: boolean;
 }
