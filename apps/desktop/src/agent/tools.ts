@@ -521,9 +521,12 @@ export async function createPineToolDefinitions(
     prepareArguments: (args) => args as Static<typeof pineShellParams>,
     execute: async (toolCallId, inputParams, signal, onUpdate, ctx) => {
       const params = structuredClone(inputParams);
+      // The tool stays declared in YOLO mode so a mode switch never changes
+      // the tool list (and the provider's cached prompt prefix). Calls are
+      // redirected to the native shell instead of running here.
       if (getApprovalMode() === "YOLO") {
         throw new Error(
-          `Ordinary ${shellName} is disabled in YOLO mode. Use ${privilegedShellName} instead.`,
+          `Ordinary ${shellName} is disabled in YOLO mode; this command was not run and had no effects. Call ${privilegedShellName} with the same command and description instead, and use ${privilegedShellName} for every shell command while YOLO mode is active.`,
         );
       }
       const command = params.command;

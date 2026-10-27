@@ -4,6 +4,7 @@ import {
   PINE_SYSTEM_PROMPT,
   systemPromptWithUserProfile,
   systemPromptWithCurrentMonth,
+  approvalModeNotice,
   approvalModeSystemPrompt,
   systemPromptForPlatform,
 } from "../system-prompt";
@@ -91,13 +92,29 @@ describe("systemPromptWithUserProfile", () => {
 });
 
 describe("approvalModeSystemPrompt", () => {
-  it("identifies the active mode and includes the YOLO guidance only there", () => {
-    expect(approvalModeSystemPrompt("autonomous")).toContain(
-      "Current mode: autonomous",
+  it("does not depend on the active mode", () => {
+    const prompt = approvalModeSystemPrompt("darwin");
+    expect(prompt).toContain(PINE_YOLO_SYSTEM_PROMPT);
+    expect(prompt).not.toContain("Current mode");
+    expect(approvalModeSystemPrompt("win32")).toContain(
+      "call privileged_powershell directly",
     );
-    expect(approvalModeSystemPrompt("YOLO")).toContain(PINE_YOLO_SYSTEM_PROMPT);
-    expect(approvalModeSystemPrompt("autonomous")).not.toContain(
-      PINE_YOLO_SYSTEM_PROMPT,
+  });
+});
+
+describe("approvalModeNotice", () => {
+  it("names the active mode and redirects shell calls only in YOLO", () => {
+    expect(approvalModeNotice("autonomous", "darwin")).toContain(
+      "Autonomous Work (autonomous)",
+    );
+    expect(approvalModeNotice("autonomous", "darwin")).not.toContain(
+      "privileged_bash",
+    );
+    expect(approvalModeNotice("YOLO", "darwin")).toContain(
+      "use privileged_bash for every shell command",
+    );
+    expect(approvalModeNotice("YOLO", "win32")).toContain(
+      "Ordinary PowerShell calls are rejected",
     );
   });
 });

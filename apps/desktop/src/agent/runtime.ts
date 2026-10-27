@@ -63,6 +63,7 @@ import {
   systemPromptForPlatform,
   systemPromptWithUserProfile,
   systemPromptWithCurrentMonth,
+  approvalModeNotice,
   approvalModeSystemPrompt,
 } from "./system-prompt";
 import {
@@ -145,7 +146,9 @@ import {
   sessionSummary,
   skillAuthoringActiveFromSessionEntries,
   textFromMessageContent,
-  toolNamesForApprovalMode,
+  announcedApprovalMode,
+  PINE_APPROVAL_MODE_NOTICE,
+  toolNamesForTinyFishCredential,
   toolNamesForCompactionRoute,
   toolNamesForComputerUseState,
   toolNamesForMediaGenerationState,
@@ -176,7 +179,8 @@ export {
   mediaGenerationActiveFromSessionEntries,
   projectSessionDirectory,
   skillAuthoringActiveFromSessionEntries,
-  toolNamesForApprovalMode,
+  announcedApprovalMode,
+  toolNamesForTinyFishCredential,
   toolNamesForComputerUseState,
   toolNamesForMediaGenerationState,
   toolNamesForSkillAuthoringState,
@@ -730,7 +734,7 @@ export class PineAgentRuntime {
   } {
     for (const live of this.liveSessions.values()) {
       live.contextCompactionRoute = route;
-      this.syncApprovalModeTools(live);
+      this.syncActiveTools(live);
     }
     return { updated: true };
   }
@@ -833,7 +837,7 @@ export class PineAgentRuntime {
           PINE_SKILL_AUTHORING_ACTIVE_ENTRY,
           { active: true },
         );
-        this.syncApprovalModeTools(live);
+        this.syncActiveTools(live);
       },
     });
     const resourceLoader = new DefaultResourceLoader({
@@ -853,7 +857,7 @@ export class PineAgentRuntime {
               event.systemPromptOptions.sections.pine_profile =
                 systemPromptWithUserProfile("", userProfile).trim();
               event.systemPromptOptions.sections.pine_approval_mode =
-                approvalModeSystemPrompt(live.approvalMode);
+                approvalModeSystemPrompt();
               event.systemPromptOptions.sections.pine_time =
                 systemPromptWithCurrentMonth("").trim();
               const networkRegion = networkRegionSystemPrompt(
@@ -865,7 +869,21 @@ export class PineAgentRuntime {
               const skillList = skillRepository.promptList();
               if (skillList)
                 event.systemPromptOptions.sections.pine_skills = skillList;
-              return undefined;
+              // The mode lives in the conversation, not the system prompt or
+              // tool list, so a mid-session switch keeps the cached prefix.
+              if (
+                announcedApprovalMode(live.session.messages) ===
+                live.approvalMode
+              )
+                return undefined;
+              return {
+                message: {
+                  customType: PINE_APPROVAL_MODE_NOTICE,
+                  content: approvalModeNotice(live.approvalMode),
+                  display: false,
+                  details: { approvalMode: live.approvalMode },
+                },
+              };
             });
           },
         },
@@ -876,7 +894,7 @@ export class PineAgentRuntime {
           factory: (pi) => {
             pi.events.on(MCP_STATUS_EVENT, (snapshot) => {
               live.mcpStatus = snapshot as McpStatusSnapshot;
-              if (live.session) this.syncApprovalModeTools(live);
+              if (live.session) this.syncActiveTools(live);
             });
             pi.events.on(MCP_TOOL_APPROVAL_REQUEST_EVENT, (value) => {
               const request = value as McpToolApprovalRequest;
@@ -944,7 +962,7 @@ export class PineAgentRuntime {
               PINE_MEDIA_GENERATION_ACTIVE_ENTRY,
               { active: true },
             );
-            this.syncApprovalModeTools(live);
+            this.syncActiveTools(live);
           },
           imageModelId: async () => {
             const selected = (await readPineAgentSettings(live.agentDir))
@@ -1016,7 +1034,7 @@ export class PineAgentRuntime {
     // that option as a permanent registry allowlist, which would make lazily
     // activated tools impossible to add later. All definitions are registered
     // above, then the initial model-visible set is narrowed before any prompt.
-    this.syncApprovalModeTools(live);
+    this.syncActiveTools(live);
     live.unsubscribe = session.subscribe((event) =>
       this.forwardEvent(session, event),
     );
@@ -1076,7 +1094,6 @@ export class PineAgentRuntime {
         approvalMode === "let-me-review" ? "user" : "auto",
       );
     }
-    this.syncApprovalModeTools(live);
     this.persistApprovalMode(live);
   }
 
@@ -1102,13 +1119,13 @@ export class PineAgentRuntime {
     });
   }
 
-  private syncApprovalModeTools(live: LiveAgentSession): void {
+  private syncActiveTools(live: LiveAgentSession): void {
     const activeToolNames = live.session.getActiveToolNames();
     const mcpToolNames = live.session
       .getAllTools()
       .filter((tool) => tool.sourceInfo.path === "<inline:pi-mcp-adapter>")
       .map((tool) => tool.name);
-    const nextToolNames = toolNamesForApprovalMode(
+    const nextToolNames = toolNamesForTinyFishCredential(
       toolNamesForMediaGenerationState(
         toolNamesForComputerUseState(
           toolNamesForSkillAuthoringState(
@@ -1122,7 +1139,6 @@ export class PineAgentRuntime {
         ),
         live.mediaGenerationActive,
       ),
-      live.approvalMode,
       live.tinyFishApiKey !== undefined,
     );
     if (
@@ -1142,7 +1158,7 @@ export class PineAgentRuntime {
         "Finish the current response before reloading MCP servers.",
       );
     await live.session.reload();
-    this.syncApprovalModeTools(live);
+    this.syncActiveTools(live);
     return { updated: true };
   }
 
@@ -1283,7 +1299,7 @@ export class PineAgentRuntime {
     for (const live of this.liveSessions.values()) {
       if (normalized) live.tinyFishApiKey = normalized;
       else delete live.tinyFishApiKey;
-      this.syncApprovalModeTools(live);
+      this.syncActiveTools(live);
     }
     return { updated: true };
   }

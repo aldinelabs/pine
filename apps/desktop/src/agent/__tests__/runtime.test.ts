@@ -23,11 +23,13 @@ import {
   projectSessionDirectory,
   recommendedCompactionReserveTokens,
   titleFromAssistantMessage,
-  toolNamesForApprovalMode,
+  announcedApprovalMode,
+  toolNamesForTinyFishCredential,
   toolNamesForComputerUseState,
   toolNamesForMediaGenerationState,
   toolNamesForSkillAuthoringState,
 } from "../runtime";
+import { PINE_APPROVAL_MODE_NOTICE } from "../runtime/session-state";
 import { serializeAttachmentMessage } from "../../shared/attachments";
 import { ACTIVATE_COMPUTER_USE_TOOL_NAME } from "../computer-use/tools";
 
@@ -329,27 +331,7 @@ describe("titleFromAssistantMessage", () => {
   });
 });
 
-describe("toolNamesForApprovalMode", () => {
-  const tools = ["read", "bash", "edit", "write", "privileged_bash"];
-
-  it("removes ordinary bash in yolo mode", () => {
-    expect(toolNamesForApprovalMode(tools, "YOLO")).toEqual([
-      "read",
-      "edit",
-      "write",
-      "privileged_bash",
-    ]);
-  });
-
-  it("restores ordinary bash before privileged bash", () => {
-    expect(
-      toolNamesForApprovalMode(
-        ["read", "edit", "write", "privileged_bash"],
-        "auto-approve",
-      ),
-    ).toEqual(tools);
-  });
-
+describe("toolNamesForTinyFishCredential", () => {
   it("only exposes TinyFish tools when a credential is configured", () => {
     const activeTools = [
       "read",
@@ -358,13 +340,46 @@ describe("toolNamesForApprovalMode", () => {
       "write",
       "web_search",
       "web_fetch",
+      "privileged_bash",
     ];
+    expect(toolNamesForTinyFishCredential(activeTools, false)).toEqual([
+      "read",
+      "bash",
+      "edit",
+      "write",
+      "privileged_bash",
+    ]);
+    expect(toolNamesForTinyFishCredential(activeTools, true)).toEqual([
+      "read",
+      "bash",
+      "edit",
+      "write",
+      "privileged_bash",
+      "web_search",
+      "web_fetch",
+    ]);
+  });
+});
+
+describe("announcedApprovalMode", () => {
+  it("returns the most recent permission mode notice", () => {
+    expect(announcedApprovalMode([])).toBeUndefined();
     expect(
-      toolNamesForApprovalMode(activeTools, "auto-approve", false),
-    ).toEqual(["read", "bash", "edit", "write"]);
-    expect(toolNamesForApprovalMode(activeTools, "auto-approve", true)).toEqual(
-      [...activeTools],
-    );
+      announcedApprovalMode([
+        {
+          role: "custom",
+          customType: PINE_APPROVAL_MODE_NOTICE,
+          details: { approvalMode: "auto-approve" },
+        },
+        { role: "user", content: "hi" },
+        {
+          role: "custom",
+          customType: PINE_APPROVAL_MODE_NOTICE,
+          details: { approvalMode: "YOLO" },
+        },
+        { role: "custom", customType: "other", details: {} },
+      ]),
+    ).toBe("YOLO");
   });
 });
 
@@ -729,6 +744,44 @@ describe("PineAgentRuntime", () => {
     }
   });
 
+  it("keeps the tool list unchanged when switching to YOLO", async () => {
+    const root = await mkdtemp(path.join(os.tmpdir(), "pine-agent-runtime-"));
+    temporaryDirectories.push(root);
+    const location = {
+      agentDir: path.join(root, "agent"),
+      cwd: path.join(root, "source"),
+      folders: [
+        {
+          access: "read-write" as const,
+          path: path.join(root, "source"),
+        },
+      ],
+      sessionsRoot: path.join(root, "sessions"),
+    };
+    await mkdir(location.cwd, { recursive: true });
+    const runtime = new PineAgentRuntime({ emit: () => undefined });
+
+    try {
+      const created = await runtime.createSession(location);
+      const internals = runtime as unknown as {
+        liveSessions: Map<string, { session: AgentSession }>;
+      };
+      const agentSession = internals.liveSessions.get(
+        created.session.id,
+      )?.session;
+      const before = agentSession?.getActiveToolNames();
+      expect(before).toContain(
+        process.platform === "win32" ? "powershell" : "bash",
+      );
+
+      runtime.setSessionApprovalMode(created.session.id, "YOLO");
+
+      expect(agentSession?.getActiveToolNames()).toEqual(before);
+    } finally {
+      await runtime.dispose();
+    }
+  });
+
   it("keeps Computer Use active after a turn settles", async () => {
     const root = await mkdtemp(path.join(os.tmpdir(), "pine-agent-runtime-"));
     temporaryDirectories.push(root);
@@ -755,12 +808,12 @@ describe("PineAgentRuntime", () => {
       const internals = runtime as unknown as {
         forwardEvent(session: AgentSession, event: unknown): void;
         liveSessions: Map<string, LiveSession>;
-        syncApprovalModeTools(live: LiveSession): void;
+        syncActiveTools(live: LiveSession): void;
       };
       const live = internals.liveSessions.get(created.session.id);
       expect(live).toBeDefined();
       live!.computerUseActive = true;
-      internals.syncApprovalModeTools(live!);
+      internals.syncActiveTools(live!);
 
       internals.forwardEvent(live!.session, { type: "agent_settled" });
       await Promise.resolve();

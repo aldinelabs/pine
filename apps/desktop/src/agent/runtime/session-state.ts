@@ -124,45 +124,51 @@ export function sessionSummary(session: AgentSession): PineSessionSummary {
   };
 }
 
-export function toolNamesForApprovalMode(
-  activeToolNames: readonly string[],
-  approvalMode: PineApprovalMode,
-  tinyFishEnabled = true,
+/**
+ * TinyFish tools need a credential. The approval mode never changes the tool
+ * list, so switching modes keeps the provider's prompt cache intact.
+ */
+export function toolNamesForTinyFishCredential(
+  toolNames: readonly string[],
+  tinyFishEnabled: boolean,
 ): string[] {
-  const networkTools = activeToolNames.filter((name) =>
-    TINYFISH_TOOL_NAMES.includes(name as (typeof TINYFISH_TOOL_NAMES)[number]),
-  );
-  const withoutNetwork = activeToolNames.filter(
-    (name) =>
-      !TINYFISH_TOOL_NAMES.includes(
-        name as (typeof TINYFISH_TOOL_NAMES)[number],
-      ),
-  );
-  const withoutBash = withoutNetwork.filter(
-    (name) => name !== "bash" && name !== "powershell",
-  );
-  if (approvalMode === "YOLO") {
-    return tinyFishEnabled ? [...withoutBash, ...networkTools] : withoutBash;
+  const isNetworkTool = (name: string) =>
+    TINYFISH_TOOL_NAMES.includes(name as (typeof TINYFISH_TOOL_NAMES)[number]);
+  const localTools = toolNames.filter((name) => !isNetworkTool(name));
+  if (!tinyFishEnabled) return localTools;
+  return [...localTools, ...toolNames.filter(isNetworkTool)];
+}
+
+/** Custom message type announcing the active permission mode to the model. */
+export const PINE_APPROVAL_MODE_NOTICE = "pine.approval-mode-notice";
+
+/**
+ * The permission mode most recently announced in the model's context, or
+ * undefined when none survives (a new session, or one compacted past it).
+ */
+export function announcedApprovalMode(
+  messages: readonly unknown[],
+): PineApprovalMode | undefined {
+  for (let index = messages.length - 1; index >= 0; index -= 1) {
+    const value = messages[index];
+    if (typeof value !== "object" || value === null || Array.isArray(value)) {
+      continue;
+    }
+    const message = value as Record<string, unknown>;
+    if (
+      message.role !== "custom" ||
+      message.customType !== PINE_APPROVAL_MODE_NOTICE
+    ) {
+      continue;
+    }
+    const details = message.details;
+    if (typeof details !== "object" || details === null) return undefined;
+    const approvalMode = (details as { approvalMode?: unknown }).approvalMode;
+    return typeof approvalMode === "string"
+      ? (approvalMode as PineApprovalMode)
+      : undefined;
   }
-  const readIndex = withoutBash.indexOf("read");
-  const privilegedIndex = withoutBash.findIndex(
-    (name) => name === "privileged_bash" || name === "privileged_powershell",
-  );
-  const insertionIndex =
-    readIndex !== -1
-      ? readIndex + 1
-      : privilegedIndex === -1
-        ? withoutBash.length
-        : privilegedIndex;
-  const result = [
-    ...withoutBash.slice(0, insertionIndex),
-    activeToolNames.includes("powershell") ||
-    withoutBash[privilegedIndex] === "privileged_powershell"
-      ? "powershell"
-      : "bash",
-    ...withoutBash.slice(insertionIndex),
-  ];
-  return tinyFishEnabled ? [...result, ...networkTools] : result;
+  return undefined;
 }
 
 /** `recall` searches pi-vcc summaries' history, so it follows the route. */
