@@ -46,6 +46,7 @@ import {
   MAX_TEXT_PREVIEW_BYTES,
   countPreviewLines,
   decodePreviewText,
+  type FileLineRange,
   type FileReveal,
 } from "../shared/projectFiles";
 import { PROJECT_TEMPORARY_DIRECTORY } from "../shared/projects";
@@ -313,10 +314,10 @@ export interface PineMediaGenerationContext {
 }
 
 /**
- * Checks a presented file's line targets against the file the preview will
- * show. Lines only make sense for files the previewer shows as text, so a
- * location on any other file, or past its last line, is the agent's mistake
- * to correct rather than something to drop silently.
+ * Resolves a presented file's line targets against the file the preview will
+ * show. Lines only make sense for files the previewer shows as text; targets
+ * that do not fit the file are dropped rather than failing the call, and the
+ * returned notes tell the agent what was left out.
  */
 async function resolveFileReveal(
   filePath: string,
@@ -325,17 +326,12 @@ async function resolveFileReveal(
     line?: number;
     highlight_lines?: { start: number; end?: number }[];
   },
-): Promise<FileReveal | undefined> {
-  const highlights = (params.highlight_lines ?? []).map(({ start, end }) => ({
+): Promise<{ reveal?: FileReveal; ignored: string[] }> {
+  const requested = (params.highlight_lines ?? []).map(({ start, end }) => ({
     start,
     end: end ?? start,
   }));
-  if (params.line === undefined && !highlights.length) return undefined;
-  const inverted = highlights.find(({ start, end }) => end < start);
-  if (inverted)
-    throw new Error(
-      `Highlight range ${inverted.start}-${inverted.end} ends before it starts.`,
-    );
+  if (params.line === undefined && !requested.length) return { ignored: [] };
   const extension = previewExtension(filePath);
   const text =
     !documentPreviewExtensions.has(extension) &&
@@ -344,17 +340,35 @@ async function resolveFileReveal(
       ? decodePreviewText(await readFile(filePath))
       : null;
   if (!text)
-    throw new Error(
-      "line and highlight_lines only apply to files previewed as text (UTF-8 or UTF-16, up to 2 MB). Present this file without them.",
-    );
+    return {
+      ignored: [
+        "line and highlight_lines, because they only apply to files previewed as text (UTF-8 or UTF-16, up to 2 MB)",
+      ],
+    };
   const lineCount = countPreviewLines(text.text);
-  const last = Math.max(params.line ?? 0, ...highlights.map(({ end }) => end));
-  if (last > lineCount)
-    throw new Error(
-      `Line ${last} is past the end of the file, which has ${lineCount} line${lineCount === 1 ? "" : "s"}.`,
-    );
+  const lines = `${lineCount} line${lineCount === 1 ? "" : "s"}`;
+  const ignored: string[] = [];
+  const highlights: FileLineRange[] = [];
+  for (const { start, end } of requested) {
+    if (end < start)
+      ignored.push(`highlight ${start}-${end}, which ends before it starts`);
+    else if (start > lineCount)
+      ignored.push(
+        `highlight ${start === end ? start : `${start}-${end}`}, past the end of the file (${lines})`,
+      );
+    else highlights.push({ start, end: Math.min(end, lineCount) });
+  }
+  let line = params.line;
+  if (line !== undefined && line > lineCount) {
+    ignored.push(`line ${line}, past the end of the file (${lines})`);
+    line = undefined;
+  }
   highlights.sort((a, b) => a.start - b.start);
-  return { line: params.line ?? highlights[0]?.start ?? 1, highlights };
+  if (line === undefined && !highlights.length) return { ignored };
+  return {
+    reveal: { line: line ?? highlights[0]?.start ?? 1, highlights },
+    ignored,
+  };
 }
 
 export async function createPineToolDefinitions(
@@ -702,7 +716,7 @@ export async function createPineToolDefinitions(
         if (!metadata?.isFile()) {
           throw new Error(`Expected a readable file, not: ${requested}`);
         }
-        const reveal = await resolveFileReveal(
+        const { reveal, ignored } = await resolveFileReveal(
           authorizedPath,
           metadata.size,
           inputParams,
@@ -724,7 +738,9 @@ export async function createPineToolDefinitions(
           content: [
             {
               type: "text" as const,
-              text: `Showing ${authorizedPath}${where} in the workbench preview and the session's artifacts.`,
+              text: `Showing ${authorizedPath}${where} in the workbench preview and the session's artifacts.${
+                ignored.length ? ` Ignored ${ignored.join("; ")}.` : ""
+              }`,
             },
           ],
           details: { path: authorizedPath, ...(reveal ? { reveal } : {}) },

@@ -641,23 +641,52 @@ describeSandbox("createPineToolDefinitions", () => {
       expect(result.details).toMatchObject({ reveal });
     });
 
-    it("rejects line targets past the end or on non-text files", async () => {
+    it("ignores line targets that do not fit the file", async () => {
       const { present, presentFile, readWrite } = await setup();
-      await writeFile(path.join(readWrite, "notes.ts"), "a\nb");
+      await writeFile(path.join(readWrite, "notes.ts"), "a\nb\nc");
       await writeFile(path.join(readWrite, "image.png"), "a\nb");
       await writeFile(path.join(readWrite, "blob.bin"), Buffer.from([0, 1, 2]));
+      const notes = path.join(await realpath(readWrite), "notes.ts");
 
-      await expect(present("notes.ts", { line: 3 })).rejects.toThrow(
-        "Line 3 is past the end of the file, which has 2 lines.",
+      const result = await present("notes.ts", {
+        line: 9,
+        highlight_lines: [
+          { start: 3, end: 1 },
+          { start: 5 },
+          { start: 2, end: 8 },
+        ],
+      });
+      expect(presentFile).toHaveBeenLastCalledWith("present-call", notes, {
+        line: 2,
+        highlights: [{ start: 2, end: 3 }],
+      });
+      expect(result.content[0]).toMatchObject({
+        text: expect.stringContaining(
+          "Ignored highlight 3-1, which ends before it starts; highlight 5, past the end of the file (3 lines); line 9, past the end of the file (3 lines).",
+        ),
+      });
+
+      const nothingLeft = await present("notes.ts", { line: 4 });
+      expect(presentFile).toHaveBeenLastCalledWith(
+        "present-call",
+        notes,
+        undefined,
       );
-      await expect(
-        present("notes.ts", { highlight_lines: [{ start: 2, end: 1 }] }),
-      ).rejects.toThrow("ends before it starts");
-      for (const file of ["image.png", "blob.bin"])
-        await expect(present(file, { line: 1 })).rejects.toThrow(
-          "only apply to files previewed as text",
+      expect(nothingLeft.details).not.toHaveProperty("reveal");
+
+      for (const file of ["image.png", "blob.bin"]) {
+        const shown = await present(file, { line: 1 });
+        expect(presentFile).toHaveBeenLastCalledWith(
+          "present-call",
+          expect.stringContaining(file),
+          undefined,
         );
-      expect(presentFile).not.toHaveBeenCalled();
+        expect(shown.content[0]).toMatchObject({
+          text: expect.stringContaining(
+            "Ignored line and highlight_lines, because they only apply to files previewed as text",
+          ),
+        });
+      }
     });
 
     it("resolves a relative path against the session folder", async () => {
