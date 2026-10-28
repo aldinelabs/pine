@@ -1,4 +1,4 @@
-import type { Component } from "vue";
+import type { Component, InjectionKey, ShallowRef } from "vue";
 import type { AttachmentSelection } from "@/shared/attachments";
 import type {
   FileLineRange,
@@ -49,7 +49,17 @@ export type PreviewRendererEvents = {
 
 export interface PreviewRendererHandle {
   readSelection?: () => AttachmentSelection | undefined;
+  /** Fits the content to the preview's width; offered with `fitWidth`. */
+  fitWidth?: () => void;
 }
+
+/**
+ * The preview's top bar. Renderers teleport their own controls (search, pages,
+ * sheets, layers) into it and report `toolbar` once they have any.
+ */
+export const previewToolbarKey: InjectionKey<
+  Readonly<ShallowRef<HTMLElement | null>>
+> = Symbol("previewToolbar");
 
 export interface PreviewRendererCapabilities {
   zoom: boolean;
@@ -60,6 +70,10 @@ export interface PreviewRendererCapabilities {
   zoomMax?: number;
   /** The renderer zooms on Ctrl/⌘ + wheel and pinch itself. */
   gestureZoom?: boolean;
+  /** The renderer can fit its content to the preview's width. */
+  fitWidth?: boolean;
+  /** The renderer placed controls in the preview's top bar. */
+  toolbar?: boolean;
 }
 
 export interface PreviewRendererContext {

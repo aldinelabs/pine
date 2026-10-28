@@ -2,6 +2,7 @@
 import {
   computed,
   onBeforeUnmount,
+  provide,
   ref,
   useId,
   useTemplateRef,
@@ -12,6 +13,7 @@ import {
   ExternalLink,
   FileQuestion,
   FileWarning,
+  MoveHorizontal,
   Plus,
   Send,
   SquareTerminal,
@@ -54,7 +56,10 @@ import type {
   FilePreviewChangedEvent,
 } from "@/shared/projectFiles";
 import type { FileContentTab } from "@/stores/contentTabs";
-import { resolvePreviewRenderer } from "./file-preview/previewRenderer";
+import {
+  previewToolbarKey,
+  resolvePreviewRenderer,
+} from "./file-preview/previewRenderer";
 import type {
   PreviewRendererCapabilities,
   PreviewRendererHandle,
@@ -78,6 +83,8 @@ const viewMode = ref<"code" | "rendered">("rendered");
 const renderSwitchId = useId();
 const invertSwitchId = useId();
 const rendererInstance = useTemplateRef<PreviewRendererHandle>("renderer");
+const toolbar = useTemplateRef<HTMLElement>("toolbar");
+provide(previewToolbarKey, toolbar);
 const renderer = computed(() => {
   const value = preview.value;
   return value && value.kind !== "unsupported"
@@ -103,6 +110,12 @@ const capabilities = computed<PreviewRendererCapabilities>(() => {
     ...loadedCapabilities.value,
   };
 });
+const toolbarVisible = computed(
+  () =>
+    capabilities.value.zoom ||
+    capabilities.value.fitWidth ||
+    capabilities.value.toolbar,
+);
 const zoomMin = computed(() => capabilities.value.zoomMin ?? 50);
 const zoomMax = computed(() => capabilities.value.zoomMax ?? 200);
 // The first time the renderer can invert, follow the app's color scheme.
@@ -454,9 +467,46 @@ onBeforeUnmount(() => {
         }}</EmptyDescription>
       </EmptyHeader>
     </Empty>
+    <div
+      v-show="toolbarVisible && !failed"
+      role="toolbar"
+      :aria-label="t('project.preview.documentControls')"
+      class="flex min-h-10 shrink-0 items-center gap-2 px-3 pb-1"
+    >
+      <div
+        ref="toolbar"
+        data-slot="preview-toolbar-start"
+        class="flex min-w-0 flex-1 items-center gap-2"
+      />
+      <Button
+        v-if="capabilities.fitWidth"
+        variant="ghost"
+        size="sm"
+        @click="rendererInstance?.fitWidth?.()"
+      >
+        <MoveHorizontal data-icon="inline-start" />
+        {{ t("project.preview.fitWidth") }}
+      </Button>
+      <div
+        v-if="capabilities.zoom"
+        class="flex items-center gap-2 text-sm text-muted-foreground"
+      >
+        <Slider
+          v-model="previewZoom"
+          class="w-20"
+          :min="zoomMin"
+          :max="zoomMax"
+          :step="10"
+          :aria-label="t('project.preview.zoom')"
+          :title="t('project.preview.zoomValue', { value: zoom })"
+          @value-commit="commitZoom"
+        />
+        <span class="w-10 text-right tabular-nums">{{ zoom }}%</span>
+      </div>
+    </div>
     <component
       :is="renderer.component"
-      v-else
+      v-if="preview && preview.kind !== 'unsupported' && renderer && !failed"
       ref="renderer"
       :key="`${previewKey}:${renderer.id}`"
       class="min-h-0 flex-1"
@@ -500,19 +550,6 @@ onBeforeUnmount(() => {
         }}</span>
       </template>
       <Skeleton v-else-if="!failed" class="h-3 w-40" />
-      <div v-if="capabilities.zoom" class="flex items-center gap-2 pr-2">
-        <Slider
-          v-model="previewZoom"
-          class="w-28"
-          :min="zoomMin"
-          :max="zoomMax"
-          :step="10"
-          :aria-label="t('project.preview.zoom')"
-          :title="t('project.preview.zoomValue', { value: zoom })"
-          @value-commit="commitZoom"
-        />
-        <span class="w-10 text-right tabular-nums">{{ zoom }}%</span>
-      </div>
       <div v-if="capabilities.invert" class="flex items-center gap-2">
         <Switch
           :id="invertSwitchId"

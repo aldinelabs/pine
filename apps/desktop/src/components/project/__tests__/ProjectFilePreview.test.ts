@@ -532,7 +532,7 @@ describe("ProjectFilePreview", () => {
     fileViewer.state.text = false;
     const wrapper = render(documentPreview());
     const viewer = await mountedViewer(wrapper);
-    const metadata = () => wrapper.get('[aria-label="File metadata"]').text();
+    const metadata = () => wrapper.get('[role="toolbar"]').text();
     expect(metadata()).toContain("90%");
 
     // Pinch and Ctrl/⌘ + wheel reach the viewer, which zooms by itself.

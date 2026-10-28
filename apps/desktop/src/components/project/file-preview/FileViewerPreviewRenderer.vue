@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import {
   computed,
+  inject,
   onBeforeUnmount,
   onMounted,
   ref,
@@ -14,7 +15,6 @@ import {
   ChevronLeft,
   ChevronRight,
   ChevronUp,
-  MoveHorizontal,
   Search,
 } from "@lucide/vue";
 import type {
@@ -46,9 +46,10 @@ import { cn } from "@/lib/utils";
 import type { AttachmentSelection } from "@/shared/attachments";
 import { previewExtension } from "@/shared/previewFormats";
 import { useAppearanceStore } from "@/stores/appearance";
-import type {
-  PreviewRendererEvents,
-  PreviewRendererProps,
+import {
+  previewToolbarKey,
+  type PreviewRendererEvents,
+  type PreviewRendererProps,
 } from "./previewRenderer";
 
 /**
@@ -127,11 +128,13 @@ const searchPosition = computed(() =>
     total: searchTotal.value,
   }),
 );
+const toolbar = inject(previewToolbarKey, undefined);
+const toolbarTarget = computed(() => toolbar?.value ?? null);
 const toolbarVisible = computed(
   () =>
     !props.compact &&
     !loading.value &&
-    (searchable.value || pageCount.value > 1 || zoomable.value),
+    (searchable.value || pageCount.value > 1),
 );
 
 function percent(scale: number): number {
@@ -216,7 +219,10 @@ function syncViewerState(): void {
     ...(zoomable.value && zoom.maxScale
       ? { zoomMax: Math.min(800, percent(zoom.maxScale)) }
       : {}),
-    ...(zoomable.value && !props.compact ? { gestureZoom: true } : {}),
+    ...(zoomable.value && !props.compact
+      ? { gestureZoom: true, fitWidth: true }
+      : {}),
+    ...(toolbarVisible.value ? { toolbar: true } : {}),
   };
   const serialized = JSON.stringify(capabilities);
   if (serialized !== reportedCapabilities) {
@@ -444,17 +450,12 @@ function updateSelection(): void {
   emit("selectionChange", readSelection());
 }
 
-defineExpose({ readSelection });
+defineExpose({ readSelection, fitWidth });
 </script>
 
 <template>
   <div class="flex h-full min-h-0 flex-col">
-    <div
-      v-if="toolbarVisible"
-      role="toolbar"
-      :aria-label="t('project.preview.documentControls')"
-      class="flex shrink-0 flex-wrap items-center gap-2 px-3 pt-2 pb-1"
-    >
+    <Teleport v-if="toolbarTarget && toolbarVisible" :to="toolbarTarget">
       <InputGroup v-if="searchable" class="h-8 w-60">
         <InputGroupAddon>
           <Search />
@@ -527,17 +528,7 @@ defineExpose({ readSelection });
           <ChevronRight />
         </Button>
       </div>
-      <Button
-        v-if="zoomable"
-        variant="ghost"
-        size="sm"
-        class="ml-auto"
-        @click="fitWidth"
-      >
-        <MoveHorizontal data-icon="inline-start" />
-        {{ t("project.preview.fitWidth") }}
-      </Button>
-    </div>
+    </Teleport>
     <div class="relative min-h-0 flex-1">
       <div
         ref="host"
