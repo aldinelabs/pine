@@ -19,7 +19,6 @@ export interface PreviewRendererProps {
   active: boolean;
   mode: PreviewDisplayMode;
   zoom: number;
-  renderZoom: number;
   inverted: boolean;
   selectionLabel: string;
   /** Line to scroll to and lines to tint; only text renderers use it. */
@@ -59,6 +58,8 @@ export interface PreviewRendererCapabilities {
   /** Zoom bounds in percent; the preview defaults to 50–200. */
   zoomMin?: number;
   zoomMax?: number;
+  /** The renderer zooms on Ctrl/⌘ + wheel and pinch itself. */
+  gestureZoom?: boolean;
 }
 
 export interface PreviewRendererContext {

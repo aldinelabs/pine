@@ -144,9 +144,10 @@ function viewerOptions(
     autoRenderers: false,
     theme: theme.value,
     locale: locale.value.startsWith("zh") ? "zh-CN" : "en-US",
-    // Pine draws its own controls and owns Ctrl/⌘ + wheel zoom.
+    // Pine draws its own controls; trackpad pinch and Ctrl/⌘ + wheel use
+    // the viewer's continuous zoom, except in the fixed-size workbench card.
     toolbar: false,
-    zoomGestures: false,
+    zoomGestures: !props.compact,
     search: { enabled: true },
     pdf: { toolbar: false, navigation: false },
     image: { rotation: false },
@@ -211,6 +212,7 @@ function syncViewerState(): void {
     ...(zoomable.value && zoom.maxScale
       ? { zoomMax: Math.min(800, percent(zoom.maxScale)) }
       : {}),
+    ...(zoomable.value && !props.compact ? { gestureZoom: true } : {}),
   };
   const serialized = JSON.stringify(capabilities);
   if (serialized !== reportedCapabilities) {
@@ -343,23 +345,36 @@ watch(
   },
 );
 
-// The footer slider commits a zoom level; the viewer re-renders at it once.
-watch(
-  () => props.renderZoom,
-  async (value) => {
-    const instance = viewer;
-    if (!instance || !zoomable.value || loading.value) return;
-    if (zoomState.value && percent(zoomState.value.scale) === value) return;
-    // The renderer updates its zoom asynchronously; its own zoom events
-    // report the result, which already matches this level.
-    reportedScale = value;
-    applyingZoom = true;
-    try {
+/**
+ * Follows the footer slider while it moves. A zoom renders asynchronously, so
+ * levels that arrive meanwhile collapse into the latest one, as the viewer's
+ * own gestures do.
+ */
+let requestedScale: number | undefined;
+async function applyRequestedZoom(): Promise<void> {
+  const instance = viewer;
+  if (applyingZoom || !instance) return;
+  applyingZoom = true;
+  try {
+    while (requestedScale !== undefined && !disposed) {
+      const value = requestedScale;
+      requestedScale = undefined;
+      // Its own zoom events report this level, which the slider already shows.
+      reportedScale = value;
       await instance.applyViewState({ scale: value / 100 }, { notify: false });
       zoomState.value = { ...instance.getZoomState(), scale: value / 100 };
-    } finally {
-      applyingZoom = false;
     }
+  } finally {
+    applyingZoom = false;
+  }
+}
+watch(
+  () => props.zoom,
+  (value) => {
+    if (!viewer || !zoomable.value || loading.value) return;
+    if (zoomState.value && percent(zoomState.value.scale) === value) return;
+    requestedScale = value;
+    void applyRequestedZoom();
   },
 );
 

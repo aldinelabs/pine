@@ -159,7 +159,6 @@ function handleZoomChange(value: number): void {
   pendingZoom = value;
   previewZoom.value = [value];
   appliedZoom.value = value;
-  renderedZoom.value = value;
 }
 
 function updateMenu(open: boolean): void {
@@ -193,7 +192,6 @@ const contentMetadata = ref<PreviewRendererMetadata>();
 const previewInverted = ref(false);
 const previewZoom = ref([100]);
 const appliedZoom = ref(100);
-const renderedZoom = ref(100);
 const zoom = computed(() => previewZoom.value[0] ?? 100);
 let zoomFrame: number | undefined;
 let zoomCommitTimer: ReturnType<typeof setTimeout> | undefined;
@@ -238,11 +236,16 @@ function commitZoom(value: number[]): void {
     zoomFrame = undefined;
   }
   appliedZoom.value = committed;
-  renderedZoom.value = committed;
 }
 
 function handlePreviewWheel(event: WheelEvent): void {
-  if (!capabilities.value.zoom || !(event.ctrlKey || event.metaKey)) return;
+  if (
+    !capabilities.value.zoom ||
+    // The renderer zooms continuously under the pointer by itself.
+    capabilities.value.gestureZoom ||
+    !(event.ctrlKey || event.metaKey)
+  )
+    return;
   event.preventDefault();
   const next = Math.max(
     zoomMin.value,
@@ -338,7 +341,6 @@ watch(
       previewZoom.value = [100];
       if (zoomCommitTimer) clearTimeout(zoomCommitTimer);
       appliedZoom.value = 100;
-      renderedZoom.value = 100;
       pendingZoom = 100;
       stale.value = false;
     }
@@ -464,7 +466,6 @@ onBeforeUnmount(() => {
       :active="active"
       :mode="viewMode"
       :zoom="appliedZoom"
-      :render-zoom="renderedZoom"
       :inverted="previewInverted"
       :selection-label="t('project.preview.selectedContent')"
       @failed="failed = true"

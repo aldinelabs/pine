@@ -77,6 +77,7 @@ const fileViewer = vi.hoisted(() => {
     const viewer: FakeViewer = {
       container,
       options,
+      onEvent,
       scale: 0.9,
       page: 1,
       load: vi.fn((source: Record<string, unknown>) => {
@@ -500,7 +501,7 @@ describe("ProjectFilePreview", () => {
     );
     expect(viewer.options).toMatchObject({
       toolbar: false,
-      zoomGestures: false,
+      zoomGestures: true,
       text: { toolbar: false },
     });
 
@@ -526,35 +527,41 @@ describe("ProjectFilePreview", () => {
     expect(viewer.destroy).toHaveBeenCalled();
   });
 
-  it("follows the viewer's fitted zoom and applies committed zoom levels", async () => {
+  it("leaves gesture zoom to the viewer and drives its zoom from the slider", async () => {
     fileViewer.state.rendererId = "image";
     fileViewer.state.text = false;
     const wrapper = render(documentPreview());
     const viewer = await mountedViewer(wrapper);
-    expect(wrapper.get('[aria-label="File metadata"]').text()).toContain("90%");
-    const ordinaryWheel = new WheelEvent("wheel", {
+    const metadata = () => wrapper.get('[aria-label="File metadata"]').text();
+    expect(metadata()).toContain("90%");
+
+    // Pinch and Ctrl/⌘ + wheel reach the viewer, which zooms by itself.
+    const pinch = new WheelEvent("wheel", {
       bubbles: true,
       cancelable: true,
+      ctrlKey: true,
       deltaY: -40,
     });
-    wrapper.element.dispatchEvent(ordinaryWheel);
-    expect(ordinaryWheel.defaultPrevented).toBe(false);
-
-    vi.useFakeTimers();
-    try {
-      await wrapper.trigger("wheel", { ctrlKey: true, deltaY: -40 });
-      vi.advanceTimersByTime(200);
-    } finally {
-      vi.useRealTimers();
-    }
+    wrapper.element.dispatchEvent(pinch);
+    expect(pinch.defaultPrevented).toBe(false);
+    viewer.scale = 1.1;
+    (viewer.onEvent as (event: unknown) => void)({
+      type: "zoom-change",
+      payload: (viewer.getZoomState as () => unknown)(),
+    });
     await flushPromises();
-    expect(wrapper.get('[aria-label="File metadata"]').text()).toContain(
-      "110%",
+    expect(metadata()).toContain("110%");
+    expect(viewer.applyViewState).not.toHaveBeenCalled();
+
+    // The slider zooms the document while it moves, not only on release.
+    wrapper.findComponent(Slider).vm.$emit("update:modelValue", [130]);
+    await vi.waitFor(() =>
+      expect(viewer.applyViewState).toHaveBeenLastCalledWith(
+        { scale: 1.3 },
+        { notify: false },
+      ),
     );
-    expect(viewer.applyViewState).toHaveBeenCalledWith(
-      { scale: 1.1 },
-      { notify: false },
-    );
+    expect(metadata()).toContain("130%");
 
     const fit = wrapper
       .findAll("button")
@@ -562,7 +569,7 @@ describe("ProjectFilePreview", () => {
     await fit.trigger("click");
     await flushPromises();
     expect(viewer.fitToView).toHaveBeenCalledWith("width");
-    expect(wrapper.get('[aria-label="File metadata"]').text()).toContain("75%");
+    expect(metadata()).toContain("75%");
   });
 
   it("switches Markdown between source and rendered content and locates rendered selections", async () => {

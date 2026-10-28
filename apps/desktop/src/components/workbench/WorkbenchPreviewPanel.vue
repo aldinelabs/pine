@@ -255,7 +255,6 @@ watch(
         :changed-lines="changedLines"
         compact
         :zoom="100"
-        :render-zoom="100"
         :inverted="false"
         :selection-label="t('project.preview.selectedContent')"
         @failed="failed = true"
