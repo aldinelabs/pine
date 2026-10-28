@@ -32,8 +32,8 @@ const emit = defineEmits<PreviewRendererEvents>();
 const { t } = useI18n();
 const stage = useTemplateRef<InstanceType<typeof ZoomableImage>>("stage");
 
-/** Decoded pixels allowed before reading stops, as file-viewer allowed. */
-const MEMORY_LIMIT = 256 * 1024 * 1024;
+/** Decoded pixels allowed before reading stops, enough for large layered documents. */
+const MEMORY_LIMIT = 1024 * 1024 * 1024;
 
 const psd = shallowRef<Psd>();
 /** Layers the reader turned off or on; the rest keep the file's state. */
