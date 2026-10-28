@@ -48,6 +48,8 @@ export default defineConfig({
       "ag-psd/dist/bundle.js",
       // Pine's own preview decoders, imported when a format needs them.
       "@file-viewer/capability-mermaid/engine",
+      "@file-viewer/eda-layout",
+      "@file-viewer/eda-orcad",
       "@file-viewer/geometry-engine",
       "@flyfish-dev/cad-viewer",
       "@kenjiuno/msgreader",
@@ -55,6 +57,7 @@ export default defineConfig({
       "@tmcw/togeojson",
       "@tonejs/midi",
       "ag-psd",
+      "cfb",
       "heic2any",
       "hyparquet",
       "jszip",
