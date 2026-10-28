@@ -1,21 +1,29 @@
 <script setup lang="ts">
-import type { PrimitiveProps } from 'reka-ui'
-import type { HTMLAttributes } from 'vue'
-import { Primitive } from 'reka-ui'
-import { computed } from 'vue'
-import { cn } from '@/lib/utils'
-import { injectQuestionnaireRootContext } from './useQuestionnaire'
+import type { PrimitiveProps } from "reka-ui";
+import type { HTMLAttributes } from "vue";
+import { Primitive } from "reka-ui";
+import { computed } from "vue";
+import { cn } from "@/lib/utils";
+import { injectQuestionnaireRootContext } from "./useQuestionnaire";
 
-const props = withDefaults(defineProps<PrimitiveProps & {
-  class?: HTMLAttributes['class']
-}>(), {
-  as: 'div',
-})
+const props = withDefaults(
+  defineProps<
+    PrimitiveProps & {
+      class?: HTMLAttributes["class"];
+    }
+  >(),
+  {
+    as: "div",
+  },
+);
 
-const root = injectQuestionnaireRootContext()
+const root = injectQuestionnaireRootContext();
 
 const label = computed(() =>
-  root.total.value ? `Question ${root.current.value} of ${root.total.value}` : undefined)
+  root.total.value
+    ? `Question ${root.current.value} of ${root.total.value}`
+    : undefined,
+);
 </script>
 
 <template>
@@ -34,10 +42,12 @@ const label = computed(() =>
     :data-first="root.first.value ? '' : undefined"
     :data-last="root.last.value ? '' : undefined"
     :data-total="root.total.value"
-    :class="cn(
-      'text-xs min-h-[1lh] w-fit min-w-[14ch] font-medium text-muted-foreground tabular-nums',
-      props.class,
-    )"
+    :class="
+      cn(
+        'text-xs min-h-[1lh] w-fit min-w-[14ch] font-medium text-muted-foreground tabular-nums',
+        props.class,
+      )
+    "
   >
     <slot
       :current="root.current.value"

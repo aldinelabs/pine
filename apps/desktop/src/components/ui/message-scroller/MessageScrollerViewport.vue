@@ -53,9 +53,7 @@ function onKeyDown(event: KeyboardEvent) {
   onUserScrollIntent(direction);
 }
 
-function onUserScrollIntent(
-  direction?: MessageScrollerScrollDirection,
-): void {
+function onUserScrollIntent(direction?: MessageScrollerScrollDirection): void {
   userScrollIntent(direction);
   emit("userScrollIntent");
 }

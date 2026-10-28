@@ -1,48 +1,53 @@
 <script setup lang="ts">
-import type { PrimitiveProps } from 'reka-ui'
-import type { ComponentPublicInstance, HTMLAttributes } from 'vue'
-import { Primitive } from 'reka-ui'
-import { onBeforeUnmount, onMounted, ref, useId } from 'vue'
-import { cn } from '@/lib/utils'
-import { injectQuestionnaireItemContext } from './useQuestionnaire'
+import type { PrimitiveProps } from "reka-ui";
+import type { ComponentPublicInstance, HTMLAttributes } from "vue";
+import { Primitive } from "reka-ui";
+import { onBeforeUnmount, onMounted, ref, useId } from "vue";
+import { cn } from "@/lib/utils";
+import { injectQuestionnaireItemContext } from "./useQuestionnaire";
 
-const props = withDefaults(defineProps<PrimitiveProps & {
-  class?: HTMLAttributes['class']
-  id?: string
-}>(), {
-  as: 'p',
-})
+const props = withDefaults(
+  defineProps<
+    PrimitiveProps & {
+      class?: HTMLAttributes["class"];
+      id?: string;
+    }
+  >(),
+  {
+    as: "p",
+  },
+);
 
-const item = injectQuestionnaireItemContext()
+const item = injectQuestionnaireItemContext();
 
-const primitiveRef = ref<ComponentPublicInstance | null>(null)
-const fallbackId = props.id ?? useId()
-const descriptionId = ref(fallbackId)
+const primitiveRef = ref<ComponentPublicInstance | null>(null);
+const fallbackId = props.id ?? useId();
+const descriptionId = ref(fallbackId);
 
-let unregisterDescription = item.registerDescription(descriptionId.value)
+let unregisterDescription = item.registerDescription(descriptionId.value);
 
 onMounted(() => {
   // With `as-child` the rendered child can bring its own id, for example a
   // DialogDescription. Adopt it so both descriptions point at one element.
-  const element = primitiveRef.value?.$el as HTMLElement | undefined
-  const renderedId = element?.id
+  const element = primitiveRef.value?.$el as HTMLElement | undefined;
+  const renderedId = element?.id;
 
   if (!renderedId) {
     if (element) {
-      element.id = fallbackId
+      element.id = fallbackId;
     }
 
-    return
+    return;
   }
 
   if (renderedId !== descriptionId.value) {
-    unregisterDescription()
-    descriptionId.value = renderedId
-    unregisterDescription = item.registerDescription(renderedId)
+    unregisterDescription();
+    descriptionId.value = renderedId;
+    unregisterDescription = item.registerDescription(renderedId);
   }
-})
+});
 
-onBeforeUnmount(() => unregisterDescription())
+onBeforeUnmount(() => unregisterDescription());
 </script>
 
 <template>

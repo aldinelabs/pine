@@ -49,6 +49,7 @@ import {
   fileTargetPath,
 } from "@/lib/filePreviewTarget";
 import { formatBytes } from "@/lib/formatBytes";
+import { formatDuration } from "@/lib/formatDuration";
 import type { AttachmentSelection } from "@/shared/attachments";
 import type {
   ProjectFilePreview,
@@ -228,7 +229,7 @@ const lineCount = computed(() =>
 const duration = computed(() => {
   const seconds = contentMetadata.value?.duration;
   if (seconds === undefined || !Number.isFinite(seconds)) return "";
-  return `${Math.floor(seconds / 60)}:${String(Math.floor(seconds % 60)).padStart(2, "0")}`;
+  return formatDuration(seconds);
 });
 
 function scheduleZoom(value: number): void {

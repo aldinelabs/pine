@@ -45,9 +45,7 @@ describe("message scroller resize timing", () => {
     expect(observers).toHaveLength(2);
     for (const observer of observers) {
       observer.callback([], {} as ResizeObserver);
-      expect(restore).toHaveBeenCalledTimes(
-        observers.indexOf(observer) + 1,
-      );
+      expect(restore).toHaveBeenCalledTimes(observers.indexOf(observer) + 1);
     }
     wrapper.unmount();
   });

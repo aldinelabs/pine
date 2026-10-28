@@ -139,17 +139,7 @@ const documentExtensionList = [
   "heic",
   "heif",
   "jxl",
-  // Audio
-  "mp3",
-  "mpeg",
-  "wav",
-  "ogg",
-  "oga",
-  "opus",
-  "m4a",
-  "aac",
-  "flac",
-  "weba",
+  // MIDI is inspected rather than played
   "midi",
   "mid",
   // Fonts and data
@@ -225,6 +215,20 @@ export const videoPreviewExtensions: ReadonlySet<string> = new Set([
   "ogv",
 ]);
 
+/** Audio plays in a native audio element, streamed like video. */
+export const audioPreviewExtensions: ReadonlySet<string> = new Set([
+  "mp3",
+  "mpeg",
+  "wav",
+  "ogg",
+  "oga",
+  "opus",
+  "m4a",
+  "aac",
+  "flac",
+  "weba",
+]);
+
 const mimeTypes: Readonly<Record<string, string>> = {
   png: "image/png",
   jpg: "image/jpeg",
@@ -251,6 +255,7 @@ const mimeTypes: Readonly<Record<string, string>> = {
   aac: "audio/aac",
   flac: "audio/flac",
   weba: "audio/webm",
+  mpeg: "audio/mpeg",
   pdf: "application/pdf",
   docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
   xlsx: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -271,6 +276,7 @@ export function isServedPreviewFile(filePath: string): boolean {
   return (
     documentPreviewExtensions.has(extension) ||
     videoPreviewExtensions.has(extension) ||
+    audioPreviewExtensions.has(extension) ||
     renderedTextExtensions.has(extension)
   );
 }

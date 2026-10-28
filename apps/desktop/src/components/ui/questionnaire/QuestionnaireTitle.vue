@@ -1,42 +1,47 @@
 <script setup lang="ts">
-import type { PrimitiveProps } from 'reka-ui'
-import type { ComponentPublicInstance, HTMLAttributes } from 'vue'
-import { Primitive } from 'reka-ui'
-import { onBeforeUnmount, onMounted, ref, useId } from 'vue'
-import { cn } from '@/lib/utils'
-import { injectQuestionnaireItemContext } from './useQuestionnaire'
+import type { PrimitiveProps } from "reka-ui";
+import type { ComponentPublicInstance, HTMLAttributes } from "vue";
+import { Primitive } from "reka-ui";
+import { onBeforeUnmount, onMounted, ref, useId } from "vue";
+import { cn } from "@/lib/utils";
+import { injectQuestionnaireItemContext } from "./useQuestionnaire";
 
-const props = withDefaults(defineProps<PrimitiveProps & {
-  class?: HTMLAttributes['class']
-  id?: string
-}>(), {
-  as: 'legend',
-})
+const props = withDefaults(
+  defineProps<
+    PrimitiveProps & {
+      class?: HTMLAttributes["class"];
+      id?: string;
+    }
+  >(),
+  {
+    as: "legend",
+  },
+);
 
-const item = injectQuestionnaireItemContext()
+const item = injectQuestionnaireItemContext();
 
-const primitiveRef = ref<ComponentPublicInstance | null>(null)
-const fallbackId = props.id ?? useId()
+const primitiveRef = ref<ComponentPublicInstance | null>(null);
+const fallbackId = props.id ?? useId();
 
-let unregisterTitle: (() => void) | null = null
+let unregisterTitle: (() => void) | null = null;
 
 onMounted(() => {
-  const element = primitiveRef.value?.$el as HTMLElement | undefined
+  const element = primitiveRef.value?.$el as HTMLElement | undefined;
 
   // A legend already names the fieldset. Anything else, for example a
   // DialogTitle rendered through `as-child`, has to name it explicitly.
-  if (!element || element.tagName === 'LEGEND') {
-    return
+  if (!element || element.tagName === "LEGEND") {
+    return;
   }
 
   if (!element.id) {
-    element.id = fallbackId
+    element.id = fallbackId;
   }
 
-  unregisterTitle = item.registerTitle(element.id)
-})
+  unregisterTitle = item.registerTitle(element.id);
+});
 
-onBeforeUnmount(() => unregisterTitle?.())
+onBeforeUnmount(() => unregisterTitle?.());
 </script>
 
 <template>
@@ -46,7 +51,12 @@ onBeforeUnmount(() => unregisterTitle?.())
     data-slot="questionnaire-title"
     :as="props.as"
     :as-child="props.asChild"
-    :class="cn('text-base font-semibold [&:not(:has(~[data-slot=questionnaire-description]))]:mb-5 cn-font-heading text-pretty', props.class)"
+    :class="
+      cn(
+        'text-base font-semibold [&:not(:has(~[data-slot=questionnaire-description]))]:mb-5 cn-font-heading text-pretty',
+        props.class,
+      )
+    "
   >
     <slot />
   </Primitive>

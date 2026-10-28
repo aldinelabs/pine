@@ -116,6 +116,8 @@ export type ProjectFilePreview = ProjectFileMetadata &
     | { kind: "document"; url: string }
     /** Played by a native video element that streams byte ranges. */
     | { kind: "video"; url: string }
+    /** Played by a native audio element that streams byte ranges. */
+    | { kind: "audio"; url: string }
     | {
         kind: "unsupported";
         reason: "binary" | "too-large" | "document-too-large";

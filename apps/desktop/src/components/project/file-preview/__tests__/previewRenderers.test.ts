@@ -51,6 +51,16 @@ describe("file preview renderer registry", () => {
     ).toBe("video");
   });
 
+  it("plays audio with the native audio renderer", () => {
+    expect(
+      resolvePreviewRenderer(previewRenderers, {
+        preview: { ...info, kind: "audio", url: "preview://audio" },
+        filePath: "song.mp3",
+        mode: "rendered",
+      })?.id,
+    ).toBe("audio");
+  });
+
   it.each([
     ["index.html", "rendered", "file-viewer"],
     ["index.html", "code", "text"],

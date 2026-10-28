@@ -287,6 +287,18 @@ describe("file preview", () => {
     });
   });
 
+  it("streams audio through an audio preview", async () => {
+    const file = path.join(root, "song.flac");
+    await writeFile(file, "");
+    await truncate(file, MAX_DOCUMENT_PREVIEW_BYTES + 1);
+    expect(
+      await readProjectFilePreview(file, "pine-project-media://preview/?flac"),
+    ).toMatchObject({
+      kind: "audio",
+      url: "pine-project-media://preview/?flac",
+    });
+  });
+
   it("does not read documents larger than the preview limit", async () => {
     const file = path.join(root, "huge.pdf");
     await writeFile(file, "");

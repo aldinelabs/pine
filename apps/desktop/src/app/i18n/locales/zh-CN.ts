@@ -578,6 +578,11 @@ export default {
       nextPage: "下一页",
       page: "页码",
       fitWidth: "适应宽度",
+      play: "播放",
+      pause: "暂停",
+      seek: "播放进度",
+      mute: "静音",
+      unmute: "取消静音",
     },
     contentTabs: {
       emptyTitle: "无选项卡",

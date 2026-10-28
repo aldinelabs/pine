@@ -606,6 +606,11 @@ export default {
       nextPage: "Next page",
       page: "Page",
       fitWidth: "Fit width",
+      play: "Play",
+      pause: "Pause",
+      seek: "Playback position",
+      mute: "Mute",
+      unmute: "Unmute",
     },
     contentTabs: {
       emptyTitle: "No tabs open",

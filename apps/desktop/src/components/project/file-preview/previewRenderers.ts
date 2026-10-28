@@ -5,6 +5,7 @@ import {
   renderedTextExtensions,
 } from "@/shared/previewFormats";
 import TextPreviewRenderer from "./TextPreviewRenderer.vue";
+import AudioPreviewRenderer from "./AudioPreviewRenderer.vue";
 import VideoPreviewRenderer from "./VideoPreviewRenderer.vue";
 import type { PreviewRenderer } from "./previewRenderer";
 
@@ -48,6 +49,12 @@ export const previewRenderers: readonly PreviewRenderer[] = [
     id: "video",
     component: VideoPreviewRenderer,
     supports: ({ preview }) => preview.kind === "video",
+    capabilities: () => noControls,
+  },
+  {
+    id: "audio",
+    component: AudioPreviewRenderer,
+    supports: ({ preview }) => preview.kind === "audio",
     capabilities: () => noControls,
   },
 ];

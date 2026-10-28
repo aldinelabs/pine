@@ -20,9 +20,9 @@ it("leaves the tail out of the transcript's height", () => {
   tail.setAttribute("data-message-scroller-tail", "");
   content.append(message, spacer, tail);
 
-  expect(
-    measureContentHeight({ content, spacer, viewport: box(0, 600) }),
-  ).toBe(400);
+  expect(measureContentHeight({ content, spacer, viewport: box(0, 600) })).toBe(
+    400,
+  );
 });
 
 it("rests the tail at the viewport's bottom and pins it there", () => {

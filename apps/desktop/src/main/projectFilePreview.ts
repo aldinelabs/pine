@@ -10,6 +10,7 @@ import {
   decodePreviewText,
 } from "../shared/projectFiles";
 import {
+  audioPreviewExtensions,
   documentPreviewExtensions,
   imagePreviewExtensions,
   isServedPreviewFile,
@@ -63,6 +64,8 @@ export async function readProjectFilePreview(
     const extension = previewExtension(filePath);
     if (videoPreviewExtensions.has(extension))
       return { ...info, kind: "video", url: mediaUrl };
+    if (audioPreviewExtensions.has(extension))
+      return { ...info, kind: "audio", url: mediaUrl };
     const document =
       metadata.size > MAX_DOCUMENT_PREVIEW_BYTES
         ? ({

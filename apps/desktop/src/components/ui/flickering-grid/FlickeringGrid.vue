@@ -21,7 +21,8 @@ const props = withDefaults(defineProps<FlickeringGridProps>(), {
   maxOpacity: 0.3,
 });
 
-const { squareSize, gridGap, flickerChance, color, maxOpacity, width, height } = toRefs(props);
+const { squareSize, gridGap, flickerChance, color, maxOpacity, width, height } =
+  toRefs(props);
 
 const containerRef = ref<HTMLDivElement>();
 const canvasRef = ref<HTMLCanvasElement>();
@@ -41,7 +42,10 @@ const computedColor = computed(() => {
   const cssVariable = color.value.match(/^var\((--[^)]+)\)$/)?.[1];
   if (!cssVariable || !containerRef.value) return color.value;
 
-  return getComputedStyle(containerRef.value).getPropertyValue(cssVariable).trim() || color.value;
+  return (
+    getComputedStyle(containerRef.value).getPropertyValue(cssVariable).trim() ||
+    color.value
+  );
 });
 
 function setupCanvas(
@@ -228,10 +232,7 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div
-    ref="containerRef"
-    :class="cn(`h-full w-full`, props.class)"
-  >
+  <div ref="containerRef" :class="cn(`h-full w-full`, props.class)">
     <!-- The canvas keeps its own device-pixel size; Vue never resets it, so a
     resize cannot wipe the grid. -->
     <canvas ref="canvasRef" class="pointer-events-none" />

@@ -1,6 +1,7 @@
 import { DEFAULT_RENDERER_DEFINITIONS } from "@file-viewer/core";
 import { describe, expect, it } from "vitest";
 import {
+  audioPreviewExtensions,
   documentPreviewExtensions,
   isServedPreviewFile,
   previewExtension,
@@ -27,6 +28,7 @@ describe("preview formats", () => {
     const routed = new Set([
       ...documentPreviewExtensions,
       ...videoPreviewExtensions,
+      ...audioPreviewExtensions,
       ...renderedTextExtensions,
     ]);
     const missing = presetRenderers

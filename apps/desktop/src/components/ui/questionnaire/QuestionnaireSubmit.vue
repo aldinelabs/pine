@@ -1,29 +1,36 @@
 <script setup lang="ts">
-import type { PrimitiveProps } from 'reka-ui'
-import type { HTMLAttributes } from 'vue'
-import type { ButtonVariants } from '@/components/ui/button'
-import { Primitive } from 'reka-ui'
-import { computed } from 'vue'
-import { cn } from '@/lib/utils'
-import { buttonVariants } from '@/components/ui/button'
-import { injectQuestionnaireRootContext } from './useQuestionnaire'
+import type { PrimitiveProps } from "reka-ui";
+import type { HTMLAttributes } from "vue";
+import type { ButtonVariants } from "@/components/ui/button";
+import { Primitive } from "reka-ui";
+import { computed } from "vue";
+import { cn } from "@/lib/utils";
+import { buttonVariants } from "@/components/ui/button";
+import { injectQuestionnaireRootContext } from "./useQuestionnaire";
 
-const props = withDefaults(defineProps<PrimitiveProps & {
-  class?: HTMLAttributes['class']
-  disabled?: boolean
-  size?: ButtonVariants['size']
-  variant?: ButtonVariants['variant']
-}>(), {
-  as: 'button',
-  disabled: false,
-  size: 'default',
-  variant: 'default',
-})
+const props = withDefaults(
+  defineProps<
+    PrimitiveProps & {
+      class?: HTMLAttributes["class"];
+      disabled?: boolean;
+      size?: ButtonVariants["size"];
+      variant?: ButtonVariants["variant"];
+    }
+  >(),
+  {
+    as: "button",
+    disabled: false,
+    size: "default",
+    variant: "default",
+  },
+);
 
-const root = injectQuestionnaireRootContext()
+const root = injectQuestionnaireRootContext();
 
-const visible = computed(() => root.total.value > 0 && root.last.value)
-const shortcut = computed(() => (visible.value && !props.disabled ? 'Enter' : null))
+const visible = computed(() => root.total.value > 0 && root.last.value);
+const shortcut = computed(() =>
+  visible.value && !props.disabled ? "Enter" : null,
+);
 </script>
 
 <template>
@@ -46,11 +53,13 @@ const shortcut = computed(() => (visible.value && !props.disabled ? 'Enter' : nu
     :hidden="!visible"
     :inert="!visible"
     :tabindex="visible ? undefined : -1"
-    :class="cn(
-      buttonVariants({ size: props.size, variant: props.variant }),
-      'col-start-3 row-start-1 min-h-11 justify-self-end sm:min-h-0',
-      props.class,
-    )"
+    :class="
+      cn(
+        buttonVariants({ size: props.size, variant: props.variant }),
+        'col-start-3 row-start-1 min-h-11 justify-self-end sm:min-h-0',
+        props.class,
+      )
+    "
   >
     <slot>Submit</slot>
   </Primitive>

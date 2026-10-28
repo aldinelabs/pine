@@ -6,6 +6,5 @@ export interface ParallaxFloatContext {
   unregisterElement: (element: HTMLElement) => void;
 }
 
-export const PARALLAX_FLOAT_KEY: InjectionKey<ParallaxFloatContext> = Symbol(
-  "parallax-float",
-);
+export const PARALLAX_FLOAT_KEY: InjectionKey<ParallaxFloatContext> =
+  Symbol("parallax-float");

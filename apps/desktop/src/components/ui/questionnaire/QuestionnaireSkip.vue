@@ -1,45 +1,50 @@
 <script setup lang="ts">
-import type { PrimitiveProps } from 'reka-ui'
-import type { HTMLAttributes } from 'vue'
-import type { ButtonVariants } from '@/components/ui/button'
-import { Primitive } from 'reka-ui'
-import { computed } from 'vue'
-import { cn } from '@/lib/utils'
-import { buttonVariants } from '@/components/ui/button'
-import { injectQuestionnaireRootContext } from './useQuestionnaire'
+import type { PrimitiveProps } from "reka-ui";
+import type { HTMLAttributes } from "vue";
+import type { ButtonVariants } from "@/components/ui/button";
+import { Primitive } from "reka-ui";
+import { computed } from "vue";
+import { cn } from "@/lib/utils";
+import { buttonVariants } from "@/components/ui/button";
+import { injectQuestionnaireRootContext } from "./useQuestionnaire";
 
-const props = withDefaults(defineProps<PrimitiveProps & {
-  class?: HTMLAttributes['class']
-  disabled?: boolean
-  size?: ButtonVariants['size']
-  variant?: ButtonVariants['variant']
-}>(), {
-  as: 'button',
-  disabled: false,
-  size: 'default',
-  variant: 'outline',
-})
+const props = withDefaults(
+  defineProps<
+    PrimitiveProps & {
+      class?: HTMLAttributes["class"];
+      disabled?: boolean;
+      size?: ButtonVariants["size"];
+      variant?: ButtonVariants["variant"];
+    }
+  >(),
+  {
+    as: "button",
+    disabled: false,
+    size: "default",
+    variant: "outline",
+  },
+);
 
 const emits = defineEmits<{
-  click: [event: MouseEvent]
-}>()
+  click: [event: MouseEvent];
+}>();
 
-const root = injectQuestionnaireRootContext()
+const root = injectQuestionnaireRootContext();
 
-const visible = computed(() => root.activeItemRequired.value === false)
+const visible = computed(() => root.activeItemRequired.value === false);
 
 function handleClick(event: MouseEvent) {
-  emits('click', event)
+  emits("click", event);
 
   // `disabled` does not block clicks once `as` or `as-child` renders something
   // other than a button.
   if (props.disabled) {
-    event.preventDefault()
-    return
+    event.preventDefault();
+    return;
   }
 
   if (!event.defaultPrevented) {
-    root.skipCurrent()
+    root.skipCurrent();
   }
 }
 </script>
@@ -62,11 +67,13 @@ function handleClick(event: MouseEvent) {
     :hidden="!visible"
     :inert="!visible"
     :tabindex="visible ? undefined : -1"
-    :class="cn(
-      buttonVariants({ size: props.size, variant: props.variant }),
-      'col-start-2 row-start-1 min-h-11 justify-self-end sm:min-h-0',
-      props.class,
-    )"
+    :class="
+      cn(
+        buttonVariants({ size: props.size, variant: props.variant }),
+        'col-start-2 row-start-1 min-h-11 justify-self-end sm:min-h-0',
+        props.class,
+      )
+    "
     @click="handleClick"
   >
     <slot>Skip</slot>
