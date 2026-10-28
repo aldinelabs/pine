@@ -1,15 +1,23 @@
 /*
  * Layout fixes on top of the token remapping in `lib/fileViewerSkin.ts`.
- *
+ */
+
+/*
+ * Renderers whose content grows past the preview instead of scrolling
+ * itself (RTF, WordPerfect, Hangul and others) scroll inside it.
+ */
+.pine-file-viewer > .file-render {
+  height: 100%;
+  overflow: auto;
+}
+
+/*
  * Pine's preview bar already names the file, pages, searches and zooms, and
- * repeats the controls that have no Pine counterpart (sheet, slideshow), so
- * the renderers' own bars are hidden.
- *
- * Spreadsheets: sheet tabs and the row summary. Presentations: the slideshow
- * button. Typst: the file name, page size and render status.
+ * repeats the controls that have no Pine counterpart, so the renderers' own
+ * bars are hidden. Spreadsheets: sheet tabs and the row summary.
+ * Presentations: the slideshow button.
  */
 .pine-file-viewer .excel-wrapper[data-file-viewer-spreadsheet-root] > .toolbar,
-.pine-file-viewer .pptx-slideshow-button,
-.pine-file-viewer .typst-toolbar {
+.pine-file-viewer .pptx-slideshow-button {
   display: none;
 }
