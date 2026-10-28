@@ -23,8 +23,15 @@ const props = withDefaults(
     /** Clockwise rotation in quarter turns' degrees. */
     rotation?: number;
     compact?: boolean;
+    /**
+     * The largest scale a fit may reach. Photos stay at their size; vector
+     * drawings enlarge to fill the stage.
+     */
+    maxFit?: number;
+    /** Shows transparent pixels on a checkerboard. */
+    checkerboard?: boolean;
   }>(),
-  { rotation: 0 },
+  { rotation: 0, maxFit: 1, checkerboard: true },
 );
 const emit = defineEmits<{
   load: [size: { width: number; height: number }];
@@ -59,7 +66,10 @@ function fitScale(widthOnly = false): number {
     : [size.width, size.height];
   const byWidth = (element.clientWidth - MARGIN * 2) / width;
   const byHeight = (element.clientHeight - MARGIN * 2) / height;
-  return Math.max(0.01, widthOnly ? byWidth : Math.min(byWidth, byHeight, 1));
+  return Math.max(
+    0.01,
+    widthOnly ? byWidth : Math.min(byWidth, byHeight, props.maxFit),
+  );
 }
 
 /** Keeps the point at the viewport's center in place while the scale changes. */
@@ -132,7 +142,7 @@ defineExpose({ fit, fitWidth });
       :style="{ padding: `${MARGIN}px` }"
     >
       <div
-        class="image-preview-frame relative"
+        :class="['relative', checkerboard && 'image-preview-frame']"
         :style="
           frame
             ? { width: `${frame.width}px`, height: `${frame.height}px` }

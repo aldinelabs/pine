@@ -37,6 +37,13 @@ const archiveExtensions = new Set([
   ),
   ..."cab ar cpio iso xar lha lzh jar war ear apk cbz cbr".split(" "),
 ]);
+const diagramExtensions = new Set([
+  "drawio",
+  "dio",
+  "excalidraw",
+  "mermaid",
+  "mmd",
+]);
 const emailExtensions = new Set(["eml", "msg", "mbox"]);
 const fontExtensions = new Set(["ttf", "otf", "woff", "woff2"]);
 const paletteExtensions = new Set(["ase", "aco"]);
@@ -66,6 +73,23 @@ function hasRenderedView(filePath: string): boolean {
 
 /** Ordered built-in renderers. A new engine can replace one by registering first. */
 export const previewRenderers: readonly PreviewRenderer[] = [
+  {
+    // draw.io, Excalidraw and Mermaid, drawn to SVG on a zoomable stage.
+    id: "diagram",
+    component: defineAsyncComponent(
+      () => import("./DiagramPreviewRenderer.vue"),
+    ),
+    supports: ({ preview, filePath, mode }) =>
+      diagramExtensions.has(previewExtension(filePath)) &&
+      (preview.kind === "document" ||
+        (preview.kind === "text" && mode === "rendered")),
+    capabilities: ({ preview }) => ({
+      ...noControls,
+      zoom: true,
+      fitWidth: true,
+      renderToggle: preview.kind === "text",
+    }),
+  },
   {
     // Messages and mailboxes; .eml and .mbox are text with a rendered view.
     id: "email",

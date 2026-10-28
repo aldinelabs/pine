@@ -47,6 +47,7 @@ export default defineConfig({
       // once pre-bundled.
       "ag-psd/dist/bundle.js",
       // Pine's own preview decoders, imported when a format needs them.
+      "@file-viewer/capability-mermaid/engine",
       "@kenjiuno/msgreader",
       "@tonejs/midi",
       "ag-psd",
@@ -54,6 +55,7 @@ export default defineConfig({
       "hyparquet",
       "libarchive.js",
       "postal-mime",
+      "roughjs",
       "sql.js",
       "utif",
     ],
