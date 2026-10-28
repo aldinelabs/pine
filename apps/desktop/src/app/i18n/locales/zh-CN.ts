@@ -585,6 +585,10 @@ export default {
       unmute: "取消静音",
       rotateLeft: "向左旋转",
       rotateRight: "向右旋转",
+      tableSize: "{rows} 行 · {columns} 列",
+      rowNumber: "行号",
+      truncatedRows: "仅显示前 {count} 行",
+      table: "表",
     },
     contentTabs: {
       emptyTitle: "无选项卡",

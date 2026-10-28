@@ -64,7 +64,8 @@ describe("file preview renderer registry", () => {
   it.each([
     ["index.html", "rendered", "file-viewer"],
     ["index.html", "code", "text"],
-    ["data.csv", "rendered", "file-viewer"],
+    ["data.csv", "rendered", "table"],
+    ["logo.svg", "rendered", "image"],
     ["notes.md", "rendered", "text"],
     ["main.py", "rendered", "text"],
   ] as const)(

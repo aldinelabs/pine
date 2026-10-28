@@ -48,6 +48,8 @@ export default defineConfig({
       "ag-psd/dist/bundle.js",
       // Pine's own preview decoders, imported when a format needs them.
       "heic2any",
+      "hyparquet",
+      "sql.js",
       "utif",
     ],
     exclude: [

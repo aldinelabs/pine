@@ -34,6 +34,9 @@ export interface PreviewRendererMetadata {
   height?: number;
   duration?: number;
   pageCount?: number;
+  /** Rows and columns of tabular content. */
+  rowCount?: number;
+  columnCount?: number;
 }
 
 export type PreviewRendererEvents = {

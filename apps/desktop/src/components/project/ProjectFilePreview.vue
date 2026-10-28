@@ -536,7 +536,9 @@ onBeforeUnmount(() => {
         <span>{{ fileSize }}</span>
         <template v-if="preview.kind === 'text'">
           <span>{{ preview.encoding }}</span>
-          <span>{{ t("project.preview.lines", { count: lineCount }) }}</span>
+          <span v-if="contentMetadata?.rowCount === undefined">{{
+            t("project.preview.lines", { count: lineCount })
+          }}</span>
         </template>
         <span
           v-if="
@@ -548,6 +550,12 @@ onBeforeUnmount(() => {
         <span v-if="duration">{{ duration }}</span>
         <span v-if="contentMetadata?.pageCount">{{
           t("project.preview.pages", { count: contentMetadata.pageCount })
+        }}</span>
+        <span v-if="contentMetadata?.rowCount !== undefined">{{
+          t("project.preview.tableSize", {
+            rows: contentMetadata.rowCount.toLocaleString(locale),
+            columns: (contentMetadata.columnCount ?? 0).toLocaleString(locale),
+          })
         }}</span>
       </template>
       <Skeleton v-else-if="!failed" class="h-3 w-40" />

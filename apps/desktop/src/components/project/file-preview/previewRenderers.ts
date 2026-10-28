@@ -29,6 +29,9 @@ const imageExtensions = new Set([
   "jxl",
 ]);
 
+const tableExtensions = new Set(["csv", "tsv", "dbf"]);
+const datasetExtensions = new Set(["sqlite", "parquet", "avro", "wasm"]);
+
 function isImage(filePath: string): boolean {
   return imageExtensions.has(previewExtension(filePath));
 }
@@ -39,6 +42,30 @@ function hasRenderedView(filePath: string): boolean {
 
 /** Ordered built-in renderers. A new engine can replace one by registering first. */
 export const previewRenderers: readonly PreviewRenderer[] = [
+  {
+    // Databases, columnar data and WebAssembly modules, table by table.
+    id: "dataset",
+    component: defineAsyncComponent(
+      () => import("./DatasetPreviewRenderer.vue"),
+    ),
+    supports: ({ preview, filePath }) =>
+      preview.kind === "document" &&
+      datasetExtensions.has(previewExtension(filePath)),
+    capabilities: () => noControls,
+  },
+  {
+    // Delimited text and dBASE tables, in a virtualized grid.
+    id: "table",
+    component: defineAsyncComponent(() => import("./TablePreviewRenderer.vue")),
+    supports: ({ preview, filePath, mode }) =>
+      tableExtensions.has(previewExtension(filePath)) &&
+      (preview.kind === "document" ||
+        (preview.kind === "text" && mode === "rendered")),
+    capabilities: ({ preview }) => ({
+      ...noControls,
+      renderToggle: preview.kind === "text",
+    }),
+  },
   {
     // Raster images and the rendered view of SVG.
     id: "image",

@@ -613,6 +613,10 @@ export default {
       unmute: "Unmute",
       rotateLeft: "Rotate left",
       rotateRight: "Rotate right",
+      tableSize: "{rows} rows · {columns} columns",
+      rowNumber: "Row number",
+      truncatedRows: "Showing the first {count} rows",
+      table: "Table",
     },
     contentTabs: {
       emptyTitle: "No tabs open",
