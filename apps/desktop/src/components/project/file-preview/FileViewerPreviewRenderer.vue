@@ -36,6 +36,8 @@ import {
 } from "@/components/ui/input-group";
 import { Spinner } from "@/components/ui/spinner";
 import { documentPreviewSelection } from "@/lib/filePreviewSelection";
+import { skinFileViewerStyles } from "@/lib/fileViewerSkin";
+import { themeSpreadsheets } from "@/lib/spreadsheetTheme";
 import {
   isSpreadsheetPreview,
   spreadsheetPreviewSelection,
@@ -92,6 +94,7 @@ const host = useTemplateRef<HTMLDivElement>("host");
 
 let viewer: FileViewerInstance | undefined;
 let disposed = false;
+let stopSkin: (() => void) | undefined;
 let applyingZoom = false;
 let searchTimer: ReturnType<typeof setTimeout> | undefined;
 /** The loaded source, kept to render again when the theme changes. */
@@ -200,6 +203,7 @@ let reportedScale: number | undefined;
 function syncViewerState(): void {
   const instance = viewer;
   if (!instance || loading.value) return;
+  if (host.value) themeSpreadsheets(host.value);
   const zoom = instance.getZoomState();
   zoomState.value = zoom;
   zoomable.value = instance.getCapabilities().zoom;
@@ -273,6 +277,8 @@ function reportMediaMetadata(): void {
 onMounted(async () => {
   const element = host.value;
   if (!element) return;
+  // Renderers inject their stylesheets while they render.
+  stopSkin = skinFileViewerStyles(element);
   try {
     const [{ createViewer, setDefaultFileViewerAssetBaseUrl }, preset] =
       await Promise.all([
@@ -312,6 +318,7 @@ onMounted(async () => {
 
 onBeforeUnmount(() => {
   disposed = true;
+  stopSkin?.();
   reading.abort();
   if (searchTimer) clearTimeout(searchTimer);
   for (const media of mediaElements()) media.pause();
@@ -572,6 +579,8 @@ defineExpose({ readSelection });
   --pine-fv-accent: var(--accent);
   --pine-fv-accent-foreground: var(--accent-foreground);
   --pine-fv-ring: var(--ring);
+  --pine-fv-primary: var(--primary);
+  --pine-fv-primary-foreground: var(--primary-foreground);
   --file-viewer-font: var(--font-sans, inherit);
   --file-viewer-bg: var(--pine-fv-background);
   --file-viewer-content-bg: var(--pine-fv-background);
@@ -623,6 +632,10 @@ defineExpose({ readSelection });
     from var(--accent-foreground) calc(1 - l) c h
   );
   --pine-fv-ring: oklch(from var(--ring) calc(1 - l) c h);
+  --pine-fv-primary: oklch(from var(--primary) calc(1 - l) c h);
+  --pine-fv-primary-foreground: oklch(
+    from var(--primary-foreground) calc(1 - l) c h
+  );
   filter: invert(1) hue-rotate(180deg);
 }
 
@@ -639,3 +652,5 @@ defineExpose({ readSelection });
   transform-origin: top left;
 }
 </style>
+
+<style src="./fileViewerSkin.css"></style>

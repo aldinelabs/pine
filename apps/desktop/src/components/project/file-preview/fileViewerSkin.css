@@ -1,0 +1,33 @@
+/*
+ * Layout fixes on top of the token remapping in `lib/fileViewerSkin.ts`.
+ *
+ * Pine's preview toolbar and footer already zoom, fit and name the file, so
+ * renderer toolbars that only repeat those controls are hidden. Controls with
+ * no Pine counterpart (layers, color mode, export, slideshow) stay.
+ */
+
+/* Diagrams: label, zoom and fit. */
+.pine-file-viewer .drawing-toolbar,
+/* Mind maps: file name, zoom and fit. */
+.pine-file-viewer .xmind-toolbar {
+  display: none;
+}
+
+/* CAD: fit and zoom; the color mode toggle and image export stay. */
+.pine-file-viewer .cad-tools > button:not(.cad-color-mode),
+.pine-file-viewer .cad-zoom,
+/* Photoshop: zoom out, level, zoom in and fit; layer visibility stays. */
+.pine-file-viewer .psd-actions > :nth-child(-n + 4) {
+  display: none;
+}
+
+/* Diagrams sit on the stage without a drop shadow, like Pine's cards. */
+.pine-file-viewer .drawing-canvas :is(.drawing-svg, svg, .drawing-mxgraph) {
+  box-shadow: none;
+  border: 1px solid var(--pine-fv-border);
+}
+
+/* Mermaid draws in the viewer's theme, so its page takes the theme too. */
+.pine-file-viewer .drawing-canvas svg[aria-roledescription] {
+  background: var(--pine-fv-card);
+}
