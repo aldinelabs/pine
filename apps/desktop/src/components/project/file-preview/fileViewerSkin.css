@@ -21,3 +21,14 @@
 .pine-file-viewer .pptx-slideshow-button {
   display: none;
 }
+
+/*
+ * PDF pages are paper on the stage, with a hairline edge and a gap between
+ * them, as Pine's own paged previews draw them. pdf.js draws the edge as a
+ * transparent border with a shadow image, which the skin removes.
+ */
+.pine-file-viewer .pdfViewer .page {
+  margin: 0 auto 16px;
+  border: 0;
+  box-shadow: 0 0 0 1px var(--pine-fv-border);
+}
