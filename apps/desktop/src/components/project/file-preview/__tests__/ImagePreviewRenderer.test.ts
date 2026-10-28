@@ -101,6 +101,10 @@ describe("ImagePreviewRenderer", () => {
   it("scales with the preview zoom and rotates from the top bar", async () => {
     const { wrapper, toolbar } = render("/p/photo.png", document_);
     await flushPromises();
+    // A stage 400 × 200 inside its 24px margins.
+    const stage = wrapper.get('[data-slot="image-preview"]').element;
+    Object.defineProperty(stage, "clientWidth", { value: 448 });
+    Object.defineProperty(stage, "clientHeight", { value: 248 });
     const image = await loadImage(wrapper, 400, 200);
     await wrapper.setProps({ zoom: 50 });
     await flushPromises();
@@ -111,10 +115,40 @@ describe("ImagePreviewRenderer", () => {
       .click();
     await flushPromises();
     expect(image.attributes("style")).toContain("rotate(90deg)");
-    // A quarter turn swaps the frame's sides and fits the image again
-    // (jsdom lays out nothing, so the fit is the 1% floor).
+    // A quarter turn swaps the frame's sides and fits the image again: the
+    // turned 200 × 400 image fits the 200px height at half its size.
     const frame = wrapper.get(".image-preview-frame");
-    expect(frame.attributes("style")).toBe("width: 2px; height: 4px;");
+    expect(frame.attributes("style")).toBe("width: 100px; height: 200px;");
+  });
+
+  it("fits an image that loads in a hidden tab once the tab is shown", async () => {
+    const observers: (() => void)[] = [];
+    vi.stubGlobal(
+      "ResizeObserver",
+      class {
+        constructor(callback: () => void) {
+          observers.push(callback);
+        }
+        observe() {}
+        disconnect() {}
+      },
+    );
+    const { wrapper, renderer } = render("/p/photo.png", document_);
+    await flushPromises();
+    const stage = wrapper.get('[data-slot="image-preview"]').element;
+    let size = 0;
+    Object.defineProperty(stage, "clientWidth", { get: () => size * 2 });
+    Object.defineProperty(stage, "clientHeight", { get: () => size });
+
+    await loadImage(wrapper, 400, 200);
+    // A hidden stage has no size to fit, so nothing shrinks to 1%.
+    expect(renderer.emitted("zoomChange")).toBeUndefined();
+
+    size = 148;
+    observers.forEach((callback) => callback());
+    await flushPromises();
+    // The 400 × 200 image fits 248 × 100 inside the margins at half size.
+    expect(renderer.emitted("zoomChange")?.at(-1)).toEqual([50]);
   });
 
   it("decodes TIFF pages one at a time and pages through them", async () => {

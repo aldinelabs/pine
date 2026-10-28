@@ -101,12 +101,33 @@ function fitWidth(): void {
   settle(fitScale(true));
 }
 
+/**
+ * Fits once the stage has a size. An image that finishes loading in a
+ * hidden tab would otherwise fit an empty stage and shrink to nothing.
+ */
+let pendingFit: ResizeObserver | undefined;
+function fitWhenSized(): void {
+  const element = viewport.value;
+  if (!element || (element.clientWidth && element.clientHeight)) {
+    fit();
+    return;
+  }
+  pendingFit?.disconnect();
+  pendingFit = new ResizeObserver(() => {
+    if (!element.clientWidth || !element.clientHeight) return;
+    pendingFit?.disconnect();
+    pendingFit = undefined;
+    fit();
+  });
+  pendingFit.observe(element);
+}
+
 function loaded(event: Event): void {
   const image = event.target as HTMLImageElement;
   const first = !natural.value;
   natural.value = { width: image.naturalWidth, height: image.naturalHeight };
   emit("load", natural.value);
-  if (first) void nextTick(fit);
+  if (first) void nextTick(fitWhenSized);
 }
 
 watch(
@@ -117,7 +138,7 @@ watch(
 );
 watch(
   () => props.rotation,
-  () => void nextTick(fit),
+  () => void nextTick(fitWhenSized),
 );
 
 let resizeObserver: ResizeObserver | undefined;
@@ -126,7 +147,10 @@ onMounted(() => {
   resizeObserver = new ResizeObserver(() => void applyScale(fitScale()));
   resizeObserver.observe(viewport.value);
 });
-onBeforeUnmount(() => resizeObserver?.disconnect());
+onBeforeUnmount(() => {
+  resizeObserver?.disconnect();
+  pendingFit?.disconnect();
+});
 
 defineExpose({ fit, fitWidth });
 </script>
