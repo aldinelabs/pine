@@ -49,6 +49,24 @@ describe("file-viewer skin", () => {
     );
   });
 
+  it("lays every renderer's stage on Pine's page background", () => {
+    expect(
+      skinFileViewerCss(
+        ".email-viewer{background:#f3f6f8}.cad-shell{background:#f5f7fb}.dwfv-stage{position:relative;background:#e5e7eb}.ofd-viewer{display:block;background:#fff!important}.geo-map-frame{background:#f8fafc}",
+      ),
+    ).toBe(
+      ".email-viewer{background:var(--pine-fv-background)}.cad-shell{background:var(--pine-fv-background)}.dwfv-stage{position:relative;background:var(--pine-fv-background)}.ofd-viewer{display:block;background:var(--pine-fv-background)!important}.geo-map-frame{background:var(--pine-fv-background)}",
+    );
+    // Panels inside a stage, and paper framed on it, keep their roles.
+    expect(
+      skinFileViewerCss(
+        ".excel-wrapper .toolbar{background:#f8fafc}.cad-shell:hover{background:#eef1f4}.tiff-frame{background:#fff}",
+      ),
+    ).toBe(
+      ".excel-wrapper .toolbar{background:var(--pine-fv-background)}.cad-shell:hover{background:var(--pine-fv-muted)}.tiff-frame{background:#fff}",
+    );
+  });
+
   it("swaps renderer font stacks for Pine's", () => {
     expect(
       skinFileViewerCss(

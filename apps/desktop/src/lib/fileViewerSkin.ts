@@ -178,6 +178,8 @@ const KEYWORD = /\b(white|black)\b/gi;
 
 interface RuleContext {
   paper: boolean;
+  /** The rule paints the stage the document sits on, which is Pine's page. */
+  surface: boolean;
   /** The rule styles a layer floating over the viewer (drawers, lightboxes). */
   floating: boolean;
   /** The rule paints an accent background, so its text sits on the primary color. */
@@ -187,6 +189,11 @@ interface RuleContext {
 function mapLiteral(literal: string, role: Role, rule: RuleContext): string {
   const solidWhite = WHITE.test(literal);
   const solidBlack = BLACK.test(literal);
+  if (rule.surface && role === "background" && !(rule.paper && solidWhite)) {
+    const color = solidWhite || solidBlack ? undefined : parseColor(literal);
+    if (!color || color.chroma < NEUTRAL_CHROMA)
+      return tokenColor("--background", color?.alpha ?? 1);
+  }
   if (solidWhite || solidBlack) {
     if (rule.paper) return literal;
     if (role === "border") return tokenColor("--border", 1);
@@ -216,6 +223,28 @@ function hasAccentBackground(body: string): boolean {
     }
   }
   return false;
+}
+
+/**
+ * The containers a renderer lays its document on: shells, stages, viewers.
+ * Their light grays would otherwise map to raised tokens and read as a gray
+ * panel instead of Pine's page.
+ */
+const SURFACE =
+  /(^|[-_])(shell|stage|viewer|root|wrapper|workspace|container|viewport|frame|body|surface|main)$/i;
+
+/** Every selector in the list targets a surface container itself. */
+function isSurface(selector: string): boolean {
+  return selector.split(",").every((part) => {
+    const subject =
+      part
+        .trim()
+        .split(/\s*[\s>+~]\s*/)
+        .pop() ?? "";
+    if (!/^(\.[\w-]+|\[[^\]]*\])+$/.test(subject)) return false;
+    const classes = subject.match(/\.[\w-]+/g);
+    return Boolean(classes?.some((name) => SURFACE.test(name.slice(1))));
+  });
 }
 
 /** Selectors for layers that float over the viewer and keep a shadow. */
@@ -282,6 +311,7 @@ export function skinFileViewerCss(css: string): string {
       if (/^\s*@(font-face|keyframes|page)/i.test(selector)) return match;
       const rule = {
         paper: PAPER.test(selector),
+        surface: isSurface(selector),
         floating: FLOATING.test(selector),
         onAccent: hasAccentBackground(body),
       };

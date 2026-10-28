@@ -781,3 +781,11 @@ html.sidebar-vibrancy [data-slot="alert-dialog-overlay"] {
   --accent: var(--workbench-card-raised);
   --sidebar-accent: var(--workbench-card-raised);
 }
+
+/*
+ * A preview lays its document on the surface around it: the page in a tab,
+ * the card in the workbench.
+ */
+[data-workbench] [data-slot="workbench-preview"] {
+  --background: var(--workbench-card);
+}

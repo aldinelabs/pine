@@ -18,6 +18,7 @@ import {
 import { Spinner } from "@/components/ui/spinner";
 import type { MindSheet } from "@/lib/mindmap";
 import { resolveColors } from "@/lib/themeColors";
+import { useThemeRoot } from "@/composables/useThemeRoot";
 import { useAppearanceStore } from "@/stores/appearance";
 import { readPreviewBytes } from "./previewBytes";
 import type {
@@ -27,6 +28,7 @@ import type {
 import { usePreviewToolbar } from "./usePreviewToolbar";
 import ZoomableImage from "./ZoomableImage.vue";
 
+const themeRoot = useThemeRoot();
 const props = defineProps<PreviewRendererProps>();
 const emit = defineEmits<PreviewRendererEvents>();
 const { t } = useI18n();
@@ -44,15 +46,18 @@ async function render(): Promise<void> {
   if (!current) return;
   const { renderMindMap } = await import("@/lib/mindmap");
   const svg = renderMindMap(current, {
-    ...resolveColors({
-      background: "--background",
-      foreground: "--foreground",
-      muted: "--muted",
-      mutedForeground: "--muted-foreground",
-      border: "--border",
-      primary: "--primary",
-      primaryForeground: "--primary-foreground",
-    }),
+    ...resolveColors(
+      {
+        background: "--background",
+        foreground: "--foreground",
+        muted: "--muted",
+        mutedForeground: "--muted-foreground",
+        border: "--border",
+        primary: "--primary",
+        primaryForeground: "--primary-foreground",
+      },
+      themeRoot(),
+    ),
     font: getComputedStyle(document.body).fontFamily,
   });
   if (image.value) URL.revokeObjectURL(image.value);

@@ -14,6 +14,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { Toggle } from "@/components/ui/toggle";
 import type { Ebook } from "@/lib/ebook";
 import { resolveColors } from "@/lib/themeColors";
+import { useThemeRoot } from "@/composables/useThemeRoot";
 import { cn } from "@/lib/utils";
 import { previewExtension } from "@/shared/previewFormats";
 import { useAppearanceStore } from "@/stores/appearance";
@@ -26,6 +27,7 @@ import type {
 } from "./previewRenderer";
 import { usePreviewToolbar } from "./usePreviewToolbar";
 
+const themeRoot = useThemeRoot();
 const props = defineProps<PreviewRendererProps>();
 const emit = defineEmits<PreviewRendererEvents>();
 const { t } = useI18n();
@@ -60,11 +62,14 @@ table { max-width: 100%; }
 
 function readerColors() {
   return {
-    ...resolveColors({
-      background: "--background",
-      foreground: "--foreground",
-      primary: "--primary",
-    }),
+    ...resolveColors(
+      {
+        background: "--background",
+        foreground: "--foreground",
+        primary: "--primary",
+      },
+      themeRoot(),
+    ),
     font: getComputedStyle(document.body).fontFamily,
   };
 }
@@ -84,6 +89,8 @@ async function open(index: number): Promise<void> {
 }
 
 onMounted(async () => {
+  // Read the colors where the reader shows, now that it has an element.
+  colors.value = readerColors();
   emit("capabilitiesChange", {
     zoom: !props.compact,
     zoomMin: 60,

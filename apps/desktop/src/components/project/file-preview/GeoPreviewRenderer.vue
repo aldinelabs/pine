@@ -20,6 +20,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { formatGridCell } from "@/lib/dataGrid";
 import { featureName, geometryKind, type GeoFeature } from "@/lib/geo";
 import { resolveColors } from "@/lib/themeColors";
+import { useThemeRoot } from "@/composables/useThemeRoot";
 import { cn } from "@/lib/utils";
 import { previewExtension } from "@/shared/previewFormats";
 import { useAppearanceStore } from "@/stores/appearance";
@@ -30,6 +31,7 @@ import type {
 } from "./previewRenderer";
 import ZoomableImage from "./ZoomableImage.vue";
 
+const themeRoot = useThemeRoot();
 const props = defineProps<PreviewRendererProps>();
 const emit = defineEmits<PreviewRendererEvents>();
 const { t, locale } = useI18n();
@@ -59,14 +61,17 @@ function icon(feature: GeoFeature) {
 async function render(): Promise<void> {
   if (!features.value.length) return;
   const { renderGeoMap } = await import("@/lib/geo");
-  const colors = resolveColors({
-    background: "--background",
-    grid: "--border",
-    stroke: "--foreground",
-    fill: "--muted-foreground",
-    highlight: "--primary",
-    label: "--muted-foreground",
-  });
+  const colors = resolveColors(
+    {
+      background: "--background",
+      grid: "--border",
+      stroke: "--foreground",
+      fill: "--muted-foreground",
+      highlight: "--primary",
+      label: "--muted-foreground",
+    },
+    themeRoot(),
+  );
   const svg = renderGeoMap(
     features.value,
     { ...colors, font: getComputedStyle(document.body).fontFamily },

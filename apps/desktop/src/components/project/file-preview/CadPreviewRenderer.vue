@@ -29,6 +29,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Spinner } from "@/components/ui/spinner";
 import { Toggle } from "@/components/ui/toggle";
 import { resolveColors, toHex } from "@/lib/themeColors";
+import { useThemeRoot } from "@/composables/useThemeRoot";
 import { cn } from "@/lib/utils";
 import { useAppearanceStore } from "@/stores/appearance";
 import { readPreviewBytes } from "./previewBytes";
@@ -38,6 +39,7 @@ import type {
 } from "./previewRenderer";
 import { usePreviewToolbar } from "./usePreviewToolbar";
 
+const themeRoot = useThemeRoot();
 const props = defineProps<PreviewRendererProps>();
 const emit = defineEmits<PreviewRendererEvents>();
 const { t, locale } = useI18n();
@@ -88,10 +90,13 @@ const summary = computed(() => {
 
 /** Drawing settings: the app's colors, with drawing colors kept legible on them. */
 function canvasOptions() {
-  const colors = resolveColors({
-    background: "--background",
-    foreground: "--foreground",
-  });
+  const colors = resolveColors(
+    {
+      background: "--background",
+      foreground: "--foreground",
+    },
+    themeRoot(),
+  );
   return {
     background: toHex(colors.background),
     foreground: toHex(colors.foreground),

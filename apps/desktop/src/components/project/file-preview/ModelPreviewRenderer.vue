@@ -22,6 +22,7 @@ import {
 import { Spinner } from "@/components/ui/spinner";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { resolveColors } from "@/lib/themeColors";
+import { useThemeRoot } from "@/composables/useThemeRoot";
 import { previewExtension } from "@/shared/previewFormats";
 import { useAppearanceStore } from "@/stores/appearance";
 import { readPreviewBytes } from "./previewBytes";
@@ -31,6 +32,7 @@ import type {
 } from "./previewRenderer";
 import { usePreviewToolbar } from "./usePreviewToolbar";
 
+const themeRoot = useThemeRoot();
 const props = defineProps<PreviewRendererProps>();
 const emit = defineEmits<PreviewRendererEvents>();
 const { t, locale } = useI18n();
@@ -116,7 +118,7 @@ function setZoom(percent: number): void {
 
 function themeHelpers(): void {
   if (!three || !scene) return;
-  const colors = resolveColors({ line: "--muted-foreground" });
+  const colors = resolveColors({ line: "--muted-foreground" }, themeRoot());
   grid?.removeFromParent();
   grid?.dispose();
   const size = modelRadius * 4;

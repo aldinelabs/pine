@@ -18,6 +18,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { layerColor, type OrcadContents } from "@/lib/eda";
 import { resolveColors } from "@/lib/themeColors";
+import { useThemeRoot } from "@/composables/useThemeRoot";
 import { cn } from "@/lib/utils";
 import { previewExtension } from "@/shared/previewFormats";
 import { useAppearanceStore } from "@/stores/appearance";
@@ -30,6 +31,7 @@ import type {
 import { usePreviewToolbar } from "./usePreviewToolbar";
 import ZoomableImage from "./ZoomableImage.vue";
 
+const themeRoot = useThemeRoot();
 const props = defineProps<PreviewRendererProps>();
 const emit = defineEmits<PreviewRendererEvents>();
 const { t } = useI18n();
@@ -70,10 +72,13 @@ const loadRows = computed(() => {
 async function render(): Promise<void> {
   if (!layout.value) return;
   const { renderLayout } = await import("@/lib/eda");
-  const colors = resolveColors({
-    background: "--background",
-    text: "--foreground",
-  });
+  const colors = resolveColors(
+    {
+      background: "--background",
+      text: "--foreground",
+    },
+    themeRoot(),
+  );
   const svg = renderLayout(layout.value, hidden.value, colors);
   if (image.value) URL.revokeObjectURL(image.value);
   image.value = URL.createObjectURL(new Blob([svg], { type: "image/svg+xml" }));

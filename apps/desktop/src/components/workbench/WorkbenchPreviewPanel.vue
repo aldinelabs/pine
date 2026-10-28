@@ -207,7 +207,11 @@ watch(
 </script>
 
 <template>
-  <div data-testid="workbench-preview" class="flex h-full min-h-0 flex-col">
+  <div
+    data-testid="workbench-preview"
+    data-slot="workbench-preview"
+    class="flex h-full min-h-0 flex-col"
+  >
     <Empty v-if="!target" class="flex-1 border-0">
       <EmptyHeader>
         <EmptyMedia variant="icon">
