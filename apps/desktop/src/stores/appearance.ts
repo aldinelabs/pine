@@ -1,5 +1,5 @@
 import { defineStore } from "pinia";
-import { ref } from "vue";
+import { computed, ref } from "vue";
 import {
   PROJECT_COLOR_THEMES,
   type ProjectColorTheme,
@@ -11,6 +11,7 @@ export const SIDEBAR_VIBRANCY_STORAGE_KEY = "pine.sidebar-vibrancy";
 export const SIDEBAR_VIBRANCY_CLASS = "sidebar-vibrancy";
 export const TRANSCRIPT_SERIF_STORAGE_KEY = "pine.transcript-serif";
 export const TRANSCRIPT_SERIF_CLASS = "transcript-serif";
+export const INVERT_DOCUMENTS_STORAGE_KEY = "pine.invert-documents";
 
 export type ColorScheme = "light" | "dark";
 export type ThemePreference = "system" | ColorScheme;
@@ -68,6 +69,17 @@ function readStoredTranscriptSerif(): boolean {
   }
 }
 
+/** Documents start inverted in dark mode unless the user turned it off. */
+function readStoredInvertDocuments(): boolean {
+  try {
+    return (
+      window.localStorage.getItem(INVERT_DOCUMENTS_STORAGE_KEY) !== "false"
+    );
+  } catch {
+    return true;
+  }
+}
+
 function isMacOSPlatform(): boolean {
   return window.pine?.platform === "darwin";
 }
@@ -79,6 +91,11 @@ export const useAppearanceStore = defineStore("appearance", () => {
   const supportsSidebarVibrancy = ref(isMacOSPlatform());
   const sidebarVibrancy = ref(false);
   const transcriptSerif = ref(readStoredTranscriptSerif());
+  const invertDocuments = ref(readStoredInvertDocuments());
+  /** Whether previews that can invert their pages start inverted. */
+  const invertsDocuments = computed(
+    () => invertDocuments.value && colorScheme.value === "dark",
+  );
 
   let isInitialized = false;
   let mediaQuery: MediaQueryList | null = null;
@@ -180,8 +197,24 @@ export const useAppearanceStore = defineStore("appearance", () => {
     }
   }
 
+  function setInvertDocuments(enabled: boolean): void {
+    invertDocuments.value = enabled;
+
+    try {
+      window.localStorage.setItem(
+        INVERT_DOCUMENTS_STORAGE_KEY,
+        enabled ? "true" : "false",
+      );
+    } catch {
+      // The choice still applies for this session if storage is unavailable.
+    }
+  }
+
   return {
     colorScheme,
+    invertDocuments,
+    invertsDocuments,
+    setInvertDocuments,
     initialize,
     pineColorTheme,
     setPineColorTheme,

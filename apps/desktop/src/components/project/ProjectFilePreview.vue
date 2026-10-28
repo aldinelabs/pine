@@ -161,7 +161,7 @@ function handleCapabilitiesChange(
   loadedCapabilities.value = next;
   if (next.invert && inversionFollowsScheme) {
     inversionFollowsScheme = false;
-    previewInverted.value = appearanceStore.colorScheme === "dark";
+    previewInverted.value = appearanceStore.invertsDocuments;
   }
 }
 
@@ -431,7 +431,7 @@ watch(
         preview.value = result;
         if (fileChanged)
           previewInverted.value =
-            capabilities.value.invert && appearanceStore.colorScheme === "dark";
+            capabilities.value.invert && appearanceStore.invertsDocuments;
       }
     } catch {
       if (active) failed.value = true;
@@ -452,10 +452,9 @@ watch(
 );
 
 watch(
-  () => appearanceStore.colorScheme,
-  (colorScheme) => {
-    if (capabilities.value.invert)
-      previewInverted.value = colorScheme === "dark";
+  () => appearanceStore.invertsDocuments,
+  (inverts) => {
+    if (capabilities.value.invert) previewInverted.value = inverts;
   },
 );
 watch(zoom, scheduleZoom);

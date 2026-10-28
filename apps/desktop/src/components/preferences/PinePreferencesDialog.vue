@@ -880,6 +880,23 @@ defineExpose({ open });
                 />
               </Field>
 
+              <Field orientation="horizontal">
+                <div class="flex min-w-0 flex-1 flex-col gap-1">
+                  <FieldTitle id="pine-invert-documents-setting">
+                    {{ t("preferences.invertDocuments") }}
+                  </FieldTitle>
+                  <FieldDescription>
+                    {{ t("preferences.invertDocumentsDescription") }}
+                  </FieldDescription>
+                </div>
+                <Switch
+                  data-testid="pine-invert-documents-toggle"
+                  :model-value="appearanceStore.invertDocuments"
+                  aria-labelledby="pine-invert-documents-setting"
+                  @update:model-value="appearanceStore.setInvertDocuments"
+                />
+              </Field>
+
               <Field v-if="supportsSidebarVibrancy" orientation="horizontal">
                 <div class="flex min-w-0 flex-1 flex-col gap-1">
                   <FieldTitle id="pine-sidebar-vibrancy-setting">

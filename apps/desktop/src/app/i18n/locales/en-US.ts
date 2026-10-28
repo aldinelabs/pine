@@ -94,6 +94,9 @@ export default {
     contextCompactionRouteSemantic: "Semantic algorithm (Beta)",
     transcriptSerif: "Serif replies",
     transcriptSerifDescription: "Show assistant replies in a serif font",
+    invertDocuments: "Invert documents in dark mode",
+    invertDocumentsDescription:
+      "Open PDFs, presentations and other documents with inverted pages in dark mode",
     sidebarVibrancy: "Sidebar blur",
     sidebarVibrancyDescription:
       "Render the sidebar with the native macOS blur material",

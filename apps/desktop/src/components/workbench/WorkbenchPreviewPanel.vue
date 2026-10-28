@@ -12,6 +12,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import {
   previewRendererKey,
   resolvePreviewRenderer,
+  type PreviewRendererCapabilities,
 } from "@/components/project/file-preview/previewRenderer";
 import { previewRenderers } from "@/components/project/file-preview/previewRenderers";
 import { changedLineRanges } from "@/lib/changedLines";
@@ -23,6 +24,7 @@ import type {
   FilePreviewTarget,
   ProjectFilePreview,
 } from "@/shared/projectFiles";
+import { useAppearanceStore } from "@/stores/appearance";
 import { useContentTabsStore } from "@/stores/contentTabs";
 import { useProjectStore } from "@/stores/project";
 import { useSessionStore } from "@/stores/session";
@@ -42,6 +44,7 @@ const workbench = useWorkbenchStore();
 const contentTabs = useContentTabsStore();
 const sessionStore = useSessionStore();
 const projectStore = useProjectStore();
+const appearance = useAppearanceStore();
 
 const current = computed(() => workbench.activeLayout.preview);
 /**
@@ -84,6 +87,22 @@ const renderer = computed(() => {
         mode: mode.value,
       })
     : undefined;
+});
+
+/** Controls the renderer offered once its content loaded. */
+const loadedCapabilities = ref<Partial<PreviewRendererCapabilities>>({});
+/** Pages invert as the full previewer starts them, so both look the same. */
+const inverted = computed(() => {
+  const value = preview.value;
+  if (!renderer.value || !value || value.kind === "unsupported") return false;
+  const invert =
+    loadedCapabilities.value.invert ??
+    renderer.value.capabilities({
+      preview: value,
+      filePath: filePath.value,
+      mode: mode.value,
+    }).invert;
+  return invert && appearance.invertsDocuments;
 });
 
 function projectIdOfSession(): string {
@@ -179,6 +198,7 @@ watch(
     const reloaded = key === previous?.[0];
     if (!reloaded) {
       preview.value = undefined;
+      loadedCapabilities.value = {};
       changedLines.value = undefined;
     }
     failed.value = false;
@@ -268,9 +288,10 @@ watch(
         :changed-lines="changedLines"
         compact
         :zoom="100"
-        :inverted="false"
+        :inverted="inverted"
         :selection-label="t('project.preview.selectedContent')"
         @failed="failed = true"
+        @capabilities-change="loadedCapabilities = $event"
       />
     </template>
   </div>

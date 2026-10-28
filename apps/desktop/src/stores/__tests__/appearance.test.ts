@@ -1,6 +1,7 @@
 import { createPinia, setActivePinia } from "pinia";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  INVERT_DOCUMENTS_STORAGE_KEY,
   SIDEBAR_VIBRANCY_STORAGE_KEY,
   TRANSCRIPT_SERIF_STORAGE_KEY,
   useAppearanceStore,
@@ -99,5 +100,25 @@ describe("appearance store", () => {
     expect(window.localStorage.getItem(TRANSCRIPT_SERIF_STORAGE_KEY)).toBe(
       "false",
     );
+  });
+
+  it("inverts documents in dark mode unless turned off", () => {
+    const store = useAppearanceStore();
+    store.setThemePreference("dark");
+    expect(store.invertDocuments).toBe(true);
+    expect(store.invertsDocuments).toBe(true);
+
+    store.setInvertDocuments(false);
+    expect(store.invertsDocuments).toBe(false);
+    expect(window.localStorage.getItem(INVERT_DOCUMENTS_STORAGE_KEY)).toBe(
+      "false",
+    );
+    setActivePinia(createPinia());
+    expect(useAppearanceStore().invertDocuments).toBe(false);
+
+    const restored = useAppearanceStore();
+    restored.setInvertDocuments(true);
+    restored.setThemePreference("light");
+    expect(restored.invertsDocuments).toBe(false);
   });
 });

@@ -90,6 +90,9 @@ export default {
     contextCompactionRouteSemantic: "语义化算法（Beta）",
     transcriptSerif: "衬线回复",
     transcriptSerifDescription: "助手回复使用衬线字体",
+    invertDocuments: "深色模式下反色文档",
+    invertDocumentsDescription:
+      "深色模式下默认反色显示 PDF、演示文稿等文档的页面",
     sidebarVibrancy: "侧栏模糊效果",
     sidebarVibrancyDescription: "使用 macOS 原生模糊材质渲染侧栏",
     modelCatalogRefresh: "模型目录",
