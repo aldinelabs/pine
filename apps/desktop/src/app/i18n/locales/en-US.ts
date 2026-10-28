@@ -636,6 +636,7 @@ export default {
       midiInstrument: "Instrument",
       midiChannel: "Channel",
       midiNoteCount: "Notes",
+      psdUntitledLayer: "Untitled layer",
       midiUntitled: "Track {index}",
       midiPercussion: "Percussion",
       toggleTrack: "Show or hide {name}",

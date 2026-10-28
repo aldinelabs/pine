@@ -4,7 +4,7 @@
  * opacity, blend modes and clipping masks apply; layer masks and effects do
  * not, which is why the file's own composite is shown until a layer changes.
  */
-import type { BlendMode, Layer } from "ag-psd";
+import type { BlendMode, Layer, Psd } from "ag-psd";
 
 const BLEND: Partial<Record<BlendMode, GlobalCompositeOperation>> = {
   normal: "source-over",
@@ -139,4 +139,17 @@ export async function compositeToBlob(
   const target = canvas(width, height);
   compositeLayers(target, layers, isVisible);
   return target.canvas.convertToBlob({ type: "image/png" });
+}
+
+/**
+ * Whether the composite image stored in the file shows the document. Files
+ * saved without "maximize compatibility" store a placeholder instead, and
+ * Photoshop says so in its version information; other writers may store one
+ * without saying anything. Layered files whose composite is not vouched for
+ * are composited from their layers.
+ */
+export function hasRealComposite(file: Psd): boolean {
+  if (!file.canvas) return false;
+  if (!file.children?.length) return true;
+  return file.imageResources?.versionInfo?.hasRealMergedData === true;
 }

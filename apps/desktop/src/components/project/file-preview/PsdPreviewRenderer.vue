@@ -14,7 +14,11 @@ import { Eye, EyeOff, Folder, Image as ImageIcon } from "@lucide/vue";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Spinner } from "@/components/ui/spinner";
-import { compositeToBlob, layerTree } from "@/lib/psdComposite";
+import {
+  compositeToBlob,
+  hasRealComposite,
+  layerTree,
+} from "@/lib/psdComposite";
 import { cn } from "@/lib/utils";
 import { readPreviewBytes } from "./previewBytes";
 import type {
@@ -82,22 +86,6 @@ function showAll(visible: boolean): void {
   update(new Set(visible ? [] : layers.value.map((node) => node.layer)));
 }
 
-/**
- * Files saved without "maximize compatibility" carry an empty composite;
- * those are composited from their layers instead.
- */
-function hasPixels(image: HTMLCanvasElement): boolean {
-  const probe = new OffscreenCanvas(32, 32).getContext("2d", {
-    willReadFrequently: true,
-  });
-  if (!probe) return true;
-  probe.drawImage(image, 0, 0, 32, 32);
-  const { data } = probe.getImageData(0, 0, 32, 32);
-  for (let index = 3; index < data.length; index += 4)
-    if (data[index]) return true;
-  return false;
-}
-
 function fitWidth(): void {
   stage.value?.fitWidth();
 }
@@ -127,7 +115,7 @@ onMounted(async () => {
         .filter((node) => node.layer.hidden)
         .map((node) => node.layer),
     );
-    if (file.canvas && hasPixels(file.canvas))
+    if (hasRealComposite(file))
       setSource(
         await new Promise<Blob>((resolve, reject) =>
           file.canvas!.toBlob(
@@ -228,7 +216,9 @@ defineExpose({ fitWidth });
                 v-else
                 class="size-3.5 shrink-0 text-muted-foreground"
               />
-              <span class="truncate">{{ node.name }}</span>
+              <span class="truncate">{{
+                node.name || t("project.preview.psdUntitledLayer")
+              }}</span>
             </button>
           </li>
         </ul>

@@ -608,6 +608,7 @@ export default {
       midiInstrument: "乐器",
       midiChannel: "通道",
       midiNoteCount: "音符",
+      psdUntitledLayer: "未命名图层",
       midiUntitled: "音轨 {index}",
       midiPercussion: "打击乐",
       toggleTrack: "显示或隐藏 {name}",
