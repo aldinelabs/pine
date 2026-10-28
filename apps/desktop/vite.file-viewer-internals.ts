@@ -11,7 +11,11 @@ export function fileViewerInternals(): Record<string, string> {
   const epub = path.dirname(
     require.resolve("@file-viewer/renderer-epub/package.json"),
   );
+  const ofd = path.dirname(
+    require.resolve("@file-viewer/renderer-ofd/package.json"),
+  );
   return {
     "@file-viewer-internal/umd-parser": path.join(epub, "dist/umd/parser.js"),
+    "@file-viewer-internal/ofd": path.join(ofd, "vendor/dltech/ofd/ofd.js"),
   };
 }

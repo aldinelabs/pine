@@ -79,6 +79,11 @@ function hasRenderedView(filePath: string): boolean {
 /** Ordered built-in renderers. A new engine can replace one by registering first. */
 export const previewRenderers: readonly PreviewRenderer[] = [
   documentRenderer(
+    "ofd",
+    new Set(["ofd"]),
+    defineAsyncComponent(() => import("./OfdPreviewRenderer.vue")),
+  ),
+  documentRenderer(
     "ebook",
     new Set(["epub", "fb2", "umd", "chm"]),
     defineAsyncComponent(() => import("./EbookPreviewRenderer.vue")),

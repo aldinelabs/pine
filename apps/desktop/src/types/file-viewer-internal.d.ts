@@ -20,3 +20,13 @@ declare module "@file-viewer-internal/umd-parser" {
   }
   export function parseUmdBook(buffer: ArrayBuffer): UmdBook;
 }
+
+declare module "@file-viewer-internal/ofd" {
+  export function parseOfdDocument(options: {
+    ofd: ArrayBuffer;
+    success?: (documents: unknown[]) => void;
+    fail?: (reason: unknown) => void;
+  }): void;
+  /** Renders every page of a document at the given width, in pixels. */
+  export function renderOfd(width: number, document: unknown): HTMLElement[];
+}
