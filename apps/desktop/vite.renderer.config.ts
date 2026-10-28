@@ -49,10 +49,12 @@ export default defineConfig({
       // Pine's own preview decoders, imported when a format needs them.
       "@file-viewer/capability-mermaid/engine",
       "@kenjiuno/msgreader",
+      "@ljheee/xmind-parser",
       "@tonejs/midi",
       "ag-psd",
       "heic2any",
       "hyparquet",
+      "jszip",
       "libarchive.js",
       "postal-mime",
       "roughjs",

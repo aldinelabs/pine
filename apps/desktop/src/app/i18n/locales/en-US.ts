@@ -645,6 +645,8 @@ export default {
       archiveWrongPassword: "The password is wrong",
       archivePassword: "Password",
       archiveUnlock: "Open",
+      sheet: "Sheet",
+      sheetFallback: "Sheet {index}",
       mailView: "Message view",
       mailBody: "Message",
       mailHeaders: "Headers",

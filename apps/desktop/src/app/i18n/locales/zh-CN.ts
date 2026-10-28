@@ -617,6 +617,8 @@ export default {
       archiveWrongPassword: "密码不正确",
       archivePassword: "密码",
       archiveUnlock: "打开",
+      sheet: "画布",
+      sheetFallback: "画布 {index}",
       mailView: "邮件视图",
       mailBody: "正文",
       mailHeaders: "邮件头",

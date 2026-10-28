@@ -73,6 +73,11 @@ function hasRenderedView(filePath: string): boolean {
 
 /** Ordered built-in renderers. A new engine can replace one by registering first. */
 export const previewRenderers: readonly PreviewRenderer[] = [
+  documentRenderer(
+    "mindmap",
+    new Set(["xmind"]),
+    defineAsyncComponent(() => import("./MindMapPreviewRenderer.vue")),
+  ),
   {
     // draw.io, Excalidraw and Mermaid, drawn to SVG on a zoomable stage.
     id: "diagram",
