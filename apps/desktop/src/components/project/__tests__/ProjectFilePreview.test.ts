@@ -849,23 +849,23 @@ describe("ProjectFilePreview", () => {
         kind: "document",
         url: "pine-project-media://preview/image",
       });
-    fileViewer.state.rendererId = "image";
     const wrapper = render(read);
     await flushPromises();
     await wrapper.setProps({ file: { ...file, relativePath: "photo.png" } });
     await flushPromises();
     first({ ...info, kind: "text", text: "old", encoding: "UTF-8" });
-    await mountedViewer(wrapper);
-    expect(fetch).toHaveBeenLastCalledWith(
-      "pine-project-media://preview/image",
-      expect.anything(),
-    );
+    await flushPromises();
+    await vi.dynamicImportSettled();
+    await flushPromises();
     expect(wrapper.find("pre").exists()).toBe(false);
-    Object.defineProperties(wrapper.get("img").element, {
+    // Images show straight from the media URL, without reading the bytes.
+    const image = wrapper.get('[data-slot="image-preview"] img');
+    expect(image.attributes("src")).toBe("pine-project-media://preview/image");
+    Object.defineProperties(image.element, {
       naturalWidth: { value: 640 },
       naturalHeight: { value: 480 },
     });
-    await wrapper.get("img").trigger("load");
+    await image.trigger("load");
     expect(wrapper.text()).toContain("640 × 480");
   });
 

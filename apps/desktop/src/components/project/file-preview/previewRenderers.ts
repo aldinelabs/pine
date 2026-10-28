@@ -11,12 +11,49 @@ import type { PreviewRenderer } from "./previewRenderer";
 
 const noControls = { zoom: false, invert: false, renderToggle: false };
 
+/** Images Pine shows itself; HEIC and TIFF are decoded first. */
+const imageExtensions = new Set([
+  "png",
+  "jpg",
+  "jpeg",
+  "gif",
+  "webp",
+  "avif",
+  "bmp",
+  "ico",
+  "svg",
+  "tif",
+  "tiff",
+  "heic",
+  "heif",
+  "jxl",
+]);
+
+function isImage(filePath: string): boolean {
+  return imageExtensions.has(previewExtension(filePath));
+}
+
 function hasRenderedView(filePath: string): boolean {
   return renderedTextExtensions.has(previewExtension(filePath));
 }
 
 /** Ordered built-in renderers. A new engine can replace one by registering first. */
 export const previewRenderers: readonly PreviewRenderer[] = [
+  {
+    // Raster images and the rendered view of SVG.
+    id: "image",
+    component: defineAsyncComponent(() => import("./ImagePreviewRenderer.vue")),
+    supports: ({ preview, filePath, mode }) =>
+      isImage(filePath) &&
+      (preview.kind === "document" ||
+        (preview.kind === "text" && mode === "rendered")),
+    capabilities: ({ preview }) => ({
+      ...noControls,
+      zoom: true,
+      fitWidth: true,
+      renderToggle: preview.kind === "text",
+    }),
+  },
   {
     // Every binary format, and the rendered view of text formats such as
     // HTML, SVG or CSV. Zoom and colour inversion depend on the loaded format

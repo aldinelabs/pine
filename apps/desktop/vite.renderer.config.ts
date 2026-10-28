@@ -46,6 +46,9 @@ export default defineConfig({
       // The Photoshop renderer imports this UMD bundle, which only exports
       // once pre-bundled.
       "ag-psd/dist/bundle.js",
+      // Pine's own preview decoders, imported when a format needs them.
+      "heic2any",
+      "utif",
     ],
     exclude: [
       "@pine/pi-background-tasks",

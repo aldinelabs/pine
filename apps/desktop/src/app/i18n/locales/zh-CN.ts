@@ -583,6 +583,8 @@ export default {
       seek: "播放进度",
       mute: "静音",
       unmute: "取消静音",
+      rotateLeft: "向左旋转",
+      rotateRight: "向右旋转",
     },
     contentTabs: {
       emptyTitle: "无选项卡",

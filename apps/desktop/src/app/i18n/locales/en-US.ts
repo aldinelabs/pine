@@ -611,6 +611,8 @@ export default {
       seek: "Playback position",
       mute: "Mute",
       unmute: "Unmute",
+      rotateLeft: "Rotate left",
+      rotateRight: "Rotate right",
     },
     contentTabs: {
       emptyTitle: "No tabs open",
