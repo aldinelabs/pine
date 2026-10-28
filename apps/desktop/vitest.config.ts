@@ -1,6 +1,7 @@
 import vue from "@vitejs/plugin-vue";
 import path from "node:path";
 import { defineConfig } from "vitest/config";
+import { fileViewerInternals } from "./vite.file-viewer-internals";
 import { vueCompiler } from "./vite.vue-compiler";
 
 export default defineConfig({
@@ -8,10 +9,16 @@ export default defineConfig({
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
+      ...fileViewerInternals(),
     },
   },
   test: {
     environment: "happy-dom",
+    // Previews parse documents with style sheet links; a browser's
+    // DOMParser never fetches them, so happy-dom should not either.
+    environmentOptions: {
+      happyDOM: { settings: { disableCSSFileLoading: true } },
+    },
     include: ["src/**/__tests__/**/*.test.ts"],
     setupFiles: ["src/__tests__/setup.ts"],
     clearMocks: true,

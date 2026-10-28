@@ -641,6 +641,8 @@ export default {
       edaSize: "字节",
       edaText: "文本",
       edaLayer: "图层 {layer}",
+      ebookContents: "目录",
+      ebookChapterFailed: "无法打开这一章。",
       mailView: "邮件视图",
       mailBody: "正文",
       mailHeaders: "邮件头",

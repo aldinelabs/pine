@@ -670,6 +670,8 @@ export default {
       edaSize: "Bytes",
       edaText: "Text",
       edaLayer: "Layer {layer}",
+      ebookContents: "Contents",
+      ebookChapterFailed: "This chapter couldn't be opened.",
       mailView: "Message view",
       mailBody: "Message",
       mailHeaders: "Headers",

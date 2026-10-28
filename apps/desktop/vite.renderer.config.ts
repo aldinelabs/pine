@@ -4,6 +4,7 @@ import tailwindcss from "@tailwindcss/vite";
 import { fileViewerRenderers } from "@file-viewer/vite-plugin";
 import { createRequire } from "node:module";
 import path from "node:path";
+import { fileViewerInternals } from "./vite.file-viewer-internals";
 import { vueCompiler } from "./vite.vue-compiler";
 
 /**
@@ -36,6 +37,7 @@ export default defineConfig({
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
+      ...fileViewerInternals(),
     },
   },
   // Workspace packages are served as source. Left to discovery, one added
@@ -51,6 +53,9 @@ export default defineConfig({
       "@file-viewer/eda-layout",
       "@file-viewer/eda-orcad",
       "@file-viewer/geometry-engine",
+      "@file-viewer/renderer-chm",
+      "@file-viewer/renderer-chm/security",
+      "@file-viewer/renderer-epub",
       "@flyfish-dev/cad-viewer",
       "@kenjiuno/msgreader",
       "@ljheee/xmind-parser",
