@@ -115,3 +115,66 @@ it("resizes the cards by dragging or with the keyboard", async () => {
   await divider.trigger("keydown", { key: "End" });
   expect(store.activeLayout.split).toBe(80);
 });
+
+it("slides swapped cards past each other instead of jumping", async () => {
+  const store = useWorkbenchStore();
+  store.setOpen(true);
+  const wrapper = mountWorkbench();
+  await settle();
+  const [top, bottom] = items(wrapper);
+  const rects = new Map<Element, Partial<DOMRect>>([
+    [top.element, { top: 0, height: 200 }],
+    [bottom.element, { top: 212, height: 300 }],
+    [wrapper.get("[data-testid=workbench-divider]").element, { height: 12 }],
+  ]);
+  vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(
+    function (this: HTMLElement) {
+      return {
+        top: 0,
+        height: this.dataset.testid === undefined ? 512 : 0,
+        ...rects.get(this),
+      } as DOMRect;
+    },
+  );
+  const animate = vi.fn();
+  HTMLElement.prototype.animate = animate;
+
+  store.showPanel("top", "preview");
+  await flushPromises();
+
+  // Neither card remounts or moves in the DOM; their order flips.
+  expect(items(wrapper)).toEqual([
+    expect.objectContaining({
+      element: top.element,
+      panel: "artifacts",
+      order: 30,
+    }),
+    expect.objectContaining({
+      element: bottom.element,
+      panel: "preview",
+      order: 10,
+    }),
+  ]);
+  const frames = new Map(
+    animate.mock.contexts.map((element, index) => [
+      element,
+      animate.mock.calls[index][0],
+    ]),
+  );
+  // Each starts where it was: the preview, laid out at the top, starts 212px
+  // down; the artifacts, laid out below the preview's 300px, start 312px up.
+  expect(frames.get(bottom.element)).toEqual([
+    expect.objectContaining({
+      flexBasis: "300px",
+      transform: "translateY(212px)",
+    }),
+    expect.objectContaining({ flexBasis: "200px", transform: "translateY(0)" }),
+  ]);
+  expect(frames.get(top.element)).toEqual([
+    expect.objectContaining({
+      flexBasis: "200px",
+      transform: "translateY(-312px)",
+    }),
+    expect.objectContaining({ flexBasis: "300px", transform: "translateY(0)" }),
+  ]);
+});

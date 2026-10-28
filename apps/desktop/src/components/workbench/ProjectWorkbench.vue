@@ -1,5 +1,13 @@
 <script setup lang="ts">
-import { computed, onUnmounted, ref, useTemplateRef, watch } from "vue";
+import {
+  computed,
+  nextTick,
+  onUnmounted,
+  ref,
+  useTemplateRef,
+  watch,
+  type ComponentPublicInstance,
+} from "vue";
 import { useI18n } from "vue-i18n";
 import { Sidebar } from "@/components/ui/sidebar";
 import { cn } from "@/lib/utils";
@@ -13,8 +21,9 @@ import { useWorkbenchStore } from "@/stores/workbench";
 import WorkbenchCard from "./WorkbenchCard.vue";
 import WorkbenchResizeHandle from "./WorkbenchResizeHandle.vue";
 
-/** Matches the cards' `duration-500` grow transition. */
+/** Matches the cards' `duration-500 ease-out-expo` grow transition. */
 const CARD_TRANSITION_MS = 500;
+const CARD_EASING = "cubic-bezier(0.16, 1, 0.3, 1)";
 const SPLIT_KEYBOARD_STEP = 5;
 /** Flex `order` of the stack's items; the divider sits between the cards. */
 const ORDER = {
@@ -48,6 +57,8 @@ const { t } = useI18n();
 const workbench = useWorkbenchStore();
 const layout = computed(() => workbench.activeLayout);
 const stack = useTemplateRef<HTMLElement>("stack");
+const divider = useTemplateRef<HTMLElement>("divider");
+const elements = new Map<number, HTMLElement>();
 const cards = ref<StackCard[]>([]);
 const isDragging = ref(false);
 /** Skips the grow transition, as when switching sessions. */
@@ -59,7 +70,78 @@ function afterPaint(callback: () => void): void {
   requestAnimationFrame(() => requestAnimationFrame(callback));
 }
 
+function setElement(
+  id: number,
+  element: Element | ComponentPublicInstance | null,
+): void {
+  if (element instanceof HTMLElement) elements.set(id, element);
+  else elements.delete(id);
+}
+
+interface Snapshot {
+  id: number;
+  position: WorkbenchPosition;
+  top: number;
+  height: number;
+}
+
+/** Where the settled cards sit now, relative to the stack. */
+function snapshot(): Snapshot[] {
+  const origin = stack.value?.getBoundingClientRect().top ?? 0;
+  return cards.value.flatMap((card) => {
+    const element = elements.get(card.id);
+    if (card.closing || card.entering || !element) return [];
+    const rect = element.getBoundingClientRect();
+    return [
+      {
+        id: card.id,
+        position: card.position,
+        top: rect.top - origin,
+        height: rect.height,
+      },
+    ];
+  });
+}
+
+/**
+ * Two cards traded places. Their `order` flips at once, so each card starts
+ * where it was, with its old height, and slides to its new place while the
+ * heights trade: the flex bases keep the column filled, and a translate
+ * offsets each card from where those bases lay it out.
+ */
+function animateSwap(before: Snapshot[]): void {
+  const height = stack.value?.getBoundingClientRect().height ?? 0;
+  const gap = divider.value?.getBoundingClientRect().height ?? 0;
+  const available = height - gap;
+  if (available <= 0) return;
+  const { split } = layout.value;
+  const newTop = before.find((card) => card.position === "bottom")!;
+  for (const card of before) {
+    const element = elements.get(card.id);
+    if (typeof element?.animate !== "function") continue;
+    const movesUp = card === newTop;
+    const laidOutAt = movesUp ? 0 : newTop.height + gap;
+    const settledHeight = ((movesUp ? split : 100 - split) / 100) * available;
+    element.animate(
+      [
+        {
+          flexGrow: 0,
+          flexBasis: `${card.height}px`,
+          transform: `translateY(${card.top - laidOutAt}px)`,
+        },
+        {
+          flexGrow: 0,
+          flexBasis: `${settledHeight}px`,
+          transform: "translateY(0)",
+        },
+      ],
+      { duration: CARD_TRANSITION_MS, easing: CARD_EASING },
+    );
+  }
+}
+
 function reconcile(animate: boolean): void {
+  const before = animate ? snapshot() : [];
   const { top, bottom } = layout.value;
   const shown = (panel: WorkbenchPanel) => panel === top || panel === bottom;
   const placed = new Set<number>();
@@ -108,6 +190,13 @@ function reconcile(animate: boolean): void {
     cards.value = cards.value.filter((card) => !card.closing);
     return;
   }
+  const swapped =
+    before.length === 2 &&
+    before.every((previous) => {
+      const card = cards.value.find((item) => item.id === previous.id);
+      return card && !card.closing && card.position !== previous.position;
+    });
+  if (swapped) void nextTick(() => animateSwap(before));
   if (cards.value.some((card) => card.entering))
     afterPaint(() => {
       for (const card of cards.value) card.entering = false;
@@ -221,6 +310,7 @@ function resizeWithKeyboard(event: KeyboardEvent): void {
         <div
           v-for="card in cards"
           :key="card.id"
+          :ref="(element) => setElement(card.id, element)"
           data-testid="workbench-stack-item"
           :class="cn('min-h-0 basis-0 overflow-hidden', transitionClass)"
           :style="{ order: card.order, flexGrow: growOf(card) }"
@@ -229,6 +319,7 @@ function resizeWithKeyboard(event: KeyboardEvent): void {
           <WorkbenchCard :panel="card.panel" :position="card.position" />
         </div>
         <div
+          ref="divider"
           data-testid="workbench-divider"
           role="separator"
           aria-orientation="horizontal"
