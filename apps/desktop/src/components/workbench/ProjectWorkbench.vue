@@ -1,66 +1,200 @@
 <script setup lang="ts">
-import { computed, nextTick, ref, useTemplateRef, watch } from "vue";
-import {
-  ResizableHandle,
-  ResizablePanel,
-  ResizablePanelGroup,
-} from "@/components/ui/resizable";
+import { computed, onUnmounted, ref, useTemplateRef, watch } from "vue";
+import { useI18n } from "vue-i18n";
 import { Sidebar } from "@/components/ui/sidebar";
-import type { WorkbenchPanel } from "@/shared/workbench";
+import { cn } from "@/lib/utils";
+import {
+  WORKBENCH_MAX_SPLIT,
+  WORKBENCH_MIN_SPLIT,
+  type WorkbenchPanel,
+  type WorkbenchPosition,
+} from "@/shared/workbench";
 import { useWorkbenchStore } from "@/stores/workbench";
 import WorkbenchCard from "./WorkbenchCard.vue";
 import WorkbenchResizeHandle from "./WorkbenchResizeHandle.vue";
 
-interface PanelHandle {
-  collapse: () => void;
-  resize: (size: number) => void;
+/** Matches the cards' `duration-500` grow transition. */
+const CARD_TRANSITION_MS = 500;
+const SPLIT_KEYBOARD_STEP = 5;
+/** Flex `order` of the stack's items; the divider sits between the cards. */
+const ORDER = {
+  closingTop: 0,
+  top: 10,
+  divider: 20,
+  bottom: 30,
+  closingBottom: 40,
+};
+
+/**
+ * A card in the stack. A card follows its panel rather than its position, so
+ * closing the top card shrinks it away while the card below grows up into its
+ * place, and its content never remounts.
+ */
+interface StackCard {
+  id: number;
+  panel: WorkbenchPanel;
+  position: WorkbenchPosition;
+  order: number;
+  entering: boolean;
+  closing: boolean;
 }
 
 /**
- * The column beside the conversation. Both cards always exist in the split
- * view; a missing second card is collapsed, so adding, removing, and resizing
- * cards animates instead of re-laying out the column.
+ * The column beside the conversation. Its cards are flex items whose `order`
+ * places them and whose `flex-grow` sizes them, so adding, closing, and
+ * resizing cards animates without moving any card's DOM.
  */
+const { t } = useI18n();
 const workbench = useWorkbenchStore();
 const layout = computed(() => workbench.activeLayout);
-const bottomPanel = useTemplateRef<PanelHandle>("bottomPanel");
+const stack = useTemplateRef<HTMLElement>("stack");
+const cards = ref<StackCard[]>([]);
 const isDragging = ref(false);
-/** Keeps the bottom card's content while it collapses away. */
-const renderedBottom = ref<WorkbenchPanel | null>(layout.value.bottom);
+/** Skips the grow transition, as when switching sessions. */
+const isInstant = ref(true);
+let nextId = 0;
+const timers = new Set<ReturnType<typeof setTimeout>>();
 
+function afterPaint(callback: () => void): void {
+  requestAnimationFrame(() => requestAnimationFrame(callback));
+}
+
+function reconcile(animate: boolean): void {
+  const { top, bottom } = layout.value;
+  const shown = (panel: WorkbenchPanel) => panel === top || panel === bottom;
+  const placed = new Set<number>();
+  for (const [position, panel] of [
+    ["top", top],
+    ["bottom", bottom],
+  ] as const) {
+    if (!panel) continue;
+    // The card already showing this panel, even one still closing; else the
+    // card at this position whose panel is leaving swaps its content.
+    let card =
+      cards.value.find(
+        (item) => item.panel === panel && !placed.has(item.id),
+      ) ??
+      cards.value.find(
+        (item) =>
+          item.position === position &&
+          !placed.has(item.id) &&
+          !shown(item.panel),
+      );
+    if (!card) {
+      card = {
+        id: nextId++,
+        panel,
+        position,
+        order: ORDER[position],
+        entering: animate,
+        closing: false,
+      };
+      cards.value.push(card);
+    }
+    card.panel = panel;
+    card.position = position;
+    card.order = ORDER[position];
+    card.closing = false;
+    placed.add(card.id);
+  }
+  for (const card of cards.value) {
+    if (placed.has(card.id) || card.closing) continue;
+    card.order =
+      card.position === "top" ? ORDER.closingTop : ORDER.closingBottom;
+    card.closing = true;
+    card.entering = false;
+  }
+  if (!animate) {
+    cards.value = cards.value.filter((card) => !card.closing);
+    return;
+  }
+  if (cards.value.some((card) => card.entering))
+    afterPaint(() => {
+      for (const card of cards.value) card.entering = false;
+    });
+  if (cards.value.some((card) => card.closing)) {
+    const timer = setTimeout(() => {
+      timers.delete(timer);
+      cards.value = cards.value.filter((card) => !card.closing);
+    }, CARD_TRANSITION_MS);
+    timers.add(timer);
+  }
+}
+
+function settle(): void {
+  isInstant.value = true;
+  reconcile(false);
+  afterPaint(() => {
+    isInstant.value = false;
+  });
+}
+
+settle();
+// Another session's workbench replaces this one rather than animating to it.
+watch(() => workbench.activeKey, settle);
 watch(
-  () =>
-    [
-      workbench.arrangement,
-      workbench.activeKey,
-      layout.value.bottom,
-      layout.value.split,
-    ] as const,
-  async () => {
-    const { bottom, split } = layout.value;
-    if (bottom) renderedBottom.value = bottom;
-    await nextTick();
-    if (!bottomPanel.value) return;
-    if (bottom) bottomPanel.value.resize(100 - split);
-    else bottomPanel.value.collapse();
-  },
+  () => [layout.value.top, layout.value.bottom] as const,
+  () => reconcile(!isInstant.value),
 );
 
-function handleLayout(sizes: number[]): void {
-  const [top] = sizes;
-  if (isDragging.value && layout.value.bottom && top !== undefined)
-    workbench.setSplit(top);
-}
+onUnmounted(() => {
+  for (const timer of timers) clearTimeout(timer);
+});
 
-function handleDragging(dragging: boolean): void {
-  isDragging.value = dragging;
-}
-
-const panelClass = computed(() =>
-  isDragging.value
-    ? "min-h-0"
-    : "min-h-0 transition-[flex-grow] duration-500 ease-out-expo",
+const liveCount = computed(
+  () => cards.value.filter((card) => !card.closing && !card.entering).length,
 );
+
+function growOf(card: StackCard): number {
+  if (card.closing || card.entering) return 0;
+  if (liveCount.value < 2) return 100;
+  const { split } = layout.value;
+  return card.position === "top" ? split : 100 - split;
+}
+
+const transitionClass = computed(() =>
+  isDragging.value || isInstant.value
+    ? ""
+    : "transition-[flex-grow,height] duration-500 ease-out-expo",
+);
+
+let dragStart: { y: number; split: number; height: number } | null = null;
+
+function startDrag(event: PointerEvent): void {
+  if (event.button !== 0 || !stack.value) return;
+  event.preventDefault();
+  (event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);
+  dragStart = {
+    y: event.clientY,
+    split: layout.value.split,
+    height: stack.value.getBoundingClientRect().height,
+  };
+  isDragging.value = true;
+}
+
+function drag(event: PointerEvent): void {
+  if (!dragStart || dragStart.height <= 0) return;
+  const delta = ((event.clientY - dragStart.y) / dragStart.height) * 100;
+  workbench.setSplit(dragStart.split + delta);
+}
+
+function endDrag(): void {
+  dragStart = null;
+  isDragging.value = false;
+}
+
+function resizeWithKeyboard(event: KeyboardEvent): void {
+  const { split } = layout.value;
+  const next = {
+    ArrowUp: split - SPLIT_KEYBOARD_STEP,
+    ArrowDown: split + SPLIT_KEYBOARD_STEP,
+    Home: WORKBENCH_MIN_SPLIT,
+    End: WORKBENCH_MAX_SPLIT,
+  }[event.key];
+  if (next === undefined) return;
+  event.preventDefault();
+  workbench.setSplit(next);
+}
 </script>
 
 <template>
@@ -79,40 +213,46 @@ const panelClass = computed(() =>
       class="window-drag h-[var(--window-titlebar-height)] shrink-0"
     />
     <div class="flex min-h-0 flex-1 flex-col pr-3 pb-3">
-      <ResizablePanelGroup direction="vertical" @layout="handleLayout">
-        <ResizablePanel
-          id="workbench-top"
-          :order="1"
-          :min-size="20"
-          :default-size="layout.bottom ? layout.split : 100"
-          :class="panelClass"
+      <div
+        ref="stack"
+        class="flex min-h-0 flex-1 flex-col"
+        :class="isDragging && 'cursor-row-resize select-none'"
+      >
+        <div
+          v-for="card in cards"
+          :key="card.id"
+          data-testid="workbench-stack-item"
+          :class="cn('min-h-0 basis-0 overflow-hidden', transitionClass)"
+          :style="{ order: card.order, flexGrow: growOf(card) }"
+          :inert="card.closing || undefined"
         >
-          <WorkbenchCard v-if="layout.top" :panel="layout.top" position="top" />
-        </ResizablePanel>
-        <ResizableHandle
-          v-show="layout.bottom"
+          <WorkbenchCard :panel="card.panel" :position="card.position" />
+        </div>
+        <div
           data-testid="workbench-divider"
-          class="bg-transparent data-[orientation=vertical]:h-3"
-          @dragging="handleDragging"
+          role="separator"
+          aria-orientation="horizontal"
+          :aria-label="t('project.workbench.resizeCards')"
+          :aria-valuenow="layout.split"
+          :aria-valuemin="WORKBENCH_MIN_SPLIT"
+          :aria-valuemax="WORKBENCH_MAX_SPLIT"
+          :tabindex="liveCount === 2 ? 0 : -1"
+          :class="
+            cn(
+              'focus-visible:bg-ring/30 shrink-0 cursor-row-resize touch-none rounded-full outline-none',
+              liveCount === 2 ? 'h-3' : 'pointer-events-none h-0',
+              transitionClass,
+            )
+          "
+          :style="{ order: ORDER.divider }"
+          @pointerdown="startDrag"
+          @pointermove="drag"
+          @pointerup="endDrag"
+          @pointercancel="endDrag"
+          @lostpointercapture="endDrag"
+          @keydown="resizeWithKeyboard"
         />
-        <ResizablePanel
-          id="workbench-bottom"
-          ref="bottomPanel"
-          :order="2"
-          collapsible
-          :collapsed-size="0"
-          :min-size="20"
-          :default-size="layout.bottom ? 100 - layout.split : 0"
-          :class="panelClass"
-        >
-          <WorkbenchCard
-            v-if="renderedBottom"
-            :panel="renderedBottom"
-            position="bottom"
-            :inert="!layout.bottom"
-          />
-        </ResizablePanel>
-      </ResizablePanelGroup>
+      </div>
     </div>
   </Sidebar>
 </template>

@@ -490,6 +490,7 @@ export default {
       toggle: "Toggle workbench",
       switchPanel: "Switch panel",
       resize: "Resize workbench",
+      resizeCards: "Resize cards",
       addCard: "Add card",
       closeCard: "Close card",
       panels: {

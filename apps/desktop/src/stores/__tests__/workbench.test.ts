@@ -50,12 +50,10 @@ it("keeps each session's layout apart and lets new sessions inherit the draft's"
   expect(store.layoutFor(DRAFT_WORKBENCH_KEY).top).toBe("preview");
 });
 
-it("remembers layouts across stores without the drag-only rearrangement bump", () => {
+it("remembers layouts across stores", () => {
   const store = useWorkbenchStore();
   store.setOpen(true);
-  const arranged = store.arrangement;
   store.setSplit(65);
-  expect(store.arrangement).toBe(arranged);
   expect(
     JSON.parse(window.localStorage.getItem(WORKBENCH_STORAGE_KEY) ?? "{}"),
   ).toMatchObject({ [DRAFT_WORKBENCH_KEY]: { open: true, split: 65 } });

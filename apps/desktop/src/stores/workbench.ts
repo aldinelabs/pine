@@ -66,11 +66,6 @@ function readWidth(): number {
 export const useWorkbenchStore = defineStore("workbench", () => {
   const sessionStore = useSessionStore();
   const layouts = reactive(readLayouts());
-  /**
-   * Bumped when a layout changes other than by dragging the divider, so the
-   * split view picks up the new sizes.
-   */
-  const arrangement = ref(0);
   /** What the column renders; it trails `activeLayout.open` while resizing. */
   const displayedOpen = ref(false);
   /** The column still shows while the window edge clips it away. */
@@ -116,7 +111,6 @@ export const useWorkbenchStore = defineStore("workbench", () => {
   function update(
     key: string,
     change: (layout: WorkbenchLayout) => WorkbenchLayout,
-    rearranged = true,
   ): void {
     const next = change(layoutFor(key));
     // Re-inserting keeps the most recently arranged sessions last.
@@ -126,7 +120,6 @@ export const useWorkbenchStore = defineStore("workbench", () => {
       if (layouts.size <= MAX_STORED_LAYOUTS) break;
       if (stale !== DRAFT_WORKBENCH_KEY) layouts.delete(stale);
     }
-    if (rearranged) arrangement.value += 1;
     save();
     const highlighted = highlights.get(key);
     if (!highlighted) return;
@@ -186,7 +179,7 @@ export const useWorkbenchStore = defineStore("workbench", () => {
   function setSplit(split: number): void {
     const next = clampWorkbenchSplit(split);
     if (next === activeLayout.value.split) return;
-    update(activeKey.value, (layout) => ({ ...layout, split: next }), false);
+    update(activeKey.value, (layout) => ({ ...layout, split: next }));
   }
 
   function setWidth(next: number): void {
@@ -219,7 +212,6 @@ export const useWorkbenchStore = defineStore("workbench", () => {
     acknowledge,
     activeKey,
     activeLayout,
-    arrangement,
     displayedOpen,
     isClosing,
     isResizing,
