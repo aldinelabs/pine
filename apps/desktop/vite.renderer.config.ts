@@ -49,6 +49,7 @@ export default defineConfig({
       // Pine's own preview decoders, imported when a format needs them.
       "@file-viewer/capability-mermaid/engine",
       "@file-viewer/geometry-engine",
+      "@flyfish-dev/cad-viewer",
       "@kenjiuno/msgreader",
       "@ljheee/xmind-parser",
       "@tmcw/togeojson",

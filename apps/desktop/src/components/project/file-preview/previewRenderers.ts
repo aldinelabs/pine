@@ -79,6 +79,11 @@ function hasRenderedView(filePath: string): boolean {
 /** Ordered built-in renderers. A new engine can replace one by registering first. */
 export const previewRenderers: readonly PreviewRenderer[] = [
   documentRenderer(
+    "cad",
+    new Set(["dxf", "dwg", "dwf", "dwfx", "xps"]),
+    defineAsyncComponent(() => import("./CadPreviewRenderer.vue")),
+  ),
+  documentRenderer(
     "model",
     modelExtensions,
     defineAsyncComponent(() => import("./ModelPreviewRenderer.vue")),

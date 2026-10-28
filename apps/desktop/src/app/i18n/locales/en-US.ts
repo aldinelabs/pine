@@ -658,6 +658,11 @@ export default {
       modelUnsupported:
         "IFC and Rhino 3DM need a modeling engine Pine doesn't include yet.",
       modelPoints: "{points} points",
+      zoomIn: "Zoom in",
+      zoomOut: "Zoom out",
+      cadMonochrome: "Monochrome",
+      cadExport: "Export as image",
+      cadStats: "{entities} objects · {layers} layers",
       mailView: "Message view",
       mailBody: "Message",
       mailHeaders: "Headers",

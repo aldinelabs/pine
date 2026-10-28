@@ -20,3 +20,19 @@ export function resolveColors<T extends string>(
     probe.remove();
   }
 }
+
+/** A resolved CSS color as `#rrggbb`, for renderers that parse only hex. */
+export function toHex(color: string): string {
+  const context =
+    typeof OffscreenCanvas === "undefined"
+      ? null
+      : new OffscreenCanvas(1, 1).getContext("2d", {
+          willReadFrequently: true,
+        });
+  if (!context) return color;
+  context.fillStyle = "#000";
+  context.fillStyle = color;
+  context.fillRect(0, 0, 1, 1);
+  const [r = 0, g = 0, b = 0] = context.getImageData(0, 0, 1, 1).data;
+  return `#${[r, g, b].map((value) => value.toString(16).padStart(2, "0")).join("")}`;
+}
