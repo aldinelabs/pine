@@ -619,6 +619,7 @@ export default {
       archiveUnlock: "打开",
       sheet: "画布",
       sheetFallback: "画布 {index}",
+      geoNoProperties: "这个要素没有属性",
       mailView: "邮件视图",
       mailBody: "正文",
       mailHeaders: "邮件头",

@@ -647,6 +647,7 @@ export default {
       archiveUnlock: "Open",
       sheet: "Sheet",
       sheetFallback: "Sheet {index}",
+      geoNoProperties: "This feature has no properties",
       mailView: "Message view",
       mailBody: "Message",
       mailHeaders: "Headers",
