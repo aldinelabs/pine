@@ -34,6 +34,7 @@ import { useProjectStore } from "@/stores/project";
 import { useSessionStore } from "@/stores/session";
 import { useWorkbenchStore } from "@/stores/workbench";
 import WorkbenchArtifactsPanel from "./WorkbenchArtifactsPanel.vue";
+import WorkbenchFilesPanel from "./WorkbenchFilesPanel.vue";
 import WorkbenchPreviewPanel from "./WorkbenchPreviewPanel.vue";
 
 const props = defineProps<{
@@ -52,6 +53,7 @@ const PANEL_COMPONENTS: Record<WorkbenchPanel, Component> = {
   artifacts: WorkbenchArtifactsPanel,
   tasks: ProjectBackgroundTaskPanel,
   preview: WorkbenchPreviewPanel,
+  files: WorkbenchFilesPanel,
 };
 
 const selected = computed({

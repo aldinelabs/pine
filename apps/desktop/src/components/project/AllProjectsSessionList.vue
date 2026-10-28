@@ -31,7 +31,7 @@ import { useProjectStore } from "@/stores/project";
 import { useSessionStore } from "@/stores/session";
 
 /**
- * No Project's session list: the newest sessions of every project, each
+ * The sidebar's session list: the newest sessions of every project, each
  * labelled with the project it belongs to. Sessions open in their project.
  */
 const emit = defineEmits<{ search: [] }>();

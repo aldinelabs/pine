@@ -21,12 +21,17 @@ export interface PineWorkbenchToolContext {
 }
 
 const PANEL_DESCRIPTIONS =
-  "artifacts: files presented in this session; tasks: background processes started with bg_run, with their output; preview: the file last presented or picked from artifacts";
+  "artifacts: files presented in this session; tasks: background processes started with bg_run, with their output; preview: the file last presented or picked from artifacts; files: the project's file tree";
 
 // Spelled out rather than mapped so the schemas keep their literal types.
 function panelSchema(description: string) {
   return Type.Union(
-    [Type.Literal("artifacts"), Type.Literal("tasks"), Type.Literal("preview")],
+    [
+      Type.Literal("artifacts"),
+      Type.Literal("tasks"),
+      Type.Literal("preview"),
+      Type.Literal("files"),
+    ],
     {
       description,
     },
@@ -45,6 +50,7 @@ function slotSchema(position: WorkbenchPosition) {
       Type.Literal("artifacts"),
       Type.Literal("tasks"),
       Type.Literal("preview"),
+      Type.Literal("files"),
       Type.Null(),
     ],
     { description: `Panel for the ${position} card, or null for none.` },

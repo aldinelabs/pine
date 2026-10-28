@@ -496,6 +496,7 @@ export default {
         artifacts: "Artifacts",
         tasks: "Background processes",
         preview: "Preview",
+        files: "Files",
       },
       artifacts: {
         empty: "Files Pine shows you in this conversation appear here.",
@@ -1426,10 +1427,6 @@ export default {
           running: { before: "Writing ", after: "" },
         },
       },
-    },
-    tabs: {
-      files: "Files",
-      sessions: "Sessions",
     },
     files: {
       open: "Open",

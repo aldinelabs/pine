@@ -469,6 +469,7 @@ export default {
         artifacts: "产出文件",
         tasks: "后台进程",
         preview: "预览",
+        files: "文件",
       },
       artifacts: {
         empty: "Pine 在此对话中展示的文件会出现在这里。",
@@ -1384,10 +1385,6 @@ export default {
           running: { before: "正在写入 ", after: "" },
         },
       },
-    },
-    tabs: {
-      files: "文件",
-      sessions: "会话",
     },
     files: {
       open: "打开",

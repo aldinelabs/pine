@@ -2,13 +2,12 @@ import { defineStore } from "pinia";
 import { reactive } from "vue";
 
 export const PROJECT_SIDEBAR_STORAGE_PREFIX = "pine.project-sidebar.v1:";
-export type ProjectSidebarTab = "files" | "sessions";
-interface SidebarState {
-  tab: ProjectSidebarTab;
+/** The file tree's state of each project. */
+interface FileTreeState {
   expanded: string[];
 }
 
-function readState(projectId: string): SidebarState {
+function readState(projectId: string): FileTreeState {
   try {
     const value: unknown = JSON.parse(
       window.localStorage.getItem(PROJECT_SIDEBAR_STORAGE_PREFIX + projectId) ??
@@ -16,7 +15,6 @@ function readState(projectId: string): SidebarState {
     );
     if (typeof value === "object" && value !== null) {
       return {
-        tab: "tab" in value && value.tab === "files" ? "files" : "sessions",
         expanded:
           "expanded" in value && Array.isArray(value.expanded)
             ? value.expanded.filter(
@@ -28,19 +26,19 @@ function readState(projectId: string): SidebarState {
   } catch {
     // Corrupt or unavailable storage must not prevent opening the project.
   }
-  return { tab: "sessions", expanded: [] };
+  return { expanded: [] };
 }
 
 export const useProjectSidebarStore = defineStore("project-sidebar", () => {
-  const projects = reactive(new Map<string, SidebarState>());
+  const projects = reactive(new Map<string, FileTreeState>());
 
-  function stateFor(projectId: string): SidebarState {
+  function stateFor(projectId: string): FileTreeState {
     if (!projects.has(projectId)) projects.set(projectId, readState(projectId));
     return projects.get(projectId)!;
   }
 
-  function save(projectId: string, update: Partial<SidebarState>): void {
-    const state = { ...stateFor(projectId), ...update };
+  function setExpanded(projectId: string, expanded: string[]): void {
+    const state = { ...stateFor(projectId), expanded: [...new Set(expanded)] };
     projects.set(projectId, state);
     try {
       window.localStorage.setItem(
@@ -52,13 +50,5 @@ export const useProjectSidebarStore = defineStore("project-sidebar", () => {
     }
   }
 
-  function setTab(projectId: string, tab: ProjectSidebarTab): void {
-    save(projectId, { tab });
-  }
-
-  function setExpanded(projectId: string, expanded: string[]): void {
-    save(projectId, { expanded: [...new Set(expanded)] });
-  }
-
-  return { stateFor, setTab, setExpanded };
+  return { stateFor, setExpanded };
 });

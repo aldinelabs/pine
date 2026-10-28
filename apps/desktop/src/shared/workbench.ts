@@ -4,7 +4,12 @@
  * workbench tools, and the user with the card headers. The agent can also
  * highlight a card to point the user at it, the way presented tabs pulse.
  */
-export const WORKBENCH_PANELS = ["artifacts", "tasks", "preview"] as const;
+export const WORKBENCH_PANELS = [
+  "artifacts",
+  "tasks",
+  "preview",
+  "files",
+] as const;
 export type WorkbenchPanel = (typeof WORKBENCH_PANELS)[number];
 
 export const WORKBENCH_POSITIONS = ["top", "bottom"] as const;
