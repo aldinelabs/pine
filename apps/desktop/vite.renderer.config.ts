@@ -4,7 +4,10 @@ import tailwindcss from "@tailwindcss/vite";
 import { fileViewerRenderers } from "@file-viewer/vite-plugin";
 import { createRequire } from "node:module";
 import path from "node:path";
-import { fileViewerInternals } from "./vite.file-viewer-internals";
+import {
+  fileViewerInternals,
+  fileViewerWorkers,
+} from "./vite.file-viewer-internals";
 import { vueCompiler } from "./vite.vue-compiler";
 
 /**
@@ -33,6 +36,7 @@ export default defineConfig({
       inject: false,
       copyAssets: { baseDir: "file-viewer" },
     }),
+    fileViewerWorkers(),
   ],
   resolve: {
     alias: {
