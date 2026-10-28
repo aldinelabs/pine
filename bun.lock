@@ -21,6 +21,7 @@
         "@file-viewer/core": "3.2.2",
         "@file-viewer/geometry-engine": "3.2.2",
         "@file-viewer/preset-all": "3.2.2",
+        "@flyfish-dev/cad-viewer": "0.8.3",
         "@fontsource-variable/jetbrains-mono": "5.3.0",
         "@fontsource-variable/noto-serif": "5.3.0",
         "@fontsource-variable/noto-serif-sc": "5.3.1",
