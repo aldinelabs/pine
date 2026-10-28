@@ -37,6 +37,7 @@ const archiveExtensions = new Set([
   ),
   ..."cab ar cpio iso xar lha lzh jar war ear apk cbz cbr".split(" "),
 ]);
+const emailExtensions = new Set(["eml", "msg", "mbox"]);
 const fontExtensions = new Set(["ttf", "otf", "woff", "woff2"]);
 const paletteExtensions = new Set(["ase", "aco"]);
 
@@ -65,6 +66,20 @@ function hasRenderedView(filePath: string): boolean {
 
 /** Ordered built-in renderers. A new engine can replace one by registering first. */
 export const previewRenderers: readonly PreviewRenderer[] = [
+  {
+    // Messages and mailboxes; .eml and .mbox are text with a rendered view.
+    id: "email",
+    component: defineAsyncComponent(() => import("./EmailPreviewRenderer.vue")),
+    supports: ({ preview, filePath, mode }) =>
+      emailExtensions.has(previewExtension(filePath)) &&
+      (preview.kind === "document" ||
+        (preview.kind === "text" && mode === "rendered")),
+    capabilities: ({ preview }) => ({
+      ...noControls,
+      zoom: true,
+      renderToggle: preview.kind === "text",
+    }),
+  },
   documentRenderer(
     "archive",
     archiveExtensions,
