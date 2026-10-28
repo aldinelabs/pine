@@ -2,6 +2,7 @@
 import {
   computed,
   onBeforeUnmount,
+  onMounted,
   provide,
   ref,
   useId,
@@ -271,6 +272,51 @@ function handlePreviewWheel(event: WheelEvent): void {
   zoomCommitTimer = setTimeout(() => commitZoom(previewZoom.value), 180);
 }
 
+/** The levels a browser's ⌘ + and ⌘ − step through. */
+const ZOOM_STEPS = [
+  25, 33, 50, 67, 75, 80, 90, 100, 110, 125, 150, 175, 200, 250, 300, 400, 500,
+];
+
+function stepZoom(direction: -1 | 0 | 1): void {
+  const current = zoom.value;
+  const target =
+    direction === 0
+      ? 100
+      : direction > 0
+        ? (ZOOM_STEPS.find((step) => step > current) ?? zoomMax.value)
+        : ([...ZOOM_STEPS].reverse().find((step) => step < current) ??
+          zoomMin.value);
+  const next = Math.max(zoomMin.value, Math.min(zoomMax.value, target));
+  previewZoom.value = [next];
+  commitZoom([next]);
+}
+
+/**
+ * ⌘ + / ⌘ − / ⌘ 0 zoom the preview, as they zoom a page in a browser,
+ * instead of the whole window.
+ */
+function handleZoomKey(event: KeyboardEvent): void {
+  if (!capabilities.value.zoom || !(event.metaKey || event.ctrlKey)) return;
+  if (event.altKey) return;
+  const direction =
+    event.key === "=" || event.key === "+"
+      ? 1
+      : event.key === "-" || event.key === "_"
+        ? -1
+        : event.key === "0"
+          ? 0
+          : undefined;
+  if (direction === undefined) return;
+  event.preventDefault();
+  stepZoom(direction);
+}
+
+/** With nothing focused, the shortcuts belong to the visible preview. */
+function handleWindowZoomKey(event: KeyboardEvent): void {
+  if (props.active && event.target === document.body) handleZoomKey(event);
+}
+onMounted(() => window.addEventListener("keydown", handleWindowZoomKey));
+
 async function openWithDefaultApplication(): Promise<void> {
   const target = projectTarget.value;
   if (!target) return;
@@ -413,6 +459,7 @@ watch(
 );
 watch(zoom, scheduleZoom);
 onBeforeUnmount(() => {
+  window.removeEventListener("keydown", handleWindowZoomKey);
   unsubscribeFileWatcher?.();
   if (zoomFrame !== undefined) cancelAnimationFrame(zoomFrame);
   if (zoomCommitTimer) clearTimeout(zoomCommitTimer);
@@ -424,6 +471,7 @@ onBeforeUnmount(() => {
     class="flex h-full min-h-0 flex-col"
     :aria-label="fileName"
     @wheel.capture="handlePreviewWheel"
+    @keydown="handleZoomKey"
   >
     <Empty v-if="failed" class="flex-1" role="alert">
       <EmptyHeader>

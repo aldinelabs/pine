@@ -494,7 +494,7 @@ describe("ProjectFilePreview", () => {
     await vi.dynamicImportSettled();
     await flushPromises();
     const frame = wrapper.get('[data-slot="html-frame"]');
-    expect(frame.attributes("sandbox")).toBe("");
+    expect(frame.attributes("sandbox")).toBe("allow-same-origin");
     expect(frame.attributes("srcdoc")).toContain("<h1>Hello</h1>");
     expect(frame.attributes("srcdoc")).toContain("default-src 'none'");
 
@@ -513,6 +513,46 @@ describe("ProjectFilePreview", () => {
     expect(wrapper.find('[data-slot="html-frame"]').exists()).toBe(false);
     expect(wrapper.find("pre.shiki").exists()).toBe(true);
     expect(wrapper.findComponent(Slider).exists()).toBe(false);
+  });
+
+  it("steps the zoom through browser levels with ⌘ + / ⌘ − / ⌘ 0", async () => {
+    const wrapper = render(
+      vi.fn().mockResolvedValue({
+        ...info,
+        kind: "text",
+        text: "<p>Hello</p>",
+        encoding: "UTF-8",
+      }),
+    );
+    await wrapper.setProps({
+      file: { ...file, relativePath: "public/index.html" },
+    });
+    await flushPromises();
+    await vi.dynamicImportSettled();
+    await flushPromises();
+    const press = async (key: string) => {
+      const event = new KeyboardEvent("keydown", {
+        key,
+        bubbles: true,
+        cancelable: true,
+      });
+      // The test environment's KeyboardEvent ignores modifier keys.
+      Object.defineProperty(event, "metaKey", { value: true });
+      wrapper.get('[data-slot="html-frame"]').element.dispatchEvent(event);
+      await flushPromises();
+      return event;
+    };
+    const frameScale = () =>
+      wrapper.get('[data-slot="html-frame"]').attributes("style");
+
+    expect((await press("=")).defaultPrevented).toBe(true);
+    expect(frameScale()).toContain("scale(1.1)");
+    await press("=");
+    expect(frameScale()).toContain("scale(1.25)");
+    await press("-");
+    expect(frameScale()).toContain("scale(1.1)");
+    await press("0");
+    expect(frameScale()).toContain("scale(1)");
   });
 
   it("leaves gesture zoom to the viewer and drives its zoom from the slider", async () => {
