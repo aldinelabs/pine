@@ -32,3 +32,17 @@
   border: 0;
   box-shadow: 0 0 0 1px var(--pine-fv-border);
 }
+
+/*
+ * Loading screens and badges, which Pine replaces with its own spinner while
+ * a document parses. Rows that stream in after the first ones need none.
+ */
+.pine-file-viewer .excel-wrapper[data-file-viewer-spreadsheet-root] > .loading,
+.pine-file-viewer
+  .excel-wrapper[data-file-viewer-spreadsheet-root]
+  .sheet-loading,
+.pine-file-viewer .pdf-state:not(.pdf-state--error),
+.pine-file-viewer .pptx-loading,
+.pine-file-viewer .ppt-binary-loading {
+  display: none !important;
+}

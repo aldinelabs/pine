@@ -139,6 +139,17 @@ const toolbarTarget = computed(() => toolbar?.value ?? null);
 const sheets = ref<string[]>([]);
 const activeSheet = ref("0");
 const slideshow = ref(false);
+/**
+ * Loading screens the renderers draw while they parse, which Pine hides and
+ * replaces with its own spinner, as in its other previews.
+ */
+const BUSY_SELECTOR = [
+  ".excel-wrapper[data-file-viewer-spreadsheet-root] > .loading:not(.hidden)",
+  ".pdf-state:not([hidden]):not(.pdf-state--error)",
+  ".pptx-loading:not([hidden])",
+  ".ppt-binary-loading:not([hidden])",
+].join(", ");
+const busy = ref(false);
 const toolbarVisible = computed(
   () =>
     !props.compact &&
@@ -159,6 +170,7 @@ function readViewerChrome(): void {
   const names = tabs.map((tab) => tab.title || tab.textContent?.trim() || "");
   const active = tabs.findIndex((tab) => tab.classList.contains("active"));
   activeSheet.value = String(Math.max(0, active));
+  busy.value = Boolean(element.querySelector(BUSY_SELECTOR));
   const presents = Boolean(element.querySelector(".pptx-slideshow-button"));
   if (
     names.join("\n") === sheets.value.join("\n") &&
@@ -170,14 +182,17 @@ function readViewerChrome(): void {
   syncViewerState();
 }
 
-/** Grids re-render on scroll, so the chrome is read once per frame at most. */
-let chromeFrame = 0;
+/**
+ * Grids re-render on scroll, so the chrome is read at most once per frame's
+ * worth of time. A timer, unlike an animation frame, also runs while the
+ * window is hidden, where a loading screen can still finish.
+ */
+let chromeTimer: ReturnType<typeof setTimeout> | undefined;
 function scheduleChromeRead(): void {
-  if (chromeFrame) return;
-  chromeFrame = requestAnimationFrame(() => {
-    chromeFrame = 0;
+  chromeTimer ??= setTimeout(() => {
+    chromeTimer = undefined;
     readViewerChrome();
-  });
+  }, 16);
 }
 
 function selectSheet(value: unknown): void {
@@ -373,7 +388,7 @@ onMounted(async () => {
     chromeObserver.observe(element, {
       childList: true,
       subtree: true,
-      attributeFilter: ["class"],
+      attributeFilter: ["class", "hidden"],
     });
     reportMediaMetadata();
   } catch (error) {
@@ -389,7 +404,7 @@ onBeforeUnmount(() => {
   disposed = true;
   stopSkin?.();
   chromeObserver?.disconnect();
-  cancelAnimationFrame(chromeFrame);
+  clearTimeout(chromeTimer);
   reading.abort();
   if (searchTimer) clearTimeout(searchTimer);
   for (const media of mediaElements()) media.pause();
@@ -640,7 +655,7 @@ defineExpose({ readSelection, fitWidth });
         @keyup="updateSelection"
       />
       <div
-        v-if="loading"
+        v-if="loading || busy"
         class="absolute inset-0 grid place-items-center bg-background"
         role="status"
       >
