@@ -31,3 +31,14 @@
 .pine-file-viewer .drawing-canvas svg[aria-roledescription] {
   background: var(--pine-fv-card);
 }
+
+/*
+ * Spreadsheets: sheet tabs and the row summary; Pine's top bar picks the
+ * sheet. Presentations: the slideshow button, which the top bar repeats.
+ * Typst: the file name, page size and render status.
+ */
+.pine-file-viewer .excel-wrapper[data-file-viewer-spreadsheet-root] > .toolbar,
+.pine-file-viewer .pptx-slideshow-button,
+.pine-file-viewer .typst-toolbar {
+  display: none;
+}

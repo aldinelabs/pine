@@ -15,6 +15,7 @@ import {
   ChevronLeft,
   ChevronRight,
   ChevronUp,
+  Presentation,
   Search,
 } from "@lucide/vue";
 import type {
@@ -34,6 +35,13 @@ import {
   InputGroupInput,
   InputGroupText,
 } from "@/components/ui/input-group";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
 import { documentPreviewSelection } from "@/lib/filePreviewSelection";
 import { skinFileViewerStyles } from "@/lib/fileViewerSkin";
@@ -130,12 +138,66 @@ const searchPosition = computed(() =>
 );
 const toolbar = inject(previewToolbarKey, undefined);
 const toolbarTarget = computed(() => toolbar?.value ?? null);
+/**
+ * Controls the renderers draw inside their own chrome, which Pine hides and
+ * repeats in the top bar: the spreadsheet's sheet tabs and the slideshow.
+ */
+const sheets = ref<string[]>([]);
+const activeSheet = ref("0");
+const slideshow = ref(false);
 const toolbarVisible = computed(
   () =>
     !props.compact &&
     !loading.value &&
-    (searchable.value || pageCount.value > 1),
+    (searchable.value ||
+      pageCount.value > 1 ||
+      sheets.value.length > 1 ||
+      slideshow.value),
 );
+let chromeObserver: MutationObserver | undefined;
+
+function readViewerChrome(): void {
+  const element = host.value;
+  if (!element) return;
+  const tabs = [
+    ...element.querySelectorAll<HTMLButtonElement>(".excel-wrapper .sheet-tab"),
+  ];
+  const names = tabs.map((tab) => tab.title || tab.textContent?.trim() || "");
+  const active = tabs.findIndex((tab) => tab.classList.contains("active"));
+  activeSheet.value = String(Math.max(0, active));
+  const presents = Boolean(element.querySelector(".pptx-slideshow-button"));
+  if (
+    names.join("\n") === sheets.value.join("\n") &&
+    presents === slideshow.value
+  )
+    return;
+  sheets.value = names;
+  slideshow.value = presents;
+  syncViewerState();
+}
+
+/** Grids re-render on scroll, so the chrome is read once per frame at most. */
+let chromeFrame = 0;
+function scheduleChromeRead(): void {
+  if (chromeFrame) return;
+  chromeFrame = requestAnimationFrame(() => {
+    chromeFrame = 0;
+    readViewerChrome();
+  });
+}
+
+function selectSheet(value: unknown): void {
+  const tab = host.value?.querySelectorAll<HTMLButtonElement>(
+    ".excel-wrapper .sheet-tab",
+  )[Number(value)];
+  tab?.click();
+}
+
+function startSlideshow(): void {
+  host.value
+    ?.querySelector<HTMLButtonElement>(".pptx-slideshow-button")
+    ?.click();
+}
 
 function percent(scale: number): number {
   return Math.round(scale * 100);
@@ -312,6 +374,13 @@ onMounted(async () => {
     viewState.value = instance.getViewState();
     loading.value = false;
     syncViewerState();
+    readViewerChrome();
+    chromeObserver = new MutationObserver(scheduleChromeRead);
+    chromeObserver.observe(element, {
+      childList: true,
+      subtree: true,
+      attributeFilter: ["class"],
+    });
     reportMediaMetadata();
   } catch (error) {
     if (disposed) return;
@@ -325,6 +394,8 @@ onMounted(async () => {
 onBeforeUnmount(() => {
   disposed = true;
   stopSkin?.();
+  chromeObserver?.disconnect();
+  cancelAnimationFrame(chromeFrame);
   reading.abort();
   if (searchTimer) clearTimeout(searchTimer);
   for (const media of mediaElements()) media.pause();
@@ -456,6 +527,37 @@ defineExpose({ readSelection, fitWidth });
 <template>
   <div class="flex h-full min-h-0 flex-col">
     <Teleport v-if="toolbarTarget && toolbarVisible" :to="toolbarTarget">
+      <Select
+        v-if="sheets.length > 1"
+        :model-value="activeSheet"
+        @update:model-value="selectSheet"
+      >
+        <SelectTrigger
+          size="sm"
+          class="w-48"
+          :aria-label="t('project.preview.worksheet')"
+        >
+          <SelectValue>{{ sheets[Number(activeSheet)] }}</SelectValue>
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem
+            v-for="(name, index) in sheets"
+            :key="index"
+            :value="String(index)"
+          >
+            <span class="truncate">{{ name }}</span>
+          </SelectItem>
+        </SelectContent>
+      </Select>
+      <Button
+        v-if="slideshow"
+        variant="ghost"
+        size="sm"
+        @click="startSlideshow"
+      >
+        <Presentation />
+        {{ t("project.preview.slideshow") }}
+      </Button>
       <InputGroup v-if="searchable" class="h-8 w-60">
         <InputGroupAddon>
           <Search />

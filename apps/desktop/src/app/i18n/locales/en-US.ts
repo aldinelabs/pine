@@ -672,6 +672,8 @@ export default {
       edaLayer: "Layer {layer}",
       ebookContents: "Contents",
       ebookChapterFailed: "This chapter couldn't be opened.",
+      worksheet: "Worksheet",
+      slideshow: "Present",
       mailView: "Message view",
       mailBody: "Message",
       mailHeaders: "Headers",

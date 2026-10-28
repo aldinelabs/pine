@@ -643,6 +643,8 @@ export default {
       edaLayer: "图层 {layer}",
       ebookContents: "目录",
       ebookChapterFailed: "无法打开这一章。",
+      worksheet: "工作表",
+      slideshow: "放映",
       mailView: "邮件视图",
       mailBody: "正文",
       mailHeaders: "邮件头",
