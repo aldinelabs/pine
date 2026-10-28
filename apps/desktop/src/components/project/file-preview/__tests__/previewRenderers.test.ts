@@ -1,7 +1,7 @@
 import { defineComponent } from "vue";
 import { describe, expect, it } from "vitest";
-import { resolvePreviewRenderer } from "../previewRenderer";
-import type { PreviewRenderer } from "../previewRenderer";
+import { previewRendererKey, resolvePreviewRenderer } from "../previewRenderer";
+import type { PreviewRenderer, RenderablePreview } from "../previewRenderer";
 import { previewRenderers } from "../previewRenderers";
 
 const info = { size: 12, modifiedAt: "2026-09-24T00:00:00Z" };
@@ -16,6 +16,29 @@ function text(source: string) {
 }
 
 describe("file preview renderer registry", () => {
+  it("remounts renderers that read once when their file changes on disk", () => {
+    const resolve = (preview: RenderablePreview, filePath: string) =>
+      resolvePreviewRenderer(previewRenderers, {
+        preview,
+        filePath,
+        mode: "rendered",
+      })!;
+    const changed = {
+      ...document,
+      modifiedAt: "2026-09-24T00:00:01Z",
+      url: "preview://document?revision=1",
+    };
+    const model = resolve(document, "/p/model.step");
+    expect(previewRendererKey("file", model, document)).not.toBe(
+      previewRendererKey("file", model, changed),
+    );
+    // Text follows new content itself, keeping its scroll and changed lines.
+    const source = resolve(text("a"), "/p/notes.md");
+    expect(previewRendererKey("file", source, { ...text("b"), size: 13 })).toBe(
+      previewRendererKey("file", source, text("a")),
+    );
+  });
+
   it("lets a new renderer replace a built-in for selected formats", () => {
     const replacement: PreviewRenderer = {
       id: "replacement-pdf",

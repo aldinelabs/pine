@@ -59,6 +59,7 @@ import type {
 } from "@/shared/projectFiles";
 import type { FileContentTab } from "@/stores/contentTabs";
 import {
+  previewRendererKey,
   previewToolbarKey,
   resolvePreviewRenderer,
 } from "./file-preview/previewRenderer";
@@ -557,7 +558,7 @@ onBeforeUnmount(() => {
       :is="renderer.component"
       v-if="preview && preview.kind !== 'unsupported' && renderer && !failed"
       ref="renderer"
-      :key="`${previewKey}:${renderer.id}`"
+      :key="previewRendererKey(previewKey, renderer, preview)"
       class="min-h-0 flex-1"
       :preview="preview"
       :file-name="fileName"

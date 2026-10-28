@@ -277,6 +277,7 @@ export const previewRenderers: readonly PreviewRenderer[] = [
   },
   {
     id: "text",
+    live: true,
     component: TextPreviewRenderer,
     supports: ({ preview }) => preview.kind === "text",
     capabilities: ({ filePath }) => ({
@@ -287,12 +288,14 @@ export const previewRenderers: readonly PreviewRenderer[] = [
   },
   {
     id: "video",
+    live: true,
     component: VideoPreviewRenderer,
     supports: ({ preview }) => preview.kind === "video",
     capabilities: () => noControls,
   },
   {
     id: "audio",
+    live: true,
     component: AudioPreviewRenderer,
     supports: ({ preview }) => preview.kind === "audio",
     capabilities: () => noControls,

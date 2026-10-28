@@ -9,7 +9,10 @@ import {
   EmptyMedia,
 } from "@/components/ui/empty";
 import { Skeleton } from "@/components/ui/skeleton";
-import { resolvePreviewRenderer } from "@/components/project/file-preview/previewRenderer";
+import {
+  previewRendererKey,
+  resolvePreviewRenderer,
+} from "@/components/project/file-preview/previewRenderer";
 import { previewRenderers } from "@/components/project/file-preview/previewRenderers";
 import { changedLineRanges } from "@/lib/changedLines";
 import { fileLanguage } from "@/lib/fileLanguage";
@@ -196,6 +199,12 @@ watch(
         throw error;
       });
       if (!active) return;
+      // A new URL keeps the renderer from reading cached bytes.
+      if (reloaded && "url" in result && result.url) {
+        const url = new URL(result.url);
+        url.searchParams.set("revision", String(revision.value));
+        result.url = url.href;
+      }
       if (reloaded) showChange(preview.value, result);
       preview.value = result;
     } catch {
@@ -248,7 +257,7 @@ watch(
       <component
         :is="renderer.component"
         v-else-if="renderer"
-        :key="`${previewKey}:${renderer.id}`"
+        :key="previewRendererKey(previewKey, renderer, preview)"
         class="min-h-0 flex-1"
         :preview="preview"
         :file-name="fileName"

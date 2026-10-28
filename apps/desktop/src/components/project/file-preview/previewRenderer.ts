@@ -89,6 +89,11 @@ export interface PreviewRendererContext {
 export interface PreviewRenderer {
   id: string;
   component: Component;
+  /**
+   * The renderer follows a new `preview` itself. Others read their content
+   * once, so a change on disk remounts them.
+   */
+  live?: boolean;
   supports: (context: PreviewRendererContext) => boolean;
   capabilities: (
     context: PreviewRendererContext,
@@ -100,4 +105,18 @@ export function resolvePreviewRenderer(
   context: PreviewRendererContext,
 ): PreviewRenderer | undefined {
   return renderers.find((renderer) => renderer.supports(context));
+}
+
+/**
+ * Keys a mounted renderer: the same file in the same renderer, and for
+ * renderers that read their content once, the same content.
+ */
+export function previewRendererKey(
+  file: string,
+  renderer: PreviewRenderer,
+  preview: ProjectFilePreview,
+): string {
+  if (renderer.live) return `${file}:${renderer.id}`;
+  const url = "url" in preview ? (preview.url ?? "") : "";
+  return `${file}:${renderer.id}:${preview.modifiedAt}:${preview.size}:${url}`;
 }
