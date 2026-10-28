@@ -45,6 +45,10 @@ const diagramExtensions = new Set([
   "mmd",
 ]);
 const geoExtensions = new Set(["geojson", "kml", "kmz", "gpx", "shp"]);
+const modelExtensions = new Set([
+  ..."glb gltf obj stl ply fbx dae 3ds 3mf amf usd usda usdc usdz".split(" "),
+  ..."pcd wrl vrml xyz vtk vtp step stp iges igs brep ifc 3dm".split(" "),
+]);
 const emailExtensions = new Set(["eml", "msg", "mbox"]);
 const fontExtensions = new Set(["ttf", "otf", "woff", "woff2"]);
 const paletteExtensions = new Set(["ase", "aco"]);
@@ -74,6 +78,11 @@ function hasRenderedView(filePath: string): boolean {
 
 /** Ordered built-in renderers. A new engine can replace one by registering first. */
 export const previewRenderers: readonly PreviewRenderer[] = [
+  documentRenderer(
+    "model",
+    modelExtensions,
+    defineAsyncComponent(() => import("./ModelPreviewRenderer.vue")),
+  ),
   {
     // Geodata as an SVG map with its features; GeoJSON, KML and GPX are
     // text with a rendered view.

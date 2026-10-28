@@ -48,6 +48,7 @@ export default defineConfig({
       "ag-psd/dist/bundle.js",
       // Pine's own preview decoders, imported when a format needs them.
       "@file-viewer/capability-mermaid/engine",
+      "@file-viewer/geometry-engine",
       "@kenjiuno/msgreader",
       "@ljheee/xmind-parser",
       "@tmcw/togeojson",
@@ -60,6 +61,13 @@ export default defineConfig({
       "postal-mime",
       "roughjs",
       "shpjs",
+      "three",
+      ...[
+        "controls/OrbitControls",
+        ..."GLTF OBJ STL PLY FBX Collada TDS 3MF AMF USD PCD VRML XYZ VTK"
+          .split(" ")
+          .map((name) => `loaders/${name}Loader`),
+      ].map((path) => `three/addons/${path}.js`),
       "sql.js",
       "utif",
     ],
