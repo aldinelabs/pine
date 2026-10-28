@@ -113,6 +113,7 @@ function open(attachment: MailAttachment): void {
     <ScrollArea v-if="view === 'headers'" class="min-h-0 flex-1">
       <dl
         class="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 px-6 py-4 font-mono text-xs"
+        :style="{ zoom: zoom / 100 }"
       >
         <template
           v-for="([name, value], index) in message.headers"
@@ -131,7 +132,11 @@ function open(attachment: MailAttachment): void {
       :zoom="zoom"
     />
     <ScrollArea v-else class="min-h-0 flex-1">
-      <p class="px-6 py-4 text-sm whitespace-pre-wrap">
+      <!-- Text bodies zoom like HTML ones: laid out again, not scaled. -->
+      <p
+        class="px-6 py-4 text-sm whitespace-pre-wrap"
+        :style="{ zoom: zoom / 100 }"
+      >
         {{ message.text || t("project.preview.mailEmpty") }}
       </p>
     </ScrollArea>
