@@ -101,6 +101,28 @@ describe("workbench layout", () => {
     });
   });
 
+  it("keeps the file tree when a new preview card opens", () => {
+    const preview = {
+      target: {
+        source: "project" as const,
+        projectId: "p1",
+        folderId: "f1",
+        relativePath: "notes.md",
+      },
+    };
+    const browsing = { ...single, bottom: "files" as const };
+    expect(presentInWorkbench(browsing, preview)).toMatchObject({
+      top: "preview",
+      bottom: "files",
+    });
+    expect(
+      presentInWorkbench({ ...single, top: "files" }, preview),
+    ).toMatchObject({ top: "files", bottom: "preview" });
+    expect(
+      presentInWorkbench({ ...browsing, top: "preview" }, preview),
+    ).toMatchObject({ top: "preview", bottom: "files", preview });
+  });
+
   it("falls back to the default card when opening an empty workbench", () => {
     expect(
       setWorkbenchOpen({ ...closed, top: null, bottom: null }, true),

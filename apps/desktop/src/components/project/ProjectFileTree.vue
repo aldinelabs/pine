@@ -65,6 +65,7 @@ import { useProjectStore } from "@/stores/project";
 import { useContentTabsStore } from "@/stores/contentTabs";
 import { useContentTabNavigation } from "@/composables/useContentTabNavigation";
 import { useScopedProject } from "@/composables/useScopedProject";
+import { useWorkbenchStore } from "@/stores/workbench";
 import { useProjectFileChanges } from "@/composables/useProjectFileChanges";
 
 interface ProjectTreeNode extends ProjectEntry {
@@ -79,6 +80,7 @@ const { t } = useI18n();
 const projectStore = useProjectStore();
 const contentTabsStore = useContentTabsStore();
 const tabNavigation = useContentTabNavigation();
+const workbench = useWorkbenchStore();
 // Retained per project: always show this panel's project.
 const activeProject = useScopedProject();
 /** Only the visible project's tree keeps directory watchers in main. */
@@ -516,15 +518,24 @@ function handleTreeToggle(
   });
 }
 
+function isOpenable(node: ProjectTreeNode): boolean {
+  return (
+    node.kind === "file" &&
+    !node.isPlaceholder &&
+    !node.isUnavailable &&
+    activeProject.value !== null
+  );
+}
+
+/** A click shows the file in the workbench preview beside the conversation. */
 function previewFile(node: ProjectTreeNode): void {
-  if (
-    node.kind !== "file" ||
-    node.isPlaceholder ||
-    node.isUnavailable ||
-    !activeProject.value
-  )
-    return;
-  tabNavigation.openFile(reference(node));
+  if (!isOpenable(node)) return;
+  workbench.preview({ target: { source: "project", ...reference(node) } });
+}
+
+/** A double click opens the file in the full previewer's tab. */
+function openFileInTab(node: ProjectTreeNode): void {
+  if (isOpenable(node)) tabNavigation.openFile(reference(node));
 }
 
 function reference(node: unknown): ProjectEntryReference {
@@ -989,6 +1000,7 @@ onUnmounted(() => {
         :style="{ paddingInlineStart: `${(item.level - 1) * 12 + 8}px` }"
         @toggle="handleTreeToggle($event, item.value)"
         @click="previewFile(item.value)"
+        @dblclick="openFileInTab(item.value)"
       >
         <ContextMenu
           @update:open="

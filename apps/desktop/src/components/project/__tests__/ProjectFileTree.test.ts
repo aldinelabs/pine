@@ -3,6 +3,7 @@ import { defineComponent, h, nextTick } from "vue";
 import { createPinia, setActivePinia } from "pinia";
 import { createMemoryHistory, createRouter } from "vue-router";
 import { useContentTabsStore } from "@/stores/contentTabs";
+import { useWorkbenchStore } from "@/stores/workbench";
 import { injectTreeRootContext } from "reka-ui";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createAppI18n } from "@/app/i18n";
@@ -357,11 +358,28 @@ describe("ProjectFileTree", () => {
     ).toEqual(["", "src"]);
   });
 
-  it("opens a file on left click and reuses its tab without invoking an external app", async () => {
+  it("previews a file in the workbench on click and opens a tab on double click", async () => {
     const { wrapper, router, operateProjectFile } = mountTree();
     await expandRoot(wrapper);
     expect(useContentTabsStore().tabs).toHaveLength(1);
     await wrapper.get('[data-path="notes.md"]').trigger("click");
+    await flushPromises();
+    const workbench = useWorkbenchStore();
+    expect(workbench.activeLayout).toMatchObject({
+      open: true,
+      preview: {
+        target: {
+          source: "project",
+          projectId: "p1",
+          folderId,
+          relativePath: "notes.md",
+        },
+      },
+    });
+    expect(workbench.panelPosition("preview")).not.toBeNull();
+    expect(useContentTabsStore().tabs).toHaveLength(1);
+
+    await wrapper.get('[data-path="notes.md"]').trigger("dblclick");
     await flushPromises();
     const tab = useContentTabsStore().tabs.find((tab) => tab.kind === "file");
     expect(tab).toMatchObject({
@@ -370,9 +388,6 @@ describe("ProjectFileTree", () => {
       relativePath: "notes.md",
     });
     expect(router.currentRoute.value.query.tab).toBe(tab?.id);
-    await wrapper.get('[data-path="notes.md"]').trigger("click");
-    await flushPromises();
-    expect(useContentTabsStore().tabs).toHaveLength(2);
     expect(operateProjectFile).not.toHaveBeenCalled();
   });
   it("restores expanded folders without playing disclosure animations", async () => {

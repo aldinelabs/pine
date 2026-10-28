@@ -131,12 +131,23 @@ export function applyWorkbenchCommand(
   }
 }
 
-/** Shows a presented file in the preview card. */
+/**
+ * Shows a file in the preview card. A new preview card leaves the file tree in
+ * place, since the user picks files there to preview them.
+ */
 export function presentInWorkbench(
   layout: WorkbenchLayout,
   preview: WorkbenchPreview,
 ): WorkbenchLayout {
-  return openPanel({ ...layout, preview }, "preview");
+  const keepsFiles =
+    layout.top &&
+    layout.bottom === "files" &&
+    !panelPosition(layout, "preview");
+  return openPanel(
+    { ...layout, preview },
+    "preview",
+    keepsFiles ? "top" : undefined,
+  );
 }
 
 function isPreviewTarget(value: unknown): value is FilePreviewTarget {
