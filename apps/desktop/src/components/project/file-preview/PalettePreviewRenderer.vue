@@ -53,11 +53,7 @@ onBeforeUnmount(() => reading.abort());
 
 <template>
   <div class="relative h-full min-h-0">
-    <div
-      v-if="groups"
-      data-slot="palette-preview"
-      class="scroll-fade h-full overflow-auto"
-    >
+    <div v-if="groups" data-slot="palette-preview" class="h-full overflow-auto">
       <div class="mx-auto flex max-w-5xl flex-col gap-8 px-8 py-8">
         <p v-if="!count" class="text-sm text-muted-foreground">
           {{ t("project.preview.paletteEmpty") }}

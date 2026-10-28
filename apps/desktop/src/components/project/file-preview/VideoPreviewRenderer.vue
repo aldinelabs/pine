@@ -30,7 +30,7 @@ onBeforeUnmount(() => video.value?.pause());
 <template>
   <div
     v-if="preview.kind === 'video'"
-    class="scroll-fade flex h-full min-h-0 items-center justify-center overflow-auto p-6"
+    class="flex h-full min-h-0 items-center justify-center overflow-auto p-6"
   >
     <video
       ref="video"

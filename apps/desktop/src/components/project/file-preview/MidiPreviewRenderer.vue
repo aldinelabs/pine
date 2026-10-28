@@ -122,7 +122,7 @@ onBeforeUnmount(() => reading.abort());
       <p class="text-sm text-muted-foreground">{{ summary.join(" · ") }}</p>
     </header>
     <div
-      class="scroll-fade relative min-h-0 flex-1 overflow-auto border-y bg-muted/30"
+      class="relative min-h-0 flex-1 overflow-auto border-y"
       :aria-label="t('project.preview.pianoRoll')"
       role="img"
     >

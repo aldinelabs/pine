@@ -159,7 +159,7 @@ defineExpose({ fit, fitWidth });
   <div
     ref="viewport"
     data-slot="image-preview"
-    class="scroll-fade absolute inset-0 overflow-auto"
+    class="absolute inset-0 overflow-auto"
   >
     <div
       class="grid min-h-full min-w-full place-items-center"

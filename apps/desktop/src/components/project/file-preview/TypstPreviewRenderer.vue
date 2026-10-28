@@ -143,7 +143,7 @@ onBeforeUnmount(() => {
       v-else
       ref="stage"
       data-slot="typst-preview"
-      class="scroll-fade absolute inset-0 overflow-auto"
+      class="absolute inset-0 overflow-auto"
       @scroll.passive="trackPage"
     >
       <div

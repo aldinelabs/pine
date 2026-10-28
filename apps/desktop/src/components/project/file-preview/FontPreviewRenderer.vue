@@ -99,11 +99,7 @@ onBeforeUnmount(() => {
         />
       </InputGroup>
     </Teleport>
-    <div
-      v-if="face"
-      data-slot="font-preview"
-      class="scroll-fade h-full overflow-auto"
-    >
+    <div v-if="face" data-slot="font-preview" class="h-full overflow-auto">
       <div class="mx-auto flex max-w-4xl flex-col gap-8 px-8 py-8">
         <header class="flex flex-col gap-1">
           <h2 class="text-2xl font-medium">

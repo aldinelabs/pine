@@ -152,10 +152,7 @@ onBeforeUnmount(() => {
     <div
       ref="stage"
       data-slot="ofd-preview"
-      :class="[
-        'scroll-fade absolute inset-0 overflow-auto',
-        inverted && 'ofd-inverted',
-      ]"
+      :class="['absolute inset-0 overflow-auto', inverted && 'ofd-inverted']"
       @scroll.passive="trackPage"
     >
       <div
