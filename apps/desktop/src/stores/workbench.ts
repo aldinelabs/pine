@@ -176,6 +176,12 @@ export const useWorkbenchStore = defineStore("workbench", () => {
     present(activeKey.value, preview);
   }
 
+  /** Empties the preview card, as when its file moves to a tab. */
+  function clearPreview(): void {
+    if (!activeLayout.value.preview) return;
+    update(activeKey.value, (layout) => ({ ...layout, preview: null }));
+  }
+
   function setSplit(split: number): void {
     const next = clampWorkbenchSplit(split);
     if (next === activeLayout.value.split) return;
@@ -217,6 +223,7 @@ export const useWorkbenchStore = defineStore("workbench", () => {
     isResizing,
     width,
     apply,
+    clearPreview,
     closeCard,
     isHighlighted,
     layoutFor,

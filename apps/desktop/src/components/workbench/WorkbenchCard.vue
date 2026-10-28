@@ -86,6 +86,8 @@ function openPreviewInTab(): void {
   navigation.activate(
     contentTabs.presentFile(preview.target, projectId, preview.toolCallId).id,
   );
+  // The file now lives in its tab; the card goes back to waiting for one.
+  workbench.clearPreview();
 }
 
 const summary = computed(() => {

@@ -130,3 +130,16 @@ it("keeps a background session's highlight for when it becomes active", () => {
     ),
   ).not.toContain("highlight");
 });
+
+it("empties the preview card but keeps it in place", () => {
+  const store = useWorkbenchStore();
+  store.preview({ target: { source: "presented", path: "/tmp/report.pdf" } });
+  expect(store.panelPosition("preview")).toBe("bottom");
+
+  store.clearPreview();
+  expect(store.activeLayout).toMatchObject({
+    open: true,
+    bottom: "preview",
+    preview: null,
+  });
+});
