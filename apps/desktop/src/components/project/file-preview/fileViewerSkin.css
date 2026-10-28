@@ -46,3 +46,14 @@
 .pine-file-viewer .ppt-binary-loading {
   display: none !important;
 }
+
+/*
+ * Slides are paper. Text a slide does not color itself is the document's
+ * black, not Pine's foreground, which is light in dark mode and would vanish
+ * on the white slide. The slideshow lays the slides on the page body,
+ * outside the previewer, so it shows them as authored.
+ */
+.flyfish-pptx-content .slide,
+.flyfish-pptx-presentation .slide {
+  color: #000;
+}
