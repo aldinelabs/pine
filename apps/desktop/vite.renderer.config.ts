@@ -41,7 +41,12 @@ export default defineConfig({
   // Workspace packages are served as source. Left to discovery, one added
   // while the dev server runs is pre-bundled and then goes stale on edits.
   optimizeDeps: {
-    include: fileViewerCapabilities(),
+    include: [
+      ...fileViewerCapabilities(),
+      // The Photoshop renderer imports this UMD bundle, which only exports
+      // once pre-bundled.
+      "ag-psd/dist/bundle.js",
+    ],
     exclude: [
       "@pine/pi-background-tasks",
       "@pine/rpiv-ask-user-question",
