@@ -36,7 +36,7 @@ import { useWorkbenchStore } from "@/stores/workbench";
  * switches to the full previewer.
  */
 const emit = defineEmits<{
-  /** The file changed in a way the preview cannot mark line by line. */
+  /** The file changed on disk. */
   contentChanged: [];
 }>();
 const { t } = useI18n();
@@ -147,8 +147,8 @@ async function regrant(): Promise<boolean> {
 }
 
 /**
- * Marks what a change on disk touched: the new lines when the source is on
- * screen, otherwise the whole card.
+ * Marks a change on disk: the card pulses, and a source on screen also tints
+ * the lines the file gained.
  */
 function showChange(
   before: ProjectFilePreview | undefined,
@@ -161,10 +161,7 @@ function showChange(
       renderer.value?.id === "text" &&
       (mode.value === "code" || fileLanguage(filePath.value) !== "markdown");
     const ranges = changedLineRanges(before.text, after.text);
-    if (showsSource && ranges.length) {
-      changedLines.value = ranges;
-      return;
-    }
+    if (showsSource && ranges.length) changedLines.value = ranges;
   } else if (
     before.kind === after.kind &&
     before.size === after.size &&

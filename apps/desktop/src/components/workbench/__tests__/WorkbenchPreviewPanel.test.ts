@@ -105,7 +105,7 @@ function watchedPreview(relativePath: string, texts: string[]) {
   };
 }
 
-it("tints the lines a watched source file gained", async () => {
+it("tints the lines a watched source file gained and pulses the card", async () => {
   const { wrapper, change } = watchedPreview("src/main.py", [
     "a\nb\nc",
     "a\nB\nc\nd",
@@ -119,11 +119,11 @@ it("tints the lines a watched source file gained", async () => {
     expect.stringContaining("+ 1 * var(--code-preview-line)"),
     expect.stringContaining("+ 3 * var(--code-preview-line)"),
   ]);
-  expect(wrapper.emitted("contentChanged")).toBeUndefined();
+  expect(wrapper.emitted("contentChanged")).toHaveLength(1);
   wrapper.unmount();
 });
 
-it("pulses the card when a change has no lines to tint", async () => {
+it("pulses the card for a change with no lines to tint", async () => {
   const { wrapper, change } = watchedPreview("notes.md", [
     "# Title",
     "# Title\n\nMore",
