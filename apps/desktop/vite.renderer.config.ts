@@ -62,6 +62,8 @@ export default defineConfig({
       "@file-viewer/renderer-epub",
       "@flyfish-dev/cad-viewer",
       "@kenjiuno/msgreader",
+      "@myriaddreamin/typst.ts",
+      "@myriaddreamin/typst.ts/contrib/snippet",
       "@ljheee/xmind-parser",
       "@tmcw/togeojson",
       "@tonejs/midi",
@@ -83,6 +85,7 @@ export default defineConfig({
       ].map((path) => `three/addons/${path}.js`),
       "sql.js",
       "utif",
+      "woff2-encoder/decompress",
     ],
     exclude: [
       "@pine/pi-background-tasks",

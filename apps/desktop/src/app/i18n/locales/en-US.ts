@@ -674,6 +674,8 @@ export default {
       ebookChapterFailed: "This chapter couldn't be opened.",
       worksheet: "Worksheet",
       slideshow: "Present",
+      pageLabel: "Page {page}",
+      typstFailed: "This Typst document doesn’t compile",
       mailView: "Message view",
       mailBody: "Message",
       mailHeaders: "Headers",

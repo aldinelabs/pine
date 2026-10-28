@@ -645,6 +645,8 @@ export default {
       ebookChapterFailed: "无法打开这一章。",
       worksheet: "工作表",
       slideshow: "放映",
+      pageLabel: "第 {page} 页",
+      typstFailed: "无法编译这个 Typst 文档",
       mailView: "邮件视图",
       mailBody: "正文",
       mailHeaders: "邮件头",

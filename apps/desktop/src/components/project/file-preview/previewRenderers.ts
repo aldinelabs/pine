@@ -171,6 +171,25 @@ export const previewRenderers: readonly PreviewRenderer[] = [
     defineAsyncComponent(() => import("./PostScriptPreviewRenderer.vue")),
   ),
   {
+    // Typst sources, compiled to pages; the source view stays a toggle away.
+    id: "typst",
+    component: defineAsyncComponent(() => import("./TypstPreviewRenderer.vue")),
+    supports: ({ preview, filePath, mode }) => {
+      const extension = previewExtension(filePath);
+      return (
+        (extension === "typ" || extension === "typst") &&
+        (preview.kind === "document" ||
+          (preview.kind === "text" && mode === "rendered"))
+      );
+    },
+    capabilities: ({ preview }) => ({
+      ...noControls,
+      zoom: true,
+      invert: true,
+      renderToggle: preview.kind === "text",
+    }),
+  },
+  {
     // Pages and saved web archives, in a frame without scripts or network.
     id: "html",
     component: defineAsyncComponent(() => import("./HtmlPreviewRenderer.vue")),
