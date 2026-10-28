@@ -51,6 +51,7 @@ export default defineConfig({
       "ag-psd",
       "heic2any",
       "hyparquet",
+      "libarchive.js",
       "sql.js",
       "utif",
     ],

@@ -31,6 +31,12 @@ const imageExtensions = new Set([
 
 const tableExtensions = new Set(["csv", "tsv", "dbf"]);
 const datasetExtensions = new Set(["sqlite", "parquet", "avro", "wasm"]);
+const archiveExtensions = new Set([
+  ..."zip zipx 7z rar tar gz gzip tgz bz2 bzip2 tbz tbz2 xz txz lzma zst tzst".split(
+    " ",
+  ),
+  ..."cab ar cpio iso xar lha lzh jar war ear apk cbz cbr".split(" "),
+]);
 const fontExtensions = new Set(["ttf", "otf", "woff", "woff2"]);
 const paletteExtensions = new Set(["ase", "aco"]);
 
@@ -59,6 +65,11 @@ function hasRenderedView(filePath: string): boolean {
 
 /** Ordered built-in renderers. A new engine can replace one by registering first. */
 export const previewRenderers: readonly PreviewRenderer[] = [
+  documentRenderer(
+    "archive",
+    archiveExtensions,
+    defineAsyncComponent(() => import("./ArchivePreviewRenderer.vue")),
+  ),
   documentRenderer(
     "midi",
     new Set(["mid", "midi"]),

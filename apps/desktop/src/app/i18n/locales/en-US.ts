@@ -639,6 +639,15 @@ export default {
       midiUntitled: "Track {index}",
       midiPercussion: "Percussion",
       toggleTrack: "Show or hide {name}",
+      archiveFilter: "Filter files",
+      archiveChoose: "Choose a file to preview",
+      archiveLocked: "This archive is encrypted",
+      archiveWrongPassword: "The password is wrong",
+      archivePassword: "Password",
+      archiveUnlock: "Open",
+      archiveEmpty: "No files found",
+      archiveEmptyDescription:
+        "The archive is empty or uses a compression Pine can't read, such as Zstandard.",
     },
     contentTabs: {
       emptyTitle: "No tabs open",

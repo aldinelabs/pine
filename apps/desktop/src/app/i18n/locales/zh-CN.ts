@@ -611,6 +611,15 @@ export default {
       midiUntitled: "音轨 {index}",
       midiPercussion: "打击乐",
       toggleTrack: "显示或隐藏 {name}",
+      archiveFilter: "筛选文件",
+      archiveChoose: "选择一个文件以预览",
+      archiveLocked: "压缩包已加密",
+      archiveWrongPassword: "密码不正确",
+      archivePassword: "密码",
+      archiveUnlock: "打开",
+      archiveEmpty: "没有读到文件",
+      archiveEmptyDescription:
+        "压缩包是空的，或使用了不支持的压缩方式（如 Zstandard）。",
     },
     contentTabs: {
       emptyTitle: "无选项卡",
