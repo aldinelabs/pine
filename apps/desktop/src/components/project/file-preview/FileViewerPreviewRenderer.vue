@@ -715,27 +715,55 @@ defineExpose({ readSelection, fitWidth });
 }
 
 /*
- * Inversion turns white pages dark. The tokens are pre-inverted in lightness
- * so that, once the filter applies, the chrome around the pages matches the
- * app theme again.
+ * Inversion turns white pages dark. The tokens are pre-inverted the way the
+ * filter inverts: each sRGB channel flipped, with the hue turned half way
+ * round, so once the filter applies the chrome around the pages shows the
+ * app theme's exact colors again.
  */
 .pine-file-viewer-inverted {
-  --pine-fv-background: oklch(from var(--background) calc(1 - l) c h);
-  --pine-fv-card: oklch(from var(--card) calc(1 - l) c h);
-  --pine-fv-muted: oklch(from var(--muted) calc(1 - l) c h);
-  --pine-fv-foreground: oklch(from var(--foreground) calc(1 - l) c h);
-  --pine-fv-muted-foreground: oklch(
-    from var(--muted-foreground) calc(1 - l) c h
+  --pine-fv-background: rgb(
+    from oklch(from var(--background) l c calc(h + 180)) calc(255 - r)
+      calc(255 - g) calc(255 - b)
   );
-  --pine-fv-border: oklch(from var(--border) calc(1 - l) c h);
-  --pine-fv-accent: oklch(from var(--accent) calc(1 - l) c h);
-  --pine-fv-accent-foreground: oklch(
-    from var(--accent-foreground) calc(1 - l) c h
+  --pine-fv-card: rgb(
+    from oklch(from var(--card) l c calc(h + 180)) calc(255 - r) calc(255 - g)
+      calc(255 - b)
   );
-  --pine-fv-ring: oklch(from var(--ring) calc(1 - l) c h);
-  --pine-fv-primary: oklch(from var(--primary) calc(1 - l) c h);
-  --pine-fv-primary-foreground: oklch(
-    from var(--primary-foreground) calc(1 - l) c h
+  --pine-fv-muted: rgb(
+    from oklch(from var(--muted) l c calc(h + 180)) calc(255 - r) calc(255 - g)
+      calc(255 - b)
+  );
+  --pine-fv-foreground: rgb(
+    from oklch(from var(--foreground) l c calc(h + 180)) calc(255 - r)
+      calc(255 - g) calc(255 - b)
+  );
+  --pine-fv-muted-foreground: rgb(
+    from oklch(from var(--muted-foreground) l c calc(h + 180)) calc(255 - r)
+      calc(255 - g) calc(255 - b)
+  );
+  --pine-fv-border: rgb(
+    from oklch(from var(--border) l c calc(h + 180)) calc(255 - r) calc(255 - g)
+      calc(255 - b)
+  );
+  --pine-fv-accent: rgb(
+    from oklch(from var(--accent) l c calc(h + 180)) calc(255 - r) calc(255 - g)
+      calc(255 - b)
+  );
+  --pine-fv-accent-foreground: rgb(
+    from oklch(from var(--accent-foreground) l c calc(h + 180)) calc(255 - r)
+      calc(255 - g) calc(255 - b)
+  );
+  --pine-fv-ring: rgb(
+    from oklch(from var(--ring) l c calc(h + 180)) calc(255 - r) calc(255 - g)
+      calc(255 - b)
+  );
+  --pine-fv-primary: rgb(
+    from oklch(from var(--primary) l c calc(h + 180)) calc(255 - r)
+      calc(255 - g) calc(255 - b)
+  );
+  --pine-fv-primary-foreground: rgb(
+    from oklch(from var(--primary-foreground) l c calc(h + 180)) calc(255 - r)
+      calc(255 - g) calc(255 - b)
   );
   filter: invert(1) hue-rotate(180deg);
 }
