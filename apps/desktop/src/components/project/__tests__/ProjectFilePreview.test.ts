@@ -478,10 +478,7 @@ describe("ProjectFilePreview", () => {
     expect(wrapper.get("h1").text()).toBe("Newest");
   });
 
-  it("renders HTML through file-viewer by default, scales its frame and switches to source", async () => {
-    fileViewer.state.rendererId = "code";
-    fileViewer.state.zoom = false;
-    fileViewer.state.text = false;
+  it("renders HTML in a sandboxed frame, scales it and switches to source", async () => {
     const source = "<!doctype html><html><body><h1>Hello</h1></body></html>";
     const wrapper = render(
       vi.fn().mockResolvedValue({
@@ -494,37 +491,29 @@ describe("ProjectFilePreview", () => {
     await wrapper.setProps({
       file: { ...file, relativePath: "public/index.html" },
     });
-    const viewer = await mountedViewer(wrapper);
-    expect(viewer.source?.filename).toBe("index.html");
-    expect(new TextDecoder().decode(viewer.source?.buffer as ArrayBuffer)).toBe(
-      source,
-    );
-    expect(viewer.options).toMatchObject({
-      toolbar: false,
-      zoomGestures: true,
-      text: { toolbar: false },
-    });
+    await flushPromises();
+    await vi.dynamicImportSettled();
+    await flushPromises();
+    const frame = wrapper.get('[data-slot="html-frame"]');
+    expect(frame.attributes("sandbox")).toBe("");
+    expect(frame.attributes("srcdoc")).toContain("<h1>Hello</h1>");
+    expect(frame.attributes("srcdoc")).toContain("default-src 'none'");
 
     const mode = wrapper.get('[role="switch"]');
     expect(mode.attributes("aria-checked")).toBe("true");
     const slider = wrapper.findComponent(Slider);
-    expect(slider.exists()).toBe(true);
     slider.vm.$emit("update:modelValue", [150]);
     slider.vm.$emit("valueCommit", [150]);
     await flushPromises();
     expect(
-      wrapper.get('[data-slot="file-viewer"]').attributes("style"),
-    ).toContain("--pine-frame-zoom: 1.5");
-    expect(wrapper.get('[aria-label="File metadata"]').text()).toContain(
-      "HTML",
-    );
+      wrapper.get('[data-slot="html-frame"]').attributes("style"),
+    ).toContain("scale(1.5)");
 
     await mode.trigger("click");
     await flushPromises();
-    expect(wrapper.find('[data-slot="file-viewer"]').exists()).toBe(false);
+    expect(wrapper.find('[data-slot="html-frame"]').exists()).toBe(false);
     expect(wrapper.find("pre.shiki").exists()).toBe(true);
     expect(wrapper.findComponent(Slider).exists()).toBe(false);
-    expect(viewer.destroy).toHaveBeenCalled();
   });
 
   it("leaves gesture zoom to the viewer and drives its zoom from the slider", async () => {

@@ -31,6 +31,23 @@ const imageExtensions = new Set([
 
 const tableExtensions = new Set(["csv", "tsv", "dbf"]);
 const datasetExtensions = new Set(["sqlite", "parquet", "avro", "wasm"]);
+const fontExtensions = new Set(["ttf", "otf", "woff", "woff2"]);
+const paletteExtensions = new Set(["ase", "aco"]);
+
+/** A renderer for files read whole as documents, picked by extension. */
+function documentRenderer(
+  id: string,
+  extensions: ReadonlySet<string>,
+  component: PreviewRenderer["component"],
+): PreviewRenderer {
+  return {
+    id,
+    component,
+    supports: ({ preview, filePath }) =>
+      preview.kind === "document" && extensions.has(previewExtension(filePath)),
+    capabilities: () => noControls,
+  };
+}
 
 function isImage(filePath: string): boolean {
   return imageExtensions.has(previewExtension(filePath));
@@ -42,17 +59,51 @@ function hasRenderedView(filePath: string): boolean {
 
 /** Ordered built-in renderers. A new engine can replace one by registering first. */
 export const previewRenderers: readonly PreviewRenderer[] = [
+  documentRenderer(
+    "postscript",
+    new Set(["eps", "ai"]),
+    defineAsyncComponent(() => import("./PostScriptPreviewRenderer.vue")),
+  ),
   {
-    // Databases, columnar data and WebAssembly modules, table by table.
-    id: "dataset",
-    component: defineAsyncComponent(
-      () => import("./DatasetPreviewRenderer.vue"),
-    ),
-    supports: ({ preview, filePath }) =>
-      preview.kind === "document" &&
-      datasetExtensions.has(previewExtension(filePath)),
-    capabilities: () => noControls,
+    // Pages and saved web archives, in a frame without scripts or network.
+    id: "html",
+    component: defineAsyncComponent(() => import("./HtmlPreviewRenderer.vue")),
+    supports: ({ preview, filePath, mode }) => {
+      const extension = previewExtension(filePath);
+      if (extension === "webarchive") return preview.kind === "document";
+      return (
+        (extension === "html" || extension === "htm") &&
+        (preview.kind === "document" ||
+          (preview.kind === "text" && mode === "rendered"))
+      );
+    },
+    capabilities: ({ preview }) => ({
+      ...noControls,
+      zoom: true,
+      renderToggle: preview.kind === "text",
+    }),
   },
+  documentRenderer(
+    "photoshop",
+    new Set(["psd"]),
+    defineAsyncComponent(() => import("./PsdPreviewRenderer.vue")),
+  ),
+  documentRenderer(
+    "font",
+    fontExtensions,
+    defineAsyncComponent(() => import("./FontPreviewRenderer.vue")),
+  ),
+  documentRenderer(
+    "palette",
+    paletteExtensions,
+    defineAsyncComponent(() => import("./PalettePreviewRenderer.vue")),
+  ),
+  // Databases, columnar data and WebAssembly modules, table by table.
+  documentRenderer(
+    "dataset",
+    datasetExtensions,
+    defineAsyncComponent(() => import("./DatasetPreviewRenderer.vue")),
+  ),
   {
     // Delimited text and dBASE tables, in a virtualized grid.
     id: "table",

@@ -62,7 +62,7 @@ describe("file preview renderer registry", () => {
   });
 
   it.each([
-    ["index.html", "rendered", "file-viewer"],
+    ["index.html", "rendered", "html"],
     ["index.html", "code", "text"],
     ["data.csv", "rendered", "table"],
     ["logo.svg", "rendered", "image"],
