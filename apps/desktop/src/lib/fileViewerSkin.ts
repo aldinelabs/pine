@@ -178,6 +178,8 @@ const KEYWORD = /\b(white|black)\b/gi;
 
 interface RuleContext {
   paper: boolean;
+  /** The rule styles a layer floating over the viewer (drawers, lightboxes). */
+  floating: boolean;
   /** The rule paints an accent background, so its text sits on the primary color. */
   onAccent: boolean;
 }
@@ -216,12 +218,47 @@ function hasAccentBackground(body: string): boolean {
   return false;
 }
 
+/** Selectors for layers that float over the viewer and keep a shadow. */
+const FLOATING =
+  /toc|lightbox|popover|menu|tooltip|toolbar|maplibregl-ctrl|sidebar/i;
+
+/** A drop shadow whose blur is large enough to lift its element as a card. */
+function isCardShadow(value: string): boolean {
+  if (/\binset\b|var\(/i.test(value)) return false;
+  return value
+    .replace(/\([^()]*\)/g, "")
+    .split(",")
+    .some((layer) => {
+      const lengths = layer.match(/-?[\d.]+px|\b0\b/g) ?? [];
+      return Number.parseFloat(lengths[2] ?? "0") >= 8;
+    });
+}
+
+/**
+ * Renderers lift panels, states and pages off the stage with large soft
+ * shadows, which reads as cards nested in Pine's preview card. Panels go
+ * flat, pages keep a hairline edge and floating layers a light shadow.
+ */
+function mapShadow(value: string, rule: RuleContext): string {
+  if (!isCardShadow(value)) return value;
+  if (rule.floating)
+    return " 0 4px 12px color-mix(in oklch, var(--pine-fv-foreground) 10%, transparent)";
+  if (rule.paper) return " 0 0 0 1px var(--pine-fv-border)";
+  return " none";
+}
+
 function skinDeclarations(body: string, rule: RuleContext): string {
   return body.replace(
     DECLARATION,
     (match, lead: string, property: string, colon: string, value: string) => {
       if (property.toLowerCase() === "font-family")
         return `${lead}${property}${colon.trimEnd()}${mapFont(value)}`;
+      if (property.toLowerCase() === "box-shadow") {
+        const mapped = mapShadow(value, rule);
+        return mapped === value
+          ? match
+          : `${lead}${property}${colon.trimEnd()}${mapped}`;
+      }
       const role = roleOf(property);
       if (!role) return match;
       const mapped = value
@@ -245,6 +282,7 @@ export function skinFileViewerCss(css: string): string {
       if (/^\s*@(font-face|keyframes|page)/i.test(selector)) return match;
       const rule = {
         paper: PAPER.test(selector),
+        floating: FLOATING.test(selector),
         onAccent: hasAccentBackground(body),
       };
       const next = skinDeclarations(`;${body}`, rule).slice(1);

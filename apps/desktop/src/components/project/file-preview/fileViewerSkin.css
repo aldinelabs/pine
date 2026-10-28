@@ -21,10 +21,10 @@
   display: none;
 }
 
-/* Diagrams sit on the stage without a drop shadow, like Pine's cards. */
-.pine-file-viewer .drawing-canvas :is(.drawing-svg, svg, .drawing-mxgraph) {
-  box-shadow: none;
-  border: 1px solid var(--pine-fv-border);
+/* Diagrams sit directly on the stage instead of in a second card. */
+.pine-file-viewer .drawing-diagram-shell {
+  background: none;
+  border-radius: 0;
 }
 
 /* Mermaid draws in the viewer's theme, so its page takes the theme too. */

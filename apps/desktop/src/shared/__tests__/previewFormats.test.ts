@@ -15,8 +15,12 @@ const presetRenderers = DEFAULT_RENDERER_DEFINITIONS.filter(
 );
 /** Pine previews these as text with its own code and Markdown renderers. */
 const textRenderers = new Set(["code", "markdown"]);
-/** HLS playlists load segments by URL, which the media protocol never serves. */
-const excluded = new Set(["m3u8"]);
+/**
+ * HLS playlists load segments by URL, which the media protocol never serves.
+ * PlantUML only renders through a server; offline it draws its source as an
+ * image, so Pine shows it as code.
+ */
+const excluded = new Set(["m3u8", "plantuml", "puml"]);
 
 describe("preview formats", () => {
   it("routes every format the bundled preset renders", () => {

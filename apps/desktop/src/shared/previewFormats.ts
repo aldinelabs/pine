@@ -191,8 +191,6 @@ export const renderedTextExtensions: ReadonlySet<string> = new Set([
   "excalidraw",
   "mermaid",
   "mmd",
-  "plantuml",
-  "puml",
   "geojson",
   "kml",
   "gpx",

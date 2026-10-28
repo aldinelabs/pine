@@ -59,6 +59,16 @@ describe("file-viewer skin", () => {
     );
   });
 
+  it("flattens card shadows, outlining pages and softening floating layers", () => {
+    expect(
+      skinFileViewerCss(
+        ".data-card{box-shadow:0 18px 48px rgba(15,23,42,.12)}.odf-page{box-shadow:0 16px 38px rgba(15,23,42,.12)}.epub-toc{box-shadow:18px 0 40px rgba(15,23,42,.16)}.input:focus{box-shadow:0 0 0 3px rgba(31,122,88,.12)}",
+      ),
+    ).toBe(
+      ".data-card{box-shadow: none}.odf-page{box-shadow: 0 0 0 1px var(--pine-fv-border)}.epub-toc{box-shadow: 0 4px 12px color-mix(in oklch, var(--pine-fv-foreground) 10%, transparent)}.input:focus{box-shadow:0 0 0 3px rgba(31,122,88,.12)}",
+    );
+  });
+
   it("leaves keyframes and font faces alone", () => {
     const css =
       "@font-face{font-family:X;src:url(x.woff)}@keyframes spin{to{transform:rotate(1turn)}}";
