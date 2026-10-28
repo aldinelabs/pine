@@ -1,41 +1,12 @@
 /*
  * Layout fixes on top of the token remapping in `lib/fileViewerSkin.ts`.
  *
- * Pine's preview toolbar and footer already zoom, fit and name the file, so
- * renderer toolbars that only repeat those controls are hidden. Controls with
- * no Pine counterpart (layers, color mode, export, slideshow) stay.
- */
-
-/* Diagrams: label, zoom and fit. */
-.pine-file-viewer .drawing-toolbar,
-/* Mind maps: file name, zoom and fit. */
-.pine-file-viewer .xmind-toolbar {
-  display: none;
-}
-
-/* CAD: fit and zoom; the color mode toggle and image export stay. */
-.pine-file-viewer .cad-tools > button:not(.cad-color-mode),
-.pine-file-viewer .cad-zoom,
-/* Photoshop: zoom out, level, zoom in and fit; layer visibility stays. */
-.pine-file-viewer .psd-actions > :nth-child(-n + 4) {
-  display: none;
-}
-
-/* Diagrams sit directly on the stage instead of in a second card. */
-.pine-file-viewer .drawing-diagram-shell {
-  background: none;
-  border-radius: 0;
-}
-
-/* Mermaid draws in the viewer's theme, so its page takes the theme too. */
-.pine-file-viewer .drawing-canvas svg[aria-roledescription] {
-  background: var(--pine-fv-card);
-}
-
-/*
- * Spreadsheets: sheet tabs and the row summary; Pine's top bar picks the
- * sheet. Presentations: the slideshow button, which the top bar repeats.
- * Typst: the file name, page size and render status.
+ * Pine's preview bar already names the file, pages, searches and zooms, and
+ * repeats the controls that have no Pine counterpart (sheet, slideshow), so
+ * the renderers' own bars are hidden.
+ *
+ * Spreadsheets: sheet tabs and the row summary. Presentations: the slideshow
+ * button. Typst: the file name, page size and render status.
  */
 .pine-file-viewer .excel-wrapper[data-file-viewer-spreadsheet-root] > .toolbar,
 .pine-file-viewer .pptx-slideshow-button,

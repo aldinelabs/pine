@@ -52,7 +52,6 @@ import {
 } from "@/lib/spreadsheetSelection";
 import { cn } from "@/lib/utils";
 import type { AttachmentSelection } from "@/shared/attachments";
-import { previewExtension } from "@/shared/previewFormats";
 import { useAppearanceStore } from "@/stores/appearance";
 import {
   previewToolbarKey,
@@ -118,11 +117,6 @@ const rendererId = ref("");
 const searchable = computed(() => searchableRenderers.has(rendererId.value));
 const searchQuery = ref("");
 
-const extension = computed(() => previewExtension(props.filePath));
-/** The HTML preview is a sandboxed frame without a zoom of its own. */
-const scalesFrame = computed(
-  () => extension.value === "html" || extension.value === "htm",
-);
 // Inverting a light page reads as dark, so the chrome around it stays light.
 const theme = computed(() =>
   props.inverted ? "light" : appearance.colorScheme,
@@ -273,7 +267,7 @@ function syncViewerState(): void {
   zoomState.value = zoom;
   zoomable.value = instance.getCapabilities().zoom;
   const capabilities = {
-    zoom: zoomable.value || scalesFrame.value,
+    zoom: zoomable.value,
     invert: invertibleRenderers.has(rendererId.value),
     ...(zoomable.value && zoom.minScale
       ? { zoomMin: Math.max(10, percent(zoom.minScale)) }
@@ -642,7 +636,6 @@ defineExpose({ readSelection, fitWidth });
             inverted && 'pine-file-viewer-inverted',
           )
         "
-        :style="scalesFrame ? { '--pine-frame-zoom': zoom / 100 } : undefined"
         @pointerup="updateSelection"
         @keyup="updateSelection"
       />
@@ -730,19 +723,6 @@ defineExpose({ readSelection, fitWidth });
     from var(--primary-foreground) calc(1 - l) c h
   );
   filter: invert(1) hue-rotate(180deg);
-}
-
-/* The HTML preview is a sandboxed frame; zoom scales the frame itself. */
-.pine-file-viewer .html-viewer {
-  overflow: hidden;
-}
-
-.pine-file-viewer .html-preview-frame {
-  flex: none;
-  width: calc(100% / var(--pine-frame-zoom, 1));
-  height: calc(100% / var(--pine-frame-zoom, 1));
-  transform: scale(var(--pine-frame-zoom, 1));
-  transform-origin: top left;
 }
 </style>
 

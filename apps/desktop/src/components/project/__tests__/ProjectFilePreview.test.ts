@@ -45,7 +45,6 @@ const fileViewer = vi.hoisted(() => {
       "<section><span>Document selected text</span></section>",
     image: '<img alt="" src="data:image/png;base64,aGVsbG8=">',
     video: "<video controls></video>",
-    code: '<div class="html-viewer"><iframe class="html-preview-frame" sandbox=""></iframe></div>',
     "spreadsheet-openxml": "<div data-pine-spreadsheet></div>",
   };
   function searchState(query: string, total: number, currentIndex: number) {
