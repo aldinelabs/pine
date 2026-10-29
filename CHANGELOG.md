@@ -9,6 +9,20 @@ Every release section here has a matching section in the Chinese changelog.
 
 ## [Unreleased]
 
+## [0.11.1] - 2026-10-29
+
+### Added
+
+- Delete a project from Project management in Preferences, or right-click a project in the sidebar to edit or delete it.
+
+### Changed
+
+- With Interactive answers set to Rich, the agent uses visual and interactive content more readily, for example offering choices as buttons or pickers.
+
+### Fixed
+
+- Session search now keeps the match visible in each result and highlights every match in titles and snippets, including short queries such as two-character Chinese words.
+
 ## [0.11.0] - 2026-10-29
 
 ### Added
