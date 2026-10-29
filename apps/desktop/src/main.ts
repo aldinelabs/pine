@@ -258,7 +258,10 @@ import {
   type SearchSessionsResult,
   type ListAllRecentSessionsResult,
 } from "./shared/sessions";
-import { listAllRecentSessions } from "./main/recentSessions";
+import {
+  attachmentForProjectSession,
+  listAllRecentSessions,
+} from "./main/recentSessions";
 import {
   PROJECT_FILE_OPERATION_CHANNEL,
   PROJECT_FILE_ATTACHMENTS_CHANNEL,
@@ -2707,11 +2710,18 @@ ipcMain.handle(
   ATTACH_SESSION_CHANNEL,
   async (event, request: unknown): Promise<AttachSessionResult> => {
     const { projectId, sessionId } = ProjectSessionRequestSchema.parse(request);
-    const attachment = await getProjectRuntimes().attachmentForSession(
-      event.sender.id,
-      projectId,
-      sessionId,
-    );
+    const runtimes = getProjectRuntimes();
+    // A session dragged in from another project may not be open here.
+    const attachment = runtimes.isOpen(event.sender.id, projectId)
+      ? await runtimes.attachmentForSession(
+          event.sender.id,
+          projectId,
+          sessionId,
+        )
+      : await attachmentForProjectSession(projectId, sessionId, {
+          dataPaths: (id) => getProjectRepository().dataPaths(id),
+          openSessionService: (id) => runtimes.openSessionService(id),
+        });
     registerAttachmentPreviewPaths(event.sender.id, [attachment.path]);
     return { attachment };
   },

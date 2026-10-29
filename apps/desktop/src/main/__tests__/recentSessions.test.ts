@@ -1,7 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
 import type { PineProject } from "../../shared/projects";
 import type { SessionSearchResult } from "../../shared/sessions";
-import { listAllRecentSessions } from "../recentSessions";
+import {
+  attachmentForProjectSession,
+  listAllRecentSessions,
+} from "../recentSessions";
 import type { ProjectSessionService } from "../sessions";
 
 function project(id: string): PineProject {
@@ -62,6 +65,29 @@ describe("listAllRecentSessions", () => {
       ["b1", "b"],
     ]);
     // An index a window holds open stays open.
+    expect(dispose).not.toHaveBeenCalled();
+  });
+});
+
+describe("attachmentForProjectSession", () => {
+  it("reads from a session index another window already holds open", async () => {
+    const attachmentForSession = vi.fn(() =>
+      Promise.resolve({ name: "a.jsonl", path: "/a.jsonl" }),
+    );
+    const open = {
+      attachmentForSession,
+      dispose,
+    } as unknown as ProjectSessionService;
+
+    await expect(
+      attachmentForProjectSession("a", "s1", {
+        dataPaths: () => {
+          throw new Error("an open index needs no data paths");
+        },
+        openSessionService: () => open,
+      }),
+    ).resolves.toMatchObject({ path: "/a.jsonl" });
+    expect(attachmentForSession).toHaveBeenCalledWith("s1");
     expect(dispose).not.toHaveBeenCalled();
   });
 });
