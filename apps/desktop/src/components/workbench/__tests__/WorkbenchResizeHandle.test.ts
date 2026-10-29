@@ -11,6 +11,7 @@ import WorkbenchResizeHandle from "../WorkbenchResizeHandle.vue";
 beforeEach(() => {
   window.localStorage.clear();
   setActivePinia(createPinia());
+  useWorkbenchStore().setDisplayedOpen(true);
   HTMLElement.prototype.setPointerCapture = vi.fn();
 });
 
@@ -66,5 +67,20 @@ it("resets on double-click and steps with the arrow keys", async () => {
   await handle.trigger("keydown", { key: "ArrowLeft" });
   expect(store.width).toBe(416);
   await handle.trigger("keydown", { key: "ArrowRight" });
+  expect(store.width).toBe(400);
+});
+
+it("hides and ignores input while the column is collapsed", async () => {
+  const store = useWorkbenchStore();
+  store.setDisplayedOpen(false);
+  const wrapper = mountHandle();
+  const handle = wrapper.get("[data-testid=workbench-resize-handle]");
+
+  expect(handle.isVisible()).toBe(false);
+  await handle.trigger("pointerdown", { button: 0, clientX: 800 });
+  await handle.trigger("pointermove", { clientX: 700 });
+  await handle.trigger("keydown", { key: "ArrowLeft" });
+
+  expect(store.isResizing).toBe(false);
   expect(store.width).toBe(400);
 });

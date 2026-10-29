@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { useEventListener } from "@vueuse/core";
-import { ref } from "vue";
+import { computed, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import {
   WORKBENCH_DEFAULT_WIDTH,
@@ -17,10 +17,14 @@ const KEYBOARD_STEP = 16;
  * The column's leading edge. Its line sits as far from the card as the card
  * sits from the window edge, over the conversation rather than in a gutter.
  * Dragging it trades width with the conversation inside a window that keeps
- * its size; double-clicking restores the default.
+ * its size; double-clicking restores the default. A collapsed column sits
+ * just past the window edge, so the handle hides rather than poke into view.
  */
 const { t } = useI18n();
 const workbench = useWorkbenchStore();
+const isActive = computed(
+  () => workbench.displayedOpen && !workbench.isClosing,
+);
 const handle = ref<HTMLElement>();
 let drag: { startX: number; startWidth: number; maxWidth: number } | null =
   null;
@@ -41,7 +45,7 @@ function resizeTo(width: number, limit = maxWidth()): void {
 }
 
 function start(event: PointerEvent): void {
-  if (event.button !== 0 || workbench.isClosing) return;
+  if (event.button !== 0 || !isActive.value) return;
   event.preventDefault();
   handle.value?.setPointerCapture(event.pointerId);
   drag = {
@@ -70,6 +74,7 @@ useEventListener(handle, "pointercancel", stop);
 useEventListener(handle, "lostpointercapture", stop);
 
 function reset(): void {
+  if (!isActive.value) return;
   resizeTo(WORKBENCH_DEFAULT_WIDTH);
   workbench.setResizing(false);
 }
@@ -81,7 +86,7 @@ function nudge(event: KeyboardEvent): void {
       : event.key === "ArrowRight"
         ? -KEYBOARD_STEP
         : 0;
-  if (!step) return;
+  if (!step || !isActive.value) return;
   event.preventDefault();
   resizeTo(workbench.width + step);
   workbench.setResizing(false);
@@ -90,6 +95,7 @@ function nudge(event: KeyboardEvent): void {
 
 <template>
   <div
+    v-show="isActive"
     ref="handle"
     role="separator"
     tabindex="0"
