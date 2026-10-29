@@ -9,6 +9,58 @@ Every release section here has a matching section in the Chinese changelog.
 
 ## [Unreleased]
 
+## [0.11.0] - 2026-10-29
+
+### Added
+
+- A new workbench beside the conversation replaces the right sidebar. It stacks up to two cards: Artifacts (files the agent presented in this session), Preview, Files, and Background processes. Drag between the cards to share their height, or swap them. Opening or closing the workbench widens or narrows the window at its right edge, so the conversation keeps its width and place. Each session remembers whether its workbench is open, which cards it shows, and the file being previewed.
+- Drag the workbench's left edge to trade width with the conversation, or double-click it to restore the default; the width is shared by all sessions and remembered. Press ⌘⌥B / Ctrl+Alt+B to show or hide the workbench.
+- The project file tree now lives in the workbench's Files card: click a file to view it in the preview card beside it, or double-click to open it in a tab.
+- Files the agent presents open in the workbench preview card by default, so you stay in the conversation; results worth a close look open in a full preview tab instead. For text files the agent can scroll to a line and highlight the relevant ranges.
+- The agent can check and arrange the current session's workbench, for example opening the card a task needs and pulsing it to catch your eye. The conversation shows these steps, such as "Showed Todos in the workbench".
+- When a previewed file changes on disk, the preview card pulses; in the source view, newly added lines briefly glow blue.
+- Todos and background processes now appear as two cards side by side at the end of the conversation. The todo card draws the full dependency graph and keeps the task in progress centred, with a smaller line under it saying what it is doing; each background process opens its details, and a running one can be stopped right from the card.
+- The agent can now answer with interactive content you use in place, such as checklists, calculators, forms, tables, and charts; buttons can update the content itself or send its current values as your next message. Under User profile in Preferences, set Interactive answers to Rich, or Simple for text and Markdown only.
+- File previews cover far more formats, take Pine's colors in light and dark mode, and gather zoom, paging, search, and fit width into one top bar. New or improved formats include:
+  - Tables and data: CSV, TSV, DBF, SQLite, Parquet, and Avro open in a smoothly scrolling data grid that loads large files as you scroll; SQLite lists every table and view.
+  - Images and design files: HEIC and multi-page TIFF are supported, images can be rotated, and transparency shows on a checkerboard; Photoshop layers can be shown or hidden one by one; fonts show a specimen, a size ladder, and every glyph, with your own sample text; clicking a swatch in an ASE / ACO palette copies its color.
+  - Audio and MIDI: audio plays in a Pine-styled player; MIDI files show as a piano roll colored by track, and any track can be hidden.
+  - Archives: browse them in a filterable file tree and preview the chosen file right beside it; encrypted archives ask for their password, comic book archives read page by page, and older archives with GBK file names keep readable names.
+  - Email: EML, MSG, and MBOX files show the sender, recipients, date, and body in a mail-reading layout, attachments open in a preview, and you can switch to the raw headers; scripts and remote content in messages are never loaded.
+  - Diagrams and mind maps: draw.io, Excalidraw, Mermaid, and XMind files open on a zoomable canvas, with page and sheet switching for draw.io and XMind.
+  - Maps and 3D: GeoJSON, KML, KMZ, GPX, and shapefiles draw offline as a map with a list of features and their properties; common 3D models, point clouds, and STEP, IGES, and BREP models open in a 3D viewer that orbits, plays animations, and toggles wireframe, grid, and axes.
+  - Engineering drawings: DXF, DWG, DWF, DWFx, and XPS drawings can hide or show layers, switch to monochrome, and export a PNG; GDSII and OASIS layouts and OrCAD / Allegro libraries open too.
+  - E-books and documents: EPUB, FictionBook, UMD, and CHM open in a reader with a table of contents and adjustable text size; OFD, Typst (including Chinese text), RTF, HWP, iWork, and WordPerfect documents now preview, and saved web pages, including Safari web archives, open offline.
+- Presentations can be played as a slideshow, and spreadsheets switch worksheets from the top bar. In HTML previews a trackpad pinch magnifies the page the way a browser does, and ⌘ + / ⌘ − / ⌘ 0 (Ctrl on Windows) zoom any preview that zooms instead of the whole window.
+- A new General setting, Invert documents in dark mode, decides whether PDFs, presentations, and other documents open with inverted pages in dark mode.
+- A new General setting, Serif replies, shows assistant replies in a serif font (including a Chinese serif face), while your own messages stay sans-serif.
+- The left sidebar now lists sessions from every project, grouped by project, with a New session button for each. Session groups become collapsible folders: move a session in from its context menu or by dragging it onto a folder, and drag it back onto the project to take it out.
+- Session search now covers every project, labels each result with its project, and opens the chosen session in that project.
+- Press Esc to stop the current session's reply at any time, unless a dialog, a pending approval or question, or message editing is using the key.
+- When a new version is found, its update notes open once on their own; the sidebar notice reopens them after you close them.
+
+### Changed
+
+- New profiles start with the Monet communication style; saved profiles keep theirs.
+- The Enthusiast technical background is gone, leaving General user and Professional user; profiles that used Enthusiast are treated as General user.
+- Showing or hiding the left sidebar now widens or narrows the window, so the conversation keeps its width.
+- ⌘N / Ctrl+N now opens a new tab, and ⌘⇧N / Ctrl+Shift+N opens a new window.
+- Project management moved below New session in the left sidebar, and the version number moved from the sidebar footer to the workbench title bar.
+- Video and audio previews stream straight from the file, so large files start playing quickly; document previews now accept files up to 1 GB.
+- In long tasks the agent keeps its todo list more up to date, and always states each task's dependencies, so the todo graph shows how tasks depend on one another.
+- When a background command finishes, a reply that is still running learns of it right away and carries on, instead of waiting for the turn to end.
+- Switching to YOLO mode mid-session no longer throws away the model's prompt cache, so later replies are faster and use fewer tokens.
+- With a lot of session history, Pine starts and refreshes the session list noticeably faster.
+
+### Fixed
+
+- A reply you stopped now shows as Stopped instead of as an error.
+- Queued steering messages now show their attachments.
+- The tab bar scrolls with the mouse wheel even when the pointer is over the gaps between tabs.
+- Dragging a session from a project that is not open onto a tab now attaches it.
+- The agent now finds Pine-managed skills where they actually live, instead of guessing a wrong path and failing to open them.
+- When the agent needs scratch files it uses the temporary folder the sandbox allows, instead of reaching for /tmp out of habit and asking for privileged-command approval.
+
 ## [0.10.2] - 2026-10-09
 
 ### Added
