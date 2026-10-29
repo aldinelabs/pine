@@ -54,6 +54,7 @@
     "@myriaddreamin/typst-ts-renderer": "0.7.0",
     "@myriaddreamin/typst-ts-web-compiler": "0.7.0",
     "@myriaddreamin/typst.ts": "0.7.0",
+    "@openuidev/vue-lang": "0.4.2",
     "@pine/computer-use-runtime": "workspace:*",
     "@pine/pi-background-tasks": "workspace:*",
     "@pine/rpiv-ask-user-question": "workspace:*",
