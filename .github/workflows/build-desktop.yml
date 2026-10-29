@@ -219,13 +219,8 @@ jobs:
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
 
-      - name: Cache Bun packages
-        uses: actions/cache@v6
-        with:
-          path: ~/.bun/install/cache
-          key: bun-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('bun.lock') }}
-          restore-keys: bun-${{ runner.os }}-${{ runner.arch }}-
-
+      # No Bun cache here: restoring it on Windows takes about as long as a
+      # fresh install.
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
