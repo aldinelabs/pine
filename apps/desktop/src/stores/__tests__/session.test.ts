@@ -51,22 +51,25 @@ describe("session store", () => {
     const firstResult = new Promise<{ sessions: [] }>((resolve) => {
       resolveFirst = resolve;
     });
-    const searchSessions = vi
+    const projectSession = { ...session, projectId: PROJECT_ID };
+    const searchAllSessions = vi
       .fn()
       .mockReturnValueOnce(firstResult)
-      .mockResolvedValueOnce({ sessions: [session] });
+      .mockResolvedValueOnce({ sessions: [projectSession] });
     Object.defineProperty(window, "pine", {
       configurable: true,
-      value: { searchSessions },
+      value: { searchAllSessions },
     });
     const store = useSessionStore();
 
-    const firstSearch = store.search(PROJECT_ID, "old");
-    await store.search(PROJECT_ID, "new");
+    const firstSearch = store.search("old");
+    await store.search("new");
     resolveFirst?.({ sessions: [] });
     await firstSearch;
 
-    expect(store.searchResults).toEqual([session]);
+    expect(searchAllSessions).toHaveBeenLastCalledWith({ query: "new" });
+    expect(store.searchResults).toEqual([projectSession]);
+    expect(store.projectOf(session.id)).toBe(PROJECT_ID);
     expect(store.isSearching).toBe(false);
   });
 
@@ -491,7 +494,9 @@ describe("session store", () => {
     });
     const store = useSessionStore();
     await seedRecent(store, [session]);
-    store.searchResults = [{ ...session, snippet: "matching text" }];
+    store.searchResults = [
+      { ...session, projectId: PROJECT_ID, snippet: "matching text" },
+    ];
     await store.resume(PROJECT_ID, session.id);
 
     await expect(

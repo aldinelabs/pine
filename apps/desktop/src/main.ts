@@ -254,6 +254,7 @@ import {
   RESUME_SESSION_CHANNEL,
   SEARCH_SESSIONS_CHANNEL,
   LIST_ALL_RECENT_SESSIONS_CHANNEL,
+  SEARCH_ALL_SESSIONS_CHANNEL,
   type AttachSessionResult,
   type DeleteSessionResult,
   type ExportSessionResult,
@@ -262,10 +263,12 @@ import {
   type ResumeSessionResult,
   type SearchSessionsResult,
   type ListAllRecentSessionsResult,
+  type SearchAllSessionsResult,
 } from "./shared/sessions";
 import {
   attachmentForProjectSession,
   listAllRecentSessions,
+  searchAllSessions,
 } from "./main/recentSessions";
 import {
   PROJECT_FILE_OPERATION_CHANNEL,
@@ -804,6 +807,9 @@ const UpdateProjectRequestSchema = ProjectMutationSchema.safeExtend({
 });
 const SearchSessionsRequestSchema = z.object({
   projectId: z.uuid(),
+  query: z.string().max(500),
+});
+const SearchAllSessionsRequestSchema = z.object({
   query: z.string().max(500),
 });
 const SessionIdRequestSchema = z.object({
@@ -2724,6 +2730,22 @@ handleDiagnosticIpc(
     const runtimes = getProjectRuntimes();
     return {
       sessions: await listAllRecentSessions(await repository.list(), {
+        dataPaths: (projectId) => repository.dataPaths(projectId),
+        openSessionService: (projectId) =>
+          runtimes.openSessionService(projectId),
+      }),
+    };
+  },
+);
+
+handleDiagnosticIpc(
+  SEARCH_ALL_SESSIONS_CHANNEL,
+  async (_event, request: unknown): Promise<SearchAllSessionsResult> => {
+    const { query } = SearchAllSessionsRequestSchema.parse(request);
+    const repository = getProjectRepository();
+    const runtimes = getProjectRuntimes();
+    return {
+      sessions: await searchAllSessions(await repository.list(), query, {
         dataPaths: (projectId) => repository.dataPaths(projectId),
         openSessionService: (projectId) =>
           runtimes.openSessionService(projectId),

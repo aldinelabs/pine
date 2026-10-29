@@ -5,6 +5,7 @@ import type { ProjectDataPaths } from "./projects/projectRepository";
 import { ProjectSessionService } from "./sessions";
 
 export const PROJECT_RECENT_SESSIONS_LIMIT = 100;
+export const ALL_PROJECTS_SEARCH_LIMIT = 50;
 
 interface RecentSessionSources {
   dataPaths(projectId: string): ProjectDataPaths;
@@ -46,33 +47,55 @@ export function attachmentForProjectSession(
   );
 }
 
-async function recentSessionsOf(
+async function searchSessionsOf(
   project: PineProject,
+  query: string,
   sources: RecentSessionSources,
 ): Promise<ProjectSessionSearchResult[]> {
   return withSessionService(project.id, sources, async (service) => {
-    const sessions = await service.search("");
+    const sessions = await service.search(query);
     return sessions.map((session) => ({ ...session, projectId: project.id }));
   });
 }
 
-/** Recent history per project, newest first without starving quieter projects. */
-export async function listAllRecentSessions(
+/** Matches per project, newest first without starving quieter projects. */
+async function searchEveryProject(
   projects: readonly PineProject[],
+  query: string,
   sources: RecentSessionSources,
-  limit = PROJECT_RECENT_SESSIONS_LIMIT,
+  perProjectLimit: number,
 ): Promise<ProjectSessionSearchResult[]> {
   const lists = await Promise.all(
     // One unreadable project must not hide the others.
     projects.map((project) =>
-      recentSessionsOf(project, sources).catch(() => []),
+      searchSessionsOf(project, query, sources).catch(() => []),
     ),
   );
   return lists
-    .flatMap((sessions) => sessions.slice(0, limit))
+    .flatMap((sessions) => sessions.slice(0, perProjectLimit))
     .sort(
       (left, right) =>
         new Date(right.updatedAt).getTime() -
         new Date(left.updatedAt).getTime(),
     );
+}
+
+/** Recent history per project, newest first without starving quieter projects. */
+export function listAllRecentSessions(
+  projects: readonly PineProject[],
+  sources: RecentSessionSources,
+  limit = PROJECT_RECENT_SESSIONS_LIMIT,
+): Promise<ProjectSessionSearchResult[]> {
+  return searchEveryProject(projects, "", sources, limit);
+}
+
+/** Sessions of every project matching `query`, newest first. */
+export async function searchAllSessions(
+  projects: readonly PineProject[],
+  query: string,
+  sources: RecentSessionSources,
+  limit = ALL_PROJECTS_SEARCH_LIMIT,
+): Promise<ProjectSessionSearchResult[]> {
+  const sessions = await searchEveryProject(projects, query, sources, limit);
+  return sessions.slice(0, limit);
 }

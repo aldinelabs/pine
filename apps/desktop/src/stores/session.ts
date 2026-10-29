@@ -451,7 +451,8 @@ export const useSessionStore = defineStore("session", () => {
   let allRecentSequence = 0;
   /** Which project each known session belongs to. */
   const sessionProjects = new Map<string, string>();
-  const searchResults = shallowRef<SessionSearchResult[]>([]);
+  /** The search palette's matches, across every project. */
+  const searchResults = shallowRef<ProjectSessionSearchResult[]>([]);
   const isSearching = ref(false);
   const currentSessionId = ref<string | null>(null);
   const draftState = ref(createSessionState());
@@ -654,19 +655,14 @@ export const useSessionStore = defineStore("session", () => {
     }
   }
 
-  async function search(
-    projectId: string,
-    query: string,
-  ): Promise<SessionSearchResult[]> {
+  async function search(query: string): Promise<ProjectSessionSearchResult[]> {
     const sequence = ++searchSequence;
     isSearching.value = true;
 
     try {
-      const sessions = query.trim()
-        ? (await window.pine.searchSessions({ projectId, query })).sessions
-        : await loadRecent(projectId);
+      const { sessions } = await window.pine.searchAllSessions({ query });
       for (const session of sessions)
-        sessionProjects.set(session.id, projectId);
+        sessionProjects.set(session.id, session.projectId);
       if (sequence === searchSequence) searchResults.value = sessions;
       return sessions;
     } finally {
@@ -1072,6 +1068,9 @@ export const useSessionStore = defineStore("session", () => {
   ): void {
     sessionProjects.set(sessionId, projectId);
     allRecentSessions.value = allRecentSessions.value.map((session) =>
+      session.id === sessionId ? { ...session, projectId } : session,
+    );
+    searchResults.value = searchResults.value.map((session) =>
       session.id === sessionId ? { ...session, projectId } : session,
     );
     const moved =

@@ -382,7 +382,7 @@ export default {
   },
   sessions: {
     searchTitle: "搜索会话",
-    searchDescription: "按标题和会话内容搜索当前项目",
+    searchDescription: "按标题和会话内容搜索所有项目",
     searchPlaceholder: "搜索会话内容",
     searchAction: "搜索会话",
     attachTitle: "添加会话",

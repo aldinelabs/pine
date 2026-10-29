@@ -154,6 +154,7 @@ import {
   RESUME_SESSION_CHANNEL,
   SEARCH_SESSIONS_CHANNEL,
   LIST_ALL_RECENT_SESSIONS_CHANNEL,
+  SEARCH_ALL_SESSIONS_CHANNEL,
   type AttachSessionRequest,
   type AttachSessionResult,
   type DeleteSessionRequest,
@@ -169,6 +170,8 @@ import {
   type SearchSessionsRequest,
   type SearchSessionsResult,
   type ListAllRecentSessionsResult,
+  type SearchAllSessionsRequest,
+  type SearchAllSessionsResult,
 } from "./shared/sessions";
 import {
   PROJECT_FILE_OPERATION_CHANNEL,
@@ -535,6 +538,10 @@ const pineApi: PineDesktopApi = {
     ipcRenderer.invoke(SEARCH_SESSIONS_CHANNEL, request),
   listAllRecentSessions: (): Promise<ListAllRecentSessionsResult> =>
     ipcRenderer.invoke(LIST_ALL_RECENT_SESSIONS_CHANNEL),
+  searchAllSessions: (
+    request: SearchAllSessionsRequest,
+  ): Promise<SearchAllSessionsResult> =>
+    ipcRenderer.invoke(SEARCH_ALL_SESSIONS_CHANNEL, request),
   respondWorkbenchState: (response): void =>
     ipcRenderer.send(WORKBENCH_STATE_RESPONSE_CHANNEL, response),
   onSessionEvent: (listener: SessionEventListener): (() => void) => {

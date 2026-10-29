@@ -4,6 +4,7 @@ import type { SessionSearchResult } from "../../shared/sessions";
 import {
   attachmentForProjectSession,
   listAllRecentSessions,
+  searchAllSessions,
 } from "../recentSessions";
 import type { ProjectSessionService } from "../sessions";
 
@@ -68,6 +69,44 @@ describe("listAllRecentSessions", () => {
     ]);
     // An index a window holds open stays open.
     expect(dispose).not.toHaveBeenCalled();
+  });
+});
+
+describe("searchAllSessions", () => {
+  it("runs the query in every project and caps the merged matches", async () => {
+    const searchA = vi.fn(() =>
+      Promise.resolve([
+        session("a1", "2026-10-01T00:00:00Z"),
+        session("a0", "2026-09-30T00:00:00Z"),
+      ]),
+    );
+    const searchB = vi.fn(() =>
+      Promise.resolve([session("b1", "2026-10-02T00:00:00Z")]),
+    );
+    const a = service(searchA);
+    const b = service(searchB);
+    const services = new Map([
+      ["a", a],
+      ["b", b],
+    ]);
+    const result = await searchAllSessions(
+      [project("a"), project("b")],
+      "pdf",
+      {
+        dataPaths: () => {
+          throw new Error("every project is open here");
+        },
+        openSessionService: (id) => services.get(id),
+      },
+      2,
+    );
+
+    expect(searchA).toHaveBeenCalledWith("pdf");
+    expect(searchB).toHaveBeenCalledWith("pdf");
+    expect(result.map(({ id, projectId }) => [id, projectId])).toEqual([
+      ["b1", "b"],
+      ["a1", "a"],
+    ]);
   });
 });
 

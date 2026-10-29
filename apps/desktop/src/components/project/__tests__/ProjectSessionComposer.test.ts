@@ -98,7 +98,7 @@ function mountComposer(
           props: ["open", "purpose"],
           emits: ["select", "update:open"],
           template:
-            '<button v-if="open" type="button" data-slot="session-picker-stub" :data-purpose="purpose" @click="$emit(\'select\', { id: \'019cfe51-7166-79b9-a5b9-c652fcca9eab\' })">Select session</button>',
+            '<button v-if="open" type="button" data-slot="session-picker-stub" :data-purpose="purpose" @click="$emit(\'select\', { id: \'019cfe51-7166-79b9-a5b9-c652fcca9eab\', projectId: \'project-2\' })">Select session</button>',
         },
       },
     },
@@ -464,7 +464,7 @@ describe("ProjectSessionComposer", () => {
     await flushPromises();
 
     expect(attachSession).toHaveBeenCalledWith({
-      projectId: "project-1",
+      projectId: "project-2",
       sessionId: "019cfe51-7166-79b9-a5b9-c652fcca9eab",
     });
     expect(wrapper.text()).toContain("Architecture review.jsonl");

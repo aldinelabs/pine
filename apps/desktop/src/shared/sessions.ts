@@ -9,6 +9,7 @@ import {
 export const SEARCH_SESSIONS_CHANNEL = "sessions:search" as const;
 export const LIST_ALL_RECENT_SESSIONS_CHANNEL =
   "sessions:list-all-recent" as const;
+export const SEARCH_ALL_SESSIONS_CHANNEL = "sessions:search-all" as const;
 export const RESUME_SESSION_CHANNEL = "sessions:resume" as const;
 export const LOAD_SESSION_MESSAGES_CHANNEL = "sessions:messages" as const;
 export const DELETE_SESSION_CHANNEL = "sessions:delete" as const;
@@ -255,6 +256,14 @@ export interface ProjectSessionSearchResult extends SessionSearchResult {
 }
 
 export interface ListAllRecentSessionsResult {
+  sessions: ProjectSessionSearchResult[];
+}
+
+export interface SearchAllSessionsRequest {
+  query: string;
+}
+
+export interface SearchAllSessionsResult {
   sessions: ProjectSessionSearchResult[];
 }
 

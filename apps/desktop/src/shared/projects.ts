@@ -90,6 +90,8 @@ import type {
   SearchSessionsRequest,
   SearchSessionsResult,
   ListAllRecentSessionsResult,
+  SearchAllSessionsRequest,
+  SearchAllSessionsResult,
 } from "./sessions";
 import type { WorkbenchStateResponse } from "./workbench";
 import type { PineWindowApi } from "./window";
@@ -483,6 +485,10 @@ export interface PineDesktopApi extends PineWindowApi {
   ) => Promise<SearchSessionsResult>;
   /** The newest sessions of every project, each tagged with its project. */
   listAllRecentSessions: () => Promise<ListAllRecentSessionsResult>;
+  /** Title and content matches across every project, each tagged with it. */
+  searchAllSessions: (
+    request: SearchAllSessionsRequest,
+  ) => Promise<SearchAllSessionsResult>;
   onSessionEvent: (listener: SessionEventListener) => () => void;
   respondApproval: (
     request: RespondApprovalRequest,

@@ -405,7 +405,8 @@ export default {
   },
   sessions: {
     searchTitle: "Search sessions",
-    searchDescription: "Search titles and conversation content in this Project",
+    searchDescription:
+      "Search titles and conversation content in every Project",
     searchPlaceholder: "Search session content",
     searchAction: "Search sessions",
     attachTitle: "Add conversation",

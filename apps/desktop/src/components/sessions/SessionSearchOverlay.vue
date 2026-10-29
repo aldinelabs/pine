@@ -15,7 +15,10 @@ import {
 } from "@/components/ui/command";
 import { Spinner } from "@/components/ui/spinner";
 import { useContentTabNavigation } from "@/composables/useContentTabNavigation";
-import type { SessionSearchResult } from "@/shared/sessions";
+import { useDraftProjectOpener } from "@/composables/useDraftProjectOpener";
+import { useProjectDisplayName } from "@/composables/useProjectDisplayName";
+import { projectIconComponent } from "@/lib/projectIcons";
+import type { ProjectSessionSearchResult } from "@/shared/sessions";
 import { useProjectStore } from "@/stores/project";
 import { useSessionStore } from "@/stores/session";
 import SessionCommandInput from "./SessionCommandInput.vue";
@@ -27,7 +30,7 @@ const props = defineProps<{
 }>();
 
 const emit = defineEmits<{
-  select: [session: SessionSearchResult];
+  select: [session: ProjectSessionSearchResult];
   "update:open": [open: boolean];
 }>();
 
@@ -37,6 +40,8 @@ const projectStore = useProjectStore();
 const sessionStore = useSessionStore();
 const { activeSessionTab } = tabNavigation;
 const { isSearching, searchResults } = storeToRefs(sessionStore);
+const displayName = useProjectDisplayName();
+const openProject = useDraftProjectOpener();
 const query = ref("");
 const filterRefreshToken = computed(
   () =>
@@ -53,7 +58,7 @@ const dateFormatter = computed(
 
 const runSearch = useDebounceFn(async () => {
   try {
-    await sessionStore.search(projectStore.currentProjectId, query.value);
+    await sessionStore.search(query.value);
   } catch (error) {
     handleError(error, {
       id: "sessions.search",
@@ -75,21 +80,25 @@ watch(query, () => {
   if (props.open) void runSearch();
 });
 
-function sessionTitle(session: SessionSearchResult): string {
+function sessionTitle(session: ProjectSessionSearchResult): string {
   return session.name || session.preview || t("sessions.newSession");
 }
 
-function sessionSnippet(session: SessionSearchResult): string | undefined {
+function sessionSnippet(
+  session: ProjectSessionSearchResult,
+): string | undefined {
   const snippet = session.snippet || session.preview;
   return snippet?.replaceAll(/\s+/g, " ").trim();
 }
 
-function selectSession(session: SessionSearchResult): void {
-  const projectId = sessionStore.projectOf(session.id);
-  if (props.purpose !== "attach" && projectId)
-    tabNavigation.openSession(session, projectId);
+async function selectSession(
+  session: ProjectSessionSearchResult,
+): Promise<void> {
   emit("select", session);
   emit("update:open", false);
+  // Sessions open in their own project, which may not be open yet.
+  if (props.purpose !== "attach" && (await openProject(session.projectId)))
+    tabNavigation.openSession(session, session.projectId);
 }
 </script>
 
@@ -148,6 +157,24 @@ function selectSession(session: SessionSearchResult): void {
               />
             </p>
           </div>
+          <span
+            v-if="projectStore.projectById(session.projectId)"
+            data-testid="session-search-project"
+            class="flex max-w-36 shrink-0 items-center gap-1 text-xs text-muted-foreground"
+          >
+            <component
+              :is="
+                projectIconComponent(
+                  projectStore.projectById(session.projectId),
+                )
+              "
+              aria-hidden="true"
+              class="size-3.5"
+            />
+            <span class="truncate">{{
+              displayName(projectStore.projectById(session.projectId))
+            }}</span>
+          </span>
           <CommandShortcut class="tracking-normal">
             {{
               activeSessionTab?.state === "bound" &&

@@ -90,14 +90,13 @@ import {
   type PastedImageMimeType,
 } from "@/shared/attachments";
 import type { PineThinkingLevel } from "@/shared/models";
-import type { SessionSearchResult } from "@/shared/sessions";
+import type { ProjectSessionSearchResult } from "@/shared/sessions";
 import type {
   PinePendingApproval,
   PinePendingQuestionnaire,
 } from "@/stores/session";
 import type { AskUserQuestionSubmission } from "@pine/rpiv-ask-user-question";
 import { pineModelKey, useModelsStore } from "@/stores/models";
-import { useSessionStore } from "@/stores/session";
 
 type ApprovalMode = PineApprovalMode;
 
@@ -149,7 +148,6 @@ const approvalMode = defineModel<ApprovalMode>("approvalMode", {
 });
 const { t } = useI18n();
 const modelsStore = useModelsStore();
-const sessionStore = useSessionStore();
 const { favoriteModels, featuredModels } = storeToRefs(modelsStore);
 const selection = computed(() => modelsStore.selectionFor(props.sessionId));
 const selectedModel = computed(() =>
@@ -500,12 +498,13 @@ function openSessionPicker(): void {
   });
 }
 
-async function attachSession(session: SessionSearchResult): Promise<void> {
+async function attachSession(
+  session: ProjectSessionSearchResult,
+): Promise<void> {
   try {
-    // The palette lists this project's sessions.
-    const projectId = sessionStore.projectOf(session.id) ?? props.projectId;
+    // The palette lists sessions of every project.
     const result = await window.pine.attachSession({
-      projectId,
+      projectId: session.projectId,
       sessionId: session.id,
     });
     mergeAttachments([result.attachment]);
