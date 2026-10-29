@@ -3,12 +3,20 @@ import {
   UI_WORKBENCH_ARRANGE_TOOL_NAME,
   UI_WORKBENCH_CLOSE_TOOL_NAME,
   UI_WORKBENCH_OPEN_TOOL_NAME,
+  UI_WORKBENCH_STATE_TOOL_NAME,
 } from "../../shared/workbench";
 import { createWorkbenchToolDefinitions } from "../workbenchTools";
 
 function setup() {
   const sendCommand = vi.fn();
-  const tools = createWorkbenchToolDefinitions({ sendCommand });
+  const readState = vi.fn().mockResolvedValue({
+    open: true,
+    visible: true,
+    top: "files",
+    bottom: "preview",
+    split: 65,
+  });
+  const tools = createWorkbenchToolDefinitions({ sendCommand, readState });
   const run = (name: string, params: unknown) => {
     const tool = tools.find((candidate) => candidate.name === name);
     if (!tool) throw new Error(`Missing ${name}`);
@@ -20,16 +28,48 @@ function setup() {
       undefined as never,
     );
   };
-  return { run, sendCommand, tools };
+  return { run, sendCommand, tools, readState };
 }
 
 describe("workbench tools", () => {
   it("defines the ui_workbench tools", () => {
     expect(setup().tools.map((tool) => tool.name)).toEqual([
+      UI_WORKBENCH_STATE_TOOL_NAME,
       UI_WORKBENCH_OPEN_TOOL_NAME,
       UI_WORKBENCH_CLOSE_TOOL_NAME,
       UI_WORKBENCH_ARRANGE_TOOL_NAME,
     ]);
+  });
+
+  it("reads fresh user layout without changing it", async () => {
+    const { run, readState, sendCommand } = setup();
+    const first = await run(UI_WORKBENCH_STATE_TOOL_NAME, {});
+    expect(first.details).toEqual({
+      state: {
+        open: true,
+        visible: true,
+        top: "files",
+        bottom: "preview",
+        split: 65,
+      },
+    });
+    readState.mockResolvedValue({
+      open: false,
+      visible: false,
+      top: "tasks",
+      bottom: null,
+      split: 50,
+    });
+    const second = await run(UI_WORKBENCH_STATE_TOOL_NAME, {});
+    expect(second.content[0]).toMatchObject({
+      text: JSON.stringify(
+        { open: false, visible: false, top: "tasks", bottom: null, split: 50 },
+        null,
+        2,
+      ),
+    });
+    expect(readState).toHaveBeenCalledTimes(2);
+    expect(sendCommand).not.toHaveBeenCalled();
   });
 
   it("sends open and close commands for the calling tool", async () => {

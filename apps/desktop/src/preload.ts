@@ -10,6 +10,7 @@ import {
   type ReadBackgroundTaskOutputResult,
 } from "./shared/backgroundTasks";
 import { contextBridge, ipcRenderer, webUtils } from "electron";
+import { WORKBENCH_STATE_RESPONSE_CHANNEL } from "./shared/workbench";
 import {
   LIST_MCP_SERVERS_CHANNEL,
   SAVE_MCP_SERVER_CHANNEL,
@@ -531,6 +532,8 @@ const pineApi: PineDesktopApi = {
     ipcRenderer.invoke(SEARCH_SESSIONS_CHANNEL, request),
   listAllRecentSessions: (): Promise<ListAllRecentSessionsResult> =>
     ipcRenderer.invoke(LIST_ALL_RECENT_SESSIONS_CHANNEL),
+  respondWorkbenchState: (response): void =>
+    ipcRenderer.send(WORKBENCH_STATE_RESPONSE_CHANNEL, response),
   onSessionEvent: (listener: SessionEventListener): (() => void) => {
     const handler = (
       _event: Electron.IpcRendererEvent,

@@ -851,6 +851,10 @@ export default {
           active: "正在打开 {count} 个文件",
           complete: "打开了 {count} 个文件",
         },
+        workbenchState: {
+          active: "正在查看工作台状态",
+          complete: "已查看工作台状态",
+        },
         workbench: {
           active: "正在调整工作台",
           complete: "调整了工作台",
@@ -890,6 +894,7 @@ export default {
         fetch: "网页抓取",
         presentFile: "打开文件",
         workbench: "工作台调整",
+        workbenchState: "工作台状态",
         project: "项目操作",
         background: "后台进程",
         todo: "任务清单",
@@ -984,6 +989,11 @@ export default {
           running: "正在打开 ",
         },
         workbench: {
+          state: {
+            complete: "已查看工作台状态",
+            error: "无法查看工作台状态",
+            running: "正在查看工作台状态",
+          },
           open: {
             complete: "已在工作台显示{panel}",
             error: "无法在工作台显示{panel}",

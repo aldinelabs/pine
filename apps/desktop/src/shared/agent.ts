@@ -314,7 +314,16 @@ export type PineAgentEvent =
 
 /** Kept structurally equal to the worker's `AgentHostRequest`. */
 export type PineHostRequest =
-  { kind: "list-projects" } | { kind: "teleport"; projectId: string };
+  | { kind: "list-projects" }
+  | { kind: "teleport"; projectId: string }
+  | { kind: "workbench-state" };
+
+/** Main asks only the session's owning window for its live layout. */
+export interface PineWorkbenchStateRequestEvent {
+  type: "workbench-state-request";
+  sessionId: string;
+  requestId: string;
+}
 
 /**
  * A temporary-workspace session moved into a project after its run ended.
@@ -345,6 +354,7 @@ export interface PinePresentFileEvent {
 /** Events the renderer receives: worker events, plus main-resolved additions. */
 export type PineSessionEvent =
   | Exclude<PineAgentEvent, { type: "present-file" | "host-request" }>
+  | PineWorkbenchStateRequestEvent
   | PinePresentFileEvent
   | PineSessionTeleportedEvent;
 

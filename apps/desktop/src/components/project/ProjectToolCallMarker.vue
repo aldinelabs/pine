@@ -31,6 +31,7 @@ import type { PineToolCall } from "@/shared/sessions";
 import {
   UI_WORKBENCH_ARRANGE_TOOL_NAME,
   UI_WORKBENCH_CLOSE_TOOL_NAME,
+  UI_WORKBENCH_STATE_TOOL_NAME,
   isWorkbenchPanel,
 } from "@/shared/workbench";
 import ProjectToolCallDialog from "./ProjectToolCallDialog.vue";
@@ -82,7 +83,7 @@ function isPresentFileTool(name: string): boolean {
   return normalizedToolName(name) === UI_PRESENT_FILE_TOOL_NAME;
 }
 
-/** Reads a workbench call as a sentence: "Showed Todos in the workbench". */
+/** Reads a workbench call as a sentence, distinguishing inspection from edits. */
 function workbenchLabel(
   name: string,
   input: Record<string, unknown>,
@@ -93,6 +94,7 @@ function workbenchLabel(
     isWorkbenchPanel(value) ? t(`project.workbench.panels.${value}`) : "";
   const base = "project.transcript.tools.workbench";
   const tool = normalizedToolName(name);
+  if (tool === UI_WORKBENCH_STATE_TOOL_NAME) return t(`${base}.state.${state}`);
   if (tool === UI_WORKBENCH_ARRANGE_TOOL_NAME) {
     const panels = [input.top, input.bottom].filter(isWorkbenchPanel);
     const [top, bottom] = panels;
@@ -1089,7 +1091,7 @@ const presentation = computed(() => {
       after: "",
     };
   }
-  if (kind === "workbench") {
+  if (kind === "workbench" || kind === "workbenchState") {
     return {
       before: workbenchLabel(
         props.toolCall.name,

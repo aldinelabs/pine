@@ -20,13 +20,33 @@ export const WORKBENCH_MIN_SPLIT = 20;
 export const WORKBENCH_MAX_SPLIT = 80;
 
 export const UI_WORKBENCH_OPEN_TOOL_NAME = "ui_workbench_open" as const;
+export const UI_WORKBENCH_STATE_TOOL_NAME = "ui_workbench_state" as const;
 export const UI_WORKBENCH_CLOSE_TOOL_NAME = "ui_workbench_close" as const;
 export const UI_WORKBENCH_ARRANGE_TOOL_NAME = "ui_workbench_arrange" as const;
 export const UI_WORKBENCH_TOOL_NAMES = [
+  UI_WORKBENCH_STATE_TOOL_NAME,
   UI_WORKBENCH_OPEN_TOOL_NAME,
   UI_WORKBENCH_CLOSE_TOOL_NAME,
   UI_WORKBENCH_ARRANGE_TOOL_NAME,
 ] as const;
+
+export const WORKBENCH_STATE_RESPONSE_CHANNEL =
+  "workbench:state-response" as const;
+
+/** This session's current layout, including edits the user made. */
+export interface WorkbenchState {
+  open: boolean;
+  /** False for a background conversation, even if its saved layout is open. */
+  visible: boolean;
+  top: WorkbenchPanel | null;
+  bottom: WorkbenchPanel | null;
+  split: number;
+}
+
+export interface WorkbenchStateResponse {
+  requestId: string;
+  state: WorkbenchState;
+}
 
 export type WorkbenchCommand =
   /**

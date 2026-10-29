@@ -979,6 +979,14 @@ export class PineAgentRuntime {
         presentFile: (toolCallId, filePath, reveal) =>
           this.presentFile(live, toolCallId, filePath, reveal),
         workbench: {
+          readState: async () => {
+            const response = await this.requestHost(live, {
+              kind: "workbench-state",
+            });
+            if (response.kind !== "workbench-state")
+              throw new Error("Pine returned an unexpected workbench state.");
+            return response.state;
+          },
           sendCommand: (toolCallId, command) =>
             this.options.emit({
               type: "workbench-command",

@@ -31,6 +31,8 @@ import {
 } from "node:fs/promises";
 import path from "node:path";
 import { z } from "zod";
+import { WorkbenchStateRequests } from "./main/workbenchStateRequests";
+import { WORKBENCH_STATE_RESPONSE_CHANNEL } from "./shared/workbench";
 import { ProjectRuntimeRegistry } from "./main/projectRuntime";
 import { toErrorMessage, type AgentHostReply } from "./agent/protocol";
 import {
@@ -406,6 +408,10 @@ let projectsRootPath: string | null = null;
  * paths, so the protocol may serve them even outside granted folders.
  */
 const attachedPreviewPaths = new Map<number, Set<string>>();
+const workbenchStateRequests = new WorkbenchStateRequests();
+ipcMain.on(WORKBENCH_STATE_RESPONSE_CHANNEL, (event, response: unknown) => {
+  workbenchStateRequests.respond(event.sender.id, response);
+});
 
 function registerAttachmentPreviewPaths(
   webContentsId: number,
@@ -664,8 +670,8 @@ async function forwardPresentedFile(
 }
 
 /**
- * Answer a tool that needs main: the user's project library, or a confirmed
- * move of a session to another project. A move only checks and records the
+ * Answer a tool that needs main: live workbench state, the project library, or
+ * a confirmed move to another project. A move only checks and records the
  * target here; it happens once the session's current run ends.
  */
 async function answerHostRequest(
@@ -674,6 +680,19 @@ async function answerHostRequest(
 ): Promise<void> {
   const reply = await (async (): Promise<AgentHostReply> => {
     try {
+      if (event.request.kind === "workbench-state") {
+        const state = await workbenchStateRequests.request(
+          ownerId,
+          event.sessionId,
+          (request) => {
+            const owner = webContents.fromId(ownerId);
+            if (!owner || owner.isDestroyed())
+              throw new Error("The session's Pine window is unavailable.");
+            owner.send(SESSION_EVENT_CHANNEL, request);
+          },
+        );
+        return { ok: true, response: { kind: "workbench-state", state } };
+      }
       const projects = (await getProjectRepository().list()).filter(
         (project) => !isTemporaryWorkspace(project.id),
       );

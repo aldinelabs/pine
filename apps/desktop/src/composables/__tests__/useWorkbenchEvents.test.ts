@@ -14,6 +14,7 @@ beforeEach(() => {
   Object.defineProperty(window, "pine", {
     configurable: true,
     value: {
+      respondWorkbenchState: vi.fn(),
       onSessionEvent: vi.fn((next: (event: unknown) => void) => {
         listener = next;
         return () => (listener = undefined);
@@ -116,6 +117,51 @@ it("keeps a presented file's line targets and drops malformed ones", () => {
   expect(useWorkbenchStore().layoutFor("session-2").preview).toEqual({
     target,
     toolCallId: "call-2",
+  });
+  wrapper.unmount();
+});
+
+it("returns the requested conversation's current user layout and visibility", () => {
+  const wrapper = mountListener();
+  const workbench = useWorkbenchStore();
+  workbench.setOpen(true);
+  workbench.showPanel("top", "files");
+  workbench.setSplit(65);
+  workbench.setDisplayedOpen(true);
+  listener?.({
+    type: "workbench-state-request",
+    sessionId: "draft",
+    requestId: "active-read",
+  });
+  expect(window.pine.respondWorkbenchState).toHaveBeenLastCalledWith({
+    requestId: "active-read",
+    state: {
+      open: true,
+      visible: true,
+      top: "files",
+      bottom: "preview",
+      split: 65,
+    },
+  });
+  workbench.apply("background", {
+    kind: "arrange",
+    top: "tasks",
+    bottom: null,
+  });
+  listener?.({
+    type: "workbench-state-request",
+    sessionId: "background",
+    requestId: "background-read",
+  });
+  expect(window.pine.respondWorkbenchState).toHaveBeenLastCalledWith({
+    requestId: "background-read",
+    state: {
+      open: true,
+      visible: false,
+      top: "tasks",
+      bottom: null,
+      split: 65,
+    },
   });
   wrapper.unmount();
 });

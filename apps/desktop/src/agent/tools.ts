@@ -696,12 +696,13 @@ export async function createPineToolDefinitions(
       label: "Present File",
       description:
         "Show a file in the workbench beside the conversation: it is listed under the session's artifacts and opened in the preview card, while the user stays in the conversation. For a text file you can scroll to a line and tint line ranges; the preview then shows the file's source, so Markdown and HTML appear as source rather than rendered. Use this when the user asks to see a file or when showing the file is clearer than describing it. Presenting a path outside the shared project folders and the user's attachments needs approval, because Pine must read that path to display it.",
-      promptSnippet: `Use ${UI_PRESENT_FILE_TOOL_NAME} to open a file the user should look at, instead of only naming it in prose`,
+      promptSnippet: `Use ${UI_PRESENT_FILE_TOOL_NAME} proactively to show useful intermediate results and completed deliverables in the right sidebar, instead of only naming them in prose`,
       promptGuidelines: [
         `${UI_PRESENT_FILE_TOOL_NAME} shows the file beside the conversation without moving the user's focus, so say what you presented and why rather than assuming they read it.`,
+        `At meaningful milestones, present a real, readable intermediate result when it helps the user assess progress, and present the finished deliverable when it is ready. Do not manufacture progress files or repeatedly replace the preview just to appear active.`,
         `Pass the file's project-relative path when it has one. Directories, missing files, and unsupported content are reported back to you.`,
         `When you discuss specific lines of a text file, pass highlight_lines (and line if the first range is not where the user should start) instead of quoting long passages.`,
-        `Present only the files that matter to the current request; opening several tabs at once costs the user attention.`,
+        `Present only files that matter to the current request, and keep the preview stable while the user may be inspecting it.`,
       ],
       parameters: params,
       prepareArguments: (args) => args as Static<typeof params>,

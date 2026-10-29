@@ -26,6 +26,7 @@ import type {
 } from "../shared/preferences";
 import type { AskUserQuestionSubmission } from "@pine/rpiv-ask-user-question";
 import type { McpStatusSnapshot } from "pi-mcp-adapter";
+import type { WorkbenchState } from "../shared/workbench";
 import type {
   BackgroundTaskResult,
   ListBackgroundTasksResult,
@@ -69,10 +70,13 @@ export interface AgentHostProject {
 
 /** Questions only the main process can answer, asked from inside a tool. */
 export type AgentHostRequest =
-  { kind: "list-projects" } | { kind: "teleport"; projectId: string };
+  | { kind: "list-projects" }
+  | { kind: "teleport"; projectId: string }
+  | { kind: "workbench-state" };
 
 export type AgentHostResponse =
   | { kind: "list-projects"; projects: AgentHostProject[] }
+  | { kind: "workbench-state"; state: WorkbenchState }
   | { kind: "teleport"; projectName: string; cwd: string };
 
 export type AgentHostReply =

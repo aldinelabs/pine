@@ -24,7 +24,10 @@ import {
   WrenchIcon,
 } from "@lucide/vue";
 import type { Component } from "vue";
-import { UI_WORKBENCH_TOOL_NAMES } from "@/shared/workbench";
+import {
+  UI_WORKBENCH_STATE_TOOL_NAME,
+  UI_WORKBENCH_TOOL_NAMES,
+} from "@/shared/workbench";
 import { TODO_TOOL_NAME } from "@pine/rpiv-todo";
 import { BACKGROUND_TASK_TOOL_NAMES } from "@pine/pi-background-tasks";
 import {
@@ -53,6 +56,7 @@ export type ToolKind =
   | "skill"
   | "todo"
   | "workbench"
+  | "workbenchState"
   | "write";
 
 /** Icon shown for each tool call, keyed by its kind. */
@@ -74,6 +78,7 @@ export const TOOL_KIND_ICON: Record<ToolKind, Component> = {
   skill: WandSparklesIcon,
   todo: ListTodoIcon,
   workbench: PanelRightIcon,
+  workbenchState: PanelRightIcon,
   write: FilePlusIcon,
 };
 
@@ -116,6 +121,7 @@ export const TOOL_KIND_ORDER: readonly ToolKind[] = [
   "fetch",
   "presentFile",
   "workbench",
+  "workbenchState",
   "todo",
   "media",
   "mcp",
@@ -175,6 +181,7 @@ export function toolKind(name: string): ToolKind {
   )
     return "mcp";
   if (normalized === UI_PRESENT_FILE_TOOL_NAME) return "presentFile";
+  if (normalized === UI_WORKBENCH_STATE_TOOL_NAME) return "workbenchState";
   if ((UI_WORKBENCH_TOOL_NAMES as readonly string[]).includes(normalized))
     return "workbench";
   if (

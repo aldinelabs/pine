@@ -887,6 +887,10 @@ export default {
           active: "Presenting {count} files",
           complete: "Presented {count} files",
         },
+        workbenchState: {
+          active: "Checking workbench state",
+          complete: "Checked workbench state",
+        },
         workbench: {
           active: "Arranging the workbench",
           complete: "Arranged the workbench",
@@ -926,6 +930,7 @@ export default {
         fetch: "web fetch",
         presentFile: "present file",
         workbench: "workbench change",
+        workbenchState: "workbench state",
         project: "project action",
         background: "background process",
         todo: "todos",
@@ -1020,6 +1025,11 @@ export default {
           running: "Presenting ",
         },
         workbench: {
+          state: {
+            complete: "Checked workbench state",
+            error: "Couldn’t check workbench state",
+            running: "Checking workbench state",
+          },
           open: {
             complete: "Showed {panel} in the workbench",
             error: "Couldn’t show {panel} in the workbench",

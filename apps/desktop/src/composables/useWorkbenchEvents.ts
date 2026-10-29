@@ -26,6 +26,19 @@ export function useWorkbenchEvents(): void {
       });
     } else if (event.type === "workbench-command") {
       workbench.apply(event.sessionId, event.command);
+    } else if (event.type === "workbench-state-request") {
+      const layout = workbench.layoutFor(event.sessionId);
+      window.pine.respondWorkbenchState({
+        requestId: event.requestId,
+        state: {
+          open: layout.open,
+          visible:
+            workbench.activeKey === event.sessionId && workbench.displayedOpen,
+          top: layout.top,
+          bottom: layout.bottom,
+          split: layout.split,
+        },
+      });
     }
   }
 

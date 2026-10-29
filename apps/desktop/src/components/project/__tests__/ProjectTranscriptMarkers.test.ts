@@ -621,6 +621,7 @@ describe("project transcript markers", () => {
 
   it("describes workbench calls as sentences", () => {
     const cases = [
+      { name: "ui_workbench_state", input: {}, expected: "已查看工作台状态" },
       {
         name: "ui_workbench_open",
         input: { panel: "artifacts" },

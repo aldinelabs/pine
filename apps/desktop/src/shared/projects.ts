@@ -90,6 +90,7 @@ import type {
   SearchSessionsResult,
   ListAllRecentSessionsResult,
 } from "./sessions";
+import type { WorkbenchStateResponse } from "./workbench";
 import type { PineWindowApi } from "./window";
 import type { PineUserProfile, SetUserProfileResult } from "./userProfile";
 import type {
@@ -308,6 +309,7 @@ export interface PickProjectFoldersRequest {
 }
 
 export interface PineDesktopApi extends PineWindowApi {
+  respondWorkbenchState: (response: WorkbenchStateResponse) => void;
   listMcpServers: (request: PineMcpRequest) => Promise<PineMcpCatalog>;
   saveMcpServer: (request: PineMcpSaveRequest) => Promise<PineMcpCatalog>;
   removeMcpServer: (request: PineMcpMutation) => Promise<PineMcpCatalog>;

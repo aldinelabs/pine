@@ -8,14 +8,18 @@ import {
   UI_WORKBENCH_ARRANGE_TOOL_NAME,
   UI_WORKBENCH_CLOSE_TOOL_NAME,
   UI_WORKBENCH_OPEN_TOOL_NAME,
+  UI_WORKBENCH_STATE_TOOL_NAME,
   WORKBENCH_MAX_SPLIT,
   WORKBENCH_MIN_SPLIT,
   clampWorkbenchSplit,
   type WorkbenchCommand,
   type WorkbenchPosition,
+  type WorkbenchState,
 } from "../shared/workbench";
 
 export interface PineWorkbenchToolContext {
+  /** Reads the live layout from the session's owning window. */
+  readState(): Promise<WorkbenchState>;
   /** Applies the command to this session's workbench in the user's window. */
   sendCommand(toolCallId: string, command: WorkbenchCommand): void;
 }
@@ -72,6 +76,27 @@ function done(text: string, command: WorkbenchCommand) {
 export function createWorkbenchToolDefinitions(
   context: PineWorkbenchToolContext,
 ): ToolDefinition[] {
+  const stateTool = defineTool({
+    name: UI_WORKBENCH_STATE_TOOL_NAME,
+    label: "Read Workbench State",
+    description:
+      "Read this conversation's current right sidebar layout, including changes the user made: whether it is open, whether it is currently visible, the top and bottom panels, and the top panel's height percentage. This reads UI state, not screenshots or panel contents. A background conversation can have an open layout that is not currently visible.",
+    promptSnippet: `Regularly use ${UI_WORKBENCH_STATE_TOOL_NAME} to check the right sidebar and proactively arrange it to make the current work and progress visible to the user`,
+    promptGuidelines: [
+      `For substantial work, check ${UI_WORKBENCH_STATE_TOOL_NAME} at the start, at meaningful phase changes, and before showing results. Read it again when the user may have changed the layout; do not assume your last command still describes the sidebar.`,
+      `Actively manage the right sidebar as a useful view of the work: show tasks while background commands or builds run, files while exploring a project, and artifacts or preview when a result is ready to inspect. Use ${UI_WORKBENCH_ARRANGE_TOOL_NAME} to place complementary panels together, and close irrelevant cards when focus shifts. Make useful changes directly without asking permission for routine layout adjustments.`,
+      `Keep the sidebar stable while it is still useful. Avoid polling after every tool call or repeatedly rearranging the same panels; honor an explicit user layout preference. Commands affect only this conversation, and a background conversation must not claim its layout is currently on screen.`,
+      `The tasks panel shows background processes from bg_run, not the todo checklist. Manage step-by-step progress with todo and keep its statuses truthful; opening tasks does not create or update todos.`,
+    ],
+    parameters: Type.Object({}),
+    execute: async () => {
+      const state = await context.readState();
+      return {
+        content: [{ type: "text", text: JSON.stringify(state, null, 2) }],
+        details: { state },
+      };
+    },
+  });
   const openParams = Type.Object({
     panel: panelSchema(`The panel to show. ${PANEL_DESCRIPTIONS}.`),
     position: Type.Optional(
@@ -90,11 +115,11 @@ export function createWorkbenchToolDefinitions(
     name: UI_WORKBENCH_OPEN_TOOL_NAME,
     label: "Open Workbench Panel",
     description: `Show a panel in the workbench, the column beside this conversation that stacks up to two cards. Opens the workbench if it is closed. Panels: ${PANEL_DESCRIPTIONS}.`,
-    promptSnippet: `Use ${UI_WORKBENCH_OPEN_TOOL_NAME} to show the user background processes or presented files beside the conversation when following them helps`,
+    promptSnippet: `Use ${UI_WORKBENCH_OPEN_TOOL_NAME} proactively to show useful background progress, project files, and results beside the conversation`,
     promptGuidelines: [
       `${UI_PRESENT_FILE_TOOL_NAME} already shows its file in the workbench preview; do not open the preview panel separately for it.`,
       `Highlight a card only when you refer the user to it, such as output they should check in tasks; pass highlight with the open or arrange call that shows it rather than calling twice.`,
-      `Change the workbench only when it helps the user follow the current work; the user arranges it too, so do not undo their layout without a reason.`,
+      `After checking ${UI_WORKBENCH_STATE_TOOL_NAME}, open panels that help the user follow the current phase of work. Preserve useful panels and respect explicit user preferences.`,
     ],
     parameters: openParams,
     prepareArguments: (args) => args as Static<typeof openParams>,
@@ -161,6 +186,11 @@ export function createWorkbenchToolDefinitions(
     name: UI_WORKBENCH_ARRANGE_TOOL_NAME,
     label: "Arrange Workbench",
     description: `Set both workbench cards and their split in one step, optionally highlighting one of them. A single panel fills the column; null for both closes the workbench. Panels: ${PANEL_DESCRIPTIONS}.`,
+    promptSnippet: `Use ${UI_WORKBENCH_ARRANGE_TOOL_NAME} to keep the right sidebar aligned with the work's current phase and visible results`,
+    promptGuidelines: [
+      `Choose panels based on real activity: tasks plus preview while a background process produces inspectable results, or files plus preview while browsing and editing. Do not claim progress merely because the layout changed.`,
+      `Read ${UI_WORKBENCH_STATE_TOOL_NAME} before replacing the current layout. Omit split to retain the user's sizing; set it when the content needs a different balance.`,
+    ],
     parameters: arrangeParams,
     prepareArguments: (args) => args as Static<typeof arrangeParams>,
     execute: (toolCallId, params) => {
@@ -195,5 +225,5 @@ export function createWorkbenchToolDefinitions(
     },
   });
 
-  return [openTool, closeTool, arrangeTool];
+  return [stateTool, openTool, closeTool, arrangeTool];
 }
