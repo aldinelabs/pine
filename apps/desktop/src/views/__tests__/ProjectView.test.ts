@@ -111,6 +111,7 @@ async function mountView(
         },
         SessionSearchOverlay: { template: "<div />" },
         PineUpdateDialog: { template: "<div />" },
+        WorkbenchVersion: true,
       },
     },
   });

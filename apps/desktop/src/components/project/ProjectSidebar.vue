@@ -1,7 +1,6 @@
 <script setup lang="ts">
-import { GitCommitHorizontal, Info } from "@lucide/vue";
+import { Info } from "@lucide/vue";
 import { storeToRefs } from "pinia";
-import { onMounted, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import {
   Sidebar,
@@ -13,7 +12,6 @@ import {
   SidebarRail,
 } from "@/components/ui/sidebar";
 import { useUpdaterStore } from "@/stores/updater";
-import { PINE_RELEASES_URL } from "@/shared/window";
 import AllProjectsSessionList from "./AllProjectsSessionList.vue";
 
 const { t } = useI18n();
@@ -23,20 +21,6 @@ const emit = defineEmits<{
   showUpdate: [];
 }>();
 const { isAvailable } = storeToRefs(useUpdaterStore());
-// A failed version lookup simply hides the version item.
-const pineVersion = ref<string | null>(null);
-onMounted(() => {
-  window.pine
-    .getAppVersion()
-    .then((version) => {
-      pineVersion.value = version;
-    })
-    .catch(() => undefined);
-});
-
-function openReleases(): void {
-  void window.pine.openExternalUrl(PINE_RELEASES_URL);
-}
 </script>
 
 <template>
@@ -53,21 +37,16 @@ function openReleases(): void {
       />
     </SidebarContent>
 
-    <SidebarFooter>
+    <!-- Without an update the session tree takes the full height. -->
+    <SidebarFooter v-if="isAvailable">
       <SidebarMenu>
-        <SidebarMenuItem v-if="isAvailable">
+        <SidebarMenuItem>
           <SidebarMenuButton
             class="text-info hover:text-info"
             @click="emit('showUpdate')"
           >
             <Info aria-hidden="true" />
             <span>{{ t("updater.sidebar") }}</span>
-          </SidebarMenuButton>
-        </SidebarMenuItem>
-        <SidebarMenuItem v-else-if="pineVersion">
-          <SidebarMenuButton data-testid="pine-version" @click="openReleases">
-            <GitCommitHorizontal aria-hidden="true" />
-            <span>{{ t("project.version", { version: pineVersion }) }}</span>
           </SidebarMenuButton>
         </SidebarMenuItem>
       </SidebarMenu>

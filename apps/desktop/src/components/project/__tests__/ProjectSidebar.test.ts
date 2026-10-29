@@ -5,7 +5,6 @@ import { beforeEach, expect, it, vi } from "vitest";
 import { createAppI18n } from "@/app/i18n";
 import { useProjectStore } from "@/stores/project";
 import { TEMPORARY_WORKSPACE_PROJECT_ID } from "@/shared/projects";
-import { PINE_RELEASES_URL } from "@/shared/window";
 import { useUpdaterStore } from "@/stores/updater";
 import ProjectSidebar from "../ProjectSidebar.vue";
 import { showProject } from "@/stores/__tests__/showProject";
@@ -75,7 +74,7 @@ it("always lists every project's sessions, whichever project is current", async 
   wrapper.unmount();
 });
 
-it("shows the version item that opens releases until an update replaces it", async () => {
+it("shows the update notice in place of the version", async () => {
   const pinia = createPinia();
   setActivePinia(pinia);
   const router = createRouter({
@@ -98,10 +97,9 @@ it("shows the version item that opens releases until an update replaces it", asy
     },
   });
   await flushPromises();
-  const version = wrapper.get('[data-testid="pine-version"]');
-  expect(version.text()).toBe("版本 0.1.0");
-  await version.trigger("click");
-  expect(window.pine.openExternalUrl).toHaveBeenCalledWith(PINE_RELEASES_URL);
+  // The version lives in the workbench title bar.
+  expect(wrapper.find('[data-testid="pine-version"]').exists()).toBe(false);
+  expect(wrapper.text()).not.toContain("新版本 Pine 可用");
 
   useUpdaterStore().update = {
     changelog: "Changes",
@@ -110,7 +108,6 @@ it("shows the version item that opens releases until an update replaces it", asy
     version: "2.0.0",
   };
   await flushPromises();
-  expect(wrapper.find('[data-testid="pine-version"]').exists()).toBe(false);
   expect(wrapper.text()).toContain("新版本 Pine 可用");
   wrapper.unmount();
 });
@@ -148,7 +145,7 @@ it.each([TEMPORARY_WORKSPACE_PROJECT_ID, "project-one"])(
 
     expect(wrapper.text()).not.toContain("项目设置");
     await wrapper.get("[data-manage-projects]").trigger("click");
-    expect(wrapper.get("footer").text()).toBe("版本 0.1.0");
+    expect(wrapper.find("footer").exists()).toBe(false);
     expect(wrapper.emitted("manageProjects")).toHaveLength(1);
     wrapper.unmount();
   },

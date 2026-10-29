@@ -23,6 +23,7 @@ function mountWorkbench() {
       stubs: {
         Sidebar: { template: "<div><slot /></div>" },
         WorkbenchResizeHandle: true,
+        WorkbenchVersion: true,
         WorkbenchCard: {
           props: ["panel", "position"],
           template:

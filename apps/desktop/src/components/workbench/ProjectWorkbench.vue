@@ -20,6 +20,7 @@ import {
 import { useWorkbenchStore } from "@/stores/workbench";
 import WorkbenchCard from "./WorkbenchCard.vue";
 import WorkbenchResizeHandle from "./WorkbenchResizeHandle.vue";
+import WorkbenchVersion from "./WorkbenchVersion.vue";
 
 /** Matches the cards' `duration-500 ease-out-expo` grow transition. */
 const CARD_TRANSITION_MS = 500;
@@ -298,9 +299,11 @@ function resizeWithKeyboard(event: KeyboardEvent): void {
   >
     <WorkbenchResizeHandle />
     <div
-      aria-hidden="true"
-      class="window-drag h-[var(--window-titlebar-height)] shrink-0"
-    />
+      data-slot="workbench-titlebar"
+      class="window-drag flex h-[var(--window-titlebar-height)] shrink-0 items-center pr-3"
+    >
+      <WorkbenchVersion />
+    </div>
     <div class="flex min-h-0 flex-1 flex-col pr-3 pb-3">
       <div
         ref="stack"
