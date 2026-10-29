@@ -11,6 +11,7 @@ import {
   type PineProject,
 } from "@/shared/projects";
 import { useProjectStore } from "@/stores/project";
+import { useUpdaterStore } from "@/stores/updater";
 import {
   PROJECT_SIDEBAR_VISIBILITY_STORAGE_KEY,
   useProjectSidebarVisibilityStore,
@@ -110,7 +111,12 @@ async function mountView(
             '<div><button type="button" data-manage-projects @click="$emit(\'manageProjects\')" /></div>',
         },
         SessionSearchOverlay: { template: "<div />" },
-        PineUpdateDialog: { template: "<div />" },
+        PineUpdateDialog: {
+          props: ["open"],
+          emits: ["update:open"],
+          template:
+            '<button data-update-dialog :data-open="String(open)" @click="$emit(\'update:open\', false)" />',
+        },
         WorkbenchVersion: true,
       },
     },
@@ -118,6 +124,29 @@ async function mountView(
 
   return { closeProject, projectStore, router, wrapper };
 }
+
+it("opens the update notes once when a new version is found", async () => {
+  const { wrapper } = await mountView();
+  const dialog = () => wrapper.get("[data-update-dialog]");
+  expect(dialog().attributes("data-open")).toBe("false");
+
+  const update = {
+    changelog: "Changes",
+    internalVersion: "2.0.0",
+    publishedAt: "2026-09-15",
+    version: "2.0.0",
+  };
+  useUpdaterStore().update = update;
+  await flushPromises();
+  expect(dialog().attributes("data-open")).toBe("true");
+
+  // Dismissed, a later check of the same version stays quiet.
+  await dialog().trigger("click");
+  useUpdaterStore().update = { ...update };
+  await flushPromises();
+  expect(dialog().attributes("data-open")).toBe("false");
+  wrapper.unmount();
+});
 
 it("has no route back to a project list", async () => {
   const { wrapper } = await mountView();

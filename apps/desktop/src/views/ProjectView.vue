@@ -31,6 +31,7 @@ import { useBackgroundTasksStore } from "@/stores/backgroundTasks";
 import { useContentTabsStore } from "@/stores/contentTabs";
 import { useProjectStore } from "@/stores/project";
 import { useSessionStore } from "@/stores/session";
+import { useUpdaterStore } from "@/stores/updater";
 import { useProjectSidebarVisibilityStore } from "@/stores/projectSidebarVisibility";
 import { useFrozenWindowResize } from "@/composables/useFrozenWindowResize";
 import { useWorkbenchEvents } from "@/composables/useWorkbenchEvents";
@@ -44,6 +45,15 @@ const preferencesDialog =
     "preferencesDialog",
   );
 const isUpdateOpen = ref(false);
+const updater = useUpdaterStore();
+// A newly found version opens its notes once; the sidebar notice reopens them.
+watch(
+  () => updater.update?.version,
+  (version, previous) => {
+    if (version && version !== previous) isUpdateOpen.value = true;
+  },
+  { immediate: true },
+);
 const sidebar = useProjectSidebarVisibilityStore();
 const workbench = useWorkbenchStore();
 useWorkbenchEvents();
