@@ -839,21 +839,26 @@ export class ProjectSessionService {
             .prepare(
               `SELECT session_id, created_at, updated_at, title, preview,
                       message_count,
-                      CASE WHEN body LIKE '%' || ? || '%'
-                        THEN substr(
-                          body,
-                          max(1, instr(lower(body), lower(?)) - 60),
-                          180
-                        )
+                      CASE WHEN match_at > 0
+                        THEN CASE WHEN match_at > 25 THEN '…' ELSE '' END
+                          || substr(body, max(1, match_at - 24), min(match_at - 1, 24))
+                          || ? || substr(body, match_at, ?) || ?
+                          || substr(body, match_at + ?, 120)
                         ELSE preview END AS snippet
-                 FROM session_search
-                WHERE title LIKE '%' || ? || '%'
-                   OR body LIKE '%' || ? || '%'
+                 FROM (
+                   SELECT *, instr(lower(body), lower(?)) AS match_at
+                     FROM session_search
+                    WHERE title LIKE '%' || ? || '%'
+                       OR body LIKE '%' || ? || '%'
+                 )
                 ORDER BY updated_at DESC
                 LIMIT ?`,
             )
             .all(
-              normalizedQuery,
+              SNIPPET_START,
+              characterCount,
+              SNIPPET_END,
+              characterCount,
               normalizedQuery,
               normalizedQuery,
               normalizedQuery,

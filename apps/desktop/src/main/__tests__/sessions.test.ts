@@ -341,6 +341,12 @@ describe("ProjectSessionService", () => {
       await expect(service.search("全")).resolves.toEqual([
         expect.objectContaining({ id: metadata.id }),
       ]);
+      await expect(service.search("搜索")).resolves.toEqual([
+        expect.objectContaining({
+          snippet:
+            "Investigate SQLite 全文\u0001搜索\u0002 for previous sessions",
+        }),
+      ]);
     } finally {
       await service.dispose();
     }

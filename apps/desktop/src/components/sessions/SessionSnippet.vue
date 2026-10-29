@@ -7,15 +7,21 @@ interface SnippetPart {
 }
 
 const props = defineProps<{
+  /** Characters kept before the first match so a truncated line still shows it. */
+  leadingContext?: number;
   query: string;
   text: string;
 }>();
 
 const MARKER_PATTERN = /(\u0001[^\u0002]*\u0002)/g;
 
-const parts = computed<SnippetPart[]>(() => {
-  if (props.text.includes("\u0001")) {
-    return props.text
+function escapeRegExp(value: string): string {
+  return value.replaceAll(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function splitParts(text: string, query: string): SnippetPart[] {
+  if (text.includes("\u0001")) {
+    return text
       .split(MARKER_PATTERN)
       .filter(Boolean)
       .map((part) => ({
@@ -24,25 +30,36 @@ const parts = computed<SnippetPart[]>(() => {
       }));
   }
 
-  const query = props.query.trim();
-  if (!query) return [{ highlighted: false, text: props.text }];
+  const trimmedQuery = query.trim();
+  if (!trimmedQuery) return [{ highlighted: false, text }];
 
-  const start = props.text
-    .toLocaleLowerCase()
-    .indexOf(query.toLocaleLowerCase());
-  if (start < 0) return [{ highlighted: false, text: props.text }];
+  const queryPattern = new RegExp(`(${escapeRegExp(trimmedQuery)})`, "giu");
+  return text
+    .split(queryPattern)
+    .filter(Boolean)
+    .map((part) => ({
+      highlighted:
+        part.toLocaleLowerCase() === trimmedQuery.toLocaleLowerCase(),
+      text: part,
+    }));
+}
 
+const parts = computed<SnippetPart[]>(() => {
+  const result = splitParts(props.text, props.query);
+  const context = props.leadingContext;
+  const lead = result[0];
+  if (context === undefined || !lead || lead.highlighted || result.length < 2)
+    return result;
+
+  const characters = Array.from(lead.text.trimStart());
+  if (characters.length <= context) return result;
   return [
-    { highlighted: false, text: props.text.slice(0, start) },
-    {
-      highlighted: true,
-      text: props.text.slice(start, start + query.length),
-    },
     {
       highlighted: false,
-      text: props.text.slice(start + query.length),
+      text: `…${characters.slice(-context).join("").trimStart()}`,
     },
-  ].filter((part) => part.text);
+    ...result.slice(1),
+  ];
 });
 </script>
 
@@ -51,10 +68,9 @@ const parts = computed<SnippetPart[]>(() => {
     <template v-for="(part, index) in parts" :key="index">
       <mark
         v-if="part.highlighted"
-        class="bg-transparent font-medium text-foreground"
+        class="rounded-[3px] bg-primary/20 font-medium text-foreground"
+        >{{ part.text }}</mark
       >
-        {{ part.text }}
-      </mark>
       <template v-else>{{ part.text }}</template>
     </template>
   </span>

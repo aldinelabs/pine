@@ -146,12 +146,15 @@ async function selectSession(
           <History aria-hidden="true" />
           <div class="min-w-0 flex-1">
             <span class="sr-only">{{ query }}&#8203;</span>
-            <span class="block truncate">{{ sessionTitle(session) }}</span>
+            <span class="block truncate">
+              <SessionSnippet :query="query" :text="sessionTitle(session)" />
+            </span>
             <p
               v-if="query && sessionSnippet(session)"
               class="mt-0.5 truncate text-xs font-normal text-muted-foreground"
             >
               <SessionSnippet
+                :leading-context="12"
                 :query="query"
                 :text="sessionSnippet(session) ?? ''"
               />
