@@ -106,7 +106,7 @@ async function openPendingUrl(): Promise<void> {
   <div
     v-show="!showSource"
     data-slot="intelligent-ui-block"
-    class="intelligent-ui-block my-2 min-w-0 font-sans text-sm"
+    class="intelligent-ui-block my-6 min-w-0 font-sans text-sm first:mt-0 last:mb-0"
   >
     <Renderer
       :response="props.code"
