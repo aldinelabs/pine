@@ -3,8 +3,7 @@ export const SET_USER_PROFILE_CHANNEL = "user-profile:set" as const;
 
 export type PineCommunicationStyle =
   "calm-professional" | "warm-friendly" | "monet";
-export type PineTechnicalBackground =
-  "general-user" | "enthusiast" | "professional-user";
+export type PineTechnicalBackground = "general-user" | "professional-user";
 
 export interface PineUserProfile {
   communicationStyle: PineCommunicationStyle;
@@ -24,7 +23,7 @@ export function createDefaultPineUserProfile(): PineUserProfile {
     customInstructions: "",
     nickname: "",
     personalDetails: "",
-    technicalBackground: "enthusiast",
+    technicalBackground: "general-user",
   };
 }
 
@@ -53,9 +52,5 @@ export function isPineCommunicationStyle(
 export function isPineTechnicalBackground(
   value: string,
 ): value is PineTechnicalBackground {
-  return (
-    value === "general-user" ||
-    value === "enthusiast" ||
-    value === "professional-user"
-  );
+  return value === "general-user" || value === "professional-user";
 }

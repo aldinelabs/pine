@@ -68,7 +68,7 @@ describe("systemPromptWithUserProfile", () => {
       customInstructions: "",
       nickname: "",
       personalDetails: "",
-      technicalBackground: "enthusiast",
+      technicalBackground: "general-user",
     });
 
     expect(prompt).toContain("### Communication style: Monet");
@@ -84,7 +84,7 @@ describe("systemPromptWithUserProfile", () => {
       customInstructions: "",
       nickname: "",
       personalDetails: "",
-      technicalBackground: "enthusiast",
+      technicalBackground: "general-user",
     });
 
     expect(prompt).not.toContain("Monet");

@@ -151,12 +151,9 @@ export default {
       "Speak like a helpful good friend: be warm and enthusiastic, and offer emotional support when it is useful.",
     userProfileTechLabel: "Technical background",
     userProfileTechGeneral: "General user",
-    userProfileTechEnthusiast: "Enthusiast",
     userProfileTechProfessional: "Professional user",
     userProfileTechGeneralDescription:
       "Avoid unnecessary jargon, explain the work in clear goal-oriented language, help choose the wisest option, and offer simple alternatives when something breaks.",
-    userProfileTechEnthusiastDescription:
-      "Act like a textbook when useful: explain key steps as you work, help the user understand how Agentic AI works, and clearly explain decisions, limitations, and alternatives they can try next.",
     userProfileTechProfessionalDescription:
       "Skip over-explaining, communicate complex technical details directly, and offer sophisticated solutions for a user willing to tinker while choosing the most constructive path.",
     userProfileDetailsLabel: "Other personal details",

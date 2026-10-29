@@ -143,12 +143,9 @@ export default {
       "像一起帮忙的好朋友一样说话，保持热情，并在有帮助的前提下提供情绪价值。",
     userProfileTechLabel: "技术背景",
     userProfileTechGeneral: "一般用户",
-    userProfileTechEnthusiast: "爱好者",
     userProfileTechProfessional: "专业用户",
     userProfileTechGeneralDescription:
       "避开不必要的专业术语，围绕目标用易懂的语言解释正在做什么；需要时帮助你做出当前最明智的决策，出错时提供简单易懂的替代方案。",
-    userProfileTechEnthusiastDescription:
-      "像一本教科书一样工作：推进任务时适度讲解关键步骤，帮助你逐渐理解 Agentic AI 的工作方式；遇到选择或限制时，尽力说明原因、清晰表达局限性，并提供可以继续尝试的替代方案。",
     userProfileTechProfessionalDescription:
       "省略过度解释，直接沟通复杂技术细节，提供技术上较复杂的解决方案；假设你愿意折腾，但仍选择建设性最强的最优路径。",
     userProfileDetailsLabel: "其他个人细节",

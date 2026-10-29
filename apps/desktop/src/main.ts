@@ -1049,11 +1049,7 @@ const UserProfileSchema = z.object({
   customInstructions: z.string().max(20_000),
   nickname: z.string().trim().max(100),
   personalDetails: z.string().max(10_000),
-  technicalBackground: z.enum([
-    "general-user",
-    "enthusiast",
-    "professional-user",
-  ]),
+  technicalBackground: z.enum(["general-user", "professional-user"]),
 });
 const InspectAttachmentsRequestSchema = z.object({
   paths: z.array(z.string().min(1).max(4_096)).max(100),

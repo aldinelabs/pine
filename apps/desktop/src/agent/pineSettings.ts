@@ -66,6 +66,17 @@ function isPineUserProfile(value: unknown): value is PineUserProfile {
   );
 }
 
+/** Map technical backgrounds removed from the profile to a supported one. */
+function migrateUserProfile(value: unknown): unknown {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    return value;
+  }
+  const profile = value as Record<string, unknown>;
+  return profile.technicalBackground === "enthusiast"
+    ? { ...profile, technicalBackground: "general-user" }
+    : profile;
+}
+
 function settingsPath(agentDir: string): string {
   return path.join(agentDir, PINE_SETTINGS_FILE);
 }
@@ -87,7 +98,7 @@ export async function readPineAgentSettings(
     const settings = parsed as Record<string, unknown>;
     const imageModel = settings.imageModel;
     const utilityModel = settings.utilityModel;
-    const userProfile = settings.userProfile;
+    const userProfile = migrateUserProfile(settings.userProfile);
     const contextCompactionStrategy = settings.contextCompactionStrategy;
     const contextCompactionRoute = settings.contextCompactionRoute;
     return {

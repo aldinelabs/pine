@@ -135,7 +135,7 @@ describe("PinePreferencesDialog", () => {
       customInstructions: "",
       nickname: "",
       personalDetails: "",
-      technicalBackground: "enthusiast",
+      technicalBackground: "general-user",
     });
     setUserProfile.mockClear();
     getContextCompactionStrategy.mockClear();
@@ -382,7 +382,7 @@ describe("PinePreferencesDialog", () => {
 
     // Monet is the default style.
     expect(styleGroup?.props("modelValue")).toBe("monet");
-    expect(backgroundGroup?.props("modelValue")).toBe("enthusiast");
+    expect(backgroundGroup?.props("modelValue")).toBe("general-user");
 
     await nickname.setValue("  小 Pine  ");
     await form

@@ -150,9 +150,7 @@ const technicalBackgroundDescription = computed(() =>
   t(
     profileDraft.technicalBackground === "general-user"
       ? "preferences.userProfileTechGeneralDescription"
-      : profileDraft.technicalBackground === "enthusiast"
-        ? "preferences.userProfileTechEnthusiastDescription"
-        : "preferences.userProfileTechProfessionalDescription",
+      : "preferences.userProfileTechProfessionalDescription",
   ),
 );
 const isProfileDirty = computed(
@@ -715,9 +713,6 @@ defineExpose({ open });
                 >
                   <ToggleGroupItem value="general-user" class="flex-1">
                     {{ t("preferences.userProfileTechGeneral") }}
-                  </ToggleGroupItem>
-                  <ToggleGroupItem value="enthusiast" class="flex-1">
-                    {{ t("preferences.userProfileTechEnthusiast") }}
                   </ToggleGroupItem>
                   <ToggleGroupItem value="professional-user" class="flex-1">
                     {{ t("preferences.userProfileTechProfessional") }}
