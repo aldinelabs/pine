@@ -55,8 +55,8 @@ it("shrinks a closed top card while the card below grows into its place", async 
   const wrapper = mountWorkbench();
   await settle();
   const [top, bottom] = items(wrapper);
-  expect(top).toMatchObject({ panel: "artifacts", grow: 40 });
-  expect(bottom).toMatchObject({ panel: "preview", grow: 60 });
+  expect(top).toMatchObject({ panel: "artifacts", grow: 50 });
+  expect(bottom).toMatchObject({ panel: "preview", grow: 50 });
 
   store.closeCard("artifacts");
   await flushPromises();
@@ -88,8 +88,8 @@ it("grows a new card in below the single card", async () => {
   ]);
   await settle();
   expect(items(wrapper)).toEqual([
-    expect.objectContaining({ panel: "artifacts", grow: 40 }),
-    expect.objectContaining({ panel: "files", grow: 60 }),
+    expect.objectContaining({ panel: "artifacts", grow: 50 }),
+    expect.objectContaining({ panel: "files", grow: 50 }),
   ]);
 });
 
@@ -107,11 +107,11 @@ it("resizes the cards by dragging or with the keyboard", async () => {
 
   await divider.trigger("pointerdown", { button: 0, clientY: 200 });
   await divider.trigger("pointermove", { clientY: 300 });
-  expect(store.activeLayout.split).toBe(60);
+  expect(store.activeLayout.split).toBe(70);
   await divider.trigger("pointerup");
 
   await divider.trigger("keydown", { key: "ArrowUp" });
-  expect(store.activeLayout.split).toBe(55);
+  expect(store.activeLayout.split).toBe(65);
   await divider.trigger("keydown", { key: "End" });
   expect(store.activeLayout.split).toBe(80);
 });
@@ -119,6 +119,7 @@ it("resizes the cards by dragging or with the keyboard", async () => {
 it("slides swapped cards past each other instead of jumping", async () => {
   const store = useWorkbenchStore();
   store.setOpen(true);
+  store.setSplit(40);
   const wrapper = mountWorkbench();
   await settle();
   const [top, bottom] = items(wrapper);

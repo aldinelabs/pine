@@ -143,7 +143,7 @@ describe("workbench layout", () => {
       open: true,
       top: "preview",
       bottom: null,
-      split: 40,
+      split: 50,
       preview: null,
     });
   });
