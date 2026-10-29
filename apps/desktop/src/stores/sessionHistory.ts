@@ -30,8 +30,11 @@ export const useSessionHistoryStore = defineStore("session-history", () => {
 
   function setOpen(projectId: string, open: boolean): void {
     if (open === isOpen(projectId)) return;
-    if (open) collapsed.value.delete(projectId);
-    else collapsed.value.add(projectId);
+    if (open) {
+      // Reset on reopening so the closing animation keeps all visible rows.
+      visibleCounts.value.delete(projectId);
+      collapsed.value.delete(projectId);
+    } else collapsed.value.add(projectId);
     try {
       window.localStorage.setItem(
         SESSION_HISTORY_STORAGE_KEY,

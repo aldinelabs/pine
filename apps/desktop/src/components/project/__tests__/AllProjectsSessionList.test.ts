@@ -163,6 +163,18 @@ describe("AllProjectsSessionList", () => {
     await wrapper.get(`[data-project-show-more="${pine.id}"]`).trigger("click");
     expect(wrapper.findAll(`[data-project-id="${pine.id}"]`)).toHaveLength(12);
     expect(wrapper.find("[data-project-show-more]").exists()).toBe(false);
+
+    const toggle = wrapper.get(`[data-project-toggle="${pine.id}"]`);
+    await toggle.trigger("click");
+    await flushPromises();
+    await toggle.trigger("click");
+    await flushPromises();
+    expect(wrapper.findAll(`[data-project-id="${pine.id}"]`)).toHaveLength(5);
+    expect(wrapper.findAll(`[data-project-id="${noProject.id}"]`)).toHaveLength(
+      1,
+    );
+    await wrapper.get(`[data-project-show-more="${pine.id}"]`).trigger("click");
+    expect(wrapper.findAll(`[data-project-id="${pine.id}"]`)).toHaveLength(10);
     wrapper.unmount();
   });
 
