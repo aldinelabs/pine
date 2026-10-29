@@ -12,14 +12,14 @@ const modifier = computed(() =>
 );
 
 interface ShortcutRow {
-  key: string;
+  keys: string[];
   label: string;
 }
 
 const rows = computed<ShortcutRow[]>(() => [
-  { key: "T", label: t("project.contentTabs.shortcuts.newTab") },
-  { key: "W", label: t("project.contentTabs.shortcuts.closeTab") },
-  { key: "N", label: t("project.contentTabs.shortcuts.newWindow") },
+  { keys: ["N"], label: t("project.contentTabs.shortcuts.newTab") },
+  { keys: ["W"], label: t("project.contentTabs.shortcuts.closeTab") },
+  { keys: ["⇧", "N"], label: t("project.contentTabs.shortcuts.newWindow") },
 ]);
 </script>
 
@@ -28,10 +28,10 @@ const rows = computed<ShortcutRow[]>(() => [
     data-slot="window-shortcut-hints"
     class="grid w-fit grid-cols-[auto_auto] items-center justify-items-start gap-x-3 gap-y-2.5"
   >
-    <li v-for="row in rows" :key="row.key" class="contents">
+    <li v-for="row in rows" :key="row.label" class="contents">
       <KbdGroup>
         <Kbd>{{ modifier }}</Kbd>
-        <Kbd>{{ row.key }}</Kbd>
+        <Kbd v-for="key in row.keys" :key="key">{{ key }}</Kbd>
       </KbdGroup>
       <span class="text-sm text-muted-foreground">{{ row.label }}</span>
     </li>

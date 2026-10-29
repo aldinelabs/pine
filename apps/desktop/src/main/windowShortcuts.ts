@@ -9,21 +9,26 @@ export function installWindowShortcuts(
   onNewWindow: () => void,
 ): void {
   contents.on("before-input-event", (event, input) => {
-    if (
-      input.type !== "keyDown" ||
-      !(input.control || input.meta) ||
-      input.alt ||
-      input.shift
-    )
+    if (input.type !== "keyDown" || !(input.control || input.meta) || input.alt)
       return;
+    // Ctrl/Cmd+W closes the tab, Ctrl/Cmd+N opens a tab, and
+    // Ctrl/Cmd+Shift+N opens a window.
     const key = input.key.toLowerCase();
-    if (key !== "w" && key !== "t" && key !== "n") return;
-    // Prevent Electron's native Close Window menu accelerator as well as the DOM event.
+    const action =
+      key === "n"
+        ? input.shift
+          ? "new-window"
+          : "new-tab"
+        : key === "w" && !input.shift
+          ? "close-tab"
+          : undefined;
+    if (!action) return;
+    // Prevent Electron's native menu accelerators as well as the DOM event.
     event.preventDefault();
     if (input.isAutoRepeat) return;
-    if (key === "w") {
+    if (action === "close-tab") {
       contents.send(CLOSE_TAB_REQUESTED_CHANNEL);
-    } else if (key === "t") {
+    } else if (action === "new-tab") {
       contents.send(NEW_TAB_REQUESTED_CHANNEL);
     } else {
       onNewWindow();

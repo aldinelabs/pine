@@ -10,7 +10,7 @@ import {
 describe("native close shortcut", () => {
   it.each([
     ["w", CLOSE_TAB_REQUESTED_CHANNEL],
-    ["t", NEW_TAB_REQUESTED_CHANNEL],
+    ["n", NEW_TAB_REQUESTED_CHANNEL],
   ])(
     "intercepts Ctrl/Cmd+%s before the menu and ignores repeats and other shortcuts",
     (key, channel) => {
@@ -36,7 +36,8 @@ describe("native close shortcut", () => {
       });
       expect(repeated.preventDefault).toHaveBeenCalledOnce();
       for (const override of [
-        { shift: true },
+        // Shift+N belongs to the new window shortcut.
+        ...(key === "n" ? [] : [{ shift: true }]),
         { alt: true },
         { control: false },
         { type: "keyUp" },
@@ -55,7 +56,20 @@ describe("native close shortcut", () => {
     },
   );
 
-  it("creates a new window instance on Ctrl/Cmd+N but ignores repeats and modifiers", () => {
+  it("leaves Ctrl/Cmd+T to the page", () => {
+    const contents = Object.assign(new EventEmitter(), { send: vi.fn() });
+    installWindowShortcuts(contents as unknown as WebContents, vi.fn());
+    const event = { preventDefault: vi.fn() };
+    contents.emit("before-input-event", event, {
+      type: "keyDown",
+      key: "t",
+      meta: true,
+    });
+    expect(event.preventDefault).not.toHaveBeenCalled();
+    expect(contents.send).not.toHaveBeenCalled();
+  });
+
+  it("creates a new window instance on Ctrl/Cmd+Shift+N but ignores repeats and modifiers", () => {
     const contents = Object.assign(new EventEmitter(), { send: vi.fn() });
     const onCreateWindow = vi.fn();
     installWindowShortcuts(contents as unknown as WebContents, onCreateWindow);
@@ -64,7 +78,8 @@ describe("native close shortcut", () => {
       const event = { preventDefault: vi.fn() };
       contents.emit("before-input-event", event, {
         type: "keyDown",
-        key: "n",
+        key: "N",
+        shift: true,
         ...modifiers,
       });
       expect(event.preventDefault).toHaveBeenCalledOnce();
@@ -74,21 +89,19 @@ describe("native close shortcut", () => {
     const repeated = { preventDefault: vi.fn() };
     contents.emit("before-input-event", repeated, {
       type: "keyDown",
-      key: "n",
+      key: "N",
+      shift: true,
       control: true,
       isAutoRepeat: true,
     });
     expect(onCreateWindow).toHaveBeenCalledTimes(2);
 
-    for (const override of [
-      { shift: true },
-      { alt: true },
-      { control: false },
-    ]) {
+    for (const override of [{ alt: true }, { control: false }]) {
       const event = { preventDefault: vi.fn() };
       contents.emit("before-input-event", event, {
         type: "keyDown",
-        key: "n",
+        key: "N",
+        shift: true,
         control: true,
         ...override,
       });
