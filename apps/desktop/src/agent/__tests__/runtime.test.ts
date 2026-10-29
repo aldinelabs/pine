@@ -32,6 +32,8 @@ import {
 import { PINE_APPROVAL_MODE_NOTICE } from "../runtime/session-state";
 import { serializeAttachmentMessage } from "../../shared/attachments";
 import { ACTIVATE_COMPUTER_USE_TOOL_NAME } from "../computer-use/tools";
+import { UI_WORKBENCH_STATE_TOOL_NAME } from "../../shared/workbench";
+import { TODO_PROGRESS_REMINDER } from "../runtime/progress-reminders";
 
 const temporaryDirectories: string[] = [];
 
@@ -559,6 +561,124 @@ describe("parseJudgeRulings", () => {
 });
 
 describe("PineAgentRuntime", () => {
+  it("delivers workbench state and recurring todo reminders through real Pi turns", async () => {
+    const root = await mkdtemp(path.join(os.tmpdir(), "pine-progress-"));
+    temporaryDirectories.push(root);
+    const location = {
+      agentDir: path.join(root, "agent"),
+      cwd: path.join(root, "source"),
+      folders: [{ access: "read-write" as const, path: root }],
+      sessionsRoot: path.join(root, "sessions"),
+    };
+    await mkdir(location.agentDir, { recursive: true });
+    await mkdir(location.cwd, { recursive: true });
+    await writeFile(
+      path.join(location.agentDir, "models.json"),
+      JSON.stringify({
+        providers: {
+          verify: {
+            api: "openai-completions",
+            apiKey: "verify-key",
+            baseUrl: "http://127.0.0.1:1/v1",
+            models: [{ id: "progress", input: ["text"] }],
+          },
+        },
+      }),
+    );
+    await writeFile(
+      path.join(location.agentDir, "settings.json"),
+      JSON.stringify({ defaultProvider: "verify", defaultModel: "progress" }),
+    );
+    const state = {
+      open: true,
+      visible: false,
+      top: "files" as const,
+      bottom: "preview" as const,
+      split: 65,
+    };
+    const runtime = new PineAgentRuntime({
+      emit: (event) => {
+        if (event.type !== "host-request") return;
+        expect(event.request).toEqual({ kind: "workbench-state" });
+        runtime.resolveHostRequest(event.requestId, {
+          ok: true,
+          response: { kind: "workbench-state", state },
+        });
+      },
+    });
+    try {
+      const created = await runtime.createSession(location);
+      const { session } = (
+        runtime as unknown as {
+          liveSessions: Map<string, { session: AgentSession }>;
+        }
+      ).liveSessions.get(created.session.id)!;
+      session.setSessionName("Progress reminder regression");
+      expect(session.getActiveToolNames()).toContain(
+        UI_WORKBENCH_STATE_TOOL_NAME,
+      );
+      const reminderCounts: number[] = [];
+      const toolsToRun = 32;
+      session.agent.streamFunction = (model, context) => {
+        reminderCounts.push(
+          context.messages.filter(
+            (message) =>
+              message.role === "toolResult" &&
+              message.content.some(
+                (block) =>
+                  block.type === "text" &&
+                  block.text.includes(TODO_PROGRESS_REMINDER),
+              ),
+          ).length,
+        );
+        const toolTurn = reminderCounts.length <= toolsToRun;
+        const stopReason = toolTurn ? "toolUse" : "stop";
+        const response: AssistantMessage = {
+          ...assistantMessage(100, 0, 0),
+          api: model.api,
+          provider: model.provider,
+          model: model.id,
+          stopReason,
+          content: toolTurn
+            ? [
+                {
+                  type: "toolCall",
+                  id: `state-${reminderCounts.length}`,
+                  name: UI_WORKBENCH_STATE_TOOL_NAME,
+                  arguments: {},
+                },
+              ]
+            : [{ type: "text", text: "Done." }],
+        };
+        const stream = createAssistantMessageEventStream();
+        stream.push({ type: "start", partial: response });
+        stream.push({
+          type: "done",
+          reason: stopReason,
+          message: response,
+        });
+        stream.end();
+        return stream;
+      };
+      await session.prompt("Check progress over several steps.");
+      expect(reminderCounts).toHaveLength(toolsToRun + 1);
+      expect(reminderCounts[15]).toBe(0);
+      expect(reminderCounts[16]).toBe(1);
+      expect(reminderCounts[toolsToRun - 1]).toBe(1);
+      expect(reminderCounts[toolsToRun]).toBe(2);
+      const results = session.messages.filter(
+        (message) => message.role === "toolResult",
+      );
+      expect(results).toHaveLength(toolsToRun);
+      for (const result of results) {
+        expect(result.isError).toBe(false);
+        expect(result.details).toEqual({ state });
+      }
+    } finally {
+      await runtime.dispose();
+    }
+  });
+
   it("automatically compacts a resumed 1M session above 400K after settings saves and MCP reload", async () => {
     const root = await mkdtemp(path.join(os.tmpdir(), "pine-compaction-"));
     temporaryDirectories.push(root);

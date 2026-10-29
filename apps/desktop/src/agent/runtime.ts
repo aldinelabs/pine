@@ -105,6 +105,7 @@ import {
   SKILL_AUTHORING_DYNAMIC_TOOL_NAMES,
   createSkillToolsExtension,
 } from "./skills/tools";
+import { createProgressRemindersExtension } from "./runtime/progress-reminders";
 import { imageModel, IMAGE_MODEL_PROVIDER_ID } from "./media/models";
 import { PineSkillRepository } from "./skills/repository";
 import {
@@ -923,6 +924,7 @@ export class PineAgentRuntime {
             configPath: path.join(location.agentDir, "mcp.json"),
           }),
         },
+        createProgressRemindersExtension(),
       ],
       noThemes: true,
       skillsOverride: filterPineManagedSkills(
