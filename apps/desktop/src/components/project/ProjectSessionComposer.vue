@@ -82,7 +82,7 @@ import { useProjectStore } from "@/stores/project";
 import { cn } from "@/lib/utils";
 import type { PineApprovalAction, PineApprovalMode } from "@/shared/agent";
 import {
-  attachmentMessagePreview,
+  parseAttachmentMessage,
   serializeAttachmentMessage,
   isPastedImageMimeType,
   shouldAttachPastedText,
@@ -164,6 +164,21 @@ const hasMessage = computed(
   () => message.value.trim().length > 0 || attachments.value.length > 0,
 );
 const isSteering = computed(() => props.isRunning && hasMessage.value);
+const stagedSteeringMessages = computed(() =>
+  props.steeringMessages.map((message) => ({
+    message,
+    ...parseAttachmentMessage(message),
+  })),
+);
+
+async function openAttachment(path: string): Promise<void> {
+  try {
+    const result = await window.pine.openAttachment({ path });
+    if (!result.opened) throw new Error(result.error);
+  } catch {
+    toast.error(t("project.composer.attachmentOpenFailed"));
+  }
+}
 const canSubmit = computed(
   () =>
     props.isRunning ||
@@ -701,8 +716,8 @@ function handleRootSubmit(event: Event): void {
         class="scroll-fade-y no-scrollbar mb-2 flex max-h-64 flex-col items-end gap-2 overflow-y-auto overscroll-contain"
       >
         <div
-          v-for="(steeringMessage, index) in props.steeringMessages"
-          :key="`${steeringMessage}-${index}`"
+          v-for="(steeringMessage, index) in stagedSteeringMessages"
+          :key="`${steeringMessage.message}-${index}`"
           data-slot="staged-steering-message"
           class="flex w-full items-center justify-end gap-2"
         >
@@ -711,19 +726,28 @@ function handleRootSubmit(event: Event): void {
             size="icon-sm"
             variant="ghost"
             :aria-label="t('project.composer.withdrawSteering')"
-            @click="emit('withdrawSteering', steeringMessage)"
+            @click="emit('withdrawSteering', steeringMessage.message)"
           >
             <Undo2Icon />
           </Button>
-          <Bubble align="end" variant="outline">
-            <BubbleContent class="border-dashed">
-              <div
-                class="scroll-fade-y max-h-32 overflow-y-auto overscroll-contain whitespace-pre-wrap"
-              >
-                {{ attachmentMessagePreview(steeringMessage) }}
-              </div>
-            </BubbleContent>
-          </Bubble>
+          <div class="flex max-w-[80%] min-w-0 flex-col items-end gap-1.5">
+            <ProjectAttachmentList
+              v-if="steeringMessage.attachments.length > 0"
+              class="py-0"
+              :attachments="steeringMessage.attachments"
+              surface="message"
+              @open="openAttachment"
+            />
+            <Bubble v-if="steeringMessage.prompt" align="end" variant="outline">
+              <BubbleContent class="border-dashed">
+                <div
+                  class="scroll-fade-y max-h-32 overflow-y-auto overscroll-contain whitespace-pre-wrap"
+                >
+                  {{ steeringMessage.prompt }}
+                </div>
+              </BubbleContent>
+            </Bubble>
+          </div>
         </div>
       </div>
 
