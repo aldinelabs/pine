@@ -231,6 +231,7 @@ function startDrag(event: DragEvent, session: ProjectSessionSearchResult) {
                   </CollapsibleTrigger>
                   <SidebarMenuAction
                     show-on-hover
+                    class="right-2"
                     :data-project-new-session="group.project.id"
                     :aria-label="
                       t('sessions.newProjectSession', {
