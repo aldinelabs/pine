@@ -17,6 +17,8 @@ import {
 import type { ProjectSessionSearchResult } from "@/shared/sessions";
 import { useContentTabsStore } from "@/stores/contentTabs";
 import { useProjectStore } from "@/stores/project";
+import SessionGroupDialog from "@/components/sessions/SessionGroupDialog.vue";
+import { SESSION_DRAG_TYPE } from "@/lib/sessionDrag";
 import AllProjectsSessionList from "../AllProjectsSessionList.vue";
 
 function project(id: string, name: string): PineProject {
@@ -70,6 +72,17 @@ async function mountList(
     routes: [{ path: "/", component: { template: "<div />" } }],
   });
   await router.push("/");
+  const updateProjectSessionGroups = vi.fn(
+    ({ id, sessionGroups }: { id: string; sessionGroups: unknown[] }) =>
+      Promise.resolve({
+        project: {
+          ...(options.projects ?? [noProject, pine]).find(
+            (candidate) => candidate.id === id,
+          )!,
+          sessionGroups,
+        },
+      }),
+  );
   const openProject = vi.fn(({ id }: { id: string }) =>
     Promise.resolve({
       opened: true,
@@ -85,6 +98,7 @@ async function mountList(
         .fn()
         .mockResolvedValue({ sessions: options.sessions ?? sessions }),
       openProject,
+      updateProjectSessionGroups,
     },
   });
   const projectStore = useProjectStore();
@@ -96,7 +110,7 @@ async function mountList(
     global: { plugins: [pinia, router, createAppI18n("zh-CN")] },
   });
   await flushPromises();
-  return { router, wrapper, openProject };
+  return { router, wrapper, openProject, updateProjectSessionGroups };
 }
 
 describe("AllProjectsSessionList", () => {
@@ -260,6 +274,148 @@ describe("AllProjectsSessionList", () => {
     );
     expect(tab?.projectId).toBe(pine.id);
     expect(router.currentRoute.value.query.tab).toBe(tab?.id);
+    wrapper.unmount();
+  });
+
+  it("nests a project's folders above its loose sessions", async () => {
+    const filed = { ...sessions[0], id: "filed", name: "Filed away" };
+    const pineWithFolder = {
+      ...pine,
+      sessionGroups: [
+        { id: "folder-1", name: "Research", sessionIds: [filed.id] },
+        { id: "folder-2", name: "Empty", sessionIds: [] },
+      ],
+    };
+    const { wrapper } = await mountList({
+      projects: [noProject, pineWithFolder],
+      sessions: [filed, ...sessions],
+    });
+    const folder = wrapper
+      .get('[data-session-group-id="folder-1"]')
+      .element.closest("li")!;
+    expect(folder.textContent).toContain("Research");
+    expect(folder.querySelector('[data-session-id="filed"]')).not.toBeNull();
+    const projectRow = wrapper
+      .get(`[data-project-toggle="${pine.id}"]`)
+      .element.closest("li")!;
+    const rows = Array.from(
+      projectRow.querySelectorAll(
+        "[data-session-group-toggle], [data-session-id]",
+      ),
+    ).map((row) => row.textContent?.trim());
+    expect(rows).toEqual([
+      "Research",
+      "Filed away",
+      "Empty",
+      "Fix the tab bar",
+    ]);
+    expect(wrapper.text()).toContain("该文件夹暂无会话");
+
+    await wrapper
+      .get('[data-session-group-toggle="folder-1"]')
+      .trigger("click");
+    await flushPromises();
+    expect(wrapper.find('[data-session-id="filed"]').exists()).toBe(false);
+    expect(useSessionHistoryStore().isOpen("folder-1")).toBe(false);
+    wrapper.unmount();
+  });
+
+  it("creates a folder from the button beside New session", async () => {
+    const { wrapper, updateProjectSessionGroups } = await mountList();
+    const projectRow = wrapper
+      .get(`[data-project-toggle="${pine.id}"]`)
+      .element.closest("li")!;
+    const actions = Array.from(
+      projectRow.querySelectorAll(":scope > [data-sidebar=menu-action]"),
+    );
+    expect(actions.map((action) => action.getAttribute("aria-label"))).toEqual([
+      "在Pine中新建文件夹",
+      "在Pine中新建会话",
+    ]);
+    await wrapper.get(`[data-project-new-group="${pine.id}"]`).trigger("click");
+    const dialog = wrapper.getComponent(SessionGroupDialog);
+    expect(dialog.props("open")).toBe(true);
+    dialog.vm.$emit("submit", "Research");
+    await flushPromises();
+    expect(updateProjectSessionGroups).toHaveBeenCalledWith({
+      id: pine.id,
+      sessionGroups: [
+        { id: expect.any(String), name: "Research", sessionIds: [] },
+      ],
+    });
+    expect(wrapper.text()).toContain("Research");
+    wrapper.unmount();
+  });
+
+  it("files a dragged session into a folder of its own project", async () => {
+    const pineWithFolder = {
+      ...pine,
+      sessionGroups: [{ id: "folder-1", name: "Research", sessionIds: [] }],
+    };
+    const { wrapper, updateProjectSessionGroups } = await mountList({
+      projects: [noProject, pineWithFolder],
+    });
+    const data = new Map<string, string>();
+    const dataTransfer = {
+      types: [SESSION_DRAG_TYPE],
+      dropEffect: "none",
+      effectAllowed: "all",
+      setData: (type: string, value: string) => data.set(type, value),
+      getData: (type: string) => data.get(type) ?? "",
+    };
+    const folder = wrapper.get('[data-session-group-id="folder-1"]');
+
+    // A session of another project stays where it is.
+    await wrapper
+      .get(`[data-session-id="${sessions[1].id}"]`)
+      .trigger("dragstart", { dataTransfer });
+    await folder.trigger("drop", { dataTransfer });
+    expect(updateProjectSessionGroups).not.toHaveBeenCalled();
+
+    await wrapper
+      .get(`[data-session-id="${sessions[0].id}"]`)
+      .trigger("dragstart", { dataTransfer });
+    await folder.trigger("dragover", { dataTransfer });
+    expect(
+      wrapper.get('[data-session-group-toggle="folder-1"]').classes(),
+    ).toContain("ring-1");
+    await folder.trigger("drop", { dataTransfer });
+    await flushPromises();
+    expect(updateProjectSessionGroups).toHaveBeenCalledWith({
+      id: pine.id,
+      sessionGroups: [
+        { id: "folder-1", name: "Research", sessionIds: [sessions[0].id] },
+      ],
+    });
+    expect(
+      folder.element.querySelector(`[data-session-id="${sessions[0].id}"]`),
+    ).not.toBeNull();
+    wrapper.unmount();
+  });
+
+  it("opens the folder of an active session reached through a tab", async () => {
+    const pineWithFolder = {
+      ...pine,
+      sessionGroups: [
+        { id: "folder-1", name: "Research", sessionIds: [sessions[0].id] },
+      ],
+    };
+    const { wrapper, router } = await mountList({
+      projects: [noProject, pineWithFolder],
+    });
+    useSessionHistoryStore().setOpen("folder-1", false);
+    await flushPromises();
+    expect(wrapper.find(`[data-session-id="${sessions[0].id}"]`).exists()).toBe(
+      false,
+    );
+    const tab = useContentTabsStore().openSession(sessions[0], pine.id);
+    await router.push({ query: { tab: tab.id } });
+    await flushPromises();
+    expect(
+      wrapper
+        .get(`[data-session-id="${sessions[0].id}"]`)
+        .attributes("data-active"),
+    ).toBe("true");
     wrapper.unmount();
   });
 });
