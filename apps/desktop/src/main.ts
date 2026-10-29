@@ -1047,6 +1047,7 @@ const SetTinyFishApiKeyRequestSchema = z.object({
 const UserProfileSchema = z.object({
   communicationStyle: z.enum(["calm-professional", "warm-friendly", "monet"]),
   customInstructions: z.string().max(20_000),
+  interfaceElements: z.enum(["rich", "simple"]),
   nickname: z.string().trim().max(100),
   personalDetails: z.string().max(10_000),
   technicalBackground: z.enum(["general-user", "professional-user"]),

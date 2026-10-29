@@ -133,6 +133,7 @@ describe("PinePreferencesDialog", () => {
     getUserProfile.mockResolvedValue({
       communicationStyle: "calm-professional",
       customInstructions: "",
+      interfaceElements: "rich",
       nickname: "",
       personalDetails: "",
       technicalBackground: "general-user",
@@ -399,6 +400,7 @@ describe("PinePreferencesDialog", () => {
       expect(setUserProfile).toHaveBeenCalledWith({
         communicationStyle: "warm-friendly",
         customInstructions: "先给出结论，再解释关键原因。",
+        interfaceElements: "rich",
         nickname: "小 Pine",
         personalDetails: "正在学习桌面应用开发",
         technicalBackground: "professional-user",

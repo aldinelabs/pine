@@ -117,6 +117,7 @@ import {
 } from "./skills/piDiscovery";
 import { readPineAgentSettings } from "./pineSettings";
 import { createDefaultPineUserProfile } from "../shared/userProfile";
+import { intelligentUiSystemPrompt } from "../shared/intelligentUi";
 import {
   localNetworkRegionSignals,
   networkRegionSystemPrompt,
@@ -860,6 +861,9 @@ export class PineAgentRuntime {
                 createDefaultPineUserProfile();
               event.systemPromptOptions.sections.pine_profile =
                 systemPromptWithUserProfile("", userProfile).trim();
+              if (userProfile.interfaceElements !== "simple")
+                event.systemPromptOptions.sections.pine_interface =
+                  intelligentUiSystemPrompt();
               event.systemPromptOptions.sections.pine_approval_mode =
                 approvalModeSystemPrompt();
               event.systemPromptOptions.sections.pine_time =

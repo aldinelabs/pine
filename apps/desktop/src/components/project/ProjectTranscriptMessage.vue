@@ -3,6 +3,11 @@ import { CheckIcon, CopyIcon, PencilIcon } from "@lucide/vue";
 import { computed, nextTick, onUnmounted, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import { toast } from "vue-sonner";
+import IntelligentUiBlock from "@/components/intelligent-ui/IntelligentUiBlock.vue";
+import {
+  splitTranscriptText,
+  type TranscriptTextSegment,
+} from "@/components/intelligent-ui/segments";
 import MarkdownContent from "@/components/markdown/MarkdownContent.vue";
 import { Bubble, BubbleContent } from "@/components/ui/bubble";
 import { Button } from "@/components/ui/button";
@@ -155,6 +160,7 @@ const contextToolCalls = computed(() =>
  */
 type RenderItem =
   | { kind: "block"; block: PineContentBlock }
+  | { kind: "text"; segments: TranscriptTextSegment[] }
   | { kind: "toolCall"; toolCall: PineToolCall }
   | { kind: "toolRun"; toolCalls: PineToolCall[] };
 
@@ -181,6 +187,9 @@ const renderItems = computed<RenderItem[]>(() => {
       } else {
         items.push({ kind: "toolRun", toolCalls });
       }
+    } else if (block.type === "text") {
+      items.push({ kind: "text", segments: splitTranscriptText(block.text) });
+      index++;
     } else {
       items.push({ kind: "block", block });
       index++;
@@ -243,15 +252,32 @@ const renderItems = computed<RenderItem[]>(() => {
             :open-file="openFile"
           />
           <Bubble
-            v-else-if="item.kind === 'block' && item.block.type === 'text'"
+            v-else-if="item.kind === 'text'"
             class="w-full"
             :variant="'ghost'"
           >
             <BubbleContent class="transcript-prose w-full">
-              <MarkdownContent
-                :source="item.block.text"
-                :final="message.status === 'complete'"
-              />
+              <!-- Interactive blocks render beside the markdown, not inside
+                   it, so the markdown renderer's styles stay off them. -->
+              <template
+                v-for="(segment, segmentIndex) in item.segments"
+                :key="segmentIndex"
+              >
+                <MarkdownContent
+                  v-if="segment.kind === 'markdown'"
+                  :source="segment.text"
+                  :final="
+                    message.status === 'complete' ||
+                    segmentIndex < item.segments.length - 1
+                  "
+                />
+                <IntelligentUiBlock
+                  v-else
+                  :code="segment.code"
+                  :streaming="!segment.closed && message.status !== 'complete'"
+                  :message-id="message.id"
+                />
+              </template>
             </BubbleContent>
           </Bubble>
         </template>

@@ -51,6 +51,7 @@ describe("systemPromptWithUserProfile", () => {
     const prompt = systemPromptWithUserProfile("base prompt", {
       communicationStyle: "warm-friendly",
       customInstructions: "Always lead with the conclusion.",
+      interfaceElements: "rich",
       nickname: "小 Pine",
       personalDetails: "正在学习桌面应用开发。",
       technicalBackground: "professional-user",
@@ -66,6 +67,7 @@ describe("systemPromptWithUserProfile", () => {
     const prompt = systemPromptWithUserProfile("base prompt", {
       communicationStyle: "monet",
       customInstructions: "",
+      interfaceElements: "rich",
       nickname: "",
       personalDetails: "",
       technicalBackground: "general-user",
@@ -82,6 +84,7 @@ describe("systemPromptWithUserProfile", () => {
     const prompt = systemPromptWithUserProfile("base prompt", {
       communicationStyle: "calm-professional",
       customInstructions: "",
+      interfaceElements: "rich",
       nickname: "",
       personalDetails: "",
       technicalBackground: "general-user",

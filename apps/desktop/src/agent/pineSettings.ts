@@ -15,6 +15,7 @@ import {
 } from "../shared/preferences";
 import {
   isPineCommunicationStyle,
+  isPineInterfaceElements,
   isPineTechnicalBackground,
   type PineUserProfile,
 } from "../shared/userProfile";
@@ -62,19 +63,30 @@ function isPineUserProfile(value: unknown): value is PineUserProfile {
     typeof profile.communicationStyle === "string" &&
     isPineCommunicationStyle(profile.communicationStyle) &&
     typeof profile.technicalBackground === "string" &&
-    isPineTechnicalBackground(profile.technicalBackground)
+    isPineTechnicalBackground(profile.technicalBackground) &&
+    typeof profile.interfaceElements === "string" &&
+    isPineInterfaceElements(profile.interfaceElements)
   );
 }
 
-/** Map technical backgrounds removed from the profile to a supported one. */
+/**
+ * Map technical backgrounds removed from the profile to a supported one, and
+ * give profiles saved before interface elements existed the default.
+ */
 function migrateUserProfile(value: unknown): unknown {
   if (typeof value !== "object" || value === null || Array.isArray(value)) {
     return value;
   }
   const profile = value as Record<string, unknown>;
-  return profile.technicalBackground === "enthusiast"
-    ? { ...profile, technicalBackground: "general-user" }
-    : profile;
+  return {
+    ...profile,
+    ...(profile.technicalBackground === "enthusiast"
+      ? { technicalBackground: "general-user" }
+      : {}),
+    ...(profile.interfaceElements === undefined
+      ? { interfaceElements: "rich" }
+      : {}),
+  };
 }
 
 function settingsPath(agentDir: string): string {

@@ -243,6 +243,7 @@ describe("Pine agent settings", () => {
     await writePineUserProfile(agentDir, {
       communicationStyle: "warm-friendly",
       customInstructions: "Lead with the result.",
+      interfaceElements: "simple",
       nickname: "Pine user",
       personalDetails: "Enjoys learning by doing.",
       technicalBackground: "general-user",
@@ -256,6 +257,7 @@ describe("Pine agent settings", () => {
       userProfile: {
         communicationStyle: "warm-friendly",
         customInstructions: "Lead with the result.",
+        interfaceElements: "simple",
         nickname: "Pine user",
         personalDetails: "Enjoys learning by doing.",
         technicalBackground: "general-user",
@@ -263,7 +265,7 @@ describe("Pine agent settings", () => {
     });
   });
 
-  it("maps the removed enthusiast background to general user", async () => {
+  it("maps the removed enthusiast background to general user and fills in interface elements", async () => {
     const agentDir = await mkdtemp(
       path.join(os.tmpdir(), "pine-agent-settings-legacy-profile-"),
     );
@@ -282,6 +284,7 @@ describe("Pine agent settings", () => {
 
     expect((await readPineAgentSettings(agentDir)).userProfile).toEqual({
       ...userProfile,
+      interfaceElements: "rich",
       technicalBackground: "general-user",
     });
   });

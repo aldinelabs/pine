@@ -5,7 +5,15 @@ import {
 } from "@/composables/useAttachmentDrop";
 import { FilesIcon } from "@lucide/vue";
 import { useEventListener } from "@vueuse/core";
-import { computed, nextTick, onMounted, ref, useTemplateRef, watch } from "vue";
+import {
+  computed,
+  nextTick,
+  onMounted,
+  provide,
+  ref,
+  useTemplateRef,
+  watch,
+} from "vue";
 import { useI18n } from "vue-i18n";
 import { toast } from "vue-sonner";
 import type { PineApprovalAction, PineApprovalMode } from "@/shared/agent";
@@ -15,6 +23,7 @@ import {
   parseAttachmentMessage,
   type PineAttachment,
 } from "@/shared/attachments";
+import { intelligentUiHostKey } from "@/components/intelligent-ui/context";
 import { PineCharacter } from "@/components/pine";
 import {
   Empty,
@@ -278,9 +287,14 @@ watch(approvalMode, (value) => {
     .catch(() => undefined);
 });
 
-function submit(message: string): void {
+/** Blocks in replies send their follow-ups like typed messages. */
+provide(intelligentUiHostKey, {
+  send: (message) => submit(message, { keepDraft: true }),
+});
+
+function submit(message: string, options?: { keepDraft?: boolean }): void {
   if (isRunning.value) {
-    draft.value = "";
+    if (!options?.keepDraft) draft.value = "";
     void sessionStore
       .steer(message, approvalMode.value, props.sessionId ?? null)
       .catch(() => {
@@ -304,7 +318,7 @@ function submit(message: string): void {
   }
   hasSubmittedPrompt.value = true;
   isSubmitting.value = true;
-  draft.value = "";
+  if (!options?.keepDraft) draft.value = "";
   void projectStore
     .ensureOpen(projectId)
     .then((result) => {
@@ -642,7 +656,7 @@ async function handleDrop(event: DragEvent): Promise<void> {
         @abort="abort"
         @respond="respondToApproval"
         @respond-questionnaire="respondToQuestionnaire"
-        @submit="submit"
+        @submit="(message: string) => submit(message)"
         @withdraw-steering="withdrawSteering"
       />
 

@@ -84,6 +84,7 @@ import {
 import {
   createDefaultPineUserProfile,
   isPineCommunicationStyle,
+  isPineInterfaceElements,
   isPineTechnicalBackground,
   normalizePineUserProfile,
   type PineUserProfile,
@@ -151,6 +152,13 @@ const technicalBackgroundDescription = computed(() =>
     profileDraft.technicalBackground === "general-user"
       ? "preferences.userProfileTechGeneralDescription"
       : "preferences.userProfileTechProfessionalDescription",
+  ),
+);
+const interfaceElementsDescription = computed(() =>
+  t(
+    profileDraft.interfaceElements === "rich"
+      ? "preferences.userProfileInterfaceRichDescription"
+      : "preferences.userProfileInterfaceSimpleDescription",
   ),
 );
 const isProfileDirty = computed(
@@ -241,7 +249,8 @@ function userProfilesEqual(a: PineUserProfile, b: PineUserProfile): boolean {
     a.customInstructions === b.customInstructions &&
     a.nickname === b.nickname &&
     a.personalDetails === b.personalDetails &&
-    a.technicalBackground === b.technicalBackground
+    a.technicalBackground === b.technicalBackground &&
+    a.interfaceElements === b.interfaceElements
   );
 }
 
@@ -343,6 +352,12 @@ async function refreshModelCatalog(): Promise<void> {
 function updateCommunicationStyle(value: unknown): void {
   if (typeof value === "string" && isPineCommunicationStyle(value)) {
     profileDraft.communicationStyle = value;
+  }
+}
+
+function updateInterfaceElements(value: unknown): void {
+  if (typeof value === "string" && isPineInterfaceElements(value)) {
+    profileDraft.interfaceElements = value;
   }
 }
 
@@ -720,6 +735,32 @@ defineExpose({ open });
                 </ToggleGroup>
                 <FieldDescription>
                   {{ technicalBackgroundDescription }}
+                </FieldDescription>
+              </Field>
+
+              <Field>
+                <FieldLabel id="pine-user-profile-interface-label">
+                  {{ t("preferences.userProfileInterfaceLabel") }}
+                </FieldLabel>
+                <ToggleGroup
+                  type="single"
+                  variant="outline"
+                  size="sm"
+                  :spacing="2"
+                  class="w-full"
+                  :model-value="profileDraft.interfaceElements"
+                  aria-labelledby="pine-user-profile-interface-label"
+                  @update:model-value="updateInterfaceElements"
+                >
+                  <ToggleGroupItem value="rich" class="flex-1">
+                    {{ t("preferences.userProfileInterfaceRich") }}
+                  </ToggleGroupItem>
+                  <ToggleGroupItem value="simple" class="flex-1">
+                    {{ t("preferences.userProfileInterfaceSimple") }}
+                  </ToggleGroupItem>
+                </ToggleGroup>
+                <FieldDescription>
+                  {{ interfaceElementsDescription }}
                 </FieldDescription>
               </Field>
 

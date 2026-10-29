@@ -8,6 +8,9 @@ export default {
     save: "保存",
     saving: "正在保存",
   },
+  intelligentUi: {
+    sendUnavailable: "这里的回答无法发送消息。",
+  },
   markdown: {
     imageLoadFailed: "图片加载失败",
     externalLinkTitle: "打开外部链接？",
@@ -148,6 +151,12 @@ export default {
       "避开不必要的专业术语，围绕目标用易懂的语言解释正在做什么；需要时帮助你做出当前最明智的决策，出错时提供简单易懂的替代方案。",
     userProfileTechProfessionalDescription:
       "省略过度解释，直接沟通复杂技术细节，提供技术上较复杂的解决方案；假设你愿意折腾，但仍选择建设性最强的最优路径。",
+    userProfileInterfaceLabel: "交互式回答",
+    userProfileInterfaceRich: "丰富",
+    userProfileInterfaceSimple: "简洁",
+    userProfileInterfaceRichDescription:
+      "在合适的时候，Pine 会用清单、计算器、表格和图表来回答，你可以直接在对话里操作。",
+    userProfileInterfaceSimpleDescription: "Pine 只用文字和 Markdown 回答。",
     userProfileDetailsLabel: "其他个人细节",
     userProfileDetailsPlaceholder: "例如：你的工作、兴趣、偏好或当前目标",
     userProfileDetailsDescription: "补充这些信息可以帮助 Pine 更好地了解你。",

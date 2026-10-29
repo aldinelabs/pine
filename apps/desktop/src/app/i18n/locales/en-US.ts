@@ -8,6 +8,9 @@ export default {
     save: "Save",
     saving: "Saving",
   },
+  intelligentUi: {
+    sendUnavailable: "This answer can't send messages here.",
+  },
   markdown: {
     imageLoadFailed: "Image failed to load",
     externalLinkTitle: "Open external link?",
@@ -156,6 +159,13 @@ export default {
       "Avoid unnecessary jargon, explain the work in clear goal-oriented language, help choose the wisest option, and offer simple alternatives when something breaks.",
     userProfileTechProfessionalDescription:
       "Skip over-explaining, communicate complex technical details directly, and offer sophisticated solutions for a user willing to tinker while choosing the most constructive path.",
+    userProfileInterfaceLabel: "Interactive answers",
+    userProfileInterfaceRich: "Rich",
+    userProfileInterfaceSimple: "Simple",
+    userProfileInterfaceRichDescription:
+      "When it helps, Pine can answer with checklists, calculators, tables and charts you can use right in the conversation.",
+    userProfileInterfaceSimpleDescription:
+      "Pine answers in text and Markdown only.",
     userProfileDetailsLabel: "Other personal details",
     userProfileDetailsPlaceholder:
       "For example: your work, interests, preferences, or current goals",
