@@ -775,6 +775,7 @@ export default {
       editMessageLabel: "编辑后的消息",
       sendEditedMessage: "发送",
       error: "错误",
+      stopped: "已停止",
       emptyDescription: "从一个问题、一项任务，或一个大胆的想法开始。",
       emptyTitle: "不妨大胆想象",
       loadHistory: "加载更早的消息",

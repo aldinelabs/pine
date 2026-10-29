@@ -813,6 +813,7 @@ export default {
       editMessageLabel: "Edited message",
       sendEditedMessage: "Send",
       error: "Error",
+      stopped: "Stopped",
       emptyDescription: "Start with a question, a task, or a bold idea.",
       emptyTitle: "Imagine what’s possible",
       loadHistory: "Load earlier messages",

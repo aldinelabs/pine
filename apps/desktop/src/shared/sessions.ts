@@ -90,7 +90,9 @@ export type PineContentBlock =
   | { type: "compaction"; compaction: PineCompaction }
   /** A background task's terminal notification, as delivered to the model. */
   | { type: "backgroundTask"; task: BackgroundTaskSnapshot }
-  | { type: "error"; error: PineSessionError };
+  | { type: "error"; error: PineSessionError }
+  /** The user stopped the run before the assistant finished. */
+  | { type: "stopped" };
 
 export interface PineTextMessage {
   createdAt: string;
@@ -140,6 +142,24 @@ export function parseContentBlocks(content: unknown): PineContentBlock[] {
   });
 }
 
+// Some providers record a user stop as a failed request carrying only the
+// platform's abort text, e.g. when the stop lands between tool calls.
+const ABORT_ERROR_MESSAGES = new Set([
+  "aborted",
+  "request aborted",
+  "request was aborted",
+  "this operation was aborted",
+  "the operation was aborted",
+  "the user aborted a request.",
+]);
+
+function isAbortErrorMessage(message: unknown): boolean {
+  return (
+    typeof message === "string" &&
+    ABORT_ERROR_MESSAGES.has(message.trim().toLowerCase())
+  );
+}
+
 /**
  * Parse a complete pi message, preserving its visible content and surfacing
  * assistant request failures that pi stores outside the `content` array.
@@ -176,7 +196,12 @@ export function parseMessageBlocks(message: unknown): PineContentBlock[] {
   }
   if (record.role !== "assistant") return blocks;
 
-  if (record.stopReason === "error") {
+  if (
+    record.stopReason === "aborted" ||
+    (record.stopReason === "error" && isAbortErrorMessage(record.errorMessage))
+  ) {
+    blocks.push({ type: "stopped" });
+  } else if (record.stopReason === "error") {
     blocks.push({
       type: "error",
       error: {

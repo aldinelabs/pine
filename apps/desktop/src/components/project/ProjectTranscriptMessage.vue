@@ -20,6 +20,7 @@ import ProjectAttachmentList from "./ProjectAttachmentList.vue";
 import ProjectBackgroundTaskMarker from "./ProjectBackgroundTaskMarker.vue";
 import ProjectCompactionMarker from "./ProjectCompactionMarker.vue";
 import ProjectErrorMarker from "./ProjectErrorMarker.vue";
+import ProjectStoppedMarker from "./ProjectStoppedMarker.vue";
 import ProjectThinkingMarker from "./ProjectThinkingMarker.vue";
 import ProjectToolCallGroup from "./ProjectToolCallGroup.vue";
 import ProjectToolCallMarker from "./ProjectToolCallMarker.vue";
@@ -206,6 +207,9 @@ const renderItems = computed<RenderItem[]>(() => {
           <ProjectErrorMarker
             v-else-if="item.kind === 'block' && item.block.type === 'error'"
             :error="item.block.error"
+          />
+          <ProjectStoppedMarker
+            v-else-if="item.kind === 'block' && item.block.type === 'stopped'"
           />
           <ProjectCompactionMarker
             v-else-if="

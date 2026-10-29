@@ -95,6 +95,10 @@ function appendBlock(lines: string[], block: PineContentBlock): void {
     );
     return;
   }
+  if (block.type === "stopped") {
+    lines.push("> Stopped");
+    return;
+  }
   lines.push(`> Error: ${block.error.message}`);
 }
 
