@@ -55,19 +55,19 @@ describe("IntelligentUiBlock", () => {
     const wrapper = mountBlock(checklist, { send: vi.fn() });
     await flushPromises();
 
-    expect(wrapper.find('[data-slot="iui-card"]').text()).toContain("Packing");
-    expect(wrapper.findAll('[data-slot="iui-checkbox"]')).toHaveLength(2);
-    expect(wrapper.find('[data-slot="iui-progress"]').text()).toContain("0%");
+    expect(wrapper.find('[data-iui="card"]').text()).toContain("Packing");
+    expect(wrapper.findAll('[data-iui="checkbox"]')).toHaveLength(2);
+    expect(wrapper.find('[data-iui="progress"]').text()).toContain("0%");
   });
 
   it("recomputes what is shown when an input changes its $variable", async () => {
     const wrapper = mountBlock(checklist, { send: vi.fn() });
     await flushPromises();
 
-    await wrapper.find('[data-slot="iui-checkbox"] button').trigger("click");
+    await wrapper.find('[data-iui="checkbox"] button').trigger("click");
     await flushPromises();
 
-    expect(wrapper.find('[data-slot="iui-progress"]').text()).toContain("50%");
+    expect(wrapper.find('[data-iui="progress"]').text()).toContain("50%");
   });
 
   it("runs @Set and @Reset buttons inside the block", async () => {
@@ -77,11 +77,11 @@ describe("IntelligentUiBlock", () => {
     await buttonNamed(wrapper, "Add").trigger("click");
     await buttonNamed(wrapper, "Add").trigger("click");
     await flushPromises();
-    expect(wrapper.find('[data-slot="iui-text"]').text()).toBe("Count: 2");
+    expect(wrapper.find('[data-iui="text"]').text()).toBe("Count: 2");
 
     await buttonNamed(wrapper, "Reset").trigger("click");
     await flushPromises();
-    expect(wrapper.find('[data-slot="iui-text"]').text()).toBe("Count: 0");
+    expect(wrapper.find('[data-iui="text"]').text()).toBe("Count: 0");
   });
 
   it("sends @ToAssistant messages with the block's values", async () => {
@@ -89,7 +89,7 @@ describe("IntelligentUiBlock", () => {
     const wrapper = mountBlock(checklist, { send });
     await flushPromises();
 
-    await wrapper.find('[data-slot="iui-checkbox"] button').trigger("click");
+    await wrapper.find('[data-iui="checkbox"] button').trigger("click");
     await flushPromises();
     await buttonNamed(wrapper, "What am I missing?").trigger("click");
 

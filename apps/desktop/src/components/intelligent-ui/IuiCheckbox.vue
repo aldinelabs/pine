@@ -2,7 +2,12 @@
 import { useIsStreaming, type ComponentRenderProps } from "@openuidev/vue-lang";
 import { computed, useId } from "vue";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Label } from "@/components/ui/label";
+import {
+  Field,
+  FieldContent,
+  FieldDescription,
+  FieldLabel,
+} from "@/components/ui/field";
 import type { IntelligentUiProps } from "@/shared/intelligentUi";
 import { useBoundValue } from "./context";
 
@@ -20,21 +25,12 @@ const model = computed({
 </script>
 
 <template>
-  <div data-slot="iui-checkbox" class="flex items-start gap-2.5">
-    <Checkbox :id="id" v-model="model" class="mt-0.5" :disabled="isStreaming" />
-    <div class="flex min-w-0 flex-col gap-0.5">
-      <Label
-        :for="id"
-        :class="['leading-snug', model && 'text-muted-foreground line-through']"
-      >
-        {{ props.props.label }}
-      </Label>
-      <span
-        v-if="props.props.description"
-        class="text-xs text-muted-foreground"
-      >
-        {{ props.props.description }}
-      </span>
-    </div>
-  </div>
+  <Field data-iui="checkbox" orientation="horizontal">
+    <Checkbox :id="id" v-model="model" :disabled="isStreaming" />
+    <FieldContent v-if="props.props.description">
+      <FieldLabel :for="id">{{ props.props.label }}</FieldLabel>
+      <FieldDescription>{{ props.props.description }}</FieldDescription>
+    </FieldContent>
+    <FieldLabel v-else :for="id">{{ props.props.label }}</FieldLabel>
+  </Field>
 </template>

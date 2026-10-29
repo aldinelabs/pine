@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { useIsStreaming, type ComponentRenderProps } from "@openuidev/vue-lang";
 import { computed, useId } from "vue";
+import { Field, FieldLabel } from "@/components/ui/field";
 import {
   Select,
   SelectContent,
@@ -10,7 +11,6 @@ import {
 } from "@/components/ui/select";
 import type { IntelligentUiProps } from "@/shared/intelligentUi";
 import { useBoundValue } from "./context";
-import IuiField from "./IuiField.vue";
 
 const props = defineProps<ComponentRenderProps<IntelligentUiProps<"Select">>>();
 const id = useId();
@@ -25,9 +25,12 @@ const model = computed({
 </script>
 
 <template>
-  <IuiField :label="props.props.label" :for="id">
+  <Field data-iui="select">
+    <FieldLabel v-if="props.props.label" :for="id">
+      {{ props.props.label }}
+    </FieldLabel>
     <Select v-model="model" :disabled="isStreaming">
-      <SelectTrigger :id="id" class="w-full min-w-40 sm:w-fit">
+      <SelectTrigger :id="id">
         <SelectValue :placeholder="props.props.placeholder" />
       </SelectTrigger>
       <SelectContent>
@@ -40,5 +43,5 @@ const model = computed({
         </SelectItem>
       </SelectContent>
     </Select>
-  </IuiField>
+  </Field>
 </template>

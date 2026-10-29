@@ -8,7 +8,7 @@ const props = defineProps<ComponentRenderProps<IntelligentUiProps<"Badge">>>();
 
 <template>
   <Badge
-    data-slot="iui-badge"
+    data-iui="badge"
     :variant="props.props.variant ?? 'secondary'"
     class="w-fit"
   >

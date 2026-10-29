@@ -18,7 +18,7 @@ const level = computed(
 </script>
 
 <template>
-  <component :is="level.tag" data-slot="iui-heading" :class="level.class">
+  <component :is="level.tag" data-iui="heading" :class="level.class">
     {{ props.props.text }}
   </component>
 </template>

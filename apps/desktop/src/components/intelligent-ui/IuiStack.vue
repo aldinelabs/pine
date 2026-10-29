@@ -7,7 +7,8 @@ import { IuiNodes } from "./context";
 
 const props = defineProps<ComponentRenderProps<IntelligentUiProps<"Stack">>>();
 
-const GAP = { none: "gap-0", sm: "gap-2", md: "gap-3", lg: "gap-5" } as const;
+/** Steps of the card rhythm: inline (sm), field (md, a FieldGroup apart), section (lg). */
+const GAP = { none: "gap-0", sm: "gap-2", md: "gap-5", lg: "gap-8" } as const;
 const ALIGN = {
   start: "items-start",
   center: "items-center",
@@ -36,7 +37,7 @@ const classes = computed(() => {
 </script>
 
 <template>
-  <div data-slot="iui-stack" :class="classes">
+  <div data-iui="stack" :class="classes">
     <IuiNodes :value="props.props.children" />
   </div>
 </template>

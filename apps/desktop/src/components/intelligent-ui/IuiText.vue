@@ -30,5 +30,5 @@ const classes = computed(() =>
 </script>
 
 <template>
-  <p data-slot="iui-text" :class="classes">{{ props.props.text }}</p>
+  <p data-iui="text" :class="classes">{{ props.props.text }}</p>
 </template>

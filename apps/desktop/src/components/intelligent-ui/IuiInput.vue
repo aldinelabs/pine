@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import { useIsStreaming, type ComponentRenderProps } from "@openuidev/vue-lang";
 import { computed, useId } from "vue";
+import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import type { IntelligentUiProps } from "@/shared/intelligentUi";
 import { useBoundValue } from "./context";
-import IuiField from "./IuiField.vue";
 
 const props = defineProps<ComponentRenderProps<IntelligentUiProps<"Input">>>();
 const id = useId();
@@ -23,7 +23,10 @@ const model = computed({
 </script>
 
 <template>
-  <IuiField :label="props.props.label" :for="id">
+  <Field data-iui="input">
+    <FieldLabel v-if="props.props.label" :for="id">
+      {{ props.props.label }}
+    </FieldLabel>
     <Input
       :id="id"
       v-model="model"
@@ -31,5 +34,5 @@ const model = computed({
       :placeholder="props.props.placeholder"
       :disabled="isStreaming"
     />
-  </IuiField>
+  </Field>
 </template>

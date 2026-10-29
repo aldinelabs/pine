@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { useIsStreaming, type ComponentRenderProps } from "@openuidev/vue-lang";
 import { computed, useId } from "vue";
-import { Label } from "@/components/ui/label";
+import { Field, FieldLabel } from "@/components/ui/field";
 import { Switch } from "@/components/ui/switch";
 import type { IntelligentUiProps } from "@/shared/intelligentUi";
 import { useBoundValue } from "./context";
@@ -19,8 +19,8 @@ const model = computed({
 </script>
 
 <template>
-  <div data-slot="iui-switch" class="flex items-center gap-2.5">
+  <Field data-iui="switch" orientation="horizontal">
     <Switch :id="id" v-model="model" :disabled="isStreaming" />
-    <Label :for="id">{{ props.props.label }}</Label>
-  </div>
+    <FieldLabel :for="id">{{ props.props.label }}</FieldLabel>
+  </Field>
 </template>

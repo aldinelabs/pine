@@ -32,7 +32,7 @@ const value = computed(() =>
 
 <template>
   <Item
-    data-slot="iui-stat"
+    data-iui="stat"
     size="sm"
     :variant="surface === 'raised' ? 'muted' : 'outline'"
     :class="['min-w-0 items-start', surface === 'inset' && 'bg-background']"

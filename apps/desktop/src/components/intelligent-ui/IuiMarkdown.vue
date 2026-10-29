@@ -14,7 +14,7 @@ const props =
 </script>
 
 <template>
-  <div data-slot="iui-markdown" class="transcript-prose min-w-0">
+  <div data-iui="markdown" class="transcript-prose min-w-0">
     <MarkdownContent :source="props.props.source" final />
   </div>
 </template>

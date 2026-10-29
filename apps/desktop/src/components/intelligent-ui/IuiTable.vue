@@ -24,7 +24,7 @@ function formatCell(value: unknown): string {
 </script>
 
 <template>
-  <div data-slot="iui-table" class="min-w-0">
+  <div data-iui="table" class="min-w-0">
     <Table>
       <TableCaption v-if="props.props.caption">
         {{ props.props.caption }}

@@ -85,7 +85,7 @@ const donutColor = (_item: Datum, index: number) => colorAt(index);
 </script>
 
 <template>
-  <figure data-slot="iui-chart" class="flex min-w-0 flex-col gap-2">
+  <figure data-iui="chart" class="flex min-w-0 flex-col gap-2">
     <figcaption v-if="props.props.title" class="text-sm font-medium">
       {{ props.props.title }}
     </figcaption>

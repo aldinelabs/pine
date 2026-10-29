@@ -3,5 +3,5 @@ import { Separator } from "@/components/ui/separator";
 </script>
 
 <template>
-  <Separator data-slot="iui-separator" />
+  <Separator data-iui="separator" />
 </template>

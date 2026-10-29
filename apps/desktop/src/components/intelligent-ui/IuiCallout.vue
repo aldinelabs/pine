@@ -36,7 +36,7 @@ const tone = computed(() => TONES[props.props.tone ?? "info"] ?? TONES.info);
 
 <template>
   <Item
-    data-slot="iui-callout"
+    data-iui="callout"
     role="note"
     size="sm"
     :variant="surface === 'raised' ? 'muted' : 'outline'"

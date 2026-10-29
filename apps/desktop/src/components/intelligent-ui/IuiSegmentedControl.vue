@@ -21,7 +21,7 @@ const model = computed({
 <template>
   <ToggleGroup
     v-model="model"
-    data-slot="iui-segmented-control"
+    data-iui="segmented-control"
     type="single"
     variant="outline"
     size="sm"

@@ -7,6 +7,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { FieldGroup } from "@/components/ui/field";
 import type { IntelligentUiProps } from "@/shared/intelligentUi";
 import { IuiNodes } from "./context";
 import { CARD_SURFACE_CLASS, useSurface } from "./surface";
@@ -17,7 +18,7 @@ const surface = useSurface();
 
 <template>
   <Card
-    data-slot="iui-card"
+    data-iui="card"
     size="sm"
     :class="['min-w-0', CARD_SURFACE_CLASS[surface]]"
   >
@@ -27,8 +28,12 @@ const surface = useSurface();
         {{ props.props.description }}
       </CardDescription>
     </CardHeader>
-    <CardContent class="flex flex-col gap-3">
-      <IuiNodes :value="props.props.children" />
+    <!-- Same rhythm as Pine's settings forms: fields and blocks a FieldGroup
+         apart, each field's own parts closer together. -->
+    <CardContent>
+      <FieldGroup class="gap-5">
+        <IuiNodes :value="props.props.children" />
+      </FieldGroup>
     </CardContent>
   </Card>
 </template>

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { useIsStreaming, type ComponentRenderProps } from "@openuidev/vue-lang";
 import { computed, useId } from "vue";
-import { Label } from "@/components/ui/label";
+import { Field, FieldLabel } from "@/components/ui/field";
 import { Slider } from "@/components/ui/slider";
 import type { IntelligentUiProps } from "@/shared/intelligentUi";
 import { useBoundValue } from "./context";
@@ -20,12 +20,12 @@ const model = computed({
 </script>
 
 <template>
-  <div data-slot="iui-slider" class="flex min-w-0 flex-col gap-2.5">
+  <Field data-iui="slider">
     <div
       v-if="props.props.label"
       class="flex items-center justify-between gap-3"
     >
-      <Label :for="id">{{ props.props.label }}</Label>
+      <FieldLabel :for="id">{{ props.props.label }}</FieldLabel>
       <span class="text-sm text-muted-foreground tabular-nums">
         {{ value.toLocaleString() }}
       </span>
@@ -38,5 +38,5 @@ const model = computed({
       :step="props.props.step ?? 1"
       :disabled="isStreaming"
     />
-  </div>
+  </Field>
 </template>

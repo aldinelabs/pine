@@ -11,7 +11,7 @@ const runAction = useRunAction();
 
 <template>
   <Button
-    data-slot="iui-button"
+    data-iui="button"
     type="button"
     class="w-fit"
     :variant="props.props.variant ?? 'default'"

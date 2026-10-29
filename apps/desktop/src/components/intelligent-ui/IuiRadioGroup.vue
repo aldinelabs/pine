@@ -1,7 +1,12 @@
 <script setup lang="ts">
 import { useIsStreaming, type ComponentRenderProps } from "@openuidev/vue-lang";
 import { computed, useId } from "vue";
-import { Label } from "@/components/ui/label";
+import {
+  Field,
+  FieldLabel,
+  FieldLegend,
+  FieldSet,
+} from "@/components/ui/field";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import type { IntelligentUiProps } from "@/shared/intelligentUi";
 import { useBoundValue } from "./context";
@@ -20,23 +25,21 @@ const model = computed({
 </script>
 
 <template>
-  <div data-slot="iui-radio-group" class="flex min-w-0 flex-col gap-2">
-    <Label v-if="props.props.label" :id="`${id}-label`">
+  <FieldSet data-iui="radio-group">
+    <FieldLegend v-if="props.props.label" variant="label">
       {{ props.props.label }}
-    </Label>
-    <RadioGroup
-      v-model="model"
-      :aria-labelledby="props.props.label ? `${id}-label` : undefined"
-      :disabled="isStreaming"
-    >
-      <div
+    </FieldLegend>
+    <RadioGroup v-model="model" :disabled="isStreaming">
+      <Field
         v-for="(option, index) in props.props.options ?? []"
         :key="option"
-        class="flex items-center gap-2.5"
+        orientation="horizontal"
       >
         <RadioGroupItem :id="`${id}-${index}`" :value="option" />
-        <Label :for="`${id}-${index}`" class="font-normal">{{ option }}</Label>
-      </div>
+        <FieldLabel :for="`${id}-${index}`" class="font-normal">
+          {{ option }}
+        </FieldLabel>
+      </Field>
     </RadioGroup>
-  </div>
+  </FieldSet>
 </template>
