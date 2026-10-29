@@ -532,7 +532,7 @@ watch(activeSession, (session) => {
           role="tablist"
           :aria-label="t('project.contentTabs.tabListLabel')"
           @wheel="scrollTabListWithWheel"
-          class="scroll-fade-x pointer-events-auto flex min-w-0 flex-initial items-center justify-start self-stretch overflow-x-auto no-scrollbar"
+          class="scroll-fade-x pointer-events-auto -mx-1 flex min-w-0 flex-initial items-center justify-start self-stretch overflow-x-auto no-scrollbar"
           :class="
             cn(
               tabListHasOverflow === false && 'scroll-fade-none',
@@ -545,7 +545,7 @@ watch(activeSession, (session) => {
           <div
             ref="tabItems"
             data-slot="project-content-tab-items"
-            class="window-no-drag flex min-w-max shrink-0 items-center gap-1 py-1"
+            class="window-no-drag flex min-w-max shrink-0 items-center gap-1 px-1 py-1"
           >
             <template v-for="(tab, index) in tabs" :key="tab.id">
               <Separator
