@@ -369,7 +369,7 @@ function drop(event: DragEvent, projectId: string, groupId: string | null) {
 
 <template>
   <div class="flex min-h-0 flex-1 flex-col">
-    <SidebarGroup class="shrink-0">
+    <SidebarGroup class="shrink-0 pt-0">
       <SidebarGroupContent>
         <SidebarMenu>
           <SidebarMenuItem>
