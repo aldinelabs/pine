@@ -60,6 +60,7 @@ async function mountSettings() {
         usage: [{ ...usage, projectId: workspace.id, total: 0 }, usage],
       }),
       clearProjectStorage,
+      deleteProject: vi.fn().mockResolvedValue({ deleted: true }),
     },
   });
   const pinia = createPinia();
@@ -120,4 +121,28 @@ it("asks before clearing attachments and only edits real projects", async () => 
   expect(
     wrapper.findAll('[data-slot="project-management-row"]')[1].text(),
   ).toContain("附件 0 B");
+});
+
+it("deletes a real project only after confirmation", async () => {
+  const { wrapper } = await mountSettings();
+  const rows = wrapper.findAll('[data-slot="project-management-row"]');
+
+  await rows[0].get('button[aria-label$="操作"]').trigger("click");
+  await flushPromises();
+  expect(document.querySelector('[data-action="delete-project"]')).toBeNull();
+  document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+  await flushPromises();
+
+  await rows[1].get('button[aria-label$="操作"]').trigger("click");
+  await flushPromises();
+  await menuItem("delete-project").trigger("click");
+  await flushPromises();
+  expect(window.pine.deleteProject).not.toHaveBeenCalled();
+
+  await menuItem("confirm-delete-project").trigger("click");
+  await flushPromises();
+  expect(window.pine.deleteProject).toHaveBeenCalledWith({ id: project.id });
+  expect(wrapper.findAll('[data-slot="project-management-row"]')).toHaveLength(
+    1,
+  );
 });

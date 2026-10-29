@@ -10,6 +10,7 @@ import { onMounted, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import { toast } from "vue-sonner";
 import { handleError } from "@/app/errors/errorHandler";
+import ProjectDeleteDialog from "@/components/project/ProjectDeleteDialog.vue";
 import ProjectDialog from "@/components/project/ProjectDialog.vue";
 import {
   AlertDialog,
@@ -70,6 +71,8 @@ const editingProject = ref<PineProject | null>(null);
 // click handler runs.
 const pendingAttachmentClear = ref<PineProject | null>(null);
 const isAttachmentConfirmOpen = ref(false);
+const pendingProjectDelete = ref<PineProject | null>(null);
+const isDeleteConfirmOpen = ref(false);
 
 function size(bytes: number | undefined): string {
   return formatBytes(bytes ?? 0, locale.value);
@@ -137,6 +140,11 @@ function confirmAttachmentClear(): void {
   const project = pendingAttachmentClear.value;
   isAttachmentConfirmOpen.value = false;
   if (project) void clear(project, "attachments");
+}
+
+function requestProjectDelete(project: PineProject): void {
+  pendingProjectDelete.value = project;
+  isDeleteConfirmOpen.value = true;
 }
 
 function openProjectDialog(project: PineProject | null): void {
@@ -281,6 +289,14 @@ onMounted(() => {
                   <PencilIcon />
                   {{ t("preferences.projectManagement.edit") }}
                 </DropdownMenuItem>
+                <DropdownMenuItem
+                  data-action="delete-project"
+                  variant="destructive"
+                  @select="requestProjectDelete(project)"
+                >
+                  <Trash2Icon />
+                  {{ t("projects.deleteAction") }}
+                </DropdownMenuItem>
               </template>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -293,6 +309,11 @@ onMounted(() => {
       :project="editingProject"
       @saved="measure"
       @deleted="measure"
+    />
+
+    <ProjectDeleteDialog
+      v-model:open="isDeleteConfirmOpen"
+      :project="pendingProjectDelete"
     />
 
     <AlertDialog v-model:open="isAttachmentConfirmOpen">

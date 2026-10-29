@@ -97,6 +97,7 @@ async function mountList(
       listAllRecentSessions: vi
         .fn()
         .mockResolvedValue({ sessions: options.sessions ?? sessions }),
+      deleteProject: vi.fn().mockResolvedValue({ deleted: true }),
       openProject,
       updateProjectSessionGroups,
     },
@@ -128,6 +129,37 @@ describe("AllProjectsSessionList", () => {
     expect(
       wrapper.findComponent(AllProjectsSessionList).emitted("manageProjects"),
     ).toHaveLength(1);
+    wrapper.unmount();
+  });
+
+  it("edits or deletes a project from its context menu, except the workspace", async () => {
+    const { wrapper } = await mountList();
+    const toggle = (id: string) => wrapper.get(`[data-project-toggle="${id}"]`);
+
+    await toggle(noProject.id).trigger("contextmenu");
+    await flushPromises();
+    expect(document.querySelector("[data-project-action]")).toBeNull();
+
+    await toggle(pine.id).trigger("contextmenu");
+    await flushPromises();
+    const deleteItem = document.querySelector<HTMLElement>(
+      '[data-project-action="delete"]',
+    );
+    expect(
+      document.querySelector('[data-project-action="edit"]'),
+    ).not.toBeNull();
+    deleteItem!.click();
+    await flushPromises();
+    expect(window.pine.deleteProject).not.toHaveBeenCalled();
+
+    document
+      .querySelector<HTMLElement>('[data-action="confirm-delete-project"]')!
+      .click();
+    await flushPromises();
+    expect(window.pine.deleteProject).toHaveBeenCalledWith({ id: pine.id });
+    expect(wrapper.find(`[data-project-toggle="${pine.id}"]`).exists()).toBe(
+      false,
+    );
     wrapper.unmount();
   });
 

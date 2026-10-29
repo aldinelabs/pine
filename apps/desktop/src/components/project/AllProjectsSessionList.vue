@@ -40,6 +40,8 @@ import {
   SidebarMenuSubButton,
   SidebarMenuSubItem,
 } from "@/components/ui/sidebar";
+import ProjectDeleteDialog from "@/components/project/ProjectDeleteDialog.vue";
+import ProjectDialog from "@/components/project/ProjectDialog.vue";
 import SessionHistoryItem from "@/components/project/SessionHistoryItem.vue";
 import SessionDeleteDialog from "@/components/sessions/SessionDeleteDialog.vue";
 import SessionGroupDeleteDialog from "@/components/sessions/SessionGroupDeleteDialog.vue";
@@ -53,7 +55,9 @@ import { DURATION_MS, EASE_OUT_EXPO } from "@/lib/motion";
 import { projectIconComponent } from "@/lib/projectIcons";
 import { writeSessionDrag } from "@/lib/sessionDrag";
 import {
+  isTemporaryWorkspace,
   TEMPORARY_WORKSPACE_PROJECT_ID,
+  type PineProject,
   type PineSessionGroup,
 } from "@/shared/projects";
 import type { ProjectSessionSearchResult } from "@/shared/sessions";
@@ -150,6 +154,10 @@ watch(
   },
   { immediate: true },
 );
+const projectPendingEdit = ref<PineProject | null>(null);
+const isProjectDialogOpen = ref(false);
+const projectPendingDelete = ref<PineProject | null>(null);
+const isProjectDeleteDialogOpen = ref(false);
 const sessionPendingDelete = ref<ProjectSessionSearchResult | null>(null);
 const isDeleteDialogOpen = ref(false);
 const sessionPendingRename = ref<ProjectSessionSearchResult | null>(null);
@@ -220,6 +228,16 @@ function requestCreateGroup(projectId: string): void {
   groupDialogProjectId.value = projectId;
   groupPendingRename.value = null;
   isGroupDialogOpen.value = true;
+}
+
+function requestProjectEdit(project: PineProject): void {
+  projectPendingEdit.value = project;
+  isProjectDialogOpen.value = true;
+}
+
+function requestProjectDeletion(project: PineProject): void {
+  projectPendingDelete.value = project;
+  isProjectDeleteDialogOpen.value = true;
 }
 
 function requestGroupRename(projectId: string, group: PineSessionGroup): void {
@@ -443,30 +461,57 @@ function drop(event: DragEvent, projectId: string, groupId: string | null) {
                 @update:open="historyStore.setOpen(group.project.id, $event)"
               >
                 <SidebarMenuItem class="group/project">
-                  <CollapsibleTrigger as-child>
-                    <SidebarMenuButton
-                      class="group-has-data-[sidebar=menu-action]/menu-item:pr-3"
-                      :class="{
-                        'bg-sidebar-accent ring-1 ring-sidebar-ring':
-                          dropTargetId === group.project.id,
-                      }"
-                      :data-project-toggle="group.project.id"
-                      :title="displayName(group.project)"
-                      @dragenter="dragOver($event, group.project.id, null)"
-                      @dragover="dragOver($event, group.project.id, null)"
-                      @dragleave="dragLeave"
-                      @drop="drop($event, group.project.id, null)"
+                  <!-- The no-project workspace can be neither edited nor deleted. -->
+                  <ContextMenu>
+                    <ContextMenuTrigger
+                      as-child
+                      :disabled="isTemporaryWorkspace(group.project.id)"
                     >
-                      <component
-                        :is="projectIconComponent(group.project)"
-                        aria-hidden="true"
-                      />
-                      <span
-                        class="min-w-0 flex-1 truncate group-focus-within/project:pr-10 group-hover/project:pr-10"
-                        >{{ displayName(group.project) }}</span
-                      >
-                    </SidebarMenuButton>
-                  </CollapsibleTrigger>
+                      <CollapsibleTrigger as-child>
+                        <SidebarMenuButton
+                          class="group-has-data-[sidebar=menu-action]/menu-item:pr-3"
+                          :class="{
+                            'bg-sidebar-accent ring-1 ring-sidebar-ring':
+                              dropTargetId === group.project.id,
+                          }"
+                          :data-project-toggle="group.project.id"
+                          :title="displayName(group.project)"
+                          @dragenter="dragOver($event, group.project.id, null)"
+                          @dragover="dragOver($event, group.project.id, null)"
+                          @dragleave="dragLeave"
+                          @drop="drop($event, group.project.id, null)"
+                        >
+                          <component
+                            :is="projectIconComponent(group.project)"
+                            aria-hidden="true"
+                          />
+                          <span
+                            class="min-w-0 flex-1 truncate group-focus-within/project:pr-10 group-hover/project:pr-10"
+                            >{{ displayName(group.project) }}</span
+                          >
+                        </SidebarMenuButton>
+                      </CollapsibleTrigger>
+                    </ContextMenuTrigger>
+                    <ContextMenuContent>
+                      <ContextMenuGroup>
+                        <ContextMenuItem
+                          data-project-action="edit"
+                          @select="requestProjectEdit(group.project)"
+                        >
+                          <Pencil aria-hidden="true" />
+                          {{ t("common.edit") }}
+                        </ContextMenuItem>
+                        <ContextMenuItem
+                          data-project-action="delete"
+                          variant="destructive"
+                          @select="requestProjectDeletion(group.project)"
+                        >
+                          <Trash2 aria-hidden="true" />
+                          {{ t("projects.deleteAction") }}
+                        </ContextMenuItem>
+                      </ContextMenuGroup>
+                    </ContextMenuContent>
+                  </ContextMenu>
                   <SidebarMenuAction
                     show-on-hover
                     class="right-8"
@@ -693,6 +738,14 @@ function drop(event: DragEvent, projectId: string, groupId: string | null) {
       </ScrollArea>
     </div>
 
+    <ProjectDialog
+      v-model:open="isProjectDialogOpen"
+      :project="projectPendingEdit"
+    />
+    <ProjectDeleteDialog
+      v-model:open="isProjectDeleteDialogOpen"
+      :project="projectPendingDelete"
+    />
     <SessionDeleteDialog
       v-model:open="isDeleteDialogOpen"
       :session="sessionPendingDelete"
