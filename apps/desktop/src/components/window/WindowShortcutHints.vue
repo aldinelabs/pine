@@ -7,9 +7,9 @@ const { t } = useI18n();
 
 // Electrons's before-input-event maps Ctrl and Cmd onto the same shortcut, so
 // the modifier label follows the host platform.
-const modifier = computed(() =>
-  (window.pine?.platform ?? "darwin") === "darwin" ? "⌘" : "Ctrl",
-);
+const isMac = computed(() => (window.pine?.platform ?? "darwin") === "darwin");
+const modifier = computed(() => (isMac.value ? "⌘" : "Ctrl"));
+const alt = computed(() => (isMac.value ? "⌥" : "Alt"));
 
 interface ShortcutRow {
   keys: string[];
@@ -20,6 +20,11 @@ const rows = computed<ShortcutRow[]>(() => [
   { keys: ["N"], label: t("project.contentTabs.shortcuts.newTab") },
   { keys: ["W"], label: t("project.contentTabs.shortcuts.closeTab") },
   { keys: ["⇧", "N"], label: t("project.contentTabs.shortcuts.newWindow") },
+  { keys: ["B"], label: t("project.contentTabs.shortcuts.toggleSidebar") },
+  {
+    keys: [alt.value, "B"],
+    label: t("project.contentTabs.shortcuts.toggleWorkbench"),
+  },
 ]);
 </script>
 

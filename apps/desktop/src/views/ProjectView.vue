@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { PanelRight } from "@lucide/vue";
-import { onKeyStroke } from "@vueuse/core";
+import { onKeyStroke, useEventListener } from "@vueuse/core";
 import {
   computed,
   onBeforeUnmount,
@@ -307,6 +307,21 @@ onMounted(async () => {
   await syncWorkbench(true);
 });
 
+// Cmd/Ctrl+B belongs to the left SidebarProvider; Cmd/Ctrl+Option/Alt+B
+// toggles the workbench. Option changes event.key on macOS, so match the code.
+useEventListener(window, "keydown", (event: KeyboardEvent) => {
+  if (
+    event.code !== "KeyB" ||
+    !event.altKey ||
+    !(event.metaKey || event.ctrlKey) ||
+    event.shiftKey ||
+    event.defaultPrevented
+  )
+    return;
+  event.preventDefault();
+  workbench.toggle();
+});
+
 onKeyStroke("k", (event) => {
   if (!(event.metaKey || event.ctrlKey)) return;
   event.preventDefault();
@@ -398,7 +413,6 @@ onKeyStroke("k", (event) => {
             size="icon-sm"
             :aria-label="t('project.workbench.toggle')"
             :aria-pressed="workbench.activeLayout.open"
-            :title="t('project.workbench.toggle')"
             @click="workbench.toggle()"
           >
             <PanelRight aria-hidden="true" />

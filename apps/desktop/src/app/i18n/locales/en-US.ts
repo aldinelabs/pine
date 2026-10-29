@@ -707,6 +707,8 @@ export default {
         newTab: "New tab",
         closeTab: "Close tab",
         newWindow: "New window",
+        toggleSidebar: "Toggle left sidebar",
+        toggleWorkbench: "Toggle workbench",
       },
     },
     composer: {

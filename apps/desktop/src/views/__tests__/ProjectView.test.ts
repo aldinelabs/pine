@@ -231,6 +231,23 @@ it("opens the workbench beside the conversation and widens the window for it", a
   );
   await flushPromises();
   expect(workbenchSidebar()).toBe("expanded");
+
+  // Cmd+Option+B toggles the workbench; Option turns event.key into "∫".
+  window.dispatchEvent(
+    new KeyboardEvent("keydown", {
+      key: "∫",
+      code: "KeyB",
+      metaKey: true,
+      altKey: true,
+    }),
+  );
+  await flushPromises();
+  expect(planWindowResize).toHaveBeenLastCalledWith({
+    kind: "set-workbench",
+    open: false,
+    width: 400,
+  });
+  expect(toggle.attributes("aria-pressed")).toBe("false");
   wrapper.unmount();
 });
 
