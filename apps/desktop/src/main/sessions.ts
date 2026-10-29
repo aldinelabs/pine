@@ -1,9 +1,8 @@
 import type {
   SessionEntry as Entry,
-  SessionInfo,
   SessionManager,
 } from "@earendil-works/pi-coding-agent";
-import { mkdir, readdir, readFile, stat, unlink } from "node:fs/promises";
+import { mkdir, open, readdir, readFile, stat, unlink } from "node:fs/promises";
 import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import sanitizeFilename from "sanitize-filename";
@@ -39,6 +38,8 @@ const SEARCH_INDEX_FILE = "session-search.sqlite";
 const SNIPPET_START = "\u0001";
 const SNIPPET_END = "\u0002";
 const SEARCH_INDEX_SCHEMA_VERSION = 2;
+const SESSION_HEADER_CHUNK_BYTES = 4_096;
+const SESSION_HEADER_READ_CONCURRENCY = 64;
 
 export interface PineSessionExportDocument {
   fileName: string;
@@ -59,6 +60,7 @@ export interface ProjectSessionServiceOptions {
 interface SessionMetadata {
   createdAt: number;
   id: string;
+  mtimeMs: number;
   path: string;
 }
 
@@ -78,8 +80,88 @@ async function assertWellFormed(sessionFile: string): Promise<void> {
   }
 }
 
-function metadataOf(info: SessionInfo): SessionMetadata {
-  return { id: info.id, path: info.path, createdAt: info.created.getTime() };
+async function readFirstLine(sessionFile: string): Promise<{
+  line: string;
+  mtimeMs: number;
+}> {
+  const handle = await open(sessionFile, "r");
+  try {
+    const { mtimeMs } = await handle.stat();
+    const chunks: Buffer[] = [];
+    let position = 0;
+    for (;;) {
+      const chunk = Buffer.alloc(SESSION_HEADER_CHUNK_BYTES);
+      const { bytesRead } = await handle.read(chunk, 0, chunk.length, position);
+      if (bytesRead === 0) break;
+      const newline = chunk.subarray(0, bytesRead).indexOf(0x0a);
+      chunks.push(chunk.subarray(0, newline < 0 ? bytesRead : newline));
+      if (newline >= 0) break;
+      position += bytesRead;
+    }
+    return { line: Buffer.concat(chunks).toString("utf8"), mtimeMs };
+  } finally {
+    await handle.close();
+  }
+}
+
+/**
+ * Listing reads only each file's header line. SessionManager.listAll parses
+ * every file in full, which made each sidebar refresh scale with history size.
+ */
+async function readSessionMetadata(
+  sessionFile: string,
+): Promise<SessionMetadata | undefined> {
+  try {
+    const { line, mtimeMs } = await readFirstLine(sessionFile);
+    const header = JSON.parse(line) as {
+      id?: unknown;
+      timestamp?: unknown;
+      type?: unknown;
+    };
+    if (header.type !== "session" || typeof header.id !== "string") {
+      return undefined;
+    }
+    return {
+      id: header.id,
+      path: sessionFile,
+      createdAt:
+        typeof header.timestamp === "string"
+          ? Date.parse(header.timestamp)
+          : Number.NaN,
+      mtimeMs,
+    };
+  } catch {
+    return undefined;
+  }
+}
+
+async function mapWithConcurrency<T, R>(
+  items: readonly T[],
+  limit: number,
+  map: (item: T) => Promise<R>,
+): Promise<R[]> {
+  const results = new Array<R>(items.length);
+  let next = 0;
+  const worker = async () => {
+    while (next < items.length) {
+      const index = next++;
+      results[index] = await map(items[index]);
+    }
+  };
+  await Promise.all(
+    Array.from({ length: Math.min(limit, items.length) }, worker),
+  );
+  return results;
+}
+
+async function listSessionFiles(directory: string): Promise<string[]> {
+  try {
+    return (await readdir(directory))
+      .filter((file) => file.endsWith(".jsonl"))
+      .map((file) => path.join(directory, file));
+  } catch {
+    return [];
+  }
 }
 
 function entryTimestamp(entry: Entry): number {
@@ -561,16 +643,22 @@ export class ProjectSessionService {
   // Each project keeps its sessions in its own subdirectory of the root, and
   // history stays visible across projects and default-folder changes.
   private async listSessions(): Promise<SessionMetadata[]> {
-    const manager = await loadSessionManager();
     const directories = (
       await readdir(this.sessionsRoot, { withFileTypes: true })
     )
       .filter((entry) => entry.isDirectory())
       .map((entry) => path.join(this.sessionsRoot, entry.name));
-    const sessions = await Promise.all(
-      directories.map((directory) => manager.listAll(directory)),
+    const files = (
+      await Promise.all(
+        directories.map((directory) => listSessionFiles(directory)),
+      )
+    ).flat();
+    const sessions = await mapWithConcurrency(
+      files,
+      SESSION_HEADER_READ_CONCURRENCY,
+      readSessionMetadata,
     );
-    return sessions.flat().map(metadataOf);
+    return sessions.filter((session) => session !== undefined);
   }
 
   private async findSession(
@@ -811,7 +899,7 @@ export class ProjectSessionService {
 
     for (const metadata of metadataList) {
       try {
-        const sourceMtimeMs = (await stat(metadata.path)).mtimeMs;
+        const sourceMtimeMs = metadata.mtimeMs;
         const indexedSession = indexedSessions.get(metadata.id);
         if (indexedSession?.source_mtime_ms === sourceMtimeMs) {
           if (Number(indexedSession.message_count) > 0) {

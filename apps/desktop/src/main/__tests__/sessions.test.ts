@@ -346,6 +346,49 @@ describe("ProjectSessionService", () => {
     }
   });
 
+  it("lists sessions by their header line and skips other JSONL files", async () => {
+    const rootPath = await createTemporaryProjectData();
+    const options = serviceOptions(rootPath);
+    // A header longer than one read chunk must still be found whole.
+    const longCwd = path.join(rootPath, "source-".padEnd(5_000, "x"));
+    const directory = path.join(options.sessionsRoot, "source");
+    await mkdir(directory, { recursive: true });
+    const header = {
+      type: "session",
+      version: 3,
+      id: "long-header-session",
+      timestamp: "2026-10-01T00:00:00.000Z",
+      cwd: longCwd,
+    };
+    const message = {
+      type: "message",
+      id: "m1",
+      parentId: null,
+      timestamp: "2026-10-01T00:00:01.000Z",
+      message: { role: "user", content: "Long header", timestamp: 1 },
+    };
+    await writeFile(
+      path.join(directory, "long.jsonl"),
+      `${JSON.stringify(header)}\n${JSON.stringify(message)}\n`,
+    );
+    await writeFile(
+      path.join(directory, "stray.jsonl"),
+      `${JSON.stringify(message)}\n`,
+    );
+    const service = await ProjectSessionService.create(options);
+
+    try {
+      await expect(service.search("")).resolves.toEqual([
+        expect.objectContaining({
+          id: "long-header-session",
+          preview: "Long header",
+        }),
+      ]);
+    } finally {
+      await service.dispose();
+    }
+  });
+
   it("keeps sessions visible after the project's default folder changes", async () => {
     const rootPath = await createTemporaryProjectData();
     const previousCwd = path.join(rootPath, "previous-source");
