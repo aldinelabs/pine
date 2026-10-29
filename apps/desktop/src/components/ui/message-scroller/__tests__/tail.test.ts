@@ -46,3 +46,17 @@ it("rests the tail at the viewport's bottom and pins it there", () => {
   );
   wrapper.unmount();
 });
+
+it("leaves the tail in flow while the reader holds the view", async () => {
+  const wrapper = mount(MessageScrollerProvider, {
+    props: { autoScroll: false },
+    slots: {
+      default: () =>
+        h(MessageScrollerContent, null, { tail: () => h("p", "status") }),
+    },
+  });
+  const tail = wrapper.get("[data-message-scroller-tail]");
+  expect(tail.attributes("data-pinned")).toBeUndefined();
+  expect(tail.classes()).not.toContain("sticky");
+  wrapper.unmount();
+});

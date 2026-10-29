@@ -11,20 +11,22 @@ const props = defineProps<{
 
 const {
   handleContentChange,
+  followingBottom,
   handleResize,
-  heldByScroller,
   setContentElement,
   setSpacerElement,
 } = useMessageScrollerContext();
 
 /**
- * While the scroller follows the bottom or holds a new turn's anchor, the
- * tail sticks to the viewport's bottom edge, where it rests anyway. A growing
- * reply then scrolls under it instead of pushing it down for the frames the
- * scroll takes to catch up. The reader's first scroll releases it, so it
- * moves with the transcript from the first pixel.
+ * While the scroller follows the bottom, the tail sticks to the viewport's
+ * bottom edge, where it rests anyway. A growing reply then scrolls under it
+ * instead of pushing it down for the frames the scroll takes to catch up.
+ * A new turn's anchor hold leaves it in flow: the anchor spacer already
+ * rests it at the bottom, and a reply that runs past the fold must not be
+ * covered by it. The reader's first scroll releases it, so it moves with the
+ * transcript from the first pixel.
  */
-const pinsTail = computed(() => heldByScroller.value);
+const pinsTail = computed(() => followingBottom.value);
 
 const contentRef = useTemplateRef<HTMLElement>("content");
 const spacerRef = useTemplateRef<HTMLElement>("spacer");

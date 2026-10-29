@@ -212,15 +212,15 @@ describe("message scroller user intent", () => {
   it("releases the view to the reader from the first scrolled pixel", () => {
     const scroller = createScroller();
     const { context, viewport } = scroller;
-    expect(context.heldByScroller.value).toBe(true);
+    expect(context.followingBottom.value).toBe(true);
     context.userScrollIntent();
     viewport.scrollTop -= 1;
     context.syncAfterScroll();
-    expect(context.heldByScroller.value).toBe(false);
+    expect(context.followingBottom.value).toBe(false);
     context.userScrollIntent("end");
     viewport.scrollTop += 1;
     context.syncAfterScroll();
-    expect(context.heldByScroller.value).toBe(true);
+    expect(context.followingBottom.value).toBe(true);
     scroller.destroy();
   });
 
@@ -271,14 +271,14 @@ describe("message scroller user intent", () => {
     scroller.destroy();
   });
 
-  it("holds the view while a new turn is anchored, until the reader scrolls", () => {
+  it("does not follow the bottom while a new turn is anchored", () => {
     const scroller = createAnchoredScroller();
     scroller.startTurn();
-    expect(scroller.context.heldByScroller.value).toBe(true);
+    expect(scroller.context.followingBottom.value).toBe(false);
     scroller.grow(100);
-    expect(scroller.context.heldByScroller.value).toBe(true);
-    scroller.context.userScrollIntent("start");
-    expect(scroller.context.heldByScroller.value).toBe(false);
+    expect(scroller.context.followingBottom.value).toBe(false);
+    scroller.grow(286);
+    expect(scroller.context.followingBottom.value).toBe(true);
     scroller.destroy();
   });
 

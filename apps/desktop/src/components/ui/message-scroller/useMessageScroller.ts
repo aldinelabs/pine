@@ -461,10 +461,11 @@ export interface MessageScrollerContext {
   isProgrammaticScroll: Readonly<ShallowRef<boolean>>;
   userScrollRevision: Readonly<ShallowRef<number>>;
   /**
-   * Whether the scroller, not the reader, places the viewport: following the
-   * bottom or holding a new turn's anchor. The reader's first scroll ends it.
+   * Whether the scroller keeps the viewport at the transcript's bottom. A new
+   * turn's anchor hold is not following: the reply may run below the fold.
+   * The reader's first scroll ends it.
    */
-  heldByScroller: Readonly<ShallowRef<boolean>>;
+  followingBottom: Readonly<ShallowRef<boolean>>;
   scrollable: Readonly<ShallowRef<MessageScrollerScrollable>>;
   scrollableAttr: ComputedRef<string | undefined>;
   visibility: Readonly<ShallowRef<MessageScrollerVisibilityState>>;
@@ -551,7 +552,7 @@ function createEngine(props: MessageScrollerProviderProps) {
   const autoscrolling = shallowRef(false);
   const isProgrammaticScroll = shallowRef(false);
   const userScrollRevision = shallowRef(0);
-  const heldByScroller = shallowRef(isHeldByScroller());
+  const followingBottom = shallowRef(isFollowingBottom());
   const scrollable = shallowRef<MessageScrollerScrollable>(EMPTY_SCROLLABLE);
   const visibility =
     shallowRef<MessageScrollerVisibilityState>(EMPTY_VISIBILITY);
@@ -1240,17 +1241,10 @@ function createEngine(props: MessageScrollerProviderProps) {
     return autoScroll() && mode === "following-bottom";
   }
 
-  function isHeldByScroller(): boolean {
-    return (
-      autoScroll() &&
-      (mode === "following-bottom" || mode === "anchored-to-message")
-    );
-  }
-
   function setMode(next: Mode): void {
     mode = next;
-    const held = isHeldByScroller();
-    if (heldByScroller.value !== held) heldByScroller.value = held;
+    const following = isFollowingBottom();
+    if (followingBottom.value !== following) followingBottom.value = following;
   }
 
   /** Catch up once a hidden transcript is shown again. */
@@ -1308,7 +1302,7 @@ function createEngine(props: MessageScrollerProviderProps) {
     autoscrolling,
     isProgrammaticScroll,
     userScrollRevision,
-    heldByScroller,
+    followingBottom,
     scrollable,
     scrollableAttr,
     visibility,
