@@ -540,10 +540,12 @@ watch(activeSession, (session) => {
             )
           "
         >
+          <!-- Drag regions swallow wheel events, so the gaps between tabs
+               stay no-drag to keep the list scrollable across separators. -->
           <div
             ref="tabItems"
             data-slot="project-content-tab-items"
-            class="window-drag flex min-w-max shrink-0 items-center gap-1 py-1"
+            class="window-no-drag flex min-w-max shrink-0 items-center gap-1 py-1"
           >
             <template v-for="(tab, index) in tabs" :key="tab.id">
               <Separator

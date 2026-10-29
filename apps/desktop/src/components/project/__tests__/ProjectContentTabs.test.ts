@@ -297,7 +297,7 @@ describe("ProjectContentTabs", () => {
     ).not.toContain("pointer-events-none");
     expect(
       wrapper.get('[data-slot="project-content-tab-items"]').classes(),
-    ).toContain("window-drag");
+    ).toContain("window-no-drag");
     expect(
       wrapper.get('[data-slot="project-content-tab"]').classes(),
     ).toContain("window-no-drag");
