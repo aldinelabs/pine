@@ -291,7 +291,7 @@ function startDrag(event: DragEvent, session: ProjectSessionSearchResult) {
                       <SidebarMenuSubItem v-if="group.hasMore">
                         <SidebarMenuSubButton
                           as="button"
-                          class="w-full translate-x-0"
+                          class="w-full translate-x-0 text-muted-foreground"
                           :data-project-show-more="group.project.id"
                           @click="historyStore.showMore(group.project.id)"
                         >
