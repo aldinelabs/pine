@@ -104,14 +104,10 @@ async function mountView(
           template: '<button data-pine-preferences type="button" />',
         },
         ProjectContentTabs: { template: "<div />" },
-        ProjectDialog: {
-          props: ["open"],
-          template: '<div data-project-dialog :data-open="String(open)" />',
-        },
         ProjectSidebar: {
-          emits: ["editProject", "manageProjects"],
+          emits: ["manageProjects"],
           template:
-            '<div><button type="button" data-edit-project @click="$emit(\'editProject\')" /><button type="button" data-manage-projects @click="$emit(\'manageProjects\')" /></div>',
+            '<div><button type="button" data-manage-projects @click="$emit(\'manageProjects\')" /></div>',
         },
         SessionSearchOverlay: { template: "<div />" },
         PineUpdateDialog: { template: "<div />" },
@@ -137,39 +133,17 @@ it("has no route back to a project list", async () => {
   wrapper.unmount();
 });
 
-it("does not offer settings for the temporary workspace", async () => {
-  const { projectStore, wrapper } = await mountView();
-  await flushPromises();
-  projectStore.setCurrentProject(TEMPORARY_WORKSPACE_PROJECT_ID);
-  await flushPromises();
-
-  expect(wrapper.find("[data-project-dialog]").exists()).toBe(false);
-  wrapper.unmount();
-});
-
-it("still opens project settings from the sidebar", async () => {
-  const { wrapper } = await mountView();
-  expect(wrapper.get("[data-project-dialog]").attributes("data-open")).toBe(
-    "false",
-  );
-
-  await wrapper.get("[data-edit-project]").trigger("click");
-
-  expect(wrapper.get("[data-project-dialog]").attributes("data-open")).toBe(
-    "true",
-  );
-  wrapper.unmount();
-});
-
-it("opens project management in preferences from No Project's sidebar", async () => {
-  openPreferences.mockClear();
-  const { wrapper } = await mountView();
-
-  await wrapper.get("[data-manage-projects]").trigger("click");
-
-  expect(openPreferences).toHaveBeenCalledWith("projects");
-  wrapper.unmount();
-});
+it.each([project.id, TEMPORARY_WORKSPACE_PROJECT_ID])(
+  "opens project management in preferences from project %s",
+  async (projectId) => {
+    openPreferences.mockClear();
+    const { projectStore, wrapper } = await mountView();
+    projectStore.setCurrentProject(projectId);
+    await wrapper.get("[data-manage-projects]").trigger("click");
+    expect(openPreferences).toHaveBeenCalledExactlyOnceWith("projects");
+    wrapper.unmount();
+  },
+);
 
 it("places the Windows logo and preferences before navigation controls", async () => {
   const { wrapper } = await mountView(

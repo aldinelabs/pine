@@ -11,6 +11,7 @@ import ProjectSidebar from "../ProjectSidebar.vue";
 import { showProject } from "@/stores/__tests__/showProject";
 
 const slot = { template: "<div><slot /></div>" };
+const footerSlot = { template: "<footer><slot /></footer>" };
 const buttonSlot = { template: "<button><slot /></button>" };
 
 beforeEach(() => {
@@ -51,7 +52,7 @@ it("always lists every project's sessions, whichever project is current", async 
       stubs: {
         Sidebar: slot,
         SidebarContent: slot,
-        SidebarFooter: slot,
+        SidebarFooter: footerSlot,
         SidebarMenu: slot,
         SidebarMenuButton: slot,
         SidebarMenuItem: slot,
@@ -63,10 +64,8 @@ it("always lists every project's sessions, whichever project is current", async 
   await flushPromises();
   const sessions = wrapper.get("[data-all-sessions]").element;
   expect(wrapper.find('[role="tab"]').exists()).toBe(false);
-  const footerText = wrapper.text();
-  expect(footerText.indexOf("项目设置")).toBeLessThan(
-    footerText.indexOf("新版本 Pine 可用"),
-  );
+  expect(wrapper.get("footer").text()).toBe("新版本 Pine 可用");
+  expect(wrapper.text()).not.toContain("项目设置");
 
   showProject({ ...projectStore.activeProject!, id: "two" });
   await flushPromises();
@@ -89,7 +88,7 @@ it("shows the version item that opens releases until an update replaces it", asy
       stubs: {
         Sidebar: slot,
         SidebarContent: slot,
-        SidebarFooter: slot,
+        SidebarFooter: footerSlot,
         SidebarMenu: slot,
         SidebarMenuButton: buttonSlot,
         SidebarMenuItem: slot,
@@ -116,38 +115,41 @@ it("shows the version item that opens releases until an update replaces it", asy
   wrapper.unmount();
 });
 
-it("offers project management instead of settings in No Project", async () => {
-  const pinia = createPinia();
-  setActivePinia(pinia);
-  useProjectStore().setCurrentProject(TEMPORARY_WORKSPACE_PROJECT_ID);
-  const router = createRouter({
-    history: createMemoryHistory(),
-    routes: [{ path: "/", component: { template: "<div />" } }],
-  });
-  const wrapper = mount(ProjectSidebar, {
-    global: {
-      plugins: [pinia, router, createAppI18n("zh-CN")],
-      stubs: {
-        Sidebar: slot,
-        SidebarContent: slot,
-        SidebarFooter: slot,
-        SidebarMenu: slot,
-        SidebarMenuButton: buttonSlot,
-        SidebarMenuItem: slot,
-        SidebarRail: true,
-        AllProjectsSessionList: true,
+it.each([TEMPORARY_WORKSPACE_PROJECT_ID, "project-one"])(
+  "forwards project management from the session list for project %s",
+  async (projectId) => {
+    const pinia = createPinia();
+    setActivePinia(pinia);
+    useProjectStore().setCurrentProject(projectId);
+    const router = createRouter({
+      history: createMemoryHistory(),
+      routes: [{ path: "/", component: { template: "<div />" } }],
+    });
+    const wrapper = mount(ProjectSidebar, {
+      global: {
+        plugins: [pinia, router, createAppI18n("zh-CN")],
+        stubs: {
+          Sidebar: slot,
+          SidebarContent: slot,
+          SidebarFooter: footerSlot,
+          SidebarMenu: slot,
+          SidebarMenuButton: buttonSlot,
+          SidebarMenuItem: slot,
+          SidebarRail: true,
+          AllProjectsSessionList: {
+            emits: ["manageProjects"],
+            template:
+              "<button data-manage-projects @click=\"$emit('manageProjects')\">项目管理</button>",
+          },
+        },
       },
-    },
-  });
-  await flushPromises();
+    });
+    await flushPromises();
 
-  expect(wrapper.text()).not.toContain("项目设置");
-  const manage = wrapper
-    .findAll("button")
-    .find((button) => button.text() === "管理项目");
-  if (!manage) throw new Error("Missing the manage projects item");
-  await manage.trigger("click");
-  expect(wrapper.emitted("manageProjects")).toHaveLength(1);
-  expect(wrapper.emitted("editProject")).toBeUndefined();
-  wrapper.unmount();
-});
+    expect(wrapper.text()).not.toContain("项目设置");
+    await wrapper.get("[data-manage-projects]").trigger("click");
+    expect(wrapper.get("footer").text()).toBe("版本 0.1.0");
+    expect(wrapper.emitted("manageProjects")).toHaveLength(1);
+    wrapper.unmount();
+  },
+);

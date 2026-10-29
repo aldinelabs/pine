@@ -582,7 +582,7 @@ function updateTranscriptSerif(value: boolean): void {
   appearanceStore.setTranscriptSerif(value);
 }
 
-/** Open the preferences at a section, e.g. from No Project's sidebar. */
+/** Open preferences at a section, including the sidebar's project manager. */
 function open(section: PreferenceSection = "general"): void {
   if (isOpen.value) {
     activeSection.value = section;

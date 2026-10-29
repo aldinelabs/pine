@@ -16,7 +16,6 @@ import PinePreferencesDialog from "@/components/preferences/PinePreferencesDialo
 import SessionSearchOverlay from "@/components/sessions/SessionSearchOverlay.vue";
 import ProjectBackgroundTaskInspector from "@/components/project/ProjectBackgroundTaskInspector.vue";
 import ProjectContentTabs from "@/components/project/ProjectContentTabs.vue";
-import ProjectDialog from "@/components/project/ProjectDialog.vue";
 import ProjectSidebar from "@/components/project/ProjectSidebar.vue";
 import PineUpdateDialog from "@/components/updates/PineUpdateDialog.vue";
 import ProjectWorkbench from "@/components/workbench/ProjectWorkbench.vue";
@@ -39,7 +38,6 @@ import { useWorkbenchStore } from "@/stores/workbench";
 
 const { t } = useI18n();
 const isSessionSearchOpen = ref(false);
-const isProjectSettingsOpen = ref(false);
 // Only one titlebar position renders the preferences dialog per platform.
 const preferencesDialog =
   useTemplateRef<InstanceType<typeof PinePreferencesDialog>>(
@@ -54,14 +52,6 @@ const backgroundTasks = useBackgroundTasksStore();
 const sessionStore = useSessionStore();
 const contentTabsStore = useContentTabsStore();
 const isWindowsPlatform = computed(() => window.pine?.platform === "win32");
-/** The settings dialog edits the active tab's project, never the built-in one. */
-const editableProject = computed(() =>
-  projectStore.activeProject &&
-  !isTemporaryWorkspace(projectStore.activeProject.id)
-    ? projectStore.activeProject
-    : null,
-);
-
 async function loadProjects(): Promise<void> {
   try {
     await projectStore.loadProjects();
@@ -324,7 +314,6 @@ onKeyStroke("k", (event) => {
     @update:open="setSidebarOpen"
   >
     <ProjectSidebar
-      @edit-project="isProjectSettingsOpen = true"
       @manage-projects="preferencesDialog?.open('projects')"
       @search-sessions="isSessionSearchOpen = true"
       @show-update="isUpdateOpen = true"
@@ -415,10 +404,5 @@ onKeyStroke("k", (event) => {
     <SessionSearchOverlay v-model:open="isSessionSearchOpen" />
     <PineUpdateDialog v-model:open="isUpdateOpen" />
     <ProjectBackgroundTaskInspector />
-    <ProjectDialog
-      v-if="editableProject"
-      v-model:open="isProjectSettingsOpen"
-      :project="editableProject"
-    />
   </SidebarProvider>
 </template>

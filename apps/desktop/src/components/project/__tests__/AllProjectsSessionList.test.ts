@@ -100,6 +100,23 @@ async function mountList(
 }
 
 describe("AllProjectsSessionList", () => {
+  it("places project management below New session and opens it on click", async () => {
+    const { wrapper } = await mountList();
+    const actions = wrapper
+      .findAll('[data-slot="sidebar-menu"]')[0]
+      .findAll("button");
+    expect(actions.map((button) => button.text())).toEqual([
+      "搜索会话",
+      "新会话",
+      "项目管理",
+    ]);
+    await actions[2].trigger("click");
+    expect(
+      wrapper.findComponent(AllProjectsSessionList).emitted("manageProjects"),
+    ).toHaveLength(1);
+    wrapper.unmount();
+  });
+
   it("nests sessions under their project and keeps empty projects", async () => {
     const empty = project("empty", "Empty project");
     const { wrapper } = await mountList({ projects: [noProject, pine, empty] });

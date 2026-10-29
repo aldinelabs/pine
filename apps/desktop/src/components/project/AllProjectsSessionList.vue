@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Plus, Search } from "@lucide/vue";
+import { FolderKanban, Plus, Search } from "@lucide/vue";
 import { storeToRefs } from "pinia";
 import { computed, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
@@ -43,7 +43,7 @@ import { useSessionStore } from "@/stores/session";
  * Project history composed from the native collapsible sidebar menu.
  * Sessions open in their own project, regardless of the active tab.
  */
-const emit = defineEmits<{ search: [] }>();
+const emit = defineEmits<{ search: []; manageProjects: [] }>();
 const { t } = useI18n();
 const tabNavigation = useContentTabNavigation();
 const { activeSessionTab } = tabNavigation;
@@ -168,6 +168,15 @@ function startDrag(event: DragEvent, session: ProjectSessionSearchResult) {
             >
               <Plus aria-hidden="true" />
               <span>{{ t("sessions.newSession") }}</span>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+          <SidebarMenuItem>
+            <SidebarMenuButton
+              data-testid="manage-projects"
+              @click="emit('manageProjects')"
+            >
+              <FolderKanban aria-hidden="true" />
+              <span>{{ t("preferences.sections.projects") }}</span>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
