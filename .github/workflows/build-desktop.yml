@@ -1,6 +1,8 @@
 name: build-desktop
 
 on:
+  # Manual runs build installers without publishing them.
+  workflow_dispatch:
   workflow_call:
     inputs:
       require_windows_signing:
@@ -53,6 +55,13 @@ jobs:
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
 
+      - name: Cache Bun packages
+        uses: actions/cache@v6
+        with:
+          path: ~/.bun/install/cache
+          key: bun-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('bun.lock') }}
+          restore-keys: bun-${{ runner.os }}-${{ runner.arch }}-
+
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
@@ -62,7 +71,8 @@ jobs:
   build-macos:
     name: Build macOS ${{ matrix.arch }}
     runs-on: macos-latest
-    needs: check
+    # Runs beside Check; callers that need a checked build depend on the
+    # whole workflow, which still fails when Check does.
     strategy:
       fail-fast: false
       matrix:
@@ -84,6 +94,13 @@ jobs:
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
 
+      - name: Cache Bun packages
+        uses: actions/cache@v6
+        with:
+          path: ~/.bun/install/cache
+          key: bun-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('bun.lock') }}
+          restore-keys: bun-${{ runner.os }}-${{ runner.arch }}-
+
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
@@ -99,7 +116,17 @@ jobs:
           await Bun.write(p, JSON.stringify(j, null, 2) + "\n");
           console.log("apps/desktop version set to " + j.version)'
 
+      # The helper only changes with its vendored source, so reuse the built
+      # output instead of compiling it on every run.
+      - name: Restore computer-use runtime
+        id: computer-use-cache
+        uses: actions/cache@v6
+        with:
+          path: packages/computer-use-runtime/pine-computer-use
+          key: computer-use-${{ runner.os }}-${{ matrix.arch }}-${{ hashFiles('packages/computer-use-runtime/vendor/**', 'packages/computer-use-runtime/scripts/build.mjs', 'packages/computer-use-runtime/LICENSE.upstream', 'packages/computer-use-runtime/NOTICE.md') }}
+
       - name: Build computer-use runtime
+        if: steps.computer-use-cache.outputs.cache-hit != 'true'
         env:
           PINE_COMPUTER_USE_ARCH: ${{ matrix.arch }}
         run: bun run --filter @pine/computer-use-runtime build
@@ -177,7 +204,6 @@ jobs:
   build-windows:
     name: Build Windows x64
     runs-on: windows-latest
-    needs: check
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -192,6 +218,13 @@ jobs:
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
+
+      - name: Cache Bun packages
+        uses: actions/cache@v6
+        with:
+          path: ~/.bun/install/cache
+          key: bun-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('bun.lock') }}
+          restore-keys: bun-${{ runner.os }}-${{ runner.arch }}-
 
       - name: Install dependencies
         run: bun install --frozen-lockfile
@@ -208,7 +241,15 @@ jobs:
           await Bun.write(p, JSON.stringify(j, null, 2) + "\n");
           console.log("apps/desktop version set to " + j.version)'
 
+      - name: Restore computer-use runtime
+        id: computer-use-cache
+        uses: actions/cache@v6
+        with:
+          path: packages/computer-use-runtime/pine-computer-use
+          key: computer-use-${{ runner.os }}-x64-${{ hashFiles('packages/computer-use-runtime/vendor/**', 'packages/computer-use-runtime/scripts/build.mjs', 'packages/computer-use-runtime/LICENSE.upstream', 'packages/computer-use-runtime/NOTICE.md') }}
+
       - name: Build computer-use runtime
+        if: steps.computer-use-cache.outputs.cache-hit != 'true'
         run: bun run --filter @pine/computer-use-runtime build
 
       - name: Verify Squirrel packaging tools
