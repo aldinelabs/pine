@@ -1,7 +1,14 @@
 import { flushPromises, mount } from "@vue/test-utils";
 import { createPinia, setActivePinia } from "pinia";
 import { createMemoryHistory, createRouter } from "vue-router";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { h } from "vue";
+import { SidebarProvider } from "@/components/ui/sidebar";
+import {
+  SESSION_HISTORY_STORAGE_KEY,
+  useSessionHistoryStore,
+} from "@/stores/sessionHistory";
+import { useSessionStore } from "@/stores/session";
 import { createAppI18n } from "@/app/i18n";
 import {
   TEMPORARY_WORKSPACE_PROJECT_ID,
@@ -46,7 +53,16 @@ const sessions: ProjectSessionSearchResult[] = [
   },
 ];
 
-async function mountList() {
+beforeEach(() => {
+  localStorage.clear();
+});
+
+async function mountList(
+  options: {
+    projects?: PineProject[];
+    sessions?: ProjectSessionSearchResult[];
+  } = {},
+) {
   const pinia = createPinia();
   setActivePinia(pinia);
   const router = createRouter({
@@ -55,51 +71,148 @@ async function mountList() {
   });
   await router.push("/");
   const openProject = vi.fn(({ id }: { id: string }) =>
-    Promise.resolve({ opened: true, project: { id } }),
+    Promise.resolve({
+      opened: true,
+      project: (options.projects ?? [noProject, pine]).find(
+        (candidate) => candidate.id === id,
+      )!,
+    }),
   );
   Object.defineProperty(window, "pine", {
     configurable: true,
     value: {
-      listAllRecentSessions: vi.fn().mockResolvedValue({ sessions }),
+      listAllRecentSessions: vi
+        .fn()
+        .mockResolvedValue({ sessions: options.sessions ?? sessions }),
       openProject,
     },
   });
   const projectStore = useProjectStore();
-  projectStore.projects = [noProject, pine];
+  projectStore.projects = options.projects ?? [noProject, pine];
   projectStore.openProjectIds = new Set([noProject.id]);
   projectStore.setCurrentProject(noProject.id);
-  const wrapper = mount(AllProjectsSessionList, {
-    global: {
-      plugins: [pinia, router, createAppI18n("zh-CN")],
-      stubs: {
-        SidebarGroup: { template: "<div><slot /></div>" },
-        SidebarGroupContent: { template: "<div><slot /></div>" },
-        SidebarGroupLabel: { template: "<div><slot /></div>" },
-        SidebarMenu: { template: "<div><slot /></div>" },
-        SidebarMenuButton: {
-          template: '<button v-bind="$attrs"><slot /></button>',
-        },
-        SidebarMenuItem: { template: "<div><slot /></div>" },
-        SidebarMenuSkeleton: true,
-      },
-    },
+  const wrapper = mount(SidebarProvider, {
+    slots: { default: () => h(AllProjectsSessionList) },
+    global: { plugins: [pinia, router, createAppI18n("zh-CN")] },
   });
   await flushPromises();
   return { router, wrapper, openProject };
 }
 
 describe("AllProjectsSessionList", () => {
-  it("lists every project's sessions with their project and no groups", async () => {
+  it("nests sessions under their project and keeps empty projects", async () => {
+    const empty = project("empty", "Empty project");
+    const { wrapper } = await mountList({ projects: [noProject, pine, empty] });
+    const toggles = wrapper.findAll("[data-project-toggle]");
+    expect(toggles.map((row) => row.text())).toEqual([
+      "无项目",
+      "Pine",
+      "Empty project",
+    ]);
+    const pineGroup = wrapper
+      .get(`[data-project-toggle="${pine.id}"]`)
+      .element.closest("li")!;
+    expect(pineGroup.textContent).toContain("Fix the tab bar");
+    expect(pineGroup.textContent).not.toContain("Plan a trip");
+    expect(wrapper.findAll("[data-session-id]")).toHaveLength(2);
+    expect(wrapper.find('[data-slot="session-project"]').exists()).toBe(false);
+    expect(wrapper.text()).toContain("还没有会话");
+    expect(wrapper.text()).not.toContain("更久以前");
+    wrapper.unmount();
+  });
+
+  it("collapses projects independently and remembers them", async () => {
     const { wrapper } = await mountList();
-    const rows = wrapper.findAll("[data-session-id]");
-    expect(rows.map((row) => row.attributes("data-session-id"))).toEqual(
-      sessions.map((session) => session.id),
+    const toggle = wrapper.get(`[data-project-toggle="${pine.id}"]`);
+    expect(toggle.attributes("aria-expanded")).toBe("true");
+    await toggle.trigger("click");
+    await flushPromises();
+    expect(toggle.attributes("aria-expanded")).toBe("false");
+    expect(wrapper.find(`[data-session-id="${sessions[0].id}"]`).exists()).toBe(
+      false,
     );
-    expect(rows[0].text()).toContain("Fix the tab bar");
-    expect(rows[0].get('[data-slot="session-project"]').text()).toBe("Pine");
-    expect(rows[1].text()).toContain("Plan a trip");
-    expect(rows[1].get('[data-slot="session-project"]').text()).toBe("无项目");
-    expect(wrapper.text()).not.toContain("新建分组");
+    expect(wrapper.find(`[data-session-id="${sessions[1].id}"]`).exists()).toBe(
+      true,
+    );
+    expect(
+      JSON.parse(localStorage.getItem(SESSION_HISTORY_STORAGE_KEY)!),
+    ).toEqual([pine.id]);
+    wrapper.unmount();
+    const remounted = await mountList();
+    expect(
+      remounted.wrapper
+        .get(`[data-project-toggle="${pine.id}"]`)
+        .attributes("aria-expanded"),
+    ).toBe("false");
+    remounted.wrapper.unmount();
+  });
+
+  it("shows five recent sessions per project, then reveals more independently", async () => {
+    const many = Array.from({ length: 12 }, (_, index) => ({
+      ...sessions[0],
+      id: `session-${index}`,
+      name: `Conversation ${index}`,
+    }));
+    const { wrapper } = await mountList({ sessions: [...many, sessions[1]] });
+    expect(wrapper.findAll(`[data-project-id="${pine.id}"]`)).toHaveLength(5);
+    await wrapper.get(`[data-project-show-more="${pine.id}"]`).trigger("click");
+    expect(wrapper.findAll(`[data-project-id="${pine.id}"]`)).toHaveLength(10);
+    expect(wrapper.findAll(`[data-project-id="${noProject.id}"]`)).toHaveLength(
+      1,
+    );
+    await wrapper.get(`[data-project-show-more="${pine.id}"]`).trigger("click");
+    expect(wrapper.findAll(`[data-project-id="${pine.id}"]`)).toHaveLength(12);
+    expect(wrapper.find("[data-project-show-more]").exists()).toBe(false);
+    wrapper.unmount();
+  });
+
+  it("reveals an older active session when returning through a tab", async () => {
+    const many = Array.from({ length: 8 }, (_, index) => ({
+      ...sessions[0],
+      id: `session-${index}`,
+    }));
+    const { wrapper, router } = await mountList({ sessions: many });
+    useSessionHistoryStore().setOpen(pine.id, false);
+    const tab = useContentTabsStore().openSession(many[7], pine.id);
+    await router.push({ query: { tab: tab.id } });
+    await flushPromises();
+    const selected = wrapper.get('[data-session-id="session-7"]');
+    expect(selected.attributes("data-active")).toBe("true");
+    expect(wrapper.findAll("[data-session-id]")).toHaveLength(6);
+    wrapper.unmount();
+  });
+
+  it("creates a draft in the chosen project without toggling it", async () => {
+    const { wrapper } = await mountList();
+    useSessionHistoryStore().setOpen(pine.id, false);
+    await wrapper
+      .get(`[data-project-new-session="${pine.id}"]`)
+      .trigger("click");
+    await flushPromises();
+    const tab = useContentTabsStore().tabs.find(
+      (candidate) =>
+        candidate.kind === "session" && candidate.projectId === pine.id,
+    );
+    expect(tab).toMatchObject({ state: "draft", projectId: pine.id });
+    wrapper.unmount();
+  });
+
+  it("updates grouped history after sessions change or a project is removed", async () => {
+    const { wrapper } = await mountList();
+    useSessionStore().allRecentSessions = [sessions[1]];
+    await flushPromises();
+    expect(wrapper.find(`[data-session-id="${sessions[0].id}"]`).exists()).toBe(
+      false,
+    );
+    expect(wrapper.find(`[data-project-toggle="${pine.id}"]`).exists()).toBe(
+      true,
+    );
+    useProjectStore().projects = [noProject];
+    await flushPromises();
+    expect(wrapper.find(`[data-project-toggle="${pine.id}"]`).exists()).toBe(
+      false,
+    );
+    expect(wrapper.findAll("[data-session-id]")).toHaveLength(1);
     wrapper.unmount();
   });
 

@@ -1,19 +1,27 @@
 <script setup lang="ts">
-import { Plus, Search } from "@lucide/vue";
+import { ChevronRight, Plus, Search } from "@lucide/vue";
 import { storeToRefs } from "pinia";
 import { computed, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { handleError } from "@/app/errors/errorHandler";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import {
   SidebarGroup,
   SidebarGroupContent,
-  SidebarGroupLabel,
   SidebarMenu,
+  SidebarMenuAction,
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarMenuSkeleton,
+  SidebarMenuSub,
+  SidebarMenuSubButton,
+  SidebarMenuSubItem,
 } from "@/components/ui/sidebar";
 import SessionContextMenu from "@/components/sessions/SessionContextMenu.vue";
 import SessionDeleteDialog from "@/components/sessions/SessionDeleteDialog.vue";
@@ -23,16 +31,16 @@ import { useDraftProjectOpener } from "@/composables/useDraftProjectOpener";
 import { useProjectDisplayName } from "@/composables/useProjectDisplayName";
 import { useSessionExport } from "@/composables/useSessionExport";
 import { projectIconComponent } from "@/lib/projectIcons";
-import { groupSessionsByDate } from "@/lib/sessionDateGroups";
 import { writeSessionDrag } from "@/lib/sessionDrag";
 import { TEMPORARY_WORKSPACE_PROJECT_ID } from "@/shared/projects";
 import type { ProjectSessionSearchResult } from "@/shared/sessions";
 import { useProjectStore } from "@/stores/project";
+import { useSessionHistoryStore } from "@/stores/sessionHistory";
 import { useSessionStore } from "@/stores/session";
 
 /**
- * The sidebar's session list: the newest sessions of every project, each
- * labelled with the project it belongs to. Sessions open in their project.
+ * Project history composed from the native collapsible sidebar menu.
+ * Sessions open in their own project, regardless of the active tab.
  */
 const emit = defineEmits<{ search: [] }>();
 const { t } = useI18n();
@@ -45,15 +53,44 @@ const openProject = useDraftProjectOpener();
 const displayName = useProjectDisplayName();
 const { exportSession } = useSessionExport();
 
-const nowMs = ref(Date.now());
+const historyStore = useSessionHistoryStore();
 // A project that was deleted elsewhere drops out with its sessions.
 const sessions = computed(() =>
   allRecentSessions.value.filter((session) =>
     projectStore.projectById(session.projectId),
   ),
 );
-const dateGroups = computed(() =>
-  groupSessionsByDate(sessions.value, nowMs.value, t),
+const activeSessionId = computed(() =>
+  activeSessionTab.value?.state === "bound"
+    ? activeSessionTab.value.sessionId
+    : null,
+);
+const projectGroups = computed(() => {
+  const byProject = new Map<string, ProjectSessionSearchResult[]>();
+  for (const session of sessions.value) {
+    const list = byProject.get(session.projectId) ?? [];
+    list.push(session);
+    byProject.set(session.projectId, list);
+  }
+  // Keep the project's existing order stable as sessions receive updates.
+  return projectStore.projects.map((project) => {
+    const recent = byProject.get(project.id) ?? [];
+    const limit = historyStore.visibleCount(project.id);
+    const visible = recent.filter(
+      (session, index) => index < limit || session.id === activeSessionId.value,
+    );
+    return { project, visible, hasMore: visible.length < recent.length };
+  });
+});
+
+// Returning to a conversation through another tab reveals its project.
+watch(
+  [() => activeSessionTab.value?.id, () => activeSessionTab.value?.projectId],
+  () => {
+    const projectId = activeSessionTab.value?.projectId;
+    if (projectId) historyStore.setOpen(projectId, true);
+  },
+  { immediate: true },
 );
 const sessionPendingDelete = ref<ProjectSessionSearchResult | null>(null);
 const isDeleteDialogOpen = ref(false);
@@ -71,14 +108,9 @@ function sessionTitle(session: ProjectSessionSearchResult): string {
   return session.name || session.preview || t("sessions.newSession");
 }
 
-function projectOf(session: ProjectSessionSearchResult) {
-  return projectStore.projectById(session.projectId);
-}
-
 async function load(): Promise<void> {
   try {
     await sessionStore.loadAllRecent();
-    nowMs.value = Date.now();
   } catch (error) {
     handleError(error, {
       id: "sessions.sidebar.loadAll",
@@ -153,7 +185,7 @@ function startDrag(event: DragEvent, session: ProjectSessionSearchResult) {
       </SidebarGroupContent>
     </SidebarGroup>
 
-    <SidebarGroup v-else-if="sessions.length === 0" class="flex-1">
+    <SidebarGroup v-else-if="projectGroups.length === 0" class="flex-1">
       <SidebarGroupContent>
         <SidebarMenu>
           <SidebarMenuItem>
@@ -169,65 +201,114 @@ function startDrag(event: DragEvent, session: ProjectSessionSearchResult) {
       <ScrollArea
         class="h-full [&_[data-slot=scroll-area-viewport]]:scroll-fade"
       >
-        <SidebarGroup v-for="group in dateGroups" :key="group.key">
-          <SidebarGroupLabel>{{ group.label }}</SidebarGroupLabel>
+        <SidebarGroup>
           <SidebarGroupContent>
             <SidebarMenu>
-              <SidebarMenuItem
-                v-for="session in group.sessions"
-                :key="session.id"
-                @dragstart="startDrag($event, session)"
+              <Collapsible
+                v-for="group in projectGroups"
+                :key="group.project.id"
+                as-child
+                :open="historyStore.isOpen(group.project.id)"
+                @update:open="historyStore.setOpen(group.project.id, $event)"
               >
-                <SessionContextMenu
-                  :groups="[]"
-                  :session="session"
-                  @rename="
-                    withProject(session, () => {
-                      sessionPendingRename = session;
-                      isRenameDialogOpen = true;
-                    })
-                  "
-                  @export="
-                    withProject(session, () => void exportSession(session.id))
-                  "
-                  @delete="
-                    withProject(session, () => {
-                      sessionPendingDelete = session;
-                      isDeleteDialogOpen = true;
-                    })
-                  "
-                >
-                  <SidebarMenuButton
-                    size="lg"
-                    class="min-w-0"
-                    :data-session-id="session.id"
-                    :data-project-id="session.projectId"
-                    :draggable="true"
-                    :is-active="
-                      activeSessionTab?.state === 'bound' &&
-                      session.id === activeSessionTab.sessionId
+                <SidebarMenuItem class="group/project">
+                  <CollapsibleTrigger as-child>
+                    <SidebarMenuButton
+                      :data-project-toggle="group.project.id"
+                      :title="displayName(group.project)"
+                    >
+                      <component
+                        :is="projectIconComponent(group.project)"
+                        aria-hidden="true"
+                      />
+                      <span class="min-w-0 flex-1 truncate">{{
+                        displayName(group.project)
+                      }}</span>
+                      <ChevronRight
+                        class="ml-auto transition-transform group-data-[state=open]/project:rotate-90"
+                        aria-hidden="true"
+                      />
+                    </SidebarMenuButton>
+                  </CollapsibleTrigger>
+                  <SidebarMenuAction
+                    show-on-hover
+                    :data-project-new-session="group.project.id"
+                    :aria-label="
+                      t('sessions.newProjectSession', {
+                        project: displayName(group.project),
+                      })
                     "
-                    @click="openSession(session)"
+                    :title="t('sessions.newSession')"
+                    @click="
+                      tabNavigation.createSessionTab({
+                        projectId: group.project.id,
+                      })
+                    "
                   >
-                    <span class="flex min-w-0 flex-1 flex-col gap-0.5">
-                      <span class="truncate">{{ sessionTitle(session) }}</span>
-                      <span
-                        data-slot="session-project"
-                        class="flex min-w-0 items-center gap-1 text-xs text-muted-foreground"
+                    <Plus aria-hidden="true" />
+                  </SidebarMenuAction>
+                  <CollapsibleContent>
+                    <SidebarMenuSub>
+                      <SidebarMenuSubItem
+                        v-for="session in group.visible"
+                        :key="session.id"
+                        @dragstart="startDrag($event, session)"
                       >
-                        <component
-                          :is="projectIconComponent(projectOf(session))"
-                          class="size-3 shrink-0"
-                          aria-hidden="true"
-                        />
-                        <span class="truncate">
-                          {{ displayName(projectOf(session)) }}
-                        </span>
-                      </span>
-                    </span>
-                  </SidebarMenuButton>
-                </SessionContextMenu>
-              </SidebarMenuItem>
+                        <SessionContextMenu
+                          :groups="[]"
+                          :session="session"
+                          @rename="
+                            withProject(session, () => {
+                              sessionPendingRename = session;
+                              isRenameDialogOpen = true;
+                            })
+                          "
+                          @export="
+                            withProject(
+                              session,
+                              () => void exportSession(session.id),
+                            )
+                          "
+                          @delete="
+                            withProject(session, () => {
+                              sessionPendingDelete = session;
+                              isDeleteDialogOpen = true;
+                            })
+                          "
+                        >
+                          <SidebarMenuSubButton
+                            as="button"
+                            class="w-full"
+                            :data-session-id="session.id"
+                            :data-project-id="session.projectId"
+                            :draggable="true"
+                            :is-active="session.id === activeSessionId"
+                            :title="sessionTitle(session)"
+                            @click="openSession(session)"
+                          >
+                            <span>{{ sessionTitle(session) }}</span>
+                          </SidebarMenuSubButton>
+                        </SessionContextMenu>
+                      </SidebarMenuSubItem>
+                      <SidebarMenuSubItem v-if="group.hasMore">
+                        <SidebarMenuSubButton
+                          as="button"
+                          class="w-full"
+                          :data-project-show-more="group.project.id"
+                          @click="historyStore.showMore(group.project.id)"
+                        >
+                          <span>{{ t("sessions.showMore") }}</span>
+                        </SidebarMenuSubButton>
+                      </SidebarMenuSubItem>
+                      <SidebarMenuSubItem v-if="!group.visible.length">
+                        <SidebarMenuSubButton as="button" disabled>
+                          <span>{{ t("sessions.noSessions") }}</span>
+                        </SidebarMenuSubButton>
+                      </SidebarMenuSubItem>
+                    </SidebarMenuSub>
+                  </CollapsibleContent>
+                </SidebarMenuItem>
+              </Collapsible>
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>

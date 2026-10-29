@@ -54,8 +54,7 @@ function openReleases(): void {
       aria-hidden="true"
       class="window-drag h-[var(--window-titlebar-height)] shrink-0"
     />
-    <!-- The newest sessions of every project, whichever project the
-         conversation is in; the project's files live in the workbench. -->
+    <!-- Project history stays available across conversation tabs. -->
     <SidebarContent class="overflow-hidden">
       <AllProjectsSessionList @search="emit('searchSessions')" />
     </SidebarContent>

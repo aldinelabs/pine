@@ -32,7 +32,7 @@ function service(
 }
 
 describe("listAllRecentSessions", () => {
-  it("merges every project's sessions newest first and tags their project", async () => {
+  it("limits each project independently so quieter projects keep their history", async () => {
     const services = new Map([
       [
         "a",
@@ -40,6 +40,7 @@ describe("listAllRecentSessions", () => {
           Promise.resolve([
             session("a2", "2026-10-03T00:00:00Z"),
             session("a1", "2026-10-01T00:00:00Z"),
+            session("a0", "2026-09-30T00:00:00Z"),
           ]),
         ),
       ],
@@ -63,6 +64,7 @@ describe("listAllRecentSessions", () => {
     expect(result.map(({ id, projectId }) => [id, projectId])).toEqual([
       ["a2", "a"],
       ["b1", "b"],
+      ["a1", "a"],
     ]);
     // An index a window holds open stays open.
     expect(dispose).not.toHaveBeenCalled();

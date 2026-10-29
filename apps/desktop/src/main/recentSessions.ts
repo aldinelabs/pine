@@ -4,7 +4,7 @@ import type { ProjectSessionSearchResult } from "../shared/sessions";
 import type { ProjectDataPaths } from "./projects/projectRepository";
 import { ProjectSessionService } from "./sessions";
 
-export const ALL_RECENT_SESSIONS_LIMIT = 100;
+export const PROJECT_RECENT_SESSIONS_LIMIT = 100;
 
 interface RecentSessionSources {
   dataPaths(projectId: string): ProjectDataPaths;
@@ -56,11 +56,11 @@ async function recentSessionsOf(
   });
 }
 
-/** The newest sessions across every project, newest first. */
+/** Recent history per project, newest first without starving quieter projects. */
 export async function listAllRecentSessions(
   projects: readonly PineProject[],
   sources: RecentSessionSources,
-  limit = ALL_RECENT_SESSIONS_LIMIT,
+  limit = PROJECT_RECENT_SESSIONS_LIMIT,
 ): Promise<ProjectSessionSearchResult[]> {
   const lists = await Promise.all(
     // One unreadable project must not hide the others.
@@ -69,11 +69,10 @@ export async function listAllRecentSessions(
     ),
   );
   return lists
-    .flat()
+    .flatMap((sessions) => sessions.slice(0, limit))
     .sort(
       (left, right) =>
         new Date(right.updatedAt).getTime() -
         new Date(left.updatedAt).getTime(),
-    )
-    .slice(0, limit);
+    );
 }
