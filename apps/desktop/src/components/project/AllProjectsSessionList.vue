@@ -30,6 +30,7 @@ import { useContentTabNavigation } from "@/composables/useContentTabNavigation";
 import { useDraftProjectOpener } from "@/composables/useDraftProjectOpener";
 import { useProjectDisplayName } from "@/composables/useProjectDisplayName";
 import { useSessionExport } from "@/composables/useSessionExport";
+import { DURATION_MS, EASE_OUT_EXPO } from "@/lib/motion";
 import { projectIconComponent } from "@/lib/projectIcons";
 import { writeSessionDrag } from "@/lib/sessionDrag";
 import { TEMPORARY_WORKSPACE_PROJECT_ID } from "@/shared/projects";
@@ -245,7 +246,13 @@ function startDrag(event: DragEvent, session: ProjectSessionSearchResult) {
                   >
                     <Plus aria-hidden="true" />
                   </SidebarMenuAction>
-                  <CollapsibleContent>
+                  <CollapsibleContent
+                    class="session-history-content overflow-hidden"
+                    :style="{
+                      animationDuration: `${DURATION_MS}ms`,
+                      animationTimingFunction: EASE_OUT_EXPO,
+                    }"
+                  >
                     <SidebarMenuSub class="mr-0 translate-x-0 border-l-0 pr-0">
                       <SidebarMenuSubItem
                         v-for="session in group.visible"
@@ -327,3 +334,41 @@ function startDrag(event: DragEvent, session: ProjectSessionSearchResult) {
     />
   </div>
 </template>
+
+<style scoped>
+.session-history-content[data-state="open"] {
+  animation-name: session-history-expand;
+}
+
+.session-history-content[data-state="closed"] {
+  animation-name: session-history-collapse;
+}
+
+@keyframes session-history-expand {
+  from {
+    height: 0;
+    opacity: 0;
+  }
+  to {
+    height: var(--reka-collapsible-content-height);
+    opacity: 1;
+  }
+}
+
+@keyframes session-history-collapse {
+  from {
+    height: var(--reka-collapsible-content-height);
+    opacity: 1;
+  }
+  to {
+    height: 0;
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .session-history-content[data-state] {
+    animation-name: none;
+  }
+}
+</style>
