@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ChevronRight, Plus, Search } from "@lucide/vue";
+import { Plus, Search } from "@lucide/vue";
 import { storeToRefs } from "pinia";
 import { computed, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
@@ -214,6 +214,7 @@ function startDrag(event: DragEvent, session: ProjectSessionSearchResult) {
                 <SidebarMenuItem class="group/project">
                   <CollapsibleTrigger as-child>
                     <SidebarMenuButton
+                      class="group-has-data-[sidebar=menu-action]/menu-item:pr-3"
                       :data-project-toggle="group.project.id"
                       :title="displayName(group.project)"
                     >
@@ -221,13 +222,10 @@ function startDrag(event: DragEvent, session: ProjectSessionSearchResult) {
                         :is="projectIconComponent(group.project)"
                         aria-hidden="true"
                       />
-                      <span class="min-w-0 flex-1 truncate">{{
-                        displayName(group.project)
-                      }}</span>
-                      <ChevronRight
-                        class="ml-auto transition-transform group-data-[state=open]/project:rotate-90"
-                        aria-hidden="true"
-                      />
+                      <span
+                        class="min-w-0 flex-1 truncate group-focus-within/project:pr-5 group-hover/project:pr-5"
+                        >{{ displayName(group.project) }}</span
+                      >
                     </SidebarMenuButton>
                   </CollapsibleTrigger>
                   <SidebarMenuAction
@@ -248,7 +246,7 @@ function startDrag(event: DragEvent, session: ProjectSessionSearchResult) {
                     <Plus aria-hidden="true" />
                   </SidebarMenuAction>
                   <CollapsibleContent>
-                    <SidebarMenuSub>
+                    <SidebarMenuSub class="mr-0 translate-x-0 border-l-0 pr-0">
                       <SidebarMenuSubItem
                         v-for="session in group.visible"
                         :key="session.id"
@@ -278,7 +276,7 @@ function startDrag(event: DragEvent, session: ProjectSessionSearchResult) {
                         >
                           <SidebarMenuSubButton
                             as="button"
-                            class="w-full"
+                            class="w-full translate-x-0"
                             :data-session-id="session.id"
                             :data-project-id="session.projectId"
                             :draggable="true"
@@ -293,7 +291,7 @@ function startDrag(event: DragEvent, session: ProjectSessionSearchResult) {
                       <SidebarMenuSubItem v-if="group.hasMore">
                         <SidebarMenuSubButton
                           as="button"
-                          class="w-full"
+                          class="w-full translate-x-0"
                           :data-project-show-more="group.project.id"
                           @click="historyStore.showMore(group.project.id)"
                         >
@@ -301,7 +299,11 @@ function startDrag(event: DragEvent, session: ProjectSessionSearchResult) {
                         </SidebarMenuSubButton>
                       </SidebarMenuSubItem>
                       <SidebarMenuSubItem v-if="!group.visible.length">
-                        <SidebarMenuSubButton as="button" disabled>
+                        <SidebarMenuSubButton
+                          as="button"
+                          class="w-full translate-x-0"
+                          disabled
+                        >
                           <span>{{ t("sessions.noSessions") }}</span>
                         </SidebarMenuSubButton>
                       </SidebarMenuSubItem>
