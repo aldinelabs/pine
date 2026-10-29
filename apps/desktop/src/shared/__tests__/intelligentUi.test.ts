@@ -25,6 +25,13 @@ describe("intelligentUiSystemPrompt", () => {
     expect(prompt).not.toMatch(/^## (?!Interactive blocks)/mu);
   });
 
+  it("encourages blocks for users who chose rich interface elements", () => {
+    expect(prompt).toContain("The user has enabled rich interface elements");
+    expect(prompt).toContain("A block can be purely visual");
+    expect(prompt).not.toContain("Use a block only when");
+    expect(prompt).not.toContain("At most one block per reply");
+  });
+
   it("documents every component's signature", () => {
     for (const name of Object.keys(intelligentUiSchemas)) {
       expect(prompt).toMatch(new RegExp(`^${name}\\(`, "mu"));

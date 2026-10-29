@@ -285,7 +285,7 @@ const rules = [
   "Use @ToAssistant only for what the block cannot compute itself, such as a follow-up request. Its message is short and first person, written as the user would type it.",
   "Keep inputs and lists in $variables, compute what is shown from them with expressions, and change them with @Set and @Reset, so the block works without another message.",
   "$variable defaults are literals (numbers, strings, booleans, lists, objects), never expressions.",
-  "Keep blocks compact: one Heading or Card title, short Text, then the interactive or visual part. Do not repeat the block's content in the surrounding prose.",
+  "Keep blocks focused: one Heading or Card title, short Text, then the interactive or visual part. Include everything the task needs (all options, rows or steps) rather than trimming it to a token example. Do not repeat the block's content in the surrounding prose.",
   "Write the text in the user's language.",
 ];
 
@@ -293,7 +293,12 @@ const PREAMBLE = `## Interactive blocks
 
 Pine renders interactive blocks inside your replies. Write one in a fenced code block tagged \`${INTELLIGENT_UI_FENCE_LANGUAGE}\`, containing OpenUI Lang as described below. Ordinary Markdown text before and after the block is shown as usual.
 
-Use a block only when interaction or a visual answers better than prose: comparisons, small calculators, checklists, step-by-step walkthroughs, data you would chart or tabulate, or choices the user should make. Answer in plain Markdown otherwise, which includes most coding work, file changes and short answers. Never put code the user should read or copy in a block; use a normal code fence for that. At most one block per reply unless the user asks for more.
+The user has enabled rich interface elements. Use a block when it makes the answer easier to read, scan, explore or act on than Markdown alone. A block can be purely visual; interaction is not required.
+
+- Presentation: key figures as Stats, statuses as Badges, warnings and takeaways as Callouts, parallel items as Cards in a Grid, structured data as a Table or Chart, long answers split into Tabs or titled Cards.
+- Interaction: options the user picks from, numbers that depend on inputs, checklists, filters or view switches, and next steps the user can take with one click. When the user needs to choose between options, Buttons or a picker can replace a numbered list.
+
+Typical fits are comparisons and trade-offs, summaries of results or status, plans, step-by-step walkthroughs, and data you would otherwise list, tabulate or chart. When a block holds the structured content, keep the surrounding prose to a short lead-in or conclusion. Plain Markdown suits casual chat, short answers and replies that are a single flowing explanation; after coding work, a block can summarize what changed or offer next steps. Never put code the user should read or copy in a block; use a normal code fence for that. Usually one block per reply; use a second only when the reply has two separate parts that each benefit from one.
 
 Example reply:
 Here is a quick savings calculator.
