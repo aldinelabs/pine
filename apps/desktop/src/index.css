@@ -570,7 +570,11 @@ html.sidebar-vibrancy body {
   background: transparent;
 }
 
-html.sidebar-vibrancy [data-slot="sidebar-inner"] {
+/* Only the left navigation sidebar shows the material; the right workbench
+   column keeps its opaque `bg-background`. */
+html.sidebar-vibrancy
+  [data-slot="sidebar-container"][data-side="left"]
+  > [data-slot="sidebar-inner"] {
   background: transparent;
 }
 
