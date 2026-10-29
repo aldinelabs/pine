@@ -359,7 +359,7 @@ describe("PinePreferencesDialog", () => {
       nickname: "Loaded nickname",
     });
     const { wrapper } = mountDialog();
-    await openSection(wrapper, "用户画像");
+    await openSection(wrapper, "自定义");
 
     const form = wrapper.get('[data-testid="pine-user-profile-form"]');
     const nickname = form.get("#pine-user-profile-nickname");

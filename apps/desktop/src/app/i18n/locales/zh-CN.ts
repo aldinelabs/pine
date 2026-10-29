@@ -59,7 +59,7 @@ export default {
     sections: {
       general: "通用",
       models: "执行环境",
-      personalization: "用户画像",
+      personalization: "自定义",
       projects: "项目管理",
     },
     sectionsLabel: "设置分类",
@@ -155,7 +155,7 @@ export default {
     userProfileInterfaceRich: "丰富",
     userProfileInterfaceSimple: "简洁",
     userProfileInterfaceRichDescription:
-      "在合适的时候，Pine 会用清单、计算器、表格和图表来回答，你可以直接在对话里操作。",
+      "合适时用清单、计算器、表格和图表回答，可直接在对话里操作。",
     userProfileInterfaceSimpleDescription: "Pine 只用文字和 Markdown 回答。",
     userProfileDetailsLabel: "其他个人细节",
     userProfileDetailsPlaceholder: "例如：你的工作、兴趣、偏好或当前目标",
@@ -1487,7 +1487,7 @@ export default {
       description: "请检查系统安全凭据存储是否可用，然后重试",
     },
     userProfile: {
-      title: "无法保存用户画像",
+      title: "无法保存自定义设置",
       description: "请稍后重试",
     },
     modelCatalogRefresh: {

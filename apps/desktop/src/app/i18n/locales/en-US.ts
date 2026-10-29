@@ -163,7 +163,7 @@ export default {
     userProfileInterfaceRich: "Rich",
     userProfileInterfaceSimple: "Simple",
     userProfileInterfaceRichDescription:
-      "When it helps, Pine can answer with checklists, calculators, tables and charts you can use right in the conversation.",
+      "Answer with checklists, calculators, tables and charts you can use in place.",
     userProfileInterfaceSimpleDescription:
       "Pine answers in text and Markdown only.",
     userProfileDetailsLabel: "Other personal details",
