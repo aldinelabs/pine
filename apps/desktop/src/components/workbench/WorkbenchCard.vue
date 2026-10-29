@@ -84,7 +84,12 @@ function openPreviewInTab(): void {
     (sessionId ? session.projectOf(sessionId) : undefined) ??
     projectStore.currentProjectId;
   navigation.activate(
-    contentTabs.presentFile(preview.target, projectId, preview.toolCallId).id,
+    contentTabs.presentFile(
+      preview.target,
+      projectId,
+      preview.toolCallId,
+      preview.reveal,
+    ).id,
   );
   // The file now lives in its tab; the card goes back to waiting for one.
   workbench.clearPreview();

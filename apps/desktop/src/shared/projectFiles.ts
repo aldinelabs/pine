@@ -3,6 +3,9 @@ export const LIST_PROJECT_DIRECTORY_CHANNEL =
 
 export type ProjectEntryKind = "directory" | "file";
 
+/** A compact workbench card or the full previewer in a main content tab. */
+export type FilePresentationDisplay = "sidebar" | "fullscreen";
+
 export interface ProjectEntry {
   kind: ProjectEntryKind;
   name: string;

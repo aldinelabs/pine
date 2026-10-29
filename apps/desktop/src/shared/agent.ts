@@ -1,6 +1,10 @@
 import type { PineSessionSummary } from "./sessions";
 import type { BackgroundTaskSnapshot } from "@pine/pi-background-tasks";
-import type { FilePreviewTarget, FileReveal } from "./projectFiles";
+import type {
+  FilePresentationDisplay,
+  FilePreviewTarget,
+  FileReveal,
+} from "./projectFiles";
 import type { WorkbenchCommand } from "./workbench";
 import type {
   AskUserQuestionParams,
@@ -287,6 +291,8 @@ export type PineAgentEvent =
       path: string;
       /** Line to scroll to and lines to tint, for a text file. */
       reveal?: FileReveal;
+      /** Defaults to sidebar for callers that omit the display mode. */
+      display?: FilePresentationDisplay;
     }
   | {
       /** Rearranges the workbench beside the session's conversation. */
@@ -344,11 +350,13 @@ export interface PineSessionTeleportedEvent {
 export interface PinePresentFileEvent {
   type: "present-file";
   sessionId: string;
+  projectId: string;
   toolCallId: string;
   /** Absolute path main resolved the tab target from. */
   path: string;
   target: FilePreviewTarget;
   reveal?: FileReveal;
+  display?: FilePresentationDisplay;
 }
 
 /** Events the renderer receives: worker events, plus main-resolved additions. */

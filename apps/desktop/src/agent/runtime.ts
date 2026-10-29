@@ -79,7 +79,10 @@ import {
   type UserApprovalRequest,
 } from "./gate";
 import { createPineToolDefinitions, PineAttachedPathAccess } from "./tools";
-import type { FileReveal } from "../shared/projectFiles";
+import type {
+  FilePresentationDisplay,
+  FileReveal,
+} from "../shared/projectFiles";
 import type { BackgroundTaskNotificationMessage } from "@pine/pi-background-tasks";
 import type { BackgroundTaskRegistry } from "@pine/pi-background-tasks/registry";
 import {
@@ -978,8 +981,8 @@ export class PineAgentRuntime {
         },
         requestQuestionnaire: (toolCallId, params, signal) =>
           this.requestQuestionnaire(live, toolCallId, params, signal),
-        presentFile: (toolCallId, filePath, reveal) =>
-          this.presentFile(live, toolCallId, filePath, reveal),
+        presentFile: (toolCallId, filePath, reveal, display) =>
+          this.presentFile(live, toolCallId, filePath, reveal, display),
         workbench: {
           readState: async () => {
             const response = await this.requestHost(live, {
@@ -1419,12 +1422,14 @@ export class PineAgentRuntime {
     toolCallId: string,
     filePath: string,
     reveal?: FileReveal,
+    display: FilePresentationDisplay = "sidebar",
   ): void {
     this.options.emit({
       type: "present-file",
       sessionId: live.session.sessionId,
       toolCallId,
       path: filePath,
+      display,
       ...(reveal ? { reveal } : {}),
     });
   }

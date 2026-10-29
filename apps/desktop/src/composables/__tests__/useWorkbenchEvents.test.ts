@@ -1,5 +1,6 @@
-import { mount } from "@vue/test-utils";
+import { flushPromises, mount } from "@vue/test-utils";
 import { createPinia, setActivePinia } from "pinia";
+import { createMemoryHistory, createRouter } from "vue-router";
 import { defineComponent } from "vue";
 import { beforeEach, expect, it, vi } from "vitest";
 import { useContentTabsStore } from "@/stores/contentTabs";
@@ -23,7 +24,12 @@ beforeEach(() => {
   });
 });
 
-function mountListener() {
+async function mountListener() {
+  const router = createRouter({
+    history: createMemoryHistory(),
+    routes: [{ path: "/", component: { template: "<div />" } }],
+  });
+  await router.push("/");
   return mount(
     defineComponent({
       setup() {
@@ -31,15 +37,17 @@ function mountListener() {
         return () => null;
       },
     }),
+    { global: { plugins: [router] } },
   );
 }
 
-it("shows a presented file in its session's preview card", () => {
-  const wrapper = mountListener();
+it("shows a presented file in its session's preview card", async () => {
+  const wrapper = await mountListener();
   const target = { source: "presented" as const, path: "/tmp/report.pdf" };
 
   listener?.({
     type: "present-file",
+    projectId: "p1",
     sessionId: "session-1",
     toolCallId: "call-1",
     path: target.path,
@@ -58,8 +66,8 @@ it("shows a presented file in its session's preview card", () => {
   expect(listener).toBeUndefined();
 });
 
-it("applies workbench commands to the session that sent them", () => {
-  const wrapper = mountListener();
+it("applies workbench commands to the session that sent them", async () => {
+  const wrapper = await mountListener();
 
   listener?.({
     type: "workbench-command",
@@ -82,12 +90,13 @@ it("applies workbench commands to the session that sent them", () => {
   wrapper.unmount();
 });
 
-it("keeps a presented file's line targets and drops malformed ones", () => {
-  const wrapper = mountListener();
+it("keeps a presented file's line targets and drops malformed ones", async () => {
+  const wrapper = await mountListener();
   const target = { source: "presented" as const, path: "/tmp/notes.ts" };
 
   listener?.({
     type: "present-file",
+    projectId: "p1",
     sessionId: "session-1",
     toolCallId: "call-1",
     path: target.path,
@@ -102,6 +111,7 @@ it("keeps a presented file's line targets and drops malformed ones", () => {
   });
   listener?.({
     type: "present-file",
+    projectId: "p1",
     sessionId: "session-2",
     toolCallId: "call-2",
     path: target.path,
@@ -121,8 +131,8 @@ it("keeps a presented file's line targets and drops malformed ones", () => {
   wrapper.unmount();
 });
 
-it("returns the requested conversation's current user layout and visibility", () => {
-  const wrapper = mountListener();
+it("returns the requested conversation's current user layout and visibility", async () => {
+  const wrapper = await mountListener();
   const workbench = useWorkbenchStore();
   workbench.setOpen(true);
   workbench.showPanel("top", "files");
@@ -163,5 +173,80 @@ it("returns the requested conversation's current user layout and visibility", ()
       split: 65,
     },
   });
+  wrapper.unmount();
+});
+
+it("opens and reuses a full preview tab for the foreground conversation", async () => {
+  const tabs = useContentTabsStore();
+  tabs.setDraftProject("session-1", "p1");
+  tabs.bindSession("session-1", {
+    id: "foreground",
+    createdAt: "",
+    updatedAt: "",
+    messageCount: 1,
+  });
+  const wrapper = await mountListener();
+  const reveal = { line: 3, highlights: [{ start: 3, end: 4 }] };
+  const event = {
+    type: "present-file",
+    projectId: "p1",
+    sessionId: "foreground",
+    toolCallId: "full-call",
+    path: "/tmp/report.md",
+    target: { source: "presented", path: "/tmp/report.md" },
+    display: "fullscreen",
+    reveal,
+  };
+  listener?.(event);
+  await flushPromises();
+  const tab = tabs.tabs.find((candidate) => candidate.kind === "file");
+  expect(tab).toMatchObject({
+    source: "presented",
+    path: "/tmp/report.md",
+    projectId: "p1",
+    reveal,
+  });
+  expect(wrapper.vm.$router.currentRoute.value.query.tab).toBe(tab!.id);
+  expect(useWorkbenchStore().layoutFor("foreground").open).toBe(false);
+  listener?.(event);
+  await flushPromises();
+  expect(
+    tabs.tabs.filter((candidate) => candidate.kind === "file"),
+  ).toHaveLength(1);
+  expect(tabs.presentedTargetFor("full-call")).toEqual(event.target);
+  wrapper.unmount();
+});
+
+it("prepares a background full preview without replacing the active conversation or sidebar", async () => {
+  const tabs = useContentTabsStore();
+  tabs.setDraftProject("session-1", "p1");
+  tabs.bindSession("session-1", {
+    id: "foreground",
+    createdAt: "",
+    updatedAt: "",
+    messageCount: 1,
+  });
+  const wrapper = await mountListener();
+  const before = { ...useWorkbenchStore().activeLayout };
+  listener?.({
+    type: "present-file",
+    projectId: "p2",
+    sessionId: "background",
+    toolCallId: "background-call",
+    path: "/tmp/background.pdf",
+    target: { source: "presented", path: "/tmp/background.pdf" },
+    display: "fullscreen",
+  });
+  await flushPromises();
+  expect(tabs.tabs).toContainEqual(
+    expect.objectContaining({
+      kind: "file",
+      projectId: "p2",
+      path: "/tmp/background.pdf",
+    }),
+  );
+  expect(tabs.fallbackActiveTabId).toBe("session-1");
+  expect(wrapper.vm.$router.currentRoute.value.query.tab).toBeUndefined();
+  expect(useWorkbenchStore().activeLayout).toEqual(before);
   wrapper.unmount();
 });

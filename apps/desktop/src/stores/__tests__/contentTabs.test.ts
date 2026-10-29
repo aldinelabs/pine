@@ -463,6 +463,25 @@ describe("content tabs store", () => {
     expect(store.presentedTargetFor("present-call")).toBeUndefined();
   });
 
+  it("updates a reused presentation's location and clears it when omitted", () => {
+    const store = useContentTabsStore();
+    const target = {
+      source: "presented" as const,
+      path: "/canonical/report.md",
+    };
+    const reveal = { line: 2, highlights: [{ start: 2, end: 3 }] };
+    const first = store.presentFile(target, "p1", "call-1", reveal);
+    expect(first.reveal).toEqual(reveal);
+    const next = store.presentFile(target, "p1", "call-2", {
+      line: 4,
+      highlights: [],
+    });
+    expect(next.id).toBe(first.id);
+    expect(next.reveal).toEqual({ line: 4, highlights: [] });
+    expect(store.presentFile(target, "p1").reveal).toBeUndefined();
+    expect(store.tabs.filter((tab) => tab.kind === "file")).toHaveLength(1);
+  });
+
   it("opens an existing session tab instead of duplicating it", () => {
     const store = useContentTabsStore();
     store.bindSession("session-1", firstSession);

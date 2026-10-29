@@ -48,6 +48,7 @@ import {
   decodePreviewText,
   type FileLineRange,
   type FileReveal,
+  type FilePresentationDisplay,
 } from "../shared/projectFiles";
 import { PROJECT_TEMPORARY_DIRECTORY } from "../shared/projects";
 import {
@@ -280,11 +281,12 @@ export interface PineToolPermissionContext {
     params: AskUserQuestionParams,
     signal?: AbortSignal,
   ) => Promise<AskUserQuestionSubmission>;
-  /** Shows a file in the workbench preview without moving the user's focus. */
+  /** Presents a file in the sidebar or the main content previewer. */
   presentFile?: (
     toolCallId: string,
     filePath: string,
     reveal?: FileReveal,
+    display?: FilePresentationDisplay,
   ) => void;
   /** Gives the session the `ui_workbench_*` tools. */
   workbench?: PineWorkbenchToolContext;
@@ -661,6 +663,13 @@ export async function createPineToolDefinitions(
         description:
           "Path of the file to open for the user. A project-relative path is preferred; an absolute path is required for files outside the shared project folders.",
       }),
+      display: Type.Optional(
+        Type.Union([Type.Literal("sidebar"), Type.Literal("fullscreen")], {
+          default: "sidebar",
+          description:
+            "Where to preview the file. sidebar (default) opens the compact right sidebar preview without leaving the conversation. fullscreen opens the full previewer in a main content tab and focuses it when this conversation is in the foreground; background conversations prepare the tab without taking focus.",
+        }),
+      ),
       line: Type.Optional(
         Type.Integer({
           minimum: 1,
@@ -695,10 +704,10 @@ export async function createPineToolDefinitions(
       name: UI_PRESENT_FILE_TOOL_NAME,
       label: "Present File",
       description:
-        "Show a file in the workbench beside the conversation: it is listed under the session's artifacts and opened in the preview card, while the user stays in the conversation. For a text file you can scroll to a line and tint line ranges; the preview then shows the file's source, so Markdown and HTML appear as source rather than rendered. Use this when the user asks to see a file or when showing the file is clearer than describing it. Presenting a path outside the shared project folders and the user's attachments needs approval, because Pine must read that path to display it.",
-      promptSnippet: `Use ${UI_PRESENT_FILE_TOOL_NAME} proactively to show useful intermediate results and completed deliverables in the right sidebar, instead of only naming them in prose`,
+        "Show a file in the compact right sidebar preview or the full previewer in a main content tab, and list it under the session's artifacts. Choose display based on how the user will inspect the file; sidebar is the default. For a text file you can scroll to a line and tint line ranges; the preview then shows the file's source, so Markdown and HTML appear as source rather than rendered. Use this when the user asks to see a file or when showing the file is clearer than describing it. Presenting a path outside the shared project folders and the user's attachments needs approval, because Pine must read that path to display it.",
+      promptSnippet: `Use ${UI_PRESENT_FILE_TOOL_NAME} proactively to show useful results, choosing sidebar for quick reference or fullscreen for detailed inspection`,
       promptGuidelines: [
-        `${UI_PRESENT_FILE_TOOL_NAME} shows the file beside the conversation without moving the user's focus, so say what you presented and why rather than assuming they read it.`,
+        `Choose display="sidebar" for quick reference, intermediate progress, or comparing a file with the conversation. Choose display="fullscreen" for a deliverable that benefits from space, zoom, selection, or detailed reading, or when the user asks for a full preview. The full preview focuses a main content tab for the foreground conversation; background conversations must not take focus. Say what you presented and why rather than assuming the user read it.`,
         `At meaningful milestones, present a real, readable intermediate result when it helps the user assess progress, and present the finished deliverable when it is ready. Do not manufacture progress files or repeatedly replace the preview just to appear active.`,
         `Pass the file's project-relative path when it has one. Directories, missing files, and unsupported content are reported back to you.`,
         `When you discuss specific lines of a text file, pass highlight_lines (and line if the first range is not where the user should start) instead of quoting long passages.`,
@@ -723,7 +732,8 @@ export async function createPineToolDefinitions(
           inputParams,
         );
         if (signal?.aborted) throw new Error("aborted");
-        presentFile?.(toolCallId, authorizedPath, reveal);
+        const display = inputParams.display ?? "sidebar";
+        presentFile?.(toolCallId, authorizedPath, reveal, display);
         const where = reveal
           ? ` at line ${reveal.line}${
               reveal.highlights.length
@@ -739,12 +749,16 @@ export async function createPineToolDefinitions(
           content: [
             {
               type: "text" as const,
-              text: `Showing ${authorizedPath}${where} in the workbench preview and the session's artifacts.${
+              text: `Showing ${authorizedPath}${where} in ${display === "fullscreen" ? "a full preview tab" : "the workbench preview"} and the session's artifacts.${
                 ignored.length ? ` Ignored ${ignored.join("; ")}.` : ""
               }`,
             },
           ],
-          details: { path: authorizedPath, ...(reveal ? { reveal } : {}) },
+          details: {
+            path: authorizedPath,
+            display,
+            ...(reveal ? { reveal } : {}),
+          },
         };
       },
     });

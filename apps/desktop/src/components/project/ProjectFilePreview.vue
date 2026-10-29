@@ -57,6 +57,7 @@ import type {
   FilePreviewTarget,
   FilePreviewChangedEvent,
 } from "@/shared/projectFiles";
+import { parseFileReveal } from "@/shared/projectFiles";
 import type { FileContentTab } from "@/stores/contentTabs";
 import {
   previewRendererKey,
@@ -83,6 +84,18 @@ const projectTarget = computed(() =>
 const filePath = computed(() => fileTargetPath(props.file));
 const preview = ref<ProjectFilePreview>();
 const viewMode = ref<"code" | "rendered">("rendered");
+const reveal = computed(() =>
+  preview.value?.kind === "text" && viewMode.value === "code"
+    ? parseFileReveal(props.file.reveal)
+    : undefined,
+);
+watch(
+  () => props.file.reveal,
+  (location) => {
+    if (parseFileReveal(location)) viewMode.value = "code";
+  },
+  { immediate: true },
+);
 const renderSwitchId = useId();
 const invertSwitchId = useId();
 const rendererInstance = useTemplateRef<PreviewRendererHandle>("renderer");
@@ -394,7 +407,7 @@ watch(
     const fileChanged = key !== previous?.[0];
     if (fileChanged) {
       preview.value = undefined;
-      viewMode.value = "rendered";
+      viewMode.value = parseFileReveal(props.file.reveal) ? "code" : "rendered";
       contentMetadata.value = undefined;
       previewInverted.value = false;
       inversionFollowsScheme = true;
@@ -564,6 +577,7 @@ onBeforeUnmount(() => {
       :file-path="filePath"
       :active="active"
       :mode="viewMode"
+      :reveal="reveal"
       :zoom="appliedZoom"
       :inverted="previewInverted"
       :selection-label="t('project.preview.selectedContent')"

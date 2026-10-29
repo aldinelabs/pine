@@ -5,10 +5,12 @@ import { TEMPORARY_WORKSPACE_PROJECT_ID } from "@/shared/projects";
 import type { PineSessionSummary } from "@/shared/sessions";
 import type {
   FilePreviewTarget,
+  FileReveal,
   ProjectFilePreviewRequest,
 } from "@/shared/projectFiles";
 import type { PineAttachment } from "@/shared/attachments";
 import { fileName, fileTargetKey } from "@/lib/filePreviewTarget";
+import { parseFileReveal } from "@/shared/projectFiles";
 
 /**
  * Every tab belongs to one project: the sidebars and accent colour follow
@@ -20,6 +22,8 @@ export type FileContentTab = {
   kind: "file";
   label: string;
   projectId: string;
+  /** Optional source location for the most recent presentation. */
+  reveal?: FileReveal;
 } & FilePreviewTarget;
 
 export interface DraftSessionTab {
@@ -214,9 +218,14 @@ export const useContentTabsStore = defineStore("content-tabs", () => {
     target: FilePreviewTarget,
     projectId: string,
     toolCallId?: string,
+    reveal?: FileReveal,
   ): FileContentTab {
     if (toolCallId) presentedTargets.set(toolCallId, target);
-    return ensureFileTab(target, projectId);
+    const tab = ensureFileTab(target, projectId);
+    const location = parseFileReveal(reveal);
+    if (location) tab.reveal = location;
+    else delete tab.reveal;
+    return tab;
   }
 
   /** Remembers where a presented file resolved, without opening a tab. */

@@ -660,11 +660,14 @@ async function forwardPresentedFile(
   // An unresolvable path (folder removed, file deleted, project gone) never
   // becomes a tab, so the renderer cannot be handed a raw absolute path.
   if (!target) return;
+  const projectId = projectRuntimes?.projectOfLiveSession(event.sessionId)?.id;
+  if (!projectId) return;
   if (target.source === "presented") {
     presentedFiles?.remember(ownerId, target.path);
   }
   webContents.fromId(ownerId)?.send(SESSION_EVENT_CHANNEL, {
     ...event,
+    projectId,
     target,
   } satisfies PinePresentFileEvent);
 }

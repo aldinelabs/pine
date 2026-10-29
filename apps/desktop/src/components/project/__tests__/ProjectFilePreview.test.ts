@@ -10,6 +10,7 @@ import { Slider } from "@/components/ui/slider";
 import type { ProjectFilePreview as Preview } from "@/shared/projectFiles";
 import ProjectFilePreview from "../ProjectFilePreview.vue";
 import FileViewerPreviewRenderer from "../file-preview/FileViewerPreviewRenderer.vue";
+import TextPreviewRenderer from "../file-preview/TextPreviewRenderer.vue";
 import { showProject } from "@/stores/__tests__/showProject";
 
 vi.mock("@/lib/codeHighlight", () => ({
@@ -224,6 +225,35 @@ function selectText(
 }
 
 describe("ProjectFilePreview", () => {
+  it("keeps presentation line targets in the full preview and updates them without rereading", async () => {
+    const read = vi.fn().mockResolvedValue({
+      ...info,
+      kind: "text",
+      text: "# Report\nFirst line\nSecond line\n",
+      encoding: "UTF-8",
+    });
+    const wrapper = render(read);
+    const reveal = { line: 2, highlights: [{ start: 2, end: 2 }] };
+    await wrapper.setProps({
+      file: { ...file, relativePath: "report.md", reveal },
+    });
+    await flushPromises();
+    expect(wrapper.findComponent(TextPreviewRenderer).props()).toMatchObject({
+      mode: "code",
+      reveal,
+    });
+    const reads = read.mock.calls.length;
+    const next = { line: 3, highlights: [{ start: 3, end: 3 }] };
+    await wrapper.setProps({
+      file: { ...file, relativePath: "report.md", reveal: next },
+    });
+    await flushPromises();
+    expect(wrapper.findComponent(TextPreviewRenderer).props("reveal")).toEqual(
+      next,
+    );
+    expect(read).toHaveBeenCalledTimes(reads);
+  });
+
   it.each(["project", "presented"] as const)(
     "passes the %s document URL through the actual Markdown preview renderer",
     async (source) => {

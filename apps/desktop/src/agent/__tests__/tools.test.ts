@@ -572,6 +572,7 @@ describeSandbox("createPineToolDefinitions", () => {
       const present = (
         filePath: string,
         location: {
+          display?: "sidebar" | "fullscreen";
           line?: number;
           highlight_lines?: { start: number; end?: number }[];
         } = {},
@@ -609,9 +610,34 @@ describeSandbox("createPineToolDefinitions", () => {
         "present-call",
         canonical,
         undefined,
+        "sidebar",
       );
       expect(result.content[0]).toMatchObject({
         text: `Showing ${canonical} in the workbench preview and the session's artifacts.`,
+      });
+    });
+
+    it("requests a full preview with source line targets", async () => {
+      const { present, presentFile, readWrite } = await setup();
+      await writeFile(path.join(readWrite, "report.md"), "# Report\nDetails\n");
+      const result = await present("report.md", {
+        display: "fullscreen",
+        line: 2,
+        highlight_lines: [{ start: 2 }],
+      });
+      const canonical = path.join(await realpath(readWrite), "report.md");
+      expect(presentFile).toHaveBeenCalledWith(
+        "present-call",
+        canonical,
+        { line: 2, highlights: [{ start: 2, end: 2 }] },
+        "fullscreen",
+      );
+      expect(result.details).toMatchObject({
+        path: canonical,
+        display: "fullscreen",
+      });
+      expect(result.content[0]).toMatchObject({
+        text: expect.stringContaining("in a full preview tab"),
       });
     });
 
@@ -634,6 +660,7 @@ describeSandbox("createPineToolDefinitions", () => {
         "present-call",
         path.join(await realpath(readWrite), "notes.ts"),
         reveal,
+        "sidebar",
       );
       expect(result.content[0]).toMatchObject({
         text: expect.stringContaining("at line 2, highlighting 2-3, 4 in"),
@@ -656,10 +683,15 @@ describeSandbox("createPineToolDefinitions", () => {
           { start: 2, end: 8 },
         ],
       });
-      expect(presentFile).toHaveBeenLastCalledWith("present-call", notes, {
-        line: 2,
-        highlights: [{ start: 2, end: 3 }],
-      });
+      expect(presentFile).toHaveBeenLastCalledWith(
+        "present-call",
+        notes,
+        {
+          line: 2,
+          highlights: [{ start: 2, end: 3 }],
+        },
+        "sidebar",
+      );
       expect(result.content[0]).toMatchObject({
         text: expect.stringContaining(
           "Ignored highlight 3-1, which ends before it starts; highlight 5, past the end of the file (3 lines); line 9, past the end of the file (3 lines).",
@@ -671,6 +703,7 @@ describeSandbox("createPineToolDefinitions", () => {
         "present-call",
         notes,
         undefined,
+        "sidebar",
       );
       expect(nothingLeft.details).not.toHaveProperty("reveal");
 
@@ -680,6 +713,7 @@ describeSandbox("createPineToolDefinitions", () => {
           "present-call",
           expect.stringContaining(file),
           undefined,
+          "sidebar",
         );
         expect(shown.content[0]).toMatchObject({
           text: expect.stringContaining(
@@ -699,6 +733,7 @@ describeSandbox("createPineToolDefinitions", () => {
         "present-call",
         path.join(await realpath(readWrite), "notes.md"),
         undefined,
+        "sidebar",
       );
     });
 
@@ -717,6 +752,7 @@ describeSandbox("createPineToolDefinitions", () => {
         "present-call",
         await realpath(attached),
         undefined,
+        "sidebar",
       );
       expect(withAttachment.gate.reviewDenial).not.toHaveBeenCalled();
       // Presenting the same path without the grant is what needs approval.
@@ -739,6 +775,7 @@ describeSandbox("createPineToolDefinitions", () => {
         "present-call",
         await realpath(external),
         undefined,
+        "sidebar",
       );
     });
 
@@ -752,6 +789,9 @@ describeSandbox("createPineToolDefinitions", () => {
       await expect(present(path.join(outside, "secret.txt"))).rejects.toThrow(
         "outside the folders shared with Pine",
       );
+      await expect(
+        present(path.join(outside, "secret.txt"), { display: "fullscreen" }),
+      ).rejects.toThrow("outside the folders shared with Pine");
       expect(presentFile).not.toHaveBeenCalled();
     });
 
