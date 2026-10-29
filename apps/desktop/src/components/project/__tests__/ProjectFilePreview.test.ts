@@ -169,6 +169,7 @@ function render(
       readProjectFilePreview: read,
       readPresentedFilePreview: readPresented,
       operateProjectFile: vi.fn().mockResolvedValue(undefined),
+      operatePresentedFile: vi.fn().mockResolvedValue(undefined),
       setWatchedFilePreview: vi.fn().mockResolvedValue(undefined),
       onFilePreviewChanged: vi.fn().mockReturnValue(vi.fn()),
     },
@@ -802,11 +803,16 @@ describe("ProjectFilePreview", () => {
     expect(readPresented).toHaveBeenCalledWith({ path: "/tmp/report.md" });
     const metadata = wrapper.get('[aria-label="File metadata"]');
     expect(metadata.text()).toContain("2 KB");
-    // The project-only actions cannot address a file outside every folder.
-    expect(wrapper.find('[data-action="open-default"]').exists()).toBe(false);
+    // Sending to a session needs a project entry; opening does not.
     expect(wrapper.find('footer button[aria-haspopup="menu"]').exists()).toBe(
       false,
     );
+    await wrapper.get('[data-action="open-default"]').trigger("click");
+    expect(window.pine.operatePresentedFile).toHaveBeenCalledWith({
+      action: "open",
+      path: "/tmp/report.md",
+    });
+    expect(window.pine.operateProjectFile).not.toHaveBeenCalled();
   });
 
   it("reports a presented file that can no longer be read", async () => {

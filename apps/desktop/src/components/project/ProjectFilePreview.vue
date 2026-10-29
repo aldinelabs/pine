@@ -48,6 +48,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import {
   fileName as pathBaseName,
   fileTargetPath,
+  operateFileTarget,
 } from "@/lib/filePreviewTarget";
 import { formatBytes } from "@/lib/formatBytes";
 import { formatDuration } from "@/lib/formatDuration";
@@ -76,8 +77,8 @@ const props = withDefaults(
   { active: true },
 );
 const { t, locale } = useI18n();
-// Presented files live outside the project, so the project-entry actions
-// (open with the default app, reveal, send to a session) are not available.
+// Presented files live outside the project, so they cannot be sent to a
+// session as a project entry; opening with the default app still works.
 const projectTarget = computed(() =>
   props.file.source === "project" ? props.file : null,
 );
@@ -332,17 +333,8 @@ function handleWindowZoomKey(event: KeyboardEvent): void {
 onMounted(() => window.addEventListener("keydown", handleWindowZoomKey));
 
 async function openWithDefaultApplication(): Promise<void> {
-  const target = projectTarget.value;
-  if (!target) return;
   try {
-    await window.pine.operateProjectFile({
-      action: "open",
-      target: {
-        folderId: target.folderId,
-        projectId: target.projectId,
-        relativePath: target.relativePath,
-      },
-    });
+    await operateFileTarget(props.file, "open");
   } catch (error) {
     handleError(error, {
       id: "project.preview.open-default",
@@ -641,7 +633,7 @@ onBeforeUnmount(() => {
         />
         <Label :for="renderSwitchId">{{ t("project.preview.rendered") }}</Label>
       </div>
-      <div v-if="projectTarget" class="ml-auto flex items-center gap-3">
+      <div class="ml-auto flex items-center gap-3">
         <Button
           v-if="preview"
           data-action="open-default"
@@ -652,7 +644,11 @@ onBeforeUnmount(() => {
           <ExternalLink data-icon="inline-start" />
           {{ t("project.preview.openDefault") }}
         </Button>
-        <DropdownMenu :open="menuOpen" @update:open="updateMenu">
+        <DropdownMenu
+          v-if="projectTarget"
+          :open="menuOpen"
+          @update:open="updateMenu"
+        >
           <DropdownMenuTrigger as-child>
             <Button
               variant="outline"

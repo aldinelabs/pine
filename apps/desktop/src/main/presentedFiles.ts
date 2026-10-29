@@ -1,3 +1,6 @@
+import { z } from "zod";
+import type { ProjectFileNativeActions } from "./projectFileOperations";
+
 /**
  * Per-window allowlist of absolute file paths the agent presented to the user.
  *
@@ -40,4 +43,30 @@ export class PresentedFileRegistry {
   forget(webContentsId: number): void {
     this.byWindow.delete(webContentsId);
   }
+}
+
+export const PresentedFileOperationSchema = z.object({
+  action: z.enum(["open", "reveal", "copy-path"]),
+  path: z.string().min(1).max(4096),
+});
+
+/**
+ * Run a read-only native action on a presented file. `authorize` must resolve
+ * the requested path through this window's grants, so the action can only
+ * reach a file the agent actually presented here.
+ */
+export async function operatePresentedFile(
+  request: unknown,
+  authorize: (filePath: string) => Promise<string>,
+  native: Pick<ProjectFileNativeActions, "open" | "reveal" | "copyPath">,
+): Promise<void> {
+  const operation = PresentedFileOperationSchema.parse(request);
+  const filePath = await authorize(operation.path);
+  if (operation.action === "open") {
+    const error = await native.open(filePath);
+    if (error) throw new Error(error);
+    return;
+  }
+  if (operation.action === "reveal") return native.reveal(filePath);
+  return native.copyPath(filePath);
 }

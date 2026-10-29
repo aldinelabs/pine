@@ -46,7 +46,10 @@ import {
   REMOVE_MCP_SERVER_CHANNEL,
   type PineMcpCatalog,
 } from "./shared/mcp";
-import { PresentedFileRegistry } from "./main/presentedFiles";
+import {
+  operatePresentedFile,
+  PresentedFileRegistry,
+} from "./main/presentedFiles";
 import { TinyFishCredentialStore } from "./main/tinyfishCredentials";
 import {
   readProjectFilePreview,
@@ -266,6 +269,7 @@ import {
 } from "./main/recentSessions";
 import {
   PROJECT_FILE_OPERATION_CHANNEL,
+  PRESENTED_FILE_OPERATION_CHANNEL,
   PROJECT_FILE_ATTACHMENTS_CHANNEL,
   LIST_PROJECT_DIRECTORY_CHANNEL,
   START_PROJECT_FILE_DRAG_CHANNEL,
@@ -2615,6 +2619,20 @@ ipcMain.handle(PROJECT_FILE_OPERATION_CHANNEL, (event, request: unknown) => {
   projectFileOperationQueue = pending.catch(() => undefined);
   return pending;
 });
+
+ipcMain.handle(
+  PRESENTED_FILE_OPERATION_CHANNEL,
+  (event, request: unknown): Promise<void> =>
+    operatePresentedFile(
+      request,
+      (filePath) => presentedFilePath(event.sender.id, { path: filePath }),
+      {
+        open: (filePath) => shell.openPath(filePath),
+        reveal: (filePath) => shell.showItemInFolder(filePath),
+        copyPath: (filePath) => clipboard.writeText(filePath),
+      },
+    ),
+);
 
 async function handleProjectFileDrag(
   event: IpcMainEvent,

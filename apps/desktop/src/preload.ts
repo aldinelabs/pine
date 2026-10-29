@@ -172,6 +172,7 @@ import {
 } from "./shared/sessions";
 import {
   PROJECT_FILE_OPERATION_CHANNEL,
+  PRESENTED_FILE_OPERATION_CHANNEL,
   PROJECT_FILE_ATTACHMENTS_CHANNEL,
   LIST_PROJECT_DIRECTORY_CHANNEL,
   START_PROJECT_FILE_DRAG_CHANNEL,
@@ -352,6 +353,8 @@ const pineApi: PineDesktopApi = {
   },
   operateProjectFile: (request) =>
     ipcRenderer.invoke(PROJECT_FILE_OPERATION_CHANNEL, request),
+  operatePresentedFile: (request) =>
+    ipcRenderer.invoke(PRESENTED_FILE_OPERATION_CHANNEL, request),
   setWatchedFilePreview: (
     request: SetWatchedFilePreviewRequest,
   ): Promise<void> =>

@@ -82,6 +82,15 @@ export type ProjectFilePreviewRequest = ProjectEntryReference;
 export interface PresentedFilePreviewRequest {
   path: string;
 }
+export const PRESENTED_FILE_OPERATION_CHANNEL =
+  "project-files:operate-presented" as const;
+/**
+ * The read-only native actions a presented file supports. Anything that
+ * changes the file (rename, trash) stays limited to project folders.
+ */
+export interface PresentedFileOperation extends PresentedFilePreviewRequest {
+  action: "open" | "reveal" | "copy-path";
+}
 /**
  * Where a file tab reads its content from. Project files keep the portable
  * folder-relative reference; presented files carry the absolute path the main

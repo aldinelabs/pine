@@ -48,7 +48,7 @@ import { Input } from "@/components/ui/input";
 import { useContentTabNavigation } from "@/composables/useContentTabNavigation";
 import { useProjectFileChanges } from "@/composables/useProjectFileChanges";
 import { useSessionExport } from "@/composables/useSessionExport";
-import { fileTargetPath } from "@/lib/filePreviewTarget";
+import { fileTargetPath, operateFileTarget } from "@/lib/filePreviewTarget";
 import type { ProjectFileOperation } from "@/shared/projectFiles";
 import type { PineSessionSummary } from "@/shared/sessions";
 import { useProjectStore } from "@/stores/project";
@@ -89,8 +89,8 @@ const targetSession = computed<PineSessionSummary | null>(() => {
 const activeFileTab = computed(() =>
   activeTab.value?.kind === "file" ? activeTab.value : null,
 );
-// Project-entry actions only apply to files inside the project. A presented
-// file lives outside every folder, so the whole menu group is unavailable.
+// Changing a file (rename, trash) only applies inside the project. A presented
+// file lives outside every folder, so it only offers open, reveal and copy.
 const fileTarget = computed(() =>
   activeFileTab.value?.source === "project"
     ? {
@@ -142,12 +142,19 @@ async function operateProjectFile(
   }
 }
 
-function runFileOperation(
+async function runFileOperation(
   action: "open" | "reveal" | "copy-path",
 ): Promise<void> {
-  const target = fileTarget.value;
-  if (!target) return Promise.resolve();
-  return operateProjectFile({ action, target }).then(() => undefined);
+  const tab = activeFileTab.value;
+  if (!tab) return;
+  try {
+    await operateFileTarget(tab, action);
+  } catch (error) {
+    handleError(error, {
+      id: "project.files.menu",
+      title: t("project.files.operationFailed"),
+    });
+  }
 }
 
 function requestNewFolder(): void {
@@ -233,24 +240,15 @@ async function trashActiveFile(): Promise<void> {
 
     <DropdownMenuContent align="end" class="w-56">
       <DropdownMenuGroup v-if="activeFileTab">
-        <DropdownMenuItem
-          :disabled="!fileTarget"
-          @select="runFileOperation('open')"
-        >
+        <DropdownMenuItem @select="runFileOperation('open')">
           <ExternalLinkIcon aria-hidden="true" />
           {{ t("project.files.open") }}
         </DropdownMenuItem>
-        <DropdownMenuItem
-          :disabled="!fileTarget"
-          @select="runFileOperation('reveal')"
-        >
+        <DropdownMenuItem @select="runFileOperation('reveal')">
           <FolderOpenIcon aria-hidden="true" />
           {{ t("project.files.reveal") }}
         </DropdownMenuItem>
-        <DropdownMenuItem
-          :disabled="!fileTarget"
-          @select="runFileOperation('copy-path')"
-        >
+        <DropdownMenuItem @select="runFileOperation('copy-path')">
           <CopyIcon aria-hidden="true" />
           {{ t("project.files.copyPath") }}
         </DropdownMenuItem>

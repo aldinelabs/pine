@@ -24,3 +24,24 @@ export function fileTargetKey(target: FilePreviewTarget): string {
     ? `project:${target.projectId}:${target.folderId}:${target.relativePath}`
     : `presented:${target.path}`;
 }
+
+/**
+ * Run a read-only native action on either kind of file. Project files go
+ * through the project-entry channel; presented files through the window's
+ * presented-file grants.
+ */
+export function operateFileTarget(
+  target: FilePreviewTarget,
+  action: "open" | "reveal" | "copy-path",
+): Promise<void> {
+  return target.source === "project"
+    ? window.pine.operateProjectFile({
+        action,
+        target: {
+          folderId: target.folderId,
+          projectId: target.projectId,
+          relativePath: target.relativePath,
+        },
+      })
+    : window.pine.operatePresentedFile({ action, path: target.path });
+}
