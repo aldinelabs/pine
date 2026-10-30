@@ -6,11 +6,11 @@
   "main": ".vite/build/main.js",
   "private": true,
   "scripts": {
-    "prestart": "bun run --filter @pine/computer-use-runtime build",
+    "prestart": "bun run --filter @pine/computer-use-runtime build && node scripts/build-native.mjs",
     "start": "electron-forge start",
-    "prepackage": "bun run --filter @pine/computer-use-runtime build",
+    "prepackage": "bun run --filter @pine/computer-use-runtime build && node scripts/build-native.mjs",
     "package": "electron-forge package",
-    "premake": "bun run --filter @pine/computer-use-runtime build",
+    "premake": "bun run --filter @pine/computer-use-runtime build && node scripts/build-native.mjs",
     "make": "electron-forge make",
     "publish": "electron-forge publish",
     "lint": "eslint src forge.config.ts \"vite.*.ts\" --max-warnings=0",
@@ -142,5 +142,8 @@
     "vite": "8.2.2",
     "vitest": "5.0.0",
     "vue-tsc": "3.3.11"
+  },
+  "optionalDependencies": {
+    "electron-liquid-glass": "1.1.1"
   }
 }

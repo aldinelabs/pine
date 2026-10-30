@@ -21,6 +21,9 @@ const AGENT_RUNTIME_ENTRYPOINTS = [
   "@earendil-works/pi-ai",
   "pi-mcp-adapter",
 ] as const;
+// Native addons the main process loads at runtime; optional per platform, so
+// a missing one is skipped.
+const MAIN_RUNTIME_ENTRYPOINTS = ["electron-liquid-glass"] as const;
 
 function locateWorkspaceNodeModules(): string {
   let dir = process.cwd();
@@ -96,12 +99,12 @@ function injectAgentBuild(buildPath: string): void {
   });
 }
 
-function injectAgentRuntimeDeps(buildPath: string): void {
+function injectRuntimeDeps(buildPath: string): void {
   const workspaceNodeModules = locateWorkspaceNodeModules();
-  const runtimeDeps = collectRuntimeDeps(
-    workspaceNodeModules,
-    AGENT_RUNTIME_ENTRYPOINTS,
-  );
+  const runtimeDeps = collectRuntimeDeps(workspaceNodeModules, [
+    ...AGENT_RUNTIME_ENTRYPOINTS,
+    ...MAIN_RUNTIME_ENTRYPOINTS,
+  ]);
   const targetNodeModules = path.join(buildPath, "node_modules");
   mkdirSync(targetNodeModules, { recursive: true });
   for (const dep of runtimeDeps) {
@@ -171,17 +174,23 @@ const windowsSign =
 const config: ForgeConfig = {
   packagerConfig: {
     // ASAR avoids Windows long-path issues and reduces small-file startup I/O.
-    // srt-win is spawned by the OS, so it must remain a real unpacked file.
+    // srt-win is spawned by the OS and native addons are loaded with dlopen,
+    // so both must remain real unpacked files.
     asar: {
       unpack: path.join(
         "**",
         "node_modules",
-        "@anthropic-ai",
-        "sandbox-runtime",
-        "vendor",
-        "srt-win",
-        "**",
-        "*",
+        `{${[
+          path.join(
+            "@anthropic-ai",
+            "sandbox-runtime",
+            "vendor",
+            "srt-win",
+            "**",
+            "*",
+          ),
+          path.join("electron-liquid-glass", "prebuilds", "**", "*"),
+        ].join(",")}}`,
       ),
     },
     // Packager discovers icon.icon and compiles its native Assets.car on macOS;
@@ -203,6 +212,16 @@ const config: ForgeConfig = {
         __dirname,
         "../../packages/computer-use-runtime/pine-computer-use",
       ),
+      // Built by scripts/build-native.mjs; loaded by path from main.
+      ...(process.platform === "darwin"
+        ? [
+            path.join(
+              __dirname,
+              "native/sidebar-glass/build/sidebar_glass.node",
+            ),
+            path.join(__dirname, "native/app-context/build/app_context.node"),
+          ]
+        : []),
     ],
     afterPrune: [
       (
@@ -213,7 +232,7 @@ const config: ForgeConfig = {
         callback: (err?: Error | null) => void,
       ) => {
         injectAgentBuild(buildPath);
-        injectAgentRuntimeDeps(buildPath);
+        injectRuntimeDeps(buildPath);
         callback();
       },
     ],

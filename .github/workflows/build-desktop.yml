@@ -131,6 +131,9 @@ jobs:
           PINE_COMPUTER_USE_ARCH: ${{ matrix.arch }}
         run: bun run --filter @pine/computer-use-runtime build
 
+      - name: Build native addons
+        run: node apps/desktop/scripts/build-native.mjs
+
       # MakerDMG -> electron-installer-dmg -> appdmg uses host-side native
       # addons which Bun does not compile automatically for this tool chain.
       - name: Build native DMG-maker addons

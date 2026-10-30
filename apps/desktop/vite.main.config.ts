@@ -9,6 +9,8 @@ export default defineConfig({
       external: [
         "@anthropic-ai/sandbox-runtime",
         "@earendil-works/pi-coding-agent",
+        // A native addon loads its prebuilt binary from its own package.
+        "electron-liquid-glass",
         "node:sqlite",
       ],
     },
