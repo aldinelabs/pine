@@ -19,7 +19,7 @@ export default {
     externalLinkOpenFailed: "无法在浏览器中打开该链接。",
   },
   updater: {
-    sidebar: "新版本 Pine 可用",
+    available: "新版本 Pine 可用",
     title: "要更新 Pine 吗？",
     description: "Pine {version} 已可用。更新前可先查看版本变化。",
     download: "下载更新",

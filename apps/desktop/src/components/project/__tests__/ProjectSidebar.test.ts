@@ -5,7 +5,6 @@ import { beforeEach, expect, it, vi } from "vitest";
 import { createAppI18n } from "@/app/i18n";
 import { useProjectStore } from "@/stores/project";
 import { TEMPORARY_WORKSPACE_PROJECT_ID } from "@/shared/projects";
-import { useUpdaterStore } from "@/stores/updater";
 import ProjectSidebar from "../ProjectSidebar.vue";
 import { showProject } from "@/stores/__tests__/showProject";
 
@@ -34,12 +33,6 @@ it("always lists every project's sessions, whichever project is current", async 
     defaultFolderId: "folder",
     folders: [],
   });
-  useUpdaterStore().update = {
-    changelog: "Changes",
-    internalVersion: "2.0.0",
-    publishedAt: "2026-09-15",
-    version: "2.0.0",
-  };
   const router = createRouter({
     history: createMemoryHistory(),
     routes: [{ path: "/", component: { template: "<div />" } }],
@@ -63,7 +56,6 @@ it("always lists every project's sessions, whichever project is current", async 
   await flushPromises();
   const sessions = wrapper.get("[data-all-sessions]").element;
   expect(wrapper.find('[role="tab"]').exists()).toBe(false);
-  expect(wrapper.get("footer").text()).toContain("新版本 Pine 可用");
   expect(wrapper.text()).not.toContain("项目设置");
 
   showProject({ ...projectStore.activeProject!, id: "two" });
@@ -71,44 +63,6 @@ it("always lists every project's sessions, whichever project is current", async 
   // Switching projects keeps the same list rather than swapping it.
   expect(wrapper.findAll("[data-all-sessions]")).toHaveLength(1);
   expect(wrapper.get("[data-all-sessions]").element).toBe(sessions);
-  wrapper.unmount();
-});
-
-it("shows the update notice in place of the version", async () => {
-  const pinia = createPinia();
-  setActivePinia(pinia);
-  const router = createRouter({
-    history: createMemoryHistory(),
-    routes: [{ path: "/", component: { template: "<div />" } }],
-  });
-  const wrapper = mount(ProjectSidebar, {
-    global: {
-      plugins: [pinia, router, createAppI18n("zh-CN")],
-      stubs: {
-        Sidebar: slot,
-        SidebarContent: slot,
-        SidebarFooter: footerSlot,
-        SidebarMenu: slot,
-        SidebarMenuButton: buttonSlot,
-        SidebarMenuItem: slot,
-        SidebarRail: true,
-        AllProjectsSessionList: true,
-      },
-    },
-  });
-  await flushPromises();
-  // The version lives in the workbench title bar.
-  expect(wrapper.find('[data-testid="pine-version"]').exists()).toBe(false);
-  expect(wrapper.text()).not.toContain("新版本 Pine 可用");
-
-  useUpdaterStore().update = {
-    changelog: "Changes",
-    internalVersion: "2.0.0",
-    publishedAt: "2026-09-15",
-    version: "2.0.0",
-  };
-  await flushPromises();
-  expect(wrapper.text()).toContain("新版本 Pine 可用");
   wrapper.unmount();
 });
 

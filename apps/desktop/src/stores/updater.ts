@@ -10,6 +10,8 @@ export const useUpdaterStore = defineStore("updater", () => {
   const update = ref<PineUpdateInfo>();
   const progress = ref(0);
   const error = ref<string>();
+  // Shared so the title bar notice and the first-found prompt open one dialog.
+  const isDialogOpen = ref(false);
   const isAvailable = computed(() => update.value !== undefined);
   let initialized = false;
 
@@ -77,6 +79,7 @@ export const useUpdaterStore = defineStore("updater", () => {
     initialize,
     install,
     isAvailable,
+    isDialogOpen,
     phase,
     progress,
     update,

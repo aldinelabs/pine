@@ -1,6 +1,5 @@
 <script setup lang="ts">
-import { Blocks, Info, Library } from "@lucide/vue";
-import { storeToRefs } from "pinia";
+import { Blocks, Library } from "@lucide/vue";
 import { useI18n } from "vue-i18n";
 import {
   Sidebar,
@@ -11,7 +10,6 @@ import {
   SidebarMenuItem,
   SidebarRail,
 } from "@/components/ui/sidebar";
-import { useUpdaterStore } from "@/stores/updater";
 import AllProjectsSessionList from "./AllProjectsSessionList.vue";
 
 const { t } = useI18n();
@@ -20,9 +18,7 @@ const emit = defineEmits<{
   manageSkills: [];
   manageMcp: [];
   searchSessions: [];
-  showUpdate: [];
 }>();
-const { isAvailable } = storeToRefs(useUpdaterStore());
 </script>
 
 <template>
@@ -57,15 +53,6 @@ const { isAvailable } = storeToRefs(useUpdaterStore());
           >
             <Blocks aria-hidden="true" />
             <span>{{ t("mcp.title") }}</span>
-          </SidebarMenuButton>
-        </SidebarMenuItem>
-        <SidebarMenuItem v-if="isAvailable">
-          <SidebarMenuButton
-            class="text-info hover:text-info"
-            @click="emit('showUpdate')"
-          >
-            <Info aria-hidden="true" />
-            <span>{{ t("updater.sidebar") }}</span>
           </SidebarMenuButton>
         </SidebarMenuItem>
       </SidebarMenu>

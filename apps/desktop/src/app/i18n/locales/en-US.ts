@@ -20,7 +20,7 @@ export default {
     externalLinkOpenFailed: "Could not open the link in your browser.",
   },
   updater: {
-    sidebar: "New Pine version available",
+    available: "New Pine version available",
     title: "Update Pine?",
     description:
       "Pine {version} is available. Review the changes before updating.",

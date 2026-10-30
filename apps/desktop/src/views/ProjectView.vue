@@ -48,13 +48,12 @@ const preferencesDialog =
   useTemplateRef<InstanceType<typeof PinePreferencesDialog>>(
     "preferencesDialog",
   );
-const isUpdateOpen = ref(false);
 const updater = useUpdaterStore();
-// A newly found version opens its notes once; the sidebar notice reopens them.
+// A newly found version opens its notes once; the title bar notice reopens them.
 watch(
   () => updater.update?.version,
   (version, previous) => {
-    if (version && version !== previous) isUpdateOpen.value = true;
+    if (version && version !== previous) updater.isDialogOpen = true;
   },
   { immediate: true },
 );
@@ -347,7 +346,6 @@ onKeyStroke("k", (event) => {
       @manage-skills="isSkillManagerOpen = true"
       @manage-mcp="isMcpManagerOpen = true"
       @search-sessions="isSessionSearchOpen = true"
-      @show-update="isUpdateOpen = true"
     />
 
     <SidebarInset
@@ -432,7 +430,7 @@ onKeyStroke("k", (event) => {
     </WindowTitleBar>
 
     <SessionSearchOverlay v-model:open="isSessionSearchOpen" />
-    <PineUpdateDialog v-model:open="isUpdateOpen" />
+    <PineUpdateDialog v-model:open="updater.isDialogOpen" />
     <!-- Project-scoped settings follow the project of the active tab. -->
     <template v-if="projectStore.activeProject">
       <SkillManagerDialog
