@@ -28,6 +28,9 @@ describe("intelligentUiSystemPrompt", () => {
   it("encourages blocks for users who chose rich interface elements", () => {
     expect(prompt).toContain("The user has enabled rich interface elements");
     expect(prompt).toContain("A block can be purely visual");
+    expect(prompt).toContain(
+      "Do not use a block just to reproduce a Markdown table",
+    );
     expect(prompt).not.toContain("Use a block only when");
     expect(prompt).not.toContain("At most one block per reply");
   });
