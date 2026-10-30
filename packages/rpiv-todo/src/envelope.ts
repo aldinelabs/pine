@@ -1,4 +1,5 @@
 import { deriveBlocks, type TaskOp } from "./reducer";
+import { selectReadyTasks } from "./selectors";
 import type {
   Task,
   TaskAction,
@@ -62,8 +63,55 @@ function formatGetLines(task: Task, state: TaskState): string {
   return lines.join("\n");
 }
 
-/** The LLM-facing summary. Strings match upstream byte for byte. */
+const taskRefs = (tasks: readonly Task[]) =>
+  tasks
+    .map((task) => `#${task.id} ${sanitizeTaskText(task.subject)}`)
+    .join(", ");
+
+/**
+ * What to do next after a status change: start a ready step when nothing is
+ * in progress, or notice that several steps are. Silent otherwise.
+ */
+function nextStepHint(op: TaskOp, state: TaskState): string | undefined {
+  if (op.kind === "create") {
+    const created = state.tasks.filter((task) => op.taskIds.includes(task.id));
+    const anyActive = state.tasks.some((task) => task.status === "in_progress");
+    return created.length > 1 && !anyActive
+      ? "Mark the step you start in_progress before working on it."
+      : undefined;
+  }
+  if (op.kind !== "update" || op.fromStatus === op.toStatus) return undefined;
+  const inProgress = state.tasks.filter(
+    (task) => task.status === "in_progress",
+  );
+  if (op.toStatus === "in_progress") {
+    const others = inProgress.filter((task) => task.id !== op.id);
+    return others.length
+      ? `Also in_progress: ${taskRefs(others)}. Complete it, or set it back to pending if you moved on.`
+      : undefined;
+  }
+  if (op.toStatus !== "completed" && op.toStatus !== "deleted")
+    return undefined;
+  if (inProgress.length) return undefined;
+  const ready = selectReadyTasks(state);
+  if (ready.length) {
+    return `Ready next: ${taskRefs(ready)}. Mark the one you start in_progress.`;
+  }
+  const open = state.tasks.some((task) => task.status === "pending");
+  return open ? undefined : "All tasks are finished.";
+}
+
+/**
+ * The LLM-facing summary. The first line matches upstream byte for byte; a
+ * next-step hint may follow on its own line.
+ */
 export function formatTodoContent(op: TaskOp, state: TaskState): string {
+  const summary = formatOpSummary(op, state);
+  const hint = nextStepHint(op, state);
+  return hint ? `${summary}\n${hint}` : summary;
+}
+
+function formatOpSummary(op: TaskOp, state: TaskState): string {
   switch (op.kind) {
     case "create": {
       const created = op.taskIds.flatMap(

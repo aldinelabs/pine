@@ -222,6 +222,44 @@ describe("todo reducer", () => {
     expect(run(emptyTaskState(), "list").text).toBe("No tasks");
   });
 
+  it("points to the next step after a status change", () => {
+    let state = run(emptyTaskState(), "create", {
+      tasks: [
+        { subject: "A", dependsOn: [] },
+        { subject: "B", dependsOn: [1] },
+        { subject: "C", dependsOn: [1] },
+      ],
+    }).state;
+    expect(
+      run(emptyTaskState(), "create", {
+        tasks: [
+          { subject: "A", dependsOn: [] },
+          { subject: "B", dependsOn: [] },
+        ],
+      }).text,
+    ).toMatch(/\nMark the step you start in_progress before working on it\.$/);
+
+    state = run(state, "update", { id: 1, status: "in_progress" }).state;
+    const done = run(state, "update", { id: 1, status: "completed" });
+    expect(done.text).toBe(
+      "Updated #1 (in_progress → completed)\nReady next: #2 B, #3 C. Mark the one you start in_progress.",
+    );
+    state = run(done.state, "update", { id: 2, status: "in_progress" }).state;
+    const parallel = run(state, "update", { id: 3, status: "in_progress" });
+    expect(parallel.text).toBe(
+      "Updated #3 (pending → in_progress)\nAlso in_progress: #2 B. Complete it, or set it back to pending if you moved on.",
+    );
+    // Silent while another step is still in progress.
+    const second = run(parallel.state, "update", {
+      id: 2,
+      status: "completed",
+    });
+    expect(second.text).toBe("Updated #2 (in_progress → completed)");
+    expect(
+      run(second.state, "update", { id: 3, status: "completed" }).text,
+    ).toBe("Updated #3 (in_progress → completed)\nAll tasks are finished.");
+  });
+
   it("keeps a full snapshot on rejected calls", () => {
     const state = withTasks("A", "B");
     const result = buildTodoToolResult(
