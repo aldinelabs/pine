@@ -469,7 +469,7 @@ function drop(event: DragEvent, projectId: string, groupId: string | null) {
                     >
                       <CollapsibleTrigger as-child>
                         <SidebarMenuButton
-                          class="group-has-data-[sidebar=menu-action]/menu-item:pr-3"
+                          class="text-muted-foreground group-has-data-[sidebar=menu-action]/menu-item:pr-3"
                           :class="{
                             'bg-sidebar-accent ring-1 ring-sidebar-ring':
                               dropTargetId === group.project.id,
