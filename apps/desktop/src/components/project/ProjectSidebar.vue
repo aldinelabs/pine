@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Info } from "@lucide/vue";
+import { Blocks, Info, Library } from "@lucide/vue";
 import { storeToRefs } from "pinia";
 import { useI18n } from "vue-i18n";
 import {
@@ -36,15 +36,30 @@ const { isAvailable } = storeToRefs(useUpdaterStore());
       <AllProjectsSessionList
         @search="emit('searchSessions')"
         @manage-projects="emit('manageProjects')"
-        @manage-skills="emit('manageSkills')"
-        @manage-mcp="emit('manageMcp')"
       />
     </SidebarContent>
 
-    <!-- Without an update the session tree takes the full height. -->
-    <SidebarFooter v-if="isAvailable">
+    <SidebarFooter>
       <SidebarMenu>
         <SidebarMenuItem>
+          <SidebarMenuButton
+            data-testid="manage-skills"
+            @click="emit('manageSkills')"
+          >
+            <Library aria-hidden="true" />
+            <span>{{ t("project.skills") }}</span>
+          </SidebarMenuButton>
+        </SidebarMenuItem>
+        <SidebarMenuItem>
+          <SidebarMenuButton
+            data-testid="manage-mcp"
+            @click="emit('manageMcp')"
+          >
+            <Blocks aria-hidden="true" />
+            <span>{{ t("mcp.title") }}</span>
+          </SidebarMenuButton>
+        </SidebarMenuItem>
+        <SidebarMenuItem v-if="isAvailable">
           <SidebarMenuButton
             class="text-info hover:text-info"
             @click="emit('showUpdate')"

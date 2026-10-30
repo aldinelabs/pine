@@ -63,7 +63,7 @@ it("always lists every project's sessions, whichever project is current", async 
   await flushPromises();
   const sessions = wrapper.get("[data-all-sessions]").element;
   expect(wrapper.find('[role="tab"]').exists()).toBe(false);
-  expect(wrapper.get("footer").text()).toBe("新版本 Pine 可用");
+  expect(wrapper.get("footer").text()).toContain("新版本 Pine 可用");
   expect(wrapper.text()).not.toContain("项目设置");
 
   showProject({ ...projectStore.activeProject!, id: "two" });
@@ -145,8 +145,43 @@ it.each([TEMPORARY_WORKSPACE_PROJECT_ID, "project-one"])(
 
     expect(wrapper.text()).not.toContain("项目设置");
     await wrapper.get("[data-manage-projects]").trigger("click");
-    expect(wrapper.find("footer").exists()).toBe(false);
     expect(wrapper.emitted("manageProjects")).toHaveLength(1);
     wrapper.unmount();
   },
 );
+
+it("opens skills and MCP servers from the bottom of the sidebar", async () => {
+  const pinia = createPinia();
+  setActivePinia(pinia);
+  const router = createRouter({
+    history: createMemoryHistory(),
+    routes: [{ path: "/", component: { template: "<div />" } }],
+  });
+  const wrapper = mount(ProjectSidebar, {
+    global: {
+      plugins: [pinia, router, createAppI18n("zh-CN")],
+      stubs: {
+        Sidebar: slot,
+        SidebarContent: slot,
+        SidebarFooter: footerSlot,
+        SidebarMenu: slot,
+        SidebarMenuButton: buttonSlot,
+        SidebarMenuItem: slot,
+        SidebarRail: true,
+        AllProjectsSessionList: true,
+      },
+    },
+  });
+  await flushPromises();
+
+  const buttons = wrapper.get("footer").findAll("button");
+  expect(buttons.map((button) => button.text())).toEqual([
+    "工作技能",
+    "MCP 服务器",
+  ]);
+  await buttons[0].trigger("click");
+  await buttons[1].trigger("click");
+  expect(wrapper.emitted("manageSkills")).toHaveLength(1);
+  expect(wrapper.emitted("manageMcp")).toHaveLength(1);
+  wrapper.unmount();
+});
