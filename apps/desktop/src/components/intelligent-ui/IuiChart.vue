@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { ComponentRenderProps } from "@openuidev/vue-lang";
+import { useIsStreaming, type ComponentRenderProps } from "@openuidev/vue-lang";
 import {
   VisArea,
   VisAxis,
@@ -23,6 +23,11 @@ import type { IntelligentUiProps } from "@/shared/intelligentUi";
 type Datum = Record<string, string | number | null>;
 
 const props = defineProps<ComponentRenderProps<IntelligentUiProps<"Chart">>>();
+
+const isStreaming = useIsStreaming();
+/** Each streamed batch updates the data; transitions would restart on every
+ * one, so draw instantly until the block closes. */
+const duration = computed(() => (isStreaming.value ? 0 : undefined));
 
 const COLORS = 5;
 const colorAt = (index: number) => `var(--chart-${(index % COLORS) + 1})`;
@@ -94,10 +99,15 @@ const donutColor = (_item: Datum, index: number) => colorAt(index);
       :cursor="!isDonut"
       :class="isDonut ? 'aspect-square max-h-60' : 'aspect-[16/7] min-h-48'"
     >
-      <VisSingleContainer v-if="isDonut" :data="data">
+      <VisSingleContainer v-if="isDonut" :data="data" :duration="duration">
         <VisDonut :value="donutValue" :color="donutColor" :arc-width="28" />
       </VisSingleContainer>
-      <VisXYContainer v-else :data="data" :margin="{ left: 4, right: 4 }">
+      <VisXYContainer
+        v-else
+        :data="data"
+        :duration="duration"
+        :margin="{ left: 4, right: 4 }"
+      >
         <VisGroupedBar
           v-if="props.props.type === 'bar'"
           :x="xValue"
