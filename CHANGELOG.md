@@ -9,6 +9,27 @@ Every release section here has a matching section in the Chinese changelog.
 
 ## [Unreleased]
 
+## [0.11.2] - 2026-10-30
+
+### Added
+
+- Press ⌘T / Ctrl+T to open a new tab, as well as ⌘N / Ctrl+N.
+- Press ⌘P / Ctrl+P for Project management, ⌘S / Ctrl+S for the skill manager, and ⌘L / Ctrl+L for MCP servers.
+- Hold ⌘ (Ctrl on Windows) on its own for a moment to see the shortcuts for search, new session, project management, skills, and MCP servers in the left sidebar.
+- The empty tab page shows the Pine logo in a flickering dot grid, and clicking the page sends out a ripple.
+
+### Changed
+
+- When an update is available, the version in the workbench title bar turns into an update notice that opens the release notes; the left sidebar no longer shows the notice.
+- For tables that only present data, the agent now uses Markdown tables, and tables in interactive content match the Markdown table style.
+- The agent sets up the whole todo list at once and no longer adds one-item lists for work it has already finished.
+
+### Fixed
+
+- The Skills and MCP servers entries are back at the bottom of the left sidebar; in 0.11.0 and 0.11.1 there was no way to open either manager.
+- With the Monet communication style, the agent no longer answers only in paragraphs and uses lists, headings, and interactive content where they help.
+- Charts in interactive answers no longer replay their animation while the reply is being written.
+
 ## [0.11.1] - 2026-10-29
 
 ### Added
