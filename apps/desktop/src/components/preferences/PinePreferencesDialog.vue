@@ -141,8 +141,8 @@ const canSaveTinyFishApiKey = computed(
 );
 const COMMUNICATION_STYLE_DESCRIPTION_KEYS = {
   "calm-professional": "preferences.userProfileStyleCalmDescription",
+  neutral: "preferences.userProfileStyleNeutralDescription",
   "warm-friendly": "preferences.userProfileStyleWarmDescription",
-  monet: "preferences.userProfileStyleMonetDescription",
 } as const;
 const communicationStyleDescription = computed(() =>
   t(COMMUNICATION_STYLE_DESCRIPTION_KEYS[profileDraft.communicationStyle]),
@@ -700,8 +700,8 @@ defineExpose({ open });
                   <ToggleGroupItem value="calm-professional" class="flex-1">
                     {{ t("preferences.userProfileStyleCalm") }}
                   </ToggleGroupItem>
-                  <ToggleGroupItem value="monet" class="flex-1 font-serif">
-                    {{ t("preferences.userProfileStyleMonet") }}
+                  <ToggleGroupItem value="neutral" class="flex-1">
+                    {{ t("preferences.userProfileStyleNeutral") }}
                   </ToggleGroupItem>
                   <ToggleGroupItem value="warm-friendly" class="flex-1">
                     {{ t("preferences.userProfileStyleWarm") }}

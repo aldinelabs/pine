@@ -2,7 +2,7 @@ export const GET_USER_PROFILE_CHANNEL = "user-profile:get" as const;
 export const SET_USER_PROFILE_CHANNEL = "user-profile:set" as const;
 
 export type PineCommunicationStyle =
-  "calm-professional" | "warm-friendly" | "monet";
+  "calm-professional" | "neutral" | "warm-friendly";
 export type PineTechnicalBackground = "general-user" | "professional-user";
 /** Whether replies may include interactive blocks ("rich") or stay text. */
 export type PineInterfaceElements = "rich" | "simple";
@@ -22,7 +22,7 @@ export interface SetUserProfileResult {
 
 export function createDefaultPineUserProfile(): PineUserProfile {
   return {
-    communicationStyle: "monet",
+    communicationStyle: "neutral",
     customInstructions: "",
     interfaceElements: "rich",
     nickname: "",
@@ -49,8 +49,8 @@ export function isPineCommunicationStyle(
 ): value is PineCommunicationStyle {
   return (
     value === "calm-professional" ||
-    value === "warm-friendly" ||
-    value === "monet"
+    value === "neutral" ||
+    value === "warm-friendly"
   );
 }
 

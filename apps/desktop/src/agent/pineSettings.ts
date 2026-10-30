@@ -70,8 +70,9 @@ function isPineUserProfile(value: unknown): value is PineUserProfile {
 }
 
 /**
- * Map technical backgrounds removed from the profile to a supported one, and
- * give profiles saved before interface elements existed the default.
+ * Map communication styles and technical backgrounds removed from the profile
+ * to a supported one, and give profiles saved before interface elements
+ * existed the default.
  */
 function migrateUserProfile(value: unknown): unknown {
   if (typeof value !== "object" || value === null || Array.isArray(value)) {
@@ -80,6 +81,9 @@ function migrateUserProfile(value: unknown): unknown {
   const profile = value as Record<string, unknown>;
   return {
     ...profile,
+    ...(profile.communicationStyle === "monet"
+      ? { communicationStyle: "neutral" }
+      : {}),
     ...(profile.technicalBackground === "enthusiast"
       ? { technicalBackground: "general-user" }
       : {}),

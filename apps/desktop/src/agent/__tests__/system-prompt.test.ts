@@ -63,9 +63,9 @@ describe("systemPromptWithUserProfile", () => {
     expect(prompt).toContain("正在学习桌面应用开发。");
   });
 
-  it("applies the Monet communication style", () => {
+  it("applies the neutral communication style", () => {
     const prompt = systemPromptWithUserProfile("base prompt", {
-      communicationStyle: "monet",
+      communicationStyle: "neutral",
       customInstructions: "",
       interfaceElements: "rich",
       nickname: "",
@@ -73,24 +73,7 @@ describe("systemPromptWithUserProfile", () => {
       technicalBackground: "general-user",
     });
 
-    expect(prompt).toContain("### Communication style: Monet");
-    expect(prompt).toContain("help people think more clearly");
-    expect(prompt).toContain("Honesty over performance");
-    expect(prompt).not.toContain("emotionally supportive");
-    expect(prompt).not.toContain("Sóber");
-  });
-
-  it("omits the Monet guide for other communication styles", () => {
-    const prompt = systemPromptWithUserProfile("base prompt", {
-      communicationStyle: "calm-professional",
-      customInstructions: "",
-      interfaceElements: "rich",
-      nickname: "",
-      personalDetails: "",
-      technicalBackground: "general-user",
-    });
-
-    expect(prompt).not.toContain("Monet");
+    expect(prompt).toContain("balanced tone");
   });
 });
 

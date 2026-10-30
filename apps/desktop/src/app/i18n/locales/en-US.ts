@@ -144,12 +144,12 @@ export default {
       "Pine will use this name when it is appropriate.",
     userProfileStyleLabel: "Communication style",
     userProfileStyleCalm: "Calm & professional",
+    userProfileStyleNeutral: "Neutral",
     userProfileStyleWarm: "Warm & friendly",
-    userProfileStyleMonet: "Monet",
-    userProfileStyleMonetDescription:
-      "A candid dialogue partner: no flattery, no hype, specific about uncertainty, with real judgment and taste, helping you think more clearly.",
     userProfileStyleCalmDescription:
       "Use concise, direct language centered on efficiency and precise meaning, with a serious, academic, collaborative tone.",
+    userProfileStyleNeutralDescription:
+      "A balanced, natural tone, neither formal nor effusive: direct and honest, without flattery or hype.",
     userProfileStyleWarmDescription:
       "Speak like a helpful good friend: be warm and enthusiastic, and offer emotional support when it is useful.",
     userProfileTechLabel: "Technical background",

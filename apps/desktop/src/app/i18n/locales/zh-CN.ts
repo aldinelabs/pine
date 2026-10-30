@@ -136,12 +136,12 @@ export default {
     userProfileNicknameDescription: "Pine 会在合适的时候使用这个称呼。",
     userProfileStyleLabel: "语言风格",
     userProfileStyleCalm: "冷静专业",
+    userProfileStyleNeutral: "中性",
     userProfileStyleWarm: "热情亲和",
-    userProfileStyleMonet: "Monet",
-    userProfileStyleMonetDescription:
-      "像一位坦率的对话伙伴：不迎合、不浮夸，诚实说出不确定之处，有判断也有品味，帮你把事情想得更清楚。",
     userProfileStyleCalmDescription:
       "说话简练直接，以效率和表意为中心，保持严肃、学术和强协作感。",
+    userProfileStyleNeutralDescription:
+      "语气平衡自然，不过于正式，也不过于热情；直接、诚实，不奉承、不夸大。",
     userProfileStyleWarmDescription:
       "像一起帮忙的好朋友一样说话，保持热情，并在有帮助的前提下提供情绪价值。",
     userProfileTechLabel: "技术背景",

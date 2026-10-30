@@ -265,7 +265,7 @@ describe("Pine agent settings", () => {
     });
   });
 
-  it("maps the removed enthusiast background to general user and fills in interface elements", async () => {
+  it("maps removed styles and backgrounds to supported ones and fills in interface elements", async () => {
     const agentDir = await mkdtemp(
       path.join(os.tmpdir(), "pine-agent-settings-legacy-profile-"),
     );
@@ -284,6 +284,7 @@ describe("Pine agent settings", () => {
 
     expect((await readPineAgentSettings(agentDir)).userProfile).toEqual({
       ...userProfile,
+      communicationStyle: "neutral",
       interfaceElements: "rich",
       technicalBackground: "general-user",
     });

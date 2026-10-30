@@ -381,8 +381,8 @@ describe("PinePreferencesDialog", () => {
         ].includes(group.attributes("aria-labelledby") ?? ""),
       );
 
-    // Monet is the default style.
-    expect(styleGroup?.props("modelValue")).toBe("monet");
+    // Neutral is the default style.
+    expect(styleGroup?.props("modelValue")).toBe("neutral");
     expect(backgroundGroup?.props("modelValue")).toBe("general-user");
 
     await nickname.setValue("  小 Pine  ");
@@ -392,13 +392,13 @@ describe("PinePreferencesDialog", () => {
     await form
       .get("#pine-user-profile-instructions")
       .setValue("先给出结论，再解释关键原因。");
-    styleGroup?.vm.$emit("update:modelValue", "warm-friendly");
+    styleGroup?.vm.$emit("update:modelValue", "calm-professional");
     backgroundGroup?.vm.$emit("update:modelValue", "professional-user");
     await wrapper.vm.$nextTick();
 
     await vi.waitFor(() =>
       expect(setUserProfile).toHaveBeenCalledWith({
-        communicationStyle: "warm-friendly",
+        communicationStyle: "calm-professional",
         customInstructions: "先给出结论，再解释关键原因。",
         interfaceElements: "rich",
         nickname: "小 Pine",
