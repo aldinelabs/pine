@@ -325,10 +325,19 @@ useEventListener(window, "keydown", (event: KeyboardEvent) => {
   workbench.toggle();
 });
 
-onKeyStroke("k", (event) => {
-  if (!(event.metaKey || event.ctrlKey)) return;
+// Cmd/Ctrl+K searches sessions, P manages projects, S manages skills and L
+// manages MCP servers. Cmd/Ctrl+N is handled in the main process.
+const sidebarShortcuts: Record<string, () => void> = {
+  k: () => (isSessionSearchOpen.value = true),
+  p: () => preferencesDialog.value?.open("projects"),
+  s: () => (isSkillManagerOpen.value = true),
+  l: () => (isMcpManagerOpen.value = true),
+};
+onKeyStroke(Object.keys(sidebarShortcuts), (event) => {
+  if (!(event.metaKey || event.ctrlKey) || event.altKey || event.shiftKey)
+    return;
   event.preventDefault();
-  isSessionSearchOpen.value = true;
+  sidebarShortcuts[event.key]?.();
 });
 </script>
 

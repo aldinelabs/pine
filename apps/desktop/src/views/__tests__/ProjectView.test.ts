@@ -397,3 +397,22 @@ it("slides the closing sidebar on the window's timeline with a fixed-width conte
   );
   wrapper.unmount();
 });
+
+it.each(["k", "p", "s", "l"])(
+  "handles the Cmd+%s sidebar shortcut",
+  async (key) => {
+    openPreferences.mockClear();
+    const { wrapper } = await mountView();
+    const event = new KeyboardEvent("keydown", {
+      cancelable: true,
+      key,
+      metaKey: true,
+    });
+    window.dispatchEvent(event);
+    expect(event.defaultPrevented).toBe(true);
+    if (key === "p") {
+      expect(openPreferences).toHaveBeenCalledExactlyOnceWith("projects");
+    }
+    wrapper.unmount();
+  },
+);
