@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import {
+  Blocks,
   Folder,
   FolderKanban,
   FolderOpen,
   FolderPlus,
+  Library,
   Pencil,
   Plus,
   Search,
@@ -70,7 +72,12 @@ import { useSessionStore } from "@/stores/session";
  * each project's session folders nested above its loose sessions.
  * Sessions open in their own project, regardless of the active tab.
  */
-const emit = defineEmits<{ search: []; manageProjects: [] }>();
+const emit = defineEmits<{
+  search: [];
+  manageProjects: [];
+  manageSkills: [];
+  manageMcp: [];
+}>();
 const { t } = useI18n();
 const tabNavigation = useContentTabNavigation();
 const { activeSessionTab } = tabNavigation;
@@ -416,6 +423,24 @@ function drop(event: DragEvent, projectId: string, groupId: string | null) {
             >
               <FolderKanban aria-hidden="true" />
               <span>{{ t("preferences.sections.projects") }}</span>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+          <SidebarMenuItem>
+            <SidebarMenuButton
+              data-testid="manage-skills"
+              @click="emit('manageSkills')"
+            >
+              <Library aria-hidden="true" />
+              <span>{{ t("project.skills") }}</span>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+          <SidebarMenuItem>
+            <SidebarMenuButton
+              data-testid="manage-mcp"
+              @click="emit('manageMcp')"
+            >
+              <Blocks aria-hidden="true" />
+              <span>{{ t("mcp.title") }}</span>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>

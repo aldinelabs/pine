@@ -11,8 +11,10 @@ import {
 } from "vue";
 import { useI18n } from "vue-i18n";
 import { handleError } from "@/app/errors/errorHandler";
+import McpManagerDialog from "@/components/mcp/McpManagerDialog.vue";
 import { PineLogo } from "@/components/pine";
 import PinePreferencesDialog from "@/components/preferences/PinePreferencesDialog.vue";
+import SkillManagerDialog from "@/components/skills/SkillManagerDialog.vue";
 import SessionSearchOverlay from "@/components/sessions/SessionSearchOverlay.vue";
 import ProjectBackgroundTaskInspector from "@/components/project/ProjectBackgroundTaskInspector.vue";
 import ProjectContentTabs from "@/components/project/ProjectContentTabs.vue";
@@ -39,6 +41,8 @@ import { useWorkbenchStore } from "@/stores/workbench";
 
 const { t } = useI18n();
 const isSessionSearchOpen = ref(false);
+const isSkillManagerOpen = ref(false);
+const isMcpManagerOpen = ref(false);
 // Only one titlebar position renders the preferences dialog per platform.
 const preferencesDialog =
   useTemplateRef<InstanceType<typeof PinePreferencesDialog>>(
@@ -340,6 +344,8 @@ onKeyStroke("k", (event) => {
   >
     <ProjectSidebar
       @manage-projects="preferencesDialog?.open('projects')"
+      @manage-skills="isSkillManagerOpen = true"
+      @manage-mcp="isMcpManagerOpen = true"
       @search-sessions="isSessionSearchOpen = true"
       @show-update="isUpdateOpen = true"
     />
@@ -427,6 +433,17 @@ onKeyStroke("k", (event) => {
 
     <SessionSearchOverlay v-model:open="isSessionSearchOpen" />
     <PineUpdateDialog v-model:open="isUpdateOpen" />
+    <!-- Project-scoped settings follow the project of the active tab. -->
+    <template v-if="projectStore.activeProject">
+      <SkillManagerDialog
+        v-model:open="isSkillManagerOpen"
+        :project-id="projectStore.activeProject.id"
+      />
+      <McpManagerDialog
+        v-model:open="isMcpManagerOpen"
+        :project-id="projectStore.activeProject.id"
+      />
+    </template>
     <ProjectBackgroundTaskInspector />
   </SidebarProvider>
 </template>

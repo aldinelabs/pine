@@ -17,6 +17,8 @@ import AllProjectsSessionList from "./AllProjectsSessionList.vue";
 const { t } = useI18n();
 const emit = defineEmits<{
   manageProjects: [];
+  manageSkills: [];
+  manageMcp: [];
   searchSessions: [];
   showUpdate: [];
 }>();
@@ -34,6 +36,8 @@ const { isAvailable } = storeToRefs(useUpdaterStore());
       <AllProjectsSessionList
         @search="emit('searchSessions')"
         @manage-projects="emit('manageProjects')"
+        @manage-skills="emit('manageSkills')"
+        @manage-mcp="emit('manageMcp')"
       />
     </SidebarContent>
 

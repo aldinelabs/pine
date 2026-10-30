@@ -115,7 +115,7 @@ async function mountList(
 }
 
 describe("AllProjectsSessionList", () => {
-  it("places project management below New session and opens it on click", async () => {
+  it("places project management, skills and MCP below New session", async () => {
     const { wrapper } = await mountList();
     const actions = wrapper
       .findAll('[data-slot="sidebar-menu"]')[0]
@@ -124,10 +124,20 @@ describe("AllProjectsSessionList", () => {
       "搜索会话",
       "新会话",
       "项目管理",
+      "工作技能",
+      "MCP 服务器",
     ]);
     await actions[2].trigger("click");
     expect(
       wrapper.findComponent(AllProjectsSessionList).emitted("manageProjects"),
+    ).toHaveLength(1);
+    await actions[3].trigger("click");
+    expect(
+      wrapper.findComponent(AllProjectsSessionList).emitted("manageSkills"),
+    ).toHaveLength(1);
+    await actions[4].trigger("click");
+    expect(
+      wrapper.findComponent(AllProjectsSessionList).emitted("manageMcp"),
     ).toHaveLength(1);
     wrapper.unmount();
   });
