@@ -47,6 +47,7 @@ import SessionDeleteDialog from "@/components/sessions/SessionDeleteDialog.vue";
 import SessionGroupDeleteDialog from "@/components/sessions/SessionGroupDeleteDialog.vue";
 import SessionGroupDialog from "@/components/sessions/SessionGroupDialog.vue";
 import SessionRenameDialog from "@/components/sessions/SessionRenameDialog.vue";
+import ModifierShortcut from "@/components/window/ModifierShortcut.vue";
 import { useContentTabNavigation } from "@/composables/useContentTabNavigation";
 import { useDraftProjectOpener } from "@/composables/useDraftProjectOpener";
 import { useProjectDisplayName } from "@/composables/useProjectDisplayName";
@@ -394,6 +395,7 @@ function drop(event: DragEvent, projectId: string, groupId: string | null) {
             <SidebarMenuButton @click="emit('search')">
               <Search aria-hidden="true" />
               <span>{{ t("sessions.searchAction") }}</span>
+              <ModifierShortcut class="ml-auto" key-label="K" />
             </SidebarMenuButton>
           </SidebarMenuItem>
           <SidebarMenuItem>
@@ -407,6 +409,7 @@ function drop(event: DragEvent, projectId: string, groupId: string | null) {
             >
               <Plus aria-hidden="true" />
               <span>{{ t("sessions.newSession") }}</span>
+              <ModifierShortcut class="ml-auto" key-label="N" />
             </SidebarMenuButton>
           </SidebarMenuItem>
           <SidebarMenuItem>
@@ -416,6 +419,7 @@ function drop(event: DragEvent, projectId: string, groupId: string | null) {
             >
               <FolderKanban aria-hidden="true" />
               <span>{{ t("preferences.sections.projects") }}</span>
+              <ModifierShortcut class="ml-auto" key-label="P" />
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>

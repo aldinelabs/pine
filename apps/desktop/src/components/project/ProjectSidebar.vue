@@ -10,6 +10,7 @@ import {
   SidebarMenuItem,
   SidebarRail,
 } from "@/components/ui/sidebar";
+import ModifierShortcut from "@/components/window/ModifierShortcut.vue";
 import AllProjectsSessionList from "./AllProjectsSessionList.vue";
 
 const { t } = useI18n();
@@ -44,6 +45,7 @@ const emit = defineEmits<{
           >
             <Library aria-hidden="true" />
             <span>{{ t("project.skills") }}</span>
+            <ModifierShortcut class="ml-auto" key-label="S" />
           </SidebarMenuButton>
         </SidebarMenuItem>
         <SidebarMenuItem>
@@ -53,6 +55,7 @@ const emit = defineEmits<{
           >
             <Blocks aria-hidden="true" />
             <span>{{ t("mcp.title") }}</span>
+            <ModifierShortcut class="ml-auto" key-label="L" />
           </SidebarMenuButton>
         </SidebarMenuItem>
       </SidebarMenu>

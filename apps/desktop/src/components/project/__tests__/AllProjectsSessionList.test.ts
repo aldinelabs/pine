@@ -121,9 +121,9 @@ describe("AllProjectsSessionList", () => {
       .findAll('[data-slot="sidebar-menu"]')[0]
       .findAll("button");
     expect(actions.map((button) => button.text())).toEqual([
-      "搜索会话",
-      "新会话",
-      "项目管理",
+      "搜索会话⌘K",
+      "新会话⌘N",
+      "项目管理⌘P",
     ]);
     await actions[2].trigger("click");
     expect(

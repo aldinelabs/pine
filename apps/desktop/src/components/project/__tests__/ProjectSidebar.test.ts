@@ -130,8 +130,8 @@ it("opens skills and MCP servers from the bottom of the sidebar", async () => {
 
   const buttons = wrapper.get("footer").findAll("button");
   expect(buttons.map((button) => button.text())).toEqual([
-    "工作技能",
-    "MCP 服务器",
+    "工作技能⌘S",
+    "MCP 服务器⌘L",
   ]);
   await buttons[0].trigger("click");
   await buttons[1].trigger("click");
