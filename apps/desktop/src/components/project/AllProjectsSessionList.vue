@@ -27,7 +27,6 @@ import {
   ContextMenuTrigger,
 } from "@/components/ui/context-menu";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Separator } from "@/components/ui/separator";
 import {
   SidebarGroup,
   SidebarGroupContent,
@@ -425,8 +424,6 @@ function drop(event: DragEvent, projectId: string, groupId: string | null) {
         </SidebarMenu>
       </SidebarGroupContent>
     </SidebarGroup>
-
-    <Separator />
 
     <SidebarGroup v-if="isLoadingAllRecent && !sessions.length" class="flex-1">
       <SidebarGroupContent>
