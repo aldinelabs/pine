@@ -11,6 +11,7 @@ describe("native close shortcut", () => {
   it.each([
     ["w", CLOSE_TAB_REQUESTED_CHANNEL],
     ["n", NEW_TAB_REQUESTED_CHANNEL],
+    ["t", NEW_TAB_REQUESTED_CHANNEL],
   ])(
     "intercepts Ctrl/Cmd+%s before the menu and ignores repeats and other shortcuts",
     (key, channel) => {
@@ -55,19 +56,6 @@ describe("native close shortcut", () => {
       expect(contents.send).toHaveBeenCalledTimes(2);
     },
   );
-
-  it("leaves Ctrl/Cmd+T to the page", () => {
-    const contents = Object.assign(new EventEmitter(), { send: vi.fn() });
-    installWindowShortcuts(contents as unknown as WebContents, vi.fn());
-    const event = { preventDefault: vi.fn() };
-    contents.emit("before-input-event", event, {
-      type: "keyDown",
-      key: "t",
-      meta: true,
-    });
-    expect(event.preventDefault).not.toHaveBeenCalled();
-    expect(contents.send).not.toHaveBeenCalled();
-  });
 
   it("creates a new window instance on Ctrl/Cmd+Shift+N but ignores repeats and modifiers", () => {
     const contents = Object.assign(new EventEmitter(), { send: vi.fn() });
