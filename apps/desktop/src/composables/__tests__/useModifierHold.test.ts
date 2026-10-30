@@ -59,3 +59,38 @@ it("hides hints when the window loses focus", () => {
   expect(held.value).toBe(false);
   wrapper.unmount();
 });
+
+it("stays hidden when the main process takes the shortcut", () => {
+  const listeners: Array<() => void> = [];
+  const subscribe = (listener: () => void) => {
+    listeners.push(listener);
+    return vi.fn();
+  };
+  vi.stubGlobal("pine", {
+    onCloseTabRequested: subscribe,
+    onNewTabRequested: subscribe,
+    platform: "darwin",
+  });
+  const { held, wrapper } = mountHold();
+  // Cmd+W: the page sees Cmd go down but neither W nor the release.
+  key("keydown", "Meta");
+  listeners[0]();
+  vi.advanceTimersByTime(MODIFIER_HOLD_DELAY_MS);
+  expect(held.value).toBe(false);
+
+  key("keydown", "Meta");
+  vi.advanceTimersByTime(MODIFIER_HOLD_DELAY_MS);
+  expect(held.value).toBe(true);
+  listeners[1]();
+  expect(held.value).toBe(false);
+  wrapper.unmount();
+});
+
+it("hides shown hints when another key is pressed", () => {
+  const { held, wrapper } = mountHold();
+  key("keydown", "Meta");
+  vi.advanceTimersByTime(MODIFIER_HOLD_DELAY_MS);
+  key("keydown", "k");
+  expect(held.value).toBe(false);
+  wrapper.unmount();
+});
