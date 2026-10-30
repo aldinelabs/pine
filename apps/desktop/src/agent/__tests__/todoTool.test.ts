@@ -64,7 +64,21 @@ describe("todo tool", () => {
   });
 
   it("does not let the result alias the caller's arguments", async () => {
-    const { ctx } = contextWithBranch([]);
+    const { ctx } = contextWithBranch([
+      {
+        type: "message",
+        message: {
+          role: "toolResult",
+          toolName: "todo",
+          details: {
+            action: "create",
+            params: {},
+            tasks: [{ id: 1, subject: "Earlier task", status: "pending" }],
+            nextId: 2,
+          },
+        },
+      },
+    ]);
     const tool = createTodoToolDefinition();
     const metadata = { area: "ui" };
 
@@ -76,7 +90,7 @@ describe("todo tool", () => {
     });
     metadata.area = "changed";
 
-    expect(result.details.tasks[0]?.metadata).toEqual({ area: "ui" });
+    expect(result.details.tasks[1]?.metadata).toEqual({ area: "ui" });
     expect(result.details.params).toEqual({
       action: "create",
       subject: "Task",

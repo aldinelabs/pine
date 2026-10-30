@@ -1,6 +1,7 @@
 import type {
   Task,
   TaskAction,
+  TaskCreateItem,
   TaskMutationParams,
   TaskState,
   TaskStatus,
@@ -74,7 +75,7 @@ export function deriveBlocks(tasks: readonly Task[]): Map<number, number[]> {
  * leaves the state untouched and still produces a result.
  */
 export type TaskOp =
-  | { kind: "create"; taskId: number }
+  | { kind: "create"; taskIds: number[] }
   | {
       kind: "update";
       id: number;
@@ -133,6 +134,138 @@ function taskChanged(before: Task, after: Task): boolean {
   );
 }
 
+function validateExistingDependencies(
+  state: TaskState,
+  field: string,
+  ids: readonly number[],
+): string | undefined {
+  for (const dependency of ids) {
+    const task = state.tasks.find((candidate) => candidate.id === dependency);
+    if (!task) return `${field}: #${dependency} not found`;
+    if (task.status === "deleted") return `${field}: #${dependency} is deleted`;
+  }
+  return undefined;
+}
+
+/**
+ * `create` takes either one `subject` (a task added to a list that is under
+ * way) or a whole list in `tasks`, whose steps reference each other by
+ * position. A list never starts with a single step: that is either work too
+ * small to track or a plan not broken down yet.
+ */
+function createTasks(
+  state: TaskState,
+  params: TaskMutationParams,
+): ApplyResult {
+  if (params.tasks !== undefined && params.subject !== undefined) {
+    return errorResult(
+      state,
+      "create takes either subject (one task) or tasks (a list), not both",
+    );
+  }
+  const batch = params.tasks !== undefined;
+  let items: TaskCreateItem[];
+  if (batch) {
+    items = params.tasks ?? [];
+    if (items.length === 0) {
+      return errorResult(state, "tasks must contain at least one step");
+    }
+  } else {
+    if (!params.subject?.trim()) {
+      return errorResult(state, "subject required for create");
+    }
+    if (!params.blockedBy) {
+      return errorResult(
+        state,
+        "blockedBy required for create: list the ids this task depends on, or [] when it depends on none",
+      );
+    }
+    items = [{ ...params, dependsOn: [] }];
+  }
+
+  const hasActive = state.tasks.some(
+    (task) => task.status === "pending" || task.status === "in_progress",
+  );
+  if (!hasActive && items.length === 1) {
+    return errorResult(
+      state,
+      "a new todo list needs at least 2 steps: pass every step in tasks, or skip the list for single-step work",
+    );
+  }
+
+  const tasks: Task[] = [];
+  for (const [index, item] of items.entries()) {
+    const position = index + 1;
+    const label = batch ? `tasks[${position}]: ` : "";
+    if (!item.subject?.trim()) {
+      return errorResult(state, `${label}subject required for create`);
+    }
+    if (
+      item.status !== undefined &&
+      item.status !== "pending" &&
+      item.status !== "in_progress"
+    ) {
+      return errorResult(
+        state,
+        `${label}a new task starts as pending or in_progress, not ${item.status}`,
+      );
+    }
+    if (batch && !item.dependsOn) {
+      return errorResult(
+        state,
+        `${label}dependsOn required: list the positions of earlier steps it needs, or [] when it depends on none`,
+      );
+    }
+    for (const dependency of item.dependsOn ?? []) {
+      if (
+        !Number.isInteger(dependency) ||
+        dependency < 1 ||
+        dependency >= position
+      ) {
+        return errorResult(
+          state,
+          `${label}dependsOn: ${dependency} is not an earlier step (use 1 to ${position - 1})`,
+        );
+      }
+    }
+    const blockedByError = validateExistingDependencies(
+      state,
+      `${label}blockedBy`,
+      item.blockedBy ?? [],
+    );
+    if (blockedByError) return errorResult(state, blockedByError);
+
+    const blockedBy = [
+      ...new Set([
+        ...(item.blockedBy ?? []),
+        ...(item.dependsOn ?? []).map(
+          (dependency) => state.nextId + dependency - 1,
+        ),
+      ]),
+    ];
+    const task: Task = {
+      id: state.nextId + index,
+      subject: item.subject,
+      status: item.status ?? "pending",
+    };
+    if (item.description) task.description = item.description;
+    if (item.activeForm) task.activeForm = item.activeForm;
+    if (blockedBy.length) task.blockedBy = blockedBy;
+    if (!batch) {
+      if (params.owner) task.owner = params.owner;
+      if (params.metadata) task.metadata = { ...params.metadata };
+    }
+    tasks.push(task);
+  }
+  return {
+    state: {
+      tasks: [...state.tasks, ...tasks],
+      nextId: state.nextId + tasks.length,
+    },
+    op: { kind: "create", taskIds: tasks.map((task) => task.id) },
+  };
+}
+
 /**
  * Pure reducer: (state, action, params) → (state, op). Validation runs before
  * anything changes, so a rejected call returns the original state.
@@ -143,42 +276,8 @@ export function applyTaskMutation(
   params: TaskMutationParams,
 ): ApplyResult {
   switch (action) {
-    case "create": {
-      if (!params.subject?.trim()) {
-        return errorResult(state, "subject required for create");
-      }
-      if (!params.blockedBy) {
-        return errorResult(
-          state,
-          "blockedBy required for create: list the ids this task depends on, or [] when it depends on none",
-        );
-      }
-      for (const dependency of params.blockedBy ?? []) {
-        const dependencyTask = state.tasks.find(
-          (task) => task.id === dependency,
-        );
-        if (!dependencyTask) {
-          return errorResult(state, `blockedBy: #${dependency} not found`);
-        }
-        if (dependencyTask.status === "deleted") {
-          return errorResult(state, `blockedBy: #${dependency} is deleted`);
-        }
-      }
-      const task: Task = {
-        id: state.nextId,
-        subject: params.subject,
-        status: "pending",
-      };
-      if (params.description) task.description = params.description;
-      if (params.activeForm) task.activeForm = params.activeForm;
-      if (params.blockedBy?.length) task.blockedBy = [...params.blockedBy];
-      if (params.owner) task.owner = params.owner;
-      if (params.metadata) task.metadata = { ...params.metadata };
-      return {
-        state: { tasks: [...state.tasks, task], nextId: state.nextId + 1 },
-        op: { kind: "create", taskId: task.id },
-      };
-    }
+    case "create":
+      return createTasks(state, params);
 
     case "update": {
       if (params.id === undefined) {

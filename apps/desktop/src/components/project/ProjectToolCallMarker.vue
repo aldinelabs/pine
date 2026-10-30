@@ -317,9 +317,13 @@ function todoOperation(input: Record<string, unknown>): TodoOperation {
 function todoTarget(input: Record<string, unknown>, output: unknown): string {
   const action = firstString(input, ["action"]);
   if (action === "create") {
-    return compactInline(
-      sanitizeTaskText(firstString(input, ["subject"]) ?? ""),
-    );
+    // A batch create names its steps in order.
+    const subjects = Array.isArray(input.tasks)
+      ? input.tasks.flatMap(
+          (item) => firstString(inputRecord(item), ["subject"]) ?? [],
+        )
+      : [firstString(input, ["subject"]) ?? ""];
+    return compactInline(sanitizeTaskText(subjects.join(" · ")));
   }
   if (action === "list") {
     const status = firstString(input, ["status"]);

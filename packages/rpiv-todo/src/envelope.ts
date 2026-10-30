@@ -66,9 +66,17 @@ function formatGetLines(task: Task, state: TaskState): string {
 export function formatTodoContent(op: TaskOp, state: TaskState): string {
   switch (op.kind) {
     case "create": {
-      const task = state.tasks.find((candidate) => candidate.id === op.taskId);
-      if (!task) return `Created #${op.taskId}`;
-      return `Created #${task.id}: ${sanitizeTaskText(task.subject)} (pending)`;
+      const created = op.taskIds.flatMap(
+        (id) => state.tasks.find((candidate) => candidate.id === id) ?? [],
+      );
+      const [first] = created;
+      if (created.length === 1 && first) {
+        return `Created #${first.id}: ${sanitizeTaskText(first.subject)} (${first.status})`;
+      }
+      return [
+        `Created ${created.length} tasks:`,
+        ...created.map(formatListLine),
+      ].join("\n");
     }
     case "update": {
       if (!op.changed) {

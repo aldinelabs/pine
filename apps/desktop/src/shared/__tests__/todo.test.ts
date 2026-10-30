@@ -27,35 +27,128 @@ function run(
   };
 }
 
+/** A fresh list; a list starts with at least two steps. */
 function withTasks(...subjects: string[]): TaskState {
-  return subjects.reduce(
-    (state, subject) => run(state, "create", { subject, blockedBy: [] }).state,
-    emptyTaskState(),
-  );
+  return run(emptyTaskState(), "create", {
+    tasks: subjects.map((subject) => ({ subject, dependsOn: [] })),
+  }).state;
 }
 
 describe("todo reducer", () => {
-  it("creates pending tasks with sequential ids", () => {
+  it("creates a whole list in one call with in-batch dependencies", () => {
     const created = run(emptyTaskState(), "create", {
-      subject: "Write the parser",
-      blockedBy: [],
+      tasks: [
+        {
+          subject: "Locate the parser",
+          status: "in_progress",
+          activeForm: "locating the parser",
+          dependsOn: [],
+        },
+        { subject: "Write the parser", dependsOn: [1] },
+        { subject: "Write docs", dependsOn: [1] },
+        { subject: "Run checks", dependsOn: [2, 3] },
+      ],
     });
-    expect(created.text).toBe("Created #1: Write the parser (pending)");
-    expect(created.state).toEqual({
-      tasks: [{ id: 1, subject: "Write the parser", status: "pending" }],
-      nextId: 2,
+    expect(created.text).toBe(
+      [
+        "Created 4 tasks:",
+        "[in_progress] #1 Locate the parser (locating the parser)",
+        "[pending] #2 Write the parser ⛓ #1",
+        "[pending] #3 Write docs ⛓ #1",
+        "[pending] #4 Run checks ⛓ #2,#3",
+      ].join("\n"),
+    );
+    expect(created.state.nextId).toBe(5);
+
+    // Steps added later reference existing ids and continue the numbering.
+    const appended = run(created.state, "create", {
+      tasks: [
+        { subject: "Fix review notes", dependsOn: [], blockedBy: [4] },
+        { subject: "Recheck", dependsOn: [1] },
+      ],
     });
-    expect(run(emptyTaskState(), "create", { subject: "  " }).text).toBe(
+    expect(appended.state.tasks.slice(4)).toEqual([
+      { id: 5, subject: "Fix review notes", status: "pending", blockedBy: [4] },
+      { id: 6, subject: "Recheck", status: "pending", blockedBy: [5] },
+    ]);
+  });
+
+  it("rejects malformed batches without changing anything", () => {
+    const state = emptyTaskState();
+    const create = (params: TaskMutationParams) =>
+      run(state, "create", params).text;
+    expect(create({ tasks: [] })).toBe(
+      "Error: tasks must contain at least one step",
+    );
+    expect(
+      create({
+        tasks: [
+          { subject: "A", dependsOn: [] },
+          { subject: "B", dependsOn: [2] },
+        ],
+      }),
+    ).toBe("Error: tasks[2]: dependsOn: 2 is not an earlier step (use 1 to 1)");
+    expect(
+      create({ tasks: [{ subject: "A" }, { subject: "B", dependsOn: [] }] }),
+    ).toBe(
+      "Error: tasks[1]: dependsOn required: list the positions of earlier steps it needs, or [] when it depends on none",
+    );
+    expect(
+      create({
+        tasks: [
+          { subject: "A", dependsOn: [] },
+          { subject: "B", status: "completed", dependsOn: [] },
+        ],
+      }),
+    ).toBe(
+      "Error: tasks[2]: a new task starts as pending or in_progress, not completed",
+    );
+    expect(create({ subject: "A", tasks: [] })).toBe(
+      "Error: create takes either subject (one task) or tasks (a list), not both",
+    );
+  });
+
+  it("never starts a list with a single step", () => {
+    const single =
+      "Error: a new todo list needs at least 2 steps: pass every step in tasks, or skip the list for single-step work";
+    expect(
+      run(emptyTaskState(), "create", { subject: "A", blockedBy: [] }).text,
+    ).toBe(single);
+    expect(
+      run(emptyTaskState(), "create", {
+        tasks: [{ subject: "A", dependsOn: [] }],
+      }).text,
+    ).toBe(single);
+
+    // A finished list does not count as one under way.
+    let state = withTasks("A", "B");
+    state = run(state, "update", { id: 1, status: "completed" }).state;
+    const added = run(state, "create", {
+      subject: "C",
+      status: "in_progress",
+      blockedBy: [1],
+    });
+    expect(added.text).toBe("Created #3: C (in_progress)");
+    state = run(added.state, "update", { id: 2, status: "completed" }).state;
+    state = run(state, "update", { id: 3, status: "completed" }).state;
+    expect(run(state, "create", { subject: "D", blockedBy: [] }).text).toBe(
+      single,
+    );
+  });
+
+  it("validates single-task creates", () => {
+    const state = withTasks("A", "B");
+    expect(run(state, "create", { subject: "  " }).text).toBe(
       "Error: subject required for create",
     );
     // Every task states its dependencies, even when it has none.
-    expect(run(emptyTaskState(), "create", { subject: "A" }).text).toBe(
+    expect(run(state, "create", { subject: "C" }).text).toBe(
       "Error: blockedBy required for create: list the ids this task depends on, or [] when it depends on none",
     );
   });
 
   it("follows the status machine and reports no-op updates", () => {
-    let state = withTasks("A");
+    let state = withTasks("A", "B");
     const started = run(state, "update", { id: 1, status: "in_progress" });
     expect(started.text).toBe("Updated #1 (pending → in_progress)");
     state = started.state;
@@ -95,21 +188,21 @@ describe("todo reducer", () => {
   });
 
   it("merges metadata and deletes null keys", () => {
-    let state = run(emptyTaskState(), "create", {
+    let state = run(withTasks("X", "Y"), "create", {
       subject: "A",
       blockedBy: [],
       metadata: { area: "ui", size: 2 },
     }).state;
     state = run(state, "update", {
-      id: 1,
+      id: 3,
       metadata: { area: null, owner: "pine" },
     }).state;
-    expect(state.tasks[0]?.metadata).toEqual({ size: 2, owner: "pine" });
+    expect(state.tasks[2]?.metadata).toEqual({ size: 2, owner: "pine" });
     state = run(state, "update", {
-      id: 1,
+      id: 3,
       metadata: { size: null, owner: null },
     }).state;
-    expect(state.tasks[0]).not.toHaveProperty("metadata");
+    expect(state.tasks[2]).not.toHaveProperty("metadata");
   });
 
   it("lists, deletes, and clears with upstream wording", () => {
@@ -130,7 +223,7 @@ describe("todo reducer", () => {
   });
 
   it("keeps a full snapshot on rejected calls", () => {
-    const state = withTasks("A");
+    const state = withTasks("A", "B");
     const result = buildTodoToolResult(
       "update",
       { id: 4 },
@@ -141,7 +234,7 @@ describe("todo reducer", () => {
       action: "update",
       params: { id: 4 },
       tasks: state.tasks,
-      nextId: 2,
+      nextId: 3,
       error: "#4 not found",
     });
   });

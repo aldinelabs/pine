@@ -649,8 +649,10 @@ describe("PineAgentRuntime", () => {
                       name: "todo",
                       arguments: {
                         action: "create",
-                        subject: "Check progress",
-                        blockedBy: [],
+                        tasks: [
+                          { subject: "Check progress", dependsOn: [] },
+                          { subject: "Report", dependsOn: [1] },
+                        ],
                       },
                     }
                   : {

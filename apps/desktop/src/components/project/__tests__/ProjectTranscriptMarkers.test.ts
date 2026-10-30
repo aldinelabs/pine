@@ -752,6 +752,22 @@ describe("project transcript markers", () => {
       },
     });
     expect(content.text()).toBe("任务清单操作被拒绝：#9 not found");
+
+    await wrapper.setProps({
+      toolCall: {
+        id: "tool-todo",
+        input: {
+          action: "create",
+          tasks: [
+            { subject: "Locate the parser", dependsOn: [] },
+            { subject: "Write tests", dependsOn: [1] },
+          ],
+        },
+        name: "todo",
+        status: "running",
+      },
+    });
+    expect(content.text()).toContain("Locate the parser · Write tests");
   });
 
   it("shows the filename when a read completes", () => {

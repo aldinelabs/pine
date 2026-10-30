@@ -53,6 +53,16 @@ export interface TaskDetails {
   error?: string;
 }
 
+/** One step of a batch `create`. */
+export interface TaskCreateItem {
+  subject?: string;
+  description?: string;
+  activeForm?: string;
+  status?: TaskStatus;
+  dependsOn?: number[];
+  blockedBy?: number[];
+}
+
 /** Open input bag the reducer accepts. */
 export interface TaskMutationParams {
   [key: string]: unknown;
@@ -67,6 +77,7 @@ export interface TaskMutationParams {
   metadata?: Record<string, unknown>;
   id?: number;
   includeDeleted?: boolean;
+  tasks?: TaskCreateItem[];
 }
 
 export function emptyTaskState(): TaskState {
@@ -88,11 +99,50 @@ function stringEnum<const T extends readonly string[]>(
   } as TSchema);
 }
 
+/** Statuses a task may start with. */
+export const CREATE_STATUSES = ["pending", "in_progress"] as const;
+
+const TaskCreateItemSchema = Type.Object({
+  subject: Type.String({ description: "Short imperative step" }),
+  description: Type.Optional(
+    Type.String({ description: "Long-form task description" }),
+  ),
+  activeForm: Type.Optional(
+    Type.String({
+      description: "Present-continuous label shown while in_progress",
+    }),
+  ),
+  status: Type.Optional(
+    stringEnum(CREATE_STATUSES, {
+      description:
+        "Starting status; set in_progress on the step you begin now (default pending)",
+    }),
+  ),
+  dependsOn: Type.Array(Type.Number(), {
+    description:
+      "1-based positions of earlier steps in this same tasks array that must finish first; [] when it depends on none",
+  }),
+  blockedBy: Type.Optional(
+    Type.Array(Type.Number(), {
+      description: "Ids of already existing tasks this step depends on",
+    }),
+  ),
+});
+
 /** Every `description` doubles as LLM-facing prompt copy. */
 export const TodoParamsSchema = Type.Object({
   action: stringEnum(TASK_ACTIONS),
+  tasks: Type.Optional(
+    Type.Array(TaskCreateItemSchema, {
+      description:
+        "create: all steps of the list in order, in one call. Use this instead of subject when starting a list",
+    }),
+  ),
   subject: Type.Optional(
-    Type.String({ description: "Task subject line (required for create)" }),
+    Type.String({
+      description:
+        "create: subject of one task added to an existing list (use tasks to start a list)",
+    }),
   ),
   description: Type.Optional(
     Type.String({ description: "Long-form task description" }),
@@ -106,13 +156,13 @@ export const TodoParamsSchema = Type.Object({
   status: Type.Optional(
     stringEnum(TASK_STATUSES, {
       description:
-        "Set this task's status (update): one of pending, in_progress, completed, deleted. When action is list, filters returned tasks by this status.",
+        "Set this task's status (update): one of pending, in_progress, completed, deleted. On create of a single task, pending or in_progress. When action is list, filters returned tasks by this status.",
     }),
   ),
   blockedBy: Type.Optional(
     Type.Array(Type.Number(), {
       description:
-        "Ids of the tasks this one depends on (required for create; [] when it depends on none)",
+        "Ids of the tasks this one depends on (required for a single-task create; [] when it depends on none)",
     }),
   ),
   addBlockedBy: Type.Optional(
