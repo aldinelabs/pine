@@ -9,6 +9,10 @@
   <sub>Agentic workspace dedicated to expanding possibilities for everyone.</sub>
 </p>
 
+<p align="center">
+  <img src="./docs/images/screenshot.webp" alt="Pine 界面预览" />
+</p>
+
 > [!CAUTION]
 > Pine 目前是早期开发者预览版，不适合日常工作或重要数据。界面、数据格式、Agent 行为和项目结构都可能发生不兼容变更，不提供稳定版本、迁移或兼容性保证。
 
