@@ -9,6 +9,12 @@ Every release section here has a matching section in the Chinese changelog.
 
 ## [Unreleased]
 
+## [0.11.3] - 2026-10-30
+
+### Changed
+
+- The Monet communication style is replaced by a simpler Neutral style, which is now the default; if you used Monet, you are switched to Neutral automatically.
+
 ## [0.11.2] - 2026-10-30
 
 ### Added
