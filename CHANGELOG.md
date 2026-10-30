@@ -9,6 +9,19 @@ Every release section here has a matching section in the Chinese changelog.
 
 ## [Unreleased]
 
+## [0.12.0] - 2026-10-30
+
+### Added
+
+- Press ⌘; / Ctrl+; in any app to open a floating composer and start a new conversation with Pine. It is off by default; turn it on in Preferences.
+- The floating composer can include the app you are working in: its window and the text you have selected there, shown as a chip you can remove. Pine asks for the permission it needs to read them.
+- On macOS, the sidebar can use native Liquid Glass on systems that support it.
+- Completion notifications can play a sound, in addition to the notification.
+
+### Changed
+
+- The completion signal setting in Preferences is now a menu with Off, Notification, and Notification and sound.
+
 ## [0.11.3] - 2026-10-30
 
 ### Changed
