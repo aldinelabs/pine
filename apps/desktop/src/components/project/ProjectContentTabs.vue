@@ -15,7 +15,7 @@ import {
 import { useI18n } from "vue-i18n";
 import { TEMPORARY_WORKSPACE_PROJECT_ID } from "@/shared/projects";
 import { handleError } from "@/app/errors/errorHandler";
-import { PineLogo } from "@/components/pine";
+import pineLogoUrl from "@/assets/pine-logo.svg";
 import { Button } from "@/components/ui/button";
 import { FlickeringGrid } from "@/components/ui/flickering-grid";
 import { Separator } from "@/components/ui/separator";
@@ -46,6 +46,15 @@ import ProjectFilePreview from "./ProjectFilePreview.vue";
 import ProjectTabsOverflowMenu from "./ProjectTabsOverflowMenu.vue";
 import RetainedPanel from "./RetainedPanel.vue";
 import WindowShortcutHints from "@/components/window/WindowShortcutHints.vue";
+
+/** Vite inlines the small logo as a data URI, so the URL must be quoted. The
+ * source canvas pads the 611.2-unit artwork to 1024 units. */
+const pineLogoMaskStyle = {
+  maskImage: `url("${pineLogoUrl}")`,
+  maskPosition: "center",
+  maskRepeat: "no-repeat",
+  maskSize: `${(1024 / 611.2) * 100}%`,
+};
 
 const { t } = useI18n();
 const { state: sidebarState, isMobile } = useSidebar();
@@ -718,9 +727,13 @@ watch(activeSession, (session) => {
         :max-opacity="0.42"
         :square-size="4"
       />
-      <PineLogo
+      <!-- A tinted pane cut to the logo blurs the dot grid behind it, since
+           backdrop-filter on the SVG itself would blur its whole box. -->
+      <div
         aria-hidden="true"
-        class="pointer-events-none relative size-64 text-muted-foreground/10 select-none"
+        data-slot="empty-tabs-logo"
+        class="pointer-events-none relative size-64 bg-muted-foreground/10 backdrop-blur-[2px] select-none"
+        :style="pineLogoMaskStyle"
       />
       <WindowShortcutHints class="relative" />
     </div>

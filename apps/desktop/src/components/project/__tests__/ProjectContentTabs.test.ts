@@ -770,8 +770,10 @@ describe("ProjectContentTabs", () => {
     expect(
       wrapper.find('[role="region"][aria-label="No tabs open"]').exists(),
     ).toBe(true);
-    const logo = wrapper.get('[role="region"][aria-label="No tabs open"] svg');
-    expect(logo.find("path").exists()).toBe(true);
+    const logo = wrapper.get(
+      '[role="region"][aria-label="No tabs open"] [data-slot="empty-tabs-logo"]',
+    );
+    expect(logo.attributes("style")).toContain("mask-image");
     expect(wrapper.find('[data-slot="empty"]').exists()).toBe(false);
     expect(wrapper.find('[role="tabpanel"]').exists()).toBe(false);
     await flushPromises();
