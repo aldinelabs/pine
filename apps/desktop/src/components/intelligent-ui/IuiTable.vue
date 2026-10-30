@@ -24,22 +24,23 @@ function formatCell(value: unknown): string {
 </script>
 
 <template>
-  <div data-iui="table" class="min-w-0">
+  <div data-iui="table" class="min-w-0 overflow-hidden rounded-lg">
     <Table>
       <TableCaption v-if="props.props.caption">
         {{ props.props.caption }}
       </TableCaption>
-      <TableHeader>
+      <TableHeader class="bg-muted">
         <TableRow>
           <TableHead
             v-for="(column, index) in props.props.columns ?? []"
             :key="index"
+            class="px-4 py-3"
           >
             {{ column }}
           </TableHead>
         </TableRow>
       </TableHeader>
-      <TableBody>
+      <TableBody class="[&>tr:nth-child(even):not(:hover)]:bg-muted/30">
         <TableRow
           v-for="(row, rowIndex) in props.props.rows ?? []"
           :key="rowIndex"
@@ -47,6 +48,7 @@ function formatCell(value: unknown): string {
           <TableCell
             v-for="(value, cellIndex) in row ?? []"
             :key="cellIndex"
+            class="px-4 py-3"
             :class="typeof value === 'number' && 'tabular-nums'"
           >
             {{ formatCell(value) }}
