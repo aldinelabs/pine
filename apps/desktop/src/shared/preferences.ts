@@ -14,6 +14,9 @@ export const GET_COMPLETION_SIGNAL_CHANNEL =
   "preferences:get-completion-signal" as const;
 export const SET_COMPLETION_SIGNAL_CHANNEL =
   "preferences:set-completion-signal" as const;
+/** Main → renderer: a run finished and the completion sound should play. */
+export const COMPLETION_SOUND_EVENT_CHANNEL =
+  "preferences:completion-sound" as const;
 export const GET_AUTO_APPROVAL_SETTINGS_CHANNEL =
   "preferences:get-auto-approval-settings" as const;
 export const SET_AUTO_APPROVAL_SETTINGS_CHANNEL =
@@ -53,15 +56,32 @@ export interface SetDiagnosticLoggingResult {
 }
 
 export interface SetCompletionSignalRequest {
-  enabled: boolean;
+  mode: PineCompletionSignalMode;
 }
 
 export interface SetCompletionSignalResult {
-  enabled: boolean;
+  mode: PineCompletionSignalMode;
 }
 
-/** Signal finished work unless the user turned it off. */
-export const DEFAULT_COMPLETION_SIGNAL_ENABLED = true;
+/** How Pine signals finished work while the user is elsewhere. */
+export const PINE_COMPLETION_SIGNAL_MODES = [
+  "off",
+  "notification",
+  "notification-sound",
+] as const;
+
+export type PineCompletionSignalMode =
+  (typeof PINE_COMPLETION_SIGNAL_MODES)[number];
+
+export function isPineCompletionSignalMode(
+  value: unknown,
+): value is PineCompletionSignalMode {
+  return (PINE_COMPLETION_SIGNAL_MODES as readonly unknown[]).includes(value);
+}
+
+/** Notify without a sound unless the user chose otherwise. */
+export const DEFAULT_COMPLETION_SIGNAL_MODE: PineCompletionSignalMode =
+  "notification";
 
 export type PineContextCompactionStrategy = "passive" | "recommended";
 

@@ -20,6 +20,7 @@ import type {
 } from "./agent";
 import type {
   PineAutoApprovalSettings,
+  PineCompletionSignalMode,
   PineContextCompactionRoute,
   PineContextCompactionStrategy,
   SetCompletionSignalRequest,
@@ -95,6 +96,7 @@ import type {
 } from "./sessions";
 import type { WorkbenchStateResponse } from "./workbench";
 import type { PineWindowApi } from "./window";
+import type { PineQuickComposerApi } from "./quickComposer";
 import type { PineUserProfile, SetUserProfileResult } from "./userProfile";
 import type {
   ListSkillsResult,
@@ -146,6 +148,10 @@ export function isTemporaryWorkspace(projectId: string | undefined): boolean {
 }
 
 export const LIST_PROJECTS_CHANNEL = "project:list" as const;
+/** Main tells every other window their lists are stale. */
+export const LIBRARY_CHANGED_CHANNEL = "library:changed" as const;
+/** What changed in another window: its sessions, or its projects too. */
+export type PineLibraryChange = "sessions" | "projects";
 export const CREATE_PROJECT_CHANNEL = "project:create" as const;
 export const CLOSE_PROJECT_CHANNEL = "project:close" as const;
 export const OPEN_PROJECT_CHANNEL = "project:open" as const;
@@ -311,7 +317,14 @@ export interface PickProjectFoldersRequest {
   mode: "context" | "default";
 }
 
-export interface PineDesktopApi extends PineWindowApi {
+export interface PineDesktopApi extends PineWindowApi, PineQuickComposerApi {
+  /**
+   * Fires when another window changed sessions or projects, so this one can
+   * reload the lists it shows.
+   */
+  onLibraryChanged: (
+    listener: (change: PineLibraryChange) => void,
+  ) => () => void;
   respondWorkbenchState: (response: WorkbenchStateResponse) => void;
   listMcpServers: (request: PineMcpRequest) => Promise<PineMcpCatalog>;
   saveMcpServer: (request: PineMcpSaveRequest) => Promise<PineMcpCatalog>;
@@ -415,10 +428,11 @@ export interface PineDesktopApi extends PineWindowApi {
   setDiagnosticLogging: (
     request: SetDiagnosticLoggingRequest,
   ) => Promise<SetDiagnosticLoggingResult>;
-  getCompletionSignal: () => Promise<boolean>;
+  getCompletionSignal: () => Promise<PineCompletionSignalMode>;
   setCompletionSignal: (
     request: SetCompletionSignalRequest,
   ) => Promise<SetCompletionSignalResult>;
+  onCompletionSound: (listener: () => void) => () => void;
   getUserProfile: () => Promise<PineUserProfile>;
   getTinyFishCredentialStatus: () => Promise<TinyFishCredentialStatus>;
   setTinyFishApiKey: (

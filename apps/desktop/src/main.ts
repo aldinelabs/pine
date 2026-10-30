@@ -8,15 +8,18 @@ import {
   BrowserWindow,
   clipboard,
   dialog,
+  globalShortcut,
   ipcMain,
   nativeTheme,
   Notification,
   powerMonitor,
   protocol,
   shell,
+  systemPreferences,
   webContents,
   type IpcMainEvent,
   type OpenDialogOptions,
+  type Rectangle,
 } from "electron";
 import started from "electron-squirrel-startup";
 import { randomUUID } from "node:crypto";
@@ -57,6 +60,40 @@ import {
   serveProjectMediaRequest,
 } from "./main/projectFilePreview";
 import { installWindowShortcuts } from "./main/windowShortcuts";
+import { QuickComposerController } from "./main/quickComposer";
+import { applyLiquidGlass, isLiquidGlassSupported } from "./main/liquidGlass";
+import {
+  hideSidebarGlass,
+  isSidebarGlassSupported,
+  setGlassCornerRadius,
+  setWindowAnimates,
+  showSidebarGlass,
+  windowCornerRadius,
+} from "./main/sidebarGlass";
+import {
+  captureAppContext,
+  discardAppContext,
+  frontmostApp,
+} from "./main/appContext";
+import {
+  DEFAULT_QUICK_COMPOSER_ENABLED,
+  GET_QUICK_COMPOSER_CHANNEL,
+  HIDE_QUICK_COMPOSER_CHANNEL,
+  DELIVER_QUICK_COMPOSER_CHANNEL,
+  PRESENT_QUICK_COMPOSER_HANDOFF_CHANNEL,
+  QUICK_COMPOSER_ACCELERATOR,
+  QUICK_COMPOSER_HANDOFF_ARGUMENT,
+  QUICK_COMPOSER_ROUTE_HASH,
+  SET_QUICK_COMPOSER_CHANNEL,
+  QUICK_COMPOSER_GLASS_RADIUS,
+  SET_QUICK_COMPOSER_GLASS_CHANNEL,
+  SET_QUICK_COMPOSER_PASS_THROUGH_CHANNEL,
+  REQUEST_QUICK_COMPOSER_PERMISSION_CHANNEL,
+  SUBMIT_QUICK_COMPOSER_CHANNEL,
+  TAKE_QUICK_COMPOSER_HANDOFF_CHANNEL,
+  type QuickComposerHandoff,
+  type SetQuickComposerResult,
+} from "./shared/quickComposer";
 import { AppUpdater, readUpdateManifestUrl } from "./main/appUpdater";
 import { AgentProcessHost } from "./main/agentProcessHost";
 import { RuntimeDiagnostics } from "./main/runtimeDiagnostics";
@@ -91,7 +128,8 @@ import {
   writeAutoApprovalSettings,
   writeContextCompactionRoute,
   writeContextCompactionStrategy,
-  writeCompletionSignalEnabled,
+  writeCompletionSignalMode,
+  writeQuickComposerEnabled,
   writeDiagnosticLoggingEnabled,
   writePineUserProfile,
 } from "./agent/pineSettings";
@@ -136,12 +174,15 @@ import {
   SET_DIAGNOSTIC_LOGGING_CHANNEL,
   GET_COMPLETION_SIGNAL_CHANNEL,
   SET_COMPLETION_SIGNAL_CHANNEL,
+  COMPLETION_SOUND_EVENT_CHANNEL,
   GET_AUTO_APPROVAL_SETTINGS_CHANNEL,
   SET_AUTO_APPROVAL_SETTINGS_CHANNEL,
   type PineAutoApprovalSettings,
   type PineContextCompactionRoute,
   type PineContextCompactionStrategy,
-  DEFAULT_COMPLETION_SIGNAL_ENABLED,
+  DEFAULT_COMPLETION_SIGNAL_MODE,
+  type PineCompletionSignalMode,
+  PINE_COMPLETION_SIGNAL_MODES,
   type SetCompletionSignalResult,
   type SetContextCompactionRouteResult,
   type SetContextCompactionStrategyResult,
@@ -201,12 +242,14 @@ import {
   CLEAR_PROJECT_STORAGE_CHANNEL,
   type ProjectStorageResult,
   type ProjectStorageUsage,
+  LIBRARY_CHANGED_CHANNEL,
   LIST_PROJECTS_CHANNEL,
   OPEN_PROJECT_CHANNEL,
   PICK_PROJECT_FOLDERS_CHANNEL,
   PROJECTS_DIRECTORY,
   isTemporaryWorkspace,
   PROJECT_ATTACHMENTS_DIRECTORY,
+  TEMPORARY_WORKSPACE_PROJECT_ID,
   PROJECT_COLOR_THEMES,
   PROJECT_ICONS,
   UPDATE_PROJECT_CHANNEL,
@@ -216,6 +259,7 @@ import {
   type OpenProjectResult,
   type PineProject,
   type PickProjectFoldersResult,
+  type PineLibraryChange,
   type ProjectResult,
 } from "./shared/projects";
 import {
@@ -301,7 +345,10 @@ import {
   DARK_WINDOW_BACKGROUND,
   LIGHT_WINDOW_BACKGROUND,
   PROJECT_LIST_WINDOW_SIZE,
+  SET_SIDEBAR_GLASS_WIDTH_CHANNEL,
   SET_SIDEBAR_VIBRANCY_CHANNEL,
+  SET_THEME_SOURCE_CHANNEL,
+  isPineThemeSource,
   SET_WINDOW_BACKGROUND_CHANNEL,
   isWindowBackgroundColor,
   CLOSE_WINDOW_CHANNEL,
@@ -503,7 +550,8 @@ let pineAgentDirectory: string | null = null;
 const modelRecommendations = new ModelRecommendationService();
 const modelMetadata = new ModelMetadataService();
 let projectRuntimes: ProjectRuntimeRegistry | null = null;
-let completionSignalEnabled = DEFAULT_COMPLETION_SIGNAL_ENABLED;
+let completionSignalMode: PineCompletionSignalMode =
+  DEFAULT_COMPLETION_SIGNAL_MODE;
 const completionSignals = new CompletionSignalTracker();
 let presentedFiles: PresentedFileRegistry | null = null;
 let projectFileWatchers: ProjectFileWatcherRegistry | null = null;
@@ -1353,11 +1401,18 @@ async function ensureAppWindowsSandboxReady(): Promise<boolean> {
 
 /**
  * The opaque colour each window paints where the page has not drawn yet, e.g.
- * the edge revealed while it resizes. Vibrancy keeps the window transparent.
+ * the edge revealed while it resizes. Vibrancy keeps the window transparent;
+ * sidebar glass paints the colour natively, behind the glass.
  */
 const windowBackgrounds = new WeakMap<
   BrowserWindow,
-  { color: string; vibrancy: boolean }
+  {
+    color: string;
+    vibrancy: boolean;
+    sidebarGlass: boolean;
+    /** The visible width of the left sidebar, in CSS pixels. */
+    sidebarWidth: number;
+  }
 >();
 
 function applyWindowBackground(window: BrowserWindow): void {
@@ -1366,9 +1421,17 @@ function applyWindowBackground(window: BrowserWindow): void {
   window.setBackgroundColor(
     background.vibrancy ? TRANSPARENT_WINDOW_BACKGROUND : background.color,
   );
+  if (background.sidebarGlass)
+    showSidebarGlass(window, background.sidebarWidth, background.color);
 }
 
-const createWindow = () => {
+interface CreateWindowOptions {
+  bounds?: Rectangle;
+  /** Stays hidden until the quick composer presents it. */
+  quickComposerHandoff?: boolean;
+}
+
+const createWindow = (options: CreateWindowOptions = {}) => {
   // Matches the theme before the renderer reports its exact colour, so a dark
   // window never opens white.
   const backgroundColor = nativeTheme.shouldUseDarkColors
@@ -1391,8 +1454,9 @@ const createWindow = () => {
         }),
     // Pine opens straight into the workspace, so the window starts in the
     // resizable project layout.
-    width: PROJECT_WINDOW_WIDTH,
-    height: PROJECT_LIST_WINDOW_SIZE.height,
+    width: options.bounds?.width ?? PROJECT_WINDOW_WIDTH,
+    height: options.bounds?.height ?? PROJECT_LIST_WINDOW_SIZE.height,
+    ...(options.bounds && { x: options.bounds.x, y: options.bounds.y }),
     minWidth: 720,
     minHeight: 540,
     show: false,
@@ -1406,11 +1470,16 @@ const createWindow = () => {
       webSecurity: true,
       scrollBounce: true,
       preload: path.join(__dirname, "preload.js"),
+      ...(options.quickComposerHandoff && {
+        additionalArguments: [QUICK_COMPOSER_HANDOFF_ARGUMENT],
+      }),
     },
   });
   windowBackgrounds.set(mainWindow, {
     color: backgroundColor,
     vibrancy: false,
+    sidebarGlass: false,
+    sidebarWidth: 0,
   });
   const webContentsId = mainWindow.webContents.id;
   mainWindow.on("unresponsive", () => {
@@ -1432,7 +1501,7 @@ const createWindow = () => {
       error: error.message,
     });
   });
-  installWindowShortcuts(mainWindow.webContents, createWindow);
+  installWindowShortcuts(mainWindow.webContents, () => createWindow());
 
   // Focus stops the approval attention request (Windows flashes until the
   // window is focused; macOS bounces until the app activates).
@@ -1441,7 +1510,7 @@ const createWindow = () => {
   mainWindow.once("ready-to-show", () => {
     if (isSmokeTest) {
       app.exit(0);
-    } else {
+    } else if (!options.quickComposerHandoff) {
       mainWindow.show();
     }
   });
@@ -1471,10 +1540,181 @@ const createWindow = () => {
     );
   }
 
-  if (MAIN_WINDOW_VITE_DEV_SERVER_URL) {
+  if (MAIN_WINDOW_VITE_DEV_SERVER_URL && !options.quickComposerHandoff) {
     mainWindow.webContents.openDevTools();
   }
+  return mainWindow;
 };
+
+/**
+ * The floating composer: transparent and frameless, above every app and
+ * space, with clicks on its empty area passing through to the app behind.
+ */
+function createQuickComposerPanel(bounds: Rectangle): BrowserWindow {
+  const panel = new BrowserWindow({
+    ...bounds,
+    title: "Pine",
+    frame: false,
+    transparent: true,
+    backgroundColor: TRANSPARENT_WINDOW_BACKGROUND,
+    hasShadow: false,
+    resizable: false,
+    movable: false,
+    minimizable: false,
+    maximizable: false,
+    fullscreenable: false,
+    skipTaskbar: true,
+    show: false,
+    // An NSPanel floats over fullscreen apps without activating Pine's
+    // other windows.
+    ...(process.platform === "darwin" && { type: "panel" }),
+    webPreferences: {
+      allowRunningInsecureContent: false,
+      contextIsolation: true,
+      experimentalFeatures: false,
+      nodeIntegration: false,
+      sandbox: true,
+      webSecurity: true,
+      preload: path.join(__dirname, "preload.js"),
+    },
+  });
+  panel.setAlwaysOnTop(true, "pop-up-menu");
+  panel.setVisibleOnAllWorkspaces(true, {
+    visibleOnFullScreen: true,
+    // Keeps the Dock icon from flickering when the panel is created.
+    skipTransformProcessType: true,
+  });
+  panel.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
+  panel.webContents.on("will-navigate", (event) => event.preventDefault());
+  if (MAIN_WINDOW_VITE_DEV_SERVER_URL) {
+    void panel.loadURL(
+      `${MAIN_WINDOW_VITE_DEV_SERVER_URL}#/${QUICK_COMPOSER_ROUTE_HASH}`,
+    );
+  } else {
+    void panel.loadFile(
+      path.join(__dirname, `../renderer/${MAIN_WINDOW_VITE_NAME}/index.html`),
+      { hash: `/${QUICK_COMPOSER_ROUTE_HASH}` },
+    );
+  }
+  // It plays its own entrance.
+  setWindowAnimates(panel, false);
+  return panel;
+}
+
+/**
+ * The Liquid Glass card under the floating composer. It loads no page and
+ * never takes clicks; the panel above it does.
+ */
+function createQuickComposerGlass(): BrowserWindow | null {
+  if (!isLiquidGlassSupported()) return null;
+  const glass = new BrowserWindow({
+    width: 1,
+    height: 1,
+    frame: false,
+    transparent: true,
+    backgroundColor: TRANSPARENT_WINDOW_BACKGROUND,
+    // macOS shapes the shadow from the rounded glass, like a window's, so the
+    // composer's edge stands out over any app.
+    hasShadow: true,
+    resizable: false,
+    movable: false,
+    minimizable: false,
+    maximizable: false,
+    fullscreenable: false,
+    focusable: false,
+    skipTaskbar: true,
+    show: false,
+    type: "panel",
+    webPreferences: { sandbox: true, contextIsolation: true },
+  });
+  glass.setIgnoreMouseEvents(true);
+  glass.setAlwaysOnTop(true, "pop-up-menu");
+  glass.setVisibleOnAllWorkspaces(true, {
+    visibleOnFullScreen: true,
+    skipTransformProcessType: true,
+  });
+  if (!applyLiquidGlass(glass, { cornerRadius: QUICK_COMPOSER_GLASS_RADIUS })) {
+    glass.destroy();
+    return null;
+  }
+  setWindowAnimates(glass, false);
+  return glass;
+}
+
+const quickComposer = new QuickComposerController({
+  createPanel: createQuickComposerPanel,
+  createGlass: createQuickComposerGlass,
+  setGlassRadius: (glass, radius) => setGlassCornerRadius(glass, radius),
+  windowCornerRadius,
+  // The system's own opening animation would play over the glass.
+  setPresenting: (window, presenting) => setWindowAnimates(window, !presenting),
+  ownerWindow: (projectId) => {
+    // Every window holds the temporary workspace; a new one takes it.
+    if (isTemporaryWorkspace(projectId)) return null;
+    const ownerId = getProjectRuntimes().ownerOfProject(projectId);
+    return (ownerId !== undefined && windowForWebContentsId(ownerId)) || null;
+  },
+  deliver: (window, handoff) => {
+    window.webContents.send(DELIVER_QUICK_COMPOSER_CHANNEL, handoff);
+    focusWindow(window);
+  },
+  createHandoffWindow: (bounds) =>
+    createWindow({ bounds, quickComposerHandoff: true }),
+  captureContext: () => {
+    const app = frontmostApp();
+    const root = projectsRootPath;
+    if (!app || !root) return null;
+    // Pine-managed storage of the temporary workspace, which every window
+    // may preview and the message may be sent from.
+    return () =>
+      captureAppContext(
+        app,
+        path.join(
+          root,
+          TEMPORARY_WORKSPACE_PROJECT_ID,
+          PROJECT_ATTACHMENTS_DIRECTORY,
+        ),
+      );
+  },
+  discardContext: (attachments) => void discardAppContext(attachments),
+});
+let quickComposerEnabled = DEFAULT_QUICK_COMPOSER_ENABLED;
+
+/** Registers or releases the global shortcut; false when another app has it. */
+function applyQuickComposerShortcut(enabled: boolean): boolean {
+  if (!enabled) {
+    if (globalShortcut.isRegistered(QUICK_COMPOSER_ACCELERATOR))
+      globalShortcut.unregister(QUICK_COMPOSER_ACCELERATOR);
+    quickComposer.dispose();
+    return true;
+  }
+  if (globalShortcut.isRegistered(QUICK_COMPOSER_ACCELERATOR)) return true;
+  const registered = globalShortcut.register(QUICK_COMPOSER_ACCELERATOR, () =>
+    quickComposer.toggle(),
+  );
+  if (registered) quickComposer.warmUp();
+  return registered;
+}
+
+/** Windows the user sees as Pine's, without the quick composer's own. */
+function appWindows(): BrowserWindow[] {
+  return BrowserWindow.getAllWindows().filter(
+    (window) => !quickComposer.isAuxiliary(window),
+  );
+}
+
+/**
+ * Tells the other windows their session and project lists are stale, so a
+ * change made in one window shows in every window.
+ */
+function notifyLibraryChanged(
+  change: PineLibraryChange,
+  sourceWebContentsId?: number,
+): void {
+  for (const window of appWindows())
+    if (!window.isDestroyed() && window.webContents.id !== sourceWebContentsId)
+      window.webContents.send(LIBRARY_CHANGED_CHANNEL, change);
+}
 
 ipcMain.handle(CLOSE_WINDOW_CHANNEL, (event): void => {
   BrowserWindow.fromWebContents(event.sender)?.close();
@@ -1486,6 +1726,12 @@ ipcMain.handle(SET_WINDOW_BACKGROUND_CHANNEL, (event, color: unknown): void => {
   if (!window || !background || !isWindowBackgroundColor(color)) return;
   background.color = color;
   applyWindowBackground(window);
+});
+
+// Pine's own light or dark choice also decides the native materials, so the
+// sidebar glass is dark in a dark Pine on a light system.
+ipcMain.handle(SET_THEME_SOURCE_CHANNEL, (_event, source: unknown): void => {
+  if (isPineThemeSource(source)) nativeTheme.themeSource = source;
 });
 
 ipcMain.handle(SET_WINDOW_LAYOUT_CHANNEL, (event, layout: unknown): void => {
@@ -1595,16 +1841,106 @@ ipcMain.handle(
 
 ipcMain.handle(
   GET_COMPLETION_SIGNAL_CHANNEL,
-  (): boolean => completionSignalEnabled,
+  (): PineCompletionSignalMode => completionSignalMode,
 );
 
 ipcMain.handle(
   SET_COMPLETION_SIGNAL_CHANNEL,
   async (_event, request: unknown): Promise<SetCompletionSignalResult> => {
+    const { mode } = z
+      .object({ mode: z.enum(PINE_COMPLETION_SIGNAL_MODES) })
+      .parse(request);
+    await writeCompletionSignalMode(getPineAgentDirectory(), mode);
+    completionSignalMode = mode;
+    return { mode };
+  },
+);
+
+ipcMain.handle(GET_QUICK_COMPOSER_CHANNEL, (): boolean => quickComposerEnabled);
+
+ipcMain.handle(
+  SET_QUICK_COMPOSER_CHANNEL,
+  async (_event, request: unknown): Promise<SetQuickComposerResult> => {
     const { enabled } = z.object({ enabled: z.boolean() }).parse(request);
-    await writeCompletionSignalEnabled(getPineAgentDirectory(), enabled);
-    completionSignalEnabled = enabled;
-    return { enabled };
+    const registered = applyQuickComposerShortcut(enabled);
+    // A shortcut another app holds leaves the feature off.
+    const applied = enabled && registered;
+    await writeQuickComposerEnabled(getPineAgentDirectory(), applied);
+    quickComposerEnabled = applied;
+    return { enabled: applied, registered };
+  },
+);
+
+const QuickComposerRectSchema = z.object({
+  x: z.number().finite(),
+  y: z.number().finite(),
+  width: z.number().finite().nonnegative(),
+  height: z.number().finite().nonnegative(),
+});
+
+const SubmitQuickComposerSchema = z.object({
+  message: z.string().min(1),
+  approvalMode: z.enum(["let-me-review", "auto-approve", "autonomous", "YOLO"]),
+  projectId: z.string().min(1),
+  withContext: z.boolean(),
+  composerRect: QuickComposerRectSchema,
+});
+
+ipcMain.handle(HIDE_QUICK_COMPOSER_CHANNEL, (event): void => {
+  if (quickComposer.isPanel(event.sender)) quickComposer.hide();
+});
+
+ipcMain.handle(
+  SET_QUICK_COMPOSER_PASS_THROUGH_CHANNEL,
+  (event, passThrough: unknown): void => {
+    if (quickComposer.isPanel(event.sender) && typeof passThrough === "boolean")
+      quickComposer.setPassThrough(passThrough);
+  },
+);
+
+ipcMain.handle(
+  SET_QUICK_COMPOSER_GLASS_CHANNEL,
+  (event, rect: unknown): boolean =>
+    quickComposer.isPanel(event.sender) &&
+    quickComposer.setGlass(QuickComposerRectSchema.parse(rect)),
+);
+
+ipcMain.handle(
+  SUBMIT_QUICK_COMPOSER_CHANNEL,
+  (event, request: unknown): number | null | undefined => {
+    if (!quickComposer.isPanel(event.sender)) return undefined;
+    // Previews of attachments picked here are granted to any window, so the
+    // new one shows them too.
+    return quickComposer.submit(SubmitQuickComposerSchema.parse(request));
+  },
+);
+
+ipcMain.handle(
+  REQUEST_QUICK_COMPOSER_PERMISSION_CHANNEL,
+  async (event, request: unknown): Promise<void> => {
+    if (!quickComposer.isPanel(event.sender)) return;
+    const permission = z.enum(["accessibility", "screen"]).parse(request);
+    // The system lists Pine there, or asks to add it to the list.
+    if (permission === "accessibility")
+      systemPreferences.isTrustedAccessibilityClient(true);
+    else
+      await shell.openExternal(
+        "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture",
+      );
+    quickComposer.hide();
+  },
+);
+
+ipcMain.handle(
+  TAKE_QUICK_COMPOSER_HANDOFF_CHANNEL,
+  (event): Promise<QuickComposerHandoff | null> =>
+    quickComposer.takeHandoff(event.sender),
+);
+
+ipcMain.handle(
+  PRESENT_QUICK_COMPOSER_HANDOFF_CHANNEL,
+  (event, rect: unknown): void => {
+    quickComposer.present(event.sender.id, QuickComposerRectSchema.parse(rect));
   },
 );
 
@@ -1936,9 +2272,12 @@ ipcMain.handle(
       buttonLabel: "Add",
       properties: ["openFile", "multiSelections"],
     };
-    const selection = parentWindow
-      ? await dialog.showOpenDialog(parentWindow, options)
-      : await dialog.showOpenDialog(options);
+    const selection = await quickComposer.whileModal(
+      event.sender,
+      parentWindow
+        ? dialog.showOpenDialog(parentWindow, options)
+        : dialog.showOpenDialog(options),
+    );
 
     if (selection.canceled) return { attachments: [] };
     const result = await inspectAttachmentPaths(selection.filePaths);
@@ -1959,9 +2298,12 @@ handleDiagnosticIpc(
       buttonLabel: "Add",
       properties: ["openDirectory", "multiSelections"],
     };
-    const selection = parentWindow
-      ? await dialog.showOpenDialog(parentWindow, options)
-      : await dialog.showOpenDialog(options);
+    const selection = await quickComposer.whileModal(
+      event.sender,
+      parentWindow
+        ? dialog.showOpenDialog(parentWindow, options)
+        : dialog.showOpenDialog(options),
+    );
 
     if (selection.canceled) return { attachments: [] };
     const result = await inspectAttachmentPaths(selection.filePaths);
@@ -2074,9 +2416,11 @@ handleDiagnosticIpc(
 
 handleDiagnosticIpc(
   CREATE_PROJECT_CHANNEL,
-  async (_event, request: unknown): Promise<ProjectResult> => {
+  async (event, request: unknown): Promise<ProjectResult> => {
     const input = ProjectMutationSchema.parse(request);
-    return { project: await getProjectRepository().create(input) };
+    const project = await getProjectRepository().create(input);
+    notifyLibraryChanged("projects", event.sender.id);
+    return { project };
   },
 );
 
@@ -2513,21 +2857,22 @@ handleDiagnosticIpc(
         repository.dataPaths(id),
       );
     }
+    notifyLibraryChanged("projects", event.sender.id);
     return { project };
   },
 );
 
 ipcMain.handle(
   UPDATE_PROJECT_SESSION_GROUPS_CHANNEL,
-  async (_event, request: unknown): Promise<ProjectResult> => {
+  async (event, request: unknown): Promise<ProjectResult> => {
     const { id, sessionGroups } =
       UpdateProjectSessionGroupsRequestSchema.parse(request);
-    return {
-      project: await getProjectRepository().updateSessionGroups(
-        id,
-        sessionGroups,
-      ),
-    };
+    const project = await getProjectRepository().updateSessionGroups(
+      id,
+      sessionGroups,
+    );
+    notifyLibraryChanged("projects", event.sender.id);
+    return { project };
   },
 );
 
@@ -2537,7 +2882,9 @@ ipcMain.handle(
     const { id } = ProjectIdRequestSchema.parse(request);
     const ownerId = getProjectRuntimes().ownerOfProject(id);
     if (ownerId !== undefined) await getProjectRuntimes().close(ownerId, id);
-    return { deleted: await getProjectRepository().delete(id) };
+    const deleted = await getProjectRepository().delete(id);
+    notifyLibraryChanged("projects", event.sender.id);
+    return { deleted };
   },
 );
 
@@ -2798,13 +3145,13 @@ ipcMain.handle(
   DELETE_SESSION_CHANNEL,
   async (event, request: unknown): Promise<DeleteSessionResult> => {
     const { projectId, sessionId } = ProjectSessionRequestSchema.parse(request);
-    return {
-      deleted: await getProjectRuntimes().deleteSession(
-        event.sender.id,
-        projectId,
-        sessionId,
-      ),
-    };
+    const deleted = await getProjectRuntimes().deleteSession(
+      event.sender.id,
+      projectId,
+      sessionId,
+    );
+    notifyLibraryChanged("sessions", event.sender.id);
+    return { deleted };
   },
 );
 
@@ -2836,14 +3183,14 @@ ipcMain.handle(
   async (event, request: unknown): Promise<RenameSessionResult> => {
     const { name, projectId, sessionId } =
       RenameSessionRequestSchema.parse(request);
-    return {
-      session: await getProjectRuntimes().renameSession(
-        event.sender.id,
-        projectId,
-        sessionId,
-        name,
-      ),
-    };
+    const session = await getProjectRuntimes().renameSession(
+      event.sender.id,
+      projectId,
+      sessionId,
+      name,
+    );
+    notifyLibraryChanged("sessions", event.sender.id);
+    return { session };
   },
 );
 
@@ -2964,6 +3311,17 @@ ipcMain.handle(
     ),
 );
 
+// Sent every frame while the sidebar slides, so the glass keeps up with it.
+ipcMain.on(SET_SIDEBAR_GLASS_WIDTH_CHANNEL, (event, width: unknown): void => {
+  const window = BrowserWindow.fromWebContents(event.sender);
+  const background = window && windowBackgrounds.get(window);
+  if (!window || !background || typeof width !== "number") return;
+  if (!Number.isFinite(width)) return;
+  background.sidebarWidth = Math.max(0, width);
+  if (background.sidebarGlass)
+    showSidebarGlass(window, background.sidebarWidth, background.color);
+});
+
 ipcMain.handle(
   SET_SIDEBAR_VIBRANCY_CHANNEL,
   (event, request: unknown): SetSidebarVibrancyResult => {
@@ -2971,16 +3329,25 @@ ipcMain.handle(
     if (process.platform !== "darwin") return { applied: false };
 
     const window = BrowserWindow.fromWebContents(event.sender);
-    if (!window || window.isDestroyed()) return { applied: false };
+    // Only project windows have a sidebar; the quick composer's own windows
+    // share the renderer but must stay clear.
+    const background = window && windowBackgrounds.get(window);
+    if (!window || window.isDestroyed() || !background)
+      return { applied: false };
 
-    window.setVibrancy(enabled ? "sidebar" : null);
-    // An opaque window background covers the native vibrancy material, so it
-    // must become fully transparent while the effect is enabled.
-    const background = windowBackgrounds.get(window);
-    if (background) {
-      background.vibrancy = enabled;
-      applyWindowBackground(window);
-    }
+    // Glass like system sidebars where the system has it; Electron's
+    // vibrancy before macOS 26.
+    const glass =
+      enabled &&
+      isSidebarGlassSupported() &&
+      showSidebarGlass(window, background.sidebarWidth, background.color);
+    if (!glass && background.sidebarGlass) hideSidebarGlass(window);
+    background.sidebarGlass = glass;
+    window.setVibrancy(enabled && !glass ? "sidebar" : null);
+    // An opaque window background covers the native material, so it must
+    // become fully transparent while the effect is enabled.
+    background.vibrancy = enabled;
+    applyWindowBackground(window);
     return { applied: true };
   },
 );
@@ -2991,8 +3358,11 @@ ipcMain.handle(
 async function initializeApp(): Promise<void> {
   pineAgentDirectory = path.join(app.getPath("userData"), "agent");
   const settings = await readPineAgentSettings(pineAgentDirectory);
-  completionSignalEnabled =
-    settings.completionSignalEnabled ?? DEFAULT_COMPLETION_SIGNAL_ENABLED;
+  completionSignalMode =
+    settings.completionSignalMode ?? DEFAULT_COMPLETION_SIGNAL_MODE;
+  quickComposerEnabled =
+    (settings.quickComposerEnabled ?? DEFAULT_QUICK_COMPOSER_ENABLED) &&
+    applyQuickComposerShortcut(true);
   runtimeDiagnostics = new RuntimeDiagnostics(
     app.getPath("logs"),
     settings.diagnosticLoggingEnabled ?? false,
@@ -3084,8 +3454,11 @@ async function initializeApp(): Promise<void> {
     }
     trackSessionWork(agentEvent);
     const completedRun = completionSignals.observe(agentEvent);
-    if (completedRun && completionSignalEnabled) {
+    if (completedRun && completionSignalMode !== "off") {
       signalCompletedRun(completedRun, ownerId);
+      if (completionSignalMode === "notification-sound") {
+        ownerWindow(ownerId)?.webContents.send(COMPLETION_SOUND_EVENT_CHANNEL);
+      }
     }
     if (agentEvent.type === "present-file") {
       void forwardPresentedFile(agentEvent, ownerId);
@@ -3140,6 +3513,14 @@ async function initializeApp(): Promise<void> {
       projectRuntimes?.clearSessionInteractions(agentEvent.sessionId);
     }
     webContents.fromId(ownerId)?.send(SESSION_EVENT_CHANNEL, agentEvent);
+    // A new session, a new title, or a finished run moves it in every
+    // window's list.
+    if (
+      agentEvent.type === "session-updated" ||
+      (agentEvent.type === "run-state" &&
+        (agentEvent.state === "idle" || agentEvent.state === "failed"))
+    )
+      notifyLibraryChanged("sessions", ownerId);
     if (teleportProjectId) {
       void teleportSession(agentEvent.sessionId, teleportProjectId);
     }
@@ -3152,6 +3533,8 @@ app.on("ready", () => {
 });
 
 app.on("will-quit", () => {
+  globalShortcut.unregisterAll();
+  quickComposer.dispose();
   projectFileWatchers?.dispose();
   filePreviewWatchers.dispose();
   void agentHost?.dispose();
@@ -3167,13 +3550,26 @@ app.on("window-all-closed", () => {
   }
 });
 
+// The quick composer's own windows keep running while it is enabled, so the
+// last of the user's windows closing is what quits on Windows and Linux.
+app.on("browser-window-created", (_event, window) => {
+  window.once("closed", () => {
+    if (
+      process.platform !== "darwin" &&
+      !quickComposer.isAuxiliary(window) &&
+      appWindows().every((other) => other === window)
+    )
+      app.quit();
+  });
+});
+
 app.on("activate", () => {
   // On OS X it's common to re-create a window in the app when the
   // dock icon is clicked and there are no other windows open.
-  if (BrowserWindow.getAllWindows().length === 0) {
+  if (appWindows().length === 0) {
     if (process.platform === "win32" && !isSmokeTest) {
       void ensureAppWindowsSandboxReady().then((ready) => {
-        if (ready && BrowserWindow.getAllWindows().length === 0) {
+        if (ready && appWindows().length === 0) {
           createWindow();
         } else if (!ready) {
           app.quit();

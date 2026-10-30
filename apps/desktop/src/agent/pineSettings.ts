@@ -7,6 +7,8 @@ import type {
 } from "../shared/models";
 import {
   isPineAutoApprovalSettings,
+  isPineCompletionSignalMode,
+  type PineCompletionSignalMode,
   type PineAutoApprovalSettings,
   isPineContextCompactionRoute,
   isPineContextCompactionStrategy,
@@ -25,7 +27,8 @@ const PINE_SETTINGS_FILE = "pine-settings.json";
 export interface PineAgentSettings {
   autoApproval?: PineAutoApprovalSettings;
   diagnosticLoggingEnabled?: boolean;
-  completionSignalEnabled?: boolean;
+  completionSignalMode?: PineCompletionSignalMode;
+  quickComposerEnabled?: boolean;
   contextCompactionStrategy?: PineContextCompactionStrategy;
   contextCompactionRoute?: PineContextCompactionRoute;
   imageModel?: PineImageModelSelection;
@@ -129,8 +132,18 @@ export async function readPineAgentSettings(
       ...(typeof settings.diagnosticLoggingEnabled === "boolean"
         ? { diagnosticLoggingEnabled: settings.diagnosticLoggingEnabled }
         : {}),
-      ...(typeof settings.completionSignalEnabled === "boolean"
-        ? { completionSignalEnabled: settings.completionSignalEnabled }
+      ...(isPineCompletionSignalMode(settings.completionSignalMode)
+        ? { completionSignalMode: settings.completionSignalMode }
+        : // Before the sound existed this was an on/off switch for notifications.
+          typeof settings.completionSignalEnabled === "boolean"
+          ? {
+              completionSignalMode: settings.completionSignalEnabled
+                ? "notification"
+                : "off",
+            }
+          : {}),
+      ...(typeof settings.quickComposerEnabled === "boolean"
+        ? { quickComposerEnabled: settings.quickComposerEnabled }
         : {}),
       ...(isPineContextCompactionStrategy(contextCompactionStrategy)
         ? { contextCompactionStrategy }
@@ -197,11 +210,18 @@ export async function writeDiagnosticLoggingEnabled(
   await writePineAgentSettings(agentDir, { diagnosticLoggingEnabled });
 }
 
-export async function writeCompletionSignalEnabled(
+export async function writeCompletionSignalMode(
   agentDir: string,
-  completionSignalEnabled: boolean,
+  completionSignalMode: PineCompletionSignalMode,
 ): Promise<void> {
-  await writePineAgentSettings(agentDir, { completionSignalEnabled });
+  await writePineAgentSettings(agentDir, { completionSignalMode });
+}
+
+export async function writeQuickComposerEnabled(
+  agentDir: string,
+  quickComposerEnabled: boolean,
+): Promise<void> {
+  await writePineAgentSettings(agentDir, { quickComposerEnabled });
 }
 
 export async function writeAutoApprovalSettings(

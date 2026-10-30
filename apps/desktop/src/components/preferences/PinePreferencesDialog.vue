@@ -73,7 +73,9 @@ import {
 } from "@/stores/appearance";
 import { PROJECT_COLOR_THEME_OPTIONS } from "@/lib/projectColorThemes";
 import {
-  DEFAULT_COMPLETION_SIGNAL_ENABLED,
+  DEFAULT_COMPLETION_SIGNAL_MODE,
+  isPineCompletionSignalMode,
+  type PineCompletionSignalMode,
   DEFAULT_CONTEXT_COMPACTION_ROUTE,
   DEFAULT_CONTEXT_COMPACTION_STRATEGY,
   isPineContextCompactionRoute,
@@ -81,6 +83,7 @@ import {
   type PineContextCompactionRoute,
   type PineContextCompactionStrategy,
 } from "@/shared/preferences";
+import { DEFAULT_QUICK_COMPOSER_ENABLED } from "@/shared/quickComposer";
 import {
   createDefaultPineUserProfile,
   isPineCommunicationStyle,
@@ -122,7 +125,15 @@ const contextCompactionRoute = ref<PineContextCompactionRoute>(
   DEFAULT_CONTEXT_COMPACTION_ROUTE,
 );
 const isSavingContextCompactionRoute = ref(false);
-const completionSignalEnabled = ref(DEFAULT_COMPLETION_SIGNAL_ENABLED);
+const quickComposerEnabled = ref(DEFAULT_QUICK_COMPOSER_ENABLED);
+const isLoadingQuickComposer = ref(true);
+const isSavingQuickComposer = ref(false);
+const quickComposerShortcut = computed(() =>
+  window.pine?.platform === "darwin" ? "⌘;" : "Ctrl+;",
+);
+const completionSignalMode = ref<PineCompletionSignalMode>(
+  DEFAULT_COMPLETION_SIGNAL_MODE,
+);
 const isLoadingCompletionSignal = ref(true);
 const isSavingCompletionSignal = ref(false);
 const diagnosticLoggingEnabled = ref(false);
@@ -213,6 +224,7 @@ watch(isOpen, (open) => {
   void loadContextCompactionStrategy();
   void loadContextCompactionRoute();
   void loadCompletionSignal();
+  void loadQuickComposer();
   void loadDiagnosticLogging();
 });
 
@@ -240,6 +252,7 @@ onMounted(() => {
   void loadContextCompactionStrategy();
   void loadContextCompactionRoute();
   void loadCompletionSignal();
+  void loadQuickComposer();
   void loadDiagnosticLogging();
 });
 
@@ -395,12 +408,60 @@ async function loadContextCompactionRoute(): Promise<void> {
   }
 }
 
+async function loadQuickComposer(): Promise<void> {
+  if (isSavingQuickComposer.value) return;
+  isLoadingQuickComposer.value = true;
+  try {
+    if (typeof window.pine?.getQuickComposer !== "function") return;
+    quickComposerEnabled.value = await window.pine.getQuickComposer();
+  } catch (error) {
+    handleError(error, {
+      id: "preferences.quickComposer.load",
+      title: t("errors.quickComposer.title"),
+      description: t("errors.quickComposer.description"),
+    });
+  } finally {
+    isLoadingQuickComposer.value = false;
+  }
+}
+
+async function updateQuickComposer(enabled: boolean): Promise<void> {
+  if (
+    isLoadingQuickComposer.value ||
+    isSavingQuickComposer.value ||
+    enabled === quickComposerEnabled.value
+  )
+    return;
+  const previous = quickComposerEnabled.value;
+  quickComposerEnabled.value = enabled;
+  isSavingQuickComposer.value = true;
+  try {
+    const result = await window.pine.setQuickComposer({ enabled });
+    quickComposerEnabled.value = result.enabled;
+    if (!result.registered)
+      toast.error(t("errors.quickComposerShortcutTaken.title"), {
+        description: t("errors.quickComposerShortcutTaken.description", {
+          shortcut: quickComposerShortcut.value,
+        }),
+      });
+  } catch (error) {
+    quickComposerEnabled.value = previous;
+    handleError(error, {
+      id: "preferences.quickComposer.save",
+      title: t("errors.quickComposer.title"),
+      description: t("errors.quickComposer.description"),
+    });
+  } finally {
+    isSavingQuickComposer.value = false;
+  }
+}
+
 async function loadCompletionSignal(): Promise<void> {
   if (isSavingCompletionSignal.value) return;
   isLoadingCompletionSignal.value = true;
   try {
     if (typeof window.pine?.getCompletionSignal !== "function") return;
-    completionSignalEnabled.value = await window.pine.getCompletionSignal();
+    completionSignalMode.value = await window.pine.getCompletionSignal();
   } catch (error) {
     handleError(error, {
       id: "completion-signal-load",
@@ -412,21 +473,22 @@ async function loadCompletionSignal(): Promise<void> {
   }
 }
 
-async function updateCompletionSignal(enabled: boolean): Promise<void> {
+async function updateCompletionSignal(value: unknown): Promise<void> {
+  if (!isPineCompletionSignalMode(value)) return;
   if (
     isLoadingCompletionSignal.value ||
     isSavingCompletionSignal.value ||
-    enabled === completionSignalEnabled.value
+    value === completionSignalMode.value
   )
     return;
-  const previous = completionSignalEnabled.value;
-  completionSignalEnabled.value = enabled;
+  const previous = completionSignalMode.value;
+  completionSignalMode.value = value;
   isSavingCompletionSignal.value = true;
   try {
-    const result = await window.pine.setCompletionSignal({ enabled });
-    completionSignalEnabled.value = result.enabled;
+    const result = await window.pine.setCompletionSignal({ mode: value });
+    completionSignalMode.value = result.mode;
   } catch (error) {
-    completionSignalEnabled.value = previous;
+    completionSignalMode.value = previous;
     handleError(error, {
       id: "completion-signal-update",
       title: t("errors.completionSignal.title"),
@@ -901,6 +963,42 @@ defineExpose({ open });
 
               <Field orientation="horizontal">
                 <div class="flex min-w-0 flex-1 flex-col gap-1">
+                  <FieldTitle id="pine-completion-signal-setting">
+                    {{ t("preferences.completionSignal") }}
+                  </FieldTitle>
+                </div>
+                <Select
+                  :model-value="completionSignalMode"
+                  :disabled="
+                    isLoadingCompletionSignal || isSavingCompletionSignal
+                  "
+                  @update:model-value="updateCompletionSignal"
+                >
+                  <SelectTrigger
+                    data-testid="pine-completion-signal-select"
+                    class="w-fit"
+                    aria-labelledby="pine-completion-signal-setting"
+                  >
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectGroup>
+                      <SelectItem value="off">
+                        {{ t("preferences.completionSignalOff") }}
+                      </SelectItem>
+                      <SelectItem value="notification">
+                        {{ t("preferences.completionSignalNotification") }}
+                      </SelectItem>
+                      <SelectItem value="notification-sound">
+                        {{ t("preferences.completionSignalNotificationSound") }}
+                      </SelectItem>
+                    </SelectGroup>
+                  </SelectContent>
+                </Select>
+              </Field>
+
+              <Field orientation="horizontal">
+                <div class="flex min-w-0 flex-1 flex-col gap-1">
                   <FieldTitle id="pine-transcript-serif-setting">
                     {{ t("preferences.transcriptSerif") }}
                   </FieldTitle>
@@ -952,21 +1050,23 @@ defineExpose({ open });
 
               <Field orientation="horizontal">
                 <div class="flex min-w-0 flex-1 flex-col gap-1">
-                  <FieldTitle id="pine-completion-signal-setting">
-                    {{ t("preferences.completionSignal") }}
+                  <FieldTitle id="pine-quick-composer-setting">
+                    {{ t("preferences.quickComposer") }}
                   </FieldTitle>
                   <FieldDescription>
-                    {{ t("preferences.completionSignalDescription") }}
+                    {{
+                      t("preferences.quickComposerDescription", {
+                        shortcut: quickComposerShortcut,
+                      })
+                    }}
                   </FieldDescription>
                 </div>
                 <Switch
-                  data-testid="pine-completion-signal-toggle"
-                  :model-value="completionSignalEnabled"
-                  :disabled="
-                    isLoadingCompletionSignal || isSavingCompletionSignal
-                  "
-                  aria-labelledby="pine-completion-signal-setting"
-                  @update:model-value="updateCompletionSignal"
+                  data-testid="pine-quick-composer-toggle"
+                  :model-value="quickComposerEnabled"
+                  :disabled="isLoadingQuickComposer || isSavingQuickComposer"
+                  aria-labelledby="pine-quick-composer-setting"
+                  @update:model-value="updateQuickComposer"
                 />
               </Field>
 

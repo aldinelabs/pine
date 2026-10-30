@@ -15,13 +15,19 @@ const routes: RouteRecordRaw[] = [
     component: () => import("@/views/ProjectView.vue"),
   },
   {
+    // The floating composer window loads this route; see QuickComposerView.
+    path: "/quick-composer",
+    name: ROUTE_NAMES.quickComposer,
+    component: () => import("@/views/QuickComposerView.vue"),
+  },
+  {
     path: "/:pathMatch(.*)*",
     redirect: { name: ROUTE_NAMES.workspace },
   },
 ];
 
 /**
- * Pine has a single workspace view. The open tabs, not the route, decide
+ * Pine has a single workspace view, plus the floating composer's own. The open tabs, not the route, decide
  * which project the window shows; the route only carries UI state such as
  * the active tab, so the Pinia instance is accepted for API stability.
  */

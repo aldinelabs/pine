@@ -21,6 +21,7 @@ import type { AskUserQuestionSubmission } from "@pine/rpiv-ask-user-question";
 import {
   attachmentMessagePreview,
   parseAttachmentMessage,
+  serializeAttachmentMessage,
   type PineAttachment,
 } from "@/shared/attachments";
 import { intelligentUiHostKey } from "@/components/intelligent-ui/context";
@@ -41,9 +42,11 @@ import {
 } from "@/components/ui/message-scroller";
 import { Spinner } from "@/components/ui/spinner";
 import { useContentTabNavigation } from "@/composables/useContentTabNavigation";
+import { useDraftProjectOpener } from "@/composables/useDraftProjectOpener";
 import { useToolActivityExpansion } from "@/composables/useToolActivityExpansion";
 import { useContentTabsStore } from "@/stores/contentTabs";
 import { useProjectStore } from "@/stores/project";
+import { useQuickComposerHandoffStore } from "@/stores/quickComposerHandoff";
 import { useSessionStore, type PineTranscriptMessage } from "@/stores/session";
 import ProjectSessionParallaxBackground from "./ProjectSessionParallaxBackground.vue";
 import ProjectSessionComposer from "./ProjectSessionComposer.vue";
@@ -66,6 +69,7 @@ const props = defineProps<{
 }>();
 const contentTabsStore = useContentTabsStore();
 const projectStore = useProjectStore();
+const openForDraft = useDraftProjectOpener();
 const tabNavigation = useContentTabNavigation();
 const sessionStore = useSessionStore();
 const { attachDrop } = useAttachmentDrop();
@@ -373,6 +377,64 @@ function selectDraftProject(projectId: string): void {
     contentTabsStore.rememberDraftProject(projectId);
 }
 
+/**
+ * A window opened from the floating composer fills its draft with the
+ * message, lets main move the window so this composer covers the floating
+ * one, and only then sends it, so the message appears to stay in place.
+ */
+const quickComposerHandoff = useQuickComposerHandoffStore();
+/** Shown as the floating composer showed it, until the message is sent. */
+const handoffContext = ref<PineAttachment[]>([]);
+watch(
+  () =>
+    isActive.value && !props.sessionId && quickComposerHandoff.pending !== null,
+  async (ready) => {
+    if (!ready) return;
+    const handoff = quickComposerHandoff.take();
+    if (!handoff) return;
+    // The view waits behind a spinner while its tab's project is not open
+    // here, so open it before the draft moves there. The floating
+    // composer's choice is not remembered for later drafts.
+    if (await openForDraft(handoff.projectId)) {
+      contentTabsStore.setDraftProject(props.tabId, handoff.projectId);
+      await nextTick();
+    }
+    const parsed = parseAttachmentMessage(handoff.message);
+    draft.value = parsed.prompt;
+    attachments.value = parsed.attachments;
+    handoffContext.value = handoff.context;
+    approvalMode.value = handoff.approvalMode;
+    await nextTick();
+    // A hidden window may not run animation frames; layout is ready anyway.
+    await new Promise((resolve) => {
+      requestAnimationFrame(resolve);
+      window.setTimeout(resolve, 50);
+    });
+    const element: unknown = composer.value?.$el;
+    if (element instanceof HTMLElement) {
+      const rect = element.getBoundingClientRect();
+      await window.pine
+        .presentQuickComposerHandoff({
+          x: rect.x,
+          y: rect.y,
+          width: rect.width,
+          height: rect.height,
+        })
+        .catch(() => undefined);
+    }
+    submit(
+      handoff.context.length > 0
+        ? serializeAttachmentMessage(
+            [...handoff.context, ...parsed.attachments],
+            parsed.prompt,
+          )
+        : handoff.message,
+    );
+    handoffContext.value = [];
+  },
+  { immediate: true, flush: "post" },
+);
+
 function restoreComposerMessage(message: string): void {
   const parsed = parseAttachmentMessage(message);
   draft.value = [parsed.prompt, draft.value]
@@ -640,6 +702,7 @@ async function handleDrop(event: DragEvent): Promise<void> {
         v-model="draft"
         v-model:attachments="attachments"
         v-model:approvalMode="approvalMode"
+        :context="handoffContext"
         :is-running="isRunning"
         :is-active="isActive"
         :pending-approval="pendingApproval"

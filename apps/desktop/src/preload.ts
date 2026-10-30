@@ -48,9 +48,11 @@ import {
   SET_DIAGNOSTIC_LOGGING_CHANNEL,
   GET_COMPLETION_SIGNAL_CHANNEL,
   SET_COMPLETION_SIGNAL_CHANNEL,
+  COMPLETION_SOUND_EVENT_CHANNEL,
   GET_AUTO_APPROVAL_SETTINGS_CHANNEL,
   SET_AUTO_APPROVAL_SETTINGS_CHANNEL,
   type PineAutoApprovalSettings,
+  type PineCompletionSignalMode,
   type PineContextCompactionRoute,
   type PineContextCompactionStrategy,
   type SetCompletionSignalRequest,
@@ -123,6 +125,7 @@ import {
   CREATE_PROJECT_CHANNEL,
   CLOSE_PROJECT_CHANNEL,
   DELETE_PROJECT_CHANNEL,
+  LIBRARY_CHANGED_CHANNEL,
   LIST_PROJECTS_CHANNEL,
   OPEN_PROJECT_CHANNEL,
   PICK_PROJECT_FOLDERS_CHANNEL,
@@ -138,6 +141,7 @@ import {
   type ListProjectsResult,
   type OpenProjectResult,
   type PineDesktopApi,
+  type PineLibraryChange,
   type PickProjectFoldersRequest,
   type PickProjectFoldersResult,
   type ProjectIdRequest,
@@ -195,7 +199,9 @@ import {
   type SetWatchedProjectDirectoriesRequest,
 } from "./shared/projectFiles";
 import {
+  SET_SIDEBAR_GLASS_WIDTH_CHANNEL,
   SET_SIDEBAR_VIBRANCY_CHANNEL,
+  SET_THEME_SOURCE_CHANNEL,
   CLOSE_TAB_REQUESTED_CHANNEL,
   NEW_TAB_REQUESTED_CHANNEL,
   CLOSE_WINDOW_CHANNEL,
@@ -206,11 +212,36 @@ import {
   WINDOW_RESIZE_STARTED_CHANNEL,
   GET_APP_VERSION_CHANNEL,
   OPEN_EXTERNAL_URL_CHANNEL,
+  type PineThemeSource,
   type PineWindowLayout,
   type PineWindowResizeRequest,
   type SetSidebarVibrancyRequest,
   type SetSidebarVibrancyResult,
 } from "./shared/window";
+import {
+  GET_QUICK_COMPOSER_CHANNEL,
+  HIDE_QUICK_COMPOSER_CHANNEL,
+  PRESENT_QUICK_COMPOSER_HANDOFF_CHANNEL,
+  DELIVER_QUICK_COMPOSER_CHANNEL,
+  QUICK_COMPOSER_HANDOFF_ARGUMENT,
+  QUICK_COMPOSER_CONTEXT_CHANNEL,
+  QUICK_COMPOSER_HIDDEN_CHANNEL,
+  QUICK_COMPOSER_SHOWN_CHANNEL,
+  REQUEST_QUICK_COMPOSER_PERMISSION_CHANNEL,
+  SET_QUICK_COMPOSER_CHANNEL,
+  SET_QUICK_COMPOSER_GLASS_CHANNEL,
+  SET_QUICK_COMPOSER_PASS_THROUGH_CHANNEL,
+  SUBMIT_QUICK_COMPOSER_CHANNEL,
+  TAKE_QUICK_COMPOSER_HANDOFF_CHANNEL,
+  type QuickComposerContext,
+  type QuickComposerHandoff,
+  type QuickComposerPermission,
+  type QuickComposerRect,
+  type QuickComposerShown,
+  type SetQuickComposerRequest,
+  type SetQuickComposerResult,
+  type SubmitQuickComposerRequest,
+} from "./shared/quickComposer";
 import {
   CHECK_FOR_UPDATE_CHANNEL,
   DOWNLOAD_UPDATE_CHANNEL,
@@ -287,10 +318,14 @@ const pineApi: PineDesktopApi = {
     return () => ipcRenderer.removeListener(UPDATE_EVENT_CHANNEL, handler);
   },
   platform: process.platform,
+  setThemeSource: (source: PineThemeSource): Promise<void> =>
+    ipcRenderer.invoke(SET_THEME_SOURCE_CHANNEL, source),
   setSidebarVibrancy: (
     request: SetSidebarVibrancyRequest,
   ): Promise<SetSidebarVibrancyResult> =>
     ipcRenderer.invoke(SET_SIDEBAR_VIBRANCY_CHANNEL, request),
+  setSidebarGlassWidth: (width: number): void =>
+    ipcRenderer.send(SET_SIDEBAR_GLASS_WIDTH_CHANNEL, width),
   abortSession: (request: SessionControlRequest): Promise<AbortSessionResult> =>
     ipcRenderer.invoke(ABORT_SESSION_CHANNEL, request),
   listBackgroundTasks: (
@@ -432,12 +467,82 @@ const pineApi: PineDesktopApi = {
     request: SetDiagnosticLoggingRequest,
   ): Promise<SetDiagnosticLoggingResult> =>
     ipcRenderer.invoke(SET_DIAGNOSTIC_LOGGING_CHANNEL, request),
-  getCompletionSignal: (): Promise<boolean> =>
+  getCompletionSignal: (): Promise<PineCompletionSignalMode> =>
     ipcRenderer.invoke(GET_COMPLETION_SIGNAL_CHANNEL),
   setCompletionSignal: (
     request: SetCompletionSignalRequest,
   ): Promise<SetCompletionSignalResult> =>
     ipcRenderer.invoke(SET_COMPLETION_SIGNAL_CHANNEL, request),
+  onCompletionSound: (listener: () => void) => {
+    const handler = () => listener();
+    ipcRenderer.on(COMPLETION_SOUND_EVENT_CHANNEL, handler);
+    return () =>
+      ipcRenderer.removeListener(COMPLETION_SOUND_EVENT_CHANNEL, handler);
+  },
+  getQuickComposer: (): Promise<boolean> =>
+    ipcRenderer.invoke(GET_QUICK_COMPOSER_CHANNEL),
+  setQuickComposer: (
+    request: SetQuickComposerRequest,
+  ): Promise<SetQuickComposerResult> =>
+    ipcRenderer.invoke(SET_QUICK_COMPOSER_CHANNEL, request),
+  hideQuickComposer: (): Promise<void> =>
+    ipcRenderer.invoke(HIDE_QUICK_COMPOSER_CHANNEL),
+  setQuickComposerPassThrough: (passThrough: boolean): Promise<void> =>
+    ipcRenderer.invoke(SET_QUICK_COMPOSER_PASS_THROUGH_CHANNEL, passThrough),
+  setQuickComposerGlass: (rect: QuickComposerRect): Promise<boolean> =>
+    ipcRenderer.invoke(SET_QUICK_COMPOSER_GLASS_CHANNEL, rect),
+  submitQuickComposer: (
+    request: SubmitQuickComposerRequest,
+  ): Promise<number | null | undefined> =>
+    ipcRenderer.invoke(SUBMIT_QUICK_COMPOSER_CHANNEL, request),
+  onQuickComposerContext: (
+    listener: (context: QuickComposerContext) => void,
+  ) => {
+    const handler = (
+      _event: Electron.IpcRendererEvent,
+      context: QuickComposerContext,
+    ) => listener(context);
+    ipcRenderer.on(QUICK_COMPOSER_CONTEXT_CHANNEL, handler);
+    return () =>
+      ipcRenderer.removeListener(QUICK_COMPOSER_CONTEXT_CHANNEL, handler);
+  },
+  requestQuickComposerPermission: (permission: QuickComposerPermission) =>
+    ipcRenderer.invoke(REQUEST_QUICK_COMPOSER_PERMISSION_CHANNEL, permission),
+  onQuickComposerHidden: (listener: () => void) => {
+    const handler = () => listener();
+    ipcRenderer.on(QUICK_COMPOSER_HIDDEN_CHANNEL, handler);
+    return () =>
+      ipcRenderer.removeListener(QUICK_COMPOSER_HIDDEN_CHANNEL, handler);
+  },
+  onQuickComposerShown: (listener: (shown: QuickComposerShown) => void) => {
+    const handler = (
+      _event: Electron.IpcRendererEvent,
+      shown: QuickComposerShown,
+    ) => listener(shown);
+    ipcRenderer.on(QUICK_COMPOSER_SHOWN_CHANNEL, handler);
+    return () =>
+      ipcRenderer.removeListener(QUICK_COMPOSER_SHOWN_CHANNEL, handler);
+  },
+  isQuickComposerHandoff: process.argv.includes(
+    QUICK_COMPOSER_HANDOFF_ARGUMENT,
+  ),
+  takeQuickComposerHandoff: (): Promise<QuickComposerHandoff | null> =>
+    ipcRenderer.invoke(TAKE_QUICK_COMPOSER_HANDOFF_CHANNEL),
+  presentQuickComposerHandoff: (
+    composerRect: QuickComposerRect,
+  ): Promise<void> =>
+    ipcRenderer.invoke(PRESENT_QUICK_COMPOSER_HANDOFF_CHANNEL, composerRect),
+  onQuickComposerDelivered: (
+    listener: (handoff: QuickComposerHandoff) => void,
+  ) => {
+    const handler = (
+      _event: Electron.IpcRendererEvent,
+      handoff: QuickComposerHandoff,
+    ) => listener(handoff);
+    ipcRenderer.on(DELIVER_QUICK_COMPOSER_CHANNEL, handler);
+    return () =>
+      ipcRenderer.removeListener(DELIVER_QUICK_COMPOSER_CHANNEL, handler);
+  },
   getUserProfile: (): Promise<PineUserProfile> =>
     ipcRenderer.invoke(GET_USER_PROFILE_CHANNEL),
   getTinyFishCredentialStatus: (): Promise<TinyFishCredentialStatus> =>
@@ -544,6 +649,14 @@ const pineApi: PineDesktopApi = {
     ipcRenderer.invoke(SEARCH_ALL_SESSIONS_CHANNEL, request),
   respondWorkbenchState: (response): void =>
     ipcRenderer.send(WORKBENCH_STATE_RESPONSE_CHANNEL, response),
+  onLibraryChanged: (listener: (change: PineLibraryChange) => void) => {
+    const handler = (
+      _event: Electron.IpcRendererEvent,
+      change: PineLibraryChange,
+    ) => listener(change);
+    ipcRenderer.on(LIBRARY_CHANGED_CHANNEL, handler);
+    return () => ipcRenderer.removeListener(LIBRARY_CHANGED_CHANNEL, handler);
+  },
   onSessionEvent: (listener: SessionEventListener): (() => void) => {
     const handler = (
       _event: Electron.IpcRendererEvent,

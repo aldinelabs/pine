@@ -25,6 +25,7 @@ import { toast } from "vue-sonner";
 import ModelCapabilities from "@/components/models/ModelCapabilities.vue";
 import ModelPickerDialog from "@/components/models/ModelPickerDialog.vue";
 import ProviderIcon from "@/components/models/ProviderIcon.vue";
+import ProjectComposerContext from "@/components/project/ProjectComposerContext.vue";
 import ProjectApprovalCard from "@/components/project/ProjectApprovalCard.vue";
 import ProjectQuestionnaireCard from "@/components/project/ProjectQuestionnaireCard.vue";
 import ProjectAttachmentList from "@/components/project/ProjectAttachmentList.vue";
@@ -117,6 +118,8 @@ interface ApprovalModeOption {
 
 const emit = defineEmits<{
   abort: [];
+  /** Backspace or \ in an empty message, while there is context to drop. */
+  dismissContext: [];
   respond: [action: PineApprovalAction, guidance?: string];
   respondQuestionnaire: [submission: AskUserQuestionSubmission];
   selectProject: [projectId: string];
@@ -127,6 +130,18 @@ const emit = defineEmits<{
 const props = withDefaults(
   defineProps<{
     isRunning?: boolean;
+    /**
+     * Taken from the app the user was in; shown on its own and dropped with
+     * Backspace or \\ in an empty message. The parent sends it.
+     */
+    context?: readonly PineAttachment[];
+    /** False to show or drop the context at once. */
+    contextAnimates?: boolean;
+    /**
+     * Holds the mode and model controls below the input further in, clear of
+     * the floating composer's rounder card; they ease out when it turns off.
+     */
+    edgeInset?: boolean;
     /** The tab's project; pasted files are stored in its Pine data. */
     projectId: string;
     /** Absent for a draft, which can still choose its project. */
@@ -139,7 +154,12 @@ const props = withDefaults(
     /** When set, the structured question card replaces the message input. */
     pendingQuestionnaire?: PinePendingQuestionnaire | null;
   }>(),
-  { isRunning: false, steeringMessages: () => [] },
+  {
+    context: () => [],
+    contextAnimates: true,
+    isRunning: false,
+    steeringMessages: () => [],
+  },
 );
 
 const message = defineModel<string>({ default: "" });
@@ -621,6 +641,19 @@ function handleKeydown(event: KeyboardEvent): void {
     handleChooserKeydown(event);
     return;
   }
+  if (
+    props.context.length > 0 &&
+    message.value === "" &&
+    (event.key === "Backspace" || event.key === "\\") &&
+    !event.isComposing &&
+    !event.metaKey &&
+    !event.ctrlKey &&
+    !event.altKey
+  ) {
+    event.preventDefault();
+    emit("dismissContext");
+    return;
+  }
   if (event.key !== "Enter" || event.shiftKey || event.isComposing) return;
 
   event.preventDefault();
@@ -756,6 +789,22 @@ function handleRootSubmit(event: Event): void {
           <InputGroup
             class="session-composer-control flex-col items-stretch min-h-[var(--session-composer-control-height)] rounded-[var(--session-composer-control-radius)] has-[textarea]:rounded-[var(--session-composer-control-radius)]"
           >
+            <!-- It opens and closes its row on the app's curve; leaving, it
+                 keeps what it showed. -->
+            <Transition :css="contextAnimates" name="session-composer-context">
+              <div
+                v-if="context.length > 0"
+                data-slot="session-composer-context"
+                class="session-composer-context grid w-full"
+              >
+                <div class="min-h-0 overflow-hidden">
+                  <ProjectComposerContext
+                    class="mx-[var(--session-composer-control-inset)] mt-[var(--session-composer-control-inset)]"
+                    :context="context"
+                  />
+                </div>
+              </div>
+            </Transition>
             <ProjectAttachmentList
               v-if="attachments.length > 0"
               class="session-composer-attachments shrink-0 w-full px-[var(--session-composer-control-inset)] pt-[var(--session-composer-control-inset)] pb-0"
@@ -935,7 +984,9 @@ function handleRootSubmit(event: Event): void {
          until the decision is made. -->
     <div
       v-if="!hasPendingInterruption"
-      class="flex min-w-0 items-center justify-between gap-3 pt-2"
+      data-slot="session-composer-footer"
+      :class="edgeInset && 'session-composer-footer--edge-inset'"
+      class="session-composer-footer flex min-w-0 items-center justify-between gap-3 pt-2"
     >
       <div class="flex min-w-0 items-center gap-1">
         <DropdownMenu>
@@ -1173,6 +1224,37 @@ function handleRootSubmit(event: Event): void {
     var(--session-composer-control-height) - 2 *
       var(--session-composer-control-inset)
   );
+}
+
+.session-composer-context {
+  grid-template-rows: 1fr;
+}
+
+.session-composer-context-enter-active,
+.session-composer-context-leave-active {
+  transition-property: grid-template-rows, opacity;
+  transition-duration: 500ms;
+  transition-timing-function: var(--ease-out-expo);
+}
+
+.session-composer-context-enter-from,
+.session-composer-context-leave-to {
+  grid-template-rows: 0fr;
+  opacity: 0;
+}
+
+.session-composer-footer {
+  transition-property: padding;
+  transition-duration: 500ms;
+  transition-timing-function: var(--ease-out-expo);
+}
+
+/* Clear of the floating composer's rounder card corners: as wide as the
+   transcript's column in a window. It sets in at once, as the composer
+   shows again, and only eases out. */
+.session-composer-footer--edge-inset {
+  padding-inline: max(0px, calc((100% - var(--session-content-max-width)) / 2));
+  transition: none;
 }
 
 .session-composer-input {

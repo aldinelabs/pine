@@ -46,32 +46,43 @@ export function useContentTabNavigation() {
     { immediate: true },
   );
 
-  function navigate(tabId: string, replace = false): void {
+  /** Resolves once the route shows the tab. */
+  async function navigate(tabId: string, replace = false): Promise<void> {
     if (tabId && !tabs.value.some((tab) => tab.id === tabId)) return;
     store.setActiveTab(tabId);
     const location = {
       query: { ...route.query, [CONTENT_TAB_QUERY]: tabId || undefined },
     };
-    void (replace ? router.replace(location) : router.push(location));
+    await (replace ? router.replace(location) : router.push(location));
   }
 
   function createSessionTab(options?: { projectId?: string }): void {
-    navigate(store.createSessionTab(options).id);
+    void navigate(store.createSessionTab(options).id);
+  }
+
+  /**
+   * Opens a fresh draft for a project, never reusing one with text in it,
+   * and resolves once it shows.
+   */
+  function openNewDraft(projectId: string): Promise<void> {
+    return navigate(
+      store.createSessionTab({ projectId, reuseDraft: false }).id,
+    );
   }
 
   function openSession(session: PineSessionSummary, projectId: string): void {
-    navigate(store.openSession(session, projectId, activeTabId.value).id);
+    void navigate(store.openSession(session, projectId, activeTabId.value).id);
   }
 
   function openFile(file: ProjectFilePreviewRequest): void {
-    navigate(store.openFile(file).id);
+    void navigate(store.openFile(file).id);
   }
 
   function bindSession(tabId: string, session: PineSessionSummary): void {
     const wasActive = activeTabId.value === tabId;
     const tab = store.bindSession(tabId, session);
     if (tab && wasActive && tab.id !== tabId) {
-      navigate(tab.id, true);
+      void navigate(tab.id, true);
     }
   }
 
@@ -79,32 +90,34 @@ export function useContentTabNavigation() {
     const wasActive = activeTabId.value === tabId;
     const fallbackTabId = store.failPrompt(tabId);
     if (fallbackTabId && wasActive && fallbackTabId !== tabId) {
-      navigate(fallbackTabId, true);
+      void navigate(fallbackTabId, true);
     }
   }
 
   function close(tabId: string): void {
     const currentActiveTabId = activeTabId.value;
     const nextActiveTabId = store.close(tabId, currentActiveTabId);
-    if (tabId === currentActiveTabId) navigate(nextActiveTabId, true);
+    if (tabId === currentActiveTabId) void navigate(nextActiveTabId, true);
   }
 
   function removeSession(sessionId: string): void {
     const currentActiveTabId = activeTabId.value;
     const nextActiveTabId = store.removeSession(sessionId, currentActiveTabId);
     if (nextActiveTabId !== currentActiveTabId) {
-      navigate(nextActiveTabId, true);
+      void navigate(nextActiveTabId, true);
     }
   }
 
   return {
-    activate: navigate,
+    activate: (tabId: string, replace?: boolean): void =>
+      void navigate(tabId, replace),
     activeSessionTab,
     activeTab,
     activeTabId,
     bindSession,
     close,
     createSessionTab,
+    openNewDraft,
     failPrompt,
     openFile,
     openSession,

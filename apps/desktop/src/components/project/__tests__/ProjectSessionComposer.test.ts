@@ -21,6 +21,8 @@ import ProjectApprovalCard from "../ProjectApprovalCard.vue";
 import ProjectSessionComposer from "../ProjectSessionComposer.vue";
 
 interface ComposerProps {
+  edgeInset?: boolean;
+  context?: PineAttachment[];
   approvalMode?: "let-me-review" | "auto-approve" | "autonomous" | "YOLO";
   isRunning?: boolean;
   isActive?: boolean;
@@ -205,6 +207,56 @@ describe("ProjectSessionComposer", () => {
     expect(input.attributes("role")).toBe("combobox");
     await input.trigger("keydown", { key: "Backspace" });
     expect(input.attributes("role")).toBeUndefined();
+    wrapper.unmount();
+  });
+
+  it("shows context on its own and drops it with Backspace or \\ in an empty message", async () => {
+    const wrapper = mountComposer({
+      isActive: true,
+      context: [
+        {
+          extension: "txt",
+          kind: "file",
+          modifiedAt: "2026-10-30T00:00:00.000Z",
+          name: "Hello.txt",
+          path: "/tmp/hello.txt",
+          size: 5,
+          selection: { startLine: 1, endLine: 1, text: "Hello" },
+          source: { app: "Notes", windowTitle: "Ideas" },
+        },
+      ],
+    });
+    const strip = wrapper.find('[data-slot="composer-context"]');
+    expect(strip.text()).toContain("Notes");
+    expect(strip.text()).toContain("Ideas");
+    expect(strip.text()).toContain("Hello");
+    // It is not shown as an ordinary attachment.
+    expect(wrapper.text()).not.toContain("Hello.txt");
+    const input = wrapper.find("textarea");
+    await input.trigger("keydown", { key: "Backspace" });
+    await input.trigger("keydown", { key: "\\" });
+    expect(wrapper.emitted("dismissContext")).toHaveLength(2);
+
+    await input.setValue("a");
+    await input.trigger("keydown", { key: "Backspace" });
+    await input.trigger("keydown", { key: "\\" });
+    expect(wrapper.emitted("dismissContext")).toHaveLength(2);
+    wrapper.unmount();
+
+    const plain = mountComposer({ isActive: true });
+    await plain.find("textarea").trigger("keydown", { key: "Backspace" });
+    expect(plain.emitted("dismissContext")).toBeUndefined();
+    plain.unmount();
+  });
+
+  it("holds the controls below the input in while inset", async () => {
+    const wrapper = mountComposer({ isActive: true, edgeInset: true });
+    const footer = () => wrapper.find('[data-slot="session-composer-footer"]');
+    expect(footer().classes()).toContain("session-composer-footer--edge-inset");
+    await wrapper.setProps({ edgeInset: false });
+    expect(footer().classes()).not.toContain(
+      "session-composer-footer--edge-inset",
+    );
     wrapper.unmount();
   });
 

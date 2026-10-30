@@ -532,6 +532,12 @@ body {
   overflow: hidden;
 }
 
+/* The floating composer window is transparent around the composer. */
+html[data-quick-composer],
+html[data-quick-composer] body {
+  background: transparent;
+}
+
 /*
  * macOS sidebar vibrancy mode (enabled in Pine preferences). These rules
  * deliberately live OUTSIDE the cascade-layer stack (unlayered), so they
@@ -578,16 +584,48 @@ html.sidebar-vibrancy
   background: transparent;
 }
 
+/* An opaque, near-sidebar selection all but vanishes on the material. Like
+   system sidebars, selection and hover darken it in light mode and lighten it
+   in dark mode instead. */
+html.sidebar-vibrancy [data-slot="sidebar-container"][data-side="left"] {
+  --sidebar-accent: color-mix(
+    in oklab,
+    var(--sidebar-accent-foreground) 6%,
+    transparent
+  );
+}
+
+/* Light text on dark glass needs a stronger wash to read as selected. */
+html.dark.sidebar-vibrancy [data-slot="sidebar-container"][data-side="left"] {
+  --sidebar-accent: color-mix(
+    in oklab,
+    var(--sidebar-accent-foreground) 12%,
+    transparent
+  );
+}
+
+/* Leaving a modal, the material fades back in; see below. */
+html.sidebar-vibrancy [data-slot="sidebar-container"][data-side="left"] {
+  transition-property: left, right, width, background-color;
+}
+
 /*
- * Chromium backdrop filters can composite a transparent Electron window
- * against black instead of the native macOS vibrancy material. Keep modal
- * dimming, but avoid a second blur pass while native sidebar vibrancy is on.
+ * Chromium backdrop filters cannot sample the native material (vibrancy or
+ * Liquid Glass) behind a transparent page and blur it to black instead
+ * (electron/electron#19765). While a modal overlay is open, the sidebar
+ * paints its opaque colour so the overlay blurs that; the dimmed, blurred
+ * overlay hides the change. It turns opaque without a fade, since a
+ * half-transparent sidebar would still blur to black; the overlay is removed
+ * only after its close animation, so fading back in blurs nothing.
  */
-html.sidebar-vibrancy [data-slot="dialog-overlay"],
-html.sidebar-vibrancy [data-slot="sheet-overlay"],
-html.sidebar-vibrancy [data-slot="alert-dialog-overlay"] {
-  -webkit-backdrop-filter: none;
-  backdrop-filter: none;
+html.sidebar-vibrancy:has(
+    [data-slot="dialog-overlay"],
+    [data-slot="sheet-overlay"],
+    [data-slot="alert-dialog-overlay"]
+  )
+  [data-slot="sidebar-container"][data-side="left"] {
+  background: var(--sidebar);
+  transition-property: left, right, width;
 }
 
 @layer base {

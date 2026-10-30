@@ -1,5 +1,7 @@
 export const SET_SIDEBAR_VIBRANCY_CHANNEL =
   "window:set-sidebar-vibrancy" as const;
+export const SET_SIDEBAR_GLASS_WIDTH_CHANNEL =
+  "window:set-sidebar-glass-width" as const;
 export const CLOSE_TAB_REQUESTED_CHANNEL =
   "window:close-tab-requested" as const;
 export const NEW_TAB_REQUESTED_CHANNEL = "window:new-tab-requested" as const;
@@ -9,6 +11,7 @@ export const SET_WINDOW_LAYOUT_CHANNEL = "window:set-layout" as const;
 export const PLAN_WINDOW_RESIZE_CHANNEL = "window:plan-resize" as const;
 export const COMMIT_WINDOW_RESIZE_CHANNEL = "window:commit-resize" as const;
 export const WINDOW_RESIZE_STARTED_CHANNEL = "window:resize-started" as const;
+export const SET_THEME_SOURCE_CHANNEL = "window:set-theme-source" as const;
 export const GET_APP_VERSION_CHANNEL = "app:get-version" as const;
 export const OPEN_EXTERNAL_URL_CHANNEL = "shell:open-external" as const;
 
@@ -26,6 +29,13 @@ export function isWindowBackgroundColor(value: unknown): value is string {
 }
 
 export type PinePlatform = NodeJS.Platform;
+
+/** Pine's appearance preference, which native materials follow too. */
+export type PineThemeSource = "system" | "light" | "dark";
+
+export function isPineThemeSource(value: unknown): value is PineThemeSource {
+  return value === "system" || value === "light" || value === "dark";
+}
 
 /** The project list is a fixed-size window. */
 export const PROJECT_LIST_WINDOW_SIZE = { width: 1120, height: 840 } as const;
@@ -93,6 +103,11 @@ export interface PineWindowApi {
   setWindowBackground: (color: string) => Promise<void>;
   setWindowLayout: (layout: PineWindowLayout) => Promise<void>;
   /**
+   * Makes native surfaces (sidebar glass, menus, dialogs) follow Pine's
+   * appearance instead of the system's.
+   */
+  setThemeSource: (source: PineThemeSource) => Promise<void>;
+  /**
    * Plans a project window resize and returns the width change in CSS pixels
    * (0 when skipped). The renderer freezes its layout before committing.
    */
@@ -109,4 +124,9 @@ export interface PineWindowApi {
   setSidebarVibrancy: (
     request: SetSidebarVibrancyRequest,
   ) => Promise<SetSidebarVibrancyResult>;
+  /**
+   * Reports how much of the left sidebar shows, in CSS pixels, so the native
+   * glass under it matches.
+   */
+  setSidebarGlassWidth: (width: number) => void;
 }

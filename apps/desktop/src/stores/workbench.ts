@@ -21,6 +21,7 @@ import {
   type WorkbenchPanel,
   type WorkbenchPosition,
 } from "@/shared/workbench";
+import { isQuickComposerHandoffWindow } from "@/stores/quickComposerHandoff";
 import { useSessionStore } from "@/stores/session";
 
 export const WORKBENCH_STORAGE_KEY = "pine.workbench.v1";
@@ -85,14 +86,21 @@ export const useWorkbenchStore = defineStore("workbench", () => {
     () => sessionStore.activeSession?.id ?? DRAFT_WORKBENCH_KEY,
   );
 
+  /**
+   * A window continuing a floating composer message opens collapsed, until
+   * the user arranges its workbench.
+   */
+  let startsCollapsed = isQuickComposerHandoffWindow();
+
   function layoutFor(key: string): WorkbenchLayout {
     const own = layouts.get(key);
-    if (own) return own;
+    if (own && !(startsCollapsed && key === DRAFT_WORKBENCH_KEY)) return own;
     const draft = layouts.get(DRAFT_WORKBENCH_KEY);
     // A session inherits the draft's arrangement, not the file it previewed.
-    return draft
+    const inherited = draft
       ? { ...draft, preview: null }
       : { ...DEFAULT_WORKBENCH_LAYOUT };
+    return startsCollapsed ? { ...inherited, open: false } : inherited;
   }
 
   const activeLayout = computed(() => layoutFor(activeKey.value));
@@ -113,6 +121,7 @@ export const useWorkbenchStore = defineStore("workbench", () => {
     change: (layout: WorkbenchLayout) => WorkbenchLayout,
   ): void {
     const next = change(layoutFor(key));
+    startsCollapsed = false;
     // Re-inserting keeps the most recently arranged sessions last.
     layouts.delete(key);
     layouts.set(key, next);

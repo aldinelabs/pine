@@ -72,9 +72,13 @@ export default {
     themeDark: "深色",
     defaultColorTheme: "Pine 默认颜色主题",
     defaultColorThemeDescription: "作为通用默认主题；项目强调色优先于此设置。",
+    quickComposer: "快速提问",
+    quickComposerDescription:
+      "在任意应用中按 {shortcut} 唤出浮空输入框，快速发起新对话。",
     completionSignal: "完成工作后发出信号",
-    completionSignalDescription:
-      "Pine 在后台完成一轮工作后，发送桌面通知并提醒你回来查看。",
+    completionSignalOff: "关闭",
+    completionSignalNotification: "通知",
+    completionSignalNotificationSound: "通知和声音",
     diagnosticLogging: "诊断日志",
     diagnosticLoggingHelp: "关于诊断日志",
     diagnosticLoggingDescription:
@@ -709,6 +713,8 @@ export default {
       openAttachment: "打开附件 {name}",
       attachmentOpenFailed: "无法使用系统默认应用打开附件",
       removeAttachment: "移除附件 {name}",
+      contextSelection: "选中了“{text}”",
+      contextRemove: "移除",
       attachmentPickerFailed: "无法打开或读取所选附件",
       attachmentDropFailed: "无法读取拖入的附件",
       attachmentPasteFailed: "无法保存粘贴的文本、图片或文件",
@@ -1425,6 +1431,14 @@ export default {
       emptyDescription: "请在项目设置中添加文件夹。",
     },
   },
+  quickComposer: {
+    permission: {
+      screen: "允许 Pine 截取你所在应用的窗口",
+      accessibility: "允许 Pine 读取你所在应用的窗口标题和选中文字",
+      both: "允许 Pine 截取你所在应用的窗口并读取选中文字",
+    },
+    openSettings: "打开设置",
+  },
   errors: {
     skills: {
       title: "无法更新 Skills",
@@ -1461,6 +1475,15 @@ export default {
     contextCompactionRoute: {
       title: "无法更新上下文压缩途径",
       description: "请稍后重试",
+    },
+    quickComposer: {
+      title: "无法更新快速提问设置",
+      description: "请稍后重试。",
+    },
+    quickComposerShortcutTaken: {
+      title: "快捷键不可用",
+      description:
+        "{shortcut} 已被其他应用占用。退出该应用或修改其快捷键后重试。",
     },
     completionSignal: {
       title: "无法更新完成信号设置",

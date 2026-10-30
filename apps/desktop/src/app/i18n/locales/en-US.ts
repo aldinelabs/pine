@@ -76,9 +76,13 @@ export default {
     defaultColorTheme: "Pine default color theme",
     defaultColorThemeDescription:
       "Used as the default theme; project accent colors take precedence.",
+    quickComposer: "Quick composer",
+    quickComposerDescription:
+      "Press {shortcut} in any app to start a new conversation from a floating composer.",
     completionSignal: "Signal when work is done",
-    completionSignalDescription:
-      "When Pine finishes a run in the background, show a desktop notification and draw your attention back.",
+    completionSignalOff: "Off",
+    completionSignalNotification: "Notification",
+    completionSignalNotificationSound: "Notification and sound",
     diagnosticLogging: "Diagnostic logging",
     diagnosticLoggingHelp: "About diagnostic logging",
     diagnosticLoggingDescription:
@@ -743,6 +747,8 @@ export default {
       attachmentOpenFailed:
         "Could not open the attachment with the system default application",
       removeAttachment: "Remove attachment {name}",
+      contextSelection: "Selected “{text}”",
+      contextRemove: "to remove",
       attachmentPickerFailed: "Could not open or inspect the selected items",
       attachmentDropFailed: "Could not inspect the dropped attachments",
       attachmentPasteFailed: "Could not save the pasted text, image, or file",
@@ -1470,6 +1476,15 @@ export default {
       emptyDescription: "Add a folder in Project settings.",
     },
   },
+  quickComposer: {
+    permission: {
+      screen: "Let Pine capture the window of the app you're in",
+      accessibility:
+        "Let Pine read the window title and selected text of the app you're in",
+      both: "Let Pine capture the app you're in and read its selected text",
+    },
+    openSettings: "Open Settings",
+  },
   errors: {
     skills: {
       title: "Unable to update Skills",
@@ -1508,6 +1523,15 @@ export default {
     contextCompactionRoute: {
       title: "Unable to update context compaction method",
       description: "Try again in a moment",
+    },
+    quickComposer: {
+      title: "Unable to update quick composer settings",
+      description: "Please try again later.",
+    },
+    quickComposerShortcutTaken: {
+      title: "Shortcut unavailable",
+      description:
+        "Another app is already using {shortcut}. Quit that app or change its shortcut, then try again.",
     },
     completionSignal: {
       title: "Unable to update completion signal settings",

@@ -8,11 +8,13 @@ import {
 } from "../appearance";
 
 const setSidebarVibrancy = vi.fn().mockResolvedValue({ applied: true });
+const setThemeSource = vi.fn().mockResolvedValue(undefined);
 
 interface MutablePineWindow {
   pine?: {
     platform: string;
     setSidebarVibrancy: typeof setSidebarVibrancy;
+    setThemeSource: typeof setThemeSource;
   };
 }
 
@@ -22,7 +24,7 @@ function installPineApi(platform: string | undefined): void {
     delete pineWindow.pine;
     return;
   }
-  pineWindow.pine = { platform, setSidebarVibrancy };
+  pineWindow.pine = { platform, setSidebarVibrancy, setThemeSource };
 }
 
 describe("appearance store", () => {
@@ -60,6 +62,20 @@ describe("appearance store", () => {
     expect(setSidebarVibrancy).toHaveBeenCalledWith({ enabled: false });
   });
 
+  it("turns sidebar vibrancy on by default and keeps it off once turned off", () => {
+    installPineApi("darwin");
+    const store = useAppearanceStore();
+    store.initialize();
+    expect(store.sidebarVibrancy).toBe(true);
+    expect(setSidebarVibrancy).toHaveBeenCalledWith({ enabled: true });
+
+    store.setSidebarVibrancy(false);
+    setActivePinia(createPinia());
+    const restored = useAppearanceStore();
+    restored.initialize();
+    expect(restored.sidebarVibrancy).toBe(false);
+  });
+
   it("ignores the sidebar vibrancy preference on other platforms", () => {
     installPineApi("win32");
     window.localStorage.setItem(SIDEBAR_VIBRANCY_STORAGE_KEY, "true");
@@ -78,6 +94,15 @@ describe("appearance store", () => {
 
     expect(store.sidebarVibrancy).toBe(false);
     expect(setSidebarVibrancy).not.toHaveBeenCalled();
+  });
+
+  it("makes native materials follow Pine's appearance", () => {
+    installPineApi("darwin");
+    const store = useAppearanceStore();
+    store.initialize();
+    expect(setThemeSource).toHaveBeenLastCalledWith("system");
+    store.setThemePreference("dark");
+    expect(setThemeSource).toHaveBeenLastCalledWith("dark");
   });
 
   it("restores and toggles the serif transcript font", () => {

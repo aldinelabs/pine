@@ -2,6 +2,7 @@ import { acceptHMRUpdate, defineStore } from "pinia";
 import { ref, watch } from "vue";
 import { readContentTabs, writeContentTabs } from "@/lib/contentTabStorage";
 import { TEMPORARY_WORKSPACE_PROJECT_ID } from "@/shared/projects";
+import { isQuickComposerHandoffWindow } from "@/stores/quickComposerHandoff";
 import type { PineSessionSummary } from "@/shared/sessions";
 import type {
   FilePreviewTarget,
@@ -75,13 +76,17 @@ function readLastDraftProject(): string {
 export const useContentTabsStore = defineStore("content-tabs", () => {
   let nextSessionTabNumber = 2;
   const lastDraftProjectId = ref(readLastDraftProject());
+  /** It starts with one draft; the floating composer chose its project. */
+  const isHandoffWindow = isQuickComposerHandoffWindow();
 
   function initialTabs(): ProjectContentTab[] {
     return [
       {
         id: "session-1",
         kind: "session",
-        projectId: lastDraftProjectId.value,
+        projectId: isHandoffWindow
+          ? TEMPORARY_WORKSPACE_PROJECT_ID
+          : lastDraftProjectId.value,
         state: "draft",
       },
     ];
@@ -100,7 +105,7 @@ export const useContentTabsStore = defineStore("content-tabs", () => {
     }
   }
 
-  const saved = readContentTabs();
+  const saved = isHandoffWindow ? null : readContentTabs();
   const tabs = ref<ProjectContentTab[]>(saved?.tabs ?? initialTabs());
   /** A tab whose composer should take focus once it is shown. */
   const composerFocusTabId = ref<string | null>(null);

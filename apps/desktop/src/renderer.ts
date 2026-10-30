@@ -6,8 +6,11 @@ import {
   createAppI18n,
   resolveAppLocale,
 } from "./app/i18n";
+import { playCompletionSound } from "./lib/completionSound";
 import { createAppRouter } from "./router";
 import { useAppearanceStore } from "./stores/appearance";
+import { QUICK_COMPOSER_ROUTE_HASH } from "./shared/quickComposer";
+import { useQuickComposerHandoffStore } from "./stores/quickComposerHandoff";
 import { useUpdaterStore } from "./stores/updater";
 import "./index.css";
 import "vue-sonner/style.css";
@@ -28,8 +31,14 @@ const router = createAppRouter(pinia);
 
 document.documentElement.lang = locale;
 document.documentElement.dataset.platform = window.pine?.platform ?? "darwin";
+// The floating composer window is transparent from its first frame, before
+// its view mounts.
+if (window.location.hash.startsWith(`#/${QUICK_COMPOSER_ROUTE_HASH}`))
+  document.documentElement.dataset.quickComposer = "";
 useAppearanceStore(pinia).initialize();
 useUpdaterStore(pinia).initialize();
+useQuickComposerHandoffStore(pinia).initialize();
+window.pine?.onCompletionSound?.(playCompletionSound);
 
 app.use(pinia);
 app.use(i18n);

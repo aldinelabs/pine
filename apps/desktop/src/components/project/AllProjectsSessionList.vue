@@ -9,9 +9,9 @@ import {
   Search,
   Trash2,
 } from "@lucide/vue";
-import { useEventListener } from "@vueuse/core";
+import { useDebounceFn, useEventListener } from "@vueuse/core";
 import { storeToRefs } from "pinia";
-import { computed, ref, watch } from "vue";
+import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { handleError } from "@/app/errors/errorHandler";
 import {
@@ -57,6 +57,7 @@ import { writeSessionDrag } from "@/lib/sessionDrag";
 import {
   isTemporaryWorkspace,
   TEMPORARY_WORKSPACE_PROJECT_ID,
+  type PineLibraryChange,
   type PineProject,
   type PineSessionGroup,
 } from "@/shared/projects";
@@ -209,6 +210,23 @@ watch(
   () => void load(),
   { immediate: true },
 );
+
+// Sessions started, renamed or deleted in another window show here too. A
+// burst of changes, such as a run's updates, reloads once.
+const pendingChanges = new Set<PineLibraryChange>();
+const reloadChanged = useDebounceFn(async () => {
+  const projectsChanged = pendingChanges.has("projects");
+  pendingChanges.clear();
+  if (projectsChanged) await projectStore.loadProjects().catch(() => undefined);
+  await load();
+}, 250);
+onMounted(() => {
+  const stop = window.pine.onLibraryChanged?.((change) => {
+    pendingChanges.add(change);
+    void reloadChanged();
+  });
+  onBeforeUnmount(() => stop?.());
+});
 
 async function openSession(session: ProjectSessionSearchResult) {
   if (await openProject(session.projectId))

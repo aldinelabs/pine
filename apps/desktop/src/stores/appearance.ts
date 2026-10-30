@@ -53,11 +53,14 @@ function readStoredPineColorTheme(): ProjectColorTheme {
   }
 }
 
+/** On unless the user turned it off; overlays no longer blur it to black. */
 function readStoredSidebarVibrancy(): boolean {
   try {
-    return window.localStorage.getItem(SIDEBAR_VIBRANCY_STORAGE_KEY) === "true";
+    return (
+      window.localStorage.getItem(SIDEBAR_VIBRANCY_STORAGE_KEY) !== "false"
+    );
   } catch {
-    return false;
+    return true;
   }
 }
 
@@ -107,6 +110,7 @@ export const useAppearanceStore = defineStore("appearance", () => {
     const nextColorScheme: ColorScheme = isDark ? "dark" : "light";
 
     colorScheme.value = nextColorScheme;
+    void window.pine?.setThemeSource?.(themePreference.value);
     document.documentElement.classList.toggle("dark", isDark);
     document.documentElement.style.colorScheme = nextColorScheme;
   }

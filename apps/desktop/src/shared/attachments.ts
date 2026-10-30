@@ -117,6 +117,17 @@ export interface AttachmentSelection {
   text: string;
 }
 
+/** The app an attachment was taken from, for the model to read. */
+export interface AttachmentSource {
+  app: string;
+  bundleId?: string;
+  windowTitle?: string;
+  /** The page a browser shows. */
+  url?: string;
+  /** The file a document app shows. */
+  documentPath?: string;
+}
+
 export interface PineAttachment {
   extension: string;
   /** Missing on attachment blocks created before folder support. */
@@ -126,6 +137,7 @@ export interface PineAttachment {
   path: string;
   size: number;
   selection?: AttachmentSelection;
+  source?: AttachmentSource;
 }
 
 export interface PickAttachmentsResult {
@@ -175,7 +187,23 @@ function isAttachment(value: unknown): value is PineAttachment {
     attachment.size >= 0 &&
     (attachment.selection === undefined ||
       (attachment.kind !== "directory" &&
-        isAttachmentSelection(attachment.selection)))
+        isAttachmentSelection(attachment.selection))) &&
+    (attachment.source === undefined || isAttachmentSource(attachment.source))
+  );
+}
+
+function isAttachmentSource(value: unknown): value is AttachmentSource {
+  if (typeof value !== "object" || value === null) return false;
+  const source = value as Record<string, unknown>;
+  const optional = (field: unknown) =>
+    field === undefined || typeof field === "string";
+  return (
+    typeof source.app === "string" &&
+    source.app.length > 0 &&
+    optional(source.bundleId) &&
+    optional(source.windowTitle) &&
+    optional(source.url) &&
+    optional(source.documentPath)
   );
 }
 

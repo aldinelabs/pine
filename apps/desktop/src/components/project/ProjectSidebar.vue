@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { Blocks, Library } from "@lucide/vue";
+import { useTemplateRef } from "vue";
 import { useI18n } from "vue-i18n";
 import {
   Sidebar,
@@ -11,6 +12,7 @@ import {
   SidebarRail,
 } from "@/components/ui/sidebar";
 import ModifierShortcut from "@/components/window/ModifierShortcut.vue";
+import { useSidebarGlassWidth } from "@/composables/useSidebarGlassWidth";
 import AllProjectsSessionList from "./AllProjectsSessionList.vue";
 
 const { t } = useI18n();
@@ -20,10 +22,16 @@ const emit = defineEmits<{
   manageMcp: [];
   searchSessions: [];
 }>();
+
+const sidebar = useTemplateRef<InstanceType<typeof Sidebar>>("sidebar");
+useSidebarGlassWidth(() => {
+  const element: unknown = sidebar.value?.$el;
+  return element instanceof HTMLElement ? element : undefined;
+});
 </script>
 
 <template>
-  <Sidebar collapsible="offcanvas">
+  <Sidebar ref="sidebar" collapsible="offcanvas">
     <div
       aria-hidden="true"
       class="window-drag h-[var(--window-titlebar-height)] shrink-0"

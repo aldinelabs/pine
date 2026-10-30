@@ -4,6 +4,8 @@ import { flushPromises, mount, type VueWrapper } from "@vue/test-utils";
 import { computed, ref } from "vue";
 import { useSessionStore } from "@/stores/session";
 import { useContentTabsStore } from "@/stores/contentTabs";
+import { useProjectStore } from "@/stores/project";
+import { useQuickComposerHandoffStore } from "@/stores/quickComposerHandoff";
 import { createPinia, setActivePinia } from "pinia";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createAppI18n } from "@/app/i18n";
@@ -752,5 +754,73 @@ describe("ProjectSessionView Esc interrupt", () => {
     pressEscape();
 
     expect(abortSession).not.toHaveBeenCalled();
+  });
+});
+
+describe("ProjectSessionView floating composer handoff", () => {
+  it("opens the chosen project before its draft moves there", async () => {
+    const { wrapper } = mountView();
+    const projectStore = useProjectStore();
+    const contentTabsStore = useContentTabsStore();
+    const present = vi.fn().mockResolvedValue(undefined);
+    Object.assign(window.pine, { presentQuickComposerHandoff: present });
+    let openWhenMoved: boolean | undefined;
+    contentTabsStore.$subscribe(() => {
+      const tab = contentTabsStore.tabs.find(({ id }) => id === "session-1");
+      if (tab?.projectId === "courses" && openWhenMoved === undefined)
+        openWhenMoved = projectStore.isOpen("courses");
+    });
+
+    useQuickComposerHandoffStore().deliver({
+      message: "Hello",
+      approvalMode: "auto-approve",
+      projectId: "courses",
+      context: [],
+    });
+    await flushPromises();
+    await new Promise((resolve) => setTimeout(resolve, 60));
+    await flushPromises();
+
+    expect(window.pine.openProject).toHaveBeenCalledWith({ id: "courses" });
+    expect(openWhenMoved).toBe(true);
+    expect(present).toHaveBeenCalled();
+    wrapper.unmount();
+  });
+
+  it("sends the floating composer's context ahead of the message", async () => {
+    const { wrapper } = mountView();
+    const sessionStore = useSessionStore();
+    const prompt = vi
+      .spyOn(sessionStore, "prompt")
+      .mockResolvedValue(undefined as never);
+    Object.assign(window.pine, {
+      presentQuickComposerHandoff: vi.fn().mockResolvedValue(undefined),
+    });
+    const context = {
+      extension: "png",
+      kind: "file" as const,
+      modifiedAt: "2026-10-30T00:00:00.000Z",
+      name: "Notes.png",
+      path: "/tmp/notes.png",
+      size: 10,
+      source: { app: "Notes" },
+    };
+
+    useQuickComposerHandoffStore().deliver({
+      message: "Hello",
+      approvalMode: "auto-approve",
+      projectId: "p1",
+      context: [context],
+    });
+    await flushPromises();
+    await new Promise((resolve) => setTimeout(resolve, 60));
+    await flushPromises();
+
+    expect(prompt).toHaveBeenCalledWith(
+      serializeAttachmentMessage([context], "Hello"),
+      expect.anything(),
+      "auto-approve",
+    );
+    wrapper.unmount();
   });
 });

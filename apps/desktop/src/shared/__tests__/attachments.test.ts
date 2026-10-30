@@ -95,6 +95,28 @@ describe("attachment messages", () => {
     ).toEqual([attachment]);
   });
 
+  it("round-trips the app an attachment was taken from", () => {
+    const captured: PineAttachment = {
+      ...attachment,
+      source: {
+        app: "Safari",
+        bundleId: "com.apple.Safari",
+        windowTitle: "Pine",
+        url: "https://example.com/",
+      },
+    };
+    expect(
+      parseAttachmentMessage(serializeAttachmentMessage([captured], "Hi"))
+        .attachments,
+    ).toEqual([captured]);
+
+    const message = serializeAttachmentMessage(
+      [{ ...attachment, source: { app: "" } }],
+      "Hi",
+    );
+    expect(parseAttachmentMessage(message).attachments).toEqual([]);
+  });
+
   it("leaves malformed or ordinary user text untouched", () => {
     const malformed =
       '<pine_attachments version="1">\nnot json\n</pine_attachments>\n\nHello';

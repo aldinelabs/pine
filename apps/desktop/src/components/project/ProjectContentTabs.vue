@@ -44,6 +44,7 @@ import type { ProjectContentTab } from "@/stores/contentTabs";
 import { useContentTabsStore } from "@/stores/contentTabs";
 import { useSessionStore } from "@/stores/session";
 import { useProjectStore } from "@/stores/project";
+import { useQuickComposerHandoffStore } from "@/stores/quickComposerHandoff";
 import { Spinner } from "@/components/ui/spinner";
 import { toast } from "vue-sonner";
 import ProjectSessionView from "./ProjectSessionView.vue";
@@ -62,6 +63,21 @@ const projectStore = useProjectStore();
 const { activeTab: activeContentTab, activeTabId, tabs } = tabNavigation;
 const { activeSession } = storeToRefs(sessionStore);
 const windowCloseTabHandler = inject(WINDOW_TAB_CLOSE_HANDLER_KEY, null);
+
+// A floating composer message for a project this window holds opens in a
+// new draft here, which sends it once it shows.
+const quickComposerHandoff = useQuickComposerHandoffStore();
+let stopQuickComposerDelivery: (() => void) | undefined;
+onMounted(() => {
+  stopQuickComposerDelivery = window.pine.onQuickComposerDelivered?.(
+    (handoff) => {
+      void tabNavigation
+        .openNewDraft(handoff.projectId)
+        .then(() => quickComposerHandoff.deliver(handoff));
+    },
+  );
+});
+onBeforeUnmount(() => stopQuickComposerDelivery?.());
 
 const sessionTabs = computed(() =>
   tabs.value.filter((tab) => tab.kind === "session"),
