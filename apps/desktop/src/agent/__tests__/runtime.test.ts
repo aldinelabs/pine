@@ -33,7 +33,7 @@ import { PINE_APPROVAL_MODE_NOTICE } from "../runtime/session-state";
 import { serializeAttachmentMessage } from "../../shared/attachments";
 import { ACTIVATE_COMPUTER_USE_TOOL_NAME } from "../computer-use/tools";
 import { UI_WORKBENCH_STATE_TOOL_NAME } from "../../shared/workbench";
-import { TODO_PROGRESS_REMINDER } from "../runtime/progress-reminders";
+import { TODO_REMINDER_HEADING } from "../runtime/progress-reminders";
 
 const temporaryDirectories: string[] = [];
 
@@ -618,7 +618,8 @@ describe("PineAgentRuntime", () => {
         UI_WORKBENCH_STATE_TOOL_NAME,
       );
       const reminderCounts: number[] = [];
-      const toolsToRun = 32;
+      // The first turn creates the list the reminders report on.
+      const toolsToRun = 33;
       session.agent.streamFunction = (model, context) => {
         reminderCounts.push(
           context.messages.filter(
@@ -627,7 +628,7 @@ describe("PineAgentRuntime", () => {
               message.content.some(
                 (block) =>
                   block.type === "text" &&
-                  block.text.includes(TODO_PROGRESS_REMINDER),
+                  block.text.includes(TODO_REMINDER_HEADING),
               ),
           ).length,
         );
@@ -641,12 +642,23 @@ describe("PineAgentRuntime", () => {
           stopReason,
           content: toolTurn
             ? [
-                {
-                  type: "toolCall",
-                  id: `state-${reminderCounts.length}`,
-                  name: UI_WORKBENCH_STATE_TOOL_NAME,
-                  arguments: {},
-                },
+                reminderCounts.length === 1
+                  ? {
+                      type: "toolCall",
+                      id: "todo-create",
+                      name: "todo",
+                      arguments: {
+                        action: "create",
+                        subject: "Check progress",
+                        blockedBy: [],
+                      },
+                    }
+                  : {
+                      type: "toolCall",
+                      id: `state-${reminderCounts.length}`,
+                      name: UI_WORKBENCH_STATE_TOOL_NAME,
+                      arguments: {},
+                    },
               ]
             : [{ type: "text", text: "Done." }],
         };
@@ -662,15 +674,16 @@ describe("PineAgentRuntime", () => {
       };
       await session.prompt("Check progress over several steps.");
       expect(reminderCounts).toHaveLength(toolsToRun + 1);
-      expect(reminderCounts[15]).toBe(0);
-      expect(reminderCounts[16]).toBe(1);
+      expect(reminderCounts[16]).toBe(0);
+      expect(reminderCounts[17]).toBe(1);
       expect(reminderCounts[toolsToRun - 1]).toBe(1);
       expect(reminderCounts[toolsToRun]).toBe(2);
       const results = session.messages.filter(
         (message) => message.role === "toolResult",
       );
       expect(results).toHaveLength(toolsToRun);
-      for (const result of results) {
+      expect(results[0]?.isError).toBe(false);
+      for (const result of results.slice(1)) {
         expect(result.isError).toBe(false);
         expect(result.details).toEqual({ state });
       }

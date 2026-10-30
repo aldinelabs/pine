@@ -1,16 +1,35 @@
 import type {
   ExtensionAPI,
+  ExtensionContext,
   ToolResultEvent,
   ToolResultEventResult,
 } from "@earendil-works/pi-coding-agent";
 import { describe, expect, it } from "vitest";
+import type { Task } from "@pine/rpiv-todo";
 import {
+  buildProgressReminder,
   createProgressRemindersExtension,
-  TODO_PROGRESS_REMINDER,
   TODO_REMINDER_TURN_INTERVAL,
 } from "../progress-reminders";
 
-function setup() {
+const ACTIVE_TASKS: Task[] = [
+  { id: 1, subject: "Locate the handler", status: "completed" },
+  { id: 2, subject: "Change the handler", status: "pending", blockedBy: [1] },
+  { id: 3, subject: "Run checks", status: "pending", blockedBy: [2] },
+];
+
+function todoEntry(tasks: Task[]) {
+  return {
+    type: "message",
+    message: {
+      role: "toolResult",
+      toolName: "todo",
+      details: { action: "update", params: {}, tasks, nextId: 4 },
+    },
+  };
+}
+
+function setup(tasks: Task[] = ACTIVE_TASKS) {
   const handlers = new Map<string, unknown>();
   const activeTools = ["read", "todo"];
   const pi = {
@@ -22,9 +41,15 @@ function setup() {
     throw new Error("Expected an inline extension");
   void extension.factory(pi);
   const start = handlers.get("turn_start") as () => void;
-  const result = handlers.get("tool_result") as (
+  const handler = handlers.get("tool_result") as (
     event: ToolResultEvent,
+    ctx: ExtensionContext,
   ) => ToolResultEventResult | undefined;
+  const branch: unknown[] = [todoEntry(tasks)];
+  const ctx = {
+    sessionManager: { getBranch: () => branch },
+  } as unknown as ExtensionContext;
+  const result = (event: ToolResultEvent) => handler(event, ctx);
   const turn = (count = 1) => {
     for (let index = 0; index < count; index += 1) start();
   };
@@ -39,7 +64,7 @@ function setup() {
       isError: false,
       ...overrides,
     });
-  return { turn, tool, activeTools };
+  return { turn, tool, activeTools, branch };
 }
 
 describe("progress reminders", () => {
@@ -50,7 +75,7 @@ describe("progress reminders", () => {
     turn();
     expect(tool()?.content?.at(-1)).toEqual({
       type: "text",
-      text: `\n\n${TODO_PROGRESS_REMINDER}`,
+      text: `\n\n${buildProgressReminder({ tasks: ACTIVE_TASKS, nextId: 4 })}`,
     });
     // Other completions in the same parallel batch do not repeat it.
     expect(tool()).toBeUndefined();
@@ -120,5 +145,39 @@ describe("progress reminders", () => {
     second.turn();
     expect(first.tool()?.content).toHaveLength(2);
     expect(second.tool()).toBeUndefined();
+  });
+
+  it("stays silent without unfinished work and waits a full interval", () => {
+    const { turn, tool, branch } = setup([]);
+    turn(TODO_REMINDER_TURN_INTERVAL);
+    expect(tool()).toBeUndefined();
+    branch.push(todoEntry(ACTIVE_TASKS));
+    expect(tool()).toBeUndefined();
+    turn(TODO_REMINDER_TURN_INTERVAL);
+    expect(tool()?.content).toHaveLength(2);
+
+    const done = ACTIVE_TASKS.map((task) => ({
+      ...task,
+      status: "completed" as const,
+    }));
+    expect(buildProgressReminder({ tasks: done, nextId: 4 })).toBeUndefined();
+  });
+
+  it("names the ready steps when nothing is in progress", () => {
+    const text = buildProgressReminder({ tasks: ACTIVE_TASKS, nextId: 4 });
+    expect(text).toContain("Current todo list (1/3 completed):");
+    expect(text).toContain("[pending] #2 Change the handler ⛓ #1");
+    expect(text).not.toContain("Locate the handler");
+    expect(text).toContain("No task is in_progress");
+    expect(text).toContain("(ready now: #2)");
+  });
+
+  it("asks whether the in-progress step is finished", () => {
+    const tasks = ACTIVE_TASKS.map((task) =>
+      task.id === 2 ? { ...task, status: "in_progress" as const } : task,
+    );
+    const text = buildProgressReminder({ tasks, nextId: 4 });
+    expect(text).toContain("If #2 is finished and verified, mark it completed");
+    expect(text).not.toContain("No task is in_progress");
   });
 });

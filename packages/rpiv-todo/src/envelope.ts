@@ -27,7 +27,8 @@ export function sanitizeTaskText(value: string): string {
     .replace(/[\u200e\u200f\u202a-\u202e\u2066-\u2069]/g, "");
 }
 
-function formatListLine(task: Task): string {
+/** One `[status] #id subject` row, as `list` prints it. */
+export function formatListLine(task: Task): string {
   const blockedBy = task.blockedBy?.length
     ? ` ⛓ ${task.blockedBy.map((id) => `#${id}`).join(",")}`
     : "";

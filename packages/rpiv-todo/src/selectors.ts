@@ -60,6 +60,24 @@ export function selectHasActive(state: TaskState): boolean {
   );
 }
 
+/**
+ * Pending tasks whose dependencies are all finished. A deleted dependency no
+ * longer blocks anything.
+ */
+export function selectReadyTasks(state: TaskState): Task[] {
+  const byId = new Map(state.tasks.map((task) => [task.id, task]));
+  return state.tasks.filter(
+    (task) =>
+      task.status === "pending" &&
+      (task.blockedBy ?? []).every((id) => {
+        const status = byId.get(id)?.status;
+        return (
+          status === undefined || status === "completed" || status === "deleted"
+        );
+      }),
+  );
+}
+
 export interface OverlayLayout {
   visible: Task[];
   hiddenCompleted: number;
