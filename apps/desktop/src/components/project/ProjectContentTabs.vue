@@ -17,6 +17,7 @@ import { TEMPORARY_WORKSPACE_PROJECT_ID } from "@/shared/projects";
 import { handleError } from "@/app/errors/errorHandler";
 import { PineLogo } from "@/components/pine";
 import { Button } from "@/components/ui/button";
+import { FlickeringGrid } from "@/components/ui/flickering-grid";
 import { Separator } from "@/components/ui/separator";
 import { useSidebar } from "@/components/ui/sidebar";
 import { WINDOW_TAB_CLOSE_HANDLER_KEY } from "@/composables/useWindowTabShortcuts";
@@ -707,11 +708,21 @@ watch(activeSession, (session) => {
       :aria-label="t('project.contentTabs.emptyTitle')"
       class="pointer-events-none absolute inset-0 flex flex-col items-center justify-center gap-16 overflow-hidden p-8"
     >
+      <FlickeringGrid
+        aria-hidden="true"
+        class="absolute inset-0 [mask-image:radial-gradient(ellipse_at_center,white_0%,transparent_76%)]"
+        :style="{ opacity: 0.7 }"
+        :flicker-chance="0.1"
+        :grid-gap="6"
+        color="var(--primary)"
+        :max-opacity="0.42"
+        :square-size="4"
+      />
       <PineLogo
         aria-hidden="true"
-        class="pointer-events-none size-64 text-muted-foreground/10 select-none"
+        class="pointer-events-none relative size-64 text-muted-foreground/10 select-none"
       />
-      <WindowShortcutHints />
+      <WindowShortcutHints class="relative" />
     </div>
   </div>
 </template>
