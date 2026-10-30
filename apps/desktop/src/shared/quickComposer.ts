@@ -27,8 +27,8 @@ export const DELIVER_QUICK_COMPOSER_CHANNEL = "quick-composer:deliver" as const;
 
 /** The global shortcut that summons the floating composer. */
 export const QUICK_COMPOSER_ACCELERATOR = "CommandOrControl+;" as const;
-/** Off until the user turns it on: a global shortcut reaches every app. */
-export const DEFAULT_QUICK_COMPOSER_ENABLED = false;
+/** On by default; the user can turn it off, since a global shortcut reaches every app. */
+export const DEFAULT_QUICK_COMPOSER_ENABLED = true;
 /** Passed to a window that takes over a message from the floating composer. */
 export const QUICK_COMPOSER_HANDOFF_ARGUMENT =
   "--pine-launch=quick-composer-handoff" as const;
