@@ -13,11 +13,15 @@ import {
   watch,
 } from "vue";
 import { useI18n } from "vue-i18n";
+import { useResizeObserver } from "@vueuse/core";
 import { TEMPORARY_WORKSPACE_PROJECT_ID } from "@/shared/projects";
 import { handleError } from "@/app/errors/errorHandler";
-import pineLogoUrl from "@/assets/pine-logo.svg";
+import { PINE_LOGO_PATH, PINE_LOGO_VIEW_BOX } from "@/components/pine";
 import { Button } from "@/components/ui/button";
-import { FlickeringGrid } from "@/components/ui/flickering-grid";
+import {
+  FlickeringGrid,
+  type FlickeringGridShape,
+} from "@/components/ui/flickering-grid";
 import { Separator } from "@/components/ui/separator";
 import { useSidebar } from "@/components/ui/sidebar";
 import { WINDOW_TAB_CLOSE_HANDLER_KEY } from "@/composables/useWindowTabShortcuts";
@@ -33,6 +37,7 @@ import {
   CONTENT_TAB_DRAG_TYPE,
   writeContentTabDrag,
 } from "@/lib/contentTabDrag";
+import { useAppearanceStore } from "@/stores/appearance";
 import { useAttentionFlashStore } from "@/stores/attentionFlash";
 import { useWorkbenchStore } from "@/stores/workbench";
 import type { ProjectContentTab } from "@/stores/contentTabs";
@@ -46,15 +51,6 @@ import ProjectFilePreview from "./ProjectFilePreview.vue";
 import ProjectTabsOverflowMenu from "./ProjectTabsOverflowMenu.vue";
 import RetainedPanel from "./RetainedPanel.vue";
 import WindowShortcutHints from "@/components/window/WindowShortcutHints.vue";
-
-/** Vite inlines the small logo as a data URI, so the URL must be quoted. The
- * source canvas pads the 611.2-unit artwork to 1024 units. */
-const pineLogoMaskStyle = {
-  maskImage: `url("${pineLogoUrl}")`,
-  maskPosition: "center",
-  maskRepeat: "no-repeat",
-  maskSize: `${(1024 / 611.2) * 100}%`,
-};
 
 const { t } = useI18n();
 const { state: sidebarState, isMobile } = useSidebar();
@@ -98,6 +94,44 @@ const tabButtons = new Map<string, HTMLButtonElement>();
 const tabStrip = useTemplateRef<HTMLDivElement>("tabStrip");
 const tabList = useTemplateRef<HTMLDivElement>("tabList");
 const tabItems = useTemplateRef<HTMLDivElement>("tabItems");
+/** Ripples glow past white in dark mode; on a light page they darken in the
+ * foreground colour instead, since light beyond white reads as white. */
+const { colorScheme } = storeToRefs(useAppearanceStore());
+const isDarkScheme = computed(() => colorScheme.value === "dark");
+const emptyRegion = useTemplateRef<HTMLDivElement>("emptyRegion");
+const emptyLogo = useTemplateRef<HTMLDivElement>("emptyLogo");
+const emptyGrid =
+  useTemplateRef<InstanceType<typeof FlickeringGrid>>("emptyGrid");
+
+/** The empty page's logo is drawn by the dot grid itself; an invisible box in
+ * the layout decides where. The region is the logo box's offset parent, so its
+ * offsets are already in the grid's coordinates. */
+const emptyLogoShape = ref<FlickeringGridShape>();
+/** The empty page lets pointer events through to the root, so a press that
+ * lands on the root itself is a press on the empty page. */
+function rippleEmptyPage(event: PointerEvent) {
+  if (event.target !== event.currentTarget || event.button !== 0) return;
+  const region = emptyRegion.value?.getBoundingClientRect();
+  if (!region) return;
+  emptyGrid.value?.ripple(
+    event.clientX - region.left,
+    event.clientY - region.top,
+  );
+}
+
+useResizeObserver([emptyRegion, emptyLogo], () => {
+  const logo = emptyLogo.value;
+  emptyLogoShape.value = logo
+    ? {
+        path: PINE_LOGO_PATH,
+        viewBox: PINE_LOGO_VIEW_BOX,
+        x: logo.offsetLeft,
+        y: logo.offsetTop,
+        width: logo.offsetWidth,
+        height: logo.offsetHeight,
+      }
+    : undefined;
+});
 const tabListHasOverflow = ref<boolean | null>(null);
 let tabListResizeObserver: ResizeObserver | null = null;
 let closingTab = false;
@@ -508,7 +542,10 @@ watch(activeSession, (session) => {
 </script>
 
 <template>
-  <div class="relative flex h-full min-h-0 flex-col bg-background">
+  <div
+    class="relative flex h-full min-h-0 flex-col bg-background"
+    @pointerdown="rippleEmptyPage"
+  >
     <div
       data-slot="project-content-tabs-titlebar"
       :class="
@@ -713,27 +750,31 @@ watch(activeSession, (session) => {
     </div>
     <div
       v-else
+      ref="emptyRegion"
       role="region"
       :aria-label="t('project.contentTabs.emptyTitle')"
       class="pointer-events-none absolute inset-0 flex flex-col items-center justify-center gap-16 overflow-hidden p-8"
     >
       <FlickeringGrid
+        ref="emptyGrid"
         aria-hidden="true"
-        class="absolute inset-0 [mask-image:radial-gradient(ellipse_at_center,white_0%,transparent_76%)]"
-        :style="{ opacity: 0.7 }"
+        class="absolute inset-0"
         :flicker-chance="0.1"
-        :grid-gap="6"
+        :grid-gap="3"
         color="var(--primary)"
-        :max-opacity="0.42"
-        :square-size="4"
+        :max-opacity="0.3"
+        :square-size="3"
+        :vignette="0.76"
+        :ripple-color="isDarkScheme ? undefined : 'var(--foreground)'"
+        :ripple-hdr-gain="isDarkScheme ? 8 : 1"
+        :ripple-vignette-floor="0.15"
+        :shape="emptyLogoShape"
       />
-      <!-- A tinted pane cut to the logo blurs the dot grid behind it, since
-           backdrop-filter on the SVG itself would blur its whole box. -->
       <div
+        ref="emptyLogo"
         aria-hidden="true"
         data-slot="empty-tabs-logo"
-        class="pointer-events-none relative size-64 bg-muted-foreground/10 backdrop-blur-[2px] select-none"
-        :style="pineLogoMaskStyle"
+        class="size-64"
       />
       <WindowShortcutHints class="relative" />
     </div>
