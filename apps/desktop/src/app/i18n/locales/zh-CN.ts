@@ -75,6 +75,10 @@ export default {
     quickComposer: "快速提问",
     quickComposerDescription:
       "在任意应用中按 {shortcut} 唤出浮空输入框，快速发起新对话。",
+    approximateLocation: "向 AI 提供大致位置",
+    approximateLocationDescription:
+      "通过 Cloudflare 获取本机公网 IP，用本地 GeoIP 数据库（IP Geolocation by DB-IP）估算所在城市，只把城市、地区和国家告诉 AI。开启时下载约 60 MB 的数据库，关闭时删除。使用 VPN 或代理时位置可能不准。",
+    approximateLocationDownloading: "正在下载位置数据库…",
     completionSignal: "完成工作后发出信号",
     completionSignalOff: "关闭",
     completionSignalNotification: "通知",
@@ -1480,6 +1484,10 @@ export default {
     quickComposer: {
       title: "无法更新快速提问设置",
       description: "请稍后重试。",
+    },
+    approximateLocation: {
+      title: "无法更新大致位置设置",
+      description: "位置数据库下载失败时会保持关闭，请检查网络后重试。",
     },
     quickComposerShortcutTaken: {
       title: "快捷键不可用",

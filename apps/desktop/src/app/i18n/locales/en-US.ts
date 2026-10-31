@@ -79,6 +79,10 @@ export default {
     quickComposer: "Quick composer",
     quickComposerDescription:
       "Press {shortcut} in any app to start a new conversation from a floating composer.",
+    approximateLocation: "Share approximate location with AI",
+    approximateLocationDescription:
+      "Gets this computer's public IP address from Cloudflare and estimates your city with a local GeoIP database (IP Geolocation by DB-IP). Only the city, region, and country reach the AI. Turning this on downloads a database of about 60 MB; turning it off deletes it. A VPN or proxy can make the location inaccurate.",
+    approximateLocationDownloading: "Downloading the location database…",
     completionSignal: "Signal when work is done",
     completionSignalOff: "Off",
     completionSignalNotification: "Notification",
@@ -1528,6 +1532,11 @@ export default {
     quickComposer: {
       title: "Unable to update quick composer settings",
       description: "Please try again later.",
+    },
+    approximateLocation: {
+      title: "Unable to update approximate location settings",
+      description:
+        "It stays off if the location database cannot be downloaded. Check your connection and try again.",
     },
     quickComposerShortcutTaken: {
       title: "Shortcut unavailable",

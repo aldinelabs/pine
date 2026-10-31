@@ -322,7 +322,8 @@ export type PineAgentEvent =
 export type PineHostRequest =
   | { kind: "list-projects" }
   | { kind: "teleport"; projectId: string }
-  | { kind: "workbench-state" };
+  | { kind: "workbench-state" }
+  | { kind: "approximate-location" };
 
 /** Main asks only the session's owning window for its live layout. */
 export interface PineWorkbenchStateRequestEvent {

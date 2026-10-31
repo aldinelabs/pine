@@ -11,6 +11,7 @@ import {
   globalShortcut,
   ipcMain,
   nativeTheme,
+  net,
   Notification,
   powerMonitor,
   protocol,
@@ -96,6 +97,12 @@ import {
 } from "./shared/quickComposer";
 import { AppUpdater, readUpdateManifestUrl } from "./main/appUpdater";
 import { AgentProcessHost } from "./main/agentProcessHost";
+import { ApproximateLocationService } from "./main/approximateLocation";
+import {
+  GET_APPROXIMATE_LOCATION_CHANNEL,
+  SET_APPROXIMATE_LOCATION_CHANNEL,
+  type SetApproximateLocationResult,
+} from "./shared/approximateLocation";
 import { RuntimeDiagnostics } from "./main/runtimeDiagnostics";
 import {
   CompletionSignalTracker,
@@ -130,6 +137,7 @@ import {
   writeContextCompactionStrategy,
   writeCompletionSignalMode,
   writeQuickComposerEnabled,
+  writeApproximateLocationEnabled,
   writeDiagnosticLoggingEnabled,
   writePineUserProfile,
 } from "./agent/pineSettings";
@@ -750,6 +758,17 @@ async function answerHostRequest(
           },
         );
         return { ok: true, response: { kind: "workbench-state", state } };
+      }
+      if (event.request.kind === "approximate-location") {
+        const enabled = (await readPineAgentSettings(getPineAgentDirectory()))
+          .approximateLocationEnabled;
+        return {
+          ok: true,
+          response: {
+            kind: "approximate-location",
+            location: enabled ? await getApproximateLocation().lookup() : null,
+          },
+        };
       }
       const projects = (await getProjectRepository().list()).filter(
         (project) => !isTemporaryWorkspace(project.id),
@@ -1679,6 +1698,16 @@ const quickComposer = new QuickComposerController({
   discardContext: (attachments) => void discardAppContext(attachments),
 });
 let quickComposerEnabled = DEFAULT_QUICK_COMPOSER_ENABLED;
+let approximateLocation: ApproximateLocationService | undefined;
+
+function getApproximateLocation(): ApproximateLocationService {
+  // net.fetch goes through the system proxy, like the rest of Pine's traffic.
+  approximateLocation ??= new ApproximateLocationService({
+    directory: path.join(app.getPath("userData"), "geoip"),
+    fetch: (url, init) => net.fetch(url, init),
+  });
+  return approximateLocation;
+}
 
 /** Registers or releases the global shortcut; false when another app has it. */
 function applyQuickComposerShortcut(enabled: boolean): boolean {
@@ -1868,6 +1897,26 @@ ipcMain.handle(
     await writeQuickComposerEnabled(getPineAgentDirectory(), applied);
     quickComposerEnabled = applied;
     return { enabled: applied, registered };
+  },
+);
+
+ipcMain.handle(
+  GET_APPROXIMATE_LOCATION_CHANNEL,
+  async (): Promise<boolean> =>
+    (await readPineAgentSettings(getPineAgentDirectory()))
+      .approximateLocationEnabled ?? false,
+);
+
+ipcMain.handle(
+  SET_APPROXIMATE_LOCATION_CHANNEL,
+  async (_event, request: unknown): Promise<SetApproximateLocationResult> => {
+    const { enabled } = z.object({ enabled: z.boolean() }).parse(request);
+    // The database downloads only once the user opts in, and goes when they
+    // opt out; a failed download leaves the feature off.
+    if (enabled) await getApproximateLocation().prepare();
+    await writeApproximateLocationEnabled(getPineAgentDirectory(), enabled);
+    if (!enabled) await getApproximateLocation().clear();
+    return { enabled };
   },
 );
 

@@ -118,13 +118,16 @@ import { readPineAgentSettings } from "./pineSettings";
 import { createDefaultPineUserProfile } from "../shared/userProfile";
 import { intelligentUiSystemPrompt } from "../shared/intelligentUi";
 import {
+  approximateLocationNotice,
   localNetworkRegionSignals,
   networkRegionSystemPrompt,
 } from "./network-region";
 import {
+  announcedContextNotices,
   contextNoticeMessage,
   type PineContextNoticeState,
 } from "./runtime/context-notices";
+import type { ApproximateLocation } from "../shared/approximateLocation";
 import {
   DEFAULT_AUTO_APPROVAL_SETTINGS,
   DEFAULT_CONTEXT_COMPACTION_ROUTE,
@@ -214,6 +217,8 @@ export type { PineAgentRuntimeOptions } from "./runtime/session-state";
 const JUDGE_TIMEOUT_MS = 60_000;
 const BACKGROUND_TASKS_EVENT_MS = 200;
 const TITLE_TIMEOUT_MS = 30_000;
+/** How long a turn waits for main to place the user by IP address. */
+const APPROXIMATE_LOCATION_TIMEOUT_MS = 6_000;
 export class PineAgentRuntime {
   private readonly liveSessions = new Map<string, LiveAgentSession>();
   private readonly pendingApprovals = new Map<string, PendingUserApproval>();
@@ -900,6 +905,15 @@ export class PineAgentRuntime {
                 localNetworkRegionSignals(),
               );
               if (networkRegion) notices.network_region = networkRegion;
+              if (settings.approximateLocationEnabled) {
+                const location = await this.approximateLocation(live);
+                // A failed lookup keeps the last estimate rather than
+                // withdrawing and re-announcing it.
+                notices.approximate_location = location
+                  ? approximateLocationNotice(location)
+                  : announcedContextNotices(live.session.messages)
+                      .approximate_location;
+              }
               const message = contextNoticeMessage(
                 live.session.messages,
                 notices,
@@ -1449,6 +1463,29 @@ export class PineAgentRuntime {
       display,
       ...(reveal ? { reveal } : {}),
     });
+  }
+
+  /** Null when main has no estimate in time; it never delays a turn long. */
+  private async approximateLocation(
+    live: LiveAgentSession,
+  ): Promise<ApproximateLocation | null> {
+    let timer: NodeJS.Timeout | undefined;
+    const timeout = new Promise<null>((resolve) => {
+      timer = setTimeout(() => resolve(null), APPROXIMATE_LOCATION_TIMEOUT_MS);
+    });
+    try {
+      const response = await Promise.race([
+        this.requestHost(live, { kind: "approximate-location" }),
+        timeout,
+      ]);
+      return response?.kind === "approximate-location"
+        ? response.location
+        : null;
+    } catch {
+      return null;
+    } finally {
+      clearTimeout(timer);
+    }
   }
 
   private requestHost(

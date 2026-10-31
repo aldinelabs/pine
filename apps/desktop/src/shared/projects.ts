@@ -97,6 +97,10 @@ import type {
 import type { WorkbenchStateResponse } from "./workbench";
 import type { PineWindowApi } from "./window";
 import type { PineQuickComposerApi } from "./quickComposer";
+import type {
+  SetApproximateLocationRequest,
+  SetApproximateLocationResult,
+} from "./approximateLocation";
 import type { PineUserProfile, SetUserProfileResult } from "./userProfile";
 import type {
   ListSkillsResult,
@@ -428,6 +432,10 @@ export interface PineDesktopApi extends PineWindowApi, PineQuickComposerApi {
   setDiagnosticLogging: (
     request: SetDiagnosticLoggingRequest,
   ) => Promise<SetDiagnosticLoggingResult>;
+  getApproximateLocation: () => Promise<boolean>;
+  setApproximateLocation: (
+    request: SetApproximateLocationRequest,
+  ) => Promise<SetApproximateLocationResult>;
   getCompletionSignal: () => Promise<PineCompletionSignalMode>;
   setCompletionSignal: (
     request: SetCompletionSignalRequest,

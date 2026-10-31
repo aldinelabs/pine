@@ -29,6 +29,7 @@ export interface PineAgentSettings {
   diagnosticLoggingEnabled?: boolean;
   completionSignalMode?: PineCompletionSignalMode;
   quickComposerEnabled?: boolean;
+  approximateLocationEnabled?: boolean;
   contextCompactionStrategy?: PineContextCompactionStrategy;
   contextCompactionRoute?: PineContextCompactionRoute;
   imageModel?: PineImageModelSelection;
@@ -145,6 +146,9 @@ export async function readPineAgentSettings(
       ...(typeof settings.quickComposerEnabled === "boolean"
         ? { quickComposerEnabled: settings.quickComposerEnabled }
         : {}),
+      ...(typeof settings.approximateLocationEnabled === "boolean"
+        ? { approximateLocationEnabled: settings.approximateLocationEnabled }
+        : {}),
       ...(isPineContextCompactionStrategy(contextCompactionStrategy)
         ? { contextCompactionStrategy }
         : {}),
@@ -222,6 +226,13 @@ export async function writeQuickComposerEnabled(
   quickComposerEnabled: boolean,
 ): Promise<void> {
   await writePineAgentSettings(agentDir, { quickComposerEnabled });
+}
+
+export async function writeApproximateLocationEnabled(
+  agentDir: string,
+  approximateLocationEnabled: boolean,
+): Promise<void> {
+  await writePineAgentSettings(agentDir, { approximateLocationEnabled });
 }
 
 export async function writeAutoApprovalSettings(

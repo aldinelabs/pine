@@ -1,3 +1,5 @@
+import type { ApproximateLocation } from "../shared/approximateLocation";
+
 /**
  * Environment variable through which main passes the system's preferred
  * languages (BCP 47 tags, comma-separated) to the agent process, which cannot
@@ -65,4 +67,18 @@ export function networkRegionSystemPrompt(signals: {
   return mayBeInMainlandChina(signals.timeZone, signals.languageTags)
     ? MAINLAND_CHINA_NETWORK_PROMPT
     : undefined;
+}
+
+/** Context notice placing the user by their public IP address. */
+export function approximateLocationNotice(
+  location: ApproximateLocation,
+): string {
+  const place = [location.city, location.region, location.country]
+    .filter(Boolean)
+    .join(", ");
+  const code = location.countryCode ? ` (${location.countryCode})` : "";
+  return `Pine looked up this computer's public IP address in a local GeoIP database: the user is probably in or near ${place}${code}. This is an estimate. A VPN, proxy, or mobile carrier can place the address far from the user, and anything the user says about where they are takes precedence.
+
+- Use it only where location matters, such as local time zones, weather, nearby services, regional formats, or regulations, and say it is approximate when you rely on it.
+- Do not bring it up otherwise, and never present it as known fact.`;
 }

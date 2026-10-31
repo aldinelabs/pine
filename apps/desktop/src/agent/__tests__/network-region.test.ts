@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   MAINLAND_CHINA_NETWORK_PROMPT,
+  approximateLocationNotice,
   SYSTEM_LANGUAGES_ENV,
   localNetworkRegionSignals,
   mayBeInMainlandChina,
@@ -68,5 +69,25 @@ describe("networkRegionSystemPrompt", () => {
         languageTags: ["de-DE"],
       }),
     ).toBeUndefined();
+  });
+});
+
+describe("approximateLocationNotice", () => {
+  it("names the place and calls it an estimate", () => {
+    const notice = approximateLocationNotice({
+      city: "Hangzhou",
+      region: "Zhejiang",
+      country: "China",
+      countryCode: "CN",
+    });
+
+    expect(notice).toContain("in or near Hangzhou, Zhejiang, China (CN)");
+    expect(notice).toContain("This is an estimate.");
+  });
+
+  it("leaves out parts the database does not know", () => {
+    expect(approximateLocationNotice({ country: "Japan" })).toContain(
+      "in or near Japan.",
+    );
   });
 });

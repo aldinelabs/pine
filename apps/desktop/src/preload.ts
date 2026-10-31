@@ -65,6 +65,12 @@ import {
   type SetDiagnosticLoggingResult,
 } from "./shared/preferences";
 import {
+  GET_APPROXIMATE_LOCATION_CHANNEL,
+  SET_APPROXIMATE_LOCATION_CHANNEL,
+  type SetApproximateLocationRequest,
+  type SetApproximateLocationResult,
+} from "./shared/approximateLocation";
+import {
   INSPECT_ATTACHMENTS_CHANNEL,
   OPEN_ATTACHMENT_CHANNEL,
   PICK_ATTACHMENT_FOLDERS_CHANNEL,
@@ -467,6 +473,12 @@ const pineApi: PineDesktopApi = {
     request: SetDiagnosticLoggingRequest,
   ): Promise<SetDiagnosticLoggingResult> =>
     ipcRenderer.invoke(SET_DIAGNOSTIC_LOGGING_CHANNEL, request),
+  getApproximateLocation: (): Promise<boolean> =>
+    ipcRenderer.invoke(GET_APPROXIMATE_LOCATION_CHANNEL),
+  setApproximateLocation: (
+    request: SetApproximateLocationRequest,
+  ): Promise<SetApproximateLocationResult> =>
+    ipcRenderer.invoke(SET_APPROXIMATE_LOCATION_CHANNEL, request),
   getCompletionSignal: (): Promise<PineCompletionSignalMode> =>
     ipcRenderer.invoke(GET_COMPLETION_SIGNAL_CHANNEL),
   setCompletionSignal: (

@@ -128,6 +128,9 @@ const isSavingContextCompactionRoute = ref(false);
 const quickComposerEnabled = ref(DEFAULT_QUICK_COMPOSER_ENABLED);
 const isLoadingQuickComposer = ref(true);
 const isSavingQuickComposer = ref(false);
+const approximateLocationEnabled = ref(false);
+const isLoadingApproximateLocation = ref(true);
+const isSavingApproximateLocation = ref(false);
 const quickComposerShortcut = computed(() =>
   window.pine?.platform === "darwin" ? "⌘;" : "Ctrl+;",
 );
@@ -225,6 +228,7 @@ watch(isOpen, (open) => {
   void loadContextCompactionRoute();
   void loadCompletionSignal();
   void loadQuickComposer();
+  void loadApproximateLocation();
   void loadDiagnosticLogging();
 });
 
@@ -253,6 +257,7 @@ onMounted(() => {
   void loadContextCompactionRoute();
   void loadCompletionSignal();
   void loadQuickComposer();
+  void loadApproximateLocation();
   void loadDiagnosticLogging();
 });
 
@@ -422,6 +427,49 @@ async function loadQuickComposer(): Promise<void> {
     });
   } finally {
     isLoadingQuickComposer.value = false;
+  }
+}
+
+async function loadApproximateLocation(): Promise<void> {
+  if (isSavingApproximateLocation.value) return;
+  isLoadingApproximateLocation.value = true;
+  try {
+    if (typeof window.pine?.getApproximateLocation !== "function") return;
+    approximateLocationEnabled.value =
+      await window.pine.getApproximateLocation();
+  } catch (error) {
+    handleError(error, {
+      id: "preferences.approximateLocation.load",
+      title: t("errors.approximateLocation.title"),
+      description: t("errors.approximateLocation.description"),
+    });
+  } finally {
+    isLoadingApproximateLocation.value = false;
+  }
+}
+
+async function updateApproximateLocation(enabled: boolean): Promise<void> {
+  if (
+    isLoadingApproximateLocation.value ||
+    isSavingApproximateLocation.value ||
+    enabled === approximateLocationEnabled.value
+  )
+    return;
+  const previous = approximateLocationEnabled.value;
+  approximateLocationEnabled.value = enabled;
+  isSavingApproximateLocation.value = true;
+  try {
+    const result = await window.pine.setApproximateLocation({ enabled });
+    approximateLocationEnabled.value = result.enabled;
+  } catch (error) {
+    approximateLocationEnabled.value = previous;
+    handleError(error, {
+      id: "preferences.approximateLocation.save",
+      title: t("errors.approximateLocation.title"),
+      description: t("errors.approximateLocation.description"),
+    });
+  } finally {
+    isSavingApproximateLocation.value = false;
   }
 }
 
@@ -1067,6 +1115,30 @@ defineExpose({ open });
                   :disabled="isLoadingQuickComposer || isSavingQuickComposer"
                   aria-labelledby="pine-quick-composer-setting"
                   @update:model-value="updateQuickComposer"
+                />
+              </Field>
+
+              <Field orientation="horizontal">
+                <div class="flex min-w-0 flex-1 flex-col gap-1">
+                  <FieldTitle id="pine-approximate-location-setting">
+                    {{ t("preferences.approximateLocation") }}
+                  </FieldTitle>
+                  <FieldDescription>
+                    {{
+                      isSavingApproximateLocation && approximateLocationEnabled
+                        ? t("preferences.approximateLocationDownloading")
+                        : t("preferences.approximateLocationDescription")
+                    }}
+                  </FieldDescription>
+                </div>
+                <Switch
+                  data-testid="pine-approximate-location-toggle"
+                  :model-value="approximateLocationEnabled"
+                  :disabled="
+                    isLoadingApproximateLocation || isSavingApproximateLocation
+                  "
+                  aria-labelledby="pine-approximate-location-setting"
+                  @update:model-value="updateApproximateLocation"
                 />
               </Field>
 
