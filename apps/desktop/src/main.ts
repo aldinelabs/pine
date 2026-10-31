@@ -3405,6 +3405,10 @@ ipcMain.handle(
 // initialization and is ready to create browser windows.
 // Some APIs can only be used after this event occurs.
 async function initializeApp(): Promise<void> {
+  // Before any window: a page only reaches the schemes registered when it
+  // loads, and the floating composer's panel loads early.
+  registerAttachmentImageProtocol();
+  registerProjectMediaProtocol();
   pineAgentDirectory = path.join(app.getPath("userData"), "agent");
   const settings = await readPineAgentSettings(pineAgentDirectory);
   completionSignalMode =
@@ -3478,8 +3482,6 @@ async function initializeApp(): Promise<void> {
     tempDirectory: app.getPath("temp"),
     windowsUpdater: process.platform === "win32" ? autoUpdater : undefined,
   });
-  registerAttachmentImageProtocol();
-  registerProjectMediaProtocol();
   presentedFiles = new PresentedFileRegistry();
   projectRuntimes = new ProjectRuntimeRegistry(
     agentHost,
