@@ -212,6 +212,8 @@ const config: ForgeConfig = {
         __dirname,
         "../../packages/computer-use-runtime/pine-computer-use",
       ),
+      // Fetched by scripts/fetch-geoip.mjs before packaging.
+      path.join(__dirname, "resources/geoip/dbip-city-lite.mmdb.gz"),
       // Built by scripts/build-native.mjs; loaded by path from main.
       ...(process.platform === "darwin"
         ? [
@@ -238,6 +240,15 @@ const config: ForgeConfig = {
     ],
   },
   hooks: {
+    // Runs for every package and make, including CI's direct forge calls.
+    prePackage: () => {
+      execFileSync(
+        process.execPath,
+        [path.join(__dirname, "scripts/fetch-geoip.mjs")],
+        { stdio: "inherit" },
+      );
+      return Promise.resolve();
+    },
     postPackage: (_forgeConfig, packageResult) => {
       if (packageResult.platform === "darwin") {
         signMacPackage(packageResult.outputPaths);

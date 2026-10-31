@@ -128,7 +128,10 @@ import {
   contextNoticeMessage,
   type PineContextNoticeState,
 } from "./runtime/context-notices";
-import type { ApproximateLocation } from "../shared/approximateLocation";
+import {
+  DEFAULT_APPROXIMATE_LOCATION_ENABLED,
+  type ApproximateLocation,
+} from "../shared/approximateLocation";
 import {
   DEFAULT_AUTO_APPROVAL_SETTINGS,
   DEFAULT_CONTEXT_COMPACTION_ROUTE,
@@ -906,7 +909,10 @@ export class PineAgentRuntime {
                 localNetworkRegionSignals(),
               );
               if (networkRegion) notices.network_region = networkRegion;
-              if (settings.approximateLocationEnabled) {
+              if (
+                settings.approximateLocationEnabled ??
+                DEFAULT_APPROXIMATE_LOCATION_ENABLED
+              ) {
                 const location = await this.approximateLocation(live);
                 // A failed lookup keeps the last estimate rather than
                 // withdrawing and re-announcing it.

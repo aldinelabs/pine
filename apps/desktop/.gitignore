@@ -32,6 +32,8 @@ coverage
 # Compiled binary addons (https://nodejs.org/api/addons.html)
 build/Release
 native/*/build/
+# Fetched by scripts/fetch-geoip.mjs.
+resources/geoip/
 
 # Dependency directories
 node_modules/

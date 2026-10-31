@@ -1,11 +1,10 @@
-import { mkdtemp, readdir, rm, stat, writeFile, mkdir } from "node:fs/promises";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { gzipSync } from "node:zlib";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   ApproximateLocationService,
-  databaseMonths,
   locationFromRecord,
   parsePublicIp,
 } from "../approximateLocation";
@@ -16,15 +15,6 @@ describe("parsePublicIp", () => {
       "203.0.113.7",
     );
     expect(parsePublicIp("fl=1\n")).toBeUndefined();
-  });
-});
-
-describe("databaseMonths", () => {
-  it("tries this month, then last month across a year boundary", () => {
-    expect(databaseMonths(new Date("2026-01-02T00:00:00Z"))).toEqual([
-      "2026-01",
-      "2025-12",
-    ]);
   });
 });
 
@@ -51,72 +41,53 @@ describe("ApproximateLocationService", () => {
   let directory: string;
 
   beforeEach(async () => {
-    directory = path.join(
-      await mkdtemp(path.join(os.tmpdir(), "pine-geoip-")),
-      "geoip",
-    );
+    directory = await mkdtemp(path.join(os.tmpdir(), "pine-geoip-"));
   });
 
   afterEach(async () => {
-    await rm(path.dirname(directory), { recursive: true, force: true });
+    await rm(directory, { recursive: true, force: true });
   });
 
-  it("falls back to last month and keeps nothing it cannot open", async () => {
-    const fetch = vi.fn((url: string) =>
-      Promise.resolve(
-        url.includes("2026-10")
-          ? new Response("missing", { status: 404 })
-          : new Response(gzipSync(Buffer.from("not a database"))),
-      ),
+  function trace() {
+    return vi.fn<(url: string) => Promise<Response>>(() =>
+      Promise.resolve(new Response("ip=203.0.113.7\n")),
     );
+  }
+
+  it("has no location when the database is missing", async () => {
+    const fetch = trace();
     const service = new ApproximateLocationService({
-      directory,
+      databasePath: path.join(directory, "missing.mmdb.gz"),
       fetch,
-      now: () => Date.parse("2026-10-31T00:00:00Z"),
     });
-
-    await expect(service.prepare()).rejects.toThrow();
-
-    expect(fetch.mock.calls.map(([url]) => url)).toEqual([
-      "https://download.db-ip.com/free/dbip-city-lite-2026-10.mmdb.gz",
-      "https://download.db-ip.com/free/dbip-city-lite-2026-09.mmdb.gz",
-    ]);
-    expect(await readdir(directory)).toEqual([]);
-  });
-
-  it("skips the download while a recent database is on disk", async () => {
-    await mkdir(directory, { recursive: true });
-    await writeFile(path.join(directory, "dbip-city-lite.mmdb"), "db");
-    const fetch = vi.fn();
-    const service = new ApproximateLocationService({ directory, fetch });
-
-    await service.prepare();
-
-    expect(fetch).not.toHaveBeenCalled();
-  });
-
-  it("has no location before the database exists, without asking for the IP", async () => {
-    const fetch = vi.fn<(url: string) => Promise<Response>>(() =>
-      Promise.resolve(new Response("missing", { status: 404 })),
-    );
-    const service = new ApproximateLocationService({ directory, fetch });
 
     expect(await service.lookup()).toBeNull();
-    expect(fetch.mock.calls.map(([url]) => url)).not.toContain(
-      "https://1.1.1.1/cdn-cgi/trace",
-    );
+    expect(fetch).toHaveBeenCalledOnce();
   });
 
-  it("deletes the database when cleared", async () => {
-    await mkdir(directory, { recursive: true });
-    await writeFile(path.join(directory, "dbip-city-lite.mmdb"), "db");
+  it("has no location when the database does not open", async () => {
+    const databasePath = path.join(directory, "broken.mmdb.gz");
+    await writeFile(databasePath, gzipSync(Buffer.from("not a database")));
     const service = new ApproximateLocationService({
-      directory,
-      fetch: vi.fn(),
+      databasePath,
+      fetch: trace(),
     });
 
-    await service.clear();
+    expect(await service.lookup()).toBeNull();
+  });
 
-    await expect(stat(directory)).rejects.toThrow();
+  it("asks only for the public address, and stops without one", async () => {
+    const fetch = vi.fn<(url: string) => Promise<Response>>(() =>
+      Promise.reject(new Error("offline")),
+    );
+    const service = new ApproximateLocationService({
+      databasePath: path.join(directory, "missing.mmdb.gz"),
+      fetch,
+    });
+
+    expect(await service.lookup()).toBeNull();
+    expect(fetch.mock.calls.map(([url]) => url)).toEqual([
+      "https://1.1.1.1/cdn-cgi/trace",
+    ]);
   });
 });

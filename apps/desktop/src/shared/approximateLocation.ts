@@ -2,6 +2,7 @@ export const GET_APPROXIMATE_LOCATION_CHANNEL =
   "preferences:get-approximate-location" as const;
 export const SET_APPROXIMATE_LOCATION_CHANNEL =
   "preferences:set-approximate-location" as const;
+export const DEFAULT_APPROXIMATE_LOCATION_ENABLED = true;
 
 /** Where the user's public IP address places them; English place names. */
 export interface ApproximateLocation {

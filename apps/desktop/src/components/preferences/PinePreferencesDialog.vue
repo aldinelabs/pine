@@ -84,6 +84,7 @@ import {
   type PineContextCompactionStrategy,
 } from "@/shared/preferences";
 import { DEFAULT_QUICK_COMPOSER_ENABLED } from "@/shared/quickComposer";
+import { DEFAULT_APPROXIMATE_LOCATION_ENABLED } from "@/shared/approximateLocation";
 import {
   createDefaultPineUserProfile,
   isPineCommunicationStyle,
@@ -128,7 +129,7 @@ const isSavingContextCompactionRoute = ref(false);
 const quickComposerEnabled = ref(DEFAULT_QUICK_COMPOSER_ENABLED);
 const isLoadingQuickComposer = ref(true);
 const isSavingQuickComposer = ref(false);
-const approximateLocationEnabled = ref(false);
+const approximateLocationEnabled = ref(DEFAULT_APPROXIMATE_LOCATION_ENABLED);
 const isLoadingApproximateLocation = ref(true);
 const isSavingApproximateLocation = ref(false);
 const quickComposerShortcut = computed(() =>
@@ -1124,11 +1125,7 @@ defineExpose({ open });
                     {{ t("preferences.approximateLocation") }}
                   </FieldTitle>
                   <FieldDescription>
-                    {{
-                      isSavingApproximateLocation && approximateLocationEnabled
-                        ? t("preferences.approximateLocationDownloading")
-                        : t("preferences.approximateLocationDescription")
-                    }}
+                    {{ t("preferences.approximateLocationDescription") }}
                   </FieldDescription>
                 </div>
                 <Switch

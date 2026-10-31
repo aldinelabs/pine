@@ -6,7 +6,7 @@
   "main": ".vite/build/main.js",
   "private": true,
   "scripts": {
-    "prestart": "bun run --filter @pine/computer-use-runtime build && node scripts/build-native.mjs",
+    "prestart": "bun run --filter @pine/computer-use-runtime build && node scripts/build-native.mjs && node scripts/fetch-geoip.mjs --optional",
     "start": "electron-forge start",
     "prepackage": "bun run --filter @pine/computer-use-runtime build && node scripts/build-native.mjs",
     "package": "electron-forge package",

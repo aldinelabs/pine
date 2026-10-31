@@ -99,6 +99,7 @@ import { AppUpdater, readUpdateManifestUrl } from "./main/appUpdater";
 import { AgentProcessHost } from "./main/agentProcessHost";
 import { ApproximateLocationService } from "./main/approximateLocation";
 import {
+  DEFAULT_APPROXIMATE_LOCATION_ENABLED,
   GET_APPROXIMATE_LOCATION_CHANNEL,
   SET_APPROXIMATE_LOCATION_CHANNEL,
   type SetApproximateLocationResult,
@@ -760,8 +761,9 @@ async function answerHostRequest(
         return { ok: true, response: { kind: "workbench-state", state } };
       }
       if (event.request.kind === "approximate-location") {
-        const enabled = (await readPineAgentSettings(getPineAgentDirectory()))
-          .approximateLocationEnabled;
+        const enabled =
+          (await readPineAgentSettings(getPineAgentDirectory()))
+            .approximateLocationEnabled ?? DEFAULT_APPROXIMATE_LOCATION_ENABLED;
         return {
           ok: true,
           response: {
@@ -1703,7 +1705,9 @@ let approximateLocation: ApproximateLocationService | undefined;
 function getApproximateLocation(): ApproximateLocationService {
   // net.fetch goes through the system proxy, like the rest of Pine's traffic.
   approximateLocation ??= new ApproximateLocationService({
-    directory: path.join(app.getPath("userData"), "geoip"),
+    databasePath: app.isPackaged
+      ? path.join(process.resourcesPath, "dbip-city-lite.mmdb.gz")
+      : path.join(app.getAppPath(), "resources/geoip/dbip-city-lite.mmdb.gz"),
     fetch: (url, init) => net.fetch(url, init),
   });
   return approximateLocation;
@@ -1904,18 +1908,14 @@ ipcMain.handle(
   GET_APPROXIMATE_LOCATION_CHANNEL,
   async (): Promise<boolean> =>
     (await readPineAgentSettings(getPineAgentDirectory()))
-      .approximateLocationEnabled ?? false,
+      .approximateLocationEnabled ?? DEFAULT_APPROXIMATE_LOCATION_ENABLED,
 );
 
 ipcMain.handle(
   SET_APPROXIMATE_LOCATION_CHANNEL,
   async (_event, request: unknown): Promise<SetApproximateLocationResult> => {
     const { enabled } = z.object({ enabled: z.boolean() }).parse(request);
-    // The database downloads only once the user opts in, and goes when they
-    // opt out; a failed download leaves the feature off.
-    if (enabled) await getApproximateLocation().prepare();
     await writeApproximateLocationEnabled(getPineAgentDirectory(), enabled);
-    if (!enabled) await getApproximateLocation().clear();
     return { enabled };
   },
 );

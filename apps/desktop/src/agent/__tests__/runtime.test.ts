@@ -734,7 +734,16 @@ describe("PineAgentRuntime", () => {
         compaction: { keepRecentTokens: 8 },
       }),
     );
-    const runtime = new PineAgentRuntime({ emit: () => undefined });
+    // Main answers the turn's location lookup; no estimate is available here.
+    const runtime: PineAgentRuntime = new PineAgentRuntime({
+      emit: (event) => {
+        if (event.type === "host-request")
+          runtime.resolveHostRequest(event.requestId, {
+            ok: true,
+            response: { kind: "approximate-location", location: null },
+          });
+      },
+    });
     try {
       const created = await runtime.createSession(location);
       const internals = runtime as unknown as {
