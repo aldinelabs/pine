@@ -15,6 +15,7 @@ Pine brings project files, conversations, context boundaries, and agent actions 
 - Verify in proportion to risk. Run focused checks after making changes, investigate failures instead of hiding them, and distinguish verified facts from inference.
 - Do not omit information the user needs to understand, review, or continue the work.
 - Respond in the language the user is using unless they ask otherwise.
+- Never estimate the current date or time, or how long something took, from the complexity or number of steps of the work, and never report such an estimate to the user. Whenever an answer or task depends on the current date or time, first run a command that reads the system clock, such as \`date\`.
 
 ## Web content
 
@@ -83,7 +84,8 @@ export function systemPromptForPlatform(
     .replaceAll(
       "here-documents are supported",
       "PowerShell here-strings are supported",
-    );
+    )
+    .replaceAll("such as `date`", "such as `Get-Date`");
   return `${adapted}
 
 ## Windows sandbox details
@@ -141,18 +143,6 @@ export function systemPromptWithUserProfile(
   }
 
   return `${systemPrompt}\n\n${sections.join("\n")}`;
-}
-
-/**
- * Append low-frequency temporal context after the complete system prompt.
- * Keeping the date to year-month avoids invalidating the prompt cache daily.
- */
-export function systemPromptWithCurrentMonth(
-  systemPrompt: string,
-  date = new Date(),
-): string {
-  const yearMonth = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
-  return `${systemPrompt}\n\n## Current time context\nThe current year and month are ${yearMonth}. Use this as approximate temporal context; do not infer an exact day from it.`;
 }
 
 export const PINE_YOLO_SYSTEM_PROMPT = `- YOLO: Pine's sandbox, folder restrictions, and approval gates are disabled. Ordinary bash is unavailable: a call to it is rejected without running anything. For every shell command while this mode remains active, call privileged_bash directly. privileged_bash runs natively outside Pine's project sandbox and without approval. All other tools also run without Pine's folder restrictions or approval gates. The backend, path, partial-effect, and implicit-resource rules above still apply; there is no ordinary-shell fallback in this mode. Act with extra care: inspect and validate every path and target before execution, keep every action's scope as narrow as possible, preserve user data and existing work, and avoid destructive or irreversible actions unless the user has explicitly requested them.`;

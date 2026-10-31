@@ -3,26 +3,18 @@ import {
   PINE_YOLO_SYSTEM_PROMPT,
   PINE_SYSTEM_PROMPT,
   systemPromptWithUserProfile,
-  systemPromptWithCurrentMonth,
   approvalModeNotice,
   approvalModeSystemPrompt,
   systemPromptForPlatform,
 } from "../system-prompt";
 
-describe("systemPromptWithCurrentMonth", () => {
-  it("appends the current year and month after the stable prompt prefix", () => {
-    const prompt = systemPromptWithCurrentMonth(
-      `${PINE_SYSTEM_PROMPT}\n\n<project_context>stable context</project_context>`,
-      new Date("2026-09-06T12:00:00"),
+describe("time rule", () => {
+  it("tells the model to read the clock instead of estimating", () => {
+    expect(PINE_SYSTEM_PROMPT).toContain("such as `date`");
+    expect(PINE_SYSTEM_PROMPT).not.toMatch(/current year and month are/);
+    expect(systemPromptForPlatform(PINE_SYSTEM_PROMPT, "win32")).toContain(
+      "such as `Get-Date`",
     );
-
-    expect(
-      prompt.startsWith(
-        `${PINE_SYSTEM_PROMPT}\n\n<project_context>stable context</project_context>`,
-      ),
-    ).toBe(true);
-    expect(prompt).toContain("The current year and month are 2026-09.");
-    expect(prompt).not.toContain("2026-09-06");
   });
 });
 

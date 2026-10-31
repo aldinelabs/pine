@@ -62,7 +62,6 @@ import {
   PINE_SYSTEM_PROMPT,
   systemPromptForPlatform,
   systemPromptWithUserProfile,
-  systemPromptWithCurrentMonth,
   approvalModeNotice,
   approvalModeSystemPrompt,
 } from "./system-prompt";
@@ -866,8 +865,6 @@ export class PineAgentRuntime {
                   intelligentUiSystemPrompt();
               event.systemPromptOptions.sections.pine_approval_mode =
                 approvalModeSystemPrompt();
-              event.systemPromptOptions.sections.pine_time =
-                systemPromptWithCurrentMonth("").trim();
               const networkRegion = networkRegionSystemPrompt(
                 localNetworkRegionSignals(),
               );
