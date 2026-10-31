@@ -61,7 +61,9 @@ export function quickComposerBounds(workArea: Rectangle): Rectangle {
 
 /**
  * Moves a window so the composer at `windowRect` in its content lands on the
- * screen rectangle `screenRect`, keeping the window's size.
+ * screen rectangle `screenRect`, keeping the window's size. Their bottom
+ * edges meet: the input and controls sit there, and both composers grow
+ * upward with what is attached.
  */
 export function alignedWindowBounds(
   window: Rectangle,
@@ -70,7 +72,10 @@ export function alignedWindowBounds(
   screenRect: QuickComposerRect,
 ): Rectangle {
   const dx = screenRect.x - (content.x + windowRect.x);
-  const dy = screenRect.y - (content.y + windowRect.y);
+  const dy =
+    screenRect.y +
+    screenRect.height -
+    (content.y + windowRect.y + windowRect.height);
   return {
     ...window,
     x: Math.round(window.x + dx),

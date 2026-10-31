@@ -88,6 +88,15 @@ describe("quick composer layout", () => {
         { x: 200, y: 800, width: 768, height: 120 },
       ),
     ).toEqual({ x: 152, y: 82, width: 864, height: 840 });
+    // A taller composer here keeps its bottom edge on the floating one's.
+    expect(
+      alignedWindowBounds(
+        { x: 100, y: 100, width: 864, height: 840 },
+        { x: 100, y: 128, width: 864, height: 812 },
+        { x: 48, y: 650, width: 768, height: 160 },
+        { x: 200, y: 800, width: 768, height: 120 },
+      ),
+    ).toEqual({ x: 152, y: 82, width: 864, height: 840 });
   });
 });
 

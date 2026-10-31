@@ -703,6 +703,7 @@ async function handleDrop(event: DragEvent): Promise<void> {
         v-model:attachments="attachments"
         v-model:approvalMode="approvalMode"
         :context="handoffContext"
+        :context-animates="false"
         :is-running="isRunning"
         :is-active="isActive"
         :pending-approval="pendingApproval"
