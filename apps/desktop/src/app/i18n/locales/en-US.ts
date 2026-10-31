@@ -1,5 +1,6 @@
 export default {
   common: {
+    downloadFile: "Download file",
     cancel: "Cancel",
     delete: "Delete",
     edit: "Edit",
@@ -33,6 +34,17 @@ export default {
     failed: "The update could not be installed.",
   },
   preferences: {
+    webControl: {
+      title: "Local web access",
+      description:
+        "Control Pine from a browser on this computer. Pine must stay running. The service listens only on 127.0.0.1.",
+      port: "Port",
+      apply: "Apply",
+      invalidPort: "Enter a port from 1024 to 65535.",
+      open: "Open in browser",
+      hostFolder: "Folder path on the computer running Pine",
+      addFolder: "Use folder",
+    },
     projectManagement: {
       title: "Projects",
       description:

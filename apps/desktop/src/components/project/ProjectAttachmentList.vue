@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { attachmentImageUrl } from "@/lib/clientAssets";
 import type { HTMLAttributes } from "vue";
 import { FileIcon, FolderIcon, XIcon } from "@lucide/vue";
 import { ref } from "vue";
@@ -15,11 +16,7 @@ import {
   AttachmentTrigger,
 } from "@/components/ui/attachment";
 import { cn } from "@/lib/utils";
-import {
-  attachmentImageUrl,
-  isImageAttachment,
-  type PineAttachment,
-} from "@/shared/attachments";
+import { isImageAttachment, type PineAttachment } from "@/shared/attachments";
 
 const props = withDefaults(
   defineProps<{

@@ -1,3 +1,4 @@
+import { createAgentHost as createMockAgentHost } from "./agentHostFixture";
 // @vitest-environment node
 import {
   mkdir,
@@ -17,7 +18,6 @@ import type {
   PineContextUsage,
   PineSessionSummary,
 } from "../../shared/sessions";
-import type { AgentHost } from "../agentProcessHost";
 import { ProjectSessionService } from "../sessions";
 import { ProjectRuntimeRegistry } from "../projectRuntime";
 import { TEMPORARY_WORKSPACE_PROJECT_ID } from "../../shared/projects";
@@ -31,52 +31,7 @@ const sessionSummary: PineSessionSummary = {
   messageCount: 0,
 };
 
-function createAgentHost(): AgentHost {
-  return {
-    abort: vi.fn().mockResolvedValue({ aborted: false }),
-    compact: vi.fn().mockResolvedValue({ compacted: true }),
-    dequeueSteering: vi.fn().mockResolvedValue({ removed: false }),
-    createSession: vi.fn().mockResolvedValue({ session: sessionSummary }),
-    disposeSession: vi.fn().mockResolvedValue({ disposed: true }),
-    addCustomModel: vi.fn().mockResolvedValue({ models: [], providers: [] }),
-    updateCustomModel: vi.fn().mockResolvedValue({ models: [], providers: [] }),
-    deleteCustomModel: vi.fn().mockResolvedValue({ models: [], providers: [] }),
-    updateCustomProvider: vi
-      .fn()
-      .mockResolvedValue({ models: [], providers: [] }),
-    deleteCustomProvider: vi
-      .fn()
-      .mockResolvedValue({ models: [], providers: [] }),
-    getModelCatalog: vi.fn().mockResolvedValue({ models: [], providers: [] }),
-    refreshModelCatalog: vi
-      .fn()
-      .mockResolvedValue({ models: [], providers: [] }),
-    loginProvider: vi.fn().mockResolvedValue({ credentialType: "api_key" }),
-    respondToProviderAuth: vi.fn().mockResolvedValue({ accepted: true }),
-    cancelProviderAuth: vi.fn().mockResolvedValue({ cancelled: true }),
-    logoutProvider: vi.fn().mockResolvedValue({ disposed: true }),
-    selectModel: vi.fn().mockResolvedValue({ disposed: true }),
-    selectUtilityModel: vi.fn().mockResolvedValue({ updated: true }),
-    selectImageModel: vi.fn().mockResolvedValue({ updated: true }),
-    setTinyFishApiKey: vi.fn().mockResolvedValue({ updated: true }),
-    setContextCompactionStrategy: vi.fn().mockResolvedValue({ updated: true }),
-    setContextCompactionRoute: vi.fn().mockResolvedValue({ updated: true }),
-    openSession: vi.fn().mockResolvedValue({ session: sessionSummary }),
-    prompt: vi.fn().mockResolvedValue({
-      accepted: true,
-      session: { ...sessionSummary, messageCount: 2 },
-    }),
-    renameSession: vi.fn().mockImplementation((sessionId, name) =>
-      Promise.resolve({
-        session: { ...sessionSummary, id: sessionId, name },
-      }),
-    ),
-    respondApproval: vi.fn(),
-    respondQuestionnaire: vi.fn(),
-    setApprovalMode: vi.fn().mockResolvedValue({ updated: true }),
-    subscribe: vi.fn().mockReturnValue(() => undefined),
-  };
-}
+const createAgentHost = () => createMockAgentHost(sessionSummary);
 
 function deferred<T>(): {
   promise: Promise<T>;
@@ -130,6 +85,91 @@ afterEach(async () => {
 });
 
 describe("ProjectRuntimeRegistry", () => {
+  it("shares one live session with a browser and keeps it alive when its desktop window closes", async () => {
+    const host = createAgentHost();
+    const disposeSession = vi.fn().mockResolvedValue({ disposed: true });
+    const abort = vi.fn().mockResolvedValue({ aborted: true });
+    const openSession = vi.fn().mockResolvedValue({ session: sessionSummary });
+    host.disposeSession = disposeSession;
+    host.abort = abort;
+    host.openSession = openSession;
+    const registry = new ProjectRuntimeRegistry(host, "/pine/agent");
+    const { dataRoot, project } = await createRuntimeFixture();
+    const paths = {
+      attachmentsRoot: path.join(dataRoot, "attachments"),
+      cacheRoot: path.join(dataRoot, "cache"),
+      projectRoot: dataRoot,
+      sessionsRoot: path.join(dataRoot, "sessions"),
+    };
+    try {
+      await registry.open(1, project, paths);
+      await registry.prompt(1, {
+        message: "Start",
+        target: { kind: "new", projectId: project.id },
+      });
+      await registry.share(-1, project, paths);
+      await registry.resume(-1, project.id, sessionSummary.id);
+      expect(openSession).not.toHaveBeenCalled();
+      expect(registry.clientsOfSession(sessionSummary.id)).toEqual([1, -1]);
+      registry.trackApproval("approval", 1, sessionSummary.id);
+      await registry.dispose(1);
+      expect(disposeSession).not.toHaveBeenCalled();
+      expect(
+        registry.respondApproval(-1, {
+          requestId: "approval",
+          action: "approve",
+        }),
+      ).toEqual({ accepted: true });
+      expect(() =>
+        registry.respondApproval(-1, {
+          requestId: "approval",
+          action: "approve",
+        }),
+      ).toThrow("no longer pending");
+      await registry.abort(-1, sessionSummary.id);
+      expect(abort).toHaveBeenCalledWith(sessionSummary.id);
+      await registry.dispose(-1);
+      expect(disposeSession).toHaveBeenCalledExactlyOnceWith(sessionSummary.id);
+    } finally {
+      await registry.dispose(1);
+      await registry.dispose(-1);
+    }
+  });
+
+  it("reconfigures a shared project once and retains both clients", async () => {
+    const host = createAgentHost();
+    const disposeSession = vi.fn().mockResolvedValue({ disposed: true });
+    const abort = vi.fn().mockResolvedValue({ aborted: true });
+    const openSession = vi.fn().mockResolvedValue({ session: sessionSummary });
+    host.disposeSession = disposeSession;
+    host.abort = abort;
+    host.openSession = openSession;
+    const registry = new ProjectRuntimeRegistry(host, "/pine/agent");
+    const { dataRoot, project } = await createRuntimeFixture();
+    const paths = {
+      attachmentsRoot: path.join(dataRoot, "attachments"),
+      cacheRoot: path.join(dataRoot, "cache"),
+      projectRoot: dataRoot,
+      sessionsRoot: path.join(dataRoot, "sessions"),
+    };
+    try {
+      await registry.open(1, project, paths);
+      await registry.share(-1, project, paths);
+      await registry.prompt(1, {
+        message: "Start",
+        target: { kind: "new", projectId: project.id },
+      });
+      await registry.refresh({ ...project, name: "Updated" }, paths);
+      expect(disposeSession).toHaveBeenCalledExactlyOnceWith(sessionSummary.id);
+      expect(registry.clientsOfProject(project.id)).toEqual([1, -1]);
+      await registry.closeEverywhere(project.id);
+      expect(registry.clientsOfProject(project.id)).toEqual([]);
+    } finally {
+      await registry.dispose(1);
+      await registry.dispose(-1);
+    }
+  });
+
   it("moves a temporary workspace session into a project after confirmation", async () => {
     const agentHost = createAgentHost();
     const createSession = vi

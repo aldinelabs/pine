@@ -144,3 +144,8 @@ export function formatSessionAsMarkdown(input: PineSessionExportInput): string {
     .replace(/\n{3,}/gu, "\n\n")
     .trim()}\n`;
 }
+
+export interface PineSessionExportDocument {
+  fileName: string;
+  markdown: string;
+}

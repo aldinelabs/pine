@@ -37,7 +37,7 @@ export const PRESENTED_MEDIA_PARAM = "presented";
 export function projectMediaUrl(
   ownerId: number,
   params: Record<string, string>,
-  options: { presented?: boolean } = {},
+  options: { presented?: boolean; web?: boolean } = {},
 ): string {
   const url = URL.parse(`${PROJECT_MEDIA_PROTOCOL}://preview/`);
   if (!url) throw new Error("Failed to construct the project media URL.");
@@ -46,6 +46,7 @@ export function projectMediaUrl(
     owner: String(ownerId),
     ...(options.presented ? { [PRESENTED_MEDIA_PARAM]: "1" } : {}),
   }).toString();
+  if (options.web) return `/api/media${url.search}`;
   return url.href;
 }
 

@@ -84,7 +84,7 @@ function readStoredInvertDocuments(): boolean {
 }
 
 function isMacOSPlatform(): boolean {
-  return window.pine?.platform === "darwin";
+  return window.pine?.runtime !== "web" && window.pine?.platform === "darwin";
 }
 
 export const useAppearanceStore = defineStore("appearance", () => {

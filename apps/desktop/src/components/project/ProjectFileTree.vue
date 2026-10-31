@@ -77,6 +77,7 @@ interface ProjectTreeNode extends ProjectEntry {
 }
 
 const { t } = useI18n();
+const isWeb = window.pine?.runtime === "web";
 const projectStore = useProjectStore();
 const contentTabsStore = useContentTabsStore();
 const tabNavigation = useContentTabNavigation();
@@ -668,6 +669,7 @@ function startDrag(event: DragEvent, node: ProjectTreeNode): void {
   );
   // Even read-only folders can be attached to a message.
   event.dataTransfer.effectAllowed = "copyMove";
+  if (isWeb) return;
   event.preventDefault();
   window.pine.startProjectFileDrag(reference(node));
 }
@@ -1063,6 +1065,7 @@ onUnmounted(() => {
           <ContextMenuContent class="w-48 [&_[data-inset]]:pl-8">
             <ContextMenuGroup>
               <ContextMenuItem
+                v-if="!isWeb || item.value.kind === 'file'"
                 inset
                 :disabled="busy"
                 @select="
@@ -1071,9 +1074,12 @@ onUnmounted(() => {
                     target: reference(item.value),
                   })
                 "
-                >{{ t("project.files.open") }}</ContextMenuItem
+                >{{
+                  t(isWeb ? "common.downloadFile" : "project.files.open")
+                }}</ContextMenuItem
               >
               <ContextMenuItem
+                v-if="!isWeb"
                 inset
                 :disabled="busy"
                 @select="

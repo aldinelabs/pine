@@ -1,5 +1,6 @@
 export default {
   common: {
+    downloadFile: "下载文件",
     cancel: "取消",
     delete: "删除",
     edit: "编辑",
@@ -31,6 +32,17 @@ export default {
     failed: "无法安装更新。",
   },
   preferences: {
+    webControl: {
+      title: "本地网页访问",
+      description:
+        "在这台电脑的浏览器中控制 Pine。使用期间需保持 Pine 运行，服务仅监听 127.0.0.1。",
+      port: "端口",
+      apply: "应用",
+      invalidPort: "请输入 1024 到 65535 之间的端口。",
+      open: "在浏览器中打开",
+      hostFolder: "运行 Pine 的电脑上的文件夹路径",
+      addFolder: "使用文件夹",
+    },
     projectManagement: {
       title: "项目管理",
       description:

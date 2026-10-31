@@ -44,6 +44,20 @@ export function useAttachmentDrop() {
         (entry) => entry.projectId === projectId,
       );
       if (entries?.length === 0) return false;
+      if (
+        !entries &&
+        window.pine.runtime === "web" &&
+        window.pine.uploadAttachments
+      ) {
+        const result = await window.pine.uploadAttachments(
+          Array.from(transfer.files),
+          projectId,
+        );
+        return (
+          result.attachments.length > 0 &&
+          contentTabs.addAttachments(tabId, result.attachments)
+        );
+      }
       const paths = entries ? [] : externalFilePaths(transfer);
       if (!entries && !paths.length) return false;
       const result = entries

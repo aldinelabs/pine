@@ -167,6 +167,7 @@ const approvalMode = defineModel<ApprovalMode>("approvalMode", {
   default: "auto-approve",
 });
 const { t } = useI18n();
+const isWeb = window.pine?.runtime === "web";
 const modelsStore = useModelsStore();
 const { favoriteModels, featuredModels } = storeToRefs(modelsStore);
 const selection = computed(() => modelsStore.selectionFor(props.sessionId));
@@ -518,9 +519,11 @@ function mergeAttachments(selected: readonly PineAttachment[]): void {
 async function pickAttachments(kind: "directory" | "file"): Promise<void> {
   try {
     const result =
-      kind === "directory"
-        ? await window.pine.pickAttachmentFolders()
-        : await window.pine.pickAttachments();
+      window.pine.runtime === "web"
+        ? await window.pine.pickAttachments(props.projectId)
+        : kind === "directory"
+          ? await window.pine.pickAttachmentFolders()
+          : await window.pine.pickAttachments();
     mergeAttachments(result.attachments);
   } catch {
     toast.error(t("project.composer.attachmentPickerFailed"));
@@ -562,6 +565,23 @@ interface PastedImage {
  */
 async function handlePaste(event: ClipboardEvent): Promise<void> {
   const files = Array.from(event.clipboardData?.files ?? []);
+  if (
+    files.length > 0 &&
+    window.pine.runtime === "web" &&
+    window.pine.uploadAttachments
+  ) {
+    event.preventDefault();
+    try {
+      const result = await window.pine.uploadAttachments(
+        files,
+        props.projectId,
+      );
+      mergeAttachments(result.attachments);
+    } catch {
+      toast.error(t("project.composer.attachmentPasteFailed"));
+    }
+    return;
+  }
   if (files.length > 0) {
     const paths: string[] = [];
     const pastedImages: PastedImage[] = [];
@@ -861,7 +881,10 @@ function handleRootSubmit(event: Event): void {
                         <FileIcon />
                         {{ t("project.composer.addFile") }}
                       </DropdownMenuItem>
-                      <DropdownMenuItem @select="pickAttachments('directory')">
+                      <DropdownMenuItem
+                        v-if="!isWeb"
+                        @select="pickAttachments('directory')"
+                      >
                         <FolderIcon />
                         {{ t("project.composer.addFolder") }}
                       </DropdownMenuItem>

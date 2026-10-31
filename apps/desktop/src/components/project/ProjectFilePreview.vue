@@ -77,6 +77,7 @@ const props = withDefaults(
   { active: true },
 );
 const { t, locale } = useI18n();
+const isWeb = window.pine?.runtime === "web";
 // Presented files live outside the project, so they cannot be sent to a
 // session as a project entry; opening with the default app still works.
 const projectTarget = computed(() =>
@@ -642,7 +643,7 @@ onBeforeUnmount(() => {
           @click="openWithDefaultApplication"
         >
           <ExternalLink data-icon="inline-start" />
-          {{ t("project.preview.openDefault") }}
+          {{ t(isWeb ? "common.downloadFile" : "project.preview.openDefault") }}
         </Button>
         <DropdownMenu
           v-if="projectTarget"

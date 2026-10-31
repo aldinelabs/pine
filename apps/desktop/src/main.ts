@@ -1,4 +1,23 @@
 import {
+  SetWatchedProjectDirectoriesRequestSchema,
+  SetWatchedFilePreviewRequestSchema,
+} from "./main/fileSubscriptionSchemas";
+import { WebApplication } from "./main/webApplication";
+import { WebSessionState } from "./main/webSessionState";
+import {
+  DEFAULT_WEB_PORT,
+  GET_WEB_SERVER_CHANNEL,
+  SET_WEB_SERVER_CHANNEL,
+  WEB_CLIENT_ID,
+  isWebServerSettings,
+  type WebServerSettings,
+} from "./shared/webControl";
+import {
+  PineRequestRouter,
+  type PineRequestContext,
+  type PineRequestHandler,
+} from "./main/requestRouter";
+import {
   ProjectFileOperationSchema,
   ProjectEntryReferenceSchema,
 } from "./main/projectFileOperations";
@@ -141,6 +160,7 @@ import {
   writeApproximateLocationEnabled,
   writeDiagnosticLoggingEnabled,
   writePineUserProfile,
+  writeWebServerSettings,
 } from "./agent/pineSettings";
 import {
   LIST_BACKGROUND_TASKS_CHANNEL,
@@ -163,6 +183,7 @@ import {
   type CompactSessionResult,
   type DequeueSteeringResult,
   type PineAgentEvent,
+  type PineSessionEvent,
   type PinePresentFileEvent,
   type PineSessionTeleportedEvent,
   type PromptSessionResult,
@@ -337,8 +358,6 @@ import {
   SET_WATCHED_PROJECT_DIRECTORIES_CHANNEL,
   SET_WATCHED_FILE_PREVIEW_CHANNEL,
   FILE_PREVIEW_CHANGED_CHANNEL,
-  MAX_WATCHED_PROJECT_DIRECTORIES,
-  MAX_WATCHED_PROJECT_FOLDERS,
   type ListProjectDirectoryResult,
 } from "./shared/projectFiles";
 import { ProjectFileWatcherRegistry } from "./main/projectFileWatcher";
@@ -553,6 +572,40 @@ function registerAttachmentImageProtocol(): void {
 
 nativeTheme.themeSource = "system";
 
+let webApplication: WebApplication | null = null;
+const webSessionState = new WebSessionState();
+
+function sendClientEvent(
+  clientId: number,
+  channel: string,
+  value: unknown,
+): void {
+  if (clientId === WEB_CLIENT_ID)
+    webApplication?.server.publish(channel, value);
+  else webContents.fromId(clientId)?.send(channel, value);
+}
+
+function sendSessionEvent(
+  ownerId: number,
+  event: PineSessionEvent,
+  recipients?: number[],
+): void {
+  const attached =
+    recipients ??
+    (event.type === "session-reset"
+      ? projectRuntimes?.clientsOfProject(event.projectId)
+      : projectRuntimes?.clientsOfSession(event.sessionId)) ??
+    [];
+  const clients = attached.length ? attached : [ownerId];
+  for (const clientId of clients) {
+    if (event.type === "present-file" && event.target.source === "presented")
+      presentedFiles?.remember(clientId, event.target.path);
+    if (clientId !== WEB_CLIENT_ID)
+      sendClientEvent(clientId, SESSION_EVENT_CHANNEL, event);
+  }
+  webApplication?.publishSession(event);
+}
+
 let agentHost: AgentProcessHost | null = null;
 let runtimeDiagnostics: RuntimeDiagnostics | null = null;
 let pineAgentDirectory: string | null = null;
@@ -570,9 +623,7 @@ const filePreviewWatchers = new FilePreviewWatcherRegistry(
       ? previewPath(senderId, target)
       : presentedFilePath(senderId, target),
   (senderId, watchId) => {
-    webContents
-      .fromId(senderId)
-      ?.send(FILE_PREVIEW_CHANGED_CHANNEL, { watchId });
+    sendClientEvent(senderId, FILE_PREVIEW_CHANGED_CHANNEL, { watchId });
   },
 );
 let projectRepository: ProjectRepository | null = null;
@@ -729,7 +780,7 @@ async function forwardPresentedFile(
   if (target.source === "presented") {
     presentedFiles?.remember(ownerId, target.path);
   }
-  webContents.fromId(ownerId)?.send(SESSION_EVENT_CHANNEL, {
+  sendSessionEvent(ownerId, {
     ...event,
     projectId,
     target,
@@ -753,6 +804,10 @@ async function answerHostRequest(
           event.sessionId,
           (request) => {
             const owner = webContents.fromId(ownerId);
+            if (ownerId === WEB_CLIENT_ID) {
+              sendClientEvent(ownerId, SESSION_EVENT_CHANNEL, request);
+              return;
+            }
             if (!owner || owner.isDestroyed())
               throw new Error("The session's Pine window is unavailable.");
             owner.send(SESSION_EVENT_CHANNEL, request);
@@ -834,18 +889,29 @@ async function teleportSession(
   try {
     const repository = getProjectRepository();
     const project = await repository.open(projectId);
+    const recipients = getProjectRuntimes().clientsOfSession(sessionId);
     const { fromProjectId, webContentsId } =
       await getProjectRuntimes().teleportSession(
         sessionId,
         project,
         repository.dataPaths(projectId),
       );
-    webContents.fromId(webContentsId)?.send(SESSION_EVENT_CHANNEL, {
-      type: "session-teleported",
-      sessionId,
-      fromProjectId,
-      projectId,
-    } satisfies PineSessionTeleportedEvent);
+    for (const clientId of recipients)
+      await getProjectRuntimes().share(
+        clientId,
+        project,
+        repository.dataPaths(projectId),
+      );
+    sendSessionEvent(
+      webContentsId,
+      {
+        type: "session-teleported",
+        sessionId,
+        fromProjectId,
+        projectId,
+      } satisfies PineSessionTeleportedEvent,
+      recipients,
+    );
   } catch (error) {
     console.error("Failed to move a session to another project.", error);
   }
@@ -1081,32 +1147,6 @@ const ProviderAuthUrlSchema = z.url().refine((url) => {
   }
 });
 const ListProjectDirectoryRequestSchema = ProjectEntryReferenceSchema;
-const SetWatchedProjectDirectoriesRequestSchema = z.object({
-  folders: z
-    .array(
-      z.object({
-        folderId: z.uuid(),
-        projectId: z.uuid(),
-        directories: z.array(z.string().max(4_096)),
-      }),
-    )
-    .max(MAX_WATCHED_PROJECT_FOLDERS)
-    .refine(
-      (folders) =>
-        new Set(
-          folders.map((folder) => `${folder.projectId}/${folder.folderId}`),
-        ).size === folders.length,
-      "Folder IDs must be unique.",
-    )
-    .refine(
-      (folders) =>
-        folders.reduce(
-          (total, folder) => total + folder.directories.length,
-          0,
-        ) <= MAX_WATCHED_PROJECT_DIRECTORIES,
-      `At most ${MAX_WATCHED_PROJECT_DIRECTORIES} directories can be watched.`,
-    ),
-});
 const SetSidebarVibrancyRequestSchema = z.object({
   enabled: z.boolean(),
 });
@@ -1166,6 +1206,25 @@ function getProjectRepository(): ProjectRepository {
 function getProjectRuntimes(): ProjectRuntimeRegistry {
   if (!projectRuntimes) throw new Error("Project runtime is not ready.");
   return projectRuntimes;
+}
+
+const requestRouter = new PineRequestRouter();
+function handleServiceRequest(
+  channel: string,
+  handler: PineRequestHandler,
+): void {
+  requestRouter.register(channel, handler);
+  ipcMain.handle(channel, (event, request: unknown) => {
+    const context: PineRequestContext = {
+      clientId: event.sender.id,
+      source: "desktop",
+    };
+    return runtimeDiagnostics
+      ? runtimeDiagnostics.trace(channel, event.sender.id, () =>
+          handler(context, request),
+        )
+      : handler(context, request);
+  });
 }
 
 function handleDiagnosticIpc(
@@ -1747,6 +1806,7 @@ function notifyLibraryChanged(
   for (const window of appWindows())
     if (!window.isDestroyed() && window.webContents.id !== sourceWebContentsId)
       window.webContents.send(LIBRARY_CHANGED_CHANNEL, change);
+  webApplication?.libraryChanged(change);
 }
 
 ipcMain.handle(CLOSE_WINDOW_CHANNEL, (event): void => {
@@ -1791,7 +1851,7 @@ ipcMain.handle(COMMIT_WINDOW_RESIZE_CHANNEL, (event): Promise<void> => {
   });
 });
 
-ipcMain.handle(GET_APP_VERSION_CHANNEL, (): string => app.getVersion());
+handleServiceRequest(GET_APP_VERSION_CHANNEL, (): string => app.getVersion());
 
 ipcMain.handle(CHECK_FOR_UPDATE_CHANNEL, (): Promise<UpdateCheckResult> =>
   getAppUpdater().check(),
@@ -1821,21 +1881,21 @@ ipcMain.handle(
   },
 );
 
-ipcMain.handle(
+handleServiceRequest(
   GET_TINYFISH_CREDENTIAL_STATUS_CHANNEL,
   (): TinyFishCredentialStatus => ({
     configured: getTinyFishCredentialStore().isConfigured(),
   }),
 );
 
-ipcMain.handle(
+handleServiceRequest(
   GET_USER_PROFILE_CHANNEL,
   async (): Promise<PineUserProfile> =>
     (await readPineAgentSettings(getPineAgentDirectory())).userProfile ??
     createDefaultPineUserProfile(),
 );
 
-ipcMain.handle(
+handleServiceRequest(
   GET_AUTO_APPROVAL_SETTINGS_CHANNEL,
   async (): Promise<PineAutoApprovalSettings> =>
     (await readPineAgentSettings(getPineAgentDirectory())).autoApproval ?? {
@@ -1843,7 +1903,7 @@ ipcMain.handle(
     },
 );
 
-ipcMain.handle(
+handleServiceRequest(
   SET_AUTO_APPROVAL_SETTINGS_CHANNEL,
   async (_event, request: unknown): Promise<PineAutoApprovalSettings> => {
     const settings = z
@@ -1858,26 +1918,26 @@ ipcMain.handle(
   },
 );
 
-ipcMain.handle(
+handleServiceRequest(
   GET_CONTEXT_COMPACTION_STRATEGY_CHANNEL,
   async (): Promise<PineContextCompactionStrategy> =>
     (await readPineAgentSettings(getPineAgentDirectory()))
       .contextCompactionStrategy ?? DEFAULT_CONTEXT_COMPACTION_STRATEGY,
 );
 
-ipcMain.handle(
+handleServiceRequest(
   GET_CONTEXT_COMPACTION_ROUTE_CHANNEL,
   async (): Promise<PineContextCompactionRoute> =>
     (await readPineAgentSettings(getPineAgentDirectory()))
       .contextCompactionRoute ?? DEFAULT_CONTEXT_COMPACTION_ROUTE,
 );
 
-ipcMain.handle(
+handleServiceRequest(
   GET_COMPLETION_SIGNAL_CHANNEL,
   (): PineCompletionSignalMode => completionSignalMode,
 );
 
-ipcMain.handle(
+handleServiceRequest(
   SET_COMPLETION_SIGNAL_CHANNEL,
   async (_event, request: unknown): Promise<SetCompletionSignalResult> => {
     const { mode } = z
@@ -1889,7 +1949,10 @@ ipcMain.handle(
   },
 );
 
-ipcMain.handle(GET_QUICK_COMPOSER_CHANNEL, (): boolean => quickComposerEnabled);
+handleServiceRequest(
+  GET_QUICK_COMPOSER_CHANNEL,
+  (): boolean => quickComposerEnabled,
+);
 
 ipcMain.handle(
   SET_QUICK_COMPOSER_CHANNEL,
@@ -1904,14 +1967,14 @@ ipcMain.handle(
   },
 );
 
-ipcMain.handle(
+handleServiceRequest(
   GET_APPROXIMATE_LOCATION_CHANNEL,
   async (): Promise<boolean> =>
     (await readPineAgentSettings(getPineAgentDirectory()))
       .approximateLocationEnabled ?? DEFAULT_APPROXIMATE_LOCATION_ENABLED,
 );
 
-ipcMain.handle(
+handleServiceRequest(
   SET_APPROXIMATE_LOCATION_CHANNEL,
   async (_event, request: unknown): Promise<SetApproximateLocationResult> => {
     const { enabled } = z.object({ enabled: z.boolean() }).parse(request);
@@ -1993,12 +2056,12 @@ ipcMain.handle(
   },
 );
 
-ipcMain.handle(
+handleServiceRequest(
   GET_DIAGNOSTIC_LOGGING_CHANNEL,
   (): boolean => runtimeDiagnostics?.isEnabled ?? false,
 );
 
-ipcMain.handle(
+handleServiceRequest(
   SET_DIAGNOSTIC_LOGGING_CHANNEL,
   async (_event, request: unknown): Promise<SetDiagnosticLoggingResult> => {
     const { enabled } = z.object({ enabled: z.boolean() }).parse(request);
@@ -2017,7 +2080,7 @@ ipcMain.handle(
   },
 );
 
-ipcMain.handle(
+handleServiceRequest(
   SET_CONTEXT_COMPACTION_STRATEGY_CHANNEL,
   async (
     _event,
@@ -2031,7 +2094,7 @@ ipcMain.handle(
   },
 );
 
-ipcMain.handle(
+handleServiceRequest(
   SET_CONTEXT_COMPACTION_ROUTE_CHANNEL,
   async (
     _event,
@@ -2044,7 +2107,7 @@ ipcMain.handle(
   },
 );
 
-ipcMain.handle(
+handleServiceRequest(
   SET_USER_PROFILE_CHANNEL,
   async (_event, profile: unknown): Promise<SetUserProfileResult> => {
     const parsed = UserProfileSchema.parse(profile);
@@ -2056,7 +2119,7 @@ ipcMain.handle(
   },
 );
 
-ipcMain.handle(
+handleServiceRequest(
   SET_TINYFISH_API_KEY_CHANNEL,
   async (_event, request: unknown): Promise<SetTinyFishApiKeyResult> => {
     const { apiKey } = SetTinyFishApiKeyRequestSchema.parse(request);
@@ -2071,80 +2134,70 @@ ipcMain.handle(OPEN_EXTERNAL_URL_CHANNEL, async (_event, url: unknown) => {
   await shell.openExternal(ProviderAuthUrlSchema.parse(url));
 });
 
-ipcMain.handle(
+handleServiceRequest(
   READ_PROJECT_FILE_PREVIEW_CHANNEL,
   async (event, request: unknown) => {
     const entry = ProjectFilePreviewRequestSchema.parse(request);
-    const filePath = await previewPath(event.sender.id, entry);
+    const filePath = await previewPath(event.clientId, entry);
     return readProjectFilePreview(
       filePath,
-      projectMediaUrl(event.sender.id, entry),
+      projectMediaUrl(event.clientId, entry, { web: event.source === "web" }),
     );
   },
 );
 
-ipcMain.handle(
+handleServiceRequest(
   SET_WATCHED_FILE_PREVIEW_CHANNEL,
   (event, request: unknown): Promise<void> => {
-    const parsed = z
-      .object({
-        watchId: z.string().min(1).max(200),
-        target: z
-          .discriminatedUnion("source", [
-            ProjectFilePreviewRequestSchema.extend({
-              source: z.literal("project"),
-            }),
-            PresentedFilePreviewRequestSchema.extend({
-              source: z.literal("presented"),
-            }),
-          ])
-          .nullable(),
-      })
-      .parse(request);
-    return filePreviewWatchers.setWatchedPreview(event.sender.id, parsed);
+    const parsed = SetWatchedFilePreviewRequestSchema.parse(request);
+    return filePreviewWatchers.setWatchedPreview(event.clientId, parsed);
   },
 );
 
-ipcMain.handle(
+handleServiceRequest(
   READ_PRESENTED_FILE_PREVIEW_CHANNEL,
   async (event, request: unknown) => {
     const entry = PresentedFilePreviewRequestSchema.parse(request);
     // Presented files live outside every project folder, so the tab reads them
     // through the window-scoped grant instead of a project entry.
-    const filePath = await presentedFilePath(event.sender.id, entry);
+    const filePath = await presentedFilePath(event.clientId, entry);
     return readProjectFilePreview(
       filePath,
-      projectMediaUrl(event.sender.id, { path: filePath }, { presented: true }),
+      projectMediaUrl(
+        event.clientId,
+        { path: filePath },
+        { presented: true, web: event.source === "web" },
+      ),
     );
   },
 );
 
-ipcMain.handle(
+handleServiceRequest(
   REOPEN_PRESENTED_TOOL_FILE_CHANNEL,
   async (event, request: unknown) => {
     const { projectId, sessionId, toolCallId } =
       ReopenPresentedToolFileRequestSchema.parse(request);
     const target = await getProjectRuntimes().reopenPresentedToolFile(
-      event.sender.id,
+      event.clientId,
       projectId,
       sessionId,
       toolCallId,
     );
     if (target?.source === "presented") {
-      presentedFiles?.remember(event.sender.id, target.path);
+      presentedFiles?.remember(event.clientId, target.path);
     }
     return target;
   },
 );
 
-ipcMain.handle(
+handleServiceRequest(
   LIST_PROJECTS_CHANNEL,
   async (): Promise<ListProjectsResult> => ({
     projects: await getProjectRepository().list(),
   }),
 );
 
-ipcMain.handle(
+handleServiceRequest(
   GET_MODEL_CATALOG_CHANNEL,
   async (): Promise<PineModelCatalog> => {
     const [catalog, recommendedIds] = await Promise.all([
@@ -2159,7 +2212,7 @@ ipcMain.handle(
   },
 );
 
-ipcMain.handle(
+handleServiceRequest(
   REFRESH_MODEL_CATALOG_CHANNEL,
   async (): Promise<PineModelCatalog> => {
     const [catalog, recommendedIds] = await Promise.all([
@@ -2174,7 +2227,7 @@ ipcMain.handle(
   },
 );
 
-ipcMain.handle(
+handleServiceRequest(
   LOOKUP_MODEL_METADATA_CHANNEL,
   async (_event, request: unknown): Promise<PineModelMetadata> =>
     modelMetadata.lookup(
@@ -2184,7 +2237,7 @@ ipcMain.handle(
     ),
 );
 
-ipcMain.handle(
+handleServiceRequest(
   ADD_CUSTOM_MODEL_CHANNEL,
   async (_event, request: unknown): Promise<PineModelCatalog> =>
     getProjectRuntimes().addCustomModel(
@@ -2194,7 +2247,7 @@ ipcMain.handle(
     ),
 );
 
-ipcMain.handle(
+handleServiceRequest(
   UPDATE_CUSTOM_MODEL_CHANNEL,
   async (_event, request: unknown): Promise<PineModelCatalog> =>
     getProjectRuntimes().updateCustomModel(
@@ -2204,7 +2257,7 @@ ipcMain.handle(
     ),
 );
 
-ipcMain.handle(
+handleServiceRequest(
   DELETE_CUSTOM_MODEL_CHANNEL,
   async (_event, request: unknown): Promise<PineModelCatalog> =>
     getProjectRuntimes().deleteCustomModel(
@@ -2214,7 +2267,7 @@ ipcMain.handle(
     ),
 );
 
-ipcMain.handle(
+handleServiceRequest(
   UPDATE_CUSTOM_PROVIDER_CHANNEL,
   async (_event, request: unknown): Promise<PineModelCatalog> =>
     getProjectRuntimes().updateCustomProvider(
@@ -2224,7 +2277,7 @@ ipcMain.handle(
     ),
 );
 
-ipcMain.handle(
+handleServiceRequest(
   DELETE_CUSTOM_PROVIDER_CHANNEL,
   async (_event, request: unknown): Promise<PineModelCatalog> =>
     getProjectRuntimes().deleteCustomProvider(
@@ -2236,11 +2289,11 @@ ipcMain.handle(
 
 const providerLoginOwners = new Map<string, number>();
 
-ipcMain.handle(
+handleServiceRequest(
   LOGIN_PROVIDER_CHANNEL,
   async (event, request: unknown): Promise<ProviderLoginResult> => {
     const parsed = LoginProviderRequestSchema.parse(request);
-    providerLoginOwners.set(parsed.loginId, event.sender.id);
+    providerLoginOwners.set(parsed.loginId, event.clientId);
     try {
       return await getProjectRuntimes().loginProvider(parsed);
     } finally {
@@ -2249,11 +2302,11 @@ ipcMain.handle(
   },
 );
 
-ipcMain.handle(
+handleServiceRequest(
   RESPOND_PROVIDER_AUTH_CHANNEL,
   (event, request: unknown): Promise<{ accepted: boolean }> => {
     const parsed = ProviderAuthResponseRequestSchema.parse(request);
-    if (providerLoginOwners.get(parsed.loginId) !== event.sender.id) {
+    if (providerLoginOwners.get(parsed.loginId) !== event.clientId) {
       throw new Error("Provider login does not belong to this window.");
     }
     return getProjectRuntimes().respondToProviderAuth(
@@ -2264,18 +2317,18 @@ ipcMain.handle(
   },
 );
 
-ipcMain.handle(
+handleServiceRequest(
   CANCEL_PROVIDER_AUTH_CHANNEL,
   (event, request: unknown): Promise<{ cancelled: boolean }> => {
     const { loginId } = ProviderAuthLoginIdSchema.parse(request);
-    if (providerLoginOwners.get(loginId) !== event.sender.id) {
+    if (providerLoginOwners.get(loginId) !== event.clientId) {
       throw new Error("Provider login does not belong to this window.");
     }
     return getProjectRuntimes().cancelProviderAuth(loginId);
   },
 );
 
-ipcMain.handle(
+handleServiceRequest(
   LOGOUT_PROVIDER_CHANNEL,
   (_event, request: unknown): Promise<{ disposed: boolean }> =>
     getProjectRuntimes().logoutProvider(
@@ -2283,16 +2336,16 @@ ipcMain.handle(
     ),
 );
 
-ipcMain.handle(
+handleServiceRequest(
   SELECT_MODEL_CHANNEL,
   (event, request: unknown): Promise<{ disposed: boolean }> =>
     getProjectRuntimes().selectModel(
-      event.sender.id,
+      event.clientId,
       SelectModelRequestSchema.parse(request),
     ),
 );
 
-ipcMain.handle(
+handleServiceRequest(
   SELECT_UTILITY_MODEL_CHANNEL,
   (_event, request: unknown): Promise<{ updated: boolean }> =>
     getProjectRuntimes().selectUtilityModel(
@@ -2300,7 +2353,7 @@ ipcMain.handle(
     ),
 );
 
-ipcMain.handle(
+handleServiceRequest(
   SELECT_IMAGE_MODEL_CHANNEL,
   (_event, request: unknown): Promise<{ updated: boolean }> =>
     getProjectRuntimes().selectImageModel(
@@ -2364,13 +2417,13 @@ handleDiagnosticIpc(
   },
 );
 
-ipcMain.handle(
+handleServiceRequest(
   INSPECT_ATTACHMENTS_CHANNEL,
   async (event, request: unknown): Promise<PickAttachmentsResult> => {
     const { paths } = InspectAttachmentsRequestSchema.parse(request);
     const result = await inspectAttachmentPaths(paths);
     registerAttachmentPreviewPaths(
-      event.sender.id,
+      event.clientId,
       result.attachments.map((attachment) => attachment.path),
     );
     return result;
@@ -2390,12 +2443,12 @@ ipcMain.handle(
   },
 );
 
-ipcMain.handle(
+handleServiceRequest(
   SAVE_PASTED_ATTACHMENT_CHANNEL,
   async (event, request: unknown): Promise<SavePastedAttachmentResult> => {
     const parsed = SavePastedAttachmentRequestSchema.parse(request);
     const attachmentsRoot = getProjectRuntimes().attachmentsRootFor(
-      event.sender.id,
+      event.clientId,
       parsed.projectId,
     );
     if (!attachmentsRoot) {
@@ -2426,7 +2479,7 @@ ipcMain.handle(
       path: attachmentPath,
       size: metadata.size,
     };
-    registerAttachmentPreviewPaths(event.sender.id, [attachmentPath]);
+    registerAttachmentPreviewPaths(event.clientId, [attachmentPath]);
     return { attachment };
   },
 );
@@ -2463,12 +2516,12 @@ handleDiagnosticIpc(
   },
 );
 
-handleDiagnosticIpc(
+handleServiceRequest(
   CREATE_PROJECT_CHANNEL,
   async (event, request: unknown): Promise<ProjectResult> => {
     const input = ProjectMutationSchema.parse(request);
     const project = await getProjectRepository().create(input);
-    notifyLibraryChanged("projects", event.sender.id);
+    notifyLibraryChanged("projects", event.clientId);
     return { project };
   },
 );
@@ -2651,13 +2704,13 @@ async function removePiSkill(
 }
 
 async function mcpCatalog(
-  event: Electron.IpcMainInvokeEvent,
+  event: PineRequestContext,
   projectId: string,
 ): Promise<PineMcpCatalog> {
   const catalog = await listMcpServers(await mcpProjectCwd(projectId));
-  if (getProjectRuntimes().isOpen(event.sender.id, projectId)) {
+  if (getProjectRuntimes().isOpen(event.clientId, projectId)) {
     const status = await getProjectRuntimes().getMcpStatus(
-      event.sender.id,
+      event.clientId,
       projectId,
     );
     if (status) catalog.status = status;
@@ -2665,7 +2718,7 @@ async function mcpCatalog(
   return catalog;
 }
 
-ipcMain.handle(
+handleServiceRequest(
   LIST_MCP_SERVERS_CHANNEL,
   async (event, request: unknown): Promise<PineMcpCatalog> => {
     const { projectId } = z.object({ projectId: z.uuid() }).parse(request);
@@ -2673,7 +2726,7 @@ ipcMain.handle(
   },
 );
 
-ipcMain.handle(
+handleServiceRequest(
   SAVE_MCP_SERVER_CHANNEL,
   async (event, request: unknown): Promise<PineMcpCatalog> => {
     const parsed = McpIdentitySchema.extend({
@@ -2687,25 +2740,25 @@ ipcMain.handle(
       throw new Error("An MCP server needs a command or URL.");
     const cwd = await mcpProjectCwd(parsed.projectId);
     await saveMcpServer(cwd, parsed);
-    if (getProjectRuntimes().isOpen(event.sender.id, parsed.projectId))
-      await getProjectRuntimes().reloadMcp(event.sender.id, parsed.projectId);
+    if (getProjectRuntimes().isOpen(event.clientId, parsed.projectId))
+      await getProjectRuntimes().reloadMcp(event.clientId, parsed.projectId);
     return mcpCatalog(event, parsed.projectId);
   },
 );
 
-ipcMain.handle(
+handleServiceRequest(
   REMOVE_MCP_SERVER_CHANNEL,
   async (event, request: unknown): Promise<PineMcpCatalog> => {
     const parsed = McpIdentitySchema.parse(request);
     const cwd = await mcpProjectCwd(parsed.projectId);
     await removeMcpServer(cwd, parsed);
-    if (getProjectRuntimes().isOpen(event.sender.id, parsed.projectId))
-      await getProjectRuntimes().reloadMcp(event.sender.id, parsed.projectId);
+    if (getProjectRuntimes().isOpen(event.clientId, parsed.projectId))
+      await getProjectRuntimes().reloadMcp(event.clientId, parsed.projectId);
     return mcpCatalog(event, parsed.projectId);
   },
 );
 
-ipcMain.handle(
+handleServiceRequest(
   LIST_SKILLS_CHANNEL,
   async (_event, request: unknown): Promise<ListSkillsResult> => {
     const parsed = SkillScopeRequestSchema.parse(request);
@@ -2736,7 +2789,7 @@ ipcMain.handle(
   },
 );
 
-ipcMain.handle(
+handleServiceRequest(
   READ_SKILL_CHANNEL,
   async (_event, request: unknown): Promise<ReadSkillResult> => {
     const parsed = SkillIdentityRequestSchema.parse(request);
@@ -2753,7 +2806,7 @@ ipcMain.handle(
   },
 );
 
-ipcMain.handle(
+handleServiceRequest(
   CREATE_SKILL_CHANNEL,
   async (_event, request: unknown): Promise<ReadSkillResult> => {
     const parsed = WriteSkillRequestSchema.parse(request);
@@ -2768,7 +2821,7 @@ ipcMain.handle(
   },
 );
 
-ipcMain.handle(
+handleServiceRequest(
   EDIT_SKILL_CHANNEL,
   async (_event, request: unknown): Promise<ReadSkillResult> => {
     const parsed = WriteSkillRequestSchema.parse(request);
@@ -2786,7 +2839,7 @@ ipcMain.handle(
   },
 );
 
-ipcMain.handle(
+handleServiceRequest(
   REMOVE_SKILL_CHANNEL,
   async (_event, request: unknown): Promise<RemoveSkillResult> => {
     const parsed = SkillIdentityRequestSchema.parse(request);
@@ -2805,7 +2858,7 @@ ipcMain.handle(
   },
 );
 
-ipcMain.handle(
+handleServiceRequest(
   SET_GLOBAL_SKILL_ENABLED_CHANNEL,
   async (_event, request: unknown): Promise<SetGlobalSkillEnabledResult> => {
     const parsed = SetGlobalSkillEnabledRequestSchema.parse(request);
@@ -2815,47 +2868,68 @@ ipcMain.handle(
   },
 );
 
-handleDiagnosticIpc(
+handleServiceRequest(
   CLOSE_PROJECT_CHANNEL,
   async (event, request: unknown): Promise<void> => {
     const { id } = ProjectIdRequestSchema.parse(request);
     // Presented-file grants belong to the window rather than one project, so
     // they stay until the window itself goes away.
-    await getProjectRuntimes().close(event.sender.id, id);
+    await getProjectRuntimes().close(event.clientId, id);
   },
 );
 
-handleDiagnosticIpc(
+handleServiceRequest(
   OPEN_PROJECT_CHANNEL,
   async (event, request: unknown): Promise<OpenProjectResult> => {
     const { id } = ProjectIdRequestSchema.parse(request);
     const repository = getProjectRepository();
     // Opening again must not restart a runtime the window already holds.
-    if (getProjectRuntimes().isOpen(event.sender.id, id)) {
+    if (getProjectRuntimes().isOpen(event.clientId, id)) {
       return { opened: true, project: await repository.open(id) };
+    }
+    if (
+      isTemporaryWorkspace(id) &&
+      getProjectRuntimes().isOpen(WEB_CLIENT_ID, id)
+    ) {
+      const project = await repository.open(id);
+      await getProjectRuntimes().share(
+        event.clientId,
+        project,
+        repository.dataPaths(id),
+      );
+      return { opened: true, project };
     }
     // Every window needs the temporary workspace for new drafts, so it is the
     // one project several windows may hold; its sessions stay single-window.
     const currentOwnerId = isTemporaryWorkspace(id)
       ? undefined
       : getProjectRuntimes().ownerOfProject(id);
-    if (currentOwnerId !== undefined && currentOwnerId !== event.sender.id) {
+    if (currentOwnerId !== undefined && currentOwnerId !== event.clientId) {
       const project = await repository.open(id);
       const existingWindow = windowForWebContentsId(currentOwnerId);
       if (existingWindow) {
         focusWindow(existingWindow);
         return { opened: false, project };
       }
+      if (currentOwnerId === WEB_CLIENT_ID) {
+        const project = await repository.open(id);
+        await getProjectRuntimes().share(
+          event.clientId,
+          project,
+          repository.dataPaths(id),
+        );
+        return { opened: true, project };
+      }
       await getProjectRuntimes().dispose(currentOwnerId);
     }
 
     const pendingKey = isTemporaryWorkspace(id)
-      ? `${id}:${event.sender.id}`
+      ? `${id}:${event.clientId}`
       : id;
     const pending = pendingProjectOpens.get(pendingKey);
     if (pending) {
       const targetWindow = windowForWebContentsId(pending.webContentsId);
-      if (targetWindow && pending.webContentsId !== event.sender.id) {
+      if (targetWindow && pending.webContentsId !== event.clientId) {
         focusWindow(targetWindow);
         return { opened: false, project: await pending.promise };
       }
@@ -2865,7 +2939,7 @@ handleDiagnosticIpc(
     const opening = (async (): Promise<PineProject> => {
       const project = await repository.open(id);
       await getProjectRuntimes().open(
-        event.sender.id,
+        event.clientId,
         project,
         repository.dataPaths(id),
       );
@@ -2873,7 +2947,7 @@ handleDiagnosticIpc(
     })();
     pendingProjectOpens.set(pendingKey, {
       promise: opening,
-      webContentsId: event.sender.id,
+      webContentsId: event.clientId,
     });
     try {
       return { opened: true, project: await opening };
@@ -2885,7 +2959,7 @@ handleDiagnosticIpc(
   },
 );
 
-handleDiagnosticIpc(
+handleServiceRequest(
   UPDATE_PROJECT_CHANNEL,
   async (event, request: unknown): Promise<ProjectResult> => {
     const parsed = UpdateProjectRequestSchema.parse(request);
@@ -2899,19 +2973,20 @@ handleDiagnosticIpc(
     };
     const repository = getProjectRepository();
     const project = await repository.update(id, input);
-    if (getProjectRuntimes().isOpen(event.sender.id, id)) {
-      await getProjectRuntimes().open(
-        event.sender.id,
-        project,
-        repository.dataPaths(id),
-      );
-    }
-    notifyLibraryChanged("projects", event.sender.id);
+    const sessionIds = [...new Set(getProjectRuntimes().liveSessionIdsOf(id))];
+    await getProjectRuntimes().refresh(project, repository.dataPaths(id));
+    for (const sessionId of sessionIds)
+      sendSessionEvent(event.clientId, {
+        type: "session-reset",
+        sessionId,
+        projectId: id,
+      });
+    notifyLibraryChanged("projects", event.clientId);
     return { project };
   },
 );
 
-ipcMain.handle(
+handleServiceRequest(
   UPDATE_PROJECT_SESSION_GROUPS_CHANNEL,
   async (event, request: unknown): Promise<ProjectResult> => {
     const { id, sessionGroups } =
@@ -2920,19 +2995,18 @@ ipcMain.handle(
       id,
       sessionGroups,
     );
-    notifyLibraryChanged("projects", event.sender.id);
+    notifyLibraryChanged("projects", event.clientId);
     return { project };
   },
 );
 
-ipcMain.handle(
+handleServiceRequest(
   DELETE_PROJECT_CHANNEL,
   async (event, request: unknown): Promise<DeleteProjectResult> => {
     const { id } = ProjectIdRequestSchema.parse(request);
-    const ownerId = getProjectRuntimes().ownerOfProject(id);
-    if (ownerId !== undefined) await getProjectRuntimes().close(ownerId, id);
+    await getProjectRuntimes().closeEverywhere(id);
     const deleted = await getProjectRepository().delete(id);
-    notifyLibraryChanged("projects", event.sender.id);
+    notifyLibraryChanged("projects", event.clientId);
     return { deleted };
   },
 );
@@ -2971,7 +3045,7 @@ const ClearProjectStorageRequestSchema = z.object({
   kind: z.enum(["attachments", "temporary"]),
 });
 
-ipcMain.handle(
+handleServiceRequest(
   PROJECT_STORAGE_CHANNEL,
   async (): Promise<ProjectStorageResult> => {
     const repository = getProjectRepository();
@@ -2986,7 +3060,7 @@ ipcMain.handle(
   },
 );
 
-ipcMain.handle(
+handleServiceRequest(
   CLEAR_PROJECT_STORAGE_CHANNEL,
   async (_event, request: unknown): Promise<ProjectStorageUsage> => {
     const { id, kind } = ClearProjectStorageRequestSchema.parse(request);
@@ -3005,26 +3079,29 @@ ipcMain.handle(
 
 // Serialize filesystem operations so concurrent drags cannot overwrite one another.
 let projectFileOperationQueue: Promise<void> = Promise.resolve();
-ipcMain.handle(PROJECT_FILE_OPERATION_CHANNEL, (event, request: unknown) => {
-  const operation = ProjectFileOperationSchema.parse(request);
-  const pending = projectFileOperationQueue.then(() =>
-    getProjectRuntimes().operateFile(event.sender.id, operation, {
-      trash: (filePath) => shell.trashItem(filePath),
-      open: (filePath) => shell.openPath(filePath),
-      reveal: (filePath) => shell.showItemInFolder(filePath),
-      copyPath: (filePath) => clipboard.writeText(filePath),
-    }),
-  );
-  projectFileOperationQueue = pending.catch(() => undefined);
-  return pending;
-});
+handleServiceRequest(
+  PROJECT_FILE_OPERATION_CHANNEL,
+  (event, request: unknown) => {
+    const operation = ProjectFileOperationSchema.parse(request);
+    const pending = projectFileOperationQueue.then(() =>
+      getProjectRuntimes().operateFile(event.clientId, operation, {
+        trash: (filePath) => shell.trashItem(filePath),
+        open: (filePath) => shell.openPath(filePath),
+        reveal: (filePath) => shell.showItemInFolder(filePath),
+        copyPath: (filePath) => clipboard.writeText(filePath),
+      }),
+    );
+    projectFileOperationQueue = pending.catch(() => undefined);
+    return pending;
+  },
+);
 
-ipcMain.handle(
+handleServiceRequest(
   PRESENTED_FILE_OPERATION_CHANNEL,
   (event, request: unknown): Promise<void> =>
     operatePresentedFile(
       request,
-      (filePath) => presentedFilePath(event.sender.id, { path: filePath }),
+      (filePath) => presentedFilePath(event.clientId, { path: filePath }),
       {
         open: (filePath) => shell.openPath(filePath),
         reveal: (filePath) => shell.showItemInFolder(filePath),
@@ -3055,7 +3132,7 @@ ipcMain.on(START_PROJECT_FILE_DRAG_CHANNEL, (event, request: unknown): void => {
   void handleProjectFileDrag(event, request);
 });
 
-ipcMain.handle(
+handleServiceRequest(
   PROJECT_FILE_ATTACHMENTS_CHANNEL,
   async (event, request: unknown): Promise<PickAttachmentsResult> => {
     const entries = z
@@ -3064,26 +3141,26 @@ ipcMain.handle(
       .max(100)
       .parse(request);
     const paths = await getProjectRuntimes().projectEntryPaths(
-      event.sender.id,
+      event.clientId,
       entries,
     );
     const result = await inspectAttachmentPaths(paths);
     registerAttachmentPreviewPaths(
-      event.sender.id,
+      event.clientId,
       result.attachments.map((attachment) => attachment.path),
     );
     return result;
   },
 );
 
-ipcMain.handle(
+handleServiceRequest(
   LIST_PROJECT_DIRECTORY_CHANNEL,
   async (event, request: unknown): Promise<ListProjectDirectoryResult> => {
     const { folderId, projectId, relativePath } =
       ListProjectDirectoryRequestSchema.parse(request);
     return {
       entries: await getProjectRuntimes().listDirectory(
-        event.sender.id,
+        event.clientId,
         projectId,
         folderId,
         relativePath,
@@ -3092,7 +3169,7 @@ ipcMain.handle(
   },
 );
 
-ipcMain.handle(
+handleServiceRequest(
   SET_WATCHED_PROJECT_DIRECTORIES_CHANNEL,
   (event, request: unknown): Promise<void> => {
     const parsed = SetWatchedProjectDirectoriesRequestSchema.parse(request);
@@ -3106,17 +3183,17 @@ ipcMain.handle(
             relativePath,
           ),
         (senderId, changes) => {
-          webContents
-            .fromId(senderId)
-            ?.send(PROJECT_FILES_CHANGED_CHANNEL, { folders: changes });
+          sendClientEvent(senderId, PROJECT_FILES_CHANGED_CHANNEL, {
+            folders: changes,
+          });
         },
       );
     }
-    return projectFileWatchers.setWatchedDirectories(event.sender.id, parsed);
+    return projectFileWatchers.setWatchedDirectories(event.clientId, parsed);
   },
 );
 
-handleDiagnosticIpc(
+handleServiceRequest(
   LIST_ALL_RECENT_SESSIONS_CHANNEL,
   async (): Promise<ListAllRecentSessionsResult> => {
     const repository = getProjectRepository();
@@ -3131,7 +3208,7 @@ handleDiagnosticIpc(
   },
 );
 
-handleDiagnosticIpc(
+handleServiceRequest(
   SEARCH_ALL_SESSIONS_CHANNEL,
   async (_event, request: unknown): Promise<SearchAllSessionsResult> => {
     const { query } = SearchAllSessionsRequestSchema.parse(request);
@@ -3147,13 +3224,13 @@ handleDiagnosticIpc(
   },
 );
 
-handleDiagnosticIpc(
+handleServiceRequest(
   SEARCH_SESSIONS_CHANNEL,
   async (event, request: unknown): Promise<SearchSessionsResult> => {
     const { projectId, query } = SearchSessionsRequestSchema.parse(request);
     return {
       sessions: await getProjectRuntimes().search(
-        event.sender.id,
+        event.clientId,
         projectId,
         query,
       ),
@@ -3161,15 +3238,15 @@ handleDiagnosticIpc(
   },
 );
 
-ipcMain.handle(
+handleServiceRequest(
   ATTACH_SESSION_CHANNEL,
   async (event, request: unknown): Promise<AttachSessionResult> => {
     const { projectId, sessionId } = ProjectSessionRequestSchema.parse(request);
     const runtimes = getProjectRuntimes();
     // A session dragged in from another project may not be open here.
-    const attachment = runtimes.isOpen(event.sender.id, projectId)
+    const attachment = runtimes.isOpen(event.clientId, projectId)
       ? await runtimes.attachmentForSession(
-          event.sender.id,
+          event.clientId,
           projectId,
           sessionId,
         )
@@ -3177,29 +3254,29 @@ ipcMain.handle(
           dataPaths: (id) => getProjectRepository().dataPaths(id),
           openSessionService: (id) => runtimes.openSessionService(id),
         });
-    registerAttachmentPreviewPaths(event.sender.id, [attachment.path]);
+    registerAttachmentPreviewPaths(event.clientId, [attachment.path]);
     return { attachment };
   },
 );
 
-handleDiagnosticIpc(
+handleServiceRequest(
   RESUME_SESSION_CHANNEL,
   async (event, request: unknown): Promise<ResumeSessionResult> => {
     const { projectId, sessionId } = ProjectSessionRequestSchema.parse(request);
-    return getProjectRuntimes().resume(event.sender.id, projectId, sessionId);
+    return getProjectRuntimes().resume(event.clientId, projectId, sessionId);
   },
 );
 
-ipcMain.handle(
+handleServiceRequest(
   DELETE_SESSION_CHANNEL,
   async (event, request: unknown): Promise<DeleteSessionResult> => {
     const { projectId, sessionId } = ProjectSessionRequestSchema.parse(request);
     const deleted = await getProjectRuntimes().deleteSession(
-      event.sender.id,
+      event.clientId,
       projectId,
       sessionId,
     );
-    notifyLibraryChanged("sessions", event.sender.id);
+    notifyLibraryChanged("sessions", event.clientId);
     return { deleted };
   },
 );
@@ -3227,29 +3304,29 @@ ipcMain.handle(
   },
 );
 
-ipcMain.handle(
+handleServiceRequest(
   RENAME_SESSION_CHANNEL,
   async (event, request: unknown): Promise<RenameSessionResult> => {
     const { name, projectId, sessionId } =
       RenameSessionRequestSchema.parse(request);
     const session = await getProjectRuntimes().renameSession(
-      event.sender.id,
+      event.clientId,
       projectId,
       sessionId,
       name,
     );
-    notifyLibraryChanged("sessions", event.sender.id);
+    notifyLibraryChanged("sessions", event.clientId);
     return { session };
   },
 );
 
-handleDiagnosticIpc(
+handleServiceRequest(
   LOAD_SESSION_MESSAGES_CHANNEL,
   async (event, request: unknown): Promise<LoadSessionMessagesResult> => {
     const { before, includeOutline, limit, projectId, sessionId } =
       LoadSessionMessagesRequestSchema.parse(request);
     return getProjectRuntimes().loadMessages(
-      event.sender.id,
+      event.clientId,
       projectId,
       sessionId,
       before,
@@ -3259,101 +3336,101 @@ handleDiagnosticIpc(
   },
 );
 
-ipcMain.handle(
+handleServiceRequest(
   PROMPT_SESSION_CHANNEL,
   async (event, request: unknown): Promise<PromptSessionResult> =>
     getProjectRuntimes().prompt(
-      event.sender.id,
+      event.clientId,
       PromptSessionRequestSchema.parse(request),
     ),
 );
 
-ipcMain.handle(
+handleServiceRequest(
   ABORT_SESSION_CHANNEL,
   async (event, request: unknown): Promise<AbortSessionResult> =>
     getProjectRuntimes().abort(
-      event.sender.id,
+      event.clientId,
       SessionIdRequestSchema.parse(request).sessionId,
     ),
 );
 
-ipcMain.handle(
+handleServiceRequest(
   LIST_BACKGROUND_TASKS_CHANNEL,
   async (event, request: unknown): Promise<ListBackgroundTasksResult> =>
     getProjectRuntimes().listBackgroundTasks(
-      event.sender.id,
+      event.clientId,
       SessionIdRequestSchema.parse(request).sessionId,
     ),
 );
 
-ipcMain.handle(
+handleServiceRequest(
   STOP_BACKGROUND_TASK_CHANNEL,
   async (event, request: unknown): Promise<BackgroundTaskResult> =>
     getProjectRuntimes().stopBackgroundTask(
-      event.sender.id,
+      event.clientId,
       BackgroundTaskRequestSchema.parse(request),
     ),
 );
 
-ipcMain.handle(
+handleServiceRequest(
   READ_BACKGROUND_TASK_OUTPUT_CHANNEL,
   async (event, request: unknown): Promise<ReadBackgroundTaskOutputResult> =>
     getProjectRuntimes().readBackgroundTaskOutput(
-      event.sender.id,
+      event.clientId,
       BackgroundTaskRequestSchema.parse(request),
     ),
 );
 
-ipcMain.handle(
+handleServiceRequest(
   COMPACT_SESSION_CHANNEL,
   async (event, request: unknown): Promise<CompactSessionResult> =>
     getProjectRuntimes().compact(
-      event.sender.id,
+      event.clientId,
       SessionIdRequestSchema.parse(request).sessionId,
     ),
 );
 
-ipcMain.handle(
+handleServiceRequest(
   DEQUEUE_STEERING_CHANNEL,
   async (event, request: unknown): Promise<DequeueSteeringResult> => {
     const { message, sessionId } = DequeueSteeringRequestSchema.parse(request);
     return getProjectRuntimes().dequeueSteering(
-      event.sender.id,
+      event.clientId,
       message,
       sessionId,
     );
   },
 );
 
-ipcMain.handle(
+handleServiceRequest(
   SET_APPROVAL_MODE_CHANNEL,
   async (event, request: unknown): Promise<SetApprovalModeResult> => {
     const { approvalMode, sessionId } =
       SetApprovalModeRequestSchema.parse(request);
     return getProjectRuntimes().setApprovalMode(
-      event.sender.id,
+      event.clientId,
       approvalMode,
       sessionId,
     );
   },
 );
 
-ipcMain.handle(
+handleServiceRequest(
   APPROVAL_RESPONSE_CHANNEL,
   (event, request: unknown): { accepted: boolean } =>
     getProjectRuntimes().respondApproval(
-      event.sender.id,
+      event.clientId,
       RespondApprovalRequestSchema.parse(
         request,
       ) satisfies RespondApprovalRequest,
     ),
 );
 
-ipcMain.handle(
+handleServiceRequest(
   QUESTIONNAIRE_RESPONSE_CHANNEL,
   (event, request: unknown): { accepted: boolean } =>
     getProjectRuntimes().respondQuestionnaire(
-      event.sender.id,
+      event.clientId,
       RespondQuestionnaireRequestSchema.parse(
         request,
       ) satisfies RespondQuestionnaireRequest,
@@ -3400,6 +3477,22 @@ ipcMain.handle(
     return { applied: true };
   },
 );
+
+ipcMain.handle(
+  GET_WEB_SERVER_CHANNEL,
+  () =>
+    webApplication?.server.status() ?? {
+      enabled: false,
+      port: DEFAULT_WEB_PORT,
+    },
+);
+ipcMain.handle(SET_WEB_SERVER_CHANNEL, async (_event, request: unknown) => {
+  const settings = z
+    .custom<WebServerSettings>(isWebServerSettings)
+    .parse(request);
+  if (!webApplication) throw new Error("The local web interface is not ready.");
+  return webApplication.configure(settings, true);
+});
 
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.
@@ -3488,17 +3581,72 @@ async function initializeApp(): Promise<void> {
     pineAgentDirectory,
     () => tinyFishCredentialStore?.getApiKey(),
   );
+  webApplication = new WebApplication({
+    router: requestRouter,
+    runtimes: projectRuntimes,
+    projects: projectRepository,
+    state: webSessionState,
+    rendererRoot: path.join(__dirname, `../renderer/${MAIN_WINDOW_VITE_NAME}`),
+    devUrl: MAIN_WINDOW_VITE_DEV_SERVER_URL || undefined,
+    previewPath,
+    presentedPath: async (ownerId, request) => {
+      const { path: filePath } =
+        PresentedFilePreviewRequestSchema.parse(request);
+      const snapshots = webSessionState.snapshots(
+        (id) => getProjectRuntimes().projectOfLiveSession(id)?.id,
+      );
+      if (
+        snapshots.some((snapshot) =>
+          snapshot.events.some(
+            (event) =>
+              event.type === "present-file" &&
+              event.target.source === "presented" &&
+              event.target.path === filePath,
+          ),
+        )
+      )
+        presentedFiles?.remember(ownerId, filePath);
+      return presentedFilePath(ownerId, request);
+    },
+    allowAttachment: async (filePath) => {
+      if (isServableAttachmentPath(filePath)) return true;
+      if (await getProjectRuntimes().isInsideCanonicalGrantedFolder(filePath))
+        return true;
+      for (const paths of attachedPreviewPaths.values())
+        for (const registered of paths)
+          if ((await realpath(registered).catch(() => null)) === filePath)
+            return true;
+      return false;
+    },
+    rememberAttachments: registerAttachmentPreviewPaths,
+    persistSettings: (settings) =>
+      writeWebServerSettings(getPineAgentDirectory(), settings),
+    releaseSubscriptions: () => {
+      projectFileWatchers?.disposeSender(WEB_CLIENT_ID);
+      filePreviewWatchers.disposeSender(WEB_CLIENT_ID);
+      attachedPreviewPaths.delete(WEB_CLIENT_ID);
+      presentedFiles?.forget(WEB_CLIENT_ID);
+    },
+    respondWorkbench: (request) => {
+      workbenchStateRequests.respond(WEB_CLIENT_ID, request);
+    },
+  });
+  if (settings.webServer) {
+    try {
+      await webApplication.configure(settings.webServer);
+    } catch (error) {
+      console.error("Failed to start the local web interface.", error);
+    }
+  }
   agentHost.subscribe((agentEvent) => {
     if (isProviderAuthEvent(agentEvent)) {
       const ownerId = providerLoginOwners.get(agentEvent.loginId);
       if (ownerId !== undefined) {
-        webContents
-          .fromId(ownerId)
-          ?.send(PROVIDER_AUTH_EVENT_CHANNEL, agentEvent);
+        sendClientEvent(ownerId, PROVIDER_AUTH_EVENT_CHANNEL, agentEvent);
       }
       return;
     }
-    const ownerId = projectRuntimes?.ownerOfSession(agentEvent.sessionId);
+    const ownerId = projectRuntimes?.controllerOfSession(agentEvent.sessionId);
     if (ownerId === undefined) {
       completionSignals.forget(agentEvent.sessionId);
       return;
@@ -3563,7 +3711,7 @@ async function initializeApp(): Promise<void> {
       );
       projectRuntimes?.clearSessionInteractions(agentEvent.sessionId);
     }
-    webContents.fromId(ownerId)?.send(SESSION_EVENT_CHANNEL, agentEvent);
+    sendSessionEvent(ownerId, agentEvent);
     // A new session, a new title, or a finished run moves it in every
     // window's list.
     if (
@@ -3584,6 +3732,10 @@ app.on("ready", () => {
 });
 
 app.on("will-quit", () => {
+  void webApplication?.configure({
+    enabled: false,
+    port: webApplication.server.status().port,
+  });
   globalShortcut.unregisterAll();
   quickComposer.dispose();
   projectFileWatchers?.dispose();
@@ -3596,7 +3748,10 @@ app.on("will-quit", () => {
 // for applications and their menu bar to stay active until the user quits
 // explicitly with Cmd + Q.
 app.on("window-all-closed", () => {
-  if (process.platform !== "darwin") {
+  if (
+    process.platform !== "darwin" &&
+    !webApplication?.server.status().enabled
+  ) {
     app.quit();
   }
 });
@@ -3607,6 +3762,7 @@ app.on("browser-window-created", (_event, window) => {
   window.once("closed", () => {
     if (
       process.platform !== "darwin" &&
+      !webApplication?.server.status().enabled &&
       !quickComposer.isAuxiliary(window) &&
       appWindows().every((other) => other === window)
     )

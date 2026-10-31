@@ -1,12 +1,9 @@
 <script setup lang="ts">
+import { attachmentImageUrl } from "@/lib/clientAssets";
 import { computed } from "vue";
 import { useI18n } from "vue-i18n";
 import { Kbd } from "@/components/ui/kbd";
-import {
-  attachmentImageUrl,
-  isImageAttachment,
-  type PineAttachment,
-} from "@/shared/attachments";
+import { isImageAttachment, type PineAttachment } from "@/shared/attachments";
 
 /**
  * What the floating composer took from the app the user was in: a

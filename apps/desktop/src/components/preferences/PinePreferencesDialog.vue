@@ -21,6 +21,7 @@ import {
 import { useI18n } from "vue-i18n";
 import { toast } from "vue-sonner";
 import { isAppLocale, persistAppLocale } from "@/app/i18n";
+import WebControlSettings from "./WebControlSettings.vue";
 import AutoApprovalSettings from "./AutoApprovalSettings.vue";
 import DecisionsModelSettings from "./DecisionsModelSettings.vue";
 import ProjectManagementSettings from "./ProjectManagementSettings.vue";
@@ -97,6 +98,9 @@ import {
 type PreferenceSection = "general" | "models" | "personalization" | "projects";
 
 const { locale, t } = useI18n();
+const isDesktop = window.pine?.runtime !== "web";
+const windowSupportsWebServer =
+  isDesktop && typeof window.pine?.getWebServer === "function";
 const appearanceStore = useAppearanceStore();
 const modelsStore = useModelsStore();
 const userProfileStore = useUserProfileStore();
@@ -1097,7 +1101,9 @@ defineExpose({ open });
                 />
               </Field>
 
-              <Field orientation="horizontal">
+              <WebControlSettings v-if="windowSupportsWebServer" />
+
+              <Field v-if="isDesktop" orientation="horizontal">
                 <div class="flex min-w-0 flex-1 flex-col gap-1">
                   <FieldTitle id="pine-quick-composer-setting">
                     {{ t("preferences.quickComposer") }}

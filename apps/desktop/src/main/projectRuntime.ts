@@ -104,6 +104,7 @@ interface RuntimeSession {
   summary: PineSessionSummary;
   approvalMode: PineApprovalMode;
   contextUsage?: PineContextUsage;
+  controllerId?: number;
 }
 
 interface ProjectRuntime {
@@ -194,6 +195,7 @@ export class ProjectRuntimeRegistry {
   }
   /** webContentsId → projectId → runtime. A window may hold many projects. */
   private readonly runtimes = new Map<number, Map<string, ProjectRuntime>>();
+  private readonly projectOperations = new Map<string, Promise<void>>();
   /** approval requestId → owning webContentsId, for response validation. */
   private readonly pendingApprovals = new Map<
     string,
@@ -214,7 +216,99 @@ export class ProjectRuntimeRegistry {
       undefined,
   ) {}
 
-  async open(
+  private async serializeProject(
+    projectId: string,
+    operation: () => Promise<void>,
+  ): Promise<void> {
+    const previous = this.projectOperations.get(projectId) ?? Promise.resolve();
+    const pending = previous.catch(() => undefined).then(operation);
+    this.projectOperations.set(projectId, pending);
+    try {
+      await pending;
+    } finally {
+      if (this.projectOperations.get(projectId) === pending)
+        this.projectOperations.delete(projectId);
+    }
+  }
+
+  /** Attach another interface to the same execution resources. */
+  share(
+    clientId: number,
+    project: PineProject,
+    dataPaths: ProjectDataPaths,
+  ): Promise<void> {
+    return this.serializeProject(project.id, () =>
+      this.shareRuntime(clientId, project, dataPaths),
+    );
+  }
+
+  private async shareRuntime(
+    clientId: number,
+    project: PineProject,
+    dataPaths: ProjectDataPaths,
+  ): Promise<void> {
+    if (this.isOpen(clientId, project.id)) return;
+    const existing = this.allRuntimes().find(
+      (runtime) => runtime.project.id === project.id,
+    );
+    if (!existing) return this.openRuntime(clientId, project, dataPaths);
+    const projects =
+      this.runtimes.get(clientId) ?? new Map<string, ProjectRuntime>();
+    projects.set(project.id, existing);
+    this.runtimes.set(clientId, projects);
+  }
+
+  clientsOfSession(sessionId: string): number[] {
+    return [...this.runtimes.keys()].filter((id) =>
+      this.liveEntry(id, sessionId),
+    );
+  }
+
+  projectIdsOf(clientId: number): string[] {
+    return [...(this.runtimes.get(clientId)?.keys() ?? [])];
+  }
+
+  clientsOfProject(projectId: string): number[] {
+    return [...this.runtimes.keys()].filter((id) => this.isOpen(id, projectId));
+  }
+
+  projectOfInteraction(requestId: string): string | undefined {
+    const owner =
+      this.pendingApprovals.get(requestId) ??
+      this.pendingQuestionnaires.get(requestId);
+    return owner?.sessionId
+      ? this.projectOfLiveSession(owner.sessionId)?.id
+      : undefined;
+  }
+
+  refresh(project: PineProject, dataPaths: ProjectDataPaths): Promise<void> {
+    return this.serializeProject(project.id, async () => {
+      const clients = this.clientsOfProject(project.id);
+      await this.closeEverywhere(project.id);
+      const first = clients.shift();
+      if (first === undefined) return;
+      await this.openRuntime(first, project, dataPaths);
+      for (const client of clients)
+        await this.shareRuntime(client, project, dataPaths);
+    });
+  }
+
+  async closeEverywhere(projectId: string): Promise<void> {
+    for (const clientId of [...this.runtimes.keys()])
+      await this.close(clientId, projectId);
+  }
+
+  open(
+    clientId: number,
+    project: PineProject,
+    dataPaths: ProjectDataPaths,
+  ): Promise<void> {
+    return this.serializeProject(project.id, () =>
+      this.openRuntime(clientId, project, dataPaths),
+    );
+  }
+
+  private async openRuntime(
     webContentsId: number,
     project: PineProject,
     dataPaths: ProjectDataPaths,
@@ -291,6 +385,18 @@ export class ProjectRuntimeRegistry {
         if (pathContains(folder.path, resolvedPath)) return true;
       }
     }
+    return false;
+  }
+
+  /** HTTP resources arrive as canonical paths, including symlinked folder roots. */
+  async isInsideCanonicalGrantedFolder(
+    candidatePath: string,
+  ): Promise<boolean> {
+    for (const runtime of this.allRuntimes())
+      for (const folder of runtime.project.folders) {
+        const root = await realpath(folder.path).catch(() => null);
+        if (root && pathContains(root, candidatePath)) return true;
+      }
     return false;
   }
 
@@ -453,12 +559,15 @@ export class ProjectRuntimeRegistry {
   ): Promise<ResumeSessionResult> {
     const runtime = this.get(webContentsId, projectId);
     const owner = this.entryForSession(sessionId);
-    if (owner && owner.webContentsId !== webContentsId) {
+    if (owner && owner.runtime !== runtime) {
       throw new Error("This session is open in another window.");
     }
     runtime.focusedSessionId = sessionId;
     const live = runtime.liveSessions.get(sessionId);
-    if (live) return { session: live.summary, contextUsage: live.contextUsage };
+    if (live) {
+      live.controllerId = webContentsId;
+      return { session: live.summary, contextUsage: live.contextUsage };
+    }
     const pending = runtime.openingSessions.get(sessionId);
     if (pending) return pending;
 
@@ -501,6 +610,7 @@ export class ProjectRuntimeRegistry {
         runtime.liveSessions.set(session.id, {
           summary: session,
           approvalMode,
+          controllerId: webContentsId,
         });
         if (!this.isCurrent(webContentsId, runtime)) {
           throw new Error("The project closed while creating a session.");
@@ -553,6 +663,8 @@ export class ProjectRuntimeRegistry {
       request.streamingBehavior === "follow-up"
         ? "followUp"
         : request.streamingBehavior;
+    const controlled = runtime.liveSessions.get(activeSession.id);
+    if (controlled) controlled.controllerId = webContentsId;
     const promptArguments = [
       activeSession.id,
       request.message,
@@ -738,6 +850,14 @@ export class ProjectRuntimeRegistry {
     return this.agentHost.setContextCompactionRoute(route);
   }
 
+  controllerOfSession(sessionId: string): number | undefined {
+    const entry = this.entryForSession(sessionId);
+    const controller = entry?.runtime.liveSessions.get(sessionId)?.controllerId;
+    return controller !== undefined && this.liveEntry(controller, sessionId)
+      ? controller
+      : entry?.webContentsId;
+  }
+
   ownerOfSession(sessionId: string): number | undefined {
     return this.entryForSession(sessionId)?.webContentsId;
   }
@@ -858,7 +978,10 @@ export class ProjectRuntimeRegistry {
     if (owner === undefined) {
       throw new Error("This approval request is no longer pending.");
     }
-    if (owner.webContentsId !== webContentsId) {
+    if (
+      owner.webContentsId !== webContentsId &&
+      (!owner.sessionId || !this.liveEntry(webContentsId, owner.sessionId))
+    ) {
       throw new Error("Approval request does not belong to this window.");
     }
     this.agentHost.respondApproval(request.requestId, toGateDecision(request));
@@ -874,7 +997,10 @@ export class ProjectRuntimeRegistry {
     if (owner === undefined) {
       throw new Error("This questionnaire is no longer pending.");
     }
-    if (owner.webContentsId !== webContentsId) {
+    if (
+      owner.webContentsId !== webContentsId &&
+      (!owner.sessionId || !this.liveEntry(webContentsId, owner.sessionId))
+    ) {
       throw new Error("Questionnaire does not belong to this window.");
     }
     this.agentHost.respondQuestionnaire(request.requestId, request.submission);
@@ -967,7 +1093,8 @@ export class ProjectRuntimeRegistry {
     if (!windowRuntimes || !runtime) return;
     windowRuntimes.delete(projectId);
     if (windowRuntimes.size === 0) this.runtimes.delete(webContentsId);
-    await this.disposeRuntime(runtime);
+    if (!this.allRuntimes().includes(runtime))
+      await this.disposeRuntime(runtime);
   }
 
   /** Release every project of a window that closed or reloaded. */
@@ -975,19 +1102,11 @@ export class ProjectRuntimeRegistry {
     const windowRuntimes = this.runtimes.get(webContentsId);
     if (!windowRuntimes) return;
 
-    for (const [requestId, owner] of this.pendingApprovals) {
-      if (owner.webContentsId === webContentsId)
-        this.pendingApprovals.delete(requestId);
-    }
-    for (const [requestId, owner] of this.pendingQuestionnaires) {
-      if (owner.webContentsId === webContentsId)
-        this.pendingQuestionnaires.delete(requestId);
-    }
     this.runtimes.delete(webContentsId);
     await Promise.all(
-      [...windowRuntimes.values()].map((runtime) =>
-        this.disposeRuntime(runtime),
-      ),
+      [...new Set(windowRuntimes.values())]
+        .filter((runtime) => !this.allRuntimes().includes(runtime))
+        .map((runtime) => this.disposeRuntime(runtime)),
     );
   }
 
@@ -1012,14 +1131,19 @@ export class ProjectRuntimeRegistry {
   }
 
   private allRuntimes(): ProjectRuntime[] {
-    return [...this.runtimes.values()].flatMap((windowRuntimes) => [
-      ...windowRuntimes.values(),
-    ]);
+    return [
+      ...new Set(
+        [...this.runtimes.values()].flatMap((windowRuntimes) => [
+          ...windowRuntimes.values(),
+        ]),
+      ),
+    ];
   }
 
   private isCurrent(webContentsId: number, runtime: ProjectRuntime): boolean {
     return (
-      this.runtimes.get(webContentsId)?.get(runtime.project.id) === runtime
+      this.runtimes.get(webContentsId)?.get(runtime.project.id) === runtime ||
+      this.allRuntimes().includes(runtime)
     );
   }
 

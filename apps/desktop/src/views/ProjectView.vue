@@ -64,7 +64,9 @@ const projectStore = useProjectStore();
 const backgroundTasks = useBackgroundTasksStore();
 const sessionStore = useSessionStore();
 const contentTabsStore = useContentTabsStore();
-const isWindowsPlatform = computed(() => window.pine?.platform === "win32");
+const isWindowsPlatform = computed(
+  () => window.pine?.runtime !== "web" && window.pine?.platform === "win32",
+);
 async function loadProjects(): Promise<void> {
   try {
     await projectStore.loadProjects();
