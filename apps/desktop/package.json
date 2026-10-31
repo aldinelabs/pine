@@ -83,6 +83,7 @@
     "katex": "0.18.7",
     "libarchive.js": "2.0.2",
     "markstream-vue": "2.0.11",
+    "mmdb-lib": "3.0.3",
     "pi-mcp-adapter": "2.37.0",
     "pinia": "4.0.3",
     "postal-mime": "4.1.4",
