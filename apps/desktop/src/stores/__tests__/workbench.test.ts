@@ -6,6 +6,8 @@ import {
   WORKBENCH_WIDTH_STORAGE_KEY,
   useWorkbenchStore,
 } from "../workbench";
+import { useSessionStore } from "../session";
+import type { PineSessionSummary } from "@/shared/sessions";
 
 beforeEach(() => {
   window.localStorage.clear();
@@ -48,6 +50,32 @@ it("keeps each session's layout apart and lets new sessions inherit the draft's"
     top: "preview",
   });
   expect(store.layoutFor(DRAFT_WORKBENCH_KEY).top).toBe("preview");
+});
+
+it("starts a new conversation from the layout of the session it leaves", () => {
+  const store = useWorkbenchStore();
+  const sessionStore = useSessionStore();
+  store.apply("session-1", {
+    kind: "arrange",
+    top: "tasks",
+    bottom: "preview",
+  });
+  store.present("session-1", {
+    target: { source: "presented", path: "/tmp/report.pdf" },
+  });
+
+  sessionStore.activeSession = { id: "session-1" } as PineSessionSummary;
+  store.setSplit(70);
+  sessionStore.activeSession = null;
+
+  expect(store.activeKey).toBe(DRAFT_WORKBENCH_KEY);
+  expect(store.activeLayout).toMatchObject({
+    open: true,
+    top: "tasks",
+    bottom: "preview",
+    split: 70,
+    preview: null,
+  });
 });
 
 it("remembers layouts across stores", () => {

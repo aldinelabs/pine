@@ -1,5 +1,5 @@
 import { defineStore } from "pinia";
-import { computed, reactive, ref } from "vue";
+import { computed, reactive, ref, watch } from "vue";
 import {
   DEFAULT_WORKBENCH_LAYOUT,
   applyWorkbenchCommand,
@@ -115,6 +115,24 @@ export const useWorkbenchStore = defineStore("workbench", () => {
       // Keep the in-memory layouts when storage is unavailable.
     }
   }
+
+  // A new conversation starts from the arrangement of the session the user
+  // just left, not the file it previewed.
+  watch(
+    activeKey,
+    (key, previous) => {
+      if (key !== DRAFT_WORKBENCH_KEY || previous === DRAFT_WORKBENCH_KEY)
+        return;
+      layouts.delete(DRAFT_WORKBENCH_KEY);
+      layouts.set(DRAFT_WORKBENCH_KEY, {
+        ...layoutFor(previous),
+        preview: null,
+      });
+      highlights.delete(DRAFT_WORKBENCH_KEY);
+      save();
+    },
+    { flush: "sync" },
+  );
 
   function update(
     key: string,
