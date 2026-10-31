@@ -122,6 +122,10 @@ import {
   networkRegionSystemPrompt,
 } from "./network-region";
 import {
+  contextNoticeMessage,
+  type PineContextNoticeState,
+} from "./runtime/context-notices";
+import {
   DEFAULT_AUTO_APPROVAL_SETTINGS,
   DEFAULT_CONTEXT_COMPACTION_ROUTE,
   DEFAULT_CONTEXT_COMPACTION_STRATEGY,
@@ -854,26 +858,9 @@ export class PineAgentRuntime {
         {
           name: "pine-approval-mode",
           factory: (pi) => {
-            pi.on("before_agent_start", async (event) => {
-              const userProfile =
-                (await readPineAgentSettings(live.agentDir)).userProfile ??
-                createDefaultPineUserProfile();
-              event.systemPromptOptions.sections.pine_profile =
-                systemPromptWithUserProfile("", userProfile).trim();
-              if (userProfile.interfaceElements !== "simple")
-                event.systemPromptOptions.sections.pine_interface =
-                  intelligentUiSystemPrompt();
+            pi.on("before_agent_start", (event) => {
               event.systemPromptOptions.sections.pine_approval_mode =
                 approvalModeSystemPrompt();
-              const networkRegion = networkRegionSystemPrompt(
-                localNetworkRegionSignals(),
-              );
-              if (networkRegion)
-                event.systemPromptOptions.sections.pine_network_region =
-                  networkRegion;
-              const skillList = skillRepository.promptList();
-              if (skillList)
-                event.systemPromptOptions.sections.pine_skills = skillList;
               // The mode lives in the conversation, not the system prompt or
               // tool list, so a mid-session switch keeps the cached prefix.
               if (
@@ -889,6 +876,35 @@ export class PineAgentRuntime {
                   details: { approvalMode: live.approvalMode },
                 },
               };
+            });
+          },
+        },
+        {
+          name: "pine-context-notices",
+          factory: (pi) => {
+            pi.on("before_agent_start", async () => {
+              const settings = await readPineAgentSettings(live.agentDir);
+              const userProfile =
+                settings.userProfile ?? createDefaultPineUserProfile();
+              const notices: PineContextNoticeState = {
+                user_profile: systemPromptWithUserProfile(
+                  "",
+                  userProfile,
+                ).trim(),
+              };
+              if (userProfile.interfaceElements !== "simple")
+                notices.interface_elements = intelligentUiSystemPrompt();
+              const skillList = skillRepository.promptList();
+              if (skillList) notices.skills = skillList;
+              const networkRegion = networkRegionSystemPrompt(
+                localNetworkRegionSignals(),
+              );
+              if (networkRegion) notices.network_region = networkRegion;
+              const message = contextNoticeMessage(
+                live.session.messages,
+                notices,
+              );
+              return message ? { message } : undefined;
             });
           },
         },
