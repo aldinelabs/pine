@@ -78,6 +78,7 @@ import {
   type UserApprovalRequest,
 } from "./gate";
 import { createPineToolDefinitions, PineAttachedPathAccess } from "./tools";
+import { createActivatePineOpsToolDefinition } from "./pine-ops/tools";
 import type {
   FilePresentationDisplay,
   FileReveal,
@@ -1045,7 +1046,7 @@ export class PineAgentRuntime {
         },
       },
     );
-    const customTools = [...pineTools];
+    const customTools = [...pineTools, createActivatePineOpsToolDefinition()];
     live.availableToolNames = [
       ...customTools.map((tool) => tool.name),
       ACTIVATE_COMPUTER_USE_TOOL_NAME,
