@@ -577,11 +577,24 @@ html.sidebar-vibrancy body {
 }
 
 /* Only the left navigation sidebar shows the material; the right workbench
-   column keeps its opaque `bg-background`. */
+   column keeps its opaque `bg-background`. A faint wash of the project
+   accent tints the material to the colour of the opaque sidebar: the
+   near-neutral material keeps a quarter of the wash, so the wash carries
+   four times the chroma of `--sidebar` (which follows the colour theme). It
+   sits at about the material's own lightness so it shifts the colour without
+   darkening or lightening the sidebar. */
+html.sidebar-vibrancy [data-slot="sidebar-container"][data-side="left"] {
+  --sidebar-vibrancy-tint: oklch(from var(--sidebar) 0.95 calc(c * 4) h / 25%);
+}
+
+html.dark.sidebar-vibrancy [data-slot="sidebar-container"][data-side="left"] {
+  --sidebar-vibrancy-tint: oklch(from var(--sidebar) 0.3 calc(c * 4) h / 25%);
+}
+
 html.sidebar-vibrancy
   [data-slot="sidebar-container"][data-side="left"]
   > [data-slot="sidebar-inner"] {
-  background: transparent;
+  background: var(--sidebar-vibrancy-tint);
 }
 
 /* An opaque, near-sidebar selection all but vanishes on the material. Like
