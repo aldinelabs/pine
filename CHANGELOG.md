@@ -9,6 +9,27 @@ Every release section here has a matching section in the Chinese changelog.
 
 ## [Unreleased]
 
+## [0.12.1] - 2026-10-31
+
+### Added
+
+- New conversations start with the workspace layout of the previous conversation.
+- Right-clicking a file in the presented files list offers preview, open in tab, open, reveal, and copy path; for files in writable project folders, it also offers rename and move to trash.
+- An optional setting in Preferences lets Pine tell the agent your approximate location (city, region, and country only). It is off by default; turning it on downloads DB-IP's free city database and looks it up on this computer, and turning it off deletes the database.
+- The agent can look up a description of Pine's own interface to answer questions like "where is this feature".
+- The sidebar with native glass is now tinted with the project colour.
+
+### Changed
+
+- The floating composer is now on by default.
+- The agent reads the system clock to tell the date and time instead of estimating them.
+- Editing your profile or adding or removing skills no longer invalidates the prompt cache of an existing conversation, so later replies are faster and cheaper.
+
+### Fixed
+
+- Attachment images in the floating composer did not show in installed builds.
+- When the floating composer expands into a new window, the input no longer jumps as attachments change its height.
+
 ## [0.12.0] - 2026-10-30
 
 ### Added
