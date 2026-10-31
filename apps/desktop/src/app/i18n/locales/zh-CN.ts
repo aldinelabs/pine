@@ -487,6 +487,7 @@ export default {
       artifacts: {
         empty: "Pine 在此对话中展示的文件会出现在这里。",
         openFailed: "无法打开此文件",
+        preview: "在工作台中预览",
       },
       preview: {
         empty: "从产出文件中选择一个文件在此预览。",

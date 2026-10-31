@@ -1,5 +1,5 @@
 import { acceptHMRUpdate, defineStore } from "pinia";
-import { ref, watch } from "vue";
+import { reactive, ref, watch } from "vue";
 import { readContentTabs, writeContentTabs } from "@/lib/contentTabStorage";
 import { TEMPORARY_WORKSPACE_PROJECT_ID } from "@/shared/projects";
 import { isQuickComposerHandoffWindow } from "@/stores/quickComposerHandoff";
@@ -112,7 +112,10 @@ export const useContentTabsStore = defineStore("content-tabs", () => {
   // Main resolves a presentation to the exact file target, including its
   // project folder or temporary external-file grant. Keep that association
   // after a tab closes so its tool marker can reopen the same preview.
-  const presentedTargets = new Map<string, FilePreviewTarget>();
+  // Reactive so the artifacts list follows a presented file that was renamed.
+  const presentedTargets = reactive(new Map<string, FilePreviewTarget>());
+  /** Presentations whose file was moved to the trash from the artifacts list. */
+  const removedPresentations = reactive(new Set<string>());
   const composerAttachments = ref<Record<string, PineAttachment[]>>({});
   watch(
     () => tabs.value.map((tab) => tab.id),
@@ -245,6 +248,15 @@ export const useContentTabsStore = defineStore("content-tabs", () => {
     toolCallId: string,
   ): FilePreviewTarget | undefined {
     return presentedTargets.get(toolCallId);
+  }
+
+  function markPresentationRemoved(toolCallId: string): void {
+    presentedTargets.delete(toolCallId);
+    removedPresentations.add(toolCallId);
+  }
+
+  function isPresentationRemoved(toolCallId: string): boolean {
+    return removedPresentations.has(toolCallId);
   }
 
   function makeDraftTab(projectId: string): DraftSessionTab {
@@ -501,6 +513,7 @@ export const useContentTabsStore = defineStore("content-tabs", () => {
 
   function reset(): void {
     presentedTargets.clear();
+    removedPresentations.clear();
     composerFocusTabId.value = null;
     composerAttachments.value = {};
     nextSessionTabNumber = 2;
@@ -528,6 +541,8 @@ export const useContentTabsStore = defineStore("content-tabs", () => {
     presentFile,
     presentedTargetFor,
     rememberPresentedTarget,
+    markPresentationRemoved,
+    isPresentationRemoved,
     rememberDraftProject,
     removeProject,
     removeSession,

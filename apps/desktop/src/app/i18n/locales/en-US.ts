@@ -517,6 +517,7 @@ export default {
       artifacts: {
         empty: "Files Pine shows you in this conversation appear here.",
         openFailed: "Couldn’t open this file",
+        preview: "Preview in workbench",
       },
       preview: {
         empty: "Pick a file from Artifacts to preview it here.",
