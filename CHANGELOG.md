@@ -15,7 +15,7 @@ Every release section here has a matching section in the Chinese changelog.
 
 - New conversations start with the workspace layout of the previous conversation.
 - Right-clicking a file in the presented files list offers preview, open in tab, open, reveal, and copy path; for files in writable project folders, it also offers rename and move to trash.
-- An optional setting in Preferences lets Pine tell the agent your approximate location (city, region, and country only). It is off by default; turning it on downloads DB-IP's free city database and looks it up on this computer, and turning it off deletes the database.
+- A new setting in Preferences lets Pine tell the agent your approximate location (city, region, and country only). It is on by default and can be turned off at any time; the lookup uses DB-IP's free city database that ships with the app and runs on this computer, with nothing extra to download.
 - The agent can look up a description of Pine's own interface to answer questions like "where is this feature".
 - The sidebar with native glass is now tinted with the project colour.
 
