@@ -361,7 +361,7 @@ watch(activeScope, () => {
     >
       <DialogHeader
         v-if="isPhone && isEditorShown"
-        class="flex-row items-center gap-1 px-4 pt-4 pb-2 pr-16"
+        class="flex-row items-center gap-2 px-4 pt-4 pb-2 pr-16"
       >
         <Button
           data-testid="skill-manager-back"
@@ -372,7 +372,7 @@ watch(activeScope, () => {
         >
           <ChevronLeftIcon />
         </Button>
-        <DialogTitle class="min-w-0 truncate">
+        <DialogTitle class="min-w-0 truncate leading-7">
           {{ isCreating ? t("skills.new") : selectedName }}
         </DialogTitle>
         <DialogDescription class="sr-only">

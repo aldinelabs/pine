@@ -791,7 +791,7 @@ defineExpose({ open });
     >
       <DialogHeader
         v-if="isPhone && isSectionShown"
-        class="flex-row items-center gap-1 px-4 pt-4 pb-2 pr-16"
+        class="flex-row items-center gap-2 px-4 pt-4 pb-2 pr-16"
       >
         <Button
           data-testid="pine-preferences-back"
@@ -802,7 +802,7 @@ defineExpose({ open });
         >
           <ChevronLeftIcon />
         </Button>
-        <DialogTitle>{{ activeSectionLabel }}</DialogTitle>
+        <DialogTitle class="leading-7">{{ activeSectionLabel }}</DialogTitle>
         <DialogDescription class="sr-only">
           {{ t("preferences.description") }}
         </DialogDescription>
