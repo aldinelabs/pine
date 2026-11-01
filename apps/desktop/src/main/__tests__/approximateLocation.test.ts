@@ -1,4 +1,5 @@
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { createHash } from "node:crypto";
+import { mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { gzipSync } from "node:zlib";
@@ -48,46 +49,105 @@ describe("ApproximateLocationService", () => {
     await rm(directory, { recursive: true, force: true });
   });
 
-  function trace() {
+  function trace(ip = "203.0.113.7") {
     return vi.fn<(url: string) => Promise<Response>>(() =>
-      Promise.resolve(new Response("ip=203.0.113.7\n")),
+      Promise.resolve(new Response(`ip=${ip}\n`)),
     );
   }
 
-  it("has no location when the database is missing", async () => {
-    const fetch = trace();
-    const service = new ApproximateLocationService({
-      databasePath: path.join(directory, "missing.mmdb.gz"),
-      fetch,
-    });
-
-    expect(await service.lookup()).toBeNull();
-    expect(fetch).toHaveBeenCalledOnce();
-  });
-
-  it("has no location when the database does not open", async () => {
-    const databasePath = path.join(directory, "broken.mmdb.gz");
+  async function database(): Promise<string> {
+    const databasePath = path.join(directory, "city.mmdb.gz");
     await writeFile(databasePath, gzipSync(Buffer.from("not a database")));
-    const service = new ApproximateLocationService({
-      databasePath,
-      fetch: trace(),
-    });
+    return databasePath;
+  }
 
-    expect(await service.lookup()).toBeNull();
-  });
+  async function cache(ip: string, at: number): Promise<string> {
+    const cachePath = path.join(directory, "cache.json");
+    const { size, mtimeMs } = await stat(path.join(directory, "city.mmdb.gz"));
+    await writeFile(
+      cachePath,
+      JSON.stringify({
+        at,
+        ipHash: createHash("sha256").update(ip).digest("hex"),
+        database: `${size}:${mtimeMs}`,
+        location: { city: "Lyon", country: "France", countryCode: "FR" },
+      }),
+    );
+    return cachePath;
+  }
 
-  it("asks only for the public address, and stops without one", async () => {
-    const fetch = vi.fn<(url: string) => Promise<Response>>(() =>
-      Promise.reject(new Error("offline")),
+  it("answers before any lookup finishes, then has nothing to give", async () => {
+    let answer!: (response: Response) => void;
+    const fetch = vi.fn<(url: string) => Promise<Response>>(
+      () => new Promise((resolve) => (answer = resolve)),
     );
     const service = new ApproximateLocationService({
-      databasePath: path.join(directory, "missing.mmdb.gz"),
+      databasePath: await database(),
+      cachePath: path.join(directory, "cache.json"),
       fetch,
     });
 
-    expect(await service.lookup()).toBeNull();
-    expect(fetch.mock.calls.map(([url]) => url)).toEqual([
-      "https://1.1.1.1/cdn-cgi/trace",
-    ]);
+    expect(await service.current()).toBeNull();
+    expect(fetch).toHaveBeenCalledOnce();
+    answer(new Response("ip=203.0.113.7\n"));
+  });
+
+  it("serves a saved estimate and keeps it while the address is unchanged", async () => {
+    const databasePath = await database();
+    const now = Date.parse("2026-10-31T12:00:00Z");
+    const service = new ApproximateLocationService({
+      databasePath,
+      cachePath: await cache("203.0.113.7", now - 60 * 60 * 1000),
+      fetch: trace("203.0.113.7"),
+      now: () => now,
+    });
+
+    expect(await service.current()).toEqual({
+      city: "Lyon",
+      country: "France",
+      countryCode: "FR",
+    });
+    // The database here does not open, so a lookup would drop the estimate.
+    await service.refresh();
+    expect(await service.current()).toMatchObject({ city: "Lyon" });
+    expect(
+      JSON.parse(await readFile(path.join(directory, "cache.json"), "utf8")),
+    ).toMatchObject({ at: now });
+  });
+
+  it("looks a new address up instead of reusing the saved estimate", async () => {
+    const databasePath = await database();
+    const now = Date.parse("2026-10-31T12:00:00Z");
+    const service = new ApproximateLocationService({
+      databasePath,
+      cachePath: await cache("203.0.113.7", now),
+      fetch: trace("198.51.100.1"),
+      now: () => now,
+    });
+
+    await service.refresh();
+
+    // The unreadable database leaves the old estimate in place.
+    expect(await service.current()).toMatchObject({ city: "Lyon" });
+    expect(
+      JSON.parse(await readFile(path.join(directory, "cache.json"), "utf8")),
+    ).toMatchObject({
+      ipHash: createHash("sha256").update("203.0.113.7").digest("hex"),
+    });
+  });
+
+  it("keeps the estimate while offline", async () => {
+    const databasePath = await database();
+    const service = new ApproximateLocationService({
+      databasePath,
+      cachePath: await cache("203.0.113.7", 0),
+      fetch: vi.fn<(url: string) => Promise<Response>>(() =>
+        Promise.reject(new Error("offline")),
+      ),
+    });
+
+    await service.refresh();
+
+    expect(await service.current()).toMatchObject({ city: "Lyon" });
   });
 });

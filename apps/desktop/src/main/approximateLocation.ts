@@ -1,20 +1,26 @@
-import { readFile } from "node:fs/promises";
+import { createHash } from "node:crypto";
+import { readFile, stat, writeFile } from "node:fs/promises";
 import { promisify } from "node:util";
 import { gunzip } from "node:zlib";
 import { Reader, type CityResponse } from "mmdb-lib";
-import type { ApproximateLocation } from "../shared/approximateLocation";
+import {
+  isApproximateLocation,
+  type ApproximateLocation,
+} from "../shared/approximateLocation";
 
 const gunzipAsync = promisify(gunzip);
 
 /** Echoes the caller's public address as `ip=...` in plain text. */
 const PUBLIC_IP_URL = "https://1.1.1.1/cdn-cgi/trace";
 const PUBLIC_IP_TIMEOUT_MS = 5_000;
-/** Networks change rarely; look the address up again after this long. */
+/** Networks change rarely; confirm the address again after this long. */
 const LOOKUP_TTL_MS = 30 * 60 * 1000;
 
 export interface ApproximateLocationServiceOptions {
   /** DB-IP's city database as Pine ships it, gzip-compressed. */
   databasePath: string;
+  /** Where the last estimate survives restarts. */
+  cachePath: string;
   /** Electron's `net.fetch`, so requests follow the system proxy. */
   fetch: (url: string, init?: RequestInit) => Promise<Response>;
   now?: () => number;
@@ -43,45 +49,123 @@ export function locationFromRecord(
   };
 }
 
+interface CachedLocation {
+  /** When the public address was last confirmed. */
+  at: number;
+  /** SHA-256 of the address, so the cache never holds it in the clear. */
+  ipHash: string;
+  /** Size and time of the database the location came from. */
+  database: string;
+  location: ApproximateLocation | null;
+}
+
+function isCachedLocation(value: unknown): value is CachedLocation {
+  if (typeof value !== "object" || value === null) return false;
+  const cache = value as Record<string, unknown>;
+  return (
+    typeof cache.at === "number" &&
+    typeof cache.ipHash === "string" &&
+    typeof cache.database === "string" &&
+    (cache.location === null || isApproximateLocation(cache.location))
+  );
+}
+
+function hashIp(ip: string): string {
+  return createHash("sha256").update(ip).digest("hex");
+}
+
 /**
  * Estimates where the user is from their public IP address, looked up in the
  * bundled GeoIP database so the address itself only reaches the echo service.
+ *
+ * A turn never waits on the network or the database: {@link current} answers
+ * from the cache and refreshes it in the background. The database, slow to
+ * decompress, is only read when the address changes.
  */
 export class ApproximateLocationService {
   private readonly now: () => number;
-  private cached: { at: number; location: ApproximateLocation | null } | null =
-    null;
-  private lookupInFlight: Promise<ApproximateLocation | null> | undefined;
+  private cached: CachedLocation | null = null;
+  private loaded: Promise<void> | undefined;
+  private refreshInFlight: Promise<void> | undefined;
 
   constructor(private readonly options: ApproximateLocationServiceOptions) {
     this.now = options.now ?? Date.now;
   }
 
-  /** Null when the address or the database is unavailable. */
-  lookup(): Promise<ApproximateLocation | null> {
-    if (this.cached && this.now() - this.cached.at < LOOKUP_TTL_MS)
-      return Promise.resolve(this.cached.location);
-    this.lookupInFlight ??= this.lookUpNow().finally(() => {
-      this.lookupInFlight = undefined;
-    });
-    return this.lookupInFlight;
+  /** The latest estimate, possibly stale; null until one exists. */
+  async current(): Promise<ApproximateLocation | null> {
+    await this.load();
+    if (!this.cached || this.now() - this.cached.at >= LOOKUP_TTL_MS)
+      void this.refresh();
+    return this.cached?.location ?? null;
   }
 
-  private async lookUpNow(): Promise<ApproximateLocation | null> {
+  /** Confirm the public address, looking it up again only if it changed. */
+  refresh(): Promise<void> {
+    this.refreshInFlight ??= this.refreshNow().finally(() => {
+      this.refreshInFlight = undefined;
+    });
+    return this.refreshInFlight;
+  }
+
+  private load(): Promise<void> {
+    this.loaded ??= (async () => {
+      try {
+        const value: unknown = JSON.parse(
+          await readFile(this.options.cachePath, "utf8"),
+        );
+        if (isCachedLocation(value)) this.cached ??= value;
+      } catch {
+        // No usable cache yet.
+      }
+    })();
+    return this.loaded;
+  }
+
+  private async refreshNow(): Promise<void> {
+    await this.load();
     const ip = await this.publicIp();
-    if (!ip) return null;
-    let location: ApproximateLocation | null;
+    // Offline or blocked: keep the last estimate.
+    if (!ip) return;
+    const database = await this.databaseVersion();
+    if (!database) return;
+    const ipHash = hashIp(ip);
+    const previous = this.cached;
+    const location =
+      previous?.ipHash === ipHash && previous.database === database
+        ? previous.location
+        : await this.lookUp(ip);
+    if (location === undefined) return;
+    this.cached = { at: this.now(), ipHash, database, location };
+    try {
+      await writeFile(this.options.cachePath, JSON.stringify(this.cached));
+    } catch {
+      // The estimate still serves this run.
+    }
+  }
+
+  /** Undefined when the database does not open. */
+  private async lookUp(
+    ip: string,
+  ): Promise<ApproximateLocation | null | undefined> {
     try {
       // Decompressed on demand: the database is too large to keep in memory.
       const reader = new Reader<CityResponse>(
         await gunzipAsync(await readFile(this.options.databasePath)),
       );
-      location = locationFromRecord(reader.get(ip));
+      return locationFromRecord(reader.get(ip));
     } catch {
-      return null;
+      return undefined;
     }
-    this.cached = { at: this.now(), location };
-    return location;
+  }
+
+  private async databaseVersion(): Promise<string | undefined> {
+    try {
+      const { size, mtimeMs } = await stat(this.options.databasePath);
+      return `${size}:${mtimeMs}`;
+    } catch {
+      return undefined;
+    }
   }
 
   private async publicIp(): Promise<string | undefined> {

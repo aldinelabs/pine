@@ -768,7 +768,7 @@ async function answerHostRequest(
           ok: true,
           response: {
             kind: "approximate-location",
-            location: enabled ? await getApproximateLocation().lookup() : null,
+            location: enabled ? await getApproximateLocation().current() : null,
           },
         };
       }
@@ -1708,6 +1708,7 @@ function getApproximateLocation(): ApproximateLocationService {
     databasePath: app.isPackaged
       ? path.join(process.resourcesPath, "dbip-city-lite.mmdb.gz")
       : path.join(app.getAppPath(), "resources/geoip/dbip-city-lite.mmdb.gz"),
+    cachePath: path.join(app.getPath("userData"), "approximate-location.json"),
     fetch: (url, init) => net.fetch(url, init),
   });
   return approximateLocation;
@@ -1916,6 +1917,7 @@ ipcMain.handle(
   async (_event, request: unknown): Promise<SetApproximateLocationResult> => {
     const { enabled } = z.object({ enabled: z.boolean() }).parse(request);
     await writeApproximateLocationEnabled(getPineAgentDirectory(), enabled);
+    if (enabled) void getApproximateLocation().refresh();
     return { enabled };
   },
 );
@@ -3416,6 +3418,12 @@ async function initializeApp(): Promise<void> {
   quickComposerEnabled =
     (settings.quickComposerEnabled ?? DEFAULT_QUICK_COMPOSER_ENABLED) &&
     applyQuickComposerShortcut(true);
+  // Ready before the first message, so no turn waits on the lookup.
+  if (
+    settings.approximateLocationEnabled ??
+    DEFAULT_APPROXIMATE_LOCATION_ENABLED
+  )
+    void getApproximateLocation().current();
   runtimeDiagnostics = new RuntimeDiagnostics(
     app.getPath("logs"),
     settings.diagnosticLoggingEnabled ?? false,

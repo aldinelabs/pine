@@ -221,8 +221,8 @@ export type { PineAgentRuntimeOptions } from "./runtime/session-state";
 const JUDGE_TIMEOUT_MS = 60_000;
 const BACKGROUND_TASKS_EVENT_MS = 200;
 const TITLE_TIMEOUT_MS = 30_000;
-/** How long a turn waits for main to place the user by IP address. */
-const APPROXIMATE_LOCATION_TIMEOUT_MS = 6_000;
+/** Main answers from its cache; this only guards against a stuck reply. */
+const APPROXIMATE_LOCATION_TIMEOUT_MS = 1_000;
 export class PineAgentRuntime {
   private readonly liveSessions = new Map<string, LiveAgentSession>();
   private readonly pendingApprovals = new Map<string, PendingUserApproval>();
