@@ -623,16 +623,16 @@ html.sidebar-vibrancy body {
 
 /* Only the left navigation sidebar shows the material; the right workbench
    column keeps its opaque `bg-background`. A wash derived from `--sidebar`
-   (which follows the colour theme) brings the material to the opaque
+   (which follows the colour theme) brings the material towards the opaque
    sidebar's colour. The values are measured against screenshots of the
-   material with the effect on and off: light material (about L 0.946) is
-   darker than the near-white sidebar, so its wash is nearly opaque and a
-   touch lighter; dark material already sits near the sidebar's lightness
-   with less than half its chroma, so its wash is light and more colourful. */
+   material with the effect on and off. Light material (about L 0.946) is
+   darker than the near-white sidebar (L 0.988), and matching it would take
+   a nearly opaque wash that hides the material, so the wash stops halfway,
+   at about L 0.965, and lets half the material through. Dark material
+   already sits near the sidebar's lightness with less than half its chroma,
+   so its wash is light and more colourful. */
 html.sidebar-vibrancy [data-slot="sidebar-container"][data-side="left"] {
-  --sidebar-vibrancy-tint: oklch(
-    from var(--sidebar) calc(l + 0.011) calc(c * 1.4) h / 80%
-  );
+  --sidebar-vibrancy-tint: oklch(from var(--sidebar) l calc(c * 2.85) h / 45%);
 }
 
 html.dark.sidebar-vibrancy [data-slot="sidebar-container"][data-side="left"] {
