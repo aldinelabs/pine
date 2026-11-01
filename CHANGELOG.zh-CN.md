@@ -8,6 +8,10 @@ English version: [CHANGELOG.md](./CHANGELOG.md).
 
 ## [Unreleased]
 
+### 新增
+
+- 无头服务端：可以在服务器上不开窗口运行 Pine，只通过浏览器使用。用 `bun run build:server` 构建，详见 `docs/headless-server.md`。
+
 ## [0.13.0] - 2026-11-01
 
 ### 新增

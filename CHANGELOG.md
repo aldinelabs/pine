@@ -9,6 +9,10 @@ Every release section here has a matching section in the Chinese changelog.
 
 ## [Unreleased]
 
+### Added
+
+- Headless server: Pine can run on a server without a window and be used entirely from a browser. Build it with `bun run build:server`; see `docs/headless-server.md`.
+
 ## [0.13.0] - 2026-11-01
 
 ### Added

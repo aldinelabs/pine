@@ -40,6 +40,18 @@ bun run dev
 
 Windows 首次使用 Agent 工具前，需在“设置 → 通用 → Windows 沙箱”中点击“安装”。
 
+## 服务器部署
+
+Pine 也可以不开窗口运行在服务器上，只通过浏览器使用（需要 Node.js 22.13+）：
+
+```bash
+bun install --frozen-lockfile
+bun run build:server
+PINE_PASSWORD='至少 8 个字符' node apps/desktop/.vite/server/server.mjs
+```
+
+默认只监听 `127.0.0.1:9415`，建议放在反向代理后面。全部选项、systemd 示例和与桌面端的差异见 [`docs/headless-server.md`](./docs/headless-server.md)。
+
 ## 开发
 
 ```bash

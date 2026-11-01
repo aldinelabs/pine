@@ -4,12 +4,11 @@ import type {
   AgentWorkerRequest,
   AgentWorkerResult,
 } from "./agent/protocol";
+import { connectParentPort } from "./agent/parentPort";
 import { toErrorMessage } from "./agent/protocol";
 import { PineAgentRuntime } from "./agent/runtime";
 
-const parentPort = process.parentPort;
-if (!parentPort)
-  throw new Error("Pine agent must run as an Electron utility process.");
+const parentPort = connectParentPort();
 
 const runtime = new PineAgentRuntime({
   emit: (event) => parentPort.postMessage({ type: "event", event }),
@@ -169,8 +168,8 @@ async function handleRequest(request: AgentWorkerRequest): Promise<void> {
   } satisfies AgentWorkerMessage);
 }
 
-parentPort.on("message", (event) => {
-  const inbound = event.data as AgentWorkerInbound;
+parentPort.onMessage((message) => {
+  const inbound = message as AgentWorkerInbound;
   // Approval decisions from the renderer ride a dedicated inbound message;
   // they resolve pending gate promises instead of being handled as requests.
   if (inbound.type === "approval:response") {

@@ -19,6 +19,14 @@ const PI_VCC_RECALL_SOURCES = [
   "/@sting8k/pi-vcc/src/tools/recall.ts",
 ];
 
+// The headless server build puts the worker beside its own entry.
+function outputDirectory(mode: string): string {
+  return (
+    process.env.PINE_AGENT_OUT_DIR ??
+    (mode === "production" ? ".vite/agent-build" : ".vite/build")
+  );
+}
+
 // Pi is ESM-only and relies on `import.meta.url`. Keep the isolated agent
 // process and all of its chunks in ESM instead of emitting runtime `require()`
 // calls or rewriting Pi's module metadata for CommonJS.
@@ -63,9 +71,7 @@ export default defineConfig(({ mode }) => ({
         }
       },
       closeBundle() {
-        const output = path.resolve(
-          mode === "production" ? ".vite/agent-build" : ".vite/build",
-        );
+        const output = path.resolve(outputDirectory(mode));
         mkdirSync(path.join(output, "skills", "mcp-scripting"), {
           recursive: true,
         });
@@ -86,7 +92,7 @@ export default defineConfig(({ mode }) => ({
   build: {
     // Keep the production worker separate from Forge's concurrent main/preload
     // builds; the packaging hook copies it into the final shared build folder.
-    outDir: mode === "production" ? ".vite/agent-build" : ".vite/build",
+    outDir: outputDirectory(mode),
     lib: {
       entry: "src/agent.ts",
       fileName: () => "agent.mjs",

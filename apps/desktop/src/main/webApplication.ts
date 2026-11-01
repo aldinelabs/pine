@@ -143,6 +143,12 @@ export class WebApplication {
     return this.server.status();
   }
 
+  /** Sets a password given at startup; an unchanged one keeps browsers signed in. */
+  async ensurePassword(password: string): Promise<void> {
+    if (!(await this.options.access.verify(password)))
+      await this.setPassword(password);
+  }
+
   async signOutAll(): Promise<WebServerStatus> {
     await this.options.access.signOutAll();
     this.server.signOutAll();
