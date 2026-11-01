@@ -711,6 +711,7 @@ export default {
       addTab: "新建会话标签页",
       moreActions: "更多操作",
       closeTab: "关闭 {name}",
+      switchTab: "切换标签页",
       tabListLabel: "已打开的内容",
       shortcuts: {
         newTab: "新建标签页",

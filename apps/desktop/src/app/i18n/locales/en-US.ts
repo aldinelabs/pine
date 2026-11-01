@@ -746,6 +746,7 @@ export default {
       addTab: "Add session tab",
       moreActions: "More actions",
       closeTab: "Close {name}",
+      switchTab: "Switch tab",
       tabListLabel: "Open content",
       shortcuts: {
         newTab: "New tab",

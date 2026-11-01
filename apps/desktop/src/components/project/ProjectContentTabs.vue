@@ -1,5 +1,10 @@
 <script setup lang="ts">
-import { MessageSquareTextIcon, PlusIcon, XIcon } from "@lucide/vue";
+import {
+  ChevronDownIcon,
+  MessageSquareTextIcon,
+  PlusIcon,
+  XIcon,
+} from "@lucide/vue";
 import { storeToRefs } from "pinia";
 import type { ComponentPublicInstance } from "vue";
 import {
@@ -18,6 +23,14 @@ import { TEMPORARY_WORKSPACE_PROJECT_ID } from "@/shared/projects";
 import { handleError } from "@/app/errors/errorHandler";
 import { PINE_LOGO_PATH, PINE_LOGO_VIEW_BOX } from "@/components/pine";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   FlickeringGrid,
   type FlickeringGridShape,
@@ -149,7 +162,6 @@ useResizeObserver([emptyRegion, emptyLogo], () => {
     : undefined;
 });
 const tabListHasOverflow = ref<boolean | null>(null);
-let tabListResizeObserver: ResizeObserver | null = null;
 let closingTab = false;
 let tabShiftAnimationScheduled = false;
 let pendingTabPositions: Map<string, number> | null = null;
@@ -235,18 +247,15 @@ onMounted(() => {
     windowCloseTabHandler.value = closeTabFromWindowShortcut;
   }
   updateTabListOverflow();
-  if (!tabList.value || typeof ResizeObserver === "undefined") return;
-
-  tabListResizeObserver = new ResizeObserver(updateTabListOverflow);
-  tabListResizeObserver.observe(tabList.value);
 });
+// The strip comes and goes with the phone layout, so observe whichever list
+// is mounted.
+useResizeObserver(tabList, updateTabListOverflow);
 
 onBeforeUnmount(() => {
   if (windowCloseTabHandler?.value === closeTabFromWindowShortcut) {
     windowCloseTabHandler.value = null;
   }
-  tabListResizeObserver?.disconnect();
-  tabListResizeObserver = null;
 });
 
 function startTabDrag(event: DragEvent, tab: ProjectContentTab): void {
@@ -462,6 +471,13 @@ function setTabButton(
   else tabButtons.delete(tabId);
 }
 
+/** Hidden tabs still ask for attention through the switcher. */
+const hasBackgroundAttention = computed(() =>
+  tabs.value.some(
+    (tab) => tab.id !== activeTabId.value && attentionFlash.isFlashing(tab.id),
+  ),
+);
+
 function activateTab(tabId: string): void {
   tabNavigation.activate(tabId);
 }
@@ -574,9 +590,96 @@ watch(activeSession, (session) => {
         )
       "
     >
+      <!-- A phone has no room for a strip: the active tab's title opens a
+           list of every tab instead. -->
+      <div
+        v-if="isMobile"
+        data-slot="project-content-tab-switcher"
+        class="window-no-drag pointer-events-auto flex min-w-0 flex-1 items-center gap-1"
+      >
+        <DropdownMenu v-if="activeContentTab">
+          <DropdownMenuTrigger as-child>
+            <Button
+              data-slot="project-content-tab-switcher-trigger"
+              variant="ghost"
+              size="sm"
+              class="min-w-0 shrink justify-start"
+              :aria-label="t('project.contentTabs.switchTab')"
+            >
+              <component
+                :is="tabIcon(activeContentTab)"
+                data-icon="inline-start"
+              />
+              <span class="truncate">{{ getTabLabel(activeContentTab) }}</span>
+              <span
+                v-if="hasBackgroundAttention"
+                aria-hidden="true"
+                class="size-1.5 shrink-0 rounded-full bg-primary"
+              />
+              <ChevronDownIcon data-icon="inline-end" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent
+            align="start"
+            class="w-72 max-w-[calc(100vw-2rem)]"
+          >
+            <DropdownMenuLabel>
+              {{ t("project.contentTabs.tabListLabel") }}
+            </DropdownMenuLabel>
+            <DropdownMenuRadioGroup
+              :model-value="activeTabId"
+              @update:model-value="activateTab(String($event))"
+            >
+              <div
+                v-for="tab in tabs"
+                :key="tab.id"
+                data-slot="project-content-tab-switcher-item"
+                class="flex items-center gap-1"
+              >
+                <DropdownMenuRadioItem :value="tab.id" class="min-w-0 flex-1">
+                  <component :is="tabIcon(tab)" aria-hidden="true" />
+                  <span class="truncate">{{ getTabLabel(tab) }}</span>
+                  <span
+                    v-if="
+                      tab.id !== activeTabId &&
+                      attentionFlash.isFlashing(tab.id)
+                    "
+                    aria-hidden="true"
+                    class="ml-auto size-1.5 shrink-0 rounded-full bg-primary"
+                  />
+                </DropdownMenuRadioItem>
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  class="shrink-0"
+                  :aria-label="
+                    t('project.contentTabs.closeTab', {
+                      name: getTabLabel(tab),
+                    })
+                  "
+                  @click="closeTab(tab.id)"
+                >
+                  <XIcon />
+                </Button>
+              </div>
+            </DropdownMenuRadioGroup>
+          </DropdownMenuContent>
+        </DropdownMenu>
+        <Button
+          class="shrink-0"
+          variant="ghost"
+          size="icon-sm"
+          :aria-label="t('project.contentTabs.addTab')"
+          @click="tabNavigation.createSessionTab()"
+        >
+          <PlusIcon />
+        </Button>
+      </div>
+
       <!-- The tab list shrinks to its tabs, so "+" trails the last tab and,
            once the tabs overflow, stays put at the strip's end. -->
       <div
+        v-else
         ref="tabStrip"
         data-slot="project-content-tab-strip"
         :class="
@@ -718,7 +821,7 @@ watch(activeSession, (session) => {
       </div>
 
       <Button
-        v-if="!tabs.length"
+        v-if="!tabs.length && !isMobile"
         class="window-no-drag pointer-events-auto"
         variant="ghost"
         size="icon-sm"
