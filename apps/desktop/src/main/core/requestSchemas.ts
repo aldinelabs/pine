@@ -329,6 +329,10 @@ export const SelectImageModelRequestSchema = SelectModelRequestSchema.pick({
   modelId: true,
   providerId: true,
 });
+export const SelectVideoModelRequestSchema = SelectModelRequestSchema.pick({
+  modelId: true,
+  providerId: true,
+});
 export const ListProjectDirectoryRequestSchema = ProjectEntryReferenceSchema;
 export const SetTinyFishApiKeyRequestSchema = z.object({
   apiKey: z.string().trim().min(1).max(4_096),

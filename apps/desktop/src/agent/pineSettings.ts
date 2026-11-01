@@ -8,6 +8,7 @@ import {
 import { decisionsModelDescriptors } from "./runtime/decisions-models";
 import type {
   PineImageModelSelection,
+  PineVideoModelSelection,
   PineUtilityModelSelection,
 } from "../shared/models";
 import {
@@ -40,6 +41,7 @@ export interface PineAgentSettings {
   contextCompactionStrategy?: PineContextCompactionStrategy;
   contextCompactionRoute?: PineContextCompactionRoute;
   imageModel?: PineImageModelSelection;
+  videoModel?: PineVideoModelSelection;
   utilityModel?: PineUtilityModelSelection;
   userProfile?: PineUserProfile;
 }
@@ -124,6 +126,7 @@ export async function readPineAgentSettings(
     }
     const settings = parsed as Record<string, unknown>;
     const imageModel = settings.imageModel;
+    const videoModel = settings.videoModel;
     const utilityModel = settings.utilityModel;
     const userProfile = migrateUserProfile(settings.userProfile);
     const contextCompactionStrategy = settings.contextCompactionStrategy;
@@ -171,6 +174,7 @@ export async function readPineAgentSettings(
         ? { contextCompactionRoute }
         : {}),
       ...(isModelSelection(imageModel) ? { imageModel } : {}),
+      ...(isModelSelection(videoModel) ? { videoModel } : {}),
       ...(isModelSelection(utilityModel) ? { utilityModel } : {}),
       ...(isPineUserProfile(userProfile) ? { userProfile } : {}),
     };
@@ -199,6 +203,12 @@ export async function writeImageModelSelection(
   imageModel: PineImageModelSelection,
 ): Promise<void> {
   await writePineAgentSettings(agentDir, { imageModel });
+}
+export async function writeVideoModelSelection(
+  agentDir: string,
+  videoModel: PineVideoModelSelection,
+): Promise<void> {
+  await writePineAgentSettings(agentDir, { videoModel });
 }
 
 export async function writePineUserProfile(

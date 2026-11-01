@@ -121,8 +121,13 @@ const modelsStore = useModelsStore();
 const userProfileStore = useUserProfileStore();
 const { supportsSidebarVibrancy, themePreference, pineColorTheme } =
   storeToRefs(appearanceStore);
-const { imageProviderConfigured, imageSelectedModel, utilitySelectedModel } =
-  storeToRefs(modelsStore);
+const {
+  imageProviderConfigured,
+  imageSelectedModel,
+  videoProviderConfigured,
+  videoSelectedModel,
+  utilitySelectedModel,
+} = storeToRefs(modelsStore);
 const isOpen = ref(false);
 const activeSection = ref<PreferenceSection>("general");
 // The section an `open` call asks for; plain opens start at General.
@@ -133,6 +138,7 @@ const isSectionShown = ref(false);
 const showPage = useDialogPages();
 const isUtilityModelPickerOpen = ref(false);
 const isImageModelPickerOpen = ref(false);
+const isVideoModelPickerOpen = ref(false);
 const isTinyFishCredentialDialogOpen = ref(false);
 const isTinyFishCredentialConfigured = ref(false);
 const tinyFishApiKey = ref("");
@@ -251,6 +257,11 @@ const imageModelSummary = computed(() =>
   imageProviderConfigured.value
     ? (imageSelectedModel.value?.name ?? t("preferences.noImageModelSelected"))
     : t("preferences.imageModelUnconfigured"),
+);
+const videoModelSummary = computed(() =>
+  videoProviderConfigured.value
+    ? (videoSelectedModel.value?.name ?? t("preferences.noVideoModelSelected"))
+    : t("preferences.videoModelUnconfigured"),
 );
 
 watch(isOpen, (open) => {
@@ -1521,6 +1532,24 @@ defineExpose({ open });
                 </Button>
               </Field>
 
+              <Field orientation="responsive">
+                <div class="flex min-w-0 flex-1 flex-col gap-1">
+                  <FieldTitle id="pine-video-model-setting">
+                    {{ t("preferences.videoModel") }}
+                  </FieldTitle>
+                  <FieldDescription>{{ videoModelSummary }}</FieldDescription>
+                </div>
+                <Button
+                  data-testid="pine-video-model-button"
+                  variant="outline"
+                  size="sm"
+                  aria-labelledby="pine-video-model-setting"
+                  @click="isVideoModelPickerOpen = true"
+                >
+                  {{ t("preferences.selectVideoModel") }}
+                </Button>
+              </Field>
+
               <DecisionsModelSettings />
             </FieldGroup>
           </div>
@@ -1587,4 +1616,5 @@ defineExpose({ open });
   />
 
   <ModelPickerDialog v-model:open="isImageModelPickerOpen" purpose="image" />
+  <ModelPickerDialog v-model:open="isVideoModelPickerOpen" purpose="video" />
 </template>

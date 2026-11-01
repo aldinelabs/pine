@@ -206,6 +206,11 @@ export default {
     noImageModelSelected: "Default model",
     imageModelUnconfigured:
       "OpenRouter is not configured yet. Use “Manage providers and models” to add its API key.",
+    videoModel: "Video generation model",
+    selectVideoModel: "Choose model",
+    noVideoModelSelected: "No model selected",
+    videoModelUnconfigured:
+      "OpenRouter is not configured yet. Use “Manage providers and models” to add its API key.",
     tinyFish: "TinyFish web tools",
     tinyFishDescription:
       "Add an API key to let AI use web search and page fetching.",
@@ -281,6 +286,11 @@ export default {
         "Search OpenRouter's image models and pick the default for image generation.",
       imageSearchPlaceholder: "Search image models…",
       imageEmpty: "No matching image models",
+      videoTitle: "Choose a video model",
+      videoDescription:
+        "Search OpenRouter's video models and pick the default for video generation.",
+      videoSearchPlaceholder: "Search video models…",
+      videoEmpty: "No matching video models",
       recommended: "Recommended",
       removeFavorite: "Remove {model} from favorites",
       vision: "Vision",
@@ -1278,6 +1288,30 @@ export default {
             running: "Generating an image",
             error: "Couldn’t generate the image",
           },
+          generateVideo: {
+            saved: "Saved video",
+            pending: "Video queued",
+            inProgress: "Video generation in progress",
+            label: "generate a video",
+            complete: "Submitted video generation",
+            running: "Generating a video",
+            error: "Couldn’t generate the video",
+          },
+          listVideoModels: {
+            label: "inspect video models",
+            complete: "Inspected video models",
+            running: "Inspecting video models",
+            error: "Couldn’t inspect video models",
+          },
+          getVideoGeneration: {
+            saved: "Saved video",
+            pending: "Video queued",
+            inProgress: "Video generation in progress",
+            label: "check video generation",
+            complete: "Checked video generation",
+            running: "Checking video generation",
+            error: "Couldn’t check video generation",
+          },
         },
         bash: {
           complete: { before: "Ran ", after: "" },
@@ -1662,6 +1696,10 @@ export default {
     },
     imageModel: {
       title: "Unable to update image model",
+      description: "Check the OpenRouter credential and try again",
+    },
+    videoModel: {
+      title: "Unable to update video model",
       description: "Check the OpenRouter credential and try again",
     },
     providerDisconnect: {

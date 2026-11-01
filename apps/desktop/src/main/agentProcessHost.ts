@@ -20,6 +20,7 @@ import type {
   DeleteCustomProviderRequest,
   LoginProviderRequest,
   PineImageModelSelection,
+  PineVideoModelSelection,
   PineModelCatalog,
   PineThinkingLevel,
   PineUtilityModelSelection,
@@ -140,6 +141,10 @@ export interface AgentHost {
   selectImageModel(
     agentDir: string,
     selection: PineImageModelSelection,
+  ): Promise<{ updated: boolean }>;
+  selectVideoModel(
+    agentDir: string,
+    selection: PineVideoModelSelection,
   ): Promise<{ updated: boolean }>;
   setTinyFishApiKey(apiKey: string | undefined): Promise<{ updated: boolean }>;
   setContextCompactionStrategy(
@@ -399,6 +404,16 @@ export class AgentProcessHost implements AgentHost {
   ): Promise<{ updated: boolean }> {
     return this.request({
       type: "models:select-image",
+      agentDir,
+      selection,
+    });
+  }
+  selectVideoModel(
+    agentDir: string,
+    selection: PineVideoModelSelection,
+  ): Promise<{ updated: boolean }> {
+    return this.request({
+      type: "models:select-video",
       agentDir,
       selection,
     });

@@ -5,6 +5,7 @@ import {
   CheckIcon,
   HeartIcon,
   ImageIcon,
+  VideoIcon,
   PencilIcon,
   PlusIcon,
   Trash2Icon,
@@ -24,6 +25,7 @@ import { cn } from "@/lib/utils";
 import type {
   PineDecisionsModelDescriptor,
   PineImageModelDescriptor,
+  PineVideoModelDescriptor,
   PineModelDescriptor,
   PineProviderDescriptor,
 } from "@/shared/models";
@@ -60,6 +62,7 @@ type PickerRow =
       groupId: string;
     })
   | (PickerRowBase & { kind: "image"; model: PineImageModelDescriptor })
+  | (PickerRowBase & { kind: "video"; model: PineVideoModelDescriptor })
   | (PickerRowBase & { kind: "decisions"; model: PineDecisionsModelDescriptor })
   | (PickerRowBase & { kind: "provider"; provider: PineProviderDescriptor });
 
@@ -83,7 +86,7 @@ const ROW_CLASS =
 const props = withDefaults(
   defineProps<{
     favoriteKeys: readonly string[];
-    purpose?: "session" | "utility" | "image" | "decisions";
+    purpose?: "session" | "utility" | "image" | "video" | "decisions";
     sessionId?: string;
     view: PickerView;
     class?: HTMLAttributes["class"];
@@ -100,6 +103,7 @@ const emit = defineEmits<{
   editCustomProvider: [provider: PineProviderDescriptor];
   selectDecisionsModel: [model: PineDecisionsModelDescriptor];
   selectImageModel: [model: PineImageModelDescriptor];
+  selectVideoModel: [model: PineVideoModelDescriptor];
   selectModel: [model: PineModelDescriptor];
   selectProvider: [provider: PineProviderDescriptor];
   selectView: [view: PickerView];
@@ -115,6 +119,7 @@ const scrollElement = ref<HTMLElement | null>(null);
 
 const isDecisionsPurpose = computed(() => props.purpose === "decisions");
 const isImagePurpose = computed(() => props.purpose === "image");
+const isVideoPurpose = computed(() => props.purpose === "video");
 const sessionSelection = computed(() =>
   modelsStore.selectionFor(props.sessionId),
 );
@@ -167,6 +172,17 @@ const imageModelGroups = computed(() =>
           heading: modelsStore.imageModels[0]?.providerName ?? "",
           id: "image-models",
           models: modelsStore.imageModels,
+        },
+      ]
+    : [],
+);
+const videoModelGroups = computed(() =>
+  modelsStore.videoModels.length > 0
+    ? [
+        {
+          heading: modelsStore.videoModels[0]?.providerName ?? "",
+          id: "video-models",
+          models: modelsStore.videoModels,
         },
       ]
     : [],
@@ -321,6 +337,33 @@ const rows = computed<PickerRow[]>(() => {
 
     return result;
   }
+  if (isVideoPurpose.value) {
+    for (const group of videoModelGroups.value) {
+      const visible = group.models.filter((model) =>
+        includes(modelRowText(model)),
+      );
+      if (visible.length === 0) continue;
+
+      result.push({
+        heading: group.heading,
+        height: ROW_HEIGHT.heading,
+        id: rowId("heading", group.id),
+        kind: "heading",
+        text: group.heading,
+      });
+      result.push(
+        ...visible.map((model): PickerRow => ({
+          height: ROW_HEIGHT.model,
+          id: rowId("video", `${group.id}:${model.providerId}:${model.id}`),
+          kind: "video",
+          model,
+          text: modelRowText(model),
+        })),
+      );
+    }
+
+    return result;
+  }
 
   for (const group of modelGroups.value) {
     const visible = group.models.filter((model) =>
@@ -358,6 +401,7 @@ const isEmpty = computed(
       (row) =>
         row.kind === "model" ||
         row.kind === "image" ||
+        row.kind === "video" ||
         row.kind === "decisions" ||
         row.kind === "provider",
     ),
@@ -460,6 +504,12 @@ function isImageModelSelected(model: PineImageModelDescriptor): boolean {
     selected?.providerId === model.providerId && selected.modelId === model.id
   );
 }
+function isVideoModelSelected(model: PineVideoModelDescriptor): boolean {
+  const selected = modelsStore.videoSelection;
+  return (
+    selected?.providerId === model.providerId && selected.modelId === model.id
+  );
+}
 
 function canConfigure(provider: PineProviderDescriptor): boolean {
   return provider.authMethods.length > 0;
@@ -551,6 +601,26 @@ function withSearchReset(action: () => void): void {
             aria-hidden="true"
           />
           <ImageIcon v-else aria-hidden="true" />
+          <span class="flex min-w-0 flex-1 flex-col gap-0.5">
+            <span class="truncate">{{ row.model.name }}</span>
+            <span class="truncate text-xs font-normal text-muted-foreground">
+              {{ row.model.id }}
+            </span>
+          </span>
+        </ListboxItem>
+        <ListboxItem
+          v-else-if="row.kind === 'video'"
+          :class="ROW_CLASS"
+          data-picker-row="video"
+          :data-value="`${row.model.providerName} ${row.model.name} ${row.model.id}`"
+          :value="`${row.model.providerName} ${row.model.name} ${row.model.id}`"
+          @select="withSearchReset(() => emit('selectVideoModel', row.model))"
+        >
+          <CheckIcon
+            v-if="isVideoModelSelected(row.model)"
+            aria-hidden="true"
+          />
+          <VideoIcon v-else aria-hidden="true" />
           <span class="flex min-w-0 flex-1 flex-col gap-0.5">
             <span class="truncate">{{ row.model.name }}</span>
             <span class="truncate text-xs font-normal text-muted-foreground">
@@ -771,9 +841,11 @@ function withSearchReset(action: () => void): void {
             ? t("providers.picker.empty")
             : isDecisionsPurpose
               ? t("models.picker.decisionsEmpty")
-              : isImagePurpose
-                ? t("models.picker.imageEmpty")
-                : t("models.picker.empty")
+              : isVideoPurpose
+                ? t("models.picker.videoEmpty")
+                : isImagePurpose
+                  ? t("models.picker.imageEmpty")
+                  : t("models.picker.empty")
         }}
       </template>
     </div>

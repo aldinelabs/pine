@@ -5,6 +5,10 @@ import type { ModelRuntime } from "@earendil-works/pi-coding-agent";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { PineModelService } from "../model-service";
 
+vi.mock("../../media/video-models", () => ({
+  videoModelDescriptors: vi.fn(() => Promise.resolve([])),
+}));
+
 let agentDir: string;
 const fetchMock = vi.fn<typeof fetch>();
 const response = (id: string) =>

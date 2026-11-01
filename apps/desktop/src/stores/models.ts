@@ -7,6 +7,7 @@ import type {
   DeleteCustomProviderRequest,
   PineAuthType,
   PineImageModelDescriptor,
+  PineVideoModelDescriptor,
   PineModelCatalog,
   PineModelDescriptor,
   PineModelSelection,
@@ -183,6 +184,24 @@ export const useModelsStore = defineStore("models", () => {
     const selected = imageSelection.value;
     return selected
       ? imageModels.value.find(
+          (model) =>
+            model.providerId === selected.providerId &&
+            model.id === selected.modelId,
+        )
+      : undefined;
+  });
+
+  const videoModels = computed(() => catalog.value.videoModels ?? []);
+  const videoSelection = computed(() => catalog.value.videoSelection);
+  const videoProviderConfigured = computed(
+    () =>
+      providers.value.find((provider) => provider.id === "openrouter")
+        ?.configured === true,
+  );
+  const videoSelectedModel = computed(() => {
+    const selected = videoSelection.value;
+    return selected
+      ? videoModels.value.find(
           (model) =>
             model.providerId === selected.providerId &&
             model.id === selected.modelId,
@@ -375,6 +394,21 @@ export const useModelsStore = defineStore("models", () => {
       },
     };
   }
+  async function selectVideoModel(
+    model: PineVideoModelDescriptor,
+  ): Promise<void> {
+    await window.pine.selectVideoModel({
+      providerId: model.providerId,
+      modelId: model.id,
+    });
+    catalog.value = {
+      ...catalog.value,
+      videoSelection: {
+        providerId: model.providerId,
+        modelId: model.id,
+      },
+    };
+  }
 
   async function beginLogin(
     provider: PineProviderDescriptor,
@@ -454,9 +488,13 @@ export const useModelsStore = defineStore("models", () => {
     featuredModels,
     decisionsModels,
     imageModels,
+    videoModels,
     imageProviderConfigured,
+    videoProviderConfigured,
     imageSelectedModel,
+    videoSelectedModel,
     imageSelection,
+    videoSelection,
     isFavorite,
     isRecommended,
     isLoading,
@@ -469,6 +507,7 @@ export const useModelsStore = defineStore("models", () => {
     respondToPrompt,
     select,
     selectImageModel,
+    selectVideoModel,
     selectUtilityModel,
     selectedModel,
     selectedModelFor,

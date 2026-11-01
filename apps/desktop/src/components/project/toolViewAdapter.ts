@@ -135,6 +135,9 @@ export function toolViewAdapter(call: PineToolCall): ToolViewAdapter {
     case "web_fetch":
       return { detail: "fetch" };
     case "activate_media_generation":
+    case "list_video_models":
+    case "generate_video":
+    case "get_video_generation":
     case "generate_image":
       return { detail: "media" };
     default:

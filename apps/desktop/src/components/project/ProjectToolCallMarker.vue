@@ -159,8 +159,8 @@ function mcpTarget(name: string, input: Record<string, unknown>): string {
   return server ?? "";
 }
 
-/** First generated image path reported by generate_image, as a file name. */
-function generatedImageFileName(output: unknown): string | undefined {
+/** First generated media path reported by image/video tools, as a file name. */
+function generatedMediaFileName(output: unknown): string | undefined {
   const details = inputRecord(inputRecord(output).details);
   const files = Array.isArray(details.files) ? details.files : [];
   const first = files[0];
@@ -171,7 +171,7 @@ function generatedImageFileName(output: unknown): string | undefined {
   return typeof filePath === "string" ? filename(filePath) : undefined;
 }
 
-/** The prompt that produced an image generation call, compacted for the row. */
+/** The prompt that produced a media generation call, compacted for the row. */
 function mediaPrompt(input: Record<string, unknown>): string | undefined {
   const prompt = firstString(input, ["prompt"]);
   return prompt ? compactInline(prompt) : undefined;
@@ -905,8 +905,13 @@ const presentation = computed(() => {
                     : path
                   : skillName
                 : kind === "media"
-                  ? (generatedImageFileName(props.toolCall.output) ??
+                  ? (generatedMediaFileName(props.toolCall.output) ??
                     mediaPrompt(input) ??
+                    firstString(input, ["job_id"]) ??
+                    firstString(
+                      inputRecord(inputRecord(props.toolCall.output).details),
+                      ["id"],
+                    ) ??
                     "")
                   : path
                     ? `${filename(path)}${suffix}`
@@ -1141,6 +1146,21 @@ const presentation = computed(() => {
     };
   }
   if (operationPath) {
+    const mediaDetails = inputRecord(
+      inputRecord(props.toolCall.output).details,
+    );
+    const mediaState =
+      state === "complete" &&
+      (mediaOperation === "generateVideo" ||
+        mediaOperation === "getVideoGeneration")
+        ? generatedMediaFileName(props.toolCall.output)
+          ? "saved"
+          : mediaDetails.status === "pending"
+            ? "pending"
+            : mediaDetails.status === "in_progress"
+              ? "inProgress"
+              : state
+        : state;
     let embeddedTarget: string | undefined;
     let operationVariant: "NoApp" | "NoTarget" | undefined;
     if (computerOperationKey) {
@@ -1159,7 +1179,7 @@ const presentation = computed(() => {
     return {
       before: operationVariant
         ? t(`${operationPath}.${operationState}`)
-        : t(`${operationPath}.${state}`, {
+        : t(`${operationPath}.${mediaState}`, {
             app: appDisplayName(input) ?? "",
             target: embeddedTarget ?? "",
             url: firstString(input, ["url"]) ?? "",

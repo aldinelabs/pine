@@ -104,12 +104,20 @@ export const SKILL_OPERATION_ICON: Record<SkillOperation, Component> = {
   remove: Trash2Icon,
 };
 
-export type MediaOperation = "activateMediaGeneration" | "generateImage";
+export type MediaOperation =
+  | "activateMediaGeneration"
+  | "generateImage"
+  | "generateVideo"
+  | "getVideoGeneration"
+  | "listVideoModels";
 
 /** Icons shown for the dynamically activated media generation tools. */
 export const MEDIA_OPERATION_ICON: Record<MediaOperation, Component> = {
   activateMediaGeneration: ClapperboardIcon,
   generateImage: WandSparklesIcon,
+  generateVideo: ClapperboardIcon,
+  getVideoGeneration: HistoryIcon,
+  listVideoModels: ClapperboardIcon,
 };
 
 /** Order used to render a tool run's summary, matching the user's example
@@ -149,6 +157,9 @@ const SKILL_OPERATION_KEYS: Record<string, SkillOperation> = {
 const MEDIA_OPERATION_KEYS: Record<string, MediaOperation> = {
   activate_media_generation: "activateMediaGeneration",
   generate_image: "generateImage",
+  generate_video: "generateVideo",
+  get_video_generation: "getVideoGeneration",
+  list_video_models: "listVideoModels",
 };
 
 export function skillOperationKey(name: string): SkillOperation | undefined {

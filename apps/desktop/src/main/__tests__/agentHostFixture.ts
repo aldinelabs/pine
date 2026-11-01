@@ -28,6 +28,7 @@ export function createAgentHost(sessionSummary: PineSessionSummary): AgentHost {
     logoutProvider: vi.fn().mockResolvedValue({ disposed: true }),
     selectModel: vi.fn().mockResolvedValue({ disposed: true }),
     selectUtilityModel: vi.fn().mockResolvedValue({ updated: true }),
+    selectVideoModel: vi.fn(),
     selectImageModel: vi.fn().mockResolvedValue({ updated: true }),
     setTinyFishApiKey: vi.fn().mockResolvedValue({ updated: true }),
     setContextCompactionStrategy: vi.fn().mockResolvedValue({ updated: true }),

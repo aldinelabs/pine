@@ -18,6 +18,7 @@ import {
   type PineAuthType,
   type PineCustomModelApi,
   type PineImageModelSelection,
+  type PineVideoModelSelection,
   type PineModelCatalog,
   type PineProviderAuthEvent,
   type PineThinkingLevel,
@@ -45,10 +46,12 @@ import {
 import {
   readPineAgentSettings,
   writeImageModelSelection,
+  writeVideoModelSelection,
   writeUtilityModelSelection,
 } from "../pineSettings";
 import type { PineContextCompactionStrategy } from "../../shared/preferences";
 import { decisionsModelDescriptors } from "./decisions-models";
+import { videoModelDescriptors } from "../media/video-models";
 import type { LiveAgentSession } from "./session-state";
 
 interface PendingAuthPrompt {
@@ -182,8 +185,17 @@ export class PineModelService {
         })
       : undefined;
 
+    const [videoModels, decisionsModels] = await Promise.all([
+      videoModelDescriptors(agentDir),
+      decisionsModelDescriptors(agentDir),
+    ]);
+    const videoSelection = pineSettings.videoModel;
     return {
-      decisionsModels: await decisionsModelDescriptors(agentDir),
+      videoModels,
+      ...(runtime.hasConfiguredAuth("openrouter") && videoSelection
+        ? { videoSelection }
+        : {}),
+      decisionsModels,
       imageModels: imageModelDescriptors(),
       ...(effectiveImageSelection
         ? { imageSelection: effectiveImageSelection }
@@ -231,6 +243,7 @@ export class PineModelService {
         throw new Error(`Could not refresh model catalogs: ${details}`);
       }
       await decisionsModelDescriptors(agentDir, { force: true });
+      await videoModelDescriptors(agentDir, { force: true });
     } finally {
       clearTimeout(timeout);
     }
@@ -427,6 +440,24 @@ export class PineModelService {
       throw new Error("Configure this provider before selecting its model.");
     }
     await writeUtilityModelSelection(agentDir, selection);
+    return { updated: true };
+  }
+
+  async selectVideoModel(
+    agentDir: string,
+    selection: PineVideoModelSelection,
+  ): Promise<{ updated: boolean }> {
+    const runtime = await this.getModelRuntime(agentDir);
+    if (
+      selection.providerId !== "openrouter" ||
+      !runtime.hasConfiguredAuth("openrouter")
+    ) {
+      throw new Error("Configure OpenRouter before selecting a video model.");
+    }
+    const models = await videoModelDescriptors(agentDir, { force: true });
+    if (!models.some((model) => model.id === selection.modelId))
+      throw new Error("Video model not found.");
+    await writeVideoModelSelection(agentDir, selection);
     return { updated: true };
   }
 

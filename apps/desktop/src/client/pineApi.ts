@@ -101,6 +101,7 @@ import {
   RESPOND_PROVIDER_AUTH_CHANNEL,
   SELECT_MODEL_CHANNEL,
   SELECT_IMAGE_MODEL_CHANNEL,
+  SELECT_VIDEO_MODEL_CHANNEL,
   SELECT_UTILITY_MODEL_CHANNEL,
   UPDATE_CUSTOM_MODEL_CHANNEL,
   UPDATE_CUSTOM_PROVIDER_CHANNEL,
@@ -120,6 +121,7 @@ import {
   type UpdateCustomProviderRequest,
   type SelectModelRequest,
   type SelectImageModelRequest,
+  type SelectVideoModelRequest,
   type SelectUtilityModelRequest,
 } from "../shared/models";
 import {
@@ -618,6 +620,10 @@ export function createPineApi(transport: PineTransport): PineDesktopApi {
       request: SelectImageModelRequest,
     ): Promise<{ updated: boolean }> =>
       transport.invoke(SELECT_IMAGE_MODEL_CHANNEL, request),
+    selectVideoModel: (
+      request: SelectVideoModelRequest,
+    ): Promise<{ updated: boolean }> =>
+      transport.invoke(SELECT_VIDEO_MODEL_CHANNEL, request),
     openProviderAuthUrl: (url: string): Promise<void> =>
       transport.invoke(OPEN_PROVIDER_AUTH_URL_CHANNEL, url),
     setTinyFishApiKey: (

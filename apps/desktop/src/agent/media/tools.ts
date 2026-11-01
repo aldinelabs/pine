@@ -1,3 +1,9 @@
+import {
+  createVideoTools,
+  GENERATE_VIDEO_TOOL_NAME,
+  GET_VIDEO_GENERATION_TOOL_NAME,
+  LIST_VIDEO_MODELS_TOOL_NAME,
+} from "./video-tools";
 import { randomUUID } from "node:crypto";
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
@@ -36,12 +42,13 @@ export const ACTIVATE_MEDIA_GENERATION_TOOL_NAME =
 export const GENERATE_IMAGE_TOOL_NAME = "generate_image" as const;
 
 /**
- * Media tools hidden until `activate_media_generation` runs. Image generation
- * is the only entry today; further media tools join this list instead of
- * widening the always-visible tool set.
+ * Media tools stay hidden until `activate_media_generation` runs.
  */
 export const MEDIA_GENERATION_DYNAMIC_TOOL_NAMES = [
   GENERATE_IMAGE_TOOL_NAME,
+  GENERATE_VIDEO_TOOL_NAME,
+  LIST_VIDEO_MODELS_TOOL_NAME,
+  GET_VIDEO_GENERATION_TOOL_NAME,
 ] as const;
 
 const MAX_PROMPT_LENGTH = 8_000;
@@ -57,6 +64,8 @@ const IMAGE_FILE_EXTENSIONS: Record<string, string> = {
 };
 
 const ACTIVATION_GUIDANCE = `Media generation is active for this session.
+
+For videos first call list_video_models to inspect the selected model and its capabilities. Call generate_video with a complete prompt, optional first_frame / last_frame images or frame_images, image/audio/video input_references, duration, resolution, aspect_ratio or size, generate_audio, seed, previous_job_id for continuation, upscale_factor/creativity for upscaling, and provider.options for model-specific controls. Use only capabilities the selected model supports. Frame images and general references are different modes; do not combine them. Provider option keys come from allowedPassthroughParameters, and their provider-specific nesting must follow the provider documentation. It uses the video model selected in Pine settings. After interruption or timeout, use get_video_generation to list saved jobs or resume by job_id; do not submit again. Stopping local waiting does not cancel cloud generation or billing. Save the MP4 in a shared folder and call ui_present_file to show it.
 
 Call ${GENERATE_IMAGE_TOOL_NAME} with a self-contained prompt: name the subject, its actions and setting, then the composition, medium or style, lighting, colour palette, and any text that must appear in the image. Write the prompt in the language the user is using unless the prompt itself benefits from another language. Prefer one clear image per call; ask for variants with separate calls instead of stacking contradictory instructions in one prompt. When the user attached reference images, pass their local paths from the <pine_attachments> block in input_references.
 
@@ -118,11 +127,14 @@ export interface MediaGenerationToolOptions {
   getGate(): ToolGate | null;
   /** Resolves the OpenRouter credential; undefined when it is not configured. */
   resolveApiKey(): Promise<string | undefined>;
-  /**
-   * The image model the user picked in settings. It is the only way to choose
-   * an image model; the tool itself cannot ask for one.
-   */
+  /** Media models selected by the user in settings, never by the tool. */
   imageModelId?: () => Promise<string | undefined> | string | undefined;
+  videoModelId?: () => Promise<string | undefined> | string | undefined;
+  /** Agent-owned catalog cache and project-owned durable job directory. */
+  videoAgentDir?: string;
+  videoJobsDirectory?: string;
+  /** Local audio/video reads pass through the project's file-access policy. */
+  readVideoReferenceFile?: (target: string) => Promise<Uint8Array>;
   /** Directory that receives generated files when output_path is omitted. */
   outputDirectory: string;
   /** Authorizes (and canonicalizes) a project write target. */
@@ -261,11 +273,10 @@ function createActivateTool(options: MediaGenerationToolOptions) {
     name: ACTIVATE_MEDIA_GENERATION_TOOL_NAME,
     label: "Activate Media Generation",
     description:
-      "Dynamically enable Pine's media generation tools for the current session. Call this before generating images; the tools stay out of context until activation. Ask for image generation directly when the user asks for a picture, illustration, logo, mockup, or diagram rendered as an image.",
-    promptSnippet:
-      "Activate image generation on demand before drawing or generating any picture",
+      "Dynamically enable Pine's media generation tools for the current session. Call this before generating images or videos; the tools stay out of context until activation. Ask for image generation directly when the user asks for a picture, illustration, logo, mockup, or diagram rendered as an image.",
+    promptSnippet: "Activate image or video generation on demand",
     promptGuidelines: [
-      `Call ${ACTIVATE_MEDIA_GENERATION_TOOL_NAME} once when the user asks for a picture, illustration, logo, mockup, or any other image, then call ${GENERATE_IMAGE_TOOL_NAME}.`,
+      `Call ${ACTIVATE_MEDIA_GENERATION_TOOL_NAME} once when the user asks for a picture, illustration, logo, mockup, or any other image, then call ${GENERATE_IMAGE_TOOL_NAME}. For a video or animation, activate and call generate_video instead.`,
       `Skip activation for text-only work such as diagrams, charts, or icons that should be expressed as code.`,
     ],
     parameters: emptyParams,
@@ -469,5 +480,9 @@ export function createMediaGenerationToolDefinitions(
   options: MediaGenerationToolOptions,
 ): ToolDefinition[] {
   if (!options.activateMediaGeneration) return [];
-  return [createActivateTool(options), createGenerateImageTool(options)];
+  return [
+    createActivateTool(options),
+    createGenerateImageTool(options),
+    ...createVideoTools(options),
+  ];
 }

@@ -196,6 +196,11 @@ export default {
     noImageModelSelected: "默认模型",
     imageModelUnconfigured:
       "尚未配置 OpenRouter。可在“管理服务或模型”中添加它的 API 密钥。",
+    videoModel: "视频生成模型",
+    selectVideoModel: "选择模型",
+    noVideoModelSelected: "未选择模型",
+    videoModelUnconfigured:
+      "尚未配置 OpenRouter。可在“管理服务或模型”中添加它的 API 密钥。",
     tinyFish: "TinyFish 网络工具",
     tinyFishDescription: "配置 API 密钥后，AI 才能使用网络搜索和网页抓取。",
     addTinyFishApiKey: "添加密钥",
@@ -265,6 +270,11 @@ export default {
         "在 OpenRouter 的图像模型中搜索，并设定图像生成使用的默认模型。",
       imageSearchPlaceholder: "搜索图像模型…",
       imageEmpty: "没有匹配的图像模型",
+      videoTitle: "选择视频模型",
+      videoDescription:
+        "在 OpenRouter 的视频模型中搜索，并设定视频生成使用的默认模型。",
+      videoSearchPlaceholder: "搜索视频模型…",
+      videoEmpty: "没有匹配的视频模型",
       recommended: "推荐",
       removeFavorite: "取消收藏 {model}",
       vision: "视觉",
@@ -1228,6 +1238,30 @@ export default {
             running: "正在生成图片",
             error: "生成图片失败",
           },
+          generateVideo: {
+            saved: "已保存视频",
+            pending: "视频排队中",
+            inProgress: "视频生成中",
+            label: "生成视频",
+            complete: "已提交视频生成",
+            running: "正在生成视频",
+            error: "生成视频失败",
+          },
+          listVideoModels: {
+            label: "查看视频模型",
+            complete: "已查看视频模型",
+            running: "正在查看视频模型",
+            error: "查看视频模型失败",
+          },
+          getVideoGeneration: {
+            saved: "已保存视频",
+            pending: "视频排队中",
+            inProgress: "视频生成中",
+            label: "查询视频生成",
+            complete: "已查询视频生成",
+            running: "正在查询视频生成",
+            error: "查询视频生成失败",
+          },
         },
         bash: {
           complete: { before: "已执行 ", after: "" },
@@ -1609,6 +1643,10 @@ export default {
     },
     imageModel: {
       title: "无法更新图像模型",
+      description: "请检查 OpenRouter 凭据后重试",
+    },
+    videoModel: {
+      title: "无法更新视频模型",
       description: "请检查 OpenRouter 凭据后重试",
     },
     providerDisconnect: {

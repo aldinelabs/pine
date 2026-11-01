@@ -17,6 +17,7 @@ import { Spinner } from "@/components/ui/spinner";
 import type {
   PineDecisionsModelDescriptor,
   PineImageModelDescriptor,
+  PineVideoModelDescriptor,
   PineModelDescriptor,
   PineProviderDescriptor,
 } from "@/shared/models";
@@ -32,7 +33,7 @@ type PickerView = "models" | "providers";
 const props = withDefaults(
   defineProps<{
     open: boolean;
-    purpose?: "session" | "utility" | "image" | "decisions";
+    purpose?: "session" | "utility" | "image" | "video" | "decisions";
     sessionId?: string;
   }>(),
   { purpose: "session" },
@@ -44,6 +45,7 @@ const modelsStore = useModelsStore();
 const autoApprovalStore = useAutoApprovalStore();
 const isDecisionsPurpose = computed(() => props.purpose === "decisions");
 const isImagePurpose = computed(() => props.purpose === "image");
+const isVideoPurpose = computed(() => props.purpose === "video");
 const view = ref<PickerView>("models");
 const isAuthOpen = ref(false);
 const selectedProvider = ref<PineProviderDescriptor | null>(null);
@@ -67,27 +69,33 @@ const title = computed(() =>
     ? t("providers.picker.title")
     : isDecisionsPurpose.value
       ? t("models.picker.decisionsTitle")
-      : isImagePurpose.value
-        ? t("models.picker.imageTitle")
-        : t("models.picker.title"),
+      : isVideoPurpose.value
+        ? t("models.picker.videoTitle")
+        : isImagePurpose.value
+          ? t("models.picker.imageTitle")
+          : t("models.picker.title"),
 );
 const description = computed(() =>
   view.value === "providers"
     ? t("providers.picker.description")
     : isDecisionsPurpose.value
       ? t("models.picker.decisionsDescription")
-      : isImagePurpose.value
-        ? t("models.picker.imageDescription")
-        : t("models.picker.description"),
+      : isVideoPurpose.value
+        ? t("models.picker.videoDescription")
+        : isImagePurpose.value
+          ? t("models.picker.imageDescription")
+          : t("models.picker.description"),
 );
 const searchPlaceholder = computed(() =>
   view.value === "providers"
     ? t("providers.picker.searchPlaceholder")
     : isDecisionsPurpose.value
       ? t("models.picker.decisionsSearchPlaceholder")
-      : isImagePurpose.value
-        ? t("models.picker.imageSearchPlaceholder")
-        : t("models.picker.searchPlaceholder"),
+      : isVideoPurpose.value
+        ? t("models.picker.videoSearchPlaceholder")
+        : isImagePurpose.value
+          ? t("models.picker.imageSearchPlaceholder")
+          : t("models.picker.searchPlaceholder"),
 );
 
 watch(
@@ -203,6 +211,20 @@ async function selectImageModel(
       id: "preferences.image-model",
       title: t("errors.imageModel.title"),
       description: t("errors.imageModel.description"),
+    });
+  }
+}
+async function selectVideoModel(
+  model: PineVideoModelDescriptor,
+): Promise<void> {
+  try {
+    await modelsStore.selectVideoModel(model);
+    emit("update:open", false);
+  } catch (error) {
+    handleError(error, {
+      id: "preferences.video-model",
+      title: t("errors.videoModel.title"),
+      description: t("errors.videoModel.description"),
     });
   }
 }
@@ -346,6 +368,7 @@ async function handleConnected(): Promise<void> {
       @edit-custom-provider="openCustomProviderEditor"
       @select-decisions-model="selectDecisionsModel"
       @select-image-model="selectImageModel"
+      @select-video-model="selectVideoModel"
       @select-model="selectModel"
       @select-provider="selectProvider"
       @select-view="view = $event"

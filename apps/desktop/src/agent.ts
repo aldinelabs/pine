@@ -146,6 +146,12 @@ async function handleRequest(request: AgentWorkerRequest): Promise<void> {
         request.selection,
       );
       break;
+    case "models:select-video":
+      result = await runtime.selectVideoModel(
+        request.agentDir,
+        request.selection,
+      );
+      break;
     case "runtime:dispose":
       result = await runtime.dispose();
       break;

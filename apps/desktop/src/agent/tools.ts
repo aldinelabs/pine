@@ -312,7 +312,8 @@ export interface PineMediaGenerationContext {
   activate(): void;
   /** Resolves the OpenRouter credential; undefined when it is not configured. */
   resolveOpenRouterApiKey(): Promise<string | undefined>;
-  /** The image model the user picked in the composer's model selector. */
+  /** Media models selected in Pine settings. */
+  videoModelId?(): Promise<string | undefined> | string | undefined;
   imageModelId?(): Promise<string | undefined> | string | undefined;
 }
 
@@ -923,6 +924,11 @@ export async function createPineToolDefinitions(
     getApprovalMode,
     getGate,
     imageModelId,
+    videoModelId: () => mediaGeneration?.videoModelId?.(),
+    videoAgentDir: location.agentDir,
+    readVideoReferenceFile: async (target) =>
+      readFile(await policy.authorize(target, "read")),
+    videoJobsDirectory: path.join(location.sessionsRoot, "video-jobs"),
     outputDirectory: path.join(canonicalBashTemporaryDirectory, "media"),
     resolveApiKey: () =>
       mediaGeneration?.resolveOpenRouterApiKey() ?? Promise.resolve(undefined),

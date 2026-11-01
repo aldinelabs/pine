@@ -11,6 +11,7 @@ import type {
   DeleteCustomProviderRequest,
   LoginProviderRequest,
   PineImageModelSelection,
+  PineVideoModelSelection,
   PineModelCatalog,
   PineProviderAuthEvent,
   PineThinkingLevel,
@@ -265,6 +266,12 @@ export type AgentWorkerRequest =
       type: "models:select-image";
       agentDir: string;
       selection: PineImageModelSelection;
+    }
+  | {
+      id: string;
+      type: "models:select-video";
+      agentDir: string;
+      selection: PineVideoModelSelection;
     }
   | {
       id: string;

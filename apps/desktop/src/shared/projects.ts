@@ -56,6 +56,7 @@ import type {
   ProviderLoginResult,
   SelectModelRequest,
   SelectImageModelRequest,
+  SelectVideoModelRequest,
   SelectUtilityModelRequest,
   UpdateCustomModelRequest,
   UpdateCustomProviderRequest,
@@ -503,6 +504,9 @@ export interface PineDesktopApi extends PineWindowApi, PineQuickComposerApi {
   ) => Promise<{ updated: boolean }>;
   selectImageModel: (
     request: SelectImageModelRequest,
+  ) => Promise<{ updated: boolean }>;
+  selectVideoModel: (
+    request: SelectVideoModelRequest,
   ) => Promise<{ updated: boolean }>;
   openProviderAuthUrl: (url: string) => Promise<void>;
   onProviderAuthEvent: (listener: ProviderAuthEventListener) => () => void;

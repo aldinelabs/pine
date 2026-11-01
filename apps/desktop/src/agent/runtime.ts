@@ -30,6 +30,7 @@ import type {
   DeleteCustomProviderRequest,
   PineAuthType,
   PineImageModelSelection,
+  PineVideoModelSelection,
   PineModelCatalog,
   PineThinkingLevel,
   PineUtilityModelSelection,
@@ -739,6 +740,12 @@ export class PineAgentRuntime {
   ): Promise<{ updated: boolean }> {
     return this.modelService.selectImageModel(agentDir, selection);
   }
+  selectVideoModel(
+    agentDir: string,
+    selection: PineVideoModelSelection,
+  ): Promise<{ updated: boolean }> {
+    return this.modelService.selectVideoModel(agentDir, selection);
+  }
 
   setContextCompactionStrategy(strategy: PineContextCompactionStrategy): {
     updated: boolean;
@@ -1007,6 +1014,8 @@ export class PineAgentRuntime {
             );
             this.syncActiveTools(live);
           },
+          videoModelId: async () =>
+            (await readPineAgentSettings(live.agentDir)).videoModel?.modelId,
           imageModelId: async () => {
             const selected = (await readPineAgentSettings(live.agentDir))
               .imageModel;

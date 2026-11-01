@@ -188,6 +188,7 @@ export function createWebChannels(
     [models.LOOKUP_MODEL_METADATA_CHANNEL, query("none")],
     [models.SELECT_MODEL_CHANNEL, command("optional-session")],
     [models.SELECT_IMAGE_MODEL_CHANNEL, command("none")],
+    [models.SELECT_VIDEO_MODEL_CHANNEL, command("none")],
     [models.SELECT_UTILITY_MODEL_CHANNEL, command("none")],
     [models.ADD_CUSTOM_MODEL_CHANNEL, command("none")],
     [models.UPDATE_CUSTOM_MODEL_CHANNEL, command("none")],

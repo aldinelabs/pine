@@ -110,13 +110,14 @@ const customCatalog: PineModelCatalog = {
 };
 
 function mountPicker(
-  purpose: "session" | "utility" | "image" | "decisions" = "session",
+  purpose: "session" | "utility" | "image" | "video" | "decisions" = "session",
   catalog: PineModelCatalog = connectedCatalog,
 ) {
   const logoutProvider = vi.fn().mockResolvedValue({ disposed: true });
   const selectModel = vi.fn().mockResolvedValue(undefined);
   const selectUtilityModel = vi.fn().mockResolvedValue(undefined);
   const selectImageModel = vi.fn().mockResolvedValue(undefined);
+  const selectVideoModel = vi.fn().mockResolvedValue(undefined);
   const getAutoApprovalSettings = vi
     .fn()
     .mockResolvedValue({ ...DEFAULT_AUTO_APPROVAL_SETTINGS });
@@ -133,6 +134,7 @@ function mountPicker(
       logoutProvider,
       selectModel,
       selectImageModel,
+      selectVideoModel,
       selectUtilityModel,
       addCustomModel: vi.fn(),
     },
@@ -171,6 +173,7 @@ function mountPicker(
     getModelCatalog,
     logoutProvider,
     selectImageModel,
+    selectVideoModel,
     selectModel,
     selectUtilityModel,
     wrapper,
@@ -443,5 +446,31 @@ describe("ModelPickerDialog Decisions model selection", () => {
     expect(
       wrapper.find('[data-picker-row][data-value="back models"]').exists(),
     ).toBe(true);
+  });
+});
+
+describe("ModelPickerDialog video selection", () => {
+  it("selects a video model separately from chat and image models", async () => {
+    const model = {
+      id: "test/video",
+      name: "Test Video",
+      providerId: "openrouter" as const,
+      providerName: "OpenRouter",
+      supportedDurations: [4],
+      supportedResolutions: ["720p"],
+      supportedAspectRatios: ["16:9"],
+    };
+    const { wrapper, selectVideoModel, selectImageModel, selectModel } =
+      mountPicker("video", { ...connectedCatalog, videoModels: [model] });
+    await wrapper.get('[data-picker-row="video"]').trigger("click");
+    await flushPromises();
+    expect(selectVideoModel).toHaveBeenCalledWith({
+      providerId: "openrouter",
+      modelId: "test/video",
+    });
+    expect(selectImageModel).not.toHaveBeenCalled();
+    expect(selectModel).not.toHaveBeenCalled();
+    expect(useModelsStore().videoSelection?.modelId).toBe("test/video");
+    expect(wrapper.emitted("update:open")).toContainEqual([false]);
   });
 });

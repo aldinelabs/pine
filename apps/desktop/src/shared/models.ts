@@ -11,6 +11,7 @@ export const LOOKUP_MODEL_METADATA_CHANNEL = "models:lookup-metadata" as const;
 export const SELECT_MODEL_CHANNEL = "models:select" as const;
 export const SELECT_UTILITY_MODEL_CHANNEL = "models:select-utility" as const;
 export const SELECT_IMAGE_MODEL_CHANNEL = "models:select-image" as const;
+export const SELECT_VIDEO_MODEL_CHANNEL = "models:select-video" as const;
 export const LOGIN_PROVIDER_CHANNEL = "providers:login" as const;
 export const RESPOND_PROVIDER_AUTH_CHANNEL = "providers:auth-response" as const;
 export const CANCEL_PROVIDER_AUTH_CHANNEL = "providers:auth-cancel" as const;
@@ -91,6 +92,10 @@ export type PineImageModelSelection = Pick<
   PineModelSelection,
   "modelId" | "providerId"
 >;
+export type PineVideoModelSelection = Pick<
+  PineModelSelection,
+  "modelId" | "providerId"
+>;
 
 /** A typed decision model, separate from chat and image generation models. */
 export interface PineDecisionsModelDescriptor {
@@ -100,7 +105,28 @@ export interface PineDecisionsModelDescriptor {
   providerName: string;
 }
 
+export interface PineVideoModelDescriptor {
+  id: string;
+  name: string;
+  providerId: "openrouter";
+  providerName: string;
+  supportedDurations: number[];
+  supportedResolutions: string[];
+  supportedAspectRatios: string[];
+  supportedSizes?: string[];
+  supportedFrameImages?: string[];
+  generatesAudio?: boolean;
+  supportsSeed?: boolean;
+  upscaleFactor?: { min: number; max: number };
+  creativity?: number[];
+  allowedPassthroughParameters?: string[];
+  description?: string;
+  pricingSkus?: Record<string, string>;
+}
+
 export interface PineModelCatalog {
+  videoModels?: readonly PineVideoModelDescriptor[];
+  videoSelection?: PineVideoModelSelection;
   decisionsModels?: readonly PineDecisionsModelDescriptor[];
   imageModels?: readonly PineImageModelDescriptor[];
   imageSelection?: PineImageModelSelection;
@@ -241,6 +267,7 @@ export type SelectModelRequest = PineModelSelection & {
 };
 export type SelectUtilityModelRequest = PineUtilityModelSelection;
 export type SelectImageModelRequest = PineImageModelSelection;
+export type SelectVideoModelRequest = PineVideoModelSelection;
 
 export interface LogoutProviderRequest {
   providerId: string;
