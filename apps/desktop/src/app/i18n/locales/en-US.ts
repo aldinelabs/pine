@@ -852,7 +852,7 @@ export default {
         agentDecidesLabel: "Auto Approve",
         agentDecides: "Balance autonomy and control; ask selectively.",
         autonomousLabel: "Autonomous Work",
-        autonomous: "Maximize AI autonomy without external user action.",
+        autonomous: "Maximize autonomy and never stop to ask.",
         yoloLabel: "YOLO",
         yolo: "Remove all permission constraints. Not recommended.",
         yoloConfirmTitle: "Enable “YOLO”?",

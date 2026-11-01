@@ -811,7 +811,7 @@ export default {
         agentDecidesLabel: "自动审批",
         agentDecides: "平衡自主性与可控性，选择性询问。",
         autonomousLabel: "自主工作",
-        autonomous: "最大化 AI 自主工作能力，无需外部用户操作。",
+        autonomous: "最大化自主性、不停下询问。",
         yoloLabel: "干就完了",
         yolo: "关闭一切权限约束。不推荐该选项。",
         yoloConfirmTitle: "启用“干就完了”？",
