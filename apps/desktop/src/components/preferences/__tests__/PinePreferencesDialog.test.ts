@@ -547,7 +547,7 @@ describe("PinePreferencesDialog", () => {
     const { wrapper } = mountDialog();
     const toggle = wrapper.get('[data-testid="pine-sidebar-vibrancy-toggle"]');
 
-    expect(wrapper.text()).toContain("\u4fa7\u680f\u6a21\u7cca\u6548\u679c");
+    expect(wrapper.text()).toContain("\u4fa7\u680f\u539f\u751f\u6750\u8d28");
 
     await toggle.trigger("click");
 

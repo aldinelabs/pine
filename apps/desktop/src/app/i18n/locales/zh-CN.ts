@@ -103,8 +103,8 @@ export default {
     invertDocuments: "深色模式下反色文档",
     invertDocumentsDescription:
       "深色模式下默认反色显示 PDF、演示文稿等文档的页面",
-    sidebarVibrancy: "侧栏模糊效果",
-    sidebarVibrancyDescription: "使用 macOS 原生模糊材质渲染侧栏",
+    sidebarVibrancy: "侧栏原生材质",
+    sidebarVibrancyDescription: "使用 macOS 原生侧栏材质渲染侧栏",
     modelCatalogRefresh: "模型目录",
     modelCatalogRefreshDescription: "获取已配置服务的最新模型列表。",
     modelCatalogRefreshAction: "立即刷新",

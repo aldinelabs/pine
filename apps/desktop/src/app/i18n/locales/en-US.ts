@@ -107,9 +107,9 @@ export default {
     invertDocuments: "Invert documents in dark mode",
     invertDocumentsDescription:
       "Open PDFs, presentations and other documents with inverted pages in dark mode",
-    sidebarVibrancy: "Sidebar blur",
+    sidebarVibrancy: "Native sidebar material",
     sidebarVibrancyDescription:
-      "Render the sidebar with the native macOS blur material",
+      "Render the sidebar with the native macOS sidebar material",
     modelCatalogRefresh: "Model catalogs",
     modelCatalogRefreshDescription:
       "Fetch the latest model lists for configured providers.",
