@@ -1,7 +1,4 @@
-import { app, utilityProcess } from "electron";
-import { SYSTEM_LANGUAGES_ENV } from "../agent/network-region";
 import { randomUUID } from "node:crypto";
-import path from "node:path";
 import type { McpStatusSnapshot } from "pi-mcp-adapter";
 import type {
   BackgroundTaskResult,
@@ -44,7 +41,7 @@ import type {
   PineRuntimeEvent,
 } from "../agent/protocol";
 
-interface AgentProcess {
+export interface AgentProcess {
   readonly stdout?: Pick<NodeJS.ReadableStream, "resume"> | null;
   readonly stderr?: Pick<NodeJS.ReadableStream, "resume"> | null;
   kill(): boolean;
@@ -167,7 +164,7 @@ export interface AgentHost {
   ): Promise<{ updated: boolean }>;
 }
 
-type AgentProcessFactory = () => AgentProcess;
+export type AgentProcessFactory = () => AgentProcess;
 
 interface PendingRequest {
   reject: (reason: Error) => void;
@@ -214,19 +211,6 @@ export class AgentProcessHost implements AgentHost {
   private readonly listeners = new Set<(event: PineRuntimeEvent) => void>();
 
   constructor(private readonly createProcess: AgentProcessFactory) {}
-
-  static createDefault(): AgentProcessHost {
-    return new AgentProcessHost(() =>
-      utilityProcess.fork(path.join(__dirname, "agent.mjs"), [], {
-        serviceName: "Pine Agent",
-        stdio: "pipe",
-        env: {
-          ...process.env,
-          [SYSTEM_LANGUAGES_ENV]: app.getPreferredSystemLanguages().join(","),
-        },
-      }),
-    );
-  }
 
   createSession(
     location: AgentSessionLocation,

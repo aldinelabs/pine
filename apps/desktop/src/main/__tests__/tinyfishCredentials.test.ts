@@ -14,8 +14,6 @@ const safeStorageMock = vi.hoisted(() => ({
   isEncryptionAvailable: vi.fn(() => true),
 }));
 
-vi.mock("electron", () => ({ safeStorage: safeStorageMock }));
-
 import { TinyFishCredentialStore } from "../tinyfishCredentials";
 
 const temporaryDirectories: string[] = [];
@@ -41,7 +39,7 @@ describe("TinyFishCredentialStore", () => {
     );
     temporaryDirectories.push(directory);
     const filePath = path.join(directory, "tinyfish-api-key");
-    const store = new TinyFishCredentialStore(filePath);
+    const store = new TinyFishCredentialStore(filePath, safeStorageMock);
 
     await store.load();
     expect(store.isConfigured()).toBe(false);
@@ -51,7 +49,7 @@ describe("TinyFishCredentialStore", () => {
     expect(store.isConfigured()).toBe(true);
     expect(await readFile(filePath, "utf8")).not.toContain("tinyfish-secret");
 
-    const reloaded = new TinyFishCredentialStore(filePath);
+    const reloaded = new TinyFishCredentialStore(filePath, safeStorageMock);
     await reloaded.load();
     expect(reloaded.getApiKey()).toBe("tinyfish-secret");
     expect(safeStorageMock.decryptString).toHaveBeenCalled();
@@ -65,6 +63,7 @@ describe("TinyFishCredentialStore", () => {
     safeStorageMock.isEncryptionAvailable.mockReturnValue(false);
     const store = new TinyFishCredentialStore(
       path.join(directory, "tinyfish-api-key"),
+      safeStorageMock,
     );
 
     await expect(store.setApiKey("tinyfish-secret")).rejects.toThrow(

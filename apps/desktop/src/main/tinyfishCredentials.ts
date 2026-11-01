@@ -1,4 +1,3 @@
-import { safeStorage } from "electron";
 import {
   chmod,
   mkdir,
@@ -19,8 +18,8 @@ export interface TinyFishSafeStorage {
 const MAX_API_KEY_LENGTH = 4_096;
 
 /**
- * Stores the TinyFish credential encrypted with the operating system's
- * credential store. The plaintext key is kept only in this main-process
+ * Stores the TinyFish credential encrypted with the given storage: the
+ * operating system's credential store on the desktop. The plaintext key is kept only in this main-process
  * object and is passed to the agent worker when a session is created.
  */
 export class TinyFishCredentialStore {
@@ -28,7 +27,7 @@ export class TinyFishCredentialStore {
 
   constructor(
     private readonly filePath: string,
-    private readonly storage: TinyFishSafeStorage = safeStorage,
+    private readonly storage: TinyFishSafeStorage,
   ) {}
 
   async load(): Promise<void> {

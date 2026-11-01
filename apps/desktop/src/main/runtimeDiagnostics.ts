@@ -2,7 +2,7 @@ import { appendFile, mkdir, rename, stat } from "node:fs/promises";
 import path from "node:path";
 import { performance } from "node:perf_hooks";
 
-type DiagnosticDetails = Record<string, string | number | boolean>;
+export type DiagnosticDetails = Record<string, string | number | boolean>;
 
 const MAX_LOG_BYTES = 1_048_576;
 const PENDING_REQUEST_MS = 15_000;

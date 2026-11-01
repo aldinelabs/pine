@@ -4,10 +4,6 @@ import type { AgentWorkerRequest } from "../../agent/protocol";
 import type { PineAgentEvent } from "../../shared/agent";
 import { AgentProcessHost } from "../agentProcessHost";
 
-vi.mock("electron", () => ({
-  utilityProcess: { fork: vi.fn() },
-}));
-
 class FakeAgentProcess extends EventEmitter {
   readonly stdout = { resume: vi.fn() };
   readonly stderr = { resume: vi.fn() };

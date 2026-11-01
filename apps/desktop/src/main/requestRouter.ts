@@ -27,6 +27,11 @@ export class PineRequestRouter {
     this.handlers.set(channel, handler);
   }
 
+  /** Every registered channel, so a transport can expose them all. */
+  channels(): string[] {
+    return [...this.handlers.keys()];
+  }
+
   invoke(
     channel: string,
     context: PineRequestContext,

@@ -1,415 +1,28 @@
 import {
-  SetWatchedProjectDirectoriesRequestSchema,
-  SetWatchedFilePreviewRequestSchema,
-} from "./main/fileSubscriptionSchemas";
-import { WebApplication } from "./main/webApplication";
-import { WebSessionState } from "./main/webSessionState";
-import { WebAccessStore } from "./main/webAccess";
-import {
-  approvalNotificationActions,
-  approvalNotificationBody,
-  questionnaireNotificationBody,
-} from "./main/attentionNotifications";
-import {
-  hasQuitBlockers,
-  quitConfirmationText,
-  type QuitBlockers,
-} from "./main/quitGuard";
-import {
-  DEFAULT_WEB_SERVER_SETTINGS,
-  GET_WEB_SERVER_CHANNEL,
-  MIN_WEB_PASSWORD_LENGTH,
-  SET_WEB_PASSWORD_CHANNEL,
-  SET_WEB_SERVER_CHANNEL,
-  SIGN_OUT_WEB_BROWSERS_CHANNEL,
-  WEB_CLIENT_ID,
-  isWebServerSettings,
-  type WebServerSettings,
-} from "./shared/webControl";
-import {
-  PineRequestRouter,
-  type PineRequestContext,
-  type PineRequestHandler,
-} from "./main/requestRouter";
-import {
-  ProjectFileOperationSchema,
-  ProjectEntryReferenceSchema,
-} from "./main/projectFileOperations";
-import {
   app,
   autoUpdater,
   BrowserWindow,
   clipboard,
   dialog,
-  globalShortcut,
   ipcMain,
   nativeTheme,
   net,
-  Notification,
   powerMonitor,
   protocol,
+  safeStorage,
   shell,
-  systemPreferences,
+  utilityProcess,
   webContents,
-  type IpcMainEvent,
-  type OpenDialogOptions,
-  type Rectangle,
 } from "electron";
 import started from "electron-squirrel-startup";
-import { randomUUID } from "node:crypto";
-import {
-  mkdir,
-  readFile,
-  realpath,
-  rename,
-  rm,
-  stat,
-  writeFile,
-} from "node:fs/promises";
+import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { z } from "zod";
-import { WorkbenchStateRequests } from "./main/workbenchStateRequests";
-import { WORKBENCH_STATE_RESPONSE_CHANNEL } from "./shared/workbench";
-import { ProjectRuntimeRegistry } from "./main/projectRuntime";
-import { toErrorMessage, type AgentHostReply } from "./agent/protocol";
-import {
-  listMcpServers,
-  saveMcpServer,
-  removeMcpServer,
-} from "./main/mcpConfig";
-import {
-  LIST_MCP_SERVERS_CHANNEL,
-  SAVE_MCP_SERVER_CHANNEL,
-  REMOVE_MCP_SERVER_CHANNEL,
-  type PineMcpCatalog,
-} from "./shared/mcp";
-import {
-  operatePresentedFile,
-  PresentedFileRegistry,
-} from "./main/presentedFiles";
-import { TinyFishCredentialStore } from "./main/tinyfishCredentials";
-import {
-  readProjectFilePreview,
-  projectMediaUrl,
-  serveProjectMediaRequest,
-} from "./main/projectFilePreview";
-import { installWindowShortcuts } from "./main/windowShortcuts";
-import { QuickComposerController } from "./main/quickComposer";
-import { applyLiquidGlass, isLiquidGlassSupported } from "./main/liquidGlass";
-import {
-  hideSidebarGlass,
-  isSidebarGlassSupported,
-  setGlassCornerRadius,
-  setWindowAnimates,
-  showSidebarGlass,
-  windowCornerRadius,
-} from "./main/sidebarGlass";
-import {
-  captureAppContext,
-  discardAppContext,
-  frontmostApp,
-} from "./main/appContext";
-import {
-  DEFAULT_QUICK_COMPOSER_ENABLED,
-  GET_QUICK_COMPOSER_CHANNEL,
-  HIDE_QUICK_COMPOSER_CHANNEL,
-  DELIVER_QUICK_COMPOSER_CHANNEL,
-  PRESENT_QUICK_COMPOSER_HANDOFF_CHANNEL,
-  QUICK_COMPOSER_ACCELERATOR,
-  QUICK_COMPOSER_HANDOFF_ARGUMENT,
-  QUICK_COMPOSER_ROUTE_HASH,
-  SET_QUICK_COMPOSER_CHANNEL,
-  QUICK_COMPOSER_GLASS_RADIUS,
-  SET_QUICK_COMPOSER_GLASS_CHANNEL,
-  SET_QUICK_COMPOSER_PASS_THROUGH_CHANNEL,
-  REQUEST_QUICK_COMPOSER_PERMISSION_CHANNEL,
-  SUBMIT_QUICK_COMPOSER_CHANNEL,
-  TAKE_QUICK_COMPOSER_HANDOFF_CHANNEL,
-  type QuickComposerHandoff,
-  type SetQuickComposerResult,
-} from "./shared/quickComposer";
-import { AppUpdater, readUpdateManifestUrl } from "./main/appUpdater";
-import { AgentProcessHost } from "./main/agentProcessHost";
-import { ApproximateLocationService } from "./main/approximateLocation";
-import {
-  DEFAULT_APPROXIMATE_LOCATION_ENABLED,
-  GET_APPROXIMATE_LOCATION_CHANNEL,
-  SET_APPROXIMATE_LOCATION_CHANNEL,
-  type SetApproximateLocationResult,
-} from "./shared/approximateLocation";
-import { RuntimeDiagnostics } from "./main/runtimeDiagnostics";
-import {
-  CompletionSignalTracker,
-  type PineCompletedRun,
-} from "./main/completionSignal";
-import { ModelRecommendationService } from "./main/modelRecommendations";
-import {
-  ensureWindowsSandboxReady,
-  releaseWindowsSandboxRuntimeAccess,
-  type WindowsSandboxSetupChoice,
-} from "./main/windowsSandbox";
-import { ModelMetadataService } from "./main/modelMetadata";
-import { ProjectRepository } from "./main/projects/projectRepository";
-import {
-  clearProjectStorage,
-  measureProjectStorage,
-} from "./main/projects/projectStorage";
-import {
-  collectSkillResources,
-  PineSkillRepository,
-} from "./agent/skills/repository";
-import {
-  filterPineManagedSkills,
-  piProjectSkillPaths,
-  pineScopeForPiSkill,
-  summarizePiSkill,
-} from "./agent/skills/piDiscovery";
-import {
-  readPineAgentSettings,
-  writeAutoApprovalSettings,
-  writeContextCompactionRoute,
-  writeContextCompactionStrategy,
-  writeCompletionSignalMode,
-  writeAttentionNotificationsEnabled,
-  writeQuickComposerEnabled,
-  writeApproximateLocationEnabled,
-  writeDiagnosticLoggingEnabled,
-  writePineUserProfile,
-  writeWebServerSettings,
-} from "./agent/pineSettings";
-import {
-  LIST_BACKGROUND_TASKS_CHANNEL,
-  READ_BACKGROUND_TASK_OUTPUT_CHANNEL,
-  STOP_BACKGROUND_TASK_CHANNEL,
-  type BackgroundTaskResult,
-  type ListBackgroundTasksResult,
-  type ReadBackgroundTaskOutputResult,
-} from "./shared/backgroundTasks";
-import {
-  ABORT_SESSION_CHANNEL,
-  COMPACT_SESSION_CHANNEL,
-  APPROVAL_RESPONSE_CHANNEL,
-  QUESTIONNAIRE_RESPONSE_CHANNEL,
-  DEQUEUE_STEERING_CHANNEL,
-  PROMPT_SESSION_CHANNEL,
-  SET_APPROVAL_MODE_CHANNEL,
-  SESSION_EVENT_CHANNEL,
-  type AbortSessionResult,
-  type CompactSessionResult,
-  type DequeueSteeringResult,
-  type PineAgentEvent,
-  type PineSessionEvent,
-  type PinePresentFileEvent,
-  type PineSessionTeleportedEvent,
-  type PromptSessionResult,
-  type RespondApprovalRequest,
-  type RespondQuestionnaireRequest,
-  type SetApprovalModeResult,
-} from "./shared/agent";
-import {
-  DEFAULT_AUTO_APPROVAL_SETTINGS,
-  isPineAutoApprovalSettings,
-  DEFAULT_CONTEXT_COMPACTION_ROUTE,
-  DEFAULT_CONTEXT_COMPACTION_STRATEGY,
-  GET_CONTEXT_COMPACTION_ROUTE_CHANNEL,
-  SET_CONTEXT_COMPACTION_ROUTE_CHANNEL,
-  GET_CONTEXT_COMPACTION_STRATEGY_CHANNEL,
-  SET_CONTEXT_COMPACTION_STRATEGY_CHANNEL,
-  GET_DIAGNOSTIC_LOGGING_CHANNEL,
-  SET_DIAGNOSTIC_LOGGING_CHANNEL,
-  GET_COMPLETION_SIGNAL_CHANNEL,
-  SET_COMPLETION_SIGNAL_CHANNEL,
-  GET_ATTENTION_NOTIFICATIONS_CHANNEL,
-  SET_ATTENTION_NOTIFICATIONS_CHANNEL,
-  DEFAULT_ATTENTION_NOTIFICATIONS_ENABLED,
-  type SetAttentionNotificationsResult,
-  COMPLETION_SOUND_EVENT_CHANNEL,
-  GET_AUTO_APPROVAL_SETTINGS_CHANNEL,
-  SET_AUTO_APPROVAL_SETTINGS_CHANNEL,
-  type PineAutoApprovalSettings,
-  type PineContextCompactionRoute,
-  type PineContextCompactionStrategy,
-  DEFAULT_COMPLETION_SIGNAL_MODE,
-  type PineCompletionSignalMode,
-  PINE_COMPLETION_SIGNAL_MODES,
-  type SetCompletionSignalResult,
-  type SetContextCompactionRouteResult,
-  type SetContextCompactionStrategyResult,
-  type SetDiagnosticLoggingResult,
-} from "./shared/preferences";
-import {
-  ATTACHMENT_IMAGE_PROTOCOL,
-  INSPECT_ATTACHMENTS_CHANNEL,
-  MAX_PASTED_IMAGE_BYTES,
-  MAX_PASTED_TEXT_BYTES,
-  OPEN_ATTACHMENT_CHANNEL,
-  PICK_ATTACHMENT_FOLDERS_CHANNEL,
-  PICK_ATTACHMENTS_CHANNEL,
-  SAVE_PASTED_ATTACHMENT_CHANNEL,
-  extensionForPastedImage,
-  PASTED_IMAGE_MIME_TYPES,
-  type PineAttachment,
-  type PineAttachmentKind,
-  type OpenAttachmentResult,
-  type PickAttachmentsResult,
-  type SavePastedAttachmentResult,
-} from "./shared/attachments";
-import {
-  ADD_CUSTOM_MODEL_CHANNEL,
-  CANCEL_PROVIDER_AUTH_CHANNEL,
-  DELETE_CUSTOM_MODEL_CHANNEL,
-  DELETE_CUSTOM_PROVIDER_CHANNEL,
-  GET_MODEL_CATALOG_CHANNEL,
-  REFRESH_MODEL_CATALOG_CHANNEL,
-  LOGIN_PROVIDER_CHANNEL,
-  LOOKUP_MODEL_METADATA_CHANNEL,
-  LOGOUT_PROVIDER_CHANNEL,
-  OPEN_PROVIDER_AUTH_URL_CHANNEL,
-  PROVIDER_AUTH_EVENT_CHANNEL,
-  RESPOND_PROVIDER_AUTH_CHANNEL,
-  SELECT_MODEL_CHANNEL,
-  SELECT_IMAGE_MODEL_CHANNEL,
-  SELECT_UTILITY_MODEL_CHANNEL,
-  UPDATE_CUSTOM_MODEL_CHANNEL,
-  UPDATE_CUSTOM_PROVIDER_CHANNEL,
-  isProviderAuthEvent,
-  type AddCustomModelRequest,
-  type DeleteCustomModelRequest,
-  type DeleteCustomProviderRequest,
-  type LookupModelMetadataRequest,
-  type PineModelCatalog,
-  type PineModelMetadata,
-  type ProviderLoginResult,
-  type UpdateCustomModelRequest,
-  type UpdateCustomProviderRequest,
-} from "./shared/models";
-import {
-  CREATE_PROJECT_CHANNEL,
-  CLOSE_PROJECT_CHANNEL,
-  DELETE_PROJECT_CHANNEL,
-  PROJECT_STORAGE_CHANNEL,
-  CLEAR_PROJECT_STORAGE_CHANNEL,
-  type ProjectStorageResult,
-  type ProjectStorageUsage,
-  LIBRARY_CHANGED_CHANNEL,
-  LIST_PROJECTS_CHANNEL,
-  OPEN_PROJECT_CHANNEL,
-  PICK_PROJECT_FOLDERS_CHANNEL,
-  PROJECTS_DIRECTORY,
-  isTemporaryWorkspace,
-  PROJECT_ATTACHMENTS_DIRECTORY,
-  TEMPORARY_WORKSPACE_PROJECT_ID,
-  PROJECT_COLOR_THEMES,
-  PROJECT_ICONS,
-  UPDATE_PROJECT_CHANNEL,
-  UPDATE_PROJECT_SESSION_GROUPS_CHANNEL,
-  type DeleteProjectResult,
-  type ListProjectsResult,
-  type OpenProjectResult,
-  type PineProject,
-  type PickProjectFoldersResult,
-  type PineLibraryChange,
-  type ProjectResult,
-} from "./shared/projects";
-import {
-  CREATE_SKILL_CHANNEL,
-  EDIT_SKILL_CHANNEL,
-  LIST_SKILLS_CHANNEL,
-  READ_SKILL_CHANNEL,
-  REMOVE_SKILL_CHANNEL,
-  SET_GLOBAL_SKILL_ENABLED_CHANNEL,
-  type ListSkillsResult,
-  type PineSkillScope,
-  type ReadSkillResult,
-  type RemoveSkillResult,
-  type SetGlobalSkillEnabledResult,
-} from "./shared/skills";
-import {
-  GET_TINYFISH_CREDENTIAL_STATUS_CHANNEL,
-  SET_TINYFISH_API_KEY_CHANNEL,
-  type SetTinyFishApiKeyResult,
-  type TinyFishCredentialStatus,
-} from "./shared/tinyfish";
-import {
-  createDefaultPineUserProfile,
-  GET_USER_PROFILE_CHANNEL,
-  SET_USER_PROFILE_CHANNEL,
-  type PineUserProfile,
-  type SetUserProfileResult,
-} from "./shared/userProfile";
-
-import {
-  ATTACH_SESSION_CHANNEL,
-  DELETE_SESSION_CHANNEL,
-  EXPORT_SESSION_CHANNEL,
-  LOAD_SESSION_MESSAGES_CHANNEL,
-  RENAME_SESSION_CHANNEL,
-  RESUME_SESSION_CHANNEL,
-  SEARCH_SESSIONS_CHANNEL,
-  LIST_ALL_RECENT_SESSIONS_CHANNEL,
-  SEARCH_ALL_SESSIONS_CHANNEL,
-  type AttachSessionResult,
-  type DeleteSessionResult,
-  type ExportSessionResult,
-  type LoadSessionMessagesResult,
-  type RenameSessionResult,
-  type ResumeSessionResult,
-  type SearchSessionsResult,
-  type ListAllRecentSessionsResult,
-  type SearchAllSessionsResult,
-} from "./shared/sessions";
-import {
-  attachmentForProjectSession,
-  listAllRecentSessions,
-  searchAllSessions,
-} from "./main/recentSessions";
-import {
-  PROJECT_FILE_OPERATION_CHANNEL,
-  PRESENTED_FILE_OPERATION_CHANNEL,
-  PROJECT_FILE_ATTACHMENTS_CHANNEL,
-  LIST_PROJECT_DIRECTORY_CHANNEL,
-  START_PROJECT_FILE_DRAG_CHANNEL,
-  READ_PROJECT_FILE_PREVIEW_CHANNEL,
-  READ_PRESENTED_FILE_PREVIEW_CHANNEL,
-  REOPEN_PRESENTED_TOOL_FILE_CHANNEL,
-  PROJECT_MEDIA_PROTOCOL,
-  PROJECT_FILES_CHANGED_CHANNEL,
-  SET_WATCHED_PROJECT_DIRECTORIES_CHANNEL,
-  SET_WATCHED_FILE_PREVIEW_CHANNEL,
-  FILE_PREVIEW_CHANGED_CHANNEL,
-  type ListProjectDirectoryResult,
-} from "./shared/projectFiles";
-import { ProjectFileWatcherRegistry } from "./main/projectFileWatcher";
-import { FilePreviewWatcherRegistry } from "./main/filePreviewWatcher";
-import { startProjectFileDrag } from "./main/projectFileDrag";
-import {
-  applyWindowLayout,
-  PROJECT_WINDOW_WIDTH,
-  commitWindowResize,
-  planWindowResize,
-} from "./main/windowExpansion";
-import {
-  DARK_WINDOW_BACKGROUND,
-  LIGHT_WINDOW_BACKGROUND,
-  PROJECT_LIST_WINDOW_SIZE,
-  SET_SIDEBAR_GLASS_WIDTH_CHANNEL,
-  SET_SIDEBAR_VIBRANCY_CHANNEL,
-  SET_THEME_SOURCE_CHANNEL,
-  isPineThemeSource,
-  SET_WINDOW_BACKGROUND_CHANNEL,
-  isWindowBackgroundColor,
-  CLOSE_WINDOW_CHANNEL,
-  SET_WINDOW_LAYOUT_CHANNEL,
-  PLAN_WINDOW_RESIZE_CHANNEL,
-  COMMIT_WINDOW_RESIZE_CHANNEL,
-  WINDOW_RESIZE_STARTED_CHANNEL,
-  isPineWindowResizeRequest,
-  isPineWindowLayout,
-  GET_APP_VERSION_CHANNEL,
-  OPEN_EXTERNAL_URL_CHANNEL,
-  TRANSPARENT_WINDOW_BACKGROUND,
-  type SetSidebarVibrancyResult,
-} from "./shared/window";
+import { SYSTEM_LANGUAGES_ENV } from "./agent/network-region";
+import { ATTACHMENT_IMAGE_PROTOCOL } from "./shared/attachments";
+import { PROJECT_MEDIA_PROTOCOL } from "./shared/projectFiles";
+import { LIBRARY_CHANGED_CHANNEL } from "./shared/projects";
+import { DEFAULT_QUICK_COMPOSER_ENABLED } from "./shared/quickComposer";
 import {
   CHECK_FOR_UPDATE_CHANNEL,
   DOWNLOAD_UPDATE_CHANNEL,
@@ -420,17 +33,39 @@ import {
   type PineUpdateEvent,
   type UpdateCheckResult,
 } from "./shared/updates";
+import {
+  DEFAULT_WEB_SERVER_SETTINGS,
+  GET_WEB_SERVER_CHANNEL,
+  MIN_WEB_PASSWORD_LENGTH,
+  SET_WEB_PASSWORD_CHANNEL,
+  SET_WEB_SERVER_CHANNEL,
+  SIGN_OUT_WEB_BROWSERS_CHANNEL,
+  isWebServerSettings,
+  type WebServerSettings,
+} from "./shared/webControl";
 import type { WindowsSandboxStatus } from "./shared/windowsSandbox";
-
-type DefaultResourceLoader =
-  import("@earendil-works/pi-coding-agent").DefaultResourceLoader;
-type PiSkill = import("@earendil-works/pi-coding-agent").Skill;
-
-// This allows TypeScript to pick up the magic constants that's auto-generated by Forge's Vite
-// plugin that tells the Electron app where to look for the Vite-bundled app code (depending on
-// whether you're running in development or production).
-declare const MAIN_WINDOW_VITE_DEV_SERVER_URL: string;
-declare const MAIN_WINDOW_VITE_NAME: string;
+import { AppUpdater, readUpdateManifestUrl } from "./main/appUpdater";
+import type { PineHost } from "./main/core/host";
+import { PineCore } from "./main/core/pineCore";
+import { DesktopAttention, isChineseLocale } from "./main/desktop/attention";
+import { registerNativeIpc } from "./main/desktop/nativeIpc";
+import { DesktopQuickComposer } from "./main/desktop/quickComposer";
+import {
+  DesktopWindows,
+  rendererDevUrl,
+  rendererRoot,
+} from "./main/desktop/windows";
+import { serveProjectMediaRequest } from "./main/projectFilePreview";
+import {
+  hasQuitBlockers,
+  quitConfirmationText,
+  type QuitBlockers,
+} from "./main/quitGuard";
+import {
+  ensureWindowsSandboxReady,
+  releaseWindowsSandboxRuntimeAccess,
+  type WindowsSandboxSetupChoice,
+} from "./main/windowsSandbox";
 
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
 if (started) {
@@ -471,91 +106,137 @@ const ATTACHMENT_IMAGE_CONTENT_TYPES: Record<string, string> = {
   png: "image/png",
   webp: "image/webp",
 };
-const PROJECT_ID_PATTERN =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-const MAX_PASTED_ATTACHMENT_NAME_LENGTH = 200;
 
-const SavePastedAttachmentRequestSchema = z.union([
-  z.object({
-    bytes: z
-      .instanceof(Uint8Array)
-      .refine(
-        (bytes) =>
-          bytes.byteLength > 0 && bytes.byteLength <= MAX_PASTED_IMAGE_BYTES,
-      ),
-    mimeType: z.enum(PASTED_IMAGE_MIME_TYPES),
-    name: z.string().max(MAX_PASTED_ATTACHMENT_NAME_LENGTH).optional(),
-    projectId: z.uuid(),
-  }),
-  z.object({
-    mimeType: z.literal("text/plain"),
-    name: z.string().max(MAX_PASTED_ATTACHMENT_NAME_LENGTH).optional(),
-    projectId: z.uuid(),
-    text: z
-      .string()
-      .refine((text) => text.trim().length > 0)
-      .refine(
-        (text) => Buffer.byteLength(text, "utf8") <= MAX_PASTED_TEXT_BYTES,
-      ),
-  }),
-]);
+nativeTheme.themeSource = "system";
 
-/** Root of the Pine-managed projects tree; set once the app is ready. */
-let projectsRootPath: string | null = null;
+/** Set once the app is ready; everything shared with the server lives here. */
+let core: PineCore | null = null;
+let appUpdater: AppUpdater | null = null;
+let windowsSandboxReady = process.platform !== "win32";
+let windowsSandboxSetupPromise: Promise<boolean> | null = null;
 
-/**
- * Filesystem paths the user explicitly selected as message attachments, per
- * window. Previewing them mirrors the agent's read-only grant for the same
- * paths, so the protocol may serve them even outside granted folders.
- */
-const attachedPreviewPaths = new Map<number, Set<string>>();
-const workbenchStateRequests = new WorkbenchStateRequests();
-ipcMain.on(WORKBENCH_STATE_RESPONSE_CHANNEL, (event, response: unknown) => {
-  workbenchStateRequests.respond(event.sender.id, response);
-});
-
-function registerAttachmentPreviewPaths(
-  webContentsId: number,
-  attachmentPaths: readonly string[],
-): void {
-  const registered = attachedPreviewPaths.get(webContentsId) ?? new Set();
-  for (const attachmentPath of attachmentPaths) {
-    registered.add(path.resolve(attachmentPath));
-  }
-  attachedPreviewPaths.set(webContentsId, registered);
+function requireCore(): PineCore {
+  if (!core) throw new Error("Pine is not ready.");
+  return core;
 }
 
-/**
- * Whether the protocol may serve this file: either a Pine-managed pasted
- * attachment (`<projectsRoot>/<projectId>/attachments/<file>`) or a file
- * inside a folder granted to one of the currently open projects.
- */
-function isServableAttachmentPath(resolvedPath: string): boolean {
-  if (!projectsRootPath) return false;
+const appIconPath = app.isPackaged
+  ? path.join(process.resourcesPath, "icon.png")
+  : path.join(app.getAppPath(), "resources/icon.png");
 
-  const relativePath = path.relative(projectsRootPath, resolvedPath);
-  if (
-    relativePath !== "" &&
-    !relativePath.startsWith(`..${path.sep}`) &&
-    relativePath !== ".." &&
-    !path.isAbsolute(relativePath)
-  ) {
-    const segments = relativePath.split(path.sep);
-    if (
-      segments.length === 3 &&
-      segments[1] === PROJECT_ATTACHMENTS_DIRECTORY &&
-      PROJECT_ID_PATTERN.test(segments[0])
-    ) {
+function windowForWebContentsId(
+  webContentsId: number,
+): BrowserWindow | undefined {
+  return BrowserWindow.getAllWindows().find(
+    (window) =>
+      !window.isDestroyed() && window.webContents.id === webContentsId,
+  );
+}
+
+function focusWindow(window: BrowserWindow): void {
+  if (window.isMinimized()) window.restore();
+  if (!window.isVisible()) window.show();
+  window.focus();
+}
+
+function ownerWindow(ownerId: number): BrowserWindow | undefined {
+  const sender = webContents.fromId(ownerId);
+  const window = sender ? BrowserWindow.fromWebContents(sender) : undefined;
+  return window && !window.isDestroyed() ? window : undefined;
+}
+
+const attention = new DesktopAttention(requireCore, ownerWindow);
+
+const windows = new DesktopWindows({
+  iconPath: appIconPath,
+  ...(isSmokeTest && { smokeTestReady: () => app.exit(0) }),
+  record: (event, details) => core?.diagnostics.record(event, details),
+  focused: () => attention.clearApprovalAttention(),
+  destroyed: (webContentsId) => core?.releaseClient(webContentsId),
+});
+windows.registerIpc();
+
+const quickComposer = new DesktopQuickComposer({
+  core: () => core,
+  windows,
+  windowForClient: windowForWebContentsId,
+  focus: focusWindow,
+});
+quickComposer.registerIpc();
+
+/** Windows the user sees as Pine's, without the quick composer's own. */
+function appWindows(): BrowserWindow[] {
+  return BrowserWindow.getAllWindows().filter(
+    (window) => !quickComposer.isAuxiliary(window),
+  );
+}
+
+function createWindow(): BrowserWindow {
+  return windows.create();
+}
+
+/** What the shared application needs from Electron. */
+function desktopHost(): PineHost {
+  return {
+    dataDirectory: app.getPath("userData"),
+    logsDirectory: app.getPath("logs"),
+    geoipDatabasePath: app.isPackaged
+      ? path.join(process.resourcesPath, "dbip-city-lite.mmdb.gz")
+      : path.join(app.getAppPath(), "resources/geoip/dbip-city-lite.mmdb.gz"),
+    version: app.getVersion(),
+    runtime: { electron: process.versions.electron },
+    // net.fetch goes through the system proxy, like the rest of Pine's traffic.
+    fetch: (url, init) => net.fetch(url, init),
+    createAgentProcess: () =>
+      utilityProcess.fork(path.join(__dirname, "agent.mjs"), [], {
+        serviceName: "Pine Agent",
+        stdio: "pipe",
+        env: {
+          ...process.env,
+          [SYSTEM_LANGUAGES_ENV]: app.getPreferredSystemLanguages().join(","),
+        },
+      }),
+    credentialStorage: safeStorage,
+    renderer: { root: rendererRoot(), devUrl: rendererDevUrl() },
+    fileActions: {
+      trash: (filePath) => shell.trashItem(filePath),
+      open: (filePath) => shell.openPath(filePath),
+      reveal: (filePath) => shell.showItemInFolder(filePath),
+      copyPath: (filePath) => clipboard.writeText(filePath),
+    },
+    sendToClient: (clientId, channel, value) => {
+      const target = webContents.fromId(clientId);
+      if (!target || target.isDestroyed()) return false;
+      target.send(channel, value);
       return true;
-    }
-  }
-  if (getProjectRuntimes().isInsideGrantedFolder(resolvedPath)) {
-    return true;
-  }
-  for (const registered of attachedPreviewPaths.values()) {
-    if (registered.has(resolvedPath)) return true;
-  }
-  return false;
+    },
+    focusClient: (clientId) => {
+      const window = windowForWebContentsId(clientId);
+      if (window) focusWindow(window);
+      return window !== undefined;
+    },
+    libraryChanged: (change, sourceClientId) => {
+      for (const window of appWindows())
+        if (!window.isDestroyed() && window.webContents.id !== sourceClientId)
+          window.webContents.send(LIBRARY_CHANGED_CHANNEL, change);
+    },
+    observeAgentEvent: (event, ownerId) => attention.observe(event, ownerId),
+    attentionNotificationsChanged: (enabled) => {
+      if (!enabled) attention.closeAttentionNotifications();
+    },
+  };
+}
+
+/** Every shared request is also an IPC channel for desktop windows. */
+function exposeRequestsOverIpc(pine: PineCore): void {
+  for (const channel of pine.router.channels())
+    ipcMain.handle(channel, (event, request: unknown) =>
+      pine.router.invoke(
+        channel,
+        { clientId: event.sender.id, source: "desktop" },
+        request,
+      ),
+    );
 }
 
 function registerAttachmentImageProtocol(): void {
@@ -570,7 +251,7 @@ function registerAttachmentImageProtocol(): void {
       return new Response("Bad request", { status: 400 });
     }
     const resolvedPath = path.resolve(requestedPath);
-    if (!isServableAttachmentPath(resolvedPath)) {
+    if (!core?.isServableAttachmentPath(resolvedPath)) {
       return new Response("Forbidden", { status: 403 });
     }
     try {
@@ -589,354 +270,6 @@ function registerAttachmentImageProtocol(): void {
   });
 }
 
-nativeTheme.themeSource = "system";
-
-let webApplication: WebApplication | null = null;
-const webSessionState = new WebSessionState();
-
-function sendClientEvent(
-  clientId: number,
-  channel: string,
-  value: unknown,
-): void {
-  if (clientId === WEB_CLIENT_ID)
-    webApplication?.server.publish(channel, value);
-  else webContents.fromId(clientId)?.send(channel, value);
-}
-
-function sendSessionEvent(
-  ownerId: number,
-  event: PineSessionEvent,
-  recipients?: number[],
-): void {
-  const attached =
-    recipients ??
-    (event.type === "session-reset"
-      ? projectRuntimes?.clientsOfProject(event.projectId)
-      : projectRuntimes?.clientsOfSession(event.sessionId)) ??
-    [];
-  const clients = attached.length ? attached : [ownerId];
-  for (const clientId of clients) {
-    if (event.type === "present-file" && event.target.source === "presented")
-      presentedFiles?.remember(clientId, event.target.path);
-    if (clientId !== WEB_CLIENT_ID)
-      sendClientEvent(clientId, SESSION_EVENT_CHANNEL, event);
-  }
-  webApplication?.publishSession(event);
-}
-
-let agentHost: AgentProcessHost | null = null;
-let runtimeDiagnostics: RuntimeDiagnostics | null = null;
-let pineAgentDirectory: string | null = null;
-const modelRecommendations = new ModelRecommendationService();
-const modelMetadata = new ModelMetadataService();
-let projectRuntimes: ProjectRuntimeRegistry | null = null;
-let completionSignalMode: PineCompletionSignalMode =
-  DEFAULT_COMPLETION_SIGNAL_MODE;
-let attentionNotificationsEnabled = DEFAULT_ATTENTION_NOTIFICATIONS_ENABLED;
-const completionSignals = new CompletionSignalTracker();
-let presentedFiles: PresentedFileRegistry | null = null;
-let projectFileWatchers: ProjectFileWatcherRegistry | null = null;
-const filePreviewWatchers = new FilePreviewWatcherRegistry(
-  (senderId, target) =>
-    target.source === "project"
-      ? previewPath(senderId, target)
-      : presentedFilePath(senderId, target),
-  (senderId, watchId) => {
-    sendClientEvent(senderId, FILE_PREVIEW_CHANGED_CHANNEL, { watchId });
-  },
-);
-let projectRepository: ProjectRepository | null = null;
-let appUpdater: AppUpdater | null = null;
-let tinyFishCredentialStore: TinyFishCredentialStore | null = null;
-let windowsSandboxReady = process.platform !== "win32";
-let windowsSandboxSetupPromise: Promise<boolean> | null = null;
-const pendingProjectOpens = new Map<
-  string,
-  { promise: Promise<PineProject>; webContentsId: number }
->();
-
-const ProjectFolderInputSchema = z.object({
-  access: z.enum(["read-only", "read-write"]),
-  id: z.uuid(),
-  name: z.string().trim().min(1).max(100),
-  path: z.string().min(1).max(4_096),
-});
-const SkillNameSchema = z
-  .string()
-  .trim()
-  .min(1)
-  .max(64)
-  .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/);
-const PiSkillNameSchema = z
-  .string()
-  .trim()
-  .min(1)
-  .max(64)
-  .regex(/^[a-z0-9-]+$/)
-  .refine(
-    (name) =>
-      !name.startsWith("-") && !name.endsWith("-") && !name.includes("--"),
-  );
-const ProjectMutationSchema = z
-  .object({
-    defaultFolderId: z.uuid(),
-    folders: z.array(ProjectFolderInputSchema).min(1),
-    name: z.string().trim().min(1).max(100),
-    projectColorTheme: z.enum(PROJECT_COLOR_THEMES).default("olive"),
-    projectIcon: z.enum(PROJECT_ICONS).optional(),
-  })
-  .superRefine((project, context) => {
-    const defaultFolder = project.folders.find(
-      (folder) => folder.id === project.defaultFolderId,
-    );
-    if (defaultFolder?.access === "read-write") return;
-
-    context.addIssue({
-      code: "custom",
-      message: "The default folder must have read-write access.",
-      path: ["defaultFolderId"],
-    });
-  });
-const PickProjectFoldersRequestSchema = z.object({
-  mode: z.enum(["context", "default"]),
-});
-const ProjectIdRequestSchema = z.object({ id: z.uuid() });
-const UpdateProjectSessionGroupsRequestSchema = z.object({
-  id: z.uuid(),
-  sessionGroups: z.array(
-    z.object({
-      id: z.uuid(),
-      name: z.string().trim().min(1).max(100),
-      sessionIds: z.array(z.uuid()),
-    }),
-  ),
-});
-const SkillScopeRequestSchema = z
-  .object({
-    projectId: z.uuid().optional(),
-    scope: z.enum(["global", "project"]),
-  })
-  .superRefine((request, context) => {
-    if (request.scope === "project" && !request.projectId) {
-      context.addIssue({
-        code: "custom",
-        message: "Project scope requires a project ID.",
-        path: ["projectId"],
-      });
-    }
-  });
-const SkillIdentityRequestSchema = SkillScopeRequestSchema.safeExtend({
-  managedBy: z.enum(["pine", "pi"]).optional(),
-  name: PiSkillNameSchema,
-});
-const WriteSkillRequestSchema = SkillIdentityRequestSchema.safeExtend({
-  content: z.string().trim().min(1).max(1_000_000),
-});
-const SetGlobalSkillEnabledRequestSchema = z.object({
-  enabled: z.boolean(),
-  name: SkillNameSchema,
-  projectId: z.uuid(),
-});
-const ProjectFilePreviewRequestSchema = ProjectEntryReferenceSchema;
-const PresentedFilePreviewRequestSchema = z.object({
-  path: z.string().min(1).max(4096),
-});
-const ReopenPresentedToolFileRequestSchema = z.object({
-  projectId: z.uuid(),
-  sessionId: z.uuid(),
-  toolCallId: z.string().min(1).max(256),
-});
-
-async function previewPath(ownerId: number, request: unknown): Promise<string> {
-  const entry = ProjectFilePreviewRequestSchema.parse(request);
-  if (!getProjectRuntimes().isOpen(ownerId, entry.projectId))
-    throw new Error("Project is no longer open.");
-  const [filePath] = await getProjectRuntimes().projectEntryPaths(ownerId, [
-    entry,
-  ]);
-  if (!getProjectRuntimes().isOpen(ownerId, entry.projectId))
-    throw new Error("Project is no longer open.");
-  return filePath;
-}
-
-/**
- * Resolve a presented file for content serving. The path must still be an
- * absolute path this window presented, so a tab can never turn the media
- * protocol into a generic disk read.
- */
-async function presentedFilePath(
-  ownerId: number,
-  request: unknown,
-): Promise<string> {
-  const { path: requestedPath } =
-    PresentedFilePreviewRequestSchema.parse(request);
-  const canonicalPath = await realpath(requestedPath).catch(() => null);
-  if (!canonicalPath || !presentedFiles?.allows(ownerId, canonicalPath)) {
-    throw new Error("This file was not presented to this window.");
-  }
-  return canonicalPath;
-}
-
-/**
- * Resolve a presented file into a tab target and forward it to its window. The
- * renderer only ever sees the resolved target: main is the only place that
- * knows which project folder a path belongs to, and the only place allowed to
- * grant a window read access to a file outside those folders.
- */
-async function forwardPresentedFile(
-  event: Extract<PineAgentEvent, { type: "present-file" }>,
-  ownerId: number,
-): Promise<void> {
-  const target = await projectRuntimes?.resolvePresentTarget(
-    event.sessionId,
-    event.path,
-  );
-  // An unresolvable path (folder removed, file deleted, project gone) never
-  // becomes a tab, so the renderer cannot be handed a raw absolute path.
-  if (!target) return;
-  const projectId = projectRuntimes?.projectOfLiveSession(event.sessionId)?.id;
-  if (!projectId) return;
-  if (target.source === "presented") {
-    presentedFiles?.remember(ownerId, target.path);
-  }
-  sendSessionEvent(ownerId, {
-    ...event,
-    projectId,
-    target,
-  } satisfies PinePresentFileEvent);
-}
-
-/**
- * Answer a tool that needs main: live workbench state, the project library, or
- * a confirmed move to another project. A move only checks and records the
- * target here; it happens once the session's current run ends.
- */
-async function answerHostRequest(
-  event: Extract<PineAgentEvent, { type: "host-request" }>,
-  ownerId: number,
-): Promise<void> {
-  const reply = await (async (): Promise<AgentHostReply> => {
-    try {
-      if (event.request.kind === "workbench-state") {
-        const state = await workbenchStateRequests.request(
-          ownerId,
-          event.sessionId,
-          (request) => {
-            const owner = webContents.fromId(ownerId);
-            if (ownerId === WEB_CLIENT_ID) {
-              sendClientEvent(ownerId, SESSION_EVENT_CHANNEL, request);
-              return;
-            }
-            if (!owner || owner.isDestroyed())
-              throw new Error("The session's Pine window is unavailable.");
-            owner.send(SESSION_EVENT_CHANNEL, request);
-          },
-        );
-        return { ok: true, response: { kind: "workbench-state", state } };
-      }
-      if (event.request.kind === "approximate-location") {
-        const enabled =
-          (await readPineAgentSettings(getPineAgentDirectory()))
-            .approximateLocationEnabled ?? DEFAULT_APPROXIMATE_LOCATION_ENABLED;
-        return {
-          ok: true,
-          response: {
-            kind: "approximate-location",
-            location: enabled ? await getApproximateLocation().current() : null,
-          },
-        };
-      }
-      const projects = (await getProjectRepository().list()).filter(
-        (project) => !isTemporaryWorkspace(project.id),
-      );
-      if (event.request.kind === "list-projects") {
-        const currentId = getProjectRuntimes().projectOfLiveSession(
-          event.sessionId,
-        )?.id;
-        return {
-          ok: true,
-          response: {
-            kind: "list-projects",
-            projects: projects.map((project) => ({
-              id: project.id,
-              name: project.name,
-              ...(project.id === currentId ? { current: true } : {}),
-              defaultFolderPath:
-                project.folders.find(
-                  (folder) => folder.id === project.defaultFolderId,
-                )?.path ?? "",
-              folders: project.folders.map(({ access, name, path }) => ({
-                access,
-                name,
-                path,
-              })),
-            })),
-          },
-        };
-      }
-      const { projectId } = event.request;
-      const project = projects.find((candidate) => candidate.id === projectId);
-      if (!project) throw new Error("That project does not exist.");
-      const defaultFolder = project.folders.find(
-        (folder) => folder.id === project.defaultFolderId,
-      );
-      if (!defaultFolder?.isAvailable)
-        throw new Error("The project's default folder is unavailable.");
-      const projectOwner = getProjectRuntimes().ownerOfProject(project.id);
-      if (projectOwner !== undefined && projectOwner !== ownerId)
-        throw new Error("That project is open in another Pine window.");
-      getProjectRuntimes().scheduleTeleport(event.sessionId, project.id);
-      return {
-        ok: true,
-        response: {
-          kind: "teleport",
-          projectName: project.name,
-          cwd: defaultFolder.path,
-        },
-      };
-    } catch (error) {
-      return { ok: false, error: toErrorMessage(error) };
-    }
-  })();
-  agentHost?.respondHostRequest(event.requestId, reply);
-}
-
-async function teleportSession(
-  sessionId: string,
-  projectId: string,
-): Promise<void> {
-  try {
-    const repository = getProjectRepository();
-    const project = await repository.open(projectId);
-    const recipients = getProjectRuntimes().clientsOfSession(sessionId);
-    const { fromProjectId, webContentsId } =
-      await getProjectRuntimes().teleportSession(
-        sessionId,
-        project,
-        repository.dataPaths(projectId),
-      );
-    for (const clientId of recipients)
-      await getProjectRuntimes().share(
-        clientId,
-        project,
-        repository.dataPaths(projectId),
-      );
-    sendSessionEvent(
-      webContentsId,
-      {
-        type: "session-teleported",
-        sessionId,
-        fromProjectId,
-        projectId,
-      } satisfies PineSessionTeleportedEvent,
-      recipients,
-    );
-  } catch (error) {
-    console.error("Failed to move a session to another project.", error);
-  }
-}
-
 function registerProjectMediaProtocol(): void {
   protocol.handle(PROJECT_MEDIA_PROTOCOL, async (request) => {
     try {
@@ -948,375 +281,14 @@ function registerProjectMediaProtocol(): void {
         .int()
         .positive()
         .parse(url.searchParams.get("owner"));
+      const pine = requireCore();
       return await serveProjectMediaRequest(request, ownerId, {
-        project: previewPath,
-        presented: presentedFilePath,
+        project: (owner, input) => pine.previewPath(owner, input),
+        presented: (owner, input) => pine.presentedFilePath(owner, input),
       });
     } catch {
       return new Response(null, { status: 404 });
     }
-  });
-}
-const UpdateProjectRequestSchema = ProjectMutationSchema.safeExtend({
-  id: z.uuid(),
-});
-const SearchSessionsRequestSchema = z.object({
-  projectId: z.uuid(),
-  query: z.string().max(500),
-});
-const SearchAllSessionsRequestSchema = z.object({
-  query: z.string().max(500),
-});
-const SessionIdRequestSchema = z.object({
-  sessionId: z.uuid(),
-});
-const ProjectSessionRequestSchema = SessionIdRequestSchema.extend({
-  projectId: z.uuid(),
-});
-const BackgroundTaskRequestSchema = SessionIdRequestSchema.extend({
-  taskId: z.string().trim().min(1).max(64),
-});
-const RenameSessionRequestSchema = ProjectSessionRequestSchema.extend({
-  name: z.string().trim().min(1).max(200),
-});
-const LoadSessionMessagesRequestSchema = z.object({
-  // History cursors are opaque, versioned strings derived from stable entry
-  // sequence numbers; entry-ID cursors remain accepted for compatibility.
-  before: z.string().min(1).max(128).optional(),
-  includeOutline: z.boolean().optional(),
-  limit: z.number().int().min(1).max(100).optional(),
-  projectId: z.uuid(),
-  sessionId: z.uuid(),
-});
-const PromptSessionRequestSchema = z.object({
-  locale: z.enum(["en-US", "zh-CN"]).default("en-US"),
-  message: z.string().trim().min(1).max(100_000),
-  target: z.discriminatedUnion("kind", [
-    z.object({ kind: z.literal("new"), projectId: z.uuid() }),
-    z.object({
-      kind: z.literal("session"),
-      projectId: z.uuid(),
-      sessionId: z.uuid(),
-    }),
-  ]),
-  streamingBehavior: z.enum(["follow-up", "steer"]).optional(),
-  approvalMode: z
-    .enum(["let-me-review", "auto-approve", "autonomous", "YOLO"])
-    .optional(),
-  rewrite: z
-    .object({
-      messageId: z.string().min(1).max(200),
-      userMessagesAfter: z.number().int().min(0).max(1_000_000),
-    })
-    .optional(),
-});
-const DequeueSteeringRequestSchema = SessionIdRequestSchema.extend({
-  message: z.string().min(1).max(100_000),
-});
-const RespondApprovalRequestSchema = z.object({
-  requestId: z.uuid(),
-  action: z.enum(["approve", "reject", "guide"]),
-  guidance: z.string().trim().min(1).max(10_000).optional(),
-});
-const RespondQuestionnaireRequestSchema = z.object({
-  requestId: z.uuid(),
-  submission: z.object({
-    cancelled: z.boolean(),
-    answers: z
-      .array(
-        z.object({
-          questionIndex: z.number().int().min(0).max(3),
-          selectedOptionIndexes: z.array(z.number().int().min(0).max(3)).max(4),
-          customAnswer: z.string().trim().max(100_000).optional(),
-        }),
-      )
-      .max(4),
-  }),
-});
-const SetApprovalModeRequestSchema = SessionIdRequestSchema.extend({
-  approvalMode: z.enum(["let-me-review", "auto-approve", "autonomous", "YOLO"]),
-});
-const SetContextCompactionStrategyRequestSchema = z.object({
-  strategy: z.enum(["passive", "recommended"]),
-});
-const SetContextCompactionRouteRequestSchema = z.object({
-  route: z.enum(["model", "semantic"]),
-});
-const LoginProviderRequestSchema = z.object({
-  authType: z.enum(["api_key", "oauth"]),
-  loginId: z.uuid(),
-  providerId: z.string().trim().min(1).max(200),
-});
-const CustomModelDefinitionSchema = z.object({
-  contextWindow: z.number().int().positive().max(10_000_000),
-  maxTokens: z.number().int().positive().max(10_000_000),
-  modelId: z.string().trim().min(1).max(500),
-  modelName: z.string().trim().min(1).max(200).optional(),
-  thinkingLevels: z
-    .array(z.enum(["off", "minimal", "low", "medium", "high", "xhigh", "max"]))
-    .min(1)
-    .max(7),
-  vision: z.boolean(),
-});
-const ProviderIdSchema = z.object({
-  providerId: z.string().trim().min(1).max(200),
-});
-const AddCustomModelRequestSchema = z.intersection(
-  CustomModelDefinitionSchema,
-  z.discriminatedUnion("providerMode", [
-    z.object({
-      providerMode: z.literal("existing"),
-      providerId: z.string().trim().min(1).max(200),
-    }),
-    z.object({
-      providerMode: z.literal("new"),
-      providerId: z
-        .string()
-        .trim()
-        .min(1)
-        .max(200)
-        .regex(/^[a-z0-9][a-z0-9._-]*$/),
-      providerName: z.string().trim().min(1).max(200),
-      baseUrl: z.url().refine((url) => {
-        try {
-          return ["http:", "https:"].includes(new URL(url).protocol);
-        } catch {
-          return false;
-        }
-      }),
-      apiKey: z.string().trim().min(1).max(100_000),
-      api: z.enum([
-        "anthropic-messages",
-        "google-generative-ai",
-        "openai-completions",
-        "openai-responses",
-      ]),
-    }),
-  ]),
-);
-const UpdateCustomModelRequestSchema = z.intersection(
-  CustomModelDefinitionSchema,
-  z.object({
-    originalModelId: z.string().trim().min(1).max(500),
-    providerId: z.string().trim().min(1).max(200),
-  }),
-);
-const UpdateCustomProviderRequestSchema = z.object({
-  api: z.enum([
-    "anthropic-messages",
-    "google-generative-ai",
-    "openai-completions",
-    "openai-responses",
-  ]),
-  apiKey: z.string().trim().max(100_000).optional(),
-  baseUrl: z.url().refine((url) => {
-    try {
-      return ["http:", "https:"].includes(new URL(url).protocol);
-    } catch {
-      return false;
-    }
-  }),
-  providerId: z.string().trim().min(1).max(200),
-  providerName: z.string().trim().min(1).max(200),
-});
-const DeleteCustomModelRequestSchema = z.object({
-  modelId: z.string().trim().min(1).max(500),
-  providerId: z.string().trim().min(1).max(200),
-});
-const DeleteCustomProviderRequestSchema = z.object({
-  providerId: z.string().trim().min(1).max(200),
-});
-const LookupModelMetadataRequestSchema = z.object({
-  modelId: z.string().trim().min(1).max(500),
-  providerId: z.string().trim().min(1).max(200).optional(),
-});
-const ProviderAuthResponseRequestSchema = z.object({
-  loginId: z.uuid(),
-  promptId: z.uuid(),
-  value: z.string().max(100_000),
-});
-const ProviderAuthLoginIdSchema = z.object({ loginId: z.uuid() });
-const SelectModelRequestSchema = z.object({
-  modelId: z.string().trim().min(1).max(500),
-  projectId: z.uuid().optional(),
-  providerId: z.string().trim().min(1).max(200),
-  sessionId: z.uuid().optional(),
-  thinkingLevel: z.enum([
-    "off",
-    "minimal",
-    "low",
-    "medium",
-    "high",
-    "xhigh",
-    "max",
-  ]),
-});
-const SelectUtilityModelRequestSchema = SelectModelRequestSchema.pick({
-  modelId: true,
-  providerId: true,
-});
-const SelectImageModelRequestSchema = SelectModelRequestSchema.pick({
-  modelId: true,
-  providerId: true,
-});
-const ProviderAuthUrlSchema = z.url().refine((url) => {
-  try {
-    return ["http:", "https:"].includes(new URL(url).protocol);
-  } catch {
-    return false;
-  }
-});
-const ListProjectDirectoryRequestSchema = ProjectEntryReferenceSchema;
-const SetSidebarVibrancyRequestSchema = z.object({
-  enabled: z.boolean(),
-});
-const SetTinyFishApiKeyRequestSchema = z.object({
-  apiKey: z.string().trim().min(1).max(4_096),
-});
-const UserProfileSchema = z.object({
-  communicationStyle: z.enum(["calm-professional", "neutral", "warm-friendly"]),
-  customInstructions: z.string().max(20_000),
-  interfaceElements: z.enum(["rich", "simple"]),
-  nickname: z.string().trim().max(100),
-  personalDetails: z.string().max(10_000),
-  technicalBackground: z.enum(["general-user", "professional-user"]),
-});
-const InspectAttachmentsRequestSchema = z.object({
-  paths: z.array(z.string().min(1).max(4_096)).max(100),
-});
-const OpenAttachmentRequestSchema = z.object({
-  path: z
-    .string()
-    .min(1)
-    .max(4_096)
-    .refine((attachmentPath) => path.isAbsolute(attachmentPath)),
-});
-
-async function inspectAttachmentPaths(
-  filePaths: readonly string[],
-): Promise<PickAttachmentsResult> {
-  const attachments = await Promise.all(
-    filePaths.map(async (filePath): Promise<PineAttachment | undefined> => {
-      const metadata = await stat(filePath);
-      let kind: PineAttachmentKind;
-      if (metadata.isFile()) kind = "file";
-      else if (metadata.isDirectory()) kind = "directory";
-      else return undefined;
-      return {
-        extension:
-          kind === "file" ? path.extname(filePath).slice(1).toLowerCase() : "",
-        kind,
-        modifiedAt: metadata.mtime.toISOString(),
-        name: path.basename(filePath),
-        path: filePath,
-        size: metadata.size,
-      };
-    }),
-  );
-  return {
-    attachments: attachments.filter((attachment) => attachment !== undefined),
-  };
-}
-
-function getProjectRepository(): ProjectRepository {
-  if (!projectRepository) throw new Error("Project storage is not ready.");
-  return projectRepository;
-}
-
-function getProjectRuntimes(): ProjectRuntimeRegistry {
-  if (!projectRuntimes) throw new Error("Project runtime is not ready.");
-  return projectRuntimes;
-}
-
-const requestRouter = new PineRequestRouter((channel, clientId, run) =>
-  runtimeDiagnostics ? runtimeDiagnostics.trace(channel, clientId, run) : run(),
-);
-function handleServiceRequest(
-  channel: string,
-  handler: PineRequestHandler,
-): void {
-  requestRouter.register(channel, handler);
-  ipcMain.handle(channel, (event, request: unknown) => {
-    const context: PineRequestContext = {
-      clientId: event.sender.id,
-      source: "desktop",
-    };
-    return requestRouter.invoke(channel, context, request);
-  });
-}
-
-function handleDiagnosticIpc(
-  channel: string,
-  listener: Parameters<typeof ipcMain.handle>[1],
-): void {
-  ipcMain.handle(channel, (event, ...args) =>
-    runtimeDiagnostics
-      ? runtimeDiagnostics.trace(channel, event.sender.id, () =>
-          listener(event, ...args),
-        )
-      : listener(event, ...args),
-  );
-}
-
-function windowForWebContentsId(
-  webContentsId: number,
-): BrowserWindow | undefined {
-  return BrowserWindow.getAllWindows().find(
-    (window) =>
-      !window.isDestroyed() && window.webContents.id === webContentsId,
-  );
-}
-
-function focusWindow(window: BrowserWindow): void {
-  if (window.isMinimized()) window.restore();
-  if (!window.isVisible()) window.show();
-  window.focus();
-}
-
-function getTinyFishCredentialStore(): TinyFishCredentialStore {
-  if (!tinyFishCredentialStore) {
-    throw new Error("TinyFish credential storage is not ready.");
-  }
-  return tinyFishCredentialStore;
-}
-
-function getPineAgentDirectory(): string {
-  if (!pineAgentDirectory) {
-    throw new Error("Pine agent storage is not ready.");
-  }
-  return pineAgentDirectory;
-}
-
-async function skillRepositoryFor(
-  scope: PineSkillScope,
-  projectId?: string,
-): Promise<PineSkillRepository> {
-  const repository = getProjectRepository();
-  if (scope === "project" && !projectId) {
-    throw new Error("Project scope requires a project ID.");
-  }
-
-  let projectSkillsRoot = path.join(
-    getPineAgentDirectory(),
-    ".no-project-skills",
-  );
-  let disabledGlobalSkillsPath: string | undefined;
-  if (projectId) {
-    await repository.get(projectId);
-    const dataPaths = repository.dataPaths(projectId);
-    disabledGlobalSkillsPath =
-      dataPaths.skillsSettingsPath ??
-      path.join(dataPaths.projectRoot, "skills.json");
-    if (scope === "project") {
-      projectSkillsRoot =
-        dataPaths.skillsRoot ?? path.join(dataPaths.projectRoot, "skills");
-    }
-  }
-
-  return new PineSkillRepository({
-    ...(disabledGlobalSkillsPath ? { disabledGlobalSkillsPath } : {}),
-    global: path.join(getPineAgentDirectory(), "skills"),
-    project: projectSkillsRoot,
   });
 }
 
@@ -1333,189 +305,65 @@ function broadcastUpdateEvent(event: PineUpdateEvent): void {
   }
 }
 
-/** Keep shown notifications referenced so their click handlers survive GC. */
-const sessionNotifications = new Set<Notification>();
-const SESSION_NOTIFICATION_BODY_LIMIT = 280;
+ipcMain.handle(CHECK_FOR_UPDATE_CHANNEL, (): Promise<UpdateCheckResult> =>
+  getAppUpdater().check(),
+);
 
-function ownerWindow(ownerId: number): BrowserWindow | undefined {
-  const sender = webContents.fromId(ownerId);
-  const window = sender ? BrowserWindow.fromWebContents(sender) : undefined;
-  return window && !window.isDestroyed() ? window : undefined;
-}
-
-interface SessionNotificationOptions {
-  /** Button labels; macOS and Windows show them on the notification. */
-  actions?: string[];
-  onAction?: (actionIndex: number) => void;
-}
-
-/**
- * Show a desktop notification titled with the session name. Clicking it
- * brings the owning window back to the front.
- */
-function showSessionNotification(
-  window: BrowserWindow,
-  sessionId: string,
-  text: string,
-  options: SessionNotificationOptions = {},
-): Notification | undefined {
-  if (!Notification.isSupported()) return undefined;
-  const summary = projectRuntimes?.sessionSummary(sessionId);
-  const title =
-    summary?.name ||
-    summary?.preview ||
-    (isChineseLocale() ? "新会话" : "New session");
-  const body = text.replaceAll(/\s+/g, " ").trim();
-  const notification = new Notification({
-    title,
-    body:
-      body.length > SESSION_NOTIFICATION_BODY_LIMIT
-        ? `${body.slice(0, SESSION_NOTIFICATION_BODY_LIMIT - 1)}…`
-        : body,
-    ...(options.actions?.length
-      ? {
-          actions: options.actions.map((label) => ({
-            type: "button" as const,
-            text: label,
-          })),
-        }
-      : {}),
-  });
-  sessionNotifications.add(notification);
-  const release = (): void => {
-    sessionNotifications.delete(notification);
-  };
-  notification.on("click", () => {
-    release();
-    if (window.isDestroyed()) return;
-    if (window.isMinimized()) window.restore();
-    window.show();
-    window.focus();
-  });
-  const { onAction } = options;
-  if (onAction)
-    notification.on("action", (details) => {
-      release();
-      onAction(details.actionIndex);
-    });
-  notification.on("close", release);
-  notification.on("failed", release);
-  notification.show();
-  return notification;
-}
-
-/** Approval and question notifications by request id, closed once decided. */
-const attentionNotifications = new Map<string, Notification>();
-
-function closeAttentionNotification(requestId: string): void {
-  attentionNotifications.get(requestId)?.close();
-  attentionNotifications.delete(requestId);
-}
-
-function closeAttentionNotifications(): void {
-  for (const requestId of [...attentionNotifications.keys()])
-    closeAttentionNotification(requestId);
-}
-
-/** macOS dock bounce id for the pending approval attention request. */
-let approvalBounceId: number | null = null;
-
-interface AttentionNotice {
-  requestId: string;
-  body: string;
-  actions?: string[];
-  onAction?: (actionIndex: number) => void;
-}
-
-/**
- * Surface a pending approval or question at the OS level: a desktop
- * notification while the window is in the background (unless the user turned
- * them off), and a dock icon that keeps bouncing on macOS or a flashing
- * taskbar button on Windows until the decision (or window focus) clears it.
- */
-function requestApprovalAttention(
-  ownerId: number,
-  sessionId: string,
-  notice: AttentionNotice,
-): void {
-  const window = ownerWindow(ownerId);
-  if (window && !window.isFocused() && attentionNotificationsEnabled) {
-    const notification = showSessionNotification(
-      window,
-      sessionId,
-      notice.body,
-      notice,
-    );
-    if (notification) {
-      closeAttentionNotification(notice.requestId);
-      attentionNotifications.set(notice.requestId, notification);
+ipcMain.handle(
+  DOWNLOAD_UPDATE_CHANNEL,
+  async (): Promise<DownloadUpdateResult> => {
+    try {
+      return await getAppUpdater().download();
+    } catch (error) {
+      broadcastUpdateEvent({ message: String(error), type: "error" });
+      throw error;
     }
-  }
-  if (process.platform === "darwin") {
-    if (approvalBounceId !== null) app.dock?.cancelBounce(approvalBounceId);
-    approvalBounceId = app.dock?.bounce("critical") ?? null;
-    return;
-  }
-  if (process.platform === "win32") {
-    window?.flashFrame(true);
-  }
-}
+  },
+);
 
-/** Approve (first button) or deny a tool call straight from its notification. */
-function answerApprovalFromNotification(
-  ownerId: number,
-  requestId: string,
-  actionIndex: number,
-): void {
-  attentionNotifications.delete(requestId);
-  try {
-    getProjectRuntimes().respondApproval(ownerId, {
-      requestId,
-      action: actionIndex === 0 ? "approve" : "reject",
-    });
-  } catch (error) {
-    // Already decided in a window or browser before the button was pressed.
-    console.warn("Could not answer the approval from its notification.", error);
-  }
-}
-
-function clearApprovalAttention(): void {
-  if (process.platform === "darwin") {
-    if (approvalBounceId !== null) app.dock?.cancelBounce(approvalBounceId);
-    approvalBounceId = null;
-    return;
-  }
-  if (process.platform === "win32") {
-    for (const window of BrowserWindow.getAllWindows()) {
-      window.flashFrame(false);
+ipcMain.handle(
+  INSTALL_UPDATE_CHANNEL,
+  async (): Promise<InstallUpdateResult> => {
+    // The user chose to restart into the update; the installer waits for exit.
+    quitConfirmed = true;
+    try {
+      return await getAppUpdater().install();
+    } catch (error) {
+      quitConfirmed = false;
+      broadcastUpdateEvent({ message: String(error), type: "error" });
+      throw error;
     }
-  }
-}
+  },
+);
 
-/**
- * Tell the user a session finished on its own: a desktop notification with
- * the session title and final reply, plus a single dock bounce on macOS or a
- * flashing taskbar button on Windows. Skipped while the owning window is
- * focused, since the user is already looking at Pine.
- */
-function signalCompletedRun(run: PineCompletedRun, ownerId: number): void {
-  const window = ownerWindow(ownerId);
-  if (!window || window.isFocused()) return;
-  showSessionNotification(window, run.sessionId, run.text);
-  if (process.platform === "darwin") {
-    app.dock?.bounce("informational");
-  } else if (process.platform === "win32") {
-    window.flashFrame(true);
-  }
-}
-
-const appIconPath = app.isPackaged
-  ? path.join(process.resourcesPath, "icon.png")
-  : path.join(app.getAppPath(), "resources/icon.png");
-
-function isChineseLocale(): boolean {
-  return app.getLocale().toLowerCase().startsWith("zh");
-}
+ipcMain.handle(
+  GET_WEB_SERVER_CHANNEL,
+  () =>
+    core?.web.server.status() ?? {
+      ...DEFAULT_WEB_SERVER_SETTINGS,
+      hasPassword: false,
+    },
+);
+ipcMain.handle(SET_WEB_SERVER_CHANNEL, async (_event, request: unknown) => {
+  const settings = z
+    .custom<WebServerSettings>(isWebServerSettings)
+    .parse(request);
+  if (!core) throw new Error("The local web interface is not ready.");
+  return core.web.configure(settings, true);
+});
+ipcMain.handle(SET_WEB_PASSWORD_CHANNEL, async (_event, request: unknown) => {
+  const password = z
+    .string()
+    .min(MIN_WEB_PASSWORD_LENGTH)
+    .max(1_024)
+    .parse(request);
+  if (!core) throw new Error("The local web interface is not ready.");
+  return core.web.setPassword(password);
+});
+ipcMain.handle(SIGN_OUT_WEB_BROWSERS_CHANNEL, async () => {
+  if (!core) throw new Error("The local web interface is not ready.");
+  return core.web.signOutAll();
+});
 
 async function showWindowsSandboxSetupDialog(
   status: WindowsSandboxStatus,
@@ -1564,2120 +412,55 @@ async function ensureAppWindowsSandboxReady(): Promise<boolean> {
   }
 }
 
-/**
- * The opaque colour each window paints where the page has not drawn yet, e.g.
- * the edge revealed while it resizes. Vibrancy keeps the window transparent;
- * sidebar glass paints the colour natively, behind the glass.
- */
-const windowBackgrounds = new WeakMap<
-  BrowserWindow,
-  {
-    color: string;
-    vibrancy: boolean;
-    sidebarGlass: boolean;
-    /** The visible width of the left sidebar, in CSS pixels. */
-    sidebarWidth: number;
-  }
->();
-
-function applyWindowBackground(window: BrowserWindow): void {
-  const background = windowBackgrounds.get(window);
-  if (!background || window.isDestroyed()) return;
-  window.setBackgroundColor(
-    background.vibrancy ? TRANSPARENT_WINDOW_BACKGROUND : background.color,
-  );
-  if (background.sidebarGlass)
-    showSidebarGlass(window, background.sidebarWidth, background.color);
-}
-
-/** Where the macOS window buttons sit, aligned with Pine's title bar. */
-const TRAFFIC_LIGHT_POSITION = { x: 21, y: 21 };
-
-/**
- * Swapping the sidebar material relays out the title bar, and AppKit then
- * puts the window buttons back at their default place; Electron only moves
- * them again when the window next becomes key. Restores them now and once
- * AppKit has finished its own pass.
- */
-function restoreWindowButtons(window: BrowserWindow): void {
-  window.setWindowButtonPosition(TRAFFIC_LIGHT_POSITION);
-  setTimeout(() => {
-    if (!window.isDestroyed())
-      window.setWindowButtonPosition(TRAFFIC_LIGHT_POSITION);
-  }, 0);
-}
-
-interface CreateWindowOptions {
-  bounds?: Rectangle;
-  /** Stays hidden until the quick composer presents it. */
-  quickComposerHandoff?: boolean;
-}
-
-const createWindow = (options: CreateWindowOptions = {}) => {
-  // Matches the theme before the renderer reports its exact colour, so a dark
-  // window never opens white.
-  const backgroundColor = nativeTheme.shouldUseDarkColors
-    ? DARK_WINDOW_BACKGROUND
-    : LIGHT_WINDOW_BACKGROUND;
-  const mainWindow = new BrowserWindow({
-    title: "Pine",
-    backgroundColor,
-    icon: appIconPath,
-    titleBarStyle: "hidden",
-    ...(process.platform === "darwin"
-      ? { trafficLightPosition: TRAFFIC_LIGHT_POSITION }
-      : {
-          // Keep the native Windows controls aligned with the custom title
-          // bar instead of falling back to the shorter system overlay.
-          titleBarOverlay: {
-            color: "rgba(0, 0, 0, 0)",
-            height: 56,
-          },
-        }),
-    // Pine opens straight into the workspace, so the window starts in the
-    // resizable project layout.
-    width: options.bounds?.width ?? PROJECT_WINDOW_WIDTH,
-    height: options.bounds?.height ?? PROJECT_LIST_WINDOW_SIZE.height,
-    ...(options.bounds && { x: options.bounds.x, y: options.bounds.y }),
-    minWidth: 720,
-    minHeight: 540,
-    show: false,
-    autoHideMenuBar: process.platform !== "darwin",
-    webPreferences: {
-      allowRunningInsecureContent: false,
-      contextIsolation: true,
-      experimentalFeatures: false,
-      nodeIntegration: false,
-      sandbox: true,
-      webSecurity: true,
-      scrollBounce: true,
-      preload: path.join(__dirname, "preload.js"),
-      ...(options.quickComposerHandoff && {
-        additionalArguments: [QUICK_COMPOSER_HANDOFF_ARGUMENT],
-      }),
-    },
-  });
-  windowBackgrounds.set(mainWindow, {
-    color: backgroundColor,
-    vibrancy: false,
-    sidebarGlass: false,
-    sidebarWidth: 0,
-  });
-  const webContentsId = mainWindow.webContents.id;
-  mainWindow.on("unresponsive", () => {
-    runtimeDiagnostics?.record("window:unresponsive", { webContentsId });
-  });
-  mainWindow.on("responsive", () => {
-    runtimeDiagnostics?.record("window:responsive", { webContentsId });
-  });
-  mainWindow.webContents.on("render-process-gone", (_event, details) => {
-    runtimeDiagnostics?.record("renderer:gone", {
-      webContentsId,
-      reason: details.reason,
-      exitCode: details.exitCode,
-    });
-  });
-  mainWindow.webContents.on("preload-error", (_event, _preloadPath, error) => {
-    runtimeDiagnostics?.record("preload:error", {
-      webContentsId,
-      error: error.message,
-    });
-  });
-  installWindowShortcuts(mainWindow.webContents, () => createWindow());
-
-  // Focus stops the approval attention request (Windows flashes until the
-  // window is focused; macOS bounces until the app activates).
-  mainWindow.on("focus", clearApprovalAttention);
-
-  mainWindow.once("ready-to-show", () => {
-    if (isSmokeTest) {
-      app.exit(0);
-    } else if (!options.quickComposerHandoff) {
-      mainWindow.show();
-    }
-  });
-  mainWindow.webContents.once("destroyed", () => {
-    for (const [projectId, pending] of pendingProjectOpens) {
-      if (pending.webContentsId === webContentsId) {
-        pendingProjectOpens.delete(projectId);
-      }
-    }
-    attachedPreviewPaths.delete(webContentsId);
-    presentedFiles?.forget(webContentsId);
-    projectFileWatchers?.disposeSender(webContentsId);
-    filePreviewWatchers.disposeSender(webContentsId);
-    void projectRuntimes?.dispose(webContentsId);
-  });
-  mainWindow.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
-  mainWindow.webContents.on("will-navigate", (event) => {
-    event.preventDefault();
-  });
-
-  // and load the index.html of the app.
-  if (MAIN_WINDOW_VITE_DEV_SERVER_URL) {
-    void mainWindow.loadURL(MAIN_WINDOW_VITE_DEV_SERVER_URL);
-  } else {
-    void mainWindow.loadFile(
-      path.join(__dirname, `../renderer/${MAIN_WINDOW_VITE_NAME}/index.html`),
-    );
-  }
-
-  if (MAIN_WINDOW_VITE_DEV_SERVER_URL && !options.quickComposerHandoff) {
-    mainWindow.webContents.openDevTools();
-  }
-  return mainWindow;
-};
-
-/**
- * The floating composer: transparent and frameless, above every app and
- * space, with clicks on its empty area passing through to the app behind.
- */
-function createQuickComposerPanel(bounds: Rectangle): BrowserWindow {
-  const panel = new BrowserWindow({
-    ...bounds,
-    title: "Pine",
-    frame: false,
-    transparent: true,
-    backgroundColor: TRANSPARENT_WINDOW_BACKGROUND,
-    hasShadow: false,
-    resizable: false,
-    movable: false,
-    minimizable: false,
-    maximizable: false,
-    fullscreenable: false,
-    skipTaskbar: true,
-    show: false,
-    // An NSPanel floats over fullscreen apps without activating Pine's
-    // other windows.
-    ...(process.platform === "darwin" && { type: "panel" }),
-    webPreferences: {
-      allowRunningInsecureContent: false,
-      contextIsolation: true,
-      experimentalFeatures: false,
-      nodeIntegration: false,
-      sandbox: true,
-      webSecurity: true,
-      preload: path.join(__dirname, "preload.js"),
-    },
-  });
-  panel.setAlwaysOnTop(true, "pop-up-menu");
-  panel.setVisibleOnAllWorkspaces(true, {
-    visibleOnFullScreen: true,
-    // Keeps the Dock icon from flickering when the panel is created.
-    skipTransformProcessType: true,
-  });
-  panel.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
-  panel.webContents.on("will-navigate", (event) => event.preventDefault());
-  if (MAIN_WINDOW_VITE_DEV_SERVER_URL) {
-    void panel.loadURL(
-      `${MAIN_WINDOW_VITE_DEV_SERVER_URL}#/${QUICK_COMPOSER_ROUTE_HASH}`,
-    );
-  } else {
-    void panel.loadFile(
-      path.join(__dirname, `../renderer/${MAIN_WINDOW_VITE_NAME}/index.html`),
-      { hash: `/${QUICK_COMPOSER_ROUTE_HASH}` },
-    );
-  }
-  // It plays its own entrance.
-  setWindowAnimates(panel, false);
-  return panel;
-}
-
-/**
- * The Liquid Glass card under the floating composer. It loads no page and
- * never takes clicks; the panel above it does.
- */
-function createQuickComposerGlass(): BrowserWindow | null {
-  if (!isLiquidGlassSupported()) return null;
-  const glass = new BrowserWindow({
-    width: 1,
-    height: 1,
-    frame: false,
-    transparent: true,
-    backgroundColor: TRANSPARENT_WINDOW_BACKGROUND,
-    // macOS shapes the shadow from the rounded glass, like a window's, so the
-    // composer's edge stands out over any app.
-    hasShadow: true,
-    resizable: false,
-    movable: false,
-    minimizable: false,
-    maximizable: false,
-    fullscreenable: false,
-    focusable: false,
-    skipTaskbar: true,
-    show: false,
-    type: "panel",
-    webPreferences: { sandbox: true, contextIsolation: true },
-  });
-  glass.setIgnoreMouseEvents(true);
-  glass.setAlwaysOnTop(true, "pop-up-menu");
-  glass.setVisibleOnAllWorkspaces(true, {
-    visibleOnFullScreen: true,
-    skipTransformProcessType: true,
-  });
-  if (!applyLiquidGlass(glass, { cornerRadius: QUICK_COMPOSER_GLASS_RADIUS })) {
-    glass.destroy();
-    return null;
-  }
-  setWindowAnimates(glass, false);
-  return glass;
-}
-
-const quickComposer = new QuickComposerController({
-  createPanel: createQuickComposerPanel,
-  createGlass: createQuickComposerGlass,
-  setGlassRadius: (glass, radius) => setGlassCornerRadius(glass, radius),
-  windowCornerRadius,
-  // The system's own opening animation would play over the glass.
-  setPresenting: (window, presenting) => setWindowAnimates(window, !presenting),
-  ownerWindow: (projectId) => {
-    // Every window holds the temporary workspace; a new one takes it.
-    if (isTemporaryWorkspace(projectId)) return null;
-    const ownerId = getProjectRuntimes().ownerOfProject(projectId);
-    return (ownerId !== undefined && windowForWebContentsId(ownerId)) || null;
-  },
-  deliver: (window, handoff) => {
-    window.webContents.send(DELIVER_QUICK_COMPOSER_CHANNEL, handoff);
-    focusWindow(window);
-  },
-  createHandoffWindow: (bounds) =>
-    createWindow({ bounds, quickComposerHandoff: true }),
-  captureContext: () => {
-    const app = frontmostApp();
-    const root = projectsRootPath;
-    if (!app || !root) return null;
-    // Pine-managed storage of the temporary workspace, which every window
-    // may preview and the message may be sent from.
-    return () =>
-      captureAppContext(
-        app,
-        path.join(
-          root,
-          TEMPORARY_WORKSPACE_PROJECT_ID,
-          PROJECT_ATTACHMENTS_DIRECTORY,
-        ),
-      );
-  },
-  discardContext: (attachments) => void discardAppContext(attachments),
-});
-let quickComposerEnabled = DEFAULT_QUICK_COMPOSER_ENABLED;
-let approximateLocation: ApproximateLocationService | undefined;
-
-function getApproximateLocation(): ApproximateLocationService {
-  // net.fetch goes through the system proxy, like the rest of Pine's traffic.
-  approximateLocation ??= new ApproximateLocationService({
-    databasePath: app.isPackaged
-      ? path.join(process.resourcesPath, "dbip-city-lite.mmdb.gz")
-      : path.join(app.getAppPath(), "resources/geoip/dbip-city-lite.mmdb.gz"),
-    cachePath: path.join(app.getPath("userData"), "approximate-location.json"),
-    fetch: (url, init) => net.fetch(url, init),
-  });
-  return approximateLocation;
-}
-
-/** Registers or releases the global shortcut; false when another app has it. */
-function applyQuickComposerShortcut(enabled: boolean): boolean {
-  if (!enabled) {
-    if (globalShortcut.isRegistered(QUICK_COMPOSER_ACCELERATOR))
-      globalShortcut.unregister(QUICK_COMPOSER_ACCELERATOR);
-    quickComposer.dispose();
-    return true;
-  }
-  if (globalShortcut.isRegistered(QUICK_COMPOSER_ACCELERATOR)) return true;
-  const registered = globalShortcut.register(QUICK_COMPOSER_ACCELERATOR, () =>
-    quickComposer.toggle(),
-  );
-  if (registered) quickComposer.warmUp();
-  return registered;
-}
-
-/** Windows the user sees as Pine's, without the quick composer's own. */
-function appWindows(): BrowserWindow[] {
-  return BrowserWindow.getAllWindows().filter(
-    (window) => !quickComposer.isAuxiliary(window),
-  );
-}
-
-/**
- * Tells the other windows their session and project lists are stale, so a
- * change made in one window shows in every window.
- */
-function notifyLibraryChanged(
-  change: PineLibraryChange,
-  sourceWebContentsId?: number,
-): void {
-  for (const window of appWindows())
-    if (!window.isDestroyed() && window.webContents.id !== sourceWebContentsId)
-      window.webContents.send(LIBRARY_CHANGED_CHANNEL, change);
-  webApplication?.libraryChanged(change);
-}
-
-ipcMain.handle(CLOSE_WINDOW_CHANNEL, (event): void => {
-  BrowserWindow.fromWebContents(event.sender)?.close();
-});
-
-ipcMain.handle(SET_WINDOW_BACKGROUND_CHANNEL, (event, color: unknown): void => {
-  const window = BrowserWindow.fromWebContents(event.sender);
-  const background = window && windowBackgrounds.get(window);
-  if (!window || !background || !isWindowBackgroundColor(color)) return;
-  background.color = color;
-  applyWindowBackground(window);
-});
-
-// Pine's own light or dark choice also decides the native materials, so the
-// sidebar glass is dark in a dark Pine on a light system.
-ipcMain.handle(SET_THEME_SOURCE_CHANNEL, (_event, source: unknown): void => {
-  if (isPineThemeSource(source)) nativeTheme.themeSource = source;
-});
-
-ipcMain.handle(SET_WINDOW_LAYOUT_CHANNEL, (event, layout: unknown): void => {
-  const window = BrowserWindow.fromWebContents(event.sender);
-  if (window && isPineWindowLayout(layout)) applyWindowLayout(window, layout);
-});
-
-ipcMain.handle(
-  PLAN_WINDOW_RESIZE_CHANNEL,
-  (event, request: unknown): number => {
-    const window = BrowserWindow.fromWebContents(event.sender);
-    return window && isPineWindowResizeRequest(request)
-      ? planWindowResize(window, request)
-      : 0;
-  },
-);
-
-ipcMain.handle(COMMIT_WINDOW_RESIZE_CHANNEL, (event): Promise<void> => {
-  const window = BrowserWindow.fromWebContents(event.sender);
-  if (!window) return Promise.resolve();
-  return commitWindowResize(window, (startedAt) => {
-    if (!event.sender.isDestroyed())
-      event.sender.send(WINDOW_RESIZE_STARTED_CHANNEL, startedAt);
-  });
-});
-
-handleServiceRequest(GET_APP_VERSION_CHANNEL, (): string => app.getVersion());
-
-ipcMain.handle(CHECK_FOR_UPDATE_CHANNEL, (): Promise<UpdateCheckResult> =>
-  getAppUpdater().check(),
-);
-
-ipcMain.handle(
-  DOWNLOAD_UPDATE_CHANNEL,
-  async (): Promise<DownloadUpdateResult> => {
-    try {
-      return await getAppUpdater().download();
-    } catch (error) {
-      broadcastUpdateEvent({ message: String(error), type: "error" });
-      throw error;
-    }
-  },
-);
-
-ipcMain.handle(
-  INSTALL_UPDATE_CHANNEL,
-  async (): Promise<InstallUpdateResult> => {
-    // The user chose to restart into the update; the installer waits for exit.
-    quitConfirmed = true;
-    try {
-      return await getAppUpdater().install();
-    } catch (error) {
-      quitConfirmed = false;
-      broadcastUpdateEvent({ message: String(error), type: "error" });
-      throw error;
-    }
-  },
-);
-
-handleServiceRequest(
-  GET_TINYFISH_CREDENTIAL_STATUS_CHANNEL,
-  (): TinyFishCredentialStatus => ({
-    configured: getTinyFishCredentialStore().isConfigured(),
-  }),
-);
-
-handleServiceRequest(
-  GET_USER_PROFILE_CHANNEL,
-  async (): Promise<PineUserProfile> =>
-    (await readPineAgentSettings(getPineAgentDirectory())).userProfile ??
-    createDefaultPineUserProfile(),
-);
-
-handleServiceRequest(
-  GET_AUTO_APPROVAL_SETTINGS_CHANNEL,
-  async (): Promise<PineAutoApprovalSettings> =>
-    (await readPineAgentSettings(getPineAgentDirectory())).autoApproval ?? {
-      ...DEFAULT_AUTO_APPROVAL_SETTINGS,
-    },
-);
-
-handleServiceRequest(
-  SET_AUTO_APPROVAL_SETTINGS_CHANNEL,
-  async (_event, request: unknown): Promise<PineAutoApprovalSettings> => {
-    const settings = z
-      .custom<PineAutoApprovalSettings>(isPineAutoApprovalSettings)
-      .parse(request);
-    const normalized = {
-      strategy: settings.strategy,
-      decisionsModel: settings.decisionsModel.trim(),
-    };
-    await writeAutoApprovalSettings(getPineAgentDirectory(), normalized);
-    return normalized;
-  },
-);
-
-handleServiceRequest(
-  GET_CONTEXT_COMPACTION_STRATEGY_CHANNEL,
-  async (): Promise<PineContextCompactionStrategy> =>
-    (await readPineAgentSettings(getPineAgentDirectory()))
-      .contextCompactionStrategy ?? DEFAULT_CONTEXT_COMPACTION_STRATEGY,
-);
-
-handleServiceRequest(
-  GET_CONTEXT_COMPACTION_ROUTE_CHANNEL,
-  async (): Promise<PineContextCompactionRoute> =>
-    (await readPineAgentSettings(getPineAgentDirectory()))
-      .contextCompactionRoute ?? DEFAULT_CONTEXT_COMPACTION_ROUTE,
-);
-
-handleServiceRequest(
-  GET_COMPLETION_SIGNAL_CHANNEL,
-  (): PineCompletionSignalMode => completionSignalMode,
-);
-
-handleServiceRequest(
-  SET_COMPLETION_SIGNAL_CHANNEL,
-  async (_event, request: unknown): Promise<SetCompletionSignalResult> => {
-    const { mode } = z
-      .object({ mode: z.enum(PINE_COMPLETION_SIGNAL_MODES) })
-      .parse(request);
-    await writeCompletionSignalMode(getPineAgentDirectory(), mode);
-    completionSignalMode = mode;
-    return { mode };
-  },
-);
-
-handleServiceRequest(
-  GET_ATTENTION_NOTIFICATIONS_CHANNEL,
-  (): boolean => attentionNotificationsEnabled,
-);
-
-handleServiceRequest(
-  SET_ATTENTION_NOTIFICATIONS_CHANNEL,
-  async (
-    _event,
-    request: unknown,
-  ): Promise<SetAttentionNotificationsResult> => {
-    const { enabled } = z.object({ enabled: z.boolean() }).parse(request);
-    await writeAttentionNotificationsEnabled(getPineAgentDirectory(), enabled);
-    attentionNotificationsEnabled = enabled;
-    if (!enabled) closeAttentionNotifications();
-    return { enabled };
-  },
-);
-
-handleServiceRequest(
-  GET_QUICK_COMPOSER_CHANNEL,
-  (): boolean => quickComposerEnabled,
-);
-
-ipcMain.handle(
-  SET_QUICK_COMPOSER_CHANNEL,
-  async (_event, request: unknown): Promise<SetQuickComposerResult> => {
-    const { enabled } = z.object({ enabled: z.boolean() }).parse(request);
-    const registered = applyQuickComposerShortcut(enabled);
-    // A shortcut another app holds leaves the feature off.
-    const applied = enabled && registered;
-    await writeQuickComposerEnabled(getPineAgentDirectory(), applied);
-    quickComposerEnabled = applied;
-    return { enabled: applied, registered };
-  },
-);
-
-handleServiceRequest(
-  GET_APPROXIMATE_LOCATION_CHANNEL,
-  async (): Promise<boolean> =>
-    (await readPineAgentSettings(getPineAgentDirectory()))
-      .approximateLocationEnabled ?? DEFAULT_APPROXIMATE_LOCATION_ENABLED,
-);
-
-handleServiceRequest(
-  SET_APPROXIMATE_LOCATION_CHANNEL,
-  async (_event, request: unknown): Promise<SetApproximateLocationResult> => {
-    const { enabled } = z.object({ enabled: z.boolean() }).parse(request);
-    await writeApproximateLocationEnabled(getPineAgentDirectory(), enabled);
-    if (enabled) void getApproximateLocation().refresh();
-    return { enabled };
-  },
-);
-
-const QuickComposerRectSchema = z.object({
-  x: z.number().finite(),
-  y: z.number().finite(),
-  width: z.number().finite().nonnegative(),
-  height: z.number().finite().nonnegative(),
-});
-
-const SubmitQuickComposerSchema = z.object({
-  message: z.string().min(1),
-  approvalMode: z.enum(["let-me-review", "auto-approve", "autonomous", "YOLO"]),
-  projectId: z.string().min(1),
-  withContext: z.boolean(),
-  composerRect: QuickComposerRectSchema,
-});
-
-ipcMain.handle(HIDE_QUICK_COMPOSER_CHANNEL, (event): void => {
-  if (quickComposer.isPanel(event.sender)) quickComposer.hide();
-});
-
-ipcMain.handle(
-  SET_QUICK_COMPOSER_PASS_THROUGH_CHANNEL,
-  (event, passThrough: unknown): void => {
-    if (quickComposer.isPanel(event.sender) && typeof passThrough === "boolean")
-      quickComposer.setPassThrough(passThrough);
-  },
-);
-
-ipcMain.handle(
-  SET_QUICK_COMPOSER_GLASS_CHANNEL,
-  (event, rect: unknown): boolean =>
-    quickComposer.isPanel(event.sender) &&
-    quickComposer.setGlass(QuickComposerRectSchema.parse(rect)),
-);
-
-ipcMain.handle(
-  SUBMIT_QUICK_COMPOSER_CHANNEL,
-  (event, request: unknown): number | null | undefined => {
-    if (!quickComposer.isPanel(event.sender)) return undefined;
-    // Previews of attachments picked here are granted to any window, so the
-    // new one shows them too.
-    return quickComposer.submit(SubmitQuickComposerSchema.parse(request));
-  },
-);
-
-ipcMain.handle(
-  REQUEST_QUICK_COMPOSER_PERMISSION_CHANNEL,
-  async (event, request: unknown): Promise<void> => {
-    if (!quickComposer.isPanel(event.sender)) return;
-    const permission = z.enum(["accessibility", "screen"]).parse(request);
-    // The system lists Pine there, or asks to add it to the list.
-    if (permission === "accessibility")
-      systemPreferences.isTrustedAccessibilityClient(true);
-    else
-      await shell.openExternal(
-        "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture",
-      );
-    quickComposer.hide();
-  },
-);
-
-ipcMain.handle(
-  TAKE_QUICK_COMPOSER_HANDOFF_CHANNEL,
-  (event): Promise<QuickComposerHandoff | null> =>
-    quickComposer.takeHandoff(event.sender),
-);
-
-ipcMain.handle(
-  PRESENT_QUICK_COMPOSER_HANDOFF_CHANNEL,
-  (event, rect: unknown): void => {
-    quickComposer.present(event.sender.id, QuickComposerRectSchema.parse(rect));
-  },
-);
-
-handleServiceRequest(
-  GET_DIAGNOSTIC_LOGGING_CHANNEL,
-  (): boolean => runtimeDiagnostics?.isEnabled ?? false,
-);
-
-handleServiceRequest(
-  SET_DIAGNOSTIC_LOGGING_CHANNEL,
-  async (_event, request: unknown): Promise<SetDiagnosticLoggingResult> => {
-    const { enabled } = z.object({ enabled: z.boolean() }).parse(request);
-    if (!runtimeDiagnostics)
-      throw new Error("Runtime diagnostics are not ready.");
-    await writeDiagnosticLoggingEnabled(getPineAgentDirectory(), enabled);
-    await runtimeDiagnostics.setEnabled(enabled);
-    if (enabled) {
-      runtimeDiagnostics.record("diagnostics:enabled", {
-        version: app.getVersion(),
-        electron: process.versions.electron,
-        platform: process.platform,
-      });
-    }
-    return { enabled };
-  },
-);
-
-handleServiceRequest(
-  SET_CONTEXT_COMPACTION_STRATEGY_CHANNEL,
-  async (
-    _event,
-    request: unknown,
-  ): Promise<SetContextCompactionStrategyResult> => {
-    const { strategy } =
-      SetContextCompactionStrategyRequestSchema.parse(request);
-    await writeContextCompactionStrategy(getPineAgentDirectory(), strategy);
-    await projectRuntimes?.setContextCompactionStrategy(strategy);
-    return { updated: true };
-  },
-);
-
-handleServiceRequest(
-  SET_CONTEXT_COMPACTION_ROUTE_CHANNEL,
-  async (
-    _event,
-    request: unknown,
-  ): Promise<SetContextCompactionRouteResult> => {
-    const { route } = SetContextCompactionRouteRequestSchema.parse(request);
-    await writeContextCompactionRoute(getPineAgentDirectory(), route);
-    await projectRuntimes?.setContextCompactionRoute(route);
-    return { updated: true };
-  },
-);
-
-handleServiceRequest(
-  SET_USER_PROFILE_CHANNEL,
-  async (_event, profile: unknown): Promise<SetUserProfileResult> => {
-    const parsed = UserProfileSchema.parse(profile);
-    await writePineUserProfile(
-      getPineAgentDirectory(),
-      parsed satisfies PineUserProfile,
-    );
-    return { updated: true };
-  },
-);
-
-handleServiceRequest(
-  SET_TINYFISH_API_KEY_CHANNEL,
-  async (_event, request: unknown): Promise<SetTinyFishApiKeyResult> => {
-    const { apiKey } = SetTinyFishApiKeyRequestSchema.parse(request);
-    const store = getTinyFishCredentialStore();
-    await store.setApiKey(apiKey);
-    await projectRuntimes?.setTinyFishApiKey(store.getApiKey());
-    return { configured: store.isConfigured() };
-  },
-);
-
-ipcMain.handle(OPEN_EXTERNAL_URL_CHANNEL, async (_event, url: unknown) => {
-  await shell.openExternal(ProviderAuthUrlSchema.parse(url));
-});
-
-handleServiceRequest(
-  READ_PROJECT_FILE_PREVIEW_CHANNEL,
-  async (event, request: unknown) => {
-    const entry = ProjectFilePreviewRequestSchema.parse(request);
-    const filePath = await previewPath(event.clientId, entry);
-    return readProjectFilePreview(
-      filePath,
-      projectMediaUrl(event.clientId, entry, { web: event.source === "web" }),
-    );
-  },
-);
-
-handleServiceRequest(
-  SET_WATCHED_FILE_PREVIEW_CHANNEL,
-  (event, request: unknown): Promise<void> => {
-    const parsed = SetWatchedFilePreviewRequestSchema.parse(request);
-    return filePreviewWatchers.setWatchedPreview(event.clientId, parsed);
-  },
-);
-
-handleServiceRequest(
-  READ_PRESENTED_FILE_PREVIEW_CHANNEL,
-  async (event, request: unknown) => {
-    const entry = PresentedFilePreviewRequestSchema.parse(request);
-    // Presented files live outside every project folder, so the tab reads them
-    // through the window-scoped grant instead of a project entry.
-    const filePath = await presentedFilePath(event.clientId, entry);
-    return readProjectFilePreview(
-      filePath,
-      projectMediaUrl(
-        event.clientId,
-        { path: filePath },
-        { presented: true, web: event.source === "web" },
-      ),
-    );
-  },
-);
-
-handleServiceRequest(
-  REOPEN_PRESENTED_TOOL_FILE_CHANNEL,
-  async (event, request: unknown) => {
-    const { projectId, sessionId, toolCallId } =
-      ReopenPresentedToolFileRequestSchema.parse(request);
-    const target = await getProjectRuntimes().reopenPresentedToolFile(
-      event.clientId,
-      projectId,
-      sessionId,
-      toolCallId,
-    );
-    if (target?.source === "presented") {
-      presentedFiles?.remember(event.clientId, target.path);
-    }
-    return target;
-  },
-);
-
-handleServiceRequest(
-  LIST_PROJECTS_CHANNEL,
-  async (): Promise<ListProjectsResult> => ({
-    projects: await getProjectRepository().list(),
-  }),
-);
-
-handleServiceRequest(
-  GET_MODEL_CATALOG_CHANNEL,
-  async (): Promise<PineModelCatalog> => {
-    const [catalog, recommendedIds] = await Promise.all([
-      getProjectRuntimes().getModelCatalog(),
-      modelRecommendations.get(),
-    ]);
-    const availableIds = new Set(catalog.models.map((model) => model.id));
-    return {
-      ...catalog,
-      recommendedModelIds: recommendedIds.filter((id) => availableIds.has(id)),
-    };
-  },
-);
-
-handleServiceRequest(
-  REFRESH_MODEL_CATALOG_CHANNEL,
-  async (): Promise<PineModelCatalog> => {
-    const [catalog, recommendedIds] = await Promise.all([
-      getProjectRuntimes().refreshModelCatalog(),
-      modelRecommendations.get(),
-    ]);
-    const availableIds = new Set(catalog.models.map((model) => model.id));
-    return {
-      ...catalog,
-      recommendedModelIds: recommendedIds.filter((id) => availableIds.has(id)),
-    };
-  },
-);
-
-handleServiceRequest(
-  LOOKUP_MODEL_METADATA_CHANNEL,
-  async (_event, request: unknown): Promise<PineModelMetadata> =>
-    modelMetadata.lookup(
-      LookupModelMetadataRequestSchema.parse(
-        request,
-      ) satisfies LookupModelMetadataRequest,
-    ),
-);
-
-handleServiceRequest(
-  ADD_CUSTOM_MODEL_CHANNEL,
-  async (_event, request: unknown): Promise<PineModelCatalog> =>
-    getProjectRuntimes().addCustomModel(
-      AddCustomModelRequestSchema.parse(
-        request,
-      ) satisfies AddCustomModelRequest,
-    ),
-);
-
-handleServiceRequest(
-  UPDATE_CUSTOM_MODEL_CHANNEL,
-  async (_event, request: unknown): Promise<PineModelCatalog> =>
-    getProjectRuntimes().updateCustomModel(
-      UpdateCustomModelRequestSchema.parse(
-        request,
-      ) satisfies UpdateCustomModelRequest,
-    ),
-);
-
-handleServiceRequest(
-  DELETE_CUSTOM_MODEL_CHANNEL,
-  async (_event, request: unknown): Promise<PineModelCatalog> =>
-    getProjectRuntimes().deleteCustomModel(
-      DeleteCustomModelRequestSchema.parse(
-        request,
-      ) satisfies DeleteCustomModelRequest,
-    ),
-);
-
-handleServiceRequest(
-  UPDATE_CUSTOM_PROVIDER_CHANNEL,
-  async (_event, request: unknown): Promise<PineModelCatalog> =>
-    getProjectRuntimes().updateCustomProvider(
-      UpdateCustomProviderRequestSchema.parse(
-        request,
-      ) satisfies UpdateCustomProviderRequest,
-    ),
-);
-
-handleServiceRequest(
-  DELETE_CUSTOM_PROVIDER_CHANNEL,
-  async (_event, request: unknown): Promise<PineModelCatalog> =>
-    getProjectRuntimes().deleteCustomProvider(
-      DeleteCustomProviderRequestSchema.parse(
-        request,
-      ) satisfies DeleteCustomProviderRequest,
-    ),
-);
-
-const providerLoginOwners = new Map<string, number>();
-
-handleServiceRequest(
-  LOGIN_PROVIDER_CHANNEL,
-  async (event, request: unknown): Promise<ProviderLoginResult> => {
-    const parsed = LoginProviderRequestSchema.parse(request);
-    providerLoginOwners.set(parsed.loginId, event.clientId);
-    try {
-      return await getProjectRuntimes().loginProvider(parsed);
-    } finally {
-      providerLoginOwners.delete(parsed.loginId);
-    }
-  },
-);
-
-handleServiceRequest(
-  RESPOND_PROVIDER_AUTH_CHANNEL,
-  (event, request: unknown): Promise<{ accepted: boolean }> => {
-    const parsed = ProviderAuthResponseRequestSchema.parse(request);
-    if (providerLoginOwners.get(parsed.loginId) !== event.clientId) {
-      throw new Error("Provider login does not belong to this window.");
-    }
-    return getProjectRuntimes().respondToProviderAuth(
-      parsed.loginId,
-      parsed.promptId,
-      parsed.value,
-    );
-  },
-);
-
-handleServiceRequest(
-  CANCEL_PROVIDER_AUTH_CHANNEL,
-  (event, request: unknown): Promise<{ cancelled: boolean }> => {
-    const { loginId } = ProviderAuthLoginIdSchema.parse(request);
-    if (providerLoginOwners.get(loginId) !== event.clientId) {
-      throw new Error("Provider login does not belong to this window.");
-    }
-    return getProjectRuntimes().cancelProviderAuth(loginId);
-  },
-);
-
-handleServiceRequest(
-  LOGOUT_PROVIDER_CHANNEL,
-  (_event, request: unknown): Promise<{ disposed: boolean }> =>
-    getProjectRuntimes().logoutProvider(
-      ProviderIdSchema.parse(request).providerId,
-    ),
-);
-
-handleServiceRequest(
-  SELECT_MODEL_CHANNEL,
-  (event, request: unknown): Promise<{ disposed: boolean }> =>
-    getProjectRuntimes().selectModel(
-      event.clientId,
-      SelectModelRequestSchema.parse(request),
-    ),
-);
-
-handleServiceRequest(
-  SELECT_UTILITY_MODEL_CHANNEL,
-  (_event, request: unknown): Promise<{ updated: boolean }> =>
-    getProjectRuntimes().selectUtilityModel(
-      SelectUtilityModelRequestSchema.parse(request),
-    ),
-);
-
-handleServiceRequest(
-  SELECT_IMAGE_MODEL_CHANNEL,
-  (_event, request: unknown): Promise<{ updated: boolean }> =>
-    getProjectRuntimes().selectImageModel(
-      SelectImageModelRequestSchema.parse(request),
-    ),
-);
-
-ipcMain.handle(OPEN_PROVIDER_AUTH_URL_CHANNEL, async (_event, url: unknown) => {
-  await shell.openExternal(ProviderAuthUrlSchema.parse(url));
-});
-
-ipcMain.handle(
-  PICK_ATTACHMENTS_CHANNEL,
-  async (event): Promise<PickAttachmentsResult> => {
-    const parentWindow = BrowserWindow.fromWebContents(event.sender);
-    const options: OpenDialogOptions = {
-      title: "Add Attachments",
-      buttonLabel: "Add",
-      properties: ["openFile", "multiSelections"],
-    };
-    const selection = await quickComposer.whileModal(
-      event.sender,
-      parentWindow
-        ? dialog.showOpenDialog(parentWindow, options)
-        : dialog.showOpenDialog(options),
-    );
-
-    if (selection.canceled) return { attachments: [] };
-    const result = await inspectAttachmentPaths(selection.filePaths);
-    registerAttachmentPreviewPaths(
-      event.sender.id,
-      result.attachments.map((attachment) => attachment.path),
-    );
-    return result;
-  },
-);
-
-handleDiagnosticIpc(
-  PICK_ATTACHMENT_FOLDERS_CHANNEL,
-  async (event): Promise<PickAttachmentsResult> => {
-    const parentWindow = BrowserWindow.fromWebContents(event.sender);
-    const options: OpenDialogOptions = {
-      title: "Add Attachment Folders",
-      buttonLabel: "Add",
-      properties: ["openDirectory", "multiSelections"],
-    };
-    const selection = await quickComposer.whileModal(
-      event.sender,
-      parentWindow
-        ? dialog.showOpenDialog(parentWindow, options)
-        : dialog.showOpenDialog(options),
-    );
-
-    if (selection.canceled) return { attachments: [] };
-    const result = await inspectAttachmentPaths(selection.filePaths);
-    registerAttachmentPreviewPaths(
-      event.sender.id,
-      result.attachments.map((attachment) => attachment.path),
-    );
-    return result;
-  },
-);
-
-handleServiceRequest(
-  INSPECT_ATTACHMENTS_CHANNEL,
-  async (event, request: unknown): Promise<PickAttachmentsResult> => {
-    const { paths } = InspectAttachmentsRequestSchema.parse(request);
-    const result = await inspectAttachmentPaths(paths);
-    registerAttachmentPreviewPaths(
-      event.clientId,
-      result.attachments.map((attachment) => attachment.path),
-    );
-    return result;
-  },
-);
-
-ipcMain.handle(
-  OPEN_ATTACHMENT_CHANNEL,
-  async (_event, request: unknown): Promise<OpenAttachmentResult> => {
-    const { path: attachmentPath } = OpenAttachmentRequestSchema.parse(request);
-    const metadata = await stat(attachmentPath);
-    if (!metadata.isFile() && !metadata.isDirectory()) {
-      return { opened: false, error: "Attachment is not a file or folder." };
-    }
-    const error = await shell.openPath(attachmentPath);
-    return error ? { opened: false, error } : { opened: true };
-  },
-);
-
-handleServiceRequest(
-  SAVE_PASTED_ATTACHMENT_CHANNEL,
-  async (event, request: unknown): Promise<SavePastedAttachmentResult> => {
-    const parsed = SavePastedAttachmentRequestSchema.parse(request);
-    const attachmentsRoot = getProjectRuntimes().attachmentsRootFor(
-      event.clientId,
-      parsed.projectId,
-    );
-    if (!attachmentsRoot) {
-      throw new Error("The project is not open in this window.");
-    }
-
-    const isText = parsed.mimeType === "text/plain";
-    const extension = isText ? "txt" : extensionForPastedImage(parsed.mimeType);
-    const displayName =
-      path
-        .basename(parsed.name ?? "")
-        .trim()
-        .slice(0, 200) || (isText ? "pasted-text.txt" : `image.${extension}`);
-
-    await mkdir(attachmentsRoot, { recursive: true });
-    const attachmentPath = path.join(
-      attachmentsRoot,
-      `${randomUUID()}.${extension}`,
-    );
-    await writeFile(attachmentPath, isText ? parsed.text : parsed.bytes);
-    const metadata = await stat(attachmentPath);
-
-    const attachment: PineAttachment = {
-      extension,
-      kind: "file",
-      modifiedAt: metadata.mtime.toISOString(),
-      name: displayName,
-      path: attachmentPath,
-      size: metadata.size,
-    };
-    registerAttachmentPreviewPaths(event.clientId, [attachmentPath]);
-    return { attachment };
-  },
-);
-
-handleDiagnosticIpc(
-  PICK_PROJECT_FOLDERS_CHANNEL,
-  async (event, request: unknown): Promise<PickProjectFoldersResult> => {
-    const { mode } = PickProjectFoldersRequestSchema.parse(request);
-    const parentWindow = BrowserWindow.fromWebContents(event.sender);
-    const options: OpenDialogOptions = {
-      title:
-        mode === "default" ? "Choose Default Folder" : "Add Context Folders",
-      buttonLabel: mode === "default" ? "Choose" : "Add",
-      properties: [
-        "openDirectory",
-        ...(mode === "context" ? (["multiSelections"] as const) : []),
-        "createDirectory",
-        "promptToCreate",
-      ],
-    };
-    const selection = parentWindow
-      ? await dialog.showOpenDialog(parentWindow, options)
-      : await dialog.showOpenDialog(options);
-
-    if (selection.canceled) return { folders: [] };
-    return {
-      folders: selection.filePaths.map((folderPath) => ({
-        access: "read-write",
-        id: randomUUID(),
-        name: path.basename(folderPath),
-        path: folderPath,
-      })),
-    };
-  },
-);
-
-handleServiceRequest(
-  CREATE_PROJECT_CHANNEL,
-  async (event, request: unknown): Promise<ProjectResult> => {
-    const input = ProjectMutationSchema.parse(request);
-    const project = await getProjectRepository().create(input);
-    notifyLibraryChanged("projects", event.clientId);
-    return { project };
-  },
-);
-
-const McpIdentitySchema = z.object({
-  projectId: z.uuid(),
-  scope: z.enum(["global", "project"]),
-  name: z
-    .string()
-    .trim()
-    .min(1)
-    .max(100)
-    .regex(/^[A-Za-z0-9][A-Za-z0-9._-]*$/),
-});
-
-async function mcpProjectCwd(projectId: string): Promise<string> {
-  const project = await getProjectRepository().get(projectId);
-  const folder = project.folders.find(
-    (entry) => entry.id === project.defaultFolderId,
-  );
-  if (!folder?.isAvailable)
-    throw new Error("The project's default folder is unavailable.");
-  return folder.path;
-}
-
-async function piSkillResourceLoader(
-  projectId: string | undefined,
-  repository: PineSkillRepository,
-): Promise<DefaultResourceLoader> {
-  const { DefaultResourceLoader, SettingsManager, loadSkills } =
-    await import("@earendil-works/pi-coding-agent");
-  const agentDir = getPineAgentDirectory();
-  const cwd = projectId ? await mcpProjectCwd(projectId) : agentDir;
-  const settingsManager = SettingsManager.create(cwd, agentDir, {
-    projectTrusted: false,
-  });
-  const loader = new DefaultResourceLoader({
-    cwd,
-    agentDir,
-    settingsManager,
-    noExtensions: true,
-    noPromptTemplates: true,
-    noThemes: true,
-    noContextFiles: true,
-    additionalSkillPaths: projectId ? piProjectSkillPaths(cwd) : [],
-    skillsOverride: filterPineManagedSkills(
-      repository,
-      cwd,
-      agentDir,
-      loadSkills,
-    ),
-  });
-  await loader.reload();
-  return loader;
-}
-
-async function readPiSkill(
-  projectId: string | undefined,
-  repository: PineSkillRepository,
-  scope: PineSkillScope,
-  name: string,
-): Promise<ReadSkillResult> {
-  const loader = await piSkillResourceLoader(projectId, repository);
-  const skill = loader
-    .getSkills()
-    .skills.find(
-      (candidate) =>
-        candidate.name === name && pineScopeForPiSkill(candidate) === scope,
-    );
-  if (!skill) throw new Error(`Pi skill "${name}" was not found.`);
-
-  return piSkillReadResult(skill);
-}
-
-async function piSkillReadResult(skill: PiSkill): Promise<ReadSkillResult> {
-  return {
-    content: await readFile(skill.filePath, "utf8"),
-    resources: await collectSkillResources(skill.baseDir),
-    skill: summarizePiSkill(skill),
-    skillDirectory: skill.baseDir,
-  };
-}
-
-async function editPiSkill(
-  projectId: string | undefined,
-  repository: PineSkillRepository,
-  scope: PineSkillScope,
-  name: string,
-  content: string,
-): Promise<ReadSkillResult> {
-  const loader = await piSkillResourceLoader(projectId, repository);
-  const skill = loader
-    .getSkills()
-    .skills.find(
-      (candidate) =>
-        candidate.name === name && pineScopeForPiSkill(candidate) === scope,
-    );
-  if (!skill) throw new Error(`Pi skill "${name}" was not found.`);
-  if (summarizePiSkill(skill).readOnly) {
-    throw new Error("This Pi Skill is package-managed and cannot be edited.");
-  }
-
-  const normalizedContent = `${content.trim()}\n`;
-  if (
-    normalizedContent.trim().length === 0 ||
-    Buffer.byteLength(normalizedContent, "utf8") > 1_000_000
-  ) {
-    throw new Error("SKILL.md must contain 1-1,000,000 bytes of content.");
-  }
-
-  const validationDirectory = path.join(
-    skill.baseDir,
-    `.pine-skill-validation-${randomUUID()}`,
-  );
-  const stagedFile = `${skill.filePath}.${randomUUID()}.tmp`;
-  await mkdir(validationDirectory, { recursive: false });
-  try {
-    await writeFile(
-      path.join(validationDirectory, "SKILL.md"),
-      normalizedContent,
-      {
-        encoding: "utf8",
-        flag: "wx",
-      },
-    );
-    const { loadSkillsFromDir } =
-      await import("@earendil-works/pi-coding-agent");
-    const validation = loadSkillsFromDir({
-      dir: validationDirectory,
-      source: "temporary",
-    });
-    if (validation.skills.length !== 1 || validation.skills[0]?.name !== name) {
-      throw new Error(
-        validation.diagnostics[0]?.message ??
-          "The edited Skill is not valid Pi Skill content.",
-      );
-    }
-    await writeFile(stagedFile, normalizedContent, {
-      encoding: "utf8",
-      flag: "wx",
-    });
-    await rename(stagedFile, skill.filePath);
-  } finally {
-    await rm(stagedFile, { force: true });
-    await rm(validationDirectory, { recursive: true, force: true });
-  }
-
-  return readPiSkill(projectId, repository, scope, name);
-}
-
-async function removePiSkill(
-  projectId: string | undefined,
-  repository: PineSkillRepository,
-  scope: PineSkillScope,
-  name: string,
-): Promise<boolean> {
-  const loader = await piSkillResourceLoader(projectId, repository);
-  const skill = loader
-    .getSkills()
-    .skills.find(
-      (candidate) =>
-        candidate.name === name && pineScopeForPiSkill(candidate) === scope,
-    );
-  if (!skill) throw new Error(`Pi skill "${name}" was not found.`);
-  if (summarizePiSkill(skill).readOnly) {
-    throw new Error("This Pi Skill is package-managed and cannot be deleted.");
-  }
-
-  const trashDirectory = path.join(
-    skill.baseDir,
-    ".trash",
-    `${name}-${Date.now()}-${randomUUID()}`,
-  );
-  await mkdir(trashDirectory, { recursive: true });
-  await rename(
-    skill.filePath,
-    path.join(trashDirectory, path.basename(skill.filePath)),
-  );
-  return true;
-}
-
-async function mcpCatalog(
-  event: PineRequestContext,
-  projectId: string,
-): Promise<PineMcpCatalog> {
-  const catalog = await listMcpServers(await mcpProjectCwd(projectId));
-  if (getProjectRuntimes().isOpen(event.clientId, projectId)) {
-    const status = await getProjectRuntimes().getMcpStatus(
-      event.clientId,
-      projectId,
-    );
-    if (status) catalog.status = status;
-  }
-  return catalog;
-}
-
-handleServiceRequest(
-  LIST_MCP_SERVERS_CHANNEL,
-  async (event, request: unknown): Promise<PineMcpCatalog> => {
-    const { projectId } = z.object({ projectId: z.uuid() }).parse(request);
-    return mcpCatalog(event, projectId);
-  },
-);
-
-handleServiceRequest(
-  SAVE_MCP_SERVER_CHANNEL,
-  async (event, request: unknown): Promise<PineMcpCatalog> => {
-    const parsed = McpIdentitySchema.extend({
-      previousName: McpIdentitySchema.shape.name.optional(),
-      definition: z.record(z.string(), z.unknown()),
-    }).parse(request);
-    if (
-      typeof parsed.definition.command !== "string" &&
-      typeof parsed.definition.url !== "string"
-    )
-      throw new Error("An MCP server needs a command or URL.");
-    const cwd = await mcpProjectCwd(parsed.projectId);
-    await saveMcpServer(cwd, parsed);
-    if (getProjectRuntimes().isOpen(event.clientId, parsed.projectId))
-      await getProjectRuntimes().reloadMcp(event.clientId, parsed.projectId);
-    return mcpCatalog(event, parsed.projectId);
-  },
-);
-
-handleServiceRequest(
-  REMOVE_MCP_SERVER_CHANNEL,
-  async (event, request: unknown): Promise<PineMcpCatalog> => {
-    const parsed = McpIdentitySchema.parse(request);
-    const cwd = await mcpProjectCwd(parsed.projectId);
-    await removeMcpServer(cwd, parsed);
-    if (getProjectRuntimes().isOpen(event.clientId, parsed.projectId))
-      await getProjectRuntimes().reloadMcp(event.clientId, parsed.projectId);
-    return mcpCatalog(event, parsed.projectId);
-  },
-);
-
-handleServiceRequest(
-  LIST_SKILLS_CHANNEL,
-  async (_event, request: unknown): Promise<ListSkillsResult> => {
-    const parsed = SkillScopeRequestSchema.parse(request);
-    const repository = await skillRepositoryFor(parsed.scope, parsed.projectId);
-    const managed = repository.list(parsed.scope);
-    const piSkills = await piSkillResourceLoader(parsed.projectId, repository);
-    const discovered = piSkills.getSkills();
-    return {
-      diagnostics: [
-        ...managed.diagnostics,
-        ...discovered.diagnostics.map((entry) => ({
-          message: entry.message,
-          type:
-            entry.type === "collision"
-              ? ("collision" as const)
-              : entry.type === "error"
-                ? ("error" as const)
-                : ("warning" as const),
-        })),
-      ],
-      skills: [
-        ...managed.skills,
-        ...discovered.skills
-          .filter((skill) => pineScopeForPiSkill(skill) === parsed.scope)
-          .map(summarizePiSkill),
-      ],
-    };
-  },
-);
-
-handleServiceRequest(
-  READ_SKILL_CHANNEL,
-  async (_event, request: unknown): Promise<ReadSkillResult> => {
-    const parsed = SkillIdentityRequestSchema.parse(request);
-    const repository = await skillRepositoryFor(parsed.scope, parsed.projectId);
-    if (parsed.managedBy === "pi") {
-      return readPiSkill(
-        parsed.projectId,
-        repository,
-        parsed.scope,
-        parsed.name,
-      );
-    }
-    return repository.read(parsed.scope, parsed.name);
-  },
-);
-
-handleServiceRequest(
-  CREATE_SKILL_CHANNEL,
-  async (_event, request: unknown): Promise<ReadSkillResult> => {
-    const parsed = WriteSkillRequestSchema.parse(request);
-    if (parsed.managedBy === "pi") {
-      throw new Error("New Skills must use Pine-managed storage.");
-    }
-    return (await skillRepositoryFor(parsed.scope, parsed.projectId)).create(
-      parsed.scope,
-      parsed.name,
-      parsed.content,
-    );
-  },
-);
-
-handleServiceRequest(
-  EDIT_SKILL_CHANNEL,
-  async (_event, request: unknown): Promise<ReadSkillResult> => {
-    const parsed = WriteSkillRequestSchema.parse(request);
-    const repository = await skillRepositoryFor(parsed.scope, parsed.projectId);
-    if (parsed.managedBy === "pi") {
-      return editPiSkill(
-        parsed.projectId,
-        repository,
-        parsed.scope,
-        parsed.name,
-        parsed.content,
-      );
-    }
-    return repository.edit(parsed.scope, parsed.name, parsed.content);
-  },
-);
-
-handleServiceRequest(
-  REMOVE_SKILL_CHANNEL,
-  async (_event, request: unknown): Promise<RemoveSkillResult> => {
-    const parsed = SkillIdentityRequestSchema.parse(request);
-    const repository = await skillRepositoryFor(parsed.scope, parsed.projectId);
-    return {
-      removed:
-        parsed.managedBy === "pi"
-          ? await removePiSkill(
-              parsed.projectId,
-              repository,
-              parsed.scope,
-              parsed.name,
-            )
-          : await repository.remove(parsed.scope, parsed.name),
-    };
-  },
-);
-
-handleServiceRequest(
-  SET_GLOBAL_SKILL_ENABLED_CHANNEL,
-  async (_event, request: unknown): Promise<SetGlobalSkillEnabledResult> => {
-    const parsed = SetGlobalSkillEnabledRequestSchema.parse(request);
-    const repository = await skillRepositoryFor("project", parsed.projectId);
-    await repository.setGlobalSkillEnabled(parsed.name, parsed.enabled);
-    return { updated: true };
-  },
-);
-
-handleServiceRequest(
-  CLOSE_PROJECT_CHANNEL,
-  async (event, request: unknown): Promise<void> => {
-    const { id } = ProjectIdRequestSchema.parse(request);
-    // Presented-file grants belong to the window rather than one project, so
-    // they stay until the window itself goes away.
-    await getProjectRuntimes().close(event.clientId, id);
-  },
-);
-
-handleServiceRequest(
-  OPEN_PROJECT_CHANNEL,
-  async (event, request: unknown): Promise<OpenProjectResult> => {
-    const { id } = ProjectIdRequestSchema.parse(request);
-    const repository = getProjectRepository();
-    const runtimes = getProjectRuntimes();
-    // Opening again must not restart a runtime the client already holds.
-    if (runtimes.isOpen(event.clientId, id)) {
-      return { opened: true, project: await repository.open(id) };
-    }
-    // Every window needs the temporary workspace for new drafts, so it is the
-    // one project several windows may hold; its sessions stay single-window.
-    const otherHolders = isTemporaryWorkspace(id)
-      ? []
-      : runtimes
-          .clientsOfProject(id)
-          .filter((clientId) => clientId !== event.clientId);
-    // A window hands the project to the window that already holds it.
-    if (event.source === "desktop") {
-      const existingWindow = otherHolders
-        .map((clientId) => windowForWebContentsId(clientId))
-        .find((window) => window !== undefined);
-      if (existingWindow) {
-        focusWindow(existingWindow);
-        return { opened: false, project: await repository.open(id) };
-      }
-    }
-    // The browser interface attaches beside windows rather than taking over.
-    if (event.source === "web" || runtimes.isOpen(WEB_CLIENT_ID, id)) {
-      const project = await repository.open(id);
-      await runtimes.share(event.clientId, project, repository.dataPaths(id));
-      return { opened: true, project };
-    }
-    // Holders left without a window, such as a crashed renderer.
-    for (const clientId of otherHolders) await runtimes.dispose(clientId);
-
-    const pendingKey = isTemporaryWorkspace(id)
-      ? `${id}:${event.clientId}`
-      : id;
-    const pending = pendingProjectOpens.get(pendingKey);
-    if (pending) {
-      const targetWindow = windowForWebContentsId(pending.webContentsId);
-      if (targetWindow && pending.webContentsId !== event.clientId) {
-        focusWindow(targetWindow);
-        return { opened: false, project: await pending.promise };
-      }
-      return { opened: true, project: await pending.promise };
-    }
-
-    const opening = (async (): Promise<PineProject> => {
-      const project = await repository.open(id);
-      await getProjectRuntimes().open(
-        event.clientId,
-        project,
-        repository.dataPaths(id),
-      );
-      return project;
-    })();
-    pendingProjectOpens.set(pendingKey, {
-      promise: opening,
-      webContentsId: event.clientId,
-    });
-    try {
-      return { opened: true, project: await opening };
-    } finally {
-      if (pendingProjectOpens.get(pendingKey)?.promise === opening) {
-        pendingProjectOpens.delete(pendingKey);
-      }
-    }
-  },
-);
-
-handleServiceRequest(
-  UPDATE_PROJECT_CHANNEL,
-  async (event, request: unknown): Promise<ProjectResult> => {
-    const parsed = UpdateProjectRequestSchema.parse(request);
-    const { id } = parsed;
-    const input = {
-      defaultFolderId: parsed.defaultFolderId,
-      folders: parsed.folders,
-      name: parsed.name,
-      projectColorTheme: parsed.projectColorTheme,
-      projectIcon: parsed.projectIcon,
-    };
-    const repository = getProjectRepository();
-    const project = await repository.update(id, input);
-    const sessionIds = [...new Set(getProjectRuntimes().liveSessionIdsOf(id))];
-    await getProjectRuntimes().refresh(project, repository.dataPaths(id));
-    for (const sessionId of sessionIds)
-      sendSessionEvent(event.clientId, {
-        type: "session-reset",
-        sessionId,
-        projectId: id,
-      });
-    notifyLibraryChanged("projects", event.clientId);
-    return { project };
-  },
-);
-
-handleServiceRequest(
-  UPDATE_PROJECT_SESSION_GROUPS_CHANNEL,
-  async (event, request: unknown): Promise<ProjectResult> => {
-    const { id, sessionGroups } =
-      UpdateProjectSessionGroupsRequestSchema.parse(request);
-    const project = await getProjectRepository().updateSessionGroups(
-      id,
-      sessionGroups,
-    );
-    notifyLibraryChanged("projects", event.clientId);
-    return { project };
-  },
-);
-
-handleServiceRequest(
-  DELETE_PROJECT_CHANNEL,
-  async (event, request: unknown): Promise<DeleteProjectResult> => {
-    const { id } = ProjectIdRequestSchema.parse(request);
-    await getProjectRuntimes().closeEverywhere(id);
-    const deleted = await getProjectRepository().delete(id);
-    notifyLibraryChanged("projects", event.clientId);
-    return { deleted };
-  },
-);
-
-/**
- * Sessions that are mid-run or still own a running background task. Their
- * project's temporary files are in use, so they cannot be cleared.
- */
-const runningSessions = new Set<string>();
-const sessionsWithRunningTasks = new Set<string>();
-
-function trackSessionWork(agentEvent: PineAgentEvent): void {
-  if (agentEvent.type === "run-state") {
-    if (agentEvent.state === "running" || agentEvent.state === "aborting")
-      runningSessions.add(agentEvent.sessionId);
-    else runningSessions.delete(agentEvent.sessionId);
-  } else if (agentEvent.type === "background-tasks") {
-    if (agentEvent.tasks.some((task) => task.status === "running"))
-      sessionsWithRunningTasks.add(agentEvent.sessionId);
-    else sessionsWithRunningTasks.delete(agentEvent.sessionId);
-  }
-}
-
-function projectHasRunningWork(projectId: string): boolean {
-  return getProjectRuntimes()
-    .liveSessionIdsOf(projectId)
-    .some(
-      (sessionId) =>
-        runningSessions.has(sessionId) ||
-        sessionsWithRunningTasks.has(sessionId),
-    );
-}
-
-const ClearProjectStorageRequestSchema = z.object({
-  id: z.uuid(),
-  kind: z.enum(["attachments", "temporary"]),
-});
-
-handleServiceRequest(
-  PROJECT_STORAGE_CHANNEL,
-  async (): Promise<ProjectStorageResult> => {
-    const repository = getProjectRepository();
-    const projects = await repository.list();
-    return {
-      usage: await Promise.all(
-        projects.map((project) =>
-          measureProjectStorage(project.id, repository.dataPaths(project.id)),
-        ),
-      ),
-    };
-  },
-);
-
-handleServiceRequest(
-  CLEAR_PROJECT_STORAGE_CHANNEL,
-  async (_event, request: unknown): Promise<ProjectStorageUsage> => {
-    const { id, kind } = ClearProjectStorageRequestSchema.parse(request);
-    const repository = getProjectRepository();
-    await repository.get(id);
-    if (kind === "temporary" && projectHasRunningWork(id)) {
-      throw new Error(
-        "A session of this project is still running; try again once it finishes.",
-      );
-    }
-    const dataPaths = repository.dataPaths(id);
-    await clearProjectStorage(dataPaths, kind);
-    return measureProjectStorage(id, dataPaths);
-  },
-);
-
-// Serialize filesystem operations so concurrent drags cannot overwrite one another.
-let projectFileOperationQueue: Promise<void> = Promise.resolve();
-handleServiceRequest(
-  PROJECT_FILE_OPERATION_CHANNEL,
-  (event, request: unknown) => {
-    const operation = ProjectFileOperationSchema.parse(request);
-    const pending = projectFileOperationQueue.then(() =>
-      getProjectRuntimes().operateFile(event.clientId, operation, {
-        trash: (filePath) => shell.trashItem(filePath),
-        open: (filePath) => shell.openPath(filePath),
-        reveal: (filePath) => shell.showItemInFolder(filePath),
-        copyPath: (filePath) => clipboard.writeText(filePath),
-      }),
-    );
-    projectFileOperationQueue = pending.catch(() => undefined);
-    return pending;
-  },
-);
-
-handleServiceRequest(
-  PRESENTED_FILE_OPERATION_CHANNEL,
-  (event, request: unknown): Promise<void> =>
-    operatePresentedFile(
-      request,
-      (filePath) => presentedFilePath(event.clientId, { path: filePath }),
-      {
-        open: (filePath) => shell.openPath(filePath),
-        reveal: (filePath) => shell.showItemInFolder(filePath),
-        copyPath: (filePath) => clipboard.writeText(filePath),
-      },
-    ),
-);
-
-async function handleProjectFileDrag(
-  event: IpcMainEvent,
-  request: unknown,
-): Promise<void> {
-  try {
-    const entry = ProjectEntryReferenceSchema.parse(request);
-    const filePath = getProjectRuntimes().projectEntryPathForNativeDrag(
-      event.sender.id,
-      entry,
-    );
-    await startProjectFileDrag(event.sender, filePath, (file, options) =>
-      app.getFileIcon(file, options),
-    );
-  } catch (error) {
-    console.error("Failed to start project file drag.", error);
-  }
-}
-
-ipcMain.on(START_PROJECT_FILE_DRAG_CHANNEL, (event, request: unknown): void => {
-  void handleProjectFileDrag(event, request);
-});
-
-handleServiceRequest(
-  PROJECT_FILE_ATTACHMENTS_CHANNEL,
-  async (event, request: unknown): Promise<PickAttachmentsResult> => {
-    const entries = z
-      .array(ProjectEntryReferenceSchema)
-      .min(1)
-      .max(100)
-      .parse(request);
-    const paths = await getProjectRuntimes().projectEntryPaths(
-      event.clientId,
-      entries,
-    );
-    const result = await inspectAttachmentPaths(paths);
-    registerAttachmentPreviewPaths(
-      event.clientId,
-      result.attachments.map((attachment) => attachment.path),
-    );
-    return result;
-  },
-);
-
-handleServiceRequest(
-  LIST_PROJECT_DIRECTORY_CHANNEL,
-  async (event, request: unknown): Promise<ListProjectDirectoryResult> => {
-    const { folderId, projectId, relativePath } =
-      ListProjectDirectoryRequestSchema.parse(request);
-    return {
-      entries: await getProjectRuntimes().listDirectory(
-        event.clientId,
-        projectId,
-        folderId,
-        relativePath,
-      ),
-    };
-  },
-);
-
-handleServiceRequest(
-  SET_WATCHED_PROJECT_DIRECTORIES_CHANNEL,
-  (event, request: unknown): Promise<void> => {
-    const parsed = SetWatchedProjectDirectoriesRequestSchema.parse(request);
-    if (!projectFileWatchers) {
-      projectFileWatchers = new ProjectFileWatcherRegistry(
-        (senderId, projectId, folderId, relativePath) =>
-          getProjectRuntimes().resolveDirectory(
-            senderId,
-            projectId,
-            folderId,
-            relativePath,
-          ),
-        (senderId, changes) => {
-          sendClientEvent(senderId, PROJECT_FILES_CHANGED_CHANNEL, {
-            folders: changes,
-          });
-        },
-      );
-    }
-    return projectFileWatchers.setWatchedDirectories(event.clientId, parsed);
-  },
-);
-
-handleServiceRequest(
-  LIST_ALL_RECENT_SESSIONS_CHANNEL,
-  async (): Promise<ListAllRecentSessionsResult> => {
-    const repository = getProjectRepository();
-    const runtimes = getProjectRuntimes();
-    return {
-      sessions: await listAllRecentSessions(await repository.list(), {
-        dataPaths: (projectId) => repository.dataPaths(projectId),
-        openSessionService: (projectId) =>
-          runtimes.openSessionService(projectId),
-      }),
-    };
-  },
-);
-
-handleServiceRequest(
-  SEARCH_ALL_SESSIONS_CHANNEL,
-  async (_event, request: unknown): Promise<SearchAllSessionsResult> => {
-    const { query } = SearchAllSessionsRequestSchema.parse(request);
-    const repository = getProjectRepository();
-    const runtimes = getProjectRuntimes();
-    return {
-      sessions: await searchAllSessions(await repository.list(), query, {
-        dataPaths: (projectId) => repository.dataPaths(projectId),
-        openSessionService: (projectId) =>
-          runtimes.openSessionService(projectId),
-      }),
-    };
-  },
-);
-
-handleServiceRequest(
-  SEARCH_SESSIONS_CHANNEL,
-  async (event, request: unknown): Promise<SearchSessionsResult> => {
-    const { projectId, query } = SearchSessionsRequestSchema.parse(request);
-    return {
-      sessions: await getProjectRuntimes().search(
-        event.clientId,
-        projectId,
-        query,
-      ),
-    };
-  },
-);
-
-handleServiceRequest(
-  ATTACH_SESSION_CHANNEL,
-  async (event, request: unknown): Promise<AttachSessionResult> => {
-    const { projectId, sessionId } = ProjectSessionRequestSchema.parse(request);
-    const runtimes = getProjectRuntimes();
-    // A session dragged in from another project may not be open here.
-    const attachment = runtimes.isOpen(event.clientId, projectId)
-      ? await runtimes.attachmentForSession(
-          event.clientId,
-          projectId,
-          sessionId,
-        )
-      : await attachmentForProjectSession(projectId, sessionId, {
-          dataPaths: (id) => getProjectRepository().dataPaths(id),
-          openSessionService: (id) => runtimes.openSessionService(id),
-        });
-    registerAttachmentPreviewPaths(event.clientId, [attachment.path]);
-    return { attachment };
-  },
-);
-
-handleServiceRequest(
-  RESUME_SESSION_CHANNEL,
-  async (event, request: unknown): Promise<ResumeSessionResult> => {
-    const { projectId, sessionId } = ProjectSessionRequestSchema.parse(request);
-    return getProjectRuntimes().resume(event.clientId, projectId, sessionId);
-  },
-);
-
-handleServiceRequest(
-  DELETE_SESSION_CHANNEL,
-  async (event, request: unknown): Promise<DeleteSessionResult> => {
-    const { projectId, sessionId } = ProjectSessionRequestSchema.parse(request);
-    const deleted = await getProjectRuntimes().deleteSession(
-      event.clientId,
-      projectId,
-      sessionId,
-    );
-    notifyLibraryChanged("sessions", event.clientId);
-    return { deleted };
-  },
-);
-
-ipcMain.handle(
-  EXPORT_SESSION_CHANNEL,
-  async (event, request: unknown): Promise<ExportSessionResult> => {
-    const { projectId, sessionId } = ProjectSessionRequestSchema.parse(request);
-    const document = await getProjectRuntimes().exportSession(
-      event.sender.id,
-      projectId,
-      sessionId,
-    );
-    const parentWindow = BrowserWindow.fromWebContents(event.sender);
-    if (!parentWindow) return { saved: false };
-    const result = await dialog.showSaveDialog(parentWindow, {
-      defaultPath: document.fileName,
-      filters: [{ name: "Markdown", extensions: ["md"] }],
-      properties: ["createDirectory", "showOverwriteConfirmation"],
-    });
-    if (result.canceled || !result.filePath) return { saved: false };
-
-    await writeFile(result.filePath, document.markdown, "utf8");
-    return { path: result.filePath, saved: true };
-  },
-);
-
-handleServiceRequest(
-  RENAME_SESSION_CHANNEL,
-  async (event, request: unknown): Promise<RenameSessionResult> => {
-    const { name, projectId, sessionId } =
-      RenameSessionRequestSchema.parse(request);
-    const session = await getProjectRuntimes().renameSession(
-      event.clientId,
-      projectId,
-      sessionId,
-      name,
-    );
-    notifyLibraryChanged("sessions", event.clientId);
-    return { session };
-  },
-);
-
-handleServiceRequest(
-  LOAD_SESSION_MESSAGES_CHANNEL,
-  async (event, request: unknown): Promise<LoadSessionMessagesResult> => {
-    const { before, includeOutline, limit, projectId, sessionId } =
-      LoadSessionMessagesRequestSchema.parse(request);
-    return getProjectRuntimes().loadMessages(
-      event.clientId,
-      projectId,
-      sessionId,
-      before,
-      limit,
-      includeOutline,
-    );
-  },
-);
-
-handleServiceRequest(
-  PROMPT_SESSION_CHANNEL,
-  async (event, request: unknown): Promise<PromptSessionResult> =>
-    getProjectRuntimes().prompt(
-      event.clientId,
-      PromptSessionRequestSchema.parse(request),
-    ),
-);
-
-handleServiceRequest(
-  ABORT_SESSION_CHANNEL,
-  async (event, request: unknown): Promise<AbortSessionResult> =>
-    getProjectRuntimes().abort(
-      event.clientId,
-      SessionIdRequestSchema.parse(request).sessionId,
-    ),
-);
-
-handleServiceRequest(
-  LIST_BACKGROUND_TASKS_CHANNEL,
-  async (event, request: unknown): Promise<ListBackgroundTasksResult> =>
-    getProjectRuntimes().listBackgroundTasks(
-      event.clientId,
-      SessionIdRequestSchema.parse(request).sessionId,
-    ),
-);
-
-handleServiceRequest(
-  STOP_BACKGROUND_TASK_CHANNEL,
-  async (event, request: unknown): Promise<BackgroundTaskResult> =>
-    getProjectRuntimes().stopBackgroundTask(
-      event.clientId,
-      BackgroundTaskRequestSchema.parse(request),
-    ),
-);
-
-handleServiceRequest(
-  READ_BACKGROUND_TASK_OUTPUT_CHANNEL,
-  async (event, request: unknown): Promise<ReadBackgroundTaskOutputResult> =>
-    getProjectRuntimes().readBackgroundTaskOutput(
-      event.clientId,
-      BackgroundTaskRequestSchema.parse(request),
-    ),
-);
-
-handleServiceRequest(
-  COMPACT_SESSION_CHANNEL,
-  async (event, request: unknown): Promise<CompactSessionResult> =>
-    getProjectRuntimes().compact(
-      event.clientId,
-      SessionIdRequestSchema.parse(request).sessionId,
-    ),
-);
-
-handleServiceRequest(
-  DEQUEUE_STEERING_CHANNEL,
-  async (event, request: unknown): Promise<DequeueSteeringResult> => {
-    const { message, sessionId } = DequeueSteeringRequestSchema.parse(request);
-    return getProjectRuntimes().dequeueSteering(
-      event.clientId,
-      message,
-      sessionId,
-    );
-  },
-);
-
-handleServiceRequest(
-  SET_APPROVAL_MODE_CHANNEL,
-  async (event, request: unknown): Promise<SetApprovalModeResult> => {
-    const { approvalMode, sessionId } =
-      SetApprovalModeRequestSchema.parse(request);
-    return getProjectRuntimes().setApprovalMode(
-      event.clientId,
-      approvalMode,
-      sessionId,
-    );
-  },
-);
-
-handleServiceRequest(
-  APPROVAL_RESPONSE_CHANNEL,
-  (event, request: unknown): { accepted: boolean } =>
-    getProjectRuntimes().respondApproval(
-      event.clientId,
-      RespondApprovalRequestSchema.parse(
-        request,
-      ) satisfies RespondApprovalRequest,
-    ),
-);
-
-handleServiceRequest(
-  QUESTIONNAIRE_RESPONSE_CHANNEL,
-  (event, request: unknown): { accepted: boolean } =>
-    getProjectRuntimes().respondQuestionnaire(
-      event.clientId,
-      RespondQuestionnaireRequestSchema.parse(
-        request,
-      ) satisfies RespondQuestionnaireRequest,
-    ),
-);
-
-// Sent every frame while the sidebar slides, so the glass keeps up with it.
-ipcMain.on(SET_SIDEBAR_GLASS_WIDTH_CHANNEL, (event, width: unknown): void => {
-  const window = BrowserWindow.fromWebContents(event.sender);
-  const background = window && windowBackgrounds.get(window);
-  if (!window || !background || typeof width !== "number") return;
-  if (!Number.isFinite(width)) return;
-  background.sidebarWidth = Math.max(0, width);
-  if (background.sidebarGlass)
-    showSidebarGlass(window, background.sidebarWidth, background.color);
-});
-
-ipcMain.handle(
-  SET_SIDEBAR_VIBRANCY_CHANNEL,
-  (event, request: unknown): SetSidebarVibrancyResult => {
-    const { enabled } = SetSidebarVibrancyRequestSchema.parse(request);
-    if (process.platform !== "darwin") return { applied: false };
-
-    const window = BrowserWindow.fromWebContents(event.sender);
-    // Only project windows have a sidebar; the quick composer's own windows
-    // share the renderer but must stay clear.
-    const background = window && windowBackgrounds.get(window);
-    if (!window || window.isDestroyed() || !background)
-      return { applied: false };
-
-    // Glass like system sidebars where the system has it; Electron's
-    // vibrancy before macOS 26.
-    const glass =
-      enabled &&
-      isSidebarGlassSupported() &&
-      showSidebarGlass(window, background.sidebarWidth, background.color);
-    if (!glass && background.sidebarGlass) hideSidebarGlass(window);
-    background.sidebarGlass = glass;
-    window.setVibrancy(enabled && !glass ? "sidebar" : null);
-    // An opaque window background covers the native material, so it must
-    // become fully transparent while the effect is enabled.
-    background.vibrancy = enabled;
-    applyWindowBackground(window);
-    restoreWindowButtons(window);
-    return { applied: true };
-  },
-);
-
-ipcMain.handle(
-  GET_WEB_SERVER_CHANNEL,
-  () =>
-    webApplication?.server.status() ?? {
-      ...DEFAULT_WEB_SERVER_SETTINGS,
-      hasPassword: false,
-    },
-);
-ipcMain.handle(SET_WEB_SERVER_CHANNEL, async (_event, request: unknown) => {
-  const settings = z
-    .custom<WebServerSettings>(isWebServerSettings)
-    .parse(request);
-  if (!webApplication) throw new Error("The local web interface is not ready.");
-  return webApplication.configure(settings, true);
-});
-ipcMain.handle(SET_WEB_PASSWORD_CHANNEL, async (_event, request: unknown) => {
-  const password = z
-    .string()
-    .min(MIN_WEB_PASSWORD_LENGTH)
-    .max(1_024)
-    .parse(request);
-  if (!webApplication) throw new Error("The local web interface is not ready.");
-  return webApplication.setPassword(password);
-});
-ipcMain.handle(SIGN_OUT_WEB_BROWSERS_CHANNEL, async () => {
-  if (!webApplication) throw new Error("The local web interface is not ready.");
-  return webApplication.signOutAll();
-});
-
-// This method will be called when Electron has finished
-// initialization and is ready to create browser windows.
-// Some APIs can only be used after this event occurs.
-async function initializeApp(): Promise<void> {
-  // Before any window: a page only reaches the schemes registered when it
-  // loads, and the floating composer's panel loads early.
-  registerAttachmentImageProtocol();
-  registerProjectMediaProtocol();
-  pineAgentDirectory = path.join(app.getPath("userData"), "agent");
-  const settings = await readPineAgentSettings(pineAgentDirectory);
-  completionSignalMode =
-    settings.completionSignalMode ?? DEFAULT_COMPLETION_SIGNAL_MODE;
-  attentionNotificationsEnabled =
-    settings.attentionNotificationsEnabled ??
-    DEFAULT_ATTENTION_NOTIFICATIONS_ENABLED;
-  quickComposerEnabled =
-    (settings.quickComposerEnabled ?? DEFAULT_QUICK_COMPOSER_ENABLED) &&
-    applyQuickComposerShortcut(true);
-  // Ready before the first message, so no turn waits on the lookup.
-  if (
-    settings.approximateLocationEnabled ??
-    DEFAULT_APPROXIMATE_LOCATION_ENABLED
-  )
-    void getApproximateLocation().current();
-  runtimeDiagnostics = new RuntimeDiagnostics(
-    app.getPath("logs"),
-    settings.diagnosticLoggingEnabled ?? false,
-  );
-  runtimeDiagnostics.record("app:start", {
-    version: app.getVersion(),
-    electron: process.versions.electron,
-    platform: process.platform,
-  });
-  powerMonitor.on("suspend", () => runtimeDiagnostics?.record("power:suspend"));
+function recordSystemEvents(pine: PineCore): void {
+  const { diagnostics } = pine;
+  powerMonitor.on("suspend", () => diagnostics.record("power:suspend"));
   // The system is shutting down or logging out; never hold that up.
   powerMonitor.on("shutdown", () => {
     quitConfirmed = true;
   });
-  powerMonitor.on("resume", () => runtimeDiagnostics?.record("power:resume"));
-  powerMonitor.on("lock-screen", () =>
-    runtimeDiagnostics?.record("power:lock-screen"),
-  );
+  powerMonitor.on("resume", () => diagnostics.record("power:resume"));
+  powerMonitor.on("lock-screen", () => diagnostics.record("power:lock-screen"));
   powerMonitor.on("unlock-screen", () =>
-    runtimeDiagnostics?.record("power:unlock-screen"),
+    diagnostics.record("power:unlock-screen"),
   );
   app.on("child-process-gone", (_event, details) => {
-    runtimeDiagnostics?.record("child-process:gone", {
+    diagnostics.record("child-process:gone", {
       type: details.type,
       ...(details.name ? { name: details.name } : {}),
       reason: details.reason,
       exitCode: details.exitCode,
     });
   });
+}
+
+async function createAppUpdater(): Promise<AppUpdater> {
+  const releaseConfigPath = app.isPackaged
+    ? path.join(process.resourcesPath, "release.json")
+    : path.join(app.getAppPath(), "../../.pine/release.json");
+  const manifestUrl = app.isPackaged
+    ? await readUpdateManifestUrl(releaseConfigPath)
+    : null;
+  return new AppUpdater({
+    arch: process.arch,
+    currentExecutable: process.execPath,
+    currentVersion: app.getVersion(),
+    emit: broadcastUpdateEvent,
+    manifestUrl,
+    platform: process.platform,
+    quit: () => app.quit(),
+    tempDirectory: app.getPath("temp"),
+    windowsUpdater: process.platform === "win32" ? autoUpdater : undefined,
+  });
+}
+
+// Called once Electron has finished initialization and can create browser
+// windows. Some APIs can only be used after this event occurs.
+async function initializeApp(): Promise<void> {
+  // Before any window: a page only reaches the schemes registered when it
+  // loads, and the floating composer's panel loads early.
+  registerAttachmentImageProtocol();
+  registerProjectMediaProtocol();
   // Dev runs inside Electron.app, so it cannot use Pine's bundle asset catalog.
   // Preview Apple's generated compatibility image here. Packaged apps retain
   // the native Icon Composer resource; never override it with dock.setIcon().
@@ -3695,206 +478,23 @@ async function initializeApp(): Promise<void> {
     windowsSandboxReady = true;
   }
 
-  tinyFishCredentialStore = new TinyFishCredentialStore(
-    path.join(app.getPath("userData"), "tinyfish-api-key"),
+  const pine = await PineCore.create(desktopHost());
+  core = pine;
+  recordSystemEvents(pine);
+  quickComposer.registerRequests(pine);
+  exposeRequestsOverIpc(pine);
+  registerNativeIpc(pine, quickComposer.controller);
+  quickComposer.start(
+    pine.settings.quickComposerEnabled ?? DEFAULT_QUICK_COMPOSER_ENABLED,
   );
-  await tinyFishCredentialStore.load();
-  agentHost = AgentProcessHost.createDefault();
-  projectsRootPath = path.join(app.getPath("userData"), PROJECTS_DIRECTORY);
-  projectRepository = new ProjectRepository(projectsRootPath);
-  const releaseConfigPath = app.isPackaged
-    ? path.join(process.resourcesPath, "release.json")
-    : path.join(app.getAppPath(), "../../.pine/release.json");
-  const manifestUrl = app.isPackaged
-    ? await readUpdateManifestUrl(releaseConfigPath)
-    : null;
-  appUpdater = new AppUpdater({
-    arch: process.arch,
-    currentExecutable: process.execPath,
-    currentVersion: app.getVersion(),
-    emit: broadcastUpdateEvent,
-    manifestUrl,
-    platform: process.platform,
-    quit: () => app.quit(),
-    tempDirectory: app.getPath("temp"),
-    windowsUpdater: process.platform === "win32" ? autoUpdater : undefined,
-  });
-  presentedFiles = new PresentedFileRegistry();
-  projectRuntimes = new ProjectRuntimeRegistry(
-    agentHost,
-    pineAgentDirectory,
-    () => tinyFishCredentialStore?.getApiKey(),
-  );
-  const webAccess = new WebAccessStore(
-    path.join(pineAgentDirectory, "web-access.json"),
-  );
-  await webAccess.load();
-  webApplication = new WebApplication({
-    access: webAccess,
-    router: requestRouter,
-    runtimes: projectRuntimes,
-    state: webSessionState,
-    rendererRoot: path.join(__dirname, `../renderer/${MAIN_WINDOW_VITE_NAME}`),
-    devUrl: MAIN_WINDOW_VITE_DEV_SERVER_URL || undefined,
-    previewPath,
-    presentedPath: async (ownerId, request) => {
-      const { path: filePath } =
-        PresentedFilePreviewRequestSchema.parse(request);
-      const snapshots = webSessionState.snapshots(
-        (id) => getProjectRuntimes().projectOfLiveSession(id)?.id,
-      );
-      if (
-        snapshots.some((snapshot) =>
-          snapshot.events.some(
-            (event) =>
-              event.type === "present-file" &&
-              event.target.source === "presented" &&
-              event.target.path === filePath,
-          ),
-        )
-      )
-        presentedFiles?.remember(ownerId, filePath);
-      return presentedFilePath(ownerId, request);
-    },
-    allowAttachment: async (filePath) => {
-      if (isServableAttachmentPath(filePath)) return true;
-      if (await getProjectRuntimes().isInsideCanonicalGrantedFolder(filePath))
-        return true;
-      for (const paths of attachedPreviewPaths.values())
-        for (const registered of paths)
-          if ((await realpath(registered).catch(() => null)) === filePath)
-            return true;
-      return false;
-    },
-    rememberAttachments: registerAttachmentPreviewPaths,
-    persistSettings: (settings) =>
-      writeWebServerSettings(getPineAgentDirectory(), settings),
-    releaseSubscriptions: () => {
-      projectFileWatchers?.disposeSender(WEB_CLIENT_ID);
-      filePreviewWatchers.disposeSender(WEB_CLIENT_ID);
-      attachedPreviewPaths.delete(WEB_CLIENT_ID);
-      presentedFiles?.forget(WEB_CLIENT_ID);
-    },
-    respondWorkbench: (request) => {
-      workbenchStateRequests.respond(WEB_CLIENT_ID, request);
-    },
-  });
-  if (settings.webServer) {
+  appUpdater = await createAppUpdater();
+  if (pine.settings.webServer) {
     try {
-      await webApplication.configure(settings.webServer);
+      await pine.web.configure(pine.settings.webServer);
     } catch (error) {
       console.error("Failed to start the local web interface.", error);
     }
   }
-  agentHost.subscribe((agentEvent) => {
-    if (isProviderAuthEvent(agentEvent)) {
-      const ownerId = providerLoginOwners.get(agentEvent.loginId);
-      if (ownerId !== undefined) {
-        sendClientEvent(ownerId, PROVIDER_AUTH_EVENT_CHANNEL, agentEvent);
-      }
-      return;
-    }
-    const ownerId = projectRuntimes?.controllerOfSession(agentEvent.sessionId);
-    if (ownerId === undefined) {
-      completionSignals.forget(agentEvent.sessionId);
-      return;
-    }
-    trackSessionWork(agentEvent);
-    const completedRun = completionSignals.observe(agentEvent);
-    if (completedRun && completionSignalMode !== "off") {
-      signalCompletedRun(completedRun, ownerId);
-      if (completionSignalMode === "notification-sound") {
-        ownerWindow(ownerId)?.webContents.send(COMPLETION_SOUND_EVENT_CHANNEL);
-      }
-    }
-    if (agentEvent.type === "present-file") {
-      void forwardPresentedFile(agentEvent, ownerId);
-      return;
-    }
-    if (agentEvent.type === "host-request") {
-      void answerHostRequest(agentEvent, ownerId);
-      return;
-    }
-    if (agentEvent.type === "context-usage") {
-      projectRuntimes?.updateContextUsage(agentEvent.sessionId, {
-        tokens: agentEvent.tokens,
-        contextWindow: agentEvent.contextWindow,
-        percent: agentEvent.percent,
-        cost: agentEvent.cost,
-        cacheHitRate: agentEvent.cacheHitRate,
-      });
-    } else if (agentEvent.type === "session-updated") {
-      projectRuntimes?.updateSessionSummary(
-        agentEvent.sessionId,
-        agentEvent.summary,
-      );
-    } else if (agentEvent.type === "approval-request") {
-      projectRuntimes?.trackApproval(
-        agentEvent.requestId,
-        ownerId,
-        agentEvent.sessionId,
-      );
-      const chinese = isChineseLocale();
-      requestApprovalAttention(ownerId, agentEvent.sessionId, {
-        requestId: agentEvent.requestId,
-        body: approvalNotificationBody(
-          agentEvent.toolName,
-          agentEvent.input,
-          chinese,
-        ),
-        actions: approvalNotificationActions(chinese),
-        onAction: (actionIndex) =>
-          answerApprovalFromNotification(
-            ownerId,
-            agentEvent.requestId,
-            actionIndex,
-          ),
-      });
-    } else if (agentEvent.type === "approval-decided") {
-      projectRuntimes?.forgetApproval(agentEvent.requestId);
-      closeAttentionNotification(agentEvent.requestId);
-      clearApprovalAttention();
-    } else if (agentEvent.type === "questionnaire-request") {
-      projectRuntimes?.trackQuestionnaire(
-        agentEvent.requestId,
-        ownerId,
-        agentEvent.sessionId,
-      );
-      requestApprovalAttention(ownerId, agentEvent.sessionId, {
-        requestId: agentEvent.requestId,
-        body: questionnaireNotificationBody(
-          agentEvent.questionnaire,
-          isChineseLocale(),
-        ),
-      });
-    } else if (agentEvent.type === "questionnaire-decided") {
-      projectRuntimes?.forgetQuestionnaire(agentEvent.requestId);
-      closeAttentionNotification(agentEvent.requestId);
-      clearApprovalAttention();
-    }
-    let teleportProjectId: string | undefined;
-    if (
-      agentEvent.type === "run-state" &&
-      (agentEvent.state === "idle" || agentEvent.state === "failed")
-    ) {
-      teleportProjectId = projectRuntimes?.takeScheduledTeleport(
-        agentEvent.sessionId,
-      );
-      projectRuntimes?.clearSessionInteractions(agentEvent.sessionId);
-    }
-    sendSessionEvent(ownerId, agentEvent);
-    // A new session, a new title, or a finished run moves it in every
-    // window's list.
-    if (
-      agentEvent.type === "session-updated" ||
-      (agentEvent.type === "run-state" &&
-        (agentEvent.state === "idle" || agentEvent.state === "failed"))
-    )
-      notifyLibraryChanged("sessions", ownerId);
-    if (teleportProjectId) {
-      void teleportSession(agentEvent.sessionId, teleportProjectId);
-    }
-  });
   createWindow();
 }
 
@@ -3905,34 +505,12 @@ app.on("ready", () => {
 /** Set once the user agreed to quit, or the quit needs no confirmation. */
 let quitConfirmed = false;
 let quitConfirmation: Promise<void> | null = null;
-/** How long a running agent gets to stop its work before Pine quits anyway. */
-const AGENT_SHUTDOWN_TIMEOUT_MS = 5_000;
 
 function currentQuitBlockers(): QuitBlockers {
   return {
-    remoteControl: webApplication?.server.isRunning() ?? false,
-    runningSessions: new Set([...runningSessions, ...sessionsWithRunningTasks])
-      .size,
+    remoteControl: core?.web.server.isRunning() ?? false,
+    runningSessions: core?.runningWorkCount() ?? 0,
   };
-}
-
-/** Stop the agent process and its tools, and close browser access. */
-async function stopBackgroundWork(): Promise<void> {
-  const stopped = Promise.allSettled([
-    agentHost?.dispose(),
-    webApplication?.configure({
-      ...webApplication.server.status(),
-      enabled: false,
-    }),
-  ]);
-  let timeout: ReturnType<typeof setTimeout> | undefined;
-  await Promise.race([
-    stopped,
-    new Promise<void>((resolve) => {
-      timeout = setTimeout(resolve, AGENT_SHUTDOWN_TIMEOUT_MS);
-    }),
-  ]);
-  clearTimeout(timeout);
 }
 
 async function confirmQuit(blockers: QuitBlockers): Promise<void> {
@@ -3956,7 +534,7 @@ async function confirmQuit(blockers: QuitBlockers): Promise<void> {
     return;
   }
   quitConfirmed = true;
-  await stopBackgroundWork();
+  await core?.stop();
   app.quit();
 }
 
@@ -3972,15 +550,8 @@ app.on("before-quit", (event) => {
 });
 
 app.on("will-quit", () => {
-  void webApplication?.configure({
-    ...webApplication.server.status(),
-    enabled: false,
-  });
-  globalShortcut.unregisterAll();
   quickComposer.dispose();
-  projectFileWatchers?.dispose();
-  filePreviewWatchers.dispose();
-  void agentHost?.dispose();
+  core?.dispose();
   releaseWindowsSandboxRuntimeAccess();
 });
 
@@ -4008,8 +579,9 @@ app.on("browser-window-created", (_event, window) => {
 
 app.on("activate", () => {
   // On OS X it's common to re-create a window in the app when the
-  // dock icon is clicked and there are no other windows open.
-  if (appWindows().length === 0) {
+  // dock icon is clicked and there are no other windows open. Until Pine is
+  // ready, initialization opens the first window itself.
+  if (core && appWindows().length === 0) {
     if (process.platform === "win32" && !isSmokeTest) {
       void ensureAppWindowsSandboxReady().then((ready) => {
         if (ready && appWindows().length === 0) {
@@ -4023,6 +595,3 @@ app.on("activate", () => {
     }
   }
 });
-
-// In this file you can include the rest of your app's specific main process
-// code. You can also put them in separate files and import them here.
