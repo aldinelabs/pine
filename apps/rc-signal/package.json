@@ -1,0 +1,19 @@
+{
+  "name": "@pine/rc-signal",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "bun build src/main.ts --target node --outfile dist/rc-signal.mjs",
+    "start": "node dist/rc-signal.mjs",
+    "test:run": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "format:check": "prettier --check ."
+  },
+  "devDependencies": {
+    "@types/node": "24.13.2",
+    "prettier": "3.9.6",
+    "typescript": "5.9.3",
+    "vitest": "5.0.0"
+  }
+}

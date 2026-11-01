@@ -1,0 +1,14 @@
+[Unit]
+Description=Pine Remote Control signaling
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+ExecStart=%h/node-v22/bin/node %h/rc-signal/rc-signal.mjs
+EnvironmentFile=%h/rc-signal/rc-signal.env
+Restart=on-failure
+RestartSec=3
+NoNewPrivileges=true
+
+[Install]
+WantedBy=default.target

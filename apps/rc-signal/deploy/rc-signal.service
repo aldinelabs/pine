@@ -1,0 +1,19 @@
+[Unit]
+Description=Pine Remote Control signaling
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=kw
+ExecStart=/home/kw/node-v22/bin/node /home/kw/rc-signal/rc-signal.mjs
+EnvironmentFile=/etc/rc-signal.env
+Restart=on-failure
+RestartSec=3
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=read-only
+PrivateTmp=true
+MemoryMax=256M
+
+[Install]
+WantedBy=multi-user.target
