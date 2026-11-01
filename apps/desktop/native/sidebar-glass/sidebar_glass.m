@@ -278,7 +278,12 @@ static napi_value SetGlassCornerRadius(napi_env env, napi_callback_info info) {
   NSView *glass =
       window && glassClass ? FindGlass(window.contentView, glassClass) : nil;
   if (!glass) return JsBoolean(env, false);
+  // electron-liquid-glass also masks the layer to its first radius, which
+  // keeps clipping the glass unless it follows.
   [(id)glass setCornerRadius:MAX(0, radius)];
+  glass.wantsLayer = YES;
+  glass.layer.cornerRadius = MAX(0, radius);
+  glass.layer.masksToBounds = YES;
   return JsBoolean(env, true);
 }
 
