@@ -2,6 +2,7 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import {
   isWebServerSettings,
+  readWebServerSettings,
   type WebServerSettings,
 } from "../shared/webControl";
 import { decisionsModelDescriptors } from "./runtime/decisions-models";
@@ -126,10 +127,9 @@ export async function readPineAgentSettings(
     const userProfile = migrateUserProfile(settings.userProfile);
     const contextCompactionStrategy = settings.contextCompactionStrategy;
     const contextCompactionRoute = settings.contextCompactionRoute;
+    const webServer = readWebServerSettings(settings.webServer);
     return {
-      ...(isWebServerSettings(settings.webServer)
-        ? { webServer: settings.webServer }
-        : {}),
+      ...(webServer ? { webServer } : {}),
       ...(isPineAutoApprovalSettings(settings.autoApproval)
         ? {
             autoApproval: {

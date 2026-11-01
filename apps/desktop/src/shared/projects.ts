@@ -327,6 +327,10 @@ export interface PineDesktopApi extends PineWindowApi, PineQuickComposerApi {
   setWebServer?: (
     request: import("./webControl").WebServerSettings,
   ) => Promise<import("./webControl").WebServerStatus>;
+  setWebPassword?: (
+    password: string,
+  ) => Promise<import("./webControl").WebServerStatus>;
+  signOutWebBrowsers?: () => Promise<import("./webControl").WebServerStatus>;
   uploadAttachments?: (
     files: File[],
     projectId: string,

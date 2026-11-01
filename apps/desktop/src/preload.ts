@@ -4,6 +4,8 @@ import type { PineDesktopApi } from "./shared/projects";
 import { QUICK_COMPOSER_HANDOFF_ARGUMENT } from "./shared/quickComposer";
 import {
   GET_WEB_SERVER_CHANNEL,
+  SET_WEB_PASSWORD_CHANNEL,
+  SIGN_OUT_WEB_BROWSERS_CHANNEL,
   SET_WEB_SERVER_CHANNEL,
 } from "./shared/webControl";
 
@@ -26,6 +28,9 @@ const pineApi: PineDesktopApi = {
   }),
   runtime: "desktop",
   getWebServer: () => ipcRenderer.invoke(GET_WEB_SERVER_CHANNEL),
+  setWebPassword: (password) =>
+    ipcRenderer.invoke(SET_WEB_PASSWORD_CHANNEL, password),
+  signOutWebBrowsers: () => ipcRenderer.invoke(SIGN_OUT_WEB_BROWSERS_CHANNEL),
   setWebServer: (request) =>
     ipcRenderer.invoke(SET_WEB_SERVER_CHANNEL, request),
 };

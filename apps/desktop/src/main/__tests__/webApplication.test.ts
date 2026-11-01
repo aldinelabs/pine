@@ -16,6 +16,24 @@ import type {
 import type { PineAttachment } from "../../shared/attachments";
 import { createAgentHost } from "./agentHostFixture";
 import { OPEN_PROJECT_CHANNEL } from "../../shared/projects";
+import {
+  DEFAULT_WEB_SERVER_SETTINGS,
+  type WebServerSettings,
+} from "../../shared/webControl";
+
+function settings(patch: Partial<WebServerSettings>): WebServerSettings {
+  return { ...DEFAULT_WEB_SERVER_SETTINGS, ...patch };
+}
+
+/** Signs in with "password" and accepts the single session it issues. */
+const access = {
+  hasPassword: () => true,
+  verify: (password: string) => Promise.resolve(password === "password"),
+  issue: () => ({ value: "session" }),
+  isValid: (value: string) => value === "session",
+  setPassword: vi.fn().mockResolvedValue(undefined),
+  signOutAll: vi.fn().mockResolvedValue(undefined),
+};
 
 const roots: string[] = [];
 const applications: WebApplication[] = [];
@@ -76,6 +94,7 @@ async function fixture() {
   const persistSettings = vi.fn().mockResolvedValue(undefined);
   const releaseSubscriptions = vi.fn();
   const application = new WebApplication({
+    access,
     router,
     runtimes: registry,
     state: new WebSessionState(),
@@ -90,18 +109,14 @@ async function fixture() {
     releaseSubscriptions,
   });
   applications.push(application);
-  const status = await application.configure({
-    enabled: true,
-    port: await freePort(),
-  });
-  const url = new URL(status.url!);
-  const origin = url.origin;
-  const login = await fetch(`${origin}/api/connect`, {
+  const status = await application.configure(
+    settings({ enabled: true, port: await freePort() }),
+  );
+  const origin = new URL(status.addresses![0]).origin;
+  const login = await fetch(`${origin}/api/login`, {
     method: "POST",
     headers: { Origin: origin },
-    body: JSON.stringify({
-      token: new URLSearchParams(url.hash.slice(1)).get("access_token"),
-    }),
+    body: JSON.stringify({ password: "password" }),
   });
   const cookie = login.headers.get("set-cookie")!.split(";")[0];
   const headers = { Cookie: cookie, Origin: origin };
@@ -132,7 +147,7 @@ afterEach(async () => {
   await Promise.all(
     applications
       .splice(0)
-      .map((app) => app.configure({ enabled: false, port: 9415 })),
+      .map((app) => app.configure(settings({ enabled: false }))),
   );
   await Promise.all(
     registries.splice(0).map((registry) => registry.dispose(1)),
@@ -191,7 +206,7 @@ describe("browser application adapter", () => {
     ).toBe(400);
     await registry.dispose(1);
     expect(disposeSession).not.toHaveBeenCalled();
-    await application.configure({ enabled: false, port: 9415 });
+    await application.configure(settings({ enabled: false }));
     expect(disposeSession).toHaveBeenCalledExactlyOnceWith(summary.id);
   });
 
@@ -225,6 +240,10 @@ describe("browser application adapter", () => {
     expect(
       (await rpc("web-control:set", { enabled: false, port: 9415 })).status,
     ).toBe(400);
+    expect((await rpc("web-control:set-password", "new password")).status).toBe(
+      400,
+    );
+    expect((await rpc("web-control:sign-out", undefined)).status).toBe(400);
   });
 
   it("rolls back a listener change when persisting settings fails", async () => {
@@ -232,12 +251,15 @@ describe("browser application adapter", () => {
     const previous = application.server.status();
     persistSettings.mockRejectedValueOnce(new Error("Disk is full"));
     await expect(
-      application.configure({ enabled: true, port: await freePort() }, true),
+      application.configure(
+        settings({ enabled: true, port: await freePort() }),
+        true,
+      ),
     ).rejects.toThrow("Disk is full");
     expect(application.server.status()).toMatchObject({
       enabled: true,
       port: previous.port,
-      url: previous.url,
+      addresses: previous.addresses,
     });
     expect(registry.isOpen(-1, project.id)).toBe(false);
   });

@@ -1,9 +1,10 @@
 import { WebRequestCache } from "./webRequestCache";
 import { webConnectPage } from "./webConnectPage";
+import { WebLoginThrottle, type WebSessionCookie } from "./webAccess";
 import { isWebServerSettings } from "../shared/webControl";
 import { z } from "zod";
-import { randomBytes, timingSafeEqual } from "node:crypto";
 import { once } from "node:events";
+import { hostname, networkInterfaces } from "node:os";
 import {
   createServer,
   type IncomingMessage,
@@ -14,8 +15,9 @@ import type { Socket } from "node:net";
 import {
   decodeWebJson,
   encodeWebJson,
-  DEFAULT_WEB_PORT,
+  DEFAULT_WEB_SERVER_SETTINGS,
   WEB_SNAPSHOT_CHANNEL,
+  type WebRememberFor,
   type WebEvent,
   type WebServerSettings,
   type WebServerStatus,
@@ -26,7 +28,16 @@ const MAX_REQUEST_BYTES = 36 * 1024 * 1024;
 const MAX_REPLAY_BYTES = 4 * 1024 * 1024;
 const MAX_PENDING_BYTES = 2 * 1024 * 1024;
 
+/** The password and session checks the server signs browsers in with. */
+export interface WebAccess {
+  hasPassword(): boolean;
+  verify(password: string): Promise<boolean>;
+  issue(rememberFor: WebRememberFor): WebSessionCookie;
+  isValid(value: string): boolean;
+}
+
 interface LocalWebServerOptions {
+  access: WebAccess;
   invoke(channel: string, request: unknown, clientId: string): Promise<unknown>;
   deduplicate?(channel: string): boolean;
   connected?(clientId: string): void;
@@ -41,9 +52,10 @@ interface RunningServer {
   server: Server;
   sockets: Set<Socket>;
   streams: Map<ServerResponse, string>;
-  token: string;
-  cookie: string;
   port: number;
+  lan: boolean;
+  requirePassword: boolean;
+  publicOrigin?: string;
 }
 
 /** Browsers share cookies across ports, so each port signs in separately. */
@@ -51,10 +63,42 @@ function cookieName(port: number): string {
   return `pine_web_${port}`;
 }
 
-function sameSecret(left: string, right: string): boolean {
-  const a = Buffer.from(left),
-    b = Buffer.from(right);
-  return a.length === b.length && timingSafeEqual(a, b);
+function lanAddresses(): string[] {
+  return Object.values(networkInterfaces())
+    .flat()
+    .flatMap((address) =>
+      address && address.family === "IPv4" && !address.internal
+        ? [address.address]
+        : [],
+    );
+}
+
+/**
+ * The origin pages are served from: the reverse proxy's when it forwards its
+ * own Host header, otherwise this computer's. Any other Host, which DNS
+ * rebinding would produce, has none, and LAN access alone accepts this
+ * computer's network addresses and name.
+ */
+function originFor(host: string, running: RunningServer): string | undefined {
+  if (running.publicOrigin && host === new URL(running.publicOrigin).host)
+    return running.publicOrigin;
+  return isOwnHost(host, running.lan) ? `http://${host}` : undefined;
+}
+
+function isOwnHost(host: string, lan: boolean): boolean {
+  const match = /^([^:]+):\d+$/.exec(host);
+  if (!match) return false;
+  const name = match[1].toLowerCase();
+  if (name === "127.0.0.1" || name === "localhost") return true;
+  if (!lan) return false;
+  const computer = hostname()
+    .toLowerCase()
+    .replace(/\.local$/, "");
+  return (
+    name === computer ||
+    name === `${computer}.local` ||
+    lanAddresses().includes(name)
+  );
 }
 
 async function readBody(
@@ -98,11 +142,16 @@ async function writeResponse(
   }
 }
 
-/** Loopback-only, same-origin HTTP host for Pine's existing renderer. */
+/**
+ * Same-origin HTTP host for Pine's existing renderer. It serves this computer
+ * only unless LAN access is on, and every browser signs in with the password
+ * unless a reverse proxy in front of it handles sign-in.
+ */
 export class LocalWebServer {
   private running: RunningServer | null = null;
-  private configuredPort = DEFAULT_WEB_PORT;
+  private settings: WebServerSettings = DEFAULT_WEB_SERVER_SETTINGS;
   private error?: string;
+  private readonly throttle = new WebLoginThrottle();
   private sequence = 0;
   private replayBytes = 0;
   private readonly replay: Array<{ id: number; frame: string }> = [];
@@ -118,15 +167,26 @@ export class LocalWebServer {
   status(): WebServerStatus {
     const server = this.running;
     return {
+      ...this.settings,
       enabled: server !== null,
-      port: server?.port ?? this.configuredPort,
+      hasPassword: this.options.access.hasPassword(),
       ...(server
         ? {
-            url: `http://127.0.0.1:${server.port}/#access_token=${server.token}`,
+            addresses: [
+              ...["127.0.0.1", ...(server.lan ? lanAddresses() : [])].map(
+                (address) => `http://${address}:${server.port}/`,
+              ),
+              ...(server.publicOrigin ? [`${server.publicOrigin}/`] : []),
+            ],
           }
         : {}),
       ...(this.error ? { error: this.error } : {}),
     };
+  }
+
+  /** Ends every open event stream; their browsers must sign in again. */
+  signOutAll(): void {
+    for (const stream of this.running?.streams.keys() ?? []) stream.end();
   }
 
   configure(
@@ -149,18 +209,27 @@ export class LocalWebServer {
       await beforeCommit?.();
       const previous = this.running;
       this.running = null;
-      this.configuredPort = settings.port;
+      this.settings = settings;
       // Signed-in browsers cannot reconnect to a new listener, so its replay is useless.
       this.replay.length = 0;
       this.replayBytes = 0;
       await this.close(previous);
       return this.status();
     }
-    if (this.running?.port === settings.port) {
+    if (settings.requirePassword && !this.options.access.hasPassword())
+      throw new Error("Set a browser access password first.");
+    if (
+      this.running?.port === settings.port &&
+      this.running.lan === settings.lan
+    ) {
       await beforeCommit?.();
+      this.settings = settings;
+      // Sign-in and the proxy origin apply to the next request; nothing restarts.
+      this.running.requirePassword = settings.requirePassword;
+      this.running.publicOrigin = settings.publicOrigin;
       return this.status();
     }
-    if (!this.running) this.configuredPort = settings.port;
+    if (!this.running) this.settings = { ...settings, enabled: false };
     const running: RunningServer = {
       server: createServer((request, response) => {
         void this.handle(running, request, response).catch(() => {
@@ -173,9 +242,10 @@ export class LocalWebServer {
       }),
       sockets: new Set(),
       streams: new Map(),
-      token: randomBytes(32).toString("hex"),
-      cookie: randomBytes(32).toString("hex"),
       port: settings.port,
+      lan: settings.lan,
+      requirePassword: settings.requirePassword,
+      publicOrigin: settings.publicOrigin,
     };
     running.server.on("connection", (socket) => {
       running.sockets.add(socket);
@@ -186,10 +256,14 @@ export class LocalWebServer {
     try {
       await new Promise<void>((resolve, reject) => {
         running.server.once("error", reject);
-        running.server.listen(settings.port, "127.0.0.1", () => {
-          running.server.off("error", reject);
-          resolve();
-        });
+        running.server.listen(
+          settings.port,
+          settings.lan ? "0.0.0.0" : "127.0.0.1",
+          () => {
+            running.server.off("error", reject);
+            resolve();
+          },
+        );
       });
       // Do not replace an existing listener or its credentials until the caller
       // has committed configuration. A failed save leaves existing clients connected.
@@ -204,7 +278,7 @@ export class LocalWebServer {
     });
     const previous = this.running;
     this.running = running;
-    this.configuredPort = settings.port;
+    this.settings = settings;
     await this.close(previous);
     return this.status();
   }
@@ -235,6 +309,50 @@ export class LocalWebServer {
     }
   }
 
+  private async login(
+    running: RunningServer,
+    origin: string,
+    request: IncomingMessage,
+    response: ServerResponse,
+  ): Promise<void> {
+    const client = request.socket.remoteAddress ?? "unknown";
+    const wait = this.throttle.retryAfter(client);
+    if (wait > 0) {
+      response.writeHead(429, {
+        "Content-Type": "application/json",
+        "Retry-After": String(Math.ceil(wait / 1000)),
+      });
+      response.end(JSON.stringify({ retryAfter: Math.ceil(wait / 1000) }));
+      return;
+    }
+    let body: unknown;
+    try {
+      body = JSON.parse((await readBody(request, 4096)).toString());
+    } catch {
+      body = undefined;
+    }
+    const input = z.object({ password: z.string().max(1_024) }).safeParse(body);
+    if (
+      !input.success ||
+      !(await this.options.access.verify(input.data.password))
+    ) {
+      this.throttle.failed(client);
+      response.writeHead(401);
+      response.end();
+      return;
+    }
+    this.throttle.succeeded(client);
+    const cookie = this.options.access.issue(this.settings.rememberFor);
+    response.setHeader(
+      "Set-Cookie",
+      `${cookieName(running.port)}=${cookie.value}; HttpOnly; SameSite=Strict; Path=/${
+        cookie.maxAge === undefined ? "" : `; Max-Age=${cookie.maxAge}`
+      }${origin.startsWith("https:") ? "; Secure" : ""}`,
+    );
+    response.writeHead(204);
+    response.end();
+  }
+
   private async handle(
     running: RunningServer,
     request: IncomingMessage,
@@ -244,14 +362,11 @@ export class LocalWebServer {
     response.setHeader("Referrer-Policy", "no-referrer");
     response.setHeader("Cache-Control", "no-store");
     response.setHeader("X-Frame-Options", "DENY");
-    const host = request.headers.host ?? "";
-    if (!/^(127\.0\.0\.1|localhost):\d+$/.test(host)) {
-      response.writeHead(403);
-      response.end();
-      return;
-    }
-    const origin = `http://${host}`;
-    if (request.headers.origin && request.headers.origin !== origin) {
+    const origin = originFor(request.headers.host ?? "", running);
+    if (
+      !origin ||
+      (request.headers.origin && request.headers.origin !== origin)
+    ) {
       response.writeHead(403);
       response.end();
       return;
@@ -262,42 +377,29 @@ export class LocalWebServer {
       response.end();
       return;
     }
-    if (url.pathname === "/api/connect" && request.method === "POST") {
-      const input = JSON.parse((await readBody(request, 1024)).toString()) as {
-        token?: unknown;
-      };
-      if (
-        typeof input.token !== "string" ||
-        !sameSecret(input.token, running.token)
-      ) {
-        response.writeHead(401);
-        response.end();
-        return;
-      }
-      response.setHeader(
-        "Set-Cookie",
-        `${cookieName(running.port)}=${running.cookie}; HttpOnly; SameSite=Strict; Path=/`,
-      );
-      response.writeHead(204);
-      response.end();
+    if (
+      url.pathname === "/api/login" &&
+      request.method === "POST" &&
+      running.requirePassword
+    ) {
+      await this.login(running, origin, request, response);
       return;
     }
     const prefix = `${cookieName(running.port)}=`;
-    const authenticated = (request.headers.cookie ?? "")
-      .split(";")
-      .some((cookie) => {
+    // Without a password, whatever stands in front of Pine signs people in.
+    const authenticated =
+      !running.requirePassword ||
+      (request.headers.cookie ?? "").split(";").some((cookie) => {
         const value = cookie.trim();
         return (
           value.startsWith(prefix) &&
-          sameSecret(value.slice(prefix.length), running.cookie)
+          this.options.access.isValid(value.slice(prefix.length))
         );
       });
     if (url.pathname.startsWith("/api/") && !authenticated) {
       response.writeHead(401);
       response.end(
-        JSON.stringify({
-          error: "Open the browser link from Pine settings to connect.",
-        }),
+        JSON.stringify({ error: "Sign in with the browser access password." }),
       );
       return;
     }

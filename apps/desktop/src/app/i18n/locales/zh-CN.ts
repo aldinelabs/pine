@@ -35,17 +35,63 @@ export default {
   preferences: {
     remoteControl: {
       browserAccess: "浏览器访问",
-      browserAccessDescription:
-        "在这台电脑的浏览器中使用 Pine。服务仅监听 127.0.0.1，Pine 需保持运行。",
+      browserAccessDescription: "在浏览器中使用 Pine，Pine 需保持运行。",
+      browserAccessNeedsPassword: "设置访问密码后才能开启。",
       browserAccessRunning: "正在 {address} 上运行。",
+      password: "访问密码",
+      passwordSet: "浏览器使用此密码登录。",
+      passwordNotSet: "尚未设置密码。",
+      setPassword: "设置密码",
+      changePassword: "修改密码",
+      passwordDialogDescription:
+        "知道此密码的人都能在浏览器中控制 Pine，请使用未在别处用过的密码。",
+      newPassword: "新密码",
+      confirmPassword: "确认密码",
+      passwordTooShort: "至少需要 {min} 个字符。",
+      passwordMismatch: "两次输入的密码不一致。",
+      changePasswordSignsOut: "修改后所有浏览器都需重新登录。",
+      passwordSaved: "已保存访问密码",
+      requirePassword: "要求密码",
+      requirePasswordDescription: "浏览器需输入访问密码后才能使用 Pine。",
+      requirePasswordOff: "已关闭。任何能访问此地址的人无需登录即可控制 Pine。",
+      disablePasswordTitle: "关闭密码？",
+      disablePasswordDescription:
+        "仅在 Pine 前方已有其他登录验证（例如 Cloudflare Access）时才这样做。",
+      disablePasswordRiskControl:
+        "任何能访问 Pine 地址的人都能读取你的项目、运行 agent，并在这台电脑上执行命令。",
+      disablePasswordRiskLocal:
+        "这台电脑上的任何程序或用户都能打开 127.0.0.1 做同样的事。",
+      disablePasswordRiskLan: "局域网访问将被关闭，且无法再开启。",
+      disablePasswordAction: "关闭密码",
+      rememberFor: "保持登录",
+      rememberForDescription: "浏览器输入密码后保持登录的时长。",
+      remember: {
+        session: "直到关闭浏览器",
+        "1d": "1 天",
+        "7d": "7 天",
+        "30d": "30 天",
+      },
+      lan: "允许局域网访问",
+      lanDescription:
+        "同一网络中的其他设备可以打开 Pine。流量为未加密的 HTTP，请只在可信网络中使用。",
+      lanNeedsPassword: "需要开启密码。",
+      publicOrigin: "公开地址",
+      publicOriginDescription:
+        "通过反向代理或隧道（如 Cloudflare Tunnel）访问 Pine 时，填写其地址。",
+      invalidPublicOrigin:
+        "请填写类似 https://pine.example.com 的地址，不含路径。",
       port: "端口",
       portDescription: "修改后需要重新打开访问链接。",
       invalidPort: "端口需在 {min} 到 {max} 之间。",
       accessLink: "访问链接",
-      accessLinkDescription: "链接可直接登录 Pine，请勿分享。",
+      accessLinkDescription: "在这台电脑上通过 127.0.0.1 打开 Pine。",
       copyLink: "复制链接",
       linkCopied: "已复制访问链接",
       open: "在浏览器中打开",
+      signOut: "已登录的浏览器",
+      signOutDescription: "所有浏览器都需要重新输入密码。",
+      signOutAction: "全部退出登录",
+      signedOut: "已退出所有浏览器",
     },
     projectManagement: {
       title: "项目管理",
@@ -1511,6 +1557,8 @@ export default {
       saveTitle: "无法更新浏览器访问",
       description: "请稍后重试。",
       portInUse: "端口 {port} 已被占用，请换一个端口。",
+      passwordTitle: "无法保存访问密码",
+      signOutTitle: "无法退出浏览器登录",
     },
     quickComposer: {
       title: "无法更新快速提问设置",

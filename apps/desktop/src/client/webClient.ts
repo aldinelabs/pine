@@ -136,17 +136,6 @@ export async function initializeWebClient(): Promise<
   BrowserClientLifecycle | undefined
 > {
   if (window.pine) return;
-  const token = new URLSearchParams(location.hash.slice(1)).get("access_token");
-  if (token) {
-    history.replaceState(null, "", "/");
-    const connected = await fetch("/api/connect", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ token }),
-    });
-    if (!connected.ok)
-      throw new Error("Reopen the browser link from Pine settings.");
-  }
   await rpc(GET_APP_VERSION_CHANNEL);
   const handlers = new Map<string, Set<Listener>>();
   const watches = new Map<string, { channel: string; request: unknown }>();

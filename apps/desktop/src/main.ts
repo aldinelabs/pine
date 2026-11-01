@@ -4,10 +4,14 @@ import {
 } from "./main/fileSubscriptionSchemas";
 import { WebApplication } from "./main/webApplication";
 import { WebSessionState } from "./main/webSessionState";
+import { WebAccessStore } from "./main/webAccess";
 import {
-  DEFAULT_WEB_PORT,
+  DEFAULT_WEB_SERVER_SETTINGS,
   GET_WEB_SERVER_CHANNEL,
+  MIN_WEB_PASSWORD_LENGTH,
+  SET_WEB_PASSWORD_CHANNEL,
   SET_WEB_SERVER_CHANNEL,
+  SIGN_OUT_WEB_BROWSERS_CHANNEL,
   WEB_CLIENT_ID,
   isWebServerSettings,
   type WebServerSettings,
@@ -3471,8 +3475,8 @@ ipcMain.handle(
   GET_WEB_SERVER_CHANNEL,
   () =>
     webApplication?.server.status() ?? {
-      enabled: false,
-      port: DEFAULT_WEB_PORT,
+      ...DEFAULT_WEB_SERVER_SETTINGS,
+      hasPassword: false,
     },
 );
 ipcMain.handle(SET_WEB_SERVER_CHANNEL, async (_event, request: unknown) => {
@@ -3481,6 +3485,19 @@ ipcMain.handle(SET_WEB_SERVER_CHANNEL, async (_event, request: unknown) => {
     .parse(request);
   if (!webApplication) throw new Error("The local web interface is not ready.");
   return webApplication.configure(settings, true);
+});
+ipcMain.handle(SET_WEB_PASSWORD_CHANNEL, async (_event, request: unknown) => {
+  const password = z
+    .string()
+    .min(MIN_WEB_PASSWORD_LENGTH)
+    .max(1_024)
+    .parse(request);
+  if (!webApplication) throw new Error("The local web interface is not ready.");
+  return webApplication.setPassword(password);
+});
+ipcMain.handle(SIGN_OUT_WEB_BROWSERS_CHANNEL, async () => {
+  if (!webApplication) throw new Error("The local web interface is not ready.");
+  return webApplication.signOutAll();
 });
 
 // This method will be called when Electron has finished
@@ -3570,7 +3587,12 @@ async function initializeApp(): Promise<void> {
     pineAgentDirectory,
     () => tinyFishCredentialStore?.getApiKey(),
   );
+  const webAccess = new WebAccessStore(
+    path.join(pineAgentDirectory, "web-access.json"),
+  );
+  await webAccess.load();
   webApplication = new WebApplication({
+    access: webAccess,
     router: requestRouter,
     runtimes: projectRuntimes,
     state: webSessionState,
@@ -3721,8 +3743,8 @@ app.on("ready", () => {
 
 app.on("will-quit", () => {
   void webApplication?.configure({
+    ...webApplication.server.status(),
     enabled: false,
-    port: webApplication.server.status().port,
   });
   globalShortcut.unregisterAll();
   quickComposer.dispose();

@@ -14,7 +14,7 @@ import { mkdir, realpath, stat, writeFile } from "node:fs/promises";
 import { randomUUID } from "node:crypto";
 import path from "node:path";
 import { z } from "zod";
-import { LocalWebServer } from "./localWebServer";
+import { LocalWebServer, type WebAccess } from "./localWebServer";
 import { WebSessionState } from "./webSessionState";
 import type { PineRequestContext, PineRequestRouter } from "./requestRouter";
 import type { ProjectRuntimeRegistry } from "./projectRuntime";
@@ -23,6 +23,7 @@ import { serveWebAsset } from "./webAssets";
 import {
   WEB_CLIENT_ID,
   type WebServerSettings,
+  type WebServerStatus,
   type WebSessionSnapshot,
 } from "../shared/webControl";
 import { SESSION_EVENT_CHANNEL, type PineSessionEvent } from "../shared/agent";
@@ -31,6 +32,10 @@ import { OPEN_PROJECT_CHANNEL } from "../shared/projects";
 import { LIBRARY_CHANGED_CHANNEL } from "../shared/projects";
 
 interface WebApplicationOptions {
+  access: WebAccess & {
+    setPassword(password: string): Promise<void>;
+    signOutAll(): Promise<void>;
+  };
   router: PineRequestRouter;
   runtimes: ProjectRuntimeRegistry;
   state: WebSessionState;
@@ -97,6 +102,7 @@ export class WebApplication {
         options.runtimes.exportSession(WEB_CLIENT_ID, projectId, sessionId),
     });
     this.server = new LocalWebServer({
+      access: options.access,
       invoke: (channel, request, clientId) =>
         this.invoke(channel, request, clientId),
       deduplicate: (channel) => !this.channels.get(channel)?.repeatable,
@@ -128,6 +134,19 @@ export class WebApplication {
     });
     this.settingsQueue = pending.catch(() => undefined);
     return pending;
+  }
+
+  /** Replacing the password also signs out every browser that used the old one. */
+  async setPassword(password: string): Promise<WebServerStatus> {
+    await this.options.access.setPassword(password);
+    this.server.signOutAll();
+    return this.server.status();
+  }
+
+  async signOutAll(): Promise<WebServerStatus> {
+    await this.options.access.signOutAll();
+    this.server.signOutAll();
+    return this.server.status();
   }
 
   private snapshots(): WebSessionSnapshot[] {
