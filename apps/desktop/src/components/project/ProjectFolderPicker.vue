@@ -17,6 +17,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { isWebClient } from "@/lib/clientRuntime";
+import { randomId } from "@/lib/randomId";
 import type { ProjectFolderInput } from "@/shared/projects";
 
 /**
@@ -67,7 +68,7 @@ function submit(): void {
   const folderPath = trimmedPath.value.replace(/[\\/]+$/, "") || "/";
   emit("picked", [
     {
-      id: crypto.randomUUID(),
+      id: randomId(),
       access: "read-write",
       name: folderPath.split(/[\\/]/).filter(Boolean).at(-1) ?? folderPath,
       path: folderPath,

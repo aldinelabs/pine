@@ -21,8 +21,9 @@ import {
 } from "../shared/webControl";
 import { EXPORT_SESSION_CHANNEL } from "../shared/sessions";
 import type { PineSessionExportDocument } from "../shared/sessionExport";
+import { randomId } from "../lib/randomId";
 
-const browserClientId = crypto.randomUUID();
+const browserClientId = randomId();
 
 type Listener = (value: unknown) => void;
 
@@ -41,7 +42,7 @@ async function rpc<T>(channel: string, request?: unknown): Promise<T> {
   const body = encodeWebJson({
     channel,
     request,
-    id: crypto.randomUUID(),
+    id: randomId(),
     client: browserClientId,
   });
   // A retry reuses the ID, so an accepted prompt cannot execute twice.

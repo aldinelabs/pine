@@ -11,6 +11,7 @@ import type {
 } from "@/shared/projectFiles";
 import type { PineAttachment } from "@/shared/attachments";
 import { fileName, fileTargetKey } from "@/lib/filePreviewTarget";
+import { randomId } from "@/lib/randomId";
 import { parseFileReveal } from "@/shared/projectFiles";
 
 /**
@@ -203,7 +204,7 @@ export const useContentTabsStore = defineStore("content-tabs", () => {
       target.source === "project" ? target.relativePath : target.path;
     const tab: FileContentTab = {
       ...target,
-      id: `file-${crypto.randomUUID()}`,
+      id: `file-${randomId()}`,
       kind: "file",
       label: fileName(path),
       projectId: target.source === "project" ? target.projectId : projectId,

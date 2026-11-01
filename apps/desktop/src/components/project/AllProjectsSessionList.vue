@@ -53,6 +53,7 @@ import { useProjectDisplayName } from "@/composables/useProjectDisplayName";
 import { useSessionExport } from "@/composables/useSessionExport";
 import { DURATION_MS, EASE_OUT_EXPO } from "@/lib/motion";
 import { projectIconComponent } from "@/lib/projectIcons";
+import { randomId } from "@/lib/randomId";
 import { writeSessionDrag } from "@/lib/sessionDrag";
 import {
   isTemporaryWorkspace,
@@ -277,7 +278,7 @@ async function saveGroup(name: string): Promise<void> {
   const current = groupsOf(projectId);
   const groups =
     groupDialogMode.value === "create"
-      ? [...current, { id: crypto.randomUUID(), name, sessionIds: [] }]
+      ? [...current, { id: randomId(), name, sessionIds: [] }]
       : current.map((group) =>
           group.id === groupPendingRename.value?.id
             ? { ...group, name }

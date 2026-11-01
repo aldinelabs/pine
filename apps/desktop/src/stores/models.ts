@@ -1,5 +1,6 @@
 import { acceptHMRUpdate, defineStore } from "pinia";
 import { computed, ref, shallowRef } from "vue";
+import { randomId } from "@/lib/randomId";
 import type {
   AddCustomModelRequest,
   DeleteCustomModelRequest,
@@ -380,7 +381,7 @@ export const useModelsStore = defineStore("models", () => {
     authType: PineAuthType,
   ): Promise<void> {
     connectAuthEvents();
-    const loginId = crypto.randomUUID();
+    const loginId = randomId();
     login.value = {
       authType,
       isRunning: true,
