@@ -614,15 +614,6 @@ html.sidebar-vibrancy
 html.sidebar-vibrancy [data-slot="sidebar-container"][data-side="left"] {
   --sidebar-accent: color-mix(
     in oklab,
-    var(--sidebar-accent-foreground) 6%,
-    transparent
-  );
-}
-
-/* Light text on dark glass needs a stronger wash to read as selected. */
-html.dark.sidebar-vibrancy [data-slot="sidebar-container"][data-side="left"] {
-  --sidebar-accent: color-mix(
-    in oklab,
     var(--sidebar-accent-foreground) 8%,
     transparent
   );
