@@ -56,7 +56,7 @@ watch(
     tabindex="0"
     data-testid="project-todo-summary"
     :aria-label="label"
-    class="min-w-0 cursor-pointer rounded-(--status-card-inner-radius) px-3 py-(--status-card-inset) transition-colors duration-500 ease-out-expo outline-none hover:bg-muted/60 focus-visible:ring-3 focus-visible:ring-ring/30"
+    class="min-w-0 cursor-pointer rounded-(--status-card-inner-radius) px-3 py-(--status-card-inset) transition-colors duration-500 ease-out-expo outline-none hover:bg-muted/60 active:bg-muted/60 focus-visible:ring-3 focus-visible:ring-ring/30"
     @click="isListOpen = true"
     @keydown.enter.prevent="isListOpen = true"
     @keydown.space.prevent="isListOpen = true"

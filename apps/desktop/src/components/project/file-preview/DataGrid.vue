@@ -205,7 +205,7 @@ function cell(index: number, column: number) {
           :key="item.index"
           role="row"
           :aria-rowindex="item.index + 2"
-          class="absolute inset-x-0 grid border-b border-border/60 hover:bg-muted/50"
+          class="absolute inset-x-0 grid border-b border-border/60 hover:bg-muted/50 active:bg-muted/50"
           :style="{
             gridTemplateColumns: template,
             height: `${ROW_HEIGHT}px`,

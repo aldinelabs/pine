@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { isWebClient } from "@/lib/clientRuntime";
 import {
   ChevronRight,
   Folder,
@@ -77,6 +78,7 @@ interface ProjectTreeNode extends ProjectEntry {
 }
 
 const { t } = useI18n();
+const isWeb = isWebClient();
 const projectStore = useProjectStore();
 const contentTabsStore = useContentTabsStore();
 const tabNavigation = useContentTabNavigation();
@@ -668,6 +670,7 @@ function startDrag(event: DragEvent, node: ProjectTreeNode): void {
   );
   // Even read-only folders can be attached to a message.
   event.dataTransfer.effectAllowed = "copyMove";
+  if (isWeb) return;
   event.preventDefault();
   window.pine.startProjectFileDrag(reference(node));
 }
@@ -978,7 +981,7 @@ onUnmounted(() => {
         v-if="isProjectTreeNode(item.value)"
         v-bind="item.bind"
         v-slot="{ isExpanded }"
-        class="flex h-7 w-full items-center gap-1 rounded-lg px-2 text-sm outline-none hover:bg-accent data-[context-open]:bg-accent focus-visible:ring-2 focus-visible:ring-ring data-[selected]:bg-accent"
+        class="flex h-7 w-full items-center gap-1 rounded-lg px-2 text-sm outline-none hover:bg-accent active:bg-accent data-[context-open]:bg-accent focus-visible:ring-2 focus-visible:ring-ring data-[selected]:bg-accent"
         :draggable="
           !item.value.isPlaceholder && !item.value.isUnavailable && !busy
         "
@@ -1063,6 +1066,7 @@ onUnmounted(() => {
           <ContextMenuContent class="w-48 [&_[data-inset]]:pl-8">
             <ContextMenuGroup>
               <ContextMenuItem
+                v-if="!isWeb || item.value.kind === 'file'"
                 inset
                 :disabled="busy"
                 @select="
@@ -1071,9 +1075,12 @@ onUnmounted(() => {
                     target: reference(item.value),
                   })
                 "
-                >{{ t("project.files.open") }}</ContextMenuItem
+                >{{
+                  t(isWeb ? "common.downloadFile" : "project.files.open")
+                }}</ContextMenuItem
               >
               <ContextMenuItem
+                v-if="!isWeb"
                 inset
                 :disabled="busy"
                 @select="

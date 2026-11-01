@@ -162,6 +162,41 @@ describe("SkillManagerDialog", () => {
     expect(savedContent).toContain("# Release notes");
   });
 
+  it("shows the skill list and one editor at a time on a phone", async () => {
+    vi.stubGlobal(
+      "matchMedia",
+      vi.fn((query: string) => ({
+        matches: query === "(width < 40rem)",
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+      })),
+    );
+    try {
+      const wrapper = mountDialog();
+      await wrapper.setProps({ open: true });
+      await flushPromises();
+      const list = () => wrapper.get("aside").element as HTMLElement;
+      const editor = () => wrapper.get("form").element as HTMLElement;
+      expect(list().style.display).toBe("");
+      expect(editor().style.display).toBe("none");
+
+      await wrapper
+        .findAll("button")
+        .find((button) => button.text().includes("release-notes"))
+        ?.trigger("click");
+      await flushPromises();
+      expect(list().style.display).toBe("none");
+      expect(editor().style.display).toBe("");
+      expect(wrapper.text()).toContain("release-notes");
+
+      await wrapper.get('[data-testid="skill-manager-back"]').trigger("click");
+      expect(list().style.display).toBe("");
+      expect(editor().style.display).toBe("none");
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
   it("keeps Save disabled until description and instructions are present", async () => {
     const wrapper = mountDialog();
     await wrapper.setProps({ open: true });

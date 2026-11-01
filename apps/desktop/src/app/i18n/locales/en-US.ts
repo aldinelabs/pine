@@ -1,5 +1,7 @@
 export default {
   common: {
+    back: "Back",
+    downloadFile: "Download file",
     cancel: "Cancel",
     delete: "Delete",
     edit: "Edit",
@@ -33,6 +35,70 @@ export default {
     failed: "The update could not be installed.",
   },
   preferences: {
+    remoteControl: {
+      browserAccess: "Browser access",
+      browserAccessDescription:
+        "Use Pine from a browser. Pine must keep running.",
+      browserAccessNeedsPassword: "Set an access password to turn this on.",
+      browserAccessRunning: "Running at {address}.",
+      password: "Access password",
+      passwordSet: "Browsers sign in with this password.",
+      passwordNotSet: "No password set yet.",
+      setPassword: "Set password",
+      changePassword: "Change password",
+      passwordDialogDescription:
+        "Anyone with this password can control Pine from a browser, so use one you don't use anywhere else.",
+      newPassword: "New password",
+      confirmPassword: "Confirm password",
+      passwordTooShort: "Use at least {min} characters.",
+      passwordMismatch: "The passwords don't match.",
+      changePasswordSignsOut: "Changing it signs out every browser.",
+      passwordSaved: "Access password saved",
+      requirePassword: "Require password",
+      requirePasswordDescription:
+        "Browsers must enter the access password before using Pine.",
+      requirePasswordOff:
+        "Off. Anyone who can reach this address controls Pine without signing in.",
+      disablePasswordTitle: "Turn off the password?",
+      disablePasswordDescription:
+        "Only do this when something in front of Pine, such as Cloudflare Access, already signs people in.",
+      disablePasswordRiskControl:
+        "Anyone who reaches Pine's address can read your projects, run agents, and run commands on this computer.",
+      disablePasswordRiskLocal:
+        "Any program or user on this computer can open 127.0.0.1 and do the same.",
+      disablePasswordRiskLan: "LAN access is turned off and stays off.",
+      disablePasswordAction: "Turn off password",
+      rememberFor: "Stay signed in",
+      rememberForDescription:
+        "How long a browser stays signed in after entering the password.",
+      remember: {
+        session: "Until the browser closes",
+        "1d": "1 day",
+        "7d": "7 days",
+        "30d": "30 days",
+      },
+      lan: "Allow LAN access",
+      lanDescription:
+        "Other devices on your network can open Pine. Traffic is unencrypted HTTP, so only use networks you trust.",
+      lanNeedsPassword: "Requires the password to be on.",
+      publicOrigin: "Public address",
+      publicOriginDescription:
+        "If a reverse proxy or tunnel such as Cloudflare Tunnel serves Pine, enter its address.",
+      invalidPublicOrigin:
+        "Enter an address like https://pine.example.com, without a path.",
+      port: "Port",
+      portDescription: "After changing it, open the access link again.",
+      invalidPort: "Use a port from {min} to {max}.",
+      accessLink: "Access link",
+      accessLinkDescription: "Open Pine at 127.0.0.1 on this computer.",
+      copyLink: "Copy link",
+      linkCopied: "Access link copied",
+      open: "Open in browser",
+      signOut: "Signed-in browsers",
+      signOutDescription: "Each browser must enter the password again.",
+      signOutAction: "Sign out all",
+      signedOut: "All browsers signed out",
+    },
     projectManagement: {
       title: "Projects",
       description:
@@ -64,6 +130,7 @@ export default {
       models: "Harness",
       personalization: "User profile",
       projects: "Projects",
+      remote: "Remote control",
     },
     sectionsLabel: "Settings sections",
     language: "Language",
@@ -387,6 +454,15 @@ export default {
       accessLabel: "Access",
       actionsLabel: "Actions",
       folderAccess: "Access for {name}",
+      hostFolder: {
+        title: "Folder on the Pine computer",
+        description:
+          "The browser can't browse the computer running Pine. Enter the folder's full path.",
+        placeholder: "/Users/you/Projects/app",
+        hint: "Use an absolute path, such as /Users/you/Projects/app.",
+        absoluteRequired: "Enter an absolute path.",
+        confirm: "Add",
+      },
     },
   },
   skills: {
@@ -720,6 +796,7 @@ export default {
       addTab: "Add session tab",
       moreActions: "More actions",
       closeTab: "Close {name}",
+      switchTab: "Switch tab",
       tabListLabel: "Open content",
       shortcuts: {
         newTab: "New tab",
@@ -1489,6 +1566,17 @@ export default {
     },
     openSettings: "Open Settings",
   },
+  webSignIn: {
+    title: "Sign in to Pine",
+    description:
+      "Enter the browser access password set in Pine under Settings → Remote Control.",
+    password: "Password",
+    submit: "Continue",
+    signingIn: "Signing in…",
+    "wrong-password": "That password is incorrect.",
+    locked: "Too many attempts. Try again in {seconds} s.",
+    unavailable: "Pine could not be reached. Check that it is still running.",
+  },
   errors: {
     skills: {
       title: "Unable to update Skills",
@@ -1527,6 +1615,14 @@ export default {
     contextCompactionRoute: {
       title: "Unable to update context compaction method",
       description: "Try again in a moment",
+    },
+    remoteControl: {
+      loadTitle: "Unable to load remote control settings",
+      saveTitle: "Unable to update browser access",
+      description: "Please try again later.",
+      portInUse: "Port {port} is already in use. Choose another port.",
+      passwordTitle: "Unable to save the access password",
+      signOutTitle: "Unable to sign out browsers",
     },
     quickComposer: {
       title: "Unable to update quick composer settings",

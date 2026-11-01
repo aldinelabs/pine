@@ -61,7 +61,7 @@ function updateStrategy(value: unknown): void {
 
 <template>
   <FieldGroup data-testid="pine-auto-approval-settings">
-    <Field orientation="horizontal" :data-disabled="disabled">
+    <Field orientation="responsive" :data-disabled="disabled">
       <div class="flex min-w-0 flex-1 items-baseline gap-2">
         <FieldTitle id="pine-auto-approval-strategy-label">{{
           t("preferences.autoApprovalStrategy")

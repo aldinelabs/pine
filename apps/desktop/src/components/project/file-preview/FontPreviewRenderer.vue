@@ -145,7 +145,7 @@ onBeforeUnmount(() => {
           <span
             v-for="glyph in glyphs"
             :key="glyph"
-            class="grid aspect-square place-items-center rounded-md text-3xl hover:bg-muted"
+            class="grid aspect-square place-items-center rounded-md text-3xl hover:bg-muted active:bg-muted"
             >{{ glyph }}</span
           >
         </div>

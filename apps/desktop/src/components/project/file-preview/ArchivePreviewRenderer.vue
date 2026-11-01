@@ -259,7 +259,7 @@ onBeforeUnmount(() => {
                   type="button"
                   :class="
                     cn(
-                      'flex h-7 w-full items-center gap-1.5 rounded-lg pr-2 text-left text-sm outline-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/30',
+                      'flex h-7 w-full items-center gap-1.5 rounded-lg pr-2 text-left text-sm outline-none hover:bg-muted active:bg-muted focus-visible:ring-3 focus-visible:ring-ring/30',
                       selected === row.path && 'bg-muted',
                     )
                   "

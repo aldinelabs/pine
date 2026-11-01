@@ -1,8 +1,15 @@
 <script setup lang="ts">
+import { isDesktopClient } from "@/lib/clientRuntime";
+import { PHONE_FULLSCREEN_DIALOG } from "@/lib/dialogLayout";
+import { useDialogPages } from "@/composables/useDialogPages";
+import { usePhoneLayout } from "@/composables/usePhoneLayout";
 import { handleError } from "@/app/errors/errorHandler";
 import {
+  ChevronLeftIcon,
+  ChevronRightIcon,
   CircleHelpIcon,
   FolderKanbanIcon,
+  MonitorSmartphoneIcon,
   SettingsIcon,
   SlidersHorizontalIcon,
   SparklesIcon,
@@ -21,6 +28,7 @@ import {
 import { useI18n } from "vue-i18n";
 import { toast } from "vue-sonner";
 import { isAppLocale, persistAppLocale } from "@/app/i18n";
+import RemoteControlSettings from "./RemoteControlSettings.vue";
 import AutoApprovalSettings from "./AutoApprovalSettings.vue";
 import DecisionsModelSettings from "./DecisionsModelSettings.vue";
 import ProjectManagementSettings from "./ProjectManagementSettings.vue";
@@ -44,7 +52,13 @@ import {
   FieldTitle,
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { Item, ItemContent, ItemMedia, ItemTitle } from "@/components/ui/item";
+import {
+  Item,
+  ItemActions,
+  ItemContent,
+  ItemMedia,
+  ItemTitle,
+} from "@/components/ui/item";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Select,
@@ -94,9 +108,13 @@ import {
   type PineUserProfile,
 } from "@/shared/userProfile";
 
-type PreferenceSection = "general" | "models" | "personalization" | "projects";
+type PreferenceSection =
+  "general" | "models" | "personalization" | "projects" | "remote";
 
 const { locale, t } = useI18n();
+const isDesktop = isDesktopClient();
+const supportsRemoteControl =
+  isDesktop && typeof window.pine?.getWebServer === "function";
 const appearanceStore = useAppearanceStore();
 const modelsStore = useModelsStore();
 const userProfileStore = useUserProfileStore();
@@ -108,6 +126,10 @@ const isOpen = ref(false);
 const activeSection = ref<PreferenceSection>("general");
 // The section an `open` call asks for; plain opens start at General.
 let requestedSection: PreferenceSection | null = null;
+// A phone shows the section list and one section at a time.
+const isPhone = usePhoneLayout();
+const isSectionShown = ref(false);
+const showPage = useDialogPages();
 const isUtilityModelPickerOpen = ref(false);
 const isImageModelPickerOpen = ref(false);
 const isTinyFishCredentialDialogOpen = ref(false);
@@ -207,6 +229,16 @@ const sections = computed<
     id: "projects",
     label: t("preferences.sections.projects"),
   },
+  // Only the desktop window can host browser access.
+  ...(supportsRemoteControl
+    ? [
+        {
+          icon: MonitorSmartphoneIcon,
+          id: "remote" as const,
+          label: t("preferences.sections.remote"),
+        },
+      ]
+    : []),
 ]);
 
 const imageModelSummary = computed(() =>
@@ -221,6 +253,7 @@ watch(isOpen, (open) => {
     return;
   }
   activeSection.value = requestedSection ?? "general";
+  isSectionShown.value = requestedSection !== null;
   requestedSection = null;
   void modelsStore.load();
   void loadUserProfile();
@@ -707,14 +740,30 @@ function updateTranscriptSerif(value: boolean): void {
 }
 
 /** Open preferences at a section, including the sidebar's project manager. */
-function open(section: PreferenceSection = "general"): void {
+function open(section?: PreferenceSection): void {
   if (isOpen.value) {
-    activeSection.value = section;
+    activeSection.value = section ?? "general";
+    isSectionShown.value = section !== undefined;
     return;
   }
-  requestedSection = section;
+  requestedSection = section ?? null;
   isOpen.value = true;
 }
+
+function showSection(section: PreferenceSection): void {
+  showPage("forward", () => {
+    activeSection.value = section;
+    isSectionShown.value = true;
+  });
+}
+
+function showSectionList(): void {
+  showPage("back", () => (isSectionShown.value = false));
+}
+
+const activeSectionLabel = computed(
+  () => sections.value.find(({ id }) => id === activeSection.value)?.label,
+);
 
 defineExpose({ open });
 </script>
@@ -734,9 +783,31 @@ defineExpose({ open });
     </DialogTrigger>
 
     <DialogContent
-      class="flex h-[min(38rem,calc(100vh-2rem))] flex-col gap-0 overflow-hidden p-0 sm:max-w-3xl"
+      data-dialog-pages
+      :class="[
+        'flex h-[min(38rem,calc(100vh-2rem))] flex-col gap-0 overflow-hidden p-0 sm:max-w-3xl',
+        PHONE_FULLSCREEN_DIALOG,
+      ]"
     >
-      <DialogHeader class="px-6 pt-6 pb-4 pr-16">
+      <DialogHeader
+        v-if="isPhone && isSectionShown"
+        class="flex-row items-center gap-2 px-4 pt-4 pb-2 pr-16"
+      >
+        <Button
+          data-testid="pine-preferences-back"
+          variant="secondary"
+          size="icon-sm"
+          :aria-label="t('common.back')"
+          @click="showSectionList"
+        >
+          <ChevronLeftIcon />
+        </Button>
+        <DialogTitle class="leading-7">{{ activeSectionLabel }}</DialogTitle>
+        <DialogDescription class="sr-only">
+          {{ t("preferences.description") }}
+        </DialogDescription>
+      </DialogHeader>
+      <DialogHeader v-else class="px-6 pt-6 pb-4 pr-16">
         <DialogTitle>{{ t("preferences.title") }}</DialogTitle>
         <DialogDescription>
           {{ t("preferences.description") }}
@@ -745,7 +816,11 @@ defineExpose({ open });
 
       <div class="flex min-h-0 flex-1">
         <nav
-          class="flex w-44 shrink-0 flex-col gap-1 border-r bg-muted/20 p-2"
+          v-show="!isPhone || !isSectionShown"
+          :class="[
+            'flex shrink-0 flex-col gap-1 p-2',
+            isPhone ? 'w-full px-4' : 'w-44 border-r bg-muted/20',
+          ]"
           :aria-label="t('preferences.sectionsLabel')"
         >
           <Item
@@ -753,11 +828,15 @@ defineExpose({ open });
             :key="section.id"
             as="button"
             type="button"
-            size="xs"
-            :variant="activeSection === section.id ? 'muted' : 'default'"
-            :aria-current="activeSection === section.id ? 'true' : undefined"
-            class="hover:bg-muted"
-            @click="activeSection = section.id"
+            :size="isPhone ? 'sm' : 'xs'"
+            :variant="
+              !isPhone && activeSection === section.id ? 'muted' : 'default'
+            "
+            :aria-current="
+              !isPhone && activeSection === section.id ? 'true' : undefined
+            "
+            class="hover:bg-muted active:bg-muted"
+            @click="showSection(section.id)"
           >
             <ItemMedia variant="icon">
               <component :is="section.icon" aria-hidden="true" />
@@ -765,11 +844,15 @@ defineExpose({ open });
             <ItemContent class="min-w-0">
               <ItemTitle>{{ section.label }}</ItemTitle>
             </ItemContent>
+            <ItemActions v-if="isPhone">
+              <ChevronRightIcon class="size-4 text-muted-foreground" />
+            </ItemActions>
           </Item>
         </nav>
 
         <form
           v-if="activeSection === 'personalization'"
+          v-show="!isPhone || isSectionShown"
           data-testid="pine-user-profile-form"
           class="flex min-h-0 min-w-0 flex-1 flex-col"
           @submit.prevent="flushUserProfileSave"
@@ -777,7 +860,7 @@ defineExpose({ open });
           <ScrollArea
             class="min-h-0 flex-1 [&_[data-slot=scroll-area-viewport]]:scroll-fade"
           >
-            <FieldGroup class="gap-5 p-6">
+            <FieldGroup class="gap-5 p-6 max-sm:px-4">
               <Field>
                 <FieldLabel for="pine-user-profile-nickname">
                   {{ t("preferences.userProfileNicknameLabel") }}
@@ -914,11 +997,12 @@ defineExpose({ open });
 
         <ScrollArea
           v-else
+          v-show="!isPhone || isSectionShown"
           class="min-h-0 min-w-0 flex-1 [&_[data-slot=scroll-area-viewport]]:scroll-fade"
         >
-          <div v-if="activeSection === 'general'" class="p-6">
+          <div v-if="activeSection === 'general'" class="p-6 max-sm:px-4">
             <FieldGroup>
-              <Field orientation="horizontal">
+              <Field orientation="responsive">
                 <FieldTitle id="pine-language-setting">
                   {{ t("preferences.language") }}
                 </FieldTitle>
@@ -939,7 +1023,7 @@ defineExpose({ open });
                 </ToggleGroup>
               </Field>
 
-              <Field orientation="horizontal">
+              <Field orientation="responsive">
                 <FieldTitle id="pine-appearance-setting">
                   {{ t("preferences.appearance") }}
                 </FieldTitle>
@@ -963,7 +1047,7 @@ defineExpose({ open });
                 </ToggleGroup>
               </Field>
 
-              <Field orientation="horizontal">
+              <Field orientation="responsive">
                 <div class="flex min-w-0 flex-1 flex-col gap-1">
                   <FieldTitle id="pine-color-theme-setting">
                     {{ t("preferences.defaultColorTheme") }}
@@ -1010,7 +1094,7 @@ defineExpose({ open });
                 </Select>
               </Field>
 
-              <Field orientation="horizontal">
+              <Field orientation="responsive">
                 <div class="flex min-w-0 flex-1 flex-col gap-1">
                   <FieldTitle id="pine-completion-signal-setting">
                     {{ t("preferences.completionSignal") }}
@@ -1097,7 +1181,7 @@ defineExpose({ open });
                 />
               </Field>
 
-              <Field orientation="horizontal">
+              <Field v-if="isDesktop" orientation="horizontal">
                 <div class="flex min-w-0 flex-1 flex-col gap-1">
                   <FieldTitle id="pine-quick-composer-setting">
                     {{ t("preferences.quickComposer") }}
@@ -1176,9 +1260,9 @@ defineExpose({ open });
             </FieldGroup>
           </div>
 
-          <div v-else-if="activeSection === 'models'" class="p-6">
+          <div v-else-if="activeSection === 'models'" class="p-6 max-sm:px-4">
             <FieldGroup>
-              <Field orientation="horizontal">
+              <Field orientation="responsive">
                 <div class="flex min-w-0 flex-1 flex-col gap-1">
                   <FieldTitle id="pine-model-catalog-refresh-setting">
                     {{ t("preferences.modelCatalogRefresh") }}
@@ -1208,7 +1292,7 @@ defineExpose({ open });
                 </Button>
               </Field>
 
-              <Field orientation="horizontal">
+              <Field orientation="responsive">
                 <div class="flex min-w-0 flex-1 flex-col gap-1">
                   <FieldTitle id="pine-tinyfish-credential-setting">
                     {{ t("preferences.tinyFish") }}
@@ -1232,7 +1316,7 @@ defineExpose({ open });
                 </Button>
               </Field>
 
-              <Field orientation="horizontal">
+              <Field orientation="responsive">
                 <div class="flex min-w-0 flex-1 items-baseline gap-2">
                   <FieldTitle id="pine-context-compaction-strategy-setting">
                     {{ t("preferences.contextCompactionStrategy") }}
@@ -1278,7 +1362,7 @@ defineExpose({ open });
                 </ToggleGroup>
               </Field>
 
-              <Field orientation="horizontal">
+              <Field orientation="responsive">
                 <div class="flex min-w-0 flex-1 items-baseline gap-2">
                   <FieldTitle id="pine-context-compaction-route-setting">
                     {{ t("preferences.contextCompactionRoute") }}
@@ -1324,7 +1408,7 @@ defineExpose({ open });
 
               <AutoApprovalSettings />
 
-              <Field orientation="horizontal">
+              <Field orientation="responsive">
                 <div class="flex min-w-0 flex-1 flex-col gap-1">
                   <FieldTitle id="pine-utility-model-setting">
                     {{ t("preferences.utilityModel") }}
@@ -1347,7 +1431,7 @@ defineExpose({ open });
                 </Button>
               </Field>
 
-              <Field orientation="horizontal">
+              <Field orientation="responsive">
                 <div class="flex min-w-0 flex-1 flex-col gap-1">
                   <FieldTitle id="pine-image-model-setting">
                     {{ t("preferences.imageModel") }}
@@ -1368,8 +1452,11 @@ defineExpose({ open });
               <DecisionsModelSettings />
             </FieldGroup>
           </div>
-          <div v-else-if="activeSection === 'projects'" class="p-6">
+          <div v-else-if="activeSection === 'projects'" class="p-6 max-sm:px-4">
             <ProjectManagementSettings />
+          </div>
+          <div v-else-if="activeSection === 'remote'" class="p-6 max-sm:px-4">
+            <RemoteControlSettings />
           </div>
         </ScrollArea>
       </div>

@@ -3,6 +3,7 @@ import { SparklesIcon } from "@lucide/vue";
 import { storeToRefs } from "pinia";
 import { computed, reactive, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
+import { PHONE_FULLSCREEN_DIALOG } from "@/lib/dialogLayout";
 import { handleError } from "@/app/errors/errorHandler";
 import { Button } from "@/components/ui/button";
 import {
@@ -281,7 +282,10 @@ async function save(): Promise<void> {
   <Dialog v-model:open="open">
     <DialogContent
       data-testid="custom-model-dialog"
-      class="h-[min(85vh,52rem)] max-h-[calc(100vh-2rem)] gap-0 overflow-hidden p-0 sm:max-w-xl"
+      :class="[
+        'h-[min(85vh,52rem)] max-h-[calc(100vh-2rem)] gap-0 overflow-hidden p-0 sm:max-w-xl',
+        PHONE_FULLSCREEN_DIALOG,
+      ]"
     >
       <form class="flex h-full min-h-0 flex-col gap-6" @submit.prevent="save">
         <DialogHeader class="px-6 pt-6 pr-16">

@@ -3,16 +3,24 @@ import { createPinia, setActivePinia } from "pinia";
 import { createMemoryHistory, createRouter } from "vue-router";
 import { beforeEach, expect, it, vi } from "vitest";
 import { createAppI18n } from "@/app/i18n";
+import { useContentTabsStore } from "@/stores/contentTabs";
 import { useProjectStore } from "@/stores/project";
 import { TEMPORARY_WORKSPACE_PROJECT_ID } from "@/shared/projects";
 import ProjectSidebar from "../ProjectSidebar.vue";
 import { showProject } from "@/stores/__tests__/showProject";
+
+const setOpenMobile = vi.hoisted(() => vi.fn());
+vi.mock("@/components/ui/sidebar", async (importOriginal) => ({
+  ...(await importOriginal<object>()),
+  useSidebar: () => ({ setOpenMobile }),
+}));
 
 const slot = { template: "<div><slot /></div>" };
 const footerSlot = { template: "<footer><slot /></footer>" };
 const buttonSlot = { template: "<button><slot /></button>" };
 
 beforeEach(() => {
+  setOpenMobile.mockClear();
   localStorage.clear();
   window.pine = {
     getAppVersion: vi.fn().mockResolvedValue("0.1.0"),
@@ -137,5 +145,42 @@ it("opens skills and MCP servers from the bottom of the sidebar", async () => {
   await buttons[1].trigger("click");
   expect(wrapper.emitted("manageSkills")).toHaveLength(1);
   expect(wrapper.emitted("manageMcp")).toHaveLength(1);
+  // On a phone the sheet steps aside for the dialog it opens.
+  expect(setOpenMobile).toHaveBeenCalledTimes(2);
+  expect(setOpenMobile).toHaveBeenLastCalledWith(false);
+  wrapper.unmount();
+});
+
+it("closes the phone sheet once another tab or session shows", async () => {
+  const pinia = createPinia();
+  setActivePinia(pinia);
+  const router = createRouter({
+    history: createMemoryHistory(),
+    routes: [{ path: "/", component: { template: "<div />" } }],
+  });
+  await router.push("/");
+  const wrapper = mount(ProjectSidebar, {
+    global: {
+      plugins: [pinia, router, createAppI18n("zh-CN")],
+      stubs: {
+        Sidebar: slot,
+        SidebarContent: slot,
+        SidebarFooter: footerSlot,
+        SidebarMenu: slot,
+        SidebarMenuButton: buttonSlot,
+        SidebarMenuItem: slot,
+        SidebarRail: true,
+        AllProjectsSessionList: true,
+      },
+    },
+  });
+  await flushPromises();
+  expect(setOpenMobile).not.toHaveBeenCalled();
+
+  const tabs = useContentTabsStore();
+  const tab = tabs.createSessionTab({ reuseDraft: false });
+  await router.push({ query: { tab: tab.id } });
+  await flushPromises();
+  expect(setOpenMobile).toHaveBeenCalledWith(false);
   wrapper.unmount();
 });

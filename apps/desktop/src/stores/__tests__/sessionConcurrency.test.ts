@@ -1,7 +1,8 @@
+import type { WebSessionSnapshot } from "@/shared/webControl";
 import { createPinia, setActivePinia } from "pinia";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { toast } from "vue-sonner";
-import type { PineAgentEvent } from "@/shared/agent";
+import type { PineSessionEvent } from "@/shared/agent";
 import type { PineSessionSummary, PineTextMessage } from "@/shared/sessions";
 import { useSessionStore } from "../session";
 
@@ -26,8 +27,13 @@ function deferred<T>() {
 }
 
 function fixture() {
-  let emit!: (event: PineAgentEvent) => void;
+  let emit!: (event: PineSessionEvent) => void;
+  let snapshot!: (value: WebSessionSnapshot[]) => void;
   const api = {
+    onSessionSnapshot: vi.fn((listener) => {
+      snapshot = listener;
+      return () => {};
+    }),
     onSessionEvent: vi.fn((listener) => {
       emit = listener;
       return () => {};
@@ -49,10 +55,18 @@ function fixture() {
   Object.defineProperty(window, "pine", { configurable: true, value: api });
   const store = useSessionStore();
   store.connectAgentEvents();
-  return { store, api, emit: (event: PineAgentEvent) => emit(event) };
+  return {
+    store,
+    api,
+    emit: (event: PineSessionEvent) => emit(event),
+    snapshot: (value: WebSessionSnapshot[]) => snapshot(value),
+  };
 }
 
-function approval(sessionId: string, requestId: string): PineAgentEvent {
+function approval(
+  sessionId: string,
+  requestId: string,
+): Extract<PineSessionEvent, { type: "approval-request" }> {
   return {
     type: "approval-request",
     sessionId,
@@ -64,6 +78,60 @@ function approval(sessionId: string, requestId: string): PineAgentEvent {
 }
 
 describe("concurrent session state", () => {
+  it("replaces live state on reconnect without duplicating text or approval cards", async () => {
+    setActivePinia(createPinia());
+    const { store, snapshot } = fixture();
+    await store.resume(PROJECT_ID, a.id);
+    const value: WebSessionSnapshot[] = [
+      {
+        sessionId: a.id,
+        projectId: PROJECT_ID,
+        events: [
+          { type: "run-state", sessionId: a.id, state: "running" },
+          {
+            type: "message-start",
+            sessionId: a.id,
+            messageId: "stream",
+            message: { role: "assistant", content: [] },
+          },
+          {
+            type: "message-update",
+            sessionId: a.id,
+            messageId: "stream",
+            updates: [
+              { type: "text-start", contentIndex: 0, text: "Restored" },
+            ],
+          },
+          approval(a.id, "approval"),
+        ],
+      },
+    ];
+    snapshot(value);
+    snapshot(value);
+    await Promise.resolve();
+    expect(store.stateFor(a.id).isRunning).toBe(true);
+    expect(store.stateFor(a.id).pendingApprovals).toHaveLength(1);
+    expect(store.stateFor(a.id).messages).toHaveLength(1);
+    expect(store.stateFor(a.id).messages[0].blocks).toEqual([
+      { type: "text", text: "Restored" },
+    ]);
+    snapshot([]);
+    expect(store.stateFor(a.id).isRunning).toBe(false);
+    expect(store.stateFor(a.id).pendingApprovals).toHaveLength(0);
+  });
+
+  it("clears stale run state when another interface resets the shared project", async () => {
+    setActivePinia(createPinia());
+    const { store, emit } = fixture();
+    await store.resume(PROJECT_ID, a.id);
+    emit({ type: "run-state", sessionId: a.id, state: "running" });
+    emit(approval(a.id, "approval"));
+    emit({ type: "session-reset", sessionId: a.id, projectId: PROJECT_ID });
+    await Promise.resolve();
+    expect(store.stateFor(a.id).isRunning).toBe(false);
+    expect(store.stateFor(a.id).pendingApprovals).toHaveLength(0);
+  });
+
   beforeEach(() => {
     setActivePinia(createPinia());
     document.documentElement.lang = "en-US";

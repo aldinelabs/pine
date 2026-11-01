@@ -48,7 +48,7 @@ onMounted(async () => {
 </script>
 
 <template>
-  <Field orientation="horizontal" :data-disabled="disabled">
+  <Field orientation="responsive" :data-disabled="disabled">
     <div class="flex min-w-0 flex-1 flex-col gap-1">
       <FieldTitle id="pine-decisions-model-label">{{
         t("preferences.decisionsModel")

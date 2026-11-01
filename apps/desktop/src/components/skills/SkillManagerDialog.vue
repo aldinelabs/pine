@@ -1,9 +1,12 @@
 <script setup lang="ts">
-import { PlusIcon, Trash2Icon } from "@lucide/vue";
+import { ChevronLeftIcon, PlusIcon, Trash2Icon } from "@lucide/vue";
 import { parse as parseYaml, stringify as stringifyYaml } from "yaml";
 import { computed, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { handleError } from "@/app/errors/errorHandler";
+import { useDialogPages } from "@/composables/useDialogPages";
+import { usePhoneLayout } from "@/composables/usePhoneLayout";
+import { PHONE_FULLSCREEN_DIALOG } from "@/lib/dialogLayout";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -72,6 +75,10 @@ const isDeleteConfirmOpen = ref(false);
 const isRemoving = ref(false);
 const deleteName = ref("");
 const togglingNames = ref(new Set<string>());
+// A phone shows the skill list and one skill's editor at a time.
+const isPhone = usePhoneLayout();
+const isEditorShown = ref(false);
+const showPage = useDialogPages();
 const isReadOnly = computed(() => !isCreating.value && selectedReadOnly.value);
 const canSave = computed(() => {
   const isValidName =
@@ -217,9 +224,22 @@ async function selectSkillSafely(
 ): Promise<void> {
   try {
     await selectSkill(name, managedBy);
+    if (!isEditorShown.value)
+      showPage("forward", () => (isEditorShown.value = true));
   } catch (error) {
     reportError(error, "load");
   }
+}
+
+function createFromList(): void {
+  showPage("forward", () => {
+    startCreating();
+    isEditorShown.value = true;
+  });
+}
+
+function showSkillList(): void {
+  showPage("back", () => (isEditorShown.value = false));
 }
 
 function startCreating(): void {
@@ -281,6 +301,7 @@ async function confirmRemoveSelected(): Promise<void> {
     });
     isDeleteConfirmOpen.value = false;
     startCreating();
+    showSkillList();
     await load();
   } catch (error) {
     reportError(error, "remove");
@@ -315,6 +336,7 @@ async function setGlobalSkillEnabled(
 
 watch(open, (value) => {
   if (!value) return;
+  isEditorShown.value = false;
   startCreating();
   void load();
 });
@@ -322,6 +344,7 @@ watch(open, (value) => {
 watch(activeScope, () => {
   if (!open.value) return;
   skills.value = [];
+  isEditorShown.value = false;
   startCreating();
   void load();
 });
@@ -329,14 +352,40 @@ watch(activeScope, () => {
 
 <template>
   <Dialog v-model:open="open">
-    <DialogContent class="gap-0 overflow-hidden p-0 sm:max-w-3xl">
-      <DialogHeader class="px-6 pt-6 pb-4 pr-16">
+    <DialogContent
+      data-dialog-pages
+      :class="[
+        'gap-0 overflow-hidden p-0 sm:max-w-3xl max-sm:flex max-sm:flex-col',
+        PHONE_FULLSCREEN_DIALOG,
+      ]"
+    >
+      <DialogHeader
+        v-if="isPhone && isEditorShown"
+        class="flex-row items-center gap-2 px-4 pt-4 pb-2 pr-16"
+      >
+        <Button
+          data-testid="skill-manager-back"
+          variant="secondary"
+          size="icon-sm"
+          :aria-label="t('common.back')"
+          @click="showSkillList"
+        >
+          <ChevronLeftIcon />
+        </Button>
+        <DialogTitle class="min-w-0 truncate leading-7">
+          {{ isCreating ? t("skills.new") : selectedName }}
+        </DialogTitle>
+        <DialogDescription class="sr-only">
+          {{ t("skills.description") }}
+        </DialogDescription>
+      </DialogHeader>
+      <DialogHeader v-else class="px-6 pt-6 pb-4 pr-16">
         <DialogTitle>{{ t("skills.title") }}</DialogTitle>
         <DialogDescription>{{ t("skills.description") }}</DialogDescription>
       </DialogHeader>
 
-      <Tabs v-model="activeScope" class="min-h-0 gap-0">
-        <div class="px-6 pb-4">
+      <Tabs v-model="activeScope" class="min-h-0 gap-0 max-sm:flex-1">
+        <div v-show="!isPhone || !isEditorShown" class="px-6 pb-4 max-sm:px-4">
           <TabsList class="w-full">
             <TabsTrigger value="global">
               {{ t("skills.scope.global") }}
@@ -347,18 +396,21 @@ watch(activeScope, () => {
           </TabsList>
         </div>
 
-        <Separator />
+        <Separator v-show="!isPhone || !isEditorShown" />
 
         <template v-for="scope in skillScopes" :key="scope">
           <TabsContent
             v-if="scope === activeScope"
             :value="scope"
-            class="m-0 min-h-0 flex-none overflow-hidden"
+            class="m-0 min-h-0 flex-none overflow-hidden max-sm:flex-1"
           >
             <div
-              class="grid min-h-0 grid-cols-[14rem_auto_minmax(0,1fr)] overflow-hidden"
+              class="grid min-h-0 grid-cols-[14rem_auto_minmax(0,1fr)] overflow-hidden max-sm:h-full max-sm:grid-cols-1"
             >
-              <aside class="relative min-h-0 overflow-hidden bg-muted/20">
+              <aside
+                v-show="!isPhone || !isEditorShown"
+                class="relative min-h-0 overflow-hidden bg-muted/20 max-sm:bg-transparent"
+              >
                 <!-- ScrollAreaRoot sets an inline `position: relative`, so the
                   absolute positioning lives on a wrapper to keep the list out
                   of the grid row's height. -->
@@ -372,8 +424,8 @@ watch(activeScope, () => {
                         type="button"
                         variant="muted"
                         size="sm"
-                        class="min-h-20 justify-center hover:bg-muted"
-                        @click="startCreating"
+                        class="min-h-20 justify-center hover:bg-muted active:bg-muted"
+                        @click="createFromList"
                       >
                         <ItemMedia variant="icon">
                           <PlusIcon />
@@ -392,7 +444,7 @@ watch(activeScope, () => {
                         "
                         size="sm"
                         role="listitem"
-                        class="min-w-0 hover:bg-muted"
+                        class="min-w-0 hover:bg-muted active:bg-muted"
                       >
                         <ItemContent class="min-w-0">
                           <button
@@ -436,13 +488,17 @@ watch(activeScope, () => {
                 </div>
               </aside>
 
-              <Separator orientation="vertical" />
+              <Separator v-if="!isPhone" orientation="vertical" />
 
-              <form class="flex flex-col p-5" @submit.prevent="save">
+              <form
+                v-show="!isPhone || isEditorShown"
+                class="flex flex-col p-5 max-sm:min-h-0 max-sm:overflow-y-auto max-sm:px-4"
+                @submit.prevent="save"
+              >
                 <p v-if="isReadOnly" class="mb-3 text-xs text-muted-foreground">
                   {{ t("skills.piPackageReadOnly") }}
                 </p>
-                <FieldGroup class="grid grid-cols-2 gap-2">
+                <FieldGroup class="grid grid-cols-2 gap-2 max-sm:grid-cols-1">
                   <Field class="gap-0">
                     <FieldLabel :for="`skill-${scope}-name`" class="sr-only">
                       {{ t("skills.nameLabel") }}
@@ -471,7 +527,9 @@ watch(activeScope, () => {
                   </Field>
                 </FieldGroup>
 
-                <FieldGroup class="mt-2 grid grid-cols-3 gap-2">
+                <FieldGroup
+                  class="mt-2 grid grid-cols-3 gap-2 max-sm:grid-cols-1"
+                >
                   <Field class="gap-0">
                     <FieldLabel :for="`skill-${scope}-license`" class="sr-only">
                       {{ t("skills.licenseLabel") }}

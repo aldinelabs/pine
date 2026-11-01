@@ -146,7 +146,7 @@ defineExpose({ fitWidth: () => stage.value?.fitWidth() });
                 :aria-pressed="selected === index"
                 :class="
                   cn(
-                    'flex h-8 w-full items-center gap-2 rounded-lg px-2 text-left text-sm outline-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/30',
+                    'flex h-8 w-full items-center gap-2 rounded-lg px-2 text-left text-sm outline-none hover:bg-muted active:bg-muted focus-visible:ring-3 focus-visible:ring-ring/30',
                     selected === index && 'bg-muted',
                   )
                 "

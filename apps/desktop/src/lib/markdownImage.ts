@@ -1,4 +1,4 @@
-import { attachmentImageUrl } from "@/shared/attachments";
+import { attachmentImageUrl } from "@/lib/clientAssets";
 import { MARKDOWN_IMAGE_PARAM } from "@/shared/projectFiles";
 
 /**
@@ -65,7 +65,10 @@ export function resolveMarkdownImageSrc(
     return attachmentImageUrl(decodeMaybeEncodedPath(trimmed));
   }
   if (documentUrl) {
-    const url = new URL(documentUrl);
+    const url = new URL(
+      documentUrl,
+      typeof window === "undefined" ? undefined : window.location.href,
+    );
     url.searchParams.set(MARKDOWN_IMAGE_PARAM, trimmed);
     return url.href;
   }

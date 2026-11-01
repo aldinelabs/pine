@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, shallowRef } from "vue";
 import { useI18n } from "vue-i18n";
+import { PHONE_FULLSCREEN_DIALOG } from "@/lib/dialogLayout";
 import { Paperclip } from "@lucide/vue";
 import { Button } from "@/components/ui/button";
 import {
@@ -142,7 +143,12 @@ function open(attachment: MailAttachment): void {
     </ScrollArea>
 
     <Dialog v-model:open="dialogOpen">
-      <DialogContent class="flex h-[80vh] max-w-5xl flex-col sm:max-w-5xl">
+      <DialogContent
+        :class="[
+          'flex h-[80vh] max-w-5xl flex-col sm:max-w-5xl',
+          PHONE_FULLSCREEN_DIALOG,
+        ]"
+      >
         <DialogHeader>
           <DialogTitle class="truncate">{{ opened?.name }}</DialogTitle>
           <DialogDescription v-if="opened">{{

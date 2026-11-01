@@ -657,6 +657,45 @@ describe("ProjectContentTabs", () => {
     wrapper.unmount();
   });
 
+  it("swaps the tab strip for a switcher of every tab on a phone", async () => {
+    sidebar.isMobile = true;
+    try {
+      const { router, wrapper, file } = await mountTabs(true);
+      await flushPromises();
+      expect(wrapper.find('[role="tablist"]').exists()).toBe(false);
+      const trigger = wrapper.get(
+        '[data-slot="project-content-tab-switcher-trigger"]',
+      );
+      expect(trigger.text()).toContain("New session");
+
+      await trigger.trigger("keydown", { key: "Enter" });
+      await flushPromises();
+      const items = () => [
+        ...document.body.querySelectorAll<HTMLElement>(
+          '[data-slot="project-content-tab-switcher-item"]',
+        ),
+      ];
+      expect(items().map((item) => item.textContent?.trim())).toEqual([
+        "New session",
+        "example.ts",
+      ]);
+
+      items()[1].querySelector<HTMLElement>('[role="menuitemradio"]')!.click();
+      await flushPromises();
+      expect(router.currentRoute.value.query.tab).toBe(file!.id);
+
+      await trigger.trigger("keydown", { key: "Enter" });
+      await flushPromises();
+      items()[0].querySelector<HTMLElement>("button")!.click();
+      await flushPromises();
+      expect(useContentTabsStore().tabs.map((tab) => tab.id)).toEqual([
+        file!.id,
+      ]);
+    } finally {
+      sidebar.isMobile = false;
+    }
+  });
+
   it("selects exactly one newly created session tab and switches its panel", async () => {
     const { router, wrapper } = await mountTabs();
     const tabsStore = useContentTabsStore();

@@ -199,7 +199,7 @@ defineExpose({ fitWidth });
               :aria-pressed="isVisible(node.layer)"
               :class="
                 cn(
-                  'flex h-8 w-full items-center gap-2 rounded-lg pr-2 text-left text-sm outline-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/30',
+                  'flex h-8 w-full items-center gap-2 rounded-lg pr-2 text-left text-sm outline-none hover:bg-muted active:bg-muted focus-visible:ring-3 focus-visible:ring-ring/30',
                   !isVisible(node.layer) && 'text-muted-foreground',
                 )
               "

@@ -41,10 +41,8 @@ const SEARCH_INDEX_SCHEMA_VERSION = 2;
 const SESSION_HEADER_CHUNK_BYTES = 4_096;
 const SESSION_HEADER_READ_CONCURRENCY = 64;
 
-export interface PineSessionExportDocument {
-  fileName: string;
-  markdown: string;
-}
+import type { PineSessionExportDocument } from "../shared/sessionExport";
+export type { PineSessionExportDocument } from "../shared/sessionExport";
 
 export interface PineSessionDescriptor {
   sessionFile: string;

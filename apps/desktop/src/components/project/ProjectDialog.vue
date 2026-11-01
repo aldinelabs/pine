@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref } from "vue";
 import { useI18n } from "vue-i18n";
+import { PHONE_FULLSCREEN_DIALOG } from "@/lib/dialogLayout";
 import { handleError } from "@/app/errors/errorHandler";
 import {
   Dialog,
@@ -60,7 +61,10 @@ function deleted(projectId: string): void {
 <template>
   <Dialog v-model:open="open">
     <DialogContent
-      class="max-h-[min(85vh,44rem)] gap-0 overflow-hidden p-0 sm:max-w-lg"
+      :class="[
+        'max-h-[min(85vh,44rem)] gap-0 overflow-hidden p-0 sm:max-w-lg max-sm:flex max-sm:flex-col',
+        PHONE_FULLSCREEN_DIALOG,
+      ]"
     >
       <DialogHeader class="px-6 pt-6 pb-4 pr-16">
         <DialogTitle>

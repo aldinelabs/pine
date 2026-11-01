@@ -162,6 +162,74 @@ describe("PinePreferencesDialog", () => {
     installPineApi(undefined);
   });
 
+  it("offers remote control only where the window can host browser access", async () => {
+    installPineApi("darwin");
+    const sectionLabels = (wrapper: VueWrapper) =>
+      wrapper.findAll('[data-slot="item"]').map((item) => item.text());
+    const withoutHost = mountDialog().wrapper;
+    expect(sectionLabels(withoutHost)).not.toContain("远程控制");
+    withoutHost.unmount();
+
+    Object.assign(window.pine, {
+      getWebServer: vi.fn().mockResolvedValue({ enabled: false, port: 9415 }),
+    });
+    const { wrapper } = mountDialog();
+    expect(sectionLabels(wrapper)).toContain("远程控制");
+    await openSection(wrapper, "远程控制");
+    expect(
+      wrapper.find('[data-testid="remote-control-settings"]').exists(),
+    ).toBe(true);
+    // Browser access no longer lives among the general settings.
+    await openSection(wrapper, "通用");
+    expect(
+      wrapper.find('[data-testid="remote-control-settings"]').exists(),
+    ).toBe(false);
+    wrapper.unmount();
+  });
+
+  it("shows the section list and one section at a time on a phone", async () => {
+    vi.stubGlobal(
+      "matchMedia",
+      vi.fn((query: string) => ({
+        matches: query === "(width < 40rem)",
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+      })),
+    );
+    try {
+      installPineApi("darwin");
+      const { pinia, wrapper } = mountDialog();
+      vi.spyOn(useModelsStore(pinia), "load").mockResolvedValue(undefined);
+      const nav = () => wrapper.get("nav").element as HTMLElement;
+      expect(nav().style.display).toBe("");
+      expect(
+        wrapper.find('[data-testid="pine-preferences-back"]').exists(),
+      ).toBe(false);
+
+      await openSection(wrapper, "通用");
+      expect(nav().style.display).toBe("none");
+      expect(wrapper.text()).toContain("语言");
+
+      await wrapper
+        .get('[data-testid="pine-preferences-back"]')
+        .trigger("click");
+      expect(nav().style.display).toBe("");
+
+      // Shortcuts that name a section go straight to it.
+      (wrapper.vm as unknown as { open(section: string): void }).open(
+        "projects",
+      );
+      await flushPromises();
+      expect(nav().style.display).toBe("none");
+      expect(
+        wrapper.find('[data-testid="pine-preferences-back"]').exists(),
+      ).toBe(true);
+      wrapper.unmount();
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
   it("opens at the section a caller asks for", async () => {
     installPineApi("darwin");
     const { pinia, wrapper } = mountDialog();

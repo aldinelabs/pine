@@ -1,11 +1,27 @@
 import { flushPromises, mount } from "@vue/test-utils";
 import { createPinia, setActivePinia } from "pinia";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import { ref } from "vue";
 import { createAppI18n } from "@/app/i18n";
 import { useWorkbenchStore } from "@/stores/workbench";
 import ProjectWorkbench from "../ProjectWorkbench.vue";
 
+const sidebar = vi.hoisted(() => ({
+  isMobile: undefined as unknown as { value: boolean },
+  openMobile: undefined as unknown as { value: boolean },
+}));
+vi.mock("@/components/ui/sidebar", async (importOriginal) => ({
+  ...(await importOriginal<object>()),
+  useSidebar: () => ({
+    isMobile: sidebar.isMobile,
+    openMobile: sidebar.openMobile,
+    setOpenMobile: (open: boolean) => (sidebar.openMobile.value = open),
+  }),
+}));
+
 beforeEach(() => {
+  sidebar.isMobile = ref(false);
+  sidebar.openMobile = ref(false);
   vi.useFakeTimers();
   window.localStorage.clear();
   setActivePinia(createPinia());
@@ -179,4 +195,28 @@ it("slides swapped cards past each other instead of jumping", async () => {
     }),
     expect.objectContaining({ flexBasis: "300px", transform: "translateY(0)" }),
   ]);
+});
+
+it("follows the workbench as a sheet on a phone", async () => {
+  sidebar.isMobile.value = true;
+  const store = useWorkbenchStore();
+  const wrapper = mountWorkbench();
+  await flushPromises();
+  expect(sidebar.openMobile.value).toBe(false);
+
+  store.setOpen(true);
+  await flushPromises();
+  expect(sidebar.openMobile.value).toBe(true);
+
+  // Dismissing the sheet closes the workbench.
+  sidebar.openMobile.value = false;
+  await flushPromises();
+  expect(store.activeLayout.open).toBe(false);
+
+  // The provider's own shortcut cannot open it behind the store's back.
+  sidebar.openMobile.value = true;
+  await flushPromises();
+  expect(sidebar.openMobile.value).toBe(false);
+  expect(store.activeLayout.open).toBe(false);
+  wrapper.unmount();
 });

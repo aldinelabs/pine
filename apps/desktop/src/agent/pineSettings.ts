@@ -1,5 +1,10 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
+import {
+  isWebServerSettings,
+  readWebServerSettings,
+  type WebServerSettings,
+} from "../shared/webControl";
 import { decisionsModelDescriptors } from "./runtime/decisions-models";
 import type {
   PineImageModelSelection,
@@ -25,6 +30,7 @@ import {
 const PINE_SETTINGS_FILE = "pine-settings.json";
 
 export interface PineAgentSettings {
+  webServer?: WebServerSettings;
   autoApproval?: PineAutoApprovalSettings;
   diagnosticLoggingEnabled?: boolean;
   completionSignalMode?: PineCompletionSignalMode;
@@ -121,7 +127,9 @@ export async function readPineAgentSettings(
     const userProfile = migrateUserProfile(settings.userProfile);
     const contextCompactionStrategy = settings.contextCompactionStrategy;
     const contextCompactionRoute = settings.contextCompactionRoute;
+    const webServer = readWebServerSettings(settings.webServer);
     return {
+      ...(webServer ? { webServer } : {}),
       ...(isPineAutoApprovalSettings(settings.autoApproval)
         ? {
             autoApproval: {
@@ -253,6 +261,15 @@ export async function writeAutoApprovalSettings(
       decisionsModel: autoApproval.decisionsModel.trim(),
     },
   });
+}
+
+export async function writeWebServerSettings(
+  agentDir: string,
+  webServer: WebServerSettings,
+): Promise<void> {
+  if (!isWebServerSettings(webServer))
+    throw new Error("Invalid local web settings.");
+  await writePineAgentSettings(agentDir, { webServer });
 }
 
 async function writePineAgentSettings(

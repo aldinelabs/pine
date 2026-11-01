@@ -84,7 +84,7 @@ async function stop(task: BackgroundTaskSnapshot): Promise<void> {
       >
         <button
           type="button"
-          class="flex h-6 w-full min-w-0 items-center gap-2 rounded-full px-1.5 text-left transition-colors duration-500 ease-out-expo outline-none hover:bg-muted/60 focus-visible:ring-3 focus-visible:ring-ring/30"
+          class="flex h-6 w-full min-w-0 items-center gap-2 rounded-full px-1.5 text-left transition-colors duration-500 ease-out-expo outline-none hover:bg-muted/60 active:bg-muted/60 focus-visible:ring-3 focus-visible:ring-ring/30"
           :aria-label="`${task.name}: ${t(`project.backgroundTasks.statuses.${task.status}`)}`"
           @click="store.inspect(task.id)"
         >

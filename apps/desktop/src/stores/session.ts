@@ -1090,6 +1090,16 @@ export const useSessionStore = defineStore("session", () => {
   }
 
   function handleAgentEvent(event: PineSessionEvent): void {
+    if (event.type === "session-reset") {
+      const previous = sessionCache.get(event.sessionId);
+      if (!previous) return;
+      const state = createSessionState();
+      state.summary = previous.summary;
+      sessionCache.set(event.sessionId, state);
+      sessionProjects.set(event.sessionId, event.projectId);
+      void loadInitialMessages(event.sessionId).catch(() => undefined);
+      return;
+    }
     if (event.type === "session-teleported") {
       moveSessionToProject(
         event.sessionId,
@@ -1469,6 +1479,27 @@ export const useSessionStore = defineStore("session", () => {
   function connectAgentEvents(): void {
     if (stopAgentEvents || !window.pine.onSessionEvent) return;
     stopAgentEvents = window.pine.onSessionEvent(handleAgentEvent);
+    window.pine.onSessionSnapshot?.((snapshots) => {
+      const liveIds = new Set(snapshots.map((snapshot) => snapshot.sessionId));
+      for (const [id, state] of sessionCache) {
+        if (liveIds.has(id)) continue;
+        state.isRunning = false;
+        state.pendingApprovals = [];
+        state.pendingQuestionnaires = [];
+        state.reviewingToolCallIds = new Set();
+        state.steeringMessages = [];
+      }
+      for (const snapshot of snapshots) {
+        const previous = sessionCache.get(snapshot.sessionId);
+        const state = createSessionState();
+        state.summary = previous?.summary ?? null;
+        sessionCache.set(snapshot.sessionId, state);
+        sessionProjects.set(snapshot.sessionId, snapshot.projectId);
+        for (const event of snapshot.events) handleAgentEvent(event);
+        if (previous?.historyLoaded)
+          void loadInitialMessages(snapshot.sessionId).catch(() => undefined);
+      }
+    });
   }
 
   function startDraft(): void {

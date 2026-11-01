@@ -320,11 +320,12 @@ async function handleConnected(): Promise<void> {
 </script>
 
 <template>
+  <!-- On a phone it hangs from the top, clear of the on-screen keyboard. -->
   <CommandDialog
     :open="open"
     :title="title"
     :description="description"
-    class="top-1/2 -translate-y-1/2"
+    class="top-1/2 -translate-y-1/2 max-sm:top-4 max-sm:translate-y-0"
     @update:open="emit('update:open', $event)"
   >
     <CommandInput :placeholder="searchPlaceholder" />

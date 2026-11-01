@@ -292,6 +292,12 @@
   --window-titlebar-trailing-actions-width: 3rem;
 }
 
+/* A browser tab draws no window controls of its own. */
+[data-client="web"] {
+  --window-titlebar-leading-offset: 0.75rem;
+  --window-titlebar-leading-extra: 0rem;
+}
+
 :root.dark {
   --pine-olive-background: oklch(0.153 0.006 107.1);
   --background: var(--pine-olive-background);
@@ -774,6 +780,74 @@ html.sidebar-vibrancy:has(
 ::view-transition-new(pine-draft-project) {
   animation-duration: 500ms;
   animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* A phone-sized dialog moving between its levels like a navigation stack.
+   Only the dialog is captured; the page behind it stays live. */
+:root[data-dialog-page] {
+  view-transition-name: none;
+}
+
+:root[data-dialog-page] [data-dialog-pages] {
+  view-transition-name: pine-dialog-page;
+}
+
+/* The close button belongs to the dialog, not the page, so it stays put. */
+:root[data-dialog-page] [data-dialog-pages] > [data-slot="dialog-close"] {
+  view-transition-name: pine-dialog-close;
+}
+
+::view-transition-old(pine-dialog-page),
+::view-transition-new(pine-dialog-page) {
+  animation-duration: 500ms;
+  animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+  animation-fill-mode: both;
+  mix-blend-mode: normal;
+}
+
+:root[data-dialog-page="forward"]::view-transition-old(pine-dialog-page) {
+  animation-name: pine-dialog-page-cover;
+}
+
+:root[data-dialog-page="forward"]::view-transition-new(pine-dialog-page) {
+  animation-name: pine-dialog-page-enter;
+}
+
+/* Going back, the leaving page slides off on top of the one it uncovers. */
+:root[data-dialog-page="back"]::view-transition-old(pine-dialog-page) {
+  z-index: 1;
+  animation-name: pine-dialog-page-leave;
+}
+
+:root[data-dialog-page="back"]::view-transition-new(pine-dialog-page) {
+  animation-name: pine-dialog-page-uncover;
+}
+
+@keyframes pine-dialog-page-enter {
+  from {
+    transform: translateX(100%);
+  }
+}
+
+@keyframes pine-dialog-page-leave {
+  to {
+    transform: translateX(100%);
+  }
+}
+
+/* The covered page drifts a quarter of the way out and dims behind. */
+@keyframes pine-dialog-page-cover {
+  to {
+    transform: translateX(-25%);
+    filter: brightness(0.8);
+  }
+}
+
+@keyframes pine-dialog-page-uncover {
+  from {
+    transform: translateX(-25%);
+    filter: brightness(0.8);
+  }
 }
 
 /*

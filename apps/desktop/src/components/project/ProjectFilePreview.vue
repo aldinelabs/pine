@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { isWebClient } from "@/lib/clientRuntime";
 import {
   computed,
   onBeforeUnmount,
@@ -11,6 +12,7 @@ import {
 } from "vue";
 import { useI18n } from "vue-i18n";
 import {
+  Download,
   ExternalLink,
   FileQuestion,
   FileWarning,
@@ -77,6 +79,7 @@ const props = withDefaults(
   { active: true },
 );
 const { t, locale } = useI18n();
+const isWeb = isWebClient();
 // Presented files live outside the project, so they cannot be sent to a
 // session as a project entry; opening with the default app still works.
 const projectTarget = computed(() =>
@@ -641,8 +644,9 @@ onBeforeUnmount(() => {
           size="sm"
           @click="openWithDefaultApplication"
         >
-          <ExternalLink data-icon="inline-start" />
-          {{ t("project.preview.openDefault") }}
+          <Download v-if="isWeb" data-icon="inline-start" />
+          <ExternalLink v-else data-icon="inline-start" />
+          {{ t(isWeb ? "common.downloadFile" : "project.preview.openDefault") }}
         </Button>
         <DropdownMenu
           v-if="projectTarget"

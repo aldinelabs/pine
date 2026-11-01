@@ -33,6 +33,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
+import ProjectFolderPicker from "./ProjectFolderPicker.vue";
 import {
   Table,
   TableBody,
@@ -125,10 +126,7 @@ function mergeContextFolders(selectedFolders: ProjectFolderInput[]): void {
   folders.value = [...folders.value, ...additions];
 }
 
-async function chooseDefaultFolder(): Promise<void> {
-  const [selectedFolder] = (
-    await window.pine.pickProjectFolders({ mode: "default" })
-  ).folders;
+function chooseDefaultFolder([selectedFolder]: ProjectFolderInput[]): void {
   if (!selectedFolder) return;
 
   const existingFolder = folders.value.find(
@@ -143,12 +141,6 @@ async function chooseDefaultFolder(): Promise<void> {
 
   folders.value = [...folders.value, { ...selectedFolder, isAvailable: true }];
   defaultFolderId.value = selectedFolder.id;
-}
-
-async function addContextFolders(): Promise<void> {
-  mergeContextFolders(
-    (await window.pine.pickProjectFolders({ mode: "context" })).folders,
-  );
 }
 
 function removeFolder(folderId: string): void {
@@ -340,30 +332,32 @@ watch(() => props.project, reset, { immediate: true });
             <span class="truncate text-sm text-muted-foreground">
               {{ defaultFolder.path }}
             </span>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              class="shrink-0"
-              data-testid="change-default-folder"
-              @click="chooseDefaultFolder"
-            >
-              <FolderOpen data-icon="inline-start" />
-              {{ t("projects.editor.changeDefaultFolder") }}
-            </Button>
+            <ProjectFolderPicker mode="default" @picked="chooseDefaultFolder">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                class="shrink-0"
+                data-testid="change-default-folder"
+              >
+                <FolderOpen data-icon="inline-start" />
+                {{ t("projects.editor.changeDefaultFolder") }}
+              </Button>
+            </ProjectFolderPicker>
           </div>
 
           <div v-else class="ml-auto">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              data-testid="choose-default-folder"
-              @click="chooseDefaultFolder"
-            >
-              <FolderOpen data-icon="inline-start" />
-              {{ t("projects.editor.chooseDefaultFolder") }}
-            </Button>
+            <ProjectFolderPicker mode="default" @picked="chooseDefaultFolder">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                data-testid="choose-default-folder"
+              >
+                <FolderOpen data-icon="inline-start" />
+                {{ t("projects.editor.chooseDefaultFolder") }}
+              </Button>
+            </ProjectFolderPicker>
           </div>
         </Field>
 
@@ -372,16 +366,17 @@ watch(() => props.project, reset, { immediate: true });
             <FieldTitle>
               {{ t("projects.editor.contextFoldersLabel") }}
             </FieldTitle>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              data-testid="add-context-folders"
-              @click="addContextFolders"
-            >
-              <FolderPlus data-icon="inline-start" />
-              {{ t("projects.editor.addContextFolders") }}
-            </Button>
+            <ProjectFolderPicker mode="context" @picked="mergeContextFolders">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                data-testid="add-context-folders"
+              >
+                <FolderPlus data-icon="inline-start" />
+                {{ t("projects.editor.addContextFolders") }}
+              </Button>
+            </ProjectFolderPicker>
           </div>
 
           <div

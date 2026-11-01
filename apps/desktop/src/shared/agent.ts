@@ -365,7 +365,8 @@ export type PineSessionEvent =
   | Exclude<PineAgentEvent, { type: "present-file" | "host-request" }>
   | PineWorkbenchStateRequestEvent
   | PinePresentFileEvent
-  | PineSessionTeleportedEvent;
+  | PineSessionTeleportedEvent
+  | { type: "session-reset"; sessionId: string; projectId: string };
 
 /**
  * Identifies an earlier user message to rewrite. The transcript drops that

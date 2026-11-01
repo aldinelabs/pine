@@ -322,6 +322,22 @@ export interface PickProjectFoldersRequest {
 }
 
 export interface PineDesktopApi extends PineWindowApi, PineQuickComposerApi {
+  runtime?: "desktop" | "web";
+  getWebServer?: () => Promise<import("./webControl").WebServerStatus>;
+  setWebServer?: (
+    request: import("./webControl").WebServerSettings,
+  ) => Promise<import("./webControl").WebServerStatus>;
+  setWebPassword?: (
+    password: string,
+  ) => Promise<import("./webControl").WebServerStatus>;
+  signOutWebBrowsers?: () => Promise<import("./webControl").WebServerStatus>;
+  uploadAttachments?: (
+    files: File[],
+    projectId: string,
+  ) => Promise<PickAttachmentsResult>;
+  onSessionSnapshot?: (
+    listener: (snapshots: import("./webControl").WebSessionSnapshot[]) => void,
+  ) => () => void;
   /**
    * Fires when another window changed sessions or projects, so this one can
    * reload the lists it shows.
@@ -488,7 +504,7 @@ export interface PineDesktopApi extends PineWindowApi, PineQuickComposerApi {
     request: LoadSessionMessagesRequest,
   ) => Promise<LoadSessionMessagesResult>;
   openProject: (request: ProjectIdRequest) => Promise<OpenProjectResult>;
-  pickAttachments: () => Promise<PickAttachmentsResult>;
+  pickAttachments: (projectId?: string) => Promise<PickAttachmentsResult>;
   pickAttachmentFolders: () => Promise<PickAttachmentsResult>;
   pickProjectFolders: (
     request: PickProjectFoldersRequest,

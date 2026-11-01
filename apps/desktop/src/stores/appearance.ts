@@ -1,3 +1,4 @@
+import { isDesktopClient } from "@/lib/clientRuntime";
 import { defineStore } from "pinia";
 import { computed, ref } from "vue";
 import {
@@ -84,7 +85,7 @@ function readStoredInvertDocuments(): boolean {
 }
 
 function isMacOSPlatform(): boolean {
-  return window.pine?.platform === "darwin";
+  return isDesktopClient() && window.pine?.platform === "darwin";
 }
 
 export const useAppearanceStore = defineStore("appearance", () => {
