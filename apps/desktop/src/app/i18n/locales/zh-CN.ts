@@ -1515,6 +1515,16 @@ export default {
     },
     openSettings: "打开设置",
   },
+  webSignIn: {
+    title: "登录 Pine",
+    description: "输入在 Pine 设置 → 远程控制 中设置的浏览器访问密码。",
+    password: "密码",
+    submit: "继续",
+    signingIn: "正在登录…",
+    "wrong-password": "密码不正确。",
+    locked: "尝试次数过多，请在 {seconds} 秒后重试。",
+    unavailable: "无法连接 Pine，请确认它仍在运行。",
+  },
   errors: {
     skills: {
       title: "无法更新 Skills",

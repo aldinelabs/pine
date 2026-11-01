@@ -1566,6 +1566,17 @@ export default {
     },
     openSettings: "Open Settings",
   },
+  webSignIn: {
+    title: "Sign in to Pine",
+    description:
+      "Enter the browser access password set in Pine under Settings → Remote Control.",
+    password: "Password",
+    submit: "Continue",
+    signingIn: "Signing in…",
+    "wrong-password": "That password is incorrect.",
+    locked: "Too many attempts. Try again in {seconds} s.",
+    unavailable: "Pine could not be reached. Check that it is still running.",
+  },
   errors: {
     skills: {
       title: "Unable to update Skills",

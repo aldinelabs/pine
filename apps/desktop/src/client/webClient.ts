@@ -69,7 +69,7 @@ async function rpc<T>(channel: string, request?: unknown): Promise<T> {
   if (response.status === 401) {
     // The signed-in cookie belongs to a listener that is gone; sign in again.
     location.reload();
-    throw new Error("Reopen the browser link from Pine settings.");
+    throw new Error("Sign in to Pine again.");
   }
   if (!response.ok) throw new Error(data.error ?? "Pine is unavailable.");
   return data.result as T;

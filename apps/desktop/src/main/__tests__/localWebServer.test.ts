@@ -136,15 +136,15 @@ describe("LocalWebServer", () => {
     expect(new TextDecoder().decode(value)).toContain(WEB_SNAPSHOT_CHANNEL);
   });
 
-  it("protects both application data and static assets and rejects foreign origins and hosts", async () => {
+  it("serves the renderer to sign in with, protects application data and rejects foreign origins and hosts", async () => {
     const { origin, cookie, asset } = await fixture();
     expect((await fetch(`${origin}/api/rpc`)).status).toBe(401);
-    const connectPage = await fetch(`${origin}/`);
-    expect(await connectPage.text()).toContain('type="password"');
-    expect(asset).not.toHaveBeenCalled();
+    expect((await fetch(`${origin}/api/session`)).status).toBe(401);
     expect(
-      (await fetch(`${origin}/`, { headers: { Cookie: cookie } })).status,
-    ).toBe(200);
+      (await fetch(`${origin}/api/session`, { headers: { Cookie: cookie } }))
+        .status,
+    ).toBe(204);
+    expect(await (await fetch(`${origin}/`)).text()).toBe("renderer");
     expect(asset).toHaveBeenCalledOnce();
     expect(
       (

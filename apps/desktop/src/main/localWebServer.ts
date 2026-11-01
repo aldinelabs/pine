@@ -1,5 +1,4 @@
 import { WebRequestCache } from "./webRequestCache";
-import { webConnectPage } from "./webConnectPage";
 import { WebLoginThrottle, type WebSessionCookie } from "./webAccess";
 import { isWebServerSettings } from "../shared/webControl";
 import { z } from "zod";
@@ -396,15 +395,16 @@ export class LocalWebServer {
           this.options.access.isValid(value.slice(prefix.length))
         );
       });
+    if (url.pathname === "/api/session" && request.method === "GET") {
+      response.writeHead(authenticated ? 204 : 401);
+      response.end();
+      return;
+    }
     if (url.pathname.startsWith("/api/") && !authenticated) {
       response.writeHead(401);
       response.end(
         JSON.stringify({ error: "Sign in with the browser access password." }),
       );
-      return;
-    }
-    if (!authenticated) {
-      await writeResponse(response, webConnectPage());
       return;
     }
     if (url.pathname === "/api/events" && request.method === "GET") {

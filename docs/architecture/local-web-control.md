@@ -41,9 +41,9 @@ HTTP 请求 ID 与业务回执关联；网络重试复用原 ID。查询可以�
 
 设置持久保存启用状态、端口、局域网访问、登录保持时长、是否要求密码和公开地址。密码只以 scrypt 哈希保存在 Pine agent 目录的 `web-access.json`（权限 `0600`），与签名会话的密钥放在一起；渲染进程通过 preload 的 `setWebPassword` / `signOutWebBrowsers` 修改，这两个通道不在网页白名单里。
 
-未登录的浏览器只拿到登录页。`POST /api/login` 校验密码后签发 `HttpOnly`、`SameSite=Strict` Cookie，值为到期时间加 HMAC 签名，因此重启 Pine 后仍然有效；「直到关闭浏览器」不带 `Max-Age`，服务端仍限定一天。修改密码或「全部退出登录」会更换签名密钥并断开现有事件流。同一地址连续输错 5 次后锁定 30 秒，之后每次翻倍，最长 15 分钟。Cookie 名包含端口，因为浏览器的 Cookie 不区分端口；通过 HTTPS 访问时加 `Secure`。
+未登录的浏览器仍会加载渲染进程的静态资源（只有代码，不含用户数据），渲染进程通过 `GET /api/session` 得知尚未登录后只挂载 `components/web/WebSignInView.vue`，不初始化路由和网页客户端。`POST /api/login` 校验密码后签发 `HttpOnly`、`SameSite=Strict` Cookie，值为到期时间加 HMAC 签名，因此重启 Pine 后仍然有效；「直到关闭浏览器」不带 `Max-Age`，服务端仍限定一天。修改密码或「全部退出登录」会更换签名密钥并断开现有事件流。同一地址连续输错 5 次后锁定 30 秒，之后每次翻倍，最长 15 分钟。Cookie 名包含端口，因为浏览器的 Cookie 不区分端口；通过 HTTPS 访问时加 `Secure`。
 
-服务器验证 Host 和写请求 Origin，不开放跨域访问，静态资源和 API 均需要登录。Host 只接受回环地址；开启局域网访问后还接受本机网卡地址和主机名；填写公开地址后接受该地址的 Host，并要求 Origin 与之一致。这样 DNS rebinding 无法借用其他域名访问服务。
+服务器验证 Host 和写请求 Origin，不开放跨域访问；除 `/api/session` 和 `/api/login` 外，所有 API 都需要登录。Host 只接受回环地址；开启局域网访问后还接受本机网卡地址和主机名；填写公开地址后接受该地址的 Host，并要求 Origin 与之一致。这样 DNS rebinding 无法借用其他域名访问服务。
 
 关闭「要求密码」用于前方已有鉴权的部署，例如 Cloudflare Tunnel 加 Cloudflare Access。关闭前设置界面会明确提示风险；此时所有请求视为已登录，也就是本机任何程序都能访问 `127.0.0.1`。局域网访问不能与之同时开启，校验同时在设置界面和主进程执行。修改端口或局域网访问失败保留原监听；保存设置失败回滚监听配置。
 

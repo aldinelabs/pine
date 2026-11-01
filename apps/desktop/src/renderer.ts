@@ -1,4 +1,5 @@
 import { initializeWebClient } from "./client/webClient";
+import { browserNeedsSignIn } from "./client/webSignIn";
 import { createPinia } from "pinia";
 import { createApp } from "vue";
 import App from "./App.vue";
@@ -18,7 +19,10 @@ import "./index.css";
 import "vue-sonner/style.css";
 
 async function startRenderer(): Promise<void> {
-  const browserClient = await initializeWebClient();
+  // A browser that is not signed in loads only the sign-in view; Pine's data
+  // stays behind the password.
+  const needsSignIn = !window.pine && (await browserNeedsSignIn());
+  const browserClient = needsSignIn ? undefined : await initializeWebClient();
   let storedLocale: string | null = null;
 
   try {
@@ -28,14 +32,13 @@ async function startRenderer(): Promise<void> {
   }
 
   const locale = resolveAppLocale(navigator.languages, storedLocale);
-  const app = createApp(App);
   const pinia = createPinia();
   const i18n = createAppI18n(locale);
-  const router = createAppRouter(pinia);
 
   document.documentElement.lang = locale;
   document.documentElement.dataset.platform = window.pine?.platform ?? "darwin";
-  document.documentElement.dataset.client = isWebClient() ? "web" : "desktop";
+  document.documentElement.dataset.client =
+    needsSignIn || isWebClient() ? "web" : "desktop";
   // iOS Safari only applies :active on tap once the page listens for touches,
   // and touch screens never match hover, so taps would show no feedback.
   document.addEventListener("touchstart", () => undefined, { passive: true });
@@ -44,6 +47,17 @@ async function startRenderer(): Promise<void> {
   if (window.location.hash.startsWith(`#/${QUICK_COMPOSER_ROUTE_HASH}`))
     document.documentElement.dataset.quickComposer = "";
   useAppearanceStore(pinia).initialize();
+  if (needsSignIn) {
+    const { default: WebSignInView } =
+      await import("./components/web/WebSignInView.vue");
+    createApp(WebSignInView, { onSignedIn: () => location.reload() })
+      .use(pinia)
+      .use(i18n)
+      .mount("#app");
+    return;
+  }
+  const app = createApp(App);
+  const router = createAppRouter(pinia);
   useUpdaterStore(pinia).initialize();
   useQuickComposerHandoffStore(pinia).initialize();
   window.pine?.onCompletionSound?.(playCompletionSound);
