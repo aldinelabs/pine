@@ -9,6 +9,10 @@ Every release section here has a matching section in the Chinese changelog.
 
 ## [Unreleased]
 
+### Added
+
+- The headless server runs on Linux, with the agent's commands and file tools running in a sandbox. It needs bubblewrap, socat and ripgrep; when they are missing or the host blocks the sandbox, the server says so at startup.
+
 ## [0.13.1] - 2026-11-01
 
 ### Added

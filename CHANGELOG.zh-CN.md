@@ -8,6 +8,10 @@ English version: [CHANGELOG.md](./CHANGELOG.md).
 
 ## [Unreleased]
 
+### 新增
+
+- 无头服务端可以在 Linux 上运行，agent 的命令和文件工具在沙箱中执行。需要安装 bubblewrap、socat 和 ripgrep；缺少依赖或主机禁止沙箱时，服务端启动时会给出提示。
+
 ## [0.13.1] - 2026-11-01
 
 ### 新增

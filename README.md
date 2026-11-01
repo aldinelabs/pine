@@ -42,7 +42,7 @@ Windows 首次使用 Agent 工具前，需在“设置 → 通用 → Windows �
 
 ## 服务器部署
 
-Pine 也可以不开窗口运行在服务器上，只通过浏览器使用（需要 Node.js 22.13+）：
+Pine 也可以不开窗口运行在 macOS 或 Linux 服务器上，只通过浏览器使用（需要 Node.js 22.13+；Linux 还需要 bubblewrap、socat 和 ripgrep）：
 
 ```bash
 bun install --frozen-lockfile

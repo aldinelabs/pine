@@ -7,6 +7,7 @@ import type { PineHost } from "./main/core/host";
 import { PineCore } from "./main/core/pineCore";
 import { forkAgentProcess } from "./server/agentProcess";
 import { fileCredentialStorage } from "./server/credentialStorage";
+import { linuxSandboxProblems } from "./server/sandboxCheck";
 import { serverFileActions } from "./server/fileActions";
 import {
   readServerCommand,
@@ -92,6 +93,8 @@ async function main(): Promise<void> {
   if (status.error) throw new Error(status.error);
   console.log(`Pine ${core.host.version} is serving ${options.dataDirectory}`);
   for (const address of status.addresses ?? []) console.log(`  ${address}`);
+  if (process.platform === "linux")
+    for (const problem of linuxSandboxProblems()) console.warn(problem);
 }
 
 main().catch((error: unknown) => {

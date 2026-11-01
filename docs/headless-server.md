@@ -4,7 +4,11 @@ Pine 可以不开窗口运行在服务器上，只提供远程控制的浏览器
 
 ## 构建与运行
 
-需要 Node.js 22.13 或更高版本（会话索引使用 `node:sqlite`），以及仓库安装好的依赖。
+需要 Node.js 22.13 或更高版本（会话索引使用 `node:sqlite`），以及仓库安装好的依赖。在 Linux 上，agent 工具的沙箱还需要 bubblewrap、socat 和 ripgrep：
+
+```sh
+sudo apt install bubblewrap socat ripgrep   # Debian / Ubuntu
+```
 
 ```sh
 bun install --frozen-lockfile
@@ -58,8 +62,21 @@ WantedBy=multi-user.target
 - 数据目录以 `0700` 创建。服务器没有系统钥匙串，TinyFish 密钥和模型服务密钥一样以仅本用户可读的文件保存。
 - 项目文件夹是服务器上的路径。在浏览器里移到废纸篓的文件会移入数据目录下的 `trash/`，不会被删除。
 - 近似位置按服务器的公网 IP 估算，在云主机上通常是机房所在地；需要时可在设置里关闭。
-- 已在 macOS 上实测。Linux 上 agent 工具的沙箱依赖 `bubblewrap`，尚未实测。Windows 不支持，因为它的沙箱需要桌面端的一次性提权配置。
+- 支持 macOS 和 Linux（已在 Debian 12 容器中实测）。Windows 不支持，因为它的沙箱需要桌面端的一次性提权配置。
 - 服务端是单用户的：所有登录的浏览器共享同一组项目、会话和设置。
+
+## Linux 沙箱
+
+Linux 上普通 `bash` 和文件工具在 bubblewrap 里运行：只能读系统运行时目录（`/usr`、`/lib*`、证书和少数 `/etc` 文件）和项目授权的文件夹，只能写可写文件夹，没有网络。命令使用 `bash --noprofile --norc`，不读取用户的启动文件。和 macOS 的区别：
+
+- 写到 `/tmp` 等授权以外位置的文件落在每次命令独立的临时文件系统里，命令结束即消失，不会写到主机上；macOS 上这类写入直接失败。项目内的临时文件请用 `$TMPDIR`。
+- bubblewrap 需要非特权用户命名空间。部分主机和容器默认禁止，此时服务端启动时会打印提示，agent 只能通过需要审批的 `privileged_bash` 执行命令。在 Docker 中运行时加上：
+
+  ```sh
+  docker run --security-opt seccomp=unconfined \
+    --security-opt apparmor=unconfined \
+    --security-opt systempaths=unconfined ...
+  ```
 
 ## 代码结构
 
