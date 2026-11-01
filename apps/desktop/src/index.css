@@ -588,7 +588,9 @@ html.sidebar-vibrancy [data-slot="sidebar-container"][data-side="left"] {
 }
 
 html.dark.sidebar-vibrancy [data-slot="sidebar-container"][data-side="left"] {
-  --sidebar-vibrancy-tint: oklch(from var(--sidebar) 0.3 calc(c * 4) h / 25%);
+  /* The dark material already sits at the sidebar's lightness with about
+     half its chroma, so the wash keeps that lightness and needs less. */
+  --sidebar-vibrancy-tint: oklch(from var(--sidebar) l calc(c * 2.7) h / 25%);
 }
 
 html.sidebar-vibrancy
