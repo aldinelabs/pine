@@ -87,6 +87,7 @@ import {
 } from "@/stores/appearance";
 import { PROJECT_COLOR_THEME_OPTIONS } from "@/lib/projectColorThemes";
 import {
+  DEFAULT_ATTENTION_NOTIFICATIONS_ENABLED,
   DEFAULT_COMPLETION_SIGNAL_MODE,
   isPineCompletionSignalMode,
   type PineCompletionSignalMode,
@@ -162,6 +163,11 @@ const completionSignalMode = ref<PineCompletionSignalMode>(
 );
 const isLoadingCompletionSignal = ref(true);
 const isSavingCompletionSignal = ref(false);
+const attentionNotificationsEnabled = ref(
+  DEFAULT_ATTENTION_NOTIFICATIONS_ENABLED,
+);
+const isLoadingAttentionNotifications = ref(true);
+const isSavingAttentionNotifications = ref(false);
 const diagnosticLoggingEnabled = ref(false);
 const isLoadingDiagnosticLogging = ref(true);
 const isSavingDiagnosticLogging = ref(false);
@@ -261,6 +267,7 @@ watch(isOpen, (open) => {
   void loadContextCompactionStrategy();
   void loadContextCompactionRoute();
   void loadCompletionSignal();
+  void loadAttentionNotifications();
   void loadQuickComposer();
   void loadApproximateLocation();
   void loadDiagnosticLogging();
@@ -290,6 +297,7 @@ onMounted(() => {
   void loadContextCompactionStrategy();
   void loadContextCompactionRoute();
   void loadCompletionSignal();
+  void loadAttentionNotifications();
   void loadQuickComposer();
   void loadApproximateLocation();
   void loadDiagnosticLogging();
@@ -578,6 +586,49 @@ async function updateCompletionSignal(value: unknown): Promise<void> {
     });
   } finally {
     isSavingCompletionSignal.value = false;
+  }
+}
+
+async function loadAttentionNotifications(): Promise<void> {
+  if (isSavingAttentionNotifications.value) return;
+  isLoadingAttentionNotifications.value = true;
+  try {
+    if (typeof window.pine?.getAttentionNotifications !== "function") return;
+    attentionNotificationsEnabled.value =
+      await window.pine.getAttentionNotifications();
+  } catch (error) {
+    handleError(error, {
+      id: "preferences.attentionNotifications.load",
+      title: t("errors.attentionNotifications.title"),
+      description: t("errors.attentionNotifications.description"),
+    });
+  } finally {
+    isLoadingAttentionNotifications.value = false;
+  }
+}
+
+async function updateAttentionNotifications(enabled: boolean): Promise<void> {
+  if (
+    isLoadingAttentionNotifications.value ||
+    isSavingAttentionNotifications.value ||
+    enabled === attentionNotificationsEnabled.value
+  )
+    return;
+  const previous = attentionNotificationsEnabled.value;
+  attentionNotificationsEnabled.value = enabled;
+  isSavingAttentionNotifications.value = true;
+  try {
+    const result = await window.pine.setAttentionNotifications({ enabled });
+    attentionNotificationsEnabled.value = result.enabled;
+  } catch (error) {
+    attentionNotificationsEnabled.value = previous;
+    handleError(error, {
+      id: "preferences.attentionNotifications.save",
+      title: t("errors.attentionNotifications.title"),
+      description: t("errors.attentionNotifications.description"),
+    });
+  } finally {
+    isSavingAttentionNotifications.value = false;
   }
 }
 
@@ -1128,6 +1179,27 @@ defineExpose({ open });
                     </SelectGroup>
                   </SelectContent>
                 </Select>
+              </Field>
+
+              <Field orientation="horizontal">
+                <div class="flex min-w-0 flex-1 flex-col gap-1">
+                  <FieldTitle id="pine-attention-notifications-setting">
+                    {{ t("preferences.attentionNotifications") }}
+                  </FieldTitle>
+                  <FieldDescription>
+                    {{ t("preferences.attentionNotificationsDescription") }}
+                  </FieldDescription>
+                </div>
+                <Switch
+                  data-testid="pine-attention-notifications-toggle"
+                  :model-value="attentionNotificationsEnabled"
+                  :disabled="
+                    isLoadingAttentionNotifications ||
+                    isSavingAttentionNotifications
+                  "
+                  aria-labelledby="pine-attention-notifications-setting"
+                  @update:model-value="updateAttentionNotifications"
+                />
               </Field>
 
               <Field orientation="horizontal">

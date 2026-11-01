@@ -207,6 +207,8 @@ export function createWebChannels(
     [preferences.SET_CONTEXT_COMPACTION_ROUTE_CHANNEL, command("none")],
     [preferences.GET_COMPLETION_SIGNAL_CHANNEL, query("none")],
     [preferences.SET_COMPLETION_SIGNAL_CHANNEL, command("none")],
+    [preferences.GET_ATTENTION_NOTIFICATIONS_CHANNEL, query("none")],
+    [preferences.SET_ATTENTION_NOTIFICATIONS_CHANNEL, command("none")],
     [preferences.GET_DIAGNOSTIC_LOGGING_CHANNEL, query("none")],
     [preferences.SET_DIAGNOSTIC_LOGGING_CHANNEL, command("none")],
 

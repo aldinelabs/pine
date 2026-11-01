@@ -14,6 +14,10 @@ export const GET_COMPLETION_SIGNAL_CHANNEL =
   "preferences:get-completion-signal" as const;
 export const SET_COMPLETION_SIGNAL_CHANNEL =
   "preferences:set-completion-signal" as const;
+export const GET_ATTENTION_NOTIFICATIONS_CHANNEL =
+  "preferences:get-attention-notifications" as const;
+export const SET_ATTENTION_NOTIFICATIONS_CHANNEL =
+  "preferences:set-attention-notifications" as const;
 /** Main → renderer: a run finished and the completion sound should play. */
 export const COMPLETION_SOUND_EVENT_CHANNEL =
   "preferences:completion-sound" as const;
@@ -62,6 +66,17 @@ export interface SetCompletionSignalRequest {
 export interface SetCompletionSignalResult {
   mode: PineCompletionSignalMode;
 }
+
+export interface SetAttentionNotificationsRequest {
+  enabled: boolean;
+}
+
+export interface SetAttentionNotificationsResult {
+  enabled: boolean;
+}
+
+/** Notify about pending approvals and questions while Pine is in the background. */
+export const DEFAULT_ATTENTION_NOTIFICATIONS_ENABLED = true;
 
 /** How Pine signals finished work while the user is elsewhere. */
 export const PINE_COMPLETION_SIGNAL_MODES = [

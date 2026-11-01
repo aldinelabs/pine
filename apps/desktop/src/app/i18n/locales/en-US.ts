@@ -153,6 +153,9 @@ export default {
     completionSignalOff: "Off",
     completionSignalNotification: "Notification",
     completionSignalNotificationSound: "Notification and sound",
+    attentionNotifications: "Notify for approvals and questions",
+    attentionNotificationsDescription:
+      "While Pine is in the background, show a system notification when a tool call needs approval or Pine asks you a question. Approval notifications have Approve and Deny buttons.",
     diagnosticLogging: "Diagnostic logging",
     diagnosticLoggingHelp: "About diagnostic logging",
     diagnosticLoggingDescription:
@@ -1644,6 +1647,10 @@ export default {
     },
     completionSignal: {
       title: "Unable to update completion signal settings",
+      description: "Please try again later.",
+    },
+    attentionNotifications: {
+      title: "Unable to update approval and question notification settings",
       description: "Please try again later.",
     },
     diagnosticLogging: {

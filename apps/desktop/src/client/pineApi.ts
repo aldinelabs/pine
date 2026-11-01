@@ -45,7 +45,9 @@ import {
   SET_CONTEXT_COMPACTION_STRATEGY_CHANNEL,
   GET_DIAGNOSTIC_LOGGING_CHANNEL,
   SET_DIAGNOSTIC_LOGGING_CHANNEL,
+  GET_ATTENTION_NOTIFICATIONS_CHANNEL,
   GET_COMPLETION_SIGNAL_CHANNEL,
+  SET_ATTENTION_NOTIFICATIONS_CHANNEL,
   SET_COMPLETION_SIGNAL_CHANNEL,
   COMPLETION_SOUND_EVENT_CHANNEL,
   GET_AUTO_APPROVAL_SETTINGS_CHANNEL,
@@ -54,6 +56,8 @@ import {
   type PineCompletionSignalMode,
   type PineContextCompactionRoute,
   type PineContextCompactionStrategy,
+  type SetAttentionNotificationsRequest,
+  type SetAttentionNotificationsResult,
   type SetCompletionSignalRequest,
   type SetCompletionSignalResult,
   type SetContextCompactionRouteRequest,
@@ -495,6 +499,12 @@ export function createPineApi(transport: PineTransport): PineDesktopApi {
       request: SetApproximateLocationRequest,
     ): Promise<SetApproximateLocationResult> =>
       transport.invoke(SET_APPROXIMATE_LOCATION_CHANNEL, request),
+    getAttentionNotifications: (): Promise<boolean> =>
+      transport.invoke(GET_ATTENTION_NOTIFICATIONS_CHANNEL),
+    setAttentionNotifications: (
+      request: SetAttentionNotificationsRequest,
+    ): Promise<SetAttentionNotificationsResult> =>
+      transport.invoke(SET_ATTENTION_NOTIFICATIONS_CHANNEL, request),
     getCompletionSignal: (): Promise<PineCompletionSignalMode> =>
       transport.invoke(GET_COMPLETION_SIGNAL_CHANNEL),
     setCompletionSignal: (

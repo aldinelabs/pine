@@ -23,6 +23,8 @@ import type {
   PineCompletionSignalMode,
   PineContextCompactionRoute,
   PineContextCompactionStrategy,
+  SetAttentionNotificationsRequest,
+  SetAttentionNotificationsResult,
   SetCompletionSignalRequest,
   SetCompletionSignalResult,
   SetContextCompactionRouteRequest,
@@ -452,6 +454,10 @@ export interface PineDesktopApi extends PineWindowApi, PineQuickComposerApi {
   setApproximateLocation: (
     request: SetApproximateLocationRequest,
   ) => Promise<SetApproximateLocationResult>;
+  getAttentionNotifications: () => Promise<boolean>;
+  setAttentionNotifications: (
+    request: SetAttentionNotificationsRequest,
+  ) => Promise<SetAttentionNotificationsResult>;
   getCompletionSignal: () => Promise<PineCompletionSignalMode>;
   setCompletionSignal: (
     request: SetCompletionSignalRequest,

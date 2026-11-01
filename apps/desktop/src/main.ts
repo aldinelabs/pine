@@ -6,6 +6,11 @@ import { WebApplication } from "./main/webApplication";
 import { WebSessionState } from "./main/webSessionState";
 import { WebAccessStore } from "./main/webAccess";
 import {
+  approvalNotificationActions,
+  approvalNotificationBody,
+  questionnaireNotificationBody,
+} from "./main/attentionNotifications";
+import {
   hasQuitBlockers,
   quitConfirmationText,
   type QuitBlockers,
@@ -165,6 +170,7 @@ import {
   writeContextCompactionRoute,
   writeContextCompactionStrategy,
   writeCompletionSignalMode,
+  writeAttentionNotificationsEnabled,
   writeQuickComposerEnabled,
   writeApproximateLocationEnabled,
   writeDiagnosticLoggingEnabled,
@@ -213,6 +219,10 @@ import {
   SET_DIAGNOSTIC_LOGGING_CHANNEL,
   GET_COMPLETION_SIGNAL_CHANNEL,
   SET_COMPLETION_SIGNAL_CHANNEL,
+  GET_ATTENTION_NOTIFICATIONS_CHANNEL,
+  SET_ATTENTION_NOTIFICATIONS_CHANNEL,
+  DEFAULT_ATTENTION_NOTIFICATIONS_ENABLED,
+  type SetAttentionNotificationsResult,
   COMPLETION_SOUND_EVENT_CHANNEL,
   GET_AUTO_APPROVAL_SETTINGS_CHANNEL,
   SET_AUTO_APPROVAL_SETTINGS_CHANNEL,
@@ -623,6 +633,7 @@ const modelMetadata = new ModelMetadataService();
 let projectRuntimes: ProjectRuntimeRegistry | null = null;
 let completionSignalMode: PineCompletionSignalMode =
   DEFAULT_COMPLETION_SIGNAL_MODE;
+let attentionNotificationsEnabled = DEFAULT_ATTENTION_NOTIFICATIONS_ENABLED;
 const completionSignals = new CompletionSignalTracker();
 let presentedFiles: PresentedFileRegistry | null = null;
 let projectFileWatchers: ProjectFileWatcherRegistry | null = null;
@@ -1332,6 +1343,12 @@ function ownerWindow(ownerId: number): BrowserWindow | undefined {
   return window && !window.isDestroyed() ? window : undefined;
 }
 
+interface SessionNotificationOptions {
+  /** Button labels; macOS and Windows show them on the notification. */
+  actions?: string[];
+  onAction?: (actionIndex: number) => void;
+}
+
 /**
  * Show a desktop notification titled with the session name. Clicking it
  * brings the owning window back to the front.
@@ -1340,8 +1357,9 @@ function showSessionNotification(
   window: BrowserWindow,
   sessionId: string,
   text: string,
-): void {
-  if (!Notification.isSupported()) return;
+  options: SessionNotificationOptions = {},
+): Notification | undefined {
+  if (!Notification.isSupported()) return undefined;
   const summary = projectRuntimes?.sessionSummary(sessionId);
   const title =
     summary?.name ||
@@ -1354,6 +1372,14 @@ function showSessionNotification(
       body.length > SESSION_NOTIFICATION_BODY_LIMIT
         ? `${body.slice(0, SESSION_NOTIFICATION_BODY_LIMIT - 1)}…`
         : body,
+    ...(options.actions?.length
+      ? {
+          actions: options.actions.map((label) => ({
+            type: "button" as const,
+            text: label,
+          })),
+        }
+      : {}),
   });
   sessionNotifications.add(notification);
   const release = (): void => {
@@ -1366,30 +1392,64 @@ function showSessionNotification(
     window.show();
     window.focus();
   });
+  const { onAction } = options;
+  if (onAction)
+    notification.on("action", (details) => {
+      release();
+      onAction(details.actionIndex);
+    });
   notification.on("close", release);
   notification.on("failed", release);
   notification.show();
+  return notification;
+}
+
+/** Approval and question notifications by request id, closed once decided. */
+const attentionNotifications = new Map<string, Notification>();
+
+function closeAttentionNotification(requestId: string): void {
+  attentionNotifications.get(requestId)?.close();
+  attentionNotifications.delete(requestId);
+}
+
+function closeAttentionNotifications(): void {
+  for (const requestId of [...attentionNotifications.keys()])
+    closeAttentionNotification(requestId);
 }
 
 /** macOS dock bounce id for the pending approval attention request. */
 let approvalBounceId: number | null = null;
 
+interface AttentionNotice {
+  requestId: string;
+  body: string;
+  actions?: string[];
+  onAction?: (actionIndex: number) => void;
+}
+
 /**
- * Surface a pending approval at the OS level: a desktop notification while
- * the window is in the background, and a dock icon that keeps bouncing on
- * macOS or a flashing taskbar button on Windows until the decision (or
- * window focus) clears it.
+ * Surface a pending approval or question at the OS level: a desktop
+ * notification while the window is in the background (unless the user turned
+ * them off), and a dock icon that keeps bouncing on macOS or a flashing
+ * taskbar button on Windows until the decision (or window focus) clears it.
  */
-function requestApprovalAttention(ownerId: number, sessionId: string): void {
+function requestApprovalAttention(
+  ownerId: number,
+  sessionId: string,
+  notice: AttentionNotice,
+): void {
   const window = ownerWindow(ownerId);
-  if (window && !window.isFocused()) {
-    showSessionNotification(
+  if (window && !window.isFocused() && attentionNotificationsEnabled) {
+    const notification = showSessionNotification(
       window,
       sessionId,
-      isChineseLocale()
-        ? "Pine 需要询问您一些问题。"
-        : "Pine needs to ask you a few questions.",
+      notice.body,
+      notice,
     );
+    if (notification) {
+      closeAttentionNotification(notice.requestId);
+      attentionNotifications.set(notice.requestId, notification);
+    }
   }
   if (process.platform === "darwin") {
     if (approvalBounceId !== null) app.dock?.cancelBounce(approvalBounceId);
@@ -1398,6 +1458,24 @@ function requestApprovalAttention(ownerId: number, sessionId: string): void {
   }
   if (process.platform === "win32") {
     window?.flashFrame(true);
+  }
+}
+
+/** Approve (first button) or deny a tool call straight from its notification. */
+function answerApprovalFromNotification(
+  ownerId: number,
+  requestId: string,
+  actionIndex: number,
+): void {
+  attentionNotifications.delete(requestId);
+  try {
+    getProjectRuntimes().respondApproval(ownerId, {
+      requestId,
+      action: actionIndex === 0 ? "approve" : "reject",
+    });
+  } catch (error) {
+    // Already decided in a window or browser before the button was pressed.
+    console.warn("Could not answer the approval from its notification.", error);
   }
 }
 
@@ -1974,6 +2052,25 @@ handleServiceRequest(
     await writeCompletionSignalMode(getPineAgentDirectory(), mode);
     completionSignalMode = mode;
     return { mode };
+  },
+);
+
+handleServiceRequest(
+  GET_ATTENTION_NOTIFICATIONS_CHANNEL,
+  (): boolean => attentionNotificationsEnabled,
+);
+
+handleServiceRequest(
+  SET_ATTENTION_NOTIFICATIONS_CHANNEL,
+  async (
+    _event,
+    request: unknown,
+  ): Promise<SetAttentionNotificationsResult> => {
+    const { enabled } = z.object({ enabled: z.boolean() }).parse(request);
+    await writeAttentionNotificationsEnabled(getPineAgentDirectory(), enabled);
+    attentionNotificationsEnabled = enabled;
+    if (!enabled) closeAttentionNotifications();
+    return { enabled };
   },
 );
 
@@ -3540,6 +3637,9 @@ async function initializeApp(): Promise<void> {
   const settings = await readPineAgentSettings(pineAgentDirectory);
   completionSignalMode =
     settings.completionSignalMode ?? DEFAULT_COMPLETION_SIGNAL_MODE;
+  attentionNotificationsEnabled =
+    settings.attentionNotificationsEnabled ??
+    DEFAULT_ATTENTION_NOTIFICATIONS_ENABLED;
   quickComposerEnabled =
     (settings.quickComposerEnabled ?? DEFAULT_QUICK_COMPOSER_ENABLED) &&
     applyQuickComposerShortcut(true);
@@ -3734,9 +3834,25 @@ async function initializeApp(): Promise<void> {
         ownerId,
         agentEvent.sessionId,
       );
-      requestApprovalAttention(ownerId, agentEvent.sessionId);
+      const chinese = isChineseLocale();
+      requestApprovalAttention(ownerId, agentEvent.sessionId, {
+        requestId: agentEvent.requestId,
+        body: approvalNotificationBody(
+          agentEvent.toolName,
+          agentEvent.input,
+          chinese,
+        ),
+        actions: approvalNotificationActions(chinese),
+        onAction: (actionIndex) =>
+          answerApprovalFromNotification(
+            ownerId,
+            agentEvent.requestId,
+            actionIndex,
+          ),
+      });
     } else if (agentEvent.type === "approval-decided") {
       projectRuntimes?.forgetApproval(agentEvent.requestId);
+      closeAttentionNotification(agentEvent.requestId);
       clearApprovalAttention();
     } else if (agentEvent.type === "questionnaire-request") {
       projectRuntimes?.trackQuestionnaire(
@@ -3744,9 +3860,16 @@ async function initializeApp(): Promise<void> {
         ownerId,
         agentEvent.sessionId,
       );
-      requestApprovalAttention(ownerId, agentEvent.sessionId);
+      requestApprovalAttention(ownerId, agentEvent.sessionId, {
+        requestId: agentEvent.requestId,
+        body: questionnaireNotificationBody(
+          agentEvent.questionnaire,
+          isChineseLocale(),
+        ),
+      });
     } else if (agentEvent.type === "questionnaire-decided") {
       projectRuntimes?.forgetQuestionnaire(agentEvent.requestId);
+      closeAttentionNotification(agentEvent.requestId);
       clearApprovalAttention();
     }
     let teleportProjectId: string | undefined;

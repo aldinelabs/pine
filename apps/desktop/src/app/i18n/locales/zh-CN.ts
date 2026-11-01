@@ -145,6 +145,9 @@ export default {
     completionSignalOff: "关闭",
     completionSignalNotification: "通知",
     completionSignalNotificationSound: "通知和声音",
+    attentionNotifications: "批准和提问时发送通知",
+    attentionNotificationsDescription:
+      "Pine 在后台时，如果工具调用需要批准或 Pine 向你提问，就发送系统通知。批准通知上带有“批准”和“拒绝”按钮。",
     diagnosticLogging: "诊断日志",
     diagnosticLoggingHelp: "关于诊断日志",
     diagnosticLoggingDescription:
@@ -1590,6 +1593,10 @@ export default {
     },
     completionSignal: {
       title: "无法更新完成信号设置",
+      description: "请稍后重试。",
+    },
+    attentionNotifications: {
+      title: "无法更新批准和提问通知设置",
       description: "请稍后重试。",
     },
     diagnosticLogging: {

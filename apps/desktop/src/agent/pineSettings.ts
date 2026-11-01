@@ -34,6 +34,7 @@ export interface PineAgentSettings {
   autoApproval?: PineAutoApprovalSettings;
   diagnosticLoggingEnabled?: boolean;
   completionSignalMode?: PineCompletionSignalMode;
+  attentionNotificationsEnabled?: boolean;
   quickComposerEnabled?: boolean;
   approximateLocationEnabled?: boolean;
   contextCompactionStrategy?: PineContextCompactionStrategy;
@@ -151,6 +152,12 @@ export async function readPineAgentSettings(
                 : "off",
             }
           : {}),
+      ...(typeof settings.attentionNotificationsEnabled === "boolean"
+        ? {
+            attentionNotificationsEnabled:
+              settings.attentionNotificationsEnabled,
+          }
+        : {}),
       ...(typeof settings.quickComposerEnabled === "boolean"
         ? { quickComposerEnabled: settings.quickComposerEnabled }
         : {}),
@@ -227,6 +234,13 @@ export async function writeCompletionSignalMode(
   completionSignalMode: PineCompletionSignalMode,
 ): Promise<void> {
   await writePineAgentSettings(agentDir, { completionSignalMode });
+}
+
+export async function writeAttentionNotificationsEnabled(
+  agentDir: string,
+  attentionNotificationsEnabled: boolean,
+): Promise<void> {
+  await writePineAgentSettings(agentDir, { attentionNotificationsEnabled });
 }
 
 export async function writeQuickComposerEnabled(
