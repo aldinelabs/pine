@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Blocks, Library } from "@lucide/vue";
-import { useTemplateRef } from "vue";
+import { useTemplateRef, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import {
   Sidebar,
@@ -10,9 +10,11 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarRail,
+  useSidebar,
 } from "@/components/ui/sidebar";
 import ModifierShortcut from "@/components/window/ModifierShortcut.vue";
 import { useSidebarGlassWidth } from "@/composables/useSidebarGlassWidth";
+import { useContentTabNavigation } from "@/composables/useContentTabNavigation";
 import AllProjectsSessionList from "./AllProjectsSessionList.vue";
 
 const { t } = useI18n();
@@ -22,6 +24,25 @@ const emit = defineEmits<{
   manageMcp: [];
   searchSessions: [];
 }>();
+
+// On a phone the sidebar is a sheet over the content. It steps aside once
+// a tab opens or one of its dialogs takes over the screen.
+const { setOpenMobile } = useSidebar();
+const { activeTab } = useContentTabNavigation();
+// Opening a session can reuse the empty draft tab, so the session counts too.
+watch(
+  () => {
+    const tab = activeTab.value;
+    return tab && "sessionId" in tab ? `${tab.id}:${tab.sessionId}` : tab?.id;
+  },
+  () => setOpenMobile(false),
+);
+
+/** Hands the screen to a dialog the sidebar opens. */
+function handOff(open: () => void): void {
+  setOpenMobile(false);
+  open();
+}
 
 const sidebar = useTemplateRef<InstanceType<typeof Sidebar>>("sidebar");
 useSidebarGlassWidth(() => {
@@ -39,8 +60,8 @@ useSidebarGlassWidth(() => {
     <!-- Project history stays available across conversation tabs. -->
     <SidebarContent class="overflow-hidden">
       <AllProjectsSessionList
-        @search="emit('searchSessions')"
-        @manage-projects="emit('manageProjects')"
+        @search="handOff(() => emit('searchSessions'))"
+        @manage-projects="handOff(() => emit('manageProjects'))"
       />
     </SidebarContent>
 
@@ -49,7 +70,7 @@ useSidebarGlassWidth(() => {
         <SidebarMenuItem>
           <SidebarMenuButton
             data-testid="manage-skills"
-            @click="emit('manageSkills')"
+            @click="handOff(() => emit('manageSkills'))"
           >
             <Library aria-hidden="true" />
             <span>{{ t("project.skills") }}</span>
@@ -59,7 +80,7 @@ useSidebarGlassWidth(() => {
         <SidebarMenuItem>
           <SidebarMenuButton
             data-testid="manage-mcp"
-            @click="emit('manageMcp')"
+            @click="handOff(() => emit('manageMcp'))"
           >
             <Blocks aria-hidden="true" />
             <span>{{ t("mcp.title") }}</span>
