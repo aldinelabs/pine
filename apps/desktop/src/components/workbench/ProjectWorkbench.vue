@@ -9,7 +9,7 @@ import {
   type ComponentPublicInstance,
 } from "vue";
 import { useI18n } from "vue-i18n";
-import { Sidebar } from "@/components/ui/sidebar";
+import { Sidebar, useSidebar } from "@/components/ui/sidebar";
 import { cn } from "@/lib/utils";
 import {
   WORKBENCH_MAX_SPLIT,
@@ -57,6 +57,23 @@ interface StackCard {
 const { t } = useI18n();
 const workbench = useWorkbenchStore();
 const layout = computed(() => workbench.activeLayout);
+
+// On a phone the column is a sheet. The store stays the source of truth:
+// dismissing the sheet closes the workbench, while the provider's own
+// Cmd/Ctrl+B toggle, which belongs to the left sidebar, is undone.
+const { isMobile, openMobile, setOpenMobile } = useSidebar();
+watch(
+  [isMobile, () => layout.value.open],
+  ([mobile, open]) => {
+    if (mobile) setOpenMobile(open);
+  },
+  { immediate: true },
+);
+watch(openMobile, (open) => {
+  if (!isMobile.value || open === layout.value.open) return;
+  if (open) setOpenMobile(false);
+  else workbench.setOpen(false);
+});
 const stack = useTemplateRef<HTMLElement>("stack");
 const divider = useTemplateRef<HTMLElement>("divider");
 const elements = new Map<number, HTMLElement>();
@@ -350,3 +367,14 @@ function resizeWithKeyboard(event: KeyboardEvent): void {
     </div>
   </Sidebar>
 </template>
+
+<style scoped>
+/* The sheet leaves a strip of the conversation to tap it closed. */
+:global(
+  [data-slot="sidebar"][data-mobile="true"][data-side="right"]:has(
+      [data-slot="workbench-titlebar"]
+    )
+) {
+  width: calc(100% - 3rem);
+}
+</style>
