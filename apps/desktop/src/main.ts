@@ -1446,6 +1446,23 @@ function applyWindowBackground(window: BrowserWindow): void {
     showSidebarGlass(window, background.sidebarWidth, background.color);
 }
 
+/** Where the macOS window buttons sit, aligned with Pine's title bar. */
+const TRAFFIC_LIGHT_POSITION = { x: 21, y: 21 };
+
+/**
+ * Swapping the sidebar material relays out the title bar, and AppKit then
+ * puts the window buttons back at their default place; Electron only moves
+ * them again when the window next becomes key. Restores them now and once
+ * AppKit has finished its own pass.
+ */
+function restoreWindowButtons(window: BrowserWindow): void {
+  window.setWindowButtonPosition(TRAFFIC_LIGHT_POSITION);
+  setTimeout(() => {
+    if (!window.isDestroyed())
+      window.setWindowButtonPosition(TRAFFIC_LIGHT_POSITION);
+  }, 0);
+}
+
 interface CreateWindowOptions {
   bounds?: Rectangle;
   /** Stays hidden until the quick composer presents it. */
@@ -1464,7 +1481,7 @@ const createWindow = (options: CreateWindowOptions = {}) => {
     icon: appIconPath,
     titleBarStyle: "hidden",
     ...(process.platform === "darwin"
-      ? { trafficLightPosition: { x: 21, y: 21 } }
+      ? { trafficLightPosition: TRAFFIC_LIGHT_POSITION }
       : {
           // Keep the native Windows controls aligned with the custom title
           // bar instead of falling back to the shorter system overlay.
@@ -3399,6 +3416,7 @@ ipcMain.handle(
     // become fully transparent while the effect is enabled.
     background.vibrancy = enabled;
     applyWindowBackground(window);
+    restoreWindowButtons(window);
     return { applied: true };
   },
 );
