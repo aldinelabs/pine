@@ -39,7 +39,9 @@ concurrency:
 jobs:
   check:
     name: Check
-    runs-on: ubuntu-latest
+    # Pinned: the sandbox tests need nested user namespaces, which Ubuntu 26.04
+    # (the ubuntu-latest image) still blocks after the AppArmor sysctls below.
+    runs-on: ubuntu-24.04
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -66,14 +68,12 @@ jobs:
         run: bun install --frozen-lockfile
 
       # The Linux sandbox tests need bubblewrap, socat and ripgrep, and
-      # Ubuntu 24.04+ restricts the unprivileged user namespaces that bubblewrap
-      # and its seccomp helper create.
+      # Ubuntu 24.04 blocks the unprivileged user namespaces bubblewrap uses.
       - name: Install Linux sandbox dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y bubblewrap socat ripgrep
           sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
-          sudo sysctl -w kernel.apparmor_restrict_unprivileged_unconfined=0 || true
 
       - name: Run checks
         run: bun run check
