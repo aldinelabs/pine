@@ -35,15 +35,17 @@ export default {
   },
   preferences: {
     webControl: {
-      title: "Local web access",
+      title: "Browser access",
       description:
-        "Control Pine from a browser on this computer. Pine must stay running. The service listens only on 127.0.0.1.",
+        "Use Pine from a web browser on this computer. Pine must keep running; the service listens on 127.0.0.1 only.",
+      running: "Running",
+      copyLink: "Copy link",
+      copied: "Copied",
+      open: "Open in browser",
       port: "Port",
       apply: "Apply",
-      invalidPort: "Enter a port from 1024 to 65535.",
-      open: "Open in browser",
-      hostFolder: "Folder path on the computer running Pine",
-      addFolder: "Use folder",
+      invalidPort: "Use a port from {min} to {max}.",
+      linkNotice: "The link signs a browser in to Pine. Don't share it.",
     },
     projectManagement: {
       title: "Projects",
@@ -399,6 +401,15 @@ export default {
       accessLabel: "Access",
       actionsLabel: "Actions",
       folderAccess: "Access for {name}",
+      hostFolder: {
+        title: "Folder on the Pine computer",
+        description:
+          "The browser can't browse the computer running Pine. Enter the folder's full path.",
+        placeholder: "/Users/you/Projects/app",
+        hint: "Use an absolute path, such as /Users/you/Projects/app.",
+        absoluteRequired: "Enter an absolute path.",
+        confirm: "Add",
+      },
     },
   },
   skills: {

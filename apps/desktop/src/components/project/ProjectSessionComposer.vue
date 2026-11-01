@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { isWebClient } from "@/lib/clientRuntime";
 import type { Component } from "vue";
 import {
   ArrowUpIcon,
@@ -167,7 +168,7 @@ const approvalMode = defineModel<ApprovalMode>("approvalMode", {
   default: "auto-approve",
 });
 const { t } = useI18n();
-const isWeb = window.pine?.runtime === "web";
+const isWeb = isWebClient();
 const modelsStore = useModelsStore();
 const { favoriteModels, featuredModels } = storeToRefs(modelsStore);
 const selection = computed(() => modelsStore.selectionFor(props.sessionId));
@@ -518,12 +519,11 @@ function mergeAttachments(selected: readonly PineAttachment[]): void {
 
 async function pickAttachments(kind: "directory" | "file"): Promise<void> {
   try {
-    const result =
-      window.pine.runtime === "web"
-        ? await window.pine.pickAttachments(props.projectId)
-        : kind === "directory"
-          ? await window.pine.pickAttachmentFolders()
-          : await window.pine.pickAttachments();
+    const result = isWeb
+      ? await window.pine.pickAttachments(props.projectId)
+      : kind === "directory"
+        ? await window.pine.pickAttachmentFolders()
+        : await window.pine.pickAttachments();
     mergeAttachments(result.attachments);
   } catch {
     toast.error(t("project.composer.attachmentPickerFailed"));
@@ -565,11 +565,7 @@ interface PastedImage {
  */
 async function handlePaste(event: ClipboardEvent): Promise<void> {
   const files = Array.from(event.clipboardData?.files ?? []);
-  if (
-    files.length > 0 &&
-    window.pine.runtime === "web" &&
-    window.pine.uploadAttachments
-  ) {
+  if (files.length > 0 && isWeb && window.pine.uploadAttachments) {
     event.preventDefault();
     try {
       const result = await window.pine.uploadAttachments(

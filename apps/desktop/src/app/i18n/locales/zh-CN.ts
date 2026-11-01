@@ -33,15 +33,17 @@ export default {
   },
   preferences: {
     webControl: {
-      title: "本地网页访问",
+      title: "浏览器访问",
       description:
-        "在这台电脑的浏览器中控制 Pine。使用期间需保持 Pine 运行，服务仅监听 127.0.0.1。",
+        "在这台电脑的浏览器中使用 Pine。使用期间需保持 Pine 运行，服务仅监听 127.0.0.1。",
+      running: "运行中",
+      copyLink: "复制链接",
+      copied: "已复制",
+      open: "在浏览器中打开",
       port: "端口",
       apply: "应用",
-      invalidPort: "请输入 1024 到 65535 之间的端口。",
-      open: "在浏览器中打开",
-      hostFolder: "运行 Pine 的电脑上的文件夹路径",
-      addFolder: "使用文件夹",
+      invalidPort: "端口需在 {min} 到 {max} 之间。",
+      linkNotice: "链接可直接登录 Pine，请勿分享。",
     },
     projectManagement: {
       title: "项目管理",
@@ -377,6 +379,14 @@ export default {
       accessLabel: "权限",
       actionsLabel: "操作",
       folderAccess: "{name} 的访问权限",
+      hostFolder: {
+        title: "Pine 所在电脑上的文件夹",
+        description: "浏览器无法浏览运行 Pine 的电脑，请输入文件夹的完整路径。",
+        placeholder: "/Users/you/Projects/app",
+        hint: "请使用绝对路径，例如 /Users/you/Projects/app。",
+        absoluteRequired: "请输入绝对路径。",
+        confirm: "添加",
+      },
     },
   },
   skills: {

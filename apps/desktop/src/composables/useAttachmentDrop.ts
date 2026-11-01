@@ -1,3 +1,4 @@
+import { isWebClient } from "@/lib/clientRuntime";
 import { useI18n } from "vue-i18n";
 import { toast } from "vue-sonner";
 import {
@@ -44,11 +45,7 @@ export function useAttachmentDrop() {
         (entry) => entry.projectId === projectId,
       );
       if (entries?.length === 0) return false;
-      if (
-        !entries &&
-        window.pine.runtime === "web" &&
-        window.pine.uploadAttachments
-      ) {
+      if (!entries && isWebClient() && window.pine.uploadAttachments) {
         const result = await window.pine.uploadAttachments(
           Array.from(transfer.files),
           projectId,

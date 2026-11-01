@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { isDesktopClient } from "@/lib/clientRuntime";
 import { handleError } from "@/app/errors/errorHandler";
 import {
   CircleHelpIcon,
@@ -98,7 +99,7 @@ import {
 type PreferenceSection = "general" | "models" | "personalization" | "projects";
 
 const { locale, t } = useI18n();
-const isDesktop = window.pine?.runtime !== "web";
+const isDesktop = isDesktopClient();
 const windowSupportsWebServer =
   isDesktop && typeof window.pine?.getWebServer === "function";
 const appearanceStore = useAppearanceStore();

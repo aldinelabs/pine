@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { isDesktopClient } from "@/lib/clientRuntime";
 import { PanelRight } from "@lucide/vue";
 import { onKeyStroke, useEventListener } from "@vueuse/core";
 import {
@@ -65,7 +66,7 @@ const backgroundTasks = useBackgroundTasksStore();
 const sessionStore = useSessionStore();
 const contentTabsStore = useContentTabsStore();
 const isWindowsPlatform = computed(
-  () => window.pine?.runtime !== "web" && window.pine?.platform === "win32",
+  () => isDesktopClient() && window.pine?.platform === "win32",
 );
 async function loadProjects(): Promise<void> {
   try {

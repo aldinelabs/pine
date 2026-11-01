@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { isWebClient } from "@/lib/clientRuntime";
 import {
   ChevronRight,
   Folder,
@@ -77,7 +78,7 @@ interface ProjectTreeNode extends ProjectEntry {
 }
 
 const { t } = useI18n();
-const isWeb = window.pine?.runtime === "web";
+const isWeb = isWebClient();
 const projectStore = useProjectStore();
 const contentTabsStore = useContentTabsStore();
 const tabNavigation = useContentTabNavigation();

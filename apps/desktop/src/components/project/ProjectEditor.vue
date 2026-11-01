@@ -33,6 +33,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
+import ProjectFolderPicker from "./ProjectFolderPicker.vue";
 import {
   Table,
   TableBody,
@@ -72,30 +73,6 @@ const emit = defineEmits<{
 }>();
 const { t } = useI18n();
 const name = ref("");
-const isWeb = window.pine?.runtime === "web";
-const hostFolderMode = ref<"default" | "context" | null>(null);
-const hostFolderPath = ref("");
-function addHostFolder(): void {
-  const folderPath = hostFolderPath.value.trim();
-  if (!folderPath || !hostFolderMode.value) return;
-  const folder: EditorProjectFolder = {
-    id: crypto.randomUUID(),
-    access: "read-write",
-    isAvailable: true,
-    name:
-      folderPath.replaceAll("\\", "/").split("/").filter(Boolean).at(-1) ??
-      folderPath,
-    path: folderPath,
-  };
-  const existing = folders.value.find((entry) => entry.path === folderPath);
-  if (!existing) folders.value.push(folder);
-  if (hostFolderMode.value === "default") {
-    (existing ?? folder).access = "read-write";
-    defaultFolderId.value = (existing ?? folder).id;
-  }
-  hostFolderMode.value = null;
-  hostFolderPath.value = "";
-}
 const projectColorTheme = ref<ProjectColorTheme>("olive");
 const projectIcon = ref<ProjectIcon>("inbox");
 const isIconPickerOpen = ref(false);
@@ -129,8 +106,6 @@ const canSubmit = computed(
 );
 
 function reset(): void {
-  hostFolderMode.value = null;
-  hostFolderPath.value = "";
   originalFolderNames.clear();
   name.value = props.project?.name ?? "";
   projectColorTheme.value = props.project?.projectColorTheme ?? "olive";
@@ -151,14 +126,7 @@ function mergeContextFolders(selectedFolders: ProjectFolderInput[]): void {
   folders.value = [...folders.value, ...additions];
 }
 
-async function chooseDefaultFolder(): Promise<void> {
-  if (isWeb) {
-    hostFolderMode.value = "default";
-    return;
-  }
-  const [selectedFolder] = (
-    await window.pine.pickProjectFolders({ mode: "default" })
-  ).folders;
+function chooseDefaultFolder([selectedFolder]: ProjectFolderInput[]): void {
   if (!selectedFolder) return;
 
   const existingFolder = folders.value.find(
@@ -173,16 +141,6 @@ async function chooseDefaultFolder(): Promise<void> {
 
   folders.value = [...folders.value, { ...selectedFolder, isAvailable: true }];
   defaultFolderId.value = selectedFolder.id;
-}
-
-async function addContextFolders(): Promise<void> {
-  if (isWeb) {
-    hostFolderMode.value = "context";
-    return;
-  }
-  mergeContextFolders(
-    (await window.pine.pickProjectFolders({ mode: "context" })).folders,
-  );
 }
 
 function removeFolder(folderId: string): void {
@@ -360,25 +318,6 @@ watch(() => props.project, reset, { immediate: true });
           </Select>
         </Field>
 
-        <Field v-if="hostFolderMode">
-          <FieldLabel for="host-folder-path">{{
-            t("preferences.webControl.hostFolder")
-          }}</FieldLabel>
-          <Input
-            id="host-folder-path"
-            v-model="hostFolderPath"
-            @keydown.enter.prevent="addHostFolder"
-          />
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            class="w-fit"
-            :disabled="!hostFolderPath.trim()"
-            @click="addHostFolder"
-            >{{ t("preferences.webControl.addFolder") }}</Button
-          >
-        </Field>
         <Field orientation="horizontal">
           <FieldTitle id="default-folder-label" class="shrink-0">
             {{ t("projects.editor.defaultFolderLabel") }}
@@ -393,30 +332,32 @@ watch(() => props.project, reset, { immediate: true });
             <span class="truncate text-sm text-muted-foreground">
               {{ defaultFolder.path }}
             </span>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              class="shrink-0"
-              data-testid="change-default-folder"
-              @click="chooseDefaultFolder"
-            >
-              <FolderOpen data-icon="inline-start" />
-              {{ t("projects.editor.changeDefaultFolder") }}
-            </Button>
+            <ProjectFolderPicker mode="default" @picked="chooseDefaultFolder">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                class="shrink-0"
+                data-testid="change-default-folder"
+              >
+                <FolderOpen data-icon="inline-start" />
+                {{ t("projects.editor.changeDefaultFolder") }}
+              </Button>
+            </ProjectFolderPicker>
           </div>
 
           <div v-else class="ml-auto">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              data-testid="choose-default-folder"
-              @click="chooseDefaultFolder"
-            >
-              <FolderOpen data-icon="inline-start" />
-              {{ t("projects.editor.chooseDefaultFolder") }}
-            </Button>
+            <ProjectFolderPicker mode="default" @picked="chooseDefaultFolder">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                data-testid="choose-default-folder"
+              >
+                <FolderOpen data-icon="inline-start" />
+                {{ t("projects.editor.chooseDefaultFolder") }}
+              </Button>
+            </ProjectFolderPicker>
           </div>
         </Field>
 
@@ -425,16 +366,17 @@ watch(() => props.project, reset, { immediate: true });
             <FieldTitle>
               {{ t("projects.editor.contextFoldersLabel") }}
             </FieldTitle>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              data-testid="add-context-folders"
-              @click="addContextFolders"
-            >
-              <FolderPlus data-icon="inline-start" />
-              {{ t("projects.editor.addContextFolders") }}
-            </Button>
+            <ProjectFolderPicker mode="context" @picked="mergeContextFolders">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                data-testid="add-context-folders"
+              >
+                <FolderPlus data-icon="inline-start" />
+                {{ t("projects.editor.addContextFolders") }}
+              </Button>
+            </ProjectFolderPicker>
           </div>
 
           <div
