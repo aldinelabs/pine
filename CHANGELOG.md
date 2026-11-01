@@ -9,15 +9,11 @@ Every release section here has a matching section in the Chinese changelog.
 
 ## [Unreleased]
 
-### Added
-
-- The headless server runs on Linux, with the agent's commands and file tools running in a sandbox. It needs bubblewrap, socat and ripgrep; when they are missing or the host blocks the sandbox, the server says so at startup.
-
 ## [0.13.1] - 2026-11-01
 
 ### Added
 
-- Headless server: Pine can run on a server without a window and be used entirely from a browser. Build it with `bun run build:server`; see `docs/headless-server.md`.
+- Headless server: Pine can run on a server without a window and be used entirely from a browser. Build it with `bun run build:server`; see `docs/headless-server.md`. It runs on macOS and Linux; on Linux the agent's commands and file tools run in a sandbox that needs bubblewrap, socat and ripgrep, and the server tells you at startup if they are missing or the host blocks the sandbox.
 
 ### Fixed
 
