@@ -1,0 +1,31 @@
+name: ci-debug
+on: workflow_dispatch
+permissions:
+  contents: read
+jobs:
+  debug:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          package-manager-cache: false
+      - uses: oven-sh/setup-bun@v2
+      - run: bun install --frozen-lockfile
+      - run: |
+          sudo apt-get update
+          sudo apt-get install -y bubblewrap socat ripgrep
+          sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+      - name: Diagnostics
+        continue-on-error: true
+        run: |
+          cat /etc/os-release | head -2; uname -r; id; bwrap --version
+          sysctl kernel.unprivileged_userns_clone kernel.apparmor_restrict_unprivileged_userns user.max_user_namespaces || true
+          echo "--- bwrap basic"; bwrap --ro-bind / / --dev /dev --proc /proc --unshare-user --unshare-pid echo ok || true
+          echo "--- bwrap net"; bwrap --ro-bind / / --dev /dev --proc /proc --unshare-all echo ok-net || true
+      - name: Sandbox debug test
+        continue-on-error: true
+        run: |
+          cp .github/debug/dbg.test.ts apps/desktop/src/agent/__tests__/dbg.test.ts
+          cd apps/desktop && npx vitest run src/agent/__tests__/dbg.test.ts 2>&1 | grep -E "CMD|Error|bwrap|apply" | head -20
