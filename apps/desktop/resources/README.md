@@ -23,3 +23,7 @@ not run in a packaged Pine app, where it would replace the native resource.
 References: [Apple Icon Composer](https://developer.apple.com/documentation/xcode/creating-your-app-icon-using-icon-composer),
 [Electron Forge icons](https://www.electronforge.io/guides/create-and-add-icons),
 [Electron Dock API](https://www.electronjs.org/docs/latest/api/dock).
+
+`generate-web-icons.mjs` renders the browser interface's home-screen icons and
+favicon into `public/web/` with the same logo and colours, using the installed
+Google Chrome through Playwright: `bun apps/desktop/resources/generate-web-icons.mjs`.

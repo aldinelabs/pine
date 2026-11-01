@@ -1,0 +1,19 @@
+{
+  "name": "Pine",
+  "short_name": "Pine",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#fbfbf9",
+  "theme_color": "#fbfbf9",
+  "icons": [
+    { "src": "/web/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/web/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    {
+      "src": "/web/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}

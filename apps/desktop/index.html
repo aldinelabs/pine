@@ -2,8 +2,27 @@
 <html lang="en-US">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <link rel="icon" type="image/png" href="/resources/icon.png" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, viewport-fit=cover"
+    />
+    <link rel="icon" type="image/png" href="/web/favicon.png" />
+    <!-- Lets phones and browsers install the web interface as an app. -->
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="apple-touch-icon" href="/web/apple-touch-icon.png" />
+    <meta name="apple-mobile-web-app-title" content="Pine" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta
+      name="theme-color"
+      content="#fbfbf9"
+      media="(prefers-color-scheme: light)"
+    />
+    <meta
+      name="theme-color"
+      content="#0c0c09"
+      media="(prefers-color-scheme: dark)"
+    />
     <meta
       http-equiv="Content-Security-Policy"
       content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https: http: pine-attachment: pine-project-media:; media-src 'self' blob: data: pine-project-media:; font-src 'self' data: blob:; connect-src 'self' blob: data: pine-project-media: ws: http://localhost:*; worker-src 'self' blob:; frame-src 'self' blob: data:"
