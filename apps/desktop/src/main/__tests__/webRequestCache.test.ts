@@ -29,4 +29,16 @@ describe("HTTP command receipts", () => {
     );
     expect(invoke).toHaveBeenCalledOnce();
   });
+
+  it("makes room by dropping the oldest settled receipt", async () => {
+    const cache = new WebRequestCache(1, 60_000);
+    await cache.execute("one", "prompt", {}, () => Promise.resolve(1));
+    await expect(
+      cache.execute("two", "prompt", {}, () => Promise.resolve(2)),
+    ).resolves.toBe(2);
+    // "one" was evicted, so the same ID runs again instead of replaying.
+    await expect(
+      cache.execute("one", "prompt", {}, () => Promise.resolve(3)),
+    ).resolves.toBe(3);
+  });
 });

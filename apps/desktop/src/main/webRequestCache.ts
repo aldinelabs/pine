@@ -33,8 +33,15 @@ export class WebRequestCache {
         throw new Error("Request ID was already used.");
       return existing.result;
     }
-    if (this.entries.size >= this.capacity)
-      throw new Error("Too many recent requests. Try again shortly.");
+    if (this.entries.size >= this.capacity) {
+      // Settled receipts only guard retries; the oldest one is the cheapest loss.
+      const settled = [...this.entries].find(
+        ([, entry]) => entry.expiresAt !== Infinity,
+      );
+      if (!settled)
+        throw new Error("Too many requests in progress. Try again shortly.");
+      this.entries.delete(settled[0]);
+    }
     const entry: CachedRequest = {
       signature,
       result: Promise.resolve().then(invoke),
