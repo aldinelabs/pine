@@ -617,7 +617,7 @@ html.sidebar-vibrancy [data-slot="sidebar-container"][data-side="left"] {
 html.dark.sidebar-vibrancy [data-slot="sidebar-container"][data-side="left"] {
   --sidebar-accent: color-mix(
     in oklab,
-    var(--sidebar-accent-foreground) 12%,
+    var(--sidebar-accent-foreground) 8%,
     transparent
   );
 }
