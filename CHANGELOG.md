@@ -9,9 +9,16 @@ Every release section here has a matching section in the Chinese changelog.
 
 ## [Unreleased]
 
+## [0.13.1] - 2026-11-01
+
 ### Added
 
 - Headless server: Pine can run on a server without a window and be used entirely from a browser. Build it with `bun run build:server`; see `docs/headless-server.md`.
+
+### Fixed
+
+- Pine's browser interface no longer fails to load when opened from another device over a plain `http://` address on your network.
+- On macOS, the light-theme sidebar now shows the native sidebar material instead of a solid background.
 
 ## [0.13.0] - 2026-11-01
 

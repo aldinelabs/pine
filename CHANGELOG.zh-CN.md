@@ -8,9 +8,16 @@ English version: [CHANGELOG.md](./CHANGELOG.md).
 
 ## [Unreleased]
 
+## [0.13.1] - 2026-11-01
+
 ### 新增
 
 - 无头服务端：可以在服务器上不开窗口运行 Pine，只通过浏览器使用。用 `bun run build:server` 构建，详见 `docs/headless-server.md`。
+
+### 修复
+
+- 从网络中其他设备通过普通 `http://` 地址打开 Pine 的浏览器界面时，不再加载失败。
+- macOS 上浅色主题的侧边栏现在会显示原生侧边栏材质，而不是纯色背景。
 
 ## [0.13.0] - 2026-11-01
 
