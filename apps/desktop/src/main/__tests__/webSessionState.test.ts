@@ -2,6 +2,28 @@ import { describe, expect, it } from "vitest";
 import { WebSessionState } from "../webSessionState";
 
 describe("WebSessionState", () => {
+  it("does not replay one-off notifications and keeps only the latest compaction state", () => {
+    const state = new WebSessionState();
+    const sessionId = "session";
+    state.observe("project", {
+      type: "session-teleported",
+      sessionId,
+      fromProjectId: "a",
+      toProjectId: "b",
+    } as never);
+    state.observe("project", {
+      type: "session-reset",
+      sessionId,
+      projectId: "project",
+    });
+    state.observe("project", { type: "compaction-start", sessionId } as never);
+    state.observe("project", { type: "compaction-end", sessionId } as never);
+    const [snapshot] = state.snapshots(() => "project");
+    expect(snapshot.events.map((event) => event.type)).toEqual([
+      "compaction-end",
+    ]);
+  });
+
   it("compacts streaming deltas into a repeatable snapshot and keeps pending approvals", () => {
     const state = new WebSessionState();
     const sessionId = "session";

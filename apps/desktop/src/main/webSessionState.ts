@@ -105,11 +105,8 @@ export class WebSessionState {
         if (/^(approval|questionnaire|review):/.test(key))
           state.values.delete(key);
     }
-    if (
-      event.type !== "workbench-state-request" &&
-      event.type !== "questionnaire-decided"
-    )
-      state.values.set(eventKey(event), event);
+    const key = retainedKey(event);
+    if (key) state.values.set(key, event);
   }
 
   snapshots(
@@ -146,7 +143,11 @@ export class WebSessionState {
   }
 }
 
-function eventKey(event: PineSessionEvent): string {
+/**
+ * Where an event lives in the snapshot, or null when replaying it on reconnect
+ * would repeat a one-off effect. Exhaustive so a new event type must choose.
+ */
+function retainedKey(event: PineSessionEvent): string | null {
   switch (event.type) {
     case "approval-request":
       return `approval:${event.requestId}`;
@@ -164,7 +165,28 @@ function eventKey(event: PineSessionEvent): string {
       return `file:${event.toolCallId}`;
     case "workbench-command":
       return `workbench:${event.toolCallId}`;
-    default:
+    case "compaction-start":
+    case "compaction-end":
+      return "compaction";
+    case "run-state":
+    case "session-error":
+    case "session-updated":
+    case "context-usage":
+    case "steering-queue":
+    case "background-tasks":
       return event.type;
+    // Messages are tracked separately; the rest are one-off notifications.
+    case "message-start":
+    case "message-end":
+    case "message-update":
+    case "questionnaire-decided":
+    case "workbench-state-request":
+    case "session-teleported":
+    case "session-reset":
+      return null;
+    default: {
+      const unhandled: never = event;
+      return unhandled;
+    }
   }
 }
