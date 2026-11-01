@@ -577,20 +577,23 @@ html.sidebar-vibrancy body {
 }
 
 /* Only the left navigation sidebar shows the material; the right workbench
-   column keeps its opaque `bg-background`. A faint wash of the project
-   accent tints the material to the colour of the opaque sidebar: the
-   near-neutral material keeps a quarter of the wash, so the wash carries
-   four times the chroma of `--sidebar` (which follows the colour theme). It
-   sits at about the material's own lightness so it shifts the colour without
-   darkening or lightening the sidebar. */
+   column keeps its opaque `bg-background`. A wash derived from `--sidebar`
+   (which follows the colour theme) brings the material to the opaque
+   sidebar's colour. The values are measured against screenshots of the
+   material with the effect on and off: light material (about L 0.946) is
+   darker than the near-white sidebar, so its wash is nearly opaque and a
+   touch lighter; dark material already sits near the sidebar's lightness
+   with less than half its chroma, so its wash is light and more colourful. */
 html.sidebar-vibrancy [data-slot="sidebar-container"][data-side="left"] {
-  --sidebar-vibrancy-tint: oklch(from var(--sidebar) 0.95 calc(c * 4) h / 25%);
+  --sidebar-vibrancy-tint: oklch(
+    from var(--sidebar) calc(l + 0.011) calc(c * 1.4) h / 80%
+  );
 }
 
 html.dark.sidebar-vibrancy [data-slot="sidebar-container"][data-side="left"] {
-  /* The dark material already sits at the sidebar's lightness with about
-     half its chroma, so the wash keeps that lightness and needs less. */
-  --sidebar-vibrancy-tint: oklch(from var(--sidebar) l calc(c * 2.7) h / 25%);
+  --sidebar-vibrancy-tint: oklch(
+    from var(--sidebar) calc(l - 0.011) calc(c * 2.65) h / 25%
+  );
 }
 
 html.sidebar-vibrancy
