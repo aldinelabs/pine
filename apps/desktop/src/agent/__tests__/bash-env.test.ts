@@ -5,7 +5,9 @@ import {
   createNativeBashEnvironment,
   resolveLoginPath,
   resolveUserBunPath,
+  sandboxShell,
 } from "../bash-env";
+import { shellInvocation } from "../bash-execution";
 
 describe("createBashEnvironment", () => {
   it("uses the host-specific Bun executable name", () => {
@@ -82,6 +84,32 @@ describe("resolveLoginPath", () => {
     const loginPath = await resolveLoginPath();
     expect(loginPath.length).toBeGreaterThan(0);
     expect(loginPath).toContain("/bin");
+  });
+
+  it("keeps the inherited PATH outside macOS", async () => {
+    expect(await resolveLoginPath("linux")).toBe(process.env.PATH);
+  });
+});
+
+describe("sandbox shell", () => {
+  it("uses zsh on macOS and bash on Linux", () => {
+    expect(sandboxShell("darwin")).toEqual({
+      executable: "/bin/zsh",
+      kind: "zsh",
+    });
+    expect(sandboxShell("linux")).toEqual({
+      executable: "/bin/bash",
+      kind: "bash",
+    });
+  });
+
+  it("skips user startup files and keeps pipeline failures", () => {
+    expect(shellInvocation("bash", "echo 'hi' | cat")).toBe(
+      "exec /bin/bash --noprofile --norc -o pipefail -c 'echo '\\''hi'\\'' | cat'",
+    );
+    expect(shellInvocation("zsh", "true")).toBe(
+      "exec /bin/zsh -f -o pipefail -o no_bg_nice -c 'true'",
+    );
   });
 });
 

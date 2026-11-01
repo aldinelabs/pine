@@ -4,6 +4,8 @@ import {
   type SandboxRuntimeConfig,
 } from "@anthropic-ai/sandbox-runtime";
 import {
+  LINUX_RUNTIME_DIRECTORIES,
+  LINUX_RUNTIME_FILES,
   MACOS_RUNTIME_DIRECTORIES,
   MACOS_RUNTIME_FILES,
 } from "../bash-sandbox";
@@ -56,6 +58,36 @@ export function createSandboxConfig(
     throw new Error(
       "The sandbox backend cannot safely represent wildcard or control characters in a literal path. Native access requires approval.",
     );
+  }
+  if (platform === "linux") {
+    // Bubblewrap hides every top-level directory behind a tmpfs and binds the
+    // grants back, creating their ancestors as empty mount points. SRT expands
+    // globs into concrete recursive grants on Linux, so the macOS ancestor
+    // encoding below would expose whole ancestor directories here.
+    return {
+      network: {
+        allowedDomains: [],
+        deniedDomains: [],
+        allowUnixSockets: [],
+        allowLocalBinding: false,
+      },
+      filesystem: {
+        denyRead: ["/"],
+        allowRead: [
+          ...new Set([
+            ...LINUX_RUNTIME_DIRECTORIES,
+            ...LINUX_RUNTIME_FILES,
+            ...runtimeFiles,
+            ...policy.readablePaths(),
+          ]),
+        ],
+        allowWrite: policy.writableFolders(),
+        denyWrite: [...runtimeFiles],
+        allowGitConfig: false,
+      },
+      enableWeakerNestedSandbox: false,
+      enableWeakerNetworkIsolation: false,
+    };
   }
   // SRT literal entries are recursive subpaths. A singleton character class
   // forces its documented glob matcher into an exact-path regex instead.

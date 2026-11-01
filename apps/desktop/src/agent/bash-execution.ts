@@ -2,7 +2,11 @@ import type { BashOperations } from "@earendil-works/pi-coding-agent";
 import path from "node:path";
 import { runSandbox, quoteShell } from "./sandbox/backend";
 import { createSandboxConfig } from "./sandbox/policy";
-import { createBashEnvironment, sandboxShell } from "./bash-env";
+import {
+  createBashEnvironment,
+  sandboxShell,
+  type SandboxShellKind,
+} from "./bash-env";
 import type { PineToolAccessPolicy } from "./tool-access-policy";
 
 /**
@@ -35,6 +39,16 @@ export function hasPermissionDiagnostic(output: string): boolean {
   );
 }
 
+/** Run a command string through a sandbox shell without user startup files. */
+export function shellInvocation(
+  kind: Exclude<SandboxShellKind, "powershell">,
+  command: string,
+): string {
+  return kind === "zsh"
+    ? `exec /bin/zsh -f -o pipefail -o no_bg_nice -c ${quoteShell(command)}`
+    : `exec /bin/bash --noprofile --norc -o pipefail -c ${quoteShell(command)}`;
+}
+
 export function createScopedBashOperations(
   policy: PineToolAccessPolicy,
   temporaryDirectory: string,
@@ -58,9 +72,9 @@ export function createScopedBashOperations(
       const result = await runSandbox(
         {
           command:
-            shell.kind === "zsh"
-              ? `exec /bin/zsh -f -o pipefail -o no_bg_nice -c ${quoteShell(command)}`
-              : windowsCommand,
+            shell.kind === "powershell"
+              ? windowsCommand
+              : shellInvocation(shell.kind, command),
           cwd: policy.cwd,
           env: createBashEnvironment(
             options.env,

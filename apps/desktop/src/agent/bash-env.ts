@@ -28,11 +28,13 @@ export function resolveUserBunPath(
  * Electron GUI processes inherit launchd's minimal PATH
  * (`/usr/bin:/bin:/usr/sbin:/sbin`), so tools installed via Homebrew, MacPorts,
  * nvm, or Bun are invisible unless the PATH is resolved from a login shell.
+ * Elsewhere Pine is started from a shell or a service manager whose PATH is
+ * already the one the operator configured.
  */
 export async function resolveLoginPath(
   platform: NodeJS.Platform = process.platform,
 ): Promise<string> {
-  if (platform === "win32") return process.env.PATH ?? "";
+  if (platform !== "darwin") return process.env.PATH || FALLBACK_PATH;
   if (cachedLoginPath) return cachedLoginPath;
   if (loginPathFailed) return FALLBACK_PATH;
 
@@ -101,7 +103,7 @@ export function createBashEnvironment(
     PATH: [path.join(cwd, "node_modules", ".bin"), loginPath]
       .filter(Boolean)
       .join(path.delimiter),
-    SHELL: source.SHELL ?? "/bin/zsh",
+    SHELL: source.SHELL ?? sandboxShell().executable,
     TERM: source.TERM,
     TMPDIR: temporaryDirectory,
     // zsh uses TMPPREFIX for here-docs independently of TMPDIR.
@@ -138,13 +140,19 @@ export function createNativeBashEnvironment(
   };
 }
 
-/** Resolve the trusted host shell used for sandboxed commands. */
+export type SandboxShellKind = "powershell" | "zsh" | "bash";
+
+/**
+ * Resolve the trusted host shell used for sandboxed commands. macOS ships zsh
+ * but only an outdated bash; Linux distributions ship bash but often no zsh.
+ */
 export function sandboxShell(platform: NodeJS.Platform = process.platform): {
   executable: string;
-  kind: "powershell" | "zsh";
+  kind: SandboxShellKind;
 } {
   if (platform === "win32") {
     return { executable: getPowerShellConfig().shell, kind: "powershell" };
   }
-  return { executable: "/bin/zsh", kind: "zsh" };
+  if (platform === "darwin") return { executable: "/bin/zsh", kind: "zsh" };
+  return { executable: "/bin/bash", kind: "bash" };
 }

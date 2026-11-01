@@ -55,3 +55,42 @@ export const MACOS_RUNTIME_FILES = [
   "/private/etc/localtime",
   "/private/etc/ssl/cert.pem",
 ];
+
+// Linux runtime trees. Merged-/usr distributions make /bin, /sbin and /lib*
+// symlinks into /usr; the sandbox binds whichever form exists. /etc is not
+// granted wholesale because it can hold readable host configuration, such as
+// service credentials, that commands have no reason to see.
+export const LINUX_RUNTIME_DIRECTORIES = [
+  "/usr",
+  "/bin",
+  "/sbin",
+  "/lib",
+  "/lib32",
+  "/lib64",
+  "/libx32",
+  "/etc/alternatives",
+  "/etc/ca-certificates",
+  "/etc/ld.so.conf.d",
+  "/etc/pki",
+  "/etc/ssl",
+  // Homebrew on Linux, the counterpart of /opt/homebrew.
+  "/home/linuxbrew/.linuxbrew",
+];
+
+export const LINUX_RUNTIME_FILES = [
+  "/etc/passwd",
+  "/etc/group",
+  "/etc/nsswitch.conf",
+  "/etc/hosts",
+  "/etc/host.conf",
+  "/etc/resolv.conf",
+  "/etc/gai.conf",
+  "/etc/localtime",
+  "/etc/timezone",
+  "/etc/ld.so.cache",
+  "/etc/ld.so.conf",
+  "/etc/os-release",
+  "/etc/mime.types",
+  "/etc/protocols",
+  "/etc/services",
+];

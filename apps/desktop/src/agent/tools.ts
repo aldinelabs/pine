@@ -60,6 +60,7 @@ import {
   createNativeBashEnvironment,
   resolveLoginPath,
   resolveUserBunPath,
+  sandboxShell,
 } from "./bash-env";
 import {
   createScopedBashOperations,
@@ -582,7 +583,7 @@ export async function createPineToolDefinitions(
         throw error;
       }
     },
-    description: `${shellTool.description}${sandboxGuidance} The shell is ${isWindows ? "PowerShell without a profile" : "zsh with no user startup files"}. The scratch directory is ${JSON.stringify(canonicalBashTemporaryDirectory)}. Keep diagnostic stderr visible. Explicitly describe what each command does in the description field, written first, in the same language as the user's messages.${backgroundGuidance}`,
+    description: `${shellTool.description}${sandboxGuidance} The shell is ${isWindows ? "PowerShell without a profile" : `${sandboxShell().kind} with no user startup files`}. The scratch directory is ${JSON.stringify(canonicalBashTemporaryDirectory)}. Keep diagnostic stderr visible. Explicitly describe what each command does in the description field, written first, in the same language as the user's messages.${backgroundGuidance}`,
     promptSnippet: `${shellTool.promptSnippet}. Reads are restricted to shared folders, attachments, project temporary storage and runtime files; use ${privilegedShellName} directly to read or list other external paths, subject to approval. Use the project temporary directory for temporary files; always write description before command, in the user's language`,
   });
 

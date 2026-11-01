@@ -36,7 +36,7 @@ try {
   // only used by the trusted supervisor and is never a filesystem grant.
   // The command's project-scoped TMPDIR may itself be deeply nested, so it
   // cannot safely host SRT's additional pine-srt-*/srt-mux-*.sock path.
-  const controlRoot = process.platform === "darwin" ? "/tmp" : os.tmpdir();
+  const controlRoot = process.platform === "win32" ? os.tmpdir() : "/tmp";
   controlDirectory = await mkdtemp(path.join(controlRoot, "pine-srt-"));
   if (process.platform !== "win32") process.env.TMPDIR = controlDirectory;
   const { SandboxManager, SandboxRuntimeConfigSchema, getDefaultWritePaths } =
@@ -100,13 +100,19 @@ try {
   } else {
     const wrapped = await SandboxManager.wrapWithSandbox(
       request.command,
-      request.shell ?? "/bin/zsh",
+      request.shell,
       undefined,
       undefined,
       { commandId: request.id },
     );
     if (cancelled) throw new Error("aborted");
-    child = spawn("/bin/zsh", ["-f", "-c", wrapped], {
+    // The wrapper runs before the sandbox applies, so it must not read any
+    // user startup file either.
+    const noStartupFiles =
+      path.basename(request.shell) === "zsh"
+        ? ["-f"]
+        : ["--noprofile", "--norc"];
+    child = spawn(request.shell, [...noStartupFiles, "-c", wrapped], {
       cwd: request.cwd,
       env: request.env,
       detached: true,

@@ -9,10 +9,11 @@ import type { SandboxRuntimeConfig } from "@anthropic-ai/sandbox-runtime";
 import hostSource from "./host.mjs?raw";
 import windowsHostSource from "./windows-host.mjs?raw";
 import { windowsRequiredDenyWritePaths } from "./policy";
+import { sandboxShell } from "../bash-env";
 
 export function quoteShell(
   value: string,
-  shell: "powershell" | "zsh" = "zsh",
+  shell: "powershell" | "zsh" | "bash" = "zsh",
 ): string {
   return shell === "powershell"
     ? `'${value.replaceAll("'", "''")}'`
@@ -339,13 +340,20 @@ async function runPersistentWindowsSandbox(
   }
 }
 
-/** macOS isolates each call; Windows reuses one serialized authority snapshot. */
+/**
+ * macOS and Linux isolate each call; Windows reuses one serialized authority
+ * snapshot.
+ */
 export async function runSandbox(
   request: SandboxRequest,
   options: SandboxRunOptions,
 ): Promise<{ exitCode: number }> {
   const prepareStartedAt = performance.now();
-  if (process.platform !== "darwin" && process.platform !== "win32") {
+  if (
+    process.platform !== "darwin" &&
+    process.platform !== "linux" &&
+    process.platform !== "win32"
+  ) {
     throw new SandboxSetupError(
       "The sandbox backend has not been validated on this platform. Native execution requires explicit approval.",
     );
@@ -382,6 +390,12 @@ export async function runSandbox(
         )
       : protectedSupervisorPaths),
   );
+  // On Linux SRT starts the command through its seccomp helper from inside
+  // bubblewrap, so the helper must be readable there.
+  if (process.platform === "linux")
+    config.filesystem.allowRead?.push(
+      path.join(path.dirname(path.dirname(runtimeEntry)), "vendor", "seccomp"),
+    );
   if (process.platform === "win32")
     return await runPersistentWindowsSandbox(
       request,
@@ -402,7 +416,13 @@ export async function runSandbox(
   );
   child.stdin.on("error", () => undefined);
   child.stdin.end(
-    JSON.stringify({ ...request, config, runtimeUrl, id: randomUUID() }),
+    JSON.stringify({
+      ...request,
+      shell: request.shell ?? sandboxShell().executable,
+      config,
+      runtimeUrl,
+      id: randomUUID(),
+    }),
   );
   let status = "";
   child.stdio[3]!.on("data", (chunk: Buffer) => {
