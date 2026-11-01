@@ -10,6 +10,7 @@ import {
 } from "./app/i18n";
 import { isWebClient } from "./lib/clientRuntime";
 import { playCompletionSound } from "./lib/completionSound";
+import { syncThemeColor } from "./lib/themeColor";
 import { createAppRouter } from "./router";
 import { useAppearanceStore } from "./stores/appearance";
 import { QUICK_COMPOSER_ROUTE_HASH } from "./shared/quickComposer";
@@ -47,6 +48,7 @@ async function startRenderer(): Promise<void> {
   if (window.location.hash.startsWith(`#/${QUICK_COMPOSER_ROUTE_HASH}`))
     document.documentElement.dataset.quickComposer = "";
   useAppearanceStore(pinia).initialize();
+  if (document.documentElement.dataset.client === "web") syncThemeColor();
   if (needsSignIn) {
     const { default: WebSignInView } =
       await import("./components/web/WebSignInView.vue");

@@ -62,7 +62,7 @@ async function submit(): Promise<void> {
 
 <template>
   <main
-    class="flex min-h-dvh items-center justify-center bg-background p-4"
+    class="flex min-h-full items-center justify-center bg-background p-4"
     data-testid="web-sign-in"
   >
     <Card class="w-full max-w-sm">
