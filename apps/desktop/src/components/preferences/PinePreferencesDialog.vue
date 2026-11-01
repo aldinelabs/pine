@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { isDesktopClient } from "@/lib/clientRuntime";
 import { PHONE_FULLSCREEN_DIALOG } from "@/lib/dialogLayout";
+import { useDialogPages } from "@/composables/useDialogPages";
 import { usePhoneLayout } from "@/composables/usePhoneLayout";
 import { handleError } from "@/app/errors/errorHandler";
 import {
@@ -128,6 +129,7 @@ let requestedSection: PreferenceSection | null = null;
 // A phone shows the section list and one section at a time.
 const isPhone = usePhoneLayout();
 const isSectionShown = ref(false);
+const showPage = useDialogPages();
 const isUtilityModelPickerOpen = ref(false);
 const isImageModelPickerOpen = ref(false);
 const isTinyFishCredentialDialogOpen = ref(false);
@@ -749,8 +751,14 @@ function open(section?: PreferenceSection): void {
 }
 
 function showSection(section: PreferenceSection): void {
-  activeSection.value = section;
-  isSectionShown.value = true;
+  showPage("forward", () => {
+    activeSection.value = section;
+    isSectionShown.value = true;
+  });
+}
+
+function showSectionList(): void {
+  showPage("back", () => (isSectionShown.value = false));
 }
 
 const activeSectionLabel = computed(
@@ -775,6 +783,7 @@ defineExpose({ open });
     </DialogTrigger>
 
     <DialogContent
+      data-dialog-pages
       :class="[
         'flex h-[min(38rem,calc(100vh-2rem))] flex-col gap-0 overflow-hidden p-0 sm:max-w-3xl',
         PHONE_FULLSCREEN_DIALOG,
@@ -789,7 +798,7 @@ defineExpose({ open });
           variant="secondary"
           size="icon-sm"
           :aria-label="t('common.back')"
-          @click="isSectionShown = false"
+          @click="showSectionList"
         >
           <ChevronLeftIcon />
         </Button>

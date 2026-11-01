@@ -4,6 +4,7 @@ import { parse as parseYaml, stringify as stringifyYaml } from "yaml";
 import { computed, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { handleError } from "@/app/errors/errorHandler";
+import { useDialogPages } from "@/composables/useDialogPages";
 import { usePhoneLayout } from "@/composables/usePhoneLayout";
 import { PHONE_FULLSCREEN_DIALOG } from "@/lib/dialogLayout";
 import { Button } from "@/components/ui/button";
@@ -77,6 +78,7 @@ const togglingNames = ref(new Set<string>());
 // A phone shows the skill list and one skill's editor at a time.
 const isPhone = usePhoneLayout();
 const isEditorShown = ref(false);
+const showPage = useDialogPages();
 const isReadOnly = computed(() => !isCreating.value && selectedReadOnly.value);
 const canSave = computed(() => {
   const isValidName =
@@ -222,15 +224,22 @@ async function selectSkillSafely(
 ): Promise<void> {
   try {
     await selectSkill(name, managedBy);
-    isEditorShown.value = true;
+    if (!isEditorShown.value)
+      showPage("forward", () => (isEditorShown.value = true));
   } catch (error) {
     reportError(error, "load");
   }
 }
 
 function createFromList(): void {
-  startCreating();
-  isEditorShown.value = true;
+  showPage("forward", () => {
+    startCreating();
+    isEditorShown.value = true;
+  });
+}
+
+function showSkillList(): void {
+  showPage("back", () => (isEditorShown.value = false));
 }
 
 function startCreating(): void {
@@ -292,7 +301,7 @@ async function confirmRemoveSelected(): Promise<void> {
     });
     isDeleteConfirmOpen.value = false;
     startCreating();
-    isEditorShown.value = false;
+    showSkillList();
     await load();
   } catch (error) {
     reportError(error, "remove");
@@ -344,6 +353,7 @@ watch(activeScope, () => {
 <template>
   <Dialog v-model:open="open">
     <DialogContent
+      data-dialog-pages
       :class="[
         'gap-0 overflow-hidden p-0 sm:max-w-3xl max-sm:flex max-sm:flex-col',
         PHONE_FULLSCREEN_DIALOG,
@@ -358,7 +368,7 @@ watch(activeScope, () => {
           variant="secondary"
           size="icon-sm"
           :aria-label="t('common.back')"
-          @click="isEditorShown = false"
+          @click="showSkillList"
         >
           <ChevronLeftIcon />
         </Button>
