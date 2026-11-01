@@ -9,6 +9,27 @@ Every release section here has a matching section in the Chinese changelog.
 
 ## [Unreleased]
 
+## [0.13.0] - 2026-11-01
+
+### Added
+
+- Browser access: in Settings → Remote control, you can turn on a local web service and use Pine from a browser on this computer, or from other devices on your network. Browsers sign in with an access password you set and can stay signed in for a chosen time; you can also enter a reverse proxy's public address.
+- Pine's browser interface works on phones: large dialogs fill the screen and open one section at a time, open tabs are switched from a menu, and the composer fits the screen width.
+- Pine's browser interface can be added to a phone's home screen, where it opens full screen with Pine's icon.
+- While Pine is in the background, it can show system notifications for tool approvals and agent questions waiting on you; approval notifications have Approve and Deny buttons on macOS and Windows. On by default, and can be turned off in General settings.
+- Quitting Pine while a session or background task is running, or while Remote Control is on, now asks for confirmation first.
+
+### Changed
+
+- On macOS, the native sidebar material is turned on once for everyone in this version, including those who had turned it off; you can turn it off again in Settings.
+
+### Fixed
+
+- Sending a message no longer waits about half a second for the approximate location lookup before the message appears.
+- In dark mode, the sidebar with native material no longer looks different from the regular sidebar, and its selection highlight is softer.
+- The window buttons no longer shift when switching the native sidebar material on or off.
+- The floating composer's glass now keeps its rounded corners as it opens into a window.
+
 ## [0.12.1] - 2026-10-31
 
 ### Added
