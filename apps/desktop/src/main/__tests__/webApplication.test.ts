@@ -15,6 +15,7 @@ import type {
 } from "../../shared/agent";
 import type { PineAttachment } from "../../shared/attachments";
 import { createAgentHost } from "./agentHostFixture";
+import { OPEN_PROJECT_CHANNEL } from "../../shared/projects";
 
 const roots: string[] = [];
 const applications: WebApplication[] = [];
@@ -55,6 +56,13 @@ async function fixture() {
     ],
   });
   const router = new PineRequestRouter();
+  // Mirrors main's rule for the browser: attach beside whoever holds it.
+  router.register(OPEN_PROJECT_CHANNEL, async (context, request) => {
+    const { id } = request as { id: string };
+    const opened = await projects.open(id);
+    await registry.share(context.clientId, opened, projects.dataPaths(id));
+    return { opened: true, project: opened };
+  });
   router.register("sessions:prompt", (context, request) =>
     registry.prompt(context.clientId, request as PromptSessionRequest),
   );
@@ -70,7 +78,6 @@ async function fixture() {
   const application = new WebApplication({
     router,
     runtimes: registry,
-    projects,
     state: new WebSessionState(),
     rendererRoot: root,
     previewPath: () => Promise.reject(new Error("Not used")),

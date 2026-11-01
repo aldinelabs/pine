@@ -2881,45 +2881,36 @@ handleServiceRequest(
   async (event, request: unknown): Promise<OpenProjectResult> => {
     const { id } = ProjectIdRequestSchema.parse(request);
     const repository = getProjectRepository();
-    // Opening again must not restart a runtime the window already holds.
-    if (getProjectRuntimes().isOpen(event.clientId, id)) {
+    const runtimes = getProjectRuntimes();
+    // Opening again must not restart a runtime the client already holds.
+    if (runtimes.isOpen(event.clientId, id)) {
       return { opened: true, project: await repository.open(id) };
-    }
-    if (
-      isTemporaryWorkspace(id) &&
-      getProjectRuntimes().isOpen(WEB_CLIENT_ID, id)
-    ) {
-      const project = await repository.open(id);
-      await getProjectRuntimes().share(
-        event.clientId,
-        project,
-        repository.dataPaths(id),
-      );
-      return { opened: true, project };
     }
     // Every window needs the temporary workspace for new drafts, so it is the
     // one project several windows may hold; its sessions stay single-window.
-    const currentOwnerId = isTemporaryWorkspace(id)
-      ? undefined
-      : getProjectRuntimes().ownerOfProject(id);
-    if (currentOwnerId !== undefined && currentOwnerId !== event.clientId) {
-      const project = await repository.open(id);
-      const existingWindow = windowForWebContentsId(currentOwnerId);
+    const otherHolders = isTemporaryWorkspace(id)
+      ? []
+      : runtimes
+          .clientsOfProject(id)
+          .filter((clientId) => clientId !== event.clientId);
+    // A window hands the project to the window that already holds it.
+    if (event.source === "desktop") {
+      const existingWindow = otherHolders
+        .map((clientId) => windowForWebContentsId(clientId))
+        .find((window) => window !== undefined);
       if (existingWindow) {
         focusWindow(existingWindow);
-        return { opened: false, project };
+        return { opened: false, project: await repository.open(id) };
       }
-      if (currentOwnerId === WEB_CLIENT_ID) {
-        const project = await repository.open(id);
-        await getProjectRuntimes().share(
-          event.clientId,
-          project,
-          repository.dataPaths(id),
-        );
-        return { opened: true, project };
-      }
-      await getProjectRuntimes().dispose(currentOwnerId);
     }
+    // The browser interface attaches beside windows rather than taking over.
+    if (event.source === "web" || runtimes.isOpen(WEB_CLIENT_ID, id)) {
+      const project = await repository.open(id);
+      await runtimes.share(event.clientId, project, repository.dataPaths(id));
+      return { opened: true, project };
+    }
+    // Holders left without a window, such as a crashed renderer.
+    for (const clientId of otherHolders) await runtimes.dispose(clientId);
 
     const pendingKey = isTemporaryWorkspace(id)
       ? `${id}:${event.clientId}`
@@ -3582,7 +3573,6 @@ async function initializeApp(): Promise<void> {
   webApplication = new WebApplication({
     router: requestRouter,
     runtimes: projectRuntimes,
-    projects: projectRepository,
     state: webSessionState,
     rendererRoot: path.join(__dirname, `../renderer/${MAIN_WINDOW_VITE_NAME}`),
     devUrl: MAIN_WINDOW_VITE_DEV_SERVER_URL || undefined,
