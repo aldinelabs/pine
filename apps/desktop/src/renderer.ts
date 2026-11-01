@@ -7,6 +7,7 @@ import {
   createAppI18n,
   resolveAppLocale,
 } from "./app/i18n";
+import { isWebClient } from "./lib/clientRuntime";
 import { playCompletionSound } from "./lib/completionSound";
 import { createAppRouter } from "./router";
 import { useAppearanceStore } from "./stores/appearance";
@@ -34,6 +35,7 @@ async function startRenderer(): Promise<void> {
 
   document.documentElement.lang = locale;
   document.documentElement.dataset.platform = window.pine?.platform ?? "darwin";
+  document.documentElement.dataset.client = isWebClient() ? "web" : "desktop";
   // The floating composer window is transparent from its first frame, before
   // its view mounts.
   if (window.location.hash.startsWith(`#/${QUICK_COMPOSER_ROUTE_HASH}`))

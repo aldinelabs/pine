@@ -292,6 +292,12 @@
   --window-titlebar-trailing-actions-width: 3rem;
 }
 
+/* A browser tab draws no window controls of its own. */
+[data-client="web"] {
+  --window-titlebar-leading-offset: 0.75rem;
+  --window-titlebar-leading-extra: 0rem;
+}
+
 :root.dark {
   --pine-olive-background: oklch(0.153 0.006 107.1);
   --background: var(--pine-olive-background);
