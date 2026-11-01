@@ -4,7 +4,7 @@ permissions:
   contents: read
 jobs:
   debug:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
@@ -27,3 +27,7 @@ jobs:
           echo "--- bwrap capdrop nested"; bwrap --ro-bind / / --dev /dev --unshare-user --cap-drop ALL --proc /proc --unshare-pid unshare -Ur echo nested-ok || true
           echo "--- bwrap no capdrop nested"; bwrap --ro-bind / / --dev /dev --unshare-user --proc /proc --unshare-pid unshare -Ur echo nested-nocapdrop-ok || true
           echo "--- bwrap bind proc nested"; bwrap --ro-bind / / --dev /dev --unshare-user --cap-drop ALL --bind /proc /proc --unshare-pid unshare -Ur echo nested-bindproc-ok || true
+      - name: Sandbox debug test
+        run: |
+          cp .github/debug/dbg.test.ts apps/desktop/src/agent/__tests__/dbg.test.ts
+          cd apps/desktop && npx vitest run src/agent/__tests__/dbg.test.ts src/agent/__tests__/sandbox.test.ts 2>&1 | grep -E "CMD|Error|bwrap|apply|Tests |FAIL"
