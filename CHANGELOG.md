@@ -9,6 +9,13 @@ Every release section here has a matching section in the Chinese changelog.
 
 ## [Unreleased]
 
+## [0.14.0] - 2026-11-01
+
+### Added
+
+- Generate videos through OpenRouter: choose a video model in Settings, then request videos in a conversation. Depending on the model, use first and last frames, image/audio/video references, generated audio, continuation and editing, video upscaling, and model-specific options.
+- Video generation jobs retain their progress so you can resume checking and downloading after interrupting a wait or restarting Pine without submitting a new generation request. Conversations show queued, generating, saved, and failed states; generated videos can be saved and previewed in Pine.
+
 ## [0.13.1] - 2026-11-01
 
 ### Added
