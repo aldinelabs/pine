@@ -46,6 +46,11 @@ interface RunningServer {
   port: number;
 }
 
+/** Browsers share cookies across ports, so each port signs in separately. */
+function cookieName(port: number): string {
+  return `pine_web_${port}`;
+}
+
 function sameSecret(left: string, right: string): boolean {
   const a = Buffer.from(left),
     b = Buffer.from(right);
@@ -271,19 +276,20 @@ export class LocalWebServer {
       }
       response.setHeader(
         "Set-Cookie",
-        `pine_web=${running.cookie}; HttpOnly; SameSite=Strict; Path=/`,
+        `${cookieName(running.port)}=${running.cookie}; HttpOnly; SameSite=Strict; Path=/`,
       );
       response.writeHead(204);
       response.end();
       return;
     }
+    const prefix = `${cookieName(running.port)}=`;
     const authenticated = (request.headers.cookie ?? "")
       .split(";")
       .some((cookie) => {
         const value = cookie.trim();
         return (
-          value.startsWith("pine_web=") &&
-          sameSecret(value.slice(9), running.cookie)
+          value.startsWith(prefix) &&
+          sameSecret(value.slice(prefix.length), running.cookie)
         );
       });
     if (url.pathname.startsWith("/api/") && !authenticated) {
