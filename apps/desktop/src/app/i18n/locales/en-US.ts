@@ -1,5 +1,6 @@
 export default {
   common: {
+    back: "Back",
     downloadFile: "Download file",
     cancel: "Cancel",
     delete: "Delete",

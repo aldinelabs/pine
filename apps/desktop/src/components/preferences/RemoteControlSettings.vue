@@ -161,7 +161,7 @@ async function openInBrowser(): Promise<void> {
       />
     </Field>
 
-    <Field orientation="horizontal">
+    <Field orientation="responsive">
       <div class="flex min-w-0 flex-1 flex-col gap-1">
         <FieldTitle>
           {{ t("preferences.remoteControl.accessLink") }}

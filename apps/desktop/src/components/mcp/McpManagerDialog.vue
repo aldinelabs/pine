@@ -3,6 +3,7 @@ import { PlusIcon, RefreshCwIcon, Trash2Icon } from "@lucide/vue";
 import { computed, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { toast } from "vue-sonner";
+import { PHONE_FULLSCREEN_DIALOG } from "@/lib/dialogLayout";
 import { Badge } from "@/components/ui/badge";
 import {
   AlertDialog,
@@ -209,13 +210,18 @@ function statusFor(name: string): string {
 
 <template>
   <Dialog v-model:open="open">
-    <DialogContent class="max-h-[85vh] sm:max-w-2xl">
+    <DialogContent
+      :class="[
+        'max-h-[85vh] sm:max-w-2xl max-sm:flex max-sm:flex-col',
+        PHONE_FULLSCREEN_DIALOG,
+      ]"
+    >
       <DialogHeader>
         <DialogTitle>{{ t("mcp.title") }}</DialogTitle>
         <DialogDescription>{{ t("mcp.description") }}</DialogDescription>
       </DialogHeader>
 
-      <Tabs v-model="scope" class="min-h-0">
+      <Tabs v-model="scope" class="min-h-0 max-sm:flex-1">
         <TabsList>
           <TabsTrigger value="project">{{ t("mcp.project") }}</TabsTrigger>
           <TabsTrigger value="global">{{ t("mcp.global") }}</TabsTrigger>
@@ -224,11 +230,12 @@ function statusFor(name: string): string {
           v-for="tab in ['project', 'global'] as const"
           :key="tab"
           :value="tab"
+          class="max-sm:flex max-sm:min-h-0 max-sm:flex-col"
         >
           <p class="mb-3 text-xs text-muted-foreground">
             {{ catalog?.paths[tab] }}
           </p>
-          <ScrollArea class="max-h-[48vh]">
+          <ScrollArea class="max-h-[48vh] max-sm:max-h-none max-sm:min-h-0">
             <ItemGroup v-if="servers.length">
               <Item
                 v-for="server in servers"
@@ -279,7 +286,7 @@ function statusFor(name: string): string {
           </ScrollArea>
         </TabsContent>
       </Tabs>
-      <DialogFooter>
+      <DialogFooter class="max-sm:flex-row max-sm:justify-end">
         <Button
           variant="outline"
           size="icon"
@@ -295,14 +302,21 @@ function statusFor(name: string): string {
     </DialogContent>
   </Dialog>
   <Dialog v-model:open="editing">
-    <DialogContent class="max-h-[85vh] sm:max-w-2xl">
+    <DialogContent
+      :class="[
+        'max-h-[85vh] sm:max-w-2xl max-sm:flex max-sm:flex-col',
+        PHONE_FULLSCREEN_DIALOG,
+      ]"
+    >
       <DialogHeader>
         <DialogTitle>{{
           previousName ? t("mcp.editTitle") : t("mcp.add")
         }}</DialogTitle>
         <DialogDescription>{{ t("mcp.definitionHelp") }}</DialogDescription>
       </DialogHeader>
-      <ScrollArea class="max-h-[55vh] pr-4">
+      <ScrollArea
+        class="max-h-[55vh] pr-4 max-sm:max-h-none max-sm:min-h-0 max-sm:flex-1"
+      >
         <FieldGroup>
           <Field :data-invalid="!!error">
             <FieldLabel for="mcp-name">{{ t("mcp.name") }}</FieldLabel>

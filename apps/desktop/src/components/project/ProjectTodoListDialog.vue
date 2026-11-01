@@ -7,6 +7,7 @@ import {
 } from "@lucide/vue";
 import { computed } from "vue";
 import { useI18n } from "vue-i18n";
+import { PHONE_FULLSCREEN_DIALOG } from "@/lib/dialogLayout";
 import {
   sanitizeTaskText,
   selectTasksByStatus,
@@ -97,7 +98,12 @@ function blockedBy(task: Task): string | undefined {
 
 <template>
   <Dialog v-model:open="open">
-    <DialogContent class="max-h-[80vh] overflow-y-auto sm:max-w-lg">
+    <DialogContent
+      :class="[
+        'max-h-[80vh] overflow-y-auto sm:max-w-lg',
+        PHONE_FULLSCREEN_DIALOG,
+      ]"
+    >
       <DialogHeader>
         <DialogTitle>{{ t("project.todos.dialog.title") }}</DialogTitle>
         <DialogDescription :class="!summary && 'sr-only'">

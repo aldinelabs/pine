@@ -187,6 +187,49 @@ describe("PinePreferencesDialog", () => {
     wrapper.unmount();
   });
 
+  it("shows the section list and one section at a time on a phone", async () => {
+    vi.stubGlobal(
+      "matchMedia",
+      vi.fn((query: string) => ({
+        matches: query === "(width < 40rem)",
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+      })),
+    );
+    try {
+      installPineApi("darwin");
+      const { pinia, wrapper } = mountDialog();
+      vi.spyOn(useModelsStore(pinia), "load").mockResolvedValue(undefined);
+      const nav = () => wrapper.get("nav").element as HTMLElement;
+      expect(nav().style.display).toBe("");
+      expect(
+        wrapper.find('[data-testid="pine-preferences-back"]').exists(),
+      ).toBe(false);
+
+      await openSection(wrapper, "通用");
+      expect(nav().style.display).toBe("none");
+      expect(wrapper.text()).toContain("语言");
+
+      await wrapper
+        .get('[data-testid="pine-preferences-back"]')
+        .trigger("click");
+      expect(nav().style.display).toBe("");
+
+      // Shortcuts that name a section go straight to it.
+      (wrapper.vm as unknown as { open(section: string): void }).open(
+        "projects",
+      );
+      await flushPromises();
+      expect(nav().style.display).toBe("none");
+      expect(
+        wrapper.find('[data-testid="pine-preferences-back"]').exists(),
+      ).toBe(true);
+      wrapper.unmount();
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
   it("opens at the section a caller asks for", async () => {
     installPineApi("darwin");
     const { pinia, wrapper } = mountDialog();

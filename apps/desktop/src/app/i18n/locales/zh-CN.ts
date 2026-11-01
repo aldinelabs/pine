@@ -1,5 +1,6 @@
 export default {
   common: {
+    back: "返回",
     downloadFile: "下载文件",
     cancel: "取消",
     delete: "删除",

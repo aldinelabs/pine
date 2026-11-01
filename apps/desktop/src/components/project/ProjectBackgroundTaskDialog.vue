@@ -4,6 +4,7 @@ import { useIntervalFn, useNow } from "@vueuse/core";
 import { storeToRefs } from "pinia";
 import { computed, nextTick, onBeforeUnmount, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
+import { PHONE_FULLSCREEN_DIALOG } from "@/lib/dialogLayout";
 import { toast } from "vue-sonner";
 import { formatDuration, formatSize } from "@pine/pi-background-tasks";
 import { Badge } from "@/components/ui/badge";
@@ -208,7 +209,10 @@ async function stop(): Promise<void> {
   <Dialog v-model:open="open">
     <DialogContent
       data-testid="project-background-task-dialog"
-      class="max-h-[85vh] gap-4 overflow-hidden sm:max-w-2xl"
+      :class="[
+        'max-h-[85vh] gap-4 overflow-hidden sm:max-w-2xl',
+        PHONE_FULLSCREEN_DIALOG,
+      ]"
     >
       <DialogHeader>
         <div class="flex min-w-0 items-center gap-2 pr-6">
