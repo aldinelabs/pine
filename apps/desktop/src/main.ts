@@ -1208,7 +1208,9 @@ function getProjectRuntimes(): ProjectRuntimeRegistry {
   return projectRuntimes;
 }
 
-const requestRouter = new PineRequestRouter();
+const requestRouter = new PineRequestRouter((channel, clientId, run) =>
+  runtimeDiagnostics ? runtimeDiagnostics.trace(channel, clientId, run) : run(),
+);
 function handleServiceRequest(
   channel: string,
   handler: PineRequestHandler,
@@ -1219,11 +1221,7 @@ function handleServiceRequest(
       clientId: event.sender.id,
       source: "desktop",
     };
-    return runtimeDiagnostics
-      ? runtimeDiagnostics.trace(channel, event.sender.id, () =>
-          handler(context, request),
-        )
-      : handler(context, request);
+    return requestRouter.invoke(channel, context, request);
   });
 }
 
