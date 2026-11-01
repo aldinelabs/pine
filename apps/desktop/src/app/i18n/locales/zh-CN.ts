@@ -32,18 +32,19 @@ export default {
     failed: "无法安装更新。",
   },
   preferences: {
-    webControl: {
-      title: "浏览器访问",
-      description:
-        "在这台电脑的浏览器中使用 Pine。使用期间需保持 Pine 运行，服务仅监听 127.0.0.1。",
-      running: "运行中",
-      copyLink: "复制链接",
-      copied: "已复制",
-      open: "在浏览器中打开",
+    remoteControl: {
+      browserAccess: "浏览器访问",
+      browserAccessDescription:
+        "在这台电脑的浏览器中使用 Pine。服务仅监听 127.0.0.1，Pine 需保持运行。",
+      browserAccessRunning: "正在 {address} 上运行。",
       port: "端口",
-      apply: "应用",
+      portDescription: "修改后需要重新打开访问链接。",
       invalidPort: "端口需在 {min} 到 {max} 之间。",
-      linkNotice: "链接可直接登录 Pine，请勿分享。",
+      accessLink: "访问链接",
+      accessLinkDescription: "链接可直接登录 Pine，请勿分享。",
+      copyLink: "复制链接",
+      linkCopied: "已复制访问链接",
+      open: "在浏览器中打开",
     },
     projectManagement: {
       title: "项目管理",
@@ -75,6 +76,7 @@ export default {
       models: "执行环境",
       personalization: "自定义",
       projects: "项目管理",
+      remote: "远程控制",
     },
     sectionsLabel: "设置分类",
     language: "语言",
@@ -1501,6 +1503,12 @@ export default {
     contextCompactionRoute: {
       title: "无法更新上下文压缩途径",
       description: "请稍后重试",
+    },
+    remoteControl: {
+      loadTitle: "无法读取远程控制设置",
+      saveTitle: "无法更新浏览器访问",
+      description: "请稍后重试。",
+      portInUse: "端口 {port} 已被占用，请换一个端口。",
     },
     quickComposer: {
       title: "无法更新快速提问设置",

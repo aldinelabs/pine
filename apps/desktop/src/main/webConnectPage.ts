@@ -6,11 +6,11 @@ const COPY = {
     connecting: ["Signing in…", "Connecting this browser to Pine."],
     missing: [
       "Open Pine from its link",
-      "In Pine, go to Settings → General → Browser access and choose Open in browser or Copy link.",
+      "In Pine, go to Settings → Remote control and choose Open in browser or Copy link.",
     ],
     failed: [
       "This link no longer works",
-      "Pine may have restarted or changed its port. Open a fresh link from Settings → General → Browser access.",
+      "Pine may have restarted or changed its port. Open a fresh link from Settings → Remote control.",
     ],
     retry: "Try again",
   },
@@ -18,11 +18,11 @@ const COPY = {
     connecting: ["正在登录…", "正在将此浏览器连接到 Pine。"],
     missing: [
       "请通过 Pine 提供的链接打开",
-      "在 Pine 中前往 设置 → 通用 → 浏览器访问，选择「在浏览器中打开」或「复制链接」。",
+      "在 Pine 中前往 设置 → 远程控制，选择「在浏览器中打开」或「复制链接」。",
     ],
     failed: [
       "此链接已失效",
-      "Pine 可能已重启或更换了端口。请从 设置 → 通用 → 浏览器访问 重新获取链接。",
+      "Pine 可能已重启或更换了端口。请从 设置 → 远程控制 重新获取链接。",
     ],
     retry: "重试",
   },

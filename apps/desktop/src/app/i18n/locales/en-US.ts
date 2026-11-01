@@ -34,18 +34,20 @@ export default {
     failed: "The update could not be installed.",
   },
   preferences: {
-    webControl: {
-      title: "Browser access",
-      description:
-        "Use Pine from a web browser on this computer. Pine must keep running; the service listens on 127.0.0.1 only.",
-      running: "Running",
-      copyLink: "Copy link",
-      copied: "Copied",
-      open: "Open in browser",
+    remoteControl: {
+      browserAccess: "Browser access",
+      browserAccessDescription:
+        "Use Pine from a browser on this computer. The service listens on 127.0.0.1 only, and Pine must keep running.",
+      browserAccessRunning: "Running at {address}.",
       port: "Port",
-      apply: "Apply",
+      portDescription: "After changing it, open the access link again.",
       invalidPort: "Use a port from {min} to {max}.",
-      linkNotice: "The link signs a browser in to Pine. Don't share it.",
+      accessLink: "Access link",
+      accessLinkDescription:
+        "The link signs a browser in to Pine. Don't share it.",
+      copyLink: "Copy link",
+      linkCopied: "Access link copied",
+      open: "Open in browser",
     },
     projectManagement: {
       title: "Projects",
@@ -78,6 +80,7 @@ export default {
       models: "Harness",
       personalization: "User profile",
       projects: "Projects",
+      remote: "Remote control",
     },
     sectionsLabel: "Settings sections",
     language: "Language",
@@ -1550,6 +1553,12 @@ export default {
     contextCompactionRoute: {
       title: "Unable to update context compaction method",
       description: "Try again in a moment",
+    },
+    remoteControl: {
+      loadTitle: "Unable to load remote control settings",
+      saveTitle: "Unable to update browser access",
+      description: "Please try again later.",
+      portInUse: "Port {port} is already in use. Choose another port.",
     },
     quickComposer: {
       title: "Unable to update quick composer settings",

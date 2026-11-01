@@ -162,6 +162,31 @@ describe("PinePreferencesDialog", () => {
     installPineApi(undefined);
   });
 
+  it("offers remote control only where the window can host browser access", async () => {
+    installPineApi("darwin");
+    const sectionLabels = (wrapper: VueWrapper) =>
+      wrapper.findAll('[data-slot="item"]').map((item) => item.text());
+    const withoutHost = mountDialog().wrapper;
+    expect(sectionLabels(withoutHost)).not.toContain("远程控制");
+    withoutHost.unmount();
+
+    Object.assign(window.pine, {
+      getWebServer: vi.fn().mockResolvedValue({ enabled: false, port: 9415 }),
+    });
+    const { wrapper } = mountDialog();
+    expect(sectionLabels(wrapper)).toContain("远程控制");
+    await openSection(wrapper, "远程控制");
+    expect(
+      wrapper.find('[data-testid="remote-control-settings"]').exists(),
+    ).toBe(true);
+    // Browser access no longer lives among the general settings.
+    await openSection(wrapper, "通用");
+    expect(
+      wrapper.find('[data-testid="remote-control-settings"]').exists(),
+    ).toBe(false);
+    wrapper.unmount();
+  });
+
   it("opens at the section a caller asks for", async () => {
     installPineApi("darwin");
     const { pinia, wrapper } = mountDialog();

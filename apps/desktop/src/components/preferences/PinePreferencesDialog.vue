@@ -4,6 +4,7 @@ import { handleError } from "@/app/errors/errorHandler";
 import {
   CircleHelpIcon,
   FolderKanbanIcon,
+  MonitorSmartphoneIcon,
   SettingsIcon,
   SlidersHorizontalIcon,
   SparklesIcon,
@@ -22,7 +23,7 @@ import {
 import { useI18n } from "vue-i18n";
 import { toast } from "vue-sonner";
 import { isAppLocale, persistAppLocale } from "@/app/i18n";
-import WebControlSettings from "./WebControlSettings.vue";
+import RemoteControlSettings from "./RemoteControlSettings.vue";
 import AutoApprovalSettings from "./AutoApprovalSettings.vue";
 import DecisionsModelSettings from "./DecisionsModelSettings.vue";
 import ProjectManagementSettings from "./ProjectManagementSettings.vue";
@@ -96,11 +97,12 @@ import {
   type PineUserProfile,
 } from "@/shared/userProfile";
 
-type PreferenceSection = "general" | "models" | "personalization" | "projects";
+type PreferenceSection =
+  "general" | "models" | "personalization" | "projects" | "remote";
 
 const { locale, t } = useI18n();
 const isDesktop = isDesktopClient();
-const windowSupportsWebServer =
+const supportsRemoteControl =
   isDesktop && typeof window.pine?.getWebServer === "function";
 const appearanceStore = useAppearanceStore();
 const modelsStore = useModelsStore();
@@ -212,6 +214,16 @@ const sections = computed<
     id: "projects",
     label: t("preferences.sections.projects"),
   },
+  // Only the desktop window can host browser access.
+  ...(supportsRemoteControl
+    ? [
+        {
+          icon: MonitorSmartphoneIcon,
+          id: "remote" as const,
+          label: t("preferences.sections.remote"),
+        },
+      ]
+    : []),
 ]);
 
 const imageModelSummary = computed(() =>
@@ -1102,8 +1114,6 @@ defineExpose({ open });
                 />
               </Field>
 
-              <WebControlSettings v-if="windowSupportsWebServer" />
-
               <Field v-if="isDesktop" orientation="horizontal">
                 <div class="flex min-w-0 flex-1 flex-col gap-1">
                   <FieldTitle id="pine-quick-composer-setting">
@@ -1377,6 +1387,9 @@ defineExpose({ open });
           </div>
           <div v-else-if="activeSection === 'projects'" class="p-6">
             <ProjectManagementSettings />
+          </div>
+          <div v-else-if="activeSection === 'remote'" class="p-6">
+            <RemoteControlSettings />
           </div>
         </ScrollArea>
       </div>
