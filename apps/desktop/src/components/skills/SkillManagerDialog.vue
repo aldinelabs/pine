@@ -355,7 +355,7 @@ watch(activeScope, () => {
       >
         <Button
           data-testid="skill-manager-back"
-          variant="ghost"
+          variant="secondary"
           size="icon-sm"
           :aria-label="t('common.back')"
           @click="isEditorShown = false"

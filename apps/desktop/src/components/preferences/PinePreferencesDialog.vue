@@ -786,7 +786,7 @@ defineExpose({ open });
       >
         <Button
           data-testid="pine-preferences-back"
-          variant="ghost"
+          variant="secondary"
           size="icon-sm"
           :aria-label="t('common.back')"
           @click="isSectionShown = false"
