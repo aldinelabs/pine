@@ -734,7 +734,7 @@ function handleRootSubmit(event: Event): void {
     :is="hasPendingInterruption ? 'div' : 'form'"
     :class="
       cn(
-        'mx-auto w-full max-w-[var(--session-composer-max-width)] px-[var(--session-composer-gutter)]',
+        '@container/composer mx-auto w-full max-w-[var(--session-composer-max-width)] px-[var(--session-composer-gutter)]',
         hasPendingInterruption ? 'pb-4' : 'pb-3',
       )
     "
@@ -830,7 +830,7 @@ function handleRootSubmit(event: Event): void {
               @remove="removeAttachment"
             />
 
-            <div class="flex w-full items-center">
+            <div class="session-composer-row flex w-full items-center">
               <InputGroupAddon
                 class="self-end py-1.5 pl-2.5"
                 align="inline-start"
@@ -1013,6 +1013,7 @@ function handleRootSubmit(event: Event): void {
             <Button
               data-slot="approval-mode-trigger"
               class="min-w-0"
+              :aria-label="selectedApprovalMode.label"
               type="button"
               variant="ghost"
               size="sm"
@@ -1025,7 +1026,7 @@ function handleRootSubmit(event: Event): void {
               <span
                 :class="
                   cn(
-                    'truncate',
+                    'session-composer-approval-label truncate',
                     approvalModeColorClasses[selectedApprovalMode.value],
                   )
                 "
@@ -1066,7 +1067,7 @@ function handleRootSubmit(event: Event): void {
           </DropdownMenuContent>
         </DropdownMenu>
 
-        <ContextUsageIndicator />
+        <ContextUsageIndicator class="shrink-0" />
       </div>
 
       <DropdownMenu>
@@ -1279,6 +1280,35 @@ function handleRootSubmit(event: Event): void {
 .session-composer-input {
   padding-inline-start: var(--session-composer-control-inset);
   padding-inline-end: var(--session-input-padding-inline, 1rem);
+}
+
+/* At phone width the message takes the whole first row; its actions move to
+   a row below, and the approval mode shows only its icon. */
+@container composer (width < 28rem) {
+  .session-composer-row {
+    flex-wrap: wrap;
+  }
+
+  .session-composer-row > .session-composer-input {
+    order: 0;
+    flex-basis: 100%;
+    padding-inline: var(--session-input-padding-inline, 1rem);
+    padding-bottom: 0.25rem;
+  }
+
+  .session-composer-row > [data-align="inline-start"] {
+    order: 1;
+  }
+
+  .session-composer-row > [data-align="inline-end"] {
+    order: 2;
+    max-width: none;
+    margin-inline-start: auto;
+  }
+
+  .session-composer-approval-label {
+    display: none;
+  }
 }
 
 .reasoning-effort-slider :deep([data-slot="slider-thumb"]),
