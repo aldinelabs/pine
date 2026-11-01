@@ -36,6 +36,9 @@ async function startRenderer(): Promise<void> {
   document.documentElement.lang = locale;
   document.documentElement.dataset.platform = window.pine?.platform ?? "darwin";
   document.documentElement.dataset.client = isWebClient() ? "web" : "desktop";
+  // iOS Safari only applies :active on tap once the page listens for touches,
+  // and touch screens never match hover, so taps would show no feedback.
+  document.addEventListener("touchstart", () => undefined, { passive: true });
   // The floating composer window is transparent from its first frame, before
   // its view mounts.
   if (window.location.hash.startsWith(`#/${QUICK_COMPOSER_ROUTE_HASH}`))

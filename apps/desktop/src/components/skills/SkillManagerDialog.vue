@@ -414,7 +414,7 @@ watch(activeScope, () => {
                         type="button"
                         variant="muted"
                         size="sm"
-                        class="min-h-20 justify-center hover:bg-muted"
+                        class="min-h-20 justify-center hover:bg-muted active:bg-muted"
                         @click="createFromList"
                       >
                         <ItemMedia variant="icon">
@@ -434,7 +434,7 @@ watch(activeScope, () => {
                         "
                         size="sm"
                         role="listitem"
-                        class="min-w-0 hover:bg-muted"
+                        class="min-w-0 hover:bg-muted active:bg-muted"
                       >
                         <ItemContent class="min-w-0">
                           <button

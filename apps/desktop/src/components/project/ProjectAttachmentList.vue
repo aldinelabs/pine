@@ -74,7 +74,7 @@ function formatFileSize(size: number): string {
           'project-attachment max-w-36',
           surface === 'composer' &&
             'rounded-[var(--session-composer-attachment-radius)]',
-          surface === 'message' && 'hover:bg-muted/50',
+          surface === 'message' && 'hover:bg-muted/50 active:bg-muted/50',
         )
       "
       size="sm"

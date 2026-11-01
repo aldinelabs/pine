@@ -826,7 +826,7 @@ defineExpose({ open });
             :aria-current="
               !isPhone && activeSection === section.id ? 'true' : undefined
             "
-            class="hover:bg-muted"
+            class="hover:bg-muted active:bg-muted"
             @click="showSection(section.id)"
           >
             <ItemMedia variant="icon">

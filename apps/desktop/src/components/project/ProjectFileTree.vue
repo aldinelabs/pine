@@ -981,7 +981,7 @@ onUnmounted(() => {
         v-if="isProjectTreeNode(item.value)"
         v-bind="item.bind"
         v-slot="{ isExpanded }"
-        class="flex h-7 w-full items-center gap-1 rounded-lg px-2 text-sm outline-none hover:bg-accent data-[context-open]:bg-accent focus-visible:ring-2 focus-visible:ring-ring data-[selected]:bg-accent"
+        class="flex h-7 w-full items-center gap-1 rounded-lg px-2 text-sm outline-none hover:bg-accent active:bg-accent data-[context-open]:bg-accent focus-visible:ring-2 focus-visible:ring-ring data-[selected]:bg-accent"
         :draggable="
           !item.value.isPlaceholder && !item.value.isUnavailable && !busy
         "
