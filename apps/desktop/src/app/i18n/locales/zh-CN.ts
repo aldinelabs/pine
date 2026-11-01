@@ -1525,7 +1525,7 @@ export default {
   },
   webSignIn: {
     title: "登录 Pine",
-    description: "输入在 Pine 设置 → 远程控制 中设置的浏览器访问密码。",
+    description: "输入远程控制的访问密码。",
     password: "密码",
     submit: "继续",
     signingIn: "正在登录…",

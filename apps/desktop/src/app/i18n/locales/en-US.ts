@@ -1576,8 +1576,7 @@ export default {
   },
   webSignIn: {
     title: "Sign in to Pine",
-    description:
-      "Enter the browser access password set in Pine under Settings → Remote Control.",
+    description: "Enter your Remote Control password.",
     password: "Password",
     submit: "Continue",
     signingIn: "Signing in…",
