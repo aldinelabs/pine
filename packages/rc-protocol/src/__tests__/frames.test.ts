@@ -56,6 +56,20 @@ describe("frames", () => {
     expect(Array.from(joined)).toEqual(Array.from(body));
   });
 
+  it("carries control messages between the devices", () => {
+    const control: Frame = {
+      type: "control",
+      stream: 0,
+      message: { type: "paired", roomSecret: "abc" },
+    };
+    expect(roundTrip(control)).toEqual(control);
+    const text = (value: string) => new TextEncoder().encode(value);
+    for (const payload of ["[1]", "3", "null", "not json"])
+      expect(() =>
+        decodeFrame(new Uint8Array([8, 0, 0, 0, 0, ...text(payload)])),
+      ).toThrow(FrameError);
+  });
+
   it("refuses a frame that is too large to send", () => {
     expect(() =>
       encodeFrame({

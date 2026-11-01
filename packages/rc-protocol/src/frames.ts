@@ -19,6 +19,7 @@ const TYPES = {
   cancel: 5,
   ping: 6,
   pong: 7,
+  control: 8,
 } as const;
 
 export interface RequestHead {
@@ -36,6 +37,8 @@ export type Frame =
   | { type: "request"; stream: number; head: RequestHead }
   | { type: "response"; stream: number; head: ResponseHead }
   | { type: "data"; stream: number; data: Uint8Array }
+  /** A message between the two devices themselves, always on stream 0. */
+  | { type: "control"; stream: number; message: Record<string, unknown> }
   | { type: "end" | "cancel" | "ping" | "pong"; stream: number };
 
 export class FrameError extends Error {}
@@ -105,6 +108,8 @@ export function encodeFrame(frame: Frame): Bytes {
   if (frame.type === "request" || frame.type === "response")
     payload = utf8(JSON.stringify(frame.head));
   else if (frame.type === "data") payload = frame.data;
+  else if (frame.type === "control")
+    payload = utf8(JSON.stringify(frame.message));
   if (payload.length > MAX_DATA_BYTES)
     throw new FrameError("The frame is too large.");
   const header = new Uint8Array(HEADER_BYTES);
@@ -137,6 +142,21 @@ export function decodeFrame(bytes: Uint8Array): Frame {
     }
     case TYPES.data:
       return { type: "data", stream, data: payload };
+    case TYPES.control: {
+      let message: unknown;
+      try {
+        message = JSON.parse(new TextDecoder().decode(payload));
+      } catch {
+        throw new FrameError("Invalid control message.");
+      }
+      if (!message || typeof message !== "object" || Array.isArray(message))
+        throw new FrameError("Invalid control message.");
+      return {
+        type: "control",
+        stream,
+        message: message as Record<string, unknown>,
+      };
+    }
     case TYPES.end:
     case TYPES.cancel:
     case TYPES.ping:
