@@ -58,6 +58,43 @@ afterEach(async () => {
 });
 
 describe("LocalWebServer", () => {
+  it("neither frames nor retains events while it is stopped", async () => {
+    const server = new LocalWebServer({
+      invoke: vi.fn(),
+      asset: vi.fn(),
+      snapshots: () => [],
+      resource: vi.fn(),
+      upload: vi.fn(),
+    });
+    servers.push(server);
+    const stringify = vi.spyOn(JSON, "stringify");
+    for (let index = 0; index < 50; index++)
+      server.publish("sessions:event", { index });
+    expect(stringify).not.toHaveBeenCalled();
+    stringify.mockRestore();
+    const status = await server.configure({
+      enabled: true,
+      port: await freePort(),
+    });
+    const url = new URL(status.url!);
+    const login = await fetch(`${url.origin}/api/connect`, {
+      method: "POST",
+      headers: { Origin: url.origin },
+      body: JSON.stringify({
+        token: new URLSearchParams(url.hash.slice(1)).get("access_token"),
+      }),
+    });
+    const controller = new AbortController();
+    const events = await fetch(`${url.origin}/api/events?after=1`, {
+      headers: { Cookie: login.headers.get("set-cookie")!.split(";")[0] },
+      signal: controller.signal,
+    });
+    const { value } = await events.body!.getReader().read();
+    controller.abort();
+    // Nothing was retained, so a stale cursor falls back to a snapshot.
+    expect(new TextDecoder().decode(value)).toContain(WEB_SNAPSHOT_CHANNEL);
+  });
+
   it("protects both application data and static assets and rejects foreign origins and hosts", async () => {
     const { origin, cookie, asset } = await fixture();
     expect((await fetch(`${origin}/api/rpc`)).status).toBe(401);

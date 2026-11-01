@@ -23,6 +23,10 @@ export class WebSessionState {
     this.sessions.delete(sessionId);
   }
 
+  clear(): void {
+    this.sessions.clear();
+  }
+
   observe(projectId: string, event: PineSessionEvent): void {
     const state = this.sessions.get(event.sessionId) ?? {
       projectId,

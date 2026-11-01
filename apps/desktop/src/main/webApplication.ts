@@ -104,6 +104,7 @@ export class WebApplication {
         this.generation++;
         await Promise.allSettled([...this.opening.values()]);
         this.subscriptions.clear();
+        this.options.state.clear();
         this.options.releaseSubscriptions();
         await this.options.runtimes.dispose(WEB_CLIENT_ID);
       }
@@ -119,7 +120,13 @@ export class WebApplication {
     );
   }
 
+  /**
+   * Live state is only tracked while the service runs, so desktop-only use pays
+   * nothing. A run already in progress when access is enabled is recovered from
+   * persisted history plus the events that follow.
+   */
   publishSession(event: PineSessionEvent): void {
+    if (!this.server.isRunning()) return;
     if (event.type === "session-reset")
       this.options.state.forget(event.sessionId);
     const project = this.options.runtimes.projectOfLiveSession(event.sessionId);

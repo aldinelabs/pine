@@ -104,6 +104,10 @@ export class LocalWebServer {
 
   constructor(private readonly options: LocalWebServerOptions) {}
 
+  isRunning(): boolean {
+    return this.running !== null;
+  }
+
   status(): WebServerStatus {
     const server = this.running;
     return {
@@ -139,6 +143,9 @@ export class LocalWebServer {
       const previous = this.running;
       this.running = null;
       this.configuredPort = settings.port;
+      // Signed-in browsers cannot reconnect to a new listener, so its replay is useless.
+      this.replay.length = 0;
+      this.replayBytes = 0;
       await this.close(previous);
       return this.status();
     }
@@ -205,7 +212,9 @@ export class LocalWebServer {
     await closed;
   }
 
+  /** Events are only framed and retained while browsers can connect. */
   publish(channel: string, value: unknown): void {
+    if (!this.running) return;
     const id = ++this.sequence;
     const frame = `id: ${id}\ndata: ${JSON.stringify({ channel, value } satisfies WebEvent)}\n\n`;
     this.replay.push({ id, frame });
