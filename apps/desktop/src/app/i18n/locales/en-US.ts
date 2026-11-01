@@ -66,7 +66,8 @@ export default {
         "Anyone who reaches Pine's address can read your projects, run agents, and run commands on this computer.",
       disablePasswordRiskLocal:
         "Any program or user on this computer can open 127.0.0.1 and do the same.",
-      disablePasswordRiskLan: "LAN access is turned off and stays off.",
+      disablePasswordRiskLan:
+        "With LAN access on, any device on the same network can do the same.",
       disablePasswordAction: "Turn off password",
       rememberFor: "Stay signed in",
       rememberForDescription:
@@ -80,7 +81,6 @@ export default {
       lan: "Allow LAN access",
       lanDescription:
         "Other devices on your network can open Pine. Traffic is unencrypted HTTP, so only use networks you trust.",
-      lanNeedsPassword: "Requires the password to be on.",
       publicOrigin: "Public address",
       publicOriginDescription:
         "If a reverse proxy or tunnel such as Cloudflare Tunnel serves Pine, enter its address.",

@@ -60,8 +60,9 @@ export default {
       disablePasswordRiskControl:
         "任何能访问 Pine 地址的人都能读取你的项目、运行 agent，并在这台电脑上执行命令。",
       disablePasswordRiskLocal:
-        "这台电脑上的任何程序或用户都能打开 127.0.0.1 做同样的事。",
-      disablePasswordRiskLan: "局域网访问将被关闭，且无法再开启。",
+        "本机上的任何程序都能通过 127.0.0.1 做同样的事。",
+      disablePasswordRiskLan:
+        "开启局域网访问后，同一网络中的任何设备也能这样做。",
       disablePasswordAction: "关闭密码",
       rememberFor: "保持登录",
       rememberForDescription: "浏览器输入密码后保持登录的时长。",
@@ -74,7 +75,6 @@ export default {
       lan: "允许局域网访问",
       lanDescription:
         "同一网络中的其他设备可以打开 Pine。流量为未加密的 HTTP，请只在可信网络中使用。",
-      lanNeedsPassword: "需要开启密码。",
       publicOrigin: "公开地址",
       publicOriginDescription:
         "通过反向代理或隧道（如 Cloudflare Tunnel）访问 Pine 时，填写其地址。",

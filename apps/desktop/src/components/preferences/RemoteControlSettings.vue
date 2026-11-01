@@ -184,7 +184,7 @@ function updateRequirePassword(requirePassword: boolean): void {
 }
 
 function confirmDisablePassword(): void {
-  void configure({ requirePassword: false, lan: false });
+  void configure({ requirePassword: false });
 }
 
 function updateRememberFor(rememberFor: unknown): void {
@@ -397,11 +397,7 @@ async function openInBrowser(): Promise<void> {
           {{ t("preferences.remoteControl.lan") }}
         </FieldTitle>
         <FieldDescription>
-          {{
-            status.requirePassword
-              ? t("preferences.remoteControl.lanDescription")
-              : t("preferences.remoteControl.lanNeedsPassword")
-          }}
+          {{ t("preferences.remoteControl.lanDescription") }}
         </FieldDescription>
         <FieldDescription
           v-if="lanAddresses.length"
@@ -414,7 +410,7 @@ async function openInBrowser(): Promise<void> {
       <Switch
         data-testid="pine-browser-access-lan"
         :model-value="status.lan"
-        :disabled="isBusy || !status.requirePassword"
+        :disabled="isBusy"
         aria-labelledby="pine-browser-access-lan-setting"
         @update:model-value="updateLan"
       />

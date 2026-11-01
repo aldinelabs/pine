@@ -206,11 +206,6 @@ describe("LocalWebServer", () => {
     await expect(
       server.configure(settings({ enabled: true, port })),
     ).rejects.toThrow("password");
-    await expect(
-      server.configure(
-        settings({ enabled: true, port, lan: true, requirePassword: false }),
-      ),
-    ).rejects.toThrow("Invalid");
     const status = await server.configure(
       settings({
         enabled: true,

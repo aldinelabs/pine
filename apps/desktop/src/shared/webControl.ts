@@ -84,7 +84,6 @@ export function isWebServerSettings(
     typeof settings.lan === "boolean" &&
     WEB_REMEMBER_FOR.includes(settings.rememberFor as WebRememberFor) &&
     typeof settings.requirePassword === "boolean" &&
-    (settings.requirePassword || !settings.lan) &&
     (settings.publicOrigin === undefined ||
       (typeof settings.publicOrigin === "string" &&
         normalizeWebOrigin(settings.publicOrigin) === settings.publicOrigin))

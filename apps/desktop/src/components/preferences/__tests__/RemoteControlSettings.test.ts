@@ -138,7 +138,7 @@ describe("remote control settings", () => {
     wrapper.unmount();
   });
 
-  it("warns before turning the password off, which also turns LAN access off", async () => {
+  it("warns before turning the password off, leaving LAN access as it was", async () => {
     const setWebServer = vi.fn().mockResolvedValue({
       ...running,
       requirePassword: false,
@@ -163,9 +163,9 @@ describe("remote control settings", () => {
       ...DEFAULT_WEB_SERVER_SETTINGS,
       enabled: true,
       requirePassword: false,
-      lan: false,
+      lan: true,
     });
-    expect(toggle(wrapper, "lan").props("disabled")).toBe(true);
+    expect(toggle(wrapper, "lan").props("disabled")).toBe(false);
     expect(wrapper.text()).toContain(
       "Anyone who can reach this address controls Pine without signing in.",
     );
