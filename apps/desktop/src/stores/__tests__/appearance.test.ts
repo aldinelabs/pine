@@ -76,6 +76,21 @@ describe("appearance store", () => {
     expect(restored.sidebarVibrancy).toBe(false);
   });
 
+  it("switches users who turned sidebar vibrancy off back on exactly once", () => {
+    installPineApi("darwin");
+    window.localStorage.setItem(SIDEBAR_VIBRANCY_STORAGE_KEY, "false");
+
+    const store = useAppearanceStore();
+    store.initialize();
+    expect(store.sidebarVibrancy).toBe(true);
+
+    store.setSidebarVibrancy(false);
+    setActivePinia(createPinia());
+    const restored = useAppearanceStore();
+    restored.initialize();
+    expect(restored.sidebarVibrancy).toBe(false);
+  });
+
   it("ignores the sidebar vibrancy preference on other platforms", () => {
     installPineApi("win32");
     window.localStorage.setItem(SIDEBAR_VIBRANCY_STORAGE_KEY, "true");

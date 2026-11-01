@@ -9,6 +9,9 @@ import {
 export const THEME_PREFERENCE_STORAGE_KEY = "pine.theme-preference";
 export const PINE_COLOR_THEME_STORAGE_KEY = "pine.color-theme";
 export const SIDEBAR_VIBRANCY_STORAGE_KEY = "pine.sidebar-vibrancy";
+/** Set once the 0.13.0 migration has turned native sidebar on for everyone. */
+export const SIDEBAR_VIBRANCY_MIGRATED_STORAGE_KEY =
+  "pine.sidebar-vibrancy-migrated-0.13";
 export const SIDEBAR_VIBRANCY_CLASS = "sidebar-vibrancy";
 export const TRANSCRIPT_SERIF_STORAGE_KEY = "pine.transcript-serif";
 export const TRANSCRIPT_SERIF_CLASS = "transcript-serif";
@@ -62,6 +65,25 @@ function readStoredSidebarVibrancy(): boolean {
     );
   } catch {
     return true;
+  }
+}
+
+/**
+ * 0.13.0 makes the native sidebar the default: users who had turned it off
+ * are switched on once, and may turn it off again afterwards.
+ */
+function migrateSidebarVibrancyOnce(): void {
+  try {
+    if (
+      window.localStorage.getItem(SIDEBAR_VIBRANCY_MIGRATED_STORAGE_KEY) !==
+      null
+    ) {
+      return;
+    }
+    window.localStorage.setItem(SIDEBAR_VIBRANCY_STORAGE_KEY, "true");
+    window.localStorage.setItem(SIDEBAR_VIBRANCY_MIGRATED_STORAGE_KEY, "true");
+  } catch {
+    // Without storage the default (on) already applies.
   }
 }
 
@@ -144,6 +166,7 @@ export const useAppearanceStore = defineStore("appearance", () => {
     applyColorScheme();
     applyTranscriptSerif();
     if (supportsSidebarVibrancy.value) {
+      migrateSidebarVibrancyOnce();
       sidebarVibrancy.value = readStoredSidebarVibrancy();
       applySidebarVibrancy();
     }
