@@ -1114,6 +1114,11 @@ export default {
           error: "Couldn’t activate Computer Use",
           running: "Activating Computer Use",
         },
+        activatePineOps: {
+          complete: "Activated Pine operations",
+          error: "Couldn’t activate Pine operations",
+          running: "Activating Pine operations",
+        },
         questionnaire: {
           complete: "Received answers to {count} questions",
           error: "Couldn’t prepare the questions",

@@ -23,6 +23,7 @@ import {
 } from "@pine/pi-background-tasks";
 import { useProjectDisplayName } from "@/composables/useProjectDisplayName";
 import {
+  ACTIVATE_PINE_OPS_TOOL_NAME,
   UI_LIST_PROJECT_TOOL_NAME,
   UI_PRESENT_FILE_TOOL_NAME,
 } from "@/shared/agent";
@@ -113,8 +114,14 @@ function workbenchLabel(
   return t(`${base}.open.${state}`, { panel: panelName(input.panel) });
 }
 
-function isComputerUseActivationTool(name: string): boolean {
-  return normalizedToolName(name) === "activate_computer_use";
+/** Activation tools read as one sentence, keyed by their i18n group. */
+function activationKey(
+  name: string,
+): "activateComputerUse" | "activatePineOps" | undefined {
+  const normalized = normalizedToolName(name);
+  if (normalized === "activate_computer_use") return "activateComputerUse";
+  if (normalized === ACTIVATE_PINE_OPS_TOOL_NAME) return "activatePineOps";
+  return undefined;
 }
 
 function mcpOperation(name: string, input: Record<string, unknown>): string {
@@ -964,9 +971,10 @@ const presentation = computed(() => {
       after: "",
     };
   }
-  if (isComputerUseActivationTool(props.toolCall.name)) {
+  const activation = activationKey(props.toolCall.name);
+  if (activation) {
     return {
-      before: t(`project.transcript.tools.activateComputerUse.${state}`),
+      before: t(`project.transcript.tools.${activation}.${state}`),
       operation: undefined,
       separator: "",
       target: "",

@@ -1,4 +1,5 @@
 import {
+  AppWindowIcon,
   BookOpenIcon,
   ClapperboardIcon,
   EyeIcon,
@@ -69,5 +70,9 @@ describe("Computer Use tool kinds", () => {
     expect(MEDIA_OPERATION_ICON.activateMediaGeneration).toBe(ClapperboardIcon);
     expect(MEDIA_OPERATION_ICON.generateImage).toBe(WandSparklesIcon);
     expect(toolIconForName("generate_image")).toBe(WandSparklesIcon);
+  });
+
+  it("uses an app window icon for activating Pine operations", () => {
+    expect(toolIconForName("activate_pine_ops")).toBe(AppWindowIcon);
   });
 });

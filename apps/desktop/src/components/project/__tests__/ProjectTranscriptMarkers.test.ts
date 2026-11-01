@@ -1,5 +1,6 @@
 import { mount } from "@vue/test-utils";
 import {
+  AppWindowIcon,
   BookOpenIcon,
   CircleHelpIcon,
   EyeIcon,
@@ -537,6 +538,24 @@ describe("project transcript markers", () => {
 
     expect(content.text()).toBe("已获得 2 个问题的答案");
     expect(content.classes()).not.toContain("shimmer");
+  });
+
+  it("describes activating Pine operations without its raw name", () => {
+    const wrapper = mount(ProjectToolCallMarker, {
+      props: {
+        toolCall: {
+          id: "tool-pine-ops",
+          input: {},
+          name: "activate_pine_ops",
+          status: "complete",
+        },
+      },
+      global: { plugins: [createAppI18n("zh-CN")] },
+    });
+
+    const content = wrapper.get('[data-slot="marker-content"]');
+    expect(content.text()).toBe("已激活 Pine 操作");
+    expect(wrapper.findComponent(AppWindowIcon).exists()).toBe(true);
   });
 
   it("renders Skill operations with dedicated copy, targets, and icons", () => {

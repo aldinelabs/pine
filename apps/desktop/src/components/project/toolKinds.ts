@@ -1,4 +1,5 @@
 import {
+  AppWindowIcon,
   BookOpenIcon,
   ClapperboardIcon,
   EyeIcon,
@@ -31,6 +32,7 @@ import {
 import { TODO_TOOL_NAME } from "@pine/rpiv-todo";
 import { BACKGROUND_TASK_TOOL_NAMES } from "@pine/pi-background-tasks";
 import {
+  ACTIVATE_PINE_OPS_TOOL_NAME,
   RECALL_TOOL_NAME,
   UI_LIST_PROJECT_TOOL_NAME,
   UI_PRESENT_FILE_TOOL_NAME,
@@ -161,6 +163,8 @@ export function mediaOperationKey(name: string): MediaOperation | undefined {
 export function toolIconForName(name: string): Component {
   if (normalizedName(name) === UI_LIST_PROJECT_TOOL_NAME)
     return FolderSearchIcon;
+  if (normalizedName(name) === ACTIVATE_PINE_OPS_TOOL_NAME)
+    return AppWindowIcon;
   const skillOperation = skillOperationKey(name);
   if (skillOperation) return SKILL_OPERATION_ICON[skillOperation];
   const mediaOperation = mediaOperationKey(name);

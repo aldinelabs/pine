@@ -1070,6 +1070,11 @@ export default {
           error: "无法激活电脑操作",
           running: "正在激活电脑操作",
         },
+        activatePineOps: {
+          complete: "已激活 Pine 操作",
+          error: "无法激活 Pine 操作",
+          running: "正在激活 Pine 操作",
+        },
         questionnaire: {
           complete: "已获得 {count} 个问题的答案",
           error: "准备问题失败",

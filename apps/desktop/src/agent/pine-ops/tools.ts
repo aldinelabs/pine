@@ -1,8 +1,9 @@
 import { defineTool } from "@earendil-works/pi-coding-agent";
 import { Type } from "typebox";
+import { ACTIVATE_PINE_OPS_TOOL_NAME } from "../../shared/agent";
 import PINE_UI_REFERENCE from "./PINE_UI.md?raw";
 
-export const ACTIVATE_PINE_OPS_TOOL_NAME = "activate_pine_ops";
+export { ACTIVATE_PINE_OPS_TOOL_NAME };
 
 const emptyParams = Type.Object({}, { additionalProperties: false });
 
