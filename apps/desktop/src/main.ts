@@ -3748,10 +3748,7 @@ app.on("will-quit", () => {
 // for applications and their menu bar to stay active until the user quits
 // explicitly with Cmd + Q.
 app.on("window-all-closed", () => {
-  if (
-    process.platform !== "darwin" &&
-    !webApplication?.server.status().enabled
-  ) {
+  if (process.platform !== "darwin") {
     app.quit();
   }
 });
@@ -3762,7 +3759,6 @@ app.on("browser-window-created", (_event, window) => {
   window.once("closed", () => {
     if (
       process.platform !== "darwin" &&
-      !webApplication?.server.status().enabled &&
       !quickComposer.isAuxiliary(window) &&
       appWindows().every((other) => other === window)
     )
