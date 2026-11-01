@@ -6,6 +6,11 @@ import { WebApplication } from "./main/webApplication";
 import { WebSessionState } from "./main/webSessionState";
 import { WebAccessStore } from "./main/webAccess";
 import {
+  hasQuitBlockers,
+  quitConfirmationText,
+  type QuitBlockers,
+} from "./main/quitGuard";
+import {
   DEFAULT_WEB_SERVER_SETTINGS,
   GET_WEB_SERVER_CHANNEL,
   MIN_WEB_PASSWORD_LENGTH,
@@ -1892,9 +1897,12 @@ ipcMain.handle(
 ipcMain.handle(
   INSTALL_UPDATE_CHANNEL,
   async (): Promise<InstallUpdateResult> => {
+    // The user chose to restart into the update; the installer waits for exit.
+    quitConfirmed = true;
     try {
       return await getAppUpdater().install();
     } catch (error) {
+      quitConfirmed = false;
       broadcastUpdateEvent({ message: String(error), type: "error" });
       throw error;
     }
@@ -3551,6 +3559,10 @@ async function initializeApp(): Promise<void> {
     platform: process.platform,
   });
   powerMonitor.on("suspend", () => runtimeDiagnostics?.record("power:suspend"));
+  // The system is shutting down or logging out; never hold that up.
+  powerMonitor.on("shutdown", () => {
+    quitConfirmed = true;
+  });
   powerMonitor.on("resume", () => runtimeDiagnostics?.record("power:resume"));
   powerMonitor.on("lock-screen", () =>
     runtimeDiagnostics?.record("power:lock-screen"),
@@ -3765,6 +3777,75 @@ async function initializeApp(): Promise<void> {
 
 app.on("ready", () => {
   void initializeApp();
+});
+
+/** Set once the user agreed to quit, or the quit needs no confirmation. */
+let quitConfirmed = false;
+let quitConfirmation: Promise<void> | null = null;
+/** How long a running agent gets to stop its work before Pine quits anyway. */
+const AGENT_SHUTDOWN_TIMEOUT_MS = 5_000;
+
+function currentQuitBlockers(): QuitBlockers {
+  return {
+    remoteControl: webApplication?.server.isRunning() ?? false,
+    runningSessions: new Set([...runningSessions, ...sessionsWithRunningTasks])
+      .size,
+  };
+}
+
+/** Stop the agent process and its tools, and close browser access. */
+async function stopBackgroundWork(): Promise<void> {
+  const stopped = Promise.allSettled([
+    agentHost?.dispose(),
+    webApplication?.configure({
+      ...webApplication.server.status(),
+      enabled: false,
+    }),
+  ]);
+  let timeout: ReturnType<typeof setTimeout> | undefined;
+  await Promise.race([
+    stopped,
+    new Promise<void>((resolve) => {
+      timeout = setTimeout(resolve, AGENT_SHUTDOWN_TIMEOUT_MS);
+    }),
+  ]);
+  clearTimeout(timeout);
+}
+
+async function confirmQuit(blockers: QuitBlockers): Promise<void> {
+  const text = quitConfirmationText(blockers, isChineseLocale());
+  const options = {
+    type: "warning" as const,
+    ...text,
+    cancelId: 1,
+    defaultId: 0,
+    noLink: true,
+  };
+  const parent = BrowserWindow.getFocusedWindow() ?? appWindows()[0];
+  const { response } = parent
+    ? await dialog.showMessageBox(parent, options)
+    : await dialog.showMessageBox(options);
+  if (response !== 0) {
+    // Closing the last window started this quit on Windows and Linux; keep a
+    // window open so the running work stays reachable.
+    if (process.platform !== "darwin" && appWindows().length === 0)
+      createWindow();
+    return;
+  }
+  quitConfirmed = true;
+  await stopBackgroundWork();
+  app.quit();
+}
+
+// Running sessions and Remote Control end with Pine, so ask before quitting.
+app.on("before-quit", (event) => {
+  if (quitConfirmed) return;
+  const blockers = currentQuitBlockers();
+  if (!hasQuitBlockers(blockers)) return;
+  event.preventDefault();
+  quitConfirmation ??= confirmQuit(blockers).finally(() => {
+    quitConfirmation = null;
+  });
 });
 
 app.on("will-quit", () => {
