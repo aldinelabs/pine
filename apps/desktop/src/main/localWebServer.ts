@@ -12,6 +12,8 @@ import {
 } from "node:http";
 import type { Socket } from "node:net";
 import {
+  decodeWebJson,
+  encodeWebJson,
   DEFAULT_WEB_PORT,
   WEB_SNAPSHOT_CHANNEL,
   type WebEvent,
@@ -216,7 +218,7 @@ export class LocalWebServer {
   publish(channel: string, value: unknown): void {
     if (!this.running) return;
     const id = ++this.sequence;
-    const frame = `id: ${id}\ndata: ${JSON.stringify({ channel, value } satisfies WebEvent)}\n\n`;
+    const frame = `id: ${id}\ndata: ${encodeWebJson({ channel, value } satisfies WebEvent)}\n\n`;
     this.replay.push({ id, frame });
     this.replayBytes += Buffer.byteLength(frame);
     while (this.replayBytes > MAX_REPLAY_BYTES && this.replay.length > 1) {
@@ -312,7 +314,7 @@ export class LocalWebServer {
           if (event.id > cursor) response.write(event.frame);
       } else {
         response.write(
-          `id: ${this.sequence}\ndata: ${JSON.stringify({ channel: WEB_SNAPSHOT_CHANNEL, value: this.options.snapshots() })}\n\n`,
+          `id: ${this.sequence}\ndata: ${encodeWebJson({ channel: WEB_SNAPSHOT_CHANNEL, value: this.options.snapshots() })}\n\n`,
         );
       }
       const clientId = z
@@ -342,7 +344,7 @@ export class LocalWebServer {
             request: z.unknown().optional(),
             client: z.string().max(100).default("default"),
           })
-          .parse(JSON.parse((await readBody(request)).toString()));
+          .parse(decodeWebJson((await readBody(request)).toString()));
         const invoke = () =>
           this.options.invoke(input.channel, input.request, input.client);
         const result =
@@ -355,7 +357,7 @@ export class LocalWebServer {
                 invoke,
               );
         response.writeHead(200, { "Content-Type": "application/json" });
-        response.end(JSON.stringify({ result: result ?? null }));
+        response.end(encodeWebJson({ result: result ?? null }));
         return;
       }
       if (url.pathname === "/api/upload" && request.method === "POST") {

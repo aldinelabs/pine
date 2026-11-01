@@ -5,6 +5,16 @@ import type {
   PineAttachment,
 } from "../shared/attachments";
 import {
+  FILE_PREVIEW_CHANGED_CHANNEL,
+  PROJECT_FILE_OPERATION_CHANNEL,
+  SET_WATCHED_FILE_PREVIEW_CHANNEL,
+  SET_WATCHED_PROJECT_DIRECTORIES_CHANNEL,
+} from "../shared/projectFiles";
+import { GET_APP_VERSION_CHANNEL } from "../shared/window";
+import { WORKBENCH_STATE_RESPONSE_CHANNEL } from "../shared/workbench";
+import {
+  decodeWebJson,
+  encodeWebJson,
   WEB_SNAPSHOT_CHANNEL,
   type WebEvent,
   type WebSessionSnapshot,
@@ -28,16 +38,12 @@ function saveDownload(blob: Blob, name: string): void {
 }
 
 async function rpc<T>(channel: string, request?: unknown): Promise<T> {
-  const body = JSON.stringify(
-    { channel, request, id: crypto.randomUUID(), client: browserClientId },
-    (_key, value: unknown) => {
-      if (!(value instanceof Uint8Array)) return value;
-      let binary = "";
-      for (let offset = 0; offset < value.length; offset += 8192)
-        binary += String.fromCharCode(...value.subarray(offset, offset + 8192));
-      return btoa(binary);
-    },
-  );
+  const body = encodeWebJson({
+    channel,
+    request,
+    id: crypto.randomUUID(),
+    client: browserClientId,
+  });
   // A retry reuses the ID, so an accepted prompt cannot execute twice.
   let response: Response;
   try {
@@ -53,7 +59,18 @@ async function rpc<T>(channel: string, request?: unknown): Promise<T> {
       body,
     });
   }
-  const data = (await response.json()) as { result?: unknown; error?: string };
+  const text = await response.text();
+  let data: { result?: unknown; error?: string } = {};
+  try {
+    if (text) data = decodeWebJson(text) as typeof data;
+  } catch {
+    // Proxies and aborted responses may not return Pine's JSON envelope.
+  }
+  if (response.status === 401) {
+    // The signed-in cookie belongs to a listener that is gone; sign in again.
+    location.reload();
+    throw new Error("Reopen the browser link from Pine settings.");
+  }
   if (!response.ok) throw new Error(data.error ?? "Pine is unavailable.");
   return data.result as T;
 }
@@ -130,7 +147,7 @@ export async function initializeWebClient(): Promise<
     if (!connected.ok)
       throw new Error("Reopen the browser link from Pine settings.");
   }
-  await rpc("app:get-version");
+  await rpc(GET_APP_VERSION_CHANNEL);
   const handlers = new Map<string, Set<Listener>>();
   const watches = new Map<string, { channel: string; request: unknown }>();
   const wrappers = new WeakMap<object, Listener>();
@@ -147,9 +164,9 @@ export async function initializeWebClient(): Promise<
     isQuickComposerHandoff: false,
     getPathForFile: () => "",
     invoke: (channel, request) => {
-      if (channel === "project-files:set-watched-directories")
+      if (channel === SET_WATCHED_PROJECT_DIRECTORIES_CHANNEL)
         watches.set(channel, { channel, request });
-      if (channel === "project-files:set-watched-preview") {
+      if (channel === SET_WATCHED_FILE_PREVIEW_CHANNEL) {
         const watch = request as { watchId: string; target: unknown };
         const key = `${channel}/${watch.watchId}`;
         if (watch.target) watches.set(key, { channel, request });
@@ -158,7 +175,7 @@ export async function initializeWebClient(): Promise<
       return rpc(channel, request);
     },
     send: (channel, request) => {
-      if (channel === "workbench:state-response")
+      if (channel === WORKBENCH_STATE_RESPONSE_CHANNEL)
         void rpc(channel, request).catch(() => undefined);
     },
     on: <T>(channel: string, listener: (event: unknown, value: T) => void) => {
@@ -233,7 +250,7 @@ export async function initializeWebClient(): Promise<
         else await api.openAttachment({ path: attachment.path });
         return;
       }
-      await rpc("project-files:operate", request);
+      await rpc(PROJECT_FILE_OPERATION_CHANNEL, request);
     },
     operatePresentedFile: async (request) => {
       if (request.action === "copy-path")
@@ -263,8 +280,8 @@ export async function initializeWebClient(): Promise<
         void rpc(watch.channel, watch.request).catch(() => undefined);
     };
     events.onmessage = (message: MessageEvent<string>) => {
-      const event = JSON.parse(message.data) as WebEvent;
-      if (event.channel === "project-files:preview-changed") {
+      const event = decodeWebJson(message.data) as WebEvent;
+      if (event.channel === FILE_PREVIEW_CHANGED_CHANNEL) {
         const change = event.value as { watchId: string };
         if (!change.watchId.startsWith(`${browserClientId}/`)) return;
         event.value = {
