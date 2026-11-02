@@ -120,6 +120,15 @@ describe("appearance store", () => {
     expect(setThemeSource).toHaveBeenLastCalledWith("dark");
   });
 
+  it("keeps the serif transcript font turned on before 0.14.1", () => {
+    window.localStorage.setItem("pine.transcript-serif", "true");
+
+    const store = useAppearanceStore();
+    store.initialize();
+
+    expect(store.readingFont).toBe(true);
+  });
+
   it("restores and toggles the serif transcript font", () => {
     window.localStorage.setItem(READING_FONT_STORAGE_KEY, "true");
 

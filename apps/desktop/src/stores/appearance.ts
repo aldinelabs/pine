@@ -16,6 +16,8 @@ export const SIDEBAR_VIBRANCY_MIGRATED_STORAGE_KEY =
 export const SIDEBAR_VIBRANCY_CLASS = "sidebar-vibrancy";
 export const READING_FONT_STORAGE_KEY = "pine.reading-font";
 export const READING_FONT_CLASS = "reading-font";
+/** Before 0.14.1 the reading font was a serif option kept under this key. */
+const LEGACY_TRANSCRIPT_SERIF_STORAGE_KEY = "pine.transcript-serif";
 export const INVERT_DOCUMENTS_STORAGE_KEY = "pine.invert-documents";
 
 export type ColorScheme = "light" | "dark";
@@ -85,7 +87,10 @@ function migrateSidebarVibrancyOnce(): void {
 
 function readStoredReadingFont(): boolean {
   try {
-    return preferenceStorage.getItem(READING_FONT_STORAGE_KEY) === "true";
+    const stored =
+      preferenceStorage.getItem(READING_FONT_STORAGE_KEY) ??
+      preferenceStorage.getItem(LEGACY_TRANSCRIPT_SERIF_STORAGE_KEY);
+    return stored === "true";
   } catch {
     return false;
   }
