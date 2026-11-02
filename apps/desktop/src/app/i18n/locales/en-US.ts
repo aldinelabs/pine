@@ -178,8 +178,6 @@ export default {
     },
     sectionsLabel: "Settings sections",
     language: "Language",
-    languageChinese: "简体中文",
-    languageEnglish: "English",
     appearance: "Color mode",
     themeSystem: "System",
     themeLight: "Light",

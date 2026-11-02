@@ -23,9 +23,7 @@ import type {
 } from "@/shared/sessions";
 import { attachmentMessagePreview } from "@/shared/attachments";
 import { parseMessageBlocks, transcriptRole } from "@/shared/sessions";
-import { isAppLocale } from "@/app/i18n";
-import enUS from "@/app/i18n/locales/en-US";
-import zhCN from "@/app/i18n/locales/zh-CN";
+import { agentLocale, isAppLocale, localeMessages } from "@/app/i18n";
 import { useModelsStore } from "@/stores/models";
 import type { WebSessionSnapshot } from "@/shared/webControl";
 import type {
@@ -41,7 +39,7 @@ import {
 
 const NO_SESSIONS: SessionSearchResult[] = [];
 
-function currentAppLocale(): "en-US" | "zh-CN" {
+function currentAppLocale() {
   const locale = document.documentElement.lang;
   return isAppLocale(locale) ? locale : "en-US";
 }
@@ -806,7 +804,7 @@ export const useSessionStore = defineStore("session", () => {
     targetState.isRunning = true;
     try {
       const result = await window.pine.promptSession({
-        locale: currentAppLocale(),
+        locale: agentLocale(currentAppLocale()),
         message,
         target: sessionId
           ? { kind: "session", projectId, sessionId }
@@ -863,7 +861,7 @@ export const useSessionStore = defineStore("session", () => {
     state.isRunning = true;
     try {
       await window.pine.promptSession({
-        locale: currentAppLocale(),
+        locale: agentLocale(currentAppLocale()),
         message,
         target: {
           kind: "session",
@@ -890,7 +888,7 @@ export const useSessionStore = defineStore("session", () => {
     if (!sessionId)
       throw new Error("The running session is not ready for steering yet.");
     await window.pine.promptSession({
-      locale: currentAppLocale(),
+      locale: agentLocale(currentAppLocale()),
       message,
       target: {
         kind: "session",
@@ -1204,7 +1202,7 @@ export const useSessionStore = defineStore("session", () => {
       const failure = event.autoApprovalFailure;
       if (failure && !state.notifiedAutoApprovalFailureIds.has(failure.id)) {
         state.notifiedAutoApprovalFailureIds.add(failure.id);
-        const messages = currentAppLocale() === "zh-CN" ? zhCN : enUS;
+        const messages = localeMessages[currentAppLocale()];
         toast.error(messages.project.approvalRequest.autoApprovalFailed, {
           id: `auto-approval-failed-${failure.id}`,
           description: failure.message,

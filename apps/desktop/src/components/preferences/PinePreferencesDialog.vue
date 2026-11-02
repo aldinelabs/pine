@@ -29,7 +29,12 @@ import {
 } from "vue";
 import { useI18n } from "vue-i18n";
 import { toast } from "vue-sonner";
-import { isAppLocale, persistAppLocale } from "@/app/i18n";
+import {
+  APP_LOCALES,
+  APP_LOCALE_NAMES,
+  isAppLocale,
+  persistAppLocale,
+} from "@/app/i18n";
 import RelayRemoteSettings from "./RelayRemoteSettings.vue";
 import RemoteControlSettings from "./RemoteControlSettings.vue";
 import AutoApprovalSettings from "./AutoApprovalSettings.vue";
@@ -1112,11 +1117,12 @@ defineExpose({ open });
                       </SelectTrigger>
                       <SelectContent>
                         <SelectGroup>
-                          <SelectItem value="zh-CN">
-                            {{ t("preferences.languageChinese") }}
-                          </SelectItem>
-                          <SelectItem value="en-US">
-                            {{ t("preferences.languageEnglish") }}
+                          <SelectItem
+                            v-for="option in APP_LOCALES"
+                            :key="option"
+                            :value="option"
+                          >
+                            {{ APP_LOCALE_NAMES[option] }}
                           </SelectItem>
                         </SelectGroup>
                       </SelectContent>

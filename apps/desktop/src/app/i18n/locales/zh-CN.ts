@@ -169,8 +169,6 @@ export default {
     },
     sectionsLabel: "设置分类",
     language: "语言",
-    languageChinese: "简体中文",
-    languageEnglish: "English",
     appearance: "配色模式",
     themeSystem: "跟随系统",
     themeLight: "浅色",

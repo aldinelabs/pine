@@ -1,8 +1,10 @@
 import { createI18n } from "vue-i18n";
 import enUS from "./locales/en-US";
+import jaJP from "./locales/ja-JP";
 import zhCN from "./locales/zh-CN";
+import zhTW from "./locales/zh-TW";
 
-export const LOCALES = ["zh-CN", "en-US"] as const;
+export const LOCALES = ["zh-CN", "zh-TW", "en-US", "ja-JP"] as const;
 export type Locale = (typeof LOCALES)[number];
 export type MessageKey = keyof typeof zhCN;
 
@@ -25,16 +27,23 @@ export function resolveLocale(
   stored: string | null,
 ): Locale {
   if (LOCALES.some((locale) => locale === stored)) return stored as Locale;
-  return languages.some((language) => /^zh\b/i.test(language))
-    ? "zh-CN"
-    : "en-US";
+  for (const language of languages) {
+    const tag = language.toLowerCase();
+    if (/^zh-(tw|hk|mo|hant)\b/.test(tag)) return "zh-TW";
+    if (/^zh\b/.test(tag)) return "zh-CN";
+    const match = LOCALES.find(
+      (locale) => locale.toLowerCase().split("-")[0] === tag.split("-")[0],
+    );
+    if (match) return match;
+  }
+  return "en-US";
 }
 
 export const i18n = createI18n({
   legacy: false,
   locale: resolveLocale(navigator.languages, storedLocale()),
   fallbackLocale: "en-US",
-  messages: { "zh-CN": zhCN, "en-US": enUS },
+  messages: { "zh-CN": zhCN, "zh-TW": zhTW, "en-US": enUS, "ja-JP": jaJP },
 });
 
 function applyLocale(locale: Locale): void {
