@@ -24,10 +24,16 @@ export interface TunnelOptions {
   /** The signed-in cookie to attach to every request, as "name=value". */
   cookie: () => string | undefined;
   maxStreams?: number;
+  maxWaiting?: number;
   maxRequestBytes?: number;
 }
 
 export const MAX_TUNNEL_STREAMS = 32;
+/**
+ * Streams past the limit wait their turn. A page can ask for hundreds of files
+ * at once, such as a development build that loads every module separately.
+ */
+export const MAX_TUNNEL_WAITING = 2048;
 /** The same ceiling the local web server puts on an upload. */
 export const MAX_TUNNEL_REQUEST_BYTES = 36 * 1024 * 1024;
 
@@ -77,6 +83,14 @@ interface TunnelStream {
   responded: boolean;
 }
 
+/** A stream that arrived while every slot was taken. */
+interface WaitingStream {
+  head: RequestHead;
+  body: Uint8Array[];
+  received: number;
+  ended: boolean;
+}
+
 /**
  * The desktop's end of the HTTP-over-DataChannel tunnel. Each stream the
  * device opens becomes one request to the local web server, so the server's
@@ -85,6 +99,8 @@ interface TunnelStream {
  */
 export class Tunnel {
   private readonly streams = new Map<number, TunnelStream>();
+  /** In arrival order, so the oldest starts first. */
+  private readonly waiting = new Map<number, WaitingStream>();
   private closed = false;
 
   constructor(
@@ -101,14 +117,9 @@ export class Tunnel {
       case "data":
         this.body(frame.stream, frame.data);
         return;
-      case "end": {
-        const stream = this.streams.get(frame.stream);
-        if (stream) {
-          stream.requestEnded = true;
-          stream.upstream.end();
-        }
+      case "end":
+        this.endRequest(frame.stream);
         return;
-      }
       case "cancel":
         this.abort(frame.stream);
         return;
@@ -122,6 +133,7 @@ export class Tunnel {
 
   close(): void {
     this.closed = true;
+    this.waiting.clear();
     for (const id of [...this.streams.keys()]) this.abort(id);
   }
 
@@ -144,11 +156,36 @@ export class Tunnel {
 
   private open(id: number, head: RequestHead): void {
     // The device opens odd streams; anything else is not from our protocol.
-    if (id % 2 === 0 || this.streams.has(id)) return;
+    if (id % 2 === 0 || this.streams.has(id) || this.waiting.has(id)) return;
     if (this.streams.size >= (this.options.maxStreams ?? MAX_TUNNEL_STREAMS)) {
-      this.reply(id, 429);
+      if (this.waiting.size >= (this.options.maxWaiting ?? MAX_TUNNEL_WAITING))
+        this.reply(id, 429);
+      else this.waiting.set(id, { head, body: [], received: 0, ended: false });
       return;
     }
+    this.start(id, head);
+  }
+
+  /** Starts the oldest waiting streams while there is room. */
+  private next(): void {
+    const limit = this.options.maxStreams ?? MAX_TUNNEL_STREAMS;
+    for (const [id, waiting] of this.waiting) {
+      if (this.closed || this.streams.size >= limit) return;
+      this.waiting.delete(id);
+      this.start(id, waiting.head);
+      for (const chunk of waiting.body) this.body(id, chunk);
+      if (waiting.ended) this.endRequest(id);
+    }
+  }
+
+  /** A stream is done with its slot, so a waiting one may take it. */
+  private release(id: number): boolean {
+    if (!this.streams.delete(id)) return false;
+    queueMicrotask(() => this.next());
+    return true;
+  }
+
+  private start(id: number, head: RequestHead): void {
     const target = new URL(this.options.origin);
     const headers: Record<string, string> = {};
     for (const [name, value] of head.headers) {
@@ -194,7 +231,7 @@ export class Tunnel {
       if (!stream.responded) {
         // The head did not fit one frame, so the device has nothing to read.
         response.destroy();
-        this.streams.delete(id);
+        this.release(id);
         this.reply(id, 502);
         return;
       }
@@ -214,20 +251,33 @@ export class Tunnel {
         );
       });
       response.on("end", () => {
-        if (this.streams.delete(id)) this.write({ type: "end", stream: id });
+        if (this.release(id)) this.write({ type: "end", stream: id });
       });
       response.on("error", () => {
-        if (this.streams.delete(id)) this.write({ type: "cancel", stream: id });
+        if (this.release(id)) this.write({ type: "cancel", stream: id });
       });
     });
     upstream.on("error", () => {
-      if (!this.streams.delete(id)) return;
+      if (!this.release(id)) return;
       if (stream.responded) this.write({ type: "cancel", stream: id });
       else this.reply(id, 502);
     });
   }
 
   private body(id: number, data: Uint8Array): void {
+    const waiting = this.waiting.get(id);
+    if (waiting) {
+      if (waiting.ended) return;
+      waiting.received += data.length;
+      if (
+        waiting.received >
+        (this.options.maxRequestBytes ?? MAX_TUNNEL_REQUEST_BYTES)
+      ) {
+        this.waiting.delete(id);
+        this.reply(id, 413);
+      } else waiting.body.push(data);
+      return;
+    }
     const stream = this.streams.get(id);
     if (!stream || stream.requestEnded) return;
     stream.received += data.length;
@@ -243,10 +293,24 @@ export class Tunnel {
     stream.upstream.write(data);
   }
 
+  private endRequest(id: number): void {
+    const waiting = this.waiting.get(id);
+    if (waiting) {
+      waiting.ended = true;
+      return;
+    }
+    const stream = this.streams.get(id);
+    if (stream) {
+      stream.requestEnded = true;
+      stream.upstream.end();
+    }
+  }
+
   private abort(id: number): void {
+    if (this.waiting.delete(id)) return;
     const stream = this.streams.get(id);
     if (!stream) return;
-    this.streams.delete(id);
+    this.release(id);
     stream.response?.destroy();
     stream.upstream.destroy();
   }

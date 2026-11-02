@@ -230,16 +230,46 @@ describe("Tunnel", () => {
     });
   });
 
-  it("limits how many streams are open at once", async () => {
-    onRequest = () => undefined; // never answers
+  it("starts streams past the limit once a slot frees up", async () => {
+    const held: ServerResponse[] = [];
+    onRequest = (request, response) => {
+      if (request.url === "/hold") held.push(response);
+      else response.end(request.url);
+    };
     const channel = new FakeChannel();
     const tunnel = tunnelFor(channel, { maxStreams: 2 });
-    for (const stream of [1, 3, 5]) get(tunnel, stream, "/hold");
-    await until(() => channel.of(5).length === 2);
-    expect(channel.of(5)[0]).toMatchObject({
+    get(tunnel, 1, "/hold");
+    get(tunnel, 3, "/hold");
+    tunnel.handle({
+      type: "request",
+      stream: 5,
+      head: { method: "POST", path: "/queued", headers: [] },
+    });
+    tunnel.handle({ type: "data", stream: 5, data: new Uint8Array([1, 2]) });
+    tunnel.handle({ type: "end", stream: 5 });
+    get(tunnel, 7, "/cancelled");
+    tunnel.handle({ type: "cancel", stream: 7 });
+    await until(() => held.length === 2);
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(channel.of(5)).toEqual([]);
+
+    held[0].end();
+    await until(() => channel.body(5).toString() === "/queued");
+    expect(channel.of(7)).toEqual([]);
+    held[1].end();
+  });
+
+  it("refuses streams once the waiting line is full", async () => {
+    onRequest = () => undefined; // never answers
+    const channel = new FakeChannel();
+    const tunnel = tunnelFor(channel, { maxStreams: 2, maxWaiting: 1 });
+    for (const stream of [1, 3, 5, 7]) get(tunnel, stream, "/hold");
+    await until(() => channel.of(7).length === 2);
+    expect(channel.of(7)[0]).toMatchObject({
       type: "response",
       head: { status: 429 },
     });
+    expect(channel.of(5)).toEqual([]);
   });
 
   it("ignores streams that are even or already open", async () => {
