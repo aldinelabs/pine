@@ -69,6 +69,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { Kbd } from "@/components/ui/kbd";
+import { useShortcutHints } from "@/composables/useShortcutHints";
 import {
   Popover,
   PopoverAnchor,
@@ -168,6 +169,7 @@ const approvalMode = defineModel<ApprovalMode>("approvalMode", {
   default: "auto-approve",
 });
 const { t } = useI18n();
+const showShortcutHints = useShortcutHints();
 const isWeb = isWebClient();
 const modelsStore = useModelsStore();
 const { favoriteModels, featuredModels } = storeToRefs(modelsStore);
@@ -787,7 +789,14 @@ function handleRootSubmit(event: Event): void {
               surface="message"
               @open="openAttachment"
             />
-            <Bubble v-if="steeringMessage.prompt" align="end" variant="outline">
+            <!-- The wrapper already caps the width; Bubble's own 80% cap would
+                 compound with it and wrap text well before the edge. -->
+            <Bubble
+              v-if="steeringMessage.prompt"
+              align="end"
+              variant="outline"
+              class="max-w-full"
+            >
               <BubbleContent class="border-dashed">
                 <div
                   class="scroll-fade-y max-h-32 overflow-y-auto overscroll-contain whitespace-pre-wrap"
@@ -963,7 +972,7 @@ function handleRootSubmit(event: Event): void {
                           : t("project.composer.send")
                     }}
                     <Kbd
-                      v-if="props.isRunning && !isSteering"
+                      v-if="showShortcutHints && props.isRunning && !isSteering"
                       aria-hidden="true"
                       >esc</Kbd
                     >

@@ -43,6 +43,7 @@ import {
 import { Spinner } from "@/components/ui/spinner";
 import { useContentTabNavigation } from "@/composables/useContentTabNavigation";
 import { useDraftProjectOpener } from "@/composables/useDraftProjectOpener";
+import { usePhoneLayout } from "@/composables/usePhoneLayout";
 import { useToolActivityExpansion } from "@/composables/useToolActivityExpansion";
 import { useContentTabsStore } from "@/stores/contentTabs";
 import { useProjectStore } from "@/stores/project";
@@ -61,6 +62,7 @@ import {
 } from "./transcriptLayout";
 
 const { t } = useI18n();
+const isPhone = usePhoneLayout();
 const props = defineProps<{
   /** The tab's project; for a draft, where its first message is sent. */
   projectId: string;
@@ -610,7 +612,7 @@ async function handleDrop(event: DragEvent): Promise<void> {
         class="relative isolate min-h-0 w-full flex-1"
       >
         <ProjectSessionParallaxBackground
-          v-if="isNewConversation && !hasSubmittedPrompt"
+          v-if="isNewConversation && !hasSubmittedPrompt && !isPhone"
           class="-z-10"
         />
 

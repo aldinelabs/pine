@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { useI18n } from "vue-i18n";
 import { Kbd } from "@/components/ui/kbd";
+import { useShortcutHints } from "@/composables/useShortcutHints";
 import { useProjectDisplayName } from "@/composables/useProjectDisplayName";
 import { projectIconComponent } from "@/lib/projectIcons";
 import type { PineProject } from "@/shared/projects";
@@ -19,6 +20,7 @@ const emit = defineEmits<{
   select: [project: PineProject];
 }>();
 const { t } = useI18n();
+const showShortcutHints = useShortcutHints();
 const displayName = useProjectDisplayName();
 
 function optionId(index: number): string {
@@ -60,6 +62,7 @@ defineExpose({ optionId });
       </p>
     </div>
     <p
+      v-if="showShortcutHints"
       class="flex items-center gap-3 border-t px-3 pt-1.5 pb-0.5 text-xs text-muted-foreground"
     >
       <span class="flex items-center gap-1">

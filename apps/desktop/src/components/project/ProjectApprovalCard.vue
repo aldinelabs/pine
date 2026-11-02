@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Kbd } from "@/components/ui/kbd";
+import { useShortcutHints } from "@/composables/useShortcutHints";
 import type { PineApprovalAction } from "@/shared/agent";
 import type { PinePendingApproval } from "@/stores/session";
 
@@ -27,6 +28,7 @@ const emit = defineEmits<{
 }>();
 
 const { t } = useI18n();
+const showShortcutHints = useShortcutHints();
 const guidance = ref("");
 const guiding = ref(false);
 // The Input component forwards its root element through `$el`; typing the
@@ -160,7 +162,9 @@ async function startGuidance(): Promise<void> {
               @click="submitGuidance"
             >
               <ArrowUpIcon />
-              <Kbd v-if="!guidance" aria-hidden="true">↵</Kbd>
+              <Kbd v-if="showShortcutHints && !guidance" aria-hidden="true"
+                >↵</Kbd
+              >
             </Button>
           </div>
         </div>
@@ -174,7 +178,7 @@ async function startGuidance(): Promise<void> {
           @click="startGuidance"
         >
           {{ t("project.approvalRequest.guide") }}
-          <Kbd aria-hidden="true">/</Kbd>
+          <Kbd v-if="showShortcutHints" aria-hidden="true">/</Kbd>
         </Button>
         <div class="ml-auto flex items-center gap-2">
           <Button
@@ -185,7 +189,7 @@ async function startGuidance(): Promise<void> {
             @click="respond('reject')"
           >
             {{ t("project.approvalRequest.reject") }}
-            <Kbd aria-hidden="true">esc</Kbd>
+            <Kbd v-if="showShortcutHints" aria-hidden="true">esc</Kbd>
           </Button>
           <Button
             type="button"
@@ -194,7 +198,7 @@ async function startGuidance(): Promise<void> {
             @click="respond('approve')"
           >
             {{ t("project.approvalRequest.approve") }}
-            <Kbd aria-hidden="true">↵</Kbd>
+            <Kbd v-if="showShortcutHints" aria-hidden="true">↵</Kbd>
           </Button>
         </div>
       </template>

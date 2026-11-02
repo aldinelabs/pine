@@ -3,6 +3,7 @@ import { attachmentImageUrl } from "@/lib/clientAssets";
 import { computed } from "vue";
 import { useI18n } from "vue-i18n";
 import { Kbd } from "@/components/ui/kbd";
+import { useShortcutHints } from "@/composables/useShortcutHints";
 import { isImageAttachment, type PineAttachment } from "@/shared/attachments";
 
 /**
@@ -13,6 +14,7 @@ import { isImageAttachment, type PineAttachment } from "@/shared/attachments";
 const props = defineProps<{ context: readonly PineAttachment[] }>();
 
 const { t } = useI18n();
+const showShortcutHints = useShortcutHints();
 const screenshot = computed(() => props.context.find(isImageAttachment));
 const selection = computed(
   () => props.context.find((attachment) => attachment.selection)?.selection,
@@ -59,6 +61,7 @@ const detail = computed(
       </span>
     </div>
     <span
+      v-if="showShortcutHints"
       class="flex shrink-0 items-center gap-1 text-xs text-muted-foreground"
     >
       <Kbd>\</Kbd>

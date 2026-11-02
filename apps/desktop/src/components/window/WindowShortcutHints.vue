@@ -2,8 +2,10 @@
 import { computed } from "vue";
 import { useI18n } from "vue-i18n";
 import { Kbd, KbdGroup } from "@/components/ui/kbd";
+import { useShortcutHints } from "@/composables/useShortcutHints";
 
 const { t } = useI18n();
+const showShortcutHints = useShortcutHints();
 
 // Electrons's before-input-event maps Ctrl and Cmd onto the same shortcut, so
 // the modifier label follows the host platform.
@@ -30,6 +32,7 @@ const rows = computed<ShortcutRow[]>(() => [
 
 <template>
   <ul
+    v-if="showShortcutHints"
     data-slot="window-shortcut-hints"
     class="grid w-fit grid-cols-[auto_auto] items-center justify-items-start gap-x-3 gap-y-2.5"
   >
