@@ -228,7 +228,7 @@ export default {
     contextCompactionRouteSemantic: "Algorithme sémantique (bêta)",
     readingFont: "Police de lecture",
     readingFontDescription:
-      "Utilise Geist et Noto Sans SC pour les conversations, la zone de saisie et les titres de session à la place de la police d'interface par défaut",
+      "Utilise Geist Serif et Noto Serif SC pour les conversations et les titres de session à la place de la police d'interface par défaut",
     invertDocuments: "Inverser les documents en mode sombre",
     invertDocumentsDescription:
       "Ouvre les PDF, les présentations et d'autres documents avec les pages inversées en mode sombre",

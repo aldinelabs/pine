@@ -8,6 +8,10 @@ English version: [CHANGELOG.md](./CHANGELOG.md).
 
 ## [Unreleased]
 
+### 变更
+
+- “阅读字体”改用衬线字体（Geist Serif 与思源宋体），并且不再作用于消息输入框。
+
 ## [0.14.2] - 2026-11-02
 
 ### 新增

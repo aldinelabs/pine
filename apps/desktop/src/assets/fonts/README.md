@@ -20,3 +20,13 @@ SHA-256:
 - `SarasaGothicSC-Regular.woff2`: `9e248463aebae1866485491661e821907e521af3b36b7dfd6fedd759de1df081`
 - `SarasaGothicSC-SemiBold.woff2`: `9bb040f60823014344659b5db3c294286ff8dbf7355284f2db474442ceab01c0`
 - `SarasaGothicSC-Bold.woff2`: `d8aa471073d22b0a79e993de545f83ffea2c82a5187a4b8d738a3db7bbaec7be`
+
+## Geist Serif
+
+`GeistSerifVF.woff2` is the unmodified variable font from the `geist` npm
+package (`1.9.0`, `dist/fonts/geist-serif/`). It is the Latin face of the
+optional reading font; the `geist` package itself is not a dependency because
+it pulls in `next`.
+
+- License: SIL Open Font License 1.1, see `GeistSerif-OFL.txt`
+- SHA-256: `a306592934889c88bc2a76ea4b861d0e6877373980d665eb0e68325c2ebbefe7`

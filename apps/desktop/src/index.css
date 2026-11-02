@@ -5,8 +5,7 @@
  */
 @import "@fontsource-variable/inter";
 @import "@fontsource-variable/jetbrains-mono";
-@import "@fontsource-variable/geist";
-@import "@fontsource-variable/noto-sans-sc";
+@import "@fontsource-variable/noto-serif-sc";
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn-vue/tailwind.css";
@@ -33,6 +32,14 @@
   src: url("./assets/fonts/SarasaGothicSC-Bold.woff2") format("woff2");
   font-style: normal;
   font-weight: 700;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Geist Serif";
+  src: url("./assets/fonts/GeistSerifVF.woff2") format("woff2");
+  font-style: normal;
+  font-weight: 100 900;
   font-display: swap;
 }
 
@@ -238,11 +245,11 @@
   --font-jetbrains-mono:
     "JetBrains Mono Variable", ui-monospace, SFMono-Regular, Menlo, Monaco,
     Consolas, "Sarasa Gothic SC", monospace, system-ui;
-  /* Optional reading font (Preferences → Appearance): Geist for Latin,
-     Noto Sans SC for CJK. */
+  /* Optional reading font (Preferences → Appearance): Geist Serif for Latin,
+     Noto Serif SC for CJK. */
   --font-reading:
-    "Geist Variable", "Noto Sans SC Variable", "Sarasa Gothic SC", system-ui,
-    sans-serif;
+    "Geist Serif", "Noto Serif SC Variable", "Songti SC", "Sarasa Gothic SC",
+    serif;
   --font-heading: var(--font-ui);
   --font-mono: var(--font-jetbrains-mono);
   --shadow-2xs: 0 1px 3px 0px oklch(0 0 0 / 0.05);
@@ -578,8 +585,8 @@ html[data-quick-composer] body {
  * visible across the sidebar region.
  */
 /*
- * Optional reading font for the text people read and write: conversations,
- * the composer and session titles. Headings follow the prose instead of the
+ * Optional reading font for the text people read: conversations,
+ * staged messages and session titles. Headings follow the prose instead of the
  * UI heading font; code keeps its explicit monospace font.
  */
 html.reading-font
@@ -587,9 +594,7 @@ html.reading-font
     .transcript-prose,
     .transcript-prose .markstream-vue,
     [data-slot="user-message-text"],
-    [data-slot="user-message-editor"],
     [data-slot="staged-steering-message"],
-    .session-composer-input,
     [data-slot="session-title"]
   ) {
   /* markstream declares --ms-font-sans on .markstream-vue itself, so the

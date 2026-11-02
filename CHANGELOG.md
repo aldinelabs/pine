@@ -9,6 +9,10 @@ Every release section here has a matching section in the Chinese changelog.
 
 ## [Unreleased]
 
+### Changed
+
+- The Reading font option now uses serif typefaces (Geist Serif and Noto Serif SC) and no longer applies to the message input box.
+
 ## [0.14.2] - 2026-11-02
 
 ### Added

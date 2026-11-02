@@ -227,7 +227,7 @@ export default {
     contextCompactionRouteSemantic: "セマンティックアルゴリズム（ベータ）",
     readingFont: "読み用フォント",
     readingFontDescription:
-      "会話、コンポーザー、セッションタイトルに、既定のインターフェースフォントの代わりに Geist と Noto Sans SC を使用します",
+      "会話とセッションタイトルに、既定のインターフェースフォントの代わりに Geist Serif と Noto Serif SC を使用します",
     invertDocuments: "ダークモードでドキュメントを反転",
     invertDocumentsDescription:
       "ダークモードで、PDF やプレゼンテーションなどのドキュメントのページを反転して開きます",
