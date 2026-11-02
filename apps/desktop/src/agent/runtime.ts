@@ -18,6 +18,7 @@ import {
   type McpStatusSnapshot,
   type McpToolApprovalRequest,
 } from "pi-mcp-adapter";
+import { McpScriptApprovalCache } from "./mcp-approval";
 import { loadMcpConfig } from "pi-mcp-adapter/config";
 import {
   RECALL_TOOL_NAME,
@@ -307,6 +308,7 @@ export class PineAgentRuntime {
     await live.attachedPaths.grant(attachedPaths);
     live.latestUserPrompt = message;
     live.gate?.resetTurn();
+    live.mcpScriptApprovals.clear();
     this.options.emit({ type: "run-state", sessionId, state: "running" });
     return new Promise<AgentWorkerPromptResult>((resolve, reject) => {
       let responseSettled = false;
@@ -460,6 +462,7 @@ export class PineAgentRuntime {
           live.latestUserPrompt = queued.message;
           this.setApprovalMode(live, queued.approvalMode);
           live.gate?.resetTurn();
+          live.mcpScriptApprovals.clear();
           this.options.emit({ type: "run-state", sessionId, state: "running" });
           try {
             await live.session.prompt(queued.message, {
@@ -803,6 +806,7 @@ export class PineAgentRuntime {
       cwd: location.cwd,
       approvalMode: location.approvalMode ?? "auto-approve",
       gate: undefined as never,
+      mcpScriptApprovals: new McpScriptApprovalCache(),
       authorizationGrants: authorizationGrantsFromSessionEntries(
         sessionManager.getBranch(),
       ),
@@ -949,15 +953,7 @@ export class PineAgentRuntime {
               const request = value as McpToolApprovalRequest;
               request.claim(async () => {
                 if (live.approvalMode === "YOLO") return "allow_once";
-                const decision = await live.gate.reviewPrivilegedCall({
-                  toolCallId: request.requestId,
-                  toolName: request.prefixedToolName,
-                  subject: `${request.serverName}.${request.originalToolName} ${JSON.stringify(request.args)}`,
-                  evidence:
-                    "MCP tools execute in an external server outside Pine's project sandbox.",
-                  signal: request.signal,
-                });
-                return decision.kind === "allow" ? "allow_once" : "deny";
+                return live.mcpScriptApprovals.decide(request, live.gate);
               });
             });
           },
@@ -1293,6 +1289,7 @@ export class PineAgentRuntime {
       return;
     }
     live.gate?.resetTurn();
+    live.mcpScriptApprovals.clear();
     this.options.emit({ type: "run-state", sessionId, state: "running" });
     void session
       .sendCustomMessage(message, { deliverAs: "steer", triggerTurn: true })
