@@ -9,6 +9,12 @@ Every release section here has a matching section in the Chinese changelog.
 
 ## [Unreleased]
 
+## [0.14.4] - 2026-11-02
+
+### Fixed
+
+- Fixed Pine 0.14.3, where the agent process exited on startup and no conversation could run.
+
 ## [0.14.3] - 2026-11-02
 
 ### Added

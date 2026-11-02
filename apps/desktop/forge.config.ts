@@ -53,13 +53,29 @@ function collectRuntimeDeps(
   entrypoints: readonly string[],
 ): string[] {
   const deps = new Set<string>();
-  const queue = [...entrypoints];
+  const visited = new Set<string>();
+  // A package may carry its own copy of a dependency in a nested
+  // node_modules (a different major than the hoisted one). That copy travels
+  // with its parent, but its own dependencies resolve from the hoisted tree
+  // and must be collected from the copy's manifest, not the hoisted one's.
+  const queue = entrypoints.map((name) => ({
+    name,
+    fromDirectory: workspaceNodeModules,
+  }));
   while (queue.length > 0) {
-    const name = queue.shift();
-    if (name === undefined) continue;
-    if (deps.has(name)) continue;
-    deps.add(name);
-    const manifestPath = path.join(workspaceNodeModules, name, "package.json");
+    const next = queue.shift();
+    if (next === undefined) continue;
+    const nested = path.join(next.fromDirectory, "node_modules", next.name);
+    const packageDirectory =
+      next.fromDirectory !== workspaceNodeModules && existsSync(nested)
+        ? nested
+        : path.join(workspaceNodeModules, next.name);
+    if (packageDirectory === path.join(workspaceNodeModules, next.name)) {
+      deps.add(next.name);
+    }
+    if (visited.has(packageDirectory)) continue;
+    visited.add(packageDirectory);
+    const manifestPath = path.join(packageDirectory, "package.json");
     if (!existsSync(manifestPath)) continue;
     let manifest: {
       dependencies?: Record<string, unknown>;
@@ -77,7 +93,7 @@ function collectRuntimeDeps(
       ...Object.keys(manifest.optionalDependencies ?? {}),
     ];
     for (const dep of transitive) {
-      if (!deps.has(dep)) queue.push(dep);
+      queue.push({ name: dep, fromDirectory: packageDirectory });
     }
   }
   return [...deps];
