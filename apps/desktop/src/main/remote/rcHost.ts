@@ -31,6 +31,8 @@ import { Tunnel } from "./tunnel";
 /** Used when the signaling service has no relay to offer. */
 const FALLBACK_ICE: IceServer[] = [{ urls: ["stun:stun.cloudflare.com:3478"] }];
 const CONNECT_TIMEOUT_MS = 30_000;
+/** Until the phone sends its own name. */
+const DEFAULT_DEVICE_NAME = "Phone";
 
 export interface PairingRequest {
   /** Fingerprint of the phone's key, for the person to recognise. */
@@ -44,6 +46,8 @@ export interface RemoteHostOptions {
   web: () => { origin: string; cookie: () => string | undefined } | undefined;
   /** Where phones open the Pine page, such as https://rc.aldine.cn. */
   pageOrigin: string;
+  /** This computer's name, which the phone shows in its list. */
+  hostName?: string;
   /** Asks the person at this computer whether a new phone may pair. */
   approve: (request: PairingRequest) => Promise<boolean>;
   createPeer?: PeerFactory;
@@ -381,8 +385,21 @@ export class RemoteHost {
         return;
       }
       if (frame.type !== "control") tunnel.handle(frame);
+      else void this.control(deviceId, frame.message);
     });
     channel.onClosed(() => this.drop(deviceId, connection));
+  }
+
+  /** The phone names itself once; a name the person chose is kept. */
+  private async control(
+    deviceId: string,
+    message: Record<string, unknown>,
+  ): Promise<void> {
+    if (message.type !== "name" || typeof message.name !== "string") return;
+    const name = message.name.trim().slice(0, 40);
+    const device = this.options.store.device(deviceId);
+    if (!name || device?.name !== DEFAULT_DEVICE_NAME) return;
+    await this.renameDevice(deviceId, name).catch(() => undefined);
   }
 
   /** A new phone is paired only once the channel is up and it has its secret. */
@@ -400,12 +417,18 @@ export class RemoteHost {
           encodeFrame({
             type: "control",
             stream: 0,
-            message: { type: "paired", roomSecret: toBase64Url(roomSecret) },
+            message: {
+              type: "paired",
+              roomSecret: toBase64Url(roomSecret),
+              ...(this.options.hostName
+                ? { hostName: this.options.hostName }
+                : {}),
+            },
           }),
         );
         await this.options.store.addDevice(
           result.clientKey,
-          "Phone",
+          DEFAULT_DEVICE_NAME,
           roomSecret,
           now,
         );

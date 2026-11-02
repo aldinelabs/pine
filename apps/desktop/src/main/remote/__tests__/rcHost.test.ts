@@ -310,6 +310,28 @@ describe("paired phones", () => {
     expect(again.answered).toBe(false);
   }, 30_000);
 
+  it("name themselves once, but keep a name the person chose", async () => {
+    host.stop();
+    host = makeHost({ hostName: "Studio Mac" });
+    const { phone } = await pair();
+    await phone.waitOpen();
+    await until(() => store.devices().length === 1, 5000);
+    expect(control(phone)!.message).toMatchObject({ hostName: "Studio Mac" });
+    const name = (value: string) =>
+      phone.send({
+        type: "control",
+        stream: 0,
+        message: { type: "name", name: value },
+      });
+    name("iPhone");
+    expect(await until(() => store.devices()[0]?.name === "iPhone", 3000)).toBe(
+      true,
+    );
+    name("Someone else");
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    expect(store.devices()[0]?.name).toBe("iPhone");
+  }, 30_000);
+
   it("can be renamed, and the settings page hears of it", async () => {
     const onChange = vi.fn();
     host.stop();

@@ -1,4 +1,5 @@
 import { realpath } from "node:fs/promises";
+import { hostname } from "node:os";
 import path from "node:path";
 import {
   toErrorMessage,
@@ -236,6 +237,7 @@ export class PineCore {
       fetch: (url, init) => host.fetch(url, init),
       web: () => this.web.server.loopbackAccess(),
       pageOrigin: DEFAULT_PAGE_ORIGIN,
+      hostName: hostname().replace(/\.local$/, ""),
       approve: (request) =>
         host.approveRemotePairing?.(request) ?? Promise.resolve(false),
       onChange: () => host.remoteControlChanged?.(this.remote.status()),
