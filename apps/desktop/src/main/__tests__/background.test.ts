@@ -37,6 +37,8 @@ describe("tray glyph", () => {
 describe("tray menu", () => {
   const idle = {
     quickComposerEnabled: true,
+    webAccess: false,
+    relayRemote: false,
     remoteControl: false,
     runningSessions: 0,
   };
@@ -60,25 +62,68 @@ describe("tray menu", () => {
       trayMenu({ ...idle, quickComposerEnabled }, false).flatMap((entry) =>
         entry.type === "action" ? [entry.action] : [],
       );
-    expect(actions(true)).toEqual(["open", "quick-composer", "quit"]);
-    expect(actions(false)).toEqual(["open", "quit"]);
+    expect(actions(true)).toEqual([
+      "open",
+      "quick-composer",
+      "manage-remote",
+      "quit",
+    ]);
+    expect(actions(false)).toEqual(["open", "manage-remote", "quit"]);
   });
 
-  it("shows Remote Control status and running sessions", () => {
+  it("offers browser access and Aldine Remote Control as switches", () => {
+    const toggles = (state: typeof idle, chinese = false) =>
+      trayMenu(state, chinese).flatMap((entry) =>
+        entry.type === "toggle" ? [entry] : [],
+      );
+    expect(toggles(idle)).toEqual([
+      {
+        type: "toggle",
+        action: "toggle-web-access",
+        label: "Browser access",
+        checked: false,
+        enabled: true,
+      },
+      {
+        type: "toggle",
+        action: "toggle-relay-remote",
+        label: "Remote Control via Aldine",
+        checked: false,
+        enabled: false,
+      },
+    ]);
+    const on = toggles({ ...idle, webAccess: true, relayRemote: true }, true);
+    expect(
+      on.map((entry) => [entry.label, entry.checked, entry.enabled]),
+    ).toEqual([
+      ["浏览器访问", true, true],
+      ["经 Aldine 远程控制", true, true],
+    ]);
+  });
+
+  it("keeps Aldine switchable off even when browser access is off", () => {
+    const relay = trayMenu({ ...idle, relayRemote: true }, false).find(
+      (entry) =>
+        entry.type === "toggle" && entry.action === "toggle-relay-remote",
+    );
+    expect(relay).toMatchObject({ checked: true, enabled: true });
+  });
+
+  it("shows running sessions", () => {
     const labels = (state: typeof idle, chinese = false) =>
       trayMenu(state, chinese).flatMap((entry) =>
         entry.type === "status" ? [entry.label] : [],
       );
-    expect(labels(idle)).toEqual(["Remote Control: Off"]);
-    expect(
-      labels({ ...idle, remoteControl: true, runningSessions: 1 }),
-    ).toEqual(["Remote Control: On", "1 session running"]);
-    expect(labels({ ...idle, runningSessions: 3 })).toContain(
+    expect(labels(idle)).toEqual([]);
+    expect(labels({ ...idle, runningSessions: 1 })).toEqual([
+      "1 session running",
+    ]);
+    expect(labels({ ...idle, runningSessions: 3 })).toEqual([
       "3 sessions running",
-    );
-    expect(
-      labels({ ...idle, remoteControl: true, runningSessions: 2 }, true),
-    ).toEqual(["远程控制：已开启", "2 个会话正在运行"]);
+    ]);
+    expect(labels({ ...idle, runningSessions: 2 }, true)).toEqual([
+      "2 个会话正在运行",
+    ]);
   });
 });
 

@@ -291,7 +291,20 @@ watch(
   { immediate: true },
 );
 
+// The tray's "manage more settings" opens a preferences section; one asked for
+// while this window was still loading is waiting for it.
+function openRequestedSection(section: string | null | undefined): void {
+  if (section === "remote") preferencesDialog.value?.open("remote");
+}
+let stopPreferencesRequests: (() => void) | undefined;
+onBeforeUnmount(() => stopPreferencesRequests?.());
+
 onMounted(async () => {
+  stopPreferencesRequests =
+    window.pine?.onOpenPreferencesSection?.(openRequestedSection);
+  void window.pine
+    ?.takePendingPreferencesSection?.()
+    .then(openRequestedSection);
   backgroundTasks.connect();
   sessionStore.connectAgentEvents();
   void loadProjects();

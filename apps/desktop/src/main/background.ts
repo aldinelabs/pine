@@ -3,13 +3,30 @@ import { type QuitBlockers } from "./quitGuard";
 /** What the tray menu reflects when it opens. */
 export interface TrayState extends QuitBlockers {
   quickComposerEnabled: boolean;
+  /** The local web server (browser access) is switched on. */
+  webAccess: boolean;
+  /** Paired devices may reach Pine through Aldine. */
+  relayRemote: boolean;
 }
 
-export type TrayAction = "open" | "quick-composer" | "quit";
+export type TrayAction =
+  | "open"
+  | "quick-composer"
+  | "toggle-web-access"
+  | "toggle-relay-remote"
+  | "manage-remote"
+  | "quit";
 
 export type TrayMenuEntry =
   | { type: "separator" }
   | { type: "action"; action: TrayAction; label: string }
+  | {
+      type: "toggle";
+      action: TrayAction;
+      label: string;
+      checked: boolean;
+      enabled: boolean;
+    }
   | { type: "status"; label: string };
 
 export type TrayGlyph = "trayTemplate" | "trayLight" | "trayDark";
@@ -52,10 +69,24 @@ export function trayMenu(state: TrayState, chinese: boolean): TrayMenuEntry[] {
     });
   entries.push({ type: "separator" });
   entries.push({
-    type: "status",
-    label: chinese
-      ? `远程控制：${state.remoteControl ? "已开启" : "已关闭"}`
-      : `Remote Control: ${state.remoteControl ? "On" : "Off"}`,
+    type: "toggle",
+    action: "toggle-web-access",
+    label: chinese ? "浏览器访问" : "Browser access",
+    checked: state.webAccess,
+    enabled: true,
+  });
+  entries.push({
+    type: "toggle",
+    action: "toggle-relay-remote",
+    label: chinese ? "经 Aldine 远程控制" : "Remote Control via Aldine",
+    checked: state.relayRemote,
+    // Devices reach Pine through the web server, so it has to be running.
+    enabled: state.webAccess || state.relayRemote,
+  });
+  entries.push({
+    type: "action",
+    action: "manage-remote",
+    label: chinese ? "管理更多设置…" : "Manage more settings…",
   });
   if (state.runningSessions > 0)
     entries.push({

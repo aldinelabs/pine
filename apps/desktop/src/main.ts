@@ -62,6 +62,10 @@ import {
   type WebServerSettings,
 } from "./shared/webControl";
 import type { WindowsSandboxStatus } from "./shared/windowsSandbox";
+import {
+  OPEN_PREFERENCES_SECTION_CHANNEL,
+  TAKE_PENDING_PREFERENCES_SECTION_CHANNEL,
+} from "./shared/window";
 import { AppUpdater, readUpdateManifestUrl } from "./main/appUpdater";
 import type { PineHost } from "./main/core/host";
 import { PineCore } from "./main/core/pineCore";
@@ -193,9 +197,14 @@ const background = new DesktopBackground({
   open: () => openPine(),
   quit: () => app.quit(),
   toggleQuickComposer: () => quickComposer.controller.toggle(),
+  toggleWebAccess: () => void toggleWebAccess(),
+  toggleRelayRemote: () => void toggleRelayRemote(),
+  manageRemote: () => openPreferencesSection("remote"),
   state: () => ({
     ...currentQuitBlockers(),
     quickComposerEnabled: quickComposer.isEnabled(),
+    webAccess: core?.web.server.status().enabled ?? false,
+    relayRemote: core?.remote.status().enabled ?? false,
   }),
 });
 
@@ -504,6 +513,66 @@ ipcMain.handle(
     return host.status();
   },
 );
+
+/** A section asked for before the window's renderer could listen. */
+let pendingPreferencesSection: string | null = null;
+
+ipcMain.handle(TAKE_PENDING_PREFERENCES_SECTION_CHANNEL, () => {
+  const section = pendingPreferencesSection;
+  pendingPreferencesSection = null;
+  return section;
+});
+
+/** Brings Pine forward and opens its preferences at `section`. */
+function openPreferencesSection(section: string): void {
+  const hadWindow = appWindows().length > 0;
+  pendingPreferencesSection = section;
+  openPine();
+  const window = BrowserWindow.getFocusedWindow() ?? appWindows()[0];
+  // A window still loading picks the section up when its view mounts.
+  if (!hadWindow || !window || window.webContents.isLoading()) return;
+  pendingPreferencesSection = null;
+  window.webContents.send(OPEN_PREFERENCES_SECTION_CHANNEL, section);
+}
+
+/** The tray's switch for browser access; saved like the settings page does. */
+async function toggleWebAccess(): Promise<void> {
+  if (!core) return;
+  try {
+    const { enabled, port, lan, rememberFor, requirePassword, publicOrigin } =
+      core.web.server.status();
+    await core.web.configure(
+      {
+        enabled: !enabled,
+        port,
+        lan,
+        rememberFor,
+        requirePassword,
+        ...(publicOrigin ? { publicOrigin } : {}),
+      },
+      true,
+    );
+    broadcastRemoteStatus(core.remote.status());
+  } catch (error) {
+    dialog.showErrorBox(
+      "Pine",
+      String(error instanceof Error ? error.message : error),
+    );
+  }
+}
+
+async function toggleRelayRemote(): Promise<void> {
+  if (!core) return;
+  try {
+    if (core.remote.status().enabled) await core.remote.disable();
+    else await core.remote.enable();
+  } catch (error) {
+    dialog.showErrorBox(
+      "Pine",
+      String(error instanceof Error ? error.message : error),
+    );
+  }
+}
 
 /** A new phone only pairs once the person at this computer says yes. */
 async function confirmRemotePairing(request: {

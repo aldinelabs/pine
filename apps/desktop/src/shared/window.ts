@@ -6,6 +6,10 @@ export const SET_SIDEBAR_GLASS_WIDTH_CHANNEL =
 export const CLOSE_TAB_REQUESTED_CHANNEL =
   "window:close-tab-requested" as const;
 export const NEW_TAB_REQUESTED_CHANNEL = "window:new-tab-requested" as const;
+export const OPEN_PREFERENCES_SECTION_CHANNEL =
+  "window:open-preferences-section" as const;
+export const TAKE_PENDING_PREFERENCES_SECTION_CHANNEL =
+  "window:take-pending-preferences-section" as const;
 export const CLOSE_WINDOW_CHANNEL = "window:close" as const;
 export const SET_WINDOW_BACKGROUND_CHANNEL = "window:set-background" as const;
 export const SET_WINDOW_LAYOUT_CHANNEL = "window:set-layout" as const;
@@ -93,6 +97,12 @@ export interface PineWindowApi {
   checkForUpdate?: () => Promise<import("./updates").UpdateCheckResult>;
   onCloseTabRequested: (listener: () => void) => () => void;
   onNewTabRequested: (listener: () => void) => () => void;
+  /** The tray menu asks for a preferences section, such as `remote`. */
+  onOpenPreferencesSection?: (
+    listener: (section: string) => void,
+  ) => () => void;
+  /** A section requested before this window finished loading, once. */
+  takePendingPreferencesSection?: () => Promise<string | null>;
   onUpdateEvent?: (
     listener: import("./updates").UpdateEventListener,
   ) => () => void;

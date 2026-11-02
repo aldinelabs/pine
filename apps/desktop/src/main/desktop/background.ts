@@ -27,6 +27,10 @@ interface DesktopBackgroundOptions {
   open(): void;
   quit(): void;
   toggleQuickComposer(): void;
+  toggleWebAccess(): void;
+  toggleRelayRemote(): void;
+  /** Opens Pine's preferences at the Remote Control section. */
+  manageRemote(): void;
   state(): TrayState;
 }
 
@@ -179,11 +183,22 @@ export class DesktopBackground {
     const handlers: Record<TrayAction, () => void> = {
       open: () => this.options.open(),
       "quick-composer": () => this.options.toggleQuickComposer(),
+      "toggle-web-access": () => this.options.toggleWebAccess(),
+      "toggle-relay-remote": () => this.options.toggleRelayRemote(),
+      "manage-remote": () => this.options.manageRemote(),
       quit: () => this.options.quit(),
     };
     const template = trayMenu(this.options.state(), isChineseLocale()).map(
       (entry): MenuItemConstructorOptions => {
         if (entry.type === "separator") return { type: "separator" };
+        if (entry.type === "toggle")
+          return {
+            label: entry.label,
+            type: "checkbox",
+            checked: entry.checked,
+            enabled: entry.enabled,
+            click: handlers[entry.action],
+          };
         if (entry.type === "status")
           return { label: entry.label, enabled: false };
         return { label: entry.label, click: handlers[entry.action] };

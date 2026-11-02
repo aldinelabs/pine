@@ -218,6 +218,8 @@ import {
   SET_THEME_SOURCE_CHANNEL,
   CLOSE_TAB_REQUESTED_CHANNEL,
   NEW_TAB_REQUESTED_CHANNEL,
+  OPEN_PREFERENCES_SECTION_CHANNEL,
+  TAKE_PENDING_PREFERENCES_SECTION_CHANNEL,
   CLOSE_WINDOW_CHANNEL,
   SET_WINDOW_BACKGROUND_CHANNEL,
   SET_WINDOW_LAYOUT_CHANNEL,
@@ -338,6 +340,14 @@ export function createPineApi(transport: PineTransport): PineDesktopApi {
       transport.on(NEW_TAB_REQUESTED_CHANNEL, handler);
       return () => transport.removeListener(NEW_TAB_REQUESTED_CHANNEL, handler);
     },
+    onOpenPreferencesSection: (listener) => {
+      const handler = (_event: unknown, section: string) => listener(section);
+      transport.on(OPEN_PREFERENCES_SECTION_CHANNEL, handler);
+      return () =>
+        transport.removeListener(OPEN_PREFERENCES_SECTION_CHANNEL, handler);
+    },
+    takePendingPreferencesSection: (): Promise<string | null> =>
+      transport.invoke(TAKE_PENDING_PREFERENCES_SECTION_CHANNEL),
     onUpdateEvent: (listener: UpdateEventListener) => {
       const handler = (_event: unknown, event: PineUpdateEvent) =>
         listener(event);
