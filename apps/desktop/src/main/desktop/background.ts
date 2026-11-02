@@ -84,9 +84,11 @@ export class DesktopBackground {
   /** Hides the last visible window instead of closing it. */
   watch(window: BrowserWindow, isAuxiliary: () => boolean): void {
     window.on("close", (event) => {
+      // Any other close goes through: a window that refuses to close while
+      // quitting cancels the quit, leaving Pine running in the tray.
       if (
-        !isAuxiliary() &&
-        shouldHideOnClose({
+        isAuxiliary() ||
+        !shouldHideOnClose({
           active: this.active,
           quitting: this.quitting,
           visibleAppWindows: this.visibleWindows().length,
