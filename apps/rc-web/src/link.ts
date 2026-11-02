@@ -26,7 +26,7 @@ export type LinkFailure =
   | "offline"
   /** The person at the computer said no. */
   | "declined"
-  /** The computer cannot accept phones right now. */
+  /** The computer cannot accept devices right now. */
   | "unavailable"
   /** The devices could not reach each other. */
   | "failed";
@@ -92,7 +92,7 @@ function watchGathering(
 
 /**
  * Reaches the desktop: meets it in a signaling room, sends an offer signed
- * with this phone's key, checks the desktop's signed answer against the key
+ * with this device's key, checks the desktop's signed answer against the key
  * the QR code gave, and opens one DataChannel for the tunnel.
  */
 export async function connect(options: LinkOptions): Promise<Link> {
@@ -241,7 +241,7 @@ function attach(
     if (peer.connectionState === "failed" || peer.connectionState === "closed")
       close();
   });
-  // A phone that slept or lost its network stops hearing pongs.
+  // A device that slept or lost its network stops hearing pongs.
   const pinger = setInterval(() => {
     if (Date.now() - lastHeard > PING_TIMEOUT_MS) return close();
     try {

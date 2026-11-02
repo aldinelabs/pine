@@ -36,7 +36,7 @@ export class TunnelClosedError extends Error {
 }
 
 /**
- * The phone's end of the HTTP-over-DataChannel tunnel. Each request becomes
+ * The device's end of the HTTP-over-DataChannel tunnel. Each request becomes
  * one odd-numbered stream; the desktop answers with a head, body frames and
  * an end. Control frames between the devices go to `onControl`.
  */

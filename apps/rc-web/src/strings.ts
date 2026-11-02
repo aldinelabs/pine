@@ -12,15 +12,15 @@ const zh = {
   reconnect: "重新连接",
   disconnected: "与 {name} 的连接已断开。",
   forget: "移除",
-  forgetConfirm: "在这部手机上移除“{name}”？之后需要重新扫码配对。",
+  forgetConfirm: "在这台设备上移除“{name}”？之后需要重新配对。",
   emptyList:
-    "还没有配对的电脑。在电脑上打开 Pine 设置 → 远程控制，点击「配对新手机」，然后用相机扫码。",
+    "还没有配对的电脑。在电脑上打开 Pine 设置 → 远程控制，点击「配对新设备」，然后扫描二维码或打开配对链接。",
   lastConnected: "上次连接 {date}",
   expired: "二维码已过期。请在电脑上重新生成。",
   invalid: "这不是有效的 Pine 配对二维码。",
   network: "无法连接到信令服务，请检查网络后重试。",
   offline:
-    "{name} 没有响应。请确认电脑上的 Pine 正在运行，并已开启手机远程控制。",
+    "{name} 没有响应。请确认电脑上的 Pine 正在运行，并已开启「经 Aldine 远程控制」。",
   declined: "电脑上拒绝了这次配对。",
   unavailable: "电脑暂时无法接受连接。请确认电脑上的 Pine 已开启浏览器访问。",
   failed: "无法与电脑建立连接。请稍后重试。",
@@ -42,19 +42,19 @@ const en: typeof zh = {
   disconnected: "The connection to {name} was lost.",
   forget: "Remove",
   forgetConfirm:
-    "Remove “{name}” from this phone? You will need to scan a new code to pair again.",
+    "Remove “{name}” from this device? You will need to pair again.",
   emptyList:
-    "No computers are paired yet. On your computer, open Pine Settings → Remote Control, click Pair a phone, and scan the code with your camera.",
+    "No computers are paired yet. On your computer, open Pine Settings → Remote Control, click Pair a device, and scan the code or open the pairing link.",
   lastConnected: "Last connected {date}",
   expired: "This code has expired. Create a new one on your computer.",
   invalid: "This is not a Pine pairing code.",
   network:
     "Cannot reach the signaling service. Check your network and try again.",
   offline:
-    "{name} is not answering. Make sure Pine is running on it with phone remote control turned on.",
+    "{name} is not answering. Make sure Pine is running on it with Remote control via Aldine turned on.",
   declined: "The pairing was declined on the computer.",
   unavailable:
-    "The computer cannot accept phones right now. Make sure browser access is on in Pine.",
+    "The computer cannot accept devices right now. Make sure browser access is on in Pine.",
   failed: "Could not connect to the computer. Try again later.",
 };
 

@@ -1,11 +1,11 @@
 # @pine/rc-web
 
-The page phones open for Pine's Remote Control, served at
-`https://rc.aldine.cn`. It pairs by QR code, keeps the phone's key and the
+The page other devices open for Pine's Remote Control, served at
+`https://rc.aldine.cn`. It pairs by QR code or link, keeps the device's key and the
 paired computers in IndexedDB, and opens one WebRTC DataChannel to the
 desktop. A service worker sends every request from the embedded
 `/pine/<token>/` page through that channel to the desktop's local web
-server, so the phone runs the desktop's own web interface, whatever version
+server, so the device runs the desktop's own web interface, whatever version
 it is.
 
 It is a static site with no server code. The signaling service it talks to is
@@ -40,7 +40,7 @@ sets the response headers.
 4. The signaling service must list the page origin in `RC_SIGNAL_ORIGINS`.
 
 Deploy only what this repository builds. Whoever can change this site can
-serve code that uses a paired phone's key, so protect the EdgeOne account and
+serve code that uses a paired device's key, so protect the EdgeOne account and
 the DNS for `aldine.cn` with two-factor sign-in.
 
 ## Policies the site depends on
@@ -51,5 +51,5 @@ the DNS for `aldine.cn` with two-factor sign-in.
   own policy.
 - Pine answers `X-Frame-Options: DENY`; the worker rewrites it to
   `SAMEORIGIN` so this site's page can embed it and other sites still cannot.
-- Changing the domain loses every paired phone: keys live in the origin's
+- Changing the domain loses every paired device: keys live in the origin's
   storage.

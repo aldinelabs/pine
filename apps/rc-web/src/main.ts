@@ -11,11 +11,12 @@ import {
   type ShellHello,
 } from "./bridgeMessages";
 import { LinkError, connect, type Link, type LinkStage } from "./link";
+import { pineLogo } from "./logo";
 import {
+  deviceIdentity,
   forgetHost,
   keepStorage,
   listHosts,
-  phoneIdentity,
   saveHost,
   type StoredHost,
 } from "./store";
@@ -54,7 +55,7 @@ function h(
 /** Shows a card above Pine, or in its place before Pine has loaded. */
 function show(...children: Child[]): void {
   document.getElementById("card")?.remove();
-  root.append(h("main", { id: "card" }, ...children));
+  root.append(h("main", { id: "card" }, pineLogo(), ...children));
 }
 
 function hideCard(): void {
@@ -98,7 +99,26 @@ function deviceName(): string {
   if (/iPad/.test(agent)) return "iPad";
   if (/iPhone/.test(agent)) return "iPhone";
   if (/Android/.test(agent)) return "Android";
-  return isChinese ? "手机" : "Phone";
+  const browser = /Edg\//.test(agent)
+    ? "Edge"
+    : /Firefox\//.test(agent)
+      ? "Firefox"
+      : /Chrome\//.test(agent)
+        ? "Chrome"
+        : /Safari\//.test(agent)
+          ? "Safari"
+          : undefined;
+  const system = /Windows/.test(agent)
+    ? "Windows"
+    : /Mac OS X/.test(agent)
+      ? "macOS"
+      : /CrOS/.test(agent)
+        ? "ChromeOS"
+        : /Linux/.test(agent)
+          ? "Linux"
+          : undefined;
+  if (browser && system) return `${browser} · ${system}`;
+  return browser ?? system ?? (isChinese ? "设备" : "Device");
 }
 
 function showPine(): void {
@@ -129,7 +149,7 @@ function lost(closed: Link): void {
       button(t("otherComputers"), () => void showList(), "secondary"),
     ),
   );
-  // Coming back to the phone is the usual way a connection is lost.
+  // Coming back to the device is the usual way a connection is lost.
   if (document.visibilityState === "visible") void open(current);
 }
 
@@ -360,7 +380,7 @@ async function boot(): Promise<void> {
   );
   await hello();
   void keepStorage();
-  identity = await phoneIdentity();
+  identity = await deviceIdentity();
 
   if (location.hash.startsWith("#pair=")) {
     const url = location.href;

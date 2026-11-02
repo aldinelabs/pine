@@ -1,6 +1,6 @@
 import { generateIdentity, type Identity } from "@pine/rc-protocol";
 
-/** A computer this phone has paired with. */
+/** A computer this device has paired with. */
 export interface StoredHost {
   /** The computer's public key, base64url. */
   id: string;
@@ -48,10 +48,10 @@ async function run<T>(
 }
 
 /**
- * This phone's key. The private half is non-extractable and stays in this
+ * This device's key. The private half is non-extractable and stays in this
  * browser's storage, so even the pages served here cannot copy it.
  */
-export async function phoneIdentity(): Promise<Identity> {
+export async function deviceIdentity(): Promise<Identity> {
   const stored = await run<Identity | undefined>(IDENTITY, "readonly", (s) =>
     s.get("phone"),
   );
