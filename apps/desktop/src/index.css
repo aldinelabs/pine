@@ -978,3 +978,29 @@ html.sidebar-vibrancy:has(
     border-color: Highlight;
   }
 }
+
+/*
+ * Increased-contrast preference. Applied as direct properties rather than by
+ * overriding colour tokens: the dark and project colour themes redefine the
+ * tokens with higher specificity, while these rules win by layer order.
+ */
+@media (prefers-contrast: more) {
+  :focus-visible {
+    outline: 2px solid var(--foreground);
+    outline-offset: 2px;
+  }
+
+  [data-slot="button"],
+  [data-slot="input"],
+  [data-slot="textarea"],
+  [data-slot="select-trigger"],
+  [data-slot="switch"],
+  [data-slot="checkbox"],
+  [data-slot="radio-group-item"] {
+    border: 1px solid color-mix(in oklab, currentColor 60%, transparent);
+  }
+
+  .text-muted-foreground {
+    color: var(--foreground);
+  }
+}
