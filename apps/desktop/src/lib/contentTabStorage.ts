@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { fileTargetKey } from "@/lib/filePreviewTarget";
 import type { ProjectContentTab } from "@/stores/contentTabs";
+import { preferenceStorage } from "@/lib/preferenceStorage";
 
 /**
  * One tab list per window. sessionStorage survives a reload of this window;
@@ -55,7 +56,7 @@ export interface ContentTabState {
   activeTabId: string | null;
 }
 
-function readStored(storage: () => Storage): unknown {
+function readStored(storage: () => Pick<Storage, "getItem">): unknown {
   try {
     return JSON.parse(storage().getItem(CONTENT_TABS_STORAGE_KEY) ?? "null");
   } catch {
@@ -67,7 +68,7 @@ export function readContentTabs(): ContentTabState | null {
   try {
     const reloaded = readStored(() => window.sessionStorage);
     const parsed = stateSchema.safeParse(
-      reloaded ?? readStored(() => window.localStorage),
+      reloaded ?? readStored(() => preferenceStorage),
     );
     if (!parsed.success) return null;
     const ids = new Set<string>();
@@ -116,8 +117,8 @@ export function writeContentTabs(state: ContentTabState): void {
   const value = JSON.stringify(state);
   for (const storage of [
     () => window.sessionStorage,
-    () => window.localStorage,
-  ]) {
+    () => preferenceStorage,
+  ] as const) {
     try {
       storage().setItem(CONTENT_TABS_STORAGE_KEY, value);
     } catch {

@@ -5,6 +5,7 @@ import {
   PROJECT_COLOR_THEMES,
   type ProjectColorTheme,
 } from "@/shared/projects";
+import { preferenceStorage } from "@/lib/preferenceStorage";
 
 export const THEME_PREFERENCE_STORAGE_KEY = "pine.theme-preference";
 export const PINE_COLOR_THEME_STORAGE_KEY = "pine.color-theme";
@@ -37,7 +38,7 @@ export function isThemePreference(
 
 function readStoredThemePreference(): ThemePreference {
   try {
-    const storedPreference = window.localStorage.getItem(
+    const storedPreference = preferenceStorage.getItem(
       THEME_PREFERENCE_STORAGE_KEY,
     );
     return isThemePreference(storedPreference) ? storedPreference : "system";
@@ -48,9 +49,7 @@ function readStoredThemePreference(): ThemePreference {
 
 function readStoredPineColorTheme(): ProjectColorTheme {
   try {
-    const storedTheme = window.localStorage.getItem(
-      PINE_COLOR_THEME_STORAGE_KEY,
-    );
+    const storedTheme = preferenceStorage.getItem(PINE_COLOR_THEME_STORAGE_KEY);
     return isProjectColorTheme(storedTheme) ? storedTheme : "olive";
   } catch {
     return "olive";
@@ -60,9 +59,7 @@ function readStoredPineColorTheme(): ProjectColorTheme {
 /** On unless the user turned it off; overlays no longer blur it to black. */
 function readStoredSidebarVibrancy(): boolean {
   try {
-    return (
-      window.localStorage.getItem(SIDEBAR_VIBRANCY_STORAGE_KEY) !== "false"
-    );
+    return preferenceStorage.getItem(SIDEBAR_VIBRANCY_STORAGE_KEY) !== "false";
   } catch {
     return true;
   }
@@ -75,13 +72,12 @@ function readStoredSidebarVibrancy(): boolean {
 function migrateSidebarVibrancyOnce(): void {
   try {
     if (
-      window.localStorage.getItem(SIDEBAR_VIBRANCY_MIGRATED_STORAGE_KEY) !==
-      null
+      preferenceStorage.getItem(SIDEBAR_VIBRANCY_MIGRATED_STORAGE_KEY) !== null
     ) {
       return;
     }
-    window.localStorage.setItem(SIDEBAR_VIBRANCY_STORAGE_KEY, "true");
-    window.localStorage.setItem(SIDEBAR_VIBRANCY_MIGRATED_STORAGE_KEY, "true");
+    preferenceStorage.setItem(SIDEBAR_VIBRANCY_STORAGE_KEY, "true");
+    preferenceStorage.setItem(SIDEBAR_VIBRANCY_MIGRATED_STORAGE_KEY, "true");
   } catch {
     // Without storage the default (on) already applies.
   }
@@ -89,7 +85,7 @@ function migrateSidebarVibrancyOnce(): void {
 
 function readStoredReadingFont(): boolean {
   try {
-    return window.localStorage.getItem(READING_FONT_STORAGE_KEY) === "true";
+    return preferenceStorage.getItem(READING_FONT_STORAGE_KEY) === "true";
   } catch {
     return false;
   }
@@ -98,9 +94,7 @@ function readStoredReadingFont(): boolean {
 /** Documents start inverted in dark mode unless the user turned it off. */
 function readStoredInvertDocuments(): boolean {
   try {
-    return (
-      window.localStorage.getItem(INVERT_DOCUMENTS_STORAGE_KEY) !== "false"
-    );
+    return preferenceStorage.getItem(INVERT_DOCUMENTS_STORAGE_KEY) !== "false";
   } catch {
     return true;
   }
@@ -177,7 +171,7 @@ export const useAppearanceStore = defineStore("appearance", () => {
     applyColorScheme();
 
     try {
-      window.localStorage.setItem(THEME_PREFERENCE_STORAGE_KEY, preference);
+      preferenceStorage.setItem(THEME_PREFERENCE_STORAGE_KEY, preference);
     } catch {
       // The selected theme still applies for this session if storage is unavailable.
     }
@@ -187,7 +181,7 @@ export const useAppearanceStore = defineStore("appearance", () => {
     pineColorTheme.value = theme;
 
     try {
-      window.localStorage.setItem(PINE_COLOR_THEME_STORAGE_KEY, theme);
+      preferenceStorage.setItem(PINE_COLOR_THEME_STORAGE_KEY, theme);
     } catch {
       // The selected color theme still applies for this session if storage is unavailable.
     }
@@ -200,7 +194,7 @@ export const useAppearanceStore = defineStore("appearance", () => {
     applySidebarVibrancy();
 
     try {
-      window.localStorage.setItem(
+      preferenceStorage.setItem(
         SIDEBAR_VIBRANCY_STORAGE_KEY,
         enabled ? "true" : "false",
       );
@@ -215,7 +209,7 @@ export const useAppearanceStore = defineStore("appearance", () => {
     applyReadingFont();
 
     try {
-      window.localStorage.setItem(
+      preferenceStorage.setItem(
         READING_FONT_STORAGE_KEY,
         enabled ? "true" : "false",
       );
@@ -229,7 +223,7 @@ export const useAppearanceStore = defineStore("appearance", () => {
     invertDocuments.value = enabled;
 
     try {
-      window.localStorage.setItem(
+      preferenceStorage.setItem(
         INVERT_DOCUMENTS_STORAGE_KEY,
         enabled ? "true" : "false",
       );

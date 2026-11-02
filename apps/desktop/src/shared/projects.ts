@@ -103,6 +103,7 @@ import type {
 import type { WorkbenchStateResponse } from "./workbench";
 import type { PineWindowApi } from "./window";
 import type { PineBackgroundApi } from "./background";
+import type { PinePreferenceStorageApi } from "./preferenceStorage";
 import type { PineQuickComposerApi } from "./quickComposer";
 import type {
   SetApproximateLocationRequest,
@@ -329,7 +330,11 @@ export interface PickProjectFoldersRequest {
 }
 
 export interface PineDesktopApi
-  extends PineWindowApi, PineQuickComposerApi, PineBackgroundApi {
+  extends
+    PineWindowApi,
+    PineQuickComposerApi,
+    PineBackgroundApi,
+    PinePreferenceStorageApi {
   runtime?: "desktop" | "web";
   getWebServer?: () => Promise<import("./webControl").WebServerStatus>;
   setWebServer?: (

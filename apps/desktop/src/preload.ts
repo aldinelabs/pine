@@ -5,6 +5,11 @@ import {
   GET_RUN_IN_BACKGROUND_CHANNEL,
   SET_RUN_IN_BACKGROUND_CHANNEL,
 } from "./shared/background";
+import {
+  PREFERENCES_REMOVE_CHANNEL,
+  PREFERENCES_SET_CHANNEL,
+  PREFERENCES_SNAPSHOT_CHANNEL,
+} from "./shared/preferenceStorage";
 import { QUICK_COMPOSER_HANDOFF_ARGUMENT } from "./shared/quickComposer";
 import {
   CANCEL_REMOTE_PAIRING_CHANNEL,
@@ -41,6 +46,16 @@ const pineApi: PineDesktopApi = {
     },
   }),
   runtime: "desktop",
+  // Stores read their preferences while they are created, so the snapshot is
+  // fetched synchronously before any renderer code runs.
+  preferences: {
+    snapshot: ipcRenderer.sendSync(PREFERENCES_SNAPSHOT_CHANNEL) as Record<
+      string,
+      string
+    >,
+    set: (key, value) => ipcRenderer.send(PREFERENCES_SET_CHANNEL, key, value),
+    remove: (key) => ipcRenderer.send(PREFERENCES_REMOVE_CHANNEL, key),
+  },
   getWebServer: () => ipcRenderer.invoke(GET_WEB_SERVER_CHANNEL),
   setWebPassword: (password) =>
     ipcRenderer.invoke(SET_WEB_PASSWORD_CHANNEL, password),

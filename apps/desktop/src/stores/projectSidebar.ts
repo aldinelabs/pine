@@ -1,5 +1,6 @@
 import { defineStore } from "pinia";
 import { reactive } from "vue";
+import { preferenceStorage } from "@/lib/preferenceStorage";
 
 export const PROJECT_SIDEBAR_STORAGE_PREFIX = "pine.project-sidebar.v1:";
 /** The file tree's state of each project. */
@@ -10,7 +11,7 @@ interface FileTreeState {
 function readState(projectId: string): FileTreeState {
   try {
     const value: unknown = JSON.parse(
-      window.localStorage.getItem(PROJECT_SIDEBAR_STORAGE_PREFIX + projectId) ??
+      preferenceStorage.getItem(PROJECT_SIDEBAR_STORAGE_PREFIX + projectId) ??
         "null",
     );
     if (typeof value === "object" && value !== null) {
@@ -41,7 +42,7 @@ export const useProjectSidebarStore = defineStore("project-sidebar", () => {
     const state = { ...stateFor(projectId), expanded: [...new Set(expanded)] };
     projects.set(projectId, state);
     try {
-      window.localStorage.setItem(
+      preferenceStorage.setItem(
         PROJECT_SIDEBAR_STORAGE_PREFIX + projectId,
         JSON.stringify(state),
       );

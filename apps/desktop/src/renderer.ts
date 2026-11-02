@@ -18,8 +18,13 @@ import { useQuickComposerHandoffStore } from "./stores/quickComposerHandoff";
 import { useUpdaterStore } from "./stores/updater";
 import "./index.css";
 import "vue-sonner/style.css";
+import {
+  adoptWebStoragePreferences,
+  preferenceStorage,
+} from "@/lib/preferenceStorage";
 
 async function startRenderer(): Promise<void> {
+  adoptWebStoragePreferences();
   // A browser that is not signed in loads only the sign-in view; Pine's data
   // stays behind the password.
   const needsSignIn = !window.pine && (await browserNeedsSignIn());
@@ -27,7 +32,7 @@ async function startRenderer(): Promise<void> {
   let storedLocale: string | null = null;
 
   try {
-    storedLocale = window.localStorage.getItem(APP_LOCALE_STORAGE_KEY);
+    storedLocale = preferenceStorage.getItem(APP_LOCALE_STORAGE_KEY);
   } catch {
     // Fall back to the operating system language if storage is unavailable.
   }

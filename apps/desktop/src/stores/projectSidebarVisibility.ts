@@ -1,6 +1,7 @@
 import { defineStore } from "pinia";
 import { ref } from "vue";
 import { isQuickComposerHandoffWindow } from "@/stores/quickComposerHandoff";
+import { preferenceStorage } from "@/lib/preferenceStorage";
 
 export const PROJECT_SIDEBAR_VISIBILITY_STORAGE_KEY =
   "pine.project-sidebar-visibility.v1";
@@ -8,7 +9,7 @@ export const PROJECT_SIDEBAR_VISIBILITY_STORAGE_KEY =
 function readOpen(): boolean {
   try {
     return (
-      window.localStorage.getItem(PROJECT_SIDEBAR_VISIBILITY_STORAGE_KEY) !==
+      preferenceStorage.getItem(PROJECT_SIDEBAR_VISIBILITY_STORAGE_KEY) !==
       "false"
     );
   } catch {
@@ -26,7 +27,7 @@ export const useProjectSidebarVisibilityStore = defineStore(
     function setOpen(value: boolean): void {
       open.value = value;
       try {
-        window.localStorage.setItem(
+        preferenceStorage.setItem(
           PROJECT_SIDEBAR_VISIBILITY_STORAGE_KEY,
           String(value),
         );

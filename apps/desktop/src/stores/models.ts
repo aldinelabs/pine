@@ -17,6 +17,7 @@ import type {
   UpdateCustomModelRequest,
   UpdateCustomProviderRequest,
 } from "@/shared/models";
+import { preferenceStorage } from "@/lib/preferenceStorage";
 
 interface ProviderLoginState {
   authType: PineAuthType;
@@ -53,7 +54,7 @@ export function defaultThinkingLevel(
 function readStoredModelKeys(storageKey: string): string[] {
   try {
     const value: unknown = JSON.parse(
-      window.localStorage.getItem(storageKey) ?? "[]",
+      preferenceStorage.getItem(storageKey) ?? "[]",
     );
     return Array.isArray(value)
       ? [
@@ -69,7 +70,7 @@ function readStoredModelKeys(storageKey: string): string[] {
 
 function persistModelKeys(storageKey: string, keys: readonly string[]): void {
   try {
-    window.localStorage.setItem(storageKey, JSON.stringify(keys));
+    preferenceStorage.setItem(storageKey, JSON.stringify(keys));
   } catch {
     // The model list still works for this session if storage is unavailable.
   }

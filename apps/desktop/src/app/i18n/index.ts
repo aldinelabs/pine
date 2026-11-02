@@ -8,6 +8,7 @@ import esES from "./locales/es-ES";
 import jaJP from "./locales/ja-JP";
 import zhCN from "./locales/zh-CN";
 import zhTW from "./locales/zh-TW";
+import { preferenceStorage } from "@/lib/preferenceStorage";
 
 export const APP_LOCALES = [
   "zh-CN",
@@ -86,7 +87,7 @@ export function resolveAppLocale(
 
 export function persistAppLocale(locale: AppLocale): void {
   try {
-    window.localStorage.setItem(APP_LOCALE_STORAGE_KEY, locale);
+    preferenceStorage.setItem(APP_LOCALE_STORAGE_KEY, locale);
     window.pine?.setAppLocale?.(locale);
   } catch {
     // The selected locale still applies for this session if storage is unavailable.

@@ -26,6 +26,7 @@ Every release section here has a matching section in the Chinese changelog.
 ### Changed
 
 - The Reading font option now uses serif typefaces (Geist Serif and Noto Serif SC) and no longer applies to the message input box.
+- Interface preferences such as theme, language, sidebar and panel layout, and favourite and recent models are now kept in Pine's app data folder instead of web storage, so they are no longer lost when the address Pine runs from changes. Existing preferences are migrated automatically.
 
 ### Fixed
 

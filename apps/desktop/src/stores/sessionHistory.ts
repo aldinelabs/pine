@@ -1,5 +1,6 @@
 import { defineStore } from "pinia";
 import { ref } from "vue";
+import { preferenceStorage } from "@/lib/preferenceStorage";
 
 export const SESSION_HISTORY_STORAGE_KEY = "pine.session-history.collapsed.v1";
 const PAGE_SIZE = 5;
@@ -7,7 +8,7 @@ const PAGE_SIZE = 5;
 function readCollapsed(): Set<string> {
   try {
     const value: unknown = JSON.parse(
-      window.localStorage.getItem(SESSION_HISTORY_STORAGE_KEY) ?? "[]",
+      preferenceStorage.getItem(SESSION_HISTORY_STORAGE_KEY) ?? "[]",
     );
     if (Array.isArray(value)) {
       return new Set(
@@ -36,7 +37,7 @@ export const useSessionHistoryStore = defineStore("session-history", () => {
       collapsed.value.delete(projectId);
     } else collapsed.value.add(projectId);
     try {
-      window.localStorage.setItem(
+      preferenceStorage.setItem(
         SESSION_HISTORY_STORAGE_KEY,
         JSON.stringify([...collapsed.value]),
       );

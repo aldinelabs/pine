@@ -24,6 +24,7 @@ import {
 } from "@/shared/workbench";
 import { isQuickComposerHandoffWindow } from "@/stores/quickComposerHandoff";
 import { useSessionStore } from "@/stores/session";
+import { preferenceStorage } from "@/lib/preferenceStorage";
 
 export const WORKBENCH_STORAGE_KEY = "pine.workbench.v1";
 /** Layouts of new conversations, until their session exists. */
@@ -36,7 +37,7 @@ function readLayouts(): Map<string, WorkbenchLayout> {
   const layouts = new Map<string, WorkbenchLayout>();
   try {
     const value: unknown = JSON.parse(
-      window.localStorage.getItem(WORKBENCH_STORAGE_KEY) ?? "null",
+      preferenceStorage.getItem(WORKBENCH_STORAGE_KEY) ?? "null",
     );
     if (typeof value !== "object" || value === null) return layouts;
     for (const [key, stored] of Object.entries(value)) {
@@ -51,7 +52,7 @@ function readLayouts(): Map<string, WorkbenchLayout> {
 
 function readWidth(): number {
   try {
-    const stored = window.localStorage.getItem(WORKBENCH_WIDTH_STORAGE_KEY);
+    const stored = preferenceStorage.getItem(WORKBENCH_WIDTH_STORAGE_KEY);
     return stored === null
       ? WORKBENCH_DEFAULT_WIDTH
       : clampWorkbenchWidth(Number(stored));
@@ -108,7 +109,7 @@ export const useWorkbenchStore = defineStore("workbench", () => {
 
   function save(): void {
     try {
-      window.localStorage.setItem(
+      preferenceStorage.setItem(
         WORKBENCH_STORAGE_KEY,
         JSON.stringify(Object.fromEntries(layouts)),
       );
@@ -238,7 +239,7 @@ export const useWorkbenchStore = defineStore("workbench", () => {
     isResizing.value = resizing;
     if (resizing) return;
     try {
-      window.localStorage.setItem(
+      preferenceStorage.setItem(
         WORKBENCH_WIDTH_STORAGE_KEY,
         String(width.value),
       );

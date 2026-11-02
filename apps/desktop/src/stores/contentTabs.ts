@@ -13,6 +13,7 @@ import type { PineAttachment } from "@/shared/attachments";
 import { fileName, fileTargetKey } from "@/lib/filePreviewTarget";
 import { randomId } from "@/lib/randomId";
 import { parseFileReveal } from "@/shared/projectFiles";
+import { preferenceStorage } from "@/lib/preferenceStorage";
 
 /**
  * Every tab belongs to one project: the sidebars and accent colour follow
@@ -66,7 +67,7 @@ export const LAST_DRAFT_PROJECT_STORAGE_KEY = "pine.last-draft-project";
 function readLastDraftProject(): string {
   try {
     return (
-      window.localStorage.getItem(LAST_DRAFT_PROJECT_STORAGE_KEY) ||
+      preferenceStorage.getItem(LAST_DRAFT_PROJECT_STORAGE_KEY) ||
       TEMPORARY_WORKSPACE_PROJECT_ID
     );
   } catch {
@@ -98,9 +99,8 @@ export const useContentTabsStore = defineStore("content-tabs", () => {
     lastDraftProjectId.value = projectId;
     try {
       if (projectId === TEMPORARY_WORKSPACE_PROJECT_ID)
-        window.localStorage.removeItem(LAST_DRAFT_PROJECT_STORAGE_KEY);
-      else
-        window.localStorage.setItem(LAST_DRAFT_PROJECT_STORAGE_KEY, projectId);
+        preferenceStorage.removeItem(LAST_DRAFT_PROJECT_STORAGE_KEY);
+      else preferenceStorage.setItem(LAST_DRAFT_PROJECT_STORAGE_KEY, projectId);
     } catch {
       // The next draft then starts in No Project.
     }
