@@ -145,6 +145,19 @@
         "vitest": "5.0.0",
       },
     },
+    "apps/rc-web": {
+      "name": "@pine/rc-web",
+      "version": "0.1.0",
+      "dependencies": {
+        "@pine/rc-protocol": "workspace:*",
+      },
+      "devDependencies": {
+        "prettier": "3.9.6",
+        "typescript": "5.9.3",
+        "vite": "8.2.2",
+        "vitest": "5.0.0",
+      },
+    },
     "packages/computer-use-runtime": {
       "name": "@pine/computer-use-runtime",
       "version": "0.1.0",
@@ -766,6 +779,8 @@
     "@pine/rc-protocol": ["@pine/rc-protocol@workspace:packages/rc-protocol"],
 
     "@pine/rc-signal": ["@pine/rc-signal@workspace:apps/rc-signal"],
+
+    "@pine/rc-web": ["@pine/rc-web@workspace:apps/rc-web"],
 
     "@pine/rpiv-ask-user-question": ["@pine/rpiv-ask-user-question@workspace:packages/rpiv-ask-user-question"],
 

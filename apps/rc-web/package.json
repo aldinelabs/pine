@@ -1,0 +1,23 @@
+{
+  "name": "@pine/rc-web",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test:run": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "format:check": "prettier --check ."
+  },
+  "dependencies": {
+    "@pine/rc-protocol": "workspace:*"
+  },
+  "devDependencies": {
+    "prettier": "3.9.6",
+    "typescript": "5.9.3",
+    "vite": "8.2.2",
+    "vitest": "5.0.0"
+  }
+}
