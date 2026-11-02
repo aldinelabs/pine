@@ -24,6 +24,8 @@ import type { PineSessionExportDocument } from "../shared/sessionExport";
 import { randomId } from "../lib/randomId";
 
 const browserClientId = randomId();
+const EVENTS_RETRY_MIN_MS = 1_000;
+const EVENTS_RETRY_MAX_MS = 30_000;
 
 type Listener = (value: unknown) => void;
 
@@ -263,14 +265,34 @@ export async function initializeWebClient(): Promise<
   window.pine = api;
   document.documentElement.dataset.runtime = "web";
   let events: EventSource | undefined;
+  let lastEventId = "";
+  let retry: ReturnType<typeof setTimeout> | undefined;
+  let retryDelay = EVENTS_RETRY_MIN_MS;
   function connect(): void {
+    clearTimeout(retry);
+    retry = undefined;
     events?.close();
-    events = new EventSource(`/api/events?client=${browserClientId}`);
-    events.onopen = () => {
+    const query = new URLSearchParams({ client: browserClientId });
+    // A new stream picks up where the last one stopped, or gets a snapshot.
+    if (lastEventId) query.set("after", lastEventId);
+    const source = new EventSource(`/api/events?${query}`);
+    events = source;
+    source.onopen = () => {
+      retryDelay = EVENTS_RETRY_MIN_MS;
       for (const watch of watches.values())
         void rpc(watch.channel, watch.request).catch(() => undefined);
     };
-    events.onmessage = (message: MessageEvent<string>) => {
+    source.onerror = () => {
+      // The browser retries a dropped stream itself, but gives up for good
+      // when a retry gets an error response, such as while Remote Control
+      // reconnects; prompts would still go out with nothing coming back.
+      if (source !== events || source.readyState !== EventSource.CLOSED) return;
+      if (document.visibilityState !== "visible") return;
+      retry = setTimeout(connect, retryDelay);
+      retryDelay = Math.min(retryDelay * 2, EVENTS_RETRY_MAX_MS);
+    };
+    source.onmessage = (message: MessageEvent<string>) => {
+      if (message.lastEventId) lastEventId = message.lastEventId;
       const event = decodeWebJson(message.data) as WebEvent;
       if (event.channel === FILE_PREVIEW_CHANGED_CHANNEL) {
         const change = event.value as { watchId: string };
@@ -288,12 +310,26 @@ export async function initializeWebClient(): Promise<
           listener(event.value);
     };
   }
-  const close = () => events?.close();
+  const close = () => {
+    clearTimeout(retry);
+    retry = undefined;
+    events?.close();
+  };
   const restore = (event: PageTransitionEvent) => {
     if (event.persisted) connect();
   };
+  // Coming back to the page is when a stream that gave up is noticed.
+  const resume = () => {
+    if (
+      document.visibilityState === "visible" &&
+      events?.readyState === EventSource.CLOSED &&
+      !retry
+    )
+      connect();
+  };
   window.addEventListener("pagehide", close);
   window.addEventListener("pageshow", restore);
+  document.addEventListener("visibilitychange", resume);
   return {
     connect,
     dispose: () => {
@@ -302,6 +338,7 @@ export async function initializeWebClient(): Promise<
       snapshotListeners.clear();
       window.removeEventListener("pagehide", close);
       window.removeEventListener("pageshow", restore);
+      document.removeEventListener("visibilitychange", resume);
     },
   };
 }
