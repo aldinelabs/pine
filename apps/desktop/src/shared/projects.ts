@@ -57,6 +57,7 @@ import type {
   SelectModelRequest,
   SelectImageModelRequest,
   SelectVideoModelRequest,
+  SelectApprovalModelRequest,
   SelectUtilityModelRequest,
   UpdateCustomModelRequest,
   UpdateCustomProviderRequest,
@@ -519,6 +520,9 @@ export interface PineDesktopApi
   selectModel: (request: SelectModelRequest) => Promise<{ disposed: boolean }>;
   selectUtilityModel: (
     request: SelectUtilityModelRequest,
+  ) => Promise<{ updated: boolean }>;
+  selectApprovalModel: (
+    request: SelectApprovalModelRequest,
   ) => Promise<{ updated: boolean }>;
   selectImageModel: (
     request: SelectImageModelRequest,

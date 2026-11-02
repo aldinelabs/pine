@@ -248,7 +248,8 @@ export default {
     autoApprovalHelp: "About automatic approval paths",
     decisionsCredentialMissing:
       "OpenRouter is not configured. Add a credential in Manage providers or models; model review is used until then.",
-    utilityModel: "Title generation and review model",
+    utilityModel: "Title generation model",
+    approvalModel: "Approval model",
     selectUtilityModel: "Choose model",
     noUtilityModelSelected: "No model selected",
     imageModel: "Image generation model",
@@ -1754,6 +1755,10 @@ export default {
     },
     utilityModel: {
       title: "Unable to update utility model",
+      description: "Check the model provider and try again",
+    },
+    approvalModel: {
+      title: "Unable to update approval model",
       description: "Check the model provider and try again",
     },
     imageModel: {

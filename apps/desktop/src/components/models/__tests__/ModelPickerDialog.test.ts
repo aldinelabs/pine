@@ -110,7 +110,13 @@ const customCatalog: PineModelCatalog = {
 };
 
 function mountPicker(
-  purpose: "session" | "utility" | "image" | "video" | "decisions" = "session",
+  purpose:
+    | "session"
+    | "utility"
+    | "approval"
+    | "image"
+    | "video"
+    | "decisions" = "session",
   catalog: PineModelCatalog = connectedCatalog,
 ) {
   const logoutProvider = vi.fn().mockResolvedValue({ disposed: true });

@@ -10,6 +10,7 @@ export const DELETE_CUSTOM_PROVIDER_CHANNEL =
 export const LOOKUP_MODEL_METADATA_CHANNEL = "models:lookup-metadata" as const;
 export const SELECT_MODEL_CHANNEL = "models:select" as const;
 export const SELECT_UTILITY_MODEL_CHANNEL = "models:select-utility" as const;
+export const SELECT_APPROVAL_MODEL_CHANNEL = "models:select-approval" as const;
 export const SELECT_IMAGE_MODEL_CHANNEL = "models:select-image" as const;
 export const SELECT_VIDEO_MODEL_CHANNEL = "models:select-video" as const;
 export const LOGIN_PROVIDER_CHANNEL = "providers:login" as const;
@@ -71,6 +72,7 @@ export type PineUtilityModelSelection = Pick<
   PineModelSelection,
   "modelId" | "providerId"
 >;
+export type PineApprovalModelSelection = PineUtilityModelSelection;
 
 /**
  * An image-generation model from pi-ai's image catalog. Image models live in
@@ -135,6 +137,7 @@ export interface PineModelCatalog {
   recommendedModelIds?: readonly string[];
   selection?: PineModelSelection;
   utilitySelection?: PineUtilityModelSelection;
+  approvalSelection?: PineApprovalModelSelection;
 }
 
 export interface CustomModelDefinition {
@@ -266,6 +269,7 @@ export type SelectModelRequest = PineModelSelection & {
   projectId?: string;
 };
 export type SelectUtilityModelRequest = PineUtilityModelSelection;
+export type SelectApprovalModelRequest = PineApprovalModelSelection;
 export type SelectImageModelRequest = PineImageModelSelection;
 export type SelectVideoModelRequest = PineVideoModelSelection;
 

@@ -140,6 +140,12 @@ async function handleRequest(request: AgentWorkerRequest): Promise<void> {
         request.selection,
       );
       break;
+    case "models:select-approval":
+      result = await runtime.selectApprovalModel(
+        request.agentDir,
+        request.selection,
+      );
+      break;
     case "models:select-image":
       result = await runtime.selectImageModel(
         request.agentDir,

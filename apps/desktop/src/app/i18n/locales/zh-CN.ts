@@ -236,7 +236,8 @@ export default {
     autoApprovalHelp: "关于自动审批路径",
     decisionsCredentialMissing:
       "尚未配置 OpenRouter，可在“管理服务或模型”中添加凭据；配置前使用大模型审批。",
-    utilityModel: "标题生成与审批模型",
+    utilityModel: "标题生成模型",
+    approvalModel: "审批模型",
     selectUtilityModel: "选择模型",
     noUtilityModelSelected: "未选择任何模型",
     imageModel: "图像生成模型",
@@ -1699,6 +1700,10 @@ export default {
     },
     utilityModel: {
       title: "无法更新专用模型",
+      description: "请检查模型服务后重试",
+    },
+    approvalModel: {
+      title: "无法更新审批模型",
       description: "请检查模型服务后重试",
     },
     imageModel: {

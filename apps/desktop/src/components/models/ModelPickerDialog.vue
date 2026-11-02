@@ -33,7 +33,8 @@ type PickerView = "models" | "providers";
 const props = withDefaults(
   defineProps<{
     open: boolean;
-    purpose?: "session" | "utility" | "image" | "video" | "decisions";
+    purpose?:
+      "session" | "utility" | "approval" | "image" | "video" | "decisions";
     sessionId?: string;
   }>(),
   { purpose: "session" },
@@ -186,16 +187,20 @@ async function selectModel(model: PineModelDescriptor): Promise<void> {
   try {
     if (props.purpose === "utility") {
       await modelsStore.selectUtilityModel(model);
+    } else if (props.purpose === "approval") {
+      await modelsStore.selectApprovalModel(model);
     } else {
       await modelsStore.select(model, undefined, props.sessionId);
     }
     emit("update:open", false);
   } catch (error) {
-    if (props.purpose !== "utility") throw error;
+    if (props.purpose !== "utility" && props.purpose !== "approval")
+      throw error;
+    const key = props.purpose === "approval" ? "approvalModel" : "utilityModel";
     handleError(error, {
-      id: "preferences.utility-model",
-      title: t("errors.utilityModel.title"),
-      description: t("errors.utilityModel.description"),
+      id: `preferences.${props.purpose}-model`,
+      title: t(`errors.${key}.title`),
+      description: t(`errors.${key}.description`),
     });
   }
 }

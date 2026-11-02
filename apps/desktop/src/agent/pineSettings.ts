@@ -9,6 +9,7 @@ import { decisionsModelDescriptors } from "./runtime/decisions-models";
 import type {
   PineImageModelSelection,
   PineVideoModelSelection,
+  PineApprovalModelSelection,
   PineUtilityModelSelection,
 } from "../shared/models";
 import {
@@ -44,6 +45,7 @@ export interface PineAgentSettings {
   imageModel?: PineImageModelSelection;
   videoModel?: PineVideoModelSelection;
   utilityModel?: PineUtilityModelSelection;
+  approvalModel?: PineApprovalModelSelection;
   userProfile?: PineUserProfile;
 }
 
@@ -129,6 +131,7 @@ export async function readPineAgentSettings(
     const imageModel = settings.imageModel;
     const videoModel = settings.videoModel;
     const utilityModel = settings.utilityModel;
+    const approvalModel = settings.approvalModel;
     const userProfile = migrateUserProfile(settings.userProfile);
     const contextCompactionStrategy = settings.contextCompactionStrategy;
     const contextCompactionRoute = settings.contextCompactionRoute;
@@ -180,6 +183,7 @@ export async function readPineAgentSettings(
       ...(isModelSelection(imageModel) ? { imageModel } : {}),
       ...(isModelSelection(videoModel) ? { videoModel } : {}),
       ...(isModelSelection(utilityModel) ? { utilityModel } : {}),
+      ...(isModelSelection(approvalModel) ? { approvalModel } : {}),
       ...(isPineUserProfile(userProfile) ? { userProfile } : {}),
     };
   } catch (error) {
@@ -200,6 +204,13 @@ export async function writeUtilityModelSelection(
   utilityModel: PineUtilityModelSelection,
 ): Promise<void> {
   await writePineAgentSettings(agentDir, { utilityModel });
+}
+
+export async function writeApprovalModelSelection(
+  agentDir: string,
+  approvalModel: PineApprovalModelSelection,
+): Promise<void> {
+  await writePineAgentSettings(agentDir, { approvalModel });
 }
 
 export async function writeImageModelSelection(

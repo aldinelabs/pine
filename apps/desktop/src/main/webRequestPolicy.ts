@@ -190,6 +190,7 @@ export function createWebChannels(
     [models.SELECT_IMAGE_MODEL_CHANNEL, command("none")],
     [models.SELECT_VIDEO_MODEL_CHANNEL, command("none")],
     [models.SELECT_UTILITY_MODEL_CHANNEL, command("none")],
+    [models.SELECT_APPROVAL_MODEL_CHANNEL, command("none")],
     [models.ADD_CUSTOM_MODEL_CHANNEL, command("none")],
     [models.UPDATE_CUSTOM_MODEL_CHANNEL, command("none")],
     [models.DELETE_CUSTOM_MODEL_CHANNEL, command("none")],

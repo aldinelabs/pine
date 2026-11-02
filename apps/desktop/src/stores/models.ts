@@ -111,6 +111,7 @@ export const useModelsStore = defineStore("models", () => {
   const providers = computed(() => catalog.value.providers);
   const selection = computed(() => catalog.value.selection);
   const utilitySelection = computed(() => catalog.value.utilitySelection);
+  const approvalSelection = computed(() => catalog.value.approvalSelection);
   const recommendedModelIds = computed(
     () => new Set(catalog.value.recommendedModelIds ?? []),
   );
@@ -164,6 +165,16 @@ export const useModelsStore = defineStore("models", () => {
 
   const utilitySelectedModel = computed(() => {
     const selected = utilitySelection.value;
+    return selected
+      ? models.value.find(
+          (model) =>
+            model.providerId === selected.providerId &&
+            model.id === selected.modelId,
+        )
+      : undefined;
+  });
+  const approvalSelectedModel = computed(() => {
+    const selected = approvalSelection.value;
     return selected
       ? models.value.find(
           (model) =>
@@ -379,6 +390,22 @@ export const useModelsStore = defineStore("models", () => {
     };
   }
 
+  async function selectApprovalModel(
+    model: PineModelDescriptor,
+  ): Promise<void> {
+    await window.pine.selectApprovalModel({
+      providerId: model.providerId,
+      modelId: model.id,
+    });
+    catalog.value = {
+      ...catalog.value,
+      approvalSelection: {
+        providerId: model.providerId,
+        modelId: model.id,
+      },
+    };
+  }
+
   async function selectImageModel(
     model: PineImageModelDescriptor,
   ): Promise<void> {
@@ -509,6 +536,7 @@ export const useModelsStore = defineStore("models", () => {
     selectImageModel,
     selectVideoModel,
     selectUtilityModel,
+    selectApprovalModel,
     selectedModel,
     selectedModelFor,
     selection,
@@ -520,6 +548,8 @@ export const useModelsStore = defineStore("models", () => {
     updateCustomModel,
     updateCustomProvider,
     utilitySelectedModel,
+    approvalSelectedModel,
+    approvalSelection,
     utilitySelection,
   };
 });

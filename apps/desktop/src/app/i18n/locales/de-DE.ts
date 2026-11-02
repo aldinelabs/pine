@@ -252,7 +252,8 @@ export default {
     autoApprovalHelp: "Über die Pfade der automatischen Freigabe",
     decisionsCredentialMissing:
       "OpenRouter ist nicht eingerichtet. Fügen Sie unter „Anbieter und Modelle verwalten“ Zugangsdaten hinzu; bis dahin wird die Prüfung durch ein Modell verwendet.",
-    utilityModel: "Modell für Titelerzeugung und Prüfung",
+    utilityModel: "Modell für Titelerzeugung",
+    approvalModel: "Modell für Freigabeprüfung",
     selectUtilityModel: "Modell auswählen",
     noUtilityModelSelected: "Kein Modell ausgewählt",
     imageModel: "Modell für Bilderzeugung",
@@ -1821,6 +1822,10 @@ export default {
     },
     utilityModel: {
       title: "Hilfsmodell konnte nicht aktualisiert werden",
+      description: "Prüfen Sie den Modellanbieter und versuchen Sie es erneut",
+    },
+    approvalModel: {
+      title: "Freigabemodell konnte nicht aktualisiert werden",
       description: "Prüfen Sie den Modellanbieter und versuchen Sie es erneut",
     },
     imageModel: {

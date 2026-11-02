@@ -12,6 +12,7 @@ import {
   SELECT_IMAGE_MODEL_CHANNEL,
   SELECT_VIDEO_MODEL_CHANNEL,
   SELECT_MODEL_CHANNEL,
+  SELECT_APPROVAL_MODEL_CHANNEL,
   SELECT_UTILITY_MODEL_CHANNEL,
   UPDATE_CUSTOM_MODEL_CHANNEL,
   UPDATE_CUSTOM_PROVIDER_CHANNEL,
@@ -38,6 +39,7 @@ import {
   SelectImageModelRequestSchema,
   SelectVideoModelRequestSchema,
   SelectModelRequestSchema,
+  SelectApprovalModelRequestSchema,
   SelectUtilityModelRequestSchema,
   UpdateCustomModelRequestSchema,
   UpdateCustomProviderRequestSchema,
@@ -187,6 +189,14 @@ export function registerModelRequests(core: PineCore): void {
     (_context, request: unknown): Promise<{ updated: boolean }> =>
       core.runtimes.selectUtilityModel(
         SelectUtilityModelRequestSchema.parse(request),
+      ),
+  );
+
+  core.handle(
+    SELECT_APPROVAL_MODEL_CHANNEL,
+    (_context, request: unknown): Promise<{ updated: boolean }> =>
+      core.runtimes.selectApprovalModel(
+        SelectApprovalModelRequestSchema.parse(request),
       ),
   );
 

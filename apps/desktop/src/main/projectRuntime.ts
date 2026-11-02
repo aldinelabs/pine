@@ -29,6 +29,7 @@ import type {
   PineModelCatalog,
   ProviderLoginResult,
   SelectModelRequest,
+  SelectApprovalModelRequest,
   SelectUtilityModelRequest,
   SelectImageModelRequest,
   SelectVideoModelRequest,
@@ -819,6 +820,12 @@ export class ProjectRuntimeRegistry {
     request: SelectUtilityModelRequest,
   ): Promise<{ updated: boolean }> {
     return this.agentHost.selectUtilityModel(this.agentDir, request);
+  }
+
+  selectApprovalModel(
+    request: SelectApprovalModelRequest,
+  ): Promise<{ updated: boolean }> {
+    return this.agentHost.selectApprovalModel(this.agentDir, request);
   }
 
   selectImageModel(

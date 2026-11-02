@@ -248,7 +248,8 @@ export default {
     autoApprovalHelp: "자동 승인 경로 정보",
     decisionsCredentialMissing:
       "OpenRouter가 구성되지 않았습니다. '제공자 및 모델 관리'에서 자격 증명을 추가하세요. 그때까지는 모델 검토가 사용됩니다.",
-    utilityModel: "제목 생성 및 검토 모델",
+    utilityModel: "제목 생성 모델",
+    approvalModel: "승인 검토 모델",
     selectUtilityModel: "모델 선택",
     noUtilityModelSelected: "선택된 모델 없음",
     imageModel: "이미지 생성 모델",
@@ -1756,6 +1757,10 @@ export default {
     },
     utilityModel: {
       title: "유틸리티 모델을 업데이트할 수 없습니다",
+      description: "모델 제공자를 확인한 후 다시 시도하세요",
+    },
+    approvalModel: {
+      title: "승인 검토 모델을 업데이트할 수 없습니다",
       description: "모델 제공자를 확인한 후 다시 시도하세요",
     },
     imageModel: {

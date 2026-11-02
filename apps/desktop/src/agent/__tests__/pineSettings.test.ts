@@ -9,6 +9,7 @@ import {
   writeContextCompactionStrategy,
   writeDiagnosticLoggingEnabled,
   writePineUserProfile,
+  writeApprovalModelSelection,
   writeUtilityModelSelection,
 } from "../pineSettings";
 
@@ -227,6 +228,27 @@ describe("Pine agent settings", () => {
         providerId: "provider",
         modelId: "replacement-model",
       },
+    });
+  });
+
+  it("persists the approval model separately from the utility model", async () => {
+    const agentDir = await mkdtemp(
+      path.join(os.tmpdir(), "pine-agent-settings-approval-"),
+    );
+    temporaryDirectories.push(agentDir);
+
+    await writeUtilityModelSelection(agentDir, {
+      providerId: "provider",
+      modelId: "title-model",
+    });
+    await writeApprovalModelSelection(agentDir, {
+      providerId: "provider",
+      modelId: "approval-model",
+    });
+
+    await expect(readPineAgentSettings(agentDir)).resolves.toEqual({
+      utilityModel: { providerId: "provider", modelId: "title-model" },
+      approvalModel: { providerId: "provider", modelId: "approval-model" },
     });
   });
 

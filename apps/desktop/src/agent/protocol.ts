@@ -15,6 +15,7 @@ import type {
   PineModelCatalog,
   PineProviderAuthEvent,
   PineThinkingLevel,
+  PineApprovalModelSelection,
   PineUtilityModelSelection,
   ProviderLoginResult,
   UpdateCustomModelRequest,
@@ -260,6 +261,12 @@ export type AgentWorkerRequest =
       type: "models:select-utility";
       agentDir: string;
       selection: PineUtilityModelSelection;
+    }
+  | {
+      id: string;
+      type: "models:select-approval";
+      agentDir: string;
+      selection: PineApprovalModelSelection;
     }
   | {
       id: string;

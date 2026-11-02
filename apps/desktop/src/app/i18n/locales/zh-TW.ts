@@ -235,7 +235,8 @@ export default {
     autoApprovalHelp: "關於自動審批路徑",
     decisionsCredentialMissing:
       "尚未配置 OpenRouter，可在“管理服務或模型”中新增憑據；配置前使用大模型審批。",
-    utilityModel: "標題產生與審批模型",
+    utilityModel: "標題產生模型",
+    approvalModel: "審批模型",
     selectUtilityModel: "選擇模型",
     noUtilityModelSelected: "未選擇任何模型",
     imageModel: "影象產生模型",
@@ -1699,6 +1700,10 @@ export default {
     },
     utilityModel: {
       title: "無法更新專用模型",
+      description: "請檢查模型服務後重試",
+    },
+    approvalModel: {
+      title: "無法更新審批模型",
       description: "請檢查模型服務後重試",
     },
     imageModel: {

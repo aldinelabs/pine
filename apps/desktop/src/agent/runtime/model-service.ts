@@ -22,6 +22,7 @@ import {
   type PineModelCatalog,
   type PineProviderAuthEvent,
   type PineThinkingLevel,
+  type PineApprovalModelSelection,
   type PineUtilityModelSelection,
   type ProviderLoginResult,
   type UpdateCustomModelRequest,
@@ -47,6 +48,7 @@ import {
   readPineAgentSettings,
   writeImageModelSelection,
   writeVideoModelSelection,
+  writeApprovalModelSelection,
   writeUtilityModelSelection,
 } from "../pineSettings";
 import type { PineContextCompactionStrategy } from "../../shared/preferences";
@@ -169,6 +171,14 @@ export class PineModelService {
         ? utilitySelection
         : undefined;
 
+    const approvalSelection = pineSettings.approvalModel;
+    const validApprovalSelection =
+      approvalSelection &&
+      runtime.hasConfiguredAuth(approvalSelection.providerId) &&
+      runtime.getModel(approvalSelection.providerId, approvalSelection.modelId)
+        ? approvalSelection
+        : undefined;
+
     const imageSelection = pineSettings.imageModel;
     const storedImageSelection =
       imageSelection &&
@@ -206,6 +216,9 @@ export class PineModelService {
       ),
       ...(validUtilitySelection
         ? { utilitySelection: validUtilitySelection }
+        : {}),
+      ...(validApprovalSelection
+        ? { approvalSelection: validApprovalSelection }
         : {}),
       ...(defaultProvider &&
       defaultModel &&
@@ -443,6 +456,21 @@ export class PineModelService {
     return { updated: true };
   }
 
+  async selectApprovalModel(
+    agentDir: string,
+    selection: PineApprovalModelSelection,
+  ): Promise<{ updated: boolean }> {
+    const runtime = await this.getModelRuntime(agentDir);
+    const model = runtime.getModel(selection.providerId, selection.modelId);
+    if (!model) throw new Error("Model not found.");
+    const available = await runtime.getAvailable(selection.providerId);
+    if (!available.some((candidate) => candidate.id === selection.modelId)) {
+      throw new Error("Configure this provider before selecting its model.");
+    }
+    await writeApprovalModelSelection(agentDir, selection);
+    return { updated: true };
+  }
+
   async selectVideoModel(
     agentDir: string,
     selection: PineVideoModelSelection,
@@ -514,6 +542,22 @@ export class PineModelService {
       return undefined;
     }
     return runtime.getModel(selection.providerId, selection.modelId);
+  }
+
+  /** The approval reviewer's model; falls back to the title/utility model. */
+  async approvalModel(
+    agentDir: string,
+    runtime: ModelRuntime,
+  ): Promise<Model<Api> | undefined> {
+    const selection = (await readPineAgentSettings(agentDir)).approvalModel;
+    if (
+      selection &&
+      runtime.hasConfiguredAuth(selection.providerId) &&
+      runtime.getModel(selection.providerId, selection.modelId)
+    ) {
+      return runtime.getModel(selection.providerId, selection.modelId);
+    }
+    return this.utilityModel(agentDir, runtime);
   }
 
   dispose(): void {

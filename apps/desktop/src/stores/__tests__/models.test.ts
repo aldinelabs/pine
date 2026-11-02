@@ -53,6 +53,7 @@ beforeEach(() => {
       selectImageModel: vi.fn().mockResolvedValue({ updated: true }),
       selectModel: vi.fn().mockResolvedValue(undefined),
       selectUtilityModel: vi.fn().mockResolvedValue({ updated: true }),
+      selectApprovalModel: vi.fn().mockResolvedValue({ updated: true }),
     },
   });
 });
@@ -199,6 +200,23 @@ describe("models store lists", () => {
     });
     expect(store.selectedModel).toBe(alpha);
     expect(store.utilitySelectedModel).toBe(beta);
+  });
+
+  it("selects the approval model independently from the utility model", async () => {
+    const store = useModelsStore();
+    store.catalog = {
+      ...catalog,
+      utilitySelection: { providerId: alpha.providerId, modelId: alpha.id },
+    };
+
+    await store.selectApprovalModel(beta);
+
+    expect(window.pine.selectApprovalModel).toHaveBeenCalledWith({
+      providerId: beta.providerId,
+      modelId: beta.id,
+    });
+    expect(store.approvalSelectedModel).toBe(beta);
+    expect(store.utilitySelectedModel).toBe(alpha);
   });
 
   it("selects an image model without changing the chat model", async () => {

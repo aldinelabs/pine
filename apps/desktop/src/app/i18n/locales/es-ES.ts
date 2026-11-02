@@ -254,7 +254,8 @@ export default {
     autoApprovalHelp: "Acerca de las vías de aprobación automática",
     decisionsCredentialMissing:
       "OpenRouter no está configurado. Añade una credencial en «Gestionar proveedores y modelos»; mientras tanto se usa la revisión por modelo.",
-    utilityModel: "Modelo de generación de títulos y revisión",
+    utilityModel: "Modelo de generación de títulos",
+    approvalModel: "Modelo de revisión de aprobaciones",
     selectUtilityModel: "Elegir modelo",
     noUtilityModelSelected: "Ningún modelo seleccionado",
     imageModel: "Modelo de generación de imágenes",
@@ -1798,6 +1799,10 @@ export default {
     },
     utilityModel: {
       title: "No se puede actualizar el modelo auxiliar",
+      description: "Comprueba el proveedor del modelo e inténtalo de nuevo",
+    },
+    approvalModel: {
+      title: "No se puede actualizar el modelo de revisión",
       description: "Comprueba el proveedor del modelo e inténtalo de nuevo",
     },
     imageModel: {

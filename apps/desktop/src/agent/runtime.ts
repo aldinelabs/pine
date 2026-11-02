@@ -34,6 +34,7 @@ import type {
   PineVideoModelSelection,
   PineModelCatalog,
   PineThinkingLevel,
+  PineApprovalModelSelection,
   PineUtilityModelSelection,
   ProviderLoginResult,
   UpdateCustomModelRequest,
@@ -735,6 +736,13 @@ export class PineAgentRuntime {
     selection: PineUtilityModelSelection,
   ): Promise<{ updated: boolean }> {
     return this.modelService.selectUtilityModel(agentDir, selection);
+  }
+
+  selectApprovalModel(
+    agentDir: string,
+    selection: PineApprovalModelSelection,
+  ): Promise<{ updated: boolean }> {
+    return this.modelService.selectApprovalModel(agentDir, selection);
   }
 
   selectImageModel(
@@ -1628,7 +1636,7 @@ export class PineAgentRuntime {
 
   /**
    * Review each batch through the configured path, using Decisions screening
-   * when enabled and the utility model for any calls requiring further review.
+   * when enabled and the approval model for any calls requiring further review.
    * Never goes through session.prompt (no recursion into the tool pipeline).
    */
   private async runJudge(
@@ -1668,11 +1676,11 @@ export class PineAgentRuntime {
   ): Promise<JudgeRuling[]> {
     signal.throwIfAborted();
     const modelRuntime = await this.getModelRuntime(live.agentDir);
-    const model = await this.modelService.utilityModel(
+    const model = await this.modelService.approvalModel(
       live.agentDir,
       modelRuntime,
     );
-    if (!model) throw new Error("No utility model is configured.");
+    if (!model) throw new Error("No approval model is configured.");
     signal.throwIfAborted();
     const autonomous = live.approvalMode === "autonomous";
     const context: Context = {

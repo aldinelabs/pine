@@ -252,7 +252,8 @@ export default {
     autoApprovalHelp: "自動承認の経路について",
     decisionsCredentialMissing:
       "OpenRouter が設定されていません。「プロバイダとモデルを管理」で認証情報を追加してください。それまではモデルによるレビューが使用されます。",
-    utilityModel: "タイトル生成・レビュー用モデル",
+    utilityModel: "タイトル生成用モデル",
+    approvalModel: "承認レビュー用モデル",
     selectUtilityModel: "モデルを選択",
     noUtilityModelSelected: "モデルが選択されていません",
     imageModel: "画像生成モデル",
@@ -1783,6 +1784,10 @@ export default {
     },
     utilityModel: {
       title: "ユーティリティモデルを更新できません",
+      description: "モデルプロバイダを確認して、もう一度お試しください",
+    },
+    approvalModel: {
+      title: "承認レビュー用モデルを更新できません",
       description: "モデルプロバイダを確認して、もう一度お試しください",
     },
     imageModel: {

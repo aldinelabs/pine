@@ -23,6 +23,7 @@ import type {
   PineVideoModelSelection,
   PineModelCatalog,
   PineThinkingLevel,
+  PineApprovalModelSelection,
   PineUtilityModelSelection,
   ProviderLoginResult,
   UpdateCustomModelRequest,
@@ -137,6 +138,10 @@ export interface AgentHost {
   selectUtilityModel(
     agentDir: string,
     selection: PineUtilityModelSelection,
+  ): Promise<{ updated: boolean }>;
+  selectApprovalModel(
+    agentDir: string,
+    selection: PineApprovalModelSelection,
   ): Promise<{ updated: boolean }>;
   selectImageModel(
     agentDir: string,
@@ -393,6 +398,17 @@ export class AgentProcessHost implements AgentHost {
   ): Promise<{ updated: boolean }> {
     return this.request({
       type: "models:select-utility",
+      agentDir,
+      selection,
+    });
+  }
+
+  selectApprovalModel(
+    agentDir: string,
+    selection: PineApprovalModelSelection,
+  ): Promise<{ updated: boolean }> {
+    return this.request({
+      type: "models:select-approval",
       agentDir,
       selection,
     });

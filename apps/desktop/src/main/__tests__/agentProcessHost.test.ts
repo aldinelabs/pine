@@ -203,6 +203,29 @@ describe("AgentProcessHost", () => {
     await expect(pending).resolves.toEqual({ updated: true });
   });
 
+  it("sends the approval model selection to the worker", async () => {
+    const { host, process } = createHost();
+    const selection = { providerId: "provider", modelId: "approval-model" };
+    const pending = host.selectApprovalModel("/pine/agent", selection);
+    await vi.waitFor(() => expect(process.requests).toHaveLength(1));
+
+    expect(process.requests[0]).toEqual(
+      expect.objectContaining({
+        type: "models:select-approval",
+        agentDir: "/pine/agent",
+        selection,
+      }),
+    );
+    process.emit("message", {
+      type: "response",
+      id: process.requests[0].id,
+      ok: true,
+      result: { updated: true },
+    });
+
+    await expect(pending).resolves.toEqual({ updated: true });
+  });
+
   it("rejects pending work when the utility process exits", async () => {
     const { host, process } = createHost();
     const pending = host.abort("session-1");

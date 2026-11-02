@@ -253,7 +253,8 @@ export default {
     autoApprovalHelp: "À propos des parcours d'approbation automatique",
     decisionsCredentialMissing:
       "OpenRouter n'est pas configuré. Ajoutez un identifiant dans « Gérer les fournisseurs et les modèles » ; d'ici là, l'examen par un modèle est utilisé.",
-    utilityModel: "Modèle de génération de titres et d'examen",
+    utilityModel: "Modèle de génération de titres",
+    approvalModel: "Modèle d'examen des approbations",
     selectUtilityModel: "Choisir un modèle",
     noUtilityModelSelected: "Aucun modèle sélectionné",
     imageModel: "Modèle de génération d'images",
@@ -1817,6 +1818,10 @@ export default {
     },
     utilityModel: {
       title: "Impossible de mettre à jour le modèle utilitaire",
+      description: "Vérifiez le fournisseur du modèle, puis réessayez",
+    },
+    approvalModel: {
+      title: "Impossible de mettre à jour le modèle d'examen",
       description: "Vérifiez le fournisseur du modèle, puis réessayez",
     },
     imageModel: {

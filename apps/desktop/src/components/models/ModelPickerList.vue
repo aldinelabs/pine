@@ -86,7 +86,8 @@ const ROW_CLASS =
 const props = withDefaults(
   defineProps<{
     favoriteKeys: readonly string[];
-    purpose?: "session" | "utility" | "image" | "video" | "decisions";
+    purpose?:
+      "session" | "utility" | "approval" | "image" | "video" | "decisions";
     sessionId?: string;
     view: PickerView;
     class?: HTMLAttributes["class"];
@@ -492,7 +493,9 @@ function isSelected(model: PineModelDescriptor): boolean {
   const selected =
     props.purpose === "utility"
       ? modelsStore.utilitySelection
-      : sessionSelection.value;
+      : props.purpose === "approval"
+        ? modelsStore.approvalSelection
+        : sessionSelection.value;
   return (
     selected?.providerId === model.providerId && selected.modelId === model.id
   );

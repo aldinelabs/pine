@@ -325,6 +325,10 @@ export const SelectUtilityModelRequestSchema = SelectModelRequestSchema.pick({
   modelId: true,
   providerId: true,
 });
+export const SelectApprovalModelRequestSchema = SelectModelRequestSchema.pick({
+  modelId: true,
+  providerId: true,
+});
 export const SelectImageModelRequestSchema = SelectModelRequestSchema.pick({
   modelId: true,
   providerId: true,

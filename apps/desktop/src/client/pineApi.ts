@@ -102,6 +102,7 @@ import {
   SELECT_MODEL_CHANNEL,
   SELECT_IMAGE_MODEL_CHANNEL,
   SELECT_VIDEO_MODEL_CHANNEL,
+  SELECT_APPROVAL_MODEL_CHANNEL,
   SELECT_UTILITY_MODEL_CHANNEL,
   UPDATE_CUSTOM_MODEL_CHANNEL,
   UPDATE_CUSTOM_PROVIDER_CHANNEL,
@@ -122,6 +123,7 @@ import {
   type SelectModelRequest,
   type SelectImageModelRequest,
   type SelectVideoModelRequest,
+  type SelectApprovalModelRequest,
   type SelectUtilityModelRequest,
 } from "../shared/models";
 import {
@@ -619,6 +621,10 @@ export function createPineApi(transport: PineTransport): PineDesktopApi {
       request: SelectUtilityModelRequest,
     ): Promise<{ updated: boolean }> =>
       transport.invoke(SELECT_UTILITY_MODEL_CHANNEL, request),
+    selectApprovalModel: (
+      request: SelectApprovalModelRequest,
+    ): Promise<{ updated: boolean }> =>
+      transport.invoke(SELECT_APPROVAL_MODEL_CHANNEL, request),
     selectImageModel: (
       request: SelectImageModelRequest,
     ): Promise<{ updated: boolean }> =>
