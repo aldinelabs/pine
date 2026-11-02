@@ -8,7 +8,6 @@ import {
   ChevronLeftIcon,
   ChevronRightIcon,
   BotIcon,
-  CircleHelpIcon,
   FolderKanbanIcon,
   MonitorSmartphoneIcon,
   SettingsIcon,
@@ -41,7 +40,7 @@ import AutoApprovalSettings from "./AutoApprovalSettings.vue";
 import DecisionsModelSettings from "./DecisionsModelSettings.vue";
 import ProjectManagementSettings from "./ProjectManagementSettings.vue";
 import ModelPickerDialog from "@/components/models/ModelPickerDialog.vue";
-import { Badge } from "@/components/ui/badge";
+import HelpHint from "./HelpHint.vue";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -83,12 +82,6 @@ import { Spinner } from "@/components/ui/spinner";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 import { useModelsStore } from "@/stores/models";
 import { useUserProfileStore } from "@/stores/userProfile";
 import {
@@ -1239,26 +1232,9 @@ defineExpose({ open });
                       <FieldLabel for="pine-diagnostic-logging-toggle">
                         {{ t("preferences.diagnosticLogging") }}
                       </FieldLabel>
-                      <TooltipProvider :delay-duration="300">
-                        <Tooltip>
-                          <TooltipTrigger as-child>
-                            <Badge
-                              as="button"
-                              type="button"
-                              variant="secondary"
-                              class="size-5 translate-y-px p-0"
-                              :aria-label="
-                                t('preferences.diagnosticLoggingHelp')
-                              "
-                            >
-                              <CircleHelpIcon aria-hidden="true" />
-                            </Badge>
-                          </TooltipTrigger>
-                          <TooltipContent side="top" :side-offset="4">
-                            {{ t("preferences.diagnosticLoggingDescription") }}
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
+                      <HelpHint :label="t('preferences.diagnosticLoggingHelp')">
+                        {{ t("preferences.diagnosticLoggingDescription") }}
+                      </HelpHint>
                     </div>
                     <Switch
                       id="pine-diagnostic-logging-toggle"
@@ -1573,30 +1549,13 @@ defineExpose({ open });
                       <FieldTitle id="pine-context-compaction-strategy-setting">
                         {{ t("preferences.contextCompactionStrategy") }}
                       </FieldTitle>
-                      <TooltipProvider :delay-duration="300">
-                        <Tooltip>
-                          <TooltipTrigger as-child>
-                            <Badge
-                              as="button"
-                              type="button"
-                              variant="secondary"
-                              class="size-5 translate-y-px p-0"
-                              :aria-label="
-                                t('preferences.contextCompactionStrategyHelp')
-                              "
-                            >
-                              <CircleHelpIcon aria-hidden="true" />
-                            </Badge>
-                          </TooltipTrigger>
-                          <TooltipContent side="top" :side-offset="4">
-                            {{
-                              t(
-                                "preferences.contextCompactionStrategyDescription",
-                              )
-                            }}
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
+                      <HelpHint
+                        :label="t('preferences.contextCompactionStrategyHelp')"
+                      >
+                        {{
+                          t("preferences.contextCompactionStrategyDescription")
+                        }}
+                      </HelpHint>
                     </div>
                     <ToggleGroup
                       type="single"
@@ -1621,28 +1580,11 @@ defineExpose({ open });
                       <FieldTitle id="pine-context-compaction-route-setting">
                         {{ t("preferences.contextCompactionRoute") }}
                       </FieldTitle>
-                      <TooltipProvider :delay-duration="300">
-                        <Tooltip>
-                          <TooltipTrigger as-child>
-                            <Badge
-                              as="button"
-                              type="button"
-                              variant="secondary"
-                              class="size-5 translate-y-px p-0"
-                              :aria-label="
-                                t('preferences.contextCompactionRouteHelp')
-                              "
-                            >
-                              <CircleHelpIcon aria-hidden="true" />
-                            </Badge>
-                          </TooltipTrigger>
-                          <TooltipContent side="top" :side-offset="4">
-                            {{
-                              t("preferences.contextCompactionRouteDescription")
-                            }}
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
+                      <HelpHint
+                        :label="t('preferences.contextCompactionRouteHelp')"
+                      >
+                        {{ t("preferences.contextCompactionRouteDescription") }}
+                      </HelpHint>
                     </div>
                     <ToggleGroup
                       type="single"

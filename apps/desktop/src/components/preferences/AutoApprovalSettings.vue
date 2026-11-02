@@ -1,17 +1,10 @@
 <script setup lang="ts">
-import { CircleHelpIcon } from "@lucide/vue";
 import { computed, onMounted, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import { handleError } from "@/app/errors/errorHandler";
-import { Badge } from "@/components/ui/badge";
+import HelpHint from "./HelpHint.vue";
 import { Field, FieldGroup, FieldTitle } from "@/components/ui/field";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 import {
   isPineAutoApprovalSettings,
   type PineAutoApprovalSettings,
@@ -66,30 +59,15 @@ function updateStrategy(value: unknown): void {
         <FieldTitle id="pine-auto-approval-strategy-label">{{
           t("preferences.autoApprovalStrategy")
         }}</FieldTitle>
-        <TooltipProvider :delay-duration="300">
-          <Tooltip>
-            <TooltipTrigger as-child>
-              <Badge
-                as="button"
-                type="button"
-                variant="secondary"
-                class="size-5 translate-y-px p-0"
-                :aria-label="t('preferences.autoApprovalHelp')"
-              >
-                <CircleHelpIcon aria-hidden="true" />
-              </Badge>
-            </TooltipTrigger>
-            <TooltipContent side="top" :side-offset="4">
-              {{
-                t(
-                  store.settings.strategy === "decisions"
-                    ? "preferences.autoApprovalDecisionsDescription"
-                    : "preferences.autoApprovalModelDescription",
-                )
-              }}
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
+        <HelpHint :label="t('preferences.autoApprovalHelp')">
+          {{
+            t(
+              store.settings.strategy === "decisions"
+                ? "preferences.autoApprovalDecisionsDescription"
+                : "preferences.autoApprovalModelDescription",
+            )
+          }}
+        </HelpHint>
       </div>
       <ToggleGroup
         type="single"
