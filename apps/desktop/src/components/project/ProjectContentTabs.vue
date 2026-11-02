@@ -610,7 +610,9 @@ watch(activeSession, (session) => {
                 :is="tabIcon(activeContentTab)"
                 data-icon="inline-start"
               />
-              <span class="truncate">{{ getTabLabel(activeContentTab) }}</span>
+              <span data-slot="session-title" class="truncate">{{
+                getTabLabel(activeContentTab)
+              }}</span>
               <span
                 v-if="hasBackgroundAttention"
                 aria-hidden="true"

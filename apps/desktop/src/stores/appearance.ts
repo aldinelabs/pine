@@ -13,8 +13,8 @@ export const SIDEBAR_VIBRANCY_STORAGE_KEY = "pine.sidebar-vibrancy";
 export const SIDEBAR_VIBRANCY_MIGRATED_STORAGE_KEY =
   "pine.sidebar-vibrancy-migrated-0.13";
 export const SIDEBAR_VIBRANCY_CLASS = "sidebar-vibrancy";
-export const TRANSCRIPT_SERIF_STORAGE_KEY = "pine.transcript-serif";
-export const TRANSCRIPT_SERIF_CLASS = "transcript-serif";
+export const READING_FONT_STORAGE_KEY = "pine.reading-font";
+export const READING_FONT_CLASS = "reading-font";
 export const INVERT_DOCUMENTS_STORAGE_KEY = "pine.invert-documents";
 
 export type ColorScheme = "light" | "dark";
@@ -87,9 +87,9 @@ function migrateSidebarVibrancyOnce(): void {
   }
 }
 
-function readStoredTranscriptSerif(): boolean {
+function readStoredReadingFont(): boolean {
   try {
-    return window.localStorage.getItem(TRANSCRIPT_SERIF_STORAGE_KEY) === "true";
+    return window.localStorage.getItem(READING_FONT_STORAGE_KEY) === "true";
   } catch {
     return false;
   }
@@ -116,7 +116,7 @@ export const useAppearanceStore = defineStore("appearance", () => {
   const colorScheme = ref<ColorScheme>("light");
   const supportsSidebarVibrancy = ref(isMacOSPlatform());
   const sidebarVibrancy = ref(false);
-  const transcriptSerif = ref(readStoredTranscriptSerif());
+  const readingFont = ref(readStoredReadingFont());
   const invertDocuments = ref(readStoredInvertDocuments());
   /** Whether previews that can invert their pages start inverted. */
   const invertsDocuments = computed(
@@ -146,10 +146,10 @@ export const useAppearanceStore = defineStore("appearance", () => {
     void window.pine?.setSidebarVibrancy({ enabled: sidebarVibrancy.value });
   }
 
-  function applyTranscriptSerif(): void {
+  function applyReadingFont(): void {
     document.documentElement.classList.toggle(
-      TRANSCRIPT_SERIF_CLASS,
-      transcriptSerif.value,
+      READING_FONT_CLASS,
+      readingFont.value,
     );
   }
 
@@ -164,7 +164,7 @@ export const useAppearanceStore = defineStore("appearance", () => {
     mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
     mediaQuery.addEventListener("change", handleSystemColorSchemeChange);
     applyColorScheme();
-    applyTranscriptSerif();
+    applyReadingFont();
     if (supportsSidebarVibrancy.value) {
       migrateSidebarVibrancyOnce();
       sidebarVibrancy.value = readStoredSidebarVibrancy();
@@ -210,13 +210,13 @@ export const useAppearanceStore = defineStore("appearance", () => {
     }
   }
 
-  function setTranscriptSerif(enabled: boolean): void {
-    transcriptSerif.value = enabled;
-    applyTranscriptSerif();
+  function setReadingFont(enabled: boolean): void {
+    readingFont.value = enabled;
+    applyReadingFont();
 
     try {
       window.localStorage.setItem(
-        TRANSCRIPT_SERIF_STORAGE_KEY,
+        READING_FONT_STORAGE_KEY,
         enabled ? "true" : "false",
       );
     } catch {
@@ -249,9 +249,9 @@ export const useAppearanceStore = defineStore("appearance", () => {
     setThemePreference,
     sidebarVibrancy,
     setSidebarVibrancy,
-    setTranscriptSerif,
+    setReadingFont,
     supportsSidebarVibrancy,
     themePreference,
-    transcriptSerif,
+    readingFont,
   };
 });

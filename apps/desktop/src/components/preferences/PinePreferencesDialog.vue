@@ -7,10 +7,12 @@ import { handleError } from "@/app/errors/errorHandler";
 import {
   ChevronLeftIcon,
   ChevronRightIcon,
+  BotIcon,
   CircleHelpIcon,
   FolderKanbanIcon,
   MonitorSmartphoneIcon,
   SettingsIcon,
+  PaletteIcon,
   SlidersHorizontalIcon,
   SparklesIcon,
   UserRoundIcon,
@@ -50,7 +52,9 @@ import {
   FieldDescription,
   FieldGroup,
   FieldLabel,
+  FieldLegend,
   FieldSeparator,
+  FieldSet,
   FieldTitle,
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
@@ -112,7 +116,13 @@ import {
 } from "@/shared/userProfile";
 
 type PreferenceSection =
-  "general" | "models" | "personalization" | "projects" | "remote";
+  | "general"
+  | "appearance"
+  | "models"
+  | "agent"
+  | "personalization"
+  | "projects"
+  | "remote";
 
 const { locale, t } = useI18n();
 const isDesktop = isDesktopClient();
@@ -231,9 +241,19 @@ const sections = computed<
     label: t("preferences.sections.general"),
   },
   {
+    icon: PaletteIcon,
+    id: "appearance",
+    label: t("preferences.sections.appearance"),
+  },
+  {
     icon: SparklesIcon,
     id: "models",
     label: t("preferences.sections.models"),
+  },
+  {
+    icon: BotIcon,
+    id: "agent",
+    label: t("preferences.sections.agent"),
   },
   {
     icon: UserRoundIcon,
@@ -801,8 +821,8 @@ function updateSidebarVibrancy(value: boolean): void {
   appearanceStore.setSidebarVibrancy(value);
 }
 
-function updateTranscriptSerif(value: boolean): void {
-  appearanceStore.setTranscriptSerif(value);
+function updateReadingFont(value: boolean): void {
+  appearanceStore.setReadingFont(value);
 }
 
 /** Open preferences at a section, including the sidebar's project manager. */
@@ -1068,493 +1088,631 @@ defineExpose({ open });
         >
           <div v-if="activeSection === 'general'" class="p-6 max-sm:px-4">
             <FieldGroup>
-              <Field orientation="responsive">
-                <FieldTitle id="pine-language-setting">
-                  {{ t("preferences.language") }}
-                </FieldTitle>
-                <ToggleGroup
-                  type="single"
-                  variant="outline"
-                  size="sm"
-                  :model-value="locale"
-                  aria-labelledby="pine-language-setting"
-                  @update:model-value="updateLocale"
+              <FieldSet>
+                <FieldLegend
+                  variant="label"
+                  class="text-xs text-muted-foreground"
+                  >{{ t("preferences.groups.language") }}</FieldLegend
                 >
-                  <ToggleGroupItem value="zh-CN">
-                    {{ t("preferences.languageChinese") }}
-                  </ToggleGroupItem>
-                  <ToggleGroupItem value="en-US">
-                    {{ t("preferences.languageEnglish") }}
-                  </ToggleGroupItem>
-                </ToggleGroup>
-              </Field>
-
-              <Field orientation="responsive">
-                <FieldTitle id="pine-appearance-setting">
-                  {{ t("preferences.appearance") }}
-                </FieldTitle>
-                <ToggleGroup
-                  type="single"
-                  variant="outline"
-                  size="sm"
-                  :model-value="themePreference"
-                  aria-labelledby="pine-appearance-setting"
-                  @update:model-value="updateTheme"
-                >
-                  <ToggleGroupItem value="system">
-                    {{ t("preferences.themeSystem") }}
-                  </ToggleGroupItem>
-                  <ToggleGroupItem value="light">
-                    {{ t("preferences.themeLight") }}
-                  </ToggleGroupItem>
-                  <ToggleGroupItem value="dark">
-                    {{ t("preferences.themeDark") }}
-                  </ToggleGroupItem>
-                </ToggleGroup>
-              </Field>
-
-              <Field orientation="responsive">
-                <div class="flex min-w-0 flex-1 flex-col gap-1">
-                  <FieldTitle id="pine-color-theme-setting">
-                    {{ t("preferences.defaultColorTheme") }}
-                  </FieldTitle>
-                  <FieldDescription>
-                    {{ t("preferences.defaultColorThemeDescription") }}
-                  </FieldDescription>
-                </div>
-                <Select
-                  :model-value="pineColorTheme"
-                  @update:model-value="updatePineColorTheme"
-                >
-                  <SelectTrigger
-                    class="w-fit justify-start [&>*:last-child]:ml-auto"
-                    aria-labelledby="pine-color-theme-setting"
-                  >
-                    <span
-                      aria-hidden="true"
-                      class="size-3 shrink-0 rounded-full ring-1 ring-border"
-                      :style="{
-                        backgroundColor: selectedPineColorThemeOption?.swatch,
-                      }"
-                    />
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectGroup>
-                      <SelectItem
-                        v-for="option in PROJECT_COLOR_THEME_OPTIONS"
-                        :key="option.value"
-                        :value="option.value"
+                <FieldGroup>
+                  <Field orientation="responsive">
+                    <FieldTitle id="pine-language-setting">
+                      {{ t("preferences.language") }}
+                    </FieldTitle>
+                    <Select
+                      :model-value="locale"
+                      @update:model-value="updateLocale"
+                    >
+                      <SelectTrigger
+                        data-testid="pine-language-select"
+                        class="w-fit"
+                        aria-labelledby="pine-language-setting"
                       >
-                        <span class="flex items-center gap-2">
-                          <span
-                            aria-hidden="true"
-                            class="size-3 rounded-full ring-1 ring-border"
-                            :style="{ backgroundColor: option.swatch }"
-                          />
-                          {{ t(`projects.editor.colorThemes.${option.value}`) }}
-                        </span>
-                      </SelectItem>
-                    </SelectGroup>
-                  </SelectContent>
-                </Select>
-              </Field>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectGroup>
+                          <SelectItem value="zh-CN">
+                            {{ t("preferences.languageChinese") }}
+                          </SelectItem>
+                          <SelectItem value="en-US">
+                            {{ t("preferences.languageEnglish") }}
+                          </SelectItem>
+                        </SelectGroup>
+                      </SelectContent>
+                    </Select>
+                  </Field>
+                </FieldGroup>
+              </FieldSet>
 
-              <Field orientation="responsive">
-                <div class="flex min-w-0 flex-1 flex-col gap-1">
-                  <FieldTitle id="pine-completion-signal-setting">
-                    {{ t("preferences.completionSignal") }}
-                  </FieldTitle>
-                </div>
-                <Select
-                  :model-value="completionSignalMode"
-                  :disabled="
-                    isLoadingCompletionSignal || isSavingCompletionSignal
-                  "
-                  @update:model-value="updateCompletionSignal"
+              <FieldSeparator />
+
+              <FieldSet>
+                <FieldLegend
+                  variant="label"
+                  class="text-xs text-muted-foreground"
+                  >{{ t("preferences.groups.notifications") }}</FieldLegend
                 >
-                  <SelectTrigger
-                    data-testid="pine-completion-signal-select"
-                    class="w-fit"
-                    aria-labelledby="pine-completion-signal-setting"
-                  >
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectGroup>
-                      <SelectItem value="off">
-                        {{ t("preferences.completionSignalOff") }}
-                      </SelectItem>
-                      <SelectItem value="notification">
-                        {{ t("preferences.completionSignalNotification") }}
-                      </SelectItem>
-                      <SelectItem value="notification-sound">
-                        {{ t("preferences.completionSignalNotificationSound") }}
-                      </SelectItem>
-                    </SelectGroup>
-                  </SelectContent>
-                </Select>
-              </Field>
+                <FieldGroup>
+                  <Field orientation="responsive">
+                    <div class="flex min-w-0 flex-1 flex-col gap-1">
+                      <FieldTitle id="pine-completion-signal-setting">
+                        {{ t("preferences.completionSignal") }}
+                      </FieldTitle>
+                    </div>
+                    <Select
+                      :model-value="completionSignalMode"
+                      :disabled="
+                        isLoadingCompletionSignal || isSavingCompletionSignal
+                      "
+                      @update:model-value="updateCompletionSignal"
+                    >
+                      <SelectTrigger
+                        data-testid="pine-completion-signal-select"
+                        class="w-fit"
+                        aria-labelledby="pine-completion-signal-setting"
+                      >
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectGroup>
+                          <SelectItem value="off">
+                            {{ t("preferences.completionSignalOff") }}
+                          </SelectItem>
+                          <SelectItem value="notification">
+                            {{ t("preferences.completionSignalNotification") }}
+                          </SelectItem>
+                          <SelectItem value="notification-sound">
+                            {{
+                              t("preferences.completionSignalNotificationSound")
+                            }}
+                          </SelectItem>
+                        </SelectGroup>
+                      </SelectContent>
+                    </Select>
+                  </Field>
 
-              <Field orientation="horizontal">
-                <div class="flex min-w-0 flex-1 flex-col gap-1">
-                  <FieldTitle id="pine-attention-notifications-setting">
-                    {{ t("preferences.attentionNotifications") }}
-                  </FieldTitle>
-                  <FieldDescription>
-                    {{ t("preferences.attentionNotificationsDescription") }}
-                  </FieldDescription>
-                </div>
-                <Switch
-                  data-testid="pine-attention-notifications-toggle"
-                  :model-value="attentionNotificationsEnabled"
-                  :disabled="
-                    isLoadingAttentionNotifications ||
-                    isSavingAttentionNotifications
-                  "
-                  aria-labelledby="pine-attention-notifications-setting"
-                  @update:model-value="updateAttentionNotifications"
-                />
-              </Field>
+                  <Field orientation="horizontal">
+                    <div class="flex min-w-0 flex-1 flex-col gap-1">
+                      <FieldTitle id="pine-attention-notifications-setting">
+                        {{ t("preferences.attentionNotifications") }}
+                      </FieldTitle>
+                      <FieldDescription>
+                        {{ t("preferences.attentionNotificationsDescription") }}
+                      </FieldDescription>
+                    </div>
+                    <Switch
+                      data-testid="pine-attention-notifications-toggle"
+                      :model-value="attentionNotificationsEnabled"
+                      :disabled="
+                        isLoadingAttentionNotifications ||
+                        isSavingAttentionNotifications
+                      "
+                      aria-labelledby="pine-attention-notifications-setting"
+                      @update:model-value="updateAttentionNotifications"
+                    />
+                  </Field>
+                </FieldGroup>
+              </FieldSet>
 
-              <Field orientation="horizontal">
-                <div class="flex min-w-0 flex-1 flex-col gap-1">
-                  <FieldTitle id="pine-transcript-serif-setting">
-                    {{ t("preferences.transcriptSerif") }}
-                  </FieldTitle>
-                  <FieldDescription>
-                    {{ t("preferences.transcriptSerifDescription") }}
-                  </FieldDescription>
-                </div>
-                <Switch
-                  data-testid="pine-transcript-serif-toggle"
-                  :model-value="appearanceStore.transcriptSerif"
-                  aria-labelledby="pine-transcript-serif-setting"
-                  @update:model-value="updateTranscriptSerif"
-                />
-              </Field>
+              <FieldSeparator />
 
-              <Field orientation="horizontal">
-                <div class="flex min-w-0 flex-1 flex-col gap-1">
-                  <FieldTitle id="pine-invert-documents-setting">
-                    {{ t("preferences.invertDocuments") }}
-                  </FieldTitle>
-                  <FieldDescription>
-                    {{ t("preferences.invertDocumentsDescription") }}
-                  </FieldDescription>
-                </div>
-                <Switch
-                  data-testid="pine-invert-documents-toggle"
-                  :model-value="appearanceStore.invertDocuments"
-                  aria-labelledby="pine-invert-documents-setting"
-                  @update:model-value="appearanceStore.setInvertDocuments"
-                />
-              </Field>
+              <FieldSet>
+                <FieldLegend
+                  variant="label"
+                  class="text-xs text-muted-foreground"
+                  >{{ t("preferences.groups.system") }}</FieldLegend
+                >
+                <FieldGroup>
+                  <Field v-if="isDesktop" orientation="horizontal">
+                    <div class="flex min-w-0 flex-1 flex-col gap-1">
+                      <FieldTitle id="pine-quick-composer-setting">
+                        {{ t("preferences.quickComposer") }}
+                      </FieldTitle>
+                      <FieldDescription>
+                        {{
+                          t("preferences.quickComposerDescription", {
+                            shortcut: quickComposerShortcut,
+                          })
+                        }}
+                      </FieldDescription>
+                    </div>
+                    <Switch
+                      data-testid="pine-quick-composer-toggle"
+                      :model-value="quickComposerEnabled"
+                      :disabled="
+                        isLoadingQuickComposer || isSavingQuickComposer
+                      "
+                      aria-labelledby="pine-quick-composer-setting"
+                      @update:model-value="updateQuickComposer"
+                    />
+                  </Field>
 
-              <Field v-if="supportsSidebarVibrancy" orientation="horizontal">
-                <div class="flex min-w-0 flex-1 flex-col gap-1">
-                  <FieldTitle id="pine-sidebar-vibrancy-setting">
-                    {{ t("preferences.sidebarVibrancy") }}
-                  </FieldTitle>
-                  <FieldDescription>
-                    {{ t("preferences.sidebarVibrancyDescription") }}
-                  </FieldDescription>
-                </div>
-                <Switch
-                  data-testid="pine-sidebar-vibrancy-toggle"
-                  :model-value="appearanceStore.sidebarVibrancy"
-                  aria-labelledby="pine-sidebar-vibrancy-setting"
-                  @update:model-value="updateSidebarVibrancy"
-                />
-              </Field>
-
-              <Field v-if="isDesktop" orientation="horizontal">
-                <div class="flex min-w-0 flex-1 flex-col gap-1">
-                  <FieldTitle id="pine-quick-composer-setting">
-                    {{ t("preferences.quickComposer") }}
-                  </FieldTitle>
-                  <FieldDescription>
-                    {{
-                      t("preferences.quickComposerDescription", {
-                        shortcut: quickComposerShortcut,
-                      })
-                    }}
-                  </FieldDescription>
-                </div>
-                <Switch
-                  data-testid="pine-quick-composer-toggle"
-                  :model-value="quickComposerEnabled"
-                  :disabled="isLoadingQuickComposer || isSavingQuickComposer"
-                  aria-labelledby="pine-quick-composer-setting"
-                  @update:model-value="updateQuickComposer"
-                />
-              </Field>
-
-              <Field orientation="horizontal">
-                <div class="flex min-w-0 flex-1 flex-col gap-1">
-                  <FieldTitle id="pine-approximate-location-setting">
-                    {{ t("preferences.approximateLocation") }}
-                  </FieldTitle>
-                  <FieldDescription>
-                    {{ t("preferences.approximateLocationDescription") }}
-                  </FieldDescription>
-                </div>
-                <Switch
-                  data-testid="pine-approximate-location-toggle"
-                  :model-value="approximateLocationEnabled"
-                  :disabled="
-                    isLoadingApproximateLocation || isSavingApproximateLocation
-                  "
-                  aria-labelledby="pine-approximate-location-setting"
-                  @update:model-value="updateApproximateLocation"
-                />
-              </Field>
-
-              <Field orientation="horizontal">
-                <div class="flex min-w-0 flex-1 items-baseline gap-2">
-                  <FieldLabel for="pine-diagnostic-logging-toggle">
-                    {{ t("preferences.diagnosticLogging") }}
-                  </FieldLabel>
-                  <TooltipProvider :delay-duration="300">
-                    <Tooltip>
-                      <TooltipTrigger as-child>
-                        <Badge
-                          as="button"
-                          type="button"
-                          variant="secondary"
-                          class="size-5 translate-y-px p-0"
-                          :aria-label="t('preferences.diagnosticLoggingHelp')"
-                        >
-                          <CircleHelpIcon aria-hidden="true" />
-                        </Badge>
-                      </TooltipTrigger>
-                      <TooltipContent side="top" :side-offset="4">
-                        {{ t("preferences.diagnosticLoggingDescription") }}
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                </div>
-                <Switch
-                  id="pine-diagnostic-logging-toggle"
-                  data-testid="pine-diagnostic-logging-toggle"
-                  :model-value="diagnosticLoggingEnabled"
-                  :disabled="
-                    isLoadingDiagnosticLogging || isSavingDiagnosticLogging
-                  "
-                  @update:model-value="updateDiagnosticLogging"
-                />
-              </Field>
+                  <Field orientation="horizontal">
+                    <div class="flex min-w-0 flex-1 items-baseline gap-2">
+                      <FieldLabel for="pine-diagnostic-logging-toggle">
+                        {{ t("preferences.diagnosticLogging") }}
+                      </FieldLabel>
+                      <TooltipProvider :delay-duration="300">
+                        <Tooltip>
+                          <TooltipTrigger as-child>
+                            <Badge
+                              as="button"
+                              type="button"
+                              variant="secondary"
+                              class="size-5 translate-y-px p-0"
+                              :aria-label="
+                                t('preferences.diagnosticLoggingHelp')
+                              "
+                            >
+                              <CircleHelpIcon aria-hidden="true" />
+                            </Badge>
+                          </TooltipTrigger>
+                          <TooltipContent side="top" :side-offset="4">
+                            {{ t("preferences.diagnosticLoggingDescription") }}
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    </div>
+                    <Switch
+                      id="pine-diagnostic-logging-toggle"
+                      data-testid="pine-diagnostic-logging-toggle"
+                      :model-value="diagnosticLoggingEnabled"
+                      :disabled="
+                        isLoadingDiagnosticLogging || isSavingDiagnosticLogging
+                      "
+                      @update:model-value="updateDiagnosticLogging"
+                    />
+                  </Field>
+                </FieldGroup>
+              </FieldSet>
             </FieldGroup>
           </div>
+          <div
+            v-else-if="activeSection === 'appearance'"
+            class="p-6 max-sm:px-4"
+          >
+            <FieldGroup>
+              <FieldSet>
+                <FieldLegend
+                  variant="label"
+                  class="text-xs text-muted-foreground"
+                  >{{ t("preferences.groups.theme") }}</FieldLegend
+                >
+                <FieldGroup>
+                  <Field orientation="responsive">
+                    <FieldTitle id="pine-appearance-setting">
+                      {{ t("preferences.appearance") }}
+                    </FieldTitle>
+                    <ToggleGroup
+                      type="single"
+                      variant="outline"
+                      size="sm"
+                      :model-value="themePreference"
+                      aria-labelledby="pine-appearance-setting"
+                      @update:model-value="updateTheme"
+                    >
+                      <ToggleGroupItem value="system">
+                        {{ t("preferences.themeSystem") }}
+                      </ToggleGroupItem>
+                      <ToggleGroupItem value="light">
+                        {{ t("preferences.themeLight") }}
+                      </ToggleGroupItem>
+                      <ToggleGroupItem value="dark">
+                        {{ t("preferences.themeDark") }}
+                      </ToggleGroupItem>
+                    </ToggleGroup>
+                  </Field>
 
+                  <Field orientation="responsive">
+                    <div class="flex min-w-0 flex-1 flex-col gap-1">
+                      <FieldTitle id="pine-color-theme-setting">
+                        {{ t("preferences.defaultColorTheme") }}
+                      </FieldTitle>
+                      <FieldDescription>
+                        {{ t("preferences.defaultColorThemeDescription") }}
+                      </FieldDescription>
+                    </div>
+                    <Select
+                      :model-value="pineColorTheme"
+                      @update:model-value="updatePineColorTheme"
+                    >
+                      <SelectTrigger
+                        class="w-fit justify-start [&>*:last-child]:ml-auto"
+                        aria-labelledby="pine-color-theme-setting"
+                      >
+                        <span
+                          aria-hidden="true"
+                          class="size-3 shrink-0 rounded-full ring-1 ring-border"
+                          :style="{
+                            backgroundColor:
+                              selectedPineColorThemeOption?.swatch,
+                          }"
+                        />
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectGroup>
+                          <SelectItem
+                            v-for="option in PROJECT_COLOR_THEME_OPTIONS"
+                            :key="option.value"
+                            :value="option.value"
+                          >
+                            <span class="flex items-center gap-2">
+                              <span
+                                aria-hidden="true"
+                                class="size-3 rounded-full ring-1 ring-border"
+                                :style="{ backgroundColor: option.swatch }"
+                              />
+                              {{
+                                t(`projects.editor.colorThemes.${option.value}`)
+                              }}
+                            </span>
+                          </SelectItem>
+                        </SelectGroup>
+                      </SelectContent>
+                    </Select>
+                  </Field>
+
+                  <Field
+                    v-if="supportsSidebarVibrancy"
+                    orientation="horizontal"
+                  >
+                    <div class="flex min-w-0 flex-1 flex-col gap-1">
+                      <FieldTitle id="pine-sidebar-vibrancy-setting">
+                        {{ t("preferences.sidebarVibrancy") }}
+                      </FieldTitle>
+                      <FieldDescription>
+                        {{ t("preferences.sidebarVibrancyDescription") }}
+                      </FieldDescription>
+                    </div>
+                    <Switch
+                      data-testid="pine-sidebar-vibrancy-toggle"
+                      :model-value="appearanceStore.sidebarVibrancy"
+                      aria-labelledby="pine-sidebar-vibrancy-setting"
+                      @update:model-value="updateSidebarVibrancy"
+                    />
+                  </Field>
+                </FieldGroup>
+              </FieldSet>
+
+              <FieldSeparator />
+
+              <FieldSet>
+                <FieldLegend
+                  variant="label"
+                  class="text-xs text-muted-foreground"
+                  >{{ t("preferences.groups.reading") }}</FieldLegend
+                >
+                <FieldGroup>
+                  <Field orientation="horizontal">
+                    <div class="flex min-w-0 flex-1 flex-col gap-1">
+                      <FieldTitle id="pine-reading-font-setting">
+                        {{ t("preferences.readingFont") }}
+                      </FieldTitle>
+                      <FieldDescription>
+                        {{ t("preferences.readingFontDescription") }}
+                      </FieldDescription>
+                    </div>
+                    <Switch
+                      data-testid="pine-reading-font-toggle"
+                      :model-value="appearanceStore.readingFont"
+                      aria-labelledby="pine-reading-font-setting"
+                      @update:model-value="updateReadingFont"
+                    />
+                  </Field>
+
+                  <Field orientation="horizontal">
+                    <div class="flex min-w-0 flex-1 flex-col gap-1">
+                      <FieldTitle id="pine-invert-documents-setting">
+                        {{ t("preferences.invertDocuments") }}
+                      </FieldTitle>
+                      <FieldDescription>
+                        {{ t("preferences.invertDocumentsDescription") }}
+                      </FieldDescription>
+                    </div>
+                    <Switch
+                      data-testid="pine-invert-documents-toggle"
+                      :model-value="appearanceStore.invertDocuments"
+                      aria-labelledby="pine-invert-documents-setting"
+                      @update:model-value="appearanceStore.setInvertDocuments"
+                    />
+                  </Field>
+                </FieldGroup>
+              </FieldSet>
+            </FieldGroup>
+          </div>
           <div v-else-if="activeSection === 'models'" class="p-6 max-sm:px-4">
             <FieldGroup>
-              <Field orientation="responsive">
-                <div class="flex min-w-0 flex-1 flex-col gap-1">
-                  <FieldTitle id="pine-model-catalog-refresh-setting">
-                    {{ t("preferences.modelCatalogRefresh") }}
-                  </FieldTitle>
-                  <FieldDescription>
-                    {{ t("preferences.modelCatalogRefreshDescription") }}
-                  </FieldDescription>
-                </div>
-                <Button
-                  data-testid="pine-model-catalog-refresh-button"
-                  variant="outline"
-                  size="sm"
-                  :disabled="isRefreshingModelCatalog"
-                  :aria-busy="isRefreshingModelCatalog"
-                  aria-labelledby="pine-model-catalog-refresh-setting"
-                  @click="refreshModelCatalog"
+              <FieldSet>
+                <FieldLegend
+                  variant="label"
+                  class="text-xs text-muted-foreground"
+                  >{{ t("preferences.groups.modelCatalog") }}</FieldLegend
                 >
-                  <Spinner
-                    v-if="isRefreshingModelCatalog"
-                    data-icon="inline-start"
-                  />
-                  {{
-                    isRefreshingModelCatalog
-                      ? t("preferences.modelCatalogRefreshing")
-                      : t("preferences.modelCatalogRefreshAction")
-                  }}
-                </Button>
-              </Field>
+                <FieldGroup>
+                  <Field orientation="responsive">
+                    <div class="flex min-w-0 flex-1 flex-col gap-1">
+                      <FieldTitle id="pine-model-catalog-refresh-setting">
+                        {{ t("preferences.modelCatalogRefresh") }}
+                      </FieldTitle>
+                      <FieldDescription>
+                        {{ t("preferences.modelCatalogRefreshDescription") }}
+                      </FieldDescription>
+                    </div>
+                    <Button
+                      data-testid="pine-model-catalog-refresh-button"
+                      variant="outline"
+                      size="sm"
+                      :disabled="isRefreshingModelCatalog"
+                      :aria-busy="isRefreshingModelCatalog"
+                      aria-labelledby="pine-model-catalog-refresh-setting"
+                      @click="refreshModelCatalog"
+                    >
+                      <Spinner
+                        v-if="isRefreshingModelCatalog"
+                        data-icon="inline-start"
+                      />
+                      {{
+                        isRefreshingModelCatalog
+                          ? t("preferences.modelCatalogRefreshing")
+                          : t("preferences.modelCatalogRefreshAction")
+                      }}
+                    </Button>
+                  </Field>
+                </FieldGroup>
+              </FieldSet>
 
-              <Field orientation="responsive">
-                <div class="flex min-w-0 flex-1 flex-col gap-1">
-                  <FieldTitle id="pine-tinyfish-credential-setting">
-                    {{ t("preferences.tinyFish") }}
-                  </FieldTitle>
-                  <FieldDescription>
-                    {{ t("preferences.tinyFishDescription") }}
-                  </FieldDescription>
-                </div>
-                <Button
-                  data-testid="pine-tinyfish-credential-button"
-                  variant="outline"
-                  size="sm"
-                  aria-labelledby="pine-tinyfish-credential-setting"
-                  @click="openTinyFishCredentialDialog"
+              <FieldSeparator />
+
+              <FieldSet>
+                <FieldLegend
+                  variant="label"
+                  class="text-xs text-muted-foreground"
+                  >{{ t("preferences.groups.modelRoles") }}</FieldLegend
                 >
-                  {{
-                    isTinyFishCredentialConfigured
-                      ? t("preferences.changeTinyFishApiKey")
-                      : t("preferences.addTinyFishApiKey")
-                  }}
-                </Button>
-              </Field>
-
-              <Field orientation="responsive">
-                <div class="flex min-w-0 flex-1 items-baseline gap-2">
-                  <FieldTitle id="pine-context-compaction-strategy-setting">
-                    {{ t("preferences.contextCompactionStrategy") }}
-                  </FieldTitle>
-                  <TooltipProvider :delay-duration="300">
-                    <Tooltip>
-                      <TooltipTrigger as-child>
-                        <Badge
-                          as="button"
-                          type="button"
-                          variant="secondary"
-                          class="size-5 translate-y-px p-0"
-                          :aria-label="
-                            t('preferences.contextCompactionStrategyHelp')
-                          "
-                        >
-                          <CircleHelpIcon aria-hidden="true" />
-                        </Badge>
-                      </TooltipTrigger>
-                      <TooltipContent side="top" :side-offset="4">
+                <FieldGroup>
+                  <Field orientation="responsive">
+                    <div class="flex min-w-0 flex-1 flex-col gap-1">
+                      <FieldTitle id="pine-utility-model-setting">
+                        {{ t("preferences.utilityModel") }}
+                      </FieldTitle>
+                      <FieldDescription>
                         {{
-                          t("preferences.contextCompactionStrategyDescription")
+                          utilitySelectedModel?.name ??
+                          t("preferences.noUtilityModelSelected")
                         }}
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                </div>
-                <ToggleGroup
-                  type="single"
-                  variant="outline"
-                  size="sm"
-                  :disabled="isSavingContextCompactionStrategy"
-                  :model-value="contextCompactionStrategy"
-                  aria-labelledby="pine-context-compaction-strategy-setting"
-                  @update:model-value="updateContextCompactionStrategy"
+                      </FieldDescription>
+                    </div>
+                    <Button
+                      data-testid="pine-utility-model-button"
+                      variant="outline"
+                      size="sm"
+                      aria-labelledby="pine-utility-model-setting"
+                      @click="isUtilityModelPickerOpen = true"
+                    >
+                      {{ t("preferences.selectUtilityModel") }}
+                    </Button>
+                  </Field>
+
+                  <Field orientation="responsive">
+                    <div class="flex min-w-0 flex-1 flex-col gap-1">
+                      <FieldTitle id="pine-image-model-setting">
+                        {{ t("preferences.imageModel") }}
+                      </FieldTitle>
+                      <FieldDescription>{{
+                        imageModelSummary
+                      }}</FieldDescription>
+                    </div>
+                    <Button
+                      data-testid="pine-image-model-button"
+                      variant="outline"
+                      size="sm"
+                      aria-labelledby="pine-image-model-setting"
+                      @click="isImageModelPickerOpen = true"
+                    >
+                      {{ t("preferences.selectImageModel") }}
+                    </Button>
+                  </Field>
+
+                  <Field orientation="responsive">
+                    <div class="flex min-w-0 flex-1 flex-col gap-1">
+                      <FieldTitle id="pine-video-model-setting">
+                        {{ t("preferences.videoModel") }}
+                      </FieldTitle>
+                      <FieldDescription>{{
+                        videoModelSummary
+                      }}</FieldDescription>
+                    </div>
+                    <Button
+                      data-testid="pine-video-model-button"
+                      variant="outline"
+                      size="sm"
+                      aria-labelledby="pine-video-model-setting"
+                      @click="isVideoModelPickerOpen = true"
+                    >
+                      {{ t("preferences.selectVideoModel") }}
+                    </Button>
+                  </Field>
+
+                  <DecisionsModelSettings />
+                </FieldGroup>
+              </FieldSet>
+            </FieldGroup>
+          </div>
+          <div v-else-if="activeSection === 'agent'" class="p-6 max-sm:px-4">
+            <FieldGroup>
+              <FieldSet>
+                <FieldLegend
+                  variant="label"
+                  class="text-xs text-muted-foreground"
+                  >{{ t("preferences.groups.permissions") }}</FieldLegend
                 >
-                  <ToggleGroupItem value="passive">
-                    {{ t("preferences.contextCompactionPassive") }}
-                  </ToggleGroupItem>
-                  <ToggleGroupItem value="recommended">
-                    {{ t("preferences.contextCompactionRecommended") }}
-                  </ToggleGroupItem>
-                </ToggleGroup>
-              </Field>
+                <FieldGroup>
+                  <AutoApprovalSettings />
+                </FieldGroup>
+              </FieldSet>
 
-              <Field orientation="responsive">
-                <div class="flex min-w-0 flex-1 items-baseline gap-2">
-                  <FieldTitle id="pine-context-compaction-route-setting">
-                    {{ t("preferences.contextCompactionRoute") }}
-                  </FieldTitle>
-                  <TooltipProvider :delay-duration="300">
-                    <Tooltip>
-                      <TooltipTrigger as-child>
-                        <Badge
-                          as="button"
-                          type="button"
-                          variant="secondary"
-                          class="size-5 translate-y-px p-0"
-                          :aria-label="
-                            t('preferences.contextCompactionRouteHelp')
-                          "
-                        >
-                          <CircleHelpIcon aria-hidden="true" />
-                        </Badge>
-                      </TooltipTrigger>
-                      <TooltipContent side="top" :side-offset="4">
-                        {{ t("preferences.contextCompactionRouteDescription") }}
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                </div>
-                <ToggleGroup
-                  type="single"
-                  variant="outline"
-                  size="sm"
-                  :disabled="isSavingContextCompactionRoute"
-                  :model-value="contextCompactionRoute"
-                  aria-labelledby="pine-context-compaction-route-setting"
-                  @update:model-value="updateContextCompactionRoute"
+              <FieldSeparator />
+
+              <FieldSet>
+                <FieldLegend
+                  variant="label"
+                  class="text-xs text-muted-foreground"
+                  >{{ t("preferences.groups.context") }}</FieldLegend
                 >
-                  <ToggleGroupItem value="model">
-                    {{ t("preferences.contextCompactionRouteModel") }}
-                  </ToggleGroupItem>
-                  <ToggleGroupItem value="semantic">
-                    {{ t("preferences.contextCompactionRouteSemantic") }}
-                  </ToggleGroupItem>
-                </ToggleGroup>
-              </Field>
+                <FieldGroup>
+                  <Field orientation="responsive">
+                    <div class="flex min-w-0 flex-1 items-baseline gap-2">
+                      <FieldTitle id="pine-context-compaction-strategy-setting">
+                        {{ t("preferences.contextCompactionStrategy") }}
+                      </FieldTitle>
+                      <TooltipProvider :delay-duration="300">
+                        <Tooltip>
+                          <TooltipTrigger as-child>
+                            <Badge
+                              as="button"
+                              type="button"
+                              variant="secondary"
+                              class="size-5 translate-y-px p-0"
+                              :aria-label="
+                                t('preferences.contextCompactionStrategyHelp')
+                              "
+                            >
+                              <CircleHelpIcon aria-hidden="true" />
+                            </Badge>
+                          </TooltipTrigger>
+                          <TooltipContent side="top" :side-offset="4">
+                            {{
+                              t(
+                                "preferences.contextCompactionStrategyDescription",
+                              )
+                            }}
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    </div>
+                    <ToggleGroup
+                      type="single"
+                      variant="outline"
+                      size="sm"
+                      :disabled="isSavingContextCompactionStrategy"
+                      :model-value="contextCompactionStrategy"
+                      aria-labelledby="pine-context-compaction-strategy-setting"
+                      @update:model-value="updateContextCompactionStrategy"
+                    >
+                      <ToggleGroupItem value="passive">
+                        {{ t("preferences.contextCompactionPassive") }}
+                      </ToggleGroupItem>
+                      <ToggleGroupItem value="recommended">
+                        {{ t("preferences.contextCompactionRecommended") }}
+                      </ToggleGroupItem>
+                    </ToggleGroup>
+                  </Field>
 
-              <AutoApprovalSettings />
+                  <Field orientation="responsive">
+                    <div class="flex min-w-0 flex-1 items-baseline gap-2">
+                      <FieldTitle id="pine-context-compaction-route-setting">
+                        {{ t("preferences.contextCompactionRoute") }}
+                      </FieldTitle>
+                      <TooltipProvider :delay-duration="300">
+                        <Tooltip>
+                          <TooltipTrigger as-child>
+                            <Badge
+                              as="button"
+                              type="button"
+                              variant="secondary"
+                              class="size-5 translate-y-px p-0"
+                              :aria-label="
+                                t('preferences.contextCompactionRouteHelp')
+                              "
+                            >
+                              <CircleHelpIcon aria-hidden="true" />
+                            </Badge>
+                          </TooltipTrigger>
+                          <TooltipContent side="top" :side-offset="4">
+                            {{
+                              t("preferences.contextCompactionRouteDescription")
+                            }}
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    </div>
+                    <ToggleGroup
+                      type="single"
+                      variant="outline"
+                      size="sm"
+                      :disabled="isSavingContextCompactionRoute"
+                      :model-value="contextCompactionRoute"
+                      aria-labelledby="pine-context-compaction-route-setting"
+                      @update:model-value="updateContextCompactionRoute"
+                    >
+                      <ToggleGroupItem value="model">
+                        {{ t("preferences.contextCompactionRouteModel") }}
+                      </ToggleGroupItem>
+                      <ToggleGroupItem value="semantic">
+                        {{ t("preferences.contextCompactionRouteSemantic") }}
+                      </ToggleGroupItem>
+                    </ToggleGroup>
+                  </Field>
+                </FieldGroup>
+              </FieldSet>
 
-              <Field orientation="responsive">
-                <div class="flex min-w-0 flex-1 flex-col gap-1">
-                  <FieldTitle id="pine-utility-model-setting">
-                    {{ t("preferences.utilityModel") }}
-                  </FieldTitle>
-                  <FieldDescription>
-                    {{
-                      utilitySelectedModel?.name ??
-                      t("preferences.noUtilityModelSelected")
-                    }}
-                  </FieldDescription>
-                </div>
-                <Button
-                  data-testid="pine-utility-model-button"
-                  variant="outline"
-                  size="sm"
-                  aria-labelledby="pine-utility-model-setting"
-                  @click="isUtilityModelPickerOpen = true"
+              <FieldSeparator />
+
+              <FieldSet>
+                <FieldLegend
+                  variant="label"
+                  class="text-xs text-muted-foreground"
+                  >{{ t("preferences.groups.tools") }}</FieldLegend
                 >
-                  {{ t("preferences.selectUtilityModel") }}
-                </Button>
-              </Field>
+                <FieldGroup>
+                  <Field orientation="responsive">
+                    <div class="flex min-w-0 flex-1 flex-col gap-1">
+                      <FieldTitle id="pine-tinyfish-credential-setting">
+                        {{ t("preferences.tinyFish") }}
+                      </FieldTitle>
+                      <FieldDescription>
+                        {{ t("preferences.tinyFishDescription") }}
+                      </FieldDescription>
+                    </div>
+                    <Button
+                      data-testid="pine-tinyfish-credential-button"
+                      variant="outline"
+                      size="sm"
+                      aria-labelledby="pine-tinyfish-credential-setting"
+                      @click="openTinyFishCredentialDialog"
+                    >
+                      {{
+                        isTinyFishCredentialConfigured
+                          ? t("preferences.changeTinyFishApiKey")
+                          : t("preferences.addTinyFishApiKey")
+                      }}
+                    </Button>
+                  </Field>
 
-              <Field orientation="responsive">
-                <div class="flex min-w-0 flex-1 flex-col gap-1">
-                  <FieldTitle id="pine-image-model-setting">
-                    {{ t("preferences.imageModel") }}
-                  </FieldTitle>
-                  <FieldDescription>{{ imageModelSummary }}</FieldDescription>
-                </div>
-                <Button
-                  data-testid="pine-image-model-button"
-                  variant="outline"
-                  size="sm"
-                  aria-labelledby="pine-image-model-setting"
-                  @click="isImageModelPickerOpen = true"
-                >
-                  {{ t("preferences.selectImageModel") }}
-                </Button>
-              </Field>
-
-              <Field orientation="responsive">
-                <div class="flex min-w-0 flex-1 flex-col gap-1">
-                  <FieldTitle id="pine-video-model-setting">
-                    {{ t("preferences.videoModel") }}
-                  </FieldTitle>
-                  <FieldDescription>{{ videoModelSummary }}</FieldDescription>
-                </div>
-                <Button
-                  data-testid="pine-video-model-button"
-                  variant="outline"
-                  size="sm"
-                  aria-labelledby="pine-video-model-setting"
-                  @click="isVideoModelPickerOpen = true"
-                >
-                  {{ t("preferences.selectVideoModel") }}
-                </Button>
-              </Field>
-
-              <DecisionsModelSettings />
+                  <Field orientation="horizontal">
+                    <div class="flex min-w-0 flex-1 flex-col gap-1">
+                      <FieldTitle id="pine-approximate-location-setting">
+                        {{ t("preferences.approximateLocation") }}
+                      </FieldTitle>
+                      <FieldDescription>
+                        {{ t("preferences.approximateLocationDescription") }}
+                      </FieldDescription>
+                    </div>
+                    <Switch
+                      data-testid="pine-approximate-location-toggle"
+                      :model-value="approximateLocationEnabled"
+                      :disabled="
+                        isLoadingApproximateLocation ||
+                        isSavingApproximateLocation
+                      "
+                      aria-labelledby="pine-approximate-location-setting"
+                      @update:model-value="updateApproximateLocation"
+                    />
+                  </Field>
+                </FieldGroup>
+              </FieldSet>
             </FieldGroup>
           </div>
           <div v-else-if="activeSection === 'projects'" class="p-6 max-sm:px-4">

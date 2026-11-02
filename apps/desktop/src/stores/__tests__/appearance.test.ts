@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   INVERT_DOCUMENTS_STORAGE_KEY,
   SIDEBAR_VIBRANCY_STORAGE_KEY,
-  TRANSCRIPT_SERIF_STORAGE_KEY,
+  READING_FONT_STORAGE_KEY,
   useAppearanceStore,
 } from "../appearance";
 
@@ -121,25 +121,23 @@ describe("appearance store", () => {
   });
 
   it("restores and toggles the serif transcript font", () => {
-    window.localStorage.setItem(TRANSCRIPT_SERIF_STORAGE_KEY, "true");
+    window.localStorage.setItem(READING_FONT_STORAGE_KEY, "true");
 
     const store = useAppearanceStore();
     store.initialize();
 
-    expect(store.transcriptSerif).toBe(true);
-    expect(
-      document.documentElement.classList.contains("transcript-serif"),
-    ).toBe(true);
-
-    store.setTranscriptSerif(false);
-
-    expect(store.transcriptSerif).toBe(false);
-    expect(
-      document.documentElement.classList.contains("transcript-serif"),
-    ).toBe(false);
-    expect(window.localStorage.getItem(TRANSCRIPT_SERIF_STORAGE_KEY)).toBe(
-      "false",
+    expect(store.readingFont).toBe(true);
+    expect(document.documentElement.classList.contains("reading-font")).toBe(
+      true,
     );
+
+    store.setReadingFont(false);
+
+    expect(store.readingFont).toBe(false);
+    expect(document.documentElement.classList.contains("reading-font")).toBe(
+      false,
+    );
+    expect(window.localStorage.getItem(READING_FONT_STORAGE_KEY)).toBe("false");
   });
 
   it("inverts documents in dark mode unless turned off", () => {

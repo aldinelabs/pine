@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { APP_LOCALE_STORAGE_KEY, createAppI18n } from "@/app/i18n";
 import { Badge } from "@/components/ui/badge";
 import { ToggleGroup } from "@/components/ui/toggle-group";
+import { Select } from "@/components/ui/select";
 import { DEFAULT_AUTO_APPROVAL_SETTINGS } from "@/shared/preferences";
 import type { PineModelCatalog } from "@/shared/models";
 import { createDefaultPineUserProfile } from "@/shared/userProfile";
@@ -247,18 +248,22 @@ describe("PinePreferencesDialog", () => {
     expect(current()).toContain("通用");
   });
 
-  it("places automatic approval below context compaction and uses a help tooltip", async () => {
+  it("places the decisions model after the video model and uses a help tooltip for automatic approval", async () => {
     installPineApi("darwin");
     const { wrapper } = mountDialog();
-    await openSection(wrapper, "执行环境");
+    await openSection(wrapper, "模型");
+    const modelLabels = wrapper
+      .findAll('[data-slot="field-label"]')
+      .map((label) => label.text());
+    expect(modelLabels.indexOf("Decisions 初筛模型")).toBe(
+      modelLabels.indexOf("视频生成模型") + 1,
+    );
+    await openSection(wrapper, "智能体");
     const labels = wrapper
       .findAll('[data-slot="field-label"]')
       .map((label) => label.text());
-    expect(labels.indexOf("Decisions 初筛模型")).toBe(
-      labels.indexOf("视频生成模型") + 1,
-    );
-    expect(labels.indexOf("自动审批路径")).toBeGreaterThan(
-      labels.indexOf("上下文压缩策略"),
+    expect(labels.indexOf("上下文压缩策略")).toBeGreaterThan(
+      labels.indexOf("自动审批路径"),
     );
     expect(wrapper.find('[aria-label="关于自动审批路径"]').exists()).toBe(true);
     expect(wrapper.find("#pine-decisions-model").exists()).toBe(false);
@@ -311,7 +316,7 @@ describe("PinePreferencesDialog", () => {
     };
 
     useModelsStore(pinia).catalog = catalog;
-    await openSection(wrapper, "执行环境");
+    await openSection(wrapper, "模型");
     await wrapper.vm.$nextTick();
 
     expect(wrapper.text()).toContain("GLM 4.5 Air");
@@ -346,7 +351,7 @@ describe("PinePreferencesDialog", () => {
       ],
     };
 
-    await openSection(wrapper, "执行环境");
+    await openSection(wrapper, "模型");
 
     expect(wrapper.text()).toContain(imageModel.name);
     expect(wrapper.text()).not.toContain("尚未配置 OpenRouter");
@@ -380,7 +385,7 @@ describe("PinePreferencesDialog", () => {
       providers: [],
     };
 
-    await openSection(wrapper, "执行环境");
+    await openSection(wrapper, "模型");
 
     expect(wrapper.text()).toContain("尚未配置 OpenRouter");
   });
@@ -388,7 +393,7 @@ describe("PinePreferencesDialog", () => {
   it("saves a TinyFish key from the harness section", async () => {
     installPineApi("linux");
     const { wrapper } = mountDialog();
-    await openSection(wrapper, "执行环境");
+    await openSection(wrapper, "智能体");
 
     await wrapper
       .get('[data-testid="pine-tinyfish-credential-button"]')
@@ -406,7 +411,7 @@ describe("PinePreferencesDialog", () => {
 
   it("opens the shared model picker in utility mode", async () => {
     const { wrapper } = mountDialog();
-    await openSection(wrapper, "执行环境");
+    await openSection(wrapper, "模型");
     const picker = wrapper
       .findAll("[data-model-picker]")
       .find((candidate) => candidate.attributes("data-purpose") === "utility");
@@ -482,10 +487,15 @@ describe("PinePreferencesDialog", () => {
 
   it("applies and persists language and theme selections", async () => {
     const { i18n, pinia, wrapper } = mountDialog();
-    const groups = wrapper.findAllComponents(ToggleGroup);
 
-    groups[0]?.vm.$emit("update:modelValue", "en-US");
-    groups[1]?.vm.$emit("update:modelValue", "dark");
+    wrapper
+      .findAllComponents(Select)[0]
+      ?.vm.$emit("update:modelValue", "en-US");
+    await wrapper.vm.$nextTick();
+    await openSection(wrapper, "Appearance");
+    wrapper
+      .findAllComponents(ToggleGroup)[0]
+      ?.vm.$emit("update:modelValue", "dark");
     await wrapper.vm.$nextTick();
 
     expect(i18n.global.locale.value).toBe("en-US");
@@ -501,7 +511,7 @@ describe("PinePreferencesDialog", () => {
   it("loads the recommended compaction strategy and persists changes", async () => {
     installPineApi("linux");
     const { wrapper } = mountDialog();
-    await openSection(wrapper, "执行环境");
+    await openSection(wrapper, "智能体");
     await vi.waitFor(() =>
       expect(getContextCompactionStrategy).toHaveBeenCalled(),
     );
@@ -526,7 +536,7 @@ describe("PinePreferencesDialog", () => {
   it("defaults the compaction route to the model and persists changes", async () => {
     installPineApi("linux");
     const { wrapper } = mountDialog();
-    await openSection(wrapper, "执行环境");
+    await openSection(wrapper, "智能体");
     await vi.waitFor(() =>
       expect(getContextCompactionRoute).toHaveBeenCalled(),
     );
@@ -588,7 +598,7 @@ describe("PinePreferencesDialog", () => {
 
   it("shows the compaction description from a focusable help badge", async () => {
     const { wrapper } = mountDialog();
-    await openSection(wrapper, "执行环境");
+    await openSection(wrapper, "智能体");
     const helpBadge = wrapper.get('button[aria-label="关于上下文压缩策略"]');
     const description =
       "推荐设置会在上下文达到 80% 时压缩，并将触发上限限制在 400K Token。";
@@ -613,6 +623,7 @@ describe("PinePreferencesDialog", () => {
   it("toggles the macOS sidebar vibrancy effect", async () => {
     installPineApi("darwin");
     const { wrapper } = mountDialog();
+    await openSection(wrapper, "外观");
     const toggle = wrapper.get('[data-testid="pine-sidebar-vibrancy-toggle"]');
 
     expect(wrapper.text()).toContain("\u4fa7\u680f\u539f\u751f\u6750\u8d28");

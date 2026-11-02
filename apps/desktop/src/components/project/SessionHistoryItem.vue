@@ -45,7 +45,7 @@ const emit = defineEmits<{
         :title="title"
         @click="emit('open')"
       >
-        <span>{{ title }}</span>
+        <span data-slot="session-title">{{ title }}</span>
       </SidebarMenuSubButton>
     </SessionContextMenu>
   </SidebarMenuSubItem>
