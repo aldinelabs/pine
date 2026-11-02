@@ -11,6 +11,7 @@ import {
   type PineMessageRewriteTarget,
 } from "../../shared/agent";
 import type { McpStatusSnapshot } from "pi-mcp-adapter";
+import type { McpScriptApprovalCache } from "../mcp-approval";
 import type { PineProviderAuthEvent } from "../../shared/models";
 import type {
   PineContextCompactionRoute,
@@ -56,6 +57,8 @@ export interface LiveAgentSession {
   agentDir: string;
   approvalMode: PineApprovalMode;
   gate: ToolGate;
+  /** Reuses judge allows for repeated MCP script calls within one turn. */
+  mcpScriptApprovals: McpScriptApprovalCache;
   /** Fallback while a newly submitted prompt has not reached session entries. */
   latestUserPrompt?: string;
   authorizationGrants: AuthorizationGrant[];
