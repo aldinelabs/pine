@@ -511,6 +511,11 @@ body,
   height: 100%;
 }
 
+/* No double-tap zoom or tap delay on touch screens; pinch still works. */
+html {
+  touch-action: manipulation;
+}
+
 /*
  * Installed to a home screen, the web interface draws under the status bar,
  * notch and home indicator (`viewport-fit=cover`). These are 0 everywhere
