@@ -1,4 +1,7 @@
 import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import tailwindcss from "@tailwindcss/vite";
+import vue from "@vitejs/plugin-vue";
 import { defineConfig } from "vite";
 
 interface EdgeOneConfig {
@@ -23,6 +26,10 @@ const siteHeaders = Object.fromEntries(
 // carries the desktop's own web interface over the connection. The worker
 // must sit at /sw.js to control the whole origin.
 export default defineConfig({
+  plugins: [vue(), tailwindcss()],
+  resolve: {
+    alias: { "@": fileURLToPath(new URL("src", import.meta.url)) },
+  },
   server: {
     port: 5180,
     // In development the worker is served from /src, so it needs this to

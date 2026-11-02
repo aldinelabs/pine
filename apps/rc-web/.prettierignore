@@ -1,0 +1,5 @@
+coverage
+dist
+node_modules
+src/components/ui
+src/styles/shadcn-vue.css

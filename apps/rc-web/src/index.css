@@ -1,0 +1,273 @@
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap");
+
+@import "@fontsource-variable/inter";
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn-vue/tailwind.css";
+@import "./styles/shadcn-vue.css";
+
+@custom-variant dark (&:is(.dark *));
+
+/* Pine's olive theme, copied from the desktop app's index.css so this page
+   looks like the Pine it embeds. */
+:root {
+  --pine-olive-background: oklch(1 0 0);
+  --background: var(--pine-olive-background);
+  --pine-olive-foreground: oklch(0.153 0.006 107.1);
+  --foreground: var(--pine-olive-foreground);
+  --pine-olive-card: oklch(1 0 0);
+  --card: var(--pine-olive-card);
+  --pine-olive-card-foreground: oklch(0.153 0.006 107.1);
+  --card-foreground: var(--pine-olive-card-foreground);
+  --pine-olive-popover: oklch(1 0 0);
+  --popover: var(--pine-olive-popover);
+  --pine-olive-popover-foreground: oklch(0.153 0.006 107.1);
+  --popover-foreground: var(--pine-olive-popover-foreground);
+  --pine-olive-primary: oklch(0.228 0.013 107.4);
+  --primary: var(--pine-olive-primary);
+  --pine-olive-primary-foreground: oklch(0.988 0.003 106.5);
+  --primary-foreground: var(--pine-olive-primary-foreground);
+  --pine-olive-secondary: oklch(0.966 0.005 106.5);
+  --secondary: var(--pine-olive-secondary);
+  --pine-olive-secondary-foreground: oklch(0.228 0.013 107.4);
+  --secondary-foreground: var(--pine-olive-secondary-foreground);
+  --pine-olive-muted: oklch(0.966 0.005 106.5);
+  --muted: var(--pine-olive-muted);
+  --pine-olive-muted-foreground: oklch(0.58 0.031 107.3);
+  --muted-foreground: var(--pine-olive-muted-foreground);
+  --pine-olive-accent: oklch(0.966 0.005 106.5);
+  --accent: var(--pine-olive-accent);
+  --pine-olive-accent-foreground: oklch(0.228 0.013 107.4);
+  --accent-foreground: var(--pine-olive-accent-foreground);
+  --pine-olive-destructive: oklch(0.577 0.245 27.325);
+  --destructive: var(--pine-olive-destructive);
+  --pine-olive-thinking-max: oklch(0.541 0.247 293.009);
+  --thinking-max: var(--pine-olive-thinking-max);
+  --pine-olive-warning: oklch(0.58 0.148 70.08);
+  --warning: var(--pine-olive-warning);
+  --pine-olive-info: oklch(0.546 0.245 262.881);
+  --info: var(--pine-olive-info);
+  --pine-olive-border: oklch(0.93 0.007 106.5);
+  --border: var(--pine-olive-border);
+  --pine-olive-input: oklch(0.93 0.007 106.5);
+  --input: var(--pine-olive-input);
+  --pine-olive-ring: oklch(0.737 0.021 106.9);
+  --ring: var(--pine-olive-ring);
+  --pine-olive-chart-1: oklch(0.88 0.011 106.6);
+  --chart-1: var(--pine-olive-chart-1);
+  --pine-olive-chart-2: oklch(0.58 0.031 107.3);
+  --chart-2: var(--pine-olive-chart-2);
+  --pine-olive-chart-3: oklch(0.466 0.025 107.3);
+  --chart-3: var(--pine-olive-chart-3);
+  --pine-olive-chart-4: oklch(0.394 0.023 107.4);
+  --chart-4: var(--pine-olive-chart-4);
+  --pine-olive-chart-5: oklch(0.286 0.016 107.4);
+  --chart-5: var(--pine-olive-chart-5);
+  --pine-olive-sidebar: oklch(0.988 0.003 106.5);
+  --sidebar: var(--pine-olive-sidebar);
+  --pine-olive-sidebar-foreground: oklch(0.153 0.006 107.1);
+  --sidebar-foreground: var(--pine-olive-sidebar-foreground);
+  --pine-olive-sidebar-primary: oklch(0.228 0.013 107.4);
+  --sidebar-primary: var(--pine-olive-sidebar-primary);
+  --pine-olive-sidebar-primary-foreground: oklch(0.988 0.003 106.5);
+  --sidebar-primary-foreground: var(--pine-olive-sidebar-primary-foreground);
+  --pine-olive-sidebar-accent: oklch(0.966 0.005 106.5);
+  --sidebar-accent: var(--pine-olive-sidebar-accent);
+  --pine-olive-sidebar-accent-foreground: oklch(0.228 0.013 107.4);
+  --sidebar-accent-foreground: var(--pine-olive-sidebar-accent-foreground);
+  --pine-olive-sidebar-border: oklch(0.93 0.007 106.5);
+  --sidebar-border: var(--pine-olive-sidebar-border);
+  --pine-olive-sidebar-ring: oklch(0.737 0.021 106.9);
+  --sidebar-ring: var(--pine-olive-sidebar-ring);
+  --radius: 0.625rem;
+  --font-ui:
+    "Inter Variable", "PingFang SC", "Noto Sans SC", system-ui, sans-serif;
+  --font-jetbrains-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+  --font-heading: var(--font-ui);
+  --font-mono: var(--font-jetbrains-mono);
+  --shadow-2xs: 0 1px 3px 0px oklch(0 0 0 / 0.05);
+  --shadow-xs: 0 1px 3px 0px oklch(0 0 0 / 0.05);
+  --shadow-sm:
+    0 1px 3px 0px oklch(0 0 0 / 0.1), 0 1px 2px -1px oklch(0 0 0 / 0.1);
+  --shadow: 0 1px 3px 0px oklch(0 0 0 / 0.1), 0 1px 2px -1px oklch(0 0 0 / 0.1);
+  --shadow-md:
+    0 1px 3px 0px oklch(0 0 0 / 0.1), 0 2px 4px -1px oklch(0 0 0 / 0.1);
+  --shadow-lg:
+    0 1px 3px 0px oklch(0 0 0 / 0.1), 0 4px 6px -1px oklch(0 0 0 / 0.1);
+  --shadow-xl:
+    0 1px 3px 0px oklch(0 0 0 / 0.1), 0 8px 10px -1px oklch(0 0 0 / 0.1);
+  --shadow-2xl: 0 1px 3px 0px oklch(0 0 0 / 0.25);
+}
+
+:root.dark {
+  --pine-olive-background: oklch(0.153 0.006 107.1);
+  --background: var(--pine-olive-background);
+  --pine-olive-foreground: oklch(0.988 0.003 106.5);
+  --foreground: var(--pine-olive-foreground);
+  --pine-olive-card: oklch(0.228 0.013 107.4);
+  --card: var(--pine-olive-card);
+  --pine-olive-card-foreground: oklch(0.988 0.003 106.5);
+  --card-foreground: var(--pine-olive-card-foreground);
+  --pine-olive-popover: oklch(0.228 0.013 107.4);
+  --popover: var(--pine-olive-popover);
+  --pine-olive-popover-foreground: oklch(0.988 0.003 106.5);
+  --popover-foreground: var(--pine-olive-popover-foreground);
+  --pine-olive-primary: oklch(0.93 0.007 106.5);
+  --primary: var(--pine-olive-primary);
+  --pine-olive-primary-foreground: oklch(0.228 0.013 107.4);
+  --primary-foreground: var(--pine-olive-primary-foreground);
+  --pine-olive-secondary: oklch(0.286 0.016 107.4);
+  --secondary: var(--pine-olive-secondary);
+  --pine-olive-secondary-foreground: oklch(0.988 0.003 106.5);
+  --secondary-foreground: var(--pine-olive-secondary-foreground);
+  --pine-olive-muted: oklch(0.286 0.016 107.4);
+  --muted: var(--pine-olive-muted);
+  --pine-olive-muted-foreground: oklch(0.737 0.021 106.9);
+  --muted-foreground: var(--pine-olive-muted-foreground);
+  --pine-olive-accent: oklch(0.286 0.016 107.4);
+  --accent: var(--pine-olive-accent);
+  --pine-olive-accent-foreground: oklch(0.988 0.003 106.5);
+  --accent-foreground: var(--pine-olive-accent-foreground);
+  --pine-olive-destructive: oklch(0.704 0.191 22.216);
+  --destructive: var(--pine-olive-destructive);
+  --pine-olive-thinking-max: oklch(0.702 0.183 293.541);
+  --thinking-max: var(--pine-olive-thinking-max);
+  --pine-olive-warning: oklch(0.828 0.129 72.06);
+  --warning: var(--pine-olive-warning);
+  --pine-olive-info: oklch(0.707 0.165 254.624);
+  --info: var(--pine-olive-info);
+  --pine-olive-border: oklch(1 0 0 / 10%);
+  --border: var(--pine-olive-border);
+  --pine-olive-input: oklch(1 0 0 / 15%);
+  --input: var(--pine-olive-input);
+  --pine-olive-ring: oklch(0.58 0.031 107.3);
+  --ring: var(--pine-olive-ring);
+  --pine-olive-chart-1: oklch(0.88 0.011 106.6);
+  --chart-1: var(--pine-olive-chart-1);
+  --pine-olive-chart-2: oklch(0.58 0.031 107.3);
+  --chart-2: var(--pine-olive-chart-2);
+  --pine-olive-chart-3: oklch(0.466 0.025 107.3);
+  --chart-3: var(--pine-olive-chart-3);
+  --pine-olive-chart-4: oklch(0.394 0.023 107.4);
+  --chart-4: var(--pine-olive-chart-4);
+  --pine-olive-chart-5: oklch(0.286 0.016 107.4);
+  --chart-5: var(--pine-olive-chart-5);
+  --pine-olive-sidebar: oklch(0.228 0.013 107.4);
+  --sidebar: var(--pine-olive-sidebar);
+  --pine-olive-sidebar-foreground: oklch(0.988 0.003 106.5);
+  --sidebar-foreground: var(--pine-olive-sidebar-foreground);
+  --pine-olive-sidebar-primary: oklch(0.93 0.007 106.5);
+  --sidebar-primary: var(--pine-olive-sidebar-primary);
+  --pine-olive-sidebar-primary-foreground: oklch(0.988 0.003 106.5);
+  --sidebar-primary-foreground: var(--pine-olive-sidebar-primary-foreground);
+  --pine-olive-sidebar-accent: oklch(0.286 0.016 107.4);
+  --sidebar-accent: var(--pine-olive-sidebar-accent);
+  --pine-olive-sidebar-accent-foreground: oklch(0.988 0.003 106.5);
+  --sidebar-accent-foreground: var(--pine-olive-sidebar-accent-foreground);
+  --pine-olive-sidebar-border: oklch(1 0 0 / 10%);
+  --sidebar-border: var(--pine-olive-sidebar-border);
+  --pine-olive-sidebar-ring: oklch(0.58 0.031 107.3);
+  --sidebar-ring: var(--pine-olive-sidebar-ring);
+  --shadow-2xs: 0 1px 3px 0px oklch(0 0 0 / 0.05);
+  --shadow-xs: 0 1px 3px 0px oklch(0 0 0 / 0.05);
+  --shadow-sm:
+    0 1px 3px 0px oklch(0 0 0 / 0.1), 0 1px 2px -1px oklch(0 0 0 / 0.1);
+  --shadow: 0 1px 3px 0px oklch(0 0 0 / 0.1), 0 1px 2px -1px oklch(0 0 0 / 0.1);
+  --shadow-md:
+    0 1px 3px 0px oklch(0 0 0 / 0.1), 0 2px 4px -1px oklch(0 0 0 / 0.1);
+  --shadow-lg:
+    0 1px 3px 0px oklch(0 0 0 / 0.1), 0 4px 6px -1px oklch(0 0 0 / 0.1);
+  --shadow-xl:
+    0 1px 3px 0px oklch(0 0 0 / 0.1), 0 8px 10px -1px oklch(0 0 0 / 0.1);
+  --shadow-2xl: 0 1px 3px 0px oklch(0 0 0 / 0.25);
+}
+
+@theme inline {
+  --font-heading: var(--font-ui);
+  --font-sans: var(--font-ui);
+  --font-mono: var(--font-jetbrains-mono);
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-out-expo: cubic-bezier(0.87, 0, 0.13, 1);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-thinking-max: var(--thinking-max);
+  --color-warning: var(--warning);
+  --color-info: var(--info);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
+  --shadow-2xs: var(--shadow-2xs);
+  --shadow-xs: var(--shadow-xs);
+  --shadow-sm: var(--shadow-sm);
+  --shadow: var(--shadow);
+  --shadow-md: var(--shadow-md);
+  --shadow-lg: var(--shadow-lg);
+  --shadow-xl: var(--shadow-xl);
+  --shadow-2xl: var(--shadow-2xl);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+
+  html,
+  body {
+    @apply h-full bg-background font-sans text-foreground antialiased;
+  }
+}
+
+/* The computer's own Pine fills the screen inside the safe area. */
+#pine {
+  position: fixed;
+  top: env(safe-area-inset-top);
+  right: env(safe-area-inset-right);
+  bottom: env(safe-area-inset-bottom);
+  left: env(safe-area-inset-left);
+  width: calc(100% - env(safe-area-inset-left) - env(safe-area-inset-right));
+  height: calc(100% - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+  border: 0;
+  background: var(--background);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
