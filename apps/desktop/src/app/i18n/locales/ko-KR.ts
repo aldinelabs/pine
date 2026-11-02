@@ -188,6 +188,11 @@ export default {
     quickComposer: "빠른 입력창",
     quickComposerDescription:
       "어떤 앱에서든 {shortcut}을(를) 누르면 떠 있는 입력창에서 새 대화를 시작할 수 있습니다.",
+    runInBackground: "백그라운드에서 계속 실행",
+    runInBackgroundDescriptionMac:
+      "마지막 창을 닫아도 Pine이 메뉴 막대에 남아 원격 제어와 빠른 작성기를 계속 사용할 수 있습니다. 종료는 메뉴 막대 아이콘에서 하세요.",
+    runInBackgroundDescriptionWindows:
+      "마지막 창을 닫아도 Pine이 알림 영역에 남아 원격 제어와 빠른 작성기를 계속 사용할 수 있습니다. 종료는 트레이 아이콘에서 하세요.",
     approximateLocation: "AI와 대략적인 위치 공유",
     approximateLocationDescription:
       "Cloudflare에서 이 컴퓨터의 공용 IP 주소를 가져와 Pine에 내장된 GeoIP 데이터베이스(IP Geolocation by DB-IP)로 이 기기에서 도시를 추정합니다. AI에는 도시, 지역, 국가만 전달됩니다. VPN이나 프록시를 사용하면 위치가 부정확할 수 있습니다.",
@@ -1721,6 +1726,10 @@ export default {
     quickComposer: {
       title: "빠른 입력창 설정을 업데이트할 수 없습니다",
       description: "나중에 다시 시도하세요.",
+    },
+    runInBackground: {
+      title: "백그라운드 실행 설정을 업데이트할 수 없습니다",
+      description: "나중에 다시 시도해 주세요.",
     },
     approximateLocation: {
       title: "대략적인 위치 설정을 업데이트할 수 없습니다",

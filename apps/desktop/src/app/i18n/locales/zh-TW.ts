@@ -178,6 +178,11 @@ export default {
     quickComposer: "快速提問",
     quickComposerDescription:
       "在任意應用中按 {shortcut} 喚出浮空輸入框，快速發起新對話。",
+    runInBackground: "在背景繼續執行",
+    runInBackgroundDescriptionMac:
+      "關閉最後一個視窗後，Pine 會留在選單列中，遠端控制和快速輸入仍然可用。可從選單列圖示結束。",
+    runInBackgroundDescriptionWindows:
+      "關閉最後一個視窗後，Pine 會留在通知區域中，遠端控制和快速輸入仍然可用。可從系統匣圖示結束。",
     approximateLocation: "向 AI 提供大致位置",
     approximateLocationDescription:
       "透過 Cloudflare 獲取本機公網 IP，用 Pine 內建的 GeoIP 資料庫（IP Geolocation by DB-IP）在本地估算所在城市，只把城市、地區和國家告訴 AI。使用 VPN 或代理時位置可能不準。",
@@ -1664,6 +1669,10 @@ export default {
     quickComposer: {
       title: "無法更新快速提問設定",
       description: "請稍後重試。",
+    },
+    runInBackground: {
+      title: "無法更新背景執行設定",
+      description: "請稍後再試。",
     },
     approximateLocation: {
       title: "無法更新大致位置設定",

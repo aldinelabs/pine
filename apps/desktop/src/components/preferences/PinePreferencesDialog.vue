@@ -102,6 +102,10 @@ import {
   type PineContextCompactionRoute,
   type PineContextCompactionStrategy,
 } from "@/shared/preferences";
+import {
+  DEFAULT_RUN_IN_BACKGROUND,
+  supportsBackgroundMode,
+} from "@/shared/background";
 import { DEFAULT_QUICK_COMPOSER_ENABLED } from "@/shared/quickComposer";
 import { DEFAULT_APPROXIMATE_LOCATION_ENABLED } from "@/shared/approximateLocation";
 import {
@@ -167,6 +171,20 @@ const contextCompactionRoute = ref<PineContextCompactionRoute>(
   DEFAULT_CONTEXT_COMPACTION_ROUTE,
 );
 const isSavingContextCompactionRoute = ref(false);
+const runInBackground = ref(DEFAULT_RUN_IN_BACKGROUND);
+const isLoadingRunInBackground = ref(true);
+const isSavingRunInBackground = ref(false);
+const supportsRunInBackground = computed(
+  () =>
+    isDesktop &&
+    supportsBackgroundMode(window.pine?.platform ?? "") &&
+    typeof window.pine?.setRunInBackground === "function",
+);
+const runInBackgroundDescriptionKey = computed(() =>
+  window.pine?.platform === "darwin"
+    ? "preferences.runInBackgroundDescriptionMac"
+    : "preferences.runInBackgroundDescriptionWindows",
+);
 const quickComposerEnabled = ref(DEFAULT_QUICK_COMPOSER_ENABLED);
 const isLoadingQuickComposer = ref(true);
 const isSavingQuickComposer = ref(false);
@@ -302,6 +320,7 @@ watch(isOpen, (open) => {
   void loadCompletionSignal();
   void loadAttentionNotifications();
   void loadQuickComposer();
+  void loadRunInBackground();
   void loadApproximateLocation();
   void loadDiagnosticLogging();
 });
@@ -332,6 +351,7 @@ onMounted(() => {
   void loadCompletionSignal();
   void loadAttentionNotifications();
   void loadQuickComposer();
+  void loadRunInBackground();
   void loadApproximateLocation();
   void loadDiagnosticLogging();
 });
@@ -485,6 +505,48 @@ async function loadContextCompactionRoute(): Promise<void> {
       title: t("errors.contextCompactionRoute.title"),
       description: t("errors.contextCompactionRoute.description"),
     });
+  }
+}
+
+async function loadRunInBackground(): Promise<void> {
+  if (isSavingRunInBackground.value) return;
+  isLoadingRunInBackground.value = true;
+  try {
+    if (typeof window.pine?.getRunInBackground !== "function") return;
+    runInBackground.value = await window.pine.getRunInBackground();
+  } catch (error) {
+    handleError(error, {
+      id: "preferences.runInBackground.load",
+      title: t("errors.runInBackground.title"),
+      description: t("errors.runInBackground.description"),
+    });
+  } finally {
+    isLoadingRunInBackground.value = false;
+  }
+}
+
+async function updateRunInBackground(enabled: boolean): Promise<void> {
+  if (
+    isLoadingRunInBackground.value ||
+    isSavingRunInBackground.value ||
+    enabled === runInBackground.value ||
+    typeof window.pine?.setRunInBackground !== "function"
+  )
+    return;
+  const previous = runInBackground.value;
+  runInBackground.value = enabled;
+  isSavingRunInBackground.value = true;
+  try {
+    runInBackground.value = await window.pine.setRunInBackground(enabled);
+  } catch (error) {
+    runInBackground.value = previous;
+    handleError(error, {
+      id: "preferences.runInBackground.save",
+      title: t("errors.runInBackground.title"),
+      description: t("errors.runInBackground.description"),
+    });
+  } finally {
+    isSavingRunInBackground.value = false;
   }
 }
 
@@ -1224,6 +1286,29 @@ defineExpose({ open });
                       "
                       aria-labelledby="pine-quick-composer-setting"
                       @update:model-value="updateQuickComposer"
+                    />
+                  </Field>
+
+                  <Field
+                    v-if="supportsRunInBackground"
+                    orientation="horizontal"
+                  >
+                    <div class="flex min-w-0 flex-1 flex-col gap-1">
+                      <FieldTitle id="pine-run-in-background-setting">
+                        {{ t("preferences.runInBackground") }}
+                      </FieldTitle>
+                      <FieldDescription>
+                        {{ t(runInBackgroundDescriptionKey) }}
+                      </FieldDescription>
+                    </div>
+                    <Switch
+                      data-testid="pine-run-in-background-toggle"
+                      :model-value="runInBackground"
+                      :disabled="
+                        isLoadingRunInBackground || isSavingRunInBackground
+                      "
+                      aria-labelledby="pine-run-in-background-setting"
+                      @update:model-value="updateRunInBackground"
                     />
                   </Field>
 

@@ -119,6 +119,10 @@ export class DesktopQuickComposer {
     this.enabled = savedEnabled && this.applyShortcut(true);
   }
 
+  isEnabled(): boolean {
+    return this.enabled;
+  }
+
   /** Whether a window belongs to the composer rather than to the user. */
   isAuxiliary(window: BrowserWindow): boolean {
     return this.controller.isAuxiliary(window);

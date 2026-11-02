@@ -212,6 +212,7 @@ const config: ForgeConfig = {
     windowsSign,
     extraResource: [
       path.join(__dirname, "resources/icon.png"),
+      path.join(__dirname, "resources/tray"),
       path.join(__dirname, "../../.pine/release.json"),
       path.join(
         __dirname,

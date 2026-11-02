@@ -1,6 +1,10 @@
 import { contextBridge, ipcRenderer, webUtils } from "electron";
 import { createPineApi } from "./client/pineApi";
 import type { PineDesktopApi } from "./shared/projects";
+import {
+  GET_RUN_IN_BACKGROUND_CHANNEL,
+  SET_RUN_IN_BACKGROUND_CHANNEL,
+} from "./shared/background";
 import { QUICK_COMPOSER_HANDOFF_ARGUMENT } from "./shared/quickComposer";
 import {
   CANCEL_REMOTE_PAIRING_CHANNEL,
@@ -43,6 +47,9 @@ const pineApi: PineDesktopApi = {
   signOutWebBrowsers: () => ipcRenderer.invoke(SIGN_OUT_WEB_BROWSERS_CHANNEL),
   setWebServer: (request) =>
     ipcRenderer.invoke(SET_WEB_SERVER_CHANNEL, request),
+  getRunInBackground: () => ipcRenderer.invoke(GET_RUN_IN_BACKGROUND_CHANNEL),
+  setRunInBackground: (enabled) =>
+    ipcRenderer.invoke(SET_RUN_IN_BACKGROUND_CHANNEL, enabled),
   getRemoteControl: () => ipcRenderer.invoke(GET_REMOTE_CONTROL_CHANNEL),
   setRemoteControlEnabled: (enabled) =>
     ipcRenderer.invoke(SET_REMOTE_CONTROL_ENABLED_CHANNEL, enabled),

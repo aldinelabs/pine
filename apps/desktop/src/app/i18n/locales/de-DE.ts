@@ -192,6 +192,11 @@ export default {
     quickComposer: "Schnelleingabe",
     quickComposerDescription:
       "Drücken Sie {shortcut} in einer beliebigen App, um aus einem schwebenden Eingabefeld eine neue Unterhaltung zu starten.",
+    runInBackground: "Im Hintergrund weiterlaufen",
+    runInBackgroundDescriptionMac:
+      "Wenn Sie das letzte Fenster schließen, bleibt Pine in der Menüleiste, sodass Fernsteuerung und Schnelleingabe verfügbar bleiben. Beenden Sie Pine über das Menüleistensymbol.",
+    runInBackgroundDescriptionWindows:
+      "Wenn Sie das letzte Fenster schließen, bleibt Pine im Infobereich, sodass Fernsteuerung und Schnelleingabe verfügbar bleiben. Beenden Sie Pine über das Symbol im Infobereich.",
     approximateLocation: "Ungefähren Standort mit der KI teilen",
     approximateLocationDescription:
       "Ermittelt die öffentliche IP-Adresse dieses Computers über Cloudflare und schätzt Ihre Stadt auf diesem Gerät mit der in Pine integrierten GeoIP-Datenbank (IP Geolocation by DB-IP). Nur Stadt, Region und Land gelangen zur KI. Ein VPN oder Proxy kann den Standort ungenau machen.",
@@ -1781,6 +1786,10 @@ export default {
     quickComposer: {
       title:
         "Einstellungen der Schnelleingabe konnten nicht aktualisiert werden",
+      description: "Bitte versuchen Sie es später erneut.",
+    },
+    runInBackground: {
+      title: "Hintergrundeinstellung konnte nicht aktualisiert werden",
       description: "Bitte versuchen Sie es später erneut.",
     },
     approximateLocation: {
