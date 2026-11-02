@@ -35,7 +35,7 @@ Aldine 的服务始终参与握手；数据能直连时直连，否则经 Cloudf
 
 设备端 Service Worker 拦截内嵌页面 `/pine/<token>/` 发出的所有请求（包括它启动的 worker），交给持有 DataChannel 的外层页面发送。Pine 的页面可能用相对路径（资源落在 `/pine/<token>/` 下）或根路径（如 `/api/rpc`），转发时去掉前缀。由 Service Worker 合成的响应会继承站点的 CSP，因此 `rc.aldine.cn` 的 CSP 只限制 `frame-ancestors`、`object-src` 和 `base-uri`。
 
-无头服务端没有确认配对的界面，因此不接受新设备。
+无头服务端没有确认配对的界面：配对只能由终端发起（`--pair` 或 `SIGUSR2`），持有终端里链接的设备被直接允许。见[无头服务端](../headless-server.md#经-aldine-远程控制)。
 
 ## 开发与验证
 

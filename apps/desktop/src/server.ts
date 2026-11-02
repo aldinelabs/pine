@@ -8,6 +8,7 @@ import { PineCore } from "./main/core/pineCore";
 import { forkAgentProcess } from "./server/agentProcess";
 import { fileCredentialStorage } from "./server/credentialStorage";
 import { linuxSandboxProblems } from "./server/sandboxCheck";
+import { formatPairing, runRemoteAction } from "./server/remoteCli";
 import { serverFileActions } from "./server/fileActions";
 import {
   readServerCommand,
@@ -21,7 +22,10 @@ declare const PINE_SERVER_VERSION: string;
 /** The server, the agent worker and the renderer are built side by side. */
 const buildDirectory = path.dirname(fileURLToPath(import.meta.url));
 
-function serverHost(options: ServerOptions): PineHost {
+function serverHost(
+  options: ServerOptions,
+  remote: { fingerprint: (print: string) => void },
+): PineHost {
   return {
     dataDirectory: options.dataDirectory,
     logsDirectory: path.join(options.dataDirectory, "logs"),
@@ -44,6 +48,12 @@ function serverHost(options: ServerOptions): PineHost {
     sendToClient: () => false,
     focusClient: () => false,
     libraryChanged: () => undefined,
+    // Only someone with the terminal can start pairing, and only they see the
+    // link, so a device that presents it is the one they meant to add.
+    approveRemotePairing: ({ fingerprint }) => {
+      remote.fingerprint(fingerprint);
+      return Promise.resolve(true);
+    },
   };
 }
 
@@ -65,6 +75,10 @@ async function main(): Promise<void> {
     process.stdout.write(SERVER_USAGE);
     return;
   }
+  if (command.kind === "remote") {
+    console.log(await runRemoteAction(command.dataDirectory, command.action));
+    return;
+  }
   const { options } = command;
   if (process.platform === "win32")
     throw new Error("The Pine server does not run on Windows.");
@@ -72,7 +86,12 @@ async function main(): Promise<void> {
   // Credentials and sessions live here, so only this user may read it.
   await mkdir(options.dataDirectory, { recursive: true, mode: 0o700 });
   const password = await readPassword(options);
-  const core = await PineCore.create(serverHost(options));
+  const core = await PineCore.create(
+    serverHost(options, {
+      fingerprint: (print) =>
+        console.log(`Pairing a new device (fingerprint ${print}).`),
+    }),
+  );
   if (password) await core.web.ensurePassword(password);
   if (options.web.requirePassword && !core.web.server.status().hasPassword)
     throw new Error(
@@ -95,6 +114,23 @@ async function main(): Promise<void> {
   for (const address of status.addresses ?? []) console.log(`  ${address}`);
   if (process.platform === "linux")
     for (const problem of linuxSandboxProblems()) console.warn(problem);
+
+  if (options.remote === false) await core.remote.disable();
+  else if (options.remote) await core.remote.enable();
+  const pair = async (): Promise<void> => {
+    try {
+      await core.remote.startPairing();
+      const pairing = core.remote.status().pairing;
+      if (pairing) console.log(`\n${formatPairing(pairing)}\n`);
+    } catch (error) {
+      console.error(error instanceof Error ? error.message : error);
+    }
+  };
+  if (options.pair) await pair();
+  else if (core.remote.status().enabled)
+    console.log("Remote control is on. Pair a device with SIGUSR2 or --pair.");
+  // Pairing lasts a few minutes; this asks for a fresh link without a restart.
+  process.on("SIGUSR2", () => void pair());
 }
 
 main().catch((error: unknown) => {

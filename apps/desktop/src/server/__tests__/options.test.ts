@@ -22,7 +22,45 @@ describe("readServerCommand", () => {
         rememberFor: "7d",
         requirePassword: true,
       },
+      pair: false,
     });
+  });
+
+  it("leaves remote control alone unless asked", () => {
+    expect(run([]).remote).toBeUndefined();
+    expect(run(["--remote"]).remote).toBe(true);
+    expect(run([], { PINE_REMOTE: "1" }).remote).toBe(true);
+    expect(run([], { PINE_REMOTE: "0" }).remote).toBe(false);
+  });
+
+  it("turns remote control on when asked to pair", () => {
+    expect(run(["--pair"])).toMatchObject({ pair: true, remote: true });
+    expect(run([], { PINE_PAIR: "1", PINE_REMOTE: "0" })).toMatchObject({
+      pair: true,
+      remote: true,
+    });
+  });
+
+  it("reads the device commands", () => {
+    expect(readServerCommand(["remote", "list"], {}, HOME)).toEqual({
+      kind: "remote",
+      dataDirectory: path.join(HOME, ".local", "share", "pine-server"),
+      action: { kind: "list" },
+    });
+    expect(
+      readServerCommand(
+        ["remote", "remove", "abc", "--data-dir", "/srv/pine"],
+        {},
+        HOME,
+      ),
+    ).toEqual({
+      kind: "remote",
+      dataDirectory: "/srv/pine",
+      action: { kind: "remove", id: "abc" },
+    });
+    expect(() => readServerCommand(["remote", "remove"], {}, HOME)).toThrow(
+      /remote list/,
+    );
   });
 
   it("prefers arguments over the environment", () => {
