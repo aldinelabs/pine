@@ -128,9 +128,11 @@ it("highlights a card until the user reaches it or it leaves", () => {
     bottom: "tasks",
     highlight: "tasks",
   });
+  // Every card the agent brings into view pulses, not only the named one.
   expect(store.isHighlighted("tasks")).toBe(true);
-  expect(store.isHighlighted("artifacts")).toBe(false);
+  expect(store.isHighlighted("artifacts")).toBe(true);
 
+  store.acknowledge("artifacts");
   store.acknowledge("tasks");
   expect(store.isHighlighted("tasks")).toBe(false);
 

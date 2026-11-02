@@ -118,7 +118,7 @@ export function createWorkbenchToolDefinitions(
     promptSnippet: `Use ${UI_WORKBENCH_OPEN_TOOL_NAME} proactively to show useful background progress, project files, and results beside the conversation`,
     promptGuidelines: [
       `${UI_PRESENT_FILE_TOOL_NAME} opens the requested sidebar or fullscreen preview itself; do not open a separate preview card for it.`,
-      `Highlight a card only when you refer the user to it, such as output they should check in tasks; pass highlight with the open or arrange call that shows it rather than calling twice.`,
+      `A card you open pulses on its own until the user looks at it. Pass highlight only to point at a panel that is already visible, such as output they should check in tasks.`,
       `After checking ${UI_WORKBENCH_STATE_TOOL_NAME}, open panels that help the user follow the current phase of work. Preserve useful panels and respect explicit user preferences.`,
     ],
     parameters: openParams,

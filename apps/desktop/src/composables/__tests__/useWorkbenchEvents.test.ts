@@ -3,6 +3,7 @@ import { createPinia, setActivePinia } from "pinia";
 import { createMemoryHistory, createRouter } from "vue-router";
 import { defineComponent } from "vue";
 import { beforeEach, expect, it, vi } from "vitest";
+import { useAttentionFlashStore } from "@/stores/attentionFlash";
 import { useContentTabsStore } from "@/stores/contentTabs";
 import { useWorkbenchStore } from "@/stores/workbench";
 import { useWorkbenchEvents } from "../useWorkbenchEvents";
@@ -176,7 +177,7 @@ it("returns the requested conversation's current user layout and visibility", as
   wrapper.unmount();
 });
 
-it("opens and reuses a full preview tab for the foreground conversation", async () => {
+it("opens a full preview tab behind the active one and flashes it", async () => {
   const tabs = useContentTabsStore();
   tabs.setDraftProject("session-1", "p1");
   tabs.bindSession("session-1", {
@@ -206,7 +207,8 @@ it("opens and reuses a full preview tab for the foreground conversation", async 
     projectId: "p1",
     reveal,
   });
-  expect(wrapper.vm.$router.currentRoute.value.query.tab).toBe(tab!.id);
+  expect(wrapper.vm.$router.currentRoute.value.query.tab).not.toBe(tab!.id);
+  expect(useAttentionFlashStore().isFlashing(tab!.id)).toBe(true);
   expect(useWorkbenchStore().layoutFor("foreground").open).toBe(false);
   listener?.(event);
   await flushPromises();

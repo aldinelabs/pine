@@ -1,6 +1,7 @@
 import { onBeforeUnmount, onMounted } from "vue";
 import type { PineSessionEvent } from "@/shared/agent";
 import { parseFileReveal } from "@/shared/projectFiles";
+import { useAttentionFlashStore } from "@/stores/attentionFlash";
 import { useContentTabsStore } from "@/stores/contentTabs";
 import { useWorkbenchStore } from "@/stores/workbench";
 import { useContentTabNavigation } from "./useContentTabNavigation";
@@ -14,6 +15,7 @@ import { useContentTabNavigation } from "./useContentTabNavigation";
 export function useWorkbenchEvents(): void {
   const workbench = useWorkbenchStore();
   const contentTabs = useContentTabsStore();
+  const attentionFlash = useAttentionFlashStore();
   const navigation = useContentTabNavigation();
 
   function handleEvent(event: PineSessionEvent): void {
@@ -22,21 +24,16 @@ export function useWorkbenchEvents(): void {
       contentTabs.rememberPresentedTarget(event.toolCallId, event.target);
       const reveal = parseFileReveal(event.reveal);
       if (event.display === "fullscreen") {
-        const activeTab = navigation.activeTab.value;
-        const foreground =
-          (activeTab?.kind === "session" &&
-            activeTab.state === "bound" &&
-            activeTab.sessionId === event.sessionId) ||
-          (activeTab?.kind === "file" &&
-            activeTab.projectId === event.projectId &&
-            workbench.activeKey === event.sessionId);
+        // The tab opens behind the user's current one and pulses until they
+        // reach it; the agent never takes their focus.
         const tab = contentTabs.presentFile(
           event.target,
           event.projectId,
           event.toolCallId,
           reveal,
         );
-        if (foreground) navigation.activate(tab.id);
+        if (navigation.activeTab.value?.id !== tab.id)
+          attentionFlash.flash(tab.id);
         return;
       }
       workbench.present(event.sessionId, {
@@ -44,6 +41,7 @@ export function useWorkbenchEvents(): void {
         toolCallId: event.toolCallId,
         ...(reveal ? { reveal } : {}),
       });
+      workbench.highlight(event.sessionId, "preview");
     } else if (event.type === "workbench-command") {
       workbench.apply(event.sessionId, event.command);
     } else if (event.type === "workbench-state-request") {

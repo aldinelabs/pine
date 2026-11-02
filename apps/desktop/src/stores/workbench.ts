@@ -17,6 +17,7 @@ import {
   clampWorkbenchWidth,
   highlightedPanel,
   WORKBENCH_DEFAULT_WIDTH,
+  WORKBENCH_PANELS,
   type WorkbenchCommand,
   type WorkbenchPanel,
   type WorkbenchPosition,
@@ -155,15 +156,28 @@ export const useWorkbenchStore = defineStore("workbench", () => {
     if (!highlighted.size) highlights.delete(key);
   }
 
-  /** Applies an agent's `ui_workbench_*` command to its session. */
-  function apply(key: string, command: WorkbenchCommand): void {
-    update(key, (layout) => applyWorkbenchCommand(layout, command));
-    const panel = highlightedPanel(command);
+  /** Pulses a card of the session until the user reaches it. */
+  function highlight(key: string, panel: WorkbenchPanel): void {
     const layout = layoutFor(key);
-    if (!panel || !layout.open || !panelPosition(layout, panel)) return;
+    if (!layout.open || !panelPosition(layout, panel)) return;
     const highlighted = highlights.get(key) ?? new Set<WorkbenchPanel>();
     highlighted.add(panel);
     highlights.set(key, highlighted);
+  }
+
+  /**
+   * Applies an agent's `ui_workbench_*` command to its session. Every card the
+   * command brings into view pulses, so the user notices what the agent
+   * opened without the agent asking for it.
+   */
+  function apply(key: string, command: WorkbenchCommand): void {
+    const before = layoutFor(key);
+    update(key, (layout) => applyWorkbenchCommand(layout, command));
+    for (const panel of WORKBENCH_PANELS) {
+      if (!(before.open && panelPosition(before, panel))) highlight(key, panel);
+    }
+    const explicit = highlightedPanel(command);
+    if (explicit) highlight(key, explicit);
   }
 
   function isHighlighted(panel: WorkbenchPanel): boolean {
@@ -252,6 +266,7 @@ export const useWorkbenchStore = defineStore("workbench", () => {
     apply,
     clearPreview,
     closeCard,
+    highlight,
     isHighlighted,
     layoutFor,
     panelPosition: (panel: WorkbenchPanel) =>
