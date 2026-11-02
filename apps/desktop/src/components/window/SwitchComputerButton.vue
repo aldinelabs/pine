@@ -1,12 +1,21 @@
 <script setup lang="ts">
 import { MonitorIcon } from "@lucide/vue";
+import { computed } from "vue";
 import { useI18n } from "vue-i18n";
 import { Button } from "@/components/ui/button";
-import { isRemoteShell, switchComputer } from "@/lib/remoteShell";
+import {
+  isRemoteShell,
+  switchComputer,
+  usePairedComputerCount,
+} from "@/lib/remoteShell";
 
-/** Back to the list of computers; only shown inside the RC web page. */
+/**
+ * Back to the list of computers; only inside the RC web page, and only when
+ * there is another computer to switch to.
+ */
 const { t } = useI18n();
-const shown = isRemoteShell();
+const pairedComputers = usePairedComputerCount();
+const shown = computed(() => isRemoteShell() && pairedComputers.value > 1);
 </script>
 
 <template>

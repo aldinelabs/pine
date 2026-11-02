@@ -289,14 +289,20 @@ async function boot(): Promise<void> {
     "controllerchange",
     () => void hello(),
   );
-  // Pine's "switch computer" button, from the embedded Pine.
+  // Pine's "switch computer" button, from the embedded Pine. It shows only
+  // when there is another computer to switch to, so Pine asks how many.
   window.addEventListener("message", (event) => {
-    if (
-      event.origin === location.origin &&
-      event.source === frame?.contentWindow &&
-      event.data?.type === "pine-switch-computer"
-    )
-      void showList();
+    const pine = frame?.contentWindow;
+    if (event.origin !== location.origin || !pine || event.source !== pine)
+      return;
+    if (event.data?.type === "pine-switch-computer") void showList();
+    else if (event.data?.type === "pine-computers-request")
+      void listHosts().then((hosts) =>
+        pine.postMessage(
+          { type: "pine-computers", count: hosts.length },
+          location.origin,
+        ),
+      );
   });
   document.addEventListener("visibilitychange", () => {
     if (document.visibilityState === "visible" && !link && host && frame)
