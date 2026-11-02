@@ -77,6 +77,8 @@ export default {
       lan: "允許區域網存取",
       lanDescription:
         "同一網路中的其他裝置可以開啟 Pine。流量為未加密的 HTTP，請只在可信網路中使用。",
+      lanWithoutPassword:
+        "密碼已關閉：開啟後，同一網路中的任何裝置都無需登入即可控制 Pine，並在這台電腦上執行指令。",
       publicOrigin: "公開地址",
       publicOriginDescription:
         "透過反向代理或隧道（如 Cloudflare Tunnel）存取 Pine 時，填寫其地址。",

@@ -86,6 +86,8 @@ export default {
       lan: "LAN-Zugriff erlauben",
       lanDescription:
         "Andere Geräte in Ihrem Netzwerk können Pine öffnen. Der Datenverkehr läuft über unverschlüsseltes HTTP, nutzen Sie daher nur vertrauenswürdige Netzwerke.",
+      lanWithoutPassword:
+        "Das Passwort ist deaktiviert: Sobald dies aktiv ist, kann jedes Gerät im selben Netzwerk Pine ohne Anmeldung steuern und Befehle auf diesem Computer ausführen.",
       publicOrigin: "Öffentliche Adresse",
       publicOriginDescription:
         "Wenn ein Reverse-Proxy oder Tunnel wie Cloudflare Tunnel Pine bereitstellt, geben Sie dessen Adresse ein.",

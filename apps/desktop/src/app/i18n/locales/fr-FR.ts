@@ -86,6 +86,8 @@ export default {
       lan: "Autoriser l'accès LAN",
       lanDescription:
         "Les autres appareils de votre réseau peuvent ouvrir Pine. Le trafic est en HTTP non chiffré : n'utilisez que des réseaux de confiance.",
+      lanWithoutPassword:
+        "Le mot de passe est désactivé : une fois cette option activée, n'importe quel appareil du même réseau pourra contrôler Pine et exécuter des commandes sur cet ordinateur sans se connecter.",
       publicOrigin: "Adresse publique",
       publicOriginDescription:
         "Si un proxy inverse ou un tunnel tel que Cloudflare Tunnel sert Pine, saisissez son adresse.",

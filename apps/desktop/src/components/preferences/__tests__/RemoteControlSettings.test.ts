@@ -169,6 +169,11 @@ describe("remote control settings", () => {
     expect(wrapper.text()).toContain(
       "Anyone who can reach this address controls Pine without signing in.",
     );
+    expect(
+      wrapper
+        .find('[data-testid="pine-browser-access-lan-no-password"]')
+        .exists(),
+    ).toBe(true);
     wrapper.unmount();
   });
 

@@ -400,6 +400,13 @@ async function openInBrowser(): Promise<void> {
           {{ t("preferences.remoteControl.lanDescription") }}
         </FieldDescription>
         <FieldDescription
+          v-if="!status.requirePassword"
+          class="text-destructive"
+          data-testid="pine-browser-access-lan-no-password"
+        >
+          {{ t("preferences.remoteControl.lanWithoutPassword") }}
+        </FieldDescription>
+        <FieldDescription
           v-if="lanAddresses.length"
           class="font-mono text-xs break-all select-text"
           data-testid="pine-browser-access-lan-addresses"

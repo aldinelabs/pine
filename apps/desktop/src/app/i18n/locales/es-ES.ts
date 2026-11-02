@@ -86,6 +86,8 @@ export default {
       lan: "Permitir acceso por LAN",
       lanDescription:
         "Otros dispositivos de tu red pueden abrir Pine. El tráfico es HTTP sin cifrar, así que úsalo solo en redes de confianza.",
+      lanWithoutPassword:
+        "La contraseña está desactivada: al activar esto, cualquier dispositivo de la misma red podrá controlar Pine y ejecutar comandos en este equipo sin iniciar sesión.",
       publicOrigin: "Dirección pública",
       publicOriginDescription:
         "Si un proxy inverso o un túnel, como Cloudflare Tunnel, sirve Pine, introduce su dirección.",

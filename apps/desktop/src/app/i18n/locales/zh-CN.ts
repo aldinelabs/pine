@@ -77,6 +77,8 @@ export default {
       lan: "允许局域网访问",
       lanDescription:
         "同一网络中的其他设备可以打开 Pine。流量为未加密的 HTTP，请只在可信网络中使用。",
+      lanWithoutPassword:
+        "密码已关闭：开启后，同一网络中的任何设备都无需登录即可控制 Pine，并在这台电脑上执行命令。",
       publicOrigin: "公开地址",
       publicOriginDescription:
         "通过反向代理或隧道（如 Cloudflare Tunnel）访问 Pine 时，填写其地址。",

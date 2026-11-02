@@ -86,6 +86,8 @@ export default {
       lan: "LAN アクセスを許可",
       lanDescription:
         "ネットワーク上の他のデバイスから Pine を開けます。通信は暗号化されない HTTP のため、信頼できるネットワークでのみ使用してください。",
+      lanWithoutPassword:
+        "パスワードはオフです。オンにすると、同じネットワーク上のどのデバイスもサインインせずに Pine を操作し、このコンピュータでコマンドを実行できます。",
       publicOrigin: "公開アドレス",
       publicOriginDescription:
         "Cloudflare Tunnel などのリバースプロキシやトンネル経由で Pine を公開している場合は、そのアドレスを入力してください。",

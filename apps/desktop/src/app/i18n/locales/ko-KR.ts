@@ -83,6 +83,8 @@ export default {
       lan: "LAN 접속 허용",
       lanDescription:
         "네트워크의 다른 기기에서 Pine을 열 수 있습니다. 트래픽은 암호화되지 않은 HTTP이므로 신뢰할 수 있는 네트워크에서만 사용하세요.",
+      lanWithoutPassword:
+        "비밀번호가 꺼져 있습니다. 켜면 같은 네트워크의 모든 기기가 로그인 없이 Pine을 제어하고 이 컴퓨터에서 명령을 실행할 수 있습니다.",
       publicOrigin: "공개 주소",
       publicOriginDescription:
         "Cloudflare Tunnel 같은 리버스 프록시나 터널로 Pine을 제공하는 경우 그 주소를 입력하세요.",
