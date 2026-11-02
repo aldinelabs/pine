@@ -1154,6 +1154,119 @@ describe("PineAgentRuntime", () => {
     }
   });
 
+  describe("sendSteeringNow", () => {
+    async function setupSendNow() {
+      const root = await mkdtemp(path.join(os.tmpdir(), "pine-agent-runtime-"));
+      temporaryDirectories.push(root);
+      const location = {
+        agentDir: path.join(root, "agent"),
+        cwd: path.join(root, "source"),
+        folders: [
+          {
+            access: "read-write" as const,
+            path: path.join(root, "source"),
+          },
+        ],
+        sessionsRoot: path.join(root, "sessions"),
+      };
+      await mkdir(location.cwd, { recursive: true });
+      const runtime = new PineAgentRuntime({ emit: () => undefined });
+      const created = await runtime.createSession(location);
+      const live = (
+        runtime as unknown as {
+          liveSessions: Map<
+            string,
+            {
+              session: AgentSession;
+              activeToolCalls: Map<string, string>;
+              foregroundPromoter: { promote(toolCallId: string): boolean };
+            }
+          >;
+        }
+      ).liveSessions.get(created.session.id)!;
+      await live.session.steer("Keep this steering");
+      await live.session.steer("Send this now");
+      const abort = vi.spyOn(runtime, "abort");
+      const prompt = vi
+        .spyOn(live.session, "prompt")
+        .mockResolvedValue(undefined);
+      return { runtime, sessionId: created.session.id, live, abort, prompt };
+    }
+
+    it("interrupts streaming output and sends the message as a prompt", async () => {
+      const { runtime, sessionId, live, abort, prompt } = await setupSendNow();
+      try {
+        await expect(
+          runtime.sendSteeringNow(sessionId, "Send this now"),
+        ).resolves.toEqual({ sent: true });
+        expect(abort).toHaveBeenCalledWith(sessionId);
+        expect(prompt.mock.calls[0]?.[0]).toBe("Send this now");
+        expect(live.session.getSteeringMessages()).toEqual([
+          "Keep this steering",
+        ]);
+      } finally {
+        await runtime.dispose();
+      }
+    });
+
+    it("moves running shell commands to the background instead of interrupting", async () => {
+      const { runtime, sessionId, live, abort, prompt } = await setupSendNow();
+      try {
+        live.activeToolCalls.set("call-1", "bash");
+        live.activeToolCalls.set("call-2", "privileged_bash");
+        const promote = vi
+          .spyOn(live.foregroundPromoter, "promote")
+          .mockReturnValue(true);
+        await expect(
+          runtime.sendSteeringNow(sessionId, "Send this now"),
+        ).resolves.toEqual({ sent: true });
+        expect(promote.mock.calls.map(([id]) => id)).toEqual([
+          "call-1",
+          "call-2",
+        ]);
+        expect(abort).not.toHaveBeenCalled();
+        expect(prompt).not.toHaveBeenCalled();
+        // The message is delivered at the boundary the shell calls now reach.
+        expect(live.session.getSteeringMessages()).toContain("Send this now");
+      } finally {
+        await runtime.dispose();
+      }
+    });
+
+    it("interrupts when a shell call cannot move or another tool runs", async () => {
+      const { runtime, sessionId, live, abort, prompt } = await setupSendNow();
+      try {
+        live.activeToolCalls.set("call-1", "bash");
+        vi.spyOn(live.foregroundPromoter, "promote").mockReturnValue(false);
+        await runtime.sendSteeringNow(sessionId, "Send this now");
+        expect(abort).toHaveBeenCalledTimes(1);
+
+        await live.session.steer("And this one");
+        live.activeToolCalls.set("call-2", "read");
+        await runtime.sendSteeringNow(sessionId, "And this one");
+        expect(abort).toHaveBeenCalledTimes(2);
+        expect(prompt.mock.calls.map(([message]) => message)).toEqual([
+          "Send this now",
+          "And this one",
+        ]);
+      } finally {
+        await runtime.dispose();
+      }
+    });
+
+    it("does nothing for a message that is no longer queued", async () => {
+      const { runtime, sessionId, abort } = await setupSendNow();
+      try {
+        await expect(
+          runtime.sendSteeringNow(sessionId, "Already delivered"),
+        ).resolves.toEqual({ sent: false });
+        expect(abort).not.toHaveBeenCalled();
+      } finally {
+        await runtime.dispose();
+      }
+    });
+  });
+
   it("dequeues one steering message while preserving the rest of both queues", async () => {
     const root = await mkdtemp(path.join(os.tmpdir(), "pine-agent-runtime-"));
     temporaryDirectories.push(root);

@@ -7,6 +7,7 @@ export function createAgentHost(sessionSummary: PineSessionSummary): AgentHost {
     abort: vi.fn().mockResolvedValue({ aborted: false }),
     compact: vi.fn().mockResolvedValue({ compacted: true }),
     dequeueSteering: vi.fn().mockResolvedValue({ removed: false }),
+    sendSteeringNow: vi.fn().mockResolvedValue({ sent: false }),
     createSession: vi.fn().mockResolvedValue({ session: sessionSummary }),
     disposeSession: vi.fn().mockResolvedValue({ disposed: true }),
     addCustomModel: vi.fn().mockResolvedValue({ models: [], providers: [] }),

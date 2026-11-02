@@ -725,6 +725,17 @@ export class ProjectRuntimeRegistry {
       : { removed: false };
   }
 
+  async sendSteeringNow(
+    webContentsId: number,
+    message: string,
+    sessionId: string,
+  ): Promise<{ sent: boolean }> {
+    const live = this.targetSession(webContentsId, sessionId);
+    return live
+      ? this.agentHost.sendSteeringNow(live.summary.id, message)
+      : { sent: false };
+  }
+
   async setApprovalMode(
     webContentsId: number,
     approvalMode: PineApprovalMode,

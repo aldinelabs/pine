@@ -71,6 +71,10 @@ export interface AgentHost {
     sessionId: string,
     message: string,
   ): Promise<{ message?: string; removed: boolean }>;
+  sendSteeringNow(
+    sessionId: string,
+    message: string,
+  ): Promise<{ sent: boolean }>;
   createSession(
     location: AgentSessionLocation,
   ): Promise<AgentWorkerSessionResult>;
@@ -270,6 +274,17 @@ export class AgentProcessHost implements AgentHost {
   ): Promise<{ message?: string; removed: boolean }> {
     return this.request({
       type: "session:dequeue-steering",
+      sessionId,
+      message,
+    });
+  }
+
+  sendSteeringNow(
+    sessionId: string,
+    message: string,
+  ): Promise<{ sent: boolean }> {
+    return this.request({
+      type: "session:send-steering-now",
       sessionId,
       message,
     });

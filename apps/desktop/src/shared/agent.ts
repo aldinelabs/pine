@@ -31,6 +31,7 @@ export const PROMPT_SESSION_CHANNEL = "sessions:prompt" as const;
 export const ABORT_SESSION_CHANNEL = "sessions:abort" as const;
 export const COMPACT_SESSION_CHANNEL = "sessions:compact" as const;
 export const DEQUEUE_STEERING_CHANNEL = "sessions:dequeue-steering" as const;
+export const SEND_STEERING_NOW_CHANNEL = "sessions:send-steering-now" as const;
 export const SET_APPROVAL_MODE_CHANNEL = "sessions:set-approval-mode" as const;
 export const SESSION_EVENT_CHANNEL = "sessions:event" as const;
 
@@ -423,6 +424,14 @@ export interface DequeueSteeringRequest extends SessionControlRequest {
 export interface DequeueSteeringResult {
   message?: string;
   removed: boolean;
+}
+
+export interface SendSteeringNowRequest extends SessionControlRequest {
+  message: string;
+}
+
+export interface SendSteeringNowResult {
+  sent: boolean;
 }
 
 export type SessionEventListener = (event: PineSessionEvent) => void;

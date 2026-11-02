@@ -81,6 +81,7 @@ import {
   type UserApprovalRequest,
 } from "./gate";
 import { createPineToolDefinitions, PineAttachedPathAccess } from "./tools";
+import { ForegroundPromoter } from "./foreground-promotion";
 import { createActivatePineOpsToolDefinition } from "./pine-ops/tools";
 import type {
   FilePresentationDisplay,
@@ -224,6 +225,13 @@ export type { PineAgentRuntimeOptions } from "./runtime/session-state";
 const JUDGE_TIMEOUT_MS = 60_000;
 const BACKGROUND_TASKS_EVENT_MS = 200;
 const TITLE_TIMEOUT_MS = 30_000;
+/** Shell tools whose running command can move to the background. */
+const SHELL_TOOL_NAMES = new Set([
+  "bash",
+  "privileged_bash",
+  "powershell",
+  "privileged_powershell",
+]);
 /** Main answers from its cache; this only guards against a stuck reply. */
 const APPROXIMATE_LOCATION_TIMEOUT_MS = 1_000;
 export class PineAgentRuntime {
@@ -538,6 +546,46 @@ export class PineAgentRuntime {
     return { message: removed, removed: true };
   }
 
+  /**
+   * Deliver one queued steering message without waiting for its boundary.
+   * Shell commands holding the turn move to the background so their tool
+   * calls return now and the message follows; any other work (streaming
+   * text, other tools, pending approvals) is interrupted and the message is
+   * sent as a new prompt.
+   */
+  async sendSteeringNow(
+    sessionId: string,
+    message: string,
+  ): Promise<{ sent: boolean }> {
+    const live = this.getSession(sessionId);
+    if (!live.session.getSteeringMessages().includes(message))
+      return { sent: false };
+
+    const activeCalls = [...live.activeToolCalls];
+    if (
+      activeCalls.length > 0 &&
+      activeCalls.every(([, toolName]) => SHELL_TOOL_NAMES.has(toolName))
+    ) {
+      const promoted = activeCalls.filter(([toolCallId]) =>
+        live.foregroundPromoter.promote(toolCallId),
+      );
+      if (promoted.length === activeCalls.length) return { sent: true };
+      // Commands already moved stay in the background; interrupt the rest.
+    }
+
+    await this.dequeueSteering(sessionId, message);
+    await this.abort(sessionId);
+    await this.prompt(
+      sessionId,
+      message,
+      undefined,
+      [],
+      live.approvalMode,
+      live.locale,
+    );
+    return { sent: true };
+  }
+
   async abort(sessionId: string): Promise<{ aborted: boolean }> {
     const live = this.getSession(sessionId);
     const aborted = !live.session.isIdle;
@@ -835,6 +883,8 @@ export class PineAgentRuntime {
       locale: "en-US",
       contextCompactionStrategy,
       contextCompactionRoute,
+      foregroundPromoter: new ForegroundPromoter(),
+      activeToolCalls: new Map(),
     };
     configureContextCompactionSettings(
       settingsManager,
@@ -1062,6 +1112,7 @@ export class PineAgentRuntime {
           attach: (registry) => {
             live.backgroundTasks = registry;
           },
+          promoter: live.foregroundPromoter,
         },
       },
     );
@@ -1099,9 +1150,14 @@ export class PineAgentRuntime {
     // activated tools impossible to add later. All definitions are registered
     // above, then the initial model-visible set is narrowed before any prompt.
     this.syncActiveTools(live);
-    live.unsubscribe = session.subscribe((event) =>
-      this.forwardEvent(session, event),
-    );
+    live.unsubscribe = session.subscribe((event) => {
+      if (event.type === "tool_execution_start")
+        live.activeToolCalls.set(event.toolCallId, event.toolName);
+      else if (event.type === "tool_execution_end")
+        live.activeToolCalls.delete(event.toolCallId);
+      else if (event.type === "agent_end") live.activeToolCalls.clear();
+      this.forwardEvent(session, event);
+    });
     this.liveSessions.set(session.sessionId, live);
     // A resumed session already carries usage history; surface it before the
     // next turn completes.

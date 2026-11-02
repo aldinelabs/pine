@@ -165,6 +165,7 @@ export function createWebChannels(
     [agent.ABORT_SESSION_CHANNEL, command("session")],
     [agent.COMPACT_SESSION_CHANNEL, command("session")],
     [agent.DEQUEUE_STEERING_CHANNEL, command("session")],
+    [agent.SEND_STEERING_NOW_CHANNEL, command("session")],
     [agent.SET_APPROVAL_MODE_CHANNEL, command("session")],
     [agent.APPROVAL_RESPONSE_CHANNEL, command("interaction")],
     [agent.QUESTIONNAIRE_RESPONSE_CHANNEL, command("interaction")],

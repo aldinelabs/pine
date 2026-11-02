@@ -459,6 +459,14 @@ async function withdrawSteering(message: string): Promise<void> {
   }
 }
 
+async function sendSteeringNow(message: string): Promise<void> {
+  try {
+    await sessionStore.sendSteeringNow(message, props.sessionId ?? null);
+  } catch {
+    toast.error(t("project.composer.sendSteeringNowFailed"));
+  }
+}
+
 function respondToApproval(
   action: PineApprovalAction,
   guidance?: string,
@@ -726,6 +734,7 @@ async function handleDrop(event: DragEvent): Promise<void> {
         @respond-questionnaire="respondToQuestionnaire"
         @submit="(message: string) => submit(message)"
         @withdraw-steering="withdrawSteering"
+        @send-steering-now="sendSteeringNow"
       />
 
       <Empty

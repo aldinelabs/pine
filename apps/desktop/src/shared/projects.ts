@@ -10,6 +10,8 @@ import type {
   CompactSessionResult,
   DequeueSteeringRequest,
   DequeueSteeringResult,
+  SendSteeringNowRequest,
+  SendSteeringNowResult,
   PromptSessionRequest,
   PromptSessionResult,
   RespondApprovalRequest,
@@ -399,6 +401,9 @@ export interface PineDesktopApi
   dequeueSteering: (
     request: DequeueSteeringRequest,
   ) => Promise<DequeueSteeringResult>;
+  sendSteeringNow: (
+    request: SendSteeringNowRequest,
+  ) => Promise<SendSteeringNowResult>;
   closeProject: (request: ProjectIdRequest) => Promise<void>;
   getProjectStorage: () => Promise<ProjectStorageResult>;
   clearProjectStorage: (

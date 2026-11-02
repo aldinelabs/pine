@@ -933,6 +933,11 @@ export default {
       withdrawSteering: "Vorgemerkte Nachricht zurückziehen",
       withdrawSteeringFailed:
         "Die vorgemerkte Nachricht konnte nicht zurückgezogen werden",
+      withdrawSteeringLabel: "Zurückziehen",
+      sendSteeringNow: "Vorgemerkte Nachricht jetzt senden",
+      sendSteeringNowLabel: "Jetzt senden",
+      sendSteeringNowFailed:
+        "Die vorgemerkte Nachricht konnte nicht gesendet werden",
       model: "Modell",
       selectModel: "Modell auswählen",
       reasoningEffort: "Denkaufwand",

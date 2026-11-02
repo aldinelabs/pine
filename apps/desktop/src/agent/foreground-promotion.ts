@@ -17,13 +17,45 @@ const TAIL_LINES = 20;
 const TAIL_BYTES = 4 * 1024;
 
 /** The shell call a command runs for; names its background task. */
-const shellCallContext = new AsyncLocalStorage<{ description?: string }>();
+const shellCallContext = new AsyncLocalStorage<{
+  description?: string;
+  toolCallId?: string;
+}>();
 
 export function runInShellCall<T>(
   description: string | undefined,
   run: () => Promise<T>,
+  toolCallId?: string,
 ): Promise<T> {
-  return shellCallContext.run({ description }, run);
+  return shellCallContext.run({ description, toolCallId }, run);
+}
+
+/** Why a foreground command moved to the background. */
+export type PromotionReason = "soft-limit" | "user-message";
+
+/**
+ * Lets the runtime move a running foreground command to the background before
+ * the soft limit, so a message the user sends now is not held behind it.
+ */
+export class ForegroundPromoter {
+  private readonly waiting = new Map<string, () => void>();
+
+  /** Returns false when the call is not a promotable command right now. */
+  promote(toolCallId: string): boolean {
+    const promote = this.waiting.get(toolCallId);
+    if (!promote) return false;
+    this.waiting.delete(toolCallId);
+    promote();
+    return true;
+  }
+
+  register(toolCallId: string, promote: () => void): () => void {
+    this.waiting.set(toolCallId, promote);
+    return () => {
+      if (this.waiting.get(toolCallId) === promote)
+        this.waiting.delete(toolCallId);
+    };
+  }
 }
 
 /** The foreground call ended because its command moved to the background. */
@@ -31,6 +63,7 @@ export class MovedToBackgroundError extends Error {
   constructor(
     readonly task: BackgroundTaskSnapshot,
     readonly outputTail: string,
+    readonly reason: PromotionReason = "soft-limit",
   ) {
     super(`Command moved to background task ${task.id}`);
   }
@@ -40,6 +73,7 @@ export interface ForegroundPromotionOptions {
   /** Null while the session has no background tasks; calls then just wait. */
   getRegistry: () => BackgroundTaskRegistry | null;
   privileged: boolean;
+  promoter?: ForegroundPromoter;
   softLimitSeconds?: number;
   now?: () => number;
 }
@@ -97,14 +131,23 @@ export function withForegroundPromotion(
       });
 
       let timer: ReturnType<typeof setTimeout> | undefined;
-      const limitReached = new Promise<"limit">((resolve) => {
-        timer = setTimeout(() => resolve("limit"), softLimitMs);
+      let unregister: (() => void) | undefined;
+      const toolCallId = shellCallContext.getStore()?.toolCallId;
+      const limitReached = new Promise<PromotionReason>((resolve) => {
+        timer = setTimeout(() => resolve("soft-limit"), softLimitMs);
+        if (toolCallId && options.promoter)
+          unregister = options.promoter.register(toolCallId, () =>
+            resolve("user-message"),
+          );
       });
+      let reason: PromotionReason;
       try {
         const first = await Promise.race([run, limitReached]);
-        if (first !== "limit") return first;
+        if (typeof first !== "string") return first;
+        reason = first;
       } finally {
         clearTimeout(timer);
+        unregister?.();
         signal?.removeEventListener("abort", forwardAbort);
       }
 
@@ -158,6 +201,7 @@ export function withForegroundPromotion(
       throw new MovedToBackgroundError(
         adopted.snapshot,
         tailOf([...captured, ...pending]),
+        reason,
       );
     },
   };
@@ -165,10 +209,14 @@ export function withForegroundPromotion(
 
 /** The model-facing result of a call whose command moved to the background. */
 export function movedToBackgroundResult(error: MovedToBackgroundError) {
-  const { task, outputTail } = error;
+  const { task, outputTail, reason } = error;
   const seconds = FOREGROUND_SOFT_LIMIT_SECONDS;
+  const cause =
+    reason === "user-message"
+      ? "The user sent a new message while the command was running"
+      : `The command was still running after ${seconds} seconds`;
   const text = [
-    `The command was still running after ${seconds} seconds, so it keeps running as background task ${task.id} ("${task.name}") instead of blocking the conversation.`,
+    `${cause}, so it keeps running as background task ${task.id} ("${task.name}") instead of blocking the conversation.`,
     outputTail
       ? `Last output so far:\n${outputTail}`
       : "It has printed no output so far, which can mean it is stuck waiting on the network or on input.",

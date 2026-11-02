@@ -4,6 +4,7 @@ import {
   COMPACT_SESSION_CHANNEL,
   DEQUEUE_STEERING_CHANNEL,
   PROMPT_SESSION_CHANNEL,
+  SEND_STEERING_NOW_CHANNEL,
   QUESTIONNAIRE_RESPONSE_CHANNEL,
   SET_APPROVAL_MODE_CHANNEL,
   type AbortSessionResult,
@@ -11,6 +12,7 @@ import {
   type DequeueSteeringResult,
   type PromptSessionResult,
   type RespondApprovalRequest,
+  type SendSteeringNowResult,
   type RespondQuestionnaireRequest,
   type SetApprovalModeResult,
 } from "../../../shared/agent";
@@ -49,6 +51,7 @@ import type { PineCore } from "../pineCore";
 import {
   BackgroundTaskRequestSchema,
   DequeueSteeringRequestSchema,
+  SendSteeringNowRequestSchema,
   LoadSessionMessagesRequestSchema,
   ProjectSessionRequestSchema,
   PromptSessionRequestSchema,
@@ -238,6 +241,15 @@ export function registerSessionRequests(core: PineCore): void {
       const { message, sessionId } =
         DequeueSteeringRequestSchema.parse(request);
       return runtimes.dequeueSteering(context.clientId, message, sessionId);
+    },
+  );
+
+  core.handle(
+    SEND_STEERING_NOW_CHANNEL,
+    async (context, request: unknown): Promise<SendSteeringNowResult> => {
+      const { message, sessionId } =
+        SendSteeringNowRequestSchema.parse(request);
+      return runtimes.sendSteeringNow(context.clientId, message, sessionId);
     },
   );
 

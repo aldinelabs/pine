@@ -31,6 +31,7 @@ import type {
   UserApprovalRequest,
 } from "../gate";
 import type { PineAttachedPathAccess } from "../tools";
+import type { ForegroundPromoter } from "../foreground-promotion";
 import type { ComputerUseController } from "../computer-use/tools";
 import type { AskUserQuestionSubmission } from "@pine/rpiv-ask-user-question";
 import type { GateDecision } from "../protocol";
@@ -77,6 +78,10 @@ export interface LiveAgentSession {
   backgroundTasks?: BackgroundTaskRegistry;
   /** Coalesces task changes, including streamed output, into one event. */
   backgroundTaskEmitTimer?: ReturnType<typeof setTimeout>;
+  /** Moves running shell calls to the background for "send now". */
+  foregroundPromoter: ForegroundPromoter;
+  /** Tool calls currently executing, by call ID, with their tool names. */
+  activeToolCalls: Map<string, string>;
 }
 
 export interface PineAgentRuntimeOptions {

@@ -21,6 +21,7 @@ import {
   APPROVAL_RESPONSE_CHANNEL,
   QUESTIONNAIRE_RESPONSE_CHANNEL,
   DEQUEUE_STEERING_CHANNEL,
+  SEND_STEERING_NOW_CHANNEL,
   PROMPT_SESSION_CHANNEL,
   SET_APPROVAL_MODE_CHANNEL,
   SESSION_EVENT_CHANNEL,
@@ -29,6 +30,8 @@ import {
   type CompactSessionResult,
   type DequeueSteeringRequest,
   type DequeueSteeringResult,
+  type SendSteeringNowRequest,
+  type SendSteeringNowResult,
   type PineSessionEvent,
   type PromptSessionRequest,
   type PromptSessionResult,
@@ -393,6 +396,10 @@ export function createPineApi(transport: PineTransport): PineDesktopApi {
       request: DequeueSteeringRequest,
     ): Promise<DequeueSteeringResult> =>
       transport.invoke(DEQUEUE_STEERING_CHANNEL, request),
+    sendSteeringNow: (
+      request: SendSteeringNowRequest,
+    ): Promise<SendSteeringNowResult> =>
+      transport.invoke(SEND_STEERING_NOW_CHANNEL, request),
     closeProject: (request: ProjectIdRequest): Promise<void> =>
       transport.invoke(CLOSE_PROJECT_CHANNEL, request),
     getProjectStorage: (): Promise<ProjectStorageResult> =>

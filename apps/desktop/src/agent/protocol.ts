@@ -146,6 +146,12 @@ export type AgentWorkerRequest =
     }
   | {
       id: string;
+      type: "session:send-steering-now";
+      sessionId: string;
+      message: string;
+    }
+  | {
+      id: string;
       type: "session:set-approval-mode";
       sessionId: string;
       approvalMode: PineApprovalMode;
@@ -330,6 +336,7 @@ export type AgentWorkerResult =
   | { aborted: boolean }
   | { compacted: boolean }
   | { message?: string; removed: boolean }
+  | { sent: boolean }
   | { cancelled: boolean }
   | { disposed: boolean }
   | { updated: boolean };

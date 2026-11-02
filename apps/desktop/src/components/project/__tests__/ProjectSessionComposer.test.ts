@@ -623,6 +623,27 @@ describe("ProjectSessionComposer", () => {
     expect(wrapper.emitted("withdrawSteering")).toEqual([["改用更小的接口"]]);
   });
 
+  it("labels the staged message actions and sends one now", async () => {
+    const wrapper = mountComposer({
+      isRunning: true,
+      steeringMessages: ["改用更小的接口"],
+    });
+    const staged = wrapper.get('[data-slot="staged-steering-message"]');
+    const withdraw = staged.get('button[aria-label="撤回暂存消息"]');
+    const sendNow = staged.get('button[aria-label="立即发送暂存消息"]');
+
+    expect(withdraw.text()).toBe("撤回");
+    expect(sendNow.text()).toBe("立即发送");
+    expect(
+      withdraw.element.compareDocumentPosition(sendNow.element) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+
+    await sendNow.trigger("click");
+    expect(wrapper.emitted("sendSteeringNow")).toEqual([["改用更小的接口"]]);
+    expect(wrapper.emitted("withdrawSteering")).toBeUndefined();
+  });
+
   it("shows attachments of queued steering messages", () => {
     const attachment: PineAttachment = {
       extension: "md",

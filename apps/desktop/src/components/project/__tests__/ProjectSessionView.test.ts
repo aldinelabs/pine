@@ -102,7 +102,7 @@ function mountView() {
         ProjectSessionComposer: {
           props: ["attachments", "modelValue", "steeringMessages"],
           template:
-            '<div data-slot="composer-stub" :data-attachment-count="attachments?.length ?? 0" :data-draft="modelValue"><button data-slot="submit-new-stub" @click="$emit(\'submit\', \'Start\')" /><button data-slot="submit-steering-stub" @click="$emit(\'submit\', \'Change direction\')" /><button v-if="steeringMessages?.length" data-slot="withdraw-steering-stub" @click="$emit(\'withdrawSteering\', steeringMessages[0])" /></div>',
+            '<div data-slot="composer-stub" :data-attachment-count="attachments?.length ?? 0" :data-draft="modelValue"><button data-slot="submit-new-stub" @click="$emit(\'submit\', \'Start\')" /><button data-slot="submit-steering-stub" @click="$emit(\'submit\', \'Change direction\')" /><button v-if="steeringMessages?.length" data-slot="withdraw-steering-stub" @click="$emit(\'withdrawSteering\', steeringMessages[0])" /><button v-if="steeringMessages?.length" data-slot="send-steering-now-stub" @click="$emit(\'sendSteeringNow\', steeringMessages[0])" /></div>',
         },
         ProjectTranscriptMessage: true,
         ProjectTranscriptOutline: {
@@ -453,6 +453,27 @@ describe("ProjectSessionView file drop", () => {
     const composer = wrapper.get('[data-slot="composer-stub"]');
     expect(composer.attributes("data-draft")).toBe("Change direction");
     expect(composer.attributes("data-attachment-count")).toBe("1");
+  });
+
+  it("asks the session to send a staged steering message now", async () => {
+    const { wrapper } = mountView();
+    const sessionStore = useSessionStore().stateFor("session-a");
+    await wrapper.setProps({ sessionId: "session-a" });
+    const sendSteeringNow = vi.fn().mockResolvedValue({ sent: true });
+    window.pine.sendSteeringNow = sendSteeringNow;
+    sessionStore.steeringMessages = ["Change direction"];
+    await flushPromises();
+
+    await wrapper.get('[data-slot="send-steering-now-stub"]').trigger("click");
+    await flushPromises();
+
+    expect(sendSteeringNow).toHaveBeenCalledWith({
+      message: "Change direction",
+      sessionId: "session-a",
+    });
+    expect(
+      wrapper.get('[data-slot="composer-stub"]').attributes("data-draft"),
+    ).toBe("");
   });
 
   it("receives attachments for its own composer while in the background", async () => {

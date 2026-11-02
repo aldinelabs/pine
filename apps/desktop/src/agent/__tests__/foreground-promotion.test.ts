@@ -6,6 +6,7 @@ import type { BashOperations } from "@earendil-works/pi-coding-agent";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { BackgroundTaskRegistry } from "@pine/pi-background-tasks/registry";
 import {
+  ForegroundPromoter,
   MovedToBackgroundError,
   movedToBackgroundResult,
   runInShellCall,
@@ -71,12 +72,14 @@ afterEach(async () => {
 
 function setup(
   getRegistry: () => BackgroundTaskRegistry | null = () => registry,
+  promoter?: ForegroundPromoter,
 ) {
   const fake = fakeOperations();
   const operations = withForegroundPromotion(fake.operations, {
     getRegistry,
     privileged: false,
     softLimitSeconds: 60,
+    promoter,
   });
   const output: string[] = [];
   const exec = (options: { timeout?: number; signal?: AbortSignal } = {}) =>
@@ -131,6 +134,41 @@ describe("foreground promotion", () => {
       "resolving\ninstalled\n",
     );
     expect(notifications[0]?.triggerTurn).toBe(true);
+  });
+
+  it("moves a command to the background early when the promoter asks", async () => {
+    const promoter = new ForegroundPromoter();
+    const { exec, runs } = setup(() => registry, promoter);
+    const result = runInShellCall(
+      "Install dependencies",
+      () => exec(),
+      "call-1",
+    );
+    const settled = expect(result).rejects.toBeInstanceOf(
+      MovedToBackgroundError,
+    );
+    await vi.advanceTimersByTimeAsync(5_000);
+    expect(promoter.promote("other-call")).toBe(false);
+    expect(promoter.promote("call-1")).toBe(true);
+    await settled;
+
+    const error = await result.catch((caught: unknown) => caught);
+    if (!(error instanceof MovedToBackgroundError)) throw error;
+    expect(error.reason).toBe("user-message");
+    expect(error.task).toMatchObject({ id: "b0001", status: "running" });
+    expect(runs[0]?.signal?.aborted).toBe(false);
+    // A call that already moved is no longer promotable.
+    expect(promoter.promote("call-1")).toBe(false);
+    runs[0]?.exit(0);
+  });
+
+  it("stops promoting a call once its command finished", async () => {
+    const promoter = new ForegroundPromoter();
+    const { exec, runs } = setup(() => registry, promoter);
+    const result = runInShellCall(undefined, () => exec(), "call-1");
+    runs[0]?.exit(0);
+    await expect(result).resolves.toEqual({ exitCode: 0 });
+    expect(promoter.promote("call-1")).toBe(false);
   });
 
   it("stops the command when the call is aborted before the handover", async () => {
@@ -219,5 +257,11 @@ describe("movedToBackgroundResult", () => {
     const silent = movedToBackgroundResult(new MovedToBackgroundError(task, ""))
       .content[0]?.text;
     expect(silent).toContain("no output so far");
+
+    const early = movedToBackgroundResult(
+      new MovedToBackgroundError(task, "", "user-message"),
+    ).content[0]?.text;
+    expect(early).toContain("The user sent a new message");
+    expect(early).not.toContain("60 seconds");
   });
 });

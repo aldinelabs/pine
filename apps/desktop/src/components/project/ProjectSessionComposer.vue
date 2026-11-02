@@ -12,6 +12,7 @@ import {
   PlusIcon,
   AtSignIcon,
   SearchIcon,
+  SendHorizontalIcon,
   ShieldCheckIcon,
   ShieldIcon,
   ShieldOffIcon,
@@ -127,6 +128,7 @@ const emit = defineEmits<{
   selectProject: [projectId: string];
   submit: [message: string];
   withdrawSteering: [message: string];
+  sendSteeringNow: [message: string];
 }>();
 
 const props = withDefaults(
@@ -772,15 +774,28 @@ function handleRootSubmit(event: Event): void {
           data-slot="staged-steering-message"
           class="flex w-full items-center justify-end gap-2"
         >
-          <Button
-            type="button"
-            size="icon-sm"
-            variant="ghost"
-            :aria-label="t('project.composer.withdrawSteering')"
-            @click="emit('withdrawSteering', steeringMessage.message)"
-          >
-            <Undo2Icon />
-          </Button>
+          <div class="flex shrink-0 items-center gap-1">
+            <Button
+              type="button"
+              size="sm"
+              variant="ghost"
+              :aria-label="t('project.composer.withdrawSteering')"
+              @click="emit('withdrawSteering', steeringMessage.message)"
+            >
+              <Undo2Icon />
+              {{ t("project.composer.withdrawSteeringLabel") }}
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant="ghost"
+              :aria-label="t('project.composer.sendSteeringNow')"
+              @click="emit('sendSteeringNow', steeringMessage.message)"
+            >
+              <SendHorizontalIcon />
+              {{ t("project.composer.sendSteeringNowLabel") }}
+            </Button>
+          </div>
           <div class="flex max-w-[80%] min-w-0 flex-col items-end gap-1.5">
             <ProjectAttachmentList
               v-if="steeringMessage.attachments.length > 0"

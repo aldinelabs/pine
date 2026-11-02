@@ -183,6 +183,7 @@ export const PromptSessionRequestSchema = z.object({
 export const DequeueSteeringRequestSchema = SessionIdRequestSchema.extend({
   message: z.string().min(1).max(100_000),
 });
+export const SendSteeringNowRequestSchema = DequeueSteeringRequestSchema;
 export const RespondApprovalRequestSchema = z.object({
   requestId: z.uuid(),
   action: z.enum(["approve", "reject", "guide"]),

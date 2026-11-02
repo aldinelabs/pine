@@ -105,6 +105,7 @@ import {
 import { createBackgroundTaskToolDefinitions } from "./backgroundTaskTools";
 import {
   FOREGROUND_SOFT_LIMIT_SECONDS,
+  type ForegroundPromoter,
   MovedToBackgroundError,
   movedToBackgroundResult,
   runInShellCall,
@@ -305,6 +306,8 @@ export interface PineBackgroundTaskContext {
   sendCompletionNotification: BackgroundTaskRegistryOptions["sendCompletionNotification"];
   /** Receives the session's registry so the runtime can list and stop tasks. */
   attach(registry: BackgroundTaskRegistry): void;
+  /** Moves running shell calls to the background when the user sends now. */
+  promoter?: ForegroundPromoter;
 }
 
 export interface PineMediaGenerationContext {
@@ -449,7 +452,11 @@ export async function createPineToolDefinitions(
       isWindows
         ? createLocalPowerShellOperations()
         : createLocalBashOperations(),
-      { getRegistry: getBackgroundRegistry, privileged: true },
+      {
+        getRegistry: getBackgroundRegistry,
+        privileged: true,
+        promoter: permissions?.backgroundTasks?.promoter,
+      },
     ),
     spawnHook: (context) => ({
       ...context,
@@ -505,7 +512,11 @@ export async function createPineToolDefinitions(
         loginPath,
         runtimeFiles,
       ),
-      { getRegistry: getBackgroundRegistry, privileged: false },
+      {
+        getRegistry: getBackgroundRegistry,
+        privileged: false,
+        promoter: permissions?.backgroundTasks?.promoter,
+      },
     ),
   });
 
@@ -570,8 +581,10 @@ export async function createPineToolDefinitions(
       }
 
       try {
-        return await runInShellCall(description, () =>
-          shellTool.execute(toolCallId, params, signal, onUpdate, ctx),
+        return await runInShellCall(
+          description,
+          () => shellTool.execute(toolCallId, params, signal, onUpdate, ctx),
+          toolCallId,
         );
       } catch (error) {
         if (error instanceof MovedToBackgroundError)
@@ -624,14 +637,17 @@ export async function createPineToolDefinitions(
             }
             if (signal?.aborted) throw new Error("aborted");
             try {
-              return await runInShellCall(params.description, () =>
-                nativeShellTool.execute(
-                  toolCallId,
-                  params,
-                  signal,
-                  onUpdate,
-                  ctx,
-                ),
+              return await runInShellCall(
+                params.description,
+                () =>
+                  nativeShellTool.execute(
+                    toolCallId,
+                    params,
+                    signal,
+                    onUpdate,
+                    ctx,
+                  ),
+                toolCallId,
               );
             } catch (error) {
               if (error instanceof MovedToBackgroundError)

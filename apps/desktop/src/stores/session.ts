@@ -920,6 +920,14 @@ export const useSessionStore = defineStore("session", () => {
     return result.removed ? result.message : undefined;
   }
 
+  async function sendSteeringNow(
+    message: string,
+    sessionId = currentSessionId.value,
+  ): Promise<boolean> {
+    if (!sessionId) return false;
+    return (await window.pine.sendSteeringNow({ message, sessionId })).sent;
+  }
+
   async function setApprovalMode(
     approvalMode: PineApprovalMode,
     sessionId = currentSessionId.value,
@@ -1648,6 +1656,7 @@ export const useSessionStore = defineStore("session", () => {
     contextUsage,
     deleteSession,
     dequeueSteering,
+    sendSteeringNow,
     dropSessionCache,
     hasEarlierMessages,
     hiddenCompletedTodoIds,

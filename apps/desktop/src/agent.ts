@@ -46,6 +46,12 @@ async function handleRequest(request: AgentWorkerRequest): Promise<void> {
         request.message,
       );
       break;
+    case "session:send-steering-now":
+      result = await runtime.sendSteeringNow(
+        request.sessionId,
+        request.message,
+      );
+      break;
     case "session:set-approval-mode":
       result = runtime.setSessionApprovalMode(
         request.sessionId,
