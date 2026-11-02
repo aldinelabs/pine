@@ -5,7 +5,12 @@ import {
 } from "../preferenceStorage";
 
 function installPreferences(snapshot: Record<string, string> = {}) {
-  const preferences = { snapshot, set: vi.fn(), remove: vi.fn() };
+  // contextBridge freezes the objects it hands to the renderer.
+  const preferences = Object.freeze({
+    snapshot: Object.freeze({ ...snapshot }),
+    set: vi.fn(),
+    remove: vi.fn(),
+  });
   Object.defineProperty(window, "pine", {
     configurable: true,
     value: { preferences },

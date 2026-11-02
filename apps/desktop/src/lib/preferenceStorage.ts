@@ -1,4 +1,27 @@
+import type { PinePreferencesApi } from "@/shared/preferenceStorage";
 import { PREFERENCE_KEY_PREFIX } from "@/shared/preferenceStorage";
+
+const writableSnapshots = new WeakMap<
+  PinePreferencesApi,
+  Record<string, string>
+>();
+
+/**
+ * The main process's preferences plus this window's own changes. The bridge
+ * hands the renderer a frozen copy of the snapshot, so changes are kept in a
+ * writable copy of it.
+ */
+function mainProcessPreferences():
+  { api: PinePreferencesApi; values: Record<string, string> } | undefined {
+  const api = window.pine?.preferences;
+  if (!api) return undefined;
+  let values = writableSnapshots.get(api);
+  if (!values) {
+    values = { ...api.snapshot };
+    writableSnapshots.set(api, values);
+  }
+  return { api, values };
+}
 
 /**
  * Where renderer UI preferences live. The desktop app keeps them in the main
@@ -9,24 +32,24 @@ import { PREFERENCE_KEY_PREFIX } from "@/shared/preferenceStorage";
  */
 export const preferenceStorage = {
   getItem(key: string): string | null {
-    const preferences = window.pine?.preferences;
-    if (preferences) return preferences.snapshot[key] ?? null;
+    const preferences = mainProcessPreferences();
+    if (preferences) return preferences.values[key] ?? null;
     return window.localStorage.getItem(key);
   },
   setItem(key: string, value: string): void {
-    const preferences = window.pine?.preferences;
+    const preferences = mainProcessPreferences();
     if (preferences) {
-      preferences.snapshot[key] = value;
-      preferences.set(key, value);
+      preferences.values[key] = value;
+      preferences.api.set(key, value);
       return;
     }
     window.localStorage.setItem(key, value);
   },
   removeItem(key: string): void {
-    const preferences = window.pine?.preferences;
+    const preferences = mainProcessPreferences();
     if (preferences) {
-      delete preferences.snapshot[key];
-      preferences.remove(key);
+      delete preferences.values[key];
+      preferences.api.remove(key);
       return;
     }
     window.localStorage.removeItem(key);
@@ -38,14 +61,14 @@ export const preferenceStorage = {
  * the main process once, without overwriting anything it already has.
  */
 export function adoptWebStoragePreferences(): void {
-  const preferences = window.pine?.preferences;
+  const preferences = mainProcessPreferences();
   if (!preferences) return;
   try {
     const stored = window.localStorage;
     for (let index = 0; index < stored.length; index += 1) {
       const key = stored.key(index);
       if (!key?.startsWith(PREFERENCE_KEY_PREFIX)) continue;
-      if (key in preferences.snapshot) continue;
+      if (key in preferences.values) continue;
       const value = stored.getItem(key);
       if (value !== null) preferenceStorage.setItem(key, value);
     }
