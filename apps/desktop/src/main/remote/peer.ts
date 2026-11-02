@@ -1,5 +1,9 @@
 import type { DataChannel } from "node-datachannel";
-import type { IceServer } from "@pine/rc-protocol";
+import {
+  GatherWatch,
+  wantedCandidate,
+  type IceServer,
+} from "@pine/rc-protocol";
 
 /**
  * Everything the Remote Control host needs from WebRTC. This file is the only
@@ -102,22 +106,19 @@ export const nodePeer: PeerFactory = async (iceServers) => {
     iceServers: iceUrls(iceServers),
   });
   return {
-    answer(offerSdp, timeoutMs) {
-      return new Promise<string>((resolve, reject) => {
-        const finish = () => {
-          clearTimeout(timer);
-          const description = connection.localDescription();
-          if (description) resolve(description.sdp);
-          else reject(new Error("No answer was produced."));
-        };
-        const timer = setTimeout(finish, timeoutMs);
-        connection.onGatheringStateChange((state) => {
-          if (state === "complete") finish();
-        });
-        connection.setRemoteDescription(offerSdp, "offer");
-        // Gathering can finish inside the call above, before any event is heard.
-        if (connection.gatheringState() === "complete") finish();
+    async answer(offerSdp, timeoutMs) {
+      const watch = new GatherWatch(wantedCandidate(iceServers), timeoutMs);
+      connection.onLocalCandidate((candidate) => watch.candidate(candidate));
+      connection.onGatheringStateChange((state) => {
+        if (state === "complete") watch.complete();
       });
+      connection.setRemoteDescription(offerSdp, "offer");
+      // Gathering can finish inside the call above, before any event is heard.
+      if (connection.gatheringState() === "complete") watch.complete();
+      await watch.ready;
+      const description = connection.localDescription();
+      if (!description) throw new Error("No answer was produced.");
+      return description.sdp;
     },
     onChannel: (handler) =>
       connection.onDataChannel((channel) => handler(wrapChannel(channel))),

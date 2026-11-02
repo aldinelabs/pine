@@ -1,4 +1,5 @@
 import {
+  GATHER_MAX_MS,
   ReplayGuard,
   SignalingRoom,
   createAnswer,
@@ -30,7 +31,6 @@ import { Tunnel } from "./tunnel";
 /** Used when the signaling service has no relay to offer. */
 const FALLBACK_ICE: IceServer[] = [{ urls: ["stun:stun.cloudflare.com:3478"] }];
 const CONNECT_TIMEOUT_MS = 30_000;
-const GATHER_TIMEOUT_MS = 8_000;
 
 export interface PairingRequest {
   /** Fingerprint of the phone's key, for the person to recognise. */
@@ -333,7 +333,7 @@ export class RemoteHost {
     try {
       const sdp = await peer.answer(
         offer.sdp,
-        this.options.gatherTimeoutMs ?? GATHER_TIMEOUT_MS,
+        this.options.gatherTimeoutMs ?? GATHER_MAX_MS,
       );
       await room.send({
         type: "answer",
