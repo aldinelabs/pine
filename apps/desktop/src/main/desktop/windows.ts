@@ -89,6 +89,11 @@ export function rendererDevUrl(): string | undefined {
   return MAIN_WINDOW_VITE_DEV_SERVER_URL || undefined;
 }
 
+/** Window-control glyphs that stay legible on the current Pine theme. */
+function titleBarSymbolColor(): string {
+  return nativeTheme.shouldUseDarkColors ? "#fafafa" : "#171717";
+}
+
 function loadRenderer(window: BrowserWindow, hash?: string): void {
   if (MAIN_WINDOW_VITE_DEV_SERVER_URL) {
     void window.loadURL(
@@ -145,6 +150,7 @@ export class DesktopWindows {
             // bar instead of falling back to the shorter system overlay.
             titleBarOverlay: {
               color: "rgba(0, 0, 0, 0)",
+              symbolColor: titleBarSymbolColor(),
               height: 56,
             },
           }),
@@ -326,7 +332,10 @@ export class DesktopWindows {
     ipcMain.handle(
       SET_THEME_SOURCE_CHANNEL,
       (_event, source: unknown): void => {
-        if (isPineThemeSource(source)) nativeTheme.themeSource = source;
+        if (!isPineThemeSource(source)) return;
+        nativeTheme.themeSource = source;
+        for (const window of BrowserWindow.getAllWindows())
+          this.applyBackground(window);
       },
     );
 
@@ -411,6 +420,10 @@ export class DesktopWindows {
   private applyBackground(window: BrowserWindow): void {
     const background = this.backgrounds.get(window);
     if (!background || window.isDestroyed()) return;
+    // The overlay's symbols otherwise follow the system theme, not Pine's,
+    // and vanish on the opposite background.
+    if (process.platform !== "darwin")
+      window.setTitleBarOverlay({ symbolColor: titleBarSymbolColor() });
     window.setBackgroundColor(
       background.vibrancy ? TRANSPARENT_WINDOW_BACKGROUND : background.color,
     );
