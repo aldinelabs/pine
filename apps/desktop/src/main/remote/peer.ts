@@ -61,7 +61,8 @@ export function iceUrls(servers: IceServer[]): string[] {
   );
 }
 
-function wrapChannel(channel: DataChannel): ChannelHandle {
+/** Exported for tests. */
+export function wrapChannel(channel: DataChannel): ChannelHandle {
   const waiting: Array<() => void> = [];
   const release = () => {
     for (const resolve of waiting.splice(0)) resolve();
@@ -88,8 +89,9 @@ function wrapChannel(channel: DataChannel): ChannelHandle {
       }),
     onClosed: (handler) => channel.onClosed(handler),
     send(bytes) {
-      if (!channel.isOpen() || !channel.sendMessageBinary(bytes))
-        throw new Error("The channel is closed.");
+      if (!channel.isOpen()) throw new Error("The channel is closed.");
+      // False only means the message was buffered rather than sent at once.
+      channel.sendMessageBinary(bytes);
     },
     drained() {
       if (!channel.isOpen() || channel.bufferedAmount() <= LOW_WATER_BYTES)

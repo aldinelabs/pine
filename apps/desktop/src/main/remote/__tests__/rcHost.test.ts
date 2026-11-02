@@ -31,6 +31,8 @@ import { startFakeSignaling } from "./fakeSignaling";
 import { connectPhone, until } from "./phoneSim";
 
 const COOKIE = "pine_web_1=signed";
+/** Larger than the channel's send buffer, so sending has to wait for it. */
+const BIG_BODY = Buffer.alloc(2 * 1024 * 1024, 7);
 
 let directory: string;
 let store: RemoteControlStore;
@@ -69,6 +71,10 @@ beforeEach(async () => {
   signaling = await startFakeSignaling();
   web = createServer((request, response) => {
     cookies.push(request.headers.cookie);
+    if (request.url === "/big" && request.headers.cookie === COOKIE) {
+      response.writeHead(200).end(BIG_BODY);
+      return;
+    }
     response.writeHead(request.headers.cookie === COOKIE ? 204 : 401).end();
   });
   await new Promise<void>((resolve) => web.listen(0, "127.0.0.1", resolve));
@@ -158,6 +164,28 @@ describe("pairing", () => {
     const response = phone.frames.find((f) => f.type === "response");
     expect(response).toMatchObject({ head: { status: 204 } });
     expect(cookies).toEqual([COOKIE]);
+  }, 30_000);
+
+  it("streams a response larger than the send buffer", async () => {
+    const { phone } = await pair();
+    await phone.waitOpen();
+    phone.send({
+      type: "request",
+      stream: 1,
+      head: { method: "GET", path: "/big", headers: [] },
+    });
+    phone.send({ type: "end", stream: 1 });
+    const ended = () =>
+      phone.frames.some((f) => f.type === "end" && f.stream === 1);
+    expect(await until(ended, 15_000)).toBe(true);
+    const received = phone.frames.reduce(
+      (sum, f) =>
+        sum + (f.type === "data" && f.stream === 1 ? f.data.length : 0),
+      0,
+    );
+    expect(received).toBe(BIG_BODY.length);
+    expect(phone.frames.some((f) => f.type === "cancel")).toBe(false);
+    expect(phone.isOpen()).toBe(true);
   }, 30_000);
 
   it("lets a paired phone reconnect in its own room, with no code", async () => {
