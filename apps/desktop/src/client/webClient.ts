@@ -206,6 +206,9 @@ export async function initializeWebClient(): Promise<
     commitWindowResize: () => Promise.resolve(),
     setThemeSource: () => Promise.resolve(),
     setAppLocale: () => undefined,
+    // The tray that asks for a preferences section is the desktop's own.
+    onOpenPreferencesSection: undefined,
+    takePendingPreferencesSection: undefined,
     setSidebarVibrancy: () => Promise.resolve({ applied: false }),
     getQuickComposer: () => Promise.resolve(false),
     checkForUpdate: undefined,
