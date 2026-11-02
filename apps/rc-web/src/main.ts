@@ -10,8 +10,11 @@ import {
   type BridgeRequest,
   type ShellHello,
 } from "./bridgeMessages";
+import { createApp } from "vue";
+import App from "./App.vue";
+import { i18n, t } from "./i18n";
+import "./index.css";
 import { LinkError, connect, type Link, type LinkStage } from "./link";
-import { pineLogo } from "./logo";
 import {
   deviceIdentity,
   forgetHost,
@@ -20,7 +23,7 @@ import {
   saveHost,
   type StoredHost,
 } from "./store";
-import { isChinese, t, type StringKey } from "./strings";
+import { view, type Message, type ViewAction } from "./view";
 
 const PAIRING_ANSWER_TIMEOUT_MS = 120_000;
 const ANSWER_TIMEOUT_MS = 15_000;
@@ -36,62 +39,37 @@ let frame: HTMLIFrameElement | undefined;
 /** Each connection attempt; a newer one makes older results irrelevant. */
 let attempt = 0;
 
-type Child = Node | string | false | undefined;
-
-function h(
-  tag: string,
-  props: Record<string, string | ((event: Event) => void)> = {},
-  ...children: Child[]
-): HTMLElement {
-  const element = document.createElement(tag);
-  for (const [name, value] of Object.entries(props)) {
-    if (typeof value === "function") element.addEventListener(name, value);
-    else element.setAttribute(name, value);
-  }
-  for (const child of children) if (child) element.append(child);
-  return element;
+/** Shows a message above Pine, or in its place before Pine has loaded. */
+function status(message: Message, ...actions: ViewAction[]): void {
+  view.value = { kind: "status", message, busy: true, actions };
 }
 
-/** Shows a card above Pine, or in its place before Pine has loaded. */
-function show(...children: Child[]): void {
-  document.getElementById("card")?.remove();
-  root.append(h("main", { id: "card" }, pineLogo(), ...children));
+/** Like status, but nothing is in progress: the person decides what next. */
+function notice(message: Message, ...actions: ViewAction[]): void {
+  view.value = { kind: "status", message, busy: false, actions };
 }
 
-function hideCard(): void {
-  document.getElementById("card")?.remove();
-}
+const chooseAnother: ViewAction = {
+  label: "otherComputers",
+  run: () => void showList(),
+};
 
-function status(message: string, ...actions: Child[]): void {
-  show(
-    h("div", { class: "spinner", role: "progressbar" }),
-    h("p", {}, message),
-    actions.length > 0 && h("div", { class: "actions" }, ...actions),
-  );
-}
-
-function button(
-  label: string,
-  onClick: () => void,
-  variant: "primary" | "secondary" = "primary",
-): HTMLElement {
-  return h("button", { type: "button", class: variant, click: onClick }, label);
-}
-
-function failure(error: unknown, name: string): string {
+function failure(error: unknown, name: string): Message {
   const reason = error instanceof LinkError ? error.reason : "failed";
-  return t(reason, { name });
+  return { key: reason, values: { name } };
 }
 
 function stageMessage(
   stage: LinkStage,
   name: string,
   pairing: boolean,
-): string {
+): Message {
   if (stage === "waiting")
-    return pairing ? t("confirmOnComputer") : t("connecting", { name });
-  if (stage === "connecting") return t("handshaking");
-  return pairing ? t("pairing") : t("connecting", { name });
+    return pairing
+      ? { key: "confirmOnComputer" }
+      : { key: "connecting", values: { name } };
+  if (stage === "connecting") return { key: "handshaking" };
+  return pairing ? { key: "pairing" } : { key: "connecting", values: { name } };
 }
 
 function deviceName(): string {
@@ -118,20 +96,19 @@ function deviceName(): string {
           ? "Linux"
           : undefined;
   if (browser && system) return `${browser} · ${system}`;
-  return browser ?? system ?? (isChinese ? "设备" : "Device");
+  return browser ?? system ?? t("device");
 }
 
 function showPine(): void {
-  hideCard();
+  view.value = { kind: "pine" };
   if (frame && frame.dataset.host === host?.id) return;
   frame?.remove();
-  frame = h("iframe", {
-    id: "pine",
-    src: `${PINE_PREFIX}${token}/`,
-    title: "Pine",
-    allow: "clipboard-read; clipboard-write; fullscreen",
-    "data-host": host?.id ?? "",
-  }) as HTMLIFrameElement;
+  frame = document.createElement("iframe");
+  frame.id = "pine";
+  frame.src = `${PINE_PREFIX}${token}/`;
+  frame.title = "Pine";
+  frame.allow = "clipboard-read; clipboard-write; fullscreen";
+  frame.dataset.host = host?.id ?? "";
   root.append(frame);
 }
 
@@ -140,14 +117,10 @@ function lost(closed: Link): void {
   link = undefined;
   const current = host;
   if (!current) return;
-  show(
-    h("p", {}, t("disconnected", { name: current.name })),
-    h(
-      "div",
-      { class: "actions" },
-      button(t("reconnect"), () => void open(current)),
-      button(t("otherComputers"), () => void showList(), "secondary"),
-    ),
+  notice(
+    { key: "disconnected", values: { name: current.name } },
+    { label: "reconnect", run: () => void open(current), primary: true },
+    chooseAnother,
   );
   // Coming back to the device is the usual way a connection is lost.
   if (document.visibilityState === "visible") void open(current);
@@ -167,12 +140,7 @@ async function finishLink(next: Link, target: StoredHost, mine: number) {
 
 async function open(target: StoredHost): Promise<void> {
   const mine = ++attempt;
-  const choose = button(
-    t("otherComputers"),
-    () => void showList(),
-    "secondary",
-  );
-  status(t("connecting", { name: target.name }), choose);
+  status({ key: "connecting", values: { name: target.name } }, chooseAnother);
   let next: Link | undefined;
   try {
     next = await connect({
@@ -185,19 +153,15 @@ async function open(target: StoredHost): Promise<void> {
       onClose: () => next && lost(next),
       onStage: (stage) => {
         if (mine === attempt)
-          status(stageMessage(stage, target.name, false), choose);
+          status(stageMessage(stage, target.name, false), chooseAnother);
       },
     });
   } catch (error) {
     if (mine !== attempt) return;
-    show(
-      h("p", {}, failure(error, target.name)),
-      h(
-        "div",
-        { class: "actions" },
-        button(t("retry"), () => void open(target)),
-        button(t("otherComputers"), () => void showList(), "secondary"),
-      ),
+    notice(
+      failure(error, target.name),
+      { label: "retry", run: () => void open(target), primary: true },
+      chooseAnother,
     );
     return;
   }
@@ -210,13 +174,9 @@ async function pair(url: string): Promise<void> {
     offer = readPairingUrl(url, Date.now());
   } catch (error) {
     const expired = error instanceof Error && /expired/i.test(error.message);
-    show(
-      h("p", {}, t(expired ? "expired" : "invalid")),
-      h(
-        "div",
-        { class: "actions" },
-        button(t("back"), () => void showList()),
-      ),
+    notice(
+      { key: expired ? "expired" : "invalid" },
+      { label: "back", run: () => void showList(), primary: true },
     );
     return;
   }
@@ -227,7 +187,7 @@ async function pair(url: string): Promise<void> {
   const pairedMessage = new Promise<Record<string, unknown>>((resolve) => {
     paired = resolve;
   });
-  status(t("pairing"));
+  status({ key: "pairing" });
   let next: Link | undefined;
   try {
     next = await connect({
@@ -271,65 +231,25 @@ async function pair(url: string): Promise<void> {
   } catch (error) {
     next?.close();
     if (mine !== attempt) return;
-    show(
-      h("p", {}, failure(error, name)),
-      h(
-        "div",
-        { class: "actions" },
-        button(t("back"), () => void showList()),
-      ),
-    );
+    notice(failure(error, name), {
+      label: "back",
+      run: () => void showList(),
+      primary: true,
+    });
   }
 }
 
 async function showList(): Promise<void> {
   attempt += 1;
-  const hosts = await listHosts();
-  const format = new Intl.DateTimeFormat(navigator.language, {
-    dateStyle: "medium",
-    timeStyle: "short",
-  });
-  show(
-    h("h1", {}, t("title")),
-    hosts.length === 0
-      ? h("p", {}, t("emptyList"))
-      : h(
-          "ul",
-          { class: "hosts" },
-          ...hosts.map((item) =>
-            h(
-              "li",
-              {},
-              h(
-                "button",
-                { type: "button", class: "host", click: () => void open(item) },
-                h("strong", {}, item.name),
-                h(
-                  "span",
-                  {},
-                  t("lastConnected", {
-                    date: format.format(item.lastConnectedAt ?? item.pairedAt),
-                  }),
-                ),
-              ),
-              h(
-                "button",
-                {
-                  type: "button",
-                  class: "forget",
-                  "aria-label": t("forget"),
-                  click: () => void forget(item),
-                },
-                "×",
-              ),
-            ),
-          ),
-        ),
-  );
+  view.value = {
+    kind: "list",
+    hosts: await listHosts(),
+    open: (item) => void open(item),
+    forget,
+  };
 }
 
 async function forget(item: StoredHost): Promise<void> {
-  if (!confirm(t("forgetConfirm", { name: item.name }))) return;
   await forgetHost(item.id);
   if (host?.id === item.id) {
     link?.close();
@@ -350,12 +270,11 @@ async function hello(): Promise<void> {
 }
 
 async function boot(): Promise<void> {
-  document.title = t("title");
   if (
     !("serviceWorker" in navigator) ||
     typeof RTCPeerConnection === "undefined"
   ) {
-    show(h("p", {}, t("unsupported")));
+    notice({ key: "unsupported" });
     return;
   }
   navigator.serviceWorker.addEventListener(
@@ -394,7 +313,16 @@ async function boot(): Promise<void> {
   else await showList();
 }
 
+// Pine's own palette, light or dark with the system like the desktop app.
+const darkScheme = matchMedia("(prefers-color-scheme: dark)");
+function applyScheme(): void {
+  document.documentElement.classList.toggle("dark", darkScheme.matches);
+}
+applyScheme();
+darkScheme.addEventListener("change", applyScheme);
+
+createApp(App).use(i18n).mount("#ui");
 void boot().catch((error: unknown) => {
   console.error(error);
-  show(h("p", {}, t("failed" satisfies StringKey)));
+  notice({ key: "failed" });
 });

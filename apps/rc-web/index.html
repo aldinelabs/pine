@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="zh-CN">
+<html lang="en-US">
   <head>
     <meta charset="UTF-8" />
     <meta
@@ -7,165 +7,27 @@
       content="width=device-width, initial-scale=1, viewport-fit=cover"
     />
     <meta name="referrer" content="no-referrer" />
-    <meta name="theme-color" content="#fbfbf9" />
+    <meta
+      name="theme-color"
+      media="(prefers-color-scheme: light)"
+      content="#ffffff"
+    />
+    <meta
+      name="theme-color"
+      media="(prefers-color-scheme: dark)"
+      content="#151612"
+    />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-title" content="Pine" />
     <link rel="icon" type="image/png" href="/favicon.png" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <link rel="manifest" href="/manifest.webmanifest" />
     <title>Pine</title>
-    <style>
-      :root {
-        color-scheme: light dark;
-        --bg: #fbfbf9;
-        --fg: #1f2420;
-        --muted: #69706a;
-        --line: #e3e5df;
-        --accent: #2f6b4f;
-        --accent-fg: #ffffff;
-      }
-      @media (prefers-color-scheme: dark) {
-        :root {
-          --bg: #161816;
-          --fg: #ecefea;
-          --muted: #9aa29b;
-          --line: #2d322e;
-          --accent: #7fc4a0;
-          --accent-fg: #102016;
-        }
-      }
-      * {
-        box-sizing: border-box;
-      }
-      html,
-      body {
-        margin: 0;
-        height: 100%;
-        background: var(--bg);
-        color: var(--fg);
-        font:
-          16px/1.5 -apple-system,
-          BlinkMacSystemFont,
-          "PingFang SC",
-          "Segoe UI",
-          system-ui,
-          sans-serif;
-      }
-      #pine {
-        position: fixed;
-        top: env(safe-area-inset-top);
-        right: env(safe-area-inset-right);
-        bottom: env(safe-area-inset-bottom);
-        left: env(safe-area-inset-left);
-        width: calc(
-          100% - env(safe-area-inset-left) - env(safe-area-inset-right)
-        );
-        height: calc(
-          100% - env(safe-area-inset-top) - env(safe-area-inset-bottom)
-        );
-        border: 0;
-        background: var(--bg);
-      }
-      #card {
-        position: fixed;
-        inset: 0;
-        z-index: 1;
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
-        gap: 16px;
-        padding: calc(24px + env(safe-area-inset-top)) 24px
-          calc(24px + env(safe-area-inset-bottom));
-        background: var(--bg);
-        text-align: center;
-      }
-      #card > * {
-        width: 100%;
-        max-width: 420px;
-        margin: 0 auto;
-      }
-      #card > .logo {
-        width: 56px;
-        height: 56px;
-        color: var(--fg);
-      }
-      h1 {
-        font-size: 22px;
-        margin: 0;
-      }
-      p {
-        margin: 0;
-        color: var(--muted);
-      }
-      .actions {
-        display: flex;
-        flex-direction: column;
-        gap: 8px;
-      }
-      button {
-        font: inherit;
-        cursor: pointer;
-        border-radius: 12px;
-        border: 1px solid var(--line);
-        background: transparent;
-        color: var(--fg);
-        padding: 12px 16px;
-      }
-      button.primary {
-        background: var(--accent);
-        border-color: var(--accent);
-        color: var(--accent-fg);
-      }
-      .hosts {
-        list-style: none;
-        padding: 0;
-        display: flex;
-        flex-direction: column;
-        gap: 8px;
-        text-align: left;
-      }
-      .hosts li {
-        display: flex;
-        gap: 8px;
-      }
-      .host {
-        flex: 1;
-        min-width: 0;
-        display: flex;
-        flex-direction: column;
-        text-align: left;
-      }
-      .host strong {
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-      }
-      .host span {
-        color: var(--muted);
-        font-size: 14px;
-      }
-      .forget {
-        width: 48px;
-        font-size: 20px;
-        color: var(--muted);
-      }
-      #card > .spinner {
-        width: 28px;
-        height: 28px;
-        border-radius: 50%;
-        border: 3px solid var(--line);
-        border-top-color: var(--accent);
-        animation: spin 0.9s linear infinite;
-      }
-      @keyframes spin {
-        to {
-          transform: rotate(360deg);
-        }
-      }
-    </style>
   </head>
   <body>
+    <!-- The computer's Pine goes in #app; #ui draws over it until it loads. -->
     <div id="app"></div>
+    <div id="ui"></div>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>
