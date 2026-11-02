@@ -211,6 +211,7 @@ import {
 } from "../shared/projectFiles";
 import {
   SET_SIDEBAR_GLASS_WIDTH_CHANNEL,
+  SET_APP_LOCALE_CHANNEL,
   SET_SIDEBAR_VIBRANCY_CHANNEL,
   SET_THEME_SOURCE_CHANNEL,
   CLOSE_TAB_REQUESTED_CHANNEL,
@@ -344,6 +345,8 @@ export function createPineApi(transport: PineTransport): PineDesktopApi {
     platform: transport.platform,
     setThemeSource: (source: PineThemeSource): Promise<void> =>
       transport.invoke(SET_THEME_SOURCE_CHANNEL, source),
+    setAppLocale: (locale: string): void =>
+      transport.send(SET_APP_LOCALE_CHANNEL, locale),
     setSidebarVibrancy: (
       request: SetSidebarVibrancyRequest,
     ): Promise<SetSidebarVibrancyResult> =>

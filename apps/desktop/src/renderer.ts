@@ -35,6 +35,7 @@ async function startRenderer(): Promise<void> {
   const locale = resolveAppLocale(navigator.languages, storedLocale);
   const pinia = createPinia();
   const i18n = createAppI18n(locale);
+  window.pine?.setAppLocale?.(locale);
 
   document.documentElement.lang = locale;
   document.documentElement.dataset.platform = window.pine?.platform ?? "darwin";

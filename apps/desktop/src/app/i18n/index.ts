@@ -36,6 +36,7 @@ export function resolveAppLocale(
 export function persistAppLocale(locale: AppLocale): void {
   try {
     window.localStorage.setItem(APP_LOCALE_STORAGE_KEY, locale);
+    window.pine?.setAppLocale?.(locale);
   } catch {
     // The selected locale still applies for this session if storage is unavailable.
   }

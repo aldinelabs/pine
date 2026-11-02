@@ -1,5 +1,6 @@
 export const SET_SIDEBAR_VIBRANCY_CHANNEL =
   "window:set-sidebar-vibrancy" as const;
+export const SET_APP_LOCALE_CHANNEL = "window:set-app-locale" as const;
 export const SET_SIDEBAR_GLASS_WIDTH_CHANNEL =
   "window:set-sidebar-glass-width" as const;
 export const CLOSE_TAB_REQUESTED_CHANNEL =
@@ -121,6 +122,8 @@ export interface PineWindowApi {
   installUpdate?: () => Promise<import("./updates").InstallUpdateResult>;
   openExternalUrl: (url: string) => Promise<void>;
   platform: PinePlatform;
+  /** Tells the main process the app's language, for its native dialogs. */
+  setAppLocale: (locale: string) => void;
   setSidebarVibrancy: (
     request: SetSidebarVibrancyRequest,
   ) => Promise<SetSidebarVibrancyResult>;

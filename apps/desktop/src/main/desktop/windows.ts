@@ -1,4 +1,5 @@
 import path from "node:path";
+import { setAppLocale } from "./attention";
 import { z } from "zod";
 import { BrowserWindow, ipcMain, nativeTheme, type Rectangle } from "electron";
 import {
@@ -14,6 +15,7 @@ import {
   PLAN_WINDOW_RESIZE_CHANNEL,
   PROJECT_LIST_WINDOW_SIZE,
   SET_SIDEBAR_GLASS_WIDTH_CHANNEL,
+  SET_APP_LOCALE_CHANNEL,
   SET_SIDEBAR_VIBRANCY_CHANNEL,
   SET_THEME_SOURCE_CHANNEL,
   SET_WINDOW_BACKGROUND_CHANNEL,
@@ -355,6 +357,10 @@ export class DesktopWindows {
           event.sender.send(WINDOW_RESIZE_STARTED_CHANNEL, startedAt);
       });
     });
+
+    ipcMain.on(SET_APP_LOCALE_CHANNEL, (_event, locale: unknown): void =>
+      setAppLocale(locale),
+    );
 
     // Sent every frame while the sidebar slides, so the glass keeps up with it.
     ipcMain.on(

@@ -203,6 +203,7 @@ export async function initializeWebClient(): Promise<
     planWindowResize: () => Promise.resolve(0),
     commitWindowResize: () => Promise.resolve(),
     setThemeSource: () => Promise.resolve(),
+    setAppLocale: () => undefined,
     setSidebarVibrancy: () => Promise.resolve({ applied: false }),
     getQuickComposer: () => Promise.resolve(false),
     checkForUpdate: undefined,

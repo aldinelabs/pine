@@ -25,8 +25,16 @@ interface AttentionNotice extends SessionNotificationOptions {
   body: string;
 }
 
+/** The language chosen in Pine's preferences, once a window has reported it. */
+let appLocale: string | null = null;
+
+export function setAppLocale(locale: unknown): void {
+  if (typeof locale === "string") appLocale = locale;
+}
+
+/** Native dialogs and notifications follow Pine's language, not the system's. */
 export function isChineseLocale(): boolean {
-  return app.getLocale().toLowerCase().startsWith("zh");
+  return (appLocale ?? app.getLocale()).toLowerCase().startsWith("zh");
 }
 
 /**
