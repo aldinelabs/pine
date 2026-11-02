@@ -9,6 +9,17 @@ Every release section here has a matching section in the Chinese changelog.
 
 ## [Unreleased]
 
+### Changed
+
+- When an MCP script calls the same tool in a loop, only an automatic approval carries over to later calls; a call you approve yourself is asked about again each time.
+- With the password turned off, "Allow LAN access" now states plainly that turning it on lets any device on the same network control Pine without signing in.
+
+### Fixed
+
+- Interface preferences such as theme, language and layout are saved again; since 0.14.3, changes were lost on restart.
+- Pinch-to-zoom works again in the web interface on Android phones.
+- If you had turned on the serif conversation font before 0.14.1, the Reading font option stays on after upgrading.
+
 ## [0.14.4] - 2026-11-02
 
 ### Fixed
