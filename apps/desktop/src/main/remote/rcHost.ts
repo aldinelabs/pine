@@ -31,11 +31,11 @@ import { Tunnel } from "./tunnel";
 /** Used when the signaling service has no relay to offer. */
 const FALLBACK_ICE: IceServer[] = [{ urls: ["stun:stun.cloudflare.com:3478"] }];
 const CONNECT_TIMEOUT_MS = 30_000;
-/** Until the phone sends its own name. */
-const DEFAULT_DEVICE_NAME = "Phone";
+/** Until the device sends its own name. */
+const DEFAULT_DEVICE_NAME = "Device";
 
 export interface PairingRequest {
-  /** Fingerprint of the phone's key, for the person to recognise. */
+  /** Fingerprint of the device's key, for the person to recognise. */
   fingerprint: string;
 }
 
@@ -44,11 +44,11 @@ export interface RemoteHostOptions {
   fetch: Fetch;
   /** The local web server's origin and cookie, or nothing while it is off. */
   web: () => { origin: string; cookie: () => string | undefined } | undefined;
-  /** Where phones open the Pine page, such as https://rc.aldine.cn. */
+  /** Where devices open the Pine page, such as https://rc.aldine.cn. */
   pageOrigin: string;
-  /** This computer's name, which the phone shows in its list. */
+  /** This computer's name, which the device shows in its list. */
   hostName?: string;
-  /** Asks the person at this computer whether a new phone may pair. */
+  /** Asks the person at this computer whether a new device may pair. */
   approve: (request: PairingRequest) => Promise<boolean>;
   createPeer?: PeerFactory;
   now?: () => number;
@@ -65,7 +65,7 @@ interface Pairing {
   expiresAt: number;
   url: string;
   timer: ReturnType<typeof setTimeout>;
-  /** A phone is waiting for the person to approve it. */
+  /** A device is waiting for the person to approve it. */
   busy: boolean;
 }
 
@@ -80,8 +80,8 @@ interface Connection {
 type RoomKind = { kind: "pairing" } | { kind: "device"; deviceId: string };
 
 /**
- * Lets paired phones reach this computer's local web server without port
- * forwarding. It listens in each phone's room (and in the QR code's room while
+ * Lets paired devices reach this computer's local web server without port
+ * forwarding. It listens in each device's room (and in the QR code's room while
  * pairing), checks every offer against the keys it knows, and for a verified
  * one builds a WebRTC connection whose DataChannel feeds the tunnel.
  */
@@ -103,7 +103,7 @@ export class RemoteHost {
     this.options.onChange?.();
   }
 
-  /** Starts listening for paired phones if Remote Control is on. */
+  /** Starts listening for paired devices if Remote Control is on. */
   async start(): Promise<void> {
     this.stopped = false;
     if (this.options.store.enabled) await this.syncRooms();
@@ -155,7 +155,7 @@ export class RemoteHost {
     };
   }
 
-  /** Shows a QR code that one phone can scan within a few minutes. */
+  /** Shows a QR code that one device can scan within a few minutes. */
   async startPairing(): Promise<void> {
     if (!this.options.store.enabled || this.stopped)
       throw new Error("Turn Remote Control on first.");
@@ -209,7 +209,7 @@ export class RemoteHost {
     this.changed();
   }
 
-  /** Keeps one open room per paired phone, and no others. */
+  /** Keeps one open room per paired device, and no others. */
   private async syncRooms(): Promise<void> {
     if (this.stopped) return;
     const wanted = new Set(this.options.store.devices().map((d) => d.id));
@@ -366,7 +366,7 @@ export class RemoteHost {
       cookie: web.cookie,
     });
     connection.tunnel = tunnel;
-    // A channel the phone created may already be open when it is announced.
+    // A channel the device created may already be open when it is announced.
     let started = false;
     const start = () => {
       if (started) return;
@@ -390,7 +390,7 @@ export class RemoteHost {
     channel.onClosed(() => this.drop(deviceId, connection));
   }
 
-  /** The phone names itself once; a name the person chose is kept. */
+  /** The device names itself once; a name the person chose is kept. */
   private async control(
     deviceId: string,
     message: Record<string, unknown>,
@@ -402,7 +402,7 @@ export class RemoteHost {
     await this.renameDevice(deviceId, name).catch(() => undefined);
   }
 
-  /** A new phone is paired only once the channel is up and it has its secret. */
+  /** A new device is paired only once the channel is up and it has its secret. */
   private async opened(
     deviceId: string,
     connection: Connection,

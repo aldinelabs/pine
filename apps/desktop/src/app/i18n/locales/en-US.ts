@@ -99,34 +99,35 @@ export default {
       signOutAction: "Sign out all",
       signedOut: "All browsers signed out",
     },
-    phoneRemote: {
-      title: "Phone remote control",
+    relayRemote: {
+      title: "Remote control via Aldine",
       description:
-        "Once paired with a QR code, a phone reaches Pine on this computer without port forwarding. Everything is end-to-end encrypted.",
+        "Pair any device by QR code or link. No port forwarding; end-to-end encrypted.",
       needsWebAccess:
-        "Phones connect through browser access. Turn on Browser access below first.",
-      pair: "Pair a phone",
-      pairTitle: "Scan with your phone",
+        "Other devices connect through browser access. Turn on Browser access below first.",
+      pair: "Pair a device",
+      pairTitle: "Pair a device",
       pairDescription:
-        "Scan with the phone's camera and open the link. This computer will ask you to confirm.",
-      pairExpires: "The code expires in {time}.",
+        "Scan the code with the device's camera, or open the pairing link in its browser. This computer will ask you to confirm.",
+      pairExpires: "The code and link expire in {time}.",
       pairExpired: "The code has expired.",
       pairAgain: "New code",
       fingerprint: "This computer's fingerprint: {fingerprint}",
+      pairLink: "Pairing link",
       copyPairLink: "Copy pairing link",
       pairLinkCopied: "Pairing link copied",
-      devices: "Paired phones",
-      noDevices: "No phones are paired yet.",
+      devices: "Paired devices",
+      noDevices: "No devices are paired yet.",
       online: "Online",
       pairedAt: "Paired {date}",
       lastSeenAt: "Last connected {date}",
       rename: "Rename",
-      renameTitle: "Rename phone",
+      renameTitle: "Rename device",
       deviceName: "Name",
       remove: "Remove",
       removeTitle: "Remove “{name}”?",
       removeDescription:
-        "This phone disconnects now and must scan a new code to connect again.",
+        "This device disconnects now and must pair again to reconnect.",
     },
     projectManagement: {
       title: "Projects",
@@ -1709,11 +1710,11 @@ export default {
       passwordTitle: "Unable to save the access password",
       signOutTitle: "Unable to sign out browsers",
     },
-    phoneRemote: {
-      loadTitle: "Unable to load phone remote control settings",
-      saveTitle: "Unable to update phone remote control",
+    relayRemote: {
+      loadTitle: "Unable to load remote control settings",
+      saveTitle: "Unable to update remote control",
       pairTitle: "Unable to create a pairing code",
-      deviceTitle: "Unable to update this phone",
+      deviceTitle: "Unable to update this device",
       description: "Please try again later.",
     },
     quickComposer: {

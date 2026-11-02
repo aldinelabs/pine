@@ -15,13 +15,13 @@ export interface RemoteDevice {
   online: boolean;
 }
 
-/** What the settings page shows about phones that control this computer. */
+/** What the settings page shows about devices that control this computer. */
 export interface RemoteStatus {
   enabled: boolean;
   /** Present while a QR code is waiting to be scanned. */
   pairing?: { url: string; expiresAt: number; fingerprint: string };
   devices: RemoteDevice[];
-  /** Phones reach Pine through the local web server, so it must be running. */
+  /** Devices reach Pine through the local web server, so it must be running. */
   webAccessOn: boolean;
 }
 

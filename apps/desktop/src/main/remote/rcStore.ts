@@ -11,17 +11,17 @@ import {
 } from "@pine/rc-protocol";
 import { z } from "zod";
 
-/** The service that introduces phones to this computer. */
+/** The service that introduces devices to this computer. */
 export const DEFAULT_SIGNALING_ORIGIN = "https://api.aldine.cn";
-/** Where phones open Pine; the page is served from here. */
+/** Where devices open Pine; the page is served from here. */
 export const DEFAULT_PAGE_ORIGIN = "https://rc.aldine.cn";
 const MAX_DEVICES = 20;
 
 const deviceSchema = z.object({
-  /** The phone's public key, base64url. It is also the device's id. */
+  /** The device's public key, base64url. It is also the device's id. */
   id: z.string().min(1),
   name: z.string().max(100),
-  /** Secret the phone and this computer derive the device's room from. */
+  /** Secret the device and this computer derive the device's room from. */
   roomSecret: z.string().min(1),
   pairedAt: z.number(),
   lastSeenAt: z.number().optional(),
@@ -41,8 +41,8 @@ export type PairedDevice = z.infer<typeof deviceSchema>;
 
 /**
  * Remote Control's state on this computer: whether it is on, this computer's
- * long-term key, and the phones paired with it. The private key and each
- * phone's room secret sit in a file only the user can read, as the browser
+ * long-term key, and the devices paired with it. The private key and each
+ * device's room secret sit in a file only the user can read, as the browser
  * access password does.
  */
 export class RemoteControlStore {
@@ -83,7 +83,7 @@ export class RemoteControlStore {
         this.identity = await importIdentity(this.stored.identity, true);
         return this.identity;
       } catch {
-        // An unreadable key is replaced; every phone must pair again.
+        // An unreadable key is replaced; every device must pair again.
         await this.update((stored) => ({ ...stored, devices: [] }));
       }
     }
@@ -94,7 +94,7 @@ export class RemoteControlStore {
     return identity;
   }
 
-  /** Short text to compare with what the phone shows. */
+  /** Short text to compare with what the device shows. */
   async hostFingerprint(): Promise<string> {
     return fingerprint((await this.hostIdentity()).publicKey);
   }
@@ -112,7 +112,7 @@ export class RemoteControlStore {
     return this.stored.devices.find((device) => device.id === id);
   }
 
-  /** A phone that is already paired is replaced, so pairing again resets it. */
+  /** A device that is already paired is replaced, so pairing again resets it. */
   async addDevice(
     publicKey: Uint8Array,
     name: string,
@@ -128,7 +128,7 @@ export class RemoteControlStore {
     await this.update((stored) => {
       const others = stored.devices.filter((entry) => entry.id !== device.id);
       if (others.length >= MAX_DEVICES)
-        throw new Error("Too many paired phones. Remove one first.");
+        throw new Error("Too many paired devices. Remove one first.");
       return { ...stored, devices: [...others, device] };
     });
     return device;
@@ -152,7 +152,7 @@ export class RemoteControlStore {
     }));
   }
 
-  /** The phone can no longer connect; its room secret is forgotten. */
+  /** The device can no longer connect; its room secret is forgotten. */
   async removeDevice(id: string): Promise<void> {
     await this.update((stored) => ({
       ...stored,

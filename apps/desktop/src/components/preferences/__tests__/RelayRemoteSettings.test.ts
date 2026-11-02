@@ -6,10 +6,10 @@ import {
   DEFAULT_REMOTE_STATUS,
   type RemoteStatus,
 } from "@/shared/remoteControl";
-import PhoneRemoteSettings from "../PhoneRemoteSettings.vue";
+import RelayRemoteSettings from "../RelayRemoteSettings.vue";
 
-const phone = {
-  id: "phone-key",
+const device = {
+  id: "device-key",
   name: "iPhone",
   pairedAt: Date.UTC(2026, 9, 1),
   online: true,
@@ -30,7 +30,7 @@ const pairing: RemoteStatus = {
 
 function mountWith(pine: Record<string, unknown>, locale = "en-US") {
   Object.defineProperty(window, "pine", { configurable: true, value: pine });
-  return mount(PhoneRemoteSettings, {
+  return mount(RelayRemoteSettings, {
     attachTo: document.body,
     global: { plugins: [createAppI18n(locale as "en-US" | "zh-CN")] },
   });
@@ -41,7 +41,7 @@ afterEach(() => {
   document.body.innerHTML = "";
 });
 
-describe("phone remote settings", () => {
+describe("relay remote settings", () => {
   it("turns Remote Control on", async () => {
     const setRemoteControlEnabled = vi.fn().mockResolvedValue(enabled);
     const wrapper = mountWith({
@@ -50,16 +50,16 @@ describe("phone remote settings", () => {
     });
     await flushPromises();
     expect(
-      wrapper.find('[data-testid="pine-phone-remote-pair"]').exists(),
+      wrapper.find('[data-testid="pine-relay-remote-pair"]').exists(),
     ).toBe(false);
     wrapper.getComponent(Switch).vm.$emit("update:modelValue", true);
     await flushPromises();
     expect(setRemoteControlEnabled).toHaveBeenCalledWith(true);
-    expect(wrapper.text()).toContain("No phones are paired yet.");
+    expect(wrapper.text()).toContain("No devices are paired yet.");
     wrapper.unmount();
   });
 
-  it("asks for browser access before a phone can pair", async () => {
+  it("asks for browser access before a device can pair", async () => {
     const wrapper = mountWith({
       getRemoteControl: vi
         .fn()
@@ -67,11 +67,11 @@ describe("phone remote settings", () => {
     });
     await flushPromises();
     expect(
-      wrapper.find('[data-testid="pine-phone-remote-needs-web"]').exists(),
+      wrapper.find('[data-testid="pine-relay-remote-needs-web"]').exists(),
     ).toBe(true);
     expect(
       wrapper
-        .get('[data-testid="pine-phone-remote-pair"]')
+        .get('[data-testid="pine-relay-remote-pair"]')
         .attributes("disabled"),
     ).toBeDefined();
     wrapper.unmount();
@@ -89,15 +89,22 @@ describe("phone remote settings", () => {
     });
     await flushPromises();
     await wrapper
-      .get('[data-testid="pine-phone-remote-pair"]')
+      .get('[data-testid="pine-relay-remote-pair"]')
       .trigger("click");
     await flushPromises();
-    const qr = document.querySelector('[data-testid="pine-phone-remote-qr"]');
+    const qr = document.querySelector('[data-testid="pine-relay-remote-qr"]');
     expect(qr?.querySelector("path")?.getAttribute("d")).toMatch(/^M\d/);
     expect(document.body.textContent).toContain("AB12 CD34");
+    expect(
+      (
+        document.querySelector(
+          '[data-testid="pine-relay-remote-link"]',
+        ) as HTMLInputElement
+      ).value,
+    ).toBe(pairing.pairing!.url);
     (
       document.querySelector(
-        '[data-testid="pine-phone-remote-copy"]',
+        '[data-testid="pine-relay-remote-copy"]',
       ) as HTMLButtonElement
     ).click();
     await flushPromises();
@@ -111,7 +118,7 @@ describe("phone remote settings", () => {
     wrapper.unmount();
   });
 
-  it("closes the QR code once a phone has paired", async () => {
+  it("closes the QR code once a device has paired", async () => {
     let push: ((status: RemoteStatus) => void) | undefined;
     const wrapper = mountWith({
       getRemoteControl: vi.fn().mockResolvedValue(enabled),
@@ -124,32 +131,33 @@ describe("phone remote settings", () => {
     });
     await flushPromises();
     await wrapper
-      .get('[data-testid="pine-phone-remote-pair"]')
+      .get('[data-testid="pine-relay-remote-pair"]')
       .trigger("click");
     await flushPromises();
     expect(
-      document.querySelector('[data-testid="pine-phone-remote-qr"]'),
+      document.querySelector('[data-testid="pine-relay-remote-qr"]'),
     ).not.toBeNull();
-    push!({ ...enabled, devices: [phone] });
+    push!({ ...enabled, devices: [device] });
     await flushPromises();
     expect(
-      document.querySelector('[data-testid="pine-phone-remote-qr"]'),
+      document.querySelector('[data-testid="pine-relay-remote-qr"]'),
     ).toBeNull();
     expect(wrapper.text()).toContain("iPhone");
     expect(wrapper.text()).toContain("Online");
     wrapper.unmount();
   });
 
-  it("renames and removes a paired phone", async () => {
-    const renameRemoteDevice = vi
-      .fn()
-      .mockResolvedValue({ ...enabled, devices: [{ ...phone, name: "Work" }] });
+  it("renames and removes a paired device", async () => {
+    const renameRemoteDevice = vi.fn().mockResolvedValue({
+      ...enabled,
+      devices: [{ ...device, name: "Work" }],
+    });
     const removeRemoteDevice = vi.fn().mockResolvedValue(enabled);
     const wrapper = mountWith(
       {
         getRemoteControl: vi
           .fn()
-          .mockResolvedValue({ ...enabled, devices: [phone] }),
+          .mockResolvedValue({ ...enabled, devices: [device] }),
         renameRemoteDevice,
         removeRemoteDevice,
       },
@@ -157,11 +165,11 @@ describe("phone remote settings", () => {
     );
     await flushPromises();
     await wrapper
-      .get('[data-testid="pine-phone-remote-rename"]')
+      .get('[data-testid="pine-relay-remote-rename"]')
       .trigger("click");
     await flushPromises();
     const input = document.querySelector(
-      '[data-testid="pine-phone-remote-name"]',
+      '[data-testid="pine-relay-remote-name"]',
     ) as HTMLInputElement;
     input.value = "  Work ";
     input.dispatchEvent(new Event("input"));
@@ -169,23 +177,23 @@ describe("phone remote settings", () => {
     (input.form as HTMLFormElement).requestSubmit();
     await flushPromises();
     expect(renameRemoteDevice).toHaveBeenCalledWith({
-      id: "phone-key",
+      id: "device-key",
       name: "Work",
     });
 
     await wrapper
-      .get('[data-testid="pine-phone-remote-remove"]')
+      .get('[data-testid="pine-relay-remote-remove"]')
       .trigger("click");
     await flushPromises();
     expect(document.body.textContent).toContain("移除“Work”？");
     (
       document.querySelector(
-        '[data-testid="pine-phone-remote-confirm-remove"]',
+        '[data-testid="pine-relay-remote-confirm-remove"]',
       ) as HTMLButtonElement
     ).click();
     await flushPromises();
-    expect(removeRemoteDevice).toHaveBeenCalledWith("phone-key");
-    expect(wrapper.text()).toContain("还没有配对的手机。");
+    expect(removeRemoteDevice).toHaveBeenCalledWith("device-key");
+    expect(wrapper.text()).toContain("还没有配对的设备。");
     wrapper.unmount();
   });
 });

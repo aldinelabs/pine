@@ -449,13 +449,13 @@ async function confirmRemotePairing(request: {
   const chinese = isChineseLocale();
   const options = {
     type: "question" as const,
-    title: chinese ? "允许这部手机？" : "Allow this phone?",
+    title: chinese ? "允许这台设备？" : "Allow this device?",
     message: chinese
-      ? "有一部手机想要远程控制这台电脑上的 Pine。"
-      : "A phone wants to control Pine on this computer.",
+      ? "有一台设备想要远程控制这台电脑上的 Pine。"
+      : "A device wants to control Pine on this computer.",
     detail: chinese
-      ? `手机的密钥指纹：${request.fingerprint}\n只有你刚刚扫描了配对二维码才应允许。`
-      : `Phone key fingerprint: ${request.fingerprint}\nAllow it only if you just scanned the pairing code.`,
+      ? `设备的密钥指纹：${request.fingerprint}\n只有你刚刚扫描了配对二维码或打开了配对链接才应允许。`
+      : `Device key fingerprint: ${request.fingerprint}\nAllow it only if you just scanned the pairing code or opened the pairing link.`,
     buttons: chinese ? ["允许", "拒绝"] : ["Allow", "Deny"],
     cancelId: 1,
     defaultId: 1,

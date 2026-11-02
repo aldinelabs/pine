@@ -22,6 +22,10 @@ are already available (for example the `ui_workbench_*` tools and
 - Content tab: a session or a file opened in the main content area. The window
   shows the project of the active tab.
 - Workbench: the right-hand panel beside the active session.
+- Phone layout: below a phone-sized width (also when Pine is opened from a
+  phone browser) dialogs fill the screen and show lists and details one at a
+  time, the new-session background animation is off, and keyboard shortcut
+  hints appear only after a physical keyboard has been used.
 
 ## Main window
 
@@ -156,21 +160,31 @@ close the card. The panels are:
 
 The footer shows Pine's version.
 
+When the agent opens a card, or presents a file in the Preview card, that
+card pulses in yellow until the user hovers or focuses it. A file the agent
+presents fullscreen opens as a tab behind the active one, never taking
+focus, and the tab pulses the same way until the user opens it. Cards or tabs
+the user opens themselves do not pulse.
+
 ## Dialogs and overlays
 
-- Pine Settings, with sections:
-  - General: language, appearance (System, Light, Dark), default color theme,
-    quick composer shortcut, approximate location, completion signal,
-    diagnostic logging, context compaction strategy and method, serif replies,
-    inverted documents in dark mode, sidebar blur.
-  - Harness: model catalogs, providers and models, automatic approval path,
-    title generation and review model, image generation model, TinyFish web
-    tools key.
+- Pine Settings, with sections (a phone shows the section list first):
+  - General: language (dropdown), completion signal, attention
+    notifications, quick composer shortcut, diagnostic logging.
+  - Appearance: color mode (System, Light, Dark), default color theme, sidebar
+    blur (macOS), reading font (Geist and Noto Sans SC for conversations, the
+    composer and session titles), inverted documents in dark mode.
+  - Models: model catalog refresh, utility (title generation and review)
+    model, image generation model, video generation model, Decisions model.
+  - Agent: automatic approval path, context compaction strategy and method,
+    TinyFish web tools key, approximate location.
   - User profile: nickname, communication style, technical background,
     interactive answers (Rich or Simple), personal details, custom
     instructions.
   - Projects: every project with its data usage; New Project, Edit, clear
     temporary files, clear attachments.
+  - Remote control (desktop app only): pair other devices by QR code or link,
+    and browser access with its password.
 - New Project / Edit Project: name, icon, accent color, default folder,
   additional context folders with access (Read only, Read and write).
 - Skills manager: global and project Skills; create, edit, enable per project,
@@ -179,8 +193,9 @@ The footer shows Pine's version.
   enable, remove, refresh status.
 - Session search overlay: search across all projects, open a result.
 - Model picker, provider sign-in, custom model and custom provider dialogs,
-  opened from the composer's Model control or Pine Settings › Harness.
+  opened from the composer's Model control or Pine Settings › Models.
 - Update dialog: release notes and installing an update.
+- Quit confirmation, when sessions are still running or Remote Control is on.
 - Confirmation dialogs for deleting projects, sessions, folders and Skills,
   and for enabling YOLO.
 

@@ -11,7 +11,7 @@ import {
   type RequestHead,
 } from "@pine/rc-protocol";
 
-/** The sending side of one paired phone's DataChannel. */
+/** The sending side of one paired device's DataChannel. */
 export interface TunnelChannel {
   send(bytes: Uint8Array): void;
   /** Resolves once the send buffer has emptied enough to send more. */
@@ -32,8 +32,8 @@ export const MAX_TUNNEL_STREAMS = 32;
 export const MAX_TUNNEL_REQUEST_BYTES = 36 * 1024 * 1024;
 
 /**
- * The phone decides none of these: Host and Origin must be the local server's
- * own to pass its checks, and the cookie is the pairing's, not the phone's.
+ * The device decides none of these: Host and Origin must be the local server's
+ * own to pass its checks, and the cookie is the pairing's, not the device's.
  */
 const STRIPPED_REQUEST_HEADERS = new Set([
   "host",
@@ -71,7 +71,7 @@ interface TunnelStream {
   upstream: ClientRequest;
   response?: IncomingMessage;
   received: number;
-  /** The phone's end frame arrived, so the request body is complete. */
+  /** The device's end frame arrived, so the request body is complete. */
   requestEnded: boolean;
   /** A response has been started, so an error can only cut the stream short. */
   responded: boolean;
@@ -79,9 +79,9 @@ interface TunnelStream {
 
 /**
  * The desktop's end of the HTTP-over-DataChannel tunnel. Each stream the
- * phone opens becomes one request to the local web server, so the server's
+ * device opens becomes one request to the local web server, so the server's
  * own checks, request cache and event replay apply unchanged. Everything the
- * phone may do is therefore what a signed-in browser may do.
+ * device may do is therefore what a signed-in browser may do.
  */
 export class Tunnel {
   private readonly streams = new Map<number, TunnelStream>();
@@ -143,7 +143,7 @@ export class Tunnel {
   }
 
   private open(id: number, head: RequestHead): void {
-    // The phone opens odd streams; anything else is not from our protocol.
+    // The device opens odd streams; anything else is not from our protocol.
     if (id % 2 === 0 || this.streams.has(id)) return;
     if (this.streams.size >= (this.options.maxStreams ?? MAX_TUNNEL_STREAMS)) {
       this.reply(id, 429);
@@ -192,7 +192,7 @@ export class Tunnel {
         head: { status: response.statusCode ?? 502, headers: responseHeaders },
       });
       if (!stream.responded) {
-        // The head did not fit one frame, so the phone has nothing to read.
+        // The head did not fit one frame, so the device has nothing to read.
         response.destroy();
         this.streams.delete(id);
         this.reply(id, 502);

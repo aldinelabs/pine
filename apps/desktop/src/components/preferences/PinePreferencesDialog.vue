@@ -30,7 +30,7 @@ import {
 import { useI18n } from "vue-i18n";
 import { toast } from "vue-sonner";
 import { isAppLocale, persistAppLocale } from "@/app/i18n";
-import PhoneRemoteSettings from "./PhoneRemoteSettings.vue";
+import RelayRemoteSettings from "./RelayRemoteSettings.vue";
 import RemoteControlSettings from "./RemoteControlSettings.vue";
 import AutoApprovalSettings from "./AutoApprovalSettings.vue";
 import DecisionsModelSettings from "./DecisionsModelSettings.vue";
@@ -128,7 +128,7 @@ const { locale, t } = useI18n();
 const isDesktop = isDesktopClient();
 const supportsRemoteControl =
   isDesktop && typeof window.pine?.getWebServer === "function";
-const hasPhoneRemote =
+const hasRelayRemote =
   isDesktop && typeof window.pine?.getRemoteControl === "function";
 const appearanceStore = useAppearanceStore();
 const modelsStore = useModelsStore();
@@ -1719,8 +1719,8 @@ defineExpose({ open });
             <ProjectManagementSettings />
           </div>
           <div v-else-if="activeSection === 'remote'" class="p-6 max-sm:px-4">
-            <PhoneRemoteSettings v-if="hasPhoneRemote" />
-            <FieldSeparator v-if="hasPhoneRemote" class="my-6" />
+            <RelayRemoteSettings v-if="hasRelayRemote" />
+            <FieldSeparator v-if="hasRelayRemote" class="my-6" />
             <RemoteControlSettings />
           </div>
         </ScrollArea>

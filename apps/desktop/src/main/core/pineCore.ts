@@ -84,7 +84,7 @@ export class PineCore {
   readonly agentHost: AgentProcessHost;
   readonly diagnostics: RuntimeDiagnostics;
   readonly web: WebApplication;
-  /** Lets paired phones reach the local web server without port forwarding. */
+  /** Lets paired devices reach the local web server without port forwarding. */
   readonly remote: RemoteHost;
   readonly presentedFiles = new PresentedFileRegistry();
   readonly workbenchStateRequests = new WorkbenchStateRequests();

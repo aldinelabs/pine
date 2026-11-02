@@ -4,7 +4,7 @@ import {
   CopyIcon,
   PencilIcon,
   QrCodeIcon,
-  SmartphoneIcon,
+  MonitorSmartphoneIcon,
   TrashIcon,
 } from "@lucide/vue";
 import { encode } from "uqr";
@@ -40,6 +40,12 @@ import {
   FieldTitle,
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupButton,
+  InputGroupInput,
+} from "@/components/ui/input-group";
 import { Switch } from "@/components/ui/switch";
 import {
   DEFAULT_REMOTE_STATUS,
@@ -103,10 +109,10 @@ const dateFormat = computed(
 
 function deviceDetail(device: RemoteDevice): string {
   return device.lastSeenAt === undefined
-    ? t("preferences.phoneRemote.pairedAt", {
+    ? t("preferences.relayRemote.pairedAt", {
         date: dateFormat.value.format(device.pairedAt),
       })
-    : t("preferences.phoneRemote.lastSeenAt", {
+    : t("preferences.relayRemote.lastSeenAt", {
         date: dateFormat.value.format(device.lastSeenAt),
       });
 }
@@ -119,9 +125,9 @@ onMounted(async () => {
     status.value = await window.pine.getRemoteControl!();
   } catch (error) {
     handleError(error, {
-      id: "preferences.phoneRemote.load",
-      title: t("errors.phoneRemote.loadTitle"),
-      description: t("errors.phoneRemote.description"),
+      id: "preferences.relayRemote.load",
+      title: t("errors.relayRemote.loadTitle"),
+      description: t("errors.relayRemote.description"),
     });
   } finally {
     isLoading.value = false;
@@ -133,7 +139,7 @@ onBeforeUnmount(() => {
   if (status.value.pairing) void window.pine.cancelRemotePairing?.();
 });
 
-// A phone that just paired ends the pairing, so the code has done its job.
+// A device that just paired ends the pairing, so the code has done its job.
 watch(
   () => status.value.devices.length,
   (count, previous) => {
@@ -155,7 +161,7 @@ async function run(
   } catch (error) {
     handleError(error, {
       ...failure,
-      description: t("errors.phoneRemote.description"),
+      description: t("errors.relayRemote.description"),
     });
     return false;
   } finally {
@@ -166,15 +172,15 @@ async function run(
 function updateEnabled(enabled: boolean): void {
   if (enabled === status.value.enabled) return;
   void run(() => window.pine.setRemoteControlEnabled!(enabled), {
-    id: "preferences.phoneRemote.save",
-    title: t("errors.phoneRemote.saveTitle"),
+    id: "preferences.relayRemote.save",
+    title: t("errors.relayRemote.saveTitle"),
   });
 }
 
 async function startPairing(): Promise<void> {
   const started = await run(() => window.pine.startRemotePairing!(), {
-    id: "preferences.phoneRemote.pair",
-    title: t("errors.phoneRemote.pairTitle"),
+    id: "preferences.relayRemote.pair",
+    title: t("errors.relayRemote.pairTitle"),
   });
   if (started) isPairDialogOpen.value = true;
 }
@@ -190,7 +196,7 @@ function updatePairDialogOpen(open: boolean): void {
 async function copyPairLink(): Promise<void> {
   if (!pairing.value) return;
   await navigator.clipboard.writeText(pairing.value.url);
-  toast.success(t("preferences.phoneRemote.pairLinkCopied"));
+  toast.success(t("preferences.relayRemote.pairLinkCopied"));
 }
 
 function openRename(device: RemoteDevice): void {
@@ -205,8 +211,8 @@ async function saveRename(): Promise<void> {
   const saved = await run(
     () => window.pine.renameRemoteDevice!({ id: device.id, name }),
     {
-      id: "preferences.phoneRemote.rename",
-      title: t("errors.phoneRemote.deviceTitle"),
+      id: "preferences.relayRemote.rename",
+      title: t("errors.relayRemote.deviceTitle"),
     },
   );
   if (saved) renaming.value = undefined;
@@ -221,35 +227,35 @@ function confirmRemove(): void {
   const device = removing.value;
   if (!device) return;
   void run(() => window.pine.removeRemoteDevice!(device.id), {
-    id: "preferences.phoneRemote.remove",
-    title: t("errors.phoneRemote.deviceTitle"),
+    id: "preferences.relayRemote.remove",
+    title: t("errors.relayRemote.deviceTitle"),
   });
 }
 </script>
 
 <template>
-  <FieldGroup data-testid="phone-remote-settings">
+  <FieldGroup data-testid="relay-remote-settings">
     <Field orientation="horizontal">
       <div class="flex min-w-0 flex-1 flex-col gap-1">
-        <FieldTitle id="pine-phone-remote-setting">
-          {{ t("preferences.phoneRemote.title") }}
+        <FieldTitle id="pine-relay-remote-setting">
+          {{ t("preferences.relayRemote.title") }}
         </FieldTitle>
         <FieldDescription>
-          {{ t("preferences.phoneRemote.description") }}
+          {{ t("preferences.relayRemote.description") }}
         </FieldDescription>
         <FieldDescription
           v-if="status.enabled && !status.webAccessOn"
           class="text-amber-600 dark:text-amber-400"
-          data-testid="pine-phone-remote-needs-web"
+          data-testid="pine-relay-remote-needs-web"
         >
-          {{ t("preferences.phoneRemote.needsWebAccess") }}
+          {{ t("preferences.relayRemote.needsWebAccess") }}
         </FieldDescription>
       </div>
       <Switch
-        data-testid="pine-phone-remote-toggle"
+        data-testid="pine-relay-remote-toggle"
         :model-value="status.enabled"
         :disabled="isBusy"
-        aria-labelledby="pine-phone-remote-setting"
+        aria-labelledby="pine-relay-remote-setting"
         @update:model-value="updateEnabled"
       />
     </Field>
@@ -257,9 +263,9 @@ function confirmRemove(): void {
     <template v-if="status.enabled">
       <Field orientation="responsive">
         <div class="flex min-w-0 flex-1 flex-col gap-1">
-          <FieldTitle>{{ t("preferences.phoneRemote.devices") }}</FieldTitle>
+          <FieldTitle>{{ t("preferences.relayRemote.devices") }}</FieldTitle>
           <FieldDescription v-if="!status.devices.length">
-            {{ t("preferences.phoneRemote.noDevices") }}
+            {{ t("preferences.relayRemote.noDevices") }}
           </FieldDescription>
         </div>
         <Button
@@ -267,32 +273,34 @@ function confirmRemove(): void {
           variant="outline"
           size="sm"
           class="shrink-0"
-          data-testid="pine-phone-remote-pair"
+          data-testid="pine-relay-remote-pair"
           :disabled="isBusy || !status.webAccessOn"
           @click="startPairing"
         >
           <QrCodeIcon data-icon="inline-start" />
-          {{ t("preferences.phoneRemote.pair") }}
+          {{ t("preferences.relayRemote.pair") }}
         </Button>
       </Field>
 
       <ul
         v-if="status.devices.length"
         class="flex flex-col divide-y rounded-lg border"
-        data-testid="pine-phone-remote-devices"
+        data-testid="pine-relay-remote-devices"
       >
         <li
           v-for="device in status.devices"
           :key="device.id"
           class="flex items-center gap-3 px-3 py-2"
-          :data-testid="`pine-phone-remote-device-${device.id}`"
+          :data-testid="`pine-relay-remote-device-${device.id}`"
         >
-          <SmartphoneIcon class="size-4 shrink-0 text-muted-foreground" />
+          <MonitorSmartphoneIcon
+            class="size-4 shrink-0 text-muted-foreground"
+          />
           <div class="flex min-w-0 flex-1 flex-col">
             <span class="flex items-center gap-2 text-sm font-medium">
               <span class="truncate">{{ device.name }}</span>
               <Badge v-if="device.online" variant="secondary">
-                {{ t("preferences.phoneRemote.online") }}
+                {{ t("preferences.relayRemote.online") }}
               </Badge>
             </span>
             <span class="text-xs text-muted-foreground">
@@ -303,9 +311,9 @@ function confirmRemove(): void {
             type="button"
             variant="ghost"
             size="icon-sm"
-            :aria-label="t('preferences.phoneRemote.rename')"
+            :aria-label="t('preferences.relayRemote.rename')"
             :disabled="isBusy"
-            data-testid="pine-phone-remote-rename"
+            data-testid="pine-relay-remote-rename"
             @click="openRename(device)"
           >
             <PencilIcon />
@@ -314,9 +322,9 @@ function confirmRemove(): void {
             type="button"
             variant="ghost"
             size="icon-sm"
-            :aria-label="t('preferences.phoneRemote.remove')"
+            :aria-label="t('preferences.relayRemote.remove')"
             :disabled="isBusy"
-            data-testid="pine-phone-remote-remove"
+            data-testid="pine-relay-remote-remove"
             @click="openRemove(device)"
           >
             <TrashIcon />
@@ -329,65 +337,82 @@ function confirmRemove(): void {
       <DialogContent class="sm:max-w-sm">
         <DialogHeader>
           <DialogTitle>{{
-            t("preferences.phoneRemote.pairTitle")
+            t("preferences.relayRemote.pairTitle")
           }}</DialogTitle>
           <DialogDescription>
-            {{ t("preferences.phoneRemote.pairDescription") }}
+            {{ t("preferences.relayRemote.pairDescription") }}
           </DialogDescription>
         </DialogHeader>
         <div class="flex flex-col items-center gap-3">
           <!-- Always dark on white: cameras read a QR code by its contrast. -->
           <svg
             v-if="qr && !isExpired"
-            data-testid="pine-phone-remote-qr"
+            data-testid="pine-relay-remote-qr"
             :viewBox="`0 0 ${qr.size} ${qr.size}`"
             class="size-56 rounded-md bg-white"
             shape-rendering="crispEdges"
             role="img"
-            :aria-label="t('preferences.phoneRemote.pairTitle')"
+            :aria-label="t('preferences.relayRemote.pairTitle')"
           >
             <path :d="qr.path" fill="#000" />
           </svg>
           <div
             v-else
             class="flex size-56 items-center justify-center rounded-md border text-sm text-muted-foreground"
-            data-testid="pine-phone-remote-expired"
+            data-testid="pine-relay-remote-expired"
           >
-            {{ t("preferences.phoneRemote.pairExpired") }}
+            {{ t("preferences.relayRemote.pairExpired") }}
           </div>
           <p v-if="!isExpired" class="text-sm text-muted-foreground">
-            {{ t("preferences.phoneRemote.pairExpires", { time: countdown }) }}
+            {{ t("preferences.relayRemote.pairExpires", { time: countdown }) }}
           </p>
           <p
             v-if="pairing?.fingerprint"
             class="font-mono text-xs break-all text-muted-foreground select-text"
           >
             {{
-              t("preferences.phoneRemote.fingerprint", {
+              t("preferences.relayRemote.fingerprint", {
                 fingerprint: pairing.fingerprint,
               })
             }}
           </p>
         </div>
-        <DialogFooter>
+        <!-- For devices without a camera, or the computer's own other browsers. -->
+        <Field v-if="pairing && !isExpired">
+          <FieldLabel for="pine-relay-remote-link">
+            {{ t("preferences.relayRemote.pairLink") }}
+          </FieldLabel>
+          <InputGroup>
+            <InputGroupInput
+              id="pine-relay-remote-link"
+              data-testid="pine-relay-remote-link"
+              :model-value="pairing.url"
+              readonly
+              spellcheck="false"
+              class="font-mono text-xs"
+              @focus="($event.target as HTMLInputElement).select()"
+            />
+            <InputGroupAddon align="inline-end">
+              <InputGroupButton
+                type="button"
+                size="icon-xs"
+                data-testid="pine-relay-remote-copy"
+                :aria-label="t('preferences.relayRemote.copyPairLink')"
+                @click="copyPairLink"
+              >
+                <CopyIcon />
+              </InputGroupButton>
+            </InputGroupAddon>
+          </InputGroup>
+        </Field>
+        <DialogFooter v-if="isExpired">
           <Button
-            v-if="!isExpired"
             type="button"
-            variant="outline"
-            data-testid="pine-phone-remote-copy"
-            @click="copyPairLink"
-          >
-            <CopyIcon data-icon="inline-start" />
-            {{ t("preferences.phoneRemote.copyPairLink") }}
-          </Button>
-          <Button
-            v-else
-            type="button"
-            data-testid="pine-phone-remote-pair-again"
+            data-testid="pine-relay-remote-pair-again"
             :disabled="isBusy"
             @click="startPairing"
           >
-            {{ t("preferences.phoneRemote.pairAgain") }}
+            {{ t("preferences.relayRemote.pairAgain") }}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -401,17 +426,17 @@ function confirmRemove(): void {
         <form class="contents" @submit.prevent="saveRename">
           <DialogHeader>
             <DialogTitle>
-              {{ t("preferences.phoneRemote.renameTitle") }}
+              {{ t("preferences.relayRemote.renameTitle") }}
             </DialogTitle>
           </DialogHeader>
           <Field>
-            <FieldLabel for="pine-phone-remote-name">
-              {{ t("preferences.phoneRemote.deviceName") }}
+            <FieldLabel for="pine-relay-remote-name">
+              {{ t("preferences.relayRemote.deviceName") }}
             </FieldLabel>
             <Input
-              id="pine-phone-remote-name"
+              id="pine-relay-remote-name"
               v-model="nameDraft"
-              data-testid="pine-phone-remote-name"
+              data-testid="pine-relay-remote-name"
               autocomplete="off"
               :maxlength="MAX_REMOTE_DEVICE_NAME_LENGTH"
             />
@@ -419,7 +444,7 @@ function confirmRemove(): void {
           <DialogFooter>
             <Button
               type="submit"
-              data-testid="pine-phone-remote-save-name"
+              data-testid="pine-relay-remote-save-name"
               :disabled="isBusy || !nameDraft.trim()"
             >
               {{ t("common.save") }}
@@ -434,23 +459,23 @@ function confirmRemove(): void {
         <AlertDialogHeader>
           <AlertDialogTitle>
             {{
-              t("preferences.phoneRemote.removeTitle", {
+              t("preferences.relayRemote.removeTitle", {
                 name: removing?.name ?? "",
               })
             }}
           </AlertDialogTitle>
           <AlertDialogDescription>
-            {{ t("preferences.phoneRemote.removeDescription") }}
+            {{ t("preferences.relayRemote.removeDescription") }}
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogCancel>{{ t("common.cancel") }}</AlertDialogCancel>
           <AlertDialogAction
             variant="destructive"
-            data-testid="pine-phone-remote-confirm-remove"
+            data-testid="pine-relay-remote-confirm-remove"
             @click="confirmRemove"
           >
-            {{ t("preferences.phoneRemote.remove") }}
+            {{ t("preferences.relayRemote.remove") }}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

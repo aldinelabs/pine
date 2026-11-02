@@ -24,7 +24,7 @@ export interface ChannelHandle {
 
 export interface PeerHandle {
   /**
-   * Applies the phone's offer and resolves with the answer once this
+   * Applies the device's offer and resolves with the answer once this
    * computer's connection candidates are gathered, or after the timeout with
    * the ones found so far.
    */
