@@ -108,8 +108,7 @@ describe("concurrent session state", () => {
     ];
     snapshot(value);
     snapshot(value);
-    await Promise.resolve();
-    expect(store.stateFor(a.id).isRunning).toBe(true);
+    await vi.waitFor(() => expect(store.stateFor(a.id).isRunning).toBe(true));
     expect(store.stateFor(a.id).pendingApprovals).toHaveLength(1);
     expect(store.stateFor(a.id).messages).toHaveLength(1);
     expect(store.stateFor(a.id).messages[0].blocks).toEqual([
@@ -118,6 +117,77 @@ describe("concurrent session state", () => {
     snapshot([]);
     expect(store.stateFor(a.id).isRunning).toBe(false);
     expect(store.stateFor(a.id).pendingApprovals).toHaveLength(0);
+  });
+
+  it("restores a reconnect on top of history without repeating finished steps", async () => {
+    setActivePinia(createPinia());
+    const { store, api, emit, snapshot } = fixture();
+    await store.resume(PROJECT_ID, a.id);
+    const history: PineTextMessage[] = [
+      {
+        createdAt: "2026-09-29T00:00:00Z",
+        id: "entry-user",
+        role: "user",
+        blocks: [{ type: "text", text: "List files" }],
+      },
+      {
+        createdAt: "2026-09-29T00:00:01Z",
+        id: "entry-assistant",
+        role: "assistant",
+        blocks: [
+          {
+            type: "toolCall",
+            toolCall: { id: "call", name: "bash", status: "pending" },
+          },
+        ],
+        thinkingDurationMs: 1200,
+      },
+    ];
+    const load = deferred<{ messages: PineTextMessage[]; hasMore: boolean }>();
+    api.loadSessionMessages.mockReturnValueOnce(load.promise);
+    snapshot([
+      {
+        sessionId: a.id,
+        projectId: PROJECT_ID,
+        events: [
+          { type: "run-state", sessionId: a.id, state: "running" },
+          {
+            type: "tool-update",
+            sessionId: a.id,
+            toolCallId: "call",
+            toolName: "bash",
+            payload: "partial",
+            startedAt: "2026-09-29T00:00:02.000Z",
+          },
+        ],
+      },
+    ]);
+    emit({
+      type: "tool-end",
+      sessionId: a.id,
+      toolCallId: "call",
+      toolName: "bash",
+      payload: "done",
+    });
+    load.resolve({ messages: history, hasMore: false });
+    await vi.waitFor(() =>
+      expect(store.stateFor(a.id).messages.map((m) => m.id)).toEqual([
+        "entry-user",
+        "entry-assistant",
+      ]),
+    );
+    const [block] = store.stateFor(a.id).messages[1].blocks;
+    expect(block).toMatchObject({
+      type: "toolCall",
+      toolCall: {
+        status: "complete",
+        output: "done",
+        startedAt: "2026-09-29T00:00:02.000Z",
+      },
+    });
+    expect(
+      block.type === "toolCall" ? block.toolCall.durationMs : undefined,
+    ).toBeGreaterThan(0);
   });
 
   it("clears stale run state when another interface resets the shared project", async () => {

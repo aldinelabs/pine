@@ -27,6 +27,7 @@ import { isAppLocale } from "@/app/i18n";
 import enUS from "@/app/i18n/locales/en-US";
 import zhCN from "@/app/i18n/locales/zh-CN";
 import { useModelsStore } from "@/stores/models";
+import type { WebSessionSnapshot } from "@/shared/webControl";
 import type {
   AskUserQuestionParams,
   AskUserQuestionSubmission,
@@ -709,29 +710,42 @@ export const useSessionStore = defineStore("session", () => {
     return [...byId.values()];
   }
 
+  function fetchInitialMessages(projectId: string, sessionId: string) {
+    return window.pine.loadSessionMessages({
+      includeOutline: true,
+      projectId,
+      sessionId,
+      limit: 50,
+    });
+  }
+
+  function applyHistory(
+    state: SessionState,
+    result: Awaited<ReturnType<typeof fetchInitialMessages>>,
+  ): void {
+    state.messages = mergeHistory(result.messages, state.messages);
+    state.outlineMessages = mergeHistory(
+      result.outline ?? result.messages,
+      state.outlineMessages,
+    );
+    // A live todo result that arrived during the load is newer.
+    if (result.todos && !state.todos) state.setTodos(result.todos);
+    state.clearMessageIndexes();
+    state.hasEarlierMessages = result.hasMore;
+    state.nextBefore = result.nextBefore;
+    state.historyLoaded = true;
+  }
+
   async function loadInitialMessages(sessionId: string): Promise<void> {
     const state = stateFor(sessionId);
     if (state.historyLoaded) return;
     if (state.historyLoad) return state.historyLoad;
     state.isLoadingMessages = true;
     const request = (async () => {
-      const result = await window.pine.loadSessionMessages({
-        includeOutline: true,
-        projectId: requireProjectOf(sessionId),
-        sessionId,
-        limit: 50,
-      });
-      state.messages = mergeHistory(result.messages, state.messages);
-      state.outlineMessages = mergeHistory(
-        result.outline ?? result.messages,
-        state.outlineMessages,
+      applyHistory(
+        state,
+        await fetchInitialMessages(requireProjectOf(sessionId), sessionId),
       );
-      // A live todo result that arrived during the load is newer.
-      if (result.todos && !state.todos) state.setTodos(result.todos);
-      state.clearMessageIndexes();
-      state.hasEarlierMessages = result.hasMore;
-      state.nextBefore = result.nextBefore;
-      state.historyLoaded = true;
     })();
     state.historyLoad = request;
     try {
@@ -1330,6 +1344,7 @@ export const useSessionStore = defineStore("session", () => {
         existing?.type === "toolCall" ? existing.toolCall : undefined;
       const startedAt =
         existingToolCall?.startedAt ??
+        event.startedAt ??
         (event.type === "tool-start" ? new Date(now).toISOString() : undefined);
       const patch: Partial<PineToolCall> = {
         name: event.toolName,
@@ -1478,9 +1493,17 @@ export const useSessionStore = defineStore("session", () => {
 
   function connectAgentEvents(): void {
     if (stopAgentEvents || !window.pine.onSessionEvent) return;
-    stopAgentEvents = window.pine.onSessionEvent(handleAgentEvent);
+    // Events for a session being restored wait until its snapshot is applied.
+    const restoring = new Map<string, PineSessionEvent[]>();
+    stopAgentEvents = window.pine.onSessionEvent((event) => {
+      const queued = restoring.get(event.sessionId);
+      if (queued) queued.push(event);
+      else handleAgentEvent(event);
+    });
     window.pine.onSessionSnapshot?.((snapshots) => {
       const liveIds = new Set(snapshots.map((snapshot) => snapshot.sessionId));
+      for (const id of restoring.keys())
+        if (!liveIds.has(id)) restoring.delete(id);
       for (const [id, state] of sessionCache) {
         if (liveIds.has(id)) continue;
         state.isRunning = false;
@@ -1489,17 +1512,50 @@ export const useSessionStore = defineStore("session", () => {
         state.reviewingToolCallIds = new Set();
         state.steeringMessages = [];
       }
-      for (const snapshot of snapshots) {
-        const previous = sessionCache.get(snapshot.sessionId);
-        const state = createSessionState();
-        state.summary = previous?.summary ?? null;
-        sessionCache.set(snapshot.sessionId, state);
-        sessionProjects.set(snapshot.sessionId, snapshot.projectId);
-        for (const event of snapshot.events) handleAgentEvent(event);
-        if (previous?.historyLoaded)
-          void loadInitialMessages(snapshot.sessionId).catch(() => undefined);
-      }
+      for (const snapshot of snapshots)
+        void restoreSnapshot(snapshot, restoring);
     });
+  }
+
+  /**
+   * Live message ids differ from history ids, so history must come first: the
+   * snapshot then only adds the streaming message and patches tools in place.
+   */
+  async function restoreSnapshot(
+    snapshot: WebSessionSnapshot,
+    restoring: Map<string, PineSessionEvent[]>,
+  ): Promise<void> {
+    const { sessionId, projectId } = snapshot;
+    const previous = sessionCache.get(sessionId);
+    const state = createSessionState();
+    state.summary = previous?.summary ?? null;
+    const apply = (queued: PineSessionEvent[] = []) => {
+      sessionCache.set(sessionId, state);
+      sessionProjects.set(sessionId, projectId);
+      for (const event of [...snapshot.events, ...queued])
+        handleAgentEvent(event);
+    };
+    const needsHistory =
+      previous?.historyLoaded ||
+      snapshot.events.some(
+        (event) => "messageId" in event || "toolCallId" in event,
+      );
+    if (!needsHistory) {
+      restoring.delete(sessionId);
+      apply();
+      return;
+    }
+    const queued: PineSessionEvent[] = [];
+    restoring.set(sessionId, queued);
+    try {
+      applyHistory(state, await fetchInitialMessages(projectId, sessionId));
+    } catch {
+      // The live part still shows; opening the session retries history.
+    }
+    // A newer snapshot has taken over.
+    if (restoring.get(sessionId) !== queued) return;
+    restoring.delete(sessionId);
+    apply(queued);
   }
 
   function startDraft(): void {

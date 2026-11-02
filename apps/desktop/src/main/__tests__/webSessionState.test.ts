@@ -85,6 +85,56 @@ describe("WebSessionState", () => {
     ).toBe(false);
   });
 
+  it("leaves finished messages and tools to history and keeps when a running tool started", () => {
+    const state = new WebSessionState();
+    const sessionId = "session";
+    const message = { role: "assistant", content: [] };
+    state.observe("project", {
+      type: "message-start",
+      sessionId,
+      messageId: "done",
+      message,
+    });
+    state.observe("project", {
+      type: "message-end",
+      sessionId,
+      messageId: "done",
+      message,
+    });
+    for (const toolCallId of ["finished", "running"])
+      state.observe("project", {
+        type: "tool-start",
+        sessionId,
+        toolCallId,
+        toolName: "bash",
+      });
+    state.observe("project", {
+      type: "tool-end",
+      sessionId,
+      toolCallId: "finished",
+      toolName: "bash",
+    });
+    const [first] = state.snapshots(() => "project");
+    expect(first.events).toEqual([
+      expect.objectContaining({
+        type: "tool-start",
+        toolCallId: "running",
+        startedAt: expect.any(String),
+      }),
+    ]);
+    const startedAt = (first.events[0] as { startedAt: string }).startedAt;
+    state.observe("project", {
+      type: "tool-update",
+      sessionId,
+      toolCallId: "running",
+      toolName: "bash",
+      payload: "partial",
+    });
+    expect(state.snapshots(() => "project")[0].events).toEqual([
+      expect.objectContaining({ type: "tool-update", startedAt }),
+    ]);
+  });
+
   it("drops stale approval cards at run completion and forgets disposed sessions", () => {
     const state = new WebSessionState();
     state.observe("project", {

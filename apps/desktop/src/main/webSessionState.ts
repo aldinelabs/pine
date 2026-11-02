@@ -46,15 +46,14 @@ export class WebSessionState {
       for (const key of state.values.keys())
         if (/^(tool|decision|review):/.test(key)) state.values.delete(key);
     }
-    if (event.type === "message-start" || event.type === "message-end") {
+    // A closed message is already in history under another id; replaying it
+    // would show it twice.
+    if (event.type === "message-end") {
+      state.messages.delete(event.messageId);
+      return;
+    }
+    if (event.type === "message-start") {
       state.messages.set(event.messageId, { event, blocks: new Map() });
-      // Closed messages are recoverable from history; retain only recent ones.
-      if (state.messages.size > 100) {
-        const oldest = [...state.messages].find(
-          ([, message]) => message.event.type === "message-end",
-        );
-        if (oldest) state.messages.delete(oldest[0]);
-      }
       return;
     }
     if (event.type === "message-update") {
@@ -97,6 +96,22 @@ export class WebSessionState {
       event.type === "approval-decided"
     )
       state.values.delete(`review:${event.toolCallId}`);
+    // A finished tool is in history; a running one keeps when it started.
+    if (event.type === "tool-end") {
+      state.values.delete(`tool:${event.toolCallId}`);
+      return;
+    }
+    if (event.type === "tool-start" || event.type === "tool-update") {
+      const previous = state.values.get(`tool:${event.toolCallId}`);
+      state.values.set(`tool:${event.toolCallId}`, {
+        ...event,
+        startedAt:
+          (previous?.type === "tool-start" || previous?.type === "tool-update"
+            ? previous.startedAt
+            : undefined) ?? new Date().toISOString(),
+      });
+      return;
+    }
     if (
       event.type === "run-state" &&
       (event.state === "idle" || event.state === "failed")

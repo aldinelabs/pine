@@ -201,6 +201,8 @@ export type PineAgentEvent =
       toolName: string;
       payload?: PineJsonValue;
       isError?: boolean;
+      /** ISO time the tool started, set when a reconnect replays a running tool. */
+      startedAt?: string;
     }
   | {
       type: "session-updated";
