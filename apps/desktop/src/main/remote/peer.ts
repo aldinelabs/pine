@@ -1,5 +1,5 @@
 import type { DataChannel } from "node-datachannel";
-import type { IceServer } from "./iceServers";
+import type { IceServer } from "@pine/rc-protocol";
 
 /**
  * Everything the Remote Control host needs from WebRTC. This file is the only

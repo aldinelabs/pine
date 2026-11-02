@@ -1,6 +1,11 @@
-import type { IceServer } from "./iceServers";
+/** The shape WebRTC takes for STUN and TURN servers. */
+export interface IceServer {
+  urls: string[];
+  username?: string;
+  credential?: string;
+}
 
-/** What the host's own `fetch` offers, so desktop proxy settings apply. */
+/** A `fetch`; the desktop passes its own so its proxy settings apply. */
 export type Fetch = (url: string, init?: RequestInit) => Promise<Response>;
 
 const API_PREFIX = "/rc/v1";

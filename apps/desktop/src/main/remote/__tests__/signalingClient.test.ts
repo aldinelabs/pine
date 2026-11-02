@@ -7,7 +7,7 @@ import {
 } from "node:http";
 import type { AddressInfo } from "node:net";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { SignalingRoom, type SignalingState } from "../signalingClient";
+import { SignalingRoom, type SignalingState } from "@pine/rc-protocol";
 
 const ROOM = "r".repeat(43);
 

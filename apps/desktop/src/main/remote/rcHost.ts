@@ -1,5 +1,6 @@
 import {
   ReplayGuard,
+  SignalingRoom,
   createAnswer,
   createPairing,
   decodeFrame,
@@ -11,11 +12,12 @@ import {
   randomBytes,
   toBase64Url,
   verifyOffer,
+  type Fetch,
+  type IceServer,
   type OfferEnvelope,
   type OfferResult,
 } from "@pine/rc-protocol";
 import type { RemoteStatus } from "../../shared/remoteControl";
-import type { IceServer } from "./iceServers";
 import {
   nodePeer,
   type ChannelHandle,
@@ -23,7 +25,6 @@ import {
   type PeerHandle,
 } from "./peer";
 import type { RemoteControlStore } from "./rcStore";
-import { SignalingRoom, type Fetch } from "./signalingClient";
 import { Tunnel } from "./tunnel";
 
 /** Used when the signaling service has no relay to offer. */

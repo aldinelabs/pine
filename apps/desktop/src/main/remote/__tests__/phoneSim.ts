@@ -1,5 +1,6 @@
 import nodeDataChannel from "node-datachannel";
 import {
+  SignalingRoom,
   createOffer,
   decodeFrame,
   encodeFrame,
@@ -7,7 +8,6 @@ import {
   type Frame,
   type Identity,
 } from "@pine/rc-protocol";
-import { SignalingRoom } from "../signalingClient";
 
 /**
  * A phone, played by a second WebRTC stack in the same process. It does what

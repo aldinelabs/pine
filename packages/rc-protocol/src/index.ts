@@ -4,3 +4,4 @@ export * from "./handshake";
 export * from "./identity";
 export * from "./pairing";
 export * from "./room";
+export * from "./signaling";
