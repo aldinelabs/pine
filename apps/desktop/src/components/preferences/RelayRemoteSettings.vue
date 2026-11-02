@@ -41,6 +41,15 @@ import {
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import {
+  Item,
+  ItemActions,
+  ItemContent,
+  ItemDescription,
+  ItemGroup,
+  ItemMedia,
+  ItemTitle,
+} from "@/components/ui/item";
+import {
   InputGroup,
   InputGroupAddon,
   InputGroupButton,
@@ -282,55 +291,58 @@ function confirmRemove(): void {
         </Button>
       </Field>
 
-      <ul
+      <ItemGroup
         v-if="status.devices.length"
-        class="flex flex-col divide-y rounded-lg border"
+        class="gap-2"
         data-testid="pine-relay-remote-devices"
       >
-        <li
+        <Item
           v-for="device in status.devices"
           :key="device.id"
-          class="flex items-center gap-3 px-3 py-2"
+          variant="outline"
+          size="sm"
           :data-testid="`pine-relay-remote-device-${device.id}`"
         >
-          <MonitorSmartphoneIcon
-            class="size-4 shrink-0 text-muted-foreground"
-          />
-          <div class="flex min-w-0 flex-1 flex-col">
-            <span class="flex items-center gap-2 text-sm font-medium">
+          <ItemMedia variant="icon">
+            <MonitorSmartphoneIcon />
+          </ItemMedia>
+          <ItemContent class="min-w-0">
+            <ItemTitle class="w-full">
               <span class="truncate">{{ device.name }}</span>
               <Badge v-if="device.online" variant="secondary">
                 {{ t("preferences.relayRemote.online") }}
               </Badge>
-            </span>
-            <span class="text-xs text-muted-foreground">
+            </ItemTitle>
+            <ItemDescription class="truncate">
               {{ deviceDetail(device) }}
-            </span>
-          </div>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon-sm"
-            :aria-label="t('preferences.relayRemote.rename')"
-            :disabled="isBusy"
-            data-testid="pine-relay-remote-rename"
-            @click="openRename(device)"
-          >
-            <PencilIcon />
-          </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon-sm"
-            :aria-label="t('preferences.relayRemote.remove')"
-            :disabled="isBusy"
-            data-testid="pine-relay-remote-remove"
-            @click="openRemove(device)"
-          >
-            <TrashIcon />
-          </Button>
-        </li>
-      </ul>
+            </ItemDescription>
+          </ItemContent>
+          <ItemActions>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-sm"
+              :aria-label="t('preferences.relayRemote.rename')"
+              :disabled="isBusy"
+              data-testid="pine-relay-remote-rename"
+              @click="openRename(device)"
+            >
+              <PencilIcon />
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-sm"
+              :aria-label="t('preferences.relayRemote.remove')"
+              :disabled="isBusy"
+              data-testid="pine-relay-remote-remove"
+              @click="openRemove(device)"
+            >
+              <TrashIcon />
+            </Button>
+          </ItemActions>
+        </Item>
+      </ItemGroup>
     </template>
 
     <Dialog :open="isPairDialogOpen" @update:open="updatePairDialogOpen">
