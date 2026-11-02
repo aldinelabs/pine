@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from "vue";
+import { cn } from "@/lib/utils";
 import {
   SidebarMenuSubButton,
   SidebarMenuSubItem,
@@ -55,7 +56,7 @@ const emit = defineEmits<{
         <span
           data-slot="session-title"
           :data-running="isRunning || undefined"
-          :class="isRunning ? 'shimmer' : undefined"
+          :class="cn('truncate', isRunning && 'shimmer')"
           >{{ title }}</span
         >
         <span
