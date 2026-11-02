@@ -872,6 +872,7 @@ export default {
       moreActions: "Weitere Aktionen",
       closeTab: "{name} schließen",
       switchTab: "Tab wechseln",
+      switchComputer: "Computer wechseln",
       tabListLabel: "Geöffnete Inhalte",
       shortcuts: {
         newTab: "Neuer Tab",

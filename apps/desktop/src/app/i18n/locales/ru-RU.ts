@@ -859,6 +859,7 @@ export default {
       moreActions: "Другие действия",
       closeTab: "Закрыть «{name}»",
       switchTab: "Переключить вкладку",
+      switchComputer: "Сменить компьютер",
       tabListLabel: "Открытое содержимое",
       shortcuts: {
         newTab: "Новая вкладка",

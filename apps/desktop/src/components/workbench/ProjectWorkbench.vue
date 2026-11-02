@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import SwitchComputerButton from "@/components/window/SwitchComputerButton.vue";
 import {
   computed,
   nextTick,
@@ -320,6 +321,7 @@ function resizeWithKeyboard(event: KeyboardEvent): void {
       class="window-drag flex h-[var(--window-titlebar-height)] shrink-0 items-center pr-3"
     >
       <WorkbenchVersion />
+      <SwitchComputerButton />
     </div>
     <div class="flex min-h-0 flex-1 flex-col pr-3 pb-3">
       <div

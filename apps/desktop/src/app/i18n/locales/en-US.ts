@@ -853,6 +853,7 @@ export default {
       moreActions: "More actions",
       closeTab: "Close {name}",
       switchTab: "Switch tab",
+      switchComputer: "Switch computer",
       tabListLabel: "Open content",
       shortcuts: {
         newTab: "New tab",

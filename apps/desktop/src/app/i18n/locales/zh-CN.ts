@@ -813,6 +813,7 @@ export default {
       moreActions: "更多操作",
       closeTab: "关闭 {name}",
       switchTab: "切换标签页",
+      switchComputer: "切换电脑",
       tabListLabel: "已打开的内容",
       shortcuts: {
         newTab: "新建标签页",

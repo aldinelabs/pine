@@ -855,6 +855,7 @@ export default {
       moreActions: "その他の操作",
       closeTab: "{name} を閉じる",
       switchTab: "タブを切り替え",
+      switchComputer: "コンピューターを切り替え",
       tabListLabel: "開いているコンテンツ",
       shortcuts: {
         newTab: "新規タブ",

@@ -868,6 +868,7 @@ export default {
       moreActions: "Plus d'actions",
       closeTab: "Fermer {name}",
       switchTab: "Changer d'onglet",
+      switchComputer: "Changer d'ordinateur",
       tabListLabel: "Contenu ouvert",
       shortcuts: {
         newTab: "Nouvel onglet",

@@ -289,6 +289,15 @@ async function boot(): Promise<void> {
     "controllerchange",
     () => void hello(),
   );
+  // Pine's "switch computer" button, from the embedded Pine.
+  window.addEventListener("message", (event) => {
+    if (
+      event.origin === location.origin &&
+      event.source === frame?.contentWindow &&
+      event.data?.type === "pine-switch-computer"
+    )
+      void showList();
+  });
   document.addEventListener("visibilitychange", () => {
     if (document.visibilityState === "visible" && !link && host && frame)
       void open(host);

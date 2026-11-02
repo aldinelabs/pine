@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import SwitchComputerButton from "@/components/window/SwitchComputerButton.vue";
 import {
   ChevronDownIcon,
   MessageSquareTextIcon,
@@ -897,6 +898,7 @@ watch(activeSession, (session) => {
         data-slot="empty-tabs-logo"
         class="size-64"
       />
+      <SwitchComputerButton class="relative" />
       <WindowShortcutHints class="relative" />
     </div>
   </div>

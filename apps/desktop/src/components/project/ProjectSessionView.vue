@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import SwitchComputerButton from "@/components/window/SwitchComputerButton.vue";
 import {
   dragContainsAttachments,
   useAttachmentDrop,
@@ -647,6 +648,7 @@ async function handleDrop(event: DragEvent): Promise<void> {
                   <EmptyDescription>
                     {{ t("project.transcript.emptyDescription") }}
                   </EmptyDescription>
+                  <SwitchComputerButton />
                 </EmptyHeader>
               </Empty>
 

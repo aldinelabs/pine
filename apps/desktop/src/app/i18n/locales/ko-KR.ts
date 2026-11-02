@@ -847,6 +847,7 @@ export default {
       moreActions: "기타 작업",
       closeTab: "{name} 닫기",
       switchTab: "탭 전환",
+      switchComputer: "컴퓨터 전환",
       tabListLabel: "열려 있는 콘텐츠",
       shortcuts: {
         newTab: "새 탭",
