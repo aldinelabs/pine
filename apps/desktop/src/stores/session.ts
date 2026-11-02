@@ -1588,6 +1588,11 @@ export const useSessionStore = defineStore("session", () => {
     );
   }
 
+  /** Whether the session is mid-run; false for sessions never loaded here. */
+  function isSessionRunning(sessionId: string): boolean {
+    return sessionCache.get(sessionId)?.isRunning ?? false;
+  }
+
   /** Whether any session of the project is mid-run or awaiting the user. */
   function hasActiveWork(projectId: string): boolean {
     for (const [sessionId, owner] of sessionProjects) {
@@ -1633,6 +1638,7 @@ export const useSessionStore = defineStore("session", () => {
     forgetProject,
     hasActiveWork,
     isLoadingRecentFor,
+    isSessionRunning,
     projectOf,
     recentSessionsFor,
     stateFor,

@@ -439,6 +439,14 @@ function getTabLabel(tab: ProjectContentTab): string {
     : t("project.contentTabs.newSession");
 }
 
+function isTabRunning(tab: ProjectContentTab): boolean {
+  return (
+    tab.kind === "session" &&
+    tab.state === "bound" &&
+    sessionStore.isSessionRunning(tab.sessionId)
+  );
+}
+
 function tabIcon(tab: ProjectContentTab) {
   return tab.kind === "session"
     ? MessageSquareTextIcon
@@ -611,9 +619,20 @@ watch(activeSession, (session) => {
                 :is="tabIcon(activeContentTab)"
                 data-icon="inline-start"
               />
-              <span data-slot="session-title" class="truncate">{{
-                getTabLabel(activeContentTab)
-              }}</span>
+              <span
+                data-slot="session-title"
+                :data-running="isTabRunning(activeContentTab) || undefined"
+                :class="
+                  cn('truncate', isTabRunning(activeContentTab) && 'shimmer')
+                "
+                >{{ getTabLabel(activeContentTab) }}</span
+              >
+              <span
+                v-if="isTabRunning(activeContentTab)"
+                aria-hidden="true"
+                data-slot="session-running-dot"
+                class="hidden size-1.5 shrink-0 rounded-full bg-primary motion-reduce:inline-block"
+              />
               <span
                 v-if="hasBackgroundAttention"
                 aria-hidden="true"
@@ -641,7 +660,17 @@ watch(activeSession, (session) => {
               >
                 <DropdownMenuRadioItem :value="tab.id" class="min-w-0 flex-1">
                   <component :is="tabIcon(tab)" aria-hidden="true" />
-                  <span class="truncate">{{ getTabLabel(tab) }}</span>
+                  <span
+                    :data-running="isTabRunning(tab) || undefined"
+                    :class="cn('truncate', isTabRunning(tab) && 'shimmer')"
+                    >{{ getTabLabel(tab) }}</span
+                  >
+                  <span
+                    v-if="isTabRunning(tab)"
+                    aria-hidden="true"
+                    data-slot="session-running-dot"
+                    class="hidden size-1.5 shrink-0 rounded-full bg-primary motion-reduce:inline-block"
+                  />
                   <span
                     v-if="
                       tab.id !== activeTabId &&
@@ -785,7 +814,18 @@ watch(activeSession, (session) => {
                   @keydown="moveTabFocus(index, $event)"
                 >
                   <component :is="tabIcon(tab)" data-icon="inline-start" />
-                  <span class="truncate">{{ getTabLabel(tab) }}</span>
+                  <span
+                    data-slot="session-title"
+                    :data-running="isTabRunning(tab) || undefined"
+                    :class="cn('truncate', isTabRunning(tab) && 'shimmer')"
+                    >{{ getTabLabel(tab) }}</span
+                  >
+                  <span
+                    v-if="isTabRunning(tab)"
+                    aria-hidden="true"
+                    data-slot="session-running-dot"
+                    class="hidden size-1.5 shrink-0 rounded-full bg-primary motion-reduce:inline-block"
+                  />
                 </Button>
 
                 <Button

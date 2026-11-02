@@ -267,6 +267,31 @@ describe("ProjectContentTabs", () => {
     wrapper.unmount();
   });
 
+  it("shimmers the title of a running session tab only", async () => {
+    const { wrapper } = await mountTabs();
+    const contentTabs = useContentTabsStore();
+    contentTabs.bindSession("session-1", firstSession);
+    await flushPromises();
+    const title = () =>
+      wrapper.get('[data-tab-id="session-1"] [data-slot="session-title"]');
+    expect(title().classes()).not.toContain("shimmer");
+
+    useSessionStore().stateFor(firstSession.id).isRunning = true;
+    await nextTick();
+    expect(title().classes()).toContain("shimmer");
+    expect(title().attributes("data-running")).toBe("true");
+    expect(
+      wrapper
+        .find('[data-tab-id="session-1"] [data-slot="session-running-dot"]')
+        .exists(),
+    ).toBe(true);
+
+    useSessionStore().stateFor(firstSession.id).isRunning = false;
+    await nextTick();
+    expect(title().classes()).not.toContain("shimmer");
+    wrapper.unmount();
+  });
+
   it("marks bound session tabs for conversation attachment drops", async () => {
     const { wrapper } = await mountTabs();
     useContentTabsStore().bindSession("session-1", firstSession);
