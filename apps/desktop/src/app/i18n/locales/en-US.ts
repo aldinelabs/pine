@@ -188,6 +188,11 @@ export default {
     quickComposer: "Quick composer",
     quickComposerDescription:
       "Press {shortcut} in any app to start a new conversation from a floating composer.",
+    runInBackground: "Keep running in the background",
+    runInBackgroundDescriptionMac:
+      "Closing the last window keeps Pine in the menu bar, so Remote Control and the quick composer stay available. Quit from the menu bar icon.",
+    runInBackgroundDescriptionWindows:
+      "Closing the last window keeps Pine in the notification area, so Remote Control and the quick composer stay available. Quit from the tray icon.",
     approximateLocation: "Share approximate location with AI",
     approximateLocationDescription:
       "Gets this computer's public IP address from Cloudflare and estimates your city on this device with the GeoIP database built into Pine (IP Geolocation by DB-IP). Only the city, region, and country reach the AI. A VPN or proxy can make the location inaccurate.",
@@ -1718,6 +1723,10 @@ export default {
     },
     quickComposer: {
       title: "Unable to update quick composer settings",
+      description: "Please try again later.",
+    },
+    runInBackground: {
+      title: "Unable to update background settings",
       description: "Please try again later.",
     },
     approximateLocation: {

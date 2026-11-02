@@ -37,6 +37,7 @@ export interface PineAgentSettings {
   completionSignalMode?: PineCompletionSignalMode;
   attentionNotificationsEnabled?: boolean;
   quickComposerEnabled?: boolean;
+  runInBackground?: boolean;
   approximateLocationEnabled?: boolean;
   contextCompactionStrategy?: PineContextCompactionStrategy;
   contextCompactionRoute?: PineContextCompactionRoute;
@@ -164,6 +165,9 @@ export async function readPineAgentSettings(
       ...(typeof settings.quickComposerEnabled === "boolean"
         ? { quickComposerEnabled: settings.quickComposerEnabled }
         : {}),
+      ...(typeof settings.runInBackground === "boolean"
+        ? { runInBackground: settings.runInBackground }
+        : {}),
       ...(typeof settings.approximateLocationEnabled === "boolean"
         ? { approximateLocationEnabled: settings.approximateLocationEnabled }
         : {}),
@@ -258,6 +262,13 @@ export async function writeQuickComposerEnabled(
   quickComposerEnabled: boolean,
 ): Promise<void> {
   await writePineAgentSettings(agentDir, { quickComposerEnabled });
+}
+
+export async function writeRunInBackground(
+  agentDir: string,
+  runInBackground: boolean,
+): Promise<void> {
+  await writePineAgentSettings(agentDir, { runInBackground });
 }
 
 export async function writeApproximateLocationEnabled(

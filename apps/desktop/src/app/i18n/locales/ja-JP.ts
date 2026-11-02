@@ -192,6 +192,11 @@ export default {
     quickComposer: "クイックコンポーザー",
     quickComposerDescription:
       "どのアプリでも {shortcut} を押すと、フローティングのコンポーザーから新しい会話を始められます。",
+    runInBackground: "バックグラウンドで実行を続ける",
+    runInBackgroundDescriptionMac:
+      "最後のウインドウを閉じても Pine はメニューバーに残り、リモートコントロールとクイックコンポーザーを使えます。終了はメニューバーのアイコンから行います。",
+    runInBackgroundDescriptionWindows:
+      "最後のウインドウを閉じても Pine は通知領域に残り、リモートコントロールとクイックコンポーザーを使えます。終了はトレイのアイコンから行います。",
     approximateLocation: "おおよその位置情報を AI と共有",
     approximateLocationDescription:
       "Cloudflare からこのコンピュータのパブリック IP アドレスを取得し、Pine に内蔵された GeoIP データベース（IP Geolocation by DB-IP）でこのデバイス上で市区町村を推定します。AI に渡されるのは市区町村、地域、国のみです。VPN やプロキシを使用していると、位置が不正確になることがあります。",
@@ -1747,6 +1752,10 @@ export default {
     },
     quickComposer: {
       title: "クイックコンポーザーの設定を更新できません",
+      description: "しばらくしてからもう一度お試しください。",
+    },
+    runInBackground: {
+      title: "バックグラウンド実行の設定を更新できません",
       description: "しばらくしてからもう一度お試しください。",
     },
     approximateLocation: {

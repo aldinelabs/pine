@@ -192,6 +192,11 @@ export default {
     quickComposer: "Redacción rápida",
     quickComposerDescription:
       "Pulsa {shortcut} en cualquier aplicación para iniciar una conversación nueva desde un cuadro de redacción flotante.",
+    runInBackground: "Seguir en segundo plano",
+    runInBackgroundDescriptionMac:
+      "Al cerrar la última ventana, Pine permanece en la barra de menús y el control remoto y el compositor rápido siguen disponibles. Sal desde el icono de la barra de menús.",
+    runInBackgroundDescriptionWindows:
+      "Al cerrar la última ventana, Pine permanece en el área de notificaciones y el control remoto y el compositor rápido siguen disponibles. Sal desde el icono de la bandeja.",
     approximateLocation: "Compartir ubicación aproximada con la IA",
     approximateLocationDescription:
       "Obtiene la dirección IP pública de este ordenador a través de Cloudflare y estima tu ciudad en este dispositivo con la base de datos GeoIP integrada en Pine (IP Geolocation by DB-IP). A la IA solo le llegan la ciudad, la región y el país. Una VPN o un proxy pueden hacer que la ubicación sea inexacta.",
@@ -1761,6 +1766,10 @@ export default {
     },
     quickComposer: {
       title: "No se pueden actualizar los ajustes de redacción rápida",
+      description: "Inténtalo de nuevo más tarde.",
+    },
+    runInBackground: {
+      title: "No se pudo actualizar el ajuste de segundo plano",
       description: "Inténtalo de nuevo más tarde.",
     },
     approximateLocation: {

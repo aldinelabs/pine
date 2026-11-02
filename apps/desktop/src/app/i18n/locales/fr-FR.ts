@@ -191,6 +191,11 @@ export default {
     quickComposer: "Zone de saisie rapide",
     quickComposerDescription:
       "Appuyez sur {shortcut} dans n'importe quelle application pour démarrer une conversation depuis une zone de saisie flottante.",
+    runInBackground: "Continuer en arrière-plan",
+    runInBackgroundDescriptionMac:
+      "Fermer la dernière fenêtre laisse Pine dans la barre des menus : le contrôle à distance et le compositeur rapide restent disponibles. Quittez depuis l’icône de la barre des menus.",
+    runInBackgroundDescriptionWindows:
+      "Fermer la dernière fenêtre laisse Pine dans la zone de notification : le contrôle à distance et le compositeur rapide restent disponibles. Quittez depuis l’icône de la zone de notification.",
     approximateLocation: "Partager la position approximative avec l'IA",
     approximateLocationDescription:
       "Récupère l'adresse IP publique de cet ordinateur auprès de Cloudflare et estime votre ville sur cet appareil grâce à la base GeoIP intégrée à Pine (IP Geolocation by DB-IP). Seuls la ville, la région et le pays parviennent à l'IA. Un VPN ou un proxy peut rendre la position inexacte.",
@@ -1778,6 +1783,10 @@ export default {
     },
     quickComposer: {
       title: "Impossible de mettre à jour les réglages de la saisie rapide",
+      description: "Veuillez réessayer plus tard.",
+    },
+    runInBackground: {
+      title: "Impossible de mettre à jour le paramètre d’arrière-plan",
       description: "Veuillez réessayer plus tard.",
     },
     approximateLocation: {

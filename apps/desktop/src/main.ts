@@ -19,7 +19,13 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { z } from "zod";
 import { SYSTEM_LANGUAGES_ENV } from "./agent/network-region";
+import { writeRunInBackground } from "./agent/pineSettings";
 import { ATTACHMENT_IMAGE_PROTOCOL } from "./shared/attachments";
+import {
+  DEFAULT_RUN_IN_BACKGROUND,
+  GET_RUN_IN_BACKGROUND_CHANNEL,
+  SET_RUN_IN_BACKGROUND_CHANNEL,
+} from "./shared/background";
 import { PROJECT_MEDIA_PROTOCOL } from "./shared/projectFiles";
 import { LIBRARY_CHANGED_CHANNEL } from "./shared/projects";
 import { DEFAULT_QUICK_COMPOSER_ENABLED } from "./shared/quickComposer";
@@ -60,6 +66,7 @@ import { AppUpdater, readUpdateManifestUrl } from "./main/appUpdater";
 import type { PineHost } from "./main/core/host";
 import { PineCore } from "./main/core/pineCore";
 import { DesktopAttention, isChineseLocale } from "./main/desktop/attention";
+import { DesktopBackground } from "./main/desktop/background";
 import { registerNativeIpc } from "./main/desktop/nativeIpc";
 import { DesktopQuickComposer } from "./main/desktop/quickComposer";
 import {
@@ -176,6 +183,22 @@ const quickComposer = new DesktopQuickComposer({
 });
 quickComposer.registerIpc();
 
+const trayIconDirectory = app.isPackaged
+  ? path.join(process.resourcesPath, "tray")
+  : path.join(app.getAppPath(), "resources/tray");
+
+const background = new DesktopBackground({
+  iconDirectory: trayIconDirectory,
+  appWindows: () => appWindows(),
+  open: () => openPine(),
+  quit: () => app.quit(),
+  toggleQuickComposer: () => quickComposer.controller.toggle(),
+  state: () => ({
+    ...currentQuitBlockers(),
+    quickComposerEnabled: quickComposer.isEnabled(),
+  }),
+});
+
 /** Windows the user sees as Pine's, without the quick composer's own. */
 function appWindows(): BrowserWindow[] {
   return BrowserWindow.getAllWindows().filter(
@@ -185,6 +208,31 @@ function appWindows(): BrowserWindow[] {
 
 function createWindow(): BrowserWindow {
   return windows.create();
+}
+
+/**
+ * Brings Pine forward from the tray, the Dock or the second instance: what
+ * the tray hid, else a window that is open, else a new one.
+ */
+function openPine(): void {
+  if (!core) return;
+  if (background.showHiddenWindows()) return;
+  const [existing] = appWindows();
+  if (existing) {
+    focusWindow(existing);
+    return;
+  }
+  if (process.platform === "win32" && !isSmokeTest) {
+    void ensureAppWindowsSandboxReady().then((ready) => {
+      if (ready && appWindows().length === 0) {
+        createWindow();
+      } else if (!ready) {
+        app.quit();
+      }
+    });
+  } else {
+    createWindow();
+  }
 }
 
 /** What the shared application needs from Electron. */
@@ -351,6 +399,21 @@ ipcMain.handle(
 );
 
 ipcMain.handle(
+  GET_RUN_IN_BACKGROUND_CHANNEL,
+  (): boolean => background.enabled,
+);
+ipcMain.handle(
+  SET_RUN_IN_BACKGROUND_CHANNEL,
+  async (_event, request: unknown): Promise<boolean> => {
+    const enabled = z.boolean().parse(request);
+    const applied = background.apply(enabled);
+    // Without a tray to return from, the preference stays off.
+    await writeRunInBackground(requireCore().agentDirectory, applied);
+    return applied;
+  },
+);
+
+ipcMain.handle(
   GET_WEB_SERVER_CHANNEL,
   () =>
     core?.web.server.status() ?? {
@@ -461,7 +524,8 @@ async function confirmRemotePairing(request: {
     defaultId: 1,
     noLink: true,
   };
-  const parent = BrowserWindow.getFocusedWindow() ?? appWindows()[0];
+  const parent =
+    BrowserWindow.getFocusedWindow() ?? background.visibleWindows()[0];
   const { response } = parent
     ? await dialog.showMessageBox(parent, options)
     : await dialog.showMessageBox(options);
@@ -521,6 +585,7 @@ function recordSystemEvents(pine: PineCore): void {
   // The system is shutting down or logging out; never hold that up.
   powerMonitor.on("shutdown", () => {
     quitConfirmed = true;
+    background.markQuitting();
   });
   powerMonitor.on("resume", () => diagnostics.record("power:resume"));
   powerMonitor.on("lock-screen", () => diagnostics.record("power:lock-screen"));
@@ -590,6 +655,11 @@ async function initializeApp(): Promise<void> {
   quickComposer.start(
     pine.settings.quickComposerEnabled ?? DEFAULT_QUICK_COMPOSER_ENABLED,
   );
+  // Smoke tests launch and exit; a tray would only outlive them.
+  background.start(
+    !isSmokeTest &&
+      (pine.settings.runInBackground ?? DEFAULT_RUN_IN_BACKGROUND),
+  );
   appUpdater = await createAppUpdater();
   if (pine.settings.webServer) {
     try {
@@ -625,7 +695,10 @@ async function confirmQuit(blockers: QuitBlockers): Promise<void> {
     defaultId: 0,
     noLink: true,
   };
-  const parent = BrowserWindow.getFocusedWindow() ?? appWindows()[0];
+  const parent =
+    BrowserWindow.getFocusedWindow() ?? background.visibleWindows()[0];
+  // From the tray there may be no window to anchor the question to.
+  if (!parent) app.focus({ steal: true });
   const { response } = parent
     ? await dialog.showMessageBox(parent, options)
     : await dialog.showMessageBox(options);
@@ -643,9 +716,12 @@ async function confirmQuit(blockers: QuitBlockers): Promise<void> {
 
 // Running sessions and Remote Control end with Pine, so ask before quitting.
 app.on("before-quit", (event) => {
-  if (quitConfirmed) return;
+  if (quitConfirmed || !hasQuitBlockers(currentQuitBlockers())) {
+    // From here windows close for real instead of hiding in the tray.
+    background.markQuitting();
+    return;
+  }
   const blockers = currentQuitBlockers();
-  if (!hasQuitBlockers(blockers)) return;
   event.preventDefault();
   quitConfirmation ??= confirmQuit(blockers).finally(() => {
     quitConfirmation = null;
@@ -654,15 +730,16 @@ app.on("before-quit", (event) => {
 
 app.on("will-quit", () => {
   quickComposer.dispose();
+  background.dispose();
   core?.dispose();
   releaseWindowsSandboxRuntimeAccess();
 });
 
-// Quit when all windows are closed, except on macOS. There, it's common
-// for applications and their menu bar to stay active until the user quits
-// explicitly with Cmd + Q.
+// Quit when all windows are closed, except on macOS and while Pine runs in
+// the tray. There, it's common for applications and their menu bar to stay
+// active until the user quits explicitly with Cmd + Q.
 app.on("window-all-closed", () => {
-  if (process.platform !== "darwin") {
+  if (process.platform !== "darwin" && !background.active) {
     app.quit();
   }
 });
@@ -670,9 +747,12 @@ app.on("window-all-closed", () => {
 // The quick composer's own windows keep running while it is enabled, so the
 // last of the user's windows closing is what quits on Windows and Linux.
 app.on("browser-window-created", (_event, window) => {
+  // The panel is marked as the composer's only after its window exists.
+  background.watch(window, () => quickComposer.isAuxiliary(window));
   window.once("closed", () => {
     if (
       process.platform !== "darwin" &&
+      !background.active &&
       !quickComposer.isAuxiliary(window) &&
       appWindows().every((other) => other === window)
     )
@@ -684,17 +764,5 @@ app.on("activate", () => {
   // On OS X it's common to re-create a window in the app when the
   // dock icon is clicked and there are no other windows open. Until Pine is
   // ready, initialization opens the first window itself.
-  if (core && appWindows().length === 0) {
-    if (process.platform === "win32" && !isSmokeTest) {
-      void ensureAppWindowsSandboxReady().then((ready) => {
-        if (ready && appWindows().length === 0) {
-          createWindow();
-        } else if (!ready) {
-          app.quit();
-        }
-      });
-    } else {
-      createWindow();
-    }
-  }
+  if (background.visibleWindows().length === 0) openPine();
 });
