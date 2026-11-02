@@ -533,6 +533,7 @@ export class AutoReviewGate implements ToolGate {
         decisions[index] = {
           kind: "allow",
           scope: allowSessionScope ? ruling.scope : "once",
+          reviewer: "judge",
         };
         continue;
       }

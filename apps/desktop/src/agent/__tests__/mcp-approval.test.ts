@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import type { McpToolApprovalRequest } from "pi-mcp-adapter";
 import { AutoReviewGate } from "../gate";
-import type { GateHost, JudgeRequest, JudgeRuling } from "../gate";
+import type { GateHost, JudgeRequest, JudgeRuling, ToolGate } from "../gate";
 import { McpScriptApprovalCache, mcpShapeKey } from "../mcp-approval";
 
 let counter = 0;
@@ -109,6 +109,19 @@ describe("McpScriptApprovalCache", () => {
     cache.clear();
     await cache.decide(request({ id: 2 }), gate);
     expect(judge).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe("McpScriptApprovalCache with a person approving", () => {
+  it("asks again for every call, since a person approves one call", async () => {
+    const reviewPrivilegedCall = vi.fn(() =>
+      Promise.resolve({ kind: "allow" as const }),
+    );
+    const gate = { reviewPrivilegedCall } as unknown as ToolGate;
+    const cache = new McpScriptApprovalCache();
+    await cache.decide(request({ id: 1 }), gate);
+    await cache.decide(request({ id: 2 }), gate);
+    expect(reviewPrivilegedCall).toHaveBeenCalledTimes(2);
   });
 });
 

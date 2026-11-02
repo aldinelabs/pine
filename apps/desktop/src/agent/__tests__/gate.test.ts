@@ -245,10 +245,10 @@ describe("AutoReviewGate", () => {
 
     await expect(
       gate.reviewPrivilegedCall({ toolCallId: "p1", ...review }),
-    ).resolves.toEqual({ kind: "allow", scope: "once" });
+    ).resolves.toEqual({ kind: "allow", scope: "once", reviewer: "judge" });
     await expect(
       gate.reviewPrivilegedCall({ toolCallId: "p2", ...review }),
-    ).resolves.toEqual({ kind: "allow", scope: "once" });
+    ).resolves.toEqual({ kind: "allow", scope: "once", reviewer: "judge" });
 
     expect(mocks.judge).toHaveBeenCalledTimes(2);
     expect(mocks.judge).toHaveBeenNthCalledWith(1, [
@@ -301,9 +301,9 @@ describe("AutoReviewGate", () => {
       expect.objectContaining({ toolCallId: "p3" }),
     ]);
     expect(decisions).toEqual([
-      { kind: "allow", scope: "once" },
+      { kind: "allow", scope: "once", reviewer: "judge" },
       { kind: "deny", reason: "unsafe target" },
-      { kind: "allow", scope: "once" },
+      { kind: "allow", scope: "once", reviewer: "judge" },
     ]);
   });
 

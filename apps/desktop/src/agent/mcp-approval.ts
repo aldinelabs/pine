@@ -43,7 +43,8 @@ export function mcpShapeKey(
  * later script calls to the same server tool whose arguments have the same
  * shape (same keys and value types). Anything else, including a different tool,
  * a different argument shape, a direct (non-script) call, or any earlier deny,
- * still goes through the gate, so denials and user prompts are unchanged.
+ * still goes through the gate, so denials and user prompts are unchanged. Only
+ * the reviewer's allows are reused: a person's approval covers one call.
  *
  * Trade-off: argument values may differ between reused calls, so the first
  * reviewed call stands in for the loop. Values the judge must see (a new tool,
@@ -78,7 +79,7 @@ export class McpScriptApprovalCache {
       this.allowed.clear();
       return "deny";
     }
-    if (key) this.allowed.add(key);
+    if (key && decision.reviewer === "judge") this.allowed.add(key);
     return "allow_once";
   }
 }

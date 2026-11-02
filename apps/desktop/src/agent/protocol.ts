@@ -89,7 +89,12 @@ export type AgentHostReply =
 
 /** How a gate resolved an escalated tool call. */
 export type GateDecision =
-  | { kind: "allow"; scope?: "once" | "session" }
+  | {
+      kind: "allow";
+      scope?: "once" | "session";
+      /** Set when the auto-approval reviewer allowed it, not the user. */
+      reviewer?: "judge";
+    }
   | { kind: "deny"; reason?: string };
 
 export type AgentWorkerInbound =
