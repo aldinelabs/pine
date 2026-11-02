@@ -1,5 +1,6 @@
 import { createI18n } from "vue-i18n";
 import enUS from "./locales/en-US";
+import ruRU from "./locales/ru-RU";
 import koKR from "./locales/ko-KR";
 import deDE from "./locales/de-DE";
 import frFR from "./locales/fr-FR";
@@ -17,6 +18,7 @@ export const APP_LOCALES = [
   "fr-FR",
   "de-DE",
   "ko-KR",
+  "ru-RU",
 ] as const;
 
 /** Each language is named in itself so it stays findable from any interface language. */
@@ -29,6 +31,7 @@ export const APP_LOCALE_NAMES: Record<AppLocale, string> = {
   "fr-FR": "Français",
   "de-DE": "Deutsch",
   "ko-KR": "한국어",
+  "ru-RU": "Русский",
 };
 export const APP_LOCALE_STORAGE_KEY = "pine.locale";
 
@@ -47,6 +50,7 @@ export const localeMessages = {
   "fr-FR": frFR,
   "de-DE": deDE,
   "ko-KR": koKR,
+  "ru-RU": ruRU,
 } satisfies Record<AppLocale, MessageShape<typeof zhCN>>;
 
 const TRADITIONAL_CHINESE = /^zh-(tw|hk|mo|hant)\b/;

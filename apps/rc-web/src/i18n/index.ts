@@ -1,5 +1,6 @@
 import { createI18n } from "vue-i18n";
 import enUS from "./locales/en-US";
+import ruRU from "./locales/ru-RU";
 import koKR from "./locales/ko-KR";
 import deDE from "./locales/de-DE";
 import frFR from "./locales/fr-FR";
@@ -17,6 +18,7 @@ export const LOCALES = [
   "fr-FR",
   "de-DE",
   "ko-KR",
+  "ru-RU",
 ] as const;
 export type Locale = (typeof LOCALES)[number];
 export type MessageKey = keyof typeof zhCN;
@@ -65,6 +67,7 @@ export const i18n = createI18n({
     "fr-FR": frFR,
     "de-DE": deDE,
     "ko-KR": koKR,
+    "ru-RU": ruRU,
   },
 });
 
