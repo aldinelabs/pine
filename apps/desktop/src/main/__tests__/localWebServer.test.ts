@@ -105,6 +105,37 @@ afterEach(async () => {
 });
 
 describe("LocalWebServer", () => {
+  it("gives a Remote Control tunnel a way in that the server's own checks accept", async () => {
+    const { server, invoke } = await fixture();
+    const way = server.loopbackAccess()!;
+    expect(way.origin).toMatch(/^http:\/\/127\.0\.0\.1:\d+$/);
+    const call = (cookie?: string) =>
+      fetch(`${way.origin}/api/rpc`, {
+        method: "POST",
+        headers: {
+          Origin: way.origin,
+          "Content-Type": "application/json",
+          ...(cookie ? { Cookie: cookie } : {}),
+        },
+        body: JSON.stringify({ channel: "ping", id: "1", request: {} }),
+      });
+    expect((await call()).status).toBe(401);
+    expect((await call(way.cookie())).status).toBe(200);
+    expect(invoke).toHaveBeenCalledWith("ping", {}, "default");
+  });
+
+  it("offers no way in while it is stopped", () => {
+    const server = new LocalWebServer({
+      access,
+      invoke: vi.fn(),
+      asset: vi.fn(),
+      snapshots: () => [],
+      resource: vi.fn(),
+      upload: vi.fn(),
+    });
+    expect(server.loopbackAccess()).toBeUndefined();
+  });
+
   it("neither frames nor retains events while it is stopped", async () => {
     const server = new LocalWebServer({
       access,

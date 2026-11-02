@@ -37,4 +37,9 @@ export interface PineHost {
    */
   observeAgentEvent?(event: PineAgentEvent, ownerId: number | undefined): void;
   attentionNotificationsChanged?(enabled: boolean): void;
+  /**
+   * Asks the person at this computer whether a new phone may pair for Remote
+   * Control. Without it, no phone can pair.
+   */
+  approveRemotePairing?(request: { fingerprint: string }): Promise<boolean>;
 }

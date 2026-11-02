@@ -221,6 +221,7 @@ function desktopHost(): PineHost {
           window.webContents.send(LIBRARY_CHANGED_CHANNEL, change);
     },
     observeAgentEvent: (event, ownerId) => attention.observe(event, ownerId),
+    approveRemotePairing: confirmRemotePairing,
     attentionNotificationsChanged: (enabled) => {
       if (!enabled) attention.closeAttentionNotifications();
     },
@@ -364,6 +365,32 @@ ipcMain.handle(SIGN_OUT_WEB_BROWSERS_CHANNEL, async () => {
   if (!core) throw new Error("The local web interface is not ready.");
   return core.web.signOutAll();
 });
+
+/** A new phone only pairs once the person at this computer says yes. */
+async function confirmRemotePairing(request: {
+  fingerprint: string;
+}): Promise<boolean> {
+  const chinese = isChineseLocale();
+  const options = {
+    type: "question" as const,
+    title: chinese ? "允许这部手机？" : "Allow this phone?",
+    message: chinese
+      ? "有一部手机想要远程控制这台电脑上的 Pine。"
+      : "A phone wants to control Pine on this computer.",
+    detail: chinese
+      ? `手机的密钥指纹：${request.fingerprint}\n只有你刚刚扫描了配对二维码才应允许。`
+      : `Phone key fingerprint: ${request.fingerprint}\nAllow it only if you just scanned the pairing code.`,
+    buttons: chinese ? ["允许", "拒绝"] : ["Allow", "Deny"],
+    cancelId: 1,
+    defaultId: 1,
+    noLink: true,
+  };
+  const parent = BrowserWindow.getFocusedWindow() ?? appWindows()[0];
+  const { response } = parent
+    ? await dialog.showMessageBox(parent, options)
+    : await dialog.showMessageBox(options);
+  return response === 0;
+}
 
 async function showWindowsSandboxSetupDialog(
   status: WindowsSandboxStatus,

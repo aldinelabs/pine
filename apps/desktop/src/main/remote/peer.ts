@@ -1,4 +1,4 @@
-import nodeDataChannel, { type DataChannel } from "node-datachannel";
+import type { DataChannel } from "node-datachannel";
 import type { IceServer } from "./iceServers";
 
 /**
@@ -31,7 +31,12 @@ export interface PeerHandle {
   close(): void;
 }
 
-export type PeerFactory = (iceServers: IceServer[]) => PeerHandle;
+/**
+ * Resolves with a connection, or rejects when the native library cannot be
+ * loaded. It loads on first use, so a platform without its binary only loses
+ * Remote Control instead of failing to start.
+ */
+export type PeerFactory = (iceServers: IceServer[]) => Promise<PeerHandle>;
 
 const LOW_WATER_BYTES = 64 * 1024;
 
@@ -91,7 +96,8 @@ function wrapChannel(channel: DataChannel): ChannelHandle {
   };
 }
 
-export const nodePeer: PeerFactory = (iceServers) => {
+export const nodePeer: PeerFactory = async (iceServers) => {
+  const { default: nodeDataChannel } = await import("node-datachannel");
   const connection = new nodeDataChannel.PeerConnection("pine-rc", {
     iceServers: iceUrls(iceServers),
   });

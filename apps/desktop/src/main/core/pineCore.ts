@@ -53,6 +53,8 @@ import { RuntimeDiagnostics } from "../runtimeDiagnostics";
 import { TinyFishCredentialStore } from "../tinyfishCredentials";
 import { WebAccessStore } from "../webAccess";
 import { WebApplication } from "../webApplication";
+import { RemoteHost } from "../remote/rcHost";
+import { DEFAULT_PAGE_ORIGIN, RemoteControlStore } from "../remote/rcStore";
 import { WebSessionState } from "../webSessionState";
 import { WorkbenchStateRequests } from "../workbenchStateRequests";
 import type { PineHost } from "./host";
@@ -81,6 +83,8 @@ export class PineCore {
   readonly agentHost: AgentProcessHost;
   readonly diagnostics: RuntimeDiagnostics;
   readonly web: WebApplication;
+  /** Lets paired phones reach the local web server without port forwarding. */
+  readonly remote: RemoteHost;
   readonly presentedFiles = new PresentedFileRegistry();
   readonly workbenchStateRequests = new WorkbenchStateRequests();
   readonly modelRecommendations = new ModelRecommendationService();
@@ -124,7 +128,20 @@ export class PineCore {
       path.join(agentDirectory, "web-access.json"),
     );
     await webAccess.load();
-    return new PineCore(host, settings, credentials, webAccess);
+    const remoteStore = new RemoteControlStore(
+      path.join(agentDirectory, "remote-control.json"),
+    );
+    await remoteStore.load();
+    const core = new PineCore(
+      host,
+      settings,
+      credentials,
+      webAccess,
+      remoteStore,
+    );
+    // Remote Control is optional; a failure to start it must not stop Pine.
+    void core.remote.start().catch(() => undefined);
+    return core;
   }
 
   private constructor(
@@ -133,6 +150,7 @@ export class PineCore {
     readonly settings: PineAgentSettings,
     readonly credentials: TinyFishCredentialStore,
     webAccess: WebAccessStore,
+    remoteStore: RemoteControlStore,
   ) {
     this.agentDirectory = path.join(host.dataDirectory, "agent");
     this.projectsRoot = path.join(host.dataDirectory, PROJECTS_DIRECTORY);
@@ -212,6 +230,14 @@ export class PineCore {
       respondWorkbench: (request) => {
         this.workbenchStateRequests.respond(WEB_CLIENT_ID, request);
       },
+    });
+    this.remote = new RemoteHost({
+      store: remoteStore,
+      fetch: (url, init) => host.fetch(url, init),
+      web: () => this.web.server.loopbackAccess(),
+      pageOrigin: DEFAULT_PAGE_ORIGIN,
+      approve: (request) =>
+        host.approveRemotePairing?.(request) ?? Promise.resolve(false),
     });
     registerCoreRequests(this);
     this.agentHost.subscribe((event) => this.routeAgentEvent(event));
@@ -411,6 +437,7 @@ export class PineCore {
 
   /** Stop the agent process and its tools, and close browser access. */
   async stop(): Promise<void> {
+    this.remote.stop();
     const stopped = Promise.allSettled([
       this.agentHost.dispose(),
       this.stopWeb(),
@@ -427,6 +454,7 @@ export class PineCore {
 
   /** Releases watchers and processes as Pine exits, without waiting. */
   dispose(): void {
+    this.remote.stop();
     void this.stopWeb();
     this.projectFileWatchers?.dispose();
     this.filePreviewWatchers.dispose();

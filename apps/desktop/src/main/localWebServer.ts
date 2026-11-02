@@ -183,6 +183,20 @@ export class LocalWebServer {
     };
   }
 
+  /**
+   * How a Remote Control tunnel on this computer reaches the server, with a
+   * sign-in the server accepts. Nothing while the server is off.
+   */
+  loopbackAccess(): { origin: string; cookie: () => string } | undefined {
+    const running = this.running;
+    if (!running) return undefined;
+    return {
+      origin: `http://127.0.0.1:${running.port}`,
+      cookie: () =>
+        `${cookieName(running.port)}=${this.options.access.issue(this.settings.rememberFor).value}`,
+    };
+  }
+
   /** Ends every open event stream; their browsers must sign in again. */
   signOutAll(): void {
     for (const stream of this.running?.streams.keys() ?? []) stream.end();

@@ -15,9 +15,14 @@ import {
   type OfferResult,
 } from "@pine/rc-protocol";
 import type { IceServer } from "./iceServers";
-import { nodePeer, type ChannelHandle, type PeerFactory } from "./peer";
+import {
+  nodePeer,
+  type ChannelHandle,
+  type PeerFactory,
+  type PeerHandle,
+} from "./peer";
 import type { RemoteControlStore } from "./rcStore";
-import { SignalingRoom } from "./signalingClient";
+import { SignalingRoom, type Fetch } from "./signalingClient";
 import { Tunnel } from "./tunnel";
 
 /** Used when the signaling service has no relay to offer. */
@@ -32,7 +37,7 @@ export interface PairingRequest {
 
 export interface RemoteHostOptions {
   store: RemoteControlStore;
-  fetch: typeof fetch;
+  fetch: Fetch;
   /** The local web server's origin and cookie, or nothing while it is off. */
   web: () => { origin: string; cookie: () => string | undefined } | undefined;
   /** Where phones open the Pine page, such as https://rc.aldine.cn. */
@@ -74,7 +79,7 @@ interface Pairing {
 }
 
 interface Connection {
-  peer: ReturnType<PeerFactory>;
+  peer: PeerHandle;
   channel?: ChannelHandle;
   tunnel?: Tunnel;
   timer: ReturnType<typeof setTimeout>;
@@ -307,7 +312,16 @@ export class RemoteHost {
     const deviceId = toBase64Url(result.clientKey);
     this.drop(deviceId);
     const ice = (await room.turn()) ?? FALLBACK_ICE;
-    const peer = (this.options.createPeer ?? nodePeer)(ice);
+    let peer;
+    try {
+      peer = await (this.options.createPeer ?? nodePeer)(ice);
+    } catch {
+      // The WebRTC library is missing or will not load on this computer.
+      await room
+        .send({ type: "unavailable", session: offer.session })
+        .catch(() => undefined);
+      return;
+    }
     const connection: Connection = {
       peer,
       closed: false,

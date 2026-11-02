@@ -21,7 +21,11 @@ import {
   vi,
   type Mock,
 } from "vitest";
-import { RemoteHost, type PairingRequest } from "../rcHost";
+import {
+  RemoteHost,
+  type PairingRequest,
+  type RemoteHostOptions,
+} from "../rcHost";
 import { RemoteControlStore } from "../rcStore";
 import { startFakeSignaling } from "./fakeSignaling";
 import { connectPhone, until } from "./phoneSim";
@@ -37,6 +41,25 @@ let signaling: Awaited<ReturnType<typeof startFakeSignaling>>;
 let approve: Mock<(request: PairingRequest) => Promise<boolean>>;
 let phones: Array<{ close(): void }>;
 let cookies: Array<string | undefined>;
+
+function makeHost(extra: Partial<RemoteHostOptions> = {}): RemoteHost {
+  return new RemoteHost({
+    store,
+    fetch,
+    web: () =>
+      webOn
+        ? {
+            origin: `http://127.0.0.1:${(web.address() as AddressInfo).port}`,
+            cookie: () => COOKIE,
+          }
+        : undefined,
+    pageOrigin: "https://rc.aldine.cn",
+    approve,
+    backoff: () => 5,
+    gatherTimeoutMs: 3000,
+    ...extra,
+  });
+}
 
 beforeEach(async () => {
   phones = [];
@@ -56,21 +79,7 @@ beforeEach(async () => {
   approve = vi.fn<(request: PairingRequest) => Promise<boolean>>(() =>
     Promise.resolve(true),
   );
-  host = new RemoteHost({
-    store,
-    fetch,
-    web: () =>
-      webOn
-        ? {
-            origin: `http://127.0.0.1:${(web.address() as AddressInfo).port}`,
-            cookie: () => COOKIE,
-          }
-        : undefined,
-    pageOrigin: "https://rc.aldine.cn",
-    approve,
-    backoff: () => 5,
-    gatherTimeoutMs: 3000,
-  });
+  host = makeHost();
 });
 
 afterEach(async () => {
@@ -233,6 +242,16 @@ describe("pairing", () => {
     expect(phone.messages.some((m) => m.type === "unavailable")).toBe(true);
     expect(approve).not.toHaveBeenCalled();
     expect(host.status().webAccessOn).toBe(false);
+  }, 30_000);
+
+  it("says so when WebRTC cannot be loaded on this computer", async () => {
+    host = makeHost({
+      createPeer: () => Promise.reject(new Error("no prebuilt binary")),
+    });
+    const { phone } = await pair();
+    expect(phone.answered).toBe(false);
+    expect(phone.messages.some((m) => m.type === "unavailable")).toBe(true);
+    expect(store.devices()).toEqual([]);
   }, 30_000);
 
   it("needs Remote Control to be on before showing a code", async () => {

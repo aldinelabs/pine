@@ -13,6 +13,8 @@ import { z } from "zod";
 
 /** The service that introduces phones to this computer. */
 export const DEFAULT_SIGNALING_ORIGIN = "https://api.aldine.cn";
+/** Where phones open Pine; the page is served from here. */
+export const DEFAULT_PAGE_ORIGIN = "https://rc.aldine.cn";
 const MAX_DEVICES = 20;
 
 const deviceSchema = z.object({

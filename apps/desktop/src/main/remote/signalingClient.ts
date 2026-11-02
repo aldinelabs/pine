@@ -1,5 +1,8 @@
 import type { IceServer } from "./iceServers";
 
+/** What the host's own `fetch` offers, so desktop proxy settings apply. */
+export type Fetch = (url: string, init?: RequestInit) => Promise<Response>;
+
 const API_PREFIX = "/rc/v1";
 const HEARTBEAT_TIMEOUT_MS = 45_000;
 
@@ -10,7 +13,7 @@ export interface SignalingRoomOptions {
   origin: string;
   room: string;
   role: "host" | "client";
-  fetch: typeof fetch;
+  fetch: Fetch;
   onMessage(message: Record<string, unknown>): void;
   onState?(state: SignalingState): void;
   /** Waits before reconnect number `attempt`, starting at 1. */
