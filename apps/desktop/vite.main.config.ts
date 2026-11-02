@@ -11,6 +11,8 @@ export default defineConfig({
         "@earendil-works/pi-coding-agent",
         // A native addon loads its prebuilt binary from its own package.
         "electron-liquid-glass",
+        // Remote Control loads it on first use, from its own prebuilt package.
+        "node-datachannel",
         "node:sqlite",
       ],
     },

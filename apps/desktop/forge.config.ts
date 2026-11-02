@@ -23,7 +23,10 @@ const AGENT_RUNTIME_ENTRYPOINTS = [
 ] as const;
 // Native addons the main process loads at runtime; optional per platform, so
 // a missing one is skipped.
-const MAIN_RUNTIME_ENTRYPOINTS = ["electron-liquid-glass"] as const;
+const MAIN_RUNTIME_ENTRYPOINTS = [
+  "electron-liquid-glass",
+  "node-datachannel",
+] as const;
 
 function locateWorkspaceNodeModules(): string {
   let dir = process.cwd();
@@ -190,6 +193,8 @@ const config: ForgeConfig = {
             "*",
           ),
           path.join("electron-liquid-glass", "prebuilds", "**", "*"),
+          // The prebuilt WebRTC binary is loaded with dlopen.
+          path.join("@node-datachannel", "**", "*"),
         ].join(",")}}`,
       ),
     },

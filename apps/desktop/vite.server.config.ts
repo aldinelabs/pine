@@ -35,6 +35,7 @@ export default defineConfig({
         "@anthropic-ai/sandbox-runtime",
         "@earendil-works/pi-ai",
         "@earendil-works/pi-coding-agent",
+        "node-datachannel",
         ...builtinModules,
         /^node:/,
       ],
