@@ -22,8 +22,8 @@ are already available (for example the `ui_workbench_*` tools and
 - Content tab: a session or a file opened in the main content area. The window
   shows the project of the active tab.
 - Workbench: the right-hand panel beside the active session.
-- Phone layout: below a phone-sized width (also when Pine is opened from a
-  phone browser) dialogs fill the screen and show lists and details one at a
+- Phone layout: below a phone-sized width (also when Pine is opened on a
+  paired device) dialogs fill the screen and show lists and details one at a
   time, the new-session background animation is off, and keyboard shortcut
   hints appear only after a physical keyboard has been used.
 
@@ -183,8 +183,11 @@ the user opens themselves do not pulse.
     instructions.
   - Projects: every project with its data usage; New Project, Edit, clear
     temporary files, clear attachments.
-  - Remote control (desktop app only): pair other devices by QR code or link,
-    and browser access with its password.
+  - Remote control (desktop app only): "Remote control via Aldine" pairs
+    other devices by QR code or pairing link (no port forwarding, end-to-end
+    encrypted) and lists paired devices to rename or remove; it needs Browser
+    access turned on. Browser access serves Pine to a browser behind an access
+    password.
 - New Project / Edit Project: name, icon, accent color, default folder,
   additional context folders with access (Read only, Read and write).
 - Skills manager: global and project Skills; create, edit, enable per project,

@@ -23,13 +23,14 @@
 - 任务清单、后台进程、上下文压缩、图像生成、网页搜索与抓取。
 - 支持 Skills、MCP 服务器和 Computer Use。
 - 内置多家模型提供商，也可自定义提供商与模型。
-- 中英文界面，浅色 / 深色主题。
+- 在浏览器中使用 Pine，或用二维码 / 链接配对其他设备，通过 Aldine 远程使用这台电脑上的 Pine，无需端口转发，端到端加密（设置 → 远程控制）。
+- 中英文界面，浅色 / 深色主题，可选的阅读字体。
 
 macOS 已支持，Windows 部分支持，Linux 暂不支持。
 
 ## 从源码运行
 
-需要 [Bun](https://bun.sh/)，版本以 `package.json` 的 `packageManager` 为准。
+需要 [Bun](https://bun.sh/)，具体版本见 `package.json` 的 `packageManager`。
 
 ```bash
 git clone https://github.com/aldinelabs/pine.git
@@ -38,11 +39,11 @@ bun install --frozen-lockfile
 bun run dev
 ```
 
-Windows 首次使用 Agent 工具前，需在“设置 → 通用 → Windows 沙箱”中点击“安装”。
+Windows 首次启动时会提示配置 Windows 沙箱，按提示在 UAC 中允许即可。
 
 ## 服务器部署
 
-Pine 也可以不开窗口运行在 macOS 或 Linux 服务器上，只通过浏览器使用（需要 Node.js 22.13+；Linux 还需要 bubblewrap、socat 和 ripgrep）：
+Pine 也可以不开窗口运行在 macOS 或 Linux 服务器上，只通过浏览器使用（需要较新的 Node.js；Linux 还需要 bubblewrap、socat 和 ripgrep，具体要求见部署文档）：
 
 ```bash
 bun install --frozen-lockfile
