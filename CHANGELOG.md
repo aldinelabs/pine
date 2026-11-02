@@ -11,7 +11,7 @@ Every release section here has a matching section in the Chinese changelog.
 
 ### Changed
 
-- When an MCP script calls the same tool in a loop, only an automatic approval carries over to later calls; a call you approve yourself is asked about again each time.
+- When an MCP script calls the same tool in a loop, each call with different arguments is reviewed on its own, and calls started together are reviewed in one request; only an exact repeat reuses an automatic approval, and a call you approve yourself is asked about again each time.
 - With the password turned off, "Allow LAN access" now states plainly that turning it on lets any device on the same network control Pine without signing in.
 
 ### Fixed
