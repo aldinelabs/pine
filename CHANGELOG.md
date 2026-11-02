@@ -9,9 +9,29 @@ Every release section here has a matching section in the Chinese changelog.
 
 ## [Unreleased]
 
+## [0.14.3] - 2026-11-02
+
+### Added
+
+- Pine can keep running in the menu bar (macOS) or notification area (Windows) after the last window is closed. The tray menu offers Open Pine, a quick composer and Quit, and can be turned off with "Keep running in the background" in Settings. It also switches browser access and Remote Control on or off.
+- Queued steering messages now have a "Send now" button: running shell commands move to the background, other in-progress output or tools are interrupted, and the message is delivered right away. The withdraw button also gets a text label.
+- Settings let you pick the model used for approvals separately from the model used for titles.
+- The headless server can print a pairing link and QR code with `--remote` or `--pair`, and manage paired devices with `remote list|remove`.
+- Remote Control pages have a new "Switch computer" entry.
+- Running sessions shimmer in tabs and in the sidebar.
+- Pine follows the system "increase contrast" preference and forced-colors mode, works better with screen readers, and the code block copy button's label is translated into every interface language.
+- Markdown markup is stripped from task-completion notifications, which now show plain text.
+- When an MCP script calls the same tool repeatedly in a loop, the approval is granted once instead of being requested on every iteration and eventually falling back to manual confirmation.
+
 ### Changed
 
 - The Reading font option now uses serif typefaces (Geist Serif and Noto Serif SC) and no longer applies to the message input box.
+
+### Fixed
+
+- On Windows, the window control buttons are no longer hard to see when Pine's theme is the opposite of the system theme.
+- When the Remote Control browser page reconnects after the device was in the background, the conversation output resumes without a full page reload.
+- On phones, tapping a help hint now opens it, tool call details open full screen, and double-tapping or focusing an input no longer zooms the page.
 
 ## [0.14.2] - 2026-11-02
 
