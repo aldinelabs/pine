@@ -28,7 +28,15 @@ Options:
                          (PINE_PASSWORD_FILE, or PINE_PASSWORD with the value)
   --no-password          Sign-in happens in front of Pine, such as Cloudflare
                          Access (PINE_REQUIRE_PASSWORD=0); not with --lan
+  --remote               Turn on remote control through Aldine and keep it on
+                         (PINE_REMOTE=1; PINE_REMOTE=0 turns it off)
+  --pair                 Print a pairing link and QR code to add a device
+                         (PINE_PAIR=1); turns remote control on
   -h, --help             Show this help
+
+Paired devices (stop the server first; ids come from the list):
+  pine-server remote list   [--data-dir <dir>]
+  pine-server remote remove <id> [--data-dir <dir>]
 `;
 
 export interface ServerOptions {
@@ -37,10 +45,18 @@ export interface ServerOptions {
   /** Given directly, from PINE_PASSWORD. */
   password?: string;
   passwordFile?: string;
+  /** Turn remote control on or off at start; left as it was when absent. */
+  remote?: boolean;
+  /** Show a pairing link for one new device once the server is up. */
+  pair: boolean;
 }
 
+export type RemoteAction = { kind: "list" } | { kind: "remove"; id: string };
+
 export type ServerCommand =
-  { kind: "help" } | { kind: "run"; options: ServerOptions };
+  | { kind: "help" }
+  | { kind: "run"; options: ServerOptions }
+  | { kind: "remote"; dataDirectory: string; action: RemoteAction };
 
 function defaultDataDirectory(
   env: NodeJS.ProcessEnv,
@@ -49,6 +65,40 @@ function defaultDataDirectory(
   const dataHome =
     env.XDG_DATA_HOME?.trim() || path.join(homeDirectory, ".local", "share");
   return path.join(dataHome, "pine-server");
+}
+
+function resolveDataDirectory(
+  value: string | undefined,
+  env: NodeJS.ProcessEnv,
+  homeDirectory: string,
+): string {
+  return path.resolve(
+    value ?? env.PINE_DATA_DIR ?? defaultDataDirectory(env, homeDirectory),
+  );
+}
+
+function readRemoteCommand(
+  argv: readonly string[],
+  env: NodeJS.ProcessEnv,
+  homeDirectory: string,
+): ServerCommand {
+  const { values, positionals } = parseArgs({
+    args: [...argv],
+    strict: true,
+    allowPositionals: true,
+    options: { "data-dir": { type: "string" } },
+  });
+  const dataDirectory = resolveDataDirectory(
+    values["data-dir"],
+    env,
+    homeDirectory,
+  );
+  const [verb, id, ...rest] = positionals;
+  if (verb === "list" && id === undefined)
+    return { kind: "remote", dataDirectory, action: { kind: "list" } };
+  if (verb === "remove" && id && rest.length === 0)
+    return { kind: "remote", dataDirectory, action: { kind: "remove", id } };
+  throw new Error("Use `remote list` or `remote remove <id>`.");
 }
 
 function flag(value: string | undefined): boolean | undefined {
@@ -67,6 +117,8 @@ export function readServerCommand(
   env: NodeJS.ProcessEnv,
   homeDirectory: string,
 ): ServerCommand {
+  if (argv[0] === "remote")
+    return readRemoteCommand(argv.slice(1), env, homeDirectory);
   const { values } = parseArgs({
     args: [...argv],
     strict: true,
@@ -78,6 +130,8 @@ export function readServerCommand(
       "remember-for": { type: "string" },
       "password-file": { type: "string" },
       password: { type: "boolean" },
+      remote: { type: "boolean" },
+      pair: { type: "boolean" },
       "no-password": { type: "boolean" },
       help: { type: "boolean", short: "h" },
     },
@@ -130,16 +184,20 @@ export function readServerCommand(
       `PINE_PASSWORD must be at least ${MIN_WEB_PASSWORD_LENGTH} characters.`,
     );
   const passwordFile = values["password-file"] ?? env.PINE_PASSWORD_FILE;
-  const dataDirectory = path.resolve(
-    values["data-dir"] ??
-      env.PINE_DATA_DIR ??
-      defaultDataDirectory(env, homeDirectory),
+  const dataDirectory = resolveDataDirectory(
+    values["data-dir"],
+    env,
+    homeDirectory,
   );
+  const pair = values.pair ?? flag(env.PINE_PAIR) ?? false;
+  const remote = pair ? true : (values.remote ?? flag(env.PINE_REMOTE));
   return {
     kind: "run",
     options: {
       dataDirectory,
       web,
+      pair,
+      ...(remote !== undefined ? { remote } : {}),
       ...(password !== undefined ? { password } : {}),
       ...(passwordFile ? { passwordFile: path.resolve(passwordFile) } : {}),
     },

@@ -29,10 +29,34 @@ PINE_PASSWORD='至少 8 个字符' node apps/desktop/.vite/server/server.mjs
 | `--remember-for` | `PINE_REMEMBER_FOR` | `7d` |
 | `--password-file` | `PINE_PASSWORD_FILE` / `PINE_PASSWORD` | 无，必须提供 |
 | `--no-password` | `PINE_REQUIRE_PASSWORD=0` | 需要密码 |
+| `--remote` | `PINE_REMOTE=1`（`0` 关闭） | 保持上次的状态，默认关闭 |
+| `--pair` | `PINE_PAIR=1` | 不配对 |
 
 - 密码只从环境变量或文件读取，不接受命令行参数，避免出现在进程列表里。启动时密码未变则保留已登录的浏览器；换了密码会让所有浏览器重新登录。
 - `--no-password` 只用于前面已有登录网关（如 Cloudflare Access）且只监听本机的情况，不能与 `--lan` 同时使用。
 - 收到 `SIGTERM` / `SIGINT` 时先停止 agent 和它的工具再退出，再次收到信号则立即退出。
+
+## 经 Aldine 远程控制
+
+无头服务端可以像桌面端一样被[经 Aldine 远程控制](architecture/remote-control.md)：手机或另一台电脑的浏览器打开 `rc.aldine.cn`，配对后即可使用服务器上的 Pine，服务器无需公网地址或端口转发。它和桌面端用同一套 `RemoteHost`；设备经本机的网页服务访问，所以服务端的网页界面和密码照常工作（设备相当于一个已登录的浏览器）。
+
+```sh
+PINE_PASSWORD=... node apps/desktop/.vite/server/server.mjs --pair
+```
+
+- `--remote` 开启并记住远程控制；`PINE_REMOTE=0` 关闭。状态保存在数据目录的 `agent/remote-control.json`（权限 `0600`，含服务器的私钥），重启后保持。
+- `--pair` 在终端打印配对链接和二维码，并开启远程控制。用设备的相机扫描，或在设备浏览器里打开链接。链接几分钟内有效，只能配对一台设备，且是秘密，不要转发。
+- 没有图形界面可以点「允许」：能操作服务器终端的人才能拿到链接，所以持有链接的设备会被直接允许，并在日志里打印设备指纹。
+- 链接过期或需要再加一台设备时，不必重启：给进程发 `SIGUSR2`（`kill -USR2 <pid>`；systemd 下用 `systemctl kill -s USR2 pine`），日志里会出现新的链接。
+- 查看和移除已配对的设备要先停止服务端，因为运行中的服务端在内存里保存着设备列表：
+
+  ```sh
+  node apps/desktop/.vite/server/server.mjs remote list
+  node apps/desktop/.vite/server/server.mjs remote remove <id>   # id 可以只写开头几位，要唯一
+  ```
+
+  移除后设备再也无法连接。`--data-dir` / `PINE_DATA_DIR` 与运行时一致。
+- 设备不能再配对其他设备：配对只能由终端发起。
 
 ## 部署建议
 
@@ -85,7 +109,7 @@ src/main/core/pineCore.ts   应用核心：项目、会话、agent 事件、浏�
 src/main/core/requests/     按领域注册的共享请求处理器
 src/main/core/host.ts       宿主需要提供的平台能力（PineHost）
 src/main.ts + main/desktop/ Electron 宿主：窗口、通知、快速输入框、原生对话框
-src/server.ts + server/     Node 宿主：参数、fork 出的 agent、文件凭据
+src/server.ts + server/     Node 宿主：参数、fork 出的 agent、文件凭据、终端配对
 ```
 
 `vite.server.config.ts` 构建服务端时禁止引入 `electron`，桌面代码误入核心会直接让构建失败。
