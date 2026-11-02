@@ -4,6 +4,7 @@ import type { PineAgentEvent } from "../../shared/agent";
 import {
   approvalNotificationActions,
   approvalNotificationBody,
+  replyNotificationBody,
   questionnaireNotificationBody,
 } from "../attentionNotifications";
 import {
@@ -250,7 +251,11 @@ export class DesktopAttention {
   private signalCompletedRun(run: PineCompletedRun, ownerId: number): void {
     const window = this.ownerWindow(ownerId);
     if (!window || window.isFocused()) return;
-    this.showSessionNotification(window, run.sessionId, run.text);
+    this.showSessionNotification(
+      window,
+      run.sessionId,
+      replyNotificationBody(run.text),
+    );
     if (process.platform === "darwin") {
       app.dock?.bounce("informational");
     } else if (process.platform === "win32") {

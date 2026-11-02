@@ -1,4 +1,5 @@
 import type { AskUserQuestionParams } from "@pine/rpiv-ask-user-question";
+import removeMarkdown from "remove-markdown";
 import type { PineJsonValue } from "../shared/agent";
 
 /** Argument names whose value says at a glance what a tool call touches. */
@@ -46,4 +47,14 @@ export function questionnaireNotificationBody(
 /** Notification button labels, in the order their action indexes arrive. */
 export function approvalNotificationActions(chinese: boolean): string[] {
   return chinese ? ["批准", "拒绝"] : ["Approve", "Deny"];
+}
+
+/**
+ * A reply's text as a notification body: the model writes Markdown, which a
+ * notification would show as literal `**`, `#` and backticks.
+ */
+export function replyNotificationBody(markdown: string): string {
+  return removeMarkdown(markdown, { useImgAltText: true, gfm: true })
+    .replaceAll(/\s+/g, " ")
+    .trim();
 }

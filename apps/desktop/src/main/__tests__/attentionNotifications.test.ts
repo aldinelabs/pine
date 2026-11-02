@@ -3,6 +3,7 @@ import {
   approvalNotificationActions,
   approvalNotificationBody,
   questionnaireNotificationBody,
+  replyNotificationBody,
 } from "../attentionNotifications";
 
 describe("attention notifications", () => {
@@ -46,5 +47,13 @@ describe("attention notifications", () => {
         false,
       ),
     ).toBe("Pine needs your answer: How should Pine implement this?");
+  });
+
+  it("strips Markdown syntax from a reply", () => {
+    expect(
+      replyNotificationBody(
+        "## Done\n\n**Fixed** the `parser`, see [docs](https://x.dev).\n- one\n- two",
+      ),
+    ).toBe("Done Fixed the parser, see docs. one two");
   });
 });
