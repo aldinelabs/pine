@@ -672,6 +672,9 @@ async function initializeApp(): Promise<void> {
 }
 
 app.on("ready", () => {
+  // Build the renderer's accessibility tree from launch, so assistive tech
+  // gets the web content without waiting to be detected. Needs app ready.
+  app.setAccessibilitySupportEnabled(true);
   void initializeApp();
 });
 
