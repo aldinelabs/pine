@@ -14,6 +14,8 @@ export default {
     sendUnavailable: "이 답변에서는 메시지를 보낼 수 없습니다.",
   },
   markdown: {
+    copyCode: "코드 복사",
+    copyCodeFailed: "코드를 복사하지 못했습니다",
     imageLoadFailed: "이미지를 불러오지 못했습니다",
     externalLinkTitle: "외부 링크를 열까요?",
     externalLinkDescription: "확인하면 다음 URL이 기본 브라우저에서 열립니다:",

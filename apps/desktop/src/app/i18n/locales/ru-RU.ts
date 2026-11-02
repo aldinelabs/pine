@@ -14,6 +14,8 @@ export default {
     sendUnavailable: "Этот ответ не может отправлять сообщения здесь.",
   },
   markdown: {
+    copyCode: "Копировать код",
+    copyCodeFailed: "Не удалось скопировать код",
     imageLoadFailed: "Не удалось загрузить изображение",
     externalLinkTitle: "Открыть внешнюю ссылку?",
     externalLinkDescription:

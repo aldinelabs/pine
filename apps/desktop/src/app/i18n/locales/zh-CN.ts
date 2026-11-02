@@ -14,6 +14,8 @@ export default {
     sendUnavailable: "这里的回答无法发送消息。",
   },
   markdown: {
+    copyCode: "复制代码",
+    copyCodeFailed: "复制代码失败",
     imageLoadFailed: "图片加载失败",
     externalLinkTitle: "打开外部链接？",
     externalLinkDescription: "确认后将在默认浏览器中打开以下 URL：",

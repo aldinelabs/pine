@@ -1,6 +1,7 @@
 import { flushPromises, mount } from "@vue/test-utils";
 import { createPinia, setActivePinia } from "pinia";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { createAppI18n } from "@/app/i18n";
 import { codeToHtml } from "@/lib/codeHighlight";
 import { useAppearanceStore } from "@/stores/appearance";
 import CodeBlock from "../CodeBlock.vue";
@@ -10,6 +11,8 @@ vi.mock("@/lib/codeHighlight", () => ({ codeToHtml: vi.fn() }));
 const source =
   'RESULT=$?\nif [ $RESULT -eq 0 ]; then\n  echo "<done> & ready"\n\nfi';
 const node = { type: "code_block" as const, language: "bash", code: source };
+
+const global = { plugins: [createAppI18n("zh-CN")] };
 
 function deferred() {
   let resolve!: (html: string) => void;
@@ -28,9 +31,20 @@ describe("CodeBlock", () => {
 
   afterEach(() => vi.unstubAllGlobals());
 
+  it("labels the copy button in the active interface language", () => {
+    vi.mocked(codeToHtml).mockReturnValue(new Promise(() => {}));
+    const wrapper = mount(CodeBlock, {
+      props: { node },
+      global: { plugins: [createAppI18n("en-US")] },
+    });
+
+    expect(wrapper.get("button").attributes("aria-label")).toBe("Copy code");
+    wrapper.unmount();
+  });
+
   it("shows escaped, preformatted source while highlighting is pending", () => {
     vi.mocked(codeToHtml).mockReturnValue(new Promise(() => {}));
-    const wrapper = mount(CodeBlock, { props: { node } });
+    const wrapper = mount(CodeBlock, { props: { node }, global });
 
     expect(wrapper.get("pre code").element.textContent).toBe(source);
     expect(wrapper.find("done").exists()).toBe(false);
@@ -40,6 +54,7 @@ describe("CodeBlock", () => {
   it("shows fixed line numbers in file preview layout", () => {
     vi.mocked(codeToHtml).mockReturnValue(new Promise(() => {}));
     const wrapper = mount(CodeBlock, {
+      global,
       props: {
         layout: "preview",
         node: { ...node, code: "first\n\nthird" },
@@ -58,6 +73,7 @@ describe("CodeBlock", () => {
   it("tints highlighted line ranges and marks the line to reveal", () => {
     vi.mocked(codeToHtml).mockReturnValue(new Promise(() => {}));
     const wrapper = mount(CodeBlock, {
+      global,
       props: {
         layout: "preview",
         node: { ...node, code: "a\nb\nc\nd\ne" },
@@ -84,6 +100,7 @@ describe("CodeBlock", () => {
   it("ignores line targets outside the preview layout", () => {
     vi.mocked(codeToHtml).mockReturnValue(new Promise(() => {}));
     const wrapper = mount(CodeBlock, {
+      global,
       props: { node, highlightLines: [{ start: 1, end: 1 }], revealLine: 1 },
     });
 
@@ -96,7 +113,7 @@ describe("CodeBlock", () => {
 
   it("preserves indentation and blank lines when highlighting fails", async () => {
     vi.mocked(codeToHtml).mockRejectedValue(new Error("Unknown language"));
-    const wrapper = mount(CodeBlock, { props: { node } });
+    const wrapper = mount(CodeBlock, { props: { node }, global });
     await flushPromises();
 
     expect(wrapper.get("pre code").element.textContent).toBe(source);
@@ -110,7 +127,7 @@ describe("CodeBlock", () => {
     vi.mocked(codeToHtml)
       .mockReturnValueOnce(first.promise)
       .mockReturnValueOnce(second.promise);
-    const wrapper = mount(CodeBlock, { props: { node } });
+    const wrapper = mount(CodeBlock, { props: { node }, global });
     await wrapper.setProps({ node: { ...node, code: "echo intermediate" } });
     await wrapper.setProps({ node: { ...node, code: "echo latest" } });
     expect(wrapper.get("pre code").element.textContent).toBe("echo latest");
@@ -136,6 +153,7 @@ describe("CodeBlock", () => {
       '<pre class="shiki"><code>final source</code></pre>',
     );
     const wrapper = mount(CodeBlock, {
+      global,
       props: { node: { ...node, code: "first", loading: true } },
     });
 
@@ -175,7 +193,7 @@ describe("CodeBlock", () => {
       '<pre class="shiki"><code>visible</code></pre>',
     );
 
-    const wrapper = mount(CodeBlock, { props: { node } });
+    const wrapper = mount(CodeBlock, { props: { node }, global });
     await flushPromises();
     expect(codeToHtml).not.toHaveBeenCalled();
 
@@ -189,7 +207,7 @@ describe("CodeBlock", () => {
     vi.mocked(codeToHtml).mockResolvedValue(
       '<pre class="shiki"><code /></pre>',
     );
-    const wrapper = mount(CodeBlock, { props: { node } });
+    const wrapper = mount(CodeBlock, { props: { node }, global });
     await flushPromises();
     expect(codeToHtml).toHaveBeenLastCalledWith(source, {
       lang: "bash",
@@ -215,7 +233,7 @@ describe("CodeBlock", () => {
     const writeText = vi
       .spyOn(navigator.clipboard, "writeText")
       .mockResolvedValue();
-    const wrapper = mount(CodeBlock, { props: { node } });
+    const wrapper = mount(CodeBlock, { props: { node }, global });
     await flushPromises();
     await wrapper.get('button[aria-label="复制代码"]').trigger("click");
     expect(writeText).toHaveBeenCalledWith(source);

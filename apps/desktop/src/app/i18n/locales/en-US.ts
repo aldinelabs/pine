@@ -14,6 +14,8 @@ export default {
     sendUnavailable: "This answer can't send messages here.",
   },
   markdown: {
+    copyCode: "Copy code",
+    copyCodeFailed: "Couldn’t copy the code",
     imageLoadFailed: "Image failed to load",
     externalLinkTitle: "Open external link?",
     externalLinkDescription:

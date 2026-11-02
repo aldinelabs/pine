@@ -9,6 +9,7 @@ import {
 } from "vue";
 import { storeToRefs } from "pinia";
 import { CheckIcon, CopyIcon } from "@lucide/vue";
+import { useI18n } from "vue-i18n";
 import { toast } from "vue-sonner";
 import { Button } from "@/components/ui/button";
 import { codeToHtml } from "@/lib/codeHighlight";
@@ -195,6 +196,7 @@ watch(
 );
 
 const hovered = ref(false);
+const { t } = useI18n();
 const copied = ref(false);
 let resetTimer: ReturnType<typeof setTimeout> | undefined;
 onUnmounted(() => {
@@ -213,7 +215,7 @@ async function copyCode(): Promise<void> {
       copied.value = false;
     }, 1600);
   } catch {
-    toast.error("复制代码失败");
+    toast.error(t("markdown.copyCodeFailed"));
   }
 }
 </script>
@@ -296,7 +298,7 @@ async function copyCode(): Promise<void> {
       <Button
         variant="ghost"
         size="icon-sm"
-        aria-label="复制代码"
+        :aria-label="t('markdown.copyCode')"
         @click="copyCode"
       >
         <CheckIcon v-if="copied" data-icon="inline-start" />

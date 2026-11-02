@@ -14,6 +14,8 @@ export default {
     sendUnavailable: "這裡的回答無法傳送訊息。",
   },
   markdown: {
+    copyCode: "複製程式碼",
+    copyCodeFailed: "複製程式碼失敗",
     imageLoadFailed: "圖片載入失敗",
     externalLinkTitle: "開啟外部連結？",
     externalLinkDescription: "確認後將在預設瀏覽器中開啟以下 URL：",

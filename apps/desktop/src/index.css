@@ -948,3 +948,33 @@ html.sidebar-vibrancy:has(
 [data-workbench] [data-slot="workbench-preview"] {
   --background: var(--workbench-card);
 }
+
+/*
+ * Forced-colors modes (Windows contrast themes) drop box-shadow, which is
+ * what the shadcn focus rings are made of. Draw focus as an outline in the
+ * system highlight colour, and keep boundaries visible on controls whose
+ * fill the system removes.
+ */
+@media (forced-colors: active) {
+  :focus-visible {
+    outline: 2px solid Highlight;
+    outline-offset: 2px;
+  }
+
+  [data-slot="button"],
+  [data-slot="input"],
+  [data-slot="textarea"],
+  [data-slot="select-trigger"],
+  [data-slot="switch"],
+  [data-slot="checkbox"],
+  [data-slot="radio-group-item"] {
+    border: 1px solid ButtonText;
+  }
+
+  [data-slot="switch"][data-checked],
+  [data-slot="checkbox"][data-checked] {
+    forced-color-adjust: none;
+    background: Highlight;
+    border-color: Highlight;
+  }
+}

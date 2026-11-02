@@ -14,6 +14,8 @@ export default {
     sendUnavailable: "この回答からはメッセージを送信できません。",
   },
   markdown: {
+    copyCode: "コードをコピー",
+    copyCodeFailed: "コードをコピーできませんでした",
     imageLoadFailed: "画像を読み込めませんでした",
     externalLinkTitle: "外部リンクを開きますか？",
     externalLinkDescription:
