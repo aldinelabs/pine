@@ -67,7 +67,8 @@ export class RemoteControlStore {
   }
 
   get signaling(): string {
-    return this.stored.signaling;
+    // Lets a self-hosted or local signaling service stand in.
+    return process.env.PINE_RC_SIGNALING || this.stored.signaling;
   }
 
   devices(): PairedDevice[] {

@@ -236,7 +236,7 @@ export class PineCore {
       store: remoteStore,
       fetch: (url, init) => host.fetch(url, init),
       web: () => this.web.server.loopbackAccess(),
-      pageOrigin: DEFAULT_PAGE_ORIGIN,
+      pageOrigin: process.env.PINE_RC_PAGE_ORIGIN || DEFAULT_PAGE_ORIGIN,
       hostName: hostname().replace(/\.local$/, ""),
       approve: (request) =>
         host.approveRemotePairing?.(request) ?? Promise.resolve(false),
