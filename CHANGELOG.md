@@ -9,6 +9,16 @@ Every release section here has a matching section in the Chinese changelog.
 
 ## [Unreleased]
 
+## [0.14.2] - 2026-11-02
+
+### Added
+
+- Pine's interface, and the Remote Control pairing page, are now available in Traditional Chinese, Japanese, Spanish, French, German, Korean and Russian. Pick one in Settings.
+
+### Fixed
+
+- After the browser page for Remote Control reconnects, a conversation in progress is no longer shown twice, and the second copy no longer lacks step durations.
+
 ## [0.14.1] - 2026-11-01
 
 ### Added
