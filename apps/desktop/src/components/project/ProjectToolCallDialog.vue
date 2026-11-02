@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
+import { PHONE_FULLSCREEN_DIALOG } from "@/lib/dialogLayout";
 import type { PineToolCall } from "@/shared/sessions";
 import ProjectToolSemanticValue from "./ProjectToolSemanticValue.vue";
 import { isDeniedTool } from "./toolKinds";
@@ -124,8 +125,11 @@ async function openDialog(): Promise<void> {
   <Dialog v-model:open="isOpen">
     <slot :open="openDialog" />
     <DialogContent
-      class="w-fit min-w-[min(26rem,calc(100vw-2rem))] max-w-[calc(100vw-2rem)]"
-      :class="wideDetails ? 'sm:max-w-4xl' : 'sm:max-w-2xl'"
+      :class="[
+        'w-fit min-w-[min(26rem,calc(100vw-2rem))] max-w-[calc(100vw-2rem)] max-sm:flex max-sm:flex-col max-sm:gap-4',
+        wideDetails ? 'sm:max-w-4xl' : 'sm:max-w-2xl',
+        PHONE_FULLSCREEN_DIALOG,
+      ]"
     >
       <DialogHeader class="pr-12">
         <DialogTitle>{{
@@ -136,7 +140,9 @@ async function openDialog(): Promise<void> {
         </DialogDescription>
       </DialogHeader>
 
-      <ScrollArea class="max-h-[70vh] max-w-full min-w-0 pr-4">
+      <ScrollArea
+        class="max-h-[70vh] max-w-full min-w-0 pr-4 max-sm:max-h-none max-sm:min-h-0 max-sm:flex-1"
+      >
         <div class="flex min-w-0 flex-col gap-5">
           <dl
             class="grid grid-cols-[auto_1fr] items-center gap-x-4 gap-y-3 text-sm"
