@@ -3,26 +3,21 @@ import type { ToolGate } from "./gate";
 
 type ApprovalDecision = "allow_once" | "deny";
 
-/**
- * Shape of a JSON value: object keys and primitive types, never the values.
- * Arrays collapse to the shape of their first element so a loop that varies
- * only list length keeps one key.
- */
-function shapeOf(value: unknown): unknown {
-  if (value === null) return "null";
-  if (Array.isArray(value))
-    return [value.length > 0 ? shapeOf(value[0]) : "empty"];
-  if (typeof value === "object") {
+/** A JSON value with object keys sorted, so key order never matters. */
+function canonical(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(canonical);
+  if (value !== null && typeof value === "object") {
     return Object.fromEntries(
       Object.entries(value as Record<string, unknown>)
         .sort(([a], [b]) => (a < b ? -1 : 1))
-        .map(([key, item]) => [key, shapeOf(item)]),
+        .map(([key, item]) => [key, canonical(item)]),
     );
   }
-  return typeof value;
+  return value;
 }
 
-export function mcpShapeKey(
+/** One exact call: the server tool and every argument value. */
+export function mcpCallKey(
   request: Pick<
     McpToolApprovalRequest,
     "serverName" | "originalToolName" | "args"
@@ -31,24 +26,19 @@ export function mcpShapeKey(
   return JSON.stringify([
     request.serverName,
     request.originalToolName,
-    shapeOf(request.args),
+    canonical(request.args),
   ]);
 }
 
 /**
- * Cuts auto-approval cost for MCP scripts that call one tool in a loop.
+ * Spares the decision model a repeat of a call it has already allowed.
  *
- * Each script call used to be reviewed by the decision model on its own. A
- * judge `allow` for a script call is now reused, for the rest of the turn, for
- * later script calls to the same server tool whose arguments have the same
- * shape (same keys and value types). Anything else, including a different tool,
- * a different argument shape, a direct (non-script) call, or any earlier deny,
- * still goes through the gate, so denials and user prompts are unchanged. Only
- * the reviewer's allows are reused: a person's approval covers one call.
- *
- * Trade-off: argument values may differ between reused calls, so the first
- * reviewed call stands in for the loop. Values the judge must see (a new tool,
- * a new argument key) always trigger a fresh review.
+ * An MCP script may make the very same call more than once in a turn; the
+ * reviewer's allow for it is reused for the rest of the turn. Every call
+ * that differs in any argument value is reviewed on its own, as are direct
+ * (non-script) calls, and any deny clears what was allowed. Calls a script
+ * starts together reach the reviewer as one batch through the gate. Only the
+ * reviewer's allows are reused: a person's approval covers one call.
  */
 export class McpScriptApprovalCache {
   private readonly allowed = new Set<string>();
@@ -61,7 +51,7 @@ export class McpScriptApprovalCache {
     request: McpToolApprovalRequest,
     gate: ToolGate,
   ): Promise<ApprovalDecision> {
-    const key = request.origin === "script" ? mcpShapeKey(request) : undefined;
+    const key = request.origin === "script" ? mcpCallKey(request) : undefined;
     if (key && this.allowed.has(key)) return "allow_once";
 
     const decision = await gate.reviewPrivilegedCall({
@@ -71,7 +61,7 @@ export class McpScriptApprovalCache {
       evidence:
         "MCP tools execute in an external server outside Pine's project sandbox." +
         (request.origin === "script"
-          ? " This call comes from an MCP script; an allow covers later calls of this tool with the same argument shape in this turn."
+          ? " This call comes from an MCP script; an allow also covers repeats of exactly this call in this turn."
           : ""),
       signal: request.signal,
     });
