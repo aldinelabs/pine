@@ -231,6 +231,7 @@ const componentGroups = [
     notes: [
       "- An input's first argument is its value, a $variable that other statements read.",
       "- Every input changes something shown in the block, or feeds a Button whose @ToAssistant message continues the conversation. No dead inputs.",
+      "- You cannot see what the user picked or typed unless they send it: a block's values reach you only with the message of a Button that runs @ToAssistant, which appends every $variable's current value. So whenever you need the user's choice or answer (a RadioGroup, Select, Checkbox, Input and the like), put a submit Button with @ToAssistant in the same block, and do not ask the user to just pick something. If one click should answer, use one Button per option instead of a picker.",
     ],
   },
   { name: "Data", components: ["Table", "Progress", "Chart"] },
@@ -282,6 +283,7 @@ shown = $view == "Chart" ? chart : Table(["Quarter", "Cloud", "Devices"], [["Q1"
 data = [{quarter: "Q1", cloud: 120, devices: 80}, {quarter: "Q2", cloud: 150, devices: 95}, {quarter: "Q3", cloud: 170, devices: 90}]`;
 
 const rules = [
+  'A block that collects a choice or answer from the user always ends with a Button that sends it with @ToAssistant (for example "Continue" or "Confirm"); without it the answer never reaches you and the user has no way to submit.',
   "Use @ToAssistant only for what the block cannot compute itself, such as a follow-up request. Its message is short and first person, written as the user would type it.",
   "Keep inputs and lists in $variables, compute what is shown from them with expressions, and change them with @Set and @Reset, so the block works without another message.",
   "$variable defaults are literals (numbers, strings, booleans, lists, objects), never expressions.",

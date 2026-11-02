@@ -58,6 +58,11 @@ describe("intelligentUiSystemPrompt", () => {
     }
   });
 
+  it("requires a submit button whenever the agent needs the user's answer", () => {
+    expect(prompt).toContain("whenever you need the user's choice or answer");
+    expect(prompt).toContain("always ends with a Button");
+  });
+
   it("builds the prompt once", () => {
     expect(intelligentUiSystemPrompt()).toBe(prompt);
   });
