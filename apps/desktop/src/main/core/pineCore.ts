@@ -238,6 +238,7 @@ export class PineCore {
       pageOrigin: DEFAULT_PAGE_ORIGIN,
       approve: (request) =>
         host.approveRemotePairing?.(request) ?? Promise.resolve(false),
+      onChange: () => host.remoteControlChanged?.(this.remote.status()),
     });
     registerCoreRequests(this);
     this.agentHost.subscribe((event) => this.routeAgentEvent(event));

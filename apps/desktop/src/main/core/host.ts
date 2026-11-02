@@ -1,5 +1,6 @@
 import type { PineAgentEvent } from "../../shared/agent";
 import type { PineLibraryChange } from "../../shared/projects";
+import type { RemoteStatus } from "../../shared/remoteControl";
 import type { AgentProcessFactory } from "../agentProcessHost";
 import type { ProjectFileNativeActions } from "../projectFileOperations";
 import type { TinyFishSafeStorage } from "../tinyfishCredentials";
@@ -42,4 +43,6 @@ export interface PineHost {
    * Control. Without it, no phone can pair.
    */
   approveRemotePairing?(request: { fingerprint: string }): Promise<boolean>;
+  /** Remote Control's pairing, devices or connections changed. */
+  remoteControlChanged?(status: RemoteStatus): void;
 }

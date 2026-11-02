@@ -282,6 +282,19 @@ describe("paired phones", () => {
     expect(again.answered).toBe(false);
   }, 30_000);
 
+  it("can be renamed, and the settings page hears of it", async () => {
+    const onChange = vi.fn();
+    host.stop();
+    host = makeHost({ onChange });
+    const { phone } = await pair();
+    await phone.waitOpen();
+    await until(() => store.devices().length === 1, 5000);
+    onChange.mockClear();
+    await host.renameDevice(store.devices()[0].id, "Work phone");
+    expect(host.status().devices[0].name).toBe("Work phone");
+    expect(onChange).toHaveBeenCalled();
+  }, 30_000);
+
   it("are not impersonated by a stranger who finds the room", async () => {
     const { phone, qr } = await pair();
     await phone.waitOpen();

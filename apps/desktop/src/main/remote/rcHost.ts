@@ -14,6 +14,7 @@ import {
   type OfferEnvelope,
   type OfferResult,
 } from "@pine/rc-protocol";
+import type { RemoteStatus } from "../../shared/remoteControl";
 import type { IceServer } from "./iceServers";
 import {
   nodePeer,
@@ -51,21 +52,6 @@ export interface RemoteHostOptions {
   backoff?: (attempt: number) => number;
   gatherTimeoutMs?: number;
   connectTimeoutMs?: number;
-}
-
-export interface RemoteStatus {
-  enabled: boolean;
-  /** Present while a QR code is waiting to be scanned. */
-  pairing?: { url: string; expiresAt: number; fingerprint: string };
-  devices: Array<{
-    id: string;
-    name: string;
-    pairedAt: number;
-    lastSeenAt?: number;
-    online: boolean;
-  }>;
-  /** Phones reach Pine through the local web server, so it must be running. */
-  webAccessOn: boolean;
 }
 
 interface Pairing {
@@ -203,6 +189,11 @@ export class RemoteHost {
     clearTimeout(this.pairing.timer);
     this.pairing.room.stop();
     this.pairing = undefined;
+    this.changed();
+  }
+
+  async renameDevice(id: string, name: string): Promise<void> {
+    await this.options.store.rename(id, name);
     this.changed();
   }
 

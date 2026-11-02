@@ -28,6 +28,7 @@ import {
 import { useI18n } from "vue-i18n";
 import { toast } from "vue-sonner";
 import { isAppLocale, persistAppLocale } from "@/app/i18n";
+import PhoneRemoteSettings from "./PhoneRemoteSettings.vue";
 import RemoteControlSettings from "./RemoteControlSettings.vue";
 import AutoApprovalSettings from "./AutoApprovalSettings.vue";
 import DecisionsModelSettings from "./DecisionsModelSettings.vue";
@@ -49,6 +50,7 @@ import {
   FieldDescription,
   FieldGroup,
   FieldLabel,
+  FieldSeparator,
   FieldTitle,
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
@@ -116,6 +118,8 @@ const { locale, t } = useI18n();
 const isDesktop = isDesktopClient();
 const supportsRemoteControl =
   isDesktop && typeof window.pine?.getWebServer === "function";
+const hasPhoneRemote =
+  isDesktop && typeof window.pine?.getRemoteControl === "function";
 const appearanceStore = useAppearanceStore();
 const modelsStore = useModelsStore();
 const userProfileStore = useUserProfileStore();
@@ -1557,6 +1561,8 @@ defineExpose({ open });
             <ProjectManagementSettings />
           </div>
           <div v-else-if="activeSection === 'remote'" class="p-6 max-sm:px-4">
+            <PhoneRemoteSettings v-if="hasPhoneRemote" />
+            <FieldSeparator v-if="hasPhoneRemote" class="my-6" />
             <RemoteControlSettings />
           </div>
         </ScrollArea>

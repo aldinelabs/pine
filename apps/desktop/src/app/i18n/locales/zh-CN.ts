@@ -93,6 +93,34 @@ export default {
       signOutAction: "全部退出登录",
       signedOut: "已退出所有浏览器",
     },
+    phoneRemote: {
+      title: "手机远程控制",
+      description:
+        "扫码配对后，手机无需端口转发即可连接这台电脑上的 Pine。内容经端到端加密传输。",
+      needsWebAccess:
+        "手机通过浏览器访问连接 Pine，请先开启下方的「浏览器访问」。",
+      pair: "配对新手机",
+      pairTitle: "用手机扫描二维码",
+      pairDescription:
+        "用手机相机扫描，并在手机上打开链接。这台电脑会弹窗请你确认。",
+      pairExpires: "二维码将在 {time} 后失效。",
+      pairExpired: "二维码已失效。",
+      pairAgain: "重新生成",
+      fingerprint: "这台电脑的指纹：{fingerprint}",
+      copyPairLink: "复制配对链接",
+      pairLinkCopied: "已复制配对链接",
+      devices: "已配对的手机",
+      noDevices: "还没有配对的手机。",
+      online: "在线",
+      pairedAt: "配对于 {date}",
+      lastSeenAt: "上次连接 {date}",
+      rename: "重命名",
+      renameTitle: "重命名手机",
+      deviceName: "名称",
+      remove: "移除",
+      removeTitle: "移除“{name}”？",
+      removeDescription: "这部手机会立即断开，需要重新扫码配对才能再次连接。",
+    },
     projectManagement: {
       title: "项目管理",
       description:
@@ -1611,6 +1639,13 @@ export default {
       portInUse: "端口 {port} 已被占用，请换一个端口。",
       passwordTitle: "无法保存访问密码",
       signOutTitle: "无法退出浏览器登录",
+    },
+    phoneRemote: {
+      loadTitle: "无法读取手机远程控制设置",
+      saveTitle: "无法更新手机远程控制",
+      pairTitle: "无法生成配对二维码",
+      deviceTitle: "无法更新这部手机",
+      description: "请稍后重试。",
     },
     quickComposer: {
       title: "无法更新快速提问设置",

@@ -334,6 +334,22 @@ export interface PineDesktopApi extends PineWindowApi, PineQuickComposerApi {
     password: string,
   ) => Promise<import("./webControl").WebServerStatus>;
   signOutWebBrowsers?: () => Promise<import("./webControl").WebServerStatus>;
+  /** Phones paired for Remote Control; the desktop app only. */
+  getRemoteControl?: () => Promise<import("./remoteControl").RemoteStatus>;
+  setRemoteControlEnabled?: (
+    enabled: boolean,
+  ) => Promise<import("./remoteControl").RemoteStatus>;
+  startRemotePairing?: () => Promise<import("./remoteControl").RemoteStatus>;
+  cancelRemotePairing?: () => Promise<import("./remoteControl").RemoteStatus>;
+  renameRemoteDevice?: (
+    request: import("./remoteControl").RenameRemoteDeviceRequest,
+  ) => Promise<import("./remoteControl").RemoteStatus>;
+  removeRemoteDevice?: (
+    id: string,
+  ) => Promise<import("./remoteControl").RemoteStatus>;
+  onRemoteControlChanged?: (
+    listener: (status: import("./remoteControl").RemoteStatus) => void,
+  ) => () => void;
   uploadAttachments?: (
     files: File[],
     projectId: string,

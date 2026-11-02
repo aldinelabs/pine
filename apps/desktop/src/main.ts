@@ -24,6 +24,18 @@ import { PROJECT_MEDIA_PROTOCOL } from "./shared/projectFiles";
 import { LIBRARY_CHANGED_CHANNEL } from "./shared/projects";
 import { DEFAULT_QUICK_COMPOSER_ENABLED } from "./shared/quickComposer";
 import {
+  CANCEL_REMOTE_PAIRING_CHANNEL,
+  DEFAULT_REMOTE_STATUS,
+  GET_REMOTE_CONTROL_CHANNEL,
+  MAX_REMOTE_DEVICE_NAME_LENGTH,
+  REMOTE_CONTROL_CHANGED_CHANNEL,
+  REMOVE_REMOTE_DEVICE_CHANNEL,
+  RENAME_REMOTE_DEVICE_CHANNEL,
+  SET_REMOTE_CONTROL_ENABLED_CHANNEL,
+  START_REMOTE_PAIRING_CHANNEL,
+  type RemoteStatus,
+} from "./shared/remoteControl";
+import {
   CHECK_FOR_UPDATE_CHANNEL,
   DOWNLOAD_UPDATE_CHANNEL,
   INSTALL_UPDATE_CHANNEL,
@@ -222,6 +234,7 @@ function desktopHost(): PineHost {
     },
     observeAgentEvent: (event, ownerId) => attention.observe(event, ownerId),
     approveRemotePairing: confirmRemotePairing,
+    remoteControlChanged: broadcastRemoteStatus,
     attentionNotificationsChanged: (enabled) => {
       if (!enabled) attention.closeAttentionNotifications();
     },
@@ -350,7 +363,10 @@ ipcMain.handle(SET_WEB_SERVER_CHANNEL, async (_event, request: unknown) => {
     .custom<WebServerSettings>(isWebServerSettings)
     .parse(request);
   if (!core) throw new Error("The local web interface is not ready.");
-  return core.web.configure(settings, true);
+  const status = await core.web.configure(settings, true);
+  // Phones reach Pine through this server, so their settings change with it.
+  broadcastRemoteStatus(core.remote.status());
+  return status;
 });
 ipcMain.handle(SET_WEB_PASSWORD_CHANNEL, async (_event, request: unknown) => {
   const password = z
@@ -365,6 +381,66 @@ ipcMain.handle(SIGN_OUT_WEB_BROWSERS_CHANNEL, async () => {
   if (!core) throw new Error("The local web interface is not ready.");
   return core.web.signOutAll();
 });
+
+function broadcastRemoteStatus(status: RemoteStatus): void {
+  for (const window of BrowserWindow.getAllWindows())
+    if (!window.isDestroyed())
+      window.webContents.send(REMOTE_CONTROL_CHANGED_CHANNEL, status);
+}
+
+function remoteHost(): PineCore["remote"] {
+  if (!core) throw new Error("Remote Control is not ready.");
+  return core.remote;
+}
+
+// Desktop only: none of these are in the web request policy, so a paired
+// phone cannot pair others or change what may connect.
+ipcMain.handle(
+  GET_REMOTE_CONTROL_CHANNEL,
+  (): RemoteStatus => core?.remote.status() ?? DEFAULT_REMOTE_STATUS,
+);
+ipcMain.handle(
+  SET_REMOTE_CONTROL_ENABLED_CHANNEL,
+  async (_event, request: unknown) => {
+    const host = remoteHost();
+    if (z.boolean().parse(request)) await host.enable();
+    else await host.disable();
+    return host.status();
+  },
+);
+ipcMain.handle(START_REMOTE_PAIRING_CHANNEL, async () => {
+  const host = remoteHost();
+  await host.startPairing();
+  return host.status();
+});
+ipcMain.handle(CANCEL_REMOTE_PAIRING_CHANNEL, () => {
+  const host = remoteHost();
+  host.cancelPairing();
+  return host.status();
+});
+ipcMain.handle(
+  RENAME_REMOTE_DEVICE_CHANNEL,
+  async (_event, request: unknown) => {
+    const { id, name } = z
+      .object({
+        id: z.string().min(1).max(200),
+        name: z.string().trim().min(1).max(MAX_REMOTE_DEVICE_NAME_LENGTH),
+      })
+      .parse(request);
+    const host = remoteHost();
+    await host.renameDevice(id, name);
+    return host.status();
+  },
+);
+ipcMain.handle(
+  REMOVE_REMOTE_DEVICE_CHANNEL,
+  async (_event, request: unknown) => {
+    const id = z.string().min(1).max(200).parse(request);
+    const host = remoteHost();
+    await host.removeDevice(id);
+    return host.status();
+  },
+);
 
 /** A new phone only pairs once the person at this computer says yes. */
 async function confirmRemotePairing(request: {

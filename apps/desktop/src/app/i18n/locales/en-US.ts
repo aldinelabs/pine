@@ -99,6 +99,35 @@ export default {
       signOutAction: "Sign out all",
       signedOut: "All browsers signed out",
     },
+    phoneRemote: {
+      title: "Phone remote control",
+      description:
+        "Once paired with a QR code, a phone reaches Pine on this computer without port forwarding. Everything is end-to-end encrypted.",
+      needsWebAccess:
+        "Phones connect through browser access. Turn on Browser access below first.",
+      pair: "Pair a phone",
+      pairTitle: "Scan with your phone",
+      pairDescription:
+        "Scan with the phone's camera and open the link. This computer will ask you to confirm.",
+      pairExpires: "The code expires in {time}.",
+      pairExpired: "The code has expired.",
+      pairAgain: "New code",
+      fingerprint: "This computer's fingerprint: {fingerprint}",
+      copyPairLink: "Copy pairing link",
+      pairLinkCopied: "Pairing link copied",
+      devices: "Paired phones",
+      noDevices: "No phones are paired yet.",
+      online: "Online",
+      pairedAt: "Paired {date}",
+      lastSeenAt: "Last connected {date}",
+      rename: "Rename",
+      renameTitle: "Rename phone",
+      deviceName: "Name",
+      remove: "Remove",
+      removeTitle: "Remove “{name}”?",
+      removeDescription:
+        "This phone disconnects now and must scan a new code to connect again.",
+    },
     projectManagement: {
       title: "Projects",
       description:
@@ -1664,6 +1693,13 @@ export default {
       portInUse: "Port {port} is already in use. Choose another port.",
       passwordTitle: "Unable to save the access password",
       signOutTitle: "Unable to sign out browsers",
+    },
+    phoneRemote: {
+      loadTitle: "Unable to load phone remote control settings",
+      saveTitle: "Unable to update phone remote control",
+      pairTitle: "Unable to create a pairing code",
+      deviceTitle: "Unable to update this phone",
+      description: "Please try again later.",
     },
     quickComposer: {
       title: "Unable to update quick composer settings",
