@@ -82,6 +82,18 @@ export interface LiveAgentSession {
   foregroundPromoter: ForegroundPromoter;
   /** Tool calls currently executing, by call ID, with their tool names. */
   activeToolCalls: Map<string, string>;
+  /**
+   * Steering messages held back while one message is sent now. The agent
+   * delivers its whole steering queue at once, so the others wait outside it
+   * until the sent message has been taken.
+   */
+  sendNow?: {
+    target: string;
+    held: string[];
+    /** Set once events for the sent message are expected. */
+    armed: boolean;
+    consumed: boolean;
+  };
 }
 
 export interface PineAgentRuntimeOptions {

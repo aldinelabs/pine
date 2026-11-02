@@ -225,6 +225,18 @@ export type { PineAgentRuntimeOptions } from "./runtime/session-state";
 const JUDGE_TIMEOUT_MS = 60_000;
 const BACKGROUND_TASKS_EVENT_MS = 200;
 const TITLE_TIMEOUT_MS = 30_000;
+function userMessageText(message: unknown): string | undefined {
+  const { role, content } = message as { role?: string; content?: unknown };
+  if (role !== "user") return undefined;
+  if (typeof content === "string") return content;
+  if (!Array.isArray(content)) return undefined;
+  return content
+    .map((part: { type?: string; text?: string }) =>
+      part.type === "text" ? (part.text ?? "") : "",
+    )
+    .join("");
+}
+
 /** Shell tools whose running command can move to the background. */
 const SHELL_TOOL_NAMES = new Set([
   "bash",
@@ -439,6 +451,7 @@ export class PineAgentRuntime {
       sessionId: live.session.sessionId,
       messages: [
         ...live.session.getSteeringMessages(),
+        ...(live.sendNow?.held ?? []),
         ...live.queuedCompactionPrompts.map(({ message }) => message),
       ],
     });
@@ -528,6 +541,12 @@ export class PineAgentRuntime {
     const steering = [...live.session.getSteeringMessages()];
     const index = steering.indexOf(message);
     if (index < 0) {
+      const heldIndex = live.sendNow?.held.indexOf(message) ?? -1;
+      if (live.sendNow && heldIndex >= 0) {
+        live.sendNow.held.splice(heldIndex, 1);
+        this.emitSteeringQueue(live);
+        return { message, removed: true };
+      }
       const stagedIndex = live.queuedCompactionPrompts.findIndex(
         (queued) => queued.message === message,
       );
@@ -551,39 +570,113 @@ export class PineAgentRuntime {
    * Shell commands holding the turn move to the background so their tool
    * calls return now and the message follows; any other work (streaming
    * text, other tools, pending approvals) is interrupted and the message is
-   * sent as a new prompt.
+   * sent as a new prompt. The other staged messages stay staged: they leave
+   * the agent's queue, which it would deliver whole, and return once the sent
+   * message has been taken.
    */
   async sendSteeringNow(
     sessionId: string,
     message: string,
   ): Promise<{ sent: boolean }> {
     const live = this.getSession(sessionId);
-    if (!live.session.getSteeringMessages().includes(message))
-      return { sent: false };
+    // A previous send-now still holding messages lets them go back first.
+    await this.releaseHeldSteering(live);
+    const queued = live.session.getSteeringMessages();
+    if (!queued.includes(message)) return { sent: false };
+
+    const { steering, followUp } = live.session.clearQueue();
+    const held = [...steering];
+    held.splice(held.indexOf(message), 1);
+    live.sendNow = { target: message, held, armed: false, consumed: false };
+    const restoreFollowUp = async () => {
+      for (const queuedFollowUp of followUp)
+        await live.session.followUp(queuedFollowUp);
+    };
+    await restoreFollowUp();
+    this.emitSteeringQueue(live);
 
     const activeCalls = [...live.activeToolCalls];
     if (
       activeCalls.length > 0 &&
       activeCalls.every(([, toolName]) => SHELL_TOOL_NAMES.has(toolName))
     ) {
+      // The message must be queued before the calls return.
+      await live.session.steer(message);
+      live.sendNow.armed = true;
       const promoted = activeCalls.filter(([toolCallId]) =>
         live.foregroundPromoter.promote(toolCallId),
       );
       if (promoted.length === activeCalls.length) return { sent: true };
       // Commands already moved stay in the background; interrupt the rest.
+      live.sendNow.armed = false;
+      live.session.clearQueue();
+      await restoreFollowUp();
     }
 
-    await this.dequeueSteering(sessionId, message);
     await this.abort(sessionId);
-    await this.prompt(
-      sessionId,
-      message,
-      undefined,
-      [],
-      live.approvalMode,
-      live.locale,
-    );
+    live.sendNow.armed = true;
+    try {
+      await this.prompt(
+        sessionId,
+        message,
+        undefined,
+        [],
+        live.approvalMode,
+        live.locale,
+      );
+    } catch (error) {
+      await this.releaseHeldSteering(live);
+      throw error;
+    }
     return { sent: true };
+  }
+
+  /** Track the sent message; once it is taken, the held ones queue again. */
+  private trackSendNow(live: LiveAgentSession, event: AgentSessionEvent): void {
+    const sendNow = live.sendNow;
+    if (!sendNow?.armed) return;
+    if (event.type === "message_start") {
+      const role = (event.message as { role?: string }).role;
+      if (role === "user" && userMessageText(event.message) === sendNow.target)
+        sendNow.consumed = true;
+      // The response is under way, well before the next steering boundary.
+      else if (role === "assistant" && sendNow.consumed)
+        void this.releaseHeldSteering(live);
+    } else if (event.type === "agent_end") {
+      void this.releaseHeldSteering(live, true);
+    }
+  }
+
+  private async releaseHeldSteering(
+    live: LiveAgentSession,
+    runEnded = false,
+  ): Promise<void> {
+    const sendNow = live.sendNow;
+    if (!sendNow) return;
+    live.sendNow = undefined;
+    for (const message of sendNow.held) {
+      // A finished run cannot take steering; submit what is left in turn.
+      if (runEnded || live.session.isIdle) {
+        live.queuedCompactionPrompts.push({
+          message,
+          approvalMode: live.approvalMode,
+          locale: live.locale,
+        });
+        continue;
+      }
+      try {
+        await live.session.steer(message);
+      } catch {
+        live.queuedCompactionPrompts.push({
+          message,
+          approvalMode: live.approvalMode,
+          locale: live.locale,
+        });
+      }
+    }
+    this.emitSteeringQueue(live);
+    if (live.queuedCompactionPrompts.length > 0)
+      this.resumeQueuedMessagesWhenIdle(live);
   }
 
   async abort(sessionId: string): Promise<{ aborted: boolean }> {
@@ -1156,6 +1249,7 @@ export class PineAgentRuntime {
       else if (event.type === "tool_execution_end")
         live.activeToolCalls.delete(event.toolCallId);
       else if (event.type === "agent_end") live.activeToolCalls.clear();
+      this.trackSendNow(live, event);
       this.forwardEvent(session, event);
     });
     this.liveSessions.set(session.sessionId, live);

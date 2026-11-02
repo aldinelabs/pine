@@ -1170,7 +1170,12 @@ describe("PineAgentRuntime", () => {
         sessionsRoot: path.join(root, "sessions"),
       };
       await mkdir(location.cwd, { recursive: true });
-      const runtime = new PineAgentRuntime({ emit: () => undefined });
+      const events: Array<
+        Parameters<ConstructorParameters<typeof PineAgentRuntime>[0]["emit"]>[0]
+      > = [];
+      const runtime = new PineAgentRuntime({
+        emit: (event) => events.push(event),
+      });
       const created = await runtime.createSession(location);
       const live = (
         runtime as unknown as {
@@ -1186,31 +1191,101 @@ describe("PineAgentRuntime", () => {
       ).liveSessions.get(created.session.id)!;
       await live.session.steer("Keep this steering");
       await live.session.steer("Send this now");
-      const abort = vi.spyOn(runtime, "abort");
+      // A run is in progress; aborting it is not what these tests exercise.
+      const idle = vi
+        .spyOn(live.session, "isIdle", "get")
+        .mockReturnValue(false);
+      const dispose = async () => {
+        idle.mockRestore();
+        await runtime.dispose();
+      };
+      const abort = vi
+        .spyOn(runtime, "abort")
+        .mockResolvedValue({ aborted: true });
       const prompt = vi
         .spyOn(live.session, "prompt")
         .mockResolvedValue(undefined);
-      return { runtime, sessionId: created.session.id, live, abort, prompt };
+      const track = (event: unknown) =>
+        (
+          runtime as unknown as {
+            trackSendNow(live: unknown, event: unknown): void;
+          }
+        ).trackSendNow(live, event);
+      const takeMessage = (text: string) =>
+        track({
+          type: "message_start",
+          message: { role: "user", content: [{ type: "text", text }] },
+        });
+      const startResponse = () =>
+        track({ type: "message_start", message: { role: "assistant" } });
+      const stagedMessages = () =>
+        events.filter((event) => event.type === "steering-queue").at(-1);
+      return {
+        runtime,
+        dispose,
+        sessionId: created.session.id,
+        live,
+        abort,
+        prompt,
+        takeMessage,
+        startResponse,
+        stagedMessages,
+        track,
+      };
     }
 
-    it("interrupts streaming output and sends the message as a prompt", async () => {
-      const { runtime, sessionId, live, abort, prompt } = await setupSendNow();
+    it("interrupts streaming output and sends only the chosen message", async () => {
+      const {
+        runtime,
+        dispose,
+        sessionId,
+        live,
+        abort,
+        prompt,
+        takeMessage,
+        startResponse,
+        stagedMessages,
+      } = await setupSendNow();
       try {
         await expect(
           runtime.sendSteeringNow(sessionId, "Send this now"),
         ).resolves.toEqual({ sent: true });
         expect(abort).toHaveBeenCalledWith(sessionId);
         expect(prompt.mock.calls[0]?.[0]).toBe("Send this now");
-        expect(live.session.getSteeringMessages()).toEqual([
-          "Keep this steering",
-        ]);
+        // The other message is held out of the agent's queue, which would
+        // deliver it together with the new prompt, but stays visible.
+        expect(live.session.getSteeringMessages()).toEqual([]);
+        expect(stagedMessages()).toMatchObject({
+          messages: ["Keep this steering"],
+        });
+
+        takeMessage("Send this now");
+        expect(live.session.getSteeringMessages()).toEqual([]);
+        startResponse();
+        await vi.waitFor(() =>
+          expect(live.session.getSteeringMessages()).toEqual([
+            "Keep this steering",
+          ]),
+        );
+        expect(stagedMessages()).toMatchObject({
+          messages: ["Keep this steering"],
+        });
       } finally {
-        await runtime.dispose();
+        await dispose();
       }
     });
 
-    it("moves running shell commands to the background instead of interrupting", async () => {
-      const { runtime, sessionId, live, abort, prompt } = await setupSendNow();
+    it("moves running shell commands to the background and delivers only the chosen message", async () => {
+      const {
+        runtime,
+        dispose,
+        sessionId,
+        live,
+        abort,
+        prompt,
+        takeMessage,
+        startResponse,
+      } = await setupSendNow();
       try {
         live.activeToolCalls.set("call-1", "bash");
         live.activeToolCalls.set("call-2", "privileged_bash");
@@ -1226,20 +1301,35 @@ describe("PineAgentRuntime", () => {
         ]);
         expect(abort).not.toHaveBeenCalled();
         expect(prompt).not.toHaveBeenCalled();
-        // The message is delivered at the boundary the shell calls now reach.
-        expect(live.session.getSteeringMessages()).toContain("Send this now");
+        // Only the chosen message is left for the boundary to deliver.
+        expect(live.session.getSteeringMessages()).toEqual(["Send this now"]);
+
+        // The agent drops a message from its queue when it takes it.
+        live.session.clearQueue();
+        takeMessage("Send this now");
+        startResponse();
+        await vi.waitFor(() =>
+          expect(live.session.getSteeringMessages()).toEqual([
+            "Keep this steering",
+          ]),
+        );
       } finally {
-        await runtime.dispose();
+        await dispose();
       }
     });
 
     it("interrupts when a shell call cannot move or another tool runs", async () => {
-      const { runtime, sessionId, live, abort, prompt } = await setupSendNow();
+      const { runtime, dispose, sessionId, live, abort, prompt } =
+        await setupSendNow();
       try {
         live.activeToolCalls.set("call-1", "bash");
         vi.spyOn(live.foregroundPromoter, "promote").mockReturnValue(false);
         await runtime.sendSteeringNow(sessionId, "Send this now");
         expect(abort).toHaveBeenCalledTimes(1);
+        // The chosen message left the queue instead of waiting in it.
+        expect(live.session.getSteeringMessages()).not.toContain(
+          "Send this now",
+        );
 
         await live.session.steer("And this one");
         live.activeToolCalls.set("call-2", "read");
@@ -1250,19 +1340,52 @@ describe("PineAgentRuntime", () => {
           "And this one",
         ]);
       } finally {
-        await runtime.dispose();
+        await dispose();
+      }
+    });
+
+    it("lets a held message be withdrawn", async () => {
+      const { runtime, dispose, sessionId, live, stagedMessages } =
+        await setupSendNow();
+      try {
+        await runtime.sendSteeringNow(sessionId, "Send this now");
+        await expect(
+          runtime.dequeueSteering(sessionId, "Keep this steering"),
+        ).resolves.toEqual({ message: "Keep this steering", removed: true });
+        expect(stagedMessages()).toMatchObject({ messages: [] });
+        expect(live.session.getSteeringMessages()).toEqual([]);
+      } finally {
+        await dispose();
+      }
+    });
+
+    it("submits held messages when the run ends before taking the sent one", async () => {
+      const { runtime, dispose, sessionId, live, track, prompt } =
+        await setupSendNow();
+      try {
+        vi.spyOn(live.session, "waitForIdle").mockResolvedValue(undefined);
+        await runtime.sendSteeringNow(sessionId, "Send this now");
+        track({ type: "agent_end", messages: [] });
+        await vi.waitFor(() =>
+          expect(prompt.mock.calls.map(([message]) => message)).toContain(
+            "Keep this steering",
+          ),
+        );
+        expect(live.session.getSteeringMessages()).toEqual([]);
+      } finally {
+        await dispose();
       }
     });
 
     it("does nothing for a message that is no longer queued", async () => {
-      const { runtime, sessionId, abort } = await setupSendNow();
+      const { runtime, dispose, sessionId, abort } = await setupSendNow();
       try {
         await expect(
           runtime.sendSteeringNow(sessionId, "Already delivered"),
         ).resolves.toEqual({ sent: false });
         expect(abort).not.toHaveBeenCalled();
       } finally {
-        await runtime.dispose();
+        await dispose();
       }
     });
   });
