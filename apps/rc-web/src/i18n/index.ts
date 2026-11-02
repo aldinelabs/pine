@@ -1,10 +1,11 @@
 import { createI18n } from "vue-i18n";
 import enUS from "./locales/en-US";
+import esES from "./locales/es-ES";
 import jaJP from "./locales/ja-JP";
 import zhCN from "./locales/zh-CN";
 import zhTW from "./locales/zh-TW";
 
-export const LOCALES = ["zh-CN", "zh-TW", "en-US", "ja-JP"] as const;
+export const LOCALES = ["zh-CN", "zh-TW", "en-US", "ja-JP", "es-ES"] as const;
 export type Locale = (typeof LOCALES)[number];
 export type MessageKey = keyof typeof zhCN;
 
@@ -43,7 +44,13 @@ export const i18n = createI18n({
   legacy: false,
   locale: resolveLocale(navigator.languages, storedLocale()),
   fallbackLocale: "en-US",
-  messages: { "zh-CN": zhCN, "zh-TW": zhTW, "en-US": enUS, "ja-JP": jaJP },
+  messages: {
+    "zh-CN": zhCN,
+    "zh-TW": zhTW,
+    "en-US": enUS,
+    "ja-JP": jaJP,
+    "es-ES": esES,
+  },
 });
 
 function applyLocale(locale: Locale): void {
