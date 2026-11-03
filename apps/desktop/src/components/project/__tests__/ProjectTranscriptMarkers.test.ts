@@ -346,6 +346,48 @@ describe("project transcript markers", () => {
     );
   });
 
+  it("labels automation calls by operation and automation name", () => {
+    const saved = mount(ProjectToolCallMarker, {
+      props: {
+        toolCall: {
+          id: "automation-1",
+          input: { spec: { name: "Daily summary" } },
+          name: "automation_save",
+          status: "complete",
+        },
+      },
+      global: { plugins: [createAppI18n("en-US")] },
+    });
+    expect(saved.text()).toContain("Created automation Daily summary");
+
+    const refused = mount(ProjectToolCallMarker, {
+      props: {
+        toolCall: {
+          id: "automation-2",
+          input: { spec: { name: "Daily summary" } },
+          name: "automation_save",
+          output: { details: { saved: false, errors: ["bad"] } },
+          status: "complete",
+        },
+      },
+      global: { plugins: [createAppI18n("en-US")] },
+    });
+    expect(refused.text()).toContain("Couldn’t create automation");
+
+    const models = mount(ProjectToolCallMarker, {
+      props: {
+        toolCall: {
+          id: "models-1",
+          input: {},
+          name: "ui_list_models",
+          status: "complete",
+        },
+      },
+      global: { plugins: [createAppI18n("zh-CN")] },
+    });
+    expect(models.text()).toContain("已查看可用模型");
+  });
+
   it("formats Computer Use calls without exposing typed text", () => {
     const desktop = mount(ProjectToolCallMarker, {
       props: {

@@ -37,6 +37,7 @@ import {
 } from "@/shared/workbench";
 import ProjectToolCallDialog from "./ProjectToolCallDialog.vue";
 import {
+  automationOperation,
   isDeniedTool,
   isRunningTool,
   mediaOperationKey,
@@ -381,6 +382,23 @@ function firstString(
     if (typeof value === "string" && value.trim()) return value.trim();
   }
   return undefined;
+}
+
+/** The automation a call acts on, by name: from the definition it sends, or
+ * the one the host returned. Ids alone are not worth showing. */
+function automationTarget(
+  input: Record<string, unknown>,
+  output: unknown,
+): string {
+  const details = inputRecord(inputRecord(output).details);
+  const automation = inputRecord(details.automation);
+  return (
+    firstString(inputRecord(input.spec), ["name"]) ??
+    firstString(automation, ["name"]) ??
+    firstString(inputRecord(automation.spec), ["name"]) ??
+    firstString(details, ["name"]) ??
+    ""
+  );
 }
 
 function compactInline(value: string, maxLength = 80): string {
@@ -1052,6 +1070,49 @@ const presentation = computed(() => {
       operation: undefined,
       separator: "",
       target: todoTarget(input, props.toolCall.output),
+      targetMono: false,
+      purpose: undefined,
+      faviconDataUrl: undefined,
+      after: "",
+    };
+  }
+  if (kind === "automation" || kind === "model") {
+    const tense = state === "running" || state === "error" ? state : "complete";
+    if (kind === "model") {
+      return {
+        before: t(`project.transcript.tools.model.list.${tense}`),
+        operation: undefined,
+        separator: "",
+        target: "",
+        targetMono: false,
+        purpose: undefined,
+        faviconDataUrl: undefined,
+        after: "",
+      };
+    }
+    const operation = automationOperation(props.toolCall.name, input);
+    // A report that found nothing reads differently from one with findings.
+    // A save the host refused (validation errors) did not create anything.
+    const refused =
+      inputRecord(inputRecord(props.toolCall.output).details).saved === false;
+    const outcome =
+      tense === "complete" && refused
+        ? "error"
+        : operation === "report" &&
+            tense === "complete" &&
+            input.status === "nothing"
+          ? "nothing"
+          : tense;
+    return {
+      before: t(`project.transcript.tools.automation.${operation}.${outcome}`),
+      operation: undefined,
+      separator: "",
+      target:
+        operation === "report"
+          ? compactInline(firstString(input, ["summary"]) ?? "", 96)
+          : operation === "activate" || operation === "list"
+            ? ""
+            : automationTarget(input, props.toolCall.output),
       targetMono: false,
       purpose: undefined,
       faviconDataUrl: undefined,

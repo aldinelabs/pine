@@ -1089,6 +1089,14 @@ export default {
           active: "Organisation de l'espace de travail",
           complete: "Espace de travail organisé",
         },
+        automation: {
+          active: "{count} actions d’automatisation en cours",
+          complete: "{count} actions d’automatisation effectuées",
+        },
+        model: {
+          active: "Consultation des modèles ({count} fois)",
+          complete: "Modèles consultés {count} fois",
+        },
         project: {
           active: "Exécution de {count} actions de projet",
           complete: "{count} actions de projet exécutées",
@@ -1125,6 +1133,8 @@ export default {
         presentFile: "présentation de fichier",
         workbench: "modification de l'espace de travail",
         workbenchState: "état de l'espace de travail",
+        automation: "action d’automatisation",
+        model: "consultation des modèles",
         project: "action de projet",
         background: "processus en arrière-plan",
         todo: "tâches",
@@ -1252,6 +1262,71 @@ export default {
               "Espace de travail organisé pour n'afficher que {panel}",
             error: "Impossible d'organiser l'espace de travail",
             running: "Organisation de l'espace de travail",
+          },
+        },
+        automation: {
+          activate: {
+            running: "Chargement des outils d’automatisation",
+            complete: "Outils d’automatisation chargés",
+            error: "Impossible de charger les outils d’automatisation",
+          },
+          list: {
+            running: "Lecture des automatisations",
+            complete: "Automatisations listées",
+            error: "Impossible de lister les automatisations",
+          },
+          get: {
+            running: "Lecture de l’automatisation ",
+            complete: "Automatisation lue : ",
+            error: "Impossible de lire l’automatisation ",
+          },
+          check: {
+            running: "Vérification de l’automatisation ",
+            complete: "Automatisation vérifiée : ",
+            error: "Impossible de vérifier l’automatisation ",
+          },
+          create: {
+            running: "Création de l’automatisation ",
+            complete: "Automatisation créée : ",
+            error: "Impossible de créer l’automatisation ",
+          },
+          update: {
+            running: "Mise à jour de l’automatisation ",
+            complete: "Automatisation mise à jour : ",
+            error: "Impossible de mettre à jour l’automatisation ",
+          },
+          pause: {
+            running: "Mise en pause de l’automatisation ",
+            complete: "Automatisation mise en pause : ",
+            error: "Impossible de mettre en pause l’automatisation ",
+          },
+          resume: {
+            running: "Reprise de l’automatisation ",
+            complete: "Automatisation reprise : ",
+            error: "Impossible de reprendre l’automatisation ",
+          },
+          runNow: {
+            running: "Démarrage de l’automatisation ",
+            complete: "Automatisation démarrée : ",
+            error: "Impossible de démarrer l’automatisation ",
+          },
+          delete: {
+            running: "Suppression de l’automatisation ",
+            complete: "Automatisation supprimée : ",
+            error: "Impossible de supprimer l’automatisation ",
+          },
+          report: {
+            running: "Envoi du résultat de l’exécution",
+            complete: "Résultats signalés : ",
+            nothing: "Rien de nouveau signalé : ",
+            error: "Impossible d’envoyer le résultat de l’exécution",
+          },
+        },
+        model: {
+          list: {
+            running: "Consultation des modèles",
+            complete: "Modèles disponibles consultés",
+            error: "Impossible de lister les modèles",
           },
         },
         project: {

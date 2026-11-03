@@ -1,7 +1,9 @@
 import {
   AppWindowIcon,
   BookOpenIcon,
+  CalendarClockIcon,
   ClapperboardIcon,
+  CpuIcon,
   EyeIcon,
   FilePlusIcon,
   FolderInputIcon,
@@ -36,11 +38,14 @@ import {
   RECALL_TOOL_NAME,
   UI_LIST_PROJECT_TOOL_NAME,
   UI_PRESENT_FILE_TOOL_NAME,
+  UI_LIST_MODELS_TOOL_NAME,
   UI_TELEPORT_TOOL_NAME,
 } from "@/shared/agent";
+import { ACTIVATE_AUTOMATION_AUTHORING_TOOL_NAME } from "@/shared/automation";
 import type { PineToolCall } from "@/shared/sessions";
 
 export type ToolKind =
+  | "automation"
   | "background"
   | "bash"
   | "browser"
@@ -50,6 +55,7 @@ export type ToolKind =
   | "generic"
   | "media"
   | "mcp"
+  | "model"
   | "presentFile"
   | "project"
   | "read"
@@ -63,6 +69,7 @@ export type ToolKind =
 
 /** Icon shown for each tool call, keyed by its kind. */
 export const TOOL_KIND_ICON: Record<ToolKind, Component> = {
+  automation: CalendarClockIcon,
   background: WorkflowIcon,
   bash: SquareTerminal,
   browser: PanelTopIcon,
@@ -72,6 +79,7 @@ export const TOOL_KIND_ICON: Record<ToolKind, Component> = {
   generic: WrenchIcon,
   media: ClapperboardIcon,
   mcp: PlugIcon,
+  model: CpuIcon,
   presentFile: EyeIcon,
   project: FolderInputIcon,
   read: FileTextIcon,
@@ -140,6 +148,8 @@ export const TOOL_KIND_ORDER: readonly ToolKind[] = [
   "bash",
   "background",
   "skill",
+  "automation",
+  "model",
   "project",
   "generic",
 ];
@@ -204,6 +214,12 @@ export function toolKind(name: string): ToolKind {
     normalized === UI_TELEPORT_TOOL_NAME
   )
     return "project";
+  if (
+    normalized === ACTIVATE_AUTOMATION_AUTHORING_TOOL_NAME ||
+    normalized.startsWith("automation_")
+  )
+    return "automation";
+  if (normalized === UI_LIST_MODELS_TOOL_NAME) return "model";
   if (normalized === TODO_TOOL_NAME) return "todo";
   if (normalized === RECALL_TOOL_NAME) return "recall";
   if ((BACKGROUND_TASK_TOOL_NAMES as readonly string[]).includes(normalized))
@@ -259,6 +275,47 @@ export function toolKind(name: string): ToolKind {
   if (skillOperationKey(normalized)) return "skill";
   if (mediaOperationKey(normalized)) return "media";
   return "generic";
+}
+
+export type AutomationOperation =
+  | "activate"
+  | "check"
+  | "create"
+  | "delete"
+  | "get"
+  | "list"
+  | "pause"
+  | "report"
+  | "resume"
+  | "runNow"
+  | "update";
+
+/** Which automation tool a call is, telling a create from an update and a
+ * pause from a resume by the call's arguments. */
+export function automationOperation(
+  name: string,
+  input: Record<string, unknown>,
+): AutomationOperation {
+  switch (normalizedName(name)) {
+    case ACTIVATE_AUTOMATION_AUTHORING_TOOL_NAME:
+      return "activate";
+    case "automation_check":
+      return "check";
+    case "automation_save":
+      return typeof input.id === "string" ? "update" : "create";
+    case "automation_delete":
+      return "delete";
+    case "automation_get":
+      return "get";
+    case "automation_set_enabled":
+      return input.enabled === false ? "pause" : "resume";
+    case "automation_run_now":
+      return "runNow";
+    case "automation_report":
+      return "report";
+    default:
+      return "list";
+  }
 }
 
 export function isRunningTool(toolCall: PineToolCall): boolean {

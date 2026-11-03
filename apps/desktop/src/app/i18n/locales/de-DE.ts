@@ -1096,6 +1096,14 @@ export default {
           active: "Arbeitsbereich wird angeordnet",
           complete: "Arbeitsbereich angeordnet",
         },
+        automation: {
+          active: "{count} Automatisierungsaktionen laufen",
+          complete: "{count} Automatisierungsaktionen ausgeführt",
+        },
+        model: {
+          active: "Modelle werden {count}-mal abgefragt",
+          complete: "Modelle {count}-mal abgefragt",
+        },
         project: {
           active: "{count} Projektaktionen werden ausgeführt",
           complete: "{count} Projektaktionen ausgeführt",
@@ -1132,6 +1140,8 @@ export default {
         presentFile: "Dateipräsentation",
         workbench: "Änderung am Arbeitsbereich",
         workbenchState: "Status des Arbeitsbereichs",
+        automation: "Automatisierungsaktion",
+        model: "Modellabfrage",
         project: "Projektaktion",
         background: "Hintergrundprozess",
         todo: "Aufgaben",
@@ -1258,6 +1268,71 @@ export default {
               "Arbeitsbereich so angeordnet, dass nur {panel} angezeigt wird",
             error: "Arbeitsbereich konnte nicht angeordnet werden",
             running: "Arbeitsbereich wird angeordnet",
+          },
+        },
+        automation: {
+          activate: {
+            running: "Automatisierungswerkzeuge werden geladen",
+            complete: "Automatisierungswerkzeuge geladen",
+            error: "Automatisierungswerkzeuge konnten nicht geladen werden",
+          },
+          list: {
+            running: "Automatisierungen werden aufgelistet",
+            complete: "Automatisierungen aufgelistet",
+            error: "Automatisierungen konnten nicht aufgelistet werden",
+          },
+          get: {
+            running: "Automatisierung wird gelesen: ",
+            complete: "Automatisierung gelesen: ",
+            error: "Automatisierung konnte nicht gelesen werden: ",
+          },
+          check: {
+            running: "Automatisierung wird geprüft: ",
+            complete: "Automatisierung geprüft: ",
+            error: "Automatisierung konnte nicht geprüft werden: ",
+          },
+          create: {
+            running: "Automatisierung wird erstellt: ",
+            complete: "Automatisierung erstellt: ",
+            error: "Automatisierung konnte nicht erstellt werden: ",
+          },
+          update: {
+            running: "Automatisierung wird aktualisiert: ",
+            complete: "Automatisierung aktualisiert: ",
+            error: "Automatisierung konnte nicht aktualisiert werden: ",
+          },
+          pause: {
+            running: "Automatisierung wird pausiert: ",
+            complete: "Automatisierung pausiert: ",
+            error: "Automatisierung konnte nicht pausiert werden: ",
+          },
+          resume: {
+            running: "Automatisierung wird fortgesetzt: ",
+            complete: "Automatisierung fortgesetzt: ",
+            error: "Automatisierung konnte nicht fortgesetzt werden: ",
+          },
+          runNow: {
+            running: "Automatisierung wird gestartet: ",
+            complete: "Automatisierung gestartet: ",
+            error: "Automatisierung konnte nicht gestartet werden: ",
+          },
+          delete: {
+            running: "Automatisierung wird gelöscht: ",
+            complete: "Automatisierung gelöscht: ",
+            error: "Automatisierung konnte nicht gelöscht werden: ",
+          },
+          report: {
+            running: "Ergebnis des Laufs wird gemeldet",
+            complete: "Neue Ergebnisse gemeldet: ",
+            nothing: "Nichts Neues gemeldet: ",
+            error: "Ergebnis des Laufs konnte nicht gemeldet werden",
+          },
+        },
+        model: {
+          list: {
+            running: "Verfügbare Modelle werden abgefragt",
+            complete: "Verfügbare Modelle abgefragt",
+            error: "Modelle konnten nicht aufgelistet werden",
           },
         },
         project: {

@@ -1066,6 +1066,14 @@ export default {
           active: "Arranging the workbench",
           complete: "Arranged the workbench",
         },
+        automation: {
+          active: "Running {count} automation actions",
+          complete: "Ran {count} automation actions",
+        },
+        model: {
+          active: "Looking up models {count} times",
+          complete: "Looked up models {count} times",
+        },
         project: {
           active: "Running {count} project actions",
           complete: "Ran {count} project actions",
@@ -1102,6 +1110,8 @@ export default {
         presentFile: "present file",
         workbench: "workbench change",
         workbenchState: "workbench state",
+        automation: "automation action",
+        model: "model lookup",
         project: "project action",
         background: "background process",
         todo: "todos",
@@ -1226,6 +1236,71 @@ export default {
             completeSingle: "Arranged the workbench to show only {panel}",
             error: "Couldn’t arrange the workbench",
             running: "Arranging the workbench",
+          },
+        },
+        automation: {
+          activate: {
+            running: "Loading automation tools",
+            complete: "Loaded automation tools",
+            error: "Couldn’t load automation tools",
+          },
+          list: {
+            running: "Listing automations",
+            complete: "Listed automations",
+            error: "Couldn’t list automations",
+          },
+          get: {
+            running: "Reading automation ",
+            complete: "Read automation ",
+            error: "Couldn’t read automation ",
+          },
+          check: {
+            running: "Checking automation ",
+            complete: "Checked automation ",
+            error: "Couldn’t check automation ",
+          },
+          create: {
+            running: "Creating automation ",
+            complete: "Created automation ",
+            error: "Couldn’t create automation ",
+          },
+          update: {
+            running: "Updating automation ",
+            complete: "Updated automation ",
+            error: "Couldn’t update automation ",
+          },
+          pause: {
+            running: "Pausing automation ",
+            complete: "Paused automation ",
+            error: "Couldn’t pause automation ",
+          },
+          resume: {
+            running: "Resuming automation ",
+            complete: "Resumed automation ",
+            error: "Couldn’t resume automation ",
+          },
+          runNow: {
+            running: "Starting automation ",
+            complete: "Started automation ",
+            error: "Couldn’t start automation ",
+          },
+          delete: {
+            running: "Deleting automation ",
+            complete: "Deleted automation ",
+            error: "Couldn’t delete automation ",
+          },
+          report: {
+            running: "Reporting the run’s result",
+            complete: "Reported findings: ",
+            nothing: "Reported nothing new: ",
+            error: "Couldn’t report the run’s result",
+          },
+        },
+        model: {
+          list: {
+            running: "Listing models",
+            complete: "Listed available models",
+            error: "Couldn’t list models",
           },
         },
         project: {

@@ -1,7 +1,9 @@
 import {
   AppWindowIcon,
   BookOpenIcon,
+  CalendarClockIcon,
   ClapperboardIcon,
+  CpuIcon,
   EyeIcon,
   HistoryIcon,
   MonitorCogIcon,
@@ -17,6 +19,7 @@ import {
   MEDIA_OPERATION_ICON,
   SKILL_OPERATION_ICON,
   TOOL_KIND_ICON,
+  automationOperation,
   toolIconForName,
   toolKind,
 } from "../toolKinds";
@@ -74,5 +77,26 @@ describe("Computer Use tool kinds", () => {
 
   it("uses an app window icon for activating Pine operations", () => {
     expect(toolIconForName("activate_pine_ops")).toBe(AppWindowIcon);
+  });
+
+  it("uses dedicated kinds for automation and model tools", () => {
+    expect(toolKind("activate_automation_authoring")).toBe("automation");
+    expect(toolKind("automation_save")).toBe("automation");
+    expect(toolKind("automation_report")).toBe("automation");
+    expect(toolKind("ui_list_models")).toBe("model");
+    expect(toolIconForName("automation_list")).toBe(CalendarClockIcon);
+    expect(toolIconForName("ui_list_models")).toBe(CpuIcon);
+  });
+
+  it("tells automation operations apart by their arguments", () => {
+    expect(automationOperation("automation_save", {})).toBe("create");
+    expect(automationOperation("automation_save", { id: "a" })).toBe("update");
+    expect(
+      automationOperation("automation_set_enabled", { enabled: false }),
+    ).toBe("pause");
+    expect(
+      automationOperation("automation_set_enabled", { enabled: true }),
+    ).toBe("resume");
+    expect(automationOperation("automation_run_now", {})).toBe("runNow");
   });
 });

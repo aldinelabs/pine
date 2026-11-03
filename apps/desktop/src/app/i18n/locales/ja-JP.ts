@@ -1071,6 +1071,14 @@ export default {
           active: "ワークベンチを整理中",
           complete: "ワークベンチを整理しました",
         },
+        automation: {
+          active: "{count} 件の自動化操作を実行中",
+          complete: "{count} 件の自動化操作を実行しました",
+        },
+        model: {
+          active: "モデルを {count} 回確認中",
+          complete: "モデルを {count} 回確認しました",
+        },
         project: {
           active: "{count} 件のプロジェクト操作を実行中",
           complete: "{count} 件のプロジェクト操作を実行しました",
@@ -1107,6 +1115,8 @@ export default {
         presentFile: "ファイルの提示",
         workbench: "ワークベンチの変更",
         workbenchState: "ワークベンチの状態",
+        automation: "自動化の操作",
+        model: "モデルの確認",
         project: "プロジェクト操作",
         background: "バックグラウンドプロセス",
         todo: "ToDo",
@@ -1232,6 +1242,71 @@ export default {
             completeSingle: "ワークベンチを整理し、{panel} のみを表示しました",
             error: "ワークベンチを整理できませんでした",
             running: "ワークベンチを整理中",
+          },
+        },
+        automation: {
+          activate: {
+            running: "自動化ツールを読み込み中",
+            complete: "自動化ツールを読み込みました",
+            error: "自動化ツールを読み込めませんでした",
+          },
+          list: {
+            running: "自動化の一覧を確認中",
+            complete: "自動化の一覧を確認しました",
+            error: "自動化の一覧を読み込めませんでした",
+          },
+          get: {
+            running: "自動化を読み込み中: ",
+            complete: "自動化を読み込みました: ",
+            error: "自動化を読み込めませんでした: ",
+          },
+          check: {
+            running: "自動化を検証中: ",
+            complete: "自動化を検証しました: ",
+            error: "自動化を検証できませんでした: ",
+          },
+          create: {
+            running: "自動化を作成中: ",
+            complete: "自動化を作成しました: ",
+            error: "自動化を作成できませんでした: ",
+          },
+          update: {
+            running: "自動化を更新中: ",
+            complete: "自動化を更新しました: ",
+            error: "自動化を更新できませんでした: ",
+          },
+          pause: {
+            running: "自動化を一時停止中: ",
+            complete: "自動化を一時停止しました: ",
+            error: "自動化を一時停止できませんでした: ",
+          },
+          resume: {
+            running: "自動化を再開中: ",
+            complete: "自動化を再開しました: ",
+            error: "自動化を再開できませんでした: ",
+          },
+          runNow: {
+            running: "自動化を開始中: ",
+            complete: "自動化を開始しました: ",
+            error: "自動化を開始できませんでした: ",
+          },
+          delete: {
+            running: "自動化を削除中: ",
+            complete: "自動化を削除しました: ",
+            error: "自動化を削除できませんでした: ",
+          },
+          report: {
+            running: "実行結果を報告中",
+            complete: "新しい結果を報告しました: ",
+            nothing: "新しい内容はないと報告しました: ",
+            error: "実行結果を報告できませんでした",
+          },
+        },
+        model: {
+          list: {
+            running: "利用可能なモデルを確認中",
+            complete: "利用可能なモデルを確認しました",
+            error: "モデルの一覧を読み込めませんでした",
           },
         },
         project: {

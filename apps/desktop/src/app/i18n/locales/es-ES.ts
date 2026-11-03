@@ -1086,6 +1086,14 @@ export default {
           active: "Organizando el panel de trabajo",
           complete: "Organizó el panel de trabajo",
         },
+        automation: {
+          active: "Ejecutando {count} acciones de automatización",
+          complete: "Se ejecutaron {count} acciones de automatización",
+        },
+        model: {
+          active: "Consultando modelos {count} veces",
+          complete: "Se consultaron modelos {count} veces",
+        },
         project: {
           active: "Ejecutando {count} acciones del proyecto",
           complete: "Ejecutó {count} acciones del proyecto",
@@ -1122,6 +1130,8 @@ export default {
         presentFile: "presentación de archivo",
         workbench: "cambio del panel de trabajo",
         workbenchState: "estado del panel de trabajo",
+        automation: "acción de automatización",
+        model: "consulta de modelos",
         project: "acción del proyecto",
         background: "proceso en segundo plano",
         todo: "tareas",
@@ -1249,6 +1259,71 @@ export default {
               "Organizó el panel de trabajo para mostrar solo {panel}",
             error: "No se pudo organizar el panel de trabajo",
             running: "Organizando el panel de trabajo",
+          },
+        },
+        automation: {
+          activate: {
+            running: "Cargando herramientas de automatización",
+            complete: "Herramientas de automatización cargadas",
+            error: "No se pudieron cargar las herramientas de automatización",
+          },
+          list: {
+            running: "Listando automatizaciones",
+            complete: "Automatizaciones listadas",
+            error: "No se pudieron listar las automatizaciones",
+          },
+          get: {
+            running: "Leyendo la automatización ",
+            complete: "Automatización leída: ",
+            error: "No se pudo leer la automatización ",
+          },
+          check: {
+            running: "Comprobando la automatización ",
+            complete: "Automatización comprobada: ",
+            error: "No se pudo comprobar la automatización ",
+          },
+          create: {
+            running: "Creando la automatización ",
+            complete: "Automatización creada: ",
+            error: "No se pudo crear la automatización ",
+          },
+          update: {
+            running: "Actualizando la automatización ",
+            complete: "Automatización actualizada: ",
+            error: "No se pudo actualizar la automatización ",
+          },
+          pause: {
+            running: "Pausando la automatización ",
+            complete: "Automatización pausada: ",
+            error: "No se pudo pausar la automatización ",
+          },
+          resume: {
+            running: "Reanudando la automatización ",
+            complete: "Automatización reanudada: ",
+            error: "No se pudo reanudar la automatización ",
+          },
+          runNow: {
+            running: "Iniciando la automatización ",
+            complete: "Automatización iniciada: ",
+            error: "No se pudo iniciar la automatización ",
+          },
+          delete: {
+            running: "Eliminando la automatización ",
+            complete: "Automatización eliminada: ",
+            error: "No se pudo eliminar la automatización ",
+          },
+          report: {
+            running: "Informando del resultado de la ejecución",
+            complete: "Se informó de novedades: ",
+            nothing: "Se informó de que no hay novedades: ",
+            error: "No se pudo informar del resultado de la ejecución",
+          },
+        },
+        model: {
+          list: {
+            running: "Consultando los modelos disponibles",
+            complete: "Modelos disponibles consultados",
+            error: "No se pudieron listar los modelos",
           },
         },
         project: {

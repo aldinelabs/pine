@@ -1059,6 +1059,14 @@ export default {
           active: "작업대 정리 중",
           complete: "작업대를 정리함",
         },
+        automation: {
+          active: "자동화 작업 {count}개 실행 중",
+          complete: "자동화 작업 {count}개 실행함",
+        },
+        model: {
+          active: "모델 {count}회 조회 중",
+          complete: "모델 {count}회 조회함",
+        },
         project: {
           active: "프로젝트 작업 {count}개 실행 중",
           complete: "프로젝트 작업 {count}개 실행함",
@@ -1095,6 +1103,8 @@ export default {
         presentFile: "파일 표시",
         workbench: "작업대 변경",
         workbenchState: "작업대 상태",
+        automation: "자동화 작업",
+        model: "모델 조회",
         project: "프로젝트 작업",
         background: "백그라운드 프로세스",
         todo: "할 일",
@@ -1220,6 +1230,71 @@ export default {
             completeSingle: "작업대를 정리하여 {panel}만 표시함",
             error: "작업대를 정리할 수 없습니다",
             running: "작업대 정리 중",
+          },
+        },
+        automation: {
+          activate: {
+            running: "자동화 도구 불러오는 중",
+            complete: "자동화 도구를 불러왔습니다",
+            error: "자동화 도구를 불러오지 못했습니다",
+          },
+          list: {
+            running: "자동화 목록 확인 중",
+            complete: "자동화 목록을 확인했습니다",
+            error: "자동화 목록을 불러오지 못했습니다",
+          },
+          get: {
+            running: "자동화 읽는 중: ",
+            complete: "자동화를 읽었습니다: ",
+            error: "자동화를 읽지 못했습니다: ",
+          },
+          check: {
+            running: "자동화 검사 중: ",
+            complete: "자동화를 검사했습니다: ",
+            error: "자동화를 검사하지 못했습니다: ",
+          },
+          create: {
+            running: "자동화 만드는 중: ",
+            complete: "자동화를 만들었습니다: ",
+            error: "자동화를 만들지 못했습니다: ",
+          },
+          update: {
+            running: "자동화 업데이트 중: ",
+            complete: "자동화를 업데이트했습니다: ",
+            error: "자동화를 업데이트하지 못했습니다: ",
+          },
+          pause: {
+            running: "자동화 일시 중지 중: ",
+            complete: "자동화를 일시 중지했습니다: ",
+            error: "자동화를 일시 중지하지 못했습니다: ",
+          },
+          resume: {
+            running: "자동화 재개 중: ",
+            complete: "자동화를 재개했습니다: ",
+            error: "자동화를 재개하지 못했습니다: ",
+          },
+          runNow: {
+            running: "자동화 시작 중: ",
+            complete: "자동화를 시작했습니다: ",
+            error: "자동화를 시작하지 못했습니다: ",
+          },
+          delete: {
+            running: "자동화 삭제 중: ",
+            complete: "자동화를 삭제했습니다: ",
+            error: "자동화를 삭제하지 못했습니다: ",
+          },
+          report: {
+            running: "실행 결과 보고 중",
+            complete: "새 결과를 보고했습니다: ",
+            nothing: "새 내용이 없다고 보고했습니다: ",
+            error: "실행 결과를 보고하지 못했습니다",
+          },
+        },
+        model: {
+          list: {
+            running: "사용 가능한 모델 확인 중",
+            complete: "사용 가능한 모델을 확인했습니다",
+            error: "모델 목록을 불러오지 못했습니다",
           },
         },
         project: {

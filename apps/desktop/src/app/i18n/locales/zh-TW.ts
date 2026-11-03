@@ -1020,6 +1020,14 @@ export default {
           active: "正在調整工作臺",
           complete: "調整了工作臺",
         },
+        automation: {
+          active: "正在處理 {count} 次自動化操作",
+          complete: "處理了 {count} 次自動化操作",
+        },
+        model: {
+          active: "正在查詢 {count} 次模型",
+          complete: "查詢了 {count} 次模型",
+        },
         project: {
           active: "正在處理 {count} 次專案操作",
           complete: "處理了 {count} 次專案操作",
@@ -1056,6 +1064,8 @@ export default {
         presentFile: "開啟檔案",
         workbench: "工作臺調整",
         workbenchState: "工作臺狀態",
+        automation: "自動化操作",
+        model: "模型查詢",
         project: "專案操作",
         background: "後臺程序",
         todo: "任務清單",
@@ -1180,6 +1190,71 @@ export default {
             completeSingle: "已讓工作臺只顯示{panel}",
             error: "無法排布工作臺",
             running: "正在排布工作臺",
+          },
+        },
+        automation: {
+          activate: {
+            running: "正在載入自動化工具",
+            complete: "已載入自動化工具",
+            error: "無法載入自動化工具",
+          },
+          list: {
+            running: "正在查看自動化列表",
+            complete: "已查看自動化列表",
+            error: "無法讀取自動化列表",
+          },
+          get: {
+            running: "正在讀取自動化 ",
+            complete: "已讀取自動化 ",
+            error: "無法讀取自動化 ",
+          },
+          check: {
+            running: "正在檢查自動化 ",
+            complete: "已檢查自動化 ",
+            error: "無法檢查自動化 ",
+          },
+          create: {
+            running: "正在建立自動化 ",
+            complete: "已建立自動化 ",
+            error: "無法建立自動化 ",
+          },
+          update: {
+            running: "正在更新自動化 ",
+            complete: "已更新自動化 ",
+            error: "無法更新自動化 ",
+          },
+          pause: {
+            running: "正在暫停自動化 ",
+            complete: "已暫停自動化 ",
+            error: "無法暫停自動化 ",
+          },
+          resume: {
+            running: "正在恢復自動化 ",
+            complete: "已恢復自動化 ",
+            error: "無法恢復自動化 ",
+          },
+          runNow: {
+            running: "正在啟動自動化 ",
+            complete: "已啟動自動化 ",
+            error: "無法啟動自動化 ",
+          },
+          delete: {
+            running: "正在刪除自動化 ",
+            complete: "已刪除自動化 ",
+            error: "無法刪除自動化 ",
+          },
+          report: {
+            running: "正在回報執行結果",
+            complete: "回報了新發現：",
+            nothing: "回報沒有新內容：",
+            error: "無法回報執行結果",
+          },
+        },
+        model: {
+          list: {
+            running: "正在查看可用模型",
+            complete: "已查看可用模型",
+            error: "無法讀取模型列表",
           },
         },
         project: {
