@@ -1,3 +1,4 @@
+import type { AutomationHostOperation } from "./automation";
 import type { PineSessionSummary } from "./sessions";
 import type { BackgroundTaskSnapshot } from "@pine/pi-background-tasks";
 import type {
@@ -328,7 +329,8 @@ export type PineHostRequest =
   | { kind: "list-projects" }
   | { kind: "teleport"; projectId: string }
   | { kind: "workbench-state" }
-  | { kind: "approximate-location" };
+  | { kind: "approximate-location" }
+  | { kind: "automation"; operation: AutomationHostOperation };
 
 /** Main asks only the session's owning window for its live layout. */
 export interface PineWorkbenchStateRequestEvent {

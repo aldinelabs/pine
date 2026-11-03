@@ -1,7 +1,12 @@
 import type { PineAgentEvent } from "../../shared/agent";
 import type { PineLibraryChange } from "../../shared/projects";
 import type { RemoteStatus } from "../../shared/remoteControl";
+import type { AutomationsChangedEvent } from "../../shared/automation";
 import type { AgentProcessFactory } from "../agentProcessHost";
+import type {
+  AutomationNotification,
+  AutomationPowerEvents,
+} from "../automation/service";
 import type { ProjectFileNativeActions } from "../projectFileOperations";
 import type { TinyFishSafeStorage } from "../tinyfishCredentials";
 
@@ -45,4 +50,12 @@ export interface PineHost {
   approveRemotePairing?(request: { fingerprint: string }): Promise<boolean>;
   /** Remote Control's pairing, devices or connections changed. */
   remoteControlChanged?(status: RemoteStatus): void;
+  /** Sleep, lock and idle signals; automations' system triggers need them. */
+  automationPower?: AutomationPowerEvents;
+  /** Shows an automation's result or request at the OS level. */
+  notifyAutomation?(notification: AutomationNotification): void;
+  /** Tells every desktop window that automations, runs or approvals changed. */
+  automationsChanged?(event: AutomationsChangedEvent): void;
+  /** The interface language, for notifications and run prompts. */
+  locale?(): "en-US" | "zh-CN";
 }

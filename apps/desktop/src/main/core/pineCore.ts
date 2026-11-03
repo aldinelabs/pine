@@ -41,6 +41,11 @@ import {
 } from "../../shared/projects";
 import { WEB_CLIENT_ID } from "../../shared/webControl";
 import { AgentProcessHost } from "../agentProcessHost";
+import { AutomationService } from "../automation/service";
+import { AutomationSecretStore } from "../automation/secrets";
+import { AUTOMATION_SECRETS_FILE, AutomationStore } from "../automation/store";
+import { PineSkillRepository } from "../../agent/skills/repository";
+import { AUTOMATIONS_CHANGED_CHANNEL } from "../../shared/automation";
 import { ApproximateLocationService } from "../approximateLocation";
 import { FilePreviewWatcherRegistry } from "../filePreviewWatcher";
 import { ModelMetadataService } from "../modelMetadata";
@@ -65,6 +70,7 @@ import {
   ProjectFilePreviewRequestSchema,
 } from "./requestSchemas";
 import { registerCoreRequests } from "./requests";
+import { answerAutomationOperation } from "./requests/automations";
 
 /** How long a running agent gets to stop its work before Pine quits anyway. */
 const AGENT_SHUTDOWN_TIMEOUT_MS = 5_000;
@@ -82,6 +88,7 @@ export class PineCore {
   readonly repository: ProjectRepository;
   readonly runtimes: ProjectRuntimeRegistry;
   readonly agentHost: AgentProcessHost;
+  readonly automations: AutomationService;
   readonly diagnostics: RuntimeDiagnostics;
   readonly web: WebApplication;
   /** Lets paired devices reach the local web server without port forwarding. */
@@ -142,6 +149,11 @@ export class PineCore {
     );
     // Remote Control is optional; a failure to start it must not stop Pine.
     void core.remote.start().catch(() => undefined);
+    void core.automations
+      .start()
+      .catch((error: unknown) =>
+        console.error("Automations failed to start.", error),
+      );
     return core;
   }
 
@@ -185,6 +197,80 @@ export class PineCore {
     );
     this.agentHost = new AgentProcessHost(host.createAgentProcess);
     this.repository = new ProjectRepository(this.projectsRoot);
+    const automationStore = new AutomationStore(this.projectsRoot);
+    this.automations = new AutomationService({
+      store: automationStore,
+      secrets: new AutomationSecretStore(
+        (projectId) =>
+          path.join(
+            automationStore.projectRoot(projectId),
+            AUTOMATION_SECRETS_FILE,
+          ),
+        host.credentialStorage,
+      ),
+      projects: {
+        list: () => this.repository.list(),
+        dataPaths: (projectId) => this.repository.dataPaths(projectId),
+      },
+      agent: {
+        createSession: async (location) => {
+          const result = await this.agentHost.createSession(location);
+          return {
+            sessionId: result.session.id,
+            ...(result.sessionFile ? { sessionFile: result.sessionFile } : {}),
+          };
+        },
+        selectModel: async (sessionId, providerId, modelId) => {
+          await this.agentHost.selectModel(
+            this.agentDirectory,
+            providerId,
+            modelId,
+            "medium",
+            sessionId,
+          );
+        },
+        prompt: async (sessionId, message, locale) => {
+          await this.agentHost.prompt(
+            sessionId,
+            message,
+            undefined,
+            [],
+            "autonomous",
+            locale,
+          );
+        },
+        abort: async (sessionId) => {
+          await this.agentHost.abort(sessionId);
+        },
+        dispose: async (sessionId) => {
+          await this.agentHost.disposeSession(sessionId);
+        },
+      },
+      agentDirectory: this.agentDirectory,
+      tinyFishApiKey: () => credentials.getApiKey(),
+      fetch: (url, init) => host.fetch(url, init),
+      ...(host.automationPower ? { power: host.automationPower } : {}),
+      notify: (notification) => host.notifyAutomation?.(notification),
+      changed: (event) => {
+        host.automationsChanged?.(event);
+        this.web.server.publish(AUTOMATIONS_CHANGED_CHANNEL, event);
+      },
+      locale: () => host.locale?.() ?? "en-US",
+      skills: (projectId) => {
+        const dataPaths = this.repository.dataPaths(projectId);
+        const repository = new PineSkillRepository({
+          disabledGlobalSkillsPath:
+            dataPaths.skillsSettingsPath ??
+            path.join(dataPaths.projectRoot, "skills.json"),
+          global: path.join(this.agentDirectory, "skills"),
+          project:
+            dataPaths.skillsRoot ?? path.join(dataPaths.projectRoot, "skills"),
+        });
+        return Promise.resolve(
+          repository.listCombined().skills.map(({ skill }) => skill.name),
+        );
+      },
+    });
     this.runtimes = new ProjectRuntimeRegistry(
       this.agentHost,
       this.agentDirectory,
@@ -314,6 +400,7 @@ export class PineCore {
   ): void {
     this.host.libraryChanged(change, sourceClientId);
     this.web.libraryChanged(change);
+    if (change === "projects") void this.automations.projectsChanged();
   }
 
   rememberAttachments(
@@ -441,6 +528,7 @@ export class PineCore {
   /** Stop the agent process and its tools, and close browser access. */
   async stop(): Promise<void> {
     this.remote.stop();
+    await this.automations.stop().catch(() => undefined);
     const stopped = Promise.allSettled([
       this.agentHost.dispose(),
       this.stopWeb(),
@@ -458,6 +546,7 @@ export class PineCore {
   /** Releases watchers and processes as Pine exits, without waiting. */
   dispose(): void {
     this.remote.stop();
+    void this.automations.stop();
     void this.stopWeb();
     this.projectFileWatchers?.dispose();
     this.filePreviewWatchers.dispose();
@@ -485,6 +574,12 @@ export class PineCore {
       const ownerId = this.providerLoginOwners.get(agentEvent.loginId);
       if (ownerId !== undefined)
         this.sendClientEvent(ownerId, PROVIDER_AUTH_EVENT_CHANNEL, agentEvent);
+      return;
+    }
+    // Automation runs belong to no window; only the service sees them.
+    if (this.automations.observeAgentEvent(agentEvent)) {
+      if (agentEvent.type === "host-request")
+        void this.answerAutomationRequest(agentEvent, true);
       return;
     }
     const ownerId = this.runtimes.controllerOfSession(agentEvent.sessionId);
@@ -587,6 +682,10 @@ export class PineCore {
     event: Extract<PineAgentEvent, { type: "host-request" }>,
     ownerId: number,
   ): Promise<void> {
+    if (event.request.kind === "automation") {
+      await this.answerAutomationRequest(event, false);
+      return;
+    }
     const reply = await (async (): Promise<AgentHostReply> => {
       try {
         if (event.request.kind === "workbench-state") {
@@ -647,6 +746,8 @@ export class PineCore {
             },
           };
         }
+        if (event.request.kind !== "teleport")
+          throw new Error("Unknown host request.");
         const { projectId } = event.request;
         const project = projects.find(
           (candidate) => candidate.id === projectId,
@@ -673,6 +774,34 @@ export class PineCore {
         return { ok: false, error: toErrorMessage(error) };
       }
     })();
+    this.agentHost.respondHostRequest(event.requestId, reply);
+  }
+
+  private async answerAutomationRequest(
+    event: Extract<PineAgentEvent, { type: "host-request" }>,
+    isRun: boolean,
+  ): Promise<void> {
+    let reply: AgentHostReply;
+    try {
+      if (event.request.kind !== "automation")
+        throw new Error("Automation runs cannot use this tool.");
+      const projectId = isRun
+        ? this.automations.projectOfRun(event.sessionId)
+        : this.runtimes.projectOfLiveSession(event.sessionId)?.id;
+      if (!projectId || isTemporaryWorkspace(projectId))
+        throw new Error(
+          "Automations need a project. Move this conversation into a project first.",
+        );
+      const result = await answerAutomationOperation(
+        this,
+        { sessionId: event.sessionId, projectId },
+        event.request.operation,
+        isRun,
+      );
+      reply = { ok: true, response: { kind: "automation", result } };
+    } catch (error) {
+      reply = { ok: false, error: toErrorMessage(error) };
+    }
     this.agentHost.respondHostRequest(event.requestId, reply);
   }
 

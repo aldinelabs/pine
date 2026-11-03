@@ -1915,4 +1915,159 @@ export default {
       description: "Vérifiez que le dossier du projet est accessible",
     },
   },
+  automations: {
+    title: "Automatisations",
+    description:
+      "Du travail que Pine fait seul quand une heure, un changement de fichier ou une mise à jour de site le demande. Demandez à Pine dans une conversation d’en créer une.",
+    backgroundNotice:
+      "Les automatisations ne s’exécutent que lorsque Pine est ouvert. Activez l’exécution en arrière-plan dans les Préférences pour qu’elles continuent après la fermeture de la fenêtre.",
+    started: "Exécution lancée",
+    enabled: "Activée",
+    runNow: "Exécuter maintenant",
+    instructions: "Instructions",
+    refresh: "Actualiser",
+    showNothingRuns: "Afficher les exécutions sans nouveauté",
+    markAllRead: "Tout marquer comme lu",
+    unread: "Non lu",
+    noRuns: "Aucune activité pour l’instant",
+    empty: "Aucune automatisation pour l’instant",
+    emptyHint:
+      "Décrivez ce que vous voulez dans une conversation, par exemple « chaque jour ouvré à 9 h, résume les nouveaux fichiers de Reports ».",
+    next: "prochaine {time}",
+    deleteTitle: "Supprimer cette automatisation ?",
+    deleteDescription:
+      "« {name} » et son historique seront supprimés. Les fichiers créés restent en place.",
+    tabs: {
+      activity: "Activité",
+      automations: "Automatisations",
+      secrets: "Secrets",
+    },
+    status: {
+      running: "En cours",
+      findings: "Trouvé quelque chose",
+      nothing: "Rien de nouveau",
+      failed: "Échec",
+      interrupted: "Interrompue",
+      skipped: "Ignorée",
+    },
+    state: {
+      active: "Activée",
+      disabled: "Désactivée",
+      paused: "En pause",
+    },
+    trigger: {
+      schedule: "Planification",
+      folder: "Changement de dossier",
+      system: "Événement système",
+      script: "Vérification de site ou de flux",
+      manual: "Manuelle",
+      batch: "Plusieurs déclencheurs",
+    },
+    pause: {
+      failures: "En pause après {count} échecs consécutifs.",
+      "script-failures":
+        "En pause après {count} échecs consécutifs de la vérification.",
+      limit: "En pause : limite quotidienne d’exécutions atteinte.",
+      "self-trigger": "En pause : elle se déclenchait elle-même en boucle.",
+      permission: "En pause : le projet ne l’autorise plus ({detail}).",
+      secret: "En pause : le secret {secret} a été supprimé.",
+    },
+    run: {
+      keep: "Conserver",
+      unkeep: "Ne plus conserver",
+      continue: "Continuer dans une conversation",
+      continued:
+        "Cette exécution se poursuit comme conversation dans le projet.",
+      outputs: "Fichiers modifiés",
+      events: "Déclencheurs ({count})",
+      discarded:
+        "{count} changements faits par cette exécution n’ont pas été traités comme nouveaux déclencheurs.",
+      transcript: "Ce que l’agent a fait",
+    },
+    secrets: {
+      description:
+        "Des valeurs utilisables par les automatisations, comme des jetons d’API. Elles sont chiffrées sur cet ordinateur, transmises uniquement aux automatisations qui les nomment et masquées dans ce que lit l’agent.",
+      noValue: "Aucune valeur",
+      usedBy: "utilisé par {names}",
+      setValue: "Définir la valeur",
+      name: "Nom",
+      descriptionLabel: "Description",
+      value: "Valeur",
+      short:
+        "Les valeurs de moins de {count} caractères ne peuvent pas être masquées de façon fiable.",
+      add: "Ajouter un secret",
+      desktopOnly:
+        "Les secrets ne se modifient que dans Pine sur cet ordinateur.",
+    },
+    approval: {
+      title: {
+        create: "Nouvelle automatisation",
+        update: "Modifier l’automatisation",
+        enable: "Activer l’automatisation",
+        delete: "Supprimer l’automatisation",
+      },
+      description:
+        "Demandée par l’agent dans {project}. Elle s’exécute sans surveillance dans les autorisations ci-dessous.",
+      explanationNote:
+        "Résumé rédigé par le modèle d’approbation. Les détails ci-dessous font foi.",
+      showScript: "Afficher le script de vérification",
+      hideScript: "Masquer le script de vérification",
+      reject: "Refuser",
+      approve: {
+        create: "Approuver",
+        update: "Approuver la modification",
+        enable: "Activer",
+        delete: "Supprimer",
+      },
+      desktopOnly: "Approuvez ceci dans Pine sur l’ordinateur qui l’exécute.",
+    },
+    warnings: {
+      "script-read-and-network":
+        "Son script de vérification peut lire vos fichiers et accéder à Internet.",
+      "secret-network": "Elle envoie un secret enregistré sur Internet.",
+      "folder-overlaps-write": "Elle écrit dans le dossier qu’elle surveille.",
+      "after-external-content":
+        "L’agent l’a proposée après avoir lu du contenu web ou d’outil.",
+      "privileged-tools":
+        "Elle peut utiliser un shell hors du bac à sable (chaque appel est examiné).",
+      networkExecution: "Ses commandes peuvent joindre {hosts}.",
+    },
+    facts: {
+      missing: "introuvable",
+      localTime: "heure locale",
+      schedule: "{rule} ({zone})",
+      folder: "{events} dans {folder} correspondant à {include}",
+      change: {
+        added: "Ajouté",
+        changed: "Modifié",
+        removed: "Supprimé",
+      },
+      system: {
+        resume: "Au réveil de l’ordinateur",
+        unlock: "Au déverrouillage de l’écran",
+        "app-start": "Au démarrage de Pine",
+        idle: "Après {minutes} minutes d’inactivité",
+      },
+      window: "entre {from} et {to}",
+      oncePer: {
+        day: "une fois par jour",
+        week: "une fois par semaine",
+      },
+      script: "Vérifie toutes les {every}, contacte {hosts}",
+      none: "aucun",
+      manual: "Seulement lancée à la main",
+      triggers: "S’exécute",
+      read: "Lit",
+      write: "Écrit",
+      network: "Internet",
+      tools: "Outils",
+      secrets: "Secrets",
+      skills: "Skills",
+      outputs: "Résultats dans",
+      limits: "Limites",
+      limitValues:
+        "au plus {runs} exécutions par jour, {minutes} minutes chacune",
+      changed: "modifié",
+    },
+  },
 } as const;

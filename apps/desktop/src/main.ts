@@ -33,6 +33,12 @@ import {
 } from "./shared/preferenceStorage";
 import { PROJECT_MEDIA_PROTOCOL } from "./shared/projectFiles";
 import { LIBRARY_CHANGED_CHANNEL } from "./shared/projects";
+import { AUTOMATIONS_CHANGED_CHANNEL } from "./shared/automation";
+import {
+  automationLocale,
+  desktopAutomationPower,
+  showAutomationNotification,
+} from "./main/desktop/automationHost";
 import { DEFAULT_QUICK_COMPOSER_ENABLED } from "./shared/quickComposer";
 import {
   CANCEL_REMOTE_PAIRING_CHANNEL,
@@ -301,6 +307,17 @@ function desktopHost(): PineHost {
     attentionNotificationsChanged: (enabled) => {
       if (!enabled) attention.closeAttentionNotifications();
     },
+    automationPower: desktopAutomationPower(),
+    notifyAutomation: (notification) =>
+      showAutomationNotification(notification, () =>
+        appWindows().find((window) => !window.isDestroyed()),
+      ),
+    automationsChanged: (event) => {
+      for (const window of appWindows())
+        if (!window.isDestroyed())
+          window.webContents.send(AUTOMATIONS_CHANGED_CHANNEL, event);
+    },
+    locale: automationLocale,
   };
 }
 

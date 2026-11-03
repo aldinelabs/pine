@@ -112,7 +112,7 @@ it.each([TEMPORARY_WORKSPACE_PROJECT_ID, "project-one"])(
   },
 );
 
-it("opens skills and MCP servers from the bottom of the sidebar", async () => {
+it("opens automations, skills and MCP servers from the bottom of the sidebar", async () => {
   const pinia = createPinia();
   setActivePinia(pinia);
   const router = createRouter({
@@ -138,15 +138,16 @@ it("opens skills and MCP servers from the bottom of the sidebar", async () => {
 
   const buttons = wrapper.get("footer").findAll("button");
   expect(buttons.map((button) => button.text())).toEqual([
+    "自动化",
     "工作技能⌘S",
     "MCP 服务器⌘L",
   ]);
-  await buttons[0].trigger("click");
-  await buttons[1].trigger("click");
+  for (const button of buttons) await button.trigger("click");
+  expect(wrapper.emitted("manageAutomations")).toHaveLength(1);
   expect(wrapper.emitted("manageSkills")).toHaveLength(1);
   expect(wrapper.emitted("manageMcp")).toHaveLength(1);
   // On a phone the sheet steps aside for the dialog it opens.
-  expect(setOpenMobile).toHaveBeenCalledTimes(2);
+  expect(setOpenMobile).toHaveBeenCalledTimes(3);
   expect(setOpenMobile).toHaveBeenLastCalledWith(false);
   wrapper.unmount();
 });

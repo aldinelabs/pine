@@ -34,6 +34,8 @@ export function createSandboxConfig(
   policy: PineToolAccessPolicy,
   runtimeFiles: string[],
   platform: NodeJS.Platform = process.platform,
+  /** Exact hosts an automation run approved; the network is closed otherwise. */
+  allowedDomains: readonly string[] = [],
 ): SandboxRuntimeConfig {
   // Electron's executable depends on frameworks elsewhere in its app bundle.
   // Grant the containing installation, including when run outside /Applications.
@@ -66,7 +68,7 @@ export function createSandboxConfig(
     // encoding below would expose whole ancestor directories here.
     return {
       network: {
-        allowedDomains: [],
+        allowedDomains: [...allowedDomains],
         deniedDomains: [],
         allowUnixSockets: [],
         allowLocalBinding: false,
@@ -120,7 +122,7 @@ export function createSandboxConfig(
     ];
     return {
       network: {
-        allowedDomains: [],
+        allowedDomains: [...allowedDomains],
         deniedDomains: [],
         allowUnixSockets: [],
         allowLocalBinding: false,
@@ -155,7 +157,7 @@ export function createSandboxConfig(
 
   return {
     network: {
-      allowedDomains: [],
+      allowedDomains: [...allowedDomains],
       deniedDomains: [],
       allowUnixSockets: [],
       allowLocalBinding: false,

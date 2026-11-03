@@ -23,7 +23,11 @@ import {
   PINE_COMPUTER_USE_ACTIVE_ENTRY,
   PINE_MEDIA_GENERATION_ACTIVE_ENTRY,
   PINE_SKILL_AUTHORING_ACTIVE_ENTRY,
+  PINE_AUTOMATION_AUTHORING_ACTIVE_ENTRY,
 } from "../../shared/sessions";
+import { AUTOMATION_REPORT_TOOL_NAME } from "../../shared/automation";
+import { AUTOMATION_AUTHORING_DYNAMIC_TOOL_NAMES } from "../automation/tools";
+import type { AgentAutomationRun } from "../protocol";
 import type {
   AuthorizationGrant,
   GateTurnContext,
@@ -70,6 +74,9 @@ export interface LiveAgentSession {
   computerUseController?: ComputerUseController;
   mediaGenerationActive: boolean;
   skillAuthoringActive: boolean;
+  automationAuthoringActive: boolean;
+  /** Set for an unattended automation run; its envelope replaces the tool list. */
+  automation?: AgentAutomationRun;
   tinyFishApiKey?: string;
   locale: "en-US" | "zh-CN";
   contextCompactionStrategy: PineContextCompactionStrategy;
@@ -225,6 +232,15 @@ export function skillAuthoringActiveFromSessionEntries(
   );
 }
 
+export function automationAuthoringActiveFromSessionEntries(
+  entries: readonly unknown[],
+): boolean {
+  return activeFlagFromSessionEntries(
+    entries,
+    PINE_AUTOMATION_AUTHORING_ACTIVE_ENTRY,
+  );
+}
+
 export function mediaGenerationActiveFromSessionEntries(
   entries: readonly unknown[],
 ): boolean {
@@ -252,6 +268,29 @@ function activeFlagFromSessionEntries(
       (entry.data as { active?: unknown }).active === true
     );
   });
+}
+
+export function toolNamesForAutomationAuthoringState(
+  toolNames: readonly string[],
+  active: boolean,
+): string[] {
+  return toolNames.filter(
+    (name) =>
+      name !== AUTOMATION_REPORT_TOOL_NAME &&
+      (active ||
+        !AUTOMATION_AUTHORING_DYNAMIC_TOOL_NAMES.includes(
+          name as (typeof AUTOMATION_AUTHORING_DYNAMIC_TOOL_NAMES)[number],
+        )),
+  );
+}
+
+/** An automation run sees exactly its approved tools and the report tool. */
+export function toolNamesForAutomationRun(
+  toolNames: readonly string[],
+  run: AgentAutomationRun,
+): string[] {
+  const allowed = new Set([...run.toolNames, AUTOMATION_REPORT_TOOL_NAME]);
+  return toolNames.filter((name) => allowed.has(name));
 }
 
 export function toolNamesForSkillAuthoringState(

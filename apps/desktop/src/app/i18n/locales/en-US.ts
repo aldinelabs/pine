@@ -1849,4 +1849,156 @@ export default {
       description: "Check that the Project folder is accessible",
     },
   },
+  automations: {
+    title: "Automations",
+    description:
+      "Work Pine does on its own when a time, a file change or a website update calls for it. Ask Pine in a conversation to set one up.",
+    backgroundNotice:
+      "Automations only run while Pine is open. Turn on running in the background in Preferences to keep them going after you close the window.",
+    started: "Run started",
+    enabled: "Enabled",
+    runNow: "Run now",
+    instructions: "Instructions",
+    refresh: "Refresh",
+    showNothingRuns: "Show runs with nothing new",
+    markAllRead: "Mark all as read",
+    unread: "Unread",
+    noRuns: "No activity yet",
+    empty: "No automations yet",
+    emptyHint:
+      "Describe what you want done in a conversation, for example “every weekday at 9, summarize new files in Reports”.",
+    next: "next {time}",
+    deleteTitle: "Delete this automation?",
+    deleteDescription:
+      "“{name}” and its run history will be deleted. Files it created stay where they are.",
+    tabs: {
+      activity: "Activity",
+      automations: "Automations",
+      secrets: "Secrets",
+    },
+    status: {
+      running: "Running",
+      findings: "Found something",
+      nothing: "Nothing new",
+      failed: "Failed",
+      interrupted: "Interrupted",
+      skipped: "Skipped",
+    },
+    state: {
+      active: "On",
+      disabled: "Off",
+      paused: "Paused",
+    },
+    trigger: {
+      schedule: "Schedule",
+      folder: "Folder change",
+      system: "System event",
+      script: "Website or feed check",
+      manual: "Manual",
+      batch: "Several triggers",
+    },
+    pause: {
+      failures: "Paused after {count} failed runs in a row.",
+      "script-failures":
+        "Paused after the check failed {count} times in a row.",
+      limit: "Paused: reached its daily run limit.",
+      "self-trigger": "Paused: it kept triggering itself.",
+      permission: "Paused: the project no longer allows it ({detail}).",
+      secret: "Paused: secret {secret} was deleted.",
+    },
+    run: {
+      keep: "Keep",
+      unkeep: "Don’t keep",
+      continue: "Continue in a conversation",
+      continued: "This run continues as a conversation in the project.",
+      outputs: "Files changed",
+      events: "What triggered it ({count})",
+      discarded:
+        "{count} changes made by this run were not treated as new triggers.",
+      transcript: "What the agent did",
+    },
+    secrets: {
+      description:
+        "Values automations can use, such as API tokens. They are encrypted on this computer, given only to the automations that name them, and hidden from what the agent reads.",
+      noValue: "No value",
+      usedBy: "used by {names}",
+      setValue: "Set value",
+      name: "Name",
+      descriptionLabel: "Description",
+      value: "Value",
+      short:
+        "Values shorter than {count} characters can’t be hidden reliably in results.",
+      add: "Add secret",
+      desktopOnly: "Secrets can only be changed in Pine on this computer.",
+    },
+    approval: {
+      title: {
+        create: "New automation",
+        update: "Change automation",
+        enable: "Turn on automation",
+        delete: "Delete automation",
+      },
+      description:
+        "Requested by the agent in {project}. It runs unattended within the permissions below.",
+      explanationNote:
+        "Summary written by the approval model. The details below are what counts.",
+      showScript: "Show check script",
+      hideScript: "Hide check script",
+      reject: "Reject",
+      approve: {
+        create: "Approve",
+        update: "Approve change",
+        enable: "Turn on",
+        delete: "Delete",
+      },
+      desktopOnly: "Approve this in Pine on the computer that runs it.",
+    },
+    warnings: {
+      "script-read-and-network":
+        "Its check script can read your files and reach the internet.",
+      "secret-network": "It sends a saved secret to the internet.",
+      "folder-overlaps-write": "It writes to the folder it watches.",
+      "after-external-content":
+        "The agent proposed this after reading web or tool content.",
+      "privileged-tools":
+        "It may use a shell outside the sandbox (each call is reviewed).",
+      networkExecution: "Commands it runs can reach {hosts}.",
+    },
+    facts: {
+      missing: "missing",
+      localTime: "local time",
+      schedule: "{rule} ({zone})",
+      folder: "{events} in {folder} matching {include}",
+      change: {
+        added: "Added",
+        changed: "Changed",
+        removed: "Removed",
+      },
+      system: {
+        resume: "When the computer wakes",
+        unlock: "When the screen is unlocked",
+        "app-start": "When Pine starts",
+        idle: "After {minutes} minutes idle",
+      },
+      window: "between {from} and {to}",
+      oncePer: {
+        day: "once a day",
+        week: "once a week",
+      },
+      script: "Checks every {every}, contacting {hosts}",
+      none: "none",
+      manual: "Only when started by hand",
+      triggers: "Runs",
+      read: "Reads",
+      write: "Writes",
+      network: "Internet",
+      tools: "Tools",
+      secrets: "Secrets",
+      skills: "Skills",
+      outputs: "Results go to",
+      limits: "Limits",
+      limitValues: "at most {runs} runs a day, {minutes} minutes each",
+      changed: "changed",
+    },
+  },
 } as const;

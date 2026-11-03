@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Blocks, Library } from "@lucide/vue";
+import { Blocks, Library, Workflow } from "@lucide/vue";
 import { useTemplateRef, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import {
@@ -7,6 +7,7 @@ import {
   SidebarContent,
   SidebarFooter,
   SidebarMenu,
+  SidebarMenuBadge,
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarRail,
@@ -15,6 +16,7 @@ import {
 import ModifierShortcut from "@/components/window/ModifierShortcut.vue";
 import { useSidebarGlassWidth } from "@/composables/useSidebarGlassWidth";
 import { useContentTabNavigation } from "@/composables/useContentTabNavigation";
+import { useAutomationsStore } from "@/stores/automations";
 import AllProjectsSessionList from "./AllProjectsSessionList.vue";
 
 const { t } = useI18n();
@@ -22,8 +24,10 @@ const emit = defineEmits<{
   manageProjects: [];
   manageSkills: [];
   manageMcp: [];
+  manageAutomations: [];
   searchSessions: [];
 }>();
+const automations = useAutomationsStore();
 
 // On a phone the sidebar is a sheet over the content. It steps aside once
 // a tab opens or one of its dialogs takes over the screen.
@@ -67,6 +71,22 @@ useSidebarGlassWidth(() => {
 
     <SidebarFooter>
       <SidebarMenu>
+        <SidebarMenuItem>
+          <SidebarMenuButton
+            data-testid="manage-automations"
+            @click="handOff(() => emit('manageAutomations'))"
+          >
+            <Workflow aria-hidden="true" />
+            <span>{{ t("automations.title") }}</span>
+          </SidebarMenuButton>
+          <SidebarMenuBadge
+            v-if="automations.unread + automations.approvals.length > 0"
+            data-testid="automation-unread"
+            >{{
+              automations.unread + automations.approvals.length
+            }}</SidebarMenuBadge
+          >
+        </SidebarMenuItem>
         <SidebarMenuItem>
           <SidebarMenuButton
             data-testid="manage-skills"

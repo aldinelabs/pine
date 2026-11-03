@@ -13,6 +13,8 @@ import {
 import { useI18n } from "vue-i18n";
 import { handleError } from "@/app/errors/errorHandler";
 import McpManagerDialog from "@/components/mcp/McpManagerDialog.vue";
+import AutomationManagerDialog from "@/components/automations/AutomationManagerDialog.vue";
+import { useAutomationsStore } from "@/stores/automations";
 import { PineLogo } from "@/components/pine";
 import PinePreferencesDialog from "@/components/preferences/PinePreferencesDialog.vue";
 import SkillManagerDialog from "@/components/skills/SkillManagerDialog.vue";
@@ -62,6 +64,7 @@ const sidebar = useProjectSidebarVisibilityStore();
 const workbench = useWorkbenchStore();
 useWorkbenchEvents();
 const projectStore = useProjectStore();
+const automations = useAutomationsStore();
 const backgroundTasks = useBackgroundTasksStore();
 const sessionStore = useSessionStore();
 const contentTabsStore = useContentTabsStore();
@@ -307,6 +310,7 @@ onMounted(async () => {
     .then(openRequestedSection);
   backgroundTasks.connect();
   sessionStore.connectAgentEvents();
+  void automations.start();
   void loadProjects();
   await window.pine?.setWindowLayout?.("project");
   const open = sidebar.open;
@@ -370,6 +374,7 @@ onKeyStroke(Object.keys(sidebarShortcuts), (event) => {
       @manage-projects="preferencesDialog?.open('projects')"
       @manage-skills="isSkillManagerOpen = true"
       @manage-mcp="isMcpManagerOpen = true"
+      @manage-automations="automations.open()"
       @search-sessions="isSessionSearchOpen = true"
     />
 
@@ -464,6 +469,10 @@ onKeyStroke(Object.keys(sidebarShortcuts), (event) => {
       />
       <McpManagerDialog
         v-model:open="isMcpManagerOpen"
+        :project-id="projectStore.activeProject.id"
+      />
+      <AutomationManagerDialog
+        v-model:open="automations.isManagerOpen"
         :project-id="projectStore.activeProject.id"
       />
     </template>

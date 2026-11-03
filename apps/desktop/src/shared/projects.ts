@@ -1,3 +1,4 @@
+import type { PineAutomationsApi } from "./automation";
 import type {
   BackgroundTaskRequest,
   BackgroundTaskResult,
@@ -445,6 +446,7 @@ export interface PineDesktopApi
   ) => Promise<PickAttachmentsResult>;
   listProjects: () => Promise<ListProjectsResult>;
   listSkills: (request: SkillScopeRequest) => Promise<ListSkillsResult>;
+  automations: PineAutomationsApi;
   readSkill: (request: SkillIdentityRequest) => Promise<ReadSkillResult>;
   createSkill: (request: WriteSkillRequest) => Promise<ReadSkillResult>;
   editSkill: (request: WriteSkillRequest) => Promise<ReadSkillResult>;

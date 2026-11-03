@@ -305,6 +305,20 @@ describe("sandbox policy compilation", () => {
     );
   });
 
+  it("opens only an automation's approved hosts, on every platform", async () => {
+    const { policy, runtimeFiles } = await fixture();
+    for (const platform of ["darwin", "linux", "win32"] as const) {
+      expect(
+        createSandboxConfig(policy, runtimeFiles, platform).network
+          .allowedDomains,
+      ).toEqual([]);
+      expect(
+        createSandboxConfig(policy, runtimeFiles, platform, ["api.example.com"])
+          .network.allowedDomains,
+      ).toEqual(["api.example.com"]);
+    }
+  });
+
   it("grants Linux runtime trees and project folders without ancestor globs", async () => {
     const { policy, runtimeFiles } = await fixture();
     const config = createSandboxConfig(policy, runtimeFiles, "linux");

@@ -1896,4 +1896,157 @@ export default {
       description: "Comprueba que la carpeta del proyecto es accesible",
     },
   },
+  automations: {
+    title: "Automatizaciones",
+    description:
+      "Trabajo que Pine hace por su cuenta cuando una hora, un cambio de archivo o una actualización de un sitio lo piden. Pídele a Pine en una conversación que cree una.",
+    backgroundNotice:
+      "Las automatizaciones solo se ejecutan mientras Pine está abierto. Activa la ejecución en segundo plano en Preferencias para que sigan tras cerrar la ventana.",
+    started: "Ejecución iniciada",
+    enabled: "Activada",
+    runNow: "Ejecutar ahora",
+    instructions: "Instrucciones",
+    refresh: "Actualizar",
+    showNothingRuns: "Mostrar ejecuciones sin novedades",
+    markAllRead: "Marcar todo como leído",
+    unread: "No leído",
+    noRuns: "Aún no hay actividad",
+    empty: "Aún no hay automatizaciones",
+    emptyHint:
+      "Describe lo que quieres en una conversación, por ejemplo «cada día laborable a las 9, resume los archivos nuevos de Reports».",
+    next: "próxima {time}",
+    deleteTitle: "¿Eliminar esta automatización?",
+    deleteDescription:
+      "Se eliminarán «{name}» y su historial. Los archivos que creó se conservan.",
+    tabs: {
+      activity: "Actividad",
+      automations: "Automatizaciones",
+      secrets: "Secretos",
+    },
+    status: {
+      running: "En curso",
+      findings: "Encontró algo",
+      nothing: "Nada nuevo",
+      failed: "Fallida",
+      interrupted: "Interrumpida",
+      skipped: "Omitida",
+    },
+    state: {
+      active: "Activada",
+      disabled: "Desactivada",
+      paused: "En pausa",
+    },
+    trigger: {
+      schedule: "Programación",
+      folder: "Cambio en carpeta",
+      system: "Evento del sistema",
+      script: "Comprobación de sitio o feed",
+      manual: "Manual",
+      batch: "Varios disparadores",
+    },
+    pause: {
+      failures: "En pausa tras {count} ejecuciones fallidas seguidas.",
+      "script-failures":
+        "En pausa tras fallar la comprobación {count} veces seguidas.",
+      limit: "En pausa: alcanzó el límite diario de ejecuciones.",
+      "self-trigger": "En pausa: se activaba a sí misma una y otra vez.",
+      permission: "En pausa: el proyecto ya no lo permite ({detail}).",
+      secret: "En pausa: se eliminó el secreto {secret}.",
+    },
+    run: {
+      keep: "Conservar",
+      unkeep: "No conservar",
+      continue: "Continuar en una conversación",
+      continued: "Esta ejecución continúa como conversación en el proyecto.",
+      outputs: "Archivos modificados",
+      events: "Qué la activó ({count})",
+      discarded:
+        "{count} cambios hechos por esta ejecución no se trataron como nuevos disparadores.",
+      transcript: "Lo que hizo el agente",
+    },
+    secrets: {
+      description:
+        "Valores que pueden usar las automatizaciones, como tokens de API. Se cifran en este equipo, solo se entregan a las automatizaciones que los nombran y se ocultan en lo que lee el agente.",
+      noValue: "Sin valor",
+      usedBy: "usado por {names}",
+      setValue: "Definir valor",
+      name: "Nombre",
+      descriptionLabel: "Descripción",
+      value: "Valor",
+      short:
+        "Los valores de menos de {count} caracteres no se pueden ocultar de forma fiable.",
+      add: "Añadir secreto",
+      desktopOnly: "Los secretos solo se cambian en Pine en este equipo.",
+    },
+    approval: {
+      title: {
+        create: "Nueva automatización",
+        update: "Cambiar automatización",
+        enable: "Activar automatización",
+        delete: "Eliminar automatización",
+      },
+      description:
+        "Solicitada por el agente en {project}. Se ejecuta sin supervisión dentro de los permisos siguientes.",
+      explanationNote:
+        "Resumen escrito por el modelo de aprobación. Lo que cuenta son los detalles de abajo.",
+      showScript: "Ver script de comprobación",
+      hideScript: "Ocultar script de comprobación",
+      reject: "Rechazar",
+      approve: {
+        create: "Aprobar",
+        update: "Aprobar cambio",
+        enable: "Activar",
+        delete: "Eliminar",
+      },
+      desktopOnly: "Apruébala en Pine en el equipo que la ejecuta.",
+    },
+    warnings: {
+      "script-read-and-network":
+        "Su script de comprobación puede leer tus archivos y acceder a internet.",
+      "secret-network": "Envía un secreto guardado a internet.",
+      "folder-overlaps-write": "Escribe en la carpeta que vigila.",
+      "after-external-content":
+        "El agente la propuso después de leer contenido web o de herramientas.",
+      "privileged-tools":
+        "Puede usar un shell fuera del sandbox (cada llamada se revisa).",
+      networkExecution: "Los comandos que ejecuta pueden acceder a {hosts}.",
+    },
+    facts: {
+      missing: "no encontrado",
+      localTime: "hora local",
+      schedule: "{rule} ({zone})",
+      folder: "{events} en {folder} que coinciden con {include}",
+      change: {
+        added: "Añadido",
+        changed: "Modificado",
+        removed: "Eliminado",
+      },
+      system: {
+        resume: "Al reactivarse el equipo",
+        unlock: "Al desbloquear la pantalla",
+        "app-start": "Al iniciar Pine",
+        idle: "Tras {minutes} minutos de inactividad",
+      },
+      window: "entre {from} y {to}",
+      oncePer: {
+        day: "una vez al día",
+        week: "una vez por semana",
+      },
+      script: "Comprueba cada {every}, contacta {hosts}",
+      none: "ninguno",
+      manual: "Solo al iniciarla a mano",
+      triggers: "Se ejecuta",
+      read: "Lee",
+      write: "Escribe",
+      network: "Internet",
+      tools: "Herramientas",
+      secrets: "Secretos",
+      skills: "Skills",
+      outputs: "Resultados en",
+      limits: "Límites",
+      limitValues:
+        "como máximo {runs} ejecuciones al día, {minutes} minutos cada una",
+      changed: "cambiado",
+    },
+  },
 } as const;

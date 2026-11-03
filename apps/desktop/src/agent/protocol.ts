@@ -28,6 +28,7 @@ import type {
 } from "../shared/preferences";
 import type { AskUserQuestionSubmission } from "@pine/rpiv-ask-user-question";
 import type { McpStatusSnapshot } from "pi-mcp-adapter";
+import type { AutomationHostOperation } from "../shared/automation";
 import type { ApproximateLocation } from "../shared/approximateLocation";
 import type { WorkbenchState } from "../shared/workbench";
 import type {
@@ -59,6 +60,22 @@ export interface AgentSessionLocation {
   /** Initial permission mode for the session. YOLO bypasses all Pine sandbox,
    * folder, and approval controls; omitted defaults to `auto-approve`. */
   approvalMode?: PineApprovalMode;
+  /** Set only for an unattended automation run; see docs/automation.md. */
+  automation?: AgentAutomationRun;
+}
+
+export interface AgentAutomationRun {
+  automationId: string;
+  runId: string;
+  name: string;
+  /** Hosts the run's sandbox may reach; the network is closed otherwise. */
+  network: string[];
+  /** Passed to shell commands only, and redacted from every tool result. */
+  secrets: { name: string; env: string; value: string }[];
+  /** Pine tools the run may use besides `automation_report`. */
+  toolNames: string[];
+  /** Structured data from the detectors, delivered apart from instructions. */
+  payload: PineJsonValue;
 }
 
 /** A user project as the agent sees it when choosing where to move. */
@@ -76,13 +93,15 @@ export type AgentHostRequest =
   | { kind: "list-projects" }
   | { kind: "teleport"; projectId: string }
   | { kind: "workbench-state" }
-  | { kind: "approximate-location" };
+  | { kind: "approximate-location" }
+  | { kind: "automation"; operation: AutomationHostOperation };
 
 export type AgentHostResponse =
   | { kind: "list-projects"; projects: AgentHostProject[] }
   | { kind: "workbench-state"; state: WorkbenchState }
   | { kind: "approximate-location"; location: ApproximateLocation | null }
-  | { kind: "teleport"; projectName: string; cwd: string };
+  | { kind: "teleport"; projectName: string; cwd: string }
+  | { kind: "automation"; result: PineJsonValue };
 
 export type AgentHostReply =
   { ok: true; response: AgentHostResponse } | { ok: false; error: string };

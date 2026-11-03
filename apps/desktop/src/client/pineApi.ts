@@ -1,3 +1,25 @@
+import {
+  AUTOMATIONS_CHANGED_CHANNEL,
+  AUTOMATIONS_REVEAL_CHANNEL,
+  CONTINUE_AUTOMATION_RUN_CHANNEL,
+  DELETE_AUTOMATION_CHANNEL,
+  DELETE_AUTOMATION_SECRET_CHANNEL,
+  GET_AUTOMATION_CHANNEL,
+  GET_AUTOMATION_RUN_CHANNEL,
+  KEEP_AUTOMATION_RUN_CHANNEL,
+  LIST_AUTOMATION_APPROVALS_CHANNEL,
+  LIST_AUTOMATION_RUNS_CHANNEL,
+  LIST_AUTOMATION_SECRETS_CHANNEL,
+  LIST_AUTOMATIONS_CHANNEL,
+  MARK_AUTOMATION_RUNS_READ_CHANNEL,
+  RESPOND_AUTOMATION_APPROVAL_CHANNEL,
+  RUN_AUTOMATION_NOW_CHANNEL,
+  SET_AUTOMATION_ENABLED_CHANNEL,
+  SET_AUTOMATION_SECRET_CHANNEL,
+  type AutomationRevealEvent,
+  type AutomationsChangedEvent,
+  type PineAutomationsApi,
+} from "../shared/automation";
 // See the Electron documentation for details on how to use preload scripts:
 // https://www.electronjs.org/docs/latest/tutorial/process-model#preload-scripts
 import {
@@ -299,6 +321,45 @@ export interface PineTransport {
 }
 
 /** The same typed application API over Electron IPC or HTTP. */
+function createAutomationsApi(transport: PineTransport): PineAutomationsApi {
+  const listen =
+    <T>(channel: string) =>
+    (listener: (event: T) => void): (() => void) => {
+      const handler = (_event: unknown, value: T) => listener(value);
+      transport.on(channel, handler);
+      return () => transport.removeListener(channel, handler);
+    };
+  return {
+    list: (request) =>
+      transport.invoke(LIST_AUTOMATIONS_CHANNEL, request ?? {}),
+    get: (request) => transport.invoke(GET_AUTOMATION_CHANNEL, request),
+    runs: (request) =>
+      transport.invoke(LIST_AUTOMATION_RUNS_CHANNEL, request ?? {}),
+    run: (request) => transport.invoke(GET_AUTOMATION_RUN_CHANNEL, request),
+    setEnabled: (request) =>
+      transport.invoke(SET_AUTOMATION_ENABLED_CHANNEL, request),
+    runNow: (request) => transport.invoke(RUN_AUTOMATION_NOW_CHANNEL, request),
+    delete: (request) => transport.invoke(DELETE_AUTOMATION_CHANNEL, request),
+    markRunsRead: (request) =>
+      transport.invoke(MARK_AUTOMATION_RUNS_READ_CHANNEL, request),
+    keepRun: (request) =>
+      transport.invoke(KEEP_AUTOMATION_RUN_CHANNEL, request),
+    continueRun: (request) =>
+      transport.invoke(CONTINUE_AUTOMATION_RUN_CHANNEL, request),
+    approvals: () => transport.invoke(LIST_AUTOMATION_APPROVALS_CHANNEL),
+    respondApproval: (request) =>
+      transport.invoke(RESPOND_AUTOMATION_APPROVAL_CHANNEL, request),
+    secrets: (request) =>
+      transport.invoke(LIST_AUTOMATION_SECRETS_CHANNEL, request),
+    setSecret: (request) =>
+      transport.invoke(SET_AUTOMATION_SECRET_CHANNEL, request),
+    deleteSecret: (request) =>
+      transport.invoke(DELETE_AUTOMATION_SECRET_CHANNEL, request),
+    onChanged: listen<AutomationsChangedEvent>(AUTOMATIONS_CHANGED_CHANNEL),
+    onReveal: listen<AutomationRevealEvent>(AUTOMATIONS_REVEAL_CHANNEL),
+  };
+}
+
 export function createPineApi(transport: PineTransport): PineDesktopApi {
   return {
     checkForUpdate: (): Promise<UpdateCheckResult> =>
@@ -461,6 +522,7 @@ export function createPineApi(transport: PineTransport): PineDesktopApi {
     listProjects: (): Promise<ListProjectsResult> =>
       transport.invoke(LIST_PROJECTS_CHANNEL),
     listSkills: (request) => transport.invoke(LIST_SKILLS_CHANNEL, request),
+    automations: createAutomationsApi(transport),
     listMcpServers: (request) =>
       transport.invoke(LIST_MCP_SERVERS_CHANNEL, request),
     saveMcpServer: (request) =>

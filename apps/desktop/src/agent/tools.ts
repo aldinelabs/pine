@@ -432,6 +432,17 @@ export async function createPineToolDefinitions(
     // one persistent SRT authority snapshot.
     ...(isWindows ? [path.dirname(process.execPath)] : []),
   ];
+  // An automation run's secrets reach shell commands only; tool results are
+  // redacted before the model sees them.
+  const automationEnv: Record<string, string> = Object.fromEntries(
+    (location.automation?.secrets ?? []).map((secret) => [
+      secret.env,
+      secret.value,
+    ]),
+  );
+  const automationShell = location.automation
+    ? { env: automationEnv, allowedDomains: location.automation.network }
+    : undefined;
   const sandboxFiles = createSandboxFileIO(
     policy,
     canonicalBashTemporaryDirectory,
@@ -460,7 +471,10 @@ export async function createPineToolDefinitions(
     ),
     spawnHook: (context) => ({
       ...context,
-      env: createNativeBashEnvironment(context.env, loginPath, location.cwd),
+      env: {
+        ...createNativeBashEnvironment(context.env, loginPath, location.cwd),
+        ...automationEnv,
+      },
     }),
   });
 
@@ -511,6 +525,7 @@ export async function createPineToolDefinitions(
         canonicalBashTemporaryDirectory,
         loginPath,
         runtimeFiles,
+        automationShell,
       ),
       {
         getRegistry: getBackgroundRegistry,
@@ -877,6 +892,7 @@ export async function createPineToolDefinitions(
       canonicalBashTemporaryDirectory,
       loginPath,
       runtimeFiles,
+      automationShell,
     );
     const nativeOperations = isWindows
       ? createLocalPowerShellOperations()
@@ -896,11 +912,14 @@ export async function createPineToolDefinitions(
               exec: (command, cwd, options) =>
                 nativeOperations.exec(command, cwd, {
                   ...options,
-                  env: createNativeBashEnvironment(
-                    { ...process.env },
-                    loginPath,
-                    location.cwd,
-                  ),
+                  env: {
+                    ...createNativeBashEnvironment(
+                      { ...process.env },
+                      loginPath,
+                      location.cwd,
+                    ),
+                    ...automationEnv,
+                  },
                 }),
             }
           : sandboxedOperations,

@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import AutomationApprovalCard from "@/components/automations/AutomationApprovalCard.vue";
+import { useAutomationsStore } from "@/stores/automations";
 import SwitchComputerButton from "@/components/window/SwitchComputerButton.vue";
 import {
   dragContainsAttachments,
@@ -70,6 +72,10 @@ const props = defineProps<{
   sessionId?: string;
   tabId: string;
 }>();
+const automationsStore = useAutomationsStore();
+const automationApprovals = computed(() =>
+  automationsStore.approvalsFor(props.sessionId),
+);
 const contentTabsStore = useContentTabsStore();
 const projectStore = useProjectStore();
 const openForDraft = useDraftProjectOpener();
@@ -706,6 +712,17 @@ async function handleDrop(event: DragEvent): Promise<void> {
           :turns="transcriptTurns"
           :ensure-message-loaded="ensureTranscriptMessageLoaded"
           @navigation-state-change="isTranscriptNavigationActive = $event"
+        />
+      </div>
+
+      <div
+        v-if="automationApprovals.length"
+        class="flex flex-col gap-2 px-3 pb-2"
+      >
+        <AutomationApprovalCard
+          v-for="approval in automationApprovals"
+          :key="approval.requestId"
+          :approval="approval"
         />
       </div>
 

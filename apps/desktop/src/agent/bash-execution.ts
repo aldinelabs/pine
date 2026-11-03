@@ -54,6 +54,11 @@ export function createScopedBashOperations(
   temporaryDirectory: string,
   loginPath: string,
   runtimeFiles: string[],
+  automation?: {
+    /** Extra environment variables, such as an automation's secrets. */
+    env?: Readonly<Record<string, string>>;
+    allowedDomains?: readonly string[];
+  },
 ): BashOperations {
   return {
     exec: async (command, cwd, options) => {
@@ -66,6 +71,9 @@ export function createScopedBashOperations(
         `$env:BUN_INSTALL_CACHE_DIR=${quoteShell(path.join(temporaryDirectory, "bun-cache"), "powershell")}`,
         `$env:XDG_CACHE_HOME=${quoteShell(path.join(temporaryDirectory, "xdg-cache"), "powershell")}`,
         `$env:npm_config_cache=${quoteShell(path.join(temporaryDirectory, "npm-cache"), "powershell")}`,
+        ...Object.entries(automation?.env ?? {}).map(
+          ([name, value]) => `$env:${name}=${quoteShell(value, "powershell")}`,
+        ),
         command,
       ].join("; ");
       let outputTail = "";
@@ -76,13 +84,21 @@ export function createScopedBashOperations(
               ? windowsCommand
               : shellInvocation(shell.kind, command),
           cwd: policy.cwd,
-          env: createBashEnvironment(
-            options.env,
-            temporaryDirectory,
-            loginPath,
-            policy.cwd,
+          env: {
+            ...createBashEnvironment(
+              options.env,
+              temporaryDirectory,
+              loginPath,
+              policy.cwd,
+            ),
+            ...automation?.env,
+          },
+          config: createSandboxConfig(
+            policy,
+            runtimeFiles,
+            process.platform,
+            automation?.allowedDomains,
           ),
-          config: createSandboxConfig(policy, runtimeFiles),
           shell: shell.executable,
         },
         {

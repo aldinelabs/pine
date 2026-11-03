@@ -6,6 +6,7 @@ import {
   loadSkills,
   type AgentSession,
   type AgentSessionEvent,
+  type InlineExtension,
   type ModelRuntime,
 } from "@earendil-works/pi-coding-agent";
 import { type AssistantMessage, type Context } from "@earendil-works/pi-ai";
@@ -23,6 +24,7 @@ import { loadMcpConfig } from "pi-mcp-adapter/config";
 import {
   RECALL_TOOL_NAME,
   type PineApprovalMode,
+  type PineJsonValue,
   type PineMessageRewriteTarget,
 } from "../shared/agent";
 import type {
@@ -47,6 +49,7 @@ import {
   PINE_COMPUTER_USE_ACTIVE_ENTRY,
   PINE_MEDIA_GENERATION_ACTIVE_ENTRY,
   PINE_SKILL_AUTHORING_ACTIVE_ENTRY,
+  PINE_AUTOMATION_AUTHORING_ACTIVE_ENTRY,
   type PineApprovalDecision,
   type PineContextUsage,
 } from "../shared/sessions";
@@ -113,6 +116,19 @@ import {
   createSkillToolsExtension,
 } from "./skills/tools";
 import { createProgressRemindersExtension } from "./runtime/progress-reminders";
+import {
+  AUTOMATION_AUTHORING_DYNAMIC_TOOL_NAMES,
+  createAutomationAuthoringExtension,
+  createAutomationReportTool,
+} from "./automation/tools";
+import {
+  createAutomationRunExtension,
+  PINE_AUTOMATION_PAYLOAD,
+} from "./automation/run";
+import {
+  ACTIVATE_AUTOMATION_AUTHORING_TOOL_NAME,
+  type AutomationHostOperation,
+} from "../shared/automation";
 import { imageModel, IMAGE_MODEL_PROVIDER_ID } from "./media/models";
 import { PineSkillRepository } from "./skills/repository";
 import {
@@ -157,6 +173,7 @@ import {
   approvalActionDigest,
   attachedPathsFromSessionEntries,
   authorizationGrantsFromSessionEntries,
+  automationAuthoringActiveFromSessionEntries,
   buildGateTurnContext,
   computerUseActiveFromSessionEntries,
   mediaGenerationActiveFromSessionEntries,
@@ -172,6 +189,8 @@ import {
   toolNamesForComputerUseState,
   toolNamesForMediaGenerationState,
   toolNamesForSkillAuthoringState,
+  toolNamesForAutomationAuthoringState,
+  toolNamesForAutomationRun,
 } from "./runtime/session-state";
 import { getLatestCacheHitRate } from "./runtime/context-metrics";
 import { configureContextCompactionSettings } from "./runtime/compaction-settings";
@@ -325,7 +344,7 @@ export class PineAgentRuntime {
     const live = this.getSession(sessionId);
     if (rewrite) await this.rewindToUserMessage(live, rewrite);
     live.locale = locale;
-    this.setApprovalMode(live, approvalMode);
+    this.setApprovalMode(live, live.automation ? "autonomous" : approvalMode);
     await live.attachedPaths.grant(attachedPaths);
     live.latestUserPrompt = message;
     live.gate?.resetTurn();
@@ -953,7 +972,9 @@ export class PineAgentRuntime {
       unsubscribe: () => undefined,
       agentDir: location.agentDir,
       cwd: location.cwd,
-      approvalMode: location.approvalMode ?? "auto-approve",
+      approvalMode: location.automation
+        ? "autonomous"
+        : (location.approvalMode ?? "auto-approve"),
       gate: undefined as never,
       mcpScriptApprovals: new McpScriptApprovalCache(),
       authorizationGrants: authorizationGrantsFromSessionEntries(
@@ -970,6 +991,10 @@ export class PineAgentRuntime {
       skillAuthoringActive: skillAuthoringActiveFromSessionEntries(
         sessionManager.getEntries(),
       ),
+      automationAuthoringActive: automationAuthoringActiveFromSessionEntries(
+        sessionManager.getEntries(),
+      ),
+      ...(location.automation ? { automation: location.automation } : {}),
       ...(location.tinyFishApiKey
         ? { tinyFishApiKey: location.tinyFishApiKey }
         : {}),
@@ -1093,32 +1118,66 @@ export class PineAgentRuntime {
         },
         computerUse.extension,
         skillTools.extension,
-        {
-          name: "pine-mcp-approval",
-          factory: (pi) => {
-            pi.events.on(MCP_STATUS_EVENT, (snapshot) => {
-              live.mcpStatus = snapshot as McpStatusSnapshot;
-              if (live.session) this.syncActiveTools(live);
-            });
-            pi.events.on(MCP_TOOL_APPROVAL_REQUEST_EVENT, (value) => {
-              const request = value as McpToolApprovalRequest;
-              request.claim(async () => {
-                if (live.approvalMode === "YOLO") return "allow_once";
-                return live.mcpScriptApprovals.decide(request, live.gate);
-              });
-            });
-          },
-        },
-        createSemanticCompactionExtension({
-          agentDir: location.agentDir,
-          isEnabled: () => live.contextCompactionRoute === "semantic",
-        }),
-        {
-          name: "pi-mcp-adapter",
-          factory: createMcpAdapter({
-            configPath: path.join(location.agentDir, "mcp.json"),
-          }),
-        },
+        ...(location.automation
+          ? [
+              createAutomationRunExtension(location.automation, () =>
+                live.session.messages.some(
+                  (message) =>
+                    message.role === "custom" &&
+                    message.customType === PINE_AUTOMATION_PAYLOAD,
+                ),
+              ),
+            ]
+          : [
+              createAutomationAuthoringExtension({
+                call: (operation) => this.automationHostCall(live, operation),
+                getApprovalMode: () => live.approvalMode,
+                getGate: () => live.gate,
+                explain: (spec, previous) =>
+                  this.explainAutomation(live, spec, previous),
+                afterExternalContent: () => this.turnReadExternalContent(live),
+                activated: () => {
+                  if (live.automationAuthoringActive) return;
+                  live.automationAuthoringActive = true;
+                  live.session.sessionManager.appendCustomEntry(
+                    PINE_AUTOMATION_AUTHORING_ACTIVE_ENTRY,
+                    { active: true },
+                  );
+                  this.syncActiveTools(live);
+                },
+              }),
+            ]),
+        // Runs get no MCP: its servers cannot be held to a run's envelope.
+        ...(location.automation
+          ? []
+          : ([
+              {
+                name: "pine-mcp-approval",
+                factory: (pi) => {
+                  pi.events.on(MCP_STATUS_EVENT, (snapshot) => {
+                    live.mcpStatus = snapshot as McpStatusSnapshot;
+                    if (live.session) this.syncActiveTools(live);
+                  });
+                  pi.events.on(MCP_TOOL_APPROVAL_REQUEST_EVENT, (value) => {
+                    const request = value as McpToolApprovalRequest;
+                    request.claim(async () => {
+                      if (live.approvalMode === "YOLO") return "allow_once";
+                      return live.mcpScriptApprovals.decide(request, live.gate);
+                    });
+                  });
+                },
+              },
+              createSemanticCompactionExtension({
+                agentDir: location.agentDir,
+                isEnabled: () => live.contextCompactionRoute === "semantic",
+              }),
+              {
+                name: "pi-mcp-adapter",
+                factory: createMcpAdapter({
+                  configPath: path.join(location.agentDir, "mcp.json"),
+                }),
+              },
+            ] satisfies InlineExtension[])),
         createProgressRemindersExtension(),
       ],
       noThemes: true,
@@ -1209,7 +1268,17 @@ export class PineAgentRuntime {
         },
       },
     );
-    const customTools = [...pineTools, createActivatePineOpsToolDefinition()];
+    const customTools = [
+      ...pineTools,
+      createActivatePineOpsToolDefinition(),
+      ...(location.automation
+        ? [
+            createAutomationReportTool(location.automation.runId, (operation) =>
+              this.automationHostCall(live, operation),
+            ),
+          ]
+        : []),
+    ];
     live.availableToolNames = [
       ...customTools.map((tool) => tool.name),
       ACTIVATE_COMPUTER_USE_TOOL_NAME,
@@ -1219,6 +1288,8 @@ export class PineAgentRuntime {
       READ_SKILL_RESOURCE_TOOL_NAME,
       ACTIVATE_SKILL_AUTHORING_TOOL_NAME,
       ...SKILL_AUTHORING_DYNAMIC_TOOL_NAMES,
+      ACTIVATE_AUTOMATION_AUTHORING_TOOL_NAME,
+      ...AUTOMATION_AUTHORING_DYNAMIC_TOOL_NAMES,
       RECALL_TOOL_NAME,
     ];
 
@@ -1301,6 +1372,8 @@ export class PineAgentRuntime {
     live: LiveAgentSession,
     approvalMode: PineApprovalMode,
   ): void {
+    // Automation runs are unattended and always autonomous, even under YOLO.
+    if (live.automation) approvalMode = "autonomous";
     if (live.approvalMode !== approvalMode) {
       live.approvalMode = approvalMode;
       live.gate = this.createGate(
@@ -1339,22 +1412,30 @@ export class PineAgentRuntime {
       .getAllTools()
       .filter((tool) => tool.sourceInfo.path === "<inline:pi-mcp-adapter>")
       .map((tool) => tool.name);
-    const nextToolNames = toolNamesForTinyFishCredential(
-      toolNamesForMediaGenerationState(
-        toolNamesForComputerUseState(
-          toolNamesForSkillAuthoringState(
-            toolNamesForCompactionRoute(
-              [...live.availableToolNames, ...mcpToolNames],
-              live.contextCompactionRoute,
+    const nextToolNames = live.automation
+      ? toolNamesForTinyFishCredential(
+          toolNamesForAutomationRun(live.availableToolNames, live.automation),
+          live.tinyFishApiKey !== undefined,
+        )
+      : toolNamesForTinyFishCredential(
+          toolNamesForMediaGenerationState(
+            toolNamesForComputerUseState(
+              toolNamesForAutomationAuthoringState(
+                toolNamesForSkillAuthoringState(
+                  toolNamesForCompactionRoute(
+                    [...live.availableToolNames, ...mcpToolNames],
+                    live.contextCompactionRoute,
+                  ),
+                  live.skillAuthoringActive,
+                ),
+                live.automationAuthoringActive,
+              ),
+              live.computerUseActive,
             ),
-            live.skillAuthoringActive,
+            live.mediaGenerationActive,
           ),
-          live.computerUseActive,
-        ),
-        live.mediaGenerationActive,
-      ),
-      live.tinyFishApiKey !== undefined,
-    );
+          live.tinyFishApiKey !== undefined,
+        );
     if (
       nextToolNames.length === activeToolNames.length &&
       nextToolNames.every((name, index) => name === activeToolNames[index])
@@ -1657,6 +1738,84 @@ export class PineAgentRuntime {
     } finally {
       clearTimeout(timer);
     }
+  }
+
+  private async automationHostCall(
+    live: LiveAgentSession,
+    operation: AutomationHostOperation,
+  ): Promise<PineJsonValue> {
+    const response = await this.requestHost(live, {
+      kind: "automation",
+      operation,
+    });
+    if (response.kind !== "automation")
+      throw new Error("Pine returned an unexpected automation response.");
+    return response.result;
+  }
+
+  /** Whether this turn has read web or MCP content, for the approval card. */
+  private turnReadExternalContent(live: LiveAgentSession): boolean {
+    const mcpToolNames = new Set(
+      live.session
+        .getAllTools()
+        .filter((tool) => tool.sourceInfo.path === "<inline:pi-mcp-adapter>")
+        .map((tool) => tool.name),
+    );
+    const messages = live.session.messages;
+    for (let index = messages.length - 1; index >= 0; index -= 1) {
+      const message = messages[index];
+      if (message.role === "user") return false;
+      if (
+        message.role === "toolResult" &&
+        (message.toolName === "web_fetch" ||
+          message.toolName === "web_search" ||
+          mcpToolNames.has(message.toolName))
+      )
+        return true;
+    }
+    return false;
+  }
+
+  /**
+   * A plain account of an automation for its approval card, written by the
+   * approval model. The card shows the hard facts beside it regardless.
+   */
+  private async explainAutomation(
+    live: LiveAgentSession,
+    spec: PineJsonValue,
+    previous?: PineJsonValue,
+  ): Promise<string | undefined> {
+    const modelRuntime = await this.getModelRuntime(live.agentDir);
+    const model = await this.modelService.approvalModel(
+      live.agentDir,
+      modelRuntime,
+    );
+    if (!model) return undefined;
+    const language = live.locale === "zh-CN" ? "Simplified Chinese" : "English";
+    const signal = AbortSignal.timeout(JUDGE_TIMEOUT_MS);
+    const context: Context = {
+      systemPrompt: `You explain a Pine automation to the person who must approve it. Write in ${language}, at most 120 words, plain prose without headings. Say when it runs, what it reads, what it changes or creates, which websites it contacts and which saved secrets it uses. ${previous ? "Start with what changes compared with the previous version. " : ""}Point out anything that could surprise the user: deleting or overwriting files, sending data to websites, privileged shell access, running very often. Describe only what the definition allows; do not reassure or recommend.`,
+      messages: [
+        {
+          role: "user",
+          timestamp: Date.now(),
+          content: `${previous ? `Previous definition:\n${truncateText(JSON.stringify(previous, null, 2), 12_000)}\n\n` : ""}Definition to approve:\n${truncateText(JSON.stringify(spec, null, 2), 24_000)}`,
+        },
+      ],
+    };
+    let final: AssistantMessage | undefined;
+    for await (const event of modelRuntime.stream(model, context, {
+      ...judgeStreamOptions(model, signal),
+      maxTokens: 800,
+    })) {
+      if (event.type === "done") final = event.message;
+      else if (event.type === "error") return undefined;
+    }
+    const text = final?.content
+      .flatMap((block) => (block.type === "text" ? [block.text] : []))
+      .join("")
+      .trim();
+    return text || undefined;
   }
 
   private requestHost(

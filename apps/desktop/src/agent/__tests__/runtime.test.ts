@@ -694,6 +694,45 @@ describe("PineAgentRuntime", () => {
     }
   });
 
+  it("limits an automation run to its approved tools and the report tool", async () => {
+    const root = await mkdtemp(path.join(os.tmpdir(), "pine-automation-run-"));
+    temporaryDirectories.push(root);
+    const location = {
+      agentDir: path.join(root, "agent"),
+      cwd: path.join(root, "source"),
+      folders: [{ access: "read-write" as const, path: root }],
+      sessionsRoot: path.join(root, "sessions"),
+      approvalMode: "autonomous" as const,
+      automation: {
+        automationId: "automation-1",
+        runId: "run-1",
+        name: "Daily summary",
+        network: [],
+        secrets: [],
+        toolNames: ["read", "write"],
+        payload: null,
+      },
+    };
+    await mkdir(location.agentDir, { recursive: true });
+    await mkdir(location.cwd, { recursive: true });
+    const runtime = new PineAgentRuntime({ emit: () => undefined });
+    try {
+      const created = await runtime.createSession(location);
+      const { session } = (
+        runtime as unknown as {
+          liveSessions: Map<string, { session: AgentSession }>;
+        }
+      ).liveSessions.get(created.session.id)!;
+      expect([...session.getActiveToolNames()].sort()).toEqual([
+        "automation_report",
+        "read",
+        "write",
+      ]);
+    } finally {
+      await runtime.dispose();
+    }
+  });
+
   it("automatically compacts a resumed 1M session above 400K after settings saves and MCP reload", async () => {
     const root = await mkdtemp(path.join(os.tmpdir(), "pine-compaction-"));
     temporaryDirectories.push(root);
