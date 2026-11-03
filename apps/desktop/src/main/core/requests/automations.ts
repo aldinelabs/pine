@@ -1,7 +1,7 @@
 import { mkdir, rename } from "node:fs/promises";
 import path from "node:path";
 import { z } from "zod";
-import { projectSessionDirectory } from "../../../agent/runtime/session-state";
+import { projectSessionDirectory } from "../../../shared/sessionPaths";
 import type { PineJsonValue } from "../../../shared/agent";
 import {
   CONTINUE_AUTOMATION_RUN_CHANNEL,

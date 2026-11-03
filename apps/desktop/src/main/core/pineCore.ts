@@ -1,7 +1,6 @@
 import { realpath } from "node:fs/promises";
 import { hostname } from "node:os";
 import path from "node:path";
-import { loadMcpConfig } from "pi-mcp-adapter/config";
 import {
   toErrorMessage,
   type AgentHostReply,
@@ -20,6 +19,7 @@ import {
   type PineSessionTeleportedEvent,
 } from "../../shared/agent";
 import { DEFAULT_APPROXIMATE_LOCATION_ENABLED } from "../../shared/approximateLocation";
+import { listMcpServers } from "../mcpConfig";
 import {
   PROVIDER_AUTH_EVENT_CHANNEL,
   isProviderAuthEvent,
@@ -276,17 +276,16 @@ export class PineCore {
           repository.listCombined().skills.map(({ skill }) => skill.name),
         );
       },
-      // The same merge the agent applies, so a server the run will not find
-      // fails validation instead of the run.
-      mcpServers: (folderPath) =>
-        Promise.resolve(
-          Object.keys(
-            loadMcpConfig(
-              path.join(this.agentDirectory, "mcp.json"),
-              folderPath,
-            ).mcpServers,
-          ),
+      // The servers Pine's MCP settings manage. The adapter itself is ESM
+      // only and cannot load in the main process. Without a folder only the
+      // global servers apply.
+      mcpServers: async (folderPath) => [
+        ...new Set(
+          (await listMcpServers(folderPath ?? this.agentDirectory)).servers
+            .filter(({ scope }) => folderPath || scope === "global")
+            .map(({ name }) => name),
         ),
+      ],
     });
     this.runtimes = new ProjectRuntimeRegistry(
       this.agentHost,
