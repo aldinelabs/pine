@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { PlusIcon, RefreshCwIcon, Trash2Icon } from "@lucide/vue";
+import { PlugIcon, PlusIcon, RefreshCwIcon, Trash2Icon } from "@lucide/vue";
 import { computed, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { toast } from "vue-sonner";
@@ -29,6 +29,7 @@ import {
   EmptyContent,
   EmptyDescription,
   EmptyHeader,
+  EmptyMedia,
   EmptyTitle,
 } from "@/components/ui/empty";
 import {
@@ -212,7 +213,7 @@ function statusFor(name: string): string {
   <Dialog v-model:open="open">
     <DialogContent
       :class="[
-        'max-h-[85vh] sm:max-w-2xl max-sm:flex max-sm:flex-col',
+        'flex h-[min(85vh,36rem)] flex-col sm:max-w-2xl',
         PHONE_FULLSCREEN_DIALOG,
       ]"
     >
@@ -221,7 +222,7 @@ function statusFor(name: string): string {
         <DialogDescription>{{ t("mcp.description") }}</DialogDescription>
       </DialogHeader>
 
-      <Tabs v-model="scope" class="min-h-0 max-sm:flex-1">
+      <Tabs v-model="scope" class="min-h-0 flex-1">
         <TabsList>
           <TabsTrigger value="project">{{ t("mcp.project") }}</TabsTrigger>
           <TabsTrigger value="global">{{ t("mcp.global") }}</TabsTrigger>
@@ -230,12 +231,12 @@ function statusFor(name: string): string {
           v-for="tab in ['project', 'global'] as const"
           :key="tab"
           :value="tab"
-          class="max-sm:flex max-sm:min-h-0 max-sm:flex-col"
+          class="flex min-h-0 flex-col"
         >
           <p class="mb-3 text-xs text-muted-foreground">
             {{ catalog?.paths[tab] }}
           </p>
-          <ScrollArea class="max-h-[48vh] max-sm:max-h-none max-sm:min-h-0">
+          <ScrollArea class="min-h-0 flex-1">
             <ItemGroup v-if="servers.length">
               <Item
                 v-for="server in servers"
@@ -268,8 +269,9 @@ function statusFor(name: string): string {
                 </ItemActions>
               </Item>
             </ItemGroup>
-            <Empty v-else>
+            <Empty v-else class="border border-dashed">
               <EmptyHeader
+                ><EmptyMedia variant="icon"><PlugIcon /></EmptyMedia
                 ><EmptyTitle>{{ t("mcp.empty") }}</EmptyTitle
                 ><EmptyDescription>{{
                   t("mcp.emptyDescription")

@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import {
   ArrowLeftIcon,
+  HistoryIcon,
   KeyRoundIcon,
   PinIcon,
   PlayIcon,
   RefreshCwIcon,
   Trash2Icon,
+  WorkflowIcon,
 } from "@lucide/vue";
 import { computed, ref, shallowRef, watch } from "vue";
 import { useI18n } from "vue-i18n";
@@ -34,6 +36,7 @@ import {
   Empty,
   EmptyDescription,
   EmptyHeader,
+  EmptyMedia,
   EmptyTitle,
 } from "@/components/ui/empty";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
@@ -345,7 +348,7 @@ const pendingApprovals = computed(() =>
     <DialogContent
       data-testid="automation-manager"
       :class="[
-        'max-h-[85vh] sm:max-w-3xl max-sm:flex max-sm:flex-col',
+        'flex h-[min(85vh,44rem)] flex-col sm:max-w-3xl',
         PHONE_FULLSCREEN_DIALOG,
       ]"
     >
@@ -379,9 +382,7 @@ const pendingApprovals = computed(() =>
         {{ t("automations.backgroundNotice") }}
       </p>
 
-      <ScrollArea
-        class="max-h-[62vh] max-sm:max-h-none max-sm:min-h-0 max-sm:flex-1"
-      >
+      <ScrollArea class="min-h-0 flex-1">
         <!-- One run -->
         <div v-if="run" class="flex flex-col gap-4 pr-3">
           <div class="flex flex-wrap items-center gap-2 text-sm">
@@ -576,7 +577,7 @@ const pendingApprovals = computed(() =>
                 {{ t("automations.showNothingRuns") }}
               </label>
               <Button
-                variant="ghost"
+                variant="secondary"
                 size="sm"
                 class="ml-auto"
                 :disabled="store.unread === 0"
@@ -584,7 +585,7 @@ const pendingApprovals = computed(() =>
                 >{{ t("automations.markAllRead") }}</Button
               >
               <Button
-                variant="ghost"
+                variant="outline"
                 size="icon-sm"
                 :aria-label="t('automations.refresh')"
                 :disabled="loading"
@@ -622,8 +623,9 @@ const pendingApprovals = computed(() =>
                 }}</ItemActions>
               </Item>
             </ItemGroup>
-            <Empty v-else>
+            <Empty v-else class="border border-dashed">
               <EmptyHeader>
+                <EmptyMedia variant="icon"><HistoryIcon /></EmptyMedia>
                 <EmptyTitle>{{ t("automations.noRuns") }}</EmptyTitle>
                 <EmptyDescription>{{
                   t("automations.emptyHint")
@@ -679,8 +681,9 @@ const pendingApprovals = computed(() =>
                 </ItemActions>
               </Item>
             </ItemGroup>
-            <Empty v-else>
+            <Empty v-else class="border border-dashed">
               <EmptyHeader>
+                <EmptyMedia variant="icon"><WorkflowIcon /></EmptyMedia>
                 <EmptyTitle>{{ t("automations.empty") }}</EmptyTitle>
                 <EmptyDescription>{{
                   t("automations.emptyHint")
