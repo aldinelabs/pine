@@ -236,7 +236,9 @@ function statusFor(name: string): string {
           <p class="mb-3 text-xs text-muted-foreground">
             {{ catalog?.paths[tab] }}
           </p>
-          <ScrollArea class="min-h-0 flex-1">
+          <ScrollArea
+            class="min-h-0 flex-1 [&>[data-slot=scroll-area-viewport]>div]:flex [&>[data-slot=scroll-area-viewport]>div]:min-h-full [&>[data-slot=scroll-area-viewport]>div]:flex-col"
+          >
             <ItemGroup v-if="servers.length">
               <Item
                 v-for="server in servers"

@@ -382,7 +382,10 @@ const pendingApprovals = computed(() =>
         {{ t("automations.backgroundNotice") }}
       </p>
 
-      <ScrollArea class="min-h-0 flex-1">
+      <!-- The viewport's content fills its height, so empty states can too. -->
+      <ScrollArea
+        class="min-h-0 flex-1 [&>[data-slot=scroll-area-viewport]>div]:flex [&>[data-slot=scroll-area-viewport]>div]:min-h-full [&>[data-slot=scroll-area-viewport]>div]:flex-col"
+      >
         <!-- One run -->
         <div v-if="run" class="flex flex-col gap-4 pr-3">
           <div class="flex flex-wrap items-center gap-2 text-sm">
@@ -552,7 +555,7 @@ const pendingApprovals = computed(() =>
         </div>
 
         <!-- Lists -->
-        <Tabs v-else v-model="tab" class="pr-3">
+        <Tabs v-else v-model="tab" class="flex-1 pr-3">
           <TabsList>
             <TabsTrigger value="activity">{{
               t("automations.tabs.activity")
@@ -634,7 +637,7 @@ const pendingApprovals = computed(() =>
             </Empty>
           </TabsContent>
 
-          <TabsContent value="automations">
+          <TabsContent value="automations" class="flex flex-col">
             <ItemGroup v-if="automations.length">
               <Item
                 v-for="automation in automations"
