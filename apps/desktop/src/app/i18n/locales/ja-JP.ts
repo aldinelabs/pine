@@ -1932,8 +1932,6 @@ export default {
       failures: "{count} 回続けて失敗したため一時停止しました。",
       "script-failures":
         "確認が {count} 回続けて失敗したため一時停止しました。",
-      limit: "1 日の実行回数の上限に達したため一時停止しました。",
-      "self-trigger": "自身の変更で繰り返し起動したため一時停止しました。",
       permission:
         "プロジェクトの権限が足りなくなったため一時停止しました（{detail}）。",
       secret: "シークレット {secret} が削除されたため一時停止しました。",
@@ -1993,6 +1991,8 @@ export default {
       "privileged-tools":
         "サンドボックス外のシェルを使う可能性があります（呼び出しごとに審査されます）。",
       networkExecution: "実行するコマンドは {hosts} にアクセスできます。",
+      mcpOutsideSandbox:
+        "使用する MCP サーバー（{servers}）はサンドボックスの外で動作し、独自にファイルとインターネットにアクセスできます。呼び出せるのは一覧にあるツールだけです。",
     },
     facts: {
       missing: "見つかりません",
@@ -2029,6 +2029,10 @@ export default {
       limits: "上限",
       limitValues: "1 日最大 {runs} 回、1 回 {minutes} 分まで",
       changed: "変更",
+      mcp: "MCP",
+      model: "モデル",
+      thinking: "思考レベル {level}",
+      defaultModel: "既定のモデル",
     },
   },
 } as const;

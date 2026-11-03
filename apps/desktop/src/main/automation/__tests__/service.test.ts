@@ -65,6 +65,7 @@ function createService(agent?: Partial<AutomationAgentPort>) {
     notify: (notification) => notifications.push(notification),
     changed: vi.fn(),
     locale: () => "en-US",
+    mcpServers: () => Promise.resolve(["github"]),
     platform: "darwin",
   });
 }
@@ -333,6 +334,41 @@ describe("AutomationService runs", () => {
     );
     expect(() => service.runNow(PROJECT_ID, id)).toThrow(/Resume/);
   }, 20_000);
+
+  it("skips runs past the daily limit without pausing, telling the user once", async () => {
+    const id = await createApproved(
+      manualSpec({ limits: { maxRunsPerDay: 1 } }),
+    );
+    service.runNow(PROJECT_ID, id);
+    await vi.waitFor(async () =>
+      expect((await lastRun())?.status).toBe("findings"),
+    );
+    await vi.waitFor(async () =>
+      expect((await service.list(PROJECT_ID))[0].running).toBe(false),
+    );
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      await vi.waitFor(() => service.runNow(PROJECT_ID, id));
+      await vi.waitFor(() =>
+        expect(
+          notifications.filter((entry) => /daily limit/.test(entry.body)),
+        ).toHaveLength(1),
+      );
+    }
+    expect(await service.listRuns({ filter: "all" })).toHaveLength(1);
+    expect((await service.list(PROJECT_ID))[0].status).toBe("active");
+  });
+
+  it("passes MCP grants and the project folder to the run", async () => {
+    const grants = [{ server: "github", tools: ["list_issues"] }];
+    const spec = manualSpec();
+    spec.action.permissions.mcp = grants;
+    const id = await createApproved(spec);
+    service.runNow(PROJECT_ID, id);
+    await vi.waitFor(async () =>
+      expect((await lastRun())?.status).toBe("findings"),
+    );
+    expect(locations[0].automation?.mcp).toEqual({ cwd: docs, grants });
+  });
 
   it("only accepts reports from the run's own session", async () => {
     const id = await createApproved();

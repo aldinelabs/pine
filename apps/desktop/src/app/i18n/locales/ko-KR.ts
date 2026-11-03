@@ -1902,8 +1902,6 @@ export default {
     pause: {
       failures: "{count}회 연속 실패하여 일시 중지했습니다.",
       "script-failures": "확인이 {count}회 연속 실패하여 일시 중지했습니다.",
-      limit: "하루 실행 한도에 도달하여 일시 중지했습니다.",
-      "self-trigger": "자기 변경으로 계속 실행되어 일시 중지했습니다.",
       permission:
         "프로젝트 권한이 더 이상 허용하지 않아 일시 중지했습니다({detail}).",
       secret: "시크릿 {secret}이(가) 삭제되어 일시 중지했습니다.",
@@ -1964,6 +1962,8 @@ export default {
       "privileged-tools":
         "샌드박스 밖의 셸을 사용할 수 있습니다(호출마다 검토됨).",
       networkExecution: "실행하는 명령이 {hosts}에 접근할 수 있습니다.",
+      mcpOutsideSandbox:
+        "사용하는 MCP 서버({servers})는 샌드박스 밖에서 실행되며 자체적으로 파일과 인터넷에 접근할 수 있습니다. 목록에 있는 도구만 호출할 수 있습니다.",
     },
     facts: {
       missing: "없음",
@@ -2000,6 +2000,10 @@ export default {
       limits: "한도",
       limitValues: "하루 최대 {runs}회, 회당 {minutes}분",
       changed: "변경됨",
+      mcp: "MCP",
+      model: "모델",
+      thinking: "추론 수준 {level}",
+      defaultModel: "기본 모델",
     },
   },
 } as const;

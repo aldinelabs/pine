@@ -101,6 +101,39 @@ const rows = computed(() => {
       values: [list(facts.tools)],
       changed: changed("tools"),
     },
+    ...(facts.mcp.length || props.previous?.mcp.length
+      ? [
+          {
+            key: "mcp",
+            label: t("automations.facts.mcp"),
+            values: facts.mcp.length
+              ? facts.mcp.map(
+                  (grant) => `${grant.server}: ${grant.tools.join(", ")}`,
+                )
+              : [t("automations.facts.none")],
+            changed: changed("mcp"),
+          },
+        ]
+      : []),
+    {
+      key: "model",
+      label: t("automations.facts.model"),
+      values: [
+        facts.model
+          ? [
+              `${facts.model.providerId}/${facts.model.modelId}`,
+              facts.model.thinkingLevel
+                ? t("automations.facts.thinking", {
+                    level: facts.model.thinkingLevel,
+                  })
+                : "",
+            ]
+              .filter(Boolean)
+              .join(" · ")
+          : t("automations.facts.defaultModel"),
+      ],
+      changed: changed("model"),
+    },
     ...(facts.secrets.length || props.previous?.secrets.length
       ? [
           {

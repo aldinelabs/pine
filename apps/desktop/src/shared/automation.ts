@@ -1,4 +1,5 @@
 import type { PineJsonValue } from "./agent";
+import type { PineThinkingLevel } from "./models";
 
 /**
  * Automations: agent-written definitions that wake an agent run when their
@@ -100,17 +101,27 @@ export type AutomationTrigger =
 
 export type AutomationTriggerKind = AutomationTrigger["kind"];
 
+/** Tools of one configured MCP server, by the server's own tool names. */
+export interface AutomationMcpGrant {
+  server: string;
+  tools: string[];
+}
+
 export interface AutomationPermissionEnvelope {
   read: AutomationFolderGrant[];
   write: AutomationFolderGrant[];
   network: string[];
   /** Pine tool names; stored as tool IDs. */
   tools: string[];
+  /** MCP servers run outside the sandbox; only these tools may be called. */
+  mcp?: AutomationMcpGrant[];
 }
 
 export interface AutomationModelSelection {
   providerId: string;
   modelId: string;
+  /** Falls back to the user's default thinking level. */
+  thinkingLevel?: PineThinkingLevel;
 }
 
 export interface AutomationAgentAction {
@@ -176,8 +187,6 @@ export interface AutomationEvent {
 export type AutomationPauseReason =
   | { code: "failures"; count: number }
   | { code: "script-failures"; count: number; error?: string }
-  | { code: "limit"; limit: "runs-per-day" }
-  | { code: "self-trigger" }
   | { code: "permission"; detail: string }
   | { code: "secret-removed"; secret: string };
 
@@ -313,6 +322,7 @@ export interface AutomationFacts {
   write: AutomationFolderLabel[];
   network: string[];
   tools: string[];
+  mcp: AutomationMcpGrant[];
   secrets: string[];
   skills: string[];
   model?: AutomationModelSelection;
@@ -329,7 +339,8 @@ export type AutomationWarning =
   | { code: "folder-overlaps-write"; folder: AutomationFolderLabel }
   | { code: "after-external-content" }
   | { code: "privileged-tools"; tools: string[] }
-  | { code: "network-execution"; hosts: string[] };
+  | { code: "network-execution"; hosts: string[] }
+  | { code: "mcp-outside-sandbox"; servers: string[] };
 
 export type AutomationApprovalKind = "create" | "update" | "enable" | "delete";
 
@@ -423,7 +434,7 @@ export const AUTOMATION_DEFAULTS = {
   missed: "run-once",
   settleSeconds: 5,
   batchSeconds: 30,
-  maxRunsPerDay: 24,
+  maxRunsPerDay: 100,
   maxMinutesPerRun: 30,
   notify: "on-findings",
 } as const;

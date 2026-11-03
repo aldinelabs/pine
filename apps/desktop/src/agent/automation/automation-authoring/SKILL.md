@@ -50,12 +50,14 @@ name you choose (lowercase-with-dashes). Only the user enters values.
     "kind": "agent",
     "instructions": "What the run does, written for an agent with no other context.",
     "skills": ["optional-skill-name"],
+    "model": { "providerId": "…", "modelId": "…", "thinkingLevel": "high" },
     "session": "new",
     "permissions": {
       "read": [{ "folderId": "…", "path": "optional/sub/dir" }],
       "write": [{ "folderId": "…", "path": "reports" }],
       "network": ["api.example.com"],
-      "tools": ["read", "write", "edit", "bash"]
+      "tools": ["read", "write", "edit", "bash"],
+      "mcp": [{ "server": "github", "tools": ["list_issues"] }]
     }
   },
   "delivery": {
@@ -63,7 +65,7 @@ name you choose (lowercase-with-dashes). Only the user enters values.
     "outputs": [{ "folderId": "…", "path": "reports" }]
   },
   "secrets": [{ "name": "github-token", "env": "GITHUB_TOKEN" }],
-  "limits": { "maxRunsPerDay": 24, "maxMinutesPerRun": 30 }
+  "limits": { "maxRunsPerDay": 100, "maxMinutesPerRun": 30 }
 }
 ```
 
@@ -77,8 +79,16 @@ name you choose (lowercase-with-dashes). Only the user enters values.
   `invoke_skill`, `list_skill_resources`, `read_skill_resource`, `web_search`,
   `web_fetch`, `generate_image`, `bg_run`, `bg_status`, `bg_logs`, `bg_kill`,
   `recall`. Ask for the fewest that do the job. Privileged shells run outside
-  the sandbox and are reviewed call by call; avoid them. MCP tools are not
-  available to runs.
+  the sandbox and are reviewed call by call; avoid them.
+- `mcp` lists the configured MCP servers the run may use and, for each, the
+  server's own tool names it may call. Every other MCP call is refused. MCP
+  servers run outside the sandbox with their own file and network access, so
+  list only what the task needs; calls are reviewed like in an autonomous
+  conversation.
+- Leave out `model` and the run uses this conversation's model and thinking
+  level (an update keeps the model it had). Set it only when the user asks
+  for a specific model or thinking level; take the ids and the supported
+  thinking levels from `ui_list_models`.
 - `network` opens exact host names to the run's sandboxed shell. Everything
   else stays closed.
 - `secrets` become environment variables in the run's shell only (default
@@ -86,6 +96,8 @@ name you choose (lowercase-with-dashes). Only the user enters values.
   everything the run reads back.
 - `notify`: `on-findings` (default), `always`, or `never`. Failures always
   notify.
+- `maxRunsPerDay` (default 100) is a backstop: once reached, later triggers
+  that day are skipped and the user is told once.
 - `outputs` are where results land. A run that neither calls
   `automation_report` nor changes an output counts as failed.
 

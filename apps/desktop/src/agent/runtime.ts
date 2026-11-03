@@ -20,6 +20,7 @@ import {
   type McpToolApprovalRequest,
 } from "pi-mcp-adapter";
 import { McpScriptApprovalCache } from "./mcp-approval";
+import { automationMcpConfig, isGrantedMcpTool } from "./automation/mcp";
 import { loadMcpConfig } from "pi-mcp-adapter/config";
 import {
   RECALL_TOOL_NAME,
@@ -35,6 +36,7 @@ import type {
   PineImageModelSelection,
   PineVideoModelSelection,
   PineModelCatalog,
+  PineModelSelection,
   PineThinkingLevel,
   PineApprovalModelSelection,
   PineUtilityModelSelection,
@@ -85,6 +87,7 @@ import {
 } from "./gate";
 import { createPineToolDefinitions, PineAttachedPathAccess } from "./tools";
 import { ForegroundPromoter } from "./foreground-promotion";
+import { createModelToolDefinitions } from "./modelTools";
 import { createActivatePineOpsToolDefinition } from "./pine-ops/tools";
 import type {
   FilePresentationDisplay,
@@ -1136,6 +1139,7 @@ export class PineAgentRuntime {
                 explain: (spec, previous) =>
                   this.explainAutomation(live, spec, previous),
                 afterExternalContent: () => this.turnReadExternalContent(live),
+                currentModel: () => this.currentModelSelection(live),
                 activated: () => {
                   if (live.automationAuthoringActive) return;
                   live.automationAuthoringActive = true;
@@ -1147,26 +1151,30 @@ export class PineAgentRuntime {
                 },
               }),
             ]),
-        // Runs get no MCP: its servers cannot be held to a run's envelope.
         ...(location.automation
-          ? []
-          : ([
-              {
-                name: "pine-mcp-approval",
-                factory: (pi) => {
-                  pi.events.on(MCP_STATUS_EVENT, (snapshot) => {
-                    live.mcpStatus = snapshot as McpStatusSnapshot;
-                    if (live.session) this.syncActiveTools(live);
-                  });
-                  pi.events.on(MCP_TOOL_APPROVAL_REQUEST_EVENT, (value) => {
-                    const request = value as McpToolApprovalRequest;
-                    request.claim(async () => {
-                      if (live.approvalMode === "YOLO") return "allow_once";
-                      return live.mcpScriptApprovals.decide(request, live.gate);
-                    });
-                  });
+          ? location.automation.mcp
+            ? ([
+                this.mcpApprovalExtension(live, (request) =>
+                  isGrantedMcpTool(
+                    location.automation?.mcp?.grants ?? [],
+                    request.serverName,
+                    request.originalToolName,
+                  ),
+                ),
+                {
+                  name: "pi-mcp-adapter",
+                  factory: createMcpAdapter({
+                    config: automationMcpConfig(
+                      path.join(location.agentDir, "mcp.json"),
+                      location.automation.mcp.cwd,
+                      location.automation.mcp.grants,
+                    ),
+                  }),
                 },
-              },
+              ] satisfies InlineExtension[])
+            : []
+          : ([
+              this.mcpApprovalExtension(live),
               createSemanticCompactionExtension({
                 agentDir: location.agentDir,
                 isEnabled: () => live.contextCompactionRoute === "semantic",
@@ -1277,7 +1285,10 @@ export class PineAgentRuntime {
               this.automationHostCall(live, operation),
             ),
           ]
-        : []),
+        : createModelToolDefinitions({
+            current: () => this.currentModelSelection(live),
+            catalog: () => this.modelService.getModelCatalog(live.agentDir),
+          })),
     ];
     live.availableToolNames = [
       ...customTools.map((tool) => tool.name),
@@ -1414,7 +1425,11 @@ export class PineAgentRuntime {
       .map((tool) => tool.name);
     const nextToolNames = live.automation
       ? toolNamesForTinyFishCredential(
-          toolNamesForAutomationRun(live.availableToolNames, live.automation),
+          toolNamesForAutomationRun(
+            live.availableToolNames,
+            live.automation,
+            mcpToolNames,
+          ),
           live.tinyFishApiKey !== undefined,
         )
       : toolNamesForTinyFishCredential(
@@ -1740,6 +1755,34 @@ export class PineAgentRuntime {
     }
   }
 
+  /**
+   * Answers the MCP adapter's approval requests. Outside YOLO the approval
+   * model reviews each call; a run additionally refuses every server tool its
+   * definition does not list.
+   */
+  private mcpApprovalExtension(
+    live: LiveAgentSession,
+    granted?: (request: McpToolApprovalRequest) => boolean,
+  ): InlineExtension {
+    return {
+      name: "pine-mcp-approval",
+      factory: (pi) => {
+        pi.events.on(MCP_STATUS_EVENT, (snapshot) => {
+          live.mcpStatus = snapshot as McpStatusSnapshot;
+          if (live.session) this.syncActiveTools(live);
+        });
+        pi.events.on(MCP_TOOL_APPROVAL_REQUEST_EVENT, (value) => {
+          const request = value as McpToolApprovalRequest;
+          request.claim(async () => {
+            if (granted && !granted(request)) return "deny";
+            if (live.approvalMode === "YOLO") return "allow_once";
+            return live.mcpScriptApprovals.decide(request, live.gate);
+          });
+        });
+      },
+    };
+  }
+
   private async automationHostCall(
     live: LiveAgentSession,
     operation: AutomationHostOperation,
@@ -1751,6 +1794,18 @@ export class PineAgentRuntime {
     if (response.kind !== "automation")
       throw new Error("Pine returned an unexpected automation response.");
     return response.result;
+  }
+
+  private currentModelSelection(
+    live: LiveAgentSession,
+  ): PineModelSelection | undefined {
+    const model = live.session?.model;
+    if (!model) return undefined;
+    return {
+      providerId: model.provider,
+      modelId: model.id,
+      thinkingLevel: live.session.thinkingLevel,
+    };
   }
 
   /** Whether this turn has read web or MCP content, for the approval card. */

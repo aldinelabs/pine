@@ -55,9 +55,9 @@ export interface AutomationState {
   lastRunAt?: string;
   lastSuccessAt?: string;
   consecutiveFailures: number;
-  /** Starts of recent event-triggered runs, for the self-trigger breaker. */
-  eventRunTimes: string[];
   runsByDay?: { day: string; count: number };
+  /** The day the user was told the daily run limit was reached. */
+  limitNotifiedDay?: string;
 }
 
 export interface AutomationRunRecord {
@@ -90,7 +90,6 @@ export function emptyState(): AutomationState {
     triggers: {},
     agentCursor: null,
     consecutiveFailures: 0,
-    eventRunTimes: [],
   };
 }
 

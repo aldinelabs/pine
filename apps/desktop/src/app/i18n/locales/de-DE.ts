@@ -1975,8 +1975,6 @@ export default {
       failures: "Nach {count} fehlgeschlagenen Ausführungen in Folge pausiert.",
       "script-failures":
         "Pausiert, weil die Prüfung {count}-mal in Folge fehlschlug.",
-      limit: "Pausiert: Tageslimit an Ausführungen erreicht.",
-      "self-trigger": "Pausiert: Sie hat sich wiederholt selbst ausgelöst.",
       permission: "Pausiert: Das Projekt erlaubt sie nicht mehr ({detail}).",
       secret: "Pausiert: Geheimnis {secret} wurde gelöscht.",
     },
@@ -2039,6 +2037,8 @@ export default {
       "privileged-tools":
         "Sie kann eine Shell außerhalb der Sandbox nutzen (jeder Aufruf wird geprüft).",
       networkExecution: "Ihre Befehle können {hosts} erreichen.",
+      mcpOutsideSandbox:
+        "Seine MCP-Server ({servers}) laufen außerhalb der Sandbox mit eigenem Zugriff auf Dateien und das Internet; nur die aufgeführten Tools können aufgerufen werden.",
     },
     facts: {
       missing: "fehlt",
@@ -2076,6 +2076,10 @@ export default {
       limitValues:
         "höchstens {runs} Ausführungen pro Tag, je {minutes} Minuten",
       changed: "geändert",
+      mcp: "MCP",
+      model: "Modell",
+      thinking: "Denkstufe {level}",
+      defaultModel: "Ihr Standardmodell",
     },
   },
 } as const;

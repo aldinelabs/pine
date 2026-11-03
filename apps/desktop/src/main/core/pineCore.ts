@@ -1,6 +1,7 @@
 import { realpath } from "node:fs/promises";
 import { hostname } from "node:os";
 import path from "node:path";
+import { loadMcpConfig } from "pi-mcp-adapter/config";
 import {
   toErrorMessage,
   type AgentHostReply,
@@ -220,12 +221,17 @@ export class PineCore {
             ...(result.sessionFile ? { sessionFile: result.sessionFile } : {}),
           };
         },
-        selectModel: async (sessionId, providerId, modelId) => {
+        selectModel: async (sessionId, selection) => {
+          const thinkingLevel =
+            selection.thinkingLevel ??
+            (await this.agentHost.getModelCatalog(this.agentDirectory))
+              .selection?.thinkingLevel ??
+            "medium";
           await this.agentHost.selectModel(
             this.agentDirectory,
-            providerId,
-            modelId,
-            "medium",
+            selection.providerId,
+            selection.modelId,
+            thinkingLevel,
             sessionId,
           );
         },
@@ -270,6 +276,17 @@ export class PineCore {
           repository.listCombined().skills.map(({ skill }) => skill.name),
         );
       },
+      // The same merge the agent applies, so a server the run will not find
+      // fails validation instead of the run.
+      mcpServers: (folderPath) =>
+        Promise.resolve(
+          Object.keys(
+            loadMcpConfig(
+              path.join(this.agentDirectory, "mcp.json"),
+              folderPath,
+            ).mcpServers,
+          ),
+        ),
     });
     this.runtimes = new ProjectRuntimeRegistry(
       this.agentHost,

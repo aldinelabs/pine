@@ -43,6 +43,10 @@ function warning(item: AutomationWarning): string {
       return t("automations.warnings.networkExecution", {
         hosts: item.hosts.join(", "),
       });
+    case "mcp-outside-sandbox":
+      return t("automations.warnings.mcpOutsideSandbox", {
+        servers: item.servers.join(", "),
+      });
     default:
       return t(`automations.warnings.${item.code}`);
   }

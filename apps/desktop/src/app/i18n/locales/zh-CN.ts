@@ -1831,8 +1831,6 @@ export default {
     pause: {
       failures: "连续 {count} 次运行失败，已暂停。",
       "script-failures": "检查连续 {count} 次失败，已暂停。",
-      limit: "已达到每日运行次数上限，已暂停。",
-      "self-trigger": "反复被自己的改动触发，已暂停。",
       permission: "项目权限已不允许（{detail}），已暂停。",
       secret: "密钥 {secret} 已删除，已暂停。",
     },
@@ -1888,6 +1886,8 @@ export default {
         "agent 是在读取网页或工具内容之后提出这个自动化的。",
       "privileged-tools": "它可能使用沙盒外的命令行（每次调用都会审核）。",
       networkExecution: "它运行的命令可以访问 {hosts}。",
+      mcpOutsideSandbox:
+        "它使用的 MCP 服务器（{servers}）在沙箱之外运行，自带文件和网络访问能力；只能调用列出的工具。",
     },
     facts: {
       missing: "已缺失",
@@ -1924,6 +1924,10 @@ export default {
       limits: "限制",
       limitValues: "每天最多 {runs} 次，每次 {minutes} 分钟",
       changed: "已改",
+      mcp: "MCP",
+      model: "模型",
+      thinking: "思考强度 {level}",
+      defaultModel: "你的默认模型",
     },
   },
 } as const;

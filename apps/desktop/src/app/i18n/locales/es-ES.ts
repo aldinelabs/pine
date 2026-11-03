@@ -1948,8 +1948,6 @@ export default {
       failures: "En pausa tras {count} ejecuciones fallidas seguidas.",
       "script-failures":
         "En pausa tras fallar la comprobación {count} veces seguidas.",
-      limit: "En pausa: alcanzó el límite diario de ejecuciones.",
-      "self-trigger": "En pausa: se activaba a sí misma una y otra vez.",
       permission: "En pausa: el proyecto ya no lo permite ({detail}).",
       secret: "En pausa: se eliminó el secreto {secret}.",
     },
@@ -2010,6 +2008,8 @@ export default {
       "privileged-tools":
         "Puede usar un shell fuera del sandbox (cada llamada se revisa).",
       networkExecution: "Los comandos que ejecuta pueden acceder a {hosts}.",
+      mcpOutsideSandbox:
+        "Sus servidores MCP ({servers}) se ejecutan fuera del sandbox con su propio acceso a archivos e internet; solo se pueden llamar las herramientas indicadas.",
     },
     facts: {
       missing: "no encontrado",
@@ -2047,6 +2047,10 @@ export default {
       limitValues:
         "como máximo {runs} ejecuciones al día, {minutes} minutos cada una",
       changed: "cambiado",
+      mcp: "MCP",
+      model: "Modelo",
+      thinking: "razonamiento {level}",
+      defaultModel: "tu modelo predeterminado",
     },
   },
 } as const;

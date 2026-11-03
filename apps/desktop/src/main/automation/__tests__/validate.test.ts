@@ -25,6 +25,7 @@ function environment(secrets: { name: string; hasValue: boolean }[] = []) {
   return {
     project,
     secrets,
+    mcpServers: ["github"],
     systemEvents: new Set(["app-start", "resume", "unlock", "idle"]),
   };
 }
@@ -66,6 +67,26 @@ describe("validateAutomationSpec", () => {
     expect(errors).toMatch(/gone/);
     expect(errors).toMatch(/outside action\.permissions\.write/);
     expect(errors).toMatch(/"erp-token" does not exist/);
+  });
+
+  it("checks MCP servers and warns that they run outside the sandbox", async () => {
+    const spec = manualSpec();
+    spec.action.permissions.mcp = [
+      { server: "github", tools: ["list_issues", "list_issues"] },
+    ];
+    const result = await validateAutomationSpec(spec, environment());
+    expect(result.errors).toEqual([]);
+    expect(result.facts?.mcp).toEqual([
+      { server: "github", tools: ["list_issues"] },
+    ]);
+    expect(result.warnings).toContainEqual({
+      code: "mcp-outside-sandbox",
+      servers: ["github"],
+    });
+    spec.action.permissions.mcp = [{ server: "slack", tools: ["post"] }];
+    expect(
+      (await validateAutomationSpec(spec, environment())).errors.join(),
+    ).toMatch(/"slack" is not configured/);
   });
 
   it("requires secrets to have values", async () => {

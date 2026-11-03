@@ -28,7 +28,10 @@ import type {
 } from "../shared/preferences";
 import type { AskUserQuestionSubmission } from "@pine/rpiv-ask-user-question";
 import type { McpStatusSnapshot } from "pi-mcp-adapter";
-import type { AutomationHostOperation } from "../shared/automation";
+import type {
+  AutomationHostOperation,
+  AutomationMcpGrant,
+} from "../shared/automation";
 import type { ApproximateLocation } from "../shared/approximateLocation";
 import type { WorkbenchState } from "../shared/workbench";
 import type {
@@ -74,6 +77,8 @@ export interface AgentAutomationRun {
   secrets: { name: string; env: string; value: string }[];
   /** Pine tools the run may use besides `automation_report`. */
   toolNames: string[];
+  /** MCP tools the run may call, and the folder whose MCP config applies. */
+  mcp?: { cwd: string; grants: AutomationMcpGrant[] };
   /** Structured data from the detectors, delivered apart from instructions. */
   payload: PineJsonValue;
 }

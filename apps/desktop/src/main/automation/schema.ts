@@ -136,6 +136,17 @@ export const AutomationSpecSchema = Type.Object(
             {
               providerId: Type.String({ minLength: 1, maxLength: 200 }),
               modelId: Type.String({ minLength: 1, maxLength: 200 }),
+              thinkingLevel: Type.Optional(
+                Type.Union([
+                  Type.Literal("off"),
+                  Type.Literal("minimal"),
+                  Type.Literal("low"),
+                  Type.Literal("medium"),
+                  Type.Literal("high"),
+                  Type.Literal("xhigh"),
+                  Type.Literal("max"),
+                ]),
+              ),
             },
             { additionalProperties: false },
           ),
@@ -149,6 +160,21 @@ export const AutomationSpecSchema = Type.Object(
             tools: Type.Array(Type.String({ minLength: 1, maxLength: 100 }), {
               maxItems: 60,
             }),
+            mcp: Type.Optional(
+              Type.Array(
+                Type.Object(
+                  {
+                    server: Type.String({ minLength: 1, maxLength: 200 }),
+                    tools: Type.Array(
+                      Type.String({ minLength: 1, maxLength: 200 }),
+                      { minItems: 1, maxItems: 50 },
+                    ),
+                  },
+                  { additionalProperties: false },
+                ),
+                { maxItems: 10 },
+              ),
+            ),
           },
           { additionalProperties: false },
         ),

@@ -10,6 +10,7 @@ import {
   ACTIVATE_AUTOMATION_AUTHORING_TOOL_NAME,
   AUTOMATION_REPORT_TOOL_NAME,
   type AutomationHostOperation,
+  type AutomationModelSelection,
 } from "../../shared/automation";
 import type { ToolGate } from "../gate";
 import AUTHORING_SKILL from "./automation-authoring/SKILL.md?raw";
@@ -47,6 +48,8 @@ export interface AutomationAuthoringOptions {
   ): Promise<string | undefined>;
   /** Whether this turn has already read web or MCP content. */
   afterExternalContent(): boolean;
+  /** This conversation's model, the default for new automations. */
+  currentModel(): AutomationModelSelection | undefined;
 }
 
 const emptyParams = Type.Object({}, { additionalProperties: false });
@@ -84,6 +87,33 @@ function hasScriptTrigger(spec: unknown): boolean {
         (trigger as { kind?: unknown }).kind === "script",
     )
   );
+}
+
+function isRecord(value: unknown): value is Record<string, PineJsonValue> {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
+/**
+ * Fills in `action.model` when the definition leaves it out: an update keeps
+ * the model it had, and a new automation uses this conversation's model.
+ */
+export function withDefaultModel(
+  spec: PineJsonValue,
+  previous: PineJsonValue | undefined,
+  current: AutomationModelSelection | undefined,
+): PineJsonValue {
+  if (!isRecord(spec) || !isRecord(spec.action) || spec.action.model)
+    return spec;
+  const previousModel =
+    isRecord(previous) && isRecord(previous.action)
+      ? previous.action.model
+      : undefined;
+  const model = previous === undefined ? current : previousModel;
+  if (!model) return spec;
+  return {
+    ...spec,
+    action: { ...spec.action, model: model as PineJsonValue },
+  };
 }
 
 function validationErrors(result: PineJsonValue): string[] {
@@ -280,19 +310,15 @@ function createAuthoringDefinitions(
       name: AUTOMATION_SAVE_TOOL_NAME,
       label: "Save Automation",
       description:
-        "Create an automation, or replace one (with id and baseRevision). The user approves it on this computer before it is saved; the call waits for that decision.",
+        "Create an automation, or replace one (with id and baseRevision). The user approves it on this computer before it is saved; the call waits for that decision. Without action.model a new automation runs on this conversation's current model and thinking level, and an update keeps its model; set action.model only when the user asks for a specific model, using ids from ui_list_models.",
       parameters: saveParams,
       prepareArguments: (args) => args as Static<typeof saveParams>,
       executionMode: "sequential",
       execute: async (_toolCallId, params) => {
-        const spec = params.spec as PineJsonValue;
         if (params.id && params.baseRevision === undefined)
           throw new Error(
             "Pass baseRevision from automation_get when updating.",
           );
-        const validation = await options.call({ op: "validate", spec });
-        const errors = validationErrors(validation);
-        if (errors.length > 0) return jsonResult({ saved: false, errors });
         const previous = params.id
           ? (
               (await options.call({ op: "get", id: params.id })) as {
@@ -300,6 +326,14 @@ function createAuthoringDefinitions(
               }
             ).spec
           : undefined;
+        const spec = withDefaultModel(
+          params.spec as PineJsonValue,
+          previous,
+          options.currentModel(),
+        );
+        const validation = await options.call({ op: "validate", spec });
+        const errors = validationErrors(validation);
+        if (errors.length > 0) return jsonResult({ saved: false, errors });
         const explanation = await options
           .explain(spec, previous)
           .catch(() => undefined);

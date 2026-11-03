@@ -1967,8 +1967,6 @@ export default {
       failures: "En pause après {count} échecs consécutifs.",
       "script-failures":
         "En pause après {count} échecs consécutifs de la vérification.",
-      limit: "En pause : limite quotidienne d’exécutions atteinte.",
-      "self-trigger": "En pause : elle se déclenchait elle-même en boucle.",
       permission: "En pause : le projet ne l’autorise plus ({detail}).",
       secret: "En pause : le secret {secret} a été supprimé.",
     },
@@ -2031,6 +2029,8 @@ export default {
       "privileged-tools":
         "Elle peut utiliser un shell hors du bac à sable (chaque appel est examiné).",
       networkExecution: "Ses commandes peuvent joindre {hosts}.",
+      mcpOutsideSandbox:
+        "Ses serveurs MCP ({servers}) s’exécutent hors du bac à sable avec leur propre accès aux fichiers et à Internet ; seuls les outils listés peuvent être appelés.",
     },
     facts: {
       missing: "introuvable",
@@ -2068,6 +2068,10 @@ export default {
       limitValues:
         "au plus {runs} exécutions par jour, {minutes} minutes chacune",
       changed: "modifié",
+      mcp: "MCP",
+      model: "Modèle",
+      thinking: "réflexion {level}",
+      defaultModel: "votre modèle par défaut",
     },
   },
 } as const;

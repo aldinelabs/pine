@@ -318,10 +318,8 @@ function pauseText(reason: AutomationPauseReason): string {
       return t(`automations.pause.${reason.code}`, { count: reason.count });
     case "permission":
       return t("automations.pause.permission", { detail: reason.detail });
-    case "secret-removed":
-      return t("automations.pause.secret", { secret: reason.secret });
     default:
-      return t(`automations.pause.${reason.code}`);
+      return t("automations.pause.secret", { secret: reason.secret });
   }
 }
 

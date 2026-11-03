@@ -284,13 +284,21 @@ export function toolNamesForAutomationAuthoringState(
   );
 }
 
-/** An automation run sees exactly its approved tools and the report tool. */
+/**
+ * An automation run sees exactly its approved tools and the report tool,
+ * plus the MCP adapter's tools when it lists MCP grants. Which server tools
+ * those may call is enforced call by call.
+ */
 export function toolNamesForAutomationRun(
   toolNames: readonly string[],
   run: AgentAutomationRun,
+  mcpToolNames: readonly string[] = [],
 ): string[] {
   const allowed = new Set([...run.toolNames, AUTOMATION_REPORT_TOOL_NAME]);
-  return toolNames.filter((name) => allowed.has(name));
+  return [
+    ...toolNames.filter((name) => allowed.has(name)),
+    ...(run.mcp?.grants.length ? mcpToolNames : []),
+  ];
 }
 
 export function toolNamesForSkillAuthoringState(

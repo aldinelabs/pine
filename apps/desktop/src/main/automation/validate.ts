@@ -48,6 +48,8 @@ export interface ValidationEnvironment {
   skills?: string[];
   /** Whether a model exists; undefined skips the check. */
   hasModel?: (providerId: string, modelId: string) => boolean;
+  /** Configured MCP server names; undefined skips the check. */
+  mcpServers?: string[];
   /** System events the host can observe. */
   systemEvents: ReadonlySet<string>;
   afterExternalContent?: boolean;
@@ -202,6 +204,7 @@ export function buildFacts(
     write: spec.action.permissions.write.map(label),
     network: spec.action.permissions.network,
     tools: spec.action.permissions.tools,
+    mcp: spec.action.permissions.mcp ?? [],
     secrets: (spec.secrets ?? []).map((secret) => secret.name),
     skills: spec.action.skills ?? [],
     ...(spec.action.model ? { model: spec.action.model } : {}),
@@ -275,6 +278,11 @@ export function buildWarnings(
     .map((entry) => automationToolName(entry!));
   if (privileged.length > 0)
     warnings.push({ code: "privileged-tools", tools: privileged });
+  const mcpServers = (spec.action.permissions.mcp ?? []).map(
+    (grant) => grant.server,
+  );
+  if (mcpServers.length > 0)
+    warnings.push({ code: "mcp-outside-sandbox", servers: mcpServers });
   if (afterExternalContent) warnings.push({ code: "after-external-content" });
   return warnings;
 }
@@ -428,6 +436,22 @@ export async function validateAutomationSpec(
       }),
     ),
   ];
+  const mcpSeen = new Set<string>();
+  for (const [index, grant] of (permissions.mcp ?? []).entries()) {
+    const at = `action.permissions.mcp[${index}]`;
+    if (mcpSeen.has(grant.server))
+      errors.push(`${at}: server "${grant.server}" is listed twice.`);
+    mcpSeen.add(grant.server);
+    if (
+      environment.mcpServers &&
+      !environment.mcpServers.includes(grant.server)
+    )
+      errors.push(
+        `${at}: MCP server "${grant.server}" is not configured. Configured servers: ${environment.mcpServers.join(", ") || "none"}.`,
+      );
+    grant.tools = [...new Set(grant.tools)];
+  }
+  if (permissions.mcp?.length === 0) delete permissions.mcp;
   for (const skill of spec.action.skills ?? [])
     if (environment.skills && !environment.skills.includes(skill))
       errors.push(`action.skills: skill "${skill}" does not exist.`);

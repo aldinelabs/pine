@@ -1901,8 +1901,6 @@ export default {
       failures: "Paused after {count} failed runs in a row.",
       "script-failures":
         "Paused after the check failed {count} times in a row.",
-      limit: "Paused: reached its daily run limit.",
-      "self-trigger": "Paused: it kept triggering itself.",
       permission: "Paused: the project no longer allows it ({detail}).",
       secret: "Paused: secret {secret} was deleted.",
     },
@@ -1963,6 +1961,8 @@ export default {
       "privileged-tools":
         "It may use a shell outside the sandbox (each call is reviewed).",
       networkExecution: "Commands it runs can reach {hosts}.",
+      mcpOutsideSandbox:
+        "Its MCP servers ({servers}) run outside the sandbox with their own access to files and the internet; only the listed tools can be called.",
     },
     facts: {
       missing: "missing",
@@ -1999,6 +1999,10 @@ export default {
       limits: "Limits",
       limitValues: "at most {runs} runs a day, {minutes} minutes each",
       changed: "changed",
+      mcp: "MCP",
+      model: "Model",
+      thinking: "thinking {level}",
+      defaultModel: "your default model",
     },
   },
 } as const;

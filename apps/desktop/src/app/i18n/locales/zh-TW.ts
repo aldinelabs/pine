@@ -1831,8 +1831,6 @@ export default {
     pause: {
       failures: "連續 {count} 次執行失敗，已暫停。",
       "script-failures": "檢查連續 {count} 次失敗，已暫停。",
-      limit: "已達每日執行次數上限，已暫停。",
-      "self-trigger": "反覆被自己的改動觸發，已暫停。",
       permission: "專案權限已不允許（{detail}），已暫停。",
       secret: "密鑰 {secret} 已刪除，已暫停。",
     },
@@ -1888,6 +1886,8 @@ export default {
         "agent 是在讀取網頁或工具內容後提出這個自動化的。",
       "privileged-tools": "它可能使用沙盒外的命令列（每次呼叫都會審核）。",
       networkExecution: "它執行的指令可以存取 {hosts}。",
+      mcpOutsideSandbox:
+        "它使用的 MCP 伺服器（{servers}）在沙箱之外執行，自帶檔案與網路存取能力；只能呼叫列出的工具。",
     },
     facts: {
       missing: "已遺失",
@@ -1924,6 +1924,10 @@ export default {
       limits: "限制",
       limitValues: "每天最多 {runs} 次，每次 {minutes} 分鐘",
       changed: "已改",
+      mcp: "MCP",
+      model: "模型",
+      thinking: "思考強度 {level}",
+      defaultModel: "你的預設模型",
     },
   },
 } as const;

@@ -12,6 +12,7 @@ import {
   type AutomationEvent,
   type AutomationFolderGrant,
   type AutomationHostOperation,
+  type AutomationModelSelection,
   type AutomationPauseReason,
   type AutomationPollRecord,
   type AutomationRunDetail,
@@ -27,11 +28,7 @@ import {
   automationToolById,
   automationToolName,
 } from "../../shared/automationTools";
-import {
-  isTemporaryWorkspace,
-  type PineProject,
-  type PineProjectFolder,
-} from "../../shared/projects";
+import type { PineProject, PineProjectFolder } from "../../shared/projects";
 import { resolveProjectPath } from "../projectFiles";
 import type { ProjectDataPaths } from "../projects/projectRepository";
 import { evaluatePayload, evaluateWhen } from "./cel";
@@ -86,8 +83,6 @@ const MAX_EVENTS_PER_RUN = 100;
 const MAX_SEEN_SCRIPT_EVENTS = 5_000;
 const MAX_CURSOR_BYTES = 64 * 1024;
 const MAX_CONSECUTIVE_FAILURES = 5;
-const BREAKER_WINDOW_MS = 10 * 60_000;
-const BREAKER_RUNS = 5;
 const MAX_SCRIPT_CONCURRENCY = 4;
 const APPROVAL_TIMEOUT_MS = 30 * 60_000;
 const MAX_TIMER_MS = 6 * 3_600_000;
@@ -115,8 +110,7 @@ export interface AutomationAgentPort {
   ): Promise<{ sessionId: string; sessionFile?: string }>;
   selectModel(
     sessionId: string,
-    providerId: string,
-    modelId: string,
+    selection: AutomationModelSelection,
   ): Promise<void>;
   prompt(
     sessionId: string,
@@ -144,6 +138,8 @@ export interface AutomationServiceOptions {
   locale(): "en-US" | "zh-CN";
   /** Skill names a project can use; undefined skips the check. */
   skills?(projectId: string): Promise<string[] | undefined>;
+  /** MCP server names configured for a project folder. */
+  mcpServers?(folderPath: string | undefined): Promise<string[]>;
   platform?: NodeJS.Platform;
 }
 
@@ -290,11 +286,7 @@ export class AutomationService {
 
   private async loadProjects(): Promise<void> {
     const projects = await this.options.projects.list();
-    this.projects = new Map(
-      projects
-        .filter((project) => !isTemporaryWorkspace(project.id))
-        .map((project) => [project.id, project]),
-    );
+    this.projects = new Map(projects.map((project) => [project.id, project]));
   }
 
   /** Re-checks every automation after the project library changed. */
@@ -983,14 +975,6 @@ export class AutomationService {
         return zh
           ? `检测脚本连续 ${reason.count} 次失败，自动化已暂停。`
           : `Paused after the detection script failed ${reason.count} times in a row.`;
-      case "limit":
-        return zh
-          ? "已达到每日运行次数上限，自动化已暂停。"
-          : "Paused: reached the daily run limit.";
-      case "self-trigger":
-        return zh
-          ? "10 分钟内被自身产出反复触发，疑似自我触发，自动化已暂停。"
-          : "Paused: it kept triggering itself.";
       case "permission":
         return zh
           ? `项目权限已不满足（${reason.detail}），自动化已暂停。`
@@ -1047,9 +1031,26 @@ export class AutomationService {
       if (missing.length > 0)
         return `Skill ${missing.join(", ")} no longer exists.`;
     }
+    const mcp = armed.spec.action.permissions.mcp ?? [];
+    if (mcp.length > 0 && this.options.mcpServers) {
+      const configured = await this.options.mcpServers(
+        this.defaultFolderPath(project),
+      );
+      const missing = mcp
+        .map((grant) => grant.server)
+        .filter((server) => !configured.includes(server));
+      if (missing.length > 0)
+        return `MCP server ${missing.join(", ")} is no longer configured.`;
+    }
     const problem = this.permissionProblem(armed.spec, project);
     if (problem) return problem;
     return undefined;
+  }
+
+  private defaultFolderPath(project: PineProject): string | undefined {
+    return project.folders.find(
+      (folder) => folder.id === project.defaultFolderId,
+    )?.path;
   }
 
   private async grantDirectory(
@@ -1146,22 +1147,22 @@ export class AutomationService {
       armed.state.runsByDay?.day === today ? armed.state.runsByDay.count : 0;
     const maxRunsPerDay =
       armed.spec.limits?.maxRunsPerDay ?? AUTOMATION_DEFAULTS.maxRunsPerDay;
+    // Over the limit, triggers are skipped until tomorrow; nothing pauses.
     if (runsToday >= maxRunsPerDay) {
-      await this.pause(armed, { code: "limit", limit: "runs-per-day" });
-      return;
-    }
-    const eventTriggered = dispatch.events.some(
-      (event) => event.trigger === "folder" || event.trigger === "script",
-    );
-    if (eventTriggered) {
-      const cutoff = Date.now() - BREAKER_WINDOW_MS;
-      armed.state.eventRunTimes = armed.state.eventRunTimes.filter(
-        (time) => Date.parse(time) >= cutoff,
-      );
-      if (armed.state.eventRunTimes.length >= BREAKER_RUNS) {
-        await this.pause(armed, { code: "self-trigger" });
-        return;
+      if (armed.state.limitNotifiedDay !== today) {
+        armed.state.limitNotifiedDay = today;
+        await this.saveState(armed);
+        const zh = this.options.locale() === "zh-CN";
+        this.options.notify?.({
+          title: armed.spec.name,
+          body: zh
+            ? `今天已运行 ${maxRunsPerDay} 次，达到每日上限；今天之后的触发会被跳过，明天恢复。`
+            : `Ran ${maxRunsPerDay} times today, its daily limit. Further triggers are skipped until tomorrow.`,
+          projectId: armed.projectId,
+          automationId: armed.id,
+        });
       }
+      return;
     }
 
     const secrets = await this.resolveSecrets(armed);
@@ -1201,7 +1202,6 @@ export class AutomationService {
 
     armed.run = run;
     armed.state.runsByDay = { day: today, count: runsToday + 1 };
-    if (eventTriggered) armed.state.eventRunTimes.push(record.startedAt);
     armed.state.lastRunAt = record.startedAt;
     await this.saveState(armed);
     this.cacheRun(record);
@@ -1288,6 +1288,14 @@ export class AutomationService {
               : [];
           }),
           toolNames,
+          ...(armed.spec.action.permissions.mcp?.length
+            ? {
+                mcp: {
+                  cwd: this.defaultFolderPath(project) ?? workspace,
+                  grants: armed.spec.action.permissions.mcp,
+                },
+              }
+            : {}),
           payload: {
             events: record.events as unknown as PineJsonValue,
             payload: record.payload,
@@ -1303,8 +1311,7 @@ export class AutomationService {
       if (armed.spec.action.model)
         await this.options.agent.selectModel(
           sessionId,
-          armed.spec.action.model.providerId,
-          armed.spec.action.model.modelId,
+          armed.spec.action.model,
         );
       const finished = new Promise<{
         state: "idle" | "failed";
@@ -1721,6 +1728,9 @@ export class AutomationService {
       project,
       secrets,
       skills: await this.options.skills?.(projectId),
+      mcpServers: await this.options.mcpServers?.(
+        this.defaultFolderPath(project),
+      ),
       systemEvents: this.systemEvents(),
       afterExternalContent,
     };
@@ -1893,7 +1903,6 @@ export class AutomationService {
     if (enabled) {
       delete record.pause;
       armed.state.consecutiveFailures = 0;
-      armed.state.eventRunTimes = [];
       // Re-enabling starts from what is there now.
       for (const trigger of armed.spec.triggers) {
         const key = triggerKey(trigger);
