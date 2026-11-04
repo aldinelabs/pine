@@ -17,6 +17,7 @@ import type {
   PineContextCompactionRoute,
   PineContextCompactionStrategy,
 } from "../../shared/preferences";
+import { sessionActivityAt } from "../../shared/sessionActivity";
 import type { PineSessionSummary } from "../../shared/sessions";
 import {
   PINE_AUTHORIZATION_GRANT_ENTRY,
@@ -130,13 +131,13 @@ export function sessionSummary(session: AgentSession): PineSessionSummary {
   const header = session.sessionManager.getHeader();
   const entries = session.sessionManager.getEntries();
   const messages = entries.filter((entry) => entry.type === "message");
-  const lastEntry = entries.at(-1);
   const createdAt = header?.timestamp ?? new Date().toISOString();
 
   return {
     id: session.sessionId,
     createdAt,
-    updatedAt: lastEntry?.timestamp ?? createdAt,
+    // Same rule as the session list, so opening a session never moves it.
+    updatedAt: sessionActivityAt(entries, Date.parse(createdAt), Date.now()),
     messageCount: messages.length,
     ...(session.model
       ? {

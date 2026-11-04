@@ -25,6 +25,7 @@ import {
   type PineJsonValue,
 } from "../shared/agent";
 import { formatSessionAsMarkdown } from "../shared/sessionExport";
+import { sessionActivityAt } from "../shared/sessionActivity";
 import {
   attachmentMessagePreview,
   type PineAttachment,
@@ -548,35 +549,6 @@ function sessionBody(entries: Entry[]): string {
     .join("\n");
 }
 
-function sessionUpdatedAt(
-  entries: Entry[],
-  createdAt: number,
-  sourceMtimeMs: number,
-): string {
-  let latestTimestamp = createdAt;
-  if (Number.isNaN(latestTimestamp)) latestTimestamp = sourceMtimeMs;
-
-  for (const entry of entries) {
-    if (
-      entry.type !== "message" ||
-      (entry.message.role !== "user" && entry.message.role !== "assistant")
-    ) {
-      continue;
-    }
-
-    const messageTimestamp = entry.message.timestamp;
-    const timestamp =
-      typeof messageTimestamp === "number"
-        ? messageTimestamp
-        : entryTimestamp(entry);
-    if (!Number.isNaN(timestamp)) {
-      latestTimestamp = Math.max(latestTimestamp, timestamp);
-    }
-  }
-
-  return new Date(latestTimestamp).toISOString();
-}
-
 function rowToSearchResult(row: SessionSearchRow): SessionSearchResult {
   return {
     id: row.session_id,
@@ -993,7 +965,7 @@ export class ProjectSessionService {
       id: metadata.id,
       path: metadata.path,
       createdAt: new Date(metadata.createdAt).toISOString(),
-      updatedAt: sessionUpdatedAt(
+      updatedAt: sessionActivityAt(
         entries,
         metadata.createdAt,
         resolvedSourceMtimeMs,
