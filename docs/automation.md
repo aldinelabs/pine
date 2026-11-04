@@ -563,7 +563,7 @@ interface SecretUse {
 
 沿用 `activate_skill_authoring` 和 `activate_media_generation` 的模式：常驻的只有一个激活工具，激活结果记录为会话条目，恢复会话后仍然有效；动态工具由 `toolNamesForAutomationAuthoringState` 控制显隐。激活时返回一份编写说明（`automation-authoring/SKILL.md`），内容包括 schema、CEL 变量表、`ctx` 接口、示例和编写流程。
 
-“和 Pine 协作创建”打开的 draft 会通过 session mutator 在第一条消息前预先激活这些工具（见 [session-mutators.md](architecture/session-mutators.md)），效果与调用 `activate_automation_authoring` 相同。
+“和 Pine 协作管理”打开的 draft 会通过 session mutator 在第一条消息前预先激活这些工具（见 [session-mutators.md](architecture/session-mutators.md)），效果与调用 `activate_automation_authoring` 相同。
 
 ### 8.1 激活
 
@@ -624,7 +624,7 @@ interface SecretUse {
 - 批准卡片复用现有审批组件，增加事实、说明、警示、权限差异和脚本源码视图；远程控制与浏览器访问中只读（§7.1）。
 - 后台保持运行关闭时，页面顶部显示提示（§6.3）。
 - 项目设置中的“自动化密钥”：新增、修改值与说明、删除，并列出引用它的自动化。值写入后不再显示。
-- 新建自动化有两种方式：“和 Pine 协作创建”打开一个预先激活编写工具的新会话；“手动创建”打开定义编辑器。详情对话框中的“编辑定义”也打开同一个编辑器。
+- 新建自动化有两种方式：“和 Pine 协作管理”打开一个预先激活编写工具的新会话；“手动创建”打开定义编辑器。详情对话框中的“编辑定义”也打开同一个编辑器。
 - 定义编辑器直接编辑 JSON 定义，“检查”执行校验并试运行检测层，显示事实、警示与试运行结果；“保存”即视为用户批准（§7.1）。只在本机提供。
 - v1 不提供图形化的触发器编辑器。
 

@@ -1,6 +1,6 @@
 export default {
   common: {
-    createWithPine: "和 Pine 協作建立",
+    manageWithPine: "和 Pine 協作管理",
     back: "返回",
     downloadFile: "下載檔案",
     cancel: "取消",

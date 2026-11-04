@@ -1,6 +1,6 @@
 export default {
   common: {
-    createWithPine: "Create with Pine",
+    manageWithPine: "Manage with Pine",
     back: "Back",
     downloadFile: "Download file",
     cancel: "Cancel",

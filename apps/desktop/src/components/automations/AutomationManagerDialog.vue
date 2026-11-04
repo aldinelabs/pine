@@ -346,7 +346,7 @@ const pendingApprovals = computed(() =>
                 data-testid="automation-create-with-pine"
                 @click="createWithPine"
                 ><SparklesIcon data-icon="inline-start" />{{
-                  t("common.createWithPine")
+                  t("common.manageWithPine")
                 }}</Button
               >
               <Button

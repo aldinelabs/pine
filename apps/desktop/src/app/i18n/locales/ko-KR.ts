@@ -1,6 +1,6 @@
 export default {
   common: {
-    createWithPine: "Pine과 함께 만들기",
+    manageWithPine: "Pine과 함께 관리",
     back: "뒤로",
     downloadFile: "파일 다운로드",
     cancel: "취소",

@@ -133,7 +133,7 @@ describe("SkillManagerDialog", () => {
     await flushPromises();
 
     const button = wrapper.get('[data-testid="skill-create-with-pine"]');
-    expect(button.text()).toContain("和 Pine 协作创建");
+    expect(button.text()).toContain("和 Pine 协作管理");
     await button.trigger("click");
 
     expect(wrapper.emitted("createWithPine")).toEqual([["project-1"]]);

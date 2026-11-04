@@ -463,7 +463,7 @@ watch(activeScope, () => {
                         </ItemMedia>
                         <ItemContent class="flex-none">
                           <ItemTitle>{{
-                            t("common.createWithPine")
+                            t("common.manageWithPine")
                           }}</ItemTitle>
                         </ItemContent>
                       </Item>

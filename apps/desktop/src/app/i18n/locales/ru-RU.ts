@@ -1,6 +1,6 @@
 export default {
   common: {
-    createWithPine: "Создать вместе с Pine",
+    manageWithPine: "Управлять вместе с Pine",
     back: "Назад",
     downloadFile: "Скачать файл",
     cancel: "Отмена",

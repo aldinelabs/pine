@@ -298,7 +298,7 @@ function statusFor(name: string): string {
               <EmptyContent class="flex-row justify-center">
                 <Button size="sm" variant="outline" @click="createWithPine"
                   ><SparklesIcon data-icon="inline-start" />{{
-                    t("common.createWithPine")
+                    t("common.manageWithPine")
                   }}</Button
                 >
                 <Button size="sm" @click="beginAdd"
@@ -325,7 +325,7 @@ function statusFor(name: string): string {
           data-testid="mcp-create-with-pine"
           @click="createWithPine"
           ><SparklesIcon data-icon="inline-start" />{{
-            t("common.createWithPine")
+            t("common.manageWithPine")
           }}</Button
         >
         <Button @click="beginAdd"
