@@ -804,10 +804,8 @@ export class PineCore {
       const projectId = isRun
         ? this.automations.projectOfRun(event.sessionId)
         : this.runtimes.projectOfLiveSession(event.sessionId)?.id;
-      if (!projectId || isTemporaryWorkspace(projectId))
-        throw new Error(
-          "Automations need a project. Move this conversation into a project first.",
-        );
+      // No Project is a project too: its automations live with its workspace.
+      if (!projectId) throw new Error("This conversation has no project.");
       const result = await answerAutomationOperation(
         this,
         { sessionId: event.sessionId, projectId },
