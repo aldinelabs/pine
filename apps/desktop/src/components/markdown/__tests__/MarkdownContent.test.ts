@@ -54,6 +54,28 @@ function mountMarkdown(
 describe("MarkdownContent", () => {
   beforeEach(() => setActivePinia(createPinia()));
 
+  it("renders footnote-style web sources as inline citations", async () => {
+    const wrapper = mountMarkdown(
+      [
+        "结论成立[^1]，另见[^2]，脚注[^3]。",
+        "",
+        "[^1]: [Example 标题](https://www.example.com/a)",
+        "[^2]: https://docs.example.org/x",
+        "[^3]: 普通脚注文字",
+      ].join("\n"),
+    );
+    await flushPromises();
+    const chips = wrapper.findAll('[data-slot="inline-citation"]');
+    expect(chips.map((chip) => chip.text())).toEqual([
+      "example.com",
+      "docs.example.org",
+    ]);
+    expect(chips[0].attributes("href")).toBe("https://www.example.com/a");
+    expect(wrapper.text()).toContain("普通脚注文字");
+    expect(wrapper.text()).not.toContain("Example 标题");
+    wrapper.unmount();
+  });
+
   it("renders local chat image URLs without markstream stripping the Pine protocol", async () => {
     const wrapper = mountMarkdown(
       "![本地配图](/Users/kw/Week%204/案例.png)\n\n![文件 URL](file:///Users/kw/Week%204/figure.png)",

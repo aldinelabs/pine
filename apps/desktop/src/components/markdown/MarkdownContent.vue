@@ -7,6 +7,8 @@ import {
   setDefaultMathOptions,
 } from "markstream-vue";
 import CodeBlock from "./CodeBlock.vue";
+import MarkdownCitationDefinition from "./MarkdownCitationDefinition.vue";
+import MarkdownCitationReference from "./MarkdownCitationReference.vue";
 import MarkdownImage from "./MarkdownImage.vue";
 import MarkdownTable from "./MarkdownTable.vue";
 import { configurePineMarkdown } from "./configureMarkdown";
@@ -18,6 +20,8 @@ setDefaultMathOptions({ strictDelimiters: true });
 
 setCustomComponents("pine-chat", {
   code_block: CodeBlock,
+  footnote: MarkdownCitationDefinition,
+  footnote_reference: MarkdownCitationReference,
   image: MarkdownImage,
   table: MarkdownTable,
 });
@@ -32,6 +36,7 @@ import { useI18n } from "vue-i18n";
 import { toast } from "vue-sonner";
 import "markstream-vue/index.css";
 import { useAppearanceStore } from "@/stores/appearance";
+import { markdownCitations, parseMarkdownCitations } from "./citation";
 import { markdownImageDocumentUrl } from "./markdownImageContext";
 import { Button } from "@/components/ui/button";
 import {
@@ -61,6 +66,11 @@ const props = defineProps<{
 provide(
   markdownImageDocumentUrl,
   computed(() => props.documentUrl),
+);
+
+provide(
+  markdownCitations,
+  computed(() => parseMarkdownCitations(props.source)),
 );
 
 // markstream themes its code block via the `is-dark` prop (its inline style vars
