@@ -150,13 +150,18 @@ export function registerAutomationRequests(core: PineCore): void {
 
   core.handle(RESPOND_AUTOMATION_APPROVAL_CHANNEL, (context, request) => {
     const parsed = z
-      .object({ requestId: z.uuid(), approve: z.boolean() })
+      .object({
+        requestId: z.uuid(),
+        approve: z.boolean(),
+        guidance: z.string().max(4_000).optional(),
+      })
       .parse(request);
     return {
       settled: core.automations.respondApproval(
         context.source,
         parsed.requestId,
         parsed.approve,
+        parsed.guidance,
       ),
     };
   });

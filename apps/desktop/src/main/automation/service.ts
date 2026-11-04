@@ -187,6 +187,8 @@ interface Armed {
 interface PendingApproval {
   request: AutomationApprovalRequest;
   resolve(approved: boolean): void;
+  /** A rejection with the user's guidance reaches the agent as an error. */
+  reject(error: Error): void;
   timer: ReturnType<typeof setTimeout>;
 }
 
@@ -1643,12 +1645,17 @@ export class AutomationService {
   private requestApproval(
     request: AutomationApprovalRequest,
   ): Promise<boolean> {
-    return new Promise<boolean>((resolve) => {
+    return new Promise<boolean>((resolve, reject) => {
       const timer = setTimeout(
         () => this.settleApproval(request.requestId, false),
         APPROVAL_TIMEOUT_MS,
       );
-      this.approvals.set(request.requestId, { request, resolve, timer });
+      this.approvals.set(request.requestId, {
+        request,
+        resolve,
+        reject,
+        timer,
+      });
       this.options.notify?.({
         title: request.facts.name,
         body:
@@ -1662,12 +1669,22 @@ export class AutomationService {
     });
   }
 
-  private settleApproval(requestId: string, approved: boolean): boolean {
+  private settleApproval(
+    requestId: string,
+    approved: boolean,
+    guidance?: string,
+  ): boolean {
     const approval = this.approvals.get(requestId);
     if (!approval) return false;
     clearTimeout(approval.timer);
     this.approvals.delete(requestId);
-    approval.resolve(approved);
+    if (!approved && guidance)
+      approval.reject(
+        new Error(
+          `The user declined and asked for this instead: ${guidance}\nChange the automation as they ask and save it again, or ask them if it is unclear.`,
+        ),
+      );
+    else approval.resolve(approved);
     this.broadcast();
     return true;
   }
@@ -1677,12 +1694,13 @@ export class AutomationService {
     source: "desktop" | "web",
     requestId: string,
     approve: boolean,
+    guidance?: string,
   ): boolean {
     if (source !== "desktop")
       throw new Error(
         "Automations can only be approved in Pine on this computer.",
       );
-    return this.settleApproval(requestId, approve);
+    return this.settleApproval(requestId, approve, guidance?.trim());
   }
 
   private expireApprovals(sessionId: string): void {

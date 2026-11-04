@@ -366,6 +366,8 @@ export interface AutomationApprovalRequest {
 export interface AutomationApprovalDecision {
   requestId: string;
   approve: boolean;
+  /** With a rejection: what the user wants the agent to do instead. */
+  guidance?: string;
 }
 
 export interface AutomationSecretSummary {

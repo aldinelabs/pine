@@ -936,4 +936,51 @@ describe("ProjectSessionComposer", () => {
     });
     wrapper.unmount();
   });
+
+  it("rejects an automation approval with guidance", async () => {
+    const respondApproval = vi.fn(() => Promise.resolve());
+    const wrapper = mountComposer(
+      {
+        pendingAutomationApproval: {
+          requestId: "automation-2",
+          projectId: "project-1",
+          projectName: "Docs",
+          kind: "create",
+          facts: {
+            name: "Daily summary",
+            triggers: [],
+            read: [],
+            write: [],
+            network: [],
+            tools: ["read"],
+            mcp: [],
+            secrets: [],
+            skills: [],
+            notify: "on-findings",
+            outputs: [],
+            limits: { maxRunsPerDay: 100, maxMinutesPerRun: 10 },
+          },
+          warnings: [],
+          createdAt: "2026-11-03T00:00:00.000Z",
+        },
+        isActive: true,
+      },
+      "high",
+      "en-US",
+      { runtime: "desktop", automations: { respondApproval } },
+    );
+    const card = wrapper.getComponent(AutomationApprovalCard);
+    await card
+      .findAll("button")
+      .find((button) => button.text().includes("Reject with guidance"))!
+      .trigger("click");
+    await card.get("input").setValue("Only on weekdays");
+    await card.get("input").trigger("keydown", { key: "Enter" });
+    expect(respondApproval).toHaveBeenCalledWith({
+      requestId: "automation-2",
+      approve: false,
+      guidance: "Only on weekdays",
+    });
+    wrapper.unmount();
+  });
 });

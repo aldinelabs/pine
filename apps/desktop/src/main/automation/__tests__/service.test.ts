@@ -170,6 +170,23 @@ describe("AutomationService approvals", () => {
     expect(await service.list(PROJECT_ID)).toEqual([]);
   });
 
+  it("passes the user's guidance to the agent when they reject", async () => {
+    const created = service.create(
+      { projectId: PROJECT_ID, sessionId: "author" },
+      manualSpec(),
+      { afterExternalContent: false },
+    );
+    await vi.waitFor(() => expect(service.pendingApprovals()).toHaveLength(1));
+    service.respondApproval(
+      "desktop",
+      service.pendingApprovals()[0].requestId,
+      false,
+      "Run it on weekdays only.",
+    );
+    await expect(created).rejects.toThrow(/Run it on weekdays only\./);
+    expect(await service.list(PROJECT_ID)).toEqual([]);
+  });
+
   it("returns validation errors without asking", async () => {
     const result = await service.create(
       { projectId: PROJECT_ID },

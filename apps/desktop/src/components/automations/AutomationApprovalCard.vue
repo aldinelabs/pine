@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { TriangleAlertIcon } from "@lucide/vue";
-import { computed, onBeforeUnmount, onMounted, ref } from "vue";
+import { ArrowUpIcon, TriangleAlertIcon } from "@lucide/vue";
+import { computed, nextTick, onBeforeUnmount, onMounted, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import { Button } from "@/components/ui/button";
 import {
@@ -16,6 +16,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
+import { Input } from "@/components/ui/input";
 import { Kbd } from "@/components/ui/kbd";
 import { useShortcutHints } from "@/composables/useShortcutHints";
 import type {
@@ -35,6 +36,9 @@ const { t } = useI18n();
 const store = useAutomationsStore();
 const showShortcutHints = useShortcutHints();
 const showScripts = ref(false);
+const guidance = ref("");
+const guiding = ref(false);
+const guidanceInput = ref<{ $el: HTMLInputElement } | null>(null);
 const responding = computed(() =>
   store.respondingIds.has(props.approval.requestId),
 );
@@ -60,13 +64,25 @@ function warning(item: AutomationWarning): string {
   }
 }
 
-function respond(approve: boolean): void {
+function respond(approve: boolean, guidanceText?: string): void {
   if (responding.value || !store.canApprove) return;
-  void store.respond(props.approval.requestId, approve);
+  void store.respond(props.approval.requestId, approve, guidanceText);
+}
+
+/** Rejects and tells the agent what to do instead, as tool approvals do. */
+function submitGuidance(): void {
+  const guidanceText = guidance.value.trim();
+  if (guidanceText) respond(false, guidanceText);
+}
+
+async function startGuidance(): Promise<void> {
+  guiding.value = true;
+  await nextTick();
+  guidanceInput.value?.$el?.focus();
 }
 
 function handleShortcut(event: KeyboardEvent): void {
-  if (!shortcuts.value) return;
+  if (!shortcuts.value || guiding.value) return;
   if (event.metaKey || event.ctrlKey || event.altKey) return;
   if (event.defaultPrevented) return;
   const target = event.target;
@@ -83,6 +99,9 @@ function handleShortcut(event: KeyboardEvent): void {
   } else if (event.key === "Escape") {
     event.preventDefault();
     respond(false);
+  } else if (event.key === "/") {
+    event.preventDefault();
+    void startGuidance();
   }
 }
 
@@ -153,29 +172,68 @@ onBeforeUnmount(() => window.removeEventListener("keydown", handleShortcut));
       </Collapsible>
     </CardContent>
     <CardFooter class="mt-auto shrink-0 gap-2">
-      <div v-if="store.canApprove" class="ml-auto flex items-center gap-2">
+      <div v-if="store.canApprove && guiding" class="relative flex-1">
+        <Input
+          ref="guidanceInput"
+          v-model="guidance"
+          class="min-h-12 pr-16"
+          :placeholder="t('project.approvalRequest.guide')"
+          @keydown.enter.exact.prevent="submitGuidance"
+          @keydown.escape.prevent="guiding = false"
+        />
+        <div class="absolute inset-y-0 right-2 flex items-center">
+          <Button
+            type="button"
+            size="sm"
+            class="h-8 gap-1 px-2 text-xs"
+            :disabled="!guidance.trim() || responding"
+            :aria-label="t('project.approvalRequest.guide')"
+            @click="submitGuidance"
+          >
+            <ArrowUpIcon />
+            <Kbd v-if="showShortcutHints && !guidance" aria-hidden="true"
+              >↵</Kbd
+            >
+          </Button>
+        </div>
+      </div>
+      <template v-else-if="store.canApprove">
         <Button
           type="button"
           variant="outline"
           size="sm"
           :disabled="responding"
-          @click="respond(false)"
+          @click="startGuidance"
         >
-          {{ t("automations.approval.reject") }}
-          <Kbd v-if="showShortcutHints && shortcuts" aria-hidden="true"
-            >esc</Kbd
+          {{ t("project.approvalRequest.guide") }}
+          <Kbd v-if="showShortcutHints && shortcuts" aria-hidden="true">/</Kbd>
+        </Button>
+        <div class="ml-auto flex items-center gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            :disabled="responding"
+            @click="respond(false)"
           >
-        </Button>
-        <Button
-          type="button"
-          size="sm"
-          :disabled="responding"
-          @click="respond(true)"
-        >
-          {{ t(`automations.approval.approve.${approval.kind}`) }}
-          <Kbd v-if="showShortcutHints && shortcuts" aria-hidden="true">↵</Kbd>
-        </Button>
-      </div>
+            {{ t("automations.approval.reject") }}
+            <Kbd v-if="showShortcutHints && shortcuts" aria-hidden="true"
+              >esc</Kbd
+            >
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            :disabled="responding"
+            @click="respond(true)"
+          >
+            {{ t(`automations.approval.approve.${approval.kind}`) }}
+            <Kbd v-if="showShortcutHints && shortcuts" aria-hidden="true"
+              >↵</Kbd
+            >
+          </Button>
+        </div>
+      </template>
       <p v-else class="text-sm text-muted-foreground">
         {{ t("automations.approval.desktopOnly") }}
       </p>

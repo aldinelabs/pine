@@ -66,11 +66,19 @@ export const useAutomationsStore = defineStore("automations", () => {
       : [];
   }
 
-  async function respond(requestId: string, approve: boolean): Promise<void> {
+  async function respond(
+    requestId: string,
+    approve: boolean,
+    guidance?: string,
+  ): Promise<void> {
     if (respondingIds.value.has(requestId)) return;
     respondingIds.value = new Set([...respondingIds.value, requestId]);
     try {
-      await window.pine.automations.respondApproval({ requestId, approve });
+      await window.pine.automations.respondApproval({
+        requestId,
+        approve,
+        ...(guidance ? { guidance } : {}),
+      });
     } finally {
       const next = new Set(respondingIds.value);
       next.delete(requestId);
