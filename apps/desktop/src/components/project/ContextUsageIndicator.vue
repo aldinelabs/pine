@@ -300,7 +300,7 @@ async function compactContext(): Promise<void> {
               : 'mt-0 grid-rows-[1fr] opacity-100',
           ]"
         >
-          <div class="min-h-0 overflow-hidden p-px">
+          <div class="-m-1 min-h-0 overflow-hidden p-1">
             <div
               class="border-input focus-within:border-ring focus-within:ring-ring/50 flex h-8 items-center gap-1.5 rounded-lg border px-2.5 focus-within:ring-3"
             >
