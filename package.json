@@ -20,7 +20,8 @@
     "test:coverage": "bun run --filter @pine/desktop test:coverage",
     "typecheck": "bun run --filter @pine/desktop typecheck && bun run --filter @pine/rc-protocol typecheck && bun run --filter @pine/rc-signal typecheck && bun run --filter @pine/rc-web typecheck",
     "shadcn:add": "bun run apps/desktop/scripts/shadcn-add.mjs",
-    "verify:pi": "bun run apps/desktop/scripts/verify-pi-agent.mjs"
+    "verify:pi": "bun run apps/desktop/scripts/verify-pi-agent.mjs",
+    "verify:summary": "bun run apps/desktop/scripts/verify-session-summary.ts"
   },
   "devDependencies": {
     "@types/bun": "1.4.2",

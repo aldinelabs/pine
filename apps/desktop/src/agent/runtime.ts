@@ -219,6 +219,10 @@ import {
 } from "./runtime/session-state";
 import { getLatestCacheHitRate } from "./runtime/context-metrics";
 import {
+  createSessionSummaryCompactionExtension,
+  createSubmitSessionSummaryToolDefinition,
+} from "./runtime/session-summary";
+import {
   describeContextTokens,
   isActivationToolName,
   PINE_ACTIVATION_RESUME_MESSAGE,
@@ -1386,6 +1390,10 @@ export class PineAgentRuntime {
                 agentDir: location.agentDir,
                 isEnabled: () => live.contextCompactionRoute === "semantic",
               }),
+              createSessionSummaryCompactionExtension({
+                getSession: () => live.session,
+                isEnabled: () => live.contextCompactionRoute === "model",
+              }),
               {
                 name: "pi-mcp-adapter",
                 factory: createMcpAdapter({
@@ -1497,6 +1505,8 @@ export class PineAgentRuntime {
               current: () => this.currentModelSelection(live),
               catalog: () => this.modelService.getModelCatalog(live.agentDir),
             }),
+            // Always listed so a compaction request never changes the tools.
+            createSubmitSessionSummaryToolDefinition(),
           ]),
     ];
     live.availableToolNames = [
