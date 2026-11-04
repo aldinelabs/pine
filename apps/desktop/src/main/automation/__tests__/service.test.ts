@@ -1,4 +1,4 @@
-import { rm } from "node:fs/promises";
+import { access, mkdir, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { AgentSessionLocation } from "../../../agent/protocol";
@@ -236,7 +236,10 @@ describe("AutomationService runs", () => {
         { access: "read-write", path: path.join(docs, "reports") },
       ]),
     );
-    expect(location.sessionsRoot).toContain(path.join("automations", id));
+    // Runs sit with the project's own sessions, so they open like any other.
+    expect(location.sessionsRoot).toBe(
+      path.join(root, "projects", PROJECT_ID, "sessions"),
+    );
     const run = await lastRun();
     expect(run.summary).toBe("Wrote the summary.");
     expect(run.read).toBe(false);
@@ -381,5 +384,87 @@ describe("AutomationService runs", () => {
       }),
     ).rejects.toThrow(/only available inside an automation run/);
     expect(id).toBeTruthy();
+  });
+
+  it("hands a finished run's session to the user once they write in it", async () => {
+    const id = await createApproved();
+    let release!: () => void;
+    finishRun = (sessionId, location) => {
+      release = () =>
+        void service
+          .report(sessionId, {
+            op: "report",
+            runId: location.automation!.runId,
+            status: "findings",
+            summary: "Done.",
+          })
+          .then(() =>
+            service.observeAgentEvent({
+              type: "run-state",
+              sessionId,
+              state: "idle",
+            }),
+          );
+    };
+    service.runNow(PROJECT_ID, id);
+    await vi.waitFor(() => expect(release).toBeDefined());
+    const sessions = await service.runSessions(PROJECT_ID);
+    expect(sessions.get("session-1")).toMatchObject({
+      automationId: id,
+      name: manualSpec().name,
+    });
+    await expect(
+      service.claimRunSession(PROJECT_ID, "session-1"),
+    ).rejects.toThrow(/still running/);
+    release();
+    await vi.waitFor(async () =>
+      expect((await lastRun())?.status).toBe("findings"),
+    );
+    await service.claimRunSession(PROJECT_ID, "session-1");
+    expect((await service.runSessions(PROJECT_ID)).has("session-1")).toBe(
+      false,
+    );
+    expect((await lastRun()).kept).toBe(true);
+  });
+
+  it("deletes the run sessions the user never wrote in with the automation", async () => {
+    const sessionsDirectory = path.join(
+      root,
+      "projects",
+      PROJECT_ID,
+      "sessions",
+    );
+    await mkdir(sessionsDirectory, { recursive: true });
+    let created = 0;
+    await service.stop();
+    service = createService({
+      createSession: vi.fn((location: AgentSessionLocation) => {
+        locations.push(location);
+        created += 1;
+        const sessionFile = path.join(
+          sessionsDirectory,
+          `run-${created}.jsonl`,
+        );
+        return writeFile(sessionFile, "{}\n").then(() => ({
+          sessionId: `session-${created}`,
+          sessionFile,
+        }));
+      }),
+    });
+    await service.start();
+    const id = await createApproved();
+    service.runNow(PROJECT_ID, id);
+    await vi.waitFor(async () =>
+      expect((await lastRun())?.status).toBe("findings"),
+    );
+    const sessionFile = path.join(sessionsDirectory, "run-1.jsonl");
+    await access(sessionFile);
+    const deleted = service.delete(
+      { projectId: PROJECT_ID, sessionId: "author", source: "agent" },
+      id,
+    );
+    await approveNext();
+    await deleted;
+    await expect(access(sessionFile)).rejects.toThrow();
   });
 });

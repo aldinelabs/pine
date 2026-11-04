@@ -1982,15 +1982,8 @@ export default {
       secret: "시크릿 {secret}이(가) 삭제되어 일시 중지했습니다.",
     },
     run: {
-      keep: "보관",
-      unkeep: "보관 해제",
-      continue: "대화에서 계속",
-      continued: "이 실행은 프로젝트의 대화로 이어집니다.",
-      outputs: "변경된 파일",
-      events: "실행 계기({count})",
-      discarded:
-        "이 실행이 만든 변경 {count}건은 새 트리거로 처리하지 않았습니다.",
-      transcript: "에이전트가 한 일",
+      noSession:
+        "이 실행에는 대화가 없습니다. 에이전트가 시작되기 전에 멈췄습니다.",
     },
     secrets: {
       description:

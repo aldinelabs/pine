@@ -190,7 +190,12 @@ watch(isGroupDeleteDialogOpen, (open) => {
 });
 
 function sessionTitle(session: ProjectSessionSearchResult): string {
-  return session.name || session.preview || t("sessions.newSession");
+  return (
+    session.name ||
+    session.automationRun?.name ||
+    session.preview ||
+    t("sessions.newSession")
+  );
 }
 
 async function load(): Promise<void> {

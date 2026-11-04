@@ -2012,15 +2012,8 @@ export default {
       secret: "シークレット {secret} が削除されたため一時停止しました。",
     },
     run: {
-      keep: "保持",
-      unkeep: "保持を解除",
-      continue: "会話で続ける",
-      continued: "この実行はプロジェクトの会話として続いています。",
-      outputs: "変更されたファイル",
-      events: "きっかけ（{count}）",
-      discarded:
-        "この実行自身による {count} 件の変更は新しいトリガーとして扱われません。",
-      transcript: "エージェントが行ったこと",
+      noSession:
+        "この実行には会話がありません。エージェントの開始前に停止しました。",
     },
     secrets: {
       description:

@@ -2054,15 +2054,8 @@ export default {
       secret: "Pausiert: Geheimnis {secret} wurde gelöscht.",
     },
     run: {
-      keep: "Behalten",
-      unkeep: "Nicht behalten",
-      continue: "Im Gespräch fortsetzen",
-      continued: "Diese Ausführung wird als Gespräch im Projekt fortgesetzt.",
-      outputs: "Geänderte Dateien",
-      events: "Auslöser ({count})",
-      discarded:
-        "{count} Änderungen dieser Ausführung lösten keine neue Ausführung aus.",
-      transcript: "Was der Agent getan hat",
+      noSession:
+        "Dieser Lauf hat keine Unterhaltung: Er wurde beendet, bevor der Agent startete.",
     },
     secrets: {
       description:

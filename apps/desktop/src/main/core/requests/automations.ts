@@ -1,10 +1,6 @@
-import { mkdir, rename } from "node:fs/promises";
-import path from "node:path";
 import { z } from "zod";
-import { projectSessionDirectory } from "../../../shared/sessionPaths";
 import type { PineJsonValue } from "../../../shared/agent";
 import {
-  CONTINUE_AUTOMATION_RUN_CHANNEL,
   DELETE_AUTOMATION_CHANNEL,
   DELETE_AUTOMATION_SECRET_CHANNEL,
   GET_AUTOMATION_CHANNEL,
@@ -21,7 +17,6 @@ import {
   SET_AUTOMATION_SECRET_CHANNEL,
   type AutomationHostOperation,
   type AutomationSecretSummary,
-  type ContinueAutomationRunResult,
 } from "../../../shared/automation";
 import type { PineCore } from "../pineCore";
 
@@ -148,37 +143,6 @@ export function registerAutomationRequests(core: PineCore): void {
     );
     return { updated: true };
   });
-
-  core.handle(
-    CONTINUE_AUTOMATION_RUN_CHANNEL,
-    async (_context, request): Promise<ContinueAutomationRunResult> => {
-      const parsed = runIdentity.parse(request);
-      const { run, sessionFile } = await core.automations.takeRunSession(
-        parsed.projectId,
-        parsed.automationId,
-        parsed.runId,
-      );
-      // Like a teleport: the file joins the project's ordinary sessions.
-      const project = await core.repository.get(parsed.projectId);
-      const folder = project.folders.find(
-        (candidate) => candidate.id === project.defaultFolderId,
-      );
-      if (!folder?.isAvailable)
-        throw new Error("The project's default folder is unavailable.");
-      const directory = projectSessionDirectory(
-        core.repository.dataPaths(parsed.projectId).sessionsRoot,
-        folder.path,
-      );
-      await mkdir(directory, { recursive: true });
-      await rename(
-        sessionFile,
-        path.join(directory, path.basename(sessionFile)),
-      );
-      await core.automations.markContinued(run);
-      core.notifyLibraryChanged("sessions");
-      return { projectId: parsed.projectId, sessionId: run.sessionId! };
-    },
-  );
 
   core.handle(LIST_AUTOMATION_APPROVALS_CHANNEL, () =>
     core.automations.pendingApprovals(),

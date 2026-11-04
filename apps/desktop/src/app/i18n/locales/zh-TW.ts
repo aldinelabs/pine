@@ -1910,14 +1910,7 @@ export default {
       secret: "密鑰 {secret} 已刪除，已暫停。",
     },
     run: {
-      keep: "保留",
-      unkeep: "取消保留",
-      continue: "在對話中繼續",
-      continued: "這次執行已轉為專案中的一個對話。",
-      outputs: "變動的檔案",
-      events: "觸發原因（{count}）",
-      discarded: "本次執行自身造成的 {count} 處變動不會再次觸發。",
-      transcript: "Agent 做了什麼",
+      noSession: "這次執行沒有對話：它在 agent 啟動前就停止了。",
     },
     secrets: {
       description:

@@ -17,8 +17,6 @@ export const DELETE_AUTOMATION_CHANNEL = "automations:delete" as const;
 export const MARK_AUTOMATION_RUNS_READ_CHANNEL =
   "automations:mark-runs-read" as const;
 export const KEEP_AUTOMATION_RUN_CHANNEL = "automations:keep-run" as const;
-export const CONTINUE_AUTOMATION_RUN_CHANNEL =
-  "automations:continue-run" as const;
 export const RESPOND_AUTOMATION_APPROVAL_CHANNEL =
   "automations:respond-approval" as const;
 export const LIST_AUTOMATION_APPROVALS_CHANNEL =
@@ -243,6 +241,14 @@ export interface AutomationRunSummary {
   sessionId?: string;
 }
 
+/** Marks a project session as one automation run's. */
+export interface AutomationRunSession {
+  automationId: string;
+  runId: string;
+  name: string;
+  startedAt: string;
+}
+
 export interface AutomationRunDetail extends AutomationRunSummary {
   revision: number;
   events: AutomationEvent[];
@@ -251,8 +257,6 @@ export interface AutomationRunDetail extends AutomationRunSummary {
   report?: AutomationRunReport;
   discardedEvents?: number;
   changedOutputs?: string[];
-  /** Session continued into the project; it is an ordinary session now. */
-  continued?: boolean;
   transcript?: AutomationTranscriptEntry[];
   scriptLogs?: AutomationPollRecord[];
 }
@@ -420,11 +424,6 @@ export interface AutomationsChangedEvent {
   approvals: AutomationApprovalRequest[];
 }
 
-export interface ContinueAutomationRunResult {
-  projectId: string;
-  sessionId: string;
-}
-
 /** A tool reports its run's result; main decides what that means. */
 export const AUTOMATION_REPORT_TOOL_NAME = "automation_report" as const;
 export const ACTIVATE_AUTOMATION_AUTHORING_TOOL_NAME =
@@ -509,9 +508,6 @@ export interface PineAutomationsApi {
   keepRun(
     request: AutomationRunIdentityRequest & { kept: boolean },
   ): Promise<{ updated: boolean }>;
-  continueRun(
-    request: AutomationRunIdentityRequest,
-  ): Promise<ContinueAutomationRunResult>;
   approvals(): Promise<AutomationApprovalRequest[]>;
   respondApproval(
     request: AutomationApprovalDecision,

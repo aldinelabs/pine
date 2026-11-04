@@ -1,3 +1,4 @@
+import type { AutomationRunSession } from "./automation";
 import { parseAttachmentMessage, type PineAttachment } from "./attachments";
 import type { PineModelSelection } from "./models";
 import type { TaskState } from "@pine/rpiv-todo";
@@ -251,6 +252,8 @@ export function contentBlocksToText(
 }
 
 export interface PineSessionSummary {
+  /** Set when the session is an automation's run. */
+  automationRun?: AutomationRunSession;
   createdAt: string;
   id: string;
   messageCount: number;

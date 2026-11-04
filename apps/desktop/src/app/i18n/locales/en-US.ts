@@ -1980,15 +1980,8 @@ export default {
       secret: "Paused: secret {secret} was deleted.",
     },
     run: {
-      keep: "Keep",
-      unkeep: "Don’t keep",
-      continue: "Continue in a conversation",
-      continued: "This run continues as a conversation in the project.",
-      outputs: "Files changed",
-      events: "What triggered it ({count})",
-      discarded:
-        "{count} changes made by this run were not treated as new triggers.",
-      transcript: "What the agent did",
+      noSession:
+        "This run has no conversation: it stopped before the agent started.",
     },
     secrets: {
       description:

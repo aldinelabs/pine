@@ -37,6 +37,7 @@ import {
   type DeleteSessionResult,
   type ListAllRecentSessionsResult,
   type LoadSessionMessagesResult,
+  type PineSessionSummary,
   type RenameSessionResult,
   type ResumeSessionResult,
   type SearchAllSessionsResult,
@@ -47,6 +48,7 @@ import {
   listAllRecentSessions,
   searchAllSessions,
 } from "../../recentSessions";
+import type { AutomationRunSession } from "../../../shared/automation";
 import type { PineCore } from "../pineCore";
 import {
   BackgroundTaskRequestSchema,
@@ -66,6 +68,23 @@ import {
 
 export function registerSessionRequests(core: PineCore): void {
   const { repository, runtimes } = core;
+  /** Marks the sessions that are automation runs, as the sidebar shows them. */
+  async function withAutomationRuns<
+    T extends PineSessionSummary & { projectId?: string },
+  >(sessions: T[], projectId?: string): Promise<T[]> {
+    const runs = new Map<string, Map<string, AutomationRunSession>>();
+    for (const id of new Set(
+      sessions.map((session) => session.projectId ?? projectId),
+    )) {
+      if (id) runs.set(id, await core.automations.runSessions(id));
+    }
+    return sessions.map((session) => {
+      const run = runs
+        .get(session.projectId ?? projectId ?? "")
+        ?.get(session.id);
+      return run ? { ...session, automationRun: run } : session;
+    });
+  }
   /** Reads sessions of projects no interface has open. */
   const library = {
     dataPaths: (projectId: string) => repository.dataPaths(projectId),
@@ -76,7 +95,9 @@ export function registerSessionRequests(core: PineCore): void {
   core.handle(
     LIST_ALL_RECENT_SESSIONS_CHANNEL,
     async (): Promise<ListAllRecentSessionsResult> => ({
-      sessions: await listAllRecentSessions(await repository.list(), library),
+      sessions: await withAutomationRuns(
+        await listAllRecentSessions(await repository.list(), library),
+      ),
     }),
   );
 
@@ -85,10 +106,8 @@ export function registerSessionRequests(core: PineCore): void {
     async (_context, request: unknown): Promise<SearchAllSessionsResult> => {
       const { query } = SearchAllSessionsRequestSchema.parse(request);
       return {
-        sessions: await searchAllSessions(
-          await repository.list(),
-          query,
-          library,
+        sessions: await withAutomationRuns(
+          await searchAllSessions(await repository.list(), query, library),
         ),
       };
     },
@@ -99,7 +118,10 @@ export function registerSessionRequests(core: PineCore): void {
     async (context, request: unknown): Promise<SearchSessionsResult> => {
       const { projectId, query } = SearchSessionsRequestSchema.parse(request);
       return {
-        sessions: await runtimes.search(context.clientId, projectId, query),
+        sessions: await withAutomationRuns(
+          await runtimes.search(context.clientId, projectId, query),
+          projectId,
+        ),
       };
     },
   );
@@ -127,7 +149,13 @@ export function registerSessionRequests(core: PineCore): void {
     async (context, request: unknown): Promise<ResumeSessionResult> => {
       const { projectId, sessionId } =
         ProjectSessionRequestSchema.parse(request);
-      return runtimes.resume(context.clientId, projectId, sessionId);
+      const result = await runtimes.resume(
+        context.clientId,
+        projectId,
+        sessionId,
+      );
+      const [session] = await withAutomationRuns([result.session], projectId);
+      return { ...result, session };
     },
   );
 
@@ -180,11 +208,17 @@ export function registerSessionRequests(core: PineCore): void {
 
   core.handle(
     PROMPT_SESSION_CHANNEL,
-    async (context, request: unknown): Promise<PromptSessionResult> =>
-      runtimes.prompt(
-        context.clientId,
-        PromptSessionRequestSchema.parse(request),
-      ),
+    async (context, request: unknown): Promise<PromptSessionResult> => {
+      const parsed = PromptSessionRequestSchema.parse(request);
+      // Writing in a finished run makes it an ordinary session; a running
+      // one still belongs to its automation.
+      if (parsed.target.kind === "session")
+        await core.automations.claimRunSession(
+          parsed.target.projectId,
+          parsed.target.sessionId,
+        );
+      return runtimes.prompt(context.clientId, parsed);
+    },
   );
 
   core.handle(

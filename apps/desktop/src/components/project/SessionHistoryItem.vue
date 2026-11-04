@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { WorkflowIcon } from "@lucide/vue";
 import { computed } from "vue";
 import { cn } from "@/lib/utils";
 import {
@@ -53,6 +54,11 @@ const emit = defineEmits<{
         :title="title"
         @click="emit('open')"
       >
+        <WorkflowIcon
+          v-if="session.automationRun"
+          data-slot="session-automation-icon"
+          aria-hidden="true"
+        />
         <span
           data-slot="session-title"
           :data-running="isRunning || undefined"

@@ -2046,16 +2046,8 @@ export default {
       secret: "En pause : le secret {secret} a été supprimé.",
     },
     run: {
-      keep: "Conserver",
-      unkeep: "Ne plus conserver",
-      continue: "Continuer dans une conversation",
-      continued:
-        "Cette exécution se poursuit comme conversation dans le projet.",
-      outputs: "Fichiers modifiés",
-      events: "Déclencheurs ({count})",
-      discarded:
-        "{count} changements faits par cette exécution n’ont pas été traités comme nouveaux déclencheurs.",
-      transcript: "Ce que l’agent a fait",
+      noSession:
+        "Cette exécution n’a pas de conversation : elle s’est arrêtée avant le démarrage de l’agent.",
     },
     secrets: {
       description:

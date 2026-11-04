@@ -12,6 +12,7 @@ import {
   type AutomationEvent,
   type AutomationFolderGrant,
   type AutomationHostOperation,
+  type AutomationRunSession,
   type AutomationModelSelection,
   type AutomationPauseReason,
   type AutomationPollRecord,
@@ -135,6 +136,10 @@ export interface AutomationServiceOptions {
   power?: AutomationPowerEvents;
   notify?(notification: AutomationNotification): void;
   changed(event: AutomationsChangedEvent): void;
+  /** A run's session appeared, finished or was removed from a project. */
+  sessionsChanged?(projectId: string): void;
+  /** The run let go of its agent session; other holders must reopen it. */
+  sessionReleased?(sessionId: string): void;
   locale(): "en-US" | "zh-CN";
   /** Skill names a project can use; undefined skips the check. */
   skills?(projectId: string): Promise<string[] | undefined>;
@@ -1256,10 +1261,8 @@ export class AutomationService {
         agentDir: this.options.agentDirectory,
         cwd: workspace,
         folders,
-        sessionsRoot: this.options.store.sessionsRoot(
-          armed.projectId,
-          armed.id,
-        ),
+        // Runs sit with the project's sessions, so they open like any other.
+        sessionsRoot: dataPaths.sessionsRoot,
         skillsRoot:
           dataPaths.skillsRoot ?? path.join(dataPaths.projectRoot, "skills"),
         skillsSettingsPath:
@@ -1308,6 +1311,7 @@ export class AutomationService {
       if (created.sessionFile) record.sessionFile = created.sessionFile;
       this.sessions.set(sessionId, armed);
       await this.options.store.writeRun(record);
+      this.options.sessionsChanged?.(armed.projectId);
       if (armed.spec.action.model)
         await this.options.agent.selectModel(
           sessionId,
@@ -1380,6 +1384,7 @@ export class AutomationService {
       if (sessionId) {
         this.sessions.delete(sessionId);
         await this.options.agent.dispose(sessionId).catch(() => undefined);
+        this.options.sessionReleased?.(sessionId);
       }
     }
     armed.run = undefined;
@@ -1404,6 +1409,7 @@ export class AutomationService {
       .pruneRuns(armed.projectId, armed.id)
       .catch(() => undefined);
     this.runs.delete(automationKey(armed.projectId, armed.id));
+    this.options.sessionsChanged?.(armed.projectId);
     this.notifyRun(armed, record);
     if (armed.state.consecutiveFailures >= MAX_CONSECUTIVE_FAILURES)
       await this.pause(armed, {
@@ -1941,6 +1947,7 @@ export class AutomationService {
     this.runs.delete(automationKey(requester.projectId, automationId));
     await this.options.store.delete(requester.projectId, automationId);
     this.broadcast();
+    this.options.sessionsChanged?.(requester.projectId);
   }
 
   /** Secrets changed: pause automations whose secret was deleted. */
@@ -2121,11 +2128,9 @@ export class AutomationService {
       ...(run.report ? { report: run.report } : {}),
       ...(run.discardedEvents ? { discardedEvents: run.discardedEvents } : {}),
       ...(run.changedOutputs ? { changedOutputs: run.changedOutputs } : {}),
-      ...(run.continued ? { continued: true } : {}),
-      transcript:
-        run.sessionFile && !run.continued
-          ? await readRunTranscript(run.sessionFile)
-          : [],
+      transcript: run.sessionFile
+        ? await readRunTranscript(run.sessionFile)
+        : [],
       scriptLogs: polls
         .filter(
           (poll) => Math.abs(Date.parse(poll.at) - started) < 24 * 3_600_000,
@@ -2175,31 +2180,50 @@ export class AutomationService {
     this.broadcast();
   }
 
-  /** Marks a run's session continued; the caller moves its file. */
-  async takeRunSession(
+  /** Each run session of a project's automations, by session id. */
+  async runSessions(
     projectId: string,
-    automationId: string,
-    runId: string,
-  ): Promise<{ run: AutomationRunRecord; sessionFile: string }> {
-    const armed = this.requireArmed(projectId, automationId);
-    if (armed.run?.record.id === runId)
-      throw new Error("Wait for the run to finish.");
-    const run = await this.options.store.readRun(
-      projectId,
-      automationId,
-      runId,
-    );
-    if (!run?.sessionFile || !run.sessionId || run.continued)
-      throw new Error("This run has no session to continue.");
-    return { run, sessionFile: run.sessionFile };
+  ): Promise<Map<string, AutomationRunSession>> {
+    const sessions = new Map<string, AutomationRunSession>();
+    for (const armed of this.armed.values()) {
+      if (armed.projectId !== projectId) continue;
+      for (const run of await this.runsOf(armed)) {
+        if (!run.sessionId || run.continued) continue;
+        sessions.set(run.sessionId, {
+          automationId: armed.id,
+          runId: run.id,
+          name: armed.spec.name,
+          startedAt: run.startedAt,
+        });
+      }
+    }
+    return sessions;
   }
 
-  async markContinued(run: AutomationRunRecord): Promise<void> {
-    run.continued = true;
-    run.kept = true;
-    await this.options.store.writeRun(run);
-    this.cacheRun(run);
-    this.broadcast();
+  /**
+   * The user is about to write in a run's session. A running run is still
+   * the automation's; a finished one becomes an ordinary session the
+   * automation no longer cleans up.
+   */
+  async claimRunSession(projectId: string, sessionId: string): Promise<void> {
+    if (this.sessions.has(sessionId))
+      throw new Error(
+        "This automation is still running. Wait for it to finish.",
+      );
+    for (const armed of this.armed.values()) {
+      if (armed.projectId !== projectId) continue;
+      const run = (await this.runsOf(armed)).find(
+        (candidate) => candidate.sessionId === sessionId,
+      );
+      if (!run || run.continued) continue;
+      run.continued = true;
+      run.kept = true;
+      await this.options.store.writeRun(run);
+      this.cacheRun(run);
+      this.broadcast();
+      this.options.sessionsChanged?.(projectId);
+      return;
+    }
   }
 
   async unreadCount(): Promise<number> {

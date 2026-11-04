@@ -2027,15 +2027,8 @@ export default {
       secret: "En pausa: se eliminó el secreto {secret}.",
     },
     run: {
-      keep: "Conservar",
-      unkeep: "No conservar",
-      continue: "Continuar en una conversación",
-      continued: "Esta ejecución continúa como conversación en el proyecto.",
-      outputs: "Archivos modificados",
-      events: "Qué la activó ({count})",
-      discarded:
-        "{count} cambios hechos por esta ejecución no se trataron como nuevos disparadores.",
-      transcript: "Lo que hizo el agente",
+      noSession:
+        "Esta ejecución no tiene conversación: se detuvo antes de que se iniciara el agente.",
     },
     secrets: {
       description:

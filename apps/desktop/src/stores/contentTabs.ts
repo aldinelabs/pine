@@ -58,7 +58,7 @@ export type SessionContentTab =
 export type ProjectContentTab = FileContentTab | SessionContentTab;
 
 function sessionLabel(session: PineSessionSummary): string | undefined {
-  return session.name || session.preview;
+  return session.name || session.automationRun?.name || session.preview;
 }
 
 /** Where new drafts go: the project the user last chose for one. */

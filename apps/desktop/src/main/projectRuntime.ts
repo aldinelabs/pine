@@ -218,6 +218,27 @@ export class ProjectRuntimeRegistry {
       undefined,
   ) {}
 
+  /**
+   * Sessions another owner keeps live, such as a running automation. A
+   * window can show them, but closing, moving or deleting them here must not
+   * end that owner's run.
+   */
+  heldElsewhere: (sessionId: string) => boolean = () => false;
+
+  private async releaseAgentSession(sessionId: string): Promise<void> {
+    if (!this.heldElsewhere(sessionId))
+      await this.agentHost.disposeSession(sessionId);
+  }
+
+  /** The other owner ended the session; the next use reopens it from disk. */
+  forgetSession(sessionId: string): void {
+    for (const runtime of this.allRuntimes()) {
+      runtime.liveSessions.delete(sessionId);
+      if (runtime.focusedSessionId === sessionId)
+        runtime.focusedSessionId = undefined;
+    }
+  }
+
   private async serializeProject(
     projectId: string,
     operation: () => Promise<void>,
@@ -462,7 +483,7 @@ export class ProjectRuntimeRegistry {
     const runtime = this.get(webContentsId, projectId);
     await runtime.openingSessions.get(sessionId);
     if (runtime.liveSessions.has(sessionId)) {
-      await this.agentHost.disposeSession(sessionId);
+      await this.releaseAgentSession(sessionId);
       runtime.liveSessions.delete(sessionId);
       if (runtime.focusedSessionId === sessionId)
         runtime.focusedSessionId = undefined;
@@ -1092,7 +1113,7 @@ export class ProjectRuntimeRegistry {
     const target = this.get(webContentsId, project.id);
     const descriptor = await source.sessions.describeSession(sessionId);
 
-    await this.agentHost.disposeSession(sessionId);
+    await this.releaseAgentSession(sessionId);
     source.liveSessions.delete(sessionId);
     if (source.focusedSessionId === sessionId)
       source.focusedSessionId = undefined;
@@ -1145,7 +1166,7 @@ export class ProjectRuntimeRegistry {
     try {
       await Promise.all(
         [...runtime.liveSessions.keys()].map((sessionId) =>
-          this.agentHost.disposeSession(sessionId),
+          this.releaseAgentSession(sessionId),
         ),
       );
     } finally {

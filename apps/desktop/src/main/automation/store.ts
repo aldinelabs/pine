@@ -142,11 +142,6 @@ export class AutomationStore {
     );
   }
 
-  /** Where a run's agent session files live, apart from the project's. */
-  sessionsRoot(projectId: string, automationId: string): string {
-    return path.join(this.directory(projectId, automationId), "sessions");
-  }
-
   /** The run's working directory and its only implicit write grant. */
   workspace(projectId: string, automationId: string): string {
     return path.join(this.directory(projectId, automationId), "workspace");
@@ -220,6 +215,11 @@ export class AutomationStore {
   }
 
   async delete(projectId: string, automationId: string): Promise<void> {
+    // Run sessions live with the project's; the ones the user never wrote in
+    // go with the automation.
+    for (const run of await this.listRuns(projectId, automationId))
+      if (run.sessionFile && !run.continued)
+        await rm(run.sessionFile, { force: true });
     await rm(this.directory(projectId, automationId), {
       recursive: true,
       force: true,
@@ -346,7 +346,7 @@ export class AutomationStore {
     const runs = await this.listRuns(projectId, automationId);
     const cutoff = now - RUN_RETENTION.days * 86_400_000;
     for (const [index, run] of runs.entries()) {
-      // Kept runs stay with their session; a continued session moved away.
+      // Kept runs stay with their session; a continued one is the user's.
       if (run.status === "running" || run.kept) continue;
       if (index < RUN_RETENTION.count && Date.parse(run.startedAt) >= cutoff)
         continue;

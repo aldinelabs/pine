@@ -261,6 +261,8 @@ export class PineCore {
         host.automationsChanged?.(event);
         this.web.server.publish(AUTOMATIONS_CHANGED_CHANNEL, event);
       },
+      sessionsChanged: () => this.notifyLibraryChanged("sessions"),
+      sessionReleased: (sessionId) => this.runtimes.forgetSession(sessionId),
       locale: () => host.locale?.() ?? "en-US",
       skills: (projectId) => {
         const dataPaths = this.repository.dataPaths(projectId);
@@ -292,6 +294,8 @@ export class PineCore {
       this.agentDirectory,
       () => credentials.getApiKey(),
     );
+    this.runtimes.heldElsewhere = (sessionId) =>
+      this.automations.isAutomationSession(sessionId);
     this.web = new WebApplication({
       access: webAccess,
       router: this.router,
