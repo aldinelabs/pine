@@ -2,7 +2,9 @@
 
 This is the structure of Pine's own desktop interface: what each region does,
 what it contains, and how regions relate. Labels are the English UI strings;
-the Chinese interface shows translated labels in the same places. "Mod" means
+the interface is also available in Simplified and Traditional Chinese, Japanese,
+Korean, Spanish, French, German and Russian, with translated labels in the same
+places. "Mod" means
 Cmd on macOS and Ctrl on Windows and Linux.
 
 Use this reference to explain Pine's interface to the user, to tell them where
@@ -19,6 +21,11 @@ are already available (for example the `ui_workbench_*` tools and
   sessions, Skills, MCP servers, icon and accent color. "No Project" holds quick
   work that belongs to no project.
 - Session (conversation): one agent conversation inside a project.
+- Automation: work Pine does unattended when a schedule, a folder change, a
+  system event or a website or feed check calls for it. Each run is a session
+  in the project, marked with a workflow icon.
+- Manage with Pine: starts a new session whose composer already has Pine's
+  authoring tools on for a Skill, an automation or an MCP server.
 - Content tab: a session or a file opened in the main content area. The window
   shows the project of the active tab.
 - Workbench: the right-hand panel beside the active session.
@@ -41,10 +48,11 @@ window
 │   │       ├── session folder (collapsible) → session items
 │   │       ├── session items
 │   │       └── Show more
-│   ├── footer: Skills · MCP servers
+│   ├── footer: Automations · Skills · MCP servers
 │   └── rail (click or drag to toggle)
 ├── content area
 │   ├── tab bar "Open content": tabs · Add session tab · More actions
+│   │   · [Switch computer, browser only]
 │   └── active tab
 │       ├── session tab: transcript · status cards · composer
 │       └── file tab: file preview
@@ -74,13 +82,17 @@ Session list, one collapsible group per project:
 - Session folder: right-click for Rename folder and Delete folder (its
   conversations move back to the project). Empty folders show "No conversations
   in this folder".
-- Session item: click to open it in a tab. Right-click for Rename conversation,
+- Session item: click to open it in a tab. A running session's title shimmers
+  (with a dot when reduced motion is on). An automation run shows a workflow
+  icon and, when idle, the time it started. Right-click for Rename conversation,
   Export conversation (Markdown), Move to folder / Remove from folder, and
   Delete conversation (permanent).
 - Show more: reveals older sessions of the project.
 
 Footer:
 
+- Automations: opens the Automations manager. A badge counts unread runs plus
+  automation approvals waiting for the user.
 - Skills: opens the Skills manager for the active tab's project.
 - MCP servers: opens the MCP servers manager for the active tab's project.
 
@@ -93,6 +105,11 @@ Tab bar ("Open content"):
 - Add session tab: opens a new session tab.
 - More actions: for a file tab, Open, Reveal, Copy path, New folder, Rename,
   Refresh and Move to trash; for a session tab, Rename, Export and Delete.
+- A running session's tab title shimmers; a tab for an automation run keeps a
+  workflow icon until the user replies to it.
+- Switch computer: shown only when Pine is opened in a browser through Remote
+  Control and more than one computer is paired; returns to the list of
+  computers. The workbench header has the same button.
 - With no tabs open the area shows "No tabs open" and the shortcut hints.
 
 #### Session tab
@@ -103,8 +120,12 @@ From top to bottom:
    messages in order:
    - user messages, with Copy message and Edit message (editing resends);
    - assistant replies, with reasoning markers ("Thinking…", "Worked for …");
+   - for an automation run, a card at the top with the automation's name,
+     trigger and start time; "Instructions" expands what it was asked to do;
    - tool call groups; clicking a call opens Tool call details (status,
      approval, parameters, result);
+   - markers for automation actions, model lookups and MCP configuration
+     calls (for example "Ran 3 automation actions");
    - markers for context compaction, errors, stopped responses and background
      process events;
    - interactive answer blocks (checklists, tables, charts, inputs) when rich
@@ -118,9 +139,16 @@ From top to bottom:
 3. Composer ("Session message"):
    - Approval required card, when a tool call needs the user: Approve, Reject,
      Reject with guidance.
+   - Automation approval card, in place of the composer, when the agent asks to
+     create, change, turn on or delete an automation: it lists the triggers,
+     what the automation reads, writes and can reach, and warnings; Approve
+     (or Turn on / Delete), Reject, or Reject with guidance.
    - Questionnaire card, when the agent asks questions: Previous, Next, Cancel,
      Submit, plus a free-text answer.
-   - Staged steering messages, with Withdraw staged message.
+   - Staged steering messages, each with Withdraw and Send now.
+   - Chip ("Creating a skill / an automation / an MCP server
+     with Pine"), on a draft started from Manage with Pine; its remove button
+     turns the draft into an ordinary conversation.
    - Attachment list (files, folders, conversations, pasted text and images)
      and a chip for selected content sent from a preview.
    - Text box. In a new session with no project, typing `@` chooses the
@@ -170,12 +198,15 @@ the user opens themselves do not pulse.
 
 - Pine Settings, with sections (a phone shows the section list first):
   - General: language (dropdown), completion signal, attention
-    notifications, quick composer shortcut, diagnostic logging.
-  - Appearance: color mode (System, Light, Dark), default color theme, sidebar
-    blur (macOS), reading font (Geist and Noto Sans SC for conversations, the
-    composer and session titles), inverted documents in dark mode.
-  - Models: model catalog refresh, utility (title generation and review)
-    model, image generation model, video generation model, Decisions model.
+    notifications, quick composer shortcut, keep running in the background
+    (macOS and Windows desktop app), diagnostic logging.
+  - Appearance: color mode (System, Light, Dark), Pine default color theme
+    (Neutral unless changed; the palettes are Neutral, Olive, Red, Rose,
+    Orange, Green, Blue, Yellow, Violet), sidebar blur (macOS), reading font
+    (Geist Serif and Noto Serif SC for conversations and session titles),
+    inverted documents in dark mode.
+  - Models: model catalog refresh, title generation model, approval model,
+    image generation model, video generation model, Decisions model.
   - Agent: automatic approval path, context compaction strategy and method,
     TinyFish web tools key, approximate location.
   - User profile: nickname, communication style, technical background,
@@ -188,12 +219,22 @@ the user opens themselves do not pulse.
     encrypted) and lists paired devices to rename or remove; it needs Browser
     access turned on. Browser access serves Pine to a browser behind an access
     password.
-- New Project / Edit Project: name, icon, accent color, default folder,
+- New Project / Edit Project: name, icon, accent color ("Pine Default", which
+  follows the Appearance setting, or a palette of its own), default folder,
   additional context folders with access (Read only, Read and write).
+- Automations manager, with tabs: Activity (runs with status such as Running,
+  Found something, Nothing new, Failed; Refresh, Mark all as read, Show runs
+  with nothing new; opening a run opens its session), Automations (each with
+  its triggers and permissions, On/Off/Paused state, Run now, Edit
+  definition as JSON with Check, Delete) and Secrets (named values such as API
+  tokens that automations may use, stored encrypted on this computer and
+  changeable only in the desktop app). Manage with Pine starts an automation
+  draft. Automations run only while Pine is open unless keeping Pine running
+  in the background is on.
 - Skills manager: global and project Skills; create, edit, enable per project,
-  delete.
+  delete; Manage with Pine.
 - MCP servers manager: servers for this project or all projects; add, edit,
-  enable, remove, refresh status.
+  enable, remove, refresh status; Manage with Pine.
 - Session search overlay: search across all projects, open a result.
 - Model picker, provider sign-in, custom model and custom provider dialogs,
   opened from the composer's Model control or Pine Settings › Models.
@@ -208,6 +249,14 @@ A floating composer opened with a global shortcut from any app (set in Pine
 Settings › General). It can capture the frontmost app's window and selected
 text as context when the user grants the screen and accessibility permissions,
 then hands the new conversation to the main window.
+
+## Tray and menu bar
+
+With "Keep running in the background" on, closing the last window keeps Pine in
+the menu bar (macOS) or notification area (Windows). Its menu has Open Pine,
+Quick composer, switches for Browser access and Remote Control via Aldine,
+"Manage more settings…" (opens Pine Settings › Remote control) and Quit Pine.
+Quitting from the menu is the way to stop automations and Remote Control.
 
 ## Keyboard shortcuts
 
