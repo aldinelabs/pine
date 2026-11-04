@@ -172,6 +172,47 @@ describe("ask_user_question timeout", () => {
       vi.useRealTimers();
     }
   });
+
+  it("rejects a question without timeout in Autonomous Work mode", async () => {
+    const { location } = await createFixture();
+    const requestQuestionnaire = vi.fn();
+    const tools = await createPineToolDefinitions(
+      location,
+      createFakeGate(),
+      undefined,
+      {
+        getApprovalMode: () => "autonomous",
+        getGate: () => null,
+        requestQuestionnaire,
+      },
+    );
+    const tool = tools.find(
+      (candidate) => candidate.name === "ask_user_question",
+    );
+    const result = await tool!.execute(
+      "question-2",
+      {
+        questions: [
+          {
+            question: "Choose a path",
+            header: "Path",
+            options: [
+              { label: "A", description: "First path" },
+              { label: "B", description: "Second path" },
+            ],
+          },
+        ],
+      },
+      undefined,
+      undefined,
+      undefined as never,
+    );
+    expect(result.details).toMatchObject({
+      cancelled: true,
+      error: "missing_timeout",
+    });
+    expect(requestQuestionnaire).not.toHaveBeenCalled();
+  });
 });
 
 describe("PineToolAccessPolicy", () => {

@@ -848,9 +848,22 @@ export async function createPineToolDefinitions(
             };
           }
           const autonomous = getApprovalMode() === "autonomous";
-          const timeoutSeconds = autonomous
-            ? (params.timeout ?? 60)
-            : undefined;
+          if (autonomous && params.timeout === undefined) {
+            return {
+              content: [
+                {
+                  type: "text" as const,
+                  text: "Error: timeout (1-3600 seconds) is required in Autonomous Work mode",
+                },
+              ],
+              details: {
+                answers: [],
+                cancelled: true,
+                error: "missing_timeout" as const,
+              },
+            };
+          }
+          const timeoutSeconds = autonomous ? params.timeout : undefined;
           const timeoutController = autonomous ? new AbortController() : null;
           const timer =
             timeoutController && timeoutSeconds !== undefined
