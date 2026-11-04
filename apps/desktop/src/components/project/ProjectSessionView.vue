@@ -127,7 +127,7 @@ async function openToolFile(
     projectStore.projectById(props.projectId),
   );
   if (request) {
-    tabNavigation.openFile(request);
+    tabNavigation.openFile(request, { preview: true });
     return true;
   }
   const presented = tabNavigation.tabs.value.find(
@@ -304,7 +304,14 @@ watch(
   { immediate: true },
 );
 
+// Anything the user does in a tab makes it theirs: it stops being a preview
+// that the next casual open would replace.
+watch([draft, isRunning], ([text, running]) => {
+  if (text || running) contentTabsStore.keepTab(props.tabId);
+});
+
 watch(approvalMode, (value) => {
+  contentTabsStore.keepTab(props.tabId);
   // Prompt requests carry the same value as a fallback; this eager update
   // makes the new policy apply to later tool calls in an already-running turn.
   void sessionStore

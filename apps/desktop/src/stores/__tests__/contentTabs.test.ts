@@ -522,3 +522,159 @@ describe("content tabs store", () => {
     ).toHaveLength(1);
   });
 });
+
+describe("preview tabs", () => {
+  beforeEach(() => {
+    localStorage.clear();
+    sessionStorage.clear();
+    setActivePinia(createPinia());
+  });
+
+  const secondSession: PineSessionSummary = {
+    ...firstSession,
+    id: "019cfe51-7166-79b9-a5b9-c652fcca9eac",
+    preview: "Second prompt",
+  };
+  const thirdSession: PineSessionSummary = {
+    ...firstSession,
+    id: "019cfe51-7166-79b9-a5b9-c652fcca9ead",
+    preview: "Third prompt",
+  };
+
+  it("lets a casual open replace the untouched preview tab in place", () => {
+    const store = useContentTabsStore();
+    const first = store.openSession(firstSession, "p1", "session-1", {
+      preview: true,
+    });
+    expect(store.isPreviewTab(first.id)).toBe(true);
+    const second = store.openSession(secondSession, "p1", first.id, {
+      preview: true,
+    });
+    expect(store.tabs.map((tab) => tab.id)).toEqual([second.id]);
+    expect(store.isPreviewTab(second.id)).toBe(true);
+  });
+
+  it("adds a tab once the preview was kept", () => {
+    const store = useContentTabsStore();
+    const first = store.openSession(firstSession, "p1", "session-1", {
+      preview: true,
+    });
+    store.keepTab(first.id);
+    const second = store.openSession(secondSession, "p1", first.id, {
+      preview: true,
+    });
+    expect(store.tabs.map((tab) => tab.id)).toEqual([first.id, second.id]);
+    expect(store.isPreviewTab(first.id)).toBe(false);
+  });
+
+  it("keeps a tab that is opened on purpose or reopened as an explicit open", () => {
+    const store = useContentTabsStore();
+    const first = store.openSession(firstSession, "p1", "session-1", {
+      preview: true,
+    });
+    store.openSession(firstSession, "p1", first.id);
+    expect(store.isPreviewTab(first.id)).toBe(false);
+  });
+
+  it("replaces an untouched preview when a new session starts, otherwise adds a tab", () => {
+    const store = useContentTabsStore();
+    const first = store.openSession(firstSession, "p1", "session-1", {
+      preview: true,
+    });
+    const draft = store.createSessionTab({
+      reuseDraft: false,
+      replaceActivePreview: first.id,
+    });
+    expect(store.tabs.map((tab) => tab.id)).toEqual([draft.id]);
+
+    const second = store.openSession(secondSession, "p1", draft.id, {
+      preview: true,
+    });
+    store.keepTab(second.id);
+    const another = store.createSessionTab({
+      reuseDraft: false,
+      replaceActivePreview: second.id,
+    });
+    expect(store.tabs.map((tab) => tab.id)).toEqual([second.id, another.id]);
+  });
+
+  it("keeps a tab once a message starts, files attach, or a tab is dragged", () => {
+    const store = useContentTabsStore();
+    const first = store.openSession(firstSession, "p1", "session-1", {
+      preview: true,
+    });
+    store.addAttachments(first.id, [
+      {
+        name: "a.md",
+        path: "/a.md",
+        extension: "md",
+        size: 1,
+        modifiedAt: "",
+      },
+    ]);
+    expect(store.isPreviewTab(first.id)).toBe(false);
+
+    const draft = store.createSessionTab({ reuseDraft: false });
+    const file = store.openFile(
+      { projectId: "p1", folderId: "f1", relativePath: "a.txt" },
+      { preview: true },
+    );
+    expect(store.isPreviewTab(file.id)).toBe(true);
+    store.moveTab(file.id, first.id, "before");
+    expect(store.isPreviewTab(file.id)).toBe(false);
+    store.beginPrompt(draft.id, "hi");
+    expect(store.isPreviewTab(draft.id)).toBe(false);
+  });
+
+  it("previews files too, and keeps a file the agent presents", () => {
+    const store = useContentTabsStore();
+    const a = store.openFile(
+      { projectId: "p1", folderId: "f1", relativePath: "a.txt" },
+      { preview: true },
+    );
+    const b = store.openFile(
+      { projectId: "p1", folderId: "f1", relativePath: "b.txt" },
+      { preview: true },
+    );
+    expect(store.tabs.map((tab) => tab.id)).toEqual(["session-1", b.id]);
+    expect(store.tabs.some((tab) => tab.id === a.id)).toBe(false);
+    store.presentFile(
+      {
+        source: "project",
+        projectId: "p1",
+        folderId: "f1",
+        relativePath: "b.txt",
+      },
+      "p1",
+    );
+    expect(store.isPreviewTab(b.id)).toBe(false);
+  });
+
+  it("reopens closed tabs newest first in their old slot, skipping open ones", () => {
+    const store = useContentTabsStore();
+    const first = store.openSession(firstSession, "p1", "session-1");
+    const second = store.openSession(secondSession, "p1");
+    const third = store.openSession(thirdSession, "p1");
+    store.close(first.id, third.id);
+    store.close(second.id, third.id);
+    expect(store.tabs.map((tab) => tab.id)).toEqual([third.id]);
+
+    expect(store.reopenClosedTab()?.id).toBe(second.id);
+    expect(store.tabs.map((tab) => tab.id)).toEqual(
+      [second.id, third.id].slice(0, 1).concat(third.id),
+    );
+    // The first session is opened again by other means, so it is skipped.
+    store.openSession(firstSession, "p1");
+    expect(store.reopenClosedTab()).toBeNull();
+  });
+
+  it("does not remember drafts or deleted sessions as reopenable", () => {
+    const store = useContentTabsStore();
+    const bound = store.openSession(firstSession, "p1", "session-1");
+    const draft = store.createSessionTab({ reuseDraft: false });
+    store.close(draft.id, bound.id);
+    store.close(bound.id, bound.id);
+    store.removeSession(firstSession.id, "");
+    expect(store.reopenClosedTab()).toBeNull();
+  });
+});

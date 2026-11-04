@@ -55,6 +55,29 @@ export function useWindowTabShortcuts(): void {
     const next = list[(index + step + list.length) % list.length];
     if (next) navigation.activate(next.id);
   });
+  // ⌘⇧T brings back the last closed tab; ⌘1–⌘8 jump to that tab and ⌘9 to
+  // the last one, as in browsers.
+  useEventListener(window, "keydown", (event: KeyboardEvent) => {
+    if (
+      !(event.metaKey || event.ctrlKey) ||
+      event.altKey ||
+      event.defaultPrevented
+    )
+      return;
+    if (event.shiftKey) {
+      if (event.key.toLowerCase() !== "t") return;
+      event.preventDefault();
+      navigation.reopenClosedTab();
+      return;
+    }
+    if (!/^[1-9]$/.test(event.key)) return;
+    const list = tabs.tabs;
+    const target =
+      event.key === "9" ? list.at(-1) : list[Number(event.key) - 1];
+    if (!target) return;
+    event.preventDefault();
+    navigation.activate(target.id);
+  });
   onUnmounted(() => {
     unsubscribe?.();
     unsubscribeNewTab?.();

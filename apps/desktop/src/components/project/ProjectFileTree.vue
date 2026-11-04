@@ -537,7 +537,8 @@ function previewFile(node: ProjectTreeNode): void {
 
 /** A double click opens the file in the full previewer's tab. */
 function openFileInTab(node: ProjectTreeNode): void {
-  if (isOpenable(node)) tabNavigation.openFile(reference(node));
+  if (isOpenable(node))
+    tabNavigation.openFile(reference(node), { preview: true });
 }
 
 function reference(node: unknown): ProjectEntryReference {

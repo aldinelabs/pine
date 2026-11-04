@@ -102,6 +102,8 @@ describe("SessionSearchOverlay", () => {
     await flushPromises();
 
     expect(ensureOpen).toHaveBeenCalledWith("project-2");
-    expect(openSession).toHaveBeenCalledWith(sessions[1], "project-2");
+    expect(openSession).toHaveBeenCalledWith(sessions[1], "project-2", {
+      preview: true,
+    });
   });
 });

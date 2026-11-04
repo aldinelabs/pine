@@ -449,6 +449,13 @@ function isTabRunning(tab: ProjectContentTab): boolean {
   );
 }
 
+// A session that is working has become more than a glance.
+watch(
+  () => tabs.value.filter((tab) => isTabRunning(tab)).map((tab) => tab.id),
+  (runningIds) => runningIds.forEach((id) => contentTabsStore.keepTab(id)),
+  { immediate: true },
+);
+
 function tabIcon(tab: ProjectContentTab) {
   if (tab.kind !== "session") return fileIcon(fileTargetPath(tab));
   // An automation run keeps its icon until the user replies to it.
@@ -815,6 +822,9 @@ watch(activeSession, (session) => {
                     )
                   "
                   @click="activateTab(tab.id)"
+                  @dblclick="contentTabsStore.keepTab(tab.id)"
+                  @mousedown.middle.prevent
+                  @auxclick.middle.prevent="closeTab(tab.id)"
                   @keydown="moveTabFocus(index, $event)"
                 >
                   <component :is="tabIcon(tab)" data-icon="inline-start" />

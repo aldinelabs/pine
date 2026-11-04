@@ -66,6 +66,14 @@ export type SessionContentTab =
   DraftSessionTab | CreatingSessionTab | BoundSessionTab;
 export type ProjectContentTab = FileContentTab | SessionContentTab;
 
+/** A closed tab that can come back, with the slot it left. */
+interface ClosedTab {
+  tab: BoundSessionTab | FileContentTab;
+  index: number;
+}
+
+const CLOSED_TABS_LIMIT = 20;
+
 function sessionLabel(session: PineSessionSummary): string | undefined {
   return session.name || session.automationRun?.name || session.preview;
 }
@@ -127,6 +135,14 @@ export const useContentTabsStore = defineStore("content-tabs", () => {
   /** Presentations whose file was moved to the trash from the artifacts list. */
   const removedPresentations = reactive(new Set<string>());
   const composerAttachments = ref<Record<string, PineAttachment[]>>({});
+  /**
+   * The one tab a casual open (sidebar, search, file tree) may replace, as
+   * in VS Code's preview tab. It stops being one as soon as the user does
+   * anything with it. Not persisted: after a restart every tab is kept.
+   */
+  const previewTabId = ref<string | null>(null);
+  /** Recently closed tabs, newest last, for reopening. */
+  const closedTabs = ref<ClosedTab[]>([]);
   watch(
     () => tabs.value.map((tab) => tab.id),
     (ids) => {
@@ -136,6 +152,15 @@ export const useContentTabsStore = defineStore("content-tabs", () => {
     },
     { flush: "sync" },
   );
+
+  /** The tab is the user's now: casual opens no longer replace it. */
+  function keepTab(tabId: string): void {
+    if (previewTabId.value === tabId) previewTabId.value = null;
+  }
+
+  function isPreviewTab(tabId: string): boolean {
+    return previewTabId.value === tabId;
+  }
 
   function attachmentsFor(tabId: string): PineAttachment[] {
     return composerAttachments.value[tabId] ?? [];
@@ -150,6 +175,7 @@ export const useContentTabsStore = defineStore("content-tabs", () => {
     composerAttachments.value[tabId] = [
       ...new Map(attachments.map((file) => [file.path, file])).values(),
     ];
+    if (attachments.length) keepTab(tabId);
     return true;
   }
 
@@ -166,6 +192,7 @@ export const useContentTabsStore = defineStore("content-tabs", () => {
     side: "before" | "after",
   ): void {
     if (tabId === targetId) return;
+    keepTab(tabId);
     const tab = tabs.value.find((candidate) => candidate.id === tabId);
     if (!tab || !tabs.value.some((candidate) => candidate.id === targetId))
       return;
@@ -194,6 +221,33 @@ export const useContentTabsStore = defineStore("content-tabs", () => {
   }
   watch([tabs, fallbackActiveTabId], persist, { deep: true, flush: "sync" });
 
+  // A preview tab that left the list (closed, removed, merged) has no slot.
+  watch(
+    () => tabs.value.some((tab) => tab.id === previewTabId.value),
+    (present) => {
+      if (!present) previewTabId.value = null;
+    },
+    { flush: "sync" },
+  );
+
+  /**
+   * Add a tab. A preview tab takes the place of the current preview tab, in
+   * the same position, instead of adding another; otherwise it is appended.
+   */
+  function placeTab(tab: ProjectContentTab, preview: boolean): void {
+    const previewIndex = preview
+      ? tabs.value.findIndex((candidate) => candidate.id === previewTabId.value)
+      : -1;
+    if (previewIndex >= 0) {
+      tabs.value = tabs.value.map((candidate, index) =>
+        index === previewIndex ? tab : candidate,
+      );
+    } else {
+      tabs.value = [...tabs.value, tab];
+    }
+    if (preview) previewTabId.value = tab.id;
+  }
+
   function setActiveTab(tabId: string): void {
     if (tabs.value.some((tab) => tab.id === tabId))
       fallbackActiveTabId.value = tabId;
@@ -202,13 +256,18 @@ export const useContentTabsStore = defineStore("content-tabs", () => {
   function ensureFileTab(
     target: FilePreviewTarget,
     projectId: string,
+    preview = false,
   ): FileContentTab {
     const key = fileTargetKey(target);
     const existing = tabs.value.find(
       (tab): tab is FileContentTab =>
         tab.kind === "file" && fileTargetKey(tab) === key,
     );
-    if (existing) return existing;
+    if (existing) {
+      // Opening a file on purpose keeps the tab it already sits in.
+      if (!preview) keepTab(existing.id);
+      return existing;
+    }
     const path =
       target.source === "project" ? target.relativePath : target.path;
     const tab: FileContentTab = {
@@ -218,13 +277,23 @@ export const useContentTabsStore = defineStore("content-tabs", () => {
       label: fileName(path),
       projectId: target.source === "project" ? target.projectId : projectId,
     };
-    tabs.value = [...tabs.value, tab];
+    placeTab(tab, preview);
     return tab;
   }
 
-  /** Open or reuse the tab for a file the user selected in the project. */
-  function openFile(file: ProjectFilePreviewRequest): FileContentTab {
-    return ensureFileTab({ ...file, source: "project" }, file.projectId);
+  /**
+   * Open or reuse the tab for a file the user selected in the project. A
+   * casual open (`preview`) replaces the current preview tab.
+   */
+  function openFile(
+    file: ProjectFilePreviewRequest,
+    { preview = false }: { preview?: boolean } = {},
+  ): FileContentTab {
+    return ensureFileTab(
+      { ...file, source: "project" },
+      file.projectId,
+      preview,
+    );
   }
 
   /**
@@ -293,10 +362,14 @@ export const useContentTabsStore = defineStore("content-tabs", () => {
     projectId,
     reuseDraft = true,
     mutators,
+    replaceActivePreview,
   }: {
     projectId?: string;
     reuseDraft?: boolean;
     mutators?: PineSessionMutator[];
+    /** The active tab; when it is an untouched preview tab, the new draft
+     * takes its place instead of adding a tab. */
+    replaceActivePreview?: string;
   } = {}): DraftSessionTab {
     const existingDraft = tabs.value.find(
       (tab): tab is DraftSessionTab =>
@@ -317,7 +390,20 @@ export const useContentTabsStore = defineStore("content-tabs", () => {
     const tab: DraftSessionTab = mutators?.length
       ? { ...created, mutators: uniqueSessionMutators(mutators) }
       : created;
-    tabs.value = [...tabs.value, tab];
+    const replaced =
+      replaceActivePreview !== undefined &&
+      replaceActivePreview === previewTabId.value
+        ? tabs.value.findIndex(
+            (candidate) => candidate.id === previewTabId.value,
+          )
+        : -1;
+    if (replaced >= 0) {
+      tabs.value = tabs.value.map((candidate, index) =>
+        index === replaced ? tab : candidate,
+      );
+    } else {
+      tabs.value = [...tabs.value, tab];
+    }
     composerFocusTabId.value = tab.id;
     return tab;
   }
@@ -329,6 +415,7 @@ export const useContentTabsStore = defineStore("content-tabs", () => {
   ): boolean {
     const target = tabs.value.find((tab) => tab.id === tabId);
     if (target?.kind !== "session" || target.state !== "draft") return false;
+    if (mutators.length) keepTab(tabId);
     const rest: DraftSessionTab = { ...target };
     delete rest.mutators;
     const next: DraftSessionTab = mutators.length
@@ -360,6 +447,7 @@ export const useContentTabsStore = defineStore("content-tabs", () => {
     const target = tabs.value.find((tab) => tab.id === tabId);
     if (!target || target.kind !== "session") return false;
     if (target.state !== "draft") return target.state === "bound";
+    keepTab(tabId);
 
     const creating: CreatingSessionTab = {
       id: target.id,
@@ -409,6 +497,7 @@ export const useContentTabsStore = defineStore("content-tabs", () => {
     session: PineSessionSummary,
     projectId: string,
     reusableTabId?: string,
+    { preview = false }: { preview?: boolean } = {},
   ): BoundSessionTab {
     const existing = tabs.value.find(
       (tab): tab is BoundSessionTab =>
@@ -418,6 +507,7 @@ export const useContentTabsStore = defineStore("content-tabs", () => {
     );
     if (existing) {
       updateSession(session);
+      if (!preview) keepTab(existing.id);
       return existing;
     }
 
@@ -440,8 +530,10 @@ export const useContentTabsStore = defineStore("content-tabs", () => {
       tabs.value = tabs.value.map((candidate) =>
         candidate.id === current.id ? tab : candidate,
       );
+      if (preview) previewTabId.value = tab.id;
+      else keepTab(tab.id);
     } else {
-      tabs.value = [...tabs.value, tab];
+      placeTab(tab, preview);
     }
     return tab;
   }
@@ -502,6 +594,19 @@ export const useContentTabsStore = defineStore("content-tabs", () => {
 
     const wasActive = activeTabId === tabId;
     const nextTabs = tabs.value.filter((tab) => tab.id !== tabId);
+    const closing = tabs.value[closingIndex];
+    // Drafts hold nothing to come back to, and a presented file's access
+    // grant only covers the run that presented it.
+    if (
+      closing &&
+      ((closing.kind === "session" && closing.state === "bound") ||
+        (closing.kind === "file" && closing.source === "project"))
+    ) {
+      closedTabs.value = [
+        ...closedTabs.value.slice(1 - CLOSED_TABS_LIMIT),
+        { tab: closing, index: closingIndex },
+      ];
+    }
 
     const nextActiveTabId = wasActive
       ? (nextTabs[Math.min(closingIndex, nextTabs.length - 1)]?.id ?? "")
@@ -511,7 +616,42 @@ export const useContentTabsStore = defineStore("content-tabs", () => {
     return nextActiveTabId;
   }
 
+  function sameContent(a: ProjectContentTab, b: ProjectContentTab): boolean {
+    if (a.kind === "file" || b.kind === "file")
+      return (
+        a.kind === "file" &&
+        b.kind === "file" &&
+        fileTargetKey(a) === fileTargetKey(b)
+      );
+    return (
+      a.state === "bound" && b.state === "bound" && a.sessionId === b.sessionId
+    );
+  }
+
+  /**
+   * Bring back the most recently closed tab, in the slot it left. Content
+   * that is open again in the meantime is skipped. Returns the tab to show.
+   */
+  function reopenClosedTab(): ProjectContentTab | null {
+    while (closedTabs.value.length > 0) {
+      const entry = closedTabs.value.at(-1)!;
+      closedTabs.value = closedTabs.value.slice(0, -1);
+      if (tabs.value.some((tab) => sameContent(tab, entry.tab))) continue;
+      const tab = tabs.value.some((candidate) => candidate.id === entry.tab.id)
+        ? { ...entry.tab, id: `${entry.tab.kind}-${randomId()}` }
+        : entry.tab;
+      const next = [...tabs.value];
+      next.splice(Math.min(entry.index, next.length), 0, tab);
+      tabs.value = next;
+      return tab;
+    }
+    return null;
+  }
+
   function removeSession(sessionId: string, activeTabId: string): string {
+    closedTabs.value = closedTabs.value.filter(
+      ({ tab }) => tab.kind !== "session" || tab.sessionId !== sessionId,
+    );
     const removedIds = new Set(
       tabs.value
         .filter(
@@ -549,6 +689,9 @@ export const useContentTabsStore = defineStore("content-tabs", () => {
   function removeProject(projectId: string): void {
     if (lastDraftProjectId.value === projectId)
       rememberDraftProject(TEMPORARY_WORKSPACE_PROJECT_ID);
+    closedTabs.value = closedTabs.value.filter(
+      ({ tab }) => tab.projectId !== projectId,
+    );
     const remaining = tabs.value.filter((tab) => tab.projectId !== projectId);
     if (remaining.length === tabs.value.length) return;
     tabs.value = remaining.length > 0 ? remaining : initialTabs();
@@ -565,6 +708,8 @@ export const useContentTabsStore = defineStore("content-tabs", () => {
     removedPresentations.clear();
     composerFocusTabId.value = null;
     composerAttachments.value = {};
+    previewTabId.value = null;
+    closedTabs.value = [];
     nextSessionTabNumber = 2;
     fallbackActiveTabId.value = null;
     tabs.value = initialTabs();
@@ -582,6 +727,8 @@ export const useContentTabsStore = defineStore("content-tabs", () => {
     createSessionTab,
     failPrompt,
     fallbackActiveTabId,
+    isPreviewTab,
+    keepTab,
     lastDraftProjectId,
     moveSessionToProject,
     moveTab,
@@ -590,7 +737,9 @@ export const useContentTabsStore = defineStore("content-tabs", () => {
     openSession,
     presentFile,
     presentedTargetFor,
+    previewTabId,
     rememberPresentedTarget,
+    reopenClosedTab,
     markPresentationRemoved,
     isPresentationRemoved,
     rememberDraftProject,

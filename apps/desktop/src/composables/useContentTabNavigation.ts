@@ -57,8 +57,18 @@ export function useContentTabNavigation() {
     await (replace ? router.replace(location) : router.push(location));
   }
 
+  /**
+   * The "new session" intent: the active tab is replaced when it is an
+   * untouched preview, so browsing then starting a session leaves no stray
+   * tab behind. Use `openNewDraft` for an explicit new tab.
+   */
   function createSessionTab(options?: { projectId?: string }): void {
-    void navigate(store.createSessionTab(options).id);
+    void navigate(
+      store.createSessionTab({
+        ...options,
+        replaceActivePreview: activeTabId.value,
+      }).id,
+    );
   }
 
   /** A new draft whose first message starts authoring with Pine. */
@@ -85,12 +95,27 @@ export function useContentTabNavigation() {
     );
   }
 
-  function openSession(session: PineSessionSummary, projectId: string): void {
-    void navigate(store.openSession(session, projectId, activeTabId.value).id);
+  /** `preview` marks a casual open that the next casual open may replace. */
+  function openSession(
+    session: PineSessionSummary,
+    projectId: string,
+    options?: { preview?: boolean },
+  ): void {
+    void navigate(
+      store.openSession(session, projectId, activeTabId.value, options).id,
+    );
   }
 
-  function openFile(file: ProjectFilePreviewRequest): void {
-    void navigate(store.openFile(file).id);
+  function openFile(
+    file: ProjectFilePreviewRequest,
+    options?: { preview?: boolean },
+  ): void {
+    void navigate(store.openFile(file, options).id);
+  }
+
+  function reopenClosedTab(): void {
+    const tab = store.reopenClosedTab();
+    if (tab) void navigate(tab.id);
   }
 
   function bindSession(tabId: string, session: PineSessionSummary): void {
@@ -138,6 +163,7 @@ export function useContentTabNavigation() {
     openFile,
     openSession,
     removeSession,
+    reopenClosedTab,
     tabs,
   };
 }

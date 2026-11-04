@@ -98,7 +98,9 @@ async function selectSession(
   emit("update:open", false);
   // Sessions open in their own project, which may not be open yet.
   if (props.purpose !== "attach" && (await openProject(session.projectId)))
-    tabNavigation.openSession(session, session.projectId);
+    tabNavigation.openSession(session, session.projectId, {
+      preview: true,
+    });
 }
 </script>
 

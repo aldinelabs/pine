@@ -236,7 +236,9 @@ onMounted(() => {
 
 async function openSession(session: ProjectSessionSearchResult) {
   if (await openProject(session.projectId))
-    tabNavigation.openSession(session, session.projectId);
+    tabNavigation.openSession(session, session.projectId, {
+      preview: true,
+    });
 }
 
 /** Session actions run in the session's project, so open it first. */

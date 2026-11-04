@@ -194,4 +194,73 @@ describe("window close navigation", () => {
     expect(router.currentRoute.value.query.tab).toBe(third.id);
     wrapper.unmount();
   });
+
+  it("jumps to a numbered tab with Cmd+1..9 and reopens a closed tab with Cmd+Shift+T", async () => {
+    const pinia = createPinia();
+    setActivePinia(pinia);
+    const router = createRouter({
+      history: createMemoryHistory(),
+      routes: [{ path: "/", component: {} }],
+    });
+    const store = useContentTabsStore();
+    const first = store.tabs[0];
+    const second = store.openFile({
+      projectId: "p1",
+      folderId: "f1",
+      relativePath: "a.txt",
+    });
+    const third = store.openFile({
+      projectId: "p1",
+      folderId: "f1",
+      relativePath: "b.txt",
+    });
+    store.keepTab(second.id);
+    await router.push({ path: "/", query: { tab: first.id } });
+    Object.defineProperty(window, "pine", {
+      configurable: true,
+      value: {
+        onNewTabRequested: () => () => undefined,
+        onCloseTabRequested: () => () => undefined,
+        closeWindow: vi.fn().mockResolvedValue(undefined),
+      },
+    });
+    const wrapper = mount(
+      defineComponent({
+        setup() {
+          useWindowTabShortcuts();
+          return () => null;
+        },
+      }),
+      { global: { plugins: [pinia, router] } },
+    );
+    const press = async (key: string, init: KeyboardEventInit) => {
+      const event = new KeyboardEvent("keydown", {
+        key,
+        cancelable: true,
+        ...init,
+      });
+      window.dispatchEvent(event);
+      await flushPromises();
+      return event;
+    };
+
+    await press("2", { metaKey: true });
+    expect(router.currentRoute.value.query.tab).toBe(second.id);
+    await press("9", { ctrlKey: true });
+    expect(router.currentRoute.value.query.tab).toBe(third.id);
+    // No fifth tab: the key is left alone.
+    expect((await press("5", { metaKey: true })).defaultPrevented).toBe(false);
+    expect(router.currentRoute.value.query.tab).toBe(third.id);
+
+    store.close(second.id, third.id);
+    expect(store.tabs.map((tab) => tab.id)).toEqual([first.id, third.id]);
+    await press("T", { metaKey: true, shiftKey: true });
+    expect(store.tabs.map((tab) => tab.id)).toEqual([
+      first.id,
+      second.id,
+      third.id,
+    ]);
+    expect(router.currentRoute.value.query.tab).toBe(second.id);
+    wrapper.unmount();
+  });
 });
