@@ -817,10 +817,14 @@ export const useSessionStore = defineStore("session", () => {
       });
       sessionProjects.set(result.session.id, projectId);
       if (epoch !== epochOf(projectId)) return result.session;
-      const summary = upsertRecentSession(projectId, {
-        ...result.session,
-        preview: result.session.preview || attachmentMessagePreview(message),
-      });
+      const summary = withoutAutomationRun(
+        upsertRecentSession(projectId, {
+          ...result.session,
+          preview: result.session.preview || attachmentMessagePreview(message),
+        }),
+      );
+      // Replying to an automation run makes it an ordinary conversation.
+      if (sessionId) forgetAutomationRun(projectId, sessionId);
       const state = stateFor(summary.id);
       state.summary = mergeSessionSummary(summary, state.summary ?? undefined);
       // Worker events may already have arrived, including the terminal state.
@@ -1599,6 +1603,56 @@ export const useSessionStore = defineStore("session", () => {
     );
   }
 
+  function withoutAutomationRun<T extends PineSessionSummary>(session: T): T {
+    if (!session.automationRun) return session;
+    const rest = { ...session };
+    delete rest.automationRun;
+    return rest;
+  }
+
+  /** The session is no longer an automation run in any list here. */
+  function forgetAutomationRun(projectId: string, sessionId: string): void {
+    const recent = recentSessionsFor(projectId);
+    if (
+      recent.some(
+        (session) => session.id === sessionId && session.automationRun,
+      )
+    )
+      setRecent(
+        projectId,
+        recent.map((session) =>
+          session.id === sessionId ? withoutAutomationRun(session) : session,
+        ),
+      );
+    if (
+      allRecentSessions.value.some(
+        (session) => session.id === sessionId && session.automationRun,
+      )
+    )
+      allRecentSessions.value = allRecentSessions.value.map((session) =>
+        session.id === sessionId ? withoutAutomationRun(session) : session,
+      );
+    const state = sessionCache.get(sessionId);
+    if (state?.summary) state.summary = withoutAutomationRun(state.summary);
+  }
+
+  /**
+   * The automation run this session still is, until the user replies and it
+   * becomes an ordinary conversation.
+   */
+  function automationRunOf(
+    sessionId: string,
+  ): PineSessionSummary["automationRun"] {
+    const projectId = sessionProjects.get(sessionId);
+    return (
+      sessionCache.get(sessionId)?.summary?.automationRun ??
+      recentSessionsFor(projectId).find((session) => session.id === sessionId)
+        ?.automationRun ??
+      allRecentSessions.value.find((session) => session.id === sessionId)
+        ?.automationRun
+    );
+  }
+
   /** Whether the session is mid-run; false for sessions never loaded here. */
   function isSessionRunning(sessionId: string): boolean {
     return sessionCache.get(sessionId)?.isRunning ?? false;
@@ -1643,6 +1697,7 @@ export const useSessionStore = defineStore("session", () => {
   return {
     activate,
     activeSession,
+    automationRunOf,
     allRecentSessions,
     isLoadingAllRecent,
     loadAllRecent,

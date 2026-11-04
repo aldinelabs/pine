@@ -292,6 +292,18 @@ function messageRenderSignature(message: PineTranscriptMessage): string {
 
 onMounted(() => sessionStore.connectAgentEvents());
 
+// An automation run works in Autonomous mode; its composer says so, and a
+// reply keeps that mode unless the user picks another.
+watch(
+  () =>
+    props.sessionId !== undefined &&
+    sessionStore.automationRunOf(props.sessionId) !== undefined,
+  (isRun) => {
+    if (isRun) approvalMode.value = "autonomous";
+  },
+  { immediate: true },
+);
+
 watch(approvalMode, (value) => {
   // Prompt requests carry the same value as a fallback; this eager update
   // makes the new policy apply to later tool calls in an already-running turn.

@@ -616,6 +616,41 @@ describe("session store", () => {
     });
   });
 
+  it("treats a run's session as ordinary once the user replies", async () => {
+    const run = {
+      automationId: "a1",
+      runId: "r1",
+      name: "Daily summary",
+      startedAt: "2026-11-03T09:00:00.000Z",
+    };
+    Object.defineProperty(window, "pine", {
+      configurable: true,
+      value: {
+        loadSessionMessages: vi.fn().mockResolvedValue({
+          hasMore: false,
+          messages: [],
+        }),
+        promptSession: vi.fn().mockResolvedValue({ session }),
+        resumeSession: vi
+          .fn()
+          .mockResolvedValue({ session: { ...session, automationRun: run } }),
+      },
+    });
+    const store = useSessionStore();
+    await store.resume(PROJECT_ID, session.id);
+    expect(store.automationRunOf(session.id)).toEqual(run);
+
+    await store.prompt("Continue here", {
+      projectId: PROJECT_ID,
+      sessionId: session.id,
+    });
+
+    expect(store.automationRunOf(session.id)).toBeUndefined();
+    expect(
+      store.recentSessionsFor(PROJECT_ID)[0]?.automationRun,
+    ).toBeUndefined();
+  });
+
   it("drops the edited message and its tail before rewriting history", async () => {
     const text = (id: string, role: "assistant" | "user") => ({
       createdAt: "2026-10-02T00:00:00.000Z",

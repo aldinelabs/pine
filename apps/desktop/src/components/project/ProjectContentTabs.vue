@@ -4,6 +4,7 @@ import {
   ChevronDownIcon,
   MessageSquareTextIcon,
   PlusIcon,
+  WorkflowIcon,
   XIcon,
 } from "@lucide/vue";
 import { storeToRefs } from "pinia";
@@ -448,9 +449,11 @@ function isTabRunning(tab: ProjectContentTab): boolean {
 }
 
 function tabIcon(tab: ProjectContentTab) {
-  return tab.kind === "session"
-    ? MessageSquareTextIcon
-    : fileIcon(fileTargetPath(tab));
+  if (tab.kind !== "session") return fileIcon(fileTargetPath(tab));
+  // An automation run keeps its icon until the user replies to it.
+  return tab.state === "bound" && sessionStore.automationRunOf(tab.sessionId)
+    ? WorkflowIcon
+    : MessageSquareTextIcon;
 }
 
 function shouldShowSeparator(index: number): boolean {
