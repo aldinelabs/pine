@@ -9,6 +9,22 @@ Every release section here has a matching section in the Chinese changelog.
 
 ## [Unreleased]
 
+## [0.15.0] - 2026-11-03
+
+### Added
+
+- Automations: Pine can run an agent on its own on a schedule, when a folder changes, or on a system event, a script result or a manual start. Each automation runs inside the permissions you approve on this computer, can use the MCP tools you grant it, and can also be created in No Project. Every run opens as a session under its project in the sidebar, marked with the automation icon and its start time; reply in it to continue as an ordinary conversation. An approval can be declined with a note so the agent revises the automation.
+- Skills, automations and MCP servers can be created or managed with Pine: open "Create with Pine" or "Manage with Pine" in their managers and Pine drafts or edits the setup with you in conversation. Saving or enabling an MCP server always asks for your confirmation.
+- The agent can look up the current time and time zone, and convert between time zones, instead of guessing.
+
+### Changed
+
+- The Neutral color theme is new and is now the default; if you were on the previous default olive theme, you are switched to Neutral once. Olive remains available as an ordinary choice, and a project can follow the app theme with "Pine Default".
+
+### Fixed
+
+- The error under the browser access switch now explains that the port is already in use, instead of showing a raw system error.
+
 ## [0.14.5] - 2026-11-02
 
 ### Changed
