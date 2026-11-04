@@ -78,6 +78,7 @@ useSidebarGlassWidth(() => {
           >
             <Workflow aria-hidden="true" />
             <span>{{ t("automations.title") }}</span>
+            <ModifierShortcut class="ml-auto" key-label="U" />
           </SidebarMenuButton>
           <SidebarMenuBadge
             v-if="automations.unread + automations.approvals.length > 0"
@@ -104,7 +105,7 @@ useSidebarGlassWidth(() => {
           >
             <Blocks aria-hidden="true" />
             <span>{{ t("mcp.title") }}</span>
-            <ModifierShortcut class="ml-auto" key-label="L" />
+            <ModifierShortcut class="ml-auto" key-label="/" />
           </SidebarMenuButton>
         </SidebarMenuItem>
       </SidebarMenu>

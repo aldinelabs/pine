@@ -398,7 +398,7 @@ it("slides the closing sidebar on the window's timeline with a fixed-width conte
   wrapper.unmount();
 });
 
-it.each(["k", "p", "s", "l"])(
+it.each(["k", "p", "s", "/", "u"])(
   "handles the Cmd+%s sidebar shortcut",
   async (key) => {
     openPreferences.mockClear();

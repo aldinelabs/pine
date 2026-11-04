@@ -138,9 +138,9 @@ it("opens automations, skills and MCP servers from the bottom of the sidebar", a
 
   const buttons = wrapper.get("footer").findAll("button");
   expect(buttons.map((button) => button.text())).toEqual([
-    "自动化",
+    "自动化⌘U",
     "工作技能⌘S",
-    "MCP 服务器⌘L",
+    "MCP 服务器⌘/",
   ]);
   for (const button of buttons) await button.trigger("click");
   expect(wrapper.emitted("manageAutomations")).toHaveLength(1);

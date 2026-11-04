@@ -353,13 +353,15 @@ useEventListener(window, "keydown", (event: KeyboardEvent) => {
   workbench.toggle();
 });
 
-// Cmd/Ctrl+K searches sessions, P manages projects, S manages skills and L
-// manages MCP servers. Cmd/Ctrl+N is handled in the main process.
+// Cmd/Ctrl+K searches sessions, P manages projects, S manages skills, / manages
+// MCP servers and U manages automations. Cmd/Ctrl+L (composer focus) lives
+// with the composer and Cmd/Ctrl+N is handled in the main process.
 const sidebarShortcuts: Record<string, () => void> = {
   k: () => (isSessionSearchOpen.value = true),
   p: () => preferencesDialog.value?.open("projects"),
   s: () => (isSkillManagerOpen.value = true),
-  l: () => (isMcpManagerOpen.value = true),
+  "/": () => (isMcpManagerOpen.value = true),
+  u: () => automations.open(),
 };
 onKeyStroke(Object.keys(sidebarShortcuts), (event) => {
   if (!(event.metaKey || event.ctrlKey) || event.altKey || event.shiftKey)
