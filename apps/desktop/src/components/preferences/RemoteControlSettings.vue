@@ -146,6 +146,15 @@ function failureDescription(error: unknown, port: number): string {
     : t("errors.remoteControl.description");
 }
 
+/** The server's raw listen error, put in words the user can act on. */
+const statusErrorText = computed(() =>
+  status.value.error
+    ? /EADDRINUSE/.test(status.value.error)
+      ? t("errors.remoteControl.portInUse", { port: status.value.port })
+      : status.value.error
+    : "",
+);
+
 async function configure(patch: Partial<WebServerSettings>): Promise<void> {
   if (isBusy.value) return;
   const next = { ...settings(), ...patch };
@@ -293,7 +302,7 @@ async function openInBrowser(): Promise<void> {
           }}
         </FieldDescription>
         <FieldError v-if="status.error">
-          {{ status.error }}
+          {{ statusErrorText }}
         </FieldError>
       </div>
       <Switch

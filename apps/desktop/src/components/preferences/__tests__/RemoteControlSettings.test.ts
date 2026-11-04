@@ -254,4 +254,19 @@ describe("remote control settings", () => {
     expect((port.element as HTMLInputElement).value).toBe("9415");
     wrapper.unmount();
   });
+
+  it("words a startup port conflict instead of showing the raw error", async () => {
+    const wrapper = mountWith({
+      getWebServer: vi.fn().mockResolvedValue({
+        ...stopped,
+        error: "listen EADDRINUSE: address already in use 127.0.0.1:9415",
+      }),
+    });
+    await flushPromises();
+    expect(wrapper.text()).toContain(
+      "Port 9415 is already in use. Choose another port.",
+    );
+    expect(wrapper.text()).not.toContain("EADDRINUSE");
+    wrapper.unmount();
+  });
 });
