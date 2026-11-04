@@ -862,7 +862,14 @@ export const useSessionStore = defineStore("session", () => {
       const summary = withoutAutomationRun(
         upsertRecentSession(projectId, {
           ...result.session,
-          preview: result.session.preview || attachmentMessagePreview(message),
+          // A new prompt only stands in for the preview of a new session; an
+          // existing one keeps the preview it already has.
+          ...(result.session.preview || !sessionId
+            ? {
+                preview:
+                  result.session.preview || attachmentMessagePreview(message),
+              }
+            : {}),
         }),
       );
       // Replying to an automation run makes it an ordinary conversation.

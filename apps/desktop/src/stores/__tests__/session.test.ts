@@ -1263,6 +1263,27 @@ describe("session store", () => {
     );
   });
 
+  it("keeps an existing session's preview when a later prompt is sent", async () => {
+    Object.defineProperty(window, "pine", {
+      configurable: true,
+      value: {
+        onSessionEvent: vi.fn(() => () => undefined),
+        promptSession: vi.fn().mockResolvedValue({ session }),
+      },
+    });
+    const store = useSessionStore();
+    store.connectAgentEvents();
+    await store.prompt("Describe the task", { projectId: PROJECT_ID });
+    await store.prompt("A later follow-up", {
+      projectId: PROJECT_ID,
+      sessionId: session.id,
+    });
+
+    expect(store.recentSessionsFor(PROJECT_ID)[0]?.preview).toBe(
+      "Describe the task",
+    );
+  });
+
   it("ignores late events from a session after opening a new tab", async () => {
     let listener: ((event: PineAgentEvent) => void) | undefined;
     Object.defineProperty(window, "pine", {
