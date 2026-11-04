@@ -173,6 +173,100 @@ describe("ask_user_question timeout", () => {
     }
   });
 
+  it("leaves no timer or abort listener behind once the user answers", async () => {
+    const { location } = await createFixture();
+    const requestQuestionnaire = vi.fn(() =>
+      Promise.resolve({
+        answers: [{ questionIndex: 0, selectedOptionIndexes: [0] }],
+        cancelled: false,
+      }),
+    );
+    const tools = await createPineToolDefinitions(
+      location,
+      createFakeGate(),
+      undefined,
+      {
+        getApprovalMode: () => "autonomous",
+        getGate: () => null,
+        requestQuestionnaire,
+      },
+    );
+    const tool = tools.find(
+      (candidate) => candidate.name === "ask_user_question",
+    );
+    const outer = new AbortController();
+    const addListener = vi.spyOn(outer.signal, "addEventListener");
+    const removeListener = vi.spyOn(outer.signal, "removeEventListener");
+    vi.useFakeTimers();
+    try {
+      await tool!.execute(
+        "question-answered",
+        {
+          questions: [
+            {
+              question: "Choose a path",
+              header: "Path",
+              options: [
+                { label: "A", description: "First path" },
+                { label: "B", description: "Second path" },
+              ],
+            },
+          ],
+          timeout: 600,
+        },
+        outer.signal,
+        undefined,
+        undefined as never,
+      );
+      expect(vi.getTimerCount()).toBe(0);
+      expect(removeListener).toHaveBeenCalledWith(
+        "abort",
+        addListener.mock.calls[0]?.[1],
+      );
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("rejects a timeout longer than 20 minutes", async () => {
+    const { location } = await createFixture();
+    const requestQuestionnaire = vi.fn();
+    const tools = await createPineToolDefinitions(
+      location,
+      createFakeGate(),
+      undefined,
+      {
+        getApprovalMode: () => "autonomous",
+        getGate: () => null,
+        requestQuestionnaire,
+      },
+    );
+    const tool = tools.find(
+      (candidate) => candidate.name === "ask_user_question",
+    );
+    const result = await tool!.execute(
+      "question-too-long",
+      {
+        questions: [
+          {
+            question: "Choose a path",
+            header: "Path",
+            options: [
+              { label: "A", description: "First path" },
+              { label: "B", description: "Second path" },
+            ],
+          },
+        ],
+        timeout: 1201,
+      },
+      undefined,
+      undefined,
+      undefined as never,
+    );
+    expect(result.details).toMatchObject({ error: "invalid_timeout" });
+    expect(requestQuestionnaire).not.toHaveBeenCalled();
+  });
+
   it("rejects a question without timeout in Autonomous Work mode", async () => {
     const { location } = await createFixture();
     const requestQuestionnaire = vi.fn();

@@ -6,6 +6,8 @@ export const MIN_OPTIONS = 2;
 export const MAX_OPTIONS = 4;
 export const MAX_HEADER_LENGTH = 16;
 export const MAX_LABEL_LENGTH = 60;
+/** Longest an Autonomous Work question may wait for a reply: 20 minutes. */
+export const MAX_TIMEOUT_SECONDS = 1200;
 export const RESERVED_LABELS = ["Other", "Type something.", "Next"] as const;
 
 export const AskUserQuestionOptionSchema = Type.Object({
@@ -55,9 +57,8 @@ export const AskUserQuestionParamsSchema = Type.Object({
   timeout: Type.Optional(
     Type.Number({
       minimum: 1,
-      maximum: 3600,
-      description:
-        "Seconds to wait for a reply in Autonomous Work mode (1-3600). Required in Autonomous Work mode; other modes ignore it and wait until the user responds.",
+      maximum: MAX_TIMEOUT_SECONDS,
+      description: `Seconds to wait for a reply in Autonomous Work mode (1-${MAX_TIMEOUT_SECONDS}). Required in Autonomous Work mode; other modes ignore it and wait until the user responds.`,
     }),
   ),
 });
@@ -113,10 +114,10 @@ export const ASK_USER_QUESTION_PROMPT_GUIDELINES = [
   'Each question must have 2-4 authored options with concise labels and descriptions. A custom-answer field is added automatically; do not author "Other" or "Type something." options.',
   'Set multiSelect to true when multiple answers are valid. Put a recommended option first and append "(Recommended)" to its label.',
   "Use preview only when concrete markdown artifacts materially help compare single-select options.",
-  "In Autonomous Work mode, timeout (seconds, 1-3600) is required. If the user does not reply in time, decide how to continue from available information.",
+  `In Autonomous Work mode, timeout (seconds, 1-${MAX_TIMEOUT_SECONDS}) is required. If the user does not reply in time, decide how to continue from available information.`,
 ] as const;
 
-export const ASK_USER_QUESTION_DESCRIPTION = `Ask the user one or more structured questions during execution when a preference, requirement, or implementation decision is needed. Ask 1-4 questions per call, with 2-4 options per question. Every option needs a concise label and a description of its meaning or trade-off. The user can always provide a custom answer. Use multiSelect for non-exclusive choices, and use markdown previews only for concrete single-select comparisons. Do not author reserved Other, Type something., or Next options. In Autonomous Work mode, timeout is required: it sets how many seconds (1-3600) to wait before returning a user-response timeout.`;
+export const ASK_USER_QUESTION_DESCRIPTION = `Ask the user one or more structured questions during execution when a preference, requirement, or implementation decision is needed. Ask 1-4 questions per call, with 2-4 options per question. Every option needs a concise label and a description of its meaning or trade-off. The user can always provide a custom answer. Use multiSelect for non-exclusive choices, and use markdown previews only for concrete single-select comparisons. Do not author reserved Other, Type something., or Next options. In Autonomous Work mode, timeout is required: it sets how many seconds (1-${MAX_TIMEOUT_SECONDS}) to wait before returning a user-response timeout.`;
 
 function normalizeLineTerminators(value: string): string {
   return value.replace(/\r\n/g, "\n").replace(/\r/g, "");
@@ -150,12 +151,12 @@ export function validateAskUserQuestion(
     params.timeout !== undefined &&
     (!Number.isFinite(params.timeout) ||
       params.timeout < 1 ||
-      params.timeout > 3600)
+      params.timeout > MAX_TIMEOUT_SECONDS)
   ) {
     return {
       ok: false,
       error: "invalid_timeout",
-      message: "Error: timeout must be between 1 and 3600 seconds",
+      message: `Error: timeout must be between 1 and ${MAX_TIMEOUT_SECONDS} seconds`,
     };
   }
   if (params.questions.length === 0) {

@@ -33,6 +33,7 @@ import {
   ASK_USER_QUESTION_TOOL_NAME,
   AskUserQuestionParamsSchema,
   buildAskUserQuestionToolResult,
+  MAX_TIMEOUT_SECONDS,
   normalizeAskUserQuestionParams,
   resolveAskUserQuestionSubmission,
   validateAskUserQuestion,
@@ -853,7 +854,7 @@ export async function createPineToolDefinitions(
               content: [
                 {
                   type: "text" as const,
-                  text: "Error: timeout (1-3600 seconds) is required in Autonomous Work mode",
+                  text: `Error: timeout (1-${MAX_TIMEOUT_SECONDS} seconds) is required in Autonomous Work mode`,
                 },
               ],
               details: {
@@ -864,32 +865,37 @@ export async function createPineToolDefinitions(
             };
           }
           const timeoutSeconds = autonomous ? params.timeout : undefined;
-          const timeoutController = autonomous ? new AbortController() : null;
+          // One controller ends the question on timeout or on the tool's own
+          // abort. Both the timer and the forwarding listener are released
+          // as soon as the question settles, however it settles.
+          const questionController =
+            timeoutSeconds === undefined ? null : new AbortController();
+          let timedOut = false;
           const timer =
-            timeoutController && timeoutSeconds !== undefined
-              ? setTimeout(
-                  () => timeoutController.abort(),
-                  timeoutSeconds * 1000,
-                )
+            questionController && timeoutSeconds !== undefined
+              ? setTimeout(() => {
+                  timedOut = true;
+                  questionController.abort();
+                }, timeoutSeconds * 1000)
               : undefined;
+          const forwardAbort = () => questionController?.abort();
+          if (questionController && signal) {
+            if (signal.aborted) forwardAbort();
+            else signal.addEventListener("abort", forwardAbort, { once: true });
+          }
           let submission: AskUserQuestionSubmission;
           try {
             submission = await requestQuestionnaire(
               toolCallId,
               params,
-              timeoutController
-                ? AbortSignal.any(
-                    signal
-                      ? [signal, timeoutController.signal]
-                      : [timeoutController.signal],
-                  )
-                : signal,
+              questionController ? questionController.signal : signal,
             );
           } finally {
             if (timer) clearTimeout(timer);
+            signal?.removeEventListener("abort", forwardAbort);
           }
           const result = resolveAskUserQuestionSubmission(params, submission);
-          if (timeoutController?.signal.aborted && result.cancelled) {
+          if (timedOut && result.cancelled) {
             result.timedOut = true;
             result.timeoutSeconds = timeoutSeconds;
           }
