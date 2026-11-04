@@ -3,6 +3,7 @@ import { computed, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import type { PineSessionSummary } from "@/shared/sessions";
 import type { ProjectFilePreviewRequest } from "@/shared/projectFiles";
+import type { PineAuthoringTarget } from "@/shared/sessionMutators";
 import { useContentTabsStore } from "@/stores/contentTabs";
 
 const CONTENT_TAB_QUERY = "tab";
@@ -58,6 +59,20 @@ export function useContentTabNavigation() {
 
   function createSessionTab(options?: { projectId?: string }): void {
     void navigate(store.createSessionTab(options).id);
+  }
+
+  /** A new draft whose first message starts authoring with Pine. */
+  function openCollaborativeDraft(
+    projectId: string,
+    target: PineAuthoringTarget,
+  ): Promise<void> {
+    return navigate(
+      store.createSessionTab({
+        projectId,
+        reuseDraft: false,
+        mutators: [{ kind: "activate-authoring", target }],
+      }).id,
+    );
   }
 
   /**
@@ -117,6 +132,7 @@ export function useContentTabNavigation() {
     bindSession,
     close,
     createSessionTab,
+    openCollaborativeDraft,
     openNewDraft,
     failPrompt,
     openFile,

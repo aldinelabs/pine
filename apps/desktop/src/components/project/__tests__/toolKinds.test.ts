@@ -4,6 +4,7 @@ import {
   CalendarClockIcon,
   ClapperboardIcon,
   CpuIcon,
+  ServerCogIcon,
   EyeIcon,
   HistoryIcon,
   MonitorCogIcon,
@@ -20,6 +21,7 @@ import {
   SKILL_OPERATION_ICON,
   TOOL_KIND_ICON,
   automationOperation,
+  mcpConfigOperation,
   toolIconForName,
   toolKind,
 } from "../toolKinds";
@@ -86,6 +88,37 @@ describe("Computer Use tool kinds", () => {
     expect(toolKind("ui_list_models")).toBe("model");
     expect(toolIconForName("automation_list")).toBe(CalendarClockIcon);
     expect(toolIconForName("ui_list_models")).toBe(CpuIcon);
+  });
+
+  it("gives MCP configuration tools their own kind, apart from MCP calls", () => {
+    expect(toolKind("activate_mcp_authoring")).toBe("mcpConfig");
+    expect(toolKind("mcp_config_save")).toBe("mcpConfig");
+    expect(toolKind("mcp")).toBe("mcp");
+    expect(toolKind("mcp__github__list_issues")).toBe("mcp");
+    expect(toolIconForName("mcp_config_list")).toBe(ServerCogIcon);
+  });
+
+  it("tells MCP configuration operations apart", () => {
+    expect(mcpConfigOperation("mcp_config_save", {})).toBe("create");
+    expect(
+      mcpConfigOperation(
+        "mcp_config_save",
+        {},
+        { details: { created: false } },
+      ),
+    ).toBe("update");
+    expect(mcpConfigOperation("mcp_config_save", { previousName: "old" })).toBe(
+      "update",
+    );
+    expect(
+      mcpConfigOperation("mcp_config_set_enabled", { enabled: false }),
+    ).toBe("disable");
+    expect(
+      mcpConfigOperation("mcp_config_set_enabled", { enabled: true }),
+    ).toBe("enable");
+    expect(mcpConfigOperation("mcp_config_remove", {})).toBe("remove");
+    expect(mcpConfigOperation("mcp_config_list", {})).toBe("list");
+    expect(mcpConfigOperation("activate_mcp_authoring", {})).toBe("activate");
   });
 
   it("tells automation operations apart by their arguments", () => {

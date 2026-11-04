@@ -100,9 +100,9 @@ function mountView() {
         MessageScrollerItem: slotStub,
         PineCharacter: true,
         ProjectSessionComposer: {
-          props: ["attachments", "modelValue", "steeringMessages"],
+          props: ["attachments", "authoring", "modelValue", "steeringMessages"],
           template:
-            '<div data-slot="composer-stub" :data-attachment-count="attachments?.length ?? 0" :data-draft="modelValue"><button data-slot="submit-new-stub" @click="$emit(\'submit\', \'Start\')" /><button data-slot="submit-steering-stub" @click="$emit(\'submit\', \'Change direction\')" /><button v-if="steeringMessages?.length" data-slot="withdraw-steering-stub" @click="$emit(\'withdrawSteering\', steeringMessages[0])" /><button v-if="steeringMessages?.length" data-slot="send-steering-now-stub" @click="$emit(\'sendSteeringNow\', steeringMessages[0])" /></div>',
+            '<div data-slot="composer-stub" :data-attachment-count="attachments?.length ?? 0" :data-authoring="authoring?.join(\',\')" :data-draft="modelValue"><button data-slot="remove-authoring-stub" @click="$emit(\'removeAuthoring\', authoring?.[0])" /><button data-slot="submit-new-stub" @click="$emit(\'submit\', \'Start\')" /><button data-slot="submit-steering-stub" @click="$emit(\'submit\', \'Change direction\')" /><button v-if="steeringMessages?.length" data-slot="withdraw-steering-stub" @click="$emit(\'withdrawSteering\', steeringMessages[0])" /><button v-if="steeringMessages?.length" data-slot="send-steering-now-stub" @click="$emit(\'sendSteeringNow\', steeringMessages[0])" /></div>',
         },
         ProjectTranscriptMessage: true,
         ProjectTranscriptOutline: {
@@ -207,6 +207,48 @@ describe("ProjectSessionView file drop", () => {
       wrapper.find('[data-slot="session-parallax-background"]').exists(),
     ).toBe(false);
     expect(useContentTabsStore().tabs[0]).toMatchObject({ state: "creating" });
+    wrapper.unmount();
+  });
+
+  it("sends a Create with Pine draft's mutators with its first message", async () => {
+    const { wrapper } = mountView();
+    const sessionStore = useSessionStore();
+    const prompt = vi
+      .spyOn(sessionStore, "prompt")
+      .mockImplementation(() => new Promise<never>(() => {}));
+    const tabs = useContentTabsStore();
+    const mutator = { kind: "activate-authoring", target: "mcp" } as const;
+    tabs.setDraftMutators("session-1", [mutator]);
+    await flushPromises();
+    expect(
+      wrapper.get('[data-slot="composer-stub"]').attributes("data-authoring"),
+    ).toBe("mcp");
+
+    await wrapper.get('[data-slot="submit-new-stub"]').trigger("click");
+    await flushPromises();
+
+    expect(prompt).toHaveBeenCalledWith(
+      "Start",
+      { projectId: "p1", sessionId: undefined },
+      "auto-approve",
+      undefined,
+      [mutator],
+    );
+    wrapper.unmount();
+  });
+
+  it("drops the authoring setup when the user removes its chip", async () => {
+    const { wrapper } = mountView();
+    const tabs = useContentTabsStore();
+    tabs.setDraftMutators("session-1", [
+      { kind: "activate-authoring", target: "skill" },
+    ]);
+    await flushPromises();
+
+    await wrapper.get('[data-slot="remove-authoring-stub"]').trigger("click");
+
+    expect(tabs.mutatorsFor("session-1")).toEqual([]);
+    expect(tabs.tabs[0]).not.toHaveProperty("mutators");
     wrapper.unmount();
   });
 

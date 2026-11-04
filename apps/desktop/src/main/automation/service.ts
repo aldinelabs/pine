@@ -1788,6 +1788,8 @@ export class AutomationService {
       explanation?: string;
       afterExternalContent: boolean;
       includeExisting?: boolean;
+      /** The user saving it in this computer's window: that is the approval. */
+      byUserHere?: boolean;
     },
   ): Promise<{ id: string; revision: number } | { errors: string[] }> {
     const validation = await this.validate(
@@ -1798,9 +1800,11 @@ export class AutomationService {
     if (validation.errors.length > 0 || !validation.spec)
       return { errors: validation.errors };
     const spec = validation.spec;
-    const approved = await this.requestApproval(
-      this.approvalRequest("create", requester, spec, options),
-    );
+    const approved =
+      options.byUserHere ||
+      (await this.requestApproval(
+        this.approvalRequest("create", requester, spec, options),
+      ));
     if (!approved) throw new Error("The user did not approve this automation.");
     const now = new Date().toISOString();
     const record: StoredAutomation = {
@@ -1845,7 +1849,12 @@ export class AutomationService {
     automationId: string,
     baseRevision: number,
     value: unknown,
-    options: { explanation?: string; afterExternalContent: boolean },
+    options: {
+      explanation?: string;
+      afterExternalContent: boolean;
+      /** The user saving it in this computer's window: that is the approval. */
+      byUserHere?: boolean;
+    },
   ): Promise<{ id: string; revision: number } | { errors: string[] }> {
     const armed = this.requireArmed(requester.projectId, automationId);
     if (armed.record.revision !== baseRevision)
@@ -1859,13 +1868,15 @@ export class AutomationService {
     );
     if (validation.errors.length > 0 || !validation.spec)
       return { errors: validation.errors };
-    const approved = await this.requestApproval(
-      this.approvalRequest("update", requester, validation.spec, {
-        ...options,
-        automationId,
-        previous: armed.spec,
-      }),
-    );
+    const approved =
+      options.byUserHere ||
+      (await this.requestApproval(
+        this.approvalRequest("update", requester, validation.spec, {
+          ...options,
+          automationId,
+          previous: armed.spec,
+        }),
+      ));
     if (!approved) throw new Error("The user did not approve this change.");
     const current = this.requireArmed(requester.projectId, automationId);
     if (current.record.revision !== baseRevision)

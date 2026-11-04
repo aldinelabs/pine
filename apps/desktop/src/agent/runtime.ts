@@ -52,6 +52,7 @@ import {
   PINE_MEDIA_GENERATION_ACTIVE_ENTRY,
   PINE_SKILL_AUTHORING_ACTIVE_ENTRY,
   PINE_AUTOMATION_AUTHORING_ACTIVE_ENTRY,
+  PINE_MCP_AUTHORING_ACTIVE_ENTRY,
   type PineApprovalDecision,
   type PineContextUsage,
 } from "../shared/sessions";
@@ -62,6 +63,7 @@ import {
   type AgentHostResponse,
   type AgentSessionLocation,
   type AgentWorkerPromptResult,
+  type AgentWorkerMutateResult,
   type AgentWorkerSessionResult,
   GateDecision,
   toErrorMessage,
@@ -117,10 +119,27 @@ import {
   READ_SKILL_RESOURCE_TOOL_NAME,
   SKILL_AUTHORING_DYNAMIC_TOOL_NAMES,
   createSkillToolsExtension,
+  skillAuthoringInstructions,
 } from "./skills/tools";
+import {
+  ACTIVATE_MCP_AUTHORING_TOOL_NAME,
+  MCP_AUTHORING_DYNAMIC_TOOL_NAMES,
+  createMcpAuthoringExtension,
+  mcpAuthoringInstructions,
+} from "./mcp/tools";
+import type { McpHostOperation } from "../shared/mcp";
+import {
+  AUTHORING_ACTIVATION_TOOL_NAME,
+  PINE_SESSION_MUTATION_MESSAGE,
+  uniqueSessionMutators,
+  type PineAuthoringTarget,
+  type PineSessionMutationDetails,
+  type PineSessionMutator,
+} from "../shared/sessionMutators";
 import { createProgressRemindersExtension } from "./runtime/progress-reminders";
 import {
   AUTOMATION_AUTHORING_DYNAMIC_TOOL_NAMES,
+  automationAuthoringInstructions,
   createAutomationAuthoringExtension,
   createAutomationReportTool,
 } from "./automation/tools";
@@ -179,6 +198,7 @@ import {
   automationAuthoringActiveFromSessionEntries,
   buildGateTurnContext,
   computerUseActiveFromSessionEntries,
+  mcpAuthoringActiveFromSessionEntries,
   mediaGenerationActiveFromSessionEntries,
   projectSessionDirectory,
   rewriteTargetEntryId,
@@ -194,6 +214,7 @@ import {
   toolNamesForSkillAuthoringState,
   toolNamesForAutomationAuthoringState,
   toolNamesForAutomationRun,
+  toolNamesForMcpAuthoringState,
 } from "./runtime/session-state";
 import { getLatestCacheHitRate } from "./runtime/context-metrics";
 import { configureContextCompactionSettings } from "./runtime/compaction-settings";
@@ -243,6 +264,40 @@ export {
   titleFromAssistantMessage,
 } from "./runtime/title";
 export type { PineAgentRuntimeOptions } from "./runtime/session-state";
+
+/** Where each authoring target keeps its activation, flag and record. */
+const AUTHORING_STATE = {
+  skill: {
+    flag: "skillAuthoringActive",
+    entry: PINE_SKILL_AUTHORING_ACTIVE_ENTRY,
+  },
+  automation: {
+    flag: "automationAuthoringActive",
+    entry: PINE_AUTOMATION_AUTHORING_ACTIVE_ENTRY,
+  },
+  mcp: { flag: "mcpAuthoringActive", entry: PINE_MCP_AUTHORING_ACTIVE_ENTRY },
+} as const satisfies Record<
+  PineAuthoringTarget,
+  {
+    flag:
+      | "skillAuthoringActive"
+      | "automationAuthoringActive"
+      | "mcpAuthoringActive";
+    entry: string;
+  }
+>;
+
+const AUTHORING_INSTRUCTIONS: Record<PineAuthoringTarget, () => string> = {
+  skill: skillAuthoringInstructions,
+  automation: automationAuthoringInstructions,
+  mcp: mcpAuthoringInstructions,
+};
+
+const AUTHORING_TARGET_LABEL: Record<PineAuthoringTarget, string> = {
+  skill: "Skills",
+  automation: "Automations",
+  mcp: "MCP servers",
+};
 
 const JUDGE_TIMEOUT_MS = 60_000;
 const BACKGROUND_TASKS_EVENT_MS = 200;
@@ -726,6 +781,55 @@ export class PineAgentRuntime {
     return { updated: true };
   }
 
+  /**
+   * Apply session mutators before the next prompt. Each activates state the
+   * conversation could also reach through a tool call, so one already in
+   * effect is skipped and applying the same list twice changes nothing.
+   */
+  async mutateSession(
+    sessionId: string,
+    mutators: readonly PineSessionMutator[],
+  ): Promise<AgentWorkerMutateResult> {
+    const live = this.getSession(sessionId);
+    if (live.automation)
+      throw new Error("An automation run's session cannot be changed.");
+    if (!live.session.isIdle)
+      throw new Error("Finish the current response before changing it.");
+    const applied: PineSessionMutator[] = [];
+    for (const mutator of uniqueSessionMutators(mutators)) {
+      if (this.authoringActive(live, mutator.target)) continue;
+      this.activateAuthoring(live, mutator.target);
+      const details: PineSessionMutationDetails = { mutator };
+      await live.session.sendCustomMessage({
+        customType: PINE_SESSION_MUTATION_MESSAGE,
+        content: `<pine_session_setup>\nThe user opened this conversation from Pine's ${AUTHORING_TARGET_LABEL[mutator.target]} settings to create one together with you. Its authoring tools are already active; the instructions follow. Start from what the user asks; do not call ${AUTHORING_ACTIVATION_TOOL_NAME[mutator.target]}.\n</pine_session_setup>\n\n${AUTHORING_INSTRUCTIONS[mutator.target]()}`,
+        display: true,
+        details,
+      });
+      applied.push(mutator);
+    }
+    return { applied };
+  }
+
+  private authoringActive(
+    live: LiveAgentSession,
+    target: PineAuthoringTarget,
+  ): boolean {
+    return live[AUTHORING_STATE[target].flag];
+  }
+
+  /** Turn on one authoring tool set and remember it across resumes. */
+  private activateAuthoring(
+    live: LiveAgentSession,
+    target: PineAuthoringTarget,
+  ): void {
+    const { flag, entry } = AUTHORING_STATE[target];
+    if (live[flag]) return;
+    live[flag] = true;
+    live.session.sessionManager.appendCustomEntry(entry, { active: true });
+    this.syncActiveTools(live);
+  }
+
   renameSession(sessionId: string, name: string): AgentWorkerSessionResult {
     const session = this.getSession(sessionId).session;
     session.setSessionName(name);
@@ -997,6 +1101,9 @@ export class PineAgentRuntime {
       automationAuthoringActive: automationAuthoringActiveFromSessionEntries(
         sessionManager.getEntries(),
       ),
+      mcpAuthoringActive: mcpAuthoringActiveFromSessionEntries(
+        sessionManager.getEntries(),
+      ),
       ...(location.automation ? { automation: location.automation } : {}),
       ...(location.tinyFishApiKey
         ? { tinyFishApiKey: location.tinyFishApiKey }
@@ -1037,15 +1144,7 @@ export class PineAgentRuntime {
       repository: skillRepository,
       getApprovalMode: () => live.approvalMode,
       getGate: () => live.gate,
-      activated: () => {
-        if (live.skillAuthoringActive) return;
-        live.skillAuthoringActive = true;
-        live.session.sessionManager.appendCustomEntry(
-          PINE_SKILL_AUTHORING_ACTIVE_ENTRY,
-          { active: true },
-        );
-        this.syncActiveTools(live);
-      },
+      activated: () => this.activateAuthoring(live, "skill"),
     });
     const resourceLoader = new DefaultResourceLoader({
       cwd: location.cwd,
@@ -1140,15 +1239,17 @@ export class PineAgentRuntime {
                   this.explainAutomation(live, spec, previous),
                 afterExternalContent: () => this.turnReadExternalContent(live),
                 currentModel: () => this.currentModelSelection(live),
-                activated: () => {
-                  if (live.automationAuthoringActive) return;
-                  live.automationAuthoringActive = true;
-                  live.session.sessionManager.appendCustomEntry(
-                    PINE_AUTOMATION_AUTHORING_ACTIVE_ENTRY,
-                    { active: true },
-                  );
-                  this.syncActiveTools(live);
-                },
+                activated: () => this.activateAuthoring(live, "automation"),
+              }),
+              createMcpAuthoringExtension({
+                call: (operation) => this.mcpHostCall(live, operation),
+                requestApproval: (input) =>
+                  this.requestUserApproval(live, {
+                    trigger: "privileged-execution",
+                    ...input,
+                  }),
+                reloadWhenIdle: () => this.reloadMcpWhenIdle(live),
+                activated: () => this.activateAuthoring(live, "mcp"),
               }),
             ]),
         ...(location.automation
@@ -1301,6 +1402,8 @@ export class PineAgentRuntime {
       ...SKILL_AUTHORING_DYNAMIC_TOOL_NAMES,
       ACTIVATE_AUTOMATION_AUTHORING_TOOL_NAME,
       ...AUTOMATION_AUTHORING_DYNAMIC_TOOL_NAMES,
+      ACTIVATE_MCP_AUTHORING_TOOL_NAME,
+      ...MCP_AUTHORING_DYNAMIC_TOOL_NAMES,
       RECALL_TOOL_NAME,
     ];
 
@@ -1435,15 +1538,18 @@ export class PineAgentRuntime {
       : toolNamesForTinyFishCredential(
           toolNamesForMediaGenerationState(
             toolNamesForComputerUseState(
-              toolNamesForAutomationAuthoringState(
-                toolNamesForSkillAuthoringState(
-                  toolNamesForCompactionRoute(
-                    [...live.availableToolNames, ...mcpToolNames],
-                    live.contextCompactionRoute,
+              toolNamesForMcpAuthoringState(
+                toolNamesForAutomationAuthoringState(
+                  toolNamesForSkillAuthoringState(
+                    toolNamesForCompactionRoute(
+                      [...live.availableToolNames, ...mcpToolNames],
+                      live.contextCompactionRoute,
+                    ),
+                    live.skillAuthoringActive,
                   ),
-                  live.skillAuthoringActive,
+                  live.automationAuthoringActive,
                 ),
-                live.automationAuthoringActive,
+                live.mcpAuthoringActive,
               ),
               live.computerUseActive,
             ),
@@ -1463,10 +1569,11 @@ export class PineAgentRuntime {
   async reloadMcp(sessionId: string): Promise<{ updated: boolean }> {
     const live = this.liveSessions.get(sessionId);
     if (!live) return { updated: false };
-    if (!live.session.isIdle)
-      throw new Error(
-        "Finish the current response before reloading MCP servers.",
-      );
+    // A running session picks the change up when its run ends.
+    if (!live.session.isIdle) {
+      this.reloadMcpWhenIdle(live);
+      return { updated: false };
+    }
     await live.session.reload();
     this.syncActiveTools(live);
     return { updated: true };
@@ -1781,6 +1888,36 @@ export class PineAgentRuntime {
         });
       },
     };
+  }
+
+  private async mcpHostCall(
+    live: LiveAgentSession,
+    operation: McpHostOperation,
+  ): Promise<PineJsonValue> {
+    const response = await this.requestHost(live, { kind: "mcp", operation });
+    if (response.kind !== "mcp")
+      throw new Error("Pine returned an unexpected MCP response.");
+    return response.result;
+  }
+
+  /**
+   * Reloading replaces the session's extensions, which cannot happen mid-run;
+   * a config change made by a tool waits for the run to end.
+   */
+  private reloadMcpWhenIdle(live: LiveAgentSession): void {
+    if (live.mcpReloadPending) return;
+    live.mcpReloadPending = true;
+    void (async () => {
+      try {
+        while (!live.session.isIdle) await live.session.waitForIdle();
+        if (this.liveSessions.get(live.session.sessionId) !== live) return;
+        live.mcpReloadPending = false;
+        await live.session.reload();
+        this.syncActiveTools(live);
+      } catch {
+        live.mcpReloadPending = false;
+      }
+    })();
   }
 
   private async automationHostCall(

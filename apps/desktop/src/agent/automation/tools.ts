@@ -63,6 +63,11 @@ const specSchema = Type.Unknown({
     "The complete automation definition (version 1), as described in the authoring instructions.",
 });
 
+/** The instructions activation returns, also given by a session mutator. */
+export function automationAuthoringInstructions(): string {
+  return `<automation_authoring>\n${AUTHORING_SKILL.trim()}\n</automation_authoring>\n\nAutomation authoring is active for this session.`;
+}
+
 function jsonResult(value: unknown): AgentToolResult<Record<string, unknown>> {
   const text =
     typeof value === "string" ? value : JSON.stringify(value, null, 2);
@@ -206,11 +211,7 @@ function createAuthoringDefinitions(
       executionMode: "sequential",
       execute: () => {
         activate();
-        return Promise.resolve(
-          jsonResult(
-            `<automation_authoring>\n${AUTHORING_SKILL.trim()}\n</automation_authoring>\n\nAutomation authoring is active for this session.`,
-          ),
-        );
+        return Promise.resolve(jsonResult(automationAuthoringInstructions()));
       },
     }),
     defineTool({

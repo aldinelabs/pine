@@ -55,6 +55,7 @@ import ProjectSessionParallaxBackground from "./ProjectSessionParallaxBackground
 import ProjectSessionComposer from "./ProjectSessionComposer.vue";
 import ProjectTranscriptMessage from "./ProjectTranscriptMessage.vue";
 import type { PineToolCall } from "@/shared/sessions";
+import type { PineAuthoringTarget } from "@/shared/sessionMutators";
 import { toolFileRequest } from "./toolViewAdapter";
 import ProjectTranscriptOutline from "./ProjectTranscriptOutline.vue";
 import ProjectSessionStatus from "./ProjectSessionStatus.vue";
@@ -304,6 +305,25 @@ provide(intelligentUiHostKey, {
   send: (message) => submit(message, { keepDraft: true }),
 });
 
+/** What this draft's first message sets up ("Create with Pine"). */
+const draftAuthoring = computed(() =>
+  props.sessionId
+    ? []
+    : contentTabsStore
+        .mutatorsFor(props.tabId)
+        .filter((mutator) => mutator.kind === "activate-authoring")
+        .map((mutator) => mutator.target),
+);
+
+function removeDraftAuthoring(target: PineAuthoringTarget): void {
+  contentTabsStore.setDraftMutators(
+    props.tabId,
+    contentTabsStore
+      .mutatorsFor(props.tabId)
+      .filter((mutator) => mutator.target !== target),
+  );
+}
+
 function submit(message: string, options?: { keepDraft?: boolean }): void {
   if (isRunning.value) {
     if (!options?.keepDraft) draft.value = "";
@@ -320,6 +340,7 @@ function submit(message: string, options?: { keepDraft?: boolean }): void {
 
   const sessionId = props.sessionId;
   const projectId = props.projectId;
+  const mutators = contentTabsStore.mutatorsFor(props.tabId);
   if (
     !contentTabsStore.beginPrompt(
       props.tabId,
@@ -336,11 +357,20 @@ function submit(message: string, options?: { keepDraft?: boolean }): void {
     .then((result) => {
       // Another window owns the project; main has focused that window.
       if (!result.opened) throw new Error("The project is open elsewhere.");
-      return sessionStore.prompt(
-        message,
-        { projectId, sessionId },
-        approvalMode.value,
-      );
+      // A draft's first message also sets up what "Create with Pine" asked.
+      return !sessionId && mutators.length > 0
+        ? sessionStore.prompt(
+            message,
+            { projectId, sessionId },
+            approvalMode.value,
+            undefined,
+            mutators,
+          )
+        : sessionStore.prompt(
+            message,
+            { projectId, sessionId },
+            approvalMode.value,
+          );
     })
     .then((session) => {
       tabNavigation.bindSession(props.tabId, session);
@@ -721,6 +751,7 @@ async function handleDrop(event: DragEvent): Promise<void> {
         v-model:approvalMode="approvalMode"
         :context="handoffContext"
         :context-animates="false"
+        :authoring="draftAuthoring"
         :is-running="isRunning"
         :is-active="isActive"
         :pending-approval="pendingApproval"
@@ -735,6 +766,7 @@ async function handleDrop(event: DragEvent): Promise<void> {
         :session-id="props.sessionId"
         :steering-messages="steeringMessages"
         @select-project="selectDraftProject"
+        @remove-authoring="removeDraftAuthoring"
         @abort="abort"
         @respond="respondToApproval"
         @respond-questionnaire="respondToQuestionnaire"

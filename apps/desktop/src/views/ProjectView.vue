@@ -40,6 +40,8 @@ import { useUpdaterStore } from "@/stores/updater";
 import { useProjectSidebarVisibilityStore } from "@/stores/projectSidebarVisibility";
 import { useFrozenWindowResize } from "@/composables/useFrozenWindowResize";
 import { useWorkbenchEvents } from "@/composables/useWorkbenchEvents";
+import { useContentTabNavigation } from "@/composables/useContentTabNavigation";
+import type { PineAuthoringTarget } from "@/shared/sessionMutators";
 import { useWorkbenchStore } from "@/stores/workbench";
 
 const { t } = useI18n();
@@ -68,6 +70,12 @@ const automations = useAutomationsStore();
 const backgroundTasks = useBackgroundTasksStore();
 const sessionStore = useSessionStore();
 const contentTabsStore = useContentTabsStore();
+const tabNavigation = useContentTabNavigation();
+
+/** "Create with Pine": a new draft in the project with that authoring on. */
+function createWithPine(projectId: string, target: PineAuthoringTarget): void {
+  void tabNavigation.openCollaborativeDraft(projectId, target);
+}
 const isWindowsPlatform = computed(
   () => isDesktopClient() && window.pine?.platform === "win32",
 );
@@ -466,14 +474,17 @@ onKeyStroke(Object.keys(sidebarShortcuts), (event) => {
       <SkillManagerDialog
         v-model:open="isSkillManagerOpen"
         :project-id="projectStore.activeProject.id"
+        @create-with-pine="createWithPine($event, 'skill')"
       />
       <McpManagerDialog
         v-model:open="isMcpManagerOpen"
         :project-id="projectStore.activeProject.id"
+        @create-with-pine="createWithPine($event, 'mcp')"
       />
       <AutomationManagerDialog
         v-model:open="automations.isManagerOpen"
         :project-id="projectStore.activeProject.id"
+        @create-with-pine="createWithPine($event, 'automation')"
       />
     </template>
     <ProjectBackgroundTaskInspector />

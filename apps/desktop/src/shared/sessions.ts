@@ -1,6 +1,7 @@
 import type { AutomationRunSession } from "./automation";
 import { parseAttachmentMessage, type PineAttachment } from "./attachments";
 import type { PineModelSelection } from "./models";
+import { sessionMutationToolCall } from "./sessionMutators";
 import type { TaskState } from "@pine/rpiv-todo";
 import {
   backgroundTaskNotificationTask,
@@ -32,6 +33,10 @@ export const PINE_SKILL_AUTHORING_ACTIVE_ENTRY =
 /** Custom session entry recording that automation authoring was activated. */
 export const PINE_AUTOMATION_AUTHORING_ACTIVE_ENTRY =
   "pine.automation-authoring-active" as const;
+
+/** Custom session entry recording that MCP authoring was activated. */
+export const PINE_MCP_AUTHORING_ACTIVE_ENTRY =
+  "pine.mcp-authoring-active" as const;
 
 /** Custom session entry recording that media generation was activated. */
 export const PINE_MEDIA_GENERATION_ACTIVE_ENTRY =
@@ -181,7 +186,15 @@ export function parseMessageBlocks(message: unknown): PineContentBlock[] {
   const record = message as Record<string, unknown>;
   if (record.role === "custom") {
     const task = backgroundTaskNotificationTask(record);
-    return task ? [{ type: "backgroundTask", task }] : [];
+    if (task) return [{ type: "backgroundTask", task }];
+    const toolCall = sessionMutationToolCall(
+      record,
+      typeof record.timestamp === "number" ||
+        typeof record.timestamp === "string"
+        ? String(record.timestamp)
+        : "",
+    );
+    return toolCall ? [{ type: "toolCall", toolCall }] : [];
   }
   let blocks = parseContentBlocks(record.content);
   if (record.role === "user") {
@@ -237,7 +250,11 @@ export function transcriptRole(message: unknown): "assistant" | "user" | null {
   if (typeof message !== "object" || message === null) return null;
   const record = message as Record<string, unknown>;
   if (record.role === "assistant" || record.role === "user") return record.role;
-  if (record.role === "custom" && backgroundTaskNotificationTask(record))
+  if (
+    record.role === "custom" &&
+    (backgroundTaskNotificationTask(record) ||
+      sessionMutationToolCall(record, ""))
+  )
     return "assistant";
   return null;
 }

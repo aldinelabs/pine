@@ -28,6 +28,8 @@ import ModelCapabilities from "@/components/models/ModelCapabilities.vue";
 import ModelPickerDialog from "@/components/models/ModelPickerDialog.vue";
 import ProviderIcon from "@/components/models/ProviderIcon.vue";
 import ProjectComposerContext from "@/components/project/ProjectComposerContext.vue";
+import ProjectComposerAuthoring from "@/components/project/ProjectComposerAuthoring.vue";
+import type { PineAuthoringTarget } from "@/shared/sessionMutators";
 import AutomationApprovalCard from "@/components/automations/AutomationApprovalCard.vue";
 import ProjectApprovalCard from "@/components/project/ProjectApprovalCard.vue";
 import ProjectQuestionnaireCard from "@/components/project/ProjectQuestionnaireCard.vue";
@@ -125,6 +127,7 @@ const emit = defineEmits<{
   abort: [];
   /** Backspace or \ in an empty message, while there is context to drop. */
   dismissContext: [];
+  removeAuthoring: [target: PineAuthoringTarget];
   respond: [action: PineApprovalAction, guidance?: string];
   respondQuestionnaire: [submission: AskUserQuestionSubmission];
   selectProject: [projectId: string];
@@ -143,6 +146,8 @@ const props = withDefaults(
     context?: readonly PineAttachment[];
     /** False to show or drop the context at once. */
     contextAnimates?: boolean;
+    /** Authoring a "Create with Pine" draft turns on with its first message. */
+    authoring?: readonly PineAuthoringTarget[];
     /**
      * Holds the mode and model controls below the input further in, clear of
      * the floating composer's rounder card; they ease out when it turns off.
@@ -165,6 +170,7 @@ const props = withDefaults(
   {
     context: () => [],
     contextAnimates: true,
+    authoring: () => [],
     isRunning: false,
     steeringMessages: () => [],
   },
@@ -859,6 +865,12 @@ function handleRootSubmit(event: Event): void {
                 </div>
               </div>
             </Transition>
+            <ProjectComposerAuthoring
+              v-if="authoring.length > 0"
+              class="mx-[var(--session-composer-control-inset)] mt-[var(--session-composer-control-inset)]"
+              :targets="authoring"
+              @remove="emit('removeAuthoring', $event)"
+            />
             <ProjectAttachmentList
               v-if="attachments.length > 0"
               class="session-composer-attachments shrink-0 w-full px-[var(--session-composer-control-inset)] pt-[var(--session-composer-control-inset)] pb-0"

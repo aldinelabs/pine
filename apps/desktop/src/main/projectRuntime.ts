@@ -661,6 +661,9 @@ export class ProjectRuntimeRegistry {
     ) {
       throw new Error("Only an idle existing session can rewrite history.");
     }
+    const mutators = request.mutators ?? [];
+    if (mutators.length > 0 && (request.streamingBehavior || request.rewrite))
+      throw new Error("A session can only be changed before a new message.");
     const activeSession =
       request.target.kind === "new"
         ? await this.createNewSession(
@@ -678,6 +681,8 @@ export class ProjectRuntimeRegistry {
     if (!this.isCurrent(webContentsId, runtime)) {
       throw new Error("The project closed before submitting a prompt.");
     }
+    if (mutators.length > 0)
+      await this.agentHost.mutateSession(activeSession.id, mutators);
     const attachedPaths = parseAttachmentMessage(request.message)
       .attachments.map((attachment) => attachment.path)
       .filter((attachmentPath) => attachmentPath.length <= 4_096)

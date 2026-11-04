@@ -32,6 +32,7 @@ import type {
 import type {
   AgentSessionLocation,
   AgentWorkerInbound,
+  AgentWorkerMutateResult,
   AgentWorkerMessage,
   AgentWorkerPromptResult,
   AgentWorkerRequest,
@@ -42,6 +43,7 @@ import type {
   GateDecision,
   PineRuntimeEvent,
 } from "../agent/protocol";
+import type { PineSessionMutator } from "../shared/sessionMutators";
 
 export interface AgentProcess {
   readonly stdout?: Pick<NodeJS.ReadableStream, "resume"> | null;
@@ -96,6 +98,10 @@ export interface AgentHost {
     sessionId: string,
     name: string,
   ): Promise<AgentWorkerSessionResult>;
+  mutateSession(
+    sessionId: string,
+    mutators: PineSessionMutator[],
+  ): Promise<AgentWorkerMutateResult>;
   getModelCatalog(agentDir: string): Promise<PineModelCatalog>;
   refreshModelCatalog(agentDir: string): Promise<PineModelCatalog>;
   addCustomModel(
@@ -258,6 +264,13 @@ export class AgentProcessHost implements AgentHost {
       locale,
       ...(rewrite ? { rewrite } : {}),
     });
+  }
+
+  mutateSession(
+    sessionId: string,
+    mutators: PineSessionMutator[],
+  ): Promise<AgentWorkerMutateResult> {
+    return this.request({ type: "session:mutate", sessionId, mutators });
   }
 
   abort(sessionId: string): Promise<{ aborted: boolean }> {

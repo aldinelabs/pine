@@ -37,6 +37,27 @@ describe("content tabs store", () => {
     expect(store.addAttachments(draft.id, [attachment])).toBe(false);
   });
 
+  it("keeps a draft's mutators through a failed first message", () => {
+    const store = useContentTabsStore();
+    const mutator = {
+      kind: "activate-authoring",
+      target: "automation",
+    } as const;
+    const draft = store.createSessionTab({
+      projectId: "p1",
+      reuseDraft: false,
+      mutators: [mutator, mutator],
+    });
+    expect(draft.mutators).toEqual([mutator]);
+    expect(store.beginPrompt(draft.id, "Every morning")).toBe(true);
+    expect(store.mutatorsFor(draft.id)).toEqual([mutator]);
+    // The message returns to a draft, here the window's other empty one.
+    const restored = store.failPrompt(draft.id)!;
+    expect(store.mutatorsFor(restored)).toEqual([mutator]);
+    store.bindSession(restored, firstSession);
+    expect(store.mutatorsFor(restored)).toEqual([]);
+  });
+
   beforeEach(() => {
     localStorage.clear();
     sessionStorage.clear();

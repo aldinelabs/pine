@@ -34,6 +34,9 @@ async function handleRequest(request: AgentWorkerRequest): Promise<void> {
         request.rewrite,
       );
       break;
+    case "session:mutate":
+      result = await runtime.mutateSession(request.sessionId, request.mutators);
+      break;
     case "session:abort":
       result = await runtime.abort(request.sessionId);
       break;

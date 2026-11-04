@@ -14,6 +14,10 @@ import { fileName, fileTargetKey } from "@/lib/filePreviewTarget";
 import { randomId } from "@/lib/randomId";
 import { parseFileReveal } from "@/shared/projectFiles";
 import { preferenceStorage } from "@/lib/preferenceStorage";
+import {
+  uniqueSessionMutators,
+  type PineSessionMutator,
+} from "@/shared/sessionMutators";
 
 /**
  * Every tab belongs to one project: the sidebars and accent colour follow
@@ -34,6 +38,9 @@ export interface DraftSessionTab {
   kind: "session";
   projectId: string;
   state: "draft";
+  /** Session state the first message sets up, e.g. pre-activated authoring
+   * for "Create with Pine". */
+  mutators?: PineSessionMutator[];
 }
 
 export interface CreatingSessionTab {
@@ -42,6 +49,8 @@ export interface CreatingSessionTab {
   label: string;
   projectId: string;
   state: "creating";
+  /** Kept so a failed first message returns them to the draft. */
+  mutators?: PineSessionMutator[];
 }
 
 export interface BoundSessionTab {
@@ -283,13 +292,19 @@ export const useContentTabsStore = defineStore("content-tabs", () => {
   function createSessionTab({
     projectId,
     reuseDraft = true,
-  }: { projectId?: string; reuseDraft?: boolean } = {}): DraftSessionTab {
+    mutators,
+  }: {
+    projectId?: string;
+    reuseDraft?: boolean;
+    mutators?: PineSessionMutator[];
+  } = {}): DraftSessionTab {
     const existingDraft = tabs.value.find(
       (tab): tab is DraftSessionTab =>
         tab.kind === "session" && tab.state === "draft",
     );
     if (reuseDraft && existingDraft) {
       if (projectId) setDraftProject(existingDraft.id, projectId);
+      if (mutators) setDraftMutators(existingDraft.id, mutators);
       composerFocusTabId.value = existingDraft.id;
       return (
         tabs.value.find(
@@ -298,10 +313,36 @@ export const useContentTabsStore = defineStore("content-tabs", () => {
       );
     }
 
-    const tab = makeDraftTab(projectId ?? lastDraftProjectId.value);
+    const created = makeDraftTab(projectId ?? lastDraftProjectId.value);
+    const tab: DraftSessionTab = mutators?.length
+      ? { ...created, mutators: uniqueSessionMutators(mutators) }
+      : created;
     tabs.value = [...tabs.value, tab];
     composerFocusTabId.value = tab.id;
     return tab;
+  }
+
+  /** Replace what a draft's first message sets up; empty clears it. */
+  function setDraftMutators(
+    tabId: string,
+    mutators: readonly PineSessionMutator[],
+  ): boolean {
+    const target = tabs.value.find((tab) => tab.id === tabId);
+    if (target?.kind !== "session" || target.state !== "draft") return false;
+    const rest: DraftSessionTab = { ...target };
+    delete rest.mutators;
+    const next: DraftSessionTab = mutators.length
+      ? { ...rest, mutators: uniqueSessionMutators(mutators) }
+      : rest;
+    tabs.value = tabs.value.map((tab) => (tab.id === tabId ? next : tab));
+    return true;
+  }
+
+  function mutatorsFor(tabId: string): PineSessionMutator[] {
+    const target = tabs.value.find((tab) => tab.id === tabId);
+    return target?.kind === "session" && target.state !== "bound"
+      ? (target.mutators ?? [])
+      : [];
   }
 
   /** Change where a draft will be sent. Bound sessions keep their project. */
@@ -326,6 +367,7 @@ export const useContentTabsStore = defineStore("content-tabs", () => {
       label: message,
       projectId: target.projectId,
       state: "creating",
+      ...(target.mutators ? { mutators: target.mutators } : {}),
     };
     tabs.value = tabs.value.map((tab) =>
       tab.id === target.id ? creating : tab,
@@ -344,6 +386,11 @@ export const useContentTabsStore = defineStore("content-tabs", () => {
     );
     if (existingDraft) {
       addAttachments(existingDraft.id, attachmentsFor(tabId));
+      if (target.mutators?.length)
+        setDraftMutators(existingDraft.id, [
+          ...(existingDraft.mutators ?? []),
+          ...target.mutators,
+        ]);
       tabs.value = tabs.value.filter((tab) => tab.id !== tabId);
       return existingDraft.id;
     }
@@ -352,6 +399,7 @@ export const useContentTabsStore = defineStore("content-tabs", () => {
       kind: "session",
       projectId: target.projectId,
       state: "draft",
+      ...(target.mutators ? { mutators: target.mutators } : {}),
     };
     tabs.value = tabs.value.map((tab) => (tab.id === target.id ? draft : tab));
     return draft.id;
@@ -537,6 +585,7 @@ export const useContentTabsStore = defineStore("content-tabs", () => {
     lastDraftProjectId,
     moveSessionToProject,
     moveTab,
+    mutatorsFor,
     openFile,
     openSession,
     presentFile,
@@ -550,6 +599,7 @@ export const useContentTabsStore = defineStore("content-tabs", () => {
     reset,
     setActiveTab,
     setAttachments,
+    setDraftMutators,
     setDraftProject,
     tabs,
     updateSession,

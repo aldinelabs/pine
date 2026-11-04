@@ -33,6 +33,8 @@ import type {
   AutomationMcpGrant,
 } from "../shared/automation";
 import type { ApproximateLocation } from "../shared/approximateLocation";
+import type { McpHostOperation } from "../shared/mcp";
+import type { PineSessionMutator } from "../shared/sessionMutators";
 import type { WorkbenchState } from "../shared/workbench";
 import type {
   BackgroundTaskResult,
@@ -99,14 +101,16 @@ export type AgentHostRequest =
   | { kind: "teleport"; projectId: string }
   | { kind: "workbench-state" }
   | { kind: "approximate-location" }
-  | { kind: "automation"; operation: AutomationHostOperation };
+  | { kind: "automation"; operation: AutomationHostOperation }
+  | { kind: "mcp"; operation: McpHostOperation };
 
 export type AgentHostResponse =
   | { kind: "list-projects"; projects: AgentHostProject[] }
   | { kind: "workbench-state"; state: WorkbenchState }
   | { kind: "approximate-location"; location: ApproximateLocation | null }
   | { kind: "teleport"; projectName: string; cwd: string }
-  | { kind: "automation"; result: PineJsonValue };
+  | { kind: "automation"; result: PineJsonValue }
+  | { kind: "mcp"; result: PineJsonValue };
 
 export type AgentHostReply =
   { ok: true; response: AgentHostResponse } | { ok: false; error: string };
@@ -156,6 +160,12 @@ export type AgentWorkerRequest =
       approvalMode?: PineApprovalMode;
       streamingBehavior?: "followUp" | "steer";
       rewrite?: PineMessageRewriteTarget;
+    }
+  | {
+      id: string;
+      type: "session:mutate";
+      sessionId: string;
+      mutators: PineSessionMutator[];
     }
   | {
       id: string;
@@ -368,7 +378,13 @@ export type AgentWorkerResult =
   | { sent: boolean }
   | { cancelled: boolean }
   | { disposed: boolean }
-  | { updated: boolean };
+  | { updated: boolean }
+  | AgentWorkerMutateResult;
+
+/** The mutators that changed the session; already-applied ones are skipped. */
+export interface AgentWorkerMutateResult {
+  applied: PineSessionMutator[];
+}
 
 export type AgentWorkerMessage =
   | { type: "ready" }

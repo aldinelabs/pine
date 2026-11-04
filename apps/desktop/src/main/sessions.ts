@@ -8,6 +8,7 @@ import { DatabaseSync } from "node:sqlite";
 import sanitizeFilename from "sanitize-filename";
 import type {
   LoadSessionMessagesResult,
+  PineContentBlock,
   PineSessionModel,
   PineSessionSummary,
   PineTextMessage,
@@ -31,6 +32,7 @@ import {
   type PineAttachment,
 } from "../shared/attachments";
 import { parseMessageBlocks } from "../shared/sessions";
+import { sessionMutationToolCall } from "../shared/sessionMutators";
 import { replayTodoState } from "@pine/rpiv-todo";
 import { backgroundTaskNotificationTask } from "@pine/pi-background-tasks";
 
@@ -298,14 +300,20 @@ function indexedTextMessages(entries: Entry[]): IndexedTextMessage[] {
     }
     if (entry.type === "custom_message") {
       const task = backgroundTaskNotificationTask(entry);
-      if (!task) continue;
+      const toolCall = sessionMutationToolCall(entry, entry.id);
+      const blocks: PineContentBlock[] = task
+        ? [{ type: "backgroundTask", task }]
+        : toolCall
+          ? [{ type: "toolCall", toolCall }]
+          : [];
+      if (blocks.length === 0) continue;
       messages.push({
         cursor,
         message: {
           createdAt: new Date(entryTimestamp(entry)).toISOString(),
           id: entry.id,
           role: "assistant",
-          blocks: [{ type: "backgroundTask", task }],
+          blocks,
         },
       });
       continue;

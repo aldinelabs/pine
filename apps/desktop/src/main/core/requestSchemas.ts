@@ -179,6 +179,15 @@ export const PromptSessionRequestSchema = z.object({
       userMessagesAfter: z.number().int().min(0).max(1_000_000),
     })
     .optional(),
+  mutators: z
+    .array(
+      z.object({
+        kind: z.literal("activate-authoring"),
+        target: z.enum(["skill", "automation", "mcp"]),
+      }),
+    )
+    .max(8)
+    .optional(),
 });
 export const DequeueSteeringRequestSchema = SessionIdRequestSchema.extend({
   message: z.string().min(1).max(100_000),

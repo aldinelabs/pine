@@ -1,7 +1,9 @@
 import { z } from "zod";
 import type { PineJsonValue } from "../../../shared/agent";
 import {
+  CHECK_AUTOMATION_CHANNEL,
   DELETE_AUTOMATION_CHANNEL,
+  SAVE_AUTOMATION_CHANNEL,
   DELETE_AUTOMATION_SECRET_CHANNEL,
   GET_AUTOMATION_CHANNEL,
   GET_AUTOMATION_RUN_CHANNEL,
@@ -105,6 +107,62 @@ export function registerAutomationRequests(core: PineCore): void {
       parsed.includeExisting ? { includeExisting: true } : {},
     );
     return { updated: true };
+  });
+
+  core.handle(CHECK_AUTOMATION_CHANNEL, async (context, request) => {
+    local(context.source, "Checking an automation");
+    const parsed = z
+      .object({
+        projectId,
+        spec: z.json(),
+        dryRun: z.boolean().optional(),
+      })
+      .parse(request);
+    const spec = parsed.spec as PineJsonValue;
+    const validation = await core.automations.validate(parsed.projectId, spec);
+    const result = {
+      errors: validation.errors,
+      warnings: validation.warnings,
+      ...(validation.facts ? { facts: validation.facts } : {}),
+    };
+    if (!parsed.dryRun || validation.errors.length > 0) return result;
+    const dryRun = await core.automations.dryRun(parsed.projectId, { spec });
+    return {
+      ...result,
+      dryRun: JSON.parse(JSON.stringify(dryRun ?? null)) as PineJsonValue,
+    };
+  });
+
+  core.handle(SAVE_AUTOMATION_CHANNEL, async (context, request) => {
+    // Saving here is the user's own approval, so only this computer may.
+    local(context.source, "Saving an automation");
+    const parsed = z
+      .object({
+        projectId,
+        spec: z.json(),
+        automationId: automationId.optional(),
+        baseRevision: z.number().int().min(1).optional(),
+        includeExisting: z.boolean().optional(),
+      })
+      .parse(request);
+    const requester = { projectId: parsed.projectId };
+    const spec = parsed.spec as PineJsonValue;
+    if (parsed.automationId) {
+      if (parsed.baseRevision === undefined)
+        throw new Error("Pass the revision the edit started from.");
+      return core.automations.update(
+        requester,
+        parsed.automationId,
+        parsed.baseRevision,
+        spec,
+        { afterExternalContent: false, byUserHere: true },
+      );
+    }
+    return core.automations.create(requester, spec, {
+      afterExternalContent: false,
+      byUserHere: true,
+      ...(parsed.includeExisting ? { includeExisting: true } : {}),
+    });
   });
 
   core.handle(RUN_AUTOMATION_NOW_CHANNEL, (_context, request) => {

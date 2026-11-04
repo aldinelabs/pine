@@ -1,5 +1,6 @@
 export default {
   common: {
+    createWithPine: "Crear con Pine",
     back: "Atrás",
     downloadFile: "Descargar archivo",
     cancel: "Cancelar",
@@ -911,6 +912,12 @@ export default {
         "No se pudo abrir el adjunto con la aplicación predeterminada del sistema",
       removeAttachment: "Quitar el adjunto {name}",
       contextSelection: "Seleccionado «{text}»",
+      authoring: {
+        skill: "Creando una habilidad con Pine",
+        automation: "Creando una automatización con Pine",
+        mcp: "Añadiendo un servidor MCP con Pine",
+        remove: "Empezar una conversación normal",
+      },
       contextRemove: "para quitar",
       attachmentPickerFailed:
         "No se pudieron abrir o inspeccionar los elementos seleccionados",
@@ -1094,6 +1101,10 @@ export default {
           active: "Consultando modelos {count} veces",
           complete: "Se consultaron modelos {count} veces",
         },
+        mcpConfig: {
+          active: "Configurando servidores MCP {count} veces",
+          complete: "Se configuraron servidores MCP {count} veces",
+        },
         project: {
           active: "Ejecutando {count} acciones del proyecto",
           complete: "Ejecutó {count} acciones del proyecto",
@@ -1135,6 +1146,7 @@ export default {
         workbenchState: "estado del panel de trabajo",
         automation: "acción de automatización",
         model: "consulta de modelos",
+        mcpConfig: "Configuración de MCP",
         project: "acción del proyecto",
         background: "proceso en segundo plano",
         todo: "tareas",
@@ -1327,6 +1339,44 @@ export default {
             running: "Consultando los modelos disponibles",
             complete: "Modelos disponibles consultados",
             error: "No se pudieron listar los modelos",
+          },
+        },
+        mcpConfig: {
+          activate: {
+            running: "Cargando las herramientas de configuración de MCP",
+            complete: "Herramientas de configuración de MCP cargadas",
+            error:
+              "No se pudieron cargar las herramientas de configuración de MCP",
+          },
+          list: {
+            running: "Listando servidores MCP",
+            complete: "Servidores MCP listados",
+            error: "No se pudieron listar los servidores MCP",
+          },
+          create: {
+            running: "Añadiendo el servidor MCP ",
+            complete: "Servidor MCP añadido: ",
+            error: "No se pudo añadir el servidor MCP ",
+          },
+          update: {
+            running: "Actualizando el servidor MCP ",
+            complete: "Servidor MCP actualizado: ",
+            error: "No se pudo actualizar el servidor MCP ",
+          },
+          enable: {
+            running: "Activando el servidor MCP ",
+            complete: "Servidor MCP activado: ",
+            error: "No se pudo activar el servidor MCP ",
+          },
+          disable: {
+            running: "Desactivando el servidor MCP ",
+            complete: "Servidor MCP desactivado: ",
+            error: "No se pudo desactivar el servidor MCP ",
+          },
+          remove: {
+            running: "Eliminando el servidor MCP ",
+            complete: "Servidor MCP eliminado: ",
+            error: "No se pudo eliminar el servidor MCP ",
           },
         },
         project: {
@@ -1975,6 +2025,22 @@ export default {
     },
   },
   automations: {
+    editor: {
+      create: "Escribir una definición",
+      edit: "Editar definición",
+      newTitle: "Nueva automatización",
+      editTitle: "Editar «{name}»",
+      description:
+        "Escribe la definición de la automatización en JSON. Guardarla aquí cuenta como tu aprobación.",
+      definition: "Definición",
+      definitionHelp:
+        "El mismo formato que usa Pine al escribir automatizaciones. Comprobar muestra lo que hará antes de guardar.",
+      invalidJson: "La definición debe ser un objeto JSON.",
+      check: "Comprobar",
+      save: "Guardar",
+      saved: "Automatización guardada",
+      dryRun: "Resultado de la prueba",
+    },
     title: "Automatizaciones",
     description:
       "Trabajo que Pine hace por su cuenta cuando una hora, un cambio de archivo o una actualización de un sitio lo piden. Pídele a Pine en una conversación que cree una.",

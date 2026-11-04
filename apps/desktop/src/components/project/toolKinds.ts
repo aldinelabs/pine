@@ -19,6 +19,7 @@ import {
   PlugIcon,
   PlusIcon,
   SearchIcon,
+  ServerCogIcon,
   SquarePenIcon,
   SquareTerminal,
   Trash2Icon,
@@ -42,6 +43,13 @@ import {
   UI_TELEPORT_TOOL_NAME,
 } from "@/shared/agent";
 import { ACTIVATE_AUTOMATION_AUTHORING_TOOL_NAME } from "@/shared/automation";
+import {
+  MCP_CONFIG_LIST_TOOL_NAME,
+  MCP_CONFIG_REMOVE_TOOL_NAME,
+  MCP_CONFIG_SAVE_TOOL_NAME,
+  MCP_CONFIG_SET_ENABLED_TOOL_NAME,
+} from "@/shared/mcp";
+import { ACTIVATE_MCP_AUTHORING_TOOL_NAME } from "@/shared/sessionMutators";
 import type { PineToolCall } from "@/shared/sessions";
 
 export type ToolKind =
@@ -55,6 +63,7 @@ export type ToolKind =
   | "generic"
   | "media"
   | "mcp"
+  | "mcpConfig"
   | "model"
   | "presentFile"
   | "project"
@@ -79,6 +88,7 @@ export const TOOL_KIND_ICON: Record<ToolKind, Component> = {
   generic: WrenchIcon,
   media: ClapperboardIcon,
   mcp: PlugIcon,
+  mcpConfig: ServerCogIcon,
   model: CpuIcon,
   presentFile: EyeIcon,
   project: FolderInputIcon,
@@ -143,6 +153,7 @@ export const TOOL_KIND_ORDER: readonly ToolKind[] = [
   "todo",
   "media",
   "mcp",
+  "mcpConfig",
   "computer",
   "browser",
   "bash",
@@ -219,6 +230,11 @@ export function toolKind(name: string): ToolKind {
     normalized.startsWith("automation_")
   )
     return "automation";
+  if (
+    normalized === ACTIVATE_MCP_AUTHORING_TOOL_NAME ||
+    normalized.startsWith("mcp_config_")
+  )
+    return "mcpConfig";
   if (normalized === UI_LIST_MODELS_TOOL_NAME) return "model";
   if (normalized === TODO_TOOL_NAME) return "todo";
   if (normalized === RECALL_TOOL_NAME) return "recall";
@@ -313,6 +329,39 @@ export function automationOperation(
       return "runNow";
     case "automation_report":
       return "report";
+    default:
+      return "list";
+  }
+}
+
+export type McpConfigOperation =
+  "activate" | "create" | "disable" | "enable" | "list" | "remove" | "update";
+
+/** Which MCP configuration tool a call is. A save that replaced a server, or
+ * renames one, is an update; the host says which once it has saved. */
+export function mcpConfigOperation(
+  name: string,
+  input: Record<string, unknown>,
+  output?: unknown,
+): McpConfigOperation {
+  switch (normalizedName(name)) {
+    case ACTIVATE_MCP_AUTHORING_TOOL_NAME:
+      return "activate";
+    case MCP_CONFIG_SAVE_TOOL_NAME: {
+      const details =
+        typeof output === "object" && output !== null
+          ? (output as { details?: { created?: unknown } }).details
+          : undefined;
+      return typeof input.previousName === "string" ||
+        details?.created === false
+        ? "update"
+        : "create";
+    }
+    case MCP_CONFIG_SET_ENABLED_TOOL_NAME:
+      return input.enabled === false ? "disable" : "enable";
+    case MCP_CONFIG_REMOVE_TOOL_NAME:
+      return "remove";
+    case MCP_CONFIG_LIST_TOOL_NAME:
     default:
       return "list";
   }

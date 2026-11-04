@@ -127,6 +127,19 @@ describe("SkillManagerDialog", () => {
     installPineApi();
   });
 
+  it("offers to create a skill together with Pine", async () => {
+    const wrapper = mountDialog();
+    await wrapper.setProps({ open: true });
+    await flushPromises();
+
+    const button = wrapper.get('[data-testid="skill-create-with-pine"]');
+    expect(button.text()).toContain("和 Pine 协作创建");
+    await button.trigger("click");
+
+    expect(wrapper.emitted("createWithPine")).toEqual([["project-1"]]);
+    expect(wrapper.emitted("update:open")).toEqual([[false]]);
+  });
+
   it("keeps frontmatter out of the editor and preserves it when saving", async () => {
     const wrapper = mountDialog();
     await wrapper.setProps({ open: true });

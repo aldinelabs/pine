@@ -25,7 +25,9 @@ import {
   PINE_MEDIA_GENERATION_ACTIVE_ENTRY,
   PINE_SKILL_AUTHORING_ACTIVE_ENTRY,
   PINE_AUTOMATION_AUTHORING_ACTIVE_ENTRY,
+  PINE_MCP_AUTHORING_ACTIVE_ENTRY,
 } from "../../shared/sessions";
+import { MCP_AUTHORING_DYNAMIC_TOOL_NAMES } from "../../shared/mcp";
 import { AUTOMATION_REPORT_TOOL_NAME } from "../../shared/automation";
 import { AUTOMATION_AUTHORING_DYNAMIC_TOOL_NAMES } from "../automation/tools";
 import type { AgentAutomationRun } from "../protocol";
@@ -76,6 +78,9 @@ export interface LiveAgentSession {
   mediaGenerationActive: boolean;
   skillAuthoringActive: boolean;
   automationAuthoringActive: boolean;
+  mcpAuthoringActive: boolean;
+  /** An MCP config change waits for the run to end before reloading. */
+  mcpReloadPending?: boolean;
   /** Set for an unattended automation run; its envelope replaces the tool list. */
   automation?: AgentAutomationRun;
   tinyFishApiKey?: string;
@@ -242,6 +247,12 @@ export function automationAuthoringActiveFromSessionEntries(
   );
 }
 
+export function mcpAuthoringActiveFromSessionEntries(
+  entries: readonly unknown[],
+): boolean {
+  return activeFlagFromSessionEntries(entries, PINE_MCP_AUTHORING_ACTIVE_ENTRY);
+}
+
 export function mediaGenerationActiveFromSessionEntries(
   entries: readonly unknown[],
 ): boolean {
@@ -311,6 +322,19 @@ export function toolNamesForSkillAuthoringState(
     (name) =>
       !SKILL_AUTHORING_DYNAMIC_TOOL_NAMES.includes(
         name as (typeof SKILL_AUTHORING_DYNAMIC_TOOL_NAMES)[number],
+      ),
+  );
+}
+
+export function toolNamesForMcpAuthoringState(
+  toolNames: readonly string[],
+  active: boolean,
+): string[] {
+  if (active) return [...toolNames];
+  return toolNames.filter(
+    (name) =>
+      !MCP_AUTHORING_DYNAMIC_TOOL_NAMES.includes(
+        name as (typeof MCP_AUTHORING_DYNAMIC_TOOL_NAMES)[number],
       ),
   );
 }

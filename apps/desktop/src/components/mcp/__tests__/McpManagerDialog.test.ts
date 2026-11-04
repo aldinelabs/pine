@@ -107,4 +107,21 @@ describe("McpManagerDialog", () => {
     expect(wrapper.text()).toContain("编辑 MCP 服务器");
     expect(wrapper.text()).not.toContain("mcp.editTitle");
   });
+
+  it("hands MCP setup to a conversation with Pine and closes", async () => {
+    window.pine = {
+      listMcpServers: vi.fn().mockResolvedValue({
+        paths: { project: "/p/.mcp.json", global: "/g/mcp.json" },
+        servers: [],
+      }),
+    } as unknown as Window["pine"];
+    const wrapper = mount(McpManagerDialog, {
+      props: { open: true, projectId: "project-1" },
+      global: { plugins: [createAppI18n("zh-CN")], stubs },
+    });
+    await flushPromises();
+    await wrapper.get('[data-testid="mcp-create-with-pine"]').trigger("click");
+    expect(wrapper.emitted("createWithPine")).toEqual([["project-1"]]);
+    expect(wrapper.emitted("update:open")).toEqual([[false]]);
+  });
 });

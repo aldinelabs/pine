@@ -1,5 +1,6 @@
 export default {
   common: {
+    createWithPine: "和 Pine 協作建立",
     back: "返回",
     downloadFile: "下載檔案",
     cancel: "取消",
@@ -855,6 +856,12 @@ export default {
       attachmentOpenFailed: "無法使用系統預設應用開啟附件",
       removeAttachment: "移除附件 {name}",
       contextSelection: "選中了“{text}”",
+      authoring: {
+        skill: "正在和 Pine 協作建立技能",
+        automation: "正在和 Pine 協作建立自動化",
+        mcp: "正在和 Pine 協作新增 MCP 伺服器",
+        remove: "改為一般對話",
+      },
       contextRemove: "移除",
       attachmentPickerFailed: "無法開啟或讀取所選附件",
       attachmentDropFailed: "無法讀取拖入的附件",
@@ -1028,6 +1035,10 @@ export default {
           active: "正在查詢 {count} 次模型",
           complete: "查詢了 {count} 次模型",
         },
+        mcpConfig: {
+          active: "正在設定 {count} 次 MCP 伺服器",
+          complete: "設定了 {count} 次 MCP 伺服器",
+        },
         project: {
           active: "正在處理 {count} 次專案操作",
           complete: "處理了 {count} 次專案操作",
@@ -1069,6 +1080,7 @@ export default {
         workbenchState: "工作臺狀態",
         automation: "自動化操作",
         model: "模型查詢",
+        mcpConfig: "MCP 設定",
         project: "專案操作",
         background: "後臺程序",
         todo: "任務清單",
@@ -1258,6 +1270,43 @@ export default {
             running: "正在查看可用模型",
             complete: "已查看可用模型",
             error: "無法讀取模型列表",
+          },
+        },
+        mcpConfig: {
+          activate: {
+            running: "正在載入 MCP 設定工具",
+            complete: "已載入 MCP 設定工具",
+            error: "無法載入 MCP 設定工具",
+          },
+          list: {
+            running: "正在查看 MCP 伺服器清單",
+            complete: "已查看 MCP 伺服器清單",
+            error: "無法讀取 MCP 伺服器清單",
+          },
+          create: {
+            running: "正在新增 MCP 伺服器 ",
+            complete: "已新增 MCP 伺服器 ",
+            error: "無法新增 MCP 伺服器 ",
+          },
+          update: {
+            running: "正在更新 MCP 伺服器 ",
+            complete: "已更新 MCP 伺服器 ",
+            error: "無法更新 MCP 伺服器 ",
+          },
+          enable: {
+            running: "正在啟用 MCP 伺服器 ",
+            complete: "已啟用 MCP 伺服器 ",
+            error: "無法啟用 MCP 伺服器 ",
+          },
+          disable: {
+            running: "正在停用 MCP 伺服器 ",
+            complete: "已停用 MCP 伺服器 ",
+            error: "無法停用 MCP 伺服器 ",
+          },
+          remove: {
+            running: "正在移除 MCP 伺服器 ",
+            complete: "已移除 MCP 伺服器 ",
+            error: "無法移除 MCP 伺服器 ",
           },
         },
         project: {
@@ -1860,6 +1909,21 @@ export default {
     },
   },
   automations: {
+    editor: {
+      create: "手動撰寫定義",
+      edit: "編輯定義",
+      newTitle: "新增自動化",
+      editTitle: "編輯「{name}」",
+      description: "用 JSON 撰寫自動化定義。在這裡儲存即視為你的核准。",
+      definition: "定義",
+      definitionHelp:
+        "與 Pine 撰寫自動化時使用的格式相同。儲存前可先檢查它會做什麼。",
+      invalidJson: "定義必須是一個 JSON 物件。",
+      check: "檢查",
+      save: "儲存",
+      saved: "已儲存自動化",
+      dryRun: "試執行結果",
+    },
     title: "自動化",
     description:
       "在時間到、檔案變動或網站更新時，Pine 自行完成的工作。在對話中告訴 Pine 你想自動完成什麼即可建立。",

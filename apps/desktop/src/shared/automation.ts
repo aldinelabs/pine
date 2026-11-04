@@ -26,6 +26,8 @@ export const SET_AUTOMATION_SECRET_CHANNEL = "automations:set-secret" as const;
 export const DELETE_AUTOMATION_SECRET_CHANNEL =
   "automations:delete-secret" as const;
 /** Main → a desktop window: a notification asked to show an automation. */
+export const CHECK_AUTOMATION_CHANNEL = "automations:check" as const;
+export const SAVE_AUTOMATION_CHANNEL = "automations:save" as const;
 export const AUTOMATIONS_REVEAL_CHANNEL = "automations:reveal" as const;
 
 export interface AutomationRevealEvent {
@@ -428,8 +430,7 @@ export interface AutomationsChangedEvent {
 
 /** A tool reports its run's result; main decides what that means. */
 export const AUTOMATION_REPORT_TOOL_NAME = "automation_report" as const;
-export const ACTIVATE_AUTOMATION_AUTHORING_TOOL_NAME =
-  "activate_automation_authoring" as const;
+export { ACTIVATE_AUTOMATION_AUTHORING_TOOL_NAME } from "./sessionMutators";
 
 export const AUTOMATION_DEFAULTS = {
   missed: "run-once",
@@ -493,8 +494,37 @@ export type AutomationHostOperation =
       cursor?: PineJsonValue;
     };
 
+/** A definition the user wrote by hand, checked before it is saved. */
+export interface CheckAutomationRequest {
+  projectId: string;
+  spec: PineJsonValue;
+  /** Also run the detectors once against what is there now. */
+  dryRun?: boolean;
+}
+
+export interface CheckAutomationResult {
+  errors: string[];
+  warnings: string[];
+  facts?: AutomationFacts;
+  dryRun?: PineJsonValue;
+}
+
+/** Save a hand-written definition; with `automationId`, replace that one. */
+export interface SaveAutomationRequest {
+  projectId: string;
+  spec: PineJsonValue;
+  automationId?: string;
+  baseRevision?: number;
+  includeExisting?: boolean;
+}
+
+export type SaveAutomationResult =
+  { id: string; revision: number } | { errors: string[] };
+
 /** The renderer's automation API; every call goes through main. */
 export interface PineAutomationsApi {
+  check(request: CheckAutomationRequest): Promise<CheckAutomationResult>;
+  save(request: SaveAutomationRequest): Promise<SaveAutomationResult>;
   list(request?: ListAutomationsRequest): Promise<AutomationSummary[]>;
   get(request: AutomationIdentityRequest): Promise<AutomationDetail>;
   runs(request?: ListAutomationRunsRequest): Promise<AutomationRunSummary[]>;

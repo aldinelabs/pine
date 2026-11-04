@@ -1,5 +1,11 @@
 <script setup lang="ts">
-import { PlugIcon, PlusIcon, RefreshCwIcon, Trash2Icon } from "@lucide/vue";
+import {
+  PlugIcon,
+  PlusIcon,
+  RefreshCwIcon,
+  SparklesIcon,
+  Trash2Icon,
+} from "@lucide/vue";
 import { computed, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { toast } from "vue-sonner";
@@ -56,6 +62,16 @@ import type { PineMcpCatalog, PineMcpScope, PineMcpServer } from "@/shared/mcp";
 
 const props = defineProps<{ projectId: string }>();
 const open = defineModel<boolean>("open", { default: false });
+const emit = defineEmits<{
+  /** Start a conversation that creates one together with Pine. */
+  createWithPine: [projectId: string];
+}>();
+
+function createWithPine(): void {
+  open.value = false;
+  emit("createWithPine", props.projectId);
+}
+
 const { t } = useI18n();
 const catalog = ref<PineMcpCatalog | null>(null);
 const scope = ref<PineMcpScope>("project");
@@ -279,13 +295,18 @@ function statusFor(name: string): string {
                   t("mcp.emptyDescription")
                 }}</EmptyDescription></EmptyHeader
               >
-              <EmptyContent
-                ><Button size="sm" @click="beginAdd"
+              <EmptyContent class="flex-row justify-center">
+                <Button size="sm" variant="outline" @click="createWithPine"
+                  ><SparklesIcon data-icon="inline-start" />{{
+                    t("common.createWithPine")
+                  }}</Button
+                >
+                <Button size="sm" @click="beginAdd"
                   ><PlusIcon data-icon="inline-start" />{{
                     t("mcp.add")
                   }}</Button
-                ></EmptyContent
-              >
+                >
+              </EmptyContent>
             </Empty>
           </ScrollArea>
         </TabsContent>
@@ -299,6 +320,14 @@ function statusFor(name: string): string {
           @click="load"
           ><RefreshCwIcon
         /></Button>
+        <Button
+          variant="outline"
+          data-testid="mcp-create-with-pine"
+          @click="createWithPine"
+          ><SparklesIcon data-icon="inline-start" />{{
+            t("common.createWithPine")
+          }}</Button
+        >
         <Button @click="beginAdd"
           ><PlusIcon data-icon="inline-start" />{{ t("mcp.add") }}</Button
         >

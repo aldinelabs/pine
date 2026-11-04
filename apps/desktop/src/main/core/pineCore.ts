@@ -72,6 +72,7 @@ import {
 } from "./requestSchemas";
 import { registerCoreRequests } from "./requests";
 import { answerAutomationOperation } from "./requests/automations";
+import { answerMcpOperation } from "./requests/mcp";
 
 /** How long a running agent gets to stop its work before Pine quits anyway. */
 const AGENT_SHUTDOWN_TIMEOUT_MS = 5_000;
@@ -704,6 +705,26 @@ export class PineCore {
   ): Promise<void> {
     if (event.request.kind === "automation") {
       await this.answerAutomationRequest(event, false);
+      return;
+    }
+    if (event.request.kind === "mcp") {
+      const { operation } = event.request;
+      let mcpReply: AgentHostReply;
+      try {
+        const projectId = this.runtimes.projectOfLiveSession(
+          event.sessionId,
+        )?.id;
+        if (!projectId) throw new Error("This conversation has no project.");
+        const result = await answerMcpOperation(
+          this,
+          { sessionId: event.sessionId, projectId },
+          operation,
+        );
+        mcpReply = { ok: true, response: { kind: "mcp", result } };
+      } catch (error) {
+        mcpReply = { ok: false, error: toErrorMessage(error) };
+      }
+      this.agentHost.respondHostRequest(event.requestId, mcpReply);
       return;
     }
     const reply = await (async (): Promise<AgentHostReply> => {

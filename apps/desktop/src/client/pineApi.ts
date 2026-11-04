@@ -1,7 +1,9 @@
 import {
   AUTOMATIONS_CHANGED_CHANNEL,
   AUTOMATIONS_REVEAL_CHANNEL,
+  CHECK_AUTOMATION_CHANNEL,
   DELETE_AUTOMATION_CHANNEL,
+  SAVE_AUTOMATION_CHANNEL,
   DELETE_AUTOMATION_SECRET_CHANNEL,
   GET_AUTOMATION_CHANNEL,
   GET_AUTOMATION_RUN_CHANNEL,
@@ -332,6 +334,8 @@ function createAutomationsApi(transport: PineTransport): PineAutomationsApi {
     list: (request) =>
       transport.invoke(LIST_AUTOMATIONS_CHANNEL, request ?? {}),
     get: (request) => transport.invoke(GET_AUTOMATION_CHANNEL, request),
+    check: (request) => transport.invoke(CHECK_AUTOMATION_CHANNEL, request),
+    save: (request) => transport.invoke(SAVE_AUTOMATION_CHANNEL, request),
     runs: (request) =>
       transport.invoke(LIST_AUTOMATION_RUNS_CHANNEL, request ?? {}),
     run: (request) => transport.invoke(GET_AUTOMATION_RUN_CHANNEL, request),

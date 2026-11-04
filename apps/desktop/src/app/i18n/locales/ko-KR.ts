@@ -1,5 +1,6 @@
 export default {
   common: {
+    createWithPine: "Pine과 함께 만들기",
     back: "뒤로",
     downloadFile: "파일 다운로드",
     cancel: "취소",
@@ -890,6 +891,12 @@ export default {
       attachmentOpenFailed: "시스템 기본 앱으로 첨부 파일을 열 수 없습니다",
       removeAttachment: "첨부 파일 {name} 제거",
       contextSelection: "선택: '{text}'",
+      authoring: {
+        skill: "Pine과 함께 스킬 만드는 중",
+        automation: "Pine과 함께 자동화 만드는 중",
+        mcp: "Pine과 함께 MCP 서버 추가 중",
+        remove: "일반 대화로 전환",
+      },
       contextRemove: "제거하려면",
       attachmentPickerFailed: "선택한 항목을 열거나 확인할 수 없습니다",
       attachmentDropFailed: "끌어다 놓은 첨부 파일을 확인할 수 없습니다",
@@ -1067,6 +1074,10 @@ export default {
           active: "모델 {count}회 조회 중",
           complete: "모델 {count}회 조회함",
         },
+        mcpConfig: {
+          active: "MCP 서버를 {count}회 구성하는 중",
+          complete: "MCP 서버를 {count}회 구성함",
+        },
         project: {
           active: "프로젝트 작업 {count}개 실행 중",
           complete: "프로젝트 작업 {count}개 실행함",
@@ -1108,6 +1119,7 @@ export default {
         workbenchState: "작업대 상태",
         automation: "자동화 작업",
         model: "모델 조회",
+        mcpConfig: "MCP 구성",
         project: "프로젝트 작업",
         background: "백그라운드 프로세스",
         todo: "할 일",
@@ -1298,6 +1310,43 @@ export default {
             running: "사용 가능한 모델 확인 중",
             complete: "사용 가능한 모델을 확인했습니다",
             error: "모델 목록을 불러오지 못했습니다",
+          },
+        },
+        mcpConfig: {
+          activate: {
+            running: "MCP 구성 도구를 불러오는 중",
+            complete: "MCP 구성 도구를 불러옴",
+            error: "MCP 구성 도구를 불러올 수 없음",
+          },
+          list: {
+            running: "MCP 서버 목록을 확인하는 중",
+            complete: "MCP 서버 목록을 확인함",
+            error: "MCP 서버 목록을 읽을 수 없음",
+          },
+          create: {
+            running: "MCP 서버 추가 중: ",
+            complete: "MCP 서버 추가함: ",
+            error: "MCP 서버를 추가할 수 없음: ",
+          },
+          update: {
+            running: "MCP 서버 업데이트 중: ",
+            complete: "MCP 서버 업데이트함: ",
+            error: "MCP 서버를 업데이트할 수 없음: ",
+          },
+          enable: {
+            running: "MCP 서버 활성화 중: ",
+            complete: "MCP 서버 활성화함: ",
+            error: "MCP 서버를 활성화할 수 없음: ",
+          },
+          disable: {
+            running: "MCP 서버 비활성화 중: ",
+            complete: "MCP 서버 비활성화함: ",
+            error: "MCP 서버를 비활성화할 수 없음: ",
+          },
+          remove: {
+            running: "MCP 서버 제거 중: ",
+            complete: "MCP 서버 제거함: ",
+            error: "MCP 서버를 제거할 수 없음: ",
           },
         },
         project: {
@@ -1930,6 +1979,22 @@ export default {
     },
   },
   automations: {
+    editor: {
+      create: "정의 직접 작성",
+      edit: "정의 편집",
+      newTitle: "새 자동화",
+      editTitle: "'{name}' 편집",
+      description:
+        "자동화 정의를 JSON으로 작성합니다. 여기서 저장하면 승인한 것으로 간주됩니다.",
+      definition: "정의",
+      definitionHelp:
+        "Pine이 자동화를 작성할 때와 같은 형식입니다. 저장하기 전에 확인으로 동작을 볼 수 있습니다.",
+      invalidJson: "정의는 JSON 객체여야 합니다.",
+      check: "확인",
+      save: "저장",
+      saved: "자동화를 저장했습니다",
+      dryRun: "시험 실행 결과",
+    },
     title: "자동화",
     description:
       "정해진 시간, 파일 변경, 웹사이트 업데이트에 맞춰 Pine이 스스로 하는 작업입니다. 대화에서 Pine에게 요청해 만드세요.",

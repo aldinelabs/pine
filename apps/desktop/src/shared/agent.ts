@@ -1,5 +1,7 @@
 import type { AutomationHostOperation } from "./automation";
 import type { PineSessionSummary } from "./sessions";
+import type { PineSessionMutator } from "./sessionMutators";
+import type { McpHostOperation } from "./mcp";
 import type { BackgroundTaskSnapshot } from "@pine/pi-background-tasks";
 import type {
   FilePresentationDisplay,
@@ -331,7 +333,8 @@ export type PineHostRequest =
   | { kind: "teleport"; projectId: string }
   | { kind: "workbench-state" }
   | { kind: "approximate-location" }
-  | { kind: "automation"; operation: AutomationHostOperation };
+  | { kind: "automation"; operation: AutomationHostOperation }
+  | { kind: "mcp"; operation: McpHostOperation };
 
 /** Main asks only the session's owning window for its live layout. */
 export interface PineWorkbenchStateRequestEvent {
@@ -404,6 +407,9 @@ export interface PromptSessionRequest {
   approvalMode?: PineApprovalMode;
   /** Rewrite history from this user message instead of appending. */
   rewrite?: PineMessageRewriteTarget;
+  /** Session state to change before this message, such as pre-activated
+   * authoring tools; see `shared/sessionMutators.ts`. */
+  mutators?: PineSessionMutator[];
 }
 
 export interface PromptSessionResult {

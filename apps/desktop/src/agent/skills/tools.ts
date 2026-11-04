@@ -6,6 +6,7 @@ import {
 } from "@earendil-works/pi-coding-agent";
 import { Type, type Static } from "typebox";
 import type { PineApprovalMode } from "../../shared/agent";
+import { ACTIVATE_SKILL_AUTHORING_TOOL_NAME } from "../../shared/sessionMutators";
 import type { PineSkillScope } from "../../shared/skills";
 import type { ToolGate } from "../gate";
 import AUTHORING_SKILL from "./skill-authoring/SKILL.md?raw";
@@ -14,7 +15,7 @@ import { PineSkillRepository } from "./repository";
 export const INVOKE_SKILL_TOOL_NAME = "invoke_skill";
 export const LIST_SKILL_RESOURCES_TOOL_NAME = "list_skill_resources";
 export const READ_SKILL_RESOURCE_TOOL_NAME = "read_skill_resource";
-export const ACTIVATE_SKILL_AUTHORING_TOOL_NAME = "activate_skill_authoring";
+export { ACTIVATE_SKILL_AUTHORING_TOOL_NAME };
 export const CREATE_SKILL_TOOL_NAME = "create_skill";
 export const EDIT_SKILL_TOOL_NAME = "edit_skill";
 export const REMOVE_SKILL_TOOL_NAME = "remove_skill";
@@ -48,6 +49,11 @@ const skillContentSchema = Type.String({
   minLength: 1,
   maxLength: 1_000_000,
 });
+
+/** The instructions activation returns, also given by a session mutator. */
+export function skillAuthoringInstructions(): string {
+  return `<skill_authoring>\n${AUTHORING_SKILL.trim()}\n</skill_authoring>\n\nPine skill authoring is active for this session.`;
+}
 
 function textResult(
   text: string,
@@ -158,10 +164,9 @@ function createDefinitions(
       execute: () => {
         activate();
         return Promise.resolve(
-          textResult(
-            `<skill_authoring>\n${AUTHORING_SKILL.trim()}\n</skill_authoring>\n\nPine skill authoring is active for this session.`,
-            { activatedToolNames: [...SKILL_AUTHORING_DYNAMIC_TOOL_NAMES] },
-          ),
+          textResult(skillAuthoringInstructions(), {
+            activatedToolNames: [...SKILL_AUTHORING_DYNAMIC_TOOL_NAMES],
+          }),
         );
       },
     }),

@@ -346,6 +346,67 @@ describe("project transcript markers", () => {
     );
   });
 
+  it("labels MCP configuration calls by operation and server name", () => {
+    const added = mount(ProjectToolCallMarker, {
+      props: {
+        toolCall: {
+          id: "mcp-config-1",
+          input: {
+            scope: "project",
+            name: "github",
+            definition: { command: "github-mcp" },
+          },
+          name: "mcp_config_save",
+          output: { details: { saved: true, created: true } },
+          status: "complete",
+        },
+      },
+      global: { plugins: [createAppI18n("en-US")] },
+    });
+    expect(added.text()).toContain("Added MCP server github");
+
+    const refused = mount(ProjectToolCallMarker, {
+      props: {
+        toolCall: {
+          id: "mcp-config-2",
+          input: { scope: "project", name: "github", definition: {} },
+          name: "mcp_config_save",
+          output: { details: { saved: false, errors: ["bad"] } },
+          status: "complete",
+        },
+      },
+      global: { plugins: [createAppI18n("en-US")] },
+    });
+    expect(refused.text()).toContain("Couldn’t add MCP server github");
+
+    const disabled = mount(ProjectToolCallMarker, {
+      props: {
+        toolCall: {
+          id: "mcp-config-3",
+          input: { scope: "global", name: "slack", enabled: false },
+          name: "mcp_config_set_enabled",
+          status: "running",
+        },
+      },
+      global: { plugins: [createAppI18n("zh-CN")] },
+    });
+    expect(disabled.text()).toContain("正在停用 MCP 服务器 slack");
+
+    const activated = mount(ProjectToolCallMarker, {
+      props: {
+        toolCall: {
+          id: "mutation-1-mcp",
+          input: {},
+          name: "activate_mcp_authoring",
+          output: { details: { preactivated: true } },
+          status: "complete",
+        },
+      },
+      global: { plugins: [createAppI18n("zh-CN")] },
+    });
+    expect(activated.text()).toContain("已加载 MCP 配置工具");
+  });
+
   it("labels automation calls by operation and automation name", () => {
     const saved = mount(ProjectToolCallMarker, {
       props: {

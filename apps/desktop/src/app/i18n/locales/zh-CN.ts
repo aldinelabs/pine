@@ -1,5 +1,6 @@
 export default {
   common: {
+    createWithPine: "和 Pine 协作创建",
     back: "返回",
     downloadFile: "下载文件",
     cancel: "取消",
@@ -855,6 +856,12 @@ export default {
       attachmentOpenFailed: "无法使用系统默认应用打开附件",
       removeAttachment: "移除附件 {name}",
       contextSelection: "选中了“{text}”",
+      authoring: {
+        skill: "正在和 Pine 协作创建技能",
+        automation: "正在和 Pine 协作创建自动化",
+        mcp: "正在和 Pine 协作添加 MCP 服务器",
+        remove: "改为普通对话",
+      },
       contextRemove: "移除",
       attachmentPickerFailed: "无法打开或读取所选附件",
       attachmentDropFailed: "无法读取拖入的附件",
@@ -1028,6 +1035,10 @@ export default {
           active: "正在查询 {count} 次模型",
           complete: "查询了 {count} 次模型",
         },
+        mcpConfig: {
+          active: "正在配置 {count} 次 MCP 服务器",
+          complete: "配置了 {count} 次 MCP 服务器",
+        },
         project: {
           active: "正在处理 {count} 次项目操作",
           complete: "处理了 {count} 次项目操作",
@@ -1069,6 +1080,7 @@ export default {
         workbenchState: "工作台状态",
         automation: "自动化操作",
         model: "模型查询",
+        mcpConfig: "MCP 配置",
         project: "项目操作",
         background: "后台进程",
         todo: "任务清单",
@@ -1258,6 +1270,43 @@ export default {
             running: "正在查看可用模型",
             complete: "已查看可用模型",
             error: "无法读取模型列表",
+          },
+        },
+        mcpConfig: {
+          activate: {
+            running: "正在加载 MCP 配置工具",
+            complete: "已加载 MCP 配置工具",
+            error: "无法加载 MCP 配置工具",
+          },
+          list: {
+            running: "正在查看 MCP 服务器列表",
+            complete: "已查看 MCP 服务器列表",
+            error: "无法读取 MCP 服务器列表",
+          },
+          create: {
+            running: "正在添加 MCP 服务器 ",
+            complete: "已添加 MCP 服务器 ",
+            error: "无法添加 MCP 服务器 ",
+          },
+          update: {
+            running: "正在更新 MCP 服务器 ",
+            complete: "已更新 MCP 服务器 ",
+            error: "无法更新 MCP 服务器 ",
+          },
+          enable: {
+            running: "正在启用 MCP 服务器 ",
+            complete: "已启用 MCP 服务器 ",
+            error: "无法启用 MCP 服务器 ",
+          },
+          disable: {
+            running: "正在停用 MCP 服务器 ",
+            complete: "已停用 MCP 服务器 ",
+            error: "无法停用 MCP 服务器 ",
+          },
+          remove: {
+            running: "正在移除 MCP 服务器 ",
+            complete: "已移除 MCP 服务器 ",
+            error: "无法移除 MCP 服务器 ",
           },
         },
         project: {
@@ -1860,6 +1909,21 @@ export default {
     },
   },
   automations: {
+    editor: {
+      create: "手动编写定义",
+      edit: "编辑定义",
+      newTitle: "新建自动化",
+      editTitle: "编辑“{name}”",
+      description: "用 JSON 编写自动化定义。在这里保存即视为你的批准。",
+      definition: "定义",
+      definitionHelp:
+        "与 Pine 编写自动化时使用的格式相同。保存前可先检查它会做什么。",
+      invalidJson: "定义必须是一个 JSON 对象。",
+      check: "检查",
+      save: "保存",
+      saved: "已保存自动化",
+      dryRun: "试运行结果",
+    },
     title: "自动化",
     description:
       "在到点、文件变化或网站更新时，Pine 自己去做的工作。在对话里告诉 Pine 你想自动完成什么即可创建。",

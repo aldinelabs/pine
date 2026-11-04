@@ -38,6 +38,7 @@ import {
 import ProjectToolCallDialog from "./ProjectToolCallDialog.vue";
 import {
   automationOperation,
+  mcpConfigOperation,
   isDeniedTool,
   isRunningTool,
   mediaOperationKey,
@@ -1114,6 +1115,32 @@ const presentation = computed(() => {
             ? ""
             : automationTarget(input, props.toolCall.output),
       targetMono: false,
+      purpose: undefined,
+      faviconDataUrl: undefined,
+      after: "",
+    };
+  }
+  if (kind === "mcpConfig") {
+    const tense = state === "running" || state === "error" ? state : "complete";
+    const operation = mcpConfigOperation(
+      props.toolCall.name,
+      input,
+      props.toolCall.output,
+    );
+    // A definition the tool refused (validation errors) saved nothing.
+    const refused =
+      inputRecord(inputRecord(props.toolCall.output).details).saved === false;
+    return {
+      before: t(
+        `project.transcript.tools.mcpConfig.${operation}.${tense === "complete" && refused ? "error" : tense}`,
+      ),
+      operation: undefined,
+      separator: "",
+      target:
+        operation === "activate" || operation === "list"
+          ? ""
+          : (firstString(input, ["name"]) ?? ""),
+      targetMono: true,
       purpose: undefined,
       faviconDataUrl: undefined,
       after: "",

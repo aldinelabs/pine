@@ -1,5 +1,6 @@
 export default {
   common: {
+    createWithPine: "Mit Pine erstellen",
     back: "Zurück",
     downloadFile: "Datei herunterladen",
     cancel: "Abbrechen",
@@ -917,6 +918,12 @@ export default {
         "Der Anhang konnte nicht mit der Standardanwendung des Systems geöffnet werden",
       removeAttachment: "Anhang {name} entfernen",
       contextSelection: "Ausgewählt: „{text}“",
+      authoring: {
+        skill: "Skill mit Pine erstellen",
+        automation: "Automatisierung mit Pine erstellen",
+        mcp: "MCP-Server mit Pine hinzufügen",
+        remove: "Stattdessen normal unterhalten",
+      },
       contextRemove: "zum Entfernen",
       attachmentPickerFailed:
         "Die ausgewählten Elemente konnten nicht geöffnet oder geprüft werden",
@@ -1104,6 +1111,10 @@ export default {
           active: "Modelle werden {count}-mal abgefragt",
           complete: "Modelle {count}-mal abgefragt",
         },
+        mcpConfig: {
+          active: "Konfiguriere MCP-Server ({count}×)",
+          complete: "MCP-Server konfiguriert ({count}×)",
+        },
         project: {
           active: "{count} Projektaktionen werden ausgeführt",
           complete: "{count} Projektaktionen ausgeführt",
@@ -1145,6 +1156,7 @@ export default {
         workbenchState: "Status des Arbeitsbereichs",
         automation: "Automatisierungsaktion",
         model: "Modellabfrage",
+        mcpConfig: "MCP-Konfiguration",
         project: "Projektaktion",
         background: "Hintergrundprozess",
         todo: "Aufgaben",
@@ -1336,6 +1348,43 @@ export default {
             running: "Verfügbare Modelle werden abgefragt",
             complete: "Verfügbare Modelle abgefragt",
             error: "Modelle konnten nicht aufgelistet werden",
+          },
+        },
+        mcpConfig: {
+          activate: {
+            running: "Lade MCP-Konfigurationswerkzeuge",
+            complete: "MCP-Konfigurationswerkzeuge geladen",
+            error: "MCP-Konfigurationswerkzeuge konnten nicht geladen werden",
+          },
+          list: {
+            running: "Liste MCP-Server auf",
+            complete: "MCP-Server aufgelistet",
+            error: "MCP-Server konnten nicht aufgelistet werden",
+          },
+          create: {
+            running: "Füge MCP-Server hinzu: ",
+            complete: "MCP-Server hinzugefügt: ",
+            error: "MCP-Server konnte nicht hinzugefügt werden: ",
+          },
+          update: {
+            running: "Aktualisiere MCP-Server ",
+            complete: "MCP-Server aktualisiert: ",
+            error: "MCP-Server konnte nicht aktualisiert werden: ",
+          },
+          enable: {
+            running: "Aktiviere MCP-Server ",
+            complete: "MCP-Server aktiviert: ",
+            error: "MCP-Server konnte nicht aktiviert werden: ",
+          },
+          disable: {
+            running: "Deaktiviere MCP-Server ",
+            complete: "MCP-Server deaktiviert: ",
+            error: "MCP-Server konnte nicht deaktiviert werden: ",
+          },
+          remove: {
+            running: "Entferne MCP-Server ",
+            complete: "MCP-Server entfernt: ",
+            error: "MCP-Server konnte nicht entfernt werden: ",
           },
         },
         project: {
@@ -2002,6 +2051,22 @@ export default {
     },
   },
   automations: {
+    editor: {
+      create: "Definition schreiben",
+      edit: "Definition bearbeiten",
+      newTitle: "Neue Automatisierung",
+      editTitle: "„{name}“ bearbeiten",
+      description:
+        "Schreibe die Definition der Automatisierung als JSON. Speichern hier gilt als deine Freigabe.",
+      definition: "Definition",
+      definitionHelp:
+        "Dasselbe Format, das Pine beim Schreiben von Automatisierungen nutzt. „Prüfen“ zeigt vor dem Speichern, was sie tun wird.",
+      invalidJson: "Die Definition muss ein JSON-Objekt sein.",
+      check: "Prüfen",
+      save: "Speichern",
+      saved: "Automatisierung gespeichert",
+      dryRun: "Ergebnis des Probelaufs",
+    },
     title: "Automationen",
     description:
       "Arbeit, die Pine selbst erledigt, wenn eine Uhrzeit, eine Dateiänderung oder eine Website-Aktualisierung es verlangt. Bitte Pine in einem Gespräch, eine einzurichten.",

@@ -2,7 +2,9 @@
 import {
   HistoryIcon,
   KeyRoundIcon,
+  PlusIcon,
   RefreshCwIcon,
+  SparklesIcon,
   Trash2Icon,
   WorkflowIcon,
 } from "@lucide/vue";
@@ -49,10 +51,23 @@ import { MIN_REDACTED_SECRET_LENGTH } from "@/shared/automationRedaction";
 import { useAutomationsStore } from "@/stores/automations";
 import AutomationApprovalCard from "./AutomationApprovalCard.vue";
 import AutomationDetailDialog from "./AutomationDetailDialog.vue";
+import AutomationEditorDialog from "./AutomationEditorDialog.vue";
 import { runStatusVariant, useAutomationTime } from "./automationDisplay";
 
 const props = defineProps<{ projectId: string }>();
 const open = defineModel<boolean>("open", { default: false });
+const emit = defineEmits<{
+  /** Start a conversation that creates one together with Pine. */
+  createWithPine: [projectId: string];
+}>();
+
+function createWithPine(): void {
+  open.value = false;
+  emit("createWithPine", props.projectId);
+}
+
+/** The hand-written definition editor, over this dialog. */
+const isEditorOpen = ref(false);
 
 const { t } = useI18n();
 const store = useAutomationsStore();
@@ -323,7 +338,27 @@ const pendingApprovals = computed(() =>
             </Empty>
           </TabsContent>
 
-          <TabsContent value="automations" class="flex flex-col">
+          <TabsContent value="automations" class="flex flex-col gap-3">
+            <div class="flex flex-wrap justify-end gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                data-testid="automation-create-with-pine"
+                @click="createWithPine"
+                ><SparklesIcon data-icon="inline-start" />{{
+                  t("common.createWithPine")
+                }}</Button
+              >
+              <Button
+                v-if="isDesktop"
+                size="sm"
+                data-testid="automation-create-manually"
+                @click="isEditorOpen = true"
+                ><PlusIcon data-icon="inline-start" />{{
+                  t("automations.editor.create")
+                }}</Button
+              >
+            </div>
             <ItemGroup v-if="automations.length">
               <Item
                 v-for="automation in automations"
@@ -510,4 +545,9 @@ const pendingApprovals = computed(() =>
     </DialogContent>
   </Dialog>
   <AutomationDetailDialog v-model:target="selected" @open-run="openRun" />
+  <AutomationEditorDialog
+    v-model:open="isEditorOpen"
+    :project-id="projectId"
+    @saved="(id) => (selected = { projectId, id })"
+  />
 </template>

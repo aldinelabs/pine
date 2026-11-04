@@ -694,6 +694,115 @@ describe("PineAgentRuntime", () => {
     }
   });
 
+  it("pre-activates authoring through a session mutator before the first message", async () => {
+    const root = await mkdtemp(path.join(os.tmpdir(), "pine-mutator-"));
+    temporaryDirectories.push(root);
+    const location = {
+      agentDir: path.join(root, "agent"),
+      cwd: path.join(root, "source"),
+      folders: [{ access: "read-write" as const, path: root }],
+      sessionsRoot: path.join(root, "sessions"),
+    };
+    await mkdir(location.agentDir, { recursive: true });
+    await mkdir(location.cwd, { recursive: true });
+    await writeFile(
+      path.join(location.agentDir, "models.json"),
+      JSON.stringify({
+        providers: {
+          verify: {
+            api: "openai-completions",
+            apiKey: "verify-key",
+            baseUrl: "http://127.0.0.1:1/v1",
+            models: [{ id: "mutator", input: ["text"] }],
+          },
+        },
+      }),
+    );
+    await writeFile(
+      path.join(location.agentDir, "settings.json"),
+      JSON.stringify({ defaultProvider: "verify", defaultModel: "mutator" }),
+    );
+    const runtime = new PineAgentRuntime({
+      emit: (event) => {
+        if (event.type !== "host-request") return;
+        runtime.resolveHostRequest(event.requestId, {
+          ok: false,
+          error: "not needed",
+        });
+      },
+    });
+    try {
+      const created = await runtime.createSession(location);
+      const { session } = (
+        runtime as unknown as {
+          liveSessions: Map<string, { session: AgentSession }>;
+        }
+      ).liveSessions.get(created.session.id)!;
+      expect(session.getActiveToolNames()).toContain("activate_mcp_authoring");
+      expect(session.getActiveToolNames()).not.toContain("mcp_config_save");
+
+      const mutator = {
+        kind: "activate-authoring" as const,
+        target: "mcp" as const,
+      };
+      await expect(
+        runtime.mutateSession(created.session.id, [mutator, mutator]),
+      ).resolves.toEqual({ applied: [mutator] });
+      expect(session.getActiveToolNames()).toEqual(
+        expect.arrayContaining([
+          "mcp_config_list",
+          "mcp_config_save",
+          "mcp_config_set_enabled",
+          "mcp_config_remove",
+        ]),
+      );
+      expect(
+        session.sessionManager
+          .getEntries()
+          .some(
+            (entry) =>
+              entry.type === "custom" &&
+              entry.customType === "pine.mcp-authoring-active",
+          ),
+      ).toBe(true);
+      // Already active: nothing more is added.
+      await expect(
+        runtime.mutateSession(created.session.id, [mutator]),
+      ).resolves.toEqual({ applied: [] });
+
+      let firstContext = "";
+      session.agent.streamFunction = (model, context) => {
+        firstContext ||= JSON.stringify(context.messages);
+        const response: AssistantMessage = {
+          ...assistantMessage(100, 0, 0),
+          api: model.api,
+          provider: model.provider,
+          model: model.id,
+          stopReason: "stop",
+          content: [{ type: "text", text: "Which server?" }],
+        };
+        const stream = createAssistantMessageEventStream();
+        stream.push({ type: "start", partial: response });
+        stream.push({ type: "done", reason: "stop", message: response });
+        stream.end();
+        return stream;
+      };
+      await session.prompt("Add the GitHub MCP server.");
+      expect(firstContext).toContain("<mcp_authoring>");
+      expect(firstContext).toContain("~/.config/mcp/mcp.json");
+      expect(firstContext).toContain("Add the GitHub MCP server.");
+      expect(
+        session.messages.filter(
+          (message) =>
+            message.role === "custom" &&
+            message.customType === "pine.session-mutation",
+        ),
+      ).toHaveLength(1);
+    } finally {
+      await runtime.dispose();
+    }
+  });
+
   it("limits an automation run to its approved tools and the report tool", async () => {
     const root = await mkdtemp(path.join(os.tmpdir(), "pine-automation-run-"));
     temporaryDirectories.push(root);

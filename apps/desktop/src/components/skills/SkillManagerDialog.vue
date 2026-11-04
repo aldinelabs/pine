@@ -1,5 +1,10 @@
 <script setup lang="ts">
-import { ChevronLeftIcon, PlusIcon, Trash2Icon } from "@lucide/vue";
+import {
+  ChevronLeftIcon,
+  PlusIcon,
+  SparklesIcon,
+  Trash2Icon,
+} from "@lucide/vue";
 import { parse as parseYaml, stringify as stringifyYaml } from "yaml";
 import { computed, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
@@ -54,6 +59,16 @@ interface Props {
 
 const props = defineProps<Props>();
 const open = defineModel<boolean>("open", { default: false });
+const emit = defineEmits<{
+  /** Start a conversation that creates one together with Pine. */
+  createWithPine: [projectId: string];
+}>();
+
+function createWithPine(): void {
+  open.value = false;
+  emit("createWithPine", props.projectId);
+}
+
 const { t } = useI18n();
 const skillScopes = ["global", "project"] as const;
 const activeScope = ref<PineSkillScope>("global");
@@ -432,6 +447,24 @@ watch(activeScope, () => {
                         </ItemMedia>
                         <ItemContent class="flex-none">
                           <ItemTitle>{{ t("skills.new") }}</ItemTitle>
+                        </ItemContent>
+                      </Item>
+                      <Item
+                        as="button"
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        data-testid="skill-create-with-pine"
+                        class="justify-center hover:bg-muted active:bg-muted"
+                        @click="createWithPine"
+                      >
+                        <ItemMedia variant="icon">
+                          <SparklesIcon />
+                        </ItemMedia>
+                        <ItemContent class="flex-none">
+                          <ItemTitle>{{
+                            t("common.createWithPine")
+                          }}</ItemTitle>
                         </ItemContent>
                       </Item>
                       <Item

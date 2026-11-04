@@ -136,6 +136,59 @@ describe("ProjectRuntimeRegistry", () => {
     }
   });
 
+  it("applies a draft's mutators to the new session before its first message", async () => {
+    const host = createAgentHost();
+    const order: string[] = [];
+    const mutateSession = vi.fn((_id: string, mutators: unknown) => {
+      order.push("mutate");
+      return Promise.resolve({ applied: mutators });
+    });
+    host.mutateSession = mutateSession as unknown as typeof host.mutateSession;
+    const prompt = vi.fn(() => {
+      order.push("prompt");
+      return Promise.resolve({ accepted: true, session: sessionSummary });
+    });
+    host.prompt = prompt;
+    const registry = new ProjectRuntimeRegistry(host, "/pine/agent");
+    const { dataRoot, project } = await createRuntimeFixture();
+    const paths = {
+      attachmentsRoot: path.join(dataRoot, "attachments"),
+      cacheRoot: path.join(dataRoot, "cache"),
+      projectRoot: dataRoot,
+      sessionsRoot: path.join(dataRoot, "sessions"),
+    };
+    const mutators = [
+      { kind: "activate-authoring" as const, target: "skill" as const },
+    ];
+    try {
+      await registry.open(1, project, paths);
+      await registry.prompt(1, {
+        message: "Make a skill",
+        target: { kind: "new", projectId: project.id },
+        mutators,
+      });
+      expect(mutateSession).toHaveBeenCalledExactlyOnceWith(
+        sessionSummary.id,
+        mutators,
+      );
+      expect(order).toEqual(["mutate", "prompt"]);
+      await expect(
+        registry.prompt(1, {
+          message: "Steer",
+          target: {
+            kind: "session",
+            projectId: project.id,
+            sessionId: sessionSummary.id,
+          },
+          streamingBehavior: "steer",
+          mutators,
+        }),
+      ).rejects.toThrow("before a new message");
+    } finally {
+      await registry.dispose(1);
+    }
+  });
+
   it("reconfigures a shared project once and retains both clients", async () => {
     const host = createAgentHost();
     const disposeSession = vi.fn().mockResolvedValue({ disposed: true });

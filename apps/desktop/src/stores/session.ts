@@ -23,6 +23,7 @@ import type {
 } from "@/shared/sessions";
 import { attachmentMessagePreview } from "@/shared/attachments";
 import { parseMessageBlocks, transcriptRole } from "@/shared/sessions";
+import type { PineSessionMutator } from "@/shared/sessionMutators";
 import { agentLocale, isAppLocale, localeMessages } from "@/app/i18n";
 import { useModelsStore } from "@/stores/models";
 import type { WebSessionSnapshot } from "@/shared/webControl";
@@ -796,6 +797,7 @@ export const useSessionStore = defineStore("session", () => {
     target: { projectId: string; sessionId?: string },
     approvalMode?: PineApprovalMode,
     streamingBehavior?: "follow-up" | "steer",
+    mutators?: readonly PineSessionMutator[],
   ): Promise<PineSessionSummary> {
     const { projectId, sessionId } = target;
     const sequence = activationSequence;
@@ -811,6 +813,7 @@ export const useSessionStore = defineStore("session", () => {
           : { kind: "new", projectId },
         ...(approvalMode ? { approvalMode } : {}),
         ...(streamingBehavior ? { streamingBehavior } : {}),
+        ...(mutators?.length ? { mutators: [...mutators] } : {}),
       });
       sessionProjects.set(result.session.id, projectId);
       if (epoch !== epochOf(projectId)) return result.session;

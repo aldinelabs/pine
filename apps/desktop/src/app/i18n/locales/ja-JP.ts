@@ -1,5 +1,6 @@
 export default {
   common: {
+    createWithPine: "Pine と一緒に作成",
     back: "戻る",
     downloadFile: "ファイルをダウンロード",
     cancel: "キャンセル",
@@ -899,6 +900,12 @@ export default {
         "システムの既定のアプリケーションで添付ファイルを開けませんでした",
       removeAttachment: "添付ファイル {name} を削除",
       contextSelection: "選択：「{text}」",
+      authoring: {
+        skill: "Pine と一緒にスキルを作成",
+        automation: "Pine と一緒にオートメーションを作成",
+        mcp: "Pine と一緒に MCP サーバーを追加",
+        remove: "通常の会話にする",
+      },
       contextRemove: "削除するには",
       attachmentPickerFailed: "選択した項目を開けないか、確認できませんでした",
       attachmentDropFailed: "ドロップした添付ファイルを確認できませんでした",
@@ -1079,6 +1086,10 @@ export default {
           active: "モデルを {count} 回確認中",
           complete: "モデルを {count} 回確認しました",
         },
+        mcpConfig: {
+          active: "MCP サーバーを {count} 回設定中",
+          complete: "MCP サーバーを {count} 回設定しました",
+        },
         project: {
           active: "{count} 件のプロジェクト操作を実行中",
           complete: "{count} 件のプロジェクト操作を実行しました",
@@ -1120,6 +1131,7 @@ export default {
         workbenchState: "ワークベンチの状態",
         automation: "自動化の操作",
         model: "モデルの確認",
+        mcpConfig: "MCP 設定",
         project: "プロジェクト操作",
         background: "バックグラウンドプロセス",
         todo: "ToDo",
@@ -1310,6 +1322,43 @@ export default {
             running: "利用可能なモデルを確認中",
             complete: "利用可能なモデルを確認しました",
             error: "モデルの一覧を読み込めませんでした",
+          },
+        },
+        mcpConfig: {
+          activate: {
+            running: "MCP 設定ツールを読み込み中",
+            complete: "MCP 設定ツールを読み込みました",
+            error: "MCP 設定ツールを読み込めませんでした",
+          },
+          list: {
+            running: "MCP サーバー一覧を確認中",
+            complete: "MCP サーバー一覧を確認しました",
+            error: "MCP サーバー一覧を読み込めませんでした",
+          },
+          create: {
+            running: "MCP サーバーを追加中: ",
+            complete: "MCP サーバーを追加しました: ",
+            error: "MCP サーバーを追加できませんでした: ",
+          },
+          update: {
+            running: "MCP サーバーを更新中: ",
+            complete: "MCP サーバーを更新しました: ",
+            error: "MCP サーバーを更新できませんでした: ",
+          },
+          enable: {
+            running: "MCP サーバーを有効化中: ",
+            complete: "MCP サーバーを有効にしました: ",
+            error: "MCP サーバーを有効にできませんでした: ",
+          },
+          disable: {
+            running: "MCP サーバーを無効化中: ",
+            complete: "MCP サーバーを無効にしました: ",
+            error: "MCP サーバーを無効にできませんでした: ",
+          },
+          remove: {
+            running: "MCP サーバーを削除中: ",
+            complete: "MCP サーバーを削除しました: ",
+            error: "MCP サーバーを削除できませんでした: ",
           },
         },
         project: {
@@ -1959,6 +2008,22 @@ export default {
     },
   },
   automations: {
+    editor: {
+      create: "定義を手書きする",
+      edit: "定義を編集",
+      newTitle: "新しいオートメーション",
+      editTitle: "「{name}」を編集",
+      description:
+        "オートメーションの定義を JSON で書きます。ここで保存すると承認したことになります。",
+      definition: "定義",
+      definitionHelp:
+        "Pine がオートメーションを書くときと同じ形式です。保存する前に「確認」で動作を確かめられます。",
+      invalidJson: "定義は JSON オブジェクトである必要があります。",
+      check: "確認",
+      save: "保存",
+      saved: "オートメーションを保存しました",
+      dryRun: "試行結果",
+    },
     title: "オートメーション",
     description:
       "時刻、ファイルの変更、サイトの更新をきっかけに Pine が自動で行う作業です。会話で Pine に頼むと作成できます。",

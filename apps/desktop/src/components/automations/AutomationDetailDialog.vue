@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { HistoryIcon, PlayIcon, Trash2Icon } from "@lucide/vue";
+import { FileJsonIcon, HistoryIcon, PlayIcon, Trash2Icon } from "@lucide/vue";
 import { computed, ref, shallowRef, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { toast } from "vue-sonner";
@@ -45,6 +45,7 @@ import type {
   AutomationRunSummary,
 } from "@/shared/automation";
 import { useAutomationsStore } from "@/stores/automations";
+import AutomationEditorDialog from "./AutomationEditorDialog.vue";
 import AutomationFactsList from "./AutomationFactsList.vue";
 import { runStatusVariant, useAutomationTime } from "./automationDisplay";
 
@@ -60,6 +61,7 @@ const time = useAutomationTime();
 const detail = shallowRef<AutomationDetail | null>(null);
 const runs = ref<AutomationRunSummary[]>([]);
 const deleting = ref(false);
+const editing = ref(false);
 const isDesktop = computed(() => window.pine.runtime === "desktop");
 const open = computed({
   get: () => target.value !== null,
@@ -207,6 +209,16 @@ function pauseText(reason: AutomationPauseReason): string {
                 v-if="isDesktop"
                 variant="outline"
                 size="sm"
+                data-testid="automation-edit-definition"
+                @click="editing = true"
+                ><FileJsonIcon data-icon="inline-start" />{{
+                  t("automations.editor.edit")
+                }}</Button
+              >
+              <Button
+                v-if="isDesktop"
+                variant="outline"
+                size="sm"
                 @click="deleting = true"
                 ><Trash2Icon data-icon="inline-start" />{{
                   t("common.delete")
@@ -279,4 +291,10 @@ function pauseText(reason: AutomationPauseReason): string {
       </AlertDialogFooter>
     </AlertDialogContent>
   </AlertDialog>
+  <AutomationEditorDialog
+    v-if="detail"
+    v-model:open="editing"
+    :project-id="detail.projectId"
+    :automation="detail"
+  />
 </template>

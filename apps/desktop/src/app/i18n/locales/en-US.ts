@@ -1,5 +1,6 @@
 export default {
   common: {
+    createWithPine: "Create with Pine",
     back: "Back",
     downloadFile: "Download file",
     cancel: "Cancel",
@@ -896,6 +897,12 @@ export default {
         "Could not open the attachment with the system default application",
       removeAttachment: "Remove attachment {name}",
       contextSelection: "Selected “{text}”",
+      authoring: {
+        skill: "Creating a skill with Pine",
+        automation: "Creating an automation with Pine",
+        mcp: "Adding an MCP server with Pine",
+        remove: "Start an ordinary conversation instead",
+      },
       contextRemove: "to remove",
       attachmentPickerFailed: "Could not open or inspect the selected items",
       attachmentDropFailed: "Could not inspect the dropped attachments",
@@ -1074,6 +1081,10 @@ export default {
           active: "Looking up models {count} times",
           complete: "Looked up models {count} times",
         },
+        mcpConfig: {
+          active: "Configuring MCP servers {count} times",
+          complete: "Configured MCP servers {count} times",
+        },
         project: {
           active: "Running {count} project actions",
           complete: "Ran {count} project actions",
@@ -1115,6 +1126,7 @@ export default {
         workbenchState: "workbench state",
         automation: "automation action",
         model: "model lookup",
+        mcpConfig: "MCP configuration",
         project: "project action",
         background: "background process",
         todo: "todos",
@@ -1304,6 +1316,43 @@ export default {
             running: "Listing models",
             complete: "Listed available models",
             error: "Couldn’t list models",
+          },
+        },
+        mcpConfig: {
+          activate: {
+            running: "Loading MCP configuration tools",
+            complete: "Loaded MCP configuration tools",
+            error: "Couldn’t load MCP configuration tools",
+          },
+          list: {
+            running: "Listing MCP servers",
+            complete: "Listed MCP servers",
+            error: "Couldn’t list MCP servers",
+          },
+          create: {
+            running: "Adding MCP server ",
+            complete: "Added MCP server ",
+            error: "Couldn’t add MCP server ",
+          },
+          update: {
+            running: "Updating MCP server ",
+            complete: "Updated MCP server ",
+            error: "Couldn’t update MCP server ",
+          },
+          enable: {
+            running: "Enabling MCP server ",
+            complete: "Enabled MCP server ",
+            error: "Couldn’t enable MCP server ",
+          },
+          disable: {
+            running: "Disabling MCP server ",
+            complete: "Disabled MCP server ",
+            error: "Couldn’t disable MCP server ",
+          },
+          remove: {
+            running: "Removing MCP server ",
+            complete: "Removed MCP server ",
+            error: "Couldn’t remove MCP server ",
           },
         },
         project: {
@@ -1928,6 +1977,22 @@ export default {
     },
   },
   automations: {
+    editor: {
+      create: "Write a definition",
+      edit: "Edit definition",
+      newTitle: "New automation",
+      editTitle: "Edit “{name}”",
+      description:
+        "Write the automation's definition as JSON. Saving it here is your approval.",
+      definition: "Definition",
+      definitionHelp:
+        "The same format Pine uses when it writes automations. Check shows what it will do before you save.",
+      invalidJson: "The definition must be a JSON object.",
+      check: "Check",
+      save: "Save",
+      saved: "Automation saved",
+      dryRun: "Dry run result",
+    },
     title: "Automations",
     description:
       "Work Pine does on its own when a time, a file change or a website update calls for it. Ask Pine in a conversation to set one up.",
