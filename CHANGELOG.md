@@ -9,6 +9,27 @@ Every release section here has a matching section in the Chinese changelog.
 
 ## [Unreleased]
 
+## [0.15.1] - 2026-11-04
+
+### Added
+
+- Session cost limit: set a limit before or during a session; reaching it stops the running session and blocks new prompts. The context usage popover is now split into Context and Cost sections, and costs can be shown in a currency chosen in General settings (default follows your system region; USD is shown when exchange rates are unavailable).
+- Preview tabs: sessions and files opened casually from the sidebar, search, the file tree or tool markers now replace the untouched preview tab instead of piling up new tabs. Also new: Cmd/Ctrl+Shift+T reopens the last closed tab, Cmd/Ctrl+1–9 jumps to a tab, and middle-click closes a tab.
+- On models that cannot take added tools behind the cached prefix, enabling a new tool past 131,072 tokens of context makes the provider reprocess the whole context at full price. Pine now asks first with a card that explains the cost and lets you enable now, compress first and then continue, or stop the run.
+
+### Changed
+
+- Compacting a conversation now reuses the conversation's cached prefix instead of billing the whole context at the uncached rate.
+- Automations now open with Cmd+U and MCP servers with Cmd+/; Cmd+L now only focuses the composer.
+- In Autonomous Work, the agent must set a wait limit when it asks you a question, and the wait is capped at 20 minutes.
+
+### Fixed
+
+- In Autonomous Work, after five denials in one long run every later approval was denied outright; the reviewer now judges again after one denied batch. A failed review is retried once, and outages no longer count toward consecutive denials.
+- A conversation whose title generation failed stayed untitled for good; it is now retried on later turns up to three times, and reasoning models no longer run out of room before producing a title.
+- Untitled sessions showed the latest prompt in tabs and the sidebar instead of the first message; sending a later prompt no longer changes the preview.
+- Borders of interactive cards in replies are no longer clipped on the outside.
+
 ## [0.15.0] - 2026-11-03
 
 ### Added
