@@ -927,7 +927,7 @@ export default {
       authoring: {
         skill: "Skill mit Pine erstellen",
         automation: "Automatisierung mit Pine erstellen",
-        mcp: "MCP-Server mit Pine hinzufügen",
+        mcp: "MCP-Server mit Pine verwalten",
         remove: "Stattdessen normal unterhalten",
       },
       contextRemove: "zum Entfernen",

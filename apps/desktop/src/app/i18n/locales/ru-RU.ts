@@ -913,7 +913,7 @@ export default {
       authoring: {
         skill: "Создание навыка вместе с Pine",
         automation: "Создание автоматизации вместе с Pine",
-        mcp: "Добавление MCP-сервера вместе с Pine",
+        mcp: "Управление MCP-серверами вместе с Pine",
         remove: "Начать обычный разговор",
       },
       contextRemove: "чтобы убрать",

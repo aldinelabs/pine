@@ -865,7 +865,7 @@ export default {
       authoring: {
         skill: "正在和 Pine 協作建立技能",
         automation: "正在和 Pine 協作建立自動化",
-        mcp: "正在和 Pine 協作新增 MCP 伺服器",
+        mcp: "正在和 Pine 協作管理 MCP 伺服器",
         remove: "改為一般對話",
       },
       contextRemove: "移除",

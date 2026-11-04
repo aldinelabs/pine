@@ -900,7 +900,7 @@ export default {
       authoring: {
         skill: "Pine과 함께 스킬 만드는 중",
         automation: "Pine과 함께 자동화 만드는 중",
-        mcp: "Pine과 함께 MCP 서버 추가 중",
+        mcp: "Pine과 함께 MCP 서버 관리 중",
         remove: "일반 대화로 전환",
       },
       contextRemove: "제거하려면",

@@ -909,7 +909,7 @@ export default {
       authoring: {
         skill: "Pine と一緒にスキルを作成",
         automation: "Pine と一緒にオートメーションを作成",
-        mcp: "Pine と一緒に MCP サーバーを追加",
+        mcp: "Pine と一緒に MCP サーバーを管理",
         remove: "通常の会話にする",
       },
       contextRemove: "削除するには",

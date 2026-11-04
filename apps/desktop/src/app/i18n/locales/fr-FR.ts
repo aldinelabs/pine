@@ -922,7 +922,7 @@ export default {
       authoring: {
         skill: "Création d’une compétence avec Pine",
         automation: "Création d’une automatisation avec Pine",
-        mcp: "Ajout d’un serveur MCP avec Pine",
+        mcp: "Gestion des serveurs MCP avec Pine",
         remove: "Passer à une conversation ordinaire",
       },
       contextRemove: "pour retirer",
