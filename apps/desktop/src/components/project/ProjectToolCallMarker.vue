@@ -1082,12 +1082,13 @@ const presentation = computed(() => {
     const localIso = inputRecord(
       inputRecord(props.toolCall.output).details,
     ).localIso;
+    const target =
+      tense === "complete" && typeof localIso === "string" ? localIso : "";
     return {
       before: t(`project.transcript.tools.datetime.${tense}`),
       operation: undefined,
-      separator: "",
-      target:
-        tense === "complete" && typeof localIso === "string" ? localIso : "",
+      separator: target ? " " : "",
+      target,
       targetMono: true,
       purpose: undefined,
       faviconDataUrl: undefined,
