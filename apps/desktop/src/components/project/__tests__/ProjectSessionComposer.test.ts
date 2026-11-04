@@ -16,7 +16,9 @@ import {
   TEMPORARY_WORKSPACE_PROJECT_ID,
   type PineProject,
 } from "@/shared/projects";
+import type { AutomationApprovalRequest } from "@/shared/automation";
 import type { PinePendingApproval } from "@/stores/session";
+import AutomationApprovalCard from "@/components/automations/AutomationApprovalCard.vue";
 import ProjectApprovalCard from "../ProjectApprovalCard.vue";
 import ProjectSessionComposer from "../ProjectSessionComposer.vue";
 
@@ -27,6 +29,7 @@ interface ComposerProps {
   isRunning?: boolean;
   isActive?: boolean;
   pendingApproval?: PinePendingApproval | null;
+  pendingAutomationApproval?: AutomationApprovalRequest | null;
   steeringMessages?: readonly string[];
 }
 
@@ -34,6 +37,7 @@ function mountComposer(
   props: ComposerProps = {},
   thinkingLevel: PineThinkingLevel = "high",
   locale: AppLocale = "zh-CN",
+  pine: Record<string, unknown> = {},
 ) {
   const pinia = createPinia();
   setActivePinia(pinia);
@@ -80,6 +84,7 @@ function mountComposer(
       pickAttachmentFolders: () => Promise.resolve({ attachments: [] }),
       pickAttachments: () => Promise.resolve({ attachments: [] }),
       attachSession: () => Promise.reject(new Error("Not configured")),
+      ...pine,
     },
   });
   useModelsStore().catalog = catalog;
@@ -889,6 +894,46 @@ describe("ProjectSessionComposer", () => {
     await wrapper.setProps({ isActive: true });
     window.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter" }));
     expect(wrapper.emitted("respond")?.[0]).toEqual(["approve", undefined]);
+    wrapper.unmount();
+  });
+
+  it("replaces the input with an automation approval answered by shortcut", () => {
+    const respondApproval = vi.fn(() => Promise.resolve());
+    const approval: AutomationApprovalRequest = {
+      requestId: "automation-1",
+      projectId: "project-1",
+      projectName: "Docs",
+      kind: "create",
+      facts: {
+        name: "Daily summary",
+        triggers: [],
+        read: [],
+        write: [],
+        network: [],
+        tools: ["read"],
+        mcp: [],
+        secrets: [],
+        skills: [],
+        notify: "on-findings",
+        outputs: [],
+        limits: { maxRunsPerDay: 100, maxMinutesPerRun: 10 },
+      },
+      warnings: [],
+      createdAt: "2026-11-03T00:00:00.000Z",
+    };
+    const wrapper = mountComposer(
+      { pendingAutomationApproval: approval, isActive: true },
+      "high",
+      "en-US",
+      { runtime: "desktop", automations: { respondApproval } },
+    );
+    expect(wrapper.findComponent(AutomationApprovalCard).exists()).toBe(true);
+    expect(wrapper.find("textarea").exists()).toBe(false);
+    window.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter" }));
+    expect(respondApproval).toHaveBeenCalledWith({
+      requestId: "automation-1",
+      approve: true,
+    });
     wrapper.unmount();
   });
 });

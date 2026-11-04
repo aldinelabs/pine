@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { TriangleAlertIcon, WorkflowIcon } from "@lucide/vue";
-import { computed, ref } from "vue";
+import { TriangleAlertIcon } from "@lucide/vue";
+import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import { Button } from "@/components/ui/button";
 import {
@@ -16,6 +16,8 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
+import { Kbd } from "@/components/ui/kbd";
+import { useShortcutHints } from "@/composables/useShortcutHints";
 import type {
   AutomationApprovalRequest,
   AutomationWarning,
@@ -23,14 +25,20 @@ import type {
 import { useAutomationsStore } from "@/stores/automations";
 import AutomationFactsList from "./AutomationFactsList.vue";
 
-const props = defineProps<{ approval: AutomationApprovalRequest }>();
+const props = defineProps<{
+  approval: AutomationApprovalRequest;
+  /** Keyboard shortcuts only apply where the card replaces the composer. */
+  isActive?: boolean;
+}>();
 
 const { t } = useI18n();
 const store = useAutomationsStore();
+const showShortcutHints = useShortcutHints();
 const showScripts = ref(false);
 const responding = computed(() =>
   store.respondingIds.has(props.approval.requestId),
 );
+const shortcuts = computed(() => props.isActive === true && store.canApprove);
 const scripts = computed(() =>
   props.approval.facts.triggers.flatMap((trigger) =>
     trigger.kind === "script" ? [trigger.source] : [],
@@ -51,33 +59,54 @@ function warning(item: AutomationWarning): string {
       return t(`automations.warnings.${item.code}`);
   }
 }
+
+function respond(approve: boolean): void {
+  if (responding.value || !store.canApprove) return;
+  void store.respond(props.approval.requestId, approve);
+}
+
+function handleShortcut(event: KeyboardEvent): void {
+  if (!shortcuts.value) return;
+  if (event.metaKey || event.ctrlKey || event.altKey) return;
+  if (event.defaultPrevented) return;
+  const target = event.target;
+  if (
+    target instanceof HTMLInputElement ||
+    target instanceof HTMLTextAreaElement ||
+    (target instanceof HTMLElement && target.isContentEditable)
+  ) {
+    return;
+  }
+  if (event.key === "Enter") {
+    event.preventDefault();
+    respond(true);
+  } else if (event.key === "Escape") {
+    event.preventDefault();
+    respond(false);
+  }
+}
+
+onMounted(() => window.addEventListener("keydown", handleShortcut));
+onBeforeUnmount(() => window.removeEventListener("keydown", handleShortcut));
 </script>
 
 <template>
   <Card
     data-testid="automation-approval-card"
-    class="mx-auto w-full max-w-3xl gap-3 border-primary/40 py-4"
+    class="max-h-[min(28rem,60dvh)] min-h-0"
   >
-    <CardHeader class="px-4">
-      <CardTitle class="flex items-center gap-2 text-base">
-        <WorkflowIcon class="size-4" aria-hidden="true" />
-        {{ t(`automations.approval.title.${approval.kind}`) }}:
-        {{ approval.facts.name }}
-      </CardTitle>
+    <CardHeader class="shrink-0">
+      <CardTitle
+        >{{ t(`automations.approval.title.${approval.kind}`) }}:
+        {{ approval.facts.name }}</CardTitle
+      >
       <CardDescription>{{
         t("automations.approval.description", { project: approval.projectName })
       }}</CardDescription>
     </CardHeader>
-    <CardContent class="flex flex-col gap-3 px-4">
-      <p
-        v-if="approval.explanation"
-        class="rounded-md bg-muted px-3 py-2 text-sm whitespace-pre-wrap"
-      >
-        {{ approval.explanation }}
-        <span class="mt-1 block text-xs text-muted-foreground">{{
-          t("automations.approval.explanationNote")
-        }}</span>
-      </p>
+    <CardContent
+      class="scroll-fade-y flex min-h-0 flex-col gap-3 overflow-y-auto overscroll-contain"
+    >
       <ul
         v-if="approval.warnings.length"
         class="flex flex-col gap-1 text-sm text-amber-700 dark:text-amber-400"
@@ -94,41 +123,59 @@ function warning(item: AutomationWarning): string {
           <span>{{ warning(item) }}</span>
         </li>
       </ul>
+      <div v-if="approval.explanation" class="flex flex-col gap-1">
+        <p class="text-sm whitespace-pre-wrap">{{ approval.explanation }}</p>
+        <p class="text-xs text-muted-foreground">
+          {{ t("automations.approval.explanationNote") }}
+        </p>
+      </div>
       <AutomationFactsList
+        class="rounded-lg bg-muted/60 px-3 py-2"
         :facts="approval.facts"
         :previous="approval.previousFacts"
       />
       <Collapsible v-if="scripts.length" v-model:open="showScripts">
-        <CollapsibleTrigger as-child>
-          <Button variant="link" size="sm" class="h-auto px-0">{{
+        <CollapsibleTrigger
+          class="cursor-pointer text-xs text-muted-foreground"
+          >{{
             showScripts
               ? t("automations.approval.hideScript")
               : t("automations.approval.showScript")
-          }}</Button>
-        </CollapsibleTrigger>
+          }}</CollapsibleTrigger
+        >
         <CollapsibleContent>
           <pre
             v-for="(source, index) in scripts"
             :key="index"
-            class="mt-2 max-h-64 overflow-auto rounded-md bg-muted p-3 font-mono text-xs"
+            class="mt-1 overflow-x-auto rounded-lg bg-muted/60 p-2 font-mono text-xs whitespace-pre-wrap"
             >{{ source }}</pre>
         </CollapsibleContent>
       </Collapsible>
     </CardContent>
-    <CardFooter class="justify-end gap-2 px-4">
-      <template v-if="store.canApprove">
+    <CardFooter class="mt-auto shrink-0 gap-2">
+      <div v-if="store.canApprove" class="ml-auto flex items-center gap-2">
         <Button
+          type="button"
           variant="outline"
+          size="sm"
           :disabled="responding"
-          @click="store.respond(approval.requestId, false)"
-          >{{ t("automations.approval.reject") }}</Button
+          @click="respond(false)"
         >
+          {{ t("automations.approval.reject") }}
+          <Kbd v-if="showShortcutHints && shortcuts" aria-hidden="true"
+            >esc</Kbd
+          >
+        </Button>
         <Button
+          type="button"
+          size="sm"
           :disabled="responding"
-          @click="store.respond(approval.requestId, true)"
-          >{{ t(`automations.approval.approve.${approval.kind}`) }}</Button
+          @click="respond(true)"
         >
-      </template>
+          {{ t(`automations.approval.approve.${approval.kind}`) }}
+          <Kbd v-if="showShortcutHints && shortcuts" aria-hidden="true">↵</Kbd>
+        </Button>
+      </div>
       <p v-else class="text-sm text-muted-foreground">
         {{ t("automations.approval.desktopOnly") }}
       </p>

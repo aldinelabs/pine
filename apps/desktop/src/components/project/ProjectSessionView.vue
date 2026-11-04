@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import AutomationApprovalCard from "@/components/automations/AutomationApprovalCard.vue";
 import { useAutomationsStore } from "@/stores/automations";
 import SwitchComputerButton from "@/components/window/SwitchComputerButton.vue";
 import {
@@ -715,17 +714,6 @@ async function handleDrop(event: DragEvent): Promise<void> {
         />
       </div>
 
-      <div
-        v-if="automationApprovals.length"
-        class="flex flex-col gap-2 px-3 pb-2"
-      >
-        <AutomationApprovalCard
-          v-for="approval in automationApprovals"
-          :key="approval.requestId"
-          :approval="approval"
-        />
-      </div>
-
       <ProjectSessionComposer
         ref="composer"
         v-model="draft"
@@ -742,6 +730,7 @@ async function handleDrop(event: DragEvent): Promise<void> {
             : false
         "
         :pending-questionnaire="pendingQuestionnaire"
+        :pending-automation-approval="automationApprovals[0] ?? null"
         :project-id="props.projectId"
         :session-id="props.sessionId"
         :steering-messages="steeringMessages"

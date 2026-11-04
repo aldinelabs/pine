@@ -28,6 +28,7 @@ import ModelCapabilities from "@/components/models/ModelCapabilities.vue";
 import ModelPickerDialog from "@/components/models/ModelPickerDialog.vue";
 import ProviderIcon from "@/components/models/ProviderIcon.vue";
 import ProjectComposerContext from "@/components/project/ProjectComposerContext.vue";
+import AutomationApprovalCard from "@/components/automations/AutomationApprovalCard.vue";
 import ProjectApprovalCard from "@/components/project/ProjectApprovalCard.vue";
 import ProjectQuestionnaireCard from "@/components/project/ProjectQuestionnaireCard.vue";
 import ProjectAttachmentList from "@/components/project/ProjectAttachmentList.vue";
@@ -85,6 +86,7 @@ import type { PineProject } from "@/shared/projects";
 import { useProjectStore } from "@/stores/project";
 import { cn } from "@/lib/utils";
 import type { PineApprovalAction, PineApprovalMode } from "@/shared/agent";
+import type { AutomationApprovalRequest } from "@/shared/automation";
 import {
   parseAttachmentMessage,
   serializeAttachmentMessage,
@@ -157,6 +159,8 @@ const props = withDefaults(
     pendingApproval?: PinePendingApproval | null;
     /** When set, the structured question card replaces the message input. */
     pendingQuestionnaire?: PinePendingQuestionnaire | null;
+    /** When set, the automation approval replaces the message input. */
+    pendingAutomationApproval?: AutomationApprovalRequest | null;
   }>(),
   {
     context: () => [],
@@ -213,7 +217,11 @@ const canSubmit = computed(
       !isMentioning.value),
 );
 const hasPendingInterruption = computed(() =>
-  Boolean(props.pendingQuestionnaire || props.pendingApproval),
+  Boolean(
+    props.pendingQuestionnaire ||
+    props.pendingApproval ||
+    props.pendingAutomationApproval,
+  ),
 );
 const approvalModes = computed<ApprovalModeOption[]>(() => [
   {
@@ -761,6 +769,12 @@ function handleRootSubmit(event: Event): void {
       :is-responding="props.isResponding"
       :approval="props.pendingApproval"
       @respond="(action, guidance) => emit('respond', action, guidance)"
+    />
+    <AutomationApprovalCard
+      v-else-if="props.pendingAutomationApproval"
+      :key="props.pendingAutomationApproval.requestId"
+      :is-active="props.isActive"
+      :approval="props.pendingAutomationApproval"
     />
     <template v-else>
       <div
