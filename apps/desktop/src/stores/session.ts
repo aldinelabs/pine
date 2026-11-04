@@ -840,6 +840,7 @@ export const useSessionStore = defineStore("session", () => {
     const epoch = epochOf(projectId);
     const targetState = sessionId ? stateFor(sessionId) : draftState.value;
     targetState.isRunning = true;
+    if (!sessionId) pendingNewSessionLimit = draftCostLimit.value;
     try {
       const result = await window.pine.promptSession({
         locale: agentLocale(currentAppLocale()),
@@ -852,6 +853,11 @@ export const useSessionStore = defineStore("session", () => {
         ...(mutators?.length ? { mutators: [...mutators] } : {}),
       });
       sessionProjects.set(result.session.id, projectId);
+      if (!sessionId && pendingNewSessionLimit != null) {
+        setCostLimit(result.session.id, pendingNewSessionLimit);
+        pendingNewSessionLimit = null;
+        draftCostLimit.value = null;
+      }
       if (epoch !== epochOf(projectId)) return result.session;
       const summary = withoutAutomationRun(
         upsertRecentSession(projectId, {
@@ -872,6 +878,8 @@ export const useSessionStore = defineStore("session", () => {
     } catch (error) {
       if (!streamingBehavior) targetState.isRunning = false;
       throw error;
+    } finally {
+      if (!sessionId) pendingNewSessionLimit = null;
     }
   }
 
@@ -948,6 +956,24 @@ export const useSessionStore = defineStore("session", () => {
 
   function costLimitFor(sessionId: string | null | undefined): number | null {
     return sessionId ? (costLimits.value[sessionId] ?? null) : null;
+  }
+
+  /** Limit chosen on the new-session page, handed to the session it starts. */
+  const draftCostLimit = ref<number | null>(null);
+  /** The draft limit of a new session's first prompt that is still in flight. */
+  let pendingNewSessionLimit: number | null = null;
+
+  /** The limit of the open session, or of the draft on the new-session page. */
+  const activeCostLimit = computed(() =>
+    currentSessionId.value
+      ? costLimitFor(currentSessionId.value)
+      : draftCostLimit.value,
+  );
+
+  function setActiveCostLimit(limit: number | null): void {
+    const valid = limit != null && Number.isFinite(limit) && limit > 0;
+    if (currentSessionId.value) setCostLimit(currentSessionId.value, limit);
+    else draftCostLimit.value = valid ? limit : null;
   }
 
   /** Sets the session's spend limit; null, 0 or a non-number clears it. */
@@ -1358,6 +1384,14 @@ export const useSessionStore = defineStore("session", () => {
       contextUsage.value = usage;
       const cached = sessionCache.get(event.sessionId);
       if (cached) cached.contextUsage = usage;
+      // Usage can arrive before the prompt call returns the new session.
+      if (
+        pendingNewSessionLimit != null &&
+        costLimitFor(event.sessionId) == null &&
+        !sessionProjects.has(event.sessionId)
+      ) {
+        setCostLimit(event.sessionId, pendingNewSessionLimit);
+      }
       const limit = costLimitFor(event.sessionId);
       if (
         limit != null &&
@@ -1801,6 +1835,9 @@ export const useSessionStore = defineStore("session", () => {
     contextUsage,
     costLimits,
     costLimitFor,
+    activeCostLimit,
+    draftCostLimit,
+    setActiveCostLimit,
     setCostLimit,
     isCostLimitReached,
     deleteSession,

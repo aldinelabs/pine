@@ -1400,6 +1400,28 @@ describe("session store", () => {
     expect(store.isCostLimitReached(session.id)).toBe(false);
   });
 
+  it("hands a cost limit set on the new-session page to the session it starts", async () => {
+    Object.defineProperty(window, "pine", {
+      configurable: true,
+      value: {
+        onSessionEvent: vi.fn(() => () => undefined),
+        promptSession: vi.fn().mockResolvedValue({ session }),
+      },
+    });
+    const store = useSessionStore();
+    store.startDraft();
+    expect(store.activeCostLimit).toBeNull();
+
+    store.setActiveCostLimit(3);
+    expect(store.activeCostLimit).toBe(3);
+    expect(store.costLimitFor(session.id)).toBeNull();
+
+    await store.prompt("Hello", { projectId: PROJECT_ID });
+    expect(store.costLimitFor(session.id)).toBe(3);
+    expect(store.draftCostLimit).toBeNull();
+    store.setCostLimit(session.id, null);
+  });
+
   it("keeps automatic approval decisions with their tool calls", async () => {
     let listener: ((event: PineAgentEvent) => void) | undefined;
     Object.defineProperty(window, "pine", {

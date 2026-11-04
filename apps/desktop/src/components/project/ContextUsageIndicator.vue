@@ -45,9 +45,7 @@ const ringDashOffset = computed(
   () => RING_CIRCUMFERENCE * (1 - usageFraction.value),
 );
 
-const costLimit = computed(() =>
-  sessionStore.costLimitFor(activeSession.value?.id),
-);
+const costLimit = computed(() => sessionStore.activeCostLimit);
 
 /** 0–100 share of the cost limit spent; null without a limit. */
 const costPercent = computed(() => {
@@ -83,11 +81,8 @@ watch(
 );
 
 function commitLimit(): void {
-  const sessionId = activeSession.value?.id;
-  if (!sessionId) return;
   const value = Number.parseFloat(limitDraft.value);
-  sessionStore.setCostLimit(
-    sessionId,
+  sessionStore.setActiveCostLimit(
     Number.isFinite(value) && value > 0 ? currencyStore.toUsd(value) : null,
   );
   limitDraft.value = draftFor(costLimit.value);
@@ -103,9 +98,7 @@ function defaultLimitUsd(): number {
 }
 
 function toggleLimit(enabled: boolean): void {
-  const sessionId = activeSession.value?.id;
-  if (!sessionId) return;
-  sessionStore.setCostLimit(sessionId, enabled ? defaultLimitUsd() : null);
+  sessionStore.setActiveCostLimit(enabled ? defaultLimitUsd() : null);
   limitDraft.value = draftFor(costLimit.value);
 }
 
@@ -292,7 +285,6 @@ async function compactContext(): Promise<void> {
             id="session-cost-limit-toggle"
             data-testid="cost-limit-toggle"
             :model-value="costLimit != null"
-            :disabled="!activeSession"
             @update:model-value="toggleLimit"
           />
         </div>
