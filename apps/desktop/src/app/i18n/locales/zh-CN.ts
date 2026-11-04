@@ -473,7 +473,9 @@ export default {
       iconLabel: "项目图标",
       colorThemeLabel: "项目强调色",
       colorThemes: {
-        olive: "Pine 默认",
+        default: "Pine 默认",
+        neutral: "中性",
+        olive: "橄榄色",
         red: "红色",
         rose: "玫瑰色",
         orange: "橙色",

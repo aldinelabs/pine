@@ -504,7 +504,9 @@ export default {
       iconLabel: "プロジェクトのアイコン",
       colorThemeLabel: "プロジェクトのアクセントカラー",
       colorThemes: {
-        olive: "Pine 標準",
+        default: "Pine 標準",
+        neutral: "ニュートラル",
+        olive: "オリーブ",
         red: "レッド",
         rose: "ローズ",
         orange: "オレンジ",

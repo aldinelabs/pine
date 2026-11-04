@@ -45,15 +45,22 @@ import {
 import type {
   PineProject,
   ProjectColorTheme,
+  ProjectColorThemeSetting,
   ProjectFolderInput,
   ProjectIcon,
   ProjectMutationInput,
 } from "@/shared/projects";
-import { PROJECT_COLOR_THEMES, PROJECT_ICONS } from "@/shared/projects";
-import { PROJECT_COLOR_THEME_OPTIONS } from "@/lib/projectColorThemes";
+import {
+  DEFAULT_PINE_COLOR_THEME,
+  PROJECT_COLOR_THEME_SETTINGS,
+  PROJECT_ICONS,
+} from "@/shared/projects";
+import { projectColorThemeSettingOptions } from "@/lib/projectColorThemes";
 import { PROJECT_ICON_COMPONENTS } from "@/lib/projectIcons";
 
 interface Props {
+  /** The theme a project that follows Pine's default shows. */
+  defaultColorTheme?: ProjectColorTheme;
   isSaving?: boolean;
   project?: PineProject | null;
 }
@@ -63,6 +70,7 @@ interface EditorProjectFolder extends ProjectFolderInput {
 }
 
 const props = withDefaults(defineProps<Props>(), {
+  defaultColorTheme: DEFAULT_PINE_COLOR_THEME,
   isSaving: false,
   project: null,
 });
@@ -73,7 +81,7 @@ const emit = defineEmits<{
 }>();
 const { t } = useI18n();
 const name = ref("");
-const projectColorTheme = ref<ProjectColorTheme>("olive");
+const projectColorTheme = ref<ProjectColorThemeSetting>("default");
 const projectIcon = ref<ProjectIcon>("inbox");
 const isIconPickerOpen = ref(false);
 const folders = ref<EditorProjectFolder[]>([]);
@@ -83,8 +91,11 @@ const originalFolderNames = new Map<string, string>();
 const defaultFolder = computed(() =>
   folders.value.find((folder) => folder.id === defaultFolderId.value),
 );
+const colorThemeOptions = computed(() =>
+  projectColorThemeSettingOptions(props.defaultColorTheme),
+);
 const selectedColorThemeOption = computed(() =>
-  PROJECT_COLOR_THEME_OPTIONS.find(
+  colorThemeOptions.value.find(
     (option) => option.value === projectColorTheme.value,
   ),
 );
@@ -108,7 +119,7 @@ const canSubmit = computed(
 function reset(): void {
   originalFolderNames.clear();
   name.value = props.project?.name ?? "";
-  projectColorTheme.value = props.project?.projectColorTheme ?? "olive";
+  projectColorTheme.value = props.project?.projectColorTheme ?? "default";
   projectIcon.value = props.project?.projectIcon ?? "inbox";
   folders.value = props.project?.folders.map((folder) => ({ ...folder })) ?? [];
   defaultFolderId.value = props.project?.defaultFolderId ?? "";
@@ -185,9 +196,9 @@ function updateFolderAccess(
 function updateProjectColorTheme(value: unknown): void {
   if (
     typeof value === "string" &&
-    PROJECT_COLOR_THEMES.includes(value as ProjectColorTheme)
+    PROJECT_COLOR_THEME_SETTINGS.includes(value as ProjectColorThemeSetting)
   ) {
-    projectColorTheme.value = value as ProjectColorTheme;
+    projectColorTheme.value = value as ProjectColorThemeSetting;
   }
 }
 
@@ -300,7 +311,7 @@ watch(() => props.project, reset, { immediate: true });
             <SelectContent>
               <SelectGroup>
                 <SelectItem
-                  v-for="option in PROJECT_COLOR_THEME_OPTIONS"
+                  v-for="option in colorThemeOptions"
                   :key="option.value"
                   :value="option.value"
                 >

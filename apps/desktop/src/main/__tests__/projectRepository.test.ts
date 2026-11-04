@@ -255,4 +255,66 @@ describe("ProjectRepository", () => {
       projectIcon: "inbox",
     });
   });
+
+  it("stores color choices so older Pine can still read them", async () => {
+    const userData = await createTemporaryDirectory("pine-user-data-");
+    const folderPath = await createTemporaryDirectory("pine-project-folder-");
+    const projectsRoot = path.join(userData, "projects");
+    const repository = new ProjectRepository(projectsRoot);
+    const folderId = "cde9a86c-7632-43ac-96d6-c41ddeddce0e";
+    const input = {
+      defaultFolderId: folderId,
+      folders: [
+        {
+          access: "read-write" as const,
+          id: folderId,
+          name: "source",
+          path: folderPath,
+        },
+      ],
+      name: "Pine",
+    };
+    const project = await repository.create(input);
+    expect(project.projectColorTheme).toBe("default");
+    const metadataPath = path.join(projectsRoot, project.id, "project.json");
+    const readMetadata = async () =>
+      JSON.parse(await readFile(metadataPath, "utf8")) as Record<
+        string,
+        unknown
+      >;
+
+    for (const [setting, legacy] of [
+      ["neutral", "olive"],
+      ["olive", "olive"],
+      ["blue", "blue"],
+      ["default", "olive"],
+    ] as const) {
+      await expect(
+        repository.update(project.id, { ...input, projectColorTheme: setting }),
+      ).resolves.toMatchObject({ projectColorTheme: setting });
+      await expect(readMetadata()).resolves.toMatchObject({
+        colorTheme: setting,
+        projectColorTheme: legacy,
+      });
+    }
+
+    // Files written before the separate field: olive meant Pine's default.
+    const legacyMetadata = await readMetadata();
+    delete legacyMetadata.colorTheme;
+    for (const [legacy, setting] of [
+      ["olive", "default"],
+      ["rose", "rose"],
+    ] as const) {
+      await writeFile(
+        metadataPath,
+        JSON.stringify({ ...legacyMetadata, projectColorTheme: legacy }),
+      );
+      await expect(repository.get(project.id)).resolves.toMatchObject({
+        projectColorTheme: setting,
+      });
+    }
+    await expect(repository.update(project.id, input)).resolves.toMatchObject({
+      projectColorTheme: "rose",
+    });
+  });
 });

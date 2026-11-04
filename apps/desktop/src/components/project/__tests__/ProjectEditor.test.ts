@@ -81,7 +81,7 @@ describe("ProjectEditor", () => {
           },
         ],
         name: project.name,
-        projectColorTheme: "olive",
+        projectColorTheme: "default",
         projectIcon: "inbox",
       },
     ]);

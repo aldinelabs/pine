@@ -200,7 +200,9 @@ export interface ProjectStorageResult {
 
 export type ProjectFolderAccess = "read-only" | "read-write";
 
+/** Color palettes Pine can draw; neutral is Pine's default. */
 export const PROJECT_COLOR_THEMES = [
+  "neutral",
   "olive",
   "red",
   "rose",
@@ -212,6 +214,17 @@ export const PROJECT_COLOR_THEMES = [
 ] as const;
 
 export type ProjectColorTheme = (typeof PROJECT_COLOR_THEMES)[number];
+
+export const DEFAULT_PINE_COLOR_THEME: ProjectColorTheme = "neutral";
+
+/** A project's choice: follow Pine's default theme, or a palette of its own. */
+export const PROJECT_COLOR_THEME_SETTINGS = [
+  "default",
+  ...PROJECT_COLOR_THEMES,
+] as const;
+
+export type ProjectColorThemeSetting =
+  (typeof PROJECT_COLOR_THEME_SETTINGS)[number];
 
 /** Lucide icon names a project can show; the first is the default. */
 export const PROJECT_ICONS = [
@@ -275,7 +288,7 @@ export interface PineProject {
   id: string;
   lastOpenedAt?: string;
   name: string;
-  projectColorTheme?: ProjectColorTheme;
+  projectColorTheme?: ProjectColorThemeSetting;
   projectIcon?: ProjectIcon;
   schemaVersion: 1;
   sessionGroups?: PineSessionGroup[];
@@ -286,7 +299,7 @@ export interface ProjectMutationInput {
   defaultFolderId: string;
   folders: ProjectFolderInput[];
   name: string;
-  projectColorTheme?: ProjectColorTheme;
+  projectColorTheme?: ProjectColorThemeSetting;
   projectIcon?: ProjectIcon;
 }
 

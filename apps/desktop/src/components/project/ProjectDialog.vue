@@ -11,6 +11,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import type { PineProject, ProjectMutationInput } from "@/shared/projects";
+import { useAppearanceStore } from "@/stores/appearance";
 import { useProjectStore } from "@/stores/project";
 import ProjectDeleteDialog from "./ProjectDeleteDialog.vue";
 import ProjectEditor from "./ProjectEditor.vue";
@@ -28,6 +29,7 @@ const emit = defineEmits<{
 const isDeleteConfirmOpen = ref(false);
 const { t } = useI18n();
 const projectStore = useProjectStore();
+const appearanceStore = useAppearanceStore();
 
 async function save(input: ProjectMutationInput): Promise<void> {
   try {
@@ -77,6 +79,7 @@ function deleted(projectId: string): void {
       <ProjectEditor
         :key="project?.updatedAt ?? String(open)"
         :project="project"
+        :default-color-theme="appearanceStore.pineColorTheme"
         :is-saving="projectStore.isSavingProject"
         @cancel="open = false"
         @delete="isDeleteConfirmOpen = true"

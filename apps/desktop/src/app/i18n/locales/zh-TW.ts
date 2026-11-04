@@ -472,7 +472,9 @@ export default {
       iconLabel: "專案圖示",
       colorThemeLabel: "專案強調色",
       colorThemes: {
-        olive: "Pine 預設",
+        default: "Pine 預設",
+        neutral: "中性",
+        olive: "橄欖色",
         red: "紅色",
         rose: "玫瑰色",
         orange: "橙色",

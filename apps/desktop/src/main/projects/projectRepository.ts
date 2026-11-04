@@ -20,6 +20,7 @@ import {
   PROJECT_SKILLS_SETTINGS_FILE,
   PROJECT_TEMPORARY_DIRECTORY,
   PROJECT_COLOR_THEMES,
+  PROJECT_COLOR_THEME_SETTINGS,
   PROJECT_ICONS,
   TEMPORARY_WORKSPACE_DIRECTORY,
   TEMPORARY_WORKSPACE_FOLDER_ID,
@@ -27,6 +28,8 @@ import {
   isTemporaryWorkspace,
   type PineProject,
   type PineSessionGroup,
+  type ProjectColorTheme,
+  type ProjectColorThemeSetting,
   type ProjectFolderInput,
   type ProjectMutationInput,
 } from "../../shared/projects";
@@ -47,16 +50,20 @@ const ProjectSessionGroupSchema = z.object({
 });
 
 const StoredProjectSchema = z.object({
+  /** The project's color choice; files from before it hold only the legacy field. */
+  colorTheme: z.enum(PROJECT_COLOR_THEME_SETTINGS).optional(),
   createdAt: z.iso.datetime(),
   defaultFolderId: z.uuid(),
   folders: z.array(ProjectFolderSchema).min(1),
   id: z.uuid(),
   lastOpenedAt: z.iso.datetime().optional(),
   name: z.string().trim().min(1).max(100),
-  projectColorTheme: z
-    .union([z.enum(PROJECT_COLOR_THEMES), z.literal("neutral")])
-    .transform((theme) => (theme === "neutral" ? "olive" : theme))
-    .default("olive"),
+  /**
+   * Kept for older Pine, which reads only this field and treats olive as
+   * "follow Pine's default". It rejects values it doesn't know, such as
+   * neutral or default, and would drop the whole project.
+   */
+  projectColorTheme: z.enum(PROJECT_COLOR_THEMES).default("olive"),
   projectIcon: z.enum(PROJECT_ICONS).catch("inbox"),
   schemaVersion: z.literal(PROJECT_SCHEMA_VERSION),
   sessionGroups: z.array(ProjectSessionGroupSchema).default([]),
@@ -82,6 +89,26 @@ function assertEditable(id: string): void {
   if (isTemporaryWorkspace(id)) {
     throw new Error("The temporary workspace cannot be changed or deleted.");
   }
+}
+
+function legacyColorTheme(
+  setting: ProjectColorThemeSetting,
+): ProjectColorTheme {
+  return setting === "default" || setting === "neutral" ? "olive" : setting;
+}
+
+function colorThemeSetting(project: StoredProject): ProjectColorThemeSetting {
+  if (project.colorTheme) return project.colorTheme;
+  return project.projectColorTheme === "olive"
+    ? "default"
+    : project.projectColorTheme;
+}
+
+function colorThemeFields(setting: ProjectColorThemeSetting): {
+  colorTheme: ProjectColorThemeSetting;
+  projectColorTheme: ProjectColorTheme;
+} {
+  return { colorTheme: setting, projectColorTheme: legacyColorTheme(setting) };
 }
 
 function isFileSystemError(error: unknown, code: string): boolean {
@@ -195,12 +222,12 @@ export class ProjectRepository {
     const folders = await this.normalizeFolders(input.folders);
     const now = new Date().toISOString();
     const project: StoredProject = this.validateProject({
+      ...colorThemeFields(input.projectColorTheme ?? "default"),
       createdAt: now,
       defaultFolderId: input.defaultFolderId,
       folders,
       id: randomUUID(),
       name: input.name,
-      projectColorTheme: input.projectColorTheme ?? "olive",
       projectIcon: input.projectIcon ?? "inbox",
       schemaVersion: PROJECT_SCHEMA_VERSION,
       sessionGroups: [],
@@ -239,7 +266,9 @@ export class ProjectRepository {
       defaultFolderId: input.defaultFolderId,
       folders,
       name: input.name,
-      projectColorTheme: input.projectColorTheme ?? current.projectColorTheme,
+      ...colorThemeFields(
+        input.projectColorTheme ?? colorThemeSetting(current),
+      ),
       projectIcon: input.projectIcon ?? current.projectIcon,
       sessionGroups: current.sessionGroups,
       updatedAt: new Date().toISOString(),
@@ -383,8 +412,11 @@ export class ProjectRepository {
   }
 
   private async toPublic(project: StoredProject): Promise<PineProject> {
+    const stored: Omit<StoredProject, "colorTheme"> = { ...project };
+    delete (stored as Partial<StoredProject>).colorTheme;
     return {
-      ...project,
+      ...stored,
+      projectColorTheme: colorThemeSetting(project),
       folders: await Promise.all(
         project.folders.map(async (folder) => ({
           ...folder,

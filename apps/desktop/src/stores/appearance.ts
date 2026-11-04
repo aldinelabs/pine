@@ -2,6 +2,7 @@ import { isDesktopClient } from "@/lib/clientRuntime";
 import { defineStore } from "pinia";
 import { computed, ref } from "vue";
 import {
+  DEFAULT_PINE_COLOR_THEME,
   PROJECT_COLOR_THEMES,
   type ProjectColorTheme,
 } from "@/shared/projects";
@@ -9,6 +10,9 @@ import { preferenceStorage } from "@/lib/preferenceStorage";
 
 export const THEME_PREFERENCE_STORAGE_KEY = "pine.theme-preference";
 export const PINE_COLOR_THEME_STORAGE_KEY = "pine.color-theme";
+/** Set once the stored olive theme has been moved to neutral. */
+export const PINE_COLOR_THEME_MIGRATED_STORAGE_KEY =
+  "pine.color-theme-neutral-migrated";
 export const SIDEBAR_VIBRANCY_STORAGE_KEY = "pine.sidebar-vibrancy";
 /** Set once the 0.13.0 migration has turned native sidebar on for everyone. */
 export const SIDEBAR_VIBRANCY_MIGRATED_STORAGE_KEY =
@@ -49,12 +53,40 @@ function readStoredThemePreference(): ThemePreference {
   }
 }
 
+/**
+ * Olive used to be labelled "Pine Default", so a stored olive meant "use the
+ * default". Move it to neutral once; olive chosen afterwards is kept. The
+ * marker is written even when nothing is stored, so a later olive pick by a
+ * new user is not migrated either.
+ */
+function migratePineColorThemeOnce(): void {
+  try {
+    if (
+      preferenceStorage.getItem(PINE_COLOR_THEME_MIGRATED_STORAGE_KEY) !== null
+    ) {
+      return;
+    }
+    if (preferenceStorage.getItem(PINE_COLOR_THEME_STORAGE_KEY) === "olive") {
+      preferenceStorage.setItem(
+        PINE_COLOR_THEME_STORAGE_KEY,
+        DEFAULT_PINE_COLOR_THEME,
+      );
+    }
+    preferenceStorage.setItem(PINE_COLOR_THEME_MIGRATED_STORAGE_KEY, "true");
+  } catch {
+    // Without storage the default (neutral) already applies.
+  }
+}
+
 function readStoredPineColorTheme(): ProjectColorTheme {
+  migratePineColorThemeOnce();
   try {
     const storedTheme = preferenceStorage.getItem(PINE_COLOR_THEME_STORAGE_KEY);
-    return isProjectColorTheme(storedTheme) ? storedTheme : "olive";
+    return isProjectColorTheme(storedTheme)
+      ? storedTheme
+      : DEFAULT_PINE_COLOR_THEME;
   } catch {
-    return "olive";
+    return DEFAULT_PINE_COLOR_THEME;
   }
 }
 

@@ -4,7 +4,10 @@ import {
   MAX_PASTED_TEXT_BYTES,
   PASTED_IMAGE_MIME_TYPES,
 } from "../../shared/attachments";
-import { PROJECT_COLOR_THEMES, PROJECT_ICONS } from "../../shared/projects";
+import {
+  PROJECT_COLOR_THEME_SETTINGS,
+  PROJECT_ICONS,
+} from "../../shared/projects";
 import { ProjectEntryReferenceSchema } from "../projectFileOperations";
 
 // Validation for every request the shared handlers accept, from any transport.
@@ -65,7 +68,7 @@ export const ProjectMutationSchema = z
     defaultFolderId: z.uuid(),
     folders: z.array(ProjectFolderInputSchema).min(1),
     name: z.string().trim().min(1).max(100),
-    projectColorTheme: z.enum(PROJECT_COLOR_THEMES).default("olive"),
+    projectColorTheme: z.enum(PROJECT_COLOR_THEME_SETTINGS).default("default"),
     projectIcon: z.enum(PROJECT_ICONS).optional(),
   })
   .superRefine((project, context) => {

@@ -1,6 +1,13 @@
-import type { ProjectColorTheme } from "@/shared/projects";
+import {
+  PROJECT_COLOR_THEMES,
+  type ProjectColorTheme,
+  type ProjectColorThemeSetting,
+} from "@/shared/projects";
 
-const PROJECT_COLOR_THEME_HUES: Record<ProjectColorTheme, number> = {
+/** Themes drawn by turning Pine's olive hues; neutral has its own tokens. */
+export type HueColorTheme = Exclude<ProjectColorTheme, "neutral">;
+
+const PROJECT_COLOR_THEME_HUES: Record<HueColorTheme, number> = {
   olive: 107.4,
   red: 25,
   rose: 350,
@@ -11,23 +18,35 @@ const PROJECT_COLOR_THEME_HUES: Record<ProjectColorTheme, number> = {
   violet: 293,
 };
 
-const PROJECT_COLOR_THEME_VALUES = Object.keys(
-  PROJECT_COLOR_THEME_HUES,
-) as ProjectColorTheme[];
+function swatch(value: ProjectColorTheme): string {
+  return value === "neutral"
+    ? "oklch(0.556 0 0)"
+    : `oklch(0.58 0.12 ${PROJECT_COLOR_THEME_HUES[value]})`;
+}
 
 export const PROJECT_COLOR_THEME_OPTIONS: readonly {
   swatch: string;
   value: ProjectColorTheme;
-}[] = PROJECT_COLOR_THEME_VALUES.map((value) => ({
-  swatch: `oklch(0.58 0.12 ${PROJECT_COLOR_THEME_HUES[value]})`,
-  value,
-}));
+}[] = PROJECT_COLOR_THEMES.map((value) => ({ swatch: swatch(value), value }));
+
+/**
+ * A project's choices: following Pine's default, shown in that theme's
+ * swatch, then every palette.
+ */
+export function projectColorThemeSettingOptions(
+  defaultColorTheme: ProjectColorTheme,
+): readonly { swatch: string; value: ProjectColorThemeSetting }[] {
+  return [
+    { swatch: swatch(defaultColorTheme), value: "default" },
+    ...PROJECT_COLOR_THEME_OPTIONS,
+  ];
+}
 
 /**
  * How far a theme turns Pine's olive hues, in (-180, 180]. `index.css`
  * applies it as `--pine-hue-shift` for each `data-project-color-theme`.
  */
-export function projectColorThemeHueShift(value: ProjectColorTheme): number {
+export function projectColorThemeHueShift(value: HueColorTheme): number {
   const difference =
     PROJECT_COLOR_THEME_HUES[value] - PROJECT_COLOR_THEME_HUES.olive;
 

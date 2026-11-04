@@ -510,7 +510,9 @@ export default {
       iconLabel: "Icône du projet",
       colorThemeLabel: "Couleur d'accent du projet",
       colorThemes: {
-        olive: "Pine par défaut",
+        default: "Pine par défaut",
+        neutral: "Neutre",
+        olive: "Olive",
         red: "Rouge",
         rose: "Rose",
         orange: "Orange",

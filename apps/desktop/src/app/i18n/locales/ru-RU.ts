@@ -505,7 +505,9 @@ export default {
       iconLabel: "Значок проекта",
       colorThemeLabel: "Акцентный цвет проекта",
       colorThemes: {
-        olive: "Стандартный Pine",
+        default: "Стандартный Pine",
+        neutral: "Нейтральный",
+        olive: "Оливковый",
         red: "Красный",
         rose: "Розовый",
         orange: "Оранжевый",

@@ -2,6 +2,7 @@ import { createPinia, setActivePinia } from "pinia";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   INVERT_DOCUMENTS_STORAGE_KEY,
+  PINE_COLOR_THEME_STORAGE_KEY,
   SIDEBAR_VIBRANCY_STORAGE_KEY,
   READING_FONT_STORAGE_KEY,
   useAppearanceStore,
@@ -34,6 +35,28 @@ describe("appearance store", () => {
     setSidebarVibrancy.mockClear();
     installPineApi(undefined);
     setActivePinia(createPinia());
+  });
+
+  it("uses neutral until another color theme is chosen", () => {
+    expect(useAppearanceStore().pineColorTheme).toBe("neutral");
+
+    useAppearanceStore().setPineColorTheme("olive");
+    setActivePinia(createPinia());
+    expect(useAppearanceStore().pineColorTheme).toBe("olive");
+  });
+
+  it("moves a stored olive theme to neutral once", () => {
+    window.localStorage.setItem(PINE_COLOR_THEME_STORAGE_KEY, "olive");
+    expect(useAppearanceStore().pineColorTheme).toBe("neutral");
+
+    useAppearanceStore().setPineColorTheme("olive");
+    setActivePinia(createPinia());
+    expect(useAppearanceStore().pineColorTheme).toBe("olive");
+  });
+
+  it("keeps other stored color themes", () => {
+    window.localStorage.setItem(PINE_COLOR_THEME_STORAGE_KEY, "blue");
+    expect(useAppearanceStore().pineColorTheme).toBe("blue");
   });
 
   it("restores and toggles the sidebar vibrancy effect on macOS", () => {

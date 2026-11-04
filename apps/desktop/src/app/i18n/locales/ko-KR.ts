@@ -498,7 +498,9 @@ export default {
       iconLabel: "프로젝트 아이콘",
       colorThemeLabel: "프로젝트 강조 색상",
       colorThemes: {
-        olive: "Pine 기본",
+        default: "Pine 기본",
+        neutral: "중립",
+        olive: "올리브",
         red: "빨강",
         rose: "장미",
         orange: "주황",

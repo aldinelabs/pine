@@ -45,7 +45,7 @@ watch(
   ([projectColorTheme, defaultColorTheme]) => {
     const root = document.documentElement;
     const effectiveColorTheme =
-      projectColorTheme && projectColorTheme !== "olive"
+      projectColorTheme && projectColorTheme !== "default"
         ? projectColorTheme
         : defaultColorTheme;
 
