@@ -980,9 +980,32 @@ export default {
         "この操作は破壊的なコマンドの判定条件に一致しました。実行前に内容をご確認ください。",
       triggerPrivilegedExecution:
         "この操作は、Pine のプロジェクトサンドボックス外でのネイティブ実行を求めています。",
+      triggerLongContextActivation:
+        "Pine が新しいツールを有効にしようとしています。続ける前に確認してください。",
       evidence: "詳細",
       approve: "承認",
       reject: "拒否",
+      activateNow: "今すぐ有効化",
+      compactFirst: "圧縮してから続行",
+      abortActivation: "中止",
+      activationTools: {
+        activate_computer_use:
+          "コンピュータ操作：Pine が画面を見て、アプリを操作できるようになります。",
+        activate_skill_authoring:
+          "Skill 作成：Pine が Skill を作成・編集できるようになります。",
+        activate_automation_authoring:
+          "オートメーション作成：Pine がオートメーションを作成・編集できるようになります。",
+        activate_mcp_authoring:
+          "MCP 管理：Pine が MCP サーバーを追加・変更・削除できるようになります。",
+        activate_media_generation:
+          "メディア生成：Pine が画像や動画を生成できるようになります。",
+      },
+      activationWhy:
+        "このモデルは会話の途中でツールを追加できません。有効にするとリクエストの先頭が変わり、プロバイダーがキャッシュしている約 {tokens} のコンテキストは使えなくなります。",
+      activationNowEffect:
+        "今すぐ有効化：このターンはコンテキスト全体を通常料金で再処理するため、応答が遅くなり費用も増えます。その後はキャッシュが通常どおり働きます。",
+      activationCompactEffect:
+        "圧縮してから続行：先に会話を要約してからツールを有効にします。圧縮はキャッシュ済みのコンテキストを再利用するため、再処理より費用はたいてい大幅に安く、その後のやり取りも短く安くなります。初期の詳細が要約から省かれることがあります。",
       guide: "指示を添えて拒否",
     },
     questionnaireRequest: {
@@ -1231,6 +1254,8 @@ export default {
           complete: "コンピュータ操作を有効にしました",
           error: "コンピュータ操作を有効にできませんでした",
           running: "コンピュータ操作を有効にしています",
+          awaiting: "コンピュータ操作を有効にする前に選択を待っています",
+          denied: "コンピュータ操作は有効になっていません",
         },
         activatePineOps: {
           complete: "Pine の操作を有効にしました",

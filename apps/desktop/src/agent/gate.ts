@@ -69,7 +69,8 @@ export interface UserApprovalRequest {
     | "sandbox-denied"
     | "authorize-denied"
     | "destructive-pattern"
-    | "privileged-execution";
+    | "privileged-execution"
+    | "long-context-activation";
   toolCallId: string;
   toolName: string;
   subject?: string;

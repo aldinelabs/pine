@@ -198,7 +198,7 @@ export const DequeueSteeringRequestSchema = SessionIdRequestSchema.extend({
 export const SendSteeringNowRequestSchema = DequeueSteeringRequestSchema;
 export const RespondApprovalRequestSchema = z.object({
   requestId: z.uuid(),
-  action: z.enum(["approve", "reject", "guide"]),
+  action: z.enum(["approve", "reject", "guide", "compact", "abort"]),
   guidance: z.string().trim().min(1).max(10_000).optional(),
 });
 export const RespondQuestionnaireRequestSchema = z.object({

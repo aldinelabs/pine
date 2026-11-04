@@ -59,7 +59,9 @@ export type PineApprovalTrigger =
   | "sandbox-denied"
   | "authorize-denied"
   | "destructive-pattern"
-  | "privileged-execution";
+  | "privileged-execution"
+  /** Activating tools would rewrite a long, cached context; the user may compress first. */
+  | "long-context-activation";
 
 /** A failed automatic review that fell back to manual approval. */
 export interface PineAutoApprovalFailure {
@@ -68,7 +70,14 @@ export interface PineAutoApprovalFailure {
   message: string;
 }
 
-export type PineApprovalAction = "approve" | "reject" | "guide";
+export type PineApprovalAction =
+  | "approve"
+  | "reject"
+  | "guide"
+  /** Long-context activation card: compress the conversation, then continue. */
+  | "compact"
+  /** Long-context activation card: stop the run without activating. */
+  | "abort";
 
 export interface RespondApprovalRequest {
   requestId: string;

@@ -218,6 +218,12 @@ import {
   toolNamesForMcpAuthoringState,
 } from "./runtime/session-state";
 import { getLatestCacheHitRate } from "./runtime/context-metrics";
+import {
+  describeContextTokens,
+  isActivationToolName,
+  PINE_ACTIVATION_RESUME_MESSAGE,
+  shouldConfirmLongContextActivation,
+} from "./runtime/activation-guard";
 import { configureContextCompactionSettings } from "./runtime/compaction-settings";
 import { createSemanticCompactionExtension } from "./runtime/semantic-compaction";
 import {
@@ -831,6 +837,50 @@ export class PineAgentRuntime {
     this.syncActiveTools(live);
   }
 
+  /**
+   * After the run that paused an activation ends, compress the conversation
+   * and hand control back to the model so it repeats the activation it asked
+   * for. The call goes through without a second question.
+   */
+  private compactThenResume(live: LiveAgentSession, toolName: string): void {
+    void (async () => {
+      try {
+        await live.session.waitForIdle();
+        try {
+          await live.session.compact();
+        } catch (error) {
+          // The activation was already agreed to, so it still goes ahead.
+          this.options.emit({
+            type: "session-error",
+            sessionId: live.session.sessionId,
+            errorId: randomUUID(),
+            message: toErrorMessage(error),
+          });
+        }
+        const resumeNotice =
+          live.locale === "zh-CN"
+            ? `已按用户要求压缩对话。请继续之前的请求，并重新调用 ${toolName} 完成激活。`
+            : `The conversation was compressed at the user's request. Continue the previous request and call ${toolName} again to finish the activation.`;
+        await live.session.sendCustomMessage(
+          {
+            customType: PINE_ACTIVATION_RESUME_MESSAGE,
+            content: resumeNotice,
+            display: false,
+          },
+          { triggerTurn: true },
+        );
+      } catch (error) {
+        live.preapprovedActivations.delete(toolName);
+        this.options.emit({
+          type: "session-error",
+          sessionId: live.session.sessionId,
+          errorId: randomUUID(),
+          message: toErrorMessage(error),
+        });
+      }
+    })();
+  }
+
   renameSession(sessionId: string, name: string): AgentWorkerSessionResult {
     const session = this.getSession(sessionId).session;
     session.setSessionName(name);
@@ -1085,6 +1135,7 @@ export class PineAgentRuntime {
         : (location.approvalMode ?? "auto-approve"),
       gate: undefined as never,
       mcpScriptApprovals: new McpScriptApprovalCache(),
+      preapprovedActivations: new Set<string>(),
       authorizationGrants: authorizationGrantsFromSessionEntries(
         sessionManager.getBranch(),
       ),
@@ -1174,6 +1225,60 @@ export class PineAgentRuntime {
                   display: false,
                   details: { approvalMode: live.approvalMode },
                 },
+              };
+            });
+          },
+        },
+        {
+          name: "pine-activation-guard",
+          factory: (pi) => {
+            pi.on("tool_call", async (event, ctx) => {
+              if (!isActivationToolName(event.toolName)) return undefined;
+              if (live.preapprovedActivations.delete(event.toolName)) {
+                return undefined;
+              }
+              const tokens = live.session.getContextUsage()?.tokens;
+              if (
+                !shouldConfirmLongContextActivation({
+                  toolName: event.toolName,
+                  activeToolNames: live.session.getActiveToolNames(),
+                  model: live.session.model,
+                  contextTokens: tokens,
+                  attended:
+                    !live.automation &&
+                    live.approvalMode !== "autonomous" &&
+                    live.approvalMode !== "YOLO",
+                })
+              ) {
+                return undefined;
+              }
+              const decision = await this.requestUserApproval(live, {
+                trigger: "long-context-activation",
+                toolCallId: event.toolCallId,
+                toolName: event.toolName,
+                subject: describeContextTokens(tokens ?? 0),
+                signal: ctx.signal,
+              });
+              // Allowing activates as requested. The card's other two answers
+              // carry a choice; any other denial is an abort or a closed
+              // session, and the call must not run.
+              if (decision.kind === "allow") return undefined;
+              if (decision.choice === "compact") {
+                live.preapprovedActivations.add(event.toolName);
+                this.compactThenResume(live, event.toolName);
+                return {
+                  block: true,
+                  terminate: true,
+                  reason:
+                    "The user chose to compress the conversation before this activation. Pine compresses it now and resumes automatically with the activation applied; end this turn without further tool calls.",
+                };
+              }
+              if (decision.choice === "abort") ctx.abort();
+              return {
+                block: true,
+                terminate: true,
+                reason:
+                  decision.reason ?? "The user cancelled this activation.",
               };
             });
           },
@@ -1387,10 +1492,12 @@ export class PineAgentRuntime {
               this.automationHostCall(live, operation),
             ),
           ]
-        : createModelToolDefinitions({
-            current: () => this.currentModelSelection(live),
-            catalog: () => this.modelService.getModelCatalog(live.agentDir),
-          })),
+        : [
+            ...createModelToolDefinitions({
+              current: () => this.currentModelSelection(live),
+              catalog: () => this.modelService.getModelCatalog(live.agentDir),
+            }),
+          ]),
     ];
     live.availableToolNames = [
       ...customTools.map((tool) => tool.name),
@@ -1774,7 +1881,10 @@ export class PineAgentRuntime {
     const pending = this.pendingApprovals.get(requestId);
     if (!pending) return { accepted: false };
     this.pendingApprovals.delete(requestId);
-    if (decision.kind === "allow") {
+    if (
+      decision.kind === "allow" &&
+      pending.request.trigger !== "long-context-activation"
+    ) {
       this.recordAuthorizationGrant(pending.live, {
         source: "user",
         scope: "once",

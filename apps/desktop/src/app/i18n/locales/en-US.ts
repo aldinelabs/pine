@@ -977,9 +977,32 @@ export default {
         "This operation matches a destructive-command heuristic. Please review it before execution.",
       triggerPrivilegedExecution:
         "This operation requests native execution outside Pine's project sandbox.",
+      triggerLongContextActivation:
+        "Pine wants to enable new tools. Please confirm before it does.",
       evidence: "Details",
       approve: "Approve",
       reject: "Reject",
+      activateNow: "Activate now",
+      compactFirst: "Compress, then continue",
+      abortActivation: "Stop",
+      activationTools: {
+        activate_computer_use:
+          "Computer use: lets Pine see your screen and operate your apps.",
+        activate_skill_authoring:
+          "Skill authoring: lets Pine create and edit Skills.",
+        activate_automation_authoring:
+          "Automation authoring: lets Pine create and edit automations.",
+        activate_mcp_authoring:
+          "MCP management: lets Pine add, change and remove MCP servers.",
+        activate_media_generation:
+          "Media generation: lets Pine generate images and videos.",
+      },
+      activationWhy:
+        "This model cannot take new tools in the middle of a conversation. Enabling them changes the start of the request, so the roughly {tokens} of context the provider has cached becomes unusable.",
+      activationNowEffect:
+        "Activate now: this turn reprocesses the whole context at full price, so the reply is slower and costs more. Caching works normally again afterwards.",
+      activationCompactEffect:
+        "Compress, then continue: the conversation is summarized first, then the tools are enabled. Compression reuses the cached context, so it usually costs far less than reprocessing, and later turns are shorter and cheaper. Early details may be left out of the summary.",
       guide: "Reject with guidance",
     },
     questionnaireRequest: {
@@ -1226,6 +1249,8 @@ export default {
           complete: "Activated Computer Use",
           error: "Couldn’t activate Computer Use",
           running: "Activating Computer Use",
+          awaiting: "Waiting for your choice before activating Computer Use",
+          denied: "Computer Use not activated",
         },
         activatePineOps: {
           complete: "Activated Pine operations",

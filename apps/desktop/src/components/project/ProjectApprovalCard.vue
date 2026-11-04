@@ -27,7 +27,8 @@ const emit = defineEmits<{
   respond: [action: PineApprovalAction, guidance?: string];
 }>();
 
-const { t } = useI18n();
+const i18n = useI18n();
+const { t } = i18n;
 const showShortcutHints = useShortcutHints();
 const guidance = ref("");
 const guiding = ref(false);
@@ -47,8 +48,16 @@ const triggerKey = computed(() => {
       return "triggerDestructivePattern";
     case "privileged-execution":
       return "triggerPrivilegedExecution";
+    case "long-context-activation":
+      return "triggerLongContextActivation";
   }
 });
+
+// Both answers carry the user's intent forward, so the decision buttons name
+// what happens next and the "reject with guidance" path does not apply.
+const isActivationChoice = computed(
+  () => props.approval.trigger === "long-context-activation",
+);
 
 function respond(action: PineApprovalAction, guidanceText?: string): void {
   if (props.isResponding) return;
@@ -79,8 +88,8 @@ function handleShortcut(event: KeyboardEvent): void {
     respond("approve");
   } else if (event.key === "Escape") {
     event.preventDefault();
-    respond("reject");
-  } else if (event.key === "/") {
+    respond(isActivationChoice.value ? "abort" : "reject");
+  } else if (event.key === "/" && !isActivationChoice.value) {
     event.preventDefault();
     void startGuidance();
   }
@@ -117,8 +126,32 @@ async function startGuidance(): Promise<void> {
     >
       <!-- What is being approved sits between the header and the decision so
            the choice is made with the evidence in view. -->
+      <div v-if="isActivationChoice" class="flex flex-col gap-3 text-sm">
+        <p class="font-medium">
+          {{
+            i18n.te(
+              `project.approvalRequest.activationTools.${approval.toolName}`,
+            )
+              ? t(
+                  `project.approvalRequest.activationTools.${approval.toolName}`,
+                )
+              : approval.toolName
+          }}
+        </p>
+        <p>
+          {{
+            t("project.approvalRequest.activationWhy", {
+              tokens: approval.subject ?? "",
+            })
+          }}
+        </p>
+        <ul class="list-disc space-y-1 pl-5 text-muted-foreground">
+          <li>{{ t("project.approvalRequest.activationNowEffect") }}</li>
+          <li>{{ t("project.approvalRequest.activationCompactEffect") }}</li>
+        </ul>
+      </div>
       <div
-        v-if="approval.description || approval.subject"
+        v-else-if="approval.description || approval.subject"
         class="flex flex-col gap-2"
       >
         <p v-if="approval.description" class="text-sm">
@@ -171,6 +204,18 @@ async function startGuidance(): Promise<void> {
       </template>
       <template v-else>
         <Button
+          v-if="isActivationChoice"
+          type="button"
+          variant="outline"
+          size="sm"
+          :disabled="props.isResponding"
+          @click="respond('abort')"
+        >
+          {{ t("project.approvalRequest.abortActivation") }}
+          <Kbd v-if="showShortcutHints" aria-hidden="true">esc</Kbd>
+        </Button>
+        <Button
+          v-else
           type="button"
           variant="outline"
           size="sm"
@@ -186,10 +231,20 @@ async function startGuidance(): Promise<void> {
             variant="outline"
             size="sm"
             :disabled="props.isResponding"
-            @click="respond('reject')"
+            @click="respond(isActivationChoice ? 'compact' : 'reject')"
           >
-            {{ t("project.approvalRequest.reject") }}
-            <Kbd v-if="showShortcutHints" aria-hidden="true">esc</Kbd>
+            {{
+              t(
+                isActivationChoice
+                  ? "project.approvalRequest.compactFirst"
+                  : "project.approvalRequest.reject",
+              )
+            }}
+            <Kbd
+              v-if="showShortcutHints && !isActivationChoice"
+              aria-hidden="true"
+              >esc</Kbd
+            >
           </Button>
           <Button
             type="button"
@@ -197,7 +252,13 @@ async function startGuidance(): Promise<void> {
             :disabled="props.isResponding"
             @click="respond('approve')"
           >
-            {{ t("project.approvalRequest.approve") }}
+            {{
+              t(
+                isActivationChoice
+                  ? "project.approvalRequest.activateNow"
+                  : "project.approvalRequest.approve",
+              )
+            }}
             <Kbd v-if="showShortcutHints" aria-hidden="true">↵</Kbd>
           </Button>
         </div>

@@ -92,6 +92,20 @@ function toPortableRelativePath(parentPath: string, filePath: string): string {
 /** Maps the renderer's approval action to the worker-side gate decision. */
 function toGateDecision(request: RespondApprovalRequest): GateDecision {
   if (request.action === "approve") return { kind: "allow" };
+  if (request.action === "compact") {
+    return {
+      kind: "deny",
+      reason: "The user chose to compress the conversation first.",
+      choice: "compact",
+    };
+  }
+  if (request.action === "abort") {
+    return {
+      kind: "deny",
+      reason: "The user cancelled this activation.",
+      choice: "abort",
+    };
+  }
   const guidance = request.guidance?.trim();
   if (request.action === "guide" && guidance) {
     return {

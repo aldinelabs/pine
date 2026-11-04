@@ -123,7 +123,12 @@ export type GateDecision =
       /** Set when the auto-approval reviewer allowed it, not the user. */
       reviewer?: "judge";
     }
-  | { kind: "deny"; reason?: string };
+  | {
+      kind: "deny";
+      reason?: string;
+      /** Set by the long-context activation card, whose rejections are choices. */
+      choice?: "compact" | "abort";
+    };
 
 export type AgentWorkerInbound =
   | AgentWorkerRequest

@@ -998,9 +998,32 @@ export default {
         "Cette opération correspond à une heuristique de commande destructrice. Vérifiez-la avant de l'exécuter.",
       triggerPrivilegedExecution:
         "Cette opération demande une exécution native en dehors du bac à sable du projet de Pine.",
+      triggerLongContextActivation:
+        "Pine veut activer de nouveaux outils. Confirmez avant de continuer.",
       evidence: "Détails",
       approve: "Approuver",
       reject: "Refuser",
+      activateNow: "Activer maintenant",
+      compactFirst: "Compresser puis continuer",
+      abortActivation: "Arrêter",
+      activationTools: {
+        activate_computer_use:
+          "Contrôle de l'ordinateur : permet à Pine de voir votre écran et d'utiliser vos applications.",
+        activate_skill_authoring:
+          "Création de Skills : permet à Pine de créer et de modifier des Skills.",
+        activate_automation_authoring:
+          "Création d'automatisations : permet à Pine de créer et de modifier des automatisations.",
+        activate_mcp_authoring:
+          "Gestion MCP : permet à Pine d'ajouter, de modifier et de supprimer des serveurs MCP.",
+        activate_media_generation:
+          "Génération de médias : permet à Pine de générer des images et des vidéos.",
+      },
+      activationWhy:
+        "Ce modèle ne peut pas recevoir de nouveaux outils au milieu d'une conversation. Les activer modifie le début de la requête : les quelque {tokens} de contexte mis en cache par le fournisseur deviennent inutilisables.",
+      activationNowEffect:
+        "Activer maintenant : ce tour retraite tout le contexte au tarif plein, la réponse est plus lente et plus chère. Le cache refonctionne normalement ensuite.",
+      activationCompactEffect:
+        "Compresser puis continuer : la conversation est d'abord résumée, puis les outils sont activés. La compression réutilise le contexte mis en cache et coûte généralement bien moins qu'un retraitement ; les tours suivants sont plus courts et moins chers. Des détails anciens peuvent être omis.",
       guide: "Refuser avec des consignes",
     },
     questionnaireRequest: {
@@ -1250,6 +1273,9 @@ export default {
           complete: "Contrôle de l'ordinateur activé",
           error: "Impossible d'activer le contrôle de l'ordinateur",
           running: "Activation du contrôle de l'ordinateur",
+          awaiting:
+            "En attente de votre choix avant d'activer le contrôle de l'ordinateur",
+          denied: "Contrôle de l'ordinateur non activé",
         },
         activatePineOps: {
           complete: "Opérations Pine activées",

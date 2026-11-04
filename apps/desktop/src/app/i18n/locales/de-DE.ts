@@ -1004,9 +1004,32 @@ export default {
         "Dieser Vorgang entspricht einem Muster für destruktive Befehle. Bitte prüfen Sie ihn vor der Ausführung.",
       triggerPrivilegedExecution:
         "Dieser Vorgang verlangt eine native Ausführung außerhalb der Projekt-Sandbox von Pine.",
+      triggerLongContextActivation:
+        "Pine möchte neue Tools aktivieren. Bitte bestätigen Sie das zuerst.",
       evidence: "Details",
       approve: "Genehmigen",
       reject: "Ablehnen",
+      activateNow: "Jetzt aktivieren",
+      compactFirst: "Komprimieren, dann fortfahren",
+      abortActivation: "Stoppen",
+      activationTools: {
+        activate_computer_use:
+          "Computersteuerung: Pine kann Ihren Bildschirm sehen und Ihre Apps bedienen.",
+        activate_skill_authoring:
+          "Skill-Erstellung: Pine kann Skills erstellen und bearbeiten.",
+        activate_automation_authoring:
+          "Automatisierungen erstellen: Pine kann Automatisierungen erstellen und bearbeiten.",
+        activate_mcp_authoring:
+          "MCP-Verwaltung: Pine kann MCP-Server hinzufügen, ändern und entfernen.",
+        activate_media_generation:
+          "Mediengenerierung: Pine kann Bilder und Videos erzeugen.",
+      },
+      activationWhy:
+        "Dieses Modell kann mitten in einer Unterhaltung keine neuen Tools aufnehmen. Die Aktivierung ändert den Anfang der Anfrage, sodass der vom Anbieter zwischengespeicherte Kontext von etwa {tokens} unbrauchbar wird.",
+      activationNowEffect:
+        "Jetzt aktivieren: In dieser Runde wird der gesamte Kontext zum vollen Preis neu verarbeitet, die Antwort ist langsamer und teurer. Danach funktioniert das Caching wieder normal.",
+      activationCompactEffect:
+        "Komprimieren, dann fortfahren: Die Unterhaltung wird zuerst zusammengefasst, danach werden die Tools aktiviert. Das Komprimieren nutzt den zwischengespeicherten Kontext und kostet meist deutlich weniger als eine Neuverarbeitung; spätere Runden sind kürzer und günstiger. Frühe Details können in der Zusammenfassung fehlen.",
       guide: "Mit Hinweis ablehnen",
     },
     questionnaireRequest: {
@@ -1257,6 +1280,9 @@ export default {
           complete: "Computersteuerung aktiviert",
           error: "Computersteuerung konnte nicht aktiviert werden",
           running: "Computersteuerung wird aktiviert",
+          awaiting:
+            "Wartet auf Ihre Auswahl, bevor die Computersteuerung aktiviert wird",
+          denied: "Computersteuerung nicht aktiviert",
         },
         activatePineOps: {
           complete: "Pine-Vorgänge aktiviert",

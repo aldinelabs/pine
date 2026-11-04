@@ -998,7 +998,9 @@ const presentation = computed(() => {
   const activation = activationKey(props.toolCall.name);
   if (activation) {
     return {
-      before: t(`project.transcript.tools.${activation}.${state}`),
+      before: t(
+        `project.transcript.tools.${activation}.${state === "reviewing" ? "awaiting" : state}`,
+      ),
       operation: undefined,
       separator: "",
       target: "",

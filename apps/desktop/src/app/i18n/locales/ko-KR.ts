@@ -970,9 +970,32 @@ export default {
         "이 작업은 파괴적 명령 판별 규칙과 일치합니다. 실행하기 전에 검토해 주세요.",
       triggerPrivilegedExecution:
         "이 작업은 Pine의 프로젝트 샌드박스 밖에서의 네이티브 실행을 요청합니다.",
+      triggerLongContextActivation:
+        "Pine이 새 도구를 활성화하려고 합니다. 진행하기 전에 확인해 주세요.",
       evidence: "세부 정보",
       approve: "승인",
       reject: "거부",
+      activateNow: "바로 활성화",
+      compactFirst: "압축 후 계속",
+      abortActivation: "중지",
+      activationTools: {
+        activate_computer_use:
+          "컴퓨터 제어: Pine이 화면을 보고 앱을 조작할 수 있습니다.",
+        activate_skill_authoring:
+          "Skill 작성: Pine이 Skill을 만들고 수정할 수 있습니다.",
+        activate_automation_authoring:
+          "자동화 작성: Pine이 자동화를 만들고 수정할 수 있습니다.",
+        activate_mcp_authoring:
+          "MCP 관리: Pine이 MCP 서버를 추가, 수정, 삭제할 수 있습니다.",
+        activate_media_generation:
+          "미디어 생성: Pine이 이미지와 동영상을 생성할 수 있습니다.",
+      },
+      activationWhy:
+        "이 모델은 대화 중간에 도구를 추가할 수 없습니다. 활성화하면 요청의 앞부분이 바뀌어, 제공업체가 캐시해 둔 약 {tokens}의 컨텍스트를 쓸 수 없게 됩니다.",
+      activationNowEffect:
+        "바로 활성화: 이번 턴에는 전체 컨텍스트를 정가로 다시 처리하므로 응답이 느려지고 비용이 늘어납니다. 이후에는 캐시가 정상적으로 동작합니다.",
+      activationCompactEffect:
+        "압축 후 계속: 먼저 대화를 요약한 뒤 도구를 활성화합니다. 압축은 캐시된 컨텍스트를 재사용하므로 다시 처리하는 것보다 비용이 대체로 훨씬 적고, 이후 대화도 더 짧고 저렴해집니다. 초기 세부 내용이 요약에서 빠질 수 있습니다.",
       guide: "안내와 함께 거부",
     },
     questionnaireRequest: {
@@ -1219,6 +1242,8 @@ export default {
           complete: "컴퓨터 사용을 활성화함",
           error: "컴퓨터 사용을 활성화할 수 없습니다",
           running: "컴퓨터 사용 활성화 중",
+          awaiting: "컴퓨터 제어를 활성화하기 전에 선택을 기다리는 중",
+          denied: "컴퓨터 제어가 활성화되지 않음",
         },
         activatePineOps: {
           complete: "Pine 작업을 활성화함",

@@ -930,9 +930,28 @@ export default {
       triggerDestructivePattern: "该操作命中破坏性命令检查，请先确认再执行。",
       triggerPrivilegedExecution:
         "该操作请求在 Pine 项目沙箱外使用原生权限执行。",
+      triggerLongContextActivation: "Pine 想启用新的工具，启用前需要你确认。",
       evidence: "详情",
       approve: "批准",
       reject: "拒绝",
+      activateNow: "直接激活",
+      compactFirst: "先压缩再继续",
+      abortActivation: "中止",
+      activationTools: {
+        activate_computer_use: "电脑操作：让 Pine 查看屏幕并操作你的应用。",
+        activate_skill_authoring: "Skill 编写：让 Pine 创建和修改 Skills。",
+        activate_automation_authoring:
+          "自动化编写：让 Pine 创建和修改自动化任务。",
+        activate_mcp_authoring:
+          "MCP 管理：让 Pine 添加、修改和删除 MCP 服务器。",
+        activate_media_generation: "媒体生成：让 Pine 生成图片和视频。",
+      },
+      activationWhy:
+        "当前模型不支持在对话中途追加工具。启用后请求开头会改变，服务商已缓存的约 {tokens} 上下文将失效。",
+      activationNowEffect:
+        "直接激活：这一轮要按全价重新处理整个上下文，响应更慢、费用更高，之后缓存恢复正常。",
+      activationCompactEffect:
+        "先压缩再继续：先把对话压缩成摘要再启用。压缩会复用已缓存的上下文，费用通常远低于重新处理，之后的对话也更短、更便宜；早期细节可能被摘要省略。",
       guide: "拒绝并说明要求",
     },
     questionnaireRequest: {
@@ -1179,6 +1198,8 @@ export default {
           complete: "已激活电脑操作",
           error: "无法激活电脑操作",
           running: "正在激活电脑操作",
+          awaiting: "等待确认后再激活电脑操作",
+          denied: "电脑操作未激活",
         },
         activatePineOps: {
           complete: "已激活 Pine 操作",

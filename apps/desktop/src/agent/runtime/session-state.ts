@@ -76,6 +76,11 @@ export interface LiveAgentSession {
   computerUseActive: boolean;
   computerUseController?: ComputerUseController;
   mediaGenerationActive: boolean;
+  /**
+   * Activation tools the user already agreed to after choosing to compress
+   * first; the next call to each one goes through without asking again.
+   */
+  preapprovedActivations: Set<string>;
   skillAuthoringActive: boolean;
   automationAuthoringActive: boolean;
   mcpAuthoringActive: boolean;

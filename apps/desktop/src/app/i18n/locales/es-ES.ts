@@ -996,9 +996,32 @@ export default {
         "Esta operación coincide con un patrón de comando destructivo. Revísala antes de ejecutarla.",
       triggerPrivilegedExecution:
         "Esta operación solicita una ejecución nativa fuera del sandbox de proyecto de Pine.",
+      triggerLongContextActivation:
+        "Pine quiere activar nuevas herramientas. Confírmalo antes de continuar.",
       evidence: "Detalles",
       approve: "Aprobar",
       reject: "Rechazar",
+      activateNow: "Activar ahora",
+      compactFirst: "Comprimir y continuar",
+      abortActivation: "Detener",
+      activationTools: {
+        activate_computer_use:
+          "Uso del ordenador: permite a Pine ver tu pantalla y manejar tus aplicaciones.",
+        activate_skill_authoring:
+          "Creación de Skills: permite a Pine crear y editar Skills.",
+        activate_automation_authoring:
+          "Creación de automatizaciones: permite a Pine crear y editar automatizaciones.",
+        activate_mcp_authoring:
+          "Gestión de MCP: permite a Pine añadir, modificar y eliminar servidores MCP.",
+        activate_media_generation:
+          "Generación de medios: permite a Pine generar imágenes y vídeos.",
+      },
+      activationWhy:
+        "Este modelo no admite añadir herramientas a mitad de una conversación. Activarlas cambia el inicio de la solicitud, por lo que el contexto que el proveedor tiene en caché (aprox. {tokens}) dejará de servir.",
+      activationNowEffect:
+        "Activar ahora: en este turno se reprocesa todo el contexto a precio completo, así que la respuesta es más lenta y cara. Después la caché vuelve a funcionar con normalidad.",
+      activationCompactEffect:
+        "Comprimir y continuar: primero se resume la conversación y después se activan las herramientas. La compresión reutiliza el contexto en caché, por lo que suele costar mucho menos que reprocesarlo, y los turnos posteriores son más cortos y baratos. Pueden omitirse detalles iniciales.",
       guide: "Rechazar con indicaciones",
     },
     questionnaireRequest: {
@@ -1247,6 +1270,9 @@ export default {
           complete: "Activó el uso del ordenador",
           error: "No se pudo activar el uso del ordenador",
           running: "Activando el uso del ordenador",
+          awaiting:
+            "Esperando tu elección antes de activar el uso del ordenador",
+          denied: "Uso del ordenador no activado",
         },
         activatePineOps: {
           complete: "Activó las operaciones de Pine",
