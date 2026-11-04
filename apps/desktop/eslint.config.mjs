@@ -2,13 +2,6 @@ import prettierConfig from "@vue/eslint-config-prettier";
 import { withVueTs, vueTsConfigs } from "@vue/eslint-config-typescript";
 import pluginVue from "eslint-plugin-vue";
 
-const prettierOptions = {
-  semi: true,
-  singleQuote: false,
-  tabWidth: 2,
-  useTabs: false,
-};
-
 export default withVueTs(
   { rootDir: import.meta.dirname },
   {
@@ -26,7 +19,8 @@ export default withVueTs(
   prettierConfig,
   {
     rules: {
-      "prettier/prettier": ["error", prettierOptions],
+      // Formatting is enforced by `prettier --check` (format:check).
+      "prettier/prettier": "off",
       "vue/multi-word-component-names": ["error", { ignores: ["App"] }],
     },
   },

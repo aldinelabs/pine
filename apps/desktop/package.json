@@ -16,14 +16,14 @@
     "prebuild:server": "node scripts/fetch-geoip.mjs --optional",
     "build:server": "node scripts/build-server.mjs",
     "serve": "node .vite/server/server.mjs",
-    "lint": "eslint src forge.config.ts \"vite.*.ts\" --max-warnings=0",
+    "lint": "eslint src forge.config.ts \"vite.*.ts\" --max-warnings=0 --cache",
     "lint:fix": "eslint src forge.config.ts \"vite.*.ts\" --max-warnings=0 --fix",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "test": "vitest",
     "test:run": "vitest run",
     "test:coverage": "vitest run --coverage",
-    "typecheck": "vue-tsc --noEmit"
+    "typecheck": "vue-tsc --noEmit --incremental --tsBuildInfoFile node_modules/.cache/vue-tsc.tsbuildinfo"
   },
   "keywords": [],
   "author": {
