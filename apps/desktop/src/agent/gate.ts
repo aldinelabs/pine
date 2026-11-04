@@ -164,6 +164,15 @@ export interface ToolGate {
 const MAX_CONSECUTIVE_ESCALATIONS = 5;
 
 /**
+ * A reviewer failure that a retry cannot fix, such as a missing approval
+ * model. Other failures (timeouts, provider errors, malformed rulings) are
+ * retried once before the gate gives up on the review.
+ */
+export class JudgeUnavailableError extends Error {
+  override name = "JudgeUnavailableError";
+}
+
+/**
  * Let Me Review mode: every review becomes an approval request in the renderer. The
  * runtime owns the cross-process round trip, including both events.
  */
@@ -381,6 +390,7 @@ export class AutoReviewGate implements ToolGate {
     const sharedTurn = this.host.turnContext(
       reviews.map((review) => review.input.subject),
     );
+    let capped = false;
 
     reviews.forEach((review, index) => {
       const sequence = ++this.sequence;
@@ -388,6 +398,7 @@ export class AutoReviewGate implements ToolGate {
         const reason =
           "Too many escalations in this turn; revise the requested action and its rationale before retrying.";
         if (this.autonomous) {
+          capped = true;
           this.emitDecided(sequence, review.input.toolCallId, "denied", reason);
           decisions[index] = { kind: "deny", reason };
           return;
@@ -440,6 +451,11 @@ export class AutoReviewGate implements ToolGate {
       });
     });
 
+    // An autonomous turn is one long prompt and no allow can arrive while the
+    // cap holds, so the cap would otherwise deny every later escalation of the
+    // run. Deny this batch only, then let the reviewer see the revised calls.
+    if (capped) this.consecutiveEscalations = 0;
+
     if (pending.length === 0) {
       await Promise.all(userFallbacks);
       if (allowed) this.consecutiveEscalations = 0;
@@ -448,8 +464,16 @@ export class AutoReviewGate implements ToolGate {
 
     let rulings: JudgeRuling[];
     try {
-      rulings = await this.host.judge(pending.map(({ request }) => request));
+      rulings = await this.judgeWithRetry(
+        pending.map(({ request }) => request),
+      );
     } catch (error) {
+      // A reviewer outage says nothing about the agent's calls; it must not
+      // use up the escalation streak that guards against repeated requests.
+      this.consecutiveEscalations = Math.max(
+        0,
+        this.consecutiveEscalations - pending.length,
+      );
       const message = error instanceof Error ? error.message : String(error);
       const reason = `Auto-review unavailable: ${message}`;
       if (this.autonomous) {
@@ -567,6 +591,22 @@ export class AutoReviewGate implements ToolGate {
     }
     if (allowed) this.consecutiveEscalations = 0;
     return decisions as GateDecision[];
+  }
+
+  private async judgeWithRetry(
+    requests: JudgeRequest[],
+  ): Promise<JudgeRuling[]> {
+    try {
+      return await this.host.judge(requests);
+    } catch (error) {
+      if (
+        error instanceof JudgeUnavailableError ||
+        requests.some((request) => request.signal?.aborted)
+      ) {
+        throw error;
+      }
+      return this.host.judge(requests);
+    }
   }
 
   private emitDecided(

@@ -79,6 +79,7 @@ import {
   AutoReviewGate,
   RULING_TOOL,
   AUTONOMOUS_RULING_TOOL,
+  JudgeUnavailableError,
   UserApprovalGate,
   type AuthorizationGrant,
   type GateHost,
@@ -2181,7 +2182,8 @@ export class PineAgentRuntime {
       live.agentDir,
       modelRuntime,
     );
-    if (!model) throw new Error("No approval model is configured.");
+    if (!model)
+      throw new JudgeUnavailableError("No approval model is configured.");
     signal.throwIfAborted();
     const autonomous = live.approvalMode === "autonomous";
     const context: Context = {

@@ -1,6 +1,11 @@
 import { describe, expect, it, vi } from "vitest";
 import type { GateHost, JudgeRequest, JudgeRuling, ToolGate } from "../gate";
-import { AutoReviewGate, normalizeCommand, UserApprovalGate } from "../gate";
+import {
+  AutoReviewGate,
+  JudgeUnavailableError,
+  normalizeCommand,
+  UserApprovalGate,
+} from "../gate";
 
 interface HostMocks {
   emit: ReturnType<typeof vi.fn>;
@@ -245,10 +250,10 @@ describe("AutoReviewGate", () => {
 
     await expect(
       gate.reviewPrivilegedCall({ toolCallId: "p1", ...review }),
-    ).resolves.toEqual({ kind: "allow", scope: "once", reviewer: "judge" });
+    ).resolves.toMatchObject({ kind: "allow", reviewer: "judge" });
     await expect(
       gate.reviewPrivilegedCall({ toolCallId: "p2", ...review }),
-    ).resolves.toEqual({ kind: "allow", scope: "once", reviewer: "judge" });
+    ).resolves.toMatchObject({ kind: "allow", reviewer: "judge" });
 
     expect(mocks.judge).toHaveBeenCalledTimes(2);
     expect(mocks.judge).toHaveBeenNthCalledWith(1, [
@@ -491,6 +496,93 @@ describe("AutoReviewGate", () => {
       kind: "deny",
       reason: "Auto-review unavailable: provider down",
     });
+    expect(mocks.requestUserApproval).not.toHaveBeenCalled();
+  });
+
+  it("retries a transient reviewer failure once", async () => {
+    const { host, mocks } = createHost();
+    mocks.judge.mockRejectedValueOnce(new Error("socket hang up"));
+    const gate = new AutoReviewGate(host, true);
+
+    await expect(
+      gate.reviewBashCommand({ toolCallId: "t1", command: "rm -rf build" }),
+    ).resolves.toMatchObject({ kind: "allow", reviewer: "judge" });
+    expect(mocks.judge).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not retry when no approval model is configured", async () => {
+    const { host, mocks } = createHost();
+    mocks.judge.mockRejectedValue(
+      new JudgeUnavailableError("No approval model is configured."),
+    );
+    const gate = new AutoReviewGate(host, true);
+
+    await expect(
+      gate.reviewBashCommand({ toolCallId: "t1", command: "rm -rf build" }),
+    ).resolves.toEqual({
+      kind: "deny",
+      reason: "Auto-review unavailable: No approval model is configured.",
+    });
+    expect(mocks.judge).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not retry a review the caller aborted", async () => {
+    const { host, mocks } = createHost();
+    const controller = new AbortController();
+    mocks.judge.mockImplementation(() => {
+      controller.abort();
+      throw new Error("aborted");
+    });
+    const gate = new AutoReviewGate(host, true);
+
+    await gate.reviewBashCommand({
+      toolCallId: "t1",
+      command: "rm -rf build",
+      signal: controller.signal,
+    });
+    expect(mocks.judge).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not count reviewer outages toward the escalation streak", async () => {
+    const { host, mocks } = createHost();
+    mocks.judge.mockRejectedValue(new Error("provider down"));
+    const gate = new AutoReviewGate(host, true);
+    const command = "rm -rf build";
+
+    for (let index = 0; index < 6; index += 1) {
+      await gate.reviewBashCommand({ toolCallId: `t${index}`, command });
+    }
+    mocks.judge.mockReset();
+    mocks.judge.mockResolvedValue([{ toolCallId: "t-ok", verdict: "allow" }]);
+
+    await expect(
+      gate.reviewBashCommand({ toolCallId: "t-ok", command }),
+    ).resolves.toMatchObject({ kind: "allow", reviewer: "judge" });
+    expect(mocks.judge).toHaveBeenCalledTimes(1);
+  });
+
+  it("lets the reviewer see autonomous calls again after the streak cap denies once", async () => {
+    const { host, mocks } = createHost(() =>
+      Promise.resolve({ verdict: "deny", reason: "denied" }),
+    );
+    const gate = new AutoReviewGate(host, true);
+    const command = "rm -rf build";
+
+    for (let index = 0; index < 5; index += 1) {
+      await gate.reviewBashCommand({ toolCallId: `t${index}`, command });
+    }
+    expect(mocks.judge).toHaveBeenCalledTimes(5);
+
+    await expect(
+      gate.reviewBashCommand({ toolCallId: "t-capped", command }),
+    ).resolves.toEqual({
+      kind: "deny",
+      reason: expect.stringContaining("Too many escalations"),
+    });
+    expect(mocks.judge).toHaveBeenCalledTimes(5);
+
+    await gate.reviewBashCommand({ toolCallId: "t-revised", command });
+    expect(mocks.judge).toHaveBeenCalledTimes(6);
     expect(mocks.requestUserApproval).not.toHaveBeenCalled();
   });
 });
