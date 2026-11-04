@@ -57,6 +57,10 @@ import {
   type PineUserProfile,
   type SetUserProfileResult,
 } from "../../../shared/userProfile";
+import {
+  GET_EXCHANGE_RATES_CHANNEL,
+  type PineCurrencyInfo,
+} from "../../../shared/currency";
 import { GET_APP_VERSION_CHANNEL } from "../../../shared/window";
 import type { PineCore } from "../pineCore";
 import {
@@ -70,6 +74,14 @@ export function registerSettingsRequests(core: PineCore): void {
   const settings = () => readPineAgentSettings(core.agentDirectory);
 
   core.handle(GET_APP_VERSION_CHANNEL, (): string => core.host.version);
+
+  core.handle(
+    GET_EXCHANGE_RATES_CHANNEL,
+    async (): Promise<PineCurrencyInfo> => ({
+      rates: await core.exchangeRates.get(),
+      systemRegion: core.host.systemRegion ?? null,
+    }),
+  );
 
   core.handle(
     GET_TINYFISH_CREDENTIAL_STATUS_CHANNEL,

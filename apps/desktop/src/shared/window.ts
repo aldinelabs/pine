@@ -129,6 +129,8 @@ export interface PineWindowApi {
   onWindowResizeStarted: (listener: (startedAt: number) => void) => () => void;
   downloadUpdate?: () => Promise<import("./updates").DownloadUpdateResult>;
   getAppVersion: () => Promise<string>;
+  /** Latest USD exchange rates and the system region, for showing costs. */
+  getExchangeRates?: () => Promise<import("./currency").PineCurrencyInfo>;
   installUpdate?: () => Promise<import("./updates").InstallUpdateResult>;
   openExternalUrl: (url: string) => Promise<void>;
   platform: PinePlatform;

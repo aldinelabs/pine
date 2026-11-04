@@ -187,6 +187,10 @@ export default {
     },
     sectionsLabel: "Secciones de ajustes",
     language: "Idioma",
+    currency: "Moneda",
+    currencyAuto: "Seguir el sistema ({currency})",
+    currencyDescription:
+      "Se usa para mostrar el coste de las conversaciones y los límites de coste, convertido al tipo diario del BCE. Muestra dólares estadounidenses si no hay tipos disponibles.",
     appearance: "Modo de color",
     themeSystem: "Sistema",
     themeLight: "Claro",
@@ -969,6 +973,12 @@ export default {
         unknown: "Desconocido",
         compactNow: "Compactar el contexto ahora",
         compacting: "Compactando…",
+        costLimit: "Límite de coste de la sesión",
+        limitReachedTitle: "Límite de coste alcanzado",
+        limitReachedDescription:
+          "Esta sesión gastó {cost}, alcanzó su límite de {limit} y se detuvo.",
+        limitReachedPrompt:
+          "Esta sesión alcanzó su límite de coste. Aumenta o quita el límite para continuar.",
       },
     },
     approvalRequest: {

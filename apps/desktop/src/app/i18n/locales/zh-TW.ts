@@ -174,6 +174,10 @@ export default {
     },
     sectionsLabel: "設定分類",
     language: "語言",
+    currency: "貨幣",
+    currencyAuto: "跟隨系統（{currency}）",
+    currencyDescription:
+      "用於顯示對話花費與成本上限，依歐洲央行每日匯率換算；無法取得匯率時顯示美元。",
     appearance: "配色模式",
     themeSystem: "跟隨系統",
     themeLight: "淺色",
@@ -907,6 +911,11 @@ export default {
         unknown: "未知",
         compactNow: "立即壓縮上下文",
         compacting: "正在壓縮……",
+        costLimit: "對話成本上限",
+        limitReachedTitle: "已達到成本上限",
+        limitReachedDescription:
+          "本對話已花費 {cost}，達到上限 {limit}，已停止執行。",
+        limitReachedPrompt: "本對話已達到成本上限。調高或清除上限後才能繼續。",
       },
     },
     approvalRequest: {

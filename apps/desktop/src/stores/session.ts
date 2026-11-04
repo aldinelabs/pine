@@ -24,6 +24,7 @@ import type {
 import { attachmentMessagePreview } from "@/shared/attachments";
 import { parseMessageBlocks, transcriptRole } from "@/shared/sessions";
 import type { PineSessionMutator } from "@/shared/sessionMutators";
+import { preferenceStorage } from "@/lib/preferenceStorage";
 import { agentLocale, isAppLocale, localeMessages } from "@/app/i18n";
 import { useModelsStore } from "@/stores/models";
 import type { WebSessionSnapshot } from "@/shared/webControl";
@@ -223,6 +224,35 @@ function applyAssistantMessageUpdates(
     }
   }
   return blocks;
+}
+
+const COST_LIMITS_STORAGE_KEY = "pine.session-cost-limits";
+/** Sessions already stopped for hitting their limit, so a trailing usage
+ * event does not abort or notify twice. */
+const costLimitStopped = new Set<string>();
+
+function readCostLimits(): Record<string, number> {
+  try {
+    const raw = preferenceStorage.getItem(COST_LIMITS_STORAGE_KEY);
+    const parsed: unknown = raw ? JSON.parse(raw) : {};
+    if (!parsed || typeof parsed !== "object") return {};
+    return Object.fromEntries(
+      Object.entries(parsed).filter(
+        (entry): entry is [string, number] =>
+          typeof entry[1] === "number" && entry[1] > 0,
+      ),
+    );
+  } catch {
+    return {};
+  }
+}
+
+function writeCostLimits(limits: Record<string, number>): void {
+  try {
+    preferenceStorage.setItem(COST_LIMITS_STORAGE_KEY, JSON.stringify(limits));
+  } catch {
+    // Storage unavailable: the limit still applies for this window.
+  }
 }
 
 function compactionMessage(
@@ -800,6 +830,12 @@ export const useSessionStore = defineStore("session", () => {
     mutators?: readonly PineSessionMutator[],
   ): Promise<PineSessionSummary> {
     const { projectId, sessionId } = target;
+    if (sessionId && isCostLimitReached(sessionId)) {
+      throw new Error(
+        localeMessages[currentAppLocale()].project.composer.contextUsage
+          .limitReachedPrompt,
+      );
+    }
     const sequence = activationSequence;
     const epoch = epochOf(projectId);
     const targetState = sessionId ? stateFor(sessionId) : draftState.value;
@@ -905,6 +941,35 @@ export const useSessionStore = defineStore("session", () => {
       approvalMode,
       streamingBehavior: "steer",
     });
+  }
+
+  /** Spend limit in USD for a session; absent means unlimited. */
+  const costLimits = ref<Record<string, number>>(readCostLimits());
+
+  function costLimitFor(sessionId: string | null | undefined): number | null {
+    return sessionId ? (costLimits.value[sessionId] ?? null) : null;
+  }
+
+  /** Sets the session's spend limit; null, 0 or a non-number clears it. */
+  function setCostLimit(sessionId: string, limit: number | null): void {
+    const next = { ...costLimits.value };
+    if (limit != null && Number.isFinite(limit) && limit > 0) {
+      next[sessionId] = limit;
+    } else {
+      delete next[sessionId];
+    }
+    costLimits.value = next;
+    writeCostLimits(next);
+  }
+
+  function isCostLimitReached(sessionId: string): boolean {
+    const limit = costLimitFor(sessionId);
+    if (limit == null) return false;
+    const usage =
+      sessionId === currentSessionId.value
+        ? contextUsage.value
+        : (sessionCache.get(sessionId)?.contextUsage ?? null);
+    return usage != null && usage.cost >= limit;
   }
 
   async function abort(sessionId = currentSessionId.value): Promise<void> {
@@ -1293,6 +1358,28 @@ export const useSessionStore = defineStore("session", () => {
       contextUsage.value = usage;
       const cached = sessionCache.get(event.sessionId);
       if (cached) cached.contextUsage = usage;
+      const limit = costLimitFor(event.sessionId);
+      if (
+        limit != null &&
+        usage.cost >= limit &&
+        !costLimitStopped.has(event.sessionId)
+      ) {
+        costLimitStopped.add(event.sessionId);
+        const messages = localeMessages[currentAppLocale()];
+        toast.warning(
+          messages.project.composer.contextUsage.limitReachedTitle,
+          {
+            id: `cost-limit-${event.sessionId}`,
+            description:
+              messages.project.composer.contextUsage.limitReachedDescription
+                .replace("{cost}", usage.cost.toFixed(2))
+                .replace("{limit}", limit.toFixed(2)),
+          },
+        );
+        void window.pine.abortSession({ sessionId: event.sessionId });
+      } else if (limit == null || usage.cost < limit) {
+        costLimitStopped.delete(event.sessionId);
+      }
       return;
     }
     if (event.type === "compaction-start" || event.type === "compaction-end") {
@@ -1712,6 +1799,10 @@ export const useSessionStore = defineStore("session", () => {
     connectAgentEvents,
     compactContext,
     contextUsage,
+    costLimits,
+    costLimitFor,
+    setCostLimit,
+    isCostLimitReached,
     deleteSession,
     dequeueSteering,
     sendSteeringNow,

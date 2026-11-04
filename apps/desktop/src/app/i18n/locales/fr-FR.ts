@@ -186,6 +186,10 @@ export default {
     },
     sectionsLabel: "Sections des réglages",
     language: "Langue",
+    currency: "Devise",
+    currencyAuto: "Suivre le système ({currency})",
+    currencyDescription:
+      "Sert à afficher le coût des conversations et les limites de coût, converti au taux quotidien de la BCE. Affiche des dollars américains si les taux sont indisponibles.",
     appearance: "Mode de couleur",
     themeSystem: "Système",
     themeLight: "Clair",
@@ -971,6 +975,12 @@ export default {
         unknown: "Inconnu",
         compactNow: "Compacter le contexte maintenant",
         compacting: "Compactage…",
+        costLimit: "Limite de coût de la session",
+        limitReachedTitle: "Limite de coût atteinte",
+        limitReachedDescription:
+          "Cette session a dépensé {cost}, atteint sa limite de {limit} et a été arrêtée.",
+        limitReachedPrompt:
+          "Cette session a atteint sa limite de coût. Augmentez ou supprimez la limite pour continuer.",
       },
     },
     approvalRequest: {

@@ -265,6 +265,7 @@ function desktopHost(): PineHost {
       ? path.join(process.resourcesPath, "dbip-city-lite.mmdb.gz")
       : path.join(app.getAppPath(), "resources/geoip/dbip-city-lite.mmdb.gz"),
     version: app.getVersion(),
+    systemRegion: app.getLocaleCountryCode() || undefined,
     runtime: { electron: process.versions.electron },
     // net.fetch goes through the system proxy, like the rest of Pine's traffic.
     fetch: (url, init) => net.fetch(url, init),

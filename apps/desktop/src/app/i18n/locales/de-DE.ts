@@ -187,6 +187,10 @@ export default {
     },
     sectionsLabel: "Einstellungsbereiche",
     language: "Sprache",
+    currency: "Währung",
+    currencyAuto: "System folgen ({currency})",
+    currencyDescription:
+      "Für die Anzeige von Gesprächskosten und Kostenlimits, umgerechnet zum Tageskurs der EZB. Ohne Kurse werden US-Dollar angezeigt.",
     appearance: "Farbmodus",
     themeSystem: "System",
     themeLight: "Hell",
@@ -977,6 +981,12 @@ export default {
         unknown: "Unbekannt",
         compactNow: "Kontext jetzt verdichten",
         compacting: "Wird verdichtet…",
+        costLimit: "Kostenlimit der Sitzung",
+        limitReachedTitle: "Kostenlimit erreicht",
+        limitReachedDescription:
+          "Diese Sitzung hat {cost} ausgegeben, das Limit von {limit} erreicht und wurde gestoppt.",
+        limitReachedPrompt:
+          "Diese Sitzung hat ihr Kostenlimit erreicht. Erhöhe oder entferne das Limit, um fortzufahren.",
       },
     },
     approvalRequest: {

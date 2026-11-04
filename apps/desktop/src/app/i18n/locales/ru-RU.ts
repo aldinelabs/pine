@@ -185,6 +185,10 @@ export default {
     },
     sectionsLabel: "Разделы настроек",
     language: "Язык",
+    currency: "Валюта",
+    currencyAuto: "Как в системе ({currency})",
+    currencyDescription:
+      "Используется для стоимости диалога и лимитов стоимости по дневному курсу ЕЦБ. Если курсы недоступны, показываются доллары США.",
     appearance: "Цветовой режим",
     themeSystem: "Системная",
     themeLight: "Светлая",
@@ -961,6 +965,12 @@ export default {
         unknown: "Неизвестно",
         compactNow: "Сжать контекст сейчас",
         compacting: "Сжатие…",
+        costLimit: "Лимит стоимости сессии",
+        limitReachedTitle: "Достигнут лимит стоимости",
+        limitReachedDescription:
+          "Сессия потратила {cost}, достигла лимита {limit} и была остановлена.",
+        limitReachedPrompt:
+          "Сессия достигла лимита стоимости. Увеличьте или уберите лимит, чтобы продолжить.",
       },
     },
     approvalRequest: {

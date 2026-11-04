@@ -183,6 +183,10 @@ export default {
     },
     sectionsLabel: "설정 섹션",
     language: "언어",
+    currency: "통화",
+    currencyAuto: "시스템 설정 따르기({currency})",
+    currencyDescription:
+      "대화 비용과 비용 한도를 표시하는 데 사용합니다. 유럽중앙은행의 일일 환율로 환산하며, 환율을 가져올 수 없으면 미국 달러로 표시합니다.",
     appearance: "색상 모드",
     themeSystem: "시스템",
     themeLight: "라이트",
@@ -945,6 +949,12 @@ export default {
         unknown: "알 수 없음",
         compactNow: "지금 컨텍스트 압축",
         compacting: "압축 중…",
+        costLimit: "세션 비용 한도",
+        limitReachedTitle: "비용 한도에 도달했습니다",
+        limitReachedDescription:
+          "이 세션이 {cost}를 사용해 한도 {limit}에 도달하여 중지되었습니다.",
+        limitReachedPrompt:
+          "이 세션은 비용 한도에 도달했습니다. 계속하려면 한도를 높이거나 해제하세요.",
       },
     },
     approvalRequest: {

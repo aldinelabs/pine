@@ -22,6 +22,8 @@ export interface PineHost {
   /** The approximate-location database shipped with Pine. */
   geoipDatabasePath: string;
   version: string;
+  /** The region set in the operating system (ISO 3166), when known. */
+  systemRegion?: string;
   /** Runtime details recorded with diagnostics, such as the Electron version. */
   runtime: Record<string, string>;
   /** Outgoing requests Pine makes itself; the desktop follows the system proxy. */

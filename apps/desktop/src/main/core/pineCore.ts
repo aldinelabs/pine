@@ -50,6 +50,7 @@ import { AUTOMATIONS_CHANGED_CHANNEL } from "../../shared/automation";
 import { ApproximateLocationService } from "../approximateLocation";
 import { FilePreviewWatcherRegistry } from "../filePreviewWatcher";
 import { ModelMetadataService } from "../modelMetadata";
+import { ExchangeRateService } from "../exchangeRates";
 import { ModelRecommendationService } from "../modelRecommendations";
 import { PresentedFileRegistry } from "../presentedFiles";
 import { ProjectFileWatcherRegistry } from "../projectFileWatcher";
@@ -98,6 +99,7 @@ export class PineCore {
   readonly presentedFiles = new PresentedFileRegistry();
   readonly workbenchStateRequests = new WorkbenchStateRequests();
   readonly modelRecommendations = new ModelRecommendationService();
+  readonly exchangeRates = new ExchangeRateService();
   readonly modelMetadata = new ModelMetadataService();
   readonly filePreviewWatchers: FilePreviewWatcherRegistry;
   /** Provider login id → the client that started it. */

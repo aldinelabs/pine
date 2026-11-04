@@ -10,6 +10,7 @@ import * as skills from "../shared/skills";
 import * as mcp from "../shared/mcp";
 import * as background from "../shared/backgroundTasks";
 import * as attachments from "../shared/attachments";
+import { GET_EXCHANGE_RATES_CHANNEL } from "../shared/currency";
 import { GET_APP_VERSION_CHANNEL } from "../shared/window";
 import {
   GET_USER_PROFILE_CHANNEL,
@@ -104,6 +105,7 @@ export function createWebChannels(
 
   return new Map<string, WebChannel>([
     [GET_APP_VERSION_CHANNEL, query("none")],
+    [GET_EXCHANGE_RATES_CHANNEL, query("none")],
     [GET_USER_PROFILE_CHANNEL, query("none")],
     [SET_USER_PROFILE_CHANNEL, command("none")],
     [GET_APPROXIMATE_LOCATION_CHANNEL, query("none")],

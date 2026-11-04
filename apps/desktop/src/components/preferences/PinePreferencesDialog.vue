@@ -82,6 +82,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { useCurrencyStore } from "@/stores/currency";
 import { useModelsStore } from "@/stores/models";
 import { useUserProfileStore } from "@/stores/userProfile";
 import {
@@ -135,6 +136,8 @@ const hasRelayRemote =
 const appearanceStore = useAppearanceStore();
 const modelsStore = useModelsStore();
 const userProfileStore = useUserProfileStore();
+const currencyStore = useCurrencyStore();
+void currencyStore.load();
 const { supportsSidebarVibrancy, themePreference, pineColorTheme } =
   storeToRefs(appearanceStore);
 const {
@@ -1180,6 +1183,51 @@ defineExpose({ open });
                             :value="option"
                           >
                             {{ APP_LOCALE_NAMES[option] }}
+                          </SelectItem>
+                        </SelectGroup>
+                      </SelectContent>
+                    </Select>
+                  </Field>
+                  <Field orientation="responsive">
+                    <FieldContent>
+                      <FieldTitle id="pine-currency-setting">
+                        {{ t("preferences.currency") }}
+                      </FieldTitle>
+                      <FieldDescription>
+                        {{ t("preferences.currencyDescription") }}
+                      </FieldDescription>
+                    </FieldContent>
+                    <Select
+                      :model-value="currencyStore.preference"
+                      @update:model-value="
+                        (value) =>
+                          currencyStore.setPreference(
+                            value as typeof currencyStore.preference,
+                          )
+                      "
+                    >
+                      <SelectTrigger
+                        data-testid="pine-currency-select"
+                        class="w-fit"
+                        aria-labelledby="pine-currency-setting"
+                      >
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectGroup>
+                          <SelectItem value="auto">
+                            {{
+                              t("preferences.currencyAuto", {
+                                currency: currencyStore.systemCurrency,
+                              })
+                            }}
+                          </SelectItem>
+                          <SelectItem
+                            v-for="code in currencyStore.options"
+                            :key="code"
+                            :value="code"
+                          >
+                            {{ code }}
                           </SelectItem>
                         </SelectGroup>
                       </SelectContent>

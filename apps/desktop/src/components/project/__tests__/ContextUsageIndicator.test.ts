@@ -97,4 +97,59 @@ describe("ContextUsageIndicator", () => {
 
     expect(wrapper.text()).not.toContain("缓存命中率");
   });
+
+  it("sets and clears a session cost limit", async () => {
+    Object.defineProperty(window, "pine", {
+      configurable: true,
+      value: {
+        loadSessionMessages: vi.fn().mockResolvedValue({ messages: [] }),
+        resumeSession: vi.fn().mockResolvedValue({
+          session: {
+            id: "session-limit",
+            createdAt: "2026-09-07T12:00:00.000Z",
+            updatedAt: "2026-09-07T12:00:00.000Z",
+            messageCount: 2,
+          },
+          contextUsage: {
+            tokens: 1_000,
+            contextWindow: 128_000,
+            percent: 1,
+            cost: 0.25,
+            cacheHitRate: null,
+          },
+        }),
+      },
+    });
+    const pinia = createPinia();
+    setActivePinia(pinia);
+    const store = useSessionStore();
+    await store.resume("project-1", "session-limit");
+
+    const wrapper = mount(ContextUsageIndicator, {
+      global: {
+        plugins: [pinia, createAppI18n("zh-CN")],
+        stubs: {
+          Popover: passthroughStub,
+          PopoverContent: passthroughStub,
+          PopoverTrigger: passthroughStub,
+        },
+      },
+    });
+
+    expect(
+      wrapper.get('[data-testid="cost-limit-field"]').attributes("inert"),
+    ).toBeDefined();
+    await wrapper.get('[data-testid="cost-limit-toggle"]').trigger("click");
+    expect(store.costLimitFor("session-limit")).toBe(5);
+
+    const input = wrapper.get('[data-testid="cost-limit-input"]');
+    await input.setValue("2");
+    await input.trigger("blur");
+    expect(store.costLimitFor("session-limit")).toBe(2);
+    expect(wrapper.text()).toContain("$2.00");
+
+    await wrapper.get('[data-testid="cost-limit-toggle"]').trigger("click");
+    expect(store.costLimitFor("session-limit")).toBeNull();
+    store.setCostLimit("session-limit", null);
+  });
 });

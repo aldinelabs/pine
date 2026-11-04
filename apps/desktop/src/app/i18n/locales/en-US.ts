@@ -183,6 +183,10 @@ export default {
     },
     sectionsLabel: "Settings sections",
     language: "Language",
+    currency: "Currency",
+    currencyAuto: "Follow system ({currency})",
+    currencyDescription:
+      "Used to show conversation cost and cost limits, converted at the European Central Bank's daily rate. Shows US dollars when rates are unavailable.",
     appearance: "Color mode",
     themeSystem: "System",
     themeLight: "Light",
@@ -950,6 +954,12 @@ export default {
         unknown: "Unknown",
         compactNow: "Compact context now",
         compacting: "Compacting…",
+        costLimit: "Session cost limit",
+        limitReachedTitle: "Cost limit reached",
+        limitReachedDescription:
+          "This session spent {cost}, reaching its {limit} limit, and was stopped.",
+        limitReachedPrompt:
+          "This session has reached its cost limit. Raise or clear the limit to continue.",
       },
     },
     approvalRequest: {

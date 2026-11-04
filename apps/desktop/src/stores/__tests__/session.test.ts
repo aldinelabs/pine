@@ -1354,6 +1354,52 @@ describe("session store", () => {
     });
   });
 
+  it("aborts a session once its cost limit is reached and blocks new prompts", async () => {
+    let listener: ((event: PineAgentEvent) => void) | undefined;
+    const abortSession = vi.fn().mockResolvedValue({ aborted: true });
+    const promptSession = vi.fn().mockResolvedValue({ session });
+    Object.defineProperty(window, "pine", {
+      configurable: true,
+      value: {
+        onSessionEvent: vi.fn((nextListener) => {
+          listener = nextListener;
+          return () => undefined;
+        }),
+        promptSession,
+        abortSession,
+      },
+    });
+    const store = useSessionStore();
+    store.connectAgentEvents();
+    await store.prompt("Hello", {
+      projectId: PROJECT_ID,
+      sessionId: session.id,
+    });
+    store.setCostLimit(session.id, 1);
+
+    const usage = {
+      type: "context-usage" as const,
+      sessionId: session.id,
+      tokens: 10,
+      contextWindow: 200_000,
+      percent: 0.1,
+      cacheHitRate: null,
+    };
+    listener?.({ ...usage, cost: 0.9 });
+    expect(abortSession).not.toHaveBeenCalled();
+
+    listener?.({ ...usage, cost: 1.02 });
+    listener?.({ ...usage, cost: 1.03 });
+    expect(abortSession).toHaveBeenCalledOnce();
+    expect(store.isCostLimitReached(session.id)).toBe(true);
+    await expect(
+      store.prompt("More", { projectId: PROJECT_ID, sessionId: session.id }),
+    ).rejects.toThrow();
+
+    store.setCostLimit(session.id, null);
+    expect(store.isCostLimitReached(session.id)).toBe(false);
+  });
+
   it("keeps automatic approval decisions with their tool calls", async () => {
     let listener: ((event: PineAgentEvent) => void) | undefined;
     Object.defineProperty(window, "pine", {

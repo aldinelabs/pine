@@ -187,6 +187,10 @@ export default {
     },
     sectionsLabel: "設定のセクション",
     language: "言語",
+    currency: "通貨",
+    currencyAuto: "システムに従う（{currency}）",
+    currencyDescription:
+      "会話のコストとコスト上限の表示に使います。欧州中央銀行の日次レートで換算し、取得できないときは米ドルで表示します。",
     appearance: "カラーモード",
     themeSystem: "システム",
     themeLight: "ライト",
@@ -955,6 +959,12 @@ export default {
         unknown: "不明",
         compactNow: "コンテキストを今すぐ圧縮",
         compacting: "圧縮中…",
+        costLimit: "セッションのコスト上限",
+        limitReachedTitle: "コスト上限に達しました",
+        limitReachedDescription:
+          "このセッションは {cost} を使用し、上限 {limit} に達したため停止しました。",
+        limitReachedPrompt:
+          "このセッションはコスト上限に達しました。続けるには上限を引き上げるか解除してください。",
       },
     },
     approvalRequest: {

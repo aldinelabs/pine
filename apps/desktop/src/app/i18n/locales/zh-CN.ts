@@ -174,6 +174,10 @@ export default {
     },
     sectionsLabel: "设置分类",
     language: "语言",
+    currency: "货币",
+    currencyAuto: "跟随系统（{currency}）",
+    currencyDescription:
+      "用于显示对话花费和成本上限，按欧洲央行每日汇率换算；无法获取汇率时显示美元。",
     appearance: "配色模式",
     themeSystem: "跟随系统",
     themeLight: "浅色",
@@ -907,6 +911,11 @@ export default {
         unknown: "未知",
         compactNow: "立即压缩上下文",
         compacting: "正在压缩……",
+        costLimit: "会话成本上限",
+        limitReachedTitle: "已达到成本上限",
+        limitReachedDescription:
+          "本会话已花费 {cost}，达到上限 {limit}，已停止运行。",
+        limitReachedPrompt: "本会话已达到成本上限。调高或清除上限后才能继续。",
       },
     },
     approvalRequest: {

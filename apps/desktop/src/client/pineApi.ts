@@ -32,6 +32,7 @@ import {
   type ListBackgroundTasksResult,
   type ReadBackgroundTaskOutputResult,
 } from "../shared/backgroundTasks";
+import { GET_EXCHANGE_RATES_CHANNEL } from "../shared/currency";
 import { WORKBENCH_STATE_RESPONSE_CHANNEL } from "../shared/workbench";
 import {
   LIST_MCP_SERVERS_CHANNEL,
@@ -388,6 +389,7 @@ export function createPineApi(transport: PineTransport): PineDesktopApi {
     },
     getAppVersion: (): Promise<string> =>
       transport.invoke(GET_APP_VERSION_CHANNEL),
+    getExchangeRates: () => transport.invoke(GET_EXCHANGE_RATES_CHANNEL),
     downloadUpdate: (): Promise<DownloadUpdateResult> =>
       transport.invoke(DOWNLOAD_UPDATE_CHANNEL),
     installUpdate: (): Promise<InstallUpdateResult> =>
