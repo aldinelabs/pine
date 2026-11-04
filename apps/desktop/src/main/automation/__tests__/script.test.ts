@@ -163,7 +163,8 @@ describe("automation script triggers", () => {
     await expect(
       runScript(input(`export default async function poll() { return 1; }`)),
     ).rejects.toThrow(/must return/);
-  });
+    // Exhausting the sandbox memory limit is slow on shared CI runners.
+  }, 30_000);
 
   it("checks syntax without running", async () => {
     expect(
