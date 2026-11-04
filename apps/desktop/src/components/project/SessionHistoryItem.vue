@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { WorkflowIcon } from "@lucide/vue";
 import { computed } from "vue";
+import { useI18n } from "vue-i18n";
 import { cn } from "@/lib/utils";
 import {
   SidebarMenuSubButton,
@@ -23,6 +24,24 @@ const sessionStore = useSessionStore();
 const isRunning = computed(() =>
   sessionStore.isSessionRunning(props.session.id),
 );
+
+const { locale } = useI18n();
+/**
+ * Runs of one automation share its name, so each row also shows when it
+ * started, in the compact form the sidebar has room for.
+ */
+const runStartedAt = computed(() => {
+  const startedAt = props.session.automationRun?.startedAt;
+  if (!startedAt) return undefined;
+  const date = new Date(startedAt);
+  if (Number.isNaN(date.getTime())) return undefined;
+  return new Intl.DateTimeFormat(locale.value, {
+    month: "numeric",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(date);
+});
 
 const emit = defineEmits<{
   open: [];
@@ -57,6 +76,7 @@ const emit = defineEmits<{
         <WorkflowIcon
           v-if="session.automationRun"
           data-slot="session-automation-icon"
+          class="text-muted-foreground"
           aria-hidden="true"
         />
         <span
@@ -64,6 +84,12 @@ const emit = defineEmits<{
           :data-running="isRunning || undefined"
           :class="cn('truncate', isRunning && 'shimmer')"
           >{{ title }}</span
+        >
+        <span
+          v-if="runStartedAt && !isRunning"
+          data-slot="session-automation-time"
+          class="ms-auto shrink-0 text-xs text-muted-foreground tabular-nums"
+          >{{ runStartedAt }}</span
         >
         <span
           v-if="isRunning"
