@@ -1118,6 +1118,9 @@ export default {
           complete: "{count} Skills traitées",
         },
       },
+      automationRun: {
+        started: "Exécution d’automatisation",
+      },
       toolKinds: {
         bash: "exécution de commande",
         browser: "action du navigateur",

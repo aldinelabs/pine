@@ -2,6 +2,7 @@ import { access, mkdir, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { AgentSessionLocation } from "../../../agent/protocol";
+import { parseAutomationRunMessage } from "../../../shared/automationRunMessage";
 import type { PineProject } from "../../../shared/projects";
 import { AutomationSecretStore } from "../secrets";
 import {
@@ -22,6 +23,7 @@ let docs: string;
 let project: PineProject;
 let service: AutomationService;
 let locations: AgentSessionLocation[];
+let prompts: string[];
 let notifications: AutomationNotification[];
 let finishRun: (sessionId: string, location: AgentSessionLocation) => void;
 
@@ -34,7 +36,8 @@ function createService(agent?: Partial<AutomationAgentPort>) {
       return Promise.resolve({ sessionId: `session-${sessions}` });
     }),
     selectModel: vi.fn(() => Promise.resolve()),
-    prompt: vi.fn((sessionId: string) => {
+    prompt: vi.fn((sessionId: string, message: string) => {
+      prompts.push(message);
       const location = locations.at(-1)!;
       setTimeout(() => finishRun(sessionId, location), 0);
       return Promise.resolve();
@@ -99,6 +102,7 @@ async function lastRun() {
 beforeEach(async () => {
   ({ root, docs, project } = await temporaryProject());
   locations = [];
+  prompts = [];
   notifications = [];
   finishRun = (sessionId, location) => {
     void service
@@ -240,6 +244,12 @@ describe("AutomationService runs", () => {
     expect(location.sessionsRoot).toBe(
       path.join(root, "projects", PROJECT_ID, "sessions"),
     );
+    // The transcript shows this message as a card, so its format must parse.
+    expect(parseAutomationRunMessage(prompts[0])).toMatchObject({
+      name: manualSpec().name,
+      trigger: "manual",
+      instructions: manualSpec().action.instructions,
+    });
     const run = await lastRun();
     expect(run.summary).toBe("Wrote the summary.");
     expect(run.read).toBe(false);

@@ -1095,6 +1095,9 @@ export default {
           complete: "Processed {count} Skills",
         },
       },
+      automationRun: {
+        started: "Automation run",
+      },
       toolKinds: {
         bash: "command execution",
         browser: "browser action",

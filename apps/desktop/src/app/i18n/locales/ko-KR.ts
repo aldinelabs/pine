@@ -1088,6 +1088,9 @@ export default {
           complete: "스킬 {count}개 처리함",
         },
       },
+      automationRun: {
+        started: "자동화 실행",
+      },
       toolKinds: {
         bash: "명령 실행",
         browser: "브라우저 작업",

@@ -1106,6 +1106,9 @@ export default {
           complete: "Обработано навыков: {count}",
         },
       },
+      automationRun: {
+        started: "Запуск автоматизации",
+      },
       toolKinds: {
         bash: "выполнение команды",
         browser: "действие в браузере",

@@ -1049,6 +1049,9 @@ export default {
           complete: "處理了 {count} 項工作技能",
         },
       },
+      automationRun: {
+        started: "自動化執行",
+      },
       toolKinds: {
         bash: "命令執行",
         browser: "瀏覽器操作",

@@ -1100,6 +1100,9 @@ export default {
           complete: "{count} 件のスキルを処理しました",
         },
       },
+      automationRun: {
+        started: "自動化の実行",
+      },
       toolKinds: {
         bash: "コマンド実行",
         browser: "ブラウザ操作",

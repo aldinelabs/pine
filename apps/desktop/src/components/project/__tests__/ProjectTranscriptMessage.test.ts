@@ -56,6 +56,42 @@ describe("ProjectTranscriptMessage", () => {
     expect(wrapper.text()).toContain("**Literal prompt**");
   });
 
+  it("shows an automation run's opening message as a card", async () => {
+    const wrapper = mountMessage({
+      createdAt: "2026-11-04T01:13:22.823Z",
+      id: "user-run",
+      role: "user",
+      status: "complete",
+      blocks: [
+        {
+          type: "text",
+          text: [
+            '<automation_run name="自动化自检" trigger="manual" started="2026-11-04T01:13:22.823Z" events="1">',
+            "You are carrying out an automation the user approved.",
+            "",
+            "## Instructions",
+            "写一份自检报告。",
+            "",
+            "## How this run works",
+            "- Finish by calling automation_report exactly once.",
+            "</automation_run>",
+          ].join("\n"),
+        },
+      ],
+    });
+
+    const card = wrapper.get('[data-slot="automation-run-message"]');
+    expect(card.text()).toContain("自动化自检");
+    expect(card.text()).toContain("手动");
+    expect(wrapper.find('[data-slot="user-message-row"]').exists()).toBe(false);
+    expect(wrapper.text()).not.toContain("automation_run");
+    expect(wrapper.text()).not.toContain("automation_report");
+    await wrapper.get('[data-slot="collapsible-trigger"]').trigger("click");
+    expect(
+      wrapper.get('[data-slot="automation-run-instructions"]').text(),
+    ).toBe("写一份自检报告。");
+  });
+
   it("renders parsed attachments above the user bubble and opens them", async () => {
     const openAttachment = vi.fn().mockResolvedValue({ opened: true });
     Object.defineProperty(window, "pine", {
@@ -102,7 +138,7 @@ describe("ProjectTranscriptMessage", () => {
     expect(wrapper.text()).toContain("notes.md");
     expect(wrapper.text()).toContain("Review this.");
     expect(wrapper.text()).not.toContain("pine_attachments");
-    expect(wrapper.get('[data-slot="bubble-content"]').text()).toBe(
+    expect(wrapper.get('[data-slot="user-message-text"]').text()).toBe(
       "Review this.",
     );
   });

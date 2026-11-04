@@ -1094,6 +1094,7 @@ export class AutomationService {
     return result;
   }
 
+  /** The transcript shows this as a card; parseAutomationRunMessage reads it. */
   private runMessage(
     armed: Armed,
     run: AutomationRunRecord,

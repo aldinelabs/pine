@@ -12,9 +12,11 @@ import MarkdownContent from "@/components/markdown/MarkdownContent.vue";
 import { Bubble, BubbleContent } from "@/components/ui/bubble";
 import { Button } from "@/components/ui/button";
 import { Message, MessageContent } from "@/components/ui/message";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { serializeAttachmentMessage } from "@/shared/attachments";
+import { parseAutomationRunMessage } from "@/shared/automationRunMessage";
 import {
   contentBlocksToText,
   type PineContentBlock,
@@ -22,6 +24,7 @@ import {
 } from "@/shared/sessions";
 import type { PineTranscriptMessage } from "@/stores/session";
 import ProjectAttachmentList from "./ProjectAttachmentList.vue";
+import ProjectAutomationRunMessage from "./ProjectAutomationRunMessage.vue";
 import ProjectBackgroundTaskMarker from "./ProjectBackgroundTaskMarker.vue";
 import ProjectCompactionMarker from "./ProjectCompactionMarker.vue";
 import ProjectErrorMarker from "./ProjectErrorMarker.vue";
@@ -141,6 +144,10 @@ function runKey(toolCalls: PineToolCall[]): string {
  * tool-call markers sit in the block order.
  */
 const text = computed(() => contentBlocksToText(props.message.blocks));
+/** The message an automation run starts with, shown as a card. */
+const automationRun = computed(() =>
+  isUser.value ? parseAutomationRunMessage(text.value) : undefined,
+);
 const attachments = computed(() =>
   props.message.blocks.flatMap((block) =>
     block.type === "attachments" ? block.attachments : [],
@@ -332,6 +339,10 @@ const renderItems = computed<RenderItem[]>(() => {
             </Button>
           </div>
         </template>
+        <ProjectAutomationRunMessage
+          v-else-if="automationRun"
+          :run="automationRun"
+        />
         <div
           v-else-if="text"
           data-slot="user-message-row"
@@ -376,12 +387,18 @@ const renderItems = computed<RenderItem[]>(() => {
             class="*:data-[slot=bubble-content]:transition-colors group-hover/user-message:*:data-[slot=bubble-content]:bg-[color-mix(in_oklch,var(--secondary),var(--foreground)_5%)]"
           >
             <BubbleContent>
-              <div
-                data-slot="user-message-text"
-                class="scroll-fade-y max-h-80 overflow-y-auto whitespace-pre-wrap"
+              <!-- The overlay scrollbar takes no width and, reaching into the
+                   bubble's end padding, sits on the bubble's edge. -->
+              <ScrollArea
+                class="-me-3.5 [&>[data-slot=scroll-area-viewport]]:max-h-80 [&>[data-slot=scroll-area-viewport]]:scroll-fade-y"
               >
-                {{ text }}
-              </div>
+                <div
+                  data-slot="user-message-text"
+                  class="pe-3.5 whitespace-pre-wrap"
+                >
+                  {{ text }}
+                </div>
+              </ScrollArea>
             </BubbleContent>
           </Bubble>
         </div>
