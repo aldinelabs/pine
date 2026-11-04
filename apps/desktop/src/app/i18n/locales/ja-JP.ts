@@ -109,7 +109,7 @@ export default {
       signedOut: "すべてのブラウザをサインアウトしました",
     },
     relayRemote: {
-      title: "Aldine 経由のリモート操作",
+      title: "{brand} 経由のリモート操作",
       description:
         "QR コードまたはリンクで任意のデバイスをペアリングできます。ポート転送は不要で、エンドツーエンドで暗号化されます。",
       needsWebAccess:

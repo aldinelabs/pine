@@ -24,6 +24,7 @@ import { useResizeObserver } from "@vueuse/core";
 import { TEMPORARY_WORKSPACE_PROJECT_ID } from "@/shared/projects";
 import { handleError } from "@/app/errors/errorHandler";
 import { PINE_LOGO_PATH, PINE_LOGO_VIEW_BOX } from "@/components/pine";
+import aldineOnLight from "@/assets/aldine/aldine-horizontal-on-light.svg";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -942,6 +943,23 @@ watch(activeSession, (session) => {
         class="size-64"
       />
       <SwitchComputerButton class="relative" />
+      <!-- A mask tints the logo with the muted text colour in either scheme. -->
+      <span
+        data-slot="empty-tabs-brand"
+        role="img"
+        aria-label="Aldine"
+        class="relative -mt-8 -mb-12 block h-6 w-[73px] bg-muted-foreground"
+        :style="{
+          maskImage: `url(${aldineOnLight})`,
+          WebkitMaskImage: `url(${aldineOnLight})`,
+          maskSize: 'contain',
+          WebkitMaskSize: 'contain',
+          maskRepeat: 'no-repeat',
+          WebkitMaskRepeat: 'no-repeat',
+          maskPosition: 'center',
+          WebkitMaskPosition: 'center',
+        }"
+      />
       <WindowShortcutHints class="relative" />
     </div>
   </div>

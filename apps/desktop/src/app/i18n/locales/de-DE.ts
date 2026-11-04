@@ -109,7 +109,7 @@ export default {
       signedOut: "Alle Browser abgemeldet",
     },
     relayRemote: {
-      title: "Fernsteuerung über Aldine",
+      title: "Fernsteuerung über {brand}",
       description:
         "Koppeln Sie beliebige Geräte per QR-Code oder Link. Ohne Portweiterleitung und Ende-zu-Ende-verschlüsselt.",
       needsWebAccess:

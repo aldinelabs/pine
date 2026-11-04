@@ -108,7 +108,7 @@ export default {
       signedOut: "Tous les navigateurs ont été déconnectés",
     },
     relayRemote: {
-      title: "Contrôle à distance via Aldine",
+      title: "Contrôle à distance via {brand}",
       description:
         "Associez n'importe quel appareil par code QR ou par lien. Sans redirection de ports, chiffré de bout en bout.",
       needsWebAccess:

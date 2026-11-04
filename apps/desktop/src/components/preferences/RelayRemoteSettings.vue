@@ -9,7 +9,9 @@ import {
 } from "@lucide/vue";
 import { encode } from "uqr";
 import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
-import { useI18n } from "vue-i18n";
+import { I18nT, useI18n } from "vue-i18n";
+import aldineOnDark from "@/assets/aldine/aldine-horizontal-on-dark.svg";
+import aldineOnLight from "@/assets/aldine/aldine-horizontal-on-light.svg";
 import { toast } from "vue-sonner";
 import { handleError } from "@/app/errors/errorHandler";
 import {
@@ -247,7 +249,24 @@ function confirmRemove(): void {
     <Field orientation="horizontal">
       <div class="flex min-w-0 flex-1 flex-col gap-1">
         <FieldTitle id="pine-relay-remote-setting">
-          {{ t("preferences.relayRemote.title") }}
+          <I18nT
+            keypath="preferences.relayRemote.title"
+            scope="global"
+            tag="span"
+          >
+            <template #brand>
+              <img
+                :src="aldineOnLight"
+                alt="Aldine"
+                class="inline-block h-[1.4em] align-[-0.3em] dark:hidden"
+              />
+              <img
+                :src="aldineOnDark"
+                alt="Aldine"
+                class="hidden h-[1.4em] align-[-0.3em] dark:inline-block"
+              />
+            </template>
+          </I18nT>
         </FieldTitle>
         <FieldDescription>
           {{ t("preferences.relayRemote.description") }}

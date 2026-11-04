@@ -109,7 +109,7 @@ export default {
       signedOut: "Se cerró la sesión en todos los navegadores",
     },
     relayRemote: {
-      title: "Control remoto mediante Aldine",
+      title: "Control remoto mediante {brand}",
       description:
         "Vincula cualquier dispositivo con un código QR o un enlace. Sin redirección de puertos y con cifrado de extremo a extremo.",
       needsWebAccess:

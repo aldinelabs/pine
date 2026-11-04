@@ -105,7 +105,7 @@ export default {
       signedOut: "모든 브라우저에서 로그아웃했습니다",
     },
     relayRemote: {
-      title: "Aldine을 통한 원격 제어",
+      title: "{brand}을 통한 원격 제어",
       description:
         "QR 코드나 링크로 어떤 기기든 페어링하세요. 포트 포워딩이 필요 없고 종단 간 암호화됩니다.",
       needsWebAccess:

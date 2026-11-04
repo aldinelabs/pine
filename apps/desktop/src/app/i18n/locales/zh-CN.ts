@@ -99,7 +99,7 @@ export default {
       signedOut: "已退出所有浏览器",
     },
     relayRemote: {
-      title: "经 Aldine 远程控制",
+      title: "经 {brand} 远程控制",
       description: "扫码或打开链接配对任意设备，无需端口转发，内容端到端加密。",
       needsWebAccess:
         "其他设备通过浏览器访问连接 Pine，请先开启下方的「浏览器访问」。",

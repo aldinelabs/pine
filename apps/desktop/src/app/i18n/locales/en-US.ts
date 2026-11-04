@@ -105,7 +105,7 @@ export default {
       signedOut: "All browsers signed out",
     },
     relayRemote: {
-      title: "Remote control via Aldine",
+      title: "Remote control via {brand}",
       description:
         "Pair any device by QR code or link. No port forwarding; end-to-end encrypted.",
       needsWebAccess:
