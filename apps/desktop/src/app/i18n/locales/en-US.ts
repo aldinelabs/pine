@@ -1083,6 +1083,10 @@ export default {
           active: "Looking up models {count} times",
           complete: "Looked up models {count} times",
         },
+        datetime: {
+          active: "Checking the time {count} times",
+          complete: "Checked the time {count} times",
+        },
         mcpConfig: {
           active: "Configuring MCP servers {count} times",
           complete: "Configured MCP servers {count} times",
@@ -1128,6 +1132,7 @@ export default {
         workbenchState: "workbench state",
         automation: "automation action",
         model: "model lookup",
+        datetime: "date and time",
         mcpConfig: "MCP configuration",
         project: "project action",
         background: "background process",
@@ -1319,6 +1324,11 @@ export default {
             complete: "Listed available models",
             error: "Couldn’t list models",
           },
+        },
+        datetime: {
+          running: "Checking the date and time",
+          complete: "Checked the date and time",
+          error: "Couldn’t get the date and time",
         },
         mcpConfig: {
           activate: {

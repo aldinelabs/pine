@@ -1076,6 +1076,10 @@ export default {
           active: "모델 {count}회 조회 중",
           complete: "모델 {count}회 조회함",
         },
+        datetime: {
+          active: "시간을 {count}회 확인하는 중",
+          complete: "시간을 {count}회 확인했습니다",
+        },
         mcpConfig: {
           active: "MCP 서버를 {count}회 구성하는 중",
           complete: "MCP 서버를 {count}회 구성함",
@@ -1121,6 +1125,7 @@ export default {
         workbenchState: "작업대 상태",
         automation: "자동화 작업",
         model: "모델 조회",
+        datetime: "날짜 및 시간",
         mcpConfig: "MCP 구성",
         project: "프로젝트 작업",
         background: "백그라운드 프로세스",
@@ -1313,6 +1318,11 @@ export default {
             complete: "사용 가능한 모델을 확인했습니다",
             error: "모델 목록을 불러오지 못했습니다",
           },
+        },
+        datetime: {
+          running: "날짜와 시간을 가져오는 중",
+          complete: "날짜와 시간을 가져왔습니다",
+          error: "날짜와 시간을 가져오지 못했습니다",
         },
         mcpConfig: {
           activate: {

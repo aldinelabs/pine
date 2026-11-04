@@ -3,6 +3,7 @@ import {
   BookOpenIcon,
   CalendarClockIcon,
   ClapperboardIcon,
+  ClockIcon,
   CpuIcon,
   ServerCogIcon,
   EyeIcon,
@@ -88,6 +89,11 @@ describe("Computer Use tool kinds", () => {
     expect(toolKind("ui_list_models")).toBe("model");
     expect(toolIconForName("automation_list")).toBe(CalendarClockIcon);
     expect(toolIconForName("ui_list_models")).toBe(CpuIcon);
+  });
+
+  it("gives the datetime tool its own kind and clock icon", () => {
+    expect(toolKind("datetime")).toBe("datetime");
+    expect(toolIconForName("datetime")).toBe(ClockIcon);
   });
 
   it("gives MCP configuration tools their own kind, apart from MCP calls", () => {

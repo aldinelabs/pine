@@ -1094,6 +1094,10 @@ export default {
           active: "Просмотр моделей: {count}",
           complete: "Модели просмотрены: {count}",
         },
+        datetime: {
+          active: "Проверка времени: {count}",
+          complete: "Время проверено: {count}",
+        },
         mcpConfig: {
           active: "Настройка MCP-серверов: {count}",
           complete: "Настроено MCP-серверов: {count}",
@@ -1139,6 +1143,7 @@ export default {
         workbenchState: "состояние рабочей панели",
         automation: "действие автоматизации",
         model: "просмотр моделей",
+        datetime: "дата и время",
         mcpConfig: "Настройка MCP",
         project: "действие с проектом",
         background: "фоновый процесс",
@@ -1333,6 +1338,11 @@ export default {
             complete: "Доступные модели просмотрены",
             error: "Не удалось получить список моделей",
           },
+        },
+        datetime: {
+          running: "Получение даты и времени",
+          complete: "Дата и время получены",
+          error: "Не удалось получить дату и время",
         },
         mcpConfig: {
           activate: {

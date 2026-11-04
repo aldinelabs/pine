@@ -1103,6 +1103,10 @@ export default {
           active: "Consultando modelos {count} veces",
           complete: "Se consultaron modelos {count} veces",
         },
+        datetime: {
+          active: "Consultando la hora {count} veces",
+          complete: "Hora consultada {count} veces",
+        },
         mcpConfig: {
           active: "Configurando servidores MCP {count} veces",
           complete: "Se configuraron servidores MCP {count} veces",
@@ -1148,6 +1152,7 @@ export default {
         workbenchState: "estado del panel de trabajo",
         automation: "acción de automatización",
         model: "consulta de modelos",
+        datetime: "fecha y hora",
         mcpConfig: "Configuración de MCP",
         project: "acción del proyecto",
         background: "proceso en segundo plano",
@@ -1342,6 +1347,11 @@ export default {
             complete: "Modelos disponibles consultados",
             error: "No se pudieron listar los modelos",
           },
+        },
+        datetime: {
+          running: "Consultando la fecha y la hora",
+          complete: "Fecha y hora consultadas",
+          error: "No se pudo obtener la fecha y la hora",
         },
         mcpConfig: {
           activate: {

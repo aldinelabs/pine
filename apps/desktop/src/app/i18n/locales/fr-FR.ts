@@ -1106,6 +1106,10 @@ export default {
           active: "Consultation des modèles ({count} fois)",
           complete: "Modèles consultés {count} fois",
         },
+        datetime: {
+          active: "Consultation de l’heure {count} fois",
+          complete: "Heure consultée {count} fois",
+        },
         mcpConfig: {
           active: "Configuration de serveurs MCP ({count} fois)",
           complete: "Serveurs MCP configurés ({count} fois)",
@@ -1151,6 +1155,7 @@ export default {
         workbenchState: "état de l'espace de travail",
         automation: "action d’automatisation",
         model: "consultation des modèles",
+        datetime: "date et heure",
         mcpConfig: "Configuration MCP",
         project: "action de projet",
         background: "processus en arrière-plan",
@@ -1345,6 +1350,11 @@ export default {
             complete: "Modèles disponibles consultés",
             error: "Impossible de lister les modèles",
           },
+        },
+        datetime: {
+          running: "Consultation de la date et de l’heure",
+          complete: "Date et heure consultées",
+          error: "Impossible d’obtenir la date et l’heure",
         },
         mcpConfig: {
           activate: {

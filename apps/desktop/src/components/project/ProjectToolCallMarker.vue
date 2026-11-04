@@ -1077,6 +1077,23 @@ const presentation = computed(() => {
       after: "",
     };
   }
+  if (kind === "datetime") {
+    const tense = state === "running" || state === "error" ? state : "complete";
+    const localIso = inputRecord(
+      inputRecord(props.toolCall.output).details,
+    ).localIso;
+    return {
+      before: t(`project.transcript.tools.datetime.${tense}`),
+      operation: undefined,
+      separator: "",
+      target:
+        tense === "complete" && typeof localIso === "string" ? localIso : "",
+      targetMono: true,
+      purpose: undefined,
+      faviconDataUrl: undefined,
+      after: "",
+    };
+  }
   if (kind === "automation" || kind === "model") {
     const tense = state === "running" || state === "error" ? state : "complete";
     if (kind === "model") {

@@ -1037,6 +1037,10 @@ export default {
           active: "正在查询 {count} 次模型",
           complete: "查询了 {count} 次模型",
         },
+        datetime: {
+          active: "正在查看 {count} 次时间",
+          complete: "查看了 {count} 次时间",
+        },
         mcpConfig: {
           active: "正在配置 {count} 次 MCP 服务器",
           complete: "配置了 {count} 次 MCP 服务器",
@@ -1082,6 +1086,7 @@ export default {
         workbenchState: "工作台状态",
         automation: "自动化操作",
         model: "模型查询",
+        datetime: "日期时间",
         mcpConfig: "MCP 配置",
         project: "项目操作",
         background: "后台进程",
@@ -1273,6 +1278,11 @@ export default {
             complete: "已查看可用模型",
             error: "无法读取模型列表",
           },
+        },
+        datetime: {
+          running: "正在获取日期和时间",
+          complete: "已获取日期和时间",
+          error: "无法获取日期和时间",
         },
         mcpConfig: {
           activate: {

@@ -1088,6 +1088,10 @@ export default {
           active: "モデルを {count} 回確認中",
           complete: "モデルを {count} 回確認しました",
         },
+        datetime: {
+          active: "時刻を {count} 回確認中",
+          complete: "時刻を {count} 回確認しました",
+        },
         mcpConfig: {
           active: "MCP サーバーを {count} 回設定中",
           complete: "MCP サーバーを {count} 回設定しました",
@@ -1133,6 +1137,7 @@ export default {
         workbenchState: "ワークベンチの状態",
         automation: "自動化の操作",
         model: "モデルの確認",
+        datetime: "日時",
         mcpConfig: "MCP 設定",
         project: "プロジェクト操作",
         background: "バックグラウンドプロセス",
@@ -1325,6 +1330,11 @@ export default {
             complete: "利用可能なモデルを確認しました",
             error: "モデルの一覧を読み込めませんでした",
           },
+        },
+        datetime: {
+          running: "日時を取得中",
+          complete: "日時を取得しました",
+          error: "日時を取得できませんでした",
         },
         mcpConfig: {
           activate: {

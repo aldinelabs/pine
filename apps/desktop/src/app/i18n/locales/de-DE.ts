@@ -1113,6 +1113,10 @@ export default {
           active: "Modelle werden {count}-mal abgefragt",
           complete: "Modelle {count}-mal abgefragt",
         },
+        datetime: {
+          active: "Uhrzeit wird {count}-mal abgefragt",
+          complete: "Uhrzeit {count}-mal abgefragt",
+        },
         mcpConfig: {
           active: "Konfiguriere MCP-Server ({count}×)",
           complete: "MCP-Server konfiguriert ({count}×)",
@@ -1158,6 +1162,7 @@ export default {
         workbenchState: "Status des Arbeitsbereichs",
         automation: "Automatisierungsaktion",
         model: "Modellabfrage",
+        datetime: "Datum und Uhrzeit",
         mcpConfig: "MCP-Konfiguration",
         project: "Projektaktion",
         background: "Hintergrundprozess",
@@ -1351,6 +1356,11 @@ export default {
             complete: "Verfügbare Modelle abgefragt",
             error: "Modelle konnten nicht aufgelistet werden",
           },
+        },
+        datetime: {
+          running: "Datum und Uhrzeit werden abgefragt",
+          complete: "Datum und Uhrzeit abgefragt",
+          error: "Datum und Uhrzeit konnten nicht abgefragt werden",
         },
         mcpConfig: {
           activate: {

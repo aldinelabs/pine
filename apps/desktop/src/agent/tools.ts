@@ -94,6 +94,7 @@ import {
   createWorkspaceToolDefinitions,
   type PineWorkspaceToolContext,
 } from "./workspaceTools";
+import { createDatetimeToolDefinition } from "./datetimeTool";
 import {
   createWorkbenchToolDefinitions,
   type PineWorkbenchToolContext,
@@ -991,6 +992,7 @@ export async function createPineToolDefinitions(
     ...workspaceTools,
     ...(askUserQuestionTool ? [askUserQuestionTool] : []),
     createTodoToolDefinition(),
+    createDatetimeToolDefinition(),
     ...backgroundTaskTools,
     ...tinyFishTools,
     ...mediaTools,

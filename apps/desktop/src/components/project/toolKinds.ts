@@ -2,6 +2,7 @@ import {
   AppWindowIcon,
   BookOpenIcon,
   CalendarClockIcon,
+  ClockIcon,
   ClapperboardIcon,
   CpuIcon,
   EyeIcon,
@@ -36,6 +37,7 @@ import { TODO_TOOL_NAME } from "@pine/rpiv-todo";
 import { BACKGROUND_TASK_TOOL_NAMES } from "@pine/pi-background-tasks";
 import {
   ACTIVATE_PINE_OPS_TOOL_NAME,
+  DATETIME_TOOL_NAME,
   RECALL_TOOL_NAME,
   UI_LIST_PROJECT_TOOL_NAME,
   UI_PRESENT_FILE_TOOL_NAME,
@@ -58,6 +60,7 @@ export type ToolKind =
   | "bash"
   | "browser"
   | "computer"
+  | "datetime"
   | "edit"
   | "fetch"
   | "generic"
@@ -83,6 +86,7 @@ export const TOOL_KIND_ICON: Record<ToolKind, Component> = {
   bash: SquareTerminal,
   browser: PanelTopIcon,
   computer: MonitorCogIcon,
+  datetime: ClockIcon,
   edit: SquarePenIcon,
   fetch: GlobeIcon,
   generic: WrenchIcon,
@@ -151,6 +155,7 @@ export const TOOL_KIND_ORDER: readonly ToolKind[] = [
   "workbench",
   "workbenchState",
   "todo",
+  "datetime",
   "media",
   "mcp",
   "mcpConfig",
@@ -237,6 +242,7 @@ export function toolKind(name: string): ToolKind {
     return "mcpConfig";
   if (normalized === UI_LIST_MODELS_TOOL_NAME) return "model";
   if (normalized === TODO_TOOL_NAME) return "todo";
+  if (normalized === DATETIME_TOOL_NAME) return "datetime";
   if (normalized === RECALL_TOOL_NAME) return "recall";
   if ((BACKGROUND_TASK_TOOL_NAMES as readonly string[]).includes(normalized))
     return "background";

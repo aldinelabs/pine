@@ -403,6 +403,7 @@ describeSandbox("createPineToolDefinitions", () => {
       "edit",
       "write",
       "todo",
+      "datetime",
     ]);
     const scratchDirectory = path.join(
       path.dirname(location.sessionsRoot),
