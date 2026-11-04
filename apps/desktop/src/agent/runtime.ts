@@ -313,6 +313,8 @@ const AUTHORING_TARGET_LABEL: Record<PineAuthoringTarget, string> = {
 const JUDGE_TIMEOUT_MS = 60_000;
 const BACKGROUND_TASKS_EVENT_MS = 200;
 const TITLE_TIMEOUT_MS = 30_000;
+const TITLE_MAX_TOKENS = 4_096;
+const MAX_TITLE_ATTEMPTS = 3;
 function userMessageText(message: unknown): string | undefined {
   const { role, content } = message as { role?: string; content?: unknown };
   if (role !== "user") return undefined;
@@ -352,6 +354,7 @@ export class PineAgentRuntime {
   >();
   private readonly titleGenerationAttempts = new Set<string>();
   private readonly titleGenerationInFlight = new Set<string>();
+  private readonly titleGenerationFailures = new Map<string, number>();
 
   private readonly modelService: PineModelService;
   private readonly eventForwarder: PineAgentEventForwarder;
@@ -2359,6 +2362,8 @@ export class PineAgentRuntime {
     if (
       session.sessionName ||
       this.titleGenerationAttempts.has(session.sessionId) ||
+      (this.titleGenerationFailures.get(session.sessionId) ?? 0) >=
+        MAX_TITLE_ATTEMPTS ||
       this.titleGenerationInFlight.has(session.sessionId)
     ) {
       return;
@@ -2397,7 +2402,6 @@ export class PineAgentRuntime {
         modelRuntime,
       );
       if (!model) return;
-      this.titleGenerationAttempts.add(session.sessionId);
       const language =
         live.locale === "zh-CN" ? "Simplified Chinese" : "English";
       const signal = AbortSignal.timeout(TITLE_TIMEOUT_MS);
@@ -2412,19 +2416,39 @@ export class PineAgentRuntime {
         ],
         tools: [TITLE_TOOL],
       };
-      const options = { ...judgeStreamOptions(model, signal), maxTokens: 80 };
+      const options = {
+        ...judgeStreamOptions(model, signal),
+        maxTokens: TITLE_MAX_TOKENS,
+      };
       let final: AssistantMessage | undefined;
       for await (const event of modelRuntime.stream(model, context, options)) {
         if (event.type === "done") final = event.message;
-        else if (event.type === "error") return;
+        else if (event.type === "error") {
+          this.recordTitleFailure(session.sessionId);
+          return;
+        }
       }
       const title = titleFromAssistantMessage(final);
-      if (title && !session.sessionName) session.setSessionName(title);
+      if (title) {
+        this.titleGenerationAttempts.add(session.sessionId);
+        if (!session.sessionName) session.setSessionName(title);
+      } else {
+        this.recordTitleFailure(session.sessionId);
+      }
     } catch {
       // Title generation is best-effort and must never fail the user's turn.
+      // A failed attempt is retried on a later turn, a few times at most.
+      this.recordTitleFailure(session.sessionId);
     } finally {
       this.titleGenerationInFlight.delete(session.sessionId);
     }
+  }
+
+  private recordTitleFailure(sessionId: string): void {
+    this.titleGenerationFailures.set(
+      sessionId,
+      (this.titleGenerationFailures.get(sessionId) ?? 0) + 1,
+    );
   }
 
   private getSession(sessionId: string): LiveAgentSession {
