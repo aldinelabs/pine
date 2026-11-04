@@ -263,7 +263,12 @@ const renderItems = computed<RenderItem[]>(() => {
             class="w-full"
             :variant="'ghost'"
           >
-            <BubbleContent class="transcript-prose w-full">
+            <!-- BubbleContent clips overflow, and a card's ring is drawn 1px
+                 outside its box: pad 1px per side and cancel it with a
+                 negative margin so the ring is not cut off. -->
+            <BubbleContent
+              class="transcript-prose -mx-px w-[calc(100%+2px)] max-w-none px-px!"
+            >
               <!-- Interactive blocks render beside the markdown, not inside
                    it, so the markdown renderer's styles stay off them. -->
               <template
