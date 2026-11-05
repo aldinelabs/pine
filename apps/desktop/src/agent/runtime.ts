@@ -625,6 +625,10 @@ export class PineAgentRuntime {
     live.authorizationGrants = authorizationGrantsFromSessionEntries(
       manager.getBranch(),
     );
+    // Navigating the tree refreshes Pi's tool registry, which turns every
+    // tool active by default back on; keep the set the model saw before, so
+    // the request still shares its cached prefix.
+    this.syncActiveTools(live);
   }
 
   private emitSteeringQueue(live: LiveAgentSession): void {
