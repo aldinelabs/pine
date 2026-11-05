@@ -667,6 +667,10 @@ export default {
       send: "送信",
       sendFailed: "質問を送信できませんでした",
       deleteFailed: "追加の質問を削除できませんでした",
+      deleteTitle: "この追加の質問を削除しますか？",
+      deleteDescription:
+        "追加の質問とその回答は完全に削除され、該当箇所のハイライトも消えます。",
+      deleteConfirm: "削除",
       openFailed: "サイドチャットを開けませんでした",
       needsConversation: "追加で質問するには先にメッセージを送信してください",
       waitForMessage: "返信が終わるまでお待ちください",

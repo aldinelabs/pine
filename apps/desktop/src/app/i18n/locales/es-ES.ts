@@ -675,6 +675,10 @@ export default {
       send: "Enviar",
       sendFailed: "No se pudo enviar la pregunta",
       deleteFailed: "No se pudo eliminar la pregunta adicional",
+      deleteTitle: "¿Eliminar esta pregunta adicional?",
+      deleteDescription:
+        "La pregunta adicional y sus respuestas se eliminarán de forma permanente, y el pasaje dejará de estar resaltado.",
+      deleteConfirm: "Eliminar",
       openFailed: "No se pudo abrir el chat lateral",
       needsConversation: "Envía un mensaje antes de preguntar más",
       waitForMessage: "Espera a que termine la respuesta",

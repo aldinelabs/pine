@@ -659,6 +659,10 @@ export default {
       send: "보내기",
       sendFailed: "질문을 보내지 못했습니다",
       deleteFailed: "추가 질문을 삭제하지 못했습니다",
+      deleteTitle: "이 추가 질문을 삭제할까요?",
+      deleteDescription:
+        "추가 질문과 답변이 영구적으로 삭제되고 해당 구절의 강조 표시도 사라집니다.",
+      deleteConfirm: "삭제",
       openFailed: "사이드 채팅을 열지 못했습니다",
       needsConversation: "추가 질문하려면 먼저 메시지를 보내세요",
       waitForMessage: "답변이 끝날 때까지 기다려 주세요",

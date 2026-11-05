@@ -16,6 +16,15 @@ import {
   collapsesTranscriptGap,
   TOOL_CALL_TURN_MARGIN_CLASS,
 } from "@/components/project/transcriptLayout";
+import {
+  AlertDialog,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import {
@@ -55,6 +64,7 @@ const chat = computed(() => sideChats.active(sessionStore.activeSession?.id));
 const messages = computed(() => chat.value?.messages ?? []);
 const draft = ref("");
 const isSending = ref(false);
+const isConfirmingDelete = ref(false);
 const input = ref<InstanceType<typeof InputGroupTextarea> | null>(null);
 
 const anchorQuote = computed<PineQuote[]>(() =>
@@ -128,6 +138,7 @@ async function stop(): Promise<void> {
 async function remove(): Promise<void> {
   const current = chat.value;
   const parent = sideChat.parent();
+  isConfirmingDelete.value = false;
   if (!current || !parent) return;
   try {
     await sideChats.remove(current.id, parent);
@@ -174,7 +185,7 @@ watch(
           size="icon"
           :aria-label="t('project.sideChat.delete')"
           :title="t('project.sideChat.delete')"
-          @click="remove"
+          @click="isConfirmingDelete = true"
         >
           <Trash2Icon aria-hidden="true" />
         </Button>
@@ -295,5 +306,23 @@ watch(
         </Button>
       </form>
     </CardContent>
+    <AlertDialog v-model:open="isConfirmingDelete">
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>
+            {{ t("project.sideChat.deleteTitle") }}
+          </AlertDialogTitle>
+          <AlertDialogDescription>
+            {{ t("project.sideChat.deleteDescription") }}
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>{{ t("common.cancel") }}</AlertDialogCancel>
+          <Button variant="destructive" @click="remove">
+            {{ t("project.sideChat.deleteConfirm") }}
+          </Button>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   </Card>
 </template>

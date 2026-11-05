@@ -665,6 +665,10 @@ export default {
       send: "Send",
       sendFailed: "Couldn't send the question",
       deleteFailed: "Couldn't delete the follow-up",
+      deleteTitle: "Delete this follow-up?",
+      deleteDescription:
+        "The follow-up and its answers will be deleted permanently, and the passage will no longer be highlighted.",
+      deleteConfirm: "Delete",
       openFailed: "Couldn't open the side chat",
       needsConversation: "Send a message before following up",
       waitForMessage: "Wait for the reply to finish",

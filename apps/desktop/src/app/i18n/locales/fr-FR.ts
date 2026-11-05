@@ -676,6 +676,10 @@ export default {
       send: "Envoyer",
       sendFailed: "Impossible d’envoyer la question",
       deleteFailed: "Impossible de supprimer la question de suivi",
+      deleteTitle: "Supprimer cette question de suivi ?",
+      deleteDescription:
+        "La question de suivi et ses réponses seront définitivement supprimées, et le passage ne sera plus surligné.",
+      deleteConfirm: "Supprimer",
       openFailed: "Impossible d’ouvrir le chat latéral",
       needsConversation: "Envoyez d’abord un message",
       waitForMessage: "Attendez la fin de la réponse",

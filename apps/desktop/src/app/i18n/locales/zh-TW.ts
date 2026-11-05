@@ -628,6 +628,10 @@ export default {
       send: "傳送",
       sendFailed: "問題傳送失敗",
       deleteFailed: "無法刪除追問",
+      deleteTitle: "刪除這個追問？",
+      deleteDescription:
+        "追問及其中的問答將被永久刪除，這段文字也不再醒目提示。",
+      deleteConfirm: "刪除",
       openFailed: "無法開啟側邊對話",
       needsConversation: "先傳送一則訊息才能追問",
       waitForMessage: "請等待回覆完成",

@@ -679,6 +679,10 @@ export default {
       send: "Senden",
       sendFailed: "Frage konnte nicht gesendet werden",
       deleteFailed: "Nachfrage konnte nicht gelöscht werden",
+      deleteTitle: "Diese Nachfrage löschen?",
+      deleteDescription:
+        "Die Nachfrage und ihre Antworten werden dauerhaft gelöscht, und die Textstelle wird nicht mehr hervorgehoben.",
+      deleteConfirm: "Löschen",
       openFailed: "Seitenchat konnte nicht geöffnet werden",
       needsConversation: "Sende zuerst eine Nachricht",
       waitForMessage: "Warte, bis die Antwort fertig ist",
