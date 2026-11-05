@@ -208,6 +208,8 @@
   --warning: var(--pine-olive-warning);
   --pine-olive-info: oklch(0.546 0.245 262.881);
   --info: var(--pine-olive-info);
+  /* Side chats and the transcript passages their follow-ups ask about. */
+  --side-chat: oklch(0.558 0.288 302.321);
   --pine-olive-border: oklch(0.93 0.007 106.5);
   --border: var(--pine-olive-border);
   --pine-olive-input: oklch(0.93 0.007 106.5);
@@ -321,6 +323,7 @@
   --warning: var(--pine-olive-warning);
   --pine-olive-info: oklch(0.707 0.165 254.624);
   --info: var(--pine-olive-info);
+  --side-chat: oklch(0.714 0.203 305.504);
   --pine-olive-border: oklch(1 0 0 / 10%);
   --border: var(--pine-olive-border);
   --pine-olive-input: oklch(1 0 0 / 15%);
@@ -391,6 +394,7 @@
   --color-thinking-max: var(--thinking-max);
   --color-warning: var(--warning);
   --color-info: var(--info);
+  --color-side-chat: var(--side-chat);
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);

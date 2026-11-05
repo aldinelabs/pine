@@ -6,6 +6,7 @@ import { registerModelRequests } from "./models";
 import { registerProjectRequests } from "./projects";
 import { registerSessionRequests } from "./sessions";
 import { registerSettingsRequests } from "./settings";
+import { registerSideChatRequests } from "./sideChats";
 import { registerSkillRequests } from "./skills";
 
 /** Every request the desktop app and the browser interface share. */
@@ -14,6 +15,7 @@ export function registerCoreRequests(core: PineCore): void {
   registerModelRequests(core);
   registerProjectRequests(core);
   registerSessionRequests(core);
+  registerSideChatRequests(core);
   registerFileRequests(core);
   registerSkillRequests(core);
   registerMcpRequests(core);

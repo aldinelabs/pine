@@ -1,3 +1,4 @@
+import { SIDE_CHAT_PANEL } from "@/shared/workbench";
 import { onBeforeUnmount, onMounted } from "vue";
 import type { PineSessionEvent } from "@/shared/agent";
 import { parseFileReveal } from "@/shared/projectFiles";
@@ -52,8 +53,9 @@ export function useWorkbenchEvents(): void {
           open: layout.open,
           visible:
             workbench.activeKey === event.sessionId && workbench.displayedOpen,
-          top: layout.top,
-          bottom: layout.bottom,
+          // The agent's view leaves out the user's side chat card.
+          top: layout.top === SIDE_CHAT_PANEL ? null : layout.top,
+          bottom: layout.bottom === SIDE_CHAT_PANEL ? null : layout.bottom,
           split: layout.split,
         },
       });

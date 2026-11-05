@@ -69,6 +69,21 @@ import {
   type PineAttachment,
 } from "../shared/attachments";
 import { mkdir, realpath, rename, stat } from "node:fs/promises";
+import {
+  deleteSideChat,
+  deleteSideChatsOf,
+  discardUnusedSideChat,
+  findSideChat,
+  listSideChats,
+  sideChatsDirectory,
+} from "./sideChats";
+import {
+  isSideChatAnchor,
+  type OpenSideChatRequest,
+  type OpenSideChatResult,
+  type PineSideChatSummary,
+  type PromptSideChatRequest,
+} from "../shared/sideChats";
 import path from "node:path";
 
 function pathContains(parentPath: string, candidatePath: string): boolean {
@@ -121,6 +136,14 @@ interface RuntimeSession {
   approvalMode: PineApprovalMode;
   contextUsage?: PineContextUsage;
   controllerId?: number;
+}
+
+/** A side chat open in a window; it is no session of the project's own. */
+interface LiveSideChat {
+  runtime: ProjectRuntime;
+  parentSessionId: string;
+  clientId: number;
+  persistent: boolean;
 }
 
 interface ProjectRuntime {
@@ -219,6 +242,7 @@ export class ProjectRuntimeRegistry {
   >();
   /** Temporary-workspace session → project it moves to when its run ends. */
   private readonly pendingTeleports = new Map<string, string>();
+  private readonly sideChats = new Map<string, LiveSideChat>();
   /** questionnaire requestId → owning webContentsId, for response validation. */
   private readonly pendingQuestionnaires = new Map<
     string,
@@ -489,6 +513,194 @@ export class ProjectRuntimeRegistry {
     return runtime.sessions.exportSession(sessionId, fallbackApprovalMode);
   }
 
+  /** The side chat a session id belongs to, if it is one. */
+  sideChatOf(
+    sessionId: string,
+  ): { clientId: number; parentSessionId: string } | undefined {
+    const sideChat = this.sideChats.get(sessionId);
+    return sideChat
+      ? {
+          clientId: sideChat.clientId,
+          parentSessionId: sideChat.parentSessionId,
+        }
+      : undefined;
+  }
+
+  async listSideChats(
+    webContentsId: number,
+    projectId: string,
+    sessionId: string,
+  ): Promise<PineSideChatSummary[]> {
+    const runtime = this.get(webContentsId, projectId);
+    return listSideChats(
+      sideChatsDirectory(runtime.dataPaths.projectRoot, sessionId),
+      sessionId,
+    );
+  }
+
+  async openSideChat(
+    webContentsId: number,
+    request: OpenSideChatRequest,
+  ): Promise<OpenSideChatResult> {
+    const runtime = this.get(webContentsId, request.projectId);
+    const parentSessionId = request.sessionId;
+    const directory = sideChatsDirectory(
+      runtime.dataPaths.projectRoot,
+      parentSessionId,
+    );
+    const live = runtime.liveSessions.get(parentSessionId);
+    let sideChatFile: string | undefined;
+    if (request.sideChatId) {
+      const saved = await findSideChat(
+        directory,
+        parentSessionId,
+        request.sideChatId,
+      );
+      if (!saved) throw new Error("This side chat no longer exists.");
+      // Already open: its window gets it back as it is.
+      const open = this.sideChats.get(saved.summary.id);
+      if (open) await this.disposeSideChat(saved.summary.id);
+      sideChatFile = saved.path;
+    }
+    const parentSessionFile = live
+      ? undefined
+      : await runtime.sessions
+          .describeSession(parentSessionId)
+          .then((descriptor) => descriptor.sessionFile)
+          .catch(() => undefined);
+    const opened = await this.agentHost.openSideChat({
+      location: {
+        ...this.location(runtime),
+        approvalMode: live?.approvalMode ?? runtime.approvalMode,
+      },
+      parentSessionId,
+      ...(parentSessionFile ? { parentSessionFile } : {}),
+      sideChatsDirectory: directory,
+      ...(sideChatFile ? { sideChatFile } : {}),
+      ...(request.anchor ? { anchor: { ...request.anchor } } : {}),
+    });
+    const persistent =
+      sideChatFile !== undefined || request.anchor !== undefined;
+    this.sideChats.set(opened.session.id, {
+      runtime,
+      parentSessionId,
+      clientId: webContentsId,
+      persistent,
+    });
+    if (!this.isCurrent(webContentsId, runtime)) {
+      await this.disposeSideChat(opened.session.id);
+      throw new Error("The project closed while opening a side chat.");
+    }
+    return {
+      sideChatId: opened.session.id,
+      parentSessionId,
+      persistent,
+      ...(isSideChatAnchor(opened.anchor) ? { anchor: opened.anchor } : {}),
+      messages: opened.messages,
+    };
+  }
+
+  private ownSideChat(
+    webContentsId: number,
+    projectId: string,
+    sideChatId: string,
+  ): LiveSideChat {
+    const sideChat = this.sideChats.get(sideChatId);
+    if (
+      !sideChat ||
+      sideChat.runtime !== this.get(webContentsId, projectId) ||
+      sideChat.runtime.project.id !== projectId
+    )
+      throw new Error("The side chat is not open in this window.");
+    sideChat.clientId = webContentsId;
+    return sideChat;
+  }
+
+  async promptSideChat(
+    webContentsId: number,
+    request: PromptSideChatRequest,
+  ): Promise<{ accepted: boolean }> {
+    this.ownSideChat(webContentsId, request.projectId, request.sideChatId);
+    const result = await this.agentHost.prompt(
+      request.sideChatId,
+      request.message,
+      undefined,
+      undefined,
+      undefined,
+      request.locale,
+    );
+    return { accepted: result.accepted };
+  }
+
+  async abortSideChat(
+    webContentsId: number,
+    projectId: string,
+    sideChatId: string,
+  ): Promise<{ aborted: boolean }> {
+    this.ownSideChat(webContentsId, projectId, sideChatId);
+    return this.agentHost.abort(sideChatId);
+  }
+
+  /** Ends a side chat; one that is not saved is gone with it. */
+  async closeSideChat(
+    webContentsId: number,
+    projectId: string,
+    sideChatId: string,
+  ): Promise<{ closed: boolean }> {
+    const sideChat = this.sideChats.get(sideChatId);
+    if (!sideChat) return { closed: false };
+    this.ownSideChat(webContentsId, projectId, sideChatId);
+    await this.disposeSideChat(sideChatId);
+    if (sideChat.persistent)
+      await discardUnusedSideChat(
+        sideChatsDirectory(
+          sideChat.runtime.dataPaths.projectRoot,
+          sideChat.parentSessionId,
+        ),
+        sideChat.parentSessionId,
+        sideChatId,
+      );
+    return { closed: true };
+  }
+
+  async deleteSideChat(
+    webContentsId: number,
+    projectId: string,
+    sessionId: string,
+    sideChatId: string,
+  ): Promise<{ deleted: boolean }> {
+    const runtime = this.get(webContentsId, projectId);
+    if (this.sideChats.has(sideChatId)) await this.disposeSideChat(sideChatId);
+    return {
+      deleted: await deleteSideChat(
+        sideChatsDirectory(runtime.dataPaths.projectRoot, sessionId),
+        sessionId,
+        sideChatId,
+      ),
+    };
+  }
+
+  private async disposeSideChat(sideChatId: string): Promise<void> {
+    this.sideChats.delete(sideChatId);
+    await this.agentHost.disposeSession(sideChatId).catch(() => undefined);
+  }
+
+  private async disposeSideChatsOf(
+    runtime: ProjectRuntime,
+    parentSessionId?: string,
+  ): Promise<void> {
+    await Promise.all(
+      [...this.sideChats]
+        .filter(
+          ([, sideChat]) =>
+            sideChat.runtime === runtime &&
+            (parentSessionId === undefined ||
+              sideChat.parentSessionId === parentSessionId),
+        )
+        .map(([sideChatId]) => this.disposeSideChat(sideChatId)),
+    );
+  }
+
   async deleteSession(
     webContentsId: number,
     projectId: string,
@@ -503,7 +715,13 @@ export class ProjectRuntimeRegistry {
         runtime.focusedSessionId = undefined;
     }
     this.clearSessionInteractions(sessionId);
-    return runtime.sessions.deleteSession(sessionId);
+    await this.disposeSideChatsOf(runtime, sessionId);
+    const deleted = await runtime.sessions.deleteSession(sessionId);
+    if (deleted)
+      await deleteSideChatsOf(
+        sideChatsDirectory(runtime.dataPaths.projectRoot, sessionId),
+      );
+    return deleted;
   }
 
   async renameSession(
@@ -1163,6 +1381,11 @@ export class ProjectRuntimeRegistry {
 
   /** Release every project of a window that closed or reloaded. */
   async dispose(webContentsId: number): Promise<void> {
+    await Promise.all(
+      [...this.sideChats]
+        .filter(([, sideChat]) => sideChat.clientId === webContentsId)
+        .map(([sideChatId]) => this.disposeSideChat(sideChatId)),
+    );
     const windowRuntimes = this.runtimes.get(webContentsId);
     if (!windowRuntimes) return;
 
@@ -1182,6 +1405,7 @@ export class ProjectRuntimeRegistry {
     for (const sessionId of runtime.liveSessions.keys()) {
       this.clearSessionInteractions(sessionId);
     }
+    await this.disposeSideChatsOf(runtime);
     try {
       await Promise.all(
         [...runtime.liveSessions.keys()].map((sessionId) =>

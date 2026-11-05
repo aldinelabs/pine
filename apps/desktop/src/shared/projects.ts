@@ -1,3 +1,4 @@
+import type { PineSideChatApi } from "./sideChats";
 import type { PineAutomationsApi } from "./automation";
 import type {
   BackgroundTaskRequest,
@@ -348,7 +349,8 @@ export interface PineDesktopApi
     PineWindowApi,
     PineQuickComposerApi,
     PineBackgroundApi,
-    PinePreferenceStorageApi {
+    PinePreferenceStorageApi,
+    PineSideChatApi {
   runtime?: "desktop" | "web";
   getWebServer?: () => Promise<import("./webControl").WebServerStatus>;
   setWebServer?: (

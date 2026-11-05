@@ -666,6 +666,34 @@ export default {
     removeDescription: "{name} aus dieser Konfiguration entfernen?",
   },
   project: {
+    sideChat: {
+      open: "Seitenchat öffnen",
+      title: "Seitenchat",
+      followUpTitle: "Nachfrage",
+      notSaved: "Nicht gespeichert",
+      delete: "Nachfrage löschen",
+      close: "Seitenchat schließen",
+      emptyTitle: "Kein Seitenchat",
+      emptyDescription:
+        "Stelle Fragen zu diesem Gespräch, ohne es zu erweitern.",
+      start: "Seitenchat starten",
+      readOnlyHint:
+        "Frag zu diesem Gespräch. Ein Seitenchat kann Dateien lesen und im Web suchen, aber nichts ändern.",
+      thinking: "Denkt nach…",
+      placeholder: "Frage stellen",
+      stop: "Stoppen",
+      send: "Senden",
+      sendFailed: "Frage konnte nicht gesendet werden",
+      deleteFailed: "Nachfrage konnte nicht gelöscht werden",
+      openFailed: "Seitenchat konnte nicht geöffnet werden",
+      needsConversation: "Sende zuerst eine Nachricht",
+      waitForMessage: "Warte, bis die Antwort fertig ist",
+      overlaps: "Dieser Text gehört schon zu einer Nachfrage",
+      discardTitle: "Seitenchat schließen?",
+      discardDescription:
+        "Dieser Seitenchat wird nicht gespeichert. Beim Schließen gehen Fragen und Antworten verloren.",
+      discard: "Schließen und verwerfen",
+    },
     quote: {
       listLabel: "Zitierte Stellen",
       remove: "Zitat entfernen",

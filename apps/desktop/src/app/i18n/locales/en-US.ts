@@ -652,6 +652,34 @@ export default {
     removeDescription: "Remove {name} from this configuration?",
   },
   project: {
+    sideChat: {
+      open: "Open side chat",
+      title: "Side chat",
+      followUpTitle: "Follow-up",
+      notSaved: "Not saved",
+      delete: "Delete follow-up",
+      close: "Close side chat",
+      emptyTitle: "No side chat",
+      emptyDescription:
+        "Ask questions about this conversation without adding to it.",
+      start: "Start side chat",
+      readOnlyHint:
+        "Ask about this conversation. A side chat can read files and search the web, but can't change anything.",
+      thinking: "Thinking…",
+      placeholder: "Ask a question",
+      stop: "Stop",
+      send: "Send",
+      sendFailed: "Couldn't send the question",
+      deleteFailed: "Couldn't delete the follow-up",
+      openFailed: "Couldn't open the side chat",
+      needsConversation: "Send a message before following up",
+      waitForMessage: "Wait for the reply to finish",
+      overlaps: "This text is already part of a follow-up",
+      discardTitle: "Close side chat?",
+      discardDescription:
+        "This side chat isn't saved. Closing it discards its questions and answers.",
+      discard: "Close and discard",
+    },
     quote: {
       listLabel: "Quoted passages",
       remove: "Remove quote",

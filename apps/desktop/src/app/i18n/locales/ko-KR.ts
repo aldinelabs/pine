@@ -646,6 +646,33 @@ export default {
     removeDescription: "이 구성에서 {name}을(를) 제거할까요?",
   },
   project: {
+    sideChat: {
+      open: "사이드 채팅 열기",
+      title: "사이드 채팅",
+      followUpTitle: "추가 질문",
+      notSaved: "저장되지 않음",
+      delete: "추가 질문 삭제",
+      close: "사이드 채팅 닫기",
+      emptyTitle: "사이드 채팅 없음",
+      emptyDescription: "대화에 추가하지 않고 이 대화에 대해 질문하세요.",
+      start: "사이드 채팅 시작",
+      readOnlyHint:
+        "이 대화에 대해 질문하세요. 사이드 채팅은 파일을 읽고 웹을 검색할 수 있지만 아무것도 변경할 수 없습니다.",
+      thinking: "생각 중…",
+      placeholder: "질문 입력",
+      stop: "중지",
+      send: "보내기",
+      sendFailed: "질문을 보내지 못했습니다",
+      deleteFailed: "추가 질문을 삭제하지 못했습니다",
+      openFailed: "사이드 채팅을 열지 못했습니다",
+      needsConversation: "추가 질문하려면 먼저 메시지를 보내세요",
+      waitForMessage: "답변이 끝날 때까지 기다려 주세요",
+      overlaps: "이 텍스트는 이미 추가 질문에 포함되어 있습니다",
+      discardTitle: "사이드 채팅을 닫을까요?",
+      discardDescription:
+        "이 사이드 채팅은 저장되지 않습니다. 닫으면 질문과 답변이 삭제됩니다.",
+      discard: "닫고 삭제",
+    },
     quote: {
       listLabel: "인용한 구절",
       remove: "인용 삭제",

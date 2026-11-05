@@ -91,7 +91,7 @@ function toTranscriptMessages(
   }));
 }
 
-function mergeToolCallBlocks(
+export function mergeToolCallBlocks(
   blocks: PineContentBlock[],
   toolCallId: string,
   patch: Partial<PineToolCall>,
@@ -104,7 +104,7 @@ function mergeToolCallBlocks(
   });
 }
 
-function mergeBlockStatuses(
+export function mergeBlockStatuses(
   blocks: PineContentBlock[],
   previous: readonly PineContentBlock[] | undefined,
 ): PineContentBlock[] {
@@ -134,7 +134,7 @@ function mergeBlockStatuses(
   });
 }
 
-function messageCreatedAt(value: PineJsonValue): string {
+export function messageCreatedAt(value: PineJsonValue): string {
   if (typeof value !== "object" || value === null || Array.isArray(value)) {
     return new Date().toISOString();
   }
@@ -143,7 +143,7 @@ function messageCreatedAt(value: PineJsonValue): string {
     : new Date().toISOString();
 }
 
-function applyAssistantMessageUpdates(
+export function applyAssistantMessageUpdates(
   previous: readonly PineContentBlock[],
   updates: readonly PineAssistantMessageUpdate[],
 ): PineContentBlock[] {

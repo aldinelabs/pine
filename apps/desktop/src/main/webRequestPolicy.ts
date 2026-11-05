@@ -10,6 +10,7 @@ import * as skills from "../shared/skills";
 import * as mcp from "../shared/mcp";
 import * as background from "../shared/backgroundTasks";
 import * as attachments from "../shared/attachments";
+import * as sideChats from "../shared/sideChats";
 import { GET_EXCHANGE_RATES_CHANNEL } from "../shared/currency";
 import { GET_APP_VERSION_CHANNEL } from "../shared/window";
 import {
@@ -165,6 +166,12 @@ export function createWebChannels(
       }),
     ],
     [agent.ABORT_SESSION_CHANNEL, command("session")],
+    [sideChats.LIST_SIDE_CHATS_CHANNEL, query("project")],
+    [sideChats.OPEN_SIDE_CHAT_CHANNEL, command("project")],
+    [sideChats.PROMPT_SIDE_CHAT_CHANNEL, command("project")],
+    [sideChats.ABORT_SIDE_CHAT_CHANNEL, command("project")],
+    [sideChats.CLOSE_SIDE_CHAT_CHANNEL, command("project")],
+    [sideChats.DELETE_SIDE_CHAT_CHANNEL, command("project")],
     [agent.COMPACT_SESSION_CHANNEL, command("session")],
     [agent.DEQUEUE_STEERING_CHANNEL, command("session")],
     [agent.SEND_STEERING_NOW_CHANNEL, command("session")],

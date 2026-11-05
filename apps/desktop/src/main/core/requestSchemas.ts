@@ -380,3 +380,30 @@ export const ClearProjectStorageRequestSchema = z.object({
   id: z.uuid(),
   kind: z.enum(["attachments", "temporary"]),
 });
+
+const SideChatAnchorSchema = z.object({
+  messageId: z.string().trim().min(1).max(200),
+  start: z.number().int().min(0),
+  end: z.number().int().min(1),
+  text: z.string().min(1).max(20_000),
+  quote: z.string().min(1).max(20_000),
+});
+export const OpenSideChatRequestSchema = ProjectSessionRequestSchema.extend({
+  sideChatId: z.uuid().optional(),
+  anchor: SideChatAnchorSchema.refine(
+    (anchor) => anchor.end > anchor.start,
+  ).optional(),
+}).refine((request) => !(request.sideChatId && request.anchor), {
+  message: "A saved side chat already has its anchor.",
+});
+export const SideChatRequestSchema = z.object({
+  projectId: z.uuid(),
+  sideChatId: z.uuid(),
+});
+export const PromptSideChatRequestSchema = SideChatRequestSchema.extend({
+  locale: z.enum(["en-US", "zh-CN"]).default("en-US"),
+  message: z.string().trim().min(1).max(100_000),
+});
+export const DeleteSideChatRequestSchema = SideChatRequestSchema.extend({
+  sessionId: z.uuid(),
+});

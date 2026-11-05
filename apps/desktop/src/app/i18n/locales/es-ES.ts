@@ -662,6 +662,34 @@ export default {
     removeDescription: "¿Quitar {name} de esta configuración?",
   },
   project: {
+    sideChat: {
+      open: "Abrir chat lateral",
+      title: "Chat lateral",
+      followUpTitle: "Pregunta adicional",
+      notSaved: "No se guarda",
+      delete: "Eliminar pregunta adicional",
+      close: "Cerrar chat lateral",
+      emptyTitle: "No hay chat lateral",
+      emptyDescription:
+        "Pregunta sobre esta conversación sin añadir nada a ella.",
+      start: "Iniciar chat lateral",
+      readOnlyHint:
+        "Pregunta sobre esta conversación. Un chat lateral puede leer archivos y buscar en la web, pero no puede cambiar nada.",
+      thinking: "Pensando…",
+      placeholder: "Escribe una pregunta",
+      stop: "Detener",
+      send: "Enviar",
+      sendFailed: "No se pudo enviar la pregunta",
+      deleteFailed: "No se pudo eliminar la pregunta adicional",
+      openFailed: "No se pudo abrir el chat lateral",
+      needsConversation: "Envía un mensaje antes de preguntar más",
+      waitForMessage: "Espera a que termine la respuesta",
+      overlaps: "Este texto ya forma parte de una pregunta adicional",
+      discardTitle: "¿Cerrar el chat lateral?",
+      discardDescription:
+        "Este chat lateral no se guarda. Al cerrarlo se descartan sus preguntas y respuestas.",
+      discard: "Cerrar y descartar",
+    },
     quote: {
       listLabel: "Fragmentos citados",
       remove: "Quitar cita",

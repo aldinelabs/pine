@@ -17,6 +17,7 @@ import {
   clampWorkbenchWidth,
   highlightedPanel,
   WORKBENCH_DEFAULT_WIDTH,
+  SIDE_CHAT_PANEL,
   WORKBENCH_PANELS,
   type WorkbenchCommand,
   type WorkbenchPanel,
@@ -210,7 +211,24 @@ export const useWorkbenchStore = defineStore("workbench", () => {
   }
 
   function closeCard(panel: WorkbenchPanel): void {
-    update(activeKey.value, (layout) => closePanel(layout, panel));
+    update(activeKey.value, (layout) => {
+      const next = closePanel(layout, panel);
+      // The side chat card never stays behind as the one to reopen.
+      return next.top === SIDE_CHAT_PANEL
+        ? { ...next, top: DEFAULT_WORKBENCH_LAYOUT.top }
+        : next;
+    });
+  }
+
+  /** Shows the side chat card on top, above what the column showed first. */
+  function showSideChat(): void {
+    update(activeKey.value, (layout) => {
+      if (panelPosition(layout, SIDE_CHAT_PANEL))
+        return { ...layout, open: true };
+      return layout.open && layout.top
+        ? { ...layout, top: SIDE_CHAT_PANEL, bottom: layout.top }
+        : { ...layout, open: true, top: SIDE_CHAT_PANEL, bottom: null };
+    });
   }
 
   /** Picks the file for the preview card and shows it. */
@@ -281,6 +299,7 @@ export const useWorkbenchStore = defineStore("workbench", () => {
     setSplit,
     setWidth,
     showPanel,
+    showSideChat,
     toggle,
   };
 });

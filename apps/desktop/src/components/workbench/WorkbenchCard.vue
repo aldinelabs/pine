@@ -21,9 +21,11 @@ import {
 import {
   WORKBENCH_PANELS,
   isWorkbenchPanel,
+  type AgentWorkbenchPanel,
   type WorkbenchPanel,
   type WorkbenchPosition,
 } from "@/shared/workbench";
+import WorkbenchSideChatCard from "./WorkbenchSideChatCard.vue";
 import { useContentTabNavigation } from "@/composables/useContentTabNavigation";
 import { fileName, fileTargetPath } from "@/lib/filePreviewTarget";
 import { cn } from "@/lib/utils";
@@ -49,7 +51,7 @@ const attentionFlash = useAttentionFlashStore();
 /** The panel's content changed in a way it cannot point at itself. */
 const changeFlashId = computed(() => `workbench-card:${props.position}`);
 
-const PANEL_COMPONENTS: Record<WorkbenchPanel, Component> = {
+const PANEL_COMPONENTS: Record<AgentWorkbenchPanel, Component> = {
   artifacts: WorkbenchArtifactsPanel,
   tasks: ProjectBackgroundTaskPanel,
   preview: WorkbenchPreviewPanel,
@@ -107,7 +109,9 @@ const summary = computed(() => {
 </script>
 
 <template>
+  <WorkbenchSideChatCard v-if="panel === 'side-chat'" :position="position" />
   <Card
+    v-else
     size="sm"
     data-testid="workbench-card"
     :data-panel="panel"
@@ -218,7 +222,7 @@ const summary = computed(() => {
           class="scroll-fade-y no-scrollbar absolute inset-0 overflow-y-auto"
         >
           <component
-            :is="PANEL_COMPONENTS[panel]"
+            :is="PANEL_COMPONENTS[panel as AgentWorkbenchPanel]"
             @content-changed="attentionFlash.flashOnce(changeFlashId)"
           />
         </div>

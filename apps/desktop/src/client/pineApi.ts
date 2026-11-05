@@ -1,3 +1,13 @@
+import type { PineAgentEvent } from "../shared/agent";
+import {
+  ABORT_SIDE_CHAT_CHANNEL,
+  CLOSE_SIDE_CHAT_CHANNEL,
+  DELETE_SIDE_CHAT_CHANNEL,
+  LIST_SIDE_CHATS_CHANNEL,
+  OPEN_SIDE_CHAT_CHANNEL,
+  PROMPT_SIDE_CHAT_CHANNEL,
+  SIDE_CHAT_EVENT_CHANNEL,
+} from "../shared/sideChats";
 import {
   AUTOMATIONS_CHANGED_CHANNEL,
   AUTOMATIONS_REVEAL_CHANNEL,
@@ -776,6 +786,24 @@ export function createPineApi(transport: PineTransport): PineDesktopApi {
       request: SearchAllSessionsRequest,
     ): Promise<SearchAllSessionsResult> =>
       transport.invoke(SEARCH_ALL_SESSIONS_CHANNEL, request),
+    listSideChats: (request) =>
+      transport.invoke(LIST_SIDE_CHATS_CHANNEL, request),
+    openSideChat: (request) =>
+      transport.invoke(OPEN_SIDE_CHAT_CHANNEL, request),
+    promptSideChat: (request) =>
+      transport.invoke(PROMPT_SIDE_CHAT_CHANNEL, request),
+    abortSideChat: (request) =>
+      transport.invoke(ABORT_SIDE_CHAT_CHANNEL, request),
+    closeSideChat: (request) =>
+      transport.invoke(CLOSE_SIDE_CHAT_CHANNEL, request),
+    deleteSideChat: (request) =>
+      transport.invoke(DELETE_SIDE_CHAT_CHANNEL, request),
+    onSideChatEvent: (listener) => {
+      const handler = (_event: unknown, event: PineAgentEvent) =>
+        listener(event);
+      transport.on(SIDE_CHAT_EVENT_CHANNEL, handler);
+      return () => transport.removeListener(SIDE_CHAT_EVENT_CHANNEL, handler);
+    },
     respondWorkbenchState: (response): void =>
       transport.send(WORKBENCH_STATE_RESPONSE_CHANNEL, response),
     onLibraryChanged: (listener: (change: PineLibraryChange) => void) => {

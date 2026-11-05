@@ -654,6 +654,33 @@ export default {
     removeDescription: "この設定から {name} を削除しますか？",
   },
   project: {
+    sideChat: {
+      open: "サイドチャットを開く",
+      title: "サイドチャット",
+      followUpTitle: "追加の質問",
+      notSaved: "保存されません",
+      delete: "追加の質問を削除",
+      close: "サイドチャットを閉じる",
+      emptyTitle: "サイドチャットはありません",
+      emptyDescription: "この会話に加えずに、会話について質問できます。",
+      start: "サイドチャットを開始",
+      readOnlyHint:
+        "この会話について質問できます。サイドチャットはファイルの読み取りとウェブ検索はできますが、何も変更できません。",
+      thinking: "考え中…",
+      placeholder: "質問を入力",
+      stop: "停止",
+      send: "送信",
+      sendFailed: "質問を送信できませんでした",
+      deleteFailed: "追加の質問を削除できませんでした",
+      openFailed: "サイドチャットを開けませんでした",
+      needsConversation: "追加で質問するには先にメッセージを送信してください",
+      waitForMessage: "返信が終わるまでお待ちください",
+      overlaps: "このテキストはすでに追加の質問に含まれています",
+      discardTitle: "サイドチャットを閉じますか？",
+      discardDescription:
+        "このサイドチャットは保存されません。閉じると質問と回答は破棄されます。",
+      discard: "閉じて破棄",
+    },
     quote: {
       listLabel: "引用した箇所",
       remove: "引用を削除",

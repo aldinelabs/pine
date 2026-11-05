@@ -1,3 +1,4 @@
+import { SIDE_CHAT_EVENT_CHANNEL } from "../../shared/sideChats";
 import { realpath } from "node:fs/promises";
 import { hostname } from "node:os";
 import path from "node:path";
@@ -605,6 +606,11 @@ export class PineCore {
         void this.answerAutomationRequest(agentEvent, true);
       return;
     }
+    const sideChat = this.runtimes.sideChatOf(agentEvent.sessionId);
+    if (sideChat) {
+      this.routeSideChatEvent(agentEvent, sideChat);
+      return;
+    }
     const ownerId = this.runtimes.controllerOfSession(agentEvent.sessionId);
     if (ownerId === undefined) {
       this.host.observeAgentEvent?.(agentEvent, undefined);
@@ -666,6 +672,39 @@ export class PineCore {
       this.notifyLibraryChanged("sessions", ownerId);
     if (teleportProjectId)
       void this.teleportSession(agentEvent.sessionId, teleportProjectId);
+  }
+
+  /**
+   * A side chat's events go only to the window that opened it. Its tools ask
+   * the host on behalf of the conversation it forked; it can never move.
+   */
+  private routeSideChatEvent(
+    agentEvent: PineAgentEvent,
+    sideChat: { clientId: number; parentSessionId: string },
+  ): void {
+    if (agentEvent.type === "host-request") {
+      const parentOwner = this.runtimes.controllerOfSession(
+        sideChat.parentSessionId,
+      );
+      if (agentEvent.request.kind === "teleport" || parentOwner === undefined) {
+        this.agentHost.respondHostRequest(agentEvent.requestId, {
+          ok: false,
+          error: "A side chat cannot do this.",
+        });
+        return;
+      }
+      void this.answerHostRequest(
+        { ...agentEvent, sessionId: sideChat.parentSessionId },
+        parentOwner,
+      );
+      return;
+    }
+    if (agentEvent.type === "present-file") return;
+    this.sendClientEvent(
+      sideChat.clientId,
+      SIDE_CHAT_EVENT_CHANNEL,
+      agentEvent,
+    );
   }
 
   /**

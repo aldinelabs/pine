@@ -39,6 +39,8 @@ import type {
   AgentWorkerRequestInput,
   AgentWorkerResult,
   AgentWorkerSessionResult,
+  AgentSideChatOpenRequest,
+  AgentWorkerSideChatResult,
   AgentHostReply,
   GateDecision,
   PineRuntimeEvent,
@@ -85,6 +87,9 @@ export interface AgentHost {
     location: AgentSessionLocation,
     sessionFile: string,
   ): Promise<AgentWorkerSessionResult>;
+  openSideChat(
+    request: AgentSideChatOpenRequest,
+  ): Promise<AgentWorkerSideChatResult>;
   prompt(
     sessionId: string,
     message: string,
@@ -243,6 +248,12 @@ export class AgentProcessHost implements AgentHost {
     sessionFile: string,
   ): Promise<AgentWorkerSessionResult> {
     return this.request({ type: "session:open", location, sessionFile });
+  }
+
+  openSideChat(
+    request: AgentSideChatOpenRequest,
+  ): Promise<AgentWorkerSideChatResult> {
+    return this.request({ type: "side-chat:open", ...request });
   }
 
   prompt(

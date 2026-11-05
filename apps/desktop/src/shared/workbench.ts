@@ -10,7 +10,14 @@ export const WORKBENCH_PANELS = [
   "preview",
   "files",
 ] as const;
-export type WorkbenchPanel = (typeof WORKBENCH_PANELS)[number];
+/** The panels the agent can arrange with the `ui_workbench_*` tools. */
+export type AgentWorkbenchPanel = (typeof WORKBENCH_PANELS)[number];
+/**
+ * The side chat card. Only the user opens it, from the conversation, and it
+ * is never saved with the layout: its side chat does not outlive the window.
+ */
+export const SIDE_CHAT_PANEL = "side-chat" as const;
+export type WorkbenchPanel = AgentWorkbenchPanel | typeof SIDE_CHAT_PANEL;
 
 export const WORKBENCH_POSITIONS = ["top", "bottom"] as const;
 export type WorkbenchPosition = (typeof WORKBENCH_POSITIONS)[number];
@@ -38,8 +45,8 @@ export interface WorkbenchState {
   open: boolean;
   /** False for a background conversation, even if its saved layout is open. */
   visible: boolean;
-  top: WorkbenchPanel | null;
-  bottom: WorkbenchPanel | null;
+  top: AgentWorkbenchPanel | null;
+  bottom: AgentWorkbenchPanel | null;
   split: number;
 }
 
@@ -81,7 +88,8 @@ export function highlightedPanel(
   return undefined;
 }
 
-export function isWorkbenchPanel(value: unknown): value is WorkbenchPanel {
+/** Whether a value names a panel the agent may use or a layout may store. */
+export function isWorkbenchPanel(value: unknown): value is AgentWorkbenchPanel {
   return (WORKBENCH_PANELS as readonly unknown[]).includes(value);
 }
 

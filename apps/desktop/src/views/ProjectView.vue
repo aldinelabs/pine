@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { isDesktopClient } from "@/lib/clientRuntime";
-import { PanelRight } from "@lucide/vue";
+import { MessagesSquareIcon, PanelRight } from "@lucide/vue";
+import SideChatDiscardDialog from "@/components/workbench/SideChatDiscardDialog.vue";
+import { useSideChat } from "@/composables/useSideChat";
 import { onKeyStroke, useEventListener } from "@vueuse/core";
 import {
   computed,
@@ -338,6 +340,8 @@ onMounted(async () => {
   await syncWorkbench(true);
 });
 
+const sideChat = useSideChat();
+
 // Cmd/Ctrl+B belongs to the left SidebarProvider; Cmd/Ctrl+Option/Alt+B
 // toggles the workbench. Option changes event.key on macOS, so match the code.
 useEventListener(window, "keydown", (event: KeyboardEvent) => {
@@ -452,6 +456,17 @@ onKeyStroke(Object.keys(sidebarShortcuts), (event) => {
           :style="trailingControlsStyle"
         >
           <Button
+            data-testid="project-side-chat-open"
+            variant="ghost"
+            size="icon-sm"
+            :disabled="!sessionStore.activeSession"
+            :aria-label="t('project.sideChat.open')"
+            :title="t('project.sideChat.open')"
+            @click="sideChat.open()"
+          >
+            <MessagesSquareIcon aria-hidden="true" />
+          </Button>
+          <Button
             data-testid="project-workbench-toggle"
             variant="ghost"
             size="icon-sm"
@@ -471,6 +486,7 @@ onKeyStroke(Object.keys(sidebarShortcuts), (event) => {
 
     <SessionSearchOverlay v-model:open="isSessionSearchOpen" />
     <PineUpdateDialog v-model:open="updater.isDialogOpen" />
+    <SideChatDiscardDialog />
     <!-- Project-scoped settings follow the project of the active tab. -->
     <template v-if="projectStore.activeProject">
       <SkillManagerDialog

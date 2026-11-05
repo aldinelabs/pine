@@ -36,6 +36,11 @@ export function createAgentHost(sessionSummary: PineSessionSummary): AgentHost {
     setContextCompactionStrategy: vi.fn().mockResolvedValue({ updated: true }),
     setContextCompactionRoute: vi.fn().mockResolvedValue({ updated: true }),
     openSession: vi.fn().mockResolvedValue({ session: sessionSummary }),
+    openSideChat: vi.fn().mockResolvedValue({
+      session: { ...sessionSummary, id: "side-chat" },
+      parentSessionId: sessionSummary.id,
+      messages: [],
+    }),
     prompt: vi.fn().mockResolvedValue({
       accepted: true,
       session: { ...sessionSummary, messageCount: 2 },
