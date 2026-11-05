@@ -20,6 +20,7 @@ import { sessionSummary } from "./session-state";
 import type { LiveAgentSession } from "./session-state";
 
 const MESSAGE_UPDATE_BATCH_MS = 120;
+const STREAMED_MESSAGE_LIMIT = 1_000;
 
 interface PendingMessageUpdates {
   messageId: string;
@@ -59,6 +60,12 @@ export class PineAgentEventForwarder {
     PendingMessageUpdates
   >();
   private readonly activeCompactionIds = new Map<string, string>();
+  /**
+   * The message each streamed id stood for. A live transcript knows a
+   * message by that id until it reloads with entry ids, so this lets the
+   * runtime find the entry the renderer means.
+   */
+  private readonly streamedMessages = new Map<string, Map<string, unknown>>();
 
   constructor(private readonly options: PineAgentEventForwarderOptions) {}
 
@@ -67,6 +74,12 @@ export class PineAgentEventForwarder {
     this.messageUpdateCompactors.delete(sessionId);
     this.clearPendingMessageUpdates(sessionId);
     this.activeCompactionIds.delete(sessionId);
+    this.streamedMessages.delete(sessionId);
+  }
+
+  /** The Pi message a streamed message id was sent for, if still known. */
+  streamedMessage(sessionId: string, messageId: string): unknown {
+    return this.streamedMessages.get(sessionId)?.get(messageId);
   }
 
   forward(session: AgentSession, event: AgentSessionEvent): void {
@@ -86,6 +99,15 @@ export class PineAgentEventForwarder {
             compactor: new AssistantMessageUpdateCompactor(),
           });
         } else {
+          let streamed = this.streamedMessages.get(sessionId);
+          if (!streamed) {
+            streamed = new Map();
+            this.streamedMessages.set(sessionId, streamed);
+          }
+          streamed.set(messageId, event.message);
+          // Older ids have long been replaced by entry ids on reload.
+          if (streamed.size > STREAMED_MESSAGE_LIMIT)
+            streamed.delete(streamed.keys().next().value as string);
           this.flushPendingMessageUpdates(sessionId);
           this.activeMessageIds.delete(sessionId);
           this.messageUpdateCompactors.delete(sessionId);

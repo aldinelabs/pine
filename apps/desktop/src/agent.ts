@@ -23,6 +23,9 @@ async function handleRequest(request: AgentWorkerRequest): Promise<void> {
     case "session:open":
       result = await runtime.openSession(request.location, request.sessionFile);
       break;
+    case "side-chat:open":
+      result = await runtime.openSideChat(request);
+      break;
     case "session:prompt":
       result = await runtime.prompt(
         request.sessionId,

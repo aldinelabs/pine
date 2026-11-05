@@ -86,6 +86,8 @@ export interface LiveAgentSession {
   mcpAuthoringActive: boolean;
   /** An MCP config change waits for the run to end before reloading. */
   mcpReloadPending?: boolean;
+  /** Set for a read-only side chat forked from another conversation. */
+  sideChat?: { parentSessionId: string; persistent: boolean };
   /** Set for an unattended automation run; its envelope replaces the tool list. */
   automation?: AgentAutomationRun;
   tinyFishApiKey?: string;

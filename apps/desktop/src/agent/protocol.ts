@@ -154,6 +154,10 @@ export type AgentWorkerRequest =
       location: AgentSessionLocation;
       sessionFile: string;
     }
+  | ({
+      id: string;
+      type: "side-chat:open";
+    } & AgentSideChatOpenRequest)
   | {
       id: string;
       type: "session:prompt";
@@ -363,6 +367,30 @@ export interface AgentWorkerSessionResult {
   contextUsage?: PineContextUsage;
 }
 
+/** Opens a side chat: a fork of a conversation, or one saved earlier. */
+export interface AgentSideChatOpenRequest {
+  location: AgentSessionLocation;
+  parentSessionId: string;
+  /** The parent's file, read when the parent is not live. */
+  parentSessionFile?: string;
+  /** Where the parent's saved side chats are kept. */
+  sideChatsDirectory: string;
+  /** Reopens this saved side chat instead of forking a new one. */
+  sideChatFile?: string;
+  /**
+   * The passage a new side chat follows up. A side chat with one is saved;
+   * one without lives only in memory.
+   */
+  anchor?: PineJsonValue;
+}
+
+export interface AgentWorkerSideChatResult extends AgentWorkerSessionResult {
+  parentSessionId: string;
+  anchor?: PineJsonValue;
+  /** The side chat's own messages, after the conversation it forked. */
+  messages: { id: string; message: PineJsonValue }[];
+}
+
 export interface AgentWorkerPromptResult extends AgentWorkerSessionResult {
   accepted: boolean;
 }
@@ -373,6 +401,7 @@ export type AgentWorkerResult =
   | BackgroundTaskResult
   | ReadBackgroundTaskOutputResult
   | AgentWorkerSessionResult
+  | AgentWorkerSideChatResult
   | AgentWorkerPromptResult
   | PineModelCatalog
   | ProviderLoginResult

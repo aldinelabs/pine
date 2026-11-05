@@ -65,8 +65,11 @@ import {
   type AgentWorkerPromptResult,
   type AgentWorkerMutateResult,
   type AgentWorkerSessionResult,
+  type AgentSideChatOpenRequest,
+  type AgentWorkerSideChatResult,
   GateDecision,
   toErrorMessage,
+  toPineJsonValue,
 } from "./protocol";
 import {
   PINE_SYSTEM_PROMPT,
@@ -89,6 +92,17 @@ import {
   type UserApprovalRequest,
 } from "./gate";
 import { createPineToolDefinitions, PineAttachedPathAccess } from "./tools";
+import {
+  createSideChatExtension,
+  forkEntries,
+  PINE_SIDE_CHAT_ENTRY,
+  PINE_SIDE_CHAT_NOTICE,
+  SIDE_CHAT_APPROVAL_REASON,
+  resolveAnchorMessage,
+  sideChatEntry,
+  sideChatMessages,
+  writeForkFile,
+} from "./sideChat";
 import { ForegroundPromoter } from "./foreground-promotion";
 import { createModelToolDefinitions } from "./modelTools";
 import { createActivatePineOpsToolDefinition } from "./pine-ops/tools";
@@ -402,6 +416,83 @@ export class PineAgentRuntime {
       location.cwd,
     );
     return this.registerSession(location, manager);
+  }
+
+  /**
+   * Opens a side chat. A new one forks the parent's current branch, keeping
+   * its entries as they are so the model sees the same prefix; a follow-up
+   * is saved beside the parent's other side chats, a plain one stays in
+   * memory and is gone once disposed.
+   */
+  async openSideChat(
+    request: AgentSideChatOpenRequest,
+  ): Promise<AgentWorkerSideChatResult> {
+    const { location, parentSessionId } = request;
+    const parentLive = this.liveSessions.get(parentSessionId);
+    let manager: SessionManager;
+    let anchor: unknown = request.anchor;
+    if (request.sideChatFile) {
+      manager = SessionManager.open(
+        request.sideChatFile,
+        request.sideChatsDirectory,
+        location.cwd,
+      );
+      const marker = sideChatEntry(manager.getEntries());
+      if (marker?.data.parentSessionId !== parentSessionId)
+        throw new Error("This side chat belongs to another conversation.");
+      anchor = marker.data.anchor;
+    } else {
+      const parent =
+        parentLive?.session.sessionManager ??
+        (request.parentSessionFile
+          ? SessionManager.open(
+              request.parentSessionFile,
+              undefined,
+              location.cwd,
+            )
+          : undefined);
+      if (!parent) throw new Error("The conversation is not available.");
+      const fork = forkEntries(parent, location.cwd);
+      anchor = resolveAnchorMessage(anchor, fork.entries, (messageId) =>
+        this.eventForwarder.streamedMessage(parentSessionId, messageId),
+      );
+      manager =
+        anchor === undefined
+          ? SessionManager.inMemory(location.cwd, undefined, [
+              fork.header,
+              ...fork.entries,
+            ])
+          : SessionManager.open(
+              writeForkFile(request.sideChatsDirectory, fork),
+              request.sideChatsDirectory,
+              location.cwd,
+            );
+      // Not a context entry: the model's prefix stays the parent's.
+      manager.appendCustomEntry(PINE_SIDE_CHAT_ENTRY, {
+        parentSessionId,
+        ...(anchor !== undefined ? { anchor } : {}),
+      });
+    }
+    const result = await this.registerSession(
+      {
+        ...location,
+        // The approval mode is part of the conversation; keep the parent's.
+        approvalMode: parentLive?.approvalMode ?? location.approvalMode,
+      },
+      manager,
+      { parentSessionId, persistent: anchor !== undefined },
+    );
+    return {
+      ...result,
+      parentSessionId,
+      ...(anchor !== undefined ? { anchor: toPineJsonValue(anchor) } : {}),
+      messages: sideChatMessages(manager.getBranch()).map(
+        ({ id, message }) => ({
+          id,
+          message: toPineJsonValue(message),
+        }),
+      ),
+    };
   }
 
   async prompt(
@@ -1102,6 +1193,7 @@ export class PineAgentRuntime {
   private async registerSession(
     location: AgentSessionLocation,
     sessionManager: SessionManager,
+    sideChat?: LiveAgentSession["sideChat"],
   ): Promise<AgentWorkerSessionResult> {
     const existing = this.liveSessions.get(sessionManager.getSessionId());
     if (existing) {
@@ -1164,6 +1256,7 @@ export class PineAgentRuntime {
         sessionManager.getEntries(),
       ),
       ...(location.automation ? { automation: location.automation } : {}),
+      ...(sideChat ? { sideChat } : {}),
       ...(location.tinyFishApiKey
         ? { tinyFishApiKey: location.tinyFishApiKey }
         : {}),
@@ -1405,6 +1498,18 @@ export class PineAgentRuntime {
               },
             ] satisfies InlineExtension[])),
         createProgressRemindersExtension(),
+        ...(sideChat
+          ? [
+              createSideChatExtension({
+                hasNotice: () =>
+                  live.session.messages.some(
+                    (message) =>
+                      message.role === "custom" &&
+                      message.customType === PINE_SIDE_CHAT_NOTICE,
+                  ),
+              }),
+            ]
+          : []),
       ],
       noThemes: true,
       skillsOverride: filterPineManagedSkills(
@@ -1848,6 +1953,12 @@ export class PineAgentRuntime {
     live: LiveAgentSession,
     request: UserApprovalRequest,
   ): Promise<GateDecision> {
+    // A side chat shows no approval cards; what needs one is not read-only.
+    if (live.sideChat)
+      return Promise.resolve({
+        kind: "deny",
+        reason: SIDE_CHAT_APPROVAL_REASON,
+      });
     const sessionId = live.session.sessionId;
     const requestId = randomUUID();
     return new Promise<GateDecision>((resolve) => {
@@ -2360,6 +2471,7 @@ export class PineAgentRuntime {
   private async generateInitialTitle(live: LiveAgentSession): Promise<void> {
     const session = live.session;
     if (
+      live.sideChat ||
       session.sessionName ||
       this.titleGenerationAttempts.has(session.sessionId) ||
       (this.titleGenerationFailures.get(session.sessionId) ?? 0) >=
