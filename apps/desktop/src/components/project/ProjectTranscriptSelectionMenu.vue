@@ -123,7 +123,13 @@ function startFollowUp(): void {
       @close-auto-focus.prevent
       @mousedown.prevent
     >
-      <Button type="button" variant="ghost" @click="quote">
+      <Button
+        type="button"
+        variant="ghost"
+        size="sm"
+        class="font-normal"
+        @click="quote"
+      >
         <TextQuoteIcon />
         {{ t("project.selection.quote") }}
       </Button>
@@ -131,7 +137,13 @@ function startFollowUp(): void {
         <Tooltip v-if="!followUpState.enabled && followUpState.reason">
           <TooltipTrigger as-child>
             <span tabindex="0">
-              <Button type="button" variant="ghost" disabled>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                class="font-normal"
+                disabled
+              >
                 <MessagesSquareIcon />
                 {{ t("project.selection.followUp") }}
               </Button>
@@ -143,6 +155,8 @@ function startFollowUp(): void {
           v-else
           type="button"
           variant="ghost"
+          size="sm"
+          class="font-normal"
           :disabled="!followUpState.enabled"
           @click="startFollowUp"
         >

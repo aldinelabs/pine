@@ -611,6 +611,17 @@ html.reading-font .transcript-prose :is(h1, h2, h3, h4, h5, h6) {
   font-family: var(--font-reading);
 }
 
+/* The actions on selected transcript text read in the text's own face:
+   markstream's sans by default, the reading font when it is on. */
+[data-slot="transcript-selection-menu"] {
+  font-family:
+    ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
+}
+
+html.reading-font [data-slot="transcript-selection-menu"] {
+  font-family: var(--font-reading);
+}
+
 html.sidebar-vibrancy body {
   background: transparent;
 }
