@@ -1,0 +1,31 @@
+diff --git a/node_modules/@ff-labs/fff-node/.bun-tag-f66a4a0cb5b685bf b/.bun-tag-f66a4a0cb5b685bf
+new file mode 100644
+index 0000000000000000000000000000000000000000..e69de29bb2d1d6434b8b29ae775ad8c2e48c5391
+diff --git a/dist/index.cjs b/dist/index.cjs
+index 48667c7fff31673358224b00beb9be22d4173264..04f944e783f99c7e52532609eeb8e004f3ab823d 100644
+--- a/dist/index.cjs
++++ b/dist/index.cjs
+@@ -162,7 +162,8 @@ function resolveFromNpmPackage() {
+     const require2 = (0, import_node_module.createRequire)((0, import_node_path.join)(getPackageDir(), "package.json"));
+     const packageJsonPath = require2.resolve(`${packageName}/package.json`);
+     const packageDir = (0, import_node_path.dirname)(packageJsonPath);
+-    const binaryPath = (0, import_node_path.join)(packageDir, getLibFilename());
++    const unpackedDir = packageDir.replace(/([\\/])app\.asar(?=[\\/])/, "$1app.asar.unpacked");
++    const binaryPath = (0, import_node_path.join)(unpackedDir, getLibFilename());
+     if ((0, import_node_fs.existsSync)(binaryPath)) {
+       return binaryPath;
+     }
+diff --git a/dist/index.js b/dist/index.js
+index 7c1d722eabc8d8eb98998eb48c5fe9d70b749d10..7e61baa82eb1a9e22981db067e650db4daf592b7 100644
+--- a/dist/index.js
++++ b/dist/index.js
+@@ -126,7 +126,8 @@ function resolveFromNpmPackage() {
+     const require2 = createRequire(join(getPackageDir(), "package.json"));
+     const packageJsonPath = require2.resolve(`${packageName}/package.json`);
+     const packageDir = dirname(packageJsonPath);
+-    const binaryPath = join(packageDir, getLibFilename());
++    const unpackedDir = packageDir.replace(/([\\/])app\.asar(?=[\\/])/, "$1app.asar.unpacked");
++    const binaryPath = join(unpackedDir, getLibFilename());
+     if (existsSync(binaryPath)) {
+       return binaryPath;
+     }

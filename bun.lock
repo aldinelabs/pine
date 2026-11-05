@@ -217,6 +217,7 @@
     "electron-winstaller",
   ],
   "patchedDependencies": {
+    "@ff-labs/fff-node@0.11.0": "patches/@ff-labs%2Ffff-node@0.11.0.patch",
     "@file-viewer/renderer-spreadsheet@3.2.2": "patches/@file-viewer%2Frenderer-spreadsheet@3.2.2.patch",
   },
   "packages": {
