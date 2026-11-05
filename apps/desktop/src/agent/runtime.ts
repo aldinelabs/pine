@@ -102,6 +102,7 @@ import {
   resolveAnchorMessage,
   sideChatEntry,
   sideChatMessages,
+  sideChatPassage,
   writeForkFile,
 } from "./sideChat";
 import { ForegroundPromoter } from "./foreground-promotion";
@@ -1516,6 +1517,8 @@ export class PineAgentRuntime {
                       message.role === "custom" &&
                       message.customType === PINE_SIDE_CHAT_NOTICE,
                   ),
+                passage: () =>
+                  sideChatPassage(live.session.sessionManager.getEntries()),
               }),
             ]
           : []),

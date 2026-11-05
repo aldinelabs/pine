@@ -220,9 +220,20 @@ describe("side chats on a real Pi session", () => {
       });
       expect(side.anchor).toEqual(anchor);
       const sideSession = live(side.session.id);
-      sideSession.agent.streamFunction = (model, context) =>
-        reply(context, [{ type: "text", text: "Douglas Adams." }], model);
+      const sideContexts: Context[] = [];
+      sideSession.agent.streamFunction = (model, context) => {
+        sideContexts.push(structuredClone(context));
+        return reply(
+          context,
+          [{ type: "text", text: "Douglas Adams." }],
+          model,
+        );
+      };
       await sideSession.prompt("Who said so?");
+      // The model is told which passage the follow-up asks about.
+      const asked = JSON.stringify(sideContexts.at(-1)!.messages);
+      expect(asked).toContain("<quoted_passage>\\n42\\n</quoted_passage>");
+      expect(asked).toContain("one of your replies");
       await runtime.disposeSession(side.session.id);
 
       const [file] = await readdir(directory);

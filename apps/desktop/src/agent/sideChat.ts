@@ -72,14 +72,56 @@ export const SIDE_CHAT_BLOCKED_TOOL_REASON =
 export const SIDE_CHAT_APPROVAL_REASON =
   "This is a read-only side chat, which cannot ask the user for approval. Use read-only tools that need no approval, or answer from the conversation.";
 
-export function sideChatNotice(): string {
+/** The passage a follow-up asks about, and who wrote it. */
+export interface SideChatPassage {
+  quote: string;
+  role?: "assistant" | "user";
+}
+
+export function sideChatNotice(passage?: SideChatPassage): string {
+  const source =
+    passage?.role === "user"
+      ? "one of the user's own messages"
+      : passage?.role === "assistant"
+        ? "one of your replies"
+        : "a message";
   return [
     "<system-reminder>",
     "The user opened a side chat on this conversation to ask questions about it. Everything after this point happens only in the side chat: the main conversation does not see it and continues separately.",
+    ...(passage
+      ? [
+          `The user selected this passage from ${source} above and asks about it; their questions refer to it unless they say otherwise:`,
+          "<quoted_passage>",
+          passage.quote,
+          "</quoted_passage>",
+        ]
+      : []),
     "In the side chat, call read-only tools only: reading files, web search and web fetch, and tools that list or inspect. Never write or edit files, run shell commands, change settings, or act outside the conversation; such calls fail. Do not continue the main task here. Answer the user's questions directly and concisely.",
     `Tools available here: ${[...SIDE_CHAT_READ_ONLY_TOOL_NAMES].join(", ")}.`,
     "</system-reminder>",
   ].join("\n");
+}
+
+/** The passage a side chat follows up, read from its own entry. */
+export function sideChatPassage(
+  entries: readonly SessionEntry[],
+): SideChatPassage | undefined {
+  const anchor = sideChatEntry(entries)?.data.anchor;
+  if (typeof anchor !== "object" || anchor === null) return undefined;
+  const { quote, messageId } = anchor as {
+    quote?: unknown;
+    messageId?: unknown;
+  };
+  if (typeof quote !== "string" || !quote) return undefined;
+  const message = entries.find(
+    (entry) => entry.type === "message" && entry.id === messageId,
+  );
+  const role =
+    message?.type === "message" &&
+    (message.message.role === "assistant" || message.message.role === "user")
+      ? message.message.role
+      : undefined;
+  return { quote, ...(role ? { role } : {}) };
 }
 
 export interface SideChatEntryData {
@@ -214,6 +256,7 @@ export function resolveAnchorMessage(
 /** Refuses tools that are not read-only and tells the model where it is. */
 export function createSideChatExtension(options: {
   hasNotice: () => boolean;
+  passage: () => SideChatPassage | undefined;
 }): InlineExtension {
   return {
     name: "pine-side-chat",
@@ -229,7 +272,7 @@ export function createSideChatExtension(options: {
           : {
               message: {
                 customType: PINE_SIDE_CHAT_NOTICE,
-                content: sideChatNotice(),
+                content: sideChatNotice(options.passage()),
                 display: false,
               },
             },
