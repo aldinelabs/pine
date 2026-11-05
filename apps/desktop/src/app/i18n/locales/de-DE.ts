@@ -672,10 +672,6 @@ export default {
       notSaved: "Nicht gespeichert",
       delete: "Nachfrage löschen",
       close: "Seitenchat schließen",
-      emptyTitle: "Kein Seitenchat",
-      emptyDescription:
-        "Stelle Fragen zu diesem Gespräch, ohne es zu erweitern.",
-      start: "Seitenchat starten",
       readOnlyHint:
         "Frag zu diesem Gespräch. Ein Seitenchat kann Dateien lesen und im Web suchen, aber nichts ändern.",
       thinking: "Denkt nach…",

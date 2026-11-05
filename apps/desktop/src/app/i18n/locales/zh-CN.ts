@@ -621,9 +621,6 @@ export default {
       notSaved: "不保存",
       delete: "删除追问",
       close: "关闭侧边对话",
-      emptyTitle: "没有侧边对话",
-      emptyDescription: "就这段对话提问，不会加入主对话。",
-      start: "开始侧边对话",
       readOnlyHint:
         "就这段对话提问。侧边对话可以读取文件和搜索网页，但不能做任何修改。",
       thinking: "思考中…",

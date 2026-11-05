@@ -660,9 +660,6 @@ export default {
       notSaved: "保存されません",
       delete: "追加の質問を削除",
       close: "サイドチャットを閉じる",
-      emptyTitle: "サイドチャットはありません",
-      emptyDescription: "この会話に加えずに、会話について質問できます。",
-      start: "サイドチャットを開始",
       readOnlyHint:
         "この会話について質問できます。サイドチャットはファイルの読み取りとウェブ検索はできますが、何も変更できません。",
       thinking: "考え中…",

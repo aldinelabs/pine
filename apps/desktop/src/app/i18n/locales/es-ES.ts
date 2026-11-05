@@ -668,10 +668,6 @@ export default {
       notSaved: "No se guarda",
       delete: "Eliminar pregunta adicional",
       close: "Cerrar chat lateral",
-      emptyTitle: "No hay chat lateral",
-      emptyDescription:
-        "Pregunta sobre esta conversación sin añadir nada a ella.",
-      start: "Iniciar chat lateral",
       readOnlyHint:
         "Pregunta sobre esta conversación. Un chat lateral puede leer archivos y buscar en la web, pero no puede cambiar nada.",
       thinking: "Pensando…",

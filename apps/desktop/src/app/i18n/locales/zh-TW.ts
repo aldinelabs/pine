@@ -621,9 +621,6 @@ export default {
       notSaved: "不儲存",
       delete: "刪除追問",
       close: "關閉側邊對話",
-      emptyTitle: "沒有側邊對話",
-      emptyDescription: "就這段對話提問，不會加入主對話。",
-      start: "開始側邊對話",
       readOnlyHint:
         "就這段對話提問。側邊對話可以讀取檔案和搜尋網頁，但不能做任何修改。",
       thinking: "思考中…",

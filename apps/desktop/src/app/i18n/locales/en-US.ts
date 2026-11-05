@@ -658,10 +658,6 @@ export default {
       notSaved: "Not saved",
       delete: "Delete follow-up",
       close: "Close side chat",
-      emptyTitle: "No side chat",
-      emptyDescription:
-        "Ask questions about this conversation without adding to it.",
-      start: "Start side chat",
       readOnlyHint:
         "Ask about this conversation. A side chat can read files and search the web, but can't change anything.",
       thinking: "Thinking…",

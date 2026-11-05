@@ -652,9 +652,6 @@ export default {
       notSaved: "저장되지 않음",
       delete: "추가 질문 삭제",
       close: "사이드 채팅 닫기",
-      emptyTitle: "사이드 채팅 없음",
-      emptyDescription: "대화에 추가하지 않고 이 대화에 대해 질문하세요.",
-      start: "사이드 채팅 시작",
       readOnlyHint:
         "이 대화에 대해 질문하세요. 사이드 채팅은 파일을 읽고 웹을 검색할 수 있지만 아무것도 변경할 수 없습니다.",
       thinking: "생각 중…",

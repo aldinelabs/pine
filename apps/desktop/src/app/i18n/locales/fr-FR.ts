@@ -669,10 +669,6 @@ export default {
       notSaved: "Non enregistré",
       delete: "Supprimer la question de suivi",
       close: "Fermer le chat latéral",
-      emptyTitle: "Aucun chat latéral",
-      emptyDescription:
-        "Posez des questions sur cette conversation sans y ajouter de messages.",
-      start: "Démarrer un chat latéral",
       readOnlyHint:
         "Posez une question sur cette conversation. Un chat latéral peut lire des fichiers et chercher sur le web, mais ne peut rien modifier.",
       thinking: "Réflexion…",
