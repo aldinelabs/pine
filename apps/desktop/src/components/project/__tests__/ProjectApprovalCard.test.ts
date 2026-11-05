@@ -15,6 +15,22 @@ const approval: PinePendingApproval = {
 };
 
 describe("ProjectApprovalCard", () => {
+  it.each([{ isComposing: true }, { keyCode: 229 }])(
+    "ignores decision shortcuts while confirming IME candidates (%j)",
+    (options) => {
+      const wrapper = mount(ProjectApprovalCard, {
+        props: { approval, isActive: true },
+        global: { plugins: [createAppI18n("zh-CN")] },
+      });
+      for (const key of ["Enter", "Escape", "/"]) {
+        window.dispatchEvent(new KeyboardEvent("keydown", { key, ...options }));
+      }
+      expect(wrapper.emitted("respond")).toBeUndefined();
+      expect(wrapper.find("textarea").exists()).toBe(false);
+      wrapper.unmount();
+    },
+  );
+
   it("identifies failed automatic reviews while preserving the action and manual controls", async () => {
     const wrapper = mount(ProjectApprovalCard, {
       props: {

@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, onMounted, ref } from "vue";
+import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 import { useI18n } from "vue-i18n";
-import { ArrowUpIcon, TriangleAlertIcon } from "@lucide/vue";
+import { TriangleAlertIcon } from "@lucide/vue";
+import ApprovalGuidanceComposer from "@/components/approval/ApprovalGuidanceComposer.vue";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -11,7 +12,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { Kbd } from "@/components/ui/kbd";
 import { useShortcutHints } from "@/composables/useShortcutHints";
 import type { PineApprovalAction } from "@/shared/agent";
@@ -32,9 +32,6 @@ const { t } = i18n;
 const showShortcutHints = useShortcutHints();
 const guidance = ref("");
 const guiding = ref(false);
-// The Input component forwards its root element through `$el`; typing the
-// wrapper keeps the focus call honest on both sides.
-const guidanceInput = ref<{ $el: HTMLInputElement } | null>(null);
 
 const triggerKey = computed(() => {
   switch (props.approval.trigger) {
@@ -64,17 +61,13 @@ function respond(action: PineApprovalAction, guidanceText?: string): void {
   emit("respond", action, guidanceText);
 }
 
-function submitGuidance(): void {
-  const guidanceText = guidance.value.trim();
-  if (guidanceText) respond("guide", guidanceText);
-}
-
 // While the guidance input is open the keys are regular text; the
 // shortcuts only apply to the decision buttons.
 function handleShortcut(event: KeyboardEvent): void {
   if (props.isActive === false) return;
   if (guiding.value || event.metaKey || event.ctrlKey || event.altKey) return;
-  if (event.defaultPrevented) return;
+  if (event.defaultPrevented || event.isComposing || event.keyCode === 229)
+    return;
   const target = event.target;
   if (
     target instanceof HTMLInputElement ||
@@ -91,17 +84,15 @@ function handleShortcut(event: KeyboardEvent): void {
     respond(isActivationChoice.value ? "abort" : "reject");
   } else if (event.key === "/" && !isActivationChoice.value) {
     event.preventDefault();
-    void startGuidance();
+    startGuidance();
   }
 }
 
 onMounted(() => window.addEventListener("keydown", handleShortcut));
 onBeforeUnmount(() => window.removeEventListener("keydown", handleShortcut));
 
-async function startGuidance(): Promise<void> {
+function startGuidance(): void {
   guiding.value = true;
-  await nextTick();
-  guidanceInput.value?.$el?.focus();
 }
 </script>
 
@@ -175,33 +166,14 @@ async function startGuidance(): Promise<void> {
     </CardContent>
     <CardFooter class="mt-auto shrink-0 gap-2">
       <!-- Decisions as compact buttons with their shortcut keys; the
-           freeform guidance swaps the whole group for an input. -->
-      <template v-if="guiding">
-        <div class="relative flex-1">
-          <Input
-            ref="guidanceInput"
-            v-model="guidance"
-            class="min-h-12 pr-16"
-            :placeholder="t('project.approvalRequest.guide')"
-            @keydown.enter.exact.prevent="submitGuidance"
-          />
-          <div class="absolute inset-y-0 right-2 flex items-center">
-            <Button
-              type="button"
-              size="sm"
-              class="h-8 gap-1 px-2 text-xs"
-              :disabled="!guidance.trim() || props.isResponding"
-              :aria-label="t('project.approvalRequest.guide')"
-              @click="submitGuidance"
-            >
-              <ArrowUpIcon />
-              <Kbd v-if="showShortcutHints && !guidance" aria-hidden="true"
-                >↵</Kbd
-              >
-            </Button>
-          </div>
-        </div>
-      </template>
+           freeform guidance swaps the whole group for a composer. -->
+      <ApprovalGuidanceComposer
+        v-if="guiding"
+        v-model="guidance"
+        :disabled="props.isResponding"
+        @submit="respond('guide', $event)"
+        @cancel="guiding = false"
+      />
       <template v-else>
         <Button
           v-if="isActivationChoice"

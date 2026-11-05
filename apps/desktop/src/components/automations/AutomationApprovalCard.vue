@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { ArrowUpIcon, TriangleAlertIcon } from "@lucide/vue";
-import { computed, nextTick, onBeforeUnmount, onMounted, ref } from "vue";
+import { TriangleAlertIcon } from "@lucide/vue";
+import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 import { useI18n } from "vue-i18n";
+import ApprovalGuidanceComposer from "@/components/approval/ApprovalGuidanceComposer.vue";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -16,7 +17,6 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
-import { Input } from "@/components/ui/input";
 import { Kbd } from "@/components/ui/kbd";
 import { useShortcutHints } from "@/composables/useShortcutHints";
 import type {
@@ -38,7 +38,6 @@ const showShortcutHints = useShortcutHints();
 const showScripts = ref(false);
 const guidance = ref("");
 const guiding = ref(false);
-const guidanceInput = ref<{ $el: HTMLInputElement } | null>(null);
 const responding = computed(() =>
   store.respondingIds.has(props.approval.requestId),
 );
@@ -69,22 +68,15 @@ function respond(approve: boolean, guidanceText?: string): void {
   void store.respond(props.approval.requestId, approve, guidanceText);
 }
 
-/** Rejects and tells the agent what to do instead, as tool approvals do. */
-function submitGuidance(): void {
-  const guidanceText = guidance.value.trim();
-  if (guidanceText) respond(false, guidanceText);
-}
-
-async function startGuidance(): Promise<void> {
+function startGuidance(): void {
   guiding.value = true;
-  await nextTick();
-  guidanceInput.value?.$el?.focus();
 }
 
 function handleShortcut(event: KeyboardEvent): void {
   if (!shortcuts.value || guiding.value) return;
   if (event.metaKey || event.ctrlKey || event.altKey) return;
-  if (event.defaultPrevented) return;
+  if (event.defaultPrevented || event.isComposing || event.keyCode === 229)
+    return;
   const target = event.target;
   if (
     target instanceof HTMLInputElement ||
@@ -101,7 +93,7 @@ function handleShortcut(event: KeyboardEvent): void {
     respond(false);
   } else if (event.key === "/") {
     event.preventDefault();
-    void startGuidance();
+    startGuidance();
   }
 }
 
@@ -172,31 +164,13 @@ onBeforeUnmount(() => window.removeEventListener("keydown", handleShortcut));
       </Collapsible>
     </CardContent>
     <CardFooter class="mt-auto shrink-0 gap-2">
-      <div v-if="store.canApprove && guiding" class="relative flex-1">
-        <Input
-          ref="guidanceInput"
-          v-model="guidance"
-          class="min-h-12 pr-16"
-          :placeholder="t('project.approvalRequest.guide')"
-          @keydown.enter.exact.prevent="submitGuidance"
-          @keydown.escape.prevent="guiding = false"
-        />
-        <div class="absolute inset-y-0 right-2 flex items-center">
-          <Button
-            type="button"
-            size="sm"
-            class="h-8 gap-1 px-2 text-xs"
-            :disabled="!guidance.trim() || responding"
-            :aria-label="t('project.approvalRequest.guide')"
-            @click="submitGuidance"
-          >
-            <ArrowUpIcon />
-            <Kbd v-if="showShortcutHints && !guidance" aria-hidden="true"
-              >↵</Kbd
-            >
-          </Button>
-        </div>
-      </div>
+      <ApprovalGuidanceComposer
+        v-if="store.canApprove && guiding"
+        v-model="guidance"
+        :disabled="responding"
+        @submit="respond(false, $event)"
+        @cancel="guiding = false"
+      />
       <template v-else-if="store.canApprove">
         <Button
           type="button"

@@ -853,8 +853,13 @@ describe("ProjectSessionComposer", () => {
       .findAll("button")
       .find((button) => button.text().includes("Reject with guidance"))!
       .trigger("click");
-    await firstCard.get("input").setValue("Use another command");
-    await firstCard.get("input").trigger("keydown", { key: "Enter" });
+    await firstCard.get("textarea").setValue("Use another command");
+    await firstCard.get("textarea").trigger("keydown", {
+      key: "Enter",
+      isComposing: true,
+    });
+    expect(wrapper.emitted("respond")).toBeUndefined();
+    await firstCard.get("textarea").trigger("keydown", { key: "Enter" });
     expect(wrapper.emitted("respond")?.[0]).toEqual([
       "guide",
       "Use another command",
@@ -868,7 +873,7 @@ describe("ProjectSessionComposer", () => {
     });
     const secondCard = wrapper.getComponent(ProjectApprovalCard);
     expect(secondCard.vm).not.toBe(firstCard.vm);
-    expect(secondCard.find("input").exists()).toBe(false);
+    expect(secondCard.find("textarea").exists()).toBe(false);
     await secondCard
       .findAll("button")
       .find((button) => button.text().includes("Approve"))!
@@ -929,6 +934,12 @@ describe("ProjectSessionComposer", () => {
     );
     expect(wrapper.findComponent(AutomationApprovalCard).exists()).toBe(true);
     expect(wrapper.find("textarea").exists()).toBe(false);
+    for (const options of [{ isComposing: true }, { keyCode: 229 }]) {
+      window.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "Enter", ...options }),
+      );
+    }
+    expect(respondApproval).not.toHaveBeenCalled();
     window.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter" }));
     expect(respondApproval).toHaveBeenCalledWith({
       requestId: "automation-1",
@@ -974,8 +985,13 @@ describe("ProjectSessionComposer", () => {
       .findAll("button")
       .find((button) => button.text().includes("Reject with guidance"))!
       .trigger("click");
-    await card.get("input").setValue("Only on weekdays");
-    await card.get("input").trigger("keydown", { key: "Enter" });
+    await card.get("textarea").setValue("Only on weekdays");
+    await card.get("textarea").trigger("keydown", {
+      key: "Enter",
+      isComposing: true,
+    });
+    expect(respondApproval).not.toHaveBeenCalled();
+    await card.get("textarea").trigger("keydown", { key: "Enter" });
     expect(respondApproval).toHaveBeenCalledWith({
       requestId: "automation-2",
       approve: false,
