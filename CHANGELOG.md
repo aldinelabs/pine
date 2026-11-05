@@ -9,6 +9,24 @@ Every release section here has a matching section in the Chinese changelog.
 
 ## [Unreleased]
 
+## [0.15.2] - 2026-11-05
+
+### Added
+
+- Select text in a conversation to quote it in the composer. Quotes appear as separate items and can be removed before sending.
+- Side chats and follow-ups: ask questions about the current conversation in the workbench, or select a passage to ask a follow-up, without interrupting the main conversation. Side chats can read information but cannot modify files or run commands. Follow-ups are saved and highlighted in the original text; click a highlight to continue, edit a question, or delete the follow-up.
+- Web sources in replies now appear as inline citation cards. Hover to see the title and URL, or click to open the source.
+
+### Changed
+
+- The composer smoothly adjusts its height when quotes, files, or configuration-authoring items are added or removed.
+- Guidance in approval cards now supports multiple lines: Enter sends, Shift+Enter inserts a line break, and Esc returns to the approval buttons.
+
+### Fixed
+
+- Editing a sent message now preserves the conversation's active tools, avoiding prompt cache invalidation caused by re-enabling default tools.
+- Selecting candidates with Chinese or other input methods no longer triggers approval shortcuts or sends guidance prematurely.
+
 ## [0.15.1] - 2026-11-04
 
 ### Added
