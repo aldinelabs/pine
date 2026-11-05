@@ -642,6 +642,7 @@ export default {
       discard: "關閉並捨棄",
     },
     quote: {
+      label: "引用",
       listLabel: "引用的片段",
       remove: "移除引用",
     },

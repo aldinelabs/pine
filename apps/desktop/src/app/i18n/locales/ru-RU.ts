@@ -685,6 +685,7 @@ export default {
       discard: "Закрыть и удалить",
     },
     quote: {
+      label: "Цитата",
       listLabel: "Цитаты",
       remove: "Убрать цитату",
     },

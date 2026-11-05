@@ -682,6 +682,7 @@ export default {
       discard: "閉じて破棄",
     },
     quote: {
+      label: "引用",
       listLabel: "引用した箇所",
       remove: "引用を削除",
     },

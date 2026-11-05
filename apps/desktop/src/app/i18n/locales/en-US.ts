@@ -681,6 +681,7 @@ export default {
       discard: "Close and discard",
     },
     quote: {
+      label: "Quote",
       listLabel: "Quoted passages",
       remove: "Remove quote",
     },

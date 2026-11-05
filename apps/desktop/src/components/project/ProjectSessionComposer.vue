@@ -856,6 +856,7 @@ function handleRootSubmit(event: Event): void {
             />
             <ProjectQuoteList
               v-if="steeringMessage.quotes.length > 0"
+              class="py-0"
               :quotes="steeringMessage.quotes"
               surface="message"
             />
@@ -916,7 +917,7 @@ function handleRootSubmit(event: Event): void {
             />
             <ProjectQuoteList
               v-if="quotes.length > 0"
-              class="session-composer-quotes w-full shrink-0 px-[var(--session-composer-control-inset)] pt-[var(--session-composer-control-inset)]"
+              class="session-composer-quotes shrink-0 w-full px-[var(--session-composer-control-inset)] pt-[var(--session-composer-control-inset)] pb-0"
               :quotes="quotes"
               removable
               surface="composer"

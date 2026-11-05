@@ -691,6 +691,7 @@ export default {
       discard: "Cerrar y descartar",
     },
     quote: {
+      label: "Cita",
       listLabel: "Fragmentos citados",
       remove: "Quitar cita",
     },

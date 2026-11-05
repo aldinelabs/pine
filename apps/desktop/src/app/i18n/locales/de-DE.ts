@@ -695,6 +695,7 @@ export default {
       discard: "Schließen und verwerfen",
     },
     quote: {
+      label: "Zitat",
       listLabel: "Zitierte Stellen",
       remove: "Zitat entfernen",
     },

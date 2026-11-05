@@ -2,18 +2,31 @@
 import type { HTMLAttributes } from "vue";
 import { TextQuoteIcon, XIcon } from "@lucide/vue";
 import { useI18n } from "vue-i18n";
-import { Button } from "@/components/ui/button";
+import {
+  Attachment,
+  AttachmentAction,
+  AttachmentActions,
+  AttachmentContent,
+  AttachmentDescription,
+  AttachmentGroup,
+  AttachmentMedia,
+  AttachmentTitle,
+} from "@/components/ui/attachment";
 import { cn } from "@/lib/utils";
 import type { PineQuote } from "@/shared/quotes";
 
 /**
- * Passages quoted from the conversation. In the composer each can be
- * removed; in a sent message they sit above its bubble.
+ * Passages quoted from the conversation, as attachments beside the files: in
+ * the composer each can be removed; in a sent message they sit above its
+ * bubble. A surface with its own corner passes it through `itemClass`
+ * and keeps the icon tile concentric through `mediaClass`.
  */
 const props = withDefaults(
   defineProps<{
     quotes: readonly PineQuote[];
     class?: HTMLAttributes["class"];
+    itemClass?: HTMLAttributes["class"];
+    mediaClass?: HTMLAttributes["class"];
     removable?: boolean;
     surface: "composer" | "message";
   }>(),
@@ -25,46 +38,46 @@ const { t } = useI18n();
 </script>
 
 <template>
-  <ul
+  <AttachmentGroup
     data-slot="quote-list"
     :aria-label="t('project.quote.listLabel')"
-    :class="
-      cn(
-        'flex min-w-0 flex-col gap-1.5',
-        surface === 'message' && 'items-end',
-        props.class,
-      )
-    "
+    :class="cn('items-end gap-1.5', props.class)"
+    role="list"
   >
-    <li
+    <Attachment
       v-for="(quote, index) in quotes"
       :key="index"
       data-slot="quote"
+      size="sm"
+      role="listitem"
       :class="
         cn(
-          'group/quote relative flex min-w-0 items-start gap-2 rounded-lg border-s-2 border-primary/60 bg-muted/60 py-1.5 ps-2.5 pe-2 text-xs text-muted-foreground',
-          surface === 'composer' ? 'w-full' : 'max-w-full',
+          'max-w-64',
+          surface === 'composer' &&
+            'rounded-[var(--session-composer-attachment-radius)]',
+          props.itemClass,
         )
       "
+      :title="quote.text"
     >
-      <TextQuoteIcon class="mt-0.5 size-3.5 shrink-0" aria-hidden="true" />
-      <span
-        class="line-clamp-3 min-w-0 flex-1 break-words whitespace-pre-wrap"
-        :title="quote.text"
-      >
-        {{ quote.text }}
-      </span>
-      <Button
-        v-if="removable"
-        type="button"
-        variant="ghost"
-        size="icon-xs"
-        class="-my-0.5 shrink-0"
-        :aria-label="t('project.quote.remove')"
-        @click="emit('remove', index)"
-      >
-        <XIcon />
-      </Button>
-    </li>
-  </ul>
+      <AttachmentMedia :class="props.mediaClass">
+        <TextQuoteIcon />
+      </AttachmentMedia>
+      <AttachmentContent>
+        <AttachmentTitle>{{ quote.text }}</AttachmentTitle>
+        <AttachmentDescription>
+          {{ t("project.quote.label") }}
+        </AttachmentDescription>
+      </AttachmentContent>
+      <AttachmentActions v-if="removable">
+        <AttachmentAction
+          type="button"
+          :aria-label="t('project.quote.remove')"
+          @click="emit('remove', index)"
+        >
+          <XIcon />
+        </AttachmentAction>
+      </AttachmentActions>
+    </Attachment>
+  </AttachmentGroup>
 </template>

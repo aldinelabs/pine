@@ -321,7 +321,7 @@ const renderItems = computed<RenderItem[]>(() => {
         />
         <ProjectQuoteList
           v-if="quotes.length > 0"
-          class="max-w-[80%] self-end"
+          class="max-w-[80%] self-end py-0"
           :quotes="quotes"
           surface="message"
         />

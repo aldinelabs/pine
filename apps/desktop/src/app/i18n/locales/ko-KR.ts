@@ -674,6 +674,7 @@ export default {
       discard: "닫고 삭제",
     },
     quote: {
+      label: "인용",
       listLabel: "인용한 구절",
       remove: "인용 삭제",
     },

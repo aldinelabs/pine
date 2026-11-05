@@ -692,6 +692,7 @@ export default {
       discard: "Fermer et supprimer",
     },
     quote: {
+      label: "Citation",
       listLabel: "Passages cités",
       remove: "Retirer la citation",
     },
