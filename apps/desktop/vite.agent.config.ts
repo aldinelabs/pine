@@ -101,6 +101,8 @@ export default defineConfig(({ mode }) => ({
     rollupOptions: {
       external: [
         "@anthropic-ai/sandbox-runtime",
+        // Native search library loaded through ffi-rs.
+        "@ff-labs/fff-node",
         "@earendil-works/pi-ai",
         "@earendil-works/pi-coding-agent",
         "@napi-rs/keyring",

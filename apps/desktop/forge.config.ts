@@ -17,6 +17,7 @@ import { VitePlugin } from "@electron-forge/plugin-vite";
 // packaged app's node_modules after the default prune pass.
 const AGENT_RUNTIME_ENTRYPOINTS = [
   "@anthropic-ai/sandbox-runtime",
+  "@ff-labs/fff-node",
   "@earendil-works/pi-coding-agent",
   "@earendil-works/pi-ai",
   "pi-mcp-adapter",
@@ -211,6 +212,9 @@ const config: ForgeConfig = {
           path.join("electron-liquid-glass", "prebuilds", "**", "*"),
           // The prebuilt WebRTC binary is loaded with dlopen.
           path.join("@node-datachannel", "**", "*"),
+          // fff's search library and its FFI loader are opened with dlopen.
+          path.join("@ff-labs", "fff-bin-*", "**", "*"),
+          path.join("@yuuang", "**", "*"),
         ].join(",")}}`,
       ),
     },

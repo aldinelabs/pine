@@ -36,6 +36,7 @@
     "@earendil-works/pi-agent-core": "1.5.0",
     "@earendil-works/pi-ai": "latest",
     "@earendil-works/pi-coding-agent": "1.5.0",
+    "@ff-labs/fff-node": "0.11.0",
     "@file-viewer/capability-mermaid": "3.2.2",
     "@file-viewer/core": "3.2.2",
     "@file-viewer/eda-layout": "3.2.2",
