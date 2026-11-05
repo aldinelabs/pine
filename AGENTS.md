@@ -41,6 +41,14 @@
 - 想拿到新模型，升级依赖（更新 `bun.lock`）即可；不要重新引入从上游 `main` 回填目录或整包的机制（曾让 agent 静默丢失全部工具和 system prompt）。
 - `bun run verify:pi` 会用 mock provider 真跑一轮 agent 并断言请求里带 system prompt 和工具定义（需要绑定本地端口）；排查"agent 没有工具"这类问题时先跑它。
 
+## Pine UI 参考（pine-ops）
+
+- `apps/desktop/src/agent/pine-ops/PINE_UI.md` 是 `activate_pine_ops` 工具交给智能体的 Pine 界面参考，智能体据此向用户解释界面、指出控件位置。它必须与应用的当前状态一致。
+- 新增、移除或修改任何用户可见的 UI/UX、功能入口、设置项、对话框、工作台面板、标签行为、审批流程或键盘快捷键时，必须在同一个提交里同步更新该文档，不要留到发版前统一补。
+- 文档只描述用户看得到的结构、控件文案（英文界面文案为准）和行为，不写实现细节；快捷键以实际监听代码为准（如 `ProjectView.vue`、`useWindowTabShortcuts.ts`、`main/windowShortcuts.ts`），并同步更新文末"Keyboard shortcuts"一节。
+- 若改动让文档中的某段描述失效，直接修改或删除那一段，不要只追加。
+- 提交前确认文档已覆盖本次改动；如本次改动确实不影响用户可见界面，则无需修改。
+
 ## CHANGELOG 与发布记录
 
 - CHANGELOG 只写“和上一个已发布版本相比，用户能感知到的差异”，不写实现过程。

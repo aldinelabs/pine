@@ -27,8 +27,17 @@ are already available (for example the `ui_workbench_*` tools and
 - Manage with Pine: starts a new session whose composer already has Pine's
   authoring tools on for a Skill, an automation or an MCP server.
 - Content tab: a session or a file opened in the main content area. The window
-  shows the project of the active tab.
+  shows the project of the active tab. A session or file opened casually (from
+  the sidebar, search, the file tree or a tool marker) opens as the preview
+  tab and is replaced by the next casual open; keeping it (for example by
+  working in it) makes it an ordinary tab.
 - Workbench: the right-hand panel beside the active session.
+- Side chat: a read-only conversation about the active session, shown as a
+  workbench card. It can read files and search the web but cannot change
+  anything. A follow-up is a side chat anchored to a passage of the
+  transcript, saved with the session and highlighted in the text.
+- Quote: a passage selected in the transcript and attached to the next message
+  as a chip in the composer.
 - Phone layout: below a phone-sized width (also when Pine is opened on a
   paired device) dialogs fill the screen and show lists and details one at a
   time, the new-session background animation is off, and keyboard shortcut
@@ -120,10 +129,15 @@ From top to bottom:
    messages in order:
    - user messages, with Copy message and Edit message (editing resends);
    - assistant replies, with reasoning markers ("Thinking…", "Worked for …");
+     web sources appear as inline citation cards (hover for title and URL,
+     click to open);
    - for an automation run, a card at the top with the automation's name,
      trigger and start time; "Instructions" expands what it was asked to do;
    - tool call groups; clicking a call opens Tool call details (status,
      approval, parameters, result);
+   - file search calls ("Found files for …", "Searched code for …"), which
+     show the searched name or text and how many files or lines matched; their
+     details list each file, line number and matching line;
    - markers for automation actions, model lookups and MCP configuration
      calls (for example "Ran 3 automation actions");
    - markers for context compaction, errors, stopped responses and background
@@ -132,16 +146,21 @@ From top to bottom:
      interactive answers are enabled.
      "Load earlier messages" appears at the top of long sessions. The
      Conversation outline lists the user's turns for quick jumping.
+     Selecting text in the transcript shows a popover with Quote (adds it to
+     the composer) and Follow up (opens a follow-up side chat on the passage).
+     Follow up is unavailable while a reply is running, in a session with no
+     message yet, or over text already in a follow-up. Clicking a highlighted
+     passage reopens its follow-up.
 2. Status cards above the composer, shown when relevant:
    - Todos: progress of the agent's task list; opens All todos.
    - Background processes: running and finished processes started by the
-   - file search calls ("Found files for …", "Searched code for …"), which
-     show the searched name or text and how many files or lines matched; their
-     details list each file, line number and matching line;
      agent; opens a process inspector with command, output and Stop.
 3. Composer ("Session message"):
    - Approval required card, when a tool call needs the user: Approve, Reject,
-     Reject with guidance.
+     Reject with guidance (multi-line: Enter sends, Shift+Enter adds a line,
+     Esc returns to the buttons). When enabling a new tool would make the
+     provider reprocess a very long context at full price, the card offers
+     Activate now, Compress, then continue, or stopping the run.
    - Automation approval card, in place of the composer, when the agent asks to
      create, change, turn on or delete an automation: it lists the triggers,
      what the automation reads, writes and can reach, and warnings; Approve
@@ -152,8 +171,10 @@ From top to bottom:
    - Chip ("Creating a skill / an automation / an MCP server
      with Pine"), on a draft started from Manage with Pine; its remove button
      turns the draft into an ordinary conversation.
-   - Attachment list (files, folders, conversations, pasted text and images)
-     and a chip for selected content sent from a preview.
+   - Attachment list (files, folders, conversations, pasted text and images),
+     a chip for selected content sent from a preview, and "Quoted passages"
+     chips, each with Remove quote. The composer resizes smoothly as these
+     appear and disappear.
    - Text box. In a new session with no project, typing `@` chooses the
      project.
    - Add attachment menu: File, Folder, Conversation. Files can also be
@@ -164,8 +185,12 @@ From top to bottom:
      (balance autonomy and control), Autonomous Work (maximize autonomy
      without user action), YOLO (no permission constraints; asks the user to
      confirm before enabling).
-   - Context usage: tokens used, context window, utilization, cost, cache hit
-     rate, and Compact context now.
+   - Context usage: a popover with a Context section (tokens used, context
+     window, utilization, cache hit rate, Compact context now) and a Cost
+     section (conversation cost, in the currency chosen in Pine Settings ›
+     General) with a Session cost limit switch and amount. Reaching the limit
+     stops the running session and blocks new prompts until the limit is raised
+     or cleared; it can be set before a session starts.
    - Action button: Send message when idle; Steer response (adds the message
      to the running turn) or Stop response while the agent works.
 
@@ -188,6 +213,13 @@ close the card. The panels are:
 - Background processes: processes started by the agent, with their output.
 - Preview: the file last presented or picked from Artifacts; Open in tab.
 - Files: the project's file tree, with its folders and access levels.
+- Side chat: opened by the user only (panel switcher, Add card, or Follow up
+  in the transcript); the agent's `ui_workbench_*` tools cannot open it. A
+  card for the whole conversation shows "Not saved" and is discarded when
+  closed or when its tab closes (both ask first); a follow-up card shows
+  "Follow-up", is saved with the session, and has Delete follow-up (asks
+  first). Questions can be edited and resent. It needs a session with at least
+  one message.
 
 The footer shows Pine's version.
 
@@ -200,7 +232,9 @@ the user opens themselves do not pulse.
 ## Dialogs and overlays
 
 - Pine Settings, with sections (a phone shows the section list first):
-  - General: language (dropdown), completion signal, attention
+  - General: language (dropdown), currency (follows the system region by
+    default; used for cost and cost limits at the European Central Bank's daily
+    rate, US dollars when rates are unavailable), completion signal, attention
     notifications, quick composer shortcut, keep running in the background
     (macOS and Windows desktop app), diagnostic logging.
   - Appearance: color mode (System, Light, Dark), Pine default color theme
@@ -211,7 +245,8 @@ the user opens themselves do not pulse.
   - Models: model catalog refresh, title generation model, approval model,
     image generation model, video generation model, Decisions model.
   - Agent: automatic approval path, context compaction strategy and method,
-    TinyFish web tools key, approximate location.
+    TinyFish web tools key (shows Configured or Not configured), approximate
+    location.
   - User profile: nickname, communication style, technical background,
     interactive answers (Rich or Simple), personal details, custom
     instructions.
@@ -263,9 +298,17 @@ Quitting from the menu is the way to stop automations and Remote Control.
 
 ## Keyboard shortcuts
 
-- Mod+N: new tab
-- Mod+W: close tab
+- Mod+N or Mod+T: new tab
+- Mod+W: close tab (middle-click a tab also closes it)
+- Mod+Shift+T: reopen the last closed tab
 - Mod+Shift+N: new window
+- Mod+1 … Mod+8: jump to that tab; Mod+9: the last tab
+- Mod+Alt+Left / Right: previous / next tab
 - Mod+B: toggle left sidebar
 - Mod+Alt+B: toggle workbench
-- Mod+Alt+Left / Right: previous / next tab
+- Mod+K: search sessions
+- Mod+P: Pine Settings › Projects
+- Mod+S: Skills manager
+- Mod+U: Automations manager
+- Mod+/: MCP servers manager
+- Mod+L: focus the composer
