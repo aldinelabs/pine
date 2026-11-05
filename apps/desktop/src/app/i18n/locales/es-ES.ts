@@ -278,6 +278,10 @@ export default {
     tinyFish: "Herramientas web de TinyFish",
     tinyFishDescription:
       "Añade una clave de API para que la IA pueda buscar en la web y obtener páginas.",
+    tinyFishConfigured: "Configurada",
+    tinyFishNotConfigured: "Sin configurar",
+    tinyFishConfiguredDescription:
+      "La IA puede buscar en la web y obtener páginas.",
     addTinyFishApiKey: "Añadir clave",
     changeTinyFishApiKey: "Cambiar clave",
     tinyFishDialogTitle: "Definir la clave de API de TinyFish",
@@ -1205,13 +1209,13 @@ export default {
           active: "Leyendo {count} archivos",
           complete: "Leyó {count} archivos",
         },
-        search: {
-          active: "Buscando {count} veces",
-          complete: "Buscó {count} veces",
-        },
         fileSearch: {
           active: "Buscando archivos {count} veces",
           complete: "Buscó archivos {count} veces",
+        },
+        search: {
+          active: "Buscando {count} veces",
+          complete: "Buscó {count} veces",
         },
         recall: {
           active: "Buscando en el historial {count} veces",
@@ -1291,11 +1295,11 @@ export default {
         mcp: "operación MCP",
         read: "lectura",
         search: "búsqueda",
+        fileSearch: "búsqueda de archivos",
         recall: "búsqueda en el historial",
         fetch: "obtención web",
         presentFile: "presentación de archivo",
         workbench: "cambio del panel de trabajo",
-        fileSearch: "búsqueda de archivos",
         workbenchState: "estado del panel de trabajo",
         automation: "acción de automatización",
         model: "consulta de modelos",
@@ -1353,14 +1357,14 @@ export default {
         question: "Pregunta",
         answer: "Respuesta",
         file: "Archivo",
-        format: "Formato",
-        kind: "Tipo",
-        imageResult: "Resultado de imagen",
-        multipleChoice: "Opción múltiple",
         line: "Línea",
         match: "Coincidencia",
         moreResults:
           "Hay más resultados; el agente puede continuar desde donde terminó la búsqueda.",
+        format: "Formato",
+        kind: "Tipo",
+        imageResult: "Resultado de imagen",
+        multipleChoice: "Opción múltiple",
         embeddedImage: "Imagen incrustada",
         statuses: {
           pending: "Pendiente",
@@ -1947,10 +1951,6 @@ export default {
           error: { before: "No se pudo leer ", after: "" },
           running: { before: "Leyendo ", after: "" },
         },
-        search: {
-          complete: { before: "Buscó ", after: "" },
-          error: { before: "No se pudo buscar ", after: "" },
-          running: { before: "Buscando ", after: "" },
         fileSearch: {
           find: {
             running: { before: "Buscando archivos para ", after: "" },
@@ -1968,6 +1968,10 @@ export default {
           found: " · {count} encontrados",
           none: " · sin resultados",
         },
+        search: {
+          complete: { before: "Buscó ", after: "" },
+          error: { before: "No se pudo buscar ", after: "" },
+          running: { before: "Buscando ", after: "" },
         },
         recall: {
           complete: { before: "Buscó en el historial ", after: "" },

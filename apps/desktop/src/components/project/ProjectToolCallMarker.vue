@@ -1442,7 +1442,7 @@ const fullText = computed(() => {
           aria-hidden="true"
           alt=""
           :src="presentation.faviconDataUrl"
-          class="mx-0.5 inline-block size-4 shrink-0 rounded-sm object-contain align-[-0.2em]"
+          class="ml-0.5 mr-1.5 inline-block size-4 shrink-0 rounded-sm object-contain align-[-0.2em]"
           @error="faviconError = true"
         />
         <span

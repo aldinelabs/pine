@@ -276,6 +276,9 @@ export default {
     tinyFish: "TinyFish ウェブツール",
     tinyFishDescription:
       "API キーを追加すると、AI がウェブ検索とページ取得を使えるようになります。",
+    tinyFishConfigured: "設定済み",
+    tinyFishNotConfigured: "未設定",
+    tinyFishConfiguredDescription: "AI がウェブ検索とページ取得を使えます。",
     addTinyFishApiKey: "キーを追加",
     changeTinyFishApiKey: "キーを変更",
     tinyFishDialogTitle: "TinyFish API キーを設定",
@@ -1188,13 +1191,13 @@ export default {
           active: "{count} 件のファイルを読み取り中",
           complete: "{count} 件のファイルを読み取りました",
         },
-        search: {
-          active: "{count} 回検索中",
-          complete: "{count} 回検索しました",
         fileSearch: {
           active: "ファイルを {count} 回検索中",
           complete: "ファイルを {count} 回検索しました",
         },
+        search: {
+          active: "{count} 回検索中",
+          complete: "{count} 回検索しました",
         },
         recall: {
           active: "履歴を {count} 回検索中",
@@ -1274,10 +1277,10 @@ export default {
         mcp: "MCP 操作",
         read: "読み取り",
         search: "検索",
+        fileSearch: "ファイル検索",
         recall: "履歴検索",
         fetch: "ウェブ取得",
         presentFile: "ファイルの提示",
-        fileSearch: "ファイル検索",
         workbench: "ワークベンチの変更",
         workbenchState: "ワークベンチの状態",
         automation: "自動化の操作",
@@ -1335,13 +1338,13 @@ export default {
         question: "質問",
         answer: "回答",
         file: "ファイル",
-        format: "形式",
-        kind: "種類",
-        imageResult: "画像の結果",
         line: "行",
         match: "一致",
         moreResults:
           "他にも結果があります。エージェントは続きから取得できます。",
+        format: "形式",
+        kind: "種類",
+        imageResult: "画像の結果",
         multipleChoice: "複数選択",
         embeddedImage: "埋め込み画像",
         statuses: {
@@ -1928,9 +1931,6 @@ export default {
           error: { before: "", after: " を読み取れませんでした" },
           running: { before: "", after: " を読み取り中" },
         },
-        search: {
-          complete: { before: "", after: " を検索しました" },
-          error: { before: "", after: " を検索できませんでした" },
         fileSearch: {
           find: {
             running: { before: "", after: "を含むファイルを検索中" },
@@ -1948,6 +1948,9 @@ export default {
           found: " · {count} 件",
           none: " · 該当なし",
         },
+        search: {
+          complete: { before: "", after: " を検索しました" },
+          error: { before: "", after: " を検索できませんでした" },
           running: { before: "", after: " を検索中" },
         },
         recall: {

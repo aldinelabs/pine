@@ -272,6 +272,10 @@ export default {
     tinyFish: "TinyFish 웹 도구",
     tinyFishDescription:
       "API 키를 추가하면 AI가 웹 검색과 페이지 가져오기를 사용할 수 있습니다.",
+    tinyFishConfigured: "설정됨",
+    tinyFishNotConfigured: "설정 안 됨",
+    tinyFishConfiguredDescription:
+      "AI가 웹 검색과 페이지 가져오기를 사용할 수 있습니다.",
     addTinyFishApiKey: "키 추가",
     changeTinyFishApiKey: "키 변경",
     tinyFishDialogTitle: "TinyFish API 키 설정",
@@ -1176,13 +1180,13 @@ export default {
           active: "파일 {count}개 읽는 중",
           complete: "파일 {count}개 읽음",
         },
-        search: {
-          active: "{count}회 검색 중",
-          complete: "{count}회 검색함",
-        },
         fileSearch: {
           active: "파일을 {count}회 검색 중",
           complete: "파일을 {count}회 검색함",
+        },
+        search: {
+          active: "{count}회 검색 중",
+          complete: "{count}회 검색함",
         },
         recall: {
           active: "기록을 {count}회 검색 중",
@@ -1262,11 +1266,11 @@ export default {
         mcp: "MCP 작업",
         read: "읽기",
         search: "검색",
+        fileSearch: "파일 검색",
         recall: "기록 검색",
         fetch: "웹 가져오기",
         presentFile: "파일 표시",
         workbench: "작업대 변경",
-        fileSearch: "파일 검색",
         workbenchState: "작업대 상태",
         automation: "자동화 작업",
         model: "모델 조회",
@@ -1323,14 +1327,14 @@ export default {
         question: "질문",
         answer: "답변",
         file: "파일",
-        format: "형식",
-        kind: "종류",
-        imageResult: "이미지 결과",
-        multipleChoice: "복수 선택",
         line: "줄",
         match: "일치",
         moreResults:
           "결과가 더 있습니다. 에이전트가 이어서 가져올 수 있습니다.",
+        format: "형식",
+        kind: "종류",
+        imageResult: "이미지 결과",
+        multipleChoice: "복수 선택",
         embeddedImage: "삽입된 이미지",
         statuses: {
           pending: "대기 중",
@@ -1904,10 +1908,6 @@ export default {
           error: { before: "읽을 수 없음: ", after: "" },
           running: { before: "읽는 중: ", after: "" },
         },
-        search: {
-          complete: { before: "검색함: ", after: "" },
-          error: { before: "검색할 수 없음: ", after: "" },
-          running: { before: "검색 중: ", after: "" },
         fileSearch: {
           find: {
             running: { before: "파일 찾는 중: ", after: "" },
@@ -1922,6 +1922,10 @@ export default {
           found: " · {count}개 찾음",
           none: " · 결과 없음",
         },
+        search: {
+          complete: { before: "검색함: ", after: "" },
+          error: { before: "검색할 수 없음: ", after: "" },
+          running: { before: "검색 중: ", after: "" },
         },
         recall: {
           complete: { before: "기록을 검색함: ", after: "" },

@@ -272,6 +272,9 @@ export default {
     tinyFish: "TinyFish web tools",
     tinyFishDescription:
       "Add an API key to let AI use web search and page fetching.",
+    tinyFishConfigured: "Configured",
+    tinyFishNotConfigured: "Not configured",
+    tinyFishConfiguredDescription: "AI can use web search and page fetching.",
     addTinyFishApiKey: "Add key",
     changeTinyFishApiKey: "Change key",
     tinyFishDialogTitle: "Set TinyFish API key",
@@ -1183,13 +1186,13 @@ export default {
           active: "Reading {count} files",
           complete: "Read {count} files",
         },
-        search: {
-          active: "Searching {count} times",
-          complete: "Searched {count} times",
         fileSearch: {
           active: "Searching files {count} times",
           complete: "Searched files {count} times",
         },
+        search: {
+          active: "Searching {count} times",
+          complete: "Searched {count} times",
         },
         recall: {
           active: "Searching history {count} times",
@@ -1269,10 +1272,10 @@ export default {
         mcp: "MCP operation",
         read: "read",
         search: "search",
+        fileSearch: "file search",
         recall: "history search",
         fetch: "web fetch",
         presentFile: "present file",
-        fileSearch: "file search",
         workbench: "workbench change",
         workbenchState: "workbench state",
         automation: "automation action",
@@ -1330,13 +1333,13 @@ export default {
         question: "Question",
         answer: "Answer",
         file: "File",
-        format: "Format",
-        kind: "Kind",
-        imageResult: "Image result",
         line: "Line",
         match: "Match",
         moreResults:
           "More results are available; the agent can continue from where this stopped.",
+        format: "Format",
+        kind: "Kind",
+        imageResult: "Image result",
         multipleChoice: "Multiple choice",
         embeddedImage: "Embedded image",
         statuses: {
@@ -1904,9 +1907,6 @@ export default {
           error: { before: "Couldn’t read ", after: "" },
           running: { before: "Reading ", after: "" },
         },
-        search: {
-          complete: { before: "Searched for ", after: "" },
-          error: { before: "Couldn’t search for ", after: "" },
         fileSearch: {
           find: {
             running: { before: "Finding files for ", after: "" },
@@ -1921,6 +1921,9 @@ export default {
           found: " · {count} found",
           none: " · nothing found",
         },
+        search: {
+          complete: { before: "Searched for ", after: "" },
+          error: { before: "Couldn’t search for ", after: "" },
           running: { before: "Searching for ", after: "" },
         },
         recall: {

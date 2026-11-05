@@ -277,6 +277,10 @@ export default {
     tinyFish: "Outils web TinyFish",
     tinyFishDescription:
       "Ajoutez une clé d'API pour permettre à l'IA d'utiliser la recherche web et la récupération de pages.",
+    tinyFishConfigured: "Configurée",
+    tinyFishNotConfigured: "Non configurée",
+    tinyFishConfiguredDescription:
+      "L'IA peut utiliser la recherche web et la récupération de pages.",
     addTinyFishApiKey: "Ajouter la clé",
     changeTinyFishApiKey: "Changer la clé",
     tinyFishDialogTitle: "Définir la clé d'API TinyFish",
@@ -1207,13 +1211,13 @@ export default {
           active: "Lecture de {count} fichiers",
           complete: "{count} fichiers lus",
         },
-        search: {
-          active: "Recherche ({count} fois)",
-          complete: "Recherche effectuée {count} fois",
-        },
         fileSearch: {
           active: "Recherche de fichiers ({count} fois)",
           complete: "Recherche de fichiers effectuée {count} fois",
+        },
+        search: {
+          active: "Recherche ({count} fois)",
+          complete: "Recherche effectuée {count} fois",
         },
         recall: {
           active: "Recherche dans l'historique ({count} fois)",
@@ -1293,11 +1297,11 @@ export default {
         mcp: "opération MCP",
         read: "lecture",
         search: "recherche",
+        fileSearch: "recherche de fichiers",
         recall: "recherche dans l'historique",
         fetch: "récupération web",
         presentFile: "présentation de fichier",
         workbench: "modification de l'espace de travail",
-        fileSearch: "recherche de fichiers",
         workbenchState: "état de l'espace de travail",
         automation: "action d’automatisation",
         model: "consultation des modèles",
@@ -1355,14 +1359,14 @@ export default {
         question: "Question",
         answer: "Réponse",
         file: "Fichier",
-        format: "Format",
-        kind: "Type",
-        imageResult: "Résultat image",
-        multipleChoice: "Choix multiple",
         line: "Ligne",
         match: "Correspondance",
         moreResults:
           "D’autres résultats existent ; l’agent peut reprendre là où la recherche s’est arrêtée.",
+        format: "Format",
+        kind: "Type",
+        imageResult: "Résultat image",
+        multipleChoice: "Choix multiple",
         embeddedImage: "Image intégrée",
         statuses: {
           pending: "En attente",
@@ -1955,10 +1959,6 @@ export default {
           error: { before: "Impossible de lire ", after: "" },
           running: { before: "Lecture de ", after: "" },
         },
-        search: {
-          complete: { before: "Recherché : ", after: "" },
-          error: { before: "Impossible de rechercher ", after: "" },
-          running: { before: "Recherche de ", after: "" },
         fileSearch: {
           find: {
             running: { before: "Recherche de fichiers pour ", after: "" },
@@ -1979,6 +1979,10 @@ export default {
           found: " · {count} trouvé(s)",
           none: " · aucun résultat",
         },
+        search: {
+          complete: { before: "Recherché : ", after: "" },
+          error: { before: "Impossible de rechercher ", after: "" },
+          running: { before: "Recherche de ", after: "" },
         },
         recall: {
           complete: { before: "Historique recherché : ", after: "" },

@@ -274,6 +274,10 @@ export default {
     tinyFish: "Веб-инструменты TinyFish",
     tinyFishDescription:
       "Добавьте API-ключ, чтобы ИИ мог искать в интернете и загружать страницы.",
+    tinyFishConfigured: "Настроено",
+    tinyFishNotConfigured: "Не настроено",
+    tinyFishConfiguredDescription:
+      "ИИ может искать в интернете и загружать страницы.",
     addTinyFishApiKey: "Добавить ключ",
     changeTinyFishApiKey: "Изменить ключ",
     tinyFishDialogTitle: "Задать API-ключ TinyFish",
@@ -1195,13 +1199,13 @@ export default {
           active: "Читаются файлы: {count}",
           complete: "Прочитано файлов: {count}",
         },
-        search: {
-          active: "Поиск (раз: {count})",
-          complete: "Поисков выполнено: {count}",
-        },
         fileSearch: {
           active: "Поиск файлов (раз: {count})",
           complete: "Поисков файлов выполнено: {count}",
+        },
+        search: {
+          active: "Поиск (раз: {count})",
+          complete: "Поисков выполнено: {count}",
         },
         recall: {
           active: "Поиск по истории (раз: {count})",
@@ -1281,11 +1285,11 @@ export default {
         mcp: "операция MCP",
         read: "чтение",
         search: "поиск",
+        fileSearch: "поиск файлов",
         recall: "поиск по истории",
         fetch: "загрузка из сети",
         presentFile: "показ файла",
         workbench: "изменение рабочей панели",
-        fileSearch: "поиск файлов",
         workbenchState: "состояние рабочей панели",
         automation: "действие автоматизации",
         model: "просмотр моделей",
@@ -1343,14 +1347,14 @@ export default {
         question: "Вопрос",
         answer: "Ответ",
         file: "Файл",
-        format: "Формат",
-        kind: "Тип",
-        imageResult: "Результат-изображение",
-        multipleChoice: "Множественный выбор",
         line: "Строка",
         match: "Совпадение",
         moreResults:
           "Есть и другие результаты; агент может продолжить с места остановки.",
+        format: "Формат",
+        kind: "Тип",
+        imageResult: "Результат-изображение",
+        multipleChoice: "Множественный выбор",
         embeddedImage: "Встроенное изображение",
         statuses: {
           pending: "Ожидает",
@@ -1929,10 +1933,6 @@ export default {
           error: { before: "Не удалось прочитать: ", after: "" },
           running: { before: "Чтение: ", after: "" },
         },
-        search: {
-          complete: { before: "Найдено по запросу: ", after: "" },
-          error: { before: "Не удалось выполнить поиск: ", after: "" },
-          running: { before: "Поиск: ", after: "" },
         fileSearch: {
           find: {
             running: { before: "Поиск файлов: ", after: "" },
@@ -1950,6 +1950,10 @@ export default {
           found: " · найдено: {count}",
           none: " · ничего не найдено",
         },
+        search: {
+          complete: { before: "Найдено по запросу: ", after: "" },
+          error: { before: "Не удалось выполнить поиск: ", after: "" },
+          running: { before: "Поиск: ", after: "" },
         },
         recall: {
           complete: { before: "Поиск по истории выполнен: ", after: "" },

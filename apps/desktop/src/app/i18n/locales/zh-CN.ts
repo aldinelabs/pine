@@ -259,6 +259,9 @@ export default {
       "尚未配置 OpenRouter。可在“管理服务或模型”中添加它的 API 密钥。",
     tinyFish: "TinyFish 网络工具",
     tinyFishDescription: "配置 API 密钥后，AI 才能使用网络搜索和网页抓取。",
+    tinyFishConfigured: "已配置",
+    tinyFishNotConfigured: "未配置",
+    tinyFishConfiguredDescription: "AI 可以使用网络搜索和网页抓取。",
     addTinyFishApiKey: "添加密钥",
     changeTinyFishApiKey: "更改密钥",
     tinyFishDialogTitle: "设置 TinyFish API 密钥",
@@ -1124,13 +1127,13 @@ export default {
           active: "正在读取 {count} 个文件",
           complete: "读取了 {count} 个文件",
         },
-        search: {
-          active: "正在搜索 {count} 次",
-          complete: "搜索了 {count} 次",
         fileSearch: {
           active: "正在搜索文件 {count} 次",
           complete: "搜索了文件 {count} 次",
         },
+        search: {
+          active: "正在搜索 {count} 次",
+          complete: "搜索了 {count} 次",
         },
         recall: {
           active: "正在查找 {count} 次历史记录",
@@ -1210,10 +1213,10 @@ export default {
         mcp: "MCP 操作",
         read: "读取",
         search: "搜索",
+        fileSearch: "文件搜索",
         recall: "历史记录查找",
         fetch: "网页抓取",
         presentFile: "打开文件",
-        fileSearch: "文件搜索",
         workbench: "工作台调整",
         workbenchState: "工作台状态",
         automation: "自动化操作",
@@ -1271,12 +1274,12 @@ export default {
         question: "问题",
         answer: "回答",
         file: "文件",
-        format: "格式",
-        kind: "类型",
-        imageResult: "图片结果",
         line: "行号",
         match: "匹配",
         moreResults: "还有更多结果，智能体可以从中断处继续。",
+        format: "格式",
+        kind: "类型",
+        imageResult: "图片结果",
         multipleChoice: "多选",
         embeddedImage: "内嵌图片",
         statuses: {
@@ -1838,9 +1841,6 @@ export default {
           error: { before: "读取 ", after: " 失败" },
           running: { before: "正在读取 ", after: "" },
         },
-        search: {
-          complete: { before: "已搜索 ", after: "" },
-          error: { before: "搜索 ", after: " 失败" },
         fileSearch: {
           find: {
             running: { before: "正在查找文件 ", after: "" },
@@ -1855,6 +1855,9 @@ export default {
           found: " · 找到 {count} 项",
           none: " · 无结果",
         },
+        search: {
+          complete: { before: "已搜索 ", after: "" },
+          error: { before: "搜索 ", after: " 失败" },
           running: { before: "正在搜索 ", after: "" },
         },
         recall: {

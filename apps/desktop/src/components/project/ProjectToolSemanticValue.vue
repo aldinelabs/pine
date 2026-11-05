@@ -110,7 +110,7 @@ const emptyLabel = computed(() =>
     <div
       v-for="(hunk, index) in hunks"
       :key="index"
-      class="flex flex-col gap-2"
+      class="flex flex-col gap-2 [&_[data-slot=code-block]]:my-0"
     >
       <p v-if="hunks.length > 1" class="text-sm font-medium">
         {{ t("project.transcript.toolDetails.editHunk", { count: index + 1 }) }}
@@ -134,9 +134,11 @@ const emptyLabel = computed(() =>
       v-if="typeof primaryParameter === 'string'"
       class="flex flex-wrap gap-2"
     >
-      <Badge variant="secondary" class="max-w-full whitespace-normal">{{
-        primaryParameter
-      }}</Badge>
+      <Badge
+        variant="secondary"
+        class="h-auto max-w-full justify-start overflow-visible whitespace-normal py-1 text-left"
+        >{{ primaryParameter }}</Badge
+      >
     </div>
     <div
       v-else-if="Array.isArray(primaryParameter)"
@@ -146,7 +148,7 @@ const emptyLabel = computed(() =>
         v-for="(url, index) in primaryParameter"
         :key="index"
         variant="outline"
-        class="max-w-full break-all whitespace-normal font-mono"
+        class="h-auto max-w-full justify-start overflow-visible break-all whitespace-normal py-1 text-left font-mono"
       >
         {{ url }}
       </Badge>
@@ -246,8 +248,6 @@ const emptyLabel = computed(() =>
     />
   </div>
 
-  <ProjectToolFirstPartyValue
-    v-else-if="view !== 'generic'"
   <div
     v-else-if="section === 'result' && view === 'fileSearch' && searchRows"
     class="flex flex-col gap-3"
@@ -295,6 +295,8 @@ const emptyLabel = computed(() =>
     :empty-label="emptyLabel"
   />
 
+  <ProjectToolFirstPartyValue
+    v-else-if="view !== 'generic'"
     :tool-call="toolCall"
     :section="section"
     :view="fallbackView"

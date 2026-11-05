@@ -5,6 +5,7 @@ import { useDialogPages } from "@/composables/useDialogPages";
 import { usePhoneLayout } from "@/composables/usePhoneLayout";
 import { handleError } from "@/app/errors/errorHandler";
 import {
+  CheckIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
   BotIcon,
@@ -41,6 +42,7 @@ import DecisionsModelSettings from "./DecisionsModelSettings.vue";
 import ProjectManagementSettings from "./ProjectManagementSettings.vue";
 import ModelPickerDialog from "@/components/models/ModelPickerDialog.vue";
 import HelpHint from "./HelpHint.vue";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -1448,7 +1450,7 @@ defineExpose({ open });
                         />
                         <SelectValue />
                       </SelectTrigger>
-                      <SelectContent>
+                      <SelectContent position="popper" align="end">
                         <SelectGroup>
                           <SelectItem
                             v-for="option in PROJECT_COLOR_THEME_OPTIONS"
@@ -1776,16 +1778,41 @@ defineExpose({ open });
                 <FieldGroup>
                   <Field orientation="responsive">
                     <div class="flex min-w-0 flex-1 flex-col gap-1">
-                      <FieldTitle id="pine-tinyfish-credential-setting">
-                        {{ t("preferences.tinyFish") }}
-                      </FieldTitle>
+                      <div class="flex items-center gap-2">
+                        <FieldTitle id="pine-tinyfish-credential-setting">
+                          {{ t("preferences.tinyFish") }}
+                        </FieldTitle>
+                        <Badge
+                          v-if="isTinyFishCredentialConfigured"
+                          data-testid="pine-tinyfish-credential-status"
+                          variant="secondary"
+                          class="text-emerald-700 dark:text-emerald-400"
+                        >
+                          <CheckIcon aria-hidden="true" />
+                          {{ t("preferences.tinyFishConfigured") }}
+                        </Badge>
+                        <Badge
+                          v-else
+                          data-testid="pine-tinyfish-credential-status"
+                          variant="outline"
+                          class="text-muted-foreground"
+                        >
+                          {{ t("preferences.tinyFishNotConfigured") }}
+                        </Badge>
+                      </div>
                       <FieldDescription>
-                        {{ t("preferences.tinyFishDescription") }}
+                        {{
+                          isTinyFishCredentialConfigured
+                            ? t("preferences.tinyFishConfiguredDescription")
+                            : t("preferences.tinyFishDescription")
+                        }}
                       </FieldDescription>
                     </div>
                     <Button
                       data-testid="pine-tinyfish-credential-button"
-                      variant="outline"
+                      :variant="
+                        isTinyFishCredentialConfigured ? 'outline' : 'default'
+                      "
                       size="sm"
                       aria-labelledby="pine-tinyfish-credential-setting"
                       @click="openTinyFishCredentialDialog"

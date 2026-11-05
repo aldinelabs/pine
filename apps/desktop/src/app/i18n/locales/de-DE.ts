@@ -276,6 +276,10 @@ export default {
     tinyFish: "TinyFish-Webwerkzeuge",
     tinyFishDescription:
       "Fügen Sie einen API-Schlüssel hinzu, damit die KI Websuche und Seitenabruf nutzen kann.",
+    tinyFishConfigured: "Konfiguriert",
+    tinyFishNotConfigured: "Nicht konfiguriert",
+    tinyFishConfiguredDescription:
+      "Die KI kann Websuche und Seitenabruf nutzen.",
     addTinyFishApiKey: "Schlüssel hinzufügen",
     changeTinyFishApiKey: "Schlüssel ändern",
     tinyFishDialogTitle: "TinyFish-API-Schlüssel festlegen",
@@ -1213,13 +1217,13 @@ export default {
           active: "{count} Dateien werden gelesen",
           complete: "{count} Dateien gelesen",
         },
-        search: {
-          active: "Suche läuft ({count}-mal)",
-          complete: "{count}-mal gesucht",
-        },
         fileSearch: {
           active: "Dateisuche läuft ({count}-mal)",
           complete: "{count}-mal Dateien durchsucht",
+        },
+        search: {
+          active: "Suche läuft ({count}-mal)",
+          complete: "{count}-mal gesucht",
         },
         recall: {
           active: "Verlauf wird durchsucht ({count}-mal)",
@@ -1299,11 +1303,11 @@ export default {
         mcp: "MCP-Vorgang",
         read: "Lesen",
         search: "Suche",
+        fileSearch: "Dateisuche",
         recall: "Verlaufssuche",
         fetch: "Webabruf",
         presentFile: "Dateipräsentation",
         workbench: "Änderung am Arbeitsbereich",
-        fileSearch: "Dateisuche",
         workbenchState: "Status des Arbeitsbereichs",
         automation: "Automatisierungsaktion",
         model: "Modellabfrage",
@@ -1361,14 +1365,14 @@ export default {
         question: "Frage",
         answer: "Antwort",
         file: "Datei",
-        format: "Format",
-        kind: "Art",
-        imageResult: "Bildergebnis",
-        multipleChoice: "Mehrfachauswahl",
         line: "Zeile",
         match: "Treffer",
         moreResults:
           "Es gibt weitere Ergebnisse; der Agent kann dort fortfahren, wo die Suche endete.",
+        format: "Format",
+        kind: "Art",
+        imageResult: "Bildergebnis",
+        multipleChoice: "Mehrfachauswahl",
         embeddedImage: "Eingebettetes Bild",
         statuses: {
           pending: "Ausstehend",
@@ -1961,10 +1965,6 @@ export default {
           error: { before: "Lesen fehlgeschlagen: ", after: "" },
           running: { before: "Wird gelesen: ", after: "" },
         },
-        search: {
-          complete: { before: "Gesucht nach: ", after: "" },
-          error: { before: "Suche fehlgeschlagen: ", after: "" },
-          running: { before: "Suche nach: ", after: "" },
         fileSearch: {
           find: {
             running: { before: "Suche Dateien für: ", after: "" },
@@ -1979,6 +1979,10 @@ export default {
           found: " · {count} gefunden",
           none: " · nichts gefunden",
         },
+        search: {
+          complete: { before: "Gesucht nach: ", after: "" },
+          error: { before: "Suche fehlgeschlagen: ", after: "" },
+          running: { before: "Suche nach: ", after: "" },
         },
         recall: {
           complete: { before: "Verlauf durchsucht nach: ", after: "" },

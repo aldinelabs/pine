@@ -258,6 +258,9 @@ export default {
       "尚未配置 OpenRouter。可在“管理服務或模型”中新增它的 API 金鑰。",
     tinyFish: "TinyFish 網路工具",
     tinyFishDescription: "配置 API 金鑰後，AI 才能使用網路搜尋和網頁抓取。",
+    tinyFishConfigured: "已設定",
+    tinyFishNotConfigured: "未設定",
+    tinyFishConfiguredDescription: "AI 可以使用網路搜尋和網頁抓取。",
     addTinyFishApiKey: "新增金鑰",
     changeTinyFishApiKey: "更改金鑰",
     tinyFishDialogTitle: "設定 TinyFish API 金鑰",
@@ -1125,13 +1128,13 @@ export default {
           active: "正在讀取 {count} 個檔案",
           complete: "讀取了 {count} 個檔案",
         },
-        search: {
-          active: "正在搜尋 {count} 次",
-          complete: "搜尋了 {count} 次",
         fileSearch: {
           active: "正在搜尋檔案 {count} 次",
           complete: "搜尋了檔案 {count} 次",
         },
+        search: {
+          active: "正在搜尋 {count} 次",
+          complete: "搜尋了 {count} 次",
         },
         recall: {
           active: "正在查詢 {count} 次歷史記錄",
@@ -1211,10 +1214,10 @@ export default {
         mcp: "MCP 操作",
         read: "讀取",
         search: "搜尋",
+        fileSearch: "檔案搜尋",
         recall: "歷史記錄查詢",
         fetch: "網頁抓取",
         presentFile: "開啟檔案",
-        fileSearch: "檔案搜尋",
         workbench: "工作臺調整",
         workbenchState: "工作臺狀態",
         automation: "自動化操作",
@@ -1272,12 +1275,12 @@ export default {
         question: "問題",
         answer: "回答",
         file: "檔案",
-        format: "格式",
-        kind: "型別",
-        imageResult: "圖片結果",
         line: "行號",
         match: "符合項",
         moreResults: "還有更多結果，智慧代理可以從中斷處繼續。",
+        format: "格式",
+        kind: "型別",
+        imageResult: "圖片結果",
         multipleChoice: "多選",
         embeddedImage: "內嵌圖片",
         statuses: {
@@ -1839,9 +1842,6 @@ export default {
           error: { before: "讀取 ", after: " 失敗" },
           running: { before: "正在讀取 ", after: "" },
         },
-        search: {
-          complete: { before: "已搜尋 ", after: "" },
-          error: { before: "搜尋 ", after: " 失敗" },
         fileSearch: {
           find: {
             running: { before: "正在尋找檔案 ", after: "" },
@@ -1856,6 +1856,9 @@ export default {
           found: " · 找到 {count} 項",
           none: " · 無結果",
         },
+        search: {
+          complete: { before: "已搜尋 ", after: "" },
+          error: { before: "搜尋 ", after: " 失敗" },
           running: { before: "正在搜尋 ", after: "" },
         },
         recall: {
