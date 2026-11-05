@@ -388,6 +388,7 @@ useEventListener(window, "keydown", (event: KeyboardEvent) => {
         :project-id="projectId"
         :context="context"
         :context-animates="contextAnimates"
+        :rows-animate="contextAnimates"
         :edge-inset="!isExpanding"
         @dismiss-context="dismissContext"
         @select-project="projectId = $event"

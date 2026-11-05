@@ -29,6 +29,7 @@ import ModelPickerDialog from "@/components/models/ModelPickerDialog.vue";
 import ProviderIcon from "@/components/models/ProviderIcon.vue";
 import ProjectComposerContext from "@/components/project/ProjectComposerContext.vue";
 import ProjectComposerAuthoring from "@/components/project/ProjectComposerAuthoring.vue";
+import ProjectComposerEasedHeight from "@/components/project/ProjectComposerEasedHeight.vue";
 import type { PineAuthoringTarget } from "@/shared/sessionMutators";
 import AutomationApprovalCard from "@/components/automations/AutomationApprovalCard.vue";
 import ProjectApprovalCard from "@/components/project/ProjectApprovalCard.vue";
@@ -152,6 +153,11 @@ const props = withDefaults(
     context?: readonly PineAttachment[];
     /** False to show or drop the context at once. */
     contextAnimates?: boolean;
+    /**
+     * False to resize at once for the quotes, attachments and authoring
+     * rows, as when a hidden panel resets.
+     */
+    rowsAnimate?: boolean;
     /** Authoring a "Create with Pine" draft turns on with its first message. */
     authoring?: readonly PineAuthoringTarget[];
     /**
@@ -176,6 +182,7 @@ const props = withDefaults(
   {
     context: () => [],
     contextAnimates: true,
+    rowsAnimate: true,
     authoring: () => [],
     isRunning: false,
     steeringMessages: () => [],
@@ -901,28 +908,32 @@ function handleRootSubmit(event: Event): void {
                 </div>
               </div>
             </Transition>
-            <ProjectComposerAuthoring
-              v-if="authoring.length > 0"
-              class="mx-[var(--session-composer-control-inset)] mt-[var(--session-composer-control-inset)]"
-              :targets="authoring"
-              @remove="emit('removeAuthoring', $event)"
-            />
-            <ProjectAttachmentList
-              v-if="attachments.length > 0"
-              class="session-composer-attachments shrink-0 w-full px-[var(--session-composer-control-inset)] pt-[var(--session-composer-control-inset)] pb-0"
-              :attachments="attachments"
-              removable
-              surface="composer"
-              @remove="removeAttachment"
-            />
-            <ProjectQuoteList
-              v-if="quotes.length > 0"
-              class="session-composer-quotes shrink-0 w-full px-[var(--session-composer-control-inset)] pt-[var(--session-composer-control-inset)] pb-0"
-              :quotes="quotes"
-              removable
-              surface="composer"
-              @remove="removeQuote"
-            />
+            <!-- Rows that come, go or wrap ease the input along with them,
+                 as the smart context does. -->
+            <ProjectComposerEasedHeight :animates="rowsAnimate">
+              <ProjectComposerAuthoring
+                v-if="authoring.length > 0"
+                class="mx-[var(--session-composer-control-inset)] mt-[var(--session-composer-control-inset)]"
+                :targets="authoring"
+                @remove="emit('removeAuthoring', $event)"
+              />
+              <ProjectAttachmentList
+                v-if="attachments.length > 0"
+                class="session-composer-attachments shrink-0 w-full px-[var(--session-composer-control-inset)] pt-[var(--session-composer-control-inset)] pb-0"
+                :attachments="attachments"
+                removable
+                surface="composer"
+                @remove="removeAttachment"
+              />
+              <ProjectQuoteList
+                v-if="quotes.length > 0"
+                class="session-composer-quotes shrink-0 w-full px-[var(--session-composer-control-inset)] pt-[var(--session-composer-control-inset)] pb-0"
+                :quotes="quotes"
+                removable
+                surface="composer"
+                @remove="removeQuote"
+              />
+            </ProjectComposerEasedHeight>
 
             <div class="session-composer-row flex w-full items-center">
               <InputGroupAddon
