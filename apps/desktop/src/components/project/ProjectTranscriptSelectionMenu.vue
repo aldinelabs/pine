@@ -1,5 +1,8 @@
 <script setup lang="ts">
-import { MessagesSquareIcon, QuoteIcon } from "@lucide/vue";
+import {
+  MessageCircleQuestionMarkIcon,
+  MessageSquareQuoteIcon,
+} from "@lucide/vue";
 import { useEventListener } from "@vueuse/core";
 import { computed, shallowRef } from "vue";
 import { useI18n } from "vue-i18n";
@@ -130,7 +133,7 @@ function startFollowUp(): void {
         class="font-normal"
         @click="quote"
       >
-        <QuoteIcon />
+        <MessageSquareQuoteIcon />
         {{ t("project.selection.quote") }}
       </Button>
       <template v-if="followUpState">
@@ -144,7 +147,7 @@ function startFollowUp(): void {
                 class="font-normal"
                 disabled
               >
-                <MessagesSquareIcon />
+                <MessageCircleQuestionMarkIcon />
                 {{ t("project.selection.followUp") }}
               </Button>
             </span>
@@ -160,7 +163,7 @@ function startFollowUp(): void {
           :disabled="!followUpState.enabled"
           @click="startFollowUp"
         >
-          <MessagesSquareIcon />
+          <MessageCircleQuestionMarkIcon />
           {{ t("project.selection.followUp") }}
         </Button>
       </template>

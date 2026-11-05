@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { HTMLAttributes } from "vue";
-import { QuoteIcon, XIcon } from "@lucide/vue";
+import { MessageSquareQuoteIcon, XIcon } from "@lucide/vue";
 import { useI18n } from "vue-i18n";
 import { Button } from "@/components/ui/button";
 import {
@@ -72,7 +72,7 @@ const { t } = useI18n();
       >
         <!-- Centred on the first line of the excerpt. -->
         <span class="flex h-6 items-center">
-          <QuoteIcon aria-hidden="true" />
+          <MessageSquareQuoteIcon aria-hidden="true" />
         </span>
       </ItemMedia>
       <ItemContent class="min-w-0">
