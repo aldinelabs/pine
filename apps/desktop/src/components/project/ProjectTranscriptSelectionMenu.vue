@@ -1,9 +1,14 @@
 <script setup lang="ts">
 import { MessagesSquareIcon, TextQuoteIcon } from "@lucide/vue";
 import { useEventListener } from "@vueuse/core";
-import { computed, ref, shallowRef } from "vue";
+import { computed, shallowRef } from "vue";
 import { useI18n } from "vue-i18n";
 import { Button } from "@/components/ui/button";
+import {
+  Popover,
+  PopoverAnchor,
+  PopoverContent,
+} from "@/components/ui/popover";
 import {
   Tooltip,
   TooltipContent,
@@ -35,13 +40,27 @@ const { t } = useI18n();
 
 const MENU_GAP = 8;
 const selection = shallowRef<TranscriptSelection>();
-const position = ref({ x: 0, y: 0, below: false });
-const menu = ref<HTMLElement | null>(null);
 const followUpState = computed(() =>
   selection.value && props.followUpAvailability
     ? props.followUpAvailability(selection.value)
     : undefined,
 );
+
+/**
+ * The selection's last line, read live so the popover opens below it and
+ * follows the text as the transcript scrolls.
+ */
+const anchor = computed(() => {
+  const range = selection.value?.range;
+  if (!range) return undefined;
+  const lastLine = () =>
+    [...range.getClientRects()].at(-1) ?? range.getBoundingClientRect();
+  return {
+    getBoundingClientRect: lastLine,
+    getClientRects: () => [lastLine()],
+    contextElement: props.container ?? undefined,
+  };
+});
 
 function hide(): void {
   selection.value = undefined;
@@ -49,25 +68,9 @@ function hide(): void {
 
 function update(): void {
   const container = props.container;
-  const next = container
+  selection.value = container
     ? transcriptSelection(window.getSelection(), container)
     : undefined;
-  selection.value = next;
-  if (!next) return;
-  const rects = [...next.range.getClientRects()];
-  const first = rects[0] ?? next.range.getBoundingClientRect();
-  const bounds = next.range.getBoundingClientRect();
-  // Above the selection's first line; below it when that would leave the
-  // window.
-  const below = first.top < 56;
-  position.value = {
-    x: Math.min(
-      Math.max(first.left + Math.min(first.width, bounds.width) / 2, 80),
-      window.innerWidth - 80,
-    ),
-    y: below ? bounds.bottom + MENU_GAP : first.top - MENU_GAP,
-    below,
-  };
 }
 
 function schedule(): void {
@@ -76,7 +79,12 @@ function schedule(): void {
 }
 
 useEventListener(document, "mouseup", (event: MouseEvent) => {
-  if (menu.value?.contains(event.target as Node)) return;
+  if (
+    (event.target as Element | null)?.closest?.(
+      "[data-slot=transcript-selection-menu]",
+    )
+  )
+    return;
   schedule();
 });
 useEventListener(document, "keyup", (event: KeyboardEvent) => {
@@ -85,16 +93,7 @@ useEventListener(document, "keyup", (event: KeyboardEvent) => {
 useEventListener(document, "selectionchange", () => {
   if (selection.value && window.getSelection()?.isCollapsed) hide();
 });
-useEventListener(document, "keydown", (event: KeyboardEvent) => {
-  if (event.key === "Escape" && selection.value) hide();
-});
 useEventListener(window, "resize", hide);
-useEventListener(
-  () => props.container,
-  "scroll",
-  () => selection.value && schedule(),
-  { capture: true, passive: true },
-);
 
 function quote(): void {
   if (!selection.value) return;
@@ -112,19 +111,19 @@ function startFollowUp(): void {
 </script>
 
 <template>
-  <Teleport to="body">
-    <div
-      v-if="selection"
-      ref="menu"
+  <Popover :open="Boolean(anchor)" @update:open="(open) => !open && hide()">
+    <PopoverAnchor v-if="anchor" :reference="anchor" />
+    <PopoverContent
       data-slot="transcript-selection-menu"
-      role="toolbar"
+      side="bottom"
+      :side-offset="MENU_GAP"
       :aria-label="t('project.selection.label')"
-      class="fixed z-50 flex -translate-x-1/2 items-center gap-0.5 rounded-lg border bg-popover p-0.5 text-popover-foreground shadow-md"
-      :class="position.below ? '' : '-translate-y-full'"
-      :style="{ left: `${position.x}px`, top: `${position.y}px` }"
+      class="w-auto flex-row items-center gap-0.5 p-1"
+      @open-auto-focus.prevent
+      @close-auto-focus.prevent
       @mousedown.prevent
     >
-      <Button type="button" variant="ghost" size="sm" @click="quote">
+      <Button type="button" variant="ghost" @click="quote">
         <TextQuoteIcon />
         {{ t("project.selection.quote") }}
       </Button>
@@ -132,7 +131,7 @@ function startFollowUp(): void {
         <Tooltip v-if="!followUpState.enabled && followUpState.reason">
           <TooltipTrigger as-child>
             <span tabindex="0">
-              <Button type="button" variant="ghost" size="sm" disabled>
+              <Button type="button" variant="ghost" disabled>
                 <MessagesSquareIcon />
                 {{ t("project.selection.followUp") }}
               </Button>
@@ -144,7 +143,6 @@ function startFollowUp(): void {
           v-else
           type="button"
           variant="ghost"
-          size="sm"
           :disabled="!followUpState.enabled"
           @click="startFollowUp"
         >
@@ -152,6 +150,6 @@ function startFollowUp(): void {
           {{ t("project.selection.followUp") }}
         </Button>
       </template>
-    </div>
-  </Teleport>
+    </PopoverContent>
+  </Popover>
 </template>
