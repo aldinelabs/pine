@@ -1189,6 +1189,10 @@ export default {
         search: {
           active: "{count} 回検索中",
           complete: "{count} 回検索しました",
+        fileSearch: {
+          active: "ファイルを {count} 回検索中",
+          complete: "ファイルを {count} 回検索しました",
+        },
         },
         recall: {
           active: "履歴を {count} 回検索中",
@@ -1271,6 +1275,7 @@ export default {
         recall: "履歴検索",
         fetch: "ウェブ取得",
         presentFile: "ファイルの提示",
+        fileSearch: "ファイル検索",
         workbench: "ワークベンチの変更",
         workbenchState: "ワークベンチの状態",
         automation: "自動化の操作",
@@ -1331,6 +1336,10 @@ export default {
         format: "形式",
         kind: "種類",
         imageResult: "画像の結果",
+        line: "行",
+        match: "一致",
+        moreResults:
+          "他にも結果があります。エージェントは続きから取得できます。",
         multipleChoice: "複数選択",
         embeddedImage: "埋め込み画像",
         statuses: {
@@ -1920,6 +1929,23 @@ export default {
         search: {
           complete: { before: "", after: " を検索しました" },
           error: { before: "", after: " を検索できませんでした" },
+        fileSearch: {
+          find: {
+            running: { before: "", after: "を含むファイルを検索中" },
+            complete: { before: "", after: "を含むファイルを検索しました" },
+            error: {
+              before: "",
+              after: "を含むファイルを検索できませんでした",
+            },
+          },
+          grep: {
+            running: { before: "", after: "を内容から検索中" },
+            complete: { before: "", after: "を内容から検索しました" },
+            error: { before: "", after: "を内容から検索できませんでした" },
+          },
+          found: " · {count} 件",
+          none: " · 該当なし",
+        },
           running: { before: "", after: " を検索中" },
         },
         recall: {

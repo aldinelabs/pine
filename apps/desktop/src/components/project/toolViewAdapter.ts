@@ -7,6 +7,7 @@ export type ToolDetailView =
   | "edit"
   | "search"
   | "fetch"
+  | "fileSearch"
   | "shell"
   | "file"
   | "questionnaire"
@@ -132,6 +133,9 @@ export function toolViewAdapter(call: PineToolCall): ToolViewAdapter {
       return { detail: "questionnaire" };
     case "web_search":
       return { detail: "search" };
+    case "find":
+    case "grep":
+      return { detail: "fileSearch" };
     case "web_fetch":
       return { detail: "fetch" };
     case "activate_media_generation":
@@ -149,6 +153,37 @@ export function toolViewAdapter(call: PineToolCall): ToolViewAdapter {
             : "generic",
       };
   }
+}
+
+export interface FileSearchRow {
+  path: string;
+  line?: number;
+  text?: string;
+}
+
+/** The files or matching lines a find/grep call reported, if it finished. */
+export function fileSearchRows(output: unknown): FileSearchRow[] | undefined {
+  const details = record(record(output).details);
+  if (Array.isArray(details.matches)) {
+    return details.matches.flatMap((entry): FileSearchRow[] => {
+      const match = record(entry);
+      return typeof match.path === "string"
+        ? [
+            {
+              path: match.path,
+              ...(typeof match.line === "number" ? { line: match.line } : {}),
+              ...(typeof match.text === "string" ? { text: match.text } : {}),
+            },
+          ]
+        : [];
+    });
+  }
+  if (Array.isArray(details.files)) {
+    return details.files.flatMap((file): FileSearchRow[] =>
+      typeof file === "string" ? [{ path: file }] : [],
+    );
+  }
+  return undefined;
 }
 
 /** Extract readable parts without flattening binary image data into the table. */

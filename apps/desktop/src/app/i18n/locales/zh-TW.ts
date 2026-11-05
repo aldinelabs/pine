@@ -1126,6 +1126,10 @@ export default {
         search: {
           active: "正在搜尋 {count} 次",
           complete: "搜尋了 {count} 次",
+        fileSearch: {
+          active: "正在搜尋檔案 {count} 次",
+          complete: "搜尋了檔案 {count} 次",
+        },
         },
         recall: {
           active: "正在查詢 {count} 次歷史記錄",
@@ -1208,6 +1212,7 @@ export default {
         recall: "歷史記錄查詢",
         fetch: "網頁抓取",
         presentFile: "開啟檔案",
+        fileSearch: "檔案搜尋",
         workbench: "工作臺調整",
         workbenchState: "工作臺狀態",
         automation: "自動化操作",
@@ -1268,6 +1273,9 @@ export default {
         format: "格式",
         kind: "型別",
         imageResult: "圖片結果",
+        line: "行號",
+        match: "符合項",
+        moreResults: "還有更多結果，智慧代理可以從中斷處繼續。",
         multipleChoice: "多選",
         embeddedImage: "內嵌圖片",
         statuses: {
@@ -1832,6 +1840,20 @@ export default {
         search: {
           complete: { before: "已搜尋 ", after: "" },
           error: { before: "搜尋 ", after: " 失敗" },
+        fileSearch: {
+          find: {
+            running: { before: "正在尋找檔案 ", after: "" },
+            complete: { before: "已尋找檔案 ", after: "" },
+            error: { before: "尋找檔案 ", after: " 失敗" },
+          },
+          grep: {
+            running: { before: "正在搜尋內容 ", after: "" },
+            complete: { before: "已搜尋內容 ", after: "" },
+            error: { before: "搜尋內容 ", after: " 失敗" },
+          },
+          found: " · 找到 {count} 項",
+          none: " · 無結果",
+        },
           running: { before: "正在搜尋 ", after: "" },
         },
         recall: {

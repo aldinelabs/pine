@@ -18,6 +18,7 @@ import ProjectToolValueTable from "./ProjectToolValueTable.vue";
 import {
   editDiffCode,
   editHunks,
+  fileSearchRows,
   webResults,
   type ToolDetailView,
 } from "./toolViewAdapter";
@@ -34,6 +35,15 @@ const input = computed(() => {
   return typeof value === "object" && value !== null && !Array.isArray(value)
     ? (value as Record<string, unknown>)
     : {};
+});
+const searchRows = computed(() => fileSearchRows(props.toolCall.output));
+const searchHasMore = computed(() => {
+  const output = props.toolCall.output;
+  const details =
+    typeof output === "object" && output !== null
+      ? (output as { details?: { hasMore?: unknown } }).details
+      : undefined;
+  return details?.hasMore === true;
 });
 const hunks = computed(() => editHunks(props.toolCall.input));
 const results = computed(() => webResults(props.toolCall.output));
@@ -63,9 +73,15 @@ const semanticResult = computed(
   () => isWeb.value && results.value !== undefined,
 );
 const fallbackView = computed<
-  Exclude<ToolDetailView, "generic" | "search" | "fetch" | "edit">
+  Exclude<
+    ToolDetailView,
+    "generic" | "search" | "fetch" | "edit" | "fileSearch"
+  >
 >(() =>
-  props.view === "edit" || props.view === "search" || props.view === "fetch"
+  props.view === "edit" ||
+  props.view === "search" ||
+  props.view === "fetch" ||
+  props.view === "fileSearch"
     ? "file"
     : props.view === "generic"
       ? "file"
@@ -232,6 +248,53 @@ const emptyLabel = computed(() =>
 
   <ProjectToolFirstPartyValue
     v-else-if="view !== 'generic'"
+  <div
+    v-else-if="section === 'result' && view === 'fileSearch' && searchRows"
+    class="flex flex-col gap-3"
+    data-file-search-results
+  >
+    <Table class="table-fixed">
+      <TableHeader>
+        <TableRow>
+          <TableHead class="w-1/3">{{
+            t("project.transcript.toolDetails.file")
+          }}</TableHead>
+          <TableHead class="w-16">{{
+            t("project.transcript.toolDetails.line")
+          }}</TableHead>
+          <TableHead>{{ t("project.transcript.toolDetails.match") }}</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        <TableEmpty v-if="!searchRows.length" :colspan="3">{{
+          emptyLabel
+        }}</TableEmpty>
+        <TableRow v-for="(row, index) in searchRows" v-else :key="index">
+          <TableCell
+            class="align-top font-mono text-xs whitespace-normal break-all"
+            >{{ row.path }}</TableCell
+          >
+          <TableCell class="align-top font-mono text-xs">{{
+            row.line ?? ""
+          }}</TableCell>
+          <TableCell
+            class="align-top font-mono text-xs whitespace-pre-wrap break-words"
+            >{{ row.text ?? "" }}</TableCell
+          >
+        </TableRow>
+      </TableBody>
+    </Table>
+    <p v-if="searchHasMore" class="text-xs text-muted-foreground">
+      {{ t("project.transcript.toolDetails.moreResults") }}
+    </p>
+  </div>
+
+  <ProjectToolValueTable
+    v-else-if="view === 'fileSearch'"
+    :value="section === 'parameters' ? toolCall.input : toolCall.output"
+    :empty-label="emptyLabel"
+  />
+
     :tool-call="toolCall"
     :section="section"
     :view="fallbackView"

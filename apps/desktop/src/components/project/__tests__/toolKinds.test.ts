@@ -7,12 +7,14 @@ import {
   CpuIcon,
   ServerCogIcon,
   EyeIcon,
+  FileSearchIcon,
   HistoryIcon,
   MonitorCogIcon,
   PanelTopIcon,
   PlugIcon,
   PlusIcon,
   SquarePenIcon,
+  TextSearchIcon,
   Trash2Icon,
   WandSparklesIcon,
 } from "@lucide/vue";
@@ -22,6 +24,7 @@ import {
   SKILL_OPERATION_ICON,
   TOOL_KIND_ICON,
   automationOperation,
+  fileSearchOperation,
   mcpConfigOperation,
   toolIconForName,
   toolKind,
@@ -39,6 +42,17 @@ describe("Computer Use tool kinds", () => {
   it("uses a dedicated kind for presented files", () => {
     expect(toolKind("ui_present_file")).toBe("presentFile");
     expect(TOOL_KIND_ICON.presentFile).toBe(EyeIcon);
+  });
+
+  it("keeps file search apart from web search", () => {
+    expect(toolKind("find")).toBe("fileSearch");
+    expect(toolKind("grep")).toBe("fileSearch");
+    expect(toolKind("web_search")).toBe("search");
+    expect(TOOL_KIND_ICON.fileSearch).toBe(FileSearchIcon);
+    expect(toolIconForName("grep")).toBe(TextSearchIcon);
+    expect(toolIconForName("find")).toBe(FileSearchIcon);
+    expect(fileSearchOperation("grep")).toBe("grep");
+    expect(fileSearchOperation("find")).toBe("find");
   });
 
   it("uses a dedicated kind for session history recall", () => {

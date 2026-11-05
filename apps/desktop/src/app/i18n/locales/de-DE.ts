@@ -1215,6 +1215,10 @@ export default {
           active: "Suche läuft ({count}-mal)",
           complete: "{count}-mal gesucht",
         },
+        fileSearch: {
+          active: "Dateisuche läuft ({count}-mal)",
+          complete: "{count}-mal Dateien durchsucht",
+        },
         recall: {
           active: "Verlauf wird durchsucht ({count}-mal)",
           complete: "Verlauf {count}-mal durchsucht",
@@ -1297,6 +1301,7 @@ export default {
         fetch: "Webabruf",
         presentFile: "Dateipräsentation",
         workbench: "Änderung am Arbeitsbereich",
+        fileSearch: "Dateisuche",
         workbenchState: "Status des Arbeitsbereichs",
         automation: "Automatisierungsaktion",
         model: "Modellabfrage",
@@ -1358,6 +1363,10 @@ export default {
         kind: "Art",
         imageResult: "Bildergebnis",
         multipleChoice: "Mehrfachauswahl",
+        line: "Zeile",
+        match: "Treffer",
+        moreResults:
+          "Es gibt weitere Ergebnisse; der Agent kann dort fortfahren, wo die Suche endete.",
         embeddedImage: "Eingebettetes Bild",
         statuses: {
           pending: "Ausstehend",
@@ -1954,6 +1963,20 @@ export default {
           complete: { before: "Gesucht nach: ", after: "" },
           error: { before: "Suche fehlgeschlagen: ", after: "" },
           running: { before: "Suche nach: ", after: "" },
+        fileSearch: {
+          find: {
+            running: { before: "Suche Dateien für: ", after: "" },
+            complete: { before: "Dateien gefunden für: ", after: "" },
+            error: { before: "Dateisuche fehlgeschlagen: ", after: "" },
+          },
+          grep: {
+            running: { before: "Durchsuche Inhalte nach: ", after: "" },
+            complete: { before: "Inhalte durchsucht nach: ", after: "" },
+            error: { before: "Inhaltssuche fehlgeschlagen: ", after: "" },
+          },
+          found: " · {count} gefunden",
+          none: " · nichts gefunden",
+        },
         },
         recall: {
           complete: { before: "Verlauf durchsucht nach: ", after: "" },

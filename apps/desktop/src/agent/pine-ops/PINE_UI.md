@@ -135,6 +135,9 @@ From top to bottom:
 2. Status cards above the composer, shown when relevant:
    - Todos: progress of the agent's task list; opens All todos.
    - Background processes: running and finished processes started by the
+   - file search calls ("Found files for …", "Searched code for …"), which
+     show the searched name or text and how many files or lines matched; their
+     details list each file, line number and matching line;
      agent; opens a process inspector with command, output and Stop.
 3. Composer ("Session message"):
    - Approval required card, when a tool call needs the user: Approve, Reject,

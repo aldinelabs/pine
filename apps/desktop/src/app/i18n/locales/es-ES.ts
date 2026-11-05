@@ -1207,6 +1207,10 @@ export default {
           active: "Buscando {count} veces",
           complete: "Buscó {count} veces",
         },
+        fileSearch: {
+          active: "Buscando archivos {count} veces",
+          complete: "Buscó archivos {count} veces",
+        },
         recall: {
           active: "Buscando en el historial {count} veces",
           complete: "Buscó en el historial {count} veces",
@@ -1289,6 +1293,7 @@ export default {
         fetch: "obtención web",
         presentFile: "presentación de archivo",
         workbench: "cambio del panel de trabajo",
+        fileSearch: "búsqueda de archivos",
         workbenchState: "estado del panel de trabajo",
         automation: "acción de automatización",
         model: "consulta de modelos",
@@ -1350,6 +1355,10 @@ export default {
         kind: "Tipo",
         imageResult: "Resultado de imagen",
         multipleChoice: "Opción múltiple",
+        line: "Línea",
+        match: "Coincidencia",
+        moreResults:
+          "Hay más resultados; el agente puede continuar desde donde terminó la búsqueda.",
         embeddedImage: "Imagen incrustada",
         statuses: {
           pending: "Pendiente",
@@ -1940,6 +1949,23 @@ export default {
           complete: { before: "Buscó ", after: "" },
           error: { before: "No se pudo buscar ", after: "" },
           running: { before: "Buscando ", after: "" },
+        fileSearch: {
+          find: {
+            running: { before: "Buscando archivos para ", after: "" },
+            complete: { before: "Buscó archivos para ", after: "" },
+            error: {
+              before: "No se pudieron buscar archivos para ",
+              after: "",
+            },
+          },
+          grep: {
+            running: { before: "Buscando en el contenido: ", after: "" },
+            complete: { before: "Buscó en el contenido: ", after: "" },
+            error: { before: "No se pudo buscar en el contenido: ", after: "" },
+          },
+          found: " · {count} encontrados",
+          none: " · sin resultados",
+        },
         },
         recall: {
           complete: { before: "Buscó en el historial ", after: "" },

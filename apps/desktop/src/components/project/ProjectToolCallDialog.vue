@@ -34,7 +34,7 @@ const isOpen = ref(false);
 const isDenied = computed(() => isDeniedTool(props.toolCall));
 const view = computed(() => toolViewAdapter(props.toolCall));
 const wideDetails = computed(() =>
-  ["edit", "search", "fetch"].includes(view.value.detail),
+  ["edit", "search", "fetch", "fileSearch"].includes(view.value.detail),
 );
 
 type StatusKey =

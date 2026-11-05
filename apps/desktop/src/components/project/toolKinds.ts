@@ -7,6 +7,7 @@ import {
   CpuIcon,
   EyeIcon,
   FilePlusIcon,
+  FileSearchIcon,
   FolderInputIcon,
   FolderSearchIcon,
   FileTextIcon,
@@ -23,6 +24,7 @@ import {
   ServerCogIcon,
   SquarePenIcon,
   SquareTerminal,
+  TextSearchIcon,
   Trash2Icon,
   WandSparklesIcon,
   WorkflowIcon,
@@ -52,6 +54,7 @@ import {
   MCP_CONFIG_SET_ENABLED_TOOL_NAME,
 } from "@/shared/mcp";
 import { ACTIVATE_MCP_AUTHORING_TOOL_NAME } from "@/shared/sessionMutators";
+import { FFF_GREP_TOOL_NAME } from "@/shared/fffSearch";
 import type { PineToolCall } from "@/shared/sessions";
 
 export type ToolKind =
@@ -63,6 +66,7 @@ export type ToolKind =
   | "datetime"
   | "edit"
   | "fetch"
+  | "fileSearch"
   | "generic"
   | "media"
   | "mcp"
@@ -89,6 +93,7 @@ export const TOOL_KIND_ICON: Record<ToolKind, Component> = {
   datetime: ClockIcon,
   edit: SquarePenIcon,
   fetch: GlobeIcon,
+  fileSearch: FileSearchIcon,
   generic: WrenchIcon,
   media: ClapperboardIcon,
   mcp: PlugIcon,
@@ -148,6 +153,7 @@ export const TOOL_KIND_ORDER: readonly ToolKind[] = [
   "read",
   "edit",
   "write",
+  "fileSearch",
   "search",
   "recall",
   "fetch",
@@ -198,6 +204,7 @@ export function mediaOperationKey(name: string): MediaOperation | undefined {
 
 /** Resolve the most specific icon for a tool call, including Skill operations. */
 export function toolIconForName(name: string): Component {
+  if (normalizedName(name) === FFF_GREP_TOOL_NAME) return TextSearchIcon;
   if (normalizedName(name) === UI_LIST_PROJECT_TOOL_NAME)
     return FolderSearchIcon;
   if (normalizedName(name) === ACTIVATE_PINE_OPS_TOOL_NAME)
@@ -288,15 +295,19 @@ export function toolKind(name: string): ToolKind {
   if (["edit", "apply_patch", "patch"].includes(normalized)) return "edit";
   if (["web_fetch", "fetch"].includes(normalized)) return "fetch";
   if (["read", "read_file", "view"].includes(normalized)) return "read";
-  if (["find", "grep", "search", "web_search"].includes(normalized)) {
-    return "search";
-  }
+  if (["find", "grep"].includes(normalized)) return "fileSearch";
+  if (["search", "web_search"].includes(normalized)) return "search";
   if (["write", "write_file", "create_file"].includes(normalized)) {
     return "write";
   }
   if (skillOperationKey(normalized)) return "skill";
   if (mediaOperationKey(normalized)) return "media";
   return "generic";
+}
+
+/** Whether a file search call looks for file names or for text in files. */
+export function fileSearchOperation(name: string): "find" | "grep" {
+  return normalizedName(name) === FFF_GREP_TOOL_NAME ? "grep" : "find";
 }
 
 export type AutomationOperation =

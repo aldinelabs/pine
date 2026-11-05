@@ -1125,6 +1125,10 @@ export default {
         search: {
           active: "正在搜索 {count} 次",
           complete: "搜索了 {count} 次",
+        fileSearch: {
+          active: "正在搜索文件 {count} 次",
+          complete: "搜索了文件 {count} 次",
+        },
         },
         recall: {
           active: "正在查找 {count} 次历史记录",
@@ -1207,6 +1211,7 @@ export default {
         recall: "历史记录查找",
         fetch: "网页抓取",
         presentFile: "打开文件",
+        fileSearch: "文件搜索",
         workbench: "工作台调整",
         workbenchState: "工作台状态",
         automation: "自动化操作",
@@ -1267,6 +1272,9 @@ export default {
         format: "格式",
         kind: "类型",
         imageResult: "图片结果",
+        line: "行号",
+        match: "匹配",
+        moreResults: "还有更多结果，智能体可以从中断处继续。",
         multipleChoice: "多选",
         embeddedImage: "内嵌图片",
         statuses: {
@@ -1831,6 +1839,20 @@ export default {
         search: {
           complete: { before: "已搜索 ", after: "" },
           error: { before: "搜索 ", after: " 失败" },
+        fileSearch: {
+          find: {
+            running: { before: "正在查找文件 ", after: "" },
+            complete: { before: "已查找文件 ", after: "" },
+            error: { before: "查找文件 ", after: " 失败" },
+          },
+          grep: {
+            running: { before: "正在搜索内容 ", after: "" },
+            complete: { before: "已搜索内容 ", after: "" },
+            error: { before: "搜索内容 ", after: " 失败" },
+          },
+          found: " · 找到 {count} 项",
+          none: " · 无结果",
+        },
           running: { before: "正在搜索 ", after: "" },
         },
         recall: {

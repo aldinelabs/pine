@@ -1197,6 +1197,10 @@ export default {
           active: "Поиск (раз: {count})",
           complete: "Поисков выполнено: {count}",
         },
+        fileSearch: {
+          active: "Поиск файлов (раз: {count})",
+          complete: "Поисков файлов выполнено: {count}",
+        },
         recall: {
           active: "Поиск по истории (раз: {count})",
           complete: "Поисков по истории выполнено: {count}",
@@ -1279,6 +1283,7 @@ export default {
         fetch: "загрузка из сети",
         presentFile: "показ файла",
         workbench: "изменение рабочей панели",
+        fileSearch: "поиск файлов",
         workbenchState: "состояние рабочей панели",
         automation: "действие автоматизации",
         model: "просмотр моделей",
@@ -1340,6 +1345,10 @@ export default {
         kind: "Тип",
         imageResult: "Результат-изображение",
         multipleChoice: "Множественный выбор",
+        line: "Строка",
+        match: "Совпадение",
+        moreResults:
+          "Есть и другие результаты; агент может продолжить с места остановки.",
         embeddedImage: "Встроенное изображение",
         statuses: {
           pending: "Ожидает",
@@ -1922,6 +1931,23 @@ export default {
           complete: { before: "Найдено по запросу: ", after: "" },
           error: { before: "Не удалось выполнить поиск: ", after: "" },
           running: { before: "Поиск: ", after: "" },
+        fileSearch: {
+          find: {
+            running: { before: "Поиск файлов: ", after: "" },
+            complete: { before: "Найдены файлы по запросу: ", after: "" },
+            error: { before: "Не удалось найти файлы: ", after: "" },
+          },
+          grep: {
+            running: { before: "Поиск в содержимом: ", after: "" },
+            complete: { before: "Поиск в содержимом выполнен: ", after: "" },
+            error: {
+              before: "Не удалось выполнить поиск в содержимом: ",
+              after: "",
+            },
+          },
+          found: " · найдено: {count}",
+          none: " · ничего не найдено",
+        },
         },
         recall: {
           complete: { before: "Поиск по истории выполнен: ", after: "" },

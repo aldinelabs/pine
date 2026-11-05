@@ -1184,6 +1184,10 @@ export default {
         search: {
           active: "Searching {count} times",
           complete: "Searched {count} times",
+        fileSearch: {
+          active: "Searching files {count} times",
+          complete: "Searched files {count} times",
+        },
         },
         recall: {
           active: "Searching history {count} times",
@@ -1266,6 +1270,7 @@ export default {
         recall: "history search",
         fetch: "web fetch",
         presentFile: "present file",
+        fileSearch: "file search",
         workbench: "workbench change",
         workbenchState: "workbench state",
         automation: "automation action",
@@ -1326,6 +1331,10 @@ export default {
         format: "Format",
         kind: "Kind",
         imageResult: "Image result",
+        line: "Line",
+        match: "Match",
+        moreResults:
+          "More results are available; the agent can continue from where this stopped.",
         multipleChoice: "Multiple choice",
         embeddedImage: "Embedded image",
         statuses: {
@@ -1896,6 +1905,20 @@ export default {
         search: {
           complete: { before: "Searched for ", after: "" },
           error: { before: "Couldn’t search for ", after: "" },
+        fileSearch: {
+          find: {
+            running: { before: "Finding files for ", after: "" },
+            complete: { before: "Found files for ", after: "" },
+            error: { before: "Couldn’t find files for ", after: "" },
+          },
+          grep: {
+            running: { before: "Searching code for ", after: "" },
+            complete: { before: "Searched code for ", after: "" },
+            error: { before: "Couldn’t search code for ", after: "" },
+          },
+          found: " · {count} found",
+          none: " · nothing found",
+        },
           running: { before: "Searching for ", after: "" },
         },
         recall: {

@@ -1178,6 +1178,10 @@ export default {
           active: "{count}회 검색 중",
           complete: "{count}회 검색함",
         },
+        fileSearch: {
+          active: "파일을 {count}회 검색 중",
+          complete: "파일을 {count}회 검색함",
+        },
         recall: {
           active: "기록을 {count}회 검색 중",
           complete: "기록을 {count}회 검색함",
@@ -1260,6 +1264,7 @@ export default {
         fetch: "웹 가져오기",
         presentFile: "파일 표시",
         workbench: "작업대 변경",
+        fileSearch: "파일 검색",
         workbenchState: "작업대 상태",
         automation: "자동화 작업",
         model: "모델 조회",
@@ -1320,6 +1325,10 @@ export default {
         kind: "종류",
         imageResult: "이미지 결과",
         multipleChoice: "복수 선택",
+        line: "줄",
+        match: "일치",
+        moreResults:
+          "결과가 더 있습니다. 에이전트가 이어서 가져올 수 있습니다.",
         embeddedImage: "삽입된 이미지",
         statuses: {
           pending: "대기 중",
@@ -1897,6 +1906,20 @@ export default {
           complete: { before: "검색함: ", after: "" },
           error: { before: "검색할 수 없음: ", after: "" },
           running: { before: "검색 중: ", after: "" },
+        fileSearch: {
+          find: {
+            running: { before: "파일 찾는 중: ", after: "" },
+            complete: { before: "파일 찾음: ", after: "" },
+            error: { before: "파일을 찾을 수 없음: ", after: "" },
+          },
+          grep: {
+            running: { before: "내용 검색 중: ", after: "" },
+            complete: { before: "내용 검색함: ", after: "" },
+            error: { before: "내용을 검색할 수 없음: ", after: "" },
+          },
+          found: " · {count}개 찾음",
+          none: " · 결과 없음",
+        },
         },
         recall: {
           complete: { before: "기록을 검색함: ", after: "" },

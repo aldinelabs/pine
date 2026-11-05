@@ -6,6 +6,7 @@ import {
   toolFileRequest,
   toolOutputParts,
   toolViewAdapter,
+  fileSearchRows,
   webResults,
 } from "../toolViewAdapter";
 
@@ -32,6 +33,8 @@ describe("tool view adapter", () => {
       screenshot: "computer",
       browser_snapshot: "computer",
       web_search: "search",
+      find: "fileSearch",
+      grep: "fileSearch",
       web_fetch: "fetch",
     };
     for (const [name, detail] of Object.entries(families)) {
@@ -158,5 +161,32 @@ describe("tool view adapter", () => {
       { type: "text", text: "Done" },
       { type: "image", imageUrl: "data:image/png;base64,aGVsbG8=" },
     ]);
+  });
+});
+
+describe("fileSearchRows", () => {
+  it("lists matching lines from a grep result", () => {
+    expect(
+      fileSearchRows({
+        details: {
+          matches: [
+            { path: "a.ts", line: 3, text: "const a = 1;" },
+            { path: "b.ts", line: 9 },
+            { line: 1 },
+          ],
+        },
+      }),
+    ).toEqual([
+      { path: "a.ts", line: 3, text: "const a = 1;" },
+      { path: "b.ts", line: 9 },
+    ]);
+  });
+
+  it("lists the files of a find result and ignores unfinished calls", () => {
+    expect(fileSearchRows({ details: { files: ["a.ts", 4, "b.ts"] } })).toEqual(
+      [{ path: "a.ts" }, { path: "b.ts" }],
+    );
+    expect(fileSearchRows(undefined)).toBeUndefined();
+    expect(fileSearchRows({ content: [] })).toBeUndefined();
   });
 });

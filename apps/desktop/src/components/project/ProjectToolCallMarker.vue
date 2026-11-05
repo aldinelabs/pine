@@ -38,6 +38,7 @@ import {
 import ProjectToolCallDialog from "./ProjectToolCallDialog.vue";
 import {
   automationOperation,
+  fileSearchOperation,
   mcpConfigOperation,
   isDeniedTool,
   isRunningTool,
@@ -1077,6 +1078,36 @@ const presentation = computed(() => {
       purpose: undefined,
       faviconDataUrl: undefined,
       after: "",
+    };
+  }
+  if (kind === "fileSearch") {
+    const operation = fileSearchOperation(props.toolCall.name);
+    const tense = state === "running" || state === "error" ? state : "complete";
+    const details = inputRecord(inputRecord(props.toolCall.output).details);
+    const patterns = Array.isArray(input.patterns)
+      ? input.patterns.filter((p): p is string => typeof p === "string")
+      : [];
+    const subject =
+      firstString(input, ["pattern", "query"]) ?? patterns.join(" | ");
+    const found =
+      tense === "complete" && typeof details.total === "number"
+        ? details.total > 0
+          ? t("project.transcript.tools.fileSearch.found", {
+              count: details.total,
+            })
+          : t("project.transcript.tools.fileSearch.none")
+        : "";
+    return {
+      before: t(
+        `project.transcript.tools.fileSearch.${operation}.${tense}.before`,
+      ),
+      operation: undefined,
+      separator: "",
+      target: compactInline(subject),
+      targetMono: true,
+      purpose: undefined,
+      faviconDataUrl: undefined,
+      after: `${t(`project.transcript.tools.fileSearch.${operation}.${tense}.after`)}${found}`,
     };
   }
   if (kind === "datetime") {

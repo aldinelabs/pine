@@ -1209,6 +1209,10 @@ export default {
           active: "Recherche ({count} fois)",
           complete: "Recherche effectuée {count} fois",
         },
+        fileSearch: {
+          active: "Recherche de fichiers ({count} fois)",
+          complete: "Recherche de fichiers effectuée {count} fois",
+        },
         recall: {
           active: "Recherche dans l'historique ({count} fois)",
           complete: "Recherche dans l'historique effectuée {count} fois",
@@ -1291,6 +1295,7 @@ export default {
         fetch: "récupération web",
         presentFile: "présentation de fichier",
         workbench: "modification de l'espace de travail",
+        fileSearch: "recherche de fichiers",
         workbenchState: "état de l'espace de travail",
         automation: "action d’automatisation",
         model: "consultation des modèles",
@@ -1352,6 +1357,10 @@ export default {
         kind: "Type",
         imageResult: "Résultat image",
         multipleChoice: "Choix multiple",
+        line: "Ligne",
+        match: "Correspondance",
+        moreResults:
+          "D’autres résultats existent ; l’agent peut reprendre là où la recherche s’est arrêtée.",
         embeddedImage: "Image intégrée",
         statuses: {
           pending: "En attente",
@@ -1948,6 +1957,26 @@ export default {
           complete: { before: "Recherché : ", after: "" },
           error: { before: "Impossible de rechercher ", after: "" },
           running: { before: "Recherche de ", after: "" },
+        fileSearch: {
+          find: {
+            running: { before: "Recherche de fichiers pour ", after: "" },
+            complete: { before: "Fichiers recherchés : ", after: "" },
+            error: {
+              before: "Impossible de rechercher des fichiers pour ",
+              after: "",
+            },
+          },
+          grep: {
+            running: { before: "Recherche dans le contenu de ", after: "" },
+            complete: { before: "Contenu recherché : ", after: "" },
+            error: {
+              before: "Impossible de rechercher dans le contenu de ",
+              after: "",
+            },
+          },
+          found: " · {count} trouvé(s)",
+          none: " · aucun résultat",
+        },
         },
         recall: {
           complete: { before: "Historique recherché : ", after: "" },
