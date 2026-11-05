@@ -961,9 +961,10 @@ export const useSessionStore = defineStore("session", () => {
       if (sessionId) forgetAutomationRun(projectId, sessionId);
       const state = stateFor(summary.id);
       state.summary = mergeSessionSummary(summary, state.summary ?? undefined);
-      // Worker events may already have arrived, including the terminal state.
-      if (!sessionId && !state.historyLoaded)
-        state.historyLoaded = state.messages.length > 0;
+      // A new session's whole transcript arrives through live events, whose
+      // ids differ from the persisted ones. Loading history on top of them
+      // (e.g. when its tab is reopened) would show every message twice.
+      if (!sessionId) state.historyLoaded = true;
       modelsStore.setSessionSelection(summary.id, summary.modelSelection);
       if (sequence === activationSequence) currentSessionId.value = summary.id;
       return summary;

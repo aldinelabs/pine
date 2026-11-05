@@ -417,6 +417,31 @@ describe("concurrent session state", () => {
     expect(store.messages[1]?.blocks).toEqual([{ type: "text", text: "Live" }]);
   });
 
+  it("does not repeat a new session's live messages when its tab is reopened", async () => {
+    const { store, api, emit } = fixture();
+    await store.prompt("Question", { projectId: PROJECT_ID });
+    emit({
+      type: "message-start",
+      sessionId: a.id,
+      messageId: "live-user",
+      message: { role: "user", content: [{ type: "text", text: "Question" }] },
+    });
+    await store.resume(PROJECT_ID, b.id);
+    api.loadSessionMessages.mockResolvedValueOnce({
+      messages: [
+        {
+          id: "persisted-user",
+          createdAt: a.createdAt,
+          role: "user",
+          blocks: [{ type: "text", text: "Question" }],
+        },
+      ],
+      hasMore: false,
+    });
+    await store.resume(PROJECT_ID, a.id);
+    expect(store.messages.map((message) => message.id)).toEqual(["live-user"]);
+  });
+
   it("does not activate an older prompt result after switching tabs", async () => {
     const { store, api, emit } = fixture();
     const result = deferred<{
