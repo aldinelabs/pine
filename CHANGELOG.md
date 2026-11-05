@@ -9,6 +9,25 @@ Every release section here has a matching section in the Chinese changelog.
 
 ## [Unreleased]
 
+## [0.15.3] - 2026-11-05
+
+### Added
+
+- The AI can now find files by name and search file contents within a project. These calls appear in the conversation as "Found files for …" and "Searched code for …", and their details list each matching file, line number and line. Skills can pre-approve these two tools.
+- When creating a Skill with Pine, the setup now uses labelled fields and pickers instead of free text.
+- Inline citation cards now show the source site's icon.
+- The TinyFish web tools setting now shows whether a key is configured.
+
+### Changed
+
+- Long parameter values in tool call details now wrap fully inside their badges.
+
+### Fixed
+
+- Reopening the tab of a new session no longer shows its conversation twice.
+- Message bubbles in a side chat are now distinguishable from the card in light mode.
+- A follow-up now knows which passage it was asked about.
+
 ## [0.15.2] - 2026-11-05
 
 ### Added
