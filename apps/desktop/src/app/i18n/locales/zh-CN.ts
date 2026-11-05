@@ -638,6 +638,10 @@ export default {
       discardTitle: "关闭侧边对话？",
       discardDescription: "这个侧边对话不会保存，关闭后其中的问答将被丢弃。",
       discard: "关闭并丢弃",
+      discardTabTitle: "关闭标签页？",
+      discardTabDescription:
+        "这个对话有一个未保存的侧边对话，关闭标签页后其中的问答将被永久销毁。",
+      discardTab: "关闭标签页",
     },
     quote: {
       label: "引用",

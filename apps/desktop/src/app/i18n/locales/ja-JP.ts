@@ -679,6 +679,10 @@ export default {
       discardDescription:
         "このサイドチャットは保存されません。閉じると質問と回答は破棄されます。",
       discard: "閉じて破棄",
+      discardTabTitle: "このタブを閉じますか？",
+      discardTabDescription:
+        "この会話には保存されていないサイドチャットがあります。タブを閉じると、その質問と回答は完全に削除されます。",
+      discardTab: "タブを閉じる",
     },
     quote: {
       label: "引用",

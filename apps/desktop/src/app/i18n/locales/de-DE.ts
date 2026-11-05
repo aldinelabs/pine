@@ -691,6 +691,10 @@ export default {
       discardDescription:
         "Dieser Seitenchat wird nicht gespeichert. Beim Schließen gehen Fragen und Antworten verloren.",
       discard: "Schließen und verwerfen",
+      discardTabTitle: "Diesen Tab schließen?",
+      discardTabDescription:
+        "Diese Unterhaltung hat einen nicht gespeicherten Seitenchat. Beim Schließen des Tabs werden seine Fragen und Antworten dauerhaft gelöscht.",
+      discardTab: "Tab schließen",
     },
     quote: {
       label: "Zitat",

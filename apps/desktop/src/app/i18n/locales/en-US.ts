@@ -677,6 +677,10 @@ export default {
       discardDescription:
         "This side chat isn't saved. Closing it discards its questions and answers.",
       discard: "Close and discard",
+      discardTabTitle: "Close this tab?",
+      discardTabDescription:
+        "This conversation has a side chat that isn't saved. Closing the tab deletes its questions and answers permanently.",
+      discardTab: "Close tab",
     },
     quote: {
       label: "Quote",

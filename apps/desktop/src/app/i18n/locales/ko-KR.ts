@@ -671,6 +671,10 @@ export default {
       discardDescription:
         "이 사이드 채팅은 저장되지 않습니다. 닫으면 질문과 답변이 삭제됩니다.",
       discard: "닫고 삭제",
+      discardTabTitle: "이 탭을 닫을까요?",
+      discardTabDescription:
+        "이 대화에 저장되지 않은 사이드 채팅이 있습니다. 탭을 닫으면 그 안의 질문과 답변이 영구적으로 삭제됩니다.",
+      discardTab: "탭 닫기",
     },
     quote: {
       label: "인용",

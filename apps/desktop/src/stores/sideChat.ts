@@ -1,6 +1,7 @@
 import { acceptHMRUpdate, defineStore } from "pinia";
-import { reactive, ref } from "vue";
+import { reactive, ref, watch } from "vue";
 import { agentLocale, isAppLocale } from "@/app/i18n";
+import { useContentTabsStore } from "@/stores/contentTabs";
 import type { PineAgentEvent, PineJsonValue } from "@/shared/agent";
 import {
   parseMessageBlocks,
@@ -104,6 +105,8 @@ export function sideChatTranscript(
  * side chat at a time, in its workbench card; the follow-ups it saved are
  * listed so the transcript can highlight the passages they ask about.
  */
+export type SideChatDiscardReason = "card" | "tab";
+
 export const useSideChatStore = defineStore("sideChat", () => {
   const chats = reactive(new Map<string, SideChatState>());
   /** The side chat each conversation shows, by the conversation's id. */
@@ -115,18 +118,65 @@ export const useSideChatStore = defineStore("sideChat", () => {
    */
   const entryIdByMessageId = reactive(new Map<string, string>());
   const isOpening = ref(false);
-  /** Waits for the user to agree to discard a plain side chat. */
-  const discardRequest = ref<{ resolve: (confirmed: boolean) => void } | null>(
-    null,
-  );
+  /**
+   * Waits for the user to agree to discard a plain side chat, closed by
+   * itself or with its conversation's tab.
+   */
+  const discardRequest = ref<{
+    reason: SideChatDiscardReason;
+    resolve: (confirmed: boolean) => void;
+  } | null>(null);
 
   /** Asks before a plain side chat is closed, since it is not saved. */
-  function confirmDiscard(): Promise<boolean> {
+  function confirmDiscard(
+    reason: SideChatDiscardReason = "card",
+  ): Promise<boolean> {
     discardRequest.value?.resolve(false);
     return new Promise((resolve) => {
-      discardRequest.value = { resolve };
+      discardRequest.value = { reason, resolve };
     });
   }
+
+  /** Whether closing a conversation's side chat would lose questions. */
+  function losesQuestions(parentSessionId: string): boolean {
+    const chat = active(parentSessionId);
+    return Boolean(chat && !chat.persistent && chat.messages.length > 0);
+  }
+
+  /**
+   * Ends the side chat a conversation shows, as when its tab closes; asks
+   * first when that loses a plain side chat's questions.
+   */
+  async function endFor(
+    parentSessionId: string,
+    { ask = true }: { ask?: boolean } = {},
+  ): Promise<boolean> {
+    if (ask && losesQuestions(parentSessionId))
+      if (!(await confirmDiscard("tab"))) return false;
+    const chat = active(parentSessionId);
+    if (chat) await close(chat.id).catch(() => undefined);
+    return true;
+  }
+
+  // A side chat lives as long as a tab shows its conversation, so the
+  // workbench can show it again on coming back; one whose conversation has
+  // no tab left (a preview replaced, a conversation removed) ends.
+  const contentTabs = useContentTabsStore();
+  watch(
+    () =>
+      new Set(
+        contentTabs.tabs.flatMap((tab) =>
+          tab.kind === "session" && tab.state === "bound"
+            ? [tab.sessionId]
+            : [],
+        ),
+      ),
+    (shown) => {
+      for (const parentSessionId of [...activeByParent.keys()])
+        if (!shown.has(parentSessionId))
+          void endFor(parentSessionId, { ask: false });
+    },
+  );
 
   function answerDiscard(confirmed: boolean): void {
     const request = discardRequest.value;
@@ -458,6 +508,8 @@ export const useSideChatStore = defineStore("sideChat", () => {
     answerDiscard,
     confirmDiscard,
     discardRequest,
+    endFor,
+    losesQuestions,
     chats,
     close,
     connect,

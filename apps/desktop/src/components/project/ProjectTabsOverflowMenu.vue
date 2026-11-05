@@ -189,7 +189,7 @@ async function submitFileDialog(): Promise<void> {
       name,
     });
     // The tab is keyed by path, so a renamed file needs a fresh preview.
-    if (succeeded) tabNavigation.close(tabId);
+    if (succeeded) void tabNavigation.close(tabId);
   } else {
     const project = activeProject.value;
     if (!project) return;
@@ -218,7 +218,7 @@ async function trashActiveFile(): Promise<void> {
   const succeeded = await operateProjectFile({ action: "trash", target });
   if (succeeded) {
     isTrashConfirmOpen.value = false;
-    tabNavigation.close(tabId);
+    void tabNavigation.close(tabId);
     refreshFileTree();
   }
 }

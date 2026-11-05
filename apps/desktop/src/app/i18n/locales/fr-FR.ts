@@ -688,6 +688,10 @@ export default {
       discardDescription:
         "Ce chat latéral n’est pas enregistré. Le fermer supprime ses questions et réponses.",
       discard: "Fermer et supprimer",
+      discardTabTitle: "Fermer cet onglet ?",
+      discardTabDescription:
+        "Cette conversation contient un chat latéral non enregistré. Fermer l’onglet supprime définitivement ses questions et réponses.",
+      discardTab: "Fermer l’onglet",
     },
     quote: {
       label: "Citation",

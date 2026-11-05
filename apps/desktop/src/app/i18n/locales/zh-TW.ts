@@ -639,6 +639,10 @@ export default {
       discardTitle: "關閉側邊對話？",
       discardDescription: "這個側邊對話不會儲存，關閉後其中的問答將被捨棄。",
       discard: "關閉並捨棄",
+      discardTabTitle: "關閉分頁？",
+      discardTabDescription:
+        "這個對話有一個未儲存的側邊對話，關閉分頁後其中的問答將被永久銷毀。",
+      discardTab: "關閉分頁",
     },
     quote: {
       label: "引用",

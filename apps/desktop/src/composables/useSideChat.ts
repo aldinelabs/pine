@@ -7,6 +7,7 @@ import {
   type WorkbenchPanel,
   type WorkbenchPosition,
 } from "@/shared/workbench";
+import { useContentTabsStore } from "@/stores/contentTabs";
 import { useSessionStore } from "@/stores/session";
 import { useSideChatStore } from "@/stores/sideChat";
 import { useWorkbenchStore } from "@/stores/workbench";
@@ -20,6 +21,21 @@ export function useSideChat() {
   const sessionStore = useSessionStore();
   const sideChats = useSideChatStore();
   const workbench = useWorkbenchStore();
+  const contentTabs = useContentTabsStore();
+
+  /**
+   * A side chat lives as long as its conversation's tab, so that tab stops
+   * being a preview another casual open would replace.
+   */
+  function keepTabOf(sessionId: string): void {
+    const tab = contentTabs.tabs.find(
+      (candidate) =>
+        candidate.kind === "session" &&
+        candidate.state === "bound" &&
+        candidate.sessionId === sessionId,
+    );
+    if (tab) contentTabs.keepTab(tab.id);
+  }
 
   function parent(): { projectId: string; sessionId: string } | undefined {
     const sessionId = sessionStore.activeSession?.id;
@@ -66,6 +82,7 @@ export function useSideChat() {
     if (!(await mayLeave(target.sessionId, request.sideChatId))) return false;
     try {
       await sideChats.open({ ...target, ...request });
+      keepTabOf(target.sessionId);
       workbench.showSideChat();
       return true;
     } catch {

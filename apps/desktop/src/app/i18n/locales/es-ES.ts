@@ -687,6 +687,10 @@ export default {
       discardDescription:
         "Este chat lateral no se guarda. Al cerrarlo se descartan sus preguntas y respuestas.",
       discard: "Cerrar y descartar",
+      discardTabTitle: "¿Cerrar esta pestaña?",
+      discardTabDescription:
+        "Esta conversación tiene un chat lateral sin guardar. Al cerrar la pestaña, sus preguntas y respuestas se eliminarán de forma permanente.",
+      discardTab: "Cerrar pestaña",
     },
     quote: {
       label: "Cita",

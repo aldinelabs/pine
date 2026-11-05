@@ -238,7 +238,7 @@ function animateTabShifts(positions: Map<string, number>): void {
 }
 
 function closeTab(tabId: string): void {
-  tabNavigation.close(tabId);
+  void tabNavigation.close(tabId);
 }
 
 function closeTabFromWindowShortcut(tabId: string): void {
@@ -561,7 +561,7 @@ watch(
           return;
         }
         toast.info(t("projects.openElsewhere"));
-        tabNavigation.close(tab.id);
+        void tabNavigation.close(tab.id);
         return;
       }
     } catch (error) {

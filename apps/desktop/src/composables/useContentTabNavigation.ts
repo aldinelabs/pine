@@ -5,6 +5,7 @@ import type { PineSessionSummary } from "@/shared/sessions";
 import type { ProjectFilePreviewRequest } from "@/shared/projectFiles";
 import type { PineAuthoringTarget } from "@/shared/sessionMutators";
 import { useContentTabsStore } from "@/stores/contentTabs";
+import { useSideChatStore } from "@/stores/sideChat";
 
 const CONTENT_TAB_QUERY = "tab";
 
@@ -134,10 +135,22 @@ export function useContentTabNavigation() {
     }
   }
 
-  function close(tabId: string): void {
+  /**
+   * Closes a tab. A conversation's tab takes its side chat with it, asking
+   * first when that loses one; declining keeps the tab.
+   */
+  async function close(tabId: string): Promise<boolean> {
+    const tab = tabs.value.find((candidate) => candidate.id === tabId);
+    if (
+      tab?.kind === "session" &&
+      tab.state === "bound" &&
+      !(await useSideChatStore().endFor(tab.sessionId))
+    )
+      return false;
     const currentActiveTabId = activeTabId.value;
     const nextActiveTabId = store.close(tabId, currentActiveTabId);
     if (tabId === currentActiveTabId) void navigate(nextActiveTabId, true);
+    return true;
   }
 
   function removeSession(sessionId: string): void {

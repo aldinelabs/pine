@@ -13,9 +13,13 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useSideChatStore } from "@/stores/sideChat";
 
-/** Asks before a plain side chat, which is not saved, goes away. */
+/**
+ * Asks before a plain side chat, which is not saved, goes away: closed by
+ * itself, or with its conversation's tab.
+ */
 const { t } = useI18n();
 const sideChats = useSideChatStore();
+const withTab = computed(() => sideChats.discardRequest?.reason === "tab");
 const open = computed({
   get: () => sideChats.discardRequest !== null,
   set: (value: boolean) => {
@@ -28,11 +32,19 @@ const open = computed({
   <AlertDialog v-model:open="open">
     <AlertDialogContent>
       <AlertDialogHeader>
-        <AlertDialogTitle>{{
-          t("project.sideChat.discardTitle")
-        }}</AlertDialogTitle>
+        <AlertDialogTitle>
+          {{
+            withTab
+              ? t("project.sideChat.discardTabTitle")
+              : t("project.sideChat.discardTitle")
+          }}
+        </AlertDialogTitle>
         <AlertDialogDescription>
-          {{ t("project.sideChat.discardDescription") }}
+          {{
+            withTab
+              ? t("project.sideChat.discardTabDescription")
+              : t("project.sideChat.discardDescription")
+          }}
         </AlertDialogDescription>
       </AlertDialogHeader>
       <AlertDialogFooter>
@@ -40,7 +52,11 @@ const open = computed({
         <!-- A plain button: the dialog's own action would close it first,
              which answers the request as cancelled. -->
         <Button variant="destructive" @click="sideChats.answerDiscard(true)">
-          {{ t("project.sideChat.discard") }}
+          {{
+            withTab
+              ? t("project.sideChat.discardTab")
+              : t("project.sideChat.discard")
+          }}
         </Button>
       </AlertDialogFooter>
     </AlertDialogContent>
