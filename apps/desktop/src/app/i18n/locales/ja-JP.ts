@@ -662,7 +662,6 @@ export default {
       close: "サイドチャットを閉じる",
       readOnlyHint:
         "この会話について質問できます。サイドチャットはファイルの読み取りとウェブ検索はできますが、何も変更できません。",
-      thinking: "考え中…",
       placeholder: "質問を入力",
       stop: "停止",
       send: "送信",

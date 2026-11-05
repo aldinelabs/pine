@@ -654,7 +654,6 @@ export default {
       close: "사이드 채팅 닫기",
       readOnlyHint:
         "이 대화에 대해 질문하세요. 사이드 채팅은 파일을 읽고 웹을 검색할 수 있지만 아무것도 변경할 수 없습니다.",
-      thinking: "생각 중…",
       placeholder: "질문 입력",
       stop: "중지",
       send: "보내기",

@@ -32,7 +32,6 @@ import {
   MessageScrollerProvider,
   MessageScrollerViewport,
 } from "@/components/ui/message-scroller";
-import { Spinner } from "@/components/ui/spinner";
 import { useSideChat } from "@/composables/useSideChat";
 import type { PineQuote } from "@/shared/quotes";
 import { SIDE_CHAT_PANEL, type WorkbenchPosition } from "@/shared/workbench";
@@ -65,11 +64,6 @@ const title = computed(() =>
   chat.value?.anchor
     ? t("project.sideChat.followUpTitle")
     : t("project.sideChat.title"),
-);
-/** A question is out and nothing has come back yet. */
-const isAwaitingReply = computed(
-  () =>
-    Boolean(chat.value?.isRunning) && messages.value.at(-1)?.role === "user",
 );
 
 const canSend = computed(
@@ -226,13 +220,6 @@ watch(
                 "
               >
                 <ProjectTranscriptMessage :message="message" />
-              </MessageScrollerItem>
-              <MessageScrollerItem
-                v-if="isAwaitingReply"
-                class="flex items-center gap-2 text-sm text-muted-foreground"
-              >
-                <Spinner />
-                {{ t("project.sideChat.thinking") }}
               </MessageScrollerItem>
               <MessageScrollerItem
                 v-if="chat?.error"

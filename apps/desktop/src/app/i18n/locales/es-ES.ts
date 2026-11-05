@@ -670,7 +670,6 @@ export default {
       close: "Cerrar chat lateral",
       readOnlyHint:
         "Pregunta sobre esta conversación. Un chat lateral puede leer archivos y buscar en la web, pero no puede cambiar nada.",
-      thinking: "Pensando…",
       placeholder: "Escribe una pregunta",
       stop: "Detener",
       send: "Enviar",

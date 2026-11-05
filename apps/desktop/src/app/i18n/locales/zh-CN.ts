@@ -623,7 +623,6 @@ export default {
       close: "关闭侧边对话",
       readOnlyHint:
         "就这段对话提问。侧边对话可以读取文件和搜索网页，但不能做任何修改。",
-      thinking: "思考中…",
       placeholder: "输入问题",
       stop: "停止",
       send: "发送",

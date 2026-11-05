@@ -3,6 +3,7 @@ import { computed, reactive, ref, shallowRef, toRefs } from "vue";
 import { toast } from "vue-sonner";
 import {
   isSandboxDeniedPayload,
+  type PineAgentEvent,
   type PineSessionEvent,
   type PineAssistantMessageUpdate,
   type PineApprovalAction,
@@ -79,6 +80,90 @@ function blocksHasThinking(blocks: readonly PineContentBlock[]): boolean {
   return blocks.some((block) => block.type === "thinking");
 }
 
+/** The message events that build a transcript message. */
+export type TranscriptMessageEvent = Extract<
+  PineAgentEvent,
+  { type: "message-start" | "message-update" | "message-end" }
+>;
+
+/**
+ * The transcript message a message event leaves, given the message it had
+ * built so far: its blocks, and how long its thinking ran.
+ */
+export function transcriptMessageFromEvent(
+  event: TranscriptMessageEvent,
+  previous: PineTranscriptMessage | undefined,
+  now = Date.now(),
+): PineTranscriptMessage | undefined {
+  if (event.type === "message-update") {
+    const blocks = applyAssistantMessageUpdates(
+      previous?.blocks ?? [],
+      event.updates,
+    );
+    const hasThinking = blocksHasThinking(blocks);
+    const thinkingStarted = event.updates.some(
+      (update) =>
+        update.type === "thinking-start" || update.type === "thinking-delta",
+    );
+    const thinkingEnded = event.updates.some(
+      (update) => update.type === "thinking-end",
+    );
+    const thinkingStartedAt = hasThinking
+      ? (previous?.thinkingStartedAt ?? (thinkingStarted ? now : undefined))
+      : undefined;
+    const thinkingStatus = hasThinking
+      ? thinkingEnded || previous?.thinkingStatus === "complete"
+        ? ("complete" as const)
+        : ("streaming" as const)
+      : undefined;
+    const thinkingDurationMs =
+      thinkingStartedAt && thinkingStatus === "complete"
+        ? (previous?.thinkingDurationMs ?? Math.max(0, now - thinkingStartedAt))
+        : undefined;
+    return {
+      createdAt: previous?.createdAt ?? new Date(now).toISOString(),
+      id: event.messageId,
+      role: "assistant",
+      status: "streaming",
+      blocks,
+      ...(thinkingDurationMs ? { thinkingDurationMs } : {}),
+      ...(thinkingStatus ? { thinkingStatus } : {}),
+      ...(thinkingStartedAt ? { thinkingStartedAt } : {}),
+    };
+  }
+
+  const role = messageRole(event.message);
+  if (!role) return undefined;
+  const blocks = mergeBlockStatuses(
+    parseMessageBlocks(event.message),
+    previous?.blocks,
+  );
+  const hasThinking = blocksHasThinking(blocks);
+  const thinkingStartedAt = hasThinking
+    ? (previous?.thinkingStartedAt ?? now)
+    : undefined;
+  const thinkingEnded = event.type === "message-end";
+  const thinkingStatus = hasThinking
+    ? thinkingEnded || previous?.thinkingStatus === "complete"
+      ? ("complete" as const)
+      : ("streaming" as const)
+    : undefined;
+  const thinkingDurationMs =
+    thinkingStartedAt && thinkingStatus === "complete"
+      ? (previous?.thinkingDurationMs ?? Math.max(0, now - thinkingStartedAt))
+      : undefined;
+  return {
+    createdAt: messageCreatedAt(event.message),
+    id: event.messageId,
+    role,
+    status: event.type === "message-end" ? "complete" : "streaming",
+    blocks,
+    ...(thinkingDurationMs ? { thinkingDurationMs } : {}),
+    ...(thinkingStatus ? { thinkingStatus } : {}),
+    ...(thinkingStartedAt ? { thinkingStartedAt } : {}),
+  };
+}
+
 function toTranscriptMessages(
   source: readonly PineTextMessage[],
 ): PineTranscriptMessage[] {
@@ -104,7 +189,7 @@ export function mergeToolCallBlocks(
   });
 }
 
-export function mergeBlockStatuses(
+function mergeBlockStatuses(
   blocks: PineContentBlock[],
   previous: readonly PineContentBlock[] | undefined,
 ): PineContentBlock[] {
@@ -143,7 +228,7 @@ export function messageCreatedAt(value: PineJsonValue): string {
     : new Date().toISOString();
 }
 
-export function applyAssistantMessageUpdates(
+function applyAssistantMessageUpdates(
   previous: readonly PineContentBlock[],
   updates: readonly PineAssistantMessageUpdate[],
 ): PineContentBlock[] {
@@ -1557,78 +1642,8 @@ export const useSessionStore = defineStore("session", () => {
     const previousIndex = messageIndexFor(event.messageId);
     const previous =
       previousIndex >= 0 ? messages.value[previousIndex] : undefined;
-    const now = Date.now();
-    if (event.type === "message-update") {
-      const blocks = applyAssistantMessageUpdates(
-        previous?.blocks ?? [],
-        event.updates,
-      );
-      const hasThinking = blocksHasThinking(blocks);
-      const thinkingStarted = event.updates.some(
-        (update) =>
-          update.type === "thinking-start" || update.type === "thinking-delta",
-      );
-      const thinkingEnded = event.updates.some(
-        (update) => update.type === "thinking-end",
-      );
-      const thinkingStartedAt = hasThinking
-        ? (previous?.thinkingStartedAt ?? (thinkingStarted ? now : undefined))
-        : undefined;
-      const thinkingStatus = hasThinking
-        ? thinkingEnded || previous?.thinkingStatus === "complete"
-          ? ("complete" as const)
-          : ("streaming" as const)
-        : undefined;
-      const thinkingDurationMs =
-        thinkingStartedAt && thinkingStatus === "complete"
-          ? (previous?.thinkingDurationMs ??
-            Math.max(0, now - thinkingStartedAt))
-          : undefined;
-      const nextMessage: PineTranscriptMessage = {
-        createdAt: previous?.createdAt ?? new Date(now).toISOString(),
-        id: event.messageId,
-        role: "assistant",
-        status: "streaming",
-        blocks,
-        ...(thinkingDurationMs ? { thinkingDurationMs } : {}),
-        ...(thinkingStatus ? { thinkingStatus } : {}),
-        ...(thinkingStartedAt ? { thinkingStartedAt } : {}),
-      };
-      putMessage(nextMessage, previousIndex);
-      return;
-    }
-
-    const role = messageRole(event.message);
-    if (!role) return;
-    const blocks = mergeBlockStatuses(
-      parseMessageBlocks(event.message),
-      previous?.blocks,
-    );
-    const hasThinking = blocksHasThinking(blocks);
-    const thinkingStartedAt = hasThinking
-      ? (previous?.thinkingStartedAt ?? now)
-      : undefined;
-    const thinkingEnded = event.type === "message-end";
-    const thinkingStatus = hasThinking
-      ? thinkingEnded || previous?.thinkingStatus === "complete"
-        ? ("complete" as const)
-        : ("streaming" as const)
-      : undefined;
-    const thinkingDurationMs =
-      thinkingStartedAt && thinkingStatus === "complete"
-        ? (previous?.thinkingDurationMs ?? Math.max(0, now - thinkingStartedAt))
-        : undefined;
-    const nextMessage: PineTranscriptMessage = {
-      createdAt: messageCreatedAt(event.message),
-      id: event.messageId,
-      role,
-      status: event.type === "message-end" ? "complete" : "streaming",
-      blocks,
-      ...(thinkingDurationMs ? { thinkingDurationMs } : {}),
-      ...(thinkingStatus ? { thinkingStatus } : {}),
-      ...(thinkingStartedAt ? { thinkingStartedAt } : {}),
-    };
-
+    const nextMessage = transcriptMessageFromEvent(event, previous);
+    if (!nextMessage) return;
     putMessage(nextMessage, previousIndex);
   }
 

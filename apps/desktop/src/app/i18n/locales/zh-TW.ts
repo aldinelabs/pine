@@ -623,7 +623,6 @@ export default {
       close: "關閉側邊對話",
       readOnlyHint:
         "就這段對話提問。側邊對話可以讀取檔案和搜尋網頁，但不能做任何修改。",
-      thinking: "思考中…",
       placeholder: "輸入問題",
       stop: "停止",
       send: "傳送",

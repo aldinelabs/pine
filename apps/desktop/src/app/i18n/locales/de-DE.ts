@@ -674,7 +674,6 @@ export default {
       close: "Seitenchat schließen",
       readOnlyHint:
         "Frag zu diesem Gespräch. Ein Seitenchat kann Dateien lesen und im Web suchen, aber nichts ändern.",
-      thinking: "Denkt nach…",
       placeholder: "Frage stellen",
       stop: "Stoppen",
       send: "Senden",

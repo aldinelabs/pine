@@ -660,7 +660,6 @@ export default {
       close: "Close side chat",
       readOnlyHint:
         "Ask about this conversation. A side chat can read files and search the web, but can't change anything.",
-      thinking: "Thinking…",
       placeholder: "Ask a question",
       stop: "Stop",
       send: "Send",

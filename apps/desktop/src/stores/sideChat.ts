@@ -14,9 +14,8 @@ import type {
   PineSideChatSummary,
 } from "@/shared/sideChats";
 import {
-  applyAssistantMessageUpdates,
-  mergeBlockStatuses,
   mergeToolCallBlocks,
+  transcriptMessageFromEvent,
   messageCreatedAt,
   type PineTranscriptMessage,
 } from "@/stores/session";
@@ -363,39 +362,16 @@ export const useSideChatStore = defineStore("sideChat", () => {
         };
         return;
       }
-      case "message-update": {
-        const previous = chat.messages.find(
-          (message) => message.id === event.messageId,
-        );
-        putMessage(chat, {
-          createdAt: previous?.createdAt ?? new Date().toISOString(),
-          id: event.messageId,
-          role: "assistant",
-          status: "streaming",
-          blocks: applyAssistantMessageUpdates(
-            previous?.blocks ?? [],
-            event.updates,
-          ),
-        });
-        return;
-      }
       case "message-start":
+      case "message-update":
       case "message-end": {
-        const role = transcriptRole(event.message);
-        if (!role) return;
         const previous = chat.messages.find(
           (message) => message.id === event.messageId,
         );
-        putMessage(chat, {
-          createdAt: messageCreatedAt(event.message),
-          id: event.messageId,
-          role,
-          status: event.type === "message-end" ? "complete" : "streaming",
-          blocks: mergeBlockStatuses(
-            parseMessageBlocks(event.message),
-            previous?.blocks,
-          ),
-        });
+        const message = transcriptMessageFromEvent(event, previous);
+        if (!message) return;
+        putMessage(chat, message);
+        const role = message.role;
         if (
           event.type === "message-end" &&
           role === "user" &&

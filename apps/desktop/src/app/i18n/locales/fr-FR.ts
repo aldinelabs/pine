@@ -671,7 +671,6 @@ export default {
       close: "Fermer le chat latéral",
       readOnlyHint:
         "Posez une question sur cette conversation. Un chat latéral peut lire des fichiers et chercher sur le web, mais ne peut rien modifier.",
-      thinking: "Réflexion…",
       placeholder: "Posez une question",
       stop: "Arrêter",
       send: "Envoyer",
