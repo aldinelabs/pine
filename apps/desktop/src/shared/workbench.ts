@@ -13,11 +13,17 @@ export const WORKBENCH_PANELS = [
 /** The panels the agent can arrange with the `ui_workbench_*` tools. */
 export type AgentWorkbenchPanel = (typeof WORKBENCH_PANELS)[number];
 /**
- * The side chat card. Only the user opens it, from the conversation, and it
- * is never saved with the layout: its side chat does not outlive the window.
+ * The side chat card. Only the user opens it, from a card menu or the
+ * conversation, and it is never saved with the layout: its side chat does
+ * not outlive the window.
  */
 export const SIDE_CHAT_PANEL = "side-chat" as const;
 export type WorkbenchPanel = AgentWorkbenchPanel | typeof SIDE_CHAT_PANEL;
+/** Every panel a card can show, in the order the card menus list them. */
+export const WORKBENCH_CARD_PANELS = [
+  ...WORKBENCH_PANELS,
+  SIDE_CHAT_PANEL,
+] as const satisfies readonly WorkbenchPanel[];
 
 export const WORKBENCH_POSITIONS = ["top", "bottom"] as const;
 export type WorkbenchPosition = (typeof WORKBENCH_POSITIONS)[number];

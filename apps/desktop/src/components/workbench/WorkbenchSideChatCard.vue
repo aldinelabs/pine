@@ -36,16 +36,19 @@ import {
 import { Spinner } from "@/components/ui/spinner";
 import { useSideChat } from "@/composables/useSideChat";
 import type { PineQuote } from "@/shared/quotes";
+import { SIDE_CHAT_PANEL, type WorkbenchPosition } from "@/shared/workbench";
 import { useSessionStore } from "@/stores/session";
 import { useSideChatStore } from "@/stores/sideChat";
+import WorkbenchCardAddMenu from "./WorkbenchCardAddMenu.vue";
+import WorkbenchCardPanelMenu from "./WorkbenchCardPanelMenu.vue";
 
 /**
- * The side chat of the active conversation, as a workbench card. It follows
- * the other cards' header and corner rule, and shows its conversation with
- * the transcript's own message rendering; a follow-up shows the passage it
- * asks about above it.
+ * The side chat of the active conversation, as a workbench card: showing
+ * the panel starts one. It follows the other cards' header and corner rule,
+ * and shows its conversation with the transcript's own message rendering; a
+ * follow-up shows the passage it asks about above it.
  */
-defineProps<{ position: "top" | "bottom" }>();
+defineProps<{ position: WorkbenchPosition }>();
 const { t } = useI18n();
 const sessionStore = useSessionStore();
 const sideChats = useSideChatStore();
@@ -115,6 +118,19 @@ async function remove(): Promise<void> {
   }
 }
 
+// A card that shows the panel starts a side chat of the conversation, once
+// for each conversation it shows.
+const startedFor = new Set<string>();
+watch(
+  () => [sessionStore.activeSession?.id, Boolean(chat.value)] as const,
+  ([sessionId, hasChat]) => {
+    if (!sessionId || hasChat || startedFor.has(sessionId)) return;
+    startedFor.add(sessionId);
+    void sideChat.open();
+  },
+  { immediate: true },
+);
+
 // A new side chat is ready for its first question.
 watch(
   () => chat.value?.id,
@@ -138,15 +154,16 @@ watch(
     <!-- The same header as the other cards: controls at the card's inset,
          the title where their panel switch sits, state on the right. -->
     <CardHeader class="flex shrink-0 items-center gap-1 p-(--workbench-inset)">
-      <span
-        class="inline-flex h-8 min-w-0 shrink-0 items-center border border-transparent px-3 text-sm font-medium"
-      >
-        <span class="truncate">{{ title }}</span>
-      </span>
+      <WorkbenchCardPanelMenu
+        :panel="SIDE_CHAT_PANEL"
+        :position="position"
+        :label="title"
+      />
       <span class="text-muted-foreground ml-auto min-w-0 truncate px-1 text-xs">
         {{ chat && !chat.persistent ? t("project.sideChat.notSaved") : "" }}
       </span>
       <div class="flex shrink-0 items-center">
+        <WorkbenchCardAddMenu :panel="SIDE_CHAT_PANEL" :position="position" />
         <Button
           v-if="chat?.persistent"
           variant="ghost"

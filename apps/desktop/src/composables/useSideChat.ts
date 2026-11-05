@@ -1,6 +1,12 @@
 import { toast } from "vue-sonner";
 import { useI18n } from "vue-i18n";
 import type { PineSideChatAnchor } from "@/shared/sideChats";
+import { panelPosition } from "@/lib/workbenchLayout";
+import {
+  SIDE_CHAT_PANEL,
+  type WorkbenchPanel,
+  type WorkbenchPosition,
+} from "@/shared/workbench";
 import { useSessionStore } from "@/stores/session";
 import { useSideChatStore } from "@/stores/sideChat";
 import { useWorkbenchStore } from "@/stores/workbench";
@@ -21,10 +27,19 @@ export function useSideChat() {
     return sessionId && projectId ? { projectId, sessionId } : undefined;
   }
 
-  /** Whether the current side chat may be left, asking if it is not saved. */
+  /**
+   * Whether the current side chat may be left, asking if leaving loses
+   * something: a plain side chat with questions in it.
+   */
   async function mayLeave(sessionId: string, next?: string): Promise<boolean> {
     const current = sideChats.active(sessionId);
-    if (!current || current.persistent || current.id === next) return true;
+    if (
+      !current ||
+      current.persistent ||
+      current.id === next ||
+      current.messages.length === 0
+    )
+      return true;
     return sideChats.confirmDiscard();
   }
 
@@ -34,22 +49,23 @@ export function useSideChat() {
       sideChatId?: string;
     } = {},
   ): Promise<boolean> {
+    const request = options;
     const target = parent();
     if (!target) return false;
     const current = sideChats.active(target.sessionId);
     // A plain side chat already open is shown again rather than replaced.
     if (
-      !options.anchor &&
-      !options.sideChatId &&
+      !request.anchor &&
+      !request.sideChatId &&
       current &&
       !current.persistent
     ) {
       workbench.showSideChat();
       return true;
     }
-    if (!(await mayLeave(target.sessionId, options.sideChatId))) return false;
+    if (!(await mayLeave(target.sessionId, request.sideChatId))) return false;
     try {
-      await sideChats.open({ ...target, ...options });
+      await sideChats.open({ ...target, ...request });
       workbench.showSideChat();
       return true;
     } catch {
@@ -69,5 +85,29 @@ export function useSideChat() {
     return true;
   }
 
-  return { close, open, parent };
+  /**
+   * Shows a panel in a card, as the card menus do. A side chat whose card
+   * gives way to another panel ends with it, asking first if that loses it.
+   */
+  async function showPanel(
+    position: WorkbenchPosition,
+    panel: WorkbenchPanel,
+  ): Promise<boolean> {
+    const layout = workbench.activeLayout;
+    const endsSideChat =
+      layout[position] === SIDE_CHAT_PANEL &&
+      panel !== SIDE_CHAT_PANEL &&
+      // A panel shown in the other card swaps places instead.
+      !panelPosition(layout, panel);
+    const target = parent();
+    if (endsSideChat && target) {
+      if (!(await mayLeave(target.sessionId))) return false;
+      const current = sideChats.active(target.sessionId);
+      if (current) await sideChats.close(current.id).catch(() => undefined);
+    }
+    workbench.showPanel(position, panel);
+    return true;
+  }
+
+  return { close, open, parent, showPanel };
 }

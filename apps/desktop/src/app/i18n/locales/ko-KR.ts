@@ -647,7 +647,6 @@ export default {
   },
   project: {
     sideChat: {
-      open: "사이드 채팅 열기",
       title: "사이드 채팅",
       followUpTitle: "추가 질문",
       notSaved: "저장되지 않음",
@@ -696,6 +695,7 @@ export default {
         tasks: "백그라운드 프로세스",
         preview: "미리보기",
         files: "파일",
+        "side-chat": "사이드 채팅",
       },
       artifacts: {
         empty: "이 대화에서 Pine이 보여 주는 파일이 여기에 나타납니다.",

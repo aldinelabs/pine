@@ -663,7 +663,6 @@ export default {
   },
   project: {
     sideChat: {
-      open: "Abrir chat lateral",
       title: "Chat lateral",
       followUpTitle: "Pregunta adicional",
       notSaved: "No se guarda",
@@ -713,6 +712,7 @@ export default {
         tasks: "Procesos en segundo plano",
         preview: "Vista previa",
         files: "Archivos",
+        "side-chat": "Chat lateral",
       },
       artifacts: {
         empty:

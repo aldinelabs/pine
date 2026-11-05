@@ -664,7 +664,6 @@ export default {
   },
   project: {
     sideChat: {
-      open: "Ouvrir un chat latéral",
       title: "Chat latéral",
       followUpTitle: "Question de suivi",
       notSaved: "Non enregistré",
@@ -714,6 +713,7 @@ export default {
         tasks: "Processus en arrière-plan",
         preview: "Aperçu",
         files: "Fichiers",
+        "side-chat": "Chat latéral",
       },
       artifacts: {
         empty:

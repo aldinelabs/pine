@@ -667,7 +667,6 @@ export default {
   },
   project: {
     sideChat: {
-      open: "Seitenchat öffnen",
       title: "Seitenchat",
       followUpTitle: "Nachfrage",
       notSaved: "Nicht gespeichert",
@@ -717,6 +716,7 @@ export default {
         tasks: "Hintergrundprozesse",
         preview: "Vorschau",
         files: "Dateien",
+        "side-chat": "Seitenchat",
       },
       artifacts: {
         empty:

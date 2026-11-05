@@ -655,7 +655,6 @@ export default {
   },
   project: {
     sideChat: {
-      open: "サイドチャットを開く",
       title: "サイドチャット",
       followUpTitle: "追加の質問",
       notSaved: "保存されません",
@@ -704,6 +703,7 @@ export default {
         tasks: "バックグラウンドプロセス",
         preview: "プレビュー",
         files: "ファイル",
+        "side-chat": "サイドチャット",
       },
       artifacts: {
         empty: "この会話で Pine が表示したファイルがここに並びます。",

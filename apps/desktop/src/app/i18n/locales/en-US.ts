@@ -653,7 +653,6 @@ export default {
   },
   project: {
     sideChat: {
-      open: "Open side chat",
       title: "Side chat",
       followUpTitle: "Follow-up",
       notSaved: "Not saved",
@@ -703,6 +702,7 @@ export default {
         tasks: "Background processes",
         preview: "Preview",
         files: "Files",
+        "side-chat": "Side chat",
       },
       artifacts: {
         empty: "Files Pine shows you in this conversation appear here.",

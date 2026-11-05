@@ -657,7 +657,6 @@ export default {
   },
   project: {
     sideChat: {
-      open: "Открыть боковой чат",
       title: "Боковой чат",
       followUpTitle: "Уточнение",
       notSaved: "Не сохраняется",
@@ -707,6 +706,7 @@ export default {
         tasks: "Фоновые процессы",
         preview: "Просмотр",
         files: "Файлы",
+        "side-chat": "Боковой чат",
       },
       artifacts: {
         empty:

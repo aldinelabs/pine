@@ -1,30 +1,17 @@
 <script setup lang="ts">
-import {
-  ChevronDownIcon,
-  PlusIcon,
-  SquareArrowOutUpRight,
-  XIcon,
-} from "@lucide/vue";
+import { SquareArrowOutUpRight, XIcon } from "@lucide/vue";
 import { computed, type Component } from "vue";
 import { useI18n } from "vue-i18n";
 import ProjectBackgroundTaskPanel from "@/components/project/ProjectBackgroundTaskPanel.vue";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import {
-  WORKBENCH_PANELS,
-  isWorkbenchPanel,
   type AgentWorkbenchPanel,
   type WorkbenchPanel,
   type WorkbenchPosition,
 } from "@/shared/workbench";
+import WorkbenchCardAddMenu from "./WorkbenchCardAddMenu.vue";
+import WorkbenchCardPanelMenu from "./WorkbenchCardPanelMenu.vue";
 import WorkbenchSideChatCard from "./WorkbenchSideChatCard.vue";
 import { useContentTabNavigation } from "@/composables/useContentTabNavigation";
 import { fileName, fileTargetPath } from "@/lib/filePreviewTarget";
@@ -57,20 +44,6 @@ const PANEL_COMPONENTS: Record<AgentWorkbenchPanel, Component> = {
   preview: WorkbenchPreviewPanel,
   files: WorkbenchFilesPanel,
 };
-
-const selected = computed({
-  get: () => props.panel,
-  set: (panel: unknown) => {
-    if (isWorkbenchPanel(panel)) workbench.showPanel(props.position, panel);
-  },
-});
-
-/** A single card can take a second one below it. */
-const addablePanels = computed(() =>
-  props.position === "top" && !workbench.activeLayout.bottom
-    ? WORKBENCH_PANELS.filter((panel) => panel !== props.panel)
-    : [],
-);
 
 const contentTabs = useContentTabsStore();
 const projectStore = useProjectStore();
@@ -136,30 +109,7 @@ const summary = computed(() => {
     <!-- Header controls sit at the card's inset on every side, so their
          pills stay concentric with its corners. -->
     <CardHeader class="flex shrink-0 items-center gap-1 p-(--workbench-inset)">
-      <DropdownMenu>
-        <DropdownMenuTrigger as-child>
-          <Button
-            variant="ghost"
-            class="shrink-0"
-            data-testid="workbench-card-switch"
-            :aria-label="t('project.workbench.switchPanel')"
-          >
-            {{ t(`project.workbench.panels.${panel}`) }}
-            <ChevronDownIcon data-icon="inline-end" aria-hidden="true" />
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="start">
-          <DropdownMenuRadioGroup v-model="selected">
-            <DropdownMenuRadioItem
-              v-for="option in WORKBENCH_PANELS"
-              :key="option"
-              :value="option"
-            >
-              {{ t(`project.workbench.panels.${option}`) }}
-            </DropdownMenuRadioItem>
-          </DropdownMenuRadioGroup>
-        </DropdownMenuContent>
-      </DropdownMenu>
+      <WorkbenchCardPanelMenu :panel="panel" :position="position" />
       <span
         class="text-muted-foreground ml-auto min-w-0 truncate px-1 text-xs tabular-nums"
         :title="summary || undefined"
@@ -178,28 +128,7 @@ const summary = computed(() => {
         >
           <SquareArrowOutUpRight aria-hidden="true" />
         </Button>
-        <DropdownMenu v-if="addablePanels.length">
-          <DropdownMenuTrigger as-child>
-            <Button
-              variant="ghost"
-              size="icon"
-              data-testid="workbench-card-add"
-              :aria-label="t('project.workbench.addCard')"
-              :title="t('project.workbench.addCard')"
-            >
-              <PlusIcon aria-hidden="true" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuItem
-              v-for="option in addablePanels"
-              :key="option"
-              @select="workbench.showPanel('bottom', option)"
-            >
-              {{ t(`project.workbench.panels.${option}`) }}
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        <WorkbenchCardAddMenu :panel="panel" :position="position" />
         <Button
           variant="ghost"
           size="icon"
