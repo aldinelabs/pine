@@ -3,6 +3,8 @@ import type { ComputedRef, InjectionKey } from "vue";
 export interface MarkdownCitation {
   href: string;
   hostname: string;
+  /** Favicon from DuckDuckGo's icon service (sends only the hostname). */
+  favicon: string;
   /** Page title, when the definition is `[title](url)`. */
   title?: string;
 }
@@ -33,6 +35,7 @@ function toCitation(
   return {
     href: url.href,
     hostname: url.hostname.replace(/^www\./iu, ""),
+    favicon: `https://icons.duckduckgo.com/ip3/${url.hostname}.ico`,
     ...(trimmed ? { title: trimmed } : {}),
   };
 }

@@ -71,6 +71,14 @@ describe("MarkdownContent", () => {
       "docs.example.org",
     ]);
     expect(chips[0].attributes("href")).toBe("https://www.example.com/a");
+    expect(chips[0].get("img").attributes("src")).toBe(
+      "https://icons.duckduckgo.com/ip3/www.example.com.ico",
+    );
+    await chips[0].get("img").trigger("error");
+    expect(chips[0].find("img").exists()).toBe(false);
+    expect(
+      chips[0].find('[data-slot="citation-favicon-fallback"]').exists(),
+    ).toBe(true);
     expect(wrapper.text()).toContain("普通脚注文字");
     expect(wrapper.text()).not.toContain("Example 标题");
     wrapper.unmount();

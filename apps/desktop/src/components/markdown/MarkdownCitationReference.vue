@@ -8,6 +8,7 @@ import {
   HoverCardTrigger,
 } from "@/components/ui/hover-card";
 import { markdownCitations } from "./citation";
+import MarkdownCitationFavicon from "./MarkdownCitationFavicon.vue";
 
 /** The `node` markstream hands a custom `footnote_reference` renderer. */
 interface Props {
@@ -30,12 +31,13 @@ const citation = computed(() => citations?.value.get(props.node.id));
         as="a"
         variant="secondary"
         size="xs"
-        class="mx-0.5 h-5 px-2 align-baseline no-underline"
+        class="mx-0.5 h-5 gap-1 px-2 align-baseline no-underline"
         data-slot="inline-citation"
         :href="citation.href"
         target="_blank"
         rel="noopener noreferrer"
       >
+        <MarkdownCitationFavicon :src="citation.favicon" />
         {{ citation.hostname }}
       </Button>
     </HoverCardTrigger>
@@ -43,7 +45,10 @@ const citation = computed(() => citations?.value.get(props.node.id));
       <div v-if="citation.title" class="font-medium">
         {{ citation.title }}
       </div>
-      <div class="text-muted-foreground">{{ citation.hostname }}</div>
+      <div class="flex items-center gap-1.5 text-muted-foreground">
+        <MarkdownCitationFavicon :src="citation.favicon" />
+        {{ citation.hostname }}
+      </div>
       <div class="break-all text-xs text-muted-foreground">
         {{ citation.href }}
       </div>

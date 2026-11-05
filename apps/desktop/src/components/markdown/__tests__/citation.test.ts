@@ -14,11 +14,13 @@ describe("parseMarkdownCitations", () => {
     expect(citations.get("a")).toEqual({
       href: "https://www.example.com/p",
       hostname: "example.com",
+      favicon: "https://icons.duckduckgo.com/ip3/www.example.com.ico",
       title: "页面标题",
     });
     expect(citations.get("2")).toEqual({
       href: "https://docs.example.org/x",
       hostname: "docs.example.org",
+      favicon: "https://icons.duckduckgo.com/ip3/docs.example.org.ico",
     });
   });
 
