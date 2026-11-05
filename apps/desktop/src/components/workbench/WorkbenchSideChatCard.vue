@@ -46,6 +46,7 @@ import type { PineQuote } from "@/shared/quotes";
 import { SIDE_CHAT_PANEL, type WorkbenchPosition } from "@/shared/workbench";
 import { useSessionStore } from "@/stores/session";
 import { useSideChatStore } from "@/stores/sideChat";
+import { useWorkbenchStore } from "@/stores/workbench";
 import WorkbenchCardAddMenu from "./WorkbenchCardAddMenu.vue";
 import WorkbenchCardPanelMenu from "./WorkbenchCardPanelMenu.vue";
 
@@ -60,6 +61,7 @@ const { t } = useI18n();
 const sessionStore = useSessionStore();
 const sideChats = useSideChatStore();
 const sideChat = useSideChat();
+const workbench = useWorkbenchStore();
 const chat = computed(() => sideChats.active(sessionStore.activeSession?.id));
 const messages = computed(() => chat.value?.messages ?? []);
 const draft = ref("");
@@ -142,6 +144,9 @@ async function remove(): Promise<void> {
   if (!current || !parent) return;
   try {
     await sideChats.remove(current.id, parent);
+    // A deleted follow-up leaves nothing to show; its card goes with it,
+    // and the column folds away when it was the last card.
+    workbench.closeCard(SIDE_CHAT_PANEL);
   } catch {
     toast.error(t("project.sideChat.deleteFailed"));
   }
