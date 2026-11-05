@@ -119,8 +119,20 @@ export const useWorkbenchStore = defineStore("workbench", () => {
     }
   }
 
+  /**
+   * The arrangement without the side chat card, which belongs to its own
+   * conversation; a side chat alone gives its card back to the default panel.
+   */
+  function withoutSideChat(layout: WorkbenchLayout): WorkbenchLayout {
+    if (!panelPosition(layout, SIDE_CHAT_PANEL)) return layout;
+    const next = closePanel(layout, SIDE_CHAT_PANEL);
+    return next.top === SIDE_CHAT_PANEL || !next.open
+      ? { ...next, open: layout.open, top: DEFAULT_WORKBENCH_LAYOUT.top }
+      : next;
+  }
+
   // A new conversation starts from the arrangement of the session the user
-  // just left, not the file it previewed.
+  // just left, not the file it previewed or its side chat.
   watch(
     activeKey,
     (key, previous) => {
@@ -128,7 +140,7 @@ export const useWorkbenchStore = defineStore("workbench", () => {
         return;
       layouts.delete(DRAFT_WORKBENCH_KEY);
       layouts.set(DRAFT_WORKBENCH_KEY, {
-        ...layoutFor(previous),
+        ...withoutSideChat(layoutFor(previous)),
         preview: null,
       });
       highlights.delete(DRAFT_WORKBENCH_KEY);

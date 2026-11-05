@@ -198,3 +198,29 @@ it("never keeps the side chat as the card to reopen", () => {
   expect(store.activeLayout.open).toBe(false);
   expect(store.activeLayout.top).not.toBe("side-chat");
 });
+
+it("starts a new conversation without the side chat of the one it leaves", () => {
+  const store = useWorkbenchStore();
+  const sessionStore = useSessionStore();
+  sessionStore.activeSession = { id: "session-1" } as PineSessionSummary;
+  store.showPanel("top", "artifacts");
+  store.showSideChat();
+  expect(store.activeLayout).toMatchObject({
+    top: "side-chat",
+    bottom: "artifacts",
+  });
+
+  sessionStore.activeSession = null;
+  expect(store.activeLayout).toMatchObject({
+    open: true,
+    top: "artifacts",
+    bottom: null,
+  });
+
+  sessionStore.activeSession = { id: "session-2" } as PineSessionSummary;
+  store.closeCard("artifacts");
+  store.showSideChat();
+  sessionStore.activeSession = null;
+  expect(store.activeLayout.open).toBe(true);
+  expect(store.activeLayout.top).not.toBe("side-chat");
+});
