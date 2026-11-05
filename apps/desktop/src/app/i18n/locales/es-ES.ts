@@ -557,18 +557,84 @@ export default {
     new: "Nueva Skill",
     create: "Crear",
     empty: "No hay Skills en este ámbito",
-    nameLabel: "Nombre de la Skill",
-    descriptionLabel: "Descripción de la Skill",
-    instructionsLabel: "Instrucciones de la Skill",
-    licenseLabel: "Licencia de la Skill",
-    compatibilityLabel: "Compatibilidad de la Skill",
-    allowedToolsLabel: "Herramientas permitidas",
-    namePlaceholder: "nombre-de-la-skill",
-    descriptionPlaceholder: "Descripción de la Skill (cuándo usarla)",
-    licensePlaceholder: "Licencia (opcional)",
-    compatibilityPlaceholder: "Compatibilidad (opcional)",
-    allowedToolsPlaceholder: "Herramientas permitidas (opcional)",
-    contentPlaceholder: "Introduce las instrucciones de la Skill",
+    untitled: "Skill sin nombre",
+    draftBadge: "Borrador",
+    emptyDescription:
+      "Una Skill es un conjunto de instrucciones reutilizable. El agente la usa por su cuenta cuando una tarea encaja con su descripción.",
+    nameLabel: "Nombre",
+    namePlaceholder: "release-notes",
+    nameHint:
+      "No se puede cambiar después. Lo que escribas se convierte en minúsculas, dígitos y guiones.",
+    nameErrors: {
+      required: "Escribe un nombre",
+      invalid: "Usa solo minúsculas, dígitos y guiones, sin terminar en guion",
+      tooLong: "El nombre admite como máximo {max} caracteres",
+    },
+    descriptionLabel: "Cuándo usarla",
+    descriptionPlaceholder:
+      "Por ejemplo: Úsala al redactar notas de versión. Agrupa los cambios visibles en el formato del CHANGELOG del proyecto.",
+    descriptionHint: "El agente lo usa para decidir cuándo usar la Skill.",
+    descriptionErrors: {
+      required: "Describe qué hace esta Skill y cuándo usarla",
+      tooLong: "La descripción admite como máximo {max} caracteres",
+    },
+    instructionsLabel: "Instrucciones",
+    instructionsHint:
+      "Admite Markdown. El agente lee todo el contenido cuando usa la Skill.",
+    contentPlaceholder:
+      "Escribe los pasos, reglas y ejemplos que el agente debe seguir en esta tarea",
+    templatesLabel: "Empezar con:",
+    templates: {
+      workflow: {
+        label: "Flujo de trabajo",
+        content:
+          "## Objetivo\n\n- \n\n## Pasos\n\n1. \n2. \n3. \n\n## Terminado cuando\n\n- \n",
+      },
+      checklist: {
+        label: "Lista de reglas",
+        content:
+          "## Se aplica a\n\n- \n\n## Siempre\n\n- \n\n## Evitar\n\n- \n\n## Ejemplos\n\n\n",
+      },
+      reference: {
+        label: "Referencia",
+        content:
+          "## Contexto\n\n\n\n## Conceptos clave\n\n- \n\n## Preguntas frecuentes\n\n- \n",
+      },
+    },
+    optional: "Opcional",
+    licenseLabel: "Licencia",
+    licenseNone: "Ninguna",
+    licenseCustom: "Otra…",
+    licenseCustomPlaceholder:
+      "Nombre o archivo de licencia, p. ej. LICENSE.txt",
+    compatibilityLabel: "Requisitos del entorno",
+    compatibilityPlaceholder:
+      "Por ejemplo: Requiere git y Node.js 20 o superior",
+    compatibilityHint:
+      "Herramientas de línea de comandos, sistemas o acceso a red de los que depende esta Skill.",
+    compatibilityTooLong: "Como máximo {max} caracteres",
+    allowedToolsLabel: "Herramientas preaprobadas",
+    allowedToolsHint:
+      "Indica al agente que puede usar estas herramientas en cuanto use la Skill. Los permisos y aprobaciones de Pine siguen aplicándose.",
+    allowedToolsCustomPlaceholder:
+      "Otra herramienta; pulsa Intro para añadirla",
+    allowedToolsAdd: "Añadir",
+    removeTool: "Quitar {name}",
+    toolGroups: {
+      inspect: "Consultar",
+      modify: "Modificar",
+      run: "Ejecutar",
+      web: "Web",
+    },
+    tools: {
+      read: "Leer un archivo",
+      edit: "Editar archivos existentes",
+      write: "Crear o sobrescribir archivos",
+      shell: "Ejecutar comandos de shell",
+      webSearch: "Buscar en la web",
+      webFetch: "Abrir una URL",
+    },
+    unsaved: "Cambios sin guardar",
     resourcesLabel: "Recursos incluidos:",
     deleteTitle: "¿Eliminar la Skill?",
     deleteDescription:

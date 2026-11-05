@@ -43,6 +43,7 @@ function installPineApi(): void {
 
 function mountDialog() {
   return mount(SkillManagerDialog, {
+    attachTo: document.body,
     props: { open: false, projectId: "project-1" },
     global: {
       plugins: [createAppI18n("zh-CN")],
@@ -58,20 +59,17 @@ function mountDialog() {
         Dialog: passthroughStub,
         DialogContent: passthroughStub,
         DialogDescription: passthroughStub,
-        DialogFooter: passthroughStub,
         DialogHeader: passthroughStub,
         DialogTitle: passthroughStub,
-        Field: passthroughStub,
-        FieldGroup: passthroughStub,
-        FieldLabel: passthroughStub,
         Item: itemStub,
-        ItemActions: passthroughStub,
-        ItemContent: passthroughStub,
-        ItemDescription: passthroughStub,
-        ItemGroup: passthroughStub,
-        ItemMedia: passthroughStub,
-        ItemTitle: passthroughStub,
         ScrollArea: passthroughStub,
+        Select: passthroughStub,
+        SelectContent: passthroughStub,
+        SelectGroup: passthroughStub,
+        SelectItem: passthroughStub,
+        SelectSeparator: passthroughStub,
+        SelectTrigger: passthroughStub,
+        SelectValue: passthroughStub,
         Separator: passthroughStub,
         Switch: passthroughStub,
         Tabs: passthroughStub,
@@ -94,6 +92,8 @@ const loadedSkillContent = `---
 name: release-notes
 description: Release notes formatting guidance.
 disable-model-invocation: true
+license: MIT
+allowed-tools: read bash Bash(git:*)
 custom-field: keep-me
 ---
 
@@ -110,8 +110,23 @@ function readResult(): ReadSkillResult {
   return { content: loadedSkillContent, skill: globalSkill };
 }
 
+function findButton(
+  wrapper: ReturnType<typeof mountDialog>,
+  text: string,
+): ReturnType<ReturnType<typeof mountDialog>["get"]> | undefined {
+  return wrapper.findAll("button").find((button) => button.text() === text);
+}
+
+async function openDialog() {
+  const wrapper = mountDialog();
+  await wrapper.setProps({ open: true });
+  await flushPromises();
+  return wrapper;
+}
+
 describe("SkillManagerDialog", () => {
   beforeEach(() => {
+    document.body.innerHTML = "";
     listSkills.mockReset();
     readSkill.mockReset();
     createSkill.mockReset();
@@ -128,9 +143,7 @@ describe("SkillManagerDialog", () => {
   });
 
   it("offers to create a skill together with Pine", async () => {
-    const wrapper = mountDialog();
-    await wrapper.setProps({ open: true });
-    await flushPromises();
+    const wrapper = await openDialog();
 
     const button = wrapper.get('[data-testid="skill-create-with-pine"]');
     expect(button.text()).toContain("和 Pine 协作管理");
@@ -140,39 +153,53 @@ describe("SkillManagerDialog", () => {
     expect(wrapper.emitted("update:open")).toEqual([[false]]);
   });
 
-  it("keeps frontmatter out of the editor and preserves it when saving", async () => {
-    const wrapper = mountDialog();
-    await wrapper.setProps({ open: true });
-    await flushPromises();
+  it("opens the first Skill and keeps frontmatter out of the editor", async () => {
+    const wrapper = await openDialog();
 
-    const textarea = wrapper.get<HTMLTextAreaElement>("textarea");
-    expect(textarea.element.value).toBe("");
-    expect(readSkill).not.toHaveBeenCalled();
+    expect(readSkill).toHaveBeenCalledWith(
+      expect.objectContaining({ name: "release-notes", scope: "global" }),
+    );
+    const body = wrapper.get<HTMLTextAreaElement>("#skill-global-body");
+    expect(body.element.value).toContain("# Release notes");
+    expect(body.element.value).not.toContain("name: release-notes");
+    expect(body.element.value).not.toContain("custom-field: keep-me");
 
-    const skillButton = wrapper
-      .findAll("button")
-      .find((button) => button.text().includes("release-notes"));
-    await skillButton?.trigger("click");
-    await flushPromises();
+    // Known tools become toggles; anything else stays as its own entry.
+    expect(
+      wrapper.get('[data-testid="skill-tool-read"]').attributes("data-state"),
+    ).toBe("on");
+    expect(
+      wrapper.get('[data-testid="skill-tool-edit"]').attributes("data-state"),
+    ).toBe("off");
+    expect(wrapper.text()).toContain("Bash(git:*)");
+  });
 
-    expect(textarea.element.value).toContain("# Release notes");
-    expect(textarea.element.value).not.toContain("name: release-notes");
-    expect(textarea.element.value).not.toContain("custom-field: keep-me");
+  it("enables Save only after a change and preserves frontmatter", async () => {
+    const wrapper = await openDialog();
+    const saveButton = wrapper.get('[data-testid="skill-save"]');
+    expect(saveButton.attributes("disabled")).toBeDefined();
+    expect(wrapper.find('[data-testid="skill-unsaved"]').exists()).toBe(false);
+
+    await wrapper.get("#skill-global-body").setValue("# Release notes v2");
+    expect(saveButton.attributes("disabled")).toBeUndefined();
+    expect(wrapper.find('[data-testid="skill-unsaved"]').exists()).toBe(true);
 
     await wrapper.get("form").trigger("submit");
     await flushPromises();
 
     expect(editSkill).toHaveBeenCalledWith(
       expect.objectContaining({
-        content: expect.stringContaining("disable-model-invocation: true"),
         name: "release-notes",
         projectId: "project-1",
         scope: "global",
       }),
     );
     const savedContent = editSkill.mock.calls[0]?.[0].content as string;
+    expect(savedContent).toContain("disable-model-invocation: true");
     expect(savedContent).toContain("custom-field: keep-me");
-    expect(savedContent).toContain("# Release notes");
+    expect(savedContent).toContain("license: MIT");
+    expect(savedContent).toContain("allowed-tools: read bash Bash(git:*)");
+    expect(savedContent).toContain("# Release notes v2");
   });
 
   it("shows the skill list and one editor at a time on a phone", async () => {
@@ -185,13 +212,12 @@ describe("SkillManagerDialog", () => {
       })),
     );
     try {
-      const wrapper = mountDialog();
-      await wrapper.setProps({ open: true });
-      await flushPromises();
+      const wrapper = await openDialog();
       const list = () => wrapper.get("aside").element as HTMLElement;
       const editor = () => wrapper.get("form").element as HTMLElement;
       expect(list().style.display).toBe("");
       expect(editor().style.display).toBe("none");
+      expect(readSkill).not.toHaveBeenCalled();
 
       await wrapper
         .findAll("button")
@@ -210,65 +236,98 @@ describe("SkillManagerDialog", () => {
     }
   });
 
-  it("keeps Save disabled until description and instructions are present", async () => {
-    const wrapper = mountDialog();
-    await wrapper.setProps({ open: true });
+  it("guides a new Skill to a valid name and description", async () => {
+    const wrapper = await openDialog();
+    await wrapper.get('[data-testid="skill-new"]').trigger("click");
     await flushPromises();
-    const newSkillButton = wrapper
-      .findAll("button")
-      .find((button) => button.text() === "新建 Skill");
-    await newSkillButton?.trigger("click");
 
-    const nameInput = wrapper.get<HTMLInputElement>(
-      'input[placeholder="skill-name"]',
+    expect(wrapper.get('[data-testid="skill-draft-item"]').text()).toContain(
+      "未命名 Skill",
     );
-    const descriptionInput = wrapper.get<HTMLInputElement>(
-      'input[placeholder="Skill 描述（何时使用）"]',
+    const nameInput = wrapper.get<HTMLInputElement>("#skill-global-name");
+    await nameInput.setValue("Release Notes_v2!");
+    expect(nameInput.element.value).toBe("release-notes-v2");
+    expect(wrapper.get('[data-testid="skill-draft-item"]').text()).toContain(
+      "release-notes-v2",
     );
-    const textarea = wrapper.get<HTMLTextAreaElement>("textarea");
-    expect(textarea.element.value).toBe("");
-    await nameInput.setValue("new-skill");
-    await descriptionInput.setValue("");
-    await textarea.setValue("# New skill");
-    const saveButton = wrapper
-      .findAll("button")
-      .find((button) => button.text() === "新建");
-    expect(saveButton?.attributes("disabled")).toBeDefined();
 
-    await descriptionInput.setValue("When release notes are requested.");
-    expect(saveButton?.attributes("disabled")).toBeUndefined();
+    await wrapper.get("form").trigger("submit");
+    await flushPromises();
+    expect(createSkill).not.toHaveBeenCalled();
+    expect(wrapper.text()).toContain("请描述这个 Skill 的用途和使用时机");
+
+    await wrapper
+      .get("#skill-global-description")
+      .setValue("When release notes are requested.");
+    expect(wrapper.text()).not.toContain("请描述这个 Skill 的用途和使用时机");
+    await wrapper.get('[data-testid="skill-tool-web_fetch"]').trigger("click");
+    await wrapper.get("form").trigger("submit");
+    await flushPromises();
+
+    expect(createSkill).toHaveBeenCalledWith(
+      expect.objectContaining({ name: "release-notes-v2", scope: "global" }),
+    );
+    const content = createSkill.mock.calls[0]?.[0].content as string;
+    expect(content).toContain("description: When release notes are requested.");
+    expect(content).toContain("allowed-tools: web_fetch");
+    expect(content).not.toContain("license:");
   });
 
-  it("shows the new Skill card when the scope has no Skills", async () => {
-    listSkills.mockResolvedValue({ diagnostics: [], skills: [] });
+  it("flags a name that ends with a hyphen", async () => {
+    const wrapper = await openDialog();
+    await wrapper.get('[data-testid="skill-new"]').trigger("click");
+    const nameInput = wrapper.get("#skill-global-name");
+    await nameInput.setValue("draft-");
+    await nameInput.trigger("blur");
 
-    const wrapper = mountDialog();
-    await wrapper.setProps({ open: true });
+    expect(wrapper.text()).toContain("不能以连字符结尾");
+  });
+
+  it("fills empty instructions from a template", async () => {
+    const wrapper = await openDialog();
+    await wrapper.get('[data-testid="skill-new"]').trigger("click");
     await flushPromises();
 
+    await wrapper
+      .get('[data-testid="skill-template-workflow"]')
+      .trigger("click");
+
+    const body = wrapper.get<HTMLTextAreaElement>("#skill-global-body");
+    expect(body.element.value).toContain("## 步骤");
+    expect(wrapper.find('[data-testid="skill-templates"]').exists()).toBe(
+      false,
+    );
+  });
+
+  it("returns to the first Skill when creation is cancelled", async () => {
+    const wrapper = await openDialog();
+    await wrapper.get('[data-testid="skill-new"]').trigger("click");
+    await flushPromises();
+    await findButton(wrapper, "取消")?.trigger("click");
+    await flushPromises();
+
+    expect(wrapper.find('[data-testid="skill-draft-item"]').exists()).toBe(
+      false,
+    );
     expect(
-      wrapper
-        .findAll("button")
-        .some((button) => button.text() === "新建 Skill"),
-    ).toBe(true);
-    expect(wrapper.text()).not.toContain("这个空间还没有 Skill");
+      wrapper.get<HTMLTextAreaElement>("#skill-global-body").element.value,
+    ).toContain("# Release notes");
+  });
+
+  it("shows an empty state when the scope has no Skills", async () => {
+    listSkills.mockResolvedValue({ diagnostics: [], skills: [] });
+
+    const wrapper = await openDialog();
+
+    expect(wrapper.find('[data-testid="skill-empty"]').exists()).toBe(true);
+    expect(wrapper.text()).toContain("这个空间还没有 Skill");
+    expect(wrapper.find("#skill-global-name").exists()).toBe(false);
   });
 
   it("confirms before removing a Skill", async () => {
-    const wrapper = mountDialog();
-    await wrapper.setProps({ open: true });
-    await flushPromises();
+    const wrapper = await openDialog();
 
-    const skillButton = wrapper
-      .findAll("button")
-      .find((button) => button.text().includes("release-notes"));
-    await skillButton?.trigger("click");
-    await flushPromises();
-
-    const deleteButton = wrapper
-      .findAll("button")
-      .find((button) => button.text() === "删除");
-    await deleteButton?.trigger("click");
+    await findButton(wrapper, "删除")?.trigger("click");
     await wrapper.vm.$nextTick();
 
     expect(removeSkill).not.toHaveBeenCalled();
@@ -283,5 +342,13 @@ describe("SkillManagerDialog", () => {
       projectId: "project-1",
       scope: "global",
     });
+  });
+
+  it("hides delete while creating a Skill", async () => {
+    const wrapper = await openDialog();
+    await wrapper.get('[data-testid="skill-new"]').trigger("click");
+    await flushPromises();
+
+    expect(findButton(wrapper, "删除")).toBeUndefined();
   });
 });

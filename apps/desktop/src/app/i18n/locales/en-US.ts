@@ -549,18 +549,82 @@ export default {
     new: "New Skill",
     create: "Create",
     empty: "No Skills in this space",
-    nameLabel: "Skill name",
-    descriptionLabel: "Skill description",
-    instructionsLabel: "Skill instructions",
-    licenseLabel: "Skill license",
-    compatibilityLabel: "Skill compatibility",
-    allowedToolsLabel: "Allowed tools",
-    namePlaceholder: "skill-name",
-    descriptionPlaceholder: "Skill description (when to use)",
-    licensePlaceholder: "License (optional)",
-    compatibilityPlaceholder: "Compatibility (optional)",
-    allowedToolsPlaceholder: "Allowed tools (optional)",
-    contentPlaceholder: "Enter Skill instructions",
+    untitled: "Untitled Skill",
+    draftBadge: "Draft",
+    emptyDescription:
+      "A Skill is a reusable set of instructions. The agent calls it on its own when a task matches its description.",
+    nameLabel: "Name",
+    namePlaceholder: "release-notes",
+    nameHint:
+      "Can't be changed later. Typing is converted to lowercase letters, digits and hyphens.",
+    nameErrors: {
+      required: "Enter a name",
+      invalid:
+        "Use only lowercase letters, digits and hyphens, and don't end with a hyphen",
+      tooLong: "Names can be at most {max} characters",
+    },
+    descriptionLabel: "When to use",
+    descriptionPlaceholder:
+      "For example: Use when writing release notes. Groups user-facing changes in the project's CHANGELOG format.",
+    descriptionHint: "The agent uses this to decide when to call the Skill.",
+    descriptionErrors: {
+      required: "Describe what this Skill does and when to use it",
+      tooLong: "Descriptions can be at most {max} characters",
+    },
+    instructionsLabel: "Instructions",
+    instructionsHint:
+      "Markdown is supported. The agent reads all of it when the Skill is called.",
+    contentPlaceholder:
+      "Write the steps, rules and examples the agent should follow for this task",
+    templatesLabel: "Start from:",
+    templates: {
+      workflow: {
+        label: "Workflow",
+        content:
+          "## Goal\n\n- \n\n## Steps\n\n1. \n2. \n3. \n\n## Done when\n\n- \n",
+      },
+      checklist: {
+        label: "Checklist",
+        content:
+          "## Applies to\n\n- \n\n## Always\n\n- \n\n## Avoid\n\n- \n\n## Examples\n\n\n",
+      },
+      reference: {
+        label: "Reference",
+        content:
+          "## Background\n\n\n\n## Key concepts\n\n- \n\n## Common questions\n\n- \n",
+      },
+    },
+    optional: "Optional",
+    licenseLabel: "License",
+    licenseNone: "None",
+    licenseCustom: "Other…",
+    licenseCustomPlaceholder: "License name or file, e.g. LICENSE.txt",
+    compatibilityLabel: "Environment requirements",
+    compatibilityPlaceholder: "For example: Requires git and Node.js 20+",
+    compatibilityHint:
+      "Command-line tools, systems or network access this Skill depends on.",
+    compatibilityTooLong: "At most {max} characters",
+    allowedToolsLabel: "Pre-approved tools",
+    allowedToolsHint:
+      "Tells the agent it may use these tools right away when the Skill is called. Pine's permissions and approvals still apply.",
+    allowedToolsCustomPlaceholder: "Another tool name, press Enter to add",
+    allowedToolsAdd: "Add",
+    removeTool: "Remove {name}",
+    toolGroups: {
+      inspect: "Inspect",
+      modify: "Modify",
+      run: "Run",
+      web: "Web",
+    },
+    tools: {
+      read: "Read a file",
+      edit: "Edit existing files",
+      write: "Create or overwrite files",
+      shell: "Run shell commands",
+      webSearch: "Search the web",
+      webFetch: "Open a URL",
+    },
+    unsaved: "Unsaved changes",
     resourcesLabel: "Bundled resources:",
     deleteTitle: "Delete Skill?",
     deleteDescription:

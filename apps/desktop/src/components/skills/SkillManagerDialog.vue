@@ -1,27 +1,44 @@
 <script setup lang="ts">
 import {
   ChevronLeftIcon,
+  FileIcon,
+  FolderIcon,
   PlusIcon,
   SparklesIcon,
   Trash2Icon,
+  WandSparklesIcon,
 } from "@lucide/vue";
 import { parse as parseYaml, stringify as stringifyYaml } from "yaml";
-import { computed, ref, watch } from "vue";
+import { computed, nextTick, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { handleError } from "@/app/errors/errorHandler";
 import { useDialogPages } from "@/composables/useDialogPages";
 import { usePhoneLayout } from "@/composables/usePhoneLayout";
 import { PHONE_FULLSCREEN_DIALOG } from "@/lib/dialogLayout";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
   DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
+import {
+  Empty,
+  EmptyContent,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "@/components/ui/empty";
+import {
+  Field,
+  FieldDescription,
+  FieldError,
+  FieldGroup,
+  FieldLabel,
+} from "@/components/ui/field";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -34,6 +51,13 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
 import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupInput,
+  InputGroupText,
+  InputGroupTextarea,
+} from "@/components/ui/input-group";
+import {
   Item,
   ItemActions,
   ItemContent,
@@ -43,6 +67,15 @@ import {
   ItemTitle,
 } from "@/components/ui/item";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectSeparator,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -52,6 +85,19 @@ import type {
   PineSkillScope,
   PineSkillSummary,
 } from "@/shared/skills";
+import SkillToolPicker from "./SkillToolPicker.vue";
+import {
+  SKILL_COMPATIBILITY_MAX_LENGTH,
+  SKILL_DESCRIPTION_MAX_LENGTH,
+  SKILL_LICENSE_PRESETS,
+  SKILL_NAME_MAX_LENGTH,
+  SKILL_TEMPLATES,
+  formatToolList,
+  normalizeSkillNameInput,
+  parseToolList,
+  skillNameIssue,
+  type SkillTemplate,
+} from "./skillForm";
 
 interface Props {
   projectId: string;
@@ -69,21 +115,31 @@ function createWithPine(): void {
   emit("createWithPine", props.projectId);
 }
 
+const LICENSE_NONE = "__none__";
+const LICENSE_CUSTOM = "__custom__";
+
+type EditorMode = "empty" | "create" | "edit";
+type ValidatedField = "name" | "description" | "compatibility";
+
 const { t } = useI18n();
 const skillScopes = ["global", "project"] as const;
 const activeScope = ref<PineSkillScope>("global");
 const skills = ref<PineSkillSummary[]>([]);
+const editorMode = ref<EditorMode>("empty");
 const selectedName = ref("");
 const selectedManagedBy = ref<"pine" | "pi">("pine");
 const selectedReadOnly = ref(false);
 const description = ref("");
-const license = ref("");
+const licenseChoice = ref(LICENSE_NONE);
+const customLicense = ref("");
 const compatibility = ref("");
-const allowedTools = ref("");
+const allowedTools = ref<string[]>([]);
 const body = ref("");
 const resources = ref<PineSkillResource[]>([]);
 const frontmatter = ref<Record<string, unknown>>({});
-const isCreating = ref(false);
+const savedSnapshot = ref("");
+const touched = ref(new Set<ValidatedField>());
+const submitAttempted = ref(false);
 const isLoading = ref(false);
 const isSaving = ref(false);
 const isDeleteConfirmOpen = ref(false);
@@ -94,26 +150,60 @@ const togglingNames = ref(new Set<string>());
 const isPhone = usePhoneLayout();
 const isEditorShown = ref(false);
 const showPage = useDialogPages();
+
+const isCreating = computed(() => editorMode.value === "create");
 const isReadOnly = computed(() => !isCreating.value && selectedReadOnly.value);
-const canSave = computed(() => {
-  const isValidName =
-    selectedManagedBy.value === "pi"
-      ? /^[a-z0-9-]+$/.test(selectedName.value) &&
-        !selectedName.value.startsWith("-") &&
-        !selectedName.value.endsWith("-") &&
-        !selectedName.value.includes("--")
-      : /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(selectedName.value);
-  return (
-    isValidName &&
-    selectedName.value.length <= 64 &&
-    description.value.trim().length > 0 &&
-    description.value.trim().length <= 1_024 &&
-    (selectedManagedBy.value === "pi" ||
-      compatibility.value.trim().length <= 500) &&
-    !isReadOnly.value &&
-    !isSaving.value
-  );
+const license = computed(() => {
+  if (licenseChoice.value === LICENSE_NONE) return "";
+  if (licenseChoice.value === LICENSE_CUSTOM) return customLicense.value.trim();
+  return licenseChoice.value;
 });
+
+const nameError = computed(() => {
+  const issue = skillNameIssue(selectedName.value);
+  return issue
+    ? t(`skills.nameErrors.${issue}`, { max: SKILL_NAME_MAX_LENGTH })
+    : "";
+});
+const descriptionError = computed(() => {
+  const length = description.value.trim().length;
+  if (length === 0) return t("skills.descriptionErrors.required");
+  if (length > SKILL_DESCRIPTION_MAX_LENGTH) {
+    return t("skills.descriptionErrors.tooLong", {
+      max: SKILL_DESCRIPTION_MAX_LENGTH,
+    });
+  }
+  return "";
+});
+const compatibilityError = computed(() =>
+  // Pi package Skills follow their own loader's limits.
+  selectedManagedBy.value === "pine" &&
+  compatibility.value.trim().length > SKILL_COMPATIBILITY_MAX_LENGTH
+    ? t("skills.compatibilityTooLong", { max: SKILL_COMPATIBILITY_MAX_LENGTH })
+    : "",
+);
+const isValid = computed(
+  () =>
+    !nameError.value && !descriptionError.value && !compatibilityError.value,
+);
+
+function visibleError(field: ValidatedField, message: string): string {
+  return message && (submitAttempted.value || touched.value.has(field))
+    ? message
+    : "";
+}
+
+function touch(field: ValidatedField): void {
+  if (touched.value.has(field)) return;
+  touched.value = new Set(touched.value).add(field);
+}
+
+const isDirty = computed(
+  () =>
+    editorMode.value === "edit" &&
+    !isReadOnly.value &&
+    serializeSkillDocument() !== savedSnapshot.value,
+);
 
 interface ParsedSkillDocument {
   body: string;
@@ -122,7 +212,7 @@ interface ParsedSkillDocument {
 
 function parseSkillDocument(rawContent: string): ParsedSkillDocument {
   const normalized = rawContent
-    .replace(/^\uFEFF/, "")
+    .replace(/^﻿/, "")
     .replace(/\r\n/g, "\n")
     .replace(/\r/g, "\n");
   if (!normalized.startsWith("---\n")) {
@@ -153,17 +243,35 @@ function serializeSkillDocument(): string {
     name: selectedName.value,
     description: description.value.trim(),
   };
-  if (license.value.trim()) metadata.license = license.value.trim();
+  if (license.value) metadata.license = license.value;
   else delete metadata.license;
   if (compatibility.value.trim()) {
     metadata.compatibility = compatibility.value.trim();
   } else delete metadata.compatibility;
-  if (allowedTools.value.trim()) {
-    metadata["allowed-tools"] = allowedTools.value.trim();
-  } else delete metadata["allowed-tools"];
+  const tools = formatToolList(allowedTools.value);
+  if (tools) metadata["allowed-tools"] = tools;
+  else delete metadata["allowed-tools"];
   const header = stringifyYaml(metadata).trimEnd();
   const instructions = body.value.trim();
   return `---\n${header}\n---\n\n${instructions}\n`;
+}
+
+function setLicense(value: string): void {
+  if (!value) {
+    licenseChoice.value = LICENSE_NONE;
+    customLicense.value = "";
+  } else if ((SKILL_LICENSE_PRESETS as readonly string[]).includes(value)) {
+    licenseChoice.value = value;
+    customLicense.value = "";
+  } else {
+    licenseChoice.value = LICENSE_CUSTOM;
+    customLicense.value = value;
+  }
+}
+
+function resetValidation(): void {
+  touched.value = new Set();
+  submitAttempted.value = false;
 }
 
 function scopeRequest(scope = activeScope.value) {
@@ -178,6 +286,16 @@ function reportError(error: unknown, operation: "load" | "save" | "remove") {
   });
 }
 
+/** On a wide layout the editor always shows a Skill when there is one. */
+async function showDefaultSelection(): Promise<void> {
+  const first = skills.value[0];
+  if (!first || isPhone.value) {
+    editorMode.value = "empty";
+    return;
+  }
+  await selectSkill(first.name, first.managedBy ?? "pine");
+}
+
 async function load(
   nameToSelect?: string,
   managedByToSelect: "pine" | "pi" = "pine",
@@ -190,6 +308,8 @@ async function load(
       skills.value.some((skill) => skill.name === nameToSelect)
     ) {
       await selectSkill(nameToSelect, managedByToSelect);
+    } else if (editorMode.value !== "create") {
+      await showDefaultSelection();
     }
   } catch (error) {
     reportError(error, "load");
@@ -215,22 +335,25 @@ async function selectSkill(
     typeof parsed.frontmatter.description === "string"
       ? parsed.frontmatter.description
       : result.skill.description;
-  license.value =
+  setLicense(
     typeof parsed.frontmatter.license === "string"
-      ? parsed.frontmatter.license
-      : "";
+      ? parsed.frontmatter.license.trim()
+      : "",
+  );
   compatibility.value =
     typeof parsed.frontmatter.compatibility === "string"
       ? parsed.frontmatter.compatibility
       : "";
   allowedTools.value =
     typeof parsed.frontmatter["allowed-tools"] === "string"
-      ? parsed.frontmatter["allowed-tools"]
-      : "";
+      ? parseToolList(parsed.frontmatter["allowed-tools"])
+      : [];
   body.value = parsed.body;
   resources.value = result.resources ?? [];
   frontmatter.value = parsed.frontmatter;
-  isCreating.value = false;
+  editorMode.value = "edit";
+  resetValidation();
+  savedSnapshot.value = serializeSkillDocument();
 }
 
 async function selectSkillSafely(
@@ -251,6 +374,9 @@ function createFromList(): void {
     startCreating();
     isEditorShown.value = true;
   });
+  void nextTick(() =>
+    document.getElementById(`skill-${activeScope.value}-name`)?.focus(),
+  );
 }
 
 function showSkillList(): void {
@@ -262,21 +388,63 @@ function startCreating(): void {
   selectedManagedBy.value = "pine";
   selectedReadOnly.value = false;
   description.value = "";
-  license.value = "";
+  setLicense("");
   compatibility.value = "";
-  allowedTools.value = "";
+  allowedTools.value = [];
   body.value = "";
   resources.value = [];
   frontmatter.value = {};
-  isCreating.value = true;
+  editorMode.value = "create";
+  resetValidation();
+  savedSnapshot.value = "";
 }
 
-function updateName(name: string | number): void {
-  selectedName.value = String(name).trim().toLowerCase();
+async function cancelCreating(): Promise<void> {
+  if (isPhone.value) {
+    showSkillList();
+    editorMode.value = "empty";
+    return;
+  }
+  try {
+    await showDefaultSelection();
+  } catch (error) {
+    reportError(error, "load");
+  }
+}
+
+function onNameInput(event: Event): void {
+  const input = event.target as HTMLInputElement;
+  const normalized = normalizeSkillNameInput(input.value);
+  // Rewrite the field in place so dropped characters never show up.
+  if (input.value !== normalized) input.value = normalized;
+  selectedName.value = normalized;
+}
+
+function applyTemplate(template: unknown): void {
+  if (typeof template !== "string" || !template) return;
+  body.value = t(`skills.templates.${template as SkillTemplate}.content`);
+}
+
+function focusFirstInvalid(): void {
+  const field = nameError.value
+    ? "name"
+    : descriptionError.value
+      ? "description"
+      : "compatibility";
+  void nextTick(() =>
+    document.getElementById(`skill-${activeScope.value}-${field}`)?.focus(),
+  );
 }
 
 async function save(): Promise<void> {
-  if (!canSave.value || isReadOnly.value) return;
+  if (isReadOnly.value || isSaving.value || editorMode.value === "empty") {
+    return;
+  }
+  if (!isValid.value) {
+    submitAttempted.value = true;
+    focusFirstInvalid();
+    return;
+  }
   isSaving.value = true;
   try {
     const request = {
@@ -289,7 +457,7 @@ async function save(): Promise<void> {
     else await window.pine.editSkill(request);
     const savedName = selectedName.value;
     const savedManagedBy = selectedManagedBy.value;
-    isCreating.value = false;
+    editorMode.value = "edit";
     await load(savedName, savedManagedBy);
   } catch (error) {
     reportError(error, "save");
@@ -315,7 +483,7 @@ async function confirmRemoveSelected(): Promise<void> {
       name,
     });
     isDeleteConfirmOpen.value = false;
-    startCreating();
+    editorMode.value = "empty";
     showSkillList();
     await load();
   } catch (error) {
@@ -349,19 +517,19 @@ async function setGlobalSkillEnabled(
   }
 }
 
-watch(open, (value) => {
-  if (!value) return;
+function resetForScope(): void {
+  skills.value = [];
   isEditorShown.value = false;
-  startCreating();
+  editorMode.value = "empty";
   void load();
+}
+
+watch(open, (value) => {
+  if (value) resetForScope();
 });
 
 watch(activeScope, () => {
-  if (!open.value) return;
-  skills.value = [];
-  isEditorShown.value = false;
-  startCreating();
-  void load();
+  if (open.value) resetForScope();
 });
 </script>
 
@@ -420,7 +588,7 @@ watch(activeScope, () => {
             class="m-0 min-h-0 flex-none overflow-hidden max-sm:flex-1"
           >
             <div
-              class="grid min-h-0 grid-cols-[14rem_auto_minmax(0,1fr)] overflow-hidden max-sm:h-full max-sm:grid-cols-1"
+              class="grid h-[min(40rem,calc(100dvh-14rem))] min-h-0 grid-cols-[15rem_auto_minmax(0,1fr)] overflow-hidden max-sm:h-full max-sm:grid-cols-1"
             >
               <aside
                 v-show="!isPhone || !isEditorShown"
@@ -429,43 +597,65 @@ watch(activeScope, () => {
                 <!-- ScrollAreaRoot sets an inline `position: relative`, so the
                   absolute positioning lives on a wrapper to keep the list out
                   of the grid row's height. -->
-                <div class="absolute inset-0">
+                <div class="absolute inset-0 flex flex-col">
+                  <ItemGroup class="shrink-0 gap-2 p-3 pb-2">
+                    <Item
+                      as="button"
+                      type="button"
+                      variant="muted"
+                      size="sm"
+                      data-testid="skill-new"
+                      class="min-h-20 justify-center hover:bg-muted active:bg-muted"
+                      @click="createFromList"
+                    >
+                      <ItemMedia variant="icon">
+                        <PlusIcon />
+                      </ItemMedia>
+                      <ItemContent class="flex-none">
+                        <ItemTitle>{{ t("skills.new") }}</ItemTitle>
+                      </ItemContent>
+                    </Item>
+                    <Item
+                      as="button"
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      data-testid="skill-create-with-pine"
+                      class="justify-center hover:bg-muted active:bg-muted"
+                      @click="createWithPine"
+                    >
+                      <ItemMedia variant="icon">
+                        <SparklesIcon />
+                      </ItemMedia>
+                      <ItemContent class="flex-none">
+                        <ItemTitle>{{ t("common.manageWithPine") }}</ItemTitle>
+                      </ItemContent>
+                    </Item>
+                  </ItemGroup>
                   <ScrollArea
-                    class="size-full overflow-hidden [&_[data-slot=scroll-area-viewport]]:scroll-fade-y"
+                    class="min-h-0 flex-1 overflow-hidden [&_[data-slot=scroll-area-viewport]]:scroll-fade-y"
                   >
-                    <ItemGroup class="gap-2 p-3">
+                    <ItemGroup class="gap-1 px-3 pb-3">
                       <Item
-                        as="button"
-                        type="button"
+                        v-if="isCreating && (!isPhone || isEditorShown)"
                         variant="muted"
                         size="sm"
-                        class="min-h-20 justify-center hover:bg-muted active:bg-muted"
-                        @click="createFromList"
+                        role="listitem"
+                        data-testid="skill-draft-item"
                       >
-                        <ItemMedia variant="icon">
-                          <PlusIcon />
-                        </ItemMedia>
-                        <ItemContent class="flex-none">
-                          <ItemTitle>{{ t("skills.new") }}</ItemTitle>
+                        <ItemContent class="min-w-0">
+                          <ItemTitle
+                            class="w-full truncate"
+                            :class="{ 'text-muted-foreground': !selectedName }"
+                          >
+                            {{ selectedName || t("skills.untitled") }}
+                          </ItemTitle>
                         </ItemContent>
-                      </Item>
-                      <Item
-                        as="button"
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        data-testid="skill-create-with-pine"
-                        class="justify-center hover:bg-muted active:bg-muted"
-                        @click="createWithPine"
-                      >
-                        <ItemMedia variant="icon">
-                          <SparklesIcon />
-                        </ItemMedia>
-                        <ItemContent class="flex-none">
-                          <ItemTitle>{{
-                            t("common.manageWithPine")
-                          }}</ItemTitle>
-                        </ItemContent>
+                        <ItemActions>
+                          <Badge variant="outline">
+                            {{ t("skills.draftBadge") }}
+                          </Badge>
+                        </ItemActions>
                       </Item>
                       <Item
                         v-for="skill in skills"
@@ -490,17 +680,17 @@ watch(activeScope, () => {
                               )
                             "
                           >
-                            <ItemTitle class="w-full">{{
+                            <ItemTitle class="w-full truncate">{{
                               skill.name
                             }}</ItemTitle>
-                            <ItemDescription>
+                            <ItemDescription class="line-clamp-2">
                               {{ skill.description }}
                             </ItemDescription>
                           </button>
                         </ItemContent>
                         <ItemActions
                           v-if="scope === 'global' && skill.managedBy !== 'pi'"
-                          class="mr-1 shrink-0"
+                          class="shrink-0"
                         >
                           <Switch
                             :model-value="skill.enabled !== false"
@@ -525,136 +715,353 @@ watch(activeScope, () => {
 
               <form
                 v-show="!isPhone || isEditorShown"
-                class="flex flex-col p-5 max-sm:min-h-0 max-sm:overflow-y-auto max-sm:px-4"
+                class="flex min-h-0 flex-col"
+                novalidate
                 @submit.prevent="save"
               >
-                <p v-if="isReadOnly" class="mb-3 text-xs text-muted-foreground">
-                  {{ t("skills.piPackageReadOnly") }}
-                </p>
-                <FieldGroup class="grid grid-cols-2 gap-2 max-sm:grid-cols-1">
-                  <Field class="gap-0">
-                    <FieldLabel :for="`skill-${scope}-name`" class="sr-only">
-                      {{ t("skills.nameLabel") }}
-                    </FieldLabel>
-                    <Input
-                      :id="`skill-${scope}-name`"
-                      :model-value="selectedName"
-                      :disabled="!isCreating"
-                      :placeholder="t('skills.namePlaceholder')"
-                      @update:model-value="updateName"
-                    />
-                  </Field>
-                  <Field class="gap-0">
-                    <FieldLabel
-                      :for="`skill-${scope}-description`"
-                      class="sr-only"
-                    >
-                      {{ t("skills.descriptionLabel") }}
-                    </FieldLabel>
-                    <Input
-                      :id="`skill-${scope}-description`"
-                      v-model="description"
-                      :disabled="isReadOnly"
-                      :placeholder="t('skills.descriptionPlaceholder')"
-                    />
-                  </Field>
-                </FieldGroup>
-
-                <FieldGroup
-                  class="mt-2 grid grid-cols-3 gap-2 max-sm:grid-cols-1"
+                <Empty
+                  v-if="editorMode === 'empty'"
+                  data-testid="skill-empty"
+                  class="border-0"
                 >
-                  <Field class="gap-0">
-                    <FieldLabel :for="`skill-${scope}-license`" class="sr-only">
-                      {{ t("skills.licenseLabel") }}
-                    </FieldLabel>
-                    <Input
-                      :id="`skill-${scope}-license`"
-                      v-model="license"
-                      :disabled="isReadOnly"
-                      :placeholder="t('skills.licensePlaceholder')"
-                    />
-                  </Field>
-                  <Field class="gap-0">
-                    <FieldLabel
-                      :for="`skill-${scope}-compatibility`"
-                      class="sr-only"
+                  <EmptyHeader>
+                    <EmptyMedia variant="icon">
+                      <WandSparklesIcon />
+                    </EmptyMedia>
+                    <EmptyTitle>{{ t("skills.empty") }}</EmptyTitle>
+                    <EmptyDescription>
+                      {{ t("skills.emptyDescription") }}
+                    </EmptyDescription>
+                  </EmptyHeader>
+                  <EmptyContent class="flex-row justify-center">
+                    <Button type="button" size="sm" @click="createFromList">
+                      <PlusIcon data-icon="inline-start" />
+                      {{ t("skills.new") }}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      @click="createWithPine"
                     >
-                      {{ t("skills.compatibilityLabel") }}
-                    </FieldLabel>
-                    <Input
-                      :id="`skill-${scope}-compatibility`"
-                      v-model="compatibility"
-                      :disabled="isReadOnly"
-                      :placeholder="t('skills.compatibilityPlaceholder')"
-                    />
-                  </Field>
-                  <Field class="gap-0">
-                    <FieldLabel
-                      :for="`skill-${scope}-allowed-tools`"
-                      class="sr-only"
-                    >
-                      {{ t("skills.allowedToolsLabel") }}
-                    </FieldLabel>
-                    <Input
-                      :id="`skill-${scope}-allowed-tools`"
-                      v-model="allowedTools"
-                      :disabled="isReadOnly"
-                      :placeholder="t('skills.allowedToolsPlaceholder')"
-                    />
-                  </Field>
-                </FieldGroup>
+                      <SparklesIcon data-icon="inline-start" />
+                      {{ t("common.manageWithPine") }}
+                    </Button>
+                  </EmptyContent>
+                </Empty>
 
-                <Field class="mt-4 h-[26rem] min-h-0 gap-0">
-                  <FieldLabel :for="`skill-${scope}-body`" class="sr-only">
-                    {{ t("skills.instructionsLabel") }}
-                  </FieldLabel>
-                  <Textarea
-                    :id="`skill-${scope}-body`"
-                    v-model="body"
-                    :disabled="isReadOnly"
-                    class="h-full min-h-0 overflow-y-auto [field-sizing:fixed] font-mono text-xs"
-                    spellcheck="false"
-                    :placeholder="t('skills.contentPlaceholder')"
-                  />
-                </Field>
-
-                <div
-                  v-if="!isCreating && resources.length > 0"
-                  class="mt-2 text-xs text-muted-foreground"
-                >
-                  {{ t("skills.resourcesLabel") }}
-                  <span class="ml-1">{{
-                    resources.map((resource) => resource.path).join(", ")
-                  }}</span>
-                </div>
-
-                <DialogFooter
-                  class="mt-4 flex-row justify-between sm:justify-between"
-                >
-                  <Button
-                    type="button"
-                    variant="destructive"
-                    size="sm"
-                    :disabled="isCreating || !selectedName || isReadOnly"
-                    @click="removeSelected"
+                <template v-else>
+                  <div
+                    class="min-h-0 flex-1 overflow-y-auto px-5 pt-5 pb-6 max-sm:px-4"
                   >
-                    <Trash2Icon data-icon="inline-start" />
-                    {{ t("common.delete") }}
-                  </Button>
-                  <Button
-                    type="submit"
-                    size="sm"
-                    :disabled="!canSave || isReadOnly"
+                    <p
+                      v-if="isReadOnly"
+                      class="mb-4 text-sm text-muted-foreground"
+                    >
+                      {{ t("skills.piPackageReadOnly") }}
+                    </p>
+
+                    <FieldGroup class="gap-6">
+                      <Field
+                        :data-invalid="
+                          !!visibleError('name', nameError) || undefined
+                        "
+                      >
+                        <FieldLabel :for="`skill-${scope}-name`">
+                          {{ t("skills.nameLabel") }}
+                        </FieldLabel>
+                        <InputGroup :data-disabled="!isCreating || undefined">
+                          <InputGroupInput
+                            :id="`skill-${scope}-name`"
+                            :model-value="selectedName"
+                            :disabled="!isCreating"
+                            :aria-invalid="
+                              !!visibleError('name', nameError) || undefined
+                            "
+                            class="font-mono"
+                            autocomplete="off"
+                            spellcheck="false"
+                            :placeholder="t('skills.namePlaceholder')"
+                            @input="onNameInput"
+                            @blur="touch('name')"
+                          />
+                          <InputGroupAddon v-if="isCreating" align="inline-end">
+                            <InputGroupText class="tabular-nums">
+                              {{ selectedName.length }}/{{
+                                SKILL_NAME_MAX_LENGTH
+                              }}
+                            </InputGroupText>
+                          </InputGroupAddon>
+                        </InputGroup>
+                        <FieldError v-if="visibleError('name', nameError)">
+                          {{ nameError }}
+                        </FieldError>
+                        <FieldDescription v-else-if="isCreating">
+                          {{ t("skills.nameHint") }}
+                        </FieldDescription>
+                      </Field>
+
+                      <Field
+                        :data-invalid="
+                          !!visibleError('description', descriptionError) ||
+                          undefined
+                        "
+                      >
+                        <FieldLabel :for="`skill-${scope}-description`">
+                          {{ t("skills.descriptionLabel") }}
+                        </FieldLabel>
+                        <InputGroup>
+                          <InputGroupTextarea
+                            :id="`skill-${scope}-description`"
+                            v-model="description"
+                            :disabled="isReadOnly"
+                            :aria-invalid="
+                              !!visibleError('description', descriptionError) ||
+                              undefined
+                            "
+                            rows="3"
+                            class="min-h-20"
+                            :placeholder="t('skills.descriptionPlaceholder')"
+                            @blur="touch('description')"
+                          />
+                          <InputGroupAddon align="block-end">
+                            <InputGroupText
+                              class="ml-auto tabular-nums"
+                              :class="{
+                                'text-destructive':
+                                  description.trim().length >
+                                  SKILL_DESCRIPTION_MAX_LENGTH,
+                              }"
+                            >
+                              {{ description.trim().length }}/{{
+                                SKILL_DESCRIPTION_MAX_LENGTH
+                              }}
+                            </InputGroupText>
+                          </InputGroupAddon>
+                        </InputGroup>
+                        <FieldError
+                          v-if="visibleError('description', descriptionError)"
+                        >
+                          {{ descriptionError }}
+                        </FieldError>
+                        <FieldDescription v-else>
+                          {{ t("skills.descriptionHint") }}
+                        </FieldDescription>
+                      </Field>
+
+                      <Field>
+                        <div
+                          class="flex flex-wrap items-center justify-between gap-2"
+                        >
+                          <FieldLabel :for="`skill-${scope}-body`">
+                            {{ t("skills.instructionsLabel") }}
+                          </FieldLabel>
+                          <div
+                            v-if="!isReadOnly && !body.trim()"
+                            class="flex flex-wrap items-center gap-1"
+                            data-testid="skill-templates"
+                          >
+                            <span class="text-xs text-muted-foreground">
+                              {{ t("skills.templatesLabel") }}
+                            </span>
+                            <Button
+                              v-for="template in SKILL_TEMPLATES"
+                              :key="template"
+                              type="button"
+                              variant="outline"
+                              size="xs"
+                              :data-testid="`skill-template-${template}`"
+                              @click="applyTemplate(template)"
+                            >
+                              {{ t(`skills.templates.${template}.label`) }}
+                            </Button>
+                          </div>
+                        </div>
+                        <Textarea
+                          :id="`skill-${scope}-body`"
+                          v-model="body"
+                          :disabled="isReadOnly"
+                          class="scroll-fade-y max-h-80 min-h-40 overflow-y-auto overscroll-contain [field-sizing:content] font-mono text-[13px] leading-relaxed placeholder:font-sans"
+                          spellcheck="false"
+                          :placeholder="t('skills.contentPlaceholder')"
+                        />
+                        <FieldDescription>
+                          {{ t("skills.instructionsHint") }}
+                        </FieldDescription>
+                        <div
+                          v-if="!isCreating && resources.length > 0"
+                          class="flex flex-wrap items-center gap-1.5"
+                        >
+                          <span class="text-xs text-muted-foreground">
+                            {{ t("skills.resourcesLabel") }}
+                          </span>
+                          <Badge
+                            v-for="resource in resources"
+                            :key="resource.path"
+                            variant="outline"
+                            class="font-mono"
+                          >
+                            <FolderIcon v-if="resource.kind === 'directory'" />
+                            <FileIcon v-else />
+                            {{ resource.path }}
+                          </Badge>
+                        </div>
+                      </Field>
+
+                      <Field>
+                        <FieldLabel :for="`skill-${scope}-license`">
+                          {{ t("skills.licenseLabel") }}
+                          <span class="font-normal text-muted-foreground">{{
+                            t("skills.optional")
+                          }}</span>
+                        </FieldLabel>
+                        <div class="flex gap-2 max-sm:flex-col">
+                          <Select
+                            v-model="licenseChoice"
+                            :disabled="isReadOnly"
+                          >
+                            <SelectTrigger
+                              :id="`skill-${scope}-license`"
+                              class="w-44 max-sm:w-full"
+                            >
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectGroup>
+                                <SelectItem :value="LICENSE_NONE">
+                                  {{ t("skills.licenseNone") }}
+                                </SelectItem>
+                                <SelectSeparator />
+                                <SelectItem
+                                  v-for="preset in SKILL_LICENSE_PRESETS"
+                                  :key="preset"
+                                  :value="preset"
+                                >
+                                  {{ preset }}
+                                </SelectItem>
+                                <SelectSeparator />
+                                <SelectItem :value="LICENSE_CUSTOM">
+                                  {{ t("skills.licenseCustom") }}
+                                </SelectItem>
+                              </SelectGroup>
+                            </SelectContent>
+                          </Select>
+                          <Input
+                            v-if="licenseChoice === LICENSE_CUSTOM"
+                            v-model="customLicense"
+                            :disabled="isReadOnly"
+                            :aria-label="t('skills.licenseLabel')"
+                            class="flex-1"
+                            :placeholder="t('skills.licenseCustomPlaceholder')"
+                          />
+                        </div>
+                      </Field>
+
+                      <Field
+                        :data-invalid="
+                          !!visibleError('compatibility', compatibilityError) ||
+                          undefined
+                        "
+                      >
+                        <FieldLabel :for="`skill-${scope}-compatibility`">
+                          {{ t("skills.compatibilityLabel") }}
+                          <span class="font-normal text-muted-foreground">{{
+                            t("skills.optional")
+                          }}</span>
+                        </FieldLabel>
+                        <Input
+                          :id="`skill-${scope}-compatibility`"
+                          v-model="compatibility"
+                          :disabled="isReadOnly"
+                          :aria-invalid="
+                            !!visibleError(
+                              'compatibility',
+                              compatibilityError,
+                            ) || undefined
+                          "
+                          :placeholder="t('skills.compatibilityPlaceholder')"
+                          @blur="touch('compatibility')"
+                        />
+                        <FieldError
+                          v-if="
+                            visibleError('compatibility', compatibilityError)
+                          "
+                        >
+                          {{ compatibilityError }}
+                        </FieldError>
+                        <FieldDescription v-else>
+                          {{ t("skills.compatibilityHint") }}
+                        </FieldDescription>
+                      </Field>
+
+                      <Field>
+                        <FieldLabel :for="`skill-${scope}-allowed-tools`">
+                          {{ t("skills.allowedToolsLabel") }}
+                          <span class="font-normal text-muted-foreground">{{
+                            t("skills.optional")
+                          }}</span>
+                        </FieldLabel>
+                        <SkillToolPicker
+                          v-model="allowedTools"
+                          :input-id="`skill-${scope}-allowed-tools`"
+                          :disabled="isReadOnly"
+                        />
+                        <FieldDescription>
+                          {{ t("skills.allowedToolsHint") }}
+                        </FieldDescription>
+                      </Field>
+                    </FieldGroup>
+                  </div>
+
+                  <div
+                    v-if="!isReadOnly"
+                    class="flex shrink-0 items-center gap-2 border-t px-5 py-3 max-sm:px-4"
                   >
-                    {{
-                      isSaving
-                        ? t("common.saving")
-                        : isCreating
-                          ? t("skills.create")
-                          : t("common.save")
-                    }}
-                  </Button>
-                </DialogFooter>
+                    <Button
+                      v-if="!isCreating"
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      class="-ml-2 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                      @click="removeSelected"
+                    >
+                      <Trash2Icon data-icon="inline-start" />
+                      {{ t("common.delete") }}
+                    </Button>
+                    <span
+                      v-if="isDirty"
+                      class="text-xs text-muted-foreground"
+                      data-testid="skill-unsaved"
+                    >
+                      {{ t("skills.unsaved") }}
+                    </span>
+                    <div class="ml-auto flex items-center gap-2">
+                      <Button
+                        v-if="isCreating"
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        @click="cancelCreating"
+                      >
+                        {{ t("common.cancel") }}
+                      </Button>
+                      <Button
+                        type="submit"
+                        size="sm"
+                        data-testid="skill-save"
+                        :disabled="isSaving || (!isCreating && !isDirty)"
+                      >
+                        {{
+                          isSaving
+                            ? t("common.saving")
+                            : isCreating
+                              ? t("skills.create")
+                              : t("common.save")
+                        }}
+                      </Button>
+                    </div>
+                  </div>
+                </template>
               </form>
             </div>
           </TabsContent>

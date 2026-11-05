@@ -557,18 +557,82 @@ export default {
     new: "Neuer Skill",
     create: "Erstellen",
     empty: "Keine Skills in diesem Bereich",
-    nameLabel: "Skill-Name",
-    descriptionLabel: "Skill-Beschreibung",
-    instructionsLabel: "Skill-Anweisungen",
-    licenseLabel: "Skill-Lizenz",
-    compatibilityLabel: "Skill-Kompatibilität",
-    allowedToolsLabel: "Erlaubte Werkzeuge",
-    namePlaceholder: "skill-name",
-    descriptionPlaceholder: "Skill-Beschreibung (wann er verwendet wird)",
-    licensePlaceholder: "Lizenz (optional)",
-    compatibilityPlaceholder: "Kompatibilität (optional)",
-    allowedToolsPlaceholder: "Erlaubte Werkzeuge (optional)",
-    contentPlaceholder: "Skill-Anweisungen eingeben",
+    untitled: "Unbenannter Skill",
+    draftBadge: "Entwurf",
+    emptyDescription:
+      "Ein Skill ist eine wiederverwendbare Anweisung. Der Agent nutzt ihn selbstständig, wenn eine Aufgabe zur Beschreibung passt.",
+    nameLabel: "Name",
+    namePlaceholder: "release-notes",
+    nameHint:
+      "Lässt sich später nicht ändern. Eingaben werden in Kleinbuchstaben, Ziffern und Bindestriche umgewandelt.",
+    nameErrors: {
+      required: "Geben Sie einen Namen ein",
+      invalid:
+        "Nur Kleinbuchstaben, Ziffern und Bindestriche, ohne Bindestrich am Ende",
+      tooLong: "Der Name darf höchstens {max} Zeichen lang sein",
+    },
+    descriptionLabel: "Wann verwenden",
+    descriptionPlaceholder:
+      "Zum Beispiel: Beim Schreiben von Release Notes verwenden. Fasst sichtbare Änderungen im CHANGELOG-Format des Projekts zusammen.",
+    descriptionHint: "Der Agent entscheidet hieran, wann er den Skill nutzt.",
+    descriptionErrors: {
+      required: "Beschreiben Sie, was dieser Skill tut und wann er passt",
+      tooLong: "Die Beschreibung darf höchstens {max} Zeichen lang sein",
+    },
+    instructionsLabel: "Anweisungen",
+    instructionsHint:
+      "Markdown wird unterstützt. Der Agent liest den gesamten Inhalt, wenn er den Skill nutzt.",
+    contentPlaceholder:
+      "Schreiben Sie die Schritte, Regeln und Beispiele, denen der Agent bei dieser Aufgabe folgen soll",
+    templatesLabel: "Vorlage:",
+    templates: {
+      workflow: {
+        label: "Ablauf",
+        content:
+          "## Ziel\n\n- \n\n## Schritte\n\n1. \n2. \n3. \n\n## Fertig, wenn\n\n- \n",
+      },
+      checklist: {
+        label: "Regelliste",
+        content:
+          "## Gilt für\n\n- \n\n## Immer\n\n- \n\n## Vermeiden\n\n- \n\n## Beispiele\n\n\n",
+      },
+      reference: {
+        label: "Referenz",
+        content:
+          "## Hintergrund\n\n\n\n## Wichtige Begriffe\n\n- \n\n## Häufige Fragen\n\n- \n",
+      },
+    },
+    optional: "Optional",
+    licenseLabel: "Lizenz",
+    licenseNone: "Keine",
+    licenseCustom: "Andere…",
+    licenseCustomPlaceholder: "Lizenzname oder -datei, z. B. LICENSE.txt",
+    compatibilityLabel: "Umgebungsanforderungen",
+    compatibilityPlaceholder: "Zum Beispiel: Benötigt git und Node.js 20+",
+    compatibilityHint:
+      "Kommandozeilenwerkzeuge, Systeme oder Netzwerkzugriff, von denen dieser Skill abhängt.",
+    compatibilityTooLong: "Höchstens {max} Zeichen",
+    allowedToolsLabel: "Vorab erlaubte Werkzeuge",
+    allowedToolsHint:
+      "Teilt dem Agenten mit, dass er diese Werkzeuge sofort nutzen darf, wenn der Skill verwendet wird. Pines Berechtigungen und Freigaben gelten weiterhin.",
+    allowedToolsCustomPlaceholder: "Weiteres Werkzeug, mit Enter hinzufügen",
+    allowedToolsAdd: "Hinzufügen",
+    removeTool: "{name} entfernen",
+    toolGroups: {
+      inspect: "Ansehen",
+      modify: "Ändern",
+      run: "Ausführen",
+      web: "Web",
+    },
+    tools: {
+      read: "Datei lesen",
+      edit: "Vorhandene Dateien bearbeiten",
+      write: "Dateien anlegen oder überschreiben",
+      shell: "Shell-Befehle ausführen",
+      webSearch: "Im Web suchen",
+      webFetch: "URL öffnen",
+    },
+    unsaved: "Ungespeicherte Änderungen",
     resourcesLabel: "Mitgelieferte Ressourcen:",
     deleteTitle: "Skill löschen?",
     deleteDescription:

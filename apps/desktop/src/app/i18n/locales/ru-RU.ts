@@ -553,18 +553,83 @@ export default {
     new: "Новый навык",
     create: "Создать",
     empty: "В этой области нет навыков",
-    nameLabel: "Название навыка",
-    descriptionLabel: "Описание навыка",
-    instructionsLabel: "Инструкции навыка",
-    licenseLabel: "Лицензия навыка",
-    compatibilityLabel: "Совместимость навыка",
-    allowedToolsLabel: "Разрешённые инструменты",
-    namePlaceholder: "skill-name",
-    descriptionPlaceholder: "Описание навыка (когда использовать)",
-    licensePlaceholder: "Лицензия (необязательно)",
-    compatibilityPlaceholder: "Совместимость (необязательно)",
-    allowedToolsPlaceholder: "Разрешённые инструменты (необязательно)",
-    contentPlaceholder: "Введите инструкции навыка",
+    untitled: "Навык без названия",
+    draftBadge: "Черновик",
+    emptyDescription:
+      "Навык — это набор инструкций для повторного использования. Агент сам вызывает его, когда задача подходит под описание.",
+    nameLabel: "Название",
+    namePlaceholder: "release-notes",
+    nameHint:
+      "Изменить потом нельзя. Ввод автоматически приводится к строчным латинским буквам, цифрам и дефисам.",
+    nameErrors: {
+      required: "Введите название",
+      invalid:
+        "Только строчные латинские буквы, цифры и дефисы, без дефиса в конце",
+      tooLong: "Название не длиннее {max} символов",
+    },
+    descriptionLabel: "Когда использовать",
+    descriptionPlaceholder:
+      "Например: использовать при написании заметок о выпуске. Собирает заметные пользователю изменения в формате CHANGELOG проекта.",
+    descriptionHint: "По этому тексту агент решает, когда вызвать навык.",
+    descriptionErrors: {
+      required: "Опишите, что делает этот навык и когда он нужен",
+      tooLong: "Описание не длиннее {max} символов",
+    },
+    instructionsLabel: "Инструкции",
+    instructionsHint:
+      "Поддерживается Markdown. При вызове агент читает всё содержимое.",
+    contentPlaceholder:
+      "Опишите шаги, правила и примеры, которым агент должен следовать в этой задаче",
+    templatesLabel: "Шаблон:",
+    templates: {
+      workflow: {
+        label: "Порядок действий",
+        content:
+          "## Цель\n\n- \n\n## Шаги\n\n1. \n2. \n3. \n\n## Готово, когда\n\n- \n",
+      },
+      checklist: {
+        label: "Список правил",
+        content:
+          "## Область применения\n\n- \n\n## Всегда\n\n- \n\n## Избегать\n\n- \n\n## Примеры\n\n\n",
+      },
+      reference: {
+        label: "Справка",
+        content:
+          "## Контекст\n\n\n\n## Ключевые понятия\n\n- \n\n## Частые вопросы\n\n- \n",
+      },
+    },
+    optional: "Необязательно",
+    licenseLabel: "Лицензия",
+    licenseNone: "Не указана",
+    licenseCustom: "Другая…",
+    licenseCustomPlaceholder:
+      "Название или файл лицензии, например LICENSE.txt",
+    compatibilityLabel: "Требования к среде",
+    compatibilityPlaceholder: "Например: нужны git и Node.js 20+",
+    compatibilityHint:
+      "Инструменты командной строки, системы или сетевой доступ, от которых зависит навык.",
+    compatibilityTooLong: "Не длиннее {max} символов",
+    allowedToolsLabel: "Заранее разрешённые инструменты",
+    allowedToolsHint:
+      "Сообщает агенту, что при вызове навыка эти инструменты можно использовать сразу. Разрешения и подтверждения Pine продолжают действовать.",
+    allowedToolsCustomPlaceholder: "Другой инструмент, Enter — добавить",
+    allowedToolsAdd: "Добавить",
+    removeTool: "Убрать {name}",
+    toolGroups: {
+      inspect: "Просмотр",
+      modify: "Изменение",
+      run: "Запуск",
+      web: "Сеть",
+    },
+    tools: {
+      read: "Прочитать файл",
+      edit: "Править существующие файлы",
+      write: "Создать или перезаписать файл",
+      shell: "Выполнить команду в терминале",
+      webSearch: "Искать в интернете",
+      webFetch: "Открыть URL",
+    },
+    unsaved: "Есть несохранённые изменения",
     resourcesLabel: "Входящие ресурсы:",
     deleteTitle: "Удалить навык?",
     deleteDescription:

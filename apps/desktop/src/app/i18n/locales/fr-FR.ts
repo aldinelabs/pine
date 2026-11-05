@@ -558,18 +558,83 @@ export default {
     new: "Nouvelle Skill",
     create: "Créer",
     empty: "Aucune Skill dans cet espace",
-    nameLabel: "Nom de la Skill",
-    descriptionLabel: "Description de la Skill",
-    instructionsLabel: "Instructions de la Skill",
-    licenseLabel: "Licence de la Skill",
-    compatibilityLabel: "Compatibilité de la Skill",
-    allowedToolsLabel: "Outils autorisés",
-    namePlaceholder: "nom-de-la-skill",
-    descriptionPlaceholder: "Description de la Skill (quand l'utiliser)",
-    licensePlaceholder: "Licence (facultatif)",
-    compatibilityPlaceholder: "Compatibilité (facultatif)",
-    allowedToolsPlaceholder: "Outils autorisés (facultatif)",
-    contentPlaceholder: "Saisissez les instructions de la Skill",
+    untitled: "Skill sans nom",
+    draftBadge: "Brouillon",
+    emptyDescription:
+      "Une Skill est un ensemble d'instructions réutilisable. L'agent l'utilise de lui-même quand une tâche correspond à sa description.",
+    nameLabel: "Nom",
+    namePlaceholder: "release-notes",
+    nameHint:
+      "Non modifiable ensuite. La saisie est convertie en minuscules, chiffres et tirets.",
+    nameErrors: {
+      required: "Saisissez un nom",
+      invalid:
+        "Utilisez uniquement des minuscules, chiffres et tirets, sans tiret final",
+      tooLong: "Le nom ne peut pas dépasser {max} caractères",
+    },
+    descriptionLabel: "Quand l'utiliser",
+    descriptionPlaceholder:
+      "Par exemple : À utiliser pour rédiger des notes de version. Regroupe les changements visibles au format du CHANGELOG du projet.",
+    descriptionHint: "L'agent s'en sert pour décider quand utiliser la Skill.",
+    descriptionErrors: {
+      required: "Décrivez ce que fait cette Skill et quand l'utiliser",
+      tooLong: "La description ne peut pas dépasser {max} caractères",
+    },
+    instructionsLabel: "Instructions",
+    instructionsHint:
+      "Markdown pris en charge. L'agent lit l'intégralité du contenu quand il utilise la Skill.",
+    contentPlaceholder:
+      "Écrivez les étapes, règles et exemples que l'agent doit suivre pour cette tâche",
+    templatesLabel: "Partir de :",
+    templates: {
+      workflow: {
+        label: "Procédure",
+        content:
+          "## Objectif\n\n- \n\n## Étapes\n\n1. \n2. \n3. \n\n## Terminé quand\n\n- \n",
+      },
+      checklist: {
+        label: "Liste de règles",
+        content:
+          "## Champ d'application\n\n- \n\n## Toujours\n\n- \n\n## À éviter\n\n- \n\n## Exemples\n\n\n",
+      },
+      reference: {
+        label: "Référence",
+        content:
+          "## Contexte\n\n\n\n## Notions clés\n\n- \n\n## Questions fréquentes\n\n- \n",
+      },
+    },
+    optional: "Facultatif",
+    licenseLabel: "Licence",
+    licenseNone: "Aucune",
+    licenseCustom: "Autre…",
+    licenseCustomPlaceholder: "Nom ou fichier de licence, p. ex. LICENSE.txt",
+    compatibilityLabel: "Environnement requis",
+    compatibilityPlaceholder:
+      "Par exemple : Nécessite git et Node.js 20 ou plus",
+    compatibilityHint:
+      "Outils en ligne de commande, systèmes ou accès réseau dont dépend cette Skill.",
+    compatibilityTooLong: "{max} caractères maximum",
+    allowedToolsLabel: "Outils pré-approuvés",
+    allowedToolsHint:
+      "Indique à l'agent qu'il peut utiliser ces outils dès que la Skill est utilisée. Les autorisations et approbations de Pine restent en vigueur.",
+    allowedToolsCustomPlaceholder: "Autre outil, Entrée pour l'ajouter",
+    allowedToolsAdd: "Ajouter",
+    removeTool: "Retirer {name}",
+    toolGroups: {
+      inspect: "Consulter",
+      modify: "Modifier",
+      run: "Exécuter",
+      web: "Web",
+    },
+    tools: {
+      read: "Lire un fichier",
+      edit: "Modifier des fichiers existants",
+      write: "Créer ou écraser des fichiers",
+      shell: "Exécuter des commandes shell",
+      webSearch: "Rechercher sur le web",
+      webFetch: "Ouvrir une URL",
+    },
+    unsaved: "Modifications non enregistrées",
     resourcesLabel: "Ressources incluses :",
     deleteTitle: "Supprimer la Skill ?",
     deleteDescription:

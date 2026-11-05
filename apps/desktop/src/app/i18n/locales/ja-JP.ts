@@ -552,18 +552,82 @@ export default {
     new: "新規スキル",
     create: "作成",
     empty: "この領域にはスキルがありません",
-    nameLabel: "スキル名",
-    descriptionLabel: "スキルの説明",
-    instructionsLabel: "スキルの指示",
-    licenseLabel: "スキルのライセンス",
-    compatibilityLabel: "スキルの互換性",
-    allowedToolsLabel: "許可するツール",
-    namePlaceholder: "skill-name",
-    descriptionPlaceholder: "スキルの説明（使用する場面）",
-    licensePlaceholder: "ライセンス（任意）",
-    compatibilityPlaceholder: "互換性（任意）",
-    allowedToolsPlaceholder: "許可するツール（任意）",
-    contentPlaceholder: "スキルの指示を入力",
+    untitled: "無題のスキル",
+    draftBadge: "下書き",
+    emptyDescription:
+      "スキルは再利用できる指示です。説明に合うタスクでエージェントが自動的に呼び出します。",
+    nameLabel: "名前",
+    namePlaceholder: "release-notes",
+    nameHint:
+      "作成後は変更できません。入力は小文字の英字・数字・ハイフンに自動変換されます。",
+    nameErrors: {
+      required: "名前を入力してください",
+      invalid:
+        "小文字の英字・数字・ハイフンのみ使用でき、ハイフンで終わることはできません",
+      tooLong: "名前は {max} 文字以内です",
+    },
+    descriptionLabel: "使うタイミング",
+    descriptionPlaceholder:
+      "例：リリースノートを書くときに使用。プロジェクトの CHANGELOG 形式で利用者に見える変更をまとめる。",
+    descriptionHint: "エージェントはこれを見て呼び出すかを判断します。",
+    descriptionErrors: {
+      required: "このスキルの用途と使うタイミングを書いてください",
+      tooLong: "説明は {max} 文字以内です",
+    },
+    instructionsLabel: "指示",
+    instructionsHint:
+      "Markdown を使えます。呼び出されるとエージェントは全文を読み込みます。",
+    contentPlaceholder:
+      "このタスクでエージェントが従う手順、ルール、例を書いてください",
+    templatesLabel: "テンプレート：",
+    templates: {
+      workflow: {
+        label: "ワークフロー",
+        content:
+          "## 目的\n\n- \n\n## 手順\n\n1. \n2. \n3. \n\n## 完了条件\n\n- \n",
+      },
+      checklist: {
+        label: "チェックリスト",
+        content:
+          "## 対象\n\n- \n\n## 必ず守ること\n\n- \n\n## 避けること\n\n- \n\n## 例\n\n\n",
+      },
+      reference: {
+        label: "リファレンス",
+        content:
+          "## 背景\n\n\n\n## 主要な概念\n\n- \n\n## よくある質問\n\n- \n",
+      },
+    },
+    optional: "任意",
+    licenseLabel: "ライセンス",
+    licenseNone: "指定しない",
+    licenseCustom: "その他…",
+    licenseCustomPlaceholder: "ライセンス名またはファイル（例：LICENSE.txt）",
+    compatibilityLabel: "動作環境の要件",
+    compatibilityPlaceholder: "例：git と Node.js 20 以上が必要",
+    compatibilityHint:
+      "このスキルが依存するコマンドラインツール、システム、ネットワーク条件。",
+    compatibilityTooLong: "{max} 文字以内です",
+    allowedToolsLabel: "事前に許可するツール",
+    allowedToolsHint:
+      "スキルが呼び出されたとき、選んだツールをすぐ使ってよいとエージェントに伝えます。Pine の権限と承認ルールは引き続き適用されます。",
+    allowedToolsCustomPlaceholder: "その他のツール名（Enter で追加）",
+    allowedToolsAdd: "追加",
+    removeTool: "{name} を削除",
+    toolGroups: {
+      inspect: "参照",
+      modify: "変更",
+      run: "実行",
+      web: "Web",
+    },
+    tools: {
+      read: "ファイルを読む",
+      edit: "既存ファイルを編集",
+      write: "ファイルを作成・上書き",
+      shell: "シェルコマンドを実行",
+      webSearch: "Web を検索",
+      webFetch: "URL を開く",
+    },
+    unsaved: "未保存の変更があります",
     resourcesLabel: "同梱リソース：",
     deleteTitle: "スキルを削除しますか？",
     deleteDescription:

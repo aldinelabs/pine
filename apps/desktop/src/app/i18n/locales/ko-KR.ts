@@ -546,18 +546,82 @@ export default {
     new: "새 스킬",
     create: "만들기",
     empty: "이 범위에는 스킬이 없습니다",
-    nameLabel: "스킬 이름",
-    descriptionLabel: "스킬 설명",
-    instructionsLabel: "스킬 지침",
-    licenseLabel: "스킬 라이선스",
-    compatibilityLabel: "스킬 호환성",
-    allowedToolsLabel: "허용된 도구",
-    namePlaceholder: "skill-name",
-    descriptionPlaceholder: "스킬 설명(사용 시점)",
-    licensePlaceholder: "라이선스(선택)",
-    compatibilityPlaceholder: "호환성(선택)",
-    allowedToolsPlaceholder: "허용된 도구(선택)",
-    contentPlaceholder: "스킬 지침을 입력하세요",
+    untitled: "이름 없는 스킬",
+    draftBadge: "초안",
+    emptyDescription:
+      "스킬은 재사용할 수 있는 지침입니다. 작업이 설명과 맞으면 에이전트가 알아서 호출합니다.",
+    nameLabel: "이름",
+    namePlaceholder: "release-notes",
+    nameHint:
+      "만든 뒤에는 바꿀 수 없습니다. 입력은 영문 소문자, 숫자, 하이픈으로 자동 변환됩니다.",
+    nameErrors: {
+      required: "이름을 입력하세요",
+      invalid:
+        "영문 소문자, 숫자, 하이픈만 쓸 수 있으며 하이픈으로 끝날 수 없습니다",
+      tooLong: "이름은 최대 {max}자입니다",
+    },
+    descriptionLabel: "사용 시점",
+    descriptionPlaceholder:
+      "예: 릴리스 노트를 작성할 때 사용. 사용자에게 보이는 변경 사항을 프로젝트 CHANGELOG 형식으로 정리합니다.",
+    descriptionHint: "에이전트가 이 설명으로 호출 시점을 정합니다.",
+    descriptionErrors: {
+      required: "이 스킬이 하는 일과 사용 시점을 적으세요",
+      tooLong: "설명은 최대 {max}자입니다",
+    },
+    instructionsLabel: "지침",
+    instructionsHint:
+      "Markdown을 지원합니다. 호출되면 에이전트가 전체 내용을 읽습니다.",
+    contentPlaceholder:
+      "이 작업에서 에이전트가 따라야 할 단계, 규칙, 예시를 적으세요",
+    templatesLabel: "템플릿:",
+    templates: {
+      workflow: {
+        label: "작업 절차",
+        content:
+          "## 목표\n\n- \n\n## 단계\n\n1. \n2. \n3. \n\n## 완료 기준\n\n- \n",
+      },
+      checklist: {
+        label: "규칙 목록",
+        content:
+          "## 적용 범위\n\n- \n\n## 반드시 지킬 것\n\n- \n\n## 피할 것\n\n- \n\n## 예시\n\n\n",
+      },
+      reference: {
+        label: "참고 자료",
+        content:
+          "## 배경\n\n\n\n## 핵심 개념\n\n- \n\n## 자주 묻는 질문\n\n- \n",
+      },
+    },
+    optional: "선택",
+    licenseLabel: "라이선스",
+    licenseNone: "지정 안 함",
+    licenseCustom: "기타…",
+    licenseCustomPlaceholder: "라이선스 이름 또는 파일 (예: LICENSE.txt)",
+    compatibilityLabel: "실행 환경 요구 사항",
+    compatibilityPlaceholder: "예: git과 Node.js 20 이상 필요",
+    compatibilityHint:
+      "이 스킬이 의존하는 명령줄 도구, 시스템 또는 네트워크 조건입니다.",
+    compatibilityTooLong: "최대 {max}자입니다",
+    allowedToolsLabel: "미리 허용할 도구",
+    allowedToolsHint:
+      "스킬이 호출되면 선택한 도구를 바로 써도 된다고 에이전트에게 알립니다. Pine의 권한과 승인 규칙은 그대로 적용됩니다.",
+    allowedToolsCustomPlaceholder: "다른 도구 이름 (Enter로 추가)",
+    allowedToolsAdd: "추가",
+    removeTool: "{name} 제거",
+    toolGroups: {
+      inspect: "조회",
+      modify: "수정",
+      run: "실행",
+      web: "웹",
+    },
+    tools: {
+      read: "파일 내용 읽기",
+      edit: "기존 파일 수정",
+      write: "파일 만들기·덮어쓰기",
+      shell: "셸 명령 실행",
+      webSearch: "웹 검색",
+      webFetch: "URL 열기",
+    },
+    unsaved: "저장하지 않은 변경 사항",
     resourcesLabel: "포함된 리소스:",
     deleteTitle: "스킬을 삭제할까요?",
     deleteDescription:
