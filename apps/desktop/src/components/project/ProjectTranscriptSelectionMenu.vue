@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { MessagesSquareIcon, TextQuoteIcon } from "@lucide/vue";
+import { MessagesSquareIcon, QuoteIcon } from "@lucide/vue";
 import { useEventListener } from "@vueuse/core";
 import { computed, shallowRef } from "vue";
 import { useI18n } from "vue-i18n";
@@ -130,7 +130,7 @@ function startFollowUp(): void {
         class="font-normal"
         @click="quote"
       >
-        <TextQuoteIcon />
+        <QuoteIcon />
         {{ t("project.selection.quote") }}
       </Button>
       <template v-if="followUpState">

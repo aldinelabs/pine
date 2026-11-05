@@ -212,8 +212,7 @@ watch(
       <ProjectQuoteList
         v-if="anchorQuote.length"
         class="shrink-0 px-(--workbench-inset) py-0"
-        item-class="w-full max-w-full rounded-(--workbench-inner-radius) border-0 bg-muted"
-        media-class="rounded-[calc(var(--workbench-inner-radius)-0.375rem)] bg-background/60"
+        item-class="w-full rounded-(--workbench-inner-radius) bg-muted"
         :quotes="anchorQuote"
         surface="message"
       />
