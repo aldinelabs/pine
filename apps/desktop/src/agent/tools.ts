@@ -96,6 +96,7 @@ import {
   type PineWorkspaceToolContext,
 } from "./workspaceTools";
 import { createDatetimeToolDefinition } from "./datetimeTool";
+import { createFffToolDefinitions, FffIndexPool } from "./fffTools";
 import {
   createWorkbenchToolDefinitions,
   type PineWorkbenchToolContext,
@@ -380,6 +381,9 @@ async function resolveFileReveal(
   };
 }
 
+/** Search indexes are costly to build, so sessions in this process share them. */
+const fffIndexPool = new FffIndexPool();
+
 export async function createPineToolDefinitions(
   location: AgentSessionLocation,
   gate?: ToolGate | null,
@@ -505,6 +509,20 @@ export async function createPineToolDefinitions(
     getGate,
     getApprovalMode,
   );
+  const fffTools = createFffToolDefinitions(policy, fffIndexPool);
+  const permissiveFffTools = createFffToolDefinitions(
+    permissivePolicy,
+    fffIndexPool,
+  );
+  const gatedFffTools = fffTools.map((tool, index) =>
+    gateFileTool(
+      tool,
+      permissiveFffTools[index] ?? tool,
+      getGate,
+      getApprovalMode,
+    ),
+  );
+
   const gatedEditTool = gateFileTool(
     editTool,
     permissiveEditTool,
@@ -1002,6 +1020,7 @@ export async function createPineToolDefinitions(
       description: `${gatedReadTool.description} Read shared project files and user attachments. To read files in other external folders, use ${privilegedShellName} with an explanation of the needed access; approval is required.`,
       promptSnippet: `${gatedReadTool.promptSnippet}. For files outside shared folders and user attachments, use ${privilegedShellName} subject to approval`,
     },
+    ...gatedFffTools,
     pineShellTool,
     gatedEditTool,
     gatedWriteTool,

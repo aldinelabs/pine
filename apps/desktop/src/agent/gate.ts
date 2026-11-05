@@ -195,7 +195,11 @@ export class UserApprovalGate implements ToolGate {
     // Reads stay silent in Let Me Review mode: prompting on every read makes the
     // transcript unusable. Out-of-scope reads still surface through the
     // authorize-denial review, so the folder boundary is not lost.
-    if (input.toolName === "read") {
+    if (
+      input.toolName === "read" ||
+      input.toolName === "find" ||
+      input.toolName === "grep"
+    ) {
       return Promise.resolve({ kind: "allow" });
     }
     return this.host.requestUserApproval({

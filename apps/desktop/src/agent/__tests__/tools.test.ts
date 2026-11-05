@@ -527,13 +527,15 @@ describeSandbox("createPineToolDefinitions", () => {
     expect(notify).toHaveBeenCalledTimes(1);
   });
 
-  it("registers Pi's four default tools with Pine-owned operations, plus todo", async () => {
+  it("registers Pi's four default tools with Pine-owned operations, plus file search and todo", async () => {
     const { location } = await createFixture();
 
     const tools = await createPineToolDefinitions(location);
 
     expect(tools.map((tool) => tool.name)).toEqual([
       "read",
+      "find",
+      "grep",
       "bash",
       "edit",
       "write",
