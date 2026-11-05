@@ -57,6 +57,9 @@ import ProjectTranscriptMessage from "./ProjectTranscriptMessage.vue";
 import ProjectTranscriptSelectionMenu from "./ProjectTranscriptSelectionMenu.vue";
 import { normalizeQuoteText, type PineQuote } from "@/shared/quotes";
 import type { TranscriptSelection } from "@/lib/transcriptSelection";
+import { useSideChat } from "@/composables/useSideChat";
+import { useSideChatHighlights } from "@/composables/useSideChatHighlights";
+import { useSideChatStore } from "@/stores/sideChat";
 import type { PineToolCall } from "@/shared/sessions";
 import type { PineAuthoringTarget } from "@/shared/sessionMutators";
 import { toolFileRequest } from "./toolViewAdapter";
@@ -266,6 +269,59 @@ const transcriptRegion = useTemplateRef<HTMLElement>("transcriptRegion");
 
 function messageRole(messageId: string): "assistant" | "user" | undefined {
   return messages.value.find((message) => message.id === messageId)?.role;
+}
+
+const sideChatStore = useSideChatStore();
+const sideChat = useSideChat();
+const sideChatHighlights = useSideChatHighlights({
+  container: transcriptRegion,
+  enabled: isActive,
+  highlights: computed(() => sideChatStore.highlightsFor(props.sessionId)),
+  activeSideChatId: computed(() => sideChatStore.active(props.sessionId)?.id),
+  entryIdOf: (messageId) => sideChatStore.entryIdOf(messageId),
+  open: (sideChatId) => void sideChat.open({ sideChatId }),
+});
+
+// Saved follow-ups are marked once the conversation shows.
+watch(
+  () => (isActive.value ? props.sessionId : undefined),
+  (sessionId) => {
+    if (sessionId) void sideChatStore.loadSaved(props.projectId, sessionId);
+  },
+  { immediate: true },
+);
+
+/** A follow-up asks about a finished message, never inside another's passage. */
+function followUpAvailability(selection: TranscriptSelection): {
+  enabled: boolean;
+  reason?: string;
+} {
+  if (!props.sessionId)
+    return { enabled: false, reason: t("project.sideChat.needsConversation") };
+  const message = messages.value.find(
+    (item) => item.id === selection.messageId,
+  );
+  if (!message || message.status !== "complete")
+    return { enabled: false, reason: t("project.sideChat.waitForMessage") };
+  if (sideChatHighlights.overlaps(selection))
+    return { enabled: false, reason: t("project.sideChat.overlaps") };
+  return { enabled: true };
+}
+
+async function followUpSelection(
+  selection: TranscriptSelection,
+): Promise<void> {
+  const quote = selection.quote.trim();
+  if (!quote) return;
+  await sideChat.open({
+    anchor: {
+      messageId: selection.messageId,
+      start: selection.start,
+      end: selection.end,
+      text: selection.text,
+      quote: normalizeQuoteText(quote) ?? quote,
+    },
+  });
 }
 
 async function quoteSelection(selection: TranscriptSelection): Promise<void> {
@@ -698,7 +754,9 @@ async function handleDrop(event: DragEvent): Promise<void> {
         <ProjectTranscriptSelectionMenu
           v-if="isActive"
           :container="transcriptRegion"
+          :follow-up-availability="followUpAvailability"
           @quote="quoteSelection"
+          @follow-up="followUpSelection"
         />
         <ProjectSessionParallaxBackground
           v-if="isNewConversation && !hasSubmittedPrompt && !isPhone"

@@ -1085,3 +1085,18 @@ html.sidebar-vibrancy:has(
     color: var(--foreground);
   }
 }
+
+/* Passages of the transcript that saved follow-ups ask about. */
+::highlight(pine-side-chat) {
+  background-color: color-mix(in oklch, var(--side-chat) 16%, transparent);
+  text-decoration: underline 1.5px
+    color-mix(in oklch, var(--side-chat) 70%, transparent);
+  text-underline-offset: 3px;
+}
+
+/* The passage of the follow-up open in the workbench. */
+::highlight(pine-side-chat-active) {
+  background-color: color-mix(in oklch, var(--side-chat) 30%, transparent);
+  text-decoration: underline 2px var(--side-chat);
+  text-underline-offset: 3px;
+}
