@@ -258,12 +258,12 @@ function confirmRemove(): void {
               <img
                 :src="aldineOnLight"
                 alt="Aldine"
-                class="inline-block h-[1.4em] align-[-0.3em] dark:hidden"
+                class="inline-block h-[1.4em] align-[-0.35em] dark:hidden"
               />
               <img
                 :src="aldineOnDark"
                 alt="Aldine"
-                class="hidden h-[1.4em] align-[-0.3em] dark:inline-block"
+                class="hidden h-[1.4em] align-[-0.35em] dark:inline-block"
               />
             </template>
           </I18nT>
