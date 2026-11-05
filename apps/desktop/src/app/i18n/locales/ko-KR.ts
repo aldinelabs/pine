@@ -615,6 +615,8 @@ export default {
     },
     tools: {
       read: "파일 내용 읽기",
+      find: "이름으로 파일 찾기",
+      grep: "내용으로 검색",
       edit: "기존 파일 수정",
       write: "파일 만들기·덮어쓰기",
       shell: "셸 명령 실행",

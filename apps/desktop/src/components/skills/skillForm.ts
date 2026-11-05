@@ -1,10 +1,19 @@
+import { FFF_FIND_TOOL_NAME, FFF_GREP_TOOL_NAME } from "@/shared/fffSearch";
+
 /** Limits from the Agent Skills format, mirrored by the agent-side loader. */
 export const SKILL_NAME_MAX_LENGTH = 64;
 export const SKILL_DESCRIPTION_MAX_LENGTH = 1_024;
 export const SKILL_COMPATIBILITY_MAX_LENGTH = 500;
 
 export type SkillToolLabel =
-  "read" | "edit" | "write" | "shell" | "webSearch" | "webFetch";
+  | "read"
+  | "find"
+  | "grep"
+  | "edit"
+  | "write"
+  | "shell"
+  | "webSearch"
+  | "webFetch";
 
 export interface SkillToolOption {
   label: SkillToolLabel;
@@ -23,7 +32,14 @@ export interface SkillToolGroup {
 export function skillToolGroups(platform?: string): SkillToolGroup[] {
   const shell = platform === "win32" ? "powershell" : "bash";
   return [
-    { id: "inspect", options: [{ label: "read", tool: "read" }] },
+    {
+      id: "inspect",
+      options: [
+        { label: "read", tool: "read" },
+        { label: "find", tool: FFF_FIND_TOOL_NAME },
+        { label: "grep", tool: FFF_GREP_TOOL_NAME },
+      ],
+    },
     {
       id: "modify",
       options: [

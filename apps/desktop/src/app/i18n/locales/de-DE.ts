@@ -626,6 +626,8 @@ export default {
     },
     tools: {
       read: "Datei lesen",
+      find: "Dateien nach Namen finden",
+      grep: "Inhalte durchsuchen",
       edit: "Vorhandene Dateien bearbeiten",
       write: "Dateien anlegen oder überschreiben",
       shell: "Shell-Befehle ausführen",

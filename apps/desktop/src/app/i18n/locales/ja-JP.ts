@@ -621,6 +621,8 @@ export default {
     },
     tools: {
       read: "ファイルを読む",
+      find: "名前でファイルを探す",
+      grep: "内容で検索",
       edit: "既存ファイルを編集",
       write: "ファイルを作成・上書き",
       shell: "シェルコマンドを実行",

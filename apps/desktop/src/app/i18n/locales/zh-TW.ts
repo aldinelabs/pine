@@ -582,6 +582,8 @@ export default {
     },
     tools: {
       read: "讀取檔案內容",
+      find: "按檔名尋找",
+      grep: "按內容搜尋",
       edit: "修改既有檔案",
       write: "建立或覆寫檔案",
       shell: "執行終端命令",

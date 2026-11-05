@@ -42,6 +42,8 @@ describe("skillForm", () => {
       );
     expect(tools("darwin")).toEqual([
       "read",
+      "find",
+      "grep",
       "edit",
       "write",
       "bash",
