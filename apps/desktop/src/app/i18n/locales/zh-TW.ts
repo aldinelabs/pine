@@ -615,6 +615,15 @@ export default {
     removeDescription: "從配置中刪除 {name}？",
   },
   project: {
+    quote: {
+      listLabel: "引用的片段",
+      remove: "移除引用",
+    },
+    selection: {
+      label: "選取的文字",
+      quote: "引用",
+      followUp: "追問",
+    },
     closeProject: "關閉專案",
     workbench: {
       toggle: "切換工作臺",

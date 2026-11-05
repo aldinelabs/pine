@@ -87,6 +87,8 @@ function messageExcerpt(message: PineTranscriptMessage): string {
       .join("\n"),
   );
   if (text) return text;
+  const quote = message.blocks.find((block) => block.type === "quotes");
+  if (quote?.type === "quotes") return excerpt(quote.quotes[0]?.text ?? "");
   return message.blocks.some((block) => block.type === "attachments")
     ? t("project.transcript.outlineAttachments")
     : "";

@@ -646,6 +646,15 @@ export default {
     removeDescription: "이 구성에서 {name}을(를) 제거할까요?",
   },
   project: {
+    quote: {
+      listLabel: "인용한 구절",
+      remove: "인용 삭제",
+    },
+    selection: {
+      label: "선택한 텍스트",
+      quote: "인용",
+      followUp: "추가 질문",
+    },
     closeProject: "프로젝트 닫기",
     workbench: {
       toggle: "작업대 전환",

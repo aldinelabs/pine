@@ -656,6 +656,15 @@ export default {
     removeDescription: "Удалить {name} из этой конфигурации?",
   },
   project: {
+    quote: {
+      listLabel: "Цитаты",
+      remove: "Убрать цитату",
+    },
+    selection: {
+      label: "Выделенный текст",
+      quote: "Цитировать",
+      followUp: "Уточнить",
+    },
     closeProject: "Закрыть проект",
     workbench: {
       toggle: "Показать или скрыть рабочую панель",

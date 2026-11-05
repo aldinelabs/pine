@@ -34,6 +34,12 @@ import AutomationApprovalCard from "@/components/automations/AutomationApprovalC
 import ProjectApprovalCard from "@/components/project/ProjectApprovalCard.vue";
 import ProjectQuestionnaireCard from "@/components/project/ProjectQuestionnaireCard.vue";
 import ProjectAttachmentList from "@/components/project/ProjectAttachmentList.vue";
+import ProjectQuoteList from "@/components/project/ProjectQuoteList.vue";
+import {
+  parseQuoteMessage,
+  serializeQuoteMessage,
+  type PineQuote,
+} from "@/shared/quotes";
 import SessionSearchOverlay from "@/components/sessions/SessionSearchOverlay.vue";
 import ContextUsageIndicator from "@/components/project/ContextUsageIndicator.vue";
 import ProjectTargetPicker from "@/components/project/ProjectTargetPicker.vue";
@@ -196,15 +202,26 @@ const isYoloConfirmationOpen = ref(false);
 const attachments = defineModel<PineAttachment[]>("attachments", {
   default: () => [],
 });
+/** Passages quoted from the conversation, sent ahead of the prompt. */
+const quotes = defineModel<PineQuote[]>("quotes", {
+  default: () => [],
+});
 const hasMessage = computed(
-  () => message.value.trim().length > 0 || attachments.value.length > 0,
+  () =>
+    message.value.trim().length > 0 ||
+    attachments.value.length > 0 ||
+    quotes.value.length > 0,
 );
 const isSteering = computed(() => props.isRunning && hasMessage.value);
 const stagedSteeringMessages = computed(() =>
-  props.steeringMessages.map((message) => ({
-    message,
-    ...parseAttachmentMessage(message),
-  })),
+  props.steeringMessages.map((message) => {
+    const parsed = parseAttachmentMessage(message);
+    return {
+      message,
+      attachments: parsed.attachments,
+      ...parseQuoteMessage(parsed.prompt),
+    };
+  }),
 );
 
 async function openAttachment(path: string): Promise<void> {
@@ -508,13 +525,26 @@ function handleChooserKeydown(event: KeyboardEvent): void {
 
 function submitMessage(): void {
   const normalizedMessage = message.value.trim();
-  if (!normalizedMessage && attachments.value.length === 0) return;
+  if (
+    !normalizedMessage &&
+    attachments.value.length === 0 &&
+    quotes.value.length === 0
+  )
+    return;
 
   emit(
     "submit",
-    serializeAttachmentMessage(attachments.value, normalizedMessage),
+    serializeAttachmentMessage(
+      attachments.value,
+      serializeQuoteMessage(quotes.value, normalizedMessage),
+    ),
   );
   attachments.value = [];
+  quotes.value = [];
+}
+
+function removeQuote(index: number): void {
+  quotes.value = quotes.value.filter((_, position) => position !== index);
 }
 
 function handlePrimaryAction(): void {
@@ -824,6 +854,11 @@ function handleRootSubmit(event: Event): void {
               surface="message"
               @open="openAttachment"
             />
+            <ProjectQuoteList
+              v-if="steeringMessage.quotes.length > 0"
+              :quotes="steeringMessage.quotes"
+              surface="message"
+            />
             <!-- The wrapper already caps the width; Bubble's own 80% cap would
                  compound with it and wrap text well before the edge. -->
             <Bubble
@@ -878,6 +913,14 @@ function handleRootSubmit(event: Event): void {
               removable
               surface="composer"
               @remove="removeAttachment"
+            />
+            <ProjectQuoteList
+              v-if="quotes.length > 0"
+              class="session-composer-quotes w-full shrink-0 px-[var(--session-composer-control-inset)] pt-[var(--session-composer-control-inset)]"
+              :quotes="quotes"
+              removable
+              surface="composer"
+              @remove="removeQuote"
             />
 
             <div class="session-composer-row flex w-full items-center">

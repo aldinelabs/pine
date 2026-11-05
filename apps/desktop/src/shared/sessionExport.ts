@@ -81,6 +81,11 @@ function appendBlock(lines: string[], block: PineContentBlock): void {
     );
     return;
   }
+  if (block.type === "quotes") {
+    for (const quote of block.quotes)
+      lines.push(quote.text.replace(/^/gm, "> "), "");
+    return;
+  }
   if (block.type === "toolCall") {
     appendToolCall(lines, block.toolCall);
     return;

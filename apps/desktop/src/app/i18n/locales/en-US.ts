@@ -652,6 +652,15 @@ export default {
     removeDescription: "Remove {name} from this configuration?",
   },
   project: {
+    quote: {
+      listLabel: "Quoted passages",
+      remove: "Remove quote",
+    },
+    selection: {
+      label: "Selected text",
+      quote: "Quote",
+      followUp: "Follow up",
+    },
     closeProject: "Close project",
     workbench: {
       toggle: "Toggle workbench",

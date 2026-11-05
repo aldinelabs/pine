@@ -662,6 +662,15 @@ export default {
     removeDescription: "¿Quitar {name} de esta configuración?",
   },
   project: {
+    quote: {
+      listLabel: "Fragmentos citados",
+      remove: "Quitar cita",
+    },
+    selection: {
+      label: "Texto seleccionado",
+      quote: "Citar",
+      followUp: "Preguntar más",
+    },
     closeProject: "Cerrar proyecto",
     workbench: {
       toggle: "Mostrar u ocultar el panel de trabajo",

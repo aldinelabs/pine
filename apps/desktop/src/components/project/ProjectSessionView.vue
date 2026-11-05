@@ -54,6 +54,9 @@ import { useSessionStore, type PineTranscriptMessage } from "@/stores/session";
 import ProjectSessionParallaxBackground from "./ProjectSessionParallaxBackground.vue";
 import ProjectSessionComposer from "./ProjectSessionComposer.vue";
 import ProjectTranscriptMessage from "./ProjectTranscriptMessage.vue";
+import ProjectTranscriptSelectionMenu from "./ProjectTranscriptSelectionMenu.vue";
+import { normalizeQuoteText, type PineQuote } from "@/shared/quotes";
+import type { TranscriptSelection } from "@/lib/transcriptSelection";
 import type { PineToolCall } from "@/shared/sessions";
 import type { PineAuthoringTarget } from "@/shared/sessionMutators";
 import { toolFileRequest } from "./toolViewAdapter";
@@ -257,6 +260,23 @@ const attachments = computed<PineAttachment[]>({
   },
 });
 const approvalMode = ref<PineApprovalMode>("auto-approve");
+/** Passages quoted from this transcript into the composer. */
+const quotes = ref<PineQuote[]>([]);
+const transcriptRegion = useTemplateRef<HTMLElement>("transcriptRegion");
+
+function messageRole(messageId: string): "assistant" | "user" | undefined {
+  return messages.value.find((message) => message.id === messageId)?.role;
+}
+
+async function quoteSelection(selection: TranscriptSelection): Promise<void> {
+  const text = normalizeQuoteText(selection.quote);
+  if (!text) return;
+  const role = messageRole(selection.messageId);
+  if (!quotes.value.some((quote) => quote.text === text))
+    quotes.value = [...quotes.value, { text, ...(role ? { role } : {}) }];
+  await nextTick();
+  composer.value?.focus();
+}
 const isDraggingFiles = ref(false);
 const isTranscriptNavigationActive = ref(false);
 let fileDragDepth = 0;
@@ -671,9 +691,15 @@ async function handleDrop(event: DragEvent): Promise<void> {
       @drop="handleDrop"
     >
       <div
+        ref="transcriptRegion"
         data-slot="session-transcript-region"
         class="relative isolate min-h-0 w-full flex-1"
       >
+        <ProjectTranscriptSelectionMenu
+          v-if="isActive"
+          :container="transcriptRegion"
+          @quote="quoteSelection"
+        />
         <ProjectSessionParallaxBackground
           v-if="isNewConversation && !hasSubmittedPrompt && !isPhone"
           class="-z-10"
@@ -767,6 +793,7 @@ async function handleDrop(event: DragEvent): Promise<void> {
         ref="composer"
         v-model="draft"
         v-model:attachments="attachments"
+        v-model:quotes="quotes"
         v-model:approvalMode="approvalMode"
         :context="handoffContext"
         :context-animates="false"

@@ -24,6 +24,8 @@ import {
 } from "@/shared/sessions";
 import type { PineTranscriptMessage } from "@/stores/session";
 import ProjectAttachmentList from "./ProjectAttachmentList.vue";
+import ProjectQuoteList from "./ProjectQuoteList.vue";
+import { serializeQuoteMessage } from "@/shared/quotes";
 import ProjectAutomationRunMessage from "./ProjectAutomationRunMessage.vue";
 import ProjectBackgroundTaskMarker from "./ProjectBackgroundTaskMarker.vue";
 import ProjectCompactionMarker from "./ProjectCompactionMarker.vue";
@@ -90,7 +92,9 @@ const canSendEdit = computed(
   () =>
     (props.canRewrite ?? false) &&
     !isSendingEdit.value &&
-    (editDraft.value.trim().length > 0 || attachments.value.length > 0),
+    (editDraft.value.trim().length > 0 ||
+      attachments.value.length > 0 ||
+      quotes.value.length > 0),
 );
 
 async function startEditing(): Promise<void> {
@@ -114,7 +118,10 @@ async function sendEdit(): Promise<void> {
   try {
     const accepted = await props.rewriteMessage(
       props.message.id,
-      serializeAttachmentMessage(attachments.value, editDraft.value),
+      serializeAttachmentMessage(
+        attachments.value,
+        serializeQuoteMessage(quotes.value, editDraft.value),
+      ),
     );
     if (accepted) cancelEditing();
   } finally {
@@ -151,6 +158,11 @@ const automationRun = computed(() =>
 const attachments = computed(() =>
   props.message.blocks.flatMap((block) =>
     block.type === "attachments" ? block.attachments : [],
+  ),
+);
+const quotes = computed(() =>
+  props.message.blocks.flatMap((block) =>
+    block.type === "quotes" ? block.quotes : [],
   ),
 );
 const contextToolCalls = computed(() =>
@@ -209,7 +221,10 @@ const renderItems = computed<RenderItem[]>(() => {
   <Message :align="isUser ? 'end' : 'start'">
     <MessageContent
       :class="
-        cn(!isUser && 'gap-3', isUser && attachments.length > 0 && 'gap-1.5')
+        cn(
+          !isUser && 'gap-3',
+          isUser && (attachments.length > 0 || quotes.length > 0) && 'gap-1.5',
+        )
       "
     >
       <!-- Non-user messages render blocks in their original order so a tool
@@ -303,6 +318,12 @@ const renderItems = computed<RenderItem[]>(() => {
           :attachments="attachments"
           surface="message"
           @open="openAttachment"
+        />
+        <ProjectQuoteList
+          v-if="quotes.length > 0"
+          class="max-w-[80%] self-end"
+          :quotes="quotes"
+          surface="message"
         />
         <template v-if="isEditing">
           <!-- Auto width: the editor starts at the original bubble's width and

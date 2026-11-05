@@ -654,6 +654,15 @@ export default {
     removeDescription: "この設定から {name} を削除しますか？",
   },
   project: {
+    quote: {
+      listLabel: "引用した箇所",
+      remove: "引用を削除",
+    },
+    selection: {
+      label: "選択したテキスト",
+      quote: "引用",
+      followUp: "追加で質問",
+    },
     closeProject: "プロジェクトを閉じる",
     workbench: {
       toggle: "ワークベンチを切り替え",

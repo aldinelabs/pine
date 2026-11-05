@@ -666,6 +666,15 @@ export default {
     removeDescription: "{name} aus dieser Konfiguration entfernen?",
   },
   project: {
+    quote: {
+      listLabel: "Zitierte Stellen",
+      remove: "Zitat entfernen",
+    },
+    selection: {
+      label: "Ausgewählter Text",
+      quote: "Zitieren",
+      followUp: "Nachfragen",
+    },
     closeProject: "Projekt schließen",
     workbench: {
       toggle: "Arbeitsbereich ein-/ausblenden",

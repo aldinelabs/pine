@@ -1,3 +1,5 @@
+import { parseQuoteMessage } from "./quotes";
+
 export const PICK_ATTACHMENTS_CHANNEL = "attachments:pick" as const;
 export const PICK_ATTACHMENT_FOLDERS_CHANNEL =
   "attachment-folders:pick" as const;
@@ -275,7 +277,10 @@ export function parseAttachmentMessage(
 
 export function attachmentMessagePreview(message: string): string {
   const { attachments, prompt } = parseAttachmentMessage(message);
+  const quoted = parseQuoteMessage(prompt);
   return (
-    prompt.trim() || attachments.map((attachment) => attachment.name).join(", ")
+    quoted.prompt.trim() ||
+    attachments.map((attachment) => attachment.name).join(", ") ||
+    quoted.quotes.map((quote) => quote.text).join(" ")
   );
 }

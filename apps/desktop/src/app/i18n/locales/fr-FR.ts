@@ -663,6 +663,15 @@ export default {
     removeDescription: "Retirer {name} de cette configuration ?",
   },
   project: {
+    quote: {
+      listLabel: "Passages cités",
+      remove: "Retirer la citation",
+    },
+    selection: {
+      label: "Texte sélectionné",
+      quote: "Citer",
+      followUp: "Approfondir",
+    },
     closeProject: "Fermer le projet",
     workbench: {
       toggle: "Afficher ou masquer l'espace de travail",

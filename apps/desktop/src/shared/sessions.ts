@@ -1,5 +1,6 @@
 import type { AutomationRunSession } from "./automation";
 import { parseAttachmentMessage, type PineAttachment } from "./attachments";
+import { parseQuoteMessage, type PineQuote } from "./quotes";
 import type { PineModelSelection } from "./models";
 import { sessionMutationToolCall } from "./sessionMutators";
 import type { TaskState } from "@pine/rpiv-todo";
@@ -95,6 +96,8 @@ export interface PineSessionError {
 export type PineContentBlock =
   | { type: "text"; text: string }
   | { type: "attachments"; attachments: PineAttachment[] }
+  /** Passages the user quoted from the conversation. */
+  | { type: "quotes"; quotes: PineQuote[] }
   | { type: "thinking"; thinking: string }
   | { type: "toolCall"; toolCall: PineToolCall }
   | { type: "compaction"; compaction: PineCompaction }
@@ -201,12 +204,16 @@ export function parseMessageBlocks(message: unknown): PineContentBlock[] {
     blocks = blocks.flatMap((block): PineContentBlock[] => {
       if (block.type !== "text") return [block];
       const parsed = parseAttachmentMessage(block.text);
+      const quoted = parseQuoteMessage(parsed.prompt);
       return [
         ...(parsed.attachments.length > 0
           ? [{ type: "attachments" as const, attachments: parsed.attachments }]
           : []),
-        ...(parsed.prompt
-          ? [{ type: "text" as const, text: parsed.prompt }]
+        ...(quoted.quotes.length > 0
+          ? [{ type: "quotes" as const, quotes: quoted.quotes }]
+          : []),
+        ...(quoted.prompt
+          ? [{ type: "text" as const, text: quoted.prompt }]
           : []),
       ];
     });
