@@ -213,8 +213,9 @@ export const useWorkbenchStore = defineStore("workbench", () => {
   function closeCard(panel: WorkbenchPanel): void {
     update(activeKey.value, (layout) => {
       const next = closePanel(layout, panel);
-      // The side chat card never stays behind as the one to reopen.
-      return next.top === SIDE_CHAT_PANEL
+      // Closing the last card keeps it as the one to reopen, but never the
+      // side chat card; one that moves up into the top card stays.
+      return !next.open && next.top === SIDE_CHAT_PANEL
         ? { ...next, top: DEFAULT_WORKBENCH_LAYOUT.top }
         : next;
     });

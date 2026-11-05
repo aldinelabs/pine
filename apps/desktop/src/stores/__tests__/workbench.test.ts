@@ -173,3 +173,28 @@ it("empties the preview card but keeps it in place", () => {
     preview: null,
   });
 });
+
+it("moves a side chat below up when the card above it closes", () => {
+  const store = useWorkbenchStore();
+  store.showPanel("top", "artifacts");
+  store.showPanel("bottom", "side-chat");
+
+  store.closeCard("artifacts");
+
+  expect(store.activeLayout).toMatchObject({
+    open: true,
+    top: "side-chat",
+    bottom: null,
+  });
+});
+
+it("never keeps the side chat as the card to reopen", () => {
+  const store = useWorkbenchStore();
+  store.showSideChat();
+  expect(store.activeLayout).toMatchObject({ open: true, top: "side-chat" });
+
+  store.closeCard("side-chat");
+
+  expect(store.activeLayout.open).toBe(false);
+  expect(store.activeLayout.top).not.toBe("side-chat");
+});
