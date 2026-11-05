@@ -28,7 +28,7 @@ export function useWindowTabShortcuts(): void {
       if (navigation.activeTab.value) {
         const tabId = navigation.activeTabId.value;
         if (closeTabHandler?.value) closeTabHandler.value(tabId);
-        else navigation.close(tabId);
+        else void navigation.close(tabId);
       } else {
         void window.pine.closeWindow();
       }

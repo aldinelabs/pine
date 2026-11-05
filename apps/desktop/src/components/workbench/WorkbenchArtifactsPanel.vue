@@ -261,7 +261,7 @@ function dropViewsOf(artifact: Artifact, target: FilePreviewTarget): void {
     (candidate) =>
       candidate.kind === "file" && fileTargetKey(candidate) === key,
   );
-  if (tab) navigation.close(tab.id);
+  if (tab) void navigation.close(tab.id);
   if (previewedToolCallId.value === artifact.toolCallId)
     workbench.clearPreview();
 }
