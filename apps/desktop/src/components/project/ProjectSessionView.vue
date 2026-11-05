@@ -67,6 +67,7 @@ import ProjectTranscriptOutline from "./ProjectTranscriptOutline.vue";
 import ProjectSessionStatus from "./ProjectSessionStatus.vue";
 import {
   collapsesTranscriptGap,
+  TOOL_CALL_TURN_MARGIN_CLASS,
   transcriptMessageRenderSignature,
 } from "./transcriptLayout";
 
@@ -347,13 +348,6 @@ const awaitingApprovalToolCallIds = computed(
 /** While a response runs, its last two tool units (folded groups and
  * standalone calls alike) stay expanded; everything folds when it ends. */
 const expandedToolRuns = useToolActivityExpansion({ messages, isRunning });
-
-/**
- * Turn gap collapses to the in-turn tool spacing (gap-3) when the model
- * skips thinking and starts a turn directly with a tool call, cancelling the
- * MessageScrollerContent `gap-8` down to that rhythm.
- */
-const TOOL_CALL_TURN_MARGIN_CLASS = "-mt-5";
 
 /** Per-message `v-memo` key: only the transcript state a message reads. */
 function messageRenderSignature(message: PineTranscriptMessage): string {

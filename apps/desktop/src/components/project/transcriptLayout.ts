@@ -18,6 +18,13 @@ export function collapsesTranscriptGap(
   return messages[index - 1]?.role === "assistant";
 }
 
+/**
+ * Turn gap collapses to the in-turn tool spacing (gap-3) when the model
+ * skips thinking and starts a turn directly with a tool call, cancelling the
+ * MessageScrollerContent `gap-8` down to that rhythm.
+ */
+export const TOOL_CALL_TURN_MARGIN_CLASS = "-mt-5";
+
 export interface TranscriptRenderState {
   expandedToolRuns: ReadonlySet<string>;
   reviewingToolCallIds: ReadonlySet<string>;

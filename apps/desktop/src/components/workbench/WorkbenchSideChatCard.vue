@@ -7,12 +7,15 @@ import {
   Trash2Icon,
   XIcon,
 } from "@lucide/vue";
-import { computed, nextTick, ref, useTemplateRef, watch } from "vue";
+import { computed, nextTick, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { toast } from "vue-sonner";
-import MarkdownContent from "@/components/markdown/MarkdownContent.vue";
 import ProjectQuoteList from "@/components/project/ProjectQuoteList.vue";
-import { toolIconForName } from "@/components/project/toolKinds";
+import ProjectTranscriptMessage from "@/components/project/ProjectTranscriptMessage.vue";
+import {
+  collapsesTranscriptGap,
+  TOOL_CALL_TURN_MARGIN_CLASS,
+} from "@/components/project/transcriptLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import {
@@ -22,19 +25,25 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@/components/ui/empty";
+import { InputGroup, InputGroupTextarea } from "@/components/ui/input-group";
+import {
+  MessageScroller,
+  MessageScrollerContent,
+  MessageScrollerItem,
+  MessageScrollerProvider,
+  MessageScrollerViewport,
+} from "@/components/ui/message-scroller";
 import { Spinner } from "@/components/ui/spinner";
-import { Textarea } from "@/components/ui/textarea";
 import { useSideChat } from "@/composables/useSideChat";
-import { cn } from "@/lib/utils";
 import type { PineQuote } from "@/shared/quotes";
-import type { PineToolCall } from "@/shared/sessions";
 import { useSessionStore } from "@/stores/session";
 import { useSideChatStore } from "@/stores/sideChat";
 
 /**
- * The side chat of the active conversation, as a workbench card: a short
- * conversation of its own, with only replies, compact tool lines and a
- * message box. A follow-up shows the passage it asks about.
+ * The side chat of the active conversation, as a workbench card. It follows
+ * the other cards' header and corner rule, and shows its conversation with
+ * the transcript's own message rendering; a follow-up shows the passage it
+ * asks about above it.
  */
 defineProps<{ position: "top" | "bottom" }>();
 const { t } = useI18n();
@@ -42,10 +51,10 @@ const sessionStore = useSessionStore();
 const sideChats = useSideChatStore();
 const sideChat = useSideChat();
 const chat = computed(() => sideChats.active(sessionStore.activeSession?.id));
+const messages = computed(() => chat.value?.messages ?? []);
 const draft = ref("");
 const isSending = ref(false);
-const scroller = useTemplateRef<HTMLElement>("scroller");
-const input = ref<InstanceType<typeof Textarea> | null>(null);
+const input = ref<InstanceType<typeof InputGroupTextarea> | null>(null);
 
 const anchorQuote = computed<PineQuote[]>(() =>
   chat.value?.anchor ? [{ text: chat.value.anchor.quote }] : [],
@@ -55,66 +64,11 @@ const title = computed(() =>
     ? t("project.sideChat.followUpTitle")
     : t("project.sideChat.title"),
 );
-
-interface Row {
-  key: string;
-  kind: "user" | "text" | "tool" | "thinking";
-  text?: string;
-  quotes?: PineQuote[];
-  toolCall?: PineToolCall;
-  final?: boolean;
-}
-
-const rows = computed<Row[]>(() =>
-  (chat.value?.messages ?? []).flatMap((message): Row[] => {
-    if (message.role === "user") {
-      const text = message.blocks
-        .flatMap((block) => (block.type === "text" ? [block.text] : []))
-        .join("\n");
-      const quotes = message.blocks.flatMap((block) =>
-        block.type === "quotes" ? block.quotes : [],
-      );
-      return text || quotes.length
-        ? [{ key: message.id, kind: "user", text, quotes }]
-        : [];
-    }
-    return message.blocks.flatMap((block, index): Row[] => {
-      const key = `${message.id}:${index}`;
-      if (block.type === "text" && block.text.trim())
-        return [
-          {
-            key,
-            kind: "text",
-            text: block.text,
-            final: message.status === "complete",
-          },
-        ];
-      if (block.type === "toolCall")
-        return [{ key, kind: "tool", toolCall: block.toolCall }];
-      if (
-        block.type === "thinking" &&
-        message.status === "streaming" &&
-        index === message.blocks.length - 1
-      )
-        return [{ key, kind: "thinking" }];
-      return [];
-    });
-  }),
+/** A question is out and nothing has come back yet. */
+const isAwaitingReply = computed(
+  () =>
+    Boolean(chat.value?.isRunning) && messages.value.at(-1)?.role === "user",
 );
-
-function toolSummary(toolCall: PineToolCall): string {
-  const input =
-    typeof toolCall.input === "object" &&
-    toolCall.input !== null &&
-    !Array.isArray(toolCall.input)
-      ? (toolCall.input as Record<string, unknown>)
-      : {};
-  for (const key of ["path", "query", "url", "pattern", "name"]) {
-    const value = input[key];
-    if (typeof value === "string" && value.trim()) return value;
-  }
-  return "";
-}
 
 const canSend = computed(
   () =>
@@ -161,20 +115,6 @@ async function remove(): Promise<void> {
   }
 }
 
-// Follow the newest reply while it streams.
-watch(
-  () => {
-    const last = chat.value?.messages.at(-1);
-    return [chat.value?.id, chat.value?.messages.length, last?.blocks];
-  },
-  async () => {
-    await nextTick();
-    const element = scroller.value;
-    if (element) element.scrollTop = element.scrollHeight;
-  },
-  { flush: "post" },
-);
-
 // A new side chat is ready for its first question.
 watch(
   () => chat.value?.id,
@@ -193,23 +133,20 @@ watch(
     data-testid="workbench-card"
     data-panel="side-chat"
     :data-position="position"
-    class="h-full min-h-0 gap-0 rounded-(--workbench-radius) py-0 shadow-none ring-0"
+    class="h-full min-h-0 gap-0 rounded-(--workbench-radius) py-0 shadow-none ring-0 [--side-chat-text-inset:calc(var(--workbench-inset)+0.75rem+1px)]"
   >
+    <!-- The same header as the other cards: controls at the card's inset,
+         the title where their panel switch sits, state on the right. -->
     <CardHeader class="flex shrink-0 items-center gap-1 p-(--workbench-inset)">
-      <span class="flex min-w-0 items-center gap-2 px-2 text-sm font-medium">
-        <MessagesSquareIcon
-          class="size-4 shrink-0 text-side-chat"
-          aria-hidden="true"
-        />
+      <span
+        class="inline-flex h-8 min-w-0 shrink-0 items-center border border-transparent px-3 text-sm font-medium"
+      >
         <span class="truncate">{{ title }}</span>
       </span>
-      <span
-        v-if="chat && !chat.persistent"
-        class="truncate text-xs text-muted-foreground"
-      >
-        {{ t("project.sideChat.notSaved") }}
+      <span class="text-muted-foreground ml-auto min-w-0 truncate px-1 text-xs">
+        {{ chat && !chat.persistent ? t("project.sideChat.notSaved") : "" }}
       </span>
-      <div class="ml-auto flex shrink-0 items-center">
+      <div class="flex shrink-0 items-center">
         <Button
           v-if="chat?.persistent"
           variant="ghost"
@@ -236,7 +173,7 @@ watch(
       <Empty v-if="!chat" class="flex-1 border-0">
         <EmptyHeader>
           <EmptyMedia variant="icon">
-            <MessagesSquareIcon />
+            <MessagesSquareIcon aria-hidden="true" />
           </EmptyMedia>
           <EmptyTitle>{{ t("project.sideChat.emptyTitle") }}</EmptyTitle>
           <EmptyDescription>
@@ -244,7 +181,6 @@ watch(
           </EmptyDescription>
         </EmptyHeader>
         <Button
-          size="sm"
           :disabled="!sessionStore.activeSession || sideChats.isOpening"
           @click="sideChat.open()"
         >
@@ -252,131 +188,108 @@ watch(
         </Button>
       </Empty>
       <template v-else>
+        <!-- The passage sits at the card's inset, a raised surface whose
+             corners, and its icon tile's, stay concentric with the card. -->
         <ProjectQuoteList
           v-if="anchorQuote.length"
-          class="side-chat-anchor shrink-0 px-(--workbench-inset) pb-2"
+          class="shrink-0 px-(--workbench-inset) py-0"
+          item-class="w-full max-w-full rounded-(--workbench-inner-radius) border-0 bg-muted"
+          media-class="rounded-[calc(var(--workbench-inner-radius)-0.375rem)] bg-background/60"
           :quotes="anchorQuote"
-          surface="composer"
+          surface="message"
         />
-        <div
-          ref="scroller"
-          data-slot="side-chat-messages"
-          class="scroll-fade-y min-h-0 flex-1 overflow-y-auto px-3 py-2"
+        <Empty v-if="!messages.length" class="flex-1 border-0">
+          <EmptyHeader>
+            <EmptyMedia variant="icon">
+              <MessagesSquareIcon aria-hidden="true" />
+            </EmptyMedia>
+            <EmptyDescription>
+              {{ t("project.sideChat.readOnlyHint") }}
+            </EmptyDescription>
+          </EmptyHeader>
+        </Empty>
+        <MessageScrollerProvider
+          v-else
+          :key="chat.id"
+          auto-scroll
+          default-scroll-position="last-anchor"
+          :follow-animated="chat.isRunning"
         >
-          <p
-            v-if="!rows.length"
-            class="py-6 text-center text-xs text-muted-foreground"
-          >
-            {{ t("project.sideChat.readOnlyHint") }}
-          </p>
-          <div class="flex flex-col gap-3">
-            <template v-for="row in rows" :key="row.key">
-              <div
-                v-if="row.kind === 'user'"
-                class="flex max-w-[85%] flex-col items-end gap-1 self-end"
+          <MessageScroller class="flex-1">
+            <MessageScrollerViewport>
+              <MessageScrollerContent
+                class="px-(--side-chat-text-inset) py-4"
+                spacer-class="h-4"
               >
-                <ProjectQuoteList
-                  v-if="row.quotes?.length"
-                  :quotes="row.quotes"
-                  surface="message"
-                />
-                <div
-                  v-if="row.text"
-                  class="rounded-2xl bg-secondary px-3 py-1.5 text-sm whitespace-pre-wrap text-secondary-foreground"
-                >
-                  {{ row.text }}
-                </div>
-              </div>
-              <div
-                v-else-if="row.kind === 'text'"
-                class="transcript-prose text-sm"
-              >
-                <MarkdownContent :source="row.text ?? ''" :final="row.final" />
-              </div>
-              <div
-                v-else-if="row.kind === 'tool' && row.toolCall"
-                data-slot="side-chat-tool"
-                :class="
-                  cn(
-                    'flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground',
-                    row.toolCall.status === 'error' && 'text-destructive',
-                  )
-                "
-              >
-                <Spinner
-                  v-if="
-                    row.toolCall.status === 'running' ||
-                    row.toolCall.status === 'pending'
+                <MessageScrollerItem
+                  v-for="(message, index) in messages"
+                  :key="message.id"
+                  :message-id="message.id"
+                  :scroll-anchor="message.role === 'user'"
+                  :class="
+                    collapsesTranscriptGap(messages, index)
+                      ? TOOL_CALL_TURN_MARGIN_CLASS
+                      : undefined
                   "
-                  class="size-3.5 shrink-0"
-                />
-                <component
-                  :is="toolIconForName(row.toolCall.name)"
-                  v-else
-                  class="size-3.5 shrink-0"
-                  aria-hidden="true"
-                />
-                <span class="shrink-0 font-medium">{{
-                  row.toolCall.name
-                }}</span>
-                <span class="truncate">{{ toolSummary(row.toolCall) }}</span>
-              </div>
-              <div
-                v-else-if="row.kind === 'thinking'"
-                class="flex items-center gap-1.5 text-xs text-muted-foreground"
-              >
-                <Spinner class="size-3.5" />
-                {{ t("project.sideChat.thinking") }}
-              </div>
-            </template>
-            <div
-              v-if="chat.isRunning && rows.at(-1)?.kind === 'user'"
-              class="flex items-center gap-1.5 text-xs text-muted-foreground"
-            >
-              <Spinner class="size-3.5" />
-              {{ t("project.sideChat.thinking") }}
-            </div>
-            <p
-              v-if="chat.error"
-              class="flex items-start gap-1.5 text-xs text-destructive"
-            >
-              <CircleAlertIcon class="mt-0.5 size-3.5 shrink-0" />
-              {{ chat.error }}
-            </p>
-          </div>
-        </div>
+                >
+                  <ProjectTranscriptMessage :message="message" />
+                </MessageScrollerItem>
+                <MessageScrollerItem
+                  v-if="isAwaitingReply"
+                  class="flex items-center gap-2 text-sm text-muted-foreground"
+                >
+                  <Spinner />
+                  {{ t("project.sideChat.thinking") }}
+                </MessageScrollerItem>
+                <MessageScrollerItem
+                  v-if="chat.error"
+                  class="flex items-start gap-2 text-sm text-destructive"
+                >
+                  <CircleAlertIcon class="mt-0.5 size-4 shrink-0" />
+                  {{ chat.error }}
+                </MessageScrollerItem>
+              </MessageScrollerContent>
+            </MessageScrollerViewport>
+          </MessageScroller>
+        </MessageScrollerProvider>
+        <!-- Mirrors the header: a field and its button at the card's inset,
+             both on the card's inner corner, text in line with the title. -->
         <form
-          class="flex shrink-0 items-end gap-1.5 border-t p-(--workbench-inset)"
+          class="flex shrink-0 items-end gap-1 p-(--workbench-inset)"
           @submit.prevent="send"
         >
-          <Textarea
-            ref="input"
-            v-model="draft"
-            data-slot="side-chat-input"
-            rows="1"
-            class="max-h-32 min-h-9 flex-1 resize-none border-0 bg-transparent px-2 py-2 text-sm shadow-none focus-visible:ring-0 dark:bg-transparent"
-            :placeholder="t('project.sideChat.placeholder')"
-            :aria-label="t('project.sideChat.placeholder')"
-            @keydown="handleKeydown"
-          />
+          <InputGroup
+            class="h-auto min-h-8 flex-1 rounded-(--workbench-inner-radius) border-0 bg-muted shadow-none has-[textarea]:rounded-(--workbench-inner-radius) dark:bg-muted"
+          >
+            <InputGroupTextarea
+              ref="input"
+              v-model="draft"
+              data-slot="side-chat-input"
+              rows="1"
+              class="scroll-fade-y max-h-32 min-h-8 overflow-y-auto px-[calc(var(--side-chat-text-inset)-var(--workbench-inset))] py-1.5 text-sm leading-5"
+              :placeholder="t('project.sideChat.placeholder')"
+              :aria-label="t('project.sideChat.placeholder')"
+              @keydown="handleKeydown"
+            />
+          </InputGroup>
           <Button
             v-if="chat.isRunning"
             type="button"
-            size="icon-sm"
+            size="icon"
             variant="secondary"
-            class="rounded-full"
             :aria-label="t('project.sideChat.stop')"
+            :title="t('project.sideChat.stop')"
             @click="stop"
           >
-            <SquareIcon class="fill-current" />
+            <SquareIcon />
           </Button>
           <Button
             v-else
             type="submit"
-            size="icon-sm"
-            class="rounded-full"
+            size="icon"
             :disabled="!canSend"
             :aria-label="t('project.sideChat.send')"
+            :title="t('project.sideChat.send')"
           >
             <ArrowUpIcon />
           </Button>
