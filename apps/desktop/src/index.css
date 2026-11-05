@@ -1028,6 +1028,9 @@ html.sidebar-vibrancy:has(
 
 [data-workbench] [data-slot="card"] {
   --card: var(--workbench-card);
+  /* Secondary fills, such as a side chat's own bubbles, rise off the card
+     like muted ones; the page's secondary all but matches the card. */
+  --secondary: var(--workbench-card-raised);
   --muted: var(--workbench-card-raised);
   --accent: var(--workbench-card-raised);
   --sidebar-accent: var(--workbench-card-raised);
