@@ -1,4 +1,4 @@
-import { mkdtemp, writeFile } from "node:fs/promises";
+import { mkdtemp, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
@@ -75,6 +75,32 @@ describe("saved side chats", () => {
       anchor,
       title: "What does this mean?",
     });
+  });
+
+  it("titles an edited follow-up with its edited question", async () => {
+    const directory = await mkdtemp(path.join(tmpdir(), "pine-side-chats-"));
+    await writeSideChat(directory, "edited", "parent", "First wording");
+    const file = path.join(directory, "edited.jsonl");
+    const edited = [
+      {
+        type: "message",
+        id: "d",
+        parentId: "c",
+        message: { role: "assistant", content: "An answer" },
+      },
+      {
+        type: "message",
+        id: "e",
+        parentId: "b",
+        message: { role: "user", content: "Second wording" },
+      },
+    ];
+    await writeFile(
+      file,
+      `${await readFile(file, "utf8")}\n${edited.map((line) => JSON.stringify(line)).join("\n")}`,
+    );
+    const [sideChat] = await listSideChats(directory, "parent");
+    expect(sideChat?.title).toBe("Second wording");
   });
 
   it("discards a side chat closed before anything was asked", async () => {

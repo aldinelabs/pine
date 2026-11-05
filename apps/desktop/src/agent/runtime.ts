@@ -95,6 +95,7 @@ import { createPineToolDefinitions, PineAttachedPathAccess } from "./tools";
 import {
   createSideChatExtension,
   forkEntries,
+  isSideChatEntry,
   PINE_SIDE_CHAT_ENTRY,
   PINE_SIDE_CHAT_NOTICE,
   SIDE_CHAT_APPROVAL_REASON,
@@ -607,6 +608,10 @@ export class PineAgentRuntime {
     }
     const manager = live.session.sessionManager;
     let targetId = rewriteTargetEntryId(manager.getBranch(), rewrite);
+    // A side chat edits only its own questions, never the conversation it
+    // forked from.
+    if (live.sideChat && !isSideChatEntry(manager.getBranch(), targetId))
+      throw new Error("This message cannot be edited here.");
     // Pi treats navigating to the current leaf as a no-op, so a trailing user
     // message rewinds through its parent instead.
     if (targetId === manager.getLeafId()) {

@@ -31,6 +31,28 @@ interface SideChatFile {
 
 const TITLE_LENGTH = 120;
 
+/**
+ * The entries of the branch the side chat is on, in order. Edits leave the
+ * earlier questions in the file on a branch of their own; the last entry
+ * written is on the current one.
+ */
+function activeBranch(
+  entries: readonly Record<string, unknown>[],
+): Record<string, unknown>[] {
+  const byId = new Map<string, Record<string, unknown>>();
+  for (const entry of entries)
+    if (typeof entry.id === "string" && entry.type !== "session")
+      byId.set(entry.id, entry);
+  const branch: Record<string, unknown>[] = [];
+  let entry = [...byId.values()].at(-1);
+  while (entry && branch.length <= byId.size) {
+    branch.push(entry);
+    entry =
+      typeof entry.parentId === "string" ? byId.get(entry.parentId) : undefined;
+  }
+  return branch.reverse();
+}
+
 async function readSideChatFile(
   file: string,
   parentSessionId: string,
@@ -40,23 +62,24 @@ async function readSideChatFile(
     stat(file),
   ]);
   let id: string | undefined;
+  const entries: Record<string, unknown>[] = [];
+  for (const line of text.split("\n")) {
+    if (!line.trim()) continue;
+    try {
+      const entry = JSON.parse(line) as Record<string, unknown>;
+      if (entry.type === "session" && typeof entry.id === "string")
+        id = entry.id;
+      else entries.push(entry);
+    } catch {
+      continue;
+    }
+  }
   let anchor: unknown;
   let started = false;
   let title: string | undefined;
   let hasQuestion = false;
-  for (const line of text.split("\n")) {
-    if (!line.trim()) continue;
-    let entry: Record<string, unknown>;
-    try {
-      entry = JSON.parse(line) as Record<string, unknown>;
-    } catch {
-      continue;
-    }
-    if (entry.type === "session" && typeof entry.id === "string") id = entry.id;
-    else if (
-      entry.type === "custom" &&
-      entry.customType === PINE_SIDE_CHAT_ENTRY
-    ) {
+  for (const entry of activeBranch(entries)) {
+    if (entry.type === "custom" && entry.customType === PINE_SIDE_CHAT_ENTRY) {
       const data = entry.data as Record<string, unknown> | undefined;
       if (data?.parentSessionId !== parentSessionId) return undefined;
       anchor = data.anchor;

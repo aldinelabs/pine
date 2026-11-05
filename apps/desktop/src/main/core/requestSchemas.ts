@@ -161,6 +161,12 @@ export const LoadSessionMessagesRequestSchema = z.object({
   projectId: z.uuid(),
   sessionId: z.uuid(),
 });
+
+/** An earlier user message to edit, and where it sits from the end. */
+const MessageRewriteTargetSchema = z.object({
+  messageId: z.string().min(1).max(200),
+  userMessagesAfter: z.number().int().min(0).max(1_000_000),
+});
 export const PromptSessionRequestSchema = z.object({
   locale: z.enum(["en-US", "zh-CN"]).default("en-US"),
   message: z.string().trim().min(1).max(100_000),
@@ -176,12 +182,7 @@ export const PromptSessionRequestSchema = z.object({
   approvalMode: z
     .enum(["let-me-review", "auto-approve", "autonomous", "YOLO"])
     .optional(),
-  rewrite: z
-    .object({
-      messageId: z.string().min(1).max(200),
-      userMessagesAfter: z.number().int().min(0).max(1_000_000),
-    })
-    .optional(),
+  rewrite: MessageRewriteTargetSchema.optional(),
   mutators: z
     .array(
       z.object({
@@ -403,6 +404,7 @@ export const SideChatRequestSchema = z.object({
 export const PromptSideChatRequestSchema = SideChatRequestSchema.extend({
   locale: z.enum(["en-US", "zh-CN"]).default("en-US"),
   message: z.string().trim().min(1).max(100_000),
+  rewrite: MessageRewriteTargetSchema.optional(),
 });
 export const DeleteSideChatRequestSchema = SideChatRequestSchema.extend({
   sessionId: z.uuid(),

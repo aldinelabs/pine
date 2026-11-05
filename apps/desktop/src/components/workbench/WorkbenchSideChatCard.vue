@@ -105,6 +105,22 @@ function handleKeydown(event: KeyboardEvent): void {
   void send();
 }
 
+/** Edits an earlier question and asks it again from there. */
+async function rewriteMessage(
+  messageId: string,
+  message: string,
+): Promise<boolean> {
+  const current = chat.value;
+  if (!current || current.isRunning) return false;
+  try {
+    await sideChats.rewrite(current.id, messageId, message);
+    return true;
+  } catch {
+    toast.error(t("project.transcript.editMessageFailed"));
+    return false;
+  }
+}
+
 async function stop(): Promise<void> {
   if (chat.value) await sideChats.abort(chat.value.id).catch(() => undefined);
 }
@@ -219,7 +235,11 @@ watch(
                     : undefined
                 "
               >
-                <ProjectTranscriptMessage :message="message" />
+                <ProjectTranscriptMessage
+                  :message="message"
+                  :can-rewrite="!chat?.isRunning"
+                  :rewrite-message="rewriteMessage"
+                />
               </MessageScrollerItem>
               <MessageScrollerItem
                 v-if="chat?.error"

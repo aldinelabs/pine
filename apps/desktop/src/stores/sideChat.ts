@@ -247,6 +247,54 @@ export const useSideChatStore = defineStore("sideChat", () => {
     }
   }
 
+  /**
+   * Edits an earlier question: it and everything after it leave the side
+   * chat at once, and the edited question comes back through its events.
+   */
+  async function rewrite(
+    sideChatId: string,
+    messageId: string,
+    message: string,
+  ): Promise<void> {
+    const chat = chats.get(sideChatId);
+    if (!chat || chat.isRunning)
+      throw new Error("The side chat is not ready for editing.");
+    const index = chat.messages.findIndex((item) => item.id === messageId);
+    if (index < 0) throw new Error("The message to edit is not loaded.");
+    const previousMessages = chat.messages;
+    const userMessagesAfter = previousMessages
+      .slice(index + 1)
+      .filter((item) => item.role === "user").length;
+    // An edited first question titles the follow-up afresh.
+    const summary = previousMessages
+      .slice(0, index)
+      .some((item) => item.role === "user")
+      ? undefined
+      : savedByParent
+          .get(chat.parentSessionId)
+          ?.find((item) => item.id === chat.id);
+    const previousTitle = summary?.title;
+    if (summary) delete summary.title;
+    chat.messages = previousMessages.slice(0, index);
+    chat.isRunning = true;
+    delete chat.error;
+    try {
+      const result = await window.pine.promptSideChat({
+        projectId: chat.projectId,
+        sideChatId,
+        message,
+        locale: currentAgentLocale(),
+        rewrite: { messageId, userMessagesAfter },
+      });
+      if (!result.accepted) throw new Error("The edit was not accepted.");
+    } catch (error) {
+      chat.messages = previousMessages;
+      chat.isRunning = false;
+      if (summary && previousTitle !== undefined) summary.title = previousTitle;
+      throw error;
+    }
+  }
+
   async function abort(sideChatId: string): Promise<void> {
     const chat = chats.get(sideChatId);
     if (!chat) return;
@@ -405,6 +453,7 @@ export const useSideChatStore = defineStore("sideChat", () => {
 
   return {
     abort,
+    rewrite,
     active,
     answerDiscard,
     confirmDiscard,

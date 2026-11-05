@@ -242,4 +242,79 @@ describe("side chats on a real Pi session", () => {
       await runtime.dispose();
     }
   });
+  it("edits its own questions but never the conversation's", async () => {
+    const { root, location, runtime, live } = await setup();
+    try {
+      const parent = await runtime.createSession(location);
+      const parentSession = live(parent.session.id);
+      parentSession.setSessionName("Side chat test");
+      parentSession.agent.streamFunction = (model, context) =>
+        reply(context, [{ type: "text", text: "It is 42." }], model);
+      await parentSession.prompt("What is the answer?");
+      const parentQuestion = parentSession.sessionManager
+        .getBranch()
+        .find(
+          (entry) => entry.type === "message" && entry.message.role === "user",
+        )!;
+
+      const side = await runtime.openSideChat({
+        location,
+        parentSessionId: parent.session.id,
+        sideChatsDirectory: path.join(root, "side-chats"),
+      });
+      const sideSession = live(side.session.id);
+      const sideContexts: Context[] = [];
+      sideSession.agent.streamFunction = (model, context) => {
+        sideContexts.push(structuredClone(context));
+        return reply(context, [{ type: "text", text: "Because." }], model);
+      };
+      const idle = async () => {
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        while (!sideSession.isIdle)
+          await new Promise((resolve) => setTimeout(resolve, 10));
+      };
+      await runtime.prompt(side.session.id, "Why?");
+      await idle();
+      const question = sideSession.sessionManager
+        .getBranch()
+        .filter(
+          (entry) => entry.type === "message" && entry.message.role === "user",
+        )
+        .at(-1)!;
+
+      await expect(
+        runtime.prompt(
+          side.session.id,
+          "Rewritten parent",
+          undefined,
+          undefined,
+          undefined,
+          undefined,
+          { messageId: parentQuestion.id, userMessagesAfter: 1 },
+        ),
+      ).rejects.toThrow();
+
+      await runtime.prompt(
+        side.session.id,
+        "Why, exactly?",
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        { messageId: question.id, userMessagesAfter: 0 },
+      );
+      await idle();
+      const edited = JSON.stringify(sideContexts.at(-1)!.messages);
+      expect(edited).toContain("Why, exactly?");
+      expect(edited).not.toContain('"Why?"');
+      expect(edited).toContain("What is the answer?");
+      expect(edited).toContain("read-only tools");
+      // The edit asks with the tools the first question had.
+      expect(toolSignature(sideContexts.at(-1)!)).toBe(
+        toolSignature(sideContexts[0]),
+      );
+    } finally {
+      await runtime.dispose();
+    }
+  });
 });

@@ -1,4 +1,8 @@
-import type { PineAgentEvent, PineJsonValue } from "./agent";
+import type {
+  PineAgentEvent,
+  PineJsonValue,
+  PineMessageRewriteTarget,
+} from "./agent";
 
 /**
  * Side chats fork a conversation to ask questions beside it with read-only
@@ -74,6 +78,8 @@ export interface PromptSideChatRequest {
   sideChatId: string;
   message: string;
   locale?: "en-US" | "zh-CN";
+  /** Edits this earlier question and continues from it. */
+  rewrite?: PineMessageRewriteTarget;
 }
 
 export interface PromptSideChatResult {

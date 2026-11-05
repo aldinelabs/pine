@@ -628,6 +628,7 @@ export class ProjectRuntimeRegistry {
       undefined,
       undefined,
       request.locale,
+      request.rewrite,
     );
     return { accepted: result.accepted };
   }

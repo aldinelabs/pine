@@ -108,6 +108,21 @@ export function sideChatEntry(
   return undefined;
 }
 
+/** Whether an entry of the branch is the side chat's own, after the fork. */
+export function isSideChatEntry(
+  branch: readonly SessionEntry[],
+  entryId: string,
+): boolean {
+  const marker = branch.findIndex(
+    (entry) =>
+      entry.type === "custom" && entry.customType === PINE_SIDE_CHAT_ENTRY,
+  );
+  return (
+    marker >= 0 &&
+    branch.slice(marker + 1).some((entry) => entry.id === entryId)
+  );
+}
+
 /** The side chat's own messages: those after its marker entry. */
 export function sideChatMessages(
   branch: readonly SessionEntry[],
