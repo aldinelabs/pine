@@ -163,10 +163,11 @@ From top to bottom:
      passage reopens its follow-up.
    - Staged steering messages sit above the status cards, each with Withdraw
      and Send now. When the agent consumes one, its dashed bubble moves
-     smoothly into its place in the transcript, blending into the sent
-     message, without delaying the response. With reduced motion enabled, it
-     appears there without the movement animation. Ordinary sent messages
-     reveal in place on the same curve.
+     smoothly into its place in the transcript, and the sent message it
+     becomes travels with it while the two blend, without delaying the
+     response. Ordinary sent messages rise the same way from the composer into
+     their place instead of appearing in place. With reduced motion enabled,
+     both simply appear.
 2. Status cards above the composer, shown when relevant. The row sizes itself
    to its content, up to the available width; a lone card is not stretched to
    fill the conversation. When both cards compete for room, space is reserved

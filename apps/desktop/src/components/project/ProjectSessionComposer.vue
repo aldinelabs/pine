@@ -756,6 +756,7 @@ function handleRootSubmit(event: Event): void {
 <template>
   <component
     :is="hasPendingInterruption ? 'div' : 'form'"
+    data-slot="session-composer"
     :class="
       cn(
         '@container/composer mx-auto w-full max-w-[var(--session-composer-max-width)] px-[var(--session-composer-gutter)]',

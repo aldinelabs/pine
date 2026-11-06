@@ -273,7 +273,9 @@ const sessionLayout = useTemplateRef<HTMLElement>("sessionLayout");
 useSteeringMessageTransition({
   container: sessionLayout,
   queue: steeringMessages,
-  messages: transcriptTurns,
+  // The transcript as rendered, not the outline: only this list says which
+  // user message just arrived and where it landed.
+  messages,
   active: isActive,
   sessionId: computed(() => props.sessionId),
 });

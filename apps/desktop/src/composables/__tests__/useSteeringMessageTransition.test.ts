@@ -34,7 +34,7 @@ function setup(queueValues = ["Queued message"]) {
         });
         return { container, queue, messages };
       },
-      template: `<div ref="container"><div v-for="(text, index) in queue" :key="index" data-steering-content><div data-slot="bubble">{{ text }}</div></div><div v-for="message in messages" :key="message.id" :data-message-id="message.id"><div data-slot="user-message-row"><div data-slot="bubble">{{ message.blocks[0].text }}</div></div></div></div>`,
+      template: `<div ref="container"><div v-for="(text, index) in queue" :key="index" data-steering-content><div data-slot="bubble">{{ text }}</div></div><div v-for="message in messages" :key="message.id" :data-message-id="message.id"><div data-slot="user-message-row"><div data-slot="bubble">{{ message.blocks[0].text }}</div></div></div><div data-slot="session-composer" /></div>`,
     }),
     { attachTo: document.body },
   );
@@ -59,12 +59,11 @@ beforeEach(() => {
   vi.stubGlobal("matchMedia", () => ({ matches: reduced }));
   vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(
     function (this: HTMLElement) {
-      return new DOMRect(
-        200,
-        this.closest("[data-steering-content]") ? 600 : 300,
-        100,
-        40,
-      );
+      // Previews and the composer sit at the bottom; messages sit above them.
+      const atTail =
+        !!this.closest("[data-steering-content]") ||
+        this.matches('[data-slot="session-composer"]');
+      return new DOMRect(200, atTail ? 600 : 300, 100, 40);
     },
   );
 });
@@ -91,9 +90,12 @@ it("flies a consumed queue bubble into its destination across separate IPC batch
   expect(flight.style.position).toBe("fixed");
   expect(flight.style.transform).toContain("200px, 600px");
   expect(flight.getAttribute("aria-hidden")).toBe("true");
-  // The dashed source and the real message trade opacity on one curve.
+  // The dashed source and the real message trade opacity on one curve. The
+  // message that takes over stays visible and only transparent: hiding its
+  // visibility would make the hand-over fade invisible and pop in at the end.
   expect(flight.style.opacity).toBe("1");
   expect(target.element.style.opacity).toBe("0");
+  expect(target.element.style.visibility).not.toBe("hidden");
   frame(0);
   frame(250);
   expect(Number(flight.style.opacity)).toBeLessThan(1);
@@ -106,6 +108,65 @@ it("flies a consumed queue bubble into its destination across separate IPC batch
     document.querySelector('[data-slot="steering-message-flight"]'),
   ).toBeNull();
   expect(target.element.style.opacity).toBe("");
+  expect(target.element.style.transform).toBe("");
+});
+
+it("keeps flying when the message row is replaced mid-flight", async () => {
+  const { wrapper, queue, messages } = setup();
+  queue.value = [];
+  await flushPromises();
+  messages.value = [message("user-1", "Queued message")];
+  await flushPromises();
+  frame(0);
+  frame(100);
+  // A re-render can swap the row for a fresh node without inline styles.
+  const row = wrapper.get<HTMLElement>('[data-message-id="user-1"]');
+  const replacement = row.element.cloneNode(true) as HTMLElement;
+  const bubble = replacement.querySelector<HTMLElement>(
+    '[data-slot="bubble"]',
+  )!;
+  bubble.removeAttribute("style");
+  row.element.replaceWith(replacement);
+  expect(
+    document.querySelector('[data-slot="steering-message-flight"]'),
+  ).not.toBeNull();
+  frame(200);
+  // The hand-over continues on the new node instead of being dropped.
+  expect(bubble.style.opacity).not.toBe("");
+  expect(Number(bubble.style.opacity)).toBeGreaterThan(0);
+  frame(500);
+  expect(
+    document.querySelector('[data-slot="steering-message-flight"]'),
+  ).toBeNull();
+  expect(bubble.style.opacity).toBe("");
+});
+
+it("does not animate the message of an edited turn", async () => {
+  const { wrapper, messages } = setup([]);
+  await flushPromises();
+  messages.value = [
+    message("old", "Earlier"),
+    message("user-1", "Original"),
+    { ...message("reply", "Reply"), role: "assistant" as const },
+  ];
+  await flushPromises();
+  // Editing removes the turn from the tail, then the rewrite comes back.
+  messages.value = [message("old", "Earlier")];
+  await flushPromises();
+  messages.value = [message("old", "Earlier"), message("user-2", "Edited")];
+  await flushPromises();
+  const target = wrapper.get<HTMLElement>(
+    '[data-message-id="user-2"] [data-slot="bubble"]',
+  );
+  expect(target.element.style.opacity).toBe("");
+  expect(target.element.style.transform).toBe("");
+  // The next ordinary send still animates.
+  messages.value = [...messages.value, message("user-3", "After the edit")];
+  await flushPromises();
+  expect(
+    wrapper.get<HTMLElement>('[data-message-id="user-3"] [data-slot="bubble"]')
+      .element.style.opacity,
+  ).toBe("0");
 });
 
 it("does not animate a withdrawn message or an unrelated new message", async () => {
@@ -149,7 +210,7 @@ it("cancels safely when the tab becomes inactive", async () => {
   ).toBe("");
 });
 
-it("reveals a normally sent message without a flight overlay", async () => {
+it("reveals a normally sent message from the composer, without a flight overlay", async () => {
   const { wrapper, messages } = setup([]);
   await flushPromises();
   // A transcript that already shows an earlier turn, then a normal send.
@@ -164,11 +225,14 @@ it("reveals a normally sent message without a flight overlay", async () => {
     '[data-message-id="user-1"] [data-slot="bubble"]',
   );
   expect(target.element.style.opacity).toBe("0");
+  // It leaves from the composer and rises into place, so a plain send moves.
+  expect(target.element.style.transform).toContain("300px");
   frame(0);
   frame(250);
   expect(Number(target.element.style.opacity)).toBeGreaterThan(0);
   frame(500);
   expect(target.element.style.opacity).toBe("");
+  expect(target.element.style.transform).toBe("");
 });
 
 it("does not reveal history loads, prepends or assistant messages", async () => {
