@@ -829,9 +829,15 @@ function handleRootSubmit(event: Event): void {
           v-for="(steeringMessage, index) in stagedSteeringMessages"
           :key="`${steeringMessage.message}-${index}`"
           data-slot="staged-steering-message"
-          class="flex w-full items-center justify-end gap-2"
+          class="flex w-full items-end justify-end gap-2"
         >
-          <div class="flex shrink-0 items-center gap-1">
+          <!-- Attachments and quotes stack above the bubble, so the actions sit
+               on the row's bottom edge at the height of a one-line bubble
+               (1px borders, py-2.5, text-sm leading-relaxed) and stay centered
+               on the bubble instead of on the whole message. -->
+          <div
+            class="flex h-[calc(2px_+_2_*_--spacing(2.5)_+_var(--text-sm)_*_var(--leading-relaxed))] shrink-0 items-center gap-1"
+          >
             <Button
               type="button"
               size="sm"
