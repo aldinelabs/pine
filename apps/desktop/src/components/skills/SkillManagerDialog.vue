@@ -753,6 +753,7 @@ watch(activeScope, () => {
                 <template v-else>
                   <DialogScrollArea
                     edge-inset="0rem"
+                    content-inset="1.25rem"
                     class="flex-1"
                     content-class="px-5 pt-5 pb-6 max-sm:px-4"
                   >

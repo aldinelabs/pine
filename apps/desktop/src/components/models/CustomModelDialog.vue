@@ -308,6 +308,7 @@ async function save(): Promise<void> {
 
         <DialogScrollArea
           edge-inset="0rem"
+          content-inset="1.5rem"
           class="flex-1"
           viewport-class="scroll-fade"
           content-class="px-6"

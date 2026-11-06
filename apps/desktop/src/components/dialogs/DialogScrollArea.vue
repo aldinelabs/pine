@@ -11,6 +11,9 @@ const props = withDefaults(
     contentClass?: HTMLAttributes["class"];
     /** Put the overlay thumb in the dialog's padding, outside the content. */
     edgeInset?: string;
+    /** Content's right padding, where the thumb overlays. Defaults to the
+     *  edge inset; set it when the scrollbar sits at a flush pane edge. */
+    contentInset?: string;
   }>(),
   { edgeInset: "1.25rem" },
 );
@@ -18,6 +21,11 @@ const viewport =
   useTemplateRef<InstanceType<typeof ScrollAreaViewport>>("viewport");
 defineExpose({ viewport: computed(() => viewport.value?.viewportElement) });
 const emit = defineEmits<{ scroll: [event: Event] }>();
+// Inline, so a content class like `px-5` cannot lose its right half to the
+// stylesheet ordering of the `pe` utility.
+const contentPadding = computed(() => ({
+  paddingInlineEnd: props.contentInset ?? props.edgeInset,
+}));
 </script>
 
 <template>
@@ -41,7 +49,11 @@ const emit = defineEmits<{ scroll: [event: Event] }>();
       "
       @scroll="emit('scroll', $event)"
     >
-      <div :class="cn('min-w-0 pe-(--dialog-scroll-edge)', contentClass)">
+      <div
+        data-slot="dialog-scroll-area-content"
+        :class="cn('min-w-0', contentClass)"
+        :style="contentPadding"
+      >
         <slot />
       </div>
     </ScrollAreaViewport>

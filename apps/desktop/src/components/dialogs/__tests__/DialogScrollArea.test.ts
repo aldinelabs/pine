@@ -19,9 +19,25 @@ it("places the overlay outside the content without reserving a native scrollbar 
   const viewport = wrapper.get('[data-slot="scroll-area-viewport"]');
   expect(viewport.classes()).toContain("max-h-[inherit]");
   expect(viewport.attributes("data-reka-scroll-area-viewport")).toBeDefined();
-  expect(viewport.find(".pe-\\(--dialog-scroll-edge\\)").exists()).toBe(true);
+  expect(
+    wrapper.get('[data-slot="dialog-scroll-area-content"]').attributes("style"),
+  ).toContain("padding-inline-end: 1.25rem");
   expect(root.classes()).not.toContain("pr-4");
   expect(root.classes()).not.toContain("overflow-y-auto");
+});
+
+it("keeps content padding when the thumb sits at a flush pane edge", () => {
+  const wrapper = mount(DialogScrollArea, {
+    props: { edgeInset: "0rem", contentInset: "1.25rem", contentClass: "px-5" },
+    slots: { default: "Content" },
+  });
+  wrappers.push(wrapper);
+  const content = wrapper.get('[data-slot="dialog-scroll-area-content"]');
+  expect(content.attributes("style")).toContain("padding-inline-end: 1.25rem");
+  expect(content.classes()).toContain("px-5");
+  expect(
+    wrapper.get('[data-slot="dialog-scroll-area"]').attributes("style"),
+  ).toContain("--dialog-scroll-edge: 0rem");
 });
 
 it("exposes the actual viewport and forwards scroll events for log tail-following", async () => {
