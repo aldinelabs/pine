@@ -10,8 +10,8 @@ import ProjectTodoCard from "./ProjectTodoCard.vue";
 
 /**
  * What the session is working through, at the end of the transcript: the
- * todo list and the background processes, side by side, each as wide as its
- * content. Cards grow in and shrink away, so the transcript glides rather
+ * todo list and the background processes, side by side. They share the row
+ * according to content, with room reserved for both when one label is long. Cards grow in and shrink away, so the transcript glides rather
  * than jumps when one appears or fades. While the transcript follows its
  * bottom the cards hold still above the composer and the reply scrolls under
  * them; only the cards themselves take clicks.
@@ -48,9 +48,17 @@ const hasTasks = computed(() => tasks.value.length > 0);
       class="flex flex-col justify-end"
     >
       <!-- Stands in for the transcript's item gap. -->
-      <div class="flex items-stretch gap-3 pt-8">
+      <div
+        data-testid="project-status-card-row"
+        class="flex w-fit max-w-full items-stretch gap-3 pt-8"
+      >
         <Transition :css="false" @enter="card.onEnter" @leave="card.onLeave">
-          <div v-if="hasTodos" class="pointer-events-auto flex min-w-0">
+          <div
+            v-if="hasTodos"
+            data-testid="project-todo-card-slot"
+            class="pointer-events-auto flex flex-auto"
+            :class="hasTasks ? 'min-w-[30%]' : 'min-w-0'"
+          >
             <ProjectTodoCard
               :todos="todos"
               :hidden-completed-ids="hiddenCompletedIds"
@@ -59,7 +67,12 @@ const hasTasks = computed(() => tasks.value.length > 0);
           </div>
         </Transition>
         <Transition :css="false" @enter="card.onEnter" @leave="card.onLeave">
-          <div v-if="hasTasks" class="pointer-events-auto flex min-w-0">
+          <div
+            v-if="hasTasks"
+            data-testid="project-background-task-card-slot"
+            class="pointer-events-auto flex flex-auto"
+            :class="hasTodos ? 'min-w-[30%]' : 'min-w-0'"
+          >
             <ProjectBackgroundTaskCard />
           </div>
         </Transition>

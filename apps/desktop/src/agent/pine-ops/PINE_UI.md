@@ -155,7 +155,10 @@ From top to bottom:
      Follow up is unavailable while a reply is running, in a session with no
      message yet, or over text already in a follow-up. Clicking a highlighted
      passage reopens its follow-up.
-2. Status cards above the composer, shown when relevant:
+2. Status cards above the composer, shown when relevant. The row sizes itself
+   to its content, up to the available width; a lone card is not stretched to
+   fill the conversation. When both cards compete for room, space is reserved
+   for each and long labels truncate rather than crowding out the other card.
    - Todos: progress of the agent's task list; opens All todos.
    - Background processes: running and finished processes started by the
      agent; opens a process inspector with command, output, Copy path and,

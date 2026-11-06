@@ -204,6 +204,38 @@ it("puts background processes beside the todos, running ones first", () => {
   ).toEqual(["running", "failed", "killed", "completed"]);
 });
 
+it("shares the row by content while reserving room for both cards", () => {
+  const wrapper = mountCard(
+    {
+      nextId: 2,
+      tasks: [task(1, "pending", { subject: "Long task ".repeat(80) })],
+    },
+    [process("p1", "running")],
+  );
+  for (const name of ["todo", "background-task"]) {
+    const slot = wrapper.get(`[data-testid=project-${name}-card-slot]`);
+    expect(slot.classes()).toContain("flex-auto");
+    expect(slot.classes()).toContain("min-w-[30%]");
+    expect(slot.get("[data-slot=card]").classes()).toContain("w-full");
+    expect(slot.get("[data-slot=card]").classes()).toContain("min-w-0");
+  }
+  expect(
+    wrapper.find("[data-testid=project-todo-row] .truncate").exists(),
+  ).toBe(true);
+});
+
+it("keeps a lone card's row content-sized instead of filling the conversation", () => {
+  const wrapper = mountCard(null, [process("p1", "running")]);
+  const slot = wrapper.get("[data-testid=project-background-task-card-slot]");
+  const row = wrapper.get("[data-testid=project-status-card-row]");
+  expect(row.classes()).toContain("w-fit");
+  expect(row.classes()).toContain("max-w-full");
+  expect(row.classes()).not.toContain("w-full");
+  expect(slot.classes()).toContain("flex-auto");
+  expect(slot.classes()).toContain("min-w-0");
+  expect(slot.classes()).not.toContain("min-w-[30%]");
+});
+
 it("shows background processes alone once the todos are done", () => {
   const wrapper = mountCard(null, [process("p1", "running")]);
 
