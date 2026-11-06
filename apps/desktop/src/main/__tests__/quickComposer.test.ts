@@ -28,6 +28,7 @@ import {
   QUICK_COMPOSER_SHOWN_CHANNEL,
   type QuickComposerContext,
 } from "../../shared/quickComposer";
+import { PROJECT_LIST_WINDOW_SIZE } from "../../shared/window";
 
 let nextId = 1;
 function fakeWindow(bounds: Rectangle) {
@@ -70,9 +71,16 @@ describe("quick composer layout", () => {
   it("centres a collapsed window in the work area", () => {
     expect(quickComposerBounds(workArea)).toEqual({
       x: (1512 - COLLAPSED_WINDOW_WIDTH) / 2,
-      y: 25 + 920 - 840 - QUICK_COMPOSER_BOTTOM_GAP,
+      // The window sits near the bottom edge unless the work area is too short.
+      y: Math.max(
+        workArea.y,
+        workArea.y +
+          workArea.height -
+          PROJECT_LIST_WINDOW_SIZE.height -
+          QUICK_COMPOSER_BOTTOM_GAP,
+      ),
       width: COLLAPSED_WINDOW_WIDTH,
-      height: 840,
+      height: PROJECT_LIST_WINDOW_SIZE.height,
     });
     expect(
       quickComposerBounds({ x: 0, y: 0, width: 800, height: 600 }),
