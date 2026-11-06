@@ -79,7 +79,6 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Textarea } from "@/components/ui/textarea";
 import type {
   PineSkillResource,
   PineSkillScope,
@@ -877,14 +876,18 @@ watch(activeScope, () => {
                             </Button>
                           </div>
                         </div>
-                        <Textarea
-                          :id="`skill-${scope}-body`"
-                          v-model="body"
-                          :disabled="isReadOnly"
-                          class="scroll-fade-y max-h-80 min-h-40 overflow-y-auto overscroll-contain [field-sizing:content] font-mono text-[13px] leading-relaxed placeholder:font-sans"
-                          spellcheck="false"
-                          :placeholder="t('skills.contentPlaceholder')"
-                        />
+                        <!-- The group draws the border and fill; the fade masks only
+                             the scrolling textarea inside it. -->
+                        <InputGroup class="h-auto">
+                          <InputGroupTextarea
+                            :id="`skill-${scope}-body`"
+                            v-model="body"
+                            :disabled="isReadOnly"
+                            class="scroll-fade-y max-h-80 min-h-40 overflow-y-auto overscroll-contain [field-sizing:content] font-mono text-[13px] leading-relaxed placeholder:font-sans"
+                            spellcheck="false"
+                            :placeholder="t('skills.contentPlaceholder')"
+                          />
+                        </InputGroup>
                         <FieldDescription>
                           {{ t("skills.instructionsHint") }}
                         </FieldDescription>
