@@ -62,6 +62,7 @@ const SECURE_WEB_PREFERENCES = {
   experimentalFeatures: false,
   nodeIntegration: false,
   sandbox: true,
+  scrollBounce: false,
   webSecurity: true,
 } as const;
 
@@ -165,7 +166,6 @@ export class DesktopWindows {
       autoHideMenuBar: process.platform !== "darwin",
       webPreferences: {
         ...SECURE_WEB_PREFERENCES,
-        scrollBounce: true,
         preload: path.join(__dirname, "preload.js"),
         ...(options.quickComposerHandoff && {
           additionalArguments: [QUICK_COMPOSER_HANDOFF_ARGUMENT],

@@ -45,9 +45,10 @@ are already available (for example the `ui_workbench_*` tools and
 
 ## Main window
 
-Scrollable dialog bodies use an overlay scrollbar at their outer edge rather
-than taking width from the text or graph. Headings and action buttons stay
-outside the body scroll area.
+On macOS, scrolling keeps normal inertia but does not rubber-band past the
+content's edges. Scrollable dialog bodies use an overlay scrollbar at their
+outer edge rather than taking width from the text or graph. Headings and action
+buttons stay outside the body scroll area.
 
 ```
 window
@@ -188,7 +189,10 @@ From top to bottom:
      (or Turn on / Delete), Reject, or Reject with guidance.
    - Questionnaire card, when the agent asks questions: Previous, Next, Cancel,
      Submit, plus a free-text answer.
-   - Staged steering messages, each with Withdraw and Send now.
+   - Staged steering messages, each with Withdraw and Send now. When the agent
+     consumes one, its bubble moves smoothly into its place in the transcript
+     without delaying the response. With reduced motion enabled, it appears
+     there without the movement animation.
    - Chip ("Creating a skill / an automation / an MCP server
      with Pine"), on a draft started from Manage with Pine; its remove button
      turns the draft into an ordinary conversation.

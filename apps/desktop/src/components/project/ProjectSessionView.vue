@@ -47,6 +47,7 @@ import { useContentTabNavigation } from "@/composables/useContentTabNavigation";
 import { useDraftProjectOpener } from "@/composables/useDraftProjectOpener";
 import { usePhoneLayout } from "@/composables/usePhoneLayout";
 import { useToolActivityExpansion } from "@/composables/useToolActivityExpansion";
+import { useSteeringMessageTransition } from "@/composables/useSteeringMessageTransition";
 import { useContentTabsStore } from "@/stores/contentTabs";
 import { useProjectStore } from "@/stores/project";
 import { useQuickComposerHandoffStore } from "@/stores/quickComposerHandoff";
@@ -267,6 +268,14 @@ const approvalMode = ref<PineApprovalMode>("auto-approve");
 /** Passages quoted from this transcript into the composer. */
 const quotes = ref<PineQuote[]>([]);
 const transcriptRegion = useTemplateRef<HTMLElement>("transcriptRegion");
+const sessionLayout = useTemplateRef<HTMLElement>("sessionLayout");
+useSteeringMessageTransition({
+  container: sessionLayout,
+  queue: steeringMessages,
+  messages: transcriptTurns,
+  active: isActive,
+  sessionId: computed(() => props.sessionId),
+});
 
 function messageRole(messageId: string): "assistant" | "user" | undefined {
   return messages.value.find((message) => message.id === messageId)?.role;
@@ -734,6 +743,7 @@ async function handleDrop(event: DragEvent): Promise<void> {
     :follow-animated="isRunning"
   >
     <div
+      ref="sessionLayout"
       class="session-layout relative flex h-full min-h-0 flex-col"
       @dragenter="handleDragEnter"
       @dragover="handleDragOver"

@@ -859,7 +859,10 @@ function handleRootSubmit(event: Event): void {
               {{ t("project.composer.sendSteeringNowLabel") }}
             </Button>
           </div>
-          <div class="flex max-w-[80%] min-w-0 flex-col items-end gap-1.5">
+          <div
+            data-steering-content
+            class="flex max-w-[80%] min-w-0 flex-col items-end gap-1.5"
+          >
             <ProjectAttachmentList
               v-if="steeringMessage.attachments.length > 0"
               class="py-0"
