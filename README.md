@@ -1,5 +1,7 @@
 # Pine
 
+**简体中文** | [English](./README.en.md)
+
 致力于为所有人提供更多可能性的 AI 代理工作区。
 
 ![Pine 界面预览](./docs/images/screenshot.webp)
@@ -28,6 +30,10 @@
 
 macOS 已支持，Windows 部分支持，Linux 暂不支持。
 
+## 安装
+
+普通用户请从 [Releases](https://github.com/aldinelabs/pine/releases/latest) 下载安装包，详细步骤（安装、连接模型、创建第一个项目）见[初次部署指南](https://docs.aldine.cn/zh/pine/getting-started/)（另有 [English](https://docs.aldine.cn/en/pine/getting-started/)）。
+
 ## 从源码运行
 
 需要 [Bun](https://bun.sh/)，具体版本见 `package.json` 的 `packageManager`。
@@ -51,7 +57,7 @@ bun run build:server
 PINE_PASSWORD='至少 8 个字符' node apps/desktop/.vite/server/server.mjs
 ```
 
-默认只监听 `127.0.0.1:9415`，建议放在反向代理后面。全部选项、systemd 示例和与桌面端的差异见 [`docs/headless-server.md`](./docs/headless-server.md)。
+默认只监听 `127.0.0.1:9415`，建议放在反向代理后面。全部选项、systemd 示例和与桌面端的差异见[在服务器上运行](https://docs.aldine.cn/zh/pine/advanced/server/)。
 
 ## 开发
 

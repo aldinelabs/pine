@@ -387,7 +387,7 @@ interface Limits {
 
 ### 6.1 服务与会话归属
 
-`AutomationService` 位于 `main/core/`，由 `pineCore` 持有，桌面端与无头服务端共用。无头服务端可以 7×24 运行自动化，不受电脑睡眠影响，这一点可以作为部署建议写进 [无头服务器](headless-server.md)。
+`AutomationService` 位于 `main/core/`，由 `pineCore` 持有，桌面端与无头服务端共用。无头服务端可以 7×24 运行自动化，不受电脑睡眠影响，这一点可以作为部署建议写进 [无头服务器](https://docs.aldine.cn/zh/pine/advanced/server/)。
 
 `ProjectRuntimeRegistry` 按 client ID 持有项目运行时，浏览器访问已经用伪 client `WEB_CLIENT_ID` 接入同一套机制。自动化沿用这种做法，不另建一套运行时：
 
