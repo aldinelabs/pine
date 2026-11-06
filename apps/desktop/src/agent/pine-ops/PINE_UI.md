@@ -134,7 +134,8 @@ From top to bottom:
      has its own expandable content and live timing. A reasoning panel opens
      while it streams and collapses when output follows that panel, without
      repeating other panels' content or timing. Web sources appear as inline
-     citation cards (hover for title and URL, click to open);
+     citation cards (hover for title and URL, click to open). Source definitions
+     are not repeated below the message and do not leave a trailing blank gap;
    - for an automation run, a card at the top with the automation's name,
      trigger and start time; "Instructions" expands what it was asked to do;
    - tool call groups; clicking a call opens Tool call details (status,

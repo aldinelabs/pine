@@ -370,11 +370,24 @@ async function confirmExternalLink(): Promise<void> {
   margin-top: 0;
 }
 
-/* MessageContent owns the gap to the next tool or text block. Keep paragraph
-   spacing inside Markdown, but do not add it again at the message boundary. */
+/* Inline citations replace their footnote definitions. Hide the entire
+   definition slot, not just its contents, so no flow spacing remains. */
+.markdown-content
+  :deep(.node-slot[data-node-type="footnote"]:has([data-citation-definition])) {
+  display: none;
+}
+
+/* MessageContent owns the gap to the next block. Ignore hidden citation
+   definitions when finding the last visible block; ordinary footnotes and
+   paragraph spacing inside Markdown remain unchanged. */
 .markdown-content
   > :deep(
-    .markdown-renderer > .node-slot:last-child > .node-content > :last-child
+    .markdown-renderer
+      > .node-slot:nth-last-child(
+        1 of :not([data-node-type="footnote"]:has([data-citation-definition]))
+      )
+      > .node-content
+      > :last-child
   ) {
   margin-bottom: 0;
 }

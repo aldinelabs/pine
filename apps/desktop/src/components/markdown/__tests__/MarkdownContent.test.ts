@@ -5,6 +5,7 @@ import { createPinia, setActivePinia } from "pinia";
 import { createAppI18n } from "@/app/i18n";
 import { getMarkdown, parseMarkdownToStructure } from "markstream-vue";
 import MarkdownContent from "../MarkdownContent.vue";
+import markdownComponentSource from "../MarkdownContent.vue?raw";
 import { configurePineMarkdown } from "../configureMarkdown";
 
 const passthroughStub = { template: "<div><slot /></div>" };
@@ -81,6 +82,47 @@ describe("MarkdownContent", () => {
     ).toBe(true);
     expect(wrapper.text()).toContain("普通脚注文字");
     expect(wrapper.text()).not.toContain("Example 标题");
+    wrapper.unmount();
+  });
+
+  it("excludes citation-only definition slots from trailing Markdown spacing", async () => {
+    const wrapper = mountMarkdown(
+      "First paragraph.\n\nLast paragraph[^1][^2].\n\n[^1]: [One](https://example.com/one)\n[^2]: [Two](https://example.com/two)",
+    );
+    await flushPromises();
+    try {
+      const definitions = wrapper.findAll("[data-citation-definition]");
+      expect(definitions).toHaveLength(2);
+      for (const definition of definitions) {
+        expect(definition.attributes("hidden")).toBeDefined();
+        expect(
+          definition.element
+            .closest(".node-slot")
+            ?.getAttribute("data-node-type"),
+        ).toBe("footnote");
+      }
+      expect(wrapper.findAll("p").map((node) => node.text())).toEqual([
+        "First paragraph.",
+        "Last paragraph example.com example.com.",
+      ]);
+      expect(markdownComponentSource).toContain(
+        '.node-slot[data-node-type="footnote"]:has([data-citation-definition])',
+      );
+      expect(markdownComponentSource).toContain(
+        '1 of :not([data-node-type="footnote"]:has([data-citation-definition]))',
+      );
+    } finally {
+      wrapper.unmount();
+    }
+  });
+
+  it("keeps ordinary footnotes visible alongside hidden citation definitions", async () => {
+    const wrapper = mountMarkdown(
+      "Result[^1] and note[^2].\n\n[^1]: [Source](https://example.com)\n[^2]: Keep this ordinary footnote.",
+    );
+    await flushPromises();
+    expect(wrapper.findAll("[data-citation-definition]")).toHaveLength(1);
+    expect(wrapper.text()).toContain("Keep this ordinary footnote.");
     wrapper.unmount();
   });
 

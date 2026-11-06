@@ -29,4 +29,7 @@ const isCitation = computed(() => citations?.value.has(props.node.id));
     :node="node"
     :index-key="indexKey"
   />
+  <!-- Identify the hidden definition's slot so it cannot leave flow spacing
+       behind or masquerade as the last visible Markdown block. -->
+  <span v-else data-citation-definition hidden />
 </template>
