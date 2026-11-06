@@ -12,6 +12,7 @@ import {
 } from "@/shared/projects";
 import { useProjectStore } from "@/stores/project";
 import { useUpdaterStore } from "@/stores/updater";
+import { useWorkbenchStore } from "@/stores/workbench";
 import {
   PROJECT_SIDEBAR_VISIBILITY_STORAGE_KEY,
   useProjectSidebarVisibilityStore,
@@ -249,6 +250,46 @@ it("opens the workbench beside the conversation and widens the window for it", a
   });
   expect(toggle.attributes("aria-pressed")).toBe("false");
   wrapper.unmount();
+});
+
+it("gives manual window resizing to the workbench without a width transition", async () => {
+  const originalWidth = Object.getOwnPropertyDescriptor(window, "innerWidth")!;
+  Object.defineProperty(window, "innerWidth", {
+    configurable: true,
+    value: 1400,
+  });
+  const { wrapper } = await mountView();
+  try {
+    await flushPromises();
+    await wrapper
+      .get('[data-testid="project-workbench-toggle"]')
+      .trigger("click");
+    await flushPromises();
+
+    Object.defineProperty(window, "innerWidth", {
+      configurable: true,
+      value: 1360,
+    });
+    window.dispatchEvent(new Event("resize"));
+    await flushPromises();
+
+    const column = wrapper.get<HTMLElement>(
+      '[data-testid="project-workbench-provider"]',
+    );
+    expect(useWorkbenchStore().width).toBe(360);
+    expect(column.element.style.getPropertyValue("--sidebar-width")).toBe(
+      "360px",
+    );
+    expect(column.classes()).toContain(
+      "[&_[data-slot=sidebar-container]]:transition-none!",
+    );
+    expect(column.classes()).toContain(
+      "[&_[data-slot=sidebar-gap]]:transition-none!",
+    );
+  } finally {
+    wrapper.unmount();
+    Object.defineProperty(window, "innerWidth", originalWidth);
+  }
 });
 
 it("follows the agent's workbench commands for the active session", async () => {

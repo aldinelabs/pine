@@ -265,10 +265,8 @@ export const useWorkbenchStore = defineStore("workbench", () => {
     width.value = clampWorkbenchWidth(next);
   }
 
-  /** Stores the width once a drag ends rather than on every frame. */
-  function setResizing(resizing: boolean): void {
-    isResizing.value = resizing;
-    if (resizing) return;
+  /** Stores the width once a divider drag or window resize settles. */
+  function saveWidth(): void {
     try {
       preferenceStorage.setItem(
         WORKBENCH_WIDTH_STORAGE_KEY,
@@ -277,6 +275,11 @@ export const useWorkbenchStore = defineStore("workbench", () => {
     } catch {
       // The width still applies until the window reloads.
     }
+  }
+
+  function setResizing(resizing: boolean): void {
+    isResizing.value = resizing;
+    if (!resizing) saveWidth();
   }
 
   function setDisplayedOpen(open: boolean): void {
@@ -305,6 +308,7 @@ export const useWorkbenchStore = defineStore("workbench", () => {
       panelPosition(activeLayout.value, panel),
     present,
     preview,
+    saveWidth,
     setClosing,
     setDisplayedOpen,
     setOpen,

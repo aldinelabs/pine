@@ -40,6 +40,7 @@ import { useSessionStore } from "@/stores/session";
 import { useUpdaterStore } from "@/stores/updater";
 import { useProjectSidebarVisibilityStore } from "@/stores/projectSidebarVisibility";
 import { useFrozenWindowResize } from "@/composables/useFrozenWindowResize";
+import { useWorkbenchWindowResize } from "@/composables/useWorkbenchWindowResize";
 import { useWorkbenchEvents } from "@/composables/useWorkbenchEvents";
 import { useContentTabNavigation } from "@/composables/useContentTabNavigation";
 import type { PineAuthoringTarget } from "@/shared/sessionMutators";
@@ -135,6 +136,9 @@ const releaseTimer = window.setInterval(
 onBeforeUnmount(() => window.clearInterval(releaseTimer));
 
 const frozenResize = useFrozenWindowResize();
+const { isResizing: isWorkbenchWindowResizing } = useWorkbenchWindowResize(
+  () => !frozenResize.isResizing.value,
+);
 const frozenLayoutStyle = computed(() =>
   frozenResize.frozenWidth.value === null
     ? undefined
@@ -409,7 +413,9 @@ onKeyStroke(Object.keys(sidebarShortcuts), (event) => {
         isWorkbenchOnWindowEdge &&
           isTrailingControlsAnimated &&
           '[&_[data-slot=sidebar-container]]:transition-[left,right,width,translate]',
-        (isWorkbenchInstant || workbench.isResizing) &&
+        (isWorkbenchInstant ||
+          workbench.isResizing ||
+          isWorkbenchWindowResizing) &&
           '[&_[data-slot=sidebar-container]]:transition-none! [&_[data-slot=sidebar-gap]]:transition-none!',
       ]"
       :style="{
