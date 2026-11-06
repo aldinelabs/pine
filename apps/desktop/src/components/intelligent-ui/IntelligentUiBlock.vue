@@ -18,6 +18,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
+import DialogScrollArea from "@/components/dialogs/DialogScrollArea.vue";
 import { INTELLIGENT_UI_FENCE_LANGUAGE } from "@/shared/intelligentUi";
 import CodeBlock from "@/components/markdown/CodeBlock.vue";
 import { intelligentUiHostKey } from "./context";
@@ -127,13 +128,14 @@ async function openPendingUrl(): Promise<void> {
         <AlertDialogTitle>
           {{ t("markdown.externalLinkTitle") }}
         </AlertDialogTitle>
-        <AlertDialogDescription>
+        <AlertDialogDescription as="div">
           <span>{{ t("markdown.externalLinkDescription") }}</span>
-          <code
-            class="mt-2 block max-h-32 overflow-auto break-all rounded-md bg-muted px-3 py-2 text-xs"
-          >
-            {{ pendingUrl }}
-          </code>
+          <DialogScrollArea class="mt-2 max-h-32" edge-inset="0rem">
+            <code
+              class="block break-all rounded-md bg-muted px-3 py-2 text-xs"
+              >{{ pendingUrl }}</code
+            >
+          </DialogScrollArea>
         </AlertDialogDescription>
       </AlertDialogHeader>
       <AlertDialogFooter>

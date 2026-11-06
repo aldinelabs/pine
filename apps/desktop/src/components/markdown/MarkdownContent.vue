@@ -39,6 +39,7 @@ import { useAppearanceStore } from "@/stores/appearance";
 import { markdownCitations, parseMarkdownCitations } from "./citation";
 import { markdownImageDocumentUrl } from "./markdownImageContext";
 import { Button } from "@/components/ui/button";
+import DialogScrollArea from "@/components/dialogs/DialogScrollArea.vue";
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -195,13 +196,14 @@ async function confirmExternalLink(): Promise<void> {
           <AlertDialogTitle>
             {{ t("markdown.externalLinkTitle") }}
           </AlertDialogTitle>
-          <AlertDialogDescription>
+          <AlertDialogDescription as="div">
             <span>{{ t("markdown.externalLinkDescription") }}</span>
-            <code
-              class="mt-2 block max-h-32 overflow-auto break-all rounded-md bg-muted px-3 py-2 text-xs"
-            >
-              {{ pendingExternalUrl }}
-            </code>
+            <DialogScrollArea class="mt-2 max-h-32" edge-inset="0rem">
+              <code
+                class="block break-all rounded-md bg-muted px-3 py-2 text-xs"
+                >{{ pendingExternalUrl }}</code
+              >
+            </DialogScrollArea>
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>

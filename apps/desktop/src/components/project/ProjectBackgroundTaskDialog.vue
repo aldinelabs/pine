@@ -9,6 +9,7 @@ import { toast } from "vue-sonner";
 import { formatDuration, formatSize } from "@pine/pi-background-tasks";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import DialogScrollArea from "@/components/dialogs/DialogScrollArea.vue";
 import {
   Dialog,
   DialogContent,
@@ -36,7 +37,8 @@ const isRunning = computed(() => task.value?.status === "running");
 const output = ref("");
 const outputSummary = ref("");
 const outputError = ref(false);
-const outputElement = ref<HTMLElement | null>(null);
+const outputArea = ref<InstanceType<typeof DialogScrollArea> | null>(null);
+const outputElement = computed(() => outputArea.value?.viewport);
 // Following the tail stops while the user scrolls up to read earlier output.
 const isFollowing = ref(true);
 let outputRequest = 0;
@@ -235,10 +237,11 @@ async function stop(): Promise<void> {
       </DialogHeader>
 
       <!-- Only the details shrink; the header and actions stay outside the scroller. -->
-      <div
+      <DialogScrollArea
         v-if="task"
         data-testid="project-background-task-details"
-        class="flex min-h-0 min-w-0 flex-col gap-4 overflow-y-auto overscroll-contain"
+        class="flex-1"
+        content-class="flex min-w-0 flex-col gap-4"
       >
         <dl class="grid shrink-0 grid-cols-1 gap-x-6 gap-y-3 sm:grid-cols-2">
           <div
@@ -267,9 +270,15 @@ async function stop(): Promise<void> {
           <h3 class="text-muted-foreground text-xs font-medium">
             {{ t("project.backgroundTasks.dialog.command") }}
           </h3>
-          <pre
-            class="bg-muted max-h-24 overflow-auto rounded-lg px-3 py-2 font-mono text-xs break-all whitespace-pre-wrap"
-            >{{ task.command }}</pre>
+          <DialogScrollArea
+            edge-inset="0rem"
+            class="rounded-lg bg-muted px-3 py-2"
+            viewport-class="max-h-24"
+          >
+            <pre class="font-mono text-xs break-all whitespace-pre-wrap">{{
+              task.command
+            }}</pre>
+          </DialogScrollArea>
         </section>
 
         <section class="flex shrink-0 flex-col gap-1">
@@ -281,21 +290,24 @@ async function stop(): Promise<void> {
               {{ outputSummary }}
             </span>
           </h3>
-          <pre
-            ref="outputElement"
+          <DialogScrollArea
+            ref="outputArea"
+            edge-inset="0rem"
+            class="h-64 shrink-0 rounded-lg bg-muted px-3 py-2"
             data-testid="project-background-task-output"
-            class="bg-muted h-64 shrink-0 overflow-auto overscroll-contain rounded-lg px-3 py-2 font-mono text-xs break-all whitespace-pre-wrap"
             @scroll="onOutputScroll"
-            >{{
+          >
+            <pre class="font-mono text-xs break-all whitespace-pre-wrap">{{
               outputError
                 ? t("project.backgroundTasks.dialog.outputFailed")
                 : output || t("project.backgroundTasks.dialog.noOutput")
             }}</pre>
+          </DialogScrollArea>
           <p class="text-muted-foreground text-xs break-all">
             {{ task.outputPath }}
           </p>
         </section>
-      </div>
+      </DialogScrollArea>
 
       <DialogFooter v-if="task" class="shrink-0">
         <Button variant="outline" @click="copyPath">

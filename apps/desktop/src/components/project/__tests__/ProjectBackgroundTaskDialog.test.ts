@@ -86,7 +86,7 @@ describe("ProjectBackgroundTaskDialog", () => {
     expect(wrapper.text()).toContain("bun run build");
     expect(wrapper.text()).toContain("项目沙盒");
     expect(
-      wrapper.get('[data-testid="project-background-task-output"]').text(),
+      wrapper.get('[data-testid="project-background-task-output"] pre').text(),
     ).toBe("compiled");
   });
 
@@ -118,11 +118,15 @@ describe("ProjectBackgroundTaskDialog", () => {
     const details = wrapper.get(
       '[data-testid="project-background-task-details"]',
     );
-    expect(details.classes()).toEqual(
-      expect.arrayContaining(["min-h-0", "overflow-y-auto"]),
-    );
-    for (const section of details.element.children) {
-      expect(section.classList.contains("shrink-0")).toBe(true);
+    expect(details.attributes("data-slot")).toBe("dialog-scroll-area");
+    expect(details.classes()).toContain("min-h-0");
+    expect(
+      details
+        .get('[data-slot="scroll-area-viewport"]')
+        .attributes("data-reka-scroll-area-viewport"),
+    ).toBeDefined();
+    for (const section of details.findAll("section")) {
+      expect(section.classes()).toContain("shrink-0");
     }
     const header = wrapper.get('[data-slot="dialog-header"]');
     const footer = wrapper.get('[data-slot="dialog-footer"]');
@@ -132,7 +136,7 @@ describe("ProjectBackgroundTaskDialog", () => {
     expect(details.element.contains(footer.element)).toBe(false);
     expect(
       wrapper.get('[data-testid="project-background-task-output"]').classes(),
-    ).toEqual(expect.arrayContaining(["h-64", "shrink-0", "overflow-auto"]));
+    ).toEqual(expect.arrayContaining(["h-64", "shrink-0"]));
 
     const copy = vi
       .spyOn(navigator.clipboard, "writeText")
@@ -147,7 +151,9 @@ describe("ProjectBackgroundTaskDialog", () => {
     vi.useFakeTimers();
     const wrapper = mountDialog();
     await flushPromises();
-    const log = wrapper.get('[data-testid="project-background-task-output"]');
+    const log = wrapper.get(
+      '[data-testid="project-background-task-output"] [data-slot="scroll-area-viewport"]',
+    );
     const element = log.element as HTMLElement;
     Object.defineProperties(element, {
       scrollHeight: { configurable: true, value: 1000 },
@@ -210,7 +216,7 @@ describe("ProjectBackgroundTaskDialog", () => {
     rejectFirst(new Error("old task is gone"));
     await flushPromises();
     expect(
-      wrapper.get('[data-testid="project-background-task-output"]').text(),
+      wrapper.get('[data-testid="project-background-task-output"] pre').text(),
     ).toBe("second task");
   });
 
@@ -231,7 +237,7 @@ describe("ProjectBackgroundTaskDialog", () => {
     resolveFirst(output("older"));
     await flushPromises();
     expect(
-      wrapper.get('[data-testid="project-background-task-output"]').text(),
+      wrapper.get('[data-testid="project-background-task-output"] pre').text(),
     ).toBe("newest");
   });
 });

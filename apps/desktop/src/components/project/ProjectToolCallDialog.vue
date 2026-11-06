@@ -11,7 +11,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import DialogScrollArea from "@/components/dialogs/DialogScrollArea.vue";
 import { Separator } from "@/components/ui/separator";
 import { PHONE_FULLSCREEN_DIALOG } from "@/lib/dialogLayout";
 import type { PineToolCall } from "@/shared/sessions";
@@ -140,9 +140,7 @@ async function openDialog(): Promise<void> {
         </DialogDescription>
       </DialogHeader>
 
-      <ScrollArea
-        class="max-h-[70vh] max-w-full min-w-0 pr-4 max-sm:max-h-none max-sm:min-h-0 max-sm:flex-1"
-      >
+      <DialogScrollArea class="max-h-[70vh] max-sm:max-h-none max-sm:flex-1">
         <div class="flex min-w-0 flex-col gap-5">
           <dl
             class="grid grid-cols-[auto_1fr] items-center gap-x-4 gap-y-3 text-sm"
@@ -241,7 +239,7 @@ async function openDialog(): Promise<void> {
             />
           </section>
         </div>
-      </ScrollArea>
+      </DialogScrollArea>
     </DialogContent>
   </Dialog>
 </template>

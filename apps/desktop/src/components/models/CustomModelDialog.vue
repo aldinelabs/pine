@@ -4,6 +4,7 @@ import { storeToRefs } from "pinia";
 import { computed, reactive, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { PHONE_FULLSCREEN_DIALOG } from "@/lib/dialogLayout";
+import DialogScrollArea from "@/components/dialogs/DialogScrollArea.vue";
 import { handleError } from "@/app/errors/errorHandler";
 import { Button } from "@/components/ui/button";
 import {
@@ -305,7 +306,12 @@ async function save(): Promise<void> {
           </DialogDescription>
         </DialogHeader>
 
-        <div class="scroll-fade min-h-0 flex-1 overflow-y-auto px-6">
+        <DialogScrollArea
+          edge-inset="0rem"
+          class="flex-1"
+          viewport-class="scroll-fade"
+          content-class="px-6"
+        >
           <FieldGroup class="gap-5 pb-1">
             <Field v-if="!isEditing">
               <FieldLabel id="custom-provider-mode-label">
@@ -553,7 +559,7 @@ async function save(): Promise<void> {
               />
             </Field>
           </FieldGroup>
-        </div>
+        </DialogScrollArea>
 
         <DialogFooter class="px-6 pb-6 sm:justify-between">
           <Tooltip>

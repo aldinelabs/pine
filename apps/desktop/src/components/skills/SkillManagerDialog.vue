@@ -67,6 +67,7 @@ import {
   ItemTitle,
 } from "@/components/ui/item";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import DialogScrollArea from "@/components/dialogs/DialogScrollArea.vue";
 import {
   Select,
   SelectContent,
@@ -750,8 +751,10 @@ watch(activeScope, () => {
                 </Empty>
 
                 <template v-else>
-                  <div
-                    class="min-h-0 flex-1 overflow-y-auto px-5 pt-5 pb-6 max-sm:px-4"
+                  <DialogScrollArea
+                    edge-inset="0rem"
+                    class="flex-1"
+                    content-class="px-5 pt-5 pb-6 max-sm:px-4"
                   >
                     <p
                       v-if="isReadOnly"
@@ -1014,7 +1017,7 @@ watch(activeScope, () => {
                         </FieldDescription>
                       </Field>
                     </FieldGroup>
-                  </div>
+                  </DialogScrollArea>
 
                   <div
                     v-if="!isReadOnly"

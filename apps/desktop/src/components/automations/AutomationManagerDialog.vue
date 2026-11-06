@@ -38,7 +38,7 @@ import {
   ItemGroup,
   ItemTitle,
 } from "@/components/ui/item";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import DialogScrollArea from "@/components/dialogs/DialogScrollArea.vue";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAutomationRunSession } from "@/composables/useAutomationRunSession";
@@ -252,11 +252,12 @@ const pendingApprovals = computed(() =>
       </p>
 
       <!-- The viewport's content fills its height, so empty states can too. -->
-      <ScrollArea
-        class="min-h-0 flex-1 [&>[data-slot=scroll-area-viewport]>div]:flex [&>[data-slot=scroll-area-viewport]>div]:min-h-full [&>[data-slot=scroll-area-viewport]>div]:flex-col"
+      <DialogScrollArea
+        content-class="flex min-h-full flex-1 flex-col"
+        class="flex-1 [&>[data-slot=scroll-area-viewport]>div]:flex [&>[data-slot=scroll-area-viewport]>div]:min-h-full [&>[data-slot=scroll-area-viewport]>div]:flex-col"
       >
         <!-- Lists -->
-        <Tabs v-model="tab" class="flex-1 pr-3">
+        <Tabs v-model="tab" class="flex-1">
           <TabsList>
             <TabsTrigger value="activity">{{
               t("automations.tabs.activity")
@@ -541,7 +542,7 @@ const pendingApprovals = computed(() =>
             </p>
           </TabsContent>
         </Tabs>
-      </ScrollArea>
+      </DialogScrollArea>
     </DialogContent>
   </Dialog>
   <AutomationDetailDialog v-model:target="selected" @open-run="openRun" />

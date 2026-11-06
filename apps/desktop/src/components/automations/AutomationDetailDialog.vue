@@ -37,7 +37,7 @@ import {
   ItemGroup,
   ItemTitle,
 } from "@/components/ui/item";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import DialogScrollArea from "@/components/dialogs/DialogScrollArea.vue";
 import { Switch } from "@/components/ui/switch";
 import type {
   AutomationDetail,
@@ -177,8 +177,8 @@ function pauseText(reason: AutomationPauseReason): string {
         }}</DialogDescription>
       </DialogHeader>
 
-      <ScrollArea class="min-h-0 flex-1">
-        <div v-if="detail" class="flex flex-col gap-4 pr-3">
+      <DialogScrollArea class="flex-1">
+        <div v-if="detail" class="flex flex-col gap-4">
           <div class="flex flex-wrap items-center gap-2">
             <Badge
               :variant="detail.status === 'active' ? 'default' : 'secondary'"
@@ -272,7 +272,7 @@ function pauseText(reason: AutomationPauseReason): string {
             </EmptyHeader>
           </Empty>
         </div>
-      </ScrollArea>
+      </DialogScrollArea>
     </DialogContent>
   </Dialog>
   <AlertDialog v-model:open="deleting">

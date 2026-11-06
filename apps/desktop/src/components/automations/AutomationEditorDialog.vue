@@ -19,7 +19,7 @@ import {
   FieldGroup,
   FieldLabel,
 } from "@/components/ui/field";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import DialogScrollArea from "@/components/dialogs/DialogScrollArea.vue";
 import { Textarea } from "@/components/ui/textarea";
 import type { PineJsonValue } from "@/shared/agent";
 import type {
@@ -174,8 +174,8 @@ async function save(): Promise<void> {
           t("automations.editor.description")
         }}</DialogDescription>
       </DialogHeader>
-      <ScrollArea class="min-h-0 flex-1">
-        <FieldGroup class="pr-3">
+      <DialogScrollArea class="flex-1">
+        <FieldGroup>
           <Field :data-invalid="!!parseError || errors.length > 0">
             <FieldLabel for="automation-definition">{{
               t("automations.editor.definition")
@@ -215,7 +215,7 @@ async function save(): Promise<void> {
             </details>
           </template>
         </FieldGroup>
-      </ScrollArea>
+      </DialogScrollArea>
       <DialogFooter>
         <Button variant="outline" @click="open = false">{{
           t("common.cancel")

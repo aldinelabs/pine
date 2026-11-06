@@ -4,6 +4,7 @@ import { storeToRefs } from "pinia";
 import { computed } from "vue";
 import { useI18n } from "vue-i18n";
 import MarkdownContent from "@/components/markdown/MarkdownContent.vue";
+import DialogScrollArea from "@/components/dialogs/DialogScrollArea.vue";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -46,9 +47,11 @@ function handleOpenChanged(value: boolean): void {
         </DialogDescription>
       </DialogHeader>
 
-      <div class="max-h-72 overflow-y-auto rounded-xl bg-muted/50 p-4">
-        <MarkdownContent :source="changelog" final />
-      </div>
+      <DialogScrollArea class="max-h-72">
+        <div class="rounded-xl bg-muted/50 p-4">
+          <MarkdownContent :source="changelog" final />
+        </div>
+      </DialogScrollArea>
 
       <div v-if="phase === 'downloading'" class="flex flex-col gap-2">
         <div class="flex items-center justify-between text-sm">

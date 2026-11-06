@@ -54,7 +54,7 @@ import {
   ItemGroup,
   ItemTitle,
 } from "@/components/ui/item";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import DialogScrollArea from "@/components/dialogs/DialogScrollArea.vue";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
@@ -252,8 +252,9 @@ function statusFor(name: string): string {
           <p class="mb-3 text-xs text-muted-foreground">
             {{ catalog?.paths[tab] }}
           </p>
-          <ScrollArea
-            class="min-h-0 flex-1 [&>[data-slot=scroll-area-viewport]>div]:flex [&>[data-slot=scroll-area-viewport]>div]:min-h-full [&>[data-slot=scroll-area-viewport]>div]:flex-col"
+          <DialogScrollArea
+            content-class="flex min-h-full flex-1 flex-col"
+            class="flex-1 [&>[data-slot=scroll-area-viewport]>div]:flex [&>[data-slot=scroll-area-viewport]>div]:min-h-full [&>[data-slot=scroll-area-viewport]>div]:flex-col"
           >
             <ItemGroup v-if="servers.length">
               <Item
@@ -308,7 +309,7 @@ function statusFor(name: string): string {
                 >
               </EmptyContent>
             </Empty>
-          </ScrollArea>
+          </DialogScrollArea>
         </TabsContent>
       </Tabs>
       <DialogFooter class="max-sm:flex-row max-sm:justify-end">
@@ -347,9 +348,7 @@ function statusFor(name: string): string {
         }}</DialogTitle>
         <DialogDescription>{{ t("mcp.definitionHelp") }}</DialogDescription>
       </DialogHeader>
-      <ScrollArea
-        class="max-h-[55vh] pr-4 max-sm:max-h-none max-sm:min-h-0 max-sm:flex-1"
-      >
+      <DialogScrollArea class="max-h-[55vh] max-sm:max-h-none max-sm:flex-1">
         <FieldGroup>
           <Field :data-invalid="!!error">
             <FieldLabel for="mcp-name">{{ t("mcp.name") }}</FieldLabel>
@@ -375,7 +374,7 @@ function statusFor(name: string): string {
             <FieldError v-if="error">{{ error }}</FieldError>
           </Field>
         </FieldGroup>
-      </ScrollArea>
+      </DialogScrollArea>
       <DialogFooter>
         <Button
           v-if="previousName"
