@@ -161,6 +161,12 @@ From top to bottom:
      Follow up is unavailable while a reply is running, in a session with no
      message yet, or over text already in a follow-up. Clicking a highlighted
      passage reopens its follow-up.
+   - Staged steering messages sit above the status cards, each with Withdraw
+     and Send now. When the agent consumes one, its dashed bubble moves
+     smoothly into its place in the transcript, blending into the sent
+     message, without delaying the response. With reduced motion enabled, it
+     appears there without the movement animation. Ordinary sent messages
+     reveal in place on the same curve.
 2. Status cards above the composer, shown when relevant. The row sizes itself
    to its content, up to the available width; a lone card is not stretched to
    fill the conversation. When both cards compete for room, space is reserved
@@ -189,10 +195,6 @@ From top to bottom:
      (or Turn on / Delete), Reject, or Reject with guidance.
    - Questionnaire card, when the agent asks questions: Previous, Next, Cancel,
      Submit, plus a free-text answer.
-   - Staged steering messages, each with Withdraw and Send now. When the agent
-     consumes one, its bubble moves smoothly into its place in the transcript
-     without delaying the response. With reduced motion enabled, it appears
-     there without the movement animation.
    - Chip ("Creating a skill / an automation / an MCP server
      with Pine"), on a draft started from Manage with Pine; its remove button
      turns the draft into an ordinary conversation.

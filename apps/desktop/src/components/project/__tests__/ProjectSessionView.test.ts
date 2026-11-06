@@ -96,13 +96,15 @@ function mountView() {
         },
         MessageScroller: slotStub,
         MessageScrollerViewport: viewportStub,
-        MessageScrollerContent: slotStub,
+        MessageScrollerContent: {
+          template: '<div><slot /><slot name="tail" /></div>',
+        },
         MessageScrollerItem: slotStub,
         PineCharacter: true,
         ProjectSessionComposer: {
-          props: ["attachments", "authoring", "modelValue", "steeringMessages"],
+          props: ["attachments", "authoring", "modelValue"],
           template:
-            '<div data-slot="composer-stub" :data-attachment-count="attachments?.length ?? 0" :data-authoring="authoring?.join(\',\')" :data-draft="modelValue"><button data-slot="remove-authoring-stub" @click="$emit(\'removeAuthoring\', authoring?.[0])" /><button data-slot="submit-new-stub" @click="$emit(\'submit\', \'Start\')" /><button data-slot="submit-steering-stub" @click="$emit(\'submit\', \'Change direction\')" /><button v-if="steeringMessages?.length" data-slot="withdraw-steering-stub" @click="$emit(\'withdrawSteering\', steeringMessages[0])" /><button v-if="steeringMessages?.length" data-slot="send-steering-now-stub" @click="$emit(\'sendSteeringNow\', steeringMessages[0])" /></div>',
+            '<div data-slot="composer-stub" :data-attachment-count="attachments?.length ?? 0" :data-authoring="authoring?.join(\',\')" :data-draft="modelValue"><button data-slot="remove-authoring-stub" @click="$emit(\'removeAuthoring\', authoring?.[0])" /><button data-slot="submit-new-stub" @click="$emit(\'submit\', \'Start\')" /><button data-slot="submit-steering-stub" @click="$emit(\'submit\', \'Change direction\')" /></div>',
         },
         ProjectTranscriptMessage: true,
         ProjectTranscriptOutline: {
@@ -489,7 +491,10 @@ describe("ProjectSessionView file drop", () => {
     sessionStore.steeringMessages = [queued];
     await flushPromises();
 
-    await wrapper.get('[data-slot="withdraw-steering-stub"]').trigger("click");
+    await wrapper
+      .get('[data-slot="staged-steering-message"]')
+      .get('button[aria-label="撤回暂存消息"]')
+      .trigger("click");
     await flushPromises();
 
     const composer = wrapper.get('[data-slot="composer-stub"]');
@@ -506,7 +511,10 @@ describe("ProjectSessionView file drop", () => {
     sessionStore.steeringMessages = ["Change direction"];
     await flushPromises();
 
-    await wrapper.get('[data-slot="send-steering-now-stub"]').trigger("click");
+    await wrapper
+      .get('[data-slot="staged-steering-message"]')
+      .get('button[aria-label="立即发送暂存消息"]')
+      .trigger("click");
     await flushPromises();
 
     expect(sendSteeringNow).toHaveBeenCalledWith({
@@ -516,6 +524,34 @@ describe("ProjectSessionView file drop", () => {
     expect(
       wrapper.get('[data-slot="composer-stub"]').attributes("data-draft"),
     ).toBe("");
+  });
+
+  it("stages steering above the status cards, which then drop their top gap", async () => {
+    const { wrapper } = mountView();
+    const sessionStore = useSessionStore().stateFor("session-a");
+    await wrapper.setProps({ sessionId: "session-a" });
+    sessionStore.steeringMessages = ["Change direction"];
+    // The status row only renders when it has something to show.
+    sessionStore.todos = {
+      nextId: 1,
+      tasks: [{ id: 1, subject: "Task", status: "pending" }],
+    };
+    await flushPromises();
+
+    const staged = wrapper.get('[data-slot="staged-steering-messages"]');
+    const statusRegion = staged.element.nextElementSibling as HTMLElement;
+    expect(
+      statusRegion.querySelector('[data-testid="project-session-status"]'),
+    ).toBeTruthy();
+    expect(
+      wrapper.get("[data-testid=project-status-card-row]").classes(),
+    ).toContain("pt-3");
+
+    sessionStore.steeringMessages = [];
+    await flushPromises();
+    expect(
+      wrapper.get("[data-testid=project-status-card-row]").classes(),
+    ).toContain("pt-8");
   });
 
   it("receives attachments for its own composer while in the background", async () => {

@@ -84,7 +84,6 @@ it("flies a consumed queue bubble into its destination across separate IPC batch
   const target = wrapper.get<HTMLElement>(
     '[data-message-id="user-1"] [data-slot="bubble"]',
   );
-  expect(target.element.style.visibility).toBe("hidden");
   const flight = document.querySelector<HTMLElement>(
     '[data-slot="steering-message-flight"]',
   )!;
@@ -92,12 +91,21 @@ it("flies a consumed queue bubble into its destination across separate IPC batch
   expect(flight.style.position).toBe("fixed");
   expect(flight.style.transform).toContain("200px, 600px");
   expect(flight.getAttribute("aria-hidden")).toBe("true");
+  // The dashed source and the real message trade opacity on one curve.
+  expect(flight.style.opacity).toBe("1");
+  expect(target.element.style.opacity).toBe("0");
   frame(0);
+  frame(250);
+  expect(Number(flight.style.opacity)).toBeLessThan(1);
+  expect(Number(target.element.style.opacity)).toBeGreaterThan(0);
+  expect(
+    Number(flight.style.opacity) + Number(target.element.style.opacity),
+  ).toBeCloseTo(1);
   frame(500);
   expect(
     document.querySelector('[data-slot="steering-message-flight"]'),
   ).toBeNull();
-  expect(target.element.style.visibility).toBe("");
+  expect(target.element.style.opacity).toBe("");
 });
 
 it("does not animate a withdrawn message or an unrelated new message", async () => {
@@ -137,7 +145,63 @@ it("cancels safely when the tab becomes inactive", async () => {
   expect(
     wrapper.get<HTMLElement>(
       '[data-slot="user-message-row"] [data-slot="bubble"]',
-    ).element.style.visibility,
+    ).element.style.opacity,
+  ).toBe("");
+});
+
+it("reveals a normally sent message without a flight overlay", async () => {
+  const { wrapper, messages } = setup([]);
+  await flushPromises();
+  // A transcript that already shows an earlier turn, then a normal send.
+  messages.value = [message("old", "Earlier")];
+  await flushPromises();
+  messages.value = [message("old", "Earlier"), message("user-1", "Sent")];
+  await flushPromises();
+  expect(
+    document.querySelector('[data-slot="steering-message-flight"]'),
+  ).toBeNull();
+  const target = wrapper.get<HTMLElement>(
+    '[data-message-id="user-1"] [data-slot="bubble"]',
+  );
+  expect(target.element.style.opacity).toBe("0");
+  frame(0);
+  frame(250);
+  expect(Number(target.element.style.opacity)).toBeGreaterThan(0);
+  frame(500);
+  expect(target.element.style.opacity).toBe("");
+});
+
+it("does not reveal history loads, prepends or assistant messages", async () => {
+  const { wrapper, messages } = setup([]);
+  await flushPromises();
+  // First fill is a history load.
+  messages.value = [
+    message("a", "A"),
+    { ...message("b", "B"), role: "assistant" as const },
+  ];
+  await flushPromises();
+  for (const id of ["a", "b"]) {
+    expect(
+      wrapper.get<HTMLElement>(`[data-message-id="${id}"] [data-slot="bubble"]`)
+        .element.style.opacity,
+    ).toBe("");
+  }
+  // Loading earlier messages prepends new ids.
+  messages.value = [message("old", "Old"), ...messages.value];
+  await flushPromises();
+  expect(
+    wrapper.get<HTMLElement>('[data-message-id="old"] [data-slot="bubble"]')
+      .element.style.opacity,
+  ).toBe("");
+  // A plain assistant append is not a sent user message.
+  messages.value = [
+    ...messages.value,
+    { ...message("c", "C"), role: "assistant" as const },
+  ];
+  await flushPromises();
+  expect(
+    wrapper.get<HTMLElement>('[data-message-id="c"] [data-slot="bubble"]')
+      .element.style.opacity,
   ).toBe("");
 });
 

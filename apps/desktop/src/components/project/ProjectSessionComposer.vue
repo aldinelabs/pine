@@ -12,12 +12,10 @@ import {
   PlusIcon,
   AtSignIcon,
   SearchIcon,
-  SendHorizontalIcon,
   ShieldCheckIcon,
   ShieldIcon,
   ShieldOffIcon,
   SquareIcon,
-  Undo2Icon,
 } from "@lucide/vue";
 import { useEventListener } from "@vueuse/core";
 import { storeToRefs } from "pinia";
@@ -36,11 +34,7 @@ import ProjectApprovalCard from "@/components/project/ProjectApprovalCard.vue";
 import ProjectQuestionnaireCard from "@/components/project/ProjectQuestionnaireCard.vue";
 import ProjectAttachmentList from "@/components/project/ProjectAttachmentList.vue";
 import ProjectQuoteList from "@/components/project/ProjectQuoteList.vue";
-import {
-  parseQuoteMessage,
-  serializeQuoteMessage,
-  type PineQuote,
-} from "@/shared/quotes";
+import { serializeQuoteMessage, type PineQuote } from "@/shared/quotes";
 import SessionSearchOverlay from "@/components/sessions/SessionSearchOverlay.vue";
 import ContextUsageIndicator from "@/components/project/ContextUsageIndicator.vue";
 import ProjectTargetPicker from "@/components/project/ProjectTargetPicker.vue";
@@ -56,7 +50,6 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
-import { Bubble, BubbleContent } from "@/components/ui/bubble";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -97,7 +90,6 @@ import { cn } from "@/lib/utils";
 import type { PineApprovalAction, PineApprovalMode } from "@/shared/agent";
 import type { AutomationApprovalRequest } from "@/shared/automation";
 import {
-  parseAttachmentMessage,
   serializeAttachmentMessage,
   isPastedImageMimeType,
   shouldAttachPastedText,
@@ -139,8 +131,6 @@ const emit = defineEmits<{
   respondQuestionnaire: [submission: AskUserQuestionSubmission];
   selectProject: [projectId: string];
   submit: [message: string];
-  withdrawSteering: [message: string];
-  sendSteeringNow: [message: string];
 }>();
 
 const props = withDefaults(
@@ -169,7 +159,6 @@ const props = withDefaults(
     projectId: string;
     /** Absent for a draft, which can still choose its project. */
     sessionId?: string;
-    steeringMessages?: readonly string[];
     /** When set, the approval questionnaire replaces the message input. */
     isActive?: boolean;
     isResponding?: boolean;
@@ -185,7 +174,6 @@ const props = withDefaults(
     rowsAnimate: true,
     authoring: () => [],
     isRunning: false,
-    steeringMessages: () => [],
   },
 );
 
@@ -220,25 +208,6 @@ const hasMessage = computed(
     quotes.value.length > 0,
 );
 const isSteering = computed(() => props.isRunning && hasMessage.value);
-const stagedSteeringMessages = computed(() =>
-  props.steeringMessages.map((message) => {
-    const parsed = parseAttachmentMessage(message);
-    return {
-      message,
-      attachments: parsed.attachments,
-      ...parseQuoteMessage(parsed.prompt),
-    };
-  }),
-);
-
-async function openAttachment(path: string): Promise<void> {
-  try {
-    const result = await window.pine.openAttachment({ path });
-    if (!result.opened) throw new Error(result.error);
-  } catch {
-    toast.error(t("project.composer.attachmentOpenFailed"));
-  }
-}
 const canSubmit = computed(
   () =>
     props.isRunning ||
@@ -820,82 +789,6 @@ function handleRootSubmit(event: Event): void {
       :approval="props.pendingAutomationApproval"
     />
     <template v-else>
-      <div
-        v-if="props.steeringMessages.length > 0"
-        data-slot="staged-steering-messages"
-        class="scroll-fade-y no-scrollbar mb-2 flex max-h-64 flex-col items-end gap-2 overflow-y-auto overscroll-contain"
-      >
-        <div
-          v-for="(steeringMessage, index) in stagedSteeringMessages"
-          :key="`${steeringMessage.message}-${index}`"
-          data-slot="staged-steering-message"
-          class="flex w-full items-end justify-end gap-2"
-        >
-          <!-- Attachments and quotes stack above the bubble, so the actions sit
-               on the row's bottom edge at the height of a one-line bubble
-               (1px borders, py-2.5, text-sm leading-relaxed) and stay centered
-               on the bubble instead of on the whole message. -->
-          <div
-            class="flex h-[calc(2px_+_2_*_--spacing(2.5)_+_var(--text-sm)_*_var(--leading-relaxed))] shrink-0 items-center gap-1"
-          >
-            <Button
-              type="button"
-              size="sm"
-              variant="ghost"
-              :aria-label="t('project.composer.withdrawSteering')"
-              @click="emit('withdrawSteering', steeringMessage.message)"
-            >
-              <Undo2Icon />
-              {{ t("project.composer.withdrawSteeringLabel") }}
-            </Button>
-            <Button
-              type="button"
-              size="sm"
-              variant="ghost"
-              :aria-label="t('project.composer.sendSteeringNow')"
-              @click="emit('sendSteeringNow', steeringMessage.message)"
-            >
-              <SendHorizontalIcon />
-              {{ t("project.composer.sendSteeringNowLabel") }}
-            </Button>
-          </div>
-          <div
-            data-steering-content
-            class="flex max-w-[80%] min-w-0 flex-col items-end gap-1.5"
-          >
-            <ProjectAttachmentList
-              v-if="steeringMessage.attachments.length > 0"
-              class="py-0"
-              :attachments="steeringMessage.attachments"
-              surface="message"
-              @open="openAttachment"
-            />
-            <ProjectQuoteList
-              v-if="steeringMessage.quotes.length > 0"
-              class="py-0"
-              :quotes="steeringMessage.quotes"
-              surface="message"
-            />
-            <!-- The wrapper already caps the width; Bubble's own 80% cap would
-                 compound with it and wrap text well before the edge. -->
-            <Bubble
-              v-if="steeringMessage.prompt"
-              align="end"
-              variant="outline"
-              class="max-w-full"
-            >
-              <BubbleContent class="border-dashed">
-                <div
-                  class="scroll-fade-y max-h-32 overflow-y-auto overscroll-contain whitespace-pre-wrap"
-                >
-                  {{ steeringMessage.prompt }}
-                </div>
-              </BubbleContent>
-            </Bubble>
-          </div>
-        </div>
-      </div>
-
       <Popover :open="isChooserOpen">
         <PopoverAnchor as-child>
           <InputGroup

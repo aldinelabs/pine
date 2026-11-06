@@ -5,7 +5,6 @@ import { BrainCircuitIcon, ShieldCheckIcon } from "@lucide/vue";
 import { createAppI18n, type AppLocale } from "@/app/i18n";
 import {
   PASTED_TEXT_ATTACHMENT_THRESHOLD_BYTES,
-  serializeAttachmentMessage,
   type PineAttachment,
 } from "@/shared/attachments";
 import type { PineThinkingLevel } from "@/shared/models";
@@ -30,7 +29,6 @@ interface ComposerProps {
   isActive?: boolean;
   pendingApproval?: PinePendingApproval | null;
   pendingAutomationApproval?: AutomationApprovalRequest | null;
-  steeringMessages?: readonly string[];
 }
 
 function mountComposer(
@@ -596,7 +594,7 @@ describe("ProjectSessionComposer", () => {
     expect(wrapper.emitted("submit")).toBeUndefined();
   });
 
-  it("uses steering copy and submits with Enter while running", async () => {
+  it("submits with Enter while running and keeps steering copy", async () => {
     const wrapper = mountComposer({ isRunning: true });
     const textarea = wrapper.get("textarea");
 
@@ -607,65 +605,6 @@ describe("ProjectSessionComposer", () => {
 
     expect(wrapper.emitted("submit")).toEqual([["先修复类型错误"]]);
     expect(wrapper.emitted("abort")).toBeUndefined();
-  });
-
-  it("renders queued steering as a withdrawable dashed user bubble", async () => {
-    const wrapper = mountComposer({
-      isRunning: true,
-      steeringMessages: ["改用更小的接口"],
-    });
-    const staged = wrapper.get('[data-slot="staged-steering-message"]');
-    const withdraw = staged.get('button[aria-label="撤回暂存消息"]');
-
-    expect(staged.text()).toContain("改用更小的接口");
-    expect(
-      withdraw.element.compareDocumentPosition(
-        staged.get('[data-slot="bubble"]').element,
-      ) & Node.DOCUMENT_POSITION_FOLLOWING,
-    ).toBeTruthy();
-
-    await withdraw.trigger("click");
-    expect(wrapper.emitted("withdrawSteering")).toEqual([["改用更小的接口"]]);
-  });
-
-  it("labels the staged message actions and sends one now", async () => {
-    const wrapper = mountComposer({
-      isRunning: true,
-      steeringMessages: ["改用更小的接口"],
-    });
-    const staged = wrapper.get('[data-slot="staged-steering-message"]');
-    const withdraw = staged.get('button[aria-label="撤回暂存消息"]');
-    const sendNow = staged.get('button[aria-label="立即发送暂存消息"]');
-
-    expect(withdraw.text()).toBe("撤回");
-    expect(sendNow.text()).toBe("立即发送");
-    expect(
-      withdraw.element.compareDocumentPosition(sendNow.element) &
-        Node.DOCUMENT_POSITION_FOLLOWING,
-    ).toBeTruthy();
-
-    await sendNow.trigger("click");
-    expect(wrapper.emitted("sendSteeringNow")).toEqual([["改用更小的接口"]]);
-    expect(wrapper.emitted("withdrawSteering")).toBeUndefined();
-  });
-
-  it("shows attachments of queued steering messages", () => {
-    const attachment: PineAttachment = {
-      extension: "md",
-      modifiedAt: "2026-09-02T12:00:00.000Z",
-      name: "notes.md",
-      path: "/Users/example/notes.md",
-      size: 1_024,
-    };
-    const message = serializeAttachmentMessage([attachment], "看看这个");
-    const wrapper = mountComposer({
-      isRunning: true,
-      steeringMessages: [message],
-    });
-    const staged = wrapper.get('[data-slot="staged-steering-message"]');
-
-    expect(staged.text()).toContain("notes.md");
-    expect(staged.get('[data-slot="bubble"]').text()).toBe("看看这个");
   });
 
   it("saves pathless pasted images into Pine-managed attachment storage", async () => {

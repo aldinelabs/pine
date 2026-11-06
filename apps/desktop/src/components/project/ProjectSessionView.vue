@@ -54,6 +54,8 @@ import { useQuickComposerHandoffStore } from "@/stores/quickComposerHandoff";
 import { useSessionStore, type PineTranscriptMessage } from "@/stores/session";
 import ProjectSessionParallaxBackground from "./ProjectSessionParallaxBackground.vue";
 import ProjectSessionComposer from "./ProjectSessionComposer.vue";
+import ProjectSessionStatus from "./ProjectSessionStatus.vue";
+import ProjectStagedSteering from "./ProjectStagedSteering.vue";
 import ProjectTranscriptMessage from "./ProjectTranscriptMessage.vue";
 import ProjectTranscriptSelectionMenu from "./ProjectTranscriptSelectionMenu.vue";
 import { normalizeQuoteText, type PineQuote } from "@/shared/quotes";
@@ -65,7 +67,6 @@ import type { PineToolCall } from "@/shared/sessions";
 import type { PineAuthoringTarget } from "@/shared/sessionMutators";
 import { toolFileRequest } from "./toolViewAdapter";
 import ProjectTranscriptOutline from "./ProjectTranscriptOutline.vue";
-import ProjectSessionStatus from "./ProjectSessionStatus.vue";
 import {
   collapsesTranscriptGap,
   TOOL_CALL_TURN_MARGIN_CLASS,
@@ -832,12 +833,18 @@ async function handleDrop(event: DragEvent): Promise<void> {
               </MessageScrollerItem>
 
               <template #tail>
+                <ProjectStagedSteering
+                  :steering-messages="steeringMessages"
+                  @withdraw-steering="withdrawSteering"
+                  @send-steering-now="sendSteeringNow"
+                />
                 <ProjectSessionStatus
                   :todos="tabState?.todos ?? null"
                   :hidden-completed-ids="
                     tabState?.hiddenCompletedTodoIds ?? NO_HIDDEN_TODOS
                   "
                   :is-running="isRunning"
+                  :top-gap="steeringMessages.length === 0"
                 />
               </template>
             </MessageScrollerContent>
@@ -872,15 +879,12 @@ async function handleDrop(event: DragEvent): Promise<void> {
         :pending-automation-approval="automationApprovals[0] ?? null"
         :project-id="props.projectId"
         :session-id="props.sessionId"
-        :steering-messages="steeringMessages"
         @select-project="selectDraftProject"
         @remove-authoring="removeDraftAuthoring"
         @abort="abort"
         @respond="respondToApproval"
         @respond-questionnaire="respondToQuestionnaire"
         @submit="(message: string) => submit(message)"
-        @withdraw-steering="withdrawSteering"
-        @send-steering-now="sendSteeringNow"
       />
 
       <Empty
