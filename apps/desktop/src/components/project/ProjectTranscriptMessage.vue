@@ -15,6 +15,7 @@ import { Message, MessageContent } from "@/components/ui/message";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
+import { summarizeThinking } from "@/lib/transcriptThinking";
 import { serializeAttachmentMessage } from "@/shared/attachments";
 import { parseAutomationRunMessage } from "@/shared/automationRunMessage";
 import {
@@ -175,21 +176,73 @@ const contextToolCalls = computed(() =>
  * Collapse ordering for a message's blocks: consecutive `toolCall` blocks
  * merge into a single tool run whose expansion is driven by the transcript
  * level (the last two runs of an active response stay open). Single
- * thinking/text/tool-call blocks pass through unchanged.
+ * thinking blocks merge into a run with its own content and timing. Empty
+ * reasoning-only payloads have no visible marker. Source indices keep a run's
+ * identity stable as streaming blocks are appended or grouped.
  */
-type RenderItem =
+type RenderItem = { key: string } & (
   | { kind: "block"; block: PineContentBlock }
   | { kind: "text"; segments: TranscriptTextSegment[] }
   | { kind: "toolCall"; toolCall: PineToolCall }
-  | { kind: "toolRun"; toolCalls: PineToolCall[] };
+  | { kind: "toolRun"; toolCalls: PineToolCall[] }
+  | {
+      kind: "thinking";
+      message: PineTranscriptMessage;
+      hasResponseAfterThinking: boolean;
+    }
+);
 
 const renderItems = computed<RenderItem[]>(() => {
   const blocks = props.message.blocks;
   const items: RenderItem[] = [];
+  const thinkingRuns = blocks.filter(
+    (block, index) =>
+      block.type === "thinking" && blocks[index - 1]?.type !== "thinking",
+  ).length;
   let index = 0;
   while (index < blocks.length) {
     const block = blocks[index];
-    if (block.type === "toolCall") {
+    const key = `${block.type}:${index}`;
+    if (block.type === "thinking") {
+      const start = index;
+      while (index < blocks.length && blocks[index].type === "thinking") {
+        index++;
+      }
+      const run = blocks.slice(start, index);
+      if (
+        !run.some((part) => part.type === "thinking" && part.thinking.trim())
+      ) {
+        continue;
+      }
+      const states = run.flatMap((_, offset) => {
+        const state = props.message.thinkingBlocks?.[start + offset];
+        return state ? [state] : [];
+      });
+      // Older history has only message-level timing. Do not repeat that total
+      // on separate runs, which would falsely give each the whole duration.
+      const summary: Pick<
+        PineTranscriptMessage,
+        "thinkingStatus" | "thinkingStartedAt" | "thinkingDurationMs"
+      > = states.length
+        ? summarizeThinking(states)
+        : thinkingRuns === 1
+          ? props.message
+          : { thinkingStatus: props.message.thinkingStatus };
+      items.push({
+        key,
+        kind: "thinking",
+        message: {
+          ...props.message,
+          blocks: run,
+          thinkingStatus: summary.thinkingStatus,
+          thinkingStartedAt: summary.thinkingStartedAt,
+          thinkingDurationMs: summary.thinkingDurationMs,
+        },
+        hasResponseAfterThinking: blocks
+          .slice(index)
+          .some((part) => part.type !== "thinking"),
+      });
+    } else if (block.type === "toolCall") {
       const start = index;
       while (index < blocks.length && blocks[index].type === "toolCall") {
         index++;
@@ -202,15 +255,19 @@ const renderItems = computed<RenderItem[]>(() => {
         .filter((item): item is PineToolCall => item !== undefined);
       // A single tool call renders in full instead of being folded away.
       if (toolCalls.length === 1) {
-        items.push({ kind: "toolCall", toolCall: toolCalls[0] });
+        items.push({ key, kind: "toolCall", toolCall: toolCalls[0] });
       } else {
-        items.push({ kind: "toolRun", toolCalls });
+        items.push({ key, kind: "toolRun", toolCalls });
       }
     } else if (block.type === "text") {
-      items.push({ kind: "text", segments: splitTranscriptText(block.text) });
+      items.push({
+        key,
+        kind: "text",
+        segments: splitTranscriptText(block.text),
+      });
       index++;
     } else {
-      items.push({ kind: "block", block });
+      items.push({ key, kind: "block", block });
       index++;
     }
   }
@@ -230,10 +287,11 @@ const renderItems = computed<RenderItem[]>(() => {
       <!-- Non-user messages render blocks in their original order so a tool
            call that happens after body text appears after that text. -->
       <template v-if="!isUser">
-        <template v-for="(item, index) in renderItems" :key="index">
+        <template v-for="item in renderItems" :key="item.key">
           <ProjectThinkingMarker
-            v-if="item.kind === 'block' && item.block.type === 'thinking'"
-            :message="message"
+            v-if="item.kind === 'thinking'"
+            :message="item.message"
+            :has-response-after-thinking="item.hasResponseAfterThinking"
           />
           <ProjectErrorMarker
             v-else-if="item.kind === 'block' && item.block.type === 'error'"

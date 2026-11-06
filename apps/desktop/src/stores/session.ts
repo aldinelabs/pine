@@ -26,6 +26,11 @@ import { attachmentMessagePreview } from "@/shared/attachments";
 import { parseMessageBlocks, transcriptRole } from "@/shared/sessions";
 import type { PineSessionMutator } from "@/shared/sessionMutators";
 import { preferenceStorage } from "@/lib/preferenceStorage";
+import {
+  summarizeThinking,
+  updateThinkingBlocks,
+  type ThinkingBlockState,
+} from "@/lib/transcriptThinking";
 import { agentLocale, isAppLocale, localeMessages } from "@/app/i18n";
 import { useModelsStore } from "@/stores/models";
 import type { WebSessionSnapshot } from "@/shared/webControl";
@@ -51,6 +56,8 @@ export interface PineTranscriptMessage extends PineTextMessage {
   status: "complete" | "streaming";
   thinkingStatus?: "complete" | "streaming";
   thinkingStartedAt?: number;
+  /** Per-content-index state; SDK blocks themselves retain their wire shape. */
+  thinkingBlocks?: Readonly<Record<number, ThinkingBlockState>>;
 }
 
 /** A tool call awaiting the user's approve/reject/guide decision. */
@@ -100,35 +107,21 @@ export function transcriptMessageFromEvent(
       previous?.blocks ?? [],
       event.updates,
     );
-    const hasThinking = blocksHasThinking(blocks);
-    const thinkingStarted = event.updates.some(
-      (update) =>
-        update.type === "thinking-start" || update.type === "thinking-delta",
+    const thinkingBlocks = updateThinkingBlocks(
+      blocks,
+      previous?.thinkingBlocks,
+      event.updates,
+      now,
+      false,
     );
-    const thinkingEnded = event.updates.some(
-      (update) => update.type === "thinking-end",
-    );
-    const thinkingStartedAt = hasThinking
-      ? (previous?.thinkingStartedAt ?? (thinkingStarted ? now : undefined))
-      : undefined;
-    const thinkingStatus = hasThinking
-      ? thinkingEnded || previous?.thinkingStatus === "complete"
-        ? ("complete" as const)
-        : ("streaming" as const)
-      : undefined;
-    const thinkingDurationMs =
-      thinkingStartedAt && thinkingStatus === "complete"
-        ? (previous?.thinkingDurationMs ?? Math.max(0, now - thinkingStartedAt))
-        : undefined;
     return {
       createdAt: previous?.createdAt ?? new Date(now).toISOString(),
       id: event.messageId,
       role: "assistant",
       status: "streaming",
       blocks,
-      ...(thinkingDurationMs ? { thinkingDurationMs } : {}),
-      ...(thinkingStatus ? { thinkingStatus } : {}),
-      ...(thinkingStartedAt ? { thinkingStartedAt } : {}),
+      thinkingBlocks,
+      ...summarizeThinking(Object.values(thinkingBlocks)),
     };
   }
 
@@ -138,29 +131,21 @@ export function transcriptMessageFromEvent(
     parseMessageBlocks(event.message),
     previous?.blocks,
   );
-  const hasThinking = blocksHasThinking(blocks);
-  const thinkingStartedAt = hasThinking
-    ? (previous?.thinkingStartedAt ?? now)
-    : undefined;
-  const thinkingEnded = event.type === "message-end";
-  const thinkingStatus = hasThinking
-    ? thinkingEnded || previous?.thinkingStatus === "complete"
-      ? ("complete" as const)
-      : ("streaming" as const)
-    : undefined;
-  const thinkingDurationMs =
-    thinkingStartedAt && thinkingStatus === "complete"
-      ? (previous?.thinkingDurationMs ?? Math.max(0, now - thinkingStartedAt))
-      : undefined;
+  const thinkingBlocks = updateThinkingBlocks(
+    blocks,
+    previous?.thinkingBlocks,
+    [],
+    now,
+    event.type === "message-end",
+  );
   return {
     createdAt: messageCreatedAt(event.message),
     id: event.messageId,
     role,
     status: event.type === "message-end" ? "complete" : "streaming",
     blocks,
-    ...(thinkingDurationMs ? { thinkingDurationMs } : {}),
-    ...(thinkingStatus ? { thinkingStatus } : {}),
-    ...(thinkingStartedAt ? { thinkingStartedAt } : {}),
+    thinkingBlocks,
+    ...summarizeThinking(Object.values(thinkingBlocks)),
   };
 }
 

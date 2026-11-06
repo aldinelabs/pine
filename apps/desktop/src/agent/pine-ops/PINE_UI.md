@@ -129,8 +129,12 @@ From top to bottom:
    messages in order:
    - user messages, with Copy message and Edit message (editing resends);
    - assistant replies, with reasoning markers ("Thinking…", "Worked for …");
-     web sources appear as inline citation cards (hover for title and URL,
-     click to open);
+     consecutive reasoning summaries share one marker, and empty reasoning
+     payloads do not add markers. Reasoning separated by a reply or tool call
+     has its own expandable content and live timing. A reasoning panel opens
+     while it streams and collapses when output follows that panel, without
+     repeating other panels' content or timing. Web sources appear as inline
+     citation cards (hover for title and URL, click to open);
    - for an automation run, a card at the top with the automation's name,
      trigger and start time; "Instructions" expands what it was asked to do;
    - tool call groups; clicking a call opens Tool call details (status,

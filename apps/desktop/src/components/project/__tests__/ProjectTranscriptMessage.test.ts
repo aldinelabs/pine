@@ -6,6 +6,7 @@ import { serializeAttachmentMessage } from "@/shared/attachments";
 import type { PineTranscriptMessage } from "@/stores/session";
 import ProjectCompactionMarker from "../ProjectCompactionMarker.vue";
 import ProjectErrorMarker from "../ProjectErrorMarker.vue";
+import ProjectThinkingMarker from "../ProjectThinkingMarker.vue";
 import ProjectTranscriptMessage from "../ProjectTranscriptMessage.vue";
 import ProjectToolCallGroup from "../ProjectToolCallGroup.vue";
 import ProjectToolCallMarker from "../ProjectToolCallMarker.vue";
@@ -141,6 +142,142 @@ describe("ProjectTranscriptMessage", () => {
     expect(wrapper.get('[data-slot="user-message-text"]').text()).toBe(
       "Review this.",
     );
+  });
+
+  it("combines consecutive thinking blocks into one marker with no duplicated text", async () => {
+    const wrapper = mountMessage({
+      createdAt: "2000-01-01T00:00:00.000Z",
+      id: "reasoning",
+      role: "assistant",
+      status: "complete",
+      thinkingStatus: "complete",
+      thinkingDurationMs: 18_000,
+      blocks: [
+        { type: "thinking", thinking: "**First summary**" },
+        { type: "thinking", thinking: "**Second summary**" },
+        { type: "thinking", thinking: "" },
+      ],
+    });
+    try {
+      const markers = wrapper.findAllComponents(ProjectThinkingMarker);
+      expect(markers).toHaveLength(1);
+      expect(markers[0].text()).toContain("已工作 18 秒");
+      await markers[0].get("button").trigger("click");
+      expect(
+        wrapper
+          .findAll("[data-thinking-content] strong")
+          .map((node) => node.text()),
+      ).toEqual(["First summary", "Second summary"]);
+    } finally {
+      wrapper.unmount();
+    }
+  });
+
+  it("hides empty reasoning-only payloads", () => {
+    const wrapper = mountMessage({
+      createdAt: "2000-01-01T00:00:00.000Z",
+      id: "empty-reasoning",
+      role: "assistant",
+      status: "complete",
+      blocks: [
+        { type: "thinking", thinking: " \n " },
+        { type: "text", text: "Answer" },
+      ],
+    });
+    expect(wrapper.findComponent(ProjectThinkingMarker).exists()).toBe(false);
+    wrapper.unmount();
+  });
+
+  it("isolates thinking runs around body text and opens the new streaming run", async () => {
+    const now = Date.now();
+    const wrapper = mountMessage({
+      createdAt: "2000-01-01T00:00:00.000Z",
+      id: "separate-reasoning",
+      role: "assistant",
+      status: "streaming",
+      thinkingStatus: "streaming",
+      thinkingBlocks: {
+        0: { status: "complete", startedAt: now - 3_000, durationMs: 1_000 },
+        2: { status: "streaming", startedAt: now },
+      },
+      blocks: [
+        { type: "thinking", thinking: "First summary" },
+        { type: "text", text: "Progress update" },
+        { type: "thinking", thinking: "Second summary" },
+      ],
+    });
+    try {
+      const markers = wrapper.findAllComponents(ProjectThinkingMarker);
+      expect(markers).toHaveLength(2);
+      expect(markers[0].get("button").attributes("aria-expanded")).toBe(
+        "false",
+      );
+      expect(markers[1].get("button").attributes("aria-expanded")).toBe("true");
+      expect(markers[0].props("message").thinkingDurationMs).toBe(1_000);
+      expect(markers[1].props("message").thinkingStatus).toBe("streaming");
+      await markers[0].get("button").trigger("click");
+      expect(markers[0].get("[data-thinking-content]").text()).toBe(
+        "First summary",
+      );
+      expect(markers[1].get("[data-thinking-content]").text()).toBe(
+        "Second summary",
+      );
+    } finally {
+      wrapper.unmount();
+    }
+  });
+
+  it("does not repeat a legacy message's total duration on separate runs", () => {
+    const wrapper = mountMessage({
+      createdAt: "2000-01-01T00:00:00.000Z",
+      id: "history-reasoning",
+      role: "assistant",
+      status: "complete",
+      thinkingStatus: "complete",
+      thinkingDurationMs: 18_000,
+      blocks: [
+        { type: "thinking", thinking: "First summary" },
+        { type: "text", text: "Progress update" },
+        { type: "thinking", thinking: "Second summary" },
+      ],
+    });
+    for (const marker of wrapper.findAllComponents(ProjectThinkingMarker)) {
+      expect(marker.props("message").thinkingDurationMs).toBeUndefined();
+    }
+    wrapper.unmount();
+  });
+
+  it("keeps the same marker and user expansion state when the run grows", async () => {
+    const wrapper = mountMessage({
+      createdAt: "2000-01-01T00:00:00.000Z",
+      id: "growing-reasoning",
+      role: "assistant",
+      status: "streaming",
+      thinkingStatus: "streaming",
+      thinkingStartedAt: Date.now(),
+      blocks: [{ type: "thinking", thinking: "First summary" }],
+    });
+    try {
+      const marker = wrapper.getComponent(ProjectThinkingMarker);
+      await marker.get("button").trigger("click");
+      expect(marker.get("button").attributes("aria-expanded")).toBe("false");
+      await wrapper.setProps({
+        message: {
+          ...wrapper.props("message"),
+          blocks: [
+            { type: "thinking", thinking: "First summary" },
+            { type: "thinking", thinking: "Second summary" },
+          ],
+        },
+      });
+      expect(wrapper.findAllComponents(ProjectThinkingMarker)).toHaveLength(1);
+      expect(
+        wrapper.getComponent(ProjectThinkingMarker).get("button").element,
+      ).toBe(marker.get("button").element);
+      expect(marker.get("button").attributes("aria-expanded")).toBe("false");
+    } finally {
+      wrapper.unmount();
+    }
   });
 
   it("renders a single tool call in full instead of folding it", () => {

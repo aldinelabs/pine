@@ -17,9 +17,14 @@ import { Marker, MarkerContent, MarkerIcon } from "@/components/ui/marker";
 import { useOptionalMessageScrollerContext } from "@/components/ui/message-scroller/useMessageScroller";
 import type { PineTranscriptMessage } from "@/stores/session";
 
-const props = defineProps<{
-  message: PineTranscriptMessage;
-}>();
+const props = withDefaults(
+  defineProps<{
+    message: PineTranscriptMessage;
+    /** Only output after this run should collapse it; earlier text must not. */
+    hasResponseAfterThinking?: boolean;
+  }>(),
+  { hasResponseAfterThinking: undefined },
+);
 const { locale, t } = useI18n();
 const contentId = useId();
 const thinkingContent = useTemplateRef<HTMLElement>("thinkingContent");
@@ -44,8 +49,10 @@ const thinkingText = computed(() =>
     .join("\n"),
 );
 
-const hasResponseAfterThinking = computed(() =>
-  props.message.blocks.some((block) => block.type !== "thinking"),
+const hasResponseAfterThinking = computed(
+  () =>
+    props.hasResponseAfterThinking ??
+    props.message.blocks.some((block) => block.type !== "thinking"),
 );
 
 function formatDuration(durationMs?: number): string | undefined {
