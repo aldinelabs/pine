@@ -210,11 +210,11 @@ async function stop(): Promise<void> {
     <DialogContent
       data-testid="project-background-task-dialog"
       :class="[
-        'max-h-[85vh] gap-4 overflow-hidden sm:max-w-2xl',
+        'flex max-h-[85dvh] flex-col gap-4 overflow-hidden sm:max-w-2xl',
         PHONE_FULLSCREEN_DIALOG,
       ]"
     >
-      <DialogHeader>
+      <DialogHeader class="shrink-0">
         <div class="flex min-w-0 items-center gap-2 pr-6">
           <DialogTitle class="min-w-0 truncate">
             {{ task?.name ?? t("project.backgroundTasks.heading") }}
@@ -234,8 +234,13 @@ async function stop(): Promise<void> {
         </DialogDescription>
       </DialogHeader>
 
-      <div v-if="task" class="flex min-h-0 flex-col gap-4 overflow-y-auto">
-        <dl class="grid grid-cols-1 gap-x-6 gap-y-3 sm:grid-cols-2">
+      <!-- Only the details shrink; the header and actions stay outside the scroller. -->
+      <div
+        v-if="task"
+        data-testid="project-background-task-details"
+        class="flex min-h-0 min-w-0 flex-col gap-4 overflow-y-auto overscroll-contain"
+      >
+        <dl class="grid shrink-0 grid-cols-1 gap-x-6 gap-y-3 sm:grid-cols-2">
           <div
             v-for="detail in details"
             :key="detail.key"
@@ -253,12 +258,12 @@ async function stop(): Promise<void> {
         <p
           v-if="task.error"
           role="alert"
-          class="text-destructive text-sm wrap-break-word"
+          class="text-destructive shrink-0 text-sm wrap-break-word"
         >
           {{ task.error }}
         </p>
 
-        <section class="flex flex-col gap-1">
+        <section class="flex shrink-0 flex-col gap-1">
           <h3 class="text-muted-foreground text-xs font-medium">
             {{ t("project.backgroundTasks.dialog.command") }}
           </h3>
@@ -267,7 +272,7 @@ async function stop(): Promise<void> {
             >{{ task.command }}</pre>
         </section>
 
-        <section class="flex min-h-0 flex-col gap-1">
+        <section class="flex shrink-0 flex-col gap-1">
           <h3
             class="text-muted-foreground flex items-center text-xs font-medium"
           >
@@ -279,7 +284,7 @@ async function stop(): Promise<void> {
           <pre
             ref="outputElement"
             data-testid="project-background-task-output"
-            class="bg-muted h-64 overflow-auto rounded-lg px-3 py-2 font-mono text-xs break-all whitespace-pre-wrap"
+            class="bg-muted h-64 shrink-0 overflow-auto overscroll-contain rounded-lg px-3 py-2 font-mono text-xs break-all whitespace-pre-wrap"
             @scroll="onOutputScroll"
             >{{
               outputError
@@ -292,7 +297,7 @@ async function stop(): Promise<void> {
         </section>
       </div>
 
-      <DialogFooter v-if="task">
+      <DialogFooter v-if="task" class="shrink-0">
         <Button variant="outline" @click="copyPath">
           <CopyIcon data-icon="inline-start" />
           {{ t("project.backgroundTasks.dialog.copyPath") }}

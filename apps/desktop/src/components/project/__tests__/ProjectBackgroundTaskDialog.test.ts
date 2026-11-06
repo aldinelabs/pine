@@ -90,6 +90,85 @@ describe("ProjectBackgroundTaskDialog", () => {
     ).toBe("compiled");
   });
 
+  it("keeps the header and actions outside the bounded details scroller", async () => {
+    vi.mocked(window.pine.readBackgroundTaskOutput).mockResolvedValue(
+      output("build output\n".repeat(500)),
+    );
+    const wrapper = mountDialog([
+      {
+        ...task,
+        command: "bun run build\n".repeat(30),
+        error: "A long diagnostic message. ".repeat(100),
+        outputPath: `/project/${"nested/".repeat(40)}build.output`,
+      },
+    ]);
+    await flushPromises();
+
+    const dialog = wrapper.get(
+      '[data-testid="project-background-task-dialog"]',
+    );
+    expect(dialog.classes()).toEqual(
+      expect.arrayContaining([
+        "flex",
+        "flex-col",
+        "max-h-[85dvh]",
+        "overflow-hidden",
+      ]),
+    );
+    const details = wrapper.get(
+      '[data-testid="project-background-task-details"]',
+    );
+    expect(details.classes()).toEqual(
+      expect.arrayContaining(["min-h-0", "overflow-y-auto"]),
+    );
+    for (const section of details.element.children) {
+      expect(section.classList.contains("shrink-0")).toBe(true);
+    }
+    const header = wrapper.get('[data-slot="dialog-header"]');
+    const footer = wrapper.get('[data-slot="dialog-footer"]');
+    expect(header.classes()).toContain("shrink-0");
+    expect(footer.classes()).toContain("shrink-0");
+    expect(details.element.contains(header.element)).toBe(false);
+    expect(details.element.contains(footer.element)).toBe(false);
+    expect(
+      wrapper.get('[data-testid="project-background-task-output"]').classes(),
+    ).toEqual(expect.arrayContaining(["h-64", "shrink-0", "overflow-auto"]));
+
+    const copy = vi
+      .spyOn(navigator.clipboard, "writeText")
+      .mockResolvedValue(undefined);
+    await footer.get("button").trigger("click");
+    expect(copy).toHaveBeenCalledWith(
+      useBackgroundTasksStore().tasks[0]?.outputPath,
+    );
+  });
+
+  it("follows new output only while the user is near the tail", async () => {
+    vi.useFakeTimers();
+    const wrapper = mountDialog();
+    await flushPromises();
+    const log = wrapper.get('[data-testid="project-background-task-output"]');
+    const element = log.element as HTMLElement;
+    Object.defineProperties(element, {
+      scrollHeight: { configurable: true, value: 1000 },
+      clientHeight: { configurable: true, value: 256 },
+    });
+
+    element.scrollTop = 100;
+    await log.trigger("scroll");
+    vi.mocked(window.pine.readBackgroundTaskOutput).mockResolvedValue(
+      output("more output"),
+    );
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(log.text()).toBe("more output");
+    expect(element.scrollTop).toBe(100);
+
+    element.scrollTop = 744;
+    await log.trigger("scroll");
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(element.scrollTop).toBe(element.scrollHeight);
+  });
+
   it("polls live output and stops polling once the task ends", async () => {
     vi.useFakeTimers();
     mountDialog();

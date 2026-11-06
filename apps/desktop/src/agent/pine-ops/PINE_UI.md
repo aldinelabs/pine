@@ -154,7 +154,10 @@ From top to bottom:
 2. Status cards above the composer, shown when relevant:
    - Todos: progress of the agent's task list; opens All todos.
    - Background processes: running and finished processes started by the
-     agent; opens a process inspector with command, output and Stop.
+     agent; opens a process inspector with command, output, Copy path and,
+     while running, Stop. Long details scroll inside the inspector while its
+     title and action buttons stay visible. Output scrolls separately and
+     follows new lines unless you scroll up to read earlier output.
 3. Composer ("Session message"):
    - Approval required card, when a tool call needs the user: Approve, Reject,
      Reject with guidance (multi-line: Enter sends, Shift+Enter adds a line,
