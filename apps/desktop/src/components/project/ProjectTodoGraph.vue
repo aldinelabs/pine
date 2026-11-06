@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed, nextTick, ref, useTemplateRef, watch } from "vue";
+import { useResizeObserver } from "@vueuse/core";
 import { useI18n } from "vue-i18n";
 import {
   layoutTodoGraph,
@@ -13,6 +14,8 @@ const props = defineProps<{
   tasks: readonly Task[];
   /** The in-progress loader spins only while the agent is working. */
   isRunning: boolean;
+  /** The full list keeps descriptions and measures wrapped row heights. */
+  detailed?: boolean;
 }>();
 const { t } = useI18n();
 
@@ -31,12 +34,38 @@ const ROW_HEIGHT = 24;
 const DETAIL_HEIGHT = 16;
 
 const layout = computed(() => layoutTodoGraph(props.tasks));
-const gutterWidth = computed(() => layout.value.laneCount * LANE_WIDTH);
+const laneWidth = computed(() => (props.detailed ? 16 : LANE_WIDTH));
+const gutterWidth = computed(() => layout.value.laneCount * laneWidth.value);
+const rows = useTemplateRef<HTMLUListElement>("rows");
+const measuredHeights = ref<Record<number, number>>({});
+function measureRows(): void {
+  if (!props.detailed || !rows.value) return;
+  const next = Object.fromEntries(
+    [...rows.value.children].flatMap((row) =>
+      row instanceof HTMLElement && row.offsetHeight > 0
+        ? [[Number(row.dataset.taskId), row.offsetHeight]]
+        : [],
+    ),
+  );
+  if (JSON.stringify(next) !== JSON.stringify(measuredHeights.value))
+    measuredHeights.value = next;
+}
+useResizeObserver(rows, measureRows);
+watch(
+  [() => props.tasks, () => props.detailed],
+  async () => {
+    await nextTick();
+    measureRows();
+  },
+  { immediate: true, deep: true },
+);
 
 /** What the task in progress is doing, under its subject. */
 function detail(task: Task): string | null {
-  if (task.status !== "in_progress") return null;
-  const text = task.activeForm || task.description;
+  if (!props.detailed && task.status !== "in_progress") return null;
+  const text = props.detailed
+    ? task.description || task.activeForm
+    : task.activeForm || task.description;
   return text ? sanitizeTaskText(text) : null;
 }
 
@@ -45,7 +74,13 @@ const offsets = computed(() => {
   const result = [0];
   for (const row of layout.value.rows) {
     const top = result.at(-1) ?? 0;
-    result.push(top + ROW_HEIGHT + (detail(row.task) ? DETAIL_HEIGHT : 0));
+    const fallback = ROW_HEIGHT + (detail(row.task) ? DETAIL_HEIGHT : 0);
+    result.push(
+      top +
+        (props.detailed
+          ? (measuredHeights.value[row.task.id] ?? fallback + 24)
+          : fallback),
+    );
   }
   return result;
 });
@@ -53,12 +88,14 @@ const height = computed(() => offsets.value.at(-1) ?? 0);
 
 /** Nodes sit on a row's first line. */
 function centerY(index: number): number {
-  return (offsets.value[index] ?? 0) + ROW_HEIGHT / 2;
+  return (
+    (offsets.value[index] ?? 0) + ROW_HEIGHT / 2 + (props.detailed ? 12 : 0)
+  );
 }
 
 /** Lane 0 hugs the right edge, so nodes keep their place as lanes appear. */
 function laneX(lane: number): number {
-  return gutterWidth.value - (lane + 0.5) * LANE_WIDTH;
+  return gutterWidth.value - (lane + 0.5) * laneWidth.value;
 }
 
 /**
@@ -143,8 +180,11 @@ function edgePath(edge: TodoGraphEdge): string {
     </svg>
 
     <ul
+      ref="rows"
       class="flex flex-col"
-      :style="{ paddingRight: `${gutterWidth + GRAPH_GAP}px` }"
+      :style="{
+        paddingRight: `${gutterWidth + (detailed ? 16 : GRAPH_GAP)}px`,
+      }"
     >
       <li
         v-for="row in layout.rows"
@@ -153,8 +193,16 @@ function edgePath(edge: TodoGraphEdge): string {
         :data-task-id="row.task.id"
         :data-status="row.task.status"
         class="flex min-w-0 flex-col"
+        :class="detailed && 'gap-1 py-3'"
       >
-        <span class="flex h-6 min-w-0 items-center gap-1.5">
+        <span
+          :class="
+            cn(
+              'flex min-w-0 gap-1.5',
+              detailed ? 'items-start leading-6' : 'h-6 items-center',
+            )
+          "
+        >
           <span class="sr-only">{{
             t(`project.todos.statuses.${row.task.status}`)
           }}</span>
@@ -164,7 +212,9 @@ function edgePath(edge: TodoGraphEdge): string {
           <span
             :class="
               cn(
-                'truncate',
+                detailed
+                  ? 'min-w-0 whitespace-pre-wrap wrap-anywhere'
+                  : 'truncate',
                 row.task.status === 'in_progress' && 'text-primary font-medium',
                 row.task.status === 'completed' &&
                   'text-muted-foreground line-through',
@@ -177,7 +227,14 @@ function edgePath(edge: TodoGraphEdge): string {
         <span
           v-if="detail(row.task)"
           data-testid="project-todo-detail"
-          class="text-muted-foreground h-4 truncate text-xs leading-4"
+          :class="
+            cn(
+              'text-muted-foreground',
+              detailed
+                ? 'text-sm whitespace-pre-wrap wrap-anywhere'
+                : 'h-4 truncate text-xs leading-4',
+            )
+          "
         >
           {{ detail(row.task) }}
         </span>

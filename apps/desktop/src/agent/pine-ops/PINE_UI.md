@@ -164,7 +164,11 @@ From top to bottom:
    to its content, up to the available width; a lone card is not stretched to
    fill the conversation. When both cards compete for room, space is reserved
    for each and long labels truncate rather than crowding out the other card.
-   - Todos: progress of the agent's task list; opens All todos.
+   - Todos: progress of the agent's task list; opens All todos. The dialog is
+     a larger version of the card: full task numbers, names and descriptions
+     on the left, with the same dependency graph on the right. Wrapped rows
+     keep their graph nodes aligned. The heading stays visible while the list
+     scrolls internally; deleted tasks are omitted.
    - Background processes: running and finished processes started by the
      agent. Finished entries fade from this card when a turn ends with no
      processes still running; the workbench Tasks panel keeps the session's
