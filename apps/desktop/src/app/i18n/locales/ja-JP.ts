@@ -639,6 +639,7 @@ export default {
       "「{name}」を削除してもよろしいですか？この操作は元に戻せません。",
   },
   sessions: {
+    moreSidebarMenu: "その他",
     searchTitle: "セッションを検索",
     searchDescription: "すべてのプロジェクトのタイトルと会話内容を検索します",
     searchPlaceholder: "セッションの内容を検索",

@@ -4,6 +4,7 @@ import { createMemoryHistory, createRouter } from "vue-router";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { h } from "vue";
 import { SidebarProvider } from "@/components/ui/sidebar";
+import { useAutomationsStore } from "@/stores/automations";
 import {
   SESSION_HISTORY_STORAGE_KEY,
   useSessionHistoryStore,
@@ -124,12 +125,68 @@ describe("AllProjectsSessionList", () => {
       "搜索会话⌘K",
       "新会话⌘N",
       "项目管理⌘P",
+      "更多功能",
     ]);
     await actions[2].trigger("click");
     expect(
       wrapper.findComponent(AllProjectsSessionList).emitted("manageProjects"),
     ).toHaveLength(1);
 
+    wrapper.unmount();
+  });
+
+  it("pops the managers out beside the sidebar from More", async () => {
+    const { wrapper } = await mountList();
+    const list = wrapper.findComponent(AllProjectsSessionList);
+    const more = wrapper.get('[data-testid="sidebar-more"]');
+    const entries = () =>
+      [...document.querySelectorAll('[data-testid^="manage-"]')].map((entry) =>
+        entry.textContent?.trim(),
+      );
+    expect(entries()).toEqual([]);
+
+    await more.trigger("click");
+    await flushPromises();
+    // The menu opens as its own layer beside the sidebar, not inside the list.
+    expect(
+      document.querySelector('[data-slot="popover-content"]'),
+    ).not.toBeNull();
+    expect(entries()).toEqual(["自动化⌘U", "工作技能⌘S", "MCP 服务器⌘/"]);
+
+    for (const [testId, event] of [
+      ["manage-automations", "manageAutomations"],
+      ["manage-skills", "manageSkills"],
+      ["manage-mcp", "manageMcp"],
+    ] as const) {
+      if (!document.querySelector('[data-slot="popover-content"]')) {
+        await more.trigger("click");
+        await flushPromises();
+      }
+      document.querySelector<HTMLElement>(`[data-testid="${testId}"]`)!.click();
+      await flushPromises();
+      expect(list.emitted(event)).toHaveLength(1);
+      // Choosing one closes the menu before its dialog opens.
+      expect(entries()).toEqual([]);
+    }
+    wrapper.unmount();
+  });
+
+  it("keeps the automation count on More while the menu is closed", async () => {
+    const { wrapper } = await mountList();
+    useAutomationsStore().unread = 2;
+    await flushPromises();
+    expect(
+      wrapper.get('[data-testid="automation-unread-summary"]').text(),
+    ).toBe("2");
+
+    await wrapper.get('[data-testid="sidebar-more"]').trigger("click");
+    await flushPromises();
+    expect(
+      wrapper.find('[data-testid="automation-unread-summary"]').exists(),
+    ).toBe(false);
+    expect(
+      document.querySelector('[data-testid="automation-unread"]')?.textContent,
+    ).toBe("2");
     wrapper.unmount();
   });
 

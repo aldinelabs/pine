@@ -636,6 +636,7 @@ export default {
       'Are you sure you want to delete "{name}"? This cannot be undone.',
   },
   sessions: {
+    moreSidebarMenu: "More",
     searchTitle: "Search sessions",
     searchDescription:
       "Search titles and conversation content in every Project",

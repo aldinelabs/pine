@@ -1,13 +1,17 @@
 <script setup lang="ts">
 import {
+  Blocks,
+  Ellipsis,
   Folder,
   FolderKanban,
   FolderOpen,
   FolderPlus,
+  Library,
   Pencil,
   Plus,
   Search,
   Trash2,
+  Workflow,
 } from "@lucide/vue";
 import { useDebounceFn, useEventListener } from "@vueuse/core";
 import { storeToRefs } from "pinia";
@@ -28,10 +32,16 @@ import {
 } from "@/components/ui/context-menu";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
   SidebarGroup,
   SidebarGroupContent,
   SidebarMenu,
   SidebarMenuAction,
+  SidebarMenuBadge,
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarMenuSkeleton,
@@ -63,6 +73,7 @@ import {
   type PineSessionGroup,
 } from "@/shared/projects";
 import type { ProjectSessionSearchResult } from "@/shared/sessions";
+import { useAutomationsStore } from "@/stores/automations";
 import { useProjectStore } from "@/stores/project";
 import { useSessionHistoryStore } from "@/stores/sessionHistory";
 import { useSessionStore } from "@/stores/session";
@@ -72,9 +83,29 @@ import { useSessionStore } from "@/stores/session";
  * each project's session folders nested above its loose sessions.
  * Sessions open in their own project, regardless of the active tab.
  */
-const emit = defineEmits<{ search: []; manageProjects: [] }>();
+const emit = defineEmits<{
+  search: [];
+  manageProjects: [];
+  manageAutomations: [];
+  manageSkills: [];
+  manageMcp: [];
+}>();
 const { t } = useI18n();
 const tabNavigation = useContentTabNavigation();
+
+// The managers live behind "More", so their count stays visible on it while
+// the submenu is closed.
+const automations = useAutomationsStore();
+const moreOpen = ref(false);
+const unreadAutomations = computed(
+  () => automations.unread + automations.approvals.length,
+);
+
+/** Picking a manager closes the menu it came from before the dialog opens. */
+function pick(open: () => void): void {
+  moreOpen.value = false;
+  open();
+}
 const { activeSessionTab } = tabNavigation;
 const projectStore = useProjectStore();
 const sessionStore = useSessionStore();
@@ -447,6 +478,72 @@ function drop(event: DragEvent, projectId: string, groupId: string | null) {
               <ModifierShortcut class="ml-auto" key-label="P" />
             </SidebarMenuButton>
           </SidebarMenuItem>
+          <SidebarMenuItem>
+            <Popover v-model:open="moreOpen">
+              <PopoverTrigger as-child>
+                <SidebarMenuButton
+                  data-testid="sidebar-more"
+                  :aria-expanded="moreOpen"
+                >
+                  <Ellipsis aria-hidden="true" />
+                  <span>{{ t("sessions.moreSidebarMenu") }}</span>
+                  <span
+                    v-if="unreadAutomations > 0 && !moreOpen"
+                    data-testid="automation-unread-summary"
+                    class="ms-auto flex h-5 min-w-5 items-center justify-center rounded-xl bg-sidebar-primary px-1 text-xs font-medium text-sidebar-primary-foreground tabular-nums select-none"
+                    >{{ unreadAutomations }}</span
+                  >
+                </SidebarMenuButton>
+              </PopoverTrigger>
+              <PopoverContent
+                side="right"
+                align="start"
+                :side-offset="8"
+                class="w-56 gap-0 p-1.5"
+              >
+                <SidebarMenu class="gap-0.5">
+                  <SidebarMenuItem>
+                    <SidebarMenuButton
+                      data-testid="manage-automations"
+                      class="rounded-2xl"
+                      @click="pick(() => emit('manageAutomations'))"
+                    >
+                      <Workflow aria-hidden="true" />
+                      <span>{{ t("automations.title") }}</span>
+                      <ModifierShortcut class="ml-auto" key-label="U" />
+                    </SidebarMenuButton>
+                    <SidebarMenuBadge
+                      v-if="unreadAutomations > 0"
+                      data-testid="automation-unread"
+                      >{{ unreadAutomations }}</SidebarMenuBadge
+                    >
+                  </SidebarMenuItem>
+                  <SidebarMenuItem>
+                    <SidebarMenuButton
+                      data-testid="manage-skills"
+                      class="rounded-2xl"
+                      @click="pick(() => emit('manageSkills'))"
+                    >
+                      <Library aria-hidden="true" />
+                      <span>{{ t("project.skills") }}</span>
+                      <ModifierShortcut class="ml-auto" key-label="S" />
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                  <SidebarMenuItem>
+                    <SidebarMenuButton
+                      data-testid="manage-mcp"
+                      class="rounded-2xl"
+                      @click="pick(() => emit('manageMcp'))"
+                    >
+                      <Blocks aria-hidden="true" />
+                      <span>{{ t("mcp.title") }}</span>
+                      <ModifierShortcut class="ml-auto" key-label="/" />
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                </SidebarMenu>
+              </PopoverContent>
+            </Popover>
+          </SidebarMenuItem>
         </SidebarMenu>
       </SidebarGroupContent>
     </SidebarGroup>
@@ -475,7 +572,7 @@ function drop(event: DragEvent, projectId: string, groupId: string | null) {
 
     <div v-else class="min-h-0 flex-1">
       <ScrollArea
-        class="h-full [&_[data-slot=scroll-area-viewport]]:scroll-fade"
+        class="h-full [&_[data-slot=scroll-area-scrollbar]]:hidden [&_[data-slot=scroll-area-viewport]]:scroll-fade"
       >
         <SidebarGroup>
           <SidebarGroupContent>

@@ -634,6 +634,7 @@ export default {
       "'{name}'을(를) 삭제할까요? 이 작업은 되돌릴 수 없습니다.",
   },
   sessions: {
+    moreSidebarMenu: "더 보기",
     searchTitle: "세션 검색",
     searchDescription: "모든 프로젝트의 제목과 대화 내용을 검색합니다",
     searchPlaceholder: "세션 내용 검색",

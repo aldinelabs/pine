@@ -112,7 +112,7 @@ it.each([TEMPORARY_WORKSPACE_PROJECT_ID, "project-one"])(
   },
 );
 
-it("opens automations, skills and MCP servers from the bottom of the sidebar", async () => {
+it("hands the session list's managers off from the sidebar", async () => {
   const pinia = createPinia();
   setActivePinia(pinia);
   const router = createRouter({
@@ -125,24 +125,21 @@ it("opens automations, skills and MCP servers from the bottom of the sidebar", a
       stubs: {
         Sidebar: slot,
         SidebarContent: slot,
-        SidebarFooter: footerSlot,
         SidebarMenu: slot,
         SidebarMenuButton: buttonSlot,
         SidebarMenuItem: slot,
         SidebarRail: true,
-        AllProjectsSessionList: true,
+        AllProjectsSessionList: {
+          template:
+            '<div><button data-testid="automations" @click="$emit(\'manageAutomations\')" /><button data-testid="skills" @click="$emit(\'manageSkills\')" /><button data-testid="mcp" @click="$emit(\'manageMcp\')" /></div>',
+        },
       },
     },
   });
   await flushPromises();
 
-  const buttons = wrapper.get("footer").findAll("button");
-  expect(buttons.map((button) => button.text())).toEqual([
-    "自动化⌘U",
-    "工作技能⌘S",
-    "MCP 服务器⌘/",
-  ]);
-  for (const button of buttons) await button.trigger("click");
+  for (const testId of ["automations", "skills", "mcp"])
+    await wrapper.get(`[data-testid="${testId}"]`).trigger("click");
   expect(wrapper.emitted("manageAutomations")).toHaveLength(1);
   expect(wrapper.emitted("manageSkills")).toHaveLength(1);
   expect(wrapper.emitted("manageMcp")).toHaveLength(1);

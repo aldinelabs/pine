@@ -56,13 +56,13 @@ window
 │   ├── leading: [Windows: Pine logo, Pine Settings] · Toggle left sidebar
 │   └── trailing: Toggle workbench · [macOS/Linux: Pine Settings]
 ├── left sidebar                      (Mod+B)
-│   ├── top menu: Search sessions · New session · Projects
+│   ├── top menu: Search sessions · New session · Projects · More
+│   │   └── More menu (opens to the right): Automations · Skills · MCP servers
 │   ├── session list (all projects)
 │   │   └── project group (collapsible)
 │   │       ├── session folder (collapsible) → session items
 │   │       ├── session items
 │   │       └── Show more
-│   ├── footer: Automations · Skills · MCP servers
 │   └── rail (click or drag to toggle)
 ├── content area
 │   ├── tab bar "Open content": tabs · Add session tab · More actions
@@ -88,6 +88,9 @@ Top menu:
   conversation content across every project.
 - New session: opens a new session tab.
 - Projects: opens Pine Settings › Projects.
+- More: opens the managers to the right of the sidebar as a menu of its own;
+  picking one closes it and opens that manager. While it is closed, its count of
+  unread automation runs plus automation approvals stays on the row.
 
 Session list, one collapsible group per project:
 
@@ -103,10 +106,10 @@ Session list, one collapsible group per project:
   Delete conversation (permanent).
 - Show more: reveals older sessions of the project.
 
-Footer:
+More menu:
 
-- Automations: opens the Automations manager. A badge counts unread runs plus
-  automation approvals waiting for the user.
+- Automations: opens the Automations manager. A badge next to it counts unread
+  runs plus automation approvals waiting for the user.
 - Skills: opens the Skills manager for the active tab's project.
 - MCP servers: opens the MCP servers manager for the active tab's project.
 

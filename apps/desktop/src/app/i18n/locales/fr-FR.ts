@@ -647,6 +647,7 @@ export default {
       "Voulez-vous vraiment supprimer « {name} » ? Cette action est irréversible.",
   },
   sessions: {
+    moreSidebarMenu: "Plus",
     searchTitle: "Rechercher des sessions",
     searchDescription:
       "Recherchez dans les titres et le contenu des conversations de tous les projets",

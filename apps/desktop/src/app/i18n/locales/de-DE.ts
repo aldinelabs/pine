@@ -645,6 +645,7 @@ export default {
       "Möchten Sie „{name}“ wirklich löschen? Dies kann nicht rückgängig gemacht werden.",
   },
   sessions: {
+    moreSidebarMenu: "Mehr",
     searchTitle: "Sitzungen durchsuchen",
     searchDescription:
       "Titel und Unterhaltungsinhalte in allen Projekten durchsuchen",

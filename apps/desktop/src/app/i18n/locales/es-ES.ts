@@ -647,6 +647,7 @@ export default {
       "¿Seguro que quieres eliminar «{name}»? Esta acción no se puede deshacer.",
   },
   sessions: {
+    moreSidebarMenu: "Más",
     searchTitle: "Buscar sesiones",
     searchDescription:
       "Busca en los títulos y el contenido de las conversaciones de todos los proyectos",

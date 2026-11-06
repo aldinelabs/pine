@@ -17,6 +17,7 @@ Every release section here has a matching section in the Chinese changelog.
 
 ### Changed
 
+- The Automations, Skills and MCP servers entries moved from the bottom of the sidebar into a More menu that opens to the right, under Projects. While that menu is closed, the number of unread automation runs and approvals stays on More.
 - All todos is now a larger version of the card: full task numbers, names and descriptions on the left, with the same dependency graph alongside, and nodes stay aligned when a task name wraps.
 - The background process inspector offers Copy path, and its output follows new lines unless you scroll up to read earlier ones.
 - Finished background processes leave the card when a turn ends with none still running; the workbench Tasks panel keeps them.

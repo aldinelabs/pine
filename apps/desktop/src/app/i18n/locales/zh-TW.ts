@@ -599,6 +599,7 @@ export default {
     deleteDescription: "確定要刪除“{name}”嗎？此操作無法撤銷。",
   },
   sessions: {
+    moreSidebarMenu: "更多功能",
     searchTitle: "搜尋會話",
     searchDescription: "按標題和會話內容搜尋所有專案",
     searchPlaceholder: "搜尋會話內容",

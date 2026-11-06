@@ -1,25 +1,15 @@
 <script setup lang="ts">
-import { Blocks, Library, Workflow } from "@lucide/vue";
 import { useTemplateRef, watch } from "vue";
-import { useI18n } from "vue-i18n";
 import {
   Sidebar,
   SidebarContent,
-  SidebarFooter,
-  SidebarMenu,
-  SidebarMenuBadge,
-  SidebarMenuButton,
-  SidebarMenuItem,
   SidebarRail,
   useSidebar,
 } from "@/components/ui/sidebar";
-import ModifierShortcut from "@/components/window/ModifierShortcut.vue";
 import { useSidebarGlassWidth } from "@/composables/useSidebarGlassWidth";
 import { useContentTabNavigation } from "@/composables/useContentTabNavigation";
-import { useAutomationsStore } from "@/stores/automations";
 import AllProjectsSessionList from "./AllProjectsSessionList.vue";
 
-const { t } = useI18n();
 const emit = defineEmits<{
   manageProjects: [];
   manageSkills: [];
@@ -27,7 +17,6 @@ const emit = defineEmits<{
   manageAutomations: [];
   searchSessions: [];
 }>();
-const automations = useAutomationsStore();
 
 // On a phone the sidebar is a sheet over the content. It steps aside once
 // a tab opens or one of its dialogs takes over the screen.
@@ -66,50 +55,11 @@ useSidebarGlassWidth(() => {
       <AllProjectsSessionList
         @search="handOff(() => emit('searchSessions'))"
         @manage-projects="handOff(() => emit('manageProjects'))"
+        @manage-automations="handOff(() => emit('manageAutomations'))"
+        @manage-skills="handOff(() => emit('manageSkills'))"
+        @manage-mcp="handOff(() => emit('manageMcp'))"
       />
     </SidebarContent>
-
-    <SidebarFooter>
-      <SidebarMenu>
-        <SidebarMenuItem>
-          <SidebarMenuButton
-            data-testid="manage-automations"
-            @click="handOff(() => emit('manageAutomations'))"
-          >
-            <Workflow aria-hidden="true" />
-            <span>{{ t("automations.title") }}</span>
-            <ModifierShortcut class="ml-auto" key-label="U" />
-          </SidebarMenuButton>
-          <SidebarMenuBadge
-            v-if="automations.unread + automations.approvals.length > 0"
-            data-testid="automation-unread"
-            >{{
-              automations.unread + automations.approvals.length
-            }}</SidebarMenuBadge
-          >
-        </SidebarMenuItem>
-        <SidebarMenuItem>
-          <SidebarMenuButton
-            data-testid="manage-skills"
-            @click="handOff(() => emit('manageSkills'))"
-          >
-            <Library aria-hidden="true" />
-            <span>{{ t("project.skills") }}</span>
-            <ModifierShortcut class="ml-auto" key-label="S" />
-          </SidebarMenuButton>
-        </SidebarMenuItem>
-        <SidebarMenuItem>
-          <SidebarMenuButton
-            data-testid="manage-mcp"
-            @click="handOff(() => emit('manageMcp'))"
-          >
-            <Blocks aria-hidden="true" />
-            <span>{{ t("mcp.title") }}</span>
-            <ModifierShortcut class="ml-auto" key-label="/" />
-          </SidebarMenuButton>
-        </SidebarMenuItem>
-      </SidebarMenu>
-    </SidebarFooter>
 
     <SidebarRail />
   </Sidebar>
