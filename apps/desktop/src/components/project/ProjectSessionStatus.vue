@@ -5,6 +5,7 @@ import { computed } from "vue";
 import { useCollapseTransition } from "@/composables/useCollapseTransition";
 import { visibleTodoState } from "@/lib/sessionStatus";
 import { useBackgroundTasksStore } from "@/stores/backgroundTasks";
+import { cn } from "@/lib/utils";
 import ProjectBackgroundTaskCard from "./ProjectBackgroundTaskCard.vue";
 import ProjectTodoCard from "./ProjectTodoCard.vue";
 
@@ -22,6 +23,8 @@ const props = defineProps<{
   hiddenCompletedIds: ReadonlySet<number>;
   /** The in-progress loader spins only while the agent is working. */
   isRunning: boolean;
+  /** False when staged steering sits directly above, which owns the gap. */
+  topGap?: boolean;
 }>();
 const { visibleTasks: tasks } = storeToRefs(useBackgroundTasksStore());
 const row = useCollapseTransition("height");
@@ -47,35 +50,45 @@ const hasTasks = computed(() => tasks.value.length > 0);
       data-testid="project-session-status"
       class="flex flex-col justify-end"
     >
-      <!-- Stands in for the transcript's item gap. -->
+      <!-- On a phone the cards keep their content width and the row scrolls
+           horizontally with an edge fade, instead of squeezing either card. -->
       <div
-        data-testid="project-status-card-row"
-        class="flex w-fit max-w-full items-stretch gap-3 pt-8"
+        data-testid="project-status-card-scroll"
+        class="max-sm:w-full max-sm:overflow-x-auto max-sm:overscroll-x-contain max-sm:scroll-fade-x max-sm:no-scrollbar"
       >
-        <Transition :css="false" @enter="card.onEnter" @leave="card.onLeave">
-          <div
-            v-if="hasTodos"
-            data-testid="project-todo-card-slot"
-            class="pointer-events-auto flex flex-auto"
-            :class="hasTasks ? 'min-w-[30%]' : 'min-w-0'"
-          >
-            <ProjectTodoCard
-              :todos="todos"
-              :hidden-completed-ids="hiddenCompletedIds"
-              :is-running="isRunning"
-            />
-          </div>
-        </Transition>
-        <Transition :css="false" @enter="card.onEnter" @leave="card.onLeave">
-          <div
-            v-if="hasTasks"
-            data-testid="project-background-task-card-slot"
-            class="pointer-events-auto flex flex-auto"
-            :class="hasTodos ? 'min-w-[30%]' : 'min-w-0'"
-          >
-            <ProjectBackgroundTaskCard />
-          </div>
-        </Transition>
+        <div
+          data-testid="project-status-card-row"
+          :class="
+            cn(
+              'flex w-fit max-w-full items-stretch gap-3',
+              'max-sm:min-w-full max-sm:max-w-none',
+              props.topGap === false ? 'pt-3' : 'pt-8',
+            )
+          "
+        >
+          <Transition :css="false" @enter="card.onEnter" @leave="card.onLeave">
+            <div
+              v-if="hasTodos"
+              data-testid="project-todo-card-slot"
+              class="pointer-events-auto flex min-w-[30%] flex-auto max-sm:min-w-0 max-sm:flex-none"
+            >
+              <ProjectTodoCard
+                :todos="todos"
+                :hidden-completed-ids="hiddenCompletedIds"
+                :is-running="isRunning"
+              />
+            </div>
+          </Transition>
+          <Transition :css="false" @enter="card.onEnter" @leave="card.onLeave">
+            <div
+              v-if="hasTasks"
+              data-testid="project-background-task-card-slot"
+              class="pointer-events-auto flex min-w-[30%] flex-auto max-sm:min-w-0 max-sm:flex-none"
+            >
+              <ProjectBackgroundTaskCard />
+            </div>
+          </Transition>
+        </div>
       </div>
     </div>
   </Transition>

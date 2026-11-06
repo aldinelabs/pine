@@ -171,6 +171,8 @@ From top to bottom:
    to its content, up to the available width; a lone card is not stretched to
    fill the conversation. When both cards compete for room, space is reserved
    for each and long labels truncate rather than crowding out the other card.
+   On a phone the cards keep their content width and the row scrolls
+   horizontally with an edge fade when together they exceed the width.
    - Todos: progress of the agent's task list; opens All todos. The dialog is
      a larger version of the card: full task numbers, names and descriptions
      on the left, with the same dependency graph on the right. Wrapped rows

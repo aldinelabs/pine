@@ -232,8 +232,24 @@ it("keeps a lone card's row content-sized instead of filling the conversation", 
   expect(row.classes()).toContain("max-w-full");
   expect(row.classes()).not.toContain("w-full");
   expect(slot.classes()).toContain("flex-auto");
-  expect(slot.classes()).toContain("min-w-0");
-  expect(slot.classes()).not.toContain("min-w-[30%]");
+});
+
+it("keeps card content widths and scrolls the row on a phone", () => {
+  const wrapper = mountCard({ nextId: 2, tasks: [task(1, "pending")] }, [
+    process("p1", "running"),
+  ]);
+  const scroll = wrapper.get("[data-testid=project-status-card-scroll]");
+  expect(scroll.classes()).toContain("max-sm:overflow-x-auto");
+  expect(scroll.classes()).toContain("max-sm:scroll-fade-x");
+  expect(scroll.classes()).toContain("max-sm:no-scrollbar");
+  const row = wrapper.get("[data-testid=project-status-card-row]");
+  expect(row.classes()).toContain("max-sm:min-w-full");
+  expect(row.classes()).toContain("max-sm:max-w-none");
+  for (const name of ["todo", "background-task"]) {
+    const slot = wrapper.get(`[data-testid=project-${name}-card-slot]`);
+    expect(slot.classes()).toContain("max-sm:flex-none");
+    expect(slot.classes()).toContain("max-sm:min-w-0");
+  }
 });
 
 it("shows background processes alone once the todos are done", () => {
