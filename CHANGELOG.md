@@ -9,6 +9,28 @@ Every release section here has a matching section in the Chinese changelog.
 
 ## [Unreleased]
 
+## [0.15.5] - 2026-11-06
+
+### Added
+
+- A queued steering message now moves into place: its dashed bubble flies into the conversation and becomes the message that was sent. Ordinary messages rise from the composer the same way.
+
+### Changed
+
+- All todos is now a larger version of the card: full task numbers, names and descriptions on the left, with the same dependency graph alongside, and nodes stay aligned when a task name wraps.
+- The background process inspector offers Copy path, and its output follows new lines unless you scroll up to read earlier ones.
+- Finished background processes leave the card when a turn ends with none still running; the workbench Tasks panel keeps them.
+- Resizing the window changes the workbench's width first, keeping the conversation width until the panel reaches its minimum or maximum width.
+- Scrollable dialogs use an overlay scrollbar at their outer edge, so the text or graph keeps its width, and headings and action buttons stay outside the scrolling body.
+- Scrolling on macOS no longer rubber-bands past the content's edges.
+
+### Fixed
+
+- Status cards no longer stretch to fill the conversation: each keeps its content width, and on a phone the row scrolls horizontally instead of squeezing the cards.
+- Long content in the background process inspector now scrolls inside the panel while its title and action buttons stay visible.
+- Reasoning markers now cover consecutive reasoning summaries only: empty reasoning adds none, reasoning separated by a reply or tool call gets its own expandable panel, and a panel collapses once output follows it.
+- Replies with inline citations no longer repeat the source list below the message, and no longer leave a blank gap there.
+
 ## [0.15.4] - 2026-11-05
 
 ### Added
