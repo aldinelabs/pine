@@ -610,6 +610,13 @@ html.reading-font .transcript-prose :is(h1, h2, h3, h4, h5, h6) {
   font-family: var(--font-reading);
 }
 
+/* Bold in the reading font is easy to miss on a dark background, so it gets
+   the extra weight Sober gives it there. Both reading faces are variable
+   fonts, so 900 renders as a real weight. */
+html.dark.reading-font .transcript-prose .strong-node {
+  font-weight: 900;
+}
+
 /* Interface headings, input placeholders and the model picker also read in the
    reading font, matching where Sober uses its serif. Buttons, menus, labels
    and the sidebar stay in the UI font. */
