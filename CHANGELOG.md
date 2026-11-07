@@ -9,6 +9,16 @@ Every release section here has a matching section in the Chinese changelog.
 
 ## [Unreleased]
 
+## [0.15.6] - 2026-11-07
+
+### Added
+
+- Monet mode, in Settings › General.
+
+### Changed
+
+- The reading font now comes with Monet mode instead of its own switch in Appearance.
+
 ## [0.15.5] - 2026-11-06
 
 ### Added
