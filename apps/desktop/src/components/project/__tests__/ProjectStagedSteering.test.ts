@@ -28,6 +28,14 @@ function mountSteering(
   return wrapper;
 }
 
+it("keeps the gap the transcript tail cancels above it", () => {
+  const wrapper = mountSteering(["改用更小的接口"]);
+
+  expect(
+    wrapper.get('[data-slot="staged-steering-messages"]').classes(),
+  ).toContain("mt-8");
+});
+
 it("renders queued steering as a withdrawable dashed user bubble", async () => {
   const wrapper = mountSteering(["改用更小的接口"]);
   const staged = wrapper.get('[data-slot="staged-steering-message"]');

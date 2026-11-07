@@ -41,10 +41,13 @@ async function openAttachment(path: string): Promise<void> {
 </script>
 
 <template>
+  <!-- The transcript tail cancels the gap above it (-mt-8), so the staged
+       messages restore it with their own top margin, as the status row does
+       with its padding. -->
   <div
     v-if="props.steeringMessages.length > 0"
     data-slot="staged-steering-messages"
-    class="scroll-fade-y no-scrollbar pointer-events-auto flex max-h-64 flex-col items-end gap-2 overflow-y-auto overscroll-contain"
+    class="scroll-fade-y no-scrollbar pointer-events-auto mt-8 flex max-h-64 flex-col items-end gap-2 overflow-y-auto overscroll-contain"
   >
     <div
       v-for="(steeringMessage, index) in stagedSteeringMessages"
