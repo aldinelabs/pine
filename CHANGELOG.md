@@ -19,6 +19,10 @@ Every release section here has a matching section in the Chinese changelog.
 
 - The reading font now comes with Monet mode instead of its own switch in Appearance.
 
+### Fixed
+
+- A queued message no longer sits tight against the conversation above it; the usual space is back.
+
 ## [0.15.5] - 2026-11-06
 
 ### Added
