@@ -220,7 +220,7 @@ export default {
     contextCompactionRouteSemantic: "語義化演算法（Beta）",
     readingFont: "閱讀字型",
     readingFontDescription:
-      "對話和會話標題使用 Geist Serif 與思源宋體，而不是預設介面字型",
+      "助手回覆和會話標題使用 Geist Serif 與思源宋體，而不是預設介面字型",
     invertDocuments: "深色模式下反色文件",
     invertDocumentsDescription: "深色模式下預設反色顯示 PDF、簡報等文件的頁面",
     sidebarVibrancy: "側欄原生材質",

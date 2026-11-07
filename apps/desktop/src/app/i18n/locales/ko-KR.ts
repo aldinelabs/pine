@@ -230,7 +230,7 @@ export default {
     contextCompactionRouteSemantic: "시맨틱 알고리즘(베타)",
     readingFont: "읽기용 글꼴",
     readingFontDescription:
-      "대화와 세션 제목에 기본 인터페이스 글꼴 대신 Geist Serif와 Noto Serif SC를 사용합니다",
+      "어시스턴트 답변과 세션 제목에 기본 인터페이스 글꼴 대신 Geist Serif와 Noto Serif SC를 사용합니다",
     invertDocuments: "다크 모드에서 문서 반전",
     invertDocumentsDescription:
       "다크 모드에서 PDF, 프레젠테이션 등의 문서를 페이지를 반전하여 엽니다",

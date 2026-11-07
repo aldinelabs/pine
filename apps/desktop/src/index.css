@@ -589,16 +589,15 @@ html[data-quick-composer] body {
  * visible across the sidebar region.
  */
 /*
- * Optional reading font for the text people read: conversations,
- * staged messages and session titles. Headings follow the prose instead of the
+ * Optional reading font for what Pine writes: assistant replies, session
+ * titles, headings, input placeholders and the model picker. The user's own
+ * messages stay in the UI sans font. Headings follow the prose instead of the
  * UI heading font; code keeps its explicit monospace font.
  */
 html.reading-font
   :is(
     .transcript-prose,
     .transcript-prose .markstream-vue,
-    [data-slot="user-message-text"],
-    [data-slot="staged-steering-message"],
     [data-slot="session-title"]
   ) {
   /* markstream declares --ms-font-sans on .markstream-vue itself, so the
@@ -608,6 +607,18 @@ html.reading-font
 }
 
 html.reading-font .transcript-prose :is(h1, h2, h3, h4, h5, h6) {
+  font-family: var(--font-reading);
+}
+
+/* Interface headings, input placeholders and the model picker also read in the
+   reading font, matching where Sober uses its serif. Buttons, menus, labels
+   and the sidebar stay in the UI font. */
+html.reading-font {
+  --font-heading: var(--font-reading);
+}
+
+html.reading-font :is(input, textarea)::placeholder,
+html.reading-font [data-slot="model-selector-trigger"] {
   font-family: var(--font-reading);
 }
 

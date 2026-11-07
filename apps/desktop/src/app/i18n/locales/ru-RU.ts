@@ -232,7 +232,7 @@ export default {
     contextCompactionRouteSemantic: "Семантический алгоритм (бета)",
     readingFont: "Шрифт для чтения",
     readingFontDescription:
-      "Использовать Geist Serif и Noto Serif SC для разговоров и заголовков сеансов вместо шрифта интерфейса по умолчанию",
+      "Использовать Geist Serif и Noto Serif SC для ответов ассистента и заголовков сеансов вместо шрифта интерфейса по умолчанию",
     invertDocuments: "Инвертировать документы в тёмном режиме",
     invertDocumentsDescription:
       "В тёмном режиме открывать PDF, презентации и другие документы с инвертированными страницами",

@@ -234,7 +234,7 @@ export default {
     contextCompactionRouteSemantic: "Semantischer Algorithmus (Beta)",
     readingFont: "Lesefont",
     readingFontDescription:
-      "Verwendet Geist Serif und Noto Serif SC für Unterhaltungen und Sitzungstitel statt der Standardschrift der Oberfläche",
+      "Verwendet Geist Serif und Noto Serif SC für Antworten des Assistenten und Sitzungstitel statt der Standardschrift der Oberfläche",
     invertDocuments: "Dokumente im Dunkelmodus invertieren",
     invertDocumentsDescription:
       "Öffnet PDFs, Präsentationen und andere Dokumente im Dunkelmodus mit invertierten Seiten",

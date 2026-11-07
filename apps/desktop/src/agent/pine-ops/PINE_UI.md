@@ -277,8 +277,9 @@ the user opens themselves do not pulse.
   - Appearance: color mode (System, Light, Dark), Pine default color theme
     (Neutral unless changed; the palettes are Neutral, Olive, Red, Rose,
     Orange, Green, Blue, Yellow, Violet), sidebar blur (macOS), reading font
-    (Geist Serif and Noto Serif SC for conversations and session titles),
-    inverted documents in dark mode.
+    (Geist Serif and Noto Serif SC for assistant replies, session titles,
+    headings, input placeholders and the model picker; your own messages,
+    buttons, menus and the sidebar keep the interface font), inverted documents in dark mode.
   - Models: model catalog refresh, title generation model, approval model,
     image generation model, video generation model, Decisions model.
   - Agent: automatic approval path, context compaction strategy and method,

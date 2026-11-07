@@ -230,7 +230,7 @@ export default {
     contextCompactionRouteSemantic: "Semantic algorithm (Beta)",
     readingFont: "Reading font",
     readingFontDescription:
-      "Use Geist Serif and Noto Serif SC for conversations and session titles instead of the default interface font",
+      "Use Geist Serif and Noto Serif SC for assistant replies and session titles instead of the default interface font",
     invertDocuments: "Invert documents in dark mode",
     invertDocumentsDescription:
       "Open PDFs, presentations and other documents with inverted pages in dark mode",
