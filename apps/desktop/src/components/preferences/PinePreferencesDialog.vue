@@ -366,6 +366,7 @@ onMounted(() => {
 function userProfilesEqual(a: PineUserProfile, b: PineUserProfile): boolean {
   return (
     a.communicationStyle === b.communicationStyle &&
+    a.monetMode === b.monetMode &&
     a.customInstructions === b.customInstructions &&
     a.nickname === b.nickname &&
     a.personalDetails === b.personalDetails &&
@@ -888,7 +889,9 @@ function updateSidebarVibrancy(value: boolean): void {
   appearanceStore.setSidebarVibrancy(value);
 }
 
-function updateReadingFont(value: boolean): void {
+/** Monet mode is one switch for the voice and the reading font. */
+function updateMonetMode(value: boolean): void {
+  profileDraft.monetMode = value;
   appearanceStore.setReadingFont(value);
 }
 
@@ -1041,6 +1044,7 @@ defineExpose({ open });
                   :spacing="2"
                   class="w-full"
                   :model-value="profileDraft.communicationStyle"
+                  :disabled="profileDraft.monetMode"
                   aria-labelledby="pine-user-profile-style-label"
                   @update:model-value="updateCommunicationStyle"
                 >
@@ -1055,7 +1059,11 @@ defineExpose({ open });
                   </ToggleGroupItem>
                 </ToggleGroup>
                 <FieldDescription>
-                  {{ communicationStyleDescription }}
+                  {{
+                    profileDraft.monetMode
+                      ? t("preferences.userProfileStyleMonetNotice")
+                      : communicationStyleDescription
+                  }}
                 </FieldDescription>
               </Field>
 
@@ -1234,6 +1242,23 @@ defineExpose({ open });
                         </SelectGroup>
                       </SelectContent>
                     </Select>
+                  </Field>
+
+                  <Field orientation="horizontal">
+                    <div class="flex min-w-0 flex-1 flex-col gap-1">
+                      <FieldTitle
+                        id="pine-monet-mode-setting"
+                        style="font-family: var(--font-reading)"
+                      >
+                        {{ t("preferences.monetMode") }}
+                      </FieldTitle>
+                    </div>
+                    <Switch
+                      data-testid="pine-monet-mode-toggle"
+                      :model-value="profileDraft.monetMode"
+                      aria-labelledby="pine-monet-mode-setting"
+                      @update:model-value="updateMonetMode"
+                    />
                   </Field>
                 </FieldGroup>
               </FieldSet>
@@ -1504,23 +1529,6 @@ defineExpose({ open });
                   >{{ t("preferences.groups.reading") }}</FieldLegend
                 >
                 <FieldGroup>
-                  <Field orientation="horizontal">
-                    <div class="flex min-w-0 flex-1 flex-col gap-1">
-                      <FieldTitle id="pine-reading-font-setting">
-                        {{ t("preferences.readingFont") }}
-                      </FieldTitle>
-                      <FieldDescription>
-                        {{ t("preferences.readingFontDescription") }}
-                      </FieldDescription>
-                    </div>
-                    <Switch
-                      data-testid="pine-reading-font-toggle"
-                      :model-value="appearanceStore.readingFont"
-                      aria-labelledby="pine-reading-font-setting"
-                      @update:model-value="updateReadingFont"
-                    />
-                  </Field>
-
                   <Field orientation="horizontal">
                     <div class="flex min-w-0 flex-1 flex-col gap-1">
                       <FieldTitle id="pine-invert-documents-setting">

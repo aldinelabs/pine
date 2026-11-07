@@ -44,6 +44,7 @@ describe("systemPromptWithUserProfile", () => {
       communicationStyle: "warm-friendly",
       customInstructions: "Always lead with the conclusion.",
       interfaceElements: "rich",
+      monetMode: false,
       nickname: "小 Pine",
       personalDetails: "正在学习桌面应用开发。",
       technicalBackground: "professional-user",
@@ -60,12 +61,42 @@ describe("systemPromptWithUserProfile", () => {
       communicationStyle: "neutral",
       customInstructions: "",
       interfaceElements: "rich",
+      monetMode: false,
       nickname: "",
       personalDetails: "",
       technicalBackground: "general-user",
     });
 
     expect(prompt).toContain("balanced tone");
+  });
+
+  it("appends the Monet guide and drops the style only in Monet mode", () => {
+    const profile = {
+      communicationStyle: "warm-friendly" as const,
+      customInstructions: "",
+      interfaceElements: "rich" as const,
+      monetMode: true,
+      nickname: "",
+      personalDetails: "",
+      technicalBackground: "general-user" as const,
+    };
+    const prompt = systemPromptWithUserProfile("base prompt", profile);
+
+    expect(prompt).toContain("### Mode: Monet");
+    expect(prompt).toContain("Monet mode is on.");
+    expect(prompt).toContain('The "not X, but Y" crutch');
+    expect(prompt).toContain("Pine's rules for tools, permissions");
+    expect(prompt).not.toContain("helpful close collaborator");
+    // Prose-only wording made replies an unbroken wall of text.
+    expect(prompt).not.toContain("Default to prose");
+    expect(prompt).toContain("Write for the eye as well as the ear.");
+
+    const off = systemPromptWithUserProfile("base prompt", {
+      ...profile,
+      monetMode: false,
+    });
+    expect(off).not.toContain("Monet");
+    expect(off).toContain("helpful close collaborator");
   });
 });
 

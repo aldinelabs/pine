@@ -266,6 +266,7 @@ describe("Pine agent settings", () => {
       communicationStyle: "warm-friendly",
       customInstructions: "Lead with the result.",
       interfaceElements: "simple",
+      monetMode: false,
       nickname: "Pine user",
       personalDetails: "Enjoys learning by doing.",
       technicalBackground: "general-user",
@@ -280,6 +281,7 @@ describe("Pine agent settings", () => {
         communicationStyle: "warm-friendly",
         customInstructions: "Lead with the result.",
         interfaceElements: "simple",
+        monetMode: false,
         nickname: "Pine user",
         personalDetails: "Enjoys learning by doing.",
         technicalBackground: "general-user",
@@ -308,6 +310,7 @@ describe("Pine agent settings", () => {
       ...userProfile,
       communicationStyle: "neutral",
       interfaceElements: "rich",
+      monetMode: false,
       technicalBackground: "general-user",
     });
   });

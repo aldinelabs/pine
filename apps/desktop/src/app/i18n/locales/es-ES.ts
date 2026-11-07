@@ -234,9 +234,7 @@ export default {
       "«Modelo» pide al modelo actual que redacte el resumen. «Algoritmo semántico» no llama a ningún modelo: extrae de la conversación los objetivos, los cambios en archivos, los commits y una breve transcripción, por lo que la compactación es más rápida y no consume tokens.",
     contextCompactionRouteModel: "Modelo",
     contextCompactionRouteSemantic: "Algoritmo semántico (beta)",
-    readingFont: "Fuente de lectura",
-    readingFontDescription:
-      "Usa Geist Serif y Noto Serif SC en las respuestas del asistente y los títulos de sesión en lugar de la fuente predeterminada de la interfaz",
+    monetMode: "Monet",
     invertDocuments: "Invertir documentos en modo oscuro",
     invertDocumentsDescription:
       "Abre PDF, presentaciones y otros documentos con las páginas invertidas en modo oscuro",
@@ -302,6 +300,8 @@ export default {
       "Un tono equilibrado y natural, ni formal ni efusivo: directo y honesto, sin halagos ni exageraciones.",
     userProfileStyleWarmDescription:
       "Habla como un buen amigo servicial: sé cálido y entusiasta, y ofrece apoyo emocional cuando resulte útil.",
+    userProfileStyleMonetNotice:
+      "El modo Monet está activado y sustituye este ajuste.",
     userProfileTechLabel: "Perfil técnico",
     userProfileTechGeneral: "Usuario general",
     userProfileTechProfessional: "Usuario profesional",

@@ -7,6 +7,7 @@ import {
   type ProjectColorTheme,
 } from "@/shared/projects";
 import { preferenceStorage } from "@/lib/preferenceStorage";
+import { useUserProfileStore } from "@/stores/userProfile";
 
 export const THEME_PREFERENCE_STORAGE_KEY = "pine.theme-preference";
 export const PINE_COLOR_THEME_STORAGE_KEY = "pine.color-theme";
@@ -188,6 +189,22 @@ export const useAppearanceStore = defineStore("appearance", () => {
     if (themePreference.value === "system") applyColorScheme();
   }
 
+  /**
+   * The reading font belongs to Monet mode, which lives in the user profile.
+   * The stored value only avoids a flash of the interface font while the
+   * profile loads; once it is known the profile decides.
+   */
+  function followMonetMode(): void {
+    if (typeof window.pine?.getUserProfile !== "function") return;
+    const profileStore = useUserProfileStore();
+    void profileStore
+      .load()
+      .then(() => setReadingFont(profileStore.profile.monetMode))
+      .catch(() => {
+        // Keep the stored value if the profile cannot be read.
+      });
+  }
+
   function initialize(): void {
     if (isInitialized) return;
 
@@ -196,6 +213,7 @@ export const useAppearanceStore = defineStore("appearance", () => {
     mediaQuery.addEventListener("change", handleSystemColorSchemeChange);
     applyColorScheme();
     applyReadingFont();
+    followMonetMode();
     if (supportsSidebarVibrancy.value) {
       migrateSidebarVibrancyOnce();
       sidebarVibrancy.value = readStoredSidebarVibrancy();

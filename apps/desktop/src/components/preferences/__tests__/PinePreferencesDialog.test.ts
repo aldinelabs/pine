@@ -135,6 +135,7 @@ describe("PinePreferencesDialog", () => {
       communicationStyle: "calm-professional",
       customInstructions: "",
       interfaceElements: "rich",
+      monetMode: false,
       nickname: "",
       personalDetails: "",
       technicalBackground: "general-user",
@@ -474,6 +475,7 @@ describe("PinePreferencesDialog", () => {
         communicationStyle: "calm-professional",
         customInstructions: "先给出结论，再解释关键原因。",
         interfaceElements: "rich",
+        monetMode: false,
         nickname: "小 Pine",
         personalDetails: "正在学习桌面应用开发",
         technicalBackground: "professional-user",
@@ -483,6 +485,34 @@ describe("PinePreferencesDialog", () => {
     await vi.waitFor(() =>
       expect((nickname.element as HTMLInputElement).value).toBe("小 Pine"),
     );
+  });
+
+  it("turns on Monet mode from General and locks the communication style", async () => {
+    installPineApi("linux");
+    const { wrapper } = mountDialog();
+    await openSection(wrapper, "通用");
+    const toggle = wrapper.get('[data-testid="pine-monet-mode-toggle"]');
+
+    await toggle.trigger("click");
+    await wrapper.vm.$nextTick();
+
+    expect(document.documentElement.classList.contains("reading-font")).toBe(
+      true,
+    );
+    await vi.waitFor(() =>
+      expect(setUserProfile).toHaveBeenLastCalledWith(
+        expect.objectContaining({ monetMode: true }),
+      ),
+    );
+    await openSection(wrapper, "自定义");
+    const styleGroup = wrapper
+      .findAllComponents(ToggleGroup)
+      .find(
+        (group) =>
+          group.attributes("aria-labelledby") ===
+          "pine-user-profile-style-label",
+      );
+    expect(styleGroup?.props("disabled")).toBe(true);
   });
 
   it("applies and persists language and theme selections", async () => {

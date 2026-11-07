@@ -271,21 +271,26 @@ the user opens themselves do not pulse.
 - Pine Settings, with sections (a phone shows the section list first):
   - General: language (dropdown), currency (follows the system region by
     default; used for cost and cost limits at the European Central Bank's daily
-    rate, US dollars when rates are unavailable), completion signal, attention
+    rate, US dollars when rates are unavailable), the Monet mode switch (the
+    last item of the Interface group: Sóber's voice plus a serif reading font
+    for assistant replies, session titles, headings, input placeholders and the
+    model picker; it replaces the communication style in the user profile,
+    which is disabled while it is on, and your own messages, buttons, menus and
+    the sidebar keep the interface font), completion signal, attention
     notifications, quick composer shortcut, keep running in the background
     (macOS and Windows desktop app), diagnostic logging.
   - Appearance: color mode (System, Light, Dark), Pine default color theme
     (Neutral unless changed; the palettes are Neutral, Olive, Red, Rose,
-    Orange, Green, Blue, Yellow, Violet), sidebar blur (macOS), reading font
-    (Geist Serif and Noto Serif SC for assistant replies, session titles,
-    headings, input placeholders and the model picker; your own messages,
-    buttons, menus and the sidebar keep the interface font), inverted documents in dark mode.
+    Orange, Green, Blue, Yellow, Violet), sidebar blur (macOS), inverted
+    documents in dark mode.
   - Models: model catalog refresh, title generation model, approval model,
     image generation model, video generation model, Decisions model.
   - Agent: automatic approval path, context compaction strategy and method,
     TinyFish web tools key (shows Configured or Not configured), approximate
     location.
-  - User profile: nickname, communication style, technical background,
+  - User profile: nickname, communication style (Calm & professional,
+    Neutral or Warm & friendly; disabled while Monet mode is on), technical
+    background,
     interactive answers (Rich or Simple), personal details, custom
     instructions.
   - Projects: every project with its data usage; New Project, Edit, clear

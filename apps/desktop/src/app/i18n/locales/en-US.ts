@@ -228,9 +228,7 @@ export default {
       "Model asks the current model to write the summary. Semantic algorithm makes no model call: it extracts goals, file changes, commits, and a brief transcript from the conversation, so compaction is faster and uses no tokens.",
     contextCompactionRouteModel: "Model",
     contextCompactionRouteSemantic: "Semantic algorithm (Beta)",
-    readingFont: "Reading font",
-    readingFontDescription:
-      "Use Geist Serif and Noto Serif SC for assistant replies and session titles instead of the default interface font",
+    monetMode: "Monet",
     invertDocuments: "Invert documents in dark mode",
     invertDocumentsDescription:
       "Open PDFs, presentations and other documents with inverted pages in dark mode",
@@ -295,6 +293,7 @@ export default {
       "A balanced, natural tone, neither formal nor effusive: direct and honest, without flattery or hype.",
     userProfileStyleWarmDescription:
       "Speak like a helpful good friend: be warm and enthusiastic, and offer emotional support when it is useful.",
+    userProfileStyleMonetNotice: "Monet mode is on and replaces this setting.",
     userProfileTechLabel: "Technical background",
     userProfileTechGeneral: "General user",
     userProfileTechProfessional: "Professional user",

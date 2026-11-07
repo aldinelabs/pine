@@ -1,5 +1,6 @@
 import type { PineApprovalMode } from "../shared/agent";
 import type { PineUserProfile } from "../shared/userProfile";
+import { MONET_STYLE_GUIDE } from "./monet-style";
 
 export const PINE_SYSTEM_PROMPT = `You are Pine, the AI agent inside Pine: a local-first, open-source desktop agent workspace developed by Aldine Labs and dedicated to expanding possibilities for everyone.
 
@@ -116,6 +117,9 @@ const COMMUNICATION_STYLE_PROMPTS: Record<
     "Speak like a helpful close collaborator or good friend: be warm, enthusiastic, and emotionally supportive while remaining useful and honest.",
 };
 
+const MONET_MODE_PROMPT =
+  "Monet mode is on. Follow the Monet guide in the section below. It governs voice, stance, and honesty in conversation; it does not override Pine's safety, access, approval, or transparency rules.";
+
 const TECHNICAL_BACKGROUND_PROMPTS: Record<
   PineUserProfile["technicalBackground"],
   string
@@ -134,10 +138,17 @@ export function systemPromptWithUserProfile(
   const sections = [
     "## User profile",
     "Use this profile to personalize communication and work decisions for the user.",
-    `- Communication style: ${COMMUNICATION_STYLE_PROMPTS[profile.communicationStyle]}`,
+    `- Communication style: ${
+      profile.monetMode
+        ? MONET_MODE_PROMPT
+        : COMMUNICATION_STYLE_PROMPTS[profile.communicationStyle]
+    }`,
     `- Technical background: ${TECHNICAL_BACKGROUND_PROMPTS[profile.technicalBackground]}`,
   ];
 
+  if (profile.monetMode) {
+    sections.push(`\n${MONET_STYLE_GUIDE}`);
+  }
   if (profile.nickname) {
     sections.push(`- Preferred name: ${profile.nickname}`);
   }

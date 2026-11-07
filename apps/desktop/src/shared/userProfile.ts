@@ -11,6 +11,11 @@ export interface PineUserProfile {
   communicationStyle: PineCommunicationStyle;
   customInstructions: string;
   interfaceElements: PineInterfaceElements;
+  /**
+   * Monet mode: Sóber's voice and the reading font. While on, it replaces the
+   * communication style.
+   */
+  monetMode: boolean;
   nickname: string;
   personalDetails: string;
   technicalBackground: PineTechnicalBackground;
@@ -25,6 +30,7 @@ export function createDefaultPineUserProfile(): PineUserProfile {
     communicationStyle: "neutral",
     customInstructions: "",
     interfaceElements: "rich",
+    monetMode: false,
     nickname: "",
     personalDetails: "",
     technicalBackground: "general-user",
@@ -38,6 +44,7 @@ export function normalizePineUserProfile(
     communicationStyle: profile.communicationStyle,
     customInstructions: profile.customInstructions.trim(),
     interfaceElements: profile.interfaceElements,
+    monetMode: profile.monetMode,
     nickname: profile.nickname.trim(),
     personalDetails: profile.personalDetails.trim(),
     technicalBackground: profile.technicalBackground,

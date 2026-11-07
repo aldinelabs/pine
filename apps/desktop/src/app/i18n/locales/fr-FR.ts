@@ -233,9 +233,7 @@ export default {
       "« Modèle » demande au modèle actuel de rédiger le résumé. « Algorithme sémantique » n'appelle aucun modèle : il extrait de la conversation les objectifs, les modifications de fichiers, les commits et une courte transcription, de sorte que le compactage est plus rapide et ne consomme aucun token.",
     contextCompactionRouteModel: "Modèle",
     contextCompactionRouteSemantic: "Algorithme sémantique (bêta)",
-    readingFont: "Police de lecture",
-    readingFontDescription:
-      "Utilise Geist Serif et Noto Serif SC pour les réponses de l'assistant et les titres de session à la place de la police d'interface par défaut",
+    monetMode: "Monet",
     invertDocuments: "Inverser les documents en mode sombre",
     invertDocumentsDescription:
       "Ouvre les PDF, les présentations et d'autres documents avec les pages inversées en mode sombre",
@@ -301,6 +299,8 @@ export default {
       "Un ton équilibré et naturel, ni formel ni exubérant : direct et honnête, sans flatterie ni exagération.",
     userProfileStyleWarmDescription:
       "Parle comme un bon ami serviable : chaleureux et enthousiaste, avec un soutien moral quand c'est utile.",
+    userProfileStyleMonetNotice:
+      "Le mode Monet est activé et remplace ce réglage.",
     userProfileTechLabel: "Niveau technique",
     userProfileTechGeneral: "Utilisateur grand public",
     userProfileTechProfessional: "Utilisateur professionnel",

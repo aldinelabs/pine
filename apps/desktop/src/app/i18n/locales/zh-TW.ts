@@ -218,9 +218,7 @@ export default {
       "大模型會呼叫當前模型撰寫摘要。語義化演算法不呼叫模型，直接從對話中提取目標、檔案改動、提交和簡要記錄，壓縮更快且不消耗 Token。",
     contextCompactionRouteModel: "大模型",
     contextCompactionRouteSemantic: "語義化演算法（Beta）",
-    readingFont: "閱讀字型",
-    readingFontDescription:
-      "助手回覆和會話標題使用 Geist Serif 與思源宋體，而不是預設介面字型",
+    monetMode: "Monet",
     invertDocuments: "深色模式下反色文件",
     invertDocumentsDescription: "深色模式下預設反色顯示 PDF、簡報等文件的頁面",
     sidebarVibrancy: "側欄原生材質",
@@ -280,6 +278,7 @@ export default {
       "語氣平衡自然，不過於正式，也不過於熱情；直接、誠實，不奉承、不誇大。",
     userProfileStyleWarmDescription:
       "像一起幫忙的好朋友一樣說話，保持熱情，並在有幫助的前提下提供情緒價值。",
+    userProfileStyleMonetNotice: "Monet 模式已開啟，將取代此項設定。",
     userProfileTechLabel: "技術背景",
     userProfileTechGeneral: "一般使用者",
     userProfileTechProfessional: "專業使用者",

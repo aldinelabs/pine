@@ -81,7 +81,8 @@ function isPineUserProfile(value: unknown): value is PineUserProfile {
     typeof profile.technicalBackground === "string" &&
     isPineTechnicalBackground(profile.technicalBackground) &&
     typeof profile.interfaceElements === "string" &&
-    isPineInterfaceElements(profile.interfaceElements)
+    isPineInterfaceElements(profile.interfaceElements) &&
+    typeof profile.monetMode === "boolean"
   );
 }
 
@@ -106,6 +107,7 @@ function migrateUserProfile(value: unknown): unknown {
     ...(profile.interfaceElements === undefined
       ? { interfaceElements: "rich" }
       : {}),
+    ...(profile.monetMode === undefined ? { monetMode: false } : {}),
   };
 }
 

@@ -232,9 +232,7 @@ export default {
       "„Modell“ lässt das aktuelle Modell die Zusammenfassung schreiben. Der „Semantische Algorithmus“ ruft kein Modell auf: Er extrahiert Ziele, Dateiänderungen, Commits und ein kurzes Protokoll aus der Unterhaltung, sodass die Verdichtung schneller ist und keine Token verbraucht.",
     contextCompactionRouteModel: "Modell",
     contextCompactionRouteSemantic: "Semantischer Algorithmus (Beta)",
-    readingFont: "Lesefont",
-    readingFontDescription:
-      "Verwendet Geist Serif und Noto Serif SC für Antworten des Assistenten und Sitzungstitel statt der Standardschrift der Oberfläche",
+    monetMode: "Monet",
     invertDocuments: "Dokumente im Dunkelmodus invertieren",
     invertDocumentsDescription:
       "Öffnet PDFs, Präsentationen und andere Dokumente im Dunkelmodus mit invertierten Seiten",
@@ -300,6 +298,8 @@ export default {
       "Ein ausgewogener, natürlicher Ton, weder förmlich noch überschwänglich: direkt und ehrlich, ohne Schmeichelei und Übertreibung.",
     userProfileStyleWarmDescription:
       "Spricht wie ein hilfsbereiter guter Freund: herzlich und begeistert und bei Bedarf auch emotional unterstützend.",
+    userProfileStyleMonetNotice:
+      "Der Monet-Modus ist aktiv und ersetzt diese Einstellung.",
     userProfileTechLabel: "Technischer Hintergrund",
     userProfileTechGeneral: "Allgemeiner Benutzer",
     userProfileTechProfessional: "Professioneller Benutzer",
