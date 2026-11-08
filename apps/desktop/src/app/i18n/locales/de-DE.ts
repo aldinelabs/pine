@@ -1341,6 +1341,19 @@ export default {
         fetchHighlights: "Highlights: {value}",
       },
       toolDetails: {
+        reviewHistory: "Prüfverlauf",
+        noReviewModel: "Genehmigungsmodell nicht verfügbar",
+        reviewKinds: {
+          decisions: "Decisions-Vorprüfung",
+          model: "Genehmigungsmodell",
+        },
+        reviewOutcomes: {
+          allow: "Erlaubt",
+          deny: "Abgelehnt",
+          needs_user: "Benutzerbestätigung erforderlich",
+          fallback: "An das Prüfmodell weitergeleitet",
+          error: "Prüfung fehlgeschlagen",
+        },
         title: "Details des Werkzeugaufrufs",
         description:
           "Sehen Sie sich Status, Parameter und Ergebnis dieses Werkzeugaufrufs an.",

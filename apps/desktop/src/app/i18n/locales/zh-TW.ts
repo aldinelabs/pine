@@ -1251,6 +1251,19 @@ export default {
         fetchHighlights: "重點：{value}",
       },
       toolDetails: {
+        reviewHistory: "審核記錄",
+        noReviewModel: "無法取得審批模型",
+        reviewKinds: {
+          decisions: "Decisions 初篩",
+          model: "大模型審核",
+        },
+        reviewOutcomes: {
+          allow: "允許",
+          deny: "拒絕",
+          needs_user: "需要使用者確認",
+          fallback: "轉交大模型審核",
+          error: "審核失敗",
+        },
         title: "工具呼叫詳情",
         description: "檢視這次工具呼叫的狀態、引數與返回值。",
         status: "執行狀態",

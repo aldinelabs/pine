@@ -297,9 +297,10 @@ export async function writeAutoApprovalSettings(
 ): Promise<void> {
   if (
     !isPineAutoApprovalSettings(autoApproval) ||
-    !(await decisionsModelDescriptors(agentDir)).some(
-      (model) => model.id === autoApproval.decisionsModel.trim(),
-    )
+    (autoApproval.strategy === "decisions" &&
+      !(await decisionsModelDescriptors(agentDir)).some(
+        (model) => model.id === autoApproval.decisionsModel.trim(),
+      ))
   ) {
     throw new Error("Invalid automatic approval settings.");
   }

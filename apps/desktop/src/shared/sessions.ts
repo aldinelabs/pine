@@ -52,10 +52,21 @@ export const PINE_APPROVAL_DECISION_ENTRY = "pine.approval-decision" as const;
 
 export type PineToolCallStatus = "pending" | "running" | "complete" | "error";
 
+/** Actual reviewer attempts, captured at execution time rather than from preferences. */
+export interface PineApprovalReview {
+  kind: "decisions" | "model";
+  providerId?: string;
+  modelId?: string;
+  modelName?: string;
+  outcome: "allow" | "deny" | "needs_user" | "fallback" | "error";
+  reason?: string;
+}
+
 export interface PineToolCallApproval {
   state: "reviewing" | "awaiting-user" | "approved" | "denied";
   decidedBy?: "user" | "judge" | "sandbox";
   reason?: string;
+  reviews?: PineApprovalReview[];
 }
 
 export interface PineApprovalDecision {
@@ -64,6 +75,7 @@ export interface PineApprovalDecision {
   verdict: "approved" | "denied";
   decidedBy: "user" | "judge" | "sandbox";
   reason?: string;
+  reviews?: PineApprovalReview[];
 }
 
 export interface PineToolCall {

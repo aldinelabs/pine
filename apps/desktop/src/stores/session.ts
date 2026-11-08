@@ -1361,7 +1361,10 @@ export const useSessionStore = defineStore("session", () => {
         toolCallId,
       ]);
       patchToolCall(toolCallId, {
-        approval: { state: "reviewing" },
+        approval: {
+          state: "reviewing",
+          ...(event.reviews ? { reviews: event.reviews } : {}),
+        },
       });
       return;
     }
@@ -1396,7 +1399,10 @@ export const useSessionStore = defineStore("session", () => {
         });
       }
       patchToolCall(toolCallId, {
-        approval: { state: "awaiting-user" },
+        approval: {
+          state: "awaiting-user",
+          ...(event.reviews ? { reviews: event.reviews } : {}),
+        },
       });
       return;
     }
@@ -1417,6 +1423,7 @@ export const useSessionStore = defineStore("session", () => {
         approval: {
           state: event.verdict === "approved" ? "approved" : "denied",
           decidedBy: event.decidedBy,
+          ...(event.reviews ? { reviews: event.reviews } : {}),
           ...(event.reason ? { reason: event.reason } : {}),
         },
       });

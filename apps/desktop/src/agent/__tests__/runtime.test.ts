@@ -30,6 +30,11 @@ import {
   toolNamesForSkillAuthoringState,
 } from "../runtime";
 import { PINE_APPROVAL_MODE_NOTICE } from "../runtime/session-state";
+import type { JudgeRequest, JudgeRuling, UserApprovalRequest } from "../gate";
+import type { LiveAgentSession } from "../runtime/session-state";
+import type { GateDecision } from "../protocol";
+import type { PineAgentEvent } from "../../shared/agent";
+import { PINE_APPROVAL_DECISION_ENTRY } from "../../shared/sessions";
 import { serializeAttachmentMessage } from "../../shared/attachments";
 import { ACTIVATE_COMPUTER_USE_TOOL_NAME } from "../computer-use/tools";
 import { UI_WORKBENCH_STATE_TOOL_NAME } from "../../shared/workbench";
@@ -561,6 +566,138 @@ describe("parseJudgeRulings", () => {
 });
 
 describe("PineAgentRuntime", () => {
+  it("keeps failed reviewer history through the manual decision and its persisted record", async () => {
+    const emit = vi.fn();
+    const runtime = new PineAgentRuntime({ emit });
+    const internals = runtime as unknown as {
+      requestUserApproval: (
+        live: LiveAgentSession,
+        request: UserApprovalRequest,
+      ) => Promise<GateDecision>;
+    };
+    const appendCustomEntry = vi.fn();
+    const live = {
+      session: {
+        sessionId: "manual-session",
+        sessionManager: { appendCustomEntry },
+      },
+    } as unknown as LiveAgentSession;
+    const reviews = [
+      {
+        kind: "model" as const,
+        modelId: "failed-reviewer",
+        outcome: "error" as const,
+        reason: "Provider unavailable",
+      },
+    ];
+    try {
+      const result = internals.requestUserApproval(live, {
+        toolCallId: "reviewed",
+        toolName: "bash",
+        trigger: "privileged-execution",
+        reviews,
+      });
+      const event = emit.mock.calls[0][0] as Extract<
+        PineAgentEvent,
+        { type: "approval-request" }
+      >;
+      expect(event).toMatchObject({ type: "approval-request", reviews });
+      expect(
+        runtime.resolveApproval(event.requestId, {
+          kind: "deny",
+          reason: "Stop",
+        }),
+      ).toEqual({ accepted: true });
+      await expect(result).resolves.toEqual({ kind: "deny", reason: "Stop" });
+      expect(appendCustomEntry).toHaveBeenCalledWith(
+        PINE_APPROVAL_DECISION_ENTRY,
+        expect.objectContaining({ decidedBy: "user", reviews }),
+      );
+      expect(emit).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: "approval-decided",
+          decidedBy: "user",
+          reviews,
+        }),
+      );
+    } finally {
+      await runtime.dispose();
+    }
+  });
+
+  it.each([false, true])(
+    "records the resolved review model on success or provider failure: %s",
+    async (fails) => {
+      const runtime = new PineAgentRuntime({ emit: () => undefined });
+      const internals = runtime as unknown as {
+        getModelRuntime: () => Promise<unknown>;
+        modelService: { approvalModel: () => Promise<unknown> };
+        runModelJudge: (
+          live: { agentDir: string; approvalMode: string },
+          requests: JudgeRequest[],
+          signal: AbortSignal,
+        ) => Promise<JudgeRuling[]>;
+      };
+      const model = {
+        id: "resolved-reviewer",
+        name: "Resolved reviewer",
+        provider: "custom-provider",
+        api: "openai-completions",
+      };
+      internals.modelService.approvalModel = vi.fn().mockResolvedValue(model);
+      internals.getModelRuntime = vi.fn().mockResolvedValue({
+        stream: function* () {
+          if (fails) throw new Error("Provider unavailable");
+          yield {
+            type: "done",
+            message: {
+              content: [
+                {
+                  type: "toolCall",
+                  name: "submit_ruling",
+                  arguments: {
+                    rulings: [{ toolCallId: "reviewed", verdict: "allow" }],
+                  },
+                },
+              ],
+            },
+          };
+        },
+      });
+      const onReview = vi.fn();
+      try {
+        const result = internals.runModelJudge(
+          { agentDir: "/unused", approvalMode: "auto-approve" },
+          [
+            {
+              toolCallId: "reviewed",
+              toolName: "bash",
+              trigger: "privileged-execution",
+              subject: "bun test",
+              turn: { recentUserStatements: [], recentEvents: [], grants: [] },
+              onReview,
+            },
+          ],
+          new AbortController().signal,
+        );
+        if (fails) await expect(result).rejects.toThrow("Provider unavailable");
+        else
+          await expect(result).resolves.toMatchObject([{ verdict: "allow" }]);
+        expect(onReview).toHaveBeenCalledExactlyOnceWith(
+          expect.objectContaining({
+            kind: "model",
+            providerId: "custom-provider",
+            modelId: "resolved-reviewer",
+            modelName: "Resolved reviewer",
+            outcome: fails ? "error" : "allow",
+          }),
+        );
+      } finally {
+        await runtime.dispose();
+      }
+    },
+  );
+
   it("delivers workbench state and recurring todo reminders through real Pi turns", async () => {
     const root = await mkdtemp(path.join(os.tmpdir(), "pine-progress-"));
     temporaryDirectories.push(root);

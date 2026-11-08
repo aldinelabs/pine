@@ -114,6 +114,14 @@ describe("Pine agent settings", () => {
     expect((await readPineAgentSettings(agentDir)).autoApproval).toEqual(
       autoApproval,
     );
+    await writeAutoApprovalSettings(agentDir, {
+      strategy: "model",
+      decisionsModel: autoApproval.decisionsModel,
+    });
+    expect((await readPineAgentSettings(agentDir)).autoApproval).toEqual({
+      ...autoApproval,
+      strategy: "model",
+    });
   });
 
   it("ignores the old threshold and removes it on the next settings save", async () => {

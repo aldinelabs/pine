@@ -1333,6 +1333,19 @@ export default {
         fetchHighlights: "destacados: {value}",
       },
       toolDetails: {
+        reviewHistory: "Historial de revisión",
+        noReviewModel: "Modelo de aprobación no disponible",
+        reviewKinds: {
+          decisions: "Filtrado de Decisions",
+          model: "Modelo de aprobación",
+        },
+        reviewOutcomes: {
+          allow: "Permitido",
+          deny: "Denegado",
+          needs_user: "Requiere confirmación del usuario",
+          fallback: "Enviado al modelo de revisión",
+          error: "Error de revisión",
+        },
         title: "Detalles de la llamada a la herramienta",
         description:
           "Consulta el estado, los parámetros y el resultado de esta llamada a la herramienta.",

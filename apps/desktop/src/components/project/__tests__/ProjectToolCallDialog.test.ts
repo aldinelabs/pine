@@ -39,12 +39,58 @@ function mountMarker(decidedBy: "judge" | "user" | "sandbox" | null = "judge") {
       },
     },
     global: {
-      plugins: [createAppI18n("zh-CN")],
+      plugins: [createPinia(), createAppI18n("zh-CN")],
     },
   });
 }
 
 describe("ProjectToolCallDialog", () => {
+  it.each(["awaiting-user", "approved"] as const)(
+    "shows the actual reviewers and failures after handoff: %s",
+    async (state) => {
+      const wrapper = mountMarker("user");
+      await wrapper.setProps({
+        toolCall: {
+          ...wrapper.props("toolCall"),
+          approval: {
+            state,
+            decidedBy: state === "approved" ? "user" : undefined,
+            reviews: [
+              {
+                kind: "decisions",
+                providerId: "openrouter",
+                modelId: "typesafe/jev-1.13",
+                outcome: "error",
+                reason: "HTTP 503",
+              },
+              {
+                kind: "model",
+                providerId: "custom-provider",
+                modelId: "actual-model-id",
+                modelName: "Actual reviewer",
+                outcome: "error",
+                reason: "Provider timed out",
+              },
+            ],
+          },
+        },
+      });
+      await wrapper.get('button[data-slot="marker"]').trigger("click");
+      const history = document.body.querySelector("[data-approval-reviews]");
+      expect(history?.textContent).toContain("typesafe/jev-1.13");
+      expect(history?.textContent).toContain("Actual reviewer");
+      expect(history?.textContent).toContain(
+        "custom-provider / actual-model-id",
+      );
+      expect(history?.textContent).toContain("HTTP 503");
+      expect(history?.textContent).toContain("Provider timed out");
+      expect(document.body.textContent).toContain(
+        state === "approved" ? "用户已批准" : "等待用户审批",
+      );
+      wrapper.unmount();
+    },
+  );
+
   it.each([
     ["read", "src/main.ts", undefined],
     ["write", "src/main.ts", undefined],

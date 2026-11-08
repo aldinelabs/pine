@@ -1309,6 +1309,19 @@ export default {
         fetchHighlights: "highlights: {value}",
       },
       toolDetails: {
+        reviewHistory: "Review history",
+        noReviewModel: "Approval model unavailable",
+        reviewKinds: {
+          decisions: "Decisions screening",
+          model: "Approval model",
+        },
+        reviewOutcomes: {
+          allow: "Allowed",
+          deny: "Denied",
+          needs_user: "User confirmation required",
+          fallback: "Sent for model review",
+          error: "Review failed",
+        },
         title: "Tool call details",
         description: "Inspect this tool call's status, parameters, and result.",
         status: "Execution status",
