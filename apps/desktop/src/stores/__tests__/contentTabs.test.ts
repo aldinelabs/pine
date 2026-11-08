@@ -70,6 +70,22 @@ describe("content tabs store", () => {
     return useContentTabsStore();
   }
 
+  it("relabels a session's tab and leaves the tabs alone when nothing changes", () => {
+    const store = useContentTabsStore();
+    store.bindSession("session-1", firstSession);
+    const before = store.tabs;
+    const setItem = vi.spyOn(Storage.prototype, "setItem");
+    store.updateSession({ ...firstSession, messageCount: 3 });
+    expect(store.tabs).toBe(before);
+    expect(setItem).not.toHaveBeenCalledWith(
+      CONTENT_TABS_STORAGE_KEY,
+      expect.anything(),
+    );
+    store.updateSession({ ...firstSession, name: "Renamed" });
+    expect(store.tabs[0]).toMatchObject({ id: "session-1", label: "Renamed" });
+    setItem.mockRestore();
+  });
+
   it("starts new drafts in the temporary workspace", () => {
     const store = useContentTabsStore();
     expect(store.tabs).toEqual([

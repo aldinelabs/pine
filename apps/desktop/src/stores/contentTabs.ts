@@ -573,19 +573,23 @@ export const useContentTabsStore = defineStore("content-tabs", () => {
 
   function updateSession(session: PineSessionSummary): void {
     const label = sessionLabel(session);
-    tabs.value = tabs.value.map((tab) => {
+    // A running session reports itself on every appended entry; leave the
+    // tabs (and their persisted copy) alone unless a label actually changes.
+    if (!label) return;
+    let changed = false;
+    const next = tabs.value.map((tab) => {
       if (
         tab.kind !== "session" ||
         tab.state !== "bound" ||
-        tab.sessionId !== session.id
+        tab.sessionId !== session.id ||
+        tab.label === label
       ) {
         return tab;
       }
-      return {
-        ...tab,
-        ...(label ? { label } : {}),
-      };
+      changed = true;
+      return { ...tab, label };
     });
+    if (changed) tabs.value = next;
   }
 
   function close(tabId: string, activeTabId: string): string {
