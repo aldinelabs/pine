@@ -48,7 +48,7 @@ it("renders queued steering as a withdrawable dashed user bubble", async () => {
   expect(
     withdraw.element.compareDocumentPosition(
       staged.get('[data-slot="bubble"]').element,
-    ) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ) & Node.DOCUMENT_POSITION_PRECEDING,
   ).toBeTruthy();
 
   await withdraw.trigger("click");
@@ -87,7 +87,9 @@ it("shows attachments of queued steering messages and opens them", async () => {
   const staged = wrapper.get('[data-slot="staged-steering-message"]');
 
   expect(staged.text()).toContain("notes.md");
-  expect(staged.get('[data-slot="bubble"]').text()).toBe("看看这个");
+  expect(staged.get('[data-slot="bubble"] .whitespace-pre-wrap').text()).toBe(
+    "看看这个",
+  );
   await wrapper.get('[data-slot="attachment-trigger"]').trigger("click");
   await vi.waitFor(() =>
     expect(openAttachment).toHaveBeenCalledWith({

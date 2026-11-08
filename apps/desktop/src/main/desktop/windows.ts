@@ -62,7 +62,7 @@ const SECURE_WEB_PREFERENCES = {
   experimentalFeatures: false,
   nodeIntegration: false,
   sandbox: true,
-  scrollBounce: false,
+  scrollBounce: process.platform === "darwin",
   webSecurity: true,
 } as const;
 

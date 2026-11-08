@@ -83,6 +83,9 @@ const DEFAULT_DURATION_MS = 500;
 export interface AnimateScrollTopOptions {
   /** Sweep duration in milliseconds (default 500). */
   duration?: number;
+  /** Compensate for a moving layout anchor on the current tween's clock.
+   * When idle, restore its position immediately instead of starting a tween. */
+  preserveAnchor?: boolean;
 }
 
 type CancelAnimation = () => void;
@@ -92,7 +95,14 @@ type CancelAnimation = () => void;
  * the element currently is, which is what a streaming follow-scroll wants.
  * Wheel / touch input cancels the animation so the reader always wins.
  */
-const activeAnimations = new WeakMap<HTMLElement, CancelAnimation>();
+const activeAnimations = new WeakMap<
+  HTMLElement,
+  {
+    target: number;
+    cancel: CancelAnimation;
+    retargetAnchor: (top: number) => void;
+  }
+>();
 
 const USER_INPUT_EVENTS = ["wheel", "touchstart"] as const;
 
@@ -101,11 +111,22 @@ export function animateScrollTop(
   top: number,
   options: AnimateScrollTopOptions = {},
 ): CancelAnimation {
-  activeAnimations.get(element)?.();
-  const target = Math.max(0, Math.round(top));
+  let target = Math.max(0, Math.round(top));
+  const active = activeAnimations.get(element);
+  // Resize observers often report the same anchor during a send. Keep its
+  // original clock so repeated measurements do not restart the motion.
+  if (active?.target === target) return active.cancel;
+  if (active && options.preserveAnchor) {
+    active.retargetAnchor(target);
+    return active.cancel;
+  }
+  active?.cancel();
   const distance = target - element.scrollTop;
+  let finished = false;
 
   function cleanup(): void {
+    if (finished) return;
+    finished = true;
     for (const event of USER_INPUT_EVENTS) {
       element.removeEventListener(event, handleUserInput);
     }
@@ -117,20 +138,26 @@ export function animateScrollTop(
     cleanup();
   }
 
-  if (prefersReducedMotion() || Math.abs(distance) < 1) {
+  if (
+    options.preserveAnchor ||
+    prefersReducedMotion() ||
+    Math.abs(distance) < 1
+  ) {
     element.scrollTop = target;
     return () => {};
   }
 
   const duration = options.duration ?? DEFAULT_DURATION_MS;
-  const startTop = element.scrollTop;
+  let startTop = element.scrollTop;
+  let lastTop = startTop;
   const startTime = performance.now();
   let frame: number | null = null;
 
   function step(now: number): void {
     frame = null;
     const progress = easeOutExpo((now - startTime) / duration);
-    element.scrollTop = startTop + (target - startTop) * progress;
+    lastTop = startTop + (target - startTop) * progress;
+    element.scrollTop = lastTop;
     if (now - startTime >= duration) {
       element.scrollTop = target;
       cleanup();
@@ -142,7 +169,21 @@ export function animateScrollTop(
   for (const event of USER_INPUT_EVENTS) {
     element.addEventListener(event, handleUserInput, { passive: true });
   }
-  activeAnimations.set(element, cleanup);
+  activeAnimations.set(element, {
+    get target() {
+      return target;
+    },
+    cancel: cleanup,
+    retargetAnchor(next) {
+      const delta = next - target;
+      target = next;
+      startTop += delta;
+      lastTop += delta;
+      // Use the last painted position: the browser may already have clamped
+      // scrollTop when content shrank, before ResizeObserver could restore it.
+      element.scrollTop = lastTop;
+    },
+  });
   frame = window.requestAnimationFrame(step);
 
   return cleanup;

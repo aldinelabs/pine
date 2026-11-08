@@ -92,6 +92,58 @@ describe("animateScrollTop", () => {
     expect(element.scrollTop).toBe(200);
   });
 
+  it("keeps the original arrival time when the same target is measured again", () => {
+    const clock = installFrameClock();
+    const element = createScroller();
+    const cancel = animateScrollTop(element, 1000);
+    clock.flush(250);
+    expect(animateScrollTop(element, 1000)).toBe(cancel);
+    clock.flush(260);
+    expect(element.scrollTop).toBe(1000);
+  });
+
+  it("does not let an old cancellation remove a newer animation", () => {
+    const clock = installFrameClock();
+    const element = createScroller();
+    const cancel = animateScrollTop(element, 1000);
+    clock.flush(80);
+    const currentCancel = animateScrollTop(element, 200);
+    cancel();
+    expect(animateScrollTop(element, 200)).toBe(currentCancel);
+    element.dispatchEvent(new Event("wheel"));
+    const stoppedAt = element.scrollTop;
+    clock.flush(600);
+    expect(element.scrollTop).toBe(stoppedAt);
+  });
+
+  it("compensates for a collapsing layout anchor without adding another tween", () => {
+    const clock = installFrameClock();
+    const element = createScroller(800);
+    animateScrollTop(element, 1000, { preserveAnchor: true });
+    expect(element.scrollTop).toBe(1000);
+    // An already placed anchor must stay fixed as thinking above it folds.
+    animateScrollTop(element, 900, { preserveAnchor: true });
+    expect(element.scrollTop).toBe(900);
+    clock.flush(600);
+    expect(element.scrollTop).toBe(900);
+  });
+
+  it("rebases a moving anchor while keeping an arrival tween's remaining distance and clock", () => {
+    const clock = installFrameClock();
+    const element = createScroller();
+    const cancel = animateScrollTop(element, 1000);
+    clock.flush(250);
+    const painted = element.scrollTop;
+    // A layout shrink may clamp scrollTop before the resize callback.
+    element.scrollTop = painted - 50;
+    expect(animateScrollTop(element, 900, { preserveAnchor: true })).toBe(
+      cancel,
+    );
+    expect(element.scrollTop).toBeCloseTo(painted - 100);
+    clock.flush(260);
+    expect(element.scrollTop).toBe(900);
+  });
+
   it("jumps instantly under prefers-reduced-motion", () => {
     installFrameClock();
     vi.stubGlobal("matchMedia", vi.fn().mockReturnValue({ matches: true }));

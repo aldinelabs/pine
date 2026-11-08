@@ -45,7 +45,7 @@ are already available (for example the `ui_workbench_*` tools and
 
 ## Main window
 
-On macOS, scrolling keeps normal inertia but does not rubber-band past the
+On macOS, scrolling uses normal inertia and native rubber-banding at the
 content's edges. Scrollable dialog bodies use an overlay scrollbar at their
 outer edge rather than taking width from the text or graph. Headings and action
 buttons stay outside the body scroll area.
@@ -164,13 +164,22 @@ From top to bottom:
      Follow up is unavailable while a reply is running, in a session with no
      message yet, or over text already in a follow-up. Clicking a highlighted
      passage reopens its follow-up.
-   - Staged steering messages sit above the status cards, each with Withdraw
-     and Send now. When the agent consumes one, its dashed bubble moves
-     smoothly into its place in the transcript, and the sent message it
-     becomes travels with it while the two blend, without delaying the
-     response. Ordinary sent messages rise the same way from the composer into
-     their place instead of appearing in place. With reduced motion enabled,
-     both simply appear.
+   - Staged steering messages sit above the status cards. Withdraw and Send
+     now sit below each message, aligned to the right, and wrap when needed.
+     Their attachments, quotes and text use the same layout as sent messages.
+     When the agent consumes one, its complete content moves smoothly into
+     the transcript and blends into the sent message without stretching text
+     or attachments, or delaying the response. Ordinary sent messages rise
+     together with their attachments and quotes from the composer. The
+     conversation scrolls smoothly to each new turn while the message arrives.
+     Once a turn is positioned, folding thinking or tool details above it
+     keeps its position steady.
+     When thinking folds as an answer begins, the view holds steady and the
+     answer fills the room it leaves before following new text again.
+     Scrolling up releases unused space below a newly positioned turn; a quick
+     downward scroll cannot return to that discarded blank area or snap the
+     conversation back to the bottom.
+     With reduced motion enabled, messages and scroll positions appear at once.
 2. Status cards above the composer, shown when relevant. The row sizes itself
    to its content, up to the available width; a lone card is not stretched to
    fill the conversation. When both cards compete for room, space is reserved

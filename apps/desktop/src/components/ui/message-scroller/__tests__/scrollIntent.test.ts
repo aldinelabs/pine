@@ -1,6 +1,6 @@
 import { mount } from "@vue/test-utils";
 import { defineComponent, nextTick, reactive } from "vue";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { animateScrollTop } from "@/lib/animateScroll";
 import {
   measureContentHeight,
@@ -144,7 +144,12 @@ function createAnchoredScroller(extraScrollHeight = 0) {
   return {
     context,
     viewport,
+    content,
     spacer,
+    resizeInitial(amount: number) {
+      contentHeight += amount;
+      context.handleResize();
+    },
     startTurn() {
       contentHeight = 2050;
       content.insertBefore(anchor, spacer);
@@ -167,7 +172,108 @@ afterEach(() => {
   vi.clearAllMocks();
 });
 
+beforeEach(() => {
+  // Most cases assert the settled anchor. Animation-specific cases below
+  // leave it running to check that layout changes cannot snap the viewport.
+  vi.mocked(animateScrollTop).mockImplementation((element, top) => {
+    element.scrollTop = top;
+    return () => {};
+  });
+});
+
 describe("message scroller user intent", () => {
+  it("keeps the view steady when body text appears as thinking folds", () => {
+    vi.useFakeTimers();
+    const scroller = createAnchoredScroller();
+    expect(scroller.viewport.scrollTop).toBe(1500);
+    scroller.context.preserveViewportOnCollapse();
+    expect(scroller.content.style.minHeight).toBe("2000px");
+
+    scroller.resizeInitial(40);
+    expect(scroller.viewport.scrollTop).toBe(1500);
+    // The browser may clamp the viewport as the thinking panel contracts.
+    scroller.viewport.scrollTop = 1340;
+    scroller.resizeInitial(-200);
+    expect(scroller.viewport.scrollTop).toBe(1500);
+    expect(scroller.spacer.style.height).toBe("160px");
+
+    vi.advanceTimersByTime(500);
+    expect(scroller.content.style.minHeight).toBe("");
+    expect(scroller.viewport.scrollTop).toBe(1500);
+    scroller.resizeInitial(100);
+    expect(scroller.spacer.style.height).toBe("60px");
+    expect(scroller.viewport.scrollTop).toBe(1500);
+    scroller.resizeInitial(100);
+    expect(scroller.spacer.hidden).toBe(true);
+    expect(scroller.viewport.scrollTop).toBe(1540);
+    scroller.destroy();
+    vi.useRealTimers();
+  });
+
+  it("releases the collapse hold immediately when the reader scrolls", () => {
+    vi.useFakeTimers();
+    const scroller = createAnchoredScroller();
+    scroller.context.preserveViewportOnCollapse();
+    scroller.resizeInitial(-200);
+    scroller.context.userScrollIntent("start");
+    expect(scroller.content.style.minHeight).toBe("");
+    scroller.viewport.scrollTop = 1400;
+    scroller.context.syncAfterScroll();
+    const height = scroller.spacer.style.height;
+    vi.advanceTimersByTime(600);
+    expect(scroller.viewport.scrollTop).toBe(1400);
+    expect(scroller.spacer.style.height).toBe(height);
+    expect(scroller.context.followingBottom.value).toBe(false);
+    scroller.destroy();
+    vi.useRealTimers();
+  });
+
+  it("holds the view when the first body text consumes the last anchor space", () => {
+    vi.useFakeTimers();
+    const scroller = createAnchoredScroller();
+    scroller.startTurn();
+    scroller.grow(367);
+    expect(scroller.spacer.style.height).toBe("19px");
+    expect(scroller.context.followingBottom.value).toBe(false);
+    scroller.context.preserveViewportOnCollapse();
+
+    // Body text fills the viewport just before thinking contracts. That
+    // hand-off from anchoring to bottom following must retain the hold.
+    scroller.grow(38);
+    expect(scroller.viewport.scrollTop).toBe(1936);
+    scroller.grow(-200);
+    expect(scroller.viewport.scrollTop).toBe(1936);
+    expect(scroller.spacer.style.height).toBe("181px");
+    vi.advanceTimersByTime(500);
+    expect(scroller.viewport.scrollTop).toBe(1936);
+    scroller.destroy();
+    vi.useRealTimers();
+  });
+
+  it("animates a new turn and its resize corrections without snapping first", () => {
+    const cancel = vi.fn();
+    vi.mocked(animateScrollTop).mockReturnValue(cancel);
+    const scroller = createAnchoredScroller();
+    const before = scroller.viewport.scrollTop;
+    scroller.startTurn();
+    expect(scroller.viewport.scrollTop).toBe(before);
+    expect(animateScrollTop).toHaveBeenLastCalledWith(scroller.viewport, 1936);
+
+    scroller.grow(100);
+    expect(scroller.viewport.scrollTop).toBe(before);
+    expect(animateScrollTop).toHaveBeenLastCalledWith(scroller.viewport, 1936, {
+      preserveAnchor: true,
+    });
+    expect(cancel).not.toHaveBeenCalled();
+
+    scroller.context.userScrollIntent("start");
+    expect(cancel).toHaveBeenCalledOnce();
+    scroller.grow(100);
+    expect(scroller.viewport.scrollTop).toBe(before);
+    expect(animateScrollTop).toHaveBeenCalledTimes(2);
+    scroller.destroy();
+  });
+
   it("measures transcript height from the tail instead of every message", () => {
     const viewport = document.createElement("div");
     const content = document.createElement("div");
@@ -289,9 +395,11 @@ describe("message scroller user intent", () => {
     scroller.viewport.scrollTop = 1800;
     scroller.context.syncAfterScroll();
 
+    expect(scroller.spacer.style.height).toBe("250px");
+
     scroller.grow(100);
     expect(scroller.viewport.scrollTop).toBe(1800);
-    expect(scroller.spacer.style.height).toBe("286px");
+    expect(scroller.spacer.style.height).toBe("150px");
 
     scroller.grow(300);
     expect(scroller.viewport.scrollTop).toBe(1800);
@@ -300,17 +408,39 @@ describe("message scroller user intent", () => {
     scroller.destroy();
   });
 
-  it("clears the spacer when the reader returns to the live edge", () => {
+  it("clears the spacer once the reader scrolls back into real content", () => {
+    const scroller = createAnchoredScroller();
+    scroller.startTurn();
+    scroller.context.userScrollIntent("start");
+    scroller.viewport.scrollTop = 1550;
+    scroller.context.syncAfterScroll();
+
+    expect(scroller.spacer.hidden).toBe(true);
+    scroller.destroy();
+  });
+
+  it("cannot re-enter released blank space or snap when quickly reversing direction", () => {
     const scroller = createAnchoredScroller();
     scroller.startTurn();
     scroller.context.userScrollIntent("start");
     scroller.viewport.scrollTop = 1800;
     scroller.context.syncAfterScroll();
+    expect(scroller.viewport.scrollHeight - scroller.viewport.clientHeight).toBe(1800);
 
-    scroller.viewport.scrollTop = 1936;
+    // A downward wheel at the new edge produces no scroll event. It must
+    // not mistake the remaining spacer for the actual live content edge.
+    scroller.context.userScrollIntent("end");
     scroller.context.syncAfterScroll();
+    expect(scroller.viewport.scrollTop).toBe(1800);
+    expect(scroller.context.followingBottom.value).toBe(false);
+    expect(scroller.spacer.hidden).toBe(false);
 
-    expect(scroller.spacer.hidden).toBe(true);
+    scroller.viewport.scrollTop = 1700;
+    scroller.context.syncAfterScroll();
+    expect(scroller.viewport.scrollHeight - scroller.viewport.clientHeight).toBe(1700);
+    scroller.grow(100);
+    expect(scroller.viewport.scrollHeight - scroller.viewport.clientHeight).toBe(1700);
+    expect(scroller.spacer.style.height).toBe("50px");
     scroller.destroy();
   });
 

@@ -10,6 +10,7 @@ import {
   watch,
 } from "vue";
 import { animateScrollTop } from "@/lib/animateScroll";
+import { DURATION_MS } from "@/lib/motion";
 
 // -----------------------------------------------------------------------------
 // Public types
@@ -474,6 +475,7 @@ export interface MessageScrollerContext {
   handleContentChange: () => void;
   handleResize: () => void;
   followStreamingContent: () => void;
+  preserveViewportOnCollapse: (element?: HTMLElement) => void;
   scrollToEnd: (options?: { behavior?: ScrollBehavior }) => boolean;
   scrollToMessage: (
     messageId: string,
@@ -486,6 +488,7 @@ export interface MessageScrollerContext {
   setViewportElement: (element: HTMLElement | null) => void;
   setPreserveScrollOnPrepend: (value: boolean) => void;
   syncAfterScroll: () => void;
+  trimReleasedSpacer: () => void;
   /** Whether the viewport is pinned to the live end of the transcript. */
   isFollowingBottom: () => boolean;
   userScrollIntent: (direction?: MessageScrollerScrollDirection) => void;
@@ -539,6 +542,12 @@ function createEngine(props: MessageScrollerProviderProps) {
   let pendingScrollFrame: number | null = null;
   let autoscrollingTimeout: number | null = null;
   let cancelScrollAnimation: (() => void) | null = null;
+  let collapseHoldTop: number | null = null;
+  let collapseSettling = false;
+  let collapseTimer: ReturnType<typeof setTimeout> | undefined;
+  let collapseFootprint:
+    | { element: HTMLElement; minHeight: string }
+    | undefined;
   let visibilityObserver: IntersectionObserver | null = null;
   let visibilityConsumers = 0;
   /** Content or size changes that arrived while the transcript was hidden. */
@@ -576,6 +585,8 @@ function createEngine(props: MessageScrollerProviderProps) {
     if (
       autoScroll() &&
       !next.end &&
+      spacerHeight === 0 &&
+      collapseHoldTop === null &&
       // A resize or a small upward wheel delta inside the edge threshold must
       // not undo userScrollIntent. Resume only after scrolling down to the edge.
       (mode === "following-bottom" || scrolledDown) &&
@@ -676,8 +687,86 @@ function createEngine(props: MessageScrollerProviderProps) {
   }
 
   function clearSpacer() {
+    releaseCollapseHold();
     setSpacerHeight(0);
     spacerAnchor = null;
+  }
+
+  function releaseCollapseHold() {
+    clearTimeout(collapseTimer);
+    collapseTimer = undefined;
+    collapseHoldTop = null;
+    collapseSettling = false;
+    restoreCollapseFootprint();
+  }
+
+  function restoreCollapseFootprint() {
+    if (!collapseFootprint) return;
+    const top = viewport?.scrollTop ?? 0;
+    collapseFootprint.element.style.minHeight = collapseFootprint.minHeight;
+    collapseFootprint = undefined;
+    if (!viewport) return;
+    // Turn the temporary footprint into just enough tail room before the
+    // browser can clamp the view, including when the reader interrupts it.
+    setSpacerHeight(
+      spacerHeight + Math.max(0, top - maxScrollTop(viewport)),
+    );
+    viewport.scrollTop = top;
+  }
+
+  /** Thinking folds as the first body text arrives. Following each increase
+   * and decrease separately makes the conversation move down, then back up.
+   * Hold the view through that hand-over and let later text consume its room. */
+  function preserveViewportOnCollapse(element?: HTMLElement) {
+    if (
+      !viewport ||
+      !content ||
+      !isActive() ||
+      (mode !== "following-bottom" && mode !== "anchored-to-message") ||
+      !autoScroll() ||
+      window.matchMedia?.("(prefers-reduced-motion: reduce)").matches
+    )
+      return;
+    // A previous turn folding above the held user message must instead
+    // rebase that anchor each frame. Freezing the whole column's footprint
+    // would hide those resizes and let the user message drift upward.
+    if (
+      mode === "anchored-to-message" &&
+      streamingTurn &&
+      element &&
+      element.compareDocumentPosition(streamingTurn) &
+        Node.DOCUMENT_POSITION_FOLLOWING
+    )
+      return;
+    cancelScrollAnimation?.();
+    cancelScrollAnimation = null;
+    collapseHoldTop = viewport.scrollTop;
+    collapseSettling = true;
+    collapseFootprint ??= {
+      element: content,
+      minHeight: content.style.minHeight,
+    };
+    // Keep the outer scroller's footprint through the CSS collapse. Updating
+    // a spacer from that same element's ResizeObserver every frame otherwise
+    // creates a resize loop, leaving one frame of browser clamping behind.
+    content.style.minHeight = `${content.getBoundingClientRect().height}px`;
+    clearTimeout(collapseTimer);
+    collapseTimer = setTimeout(() => {
+      collapseTimer = undefined;
+      collapseSettling = false;
+      restoreCollapseFootprint();
+      handleResize();
+    }, DURATION_MS);
+  }
+
+  /** After the reader leaves an anchored turn, discard blank space below
+   * their viewport as soon as they scroll up. Keep only the room needed to
+   * preserve the current view, so a quick reversal cannot enter the old gap. */
+  function trimReleasedSpacer() {
+    if (!viewport || spacerHeight === 0 || mode !== "free-scrolling") return;
+    const unused = Math.max(0, maxScrollTop(viewport) - viewport.scrollTop);
+    setSpacerHeight(spacerHeight - unused);
+    if (spacerHeight === 0) spacerAnchor = null;
   }
 
   function scrollTo(
@@ -686,29 +775,33 @@ function createEngine(props: MessageScrollerProviderProps) {
       behavior = "auto",
       autoscrolling: isAutoscrolling = false,
       animated = false,
+      preserveAnchor = false,
     }: {
       behavior?: ScrollBehavior;
       autoscrolling?: boolean;
       animated?: boolean;
+      preserveAnchor?: boolean;
     } = {},
   ) {
     if (!viewport) return;
+    const target = Math.max(0, top);
+    if (
+      preserveAnchor ||
+      behavior === "smooth" ||
+      shouldAnimateFollow(animated, followAnimated())
+    ) {
+      if (isAutoscrolling) setAutoscrolling(true);
+      cancelScrollAnimation = preserveAnchor
+        ? animateScrollTop(viewport, target, { preserveAnchor: true })
+        : animateScrollTop(viewport, target);
+      scheduleStateCommit();
+      return;
+    }
     cancelScrollAnimation?.();
     cancelScrollAnimation = null;
-    const target = Math.max(0, top);
     if (Math.abs(viewport.scrollTop - target) <= SCROLL_EPSILON) {
       viewport.scrollTop = target;
       commitScrollState();
-      return;
-    }
-    if (shouldAnimateFollow(animated, followAnimated())) {
-      // Shared expo-curve tween (see lib/animateScroll). Retarget-safe for
-      // streaming follow; wheel/touch input cancels it via the lib. Only a
-      // live turn glides — hydrating or re-entering a finished conversation
-      // snaps to the anchor so no animation plays on entry.
-      if (isAutoscrolling) setAutoscrolling(true);
-      cancelScrollAnimation = animateScrollTop(viewport, target);
-      scheduleStateCommit();
       return;
     }
     if (isAutoscrolling) setAutoscrolling(true);
@@ -735,6 +828,15 @@ function createEngine(props: MessageScrollerProviderProps) {
   }: { behavior?: ScrollBehavior; animated?: boolean } = {}): boolean {
     if (!viewport) return false;
     setProgrammaticScroll(false);
+    if (animated && collapseHoldTop !== null) {
+      const contentEnd = maxScrollTop(viewport) - spacerHeight;
+      setSpacerHeight(collapseHoldTop - contentEnd);
+      if (collapseSettling || spacerHeight > 0) {
+        scrollTo(collapseHoldTop, { preserveAnchor: true });
+        scheduleVisibilitySync();
+        return true;
+      }
+    }
     clearSpacer();
     streamingTurn = null;
     setMode(autoScroll() ? "following-bottom" : "free-scrolling");
@@ -792,9 +894,13 @@ function createEngine(props: MessageScrollerProviderProps) {
       behavior = "auto",
       scrollMargin: margin = scrollMargin(),
     }: MessageScrollerScrollOptions = {},
-    { keepPreviousPeek = false }: { keepPreviousPeek?: boolean } = {},
+    {
+      keepPreviousPeek = false,
+      preserveAnchor = false,
+    }: { keepPreviousPeek?: boolean; preserveAnchor?: boolean } = {},
   ): boolean {
     if (!content || !viewport || !content.contains(element)) return false;
+    if (!preserveAnchor) releaseCollapseHold();
     spacerAnchor = {
       align,
       element,
@@ -810,7 +916,7 @@ function createEngine(props: MessageScrollerProviderProps) {
     };
     setMode(keepPreviousPeek ? "anchored-to-message" : "settling-jump");
     streamingTurn = keepPreviousPeek ? element : null;
-    scrollTo(targetScrollTop, { behavior });
+    scrollTo(targetScrollTop, { behavior, preserveAnchor });
     scheduleVisibilitySync();
     return true;
   }
@@ -825,7 +931,7 @@ function createEngine(props: MessageScrollerProviderProps) {
     return scrollToElement(
       streamingTurn,
       { align: "start" },
-      { keepPreviousPeek: true },
+      { keepPreviousPeek: true, preserveAnchor: true },
     );
   }
 
@@ -1001,14 +1107,22 @@ function createEngine(props: MessageScrollerProviderProps) {
         scrollToEnd({ behavior: "auto" });
         return;
       }
-      scrollToElement(anchor, { align: "start" }, { keepPreviousPeek: true });
+      scrollToElement(
+        anchor,
+        { align: "start", behavior: "smooth" },
+        { keepPreviousPeek: true },
+      );
       handledScrollAnchors.add(anchor);
       return;
     }
     if (children.length === previousCount) {
       const anchor = findFirstUnhandledAnchor(added, handledScrollAnchors);
       if (anchor) {
-        scrollToElement(anchor, { align: "start" }, { keepPreviousPeek: true });
+        scrollToElement(
+          anchor,
+          { align: "start", behavior: "smooth" },
+          { keepPreviousPeek: true },
+        );
         handledScrollAnchors.add(anchor);
         return;
       }
@@ -1084,9 +1198,9 @@ function createEngine(props: MessageScrollerProviderProps) {
         scrollToEnd({ behavior: "auto", animated: true });
       return;
     }
-    // User scroll intent releases the held viewport position, but the reply
-    // must still consume the remaining tail space as it grows.
-    if (spacerHeight > 0) updateSpacerForAnchor();
+    // Growing content consumes only the room still needed by the reader's
+    // current view; it must not recreate the original turn's released gap.
+    trimReleasedSpacer();
     // Markdown, syntax highlighting, fonts, and media may settle after the
     // scroll event. Preserve the first visible message across those async
     // height changes instead of relying on browser scroll anchoring heuristics.
@@ -1180,6 +1294,7 @@ function createEngine(props: MessageScrollerProviderProps) {
   }
 
   function userScrollIntent(direction?: MessageScrollerScrollDirection) {
+    releaseCollapseHold();
     userScrollRevision.value += 1;
     setProgrammaticScroll(false);
     cancelScrollAnimation?.();
@@ -1188,6 +1303,7 @@ function createEngine(props: MessageScrollerProviderProps) {
       autoScroll() &&
       direction === "end" &&
       viewport &&
+      spacerHeight === 0 &&
       isAtScrollEnd(viewport)
     ) {
       streamingTurn = null;
@@ -1205,6 +1321,7 @@ function createEngine(props: MessageScrollerProviderProps) {
       streamingTurn = null;
       setMode("free-scrolling");
     }
+    trimReleasedSpacer();
     // Consume the last programmatic position before the user's scroll event,
     // so pending observers cannot mistake animation progress for a down-scroll.
     lastScrollTop = viewport?.scrollTop ?? 0;
@@ -1232,6 +1349,7 @@ function createEngine(props: MessageScrollerProviderProps) {
   }
 
   function syncAfterScroll() {
+    trimReleasedSpacer();
     commitScrollState();
     scheduleVisibilitySync();
     captureViewportAnchor();
@@ -1276,6 +1394,7 @@ function createEngine(props: MessageScrollerProviderProps) {
   }
 
   function destroy() {
+    releaseCollapseHold();
     cancelScrollAnimation?.();
     cancelScrollAnimation = null;
     if (stateFrame !== null) {
@@ -1311,6 +1430,7 @@ function createEngine(props: MessageScrollerProviderProps) {
     handleContentChange,
     handleResize,
     followStreamingContent,
+    preserveViewportOnCollapse,
     scrollToEnd,
     scrollToMessage,
     scrollToStart,
@@ -1320,6 +1440,7 @@ function createEngine(props: MessageScrollerProviderProps) {
     setViewportElement,
     setPreserveScrollOnPrepend,
     syncAfterScroll,
+    trimReleasedSpacer,
     isFollowingBottom,
     userScrollIntent,
   };

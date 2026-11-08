@@ -31,6 +31,7 @@ const {
   setPreserveScrollOnPrepend,
   setViewportElement,
   syncAfterScroll,
+  trimReleasedSpacer,
   userScrollIntent,
 } = useMessageScrollerContext();
 
@@ -92,6 +93,9 @@ let resizeObserver: ResizeObserver | null = null;
 let scrollFrame = 0;
 
 function onScroll(): void {
+  // Release unused blank range during the scroll event itself. Waiting for
+  // the coalesced state update lets a fast direction reversal enter it again.
+  trimReleasedSpacer();
   // Scroll is a high-frequency event; coalesce state and anchor bookkeeping
   // into one commit per animation frame.
   window.cancelAnimationFrame(scrollFrame);
@@ -132,7 +136,7 @@ onBeforeUnmount(() => {
     :data-autoscrolling="autoscrolling ? '' : undefined"
     :class="
       cn(
-        'message-scroller-fade size-full min-h-0 min-w-0 no-scrollbar overflow-y-auto overscroll-contain contain-content outline-none',
+        'message-scroller-fade size-full min-h-0 min-w-0 no-scrollbar overflow-y-auto overscroll-contain contain-content outline-none [overflow-anchor:none]',
         props.class,
       )
     "

@@ -1,10 +1,26 @@
 import { flushPromises, mount } from "@vue/test-utils";
 import { defineComponent, ref, type Ref } from "vue";
+import { createPinia } from "pinia";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import { createAppI18n } from "@/app/i18n";
+import ProjectStagedSteering from "@/components/project/ProjectStagedSteering.vue";
+import ProjectTranscriptMessage from "@/components/project/ProjectTranscriptMessage.vue";
+import {
+  serializeAttachmentMessage,
+  type PineAttachment,
+} from "@/shared/attachments";
+import { serializeQuoteMessage } from "@/shared/quotes";
 import type { PineTranscriptMessage } from "@/stores/session";
 import { useSteeringMessageTransition } from "../useSteeringMessageTransition";
 
 const wrappers: ReturnType<typeof mount>[] = [];
+const attachment: PineAttachment = {
+  name: "notes.md",
+  path: "/tmp/notes.md",
+  extension: "md",
+  modifiedAt: "2000-01-01T00:00:00.000Z",
+  size: 1024,
+};
 let frames: Map<number, FrameRequestCallback>;
 let reduced = false;
 function message(id: string, text: string): PineTranscriptMessage {
@@ -23,6 +39,7 @@ function setup(queueValues = ["Queued message"]) {
   const sessionId = ref<string | undefined>("session");
   const wrapper = mount(
     defineComponent({
+      components: { ProjectStagedSteering, ProjectTranscriptMessage },
       setup() {
         const container = ref<HTMLElement | null>(null);
         useSteeringMessageTransition({
@@ -34,9 +51,12 @@ function setup(queueValues = ["Queued message"]) {
         });
         return { container, queue, messages };
       },
-      template: `<div ref="container"><div v-for="(text, index) in queue" :key="index" data-steering-content><div data-slot="bubble">{{ text }}</div></div><div v-for="message in messages" :key="message.id" :data-message-id="message.id"><div data-slot="user-message-row"><div data-slot="bubble">{{ message.blocks[0].text }}</div></div></div><div data-slot="session-composer" /></div>`,
+      template: `<div ref="container"><ProjectStagedSteering :steering-messages="queue" /><div v-for="message in messages" :key="message.id" :data-message-id="message.id"><ProjectTranscriptMessage :message="message" /></div><div data-slot="session-composer" /></div>`,
     }),
-    { attachTo: document.body },
+    {
+      attachTo: document.body,
+      global: { plugins: [createPinia(), createAppI18n("en-US")] },
+    },
   );
   wrappers.push(wrapper);
   return { wrapper, queue, messages, active, sessionId };
@@ -81,12 +101,14 @@ it("flies a consumed queue bubble into its destination across separate IPC batch
   messages.value = [message("user-1", "Queued message")];
   await flushPromises();
   const target = wrapper.get<HTMLElement>(
-    '[data-message-id="user-1"] [data-slot="bubble"]',
+    '[data-message-id="user-1"] [data-slot="message-content"]',
   );
   const flight = document.querySelector<HTMLElement>(
     '[data-slot="steering-message-flight"]',
   )!;
-  expect(flight.textContent).toBe("Queued message");
+  expect(flight.querySelector('[data-slot="bubble"]')?.textContent).toContain(
+    "Queued message",
+  );
   expect(flight.style.position).toBe("fixed");
   expect(flight.style.transform).toContain("200px, 600px");
   expect(flight.getAttribute("aria-hidden")).toBe("true");
@@ -111,6 +133,116 @@ it("flies a consumed queue bubble into its destination across separate IPC batch
   expect(target.element.style.transform).toBe("");
 });
 
+it.each(["Review this", ""])(
+  "flies the complete queued content without stretching, with prompt %j",
+  async (prompt) => {
+    const quotes = [{ text: "Earlier context" }];
+    const queued = serializeAttachmentMessage(
+      [attachment],
+      serializeQuoteMessage(quotes, prompt),
+    );
+    const { wrapper, queue, messages } = setup([queued]);
+    queue.value = [];
+    messages.value = [
+      {
+        ...message("sent", prompt),
+        blocks: [
+          { type: "attachments", attachments: [attachment] },
+          { type: "quotes", quotes },
+          ...(prompt ? [{ type: "text" as const, text: prompt }] : []),
+        ],
+      },
+    ];
+    await flushPromises();
+    const target = wrapper.get<HTMLElement>(
+      '[data-message-id="sent"] [data-slot="message-content"]',
+    ).element;
+    const flight = document.querySelector<HTMLElement>(
+      '[data-slot="steering-message-flight"]',
+    )!;
+    expect(
+      flight.querySelector('[data-slot="attachment-group"]'),
+    ).not.toBeNull();
+    expect(flight.querySelector('[data-slot="quote-list"]')).not.toBeNull();
+    expect(
+      flight.querySelector('[data-slot="staged-steering-actions"]'),
+    ).toBeNull();
+    expect(target.style.opacity).toBe("0");
+    // Even if a preview or destination settles to a different size, no
+    // non-uniform scale may be applied to either copy of the content.
+    let top = 300;
+    vi.spyOn(target, "getBoundingClientRect").mockImplementation(
+      () => new DOMRect(100, top, 240, 180),
+    );
+    frame(0);
+    frame(250);
+    top = 180;
+    frame(350);
+    expect(flight.style.transform).not.toContain("scale");
+    expect(target.style.transform).not.toContain("scale");
+    expect(flight.style.width).toBe("100px");
+    frame(500);
+    expect(target.style.opacity).toBe("");
+    expect(target.style.transform).toBe("");
+    expect(flight.isConnected).toBe(false);
+  },
+);
+
+it("flies a queued attachment without a text bubble", async () => {
+  const { wrapper, queue, messages } = setup([
+    serializeAttachmentMessage([attachment], ""),
+  ]);
+  queue.value = [];
+  messages.value = [
+    {
+      ...message("file", ""),
+      blocks: [{ type: "attachments", attachments: [attachment] }],
+    },
+  ];
+  await flushPromises();
+  const flight = document.querySelector<HTMLElement>(
+    '[data-slot="steering-message-flight"]',
+  )!;
+  expect(flight.querySelector('[data-slot="bubble"]')).toBeNull();
+  expect(flight.textContent).toContain("notes.md");
+  frame(0);
+  frame(250);
+  const target = wrapper.get<HTMLElement>(
+    '[data-slot="message-content"]',
+  ).element;
+  expect(target.style.transform).not.toContain("scale");
+  frame(500);
+  expect(target.style.transform).toBe("");
+});
+
+it("reveals attachments and text together and releases them on user scrolling", async () => {
+  const { wrapper, messages } = setup([]);
+  messages.value = [
+    {
+      ...message("mixed", "Review this"),
+      blocks: [
+        { type: "attachments", attachments: [attachment] },
+        { type: "text", text: "Review this" },
+      ],
+    },
+  ];
+  await flushPromises();
+  const target = wrapper.get<HTMLElement>(
+    '[data-slot="message-content"]',
+  ).element;
+  expect(target.querySelector('[data-slot="attachment-group"]')).not.toBeNull();
+  expect(
+    target.querySelector('[data-slot="user-message-text"]'),
+  ).not.toBeNull();
+  expect(target.style.opacity).toBe("0");
+  frame(0);
+  frame(100);
+  expect(target.style.transform).toContain("translate");
+  window.dispatchEvent(new Event("wheel"));
+  expect(target.style.opacity).toBe("");
+  expect(target.style.transform).toBe("");
+});
+
 it("keeps flying when the message row is replaced mid-flight", async () => {
   const { wrapper, queue, messages } = setup();
   queue.value = [];
@@ -123,7 +255,7 @@ it("keeps flying when the message row is replaced mid-flight", async () => {
   const row = wrapper.get<HTMLElement>('[data-message-id="user-1"]');
   const replacement = row.element.cloneNode(true) as HTMLElement;
   const bubble = replacement.querySelector<HTMLElement>(
-    '[data-slot="bubble"]',
+    '[data-slot="message-content"]',
   )!;
   bubble.removeAttribute("style");
   row.element.replaceWith(replacement);
@@ -156,7 +288,7 @@ it("does not animate the message of an edited turn", async () => {
   messages.value = [message("old", "Earlier"), message("user-2", "Edited")];
   await flushPromises();
   const target = wrapper.get<HTMLElement>(
-    '[data-message-id="user-2"] [data-slot="bubble"]',
+    '[data-message-id="user-2"] [data-slot="message-content"]',
   );
   expect(target.element.style.opacity).toBe("");
   expect(target.element.style.transform).toBe("");
@@ -164,8 +296,9 @@ it("does not animate the message of an edited turn", async () => {
   messages.value = [...messages.value, message("user-3", "After the edit")];
   await flushPromises();
   expect(
-    wrapper.get<HTMLElement>('[data-message-id="user-3"] [data-slot="bubble"]')
-      .element.style.opacity,
+    wrapper.get<HTMLElement>(
+      '[data-message-id="user-3"] [data-slot="message-content"]',
+    ).element.style.opacity,
   ).toBe("0");
 });
 
@@ -204,9 +337,8 @@ it("cancels safely when the tab becomes inactive", async () => {
     document.querySelector('[data-slot="steering-message-flight"]'),
   ).toBeNull();
   expect(
-    wrapper.get<HTMLElement>(
-      '[data-slot="user-message-row"] [data-slot="bubble"]',
-    ).element.style.opacity,
+    wrapper.get<HTMLElement>('[data-slot="message-content"]').element.style
+      .opacity,
   ).toBe("");
 });
 
@@ -222,7 +354,7 @@ it("reveals a normally sent message from the composer, without a flight overlay"
     document.querySelector('[data-slot="steering-message-flight"]'),
   ).toBeNull();
   const target = wrapper.get<HTMLElement>(
-    '[data-message-id="user-1"] [data-slot="bubble"]',
+    '[data-message-id="user-1"] [data-slot="message-content"]',
   );
   expect(target.element.style.opacity).toBe("0");
   // It leaves from the composer and rises into place, so a plain send moves.
@@ -246,16 +378,18 @@ it("does not reveal history loads, prepends or assistant messages", async () => 
   await flushPromises();
   for (const id of ["a", "b"]) {
     expect(
-      wrapper.get<HTMLElement>(`[data-message-id="${id}"] [data-slot="bubble"]`)
-        .element.style.opacity,
+      wrapper.get<HTMLElement>(
+        `[data-message-id="${id}"] [data-slot="message-content"]`,
+      ).element.style.opacity,
     ).toBe("");
   }
   // Loading earlier messages prepends new ids.
   messages.value = [message("old", "Old"), ...messages.value];
   await flushPromises();
   expect(
-    wrapper.get<HTMLElement>('[data-message-id="old"] [data-slot="bubble"]')
-      .element.style.opacity,
+    wrapper.get<HTMLElement>(
+      '[data-message-id="old"] [data-slot="message-content"]',
+    ).element.style.opacity,
   ).toBe("");
   // A plain assistant append is not a sent user message.
   messages.value = [
@@ -264,8 +398,9 @@ it("does not reveal history loads, prepends or assistant messages", async () => 
   ];
   await flushPromises();
   expect(
-    wrapper.get<HTMLElement>('[data-message-id="c"] [data-slot="bubble"]')
-      .element.style.opacity,
+    wrapper.get<HTMLElement>(
+      '[data-message-id="c"] [data-slot="message-content"]',
+    ).element.style.opacity,
   ).toBe("");
 });
 

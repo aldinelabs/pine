@@ -7,6 +7,7 @@ import { parseAttachmentMessage } from "@/shared/attachments";
 import { parseQuoteMessage } from "@/shared/quotes";
 import { Bubble, BubbleContent } from "@/components/ui/bubble";
 import { Button } from "@/components/ui/button";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import ProjectAttachmentList from "./ProjectAttachmentList.vue";
 import ProjectQuoteList from "./ProjectQuoteList.vue";
 
@@ -53,14 +54,40 @@ async function openAttachment(path: string): Promise<void> {
       v-for="(steeringMessage, index) in stagedSteeringMessages"
       :key="`${steeringMessage.message}-${index}`"
       data-slot="staged-steering-message"
-      class="flex w-full items-end justify-end gap-2"
+      class="flex w-full min-w-0 flex-col items-end gap-1"
     >
-      <!-- Attachments and quotes stack above the bubble, so the actions sit
-           on the row's bottom edge at the height of a one-line bubble
-           (1px borders, py-2.5, text-sm leading-relaxed) and stay centered
-           on the bubble instead of on the whole message. -->
       <div
-        class="flex h-[calc(2px_+_2_*_--spacing(2.5)_+_var(--text-sm)_*_var(--leading-relaxed))] shrink-0 items-center gap-1"
+        data-steering-content
+        class="flex w-full min-w-0 flex-col items-end gap-1.5 wrap-break-word"
+      >
+        <ProjectAttachmentList
+          v-if="steeringMessage.attachments.length > 0"
+          class="max-w-[80%] py-0"
+          :attachments="steeringMessage.attachments"
+          surface="message"
+          @open="openAttachment"
+        />
+        <ProjectQuoteList
+          v-if="steeringMessage.quotes.length > 0"
+          class="max-w-[80%] py-0"
+          :quotes="steeringMessage.quotes"
+          surface="message"
+        />
+        <Bubble v-if="steeringMessage.prompt" align="end" variant="outline">
+          <BubbleContent class="border-dashed">
+            <ScrollArea
+              class="-me-3.5 [&>[data-slot=scroll-area-viewport]]:max-h-80 [&>[data-slot=scroll-area-viewport]]:scroll-fade-y"
+            >
+              <div class="pe-3.5 whitespace-pre-wrap">
+                {{ steeringMessage.prompt }}
+              </div>
+            </ScrollArea>
+          </BubbleContent>
+        </Bubble>
+      </div>
+      <div
+        data-slot="staged-steering-actions"
+        class="flex max-w-full flex-wrap items-center justify-end gap-1"
       >
         <Button
           type="button"
@@ -82,40 +109,6 @@ async function openAttachment(path: string): Promise<void> {
           <SendHorizontalIcon />
           {{ t("project.composer.sendSteeringNowLabel") }}
         </Button>
-      </div>
-      <div
-        data-steering-content
-        class="flex max-w-[80%] min-w-0 flex-col items-end gap-1.5"
-      >
-        <ProjectAttachmentList
-          v-if="steeringMessage.attachments.length > 0"
-          class="py-0"
-          :attachments="steeringMessage.attachments"
-          surface="message"
-          @open="openAttachment"
-        />
-        <ProjectQuoteList
-          v-if="steeringMessage.quotes.length > 0"
-          class="py-0"
-          :quotes="steeringMessage.quotes"
-          surface="message"
-        />
-        <!-- The wrapper already caps the width; Bubble's own 80% cap would
-             compound with it and wrap text well before the edge. -->
-        <Bubble
-          v-if="steeringMessage.prompt"
-          align="end"
-          variant="outline"
-          class="max-w-full"
-        >
-          <BubbleContent class="border-dashed">
-            <div
-              class="scroll-fade-y max-h-32 overflow-y-auto overscroll-contain whitespace-pre-wrap"
-            >
-              {{ steeringMessage.prompt }}
-            </div>
-          </BubbleContent>
-        </Bubble>
       </div>
     </div>
   </div>

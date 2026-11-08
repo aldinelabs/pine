@@ -430,7 +430,7 @@ const renderItems = computed<RenderItem[]>(() => {
         <div
           v-else-if="text"
           data-slot="user-message-row"
-          class="group/user-message flex w-full items-start justify-end gap-[calc(--spacing(5)_-_(--spacing(7)_-_--spacing(4))_/_2)]"
+          class="group/user-message relative flex w-fit max-w-[80%] self-end items-start justify-end"
         >
           <!-- Ghost icon buttons (size-7, size-4 glyph) carry 6px of invisible
                inset on each side; subtract it so the pencil glyph sits a true
@@ -440,7 +440,7 @@ const renderItems = computed<RenderItem[]>(() => {
                stays centered on the first line of taller messages. -->
           <div
             data-slot="user-message-actions"
-            class="flex h-[calc(2px_+_2_*_--spacing(2.5)_+_var(--text-sm)_*_var(--leading-relaxed))] shrink-0 items-center gap-0.5 opacity-0 transition-opacity group-hover/user-message:opacity-100 focus-within:opacity-100"
+            class="absolute top-0 right-full mr-[calc(--spacing(5)_-_(--spacing(7)_-_--spacing(4))_/_2)] flex h-[calc(2px_+_2_*_--spacing(2.5)_+_var(--text-sm)_*_var(--leading-relaxed))] shrink-0 items-center gap-0.5 opacity-0 transition-opacity group-hover/user-message:opacity-100 focus-within:opacity-100"
           >
             <Button
               type="button"
@@ -468,7 +468,7 @@ const renderItems = computed<RenderItem[]>(() => {
                interactive content, scoped to hovering the whole row. -->
           <Bubble
             variant="secondary"
-            class="*:data-[slot=bubble-content]:transition-colors group-hover/user-message:*:data-[slot=bubble-content]:bg-[color-mix(in_oklch,var(--secondary),var(--foreground)_5%)]"
+            class="max-w-full *:data-[slot=bubble-content]:transition-colors group-hover/user-message:*:data-[slot=bubble-content]:bg-[color-mix(in_oklch,var(--secondary),var(--foreground)_5%)]"
           >
             <BubbleContent>
               <!-- The overlay scrollbar takes no width and, reaching into the

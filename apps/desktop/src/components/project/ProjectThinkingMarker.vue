@@ -161,6 +161,10 @@ watch(
       isFollowingThinking.value = true;
     }
     if (hasResponse) {
+      if (isExpanded.value)
+        scroller?.preserveViewportOnCollapse(
+          thinkingContent.value ?? undefined,
+        );
       isExpanded.value = false;
       return;
     }

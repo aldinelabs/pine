@@ -19,9 +19,6 @@ interface Entry {
   consumed?: boolean;
 }
 
-/** How quickly the copy catches a destination that is still moving. Well
- * inside the flight, so it settles without ever passing the bubble. */
-const CHASE_MS = DURATION_MS / 7;
 /** Becomes visible only once the copy is most of the way there, so the dashed
  * bubble travels solid and the hand-over happens at the end. */
 const BLEND_START = 0.35;
@@ -73,11 +70,7 @@ function transcriptRow(container: HTMLElement | null, messageId: string) {
 function transcriptTarget(container: HTMLElement | null, messageId: string) {
   const row = transcriptRow(container, messageId);
   return (
-    row?.querySelector<HTMLElement>(
-      '[data-slot="user-message-row"] [data-slot="bubble"]',
-    ) ??
-    row?.querySelector<HTMLElement>('[data-slot="message-content"]') ??
-    row
+    row?.querySelector<HTMLElement>('[data-slot="message-content"]') ?? row
   );
 }
 
@@ -131,7 +124,6 @@ export function flySteeringMessage(
     height: `${snapshot.rect.height}px`,
     pointerEvents: "none",
     zIndex: "40",
-    transformOrigin: "top left",
   });
   const content = snapshot.content;
   for (const node of [content, ...content.querySelectorAll("[id]")])
@@ -148,14 +140,10 @@ export function flySteeringMessage(
   let held: HTMLElement | null = null;
   let heldOpacity = "";
   let heldTransform = "";
-  let heldOrigin = "";
   let x = from.left;
   let y = from.top;
-  let width = from.width;
-  let height = from.height;
   let frame: number | undefined;
   let startedAt: number | undefined;
-  let lastFrame: number | undefined;
   let finished = false;
 
   /** Keep the formal message in layout but out of sight while its copy flies.
@@ -167,18 +155,16 @@ export function flySteeringMessage(
     held = node;
     heldOpacity = node.style.opacity;
     heldTransform = node.style.transform;
-    heldOrigin = node.style.transformOrigin;
     node.style.opacity = "0";
   }
   function release(): void {
     if (!held) return;
     held.style.opacity = heldOpacity;
     held.style.transform = heldTransform;
-    held.style.transformOrigin = heldOrigin;
     held = null;
   }
   function place(): void {
-    overlay.style.transform = `translate(${x}px, ${y}px) scale(${width / from.width}, ${height / from.height})`;
+    overlay.style.transform = `translate(${x}px, ${y}px)`;
   }
   function cancel(): void {
     if (finished) return;
@@ -192,8 +178,6 @@ export function flySteeringMessage(
   }
   function step(now: number): void {
     startedAt ??= now;
-    const elapsed = lastFrame === undefined ? 0 : Math.min(64, now - lastFrame);
-    lastFrame = now;
     const progress = Math.min(1, (now - startedAt) / DURATION_MS);
     // The dashed preview yields to the real message through one shared curve,
     // so the bubble reads as restyled in flight, not swapped at the end.
@@ -206,27 +190,21 @@ export function flySteeringMessage(
     if (node && isMeasurable(rect)) {
       hold(node);
       node.style.opacity = String(blend);
-      // Catch up with the destination instead of interpolating from where it
-      // stood when the flight started: the transcript may still be scrolling
-      // or settling, and a copy that keeps its eased lead hands over above or
-      // below the bubble it is supposed to become.
-      const follow = elapsed > 0 ? 1 - Math.exp(-elapsed / CHASE_MS) : 0;
-      x += (rect.left - x) * follow;
-      y += (rect.top - y) * follow;
-      width += (rect.width - width) * follow;
-      height += (rect.height - height) * follow;
+      // Translate the complete message without resizing text or attachments.
+      // Re-read the scrolling destination, using the same easing as the
+      // viewport. Right alignment also survives a viewport-width change.
+      const progressEased = easeOutExpo(progress);
+      x = from.left + (rect.right - from.right) * progressEased;
+      y = from.top + (rect.top - from.top) * progressEased;
       // Carry the real bubble along under the copy, so the hand-over is one
       // object travelling and changing style rather than a message that is
       // already parked while a ghost dissolves above it.
-      node.style.transformOrigin = "top left";
-      node.style.transform = `translate(${x - rect.left}px, ${y - rect.top}px) scale(${width / rect.width}, ${height / rect.height})`;
+      node.style.transform = `translate(${x + from.width - rect.right}px, ${y - rect.top}px)`;
       if (progress === 1) {
         // Land exactly on the bubble, so removing the copy never strands the
         // message anywhere else.
-        x = rect.left;
+        x = rect.right - from.width;
         y = rect.top;
-        width = rect.width;
-        height = rect.height;
         place();
         return cancel();
       }
@@ -257,7 +235,9 @@ export function flySteeringMessage(
 export function revealMessage(
   resolveTarget: () => HTMLElement | null,
   resolveOrigin: () => DOMRect | null = () => null,
+  onFinish?: () => void,
 ): () => void {
+  const origin = resolveOrigin();
   let node: HTMLElement | null = null;
   let originalOpacity = "";
   let originalTransform = "";
@@ -273,6 +253,9 @@ export function revealMessage(
       node.style.opacity = originalOpacity;
       node.style.transform = originalTransform;
     }
+    window.removeEventListener("wheel", cancel, true);
+    window.removeEventListener("touchstart", cancel, true);
+    onFinish?.();
   }
   function step(now: number): void {
     const target = resolveTarget();
@@ -298,7 +281,6 @@ export function revealMessage(
     startedAt ??= now;
     const progress = Math.min(1, (now - startedAt) / DURATION_MS);
     const rect = measure(node);
-    const origin = resolveOrigin();
     if (origin) {
       // Travel on the same curve the copy uses when a steering message lands.
       const remaining = 1 - easeOutExpo(progress);
@@ -317,12 +299,16 @@ export function revealMessage(
     originalTransform = initial.style.transform;
     // Hidden before the first paint, so the fade starts from nothing.
     initial.style.opacity = "0";
-    const origin = resolveOrigin();
     const rect = measure(initial);
     if (origin) {
       initial.style.transform = `translate(${origin.right - rect.width - rect.left}px, ${origin.top - rect.top}px)`;
     }
   }
+  window.addEventListener("wheel", cancel, { capture: true, passive: true });
+  window.addEventListener("touchstart", cancel, {
+    capture: true,
+    passive: true,
+  });
   frame = requestAnimationFrame(step);
   return cancel;
 }
@@ -378,10 +364,7 @@ export function useSteeringMessageTransition(options: {
       // that order, before the queue is rebuilt.
       queued.forEach((entry, index) => {
         if (entry.consumed) return;
-        const source =
-          sourceNodes?.[index]?.querySelector<HTMLElement>(
-            '[data-slot="bubble"]',
-          ) ?? sourceNodes?.[index];
+        const source = sourceNodes?.[index];
         const rect = source?.getBoundingClientRect();
         if (source && isMeasurable(rect)) {
           entry.snapshot = {
@@ -478,8 +461,10 @@ export function useSteeringMessageTransition(options: {
           if (generation !== currentGeneration) return;
           const resolveTarget = () =>
             transcriptTarget(options.container.value, message.id);
-          const cancel = revealMessage(resolveTarget, () =>
-            transcriptOrigin(options.container.value),
+          const cancel = revealMessage(
+            resolveTarget,
+            () => transcriptOrigin(options.container.value),
+            () => cancellations.delete(cancel),
           );
           cancellations.add(cancel);
         });
