@@ -291,7 +291,7 @@ export default {
       "省略过度解释，直接沟通复杂技术细节，提供技术上较复杂的解决方案；假设你愿意折腾，但仍选择建设性最强的最优路径。",
     interactiveAnswers: "交互式回答",
     interactiveAnswersDescription:
-      "启用后，Pine 可在合适时使用能直接操作的清单、计算器、表格和图表回答。",
+      "允许 Pine 用可操作的清单、计算器、表格和图表作答。",
     interactiveAnswersEnabled: "启用",
     interactiveAnswersDisabled: "禁用",
     userProfileDetailsLabel: "其他个人细节",
