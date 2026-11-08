@@ -674,13 +674,16 @@ export const useSessionStore = defineStore("session", () => {
     };
   }
 
-  function byNewest(
-    left: PineSessionSummary,
-    right: PineSessionSummary,
-  ): number {
-    return (
-      new Date(right.updatedAt).getTime() - new Date(left.updatedAt).getTime()
-    );
+  /**
+   * Newest first, stably. Each timestamp is parsed once: these lists are
+   * re-sorted on every appended entry of a running session, and parsing in
+   * the comparator cost two date parses per comparison.
+   */
+  function sortByNewest<T extends PineSessionSummary>(sessions: T[]): T[] {
+    const times = new Map<T, number>();
+    for (const session of sessions)
+      times.set(session, new Date(session.updatedAt).getTime());
+    return sessions.sort((left, right) => times.get(right)! - times.get(left)!);
   }
 
   /** Keep the cross-project list in step with one session's latest state. */
@@ -688,12 +691,12 @@ export const useSessionStore = defineStore("session", () => {
     const previous = allRecentSessions.value.find(
       (candidate) => candidate.id === session.id,
     );
-    allRecentSessions.value = [
+    allRecentSessions.value = sortByNewest([
       { ...mergeSessionSummary(session, previous), projectId },
       ...allRecentSessions.value.filter(
         (candidate) => candidate.id !== session.id,
       ),
-    ].sort(byNewest);
+    ]);
   }
 
   async function loadAllRecent(): Promise<ProjectSessionSearchResult[]> {
@@ -724,10 +727,10 @@ export const useSessionStore = defineStore("session", () => {
     const nextSession = mergeSessionSummary(session, previous);
     setRecent(
       projectId,
-      [
+      sortByNewest([
         nextSession,
         ...recent.filter((candidate) => candidate.id !== session.id),
-      ].sort(byNewest),
+      ]),
     );
     upsertAllRecent(projectId, nextSession);
     return nextSession;
