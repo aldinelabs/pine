@@ -195,6 +195,8 @@ export class ComputerUseController {
     ComputerUseMcpClient,
     "start" | "callTool" | "dispose"
   >;
+  private taskGeneration = 0;
+  private authorizedMode?: PineApprovalMode;
 
   constructor(private readonly options: ComputerUseControllerOptions) {
     this.executablePath =
@@ -230,8 +232,11 @@ export class ComputerUseController {
     params: Record<string, unknown>,
     signal?: AbortSignal,
   ): Promise<AgentToolResult<Record<string, unknown>>> {
+    const generation = this.taskGeneration;
     await this.client.start();
+    this.checkTask(generation, signal);
     await this.reviewAction(toolCallId, name, params, signal);
+    this.checkTask(generation, signal);
     const raw = (await this.client.callTool(
       name,
       params,
@@ -319,7 +324,23 @@ export class ComputerUseController {
   }
 
   dispose(): Promise<void> {
+    this.resetTaskAuthorization();
     return this.client.dispose();
+  }
+
+  /** Task grants are intentionally in-memory and never restored with a session. */
+  resetTaskAuthorization(): void {
+    this.taskGeneration += 1;
+    this.authorizedMode = undefined;
+  }
+
+  private checkTask(generation: number, signal?: AbortSignal): void {
+    signal?.throwIfAborted();
+    if (generation !== this.taskGeneration) {
+      throw new Error(
+        "Computer control authorization expired; retry the action.",
+      );
+    }
   }
 
   private async reviewAction(
@@ -328,29 +349,45 @@ export class ComputerUseController {
     params: Record<string, unknown>,
     signal?: AbortSignal,
   ): Promise<void> {
-    if (
-      this.options.getApprovalMode() === "YOLO" ||
-      OBSERVATION_TOOLS.has(name)
-    ) {
+    signal?.throwIfAborted();
+    const mode = this.options.getApprovalMode();
+    if (mode === "YOLO" || OBSERVATION_TOOLS.has(name)) {
       return;
     }
+    const setup =
+      name === REQUEST_COMPUTER_USE_PERMISSIONS_TOOL_NAME ||
+      name === INSTALL_PINE_BROWSER_EXTENSION_TOOL_NAME;
+    if (!setup && this.authorizedMode === mode) return;
     const gate = this.options.getGate();
     if (!gate)
       throw new Error(
         "Computer control is unavailable without an approval gate.",
       );
+    const generation = this.taskGeneration;
     const decision = await gate.reviewPrivilegedCall({
       toolCallId,
       toolName: name,
-      subject: subjectForCall(name, params),
-      description: `Use Computer Use: ${titleCaseToolName(name)}`,
-      evidence:
-        "This call controls a native desktop application or browser using the user's OS permissions, outside Pine's project filesystem sandbox.",
+      subject: setup
+        ? subjectForCall(name, params)
+        : `Control desktop applications and browser tabs for the current task. First action: ${subjectForCall(name, params)}`,
+      description: setup
+        ? `Use Computer Use: ${titleCaseToolName(name)}`
+        : "Allow computer control for this task; confirm consequential actions when not already authorized",
+      evidence: setup
+        ? "This setup call changes OS permissions or browser configuration and requires its own approval."
+        : "This requests task-level computer control, outside the project filesystem sandbox. Approval covers subsequent ordinary clicks, typing, scrolling, app switching, and browser navigation without further per-action reviews until the run ends or is stopped. The executing model must pause before consequential actions not already authorized by the user; there is no deterministic per-click risk filter. This grant does not cover OS permission requests or browser extension installation.",
       signal,
     });
     if (decision.kind === "deny") {
       throw new Error(decision.reason ?? "This Computer Use call was denied.");
     }
+    this.checkTask(generation, signal);
+    if (mode !== this.options.getApprovalMode()) {
+      throw new Error(
+        "Computer control authorization expired; retry the action.",
+      );
+    }
+    if (!setup) this.authorizedMode = mode;
   }
 }
 

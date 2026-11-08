@@ -513,6 +513,8 @@ export class PineAgentRuntime {
     this.setApprovalMode(live, live.automation ? "autonomous" : approvalMode);
     await live.attachedPaths.grant(attachedPaths);
     live.latestUserPrompt = message;
+    if (live.session.isIdle)
+      live.computerUseController?.resetTaskAuthorization();
     live.gate?.resetTurn();
     live.mcpScriptApprovals.clear();
     this.options.emit({ type: "run-state", sessionId, state: "running" });
@@ -675,6 +677,7 @@ export class PineAgentRuntime {
 
           live.locale = queued.locale;
           live.latestUserPrompt = queued.message;
+          live.computerUseController?.resetTaskAuthorization();
           this.setApprovalMode(live, queued.approvalMode);
           live.gate?.resetTurn();
           live.mcpScriptApprovals.clear();
@@ -874,6 +877,7 @@ export class PineAgentRuntime {
 
   async abort(sessionId: string): Promise<{ aborted: boolean }> {
     const live = this.getSession(sessionId);
+    live.computerUseController?.resetTaskAuthorization();
     const aborted = !live.session.isIdle;
     if (aborted) {
       this.options.emit({ type: "run-state", sessionId, state: "aborting" });
@@ -1728,6 +1732,7 @@ export class PineAgentRuntime {
     // Automation runs are unattended and always autonomous, even under YOLO.
     if (live.automation) approvalMode = "autonomous";
     if (live.approvalMode !== approvalMode) {
+      live.computerUseController?.resetTaskAuthorization();
       live.approvalMode = approvalMode;
       live.gate = this.createGate(
         live,
@@ -1888,6 +1893,7 @@ export class PineAgentRuntime {
       });
       return;
     }
+    live.computerUseController?.resetTaskAuthorization();
     live.gate?.resetTurn();
     live.mcpScriptApprovals.clear();
     this.options.emit({ type: "run-state", sessionId, state: "running" });
@@ -2621,6 +2627,12 @@ export class PineAgentRuntime {
   }
 
   private forwardEvent(session: AgentSession, event: AgentSessionEvent): void {
+    // agent_end may be followed by retry/compaction; only settled ends the run.
+    if (event.type === "agent_settled") {
+      this.liveSessions
+        .get(session.sessionId)
+        ?.computerUseController?.resetTaskAuthorization();
+    }
     this.eventForwarder.forward(session, event);
   }
 

@@ -234,6 +234,18 @@ From top to bottom:
      (balance autonomy and control), Autonomous Work (maximize autonomy
      without user action), YOLO (no permission constraints; asks the user to
      confirm before enabling).
+   - Computer Use: the first control action requests permission to control
+     desktop apps and browser tabs for the current task. Let Me Review shows
+     one Approval required card; Auto Approve and Autonomous Work review the
+     task grant automatically. Ordinary clicks, typing, scrolling, app switching,
+     and navigation then continue without per-action reviews. The grant ends
+     when the run finishes, Stop response is used, or the approval mode changes;
+     it is not restored when reopening a session. OS permission requests and
+     browser extension installation are approved separately. The agent is
+     instructed to ask before consequential actions not already authorized,
+     such as payments, sending, publishing, irreversible deletion, security
+     changes, or sharing sensitive information with a new recipient. This
+     depends on the agent's judgment, not an independent check on each click.
    - Context usage: a popover with a Context section (tokens used, context
      window, utilization, cache hit rate, Compact context now) and a Cost
      section (conversation cost, in the currency chosen in Pine Settings ›
