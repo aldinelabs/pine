@@ -9,6 +9,31 @@ Every release section here has a matching section in the Chinese changelog.
 
 ## [Unreleased]
 
+## [0.15.7] - 2026-11-07
+
+### Added
+
+- Tool call details show the model that actually reviewed an action, its decision, and failed attempts and fallbacks. These records remain available when reopening a conversation.
+- The Remote Control Home Screen app can scan pairing codes with the camera. Pairing dialogs now include guidance on using the system scanner and browser.
+
+### Changed
+
+- Computer Use now requests permission for the current task. Once approved, ordinary clicks, typing, scrolling, and navigation proceed without individual reviews. Permission expires when the task ends, is stopped, or changes approval mode. System permissions and browser extension installation still require separate approval.
+- Interactive answers are enabled by default, with the switch moved to Settings › Agent.
+- Clicking the update notice above the workbench checks for the latest version before opening release notes. Pine also checks for updates every two hours.
+- New tabs default to the project with the most recent session activity.
+- Reduced interface overhead from tabs, presented files, and side-chat highlights while replies stream in long conversations.
+
+### Fixed
+
+- Remote Control no longer repeatedly switches between paired computers. Opening a session remotely preserves its saved approval mode.
+- Swiping horizontally across todo and background-task cards on phones no longer scrolls the transcript at the same time. The workbench overlay no longer shows a width resize handle.
+- The new-tab button always adds a tab, preserving existing drafts and previews.
+- Fixed layout jumps and scroll positioning when sending messages, receiving queued messages, and collapsing thinking content.
+- The quick composer accepts files, pasted images, and long text attachments before opening the main window.
+- An unavailable Decisions model no longer prevents switching to another model in settings.
+- Tool targets retain their monospace font during automatic review and approval waits.
+
 ## [0.15.6] - 2026-11-07
 
 ### Added
