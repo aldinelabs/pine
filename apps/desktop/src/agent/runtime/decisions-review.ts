@@ -127,6 +127,9 @@ export async function runApprovalReview(options: {
   signal.throwIfAborted();
   let screened: JudgeRuling[] = [];
   if (settings.strategy === "decisions") {
+    let failure: string | undefined;
+    let actualModelId = settings.decisionsModel;
+    const deferred = new Set<string>();
     try {
       const apiKey = (await options.resolveApiKey())?.trim();
       signal.throwIfAborted();
@@ -151,20 +154,65 @@ export async function runApprovalReview(options: {
           ]),
         });
         if (response.ok) {
+          const body: unknown = await response.json();
+          if (
+            isRecord(body) &&
+            typeof body.model === "string" &&
+            body.model.trim()
+          ) {
+            actualModelId = body.model.trim();
+          }
           screened = parseDecisionsReview(
-            await response.json(),
+            body,
             requests,
             options.autonomous,
             options.locale,
           );
+          if (isRecord(body) && isRecord(body.answers)) {
+            const answers = body.answers;
+            requests.forEach((request, index) => {
+              const answer = answers[`call_${index}`];
+              if (
+                isRecord(answer) &&
+                answer.type === "choice" &&
+                answer.choice === "deny"
+              ) {
+                deferred.add(request.toolCallId);
+              }
+            });
+          }
         } else {
           await response.body?.cancel();
+          failure = `Decisions API returned HTTP ${response.status}.`;
         }
+      } else {
+        failure = "No OpenRouter API key is available for Decisions screening.";
       }
-    } catch {
+    } catch (error) {
       // Missing access, unavailable alpha API, timeouts, and malformed JSON all
       // fall back to the established reviewer. Caller cancellation never does.
       signal.throwIfAborted();
+      failure = error instanceof Error ? error.message : String(error);
+    }
+    signal.throwIfAborted();
+    const screenedById = new Map(
+      screened.map((ruling) => [ruling.toolCallId, ruling]),
+    );
+    for (const request of requests) {
+      const ruling = screenedById.get(request.toolCallId);
+      const needsReview = deferred.has(request.toolCallId);
+      request.onReview?.({
+        kind: "decisions",
+        providerId: "openrouter",
+        modelId: actualModelId,
+        outcome: ruling?.verdict ?? (needsReview ? "fallback" : "error"),
+        reason:
+          ruling?.reason ??
+          failure ??
+          (needsReview
+            ? "Decisions requested detailed model review."
+            : "Decisions returned no valid answer for this tool call."),
+      });
     }
   }
   signal.throwIfAborted();

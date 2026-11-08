@@ -1335,6 +1335,19 @@ export default {
         fetchHighlights: "points forts : {value}",
       },
       toolDetails: {
+        reviewHistory: "Historique des vérifications",
+        noReviewModel: "Modèle d’approbation indisponible",
+        reviewKinds: {
+          decisions: "Filtrage Decisions",
+          model: "Modèle d’approbation",
+        },
+        reviewOutcomes: {
+          allow: "Autorisé",
+          deny: "Refusé",
+          needs_user: "Confirmation requise",
+          fallback: "Transmis au modèle de vérification",
+          error: "Échec de la vérification",
+        },
         title: "Détails de l'appel d'outil",
         description:
           "Consultez l'état, les paramètres et le résultat de cet appel d'outil.",

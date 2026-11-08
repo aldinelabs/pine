@@ -1444,6 +1444,13 @@ describe("session store", () => {
   });
 
   it("keeps automatic approval decisions with their tool calls", async () => {
+    const reviews = [
+      {
+        kind: "model" as const,
+        modelId: "actual-reviewer",
+        outcome: "deny" as const,
+      },
+    ];
     let listener: ((event: PineAgentEvent) => void) | undefined;
     Object.defineProperty(window, "pine", {
       configurable: true,
@@ -1485,11 +1492,13 @@ describe("session store", () => {
       toolCallId: "call-reviewed",
       toolName: "bash",
       state: "reviewing",
+      reviews,
     });
 
     let block = store.messages[0]?.blocks[0];
     expect(block?.type === "toolCall" && block.toolCall.approval).toEqual({
       state: "reviewing",
+      reviews,
     });
 
     listener?.({
@@ -1500,6 +1509,7 @@ describe("session store", () => {
       verdict: "denied",
       decidedBy: "judge",
       reason: "Use a safer command.",
+      reviews,
     });
 
     block = store.messages[0]?.blocks[0];
@@ -1507,6 +1517,7 @@ describe("session store", () => {
       state: "denied",
       decidedBy: "judge",
       reason: "Use a safer command.",
+      reviews,
     });
   });
 

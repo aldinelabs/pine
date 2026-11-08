@@ -228,6 +228,7 @@ function approvalDecisionsFromEntries(
     decisions.set(entry.data.toolCallId, {
       state: entry.data.verdict,
       decidedBy: entry.data.decidedBy,
+      ...(entry.data.reviews ? { reviews: entry.data.reviews } : {}),
       ...(entry.data.reason ? { reason: entry.data.reason } : {}),
     });
   }

@@ -97,7 +97,7 @@ async function appendMessage(
 async function appendCustomEntry(
   session: TestSession,
   customType: string,
-  data: Record<string, string>,
+  data: Record<string, unknown>,
 ): Promise<void> {
   session.manager.appendCustomEntry(customType, data);
   return Promise.resolve();
@@ -827,6 +827,14 @@ describe("ProjectSessionService", () => {
       verdict: "denied",
       decidedBy: "judge",
       reason: "Use a safer command.",
+      reviews: [
+        {
+          kind: "model",
+          providerId: "custom",
+          modelId: "actual-reviewer",
+          outcome: "deny",
+        },
+      ],
     });
     const metadata = session.metadata;
     const service = await ProjectSessionService.create(options);
@@ -845,6 +853,14 @@ describe("ProjectSessionService", () => {
                     state: "denied",
                     decidedBy: "judge",
                     reason: "Use a safer command.",
+                    reviews: [
+                      {
+                        kind: "model",
+                        providerId: "custom",
+                        modelId: "actual-reviewer",
+                        outcome: "deny",
+                      },
+                    ],
                   },
                 }),
               },

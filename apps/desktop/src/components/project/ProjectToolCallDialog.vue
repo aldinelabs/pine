@@ -199,6 +199,64 @@ async function openDialog(): Promise<void> {
             </template>
           </dl>
 
+          <template v-if="toolCall.approval?.reviews?.length">
+            <Separator />
+            <section class="flex min-w-0 flex-col gap-3" data-approval-reviews>
+              <h3 class="text-sm font-medium">
+                {{ t("project.transcript.toolDetails.reviewHistory") }}
+              </h3>
+              <ol class="flex min-w-0 flex-col gap-3">
+                <li
+                  v-for="(review, index) in toolCall.approval.reviews"
+                  :key="index"
+                  class="flex min-w-0 flex-col gap-1 text-sm"
+                >
+                  <p class="font-medium">
+                    {{
+                      t(
+                        `project.transcript.toolDetails.reviewKinds.${review.kind}`,
+                      )
+                    }}
+                    ·
+                    {{
+                      t(
+                        `project.transcript.toolDetails.reviewOutcomes.${review.outcome}`,
+                      )
+                    }}
+                  </p>
+                  <p class="break-words">
+                    {{
+                      review.modelName ||
+                      review.modelId ||
+                      t("project.transcript.toolDetails.noReviewModel")
+                    }}
+                  </p>
+                  <p
+                    v-if="
+                      review.providerId || (review.modelName && review.modelId)
+                    "
+                    class="font-mono text-xs break-all text-muted-foreground"
+                  >
+                    {{
+                      [
+                        review.providerId,
+                        review.modelName ? review.modelId : undefined,
+                      ]
+                        .filter(Boolean)
+                        .join(" / ")
+                    }}
+                  </p>
+                  <p
+                    v-if="review.reason"
+                    class="text-muted-foreground whitespace-pre-wrap break-words"
+                  >
+                    {{ review.reason }}
+                  </p>
+                </li>
+              </ol>
+            </section>
+          </template>
+
           <template
             v-if="
               toolCall.approval?.state === 'denied' && toolCall.approval.reason

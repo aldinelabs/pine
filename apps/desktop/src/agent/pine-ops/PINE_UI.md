@@ -148,7 +148,13 @@ From top to bottom:
    - for an automation run, a card at the top with the automation's name,
      trigger and start time; "Instructions" expands what it was asked to do;
    - tool call groups; clicking a call opens Tool call details (status,
-     approval, parameters, result);
+     approval, parameters, result). When a call has automatic review records,
+     Review history lists each Decisions screening or approval-model attempt,
+     its actual model and provider, outcome and reason. It keeps failed attempts
+     and handoffs to detailed model review; Approval status shows when the call
+     is awaiting user approval or was decided by the user. These records remain
+     available when reopening the conversation. Older calls without review
+     records do not show a model inferred from current settings;
    - file search calls ("Found files for …", "Searched code for …"), which
      show the searched name or text and how many files or lines matched; their
      details list each file, line number and matching line;

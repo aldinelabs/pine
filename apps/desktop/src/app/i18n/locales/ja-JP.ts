@@ -1315,6 +1315,19 @@ export default {
         fetchHighlights: "ハイライト：{value}",
       },
       toolDetails: {
+        reviewHistory: "審査履歴",
+        noReviewModel: "承認モデルを取得できません",
+        reviewKinds: {
+          decisions: "Decisions スクリーニング",
+          model: "承認モデル",
+        },
+        reviewOutcomes: {
+          allow: "許可",
+          deny: "拒否",
+          needs_user: "ユーザーの確認が必要",
+          fallback: "モデル審査へ移行",
+          error: "審査失敗",
+        },
         title: "ツール呼び出しの詳細",
         description: "このツール呼び出しの状態、パラメータ、結果を確認します。",
         status: "実行状態",

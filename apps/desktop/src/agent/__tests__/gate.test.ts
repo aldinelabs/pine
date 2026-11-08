@@ -9,7 +9,7 @@ import {
 
 interface HostMocks {
   emit: ReturnType<typeof vi.fn>;
-  judge: ReturnType<typeof vi.fn>;
+  judge: ReturnType<typeof vi.fn<GateHost["judge"]>>;
   recordApprovalDecision: ReturnType<typeof vi.fn>;
   requestUserApproval: ReturnType<typeof vi.fn>;
 }
@@ -162,6 +162,50 @@ describe("UserApprovalGate", () => {
 });
 
 describe("AutoReviewGate", () => {
+  it("persists actual reviewer history and carries failed retries into manual approval", async () => {
+    const review = {
+      kind: "model" as const,
+      providerId: "provider",
+      modelId: "actual-model",
+      outcome: "allow" as const,
+    };
+    const { host, mocks } = createHost((request) => {
+      request.onReview?.(review);
+      return Promise.resolve({ verdict: "allow" });
+    });
+    const gate = new AutoReviewGate(host);
+    await gate.reviewBashCommand({
+      toolCallId: "reviewed",
+      command: "rm -rf build",
+    });
+    expect(mocks.recordApprovalDecision).toHaveBeenCalledWith(
+      expect.objectContaining({ reviews: [review] }),
+    );
+    expect(mocks.emit).toHaveBeenCalledWith(
+      expect.objectContaining({ type: "approval-decided", reviews: [review] }),
+    );
+
+    const failedReview = {
+      ...review,
+      outcome: "error" as const,
+      reason: "Provider unavailable",
+    };
+    mocks.judge.mockImplementation(([request]: JudgeRequest[]) => {
+      request.onReview?.(failedReview);
+      return Promise.reject(new Error("Provider unavailable"));
+    });
+    await gate.reviewBashCommand({
+      toolCallId: "failed",
+      command: "rm -rf other-build",
+    });
+    expect(mocks.requestUserApproval).toHaveBeenCalledWith(
+      expect.objectContaining({
+        toolCallId: "failed",
+        reviews: [failedReview, failedReview],
+      }),
+    );
+  });
+
   it("allows ordinary commands without consulting the judge", async () => {
     const { host, mocks } = createHost();
     const gate = new AutoReviewGate(host);

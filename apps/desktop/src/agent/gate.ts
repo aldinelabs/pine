@@ -2,7 +2,10 @@ import { Type } from "typebox";
 import type { Tool } from "@earendil-works/pi-ai";
 import { createHash, randomUUID } from "node:crypto";
 import type { PineAgentEvent, PineAutoApprovalFailure } from "../shared/agent";
-import type { PineApprovalDecision } from "../shared/sessions";
+import type {
+  PineApprovalDecision,
+  PineApprovalReview,
+} from "../shared/sessions";
 import type { GateDecision } from "./protocol";
 import { matchDestructive } from "./destructive";
 
@@ -54,6 +57,8 @@ export interface JudgeRequest {
   turn: GateTurnContext;
   /** Privileged execution is always reviewed per-call and cannot be cached. */
   allowSessionScope?: boolean;
+  /** Runtime-only audit callback, never part of the model's input. */
+  onReview?: (review: PineApprovalReview) => void;
 }
 
 export interface JudgeRuling {
@@ -78,6 +83,7 @@ export interface UserApprovalRequest {
   description?: string;
   evidence?: string;
   autoApprovalFailure?: PineAutoApprovalFailure;
+  reviews?: PineApprovalReview[];
   signal?: AbortSignal;
 }
 
@@ -391,6 +397,7 @@ export class AutoReviewGate implements ToolGate {
       request: JudgeRequest;
       input: DenialReviewInput;
       allowSessionScope: boolean;
+      reviews: PineApprovalReview[];
     }> = [];
     const sharedTurn = this.host.turnContext(
       reviews.map((review) => review.input.subject),
@@ -437,11 +444,13 @@ export class AutoReviewGate implements ToolGate {
         toolName: review.input.toolName,
         state: "reviewing",
       });
+      const reviewHistory: PineApprovalReview[] = [];
       pending.push({
         index,
         sequence,
         input: review.input,
         allowSessionScope: review.allowSessionScope,
+        reviews: reviewHistory,
         request: {
           toolCallId: review.input.toolCallId,
           toolName: review.input.toolName,
@@ -452,6 +461,17 @@ export class AutoReviewGate implements ToolGate {
           signal: review.input.signal,
           turn: sharedTurn,
           allowSessionScope: review.allowSessionScope,
+          onReview: (attempt) => {
+            reviewHistory.push(attempt);
+            this.host.emit({
+              type: "tool-review",
+              sessionId: this.host.sessionId,
+              toolCallId: review.input.toolCallId,
+              toolName: review.input.toolName,
+              state: "reviewing",
+              reviews: [...reviewHistory],
+            });
+          },
         },
       });
     });
@@ -482,14 +502,20 @@ export class AutoReviewGate implements ToolGate {
       const message = error instanceof Error ? error.message : String(error);
       const reason = `Auto-review unavailable: ${message}`;
       if (this.autonomous) {
-        for (const { index, input, sequence } of pending) {
-          this.emitDecided(sequence, input.toolCallId, "denied", reason);
+        for (const { index, input, sequence, reviews } of pending) {
+          this.emitDecided(
+            sequence,
+            input.toolCallId,
+            "denied",
+            reason,
+            reviews,
+          );
           decisions[index] = { kind: "deny", reason };
         }
         return decisions as GateDecision[];
       }
       await Promise.all(
-        pending.map(async ({ index, input, request }) => {
+        pending.map(async ({ index, input, request, reviews }) => {
           const decision = await this.host.requestUserApproval({
             trigger: request.trigger,
             toolCallId: input.toolCallId,
@@ -498,6 +524,7 @@ export class AutoReviewGate implements ToolGate {
             description: input.description,
             evidence: [input.evidence, reason].filter(Boolean).join("\n\n"),
             autoApprovalFailure: { id: reviewId, message },
+            reviews: [...reviews],
             signal: input.signal,
           });
           decisions[index] = decision;
@@ -518,13 +545,20 @@ export class AutoReviewGate implements ToolGate {
       sequence,
       allowSessionScope,
       request,
+      reviews: reviewHistory,
     } of pending) {
       const ruling = rulingsById.get(input.toolCallId);
       if (!ruling) {
         const reason =
           "Auto-review unavailable: The reviewer omitted this tool call from its rulings.";
         if (this.autonomous) {
-          this.emitDecided(sequence, input.toolCallId, "denied", reason);
+          this.emitDecided(
+            sequence,
+            input.toolCallId,
+            "denied",
+            reason,
+            reviewHistory,
+          );
           decisions[index] = { kind: "deny", reason };
           continue;
         }
@@ -539,6 +573,7 @@ export class AutoReviewGate implements ToolGate {
             id: reviewId,
             message: "The reviewer omitted this tool call from its rulings.",
           },
+          reviews: [...reviewHistory],
           signal: input.signal,
         });
         decisions[index] = decision;
@@ -558,7 +593,13 @@ export class AutoReviewGate implements ToolGate {
             actionDigest: approvalActionDigest(input),
           });
         }
-        this.emitDecided(sequence, input.toolCallId, "approved", ruling.reason);
+        this.emitDecided(
+          sequence,
+          input.toolCallId,
+          "approved",
+          ruling.reason,
+          reviewHistory,
+        );
         decisions[index] = {
           kind: "allow",
           scope: allowSessionScope ? ruling.scope : "once",
@@ -571,7 +612,13 @@ export class AutoReviewGate implements ToolGate {
           const reason =
             ruling.reason ??
             "The rationale does not yet establish authorization for this call. Explain the exact need and scope before retrying.";
-          this.emitDecided(sequence, input.toolCallId, "denied", reason);
+          this.emitDecided(
+            sequence,
+            input.toolCallId,
+            "denied",
+            reason,
+            reviewHistory,
+          );
           decisions[index] = { kind: "deny", reason };
           continue;
         }
@@ -584,6 +631,7 @@ export class AutoReviewGate implements ToolGate {
           evidence: [input.evidence, ruling.reason]
             .filter(Boolean)
             .join("\n\n"),
+          reviews: [...reviewHistory],
           signal: input.signal,
         });
         decisions[index] = decision;
@@ -591,7 +639,13 @@ export class AutoReviewGate implements ToolGate {
         continue;
       }
       const reason = ruling.reason ?? "The auto-reviewer denied this call.";
-      this.emitDecided(sequence, input.toolCallId, "denied", reason);
+      this.emitDecided(
+        sequence,
+        input.toolCallId,
+        "denied",
+        reason,
+        reviewHistory,
+      );
       decisions[index] = { kind: "deny", reason };
     }
     if (allowed) this.consecutiveEscalations = 0;
@@ -619,6 +673,7 @@ export class AutoReviewGate implements ToolGate {
     toolCallId: string,
     verdict: "approved" | "denied",
     reason?: string,
+    reviews?: PineApprovalReview[],
   ): void {
     const requestId = `judge-${sequence}`;
     this.host.recordApprovalDecision({
@@ -626,6 +681,7 @@ export class AutoReviewGate implements ToolGate {
       toolCallId,
       verdict,
       decidedBy: "judge",
+      ...(reviews?.length ? { reviews: [...reviews] } : {}),
       ...(reason ? { reason } : {}),
     });
     this.host.emit({
@@ -636,6 +692,7 @@ export class AutoReviewGate implements ToolGate {
       verdict,
       decidedBy: "judge",
       reason,
+      ...(reviews?.length ? { reviews: [...reviews] } : {}),
     });
   }
 }

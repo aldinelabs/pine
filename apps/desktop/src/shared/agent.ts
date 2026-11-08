@@ -1,5 +1,5 @@
 import type { AutomationHostOperation } from "./automation";
-import type { PineSessionSummary } from "./sessions";
+import type { PineApprovalReview, PineSessionSummary } from "./sessions";
 import type { PineSessionMutator } from "./sessionMutators";
 import type { McpHostOperation } from "./mcp";
 import type { BackgroundTaskSnapshot } from "@pine/pi-background-tasks";
@@ -270,6 +270,7 @@ export type PineAgentEvent =
       /** Binds the approval card to the immutable worker-side call snapshot. */
       actionDigest?: string;
       autoApprovalFailure?: PineAutoApprovalFailure;
+      reviews?: PineApprovalReview[];
     }
   | {
       type: "approval-decided";
@@ -280,6 +281,7 @@ export type PineAgentEvent =
       /** Who decided: the user (Let Me Review) or the model judge (Auto Approve). */
       decidedBy: "user" | "judge";
       reason?: string;
+      reviews?: PineApprovalReview[];
     }
   | {
       type: "questionnaire-request";
@@ -302,6 +304,7 @@ export type PineAgentEvent =
       toolName: string;
       /** The auto-reviewer is holding the call before it may execute. */
       state: "reviewing";
+      reviews?: PineApprovalReview[];
     }
   | {
       type: "present-file";

@@ -1250,6 +1250,19 @@ export default {
         fetchHighlights: "重点：{value}",
       },
       toolDetails: {
+        reviewHistory: "审核记录",
+        noReviewModel: "未能获取审批模型",
+        reviewKinds: {
+          decisions: "Decisions 初筛",
+          model: "大模型审核",
+        },
+        reviewOutcomes: {
+          allow: "允许",
+          deny: "拒绝",
+          needs_user: "需要用户确认",
+          fallback: "转交大模型审核",
+          error: "审核失败",
+        },
         title: "工具调用详情",
         description: "查看这次工具调用的状态、参数与返回值。",
         status: "执行状态",

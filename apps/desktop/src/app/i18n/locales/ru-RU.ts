@@ -1323,6 +1323,19 @@ export default {
         fetchHighlights: "главное: {value}",
       },
       toolDetails: {
+        reviewHistory: "История проверок",
+        noReviewModel: "Модель одобрения недоступна",
+        reviewKinds: {
+          decisions: "Предварительная проверка Decisions",
+          model: "Модель одобрения",
+        },
+        reviewOutcomes: {
+          allow: "Разрешено",
+          deny: "Отклонено",
+          needs_user: "Нужно подтверждение пользователя",
+          fallback: "Передано модели проверки",
+          error: "Ошибка проверки",
+        },
         title: "Подробности вызова инструмента",
         description:
           "Посмотрите состояние, параметры и результат этого вызова инструмента.",

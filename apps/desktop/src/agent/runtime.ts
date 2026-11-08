@@ -54,6 +54,7 @@ import {
   PINE_AUTOMATION_AUTHORING_ACTIVE_ENTRY,
   PINE_MCP_AUTHORING_ACTIVE_ENTRY,
   type PineApprovalDecision,
+  type PineApprovalReview,
   type PineContextUsage,
 } from "../shared/sessions";
 import { attachmentMessagePreview } from "../shared/attachments";
@@ -2004,6 +2005,7 @@ export class PineAgentRuntime {
         input: Object.keys(reviewInput).length > 0 ? reviewInput : undefined,
         evidence: request.evidence,
         autoApprovalFailure: request.autoApprovalFailure,
+        ...(request.reviews?.length ? { reviews: request.reviews } : {}),
         actionDigest: pending.actionDigest,
       });
     });
@@ -2036,6 +2038,9 @@ export class PineAgentRuntime {
       toolCallId: pending.toolCallId,
       verdict: decision.kind === "allow" ? "approved" : "denied",
       decidedBy: "user",
+      ...(pending.request.reviews?.length
+        ? { reviews: pending.request.reviews }
+        : {}),
       ...(decision.kind === "deny" && decision.reason
         ? { reason: decision.reason }
         : {}),
@@ -2049,6 +2054,9 @@ export class PineAgentRuntime {
       verdict: decision.kind === "allow" ? "approved" : "denied",
       decidedBy: "user",
       reason: decision.kind === "deny" ? decision.reason : undefined,
+      ...(pending.request.reviews?.length
+        ? { reviews: pending.request.reviews }
+        : {}),
     });
     return { accepted: true };
   }
@@ -2422,62 +2430,93 @@ export class PineAgentRuntime {
     requests: JudgeRequest[],
     signal: AbortSignal,
   ): Promise<JudgeRuling[]> {
-    signal.throwIfAborted();
-    const modelRuntime = await this.getModelRuntime(live.agentDir);
-    const model = await this.modelService.approvalModel(
-      live.agentDir,
-      modelRuntime,
-    );
-    if (!model)
-      throw new JudgeUnavailableError("No approval model is configured.");
-    signal.throwIfAborted();
-    const autonomous = live.approvalMode === "autonomous";
-    const context: Context = {
-      systemPrompt: `${autonomous ? AUTONOMOUS_JUDGE_SYSTEM_PROMPT : JUDGE_SYSTEM_PROMPT}${
-        requests.every((request) => request.allowSessionScope === false)
-          ? '\n\nThese privileged calls must each receive an independent verdict. Set every scope to "once"; session scope is not available.'
-          : ""
-      }`,
-      messages: [
-        {
-          role: "user",
-          timestamp: Date.now(),
-          content: `Review all ${requests.length} tool call${requests.length === 1 ? "" : "s"} below and return one ruling for every exact toolCallId.\n\n## Shared authorization and causal context\n${buildJudgeSharedContext(requests[0].turn) || "No conversation authority was available."}\n\n${requests
-            .map(
-              (request, index) =>
-                `## Tool call ${index + 1}\n${buildJudgeEvidence(request)}`,
-            )
-            .join("\n\n")}`,
-        },
-      ],
-      tools: [autonomous ? AUTONOMOUS_RULING_TOOL : RULING_TOOL],
-    };
-    const stream = modelRuntime.stream(
-      model,
-      context,
-      judgeStreamOptions(model, signal),
-    );
-    let final: AssistantMessage | undefined;
-    for await (const event of stream) {
-      if (event.type === "done") final = event.message;
-      else if (event.type === "error") {
-        if (event.reason === "aborted") throw new Error("aborted");
-        throw new Error(
-          event.error.errorMessage ?? "The reviewer stream failed.",
-        );
+    let reviewer: Pick<
+      PineApprovalReview,
+      "kind" | "providerId" | "modelId" | "modelName"
+    > = { kind: "model" };
+    try {
+      signal.throwIfAborted();
+      const modelRuntime = await this.getModelRuntime(live.agentDir);
+      const model = await this.modelService.approvalModel(
+        live.agentDir,
+        modelRuntime,
+      );
+      if (!model)
+        throw new JudgeUnavailableError("No approval model is configured.");
+      reviewer = {
+        kind: "model",
+        providerId: model.provider,
+        modelId: model.id,
+        modelName: model.name,
+      };
+      signal.throwIfAborted();
+      const autonomous = live.approvalMode === "autonomous";
+      const context: Context = {
+        systemPrompt: `${autonomous ? AUTONOMOUS_JUDGE_SYSTEM_PROMPT : JUDGE_SYSTEM_PROMPT}${
+          requests.every((request) => request.allowSessionScope === false)
+            ? '\n\nThese privileged calls must each receive an independent verdict. Set every scope to "once"; session scope is not available.'
+            : ""
+        }`,
+        messages: [
+          {
+            role: "user",
+            timestamp: Date.now(),
+            content: `Review all ${requests.length} tool call${requests.length === 1 ? "" : "s"} below and return one ruling for every exact toolCallId.\n\n## Shared authorization and causal context\n${buildJudgeSharedContext(requests[0].turn) || "No conversation authority was available."}\n\n${requests
+              .map(
+                (request, index) =>
+                  `## Tool call ${index + 1}\n${buildJudgeEvidence(request)}`,
+              )
+              .join("\n\n")}`,
+          },
+        ],
+        tools: [autonomous ? AUTONOMOUS_RULING_TOOL : RULING_TOOL],
+      };
+      const stream = modelRuntime.stream(
+        model,
+        context,
+        judgeStreamOptions(model, signal),
+      );
+      let final: AssistantMessage | undefined;
+      for await (const event of stream) {
+        if (event.type === "done") final = event.message;
+        else if (event.type === "error") {
+          if (event.reason === "aborted") throw new Error("aborted");
+          throw new Error(
+            event.error.errorMessage ?? "The reviewer stream failed.",
+          );
+        }
       }
+      if (!final) throw new Error("The reviewer returned no response.");
+      const call = final.content.find(
+        (block) => block.type === "toolCall" && block.name === RULING_TOOL.name,
+      );
+      if (!call || call.type !== "toolCall") {
+        throw new Error("The reviewer did not submit a ruling.");
+      }
+      const rulings = parseJudgeRulings(
+        call.arguments,
+        requests.map((request) => request.toolCallId),
+      );
+      for (const request of requests) {
+        const ruling = rulings.find(
+          (entry) => entry.toolCallId === request.toolCallId,
+        )!;
+        request.onReview?.({
+          ...reviewer,
+          outcome: ruling.verdict,
+          reason: ruling.reason,
+        });
+      }
+      return rulings;
+    } catch (error) {
+      for (const request of requests)
+        request.onReview?.({
+          ...reviewer,
+          outcome: "error",
+          reason: error instanceof Error ? error.message : String(error),
+        });
+      throw error;
     }
-    if (!final) throw new Error("The reviewer returned no response.");
-    const call = final.content.find(
-      (block) => block.type === "toolCall" && block.name === RULING_TOOL.name,
-    );
-    if (!call || call.type !== "toolCall") {
-      throw new Error("The reviewer did not submit a ruling.");
-    }
-    return parseJudgeRulings(
-      call.arguments,
-      requests.map((request) => request.toolCallId),
-    );
   }
 
   private async generateInitialTitle(live: LiveAgentSession): Promise<void> {

@@ -78,6 +78,89 @@ afterEach(() => {
 });
 
 describe("Decisions approval cascade", () => {
+  it("reports the actual screening model and distinguishes deferral from invalid answers", async () => {
+    const { fetchMock, options } = setup();
+    fetchMock.mockResolvedValue(
+      Response.json({
+        answers: {
+          call_0: answer("allow"),
+          call_1: answer("deny"),
+        },
+      }),
+    );
+    const callbacks = requests.map(() => vi.fn());
+    await runApprovalReview({
+      ...options,
+      requests: requests.map((request, index) => ({
+        ...request,
+        onReview: callbacks[index],
+      })),
+    });
+    expect(callbacks[0]).toHaveBeenCalledWith(
+      expect.objectContaining({
+        kind: "decisions",
+        providerId: "openrouter",
+        modelId: options.settings.decisionsModel,
+        outcome: "allow",
+      }),
+    );
+    expect(callbacks[1]).toHaveBeenCalledWith(
+      expect.objectContaining({ outcome: "fallback" }),
+    );
+    expect(callbacks[2]).toHaveBeenCalledWith(
+      expect.objectContaining({
+        outcome: "error",
+        reason: expect.stringContaining("no valid answer"),
+      }),
+    );
+  });
+
+  it("reports screening failures before invoking the fallback reviewer", async () => {
+    const { fetchMock, options } = setup();
+    fetchMock.mockResolvedValue(new Response("unavailable", { status: 503 }));
+    const onReview = vi.fn();
+    options.reviewWithModel.mockImplementation((pending) => {
+      expect(onReview).toHaveBeenCalledWith(
+        expect.objectContaining({
+          modelId: "typesafe/jev-1.13",
+          outcome: "error",
+          reason: "Decisions API returned HTTP 503.",
+        }),
+      );
+      return Promise.resolve(
+        pending.map(({ toolCallId }) => ({
+          toolCallId,
+          verdict: "allow" as const,
+        })),
+      );
+    });
+    await runApprovalReview({
+      ...options,
+      requests: [{ ...requests[0], onReview }],
+    });
+  });
+
+  it("records the versioned model returned by Decisions rather than its requested alias", async () => {
+    const { fetchMock, options } = setup();
+    fetchMock.mockResolvedValue(
+      Response.json({
+        model: "typesafe/jev-1.13-20260917",
+        answers: { call_0: answer("allow") },
+      }),
+    );
+    const onReview = vi.fn();
+    await runApprovalReview({
+      ...options,
+      requests: [{ ...requests[0], onReview }],
+    });
+    expect(onReview).toHaveBeenCalledWith(
+      expect.objectContaining({
+        modelId: "typesafe/jev-1.13-20260917",
+        outcome: "allow",
+      }),
+    );
+  });
+
   it("uses the alpha endpoint and screens only, then merges by the original call IDs", async () => {
     const { fetchMock, options } = setup();
     const rulings = await runApprovalReview(options);

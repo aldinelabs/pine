@@ -1303,6 +1303,19 @@ export default {
         fetchHighlights: "하이라이트: {value}",
       },
       toolDetails: {
+        reviewHistory: "검토 기록",
+        noReviewModel: "승인 모델을 사용할 수 없음",
+        reviewKinds: {
+          decisions: "Decisions 사전 검토",
+          model: "승인 모델",
+        },
+        reviewOutcomes: {
+          allow: "허용",
+          deny: "거부",
+          needs_user: "사용자 확인 필요",
+          fallback: "모델 검토로 전환",
+          error: "검토 실패",
+        },
         title: "도구 호출 세부 정보",
         description: "이 도구 호출의 상태, 매개변수, 결과를 확인합니다.",
         status: "실행 상태",
