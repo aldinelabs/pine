@@ -7,6 +7,9 @@ export default {
   cameraFailed:
     "Cannot access the camera. Allow camera access in your browser or system settings, then try again.",
 
+  pasteLink: "Or paste a pairing link",
+  pairWithLink: "Pair",
+
   title: "Pine Remote",
   unsupported:
     "This browser cannot use Remote Control. Use a recent Safari or Chrome.",

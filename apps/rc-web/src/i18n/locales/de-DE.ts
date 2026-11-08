@@ -7,6 +7,9 @@ export default {
   cameraFailed:
     "Kein Kamerazugriff. Erlaube den Zugriff in den Browser- oder Systemeinstellungen und versuche es erneut.",
 
+  pasteLink: "Oder Kopplungslink einfügen",
+  pairWithLink: "Koppeln",
+
   title: "Pine Fernzugriff",
   unsupported:
     "Dieser Browser kann die Fernsteuerung nicht nutzen. Verwenden Sie ein aktuelles Safari oder Chrome.",

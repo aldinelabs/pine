@@ -4,6 +4,7 @@ import { computed, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import PairingScanner from "@/components/PairingScanner.vue";
 import PineLogo from "@/components/PineLogo.vue";
+import { extractPairingUrl } from "@/pairingInput";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -23,6 +24,7 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@/components/ui/empty";
+import { Input } from "@/components/ui/input";
 import {
   Item,
   ItemActions,
@@ -55,6 +57,15 @@ function scanned(url: string): void {
   scanning.value = false;
   const shown = view.value;
   if (shown.kind === "list") shown.pair(url);
+}
+
+const pastedLink = ref("");
+
+function pairWithLink(): void {
+  const text = pastedLink.value.trim();
+  if (!text) return;
+  pastedLink.value = "";
+  scanned(extractPairingUrl(text));
 }
 
 const current = computed(() => view.value);
@@ -125,6 +136,31 @@ function confirmForget(): void {
           <ScanLineIcon data-icon="inline-start" />
           {{ t("scanCode") }}
         </Button>
+        <form
+          v-if="!scanning"
+          class="flex w-full gap-2"
+          @submit.prevent="pairWithLink"
+        >
+          <Input
+            v-model="pastedLink"
+            type="text"
+            inputmode="url"
+            autocomplete="off"
+            autocapitalize="none"
+            spellcheck="false"
+            class="min-w-0 flex-1"
+            :placeholder="t('pasteLink')"
+            :aria-label="t('pasteLink')"
+            data-testid="rc-paste-link"
+          />
+          <Button
+            type="submit"
+            variant="outline"
+            :disabled="!pastedLink.trim()"
+          >
+            {{ t("pairWithLink") }}
+          </Button>
+        </form>
       </EmptyContent>
 
       <ItemGroup

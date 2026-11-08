@@ -7,6 +7,9 @@ export default {
   cameraFailed:
     "カメラにアクセスできません。ブラウザーまたはシステムの設定でカメラを許可してから、再試行してください。",
 
+  pasteLink: "またはペアリングリンクを貼り付け",
+  pairWithLink: "ペアリング",
+
   title: "Pine リモート",
   unsupported:
     "このブラウザではリモート操作を利用できません。最新の Safari または Chrome をお使いください。",

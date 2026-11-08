@@ -7,6 +7,9 @@ export default {
   cameraFailed:
     "카메라에 접근할 수 없습니다. 브라우저 또는 시스템 설정에서 카메라를 허용한 후 다시 시도하세요.",
 
+  pasteLink: "또는 페어링 링크 붙여넣기",
+  pairWithLink: "페어링",
+
   title: "Pine 원격",
   unsupported:
     "이 브라우저에서는 원격 제어를 사용할 수 없습니다. 최신 Safari 또는 Chrome을 사용하세요.",

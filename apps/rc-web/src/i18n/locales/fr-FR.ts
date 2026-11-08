@@ -7,6 +7,9 @@ export default {
   cameraFailed:
     "Impossible d’accéder à la caméra. Autorisez-la dans les réglages du navigateur ou du système, puis réessayez.",
 
+  pasteLink: "Ou collez un lien d’appairage",
+  pairWithLink: "Associer",
+
   title: "Pine à distance",
   unsupported:
     "Ce navigateur ne peut pas utiliser le contrôle à distance. Utilisez une version récente de Safari ou de Chrome.",

@@ -340,8 +340,10 @@ the user opens themselves do not pulse.
     (usually Camera) and native browser; Chinese text warns against scanners
     in WeChat, Alipay and QQ. Pine Remote's computer list has "Scan pairing
     code", which opens the camera with a Back button and a camera-permission
-    error if access fails. Home Screen users scan inside that app to save
-    computers there. "Switch computer" returns to this list even with one
+    error if access fails. Below it, an "Or paste a pairing link" field with a
+    "Pair" button (or Enter) pairs from a copied link instead; extra text
+    around the link is ignored. Home Screen users scan or paste inside that
+    app to save computers there. "Switch computer" returns to this list even with one
     paired computer, so another can be added. Selecting a computer keeps that
     connection until the user switches or it disconnects.
     Browser access serves Pine to a browser behind an access

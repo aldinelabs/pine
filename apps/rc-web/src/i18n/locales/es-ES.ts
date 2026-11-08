@@ -7,6 +7,9 @@ export default {
   cameraFailed:
     "No se puede acceder a la cámara. Permite el acceso en los ajustes del navegador o del sistema e inténtalo de nuevo.",
 
+  pasteLink: "O pega un enlace de emparejamiento",
+  pairWithLink: "Emparejar",
+
   title: "Pine Remoto",
   unsupported:
     "Este navegador no puede usar el control remoto. Usa una versión reciente de Safari o Chrome.",
