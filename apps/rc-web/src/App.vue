@@ -141,7 +141,10 @@ function confirmForget(): void {
           @scanned="scanned"
           @cancel="mode = 'idle'"
         />
-        <template v-else-if="idle">
+        <div
+          v-else-if="idle"
+          class="flex w-full flex-wrap justify-center gap-2"
+        >
           <Button type="button" @click="mode = 'scan'">
             <ScanLineIcon data-icon="inline-start" />
             {{ t("scanCode") }}
@@ -150,7 +153,7 @@ function confirmForget(): void {
             <ClipboardPasteIcon data-icon="inline-start" />
             {{ t("pasteLink") }}
           </Button>
-        </template>
+        </div>
         <form
           v-else
           class="flex w-full flex-col gap-2"
@@ -187,6 +190,7 @@ function confirmForget(): void {
           :key="host.id"
           variant="outline"
           size="sm"
+          class="relative"
         >
           <ItemMedia variant="icon">
             <MonitorIcon />
