@@ -1,6 +1,11 @@
 import type zhCN from "./zh-CN";
 
 export default {
+  scanCode: "掃描配對 QR 碼",
+  scanDescription:
+    "將相機對準 Pine 設定 → 遠端控制中的配對 QR 碼。如果已將 Pine 遠端控制加入主畫面，請在此掃碼，將電腦儲存在此應用程式中。",
+  cameraFailed: "無法存取相機。請在瀏覽器或系統設定中允許相機權限，然後重試。",
+
   title: "Pine 遠端控制",
   unsupported: "這個瀏覽器不支援遠端控制。請使用最新版的 Safari 或 Chrome。",
   starting: "正在啟動…",

@@ -131,15 +131,17 @@ async function finishLink(next: Link, target: StoredHost, mine: number) {
     next.close();
     return;
   }
-  link?.close();
+  const previous = link;
   link = next;
+  previous?.close();
   host = target;
   await saveHost({ ...target, lastConnectedAt: Date.now() });
-  showPine();
+  if (mine === attempt && link === next) showPine();
 }
 
 async function open(target: StoredHost): Promise<void> {
   const mine = ++attempt;
+  releaseConnection(host?.id === target.id);
   status({ key: "connecting", values: { name: target.name } }, chooseAnother);
   let next: Link | undefined;
   try {
@@ -181,6 +183,7 @@ async function pair(url: string): Promise<void> {
     return;
   }
   const mine = ++attempt;
+  releaseConnection();
   const secret = fromBase64Url(offer.secret);
   const name = t("computer");
   let paired: (message: Record<string, unknown>) => void = () => undefined;
@@ -239,11 +242,26 @@ async function pair(url: string): Promise<void> {
   }
 }
 
+function releaseConnection(preserveFrame = false): void {
+  const previous = link;
+  link = undefined;
+  host = undefined;
+  previous?.close();
+  if (!preserveFrame) {
+    frame?.remove();
+    frame = undefined;
+  }
+}
+
 async function showList(): Promise<void> {
-  attempt += 1;
+  const mine = ++attempt;
+  releaseConnection();
+  const hosts = await listHosts();
+  if (mine !== attempt) return;
   view.value = {
     kind: "list",
-    hosts: await listHosts(),
+    hosts,
+    pair: (url) => void pair(url),
     open: (item) => void open(item),
     forget,
   };
@@ -252,11 +270,7 @@ async function showList(): Promise<void> {
 async function forget(item: StoredHost): Promise<void> {
   await forgetHost(item.id);
   if (host?.id === item.id) {
-    link?.close();
-    link = undefined;
-    host = undefined;
-    frame?.remove();
-    frame = undefined;
+    releaseConnection();
   }
   await showList();
 }

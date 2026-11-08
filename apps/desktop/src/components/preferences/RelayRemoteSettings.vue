@@ -374,6 +374,9 @@ function confirmRemove(): void {
             {{ t("preferences.relayRemote.pairDescription") }}
           </DialogDescription>
         </DialogHeader>
+        <p class="text-sm text-muted-foreground">
+          {{ t("preferences.relayRemote.pairBrowserHint") }}
+        </p>
         <div class="flex flex-col items-center gap-3">
           <!-- Always dark on white: cameras read a QR code by its contrast. -->
           <svg

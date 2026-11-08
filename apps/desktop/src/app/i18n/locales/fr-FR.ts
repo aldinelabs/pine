@@ -117,6 +117,8 @@ export default {
       pairTitle: "Associer un appareil",
       pairDescription:
         "Scannez le code avec l'appareil photo de l'appareil, ou ouvrez le lien d'association dans son navigateur. Cet ordinateur vous demandera de confirmer.",
+      pairBrowserHint:
+        "Utilisez de préférence le scanner QR du système (généralement l’appareil photo) et le navigateur natif. Si Pine Remote est sur votre écran d’accueil, scannez depuis cette app pour y enregistrer l’ordinateur.",
       pairExpires: "Le code et le lien expirent dans {time}.",
       pairExpired: "Le code a expiré.",
       pairAgain: "Nouveau code",

@@ -118,6 +118,8 @@ export default {
       pairTitle: "Gerät koppeln",
       pairDescription:
         "Scannen Sie den Code mit der Kamera des Geräts oder öffnen Sie den Kopplungslink in dessen Browser. Dieser Computer bittet Sie dann um Bestätigung.",
+      pairBrowserHint:
+        "Verwende für die Fernsteuerung möglichst den QR-Scanner des Systems (meist die Kamera) und den nativen Browser. Wenn Pine Remote auf deinem Home-Bildschirm liegt, scanne in dieser App, um den Computer dort zu speichern.",
       pairExpires: "Code und Link laufen in {time} ab.",
       pairExpired: "Der Code ist abgelaufen.",
       pairAgain: "Neuer Code",

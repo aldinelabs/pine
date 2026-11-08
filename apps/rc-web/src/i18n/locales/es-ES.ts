@@ -1,6 +1,12 @@
 import type zhCN from "./zh-CN";
 
 export default {
+  scanCode: "Escanear código de vinculación",
+  scanDescription:
+    "Apunta la cámara al código en Ajustes → Control remoto de Pine. Si añadiste Pine Remote a la pantalla de inicio, escanea aquí para guardar el ordenador en esta app.",
+  cameraFailed:
+    "No se puede acceder a la cámara. Permite el acceso en los ajustes del navegador o del sistema e inténtalo de nuevo.",
+
   title: "Pine Remoto",
   unsupported:
     "Este navegador no puede usar el control remoto. Usa una versión reciente de Safari o Chrome.",

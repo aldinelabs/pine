@@ -1,3 +1,4 @@
+import { approvalModeFromEntries } from "../shared/sessions";
 import {
   createAgentSession,
   DefaultResourceLoader,
@@ -502,11 +503,12 @@ export class PineAgentRuntime {
     message: string,
     streamingBehavior?: "followUp" | "steer",
     attachedPaths: readonly string[] = [],
-    approvalMode: PineApprovalMode = "auto-approve",
+    approvalMode?: PineApprovalMode,
     locale: "en-US" | "zh-CN" = "en-US",
     rewrite?: PineMessageRewriteTarget,
   ): Promise<AgentWorkerPromptResult> {
     const live = this.getSession(sessionId);
+    approvalMode ??= live.approvalMode;
     if (rewrite) await this.rewindToUserMessage(live, rewrite);
     live.locale = locale;
     this.setApprovalMode(live, live.automation ? "autonomous" : approvalMode);
@@ -1241,7 +1243,10 @@ export class PineAgentRuntime {
       cwd: location.cwd,
       approvalMode: location.automation
         ? "autonomous"
-        : (location.approvalMode ?? "auto-approve"),
+        : approvalModeFromEntries(
+            sessionManager.getEntries(),
+            location.approvalMode,
+          ),
       gate: undefined as never,
       mcpScriptApprovals: new McpScriptApprovalCache(),
       preapprovedActivations: new Set<string>(),

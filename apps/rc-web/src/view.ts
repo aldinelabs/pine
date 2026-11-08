@@ -27,6 +27,7 @@ export type View =
   | {
       kind: "list";
       hosts: StoredHost[];
+      pair: (url: string) => void;
       open: (host: StoredHost) => void;
       forget: (host: StoredHost) => Promise<void>;
     }

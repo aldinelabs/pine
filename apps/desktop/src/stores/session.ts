@@ -1111,8 +1111,15 @@ export const useSessionStore = defineStore("session", () => {
     approvalMode: PineApprovalMode,
     sessionId = currentSessionId.value,
   ): Promise<void> {
-    if (sessionId)
-      await window.pine.setApprovalMode({ approvalMode, sessionId });
+    if (sessionId) {
+      const result = await window.pine.setApprovalMode({
+        approvalMode,
+        sessionId,
+      });
+      const state = stateFor(sessionId);
+      if (result.updated && state.summary)
+        state.summary = { ...state.summary, approvalMode };
+    }
   }
 
   async function respondApproval(

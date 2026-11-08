@@ -50,11 +50,9 @@ describe("SwitchComputerButton", () => {
     );
   });
 
-  it("stays hidden with a single paired computer", async () => {
+  it("allows adding another computer with a single paired computer", async () => {
     const wrapper = await mountInShell(1);
-    expect(wrapper.find('[data-testid="switch-computer"]').exists()).toBe(
-      false,
-    );
+    expect(wrapper.find('[data-testid="switch-computer"]').exists()).toBe(true);
   });
 
   it("shows once another computer is paired", async () => {

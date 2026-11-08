@@ -240,7 +240,7 @@ it("keeps card content widths and scrolls the row on a phone", () => {
   ]);
   const scroll = wrapper.get("[data-testid=project-status-card-scroll]");
   expect(scroll.classes()).toContain("max-sm:overflow-x-auto");
-  expect(scroll.classes()).toContain("max-sm:scroll-fade-x");
+  expect(scroll.classes()).toContain("max-sm:pointer-events-auto");
   expect(scroll.classes()).toContain("max-sm:no-scrollbar");
   const row = wrapper.get("[data-testid=project-status-card-row]");
   expect(row.classes()).toContain("max-sm:min-w-full");

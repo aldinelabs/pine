@@ -107,6 +107,8 @@ export default {
       pairTitle: "配對新裝置",
       pairDescription:
         "用裝置的相機掃描QR Code，或在裝置的瀏覽器中開啟配對連結。這臺電腦會彈窗請你確認。",
+      pairBrowserHint:
+        "遠端控制請盡量使用系統原生掃碼器（通常是系統相機）和原生瀏覽器。不能使用微信、支付寶、QQ 等帶有內建瀏覽器的社群應用程式的掃一掃功能。如果已加入主畫面，請在 Pine 遠端控制內點選「掃描配對 QR 碼」，將電腦儲存在該應用程式中。",
       pairExpires: "QR Code和連結將在 {time} 後失效。",
       pairExpired: "QR Code已失效。",
       pairAgain: "重新產生",

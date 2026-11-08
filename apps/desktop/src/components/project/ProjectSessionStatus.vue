@@ -54,14 +54,14 @@ const hasTasks = computed(() => tasks.value.length > 0);
            horizontally with an edge fade, instead of squeezing either card. -->
       <div
         data-testid="project-status-card-scroll"
-        class="max-sm:w-full max-sm:overflow-x-auto max-sm:overscroll-x-contain max-sm:scroll-fade-x max-sm:no-scrollbar"
+        class="max-sm:pointer-events-auto max-sm:-mx-1 max-sm:overflow-x-auto max-sm:overscroll-x-contain max-sm:no-scrollbar"
       >
         <div
           data-testid="project-status-card-row"
           :class="
             cn(
               'flex w-fit max-w-full items-stretch gap-3',
-              'max-sm:min-w-full max-sm:max-w-none',
+              'max-sm:min-w-full max-sm:max-w-none max-sm:p-1',
               props.topGap === false ? 'pt-3' : 'pt-8',
             )
           "
