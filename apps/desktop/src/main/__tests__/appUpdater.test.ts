@@ -141,17 +141,19 @@ describe("app updater", () => {
       AppUpdaterOptions["windowsUpdater"]
     >;
     const emit = vi.fn();
+    const fetchManifest = vi
+      .fn()
+      .mockImplementation(() =>
+        Promise.resolve(
+          new Response(JSON.stringify(manifest), { status: 200 }),
+        ),
+      );
     const updater = new AppUpdater({
       arch: "x64",
       currentExecutable: "C:\\Users\\pine\\AppData\\Local\\Pine\\Pine.exe",
       currentVersion: "1.1.0",
       emit,
-      fetch: vi.fn().mockResolvedValue(
-        new Response(JSON.stringify(manifest), {
-          headers: { "content-type": "application/json" },
-          status: 200,
-        }),
-      ),
+      fetch: fetchManifest,
       manifestUrl,
       platform: "win32",
       quit: vi.fn(),
@@ -173,5 +175,18 @@ describe("app updater", () => {
 
     await expect(updater.install()).resolves.toEqual({ started: true });
     expect(rawWindowsUpdater.quitAndInstall).toHaveBeenCalledOnce();
+
+    // Rechecking the same release retains its ready installer.
+    await updater.check();
+    await expect(updater.install()).resolves.toEqual({ started: true });
+    fetchManifest.mockResolvedValueOnce(
+      new Response(JSON.stringify({ ...manifest, version: "1.3.0" }), {
+        status: 200,
+      }),
+    );
+    await updater.check();
+    await expect(updater.install()).rejects.toThrow(
+      "No downloaded Windows update is ready",
+    );
   });
 });

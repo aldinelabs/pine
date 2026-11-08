@@ -52,7 +52,15 @@ it("shows the update notice in place of the version and opens the update", async
   const notice = wrapper.get('[data-testid="pine-version"]');
   expect(notice.text()).toBe("新版本 Pine 可用");
   expect(notice.classes()).toContain("text-info");
+  const check = vi.fn().mockResolvedValue({
+    status: "available",
+    update: { ...updater.update, version: "3.0.0" },
+  });
+  window.pine.checkForUpdate = check;
   await notice.trigger("click");
+  await flushPromises();
+  expect(check).toHaveBeenCalledOnce();
+  expect(updater.update?.version).toBe("3.0.0");
   expect(updater.isDialogOpen).toBe(true);
   expect(window.pine.openExternalUrl).not.toHaveBeenCalled();
   wrapper.unmount();

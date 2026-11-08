@@ -30,7 +30,7 @@ onMounted(() => {
 
 function onClick(): void {
   if (isAvailable.value) {
-    updater.isDialogOpen = true;
+    void updater.openDialog();
     return;
   }
   void window.pine.openExternalUrl(PINE_RELEASES_URL);
@@ -45,6 +45,7 @@ function onClick(): void {
     size="sm"
     :class="isAvailable ? 'text-info hover:text-info' : 'text-muted-foreground'"
     class="window-no-drag h-8 transition-opacity delay-500 duration-200 ease-out group-data-[state=collapsed]:opacity-0 group-data-[state=collapsed]:delay-0 group-data-[state=collapsed]:duration-100 motion-reduce:transition-none"
+    :disabled="updater.isChecking"
     @click="onClick"
   >
     <template v-if="isAvailable">

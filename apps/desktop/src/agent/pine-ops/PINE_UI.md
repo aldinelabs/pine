@@ -329,7 +329,10 @@ the user opens themselves do not pulse.
 - Session search overlay: search across all projects, open a result.
 - Model picker, provider sign-in, custom model and custom provider dialogs,
   opened from the composer's Model control or Pine Settings › Models.
-- Update dialog: release notes and installing an update.
+- Update dialog: release notes and installing an update. Clicking the update
+  notice above the workbench checks again in place before opening the dialog.
+  Pine also checks for updates every two hours. An ongoing download or
+  installation keeps its selected version.
 - Quit confirmation, when sessions are still running or Remote Control is on.
 - Confirmation dialogs for deleting projects, sessions, folders and Skills,
   and for enabling YOLO.
