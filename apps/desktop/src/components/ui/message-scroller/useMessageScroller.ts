@@ -516,6 +516,7 @@ function createEngine(props: MessageScrollerProviderProps) {
     props.scrollPreviousItemPeek ?? DEFAULT_SCROLL_PREVIOUS_ITEM_PEEK;
   const scrollMargin = () => props.scrollMargin ?? DEFAULT_SCROLL_MARGIN;
   const followAnimated = () => props.followAnimated ?? false;
+  let followSettleUntil = 0;
   const isActive = () => props.active ?? true;
 
   let viewport: HTMLElement | null = null;
@@ -788,7 +789,10 @@ function createEngine(props: MessageScrollerProviderProps) {
     if (
       preserveAnchor ||
       behavior === "smooth" ||
-      shouldAnimateFollow(animated, followAnimated())
+      shouldAnimateFollow(
+        animated,
+        followAnimated() || performance.now() < followSettleUntil,
+      )
     ) {
       if (isAutoscrolling) setAutoscrolling(true);
       cancelScrollAnimation = preserveAnchor
@@ -828,6 +832,11 @@ function createEngine(props: MessageScrollerProviderProps) {
   }: { behavior?: ScrollBehavior; animated?: boolean } = {}): boolean {
     if (!viewport) return false;
     setProgrammaticScroll(false);
+    // Enter follow mode even when a folding panel temporarily holds the
+    // viewport. Otherwise the anchor-to-bottom hand-off returns early and
+    // subsequent resizes keep re-anchoring to the old user message.
+    streamingTurn = null;
+    setMode(autoScroll() ? "following-bottom" : "free-scrolling");
     if (animated && collapseHoldTop !== null) {
       const contentEnd = maxScrollTop(viewport) - spacerHeight;
       setSpacerHeight(collapseHoldTop - contentEnd);
@@ -838,8 +847,6 @@ function createEngine(props: MessageScrollerProviderProps) {
       }
     }
     clearSpacer();
-    streamingTurn = null;
-    setMode(autoScroll() ? "following-bottom" : "free-scrolling");
     scrollTo(maxScrollTop(viewport), {
       autoscrolling: true,
       behavior,
@@ -1393,6 +1400,13 @@ function createEngine(props: MessageScrollerProviderProps) {
     commitScrollState();
   }
 
+  function onFollowAnimatedChange() {
+    // The last tool groups still fold and final Markdown still settles after
+    // a live reply stops. Keep their follow scroll on the same curve; static
+    // history starts with no grace period and continues to open immediately.
+    followSettleUntil = performance.now() + DURATION_MS;
+  }
+
   function destroy() {
     releaseCollapseHold();
     cancelScrollAnimation?.();
@@ -1451,6 +1465,7 @@ function createEngine(props: MessageScrollerProviderProps) {
     applyDefaultScrollPosition,
     onActiveChange,
     onAutoScrollChange,
+    onFollowAnimatedChange,
     destroy,
   };
 }
@@ -1467,6 +1482,12 @@ export function provideMessageScroller(props: MessageScrollerProviderProps) {
   watch(
     () => props.autoScroll ?? false,
     () => engine.onAutoScrollChange(),
+  );
+  watch(
+    () => props.followAnimated ?? false,
+    (animated, wasAnimated) => {
+      if (wasAnimated && !animated) engine.onFollowAnimatedChange();
+    },
   );
   // Post flush: the panel is visible again, so measurements are real.
   watch(

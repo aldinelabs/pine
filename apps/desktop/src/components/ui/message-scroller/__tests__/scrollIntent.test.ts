@@ -182,6 +182,22 @@ beforeEach(() => {
 });
 
 describe("message scroller user intent", () => {
+  it("lets the final tool collapses settle smoothly after a live reply ends", async () => {
+    const now = vi.spyOn(performance, "now").mockReturnValue(1000);
+    const scroller = createScroller(true);
+    scroller.props.followAnimated = false;
+    await nextTick();
+    scroller.grow();
+    expect(animateScrollTop).toHaveBeenCalledOnce();
+
+    now.mockReturnValue(1501);
+    scroller.grow();
+    expect(animateScrollTop).toHaveBeenCalledOnce();
+    expect(scroller.viewport.scrollTop).toBe(1700);
+    scroller.destroy();
+    now.mockRestore();
+  });
+
   it("keeps the view steady when body text appears as thinking folds", () => {
     vi.useFakeTimers();
     const scroller = createAnchoredScroller();
@@ -241,11 +257,15 @@ describe("message scroller user intent", () => {
     // hand-off from anchoring to bottom following must retain the hold.
     scroller.grow(38);
     expect(scroller.viewport.scrollTop).toBe(1936);
+    expect(scroller.context.followingBottom.value).toBe(true);
     scroller.grow(-200);
     expect(scroller.viewport.scrollTop).toBe(1936);
     expect(scroller.spacer.style.height).toBe("181px");
     vi.advanceTimersByTime(500);
     expect(scroller.viewport.scrollTop).toBe(1936);
+    scroller.grow(200);
+    expect(scroller.spacer.hidden).toBe(true);
+    expect(scroller.viewport.scrollTop).toBe(1955);
     scroller.destroy();
     vi.useRealTimers();
   });
@@ -425,7 +445,9 @@ describe("message scroller user intent", () => {
     scroller.context.userScrollIntent("start");
     scroller.viewport.scrollTop = 1800;
     scroller.context.syncAfterScroll();
-    expect(scroller.viewport.scrollHeight - scroller.viewport.clientHeight).toBe(1800);
+    expect(
+      scroller.viewport.scrollHeight - scroller.viewport.clientHeight,
+    ).toBe(1800);
 
     // A downward wheel at the new edge produces no scroll event. It must
     // not mistake the remaining spacer for the actual live content edge.
@@ -437,9 +459,13 @@ describe("message scroller user intent", () => {
 
     scroller.viewport.scrollTop = 1700;
     scroller.context.syncAfterScroll();
-    expect(scroller.viewport.scrollHeight - scroller.viewport.clientHeight).toBe(1700);
+    expect(
+      scroller.viewport.scrollHeight - scroller.viewport.clientHeight,
+    ).toBe(1700);
     scroller.grow(100);
-    expect(scroller.viewport.scrollHeight - scroller.viewport.clientHeight).toBe(1700);
+    expect(
+      scroller.viewport.scrollHeight - scroller.viewport.clientHeight,
+    ).toBe(1700);
     expect(scroller.spacer.style.height).toBe("50px");
     scroller.destroy();
   });

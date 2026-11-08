@@ -1,4 +1,5 @@
 import { flushPromises, mount } from "@vue/test-utils";
+import { defineComponent, h, ref } from "vue";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createPinia, setActivePinia } from "pinia";
 import { createAppI18n } from "@/app/i18n";
@@ -10,6 +11,7 @@ import ProjectThinkingMarker from "../ProjectThinkingMarker.vue";
 import ProjectTranscriptMessage from "../ProjectTranscriptMessage.vue";
 import ProjectToolCallGroup from "../ProjectToolCallGroup.vue";
 import ProjectToolCallMarker from "../ProjectToolCallMarker.vue";
+import { provideMessageScroller } from "@/components/ui/message-scroller/useMessageScroller";
 
 function mountMessage(
   message: PineTranscriptMessage,
@@ -28,6 +30,71 @@ function mountMessage(
 
 describe("ProjectTranscriptMessage", () => {
   beforeEach(() => setActivePinia(createPinia()));
+
+  it.each(["text", "toolCall"] as const)(
+    "only reserves the thinking hand-over for subsequent body text: %s",
+    async (kind) => {
+      const preserve = vi.fn();
+      const message = ref<PineTranscriptMessage>({
+        id: "assistant",
+        createdAt: "2000-01-01T00:00:00Z",
+        role: "assistant",
+        status: "streaming",
+        thinkingStatus: "streaming",
+        blocks: [
+          { type: "text", text: "Earlier output." },
+          { type: "thinking", thinking: "Check the next file." },
+        ],
+      });
+      const wrapper = mount(
+        defineComponent({
+          setup() {
+            const engine = provideMessageScroller({ autoScroll: true });
+            engine.context.preserveViewportOnCollapse = preserve;
+            return () =>
+              h(ProjectTranscriptMessage, { message: message.value });
+          },
+        }),
+        { global: { plugins: [createAppI18n("en-US")] } },
+      );
+      try {
+        expect(
+          wrapper
+            .findComponent(ProjectThinkingMarker)
+            .get("button")
+            .attributes("aria-expanded"),
+        ).toBe("true");
+        message.value = {
+          ...message.value,
+          thinkingStatus: "complete",
+          blocks: [
+            ...message.value.blocks,
+            kind === "text"
+              ? { type: "text", text: "Here is the result." }
+              : {
+                  type: "toolCall",
+                  toolCall: {
+                    id: "read",
+                    name: "read",
+                    status: "complete",
+                    input: { path: "/tmp/file.ts" },
+                  },
+                },
+          ],
+        };
+        await flushPromises();
+        expect(
+          wrapper
+            .findComponent(ProjectThinkingMarker)
+            .get("button")
+            .attributes("aria-expanded"),
+        ).toBe("false");
+        expect(preserve).toHaveBeenCalledTimes(kind === "text" ? 1 : 0);
+      } finally {
+        wrapper.unmount();
+      }
+    },
+  );
 
   it("renders streaming assistant output as Markdown too", () => {
     const wrapper = mountMessage({

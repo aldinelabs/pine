@@ -187,6 +187,9 @@ From top to bottom:
      keeps its position steady.
      When thinking folds as an answer begins, the view holds steady and the
      answer fills the room it leaves before following new text again.
+     Alternating short thinking and tool runs follows their actual height
+     without reserving extra blank space. The last tool runs still fold with
+     smooth scroll following as a reply finishes.
      Scrolling up releases unused space below a newly positioned turn; a quick
      downward scroll cannot return to that discarded blank area or snap the
      conversation back to the bottom.
