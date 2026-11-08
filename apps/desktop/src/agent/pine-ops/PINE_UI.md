@@ -344,7 +344,8 @@ the user opens themselves do not pulse.
 A floating composer opened with a global shortcut from any app (set in Pine
 Settings › General). It can capture the frontmost app's window and selected
 text as context when the user grants the screen and accessibility permissions,
-then hands the new conversation to the main window.
+then hands the new conversation to the main window. Files, pasted images and
+long pasted text can be attached before the conversation opens in a window.
 
 ## Tray and menu bar
 

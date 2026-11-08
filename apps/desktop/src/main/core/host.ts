@@ -35,6 +35,8 @@ export interface PineHost {
   fileActions: ProjectFileNativeActions;
   /** Delivers an event to a desktop window; false once it is gone. */
   sendToClient(clientId: number, channel: string, value: unknown): boolean;
+  /** The floating composer can save attachments before opening a project. */
+  isQuickComposerClient?(clientId: number): boolean;
   /** Brings a desktop window to the front; false when there is none. */
   focusClient(clientId: number): boolean;
   /** Tells desktop windows other than the source that the library changed. */
