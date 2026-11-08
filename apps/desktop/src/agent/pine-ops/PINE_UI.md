@@ -159,8 +159,8 @@ From top to bottom:
      calls (for example "Ran 3 automation actions");
    - markers for context compaction, errors, stopped responses and background
      process events;
-   - interactive answer blocks (checklists, tables, charts, inputs) when rich
-     interactive answers are enabled.
+   - interactive answer blocks (checklists, tables, charts, inputs) when
+     interactive answers are enabled in Pine Settings › Agent.
      "Load earlier messages" appears at the top of long sessions. The
      Conversation outline lists the user's turns for quick jumping.
      Selecting text in the transcript shows a popover with Quote (adds it to
@@ -299,14 +299,13 @@ the user opens themselves do not pulse.
     documents in dark mode.
   - Models: model catalog refresh, title generation model, approval model,
     image generation model, video generation model, Decisions model.
-  - Agent: automatic approval path, context compaction strategy and method,
+  - Agent: Interactive answers switch (Enabled or Disabled; enabled by default),
+    automatic approval path, context compaction strategy and method,
     TinyFish web tools key (shows Configured or Not configured), approximate
     location.
   - User profile: nickname, communication style (Calm & professional,
     Neutral or Warm & friendly; disabled while Monet mode is on), technical
-    background,
-    interactive answers (Rich or Simple), personal details, custom
-    instructions.
+    background, personal details, custom instructions.
   - Projects: every project with its data usage; New Project, Edit, clear
     temporary files, clear attachments.
   - Remote control (desktop app only): "Remote control via Aldine" pairs

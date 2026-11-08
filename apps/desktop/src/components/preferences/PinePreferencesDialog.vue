@@ -114,7 +114,6 @@ import { DEFAULT_APPROXIMATE_LOCATION_ENABLED } from "@/shared/approximateLocati
 import {
   createDefaultPineUserProfile,
   isPineCommunicationStyle,
-  isPineInterfaceElements,
   isPineTechnicalBackground,
   normalizePineUserProfile,
   type PineUserProfile,
@@ -238,13 +237,6 @@ const technicalBackgroundDescription = computed(() =>
     profileDraft.technicalBackground === "general-user"
       ? "preferences.userProfileTechGeneralDescription"
       : "preferences.userProfileTechProfessionalDescription",
-  ),
-);
-const interfaceElementsDescription = computed(() =>
-  t(
-    profileDraft.interfaceElements === "rich"
-      ? "preferences.userProfileInterfaceRichDescription"
-      : "preferences.userProfileInterfaceSimpleDescription",
   ),
 );
 const isProfileDirty = computed(
@@ -371,7 +363,7 @@ function userProfilesEqual(a: PineUserProfile, b: PineUserProfile): boolean {
     a.nickname === b.nickname &&
     a.personalDetails === b.personalDetails &&
     a.technicalBackground === b.technicalBackground &&
-    a.interfaceElements === b.interfaceElements
+    a.interactiveAnswersEnabled === b.interactiveAnswersEnabled
   );
 }
 
@@ -473,12 +465,6 @@ async function refreshModelCatalog(): Promise<void> {
 function updateCommunicationStyle(value: unknown): void {
   if (typeof value === "string" && isPineCommunicationStyle(value)) {
     profileDraft.communicationStyle = value;
-  }
-}
-
-function updateInterfaceElements(value: unknown): void {
-  if (typeof value === "string" && isPineInterfaceElements(value)) {
-    profileDraft.interfaceElements = value;
   }
 }
 
@@ -1094,32 +1080,6 @@ defineExpose({ open });
               </Field>
 
               <Field>
-                <FieldLabel id="pine-user-profile-interface-label">
-                  {{ t("preferences.userProfileInterfaceLabel") }}
-                </FieldLabel>
-                <ToggleGroup
-                  type="single"
-                  variant="outline"
-                  size="sm"
-                  :spacing="2"
-                  class="w-full"
-                  :model-value="profileDraft.interfaceElements"
-                  aria-labelledby="pine-user-profile-interface-label"
-                  @update:model-value="updateInterfaceElements"
-                >
-                  <ToggleGroupItem value="rich" class="flex-1">
-                    {{ t("preferences.userProfileInterfaceRich") }}
-                  </ToggleGroupItem>
-                  <ToggleGroupItem value="simple" class="flex-1">
-                    {{ t("preferences.userProfileInterfaceSimple") }}
-                  </ToggleGroupItem>
-                </ToggleGroup>
-                <FieldDescription>
-                  {{ interfaceElementsDescription }}
-                </FieldDescription>
-              </Field>
-
-              <Field>
                 <FieldLabel for="pine-user-profile-details">
                   {{ t("preferences.userProfileDetailsLabel") }}
                 </FieldLabel>
@@ -1693,6 +1653,32 @@ defineExpose({ open });
           </div>
           <div v-else-if="activeSection === 'agent'" class="p-6 max-sm:px-4">
             <FieldGroup>
+              <Field orientation="horizontal">
+                <div class="flex min-w-0 flex-1 flex-col gap-1">
+                  <FieldTitle id="pine-interactive-answers-setting">
+                    {{ t("preferences.interactiveAnswers") }}
+                  </FieldTitle>
+                  <FieldDescription id="pine-interactive-answers-description">
+                    {{ t("preferences.interactiveAnswersDescription") }}
+                  </FieldDescription>
+                </div>
+                <span class="text-sm text-muted-foreground" aria-hidden="true">
+                  {{
+                    profileDraft.interactiveAnswersEnabled
+                      ? t("preferences.interactiveAnswersEnabled")
+                      : t("preferences.interactiveAnswersDisabled")
+                  }}
+                </span>
+                <Switch
+                  v-model="profileDraft.interactiveAnswersEnabled"
+                  data-testid="pine-interactive-answers-toggle"
+                  :disabled="!hasHydratedProfile"
+                  aria-labelledby="pine-interactive-answers-setting"
+                  aria-describedby="pine-interactive-answers-description"
+                />
+              </Field>
+
+              <FieldSeparator />
               <FieldSet>
                 <FieldLegend
                   variant="label"

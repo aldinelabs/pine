@@ -134,7 +134,7 @@ describe("PinePreferencesDialog", () => {
     getUserProfile.mockResolvedValue({
       communicationStyle: "calm-professional",
       customInstructions: "",
-      interfaceElements: "rich",
+      interactiveAnswersEnabled: true,
       monetMode: false,
       nickname: "",
       personalDetails: "",
@@ -426,6 +426,46 @@ describe("PinePreferencesDialog", () => {
     expect(picker?.attributes("data-open")).toBe("true");
   });
 
+  it.each([true, false])(
+    "edits interactive answers as an Agent switch (saved value: %s)",
+    async (enabled) => {
+      installPineApi("linux");
+      getUserProfile.mockResolvedValue({
+        ...createDefaultPineUserProfile(),
+        interactiveAnswersEnabled: enabled,
+        nickname: "Existing user",
+      });
+      const { wrapper } = mountDialog();
+      await openSection(wrapper, "自定义");
+      expect(wrapper.text()).not.toContain("交互式回答");
+      expect(
+        wrapper
+          .find('[data-testid="pine-interactive-answers-toggle"]')
+          .exists(),
+      ).toBe(false);
+      await openSection(wrapper, "智能体");
+      const toggle = wrapper.get(
+        '[data-testid="pine-interactive-answers-toggle"]',
+      );
+      expect(toggle.attributes("role")).toBe("switch");
+      expect(toggle.attributes("aria-checked")).toBe(String(enabled));
+      expect(wrapper.text()).toContain(enabled ? "启用" : "禁用");
+      expect(wrapper.text()).not.toContain("丰富");
+      expect(wrapper.text()).not.toContain("简洁");
+      await toggle.trigger("click");
+      expect(toggle.attributes("aria-checked")).toBe(String(!enabled));
+      await vi.waitFor(() =>
+        expect(setUserProfile).toHaveBeenCalledWith(
+          expect.objectContaining({
+            interactiveAnswersEnabled: !enabled,
+            nickname: "Existing user",
+          }),
+        ),
+      );
+      wrapper.unmount();
+    },
+  );
+
   it("edits the user profile inline in the personalization section", async () => {
     installPineApi("linux");
     getUserProfile.mockResolvedValue({
@@ -474,7 +514,7 @@ describe("PinePreferencesDialog", () => {
       expect(setUserProfile).toHaveBeenCalledWith({
         communicationStyle: "calm-professional",
         customInstructions: "先给出结论，再解释关键原因。",
-        interfaceElements: "rich",
+        interactiveAnswersEnabled: true,
         monetMode: false,
         nickname: "小 Pine",
         personalDetails: "正在学习桌面应用开发",
