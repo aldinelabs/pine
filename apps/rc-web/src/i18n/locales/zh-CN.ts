@@ -4,7 +4,7 @@ export default {
     "将相机对准 Pine 设置 → 远程控制中的配对二维码。如果已将 Pine 远程控制添加到主屏幕，请在此扫码，将电脑保存在此应用中。",
   cameraFailed: "无法访问相机。请在浏览器或系统设置中允许相机权限，然后重试。",
 
-  pasteLink: "或粘贴配对链接",
+  pasteLink: "粘贴配对链接",
   pairWithLink: "配对",
 
   title: "Pine 远程控制",

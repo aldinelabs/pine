@@ -7,7 +7,7 @@ export default {
   cameraFailed:
     "Kein Kamerazugriff. Erlaube den Zugriff in den Browser- oder Systemeinstellungen und versuche es erneut.",
 
-  pasteLink: "Oder Kopplungslink einfügen",
+  pasteLink: "Kopplungslink einfügen",
   pairWithLink: "Koppeln",
 
   title: "Pine Fernzugriff",

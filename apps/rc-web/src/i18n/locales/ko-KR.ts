@@ -7,7 +7,7 @@ export default {
   cameraFailed:
     "카메라에 접근할 수 없습니다. 브라우저 또는 시스템 설정에서 카메라를 허용한 후 다시 시도하세요.",
 
-  pasteLink: "또는 페어링 링크 붙여넣기",
+  pasteLink: "페어링 링크 붙여넣기",
   pairWithLink: "페어링",
 
   title: "Pine 원격",

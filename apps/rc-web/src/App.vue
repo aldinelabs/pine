@@ -1,5 +1,10 @@
 <script setup lang="ts">
-import { MonitorIcon, TrashIcon, ScanLineIcon } from "@lucide/vue";
+import {
+  ClipboardPasteIcon,
+  MonitorIcon,
+  TrashIcon,
+  ScanLineIcon,
+} from "@lucide/vue";
 import { computed, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import PairingScanner from "@/components/PairingScanner.vue";
@@ -51,10 +56,12 @@ const dateFormat = computed(
 const forgetting = ref<StoredHost>();
 const isForgetOpen = ref(false);
 
-const scanning = ref(false);
+const mode = ref<"idle" | "scan" | "paste">("idle");
+const scanning = computed(() => mode.value === "scan");
+const idle = computed(() => mode.value === "idle");
 
 function scanned(url: string): void {
-  scanning.value = false;
+  mode.value = "idle";
   const shown = view.value;
   if (shown.kind === "list") shown.pair(url);
 }
@@ -93,8 +100,10 @@ function confirmForget(): void {
           <PineLogo class="size-10" />
         </EmptyMedia>
         <template v-if="current.kind === 'list'">
-          <EmptyTitle>{{ t(scanning ? "scanCode" : "title") }}</EmptyTitle>
-          <EmptyDescription v-if="!scanning && current.hosts.length === 0">
+          <EmptyTitle>{{
+            t(scanning ? "scanCode" : mode === "paste" ? "pasteLink" : "title")
+          }}</EmptyTitle>
+          <EmptyDescription v-if="idle && current.hosts.length === 0">
             {{ t("emptyList") }}
           </EmptyDescription>
         </template>
@@ -130,15 +139,21 @@ function confirmForget(): void {
         <PairingScanner
           v-if="scanning"
           @scanned="scanned"
-          @cancel="scanning = false"
+          @cancel="mode = 'idle'"
         />
-        <Button v-else type="button" @click="scanning = true">
-          <ScanLineIcon data-icon="inline-start" />
-          {{ t("scanCode") }}
-        </Button>
+        <template v-else-if="idle">
+          <Button type="button" @click="mode = 'scan'">
+            <ScanLineIcon data-icon="inline-start" />
+            {{ t("scanCode") }}
+          </Button>
+          <Button type="button" variant="outline" @click="mode = 'paste'">
+            <ClipboardPasteIcon data-icon="inline-start" />
+            {{ t("pasteLink") }}
+          </Button>
+        </template>
         <form
-          v-if="!scanning"
-          class="flex w-full gap-2"
+          v-else
+          class="flex w-full flex-col gap-2"
           @submit.prevent="pairWithLink"
         >
           <Input
@@ -148,23 +163,22 @@ function confirmForget(): void {
             autocomplete="off"
             autocapitalize="none"
             spellcheck="false"
-            class="min-w-0 flex-1"
+            autofocus
             :placeholder="t('pasteLink')"
             :aria-label="t('pasteLink')"
             data-testid="rc-paste-link"
           />
-          <Button
-            type="submit"
-            variant="outline"
-            :disabled="!pastedLink.trim()"
-          >
+          <Button type="submit" :disabled="!pastedLink.trim()">
             {{ t("pairWithLink") }}
+          </Button>
+          <Button type="button" variant="ghost" @click="mode = 'idle'">
+            {{ t("cancel") }}
           </Button>
         </form>
       </EmptyContent>
 
       <ItemGroup
-        v-if="current.kind === 'list' && !scanning && current.hosts.length"
+        v-if="current.kind === 'list' && idle && current.hosts.length"
         class="w-full gap-2 text-left"
         data-testid="rc-hosts"
       >
