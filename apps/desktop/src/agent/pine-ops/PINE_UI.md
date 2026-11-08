@@ -150,7 +150,8 @@ From top to bottom:
    - for an automation run, a card at the top with the automation's name,
      trigger and start time; "Instructions" expands what it was asked to do;
    - tool call groups; clicking a call opens Tool call details (status,
-     approval, parameters, result);
+     approval, parameters, result). During automatic review and approval waits,
+     tool targets keep their monospace styling within the shimmering label;
    - file search calls ("Found files for …", "Searched code for …"), which
      show the searched name or text and how many files or lines matched; their
      details list each file, line number and matching line;

@@ -944,6 +944,11 @@ const presentation = computed(() => {
     kind === "edit" ||
     kind === "write" ||
     kind === "skill" ||
+    kind === "fileSearch" ||
+    kind === "datetime" ||
+    kind === "mcpConfig" ||
+    kind === "mcp" ||
+    isPresentFileTool(props.toolCall.name) ||
     ((kind === "computer" || kind === "browser") &&
       computerUseTargetMono(
         input,
@@ -1027,7 +1032,7 @@ const presentation = computed(() => {
       }),
       operation: undefined,
       separator: "",
-      target,
+      target: kind === "fileSearch" ? compactInline(query ?? "") : target,
       targetMono,
       purpose: compactPurpose,
       faviconDataUrl,
@@ -1104,7 +1109,7 @@ const presentation = computed(() => {
       operation: undefined,
       separator: "",
       target: compactInline(subject),
-      targetMono: true,
+      targetMono,
       purpose: undefined,
       faviconDataUrl: undefined,
       after: `${t(`project.transcript.tools.fileSearch.${operation}.${tense}.after`)}${found}`,
@@ -1122,7 +1127,7 @@ const presentation = computed(() => {
       operation: undefined,
       separator: target ? " " : "",
       target,
-      targetMono: true,
+      targetMono,
       purpose: undefined,
       faviconDataUrl: undefined,
       after: "",
@@ -1191,7 +1196,7 @@ const presentation = computed(() => {
         operation === "activate" || operation === "list"
           ? ""
           : (firstString(input, ["name"]) ?? ""),
-      targetMono: true,
+      targetMono,
       purpose: undefined,
       faviconDataUrl: undefined,
       after: "",
@@ -1241,7 +1246,7 @@ const presentation = computed(() => {
       operation: undefined,
       separator: "",
       target,
-      targetMono: true,
+      targetMono,
       purpose: undefined,
       faviconDataUrl: undefined,
       after: "",
@@ -1278,7 +1283,7 @@ const presentation = computed(() => {
       operation: undefined,
       separator: target ? " " : "",
       target,
-      targetMono: true,
+      targetMono,
       purpose: undefined,
       faviconDataUrl: undefined,
       after: "",
