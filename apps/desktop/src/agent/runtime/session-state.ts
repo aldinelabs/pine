@@ -1,3 +1,4 @@
+import { approvalModeFromEntries } from "../../shared/sessions";
 import type { BackgroundTaskRegistry } from "@pine/pi-background-tasks/registry";
 import type {
   AgentSession,
@@ -146,6 +147,7 @@ export function sessionSummary(session: AgentSession): PineSessionSummary {
   const createdAt = header?.timestamp ?? new Date().toISOString();
 
   return {
+    approvalMode: approvalModeFromEntries(entries),
     id: session.sessionId,
     createdAt,
     // Same rule as the session list, so opening a session never moves it.

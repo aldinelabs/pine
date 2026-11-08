@@ -265,7 +265,24 @@ const attachments = computed<PineAttachment[]>({
     contentTabsStore.setAttachments(props.tabId, value);
   },
 });
-const approvalMode = ref<PineApprovalMode>("auto-approve");
+const draftApprovalMode = ref<PineApprovalMode>("auto-approve");
+const approvalMode = computed<PineApprovalMode>({
+  get: () =>
+    props.sessionId
+      ? (tabState.value?.summary?.approvalMode ??
+        (sessionStore.automationRunOf(props.sessionId)
+          ? "autonomous"
+          : "auto-approve"))
+      : draftApprovalMode.value,
+  set: (value) => {
+    contentTabsStore.keepTab(props.tabId);
+    if (!props.sessionId) draftApprovalMode.value = value;
+    else
+      void sessionStore
+        .setApprovalMode(value, props.sessionId)
+        .catch(() => undefined);
+  },
+});
 /** Passages quoted from this transcript into the composer. */
 const quotes = ref<PineQuote[]>([]);
 const transcriptRegion = useTemplateRef<HTMLElement>("transcriptRegion");
@@ -374,31 +391,10 @@ function messageRenderSignature(message: PineTranscriptMessage): string {
 
 onMounted(() => sessionStore.connectAgentEvents());
 
-// An automation run works in Autonomous mode; its composer says so, and a
-// reply keeps that mode unless the user picks another.
-watch(
-  () =>
-    props.sessionId !== undefined &&
-    sessionStore.automationRunOf(props.sessionId) !== undefined,
-  (isRun) => {
-    if (isRun) approvalMode.value = "autonomous";
-  },
-  { immediate: true },
-);
-
 // Anything the user does in a tab makes it theirs: it stops being a preview
 // that the next casual open would replace.
 watch([draft, isRunning], ([text, running]) => {
   if (text || running) contentTabsStore.keepTab(props.tabId);
-});
-
-watch(approvalMode, (value) => {
-  contentTabsStore.keepTab(props.tabId);
-  // Prompt requests carry the same value as a fallback; this eager update
-  // makes the new policy apply to later tool calls in an already-running turn.
-  void sessionStore
-    .setApprovalMode(value, props.sessionId ?? null)
-    .catch(() => undefined);
 });
 
 /** Blocks in replies send their follow-ups like typed messages. */

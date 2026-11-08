@@ -102,6 +102,7 @@ function mountView() {
         MessageScrollerItem: slotStub,
         PineCharacter: true,
         ProjectSessionComposer: {
+          name: "ProjectSessionComposer",
           props: ["attachments", "authoring", "modelValue"],
           template:
             '<div data-slot="composer-stub" :data-attachment-count="attachments?.length ?? 0" :data-authoring="authoring?.join(\',\')" :data-draft="modelValue"><button data-slot="remove-authoring-stub" @click="$emit(\'removeAuthoring\', authoring?.[0])" /><button data-slot="submit-new-stub" @click="$emit(\'submit\', \'Start\')" /><button data-slot="submit-steering-stub" @click="$emit(\'submit\', \'Change direction\')" /></div>',
@@ -121,6 +122,28 @@ function mountView() {
 }
 
 describe("ProjectSessionView file drop", () => {
+  it("reads the session approval preference without writing a default on open", async () => {
+    const { wrapper } = mountView();
+    const setApprovalMode = vi
+      .spyOn(useSessionStore(), "setApprovalMode")
+      .mockResolvedValue();
+    await wrapper.setProps({ sessionId: "saved-session" });
+    useSessionStore().stateFor("saved-session").summary = {
+      id: "saved-session",
+      createdAt: "",
+      updatedAt: "",
+      messageCount: 0,
+      approvalMode: "let-me-review",
+    };
+    await flushPromises();
+    const composer = wrapper.findComponent({ name: "ProjectSessionComposer" });
+    expect(composer.attributes("approvalmode")).toBe("let-me-review");
+    expect(setApprovalMode).not.toHaveBeenCalled();
+    composer.vm.$emit("update:approvalMode", "YOLO");
+    await flushPromises();
+    expect(setApprovalMode).toHaveBeenCalledWith("YOLO", "saved-session");
+  });
+
   it("reopens a historical presented file from the project temporary directory", async () => {
     const { wrapper } = mountView();
     const sessionId = "0198e338-fb55-7e18-a23e-a7028500f123";

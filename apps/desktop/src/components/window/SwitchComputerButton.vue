@@ -11,11 +11,11 @@ import {
 
 /**
  * Back to the list of computers; only inside the RC web page, and only when
- * there is another computer to switch to.
+ * a computer is paired, so another can be added from the list.
  */
 const { t } = useI18n();
 const pairedComputers = usePairedComputerCount();
-const shown = computed(() => isRemoteShell() && pairedComputers.value > 1);
+const shown = computed(() => isRemoteShell() && pairedComputers.value >= 1);
 </script>
 
 <template>

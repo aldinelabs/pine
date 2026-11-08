@@ -1,6 +1,12 @@
 import type zhCN from "./zh-CN";
 
 export default {
+  scanCode: "Scan pairing code",
+  scanDescription:
+    "Point the camera at the pairing code in Pine Settings → Remote Control. If you added Pine Remote to your Home Screen, scan here to save the computer in this app.",
+  cameraFailed:
+    "Cannot access the camera. Allow camera access in your browser or system settings, then try again.",
+
   title: "Pine Remote",
   unsupported:
     "This browser cannot use Remote Control. Use a recent Safari or Chrome.",

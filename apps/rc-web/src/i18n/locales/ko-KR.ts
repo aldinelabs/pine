@@ -1,6 +1,12 @@
 import type zhCN from "./zh-CN";
 
 export default {
+  scanCode: "페어링 코드 스캔",
+  scanDescription:
+    "Pine 설정 → 원격 제어의 코드에 카메라를 향하세요. 홈 화면에 추가했다면 이 앱에서 스캔하여 컴퓨터를 저장하세요.",
+  cameraFailed:
+    "카메라에 접근할 수 없습니다. 브라우저 또는 시스템 설정에서 카메라를 허용한 후 다시 시도하세요.",
+
   title: "Pine 원격",
   unsupported:
     "이 브라우저에서는 원격 제어를 사용할 수 없습니다. 최신 Safari 또는 Chrome을 사용하세요.",

@@ -118,6 +118,8 @@ export default {
       pairTitle: "Vincular un dispositivo",
       pairDescription:
         "Escanea el código con la cámara del dispositivo o abre el enlace de vinculación en su navegador. Este ordenador te pedirá que lo confirmes.",
+      pairBrowserHint:
+        "Para el control remoto, usa preferiblemente el escáner QR del sistema (normalmente la Cámara) y su navegador nativo. Si Pine Remote está en tu pantalla de inicio, escanea desde esa app para guardar el ordenador allí.",
       pairExpires: "El código y el enlace caducan en {time}.",
       pairExpired: "El código ha caducado.",
       pairAgain: "Nuevo código",

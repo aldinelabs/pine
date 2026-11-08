@@ -1,3 +1,4 @@
+import type { PineApprovalMode } from "./agent";
 import type { AutomationRunSession } from "./automation";
 import { parseAttachmentMessage, type PineAttachment } from "./attachments";
 import { parseQuoteMessage, type PineQuote } from "./quotes";
@@ -20,8 +21,35 @@ export const RENAME_SESSION_CHANNEL = "sessions:rename" as const;
 export const EXPORT_SESSION_CHANNEL = "sessions:export" as const;
 export const ATTACH_SESSION_CHANNEL = "sessions:attach" as const;
 
-/** Custom session entry used to preserve the approval mode for exports. */
+/** Custom session entry preserving the session's approval preference. */
 export const PINE_APPROVAL_MODE_ENTRY = "pine.approval-mode" as const;
+
+/** Latest valid persisted preference; older sessions keep their default. */
+export function approvalModeFromEntries(
+  entries: readonly { type: string; customType?: string; data?: unknown }[],
+  fallback: PineApprovalMode = "auto-approve",
+): PineApprovalMode {
+  for (let index = entries.length - 1; index >= 0; index -= 1) {
+    const entry = entries[index];
+    if (
+      entry.type !== "custom" ||
+      entry.customType !== PINE_APPROVAL_MODE_ENTRY
+    )
+      continue;
+    const data = entry.data;
+    if (typeof data !== "object" || data === null || Array.isArray(data))
+      continue;
+    const mode = (data as { approvalMode?: unknown }).approvalMode;
+    if (
+      mode === "let-me-review" ||
+      mode === "auto-approve" ||
+      mode === "autonomous" ||
+      mode === "YOLO"
+    )
+      return mode;
+  }
+  return fallback;
+}
 
 /** Custom session entry recording that Computer Use was activated. */
 export const PINE_COMPUTER_USE_ACTIVE_ENTRY =
@@ -288,6 +316,7 @@ export function contentBlocksToText(
 }
 
 export interface PineSessionSummary {
+  approvalMode?: PineApprovalMode;
   /** Set when the session is an automation's run. */
   automationRun?: AutomationRunSession;
   createdAt: string;

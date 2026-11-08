@@ -128,7 +128,7 @@ Tab bar ("Open content"):
 - A running session's tab title shimmers; a tab for an automation run keeps a
   workflow icon until the user replies to it.
 - Switch computer: shown only when Pine is opened in a browser through Remote
-  Control and more than one computer is paired; returns to the list of
+  Control and at least one computer is paired; returns to the list of
   computers. The workbench header has the same button.
 - With no tabs open the area shows "No tabs open" and the shortcut hints.
 
@@ -196,7 +196,9 @@ From top to bottom:
    fill the conversation. When both cards compete for room, space is reserved
    for each and long labels truncate rather than crowding out the other card.
    On a phone the cards keep their content width and the row scrolls
-   horizontally with an edge fade when together they exceed the width.
+   horizontally when together they exceed the width. Swiping across the row
+   keeps the cards in place; vertical gestures scroll the transcript. The
+   row leaves room around the card edges so their outlines stay visible.
    - Todos: progress of the agent's task list; opens All todos. The dialog is
      a larger version of the card: full task numbers, names and descriptions
      on the left, with the same dependency graph on the right. Wrapped rows
@@ -237,7 +239,8 @@ From top to bottom:
    - Approval modes: Let Me Review (ask before risky actions), Auto Approve
      (balance autonomy and control), Autonomous Work (maximize autonomy
      without user action), YOLO (no permission constraints; asks the user to
-     confirm before enabling).
+     confirm before enabling). The choice is saved with the conversation
+     and shared between desktop and remote devices.
    - Computer Use: the first control action requests permission to control
      desktop apps and browser tabs for the current task. Let Me Review shows
      one Approval required card; Auto Approve and Autonomous Work review the
@@ -330,7 +333,15 @@ the user opens themselves do not pulse.
   - Remote control (desktop app only): "Remote control via Aldine" pairs
     other devices by QR code or pairing link (no port forwarding, end-to-end
     encrypted) and lists paired devices to rename or remove; it needs Browser
-    access turned on. Browser access serves Pine to a browser behind an access
+    access turned on. The pairing dialog recommends the system QR scanner
+    (usually Camera) and native browser; Chinese text warns against scanners
+    in WeChat, Alipay and QQ. Pine Remote's computer list has "Scan pairing
+    code", which opens the camera with a Back button and a camera-permission
+    error if access fails. Home Screen users scan inside that app to save
+    computers there. "Switch computer" returns to this list even with one
+    paired computer, so another can be added. Selecting a computer keeps that
+    connection until the user switches or it disconnects.
+    Browser access serves Pine to a browser behind an access
     password.
 - New Project / Edit Project: name, icon, accent color ("Pine Default", which
   follows the Appearance setting, or a palette of its own), default folder,

@@ -1,6 +1,12 @@
 import type zhCN from "./zh-CN";
 
 export default {
+  scanCode: "ペアリングコードをスキャン",
+  scanDescription:
+    "Pine の設定 → リモートコントロールのコードにカメラを向けてください。ホーム画面に追加した場合は、このアプリ内でスキャンしてコンピューターを保存してください。",
+  cameraFailed:
+    "カメラにアクセスできません。ブラウザーまたはシステムの設定でカメラを許可してから、再試行してください。",
+
   title: "Pine リモート",
   unsupported:
     "このブラウザではリモート操作を利用できません。最新の Safari または Chrome をお使いください。",

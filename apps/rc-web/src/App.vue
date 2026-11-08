@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { MonitorIcon, TrashIcon } from "@lucide/vue";
+import { MonitorIcon, TrashIcon, ScanLineIcon } from "@lucide/vue";
 import { computed, ref } from "vue";
 import { useI18n } from "vue-i18n";
+import PairingScanner from "@/components/PairingScanner.vue";
 import PineLogo from "@/components/PineLogo.vue";
 import {
   AlertDialog,
@@ -48,6 +49,14 @@ const dateFormat = computed(
 const forgetting = ref<StoredHost>();
 const isForgetOpen = ref(false);
 
+const scanning = ref(false);
+
+function scanned(url: string): void {
+  scanning.value = false;
+  const shown = view.value;
+  if (shown.kind === "list") shown.pair(url);
+}
+
 const current = computed(() => view.value);
 
 function askForget(host: StoredHost): void {
@@ -73,8 +82,8 @@ function confirmForget(): void {
           <PineLogo class="size-10" />
         </EmptyMedia>
         <template v-if="current.kind === 'list'">
-          <EmptyTitle>{{ t("title") }}</EmptyTitle>
-          <EmptyDescription v-if="current.hosts.length === 0">
+          <EmptyTitle>{{ t(scanning ? "scanCode" : "title") }}</EmptyTitle>
+          <EmptyDescription v-if="!scanning && current.hosts.length === 0">
             {{ t("emptyList") }}
           </EmptyDescription>
         </template>
@@ -106,8 +115,20 @@ function confirmForget(): void {
         </Button>
       </EmptyContent>
 
+      <EmptyContent v-if="current.kind === 'list'" class="w-full">
+        <PairingScanner
+          v-if="scanning"
+          @scanned="scanned"
+          @cancel="scanning = false"
+        />
+        <Button v-else type="button" @click="scanning = true">
+          <ScanLineIcon data-icon="inline-start" />
+          {{ t("scanCode") }}
+        </Button>
+      </EmptyContent>
+
       <ItemGroup
-        v-if="current.kind === 'list' && current.hosts.length"
+        v-if="current.kind === 'list' && !scanning && current.hosts.length"
         class="w-full gap-2 text-left"
         data-testid="rc-hosts"
       >

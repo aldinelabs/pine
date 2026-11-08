@@ -1,3 +1,4 @@
+import { approvalModeFromEntries } from "../shared/sessions";
 import type {
   SessionEntry as Entry,
   SessionManager,
@@ -16,10 +17,7 @@ import type {
   PineApprovalDecision,
   SessionSearchResult,
 } from "../shared/sessions";
-import {
-  PINE_APPROVAL_DECISION_ENTRY,
-  PINE_APPROVAL_MODE_ENTRY,
-} from "../shared/sessions";
+import { PINE_APPROVAL_DECISION_ENTRY } from "../shared/sessions";
 import {
   isSandboxDeniedPayload,
   type PineApprovalMode,
@@ -450,35 +448,6 @@ function messageCursorIndex(
   // Accept entry-ID cursors returned by Pine before sequence cursors were
   // introduced. These remain stable for native v4 sessions.
   return messages.findIndex((message) => message.message.id === cursor);
-}
-
-function isPineApprovalMode(value: unknown): value is PineApprovalMode {
-  return (
-    value === "let-me-review" ||
-    value === "auto-approve" ||
-    value === "autonomous" ||
-    value === "YOLO"
-  );
-}
-
-function approvalModeFromEntries(
-  entries: Entry[],
-  fallback: PineApprovalMode,
-): PineApprovalMode {
-  for (let index = entries.length - 1; index >= 0; index -= 1) {
-    const entry = entries[index];
-    if (
-      entry.type !== "custom" ||
-      entry.customType !== PINE_APPROVAL_MODE_ENTRY
-    )
-      continue;
-    const data = entry.data;
-    if (typeof data === "object" && data !== null && !Array.isArray(data)) {
-      const mode = (data as { approvalMode?: unknown }).approvalMode;
-      if (isPineApprovalMode(mode)) return mode;
-    }
-  }
-  return fallback;
 }
 
 function modelsFromEntries(entries: Entry[]): PineSessionModel[] {
@@ -971,6 +940,7 @@ export class ProjectSessionService {
       sourceMtimeMs ?? (await stat(metadata.path)).mtimeMs;
 
     return {
+      approvalMode: approvalModeFromEntries(openedSession.getEntries()),
       id: metadata.id,
       path: metadata.path,
       createdAt: new Date(metadata.createdAt).toISOString(),

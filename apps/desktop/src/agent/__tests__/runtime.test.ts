@@ -943,6 +943,54 @@ describe("PineAgentRuntime", () => {
     }
   });
 
+  it("restores the saved approval mode when a session is reopened", async () => {
+    const root = await mkdtemp(path.join(os.tmpdir(), "pine-approval-mode-"));
+    temporaryDirectories.push(root);
+    const location = {
+      agentDir: path.join(root, "agent"),
+      cwd: path.join(root, "source"),
+      folders: [{ access: "read-write" as const, path: root }],
+      sessionsRoot: path.join(root, "sessions"),
+    };
+    await mkdir(location.agentDir, { recursive: true });
+    await mkdir(location.cwd, { recursive: true });
+    const runtime = new PineAgentRuntime({ emit: () => undefined });
+    try {
+      const created = await runtime.createSession(location);
+      const internals = runtime as unknown as {
+        liveSessions: Map<
+          string,
+          { session: AgentSession; approvalMode: string }
+        >;
+      };
+      // Pi persists a session after its first message.
+      internals.liveSessions
+        .get(created.session.id)!
+        .session.sessionManager.appendMessage({
+          role: "user",
+          content: "Remember this session",
+          timestamp: Date.now(),
+        });
+      runtime.setSessionApprovalMode(created.session.id, "let-me-review");
+      await runtime.disposeSession(created.session.id);
+      const reopened = await runtime.openSession(
+        location,
+        created.sessionFile!,
+      );
+      expect(reopened.session.approvalMode).toBe("let-me-review");
+      expect(
+        internals.liveSessions.get(reopened.session.id)!.approvalMode,
+      ).toBe("let-me-review");
+      const attached = await runtime.openSession(
+        location,
+        created.sessionFile!,
+      );
+      expect(attached.session.approvalMode).toBe("let-me-review");
+    } finally {
+      await runtime.dispose();
+    }
+  });
+
   it("limits an automation run to its approved tools and the report tool", async () => {
     const root = await mkdtemp(path.join(os.tmpdir(), "pine-automation-run-"));
     temporaryDirectories.push(root);

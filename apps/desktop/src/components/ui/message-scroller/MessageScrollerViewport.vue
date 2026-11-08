@@ -65,28 +65,43 @@ function onWheel(event: WheelEvent): void {
   );
 }
 
+let touchStart: { x: number; y: number } | null = null;
 let lastTouchY: number | null = null;
+let touchAxis: "x" | "y" | null = null;
 
 function onTouchStart(event: TouchEvent): void {
-  lastTouchY = event.touches[0]?.clientY ?? null;
+  const touch = event.touches[0];
+  touchStart = touch ? { x: touch.clientX, y: touch.clientY } : null;
+  lastTouchY = touch?.clientY ?? null;
+  touchAxis = null;
 }
 
 function onTouchMove(event: TouchEvent): void {
-  const touchY = event.touches[0]?.clientY ?? null;
+  const touch = event.touches[0];
+  if (!touch || !touchStart) return;
+  if (!touchAxis) {
+    const dx = Math.abs(touch.clientX - touchStart.x);
+    const dy = Math.abs(touch.clientY - touchStart.y);
+    if (Math.max(dx, dy) < 8) return;
+    touchAxis = dx > dy ? "x" : "y";
+  }
+  if (touchAxis === "x") return;
   const direction =
-    touchY !== null && lastTouchY !== null
-      ? touchY < lastTouchY
+    lastTouchY !== null
+      ? touch.clientY < lastTouchY
         ? "end"
-        : touchY > lastTouchY
+        : touch.clientY > lastTouchY
           ? "start"
           : undefined
       : undefined;
-  lastTouchY = touchY;
+  lastTouchY = touch.clientY;
   onUserScrollIntent(direction);
 }
 
 function onTouchEnd(): void {
+  touchStart = null;
   lastTouchY = null;
+  touchAxis = null;
 }
 
 let resizeObserver: ResizeObserver | null = null;
@@ -142,10 +157,10 @@ onBeforeUnmount(() => {
     "
     @scroll="onViewportScroll"
     @wheel="onWheel"
-    @touchstart="onTouchStart"
-    @touchmove="onTouchMove"
-    @touchend="onTouchEnd"
-    @touchcancel="onTouchEnd"
+    @touchstart.passive="onTouchStart"
+    @touchmove.passive="onTouchMove"
+    @touchend.passive="onTouchEnd"
+    @touchcancel.passive="onTouchEnd"
     @keydown="onKeyDown"
   >
     <slot />

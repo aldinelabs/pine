@@ -114,6 +114,8 @@ export default {
       pairTitle: "Pair a device",
       pairDescription:
         "Scan the code with the device's camera, or open the pairing link in its browser. This computer will ask you to confirm.",
+      pairBrowserHint:
+        "Prefer your system's native QR scanner (usually the Camera app) and native browser for Remote Control. If Pine Remote is on your Home Screen, use Scan pairing code inside that app to save the computer there.",
       pairExpires: "The code and link expire in {time}.",
       pairExpired: "The code has expired.",
       pairAgain: "New code",

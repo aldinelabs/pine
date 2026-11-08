@@ -1,6 +1,12 @@
 import type zhCN from "./zh-CN";
 
 export default {
+  scanCode: "Kopplungscode scannen",
+  scanDescription:
+    "Richte die Kamera auf den Code in Pine Einstellungen → Fernsteuerung. Wenn Pine Remote zum Home-Bildschirm hinzugefügt wurde, scanne hier, um den Computer in dieser App zu speichern.",
+  cameraFailed:
+    "Kein Kamerazugriff. Erlaube den Zugriff in den Browser- oder Systemeinstellungen und versuche es erneut.",
+
   title: "Pine Fernzugriff",
   unsupported:
     "Dieser Browser kann die Fernsteuerung nicht nutzen. Verwenden Sie ein aktuelles Safari oder Chrome.",

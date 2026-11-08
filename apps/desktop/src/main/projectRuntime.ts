@@ -838,7 +838,7 @@ export class ProjectRuntimeRegistry {
       );
       runtime.liveSessions.set(opened.session.id, {
         summary: opened.session,
-        approvalMode: "auto-approve",
+        approvalMode: opened.session.approvalMode ?? "auto-approve",
         contextUsage: opened.contextUsage,
       });
       if (!this.isCurrent(webContentsId, runtime)) {
@@ -887,7 +887,7 @@ export class ProjectRuntimeRegistry {
     request: PromptSessionRequest,
   ): Promise<PromptSessionResult> {
     const runtime = this.get(webContentsId, request.target.projectId);
-    const approvalMode = request.approvalMode ?? "auto-approve";
+    let approvalMode = request.approvalMode ?? "auto-approve";
     if (
       request.rewrite &&
       (request.target.kind !== "session" || request.streamingBehavior)
@@ -914,6 +914,8 @@ export class ProjectRuntimeRegistry {
     if (!this.isCurrent(webContentsId, runtime)) {
       throw new Error("The project closed before submitting a prompt.");
     }
+    approvalMode =
+      request.approvalMode ?? activeSession.approvalMode ?? "auto-approve";
     if (mutators.length > 0)
       await this.agentHost.mutateSession(activeSession.id, mutators);
     const attachedPaths = parseAttachmentMessage(request.message)
@@ -1003,6 +1005,7 @@ export class ProjectRuntimeRegistry {
     const live = this.targetSession(webContentsId, sessionId);
     if (!live) return { updated: false };
     live.approvalMode = approvalMode;
+    live.summary = { ...live.summary, approvalMode };
     return this.agentHost.setApprovalMode(live.summary.id, approvalMode);
   }
 

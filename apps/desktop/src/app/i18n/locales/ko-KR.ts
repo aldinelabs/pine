@@ -114,6 +114,8 @@ export default {
       pairTitle: "기기 페어링",
       pairDescription:
         "기기의 카메라로 코드를 스캔하거나 기기의 브라우저에서 페어링 링크를 여세요. 이 컴퓨터에서 확인을 요청합니다.",
+      pairBrowserHint:
+        "원격 제어에는 시스템 기본 QR 스캐너(보통 카메라 앱)와 기본 브라우저를 권장합니다. Pine Remote를 홈 화면에 추가했다면 해당 앱 안에서 스캔하여 컴퓨터를 저장하세요.",
       pairExpires: "코드와 링크는 {time} 후에 만료됩니다.",
       pairExpired: "코드가 만료되었습니다.",
       pairAgain: "새 코드",
