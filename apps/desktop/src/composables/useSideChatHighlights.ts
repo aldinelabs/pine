@@ -67,6 +67,15 @@ export function useSideChatHighlights(options: {
           if (range) placed.push({ ...highlight, range, root });
         }
       }
+    const previous = ownRanges.get(key);
+    // Nothing placed before or now: the shared registry is unchanged, so skip
+    // rebuilding it (this runs on every streaming frame of a transcript).
+    if (
+      placed.length === 0 &&
+      (!previous ||
+        (previous.normal.length === 0 && previous.active.length === 0))
+    )
+      return;
     const activeId = options.activeSideChatId.value;
     ownRanges.set(key, {
       normal: placed
@@ -84,18 +93,27 @@ export function useSideChatHighlights(options: {
   }
 
   let observer: MutationObserver | undefined;
+  // Transcript mutations only move passages while there are some to place;
+  // otherwise every streamed token would queue a placement pass.
+  const observing = () =>
+    options.enabled.value && options.highlights.value.length > 0;
   watch(
-    options.container,
-    (container) => {
+    [options.container, observing],
+    ([container, active], previous) => {
+      const containerChanged = !previous || previous[0] !== container;
+      if (!containerChanged && Boolean(observer) === active) return;
       observer?.disconnect();
+      observer = undefined;
       if (!container) return;
-      observer = new MutationObserver(schedule);
-      observer.observe(container, {
-        childList: true,
-        subtree: true,
-        characterData: true,
-      });
-      schedule();
+      if (active) {
+        observer = new MutationObserver(schedule);
+        observer.observe(container, {
+          childList: true,
+          subtree: true,
+          characterData: true,
+        });
+      }
+      if (containerChanged) schedule();
     },
     { immediate: true },
   );
