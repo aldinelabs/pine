@@ -119,7 +119,8 @@ Tab bar ("Open content"):
 
 - Each tab is a session or a file; each has a close button ("Close {name}").
   Tabs can be dragged to reorder.
-- Add session tab: opens a new session tab.
+- Add session tab: always opens and selects a fresh session tab, keeping
+  existing drafts and preview tabs open. Each click adds another tab.
 - More actions: for a file tab, Open, Reveal, Copy path, New folder, Rename,
   Refresh and Move to trash; for a session tab, Rename, Export and Delete.
 - A running session's tab title shimmers; a tab for an automation run keeps a

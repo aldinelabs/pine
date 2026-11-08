@@ -867,6 +867,91 @@ describe("ProjectContentTabs", () => {
     expect(wrapper.findAll('[role="tab"]')).toHaveLength(2);
   });
 
+  it.each([false, true])(
+    "adds a fresh tab on every click while keeping existing drafts (mobile: %s)",
+    async (isMobile) => {
+      sidebar.isMobile = isMobile;
+      try {
+        const { router, wrapper } = await mountTabs();
+        const store = useContentTabsStore();
+        store.rememberDraftProject("p2");
+        await wrapper
+          .get('[data-session-view="session-1"] textarea')
+          .setValue("Keep this draft");
+        const tabIds = ["session-1"];
+
+        for (let index = 0; index < 2; index += 1) {
+          await wrapper
+            .get('button[aria-label="Add session tab"]')
+            .trigger("click");
+          await flushPromises();
+          const activeId = String(router.currentRoute.value.query.tab);
+          expect(tabIds).not.toContain(activeId);
+          tabIds.push(activeId);
+          expect(store.tabs.map((tab) => tab.id)).toEqual(tabIds);
+          expect(store.tabs.at(-1)).toMatchObject({
+            kind: "session",
+            state: "draft",
+            projectId: "p2",
+          });
+          expect(store.composerFocusTabId).toBe(activeId);
+        }
+
+        expect(
+          wrapper.get<HTMLTextAreaElement>(
+            '[data-session-view="session-1"] textarea',
+          ).element.value,
+        ).toBe("Keep this draft");
+      } finally {
+        sidebar.isMobile = false;
+      }
+    },
+  );
+
+  it.each([
+    { isMobile: false, kind: "session" },
+    { isMobile: false, kind: "file" },
+    { isMobile: true, kind: "session" },
+    { isMobile: true, kind: "file" },
+  ])(
+    "adds a tab without replacing the active $kind preview (mobile: $isMobile)",
+    async ({ isMobile, kind }) => {
+      sidebar.isMobile = isMobile;
+      try {
+        const { router, wrapper } = await mountTabs();
+        const store = useContentTabsStore();
+        const preview =
+          kind === "session"
+            ? store.openSession(firstSession, "p1", "session-1", {
+                preview: true,
+              })
+            : store.openFile(
+                { projectId: "p1", folderId: "f1", relativePath: "example.ts" },
+                { preview: true },
+              );
+        if (kind === "file") store.close("session-1", preview.id);
+        await router.push({ query: { tab: preview.id } });
+        await flushPromises();
+
+        await wrapper
+          .get('button[aria-label="Add session tab"]')
+          .trigger("click");
+        await flushPromises();
+
+        expect(store.tabs).toHaveLength(2);
+        expect(store.tabs[0]).toEqual(preview);
+        expect(store.isPreviewTab(preview.id)).toBe(true);
+        expect(store.tabs[1]).toMatchObject({
+          kind: "session",
+          state: "draft",
+        });
+        expect(router.currentRoute.value.query.tab).toBe(store.tabs[1].id);
+      } finally {
+        sidebar.isMobile = false;
+      }
+    },
+  );
+
   it("scrolls the overflowing tab list sideways with a mouse wheel", async () => {
     const { wrapper } = await mountTabs();
     const list = wrapper.get<HTMLElement>(

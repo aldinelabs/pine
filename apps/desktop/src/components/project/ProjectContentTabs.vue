@@ -713,7 +713,7 @@ watch(activeSession, (session) => {
           variant="ghost"
           size="icon-sm"
           :aria-label="t('project.contentTabs.addTab')"
-          @click="tabNavigation.createSessionTab()"
+          @click="tabNavigation.openNewDraft()"
         >
           <PlusIcon />
         </Button>
@@ -866,7 +866,7 @@ watch(activeSession, (session) => {
           variant="ghost"
           size="icon-sm"
           :aria-label="t('project.contentTabs.addTab')"
-          @click="tabNavigation.createSessionTab()"
+          @click="tabNavigation.openNewDraft()"
         >
           <PlusIcon />
         </Button>
@@ -883,7 +883,7 @@ watch(activeSession, (session) => {
         variant="ghost"
         size="icon-sm"
         :aria-label="t('project.contentTabs.addTab')"
-        @click="tabNavigation.createSessionTab()"
+        @click="tabNavigation.openNewDraft()"
       >
         <PlusIcon />
       </Button>

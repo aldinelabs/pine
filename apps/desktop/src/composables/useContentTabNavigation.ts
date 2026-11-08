@@ -87,10 +87,10 @@ export function useContentTabNavigation() {
   }
 
   /**
-   * Opens a fresh draft for a project, never reusing one with text in it,
-   * and resolves once it shows.
+   * Opens a fresh draft without reusing a draft or replacing a preview tab,
+   * and resolves once it shows. Defaults to the last chosen draft project.
    */
-  function openNewDraft(projectId: string): Promise<void> {
+  function openNewDraft(projectId?: string): Promise<void> {
     return navigate(
       store.createSessionTab({ projectId, reuseDraft: false }).id,
     );
