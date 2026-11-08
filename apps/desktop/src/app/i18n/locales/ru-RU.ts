@@ -305,13 +305,11 @@ export default {
       "Избегает лишнего жаргона, объясняет работу ясным языком, ориентированным на цель, помогает выбрать самый разумный вариант и предлагает простые альтернативы, если что-то не работает.",
     userProfileTechProfessionalDescription:
       "Не объясняет лишнего, прямо излагает сложные технические детали и предлагает продвинутые решения пользователю, готовому разбираться самостоятельно, выбирая наиболее конструктивный путь.",
-    userProfileInterfaceLabel: "Интерактивные ответы",
-    userProfileInterfaceRich: "Расширенные",
-    userProfileInterfaceSimple: "Простые",
-    userProfileInterfaceRichDescription:
-      "Отвечает чек-листами, калькуляторами, таблицами и диаграммами, которыми можно пользоваться прямо на месте.",
-    userProfileInterfaceSimpleDescription:
-      "Pine отвечает только текстом и Markdown.",
+    interactiveAnswers: "Интерактивные ответы",
+    interactiveAnswersDescription:
+      "Разрешить Pine добавлять в ответы интерактивные списки, калькуляторы, таблицы и диаграммы, когда это полезно.",
+    interactiveAnswersEnabled: "Включены",
+    interactiveAnswersDisabled: "Выключены",
     userProfileDetailsLabel: "Другие сведения о вас",
     userProfileDetailsPlaceholder:
       "Например: ваша работа, интересы, предпочтения или текущие цели",

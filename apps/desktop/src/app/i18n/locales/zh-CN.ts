@@ -287,12 +287,11 @@ export default {
       "避开不必要的专业术语，围绕目标用易懂的语言解释正在做什么；需要时帮助你做出当前最明智的决策，出错时提供简单易懂的替代方案。",
     userProfileTechProfessionalDescription:
       "省略过度解释，直接沟通复杂技术细节，提供技术上较复杂的解决方案；假设你愿意折腾，但仍选择建设性最强的最优路径。",
-    userProfileInterfaceLabel: "交互式回答",
-    userProfileInterfaceRich: "丰富",
-    userProfileInterfaceSimple: "简洁",
-    userProfileInterfaceRichDescription:
-      "合适时用清单、计算器、表格和图表回答，可直接在对话里操作。",
-    userProfileInterfaceSimpleDescription: "Pine 只用文字和 Markdown 回答。",
+    interactiveAnswers: "交互式回答",
+    interactiveAnswersDescription:
+      "启用后，Pine 可在合适时使用能直接操作的清单、计算器、表格和图表回答。",
+    interactiveAnswersEnabled: "启用",
+    interactiveAnswersDisabled: "禁用",
     userProfileDetailsLabel: "其他个人细节",
     userProfileDetailsPlaceholder: "例如：你的工作、兴趣、偏好或当前目标",
     userProfileDetailsDescription: "补充这些信息可以帮助 Pine 更好地了解你。",

@@ -152,10 +152,22 @@ export function registerFileRequests(core: PineCore): void {
     SAVE_PASTED_ATTACHMENT_CHANNEL,
     async (context, request: unknown): Promise<SavePastedAttachmentResult> => {
       const parsed = SavePastedAttachmentRequestSchema.parse(request);
-      const attachmentsRoot = runtimes.attachmentsRootFor(
+      let attachmentsRoot = runtimes.attachmentsRootFor(
         context.clientId,
         parsed.projectId,
       );
+      if (
+        !attachmentsRoot &&
+        context.source === "desktop" &&
+        core.host.isQuickComposerClient?.(context.clientId)
+      ) {
+        // The panel never owns a runtime. Validate the selected project before
+        // using its Pine-managed attachment storage.
+        await core.repository.get(parsed.projectId);
+        attachmentsRoot = core.repository.dataPaths(
+          parsed.projectId,
+        ).attachmentsRoot;
+      }
       if (!attachmentsRoot) {
         throw new Error("The project is not open in this window.");
       }

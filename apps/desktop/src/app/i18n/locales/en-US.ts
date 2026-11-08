@@ -301,13 +301,11 @@ export default {
       "Avoid unnecessary jargon, explain the work in clear goal-oriented language, help choose the wisest option, and offer simple alternatives when something breaks.",
     userProfileTechProfessionalDescription:
       "Skip over-explaining, communicate complex technical details directly, and offer sophisticated solutions for a user willing to tinker while choosing the most constructive path.",
-    userProfileInterfaceLabel: "Interactive answers",
-    userProfileInterfaceRich: "Rich",
-    userProfileInterfaceSimple: "Simple",
-    userProfileInterfaceRichDescription:
-      "Answer with checklists, calculators, tables and charts you can use in place.",
-    userProfileInterfaceSimpleDescription:
-      "Pine answers in text and Markdown only.",
+    interactiveAnswers: "Interactive answers",
+    interactiveAnswersDescription:
+      "Allow Pine to include interactive checklists, calculators, tables, and charts in replies when useful.",
+    interactiveAnswersEnabled: "Enabled",
+    interactiveAnswersDisabled: "Disabled",
     userProfileDetailsLabel: "Other personal details",
     userProfileDetailsPlaceholder:
       "For example: your work, interests, preferences, or current goals",

@@ -14,6 +14,7 @@ import { fileName, fileTargetKey } from "@/lib/filePreviewTarget";
 import { randomId } from "@/lib/randomId";
 import { parseFileReveal } from "@/shared/projectFiles";
 import { preferenceStorage } from "@/lib/preferenceStorage";
+import { useSessionStore } from "@/stores/session";
 import {
   uniqueSessionMutators,
   type PineSessionMutator,
@@ -354,9 +355,9 @@ export const useContentTabsStore = defineStore("content-tabs", () => {
   }
 
   /**
-   * Open a new-session tab. New drafts go to the project last chosen for a
-   * draft unless one is given; reusing a draft retargets it only when one is
-   * given.
+   * Open a new-session tab. Default to the latest session activity in memory,
+   * falling back to the last draft choice before history loads. Reusing a
+   * draft retargets it only when an explicit project is given.
    */
   function createSessionTab({
     projectId,
@@ -386,7 +387,11 @@ export const useContentTabsStore = defineStore("content-tabs", () => {
       );
     }
 
-    const created = makeDraftTab(projectId ?? lastDraftProjectId.value);
+    const created = makeDraftTab(
+      projectId ??
+        useSessionStore().allRecentSessions[0]?.projectId ??
+        lastDraftProjectId.value,
+    );
     const tab: DraftSessionTab = mutators?.length
       ? { ...created, mutators: uniqueSessionMutators(mutators) }
       : created;

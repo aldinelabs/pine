@@ -1411,7 +1411,7 @@ export class PineAgentRuntime {
                   userProfile,
                 ).trim(),
               };
-              if (userProfile.interfaceElements !== "simple")
+              if (userProfile.interactiveAnswersEnabled)
                 notices.interface_elements = intelligentUiSystemPrompt();
               const skillList = skillRepository.promptList();
               if (skillList) notices.skills = skillList;

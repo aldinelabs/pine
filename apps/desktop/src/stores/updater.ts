@@ -14,18 +14,49 @@ export const useUpdaterStore = defineStore("updater", () => {
   const isDialogOpen = ref(false);
   const isAvailable = computed(() => update.value !== undefined);
   let initialized = false;
+  const isChecking = ref(false);
+  let pendingCheck: Promise<void> | undefined;
 
-  async function check(): Promise<void> {
-    if (typeof window.pine?.checkForUpdate !== "function") return;
-    try {
-      const result = await window.pine.checkForUpdate();
-      if (result.status === "available") {
-        update.value = result.update;
-        if (phase.value === "idle") phase.value = "available";
+  function check(): Promise<void> {
+    if (pendingCheck) return pendingCheck;
+    const checkForUpdate = window.pine?.checkForUpdate;
+    // Keep the release tied to an in-flight download or installation.
+    if (
+      typeof checkForUpdate !== "function" ||
+      phase.value === "downloading" ||
+      phase.value === "installing"
+    )
+      return Promise.resolve();
+    isChecking.value = true;
+    pendingCheck = (async () => {
+      try {
+        const result = await checkForUpdate();
+        if (result.status === "available") {
+          if (update.value?.version !== result.update.version) {
+            phase.value = "available";
+            progress.value = 0;
+            error.value = undefined;
+          }
+          update.value = result.update;
+        } else {
+          update.value = undefined;
+          phase.value = "idle";
+          progress.value = 0;
+          error.value = undefined;
+        }
+      } catch {
+        // Background failures leave the last known release available.
+      } finally {
+        isChecking.value = false;
+        pendingCheck = undefined;
       }
-    } catch {
-      // Update checks are background work and must not interrupt the workspace.
-    }
+    })();
+    return pendingCheck;
+  }
+
+  async function openDialog(): Promise<void> {
+    await check();
+    isDialogOpen.value = isAvailable.value;
   }
 
   function initialize(): void {
@@ -44,7 +75,7 @@ export const useUpdaterStore = defineStore("updater", () => {
       }
     });
     void check();
-    window.setInterval(() => void check(), 4 * 60 * 60_000);
+    window.setInterval(() => void check(), 2 * 60 * 60_000);
   }
 
   async function download(): Promise<void> {
@@ -79,7 +110,9 @@ export const useUpdaterStore = defineStore("updater", () => {
     initialize,
     install,
     isAvailable,
+    isChecking,
     isDialogOpen,
+    openDialog,
     phase,
     progress,
     update,

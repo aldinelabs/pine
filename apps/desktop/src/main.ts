@@ -292,6 +292,10 @@ function desktopHost(): PineHost {
       target.send(channel, value);
       return true;
     },
+    isQuickComposerClient: (clientId) => {
+      const contents = webContents.fromId(clientId);
+      return Boolean(contents && quickComposer.controller.isPanel(contents));
+    },
     focusClient: (clientId) => {
       const window = windowForWebContentsId(clientId);
       if (window) focusWindow(window);

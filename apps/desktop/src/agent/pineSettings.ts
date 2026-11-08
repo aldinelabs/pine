@@ -24,7 +24,6 @@ import {
 } from "../shared/preferences";
 import {
   isPineCommunicationStyle,
-  isPineInterfaceElements,
   isPineTechnicalBackground,
   type PineUserProfile,
 } from "../shared/userProfile";
@@ -80,16 +79,14 @@ function isPineUserProfile(value: unknown): value is PineUserProfile {
     isPineCommunicationStyle(profile.communicationStyle) &&
     typeof profile.technicalBackground === "string" &&
     isPineTechnicalBackground(profile.technicalBackground) &&
-    typeof profile.interfaceElements === "string" &&
-    isPineInterfaceElements(profile.interfaceElements) &&
+    typeof profile.interactiveAnswersEnabled === "boolean" &&
     typeof profile.monetMode === "boolean"
   );
 }
 
 /**
  * Map communication styles and technical backgrounds removed from the profile
- * to a supported one, and give profiles saved before interface elements
- * existed the default.
+ * to a supported one, and fill defaults for newly introduced fields.
  */
 function migrateUserProfile(value: unknown): unknown {
   if (typeof value !== "object" || value === null || Array.isArray(value)) {
@@ -104,8 +101,8 @@ function migrateUserProfile(value: unknown): unknown {
     ...(profile.technicalBackground === "enthusiast"
       ? { technicalBackground: "general-user" }
       : {}),
-    ...(profile.interfaceElements === undefined
-      ? { interfaceElements: "rich" }
+    ...(profile.interactiveAnswersEnabled === undefined
+      ? { interactiveAnswersEnabled: true }
       : {}),
     ...(profile.monetMode === undefined ? { monetMode: false } : {}),
   };

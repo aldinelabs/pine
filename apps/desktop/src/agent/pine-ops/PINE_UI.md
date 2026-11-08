@@ -120,7 +120,9 @@ Tab bar ("Open content"):
 - Each tab is a session or a file; each has a close button ("Close {name}").
   Tabs can be dragged to reorder.
 - Add session tab: always opens and selects a fresh session tab, keeping
-  existing drafts and preview tabs open. Each click adds another tab.
+  existing drafts and preview tabs open. Each click adds another tab. Its
+  project defaults to the most recent session activity, falling back to the
+  last project chosen for a draft when history is not available.
 - More actions: for a file tab, Open, Reveal, Copy path, New folder, Rename,
   Refresh and Move to trash; for a session tab, Rename, Export and Delete.
 - A running session's tab title shimmers; a tab for an automation run keeps a
@@ -154,7 +156,9 @@ From top to bottom:
      and handoffs to detailed model review; Approval status shows when the call
      is awaiting user approval or was decided by the user. These records remain
      available when reopening the conversation. Older calls without review
-     records do not show a model inferred from current settings;
+     records do not show a model inferred from current settings. During automatic
+     review and approval waits, tool targets keep their monospace styling within
+     the shimmering label;
    - file search calls ("Found files for …", "Searched code for …"), which
      show the searched name or text and how many files or lines matched; their
      details list each file, line number and matching line;
@@ -162,8 +166,8 @@ From top to bottom:
      calls (for example "Ran 3 automation actions");
    - markers for context compaction, errors, stopped responses and background
      process events;
-   - interactive answer blocks (checklists, tables, charts, inputs) when rich
-     interactive answers are enabled.
+   - interactive answer blocks (checklists, tables, charts, inputs) when
+     interactive answers are enabled in Pine Settings › Agent.
      "Load earlier messages" appears at the top of long sessions. The
      Conversation outline lists the user's turns for quick jumping.
      Selecting text in the transcript shows a popover with Quote (adds it to
@@ -269,7 +273,8 @@ A resizable panel on the right of the window, kept per session. When it is open,
 resizing the window changes this panel's width first, keeping the conversation
 width until the panel reaches its minimum or maximum width. Resizing back
 restores the previous proportions. Its leading edge can still be dragged to
-trade width with the conversation. It holds one or two cards stacked top and
+trade width with the conversation. On narrow screens it opens as an overlay
+without the width resize handle. It holds one or two cards stacked top and
 bottom, with a handle to resize them. Each card header
 has a panel switcher and buttons to open the content in a tab, add a card and
 close the card. The panels are:
@@ -313,14 +318,13 @@ the user opens themselves do not pulse.
     documents in dark mode.
   - Models: model catalog refresh, title generation model, approval model,
     image generation model, video generation model, Decisions model.
-  - Agent: automatic approval path, context compaction strategy and method,
+  - Agent: Interactive answers switch (Enabled or Disabled; enabled by default),
+    automatic approval path, context compaction strategy and method,
     TinyFish web tools key (shows Configured or Not configured), approximate
     location.
   - User profile: nickname, communication style (Calm & professional,
     Neutral or Warm & friendly; disabled while Monet mode is on), technical
-    background,
-    interactive answers (Rich or Simple), personal details, custom
-    instructions.
+    background, personal details, custom instructions.
   - Projects: every project with its data usage; New Project, Edit, clear
     temporary files, clear attachments.
   - Remote control (desktop app only): "Remote control via Aldine" pairs
@@ -347,7 +351,10 @@ the user opens themselves do not pulse.
 - Session search overlay: search across all projects, open a result.
 - Model picker, provider sign-in, custom model and custom provider dialogs,
   opened from the composer's Model control or Pine Settings › Models.
-- Update dialog: release notes and installing an update.
+- Update dialog: release notes and installing an update. Clicking the update
+  notice above the workbench checks again in place before opening the dialog.
+  Pine also checks for updates every two hours. An ongoing download or
+  installation keeps its selected version.
 - Quit confirmation, when sessions are still running or Remote Control is on.
 - Confirmation dialogs for deleting projects, sessions, folders and Skills,
   and for enabling YOLO.
@@ -357,7 +364,8 @@ the user opens themselves do not pulse.
 A floating composer opened with a global shortcut from any app (set in Pine
 Settings › General). It can capture the frontmost app's window and selected
 text as context when the user grants the screen and accessibility permissions,
-then hands the new conversation to the main window.
+then hands the new conversation to the main window. Files, pasted images and
+long pasted text can be attached before the conversation opens in a window.
 
 ## Tray and menu bar
 

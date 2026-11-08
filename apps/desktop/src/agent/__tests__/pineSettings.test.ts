@@ -273,7 +273,7 @@ describe("Pine agent settings", () => {
     await writePineUserProfile(agentDir, {
       communicationStyle: "warm-friendly",
       customInstructions: "Lead with the result.",
-      interfaceElements: "simple",
+      interactiveAnswersEnabled: false,
       monetMode: false,
       nickname: "Pine user",
       personalDetails: "Enjoys learning by doing.",
@@ -288,7 +288,7 @@ describe("Pine agent settings", () => {
       userProfile: {
         communicationStyle: "warm-friendly",
         customInstructions: "Lead with the result.",
-        interfaceElements: "simple",
+        interactiveAnswersEnabled: false,
         monetMode: false,
         nickname: "Pine user",
         personalDetails: "Enjoys learning by doing.",
@@ -297,7 +297,41 @@ describe("Pine agent settings", () => {
     });
   });
 
-  it("maps removed styles and backgrounds to supported ones and fills in interface elements", async () => {
+  it.each(["rich", "simple", undefined])(
+    "defaults interactive answers to enabled regardless of the old %s choice",
+    async (interfaceElements) => {
+      const agentDir = await mkdtemp(
+        path.join(os.tmpdir(), "pine-interactive-answers-"),
+      );
+      temporaryDirectories.push(agentDir);
+      await writeFile(
+        path.join(agentDir, "pine-settings.json"),
+        JSON.stringify({
+          userProfile: {
+            communicationStyle: "warm-friendly",
+            customInstructions: "Keep this instruction.",
+            interfaceElements,
+            monetMode: false,
+            nickname: "Existing user",
+            personalDetails: "Keep these details.",
+            technicalBackground: "professional-user",
+          },
+        }),
+      );
+      expect((await readPineAgentSettings(agentDir)).userProfile).toMatchObject(
+        {
+          interactiveAnswersEnabled: true,
+          communicationStyle: "warm-friendly",
+          customInstructions: "Keep this instruction.",
+          nickname: "Existing user",
+          personalDetails: "Keep these details.",
+          technicalBackground: "professional-user",
+        },
+      );
+    },
+  );
+
+  it("maps removed styles and backgrounds to supported ones and fills new defaults", async () => {
     const agentDir = await mkdtemp(
       path.join(os.tmpdir(), "pine-agent-settings-legacy-profile-"),
     );
@@ -317,7 +351,7 @@ describe("Pine agent settings", () => {
     expect((await readPineAgentSettings(agentDir)).userProfile).toEqual({
       ...userProfile,
       communicationStyle: "neutral",
-      interfaceElements: "rich",
+      interactiveAnswersEnabled: true,
       monetMode: false,
       technicalBackground: "general-user",
     });

@@ -308,13 +308,11 @@ export default {
       "Évite le jargon inutile, explique le travail dans un langage clair et orienté objectifs, aide à choisir la meilleure option et propose des alternatives simples en cas de problème.",
     userProfileTechProfessionalDescription:
       "Évite les explications superflues, expose directement les détails techniques complexes et propose des solutions sophistiquées à un utilisateur prêt à mettre les mains dans le cambouis, en choisissant la voie la plus constructive.",
-    userProfileInterfaceLabel: "Réponses interactives",
-    userProfileInterfaceRich: "Riches",
-    userProfileInterfaceSimple: "Simples",
-    userProfileInterfaceRichDescription:
-      "Répond avec des listes de contrôle, des calculatrices, des tableaux et des graphiques utilisables sur place.",
-    userProfileInterfaceSimpleDescription:
-      "Pine répond uniquement en texte et en Markdown.",
+    interactiveAnswers: "Réponses interactives",
+    interactiveAnswersDescription:
+      "Autoriser Pine à inclure des listes à cocher, calculatrices, tableaux et graphiques interactifs dans ses réponses lorsque cela est utile.",
+    interactiveAnswersEnabled: "Activées",
+    interactiveAnswersDisabled: "Désactivées",
     userProfileDetailsLabel: "Autres informations personnelles",
     userProfileDetailsPlaceholder:
       "Par exemple : votre métier, vos centres d'intérêt, vos préférences ou vos objectifs actuels",

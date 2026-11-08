@@ -4,13 +4,11 @@ export const SET_USER_PROFILE_CHANNEL = "user-profile:set" as const;
 export type PineCommunicationStyle =
   "calm-professional" | "neutral" | "warm-friendly";
 export type PineTechnicalBackground = "general-user" | "professional-user";
-/** Whether replies may include interactive blocks ("rich") or stay text. */
-export type PineInterfaceElements = "rich" | "simple";
 
 export interface PineUserProfile {
   communicationStyle: PineCommunicationStyle;
   customInstructions: string;
-  interfaceElements: PineInterfaceElements;
+  interactiveAnswersEnabled: boolean;
   /**
    * Monet mode: Sóber's voice and the reading font. While on, it replaces the
    * communication style.
@@ -29,7 +27,7 @@ export function createDefaultPineUserProfile(): PineUserProfile {
   return {
     communicationStyle: "neutral",
     customInstructions: "",
-    interfaceElements: "rich",
+    interactiveAnswersEnabled: true,
     monetMode: false,
     nickname: "",
     personalDetails: "",
@@ -43,7 +41,7 @@ export function normalizePineUserProfile(
   return {
     communicationStyle: profile.communicationStyle,
     customInstructions: profile.customInstructions.trim(),
-    interfaceElements: profile.interfaceElements,
+    interactiveAnswersEnabled: profile.interactiveAnswersEnabled ?? true,
     monetMode: profile.monetMode,
     nickname: profile.nickname.trim(),
     personalDetails: profile.personalDetails.trim(),
@@ -65,10 +63,4 @@ export function isPineTechnicalBackground(
   value: string,
 ): value is PineTechnicalBackground {
   return value === "general-user" || value === "professional-user";
-}
-
-export function isPineInterfaceElements(
-  value: string,
-): value is PineInterfaceElements {
-  return value === "rich" || value === "simple";
 }

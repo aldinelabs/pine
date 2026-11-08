@@ -340,6 +340,10 @@ export class AppUpdater {
     if (!manifest.assets[assetKey]) {
       throw new Error(`No installer is available for ${assetKey}`);
     }
+    if (this.update?.version !== manifest.version) {
+      this.downloadedPath = null;
+      this.windowsUpdateReady = false;
+    }
     this.update = manifest;
     return {
       status: "available",

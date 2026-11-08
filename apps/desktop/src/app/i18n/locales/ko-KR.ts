@@ -301,13 +301,11 @@ export default {
       "불필요한 전문 용어를 피하고, 목표 중심의 명확한 언어로 작업을 설명하며, 가장 현명한 선택지를 고르도록 돕고, 문제가 생기면 간단한 대안을 제시합니다.",
     userProfileTechProfessionalDescription:
       "지나친 설명은 생략하고 복잡한 기술 내용을 직접적으로 전달하며, 직접 다뤄 보려는 사용자에게 정교한 해결책을 제시하되 가장 건설적인 길을 선택합니다.",
-    userProfileInterfaceLabel: "인터랙티브 답변",
-    userProfileInterfaceRich: "풍부하게",
-    userProfileInterfaceSimple: "간단하게",
-    userProfileInterfaceRichDescription:
-      "체크리스트, 계산기, 표, 차트처럼 바로 사용할 수 있는 형태로 답변합니다.",
-    userProfileInterfaceSimpleDescription:
-      "Pine은 텍스트와 Markdown으로만 답변합니다.",
+    interactiveAnswers: "인터랙티브 답변",
+    interactiveAnswersDescription:
+      "필요할 때 답변에 직접 조작할 수 있는 체크리스트, 계산기, 표, 차트를 포함합니다.",
+    interactiveAnswersEnabled: "사용",
+    interactiveAnswersDisabled: "사용 안 함",
     userProfileDetailsLabel: "기타 개인 정보",
     userProfileDetailsPlaceholder: "예: 하는 일, 관심사, 선호, 현재 목표",
     userProfileDetailsDescription:

@@ -307,13 +307,11 @@ export default {
       "Vermeidet unnötigen Fachjargon, erklärt die Arbeit in klarer, zielorientierter Sprache, hilft bei der Wahl der klügsten Option und bietet einfache Alternativen an, wenn etwas schiefgeht.",
     userProfileTechProfessionalDescription:
       "Verzichtet auf übermäßige Erklärungen, vermittelt komplexe technische Details direkt und bietet einem experimentierfreudigen Benutzer anspruchsvolle Lösungen, wobei der konstruktivste Weg gewählt wird.",
-    userProfileInterfaceLabel: "Interaktive Antworten",
-    userProfileInterfaceRich: "Umfangreich",
-    userProfileInterfaceSimple: "Einfach",
-    userProfileInterfaceRichDescription:
-      "Antwortet mit Checklisten, Rechnern, Tabellen und Diagrammen, die Sie direkt nutzen können.",
-    userProfileInterfaceSimpleDescription:
-      "Pine antwortet nur mit Text und Markdown.",
+    interactiveAnswers: "Interaktive Antworten",
+    interactiveAnswersDescription:
+      "Pine darf bei Bedarf interaktive Checklisten, Rechner, Tabellen und Diagramme in Antworten einfügen.",
+    interactiveAnswersEnabled: "Aktiviert",
+    interactiveAnswersDisabled: "Deaktiviert",
     userProfileDetailsLabel: "Weitere persönliche Angaben",
     userProfileDetailsPlaceholder:
       "Zum Beispiel: Ihr Beruf, Interessen, Vorlieben oder aktuelle Ziele",

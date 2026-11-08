@@ -305,13 +305,11 @@ export default {
       "不要な専門用語を避け、目的に沿った分かりやすい言葉で作業内容を説明し、最も賢明な選択肢を選べるよう手助けし、問題が起きたときは簡単な代替案を提示します。",
     userProfileTechProfessionalDescription:
       "過剰な説明を省き、複雑な技術的詳細を率直に伝え、自分で試行錯誤するユーザーに高度な解決策を示しつつ、最も建設的な道筋を選びます。",
-    userProfileInterfaceLabel: "インタラクティブな回答",
-    userProfileInterfaceRich: "リッチ",
-    userProfileInterfaceSimple: "シンプル",
-    userProfileInterfaceRichDescription:
-      "チェックリスト、計算機、表、グラフなど、その場で使える形で回答します。",
-    userProfileInterfaceSimpleDescription:
-      "Pine はテキストと Markdown だけで回答します。",
+    interactiveAnswers: "インタラクティブな回答",
+    interactiveAnswersDescription:
+      "必要に応じて、回答に操作可能なチェックリスト、計算機、表、グラフを含めます。",
+    interactiveAnswersEnabled: "有効",
+    interactiveAnswersDisabled: "無効",
     userProfileDetailsLabel: "その他の個人情報",
     userProfileDetailsPlaceholder: "例：仕事、興味、好み、現在の目標など",
     userProfileDetailsDescription:

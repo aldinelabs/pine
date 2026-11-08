@@ -27,6 +27,32 @@ describe("project transcript markers", () => {
     vi.useRealTimers();
   });
 
+  it.each([
+    { name: "mcp__example__run", input: { tool: "run", server: "example" } },
+    { name: "mcp_config_save", input: { name: "example", config: {} } },
+    { name: "ui_present_file", input: { path: "report.md" } },
+    { name: "find", input: { pattern: "*.vue" } },
+  ])(
+    "preserves monospace targets through review and approval for $name",
+    async ({ name, input }) => {
+      const wrapper = mount(ProjectToolCallMarker, {
+        props: {
+          toolCall: { id: "review-font", name, input, status: "running" },
+        },
+        global: { plugins: [createAppI18n("en-US")] },
+      });
+      expect(wrapper.get("code").classes()).toContain("font-mono");
+      await wrapper.setProps({ reviewing: true });
+      expect(wrapper.get("code").classes()).toContain("font-mono");
+      expect(wrapper.get('[data-slot="marker-content"]').classes()).toContain(
+        "shimmer-color-info",
+      );
+      await wrapper.setProps({ reviewing: false, awaitingApproval: true });
+      expect(wrapper.get("code").classes()).toContain("font-mono");
+      wrapper.unmount();
+    },
+  );
+
   it("shimmers while compacting and settles after compaction", async () => {
     const wrapper = mount(ProjectCompactionMarker, {
       props: {
