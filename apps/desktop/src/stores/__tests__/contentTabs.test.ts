@@ -4,6 +4,7 @@ import { CONTENT_TABS_STORAGE_KEY } from "@/lib/contentTabStorage";
 import { TEMPORARY_WORKSPACE_PROJECT_ID } from "@/shared/projects";
 import type { PineSessionSummary } from "@/shared/sessions";
 import { useContentTabsStore } from "../contentTabs";
+import { useSessionStore } from "../session";
 
 const firstSession: PineSessionSummary = {
   createdAt: "2026-08-25T00:00:00.000Z",
@@ -119,6 +120,29 @@ describe("content tabs store", () => {
     expect(store2.createSessionTab({ reuseDraft: false })).toMatchObject({
       projectId: TEMPORARY_WORKSPACE_PROJECT_ID,
     });
+  });
+
+  it("uses live session activity for new drafts independently of sidebar project order", () => {
+    const store = useContentTabsStore();
+    store.rememberDraftProject("old-choice");
+    const sessions = useSessionStore();
+    sessions.allRecentSessions = [
+      { ...firstSession, projectId: "active-project" },
+    ];
+    expect(store.createSessionTab({ reuseDraft: false }).projectId).toBe(
+      "active-project",
+    );
+    sessions.allRecentSessions = [
+      { ...firstSession, projectId: "newer-project" },
+    ];
+    expect(store.createSessionTab({ reuseDraft: false }).projectId).toBe(
+      "newer-project",
+    );
+    expect(
+      store.createSessionTab({ reuseDraft: false, projectId: "explicit" })
+        .projectId,
+    ).toBe("explicit");
+    expect(store.lastDraftProjectId).toBe("old-choice");
   });
 
   it("retargets only drafts, and a reused draft only when asked", () => {

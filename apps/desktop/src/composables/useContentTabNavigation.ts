@@ -88,7 +88,7 @@ export function useContentTabNavigation() {
 
   /**
    * Opens a fresh draft without reusing a draft or replacing a preview tab,
-   * and resolves once it shows. Defaults to the last chosen draft project.
+   * and resolves once it shows. Defaults to the latest session activity.
    */
   function openNewDraft(projectId?: string): Promise<void> {
     return navigate(
