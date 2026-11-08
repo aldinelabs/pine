@@ -354,21 +354,25 @@ export function useSteeringMessageTransition(options: {
     for (const cancel of cancellations) cancel();
     cancellations.clear();
   }
+  let reducedMotion: MediaQueryList | undefined;
+  function prefersReducedMotion(): boolean {
+    reducedMotion ??= window.matchMedia?.("(prefers-reduced-motion: reduce)");
+    return reducedMotion?.matches ?? false;
+  }
   watch([options.active, options.sessionId], reset, { flush: "sync" });
   watch(
     [options.queue, options.messages, options.active, options.sessionId],
     ([queue, messages], previous) => {
-      if (
-        !options.active.value ||
-        window.matchMedia?.("(prefers-reduced-motion: reduce)").matches
-      ) {
+      if (!options.active.value || prefersReducedMotion()) {
         reset();
         return;
       }
-      const container = options.container.value;
-      const sourceNodes = container?.querySelectorAll<HTMLElement>(
-        "[data-steering-content]",
-      );
+      // Only queued previews are measured; skip the DOM query without any.
+      const sourceNodes = queued.length
+        ? options.container.value?.querySelectorAll<HTMLElement>(
+            "[data-steering-content]",
+          )
+        : undefined;
       // Measure the previews that are on screen right now. The DOM still shows
       // the previous render here, so an entry is measured at its own index in
       // that order, before the queue is rebuilt.
@@ -402,6 +406,17 @@ export function useSteeringMessageTransition(options: {
         }, 5_000);
       }
       const oldMessages = previous?.[1];
+      // A streaming update replaces a message in place. With the same ids in
+      // the same order nothing was sent, edited or appended, so the scan over
+      // the whole transcript below would find nothing.
+      if (
+        oldMessages &&
+        oldMessages.length === messages.length &&
+        messages.every(
+          (message, index) => oldMessages[index]?.id === message.id,
+        )
+      )
+        return;
       const oldIds = new Set((oldMessages ?? []).map((message) => message.id));
       // An edit removes the turn from the tail before sending it again.
       if (
