@@ -253,7 +253,8 @@ A resizable panel on the right of the window, kept per session. When it is open,
 resizing the window changes this panel's width first, keeping the conversation
 width until the panel reaches its minimum or maximum width. Resizing back
 restores the previous proportions. Its leading edge can still be dragged to
-trade width with the conversation. It holds one or two cards stacked top and
+trade width with the conversation. On narrow screens it opens as an overlay
+without the width resize handle. It holds one or two cards stacked top and
 bottom, with a handle to resize them. Each card header
 has a panel switcher and buttons to open the content in a tab, add a card and
 close the card. The panels are:

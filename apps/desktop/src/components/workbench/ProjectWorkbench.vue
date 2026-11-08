@@ -315,7 +315,7 @@ function resizeWithKeyboard(event: KeyboardEvent): void {
     data-workbench
     class="group-data-[side=right]:border-l-0 [&>[data-slot=sidebar-inner]]:bg-background"
   >
-    <WorkbenchResizeHandle />
+    <WorkbenchResizeHandle v-if="!isMobile" />
     <div
       data-slot="workbench-titlebar"
       class="window-drag flex h-[var(--window-titlebar-height)] shrink-0 items-center pr-3"

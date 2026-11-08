@@ -220,3 +220,16 @@ it("follows the workbench as a sheet on a phone", async () => {
   expect(store.activeLayout.open).toBe(false);
   wrapper.unmount();
 });
+
+it("hides the width handle in the mobile overlay and restores it on desktop", async () => {
+  useWorkbenchStore().setOpen(true);
+  const wrapper = mountWorkbench();
+  expect(wrapper.find("workbench-resize-handle-stub").exists()).toBe(true);
+  sidebar.isMobile.value = true;
+  await flushPromises();
+  expect(wrapper.find("workbench-resize-handle-stub").exists()).toBe(false);
+  sidebar.isMobile.value = false;
+  await flushPromises();
+  expect(wrapper.find("workbench-resize-handle-stub").exists()).toBe(true);
+  wrapper.unmount();
+});
