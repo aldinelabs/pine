@@ -68,7 +68,7 @@ import { isValidProjectEntryName } from "@/shared/fileNames";
 import type { FilePreviewTarget } from "@/shared/projectFiles";
 import { useContentTabsStore } from "@/stores/contentTabs";
 import { useProjectStore } from "@/stores/project";
-import { useSessionStore } from "@/stores/session";
+import { useSessionStore, type PineTranscriptMessage } from "@/stores/session";
 import { useWorkbenchStore } from "@/stores/workbench";
 
 interface Artifact {
@@ -95,29 +95,57 @@ function presentedPath(input: unknown): string | null {
     : null;
 }
 
+/**
+ * One message's presented files, in order. Transcript messages are immutable
+ * records, so a streaming update only rescans the message it replaced.
+ */
+const presentedByMessage = new WeakMap<
+  PineTranscriptMessage,
+  readonly Artifact[]
+>();
+function messageArtifacts(message: PineTranscriptMessage): readonly Artifact[] {
+  const cached = presentedByMessage.get(message);
+  if (cached) return cached;
+  const found: Artifact[] = [];
+  for (const block of message.blocks) {
+    if (block.type !== "toolCall") continue;
+    const { toolCall } = block;
+    if (
+      toolCall.name !== UI_PRESENT_FILE_TOOL_NAME ||
+      toolCall.status === "error"
+    )
+      continue;
+    const path = presentedPath(toolCall.input);
+    if (path) found.push({ toolCallId: toolCall.id, path });
+  }
+  presentedByMessage.set(message, found);
+  return found;
+}
+
 /** Files the session presented, newest first, each path once. */
-const artifacts = computed<Artifact[]>(() => {
+const artifacts = computed<Artifact[]>((previous) => {
   const byPath = new Map<string, Artifact>();
   for (const message of messages.value) {
-    for (const block of message.blocks) {
-      if (block.type !== "toolCall") continue;
-      const { toolCall } = block;
-      if (
-        toolCall.name !== UI_PRESENT_FILE_TOOL_NAME ||
-        toolCall.status === "error"
-      )
-        continue;
-      const path = presentedPath(toolCall.input);
-      if (!path) continue;
-      byPath.delete(path);
-      byPath.set(path, { toolCallId: toolCall.id, path });
+    for (const artifact of messageArtifacts(message)) {
+      byPath.delete(artifact.path);
+      byPath.set(artifact.path, artifact);
     }
   }
-  return [...byPath.values()]
+  const next = [...byPath.values()]
     .filter(
       (artifact) => !contentTabs.isPresentationRemoved(artifact.toolCallId),
     )
     .reverse();
+  // Keep the list (and its rows) when a stream update changed nothing here.
+  return previous &&
+    previous.length === next.length &&
+    next.every(
+      (artifact, index) =>
+        previous[index].toolCallId === artifact.toolCallId &&
+        previous[index].path === artifact.path,
+    )
+    ? previous
+    : next;
 });
 
 const previewedToolCallId = computed(
