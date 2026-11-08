@@ -31,7 +31,10 @@ import {
 } from "../runtime";
 import { PINE_APPROVAL_MODE_NOTICE } from "../runtime/session-state";
 import { serializeAttachmentMessage } from "../../shared/attachments";
-import { ACTIVATE_COMPUTER_USE_TOOL_NAME } from "../computer-use/tools";
+import {
+  ACTIVATE_COMPUTER_USE_TOOL_NAME,
+  type ComputerUseController,
+} from "../computer-use/tools";
 import { UI_WORKBENCH_STATE_TOOL_NAME } from "../../shared/workbench";
 import { TODO_REMINDER_HEADING } from "../runtime/progress-reminders";
 
@@ -1074,7 +1077,7 @@ describe("PineAgentRuntime", () => {
     }
   });
 
-  it("keeps Computer Use active after a turn settles", async () => {
+  it("expires task control on settle, stop, and mode changes while keeping tools active", async () => {
     const root = await mkdtemp(path.join(os.tmpdir(), "pine-agent-runtime-"));
     temporaryDirectories.push(root);
     const location = {
@@ -1095,6 +1098,7 @@ describe("PineAgentRuntime", () => {
       const created = await runtime.createSession(location);
       type LiveSession = {
         computerUseActive: boolean;
+        computerUseController: ComputerUseController;
         session: AgentSession;
       };
       const internals = runtime as unknown as {
@@ -1107,7 +1111,23 @@ describe("PineAgentRuntime", () => {
       live!.computerUseActive = true;
       internals.syncActiveTools(live!);
 
+      const reset = vi.spyOn(
+        live!.computerUseController,
+        "resetTaskAuthorization",
+      );
+      internals.forwardEvent(live!.session, {
+        type: "agent_end",
+        messages: [],
+      });
+      expect(reset).not.toHaveBeenCalled();
       internals.forwardEvent(live!.session, { type: "agent_settled" });
+      expect(reset).toHaveBeenCalledOnce();
+      reset.mockClear();
+      runtime.setSessionApprovalMode(created.session.id, "let-me-review");
+      expect(reset).toHaveBeenCalledOnce();
+      reset.mockClear();
+      await runtime.abort(created.session.id);
+      expect(reset).toHaveBeenCalledOnce();
       await Promise.resolve();
 
       expect(live!.computerUseActive).toBe(true);

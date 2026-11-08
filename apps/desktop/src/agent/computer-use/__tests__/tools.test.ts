@@ -1,5 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import type { ToolDefinition } from "@earendil-works/pi-coding-agent";
+import type { PineApprovalMode } from "../../../shared/agent";
+import type { GateDecision } from "../../protocol";
 import type { ToolGate } from "../../gate";
 import {
   ACTIVATE_COMPUTER_USE_TOOL_NAME,
@@ -23,7 +25,9 @@ function fakeClient() {
 }
 
 function fakeGate(
-  review = vi.fn(() => Promise.resolve({ kind: "allow" as const })),
+  review: ToolGate["reviewPrivilegedCall"] = vi.fn(() =>
+    Promise.resolve({ kind: "allow" as const }),
+  ),
 ) {
   return {
     reviewBashCommand: vi.fn(),
@@ -57,7 +61,7 @@ describe("ComputerUseController", () => {
     });
   });
 
-  it("keeps observations silent and reviews native actions", async () => {
+  it("keeps observations silent and reviews computer control once per task", async () => {
     const client = fakeClient();
     const review = vi.fn(() => Promise.resolve({ kind: "allow" as const }));
     const controller = new ComputerUseController({
@@ -70,15 +74,153 @@ describe("ComputerUseController", () => {
     await controller.call("call-1", "list_apps", {});
     await controller.call("call-2", "click", { element_id: "e12" });
 
-    expect(client.start).toHaveBeenCalledTimes(2);
+    await controller.call("call-3", "type_text", { text: "Hello" });
+    await controller.call("call-4", "activate_app", { app: "Safari" });
+    await controller.call("call-5", "browser_navigate", {
+      url: "https://example.com",
+    });
+
+    expect(client.start).toHaveBeenCalledTimes(5);
+    expect(client.callTool).toHaveBeenCalledTimes(5);
     expect(review).toHaveBeenCalledOnce();
     expect(review).toHaveBeenCalledWith(
       expect.objectContaining({
         toolCallId: "call-2",
         toolName: "click",
-        subject: "click on element e12",
+        subject: expect.stringContaining(
+          "current task. First action: click on element e12",
+        ),
       }),
     );
+  });
+
+  it.each<PineApprovalMode>(["auto-approve", "let-me-review", "autonomous"])(
+    "expires the grant after a task reset in %s mode",
+    async (mode) => {
+      const review = vi.fn(() => Promise.resolve({ kind: "allow" as const }));
+      const controller = new ComputerUseController({
+        client: fakeClient(),
+        getApprovalMode: () => mode,
+        getGate: () => fakeGate(review),
+      });
+      await controller.call("first", "click", {});
+      await controller.call("second", "scroll", {});
+      controller.resetTaskAuthorization();
+      await controller.call("next-task", "click", {});
+      expect(review).toHaveBeenCalledTimes(2);
+    },
+  );
+
+  it("does not reuse task control for extension setup", async () => {
+    const review = vi
+      .fn<() => Promise<GateDecision>>()
+      .mockResolvedValueOnce({ kind: "allow" })
+      .mockResolvedValueOnce({ kind: "deny", reason: "Setup declined" });
+    const controller = new ComputerUseController({
+      client: fakeClient(),
+      getApprovalMode: () => "auto-approve",
+      getGate: () => fakeGate(review),
+    });
+    await controller.call("first", "click", {});
+    await expect(controller.installBrowserExtension("setup")).rejects.toThrow(
+      "Setup declined",
+    );
+    await controller.call("second", "scroll", {});
+    expect(review).toHaveBeenCalledTimes(2);
+    expect(review).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        toolName: "install_pine_browser_extension",
+        subject: "install_pine_browser_extension on the visible desktop",
+      }),
+    );
+  });
+
+  it("does not execute or cache a denied task grant", async () => {
+    const client = fakeClient();
+    const review = vi
+      .fn<() => Promise<GateDecision>>()
+      .mockResolvedValueOnce({ kind: "deny", reason: "Not authorized" })
+      .mockResolvedValueOnce({ kind: "allow" });
+    const controller = new ComputerUseController({
+      client,
+      getApprovalMode: () => "auto-approve",
+      getGate: () => fakeGate(review),
+    });
+    await expect(controller.call("denied", "click", {})).rejects.toThrow(
+      "Not authorized",
+    );
+    expect(client.callTool).not.toHaveBeenCalled();
+    await controller.call("retry", "click", {});
+    expect(review).toHaveBeenCalledTimes(2);
+    expect(client.callTool).toHaveBeenCalledOnce();
+  });
+
+  it.each(["reset", "abort"])(
+    "does not execute or restore a pending grant after %s",
+    async (cause) => {
+      const client = fakeClient();
+      let resolve!: (decision: GateDecision) => void;
+      const pending = new Promise<GateDecision>((done) => {
+        resolve = done;
+      });
+      const review = vi
+        .fn<() => Promise<GateDecision>>()
+        .mockReturnValueOnce(pending)
+        .mockResolvedValue({ kind: "allow" });
+      const controller = new ComputerUseController({
+        client,
+        getApprovalMode: () => "auto-approve",
+        getGate: () => fakeGate(review),
+      });
+      const abort = new AbortController();
+      const action = controller.call("pending", "click", {}, abort.signal);
+      const rejected = expect(action).rejects.toThrow();
+      await vi.waitFor(() => expect(review).toHaveBeenCalledOnce());
+      if (cause === "reset") controller.resetTaskAuthorization();
+      else abort.abort();
+      resolve({ kind: "allow" });
+      await rejected;
+      expect(client.callTool).not.toHaveBeenCalled();
+      await controller.call("new-task", "click", {});
+      expect(review).toHaveBeenCalledTimes(2);
+    },
+  );
+
+  it("does not request a new grant for an action stopped during backend startup", async () => {
+    const client = fakeClient();
+    let finishStartup!: () => void;
+    client.start.mockReturnValueOnce(
+      new Promise<void>((resolve) => {
+        finishStartup = resolve;
+      }),
+    );
+    const review = vi.fn(() => Promise.resolve({ kind: "allow" as const }));
+    const controller = new ComputerUseController({
+      client,
+      getApprovalMode: () => "auto-approve",
+      getGate: () => fakeGate(review),
+    });
+    const action = controller.call("stopped", "click", {});
+    const rejected = expect(action).rejects.toThrow("authorization expired");
+    controller.resetTaskAuthorization();
+    finishStartup();
+    await rejected;
+    expect(review).not.toHaveBeenCalled();
+    expect(client.callTool).not.toHaveBeenCalled();
+  });
+
+  it("requires a fresh grant after an approval mode change", async () => {
+    let mode: PineApprovalMode = "auto-approve";
+    const review = vi.fn(() => Promise.resolve({ kind: "allow" as const }));
+    const controller = new ComputerUseController({
+      client: fakeClient(),
+      getApprovalMode: () => mode,
+      getGate: () => fakeGate(review),
+    });
+    await controller.call("first", "click", {});
+    mode = "let-me-review";
+    await controller.call("changed-mode", "click", {});
+    expect(review).toHaveBeenCalledTimes(2);
   });
 
   it("surfaces MCP tool errors as failed tool calls", async () => {
