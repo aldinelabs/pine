@@ -1633,6 +1633,12 @@ export default {
             declined: "Sitzungen nicht geordnet: ",
             error: "Sitzungen konnten nicht geordnet werden: ",
           },
+          rename: {
+            running: "Benenne Sitzung um in ",
+            complete: "Sitzung umbenannt in ",
+            kept: "Sitzungstitel beibehalten",
+            error: "Sitzung konnte nicht umbenannt werden",
+          },
           delete: {
             running: "Lösche eine Sitzung",
             complete: "Sitzung gelöscht: ",

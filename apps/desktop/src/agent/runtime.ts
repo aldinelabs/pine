@@ -1,4 +1,9 @@
-import { approvalModeFromEntries } from "../shared/sessions";
+import {
+  PINE_USER_TITLE_ENTRY,
+  approvalModeFromEntries,
+  isUserChosenTitle,
+  type SessionRenamer,
+} from "../shared/sessions";
 import {
   createAgentSession,
   DefaultResourceLoader,
@@ -58,6 +63,7 @@ import {
   type PineApprovalReview,
   type PineContextUsage,
 } from "../shared/sessions";
+import type { RenameCurrentSessionResult } from "./sessionTools";
 import { attachmentMessagePreview } from "../shared/attachments";
 import {
   type AgentHostReply,
@@ -260,6 +266,7 @@ import {
 import {
   MAX_GENERATED_TITLE_LENGTH,
   TITLE_TOOL,
+  normalizeGeneratedTitle,
   titleFromAssistantMessage,
 } from "./runtime/title";
 export {
@@ -996,8 +1003,14 @@ export class PineAgentRuntime {
     })();
   }
 
-  renameSession(sessionId: string, name: string): AgentWorkerSessionResult {
+  renameSession(
+    sessionId: string,
+    name: string,
+    by: SessionRenamer = "user",
+  ): AgentWorkerSessionResult {
     const session = this.getSession(sessionId).session;
+    if (by === "user")
+      session.sessionManager.appendCustomEntry(PINE_USER_TITLE_ENTRY, { name });
     session.setSessionName(name);
     return { session: sessionSummary(session) };
   }
@@ -1613,6 +1626,7 @@ export class PineAgentRuntime {
         sessions: {
           requestHost: (request) => this.requestHost(live, request),
           getLocale: () => live.locale,
+          renameCurrentSession: (title) => this.retitleByAgent(live, title),
           requestApproval: (input) =>
             this.requestUserApproval(live, {
               trigger: "pre-execution",
@@ -2537,6 +2551,27 @@ export class PineAgentRuntime {
         });
       throw error;
     }
+  }
+
+  /** The agent's own retitle; a title the user chose is never replaced. */
+  private retitleByAgent(
+    live: LiveAgentSession,
+    title: string,
+  ): RenameCurrentSessionResult {
+    const session = live.session;
+    const normalized = normalizeGeneratedTitle(title);
+    if (!normalized) return { renamed: false, reason: "invalid" };
+    if (
+      isUserChosenTitle(
+        session.sessionManager.getEntries(),
+        session.sessionName,
+      )
+    )
+      return { renamed: false, reason: "user-title" };
+    if (normalized === session.sessionName)
+      return { renamed: false, reason: "unchanged" };
+    session.setSessionName(normalized);
+    return { renamed: true, title: normalized };
   }
 
   private async generateInitialTitle(live: LiveAgentSession): Promise<void> {

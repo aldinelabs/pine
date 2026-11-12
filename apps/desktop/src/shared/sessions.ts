@@ -23,6 +23,31 @@ export const ATTACH_SESSION_CHANNEL = "sessions:attach" as const;
 
 /** Custom session entry preserving the session's approval preference. */
 export const PINE_APPROVAL_MODE_ENTRY = "pine.approval-mode" as const;
+/** Marks a title the user chose, which the agent then leaves alone. */
+export const PINE_USER_TITLE_ENTRY = "pine.user-title" as const;
+
+/** Who renames a session: the user's own title is never replaced by the agent. */
+export type SessionRenamer = "user" | "agent";
+
+/** Whether `title` is the one the user last chose for the session. */
+export function isUserChosenTitle(
+  entries: readonly { type: string; customType?: string; data?: unknown }[],
+  title: string | undefined,
+): boolean {
+  if (!title) return false;
+  for (let index = entries.length - 1; index >= 0; index -= 1) {
+    const entry = entries[index];
+    if (entry.type !== "custom" || entry.customType !== PINE_USER_TITLE_ENTRY)
+      continue;
+    const data = entry.data;
+    return (
+      typeof data === "object" &&
+      data !== null &&
+      (data as { name?: unknown }).name === title
+    );
+  }
+  return false;
+}
 
 /** Latest valid persisted preference; older sessions keep their default. */
 export function approvalModeFromEntries(

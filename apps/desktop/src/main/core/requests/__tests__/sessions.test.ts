@@ -288,6 +288,7 @@ describe("answerSessionOperation", () => {
       projectId,
       looseSession,
       "Plan",
+      "agent",
     );
     expect(result).toMatchObject({
       op: "organize",

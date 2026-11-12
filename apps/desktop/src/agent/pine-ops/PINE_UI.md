@@ -251,6 +251,10 @@ From top to bottom:
      or a stricter one, never a looser one. In Let Me Review, starting it
      shows an Approval required card with its first message. The agent can
      also search the user's sessions in every project.
+   - Session titles: Pine titles a new session after its first exchange.
+     When a later message starts a different task, the agent may update the
+     title in the sidebar and tab to the work it is now doing. A title the
+     user set with Rename conversation stays until the user renames it again.
    - Sessions the agent organizes: when asked, the agent can create, rename
      and delete session folders, move sessions into or out of folders, and
      rename sessions; the left sidebar updates at once. In Let Me Review this

@@ -30,6 +30,7 @@ import {
   UI_PROJECT_UPDATE_TOOL_NAME,
   UI_SESSION_DELETE_TOOL_NAME,
   UI_SESSION_ORGANIZE_TOOL_NAME,
+  UI_SESSION_RENAME_TOOL_NAME,
   UI_SESSION_SEARCH_TOOL_NAME,
   UI_SESSION_TREE_TOOL_NAME,
   currentToolName,
@@ -1314,6 +1315,26 @@ const presentation = computed(() => {
         target: treeProject
           ? projectDisplayName(treeProject)
           : (firstString(tree, ["projectName"]) ?? ""),
+        targetMono: false,
+        purpose: undefined,
+        faviconDataUrl: undefined,
+        after: "",
+      };
+    }
+    if (sessionTool === UI_SESSION_RENAME_TOOL_NAME) {
+      // A title the user chose stays, which reads as kept, not renamed.
+      const outcome =
+        tense === "complete" && details.renamed !== true ? "kept" : tense;
+      return {
+        before: t(`project.transcript.tools.session.rename.${outcome}`),
+        operation: undefined,
+        separator: "",
+        target:
+          outcome === "kept"
+            ? ""
+            : (firstString(details, ["title"]) ??
+              firstString(input, ["title"]) ??
+              ""),
         targetMono: false,
         purpose: undefined,
         faviconDataUrl: undefined,

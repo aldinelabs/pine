@@ -1627,6 +1627,12 @@ export default {
             declined: "No se organizaron las sesiones de ",
             error: "No se pudieron organizar las sesiones de ",
           },
+          rename: {
+            running: "Cambiando el título de la sesión a ",
+            complete: "Título de la sesión cambiado a ",
+            kept: "Se mantuvo el título de la sesión",
+            error: "No se pudo cambiar el título de la sesión",
+          },
           delete: {
             running: "Eliminando una sesión",
             complete: "Sesión eliminada: ",

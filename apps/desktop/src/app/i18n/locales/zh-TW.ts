@@ -1540,6 +1540,12 @@ export default {
             declined: "未整理會話：",
             error: "無法整理會話：",
           },
+          rename: {
+            running: "正在更新會話標題為 ",
+            complete: "已更新會話標題為 ",
+            kept: "保留了會話標題",
+            error: "無法更新會話標題",
+          },
           delete: {
             running: "正在刪除會話",
             complete: "已刪除會話 ",

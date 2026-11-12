@@ -24,6 +24,7 @@ import type {
 import type {
   PineContextUsage,
   PineSessionSummary,
+  SessionRenamer,
   SessionHostOperation,
   SessionHostResult,
 } from "../shared/sessions";
@@ -236,6 +237,7 @@ export type AgentWorkerRequest =
       type: "session:rename";
       sessionId: string;
       name: string;
+      by: SessionRenamer;
     }
   | {
       id: string;

@@ -1628,6 +1628,12 @@ export default {
             declined: "Sessions non organisées : ",
             error: "Impossible d’organiser les sessions de ",
           },
+          rename: {
+            running: "Renommage de la session en ",
+            complete: "Session renommée en ",
+            kept: "Titre de la session conservé",
+            error: "Impossible de renommer la session",
+          },
           delete: {
             running: "Suppression d’une session",
             complete: "Session supprimée : ",

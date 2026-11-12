@@ -1593,6 +1593,12 @@ export default {
             declined: "세션을 정리하지 않음: ",
             error: "세션을 정리할 수 없음: ",
           },
+          rename: {
+            running: "세션 제목 변경 중: ",
+            complete: "세션 제목 변경함: ",
+            kept: "세션 제목을 유지함",
+            error: "세션 제목을 변경할 수 없음",
+          },
           delete: {
             running: "세션 삭제 중",
             complete: "세션 삭제함: ",

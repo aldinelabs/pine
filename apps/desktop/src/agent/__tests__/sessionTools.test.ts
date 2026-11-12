@@ -16,6 +16,7 @@ import type {
 import {
   createSessionToolDefinitions,
   type PineSessionToolContext,
+  type RenameCurrentSessionResult,
 } from "../sessionTools";
 
 const session: AgentHostSession = {
@@ -83,20 +84,29 @@ function setup(
     },
   );
   const requestApproval = vi.fn().mockResolvedValue(decision);
+  const renameCurrentSession = vi.fn(
+    (title: string): RenameCurrentSessionResult =>
+      title === "Locked"
+        ? { renamed: false, reason: "user-title" }
+        : { renamed: true, title },
+  );
   const context: PineSessionToolContext = {
     requestHost,
     requestApproval,
+    renameCurrentSession,
     getApprovalMode: () => approvalMode,
     getLocale: () => "en-US",
   };
-  const [search, start, treeTool, organize, remove] =
+  const [search, start, treeTool, organize, rename, remove] =
     createSessionToolDefinitions(context);
   return {
     search,
     start,
     treeTool,
     organize,
+    rename,
     remove,
+    renameCurrentSession,
     requestHost,
     requestApproval,
   };
@@ -291,5 +301,29 @@ describe("session tools", () => {
     );
     expect(requestHost).toHaveBeenCalledTimes(1);
     expect(result.details).toEqual({ done: false });
+  });
+
+  it("retitles this session and keeps a title the user chose", async () => {
+    const { rename, renameCurrentSession } = setup("let-me-review");
+
+    const renamed = await run(rename, { title: "Session folder tools" });
+    const kept = await run(rename, { title: "Locked" });
+
+    expect(renameCurrentSession).toHaveBeenCalledTimes(2);
+    expect(text(renamed)).toBe('Title set to "Session folder tools".');
+    expect(text(kept)).toContain("The user chose this session's title");
+  });
+
+  it("anchors retitling on a new task, not on follow-ups", () => {
+    const { rename } = setup("auto-approve");
+
+    const guidance = rename.promptGuidelines?.join("\n") ?? "";
+    expect(guidance).toContain(
+      "starts a new task or moves to a different area",
+    );
+    expect(guidance).toContain("Do not retitle for follow-ups");
+    expect(guidance).toContain(
+      "do not call ui_session_rename in the first turn",
+    );
   });
 });

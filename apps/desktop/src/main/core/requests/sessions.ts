@@ -382,6 +382,7 @@ export async function answerSessionOperation(
           project.id,
           rename.sessionId,
           rename.name,
+          "agent",
         );
       core.notifyLibraryChanged("sessions");
     }

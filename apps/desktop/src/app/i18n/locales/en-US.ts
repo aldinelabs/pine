@@ -1598,6 +1598,12 @@ export default {
             declined: "Didn’t organize sessions in ",
             error: "Couldn’t organize sessions in ",
           },
+          rename: {
+            running: "Retitling session to ",
+            complete: "Retitled session to ",
+            kept: "Kept the session title",
+            error: "Couldn’t retitle the session",
+          },
           delete: {
             running: "Deleting a session",
             complete: "Deleted session ",

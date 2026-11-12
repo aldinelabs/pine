@@ -1539,6 +1539,12 @@ export default {
             declined: "未整理会话：",
             error: "无法整理会话：",
           },
+          rename: {
+            running: "正在更新会话标题为 ",
+            complete: "已更新会话标题为 ",
+            kept: "保留了会话标题",
+            error: "无法更新会话标题",
+          },
           delete: {
             running: "正在删除会话",
             complete: "已删除会话 ",

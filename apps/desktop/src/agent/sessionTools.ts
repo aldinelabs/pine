@@ -8,6 +8,7 @@ import {
   UI_SESSION_DELETE_TOOL_NAME,
   UI_SESSION_NEW_TOOL_NAME,
   UI_SESSION_ORGANIZE_TOOL_NAME,
+  UI_SESSION_RENAME_TOOL_NAME,
   UI_SESSION_SEARCH_TOOL_NAME,
   UI_SESSION_TREE_TOOL_NAME,
   approvalModeWithin,
@@ -31,6 +32,11 @@ export interface PineSessionToolContext {
   requestHost(request: AgentHostRequest): Promise<AgentHostResponse>;
   getApprovalMode(): PineApprovalMode;
   getLocale(): "en-US" | "zh-CN";
+  /**
+   * Renames the asking session itself. A title the user chose stays; the
+   * worker reports that instead of replacing it.
+   */
+  renameCurrentSession(title: string): RenameCurrentSessionResult;
   /** Let Me Review: the user approves starting a session. */
   requestApproval(input: {
     toolCallId: string;
@@ -41,6 +47,10 @@ export interface PineSessionToolContext {
     signal?: AbortSignal;
   }): Promise<GateDecision>;
 }
+
+export type RenameCurrentSessionResult =
+  | { renamed: true; title: string }
+  | { renamed: false; reason: "user-title" | "unchanged" | "invalid" };
 
 const DEFAULT_SEARCH_LIMIT = 20;
 const MAX_SEARCH_LIMIT = 50;
@@ -328,8 +338,7 @@ export function createSessionToolDefinitions(
   const organizeTool = defineTool({
     name: UI_SESSION_ORGANIZE_TOOL_NAME,
     label: "Organize Sessions",
-    description:
-      "Edit one project's session folders and titles in one call: create, rename or delete folders (a deleted folder's sessions move back to the project), move sessions into or out of folders, and rename sessions. Sessions stay in their project.",
+    description: `Edit one project's session folders and titles in one call: create, rename or delete folders (a deleted folder's sessions move back to the project), move sessions into or out of folders, and rename sessions the user asks about. Sessions stay in their project. Retitle this session with ${UI_SESSION_RENAME_TOOL_NAME} instead.`,
     promptSnippet: `Use ${UI_SESSION_TREE_TOOL_NAME} and then ${UI_SESSION_ORGANIZE_TOOL_NAME} when the user asks to tidy, file or rename their sessions`,
     parameters: organizeParams,
     prepareArguments: (args) => args as Static<typeof organizeParams>,
@@ -411,6 +420,41 @@ export function createSessionToolDefinitions(
     },
   });
 
+  const renameParams = Type.Object({
+    title: Type.String({
+      description:
+        "What this session is working on now, in the user's language: a short, specific phrase of at most 60 characters.",
+    }),
+  });
+  const renameTool = defineTool({
+    name: UI_SESSION_RENAME_TOOL_NAME,
+    label: "Retitle Session",
+    description:
+      "Set this session's title in the sidebar and tab to what it is working on now. A title the user chose themselves is kept.",
+    promptSnippet: `Use ${UI_SESSION_RENAME_TOOL_NAME} to keep this session's title in step with the task it is working on`,
+    promptGuidelines: [
+      `When the user's message starts a new task or moves to a different area, call ${UI_SESSION_RENAME_TOOL_NAME} once you understand what the new work is, if the current title no longer describes it. Name the work, not the request's wording.`,
+      `Do not retitle for follow-ups, corrections or steps within the same task, and at most once per new task. Pine titles a new session after its first exchange, so do not call ${UI_SESSION_RENAME_TOOL_NAME} in the first turn.`,
+      `Call it alongside other work without mentioning it in the reply. If it reports that the user chose the title, leave the title alone for the rest of the session.`,
+    ],
+    parameters: renameParams,
+    prepareArguments: (args) => args as Static<typeof renameParams>,
+    execute: (_toolCallId, params) => {
+      const result = context.renameCurrentSession(params.title);
+      const text = result.renamed
+        ? `Title set to "${result.title}".`
+        : result.reason === "user-title"
+          ? "The user chose this session's title; it stays. Do not retitle this session again."
+          : result.reason === "unchanged"
+            ? "The title already says that."
+            : "The title is empty.";
+      return Promise.resolve({
+        content: [{ type: "text" as const, text }],
+        details: result,
+      });
+    },
+  });
+
   const deleteParams = Type.Object({
     projectId: Type.String(),
     sessionId: Type.String(),
@@ -478,6 +522,7 @@ export function createSessionToolDefinitions(
     newTool,
     treeTool,
     organizeTool,
+    renameTool,
     deleteTool,
   ] as ToolDefinition[];
 }

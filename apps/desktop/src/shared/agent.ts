@@ -36,6 +36,8 @@ export const UI_SESSION_NEW_TOOL_NAME = "ui_session_new" as const;
 export const UI_SESSION_TREE_TOOL_NAME = "ui_session_tree" as const;
 /** Edits session folders and titles, checked against the tree's revision. */
 export const UI_SESSION_ORGANIZE_TOOL_NAME = "ui_session_organize" as const;
+/** Retitles the asking session to what it is working on now. */
+export const UI_SESSION_RENAME_TOOL_NAME = "ui_session_rename" as const;
 /** Deletes a session permanently; the user approves every call. */
 export const UI_SESSION_DELETE_TOOL_NAME = "ui_session_delete" as const;
 /** Project management; the user approves every call, in every mode. */

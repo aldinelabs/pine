@@ -1,4 +1,8 @@
-import { approvalModeFromEntries } from "../shared/sessions";
+import {
+  PINE_USER_TITLE_ENTRY,
+  approvalModeFromEntries,
+  type SessionRenamer,
+} from "../shared/sessions";
 import type {
   SessionEntry as Entry,
   SessionManager,
@@ -750,6 +754,7 @@ export class ProjectSessionService {
   async renameSession(
     sessionId: string,
     name: string,
+    by: SessionRenamer = "user",
   ): Promise<PineSessionSummary> {
     const metadata = await this.findSession(sessionId);
     if (!metadata) throw new Error("Session not found in the active project.");
@@ -757,7 +762,10 @@ export class ProjectSessionService {
     // SessionManager tolerates malformed lines. Validate the full document
     // before allowing a rename to append to a genuinely damaged source.
     await this.readSessionDocument(metadata);
-    (await loadSessionManager()).open(metadata.path).appendSessionInfo(name);
+    const manager = (await loadSessionManager()).open(metadata.path);
+    if (by === "user")
+      manager.appendCustomEntry(PINE_USER_TITLE_ENTRY, { name });
+    manager.appendSessionInfo(name);
     const summary = await this.readSessionDocument(metadata);
     await this.refreshIndex();
     return summary;

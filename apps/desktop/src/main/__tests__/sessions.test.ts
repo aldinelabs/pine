@@ -1057,6 +1057,14 @@ describe("ProjectSessionService", () => {
       );
 
       expect(renamed.name).toBe("Renamed conversation");
+      const userMarkers = () =>
+        readFile(metadata.path, "utf8").then(
+          (text) => text.split("pine.user-title").length - 1,
+        );
+      expect(await userMarkers()).toBe(1);
+      await service.renameSession(metadata.id, "Agent title", "agent");
+      expect(await userMarkers()).toBe(1);
+      await service.renameSession(metadata.id, "Renamed conversation");
       await expect(service.search("Renamed conversation")).resolves.toEqual([
         expect.objectContaining({
           id: metadata.id,

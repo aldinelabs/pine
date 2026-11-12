@@ -41,6 +41,7 @@ import type {
   PineContextUsage,
   PineSessionSummary,
   ResumeSessionResult,
+  SessionRenamer,
   SessionSearchResult,
 } from "../shared/sessions";
 import {
@@ -730,15 +731,16 @@ export class ProjectRuntimeRegistry {
     projectId: string,
     sessionId: string,
     name: string,
+    by: SessionRenamer = "user",
   ): Promise<PineSessionSummary> {
     const runtime = this.get(webContentsId, projectId);
     const live = runtime.liveSessions.get(sessionId);
     if (live) {
-      const result = await this.agentHost.renameSession(sessionId, name);
+      const result = await this.agentHost.renameSession(sessionId, name, by);
       live.summary = result.session;
       return result.session;
     }
-    return runtime.sessions.renameSession(sessionId, name);
+    return runtime.sessions.renameSession(sessionId, name, by);
   }
 
   async projectEntryPaths(

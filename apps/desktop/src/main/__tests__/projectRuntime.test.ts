@@ -782,6 +782,7 @@ describe("ProjectRuntimeRegistry", () => {
       expect(renameSession).toHaveBeenCalledWith(
         sessionSummary.id,
         "Renamed session",
+        "user",
       );
     } finally {
       await registry.dispose(7);
