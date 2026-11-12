@@ -130,6 +130,12 @@ function agentFolders(
   }));
 }
 
+/** Compares folder paths the way main does, ignoring trailing separators. */
+function samePath(left: string, right: string): boolean {
+  const trimmed = (value: string) => value.replace(/(?<=.)[\\/]+$/, "");
+  return trimmed(left) === trimmed(right);
+}
+
 function folderLine(folder: AgentProjectFolder): string {
   return `${folder.path}${folder.access === "read-only" ? " (read-only)" : ""}`;
 }
@@ -241,18 +247,34 @@ export function createProjectToolDefinitions(
     name: UI_PROJECT_UPDATE_TOOL_NAME,
     label: "Edit Project",
     description:
-      "Rename a Pine project, change its folders, or change its icon or accent color. Pine asks the user to confirm. Changing folders or the name restarts the project's sessions, so for this session's own project those changes apply after this reply ends; an icon or accent color change alone applies at once without restarting anything.",
+      "Rename a Pine project, change its folders, or change its icon or accent color. Pine asks the user to confirm. Changing folders or the name restarts the project's sessions, so for this session's own project those changes apply after this reply ends; an icon or accent color change applies at once without restarting anything.",
     parameters: updateParams,
     prepareArguments: (args) => args as Static<typeof updateParams>,
     executionMode: "sequential",
     execute: async (toolCallId, params, signal) => {
       const project = await findProject(context, params.projectId.trim());
       const name = params.name?.trim() || undefined;
-      const addFolders = agentFolders(params.addFolders ?? []);
       const removeFolderPaths = (params.removeFolders ?? [])
         .map((folder) => folder.trim())
         .filter(Boolean);
-      const defaultFolderPath = params.defaultFolder?.trim() || undefined;
+      const removes = (folderPath: string) =>
+        removeFolderPaths.some((removed) => samePath(removed, folderPath));
+      // Main drops folders the project already has and keeps the working
+      // directory it already uses, so neither is listed as a change.
+      const addFolders = agentFolders(params.addFolders ?? []).filter(
+        (folder) =>
+          removes(folder.path) ||
+          !project.folders.some((existing) =>
+            samePath(existing.path, folder.path),
+          ),
+      );
+      const requestedDefault = params.defaultFolder?.trim() || undefined;
+      const defaultFolderPath =
+        requestedDefault &&
+        samePath(requestedDefault, project.defaultFolderPath) &&
+        !removes(requestedDefault)
+          ? undefined
+          : requestedDefault;
       const requestedIcon = checkedIcon(params.icon);
       const requestedAccent = checkedAccentColor(params.accentColor);
       const icon =

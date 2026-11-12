@@ -160,6 +160,18 @@ describe("project tools", () => {
     expect(requestApproval).not.toHaveBeenCalled();
   });
 
+  it("refuses a working directory or folder the project already has", async () => {
+    const { update, requestApproval } = setup();
+
+    await expect(
+      run(update, { projectId: "p-other", defaultFolder: "/notes/" }),
+    ).rejects.toThrow("Nothing to change.");
+    await expect(
+      run(update, { projectId: "p-other", addFolders: [{ path: "/notes" }] }),
+    ).rejects.toThrow("Nothing to change.");
+    expect(requestApproval).not.toHaveBeenCalled();
+  });
+
   it("never deletes the project the session runs in", async () => {
     const { remove, requestApproval } = setup();
 
