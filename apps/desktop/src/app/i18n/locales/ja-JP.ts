@@ -1248,6 +1248,10 @@ export default {
           active: "{count} 件のプロジェクト操作を実行中",
           complete: "{count} 件のプロジェクト操作を実行しました",
         },
+        session: {
+          active: "{count} 件のセッション操作を実行中",
+          complete: "{count} 件のセッション操作を実行しました",
+        },
         background: {
           active: "{count} 件のバックグラウンドプロセスを管理中",
           complete: "{count} 件のバックグラウンドプロセスを管理しました",
@@ -1289,6 +1293,7 @@ export default {
         datetime: "日時",
         mcpConfig: "MCP 設定",
         project: "プロジェクト操作",
+        session: "セッション操作",
         background: "バックグラウンドプロセス",
         todo: "ToDo",
         skill: "スキル",
@@ -1552,6 +1557,24 @@ export default {
             declined: "プロジェクトへ移動しませんでした：",
             error: "プロジェクトに移動できませんでした：",
             running: "プロジェクトへの移動を確認中：",
+          },
+        },
+        session: {
+          search: {
+            running: "セッションを検索中: ",
+            complete: "セッションを検索しました: ",
+            error: "セッションを検索できませんでした: ",
+          },
+          recent: {
+            running: "最近のセッションを一覧表示中",
+            complete: "最近のセッションを一覧表示しました",
+            error: "セッションを一覧表示できませんでした",
+          },
+          new: {
+            running: "セッションを開始中",
+            complete: "セッションを開始しました。プロジェクト: ",
+            declined: "セッションを開始しませんでした",
+            error: "セッションを開始できませんでした",
           },
         },
         background: {

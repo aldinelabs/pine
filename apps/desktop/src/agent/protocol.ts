@@ -21,7 +21,18 @@ import type {
   UpdateCustomModelRequest,
   UpdateCustomProviderRequest,
 } from "../shared/models";
-import type { PineContextUsage, PineSessionSummary } from "../shared/sessions";
+import type {
+  PineContextUsage,
+  PineSessionSummary,
+  SessionHostOperation,
+  SessionHostResult,
+} from "../shared/sessions";
+
+export type {
+  AgentHostSession,
+  SessionHostOperation,
+  SessionHostResult,
+} from "../shared/sessions";
 import type {
   PineContextCompactionRoute,
   PineContextCompactionStrategy,
@@ -99,6 +110,7 @@ export interface AgentHostProject {
 export type AgentHostRequest =
   | { kind: "list-projects" }
   | { kind: "teleport"; projectId: string }
+  | { kind: "session"; operation: SessionHostOperation }
   | { kind: "workbench-state" }
   | { kind: "approximate-location" }
   | { kind: "automation"; operation: AutomationHostOperation }
@@ -109,6 +121,7 @@ export type AgentHostResponse =
   | { kind: "workbench-state"; state: WorkbenchState }
   | { kind: "approximate-location"; location: ApproximateLocation | null }
   | { kind: "teleport"; projectName: string; cwd: string }
+  | { kind: "session"; result: SessionHostResult }
   | { kind: "automation"; result: PineJsonValue }
   | { kind: "mcp"; result: PineJsonValue };
 

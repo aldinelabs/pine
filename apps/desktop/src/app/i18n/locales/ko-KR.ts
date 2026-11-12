@@ -1236,6 +1236,10 @@ export default {
           active: "프로젝트 작업 {count}개 실행 중",
           complete: "프로젝트 작업 {count}개 실행함",
         },
+        session: {
+          active: "세션 작업 {count}개 실행 중",
+          complete: "세션 작업 {count}개 실행함",
+        },
         background: {
           active: "백그라운드 프로세스 {count}개 관리 중",
           complete: "백그라운드 프로세스 {count}개 관리함",
@@ -1277,6 +1281,7 @@ export default {
         datetime: "날짜 및 시간",
         mcpConfig: "MCP 구성",
         project: "프로젝트 작업",
+        session: "세션 작업",
         background: "백그라운드 프로세스",
         todo: "할 일",
         skill: "스킬",
@@ -1540,6 +1545,24 @@ export default {
             declined: "프로젝트로 이동하지 않음: ",
             error: "프로젝트로 이동할 수 없음: ",
             running: "프로젝트 이동 요청 중: ",
+          },
+        },
+        session: {
+          search: {
+            running: "세션 검색 중: ",
+            complete: "세션 검색함: ",
+            error: "세션을 검색할 수 없음: ",
+          },
+          recent: {
+            running: "최근 세션 나열 중",
+            complete: "최근 세션을 나열함",
+            error: "세션을 나열할 수 없음",
+          },
+          new: {
+            running: "세션 시작 중",
+            complete: "세션을 시작함. 프로젝트: ",
+            declined: "세션을 시작하지 않음",
+            error: "세션을 시작할 수 없음",
           },
         },
         background: {

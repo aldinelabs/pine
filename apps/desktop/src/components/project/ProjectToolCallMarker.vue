@@ -25,9 +25,11 @@ import { useProjectDisplayName } from "@/composables/useProjectDisplayName";
 import {
   ACTIVATE_PINE_OPS_TOOL_NAME,
   UI_PROJECT_LIST_TOOL_NAME,
+  UI_SESSION_SEARCH_TOOL_NAME,
   currentToolName,
   UI_PRESENT_FILE_TOOL_NAME,
 } from "@/shared/agent";
+import { sessionSearchQuery } from "@/shared/sessions";
 import { useProjectStore } from "@/stores/project";
 import type { PineToolCall } from "@/shared/sessions";
 import {
@@ -1233,6 +1235,47 @@ const presentation = computed(() => {
       target: project
         ? projectDisplayName(project)
         : (firstString(details, ["projectName"]) ?? projectId),
+      targetMono: false,
+      purpose: undefined,
+      faviconDataUrl: undefined,
+      after: "",
+    };
+  }
+  if (kind === "session") {
+    const tense = state === "running" || state === "error" ? state : "complete";
+    const details = inputRecord(inputRecord(props.toolCall.output).details);
+    if (
+      normalizedToolName(props.toolCall.name) === UI_SESSION_SEARCH_TOOL_NAME
+    ) {
+      const query = sessionSearchQuery(firstString(input, ["query"]) ?? "");
+      return {
+        before: t(
+          `project.transcript.tools.session.${query ? "search" : "recent"}.${tense}`,
+        ),
+        operation: undefined,
+        separator: "",
+        target: query,
+        targetMono: false,
+        purpose: undefined,
+        faviconDataUrl: undefined,
+        after: "",
+      };
+    }
+    // A finished call the user turned down started nothing.
+    const outcome =
+      tense === "complete" && details.started !== true ? "declined" : tense;
+    const projectId = firstString(details, ["projectId"]) ?? "";
+    const project = projectStore?.projectById(projectId);
+    return {
+      before: t(`project.transcript.tools.session.new.${outcome}`),
+      operation: undefined,
+      separator: "",
+      target:
+        outcome === "complete"
+          ? project
+            ? projectDisplayName(project)
+            : (firstString(details, ["projectName"]) ?? "")
+          : "",
       targetMono: false,
       purpose: undefined,
       faviconDataUrl: undefined,

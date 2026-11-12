@@ -1,5 +1,9 @@
 import type { AutomationHostOperation } from "./automation";
-import type { PineApprovalReview, PineSessionSummary } from "./sessions";
+import type {
+  PineApprovalReview,
+  PineSessionSummary,
+  SessionHostOperation,
+} from "./sessions";
 import type { PineSessionMutator } from "./sessionMutators";
 import type { McpHostOperation } from "./mcp";
 import type { BackgroundTaskSnapshot } from "@pine/pi-background-tasks";
@@ -23,6 +27,10 @@ export const UI_PRESENT_FILE_TOOL_NAME = "ui_present_file" as const;
 export const UI_PROJECT_LIST_TOOL_NAME = "ui_project_list" as const;
 export const UI_LIST_MODELS_TOOL_NAME = "ui_list_models" as const;
 export const UI_SESSION_TELEPORT_TOOL_NAME = "ui_session_teleport" as const;
+/** Searches the user's sessions; a bare `*` lists the most recent ones. */
+export const UI_SESSION_SEARCH_TOOL_NAME = "ui_session_search" as const;
+/** Starts another session in the background with a first message. */
+export const UI_SESSION_NEW_TOOL_NAME = "ui_session_new" as const;
 
 /**
  * Names Pine's own tools had before they moved to `ui_<area>_<action>`.
@@ -66,6 +74,29 @@ export const SESSION_EVENT_CHANNEL = "sessions:event" as const;
  */
 export type PineApprovalMode =
   "let-me-review" | "auto-approve" | "autonomous" | "YOLO";
+
+/** Approval modes from the most to the least supervised. */
+const APPROVAL_MODE_ORDER: readonly PineApprovalMode[] = [
+  "let-me-review",
+  "auto-approve",
+  "autonomous",
+  "YOLO",
+];
+
+/**
+ * Whether a session in `current` may start one in `requested`: never with
+ * less supervision than its own, so a new session cannot widen what the
+ * agent may do without approval.
+ */
+export function approvalModeWithin(
+  requested: PineApprovalMode,
+  current: PineApprovalMode,
+): boolean {
+  return (
+    APPROVAL_MODE_ORDER.indexOf(requested) <=
+    APPROVAL_MODE_ORDER.indexOf(current)
+  );
+}
 
 /** Why a tool call needed an approval decision before it could proceed. */
 export type PineApprovalTrigger =
@@ -359,6 +390,7 @@ export type PineAgentEvent =
 export type PineHostRequest =
   | { kind: "list-projects" }
   | { kind: "teleport"; projectId: string }
+  | { kind: "session"; operation: SessionHostOperation }
   | { kind: "workbench-state" }
   | { kind: "approximate-location" }
   | { kind: "automation"; operation: AutomationHostOperation }

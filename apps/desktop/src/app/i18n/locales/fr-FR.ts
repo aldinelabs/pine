@@ -1268,6 +1268,10 @@ export default {
           active: "Exécution de {count} actions de projet",
           complete: "{count} actions de projet exécutées",
         },
+        session: {
+          active: "Exécution de {count} actions de session",
+          complete: "{count} actions de session exécutées",
+        },
         background: {
           active: "Gestion de {count} processus en arrière-plan",
           complete: "{count} processus en arrière-plan gérés",
@@ -1309,6 +1313,7 @@ export default {
         datetime: "date et heure",
         mcpConfig: "Configuration MCP",
         project: "action de projet",
+        session: "action de session",
         background: "processus en arrière-plan",
         todo: "tâches",
         skill: "Skill",
@@ -1575,6 +1580,24 @@ export default {
             declined: "Pas de déplacement vers le projet ",
             error: "Impossible de se déplacer vers le projet ",
             running: "Demande de déplacement vers le projet ",
+          },
+        },
+        session: {
+          search: {
+            running: "Recherche dans les sessions : ",
+            complete: "Sessions recherchées : ",
+            error: "Impossible de rechercher les sessions : ",
+          },
+          recent: {
+            running: "Liste des sessions récentes",
+            complete: "Sessions récentes listées",
+            error: "Impossible de lister les sessions",
+          },
+          new: {
+            running: "Démarrage d’une session",
+            complete: "Session démarrée dans ",
+            declined: "Session non démarrée",
+            error: "Impossible de démarrer une session",
           },
         },
         background: {

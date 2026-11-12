@@ -75,6 +75,7 @@ import {
 import { registerCoreRequests } from "./requests";
 import { answerAutomationOperation } from "./requests/automations";
 import { answerMcpOperation } from "./requests/mcp";
+import { answerSessionOperation } from "./requests/sessions";
 
 /** How long a running agent gets to stop its work before Pine quits anyway. */
 const AGENT_SHUTDOWN_TIMEOUT_MS = 5_000;
@@ -686,7 +687,12 @@ export class PineCore {
       const parentOwner = this.runtimes.controllerOfSession(
         sideChat.parentSessionId,
       );
-      if (agentEvent.request.kind === "teleport" || parentOwner === undefined) {
+      if (
+        agentEvent.request.kind === "teleport" ||
+        (agentEvent.request.kind === "session" &&
+          agentEvent.request.operation.op !== "search") ||
+        parentOwner === undefined
+      ) {
         this.agentHost.respondHostRequest(agentEvent.requestId, {
           ok: false,
           error: "A side chat cannot do this.",
@@ -746,6 +752,21 @@ export class PineCore {
   ): Promise<void> {
     if (event.request.kind === "automation") {
       await this.answerAutomationRequest(event, false);
+      return;
+    }
+    if (event.request.kind === "session") {
+      let sessionReply: AgentHostReply;
+      try {
+        const result = await answerSessionOperation(
+          this,
+          { sessionId: event.sessionId, ownerId },
+          event.request.operation,
+        );
+        sessionReply = { ok: true, response: { kind: "session", result } };
+      } catch (error) {
+        sessionReply = { ok: false, error: toErrorMessage(error) };
+      }
+      this.agentHost.respondHostRequest(event.requestId, sessionReply);
       return;
     }
     if (event.request.kind === "mcp") {

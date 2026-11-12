@@ -1610,6 +1610,15 @@ export class PineAgentRuntime {
           requestHost: (request) => this.requestHost(live, request),
           getLocale: () => live.locale,
         },
+        sessions: {
+          requestHost: (request) => this.requestHost(live, request),
+          getLocale: () => live.locale,
+          requestApproval: (input) =>
+            this.requestUserApproval(live, {
+              trigger: "pre-execution",
+              ...input,
+            }),
+        },
         backgroundTasks: {
           onChange: () => this.scheduleBackgroundTasksEvent(live),
           sendCompletionNotification: (message, options) =>

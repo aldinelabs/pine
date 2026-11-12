@@ -1184,6 +1184,10 @@ export default {
           active: "正在处理 {count} 次项目操作",
           complete: "处理了 {count} 次项目操作",
         },
+        session: {
+          active: "正在处理 {count} 次会话操作",
+          complete: "处理了 {count} 次会话操作",
+        },
         background: {
           active: "正在管理 {count} 次后台进程",
           complete: "管理了 {count} 次后台进程",
@@ -1225,6 +1229,7 @@ export default {
         datetime: "日期时间",
         mcpConfig: "MCP 配置",
         project: "项目操作",
+        session: "会话操作",
         background: "后台进程",
         todo: "任务清单",
         skill: "工作技能",
@@ -1486,6 +1491,24 @@ export default {
             declined: "未移动到项目 ",
             error: "无法移动到项目 ",
             running: "正在请求移动到项目 ",
+          },
+        },
+        session: {
+          search: {
+            running: "正在搜索会话 ",
+            complete: "已搜索会话 ",
+            error: "无法搜索会话 ",
+          },
+          recent: {
+            running: "正在列出最近的会话",
+            complete: "已列出最近的会话",
+            error: "无法列出会话",
+          },
+          new: {
+            running: "正在新建会话",
+            complete: "已新建会话，项目 ",
+            declined: "未新建会话",
+            error: "无法新建会话",
           },
         },
         background: {

@@ -244,6 +244,13 @@ From top to bottom:
      without user action), YOLO (no permission constraints; asks the user to
      confirm before enabling). The choice is saved with the conversation
      and shared between desktop and remote devices.
+   - Sessions the agent starts: when asked, the agent can start a separate
+     session that works in the background in this or another project. It
+     appears in the left sidebar without opening a tab or changing the active
+     session; open it from there. Its approval mode is the asking session's
+     or a stricter one, never a looser one. In Let Me Review, starting it
+     shows an Approval required card with its first message. The agent can
+     also search the user's sessions in every project.
    - Computer Use: the first control action requests permission to control
      desktop apps and browser tabs for the current task. Let Me Review shows
      one Approval required card; Auto Approve and Autonomous Work review the

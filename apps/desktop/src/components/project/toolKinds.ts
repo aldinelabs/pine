@@ -15,6 +15,7 @@ import {
   GlobeIcon,
   HistoryIcon,
   ListTodoIcon,
+  MessagesSquareIcon,
   MonitorCogIcon,
   PanelRightIcon,
   PanelTopIcon,
@@ -45,6 +46,8 @@ import {
   currentToolName,
   UI_PRESENT_FILE_TOOL_NAME,
   UI_LIST_MODELS_TOOL_NAME,
+  UI_SESSION_NEW_TOOL_NAME,
+  UI_SESSION_SEARCH_TOOL_NAME,
   UI_SESSION_TELEPORT_TOOL_NAME,
 } from "@/shared/agent";
 import { ACTIVATE_AUTOMATION_AUTHORING_TOOL_NAME } from "@/shared/automation";
@@ -78,6 +81,7 @@ export type ToolKind =
   | "read"
   | "recall"
   | "search"
+  | "session"
   | "skill"
   | "todo"
   | "workbench"
@@ -105,6 +109,7 @@ export const TOOL_KIND_ICON: Record<ToolKind, Component> = {
   read: FileTextIcon,
   recall: HistoryIcon,
   search: SearchIcon,
+  session: MessagesSquareIcon,
   skill: WandSparklesIcon,
   todo: ListTodoIcon,
   workbench: PanelRightIcon,
@@ -174,6 +179,7 @@ export const TOOL_KIND_ORDER: readonly ToolKind[] = [
   "automation",
   "model",
   "project",
+  "session",
   "generic",
 ];
 
@@ -238,6 +244,11 @@ export function toolKind(name: string): ToolKind {
     normalized === UI_SESSION_TELEPORT_TOOL_NAME
   )
     return "project";
+  if (
+    normalized === UI_SESSION_SEARCH_TOOL_NAME ||
+    normalized === UI_SESSION_NEW_TOOL_NAME
+  )
+    return "session";
   if (
     normalized === ACTIVATE_AUTOMATION_AUTHORING_TOOL_NAME ||
     normalized.startsWith("automation_")

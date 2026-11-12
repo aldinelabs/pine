@@ -425,3 +425,55 @@ export type AttachSessionRequest = ProjectSessionReference;
 export interface AttachSessionResult {
   attachment: PineAttachment;
 }
+
+/** A session as the agent sees it when searching the user's sessions. */
+export interface AgentHostSession {
+  id: string;
+  projectId: string;
+  projectName: string;
+  title?: string;
+  /** Where the query matched, or the start of the conversation. */
+  snippet?: string;
+  createdAt: string;
+  updatedAt: string;
+  messageCount: number;
+  /** The session that asked. */
+  current?: true;
+  /** A run of one of the user's automations. */
+  automationRun?: true;
+}
+
+/** What the session tools ask of the main process. */
+export type SessionHostOperation =
+  | {
+      op: "search";
+      /** Full-text query; empty lists the most recent sessions. */
+      query: string;
+      /** Only this project's sessions; every project when omitted. */
+      projectId?: string;
+      limit: number;
+    }
+  | {
+      op: "start";
+      /** The asking session's project when omitted. */
+      projectId?: string;
+      message: string;
+      approvalMode: PineApprovalMode;
+      locale: "en-US" | "zh-CN";
+    };
+
+export type SessionHostResult =
+  | { op: "search"; sessions: AgentHostSession[] }
+  | {
+      op: "start";
+      sessionId: string;
+      projectId: string;
+      projectName: string;
+      approvalMode: PineApprovalMode;
+    };
+
+/** A bare `*` (or nothing) lists sessions instead of searching their text. */
+export function sessionSearchQuery(query: string): string {
+  const trimmed = query.trim();
+  return /^\*+$/.test(trimmed) ? "" : trimmed;
+}

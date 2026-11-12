@@ -95,6 +95,10 @@ import {
   createWorkspaceToolDefinitions,
   type PineWorkspaceToolContext,
 } from "./workspaceTools";
+import {
+  createSessionToolDefinitions,
+  type PineSessionToolContext,
+} from "./sessionTools";
 import { createDatetimeToolDefinition } from "./datetimeTool";
 import { createFffToolDefinitions, FffIndexPool } from "./fffTools";
 import {
@@ -300,6 +304,8 @@ export interface PineToolPermissionContext {
     PineWorkspaceToolContext,
     "requestQuestionnaire" | "currentProject"
   >;
+  /** Gives the session the `ui_session_*` tools that manage Pine sessions. */
+  sessions?: Omit<PineSessionToolContext, "getApprovalMode">;
   /** Gives the session `bg_run` and the other background task tools. */
   backgroundTasks?: PineBackgroundTaskContext;
 }
@@ -830,6 +836,15 @@ export async function createPineToolDefinitions(
         })
       : [];
 
+  // An automation run never manages the user's sessions.
+  const sessionTools =
+    permissions?.sessions && !location.automation
+      ? createSessionToolDefinitions({
+          ...permissions.sessions,
+          getApprovalMode,
+        })
+      : [];
+
   const workbenchTools = permissions?.workbench
     ? createWorkbenchToolDefinitions(permissions.workbench)
     : [];
@@ -1028,6 +1043,7 @@ export async function createPineToolDefinitions(
     ...(uiPresentFileTool ? [uiPresentFileTool] : []),
     ...workbenchTools,
     ...workspaceTools,
+    ...sessionTools,
     ...(askUserQuestionTool ? [askUserQuestionTool] : []),
     createTodoToolDefinition(),
     createDatetimeToolDefinition(),

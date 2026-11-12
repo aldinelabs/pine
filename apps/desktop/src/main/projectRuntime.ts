@@ -858,6 +858,7 @@ export class ProjectRuntimeRegistry {
     webContentsId: number,
     projectId: string,
     approvalMode: PineApprovalMode,
+    focus: boolean,
   ): Promise<PineSessionSummary> {
     const runtime = this.get(webContentsId, projectId);
     const creation = this.agentHost
@@ -871,7 +872,7 @@ export class ProjectRuntimeRegistry {
         if (!this.isCurrent(webContentsId, runtime)) {
           throw new Error("The project closed while creating a session.");
         }
-        runtime.focusedSessionId = session.id;
+        if (focus) runtime.focusedSessionId = session.id;
         return session;
       });
     runtime.pendingCreations.add(creation);
@@ -882,9 +883,15 @@ export class ProjectRuntimeRegistry {
     }
   }
 
+  /**
+   * Send a message, creating the session first for a new target. A session
+   * another session starts in the background leaves the window's focused
+   * session as it is.
+   */
   async prompt(
     webContentsId: number,
     request: PromptSessionRequest,
+    { focus = true }: { focus?: boolean } = {},
   ): Promise<PromptSessionResult> {
     const runtime = this.get(webContentsId, request.target.projectId);
     let approvalMode = request.approvalMode ?? "auto-approve";
@@ -903,6 +910,7 @@ export class ProjectRuntimeRegistry {
             webContentsId,
             request.target.projectId,
             approvalMode,
+            focus,
           )
         : (
             await this.resume(
@@ -1311,6 +1319,12 @@ export class ProjectRuntimeRegistry {
     return [...this.runtimes.values()].flatMap((windowRuntimes) => [
       ...(windowRuntimes.get(projectId)?.liveSessions.keys() ?? []),
     ]);
+  }
+
+  /** A live session's current approval mode, if any window holds it. */
+  approvalModeOfLiveSession(sessionId: string): PineApprovalMode | undefined {
+    return this.entryForSession(sessionId)?.runtime.liveSessions.get(sessionId)
+      ?.approvalMode;
   }
 
   /** The project that owns a live session, if any window holds it. */

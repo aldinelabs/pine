@@ -1274,6 +1274,10 @@ export default {
           active: "{count} Projektaktionen werden ausgeführt",
           complete: "{count} Projektaktionen ausgeführt",
         },
+        session: {
+          active: "{count} Sitzungsaktionen werden ausgeführt",
+          complete: "{count} Sitzungsaktionen ausgeführt",
+        },
         background: {
           active: "{count} Hintergrundprozesse werden verwaltet",
           complete: "{count} Hintergrundprozesse verwaltet",
@@ -1315,6 +1319,7 @@ export default {
         datetime: "Datum und Uhrzeit",
         mcpConfig: "MCP-Konfiguration",
         project: "Projektaktion",
+        session: "Sitzungsaktion",
         background: "Hintergrundprozess",
         todo: "Aufgaben",
         skill: "Skill",
@@ -1580,6 +1585,24 @@ export default {
             declined: "Nicht zu Projekt gewechselt: ",
             error: "Wechsel zu Projekt fehlgeschlagen: ",
             running: "Wechsel zu Projekt wird angefragt: ",
+          },
+        },
+        session: {
+          search: {
+            running: "Durchsuche Sitzungen nach ",
+            complete: "Sitzungen durchsucht nach ",
+            error: "Sitzungen konnten nicht durchsucht werden: ",
+          },
+          recent: {
+            running: "Liste letzte Sitzungen auf",
+            complete: "Letzte Sitzungen aufgelistet",
+            error: "Sitzungen konnten nicht aufgelistet werden",
+          },
+          new: {
+            running: "Starte eine Sitzung",
+            complete: "Sitzung gestartet in ",
+            declined: "Keine Sitzung gestartet",
+            error: "Sitzung konnte nicht gestartet werden",
           },
         },
         background: {

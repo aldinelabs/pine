@@ -15,6 +15,7 @@ import {
   type SendSteeringNowResult,
   type RespondQuestionnaireRequest,
   type SetApprovalModeResult,
+  approvalModeWithin,
 } from "../../../shared/agent";
 import {
   LIST_BACKGROUND_TASKS_CHANNEL,
@@ -43,11 +44,21 @@ import {
   type SearchAllSessionsResult,
   type SearchSessionsResult,
 } from "../../../shared/sessions";
+import { z } from "zod";
 import {
+  ALL_PROJECTS_SEARCH_LIMIT,
   attachmentForProjectSession,
   listAllRecentSessions,
   searchAllSessions,
 } from "../../recentSessions";
+import type {
+  SessionHostOperation,
+  SessionHostResult,
+} from "../../../shared/sessions";
+import {
+  isTemporaryWorkspace,
+  type PineProject,
+} from "../../../shared/projects";
 import type { AutomationRunSession } from "../../../shared/automation";
 import type { PineCore } from "../pineCore";
 import {
@@ -66,36 +77,161 @@ import {
   SetApprovalModeRequestSchema,
 } from "../requestSchemas";
 
+/** Marks the sessions that are automation runs, as the sidebar shows them. */
+async function withAutomationRuns<
+  T extends PineSessionSummary & { projectId?: string },
+>(core: PineCore, sessions: T[], projectId?: string): Promise<T[]> {
+  const runs = new Map<string, Map<string, AutomationRunSession>>();
+  for (const id of new Set(
+    sessions.map((session) => session.projectId ?? projectId),
+  )) {
+    if (id) runs.set(id, await core.automations.runSessions(id));
+  }
+  return sessions.map((session) => {
+    const run = runs.get(session.projectId ?? projectId ?? "")?.get(session.id);
+    return run ? { ...session, automationRun: run } : session;
+  });
+}
+
+/** Reads sessions of projects no interface has open. */
+function sessionLibrary(core: PineCore) {
+  return {
+    dataPaths: (projectId: string) => core.repository.dataPaths(projectId),
+    openSessionService: (projectId: string) =>
+      core.runtimes.openSessionService(projectId),
+  };
+}
+
+const SessionHostOperationSchema = z.discriminatedUnion("op", [
+  z.object({
+    op: z.literal("search"),
+    query: z.string().max(500),
+    projectId: z.uuid().optional(),
+    limit: z.number().int().min(1).max(ALL_PROJECTS_SEARCH_LIMIT),
+  }),
+  z.object({
+    op: z.literal("start"),
+    projectId: z.uuid().optional(),
+    message: z.string().trim().min(1).max(100_000),
+    approvalMode: z.enum([
+      "let-me-review",
+      "auto-approve",
+      "autonomous",
+      "YOLO",
+    ]),
+    locale: z.enum(["en-US", "zh-CN"]),
+  }),
+]);
+
+/**
+ * Answers the session tools of `requester`, a live session in the window
+ * `ownerId`. A started session belongs to that window, runs in the
+ * background without taking its focus, and never has a less supervised
+ * approval mode than the session that started it.
+ */
+export async function answerSessionOperation(
+  core: PineCore,
+  requester: { sessionId: string; ownerId: number },
+  operation: SessionHostOperation,
+): Promise<SessionHostResult> {
+  const parsed = SessionHostOperationSchema.parse(operation);
+  const { repository, runtimes } = core;
+  const projects = await repository.list();
+  const projectName = (project: PineProject) =>
+    isTemporaryWorkspace(project.id) ? "No Project" : project.name;
+  if (parsed.op === "search") {
+    const scope = parsed.projectId
+      ? projects.filter((project) => project.id === parsed.projectId)
+      : projects;
+    if (parsed.projectId && scope.length === 0)
+      throw new Error("That project does not exist.");
+    const names = new Map(
+      projects.map((project) => [project.id, projectName(project)]),
+    );
+    const sessions = await withAutomationRuns(
+      core,
+      await searchAllSessions(
+        scope,
+        parsed.query,
+        sessionLibrary(core),
+        parsed.limit,
+      ),
+    );
+    return {
+      op: "search",
+      sessions: sessions.map((session) => ({
+        id: session.id,
+        projectId: session.projectId,
+        projectName: names.get(session.projectId) ?? session.projectId,
+        ...(session.name ? { title: session.name } : {}),
+        ...((session.snippet ?? session.preview)
+          ? {
+              // The highlight markers are for the sidebar, not the model.
+              snippet: (session.snippet ?? session.preview ?? "").replace(
+                /[\u0001\u0002]/g,
+                "",
+              ),
+            }
+          : {}),
+        createdAt: session.createdAt,
+        updatedAt: session.updatedAt,
+        messageCount: session.messageCount,
+        ...(session.id === requester.sessionId
+          ? { current: true as const }
+          : {}),
+        ...(session.automationRun ? { automationRun: true as const } : {}),
+      })),
+    };
+  }
+
+  const callerMode = runtimes.approvalModeOfLiveSession(requester.sessionId);
+  if (!callerMode) throw new Error("The asking session is no longer open.");
+  if (!approvalModeWithin(parsed.approvalMode, callerMode))
+    throw new Error(
+      `A session in ${callerMode} cannot start one in ${parsed.approvalMode}.`,
+    );
+  const projectId =
+    parsed.projectId ?? runtimes.projectOfLiveSession(requester.sessionId)?.id;
+  const project = projects.find((candidate) => candidate.id === projectId);
+  if (!project) throw new Error("That project does not exist.");
+  const projectOwner = runtimes.ownerOfProject(project.id);
+  if (projectOwner !== undefined && projectOwner !== requester.ownerId)
+    throw new Error("That project is open in another Pine window.");
+  if (!runtimes.isOpen(requester.ownerId, project.id))
+    await runtimes.share(
+      requester.ownerId,
+      await repository.open(project.id),
+      repository.dataPaths(project.id),
+    );
+  const result = await runtimes.prompt(
+    requester.ownerId,
+    {
+      locale: parsed.locale,
+      message: parsed.message,
+      target: { kind: "new", projectId: project.id },
+      approvalMode: parsed.approvalMode,
+    },
+    { focus: false },
+  );
+  core.notifyLibraryChanged("sessions", requester.ownerId);
+  return {
+    op: "start",
+    sessionId: result.session.id,
+    projectId: project.id,
+    projectName: projectName(project),
+    approvalMode: parsed.approvalMode,
+  };
+}
+
 export function registerSessionRequests(core: PineCore): void {
   const { repository, runtimes } = core;
-  /** Marks the sessions that are automation runs, as the sidebar shows them. */
-  async function withAutomationRuns<
-    T extends PineSessionSummary & { projectId?: string },
-  >(sessions: T[], projectId?: string): Promise<T[]> {
-    const runs = new Map<string, Map<string, AutomationRunSession>>();
-    for (const id of new Set(
-      sessions.map((session) => session.projectId ?? projectId),
-    )) {
-      if (id) runs.set(id, await core.automations.runSessions(id));
-    }
-    return sessions.map((session) => {
-      const run = runs
-        .get(session.projectId ?? projectId ?? "")
-        ?.get(session.id);
-      return run ? { ...session, automationRun: run } : session;
-    });
-  }
-  /** Reads sessions of projects no interface has open. */
-  const library = {
-    dataPaths: (projectId: string) => repository.dataPaths(projectId),
-    openSessionService: (projectId: string) =>
-      runtimes.openSessionService(projectId),
-  };
+  const library = sessionLibrary(core);
 
   core.handle(
     LIST_ALL_RECENT_SESSIONS_CHANNEL,
     async (): Promise<ListAllRecentSessionsResult> => ({
       sessions: await withAutomationRuns(
+        core,
         await listAllRecentSessions(await repository.list(), library),
       ),
     }),
@@ -107,6 +243,7 @@ export function registerSessionRequests(core: PineCore): void {
       const { query } = SearchAllSessionsRequestSchema.parse(request);
       return {
         sessions: await withAutomationRuns(
+          core,
           await searchAllSessions(await repository.list(), query, library),
         ),
       };
@@ -119,6 +256,7 @@ export function registerSessionRequests(core: PineCore): void {
       const { projectId, query } = SearchSessionsRequestSchema.parse(request);
       return {
         sessions: await withAutomationRuns(
+          core,
           await runtimes.search(context.clientId, projectId, query),
           projectId,
         ),
@@ -154,7 +292,11 @@ export function registerSessionRequests(core: PineCore): void {
         projectId,
         sessionId,
       );
-      const [session] = await withAutomationRuns([result.session], projectId);
+      const [session] = await withAutomationRuns(
+        core,
+        [result.session],
+        projectId,
+      );
       return { ...result, session };
     },
   );

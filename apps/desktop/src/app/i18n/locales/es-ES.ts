@@ -1266,6 +1266,10 @@ export default {
           active: "Ejecutando {count} acciones del proyecto",
           complete: "Ejecutó {count} acciones del proyecto",
         },
+        session: {
+          active: "Ejecutando {count} acciones de sesión",
+          complete: "Ejecutó {count} acciones de sesión",
+        },
         background: {
           active: "Gestionando {count} procesos en segundo plano",
           complete: "Gestionó {count} procesos en segundo plano",
@@ -1307,6 +1311,7 @@ export default {
         datetime: "fecha y hora",
         mcpConfig: "Configuración de MCP",
         project: "acción del proyecto",
+        session: "acción de sesión",
         background: "proceso en segundo plano",
         todo: "tareas",
         skill: "Skill",
@@ -1574,6 +1579,24 @@ export default {
             declined: "No se movió al proyecto ",
             error: "No se pudo mover al proyecto ",
             running: "Pidiendo mover al proyecto ",
+          },
+        },
+        session: {
+          search: {
+            running: "Buscando sesiones: ",
+            complete: "Sesiones buscadas: ",
+            error: "No se pudieron buscar sesiones: ",
+          },
+          recent: {
+            running: "Listando sesiones recientes",
+            complete: "Sesiones recientes listadas",
+            error: "No se pudieron listar las sesiones",
+          },
+          new: {
+            running: "Iniciando una sesión",
+            complete: "Sesión iniciada en ",
+            declined: "No se inició la sesión",
+            error: "No se pudo iniciar una sesión",
           },
         },
         background: {

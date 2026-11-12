@@ -172,6 +172,51 @@ describe("ProjectToolCallGroup", () => {
     wrapper.unmount();
   });
 
+  it("describes searching and starting sessions", () => {
+    const wrapper = mountGroup({
+      expanded: true,
+      toolCalls: [
+        {
+          id: "t-recent",
+          input: { query: "*" },
+          name: "ui_session_search",
+          status: "complete",
+        },
+        {
+          id: "t-search",
+          input: { query: "changelog" },
+          name: "ui_session_search",
+          status: "complete",
+        },
+        {
+          id: "t-new",
+          input: { message: "Fix the build" },
+          name: "ui_session_new",
+          status: "complete",
+          output: {
+            details: { started: true, projectId: "p-x", projectName: "Pine" },
+          },
+        },
+        {
+          id: "t-declined",
+          input: { message: "Write it" },
+          name: "ui_session_new",
+          status: "complete",
+          output: { details: { started: false } },
+        },
+      ],
+    });
+
+    const text = wrapper.text();
+    expect(text).toContain("处理了 4 次会话操作");
+    expect(text).toContain("已列出最近的会话");
+    expect(text).toContain("已搜索会话 changelog");
+    expect(text).toContain("已新建会话，项目 Pine");
+    expect(text).toContain("未新建会话");
+    expect(text).not.toContain("ui_session");
+    wrapper.unmount();
+  });
+
   it("describes listing projects and moving the session", () => {
     const wrapper = mountGroup({
       expanded: true,
@@ -179,7 +224,7 @@ describe("ProjectToolCallGroup", () => {
         {
           id: "t-list",
           input: {},
-          name: "ui_list_project",
+          name: "ui_project_list",
           status: "complete",
         },
         {

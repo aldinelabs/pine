@@ -1242,6 +1242,10 @@ export default {
           active: "Running {count} project actions",
           complete: "Ran {count} project actions",
         },
+        session: {
+          active: "Running {count} session actions",
+          complete: "Ran {count} session actions",
+        },
         background: {
           active: "Managing {count} background processes",
           complete: "Managed {count} background processes",
@@ -1283,6 +1287,7 @@ export default {
         datetime: "date and time",
         mcpConfig: "MCP configuration",
         project: "project action",
+        session: "session action",
         background: "background process",
         todo: "todos",
         skill: "Skill",
@@ -1545,6 +1550,24 @@ export default {
             declined: "Didn’t move to project ",
             error: "Couldn’t move to project ",
             running: "Asking to move to project ",
+          },
+        },
+        session: {
+          search: {
+            running: "Searching sessions for ",
+            complete: "Searched sessions for ",
+            error: "Couldn’t search sessions for ",
+          },
+          recent: {
+            running: "Listing recent sessions",
+            complete: "Listed recent sessions",
+            error: "Couldn’t list sessions",
+          },
+          new: {
+            running: "Starting a session",
+            complete: "Started a session in ",
+            declined: "Didn’t start a session",
+            error: "Couldn’t start a session",
           },
         },
         background: {
