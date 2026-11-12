@@ -5,6 +5,7 @@ import { parseFileReveal } from "@/shared/projectFiles";
 import { useAttentionFlashStore } from "@/stores/attentionFlash";
 import { useContentTabsStore } from "@/stores/contentTabs";
 import { useWorkbenchStore } from "@/stores/workbench";
+import { onSessionEvent } from "@/client/sessionEvents";
 import { useContentTabNavigation } from "./useContentTabNavigation";
 
 /**
@@ -65,7 +66,7 @@ export function useWorkbenchEvents(): void {
   let stopListening: (() => void) | undefined;
   let stopSnapshots: (() => void) | undefined;
   onMounted(() => {
-    stopListening = window.pine?.onSessionEvent?.(handleEvent);
+    stopListening = onSessionEvent(handleEvent);
     stopSnapshots = window.pine?.onSessionSnapshot?.((snapshots) => {
       for (const snapshot of snapshots)
         for (const event of snapshot.events)

@@ -33,6 +33,7 @@ import {
 } from "@/lib/transcriptThinking";
 import { agentLocale, isAppLocale, localeMessages } from "@/app/i18n";
 import { useModelsStore } from "@/stores/models";
+import { onSessionEvent } from "@/client/sessionEvents";
 import type { WebSessionSnapshot } from "@/shared/webControl";
 import type {
   AskUserQuestionParams,
@@ -1879,7 +1880,7 @@ export const useSessionStore = defineStore("session", () => {
     if (stopAgentEvents || !window.pine.onSessionEvent) return;
     // Events for a session being restored wait until its snapshot is applied.
     const restoring = new Map<string, PineSessionEvent[]>();
-    stopAgentEvents = window.pine.onSessionEvent((event) => {
+    stopAgentEvents = onSessionEvent((event) => {
       const queued = restoring.get(event.sessionId);
       if (queued) queued.push(event);
       else handleAgentEvent(event);
