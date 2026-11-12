@@ -65,6 +65,8 @@ interface PairingAttempt {
   cursor: string;
   seen: string[];
   timer?: ReturnType<typeof setTimeout>;
+  /** Set once the right code was entered, while the binding is written. */
+  completing?: boolean;
 }
 
 const FAILED_BINDING: Record<
@@ -257,6 +259,8 @@ export class WeChatBridge implements WeChatBridgeApi {
   }
 
   cancelBinding(): WeChatStatus {
+    // A pairing that is already being written finishes; it is not undone.
+    if (this.pairing?.completing) return this.status();
     if (this.pairing) {
       void this.endPairing("pairing-failed").then(() => this.emit());
       return this.status();
@@ -278,12 +282,15 @@ export class WeChatBridge implements WeChatBridgeApi {
   async submitPairingCode(code: string): Promise<WeChatStatus> {
     const pairing = this.pairing;
     if (!pairing) throw new Error("No WeChat pairing is in progress.");
+    // A second submit while the first one is written changes nothing.
+    if (pairing.completing) return this.status();
     const result = this.pairingMachine.submit(code, this.now());
     if (result === "wrong") return this.emit();
     if (result === "failed") {
       await this.endPairing("pairing-failed");
       return this.emit();
     }
+    pairing.completing = true;
     await this.completePairing(pairing);
     return this.emit();
   }
@@ -832,6 +839,8 @@ export class WeChatBridge implements WeChatBridgeApi {
   private async endPairing(error: WeChatErrorCode | undefined): Promise<void> {
     const pairing = this.pairing;
     if (!pairing) return;
+    // A failure seen while the right code is being written does not undo it.
+    if (pairing.completing && error !== undefined) return;
     this.pairing = undefined;
     this.pairingMachine.reset();
     if (pairing.timer) clearTimeout(pairing.timer);

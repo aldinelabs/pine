@@ -368,6 +368,34 @@ describe("WeChatBridge binding and pairing", () => {
     expect(channel.stopped).toBe(true);
   });
 
+  it("binds once when the right code is submitted twice at the same time", async () => {
+    const context = await setup();
+    const channel = await toPairing(context);
+    const [first, second] = await Promise.all([
+      context.bridge.submitPairingCode(CODE),
+      context.bridge.submitPairingCode(CODE),
+    ]);
+    expect(first.bound).toBe(true);
+    expect(second.error).toBeUndefined();
+    const status = context.bridge.status();
+    expect(status.bound).toBe(true);
+    expect(status.error).toBeUndefined();
+    expect(status.binding).toBeUndefined();
+    expect(channel.stopped).toBe(false);
+  });
+
+  it("keeps a pairing that is being written when cancel comes in", async () => {
+    const context = await setup();
+    const channel = await toPairing(context);
+    const submitted = context.bridge.submitPairingCode(CODE);
+    context.bridge.cancelBinding();
+    const status = await submitted;
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(status.bound).toBe(true);
+    expect(context.bridge.status().error).toBeUndefined();
+    expect(channel.stopped).toBe(false);
+  });
+
   it("fails the pairing on cancel", async () => {
     const context = await setup();
     const channel = await toPairing(context);
