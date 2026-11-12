@@ -6,18 +6,17 @@
  * then receives K = 40 flushes. Each flush hands the row the store's new
  * message object, which reuses the block objects that did not change.
  *
- * | id | metric (per flush unless noted)                        | measured | target |
- * | -- | ------------------------------------------------------ | -------- | ------ |
- * | M1 | updates of the finished ProjectThinkingMarker          | 1        | 0      |
- * | M2 | splitTranscriptText calls                              | 3        | <= 1   |
- * | M2 | characters handed to splitTranscriptText, last flush   | 913      | -      |
- * | M3 | updates of the two ProjectToolCallMarker rows          | 2        | 0      |
- * | M4 | earlier text blocks rendered as final while streaming  | 0 of 2   | 2 of 2 |
- * | -  | MarkdownContent updates                                | 1        | -      |
- * | -  | component updates of any kind                          | 24       | -      |
+ * | id | metric (per flush unless noted)                        | before | now    | target |
+ * | -- | ------------------------------------------------------ | ------ | ------ | ------ |
+ * | M1 | updates of the finished ProjectThinkingMarker          | 1      | 0      | 0      |
+ * | M2 | splitTranscriptText calls                              | 3      | 1      | <= 1   |
+ * | M2 | characters handed to splitTranscriptText, last flush   | 913    | 832    | -      |
+ * | M3 | updates of the two ProjectToolCallMarker rows          | 2      | 0      | 0      |
+ * | M4 | earlier text blocks rendered as final while streaming  | 0 of 2 | 2 of 2 | 2 of 2 |
+ * | -  | MarkdownContent updates                                | 1      | 1      | -      |
+ * | -  | component updates of any kind                          | 24     | 21     | -      |
  *
- * Holds today: none. Not met yet (`it.fails`): M1, M2, M3, M4. When a change
- * makes one hold, turn it into `it` and update the measured column.
+ * Holds now: M1, M2, M3, M4 (stable items for settled blocks).
  *
  * Print the metrics with `PINE_PERF_LOG=1` (add `--reporter=default` when
  * vitest hides the output of passing tests).
@@ -220,27 +219,24 @@ function flushMetrics(): Promise<FlushMetrics> {
 }
 
 describe("ProjectTranscriptMessage streaming cost", () => {
-  it.fails("[M1] leaves the finished thinking marker alone", async () => {
+  it("[M1] leaves the finished thinking marker alone", async () => {
     const metrics = await flushMetrics();
     expect(metrics.thinkingMarkerUpdates).toBe(0);
   });
 
-  it.fails("[M2] splits at most one text block per flush", async () => {
+  it("[M2] splits at most one text block per flush", async () => {
     const metrics = await flushMetrics();
     expect(metrics.splitCallsPerFlush).toBeLessThanOrEqual(1);
   });
 
-  it.fails("[M3] leaves finished tool call markers alone", async () => {
+  it("[M3] leaves finished tool call markers alone", async () => {
     const metrics = await flushMetrics();
     expect(metrics.toolMarkerUpdates).toBe(0);
   });
 
-  it.fails(
-    "[M4] renders text blocks before the streaming one as final",
-    async () => {
-      const metrics = await flushMetrics();
-      expect(metrics.earlierTextBlocks).toBe(2);
-      expect(metrics.earlierTextBlocksFinal).toBe(2);
-    },
-  );
+  it("[M4] renders text blocks before the streaming one as final", async () => {
+    const metrics = await flushMetrics();
+    expect(metrics.earlierTextBlocks).toBe(2);
+    expect(metrics.earlierTextBlocksFinal).toBe(2);
+  });
 });

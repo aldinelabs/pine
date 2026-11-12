@@ -11,6 +11,7 @@ import ProjectThinkingMarker from "../ProjectThinkingMarker.vue";
 import ProjectTranscriptMessage from "../ProjectTranscriptMessage.vue";
 import ProjectToolCallGroup from "../ProjectToolCallGroup.vue";
 import ProjectToolCallMarker from "../ProjectToolCallMarker.vue";
+import MarkdownContent from "@/components/markdown/MarkdownContent.vue";
 import { provideMessageScroller } from "@/components/ui/message-scroller/useMessageScroller";
 
 function mountMessage(
@@ -569,5 +570,126 @@ describe("ProjectTranscriptMessage", () => {
     expect(
       wrapper.get('[aria-label="编辑消息"]').attributes("disabled"),
     ).toBeDefined();
+  });
+  it("settles an ended text block once its last fade has played", async () => {
+    vi.useFakeTimers();
+    const base: PineTranscriptMessage = {
+      createdAt: "2026-11-12T00:00:00.000Z",
+      id: "assistant-settle",
+      role: "assistant",
+      status: "streaming",
+      blocks: [
+        { type: "text", text: "Ended before mount." },
+        { type: "text", text: "Still streaming" },
+      ],
+    };
+    const wrapper = mountMessage(base);
+    try {
+      const finals = () =>
+        wrapper
+          .findAllComponents(MarkdownContent)
+          .map((markdown) => markdown.props("final"));
+      // Already ended when the row mounts: nothing is fading, final at once.
+      expect(finals()).toEqual([true, false]);
+
+      await wrapper.setProps({
+        message: {
+          ...base,
+          blocks: [
+            base.blocks[0],
+            { type: "text", text: "Still streaming, now ended." },
+            {
+              type: "toolCall",
+              toolCall: { id: "read", name: "read", status: "pending" },
+            },
+          ],
+        },
+      });
+      // Ended in front of the reader: its last fade keeps playing first.
+      expect(finals()).toEqual([true, false]);
+      await vi.advanceTimersByTimeAsync(1_000);
+      expect(finals()).toEqual([true, true]);
+    } finally {
+      wrapper.unmount();
+      vi.useRealTimers();
+    }
+  });
+
+  it("keeps the thinking marker's message while later blocks stream", async () => {
+    const thinking = { type: "thinking" as const, thinking: "Plan it." };
+    const toolCall = {
+      type: "toolCall" as const,
+      toolCall: { id: "read", name: "read", status: "complete" as const },
+    };
+    const base: PineTranscriptMessage = {
+      createdAt: "2026-11-12T00:00:00.000Z",
+      id: "assistant-stable",
+      role: "assistant",
+      status: "streaming",
+      thinkingStatus: "complete",
+      thinkingDurationMs: 2_000,
+      blocks: [thinking, toolCall, { type: "text", text: "A" }],
+    };
+    const wrapper = mountMessage(base);
+    const marker = () => wrapper.findComponent(ProjectThinkingMarker);
+    const tool = () => wrapper.findComponent(ProjectToolCallMarker);
+    const firstMessage = marker().props("message");
+    const firstContext = tool().props("contextToolCalls");
+
+    await wrapper.setProps({
+      message: {
+        ...base,
+        blocks: [thinking, toolCall, { type: "text", text: "AB" }],
+      },
+    });
+    expect(marker().props("message")).toBe(firstMessage);
+    expect(tool().props("contextToolCalls")).toBe(firstContext);
+
+    // A finished tool call is a new block object: the list follows it.
+    const finished = {
+      type: "toolCall" as const,
+      toolCall: { ...toolCall.toolCall, output: "done" },
+    };
+    await wrapper.setProps({
+      message: {
+        ...base,
+        thinkingDurationMs: 3_000,
+        blocks: [thinking, finished, { type: "text", text: "AB" }],
+      },
+    });
+    expect(tool().props("contextToolCalls")).toEqual([finished.toolCall]);
+    expect(marker().props("message")).not.toBe(firstMessage);
+    expect(marker().props("message").thinkingDurationMs).toBe(3_000);
+  });
+
+  it("scrolls a user bubble only once it outgrows its max height", async () => {
+    const heights = vi
+      .spyOn(HTMLElement.prototype, "scrollHeight", "get")
+      .mockReturnValue(0);
+    try {
+      const short = mountMessage({
+        createdAt: "2026-11-12T00:00:00.000Z",
+        id: "user-short",
+        role: "user",
+        status: "complete",
+        blocks: [{ type: "text", text: "Short" }],
+      });
+      expect(short.find('[data-slot="scroll-area"]').exists()).toBe(false);
+      expect(short.get('[data-slot="user-message-text"]').text()).toBe("Short");
+
+      heights.mockReturnValue(1_000);
+      const long = mountMessage({
+        createdAt: "2026-11-12T00:00:00.000Z",
+        id: "user-long",
+        role: "user",
+        status: "complete",
+        blocks: [{ type: "text", text: "Long\n".repeat(80) }],
+      });
+      await flushPromises();
+      expect(long.find('[data-slot="scroll-area"]').exists()).toBe(true);
+      expect(long.findAll('[data-slot="user-message-text"]')).toHaveLength(1);
+    } finally {
+      heights.mockRestore();
+    }
   });
 });

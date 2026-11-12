@@ -1,6 +1,15 @@
 <script setup lang="ts">
 import { CheckIcon, CopyIcon, PencilIcon } from "@lucide/vue";
-import { computed, nextTick, onUnmounted, ref } from "vue";
+import {
+  computed,
+  nextTick,
+  onMounted,
+  onUnmounted,
+  ref,
+  shallowRef,
+  toRaw,
+  watch,
+} from "vue";
 import { useI18n } from "vue-i18n";
 import { toast } from "vue-sonner";
 import IntelligentUiBlock from "@/components/intelligent-ui/IntelligentUiBlock.vue";
@@ -176,11 +185,18 @@ const quotes = computed(() =>
     block.type === "quotes" ? block.quotes : [],
   ),
 );
-const contextToolCalls = computed(() =>
-  props.message.blocks.flatMap((block) =>
+/** The same array while the tool calls in it are the same objects, so
+ * finished tool call markers are not updated by an unrelated flush. */
+const contextToolCalls = computed<PineToolCall[]>((previous) => {
+  const next = props.message.blocks.flatMap((block) =>
     block.type === "toolCall" ? [block.toolCall] : [],
-  ),
-);
+  );
+  return previous && sameItems(previous, next) ? previous : next;
+});
+
+function sameItems<T>(a: readonly T[], b: readonly T[]): boolean {
+  return a.length === b.length && a.every((item, index) => item === b[index]);
+}
 
 /**
  * Collapse ordering for a message's blocks: consecutive `toolCall` blocks
@@ -192,7 +208,12 @@ const contextToolCalls = computed(() =>
  */
 type RenderItem = { key: string } & (
   | { kind: "block"; block: PineContentBlock }
-  | { kind: "text"; segments: TranscriptTextSegment[] }
+  | {
+      kind: "text";
+      segments: TranscriptTextSegment[];
+      /** Another block follows, so this text block has ended. */
+      followed: boolean;
+    }
   | { kind: "toolCall"; toolCall: PineToolCall }
   | { kind: "toolRun"; toolCalls: PineToolCall[] }
   | {
@@ -202,6 +223,79 @@ type RenderItem = { key: string } & (
       hasTextAfterThinking: boolean;
     }
 );
+
+/**
+ * The store replaces a block object whenever it changes and keeps the others,
+ * so a block's segments are split only once per version of that block.
+ */
+const segmentsByBlock = new WeakMap<object, TranscriptTextSegment[]>();
+
+function blockSegments(
+  block: Extract<PineContentBlock, { type: "text" }>,
+): TranscriptTextSegment[] {
+  const raw = toRaw(block);
+  let segments = segmentsByBlock.get(raw);
+  if (!segments) {
+    segments = splitTranscriptText(block.text);
+    segmentsByBlock.set(raw, segments);
+  }
+  return segments;
+}
+
+type ThinkingSummary = Pick<
+  PineTranscriptMessage,
+  "thinkingStatus" | "thinkingStartedAt" | "thinkingDurationMs"
+>;
+
+/**
+ * Last message handed to each thinking run's marker, by item key. It is
+ * reused while the run's blocks and its timing are unchanged, so a finished
+ * thinking marker is not updated while later blocks stream. The marker reads
+ * only the id, the blocks and the timing fields.
+ */
+const thinkingMessages = new Map<
+  string,
+  { run: PineContentBlock[]; message: PineTranscriptMessage }
+>();
+/** Last tool call list per tool run, by item key, reused while unchanged. */
+const toolRunCalls = new Map<string, PineToolCall[]>();
+
+function thinkingMessage(
+  key: string,
+  run: PineContentBlock[],
+  summary: ThinkingSummary,
+): PineTranscriptMessage {
+  const cached = thinkingMessages.get(key);
+  if (
+    cached &&
+    cached.message.id === props.message.id &&
+    cached.message.thinkingStatus === summary.thinkingStatus &&
+    cached.message.thinkingStartedAt === summary.thinkingStartedAt &&
+    cached.message.thinkingDurationMs === summary.thinkingDurationMs &&
+    sameItems(cached.run, run)
+  ) {
+    return cached.message;
+  }
+  const message = {
+    ...props.message,
+    blocks: run,
+    thinkingStatus: summary.thinkingStatus,
+    thinkingStartedAt: summary.thinkingStartedAt,
+    thinkingDurationMs: summary.thinkingDurationMs,
+  };
+  thinkingMessages.set(key, { run, message });
+  return message;
+}
+
+function stableToolCalls(
+  key: string,
+  toolCalls: PineToolCall[],
+): PineToolCall[] {
+  const cached = toolRunCalls.get(key);
+  if (cached && sameItems(cached, toolCalls)) return cached;
+  toolRunCalls.set(key, toolCalls);
+  return toolCalls;
+}
 
 const renderItems = computed<RenderItem[]>(() => {
   const blocks = props.message.blocks;
@@ -231,10 +325,7 @@ const renderItems = computed<RenderItem[]>(() => {
       });
       // Older history has only message-level timing. Do not repeat that total
       // on separate runs, which would falsely give each the whole duration.
-      const summary: Pick<
-        PineTranscriptMessage,
-        "thinkingStatus" | "thinkingStartedAt" | "thinkingDurationMs"
-      > = states.length
+      const summary: ThinkingSummary = states.length
         ? summarizeThinking(states)
         : thinkingRuns === 1
           ? props.message
@@ -242,13 +333,7 @@ const renderItems = computed<RenderItem[]>(() => {
       items.push({
         key,
         kind: "thinking",
-        message: {
-          ...props.message,
-          blocks: run,
-          thinkingStatus: summary.thinkingStatus,
-          thinkingStartedAt: summary.thinkingStartedAt,
-          thinkingDurationMs: summary.thinkingDurationMs,
-        },
+        message: thinkingMessage(key, run, summary),
         hasResponseAfterThinking: blocks
           .slice(index)
           .some((part) => part.type !== "thinking"),
@@ -261,12 +346,13 @@ const renderItems = computed<RenderItem[]>(() => {
       while (index < blocks.length && blocks[index].type === "toolCall") {
         index++;
       }
-      const toolCalls = blocks
+      const calls = blocks
         .slice(start, index)
         .map((item): PineToolCall | undefined =>
           item.type === "toolCall" ? item.toolCall : undefined,
         )
         .filter((item): item is PineToolCall => item !== undefined);
+      const toolCalls = stableToolCalls(key, calls);
       // A single tool call renders in full instead of being folded away.
       if (toolCalls.length === 1) {
         items.push({ key, kind: "toolCall", toolCall: toolCalls[0] });
@@ -277,7 +363,8 @@ const renderItems = computed<RenderItem[]>(() => {
       items.push({
         key,
         kind: "text",
-        segments: splitTranscriptText(block.text),
+        segments: blockSegments(block),
+        followed: index < blocks.length - 1,
       });
       index++;
     } else {
@@ -287,6 +374,84 @@ const renderItems = computed<RenderItem[]>(() => {
   }
   return items;
 });
+
+/**
+ * A text block that another block follows has ended and renders as final
+ * (no fade, settled layout) while the message still streams. A block that
+ * ends in front of the reader keeps streaming mode until its last fade has
+ * played, so the switch shows nothing; one already ended when the row mounts
+ * has no fade in flight and settles at once.
+ */
+const SETTLE_AFTER_END_MS = 1_000;
+const endedTextKeys = computed(() =>
+  isUser.value || props.message.status === "complete"
+    ? ""
+    : renderItems.value
+        .flatMap((item) =>
+          item.kind === "text" && item.followed ? [item.key] : [],
+        )
+        .join("\n"),
+);
+const settledTextKeys = shallowRef<ReadonlySet<string>>(
+  new Set(endedTextKeys.value ? endedTextKeys.value.split("\n") : []),
+);
+const settleTimers = new Map<string, ReturnType<typeof setTimeout>>();
+
+watch(endedTextKeys, (keys) => {
+  if (!keys) return;
+  for (const key of keys.split("\n")) {
+    if (settledTextKeys.value.has(key) || settleTimers.has(key)) continue;
+    settleTimers.set(
+      key,
+      setTimeout(() => {
+        settleTimers.delete(key);
+        settledTextKeys.value = new Set([...settledTextKeys.value, key]);
+      }, SETTLE_AFTER_END_MS),
+    );
+  }
+});
+onUnmounted(() => {
+  for (const timer of settleTimers.values()) clearTimeout(timer);
+  settleTimers.clear();
+});
+
+/**
+ * User bubbles taller than their max height scroll inside an overlay
+ * scrollbar with edge fades. Shorter ones, nearly all of them, render the
+ * same boxes without the scroll area; a bubble switches once its text
+ * outgrows the max height, for example when the window narrows.
+ */
+const userTextViewport = ref<HTMLElement | null>(null);
+const userTextOverflows = ref(false);
+let userTextObserver: ResizeObserver | undefined;
+
+function measureUserText(): void {
+  const viewport = userTextViewport.value;
+  if (!viewport || userTextOverflows.value) return;
+  if (viewport.scrollHeight > viewport.clientHeight) {
+    userTextOverflows.value = true;
+    stopObservingUserText();
+  }
+}
+
+function stopObservingUserText(): void {
+  userTextObserver?.disconnect();
+  userTextObserver = undefined;
+}
+
+watch(userTextViewport, (viewport) => {
+  stopObservingUserText();
+  if (!viewport || userTextOverflows.value) return;
+  measureUserText();
+  if (userTextOverflows.value || typeof ResizeObserver === "undefined") return;
+  userTextObserver = new ResizeObserver(measureUserText);
+  userTextObserver.observe(viewport);
+  const text = viewport.firstElementChild;
+  if (text) userTextObserver.observe(text);
+});
+watch(() => relay.value.body, measureUserText, { flush: "post" });
+onMounted(measureUserText);
+onUnmounted(stopObservingUserText);
 </script>
 <template>
   <Message :align="isUser ? 'end' : 'start'">
@@ -374,6 +539,7 @@ const renderItems = computed<RenderItem[]>(() => {
                   :source="segment.text"
                   :final="
                     message.status === 'complete' ||
+                    settledTextKeys.has(item.key) ||
                     segmentIndex < item.segments.length - 1
                   "
                 />
@@ -499,6 +665,7 @@ const renderItems = computed<RenderItem[]>(() => {
               <!-- The overlay scrollbar takes no width and, reaching into the
                    bubble's end padding, sits on the bubble's edge. -->
               <ScrollArea
+                v-if="userTextOverflows"
                 class="-me-3.5 [&>[data-slot=scroll-area-viewport]]:max-h-80 [&>[data-slot=scroll-area-viewport]]:scroll-fade-y"
               >
                 <div
@@ -508,6 +675,24 @@ const renderItems = computed<RenderItem[]>(() => {
                   {{ relay.body }}
                 </div>
               </ScrollArea>
+              <!-- The scroll area's boxes, without the overlay scrollbar and
+                   the edge fades a bubble that cannot scroll never shows. -->
+              <div v-else class="relative -me-3.5">
+                <div
+                  ref="userTextViewport"
+                  tabindex="0"
+                  class="size-full max-h-80 overflow-hidden rounded-[inherit] transition-[color,box-shadow] outline-none focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-1"
+                >
+                  <div>
+                    <div
+                      data-slot="user-message-text"
+                      class="pe-3.5 whitespace-pre-wrap"
+                    >
+                      {{ relay.body }}
+                    </div>
+                  </div>
+                </div>
+              </div>
             </BubbleContent>
           </Bubble>
         </div>

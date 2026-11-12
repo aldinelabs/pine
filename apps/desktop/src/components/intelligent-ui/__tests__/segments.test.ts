@@ -47,4 +47,20 @@ describe("splitTranscriptText", () => {
       },
     ]);
   });
+
+  it("drops text that is only whitespace", () => {
+    expect(splitTranscriptText("")).toEqual([]);
+    expect(splitTranscriptText("  \n\n\t")).toEqual([]);
+    expect(splitTranscriptText("\n```openui\n```\n  ")).toEqual([
+      { kind: "interface", code: "", closed: true },
+    ]);
+  });
+
+  it("keeps text without an openui fence whole, whitespace included", () => {
+    const text = "\n  Lead\n\n```ts\nconst openUi = 1;\n```\n\n";
+    expect(splitTranscriptText(text)).toEqual([{ kind: "markdown", text }]);
+    expect(splitTranscriptText("Mentions OPENUI in prose.")).toEqual([
+      { kind: "markdown", text: "Mentions OPENUI in prose." },
+    ]);
+  });
 });
