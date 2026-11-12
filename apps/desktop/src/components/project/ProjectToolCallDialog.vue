@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from "vue";
+import { computed, ref, watch } from "vue";
 import { ShieldBanIcon } from "@lucide/vue";
 import { useI18n } from "vue-i18n";
 import { toast } from "vue-sonner";
@@ -31,6 +31,17 @@ const props = defineProps<{
 
 const { t } = useI18n();
 const isOpen = ref(false);
+// A transcript mounts one of these per tool call; keep the closed dialog's
+// content tree unmounted until it is first opened. It stays mounted after
+// that so the close animation and later opens behave as before.
+const hasOpened = ref(false);
+watch(
+  isOpen,
+  (open) => {
+    if (open) hasOpened.value = true;
+  },
+  { flush: "sync" },
+);
 const isDenied = computed(() => isDeniedTool(props.toolCall));
 const view = computed(() => toolViewAdapter(props.toolCall));
 const wideDetails = computed(() =>
@@ -125,6 +136,7 @@ async function openDialog(): Promise<void> {
   <Dialog v-model:open="isOpen">
     <slot :open="openDialog" />
     <DialogContent
+      v-if="hasOpened"
       :class="[
         'w-fit min-w-[min(26rem,calc(100vw-2rem))] max-w-[calc(100vw-2rem)] max-sm:flex max-sm:flex-col max-sm:gap-4',
         wideDetails ? 'sm:max-w-4xl' : 'sm:max-w-2xl',
