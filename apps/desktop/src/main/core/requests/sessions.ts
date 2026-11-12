@@ -16,8 +16,10 @@ import {
   type SendSteeringNowResult,
   type RespondQuestionnaireRequest,
   type SetApprovalModeResult,
+  type PineApprovalMode,
   approvalModeWithin,
 } from "../../../shared/agent";
+import { isVirtualClient } from "../../../shared/webControl";
 import {
   LIST_BACKGROUND_TASKS_CHANNEL,
   READ_BACKGROUND_TASK_OUTPUT_CHANNEL,
@@ -108,12 +110,74 @@ async function withAutomationRuns<
 }
 
 /** Reads sessions of projects no interface has open. */
-function sessionLibrary(core: PineCore) {
+export function sessionLibrary(core: PineCore) {
   return {
     dataPaths: (projectId: string) => core.repository.dataPaths(projectId),
     openSessionService: (projectId: string) =>
       core.runtimes.openSessionService(projectId),
   };
+}
+
+export interface BackgroundSessionInput {
+  /** The client that holds and controls the new session. */
+  ownerId: number;
+  project: PineProject;
+  /** The first prompt, final as sent (attachments already serialized). */
+  message: string;
+  approvalMode: PineApprovalMode;
+  locale: "en-US" | "zh-CN";
+  /** A title to give the session; a failed rename is ignored. */
+  title?: string;
+  /** Makes the new session a sub-session of this one. */
+  parentSessionId?: string;
+}
+
+/**
+ * Starts a session without focusing it: the owner shares the project if it
+ * does not hold it yet, then prompts a new session as itself. The caller has
+ * already checked the approval mode and chosen the owner.
+ */
+export async function startBackgroundSession(
+  core: PineCore,
+  input: BackgroundSessionInput,
+): Promise<PromptSessionResult> {
+  const { repository, runtimes } = core;
+  const { ownerId, project, parentSessionId } = input;
+  if (!runtimes.isOpen(ownerId, project.id))
+    await runtimes.share(
+      ownerId,
+      await repository.open(project.id),
+      repository.dataPaths(project.id),
+    );
+  const result = await runtimes.prompt(
+    ownerId,
+    {
+      locale: input.locale,
+      message: input.message,
+      target: { kind: "new", projectId: project.id },
+      approvalMode: input.approvalMode,
+    },
+    { focus: false, ...(parentSessionId ? { parentSessionId } : {}) },
+  );
+  if (input.title)
+    await runtimes
+      .renameSession(
+        ownerId,
+        project.id,
+        result.session.id,
+        input.title,
+        "agent",
+      )
+      .catch(() => undefined);
+  if (parentSessionId) {
+    await repository.updateSessionParents(project.id, (parents) => ({
+      ...parents,
+      [result.session.id]: parentSessionId,
+    }));
+    core.notifyLibraryChanged("projects");
+  }
+  core.notifyLibraryChanged("sessions", ownerId);
+  return result;
 }
 
 const SessionHostOperationSchema = z.discriminatedUnion("op", [
@@ -601,45 +665,40 @@ export async function answerSessionOperation(
     parsed.relation === "child" ? requester.sessionId : callerParent;
   if (parentSessionId && project.id !== ownProjectId)
     throw new Error("A sub-session runs in its parent's project.");
-  const projectOwner = runtimes.ownerOfProject(project.id);
-  if (projectOwner !== undefined && projectOwner !== requester.ownerId)
-    throw new Error("That project is open in another Pine window.");
-  if (!runtimes.isOpen(requester.ownerId, project.id))
-    await runtimes.share(
-      requester.ownerId,
-      await repository.open(project.id),
-      repository.dataPaths(project.id),
-    );
-  const result = await runtimes.prompt(
-    requester.ownerId,
-    {
-      locale: parsed.locale,
-      message: parentSessionId
-        ? `[Sub-session of ${parentSessionId}. Pine reports your reply to that session each time you finish a turn, so end with what it needs to know.]\n\n${parsed.message}`
-        : parsed.message,
-      target: { kind: "new", projectId: project.id },
-      approvalMode: parsed.approvalMode,
-    },
-    { focus: false, ...(parentSessionId ? { parentSessionId } : {}) },
-  );
-  if (parsed.title)
-    await runtimes
-      .renameSession(
+  // A window may not start sessions in a project another window shows. An
+  // interface that is not a window, such as WeChat, starts the session as the
+  // window sharing its runtime, so that window keeps notifying for it.
+  let ownerId = requester.ownerId;
+  if (!isVirtualClient(requester.ownerId)) {
+    if (
+      runtimes
+        .clientsOfProject(project.id)
+        .some((id) => !isVirtualClient(id) && id !== requester.ownerId)
+    )
+      throw new Error("That project is open in another Pine window.");
+  } else {
+    if (!runtimes.isOpen(requester.ownerId, project.id))
+      await runtimes.share(
         requester.ownerId,
-        project.id,
-        result.session.id,
-        parsed.title,
-        "agent",
-      )
-      .catch(() => undefined);
-  if (parentSessionId) {
-    await repository.updateSessionParents(project.id, (parents) => ({
-      ...parents,
-      [result.session.id]: parentSessionId,
-    }));
-    core.notifyLibraryChanged("projects");
+        await repository.open(project.id),
+        repository.dataPaths(project.id),
+      );
+    ownerId =
+      runtimes
+        .clientsSharingRuntime(requester.ownerId, project.id)
+        .find((id) => !isVirtualClient(id)) ?? requester.ownerId;
   }
-  core.notifyLibraryChanged("sessions", requester.ownerId);
+  const result = await startBackgroundSession(core, {
+    ownerId,
+    project,
+    message: parentSessionId
+      ? `[Sub-session of ${parentSessionId}. Pine reports your reply to that session each time you finish a turn, so end with what it needs to know.]\n\n${parsed.message}`
+      : parsed.message,
+    approvalMode: parsed.approvalMode,
+    locale: parsed.locale,
+    ...(parsed.title ? { title: parsed.title } : {}),
+    ...(parentSessionId ? { parentSessionId } : {}),
+  });
   return {
     op: "start",
     sessionId: result.session.id,

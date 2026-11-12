@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { PineCore } from "../../pineCore";
 import type { PineProject } from "../../../../shared/projects";
 import { TEMPORARY_WORKSPACE_PROJECT_ID } from "../../../../shared/projects";
-import { answerSessionOperation } from "../sessions";
+import { answerSessionOperation, startBackgroundSession } from "../sessions";
 
 const searchAllSessions = vi.hoisted(() => vi.fn());
 const listProjectSessions = vi.hoisted(() => vi.fn());
@@ -40,6 +40,17 @@ function fixture({
   live = [] as string[],
   sessionParents = {},
   activity = "idle",
+  holders = undefined as number[] | undefined,
+  sharing = [] as number[],
+}: {
+  callerMode?: string;
+  owner?: number;
+  open?: boolean;
+  live?: string[];
+  sessionParents?: Record<string, string>;
+  activity?: string;
+  holders?: number[];
+  sharing?: number[];
 } = {}) {
   const projects = [
     {
@@ -66,6 +77,9 @@ function fixture({
     session: { id: "new-session" },
   });
   const share = vi.fn().mockResolvedValue(undefined);
+  const isOpen = vi.fn<(clientId: number) => boolean>(() => open);
+  const clientsSharingRuntime = vi.fn().mockReturnValue(sharing);
+  const notifyLibraryChanged = vi.fn();
   const notifySessionsDeleted = vi.fn();
   const updateSessionParents = vi.fn(
     (_id: string, change: (parents: Record<string, string>) => object) =>
@@ -98,7 +112,11 @@ function fixture({
       approvalModeOfLiveSession: vi.fn().mockReturnValue(callerMode),
       projectOfLiveSession: vi.fn().mockReturnValue(projects[0]),
       ownerOfProject: vi.fn().mockReturnValue(owner),
-      isOpen: vi.fn().mockReturnValue(open),
+      clientsOfProject: vi
+        .fn()
+        .mockReturnValue(holders ?? (owner === undefined ? [] : [owner])),
+      clientsSharingRuntime,
+      isOpen,
       openSessionService: vi.fn(),
       share,
       prompt,
@@ -111,7 +129,7 @@ function fixture({
     automations: {
       runSessions: vi.fn().mockResolvedValue(new Map([["run", {}]])),
     },
-    notifyLibraryChanged: vi.fn(),
+    notifyLibraryChanged,
     notifySessionsDeleted,
   } as unknown as PineCore;
   return {
@@ -124,6 +142,9 @@ function fixture({
     updateSessionParents,
     loadMessages,
     notifySessionsDeleted,
+    isOpen,
+    clientsSharingRuntime,
+    notifyLibraryChanged,
   };
 }
 
@@ -267,6 +288,115 @@ describe("answerSessionOperation", () => {
       }),
     ).rejects.toThrow("another Pine window");
     expect(prompt).not.toHaveBeenCalled();
+  });
+
+  it("starts beside a project only a virtual client holds", async () => {
+    const { core, prompt } = fixture({ holders: [-2] });
+
+    await answerSessionOperation(core, requester, {
+      op: "start",
+      relation: "sibling",
+      projectId,
+      message: "Go",
+      approvalMode: "auto-approve",
+      locale: "en-US",
+    });
+
+    expect(prompt).toHaveBeenCalledWith(
+      7,
+      expect.objectContaining({ message: "Go" }),
+      { focus: false },
+    );
+  });
+
+  it("starts a virtual requester's session as the window sharing its runtime", async () => {
+    const {
+      core,
+      prompt,
+      share,
+      isOpen,
+      clientsSharingRuntime,
+      notifyLibraryChanged,
+    } = fixture({
+      open: false,
+      holders: [-2, 9],
+      sharing: [9],
+    });
+    isOpen.mockImplementation((clientId: number) => clientId === 9);
+
+    await answerSessionOperation(
+      core,
+      { ...requester, ownerId: -2 },
+      {
+        op: "start",
+        relation: "sibling",
+        projectId,
+        message: "Go",
+        approvalMode: "auto-approve",
+        locale: "en-US",
+      },
+    );
+
+    expect(share).toHaveBeenCalledWith(-2, expect.anything(), {});
+    expect(clientsSharingRuntime).toHaveBeenCalledWith(-2, projectId);
+    expect(prompt).toHaveBeenCalledWith(
+      9,
+      expect.objectContaining({ message: "Go" }),
+      { focus: false },
+    );
+    expect(notifyLibraryChanged).toHaveBeenCalledWith("sessions", 9);
+  });
+
+  it("starts a virtual requester's session as itself without a window", async () => {
+    const { core, prompt } = fixture({ holders: [-2] });
+
+    await answerSessionOperation(
+      core,
+      { ...requester, ownerId: -2 },
+      {
+        op: "start",
+        relation: "sibling",
+        projectId,
+        message: "Go",
+        approvalMode: "auto-approve",
+        locale: "en-US",
+      },
+    );
+
+    expect(prompt).toHaveBeenCalledWith(-2, expect.anything(), {
+      focus: false,
+    });
+  });
+
+  it("starts a background session: shares, then prompts without focus", async () => {
+    const { core, prompt, share, notifyLibraryChanged } = fixture({
+      open: false,
+    });
+
+    const result = await startBackgroundSession(core, {
+      ownerId: -2,
+      project: project(projectId, "Pine"),
+      message: "Hello",
+      approvalMode: "let-me-review",
+      locale: "en-US",
+    });
+
+    expect(share).toHaveBeenCalledWith(-2, expect.anything(), {});
+    expect(share.mock.invocationCallOrder[0]).toBeLessThan(
+      prompt.mock.invocationCallOrder[0] ?? 0,
+    );
+    expect(prompt).toHaveBeenCalledWith(
+      -2,
+      {
+        locale: "en-US",
+        message: "Hello",
+        target: { kind: "new", projectId },
+        approvalMode: "let-me-review",
+      },
+      { focus: false },
+    );
+    expect(notifyLibraryChanged).toHaveBeenCalledWith("sessions", -2);
+    expect(result).toMatchObject({ session: { id: "new-session" } });
   });
 
   it("shows folders without sessions that no longer exist", async () => {

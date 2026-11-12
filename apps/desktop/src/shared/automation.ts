@@ -363,6 +363,8 @@ export interface AutomationApprovalRequest {
   explanation?: string;
   warnings: AutomationWarning[];
   createdAt: string;
+  /** Set when the request came from a session WeChat started or used. */
+  via?: "wechat";
 }
 
 export interface AutomationApprovalDecision {

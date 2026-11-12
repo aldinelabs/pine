@@ -10,6 +10,7 @@ import {
   type PineProjectFolder,
 } from "../shared/projects";
 import { projectSessionDirectory } from "../shared/sessionPaths";
+import { isVirtualClient } from "../shared/webControl";
 import type {
   PineContextCompactionRoute,
   PineContextCompactionStrategy,
@@ -310,9 +311,16 @@ export class ProjectRuntimeRegistry {
     dataPaths: ProjectDataPaths,
   ): Promise<void> {
     if (this.isOpen(clientId, project.id)) return;
-    const existing = this.allRuntimes().find(
-      (runtime) => runtime.project.id === project.id,
+    // Several windows may hold separate temporary workspaces; join the one an
+    // interface that is not a window holds, since its sessions run unattended.
+    const virtualHolder = this.clientsOfProject(project.id).find(
+      isVirtualClient,
     );
+    const existing =
+      (virtualHolder === undefined
+        ? undefined
+        : this.runtimes.get(virtualHolder)?.get(project.id)) ??
+      this.allRuntimes().find((runtime) => runtime.project.id === project.id);
     if (!existing) return this.openRuntime(clientId, project, dataPaths);
     const projects =
       this.runtimes.get(clientId) ?? new Map<string, ProjectRuntime>();
@@ -408,11 +416,29 @@ export class ProjectRuntimeRegistry {
     return this.runtimes.get(webContentsId)?.has(projectId) ?? false;
   }
 
+  /**
+   * The client that owns an open project: the first desktop window holding
+   * it, else the first interface that is not a window.
+   */
   ownerOfProject(projectId: string): number | undefined {
-    for (const [webContentsId, windowRuntimes] of this.runtimes) {
-      if (windowRuntimes.has(projectId)) return webContentsId;
-    }
-    return undefined;
+    const holders = this.clientsOfProject(projectId);
+    return holders.find((id) => !isVirtualClient(id)) ?? holders[0];
+  }
+
+  /**
+   * The other clients that hold the very runtime this client holds for a
+   * project. Separate runtimes of the same project id, such as two windows'
+   * temporary workspaces, are not shared.
+   */
+  clientsSharingRuntime(clientId: number, projectId: string): number[] {
+    const runtime = this.runtimes.get(clientId)?.get(projectId);
+    if (!runtime) return [];
+    return [...this.runtimes]
+      .filter(
+        ([id, windowRuntimes]) =>
+          id !== clientId && windowRuntimes.get(projectId) === runtime,
+      )
+      .map(([id]) => id);
   }
 
   /** Whether any session of this open project is live in the agent host. */
@@ -1241,6 +1267,25 @@ export class ProjectRuntimeRegistry {
     if (live) live.contextUsage = contextUsage;
   }
 
+  /** The latest context usage of a live session, if any client holds it. */
+  contextUsageOf(sessionId: string): PineContextUsage | undefined {
+    return this.entryForSession(sessionId)?.runtime.liveSessions.get(sessionId)
+      ?.contextUsage;
+  }
+
+  /**
+   * The files a session presented through completed `ui_present_file` calls,
+   * read from its stored transcript in the project this client holds.
+   */
+  async listPresentedFiles(
+    clientId: number,
+    projectId: string,
+    sessionId: string,
+  ): Promise<{ toolCallId: string; path: string }[]> {
+    const runtime = this.get(clientId, projectId);
+    return await runtime.sessions.listPresentedFiles(sessionId);
+  }
+
   sessionSummary(sessionId: string): PineSessionSummary | undefined {
     return this.entryForSession(sessionId)?.runtime.liveSessions.get(sessionId)
       ?.summary;
@@ -1388,9 +1433,9 @@ export class ProjectRuntimeRegistry {
     if (entry.runtime.project.id === project.id)
       throw new Error("The session is already in that project.");
     const { runtime: source, webContentsId } = entry;
-    if (!this.isOpen(webContentsId, project.id)) {
-      await this.open(webContentsId, project, dataPaths);
-    }
+    // Reuse a runtime of the target project that any interface already holds,
+    // so a session never ends up in a second runtime of that project.
+    await this.share(webContentsId, project, dataPaths);
     const target = this.get(webContentsId, project.id);
     const descriptor = await source.sessions.describeSession(sessionId);
 

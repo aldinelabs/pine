@@ -18,6 +18,7 @@ import type {
   PineSessionModel,
   PineSessionSummary,
   PineTextMessage,
+  PineToolCall,
   PineToolCallApproval,
   PineApprovalDecision,
   SessionSearchResult,
@@ -170,6 +171,20 @@ async function listSessionFiles(directory: string): Promise<string[]> {
   } catch {
     return [];
   }
+}
+
+/**
+ * The path a completed `ui_present_file` call recorded: `undefined` for any
+ * other call, `null` when the result names no path.
+ */
+function presentedFileOfCall(call: PineToolCall): string | null | undefined {
+  if (call.name !== "ui_present_file" || call.status !== "complete")
+    return undefined;
+  const details =
+    typeof call.output === "object" && call.output !== null
+      ? (call.output as { details?: { path?: unknown } }).details
+      : undefined;
+  return typeof details?.path === "string" ? details.path : null;
 }
 
 function entryTimestamp(entry: Entry): number {
@@ -715,20 +730,36 @@ export class ProjectSessionService {
         for (const block of message.blocks) {
           if (block.type !== "toolCall") continue;
           const call = block.toolCall;
-          if (
-            call.id !== toolCallId ||
-            call.name !== "ui_present_file" ||
-            call.status !== "complete"
-          )
-            continue;
-          const details =
-            typeof call.output === "object" && call.output !== null
-              ? (call.output as { details?: { path?: unknown } }).details
-              : undefined;
-          return typeof details?.path === "string" ? details.path : null;
+          if (call.id !== toolCallId) continue;
+          const presented = presentedFileOfCall(call);
+          if (presented !== undefined) return presented;
         }
       }
       return null;
+    });
+  }
+
+  /**
+   * Every successful first-party presentation of a session in transcript
+   * order, with the path its tool result recorded.
+   */
+  async listPresentedFiles(
+    sessionId: string,
+  ): Promise<{ toolCallId: string; path: string }[]> {
+    const metadata = await this.findSession(sessionId);
+    if (!metadata) return [];
+
+    return this.withSession(metadata, (session) => {
+      const files: { toolCallId: string; path: string }[] = [];
+      for (const { message } of indexedTextMessages(session.getEntries())) {
+        for (const block of message.blocks) {
+          if (block.type !== "toolCall") continue;
+          const presented = presentedFileOfCall(block.toolCall);
+          if (presented)
+            files.push({ toolCallId: block.toolCall.id, path: presented });
+        }
+      }
+      return files;
     });
   }
 

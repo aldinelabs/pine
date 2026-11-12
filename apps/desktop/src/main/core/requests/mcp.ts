@@ -154,22 +154,31 @@ export async function answerMcpOperation(
   }
 }
 
+/**
+ * The MCP servers of a project, with their live status when this client holds
+ * the project. Definitions are returned as stored, credentials included, so a
+ * caller that shows them elsewhere redacts them first.
+ */
+export async function listMcpCatalog(
+  core: PineCore,
+  clientId: number,
+  projectId: string,
+): Promise<PineMcpCatalog> {
+  const servers = await listMcpServers(await core.defaultFolderPath(projectId));
+  if (core.runtimes.isOpen(clientId, projectId)) {
+    const status = await core.runtimes.getMcpStatus(clientId, projectId);
+    if (status) servers.status = status;
+  }
+  return servers;
+}
+
 export function registerMcpRequests(core: PineCore): void {
   const { runtimes } = core;
-
-  async function catalog(
+  const catalog = (
     context: PineRequestContext,
     projectId: string,
-  ): Promise<PineMcpCatalog> {
-    const servers = await listMcpServers(
-      await core.defaultFolderPath(projectId),
-    );
-    if (runtimes.isOpen(context.clientId, projectId)) {
-      const status = await runtimes.getMcpStatus(context.clientId, projectId);
-      if (status) servers.status = status;
-    }
-    return servers;
-  }
+  ): Promise<PineMcpCatalog> =>
+    listMcpCatalog(core, context.clientId, projectId);
 
   async function reloadIfOpen(
     context: PineRequestContext,
@@ -181,7 +190,7 @@ export function registerMcpRequests(core: PineCore): void {
 
   core.handle(
     LIST_MCP_SERVERS_CHANNEL,
-    async (context, request: unknown): Promise<PineMcpCatalog> => {
+    (context, request: unknown): Promise<PineMcpCatalog> => {
       const { projectId } = z.object({ projectId: z.uuid() }).parse(request);
       return catalog(context, projectId);
     },

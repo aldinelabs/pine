@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { PineCore } from "../../pineCore";
-import { answerMcpOperation } from "../mcp";
+import { answerMcpOperation, listMcpCatalog } from "../mcp";
 
 const roots: string[] = [];
 const requester = {
@@ -132,5 +132,27 @@ describe("answerMcpOperation", () => {
         definition: { url: "https://mcp.example.com" },
       }),
     ).rejects.toThrow("already exists");
+  });
+});
+
+describe("listMcpCatalog", () => {
+  it("adds the live status only when the client holds the project", async () => {
+    const { core } = await fixture();
+    const status = { servers: [] };
+    const runtimes = core.runtimes as unknown as {
+      isOpen: ReturnType<typeof vi.fn>;
+      getMcpStatus: ReturnType<typeof vi.fn>;
+    };
+    runtimes.isOpen = vi.fn((clientId: number) => clientId === -2);
+    runtimes.getMcpStatus.mockResolvedValue(status);
+
+    const held = await listMcpCatalog(core, -2, requester.projectId);
+    const other = await listMcpCatalog(core, 7, requester.projectId);
+
+    expect(held.servers.map((server) => server.name)).toContain("github");
+    expect(held.status).toBe(status);
+    expect(other.status).toBeUndefined();
+    expect(runtimes.getMcpStatus).toHaveBeenCalledOnce();
+    expect(runtimes.getMcpStatus).toHaveBeenCalledWith(-2, requester.projectId);
   });
 });

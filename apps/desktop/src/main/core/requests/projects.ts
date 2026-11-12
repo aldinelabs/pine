@@ -25,7 +25,7 @@ import {
   type ProjectStorageResult,
   type ProjectStorageUsage,
 } from "../../../shared/projects";
-import { WEB_CLIENT_ID } from "../../../shared/webControl";
+import { isVirtualClient } from "../../../shared/webControl";
 import {
   clearProjectStorage,
   measureProjectStorage,
@@ -263,13 +263,12 @@ export function registerProjectRequests(core: PineCore): void {
       if (runtimes.isOpen(context.clientId, id)) {
         return { opened: true, project: await repository.open(id) };
       }
+      const holders = runtimes
+        .clientsOfProject(id)
+        .filter((clientId) => clientId !== context.clientId);
       // Every window needs the temporary workspace for new drafts, so it is the
       // one project several windows may hold; its sessions stay single-window.
-      const otherHolders = isTemporaryWorkspace(id)
-        ? []
-        : runtimes
-            .clientsOfProject(id)
-            .filter((clientId) => clientId !== context.clientId);
+      const otherHolders = isTemporaryWorkspace(id) ? [] : holders;
       // A window hands the project to the window that already holds it.
       if (
         context.source === "desktop" &&
@@ -277,8 +276,10 @@ export function registerProjectRequests(core: PineCore): void {
       ) {
         return { opened: false, project: await repository.open(id) };
       }
-      // The browser interface attaches beside windows rather than taking over.
-      if (context.source === "web" || runtimes.isOpen(WEB_CLIENT_ID, id)) {
+      // The browser interface attaches beside windows rather than taking over,
+      // and a window attaches beside an interface that is not a window, such
+      // as the browser or WeChat, so the sessions it runs keep going.
+      if (context.source === "web" || holders.some(isVirtualClient)) {
         const project = await repository.open(id);
         await runtimes.share(
           context.clientId,
@@ -287,8 +288,10 @@ export function registerProjectRequests(core: PineCore): void {
         );
         return { opened: true, project };
       }
-      // Holders left without a window, such as a crashed renderer.
-      for (const clientId of otherHolders) await runtimes.dispose(clientId);
+      // Holders left without a window, such as a crashed renderer. An interface
+      // that is not a window is never one of them.
+      for (const clientId of otherHolders)
+        if (!isVirtualClient(clientId)) await runtimes.dispose(clientId);
 
       const pendingKey = isTemporaryWorkspace(id)
         ? `${id}:${context.clientId}`

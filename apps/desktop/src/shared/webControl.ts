@@ -8,6 +8,14 @@ export const DEFAULT_WEB_PORT = 9415;
 export const MIN_WEB_PASSWORD_LENGTH = 8;
 /** One persistent subscriber for the local browser interface. */
 export const WEB_CLIENT_ID = -1;
+
+/**
+ * Whether a client id names an interface that is not a desktop window, such
+ * as the browser interface or WeChat. Desktop windows use positive ids.
+ */
+export function isVirtualClient(clientId: number): boolean {
+  return clientId < 0;
+}
 export const WEB_SNAPSHOT_CHANNEL = "web-control:snapshot";
 
 /** How long a signed-in browser stays signed in. */

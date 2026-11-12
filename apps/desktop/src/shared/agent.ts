@@ -97,7 +97,7 @@ export type PineApprovalMode =
   "let-me-review" | "auto-approve" | "autonomous" | "YOLO";
 
 /** Approval modes from the most to the least supervised. */
-const APPROVAL_MODE_ORDER: readonly PineApprovalMode[] = [
+export const APPROVAL_MODE_ORDER: readonly PineApprovalMode[] = [
   "let-me-review",
   "auto-approve",
   "autonomous",

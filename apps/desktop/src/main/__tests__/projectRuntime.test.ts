@@ -1184,3 +1184,154 @@ describe("ProjectRuntimeRegistry", () => {
     });
   });
 });
+
+describe("ProjectRuntimeRegistry with interfaces that are not windows", () => {
+  const wechat = -2;
+  const pathsFor = (dataRoot: string) => ({
+    attachmentsRoot: path.join(dataRoot, "attachments"),
+    cacheRoot: path.join(dataRoot, "cache"),
+    projectRoot: dataRoot,
+    sessionsRoot: path.join(dataRoot, "sessions"),
+  });
+
+  it("names the clients that share one temporary-workspace runtime", async () => {
+    const registry = new ProjectRuntimeRegistry(
+      createAgentHost(),
+      "/pine/agent",
+    );
+    const { dataRoot, project } = await createRuntimeFixture();
+    const workspace = { ...project, id: TEMPORARY_WORKSPACE_PROJECT_ID };
+    const paths = pathsFor(dataRoot);
+    try {
+      await registry.open(1, workspace, paths);
+      await registry.open(2, workspace, paths);
+      await registry.share(wechat, workspace, paths);
+
+      expect(registry.clientsSharingRuntime(wechat, workspace.id)).toEqual([1]);
+      expect(registry.clientsSharingRuntime(1, workspace.id)).toEqual([wechat]);
+      expect(registry.clientsSharingRuntime(2, workspace.id)).toEqual([]);
+      expect(registry.clientsSharingRuntime(5, workspace.id)).toEqual([]);
+    } finally {
+      await registry.dispose(1);
+      await registry.dispose(2);
+      await registry.dispose(wechat);
+    }
+  });
+
+  it("joins the runtime a virtual client holds when several exist", async () => {
+    const registry = new ProjectRuntimeRegistry(
+      createAgentHost(),
+      "/pine/agent",
+    );
+    const { dataRoot, project } = await createRuntimeFixture();
+    const workspace = { ...project, id: TEMPORARY_WORKSPACE_PROJECT_ID };
+    const paths = pathsFor(dataRoot);
+    try {
+      await registry.open(1, workspace, paths);
+      await registry.open(wechat, workspace, paths);
+      await registry.share(3, workspace, paths);
+
+      expect(registry.clientsSharingRuntime(3, workspace.id)).toEqual([wechat]);
+    } finally {
+      await registry.dispose(1);
+      await registry.dispose(3);
+      await registry.dispose(wechat);
+    }
+  });
+
+  it("prefers a window as the owner of a project", async () => {
+    const registry = new ProjectRuntimeRegistry(
+      createAgentHost(),
+      "/pine/agent",
+    );
+    const { dataRoot, project } = await createRuntimeFixture();
+    const paths = pathsFor(dataRoot);
+    try {
+      await registry.open(wechat, project, paths);
+      expect(registry.ownerOfProject(project.id)).toBe(wechat);
+      await registry.share(4, project, paths);
+      expect(registry.ownerOfProject(project.id)).toBe(4);
+      expect(registry.ownerOfProject("missing")).toBeUndefined();
+    } finally {
+      await registry.dispose(4);
+      await registry.dispose(wechat);
+    }
+  });
+
+  it("moves a session into the runtime a virtual client holds", async () => {
+    const registry = new ProjectRuntimeRegistry(
+      createAgentHost(),
+      "/pine/agent",
+    );
+    const source = await createRuntimeFixture();
+    const destination = await createRuntimeFixture();
+    const target = { ...destination.project, id: crypto.randomUUID() };
+    const sessionFile = path.join(source.dataRoot, "session.jsonl");
+    await writeFile(sessionFile, "{}\n");
+    vi.spyOn(
+      ProjectSessionService.prototype,
+      "describeSession",
+    ).mockResolvedValue({ sessionFile, summary: sessionSummary });
+    try {
+      await registry.open(1, source.project, pathsFor(source.dataRoot));
+      await registry.prompt(1, {
+        message: "Start",
+        target: { kind: "new", projectId: source.project.id },
+      });
+      await registry.open(wechat, target, pathsFor(destination.dataRoot));
+
+      await registry.teleportSession(
+        sessionSummary.id,
+        target,
+        pathsFor(destination.dataRoot),
+      );
+
+      expect(registry.clientsSharingRuntime(1, target.id)).toEqual([wechat]);
+    } finally {
+      vi.restoreAllMocks();
+      await registry.dispose(1);
+      await registry.dispose(wechat);
+    }
+  });
+
+  it("reads a live session's context usage and its presented files", async () => {
+    const registry = new ProjectRuntimeRegistry(
+      createAgentHost(),
+      "/pine/agent",
+    );
+    const { dataRoot, project } = await createRuntimeFixture();
+    const presented = [{ toolCallId: "call", path: "/tmp/report.pdf" }];
+    const listPresentedFiles = vi
+      .spyOn(ProjectSessionService.prototype, "listPresentedFiles")
+      .mockResolvedValue(presented);
+    const contextUsage: PineContextUsage = {
+      tokens: 1_000,
+      contextWindow: 200_000,
+      percent: 0.5,
+      cost: 0,
+      cacheHitRate: null,
+    };
+    try {
+      await registry.open(wechat, project, pathsFor(dataRoot));
+      await registry.prompt(wechat, {
+        message: "Start",
+        target: { kind: "new", projectId: project.id },
+      });
+      expect(registry.contextUsageOf(sessionSummary.id)).toBeUndefined();
+      registry.updateContextUsage(sessionSummary.id, contextUsage);
+      expect(registry.contextUsageOf(sessionSummary.id)).toEqual(contextUsage);
+      expect(registry.contextUsageOf("missing")).toBeUndefined();
+
+      await expect(
+        registry.listPresentedFiles(wechat, project.id, sessionSummary.id),
+      ).resolves.toEqual(presented);
+      expect(listPresentedFiles).toHaveBeenCalledWith(sessionSummary.id);
+      await expect(
+        registry.listPresentedFiles(9, project.id, sessionSummary.id),
+      ).rejects.toThrow("not open");
+    } finally {
+      vi.restoreAllMocks();
+      await registry.dispose(wechat);
+    }
+  });
+});

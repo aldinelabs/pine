@@ -36,79 +36,123 @@ type DefaultResourceLoader =
   import("@earendil-works/pi-coding-agent").DefaultResourceLoader;
 type PiSkill = import("@earendil-works/pi-coding-agent").Skill;
 
-/** Pine-managed Skills and the Pi Skills discovered beside them. */
-export function registerSkillRequests(core: PineCore): void {
-  async function skillRepositoryFor(
-    scope: PineSkillScope,
-    projectId?: string,
-  ): Promise<PineSkillRepository> {
-    const repository = core.repository;
-    if (scope === "project" && !projectId) {
-      throw new Error("Project scope requires a project ID.");
-    }
-
-    let projectSkillsRoot = path.join(
-      core.agentDirectory,
-      ".no-project-skills",
-    );
-    let disabledGlobalSkillsPath: string | undefined;
-    if (projectId) {
-      await repository.get(projectId);
-      const dataPaths = repository.dataPaths(projectId);
-      disabledGlobalSkillsPath =
-        dataPaths.skillsSettingsPath ??
-        path.join(dataPaths.projectRoot, "skills.json");
-      if (scope === "project") {
-        projectSkillsRoot =
-          dataPaths.skillsRoot ?? path.join(dataPaths.projectRoot, "skills");
-      }
-    }
-
-    return new PineSkillRepository({
-      ...(disabledGlobalSkillsPath ? { disabledGlobalSkillsPath } : {}),
-      global: path.join(core.agentDirectory, "skills"),
-      project: projectSkillsRoot,
-    });
+async function skillRepositoryFor(
+  core: PineCore,
+  scope: PineSkillScope,
+  projectId?: string,
+): Promise<PineSkillRepository> {
+  const repository = core.repository;
+  if (scope === "project" && !projectId) {
+    throw new Error("Project scope requires a project ID.");
   }
 
-  async function piSkillResourceLoader(
-    projectId: string | undefined,
-    repository: PineSkillRepository,
-  ): Promise<DefaultResourceLoader> {
-    const { DefaultResourceLoader, SettingsManager, loadSkills } =
-      await import("@earendil-works/pi-coding-agent");
-    const agentDir = core.agentDirectory;
-    const cwd = projectId ? await core.defaultFolderPath(projectId) : agentDir;
-    const settingsManager = SettingsManager.create(cwd, agentDir, {
-      projectTrusted: false,
-    });
-    const loader = new DefaultResourceLoader({
+  let projectSkillsRoot = path.join(core.agentDirectory, ".no-project-skills");
+  let disabledGlobalSkillsPath: string | undefined;
+  if (projectId) {
+    await repository.get(projectId);
+    const dataPaths = repository.dataPaths(projectId);
+    disabledGlobalSkillsPath =
+      dataPaths.skillsSettingsPath ??
+      path.join(dataPaths.projectRoot, "skills.json");
+    if (scope === "project") {
+      projectSkillsRoot =
+        dataPaths.skillsRoot ?? path.join(dataPaths.projectRoot, "skills");
+    }
+  }
+
+  return new PineSkillRepository({
+    ...(disabledGlobalSkillsPath ? { disabledGlobalSkillsPath } : {}),
+    global: path.join(core.agentDirectory, "skills"),
+    project: projectSkillsRoot,
+  });
+}
+
+async function piSkillResourceLoader(
+  core: PineCore,
+  projectId: string | undefined,
+  repository: PineSkillRepository,
+): Promise<DefaultResourceLoader> {
+  const { DefaultResourceLoader, SettingsManager, loadSkills } =
+    await import("@earendil-works/pi-coding-agent");
+  const agentDir = core.agentDirectory;
+  const cwd = projectId ? await core.defaultFolderPath(projectId) : agentDir;
+  const settingsManager = SettingsManager.create(cwd, agentDir, {
+    projectTrusted: false,
+  });
+  const loader = new DefaultResourceLoader({
+    cwd,
+    agentDir,
+    settingsManager,
+    noExtensions: true,
+    noPromptTemplates: true,
+    noThemes: true,
+    noContextFiles: true,
+    additionalSkillPaths: projectId ? piProjectSkillPaths(cwd) : [],
+    skillsOverride: filterPineManagedSkills(
+      repository,
       cwd,
       agentDir,
-      settingsManager,
-      noExtensions: true,
-      noPromptTemplates: true,
-      noThemes: true,
-      noContextFiles: true,
-      additionalSkillPaths: projectId ? piProjectSkillPaths(cwd) : [],
-      skillsOverride: filterPineManagedSkills(
-        repository,
-        cwd,
-        agentDir,
-        loadSkills,
-      ),
-    });
-    await loader.reload();
-    return loader;
-  }
+      loadSkills,
+    ),
+  });
+  await loader.reload();
+  return loader;
+}
 
+/** Skills of one scope, Pine-managed first, then those Pi discovers. */
+export async function listSkills(
+  core: PineCore,
+  scope: PineSkillScope,
+  projectId?: string,
+): Promise<ListSkillsResult> {
+  const repository = await skillRepositoryFor(core, scope, projectId);
+  const managed = repository.list(scope);
+  const piSkills = await piSkillResourceLoader(core, projectId, repository);
+  const discovered = piSkills.getSkills();
+  return {
+    diagnostics: [
+      ...managed.diagnostics,
+      ...discovered.diagnostics.map((entry) => ({
+        message: entry.message,
+        type:
+          entry.type === "collision"
+            ? ("collision" as const)
+            : entry.type === "error"
+              ? ("error" as const)
+              : ("warning" as const),
+      })),
+    ],
+    skills: [
+      ...managed.skills,
+      ...discovered.skills
+        .filter((skill) => pineScopeForPiSkill(skill) === scope)
+        .map(summarizePiSkill),
+    ],
+  };
+}
+
+/** Every skill a project's sessions can see: global ones, then its own. */
+export async function listProjectSkills(
+  core: PineCore,
+  projectId: string,
+): Promise<ListSkillsResult> {
+  const global = await listSkills(core, "global", projectId);
+  const project = await listSkills(core, "project", projectId);
+  return {
+    diagnostics: [...global.diagnostics, ...project.diagnostics],
+    skills: [...global.skills, ...project.skills],
+  };
+}
+
+/** Pine-managed Skills and the Pi Skills discovered beside them. */
+export function registerSkillRequests(core: PineCore): void {
   async function readPiSkill(
     projectId: string | undefined,
     repository: PineSkillRepository,
     scope: PineSkillScope,
     name: string,
   ): Promise<ReadSkillResult> {
-    const loader = await piSkillResourceLoader(projectId, repository);
+    const loader = await piSkillResourceLoader(core, projectId, repository);
     const skill = loader
       .getSkills()
       .skills.find(
@@ -136,7 +180,7 @@ export function registerSkillRequests(core: PineCore): void {
     name: string,
     content: string,
   ): Promise<ReadSkillResult> {
-    const loader = await piSkillResourceLoader(projectId, repository);
+    const loader = await piSkillResourceLoader(core, projectId, repository);
     const skill = loader
       .getSkills()
       .skills.find(
@@ -205,7 +249,7 @@ export function registerSkillRequests(core: PineCore): void {
     scope: PineSkillScope,
     name: string,
   ): Promise<boolean> {
-    const loader = await piSkillResourceLoader(projectId, repository);
+    const loader = await piSkillResourceLoader(core, projectId, repository);
     const skill = loader
       .getSkills()
       .skills.find(
@@ -234,38 +278,9 @@ export function registerSkillRequests(core: PineCore): void {
 
   core.handle(
     LIST_SKILLS_CHANNEL,
-    async (_context, request: unknown): Promise<ListSkillsResult> => {
+    (_context, request: unknown): Promise<ListSkillsResult> => {
       const parsed = SkillScopeRequestSchema.parse(request);
-      const repository = await skillRepositoryFor(
-        parsed.scope,
-        parsed.projectId,
-      );
-      const managed = repository.list(parsed.scope);
-      const piSkills = await piSkillResourceLoader(
-        parsed.projectId,
-        repository,
-      );
-      const discovered = piSkills.getSkills();
-      return {
-        diagnostics: [
-          ...managed.diagnostics,
-          ...discovered.diagnostics.map((entry) => ({
-            message: entry.message,
-            type:
-              entry.type === "collision"
-                ? ("collision" as const)
-                : entry.type === "error"
-                  ? ("error" as const)
-                  : ("warning" as const),
-          })),
-        ],
-        skills: [
-          ...managed.skills,
-          ...discovered.skills
-            .filter((skill) => pineScopeForPiSkill(skill) === parsed.scope)
-            .map(summarizePiSkill),
-        ],
-      };
+      return listSkills(core, parsed.scope, parsed.projectId);
     },
   );
 
@@ -274,6 +289,7 @@ export function registerSkillRequests(core: PineCore): void {
     async (_context, request: unknown): Promise<ReadSkillResult> => {
       const parsed = SkillIdentityRequestSchema.parse(request);
       const repository = await skillRepositoryFor(
+        core,
         parsed.scope,
         parsed.projectId,
       );
@@ -296,11 +312,9 @@ export function registerSkillRequests(core: PineCore): void {
       if (parsed.managedBy === "pi") {
         throw new Error("New Skills must use Pine-managed storage.");
       }
-      return (await skillRepositoryFor(parsed.scope, parsed.projectId)).create(
-        parsed.scope,
-        parsed.name,
-        parsed.content,
-      );
+      return (
+        await skillRepositoryFor(core, parsed.scope, parsed.projectId)
+      ).create(parsed.scope, parsed.name, parsed.content);
     },
   );
 
@@ -309,6 +323,7 @@ export function registerSkillRequests(core: PineCore): void {
     async (_context, request: unknown): Promise<ReadSkillResult> => {
       const parsed = WriteSkillRequestSchema.parse(request);
       const repository = await skillRepositoryFor(
+        core,
         parsed.scope,
         parsed.projectId,
       );
@@ -330,6 +345,7 @@ export function registerSkillRequests(core: PineCore): void {
     async (_context, request: unknown): Promise<RemoveSkillResult> => {
       const parsed = SkillIdentityRequestSchema.parse(request);
       const repository = await skillRepositoryFor(
+        core,
         parsed.scope,
         parsed.projectId,
       );
@@ -354,7 +370,11 @@ export function registerSkillRequests(core: PineCore): void {
       request: unknown,
     ): Promise<SetGlobalSkillEnabledResult> => {
       const parsed = SetGlobalSkillEnabledRequestSchema.parse(request);
-      const repository = await skillRepositoryFor("project", parsed.projectId);
+      const repository = await skillRepositoryFor(
+        core,
+        "project",
+        parsed.projectId,
+      );
       await repository.setGlobalSkillEnabled(parsed.name, parsed.enabled);
       return { updated: true };
     },

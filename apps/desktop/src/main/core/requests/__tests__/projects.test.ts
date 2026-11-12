@@ -1,8 +1,12 @@
 import { describe, expect, it, vi } from "vitest";
 import type { PineCore } from "../../pineCore";
 import type { PineProject } from "../../../../shared/projects";
-import { TEMPORARY_WORKSPACE_PROJECT_ID } from "../../../../shared/projects";
-import { answerProjectOperation } from "../projects";
+import {
+  OPEN_PROJECT_CHANNEL,
+  TEMPORARY_WORKSPACE_PROJECT_ID,
+} from "../../../../shared/projects";
+import type { PineRequestContext } from "../../../requestRouter";
+import { answerProjectOperation, registerProjectRequests } from "../projects";
 
 const ownId = "22222222-2222-4222-8222-222222222222";
 const otherId = "66666666-6666-4666-8666-666666666666";
@@ -192,5 +196,88 @@ describe("answerProjectOperation", () => {
     expect(closeEverywhere).toHaveBeenCalledWith(otherId);
     expect(remove).toHaveBeenCalledWith(otherId);
     expect(result).toEqual({ op: "delete", projectName: "Notes" });
+  });
+});
+
+describe("OPEN_PROJECT_CHANNEL", () => {
+  const wechatClient = -2;
+
+  function openFixture(holders: number[]) {
+    const handlers = new Map<
+      string,
+      (context: PineRequestContext, request?: unknown) => unknown
+    >();
+    const runtimes = {
+      isOpen: vi.fn().mockReturnValue(false),
+      clientsOfProject: vi.fn().mockReturnValue(holders),
+      share: vi.fn().mockResolvedValue(undefined),
+      open: vi.fn().mockResolvedValue(undefined),
+      dispose: vi.fn().mockResolvedValue(undefined),
+    };
+    const core = {
+      repository: {
+        open: vi.fn((id: string) => Promise.resolve(project(id, "Pine"))),
+        dataPaths: vi.fn().mockReturnValue({}),
+      },
+      runtimes,
+      host: { focusClient: vi.fn().mockReturnValue(false) },
+      pendingProjectOpens: new Map(),
+      handle: vi.fn(
+        (
+          channel: string,
+          handler: (context: PineRequestContext, request?: unknown) => unknown,
+        ) => handlers.set(channel, handler),
+      ),
+    } as unknown as PineCore;
+    registerProjectRequests(core);
+    const open = (id: string) =>
+      handlers.get(OPEN_PROJECT_CHANNEL)?.(
+        { clientId: 7, source: "desktop" },
+        { id },
+      );
+    return { open, runtimes };
+  }
+
+  it("shares a project WeChat holds instead of disposing it", async () => {
+    const { open, runtimes } = openFixture([wechatClient]);
+
+    await expect(open(ownId)).resolves.toMatchObject({ opened: true });
+
+    expect(runtimes.share).toHaveBeenCalledWith(
+      7,
+      expect.objectContaining({ id: ownId }),
+      {},
+    );
+    expect(runtimes.dispose).not.toHaveBeenCalled();
+    expect(runtimes.open).not.toHaveBeenCalled();
+  });
+
+  it("shares the temporary workspace WeChat holds", async () => {
+    const { open, runtimes } = openFixture([wechatClient]);
+
+    await expect(open(TEMPORARY_WORKSPACE_PROJECT_ID)).resolves.toMatchObject({
+      opened: true,
+    });
+
+    expect(runtimes.share).toHaveBeenCalledWith(
+      7,
+      expect.objectContaining({ id: TEMPORARY_WORKSPACE_PROJECT_ID }),
+      {},
+    );
+    expect(runtimes.dispose).not.toHaveBeenCalled();
+  });
+
+  it("still releases a window holder that no longer exists", async () => {
+    const { open, runtimes } = openFixture([3]);
+
+    await expect(open(ownId)).resolves.toMatchObject({ opened: true });
+
+    expect(runtimes.dispose).toHaveBeenCalledWith(3);
+    expect(runtimes.share).not.toHaveBeenCalled();
+    expect(runtimes.open).toHaveBeenCalledWith(
+      7,
+      expect.objectContaining({ id: ownId }),
+      {},
+    );
   });
 });

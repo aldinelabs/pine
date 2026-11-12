@@ -812,6 +812,10 @@ describe("ProjectSessionService", () => {
       expect(
         await service.presentedFilePath(session.metadata.id, "unknown"),
       ).toBeNull();
+      await expect(
+        service.listPresentedFiles(session.metadata.id),
+      ).resolves.toEqual([{ toolCallId: "present-ok", path: presentedPath }]);
+      await expect(service.listPresentedFiles("missing")).resolves.toEqual([]);
     } finally {
       await service.dispose();
     }

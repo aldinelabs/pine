@@ -154,6 +154,30 @@ describe("AutomationService approvals", () => {
     expect(await service.list(PROJECT_ID)).toHaveLength(1);
   });
 
+  it("says on the approval when the request came from WeChat", async () => {
+    const created = service.create(
+      { projectId: PROJECT_ID, sessionId: "author", via: "wechat" },
+      manualSpec(),
+      { afterExternalContent: false },
+    );
+    await vi.waitFor(() => expect(service.pendingApprovals()).toHaveLength(1));
+    const [approval] = service.pendingApprovals();
+    expect(approval.via).toBe("wechat");
+    service.respondApproval("desktop", approval.requestId, false);
+    await expect(created).rejects.toThrow(/did not approve/);
+
+    const plain = service.create(
+      { projectId: PROJECT_ID, sessionId: "author" },
+      manualSpec(),
+      { afterExternalContent: false },
+    );
+    await vi.waitFor(() => expect(service.pendingApprovals()).toHaveLength(1));
+    const [local] = service.pendingApprovals();
+    expect(local).not.toHaveProperty("via");
+    service.respondApproval("desktop", local.requestId, false);
+    await expect(plain).rejects.toThrow(/did not approve/);
+  });
+
   it("saves nothing when the user rejects", async () => {
     const created = service.create(
       { projectId: PROJECT_ID, sessionId: "author" },

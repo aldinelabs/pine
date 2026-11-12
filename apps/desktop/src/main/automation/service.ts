@@ -151,6 +151,8 @@ export interface AutomationServiceOptions {
 export interface AutomationRequester {
   sessionId?: string;
   projectId: string;
+  /** Copied to the approval request so the card can say where it came from. */
+  via?: "wechat";
 }
 
 interface ActiveRun {
@@ -1737,6 +1739,7 @@ export class AutomationService {
         : {}),
       warnings: buildWarnings(spec, project, extras.afterExternalContent),
       createdAt: new Date().toISOString(),
+      ...(requester.via ? { via: requester.via } : {}),
     };
   }
 
