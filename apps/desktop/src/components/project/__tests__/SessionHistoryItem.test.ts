@@ -89,6 +89,8 @@ describe("SessionHistoryItem", () => {
     ];
     await wrapper.vm.$nextTick();
     expect(marker().attributes("aria-label")).toBe("Waiting for your approval");
+    // Wrapped in a span, the icon misses the row's svg sizing; it sets its own.
+    expect(marker().get("svg").classes()).toContain("size-3.5");
     // The approval marker takes the running dot's place.
     expect(wrapper.find('[data-slot="session-running-dot"]').exists()).toBe(
       false,

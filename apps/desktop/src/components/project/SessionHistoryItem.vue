@@ -135,7 +135,7 @@ const emit = defineEmits<{
           :aria-label="t('sessions.awaitingApproval')"
           :title="t('sessions.awaitingApproval')"
         >
-          <ShieldAlertIcon aria-hidden="true" />
+          <ShieldAlertIcon class="size-3.5" aria-hidden="true" />
         </span>
         <span
           v-else-if="isRunning"
