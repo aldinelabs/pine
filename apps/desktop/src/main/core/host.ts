@@ -2,6 +2,10 @@ import type { PineAgentEvent } from "../../shared/agent";
 import type { PineLibraryChange } from "../../shared/projects";
 import type { RemoteStatus } from "../../shared/remoteControl";
 import type { AutomationsChangedEvent } from "../../shared/automation";
+import type {
+  WeChatNotification,
+  WeChatStatus,
+} from "../../shared/wechatRemote";
 import type { AgentProcessFactory } from "../agentProcessHost";
 import type {
   AutomationNotification,
@@ -64,4 +68,12 @@ export interface PineHost {
   automationsChanged?(event: AutomationsChangedEvent): void;
   /** The interface language, for notifications and run prompts. */
   locale?(): "en-US" | "zh-CN";
+  /** WeChat remote's binding, pause state or settings changed. */
+  wechatChanged?(status: WeChatStatus): void;
+  /** Shows something WeChat remote did or needs at the OS level. */
+  notifyWeChat?(notification: WeChatNotification): void;
+  /** Keeps the computer from sleeping while WeChat remote is listening. */
+  keepAwake?(on: boolean): void;
+  /** A person here can see and answer automation approvals (not on the headless server). */
+  localAutomationApprovals?: boolean;
 }

@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import { WECHAT_REQUEST_CHANNELS } from "../../shared/wechatRemote";
 import {
   createWebChannels,
   webChannel,
@@ -31,6 +32,11 @@ describe("browser request policy", () => {
       "attachments:pick",
       "unknown",
     ])
+      expect(() => webChannel(channels, channel)).toThrow("unavailable");
+  });
+
+  it("never exposes the WeChat remote settings to the browser", () => {
+    for (const channel of WECHAT_REQUEST_CHANNELS)
       expect(() => webChannel(channels, channel)).toThrow("unavailable");
   });
 

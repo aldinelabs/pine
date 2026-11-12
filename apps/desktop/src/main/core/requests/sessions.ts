@@ -93,7 +93,10 @@ import {
   SetApprovalModeRequestSchema,
 } from "../requestSchemas";
 
-/** Marks the sessions that are automation runs, as the sidebar shows them. */
+/**
+ * Marks the sessions that are automation runs, and those started or used
+ * from WeChat, as the sidebar shows them.
+ */
 async function withAutomationRuns<
   T extends PineSessionSummary & { projectId?: string },
 >(core: PineCore, sessions: T[], projectId?: string): Promise<T[]> {
@@ -105,7 +108,13 @@ async function withAutomationRuns<
   }
   return sessions.map((session) => {
     const run = runs.get(session.projectId ?? projectId ?? "")?.get(session.id);
-    return run ? { ...session, automationRun: run } : session;
+    const origin = core.wechat.originOf(session.id);
+    if (!run && !origin) return session;
+    return {
+      ...session,
+      ...(run ? { automationRun: run } : {}),
+      ...(origin ? { origin } : {}),
+    };
   });
 }
 

@@ -41,7 +41,8 @@ import {
   type PineLibraryChange,
   type PineProject,
 } from "../../shared/projects";
-import { WEB_CLIENT_ID } from "../../shared/webControl";
+import { WEB_CLIENT_ID, isVirtualClient } from "../../shared/webControl";
+import { WECHAT_CLIENT_ID } from "../../shared/wechatRemote";
 import { AgentProcessHost } from "../agentProcessHost";
 import { AutomationService } from "../automation/service";
 import { AutomationSecretStore } from "../automation/secrets";
@@ -65,6 +66,7 @@ import { WebApplication } from "../webApplication";
 import { RemoteHost } from "../remote/rcHost";
 import { DEFAULT_PAGE_ORIGIN, RemoteControlStore } from "../remote/rcStore";
 import { WebSessionState } from "../webSessionState";
+import { WeChatBridge } from "../wechat/bridge";
 import { WorkbenchStateRequests } from "../workbenchStateRequests";
 import type { PineHost } from "./host";
 import {
@@ -74,10 +76,15 @@ import {
 } from "./requestSchemas";
 import { registerCoreRequests } from "./requests";
 import { answerAutomationOperation } from "./requests/automations";
-import { answerMcpOperation } from "./requests/mcp";
+import { answerMcpOperation, listMcpCatalog } from "./requests/mcp";
 import { answerProjectOperation } from "./requests/projects";
 import { notifyParentOf, unlinkSession } from "./subSessions";
-import { answerSessionOperation } from "./requests/sessions";
+import {
+  answerSessionOperation,
+  sessionLibrary,
+  startBackgroundSession,
+} from "./requests/sessions";
+import { listProjectSkills } from "./requests/skills";
 
 /** How long a running agent gets to stop its work before Pine quits anyway. */
 const AGENT_SHUTDOWN_TIMEOUT_MS = 5_000;
@@ -108,6 +115,8 @@ export class PineCore {
   readonly web: WebApplication;
   /** Lets paired devices reach the local web server without port forwarding. */
   readonly remote: RemoteHost;
+  /** Lets the bound WeChat account send tasks to Pine. */
+  readonly wechat: WeChatBridge;
   readonly presentedFiles = new PresentedFileRegistry();
   readonly workbenchStateRequests = new WorkbenchStateRequests();
   readonly modelRecommendations = new ModelRecommendationService();
@@ -167,6 +176,8 @@ export class PineCore {
     );
     // Remote Control is optional; a failure to start it must not stop Pine.
     void core.remote.start().catch(() => undefined);
+    // Likewise WeChat remote; it reports its own failures in its status.
+    void core.wechat.start().catch(() => undefined);
     void core.automations
       .start()
       .catch((error: unknown) =>
@@ -277,6 +288,7 @@ export class PineCore {
       changed: (event) => {
         host.automationsChanged?.(event);
         this.web.server.publish(AUTOMATIONS_CHANGED_CHANNEL, event);
+        this.tellWeChat((wechat) => wechat.automationsChanged());
       },
       sessionsChanged: () => this.notifyLibraryChanged("sessions"),
       sessionReleased: (sessionId) => this.runtimes.forgetSession(sessionId),
@@ -365,6 +377,36 @@ export class PineCore {
         host.approveRemotePairing?.(request) ?? Promise.resolve(false),
       onChange: () => host.remoteControlChanged?.(this.remote.status()),
     });
+    // WeChat calls the core directly, as its own client, never the router.
+    this.wechat = new WeChatBridge({
+      core: {
+        runtimes: this.runtimes,
+        repository: this.repository,
+        automations: this.automations,
+        notifyLibraryChanged: (change, sourceClientId) =>
+          this.notifyLibraryChanged(change, sourceClientId),
+        rememberAttachments: (clientId, paths) =>
+          this.rememberAttachments(clientId, paths),
+        startBackgroundSession: (input) => startBackgroundSession(this, input),
+        sessionLibrary: () => sessionLibrary(this),
+        listSkills: (projectId) => listProjectSkills(this, projectId),
+        listMcpServers: (projectId) =>
+          listMcpCatalog(this, WECHAT_CLIENT_ID, projectId),
+      },
+      host: {
+        version: host.version,
+        computerName: hostname().replace(/\.local$/, ""),
+        locale: () => host.locale?.() ?? "en-US",
+        fetch: (url, init) => host.fetch(url, init),
+        credentialStorage: host.credentialStorage,
+        dataDirectory: host.dataDirectory,
+        agentDirectory: this.agentDirectory,
+        localAutomationApprovals: host.localAutomationApprovals ?? false,
+        changed: (status) => host.wechatChanged?.(status),
+        notify: (notification) => host.notifyWeChat?.(notification),
+        keepAwake: (on) => host.keepAwake?.(on),
+      },
+    });
     registerCoreRequests(this);
     this.agentHost.subscribe((event) => this.routeAgentEvent(event));
     // Ready before the first message, so no turn waits on the lookup.
@@ -404,6 +446,8 @@ export class PineCore {
 
   sendClientEvent(clientId: number, channel: string, value: unknown): void {
     if (clientId === WEB_CLIENT_ID) this.web.server.publish(channel, value);
+    // WeChat and any other windowless client hear events through their hooks.
+    else if (isVirtualClient(clientId)) return;
     else this.host.sendToClient(clientId, channel, value);
   }
 
@@ -598,6 +642,7 @@ export class PineCore {
   /** Stop the agent process and its tools, and close browser access. */
   async stop(): Promise<void> {
     this.remote.stop();
+    await this.wechat.stop().catch(() => undefined);
     await this.automations.stop().catch(() => undefined);
     const stopped = Promise.allSettled([
       this.agentHost.dispose(),
@@ -616,6 +661,7 @@ export class PineCore {
   /** Releases watchers and processes as Pine exits, without waiting. */
   dispose(): void {
     this.remote.stop();
+    this.tellWeChat((wechat) => wechat.dispose());
     void this.automations.stop();
     void this.stopWeb();
     this.projectFileWatchers?.dispose();
@@ -625,6 +671,18 @@ export class PineCore {
 
   private stopWeb() {
     return this.web.configure({ ...this.web.server.status(), enabled: false });
+  }
+
+  /**
+   * Reports something to WeChat remote from an event path. The bridge is
+   * optional: its failure must never break routing or the caller.
+   */
+  private tellWeChat(report: (wechat: WeChatBridge) => void): void {
+    try {
+      report(this.wechat);
+    } catch (error) {
+      console.error("WeChat remote failed to observe Pine.", error);
+    }
   }
 
   private trackSessionWork(agentEvent: PineAgentEvent): void {
@@ -660,10 +718,14 @@ export class PineCore {
     const ownerId = this.runtimes.controllerOfSession(agentEvent.sessionId);
     if (ownerId === undefined) {
       this.host.observeAgentEvent?.(agentEvent, undefined);
+      this.tellWeChat((wechat) =>
+        wechat.observeAgentEvent(agentEvent, undefined),
+      );
       return;
     }
     this.trackSessionWork(agentEvent);
     this.host.observeAgentEvent?.(agentEvent, ownerId);
+    this.tellWeChat((wechat) => wechat.observeAgentEvent(agentEvent, ownerId));
     if (agentEvent.type === "present-file") {
       void this.forwardPresentedFile(agentEvent, ownerId);
       return;
@@ -822,6 +884,14 @@ export class PineCore {
           event.request.operation,
         );
         sessionReply = { ok: true, response: { kind: "session", result } };
+        if (result.op === "start")
+          this.tellWeChat((wechat) =>
+            wechat.sessionSpawned(
+              event.sessionId,
+              result.sessionId,
+              result.projectId,
+            ),
+          );
       } catch (error) {
         sessionReply = { ok: false, error: toErrorMessage(error) };
       }
@@ -935,8 +1005,13 @@ export class PineCore {
         );
         if (!defaultFolder?.isAvailable)
           throw new Error("The project's default folder is unavailable.");
-        const projectOwner = this.runtimes.ownerOfProject(project.id);
-        if (projectOwner !== undefined && projectOwner !== ownerId)
+        // Only another window holding the project refuses the move; a
+        // windowless holder such as WeChat shares the runtime instead.
+        if (
+          this.runtimes
+            .clientsOfProject(project.id)
+            .some((id) => !isVirtualClient(id) && id !== ownerId)
+        )
           throw new Error("That project is open in another Pine window.");
         this.runtimes.scheduleTeleport(event.sessionId, project.id);
         return {
@@ -990,6 +1065,9 @@ export class PineCore {
       const recipients = this.runtimes.clientsOfSession(sessionId);
       const { fromProjectId, webContentsId } =
         await this.runtimes.teleportSession(sessionId, project, dataPaths);
+      this.tellWeChat((wechat) =>
+        wechat.sessionMoved(sessionId, fromProjectId, projectId),
+      );
       // Sub-sessions stay in their project; a moved session leaves the tree.
       await unlinkSession(this, fromProjectId, sessionId);
       for (const clientId of recipients)

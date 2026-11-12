@@ -362,9 +362,19 @@ export async function answerAutomationOperation(
           : {}),
       });
       return json({ id: operation.id, enabled: operation.enabled });
-    case "run-now":
+    case "run-now": {
+      // A session WeChat started, used or spawned may only run what the
+      // WeChat settings allow; every other session is unaffected.
+      const automation = await service.get(requester.projectId, operation.id);
+      const refusal = core.wechat.automationRunRefusal(requester.sessionId, {
+        id: automation.id,
+        name: automation.name,
+        enabled: automation.spec.enabled,
+      });
+      if (refusal) throw new Error(refusal);
       service.runNow(requester.projectId, operation.id);
       return json({ started: true });
+    }
     case "delete":
       await service.delete(agent, operation.id);
       return json({ deleted: true });

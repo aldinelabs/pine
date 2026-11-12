@@ -2,14 +2,21 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { PineCore } from "../../pineCore";
 import type { PineProject } from "../../../../shared/projects";
 import { TEMPORARY_WORKSPACE_PROJECT_ID } from "../../../../shared/projects";
-import { answerSessionOperation, startBackgroundSession } from "../sessions";
+import { LIST_ALL_RECENT_SESSIONS_CHANNEL } from "../../../../shared/sessions";
+import {
+  answerSessionOperation,
+  registerSessionRequests,
+  startBackgroundSession,
+} from "../sessions";
 
 const searchAllSessions = vi.hoisted(() => vi.fn());
 const listProjectSessions = vi.hoisted(() => vi.fn());
+const listAllRecentSessions = vi.hoisted(() => vi.fn());
 vi.mock("../../../recentSessions", async (importOriginal) => ({
   ...(await importOriginal<object>()),
   searchAllSessions,
   listProjectSessions,
+  listAllRecentSessions,
 }));
 
 const projectId = "22222222-2222-4222-8222-222222222222";
@@ -133,6 +140,7 @@ function fixture({
     automations: {
       runSessions: vi.fn().mockResolvedValue(new Map([["run", {}]])),
     },
+    wechat: { originOf: vi.fn() },
     notifyLibraryChanged,
     notifySessionsDeleted,
   } as unknown as PineCore;
@@ -727,5 +735,53 @@ describe("answerSessionOperation", () => {
       streamingBehavior: "steer",
     });
     expect(result).toEqual({ op: "send", delivered: "steer" });
+  });
+});
+
+describe("session lists", () => {
+  it("mark sessions started or used from WeChat beside automation runs", async () => {
+    const handlers = new Map<string, (...args: unknown[]) => unknown>();
+    const run = { automationId: "a", runId: "r" };
+    const core = {
+      repository: { list: vi.fn().mockResolvedValue([]) },
+      runtimes: {},
+      automations: {
+        runSessions: vi.fn().mockResolvedValue(new Map([["run", run]])),
+      },
+      wechat: {
+        originOf: vi.fn((id: string) =>
+          id === "started"
+            ? "wechat"
+            : id === "used" || id === "run"
+              ? "wechat-used"
+              : undefined,
+        ),
+      },
+      handle: (channel: string, handler: (...args: unknown[]) => unknown) =>
+        handlers.set(channel, handler),
+    } as unknown as PineCore;
+    const summary = (id: string) => ({
+      id,
+      projectId,
+      createdAt: "c",
+      updatedAt: "u",
+      messageCount: 1,
+    });
+    listAllRecentSessions.mockResolvedValue(
+      ["started", "used", "run", "plain"].map(summary),
+    );
+    registerSessionRequests(core);
+
+    const result = (await handlers.get(LIST_ALL_RECENT_SESSIONS_CHANNEL)?.(
+      { clientId: 7 },
+      undefined,
+    )) as { sessions: unknown[] };
+
+    expect(result.sessions).toEqual([
+      { ...summary("started"), origin: "wechat" },
+      { ...summary("used"), origin: "wechat-used" },
+      { ...summary("run"), automationRun: run, origin: "wechat-used" },
+      summary("plain"),
+    ]);
   });
 });
