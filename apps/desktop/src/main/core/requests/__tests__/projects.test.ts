@@ -48,9 +48,11 @@ function fixture({ busy = false } = {}) {
   const create = vi.fn((input: { name: string }) =>
     Promise.resolve({ ...project("new", input.name) }),
   );
-  const updateAppearance = vi.fn((id: string, appearance: object) =>
-    Promise.resolve({ ...projects.get(id), ...appearance }),
-  );
+  const updateAppearance = vi.fn((id: string, appearance: object) => {
+    const saved = { ...projects.get(id), ...appearance } as PineProject;
+    projects.set(id, saved);
+    return Promise.resolve(saved);
+  });
   const refresh = vi.fn().mockResolvedValue(undefined);
   const remove = vi.fn().mockResolvedValue(true);
   const closeEverywhere = vi.fn().mockResolvedValue(undefined);
@@ -309,6 +311,32 @@ describe("answerProjectOperation", () => {
         name: "Pine 2",
         projectIcon: "rocket",
         projectColorTheme: "default",
+      }),
+    );
+  });
+
+  it("keeps an appearance saved while an own-project rename waits", async () => {
+    const { core, update, scheduleAfterReply } = fixture();
+
+    await answerProjectOperation(core, requester, {
+      op: "update",
+      projectId: ownId,
+      name: "Pine 2",
+    });
+    await answerProjectOperation(core, requester, {
+      op: "update",
+      projectId: ownId,
+      projectIcon: "rocket",
+      projectColorTheme: "blue",
+    });
+    await (scheduleAfterReply.mock.calls[0]?.[1] as () => Promise<void>)();
+
+    expect(update).toHaveBeenCalledWith(
+      ownId,
+      expect.objectContaining({
+        name: "Pine 2",
+        projectIcon: "rocket",
+        projectColorTheme: "blue",
       }),
     );
   });

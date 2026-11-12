@@ -263,21 +263,28 @@ export async function answerProjectOperation(
     };
   }
   refuseWhileOthersWork(core, project, requester.sessionId);
-  const input = ProjectMutationSchema.parse({
-    name: parsed.name ?? project.name,
-    folders,
-    defaultFolderId:
-      parsed.defaultFolderPath || !keepsDefault
-        ? defaultFolderOf(folders, parsed.defaultFolderPath)
-        : project.defaultFolderId,
-    projectColorTheme: parsed.projectColorTheme ?? project.projectColorTheme,
-    projectIcon: parsed.projectIcon ?? project.projectIcon,
-  });
+  const defaultFolderId =
+    parsed.defaultFolderPath || !keepsDefault
+      ? defaultFolderOf(folders, parsed.defaultFolderPath)
+      : project.defaultFolderId;
+  const inputWith = (appearance: PineProject) =>
+    ProjectMutationSchema.parse({
+      name: parsed.name ?? project.name,
+      folders,
+      defaultFolderId,
+      projectColorTheme:
+        parsed.projectColorTheme ?? appearance.projectColorTheme,
+      projectIcon: parsed.projectIcon ?? appearance.projectIcon,
+    });
+  // Validated now so a bad request fails before it is scheduled.
+  const input = inputWith(project);
   const apply = async () => {
+    // The icon and colour can change at once while a deferred update waits,
+    // so unrequested ones come from the project as it is when this applies.
     await applyProjectUpdate(
       core,
       project.id,
-      input,
+      inputWith(await repository.get(project.id)),
       runtimes.clientsOfProject(project.id),
     );
     core.notifyLibraryChanged("projects");
