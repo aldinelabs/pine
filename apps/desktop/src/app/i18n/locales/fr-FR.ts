@@ -663,6 +663,9 @@ export default {
     current: "Actuelle",
     noSessions: "Aucune session pour le moment",
     awaitingApproval: "En attente de votre approbation",
+    showSubSessions: "Afficher les sous-sessions ({count})",
+    hideSubSessions: "Masquer les sous-sessions ({count})",
+    deleteSubSessions: "Sous-sessions supprimées avec elle : {count}.",
     noResults: "Aucune session correspondante",
     groupTitle: "Dossiers de sessions",
     createGroupAction: "Nouveau dossier",
@@ -1176,6 +1179,12 @@ export default {
         minutes: "{minutes} min {seconds} s",
         seconds: "{value} s",
       },
+      sessionNotice: {
+        finished: "Sous-session {name} terminée",
+        failed: "Échec de la sous-session {name}",
+        awaitingApproval: "La sous-session {name} attend votre approbation",
+        untitled: "Sans titre",
+      },
       backgroundTask: {
         completed: "Le processus en arrière-plan {name} est terminé",
         failed: "Le processus en arrière-plan {name} a échoué",
@@ -1634,6 +1643,21 @@ export default {
             complete: "Session renommée en ",
             kept: "Titre de la session conservé",
             error: "Impossible de renommer la session",
+          },
+          relatives: {
+            running: "Liste des sessions liées",
+            complete: "Sessions liées listées",
+            error: "Impossible de lister les sessions liées",
+          },
+          read: {
+            running: "Lecture de la session ",
+            complete: "Session lue : ",
+            error: "Impossible de lire la session ",
+          },
+          send: {
+            running: "Envoi d’un message à la session ",
+            complete: "Message envoyé à la session ",
+            error: "Impossible d’envoyer un message à la session ",
           },
           delete: {
             running: "Suppression d’une session",

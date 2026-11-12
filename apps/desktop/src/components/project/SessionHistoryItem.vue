@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ShieldAlertIcon, WorkflowIcon } from "@lucide/vue";
+import { ListTreeIcon, ShieldAlertIcon, WorkflowIcon } from "@lucide/vue";
 import { computed } from "vue";
 import { useI18n } from "vue-i18n";
 import { cn } from "@/lib/utils";
@@ -13,12 +13,20 @@ import type { PineSessionGroup } from "@/shared/projects";
 import type { ProjectSessionSearchResult } from "@/shared/sessions";
 
 /** One session row of the sidebar tree, at any folder depth. */
-const props = defineProps<{
-  groups: PineSessionGroup[];
-  isActive: boolean;
-  session: ProjectSessionSearchResult;
-  title: string;
-}>();
+const props = withDefaults(
+  defineProps<{
+    groups: PineSessionGroup[];
+    isActive: boolean;
+    session: ProjectSessionSearchResult;
+    title: string;
+    /** 1 for a sub-session, shown under the session that started it. */
+    depth?: number;
+    /** Sub-sessions shown under this row when it is expanded. */
+    subSessionCount?: number;
+    expanded?: boolean;
+  }>(),
+  { depth: 0, subSessionCount: 0, expanded: false },
+);
 
 const sessionStore = useSessionStore();
 const isRunning = computed(() =>
@@ -54,6 +62,7 @@ const emit = defineEmits<{
   move: [groupId: string | null];
   delete: [];
   dragstart: [event: DragEvent];
+  toggle: [];
 }>();
 </script>
 
@@ -69,7 +78,8 @@ const emit = defineEmits<{
     >
       <SidebarMenuSubButton
         as="button"
-        class="w-full translate-x-0"
+        :class="cn('w-full translate-x-0', depth > 0 && 'ps-7')"
+        :data-sub-session="depth > 0 || undefined"
         :data-session-id="session.id"
         :data-project-id="session.projectId"
         :draggable="true"
@@ -77,8 +87,14 @@ const emit = defineEmits<{
         :title="title"
         @click="emit('open')"
       >
+        <!-- Keeps the title clear of the toggle drawn over this spot. -->
+        <span
+          v-if="subSessionCount > 0"
+          class="size-4 shrink-0"
+          aria-hidden="true"
+        />
         <WorkflowIcon
-          v-if="session.automationRun"
+          v-else-if="session.automationRun"
           data-slot="session-automation-icon"
           class="text-muted-foreground"
           aria-hidden="true"
@@ -113,5 +129,25 @@ const emit = defineEmits<{
         />
       </SidebarMenuSubButton>
     </SessionContextMenu>
+    <button
+      v-if="subSessionCount > 0"
+      type="button"
+      data-slot="session-sub-sessions-toggle"
+      class="absolute start-1 top-1/2 flex size-6 -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-2 focus-visible:ring-sidebar-ring focus-visible:outline-none"
+      :aria-expanded="expanded"
+      :aria-label="
+        t(expanded ? 'sessions.hideSubSessions' : 'sessions.showSubSessions', {
+          count: subSessionCount,
+        })
+      "
+      :title="
+        t(expanded ? 'sessions.hideSubSessions' : 'sessions.showSubSessions', {
+          count: subSessionCount,
+        })
+      "
+      @click.stop="emit('toggle')"
+    >
+      <ListTreeIcon class="size-4" aria-hidden="true" />
+    </button>
   </SidebarMenuSubItem>
 </template>

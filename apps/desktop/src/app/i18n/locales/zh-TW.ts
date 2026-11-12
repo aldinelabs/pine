@@ -613,6 +613,9 @@ export default {
     current: "當前",
     noSessions: "還沒有會話",
     awaitingApproval: "等待你核准",
+    showSubSessions: "展開子會話（{count}）",
+    hideSubSessions: "收合子會話（{count}）",
+    deleteSubSessions: "它的 {count} 個子會話也會一併刪除。",
     noResults: "沒有匹配的會話",
     groupTitle: "會話資料夾",
     createGroupAction: "新建資料夾",
@@ -1093,6 +1096,12 @@ export default {
         minutes: "{minutes} 分 {seconds} 秒",
         seconds: "{value} 秒",
       },
+      sessionNotice: {
+        finished: "子會話 {name} 已完成",
+        failed: "子會話 {name} 失敗了",
+        awaitingApproval: "子會話 {name} 正在等待你核准",
+        untitled: "未命名",
+      },
       backgroundTask: {
         completed: "後臺程序 {name} 已完成",
         failed: "後臺程序 {name} 失敗",
@@ -1546,6 +1555,21 @@ export default {
             complete: "已更新會話標題為 ",
             kept: "保留了會話標題",
             error: "無法更新會話標題",
+          },
+          relatives: {
+            running: "正在列出相關會話",
+            complete: "已列出相關會話",
+            error: "無法列出相關會話",
+          },
+          read: {
+            running: "正在讀取會話 ",
+            complete: "已讀取會話 ",
+            error: "無法讀取會話 ",
+          },
+          send: {
+            running: "正在傳訊息給會話 ",
+            complete: "已傳訊息給會話 ",
+            error: "無法傳訊息給會話 ",
           },
           delete: {
             running: "正在刪除會話",

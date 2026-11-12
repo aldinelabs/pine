@@ -38,6 +38,8 @@ function fixture({
   owner = 7,
   open = true,
   live = [] as string[],
+  sessionParents = {},
+  activity = "idle",
 } = {}) {
   const projects = [
     {
@@ -45,6 +47,7 @@ function fixture({
       sessionGroups: [
         { id: "g1", name: "Release", sessionIds: [filedSession, "gone"] },
       ],
+      sessionParents,
     },
     project(TEMPORARY_WORKSPACE_PROJECT_ID, "Temporary"),
   ];
@@ -63,12 +66,32 @@ function fixture({
     session: { id: "new-session" },
   });
   const share = vi.fn().mockResolvedValue(undefined);
+  const updateSessionParents = vi.fn(
+    (_id: string, change: (parents: Record<string, string>) => object) =>
+      Promise.resolve({
+        ...projects[0],
+        sessionParents: change(sessionParents),
+      }),
+  );
+  const loadMessages = vi.fn().mockResolvedValue({
+    messages: [
+      {
+        role: "assistant",
+        createdAt: "t",
+        blocks: [{ type: "text", text: "Built it" }],
+      },
+    ],
+    hasMore: true,
+    nextBefore: "older",
+  });
   const core = {
     repository: {
       list: vi.fn().mockResolvedValue(projects),
       open: vi.fn().mockResolvedValue(projects[0]),
       dataPaths: vi.fn().mockReturnValue({}),
+      get: vi.fn().mockResolvedValue(projects[0]),
       updateSessionGroups,
+      updateSessionParents,
     },
     runtimes: {
       approvalModeOfLiveSession: vi.fn().mockReturnValue(callerMode),
@@ -81,7 +104,9 @@ function fixture({
       renameSession,
       deleteSession,
       liveSessionIdsOf: vi.fn().mockReturnValue(live),
+      loadMessages,
     },
+    sessionActivity: vi.fn().mockReturnValue(activity),
     automations: {
       runSessions: vi.fn().mockResolvedValue(new Map([["run", {}]])),
     },
@@ -94,6 +119,8 @@ function fixture({
     updateSessionGroups,
     renameSession,
     deleteSession,
+    updateSessionParents,
+    loadMessages,
   };
 }
 
@@ -182,6 +209,7 @@ describe("answerSessionOperation", () => {
 
     const result = await answerSessionOperation(core, requester, {
       op: "start",
+      relation: "sibling",
       message: "Fix it",
       approvalMode: "auto-approve",
       locale: "zh-CN",
@@ -213,6 +241,7 @@ describe("answerSessionOperation", () => {
     await expect(
       answerSessionOperation(core, requester, {
         op: "start",
+        relation: "sibling",
         message: "Go",
         approvalMode: "YOLO",
         locale: "en-US",
@@ -227,6 +256,7 @@ describe("answerSessionOperation", () => {
     await expect(
       answerSessionOperation(core, requester, {
         op: "start",
+        relation: "sibling",
         projectId,
         message: "Go",
         approvalMode: "auto-approve",
@@ -357,5 +387,156 @@ describe("answerSessionOperation", () => {
       }),
     ).rejects.toThrow("close its tab first");
     expect(deleteSession).not.toHaveBeenCalled();
+  });
+
+  it("starts a sub-session and links it to its parent", async () => {
+    const { core, prompt, updateSessionParents } = fixture();
+
+    const result = await answerSessionOperation(core, requester, {
+      op: "start",
+      relation: "child",
+      message: "Fix it",
+      approvalMode: "auto-approve",
+      locale: "en-US",
+    });
+
+    expect(prompt.mock.calls[0]?.[1].message).toMatch(
+      /^\[Sub-session of 1111.*\]\n\nFix it$/,
+    );
+    expect(prompt.mock.calls[0]?.[2]).toEqual({
+      focus: false,
+      parentSessionId: requester.sessionId,
+    });
+    await expect(
+      updateSessionParents.mock.results[0]?.value,
+    ).resolves.toMatchObject({
+      sessionParents: { "new-session": requester.sessionId },
+    });
+    expect(result).toMatchObject({ parentSessionId: requester.sessionId });
+  });
+
+  it("refuses a sub-session of a sub-session", async () => {
+    const { core, prompt } = fixture({
+      sessionParents: { [requester.sessionId]: filedSession },
+    });
+
+    await expect(
+      answerSessionOperation(core, requester, {
+        op: "start",
+        relation: "child",
+        message: "Deeper",
+        approvalMode: "auto-approve",
+        locale: "en-US",
+      }),
+    ).rejects.toThrow("one level deep");
+    expect(prompt).not.toHaveBeenCalled();
+  });
+
+  it("starts a sibling of a sub-session under the same parent", async () => {
+    const { core, prompt } = fixture({
+      sessionParents: { [requester.sessionId]: filedSession },
+    });
+
+    await answerSessionOperation(core, requester, {
+      op: "start",
+      relation: "sibling",
+      message: "Also",
+      approvalMode: "auto-approve",
+      locale: "en-US",
+    });
+
+    expect(prompt.mock.calls[0]?.[2]).toEqual({
+      focus: false,
+      parentSessionId: filedSession,
+    });
+  });
+
+  it("lists a sub-session's parent and siblings", async () => {
+    const { core } = fixture({
+      sessionParents: {
+        [requester.sessionId]: filedSession,
+        [looseSession]: filedSession,
+      },
+    });
+
+    const result = await answerSessionOperation(core, requester, {
+      op: "relatives",
+    });
+
+    expect(result).toEqual({
+      op: "relatives",
+      parent: {
+        id: filedSession,
+        title: "Filed",
+        state: "idle",
+        updatedAt: "u1",
+      },
+      children: [],
+      siblings: [
+        { id: looseSession, title: "Loose", state: "idle", updatedAt: "u2" },
+      ],
+    });
+  });
+
+  it("reads a relative's messages as text", async () => {
+    const { core, loadMessages } = fixture({
+      sessionParents: { [looseSession]: requester.sessionId },
+    });
+
+    const result = await answerSessionOperation(core, requester, {
+      op: "read",
+      sessionId: looseSession,
+      limit: 5,
+    });
+
+    expect(loadMessages).toHaveBeenCalledWith(
+      7,
+      projectId,
+      looseSession,
+      undefined,
+      5,
+    );
+    expect(result).toEqual({
+      op: "read",
+      sessionId: looseSession,
+      title: "Loose",
+      messages: [{ role: "assistant", createdAt: "t", text: "Built it" }],
+      olderCursor: "older",
+    });
+  });
+
+  it("refuses to read or message a session that is not a relative", async () => {
+    const { core, prompt } = fixture();
+
+    await expect(
+      answerSessionOperation(core, requester, {
+        op: "send",
+        sessionId: looseSession,
+        message: "Hi",
+        locale: "en-US",
+      }),
+    ).rejects.toThrow("not this session's parent");
+    expect(prompt).not.toHaveBeenCalled();
+  });
+
+  it("steers a message into a running sub-session", async () => {
+    const { core, prompt } = fixture({
+      sessionParents: { [looseSession]: requester.sessionId },
+      activity: "running",
+    });
+
+    const result = await answerSessionOperation(core, requester, {
+      op: "send",
+      sessionId: looseSession,
+      message: "Stop there",
+      locale: "en-US",
+    });
+
+    expect(prompt.mock.calls[0]?.[1]).toMatchObject({
+      message: `[Message from session (${requester.sessionId})]\n\nStop there`,
+      target: { kind: "session", projectId, sessionId: looseSession },
+      streamingBehavior: "steer",
+    });
+    expect(result).toEqual({ op: "send", delivered: "steer" });
   });
 });

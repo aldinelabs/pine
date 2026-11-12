@@ -16,7 +16,14 @@ import { useContentTabNavigation } from "@/composables/useContentTabNavigation";
 import type { PineSessionSummary } from "@/shared/sessions";
 import { useSessionStore } from "@/stores/session";
 
-const props = defineProps<{ session: PineSessionSummary | null }>();
+const props = withDefaults(
+  defineProps<{
+    session: PineSessionSummary | null;
+    /** Sub-sessions that are deleted together with it. */
+    subSessionIds?: string[];
+  }>(),
+  { subSessionIds: () => [] },
+);
 const open = defineModel<boolean>("open", { required: true });
 
 const { t } = useI18n();
@@ -35,8 +42,10 @@ async function deleteSession(): Promise<void> {
 
   isDeleting.value = true;
   try {
+    const subSessionIds = [...props.subSessionIds];
     await sessionStore.deleteSession(target.id);
     tabNavigation.removeSession(target.id);
+    for (const id of subSessionIds) tabNavigation.removeSession(id);
     open.value = false;
   } catch (error) {
     handleError(error, {
@@ -57,6 +66,11 @@ async function deleteSession(): Promise<void> {
         <AlertDialogTitle>{{ t("sessions.deleteTitle") }}</AlertDialogTitle>
         <AlertDialogDescription>
           {{ t("sessions.deleteDescription", { name: sessionTitle }) }}
+          <template v-if="subSessionIds.length">
+            {{
+              t("sessions.deleteSubSessions", { count: subSessionIds.length })
+            }}
+          </template>
         </AlertDialogDescription>
       </AlertDialogHeader>
       <AlertDialogFooter>

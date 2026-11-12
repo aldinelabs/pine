@@ -154,6 +154,58 @@ export interface PineCompaction {
   status: PineCompactionStatus;
 }
 
+/** Custom message a sub-session's progress leaves in its parent. */
+export const PINE_SESSION_NOTICE_TYPE = "pine.session-notice" as const;
+/** Marks a session file as a sub-session of the session that started it. */
+export const PINE_SUB_SESSION_ENTRY = "pine.sub-session" as const;
+
+export interface PineSessionNotice {
+  sessionId: string;
+  projectId: string;
+  title?: string;
+  state: "finished" | "failed" | "awaiting-approval";
+}
+
+/** The session a sub-session's file says started it. */
+export function subSessionParentOf(
+  entries: readonly { type: string; customType?: string; data?: unknown }[],
+): string | undefined {
+  for (const entry of entries) {
+    if (entry.type !== "custom" || entry.customType !== PINE_SUB_SESSION_ENTRY)
+      continue;
+    const parent = (entry.data as { parentSessionId?: unknown } | undefined)
+      ?.parentSessionId;
+    if (typeof parent === "string") return parent;
+  }
+  return undefined;
+}
+
+/** The notice a stored or live custom message carries, if it is one. */
+export function sessionNoticeOf(
+  message: unknown,
+): PineSessionNotice | undefined {
+  if (typeof message !== "object" || message === null) return undefined;
+  const record = message as Record<string, unknown>;
+  if (record.customType !== PINE_SESSION_NOTICE_TYPE) return undefined;
+  const details = record.details;
+  if (typeof details !== "object" || details === null) return undefined;
+  const notice = details as Record<string, unknown>;
+  if (
+    typeof notice.sessionId !== "string" ||
+    typeof notice.projectId !== "string" ||
+    (notice.state !== "finished" &&
+      notice.state !== "failed" &&
+      notice.state !== "awaiting-approval")
+  )
+    return undefined;
+  return {
+    sessionId: notice.sessionId,
+    projectId: notice.projectId,
+    state: notice.state,
+    ...(typeof notice.title === "string" ? { title: notice.title } : {}),
+  };
+}
+
 export interface PineSessionError {
   message: string;
 }
@@ -168,6 +220,8 @@ export type PineContentBlock =
   | { type: "compaction"; compaction: PineCompaction }
   /** A background task's terminal notification, as delivered to the model. */
   | { type: "backgroundTask"; task: BackgroundTaskSnapshot }
+  /** What a sub-session reported to the session that started it. */
+  | { type: "sessionNotice"; notice: PineSessionNotice }
   | { type: "error"; error: PineSessionError }
   /** The user stopped the run before the assistant finished. */
   | { type: "stopped" };
@@ -255,6 +309,8 @@ export function parseMessageBlocks(message: unknown): PineContentBlock[] {
   if (record.role === "custom") {
     const task = backgroundTaskNotificationTask(record);
     if (task) return [{ type: "backgroundTask", task }];
+    const notice = sessionNoticeOf(record);
+    if (notice) return [{ type: "sessionNotice", notice }];
     const toolCall = sessionMutationToolCall(
       record,
       typeof record.timestamp === "number" ||
@@ -325,6 +381,7 @@ export function transcriptRole(message: unknown): "assistant" | "user" | null {
   if (
     record.role === "custom" &&
     (backgroundTaskNotificationTask(record) ||
+      sessionNoticeOf(record) ||
       sessionMutationToolCall(record, ""))
   )
     return "assistant";
@@ -482,6 +539,11 @@ export type SessionHostOperation =
       op: "start";
       /** The asking session's project when omitted. */
       projectId?: string;
+      /**
+       * `child`: a sub-session of the asking session. `sibling`: beside it,
+       * which for a sub-session means another sub-session of its parent.
+       */
+      relation: "child" | "sibling";
       message: string;
       approvalMode: PineApprovalMode;
       locale: "en-US" | "zh-CN";
@@ -501,7 +563,37 @@ export type SessionHostOperation =
       operations: SessionTreeOperation[];
     }
   | { op: "describe"; projectId: string; sessionId: string }
-  | { op: "delete"; projectId: string; sessionId: string };
+  | { op: "delete"; projectId: string; sessionId: string }
+  /** The asking session's parent, sub-sessions and siblings. */
+  | { op: "relatives" }
+  | {
+      op: "read";
+      sessionId: string;
+      limit: number;
+      /** Cursor from an earlier page, for older messages. */
+      before?: string;
+    }
+  | {
+      op: "send";
+      sessionId: string;
+      message: string;
+      locale: "en-US" | "zh-CN";
+    };
+
+/** A related session and what it is doing now. */
+export interface AgentHostRelative {
+  id: string;
+  title?: string;
+  state: "running" | "awaiting-approval" | "idle";
+  updatedAt?: string;
+}
+
+/** One message of another session, as the agent reads it. */
+export interface AgentHostMessage {
+  role: "user" | "assistant";
+  createdAt: string;
+  text: string;
+}
 
 /** One edit of a project's session folders, applied in order. */
 export type SessionTreeOperation =
@@ -545,6 +637,8 @@ export type SessionHostResult =
       projectId: string;
       projectName: string;
       approvalMode: PineApprovalMode;
+      /** Set when it started as a sub-session. */
+      parentSessionId?: string;
     }
   | { op: "tree"; tree: AgentHostSessionTree }
   | {
@@ -558,8 +652,25 @@ export type SessionHostResult =
       session: AgentHostSession;
       /** Open in a Pine tab, so it cannot be deleted. */
       open?: true;
+      /** Sub-sessions deleted along with it. */
+      subSessionCount: number;
     }
-  | { op: "delete"; deleted: boolean };
+  | { op: "delete"; deleted: boolean }
+  | {
+      op: "relatives";
+      parent?: AgentHostRelative;
+      children: AgentHostRelative[];
+      siblings: AgentHostRelative[];
+    }
+  | {
+      op: "read";
+      sessionId: string;
+      title?: string;
+      messages: AgentHostMessage[];
+      /** Pass as `before` for older messages; absent at the start. */
+      olderCursor?: string;
+    }
+  | { op: "send"; delivered: "steer" | "turn" };
 
 /** A bare `*` (or nothing) lists sessions instead of searching their text. */
 export function sessionSearchQuery(query: string): string {

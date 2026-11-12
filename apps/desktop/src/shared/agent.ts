@@ -38,6 +38,12 @@ export const UI_SESSION_TREE_TOOL_NAME = "ui_session_tree" as const;
 export const UI_SESSION_ORGANIZE_TOOL_NAME = "ui_session_organize" as const;
 /** Retitles the asking session to what it is working on now. */
 export const UI_SESSION_RENAME_TOOL_NAME = "ui_session_rename" as const;
+/** Lists the asking session's parent, sub-sessions and siblings. */
+export const UI_SESSION_RELATIVES_TOOL_NAME = "ui_session_relatives" as const;
+/** Reads a related session's messages. */
+export const UI_SESSION_READ_TOOL_NAME = "ui_session_read" as const;
+/** Sends a message to a related session. */
+export const UI_SESSION_SEND_TOOL_NAME = "ui_session_send" as const;
 /** Deletes a session permanently; the user approves every call. */
 export const UI_SESSION_DELETE_TOOL_NAME = "ui_session_delete" as const;
 /** Project management; the user approves every call, in every mode. */

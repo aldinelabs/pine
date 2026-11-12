@@ -657,6 +657,9 @@ export default {
     current: "Текущий",
     noSessions: "Сеансов пока нет",
     awaitingApproval: "Ожидает вашего подтверждения",
+    showSubSessions: "Показать подсеансы ({count})",
+    hideSubSessions: "Скрыть подсеансы ({count})",
+    deleteSubSessions: "Вместе с ним будут удалены подсеансы: {count}.",
     noResults: "Подходящих сеансов нет",
     groupTitle: "Папки сеансов",
     createGroupAction: "Новая папка",
@@ -1164,6 +1167,12 @@ export default {
         minutes: "{minutes} мин {seconds} с",
         seconds: "{value} с",
       },
+      sessionNotice: {
+        finished: "Подсеанс {name} завершён",
+        failed: "Подсеанс {name} завершился с ошибкой",
+        awaitingApproval: "Подсеанс {name} ожидает вашего подтверждения",
+        untitled: "Без названия",
+      },
       backgroundTask: {
         completed: "Фоновый процесс {name} завершён",
         failed: "Фоновый процесс {name} завершился с ошибкой",
@@ -1622,6 +1631,21 @@ export default {
             complete: "Сеанс переименован в ",
             kept: "Название сеанса сохранено",
             error: "Не удалось переименовать сеанс",
+          },
+          relatives: {
+            running: "Получение связанных сеансов",
+            complete: "Связанные сеансы получены",
+            error: "Не удалось получить связанные сеансы",
+          },
+          read: {
+            running: "Чтение сеанса ",
+            complete: "Прочитан сеанс ",
+            error: "Не удалось прочитать сеанс ",
+          },
+          send: {
+            running: "Отправка сообщения сеансу ",
+            complete: "Отправлено сообщение сеансу ",
+            error: "Не удалось отправить сообщение сеансу ",
           },
           delete: {
             running: "Удаление сеанса",

@@ -814,13 +814,14 @@ export class ProjectRuntimeRegistry {
     webContentsId: number,
     projectId: string,
     sessionId: string,
+    { focus = true }: { focus?: boolean } = {},
   ): Promise<ResumeSessionResult> {
     const runtime = this.get(webContentsId, projectId);
     const owner = this.entryForSession(sessionId);
     if (owner && owner.runtime !== runtime) {
       throw new Error("This session is open in another window.");
     }
-    runtime.focusedSessionId = sessionId;
+    if (focus) runtime.focusedSessionId = sessionId;
     const live = runtime.liveSessions.get(sessionId);
     if (live) {
       live.controllerId = webContentsId;
@@ -861,10 +862,15 @@ export class ProjectRuntimeRegistry {
     projectId: string,
     approvalMode: PineApprovalMode,
     focus: boolean,
+    parentSessionId?: string,
   ): Promise<PineSessionSummary> {
     const runtime = this.get(webContentsId, projectId);
     const creation = this.agentHost
-      .createSession({ ...this.location(runtime), approvalMode })
+      .createSession({
+        ...this.location(runtime),
+        approvalMode,
+        ...(parentSessionId ? { parentSessionId } : {}),
+      })
       .then(({ session }) => {
         runtime.liveSessions.set(session.id, {
           summary: session,
@@ -893,7 +899,10 @@ export class ProjectRuntimeRegistry {
   async prompt(
     webContentsId: number,
     request: PromptSessionRequest,
-    { focus = true }: { focus?: boolean } = {},
+    {
+      focus = true,
+      parentSessionId,
+    }: { focus?: boolean; parentSessionId?: string } = {},
   ): Promise<PromptSessionResult> {
     const runtime = this.get(webContentsId, request.target.projectId);
     let approvalMode = request.approvalMode ?? "auto-approve";
@@ -913,12 +922,14 @@ export class ProjectRuntimeRegistry {
             request.target.projectId,
             approvalMode,
             focus,
+            parentSessionId,
           )
         : (
             await this.resume(
               webContentsId,
               request.target.projectId,
               request.target.sessionId,
+              { focus },
             )
           ).session;
     if (!this.isCurrent(webContentsId, runtime)) {
@@ -1242,6 +1253,13 @@ export class ProjectRuntimeRegistry {
   }
 
   /** Remember which window an approval request was routed to. */
+  /** Whether the session is stopped on an approval card. */
+  hasPendingApproval(sessionId: string): boolean {
+    for (const pending of this.pendingApprovals.values())
+      if (pending.sessionId === sessionId) return true;
+    return false;
+  }
+
   trackApproval(
     requestId: string,
     webContentsId: number,
@@ -1330,6 +1348,12 @@ export class ProjectRuntimeRegistry {
   }
 
   /** The project that owns a live session, if any window holds it. */
+  /** A live session's summary, if any window holds it. */
+  summaryOfLiveSession(sessionId: string): PineSessionSummary | undefined {
+    return this.entryForSession(sessionId)?.runtime.liveSessions.get(sessionId)
+      ?.summary;
+  }
+
   projectOfLiveSession(sessionId: string): PineProject | undefined {
     return this.entryForSession(sessionId)?.runtime.project;
   }

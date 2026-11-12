@@ -653,6 +653,9 @@ export default {
     current: "現在",
     noSessions: "セッションはまだありません",
     awaitingApproval: "承認待ち",
+    showSubSessions: "サブセッションを表示（{count}）",
+    hideSubSessions: "サブセッションを隠す（{count}）",
+    deleteSubSessions: "{count} 件のサブセッションも削除されます。",
     noResults: "一致するセッションがありません",
     groupTitle: "セッションフォルダ",
     createGroupAction: "新規フォルダ",
@@ -1156,6 +1159,12 @@ export default {
         minutes: "{minutes} 分 {seconds} 秒",
         seconds: "{value} 秒",
       },
+      sessionNotice: {
+        finished: "サブセッション {name} が完了しました",
+        failed: "サブセッション {name} が失敗しました",
+        awaitingApproval: "サブセッション {name} が承認を待っています",
+        untitled: "無題",
+      },
       backgroundTask: {
         completed: "バックグラウンドプロセス {name} が完了しました",
         failed: "バックグラウンドプロセス {name} が失敗しました",
@@ -1611,6 +1620,21 @@ export default {
             complete: "セッション名を変更しました：",
             kept: "セッション名をそのままにしました",
             error: "セッション名を変更できませんでした",
+          },
+          relatives: {
+            running: "関連セッションを一覧中",
+            complete: "関連セッションを一覧しました",
+            error: "関連セッションを一覧できませんでした",
+          },
+          read: {
+            running: "セッションを読み込み中：",
+            complete: "セッションを読み込みました：",
+            error: "セッションを読み込めませんでした：",
+          },
+          send: {
+            running: "セッションにメッセージを送信中：",
+            complete: "セッションにメッセージを送信しました：",
+            error: "セッションにメッセージを送信できませんでした：",
           },
           delete: {
             running: "セッションを削除中",

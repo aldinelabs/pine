@@ -613,6 +613,9 @@ export default {
     current: "当前",
     noSessions: "还没有会话",
     awaitingApproval: "等待你批准",
+    showSubSessions: "展开子会话（{count}）",
+    hideSubSessions: "收起子会话（{count}）",
+    deleteSubSessions: "它的 {count} 个子会话也会一并删除。",
     noResults: "没有匹配的会话",
     groupTitle: "会话文件夹",
     createGroupAction: "新建文件夹",
@@ -1092,6 +1095,12 @@ export default {
         minutes: "{minutes} 分 {seconds} 秒",
         seconds: "{value} 秒",
       },
+      sessionNotice: {
+        finished: "子会话 {name} 已完成",
+        failed: "子会话 {name} 失败了",
+        awaitingApproval: "子会话 {name} 正在等待你批准",
+        untitled: "未命名",
+      },
       backgroundTask: {
         completed: "后台进程 {name} 已完成",
         failed: "后台进程 {name} 失败",
@@ -1545,6 +1554,21 @@ export default {
             complete: "已更新会话标题为 ",
             kept: "保留了会话标题",
             error: "无法更新会话标题",
+          },
+          relatives: {
+            running: "正在列出相关会话",
+            complete: "已列出相关会话",
+            error: "无法列出相关会话",
+          },
+          read: {
+            running: "正在读取会话 ",
+            complete: "已读取会话 ",
+            error: "无法读取会话 ",
+          },
+          send: {
+            running: "正在给会话发消息 ",
+            complete: "已给会话发消息 ",
+            error: "无法给会话发消息 ",
           },
           delete: {
             running: "正在删除会话",

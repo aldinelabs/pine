@@ -53,7 +53,16 @@ import {
   listProjectSessions,
   searchAllSessions,
 } from "../../recentSessions";
+import {
+  childrenOf,
+  deleteSessionWithChildren,
+  isRelative,
+  messageText,
+  parentOf,
+  relativesOf,
+} from "../subSessions";
 import type {
+  AgentHostRelative,
   AgentHostSessionTree,
   AgentHostTreeSession,
   SessionHostOperation,
@@ -116,6 +125,7 @@ const SessionHostOperationSchema = z.discriminatedUnion("op", [
   z.object({
     op: z.literal("start"),
     projectId: z.uuid().optional(),
+    relation: z.enum(["child", "sibling"]),
     message: z.string().trim().min(1).max(100_000),
     approvalMode: z.enum([
       "let-me-review",
@@ -175,6 +185,19 @@ const SessionHostOperationSchema = z.discriminatedUnion("op", [
     projectId: z.uuid(),
     sessionId: z.uuid(),
   }),
+  z.object({ op: z.literal("relatives") }),
+  z.object({
+    op: z.literal("read"),
+    sessionId: z.uuid(),
+    limit: z.number().int().min(1).max(50),
+    before: z.string().min(1).max(200).optional(),
+  }),
+  z.object({
+    op: z.literal("send"),
+    sessionId: z.uuid(),
+    message: z.string().trim().min(1).max(100_000),
+    locale: z.enum(["en-US", "zh-CN"]),
+  }),
 ]);
 
 /** A folder created earlier in the same call is named `new:1`, `new:2`, … */
@@ -217,7 +240,10 @@ async function sessionTree(
   };
   const groups = project.sessionGroups ?? [];
   const filed = new Set(groups.flatMap((group) => group.sessionIds));
-  const unfiled = sessions.filter((session) => !filed.has(session.id));
+  // A sub-session sits under its parent rather than in or outside folders.
+  const unfiled = sessions.filter(
+    (session) => !filed.has(session.id) && !parentOf(project, session.id),
+  );
   return {
     projectId: project.id,
     projectName: name,
@@ -359,6 +385,10 @@ export async function answerSessionOperation(
         groups = groups.filter((group) => group.id !== id);
       } else if (edit.op === "move") {
         const id = session(edit.sessionId);
+        if (parentOf(project, id))
+          throw new Error(
+            `Session ${id} is a sub-session; it stays under the session that started it.`,
+          );
         const target = edit.folderId === null ? null : folderId(edit.folderId);
         groups = groups.map((group) => ({
           ...group,
@@ -433,6 +463,7 @@ export async function answerSessionOperation(
           ...(known.automationRun ? { automationRun: true as const } : {}),
         },
         ...(open ? { open: true as const } : {}),
+        subSessionCount: childrenOf(project, known.id).length,
       };
     if (parsed.sessionId === requester.sessionId)
       throw new Error("A session cannot delete itself.");
@@ -441,10 +472,20 @@ export async function answerSessionOperation(
       throw new Error(
         "That session is open in Pine. Ask the user to close its tab first.",
       );
+    const children = childrenOf(project, parsed.sessionId);
+    if (children.includes(requester.sessionId))
+      throw new Error("A session cannot delete the session that started it.");
+    if (
+      children.some((id) => runtimes.liveSessionIdsOf(project.id).includes(id))
+    )
+      throw new Error(
+        "One of its sub-sessions is open in Pine. Ask the user to close its tab first.",
+      );
     const owner = await holdProject(core, requester, project);
-    const deleted = await runtimes.deleteSession(
+    const deleted = await deleteSessionWithChildren(
+      core,
       owner,
-      project.id,
+      project,
       parsed.sessionId,
     );
     const groups = project.sessionGroups ?? [];
@@ -462,16 +503,112 @@ export async function answerSessionOperation(
     return { op: "delete", deleted };
   }
 
+  if (
+    parsed.op === "relatives" ||
+    parsed.op === "read" ||
+    parsed.op === "send"
+  ) {
+    const own = runtimes.projectOfLiveSession(requester.sessionId);
+    if (!own) throw new Error("The asking session is no longer open.");
+    const project = await repository.get(own.id);
+    const sessions = await listProjectSessions(project, sessionLibrary(core));
+    const byId = new Map(sessions.map((session) => [session.id, session]));
+    const describe = (id: string): AgentHostRelative => {
+      const session = byId.get(id);
+      return {
+        id,
+        ...(session?.name ? { title: session.name } : {}),
+        state: core.sessionActivity(id),
+        ...(session ? { updatedAt: session.updatedAt } : {}),
+      };
+    };
+    if (parsed.op === "relatives") {
+      const { parent, children, siblings } = relativesOf(
+        project,
+        requester.sessionId,
+      );
+      return {
+        op: "relatives",
+        ...(parent ? { parent: describe(parent) } : {}),
+        children: children.filter((id) => byId.has(id)).map(describe),
+        siblings: siblings.filter((id) => byId.has(id)).map(describe),
+      };
+    }
+    if (
+      !isRelative(project, requester.sessionId, parsed.sessionId) ||
+      !byId.has(parsed.sessionId)
+    )
+      throw new Error(
+        "That session is not this session's parent, sub-session or sibling. Call ui_session_relatives for the ones it can reach.",
+      );
+    const owner = await holdProject(core, requester, project);
+    if (parsed.op === "read") {
+      const page = await runtimes.loadMessages(
+        owner,
+        project.id,
+        parsed.sessionId,
+        parsed.before,
+        parsed.limit,
+      );
+      return {
+        op: "read",
+        sessionId: parsed.sessionId,
+        ...(byId.get(parsed.sessionId)?.name
+          ? { title: byId.get(parsed.sessionId)?.name }
+          : {}),
+        messages: page.messages
+          .map((message) => ({
+            role: message.role,
+            createdAt: message.createdAt,
+            text: messageText(message.blocks),
+          }))
+          .filter((message) => message.text),
+        ...(page.hasMore && page.nextBefore
+          ? { olderCursor: page.nextBefore }
+          : {}),
+      };
+    }
+    const running = core.sessionActivity(parsed.sessionId) !== "idle";
+    const sender = byId.get(requester.sessionId)?.name;
+    await runtimes.prompt(
+      owner,
+      {
+        locale: parsed.locale,
+        message: `[Message from session ${sender ? `"${sender}" ` : ""}(${requester.sessionId})]\n\n${parsed.message}`,
+        target: {
+          kind: "session",
+          projectId: project.id,
+          sessionId: parsed.sessionId,
+        },
+        ...(running ? { streamingBehavior: "steer" as const } : {}),
+      },
+      { focus: false },
+    );
+    core.notifyLibraryChanged("sessions");
+    return { op: "send", delivered: running ? "steer" : "turn" };
+  }
+
   const callerMode = runtimes.approvalModeOfLiveSession(requester.sessionId);
   if (!callerMode) throw new Error("The asking session is no longer open.");
   if (!approvalModeWithin(parsed.approvalMode, callerMode))
     throw new Error(
       `A session in ${callerMode} cannot start one in ${parsed.approvalMode}.`,
     );
-  const projectId =
-    parsed.projectId ?? runtimes.projectOfLiveSession(requester.sessionId)?.id;
+  const ownProjectId = runtimes.projectOfLiveSession(requester.sessionId)?.id;
+  const projectId = parsed.projectId ?? ownProjectId;
   const project = projects.find((candidate) => candidate.id === projectId);
   if (!project) throw new Error("That project does not exist.");
+  const own = projects.find((candidate) => candidate.id === ownProjectId);
+  const callerParent = own && parentOf(own, requester.sessionId);
+  if (parsed.relation === "child" && callerParent)
+    throw new Error(
+      "This session is a sub-session, and sub-sessions go one level deep. Start a sibling instead.",
+    );
+  // A sibling of a sub-session is another sub-session of the same parent.
+  const parentSessionId =
+    parsed.relation === "child" ? requester.sessionId : callerParent;
+  if (parentSessionId && project.id !== ownProjectId)
+    throw new Error("A sub-session runs in its parent's project.");
   const projectOwner = runtimes.ownerOfProject(project.id);
   if (projectOwner !== undefined && projectOwner !== requester.ownerId)
     throw new Error("That project is open in another Pine window.");
@@ -485,12 +622,21 @@ export async function answerSessionOperation(
     requester.ownerId,
     {
       locale: parsed.locale,
-      message: parsed.message,
+      message: parentSessionId
+        ? `[Sub-session of ${parentSessionId}. Pine reports your reply to that session each time you finish a turn, so end with what it needs to know.]\n\n${parsed.message}`
+        : parsed.message,
       target: { kind: "new", projectId: project.id },
       approvalMode: parsed.approvalMode,
     },
-    { focus: false },
+    { focus: false, ...(parentSessionId ? { parentSessionId } : {}) },
   );
+  if (parentSessionId) {
+    await repository.updateSessionParents(project.id, (parents) => ({
+      ...parents,
+      [result.session.id]: parentSessionId,
+    }));
+    core.notifyLibraryChanged("projects");
+  }
   core.notifyLibraryChanged("sessions", requester.ownerId);
   return {
     op: "start",
@@ -498,6 +644,7 @@ export async function answerSessionOperation(
     projectId: project.id,
     projectName: projectName(project),
     approvalMode: parsed.approvalMode,
+    ...(parentSessionId ? { parentSessionId } : {}),
   };
 }
 
@@ -584,9 +731,10 @@ export function registerSessionRequests(core: PineCore): void {
     async (context, request: unknown): Promise<DeleteSessionResult> => {
       const { projectId, sessionId } =
         ProjectSessionRequestSchema.parse(request);
-      const deleted = await runtimes.deleteSession(
+      const deleted = await deleteSessionWithChildren(
+        core,
         context.clientId,
-        projectId,
+        await repository.get(projectId),
         sessionId,
       );
       core.notifyLibraryChanged("sessions", context.clientId);

@@ -76,6 +76,7 @@ import { registerCoreRequests } from "./requests";
 import { answerAutomationOperation } from "./requests/automations";
 import { answerMcpOperation } from "./requests/mcp";
 import { answerProjectOperation } from "./requests/projects";
+import { notifyParentOf, unlinkSession } from "./subSessions";
 import { answerSessionOperation } from "./requests/sessions";
 
 /** How long a running agent gets to stop its work before Pine quits anyway. */
@@ -86,6 +87,14 @@ const AGENT_SHUTDOWN_TIMEOUT_MS = 5_000;
  * interface, shared by the desktop app and the headless server. Requests from
  * any transport go through `router`; platform capabilities come from `host`.
  */
+/** What a side chat may ask of its conversation's sessions: reading only. */
+const SIDE_CHAT_SESSION_OPS: ReadonlySet<string> = new Set([
+  "search",
+  "tree",
+  "relatives",
+  "read",
+]);
+
 export class PineCore {
   readonly router: PineRequestRouter;
   readonly agentDirectory: string;
@@ -543,6 +552,22 @@ export class PineCore {
       .size;
   }
 
+  /** A sub-session's parent hears each turn it ends and each approval it needs. */
+  private reportToParent(
+    sessionId: string,
+    state: "finished" | "failed" | "awaiting-approval",
+  ): void {
+    void notifyParentOf(this, sessionId, state).catch((error: unknown) =>
+      console.error("Failed to tell a session about its sub-session.", error),
+    );
+  }
+
+  /** What a session is doing now, as its relatives see it. */
+  sessionActivity(sessionId: string): "running" | "awaiting-approval" | "idle" {
+    if (this.runtimes.hasPendingApproval(sessionId)) return "awaiting-approval";
+    return this.runningSessions.has(sessionId) ? "running" : "idle";
+  }
+
   /** Whether a session of the project, other than `except`, is working. */
   projectHasRunningWork(projectId: string, except?: string): boolean {
     return this.runtimes
@@ -659,6 +684,7 @@ export class PineCore {
         ownerId,
         agentEvent.sessionId,
       );
+      this.reportToParent(agentEvent.sessionId, "awaiting-approval");
     } else if (agentEvent.type === "approval-decided") {
       this.runtimes.forgetApproval(agentEvent.requestId);
     } else if (agentEvent.type === "questionnaire-request") {
@@ -686,6 +712,11 @@ export class PineCore {
       this.notifyLibraryChanged("sessions", ownerId);
     if (teleportProjectId)
       void this.teleportSession(agentEvent.sessionId, teleportProjectId);
+    else if (finished)
+      this.reportToParent(
+        agentEvent.sessionId,
+        agentEvent.state === "failed" ? "failed" : "finished",
+      );
     const scheduled = finished && this.afterReply.get(agentEvent.sessionId);
     if (scheduled) {
       this.afterReply.delete(agentEvent.sessionId);
@@ -711,8 +742,7 @@ export class PineCore {
         agentEvent.request.kind === "teleport" ||
         agentEvent.request.kind === "project" ||
         (agentEvent.request.kind === "session" &&
-          agentEvent.request.operation.op !== "search" &&
-          agentEvent.request.operation.op !== "tree") ||
+          !SIDE_CHAT_SESSION_OPS.has(agentEvent.request.operation.op)) ||
         parentOwner === undefined
       ) {
         this.agentHost.respondHostRequest(agentEvent.requestId, {
@@ -953,6 +983,8 @@ export class PineCore {
       const recipients = this.runtimes.clientsOfSession(sessionId);
       const { fromProjectId, webContentsId } =
         await this.runtimes.teleportSession(sessionId, project, dataPaths);
+      // Sub-sessions stay in their project; a moved session leaves the tree.
+      await unlinkSession(this, fromProjectId, sessionId);
       for (const clientId of recipients)
         await this.runtimes.share(clientId, project, dataPaths);
       this.sendSessionEvent(

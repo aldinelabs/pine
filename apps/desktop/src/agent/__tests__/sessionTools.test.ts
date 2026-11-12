@@ -66,15 +66,37 @@ function answer(operation: SessionHostOperation): SessionHostResult {
       return {
         op: "describe",
         session: { ...session, id: "s2", current: undefined },
+        subSessionCount: 2,
       };
     case "delete":
       return { op: "delete", deleted: true };
+    case "relatives":
+      return {
+        op: "relatives",
+        parent: { id: "p", title: "Plan", state: "running" },
+        children: [],
+        siblings: [{ id: "s3", state: "awaiting-approval" }],
+      };
+    case "read":
+      return {
+        op: "read",
+        sessionId: operation.sessionId,
+        title: "Plan",
+        messages: [
+          { role: "user", createdAt: "t1", text: "Go" },
+          { role: "assistant", createdAt: "t2", text: "Done [tool bash]" },
+        ],
+        olderCursor: "c1",
+      };
+    case "send":
+      return { op: "send", delivered: "steer" };
   }
 }
 
 function setup(
   approvalMode: PineApprovalMode,
   decision: GateDecision = { kind: "allow" },
+  parentSessionId?: string,
 ) {
   const requestHost = vi.fn(
     (request: AgentHostRequest): Promise<AgentHostResponse> => {
@@ -94,11 +116,21 @@ function setup(
     requestHost,
     requestApproval,
     renameCurrentSession,
+    getParentSessionId: () => parentSessionId,
     getApprovalMode: () => approvalMode,
     getLocale: () => "en-US",
   };
-  const [search, start, treeTool, organize, rename, remove] =
-    createSessionToolDefinitions(context);
+  const [
+    search,
+    start,
+    treeTool,
+    organize,
+    rename,
+    remove,
+    relatives,
+    read,
+    send,
+  ] = createSessionToolDefinitions(context);
   return {
     search,
     start,
@@ -106,6 +138,9 @@ function setup(
     organize,
     rename,
     remove,
+    relatives,
+    read,
+    send,
     renameCurrentSession,
     requestHost,
     requestApproval,
@@ -169,6 +204,7 @@ describe("session tools", () => {
       kind: "session",
       operation: {
         op: "start",
+        relation: "child",
         message: "Fix the build",
         approvalMode: "YOLO",
         locale: "en-US",
@@ -324,6 +360,68 @@ describe("session tools", () => {
     expect(guidance).toContain("Do not retitle for follow-ups");
     expect(guidance).toContain(
       "do not call ui_session_rename in the first turn",
+    );
+  });
+
+  it("starts a sibling from a sub-session and refuses a nested child", async () => {
+    const { start, requestHost } = setup("auto-approve", undefined, "parent");
+
+    await run(start, { message: "Check the docs" });
+    expect(requestHost).toHaveBeenCalledWith(
+      expect.objectContaining({
+        operation: expect.objectContaining({ relation: "sibling" }),
+      }),
+    );
+    await expect(
+      run(start, { message: "Go deeper", relation: "child" }),
+    ).rejects.toThrow("sub-sessions go one level deep");
+  });
+
+  it("lists relatives with what each is doing", async () => {
+    const { relatives } = setup("auto-approve");
+
+    const result = await run(relatives, {});
+
+    expect(text(result)).toBe(
+      [
+        "- parent: Plan (id: p; running)",
+        "- sibling: (untitled) (id: s3; awaiting-approval)",
+      ].join("\n"),
+    );
+  });
+
+  it("reads a relative's messages with a cursor for older ones", async () => {
+    const { read, requestHost } = setup("auto-approve");
+
+    const result = await run(read, { sessionId: " p ", limit: 99 });
+
+    expect(requestHost).toHaveBeenCalledWith({
+      kind: "session",
+      operation: { op: "read", sessionId: "p", limit: 50 },
+    });
+    expect(text(result)).toContain("[assistant · t2]\nDone [tool bash]");
+    expect(text(result)).toContain('read again with before "c1"');
+  });
+
+  it("says a message to a running session arrives at its next step", async () => {
+    const { send } = setup("auto-approve");
+
+    const result = await run(send, { sessionId: "s3", message: "Stop" });
+
+    expect(text(result)).toContain("reads the message at its next step");
+  });
+
+  it("names the sub-sessions a deletion takes with it", async () => {
+    const { remove, requestApproval } = setup("auto-approve", { kind: "deny" });
+
+    await run(remove, { projectId: "p1", sessionId: "s2" });
+
+    expect(requestApproval).toHaveBeenCalledWith(
+      expect.objectContaining({
+        evidence: expect.stringContaining(
+          "Its 2 sub-sessions are deleted too.",
+        ),
+      }),
     );
   });
 });

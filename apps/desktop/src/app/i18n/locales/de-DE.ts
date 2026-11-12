@@ -661,6 +661,9 @@ export default {
     current: "Aktuell",
     noSessions: "Noch keine Sitzungen",
     awaitingApproval: "Wartet auf deine Freigabe",
+    showSubSessions: "Untersitzungen anzeigen ({count})",
+    hideSubSessions: "Untersitzungen ausblenden ({count})",
+    deleteSubSessions: "Mitgelöschte Untersitzungen: {count}.",
     noResults: "Keine passenden Sitzungen",
     groupTitle: "Sitzungsordner",
     createGroupAction: "Neuer Ordner",
@@ -1182,6 +1185,12 @@ export default {
         minutes: "{minutes} min {seconds} s",
         seconds: "{value} s",
       },
+      sessionNotice: {
+        finished: "Untersitzung {name} abgeschlossen",
+        failed: "Untersitzung {name} fehlgeschlagen",
+        awaitingApproval: "Untersitzung {name} wartet auf deine Freigabe",
+        untitled: "Ohne Titel",
+      },
       backgroundTask: {
         completed: "Hintergrundprozess {name} abgeschlossen",
         failed: "Hintergrundprozess {name} fehlgeschlagen",
@@ -1639,6 +1648,21 @@ export default {
             complete: "Sitzung umbenannt in ",
             kept: "Sitzungstitel beibehalten",
             error: "Sitzung konnte nicht umbenannt werden",
+          },
+          relatives: {
+            running: "Liste verwandte Sitzungen auf",
+            complete: "Verwandte Sitzungen aufgelistet",
+            error: "Verwandte Sitzungen konnten nicht aufgelistet werden",
+          },
+          read: {
+            running: "Lese Sitzung ",
+            complete: "Sitzung gelesen: ",
+            error: "Sitzung konnte nicht gelesen werden: ",
+          },
+          send: {
+            running: "Sende Nachricht an Sitzung ",
+            complete: "Nachricht gesendet an Sitzung ",
+            error: "Nachricht an Sitzung fehlgeschlagen: ",
           },
           delete: {
             running: "Lösche eine Sitzung",

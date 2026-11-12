@@ -663,6 +663,9 @@ export default {
     current: "Actual",
     noSessions: "Aún no hay sesiones",
     awaitingApproval: "Esperando tu aprobación",
+    showSubSessions: "Mostrar subsesiones ({count})",
+    hideSubSessions: "Ocultar subsesiones ({count})",
+    deleteSubSessions: "Subsesiones que se eliminan con ella: {count}.",
     noResults: "No hay sesiones que coincidan",
     groupTitle: "Carpetas de sesiones",
     createGroupAction: "Nueva carpeta",
@@ -1174,6 +1177,12 @@ export default {
         minutes: "{minutes} min {seconds} s",
         seconds: "{value} s",
       },
+      sessionNotice: {
+        finished: "Subsesión {name} terminada",
+        failed: "La subsesión {name} falló",
+        awaitingApproval: "La subsesión {name} espera tu aprobación",
+        untitled: "Sin título",
+      },
       backgroundTask: {
         completed: "El proceso en segundo plano {name} se completó",
         failed: "El proceso en segundo plano {name} falló",
@@ -1633,6 +1642,21 @@ export default {
             complete: "Título de la sesión cambiado a ",
             kept: "Se mantuvo el título de la sesión",
             error: "No se pudo cambiar el título de la sesión",
+          },
+          relatives: {
+            running: "Listando sesiones relacionadas",
+            complete: "Sesiones relacionadas listadas",
+            error: "No se pudieron listar las sesiones relacionadas",
+          },
+          read: {
+            running: "Leyendo la sesión ",
+            complete: "Sesión leída: ",
+            error: "No se pudo leer la sesión ",
+          },
+          send: {
+            running: "Enviando mensaje a la sesión ",
+            complete: "Mensaje enviado a la sesión ",
+            error: "No se pudo enviar el mensaje a la sesión ",
           },
           delete: {
             running: "Eliminando una sesión",

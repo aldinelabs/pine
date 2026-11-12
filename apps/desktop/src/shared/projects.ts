@@ -293,6 +293,8 @@ export interface PineProject {
   projectIcon?: ProjectIcon;
   schemaVersion: 1;
   sessionGroups?: PineSessionGroup[];
+  /** Sub-session id → the session that started it; one level deep. */
+  sessionParents?: Record<string, string>;
   updatedAt: string;
 }
 

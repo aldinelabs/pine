@@ -21,6 +21,9 @@ are already available (for example the `ui_workbench_*` tools and
   sessions, Skills, MCP servers, icon and accent color. "No Project" holds quick
   work that belongs to no project.
 - Session (conversation): one agent conversation inside a project.
+- Sub-session: a session another session started to work for it, like a
+  helper. It belongs to its parent and goes only one level deep; when it
+  finishes a turn or stops on an approval, Pine tells the parent.
 - Automation: work Pine does unattended when a schedule, a folder change, a
   system event or a website or feed check calls for it. Each run is a session
   in the project, marked with a workflow icon.
@@ -102,9 +105,14 @@ Session list, one collapsible group per project:
 - Session item: click to open it in a tab. A running session's title shimmers
   (with a dot when reduced motion is on). A session stopped on an approval
   shows a shield icon at the end of its row ("Waiting for your approval"). An automation run shows a workflow
-  icon and, when idle, the time it started. Right-click for Rename conversation,
+  icon and, when idle, the time it started. A session with sub-sessions shows
+  a list icon at the start of its row ("Show sub-sessions ({count})" / "Hide
+  sub-sessions ({count})") that expands or collapses them; sub-sessions are
+  indented one level under their parent and open like any session. Right-click for Rename conversation,
   Export conversation (Markdown), Move to folder / Remove from folder, and
-  Delete conversation (permanent).
+  Delete conversation (permanent). Deleting a session also deletes its
+  sub-sessions, and the confirmation says how many ("Sub-sessions deleted with
+  it: {count}.").
 - Show more: reveals older sessions of the project.
 
 More menu:
@@ -252,6 +260,17 @@ From top to bottom:
      or a stricter one, never a looser one. In Let Me Review, starting it
      shows an Approval required card with its first message. The agent can
      also search the user's sessions in every project.
+   - Sub-sessions: the agent can start the new session as a sub-session of
+     the current one (the usual choice) or as a sibling; a sub-session can
+     start only siblings, not sub-sessions of its own. The agent can list a
+     session's parent, sub-sessions and siblings, read their messages, and
+     send them messages; it cannot reach other sessions this way. When a
+     sub-session finishes a turn, fails, or waits for an approval, the
+     parent's transcript shows a marker ("Sub-session {name} finished",
+     "Sub-session {name} failed", "Sub-session {name} is waiting for your
+     approval") that opens the sub-session, and the parent's agent reads
+     the sub-session's reply and continues, even when the parent has no tab
+     open. Approvals of a sub-session are answered in its own tab.
    - Session titles: Pine titles a new session after its first exchange.
      When a later message starts a different task, the agent may update the
      title in the sidebar and tab to the work it is now doing. A title the

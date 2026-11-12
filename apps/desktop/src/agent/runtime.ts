@@ -1,7 +1,11 @@
 import {
+  PINE_SESSION_NOTICE_TYPE,
+  PINE_SUB_SESSION_ENTRY,
   PINE_USER_TITLE_ENTRY,
   approvalModeFromEntries,
   isUserChosenTitle,
+  subSessionParentOf,
+  type PineSessionNotice,
   type SessionRenamer,
 } from "../shared/sessions";
 import {
@@ -414,6 +418,10 @@ export class PineAgentRuntime {
       location.cwd,
       projectSessionDirectory(location.sessionsRoot, location.cwd),
     );
+    if (location.parentSessionId)
+      manager.appendCustomEntry(PINE_SUB_SESSION_ENTRY, {
+        parentSessionId: location.parentSessionId,
+      });
     return this.registerSession(location, manager);
   }
 
@@ -1627,6 +1635,8 @@ export class PineAgentRuntime {
           requestHost: (request) => this.requestHost(live, request),
           getLocale: () => live.locale,
           renameCurrentSession: (title) => this.retitleByAgent(live, title),
+          getParentSessionId: () =>
+            subSessionParentOf(live.session.sessionManager.getEntries()),
           requestApproval: (input) =>
             this.requestUserApproval(live, {
               trigger: "pre-execution",
@@ -1901,9 +1911,40 @@ export class PineAgentRuntime {
    * it as steering before its next model call; a wake-up on an idle session
    * starts a turn outside `prompt`, so this reports its run state.
    */
+  /**
+   * Tells a session about one of its sub-sessions the way a finished
+   * background task does: steering while it runs, a new turn when idle.
+   */
+  async notifySession(
+    sessionId: string,
+    notice: PineSessionNotice,
+    content: string,
+  ): Promise<{ delivered: boolean }> {
+    const live = this.liveSessions.get(sessionId);
+    if (!live) return { delivered: false };
+    await this.deliverBackgroundTaskNotification(
+      live,
+      {
+        customType: PINE_SESSION_NOTICE_TYPE,
+        content,
+        display: true,
+        details: notice,
+      },
+      { triggerTurn: true },
+    );
+    return { delivered: true };
+  }
+
   private async deliverBackgroundTaskNotification(
     live: LiveAgentSession,
-    message: BackgroundTaskNotificationMessage,
+    message:
+      | BackgroundTaskNotificationMessage
+      | {
+          customType: typeof PINE_SESSION_NOTICE_TYPE;
+          content: string;
+          display: true;
+          details: PineSessionNotice;
+        },
     options: { triggerTurn: boolean },
   ): Promise<void> {
     const session = live.session;
@@ -1915,7 +1956,7 @@ export class PineAgentRuntime {
     if (!this.liveSessions.has(sessionId)) return;
     const startsTurn = options.triggerTurn && session.isIdle;
     if (!startsTurn) {
-      await session.sendCustomMessage(message, {
+      await session.sendCustomMessage<unknown>(message, {
         deliverAs: "steer",
         triggerTurn: options.triggerTurn,
       });
@@ -1926,7 +1967,10 @@ export class PineAgentRuntime {
     live.mcpScriptApprovals.clear();
     this.options.emit({ type: "run-state", sessionId, state: "running" });
     void session
-      .sendCustomMessage(message, { deliverAs: "steer", triggerTurn: true })
+      .sendCustomMessage<unknown>(message, {
+        deliverAs: "steer",
+        triggerTurn: true,
+      })
       .catch((error: unknown) => {
         const errorMessage = toErrorMessage(error);
         this.options.emit({
@@ -2599,10 +2643,15 @@ export class PineAgentRuntime {
       messages
         .map((entry) => {
           const role = entry.message.role === "user" ? "User" : "Assistant";
+          // Pine's routing line on a sub-session's or relayed message is
+          // not what the conversation is about.
           const text = attachmentMessagePreview(
             textFromMessageContent(
               "content" in entry.message ? entry.message.content : "",
             ),
+          ).replace(
+            /^\[(?:Sub-session of|Message from session)[^\]]*\]\s*/,
+            "",
           );
           return `${role}: ${truncateText(text, 4_000)}`;
         })

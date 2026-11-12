@@ -8,8 +8,11 @@ import {
   UI_SESSION_DELETE_TOOL_NAME,
   UI_SESSION_NEW_TOOL_NAME,
   UI_SESSION_ORGANIZE_TOOL_NAME,
+  UI_SESSION_READ_TOOL_NAME,
+  UI_SESSION_RELATIVES_TOOL_NAME,
   UI_SESSION_RENAME_TOOL_NAME,
   UI_SESSION_SEARCH_TOOL_NAME,
+  UI_SESSION_SEND_TOOL_NAME,
   UI_SESSION_TREE_TOOL_NAME,
   approvalModeWithin,
   type PineApprovalMode,
@@ -17,6 +20,7 @@ import {
 import type {
   AgentHostRequest,
   AgentHostResponse,
+  AgentHostRelative,
   AgentHostSession,
   AgentHostSessionTree,
   AgentHostTreeSession,
@@ -37,6 +41,8 @@ export interface PineSessionToolContext {
    * worker reports that instead of replacing it.
    */
   renameCurrentSession(title: string): RenameCurrentSessionResult;
+  /** Set when this session is a sub-session of another. */
+  getParentSessionId(): string | undefined;
   /** Let Me Review: the user approves starting a session. */
   requestApproval(input: {
     toolCallId: string;
@@ -197,9 +203,15 @@ export function createSessionToolDefinitions(
       description:
         "The new session's first message. It starts with no memory of this conversation, so include everything it needs.",
     }),
+    relation: Type.Optional(
+      Type.Union([Type.Literal("child"), Type.Literal("sibling")], {
+        description:
+          "child: a sub-session of this one, shown under it, that reports back each turn it finishes; the default for a top-level session. sibling: a separate session beside this one; for a sub-session, another sub-session of the same parent, and the only choice.",
+      }),
+    ),
     projectId: Type.Optional(
       Type.String({
-        description: `Project to run in (id from ${UI_PROJECT_LIST_TOOL_NAME}); this session's project when omitted.`,
+        description: `For a top-level sibling, the project to run in (id from ${UI_PROJECT_LIST_TOOL_NAME}); sub-sessions always run in this session's project.`,
       }),
     ),
     approvalMode: Type.Optional(approvalModeSchema),
@@ -208,10 +220,12 @@ export function createSessionToolDefinitions(
     name: UI_SESSION_NEW_TOOL_NAME,
     label: "Start Session",
     description:
-      "Start a separate Pine session that works on its own in the background, beginning with the given message. It appears in the user's session list; this call returns its id without waiting for it.",
-    promptSnippet: `Use ${UI_SESSION_NEW_TOOL_NAME} when the user asks to run a task in its own, separate session`,
+      "Start a Pine session that works on its own in the background, beginning with the given message: by default a sub-session of this one, which works like a subagent. This call returns its id without waiting for it.",
+    promptSnippet: `Use ${UI_SESSION_NEW_TOOL_NAME} to hand a self-contained part of the work to a sub-session, or to start a separate session the user asks for`,
     promptGuidelines: [
-      `Start a session only when the user asks for separate or parallel work; do not use ${UI_SESSION_NEW_TOOL_NAME} to split up a task you can do here.`,
+      `A sub-session suits a self-contained part of a larger task, or work that can run in parallel; several can run at once. Do small steps here instead. Start a separate top-level session only when the user asks for one.`,
+      `After starting sub-sessions, Pine delivers a notice each time one finishes a turn or waits for approval; continue with other work or end your turn, and do not poll or sleep to wait. Use ${UI_SESSION_READ_TOOL_NAME} for more of a sub-session's messages and ${UI_SESSION_SEND_TOOL_NAME} to give it follow-up work.`,
+      "A sub-session starts with no memory of this conversation, so its first message must include everything it needs and say what to report back.",
     ],
     parameters: newParams,
     prepareArguments: (args) => args as Static<typeof newParams>,
@@ -225,12 +239,18 @@ export function createSessionToolDefinitions(
         throw new Error(
           `This session is in ${callerMode}; a session it starts cannot use ${approvalMode}. Use ${callerMode} or a more supervised mode.`,
         );
+      const isSubSession = context.getParentSessionId() !== undefined;
+      const relation = params.relation ?? (isSubSession ? "sibling" : "child");
+      if (relation === "child" && isSubSession)
+        throw new Error(
+          "This session is a sub-session, and sub-sessions go one level deep. Start a sibling instead.",
+        );
       const projectId = params.projectId?.trim();
       if (callerMode === "let-me-review") {
         const decision = await context.requestApproval({
           toolCallId,
           toolName: UI_SESSION_NEW_TOOL_NAME,
-          subject: `New ${approvalMode} session${projectId ? ` in project ${projectId}` : ""}`,
+          subject: `New ${approvalMode} ${relation === "child" || isSubSession ? "sub-session" : "session"}${projectId ? ` in project ${projectId}` : ""}`,
           description: "Start a new session",
           evidence: message,
           signal,
@@ -250,6 +270,7 @@ export function createSessionToolDefinitions(
       const result = await callSessionHost(context, {
         op: "start",
         ...(projectId ? { projectId } : {}),
+        relation,
         message,
         approvalMode,
         locale: context.getLocale(),
@@ -258,7 +279,9 @@ export function createSessionToolDefinitions(
         content: [
           {
             type: "text" as const,
-            text: `Started session ${result.sessionId} in ${result.projectName} (${result.approvalMode}). It runs on its own; find it later with ${UI_SESSION_SEARCH_TOOL_NAME}.`,
+            text: result.parentSessionId
+              ? `Started sub-session ${result.sessionId} (${result.approvalMode}). Pine tells ${isSubSession ? "the parent session" : "you"} when it finishes a turn or waits for approval; do not poll it.`
+              : `Started session ${result.sessionId} in ${result.projectName} (${result.approvalMode}). It runs on its own; find it later with ${UI_SESSION_SEARCH_TOOL_NAME}.`,
           },
         ],
         details: { started: true, ...result },
@@ -455,6 +478,139 @@ export function createSessionToolDefinitions(
     },
   });
 
+  const describeRelative = (session: AgentHostRelative, role: string) =>
+    `- ${role}: ${session.title ?? "(untitled)"} (id: ${session.id}; ${session.state}${session.updatedAt ? `; updated ${session.updatedAt}` : ""})`;
+  const relativesTool = defineTool({
+    name: UI_SESSION_RELATIVES_TOOL_NAME,
+    label: "List Related Sessions",
+    description:
+      "List this session's parent, its sub-sessions and its siblings (the parent's other sub-sessions), with what each is doing now.",
+    parameters: Type.Object({}),
+    execute: async () => {
+      const result = await callSessionHost(context, { op: "relatives" });
+      const lines = [
+        ...(result.parent ? [describeRelative(result.parent, "parent")] : []),
+        ...result.children.map((child) =>
+          describeRelative(child, "sub-session"),
+        ),
+        ...result.siblings.map((sibling) =>
+          describeRelative(sibling, "sibling"),
+        ),
+      ];
+      return {
+        content: [
+          {
+            type: "text" as const,
+            text: lines.length
+              ? lines.join("\n")
+              : "This session has no parent, sub-sessions or siblings.",
+          },
+        ],
+        details: result,
+      };
+    },
+  });
+
+  const readParams = Type.Object({
+    sessionId: Type.String({
+      description: `A parent, sub-session or sibling, from ${UI_SESSION_RELATIVES_TOOL_NAME}.`,
+    }),
+    limit: Type.Optional(
+      Type.Integer({
+        minimum: 1,
+        maximum: 50,
+        description: "Most recent messages to read, default 10.",
+      }),
+    ),
+    before: Type.Optional(
+      Type.String({
+        description: "Cursor from an earlier read, for older messages.",
+      }),
+    ),
+  });
+  const readTool = defineTool({
+    name: UI_SESSION_READ_TOOL_NAME,
+    label: "Read Session",
+    description:
+      "Read the latest messages of this session's parent, a sub-session or a sibling, as text with tool calls named in brackets.",
+    parameters: readParams,
+    prepareArguments: (args) => args as Static<typeof readParams>,
+    execute: async (_toolCallId, params) => {
+      const before = params.before?.trim();
+      const result = await callSessionHost(context, {
+        op: "read",
+        sessionId: params.sessionId.trim(),
+        limit: Math.min(Math.max(Math.trunc(params.limit ?? 10), 1), 50),
+        ...(before ? { before } : {}),
+      });
+      const body = result.messages
+        .map(
+          (message) =>
+            `[${message.role} · ${message.createdAt}]\n${message.text}`,
+        )
+        .join("\n\n");
+      return {
+        content: [
+          {
+            type: "text" as const,
+            text: [
+              `Session ${result.title ?? "(untitled)"} (id: ${result.sessionId})`,
+              body || "(no messages)",
+              ...(result.olderCursor
+                ? [
+                    `Older messages: read again with before "${result.olderCursor}".`,
+                  ]
+                : []),
+            ].join("\n\n"),
+          },
+        ],
+        details: { sessionId: result.sessionId, title: result.title },
+      };
+    },
+  });
+
+  const sendParams = Type.Object({
+    sessionId: Type.String({
+      description: `A parent, sub-session or sibling, from ${UI_SESSION_RELATIVES_TOOL_NAME}.`,
+    }),
+    message: Type.String({
+      description:
+        "What to tell it. A running session reads it at its next step; an idle one starts a new turn.",
+    }),
+  });
+  const sendTool = defineTool({
+    name: UI_SESSION_SEND_TOOL_NAME,
+    label: "Message Session",
+    description:
+      "Send a message to this session's parent, a sub-session or a sibling, for example follow-up work for a sub-session. It is marked as coming from this session.",
+    parameters: sendParams,
+    prepareArguments: (args) => args as Static<typeof sendParams>,
+    executionMode: "sequential",
+    execute: async (_toolCallId, params) => {
+      const message = params.message.trim();
+      if (!message) throw new Error("The message is empty.");
+      const sessionId = params.sessionId.trim();
+      const result = await callSessionHost(context, {
+        op: "send",
+        sessionId,
+        message,
+        locale: context.getLocale(),
+      });
+      return {
+        content: [
+          {
+            type: "text" as const,
+            text:
+              result.delivered === "steer"
+                ? `Delivered to ${sessionId}; it reads the message at its next step.`
+                : `Sent to ${sessionId}, which started a new turn.`,
+          },
+        ],
+        details: { sessionId, delivered: result.delivered },
+      };
+    },
+  });
+
   const deleteParams = Type.Object({
     projectId: Type.String(),
     sessionId: Type.String(),
@@ -470,11 +626,10 @@ export function createSessionToolDefinitions(
     execute: async (toolCallId, params, signal) => {
       const projectId = params.projectId.trim();
       const sessionId = params.sessionId.trim();
-      const { session, open } = await callSessionHost(context, {
-        op: "describe",
-        projectId,
-        sessionId,
-      });
+      const { session, open, subSessionCount } = await callSessionHost(
+        context,
+        { op: "describe", projectId, sessionId },
+      );
       if (session.current) throw new Error("A session cannot delete itself.");
       if (open)
         throw new Error(
@@ -489,6 +644,9 @@ export function createSessionToolDefinitions(
         evidence: [
           `Project: ${session.projectName}`,
           `${session.messageCount} messages, last updated ${session.updatedAt}`,
+          subSessionCount
+            ? `Its ${subSessionCount} ${subSessionCount === 1 ? "sub-session is" : "sub-sessions are"} deleted too.`
+            : undefined,
           session.snippet?.replace(/\s+/g, " ").trim(),
         ]
           .filter(Boolean)
@@ -524,5 +682,8 @@ export function createSessionToolDefinitions(
     organizeTool,
     renameTool,
     deleteTool,
+    relativesTool,
+    readTool,
+    sendTool,
   ] as ToolDefinition[];
 }

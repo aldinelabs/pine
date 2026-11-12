@@ -46,7 +46,7 @@ import type {
   PineRuntimeEvent,
 } from "../agent/protocol";
 import type { PineSessionMutator } from "../shared/sessionMutators";
-import type { SessionRenamer } from "../shared/sessions";
+import type { PineSessionNotice, SessionRenamer } from "../shared/sessions";
 
 export interface AgentProcess {
   readonly stdout?: Pick<NodeJS.ReadableStream, "resume"> | null;
@@ -105,6 +105,11 @@ export interface AgentHost {
     name: string,
     by?: SessionRenamer,
   ): Promise<AgentWorkerSessionResult>;
+  notifySession(
+    sessionId: string,
+    notice: PineSessionNotice,
+    content: string,
+  ): Promise<{ delivered: boolean }>;
   mutateSession(
     sessionId: string,
     mutators: PineSessionMutator[],
@@ -333,6 +338,19 @@ export class AgentProcessHost implements AgentHost {
     by: SessionRenamer = "user",
   ): Promise<AgentWorkerSessionResult> {
     return this.request({ type: "session:rename", sessionId, name, by });
+  }
+
+  notifySession(
+    sessionId: string,
+    notice: PineSessionNotice,
+    content: string,
+  ): Promise<{ delivered: boolean }> {
+    return this.request({
+      type: "session:notify",
+      sessionId,
+      notice,
+      content,
+    });
   }
 
   getModelCatalog(agentDir: string): Promise<PineModelCatalog> {

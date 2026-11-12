@@ -23,6 +23,7 @@ import type {
 } from "../shared/models";
 import type {
   PineContextUsage,
+  PineSessionNotice,
   PineSessionSummary,
   SessionRenamer,
   SessionHostOperation,
@@ -30,6 +31,8 @@ import type {
 } from "../shared/sessions";
 
 export type {
+  AgentHostMessage,
+  AgentHostRelative,
   AgentHostSession,
   AgentHostSessionTree,
   AgentHostTreeSession,
@@ -89,6 +92,11 @@ export interface AgentSessionLocation {
   /** Initial permission mode for the session. YOLO bypasses all Pine sandbox,
    * folder, and approval controls; omitted defaults to `auto-approve`. */
   approvalMode?: PineApprovalMode;
+  /**
+   * A new session started as a sub-session of this one. The worker records
+   * it in the session file, which is what a reopened session reads.
+   */
+  parentSessionId?: string;
   /** Set only for an unattended automation run; see docs/automation.md. */
   automation?: AgentAutomationRun;
 }
@@ -238,6 +246,15 @@ export type AgentWorkerRequest =
       sessionId: string;
       name: string;
       by: SessionRenamer;
+    }
+  | {
+      id: string;
+      /** Tells a session about one of its sub-sessions, waking it if idle. */
+      type: "session:notify";
+      sessionId: string;
+      notice: PineSessionNotice;
+      /** What the model reads: the sub-session's state and last reply. */
+      content: string;
     }
   | {
       id: string;
@@ -441,6 +458,7 @@ export type AgentWorkerResult =
   | { sent: boolean }
   | { cancelled: boolean }
   | { disposed: boolean }
+  | { delivered: boolean }
   | { updated: boolean }
   | AgentWorkerMutateResult;
 

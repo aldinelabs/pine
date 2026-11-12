@@ -29,6 +29,7 @@ import ProjectQuoteList from "./ProjectQuoteList.vue";
 import { serializeQuoteMessage } from "@/shared/quotes";
 import ProjectAutomationRunMessage from "./ProjectAutomationRunMessage.vue";
 import ProjectBackgroundTaskMarker from "./ProjectBackgroundTaskMarker.vue";
+import ProjectSessionNoticeMarker from "./ProjectSessionNoticeMarker.vue";
 import ProjectCompactionMarker from "./ProjectCompactionMarker.vue";
 import ProjectErrorMarker from "./ProjectErrorMarker.vue";
 import ProjectStoppedMarker from "./ProjectStoppedMarker.vue";
@@ -316,6 +317,12 @@ const renderItems = computed<RenderItem[]>(() => {
               item.kind === 'block' && item.block.type === 'backgroundTask'
             "
             :task="item.block.task"
+          />
+          <ProjectSessionNoticeMarker
+            v-else-if="
+              item.kind === 'block' && item.block.type === 'sessionNotice'
+            "
+            :notice="item.block.notice"
           />
           <ProjectToolCallMarker
             v-else-if="item.kind === 'toolCall'"

@@ -100,6 +100,12 @@ function appendBlock(lines: string[], block: PineContentBlock): void {
     );
     return;
   }
+  if (block.type === "sessionNotice") {
+    lines.push(
+      `> Sub-session ${block.notice.title ?? block.notice.sessionId}: ${block.notice.state}`,
+    );
+    return;
+  }
   if (block.type === "stopped") {
     lines.push("> Stopped");
     return;

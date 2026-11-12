@@ -67,6 +67,8 @@ const StoredProjectSchema = z.object({
   projectIcon: z.enum(PROJECT_ICONS).catch("inbox"),
   schemaVersion: z.literal(PROJECT_SCHEMA_VERSION),
   sessionGroups: z.array(ProjectSessionGroupSchema).default([]),
+  /** Sub-session id → the session that started it; one level deep. */
+  sessionParents: z.record(z.uuid(), z.uuid()).default({}),
   updatedAt: z.iso.datetime(),
 });
 
@@ -184,6 +186,19 @@ async function isAvailableDirectory(directoryPath: string): Promise<boolean> {
 export class ProjectRepository {
   constructor(private readonly projectsRoot: string) {}
 
+  /** Read-modify-write of one project's metadata, one at a time. */
+  private readonly writes = new Map<string, Promise<unknown>>();
+
+  private serialize<T>(id: string, task: () => Promise<T>): Promise<T> {
+    const run = (this.writes.get(id) ?? Promise.resolve()).then(task, task);
+    const settled = run.catch(() => undefined);
+    this.writes.set(id, settled);
+    void settled.then(() => {
+      if (this.writes.get(id) === settled) this.writes.delete(id);
+    });
+    return run;
+  }
+
   async list(): Promise<PineProject[]> {
     await this.ensureTemporaryWorkspace();
     let entries;
@@ -231,6 +246,7 @@ export class ProjectRepository {
       projectIcon: input.projectIcon ?? "inbox",
       schemaVersion: PROJECT_SCHEMA_VERSION,
       sessionGroups: [],
+      sessionParents: {},
       updatedAt: now,
     });
 
@@ -257,7 +273,14 @@ export class ProjectRepository {
     return this.toPublic(project);
   }
 
-  async update(id: string, input: ProjectMutationInput): Promise<PineProject> {
+  update(id: string, input: ProjectMutationInput): Promise<PineProject> {
+    return this.serialize(id, () => this.updateNow(id, input));
+  }
+
+  private async updateNow(
+    id: string,
+    input: ProjectMutationInput,
+  ): Promise<PineProject> {
     assertEditable(id);
     const current = await this.read(id);
     const folders = await this.normalizeFolders(input.folders, current.folders);
@@ -271,24 +294,47 @@ export class ProjectRepository {
       ),
       projectIcon: input.projectIcon ?? current.projectIcon,
       sessionGroups: current.sessionGroups,
+      sessionParents: current.sessionParents,
       updatedAt: new Date().toISOString(),
     });
     await this.write(project);
     return this.toPublic(project);
   }
 
-  async updateSessionGroups(
+  updateSessionGroups(
     id: string,
     sessionGroups: PineSessionGroup[],
   ): Promise<PineProject> {
-    const current = await this.read(id);
-    const project = this.validateProject({
-      ...current,
-      sessionGroups,
-      updatedAt: new Date().toISOString(),
+    return this.serialize(id, async () => {
+      const current = await this.read(id);
+      const project = this.validateProject({
+        ...current,
+        sessionGroups,
+        updatedAt: new Date().toISOString(),
+      });
+      await this.write(project);
+      return this.toPublic(project);
     });
-    await this.write(project);
-    return this.toPublic(project);
+  }
+
+  /**
+   * Changes which sessions are sub-sessions of which. `change` gets the
+   * current links and returns the new ones; it runs on fresh data.
+   */
+  updateSessionParents(
+    id: string,
+    change: (parents: Record<string, string>) => Record<string, string>,
+  ): Promise<PineProject> {
+    return this.serialize(id, async () => {
+      const current = await this.read(id);
+      const project = this.validateProject({
+        ...current,
+        sessionParents: change({ ...current.sessionParents }),
+        updatedAt: new Date().toISOString(),
+      });
+      await this.write(project);
+      return this.toPublic(project);
+    });
   }
 
   async delete(id: string): Promise<boolean> {
@@ -388,6 +434,7 @@ export class ProjectRepository {
       projectIcon: "inbox",
       schemaVersion: PROJECT_SCHEMA_VERSION,
       sessionGroups: current?.sessionGroups ?? [],
+      sessionParents: current?.sessionParents ?? {},
       updatedAt: current?.updatedAt ?? now,
     };
     if (JSON.stringify(current) !== JSON.stringify(pinned)) {

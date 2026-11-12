@@ -1,6 +1,7 @@
 import {
   PINE_USER_TITLE_ENTRY,
   approvalModeFromEntries,
+  sessionNoticeOf,
   type SessionRenamer,
 } from "../shared/sessions";
 import type {
@@ -303,12 +304,15 @@ function indexedTextMessages(entries: Entry[]): IndexedTextMessage[] {
     }
     if (entry.type === "custom_message") {
       const task = backgroundTaskNotificationTask(entry);
+      const notice = sessionNoticeOf(entry);
       const toolCall = sessionMutationToolCall(entry, entry.id);
       const blocks: PineContentBlock[] = task
         ? [{ type: "backgroundTask", task }]
-        : toolCall
-          ? [{ type: "toolCall", toolCall }]
-          : [];
+        : notice
+          ? [{ type: "sessionNotice", notice }]
+          : toolCall
+            ? [{ type: "toolCall", toolCall }]
+            : [];
       if (blocks.length === 0) continue;
       messages.push({
         cursor,

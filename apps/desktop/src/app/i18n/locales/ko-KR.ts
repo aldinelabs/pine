@@ -647,6 +647,9 @@ export default {
     current: "현재",
     noSessions: "아직 세션이 없습니다",
     awaitingApproval: "승인 대기 중",
+    showSubSessions: "하위 세션 펼치기({count})",
+    hideSubSessions: "하위 세션 접기({count})",
+    deleteSubSessions: "하위 세션 {count}개도 함께 삭제됩니다.",
     noResults: "일치하는 세션이 없습니다",
     groupTitle: "세션 폴더",
     createGroupAction: "새 폴더",
@@ -1144,6 +1147,12 @@ export default {
         minutes: "{minutes}분 {seconds}초",
         seconds: "{value}초",
       },
+      sessionNotice: {
+        finished: "하위 세션 {name} 완료됨",
+        failed: "하위 세션 {name} 실패함",
+        awaitingApproval: "하위 세션 {name}이(가) 승인을 기다리는 중",
+        untitled: "제목 없음",
+      },
       backgroundTask: {
         completed: "백그라운드 프로세스 {name}이(가) 완료되었습니다",
         failed: "백그라운드 프로세스 {name}이(가) 실패했습니다",
@@ -1599,6 +1608,21 @@ export default {
             complete: "세션 제목 변경함: ",
             kept: "세션 제목을 유지함",
             error: "세션 제목을 변경할 수 없음",
+          },
+          relatives: {
+            running: "관련 세션 나열 중",
+            complete: "관련 세션 나열함",
+            error: "관련 세션을 나열할 수 없음",
+          },
+          read: {
+            running: "세션 읽는 중: ",
+            complete: "세션 읽음: ",
+            error: "세션을 읽을 수 없음: ",
+          },
+          send: {
+            running: "세션에 메시지 보내는 중: ",
+            complete: "세션에 메시지 보냄: ",
+            error: "세션에 메시지를 보낼 수 없음: ",
           },
           delete: {
             running: "세션 삭제 중",

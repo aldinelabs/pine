@@ -50,6 +50,7 @@ export function createAgentHost(sessionSummary: PineSessionSummary): AgentHost {
       .mockImplementation((_sessionId, mutators) =>
         Promise.resolve({ applied: mutators }),
       ),
+    notifySession: vi.fn().mockResolvedValue({ delivered: true }),
     renameSession: vi.fn().mockImplementation((sessionId, name) =>
       Promise.resolve({
         session: { ...sessionSummary, id: sessionId, name },

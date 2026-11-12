@@ -135,30 +135,86 @@ const projectGroups = computed(() => {
   }
   // Keep the project's existing order stable as sessions receive updates.
   return projectStore.projects.map((project) => {
-    const recent = byProject.get(project.id) ?? [];
+    const all = byProject.get(project.id) ?? [];
+    const parents = project.sessionParents ?? {};
+    const listed = new Set(all.map((session) => session.id));
+    // A sub-session sits under its parent while the parent is listed too.
+    const subSessions = new Map<string, ProjectSessionSearchResult[]>();
+    for (const session of all) {
+      const parent = parents[session.id];
+      if (!parent || !listed.has(parent)) continue;
+      subSessions.set(parent, [...(subSessions.get(parent) ?? []), session]);
+    }
+    const recent = all.filter(
+      (session) => !listed.has(parents[session.id] ?? ""),
+    );
+    const rowsOf = (list: ProjectSessionSearchResult[]): SessionRow[] =>
+      list.flatMap((session) => {
+        const children = subSessions.get(session.id) ?? [];
+        const row = { session, depth: 0, subSessionCount: children.length };
+        if (!children.length || !historyStore.isOpen(session.id)) return [row];
+        return [
+          row,
+          ...children.map((child) => ({
+            session: child,
+            depth: 1,
+            subSessionCount: 0,
+          })),
+        ];
+      });
     const groups = project.sessionGroups ?? [];
     const folders = groups.map((group) => {
       const sessionIds = new Set(group.sessionIds);
       return {
         group,
-        sessions: recent.filter((session) => sessionIds.has(session.id)),
+        rows: rowsOf(recent.filter((session) => sessionIds.has(session.id))),
       };
     });
     const filed = new Set(groups.flatMap((group) => group.sessionIds));
     const loose = recent.filter((session) => !filed.has(session.id));
     const limit = historyStore.visibleCount(project.id);
+    const activeParent = activeSessionId.value
+      ? parents[activeSessionId.value]
+      : undefined;
     const visible = loose.filter(
-      (session, index) => index < limit || session.id === activeSessionId.value,
+      (session, index) =>
+        index < limit ||
+        session.id === activeSessionId.value ||
+        session.id === activeParent,
     );
     return {
       project,
       groups,
       folders,
-      visible,
+      visible: rowsOf(visible),
       hasMore: visible.length < loose.length,
     };
   });
 });
+
+interface SessionRow {
+  session: ProjectSessionSearchResult;
+  /** 1 for a sub-session under the session that started it. */
+  depth: number;
+  subSessionCount: number;
+}
+
+function parentOfSession(
+  projectId: string,
+  sessionId: string,
+): string | undefined {
+  return projectStore.projectById(projectId)?.sessionParents?.[sessionId];
+}
+
+/** Sub-sessions deleted together with the session. */
+function subSessionIdsOf(session: ProjectSessionSearchResult | null): string[] {
+  if (!session) return [];
+  return Object.entries(
+    projectStore.projectById(session.projectId)?.sessionParents ?? {},
+  )
+    .filter(([, parent]) => parent === session.id)
+    .map(([child]) => child);
+}
 
 function groupsOf(projectId: string): PineSessionGroup[] {
   return projectStore.projectById(projectId)?.sessionGroups ?? [];
@@ -182,7 +238,10 @@ watch(
     if (!projectId) return;
     historyStore.setOpen(projectId, true);
     const sessionId = activeSessionId.value;
-    const group = sessionId && groupOfSession(projectId, sessionId);
+    const parent = sessionId && parentOfSession(projectId, sessionId);
+    if (parent) historyStore.setOpen(parent, true);
+    const filedId = parent || sessionId;
+    const group = filedId && groupOfSession(projectId, filedId);
     if (group) historyStore.setOpen(group.id, true);
   },
   { immediate: true },
@@ -759,9 +818,22 @@ function drop(event: DragEvent, projectId: string, groupId: string | null) {
                               class="mr-0 translate-x-0 border-l-0 pr-0"
                             >
                               <SessionHistoryItem
-                                v-for="session in folder.sessions"
+                                v-for="{
+                                  session,
+                                  depth,
+                                  subSessionCount,
+                                } in folder.rows"
                                 :key="session.id"
-                                :groups="group.groups"
+                                :groups="depth ? [] : group.groups"
+                                :depth="depth"
+                                :sub-session-count="subSessionCount"
+                                :expanded="historyStore.isOpen(session.id)"
+                                @toggle="
+                                  historyStore.setOpen(
+                                    session.id,
+                                    !historyStore.isOpen(session.id),
+                                  )
+                                "
                                 :is-active="session.id === activeSessionId"
                                 :session="session"
                                 :title="sessionTitle(session)"
@@ -787,9 +859,7 @@ function drop(event: DragEvent, projectId: string, groupId: string | null) {
                                   })
                                 "
                               />
-                              <SidebarMenuSubItem
-                                v-if="!folder.sessions.length"
-                              >
+                              <SidebarMenuSubItem v-if="!folder.rows.length">
                                 <SidebarMenuSubButton
                                   as="button"
                                   class="w-full translate-x-0"
@@ -803,9 +873,22 @@ function drop(event: DragEvent, projectId: string, groupId: string | null) {
                         </SidebarMenuSubItem>
                       </Collapsible>
                       <SessionHistoryItem
-                        v-for="session in group.visible"
+                        v-for="{
+                          session,
+                          depth,
+                          subSessionCount,
+                        } in group.visible"
                         :key="session.id"
-                        :groups="group.groups"
+                        :groups="depth ? [] : group.groups"
+                        :depth="depth"
+                        :sub-session-count="subSessionCount"
+                        :expanded="historyStore.isOpen(session.id)"
+                        @toggle="
+                          historyStore.setOpen(
+                            session.id,
+                            !historyStore.isOpen(session.id),
+                          )
+                        "
                         :is-active="session.id === activeSessionId"
                         :session="session"
                         :title="sessionTitle(session)"
@@ -873,6 +956,7 @@ function drop(event: DragEvent, projectId: string, groupId: string | null) {
     <SessionDeleteDialog
       v-model:open="isDeleteDialogOpen"
       :session="sessionPendingDelete"
+      :sub-session-ids="subSessionIdsOf(sessionPendingDelete)"
     />
     <SessionRenameDialog
       v-model:open="isRenameDialogOpen"

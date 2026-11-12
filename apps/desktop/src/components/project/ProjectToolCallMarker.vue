@@ -30,14 +30,18 @@ import {
   UI_PROJECT_UPDATE_TOOL_NAME,
   UI_SESSION_DELETE_TOOL_NAME,
   UI_SESSION_ORGANIZE_TOOL_NAME,
+  UI_SESSION_READ_TOOL_NAME,
+  UI_SESSION_RELATIVES_TOOL_NAME,
   UI_SESSION_RENAME_TOOL_NAME,
   UI_SESSION_SEARCH_TOOL_NAME,
+  UI_SESSION_SEND_TOOL_NAME,
   UI_SESSION_TREE_TOOL_NAME,
   currentToolName,
   UI_PRESENT_FILE_TOOL_NAME,
 } from "@/shared/agent";
 import { sessionSearchQuery } from "@/shared/sessions";
 import { useProjectStore } from "@/stores/project";
+import { useSessionStore } from "@/stores/session";
 import type { PineToolCall } from "@/shared/sessions";
 import {
   UI_WORKBENCH_ARRANGE_TOOL_NAME,
@@ -80,6 +84,7 @@ const props = defineProps<{
 const { t } = useI18n();
 // Markers also render outside the app shell (dialogs, previews) without Pinia.
 const projectStore = getActivePinia() ? useProjectStore() : null;
+const sessionStore = getActivePinia() ? useSessionStore() : null;
 const projectDisplayName = useProjectDisplayName();
 const MAX_WEB_PAGE_TITLE_LENGTH = 24;
 
@@ -1315,6 +1320,40 @@ const presentation = computed(() => {
         target: treeProject
           ? projectDisplayName(treeProject)
           : (firstString(tree, ["projectName"]) ?? ""),
+        targetMono: false,
+        purpose: undefined,
+        faviconDataUrl: undefined,
+        after: "",
+      };
+    }
+    if (
+      sessionTool === UI_SESSION_RELATIVES_TOOL_NAME ||
+      sessionTool === UI_SESSION_READ_TOOL_NAME ||
+      sessionTool === UI_SESSION_SEND_TOOL_NAME
+    ) {
+      const action =
+        sessionTool === UI_SESSION_RELATIVES_TOOL_NAME
+          ? "relatives"
+          : sessionTool === UI_SESSION_READ_TOOL_NAME
+            ? "read"
+            : "send";
+      const sessionId =
+        firstString(details, ["sessionId"]) ??
+        firstString(input, ["sessionId"]) ??
+        "";
+      const known = sessionStore?.allRecentSessions.find(
+        (candidate) => candidate.id === sessionId,
+      );
+      return {
+        before: t(`project.transcript.tools.session.${action}.${tense}`),
+        operation: undefined,
+        separator: "",
+        target:
+          action === "relatives"
+            ? ""
+            : known?.name ||
+              firstString(details, ["title"]) ||
+              t("project.transcript.sessionNotice.untitled"),
         targetMono: false,
         purpose: undefined,
         faviconDataUrl: undefined,

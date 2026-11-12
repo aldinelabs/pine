@@ -650,6 +650,9 @@ export default {
     current: "Current",
     noSessions: "No sessions yet",
     awaitingApproval: "Waiting for your approval",
+    showSubSessions: "Show sub-sessions ({count})",
+    hideSubSessions: "Hide sub-sessions ({count})",
+    deleteSubSessions: "Sub-sessions deleted with it: {count}.",
     noResults: "No matching sessions",
     groupTitle: "Session folders",
     createGroupAction: "New folder",
@@ -1150,6 +1153,12 @@ export default {
         minutes: "{minutes}m {seconds}s",
         seconds: "{value}s",
       },
+      sessionNotice: {
+        finished: "Sub-session {name} finished",
+        failed: "Sub-session {name} failed",
+        awaitingApproval: "Sub-session {name} is waiting for your approval",
+        untitled: "Untitled",
+      },
       backgroundTask: {
         completed: "Background process {name} completed",
         failed: "Background process {name} failed",
@@ -1604,6 +1613,21 @@ export default {
             complete: "Retitled session to ",
             kept: "Kept the session title",
             error: "Couldn’t retitle the session",
+          },
+          relatives: {
+            running: "Listing related sessions",
+            complete: "Listed related sessions",
+            error: "Couldn’t list related sessions",
+          },
+          read: {
+            running: "Reading session ",
+            complete: "Read session ",
+            error: "Couldn’t read session ",
+          },
+          send: {
+            running: "Messaging session ",
+            complete: "Messaged session ",
+            error: "Couldn’t message session ",
           },
           delete: {
             running: "Deleting a session",

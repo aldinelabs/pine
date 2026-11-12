@@ -71,6 +71,13 @@ async function handleRequest(request: AgentWorkerRequest): Promise<void> {
         request.by,
       );
       break;
+    case "session:notify":
+      result = await runtime.notifySession(
+        request.sessionId,
+        request.notice,
+        request.content,
+      );
+      break;
     case "session:dispose":
       result = await runtime.disposeSession(request.sessionId);
       break;
