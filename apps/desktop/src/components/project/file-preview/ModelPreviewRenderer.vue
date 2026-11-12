@@ -246,6 +246,8 @@ async function setup(): Promise<void> {
   renderer.setSize(element.clientWidth, element.clientHeight);
   renderer.outputColorSpace = three.SRGBColorSpace;
   element.append(renderer.domElement);
+  // three rebuilds its state on a restored context but does not draw.
+  renderer.domElement.addEventListener("webglcontextrestored", invalidate);
   scene = new three.Scene();
   camera = new three.PerspectiveCamera(
     40,
