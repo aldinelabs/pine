@@ -173,15 +173,27 @@ const isRunning = computed(
   () => isSubmitting.value || (tabState.value?.isRunning ?? false),
 );
 const messages = computed(() => tabState.value?.messages ?? []);
-const scroller = useTemplateRef<{ isFollowingBottom?: () => boolean }>(
-  "scroller",
+/** Changes only when the set or order of message ids changes. */
+const structureVersion = computed(() => tabState.value?.structureVersion ?? 0);
+const NO_MESSAGES: readonly PineTranscriptMessage[] = [];
+const userMessages = computed(
+  () => tabState.value?.userMessages ?? NO_MESSAGES,
 );
+/** The index of a loaded message, or -1, without scanning the transcript. */
+function indexOfMessage(messageId: string): number {
+  return tabState.value?.indexOfMessage(messageId) ?? -1;
+}
+const scroller = useTemplateRef<{
+  isFollowingBottom?: () => boolean;
+  /** Exposed as a ref; the component proxy unwraps it. */
+  followingBottom?: boolean;
+}>("scroller");
 /** The first rendered message; null renders from the oldest loaded one. */
 const windowStartId = ref<string | null>(null);
 const renderStart = computed(() => {
   const id = windowStartId.value;
   if (!id) return 0;
-  const index = messages.value.findIndex((message) => message.id === id);
+  const index = indexOfMessage(id);
   // A rewrite can remove the first rendered message; keep the recent tail.
   return index >= 0
     ? index
@@ -222,6 +234,18 @@ function revealEarlierMessages(): boolean {
 }
 
 watch(() => messages.value.length, trimRenderWindow);
+// Nothing above the window is dropped while the reader is away from the live
+// end, or while the tab is in the background; trim as soon as either ends
+// rather than waiting for the next appended message.
+watch(
+  () => scroller.value?.followingBottom === true,
+  (following) => {
+    if (following) trimRenderWindow();
+  },
+);
+watch(isActive, (active) => {
+  if (active) trimRenderWindow();
+});
 watch(
   () => props.sessionId,
   () => {
@@ -229,11 +253,14 @@ watch(
   },
 );
 const outlineMessages = computed(() => tabState.value?.outlineMessages ?? []);
+// Built from the user messages only, which the store replaces just when one
+// of them changes, so a streaming reply never re-derives the outline.
 const transcriptTurns = computed((previous?: PineTranscriptMessage[]) => {
   const allMessages = new Map(
     outlineMessages.value.map((message) => [message.id, message]),
   );
-  for (const message of messages.value) allMessages.set(message.id, message);
+  for (const message of userMessages.value)
+    allMessages.set(message.id, message);
   const next = [...allMessages.values()].filter(
     (message) => message.role === "user",
   );
@@ -293,6 +320,7 @@ useSteeringMessageTransition({
   // The transcript as rendered, not the outline: only this list says which
   // user message just arrived and where it landed.
   messages,
+  structureVersion,
   active: isActive,
   sessionId: computed(() => props.sessionId),
 });
@@ -376,7 +404,11 @@ const awaitingApprovalToolCallIds = computed(
 
 /** While a response runs, its last two tool units (folded groups and
  * standalone calls alike) stay expanded; everything folds when it ends. */
-const expandedToolRuns = useToolActivityExpansion({ messages, isRunning });
+const expandedToolRuns = useToolActivityExpansion({
+  // Only rendered rows can show a run, and the window bounds the scan.
+  messages: renderedMessages,
+  isRunning,
+});
 
 /** Per-message `v-memo` key: only the transcript state a message reads. */
 function messageRenderSignature(message: PineTranscriptMessage): string {
@@ -684,17 +716,14 @@ function handleTranscriptScroll(
 }
 
 async function ensureTranscriptMessageLoaded(messageId: string): Promise<void> {
-  while (
-    !messages.value.some((message) => message.id === messageId) &&
-    hasEarlierMessages.value
-  ) {
+  while (indexOfMessage(messageId) < 0 && hasEarlierMessages.value) {
     const previousCount = messages.value.length;
     await loadEarlierMessages();
     if (messages.value.length === previousCount && hasEarlierMessages.value) {
       throw new Error(`Transcript message ${messageId} was not loaded`);
     }
   }
-  const index = messages.value.findIndex((message) => message.id === messageId);
+  const index = indexOfMessage(messageId);
   if (index < 0) {
     throw new Error(`Transcript message ${messageId} was not found`);
   }

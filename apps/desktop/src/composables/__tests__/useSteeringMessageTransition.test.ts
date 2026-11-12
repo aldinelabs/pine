@@ -1,5 +1,12 @@
 import { flushPromises, mount } from "@vue/test-utils";
-import { defineComponent, ref, type Ref } from "vue";
+import {
+  computed,
+  defineComponent,
+  effectScope,
+  nextTick,
+  ref,
+  type Ref,
+} from "vue";
 import { createPinia } from "pinia";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { createAppI18n } from "@/app/i18n";
@@ -46,6 +53,10 @@ function setup(queueValues = ["Queued message"]) {
           container,
           queue,
           messages,
+          // What the store's structure version tracks: the ids in order.
+          structureVersion: computed(() =>
+            messages.value.map((message) => message.id).join("\n"),
+          ),
           active,
           sessionId,
         });
@@ -430,4 +441,39 @@ it("expires unmatched snapshots so later messages do not fly from stale position
   expect(
     document.querySelector('[data-slot="steering-message-flight"]'),
   ).toBeNull();
+});
+
+it("is not woken by a streaming update that replaces a message in place", async () => {
+  const list = ref([message("user-1", "Hello")]);
+  const version = ref(1);
+  let reads = 0;
+  const messages = {
+    get value() {
+      reads += 1;
+      return list.value;
+    },
+  } as Ref<PineTranscriptMessage[]>;
+  const scope = effectScope();
+  scope.run(() =>
+    useSteeringMessageTransition({
+      container: ref(null),
+      queue: ref([]),
+      messages,
+      structureVersion: version,
+      active: ref(true),
+      sessionId: ref("session"),
+    }),
+  );
+  expect(reads).toBe(1);
+
+  // Same ids in the same order: the store keeps its structure version.
+  list.value = [message("user-1", "Hello, again")];
+  await nextTick();
+  expect(reads).toBe(1);
+
+  list.value = [...list.value, message("user-2", "Next")];
+  version.value += 1;
+  await nextTick();
+  expect(reads).toBe(2);
+  scope.stop();
 });

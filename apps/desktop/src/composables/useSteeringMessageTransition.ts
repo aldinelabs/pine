@@ -320,6 +320,12 @@ export function useSteeringMessageTransition(options: {
   container: Ref<HTMLElement | null>;
   queue: Ref<readonly string[]>;
   messages: Ref<readonly PineTranscriptMessage[]>;
+  /**
+   * Changes whenever the set or order of message ids changes, and only then.
+   * A streaming update replaces a message in place and sends, edits or
+   * appends nothing, so it does not need to wake this watcher at all.
+   */
+  structureVersion: Ref<unknown>;
   active: Ref<boolean>;
   sessionId: Ref<string | undefined>;
 }): void {
@@ -331,6 +337,9 @@ export function useSteeringMessageTransition(options: {
   /** An edited turn is removed and sent again; its message is a replay of an
    * earlier one, so it should be there at once rather than fly in. */
   let rewritten = false;
+  /** The transcript and its structure as of the last pass. */
+  let lastMessages: readonly PineTranscriptMessage[] | undefined;
+  let lastVersion: unknown;
   function reset(): void {
     generation++;
     queued = [];
@@ -347,8 +356,19 @@ export function useSteeringMessageTransition(options: {
   }
   watch([options.active, options.sessionId], reset, { flush: "sync" });
   watch(
-    [options.queue, options.messages, options.active, options.sessionId],
-    ([queue, messages], previous) => {
+    [
+      options.queue,
+      options.structureVersion,
+      options.active,
+      options.sessionId,
+    ],
+    ([queue, version]) => {
+      const messages = options.messages.value;
+      const oldMessages = lastMessages;
+      const structureChanged =
+        oldMessages === undefined || version !== lastVersion;
+      lastMessages = messages;
+      lastVersion = version;
       if (!options.active.value || prefersReducedMotion()) {
         reset();
         return;
@@ -388,18 +408,10 @@ export function useSteeringMessageTransition(options: {
           pending.length = 0;
         }, 5_000);
       }
-      const oldMessages = previous?.[1];
-      // A streaming update replaces a message in place. With the same ids in
-      // the same order nothing was sent, edited or appended, so the scan over
-      // the whole transcript below would find nothing.
-      if (
-        oldMessages &&
-        oldMessages.length === messages.length &&
-        messages.every(
-          (message, index) => oldMessages[index]?.id === message.id,
-        )
-      )
-        return;
+      // With the same ids in the same order nothing was sent, edited or
+      // appended, so the scan over the whole transcript below would find
+      // nothing.
+      if (!structureChanged) return;
       const oldIds = new Set((oldMessages ?? []).map((message) => message.id));
       // An edit removes the turn from the tail before sending it again.
       if (

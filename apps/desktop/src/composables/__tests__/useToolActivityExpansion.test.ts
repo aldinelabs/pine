@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ref } from "vue";
+import { ref, type Ref } from "vue";
 import type { PineTranscriptMessage } from "@/stores/session";
 import {
   toolRunKeys,
@@ -77,5 +77,29 @@ describe("useToolActivityExpansion", () => {
       isRunning,
     });
     expect(expanded.value.size).toBe(0);
+  });
+});
+
+describe("useToolActivityExpansion scan", () => {
+  it("does not read the transcript while no response runs", () => {
+    const list = ref([message("m1", [single("t1")])]);
+    let reads = 0;
+    const messages = {
+      get value() {
+        reads += 1;
+        return list.value;
+      },
+    } as Ref<PineTranscriptMessage[]>;
+    const isRunning = ref(false);
+    const expanded = useToolActivityExpansion({ messages, isRunning });
+
+    expect(expanded.value.size).toBe(0);
+    list.value = [...list.value, message("m2", [single("t2")])];
+    expect(expanded.value.size).toBe(0);
+    expect(reads).toBe(0);
+
+    isRunning.value = true;
+    expect(expanded.value).toEqual(new Set(["m1:t1", "m2:t2"]));
+    expect(reads).toBe(1);
   });
 });

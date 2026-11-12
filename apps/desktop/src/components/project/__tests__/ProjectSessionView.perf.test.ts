@@ -7,22 +7,23 @@
  *
  * | id | scenario                                | metric                                  | measured     | target          |
  * | -- | --------------------------------------- | --------------------------------------- | ------------ | --------------- |
- * | V1 | K flushes, N = 130 / N = 2,050          | history reads per flush                 | 961 / 12,481 | equal, <= 4 x W |
+ * | V1 | K flushes, N = 130 / N = 2,050          | history reads per flush                 | 241 / 241    | equal, <= 4 x W |
  * | V2 |                                         | row renders per flush                   | 1 / 1        | 1               |
  * | V2 |                                         | DOM mutations outside the streaming row | 0 / 0        | 0               |
  * | V3 |                                         | mounted rows (W)                        | 62 / 62      | <= 120          |
  * | V7 |                                         | ProjectSessionView updates per flush    | 0 / 0        | 0               |
- * | V4 | stop following, +100 messages, follow   | mounted rows                            | 162          | <= 120          |
+ * | V4 | stop following, +100 messages, follow   | mounted rows                            | 60           | <= 120          |
  * | V5 | 10 flushes while the document is hidden | row renders per flush                   | 1            | 0               |
  * | V5 |                                         | row renders on return                   | 0            | 1               |
  * | V6 | reply ended, idle, 2 s later            | pending timers                          | 0            | 0               |
  *
- * Holds today: V2, V3, V6, V7. Not met yet (`it.fails`): V1, V4, V5. When a
+ * Holds today: V1, V2, V3, V4, V6, V7. Not met yet (`it.fails`): V5. When a
  * change makes one hold, turn it into `it` and update the measured column.
  *
- * V1 today is about 6 reads per loaded message per flush (window lookup,
- * outline turns, steering guard, tool-run scan) plus the `v-memo` sweep over
- * the window, which costs 4 reads per history row on average (240 here).
+ * V1 was about 6 reads per loaded message per flush (window lookup, outline
+ * turns, steering guard, tool-run scan; 961 / 12,481). Those are now O(1) or
+ * cached per record; what remains is the `v-memo` sweep over the window, 4
+ * reads per history row on average (240 here), plus the streaming message.
  *
  * Print the metrics with `PINE_PERF_LOG=1` (add `--reporter=default` when
  * vitest hides the output of passing tests).
@@ -270,14 +271,11 @@ function streamMetrics(): Promise<[StreamMetrics, StreamMetrics]> {
 }
 
 describe("ProjectSessionView streaming cost", () => {
-  it.fails(
-    "[V1] reads the same number of history messages per flush at any length",
-    async () => {
-      const [short, long] = await streamMetrics();
-      expect(long.readsPerFlush).toBe(short.readsPerFlush);
-      expect(long.readsPerFlush).toBeLessThanOrEqual(4 * long.mountedRows);
-    },
-  );
+  it("[V1] reads the same number of history messages per flush at any length", async () => {
+    const [short, long] = await streamMetrics();
+    expect(long.readsPerFlush).toBe(short.readsPerFlush);
+    expect(long.readsPerFlush).toBeLessThanOrEqual(4 * long.mountedRows);
+  });
 
   it("[V2] renders exactly one row per flush", async () => {
     const [short, long] = await streamMetrics();
@@ -293,34 +291,31 @@ describe("ProjectSessionView streaming cost", () => {
     expect(long.mountedRows).toBe(short.mountedRows);
   });
 
-  it.fails(
-    "[V4] trims the window when the reader returns to the live end",
-    async () => {
-      const view = await mountView();
-      await seedInChunks(view, HISTORY_SIZES[0]);
-      await startTurn(view);
-      const following = view.rows().length;
+  it("[V4] trims the window when the reader returns to the live end", async () => {
+    const view = await mountView();
+    await seedInChunks(view, HISTORY_SIZES[0]);
+    await startTurn(view);
+    const following = view.rows().length;
 
-      followingBottom.value = false;
-      view.state.messages = [
-        ...view.state.messages,
-        ...seedHistory(100, { prefix: "later" }),
-      ];
-      await flushPromises();
-      const away = view.rows().length;
-      // A reader away from the live end keeps what they have revealed.
-      expect(away).toBe(following + 100);
+    followingBottom.value = false;
+    view.state.messages = [
+      ...view.state.messages,
+      ...seedHistory(100, { prefix: "later" }),
+    ];
+    await flushPromises();
+    const away = view.rows().length;
+    // A reader away from the live end keeps what they have revealed.
+    expect(away).toBe(following + 100);
 
-      followingBottom.value = true;
-      await flushPromises();
-      reportMetrics("V4 follow again without an append", {
-        rowsWhileFollowing: following,
-        rowsWhileAway: away,
-        rowsAfterFollowingAgain: view.rows().length,
-      });
-      expect(view.rows().length).toBeLessThanOrEqual(RENDER_WINDOW_MAX);
-    },
-  );
+    followingBottom.value = true;
+    await flushPromises();
+    reportMetrics("V4 follow again without an append", {
+      rowsWhileFollowing: following,
+      rowsWhileAway: away,
+      rowsAfterFollowingAgain: view.rows().length,
+    });
+    expect(view.rows().length).toBeLessThanOrEqual(RENDER_WINDOW_MAX);
+  });
 
   it.fails(
     "[V5] renders nothing while the document is hidden and catches up after",
