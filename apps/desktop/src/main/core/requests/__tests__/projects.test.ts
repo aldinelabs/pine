@@ -292,7 +292,7 @@ describe("answerProjectOperation", () => {
     });
   });
 
-  it("defers a rename with an icon of the own project", async () => {
+  it("applies the icon of an own-project rename at once and defers the rename", async () => {
     const { core, update, updateAppearance, scheduleAfterReply } = fixture();
 
     const result = await answerProjectOperation(core, requester, {
@@ -303,7 +303,10 @@ describe("answerProjectOperation", () => {
     });
 
     expect(result).toMatchObject({ applied: "after-reply" });
-    expect(updateAppearance).not.toHaveBeenCalled();
+    expect(updateAppearance).toHaveBeenCalledWith(ownId, {
+      projectIcon: "rocket",
+    });
+    expect(update).not.toHaveBeenCalled();
     await (scheduleAfterReply.mock.calls[0]?.[1] as () => Promise<void>)();
     expect(update).toHaveBeenCalledWith(
       ownId,
@@ -338,6 +341,28 @@ describe("answerProjectOperation", () => {
         projectIcon: "rocket",
         projectColorTheme: "blue",
       }),
+    );
+  });
+
+  it("keeps a later icon over one sent with a deferred rename", async () => {
+    const { core, update, scheduleAfterReply } = fixture();
+
+    await answerProjectOperation(core, requester, {
+      op: "update",
+      projectId: ownId,
+      name: "Pine 2",
+      projectIcon: "rocket",
+    });
+    await answerProjectOperation(core, requester, {
+      op: "update",
+      projectId: ownId,
+      projectIcon: "star",
+    });
+    await (scheduleAfterReply.mock.calls[0]?.[1] as () => Promise<void>)();
+
+    expect(update).toHaveBeenCalledWith(
+      ownId,
+      expect.objectContaining({ name: "Pine 2", projectIcon: "star" }),
     );
   });
 

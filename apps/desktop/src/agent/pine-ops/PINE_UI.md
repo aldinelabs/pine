@@ -304,7 +304,9 @@ From top to bottom:
      project with a session still working. Renaming or changing the folders of
      the agent's own project takes effect when its reply ends and restarts that
      project's sessions, like saving in Edit Project; an icon or accent color
-     change alone shows in the sidebar and tabs at once and restarts nothing.
+     change applies at once, even alongside a rename (the icon in the sidebar
+     and project pickers, the accent color across the window while that
+     project is active), and restarts nothing.
    - Computer Use: the first control action requests permission to control
      desktop apps and browser tabs for the current task. Let Me Review shows
      one Approval required card; Auto Approve and Autonomous Work review the

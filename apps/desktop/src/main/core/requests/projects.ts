@@ -242,15 +242,17 @@ export async function answerProjectOperation(
     (!parsed.defaultFolderPath ||
       (currentDefaultPath !== undefined &&
         samePath(parsed.defaultFolderPath, currentDefaultPath)));
+  const appearance = {
+    ...(parsed.projectIcon ? { projectIcon: parsed.projectIcon } : {}),
+    ...(parsed.projectColorTheme
+      ? { projectColorTheme: parsed.projectColorTheme }
+      : {}),
+  };
+  const changesAppearance = Boolean(
+    appearance.projectIcon || appearance.projectColorTheme,
+  );
   if (appearanceOnly) {
-    const appearance = {
-      ...(parsed.projectIcon ? { projectIcon: parsed.projectIcon } : {}),
-      ...(parsed.projectColorTheme
-        ? { projectColorTheme: parsed.projectColorTheme }
-        : {}),
-    };
-    if (!appearance.projectIcon && !appearance.projectColorTheme)
-      throw new Error("Nothing to change.");
+    if (!changesAppearance) throw new Error("Nothing to change.");
     // Runtimes never read the icon or colour, so this restarts nothing and
     // applies at once, also for the asking session's own project.
     const saved = await repository.updateAppearance(project.id, appearance);
@@ -267,30 +269,37 @@ export async function answerProjectOperation(
     parsed.defaultFolderPath || !keepsDefault
       ? defaultFolderOf(folders, parsed.defaultFolderPath)
       : project.defaultFolderId;
-  const inputWith = (appearance: PineProject) =>
+  const inputWith = (current: PineProject, withRequested: boolean) =>
     ProjectMutationSchema.parse({
       name: parsed.name ?? project.name,
       folders,
       defaultFolderId,
       projectColorTheme:
-        parsed.projectColorTheme ?? appearance.projectColorTheme,
-      projectIcon: parsed.projectIcon ?? appearance.projectIcon,
+        (withRequested ? parsed.projectColorTheme : undefined) ??
+        current.projectColorTheme,
+      projectIcon:
+        (withRequested ? parsed.projectIcon : undefined) ?? current.projectIcon,
     });
   // Validated now so a bad request fails before it is scheduled.
-  const input = inputWith(project);
-  const apply = async () => {
-    // The icon and colour can change at once while a deferred update waits,
-    // so unrequested ones come from the project as it is when this applies.
-    await applyProjectUpdate(
-      core,
-      project.id,
-      inputWith(await repository.get(project.id)),
-      runtimes.clientsOfProject(project.id),
-    );
-    core.notifyLibraryChanged("projects");
-  };
+  const input = inputWith(project, true);
   if (ownProject) {
-    core.scheduleAfterReply(requester.sessionId, apply);
+    // The icon and colour restart nothing, so they apply at once; only the
+    // name and folders wait. The deferred part takes the icon and colour
+    // from the project as it is when it applies, so a later appearance
+    // change in the same reply is kept.
+    if (changesAppearance) {
+      await repository.updateAppearance(project.id, appearance);
+      core.notifyLibraryChanged("projects");
+    }
+    core.scheduleAfterReply(requester.sessionId, async () => {
+      await applyProjectUpdate(
+        core,
+        project.id,
+        inputWith(await repository.get(project.id), false),
+        runtimes.clientsOfProject(project.id),
+      );
+      core.notifyLibraryChanged("projects");
+    });
     return {
       op: "update",
       projectId: project.id,
@@ -298,7 +307,13 @@ export async function answerProjectOperation(
       applied: "after-reply",
     };
   }
-  await apply();
+  await applyProjectUpdate(
+    core,
+    project.id,
+    input,
+    runtimes.clientsOfProject(project.id),
+  );
+  core.notifyLibraryChanged("projects");
   return {
     op: "update",
     projectId: project.id,
