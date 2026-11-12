@@ -56,8 +56,27 @@ const sessions: ProjectSessionSearchResult[] = [
   },
 ];
 
+/** Rows fold in and out unless the user asks for reduced motion. */
+function setReducedMotion(reduce: boolean) {
+  vi.stubGlobal(
+    "matchMedia",
+    vi.fn((media: string) => ({
+      matches: media.includes("prefers-reduced-motion") && reduce,
+      media,
+      onchange: null,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    })),
+  );
+}
+
 beforeEach(() => {
   localStorage.clear();
+  // Most tests read the list as it settles; one checks the fold-out.
+  setReducedMotion(true);
 });
 
 async function mountList(
@@ -507,5 +526,27 @@ describe("AllProjectsSessionList", () => {
         .attributes("data-active"),
     ).toBe("true");
     wrapper.unmount();
+  });
+
+  it("keeps a removed row in place, unreachable, while it folds out", async () => {
+    setReducedMotion(false);
+    vi.useFakeTimers();
+    try {
+      const { wrapper } = await mountList();
+      useSessionStore().allRecentSessions = [sessions[1]];
+      await flushPromises();
+      const leaving = wrapper.find(`[data-session-id="${sessions[0].id}"]`);
+      expect(leaving.exists()).toBe(true);
+      expect(leaving.element.closest("li")?.hasAttribute("inert")).toBe(true);
+
+      vi.advanceTimersByTime(500);
+      await flushPromises();
+      expect(
+        wrapper.find(`[data-session-id="${sessions[0].id}"]`).exists(),
+      ).toBe(false);
+      wrapper.unmount();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

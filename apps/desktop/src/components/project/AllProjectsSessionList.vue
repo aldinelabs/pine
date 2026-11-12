@@ -15,7 +15,14 @@ import {
 } from "@lucide/vue";
 import { useDebounceFn, useEventListener } from "@vueuse/core";
 import { storeToRefs } from "pinia";
-import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
+import {
+  computed,
+  onBeforeUnmount,
+  onMounted,
+  ref,
+  shallowRef,
+  watch,
+} from "vue";
 import { useI18n } from "vue-i18n";
 import { handleError } from "@/app/errors/errorHandler";
 import {
@@ -78,9 +85,6 @@ import { useAutomationsStore } from "@/stores/automations";
 import { useProjectStore } from "@/stores/project";
 import { useSessionHistoryStore } from "@/stores/sessionHistory";
 import { useSessionStore } from "@/stores/session";
-
-/** Session rows enter, leave and reorder at the folders' pace. */
-const ROW_DURATION = `${DURATION_MS}ms`;
 
 /**
  * Project history composed from the native collapsible sidebar menu, with
@@ -199,6 +203,90 @@ const projectGroups = computed(() => {
     };
   });
 });
+
+/*
+ * Rows fold in when they appear in a list and fold out when they leave it.
+ * Web Animations on each row, not TransitionGroup: TransitionGroup reads every
+ * row's position during each update, and each forced style pass here costs
+ * about 20ms, which made every expand or collapse in the sidebar lag ~200ms.
+ */
+type RowMotion = "enter" | "leave";
+type DisplayRow = SessionRow & { motion?: RowMotion };
+
+const prefersReducedMotion = () =>
+  window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
+/** Rows that left a list, kept at their old place while they fold out. */
+interface LeavingRow {
+  row: SessionRow;
+  index: number;
+}
+const leavingRows = shallowRef(new Map<string, LeavingRow[]>());
+const enteringIds = shallowRef(new Set<string>());
+let previousRows = new Map<string, SessionRow[]>();
+
+watch(projectGroups, (groups) => {
+  const next = new Map<string, SessionRow[]>();
+  for (const group of groups) {
+    next.set(group.project.id, group.visible);
+    for (const folder of group.folders) next.set(folder.group.id, folder.rows);
+  }
+  const animate = !prefersReducedMotion();
+  for (const [listId, rows] of animate ? next : []) {
+    const before = previousRows.get(listId);
+    if (!before) continue;
+    const now = new Set(rows.map((row) => row.session.id));
+    const then = new Set(before.map((row) => row.session.id));
+    before.forEach((row, index) => {
+      if (!now.has(row.session.id)) foldOut(listId, row, index);
+    });
+    for (const row of rows)
+      if (!then.has(row.session.id)) foldIn(row.session.id);
+  }
+  previousRows = next;
+});
+
+function foldOut(listId: string, row: SessionRow, index: number) {
+  const entry = { row, index };
+  const sessionId = row.session.id;
+  const others = (list: LeavingRow[] = []) =>
+    list.filter((item) => item.row.session.id !== sessionId);
+  const map = new Map(leavingRows.value);
+  map.set(listId, [...others(map.get(listId)), entry]);
+  leavingRows.value = map;
+  setTimeout(() => {
+    const after = new Map(leavingRows.value);
+    // A later fold-out of the same row restarted the clock; it ends that one.
+    if (!after.get(listId)?.includes(entry)) return;
+    const rest = others(after.get(listId));
+    if (rest.length) after.set(listId, rest);
+    else after.delete(listId);
+    leavingRows.value = after;
+  }, DURATION_MS);
+}
+
+function foldIn(sessionId: string) {
+  enteringIds.value = new Set(enteringIds.value).add(sessionId);
+  setTimeout(() => {
+    const after = new Set(enteringIds.value);
+    after.delete(sessionId);
+    enteringIds.value = after;
+  }, DURATION_MS);
+}
+
+/** A list's rows plus the ones still folding out of it. */
+function displayRows(listId: string, rows: SessionRow[]): DisplayRow[] {
+  const shown: DisplayRow[] = rows.map((row) =>
+    enteringIds.value.has(row.session.id) ? { ...row, motion: "enter" } : row,
+  );
+  const present = new Set(rows.map((row) => row.session.id));
+  for (const { row, index } of leavingRows.value.get(listId) ?? [])
+    if (!present.has(row.session.id))
+      shown.splice(Math.min(index, shown.length), 0, {
+        ...row,
+        motion: "leave",
+      });
+  return shown;
+}
 
 interface SessionRow {
   session: ProjectSessionSearchResult;
@@ -835,50 +923,50 @@ function drop(event: DragEvent, projectId: string, groupId: string | null) {
                             <SidebarMenuSub
                               class="mr-0 translate-x-0 border-l-0 pr-0"
                             >
-                              <TransitionGroup name="session-row">
-                                <SessionHistoryItem
-                                  v-for="{
+                              <SessionHistoryItem
+                                v-for="{
+                                  session,
+                                  depth,
+                                  subSessionCount,
+                                  motion,
+                                } in displayRows(folder.group.id, folder.rows)"
+                                :key="session.id"
+                                :groups="depth ? [] : group.groups"
+                                :depth="depth"
+                                :sub-session-count="subSessionCount"
+                                :motion="motion"
+                                :expanded="historyStore.isOpen(session.id)"
+                                @toggle="
+                                  historyStore.setOpen(
+                                    session.id,
+                                    !historyStore.isOpen(session.id),
+                                  )
+                                "
+                                :is-active="session.id === activeSessionId"
+                                :session="session"
+                                :title="sessionTitle(session)"
+                                @dragstart="startDrag($event, session)"
+                                @open="openSession(session)"
+                                @rename="
+                                  withProject(session, () => {
+                                    sessionPendingRename = session;
+                                    isRenameDialogOpen = true;
+                                  })
+                                "
+                                @export="
+                                  withProject(
                                     session,
-                                    depth,
-                                    subSessionCount,
-                                  } in folder.rows"
-                                  :key="session.id"
-                                  :groups="depth ? [] : group.groups"
-                                  :depth="depth"
-                                  :sub-session-count="subSessionCount"
-                                  :expanded="historyStore.isOpen(session.id)"
-                                  @toggle="
-                                    historyStore.setOpen(
-                                      session.id,
-                                      !historyStore.isOpen(session.id),
-                                    )
-                                  "
-                                  :is-active="session.id === activeSessionId"
-                                  :session="session"
-                                  :title="sessionTitle(session)"
-                                  @dragstart="startDrag($event, session)"
-                                  @open="openSession(session)"
-                                  @rename="
-                                    withProject(session, () => {
-                                      sessionPendingRename = session;
-                                      isRenameDialogOpen = true;
-                                    })
-                                  "
-                                  @export="
-                                    withProject(
-                                      session,
-                                      () => void exportSession(session.id),
-                                    )
-                                  "
-                                  @move="moveSession(session, $event)"
-                                  @delete="
-                                    withProject(session, () => {
-                                      sessionPendingDelete = session;
-                                      isDeleteDialogOpen = true;
-                                    })
-                                  "
-                                />
-                              </TransitionGroup>
+                                    () => void exportSession(session.id),
+                                  )
+                                "
+                                @move="moveSession(session, $event)"
+                                @delete="
+                                  withProject(session, () => {
+                                    sessionPendingDelete = session;
+                                    isDeleteDialogOpen = true;
+                                  })
+                                "
+                              />
                               <SidebarMenuSubItem v-if="!folder.rows.length">
                                 <SidebarMenuSubButton
                                   as="button"
@@ -892,50 +980,50 @@ function drop(event: DragEvent, projectId: string, groupId: string | null) {
                           </CollapsibleContent>
                         </SidebarMenuSubItem>
                       </Collapsible>
-                      <TransitionGroup name="session-row">
-                        <SessionHistoryItem
-                          v-for="{
+                      <SessionHistoryItem
+                        v-for="{
+                          session,
+                          depth,
+                          subSessionCount,
+                          motion,
+                        } in displayRows(group.project.id, group.visible)"
+                        :key="session.id"
+                        :groups="depth ? [] : group.groups"
+                        :depth="depth"
+                        :sub-session-count="subSessionCount"
+                        :motion="motion"
+                        :expanded="historyStore.isOpen(session.id)"
+                        @toggle="
+                          historyStore.setOpen(
+                            session.id,
+                            !historyStore.isOpen(session.id),
+                          )
+                        "
+                        :is-active="session.id === activeSessionId"
+                        :session="session"
+                        :title="sessionTitle(session)"
+                        @dragstart="startDrag($event, session)"
+                        @open="openSession(session)"
+                        @rename="
+                          withProject(session, () => {
+                            sessionPendingRename = session;
+                            isRenameDialogOpen = true;
+                          })
+                        "
+                        @export="
+                          withProject(
                             session,
-                            depth,
-                            subSessionCount,
-                          } in group.visible"
-                          :key="session.id"
-                          :groups="depth ? [] : group.groups"
-                          :depth="depth"
-                          :sub-session-count="subSessionCount"
-                          :expanded="historyStore.isOpen(session.id)"
-                          @toggle="
-                            historyStore.setOpen(
-                              session.id,
-                              !historyStore.isOpen(session.id),
-                            )
-                          "
-                          :is-active="session.id === activeSessionId"
-                          :session="session"
-                          :title="sessionTitle(session)"
-                          @dragstart="startDrag($event, session)"
-                          @open="openSession(session)"
-                          @rename="
-                            withProject(session, () => {
-                              sessionPendingRename = session;
-                              isRenameDialogOpen = true;
-                            })
-                          "
-                          @export="
-                            withProject(
-                              session,
-                              () => void exportSession(session.id),
-                            )
-                          "
-                          @move="moveSession(session, $event)"
-                          @delete="
-                            withProject(session, () => {
-                              sessionPendingDelete = session;
-                              isDeleteDialogOpen = true;
-                            })
-                          "
-                        />
-                      </TransitionGroup>
+                            () => void exportSession(session.id),
+                          )
+                        "
+                        @move="moveSession(session, $event)"
+                        @delete="
+                          withProject(session, () => {
+                            sessionPendingDelete = session;
+                            isDeleteDialogOpen = true;
+                          })
+                        "
+                      />
                       <SidebarMenuSubItem v-if="group.hasMore">
                         <SidebarMenuSubButton
                           as="button"
@@ -1031,48 +1119,9 @@ function drop(event: DragEvent, projectId: string, groupId: string | null) {
   }
 }
 
-/*
- * Session rows fade and fold in or out, and slide when the list reorders.
- * Folding the height (and the 4px gap above) lets the rows below follow
- * smoothly instead of jumping.
- */
-.session-row-enter-active,
-.session-row-leave-active {
-  overflow: hidden;
-  transition-duration: v-bind(ROW_DURATION);
-  transition-property: opacity, max-height, margin-block-start;
-  transition-timing-function: v-bind(EASE_OUT_EXPO);
-}
-
-.session-row-enter-from,
-.session-row-leave-to {
-  margin-block-start: -0.25rem;
-  max-height: 0;
-  opacity: 0;
-}
-
-.session-row-enter-to,
-.session-row-leave-from {
-  max-height: 1.75rem;
-}
-
-.session-row-leave-active {
-  pointer-events: none;
-}
-
-.session-row-move {
-  transition: transform v-bind(ROW_DURATION) v-bind(EASE_OUT_EXPO);
-}
-
 @media (prefers-reduced-motion: reduce) {
   .session-history-content[data-state] {
     animation-name: none;
-  }
-
-  .session-row-enter-active,
-  .session-row-leave-active,
-  .session-row-move {
-    transition: none;
   }
 }
 </style>

@@ -134,4 +134,12 @@ describe("SessionHistoryItem", () => {
     const child = mountItem(session, { depth: 1 });
     expect(child.find('[data-slot="session-tree-line"]').exists()).toBe(false);
   });
+
+  it("makes a row folding out of the list unreachable", async () => {
+    const wrapper = mountItem();
+    expect(wrapper.attributes("inert")).toBeUndefined();
+    await wrapper.setProps({ motion: "leave" });
+    expect(wrapper.attributes("inert")).toBeDefined();
+    expect(wrapper.classes()).toContain("pointer-events-none");
+  });
 });

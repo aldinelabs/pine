@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ChevronRightIcon, ShieldAlertIcon, WorkflowIcon } from "@lucide/vue";
-import { computed } from "vue";
+import { computed, onMounted, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { DURATION_MS, EASE_OUT_EXPO } from "@/lib/motion";
 import { cn } from "@/lib/utils";
@@ -25,6 +25,8 @@ const props = withDefaults(
     /** Sub-sessions shown under this row when it is expanded. */
     subSessionCount?: number;
     expanded?: boolean;
+    /** Folding in as it appears in the list, or out as it leaves it. */
+    motion?: "enter" | "leave";
   }>(),
   { depth: 0, subSessionCount: 0, expanded: false },
 );
@@ -77,6 +79,43 @@ function onKeydown(event: KeyboardEvent) {
   }
 }
 
+const row = ref<{ $el: HTMLElement }>();
+const FOLDED = { maxHeight: "0px", opacity: 0, marginTop: "-0.25rem" };
+const UNFOLDED = { maxHeight: "1.75rem", opacity: 1, marginTop: "0px" };
+let folding: Animation | undefined;
+
+/** Folds the row's height (and the 4px gap above it) so rows below follow. */
+function fold(motion: "enter" | "leave") {
+  const element = row.value?.$el;
+  if (!element?.animate) return;
+  folding?.cancel();
+  element.style.overflow = "hidden";
+  folding = element.animate(
+    motion === "enter" ? [FOLDED, UNFOLDED] : [UNFOLDED, FOLDED],
+    {
+      duration: DURATION_MS,
+      easing: EASE_OUT_EXPO,
+      fill: motion === "leave" ? "forwards" : "none",
+    },
+  );
+  if (motion === "enter")
+    folding.onfinish = () => {
+      element.style.overflow = "";
+    };
+}
+
+onMounted(() => {
+  if (props.motion === "enter") fold("enter");
+});
+watch(
+  () => props.motion,
+  (motion, previous) => {
+    if (motion === "leave") fold("leave");
+    // Back before it finished leaving, as when expanded again at once.
+    else if (previous === "leave") fold("enter");
+  },
+);
+
 const emit = defineEmits<{
   open: [];
   rename: [];
@@ -89,7 +128,12 @@ const emit = defineEmits<{
 </script>
 
 <template>
-  <SidebarMenuSubItem @dragstart="emit('dragstart', $event)">
+  <SidebarMenuSubItem
+    ref="row"
+    :class="motion === 'leave' && 'pointer-events-none'"
+    :inert="motion === 'leave' || undefined"
+    @dragstart="emit('dragstart', $event)"
+  >
     <SessionContextMenu
       :groups="groups"
       :session="session"
