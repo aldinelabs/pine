@@ -434,6 +434,24 @@ describe("observation and pushes", () => {
     expect(ctx.handles.last()).toBeUndefined();
   });
 
+  it("renumbers an approval whose action digest changed", async () => {
+    const { ctx, retracted } = setup();
+    await trackedSession(ctx);
+    ctx.sessions.observe(approval("s1"), W);
+    ctx.sessions.observe(approval("s1"), W);
+    expect(ctx.asks.list().map((a) => a.number)).toEqual([11]);
+    ctx.sessions.observe(
+      approval("s1", "req-1", { actionDigest: "digest-2" }),
+      W,
+    );
+    await flush();
+    expect(ctx.asks.get(11)).toBeUndefined();
+    expect(retracted).toContain("ask:11");
+    expect(ctx.asks.list()).toMatchObject([
+      { number: 12, actionDigest: "digest-2" },
+    ]);
+  });
+
   it("closes asks when decided and when the run ends", async () => {
     const { ctx, retracted } = setup();
     await trackedSession(ctx);

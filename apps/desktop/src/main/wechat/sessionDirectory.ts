@@ -583,6 +583,16 @@ export class SessionDirectory {
     event: Extract<PineAgentEvent, { type: "approval-request" }>,
   ): void {
     const card = approvalCardText(event);
+    // A re-sent request whose action changed must not keep the old card's
+    // number: `.y NN` would approve something the user never saw.
+    const existing = this.deps.asks.byRequest(event.requestId);
+    if (
+      existing?.kind === "approval" &&
+      existing.actionDigest !== event.actionDigest
+    ) {
+      this.deps.asks.close(existing.number, "invalidated");
+      this.deps.outbound.retract(`ask:${existing.number}`);
+    }
     const ask = this.deps.asks.open({
       kind: "approval",
       requestId: event.requestId,
