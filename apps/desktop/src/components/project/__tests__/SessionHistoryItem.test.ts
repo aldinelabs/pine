@@ -135,6 +135,20 @@ describe("SessionHistoryItem", () => {
     expect(child.find('[data-slot="session-tree-line"]').exists()).toBe(false);
   });
 
+  it("toggles sub-sessions when the open session's row is clicked again", async () => {
+    const wrapper = mountItem(session, { subSessionCount: 2 });
+    const row = wrapper.get('[data-slot="sidebar-menu-sub-button"]');
+
+    await row.trigger("click");
+    expect(wrapper.emitted("open")).toHaveLength(1);
+    expect(wrapper.emitted("toggle")).toBeUndefined();
+
+    await wrapper.setProps({ isActive: true });
+    await row.trigger("click");
+    expect(wrapper.emitted("open")).toHaveLength(1);
+    expect(wrapper.emitted("toggle")).toHaveLength(1);
+  });
+
   it("makes a row folding out of the list unreachable", async () => {
     const wrapper = mountItem();
     expect(wrapper.attributes("inert")).toBeUndefined();

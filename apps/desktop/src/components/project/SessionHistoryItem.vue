@@ -116,6 +116,15 @@ watch(
   },
 );
 
+/**
+ * A click on the row already open toggles its sub-sessions: opening it again
+ * would do nothing, so the user means the list under it.
+ */
+function onClick() {
+  if (props.isActive && props.subSessionCount > 0) emit("toggle");
+  else emit("open");
+}
+
 const emit = defineEmits<{
   open: [];
   rename: [];
@@ -152,7 +161,7 @@ const emit = defineEmits<{
         :draggable="true"
         :is-active="isActive"
         :title="title"
-        @click="emit('open')"
+        @click="onClick"
         @keydown="onKeydown"
       >
         <WorkflowIcon

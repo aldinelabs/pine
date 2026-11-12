@@ -107,8 +107,9 @@ Session list, one collapsible group per project:
   shows a shield icon at the end of its row ("Waiting for your approval"). An automation run shows a workflow
   icon and, when idle, the time it started. A session with sub-sessions shows
   a chevron at the end of its row ("Show sub-sessions ({count})" / "Hide
-  sub-sessions ({count})") that expands or collapses them (Right and Left
-  arrow keys also do this when the row has focus); sub-sessions are indented
+  sub-sessions ({count})") that expands or collapses them (clicking the row of the
+  session already open, or the Right and Left arrow keys while the row has
+  focus, also do this); sub-sessions are indented
   one level under their parent, joined to it by a tree line, and open like
   any session. Right-click for Rename conversation,
   Export conversation (Markdown), Move to folder / Remove from folder, and
