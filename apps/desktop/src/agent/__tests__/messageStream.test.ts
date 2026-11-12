@@ -113,7 +113,6 @@ describe("assistant message stream transport", () => {
       {
         type: "tool-call-delta",
         contentIndex: 0,
-        delta: '{"command":"bun run',
         input: { command: "bun run" },
       },
     ]);
@@ -126,8 +125,46 @@ describe("assistant message stream transport", () => {
       contentIndex: 0,
       delta: "x".repeat(MAX_STREAMED_TOOL_PREVIEW_CHARS + 1),
     };
+    const end = {
+      type: "tool-call-end" as const,
+      contentIndex: 0,
+      id: "call-1",
+      name: "write",
+    };
 
-    expect(compactor.addToolInputPreviews([update])).toEqual([update]);
+    // A delta with nothing to preview is not sent; the end still is.
+    expect(compactor.addToolInputPreviews([update, end])).toEqual([end]);
+  });
+
+  it("drops argument deltas whose preview contradicts the start input", () => {
+    const compactor = new AssistantMessageUpdateCompactor();
+    const partial = {
+      role: "assistant",
+      content: [
+        {
+          type: "toolCall",
+          id: "call-1",
+          name: "bash",
+          arguments: { command: "ls" },
+        },
+      ],
+    };
+    const start = compactor.compact({
+      type: "toolcall_start",
+      contentIndex: 0,
+      partial,
+    } as unknown as AssistantMessageEvent);
+    const delta = compactor.compact({
+      type: "toolcall_delta",
+      contentIndex: 0,
+      delta: '{"other":1',
+      partial,
+    } as unknown as AssistantMessageEvent);
+
+    const updates = compactor.addToolInputPreviews(
+      [start, delta].filter((update) => update !== undefined),
+    );
+    expect(updates.map((update) => update.type)).toEqual(["tool-call-start"]);
   });
 
   it("does not replay text already visible through a shared start partial", () => {

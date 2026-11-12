@@ -1,27 +1,31 @@
 // @vitest-environment node
 /*
- * BASELINE: measured on the forwarder before any perf change. Sizes are
- * `JSON.stringify(...).length` of what `emit` received.
+ * BASELINE: first measured on the forwarder before any perf change; the
+ * "after W3-B" column is with tool output coalescing, the truncated tail sent
+ * once, no toolResult message events and argument deltas sent as `input`
+ * only. Sizes are `JSON.stringify(...).length` of what `emit` received.
  *
- * | id | scenario                                    | metric                                 | measured  | target |
- * | -- | ------------------------------------------- | -------------------------------------- | --------- | ------ |
- * | E1 | 600 text deltas (5,400 chars) in 1 s        | message-update events                  | 9         | <= 9   |
- * | E1 |                                             | bytes emitted as message-update        | 12,354    | -      |
- * | E2 | 10 tool snapshots 100 ms apart, 50 KB tail  | tool-update events                     | 10        | <= 5   |
- * | E2 |                                             | tool-update events after tool-end      | 0         | 0      |
- * | E2 |                                             | bytes emitted as tool-update           | 1,041,110 | -      |
- * | E3 | tail repeated in details.truncation.content | tool-update payload bytes / tail bytes | 2.032     | <= 1.1 |
- * | E4 | one tool call with a 50 KB result           | toolResult message-start / message-end | 2         | 0      |
- * | E4 |                                             | events carrying the result             | 3         | 1      |
- * | E4 |                                             | bytes of those events                  | 156,216   | -      |
- * | E5 | 98,344 chars of streamed tool arguments     | tool-call-delta updates                | 13        | -      |
- * | E5 |                                             | of those, carrying `delta`             | 13        | 0      |
- * | E5 |                                             | of those, without `input`              | 5         | 0      |
- * | E5 |                                             | bytes of raw `delta` emitted           | 98,378    | 0      |
- * | E5 |                                             | bytes emitted as message-update        | 494,031   | -      |
+ * | id | scenario                                    | metric                                 | before    | after W3-B | target |
+ * | -- | ------------------------------------------- | -------------------------------------- | --------- | ---------- | ------ |
+ * | E1 | 600 text deltas (5,400 chars) in 1 s        | message-update events                  | 9         | 9          | <= 9   |
+ * | E1 |                                             | bytes emitted as message-update        | 12,354    | 12,354     | -      |
+ * | E2 | 10 tool snapshots 100 ms apart, 50 KB tail  | tool-update events                     | 10        | 10         | <= 5   |
+ * | E2 |                                             | tool-update events after tool-end      | 0         | 0          | 0      |
+ * | E2 |                                             | bytes emitted as tool-update           | 1,041,110 | 522,580    | -      |
+ * | E3 | tail repeated in details.truncation.content | tool-update payload bytes / tail bytes | 2.032     | 1.019      | <= 1.1 |
+ * | E4 | one tool call with a 50 KB result           | toolResult message-start / message-end | 2         | 0          | 0      |
+ * | E4 |                                             | events carrying the result             | 3         | 1          | 1      |
+ * | E4 |                                             | bytes of those events                  | 156,216   | 52,002     | -      |
+ * | E5 | 98,344 chars of streamed tool arguments     | tool-call-delta updates                | 13        | 8          | -      |
+ * | E5 |                                             | of those, carrying `delta`             | 13        | 0          | 0      |
+ * | E5 |                                             | of those, without `input`              | 5         | 0          | 0      |
+ * | E5 |                                             | bytes of raw `delta` emitted           | 98,378    | 0          | 0      |
+ * | E5 |                                             | bytes emitted as message-update        | 494,031   | 394,868    | -      |
  *
- * Holds today: E1. Not met yet (`it.fails`): E2, E3, E4, E5. When a change
- * makes one hold, turn it into `it` and update the measured column.
+ * Holds: E1, E2 ordering, E3, E4, E5. Not met (`it.fails`): the E2 count. The
+ * SDK already sends bash output at most every 100 ms and live output must keep
+ * that refresh rate (user decision), so 10 snapshots 100 ms apart stay 10
+ * updates; coalescing only saves when a tool reports faster than that.
  *
  * Print the metrics with `PINE_PERF_LOG=1`. Run from a coding agent, vitest
  * picks a reporter that hides the output of passing tests; add
@@ -239,66 +243,81 @@ describe("agent event forwarder streaming cost", () => {
     expect(updates.length).toBeLessThanOrEqual(9);
   });
 
+  /** Ten 50 KB snapshots 100 ms apart, the bash tool's own update throttle. */
+  function streamTenSnapshots() {
+    const { emitted, forward, ofType } = createForwarder();
+    const toolCallId = "call-1";
+    const tails = Array.from({ length: 10 }, (_, index) => outputTail(index));
+
+    forward(
+      toolEvent("tool_execution_start", toolCallId, {
+        args: { command: "bun run build" },
+      }),
+    );
+    tails.forEach((tail, index) => {
+      if (index > 0) vi.advanceTimersByTime(100);
+      forward(
+        toolEvent("tool_execution_update", toolCallId, {
+          args: { command: "bun run build" },
+          partialResult: bashSnapshot(tail),
+        }),
+      );
+    });
+    // The command exits right after its last snapshot, before any timer.
+    forward(
+      toolEvent("tool_execution_end", toolCallId, {
+        result: bashSnapshot(tails.at(-1) ?? ""),
+        isError: false,
+      }),
+    );
+    vi.advanceTimersByTime(1_000);
+
+    const updates = ofType("tool-update");
+    const endIndex = emitted.findIndex((event) => event.type === "tool-end");
+    const afterEnd = emitted
+      .slice(endIndex + 1)
+      .filter((event) => event.type === "tool-update");
+    const beforeEnd = emitted[endIndex - 1];
+    reportMetrics("E2", {
+      snapshotsIn: tails.length,
+      toolUpdateEvents: updates.length,
+      toolUpdatesAfterEnd: afterEnd.length,
+      toolUpdateBytes: updates.reduce(
+        (total, event) => total + bytes(event),
+        0,
+      ),
+    });
+    return { tails, updates, endIndex, afterEnd, beforeEnd };
+  }
+
+  it("[E2] sends the latest tool output before tool-end and nothing after", () => {
+    const { tails, updates, endIndex, afterEnd, beforeEnd } =
+      streamTenSnapshots();
+
+    expect(endIndex).toBeGreaterThan(0);
+    expect(afterEnd).toHaveLength(0);
+    expect(beforeEnd?.type).toBe("tool-update");
+    expect(
+      beforeEnd?.type === "tool-update"
+        ? payloadText(beforeEnd.payload)
+        : undefined,
+    ).toBe(tails.at(-1));
+    expect(updates.length).toBeGreaterThanOrEqual(1);
+  });
+
+  // Not reachable without a visible change: the SDK already sends bash output
+  // at most every 100 ms and live output must keep refreshing that often, so
+  // ten snapshots 100 ms apart stay ten updates. At most 5 would need a
+  // 200 ms+ cadence, which the user ruled out.
   it.fails(
     "[E2] coalesces ten 50 KB tool output snapshots into at most 5 updates",
     () => {
-      const { emitted, forward, ofType } = createForwarder();
-      const toolCallId = "call-1";
-      const tails = Array.from({ length: 10 }, (_, index) => outputTail(index));
-
-      forward(
-        toolEvent("tool_execution_start", toolCallId, {
-          args: { command: "bun run build" },
-        }),
-      );
-      tails.forEach((tail, index) => {
-        if (index > 0) vi.advanceTimersByTime(100);
-        forward(
-          toolEvent("tool_execution_update", toolCallId, {
-            args: { command: "bun run build" },
-            partialResult: bashSnapshot(tail),
-          }),
-        );
-      });
-      // The command exits right after its last snapshot, before any timer.
-      forward(
-        toolEvent("tool_execution_end", toolCallId, {
-          result: bashSnapshot(tails.at(-1) ?? ""),
-          isError: false,
-        }),
-      );
-      vi.advanceTimersByTime(1_000);
-
-      const updates = ofType("tool-update");
-      const endIndex = emitted.findIndex((event) => event.type === "tool-end");
-      const afterEnd = emitted
-        .slice(endIndex + 1)
-        .filter((event) => event.type === "tool-update");
-      const beforeEnd = emitted[endIndex - 1];
-      reportMetrics("E2", {
-        snapshotsIn: tails.length,
-        toolUpdateEvents: updates.length,
-        toolUpdatesAfterEnd: afterEnd.length,
-        toolUpdateBytes: updates.reduce(
-          (total, event) => total + bytes(event),
-          0,
-        ),
-      });
-
-      expect(endIndex).toBeGreaterThan(0);
-      expect(afterEnd).toHaveLength(0);
-      expect(beforeEnd?.type).toBe("tool-update");
-      expect(
-        beforeEnd?.type === "tool-update"
-          ? payloadText(beforeEnd.payload)
-          : undefined,
-      ).toBe(tails.at(-1));
-      expect(updates.length).toBeGreaterThanOrEqual(1);
+      const { updates } = streamTenSnapshots();
       expect(updates.length).toBeLessThanOrEqual(5);
     },
   );
 
-  it.fails("[E3] sends a truncated tool output tail once per update", () => {
+  it("[E3] sends a truncated tool output tail once per update", () => {
     const { forward, ofType } = createForwarder();
     const tail = outputTail(0);
 
@@ -333,84 +352,81 @@ describe("agent event forwarder streaming cost", () => {
     expect(largest).toBeLessThanOrEqual(tail.length * 1.1);
   });
 
-  it.fails(
-    "[E4] does not forward message events for a toolResult message",
-    () => {
-      const { emitted, emitContextUsage, forward, ofType } = createForwarder();
-      const toolCallId = "call-1";
-      const assistant = assistantPartial([
-        {
-          type: "toolCall",
-          id: toolCallId,
-          name: "bash",
-          arguments: { command: "cat big.log" },
-        },
-      ]);
-      const result = {
-        content: [{ type: "text", text: outputTail(0) }],
-        details: {},
-      };
-      // Shape of pi-agent-core's `createToolResultMessage`.
-      const toolResult = {
-        role: "toolResult",
-        toolCallId,
-        toolName: "bash",
-        content: result.content,
-        details: result.details,
-        isError: false,
-        durationMs: 12,
-        timestamp: 2,
-      };
+  it("[E4] does not forward message events for a toolResult message", () => {
+    const { emitted, emitContextUsage, forward, ofType } = createForwarder();
+    const toolCallId = "call-1";
+    const assistant = assistantPartial([
+      {
+        type: "toolCall",
+        id: toolCallId,
+        name: "bash",
+        arguments: { command: "cat big.log" },
+      },
+    ]);
+    const result = {
+      content: [{ type: "text", text: outputTail(0) }],
+      details: {},
+    };
+    // Shape of pi-agent-core's `createToolResultMessage`.
+    const toolResult = {
+      role: "toolResult",
+      toolCallId,
+      toolName: "bash",
+      content: result.content,
+      details: result.details,
+      isError: false,
+      durationMs: 12,
+      timestamp: 2,
+    };
 
-      forward({ type: "message_start", message: assistant });
-      forward({ type: "message_end", message: assistant });
-      forward(
-        toolEvent("tool_execution_start", toolCallId, {
-          args: { command: "cat big.log" },
-        }),
-      );
-      forward(
-        toolEvent("tool_execution_end", toolCallId, { result, isError: false }),
-      );
-      forward({ type: "message_start", message: toolResult });
-      forward({ type: "message_end", message: toolResult });
-      vi.advanceTimersByTime(1_000);
+    forward({ type: "message_start", message: assistant });
+    forward({ type: "message_end", message: assistant });
+    forward(
+      toolEvent("tool_execution_start", toolCallId, {
+        args: { command: "cat big.log" },
+      }),
+    );
+    forward(
+      toolEvent("tool_execution_end", toolCallId, { result, isError: false }),
+    );
+    forward({ type: "message_start", message: toolResult });
+    forward({ type: "message_end", message: toolResult });
+    vi.advanceTimersByTime(1_000);
 
-      const messageEvents = [
-        ...ofType("message-start"),
-        ...ofType("message-end"),
-      ];
-      const forToolResult = messageEvents.filter(
-        (event) => messageRole(event.message) === "toolResult",
-      );
-      const forAssistant = messageEvents.filter(
-        (event) => messageRole(event.message) === "assistant",
-      );
-      const resultCopies = emitted.filter((event) =>
-        JSON.stringify(event).includes("snapshot 0000"),
-      );
-      reportMetrics("E4", {
-        toolResultMessageEvents: forToolResult.length,
-        resultCopies: resultCopies.length,
-        resultBytes: resultCopies.reduce(
-          (total, event) => total + bytes(event),
-          0,
-        ),
-      });
+    const messageEvents = [
+      ...ofType("message-start"),
+      ...ofType("message-end"),
+    ];
+    const forToolResult = messageEvents.filter(
+      (event) => messageRole(event.message) === "toolResult",
+    );
+    const forAssistant = messageEvents.filter(
+      (event) => messageRole(event.message) === "assistant",
+    );
+    const resultCopies = emitted.filter((event) =>
+      JSON.stringify(event).includes("snapshot 0000"),
+    );
+    reportMetrics("E4", {
+      toolResultMessageEvents: forToolResult.length,
+      resultCopies: resultCopies.length,
+      resultBytes: resultCopies.reduce(
+        (total, event) => total + bytes(event),
+        0,
+      ),
+    });
 
-      expect(ofType("tool-end")).toHaveLength(1);
-      expect(forAssistant.map((event) => event.type)).toEqual([
-        "message-start",
-        "message-end",
-      ]);
-      // Context usage is still reported after the tool result lands.
-      expect(emitContextUsage).toHaveBeenCalledTimes(2);
-      expect(forToolResult).toHaveLength(0);
-      expect(resultCopies).toHaveLength(1);
-    },
-  );
+    expect(ofType("tool-end")).toHaveLength(1);
+    expect(forAssistant.map((event) => event.type)).toEqual([
+      "message-start",
+      "message-end",
+    ]);
+    // Context usage is still reported after the tool result lands.
+    expect(emitContextUsage).toHaveBeenCalledTimes(2);
+    expect(forToolResult).toHaveLength(0);
+    expect(resultCopies).toHaveLength(1);
+  });
 
-  it.fails("[E5] emits tool argument deltas as parsed input only", () => {
+  it("[E5] emits tool argument deltas as parsed input only", () => {
     const { forward, ofType } = createForwarder();
     const toolCall = {
       type: "toolCall",

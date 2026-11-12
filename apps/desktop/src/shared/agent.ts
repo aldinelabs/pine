@@ -237,7 +237,11 @@ export type PineAssistantMessageUpdate =
   | {
       type: "tool-call-delta";
       contentIndex: number;
-      delta: string;
+      /**
+       * Raw argument JSON, used only while the agent coalesces a batch; it is
+       * stripped before the update leaves the agent process.
+       */
+      delta?: string;
       /** Parsed live preview while the bounded argument buffer is enabled. */
       input?: PineJsonValue;
     }
