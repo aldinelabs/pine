@@ -15,7 +15,7 @@ import {
  * box while the agent works. It fades in when `active` turns on and fades
  * out, then unmounts, when it turns off, so an idle composer costs nothing.
  * The lights move by Web Animations on transform, which the compositor runs;
- * their keyframes are rebuilt only when the text box changes size.
+ * their keyframes are rebuilt only once the text box settles at a new size.
  */
 const props = defineProps<{
   active: boolean;
@@ -65,18 +65,17 @@ watch(
   { immediate: true },
 );
 
-function measure(element: HTMLElement) {
-  const style = getComputedStyle(element);
-  return composerGlowOutline({
-    clientWidth: element.clientWidth,
-    clientHeight: element.clientHeight,
-    spread: Number.parseFloat(style.borderTopWidth) || 0,
-    outerRadius: Number.parseFloat(style.borderTopLeftRadius) || 0,
-  });
-}
+/** How long the text box must keep its size before the lights re-path. */
+const RESIZE_SETTLE_MS = 120;
+/** Size changes smaller than this leave the current path in place. */
+const RESIZE_THRESHOLD_PX = 1;
 
-// One lap per light, laid out for the current size. A resize keeps each
-// animation's time and swaps only its keyframes, coalesced to one frame.
+// One lap per light, laid out for the current size. The ring's spread and
+// radius are fixed CSS values, read once. The first measurement lays out on
+// the next frame; later resizes (the composer's rows ease their height over
+// several hundred milliseconds) wait until the size settles, so a transition
+// never rebuilds keyframes on every frame. A rebuild keeps each animation's
+// time and swaps only its keyframes.
 watch(
   [ring, orbitA, orbitB],
   ([ringElement, ...lights], _previous, onCleanup) => {
@@ -86,12 +85,32 @@ watch(
       typeof ringElement.animate !== "function"
     )
       return;
+    const style = getComputedStyle(ringElement);
+    const spread = Number.parseFloat(style.borderTopWidth) || 0;
+    const outerRadius = Number.parseFloat(style.borderTopLeftRadius) || 0;
     const animations: (Animation | undefined)[] = [];
+    let laidOut: { width: number; height: number } | undefined;
     let frame = 0;
+    let settle: ReturnType<typeof setTimeout> | undefined;
     const layout = () => {
       frame = 0;
-      const outline = measure(ringElement);
+      settle = undefined;
+      const width = ringElement.clientWidth;
+      const height = ringElement.clientHeight;
+      if (
+        laidOut &&
+        Math.abs(width - laidOut.width) < RESIZE_THRESHOLD_PX &&
+        Math.abs(height - laidOut.height) < RESIZE_THRESHOLD_PX
+      )
+        return;
+      const outline = composerGlowOutline({
+        clientWidth: width,
+        clientHeight: height,
+        spread,
+        outerRadius,
+      });
       if (!outline) return;
+      laidOut = { width, height };
       lights.forEach((light, index) => {
         const orbit = orbits[index];
         if (!light || !orbit) return;
@@ -111,12 +130,18 @@ watch(
       });
     };
     const observer = new ResizeObserver(() => {
-      if (!frame) frame = requestAnimationFrame(layout);
+      if (!laidOut) {
+        if (!frame) frame = requestAnimationFrame(layout);
+        return;
+      }
+      if (settle !== undefined) clearTimeout(settle);
+      settle = setTimeout(layout, RESIZE_SETTLE_MS);
     });
     observer.observe(ringElement);
     onCleanup(() => {
       observer.disconnect();
       if (frame) cancelAnimationFrame(frame);
+      if (settle !== undefined) clearTimeout(settle);
       for (const animation of animations) animation?.cancel();
     });
   },

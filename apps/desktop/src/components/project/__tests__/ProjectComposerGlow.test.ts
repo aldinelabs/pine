@@ -210,10 +210,61 @@ describe("ProjectComposerGlow", () => {
       width = 400;
       resize?.();
       flushFrames();
+      vi.runOnlyPendingTimers();
       expect(animations).toHaveLength(2);
       expect(a.setKeyframes).toHaveBeenCalledTimes(1);
       expect(a.setKeyframes.mock.calls[0][0]).not.toEqual(a.keyframes);
       wrapper.unmount();
+    });
+
+    it("re-paths the lights once a resize settles, not on every frame", async () => {
+      const wrapper = mountGlow(true);
+      await nextTick();
+      resize?.();
+      flushFrames();
+      const [a, b] = animations;
+      // An eased height transition reports a new size every frame.
+      for (const next of [700, 680, 660, 640]) {
+        width = next;
+        resize?.();
+        flushFrames();
+        vi.advanceTimersByTime(16);
+      }
+      expect(a.setKeyframes).not.toHaveBeenCalled();
+      expect(frames).toHaveLength(0);
+      vi.runOnlyPendingTimers();
+      expect(a.setKeyframes).toHaveBeenCalledTimes(1);
+      expect(b.setKeyframes).toHaveBeenCalledTimes(1);
+      wrapper.unmount();
+    });
+
+    it("keeps the path when the size barely changes", async () => {
+      const wrapper = mountGlow(true);
+      await nextTick();
+      resize?.();
+      flushFrames();
+      const [a] = animations;
+      resize?.();
+      vi.runOnlyPendingTimers();
+      width = 736.4;
+      resize?.();
+      vi.runOnlyPendingTimers();
+      expect(a.setKeyframes).not.toHaveBeenCalled();
+      wrapper.unmount();
+    });
+
+    it("drops a pending re-path when the glow goes away", async () => {
+      const wrapper = mountGlow(true);
+      await nextTick();
+      resize?.();
+      flushFrames();
+      width = 500;
+      resize?.();
+      const [a] = animations;
+      wrapper.unmount();
+      vi.runOnlyPendingTimers();
+      expect(a.setKeyframes).not.toHaveBeenCalled();
+      expect(a.cancel).toHaveBeenCalled();
     });
 
     it("stops the lights once the fade-out ends", async () => {
