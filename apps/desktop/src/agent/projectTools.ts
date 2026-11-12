@@ -9,6 +9,12 @@ import {
   UI_PROJECT_LIST_TOOL_NAME,
   UI_PROJECT_UPDATE_TOOL_NAME,
 } from "../shared/agent";
+import {
+  PROJECT_COLOR_THEME_SETTINGS,
+  PROJECT_ICONS,
+  type ProjectColorThemeSetting,
+  type ProjectIcon,
+} from "../shared/projects";
 import type {
   AgentHostProject,
   AgentProjectFolder,
@@ -48,6 +54,64 @@ async function findProject(
       `No project has id ${projectId}. Call ${UI_PROJECT_LIST_TOOL_NAME} for the current list.`,
     );
   return project;
+}
+
+/**
+ * A plain string enum, like pi-ai's `StringEnum`: some providers reject the
+ * `anyOf` of literals that `Type.Union` produces.
+ */
+function stringEnum<const T extends readonly string[]>(
+  values: T,
+  options: { description?: string } = {},
+) {
+  return Type.Unsafe<T[number]>({
+    type: "string",
+    enum: [...values],
+    ...options,
+  });
+}
+
+/** The Edit Project dialog's en-US labels for each accent colour. */
+const ACCENT_COLOR_LABELS: Record<ProjectColorThemeSetting, string> = {
+  default: "Pine Default",
+  neutral: "Neutral",
+  olive: "Olive",
+  red: "Red",
+  rose: "Rose",
+  orange: "Orange",
+  green: "Green",
+  blue: "Blue",
+  yellow: "Yellow",
+  violet: "Violet",
+};
+
+const iconSchema = stringEnum(PROJECT_ICONS, {
+  description:
+    "Lucide icon shown for the project in the sidebar and pickers. Pine's default is inbox.",
+});
+const accentColorSchema = stringEnum(PROJECT_COLOR_THEME_SETTINGS, {
+  description:
+    "The project's accent color. default follows Pine's default color theme from Settings > Appearance (shown as Pine Default); the other values give the project its own palette.",
+});
+
+function checkedIcon(value: string | undefined): ProjectIcon | undefined {
+  if (value === undefined) return undefined;
+  if (!(PROJECT_ICONS as readonly string[]).includes(value))
+    throw new Error(
+      `Unknown icon "${value}". Use one of: ${PROJECT_ICONS.join(", ")}.`,
+    );
+  return value as ProjectIcon;
+}
+
+function checkedAccentColor(
+  value: string | undefined,
+): ProjectColorThemeSetting | undefined {
+  if (value === undefined) return undefined;
+  if (!(PROJECT_COLOR_THEME_SETTINGS as readonly string[]).includes(value))
+    throw new Error(
+      `Unknown accent color "${value}". Use one of: ${PROJECT_COLOR_THEME_SETTINGS.join(", ")}.`,
+    );
+  return value as ProjectColorThemeSetting;
 }
 
 const folderSchema = Type.Object({
@@ -97,15 +161,18 @@ export function createProjectToolDefinitions(
       description:
         "The first folder that is not read-only becomes the project's working directory.",
     }),
+    icon: Type.Optional(iconSchema),
+    accentColor: Type.Optional(accentColorSchema),
   });
   const createTool = defineTool({
     name: UI_PROJECT_CREATE_TOOL_NAME,
     label: "Create Project",
     description:
-      "Create a Pine project from folders on disk. Pine asks the user to confirm.",
-    promptSnippet: `Use ${UI_PROJECT_CREATE_TOOL_NAME}, ${UI_PROJECT_UPDATE_TOOL_NAME} or ${UI_PROJECT_DELETE_TOOL_NAME} when the user asks to create, change or delete a Pine project`,
+      "Create a Pine project from folders on disk, optionally with an icon and accent color. Pine asks the user to confirm.",
+    promptSnippet: `Use ${UI_PROJECT_CREATE_TOOL_NAME}, ${UI_PROJECT_UPDATE_TOOL_NAME} or ${UI_PROJECT_DELETE_TOOL_NAME} when the user asks to create, change or delete a Pine project, including its icon and accent color`,
     promptGuidelines: [
       "Pine asks the user to confirm every project change; call the tool directly instead of asking in plain text first.",
+      `You can set a project's icon and accent color yourself with these tools; do not send the user to Edit Project for that. When the user asks you to choose, pick an icon that fits the project's purpose and an accent color that differs from the other projects (see ${UI_PROJECT_LIST_TOOL_NAME}). Otherwise leave them out when creating a project.`,
     ],
     parameters: createParams,
     prepareArguments: (args) => args as Static<typeof createParams>,
@@ -114,12 +181,22 @@ export function createProjectToolDefinitions(
       const name = params.name.trim();
       if (!name) throw new Error("The project needs a name.");
       const folders = agentFolders(params.folders);
+      const icon = checkedIcon(params.icon);
+      const accentColor = checkedAccentColor(params.accentColor);
       const decision = await context.requestApproval({
         toolCallId,
         toolName: UI_PROJECT_CREATE_TOOL_NAME,
         subject: `Create project “${name}”`,
         description: "Create a project",
-        evidence: `Folders:\n${folders.map(folderLine).join("\n")}`,
+        evidence: [
+          `Folders:\n${folders.map(folderLine).join("\n")}`,
+          icon ? `Icon: ${icon}` : "",
+          accentColor
+            ? `Accent color: ${ACCENT_COLOR_LABELS[accentColor]}`
+            : "",
+        ]
+          .filter(Boolean)
+          .join("\n"),
         signal,
       });
       if (decision.kind !== "allow")
@@ -129,6 +206,8 @@ export function createProjectToolDefinitions(
         op: "create",
         name,
         folders,
+        ...(icon ? { projectIcon: icon } : {}),
+        ...(accentColor ? { projectColorTheme: accentColor } : {}),
       });
       return {
         content: [
@@ -155,12 +234,14 @@ export function createProjectToolDefinitions(
           "Path of the folder to use as the working directory; it must not be read-only.",
       }),
     ),
+    icon: Type.Optional(iconSchema),
+    accentColor: Type.Optional(accentColorSchema),
   });
   const updateTool = defineTool({
     name: UI_PROJECT_UPDATE_TOOL_NAME,
     label: "Edit Project",
     description:
-      "Rename a Pine project or change its folders. Pine asks the user to confirm. Saving restarts the project's sessions, so for this session's own project the change applies after this reply ends.",
+      "Rename a Pine project, change its folders, or change its icon or accent color. Pine asks the user to confirm. Changing folders or the name restarts the project's sessions, so for this session's own project those changes apply after this reply ends; an icon or accent color change alone applies at once without restarting anything.",
     parameters: updateParams,
     prepareArguments: (args) => args as Static<typeof updateParams>,
     executionMode: "sequential",
@@ -172,11 +253,25 @@ export function createProjectToolDefinitions(
         .map((folder) => folder.trim())
         .filter(Boolean);
       const defaultFolderPath = params.defaultFolder?.trim() || undefined;
+      const requestedIcon = checkedIcon(params.icon);
+      const requestedAccent = checkedAccentColor(params.accentColor);
+      const icon =
+        requestedIcon && requestedIcon !== project.icon
+          ? requestedIcon
+          : undefined;
+      const accentColor =
+        requestedAccent && requestedAccent !== project.accentColor
+          ? requestedAccent
+          : undefined;
       const changes = [
         name && name !== project.name ? `Name: ${project.name} → ${name}` : "",
         ...addFolders.map((folder) => `Add ${folderLine(folder)}`),
         ...removeFolderPaths.map((folder) => `Remove ${folder}`),
         defaultFolderPath ? `Working directory: ${defaultFolderPath}` : "",
+        icon ? `Icon: ${project.icon} → ${icon}` : "",
+        accentColor
+          ? `Accent color: ${ACCENT_COLOR_LABELS[project.accentColor]} → ${ACCENT_COLOR_LABELS[accentColor]}`
+          : "",
       ].filter(Boolean);
       if (!changes.length) throw new Error("Nothing to change.");
       const decision = await context.requestApproval({
@@ -197,6 +292,8 @@ export function createProjectToolDefinitions(
         ...(addFolders.length ? { addFolders } : {}),
         ...(removeFolderPaths.length ? { removeFolderPaths } : {}),
         ...(defaultFolderPath ? { defaultFolderPath } : {}),
+        ...(icon ? { projectIcon: icon } : {}),
+        ...(accentColor ? { projectColorTheme: accentColor } : {}),
       });
       return {
         content: [

@@ -613,9 +613,19 @@ export interface AgentProjectFolder {
   access: ProjectFolderAccess;
 }
 
-/** What the project tools ask of the main process, after the user approved. */
+/**
+ * What the project tools ask of the main process, after the user approved.
+ * Icon and colour use the Edit Project dialog's values; leaving them out
+ * keeps the current ones (or Pine's defaults on create).
+ */
 export type ProjectHostOperation =
-  | { op: "create"; name: string; folders: AgentProjectFolder[] }
+  | {
+      op: "create";
+      name: string;
+      folders: AgentProjectFolder[];
+      projectIcon?: ProjectIcon;
+      projectColorTheme?: ProjectColorThemeSetting;
+    }
   | {
       op: "update";
       projectId: string;
@@ -623,6 +633,8 @@ export type ProjectHostOperation =
       addFolders?: AgentProjectFolder[];
       removeFolderPaths?: string[];
       defaultFolderPath?: string;
+      projectIcon?: ProjectIcon;
+      projectColorTheme?: ProjectColorThemeSetting;
     }
   | { op: "delete"; projectId: string };
 

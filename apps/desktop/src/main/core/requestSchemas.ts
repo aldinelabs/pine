@@ -67,13 +67,17 @@ export const PiSkillNameSchema = z
     (name) =>
       !name.startsWith("-") && !name.endsWith("-") && !name.includes("--"),
   );
+export const ProjectIconSchema = z.enum(PROJECT_ICONS);
+export const ProjectColorThemeSettingSchema = z.enum(
+  PROJECT_COLOR_THEME_SETTINGS,
+);
 export const ProjectMutationSchema = z
   .object({
     defaultFolderId: z.uuid(),
     folders: z.array(ProjectFolderInputSchema).min(1),
     name: z.string().trim().min(1).max(100),
-    projectColorTheme: z.enum(PROJECT_COLOR_THEME_SETTINGS).default("default"),
-    projectIcon: z.enum(PROJECT_ICONS).optional(),
+    projectColorTheme: ProjectColorThemeSettingSchema.default("default"),
+    projectIcon: ProjectIconSchema.optional(),
   })
   .superRefine((project, context) => {
     const defaultFolder = project.folders.find(

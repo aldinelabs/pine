@@ -317,4 +317,78 @@ describe("ProjectRepository", () => {
       projectColorTheme: "rose",
     });
   });
+
+  it("changes only the icon and color with updateAppearance", async () => {
+    const userData = await createTemporaryDirectory("pine-user-data-");
+    const folderPath = await createTemporaryDirectory("pine-project-folder-");
+    const projectsRoot = path.join(userData, "projects");
+    const repository = new ProjectRepository(projectsRoot);
+    const folderId = "cde9a86c-7632-43ac-96d6-c41ddeddce0e";
+    const project = await repository.create({
+      defaultFolderId: folderId,
+      folders: [
+        {
+          access: "read-write",
+          id: folderId,
+          name: "source",
+          path: folderPath,
+        },
+      ],
+      name: "Pine",
+      projectIcon: "code",
+    });
+    const sessionGroups = [
+      {
+        id: "4a1e4bf2-571b-4b48-9f7f-f7cf3dd6c01f",
+        name: "Planning",
+        sessionIds: ["019cfe51-7166-79b9-a5b9-c652fcca9eab"],
+      },
+    ];
+    await repository.updateSessionGroups(project.id, sessionGroups);
+    const metadataPath = path.join(projectsRoot, project.id, "project.json");
+    const readMetadata = async () =>
+      JSON.parse(await readFile(metadataPath, "utf8")) as Record<
+        string,
+        unknown
+      >;
+
+    await expect(
+      repository.updateAppearance(project.id, {
+        projectIcon: "rocket",
+        projectColorTheme: "neutral",
+      }),
+    ).resolves.toMatchObject({
+      name: "Pine",
+      defaultFolderId: folderId,
+      folders: [expect.objectContaining({ id: folderId, name: "source" })],
+      sessionGroups,
+      projectIcon: "rocket",
+      projectColorTheme: "neutral",
+    });
+    await expect(readMetadata()).resolves.toMatchObject({
+      colorTheme: "neutral",
+      projectColorTheme: "olive",
+    });
+
+    // Color only keeps the icon; icon only keeps the color.
+    await expect(
+      repository.updateAppearance(project.id, { projectColorTheme: "red" }),
+    ).resolves.toMatchObject({
+      projectIcon: "rocket",
+      projectColorTheme: "red",
+    });
+    await expect(readMetadata()).resolves.toMatchObject({
+      colorTheme: "red",
+      projectColorTheme: "red",
+    });
+    await expect(
+      repository.updateAppearance(project.id, { projectIcon: "leaf" }),
+    ).resolves.toMatchObject({ projectIcon: "leaf", projectColorTheme: "red" });
+
+    await expect(
+      repository.updateAppearance(TEMPORARY_WORKSPACE_PROJECT_ID, {
+        projectIcon: "rocket",
+      }),
+    ).rejects.toThrow("cannot be changed or deleted");
+  });
 });

@@ -10,6 +10,10 @@ import type {
   ProjectHostOperation,
   ProjectHostResult,
 } from "../protocol";
+import {
+  PROJECT_COLOR_THEME_SETTINGS,
+  PROJECT_ICONS,
+} from "../../shared/projects";
 import { createProjectToolDefinitions } from "../projectTools";
 
 const projects = [
@@ -21,12 +25,16 @@ const projects = [
     folders: [
       { access: "read-write" as const, name: "pine", path: "/code/pine" },
     ],
+    icon: "code" as const,
+    accentColor: "default" as const,
   },
   {
     id: "p-other",
     name: "Notes",
     defaultFolderPath: "/notes",
     folders: [{ access: "read-write" as const, name: "notes", path: "/notes" }],
+    icon: "notebook-pen" as const,
+    accentColor: "blue" as const,
   },
 ];
 
@@ -158,6 +166,107 @@ describe("project tools", () => {
     await expect(run(remove, { projectId: "p-current" })).rejects.toThrow(
       "cannot delete the project it runs in",
     );
+    expect(requestApproval).not.toHaveBeenCalled();
+  });
+
+  it("offers the Edit Project dialog's icons and accent colors as plain enums", () => {
+    const { create, update } = setup();
+
+    for (const tool of [create, update]) {
+      const properties = (
+        tool.parameters as unknown as {
+          properties: Record<string, { type?: string; enum?: string[] }>;
+        }
+      ).properties;
+      expect(properties.icon).toMatchObject({
+        type: "string",
+        enum: [...PROJECT_ICONS],
+      });
+      expect(properties.accentColor).toMatchObject({
+        type: "string",
+        enum: [...PROJECT_COLOR_THEME_SETTINGS],
+      });
+    }
+  });
+
+  it("creates a project with an icon and accent color", async () => {
+    const { create, requestHost, requestApproval } = setup();
+
+    await run(create, {
+      name: "Site",
+      folders: [{ path: "/code/site" }],
+      icon: "rocket",
+      accentColor: "violet",
+    });
+
+    expect(requestApproval).toHaveBeenCalledWith(
+      expect.objectContaining({
+        evidence: "Folders:\n/code/site\nIcon: rocket\nAccent color: Violet",
+      }),
+    );
+    expect(requestHost).toHaveBeenLastCalledWith({
+      kind: "project",
+      operation: {
+        op: "create",
+        name: "Site",
+        folders: [{ path: "/code/site", access: "read-write" }],
+        projectIcon: "rocket",
+        projectColorTheme: "violet",
+      },
+    });
+  });
+
+  it("lists an appearance change and sends only the appearance", async () => {
+    const { update, requestHost, requestApproval } = setup();
+
+    await run(update, {
+      projectId: "p-current",
+      icon: "rocket",
+      accentColor: "blue",
+    });
+
+    expect(requestApproval).toHaveBeenCalledWith(
+      expect.objectContaining({
+        evidence: "Icon: code → rocket\nAccent color: Pine Default → Blue",
+      }),
+    );
+    expect(requestHost).toHaveBeenLastCalledWith({
+      kind: "project",
+      operation: {
+        op: "update",
+        projectId: "p-current",
+        projectIcon: "rocket",
+        projectColorTheme: "blue",
+      },
+    });
+  });
+
+  it("refuses an appearance edit that matches the current one", async () => {
+    const { update, requestApproval } = setup();
+
+    await expect(
+      run(update, {
+        projectId: "p-other",
+        icon: "notebook-pen",
+        accentColor: "blue",
+      }),
+    ).rejects.toThrow("Nothing to change.");
+    expect(requestApproval).not.toHaveBeenCalled();
+  });
+
+  it("rejects unknown icons and accent colors before asking", async () => {
+    const { create, update, requestApproval } = setup();
+
+    await expect(
+      run(create, {
+        name: "Site",
+        folders: [{ path: "/code/site" }],
+        icon: "dragon",
+      }),
+    ).rejects.toThrow('Unknown icon "dragon". Use one of: inbox,');
+    await expect(
+      run(update, { projectId: "p-other", accentColor: "pink" }),
+    ).rejects.toThrow('Unknown accent color "pink". Use one of: default,');
     expect(requestApproval).not.toHaveBeenCalled();
   });
 

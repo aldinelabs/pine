@@ -75,7 +75,7 @@ import {
 import { registerCoreRequests } from "./requests";
 import { answerAutomationOperation } from "./requests/automations";
 import { answerMcpOperation } from "./requests/mcp";
-import { answerProjectOperation } from "./requests/projects";
+import { agentHostProject, answerProjectOperation } from "./requests/projects";
 import { notifyParentOf, unlinkSession } from "./subSessions";
 import { answerSessionOperation } from "./requests/sessions";
 
@@ -906,20 +906,9 @@ export class PineCore {
             ok: true,
             response: {
               kind: "list-projects",
-              projects: projects.map((project) => ({
-                id: project.id,
-                name: project.name,
-                ...(project.id === currentId ? { current: true } : {}),
-                defaultFolderPath:
-                  project.folders.find(
-                    (folder) => folder.id === project.defaultFolderId,
-                  )?.path ?? "",
-                folders: project.folders.map(({ access, name, path }) => ({
-                  access,
-                  name,
-                  path,
-                })),
-              })),
+              projects: projects.map((project) =>
+                agentHostProject(project, currentId),
+              ),
             },
           };
         }

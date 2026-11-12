@@ -30,9 +30,12 @@ import {
   clearProjectStorage,
   measureProjectStorage,
 } from "../../projects/projectStorage";
+import type { AgentHostProject } from "../../../agent/protocol";
 import type { PineCore } from "../pineCore";
 import {
   ClearProjectStorageRequestSchema,
+  ProjectColorThemeSettingSchema,
+  ProjectIconSchema,
   ProjectIdRequestSchema,
   ProjectMutationSchema,
   UpdateProjectRequestSchema,
@@ -73,6 +76,8 @@ const ProjectHostOperationSchema = z.discriminatedUnion("op", [
     op: z.literal("create"),
     name: z.string().trim().min(1).max(100),
     folders: z.array(AgentProjectFolderSchema).min(1).max(50),
+    projectIcon: ProjectIconSchema.optional(),
+    projectColorTheme: ProjectColorThemeSettingSchema.optional(),
   }),
   z.object({
     op: z.literal("update"),
@@ -81,9 +86,33 @@ const ProjectHostOperationSchema = z.discriminatedUnion("op", [
     addFolders: z.array(AgentProjectFolderSchema).max(50).optional(),
     removeFolderPaths: z.array(z.string().trim().min(1)).max(50).optional(),
     defaultFolderPath: z.string().trim().min(1).optional(),
+    projectIcon: ProjectIconSchema.optional(),
+    projectColorTheme: ProjectColorThemeSettingSchema.optional(),
   }),
   z.object({ op: z.literal("delete"), projectId: z.uuid() }),
 ]);
+
+/** A user project as the agent's project tools see it. */
+export function agentHostProject(
+  project: PineProject,
+  currentId?: string,
+): AgentHostProject {
+  return {
+    id: project.id,
+    name: project.name,
+    ...(project.id === currentId ? { current: true } : {}),
+    defaultFolderPath:
+      project.folders.find((folder) => folder.id === project.defaultFolderId)
+        ?.path ?? "",
+    folders: project.folders.map(({ access, name, path: folderPath }) => ({
+      access,
+      name,
+      path: folderPath,
+    })),
+    icon: project.projectIcon ?? "inbox",
+    accentColor: project.projectColorTheme ?? "default",
+  };
+}
 
 /** Paths compare as the folder they name, ignoring a trailing separator. */
 function samePath(left: string, right: string): boolean {
@@ -121,6 +150,18 @@ function defaultFolderOf(
   return folder.id;
 }
 
+/** Saving restarts the project's sessions, as Edit Project does. */
+function refuseWhileOthersWork(
+  core: PineCore,
+  project: PineProject,
+  sessionId: string,
+): void {
+  if (core.projectHasRunningWork(project.id, sessionId))
+    throw new Error(
+      `Another session of ${project.name} is still working; try again once it finishes.`,
+    );
+}
+
 /**
  * Answers the project tools of `requester`, a live session in the window
  * `ownerId`. The agent asked the user before each operation; main still
@@ -140,6 +181,10 @@ export async function answerProjectOperation(
         name: parsed.name,
         folders,
         defaultFolderId: defaultFolderOf(folders),
+        ...(parsed.projectIcon ? { projectIcon: parsed.projectIcon } : {}),
+        ...(parsed.projectColorTheme
+          ? { projectColorTheme: parsed.projectColorTheme }
+          : {}),
       }),
     );
     core.notifyLibraryChanged("projects");
@@ -151,13 +196,9 @@ export async function answerProjectOperation(
   const project = await repository.get(parsed.projectId);
   const ownProject =
     runtimes.projectOfLiveSession(requester.sessionId)?.id === project.id;
-  // Saving restarts the project's sessions, as Edit Project does.
-  if (core.projectHasRunningWork(project.id, requester.sessionId))
-    throw new Error(
-      `Another session of ${project.name} is still working; try again once it finishes.`,
-    );
 
   if (parsed.op === "delete") {
+    refuseWhileOthersWork(core, project, requester.sessionId);
     if (ownProject)
       throw new Error("A session cannot delete the project it runs in.");
     await runtimes.closeEverywhere(project.id);
@@ -191,6 +232,37 @@ export async function answerProjectOperation(
   const keepsDefault = kept.some(
     (folder) => folder.id === project.defaultFolderId,
   );
+  const currentDefaultPath = project.folders.find(
+    (folder) => folder.id === project.defaultFolderId,
+  )?.path;
+  const appearanceOnly =
+    (!parsed.name || parsed.name === project.name) &&
+    removed.length === 0 &&
+    added.length === 0 &&
+    (!parsed.defaultFolderPath ||
+      (currentDefaultPath !== undefined &&
+        samePath(parsed.defaultFolderPath, currentDefaultPath)));
+  if (appearanceOnly) {
+    const appearance = {
+      ...(parsed.projectIcon ? { projectIcon: parsed.projectIcon } : {}),
+      ...(parsed.projectColorTheme
+        ? { projectColorTheme: parsed.projectColorTheme }
+        : {}),
+    };
+    if (!appearance.projectIcon && !appearance.projectColorTheme)
+      throw new Error("Nothing to change.");
+    // Runtimes never read the icon or colour, so this restarts nothing and
+    // applies at once, also for the asking session's own project.
+    const saved = await repository.updateAppearance(project.id, appearance);
+    core.notifyLibraryChanged("projects");
+    return {
+      op: "update",
+      projectId: saved.id,
+      projectName: saved.name,
+      applied: "now",
+    };
+  }
+  refuseWhileOthersWork(core, project, requester.sessionId);
   const input = ProjectMutationSchema.parse({
     name: parsed.name ?? project.name,
     folders,
@@ -198,8 +270,8 @@ export async function answerProjectOperation(
       parsed.defaultFolderPath || !keepsDefault
         ? defaultFolderOf(folders, parsed.defaultFolderPath)
         : project.defaultFolderId,
-    projectColorTheme: project.projectColorTheme,
-    projectIcon: project.projectIcon,
+    projectColorTheme: parsed.projectColorTheme ?? project.projectColorTheme,
+    projectIcon: parsed.projectIcon ?? project.projectIcon,
   });
   const apply = async () => {
     await applyProjectUpdate(

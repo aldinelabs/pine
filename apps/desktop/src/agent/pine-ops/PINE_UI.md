@@ -296,12 +296,15 @@ From top to bottom:
      in a tab stops and its tab closes once it is deleted.
    - Projects the agent manages: when asked, the agent can create a project
      from folders, rename one, add or remove its folders, change its working
-     folder, or delete it. Each change shows an Approval required card in
-     every mode, YOLO included. Deleting a project deletes its sessions but
-     keeps its folders on disk; the agent cannot delete the project it runs
-     in, No Project, or a project with a session still working. Editing the
-     agent's own project takes effect when its reply ends and restarts that
-     project's sessions, like saving in Edit Project.
+     folder, set its icon and accent color (the same choices as Edit Project,
+     including "Pine Default"), or delete it. Each change shows an Approval
+     required card in every mode, YOLO included; its Details list what will
+     change. Deleting a project deletes its sessions but keeps its folders on
+     disk; the agent cannot delete the project it runs in, No Project, or a
+     project with a session still working. Renaming or changing the folders of
+     the agent's own project takes effect when its reply ends and restarts that
+     project's sessions, like saving in Edit Project; an icon or accent color
+     change alone shows in the sidebar and tabs at once and restarts nothing.
    - Computer Use: the first control action requests permission to control
      desktop apps and browser tabs for the current task. Let Me Review shows
      one Approval required card; Auto Approve and Autonomous Work review the
