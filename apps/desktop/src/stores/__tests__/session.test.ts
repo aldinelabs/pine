@@ -1944,9 +1944,8 @@ describe("session structure signals", () => {
     await store.resume(PROJECT_ID, session.id);
     const afterHistory = state.structureVersion;
     expect(afterHistory).toBeGreaterThan(initial);
-    expect(store.structureVersion).toBe(afterHistory);
-    expect(store.userMessages.map((message) => message.id)).toEqual(["u2"]);
-    expect(store.indexOfMessage("a2")).toBe(1);
+    expect(state.userMessages.map((message) => message.id)).toEqual(["u2"]);
+    expect(state.indexOfMessage("a2")).toBe(1);
 
     await store.loadEarlierMessages();
     expect(state.structureVersion).toBeGreaterThan(afterHistory);

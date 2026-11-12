@@ -484,7 +484,7 @@ function createSessionState() {
    * whole array, because every write goes through `setMessages` or
    * `putMessage`.
    */
-  function messageIndexFor(messageId: string): number {
+  function indexOfMessage(messageId: string): number {
     const cached = messageIndexes.get(messageId);
     if (cached === undefined) return -1;
     if (messageList.value[cached]?.id === messageId) return cached;
@@ -695,8 +695,7 @@ function createSessionState() {
     hiddenCompletedTodoIds,
     setTodos,
     hideCompletedTodos,
-    messageIndexFor,
-    indexOfMessage: messageIndexFor,
+    indexOfMessage,
     toolCallMessageIndexFor,
     approvalToolCallId,
     activeMcpToolCalls,
@@ -758,12 +757,6 @@ export const useSessionStore = defineStore("session", () => {
   const activeSession = projection("summary");
   const messages = projection("messages");
   const outlineMessages = projection("outlineMessages");
-  /** The active session's structure signals (see `createSessionState`). */
-  const structureVersion = computed(() => activeState.value.structureVersion);
-  const userMessages = computed(() => activeState.value.userMessages);
-  function indexOfMessage(messageId: string): number {
-    return activeState.value.indexOfMessage(messageId);
-  }
   const isLoadingMessages = projection("isLoadingMessages");
   const isRunning = projection("isRunning");
   const contextUsage = projection("contextUsage");
@@ -1552,7 +1545,7 @@ export const useSessionStore = defineStore("session", () => {
       reviewingToolCallIds,
     } = toRefs(state);
     const {
-      messageIndexFor,
+      indexOfMessage,
       toolCallMessageIndexFor,
       approvalToolCallId,
       putMessage,
@@ -1740,7 +1733,7 @@ export const useSessionStore = defineStore("session", () => {
     if (event.type === "compaction-start" || event.type === "compaction-end") {
       const status: PineCompactionStatus =
         event.type === "compaction-start" ? "running" : event.status;
-      const messageIndex = messageIndexFor(`compaction-${event.compactionId}`);
+      const messageIndex = indexOfMessage(`compaction-${event.compactionId}`);
       const previous =
         messageIndex >= 0 ? messages.value[messageIndex] : undefined;
       const nextMessage = previous
@@ -1868,7 +1861,7 @@ export const useSessionStore = defineStore("session", () => {
       return;
     }
 
-    const previousIndex = messageIndexFor(event.messageId);
+    const previousIndex = indexOfMessage(event.messageId);
     const previous =
       previousIndex >= 0 ? messages.value[previousIndex] : undefined;
     const nextMessage = transcriptMessageFromEvent(event, previous);
@@ -2110,10 +2103,7 @@ export const useSessionStore = defineStore("session", () => {
     loadRecent,
     loadEarlierMessages,
     messages,
-    indexOfMessage,
     outlineMessages,
-    structureVersion,
-    userMessages,
     pendingApprovals,
     pendingQuestionnaires,
     prompt,
