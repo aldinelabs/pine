@@ -273,7 +273,10 @@ From top to bottom:
      "Sub-session {name} failed", "Sub-session {name} is waiting for your
      approval") that opens the sub-session, and the parent's agent reads
      the sub-session's reply and continues, even when the parent has no tab
-     open. Approvals of a sub-session are answered in its own tab.
+     open. A message one session sends another, and a
+     sub-session's first message, show in the receiving transcript under a
+     small "Started by {name}" or "From {name}" line that opens the sending
+     session. Approvals of a sub-session are answered in its own tab.
    - Session titles: Pine titles a new session after its first exchange.
      When a later message starts a different task, the agent may update the
      title in the sidebar and tab to the work it is now doing. A title the

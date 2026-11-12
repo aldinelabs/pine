@@ -1173,6 +1173,10 @@ export default {
         awaitingApproval: "Подсеанс {name} ожидает вашего подтверждения",
         untitled: "Без названия",
       },
+      relay: {
+        startedBy: "Запущен из {name}",
+        from: "От {name}",
+      },
       backgroundTask: {
         completed: "Фоновый процесс {name} завершён",
         failed: "Фоновый процесс {name} завершился с ошибкой",

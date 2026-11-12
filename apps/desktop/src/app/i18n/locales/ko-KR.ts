@@ -1153,6 +1153,10 @@ export default {
         awaitingApproval: "하위 세션 {name}이(가) 승인을 기다리는 중",
         untitled: "제목 없음",
       },
+      relay: {
+        startedBy: "{name}에서 시작됨",
+        from: "{name}에서 보냄",
+      },
       backgroundTask: {
         completed: "백그라운드 프로세스 {name}이(가) 완료되었습니다",
         failed: "백그라운드 프로세스 {name}이(가) 실패했습니다",

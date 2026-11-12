@@ -1185,6 +1185,10 @@ export default {
         awaitingApproval: "La sous-session {name} attend votre approbation",
         untitled: "Sans titre",
       },
+      relay: {
+        startedBy: "Lancée par {name}",
+        from: "De {name}",
+      },
       backgroundTask: {
         completed: "Le processus en arrière-plan {name} est terminé",
         failed: "Le processus en arrière-plan {name} a échoué",

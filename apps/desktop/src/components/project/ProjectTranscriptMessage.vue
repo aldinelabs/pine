@@ -20,6 +20,7 @@ import { serializeAttachmentMessage } from "@/shared/attachments";
 import { parseAutomationRunMessage } from "@/shared/automationRunMessage";
 import {
   contentBlocksToText,
+  parseRelayPrefix,
   type PineContentBlock,
   type PineToolCall,
 } from "@/shared/sessions";
@@ -29,6 +30,7 @@ import ProjectQuoteList from "./ProjectQuoteList.vue";
 import { serializeQuoteMessage } from "@/shared/quotes";
 import ProjectAutomationRunMessage from "./ProjectAutomationRunMessage.vue";
 import ProjectBackgroundTaskMarker from "./ProjectBackgroundTaskMarker.vue";
+import ProjectRelaySource from "./ProjectRelaySource.vue";
 import ProjectSessionNoticeMarker from "./ProjectSessionNoticeMarker.vue";
 import ProjectCompactionMarker from "./ProjectCompactionMarker.vue";
 import ProjectErrorMarker from "./ProjectErrorMarker.vue";
@@ -75,7 +77,7 @@ onUnmounted(() => clearTimeout(copiedResetTimer));
 
 async function copyMessage(): Promise<void> {
   try {
-    await navigator.clipboard.writeText(text.value);
+    await navigator.clipboard.writeText(relay.value.body);
     copied.value = true;
     clearTimeout(copiedResetTimer);
     copiedResetTimer = setTimeout(() => {
@@ -153,6 +155,13 @@ function runKey(toolCalls: PineToolCall[]): string {
  * tool-call markers sit in the block order.
  */
 const text = computed(() => contentBlocksToText(props.message.blocks));
+/**
+ * A message Pine routed in from another session: its routing line shows as
+ * a link to that session above the bubble, which shows only the message.
+ */
+const relay = computed(() =>
+  isUser.value ? parseRelayPrefix(text.value) : { body: text.value },
+);
 /** The message an automation run starts with, shown as a card. */
 const automationRun = computed(() =>
   isUser.value ? parseAutomationRunMessage(text.value) : undefined,
@@ -395,6 +404,10 @@ const renderItems = computed<RenderItem[]>(() => {
           :quotes="quotes"
           surface="message"
         />
+        <ProjectRelaySource
+          v-if="!isEditing && !automationRun && relay.source"
+          :source="relay.source"
+        />
         <template v-if="isEditing">
           <!-- Auto width: the editor starts at the original bubble's width and
                grows with its longest line up to the bubble's max width. -->
@@ -492,7 +505,7 @@ const renderItems = computed<RenderItem[]>(() => {
                   data-slot="user-message-text"
                   class="pe-3.5 whitespace-pre-wrap"
                 >
-                  {{ text }}
+                  {{ relay.body }}
                 </div>
               </ScrollArea>
             </BubbleContent>

@@ -686,8 +686,47 @@ export function sessionSearchQuery(query: string): string {
  * conversation is about, so titles and previews skip it.
  */
 export function withoutRelayPrefix(text: string): string {
-  return text.replace(
-    /^\[(?:Sub-session of|Message from session)[^\]]*\]\s*/,
-    "",
-  );
+  return parseRelayPrefix(text).body;
+}
+
+/** Where a message Pine routed into this session came from. */
+export interface PineRelaySource {
+  /** `parent`: the session that started this sub-session with it. */
+  kind: "parent" | "session";
+  sessionId: string;
+  /** The sending session's title when it had one. */
+  title?: string;
+}
+
+const SUB_SESSION_PREFIX = /^\[Sub-session of ([^\s.\]]+)\.[^\]]*\]\s*/;
+const RELAYED_PREFIX =
+  /^\[Message from session (?:"([^"\]]*)" )?\(([^)\]]+)\)\]\s*/;
+
+/** Splits Pine's routing line from the message it introduces. */
+export function parseRelayPrefix(text: string): {
+  source?: PineRelaySource;
+  body: string;
+} {
+  const started = SUB_SESSION_PREFIX.exec(text);
+  if (started?.[1])
+    return {
+      source: { kind: "parent", sessionId: started[1] },
+      body: text.slice(started[0].length),
+    };
+  const relayed = RELAYED_PREFIX.exec(text);
+  if (relayed?.[2])
+    return {
+      source: {
+        kind: "session",
+        sessionId: relayed[2],
+        ...(relayed[1] ? { title: relayed[1] } : {}),
+      },
+      body: text.slice(relayed[0].length),
+    };
+  return { body: text };
+}
+
+/** A session title made safe to quote inside a routing line. */
+export function relayTitle(title: string): string {
+  return title.replace(/["[\]\s]+/g, " ").trim();
 }

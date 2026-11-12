@@ -1191,6 +1191,10 @@ export default {
         awaitingApproval: "Untersitzung {name} wartet auf deine Freigabe",
         untitled: "Ohne Titel",
       },
+      relay: {
+        startedBy: "Gestartet von {name}",
+        from: "Von {name}",
+      },
       backgroundTask: {
         completed: "Hintergrundprozess {name} abgeschlossen",
         failed: "Hintergrundprozess {name} fehlgeschlagen",

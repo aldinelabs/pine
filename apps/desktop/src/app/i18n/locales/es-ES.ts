@@ -1183,6 +1183,10 @@ export default {
         awaitingApproval: "La subsesión {name} espera tu aprobación",
         untitled: "Sin título",
       },
+      relay: {
+        startedBy: "Iniciada por {name}",
+        from: "De {name}",
+      },
       backgroundTask: {
         completed: "El proceso en segundo plano {name} se completó",
         failed: "El proceso en segundo plano {name} falló",

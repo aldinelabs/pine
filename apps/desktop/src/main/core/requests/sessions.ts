@@ -44,6 +44,7 @@ import {
   type ResumeSessionResult,
   type SearchAllSessionsResult,
   type SearchSessionsResult,
+  relayTitle,
 } from "../../../shared/sessions";
 import { z } from "zod";
 import {
@@ -559,7 +560,8 @@ export async function answerSessionOperation(
       };
     }
     const running = core.sessionActivity(parsed.sessionId) !== "idle";
-    const sender = byId.get(requester.sessionId)?.name;
+    const name = byId.get(requester.sessionId)?.name;
+    const sender = name ? relayTitle(name) : undefined;
     await runtimes.prompt(
       owner,
       {

@@ -1101,6 +1101,10 @@ export default {
         awaitingApproval: "子会话 {name} 正在等待你批准",
         untitled: "未命名",
       },
+      relay: {
+        startedBy: "由 {name} 创建",
+        from: "来自 {name}",
+      },
       backgroundTask: {
         completed: "后台进程 {name} 已完成",
         failed: "后台进程 {name} 失败",

@@ -1165,6 +1165,10 @@ export default {
         awaitingApproval: "サブセッション {name} が承認を待っています",
         untitled: "無題",
       },
+      relay: {
+        startedBy: "{name} から開始",
+        from: "{name} から",
+      },
       backgroundTask: {
         completed: "バックグラウンドプロセス {name} が完了しました",
         failed: "バックグラウンドプロセス {name} が失敗しました",

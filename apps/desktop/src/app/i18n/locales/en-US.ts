@@ -1159,6 +1159,10 @@ export default {
         awaitingApproval: "Sub-session {name} is waiting for your approval",
         untitled: "Untitled",
       },
+      relay: {
+        startedBy: "Started by {name}",
+        from: "From {name}",
+      },
       backgroundTask: {
         completed: "Background process {name} completed",
         failed: "Background process {name} failed",
