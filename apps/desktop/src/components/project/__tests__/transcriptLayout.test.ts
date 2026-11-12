@@ -29,6 +29,23 @@ describe("collapsesTranscriptGap", () => {
     expect(collapsesTranscriptGap(messages, 1)).toBe(true);
   });
 
+  it("collapses a run of sub-session notices after an assistant turn", () => {
+    const notice = (sessionId: string) =>
+      assistant([
+        {
+          type: "sessionNotice",
+          notice: { sessionId, projectId: "p", state: "finished" },
+        },
+      ]);
+    const messages = [
+      assistant([{ type: "toolCall", toolCall: toolCall("a") }]),
+      notice("s1"),
+      notice("s2"),
+    ];
+    expect(collapsesTranscriptGap(messages, 1)).toBe(true);
+    expect(collapsesTranscriptGap(messages, 2)).toBe(true);
+  });
+
   it("keeps the gap when the turn starts with thinking or text", () => {
     const messages = [
       assistant([{ type: "text", text: "Working on it." }]),

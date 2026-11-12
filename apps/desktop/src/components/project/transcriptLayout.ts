@@ -5,7 +5,9 @@ import type { PineTranscriptMessage } from "@/stores/session";
  * When the model skips thinking and starts a turn directly with a tool call,
  * the turn reads as a continuation of the previous assistant turn, so the
  * transcript tightens the inter-turn gap down to the in-turn tool spacing
- * rhythm instead of the full message gap.
+ * rhythm instead of the full message gap. A notice that a sub-session or
+ * background task reports between turns gets the same rhythm, so a run of
+ * them reads as one list of markers.
  */
 export function collapsesTranscriptGap(
   messages: readonly Pick<PineTranscriptMessage, "role" | "blocks">[],
@@ -14,7 +16,13 @@ export function collapsesTranscriptGap(
   const message = messages[index];
   if (message?.role !== "assistant") return false;
   const firstBlock: PineContentBlock | undefined = message.blocks[0];
-  if (firstBlock?.type !== "toolCall") return false;
+  // Notices of sub-sessions and background tasks read like tool markers.
+  if (
+    firstBlock?.type !== "toolCall" &&
+    firstBlock?.type !== "sessionNotice" &&
+    firstBlock?.type !== "backgroundTask"
+  )
+    return false;
   return messages[index - 1]?.role === "assistant";
 }
 
