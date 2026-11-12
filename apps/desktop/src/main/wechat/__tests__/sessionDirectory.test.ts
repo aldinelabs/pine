@@ -252,6 +252,21 @@ describe("prompt exits", () => {
     expect(runtimes.prompt).not.toHaveBeenCalled();
   });
 
+  it("refuses a stored session above the ceiling in a project nobody holds", async () => {
+    const { ctx, runtimes } = setup({
+      settings: { ceilingMode: "auto-approve", defaultMode: "auto-approve" },
+    });
+    ctx.fake.core.storeSession(P, summary("old", { approvalMode: "YOLO" }));
+    expect(runtimes.clientsOfProject(P)).toEqual([]);
+    const error = await ctx.sessions
+      .send({ sessionId: "old", projectId: P, text: "go", attachments: false })
+      .catch((caught: unknown) => caught);
+    expect(error).toBeInstanceOf(WeChatRefusal);
+    expect((error as WeChatRefusal).id).toBe("E-VIEW");
+    expect((error as WeChatRefusal).render("en")).toContain("YOLO");
+    expect(runtimes.prompt).not.toHaveBeenCalled();
+  });
+
   const blocked = [
     [
       "the marker",

@@ -849,8 +849,12 @@ export function createFakeCore(): FakeCore {
     startBackgroundSession,
     sessionLibrary: () => ({
       dataPaths,
+      // Like ProjectRuntimeRegistry: only a project some runtime holds open.
       openSessionService: (projectId: string) =>
-        projects.has(projectId) ? sessionService(projectId) : undefined,
+        projects.has(projectId) &&
+        runtimes.clientsOfProject(projectId).length > 0
+          ? sessionService(projectId)
+          : undefined,
     }),
     listSkills: vi.fn(() =>
       Promise.resolve({ skills: [] } as unknown as Awaited<

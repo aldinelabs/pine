@@ -1084,8 +1084,16 @@ export class SessionDirectory {
     projectId: string,
   ): Promise<PineApprovalMode> {
     const settings = this.deps.settings();
+    const live = this.deps.core.runtimes.approvalModeOfLiveSession(sessionId);
+    if (live !== undefined) return live;
+    // The stored mode is only readable while some runtime holds the project
+    // open; without the hold a YOLO session would read as the default mode.
+    try {
+      await this.hold(projectId);
+    } catch {
+      // An unknown project has no stored mode; fall through to the default.
+    }
     return (
-      this.deps.core.runtimes.approvalModeOfLiveSession(sessionId) ??
       (await this.storedSummary(sessionId, projectId))?.approvalMode ??
       clampMode(settings.defaultMode, settings.ceilingMode)
     );
