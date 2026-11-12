@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ListTreeIcon, ShieldAlertIcon, WorkflowIcon } from "@lucide/vue";
+import { ChevronRightIcon, ShieldAlertIcon, WorkflowIcon } from "@lucide/vue";
 import { computed } from "vue";
 import { useI18n } from "vue-i18n";
 import { cn } from "@/lib/utils";
@@ -24,8 +24,10 @@ const props = withDefaults(
     /** Sub-sessions shown under this row when it is expanded. */
     subSessionCount?: number;
     expanded?: boolean;
+    /** The bottom sub-session of its parent, where the tree line ends. */
+    lastSubSession?: boolean;
   }>(),
-  { depth: 0, subSessionCount: 0, expanded: false },
+  { depth: 0, subSessionCount: 0, expanded: false, lastSubSession: false },
 );
 
 const sessionStore = useSessionStore();
@@ -55,6 +57,24 @@ const runStartedAt = computed(() => {
   }).format(date);
 });
 
+const toggleLabel = computed(() =>
+  t(props.expanded ? "sessions.hideSubSessions" : "sessions.showSubSessions", {
+    count: props.subSessionCount,
+  }),
+);
+
+/** Tree keys: right shows sub-sessions, left hides them. */
+function onKeydown(event: KeyboardEvent) {
+  if (props.subSessionCount === 0) return;
+  if (
+    (event.key === "ArrowRight" && !props.expanded) ||
+    (event.key === "ArrowLeft" && props.expanded)
+  ) {
+    event.preventDefault();
+    emit("toggle");
+  }
+}
+
 const emit = defineEmits<{
   open: [];
   rename: [];
@@ -78,7 +98,8 @@ const emit = defineEmits<{
     >
       <SidebarMenuSubButton
         as="button"
-        :class="cn('w-full translate-x-0', depth > 0 && 'ps-7')"
+        :class="cn('w-full translate-x-0', depth > 0 && 'ps-9')"
+        :aria-expanded="subSessionCount > 0 ? expanded : undefined"
         :data-sub-session="depth > 0 || undefined"
         :data-session-id="session.id"
         :data-project-id="session.projectId"
@@ -86,15 +107,10 @@ const emit = defineEmits<{
         :is-active="isActive"
         :title="title"
         @click="emit('open')"
+        @keydown="onKeydown"
       >
-        <!-- Keeps the title clear of the toggle drawn over this spot. -->
-        <span
-          v-if="subSessionCount > 0"
-          class="size-4 shrink-0"
-          aria-hidden="true"
-        />
         <WorkflowIcon
-          v-else-if="session.automationRun"
+          v-if="session.automationRun"
           data-slot="session-automation-icon"
           class="text-muted-foreground"
           aria-hidden="true"
@@ -127,27 +143,48 @@ const emit = defineEmits<{
           data-slot="session-running-dot"
           class="hidden size-1.5 shrink-0 rounded-full bg-primary motion-reduce:inline-block"
         />
+        <!-- A span, not a button: the row is already one; keyboard users
+             expand with the arrow keys. A 20px box in the 28px row sits 4px
+             from its edge, so its radius is the row's minus 4px. -->
+        <span
+          v-if="subSessionCount > 0"
+          data-slot="session-sub-sessions-toggle"
+          :class="
+            cn(
+              '-me-2 flex size-5 shrink-0 items-center justify-center rounded-lg text-muted-foreground hover:bg-sidebar-border hover:text-sidebar-accent-foreground',
+              !isAwaitingApproval && 'ms-auto',
+            )
+          "
+          :title="toggleLabel"
+          @click.stop="emit('toggle')"
+        >
+          <ChevronRightIcon
+            :class="
+              cn(
+                'size-3.5 transition-transform duration-200 ease-out motion-reduce:transition-none',
+                expanded && 'rotate-90',
+              )
+            "
+            aria-hidden="true"
+          />
+        </span>
       </SidebarMenuSubButton>
     </SessionContextMenu>
-    <button
-      v-if="subSessionCount > 0"
-      type="button"
-      data-slot="session-sub-sessions-toggle"
-      class="absolute start-1 top-1/2 flex size-6 -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-2 focus-visible:ring-sidebar-ring focus-visible:outline-none"
-      :aria-expanded="expanded"
-      :aria-label="
-        t(expanded ? 'sessions.hideSubSessions' : 'sessions.showSubSessions', {
-          count: subSessionCount,
-        })
+    <!-- Tree line joining sub-sessions to their parent. Sub-sessions sit
+         24px in, the same step as sessions under their project; the line
+         reaches 2px into the 4px gap on each side so it runs unbroken. -->
+    <span
+      v-if="depth > 0"
+      data-slot="session-tree-line"
+      aria-hidden="true"
+      :class="
+        cn(
+          'pointer-events-none absolute start-3.5 -top-0.5 border-s border-muted-foreground/40',
+          lastSubSession
+            ? 'h-[calc(50%+2px)] w-3 rounded-es-lg border-b'
+            : '-bottom-0.5',
+        )
       "
-      :title="
-        t(expanded ? 'sessions.hideSubSessions' : 'sessions.showSubSessions', {
-          count: subSessionCount,
-        })
-      "
-      @click.stop="emit('toggle')"
-    >
-      <ListTreeIcon class="size-4" aria-hidden="true" />
-    </button>
+    />
   </SidebarMenuSubItem>
 </template>

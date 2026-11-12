@@ -11,11 +11,20 @@ const session = {
   projectId: "p1",
 } as unknown as ProjectSessionSearchResult;
 
-function mountItem(item: ProjectSessionSearchResult = session) {
+function mountItem(
+  item: ProjectSessionSearchResult = session,
+  extra: Record<string, unknown> = {},
+) {
   const pinia = createPinia();
   setActivePinia(pinia);
   const wrapper = mount(SessionHistoryItem, {
-    props: { groups: [], isActive: false, session: item, title: "Fix bug" },
+    props: {
+      groups: [],
+      isActive: false,
+      session: item,
+      title: "Fix bug",
+      ...extra,
+    },
     global: {
       plugins: [pinia, createAppI18n("en-US")],
       stubs: { SessionContextMenu: { template: "<div><slot /></div>" } },
@@ -88,5 +97,37 @@ describe("SessionHistoryItem", () => {
     state.pendingApprovals = [];
     await wrapper.vm.$nextTick();
     expect(marker().exists()).toBe(false);
+  });
+
+  it("toggles sub-sessions from the chevron and the arrow keys", async () => {
+    const wrapper = mountItem(session, { subSessionCount: 2 });
+    const row = wrapper.get('[data-slot="sidebar-menu-sub-button"]');
+    const chevron = wrapper.get('[data-slot="session-sub-sessions-toggle"]');
+
+    expect(row.attributes("aria-expanded")).toBe("false");
+    expect(chevron.attributes("title")).toBe("Show sub-sessions (2)");
+    await chevron.trigger("click");
+    expect(wrapper.emitted("toggle")).toHaveLength(1);
+    expect(wrapper.emitted("open")).toBeUndefined();
+
+    await row.trigger("keydown", { key: "ArrowLeft" });
+    expect(wrapper.emitted("toggle")).toHaveLength(1);
+    await row.trigger("keydown", { key: "ArrowRight" });
+    expect(wrapper.emitted("toggle")).toHaveLength(2);
+
+    await wrapper.setProps({ expanded: true });
+    expect(row.attributes("aria-expanded")).toBe("true");
+    expect(chevron.get("svg").classes()).toContain("rotate-90");
+  });
+
+  it("ends the tree line at the last sub-session", async () => {
+    const wrapper = mountItem(session, { depth: 1 });
+    const line = () => wrapper.get('[data-slot="session-tree-line"]');
+    expect(line().classes()).toContain("-bottom-0.5");
+    await wrapper.setProps({ lastSubSession: true });
+    expect(line().classes()).toContain("rounded-es-lg");
+    expect(
+      wrapper.find('[data-slot="session-sub-sessions-toggle"]').exists(),
+    ).toBe(false);
   });
 });

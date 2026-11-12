@@ -106,9 +106,11 @@ Session list, one collapsible group per project:
   (with a dot when reduced motion is on). A session stopped on an approval
   shows a shield icon at the end of its row ("Waiting for your approval"). An automation run shows a workflow
   icon and, when idle, the time it started. A session with sub-sessions shows
-  a list icon at the start of its row ("Show sub-sessions ({count})" / "Hide
-  sub-sessions ({count})") that expands or collapses them; sub-sessions are
-  indented one level under their parent and open like any session. Right-click for Rename conversation,
+  a chevron at the end of its row ("Show sub-sessions ({count})" / "Hide
+  sub-sessions ({count})") that expands or collapses them (Right and Left
+  arrow keys also do this when the row has focus); sub-sessions are indented
+  one level under their parent, joined to it by a tree line, and open like
+  any session. Right-click for Rename conversation,
   Export conversation (Markdown), Move to folder / Remove from folder, and
   Delete conversation (permanent). Deleting a session also deletes its
   sub-sessions, and the confirmation says how many ("Sub-sessions deleted with
