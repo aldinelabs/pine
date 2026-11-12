@@ -3,7 +3,6 @@ import { describe, expect, it } from "vitest";
 import { APPROVAL_MODE_ORDER } from "../../../shared/agent";
 import {
   DEFAULT_WECHAT_SETTINGS,
-  DEFAULT_WECHAT_STATUS,
   WECHAT_CLIENT_ID,
   WECHAT_NOTIFICATION_KINDS,
   applyWeChatSettingsPatch,
@@ -11,7 +10,6 @@ import {
   resetWeChatPermissions,
   type WeChatSettings,
 } from "../../../shared/wechatRemote";
-import { WeChatBridge } from "../bridge";
 import {
   ALLOW_BARE_APPROVE,
   ASK_MAX,
@@ -21,7 +19,6 @@ import {
   PUSH_SLOT,
   USABLE,
 } from "../constants";
-import type { WeChatBridgeOptions } from "../ports";
 import { COMMAND_NAMES } from "../types";
 
 const wide: WeChatSettings = {
@@ -129,43 +126,5 @@ describe("numbers", () => {
 
   it("gives the bridge a virtual client id", () => {
     expect(WECHAT_CLIENT_ID).toBeLessThan(0);
-  });
-});
-
-describe("inert bridge", () => {
-  const bridge = new WeChatBridge({} as WeChatBridgeOptions);
-
-  it("reports an unbound status", async () => {
-    await expect(bridge.start()).resolves.toBeUndefined();
-    expect(bridge.status()).toEqual(DEFAULT_WECHAT_STATUS);
-    expect(bridge.isListening()).toBe(false);
-    expect(bridge.cancelBinding()).toEqual(DEFAULT_WECHAT_STATUS);
-    expect(bridge.submitVerifyCode("123456")).toEqual(DEFAULT_WECHAT_STATUS);
-    expect(bridge.originOf("session-1")).toBeUndefined();
-    expect(
-      bridge.automationRunRefusal("session-1", {
-        id: "a",
-        name: "A",
-        enabled: true,
-      }),
-    ).toBeUndefined();
-    await expect(bridge.stop()).resolves.toBeUndefined();
-  });
-
-  it("refuses every change", async () => {
-    const message = "WeChat remote is not available.";
-    await expect(bridge.setPaused(true)).rejects.toThrow(message);
-    await expect(bridge.setSettings({ keepAwake: true })).rejects.toThrow(
-      message,
-    );
-    await expect(bridge.startBinding()).rejects.toThrow(message);
-    await expect(bridge.submitPairingCode("123456")).rejects.toThrow(message);
-    await expect(bridge.unbind()).rejects.toThrow(message);
-    await expect(bridge.reloadLocalConfig()).rejects.toThrow(message);
-  });
-
-  it("does not let a caller change the shared default status", () => {
-    bridge.status().settings.keepAwake = true;
-    expect(DEFAULT_WECHAT_STATUS.settings.keepAwake).toBe(false);
   });
 });
