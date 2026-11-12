@@ -27,6 +27,9 @@
  * that refresh rate (user decision), so 10 snapshots 100 ms apart stay 10
  * updates; coalescing only saves when a tool reports faster than that.
  *
+ * Deferred (`it.todo`): each tool-call-delta still carries the whole partial
+ * input, so the bytes emitted grow with the square of the argument length.
+ *
  * Print the metrics with `PINE_PERF_LOG=1`. Run from a coding agent, vitest
  * picks a reporter that hides the output of passing tests; add
  * `--reporter=default` to see it.
@@ -499,4 +502,8 @@ describe("agent event forwarder streaming cost", () => {
     expect(withDelta).toHaveLength(0);
     expect(withoutInput).toHaveLength(0);
   });
+
+  it.todo(
+    "[E5] emits only the appended suffix when tool arguments only grow, so bytes per flush follow the appended text",
+  );
 });
