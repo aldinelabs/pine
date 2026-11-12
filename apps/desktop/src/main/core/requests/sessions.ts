@@ -668,13 +668,14 @@ export async function answerSessionOperation(
   // A window may not start sessions in a project another window shows. An
   // interface that is not a window, such as WeChat, starts the session as the
   // window sharing its runtime, so that window keeps notifying for it.
+  // Each window keeps its own temporary workspace, so only windows sharing the
+  // requester's runtime count there.
   let ownerId = requester.ownerId;
   if (!isVirtualClient(requester.ownerId)) {
-    if (
-      runtimes
-        .clientsOfProject(project.id)
-        .some((id) => !isVirtualClient(id) && id !== requester.ownerId)
-    )
+    const holders = isTemporaryWorkspace(project.id)
+      ? runtimes.clientsSharingRuntime(requester.ownerId, project.id)
+      : runtimes.clientsOfProject(project.id);
+    if (holders.some((id) => !isVirtualClient(id) && id !== requester.ownerId))
       throw new Error("That project is open in another Pine window.");
   } else {
     if (!runtimes.isOpen(requester.ownerId, project.id))

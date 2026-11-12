@@ -42,6 +42,7 @@ function fixture({
   activity = "idle",
   holders = undefined as number[] | undefined,
   sharing = [] as number[],
+  inTemporaryWorkspace = false,
 }: {
   callerMode?: string;
   owner?: number;
@@ -51,6 +52,7 @@ function fixture({
   activity?: string;
   holders?: number[];
   sharing?: number[];
+  inTemporaryWorkspace?: boolean;
 } = {}) {
   const projects = [
     {
@@ -110,7 +112,9 @@ function fixture({
     },
     runtimes: {
       approvalModeOfLiveSession: vi.fn().mockReturnValue(callerMode),
-      projectOfLiveSession: vi.fn().mockReturnValue(projects[0]),
+      projectOfLiveSession: vi
+        .fn()
+        .mockReturnValue(projects[inTemporaryWorkspace ? 1 : 0]),
       ownerOfProject: vi.fn().mockReturnValue(owner),
       clientsOfProject: vi
         .fn()
@@ -288,6 +292,30 @@ describe("answerSessionOperation", () => {
       }),
     ).rejects.toThrow("another Pine window");
     expect(prompt).not.toHaveBeenCalled();
+  });
+
+  it("starts a sub-session in a window's own temporary workspace beside another window's", async () => {
+    const { core, prompt } = fixture({
+      holders: [7, 9],
+      sharing: [],
+      inTemporaryWorkspace: true,
+    });
+
+    await answerSessionOperation(core, requester, {
+      op: "start",
+      relation: "child",
+      message: "Go",
+      approvalMode: "auto-approve",
+      locale: "en-US",
+    });
+
+    expect(prompt).toHaveBeenCalledWith(
+      7,
+      expect.objectContaining({
+        target: { kind: "new", projectId: TEMPORARY_WORKSPACE_PROJECT_ID },
+      }),
+      expect.objectContaining({ focus: false }),
+    );
   });
 
   it("starts beside a project only a virtual client holds", async () => {
