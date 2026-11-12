@@ -25,6 +25,7 @@ import { resolveColors } from "@/lib/themeColors";
 import { useThemeRoot } from "@/composables/useThemeRoot";
 import { previewExtension } from "@/shared/previewFormats";
 import { useAppearanceStore } from "@/stores/appearance";
+import { loadingTextures, textureLoading } from "./modelTextures";
 import { readPreviewBytes } from "./previewBytes";
 import type {
   PreviewRendererEvents,
@@ -81,6 +82,10 @@ let interacting = false;
 let idle = true;
 let lastPosition: THREE.Vector3 | undefined;
 let lastQuaternion: THREE.Quaternion | undefined;
+/** Textures whose image is still loading; frames continue until they land. */
+let pendingTextures: THREE.Texture[] = [];
+/** `performance.now()` after which a texture that never loads stops the wait. */
+let texturesDeadline = 0;
 
 /**
  * Smallest per-frame camera motion still treated as moving, relative to the
@@ -89,6 +94,8 @@ let lastQuaternion: THREE.Quaternion | undefined;
  * stop a small model's glide early.
  */
 const SETTLED_EPSILON = 1e-7;
+/** How long to keep drawing for textures that have not loaded yet. */
+const TEXTURE_WAIT_MS = 5000;
 
 function draw(): void {
   if (!renderer || !scene || !camera) return;
@@ -127,7 +134,18 @@ function tick(): void {
   frame = undefined;
   draw();
   const moved = cameraMoved();
-  if (interacting || moved || mixer || controls?.autoRotate) invalidate();
+  if (pendingTextures.length) {
+    pendingTextures = pendingTextures.filter(textureLoading);
+    if (performance.now() > texturesDeadline) pendingTextures = [];
+  }
+  if (
+    interacting ||
+    moved ||
+    mixer ||
+    controls?.autoRotate ||
+    pendingTextures.length
+  )
+    invalidate();
   idle = frame === undefined;
 }
 
@@ -257,6 +275,8 @@ async function setup(): Promise<void> {
   });
   model = loaded.object;
   scene.add(model);
+  pendingTextures = loadingTextures(model);
+  texturesDeadline = performance.now() + TEXTURE_WAIT_MS;
   if (loaded.animations.length) {
     mixer = new three.AnimationMixer(model);
     for (const clip of loaded.animations) mixer.clipAction(clip).play();
