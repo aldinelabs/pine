@@ -1,5 +1,8 @@
 import type { PineApprovalMode } from "../shared/agent";
-import type { PineUserProfile } from "../shared/userProfile";
+import {
+  sanitizeCustomPronouns,
+  type PineUserProfile,
+} from "../shared/userProfile";
 import { MONET_STYLE_GUIDE } from "./monet-style";
 
 export const PINE_SYSTEM_PROMPT = `You are Pine, the AI agent inside Pine: a local-first, open-source desktop agent workspace developed by Aldine Labs and dedicated to expanding possibilities for everyone.
@@ -130,6 +133,38 @@ const TECHNICAL_BACKGROUND_PROMPTS: Record<
     "The user self-defines as a professional user. Skip over-explaining. Communicate complex technical details directly and offer technically sophisticated solutions. Assume the user is willing to tinker, while still choosing the most constructive optimal path rather than merely minimizing code. Use ask_user_question eagerly for key technical and implementation decisions: present the meaningful options and your recommendation, then let the user decide about architecture, tools, debugging strategy, and important trade-offs. Do not interrupt for trivial details, but ask whenever the user should own a technical or non-technical preference, constraint, authorization, or material irreversible or external consequence.",
 };
 
+/**
+ * The profile line that tells the model which pronouns to use for the user, or
+ * `undefined` when the user has not stated any.
+ */
+export function userPronounsPrompt(
+  profile: Pick<PineUserProfile, "customPronouns" | "pronouns">,
+): string | undefined {
+  let value: string;
+  switch (profile.pronouns) {
+    case "he":
+      value = "he/him";
+      break;
+    case "she":
+      value = "she/her";
+      break;
+    case "they":
+      value = "they/them (singular, gender-neutral)";
+      break;
+    case "custom": {
+      const custom = sanitizeCustomPronouns(profile.customPronouns);
+      if (!custom) {
+        return undefined;
+      }
+      value = `${JSON.stringify(custom)} (the user's own wording)`;
+      break;
+    }
+    default:
+      return undefined;
+  }
+  return `- Pronouns: ${value}. This is the user's stated preference. When you refer to the user in the third person, or the language you are writing in marks gender when addressing them, use these pronouns or their natural equivalents in that language.`;
+}
+
 /** Add the user's saved personalization preferences to the system prompt. */
 export function systemPromptWithUserProfile(
   systemPrompt: string,
@@ -151,6 +186,10 @@ export function systemPromptWithUserProfile(
   }
   if (profile.nickname) {
     sections.push(`- Preferred name: ${profile.nickname}`);
+  }
+  const pronouns = userPronounsPrompt(profile);
+  if (pronouns) {
+    sections.push(pronouns);
   }
   if (profile.personalDetails) {
     sections.push(`\n### Other personal details\n${profile.personalDetails}`);

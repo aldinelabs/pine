@@ -290,6 +290,16 @@ export default {
     userProfileNicknamePlaceholder: "Wie soll Pine Sie nennen?",
     userProfileNicknameDescription:
       "Pine verwendet diesen Namen, wenn es passt.",
+    userProfilePronounsLabel: "Pronomen",
+    userProfilePronounsUnspecified: "Keine Angabe",
+    userProfilePronounsHe: "er/ihm",
+    userProfilePronounsShe: "sie/ihr",
+    userProfilePronounsThey: "they/them (neutral)",
+    userProfilePronounsCustom: "Benutzerdefiniert",
+    userProfilePronounsCustomLabel: "Eigene Pronomen",
+    userProfilePronounsCustomPlaceholder: "Eigene Pronomen eingeben",
+    userProfilePronounsDescription:
+      "Pine verwendet diese Pronomen, wenn es in der dritten Person über Sie schreibt, zum Beispiel in Dokumenten oder Nachrichten, die es für Sie verfasst.",
     userProfileStyleLabel: "Kommunikationsstil",
     userProfileStyleCalm: "Ruhig und professionell",
     userProfileStyleNeutral: "Neutral",

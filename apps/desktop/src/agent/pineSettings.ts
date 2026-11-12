@@ -24,7 +24,9 @@ import {
 } from "../shared/preferences";
 import {
   isPineCommunicationStyle,
+  isPinePronouns,
   isPineTechnicalBackground,
+  sanitizeCustomPronouns,
   type PineUserProfile,
 } from "../shared/userProfile";
 
@@ -80,7 +82,9 @@ function isPineUserProfile(value: unknown): value is PineUserProfile {
     typeof profile.technicalBackground === "string" &&
     isPineTechnicalBackground(profile.technicalBackground) &&
     typeof profile.interactiveAnswersEnabled === "boolean" &&
-    typeof profile.monetMode === "boolean"
+    typeof profile.monetMode === "boolean" &&
+    isPinePronouns(profile.pronouns) &&
+    typeof profile.customPronouns === "string"
   );
 }
 
@@ -105,6 +109,12 @@ function migrateUserProfile(value: unknown): unknown {
       ? { interactiveAnswersEnabled: true }
       : {}),
     ...(profile.monetMode === undefined ? { monetMode: false } : {}),
+    // Coerced rather than only back-filled: a missing or invalid value must
+    // never make the guard discard the rest of the profile.
+    pronouns: isPinePronouns(profile.pronouns)
+      ? profile.pronouns
+      : "unspecified",
+    customPronouns: sanitizeCustomPronouns(profile.customPronouns),
   };
 }
 

@@ -514,10 +514,12 @@ describe("PinePreferencesDialog", () => {
       expect(setUserProfile).toHaveBeenCalledWith({
         communicationStyle: "calm-professional",
         customInstructions: "先给出结论，再解释关键原因。",
+        customPronouns: "",
         interactiveAnswersEnabled: true,
         monetMode: false,
         nickname: "小 Pine",
         personalDetails: "正在学习桌面应用开发",
+        pronouns: "unspecified",
         technicalBackground: "professional-user",
       }),
     );
@@ -525,6 +527,86 @@ describe("PinePreferencesDialog", () => {
     await vi.waitFor(() =>
       expect((nickname.element as HTMLInputElement).value).toBe("小 Pine"),
     );
+  });
+
+  function pronounsSelect(wrapper: VueWrapper) {
+    const select = wrapper
+      .findAllComponents(Select)
+      .find((candidate) =>
+        candidate
+          .find('[data-testid="pine-user-profile-pronouns-select"]')
+          .exists(),
+      );
+    if (!select) throw new Error("Missing pronouns select");
+    return select;
+  }
+
+  it("edits pronouns in the user profile", async () => {
+    installPineApi("linux");
+    // The default mock is a profile saved before pronouns existed.
+    const { wrapper } = mountDialog();
+    await openSection(wrapper, "自定义");
+    const customInput = "#pine-user-profile-custom-pronouns";
+    const select = pronounsSelect(wrapper);
+
+    expect(wrapper.text()).toContain("人称代词");
+    expect(select.props("modelValue")).toBe("unspecified");
+    expect(wrapper.find(customInput).exists()).toBe(false);
+
+    select.vm.$emit("update:modelValue", "she");
+    await wrapper.vm.$nextTick();
+    await vi.waitFor(() =>
+      expect(setUserProfile).toHaveBeenLastCalledWith(
+        expect.objectContaining({ pronouns: "she", customPronouns: "" }),
+      ),
+    );
+    expect(wrapper.find(customInput).exists()).toBe(false);
+
+    select.vm.$emit("update:modelValue", "custom");
+    await wrapper.vm.$nextTick();
+    const input = wrapper.get(customInput);
+    expect(input.attributes("maxlength")).toBe("40");
+    await input.setValue("  xe/xem  ");
+    await vi.waitFor(() =>
+      expect(setUserProfile).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          pronouns: "custom",
+          customPronouns: "xe/xem",
+        }),
+      ),
+    );
+    // The field shows the saved wording once the autosave settles.
+    await vi.waitFor(() =>
+      expect((input.element as HTMLInputElement).value).toBe("xe/xem"),
+    );
+
+    const savesBefore = setUserProfile.mock.calls.length;
+    select.vm.$emit("update:modelValue", "male");
+    await wrapper.vm.$nextTick();
+    expect(pronounsSelect(wrapper).props("modelValue")).toBe("custom");
+    await new Promise((resolve) => setTimeout(resolve, 700));
+    expect(setUserProfile).toHaveBeenCalledTimes(savesBefore);
+  });
+
+  it("shows saved custom pronouns", async () => {
+    installPineApi("linux");
+    getUserProfile.mockResolvedValue({
+      ...createDefaultPineUserProfile(),
+      customPronouns: "ze/zir",
+      pronouns: "custom",
+    });
+    const { wrapper } = mountDialog();
+    await openSection(wrapper, "自定义");
+
+    await vi.waitFor(() =>
+      expect(pronounsSelect(wrapper).props("modelValue")).toBe("custom"),
+    );
+    expect(
+      (
+        wrapper.get("#pine-user-profile-custom-pronouns")
+          .element as HTMLInputElement
+      ).value,
+    ).toBe("ze/zir");
   });
 
   it("turns on Monet mode from General and locks the communication style", async () => {

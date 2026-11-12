@@ -386,9 +386,13 @@ the user opens themselves do not pulse.
     automatic approval path, context compaction strategy and method,
     TinyFish web tools key (shows Configured or Not configured), approximate
     location.
-  - User profile: nickname, communication style (Calm & professional,
-    Neutral or Warm & friendly; disabled while Monet mode is on), technical
-    background, personal details, custom instructions.
+  - User profile: nickname, pronouns (a dropdown: Not specified, he/him,
+    she/her, they/them or Custom; Custom shows a short text field for your own
+    wording; Not specified by default; Pine uses them when it refers to you in
+    the third person), communication style (Calm & professional, Neutral or
+    Warm & friendly; disabled while Monet mode is on), technical background,
+    personal details, custom instructions. Changes save automatically and
+    apply from the next message in every conversation.
   - Projects: every project with its data usage; New Project, Edit, clear
     temporary files, clear attachments.
   - Remote control (desktop app only): "Remote control via Aldine" pairs
