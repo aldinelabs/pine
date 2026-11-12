@@ -67,6 +67,7 @@ import { DEFAULT_PAGE_ORIGIN, RemoteControlStore } from "../remote/rcStore";
 import { WebSessionState } from "../webSessionState";
 import { WorkbenchStateRequests } from "../workbenchStateRequests";
 import type { PineHost } from "./host";
+import { LibraryChangeThrottle } from "./libraryChangeThrottle";
 import {
   PROJECT_ID_PATTERN,
   PresentedFilePreviewRequestSchema,
@@ -141,6 +142,10 @@ export class PineCore {
   /** Work a session asked for that must wait until its reply ends. */
   private readonly afterReply = new Map<string, () => Promise<void>>();
   private readonly sessionsWithRunningTasks = new Set<string>();
+  /** Session list notices caused by a window's sessions, throttled per window. */
+  private readonly sessionListChanges = new LibraryChangeThrottle<number>(
+    (ownerId) => this.notifyLibraryChanged("sessions", ownerId),
+  );
 
   static async create(host: PineHost): Promise<PineCore> {
     const agentDirectory = path.join(host.dataDirectory, "agent");
@@ -597,6 +602,7 @@ export class PineCore {
 
   /** Stop the agent process and its tools, and close browser access. */
   async stop(): Promise<void> {
+    this.sessionListChanges.dispose();
     this.remote.stop();
     await this.automations.stop().catch(() => undefined);
     const stopped = Promise.allSettled([
@@ -615,6 +621,7 @@ export class PineCore {
 
   /** Releases watchers and processes as Pine exits, without waiting. */
   dispose(): void {
+    this.sessionListChanges.dispose();
     this.remote.stop();
     void this.automations.stop();
     void this.stopWeb();
@@ -715,7 +722,11 @@ export class PineCore {
     }
     this.sendSessionEvent(ownerId, agentEvent);
     // A new session, a new title, or a finished run moves it in every list.
-    if (agentEvent.type === "session-updated" || finished)
+    // The agent sends `session-updated` per appended entry, so those are
+    // throttled per window; a finished run sends what is pending at once.
+    if (agentEvent.type === "session-updated")
+      this.sessionListChanges.notify(ownerId);
+    else if (finished && !this.sessionListChanges.flush(ownerId))
       this.notifyLibraryChanged("sessions", ownerId);
     if (teleportProjectId)
       void this.teleportSession(agentEvent.sessionId, teleportProjectId);
