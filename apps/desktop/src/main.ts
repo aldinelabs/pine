@@ -32,7 +32,10 @@ import {
   PREFERENCES_SNAPSHOT_CHANNEL,
 } from "./shared/preferenceStorage";
 import { PROJECT_MEDIA_PROTOCOL } from "./shared/projectFiles";
-import { LIBRARY_CHANGED_CHANNEL } from "./shared/projects";
+import {
+  LIBRARY_CHANGED_CHANNEL,
+  SESSIONS_DELETED_CHANNEL,
+} from "./shared/projects";
 import { AUTOMATIONS_CHANGED_CHANNEL } from "./shared/automation";
 import {
   automationLocale,
@@ -305,6 +308,11 @@ function desktopHost(): PineHost {
       for (const window of appWindows())
         if (!window.isDestroyed() && window.webContents.id !== sourceClientId)
           window.webContents.send(LIBRARY_CHANGED_CHANNEL, change);
+    },
+    sessionsDeleted: (sessionIds) => {
+      for (const window of appWindows())
+        if (!window.isDestroyed())
+          window.webContents.send(SESSIONS_DELETED_CHANNEL, sessionIds);
     },
     observeAgentEvent: (event, ownerId) => attention.observe(event, ownerId),
     approveRemotePairing: confirmRemotePairing,

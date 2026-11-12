@@ -440,6 +440,13 @@ export class PineCore {
     if (change === "projects") void this.automations.projectsChanged();
   }
 
+  /** Closes the tabs of deleted sessions in every interface. */
+  notifySessionsDeleted(sessionIds: string[]): void {
+    if (!sessionIds.length) return;
+    this.host.sessionsDeleted?.(sessionIds);
+    this.web.sessionsDeleted(sessionIds);
+  }
+
   rememberAttachments(
     clientId: number,
     attachmentPaths: readonly string[],

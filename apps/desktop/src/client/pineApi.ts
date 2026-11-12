@@ -176,6 +176,7 @@ import {
   CLOSE_PROJECT_CHANNEL,
   DELETE_PROJECT_CHANNEL,
   LIBRARY_CHANGED_CHANNEL,
+  SESSIONS_DELETED_CHANNEL,
   LIST_PROJECTS_CHANNEL,
   OPEN_PROJECT_CHANNEL,
   PICK_PROJECT_FOLDERS_CHANNEL,
@@ -811,6 +812,12 @@ export function createPineApi(transport: PineTransport): PineDesktopApi {
         listener(change);
       transport.on(LIBRARY_CHANGED_CHANNEL, handler);
       return () => transport.removeListener(LIBRARY_CHANGED_CHANNEL, handler);
+    },
+    onSessionsDeleted: (listener: (sessionIds: string[]) => void) => {
+      const handler = (_event: unknown, sessionIds: string[]) =>
+        listener(sessionIds);
+      transport.on(SESSIONS_DELETED_CHANNEL, handler);
+      return () => transport.removeListener(SESSIONS_DELETED_CHANNEL, handler);
     },
     onSessionEvent: (listener: SessionEventListener): (() => void) => {
       const handler = (

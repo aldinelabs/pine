@@ -29,7 +29,10 @@ import {
 import { SESSION_EVENT_CHANNEL, type PineSessionEvent } from "../shared/agent";
 import type { PineAttachment } from "../shared/attachments";
 import { OPEN_PROJECT_CHANNEL } from "../shared/projects";
-import { LIBRARY_CHANGED_CHANNEL } from "../shared/projects";
+import {
+  LIBRARY_CHANGED_CHANNEL,
+  SESSIONS_DELETED_CHANNEL,
+} from "../shared/projects";
 
 interface WebApplicationOptions {
   access: WebAccess & {
@@ -279,5 +282,9 @@ export class WebApplication {
 
   libraryChanged(change: unknown): void {
     this.server.publish(LIBRARY_CHANGED_CHANNEL, change);
+  }
+
+  sessionsDeleted(sessionIds: string[]): void {
+    this.server.publish(SESSIONS_DELETED_CHANNEL, sessionIds);
   }
 }

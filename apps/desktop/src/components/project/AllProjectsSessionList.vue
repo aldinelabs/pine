@@ -329,7 +329,17 @@ onMounted(() => {
     pendingChanges.add(change);
     void reloadChanged();
   });
-  onBeforeUnmount(() => stop?.());
+  // Sessions deleted elsewhere, such as by the agent, close their tabs here.
+  const stopDeleted = window.pine.onSessionsDeleted?.((sessionIds) => {
+    for (const sessionId of sessionIds) {
+      tabNavigation.removeSession(sessionId);
+      sessionStore.forgetDeletedSession(sessionId);
+    }
+  });
+  onBeforeUnmount(() => {
+    stop?.();
+    stopDeleted?.();
+  });
 });
 
 async function openSession(session: ProjectSessionSearchResult) {

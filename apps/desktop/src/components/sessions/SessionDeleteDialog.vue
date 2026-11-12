@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { withoutRelayPrefix } from "@/shared/sessions";
 import { computed, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import { handleError } from "@/app/errors/errorHandler";
@@ -33,7 +34,9 @@ const isDeleting = ref(false);
 
 const sessionTitle = computed(
   () =>
-    props.session?.name || props.session?.preview || t("sessions.newSession"),
+    props.session?.name ||
+    (props.session?.preview && withoutRelayPrefix(props.session.preview)) ||
+    t("sessions.newSession"),
 );
 
 async function deleteSession(): Promise<void> {

@@ -1196,15 +1196,23 @@ export const useSessionStore = defineStore("session", () => {
       sessionId,
     });
     if (!deleted) return false;
+    forgetDeletedSession(sessionId);
+    return true;
+  }
 
-    bumpRecentSequence(projectId);
-    setLoadingRecent(projectId, false);
-    setRecent(
-      projectId,
-      recentSessionsFor(projectId).filter(
-        (session) => session.id !== sessionId,
-      ),
-    );
+  /** Drops what this window knows of a session deleted here or elsewhere. */
+  function forgetDeletedSession(sessionId: string): void {
+    const projectId = sessionProjects.get(sessionId);
+    if (projectId) {
+      bumpRecentSequence(projectId);
+      setLoadingRecent(projectId, false);
+      setRecent(
+        projectId,
+        recentSessionsFor(projectId).filter(
+          (session) => session.id !== sessionId,
+        ),
+      );
+    }
     searchResults.value = searchResults.value.filter(
       (session) => session.id !== sessionId,
     );
@@ -1215,7 +1223,6 @@ export const useSessionStore = defineStore("session", () => {
     sessionProjects.delete(sessionId);
     modelsStore.setSessionSelection(sessionId, undefined);
     if (currentSessionId.value === sessionId) startDraft();
-    return true;
   }
 
   async function renameSession(
@@ -1852,6 +1859,7 @@ export const useSessionStore = defineStore("session", () => {
     allRecentSessions,
     isLoadingAllRecent,
     loadAllRecent,
+    forgetDeletedSession,
     forgetProject,
     hasActiveWork,
     isLoadingRecentFor,

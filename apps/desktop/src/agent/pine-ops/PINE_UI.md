@@ -281,8 +281,8 @@ From top to bottom:
      and delete session folders, move sessions into or out of folders, and
      rename sessions; the left sidebar updates at once. In Let Me Review this
      shows an Approval required card listing the changes. Deleting a session
-     always shows an Approval required card, in every mode, and a session
-     that is open in a tab cannot be deleted this way.
+     always shows an Approval required card, in every mode; a session open
+     in a tab stops and its tab closes once it is deleted.
    - Projects the agent manages: when asked, the agent can create a project
      from folders, rename one, add or remove its folders, change its working
      folder, or delete it. Each change shows an Approval required card in

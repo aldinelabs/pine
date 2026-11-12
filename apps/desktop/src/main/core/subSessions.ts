@@ -173,7 +173,10 @@ export async function notifyParentOf(
   );
 }
 
-/** Deletes a session, and with it its sub-sessions; unlinks them all. */
+/**
+ * Deletes a session, and with it its sub-sessions, even while open: their
+ * live sessions stop and every interface closes their tabs. Unlinks them all.
+ */
 export async function deleteSessionWithChildren(
   core: PineCore,
   owner: number,
@@ -186,6 +189,7 @@ export async function deleteSessionWithChildren(
     await runtimes.deleteSession(owner, project.id, child).catch(() => false);
   const deleted = await runtimes.deleteSession(owner, project.id, sessionId);
   const gone = new Set([sessionId, ...children]);
+  core.notifySessionsDeleted([...gone]);
   if (
     Object.entries(project.sessionParents ?? {}).some(
       ([child, parent]) => gone.has(child) || gone.has(parent),

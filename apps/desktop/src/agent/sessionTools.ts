@@ -628,22 +628,19 @@ export function createSessionToolDefinitions(
     name: UI_SESSION_DELETE_TOOL_NAME,
     label: "Delete Session",
     description:
-      "Permanently delete one of the user's sessions. Pine asks the user to confirm every deletion. The current session and sessions open in a tab cannot be deleted.",
+      "Permanently delete one of the user's sessions. Pine asks the user to confirm every deletion. The current session cannot be deleted; a session open in a tab is stopped and its tab closes.",
     parameters: deleteParams,
     prepareArguments: (args) => args as Static<typeof deleteParams>,
     executionMode: "sequential",
     execute: async (toolCallId, params, signal) => {
       const projectId = params.projectId.trim();
       const sessionId = params.sessionId.trim();
-      const { session, open, subSessionCount } = await callSessionHost(
-        context,
-        { op: "describe", projectId, sessionId },
-      );
+      const { session, subSessionCount } = await callSessionHost(context, {
+        op: "describe",
+        projectId,
+        sessionId,
+      });
       if (session.current) throw new Error("A session cannot delete itself.");
-      if (open)
-        throw new Error(
-          "That session is open in Pine. Ask the user to close its tab first.",
-        );
       // Deleting cannot be undone, so the user decides in every mode.
       const decision = await context.requestApproval({
         toolCallId,

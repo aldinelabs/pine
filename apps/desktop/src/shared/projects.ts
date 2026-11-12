@@ -164,6 +164,7 @@ export function isTemporaryWorkspace(projectId: string | undefined): boolean {
 export const LIST_PROJECTS_CHANNEL = "project:list" as const;
 /** Main tells every other window their lists are stale. */
 export const LIBRARY_CHANGED_CHANNEL = "library:changed" as const;
+export const SESSIONS_DELETED_CHANNEL = "library:sessions-deleted" as const;
 /** What changed in another window: its sessions, or its projects too. */
 export type PineLibraryChange = "sessions" | "projects";
 export const CREATE_PROJECT_CHANNEL = "project:create" as const;
@@ -392,6 +393,8 @@ export interface PineDesktopApi
   onLibraryChanged: (
     listener: (change: PineLibraryChange) => void,
   ) => () => void;
+  /** Fires with the ids of deleted sessions, so their tabs can close. */
+  onSessionsDeleted?: (listener: (sessionIds: string[]) => void) => () => void;
   respondWorkbenchState: (response: WorkbenchStateResponse) => void;
   listMcpServers: (request: PineMcpRequest) => Promise<PineMcpCatalog>;
   saveMcpServer: (request: PineMcpSaveRequest) => Promise<PineMcpCatalog>;

@@ -468,20 +468,9 @@ export async function answerSessionOperation(
       };
     if (parsed.sessionId === requester.sessionId)
       throw new Error("A session cannot delete itself.");
-    // An open session would leave its tab pointing at nothing.
-    if (open)
-      throw new Error(
-        "That session is open in Pine. Ask the user to close its tab first.",
-      );
     const children = childrenOf(project, parsed.sessionId);
     if (children.includes(requester.sessionId))
       throw new Error("A session cannot delete the session that started it.");
-    if (
-      children.some((id) => runtimes.liveSessionIdsOf(project.id).includes(id))
-    )
-      throw new Error(
-        "One of its sub-sessions is open in Pine. Ask the user to close its tab first.",
-      );
     const owner = await holdProject(core, requester, project);
     const deleted = await deleteSessionWithChildren(
       core,

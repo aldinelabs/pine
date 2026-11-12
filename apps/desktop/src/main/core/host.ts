@@ -41,6 +41,8 @@ export interface PineHost {
   focusClient(clientId: number): boolean;
   /** Tells desktop windows other than the source that the library changed. */
   libraryChanged(change: PineLibraryChange, sourceClientId?: number): void;
+  /** Tells every desktop window which sessions are gone, to close their tabs. */
+  sessionsDeleted?(sessionIds: string[]): void;
   /**
    * Sees each session event before Pine routes it, to tell the user about
    * it. The owner is undefined once no interface holds the session.

@@ -66,6 +66,7 @@ function fixture({
     session: { id: "new-session" },
   });
   const share = vi.fn().mockResolvedValue(undefined);
+  const notifySessionsDeleted = vi.fn();
   const updateSessionParents = vi.fn(
     (_id: string, change: (parents: Record<string, string>) => object) =>
       Promise.resolve({
@@ -111,6 +112,7 @@ function fixture({
       runSessions: vi.fn().mockResolvedValue(new Map([["run", {}]])),
     },
     notifyLibraryChanged: vi.fn(),
+    notifySessionsDeleted,
   } as unknown as PineCore;
   return {
     core,
@@ -121,6 +123,7 @@ function fixture({
     deleteSession,
     updateSessionParents,
     loadMessages,
+    notifySessionsDeleted,
   };
 }
 
@@ -376,17 +379,24 @@ describe("answerSessionOperation", () => {
     expect(result).toEqual({ op: "delete", deleted: true });
   });
 
-  it("does not delete a session open in a tab", async () => {
-    const { core, deleteSession } = fixture({ live: [filedSession] });
+  it("deletes an open session with its sub-sessions and closes their tabs", async () => {
+    const { core, deleteSession, notifySessionsDeleted } = fixture({
+      live: [filedSession, looseSession],
+      sessionParents: { [looseSession]: filedSession },
+    });
 
-    await expect(
-      answerSessionOperation(core, requester, {
-        op: "delete",
-        projectId,
-        sessionId: filedSession,
-      }),
-    ).rejects.toThrow("close its tab first");
-    expect(deleteSession).not.toHaveBeenCalled();
+    await answerSessionOperation(core, requester, {
+      op: "delete",
+      projectId,
+      sessionId: filedSession,
+    });
+
+    expect(deleteSession).toHaveBeenCalledWith(7, projectId, looseSession);
+    expect(deleteSession).toHaveBeenCalledWith(7, projectId, filedSession);
+    expect(notifySessionsDeleted).toHaveBeenCalledWith([
+      filedSession,
+      looseSession,
+    ]);
   });
 
   it("starts a sub-session and links it to its parent", async () => {
