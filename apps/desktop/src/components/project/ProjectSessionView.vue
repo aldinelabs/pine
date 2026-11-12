@@ -329,6 +329,7 @@ useSteeringMessageTransition({
   // user message just arrived and where it landed.
   messages,
   structureVersion,
+  userMessages,
   active: isActive,
   sessionId: computed(() => props.sessionId),
 });
