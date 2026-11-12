@@ -107,6 +107,7 @@ import type { PineWindowApi } from "./window";
 import type { PineBackgroundApi } from "./background";
 import type { PinePreferenceStorageApi } from "./preferenceStorage";
 import type { PineQuickComposerApi } from "./quickComposer";
+import type { PineWeChatApi } from "./wechatRemote";
 import type {
   SetApproximateLocationRequest,
   SetApproximateLocationResult,
@@ -353,7 +354,8 @@ export interface PineDesktopApi
     PineQuickComposerApi,
     PineBackgroundApi,
     PinePreferenceStorageApi,
-    PineSideChatApi {
+    PineSideChatApi,
+    PineWeChatApi {
   runtime?: "desktop" | "web";
   getWebServer?: () => Promise<import("./webControl").WebServerStatus>;
   setWebServer?: (

@@ -421,6 +421,8 @@ export interface PineSessionSummary {
   approvalMode?: PineApprovalMode;
   /** Set when the session is an automation's run. */
   automationRun?: AutomationRunSession;
+  /** Started from WeChat, or sent a message from WeChat later. */
+  origin?: "wechat" | "wechat-used";
   createdAt: string;
   id: string;
   messageCount: number;
