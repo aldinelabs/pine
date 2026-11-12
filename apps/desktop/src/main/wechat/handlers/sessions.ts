@@ -43,6 +43,8 @@ import { toPlainText } from "../text";
 import type { HandleRow, ParsedCommand } from "../types";
 import type { CommandContext, CommandHandlers, CommandResult } from "./types";
 
+const APPROVAL_GONE = "This approval request is no longer pending.";
+
 const W = WECHAT_CLIENT_ID;
 
 /** Sessions a list or search reply covers (five pages of eight). */
@@ -774,21 +776,33 @@ export const sessionHandlers: CommandHandlers = {
         requestId: longContext.requestId,
         action: "abort",
       });
-      runtimes.respondApproval(
-        ctx.sessions.responder(sessionId, projectId),
-        request,
-      );
-      ctx.asks.close(longContext.number, "used");
+      let answered = true;
+      try {
+        await Promise.resolve(
+          runtimes.respondApproval(
+            ctx.sessions.responder(sessionId, projectId),
+            request,
+          ),
+        );
+      } catch (error) {
+        // Decided on the computer first: stop the run the ordinary way.
+        if (!(error instanceof Error && error.message === APPROVAL_GONE))
+          throw error;
+        answered = false;
+      }
+      ctx.asks.close(longContext.number, answered ? "used" : "decided");
       ctx.outbound.retract(`ask:${longContext.number}`);
-      const view = await ctx.sessions.view(sessionId, projectId);
-      return {
-        text: render("R-STOP", ctx.lang, {
-          title: view.title,
-          backgroundTasks: view.tasks.filter(
-            (task) => task.status === "running",
-          ).length,
-        }),
-      };
+      if (answered) {
+        const view = await ctx.sessions.view(sessionId, projectId);
+        return {
+          text: render("R-STOP", ctx.lang, {
+            title: view.title,
+            backgroundTasks: view.tasks.filter(
+              (task) => task.status === "running",
+            ).length,
+          }),
+        };
+      }
     }
     // `abort` throws for a session that is not live (CMD §7 conventions).
     const state = ctx.sessions.runState(sessionId);

@@ -340,6 +340,23 @@ describe(".stop", () => {
     expect(result.text).toBe("Stopped: Session s1.");
   });
 
+  it("still aborts the run when the long-context card was decided on the computer", async () => {
+    const { ctx, runtimes } = setup();
+    await currentSession(ctx);
+    ctx.sessions.observe(running("s1"), W);
+    ctx.sessions.observe(
+      approval("s1", { trigger: "long-context-activation" }),
+      W,
+    );
+    runtimes.respondApproval.mockImplementationOnce(() => {
+      throw new Error("This approval request is no longer pending.");
+    });
+    const result = await run(ctx, "stop");
+    expect(runtimes.abort).toHaveBeenCalledWith(W, "s1");
+    expect(ctx.asks.status(11)).toBe("tombstone");
+    expect(result.text).toBe("Stopped: Session s1.");
+  });
+
   it("aborts a running session with the actor", async () => {
     const { ctx, runtimes } = setup();
     await currentSession(ctx);
