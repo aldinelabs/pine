@@ -50,6 +50,8 @@ export const UI_SESSION_DELETE_TOOL_NAME = "ui_session_delete" as const;
 export const UI_PROJECT_CREATE_TOOL_NAME = "ui_project_create" as const;
 export const UI_PROJECT_UPDATE_TOOL_NAME = "ui_project_update" as const;
 export const UI_PROJECT_DELETE_TOOL_NAME = "ui_project_delete" as const;
+/** Shows the user an interim answer as reply text while the agent keeps working. */
+export const UI_REPORT_PROGRESS_TOOL_NAME = "ui_report_progress" as const;
 
 /**
  * Names Pine's own tools had before they moved to `ui_<area>_<action>`.

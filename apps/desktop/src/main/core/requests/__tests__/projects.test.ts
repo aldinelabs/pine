@@ -1,8 +1,11 @@
 import { describe, expect, it, vi } from "vitest";
 import type { PineCore } from "../../pineCore";
-import type { PineProject } from "../../../../shared/projects";
+import type {
+  PineProject,
+  ProjectHostOperation,
+} from "../../../../shared/projects";
 import { TEMPORARY_WORKSPACE_PROJECT_ID } from "../../../../shared/projects";
-import { answerProjectOperation } from "../projects";
+import { agentHostProject, answerProjectOperation } from "../projects";
 
 const ownId = "22222222-2222-4222-8222-222222222222";
 const otherId = "66666666-6666-4666-8666-666666666666";
@@ -45,13 +48,21 @@ function fixture({ busy = false } = {}) {
   const create = vi.fn((input: { name: string }) =>
     Promise.resolve({ ...project("new", input.name) }),
   );
+  const updateAppearance = vi.fn((id: string, appearance: object) => {
+    const saved = { ...projects.get(id), ...appearance } as PineProject;
+    projects.set(id, saved);
+    return Promise.resolve(saved);
+  });
+  const refresh = vi.fn().mockResolvedValue(undefined);
   const remove = vi.fn().mockResolvedValue(true);
   const closeEverywhere = vi.fn().mockResolvedValue(undefined);
+  const notifyLibraryChanged = vi.fn();
   const core = {
     repository: {
       get: vi.fn((id: string) => Promise.resolve(projects.get(id))),
       create,
       update,
+      updateAppearance,
       delete: remove,
       dataPaths: vi.fn().mockReturnValue({}),
     },
@@ -59,15 +70,25 @@ function fixture({ busy = false } = {}) {
       projectOfLiveSession: vi.fn().mockReturnValue(projects.get(ownId)),
       liveSessionIdsOf: vi.fn().mockReturnValue([]),
       clientsOfProject: vi.fn().mockReturnValue([7]),
-      refresh: vi.fn().mockResolvedValue(undefined),
+      refresh,
       closeEverywhere,
     },
     projectHasRunningWork: vi.fn().mockReturnValue(busy),
     scheduleAfterReply,
     sendSessionEvent: vi.fn(),
-    notifyLibraryChanged: vi.fn(),
+    notifyLibraryChanged,
   } as unknown as PineCore;
-  return { core, update, scheduleAfterReply, create, remove, closeEverywhere };
+  return {
+    core,
+    notifyLibraryChanged,
+    update,
+    updateAppearance,
+    refresh,
+    scheduleAfterReply,
+    create,
+    remove,
+    closeEverywhere,
+  };
 }
 
 describe("answerProjectOperation", () => {
@@ -192,5 +213,232 @@ describe("answerProjectOperation", () => {
     expect(closeEverywhere).toHaveBeenCalledWith(otherId);
     expect(remove).toHaveBeenCalledWith(otherId);
     expect(result).toEqual({ op: "delete", projectName: "Notes" });
+  });
+
+  it("creates a project with the given icon and accent color", async () => {
+    const { core, create } = fixture();
+
+    await answerProjectOperation(core, requester, {
+      op: "create",
+      name: "Site",
+      folders: [{ path: "/code/site", access: "read-write" }],
+      projectIcon: "rocket",
+      projectColorTheme: "violet",
+    });
+    await answerProjectOperation(core, requester, {
+      op: "create",
+      name: "Plain",
+      folders: [{ path: "/code/plain", access: "read-write" }],
+    });
+
+    expect(create.mock.calls[0]?.[0]).toMatchObject({
+      projectIcon: "rocket",
+      projectColorTheme: "violet",
+    });
+    const plain = create.mock.calls[1]?.[0] as unknown as Record<
+      string,
+      unknown
+    >;
+    expect(plain.projectColorTheme).toBe("default");
+    expect(plain).not.toHaveProperty("projectIcon");
+  });
+
+  it("changes the own project's appearance at once without restarting", async () => {
+    const {
+      core,
+      update,
+      updateAppearance,
+      refresh,
+      scheduleAfterReply,
+      notifyLibraryChanged,
+    } = fixture();
+
+    const result = await answerProjectOperation(core, requester, {
+      op: "update",
+      projectId: ownId,
+      projectIcon: "rocket",
+      projectColorTheme: "blue",
+    });
+
+    expect(updateAppearance).toHaveBeenCalledWith(ownId, {
+      projectIcon: "rocket",
+      projectColorTheme: "blue",
+    });
+    expect(result).toEqual({
+      op: "update",
+      projectId: ownId,
+      projectName: "Pine",
+      applied: "now",
+    });
+    expect(update).not.toHaveBeenCalled();
+    expect(scheduleAfterReply).not.toHaveBeenCalled();
+    expect(refresh).not.toHaveBeenCalled();
+    expect(notifyLibraryChanged).toHaveBeenCalledWith("projects");
+  });
+
+  it("changes the appearance while another session is working", async () => {
+    const { core, updateAppearance } = fixture({ busy: true });
+
+    await answerProjectOperation(core, requester, {
+      op: "update",
+      projectId: otherId,
+      name: "Notes",
+      defaultFolderPath: "/code/app/",
+      projectIcon: "rocket",
+    });
+
+    expect(updateAppearance).toHaveBeenCalledWith(otherId, {
+      projectIcon: "rocket",
+    });
+  });
+
+  it("applies the icon of an own-project rename at once and defers the rename", async () => {
+    const { core, update, updateAppearance, scheduleAfterReply } = fixture();
+
+    const result = await answerProjectOperation(core, requester, {
+      op: "update",
+      projectId: ownId,
+      name: "Pine 2",
+      projectIcon: "rocket",
+    });
+
+    expect(result).toMatchObject({ applied: "after-reply" });
+    expect(updateAppearance).toHaveBeenCalledWith(ownId, {
+      projectIcon: "rocket",
+    });
+    expect(update).not.toHaveBeenCalled();
+    await (scheduleAfterReply.mock.calls[0]?.[1] as () => Promise<void>)();
+    expect(update).toHaveBeenCalledWith(
+      ownId,
+      expect.objectContaining({
+        name: "Pine 2",
+        projectIcon: "rocket",
+        projectColorTheme: "default",
+      }),
+    );
+  });
+
+  it("keeps an appearance saved while an own-project rename waits", async () => {
+    const { core, update, scheduleAfterReply } = fixture();
+
+    await answerProjectOperation(core, requester, {
+      op: "update",
+      projectId: ownId,
+      name: "Pine 2",
+    });
+    await answerProjectOperation(core, requester, {
+      op: "update",
+      projectId: ownId,
+      projectIcon: "rocket",
+      projectColorTheme: "blue",
+    });
+    await (scheduleAfterReply.mock.calls[0]?.[1] as () => Promise<void>)();
+
+    expect(update).toHaveBeenCalledWith(
+      ownId,
+      expect.objectContaining({
+        name: "Pine 2",
+        projectIcon: "rocket",
+        projectColorTheme: "blue",
+      }),
+    );
+  });
+
+  it("keeps a later icon over one sent with a deferred rename", async () => {
+    const { core, update, scheduleAfterReply } = fixture();
+
+    await answerProjectOperation(core, requester, {
+      op: "update",
+      projectId: ownId,
+      name: "Pine 2",
+      projectIcon: "rocket",
+    });
+    await answerProjectOperation(core, requester, {
+      op: "update",
+      projectId: ownId,
+      projectIcon: "star",
+    });
+    await (scheduleAfterReply.mock.calls[0]?.[1] as () => Promise<void>)();
+
+    expect(update).toHaveBeenCalledWith(
+      ownId,
+      expect.objectContaining({ name: "Pine 2", projectIcon: "star" }),
+    );
+  });
+
+  it("refuses an update that changes nothing", async () => {
+    const { core, update, updateAppearance } = fixture();
+
+    await expect(
+      answerProjectOperation(core, requester, {
+        op: "update",
+        projectId: otherId,
+        name: "Notes",
+      }),
+    ).rejects.toThrow("Nothing to change.");
+    expect(update).not.toHaveBeenCalled();
+    expect(updateAppearance).not.toHaveBeenCalled();
+  });
+
+  it("rejects icons and colors the Edit Project dialog does not offer", async () => {
+    const { core, create, update, updateAppearance } = fixture();
+    const invalid = [
+      {
+        op: "create",
+        name: "Site",
+        folders: [{ path: "/code/site", access: "read-write" }],
+        projectIcon: "dragon",
+      },
+      {
+        op: "create",
+        name: "Site",
+        folders: [{ path: "/code/site", access: "read-write" }],
+        projectColorTheme: "pink",
+      },
+      { op: "update", projectId: otherId, projectIcon: "dragon" },
+      { op: "update", projectId: otherId, projectColorTheme: "pink" },
+    ] as unknown as ProjectHostOperation[];
+
+    for (const operation of invalid)
+      await expect(
+        answerProjectOperation(core, requester, operation),
+      ).rejects.toThrow();
+    expect(create).not.toHaveBeenCalled();
+    expect(update).not.toHaveBeenCalled();
+    expect(updateAppearance).not.toHaveBeenCalled();
+  });
+});
+
+describe("agentHostProject", () => {
+  it("maps the icon and accent color and marks the current project", () => {
+    expect(
+      agentHostProject(
+        {
+          ...project(ownId, "Pine"),
+          projectIcon: "rocket",
+          projectColorTheme: "blue",
+        },
+        ownId,
+      ),
+    ).toEqual({
+      id: ownId,
+      name: "Pine",
+      current: true,
+      defaultFolderPath: "/code/app",
+      folders: [{ access: "read-write", name: "app", path: "/code/app" }],
+      icon: "rocket",
+      accentColor: "blue",
+    });
+  });
+
+  it("falls back to Pine's defaults", () => {
+    const bare = project(otherId, "Notes");
+    delete bare.projectIcon;
+
+    expect(agentHostProject(bare, ownId)).toMatchObject({
+      icon: "inbox",
+      accentColor: "default",
+    });
+    expect(agentHostProject(bare, ownId)).not.toHaveProperty("current");
   });
 });

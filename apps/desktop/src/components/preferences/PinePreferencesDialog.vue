@@ -21,6 +21,7 @@ import { storeToRefs } from "pinia";
 import type { Component } from "vue";
 import {
   computed,
+  nextTick,
   onBeforeUnmount,
   onMounted,
   reactive,
@@ -114,8 +115,12 @@ import { DEFAULT_APPROXIMATE_LOCATION_ENABLED } from "@/shared/approximateLocati
 import {
   createDefaultPineUserProfile,
   isPineCommunicationStyle,
+  isPinePronouns,
   isPineTechnicalBackground,
   normalizePineUserProfile,
+  PINE_CUSTOM_PRONOUNS_MAX_LENGTH,
+  PINE_PRONOUNS,
+  type PinePronouns,
   type PineUserProfile,
 } from "@/shared/userProfile";
 
@@ -229,6 +234,13 @@ const COMMUNICATION_STYLE_DESCRIPTION_KEYS = {
   neutral: "preferences.userProfileStyleNeutralDescription",
   "warm-friendly": "preferences.userProfileStyleWarmDescription",
 } as const;
+const PRONOUN_LABEL_KEYS = {
+  unspecified: "preferences.userProfilePronounsUnspecified",
+  he: "preferences.userProfilePronounsHe",
+  she: "preferences.userProfilePronounsShe",
+  they: "preferences.userProfilePronounsThey",
+  custom: "preferences.userProfilePronounsCustom",
+} as const satisfies Record<PinePronouns, string>;
 const communicationStyleDescription = computed(() =>
   t(COMMUNICATION_STYLE_DESCRIPTION_KEYS[profileDraft.communicationStyle]),
 );
@@ -362,6 +374,8 @@ function userProfilesEqual(a: PineUserProfile, b: PineUserProfile): boolean {
     a.customInstructions === b.customInstructions &&
     a.nickname === b.nickname &&
     a.personalDetails === b.personalDetails &&
+    a.pronouns === b.pronouns &&
+    a.customPronouns === b.customPronouns &&
     a.technicalBackground === b.technicalBackground &&
     a.interactiveAnswersEnabled === b.interactiveAnswersEnabled
   );
@@ -465,6 +479,39 @@ async function refreshModelCatalog(): Promise<void> {
 function updateCommunicationStyle(value: unknown): void {
   if (typeof value === "string" && isPineCommunicationStyle(value)) {
     profileDraft.communicationStyle = value;
+  }
+}
+
+const CUSTOM_PRONOUNS_INPUT_ID = "pine-user-profile-custom-pronouns";
+// Set when the user switches to Custom, so the Select's close does not
+// hand focus back to its trigger instead of the field that just appeared.
+let focusCustomPronounsOnClose = false;
+
+function focusCustomPronounsInput(): void {
+  document.getElementById(CUSTOM_PRONOUNS_INPUT_ID)?.focus();
+}
+
+function updatePronouns(value: unknown): void {
+  if (!isPinePronouns(value)) {
+    return;
+  }
+  const switchedToCustom =
+    value === "custom" && profileDraft.pronouns !== "custom";
+  profileDraft.pronouns = value;
+  if (switchedToCustom) {
+    focusCustomPronounsOnClose = true;
+    void nextTick(focusCustomPronounsInput);
+  }
+}
+
+function onPronounsCloseAutoFocus(event: Event): void {
+  if (!focusCustomPronounsOnClose) {
+    return;
+  }
+  focusCustomPronounsOnClose = false;
+  if (profileDraft.pronouns === "custom") {
+    event.preventDefault();
+    focusCustomPronounsInput();
   }
 }
 
@@ -1016,6 +1063,54 @@ defineExpose({ open });
                 />
                 <FieldDescription>
                   {{ t("preferences.userProfileNicknameDescription") }}
+                </FieldDescription>
+              </Field>
+
+              <Field>
+                <FieldLabel id="pine-user-profile-pronouns-label">
+                  {{ t("preferences.userProfilePronounsLabel") }}
+                </FieldLabel>
+                <div class="flex flex-wrap gap-2">
+                  <Select
+                    :model-value="profileDraft.pronouns"
+                    @update:model-value="updatePronouns"
+                  >
+                    <SelectTrigger
+                      data-testid="pine-user-profile-pronouns-select"
+                      class="w-fit"
+                      aria-labelledby="pine-user-profile-pronouns-label"
+                    >
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent @close-auto-focus="onPronounsCloseAutoFocus">
+                      <SelectGroup>
+                        <SelectItem
+                          v-for="option in PINE_PRONOUNS"
+                          :key="option"
+                          :value="option"
+                        >
+                          {{ t(PRONOUN_LABEL_KEYS[option]) }}
+                        </SelectItem>
+                      </SelectGroup>
+                    </SelectContent>
+                  </Select>
+                  <Input
+                    v-if="profileDraft.pronouns === 'custom'"
+                    :id="CUSTOM_PRONOUNS_INPUT_ID"
+                    v-model="profileDraft.customPronouns"
+                    class="min-w-40 flex-1"
+                    :maxlength="PINE_CUSTOM_PRONOUNS_MAX_LENGTH"
+                    autocomplete="off"
+                    :aria-label="
+                      t('preferences.userProfilePronounsCustomLabel')
+                    "
+                    :placeholder="
+                      t('preferences.userProfilePronounsCustomPlaceholder')
+                    "
+                  />
+                </div>
+                <FieldDescription>
+                  {{ t("preferences.userProfilePronounsDescription") }}
                 </FieldDescription>
               </Field>
 

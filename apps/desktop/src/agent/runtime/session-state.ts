@@ -7,6 +7,7 @@ import type {
 import { createHash } from "node:crypto";
 import {
   RECALL_TOOL_NAME,
+  UI_REPORT_PROGRESS_TOOL_NAME,
   type PineAgentEvent,
   type PineApprovalMode,
   type PineMessageRewriteTarget,
@@ -87,6 +88,8 @@ export interface LiveAgentSession {
   mcpAuthoringActive: boolean;
   /** An MCP config change waits for the run to end before reloading. */
   mcpReloadPending?: boolean;
+  /** Whether the session file names a parent: this is a sub-session. */
+  subSession: boolean;
   /** Set for a read-only side chat forked from another conversation. */
   sideChat?: { parentSessionId: string; persistent: boolean };
   /** Set for an unattended automation run; its envelope replaces the tool list. */
@@ -221,6 +224,19 @@ export function toolNamesForCompactionRoute(
 ): string[] {
   if (route === "semantic") return [...toolNames];
   return toolNames.filter((name) => name !== RECALL_TOOL_NAME);
+}
+
+/**
+ * The session that started a sub-session reads only the last reply of each
+ * turn, so an interim answer would move findings out of the one message that
+ * reaches it. Sub-sessions answer in their final reply alone.
+ */
+export function toolNamesForSubSession(
+  toolNames: readonly string[],
+  subSession: boolean,
+): string[] {
+  if (!subSession) return [...toolNames];
+  return toolNames.filter((name) => name !== UI_REPORT_PROGRESS_TOOL_NAME);
 }
 
 export function toolNamesForComputerUseState(

@@ -60,17 +60,24 @@ export function isPineSessionMutator(
   );
 }
 
-/** The same mutator twice changes nothing; keep the first of each. */
+/**
+ * One plain copy of each mutator, in order; the same mutator twice changes
+ * nothing. Renderer state hands mutators out as reactive proxies, which
+ * Electron cannot clone across IPC, so callers send these copies. Copy every
+ * field a new mutator kind adds.
+ */
 export function uniqueSessionMutators(
   mutators: readonly PineSessionMutator[],
 ): PineSessionMutator[] {
   const seen = new Set<string>();
-  return mutators.filter((mutator) => {
-    const key = `${mutator.kind}:${mutator.target}`;
-    if (seen.has(key)) return false;
+  const unique: PineSessionMutator[] = [];
+  for (const { kind, target } of mutators) {
+    const key = `${kind}:${target}`;
+    if (seen.has(key)) continue;
     seen.add(key);
-    return true;
-  });
+    unique.push({ kind, target });
+  }
+  return unique;
 }
 
 /**

@@ -285,6 +285,16 @@ export default {
     userProfileNicknamePlaceholder: "What should Pine call you?",
     userProfileNicknameDescription:
       "Pine will use this name when it is appropriate.",
+    userProfilePronounsLabel: "Pronouns",
+    userProfilePronounsUnspecified: "Not specified",
+    userProfilePronounsHe: "he/him",
+    userProfilePronounsShe: "she/her",
+    userProfilePronounsThey: "they/them",
+    userProfilePronounsCustom: "Custom",
+    userProfilePronounsCustomLabel: "Custom pronouns",
+    userProfilePronounsCustomPlaceholder: "Enter your pronouns",
+    userProfilePronounsDescription:
+      "Pine uses these when it refers to you in the third person, for example in documents or messages it writes for you.",
     userProfileStyleLabel: "Communication style",
     userProfileStyleCalm: "Calm & professional",
     userProfileStyleNeutral: "Neutral",

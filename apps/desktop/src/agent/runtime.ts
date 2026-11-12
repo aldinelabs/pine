@@ -242,6 +242,7 @@ import {
   toolNamesForComputerUseState,
   toolNamesForMediaGenerationState,
   toolNamesForSkillAuthoringState,
+  toolNamesForSubSession,
   toolNamesForAutomationAuthoringState,
   toolNamesForAutomationRun,
   toolNamesForMcpAuthoringState,
@@ -1285,6 +1286,7 @@ export class PineAgentRuntime {
       ),
       attachedPaths,
       availableToolNames: [],
+      subSession: subSessionParentOf(sessionManager.getEntries()) !== undefined,
       computerUseActive: computerUseActiveFromSessionEntries(
         sessionManager.getEntries(),
       ),
@@ -1828,7 +1830,10 @@ export class PineAgentRuntime {
                 toolNamesForAutomationAuthoringState(
                   toolNamesForSkillAuthoringState(
                     toolNamesForCompactionRoute(
-                      [...live.availableToolNames, ...mcpToolNames],
+                      toolNamesForSubSession(
+                        [...live.availableToolNames, ...mcpToolNames],
+                        live.subSession,
+                      ),
                       live.contextCompactionRoute,
                     ),
                     live.skillAuthoringActive,

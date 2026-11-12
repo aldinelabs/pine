@@ -8,6 +8,10 @@ import {
   PROJECT_COLOR_THEME_SETTINGS,
   PROJECT_ICONS,
 } from "../../shared/projects";
+import {
+  PINE_PRONOUNS,
+  sanitizeCustomPronouns,
+} from "../../shared/userProfile";
 import { ProjectEntryReferenceSchema } from "../projectFileOperations";
 
 // Validation for every request the shared handlers accept, from any transport.
@@ -63,13 +67,17 @@ export const PiSkillNameSchema = z
     (name) =>
       !name.startsWith("-") && !name.endsWith("-") && !name.includes("--"),
   );
+export const ProjectIconSchema = z.enum(PROJECT_ICONS);
+export const ProjectColorThemeSettingSchema = z.enum(
+  PROJECT_COLOR_THEME_SETTINGS,
+);
 export const ProjectMutationSchema = z
   .object({
     defaultFolderId: z.uuid(),
     folders: z.array(ProjectFolderInputSchema).min(1),
     name: z.string().trim().min(1).max(100),
-    projectColorTheme: z.enum(PROJECT_COLOR_THEME_SETTINGS).default("default"),
-    projectIcon: z.enum(PROJECT_ICONS).optional(),
+    projectColorTheme: ProjectColorThemeSettingSchema.default("default"),
+    projectIcon: ProjectIconSchema.optional(),
   })
   .superRefine((project, context) => {
     const defaultFolder = project.folders.find(
@@ -358,10 +366,12 @@ export const SetTinyFishApiKeyRequestSchema = z.object({
 export const UserProfileSchema = z.object({
   communicationStyle: z.enum(["calm-professional", "neutral", "warm-friendly"]),
   customInstructions: z.string().max(20_000),
+  customPronouns: z.string().max(1_000).transform(sanitizeCustomPronouns),
   interactiveAnswersEnabled: z.boolean(),
   monetMode: z.boolean(),
   nickname: z.string().trim().max(100),
   personalDetails: z.string().max(10_000),
+  pronouns: z.enum(PINE_PRONOUNS),
   technicalBackground: z.enum(["general-user", "professional-user"]),
 });
 export const InspectAttachmentsRequestSchema = z.object({

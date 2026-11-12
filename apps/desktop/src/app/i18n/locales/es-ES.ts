@@ -292,6 +292,16 @@ export default {
     userProfileNicknamePlaceholder: "¿Cómo quieres que te llame Pine?",
     userProfileNicknameDescription:
       "Pine usará este nombre cuando sea oportuno.",
+    userProfilePronounsLabel: "Pronombres",
+    userProfilePronounsUnspecified: "Sin especificar",
+    userProfilePronounsHe: "él",
+    userProfilePronounsShe: "ella",
+    userProfilePronounsThey: "elle",
+    userProfilePronounsCustom: "Personalizado",
+    userProfilePronounsCustomLabel: "Pronombres personalizados",
+    userProfilePronounsCustomPlaceholder: "Escribe tus pronombres",
+    userProfilePronounsDescription:
+      "Pine usa estos pronombres cuando habla de ti en tercera persona, por ejemplo en documentos o mensajes que redacta por ti.",
     userProfileStyleLabel: "Estilo de comunicación",
     userProfileStyleCalm: "Sereno y profesional",
     userProfileStyleNeutral: "Neutro",

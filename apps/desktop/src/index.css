@@ -151,6 +151,11 @@
 :root {
   --session-composer-max-width: 48rem;
   --session-composer-gutter: 1rem;
+  /* The working composer's glow uses the theme swatch's hue (see
+     lib/projectColorThemes.ts); the interface tokens are too grey to tint
+     with. */
+  --composer-glow-color: oklch(0.7 0.15 calc(107.4 + var(--pine-hue-shift, 0)));
+  --composer-glow-strength: 0.55;
   --session-input-padding-inline: 0.75rem;
   --session-content-max-width: calc(
     var(--session-composer-max-width) - var(--session-composer-gutter) -
@@ -901,6 +906,19 @@ html.sidebar-vibrancy:has(
   --sidebar-accent-foreground: oklch(0.985 0 0);
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: oklch(0.556 0 0);
+}
+
+:root.dark {
+  --composer-glow-color: oklch(
+    0.72 0.14 calc(107.4 + var(--pine-hue-shift, 0))
+  );
+  --composer-glow-strength: 0.5;
+}
+:root[data-project-color-theme="neutral"] {
+  --composer-glow-color: oklch(0.6 0 0);
+}
+:root.dark[data-project-color-theme="neutral"] {
+  --composer-glow-color: oklch(0.8 0 0);
 }
 
 /* A draft's project chip moving from the input to the project picker. */

@@ -87,4 +87,21 @@ describe("CompletionSignalTracker", () => {
     expect(tracker.observe(runState("idle", "b"))?.text).toBe("");
     expect(tracker.observe(runState("idle", "a"))?.text).toBe("From A");
   });
+
+  it("reports a progress report as the assistant text", () => {
+    const tracker = new CompletionSignalTracker();
+    tracker.observe(runState("running"));
+    tracker.observe(
+      assistantEnd([
+        {
+          type: "toolCall",
+          id: "t1",
+          name: "ui_report_progress",
+          arguments: { content: "Probably the cache." },
+        },
+      ]),
+    );
+
+    expect(tracker.observe(runState("idle"))?.text).toBe("Probably the cache.");
+  });
 });

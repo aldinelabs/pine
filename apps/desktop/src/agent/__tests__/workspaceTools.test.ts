@@ -15,6 +15,8 @@ const project: AgentHostProject = {
   name: "Pine",
   defaultFolderPath: "/Users/me/pine",
   folders: [{ access: "read-write", name: "pine", path: "/Users/me/pine" }],
+  icon: "code",
+  accentColor: "default",
 };
 
 const current: AgentHostProject = {
@@ -25,6 +27,8 @@ const current: AgentHostProject = {
     { access: "read-write", name: "courses", path: "/Users/me/courses" },
   ],
   current: true,
+  icon: "graduation-cap",
+  accentColor: "blue",
 };
 
 function setup(
@@ -77,6 +81,10 @@ describe("project workspace tools", () => {
     expect(text).toContain(
       "Courses (id: 0f3c2a51-8d3e-4b7a-9c61-2f0a7b1e5d42) (current",
     );
+    expect(text).toContain(
+      "icon: code, accent color: default (Pine Default, follows Appearance)",
+    );
+    expect(text).toContain("icon: graduation-cap, accent color: blue");
   });
 
   it("tells the agent where the session runs and to offer moves proactively", () => {
