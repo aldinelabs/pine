@@ -1,26 +1,23 @@
 /*
- * BASELINE: measured on the marker before any perf change. The real
+ * BASELINE. The real
  * `ProjectThinkingMarker` and the real `animateScrollTop` run on a fake 60 Hz
  * clock; the panel's layout is stubbed (256 px tall, as `max-h-64`). One
  * second of fast thinking is simulated: 8 flushes 120 ms apart, each adding a
  * line (44 px) and followed by a resize notification, after the opening pin
  * has settled.
  *
- * | id | metric                                                | measured | target |
- * | -- | ----------------------------------------------------- | -------- | ------ |
- * | T1 | animateScrollTop calls during the stream              | 8        | 0      |
- * | T1 | animation frames run during the stream                | 60       | 0      |
- * | T2 | scrollTop writes on the panel during the stream       | 60       | <= 8   |
- * | T2 | panel ends at scrollHeight - clientHeight             | no       | yes    |
- * | T3 | panel carries the scroll-timeline `scroll-fade` class | yes      | no     |
- * | T4 | timers / frames pending 600 ms after it collapses     | 0 / 0    | 0 / 0  |
+ * | id | metric                                                | before | after | target |
+ * | -- | ----------------------------------------------------- | ------ | ----- | ------ |
+ * | T1 | animateScrollTop calls during the stream              | 8      | 0     | 0      |
+ * | T1 | animation frames run during the stream                | 60     | 0     | 0      |
+ * | T2 | scrollTop writes on the panel during the stream       | 60     | 8     | <= 8   |
+ * | T2 | panel ends at scrollHeight - clientHeight             | no     | yes   | yes    |
+ * | T3 | panel carries the scroll-timeline `scroll-fade` class | yes    | no    | no     |
+ * | T4 | timers / frames pending 600 ms after it collapses     | 0 / 0  | 0 / 0 | 0 / 0  |
  *
- * Holds today: T4. Not met yet (`it.fails`): T1, T2, T3. When a change makes
- * one hold, turn it into `it` and update the measured column.
- *
- * With the tween replaced by one direct pin per flush the same run measures
- * 0 frames and 8 writes and ends at the bottom: the markdown renderer itself
- * requests no animation frame here.
+ * "before" is the marker before any perf change; "after" is W2-A, where the
+ * panel follows with one native smooth `scrollTo` per resize report (the
+ * stub applies it at once) and a state-driven edge fade. All targets hold.
  *
  * Print the metrics with `PINE_PERF_LOG=1` (add `--reporter=default` when
  * vitest hides the output of passing tests).
@@ -138,34 +135,25 @@ async function streamOneSecond() {
 }
 
 describe("ProjectThinkingMarker streaming cost", () => {
-  it.fails(
-    "[T1] runs no scroll tween and no animation frame while thinking streams",
-    async () => {
-      const { metrics } = await streamOneSecond();
-      expect(metrics.animateScrollTopCalls).toBe(0);
-      expect(metrics.framesRun).toBe(0);
-    },
-  );
+  it("[T1] runs no scroll tween and no animation frame while thinking streams", async () => {
+    const { metrics } = await streamOneSecond();
+    expect(metrics.animateScrollTopCalls).toBe(0);
+    expect(metrics.framesRun).toBe(0);
+  });
 
-  it.fails(
-    "[T2] writes the panel's scroll position at most once per flush and ends at the bottom",
-    async () => {
-      const { metrics } = await streamOneSecond();
-      expect(metrics.scrollTopWrites).toBeLessThanOrEqual(FLUSHES);
-      expect(metrics.endsAtBottom).toBe(true);
-    },
-  );
+  it("[T2] writes the panel's scroll position at most once per flush and ends at the bottom", async () => {
+    const { metrics } = await streamOneSecond();
+    expect(metrics.scrollTopWrites).toBeLessThanOrEqual(FLUSHES);
+    expect(metrics.endsAtBottom).toBe(true);
+  });
 
-  it.fails(
-    "[T3] does not put a scroll-timeline fade on the panel",
-    async () => {
-      const marker = await mountStreamingMarker();
-      reportMetrics("thinking panel classes", {
-        hasScrollFade: marker.panel.classList.contains("scroll-fade"),
-      });
-      expect(marker.panel.classList.contains("scroll-fade")).toBe(false);
-    },
-  );
+  it("[T3] does not put a scroll-timeline fade on the panel", async () => {
+    const marker = await mountStreamingMarker();
+    reportMetrics("thinking panel classes", {
+      hasScrollFade: marker.panel.classList.contains("scroll-fade"),
+    });
+    expect(marker.panel.classList.contains("scroll-fade")).toBe(false);
+  });
 
   it("[T4] leaves no timer or frame behind once thinking has collapsed", async () => {
     const { marker } = await streamOneSecond();

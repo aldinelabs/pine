@@ -18,6 +18,7 @@ import { nextTick } from "vue";
 import { createAppI18n } from "@/app/i18n";
 import * as animateScroll from "@/lib/animateScroll";
 import { createPinia } from "pinia";
+import { resizeObserverStub } from "@/__tests__/perf/streamHarness";
 import ProjectCompactionMarker from "../ProjectCompactionMarker.vue";
 import ProjectThinkingMarker from "../ProjectThinkingMarker.vue";
 import ProjectToolCallMarker from "../ProjectToolCallMarker.vue";
@@ -214,14 +215,12 @@ describe("project transcript markers", () => {
     );
   });
 
-  it("keeps following thinking during programmatic internal scroll animation", async () => {
-    const animateSpy = vi
-      .spyOn(animateScroll, "animateScrollTop")
-      .mockImplementation((element, top) => {
-        element.scrollTop = Math.max(0, top - 40);
-        element.dispatchEvent(new Event("scroll"));
-        return () => undefined;
-      });
+  /**
+   * A streaming marker whose panel reports a stubbed layout and resize
+   * notifications, as the browser does after each content update.
+   */
+  function mountFollowingThinking() {
+    const observers = resizeObserverStub();
     const wrapper = mount(ProjectThinkingMarker, {
       props: {
         message: {
@@ -238,114 +237,120 @@ describe("project transcript markers", () => {
         plugins: [createPinia(), createAppI18n("en-US")],
       },
     });
-
     const content = wrapper.get("[data-thinking-content]")
       .element as HTMLElement;
-    await nextTick();
-    let thinkingScrollHeight = 600;
+    let scrollHeight = 600;
+    let scrollTop = 0;
     Object.defineProperty(content, "clientHeight", {
       configurable: true,
       get: () => 100,
     });
     Object.defineProperty(content, "scrollHeight", {
       configurable: true,
-      get: () => thinkingScrollHeight,
+      get: () => scrollHeight,
     });
-    content.scrollTop = 500;
+    Object.defineProperty(content, "scrollTop", {
+      configurable: true,
+      get: () => scrollTop,
+      set: (value: number) => {
+        scrollTop = value;
+      },
+    });
+    const scrollTo = vi.fn();
+    Object.defineProperty(content, "scrollTo", {
+      configurable: true,
+      value: scrollTo,
+    });
+    async function grow(height: number, thinking: string): Promise<void> {
+      scrollHeight = height;
+      await wrapper.setProps({
+        message: {
+          ...wrapper.props("message"),
+          blocks: [{ type: "thinking", thinking }],
+        },
+      });
+      observers.fire((target) => content.contains(target));
+      await nextTick();
+    }
+    function cleanup(): void {
+      wrapper.unmount();
+      observers.restore();
+    }
+    return { content, grow, scrollTo, cleanup };
+  }
+
+  it("follows streaming thinking with a native glide instead of a tween", async () => {
+    const animateSpy = vi
+      .spyOn(animateScroll, "animateScrollTop")
+      .mockImplementation(() => () => undefined);
+    const marker = mountFollowingThinking();
+    await nextTick();
+    marker.content.scrollTop = 500;
+    // The browser glide reports scroll positions short of the bottom.
+    marker.scrollTo.mockImplementation(({ top }: ScrollToOptions) => {
+      marker.content.scrollTop = Math.max(0, (top ?? 0) - 40);
+      marker.content.dispatchEvent(new Event("scroll"));
+    });
     animateSpy.mockClear();
 
-    thinkingScrollHeight = 700;
-    await wrapper.setProps({
-      message: {
-        ...wrapper.props("message"),
-        blocks: [
-          {
-            type: "thinking",
-            thinking: "Inspect the request.\nCheck one more state.",
-          },
-        ],
-      },
-    });
-    await nextTick();
+    await marker.grow(700, "Inspect the request.\nCheck one more state.");
+    await marker.grow(
+      800,
+      "Inspect the request.\nCheck one more state.\nThen continue streaming.",
+    );
 
-    thinkingScrollHeight = 800;
-    await wrapper.setProps({
-      message: {
-        ...wrapper.props("message"),
-        blocks: [
-          {
-            type: "thinking",
-            thinking:
-              "Inspect the request.\nCheck one more state.\nThen continue streaming.",
-          },
-        ],
-      },
-    });
-    await nextTick();
-
-    expect(animateSpy).toHaveBeenCalledTimes(2);
-    wrapper.unmount();
+    expect(animateSpy).not.toHaveBeenCalled();
+    expect(marker.scrollTo.mock.calls).toEqual([
+      [{ top: 600, behavior: "smooth" }],
+      [{ top: 700, behavior: "smooth" }],
+    ]);
+    // Without user intent, the glide's own positions do not stop following.
+    expect(marker.content.getAttribute("data-scrollable")).toBe("start");
+    marker.cleanup();
     animateSpy.mockRestore();
   });
 
   it("stops following thinking only after explicit user scroll intent", async () => {
     const animateSpy = vi
       .spyOn(animateScroll, "animateScrollTop")
-      .mockImplementation((element, top) => {
-        element.scrollTop = top;
-        return () => undefined;
-      });
-    const wrapper = mount(ProjectThinkingMarker, {
-      props: {
-        message: {
-          createdAt: "2026-08-26T00:00:00.000Z",
-          id: "assistant-1",
-          role: "assistant",
-          status: "streaming",
-          blocks: [{ type: "thinking", thinking: "Inspect the request." }],
-          thinkingStartedAt: Date.now(),
-          thinkingStatus: "streaming",
-        },
-      },
-      global: {
-        plugins: [createPinia(), createAppI18n("en-US")],
-      },
-    });
-
-    const content = wrapper.get("[data-thinking-content]")
-      .element as HTMLElement;
+      .mockImplementation(() => () => undefined);
+    const marker = mountFollowingThinking();
     await nextTick();
-    let thinkingScrollHeight = 600;
-    Object.defineProperty(content, "clientHeight", {
-      configurable: true,
-      get: () => 100,
-    });
-    Object.defineProperty(content, "scrollHeight", {
-      configurable: true,
-      get: () => thinkingScrollHeight,
-    });
-    content.scrollTop = 500;
+    marker.content.scrollTop = 500;
+    // The opening pin may glide; the stream itself must not.
     animateSpy.mockClear();
+    await marker.grow(600, "Inspect the request.\nMeasured.");
+    expect(marker.scrollTo).not.toHaveBeenCalled();
 
-    content.dispatchEvent(new Event("wheel"));
-    content.scrollTop = 300;
-    content.dispatchEvent(new Event("scroll"));
-    thinkingScrollHeight = 700;
-    await wrapper.setProps({
-      message: {
-        ...wrapper.props("message"),
-        blocks: [
-          {
-            type: "thinking",
-            thinking: "Inspect the request.\nThe user is reading above.",
-          },
-        ],
-      },
+    // A scroll away from the bottom without intent keeps following.
+    marker.content.scrollTop = 300;
+    marker.content.dispatchEvent(new Event("scroll"));
+    await marker.grow(650, "Inspect the request.\nStill following.");
+    expect(marker.scrollTo).toHaveBeenCalledTimes(1);
+    expect(marker.scrollTo).toHaveBeenLastCalledWith({
+      top: 550,
+      behavior: "smooth",
     });
-    await nextTick();
 
+    marker.scrollTo.mockClear();
+    marker.content.dispatchEvent(new Event("wheel"));
+    marker.content.scrollTop = 300;
+    marker.content.dispatchEvent(new Event("scroll"));
+    await marker.grow(700, "Inspect the request.\nThe user is reading above.");
+    expect(marker.scrollTo).not.toHaveBeenCalled();
     expect(animateSpy).not.toHaveBeenCalled();
-    wrapper.unmount();
+    // Off the bottom and no longer following: both edges fade.
+    expect(marker.content.getAttribute("data-scrollable")).toBe("start end");
+
+    // Returning to the bottom resumes following.
+    marker.content.scrollTop = 600;
+    marker.content.dispatchEvent(new Event("scroll"));
+    await marker.grow(760, "Inspect the request.\nBack at the end.");
+    expect(marker.scrollTo).toHaveBeenCalledWith({
+      top: 660,
+      behavior: "smooth",
+    });
+    marker.cleanup();
     animateSpy.mockRestore();
   });
 

@@ -30,6 +30,7 @@ const props = withDefaults(
 const { locale, t } = useI18n();
 const contentId = useId();
 const thinkingContent = useTemplateRef<HTMLElement>("thinkingContent");
+const thinkingBody = useTemplateRef<HTMLElement>("thinkingBody");
 const scroller = useOptionalMessageScrollerContext();
 const isExpanded = ref(false);
 /** Matches the 500ms grid-rows collapse transition below. */
@@ -39,6 +40,15 @@ const hasThinkingUserScrollIntent = ref(false);
 const now = ref(Date.now());
 let elapsedTimer: number | undefined;
 let scrollAnimation: (() => void) | undefined;
+/** Panel scroll range, measured after layout by the resize observer. */
+let panelMetrics: { scrollHeight: number; clientHeight: number } | undefined;
+/** The bottom the panel was last sent to, so a repeat report does nothing. */
+let lastPinTarget: number | undefined;
+let bodyObserver: ResizeObserver | undefined;
+/** Scroll position past which an edge counts as scrollable (fade shown). */
+const FADE_EDGE_THRESHOLD = 1;
+const hasHiddenContentAbove = ref(false);
+const hasHiddenContentBelow = ref(false);
 
 const isStreaming = computed(
   () => props.message.thinkingStatus === "streaming",
@@ -57,6 +67,14 @@ const hasResponseAfterThinking = computed(
     props.message.blocks.some((block) => block.type !== "thinking"),
 );
 
+/** One decimal is shown below this; whole seconds from here on. */
+const FRACTIONAL_SECONDS_UNTIL_MS = 10_000;
+const ELAPSED_TICK_MS = 250;
+const secondsFormat = computed(
+  () => new Intl.NumberFormat(locale.value, { maximumFractionDigits: 1 }),
+);
+const integerFormat = computed(() => new Intl.NumberFormat(locale.value));
+
 function formatDuration(durationMs?: number): string | undefined {
   if (durationMs === undefined) return undefined;
   if (durationMs < 1_000) {
@@ -65,16 +83,16 @@ function formatDuration(durationMs?: number): string | undefined {
   const totalSeconds = Math.max(1, Math.round(durationMs / 1_000));
   if (totalSeconds < 60) {
     return t("project.transcript.thinkingDuration.seconds", {
-      value: new Intl.NumberFormat(locale.value, {
-        maximumFractionDigits: 1,
-      }).format(durationMs < 10_000 ? durationMs / 1_000 : totalSeconds),
+      value: secondsFormat.value.format(
+        durationMs < FRACTIONAL_SECONDS_UNTIL_MS
+          ? durationMs / 1_000
+          : totalSeconds,
+      ),
     });
   }
   return t("project.transcript.thinkingDuration.minutes", {
-    minutes: new Intl.NumberFormat(locale.value).format(
-      Math.floor(totalSeconds / 60),
-    ),
-    seconds: new Intl.NumberFormat(locale.value).format(totalSeconds % 60),
+    minutes: integerFormat.value.format(Math.floor(totalSeconds / 60)),
+    seconds: integerFormat.value.format(totalSeconds % 60),
   });
 }
 
@@ -97,24 +115,116 @@ const summaryLabel = computed(() => {
 
 function stopElapsedTimer(): void {
   if (elapsedTimer === undefined) return;
-  window.clearInterval(elapsedTimer);
+  window.clearTimeout(elapsedTimer);
   elapsedTimer = undefined;
+}
+
+/**
+ * Delay until the label can next change: a quarter second while a decimal is
+ * shown, then the next half-second boundary, where the rounded whole second
+ * flips. Ticking faster than the label changes only re-renders it.
+ */
+function nextElapsedTickDelay(): number {
+  const elapsed = elapsedDurationMs.value;
+  if (elapsed < FRACTIONAL_SECONDS_UNTIL_MS) return ELAPSED_TICK_MS;
+  return 1_000 - ((elapsed - 500) % 1_000) + 1;
+}
+
+function scheduleElapsedTick(): void {
+  elapsedTimer = window.setTimeout(() => {
+    now.value = Date.now();
+    scheduleElapsedTick();
+  }, nextElapsedTickDelay());
 }
 
 function syncElapsedTimer(streaming: boolean): void {
   stopElapsedTimer();
   now.value = Date.now();
   if (!streaming) return;
-  elapsedTimer = window.setInterval(() => {
-    now.value = Date.now();
-  }, 250);
+  scheduleElapsedTick();
 }
+
+function cancelScrollAnimation(): void {
+  scrollAnimation?.();
+  scrollAnimation = undefined;
+}
+
+function measurePanel(content: HTMLElement) {
+  panelMetrics = {
+    scrollHeight: content.scrollHeight,
+    clientHeight: content.clientHeight,
+  };
+  return panelMetrics;
+}
+
+function maxScrollTop(metrics: {
+  scrollHeight: number;
+  clientHeight: number;
+}): number {
+  return Math.max(0, metrics.scrollHeight - metrics.clientHeight);
+}
+
+/** Records which edges hide content; the fade attribute follows from it. */
+function updateScrollEdges(scrollTop: number, maxTop: number): void {
+  const above = scrollTop > FADE_EDGE_THRESHOLD;
+  const below = maxTop - scrollTop > FADE_EDGE_THRESHOLD;
+  if (hasHiddenContentAbove.value !== above)
+    hasHiddenContentAbove.value = above;
+  if (hasHiddenContentBelow.value !== below)
+    hasHiddenContentBelow.value = below;
+}
+
+/**
+ * Like the transcript viewport, the bottom fade stays off while the panel
+ * follows the stream: the follow glide keeps it a line short of the bottom
+ * after every update, which would otherwise pulse the fade.
+ */
+const scrollableAttr = computed(() => {
+  const below =
+    hasHiddenContentBelow.value &&
+    !(isStreaming.value && isFollowingThinking.value);
+  const edges = [hasHiddenContentAbove.value && "start", below && "end"].filter(
+    Boolean,
+  );
+  return edges.length > 0 ? edges.join(" ") : undefined;
+});
 
 function scrollThinkingToBottom(): void {
   const content = thinkingContent.value;
   if (!content) return;
-  const target = Math.max(0, content.scrollHeight - content.clientHeight);
+  const target = maxScrollTop(measurePanel(content));
+  lastPinTarget = target;
   scrollAnimation = animateScrollTop(content, target);
+}
+
+function prefersReducedMotion(): boolean {
+  return (
+    typeof window.matchMedia === "function" &&
+    window.matchMedia("(prefers-reduced-motion: reduce)").matches
+  );
+}
+
+/**
+ * Runs after layout whenever the rendered thinking grows or reflows, so the
+ * measurements here force no extra layout. While following the stream the
+ * panel glides to the newest line with the browser's own smooth scroll,
+ * which runs off the main thread and retargets itself on the next update.
+ */
+function handleThinkingBodyResize(): void {
+  const content = thinkingContent.value;
+  if (!content) return;
+  const target = maxScrollTop(measurePanel(content));
+  updateScrollEdges(content.scrollTop, target);
+  if (!isStreaming.value || !isExpanded.value || !isFollowingThinking.value) {
+    return;
+  }
+  if (target === lastPinTarget) return;
+  lastPinTarget = target;
+  cancelScrollAnimation();
+  content.scrollTo({
+    top: target,
+    behavior: prefersReducedMotion() ? "auto" : "smooth",
+  });
 }
 
 async function toggleExpanded(): Promise<void> {
@@ -127,8 +237,11 @@ async function toggleExpanded(): Promise<void> {
 
 function handleThinkingScroll(event: Event): void {
   const content = event.currentTarget as HTMLElement;
-  const nearBottom =
-    content.scrollHeight - content.clientHeight - content.scrollTop <= 24;
+  // The range comes from the last resize report; only the position is read.
+  const maxTop = maxScrollTop(panelMetrics ?? measurePanel(content));
+  const scrollTop = content.scrollTop;
+  updateScrollEdges(scrollTop, maxTop);
+  const nearBottom = maxTop - scrollTop <= 24;
   if (nearBottom) {
     isFollowingThinking.value = true;
     hasThinkingUserScrollIntent.value = false;
@@ -186,18 +299,26 @@ watch(
   { immediate: true },
 );
 watch(
-  () => thinkingText.value,
-  async () => {
-    if (!isStreaming.value || !isExpanded.value || !isFollowingThinking.value) {
+  thinkingBody,
+  (body, previous) => {
+    if (previous) bodyObserver?.unobserve(previous);
+    if (!body) {
+      // The panel unmounted on collapse; it remeasures when it mounts again.
+      panelMetrics = undefined;
+      lastPinTarget = undefined;
       return;
     }
-    await nextTick();
-    scrollThinkingToBottom();
+    if (typeof ResizeObserver === "undefined") return;
+    bodyObserver ??= new ResizeObserver(handleThinkingBodyResize);
+    bodyObserver.observe(body);
   },
+  { immediate: true },
 );
 onBeforeUnmount(() => {
   stopElapsedTimer();
-  scrollAnimation?.();
+  cancelScrollAnimation();
+  bodyObserver?.disconnect();
+  bodyObserver = undefined;
 });
 </script>
 
@@ -234,7 +355,8 @@ onBeforeUnmount(() => {
           v-if="isContentMounted"
           ref="thinkingContent"
           data-thinking-content
-          class="scroll-fade no-scrollbar mt-3 max-h-64 overflow-y-auto overscroll-contain pl-6 pr-3 text-sm text-muted-foreground"
+          :data-scrollable="scrollableAttr"
+          class="thinking-scroll-fade no-scrollbar mt-3 max-h-64 overflow-y-auto overscroll-contain pl-6 pr-3 text-sm text-muted-foreground"
           @scroll.passive="handleThinkingScroll"
           @wheel.passive="markThinkingUserScrollIntent"
           @touchstart.passive="markThinkingUserScrollIntent"
@@ -245,13 +367,63 @@ onBeforeUnmount(() => {
                compact variant keeps the muted small-type panel. `final`
                follows the thinking block, not the whole message, so deltas
                fade only while thinking streams. -->
-          <MarkdownContent
-            :source="thinkingText"
-            :final="message.thinkingStatus !== 'streaming'"
-            compact
-          />
+          <div ref="thinkingBody">
+            <MarkdownContent
+              :source="thinkingText"
+              :final="message.thinkingStatus !== 'streaming'"
+              compact
+            />
+          </div>
         </div>
       </div>
     </div>
   </div>
 </template>
+
+<style scoped>
+/*
+ * Edge fades keyed to the panel's scroll state, as the transcript viewport
+ * does (`.message-scroller-fade`), instead of shadcn's scroll-fade utility.
+ * That one animates registered properties on a scroll timeline, which cannot
+ * run on the compositor: every frame of the follow glide waited on a
+ * main-thread style recalc and a mask repaint. Here the mask changes only
+ * when an edge is crossed, with a short transition. The fade length matches
+ * the utility's default.
+ */
+.thinking-scroll-fade {
+  --_fade-size: min(12%, calc(var(--spacing) * 10));
+  -webkit-mask-image: linear-gradient(
+    to bottom,
+    transparent 0,
+    #000 var(--scroll-fade-t, 0px),
+    #000 calc(100% - var(--scroll-fade-b, 0px)),
+    transparent 100%
+  );
+  mask-image: linear-gradient(
+    to bottom,
+    transparent 0,
+    #000 var(--scroll-fade-t, 0px),
+    #000 calc(100% - var(--scroll-fade-b, 0px)),
+    transparent 100%
+  );
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  transition:
+    --scroll-fade-t 200ms ease-out,
+    --scroll-fade-b 200ms ease-out;
+}
+
+.thinking-scroll-fade[data-scrollable~="start"] {
+  --scroll-fade-t: var(--_fade-size);
+}
+
+.thinking-scroll-fade[data-scrollable~="end"] {
+  --scroll-fade-b: var(--_fade-size);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .thinking-scroll-fade {
+    transition: none;
+  }
+}
+</style>
