@@ -11,9 +11,7 @@ import {
   resetWeChatPermissions,
   type WeChatSettings,
 } from "../../../shared/wechatRemote";
-import { InboundAttachments } from "../attachments";
 import { WeChatBridge } from "../bridge";
-import { createClawBotChannels } from "../clawbotChannel";
 import {
   ALLOW_BARE_APPROVE,
   ASK_MAX,
@@ -24,7 +22,7 @@ import {
   USABLE,
 } from "../constants";
 import type { WeChatBridgeOptions } from "../ports";
-import { COMMAND_NAMES, type WeChatStateStore } from "../types";
+import { COMMAND_NAMES } from "../types";
 
 const wide: WeChatSettings = {
   ceilingMode: "YOLO",
@@ -169,20 +167,5 @@ describe("inert bridge", () => {
   it("does not let a caller change the shared default status", () => {
     bridge.status().settings.keepAwake = true;
     expect(DEFAULT_WECHAT_STATUS.settings.keepAwake).toBe(false);
-  });
-});
-
-describe("stubs", () => {
-  it("are not implemented yet", async () => {
-    expect(() =>
-      createClawBotChannels({ fetch: globalThis.fetch, version: "1.0.0" }),
-    ).toThrow("not implemented");
-    const attachments = new InboundAttachments({
-      store: {} as WeChatStateStore,
-      directory: "/tmp/wechat-inbox",
-      now: () => 0,
-    });
-    expect(() => attachments.list()).toThrow("not implemented");
-    await expect(attachments.drop()).rejects.toThrow("not implemented");
   });
 });
