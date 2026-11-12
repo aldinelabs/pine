@@ -703,6 +703,7 @@ describe("ProjectSessionService", () => {
       session,
       fauxAssistantMessage(
         [
+          { type: "text", text: "Let me check." },
           fauxToolCall(
             "ui_report_progress",
             { content: "Probably the zanzibar cache." },
@@ -731,12 +732,18 @@ describe("ProjectSessionService", () => {
       const result = await service.loadMessages(metadata.id);
       expect(result.messages.map((message) => message.blocks)).toEqual([
         [{ type: "text", text: "Why is the build slow?" }],
-        [{ type: "text", text: "Probably the zanzibar cache." }],
+        [
+          { type: "text", text: "Let me check." },
+          { type: "text", text: "Probably the zanzibar cache." },
+        ],
         [{ type: "text", text: "Confirmed." }],
       ]);
 
       const exported = await service.exportSession(metadata.id, "auto-approve");
-      expect(exported.markdown).toContain("Probably the zanzibar cache.");
+      // The preamble and the report stay separate paragraphs.
+      expect(exported.markdown).toContain(
+        "Let me check.\n\nProbably the zanzibar cache.\n",
+      );
       expect(exported.markdown).not.toContain("ui_report_progress");
       expect(exported.markdown).not.toContain("#### Tool call");
       expect(exported.markdown).not.toContain(acknowledgement);
