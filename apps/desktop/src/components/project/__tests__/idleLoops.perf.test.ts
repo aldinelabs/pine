@@ -3,16 +3,16 @@
  * conversation background (`ProjectSessionParallaxBackground`, which wraps
  * `ParallaxFloat`) is mounted on its own, as a draft tab shows it.
  *
- * | id | scenario                     | metric                              | measured | target |
- * | -- | ---------------------------- | ----------------------------------- | -------- | ------ |
- * | I1 | mounted, pointer never moves | frames run in the 2nd second        | 63       | 0      |
- * | I2 | `active` false               | frames run in 1 s after mount frame | 62       | 0      |
- * | I2 |                              | frames run in 1 s after a mousemove | 63       | 0      |
- * | I3 | active, one 40 px mousemove  | frames run in the next 2 s          | 125      | > 0    |
- * | I3 |                              | frames run in the 500 ms after that | 31       | 0      |
+ * | id | scenario                     | metric                              | before | after | target |
+ * | -- | ---------------------------- | ----------------------------------- | ------ | ----- | ------ |
+ * | I1 | mounted, pointer never moves | frames run in the 2nd second        | 63     | 0     | 0      |
+ * | I2 | `active` false               | frames run in 1 s after mount frame | 62     | 0     | 0      |
+ * | I2 |                              | frames run in 1 s after a mousemove | 63     | 0     | 0      |
+ * | I3 | active, one 40 px mousemove  | frames run in the next 2 s          | 125    | 104   | > 0    |
+ * | I3 |                              | frames run in the 500 ms after that | 31     | 0     | 0      |
  *
- * Holds today: none. Not met yet (`it.fails`): I1, I2, I3. When a change
- * makes one hold, turn it into `it` and update the measured column.
+ * Holds now: I1, I2, I3 (W5-B, demand-driven `ParallaxFloat` loop). In I1 the
+ * first second still runs 2 frames: the reveal frame and one settle check.
  *
  * I3's pointer move displaces the deepest layer by 1.9 px. Easing 5 % of the
  * remaining distance per frame, it is within 0.01 px of rest after 102 frames
@@ -62,76 +62,67 @@ function movePointer(): void {
 }
 
 describe("idle animation loops", () => {
-  it.fails(
-    "[I1] runs no frame for a background nobody moves the pointer over",
-    async () => {
-      const { clock, wrapper } = mountBackground();
-      await clock.advance(1_000);
-      const firstSecond = clock.framesRun();
-      clock.resetFrames();
-      await clock.advance(1_000);
+  it("[I1] runs no frame for a background nobody moves the pointer over", async () => {
+    const { clock, wrapper } = mountBackground();
+    await clock.advance(1_000);
+    const firstSecond = clock.framesRun();
+    clock.resetFrames();
+    await clock.advance(1_000);
 
-      reportMetrics("I1 idle background", {
-        framesInFirstSecond: firstSecond,
-        framesInSecondSecond: clock.framesRun(),
-      });
-      // It did mount and reveal its icons.
-      expect(wrapper.findAll("[data-parallax-icon]").length).toBeGreaterThan(0);
-      expect(clock.framesRun()).toBe(0);
-      expect(clock.pendingFrames()).toBe(0);
-    },
-  );
+    reportMetrics("I1 idle background", {
+      framesInFirstSecond: firstSecond,
+      framesInSecondSecond: clock.framesRun(),
+    });
+    // It did mount and reveal its icons.
+    expect(wrapper.findAll("[data-parallax-icon]").length).toBeGreaterThan(0);
+    expect(clock.framesRun()).toBe(0);
+    expect(clock.pendingFrames()).toBe(0);
+  });
 
-  it.fails(
-    "[I2] runs no frame while inactive, also when the pointer moves",
-    async () => {
-      const { clock } = mountBackground({ active: false });
-      // The reveal transition needs the frame after mount.
-      await clock.advance(2 * FRAME_MS);
-      clock.resetFrames();
-      await clock.advance(1_000);
-      const idle = clock.framesRun();
+  it("[I2] runs no frame while inactive, also when the pointer moves", async () => {
+    const { clock } = mountBackground({ active: false });
+    // The reveal transition needs the frame after mount.
+    await clock.advance(2 * FRAME_MS);
+    clock.resetFrames();
+    await clock.advance(1_000);
+    const idle = clock.framesRun();
 
-      clock.resetFrames();
-      movePointer();
-      await clock.advance(1_000);
+    clock.resetFrames();
+    movePointer();
+    await clock.advance(1_000);
 
-      reportMetrics("I2 inactive background", {
-        framesWhileIdle: idle,
-        framesAfterMousemove: clock.framesRun(),
-      });
-      expect(idle).toBe(0);
-      expect(clock.framesRun()).toBe(0);
-      expect(clock.pendingFrames()).toBe(0);
-    },
-  );
+    reportMetrics("I2 inactive background", {
+      framesWhileIdle: idle,
+      framesAfterMousemove: clock.framesRun(),
+    });
+    expect(idle).toBe(0);
+    expect(clock.framesRun()).toBe(0);
+    expect(clock.pendingFrames()).toBe(0);
+  });
 
-  it.fails(
-    "[I3] animates after a pointer move and stops again within two seconds",
-    async () => {
-      const { clock, iconTransforms } = mountBackground();
-      await clock.advance(1_000);
-      const before = iconTransforms();
+  it("[I3] animates after a pointer move and stops again within two seconds", async () => {
+    const { clock, iconTransforms } = mountBackground();
+    await clock.advance(1_000);
+    const before = iconTransforms();
 
-      clock.resetFrames();
-      movePointer();
-      await clock.advance(2_000);
-      const moving = clock.framesRun();
-      const after = iconTransforms();
+    clock.resetFrames();
+    movePointer();
+    await clock.advance(2_000);
+    const moving = clock.framesRun();
+    const after = iconTransforms();
 
-      clock.resetFrames();
-      await clock.advance(500);
+    clock.resetFrames();
+    await clock.advance(500);
 
-      reportMetrics("I3 pointer move", {
-        framesInTwoSecondsAfterMove: moving,
-        framesInTheNext500Ms: clock.framesRun(),
-      });
-      // The layers followed the pointer.
-      expect(moving).toBeGreaterThan(0);
-      expect(after).not.toEqual(before);
-      // And came to rest.
-      expect(clock.framesRun()).toBe(0);
-      expect(clock.pendingFrames()).toBe(0);
-    },
-  );
+    reportMetrics("I3 pointer move", {
+      framesInTwoSecondsAfterMove: moving,
+      framesInTheNext500Ms: clock.framesRun(),
+    });
+    // The layers followed the pointer.
+    expect(moving).toBeGreaterThan(0);
+    expect(after).not.toEqual(before);
+    // And came to rest.
+    expect(clock.framesRun()).toBe(0);
+    expect(clock.pendingFrames()).toBe(0);
+  });
 });
