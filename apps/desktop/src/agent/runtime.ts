@@ -1064,6 +1064,9 @@ export class PineAgentRuntime {
 
   async dispose(): Promise<{ disposed: boolean }> {
     this.modelService.dispose();
+    // Send what is still batched and stop the throttle timers before the
+    // sessions go, so no timer fires into a torn-down runtime.
+    this.eventForwarder.dispose();
     this.rejectHostRequests(null, "The agent runtime was disposed.");
     for (const [requestId, pending] of this.pendingApprovals) {
       this.pendingApprovals.delete(requestId);
