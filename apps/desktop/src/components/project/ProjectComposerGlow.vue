@@ -3,14 +3,19 @@ import { onScopeDispose, ref, watch } from "vue";
 import { useMediaQuery } from "@vueuse/core";
 import {
   COMPOSER_GLOW_FADE_OUT_MS,
+  type ComposerGlowOrbit,
+  composerGlowKeyframes,
+  composerGlowOrbits,
+  composerGlowOutline,
   composerGlowStyle,
 } from "@/lib/composerGlow";
 
 /**
- * A soft glow in the accent colour that orbits the composer's text box while
- * the agent works. It fades in when `active` turns on and fades out, then
- * unmounts, when it turns off, so an idle composer costs nothing. All motion
- * is CSS transform and opacity on the compositor; nothing runs per frame.
+ * A soft glow in the accent colour that travels round the composer's text
+ * box while the agent works. It fades in when `active` turns on and fades
+ * out, then unmounts, when it turns off, so an idle composer costs nothing.
+ * The lights move by Web Animations on transform, which the compositor runs;
+ * their keyframes are rebuilt only when the text box changes size.
  */
 const props = defineProps<{
   active: boolean;
@@ -21,6 +26,10 @@ type GlowPhase = "off" | "on" | "leaving";
 const phase = ref<GlowPhase>("off");
 const vars = ref<Record<string, string>>({});
 const reducedMotion = useMediaQuery("(prefers-reduced-motion: reduce)");
+const ring = ref<HTMLElement | null>(null);
+const orbitA = ref<HTMLElement | null>(null);
+const orbitB = ref<HTMLElement | null>(null);
+let orbits: ComposerGlowOrbit[] = [];
 let leaveTimer: ReturnType<typeof setTimeout> | undefined;
 
 function clearLeaveTimer() {
@@ -37,6 +46,7 @@ watch(
       // A fresh run starts at a new phase; returning mid fade-out keeps
       // moving where it was.
       if (phase.value === "off") {
+        orbits = composerGlowOrbits();
         vars.value = {
           ...composerGlowStyle(),
           "--composer-glow-fade-out": `${COMPOSER_GLOW_FADE_OUT_MS}ms`,
@@ -55,6 +65,64 @@ watch(
   { immediate: true },
 );
 
+function measure(element: HTMLElement) {
+  const style = getComputedStyle(element);
+  return composerGlowOutline({
+    clientWidth: element.clientWidth,
+    clientHeight: element.clientHeight,
+    spread: Number.parseFloat(style.borderTopWidth) || 0,
+    outerRadius: Number.parseFloat(style.borderTopLeftRadius) || 0,
+  });
+}
+
+// One lap per light, laid out for the current size. A resize keeps each
+// animation's time and swaps only its keyframes, coalesced to one frame.
+watch(
+  [ring, orbitA, orbitB],
+  ([ringElement, ...lights], _previous, onCleanup) => {
+    if (!ringElement || lights.some((light) => !light)) return;
+    if (
+      typeof ResizeObserver === "undefined" ||
+      typeof ringElement.animate !== "function"
+    )
+      return;
+    const animations: (Animation | undefined)[] = [];
+    let frame = 0;
+    const layout = () => {
+      frame = 0;
+      const outline = measure(ringElement);
+      if (!outline) return;
+      lights.forEach((light, index) => {
+        const orbit = orbits[index];
+        if (!light || !orbit) return;
+        const keyframes = composerGlowKeyframes(outline, orbit);
+        const animation = animations[index];
+        if (animation) {
+          (animation.effect as KeyframeEffect | null)?.setKeyframes(keyframes);
+          return;
+        }
+        animations[index] = light.animate(keyframes, {
+          duration: orbit.durationMs,
+          delay: orbit.delayMs,
+          iterations: Infinity,
+          easing: "linear",
+          direction: index === 0 ? "normal" : "reverse",
+        });
+      });
+    };
+    const observer = new ResizeObserver(() => {
+      if (!frame) frame = requestAnimationFrame(layout);
+    });
+    observer.observe(ringElement);
+    onCleanup(() => {
+      observer.disconnect();
+      if (frame) cancelAnimationFrame(frame);
+      for (const animation of animations) animation?.cancel();
+    });
+  },
+  { flush: "post" },
+);
+
 onScopeDispose(clearLeaveTimer);
 </script>
 
@@ -68,17 +136,14 @@ onScopeDispose(clearLeaveTimer);
     :data-motion="reducedMotion ? 'reduced' : 'full'"
     :style="vars"
   >
-    <div class="composer-glow-ring">
+    <div ref="ring" class="composer-glow-ring">
       <span class="composer-glow-base" />
       <template v-if="!reducedMotion">
-        <span class="composer-glow-drift">
-          <span class="composer-glow-spin composer-glow-spin--a">
-            <span class="composer-glow-beam" />
-          </span>
-        </span>
-        <span class="composer-glow-spin composer-glow-spin--b">
-          <span class="composer-glow-beam composer-glow-beam--wide" />
-        </span>
+        <span ref="orbitA" class="composer-glow-orbit" />
+        <span
+          ref="orbitB"
+          class="composer-glow-orbit composer-glow-orbit--wide"
+        />
       </template>
     </div>
   </div>
@@ -144,61 +209,32 @@ onScopeDispose(clearLeaveTimer);
     ease-in-out var(--composer-glow-delay-breathe, 0s) infinite alternate;
 }
 
-/* Zero-size pivots at the centre; each animates only its transform. */
-.composer-glow-drift,
-.composer-glow-spin {
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  width: 0;
-  height: 0;
-}
-
-.composer-glow-drift {
-  animation: composer-glow-drift var(--composer-glow-drift, 17.9s) ease-in-out
-    var(--composer-glow-delay-drift, 0s) infinite alternate;
-}
-
-.composer-glow-spin--a {
-  animation: composer-glow-spin var(--composer-glow-spin-a, 9.7s) linear
-    var(--composer-glow-delay-a, 0s) infinite;
-}
-
-.composer-glow-spin--b {
-  animation: composer-glow-spin var(--composer-glow-spin-b, 14.3s) linear
-    var(--composer-glow-delay-b, 0s) infinite reverse;
-}
-
 /*
- * A spoke from the pivot, long enough to cross the ring at any angle and
- * drift offset. The ring mask leaves one moving patch of it visible: it
- * dwells on the long edges and sweeps quickly round the ends. The colour
- * falls off across the spoke only, so the patch is as bright on the long
- * edges (close to the pivot) as at the ends (far from it).
+ * A soft light at the ring, carried round it by Web Animations (see the
+ * script) and turned to lie along the outline. It is thinner than the text
+ * box is tall, so it never lights both long edges at once.
  */
-.composer-glow-beam {
-  --composer-glow-beam-thickness: clamp(3rem, 70cqh, 9rem);
+.composer-glow-orbit {
   position: absolute;
   left: 0;
-  top: calc(var(--composer-glow-beam-thickness) / -2);
-  width: calc(
-    hypot(50cqw, 50cqh) + 6cqw + 15cqh + 2 * var(--composer-glow-spread)
-  );
-  height: var(--composer-glow-beam-thickness);
-  background: linear-gradient(
-    to bottom,
-    transparent,
-    var(--composer-glow-color) 50%,
+  top: 0;
+  width: 6rem;
+  height: min(3rem, 80cqh);
+  translate: -50% -50%;
+  background: radial-gradient(
+    closest-side,
+    var(--composer-glow-color),
     transparent
   );
+  will-change: transform;
 }
 
-.composer-glow-beam--wide {
-  --composer-glow-beam-thickness: clamp(4.5rem, 100cqh, 12rem);
-  background: linear-gradient(
-    to bottom,
-    transparent,
-    color-mix(in oklab, var(--composer-glow-color) 70%, transparent) 50%,
+.composer-glow-orbit--wide {
+  width: 9rem;
+  height: min(4rem, 90cqh);
+  background: radial-gradient(
+    closest-side,
+    color-mix(in oklab, var(--composer-glow-color) 70%, transparent),
     transparent
   );
   animation: composer-glow-pulse var(--composer-glow-pulse, 4.3s) ease-in-out
@@ -216,41 +252,8 @@ onScopeDispose(clearLeaveTimer);
     opacity: 0.4;
   }
 
-  .composer-glow-drift,
-  .composer-glow-spin,
-  .composer-glow-beam--wide {
+  .composer-glow-orbit--wide {
     animation: none;
-  }
-}
-
-@keyframes composer-glow-spin {
-  from {
-    transform: rotate(0turn);
-  }
-  to {
-    transform: rotate(1turn);
-  }
-}
-
-/* Uneven waypoints so the pivot wanders rather than oscillates. */
-@keyframes composer-glow-drift {
-  0% {
-    transform: translate(0, 0);
-  }
-  23% {
-    transform: translate(4cqw, -11cqh);
-  }
-  41% {
-    transform: translate(-2.5cqw, 6cqh);
-  }
-  68% {
-    transform: translate(-6cqw, -4cqh);
-  }
-  86% {
-    transform: translate(3cqw, 15cqh);
-  }
-  100% {
-    transform: translate(5.5cqw, -2cqh);
   }
 }
 
