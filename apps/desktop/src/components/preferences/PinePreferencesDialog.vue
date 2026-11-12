@@ -21,6 +21,7 @@ import { storeToRefs } from "pinia";
 import type { Component } from "vue";
 import {
   computed,
+  nextTick,
   onBeforeUnmount,
   onMounted,
   reactive,
@@ -481,9 +482,36 @@ function updateCommunicationStyle(value: unknown): void {
   }
 }
 
+const CUSTOM_PRONOUNS_INPUT_ID = "pine-user-profile-custom-pronouns";
+// Set when the user switches to Custom, so the Select's close does not
+// hand focus back to its trigger instead of the field that just appeared.
+let focusCustomPronounsOnClose = false;
+
+function focusCustomPronounsInput(): void {
+  document.getElementById(CUSTOM_PRONOUNS_INPUT_ID)?.focus();
+}
+
 function updatePronouns(value: unknown): void {
-  if (isPinePronouns(value)) {
-    profileDraft.pronouns = value;
+  if (!isPinePronouns(value)) {
+    return;
+  }
+  const switchedToCustom =
+    value === "custom" && profileDraft.pronouns !== "custom";
+  profileDraft.pronouns = value;
+  if (switchedToCustom) {
+    focusCustomPronounsOnClose = true;
+    void nextTick(focusCustomPronounsInput);
+  }
+}
+
+function onPronounsCloseAutoFocus(event: Event): void {
+  if (!focusCustomPronounsOnClose) {
+    return;
+  }
+  focusCustomPronounsOnClose = false;
+  if (profileDraft.pronouns === "custom") {
+    event.preventDefault();
+    focusCustomPronounsInput();
   }
 }
 
@@ -1054,7 +1082,7 @@ defineExpose({ open });
                     >
                       <SelectValue />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent @close-auto-focus="onPronounsCloseAutoFocus">
                       <SelectGroup>
                         <SelectItem
                           v-for="option in PINE_PRONOUNS"
@@ -1068,7 +1096,7 @@ defineExpose({ open });
                   </Select>
                   <Input
                     v-if="profileDraft.pronouns === 'custom'"
-                    id="pine-user-profile-custom-pronouns"
+                    :id="CUSTOM_PRONOUNS_INPUT_ID"
                     v-model="profileDraft.customPronouns"
                     class="min-w-40 flex-1"
                     :maxlength="PINE_CUSTOM_PRONOUNS_MAX_LENGTH"

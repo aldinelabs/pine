@@ -88,12 +88,13 @@ function installPineApi(platform: string | undefined): void {
   };
 }
 
-function mountDialog() {
+function mountDialog(options: { attachTo?: HTMLElement } = {}) {
   const pinia = createPinia();
   const i18n = createAppI18n("zh-CN");
   setActivePinia(pinia);
 
   const wrapper = mount(PinePreferencesDialog, {
+    attachTo: options.attachTo,
     global: {
       plugins: [pinia, i18n],
       stubs: {
@@ -586,6 +587,52 @@ describe("PinePreferencesDialog", () => {
     expect(pronounsSelect(wrapper).props("modelValue")).toBe("custom");
     await new Promise((resolve) => setTimeout(resolve, 700));
     expect(setUserProfile).toHaveBeenCalledTimes(savesBefore);
+  });
+
+  it("focuses the custom pronouns field when Custom is picked", async () => {
+    installPineApi("linux");
+    const host = document.createElement("div");
+    document.body.append(host);
+    const { wrapper } = mountDialog({ attachTo: host });
+    try {
+      await openSection(wrapper, "自定义");
+      pronounsSelect(wrapper).vm.$emit("update:modelValue", "custom");
+      await wrapper.vm.$nextTick();
+      await wrapper.vm.$nextTick();
+
+      const input = wrapper.get("#pine-user-profile-custom-pronouns");
+      expect(document.activeElement).toBe(input.element);
+    } finally {
+      wrapper.unmount();
+      host.remove();
+    }
+  });
+
+  it("keeps focus on the trigger when saved custom pronouns load", async () => {
+    installPineApi("linux");
+    getUserProfile.mockResolvedValue({
+      ...createDefaultPineUserProfile(),
+      customPronouns: "ze/zir",
+      pronouns: "custom",
+    });
+    const host = document.createElement("div");
+    document.body.append(host);
+    const { wrapper } = mountDialog({ attachTo: host });
+    try {
+      await openSection(wrapper, "自定义");
+      await vi.waitFor(() =>
+        expect(
+          wrapper.find("#pine-user-profile-custom-pronouns").exists(),
+        ).toBe(true),
+      );
+      await wrapper.vm.$nextTick();
+      expect(document.activeElement).not.toBe(
+        wrapper.get("#pine-user-profile-custom-pronouns").element,
+      );
+    } finally {
+      wrapper.unmount();
+      host.remove();
+    }
   });
 
   it("shows saved custom pronouns", async () => {
