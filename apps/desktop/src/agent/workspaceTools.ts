@@ -8,8 +8,8 @@ import type {
   AskUserQuestionSubmission,
 } from "@pine/rpiv-ask-user-question";
 import {
-  UI_LIST_PROJECT_TOOL_NAME,
-  UI_TELEPORT_TOOL_NAME,
+  UI_PROJECT_LIST_TOOL_NAME,
+  UI_SESSION_TELEPORT_TOOL_NAME,
 } from "../shared/agent";
 import type {
   AgentHostProject,
@@ -114,10 +114,10 @@ export function createWorkspaceToolDefinitions(
   const { currentProject } = context;
   const here = currentPlace(currentProject);
   const listTool = defineTool({
-    name: UI_LIST_PROJECT_TOOL_NAME,
+    name: UI_PROJECT_LIST_TOOL_NAME,
     label: "List Projects",
     description: `List the user's Pine projects with their names, ids, and folder paths; the project this session runs in is marked as current. This session runs in ${here}.`,
-    promptSnippet: `This session runs in ${here}. Use ${UI_LIST_PROJECT_TOOL_NAME} to see the user's Pine projects and their folders, for example to check whether a request belongs to another project`,
+    promptSnippet: `This session runs in ${here}. Use ${UI_PROJECT_LIST_TOOL_NAME} to see the user's Pine projects and their folders, for example to check whether a request belongs to another project`,
     parameters: Type.Object({}),
     execute: async () => {
       const projects = await listProjects(context);
@@ -137,25 +137,25 @@ export function createWorkspaceToolDefinitions(
 
   const teleportParams = Type.Object({
     projectId: Type.String({
-      description: `Id of the destination project, from ${UI_LIST_PROJECT_TOOL_NAME}.`,
+      description: `Id of the destination project, from ${UI_PROJECT_LIST_TOOL_NAME}.`,
     }),
   });
   const teleportTool = defineTool({
-    name: UI_TELEPORT_TOOL_NAME,
+    name: UI_SESSION_TELEPORT_TOOL_NAME,
     label: "Move Session to Project",
     description: `Move this session from ${here} into another of the user's Pine projects. Pine asks the user to confirm first. When confirmed, the move happens after the current reply ends; later turns run in that project's working directory with its folder access.`,
-    promptSnippet: `Use ${UI_TELEPORT_TOOL_NAME} to offer moving this session into the project the user's request belongs to`,
+    promptSnippet: `Use ${UI_SESSION_TELEPORT_TOOL_NAME} to offer moving this session into the project the user's request belongs to`,
     promptGuidelines: [
-      `Before starting work on a request, check whether it fits ${here}. If it clearly belongs to another project, because it names that project or refers to code, files, or folders that live in another project's folders rather than this session's, call ${UI_LIST_PROJECT_TOOL_NAME} and then ${UI_TELEPORT_TOOL_NAME} with that project's id to offer the move right away. Do not ask about it in plain text first and do not work around the wrong folders: the tool itself asks the user to confirm.`,
+      `Before starting work on a request, check whether it fits ${here}. If it clearly belongs to another project, because it names that project or refers to code, files, or folders that live in another project's folders rather than this session's, call ${UI_PROJECT_LIST_TOOL_NAME} and then ${UI_SESSION_TELEPORT_TOOL_NAME} with that project's id to offer the move right away. Do not ask about it in plain text first and do not work around the wrong folders: the tool itself asks the user to confirm.`,
       ...(currentProject.temporaryWorkspace
         ? [
-            `In No Project, triage the user's first message before doing anything else. Ask yourself whether you have everything the request needs. If it is a genuinely global task, such as a general question, writing, research, or work on files the user attached or named by full path, do it here. If something it depends on is missing and would have to be inferred, such as "the report", "my notes", "the app", a codebase, or files you cannot locate from the message, the request most likely belongs to one of the user's projects: call ${UI_LIST_PROJECT_TOOL_NAME} first, before searching the disk or asking the user to clarify. If a project plausibly fits, call ${UI_TELEPORT_TOOL_NAME} with its id to offer the move; if none does, continue here or ask for what is missing.`,
+            `In No Project, triage the user's first message before doing anything else. Ask yourself whether you have everything the request needs. If it is a genuinely global task, such as a general question, writing, research, or work on files the user attached or named by full path, do it here. If something it depends on is missing and would have to be inferred, such as "the report", "my notes", "the app", a codebase, or files you cannot locate from the message, the request most likely belongs to one of the user's projects: call ${UI_PROJECT_LIST_TOOL_NAME} first, before searching the disk or asking the user to clarify. If a project plausibly fits, call ${UI_SESSION_TELEPORT_TOOL_NAME} with its id to offer the move; if none does, continue here or ask for what is missing.`,
             `Do not triage again after that first message, and do not offer a move once the user has declined.`,
           ]
         : [
             `Do not offer a move when the fit is only uncertain, for general questions that need no project files, or after the user has declined moving this session.`,
           ]),
-      `Pass an id from ${UI_LIST_PROJECT_TOOL_NAME}; the current project cannot be chosen.`,
+      `Pass an id from ${UI_PROJECT_LIST_TOOL_NAME}; the current project cannot be chosen.`,
       `If the user declines, keep working where the session is.`,
       `After a confirmed move, finish the reply briefly: the new folders are only available from the next turn.`,
     ],
@@ -168,7 +168,7 @@ export function createWorkspaceToolDefinitions(
       );
       if (!project) {
         throw new Error(
-          `No project has id ${params.projectId}. Call ${UI_LIST_PROJECT_TOOL_NAME} for the current list.`,
+          `No project has id ${params.projectId}. Call ${UI_PROJECT_LIST_TOOL_NAME} for the current list.`,
         );
       }
       if (project.current) {

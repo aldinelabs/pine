@@ -24,7 +24,8 @@ import {
 import { useProjectDisplayName } from "@/composables/useProjectDisplayName";
 import {
   ACTIVATE_PINE_OPS_TOOL_NAME,
-  UI_LIST_PROJECT_TOOL_NAME,
+  UI_PROJECT_LIST_TOOL_NAME,
+  currentToolName,
   UI_PRESENT_FILE_TOOL_NAME,
 } from "@/shared/agent";
 import { useProjectStore } from "@/stores/project";
@@ -74,7 +75,7 @@ const projectDisplayName = useProjectDisplayName();
 const MAX_WEB_PAGE_TITLE_LENGTH = 24;
 
 function normalizedToolName(name: string): string {
-  return name.toLowerCase().split(/[.:/]/).at(-1) ?? name;
+  return currentToolName(name.toLowerCase().split(/[.:/]/).at(-1) ?? name);
 }
 
 function isAskUserQuestionTool(name: string): boolean {
@@ -1204,7 +1205,7 @@ const presentation = computed(() => {
   }
   if (kind === "project") {
     const tense = state === "running" || state === "error" ? state : "complete";
-    if (normalizedToolName(props.toolCall.name) === UI_LIST_PROJECT_TOOL_NAME) {
+    if (normalizedToolName(props.toolCall.name) === UI_PROJECT_LIST_TOOL_NAME) {
       return {
         before: t(`project.transcript.tools.project.list.${tense}`),
         operation: undefined,

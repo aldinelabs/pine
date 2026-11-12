@@ -425,7 +425,7 @@ watch(
 );
 onBeforeUnmount(() => attentionFlash.stopAll());
 
-// A confirmed ui_teleport moves a session to another project;
+// A confirmed ui_session_teleport moves a session to another project;
 // its tabs follow, which also switches the sidebars to the new project.
 onMounted(() => {
   const stop = window.pine.onSessionEvent((event) => {

@@ -41,10 +41,11 @@ import {
   ACTIVATE_PINE_OPS_TOOL_NAME,
   DATETIME_TOOL_NAME,
   RECALL_TOOL_NAME,
-  UI_LIST_PROJECT_TOOL_NAME,
+  UI_PROJECT_LIST_TOOL_NAME,
+  currentToolName,
   UI_PRESENT_FILE_TOOL_NAME,
   UI_LIST_MODELS_TOOL_NAME,
-  UI_TELEPORT_TOOL_NAME,
+  UI_SESSION_TELEPORT_TOOL_NAME,
 } from "@/shared/agent";
 import { ACTIVATE_AUTOMATION_AUTHORING_TOOL_NAME } from "@/shared/automation";
 import {
@@ -205,7 +206,7 @@ export function mediaOperationKey(name: string): MediaOperation | undefined {
 /** Resolve the most specific icon for a tool call, including Skill operations. */
 export function toolIconForName(name: string): Component {
   if (normalizedName(name) === FFF_GREP_TOOL_NAME) return TextSearchIcon;
-  if (normalizedName(name) === UI_LIST_PROJECT_TOOL_NAME)
+  if (normalizedName(name) === UI_PROJECT_LIST_TOOL_NAME)
     return FolderSearchIcon;
   if (normalizedName(name) === ACTIVATE_PINE_OPS_TOOL_NAME)
     return AppWindowIcon;
@@ -217,7 +218,7 @@ export function toolIconForName(name: string): Component {
 }
 
 function normalizedName(name: string): string {
-  return name.toLowerCase().split(/[.:/]/).at(-1) ?? name;
+  return currentToolName(name.toLowerCase().split(/[.:/]/).at(-1) ?? name);
 }
 
 export function toolKind(name: string): ToolKind {
@@ -233,8 +234,8 @@ export function toolKind(name: string): ToolKind {
   if ((UI_WORKBENCH_TOOL_NAMES as readonly string[]).includes(normalized))
     return "workbench";
   if (
-    normalized === UI_LIST_PROJECT_TOOL_NAME ||
-    normalized === UI_TELEPORT_TOOL_NAME
+    normalized === UI_PROJECT_LIST_TOOL_NAME ||
+    normalized === UI_SESSION_TELEPORT_TOOL_NAME
   )
     return "project";
   if (

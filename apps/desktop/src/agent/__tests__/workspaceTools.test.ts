@@ -96,7 +96,7 @@ describe("project workspace tools", () => {
     expect(triage).toContain("triage the user's first message");
     expect(triage).toContain("genuinely global task");
     expect(triage).toContain(
-      "call ui_list_project first, before searching the disk",
+      "call ui_project_list first, before searching the disk",
     );
     expect(inProject.teleport.promptGuidelines?.join("\n")).not.toContain(
       "triage",

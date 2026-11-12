@@ -20,9 +20,23 @@ import type {
  * carries a raw path across the boundary.
  */
 export const UI_PRESENT_FILE_TOOL_NAME = "ui_present_file" as const;
-export const UI_LIST_PROJECT_TOOL_NAME = "ui_list_project" as const;
+export const UI_PROJECT_LIST_TOOL_NAME = "ui_project_list" as const;
 export const UI_LIST_MODELS_TOOL_NAME = "ui_list_models" as const;
-export const UI_TELEPORT_TOOL_NAME = "ui_teleport" as const;
+export const UI_SESSION_TELEPORT_TOOL_NAME = "ui_session_teleport" as const;
+
+/**
+ * Names Pine's own tools had before they moved to `ui_<area>_<action>`.
+ * Transcripts keep the name a call was made with; readers map it here.
+ */
+const LEGACY_TOOL_NAMES: Readonly<Record<string, string>> = {
+  ui_list_project: UI_PROJECT_LIST_TOOL_NAME,
+  ui_teleport: UI_SESSION_TELEPORT_TOOL_NAME,
+};
+
+/** The current name of a tool that a transcript may record under an old one. */
+export function currentToolName(name: string): string {
+  return LEGACY_TOOL_NAMES[name] ?? name;
+}
 /** Current time and timestamp conversion; models cannot read a clock. */
 export const DATETIME_TOOL_NAME = "datetime" as const;
 /** Loads the reference of Pine's own UI; later it enables the tools that operate it. */
