@@ -254,6 +254,12 @@ From top to bottom:
      appear and disappear.
    - Text box. In a new session with no project, typing `@` chooses the
      project.
+   - While the agent is working, a soft glow in the accent colour (the
+     project's colour, or Pine's) drifts around the text box's outline. It
+     fades away when the run ends, and is not shown while an approval or
+     questionnaire card takes the text box's place. With reduced motion
+     turned on in the system, the glow stays still. The quick composer and
+     side chats don't glow.
    - Add attachment menu: File, Folder, Conversation. Files can also be
      dropped or pasted.
    - Footer controls: project target ("Send to {name}"), Model, Reasoning
