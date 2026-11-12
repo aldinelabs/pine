@@ -11,7 +11,7 @@ import {
   watch,
 } from "vue";
 import { useI18n } from "vue-i18n";
-import { animateScrollTop } from "@/lib/animateScroll";
+import { animateScrollTop, prefersReducedMotion } from "@/lib/animateScroll";
 import MarkdownContent from "@/components/markdown/MarkdownContent.vue";
 import { Marker, MarkerContent, MarkerIcon } from "@/components/ui/marker";
 import { useOptionalMessageScrollerContext } from "@/components/ui/message-scroller/useMessageScroller";
@@ -195,13 +195,6 @@ function scrollThinkingToBottom(): void {
   const target = maxScrollTop(measurePanel(content));
   lastPinTarget = target;
   scrollAnimation = animateScrollTop(content, target);
-}
-
-function prefersReducedMotion(): boolean {
-  return (
-    typeof window.matchMedia === "function" &&
-    window.matchMedia("(prefers-reduced-motion: reduce)").matches
-  );
 }
 
 /**
