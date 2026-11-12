@@ -65,6 +65,7 @@
     "@pine/rc-protocol": "workspace:*",
     "@pine/rpiv-ask-user-question": "workspace:*",
     "@pine/rpiv-todo": "workspace:*",
+    "@pine/wechat-ilink": "workspace:*",
     "@sting8k/pi-vcc": "0.8.1",
     "@tanstack/vue-virtual": "3.13.37",
     "@tmcw/togeojson": "7.1.3",
