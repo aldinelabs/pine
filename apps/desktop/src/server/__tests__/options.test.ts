@@ -1,7 +1,7 @@
 // @vitest-environment node
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { readServerCommand } from "../options";
+import { readServerCommand, SERVER_USAGE } from "../options";
 
 const HOME = "/home/pine";
 
@@ -23,6 +23,7 @@ describe("readServerCommand", () => {
         requirePassword: true,
       },
       pair: false,
+      wechatBind: false,
     });
   });
 
@@ -104,6 +105,131 @@ describe("readServerCommand", () => {
 
   it("never takes a password as an argument", () => {
     expect(() => run(["--password"])).toThrow("PINE_PASSWORD");
+  });
+
+  it("binds WeChat only when the flag is given, never from the environment", () => {
+    expect(run(["--wechat-bind"]).wechatBind).toBe(true);
+    expect(run([], { PINE_WECHAT_BIND: "1" }).wechatBind).toBe(false);
+    expect(() => run(["--wechat-bind=yes"])).toThrow();
+  });
+
+  it("reads the WeChat status and unbind commands", () => {
+    expect(readServerCommand(["wechat", "status"], {}, HOME)).toEqual({
+      kind: "wechat",
+      dataDirectory: path.join(HOME, ".local", "share", "pine-server"),
+      action: { kind: "status" },
+    });
+    expect(
+      readServerCommand(
+        ["wechat", "unbind", "--data-dir", "/srv/pine"],
+        {},
+        HOME,
+      ),
+    ).toEqual({
+      kind: "wechat",
+      dataDirectory: "/srv/pine",
+      action: { kind: "unbind" },
+    });
+    expect(() => readServerCommand(["wechat"], {}, HOME)).toThrow(
+      /wechat status/,
+    );
+    expect(() => readServerCommand(["wechat", "bind"], {}, HOME)).toThrow(
+      /wechat status/,
+    );
+    expect(() =>
+      readServerCommand(["wechat", "status", "--pause"], {}, HOME),
+    ).toThrow("--pause belongs to `wechat config`");
+  });
+
+  it("reads every WeChat config option", () => {
+    const command = readServerCommand(
+      [
+        "wechat",
+        "config",
+        "--ceiling",
+        "YOLO",
+        "--default-mode",
+        "autonomous",
+        "--default-project",
+        "project-1",
+        "--allow-high-risk",
+        "yes",
+        "--allow-files",
+        "no",
+        "--language",
+        "zh",
+        "--resume",
+      ],
+      {},
+      HOME,
+    );
+    expect(command).toEqual({
+      kind: "wechat",
+      dataDirectory: path.join(HOME, ".local", "share", "pine-server"),
+      action: {
+        kind: "config",
+        patch: {
+          ceilingMode: "YOLO",
+          defaultMode: "autonomous",
+          defaultProjectId: "project-1",
+          allowHighRiskApprovals: true,
+          allowFileSending: false,
+        },
+        language: "zh",
+        paused: false,
+      },
+    });
+  });
+
+  it("clears the WeChat default project with none and pauses", () => {
+    expect(
+      readServerCommand(
+        ["wechat", "config", "--default-project", "none", "--pause"],
+        {},
+        HOME,
+      ),
+    ).toMatchObject({
+      action: {
+        kind: "config",
+        patch: { defaultProjectId: null },
+        paused: true,
+      },
+    });
+  });
+
+  it("rejects bad WeChat config values", () => {
+    const config =
+      (...args: string[]) =>
+      () =>
+        readServerCommand(["wechat", "config", ...args], {}, HOME);
+    expect(config()).toThrow("Nothing to change");
+    expect(config("--ceiling", "full")).toThrow("--ceiling must be one of");
+    expect(config("--default-mode", "")).toThrow("--default-mode");
+    expect(config("--allow-files", "maybe")).toThrow(
+      "--allow-files must be yes or no",
+    );
+    expect(config("--allow-high-risk", "1")).toThrow("--allow-high-risk");
+    expect(config("--language", "fr")).toThrow("--language must be one of");
+    expect(config("--default-project", " ")).toThrow("--default-project");
+    expect(config("--pause", "--resume")).toThrow("not both");
+    expect(config("--unknown")).toThrow();
+    expect(config("--ceiling", "yolo", "extra")).toThrow(/wechat status/);
+  });
+
+  it("takes no WeChat setting from the environment", () => {
+    expect(() =>
+      readServerCommand(
+        ["wechat", "config"],
+        { PINE_WECHAT_CEILING: "yolo" },
+        HOME,
+      ),
+    ).toThrow("Nothing to change");
+  });
+
+  it("documents the WeChat commands and SIGHUP", () => {
+    expect(SERVER_USAGE).toContain("--wechat-bind");
+    expect(SERVER_USAGE).toContain("pine-server wechat config");
+    expect(SERVER_USAGE).toContain("SIGHUP");
   });
 
   it("asks for help", () => {
