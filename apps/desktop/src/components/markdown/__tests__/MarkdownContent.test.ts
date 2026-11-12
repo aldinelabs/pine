@@ -3,8 +3,13 @@ import { nextTick } from "vue";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createPinia, setActivePinia } from "pinia";
 import { createAppI18n } from "@/app/i18n";
-import { getMarkdown, parseMarkdownToStructure } from "markstream-vue";
+import MarkdownRender, {
+  getMarkdown,
+  parseMarkdownToStructure,
+} from "markstream-vue";
+import { useAppearanceStore } from "@/stores/appearance";
 import MarkdownContent from "../MarkdownContent.vue";
+import MarkdownTable from "../MarkdownTable.vue";
 import markdownComponentSource from "../MarkdownContent.vue?raw";
 import { configurePineMarkdown } from "../configureMarkdown";
 
@@ -484,6 +489,110 @@ describe("MarkdownContent", () => {
     expect(wrapper.findAll("tbody tr")).toHaveLength(2);
     expect(wrapper.get("tbody tr").element).toBe(firstRow);
     expect(wrapper.findAll("tbody tr")[1].text()).toContain("Oak");
+    wrapper.unmount();
+  });
+
+  it("updates a finished table whose cell changes while the block streams", async () => {
+    const table = (cell: string) =>
+      `| Name | Count |\n| --- | --- |\n| ${cell} | 1 |\n\nAfter the table`;
+    const wrapper = mountMarkdown({ source: table("Pine"), final: false });
+    await flushPromises();
+    expect(wrapper.get("tbody").text()).toContain("Pine");
+
+    await wrapper.setProps({ source: `${table("Pine")} more.` });
+    await flushPromises();
+    expect(wrapper.get("tbody").text()).toContain("Pine");
+
+    await wrapper.setProps({ source: `${table("Oak")} more.` });
+    await flushPromises();
+    expect(wrapper.get("tbody").text()).toContain("Oak");
+    expect(wrapper.get("tbody").text()).not.toContain("Pine");
+    wrapper.unmount();
+  });
+
+  it("turns a table cell's footnote into a citation once its definition streams in", async () => {
+    const table = "| Source |\n| --- |\n| Docs[^1] |\n\nAfter the table.";
+    const wrapper = mountMarkdown({ source: table, final: false });
+    await flushPromises();
+    expect(wrapper.find('tbody [data-slot="inline-citation"]').exists()).toBe(
+      false,
+    );
+
+    await wrapper.setProps({
+      source: `${table}\n\n[^1]: [Docs](https://docs.example.com/page)`,
+    });
+    await flushPromises();
+    expect(wrapper.get('tbody [data-slot="inline-citation"]').text()).toContain(
+      "docs.example.com",
+    );
+    wrapper.unmount();
+  });
+
+  it("re-renders finished tables when the color scheme changes", async () => {
+    const source = "| Name |\n| --- |\n| Pine |\n\nAfter the table.";
+    const wrapper = mountMarkdown({ source, final: false });
+    await flushPromises();
+    const cellRenderers = () =>
+      wrapper.getComponent(MarkdownTable).findAllComponents(MarkdownRender);
+    expect(cellRenderers().length).toBeGreaterThan(0);
+    expect(cellRenderers().every((cell) => cell.props("isDark") !== true)).toBe(
+      true,
+    );
+
+    useAppearanceStore().colorScheme = "dark";
+    await flushPromises();
+    expect(cellRenderers().every((cell) => cell.props("isDark") === true)).toBe(
+      true,
+    );
+    wrapper.unmount();
+  });
+
+  it("updates a citation chip whose source changes while streaming", async () => {
+    const body = "Claim[^1].\n\n[^1]: [First](https://first.example.com/a)";
+    const wrapper = mountMarkdown({ source: body, final: false });
+    await flushPromises();
+    expect(wrapper.get('[data-slot="inline-citation"]').text()).toContain(
+      "first.example.com",
+    );
+
+    await wrapper.setProps({ source: body.replace("Claim", "A longer claim") });
+    await flushPromises();
+    expect(wrapper.get('[data-slot="inline-citation"]').text()).toContain(
+      "first.example.com",
+    );
+
+    await wrapper.setProps({
+      source: "Claim[^1].\n\n[^1]: [Second](https://second.example.com/b)",
+    });
+    await flushPromises();
+    const chip = wrapper.get('[data-slot="inline-citation"]');
+    expect(chip.text()).toContain("second.example.com");
+    expect(chip.attributes("href")).toBe("https://second.example.com/b");
+    wrapper.unmount();
+  });
+
+  it("updates an image whose source or text changes while streaming", async () => {
+    const image = (alt: string, src: string) =>
+      `![${alt}](${src})\n\nAfter the image`;
+    const wrapper = mountMarkdown({
+      source: image("Pine", "/images/first.png"),
+      final: false,
+    });
+    await flushPromises();
+    expect(wrapper.get("img").attributes("alt")).toBe("Pine");
+
+    await wrapper.setProps({
+      source: `${image("Pine", "/images/first.png")} more.`,
+    });
+    await flushPromises();
+    expect(wrapper.get("img").attributes("src")).toContain("first.png");
+
+    await wrapper.setProps({
+      source: `${image("Oak", "/images/second.png")} more.`,
+    });
+    await flushPromises();
+    expect(wrapper.get("img").attributes("alt")).toBe("Oak");
+    expect(wrapper.get("img").attributes("src")).toContain("second.png");
     wrapper.unmount();
   });
 });

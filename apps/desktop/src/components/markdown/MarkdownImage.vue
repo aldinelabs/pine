@@ -34,9 +34,23 @@ const failed = ref(false);
  * out of its src, so native images render those two Pine protocols directly.
  * Remote and inline-data images retain markstream's ImageNode behavior.
  */
+// markstream hands over a new `node` object on every parse. Each field is its
+// own computed so an unchanged image yields the same `displayNode` object and
+// the rendered ImageNode is not patched on every streamed flush.
+const src = computed(() =>
+  resolveMarkdownImageSrc(props.node.src, documentUrl?.value),
+);
+const alt = computed(() => props.node.alt);
+const title = computed(() => props.node.title);
+const raw = computed(() => props.node.raw);
+const nodeLoading = computed(() => props.node.loading);
 const displayNode = computed(() => ({
-  ...props.node,
-  src: resolveMarkdownImageSrc(props.node.src, documentUrl?.value),
+  type: "image" as const,
+  src: src.value,
+  alt: alt.value,
+  title: title.value,
+  raw: raw.value,
+  ...(nodeLoading.value === undefined ? {} : { loading: nodeLoading.value }),
 }));
 
 const isLoading = computed(() => props.loading ?? props.node.loading);

@@ -36,7 +36,12 @@ import { useI18n } from "vue-i18n";
 import { toast } from "vue-sonner";
 import "markstream-vue/index.css";
 import { useAppearanceStore } from "@/stores/appearance";
-import { markdownCitations, parseMarkdownCitations } from "./citation";
+import {
+  markdownCitations,
+  parseMarkdownCitations,
+  shareMarkdownCitations,
+  type MarkdownCitations,
+} from "./citation";
 import { markdownImageDocumentUrl } from "./markdownImageContext";
 import { Button } from "@/components/ui/button";
 import DialogScrollArea from "@/components/dialogs/DialogScrollArea.vue";
@@ -71,7 +76,11 @@ provide(
 
 provide(
   markdownCitations,
-  computed(() => parseMarkdownCitations(props.source)),
+  // Structurally shared: an unchanged map keeps its identity, so citation
+  // chips do not re-render on every streamed flush.
+  computed<MarkdownCitations>((previous) =>
+    shareMarkdownCitations(previous, parseMarkdownCitations(props.source)),
+  ),
 );
 
 // markstream themes its code block via the `is-dark` prop (its inline style vars

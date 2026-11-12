@@ -4,22 +4,23 @@
  * citations, one image and six finished tables; then 30 flushes, 120 ms
  * apart, each append one sentence to the last paragraph with `final` false.
  *
- * | id | metric (per flush unless noted)                           | measured      | target      |
- * | -- | --------------------------------------------------------- | ------------- | ----------- |
- * | K1 | component updates inside the six finished tables          | 324           | 0           |
- * | K2 | component updates below the six citation chips            | 18            | 0           |
- * | K3 | component updates below the image                         | 1             | 0           |
- * | K4 | fade spans after a flush, compact (thinking) renderer     | 4             | 0           |
- * | K6 | characters re-parsed on the last flush / source length    | 2,254 / 2,254 | O(appended) |
- * | -  | own re-runs of MarkdownTable / citation chip / image      | 6 / 6 / 1     | -           |
- * | -  | component updates of any kind                             | 399           | -           |
- * | D1 | AlertDialog instances mounted by a never-clicked renderer | 1             | 0           |
- * | D1 | component instances of that closed dialog tree            | 6             | 0           |
+ * | id | metric (per flush unless noted)                           | before        | after W2-B    | target      |
+ * | -- | --------------------------------------------------------- | ------------- | ------------- | ----------- |
+ * | K1 | component updates inside the six finished tables          | 324           | 0             | 0           |
+ * | K2 | component updates below the six citation chips            | 18            | 0             | 0           |
+ * | K3 | component updates below the image                         | 1             | 0             | 0           |
+ * | K4 | fade spans after a flush, compact (thinking) renderer     | 4             | 4             | 0           |
+ * | K6 | characters re-parsed on the last flush / source length    | 2,254 / 2,254 | 2,254 / 2,254 | O(appended) |
+ * | -  | own re-runs of MarkdownTable / citation chip / image      | 6 / 6 / 1     | 6 / 6 / 1     | -           |
+ * | -  | component updates of any kind                             | 399           | 56            | -           |
+ * | D1 | AlertDialog instances mounted by a never-clicked renderer | 1             | 1             | 0           |
+ * | D1 | component instances of that closed dialog tree            | 6             | 6             | 0           |
  *
- * Holds today: none. Not met yet (`it.fails`): K1, K2, K3, K4, D1. K6 is an
- * `it.todo`: nothing planned makes parsing incremental, the row records what
- * a flush costs today. When a change makes a target hold, turn it into `it`
- * and update the measured column.
+ * Holds after W2-B: K1, K2, K3. Not met yet (`it.fails`): K4 (the streaming
+ * fade of thinking text stays as it is by user decision), D1 (wave 4). K6 is
+ * an `it.todo`: nothing planned makes parsing incremental, the row records
+ * what a flush costs today. When a change makes a target hold, turn it into
+ * `it` and update the measured column.
  *
  * K2 and K3 count what re-renders below the custom component, not the
  * component itself. markstream hands `MarkdownCitationReference`,
@@ -191,17 +192,17 @@ function appendMetrics(): Promise<AppendMetrics> {
 }
 
 describe("MarkdownContent streaming cost", () => {
-  it.fails("[K1] updates nothing inside a finished table", async () => {
+  it("[K1] updates nothing inside a finished table", async () => {
     const metrics = await appendMetrics();
     expect(metrics.updatesInsideTables).toBe(0);
   });
 
-  it.fails("[K2] updates nothing below a citation chip", async () => {
+  it("[K2] updates nothing below a citation chip", async () => {
     const metrics = await appendMetrics();
     expect(metrics.updatesBelowCitations).toBe(0);
   });
 
-  it.fails("[K3] updates nothing below a finished image", async () => {
+  it("[K3] updates nothing below a finished image", async () => {
     const metrics = await appendMetrics();
     expect(metrics.updatesBelowImage).toBe(0);
   });
