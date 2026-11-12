@@ -2,6 +2,7 @@
 import { ChevronRightIcon, ShieldAlertIcon, WorkflowIcon } from "@lucide/vue";
 import { computed } from "vue";
 import { useI18n } from "vue-i18n";
+import { DURATION_MS, EASE_OUT_EXPO } from "@/lib/motion";
 import { cn } from "@/lib/utils";
 import {
   SidebarMenuSubButton,
@@ -24,11 +25,12 @@ const props = withDefaults(
     /** Sub-sessions shown under this row when it is expanded. */
     subSessionCount?: number;
     expanded?: boolean;
-    /** The bottom sub-session of its parent, where the tree line ends. */
-    lastSubSession?: boolean;
   }>(),
-  { depth: 0, subSessionCount: 0, expanded: false, lastSubSession: false },
+  { depth: 0, subSessionCount: 0, expanded: false },
 );
+
+/** Matches the rows the line runs beside as they fold in or out. */
+const LINE_DURATION = `${DURATION_MS}ms`;
 
 const sessionStore = useSessionStore();
 const isRunning = computed(() =>
@@ -170,21 +172,37 @@ const emit = defineEmits<{
         </span>
       </SidebarMenuSubButton>
     </SessionContextMenu>
-    <!-- Tree line joining sub-sessions to their parent. Sub-sessions sit
-         24px in, the same step as sessions under their project; the line
-         reaches 2px into the 4px gap on each side so it runs unbroken. -->
+    <!--
+      Tree line from the parent down to its last sub-session, centred under
+      the parent's first character (12px padding + half a 14px glyph). One
+      element, so it stays whole while rows fold in or out: its height
+      follows them on the same curve. It starts at the first sub-session's
+      top edge, past the 4px gap; each row is 28px plus that gap, and the
+      line ends in a curve at the last row's middle.
+    -->
     <span
-      v-if="depth > 0"
+      v-if="subSessionCount > 0"
       data-slot="session-tree-line"
       aria-hidden="true"
-      :class="
-        cn(
-          'pointer-events-none absolute start-3.5 -top-0.5 border-s border-muted-foreground/40',
-          lastSubSession
-            ? 'h-[calc(50%+2px)] w-3 rounded-es-lg border-b'
-            : '-bottom-0.5',
-        )
-      "
+      class="session-tree-line pointer-events-none absolute start-[18.5px] top-[calc(100%+0.25rem)] z-10 w-2.5 rounded-es-lg border-s border-b border-muted-foreground/40"
+      :style="{
+        height: expanded ? `calc(${subSessionCount} * 2rem - 1.125rem)` : '0px',
+        opacity: expanded ? 1 : 0,
+      }"
     />
   </SidebarMenuSubItem>
 </template>
+
+<style scoped>
+.session-tree-line {
+  transition-duration: v-bind(LINE_DURATION);
+  transition-property: height, opacity;
+  transition-timing-function: v-bind(EASE_OUT_EXPO);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .session-tree-line {
+    transition: none;
+  }
+}
+</style>

@@ -122,14 +122,16 @@ describe("SessionHistoryItem", () => {
     expect(chevron.get("svg").classes()).toContain("rotate-90");
   });
 
-  it("ends the tree line at the last sub-session", async () => {
-    const wrapper = mountItem(session, { depth: 1 });
-    const line = () => wrapper.get('[data-slot="session-tree-line"]');
-    expect(line().classes()).toContain("-bottom-0.5");
-    await wrapper.setProps({ lastSubSession: true });
-    expect(line().classes()).toContain("rounded-es-lg");
-    expect(
-      wrapper.find('[data-slot="session-sub-sessions-toggle"]').exists(),
-    ).toBe(false);
+  it("draws one tree line from the parent down to its last sub-session", async () => {
+    const wrapper = mountItem(session, { subSessionCount: 3 });
+    const line = () =>
+      wrapper.get<HTMLElement>('[data-slot="session-tree-line"]').element;
+    expect(line().style.height).toBe("0px");
+
+    await wrapper.setProps({ expanded: true });
+    expect(line().style.height).toBe("calc(3 * 2rem - 1.125rem)");
+
+    const child = mountItem(session, { depth: 1 });
+    expect(child.find('[data-slot="session-tree-line"]').exists()).toBe(false);
   });
 });

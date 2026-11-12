@@ -159,16 +159,14 @@ const projectGroups = computed(() => {
           session,
           depth: 0,
           subSessionCount: children.length,
-          lastSubSession: false,
         };
         if (!children.length || !historyStore.isOpen(session.id)) return [row];
         return [
           row,
-          ...children.map((child, index) => ({
+          ...children.map((child) => ({
             session: child,
             depth: 1,
             subSessionCount: 0,
-            lastSubSession: index === children.length - 1,
           })),
         ];
       });
@@ -207,8 +205,6 @@ interface SessionRow {
   /** 1 for a sub-session under the session that started it. */
   depth: number;
   subSessionCount: number;
-  /** The bottom sub-session of its parent, where the tree line ends. */
-  lastSubSession: boolean;
 }
 
 function parentOfSession(
@@ -835,13 +831,11 @@ function drop(event: DragEvent, projectId: string, groupId: string | null) {
                                     session,
                                     depth,
                                     subSessionCount,
-                                    lastSubSession,
                                   } in folder.rows"
                                   :key="session.id"
                                   :groups="depth ? [] : group.groups"
                                   :depth="depth"
                                   :sub-session-count="subSessionCount"
-                                  :last-sub-session="lastSubSession"
                                   :expanded="historyStore.isOpen(session.id)"
                                   @toggle="
                                     historyStore.setOpen(
@@ -894,13 +888,11 @@ function drop(event: DragEvent, projectId: string, groupId: string | null) {
                             session,
                             depth,
                             subSessionCount,
-                            lastSubSession,
                           } in group.visible"
                           :key="session.id"
                           :groups="depth ? [] : group.groups"
                           :depth="depth"
                           :sub-session-count="subSessionCount"
-                          :last-sub-session="lastSubSession"
                           :expanded="historyStore.isOpen(session.id)"
                           @toggle="
                             historyStore.setOpen(
