@@ -46,6 +46,7 @@ const SNIPPET_END = "\u0002";
 const SEARCH_INDEX_SCHEMA_VERSION = 2;
 const SESSION_HEADER_CHUNK_BYTES = 4_096;
 const SESSION_HEADER_READ_CONCURRENCY = 64;
+const SESSION_PARSE_CACHE_LIMIT = 4;
 
 import type { PineSessionExportDocument } from "../shared/sessionExport";
 export type { PineSessionExportDocument } from "../shared/sessionExport";
@@ -439,6 +440,77 @@ function outlineMessages(
     }));
 }
 
+/**
+ * A validated, opened session file. The branch and its messages are derived
+ * once per parse; callers treat all of it as read-only.
+ */
+interface ParsedSession {
+  branch?: Entry[];
+  branchMessages?: IndexedTextMessage[];
+  manager: SessionManager;
+}
+
+function branchOf(parsed: ParsedSession): Entry[] {
+  parsed.branch ??= parsed.manager.getBranch();
+  return parsed.branch;
+}
+
+function branchMessagesOf(parsed: ParsedSession): IndexedTextMessage[] {
+  parsed.branchMessages ??= indexedTextMessages(branchOf(parsed));
+  return parsed.branchMessages;
+}
+
+interface ParsedSessionRecord {
+  key: string;
+  parsed: Promise<ParsedSession>;
+}
+
+/**
+ * Keeps the last few parsed session files, keyed on path, mtime and size, so
+ * paging through history and a cold open do not re-parse the whole file for
+ * every request. Appends change the size, so they always miss; Pine's own
+ * writes also invalidate explicitly.
+ */
+class SessionParseCache {
+  private readonly records = new Map<string, ParsedSessionRecord>();
+
+  constructor(private readonly limit: number) {}
+
+  async get(sessionFile: string): Promise<ParsedSession> {
+    // Stat before reading: the parsed content is then never older than its key.
+    const { mtimeMs, size } = await stat(sessionFile);
+    const key = `${mtimeMs}:${size}`;
+    const cached = this.records.get(sessionFile);
+    this.records.delete(sessionFile);
+    if (cached?.key === key) {
+      this.records.set(sessionFile, cached);
+      return cached.parsed;
+    }
+
+    const parsed = (async (): Promise<ParsedSession> => {
+      await assertWellFormed(sessionFile);
+      return { manager: (await loadSessionManager()).open(sessionFile) };
+    })();
+    const record = { key, parsed };
+    this.records.set(sessionFile, record);
+    for (const oldest of this.records.keys()) {
+      if (this.records.size <= this.limit) break;
+      this.records.delete(oldest);
+    }
+    // A failed parse is never served again; the next request retries.
+    parsed.catch(() => {
+      if (this.records.get(sessionFile) === record) {
+        this.records.delete(sessionFile);
+      }
+    });
+    return parsed;
+  }
+
+  invalidate(sessionFile: string): void {
+    this.records.delete(sessionFile);
+  }
+}
+
 function messageCursor(sequence: number): string {
   return `seq:${sequence}`;
 }
@@ -555,6 +627,13 @@ function quoteFtsQuery(query: string): string {
 
 export class ProjectSessionService {
   private readonly database: DatabaseSync;
+  private readonly parseCache = new SessionParseCache(
+    SESSION_PARSE_CACHE_LIMIT,
+  );
+  /** Session id to file, as of the last listing. */
+  private sessionPaths = new Map<string, string>();
+  private runningRefresh: Promise<void> | undefined;
+  private queuedRefresh: Promise<void> | undefined;
 
   private constructor(
     private readonly sessionsRoot: string,
@@ -616,12 +695,27 @@ export class ProjectSessionService {
       SESSION_HEADER_READ_CONCURRENCY,
       readSessionMetadata,
     );
-    return sessions.filter((session) => session !== undefined);
+    const listed = sessions.filter((session) => session !== undefined);
+    const sessionPaths = new Map<string, string>();
+    for (const session of listed) {
+      // Match the listing lookup: the first file with an id wins.
+      if (!sessionPaths.has(session.id)) {
+        sessionPaths.set(session.id, session.path);
+      }
+    }
+    this.sessionPaths = sessionPaths;
+    return listed;
   }
 
   private async findSession(
     sessionId: string,
   ): Promise<SessionMetadata | undefined> {
+    const knownPath = this.sessionPaths.get(sessionId);
+    if (knownPath) {
+      // The header read also confirms the file still holds this session.
+      const known = await readSessionMetadata(knownPath);
+      if (known?.id === sessionId) return known;
+    }
     return (await this.listSessions()).find(
       (session) => session.id === sessionId,
     );
@@ -662,11 +756,11 @@ export class ProjectSessionService {
     const metadata = await this.findSession(sessionId);
     if (!metadata) throw new Error("Session not found in the active project.");
 
-    return this.withSession(metadata, (session) => {
+    return this.withSession(metadata, (_session, parsed) => {
       // Edited history leaves abandoned entries in the file; only the active
       // branch (ending at the last appended entry) is the transcript.
-      const entries = session.getBranch();
-      const messages = indexedTextMessages(entries);
+      const entries = branchOf(parsed);
+      const messages = branchMessagesOf(parsed);
       const end = before
         ? messageCursorIndex(messages, before)
         : messages.length;
@@ -751,6 +845,8 @@ export class ProjectSessionService {
     if (!metadata) return false;
 
     await unlink(metadata.path);
+    this.parseCache.invalidate(metadata.path);
+    this.sessionPaths.delete(sessionId);
     this.database
       .prepare("DELETE FROM session_search WHERE session_id = ?")
       .run(sessionId);
@@ -769,9 +865,13 @@ export class ProjectSessionService {
     // before allowing a rename to append to a genuinely damaged source.
     await this.readSessionDocument(metadata);
     const manager = (await loadSessionManager()).open(metadata.path);
-    if (by === "user")
-      manager.appendCustomEntry(PINE_USER_TITLE_ENTRY, { name });
-    manager.appendSessionInfo(name);
+    try {
+      if (by === "user")
+        manager.appendCustomEntry(PINE_USER_TITLE_ENTRY, { name });
+      manager.appendSessionInfo(name);
+    } finally {
+      this.parseCache.invalidate(metadata.path);
+    }
     const summary = await this.readSessionDocument(metadata);
     await this.refreshIndex();
     return summary;
@@ -851,7 +951,31 @@ export class ProjectSessionService {
     return Promise.resolve();
   }
 
-  private async refreshIndex(): Promise<void> {
+  /**
+   * Concurrent callers share work: a caller arriving while a refresh runs
+   * waits for one follow-up refresh, which every such caller shares, so each
+   * result still reflects the files as of its own call.
+   */
+  private refreshIndex(): Promise<void> {
+    if (!this.runningRefresh) return this.startRefresh();
+    this.queuedRefresh ??= this.runningRefresh
+      .catch(() => undefined)
+      .then(() => {
+        this.queuedRefresh = undefined;
+        return this.startRefresh();
+      });
+    return this.queuedRefresh;
+  }
+
+  private startRefresh(): Promise<void> {
+    const refresh = this.refreshIndexNow().finally(() => {
+      if (this.runningRefresh === refresh) this.runningRefresh = undefined;
+    });
+    this.runningRefresh = refresh;
+    return refresh;
+  }
+
+  private async refreshIndexNow(): Promise<void> {
     const metadataList = await this.listSessions();
     const indexedRows = this.database
       .prepare(
@@ -873,6 +997,7 @@ export class ProjectSessionService {
             retainedSessionIds.add(metadata.id);
           } else {
             await unlink(metadata.path);
+            this.parseCache.invalidate(metadata.path);
           }
           continue;
         }
@@ -883,6 +1008,7 @@ export class ProjectSessionService {
         );
         if (!document.hasUserMessage) {
           await unlink(metadata.path);
+          this.parseCache.invalidate(metadata.path);
           continue;
         }
 
@@ -974,10 +1100,12 @@ export class ProjectSessionService {
 
   private async withSession<T>(
     metadata: SessionMetadata,
-    callback: (session: SessionManager) => Promise<T> | T,
+    callback: (
+      session: SessionManager,
+      parsed: ParsedSession,
+    ) => Promise<T> | T,
   ): Promise<T> {
-    await assertWellFormed(metadata.path);
-    const manager = (await loadSessionManager()).open(metadata.path);
-    return callback(manager);
+    const parsed = await this.parseCache.get(metadata.path);
+    return callback(parsed.manager, parsed);
   }
 }
