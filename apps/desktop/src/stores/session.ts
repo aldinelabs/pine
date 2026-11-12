@@ -103,6 +103,9 @@ export function transcriptMessageFromEvent(
   now = Date.now(),
 ): PineTranscriptMessage | undefined {
   if (event.type === "message-update") {
+    // Same content: keep the record so nothing downstream sees a change.
+    if (previous && isNoOpMessageUpdate(event.updates, previous))
+      return previous;
     const blocks = applyAssistantMessageUpdates(
       previous?.blocks ?? [],
       event.updates,
@@ -343,12 +346,114 @@ function compactionMessage(
   };
 }
 
+/**
+ * Structure versions come from one sequence shared by every session state,
+ * so a state that replaces another (snapshot restore, session reset) never
+ * repeats a version a watcher has already seen.
+ */
+let structureSequence = 0;
+
+function nextStructureVersion(): number {
+  structureSequence += 1;
+  return structureSequence;
+}
+
+/** Structural equality of JSON-like values; an `undefined` field counts as absent. */
+function jsonEqual(left: unknown, right: unknown): boolean {
+  if (Object.is(left, right)) return true;
+  if (
+    typeof left !== "object" ||
+    typeof right !== "object" ||
+    left === null ||
+    right === null
+  )
+    return false;
+  if (Array.isArray(left) !== Array.isArray(right)) return false;
+  if (Array.isArray(left) && Array.isArray(right)) {
+    return (
+      left.length === right.length &&
+      left.every((item, index) => jsonEqual(item, right[index]))
+    );
+  }
+  const leftRecord = left as Record<string, unknown>;
+  const rightRecord = right as Record<string, unknown>;
+  const keys = new Set([
+    ...Object.keys(leftRecord),
+    ...Object.keys(rightRecord),
+  ]);
+  for (const key of keys) {
+    if (!jsonEqual(leftRecord[key], rightRecord[key])) return false;
+  }
+  return true;
+}
+
+function sameMessageIds(
+  left: readonly PineTranscriptMessage[],
+  right: readonly PineTranscriptMessage[],
+): boolean {
+  if (left.length !== right.length) return false;
+  for (let index = 0; index < left.length; index++) {
+    if (left[index]?.id !== right[index]?.id) return false;
+  }
+  return true;
+}
+
+function sameMessages(
+  left: readonly PineTranscriptMessage[],
+  right: readonly PineTranscriptMessage[],
+): boolean {
+  return (
+    left.length === right.length &&
+    left.every((message, index) => message === right[index])
+  );
+}
+
+/**
+ * A `message-update` that changes nothing: only tool-call argument deltas
+ * without a parsed `input` (the argument preview is capped), applied to a
+ * message that is already streaming with timing for every thinking block.
+ */
+function isNoOpMessageUpdate(
+  updates: readonly PineAssistantMessageUpdate[],
+  previous: PineTranscriptMessage,
+): boolean {
+  if (updates.length === 0) return false;
+  if (previous.role !== "assistant" || previous.status !== "streaming") {
+    return false;
+  }
+  if (
+    !updates.every(
+      (update) =>
+        update.type === "tool-call-delta" && update.input === undefined,
+    )
+  ) {
+    return false;
+  }
+  const thinkingBlocks = previous.thinkingBlocks;
+  return previous.blocks.every(
+    (block, index) =>
+      block.type !== "thinking" || thinkingBlocks?.[index] !== undefined,
+  );
+}
+
 function createSessionState() {
   const activeSession = shallowRef<PineSessionSummary | null>(null);
   // Transcript messages are immutable records replaced on every change, so
   // only the arrays are reactive. Deep refs proxied and tracked every block
   // and tool payload, which made rendering cost grow with the session.
-  const messages = shallowRef<PineTranscriptMessage[]>([]);
+  // Every write goes through `setMessages` or `putMessage`, which keep the
+  // id index, `structureVersion` and `userMessages` in step with the array.
+  const messageList = shallowRef<PineTranscriptMessage[]>([]);
+  const messages = computed<PineTranscriptMessage[]>({
+    get: () => messageList.value,
+    set: (next) => setMessages(next),
+  });
+  /** Changes only when the set or order of message ids changes. */
+  const structureVersionRef = ref(nextStructureVersion());
+  const structureVersion = computed(() => structureVersionRef.value);
+  /** The user messages in order; replaced only when one of them changes. */
+  const userMessageList = shallowRef<readonly PineTranscriptMessage[]>([]);
+  const userMessages = computed(() => userMessageList.value);
   const outlineMessages = shallowRef<PineTranscriptMessage[]>([]);
   const isLoadingMessages = ref(false);
   const isRunning = ref(false);
@@ -373,17 +478,70 @@ function createSessionState() {
   const activeMcpToolCalls = new Map<string, string>();
   const mcpApprovalToolCalls = new Map<string, string>();
 
+  /**
+   * The index of a message, or -1. O(1): the id index always covers the
+   * whole array, because every write goes through `setMessages` or
+   * `putMessage`.
+   */
   function messageIndexFor(messageId: string): number {
     const cached = messageIndexes.get(messageId);
-    if (cached !== undefined && messages.value[cached]?.id === messageId) {
-      return cached;
+    if (cached === undefined) return -1;
+    if (messageList.value[cached]?.id === messageId) return cached;
+    // Unreachable while the write paths keep the index; rebuild rather than
+    // answer from a stale entry.
+    reindexMessages();
+    return messageIndexes.get(messageId) ?? -1;
+  }
+
+  /** Rebuild the id index from the array; the tool-call index refills lazily. */
+  function reindexMessages(): void {
+    messageIndexes.clear();
+    toolCallMessageIndexes.clear();
+    messageList.value.forEach((message, index) => {
+      // The first occurrence wins, as a scan would find it.
+      if (!messageIndexes.has(message.id))
+        messageIndexes.set(message.id, index);
+    });
+  }
+
+  function refreshUserMessages(): void {
+    const next = messageList.value.filter((message) => message.role === "user");
+    if (!sameMessages(next, userMessageList.value))
+      userMessageList.value = next;
+  }
+
+  /** Replace the whole transcript (history, rewrite, rollback). */
+  function setMessages(next: PineTranscriptMessage[]): void {
+    const previous = messageList.value;
+    if (next === previous) return;
+    const structural = !sameMessageIds(previous, next);
+    messageList.value = next;
+    reindexMessages();
+    if (structural) structureVersionRef.value = nextStructureVersion();
+    refreshUserMessages();
+  }
+
+  /** Keep `userMessages` in step with one replaced or appended message. */
+  function updateUserMessages(
+    replaced: PineTranscriptMessage | undefined,
+    message: PineTranscriptMessage,
+    appended: boolean,
+  ): void {
+    const users = userMessageList.value;
+    if (replaced?.role === "user") {
+      const at = users.indexOf(replaced);
+      if (at >= 0) {
+        const next = [...users];
+        if (message.role === "user") next[at] = message;
+        else next.splice(at, 1);
+        userMessageList.value = next;
+        return;
+      }
+    } else if (appended && message.role === "user") {
+      userMessageList.value = [...users, message];
+      return;
     }
-    const index = messages.value.findIndex(
-      (message) => message.id === messageId,
-    );
-    if (index >= 0) messageIndexes.set(messageId, index);
-    else messageIndexes.delete(messageId);
-    return index;
+    refreshUserMessages();
   }
 
   function toolCallMessageIndexFor(toolCallId: string): number {
@@ -422,17 +580,31 @@ function createSessionState() {
 
   /** Replace (or append, without an index) one message; returns its index. */
   function putMessage(message: PineTranscriptMessage, index = -1): number {
-    const next = [...messages.value];
-    const target = index < 0 ? next.length : index;
+    const current = messageList.value;
+    if (index >= 0 && current[index] === message) return index;
+    const appended = index < 0;
+    const target = appended ? current.length : index;
+    const replaced: PineTranscriptMessage | undefined = appended
+      ? undefined
+      : current[target];
+    const next = [...current];
     next[target] = message;
-    messages.value = next;
+    messageList.value = next;
+    if (
+      replaced &&
+      replaced.id !== message.id &&
+      messageIndexes.get(replaced.id) === target
+    ) {
+      messageIndexes.delete(replaced.id);
+    }
     rememberMessageIndex(message, target);
+    if (!replaced || replaced.id !== message.id) {
+      structureVersionRef.value = nextStructureVersion();
+    }
+    if (message.role === "user" || replaced?.role === "user") {
+      updateUserMessages(replaced, message, appended);
+    }
     return target;
-  }
-
-  function clearMessageIndexes(): void {
-    messageIndexes.clear();
-    toolCallMessageIndexes.clear();
   }
 
   function approvalToolCallId(toolCallId: string, toolName: string): string {
@@ -505,6 +677,8 @@ function createSessionState() {
   return reactive({
     summary: activeSession,
     messages,
+    structureVersion,
+    userMessages,
     outlineMessages,
     isLoadingMessages,
     isRunning,
@@ -521,13 +695,13 @@ function createSessionState() {
     setTodos,
     hideCompletedTodos,
     messageIndexFor,
+    indexOfMessage: messageIndexFor,
     toolCallMessageIndexFor,
     approvalToolCallId,
     activeMcpToolCalls,
     mcpApprovalToolCalls,
     resetMcpApprovalLinks,
-    rememberMessageIndex,
-    clearMessageIndexes,
+    setMessages,
     putMessage,
     patchToolCall,
     notifiedAutoApprovalFailureIds: new Set<string>(),
@@ -583,6 +757,12 @@ export const useSessionStore = defineStore("session", () => {
   const activeSession = projection("summary");
   const messages = projection("messages");
   const outlineMessages = projection("outlineMessages");
+  /** The active session's structure signals (see `createSessionState`). */
+  const structureVersion = computed(() => activeState.value.structureVersion);
+  const userMessages = computed(() => activeState.value.userMessages);
+  function indexOfMessage(messageId: string): number {
+    return activeState.value.indexOfMessage(messageId);
+  }
   const isLoadingMessages = projection("isLoadingMessages");
   const isRunning = projection("isRunning");
   const contextUsage = projection("contextUsage");
@@ -686,13 +866,45 @@ export const useSessionStore = defineStore("session", () => {
     return sessions.sort((left, right) => times.get(right)! - times.get(left)!);
   }
 
+  /**
+   * Whether sorting the list with its entry at `index` re-inserted first
+   * would leave it exactly as it is: newest first throughout, and the entry
+   * not tied with the one before it (a re-inserted entry leads its tie).
+   */
+  function isSortedWithEntryAt(
+    sessions: readonly PineSessionSummary[],
+    index: number,
+  ): boolean {
+    let previousTime = Infinity;
+    for (let position = 0; position < sessions.length; position++) {
+      const time = new Date(sessions[position].updatedAt).getTime();
+      if (Number.isNaN(time) || time > previousTime) return false;
+      if (position === index && position > 0 && time === previousTime)
+        return false;
+      previousTime = time;
+    }
+    return true;
+  }
+
   /** Keep the cross-project list in step with one session's latest state. */
   function upsertAllRecent(projectId: string, session: PineSessionSummary) {
-    const previous = allRecentSessions.value.find(
+    const index = allRecentSessions.value.findIndex(
       (candidate) => candidate.id === session.id,
     );
+    const previous = index >= 0 ? allRecentSessions.value[index] : undefined;
+    const nextSession = {
+      ...mergeSessionSummary(session, previous),
+      projectId,
+    };
+    // A repeated summary leaves the list, and everything rendering it, alone.
+    if (
+      previous &&
+      jsonEqual(nextSession, previous) &&
+      isSortedWithEntryAt(allRecentSessions.value, index)
+    )
+      return;
     allRecentSessions.value = sortByNewest([
-      { ...mergeSessionSummary(session, previous), projectId },
+      nextSession,
       ...allRecentSessions.value.filter(
         (candidate) => candidate.id !== session.id,
       ),
@@ -723,8 +935,18 @@ export const useSessionStore = defineStore("session", () => {
     bumpRecentSequence(projectId);
     setLoadingRecent(projectId, false);
     const recent = recentSessionsFor(projectId);
-    const previous = recent.find((candidate) => candidate.id === session.id);
+    const index = recent.findIndex((candidate) => candidate.id === session.id);
+    const previous = index >= 0 ? recent[index] : undefined;
     const nextSession = mergeSessionSummary(session, previous);
+    // A repeated summary leaves the list, and everything rendering it, alone.
+    if (
+      previous &&
+      jsonEqual(nextSession, previous) &&
+      isSortedWithEntryAt(recent, index)
+    ) {
+      upsertAllRecent(projectId, previous);
+      return previous;
+    }
     setRecent(
       projectId,
       sortByNewest([
@@ -832,7 +1054,6 @@ export const useSessionStore = defineStore("session", () => {
     );
     // A live todo result that arrived during the load is newer.
     if (result.todos && !state.todos) state.setTodos(result.todos);
-    state.clearMessageIndexes();
     state.hasEarlierMessages = result.hasMore;
     state.nextBefore = result.nextBefore;
     state.historyLoaded = true;
@@ -880,7 +1101,6 @@ export const useSessionStore = defineStore("session", () => {
         result.messages,
         state.outlineMessages,
       );
-      state.clearMessageIndexes();
       state.hasEarlierMessages = result.hasMore;
       state.nextBefore = result.nextBefore;
     })();
@@ -989,7 +1209,6 @@ export const useSessionStore = defineStore("session", () => {
     state.messages = state.messages.slice(0, index);
     if (outlineIndex >= 0)
       state.outlineMessages = state.outlineMessages.slice(0, outlineIndex);
-    state.clearMessageIndexes();
     state.isRunning = true;
     try {
       await window.pine.promptSession({
@@ -1006,7 +1225,6 @@ export const useSessionStore = defineStore("session", () => {
     } catch (error) {
       state.messages = previousMessages;
       state.outlineMessages = previousOutline;
-      state.clearMessageIndexes();
       state.isRunning = false;
       throw error;
     }
@@ -1891,7 +2109,10 @@ export const useSessionStore = defineStore("session", () => {
     loadRecent,
     loadEarlierMessages,
     messages,
+    indexOfMessage,
     outlineMessages,
+    structureVersion,
+    userMessages,
     pendingApprovals,
     pendingQuestionnaires,
     prompt,

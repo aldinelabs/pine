@@ -7,6 +7,7 @@ import {
   type PineSessionEvent,
 } from "@/shared/agent";
 import type { PineContextUsage, PineSessionSummary } from "@/shared/sessions";
+import type { WebSessionSnapshot } from "@/shared/webControl";
 import { useModelsStore } from "../models";
 import { useSessionStore } from "../session";
 
@@ -1692,5 +1693,375 @@ describe("session store", () => {
         approval: { state: "denied", decidedBy: "sandbox" },
       }),
     );
+  });
+});
+
+describe("session structure signals", () => {
+  type Listener = (event: PineSessionEvent) => void;
+
+  const text = (id: string, role: "assistant" | "user") => ({
+    createdAt: "2026-10-02T00:00:00.000Z",
+    id,
+    role,
+    blocks: [{ type: "text" as const, text: id }],
+  });
+
+  function install(api: Record<string, unknown> = {}) {
+    let listener: Listener | undefined;
+    let snapshotListener:
+      ((snapshots: WebSessionSnapshot[]) => void) | undefined;
+    Object.defineProperty(window, "pine", {
+      configurable: true,
+      value: {
+        resumeSession: vi.fn().mockResolvedValue({ session }),
+        onSessionEvent: vi.fn((callback: Listener) => {
+          listener = callback;
+          return () => undefined;
+        }),
+        onSessionSnapshot: vi.fn(
+          (callback: (snapshots: WebSessionSnapshot[]) => void) => {
+            snapshotListener = callback;
+            return () => undefined;
+          },
+        ),
+        ...api,
+      },
+    });
+    const store = useSessionStore();
+    store.connectAgentEvents();
+    return {
+      store,
+      emit: (event: PineSessionEvent) => listener?.(event),
+      snapshot: (snapshots: WebSessionSnapshot[]) =>
+        snapshotListener?.(snapshots),
+    };
+  }
+
+  const userStart = (messageId: string, content: string): PineSessionEvent => ({
+    type: "message-start",
+    sessionId: session.id,
+    messageId,
+    message: { role: "user", content },
+  });
+  const assistantUpdate = (
+    messageId: string,
+    delta: string,
+  ): PineSessionEvent => ({
+    type: "message-update",
+    sessionId: session.id,
+    messageId,
+    updates: [{ type: "text-delta", contentIndex: 0, delta }],
+  });
+
+  beforeEach(() => {
+    setActivePinia(createPinia());
+    document.documentElement.lang = "en-US";
+  });
+
+  it("bumps the version on appends only, not on in-place updates", () => {
+    const { store, emit } = install();
+    const state = store.stateFor(session.id);
+    const initial = state.structureVersion;
+
+    emit(assistantUpdate("reply", "Hel"));
+    const afterAppend = state.structureVersion;
+    expect(afterAppend).toBeGreaterThan(initial);
+    expect(state.indexOfMessage("reply")).toBe(0);
+
+    emit(assistantUpdate("reply", "lo"));
+    emit({
+      type: "message-end",
+      sessionId: session.id,
+      messageId: "reply",
+      message: {
+        role: "assistant",
+        content: [{ type: "text", text: "Hello" }],
+      },
+    });
+    expect(state.structureVersion).toBe(afterAppend);
+    expect(state.userMessages).toEqual([]);
+
+    emit({
+      type: "session-error",
+      sessionId: session.id,
+      errorId: "e1",
+      message: "boom",
+    });
+    expect(state.structureVersion).toBeGreaterThan(afterAppend);
+    expect(state.indexOfMessage("error-e1")).toBe(1);
+    expect(state.indexOfMessage("missing")).toBe(-1);
+  });
+
+  it("bumps the version for tool and compaction placeholders, not for their progress", () => {
+    const { store, emit } = install();
+    const state = store.stateFor(session.id);
+
+    emit({
+      type: "tool-start",
+      sessionId: session.id,
+      toolCallId: "call-1",
+      toolName: "bash",
+      payload: { command: "ls" },
+    });
+    const afterTool = state.structureVersion;
+    emit({
+      type: "tool-update",
+      sessionId: session.id,
+      toolCallId: "call-1",
+      toolName: "bash",
+      payload: { content: [] },
+    });
+    expect(state.structureVersion).toBe(afterTool);
+
+    emit({
+      type: "compaction-start",
+      sessionId: session.id,
+      compactionId: "c1",
+    });
+    const afterCompaction = state.structureVersion;
+    expect(afterCompaction).toBeGreaterThan(afterTool);
+    emit({
+      type: "compaction-end",
+      sessionId: session.id,
+      compactionId: "c1",
+      status: "complete",
+    });
+    expect(state.structureVersion).toBe(afterCompaction);
+    expect(state.messages.map((message) => message.id)).toEqual([
+      "tool-call-1",
+      "compaction-c1",
+    ]);
+  });
+
+  it("lists user messages in order and replaces the list only when one changes", () => {
+    const { store, emit } = install();
+    const state = store.stateFor(session.id);
+
+    emit(userStart("u1", "First"));
+    const afterUser = state.userMessages;
+    expect(afterUser.map((message) => message.id)).toEqual(["u1"]);
+
+    emit(assistantUpdate("a1", "Reply"));
+    emit(assistantUpdate("a1", " more"));
+    expect(state.userMessages).toBe(afterUser);
+
+    emit({
+      type: "message-end",
+      sessionId: session.id,
+      messageId: "u1",
+      message: { role: "user", content: "First, edited" },
+    });
+    expect(state.userMessages).not.toBe(afterUser);
+    expect(state.userMessages).toEqual([state.messages[0]]);
+
+    emit(userStart("u2", "Second"));
+    expect(state.userMessages.map((message) => message.id)).toEqual([
+      "u1",
+      "u2",
+    ]);
+    expect(state.indexOfMessage("u2")).toBe(2);
+  });
+
+  it("keeps the array for a tool-call delta without input and for an unchanged record", () => {
+    const { store, emit } = install();
+    const state = store.stateFor(session.id);
+    emit({
+      type: "message-update",
+      sessionId: session.id,
+      messageId: "a1",
+      updates: [
+        {
+          type: "tool-call-start",
+          contentIndex: 0,
+          id: "call-1",
+          name: "write",
+        },
+      ],
+    });
+    const before = state.messages;
+    const version = state.structureVersion;
+
+    emit({
+      type: "message-update",
+      sessionId: session.id,
+      messageId: "a1",
+      updates: [{ type: "tool-call-delta", contentIndex: 0 }],
+    });
+    expect(state.messages).toBe(before);
+
+    state.putMessage(before[0], 0);
+    expect(state.messages).toBe(before);
+
+    // A delta that carries parsed input still updates the call.
+    emit({
+      type: "message-update",
+      sessionId: session.id,
+      messageId: "a1",
+      updates: [
+        { type: "tool-call-delta", contentIndex: 0, input: { path: "/a" } },
+      ],
+    });
+    expect(state.messages).not.toBe(before);
+    const block = state.messages[0]?.blocks[0];
+    expect(block?.type === "toolCall" && block.toolCall.input).toEqual({
+      path: "/a",
+    });
+    expect(state.structureVersion).toBe(version);
+  });
+
+  it("bumps the version when a message is replaced under a new id", () => {
+    const { store, emit } = install();
+    const state = store.stateFor(session.id);
+    emit(userStart("optimistic", "Hi"));
+    const version = state.structureVersion;
+
+    state.putMessage({ ...state.messages[0], id: "persisted" }, 0);
+
+    expect(state.structureVersion).toBeGreaterThan(version);
+    expect(state.indexOfMessage("persisted")).toBe(0);
+    expect(state.indexOfMessage("optimistic")).toBe(-1);
+    expect(state.userMessages.map((message) => message.id)).toEqual([
+      "persisted",
+    ]);
+  });
+
+  it("bumps the version when history loads, prepends and when the same ids come back", async () => {
+    const loadSessionMessages = vi
+      .fn()
+      .mockResolvedValueOnce({
+        hasMore: true,
+        messages: [text("u2", "user"), text("a2", "assistant")],
+        nextBefore: "u2",
+      })
+      .mockResolvedValueOnce({
+        hasMore: false,
+        messages: [text("u1", "user"), text("a1", "assistant")],
+      });
+    const { store } = install({ loadSessionMessages });
+    const state = store.stateFor(session.id);
+    const initial = state.structureVersion;
+
+    await store.resume(PROJECT_ID, session.id);
+    const afterHistory = state.structureVersion;
+    expect(afterHistory).toBeGreaterThan(initial);
+    expect(store.structureVersion).toBe(afterHistory);
+    expect(store.userMessages.map((message) => message.id)).toEqual(["u2"]);
+    expect(store.indexOfMessage("a2")).toBe(1);
+
+    await store.loadEarlierMessages();
+    expect(state.structureVersion).toBeGreaterThan(afterHistory);
+    expect(state.userMessages.map((message) => message.id)).toEqual([
+      "u1",
+      "u2",
+    ]);
+    expect(state.indexOfMessage("a2")).toBe(3);
+
+    // A new array with the same ids in the same order is not a structure change.
+    const settled = state.structureVersion;
+    const users = state.userMessages;
+    state.messages = [...state.messages];
+    expect(state.structureVersion).toBe(settled);
+    expect(state.userMessages).toBe(users);
+  });
+
+  it("bumps the version when a rewrite drops the tail and when it is rolled back", async () => {
+    const promptSession = vi.fn().mockRejectedValue(new Error("busy"));
+    const { store } = install({
+      loadSessionMessages: vi.fn().mockResolvedValue({
+        hasMore: false,
+        messages: [
+          text("u1", "user"),
+          text("a1", "assistant"),
+          text("u2", "user"),
+        ],
+      }),
+      promptSession,
+    });
+    await store.resume(PROJECT_ID, session.id);
+    const state = store.stateFor(session.id);
+    const loaded = state.structureVersion;
+    const versions: number[] = [];
+    promptSession.mockImplementationOnce(() => {
+      versions.push(state.structureVersion);
+      expect(state.userMessages.map((message) => message.id)).toEqual(["u1"]);
+      expect(state.indexOfMessage("u2")).toBe(-1);
+      return Promise.reject(new Error("busy"));
+    });
+
+    await expect(store.rewrite(session.id, "u2", "Edited")).rejects.toThrow(
+      "busy",
+    );
+
+    expect(versions[0]).toBeGreaterThan(loaded);
+    expect(state.structureVersion).toBeGreaterThan(versions[0]);
+    expect(state.userMessages.map((message) => message.id)).toEqual([
+      "u1",
+      "u2",
+    ]);
+    expect(state.indexOfMessage("u2")).toBe(2);
+  });
+
+  it("gives a restored or reset session a version it never had before", async () => {
+    const loadSessionMessages = vi
+      .fn()
+      .mockResolvedValue({ hasMore: false, messages: [text("u1", "user")] });
+    const { store, emit, snapshot } = install({ loadSessionMessages });
+    await store.resume(PROJECT_ID, session.id);
+    const before = store.stateFor(session.id).structureVersion;
+
+    snapshot([
+      {
+        sessionId: session.id,
+        projectId: PROJECT_ID,
+        events: [assistantUpdate("live", "Hi")],
+      },
+    ]);
+    await vi.waitFor(() =>
+      expect(store.stateFor(session.id).messages).toHaveLength(2),
+    );
+    const restored = store.stateFor(session.id);
+    expect(restored.structureVersion).toBeGreaterThan(before);
+    expect(restored.indexOfMessage("live")).toBe(1);
+    expect(restored.userMessages.map((message) => message.id)).toEqual(["u1"]);
+
+    const restoredVersion = restored.structureVersion;
+    emit({
+      type: "session-reset",
+      sessionId: session.id,
+      projectId: PROJECT_ID,
+    });
+    await vi.waitFor(() =>
+      expect(store.stateFor(session.id).historyLoaded).toBe(true),
+    );
+    expect(store.stateFor(session.id).structureVersion).toBeGreaterThan(
+      restoredVersion,
+    );
+  });
+
+  it("re-sorts the session lists when a summary changes, not when it repeats", async () => {
+    const older: PineSessionSummary = {
+      ...session,
+      id: "older",
+      updatedAt: "2026-07-13T00:00:00.000Z",
+    };
+    const { store, emit } = install();
+    await seedRecent(store, [session, older]);
+    const recent = store.recentSessionsFor(PROJECT_ID);
+
+    emit({
+      type: "session-updated",
+      sessionId: "older",
+      summary: { ...older },
+    });
+    expect(store.recentSessionsFor(PROJECT_ID)).toBe(recent);
+
+    emit({
+      type: "session-updated",
+      sessionId: "older",
+      summary: { ...older, updatedAt: "2026-07-15T00:00:00.000Z" },
+    });
+    expect(
+      store.recentSessionsFor(PROJECT_ID).map((candidate) => candidate.id),
+    ).toEqual(["older", session.id]);
   });
 });
