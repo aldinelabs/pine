@@ -8,6 +8,7 @@ import {
   type WeChatStatus,
 } from "../../../shared/wechatRemote";
 import type { TinyFishSafeStorage } from "../../tinyfishCredentials";
+import type { PineAgentEvent } from "../../../shared/agent";
 import { WeChatBridge, wechatUserDigest } from "../bridge";
 import type {
   ChannelBinding,
@@ -19,8 +20,40 @@ import type {
   MessageChannel,
 } from "../channel";
 import { PAIR_CODE_TTL_MS } from "../constants";
-import type { WeChatCorePorts, WeChatHostPorts } from "../ports";
+import type { HandlerRegistry } from "../handlers/types";
+import type { WeChatBridgeOptions, WeChatHostPorts } from "../ports";
+import { render } from "../replies";
 import { WeChatStore } from "../store";
+import { W, createFakeCore } from "./fakes";
+
+/** Handlers that only echo, so the bridge tests do not depend on wave-5 bodies. */
+function fakeRegistry(): HandlerRegistry {
+  return {
+    commands: {
+      status: () => Promise.resolve({ text: "ran status" }),
+      pause: async (ctx) => {
+        await ctx.bridge.pause();
+        return { text: "paused now" };
+      },
+    },
+    message: (_ctx, text) => Promise.resolve({ text: `sent ${text}` }),
+    number: () => Promise.resolve({}),
+  };
+}
+
+class TestBridge extends WeChatBridge {
+  constructor(options: WeChatBridgeOptions) {
+    super(options);
+  }
+
+  protected override handlerRegistry(): HandlerRegistry {
+    return fakeRegistry();
+  }
+
+  idle(): Promise<void> {
+    return this.pipeline?.idle() ?? Promise.resolve();
+  }
+}
 
 const directories: string[] = [];
 
@@ -177,29 +210,32 @@ async function setup(
     notify: vi.fn(),
     keepAwake: vi.fn(),
   } satisfies WeChatHostPorts;
-  const core = {
-    repository: {
-      get: vi.fn((id: string) =>
-        projects.has(id)
-          ? Promise.resolve({ id })
-          : Promise.reject(new Error("missing")),
-      ),
-    },
-  } as unknown as WeChatCorePorts;
+  const fakeCore = createFakeCore();
+  for (const id of projects) fakeCore.addProject(id);
+  const core = fakeCore.ports;
   const openStore = () =>
     new WeChatStore({
       statePath: path.join(host.agentDirectory, "wechat-remote.json"),
       securePath: path.join(host.dataDirectory, "wechat-remote-secure"),
       storage,
     });
-  const bridge = new WeChatBridge({
+  const bridge = new TestBridge({
     core,
     host,
     channels: factory,
     now: () => clock.now,
     randomCode: () => CODE,
   });
-  return { bridge, factory, host, clock, statuses, openStore, directory };
+  return {
+    bridge,
+    factory,
+    host,
+    clock,
+    statuses,
+    openStore,
+    directory,
+    fakeCore,
+  };
 }
 
 type Setup = Awaited<ReturnType<typeof setup>>;
@@ -530,7 +566,11 @@ describe("WeChatBridge lifecycle and settings", () => {
     const channel = context.factory.channels[0];
     await channel?.deliver(
       [
-        { id: "a" },
+        {
+          id: "a",
+          createdAtMs: context.clock.now,
+          pollStartedAtMs: context.clock.now,
+        },
         { id: "old-1" },
         { id: "b", fromUserId: "stranger" },
         { id: "c", toUserId: "other-bot" },
@@ -541,7 +581,8 @@ describe("WeChatBridge lifecycle and settings", () => {
     await stored.load();
     expect(stored.get().cursor).toBe("cursor-8");
     expect(stored.get().seenMessageIds).toEqual(["old-1", "a"]);
-    expect(channel?.sent).toHaveLength(0);
+    await context.bridge.idle();
+    expect(channel?.sent.map((sent) => sent.text)).toEqual(["sent hello"]);
   });
 
   it("asks for a new scan when the stored base URL is no longer allowed", async () => {
@@ -673,5 +714,114 @@ describe("WeChatBridge lifecycle and settings", () => {
     await context.bridge.start();
     await context.bridge.stop();
     expect(context.factory.channels[0]?.stopped).toBe(true);
+  });
+});
+
+describe("WeChatBridge composition", () => {
+  const fresh = (context: Setup) => ({
+    createdAtMs: context.clock.now,
+    pollStartedAtMs: context.clock.now,
+  });
+
+  it("runs accepted messages through the pipeline and replies on the channel", async () => {
+    const context = await setup();
+    await seedBound(context);
+    await context.bridge.start();
+    const channel = context.factory.channels[0];
+    await channel?.deliver([{ text: ".status", ...fresh(context) }]);
+    await context.bridge.idle();
+    expect(channel?.sent).toEqual([
+      { to: USER, token: "ctx-1", text: "ran status" },
+    ]);
+    const stored = context.openStore();
+    await stored.load();
+    expect(stored.get().inbox).toEqual([]);
+  });
+
+  it("answers .pause, then E-PAUSED once, and invalidates open asks", async () => {
+    const context = await setup();
+    await seedBound(context);
+    await context.bridge.start();
+    const channel = context.factory.channels[0];
+    await channel?.deliver([{ text: ".pause", ...fresh(context) }]);
+    await context.bridge.idle();
+    expect(context.bridge.status().paused).toBe(true);
+    await channel?.deliver([{ text: "hi", ...fresh(context) }]);
+    await channel?.deliver([{ text: "again", ...fresh(context) }]);
+    await context.bridge.idle();
+    expect(channel?.sent.map((sent) => sent.text)).toEqual([
+      "paused now",
+      render("E-PAUSED", "en"),
+    ]);
+  });
+
+  it("unbind aborts running sessions only the bridge holds", async () => {
+    const context = await setup({ projects: ["p1", "p2"] });
+    await seedBound(context);
+    await context.bridge.start();
+    const runtimes = context.fakeCore.runtimes;
+    runtimes.addLiveSession({ sessionId: "own", projectId: "p1", clientId: W });
+    runtimes.addLiveSession({
+      sessionId: "shared",
+      projectId: "p2",
+      clientId: W,
+    });
+    runtimes.openProject(1, "p2");
+    const running = (sessionId: string): PineAgentEvent => ({
+      type: "run-state",
+      sessionId,
+      state: "running",
+    });
+    context.bridge.observeAgentEvent(running("own"), W);
+    context.bridge.observeAgentEvent(running("shared"), 1);
+    await context.bridge.unbind();
+    expect(runtimes.abort).toHaveBeenCalledTimes(1);
+    expect(runtimes.abort).toHaveBeenCalledWith(W, "own");
+    expect(runtimes.dispose).toHaveBeenCalledWith(W);
+  });
+
+  it("purges mode overrides above a lowered ceiling", async () => {
+    const context = await setup();
+    await seedBound(context);
+    const seeded = context.openStore();
+    await seeded.load();
+    await seeded.update((draft) => {
+      draft.modeOverride = { s1: "autonomous", s2: "let-me-review" };
+    });
+    await context.bridge.start();
+    await context.bridge.setSettings({ ceilingMode: "YOLO" });
+    let stored = context.openStore();
+    await stored.load();
+    expect(Object.keys(stored.get().modeOverride)).toEqual(["s1", "s2"]);
+    await context.bridge.setSettings({ ceilingMode: "let-me-review" });
+    stored = context.openStore();
+    await stored.load();
+    expect(stored.get().modeOverride).toEqual({ s2: "let-me-review" });
+  });
+
+  it("routes the automation check to the session directory", async () => {
+    const context = await setup();
+    await seedBound(context, { tracked: true });
+    await context.bridge.start();
+    const automation = { id: "a1", name: "Nightly", enabled: true };
+    expect(context.bridge.automationRunRefusal("s1", automation)).toEqual(
+      expect.any(String),
+    );
+    expect(
+      context.bridge.automationRunRefusal("unknown", automation),
+    ).toBeUndefined();
+    expect(context.bridge.originOf("s1")).toBe("wechat");
+  });
+
+  it("never lets an observer error reach the core", async () => {
+    const context = await setup();
+    await seedBound(context);
+    await context.bridge.start();
+    expect(() =>
+      context.bridge.observeAgentEvent(
+        { type: "run-state" } as unknown as PineAgentEvent,
+        undefined,
+      ),
+    ).not.toThrow();
   });
 });

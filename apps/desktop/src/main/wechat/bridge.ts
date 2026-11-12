@@ -21,17 +21,36 @@ import type {
   ChannelState,
   MessageChannel,
 } from "./channel";
+import { AskBook } from "./asks";
+import { InboundAttachments } from "./attachments";
 import { createClawBotChannels } from "./clawbotChannel";
+import { HandleTables, Pager } from "./handles";
+import { HANDLERS } from "./handlers";
+import type { HandlerRegistry } from "./handlers/types";
+import { InboundPipeline, acceptedMessage } from "./inbound";
 import { notice, type NoticeData } from "./notices";
+import { Outbound } from "./outbound";
 import { PairingMachine } from "./pairing";
 import type { WeChatBridgeApi, WeChatBridgeOptions } from "./ports";
-import { render } from "./replies";
+import { RateLimits } from "./rateLimit";
+import { render, renderDigest } from "./replies";
+import { SessionDirectory } from "./sessionDirectory";
 import { WeChatStore, defaultPersistedState } from "./store";
 import type { ReplyLanguage, WeChatStateStore } from "./types";
 
-/** Marks parameters kept for the signature that this version does not read yet. */
-function unused(...values: unknown[]): void {
-  void values;
+/** How often asks, holds, staged attachments and progress pushes are swept. */
+export const BRIDGE_SWEEP_INTERVAL_MS = 30_000;
+
+/** The command layer, built once the store is loaded. */
+interface Pipeline {
+  asks: AskBook;
+  handles: HandleTables;
+  pager: Pager;
+  limits: RateLimits;
+  outbound: Outbound;
+  attachments: InboundAttachments;
+  sessions: SessionDirectory;
+  inbound: InboundPipeline;
 }
 
 function defaultRandomCode(): string {
@@ -82,9 +101,9 @@ const FAILED_BINDING: Record<
 
 /**
  * Connects one WeChat account to Pine: binding and pairing, the sealed
- * settings, pause, and the message channel's lifecycle. The command pipeline
- * is composed on top of this (plan T5A); until then an accepted message only
- * advances the cursor and the dedupe list.
+ * settings, pause, and the message channel's lifecycle; and the composition
+ * root of the command layer (asks, handles, outbound, attachments, session
+ * directory, inbound pipeline).
  */
 export class WeChatBridge implements WeChatBridgeApi {
   private storeInstance: WeChatStateStore | undefined;
@@ -105,6 +124,11 @@ export class WeChatBridge implements WeChatBridgeApi {
   private pairing: PairingAttempt | undefined;
   private readonly pairingMachine = new PairingMachine();
 
+  private parts: Pipeline | undefined;
+  private sweepTimer: ReturnType<typeof setInterval> | undefined;
+  /** While above zero, the outbound gate stays open although paused. */
+  private pausedSends = 0;
+
   constructor(protected readonly options: WeChatBridgeOptions) {
     this.now = options.now ?? Date.now;
     this.randomCode = options.randomCode ?? defaultRandomCode;
@@ -118,17 +142,23 @@ export class WeChatBridge implements WeChatBridgeApi {
     await this.ready();
     this.connectStored();
     this.applyKeepAwake();
+    this.startPipeline();
     this.emit();
   }
 
   async stop(): Promise<void> {
     this.started = false;
+    this.stopSweeps();
+    this.parts?.inbound.stop();
     this.cancelBindingAttempt();
     await this.endPairing(undefined);
     const channel = this.channel;
     this.channel = undefined;
     this.channelState = undefined;
     await channel?.stop().catch(() => undefined);
+    await this.parts?.sessions
+      .releaseAll({ abortOwnSessions: false })
+      .catch(() => undefined);
     await this.storeInstance?.flush().catch(() => undefined);
     this.options.host.keepAwake(false);
   }
@@ -136,6 +166,9 @@ export class WeChatBridge implements WeChatBridgeApi {
   dispose(): void {
     this.disposed = true;
     this.started = false;
+    this.stopSweeps();
+    this.parts?.inbound.stop();
+    this.parts?.outbound.dispose();
     this.cancelBindingAttempt();
     const pairing = this.pairing;
     this.pairing = undefined;
@@ -177,6 +210,8 @@ export class WeChatBridge implements WeChatBridgeApi {
     await this.store.updateSecure((draft) => {
       draft.paused = paused;
     });
+    // CMD §6.5: open asks are invalidated; holds go as their sessions end.
+    if (paused) this.parts?.asks.closeWhere(() => true, "invalidated");
     this.applyKeepAwake();
     return this.emit();
   }
@@ -198,6 +233,7 @@ export class WeChatBridge implements WeChatBridgeApi {
       }
       draft.settings = next;
     });
+    await this.parts?.sessions.settingsChanged().catch(() => undefined);
     return this.settingsChanged();
   }
 
@@ -211,12 +247,17 @@ export class WeChatBridge implements WeChatBridgeApi {
       this.channel = undefined;
       this.channelState = undefined;
       await channel.stop().catch(() => undefined);
+      await this.forgetSessions();
       await this.store.update((draft) => {
         const language = draft.language;
         Object.assign(draft, defaultPersistedState(), { language });
       });
     }
-    if (this.started) this.connectStored();
+    await this.parts?.sessions.settingsChanged().catch(() => undefined);
+    if (this.started) {
+      this.connectStored();
+      this.startPipeline();
+    }
     return this.settingsChanged();
   }
 
@@ -303,6 +344,7 @@ export class WeChatBridge implements WeChatBridgeApi {
     this.channel = undefined;
     this.channelState = undefined;
     await channel?.stop().catch(() => undefined);
+    await this.forgetSessions();
     await this.store.clearBinding();
     this.error = undefined;
     this.reauth = false;
@@ -311,10 +353,10 @@ export class WeChatBridge implements WeChatBridgeApi {
     return this.emit();
   }
 
-  // Core observers (filled by the command pipeline)
+  // Core observers, routed to the session directory
 
   observeAgentEvent(event: PineAgentEvent, ownerId: number | undefined): void {
-    unused(event, ownerId);
+    this.guarded(() => this.parts?.sessions.observe(event, ownerId));
   }
 
   sessionSpawned(
@@ -322,7 +364,13 @@ export class WeChatBridge implements WeChatBridgeApi {
     childSessionId: string,
     projectId: string,
   ): void {
-    unused(parentSessionId, childSessionId, projectId);
+    this.guarded(() =>
+      this.parts?.sessions.sessionSpawned(
+        parentSessionId,
+        childSessionId,
+        projectId,
+      ),
+    );
   }
 
   sessionMoved(
@@ -330,12 +378,18 @@ export class WeChatBridge implements WeChatBridgeApi {
     fromProjectId: string,
     projectId: string,
   ): void {
-    unused(sessionId, fromProjectId, projectId);
+    this.guarded(() =>
+      this.parts?.sessions.sessionMoved(sessionId, fromProjectId, projectId),
+    );
   }
 
-  automationsChanged(): void {}
+  automationsChanged(): void {
+    this.guarded(() => this.parts?.sessions.automationsChanged());
+  }
 
   originOf(sessionId: string): "wechat" | "wechat-used" | undefined {
+    if (this.parts) return this.parts.sessions.originOf(sessionId);
+    if (!this.storeInstance && !this.options.store) return undefined;
     const origin = this.store
       .get()
       .origins.find((entry) => entry.sessionId === sessionId);
@@ -347,8 +401,22 @@ export class WeChatBridge implements WeChatBridgeApi {
     sessionId: string | undefined,
     automation: { id: string; name: string; enabled: boolean },
   ): string | undefined {
-    unused(sessionId, automation);
-    return undefined;
+    try {
+      return this.parts?.sessions.automationRunRefusal(sessionId, automation);
+    } catch (error) {
+      console.error("WeChat automation check failed.", describe(error));
+      return undefined;
+    }
+  }
+
+  /** The inbound pipeline, once composed (tests and the headless server). */
+  protected get pipeline(): InboundPipeline | undefined {
+    return this.parts?.inbound;
+  }
+
+  /** The handler registry; tests replace it with fakes. */
+  protected handlerRegistry(): HandlerRegistry {
+    return HANDLERS;
   }
 
   // Internals
@@ -377,17 +445,197 @@ export class WeChatBridge implements WeChatBridgeApi {
     return this.channelFactory;
   }
 
+  /** CMD §9.1: `.lang` wins, else Pine's locale, else English. */
   protected lang(): ReplyLanguage {
     const language = this.store.get().language;
     if (language !== "auto") return language;
-    return this.options.host.locale?.() === "zh-CN" ? "zh" : "en";
+    return (this.options.host.locale?.() ?? "en-US").startsWith("zh")
+      ? "zh"
+      : "en";
   }
 
   private ready(): Promise<void> {
     this.loading ??= this.store.load().then((result) => {
       if (result === "reset") this.settingsReset();
+      this.compose();
     });
     return this.loading;
+  }
+
+  /** Builds the command layer over the loaded store (plan T5A). */
+  private compose(): void {
+    if (this.parts) return;
+    const { core, host } = this.options;
+    const store = this.store;
+    const now = this.now;
+    const lang = () => this.lang();
+    const asks = new AskBook({
+      now,
+      nextAsk: store.get().nextAsk,
+      onNextAsk: (nextAsk) =>
+        store.updateSoon((draft) => {
+          draft.nextAsk = nextAsk;
+        }),
+    });
+    const handles = new HandleTables({ now });
+    handles.restore(store.get().handles);
+    const pager = new Pager({ now });
+    const limits = new RateLimits({ now });
+    const outbound = new Outbound({
+      channel: () => this.outboundChannel(),
+      ownerUserId: () => store.secure().owner?.userId,
+      store,
+      now,
+      renderDigest: (items) => renderDigest(lang(), items),
+      renderBudgetNotice: () => render("T-BUDGET", lang()),
+      renderMoreCards: (count) => render("T-MORECARDS", lang(), { count }),
+      onDelivered: (key, atMs) => {
+        const match = /^ask:(\d+)$/.exec(key);
+        if (match) asks.markDelivered(Number(match[1]), atMs);
+      },
+      onReauthRequired: () => {
+        this.enterReauth();
+        this.emit();
+      },
+    });
+    const attachments = new InboundAttachments({
+      store,
+      directory: path.join(host.dataDirectory, "wechat-inbox"),
+      now,
+    });
+    const sessions = new SessionDirectory({
+      core,
+      host,
+      store,
+      asks,
+      outbound,
+      attachments,
+      settings: () => store.secure().settings,
+      lang,
+      now,
+    });
+    const inbound = new InboundPipeline({
+      store,
+      handlers: this.handlerRegistry(),
+      asks,
+      handles,
+      pager,
+      limits,
+      outbound,
+      attachments,
+      sessions,
+      core,
+      host,
+      settings: () => store.secure().settings,
+      lang,
+      now,
+      owner: () => (this.isBound() ? store.secure().owner : undefined),
+      paused: () => store.secure().paused,
+      pause: () => this.setPaused(true).then(() => undefined),
+      download: (ref, maxBytes, signal) => {
+        const channel = this.channel;
+        if (!channel) {
+          return Promise.reject(new Error("WeChat is not connected."));
+        }
+        return channel.downloadMedia(ref, maxBytes, signal);
+      },
+      sendDirect: async (text, contextToken) => {
+        const channel = this.channel;
+        const owner = store.secure().owner;
+        if (!channel || !owner) return;
+        await channel
+          .sendText(
+            owner.userId,
+            contextToken ?? store.get().contextToken?.value,
+            text,
+          )
+          .catch(() => undefined);
+      },
+      openWhilePaused: async (work) => {
+        this.pausedSends += 1;
+        try {
+          return await work();
+        } finally {
+          this.pausedSends -= 1;
+        }
+      },
+    });
+    this.parts = {
+      asks,
+      handles,
+      pager,
+      limits,
+      outbound,
+      attachments,
+      sessions,
+      inbound,
+    };
+  }
+
+  /** Pushes and replies stop while paused (CMD §6.5); `E-PAUSED` goes direct. */
+  private outboundChannel(): MessageChannel | undefined {
+    if (this.store.secure().paused && this.pausedSends === 0) return undefined;
+    return this.channel;
+  }
+
+  /** Replays the inbox and starts the sweeps once bound and started. */
+  private startPipeline(): void {
+    const parts = this.parts;
+    if (!parts || !this.started || !this.isBound()) return;
+    parts.inbound.restart();
+    void parts.inbound.resume().catch((error: unknown) => {
+      console.error("WeChat inbox replay failed.", describe(error));
+    });
+    if (this.sweepTimer) return;
+    this.sweepTimer = setInterval(() => this.sweep(), BRIDGE_SWEEP_INTERVAL_MS);
+    this.sweepTimer.unref?.();
+  }
+
+  private stopSweeps(): void {
+    if (this.sweepTimer) clearInterval(this.sweepTimer);
+    this.sweepTimer = undefined;
+  }
+
+  /** Expires asks, releases idle holds, drops old attachments, sends due progress. */
+  protected sweep(): void {
+    const parts = this.parts;
+    if (!parts) return;
+    this.guarded(() => {
+      parts.asks.sweep();
+      parts.sessions.tick();
+    });
+    void parts.sessions.releaseIdle().catch((error: unknown) => {
+      console.error("WeChat hold release failed.", describe(error));
+    });
+    void parts.attachments.sweep(this.now()).catch(() => undefined);
+  }
+
+  /** D18: abort sessions only the bridge holds, let go of every hold, forget asks. */
+  private async forgetSessions(): Promise<void> {
+    const parts = this.parts;
+    if (!parts) return;
+    parts.inbound.reset();
+    parts.asks.closeWhere(() => true, "invalidated");
+    parts.handles.clear();
+    parts.pager.clear();
+    await parts.sessions
+      .releaseAll({ abortOwnSessions: true })
+      .catch((error: unknown) => {
+        console.error(
+          "WeChat sessions could not be released.",
+          describe(error),
+        );
+      });
+    await parts.attachments.drop().catch(() => undefined);
+  }
+
+  /** Runs an observer call; a bridge error never reaches the caller. */
+  private guarded(work: () => void): void {
+    try {
+      work();
+    } catch (error) {
+      console.error("WeChat observer failed.", describe(error));
+    }
   }
 
   private isBound(): boolean {
@@ -539,43 +787,15 @@ export class WeChatBridge implements WeChatBridgeApi {
     }
   }
 
-  /** Acceptance of plan 5.1 invariant 1, against the given account. */
-  private accepted(
-    message: ChannelInboundMessage,
-    account: { userId: string; botId: string },
-    seen: ReadonlySet<string>,
-  ): boolean {
-    return (
-      message.id.length > 0 &&
-      message.isUserMessage &&
-      message.fromUserId === account.userId &&
-      (message.toUserId === undefined ||
-        message.toUserId === "" ||
-        message.toUserId === account.botId) &&
-      !message.groupId &&
-      !seen.has(message.id)
-    );
-  }
-
   private onBoundMessages(
     channel: MessageChannel,
     batch: ChannelInboundMessage[],
     cursor: string | undefined,
   ): Promise<void> {
     if (channel !== this.channel) return Promise.resolve();
-    const owner = this.store.secure().owner;
-    const seen = new Set(this.store.get().seenMessageIds);
-    const fresh: string[] = [];
-    for (const message of batch) {
-      if (!owner || !this.accepted(message, owner, seen)) continue;
-      seen.add(message.id);
-      fresh.push(message.id);
-    }
-    // The command pipeline (T5A) persists and dispatches accepted messages.
-    return this.store.update((draft) => {
-      if (cursor !== undefined) draft.cursor = cursor;
-      draft.seenMessageIds.push(...fresh);
-    });
+    const inbound = this.parts?.inbound;
+    if (!inbound) return Promise.resolve();
+    return inbound.onMessages(batch, cursor);
   }
 
   private onBindingEvent(
@@ -683,11 +903,13 @@ export class WeChatBridge implements WeChatBridgeApi {
       draft.seenMessageIds = [];
       draft.inbox = [];
     });
+    this.parts?.inbound.reset();
     this.reauth = false;
     this.reauthNotified = false;
     this.error = undefined;
     this.connectStored();
     this.applyKeepAwake();
+    this.startPipeline();
   }
 
   private beginPairing(credentials: ChannelCredentials): void {
@@ -743,7 +965,7 @@ export class WeChatBridge implements WeChatBridgeApi {
     const seen = new Set(pairing.seen);
     let changed = false;
     for (const message of batch) {
-      if (!this.accepted(message, pairing.credentials, seen)) continue;
+      if (!acceptedMessage(message, pairing.credentials, seen)) continue;
       seen.add(message.id);
       pairing.seen.push(message.id);
       if (message.contextToken) {
@@ -813,6 +1035,9 @@ export class WeChatBridge implements WeChatBridgeApi {
     this.pairing = undefined;
     this.pairingMachine.reset();
     this.error = undefined;
+    this.parts?.inbound.reset();
+    this.parts?.handles.clear();
+    this.parts?.pager.clear();
     this.channel = pairing.channel;
     // Messages that arrived while the state was written are kept as seen too.
     this.store.updateSoon((draft) => {
@@ -821,6 +1046,7 @@ export class WeChatBridge implements WeChatBridgeApi {
       draft.seenMessageIds.push(...pairing.seen.filter((id) => !known.has(id)));
     });
     this.applyKeepAwake();
+    this.startPipeline();
     const secure = this.store.secure();
     await pairing.channel
       .sendText(
