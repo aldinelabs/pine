@@ -686,6 +686,77 @@ describe("ProjectSessionService", () => {
     }
   });
 
+  it("restores, exports and indexes a progress report as reply text", async () => {
+    const rootPath = await createTemporaryProjectData();
+    const options = serviceOptions(rootPath);
+    await mkdir(options.cwd, { recursive: true });
+    const repository = createRepository(options.sessionsRoot);
+    const session = await createSession(repository, options.cwd);
+    const toolCallId = "call-report";
+    const acknowledgement = "Shown to the user. Continue working.";
+    await appendMessage(session, {
+      role: "user",
+      content: "Why is the build slow?",
+      timestamp: Date.now() - 2_000,
+    });
+    await appendMessage(
+      session,
+      fauxAssistantMessage(
+        [
+          { type: "text", text: "Let me check." },
+          fauxToolCall(
+            "ui_report_progress",
+            { content: "Probably the zanzibar cache." },
+            { id: toolCallId },
+          ),
+        ],
+        { stopReason: "toolUse", timestamp: Date.now() - 1_500 },
+      ),
+    );
+    await appendMessage(session, {
+      role: "toolResult",
+      toolCallId,
+      toolName: "ui_report_progress",
+      content: [{ type: "text", text: acknowledgement }],
+      isError: false,
+      timestamp: Date.now() - 1_000,
+    });
+    await appendMessage(
+      session,
+      fauxAssistantMessage([{ type: "text", text: "Confirmed." }]),
+    );
+    const metadata = session.metadata;
+    const service = await ProjectSessionService.create(options);
+
+    try {
+      const result = await service.loadMessages(metadata.id);
+      expect(result.messages.map((message) => message.blocks)).toEqual([
+        [{ type: "text", text: "Why is the build slow?" }],
+        [
+          { type: "text", text: "Let me check." },
+          { type: "text", text: "Probably the zanzibar cache." },
+        ],
+        [{ type: "text", text: "Confirmed." }],
+      ]);
+
+      const exported = await service.exportSession(metadata.id, "auto-approve");
+      // The preamble and the report stay separate paragraphs.
+      expect(exported.markdown).toContain(
+        "Let me check.\n\nProbably the zanzibar cache.\n",
+      );
+      expect(exported.markdown).not.toContain("ui_report_progress");
+      expect(exported.markdown).not.toContain("#### Tool call");
+      expect(exported.markdown).not.toContain(acknowledgement);
+
+      await expect(service.search("zanzibar")).resolves.toEqual([
+        expect.objectContaining({ id: metadata.id }),
+      ]);
+      await expect(service.search("Shown to the user")).resolves.toEqual([]);
+    } finally {
+      await service.dispose();
+    }
+  });
+
   it("finds only the successful presented path in persisted tool history", async () => {
     const rootPath = await createTemporaryProjectData();
     const options = serviceOptions(rootPath);

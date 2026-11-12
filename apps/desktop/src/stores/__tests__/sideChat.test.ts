@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { nextTick } from "vue";
 import type { PineSessionSummary } from "@/shared/sessions";
 import { useContentTabsStore } from "../contentTabs";
-import { useSideChatStore } from "../sideChat";
+import { sideChatTranscript, useSideChatStore } from "../sideChat";
 
 const session: PineSessionSummary = {
   createdAt: "2026-11-05T00:00:00.000Z",
@@ -84,5 +84,43 @@ describe("side chat store", () => {
     await nextTick();
     expect(sideChats.active(session.id)).toBeUndefined();
     expect(pine.closeSideChat).toHaveBeenCalledOnce();
+  });
+
+  it("shows a saved progress report as reply text", () => {
+    const transcript = sideChatTranscript([
+      {
+        id: "assistant-report",
+        message: {
+          role: "assistant",
+          timestamp: 1_784_000_000_000,
+          content: [
+            {
+              type: "toolCall",
+              id: "call-report",
+              name: "ui_report_progress",
+              arguments: { content: "Probably the cache." },
+            },
+          ],
+        },
+      },
+      {
+        id: "report-result",
+        message: {
+          role: "toolResult",
+          toolCallId: "call-report",
+          toolName: "ui_report_progress",
+          content: [
+            { type: "text", text: "Shown to the user. Continue working." },
+          ],
+          isError: false,
+          timestamp: 1_784_000_000_100,
+        },
+      },
+    ]);
+
+    expect(transcript).toHaveLength(1);
+    expect(transcript[0]?.blocks).toEqual([
+      { type: "text", text: "Probably the cache." },
+    ]);
   });
 });

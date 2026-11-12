@@ -4,6 +4,7 @@ import { effect, isReactive } from "vue";
 import {
   SANDBOX_DENIED_MESSAGE,
   type PineAgentEvent,
+  type PineAssistantMessageUpdate,
   type PineSessionEvent,
 } from "@/shared/agent";
 import type { PineContextUsage, PineSessionSummary } from "@/shared/sessions";
@@ -1195,6 +1196,149 @@ describe("session store", () => {
       command: "bun run check",
       description: "Checks types",
     });
+  });
+
+  it("streams a progress report as reply text instead of a tool call", async () => {
+    let listener: ((event: PineAgentEvent) => void) | undefined;
+    Object.defineProperty(window, "pine", {
+      configurable: true,
+      value: {
+        onSessionEvent: vi.fn((nextListener) => {
+          listener = nextListener;
+          return () => undefined;
+        }),
+        promptSession: vi.fn().mockResolvedValue({ accepted: true, session }),
+      },
+    });
+    const store = useSessionStore();
+    store.connectAgentEvents();
+    await store.prompt("go", { projectId: PROJECT_ID });
+    const sessionId = session.id;
+    const messageId = "assistant-streaming-report";
+    const update = (updates: PineAssistantMessageUpdate[]) =>
+      listener?.({ type: "message-update", sessionId, messageId, updates });
+    const blocks = () => store.messages[0]?.blocks ?? [];
+
+    listener?.({ type: "run-state", sessionId, state: "running" });
+    update([
+      {
+        type: "tool-call-start",
+        contentIndex: 0,
+        id: "call-report",
+        name: "ui_report_progress",
+      },
+    ]);
+    expect(blocks()).toEqual([{ type: "text", text: "" }]);
+
+    update([
+      {
+        type: "tool-call-delta",
+        contentIndex: 0,
+        delta: '{"content":"Probably',
+        input: { content: "Probably" },
+      },
+    ]);
+    expect(blocks()).toEqual([{ type: "text", text: "Probably" }]);
+
+    update([
+      {
+        type: "tool-call-delta",
+        contentIndex: 0,
+        delta: " the cache.",
+        input: { content: "Probably the cache." },
+      },
+    ]);
+    expect(blocks()).toEqual([{ type: "text", text: "Probably the cache." }]);
+
+    // Previews without usable content never shrink what is already shown.
+    update([
+      { type: "tool-call-delta", contentIndex: 0, delta: '"', input: {} },
+      { type: "tool-call-delta", contentIndex: 0, delta: "}" },
+      {
+        type: "tool-call-start",
+        contentIndex: 0,
+        id: "call-report",
+        name: "ui_report_progress",
+      },
+    ]);
+    expect(blocks()).toEqual([{ type: "text", text: "Probably the cache." }]);
+
+    // A parallel call in the same message stays a tool call.
+    update([
+      {
+        type: "tool-call-end",
+        contentIndex: 0,
+        id: "call-report",
+        name: "ui_report_progress",
+        input: { content: "Probably the cache. Checking." },
+      },
+      {
+        type: "tool-call-start",
+        contentIndex: 1,
+        id: "call-bash",
+        name: "bash",
+        input: { command: "ls" },
+      },
+    ]);
+    const streamed = [
+      { type: "text", text: "Probably the cache. Checking." },
+      {
+        type: "toolCall",
+        toolCall: expect.objectContaining({ id: "call-bash", name: "bash" }),
+      },
+    ];
+    expect(blocks()).toEqual(streamed);
+
+    // Running the report shows nothing: no marker message, no block change.
+    listener?.({
+      type: "tool-start",
+      sessionId,
+      toolCallId: "call-report",
+      toolName: "ui_report_progress",
+      payload: { content: "Probably the cache. Checking." },
+    });
+    listener?.({
+      type: "tool-end",
+      sessionId,
+      toolCallId: "call-report",
+      toolName: "ui_report_progress",
+      payload: {
+        content: [
+          { type: "text", text: "Shown to the user. Continue working." },
+        ],
+      },
+      isError: false,
+    });
+    expect(store.messages).toHaveLength(1);
+    expect(blocks()).toEqual(streamed);
+
+    listener?.({
+      type: "message-end",
+      sessionId,
+      messageId,
+      message: {
+        role: "assistant",
+        timestamp: 1_784_000_000_000,
+        content: [
+          {
+            type: "toolCall",
+            id: "call-report",
+            name: "ui_report_progress",
+            arguments: { content: "Probably the cache. Checking." },
+          },
+          {
+            type: "toolCall",
+            id: "call-bash",
+            name: "bash",
+            arguments: { command: "ls" },
+          },
+        ],
+      },
+    });
+    expect(store.messages).toHaveLength(1);
+    expect(blocks()).toEqual(streamed);
+    expect(JSON.stringify(store.messages)).not.toContain("ui_report_progress");
+    expect(JSON.stringify(store.messages)).not.toContain("Shown to the user");
   });
 
   it("applies a large coalesced text stream without cumulative snapshots", async () => {

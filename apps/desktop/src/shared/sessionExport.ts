@@ -58,7 +58,10 @@ function appendToolCall(lines: string[], toolCall: PineToolCall): void {
 
 function appendBlock(lines: string[], block: PineContentBlock): void {
   if (block.type === "text") {
-    if (block.text.trim()) lines.push(block.text.trimEnd());
+    // Blank lines on both sides: without them Markdown joins the text to a
+    // neighbouring text block, list item or HTML block. Runs of blank lines
+    // are collapsed when the document is assembled.
+    if (block.text.trim()) lines.push("", block.text.trimEnd(), "");
     return;
   }
   if (block.type === "thinking") {

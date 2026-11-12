@@ -159,6 +159,13 @@ From top to bottom:
      repeating other panels' content or timing. Web sources appear as inline
      citation cards (hover for title and URL, click to open). Source definitions
      are not repeated below the message and do not leave a trailing blank gap;
+   - interim answers: on a complex or long-running request the agent may post
+     a preliminary answer early and keep working in the same turn. It appears
+     as ordinary reply text, streams in like a reply, and can be selected,
+     quoted, searched and exported like one. It is not shown as a tool call
+     and never asks for approval; further reasoning, tool calls and the final
+     reply follow below it. Sub-sessions and automation runs do not post
+     interim answers;
    - for an automation run, a card at the top with the automation's name,
      trigger and start time; "Instructions" expands what it was asked to do;
    - tool call groups; clicking a call opens Tool call details (status,

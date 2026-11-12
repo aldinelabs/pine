@@ -1386,6 +1386,75 @@ describe("PineAgentRuntime", () => {
     }
   });
 
+  it("offers interim answers in a session but not in a sub-session", async () => {
+    const root = await mkdtemp(path.join(os.tmpdir(), "pine-agent-runtime-"));
+    temporaryDirectories.push(root);
+    const location = {
+      agentDir: path.join(root, "agent"),
+      cwd: path.join(root, "source"),
+      folders: [
+        {
+          access: "read-write" as const,
+          path: path.join(root, "source"),
+        },
+      ],
+      sessionsRoot: path.join(root, "sessions"),
+    };
+    await mkdir(location.cwd, { recursive: true });
+    const runtime = new PineAgentRuntime({ emit: () => undefined });
+
+    try {
+      const internals = runtime as unknown as {
+        liveSessions: Map<string, { session: AgentSession }>;
+      };
+      const activeTools = (sessionId: string) =>
+        internals.liveSessions.get(sessionId)!.session.getActiveToolNames();
+      const parent = await runtime.createSession(location);
+      expect(activeTools(parent.session.id)).toContain("ui_report_progress");
+
+      const child = await runtime.createSession({
+        ...location,
+        parentSessionId: parent.session.id,
+      });
+      expect(activeTools(child.session.id)).not.toContain("ui_report_progress");
+      expect(activeTools(child.session.id)).toContain("datetime");
+
+      // The marker lives in the session file, so reopening changes nothing.
+      internals.liveSessions
+        .get(child.session.id)!
+        .session.sessionManager.appendMessage({
+          role: "assistant",
+          content: [],
+          api: "openai-responses",
+          provider: "test",
+          model: "test",
+          usage: {
+            input: 0,
+            output: 0,
+            cacheRead: 0,
+            cacheWrite: 0,
+            totalTokens: 0,
+            cost: {
+              input: 0,
+              output: 0,
+              cacheRead: 0,
+              cacheWrite: 0,
+              total: 0,
+            },
+          },
+          stopReason: "stop",
+          timestamp: Date.now(),
+        });
+      await runtime.disposeSession(child.session.id);
+      const reopened = await runtime.openSession(location, child.sessionFile!);
+      expect(activeTools(reopened.session.id)).not.toContain(
+        "ui_report_progress",
+      );
+    } finally {
+      await runtime.dispose();
+    }
+  });
+
   it("returns the session as soon as prompt preflight succeeds", async () => {
     const root = await mkdtemp(path.join(os.tmpdir(), "pine-agent-runtime-"));
     temporaryDirectories.push(root);

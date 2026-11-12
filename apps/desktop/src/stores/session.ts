@@ -2,6 +2,7 @@ import { acceptHMRUpdate, defineStore } from "pinia";
 import { computed, reactive, ref, shallowRef, toRefs } from "vue";
 import { toast } from "vue-sonner";
 import {
+  UI_REPORT_PROGRESS_TOOL_NAME,
   isSandboxDeniedPayload,
   type PineAgentEvent,
   type PineSessionEvent,
@@ -23,7 +24,11 @@ import type {
   SessionSearchResult,
 } from "@/shared/sessions";
 import { attachmentMessagePreview } from "@/shared/attachments";
-import { parseMessageBlocks, transcriptRole } from "@/shared/sessions";
+import {
+  parseMessageBlocks,
+  progressReportText,
+  transcriptRole,
+} from "@/shared/sessions";
 import type { PineSessionMutator } from "@/shared/sessionMutators";
 import { preferenceStorage } from "@/lib/preferenceStorage";
 import {
@@ -213,6 +218,20 @@ export function messageCreatedAt(value: PineJsonValue): string {
     : new Date().toISOString();
 }
 
+/**
+ * The text block a streaming progress report shows. Arguments that have no
+ * usable content yet keep the text already shown, so it never shrinks.
+ */
+function progressReportBlock(
+  report: string,
+  current: PineContentBlock | undefined,
+): PineContentBlock {
+  return {
+    type: "text",
+    text: report || (current?.type === "text" ? current.text : ""),
+  };
+}
+
 function applyAssistantMessageUpdates(
   previous: readonly PineContentBlock[],
   updates: readonly PineAssistantMessageUpdate[],
@@ -257,7 +276,12 @@ function applyAssistantMessageUpdates(
           thinking: update.thinking,
         };
         break;
-      case "tool-call-start":
+      case "tool-call-start": {
+        const report = progressReportText(update.name, update.input);
+        if (report !== undefined) {
+          blocks[update.contentIndex] = progressReportBlock(report, current);
+          break;
+        }
         blocks[update.contentIndex] = {
           type: "toolCall",
           toolCall: {
@@ -268,15 +292,32 @@ function applyAssistantMessageUpdates(
           },
         };
         break;
+      }
       case "tool-call-delta":
         if (current?.type === "toolCall" && update.input !== undefined) {
           blocks[update.contentIndex] = {
             ...current,
             toolCall: { ...current.toolCall, input: update.input },
           };
+        } else if (current?.type === "text" && update.input !== undefined) {
+          // Content indexes are unique within a message, so a text block can
+          // only receive a tool-call delta when it is a converted progress
+          // report (the delta itself carries no tool name).
+          const report = progressReportText(
+            UI_REPORT_PROGRESS_TOOL_NAME,
+            update.input,
+          );
+          if (report) {
+            blocks[update.contentIndex] = { type: "text", text: report };
+          }
         }
         break;
-      case "tool-call-end":
+      case "tool-call-end": {
+        const report = progressReportText(update.name, update.input);
+        if (report !== undefined) {
+          blocks[update.contentIndex] = progressReportBlock(report, current);
+          break;
+        }
         blocks[update.contentIndex] = {
           type: "toolCall",
           toolCall: {
@@ -291,6 +332,7 @@ function applyAssistantMessageUpdates(
           },
         };
         break;
+      }
     }
   }
   return blocks;
@@ -1547,6 +1589,8 @@ export const useSessionStore = defineStore("session", () => {
       event.type === "tool-update" ||
       event.type === "tool-end"
     ) {
+      // A progress report is reply text, not a tool marker: its execution events show nothing.
+      if (event.toolName === UI_REPORT_PROGRESS_TOOL_NAME) return;
       if (event.type === "tool-start") {
         state.activeMcpToolCalls.set(event.toolCallId, event.toolName);
       }

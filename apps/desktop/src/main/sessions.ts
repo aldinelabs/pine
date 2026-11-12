@@ -34,7 +34,11 @@ import {
   attachmentMessagePreview,
   type PineAttachment,
 } from "../shared/attachments";
-import { parseMessageBlocks, withoutRelayPrefix } from "../shared/sessions";
+import {
+  parseMessageBlocks,
+  progressReportText,
+  withoutRelayPrefix,
+} from "../shared/sessions";
 import { sessionMutationToolCall } from "../shared/sessionMutators";
 import { replayTodoState } from "@pine/rpiv-todo";
 import { backgroundTaskNotificationTask } from "@pine/pi-background-tasks";
@@ -246,6 +250,14 @@ function textFromContent(content: unknown): string {
     .flatMap((part) => {
       if (typeof part !== "object" || part === null) return [];
       if ("text" in part && typeof part.text === "string") return [part.text];
+      // A progress report is reply text the user read, so it is searchable.
+      if ("type" in part && part.type === "toolCall") {
+        const report = progressReportText(
+          "name" in part ? part.name : undefined,
+          "arguments" in part ? part.arguments : undefined,
+        );
+        if (report) return [report];
+      }
       return [];
     })
     .join("\n");
