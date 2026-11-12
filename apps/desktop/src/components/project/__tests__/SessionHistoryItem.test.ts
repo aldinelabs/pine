@@ -66,4 +66,27 @@ describe("SessionHistoryItem", () => {
       mountItem().find('[data-slot="session-automation-time"]').exists(),
     ).toBe(false);
   });
+
+  it("marks a session waiting for the user's approval", async () => {
+    const wrapper = mountItem();
+    const marker = () =>
+      wrapper.find('[data-slot="session-awaiting-approval"]');
+    expect(marker().exists()).toBe(false);
+
+    const state = useSessionStore().stateFor(session.id);
+    state.isRunning = true;
+    state.pendingApprovals = [
+      { requestId: "r1" } as (typeof state.pendingApprovals)[number],
+    ];
+    await wrapper.vm.$nextTick();
+    expect(marker().attributes("aria-label")).toBe("Waiting for your approval");
+    // The approval marker takes the running dot's place.
+    expect(wrapper.find('[data-slot="session-running-dot"]').exists()).toBe(
+      false,
+    );
+
+    state.pendingApprovals = [];
+    await wrapper.vm.$nextTick();
+    expect(marker().exists()).toBe(false);
+  });
 });

@@ -652,6 +652,7 @@ export default {
     newProjectSession: "{project} で新規セッション",
     current: "現在",
     noSessions: "セッションはまだありません",
+    awaitingApproval: "承認待ち",
     noResults: "一致するセッションがありません",
     groupTitle: "セッションフォルダ",
     createGroupAction: "新規フォルダ",

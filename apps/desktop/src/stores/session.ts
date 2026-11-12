@@ -1804,6 +1804,11 @@ export const useSessionStore = defineStore("session", () => {
     return sessionCache.get(sessionId)?.isRunning ?? false;
   }
 
+  /** Whether the session is stopped on an approval only the user can give. */
+  function isSessionAwaitingApproval(sessionId: string): boolean {
+    return (sessionCache.get(sessionId)?.pendingApprovals.length ?? 0) > 0;
+  }
+
   /** Whether any session of the project is mid-run or awaiting the user. */
   function hasActiveWork(projectId: string): boolean {
     for (const [sessionId, owner] of sessionProjects) {
@@ -1851,6 +1856,7 @@ export const useSessionStore = defineStore("session", () => {
     hasActiveWork,
     isLoadingRecentFor,
     isSessionRunning,
+    isSessionAwaitingApproval,
     projectOf,
     recentSessionsFor,
     stateFor,

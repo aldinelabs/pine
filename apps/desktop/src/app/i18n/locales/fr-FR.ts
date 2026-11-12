@@ -662,6 +662,7 @@ export default {
     newProjectSession: "Nouvelle session dans {project}",
     current: "Actuelle",
     noSessions: "Aucune session pour le moment",
+    awaitingApproval: "En attente de votre approbation",
     noResults: "Aucune session correspondante",
     groupTitle: "Dossiers de sessions",
     createGroupAction: "Nouveau dossier",

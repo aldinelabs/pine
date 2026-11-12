@@ -100,7 +100,8 @@ Session list, one collapsible group per project:
   conversations move back to the project). Empty folders show "No conversations
   in this folder".
 - Session item: click to open it in a tab. A running session's title shimmers
-  (with a dot when reduced motion is on). An automation run shows a workflow
+  (with a dot when reduced motion is on). A session stopped on an approval
+  shows a shield icon at the end of its row ("Waiting for your approval"). An automation run shows a workflow
   icon and, when idle, the time it started. Right-click for Rename conversation,
   Export conversation (Markdown), Move to folder / Remove from folder, and
   Delete conversation (permanent).

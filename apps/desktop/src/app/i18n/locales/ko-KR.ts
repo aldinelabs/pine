@@ -646,6 +646,7 @@ export default {
     newProjectSession: "{project}에서 새 세션",
     current: "현재",
     noSessions: "아직 세션이 없습니다",
+    awaitingApproval: "승인 대기 중",
     noResults: "일치하는 세션이 없습니다",
     groupTitle: "세션 폴더",
     createGroupAction: "새 폴더",

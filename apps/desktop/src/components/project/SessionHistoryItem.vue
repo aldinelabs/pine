@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { WorkflowIcon } from "@lucide/vue";
+import { ShieldAlertIcon, WorkflowIcon } from "@lucide/vue";
 import { computed } from "vue";
 import { useI18n } from "vue-i18n";
 import { cn } from "@/lib/utils";
@@ -25,7 +25,11 @@ const isRunning = computed(() =>
   sessionStore.isSessionRunning(props.session.id),
 );
 
-const { locale } = useI18n();
+const isAwaitingApproval = computed(() =>
+  sessionStore.isSessionAwaitingApproval(props.session.id),
+);
+
+const { locale, t } = useI18n();
 /**
  * Runs of one automation share its name, so each row also shows when it
  * started, in the compact form the sidebar has room for.
@@ -92,7 +96,17 @@ const emit = defineEmits<{
           >{{ runStartedAt }}</span
         >
         <span
-          v-if="isRunning"
+          v-if="isAwaitingApproval"
+          data-slot="session-awaiting-approval"
+          class="ms-auto flex shrink-0 text-warning"
+          role="img"
+          :aria-label="t('sessions.awaitingApproval')"
+          :title="t('sessions.awaitingApproval')"
+        >
+          <ShieldAlertIcon aria-hidden="true" />
+        </span>
+        <span
+          v-else-if="isRunning"
           aria-hidden="true"
           data-slot="session-running-dot"
           class="hidden size-1.5 shrink-0 rounded-full bg-primary motion-reduce:inline-block"

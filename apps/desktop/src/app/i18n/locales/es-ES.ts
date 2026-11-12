@@ -662,6 +662,7 @@ export default {
     newProjectSession: "Nueva sesión en {project}",
     current: "Actual",
     noSessions: "Aún no hay sesiones",
+    awaitingApproval: "Esperando tu aprobación",
     noResults: "No hay sesiones que coincidan",
     groupTitle: "Carpetas de sesiones",
     createGroupAction: "Nueva carpeta",

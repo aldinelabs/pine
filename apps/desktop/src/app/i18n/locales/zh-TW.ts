@@ -612,6 +612,7 @@ export default {
     newProjectSession: "在{project}中新建會話",
     current: "當前",
     noSessions: "還沒有會話",
+    awaitingApproval: "等待你核准",
     noResults: "沒有匹配的會話",
     groupTitle: "會話資料夾",
     createGroupAction: "新建資料夾",

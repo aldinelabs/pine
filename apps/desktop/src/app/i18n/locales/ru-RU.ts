@@ -656,6 +656,7 @@ export default {
     newProjectSession: "Новый сеанс в «{project}»",
     current: "Текущий",
     noSessions: "Сеансов пока нет",
+    awaitingApproval: "Ожидает вашего подтверждения",
     noResults: "Подходящих сеансов нет",
     groupTitle: "Папки сеансов",
     createGroupAction: "Новая папка",

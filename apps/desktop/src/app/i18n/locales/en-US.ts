@@ -649,6 +649,7 @@ export default {
     newProjectSession: "New session in {project}",
     current: "Current",
     noSessions: "No sessions yet",
+    awaitingApproval: "Waiting for your approval",
     noResults: "No matching sessions",
     groupTitle: "Session folders",
     createGroupAction: "New folder",

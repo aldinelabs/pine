@@ -660,6 +660,7 @@ export default {
     newProjectSession: "Neue Sitzung in {project}",
     current: "Aktuell",
     noSessions: "Noch keine Sitzungen",
+    awaitingApproval: "Wartet auf deine Freigabe",
     noResults: "Keine passenden Sitzungen",
     groupTitle: "Sitzungsordner",
     createGroupAction: "Neuer Ordner",
