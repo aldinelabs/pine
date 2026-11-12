@@ -13,11 +13,12 @@
  * | K6 | characters re-parsed on the last flush / source length    | 2,254 / 2,254 | 2,254 / 2,254 | O(appended) |
  * | -  | own re-runs of MarkdownTable / citation chip / image      | 6 / 6 / 1     | 6 / 6 / 1     | -           |
  * | -  | component updates of any kind                             | 399           | 56            | -           |
- * | D1 | AlertDialog instances mounted by a never-clicked renderer | 1             | 1             | 0           |
- * | D1 | component instances of that closed dialog tree            | 6             | 6             | 0           |
+ * | D1 | AlertDialog instances mounted by a never-clicked renderer | 1             | 1 (W4-D: 0)   | 0           |
+ * | D1 | component instances of that closed dialog tree            | 6             | 6 (W4-D: 0)   | 0           |
  *
- * Holds after W2-B: K1, K2, K3. Not met yet (`it.fails`): K4 (the streaming
- * fade of thinking text stays as it is by user decision), D1 (wave 4). K6 is
+ * Holds after W2-B: K1, K2, K3; after W4-D also D1. Not met yet
+ * (`it.fails`): K4 (the streaming fade of thinking text stays as it is by
+ * user decision). K6 is
  * an `it.todo`: nothing planned makes parsing incremental, the row records
  * what a flush costs today. When a change makes a target hold, turn it into
  * `it` and update the measured column.
@@ -232,7 +233,7 @@ describe("MarkdownContent streaming cost", () => {
 
   it.todo("[K6] parses only the appended text on a flush");
 
-  it.fails("[D1] mounts no link dialog until a link is clicked", () => {
+  it("[D1] mounts no link dialog until a link is clicked", () => {
     const { counter } = mountMarkdown({
       source: "See [the docs](https://example.com/docs).",
       final: true,

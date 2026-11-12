@@ -392,9 +392,8 @@ describe("MarkdownContent", () => {
     await wrapper.get("a").trigger("click");
 
     expect(openExternalUrl).not.toHaveBeenCalled();
-    expect(wrapper.get("[data-alert-dialog]").attributes("data-open")).toBe(
-      "false",
-    );
+    // The confirmation dialog is never even mounted for a link it would refuse.
+    expect(wrapper.find("[data-alert-dialog]").exists()).toBe(false);
     wrapper.unmount();
   });
 
