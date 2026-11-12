@@ -87,6 +87,13 @@ import { PineCore } from "./main/core/pineCore";
 import { DesktopAttention, isChineseLocale } from "./main/desktop/attention";
 import { DesktopBackground } from "./main/desktop/background";
 import { registerNativeIpc } from "./main/desktop/nativeIpc";
+import {
+  broadcastWeChatStatus,
+  createKeepAwake,
+  registerWeChatIpc,
+  showWeChatNotification,
+  type WeChatNotificationTarget,
+} from "./main/desktop/wechatHost";
 import { DesktopQuickComposer } from "./main/desktop/quickComposer";
 import {
   DesktopWindows,
@@ -214,12 +221,14 @@ const background = new DesktopBackground({
   toggleQuickComposer: () => quickComposer.controller.toggle(),
   toggleWebAccess: () => void toggleWebAccess(),
   toggleRelayRemote: () => void toggleRelayRemote(),
+  toggleWeChat: () => void toggleWeChat(),
   manageRemote: () => openPreferencesSection("remote"),
   state: () => ({
     ...currentQuitBlockers(),
     quickComposerEnabled: quickComposer.isEnabled(),
     webAccess: core?.web.server.status().enabled ?? false,
     relayRemote: core?.remote.status().enabled ?? false,
+    wechatBound: core?.wechat.status().bound ?? false,
   }),
 });
 
@@ -257,6 +266,27 @@ function openPine(): void {
   } else {
     createWindow();
   }
+}
+
+const keepAwake = createKeepAwake();
+
+/**
+ * The window a WeChat notification leads to: the one holding its project,
+ * else any of Pine's, else a new one.
+ */
+function wechatNotificationWindow(
+  target: WeChatNotificationTarget,
+): BrowserWindow | undefined {
+  const ownerId = target.projectId
+    ? core?.runtimes.ownerOfProject(target.projectId)
+    : undefined;
+  const owner =
+    ownerId === undefined ? undefined : windowForWebContentsId(ownerId);
+  if (owner) return owner;
+  const [existing] = appWindows();
+  if (existing) return existing;
+  openPine();
+  return undefined;
 }
 
 /** What the shared application needs from Electron. */
@@ -331,6 +361,12 @@ function desktopHost(): PineHost {
           window.webContents.send(AUTOMATIONS_CHANGED_CHANNEL, event);
     },
     locale: automationLocale,
+    wechatChanged: broadcastWeChatStatus,
+    notifyWeChat: (notification) =>
+      showWeChatNotification(notification, wechatNotificationWindow),
+    keepAwake,
+    // Automation approvals appear in this app's windows.
+    localAutomationApprovals: true,
   };
 }
 
@@ -563,6 +599,9 @@ ipcMain.handle(
   },
 );
 
+// Desktop only, like Remote Control's: registered on ipcMain, not the router.
+registerWeChatIpc(() => core);
+
 /** A section asked for before the window's renderer could listen. */
 let pendingPreferencesSection: string | null = null;
 
@@ -615,6 +654,21 @@ async function toggleRelayRemote(): Promise<void> {
   try {
     if (core.remote.status().enabled) await core.remote.disable();
     else await core.remote.enable();
+  } catch (error) {
+    dialog.showErrorBox(
+      "Pine",
+      String(error instanceof Error ? error.message : error),
+    );
+  }
+}
+
+/** The tray's WeChat switch: the same pause flag as the settings page's. */
+async function toggleWeChat(): Promise<void> {
+  if (!core) return;
+  try {
+    const status = core.wechat.status();
+    if (!status.bound) return;
+    await core.wechat.setPaused(!status.paused);
   } catch (error) {
     dialog.showErrorBox(
       "Pine",
@@ -705,7 +759,11 @@ function recordSystemEvents(pine: PineCore): void {
     quitConfirmed = true;
     background.markQuitting();
   });
-  powerMonitor.on("resume", () => diagnostics.record("power:resume"));
+  powerMonitor.on("resume", () => {
+    diagnostics.record("power:resume");
+    // The long poll may have died in the sleep; reconnect now, not later.
+    pine.wechat.wake();
+  });
   powerMonitor.on("lock-screen", () => diagnostics.record("power:lock-screen"));
   powerMonitor.on("unlock-screen", () =>
     diagnostics.record("power:unlock-screen"),
@@ -801,6 +859,8 @@ function currentQuitBlockers(): QuitBlockers {
   return {
     remoteControl: core?.web.server.isRunning() ?? false,
     runningSessions: core?.runningWorkCount() ?? 0,
+    wechat: core?.wechat.isListening() ?? false,
+    wechatNeedsScan: core?.wechat.status().connection === "reauth-required",
   };
 }
 
@@ -832,7 +892,8 @@ async function confirmQuit(blockers: QuitBlockers): Promise<void> {
   app.quit();
 }
 
-// Running sessions and Remote Control end with Pine, so ask before quitting.
+// Running sessions, Remote Control and WeChat remote end with Pine, so ask
+// before quitting.
 app.on("before-quit", (event) => {
   if (quitConfirmed || !hasQuitBlockers(currentQuitBlockers())) {
     // From here windows close for real instead of hiding in the tray.
@@ -849,6 +910,7 @@ app.on("before-quit", (event) => {
 app.on("will-quit", () => {
   quickComposer.dispose();
   background.dispose();
+  keepAwake(false);
   core?.dispose();
   releaseWindowsSandboxRuntimeAccess();
 });

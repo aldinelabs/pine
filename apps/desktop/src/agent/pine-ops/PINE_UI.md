@@ -436,7 +436,15 @@ the user opens themselves do not pulse.
     titles, search results and replies of every project, a proxy may be
     blocked, and one WeChat account connects to one computer; "Run Pine on a
     server" opens the server guide. If the settings could not be read, the
-    group says they were reset and WeChat remote is paused.
+    group says they were reset and WeChat remote is paused. WeChat remote
+    always raises a system notification, even with attention notifications
+    off, when a session is started from WeChat, an existing session is first
+    used from WeChat, a high-risk action is approved from WeChat, a file is
+    sent to WeChat, a session is deleted from WeChat, an automation is run
+    from WeChat, a session is switched to YOLO from WeChat, WeChat needs a new
+    scan, WeChat remote is paused, or its settings were reset. Clicking one
+    brings Pine's window forward. The tray menu has a "WeChat remote" switch
+    (see Tray and menu bar).
 - New Project / Edit Project: name, icon, accent color ("Pine Default", which
   follows the Appearance setting, or a palette of its own), default folder,
   additional context folders with access (Read only, Read and write).
@@ -460,7 +468,10 @@ the user opens themselves do not pulse.
   notice above the workbench checks again in place before opening the dialog.
   Pine also checks for updates every two hours. An ongoing download or
   installation keeps its selected version.
-- Quit confirmation, when sessions are still running or Remote Control is on.
+- Quit confirmation, when sessions are still running, Remote Control is on, or
+  WeChat remote is listening ("WeChat remote is on. Tasks sent from WeChat
+  will not arrive after you quit."; not shown while it is paused or needs a
+  new scan).
 - Confirmation dialogs for deleting projects, sessions, folders and Skills,
   and for enabling YOLO.
 
@@ -476,9 +487,13 @@ long pasted text can be attached before the conversation opens in a window.
 
 With "Keep running in the background" on, closing the last window keeps Pine in
 the menu bar (macOS) or notification area (Windows). Its menu has Open Pine,
-Quick composer, switches for Browser access and Remote Control via Aldine,
-"Manage more settings…" (opens Pine Settings › Remote control) and Quit Pine.
-Quitting from the menu is the way to stop automations and Remote Control.
+Quick composer, switches for Browser access, Remote Control via Aldine and
+"WeChat remote" (pauses or resumes receiving tasks from WeChat, the same as
+"Receive tasks from WeChat" in Settings; greyed out until a WeChat account is
+connected), a "WeChat: scan again needed" line when WeChat's login has to be
+renewed, "Manage more settings…" (opens Pine Settings › Remote control), a
+count of running sessions while any run, and Quit Pine. Quitting from the menu
+is the way to stop automations, Remote Control and WeChat remote.
 
 ## Keyboard shortcuts
 

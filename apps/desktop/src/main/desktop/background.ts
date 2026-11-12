@@ -29,6 +29,8 @@ interface DesktopBackgroundOptions {
   toggleQuickComposer(): void;
   toggleWebAccess(): void;
   toggleRelayRemote(): void;
+  /** Pauses or resumes WeChat remote. */
+  toggleWeChat(): void;
   /** Opens Pine's preferences at the Remote Control section. */
   manageRemote(): void;
   state(): TrayState;
@@ -187,6 +189,7 @@ export class DesktopBackground {
       "quick-composer": () => this.options.toggleQuickComposer(),
       "toggle-web-access": () => this.options.toggleWebAccess(),
       "toggle-relay-remote": () => this.options.toggleRelayRemote(),
+      "toggle-wechat": () => this.options.toggleWeChat(),
       "manage-remote": () => this.options.manageRemote(),
       quit: () => this.options.quit(),
     };

@@ -4,10 +4,23 @@ export interface QuitBlockers {
   remoteControl: boolean;
   /** Sessions mid-run or still owning a running background task. */
   runningSessions: number;
+  /** WeChat remote is bound and not paused. */
+  wechat: boolean;
+  /** WeChat remote lost its login and needs a new scan. */
+  wechatNeedsScan: boolean;
+}
+
+/** Listening for tasks from WeChat; a lost login receives nothing anyway. */
+function wechatReceiving(blockers: QuitBlockers): boolean {
+  return blockers.wechat && !blockers.wechatNeedsScan;
 }
 
 export function hasQuitBlockers(blockers: QuitBlockers): boolean {
-  return blockers.remoteControl || blockers.runningSessions > 0;
+  return (
+    blockers.remoteControl ||
+    blockers.runningSessions > 0 ||
+    wechatReceiving(blockers)
+  );
 }
 
 export interface QuitConfirmationText {
@@ -37,6 +50,12 @@ export function quitConfirmationText(
       chinese
         ? "远程控制正在运行，退出后已连接的浏览器会断开。"
         : "Remote Control is on. Browsers connected to Pine will be disconnected.",
+    );
+  if (wechatReceiving(blockers))
+    lines.push(
+      chinese
+        ? "微信远程已开启，退出后将收不到从微信发来的任务。"
+        : "WeChat remote is on. Tasks sent from WeChat will not arrive after you quit.",
     );
   return {
     title: chinese ? "退出 Pine" : "Quit Pine",

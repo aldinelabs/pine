@@ -4,23 +4,33 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const electron = vi.hoisted(() => {
   const dock = { show: vi.fn(), hide: vi.fn() };
   const destroyedTrays: unknown[] = [];
+  const trays: Tray[] = [];
   class Tray {
+    listeners = new Map<string, () => void>();
     setToolTip = vi.fn();
-    on = vi.fn();
+    on = vi.fn((event: string, listener: () => void) => {
+      this.listeners.set(event, listener);
+    });
+    popUpContextMenu = vi.fn();
     destroy = vi.fn(() => destroyedTrays.push(this));
+    constructor() {
+      trays.push(this);
+    }
   }
-  return { dock, destroyedTrays, Tray };
+  const buildFromTemplate = vi.fn((template: unknown) => template);
+  return { dock, destroyedTrays, trays, Tray, buildFromTemplate };
 });
 
 vi.mock("electron", () => ({
-  app: { dock: electron.dock },
-  Menu: { buildFromTemplate: vi.fn() },
+  app: { dock: electron.dock, getLocale: () => "en-US" },
+  Menu: { buildFromTemplate: electron.buildFromTemplate },
   nativeImage: { createFromPath: vi.fn() },
   nativeTheme: { on: vi.fn() },
   Tray: electron.Tray,
 }));
 
-import type { BrowserWindow } from "electron";
+import type { BrowserWindow, MenuItemConstructorOptions } from "electron";
+import type { TrayState } from "../../background";
 import { DesktopBackground } from "../background";
 
 class FakeWindow extends EventEmitter {
@@ -41,9 +51,21 @@ class FakeWindow extends EventEmitter {
   }
 }
 
-function setup(platform = "darwin") {
+const idle: TrayState = {
+  quickComposerEnabled: false,
+  webAccess: false,
+  relayRemote: false,
+  remoteControl: false,
+  runningSessions: 0,
+  wechat: false,
+  wechatBound: false,
+  wechatNeedsScan: false,
+};
+
+function setup(platform = "darwin", state: TrayState = idle) {
   Object.defineProperty(process, "platform", { value: platform });
   const windows: FakeWindow[] = [];
+  const toggleWeChat = vi.fn();
   const background = new DesktopBackground({
     iconDirectory: "/icons",
     appWindows: () => windows as unknown as BrowserWindow[],
@@ -52,8 +74,9 @@ function setup(platform = "darwin") {
     toggleQuickComposer: vi.fn(),
     toggleWebAccess: vi.fn(),
     toggleRelayRemote: vi.fn(),
+    toggleWeChat,
     manageRemote: vi.fn(),
-    state: vi.fn(),
+    state: () => state,
   });
   const add = (auxiliary = false) => {
     const window = new FakeWindow();
@@ -61,7 +84,15 @@ function setup(platform = "darwin") {
     background.watch(window as unknown as BrowserWindow, () => auxiliary);
     return window;
   };
-  return { background, add };
+  return { background, add, toggleWeChat };
+}
+
+/** Opens the tray menu as a right click does and returns its items. */
+function openMenu(): MenuItemConstructorOptions[] {
+  const tray = electron.trays.at(-1);
+  tray?.listeners.get("right-click")?.();
+  return electron.buildFromTemplate.mock
+    .lastCall?.[0] as MenuItemConstructorOptions[];
 }
 
 describe("closing windows with Pine in the tray", () => {
@@ -116,5 +147,55 @@ describe("closing windows with Pine in the tray", () => {
     background.start(false);
 
     expect(add().close()).toBe(true);
+  });
+});
+
+describe("the tray's WeChat switch", () => {
+  beforeEach(() => {
+    electron.trays.length = 0;
+    electron.buildFromTemplate.mockClear();
+  });
+
+  it("is greyed out until a WeChat account is bound", () => {
+    const { background } = setup("darwin");
+    background.start(true);
+
+    const item = openMenu().find((entry) => entry.label === "WeChat remote");
+    expect(item).toMatchObject({
+      type: "checkbox",
+      checked: false,
+      enabled: false,
+    });
+    background.dispose();
+  });
+
+  it("pauses or resumes WeChat remote when clicked", () => {
+    const { background, toggleWeChat } = setup("darwin", {
+      ...idle,
+      wechat: true,
+      wechatBound: true,
+    });
+    background.start(true);
+
+    const item = openMenu().find((entry) => entry.label === "WeChat remote");
+    expect(item).toMatchObject({ checked: true, enabled: true });
+    (item?.click as () => void)();
+    expect(toggleWeChat).toHaveBeenCalledOnce();
+    background.dispose();
+  });
+
+  it("shows a disabled line when WeChat needs a new scan", () => {
+    const { background } = setup("darwin", {
+      ...idle,
+      wechat: true,
+      wechatBound: true,
+      wechatNeedsScan: true,
+    });
+    background.start(true);
+
+    expect(
+      openMenu().find((entry) => entry.label === "WeChat: scan again needed"),
+    ).toEqual({ label: "WeChat: scan again needed", enabled: false });
+    background.dispose();
   });
 });

@@ -41,6 +41,9 @@ describe("tray menu", () => {
     relayRemote: false,
     remoteControl: false,
     runningSessions: 0,
+    wechat: false,
+    wechatBound: false,
+    wechatNeedsScan: false,
   };
 
   it("opens Pine first and quits last", () => {
@@ -71,7 +74,7 @@ describe("tray menu", () => {
     expect(actions(false)).toEqual(["open", "manage-remote", "quit"]);
   });
 
-  it("offers browser access and Aldine Remote Control as switches", () => {
+  it("offers browser access, Aldine Remote Control and WeChat as switches", () => {
     const toggles = (state: typeof idle, chinese = false) =>
       trayMenu(state, chinese).flatMap((entry) =>
         entry.type === "toggle" ? [entry] : [],
@@ -91,13 +94,30 @@ describe("tray menu", () => {
         checked: false,
         enabled: false,
       },
+      {
+        type: "toggle",
+        action: "toggle-wechat",
+        label: "WeChat remote",
+        checked: false,
+        enabled: false,
+      },
     ]);
-    const on = toggles({ ...idle, webAccess: true, relayRemote: true }, true);
+    const on = toggles(
+      {
+        ...idle,
+        webAccess: true,
+        relayRemote: true,
+        wechat: true,
+        wechatBound: true,
+      },
+      true,
+    );
     expect(
       on.map((entry) => [entry.label, entry.checked, entry.enabled]),
     ).toEqual([
       ["浏览器访问", true, true],
       ["经 Aldine 远程控制", true, true],
+      ["微信远程", true, true],
     ]);
   });
 
@@ -107,6 +127,44 @@ describe("tray menu", () => {
         entry.type === "toggle" && entry.action === "toggle-relay-remote",
     );
     expect(relay).toMatchObject({ checked: true, enabled: true });
+  });
+
+  it("places the WeChat switch after Aldine and before the settings", () => {
+    const order = trayMenu({ ...idle, wechatBound: true }, false).flatMap(
+      (entry) =>
+        entry.type === "action" || entry.type === "toggle"
+          ? [entry.action]
+          : [],
+    );
+    expect(order.indexOf("toggle-wechat")).toBe(
+      order.indexOf("toggle-relay-remote") + 1,
+    );
+    expect(order.indexOf("manage-remote")).toBe(
+      order.indexOf("toggle-wechat") + 1,
+    );
+  });
+
+  it("shows a paused WeChat account as switched off but switchable", () => {
+    const wechat = trayMenu({ ...idle, wechatBound: true }, false).find(
+      (entry) => entry.type === "toggle" && entry.action === "toggle-wechat",
+    );
+    expect(wechat).toMatchObject({ checked: false, enabled: true });
+  });
+
+  it("says when WeChat needs a new scan", () => {
+    const labels = (state: typeof idle, chinese = false) =>
+      trayMenu(state, chinese).flatMap((entry) =>
+        entry.type === "status" ? [entry.label] : [],
+      );
+    const lostLogin = {
+      ...idle,
+      wechat: true,
+      wechatBound: true,
+      wechatNeedsScan: true,
+    };
+    expect(labels(lostLogin)).toEqual(["WeChat: scan again needed"]);
+    expect(labels(lostLogin, true)).toEqual(["微信需要重新扫码"]);
+    expect(labels({ ...lostLogin, wechatNeedsScan: false })).toEqual([]);
   });
 
   it("shows running sessions", () => {

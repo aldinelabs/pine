@@ -7,6 +7,8 @@ export interface TrayState extends QuitBlockers {
   webAccess: boolean;
   /** Paired devices may reach Pine through Aldine. */
   relayRemote: boolean;
+  /** A WeChat account is bound, so its switch can be used. */
+  wechatBound: boolean;
 }
 
 export type TrayAction =
@@ -14,6 +16,7 @@ export type TrayAction =
   | "quick-composer"
   | "toggle-web-access"
   | "toggle-relay-remote"
+  | "toggle-wechat"
   | "manage-remote"
   | "quit";
 
@@ -83,6 +86,19 @@ export function trayMenu(state: TrayState, chinese: boolean): TrayMenuEntry[] {
     // Devices reach Pine through the web server, so it has to be running.
     enabled: state.webAccess || state.relayRemote,
   });
+  entries.push({
+    type: "toggle",
+    action: "toggle-wechat",
+    label: chinese ? "微信远程" : "WeChat remote",
+    checked: state.wechatBound && state.wechat,
+    // Binding needs the settings page; the switch only pauses and resumes.
+    enabled: state.wechatBound,
+  });
+  if (state.wechatBound && state.wechatNeedsScan)
+    entries.push({
+      type: "status",
+      label: chinese ? "微信需要重新扫码" : "WeChat: scan again needed",
+    });
   entries.push({
     type: "action",
     action: "manage-remote",

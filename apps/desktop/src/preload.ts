@@ -27,6 +27,18 @@ import {
   SIGN_OUT_WEB_BROWSERS_CHANNEL,
   SET_WEB_SERVER_CHANNEL,
 } from "./shared/webControl";
+import {
+  CANCEL_WECHAT_BINDING_CHANNEL,
+  GET_WECHAT_REMOTE_CHANNEL,
+  SET_WECHAT_PAUSED_CHANNEL,
+  SET_WECHAT_SETTINGS_CHANNEL,
+  START_WECHAT_BINDING_CHANNEL,
+  SUBMIT_WECHAT_PAIRING_CODE_CHANNEL,
+  SUBMIT_WECHAT_VERIFY_CODE_CHANNEL,
+  UNBIND_WECHAT_CHANNEL,
+  WECHAT_REMOTE_CHANGED_CHANNEL,
+  type WeChatStatus,
+} from "./shared/wechatRemote";
 
 const pineApi: PineDesktopApi = {
   ...createPineApi({
@@ -79,6 +91,24 @@ const pineApi: PineDesktopApi = {
     ipcRenderer.on(REMOTE_CONTROL_CHANGED_CHANNEL, handler);
     return () =>
       ipcRenderer.removeListener(REMOTE_CONTROL_CHANGED_CHANNEL, handler);
+  },
+  getWeChatRemote: () => ipcRenderer.invoke(GET_WECHAT_REMOTE_CHANNEL),
+  setWeChatPaused: (paused) =>
+    ipcRenderer.invoke(SET_WECHAT_PAUSED_CHANNEL, paused),
+  startWeChatBinding: () => ipcRenderer.invoke(START_WECHAT_BINDING_CHANNEL),
+  cancelWeChatBinding: () => ipcRenderer.invoke(CANCEL_WECHAT_BINDING_CHANNEL),
+  submitWeChatVerifyCode: (code) =>
+    ipcRenderer.invoke(SUBMIT_WECHAT_VERIFY_CODE_CHANNEL, code),
+  submitWeChatPairingCode: (code) =>
+    ipcRenderer.invoke(SUBMIT_WECHAT_PAIRING_CODE_CHANNEL, code),
+  unbindWeChat: () => ipcRenderer.invoke(UNBIND_WECHAT_CHANNEL),
+  setWeChatSettings: (patch) =>
+    ipcRenderer.invoke(SET_WECHAT_SETTINGS_CHANNEL, patch),
+  onWeChatRemoteChanged: (listener) => {
+    const handler = (_event: unknown, status: WeChatStatus) => listener(status);
+    ipcRenderer.on(WECHAT_REMOTE_CHANGED_CHANNEL, handler);
+    return () =>
+      ipcRenderer.removeListener(WECHAT_REMOTE_CHANGED_CHANNEL, handler);
   },
 };
 contextBridge.exposeInMainWorld("pine", pineApi);
