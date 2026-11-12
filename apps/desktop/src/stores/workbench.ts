@@ -108,7 +108,11 @@ export const useWorkbenchStore = defineStore("workbench", () => {
 
   const activeLayout = computed(() => layoutFor(activeKey.value));
 
+  /** A split drag changed the layouts without writing them yet. */
+  let unsaved = false;
+
   function save(): void {
+    unsaved = false;
     try {
       preferenceStorage.setItem(
         WORKBENCH_STORAGE_KEY,
@@ -152,6 +156,7 @@ export const useWorkbenchStore = defineStore("workbench", () => {
   function update(
     key: string,
     change: (layout: WorkbenchLayout) => WorkbenchLayout,
+    persist = true,
   ): void {
     const next = change(layoutFor(key));
     startsCollapsed = false;
@@ -162,7 +167,8 @@ export const useWorkbenchStore = defineStore("workbench", () => {
       if (layouts.size <= MAX_STORED_LAYOUTS) break;
       if (stale !== DRAFT_WORKBENCH_KEY) layouts.delete(stale);
     }
-    save();
+    if (persist) save();
+    else unsaved = true;
     const highlighted = highlights.get(key);
     if (!highlighted) return;
     for (const panel of highlighted)
@@ -255,10 +261,20 @@ export const useWorkbenchStore = defineStore("workbench", () => {
     update(activeKey.value, (layout) => ({ ...layout, preview: null }));
   }
 
-  function setSplit(split: number): void {
+  /**
+   * Moves the divider between the cards. A drag passes `persist: false` for
+   * each step and calls `saveSplit` once it ends, so the preferences file is
+   * written once per drag rather than per step.
+   */
+  function setSplit(split: number, { persist = true } = {}): void {
     const next = clampWorkbenchSplit(split);
     if (next === activeLayout.value.split) return;
-    update(activeKey.value, (layout) => ({ ...layout, split: next }));
+    update(activeKey.value, (layout) => ({ ...layout, split: next }), persist);
+  }
+
+  /** Stores the split a drag left unsaved. */
+  function saveSplit(): void {
+    if (unsaved) save();
   }
 
   function setWidth(next: number): void {
@@ -308,6 +324,7 @@ export const useWorkbenchStore = defineStore("workbench", () => {
       panelPosition(activeLayout.value, panel),
     present,
     preview,
+    saveSplit,
     saveWidth,
     setClosing,
     setDisplayedOpen,

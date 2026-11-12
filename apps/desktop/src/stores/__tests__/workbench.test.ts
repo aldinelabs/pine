@@ -93,6 +93,27 @@ it("remembers layouts across stores", () => {
   });
 });
 
+it("stores a dragged split once the drag ends", () => {
+  const store = useWorkbenchStore();
+  store.setOpen(true);
+  const stored = () =>
+    JSON.parse(window.localStorage.getItem(WORKBENCH_STORAGE_KEY) ?? "{}")[
+      DRAFT_WORKBENCH_KEY
+    ]?.split;
+  const before = stored();
+
+  store.setSplit(40, { persist: false });
+  store.setSplit(45, { persist: false });
+  expect(store.activeLayout.split).toBe(45);
+  expect(stored()).toBe(before);
+
+  store.saveSplit();
+  expect(stored()).toBe(45);
+
+  setActivePinia(createPinia());
+  expect(useWorkbenchStore().activeLayout.split).toBe(45);
+});
+
 it("ignores corrupt storage", () => {
   window.localStorage.setItem(WORKBENCH_STORAGE_KEY, "{not json");
   expect(useWorkbenchStore().activeLayout.open).toBe(false);
