@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { CornerDownRightIcon } from "@lucide/vue";
+import { CornerDownRightIcon, MessageSquareIcon } from "@lucide/vue";
 import { computed } from "vue";
-import { useI18n } from "vue-i18n";
+import { I18nT, useI18n } from "vue-i18n";
 import { useContentTabNavigation } from "@/composables/useContentTabNavigation";
 import type { PineRelaySource } from "@/shared/sessions";
 import { useSessionStore } from "@/stores/session";
@@ -46,13 +46,24 @@ function open(): void {
     @click="open"
   >
     <CornerDownRightIcon class="size-3.5 shrink-0" aria-hidden="true" />
-    <span class="truncate">{{
-      t(
-        source.kind === "parent"
-          ? "project.transcript.relay.startedBy"
-          : "project.transcript.relay.from",
-        { name },
-      )
-    }}</span>
+    <I18nT
+      :keypath="
+        source.kind === 'parent'
+          ? 'project.transcript.relay.startedBy'
+          : 'project.transcript.relay.from'
+      "
+      tag="span"
+      class="flex min-w-0 items-center gap-1 whitespace-nowrap"
+    >
+      <template #name>
+        <span
+          data-slot="relay-source-name"
+          class="inline-flex min-w-0 items-center gap-1 font-semibold text-foreground/80"
+        >
+          <MessageSquareIcon class="size-3 shrink-0" aria-hidden="true" />
+          <span class="truncate">{{ name }}</span>
+        </span>
+      </template>
+    </I18nT>
   </component>
 </template>
