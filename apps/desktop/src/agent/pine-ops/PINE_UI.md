@@ -105,7 +105,9 @@ Session list, one collapsible group per project:
 - Session item: click to open it in a tab. A running session's title shimmers
   (with a dot when reduced motion is on). A session stopped on an approval
   shows a shield icon at the end of its row ("Waiting for your approval"). An automation run shows a workflow
-  icon and, when idle, the time it started. A session with sub-sessions shows
+  icon and, when idle, the time it started. A session started from WeChat
+  shows a chat-bubble icon ("From WeChat"); one WeChat later sent a message to
+  shows the same icon labelled "Used from WeChat". A session with sub-sessions shows
   a chevron at the end of its row ("Show sub-sessions ({count})" / "Hide
   sub-sessions ({count})") that expands or collapses them (clicking the row of the
   session already open, or the Right and Left arrow keys while the row has
@@ -166,6 +168,8 @@ From top to bottom:
      and never asks for approval; further reasoning, tool calls and the final
      reply follow below it. Sub-sessions and automation runs do not post
      interim answers;
+   - for a session started from WeChat or sent a message from WeChat, a small
+     "From WeChat" or "Used from WeChat" label above the first message;
    - for an automation run, a card at the top with the automation's name,
      trigger and start time; "Instructions" expands what it was asked to do;
    - tool call groups; clicking a call opens Tool call details (status,
@@ -242,7 +246,9 @@ From top to bottom:
    - Automation approval card, in place of the composer, when the agent asks to
      create, change, turn on or delete an automation: it lists the triggers,
      what the automation reads, writes and can reach, and warnings; Approve
-     (or Turn on / Delete), Reject, or Reject with guidance.
+     (or Turn on / Delete), Reject, or Reject with guidance. A request made
+     in a session WeChat started or used adds the line "Requested from
+     WeChat"; such approvals are still answered only on this computer.
    - Questionnaire card, when the agent asks questions: Previous, Next, Cancel,
      Submit, plus a free-text answer.
    - Chip ("Creating a skill / an automation / an MCP server
@@ -405,7 +411,32 @@ the user opens themselves do not pulse.
     paired computer, so another can be added. Selecting a computer keeps that
     connection until the user switches or it disconnects.
     Browser access serves Pine to a browser behind an access
-    password.
+    password. Below it, the "WeChat" group (marked Experimental; it may stop
+    working if Tencent changes its policy) lets the user send tasks to Pine
+    from their own WeChat. Not connected: "Connect WeChat" opens a dialog
+    with a QR code to scan in WeChat, a countdown, the phase text (scan,
+    "Scanned. Confirm on your phone.", a verification-code field when WeChat
+    asks for one), and then a pairing step: "In WeChat, send any message (a
+    single dot is enough) to the bot. It replies with a 6-digit code. Enter
+    it here." with a 6-digit field, attempts left and a countdown; "Try
+    again" after the code expires. Connected: "WeChat account XXXX-XXXX" with
+    a status badge (Online, Connecting, Retrying, Scan again needed, Paused),
+    "Scan again" when needed, "Disconnect" (asks first: sessions only WeChat
+    holds stop and the WeChat permission settings return to their defaults),
+    "Receive tasks from WeChat" (off pauses it; only this computer can turn
+    it back on), "Default project" (projects or "No Project"), "Highest
+    approval mode" (Let Me Review, Auto Approve, Autonomous Work, YOLO, with
+    a warning under YOLO), "Default approval mode" (only modes within the
+    highest), "Allow approving high-risk actions from WeChat" (native
+    execution outside the sandbox and destructive commands; off by default),
+    "Allow sending files to WeChat" (presented files up to 100 MB; off by
+    default) and "Keep the computer awake while WeChat is on". "Good to
+    know" notes say it works only while Pine runs and the computer is awake,
+    messages pass through Tencent's servers, the account can read session
+    titles, search results and replies of every project, a proxy may be
+    blocked, and one WeChat account connects to one computer; "Run Pine on a
+    server" opens the server guide. If the settings could not be read, the
+    group says they were reset and WeChat remote is paused.
 - New Project / Edit Project: name, icon, accent color ("Pine Default", which
   follows the Appearance setting, or a palette of its own), default folder,
   additional context folders with access (Read only, Read and write).

@@ -140,6 +140,91 @@ export default {
       removeDescription:
         "Este dispositivo se desconecta ahora y deberá vincularse de nuevo para volver a conectarse.",
     },
+    wechatRemote: {
+      title: "WeChat",
+      experimental: "Experimental",
+      description:
+        "Envía tareas a Pine desde tu propio WeChat a través del ClawBot de Tencent. Puede dejar de funcionar si Tencent cambia su política.",
+      notConnected: "No hay ninguna cuenta de WeChat conectada.",
+      connect: "Conectar WeChat",
+      connectTitle: "Conectar WeChat",
+      phaseStarting: "Obteniendo un código…",
+      phaseQr: "Escanea el código con WeChat en tu teléfono.",
+      phaseScanned: "Escaneado. Confirma en tu teléfono.",
+      phaseVerifyCode:
+        "Introduce el código de verificación que muestra WeChat en tu teléfono.",
+      phaseConfirming: "Confirmando…",
+      verifyCode: "Código de verificación",
+      verifyRetry: "Ese código no se aceptó. Inténtalo de nuevo.",
+      submit: "Enviar",
+      pairingInstructions:
+        "En WeChat, envía cualquier mensaje al bot (basta con un punto). Responde con un código de 6 dígitos. Introdúcelo aquí.",
+      pairingCode: "Código de 6 dígitos",
+      pairingWaiting: "Esperando tu mensaje en WeChat…",
+      pairingSent: "El código se envió a WeChat.",
+      attemptsLeft: "Intentos restantes: {count}",
+      expires: "Caduca en {time}.",
+      expired: "El código ha caducado.",
+      tryAgain: "Reintentar",
+      account: "Cuenta de WeChat {digest}",
+      connectedAt: "Conectada el {date}",
+      statusOnline: "En línea",
+      statusConnecting: "Conectando",
+      statusRetrying: "Reintentando",
+      statusReauth: "Hay que volver a escanear",
+      statusPaused: "En pausa",
+      receive: "Recibir tareas desde WeChat",
+      receiveDescription:
+        "Mientras esté desactivado, Pine ignora los mensajes de WeChat. Solo este equipo puede volver a activarlo.",
+      scanAgain: "Volver a escanear",
+      disconnect: "Desconectar",
+      disconnectTitle: "¿Desconectar WeChat?",
+      disconnectDescription:
+        "Las sesiones que solo WeChat mantiene se detendrán y los permisos de WeChat volverán a sus valores predeterminados.",
+      defaultProject: "Proyecto predeterminado",
+      defaultProjectDescription: "Dónde empieza una sesión nueva desde WeChat.",
+      ceiling: "Modo de aprobación máximo",
+      ceilingDescription:
+        "Las sesiones controladas desde WeChat nunca se ejecutan con menos supervisión que esta.",
+      yoloWarning:
+        "Con YOLO, cualquiera que entre en tu cuenta de WeChat controla este equipo.",
+      defaultMode: "Modo de aprobación predeterminado",
+      defaultModeDescription: "El modo de las sesiones iniciadas desde WeChat.",
+      allowHighRisk: "Permitir aprobar acciones de alto riesgo desde WeChat",
+      allowHighRiskDescription:
+        "Ejecución nativa fuera del sandbox y comandos destructivos. Desactivado: solo se pueden aprobar en este equipo.",
+      allowFiles: "Permitir enviar archivos a WeChat",
+      allowFilesDescription:
+        "Solo archivos que el agente presentó, hasta 100 MB cada uno. Los archivos pasan por los servidores de Tencent.",
+      keepAwake: "Mantener el equipo activo mientras WeChat esté activado",
+      keepAwakeDescription: "Cerrar la tapa sigue suspendiendo el equipo.",
+      notes: "Conviene saber",
+      noteRunning:
+        "Solo funciona mientras Pine está abierto y el equipo no está suspendido.",
+      noteTencent: "Los mensajes pasan por los servidores de Tencent.",
+      noteReadScope:
+        "La cuenta conectada puede leer títulos de sesiones, resultados de búsqueda y respuestas de todos los proyectos.",
+      noteNetwork:
+        "Un proxy o una salida de red en el extranjero pueden estar bloqueados.",
+      noteOneComputer: "Una cuenta de WeChat se conecta a un solo equipo.",
+      serverGuide: "Ejecutar Pine en un servidor",
+      error: {
+        encryptionUnavailable:
+          "Este equipo no puede guardar las credenciales de WeChat de forma segura, así que no se puede conectar WeChat.",
+        bindingExpired:
+          "El código caducó antes de confirmarse. Inténtalo de nuevo.",
+        bindingBlocked: "Tencent rechazó la conexión. Inténtalo más tarde.",
+        pairingFailed:
+          "El código de emparejamiento no se confirmó. Vuelve a conectar para empezar de nuevo.",
+        bindingFailed: "No se pudo conectar WeChat. Inténtalo de nuevo.",
+        accountMismatch:
+          "Otra cuenta de WeChat escaneó el código. Desconecta primero para conectar otra cuenta.",
+        network:
+          "No se puede acceder a los servidores de Tencent. Revisa la red o el proxy.",
+        settingsReset:
+          "No se pudieron leer los ajustes de WeChat y se restablecieron. El control desde WeChat está en pausa.",
+      },
+    },
     projectManagement: {
       title: "Proyectos",
       description:
@@ -662,6 +747,8 @@ export default {
     newProjectSession: "Nueva sesión en {project}",
     current: "Actual",
     noSessions: "Aún no hay sesiones",
+    fromWeChat: "Desde WeChat",
+    usedFromWeChat: "Usada desde WeChat",
     awaitingApproval: "Esperando tu aprobación",
     showSubSessions: "Mostrar subsesiones ({count})",
     hideSubSessions: "Ocultar subsesiones ({count})",
@@ -2195,6 +2282,14 @@ export default {
       deviceTitle: "No se puede actualizar este dispositivo",
       description: "Inténtalo de nuevo más tarde.",
     },
+    wechatRemote: {
+      loadTitle: "No se pueden cargar los ajustes de WeChat",
+      saveTitle: "No se pueden actualizar los ajustes de WeChat",
+      connectTitle: "No se puede conectar WeChat",
+      codeTitle: "No se puede enviar el código",
+      disconnectTitle: "No se puede desconectar WeChat",
+      description: "Inténtalo de nuevo más tarde.",
+    },
     quickComposer: {
       title: "No se pueden actualizar los ajustes de redacción rápida",
       description: "Inténtalo de nuevo más tarde.",
@@ -2427,6 +2522,7 @@ export default {
         enable: "Activar",
         delete: "Eliminar",
       },
+      viaWeChat: "Solicitada desde WeChat",
       desktopOnly: "Apruébala en Pine en el equipo que la ejecuta.",
     },
     warnings: {

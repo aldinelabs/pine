@@ -189,6 +189,40 @@ describe("PinePreferencesDialog", () => {
     wrapper.unmount();
   });
 
+  it("shows the WeChat group only where the desktop app offers it", async () => {
+    installPineApi("darwin");
+    Object.assign(window.pine, {
+      getWebServer: vi.fn().mockResolvedValue({ enabled: false, port: 9415 }),
+    });
+    const withoutApi = mountDialog().wrapper;
+    await openSection(withoutApi, "远程控制");
+    expect(
+      withoutApi.find('[data-testid="wechat-remote-settings"]').exists(),
+    ).toBe(false);
+    withoutApi.unmount();
+
+    Object.assign(window.pine, {
+      getWeChatRemote: vi.fn().mockResolvedValue({
+        bound: false,
+        paused: false,
+        connection: "unbound",
+        settings: {
+          ceilingMode: "auto-approve",
+          defaultMode: "auto-approve",
+          allowHighRiskApprovals: false,
+          allowFileSending: false,
+          keepAwake: false,
+        },
+      }),
+    });
+    const { wrapper } = mountDialog();
+    await openSection(wrapper, "远程控制");
+    expect(
+      wrapper.find('[data-testid="wechat-remote-settings"]').exists(),
+    ).toBe(true);
+    wrapper.unmount();
+  });
+
   it("shows the section list and one section at a time on a phone", async () => {
     vi.stubGlobal(
       "matchMedia",

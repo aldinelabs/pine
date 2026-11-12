@@ -1850,6 +1850,22 @@ export const useSessionStore = defineStore("session", () => {
     );
   }
 
+  /**
+   * How WeChat touched this session: started it, or sent it a message later.
+   * An automation run shows as one until it becomes an ordinary conversation.
+   */
+  function originOf(sessionId: string): PineSessionSummary["origin"] {
+    if (automationRunOf(sessionId)) return undefined;
+    const projectId = sessionProjects.get(sessionId);
+    return (
+      sessionCache.get(sessionId)?.summary?.origin ??
+      recentSessionsFor(projectId).find((session) => session.id === sessionId)
+        ?.origin ??
+      allRecentSessions.value.find((session) => session.id === sessionId)
+        ?.origin
+    );
+  }
+
   /** Whether the session is mid-run; false for sessions never loaded here. */
   function isSessionRunning(sessionId: string): boolean {
     return sessionCache.get(sessionId)?.isRunning ?? false;
@@ -1900,6 +1916,7 @@ export const useSessionStore = defineStore("session", () => {
     activate,
     activeSession,
     automationRunOf,
+    originOf,
     allRecentSessions,
     isLoadingAllRecent,
     loadAllRecent,

@@ -139,6 +139,92 @@ export default {
       removeDescription:
         "Cet appareil est déconnecté immédiatement et devra être de nouveau associé pour se reconnecter.",
     },
+    wechatRemote: {
+      title: "WeChat",
+      experimental: "Expérimental",
+      description:
+        "Envoyez des tâches à Pine depuis votre propre WeChat via le ClawBot de Tencent. Cela peut cesser de fonctionner si Tencent change sa politique.",
+      notConnected: "Aucun compte WeChat n’est connecté.",
+      connect: "Connecter WeChat",
+      connectTitle: "Connecter WeChat",
+      phaseStarting: "Obtention d’un code…",
+      phaseQr: "Scannez le code avec WeChat sur votre téléphone.",
+      phaseScanned: "Scanné. Confirmez sur votre téléphone.",
+      phaseVerifyCode:
+        "Saisissez le code de vérification affiché dans WeChat sur votre téléphone.",
+      phaseConfirming: "Confirmation…",
+      verifyCode: "Code de vérification",
+      verifyRetry: "Ce code n’a pas été accepté. Réessayez.",
+      submit: "Envoyer",
+      pairingInstructions:
+        "Dans WeChat, envoyez un message quelconque au bot (un simple point suffit). Il répond avec un code à 6 chiffres. Saisissez-le ici.",
+      pairingCode: "Code à 6 chiffres",
+      pairingWaiting: "En attente de votre message dans WeChat…",
+      pairingSent: "Le code a été envoyé dans WeChat.",
+      attemptsLeft: "Essais restants : {count}",
+      expires: "Expire dans {time}.",
+      expired: "Le code a expiré.",
+      tryAgain: "Réessayer",
+      account: "Compte WeChat {digest}",
+      connectedAt: "Connecté le {date}",
+      statusOnline: "En ligne",
+      statusConnecting: "Connexion",
+      statusRetrying: "Nouvelle tentative",
+      statusReauth: "Nouveau scan requis",
+      statusPaused: "En pause",
+      receive: "Recevoir des tâches depuis WeChat",
+      receiveDescription:
+        "Tant que c’est désactivé, Pine ignore les messages de WeChat. Seul cet ordinateur peut le réactiver.",
+      scanAgain: "Scanner à nouveau",
+      disconnect: "Déconnecter",
+      disconnectTitle: "Déconnecter WeChat ?",
+      disconnectDescription:
+        "Les sessions que seul WeChat détient s’arrêtent, et les autorisations de WeChat reviennent à leurs valeurs par défaut.",
+      defaultProject: "Projet par défaut",
+      defaultProjectDescription:
+        "Où démarre une nouvelle session depuis WeChat.",
+      ceiling: "Mode d’approbation maximal",
+      ceilingDescription:
+        "Les sessions pilotées depuis WeChat ne tournent jamais avec moins de supervision que celui-ci.",
+      yoloWarning:
+        "Avec YOLO, toute personne qui accède à votre compte WeChat contrôle cet ordinateur.",
+      defaultMode: "Mode d’approbation par défaut",
+      defaultModeDescription: "Le mode des sessions démarrées depuis WeChat.",
+      allowHighRisk: "Autoriser l’approbation d’actions à risque depuis WeChat",
+      allowHighRiskDescription:
+        "Exécution native hors du bac à sable et commandes destructrices. Désactivé : elles ne peuvent être approuvées que sur cet ordinateur.",
+      allowFiles: "Autoriser l’envoi de fichiers vers WeChat",
+      allowFilesDescription:
+        "Uniquement les fichiers présentés par l’agent, jusqu’à 100 Mo chacun. Les fichiers transitent par les serveurs de Tencent.",
+      keepAwake: "Garder l’ordinateur éveillé tant que WeChat est activé",
+      keepAwakeDescription:
+        "Fermer le capot met quand même l’ordinateur en veille.",
+      notes: "Bon à savoir",
+      noteRunning:
+        "Fonctionne uniquement quand Pine est ouvert et que l’ordinateur est éveillé.",
+      noteTencent: "Les messages transitent par les serveurs de Tencent.",
+      noteReadScope:
+        "Le compte connecté peut lire les titres de session, les résultats de recherche et les réponses de tous les projets.",
+      noteNetwork:
+        "Un proxy ou une sortie réseau à l’étranger peut être bloqué.",
+      noteOneComputer: "Un compte WeChat se connecte à un seul ordinateur.",
+      serverGuide: "Exécuter Pine sur un serveur",
+      error: {
+        encryptionUnavailable:
+          "Cet ordinateur ne peut pas stocker les identifiants WeChat de façon sécurisée, WeChat ne peut donc pas être connecté.",
+        bindingExpired: "Le code a expiré avant d’être confirmé. Réessayez.",
+        bindingBlocked: "Tencent a refusé la connexion. Réessayez plus tard.",
+        pairingFailed:
+          "Le code d’association n’a pas été confirmé. Reconnectez pour recommencer.",
+        bindingFailed: "Impossible de connecter WeChat. Réessayez.",
+        accountMismatch:
+          "Un autre compte WeChat a scanné le code. Déconnectez d’abord pour connecter un autre compte.",
+        network:
+          "Les serveurs de Tencent sont injoignables. Vérifiez le réseau ou le proxy.",
+        settingsReset:
+          "Les réglages WeChat n’ont pas pu être lus et ont été réinitialisés. Le contrôle depuis WeChat est en pause.",
+      },
+    },
     projectManagement: {
       title: "Projets",
       description:
@@ -662,6 +748,8 @@ export default {
     newProjectSession: "Nouvelle session dans {project}",
     current: "Actuelle",
     noSessions: "Aucune session pour le moment",
+    fromWeChat: "Depuis WeChat",
+    usedFromWeChat: "Utilisée depuis WeChat",
     awaitingApproval: "En attente de votre approbation",
     showSubSessions: "Afficher les sous-sessions ({count})",
     hideSubSessions: "Masquer les sous-sessions ({count})",
@@ -2213,6 +2301,14 @@ export default {
       deviceTitle: "Impossible de mettre à jour cet appareil",
       description: "Veuillez réessayer plus tard.",
     },
+    wechatRemote: {
+      loadTitle: "Impossible de charger les réglages WeChat",
+      saveTitle: "Impossible de mettre à jour les réglages WeChat",
+      connectTitle: "Impossible de connecter WeChat",
+      codeTitle: "Impossible d’envoyer le code",
+      disconnectTitle: "Impossible de déconnecter WeChat",
+      description: "Veuillez réessayer plus tard.",
+    },
     quickComposer: {
       title: "Impossible de mettre à jour les réglages de la saisie rapide",
       description: "Veuillez réessayer plus tard.",
@@ -2448,6 +2544,7 @@ export default {
         enable: "Activer",
         delete: "Supprimer",
       },
+      viaWeChat: "Demandé depuis WeChat",
       desktopOnly: "Approuvez ceci dans Pine sur l’ordinateur qui l’exécute.",
     },
     warnings: {

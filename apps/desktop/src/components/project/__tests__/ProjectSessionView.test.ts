@@ -144,6 +144,34 @@ describe("ProjectSessionView file drop", () => {
     expect(setApprovalMode).toHaveBeenCalledWith("YOLO", "saved-session");
   });
 
+  it("labels a session WeChat started or used", async () => {
+    const { wrapper } = mountView();
+    const label = () => wrapper.find('[data-slot="session-wechat-origin"]');
+    expect(label().exists()).toBe(false);
+    await wrapper.setProps({ sessionId: "wechat-session" });
+    const summary = {
+      id: "wechat-session",
+      createdAt: "",
+      updatedAt: "",
+      messageCount: 0,
+    };
+    useSessionStore().stateFor("wechat-session").summary = {
+      ...summary,
+      origin: "wechat",
+    };
+    await flushPromises();
+    expect(label().text()).toBe("来自微信");
+    useSessionStore().stateFor("wechat-session").summary = {
+      ...summary,
+      origin: "wechat-used",
+    };
+    await flushPromises();
+    expect(label().text()).toBe("在微信中使用过");
+    useSessionStore().stateFor("wechat-session").summary = summary;
+    await flushPromises();
+    expect(label().exists()).toBe(false);
+  });
+
   it("reopens a historical presented file from the project temporary directory", async () => {
     const { wrapper } = mountView();
     const sessionId = "0198e338-fb55-7e18-a23e-a7028500f123";

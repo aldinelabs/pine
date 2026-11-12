@@ -5,7 +5,7 @@ import {
   dragContainsAttachments,
   useAttachmentDrop,
 } from "@/composables/useAttachmentDrop";
-import { FilesIcon } from "@lucide/vue";
+import { FilesIcon, MessageCircleIcon } from "@lucide/vue";
 import { useEventListener } from "@vueuse/core";
 import {
   computed,
@@ -282,6 +282,18 @@ const approvalMode = computed<PineApprovalMode>({
         .setApprovalMode(value, props.sessionId)
         .catch(() => undefined);
   },
+});
+/** "From WeChat" or "Used from WeChat", shown above the transcript. */
+const weChatOriginLabel = computed(() => {
+  if (!props.sessionId) return undefined;
+  switch (sessionStore.originOf(props.sessionId)) {
+    case "wechat":
+      return t("sessions.fromWeChat");
+    case "wechat-used":
+      return t("sessions.usedFromWeChat");
+    default:
+      return undefined;
+  }
 });
 /** Passages quoted from this transcript into the composer. */
 const quotes = ref<PineQuote[]>([]);
@@ -788,6 +800,14 @@ async function handleDrop(event: DragEvent): Promise<void> {
               class="session-transcript-content mx-auto py-8"
               spacer-class="h-16"
             >
+              <p
+                v-if="weChatOriginLabel"
+                data-slot="session-wechat-origin"
+                class="flex items-center justify-center gap-1.5 text-xs text-muted-foreground"
+              >
+                <MessageCircleIcon class="size-3.5" aria-hidden="true" />
+                {{ weChatOriginLabel }}
+              </p>
               <Empty v-if="!renderedMessages.length && !isLoadingMessages">
                 <EmptyHeader>
                   <PineCharacter decorative size="lg" />

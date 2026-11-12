@@ -37,6 +37,7 @@ import {
 } from "@/app/i18n";
 import RelayRemoteSettings from "./RelayRemoteSettings.vue";
 import RemoteControlSettings from "./RemoteControlSettings.vue";
+import WeChatRemoteSettings from "./WeChatRemoteSettings.vue";
 import AutoApprovalSettings from "./AutoApprovalSettings.vue";
 import DecisionsModelSettings from "./DecisionsModelSettings.vue";
 import ProjectManagementSettings from "./ProjectManagementSettings.vue";
@@ -134,6 +135,8 @@ const supportsRemoteControl =
   isDesktop && typeof window.pine?.getWebServer === "function";
 const hasRelayRemote =
   isDesktop && typeof window.pine?.getRemoteControl === "function";
+const hasWeChatRemote =
+  isDesktop && typeof window.pine?.getWeChatRemote === "function";
 const appearanceStore = useAppearanceStore();
 const modelsStore = useModelsStore();
 const userProfileStore = useUserProfileStore();
@@ -1850,6 +1853,8 @@ defineExpose({ open });
             <RelayRemoteSettings v-if="hasRelayRemote" />
             <FieldSeparator v-if="hasRelayRemote" class="my-6" />
             <RemoteControlSettings />
+            <FieldSeparator v-if="hasWeChatRemote" class="my-6" />
+            <WeChatRemoteSettings v-if="hasWeChatRemote" />
           </div>
         </ScrollArea>
       </div>

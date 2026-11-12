@@ -136,6 +136,89 @@ export default {
       removeDescription:
         "This device disconnects now and must pair again to reconnect.",
     },
+    wechatRemote: {
+      title: "WeChat",
+      experimental: "Experimental",
+      description:
+        "Send tasks to Pine from your own WeChat through Tencent's ClawBot. It may stop working if Tencent changes its policy.",
+      notConnected: "No WeChat account is connected.",
+      connect: "Connect WeChat",
+      connectTitle: "Connect WeChat",
+      phaseStarting: "Getting a code…",
+      phaseQr: "Scan the code with WeChat on your phone.",
+      phaseScanned: "Scanned. Confirm on your phone.",
+      phaseVerifyCode:
+        "Enter the verification code shown in WeChat on your phone.",
+      phaseConfirming: "Confirming…",
+      verifyCode: "Verification code",
+      verifyRetry: "That code was not accepted. Try again.",
+      submit: "Submit",
+      pairingInstructions:
+        "In WeChat, send any message (a single dot is enough) to the bot. It replies with a 6-digit code. Enter it here.",
+      pairingCode: "6-digit code",
+      pairingWaiting: "Waiting for your message in WeChat…",
+      pairingSent: "The code was sent to WeChat.",
+      attemptsLeft: "Attempts left: {count}",
+      expires: "Expires in {time}.",
+      expired: "The code has expired.",
+      tryAgain: "Try again",
+      account: "WeChat account {digest}",
+      connectedAt: "Connected {date}",
+      statusOnline: "Online",
+      statusConnecting: "Connecting",
+      statusRetrying: "Retrying",
+      statusReauth: "Scan again needed",
+      statusPaused: "Paused",
+      receive: "Receive tasks from WeChat",
+      receiveDescription:
+        "While this is off, Pine ignores messages from WeChat. Only this computer can turn it back on.",
+      scanAgain: "Scan again",
+      disconnect: "Disconnect",
+      disconnectTitle: "Disconnect WeChat?",
+      disconnectDescription:
+        "Sessions that only WeChat holds will stop, and the WeChat permission settings return to their defaults.",
+      defaultProject: "Default project",
+      defaultProjectDescription: "Where a new session from WeChat starts.",
+      ceiling: "Highest approval mode",
+      ceilingDescription:
+        "Sessions driven from WeChat never run with less supervision than this.",
+      yoloWarning:
+        "With YOLO, anyone who gets into your WeChat account controls this computer.",
+      defaultMode: "Default approval mode",
+      defaultModeDescription: "The mode of sessions started from WeChat.",
+      allowHighRisk: "Allow approving high-risk actions from WeChat",
+      allowHighRiskDescription:
+        "Native execution outside the sandbox and destructive commands. Off: they can only be approved on this computer.",
+      allowFiles: "Allow sending files to WeChat",
+      allowFilesDescription:
+        "Only files the agent presented, up to 100 MB each. Files pass through Tencent's servers.",
+      keepAwake: "Keep the computer awake while WeChat is on",
+      keepAwakeDescription: "A closed lid still puts the computer to sleep.",
+      notes: "Good to know",
+      noteRunning:
+        "Works only while Pine is running and the computer is awake.",
+      noteTencent: "Messages pass through Tencent's servers.",
+      noteReadScope:
+        "The connected account can read session titles, search results and replies of every project.",
+      noteNetwork: "A proxy or an overseas network exit may be blocked.",
+      noteOneComputer: "One WeChat account connects to one computer.",
+      serverGuide: "Run Pine on a server",
+      error: {
+        encryptionUnavailable:
+          "This computer cannot store the WeChat credentials securely, so WeChat cannot be connected.",
+        bindingExpired: "The code expired before it was confirmed. Try again.",
+        bindingBlocked: "Tencent refused the connection. Try again later.",
+        pairingFailed:
+          "The pairing code was not confirmed. Connect again to start over.",
+        bindingFailed: "WeChat could not be connected. Try again.",
+        accountMismatch:
+          "A different WeChat account scanned the code. Disconnect first to connect another account.",
+        network:
+          "Tencent's servers cannot be reached. Check the network or proxy.",
+        settingsReset:
+          "WeChat settings could not be read and were reset. WeChat remote is paused.",
+      },
+    },
     projectManagement: {
       title: "Projects",
       description:
@@ -649,6 +732,8 @@ export default {
     newProjectSession: "New session in {project}",
     current: "Current",
     noSessions: "No sessions yet",
+    fromWeChat: "From WeChat",
+    usedFromWeChat: "Used from WeChat",
     awaitingApproval: "Waiting for your approval",
     showSubSessions: "Show sub-sessions ({count})",
     hideSubSessions: "Hide sub-sessions ({count})",
@@ -2143,6 +2228,14 @@ export default {
       deviceTitle: "Unable to update this device",
       description: "Please try again later.",
     },
+    wechatRemote: {
+      loadTitle: "Unable to load WeChat settings",
+      saveTitle: "Unable to update WeChat settings",
+      connectTitle: "Unable to connect WeChat",
+      codeTitle: "Unable to submit the code",
+      disconnectTitle: "Unable to disconnect WeChat",
+      description: "Please try again later.",
+    },
     quickComposer: {
       title: "Unable to update quick composer settings",
       description: "Please try again later.",
@@ -2371,6 +2464,7 @@ export default {
         enable: "Turn on",
         delete: "Delete",
       },
+      viaWeChat: "Requested from WeChat",
       desktopOnly: "Approve this in Pine on the computer that runs it.",
     },
     warnings: {

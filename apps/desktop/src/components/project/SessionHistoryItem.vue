@@ -1,5 +1,10 @@
 <script setup lang="ts">
-import { ChevronRightIcon, ShieldAlertIcon, WorkflowIcon } from "@lucide/vue";
+import {
+  ChevronRightIcon,
+  MessageCircleIcon,
+  ShieldAlertIcon,
+  WorkflowIcon,
+} from "@lucide/vue";
 import { computed, onMounted, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { DURATION_MS, EASE_OUT_EXPO } from "@/lib/motion";
@@ -59,6 +64,19 @@ const runStartedAt = computed(() => {
     hour: "2-digit",
     minute: "2-digit",
   }).format(date);
+});
+
+/** Started from WeChat, or sent a message from WeChat; not for automation runs. */
+const weChatLabel = computed(() => {
+  if (props.session.automationRun) return undefined;
+  switch (props.session.origin) {
+    case "wechat":
+      return t("sessions.fromWeChat");
+    case "wechat-used":
+      return t("sessions.usedFromWeChat");
+    default:
+      return undefined;
+  }
 });
 
 const toggleLabel = computed(() =>
@@ -170,6 +188,16 @@ const emit = defineEmits<{
           class="text-muted-foreground"
           aria-hidden="true"
         />
+        <span
+          v-else-if="weChatLabel"
+          data-slot="session-wechat-origin"
+          class="flex shrink-0 text-muted-foreground"
+          role="img"
+          :aria-label="weChatLabel"
+          :title="weChatLabel"
+        >
+          <MessageCircleIcon class="size-4" aria-hidden="true" />
+        </span>
         <span
           data-slot="session-title"
           :data-running="isRunning || undefined"

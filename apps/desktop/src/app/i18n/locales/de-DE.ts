@@ -140,6 +140,95 @@ export default {
       removeDescription:
         "Dieses Gerät wird sofort getrennt und muss erneut gekoppelt werden, um sich wieder zu verbinden.",
     },
+    wechatRemote: {
+      title: "WeChat",
+      experimental: "Experimentell",
+      description:
+        "Sende Pine Aufgaben aus deinem eigenen WeChat über Tencents ClawBot. Es kann aufhören zu funktionieren, wenn Tencent seine Richtlinien ändert.",
+      notConnected: "Kein WeChat-Konto verbunden.",
+      connect: "WeChat verbinden",
+      connectTitle: "WeChat verbinden",
+      phaseStarting: "Code wird abgerufen…",
+      phaseQr: "Scanne den Code mit WeChat auf deinem Handy.",
+      phaseScanned: "Gescannt. Bestätige auf deinem Handy.",
+      phaseVerifyCode:
+        "Gib den Bestätigungscode ein, den WeChat auf deinem Handy zeigt.",
+      phaseConfirming: "Wird bestätigt…",
+      verifyCode: "Bestätigungscode",
+      verifyRetry: "Der Code wurde nicht akzeptiert. Versuche es erneut.",
+      submit: "Senden",
+      pairingInstructions:
+        "Sende dem Bot in WeChat eine beliebige Nachricht (ein einzelner Punkt genügt). Er antwortet mit einem 6-stelligen Code. Gib ihn hier ein.",
+      pairingCode: "6-stelliger Code",
+      pairingWaiting: "Warte auf deine Nachricht in WeChat…",
+      pairingSent: "Der Code wurde an WeChat gesendet.",
+      attemptsLeft: "Verbleibende Versuche: {count}",
+      expires: "Läuft in {time} ab.",
+      expired: "Der Code ist abgelaufen.",
+      tryAgain: "Erneut versuchen",
+      account: "WeChat-Konto {digest}",
+      connectedAt: "Verbunden {date}",
+      statusOnline: "Online",
+      statusConnecting: "Verbindet",
+      statusRetrying: "Neuer Versuch",
+      statusReauth: "Erneut scannen nötig",
+      statusPaused: "Pausiert",
+      receive: "Aufgaben aus WeChat empfangen",
+      receiveDescription:
+        "Solange dies aus ist, ignoriert Pine Nachrichten aus WeChat. Nur dieser Computer kann es wieder einschalten.",
+      scanAgain: "Erneut scannen",
+      disconnect: "Trennen",
+      disconnectTitle: "WeChat trennen?",
+      disconnectDescription:
+        "Sitzungen, die nur WeChat hält, werden beendet, und die WeChat-Berechtigungen kehren zu ihren Standardwerten zurück.",
+      defaultProject: "Standardprojekt",
+      defaultProjectDescription: "Hier beginnt eine neue Sitzung aus WeChat.",
+      ceiling: "Höchster Freigabemodus",
+      ceilingDescription:
+        "Aus WeChat gesteuerte Sitzungen laufen nie mit weniger Aufsicht als hier eingestellt.",
+      yoloWarning:
+        "Mit YOLO steuert jeder, der in dein WeChat-Konto gelangt, diesen Computer.",
+      defaultMode: "Standard-Freigabemodus",
+      defaultModeDescription:
+        "Der Modus von Sitzungen, die aus WeChat gestartet werden.",
+      allowHighRisk: "Freigabe riskanter Aktionen aus WeChat erlauben",
+      allowHighRiskDescription:
+        "Native Ausführung außerhalb der Sandbox und zerstörerische Befehle. Aus: Sie können nur auf diesem Computer freigegeben werden.",
+      allowFiles: "Senden von Dateien an WeChat erlauben",
+      allowFilesDescription:
+        "Nur Dateien, die der Agent präsentiert hat, bis 100 MB pro Datei. Dateien laufen über Tencents Server.",
+      keepAwake: "Computer wach halten, solange WeChat an ist",
+      keepAwakeDescription:
+        "Ein geschlossener Deckel versetzt den Computer trotzdem in den Ruhezustand.",
+      notes: "Gut zu wissen",
+      noteRunning:
+        "Funktioniert nur, solange Pine läuft und der Computer wach ist.",
+      noteTencent: "Nachrichten laufen über Tencents Server.",
+      noteReadScope:
+        "Das verbundene Konto kann Sitzungstitel, Suchergebnisse und Antworten aller Projekte lesen.",
+      noteNetwork:
+        "Ein Proxy oder ein Netzwerkausgang im Ausland kann blockiert werden.",
+      noteOneComputer: "Ein WeChat-Konto verbindet sich mit einem Computer.",
+      serverGuide: "Pine auf einem Server ausführen",
+      error: {
+        encryptionUnavailable:
+          "Dieser Computer kann die WeChat-Zugangsdaten nicht sicher speichern, daher lässt sich WeChat nicht verbinden.",
+        bindingExpired:
+          "Der Code ist vor der Bestätigung abgelaufen. Versuche es erneut.",
+        bindingBlocked:
+          "Tencent hat die Verbindung abgelehnt. Versuche es später erneut.",
+        pairingFailed:
+          "Der Kopplungscode wurde nicht bestätigt. Verbinde erneut, um neu zu beginnen.",
+        bindingFailed:
+          "WeChat konnte nicht verbunden werden. Versuche es erneut.",
+        accountMismatch:
+          "Ein anderes WeChat-Konto hat den Code gescannt. Trenne zuerst, um ein anderes Konto zu verbinden.",
+        network:
+          "Tencents Server sind nicht erreichbar. Prüfe das Netzwerk oder den Proxy.",
+        settingsReset:
+          "Die WeChat-Einstellungen konnten nicht gelesen werden und wurden zurückgesetzt. WeChat-Fernsteuerung ist pausiert.",
+      },
+    },
     projectManagement: {
       title: "Projekte",
       description:
@@ -660,6 +749,8 @@ export default {
     newProjectSession: "Neue Sitzung in {project}",
     current: "Aktuell",
     noSessions: "Noch keine Sitzungen",
+    fromWeChat: "Aus WeChat",
+    usedFromWeChat: "Aus WeChat verwendet",
     awaitingApproval: "Wartet auf deine Freigabe",
     showSubSessions: "Untersitzungen anzeigen ({count})",
     hideSubSessions: "Untersitzungen ausblenden ({count})",
@@ -2209,6 +2300,14 @@ export default {
       deviceTitle: "Dieses Gerät konnte nicht aktualisiert werden",
       description: "Bitte versuchen Sie es später erneut.",
     },
+    wechatRemote: {
+      loadTitle: "WeChat-Einstellungen können nicht geladen werden",
+      saveTitle: "WeChat-Einstellungen können nicht aktualisiert werden",
+      connectTitle: "WeChat kann nicht verbunden werden",
+      codeTitle: "Der Code kann nicht gesendet werden",
+      disconnectTitle: "WeChat kann nicht getrennt werden",
+      description: "Bitte versuche es später erneut.",
+    },
     quickComposer: {
       title:
         "Einstellungen der Schnelleingabe konnten nicht aktualisiert werden",
@@ -2449,6 +2548,7 @@ export default {
         enable: "Einschalten",
         delete: "Löschen",
       },
+      viaWeChat: "Aus WeChat angefordert",
       desktopOnly: "Gib dies in Pine auf dem Computer frei, der sie ausführt.",
     },
     warnings: {

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { TriangleAlertIcon } from "@lucide/vue";
+import { MessageCircleIcon, TriangleAlertIcon } from "@lucide/vue";
 import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import ApprovalGuidanceComposer from "@/components/approval/ApprovalGuidanceComposer.vue";
@@ -114,6 +114,14 @@ onBeforeUnmount(() => window.removeEventListener("keydown", handleShortcut));
       <CardDescription>{{
         t("automations.approval.description", { project: approval.projectName })
       }}</CardDescription>
+      <p
+        v-if="approval.via === 'wechat'"
+        data-slot="automation-approval-via"
+        class="flex items-center gap-1.5 text-sm text-muted-foreground"
+      >
+        <MessageCircleIcon class="size-4 shrink-0" aria-hidden="true" />
+        {{ t("automations.approval.viaWeChat") }}
+      </p>
     </CardHeader>
     <CardContent
       class="scroll-fade-y flex min-h-0 flex-col gap-3 overflow-y-auto overscroll-contain"

@@ -140,6 +140,95 @@ export default {
       removeDescription:
         "このデバイスは今すぐ切断され、再接続するには再度ペアリングが必要です。",
     },
+    wechatRemote: {
+      title: "WeChat",
+      experimental: "試験運用",
+      description:
+        "Tencent の ClawBot を通じて、自分の WeChat から Pine にタスクを送れます。Tencent のポリシー変更により使えなくなる場合があります。",
+      notConnected: "WeChat アカウントは接続されていません。",
+      connect: "WeChat を接続",
+      connectTitle: "WeChat を接続",
+      phaseStarting: "コードを取得しています…",
+      phaseQr: "スマートフォンの WeChat でコードをスキャンしてください。",
+      phaseScanned: "スキャンしました。スマートフォンで確認してください。",
+      phaseVerifyCode:
+        "スマートフォンの WeChat に表示された確認コードを入力してください。",
+      phaseConfirming: "確認しています…",
+      verifyCode: "確認コード",
+      verifyRetry: "コードが受け付けられませんでした。もう一度お試しください。",
+      submit: "送信",
+      pairingInstructions:
+        "WeChat でボットに任意のメッセージ（ドット 1 つで十分です）を送ってください。6 桁のコードが返信されるので、ここに入力してください。",
+      pairingCode: "6 桁のコード",
+      pairingWaiting: "WeChat からのメッセージを待っています…",
+      pairingSent: "コードを WeChat に送りました。",
+      attemptsLeft: "残り回数：{count}",
+      expires: "{time} で期限切れになります。",
+      expired: "コードの期限が切れました。",
+      tryAgain: "再試行",
+      account: "WeChat アカウント {digest}",
+      connectedAt: "{date} に接続",
+      statusOnline: "オンライン",
+      statusConnecting: "接続中",
+      statusRetrying: "再試行中",
+      statusReauth: "再スキャンが必要",
+      statusPaused: "一時停止中",
+      receive: "WeChat からタスクを受け取る",
+      receiveDescription:
+        "オフの間、Pine は WeChat からのメッセージを無視します。再びオンにできるのはこのコンピュータだけです。",
+      scanAgain: "再スキャン",
+      disconnect: "切断",
+      disconnectTitle: "WeChat を切断しますか？",
+      disconnectDescription:
+        "WeChat だけが保持しているセッションは停止し、WeChat の権限設定は既定値に戻ります。",
+      defaultProject: "既定のプロジェクト",
+      defaultProjectDescription:
+        "WeChat から作成したセッションを開始する場所です。",
+      ceiling: "最も緩い承認モード",
+      ceilingDescription:
+        "WeChat から操作するセッションは、これより監督の少ないモードでは動きません。",
+      yoloWarning:
+        "YOLO では、WeChat アカウントに入り込んだ人がこのコンピュータを操作できます。",
+      defaultMode: "既定の承認モード",
+      defaultModeDescription: "WeChat から作成したセッションのモードです。",
+      allowHighRisk: "高リスクの操作を WeChat から承認できるようにする",
+      allowHighRiskDescription:
+        "サンドボックス外のネイティブ実行と破壊的なコマンド。オフの場合、このコンピュータでのみ承認できます。",
+      allowFiles: "WeChat へのファイル送信を許可",
+      allowFilesDescription:
+        "エージェントが提示したファイルのみ、1 つ 100 MB まで。ファイルは Tencent のサーバーを経由します。",
+      keepAwake: "WeChat がオンの間はスリープしない",
+      keepAwakeDescription: "蓋を閉じるとスリープします。",
+      notes: "注意事項",
+      noteRunning:
+        "Pine が実行中で、コンピュータがスリープしていないときだけ使えます。",
+      noteTencent: "メッセージは Tencent のサーバーを経由します。",
+      noteReadScope:
+        "接続したアカウントは、すべてのプロジェクトのセッション名、検索結果、返信を読めます。",
+      noteNetwork:
+        "プロキシや海外のネットワーク出口はブロックされる場合があります。",
+      noteOneComputer:
+        "1 つの WeChat アカウントは 1 台のコンピュータにだけ接続できます。",
+      serverGuide: "サーバーで Pine を実行",
+      error: {
+        encryptionUnavailable:
+          "このコンピュータは WeChat の資格情報を安全に保存できないため、WeChat を接続できません。",
+        bindingExpired:
+          "確認される前にコードの期限が切れました。もう一度お試しください。",
+        bindingBlocked:
+          "Tencent が接続を拒否しました。しばらくしてからお試しください。",
+        pairingFailed:
+          "ペアリングコードが確認されませんでした。もう一度接続してください。",
+        bindingFailed:
+          "WeChat を接続できませんでした。もう一度お試しください。",
+        accountMismatch:
+          "別の WeChat アカウントがコードをスキャンしました。別のアカウントを接続するには、先に切断してください。",
+        network:
+          "Tencent のサーバーに接続できません。ネットワークまたはプロキシを確認してください。",
+        settingsReset:
+          "WeChat の設定を読み込めなかったため、リセットしました。WeChat リモートは一時停止中です。",
+      },
+    },
     projectManagement: {
       title: "プロジェクト",
       description:
@@ -652,6 +741,8 @@ export default {
     newProjectSession: "{project} で新規セッション",
     current: "現在",
     noSessions: "セッションはまだありません",
+    fromWeChat: "WeChat から",
+    usedFromWeChat: "WeChat で使用",
     awaitingApproval: "承認待ち",
     showSubSessions: "サブセッションを表示（{count}）",
     hideSubSessions: "サブセッションを隠す（{count}）",
@@ -2176,6 +2267,14 @@ export default {
       deviceTitle: "このデバイスを更新できません",
       description: "しばらくしてからもう一度お試しください。",
     },
+    wechatRemote: {
+      loadTitle: "WeChat の設定を読み込めません",
+      saveTitle: "WeChat の設定を更新できません",
+      connectTitle: "WeChat を接続できません",
+      codeTitle: "コードを送信できません",
+      disconnectTitle: "WeChat を切断できません",
+      description: "しばらくしてからもう一度お試しください。",
+    },
     quickComposer: {
       title: "クイックコンポーザーの設定を更新できません",
       description: "しばらくしてからもう一度お試しください。",
@@ -2405,6 +2504,7 @@ export default {
         enable: "オンにする",
         delete: "削除",
       },
+      viaWeChat: "WeChat からのリクエスト",
       desktopOnly: "実行するコンピュータの Pine で承認してください。",
     },
     warnings: {

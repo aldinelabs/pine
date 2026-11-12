@@ -76,6 +76,35 @@ describe("SessionHistoryItem", () => {
     ).toBe(false);
   });
 
+  it("marks sessions WeChat started or used", () => {
+    const marker = (item: ProjectSessionSearchResult) =>
+      mountItem(item).find('[data-slot="session-wechat-origin"]');
+    const started = marker({ ...session, origin: "wechat" });
+    expect(started.attributes("aria-label")).toBe("From WeChat");
+    expect(started.attributes("title")).toBe("From WeChat");
+    expect(
+      marker({ ...session, origin: "wechat-used" }).attributes("title"),
+    ).toBe("Used from WeChat");
+    expect(marker(session).exists()).toBe(false);
+    // An automation run keeps its own icon.
+    const run = mountItem({
+      ...session,
+      origin: "wechat",
+      automationRun: {
+        automationId: "a1",
+        runId: "r1",
+        name: "Daily summary",
+        startedAt: "2026-11-03T09:05:00.000Z",
+      },
+    });
+    expect(run.find('[data-slot="session-wechat-origin"]').exists()).toBe(
+      false,
+    );
+    expect(run.find('[data-slot="session-automation-icon"]').exists()).toBe(
+      true,
+    );
+  });
+
   it("marks a session waiting for the user's approval", async () => {
     const wrapper = mountItem();
     const marker = () =>

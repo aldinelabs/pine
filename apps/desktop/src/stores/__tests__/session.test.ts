@@ -617,6 +617,35 @@ describe("session store", () => {
     });
   });
 
+  it("knows which sessions WeChat started or used", async () => {
+    Object.defineProperty(window, "pine", { configurable: true, value: {} });
+    const store = useSessionStore();
+    const started = { ...session, id: "started", origin: "wechat" as const };
+    const used = { ...session, id: "used", origin: "wechat-used" as const };
+    const run = {
+      ...session,
+      id: "run",
+      origin: "wechat" as const,
+      automationRun: {
+        automationId: "a1",
+        runId: "r1",
+        name: "Daily summary",
+        startedAt: "2026-11-03T09:00:00.000Z",
+      },
+    };
+    await seedRecent(store, [started, used, session, run]);
+
+    expect(store.originOf("started")).toBe("wechat");
+    expect(store.originOf("used")).toBe("wechat-used");
+    expect(store.originOf(session.id)).toBeUndefined();
+    expect(store.originOf("run")).toBeUndefined();
+    expect(store.originOf("unknown")).toBeUndefined();
+
+    // A loaded session's own summary wins over the list it came from.
+    store.stateFor(session.id).summary = { ...session, origin: "wechat-used" };
+    expect(store.originOf(session.id)).toBe("wechat-used");
+  });
+
   it("treats a run's session as ordinary once the user replies", async () => {
     const run = {
       automationId: "a1",

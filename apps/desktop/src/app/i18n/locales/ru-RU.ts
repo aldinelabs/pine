@@ -138,6 +138,88 @@ export default {
       removeDescription:
         "Устройство будет отключено сейчас, и для повторного подключения его придётся привязать заново.",
     },
+    wechatRemote: {
+      title: "WeChat",
+      experimental: "Экспериментально",
+      description:
+        "Отправляйте задачи в Pine из своего WeChat через ClawBot от Tencent. Функция может перестать работать, если Tencent изменит правила.",
+      notConnected: "Аккаунт WeChat не подключён.",
+      connect: "Подключить WeChat",
+      connectTitle: "Подключить WeChat",
+      phaseStarting: "Получение кода…",
+      phaseQr: "Отсканируйте код в WeChat на телефоне.",
+      phaseScanned: "Отсканировано. Подтвердите на телефоне.",
+      phaseVerifyCode:
+        "Введите код подтверждения, который WeChat показывает на телефоне.",
+      phaseConfirming: "Подтверждение…",
+      verifyCode: "Код подтверждения",
+      verifyRetry: "Код не принят. Попробуйте ещё раз.",
+      submit: "Отправить",
+      pairingInstructions:
+        "В WeChat отправьте боту любое сообщение (достаточно одной точки). Он ответит 6-значным кодом. Введите его здесь.",
+      pairingCode: "6-значный код",
+      pairingWaiting: "Ожидание вашего сообщения в WeChat…",
+      pairingSent: "Код отправлен в WeChat.",
+      attemptsLeft: "Осталось попыток: {count}",
+      expires: "Истекает через {time}.",
+      expired: "Срок действия кода истёк.",
+      tryAgain: "Повторить",
+      account: "Аккаунт WeChat {digest}",
+      connectedAt: "Подключён {date}",
+      statusOnline: "В сети",
+      statusConnecting: "Подключение",
+      statusRetrying: "Повторная попытка",
+      statusReauth: "Нужно отсканировать снова",
+      statusPaused: "Приостановлено",
+      receive: "Принимать задачи из WeChat",
+      receiveDescription:
+        "Пока это выключено, Pine игнорирует сообщения из WeChat. Включить снова можно только на этом компьютере.",
+      scanAgain: "Отсканировать снова",
+      disconnect: "Отключить",
+      disconnectTitle: "Отключить WeChat?",
+      disconnectDescription:
+        "Сеансы, которые удерживает только WeChat, остановятся, а разрешения WeChat вернутся к значениям по умолчанию.",
+      defaultProject: "Проект по умолчанию",
+      defaultProjectDescription: "Где начинается новый сеанс из WeChat.",
+      ceiling: "Наивысший режим одобрения",
+      ceilingDescription:
+        "Сеансы, управляемые из WeChat, никогда не работают с меньшим контролем, чем здесь.",
+      yoloWarning:
+        "В режиме YOLO любой, кто получит доступ к вашему WeChat, управляет этим компьютером.",
+      defaultMode: "Режим одобрения по умолчанию",
+      defaultModeDescription: "Режим сеансов, начатых из WeChat.",
+      allowHighRisk: "Разрешить одобрять рискованные действия из WeChat",
+      allowHighRiskDescription:
+        "Нативное выполнение вне песочницы и разрушительные команды. Выключено: их можно одобрить только на этом компьютере.",
+      allowFiles: "Разрешить отправку файлов в WeChat",
+      allowFilesDescription:
+        "Только файлы, которые показал агент, до 100 МБ каждый. Файлы проходят через серверы Tencent.",
+      keepAwake: "Не давать компьютеру засыпать, пока WeChat включён",
+      keepAwakeDescription:
+        "Закрытая крышка всё равно переводит компьютер в сон.",
+      notes: "Полезно знать",
+      noteRunning: "Работает, только пока Pine запущен и компьютер не спит.",
+      noteTencent: "Сообщения проходят через серверы Tencent.",
+      noteReadScope:
+        "Подключённый аккаунт может читать названия сеансов, результаты поиска и ответы во всех проектах.",
+      noteNetwork: "Прокси или зарубежный сетевой выход могут блокироваться.",
+      noteOneComputer: "Один аккаунт WeChat подключается к одному компьютеру.",
+      serverGuide: "Запуск Pine на сервере",
+      error: {
+        encryptionUnavailable:
+          "Этот компьютер не может надёжно хранить учётные данные WeChat, поэтому WeChat нельзя подключить.",
+        bindingExpired:
+          "Срок действия кода истёк до подтверждения. Попробуйте ещё раз.",
+        bindingBlocked: "Tencent отклонил подключение. Попробуйте позже.",
+        pairingFailed: "Код сопряжения не подтверждён. Подключитесь заново.",
+        bindingFailed: "Не удалось подключить WeChat. Попробуйте ещё раз.",
+        accountMismatch:
+          "Код отсканировал другой аккаунт WeChat. Чтобы подключить другой аккаунт, сначала отключите текущий.",
+        network: "Серверы Tencent недоступны. Проверьте сеть или прокси.",
+        settingsReset:
+          "Настройки WeChat не удалось прочитать, и они сброшены. Управление из WeChat приостановлено.",
+      },
+    },
     projectManagement: {
       title: "Проекты",
       description:
@@ -656,6 +738,8 @@ export default {
     newProjectSession: "Новый сеанс в «{project}»",
     current: "Текущий",
     noSessions: "Сеансов пока нет",
+    fromWeChat: "Из WeChat",
+    usedFromWeChat: "Использовался из WeChat",
     awaitingApproval: "Ожидает вашего подтверждения",
     showSubSessions: "Показать подсеансы ({count})",
     hideSubSessions: "Скрыть подсеансы ({count})",
@@ -2179,6 +2263,14 @@ export default {
       deviceTitle: "Не удалось обновить это устройство",
       description: "Повторите попытку позже.",
     },
+    wechatRemote: {
+      loadTitle: "Не удалось загрузить настройки WeChat",
+      saveTitle: "Не удалось обновить настройки WeChat",
+      connectTitle: "Не удалось подключить WeChat",
+      codeTitle: "Не удалось отправить код",
+      disconnectTitle: "Не удалось отключить WeChat",
+      description: "Попробуйте позже.",
+    },
     quickComposer: {
       title: "Не удалось обновить настройки быстрого ввода",
       description: "Повторите попытку позже.",
@@ -2411,6 +2503,7 @@ export default {
         enable: "Включить",
         delete: "Удалить",
       },
+      viaWeChat: "Запрошено из WeChat",
       desktopOnly: "Одобрите это в Pine на компьютере, где она работает.",
     },
     warnings: {

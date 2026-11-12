@@ -136,6 +136,87 @@ export default {
       removeDescription:
         "이 기기는 지금 연결이 끊기며, 다시 연결하려면 다시 페어링해야 합니다.",
     },
+    wechatRemote: {
+      title: "WeChat",
+      experimental: "실험적",
+      description:
+        "Tencent의 ClawBot을 통해 내 WeChat에서 Pine으로 작업을 보냅니다. Tencent의 정책이 바뀌면 작동하지 않을 수 있습니다.",
+      notConnected: "연결된 WeChat 계정이 없습니다.",
+      connect: "WeChat 연결",
+      connectTitle: "WeChat 연결",
+      phaseStarting: "코드를 가져오는 중…",
+      phaseQr: "휴대폰의 WeChat으로 코드를 스캔하세요.",
+      phaseScanned: "스캔했습니다. 휴대폰에서 확인하세요.",
+      phaseVerifyCode: "휴대폰 WeChat에 표시된 인증 코드를 입력하세요.",
+      phaseConfirming: "확인하는 중…",
+      verifyCode: "인증 코드",
+      verifyRetry: "코드가 맞지 않습니다. 다시 시도하세요.",
+      submit: "제출",
+      pairingInstructions:
+        "WeChat에서 봇에게 아무 메시지나 보내세요(점 하나면 충분합니다). 6자리 코드로 답장하면 여기에 입력하세요.",
+      pairingCode: "6자리 코드",
+      pairingWaiting: "WeChat에서 보낼 메시지를 기다리는 중…",
+      pairingSent: "코드를 WeChat으로 보냈습니다.",
+      attemptsLeft: "남은 시도: {count}",
+      expires: "{time} 후 만료됩니다.",
+      expired: "코드가 만료되었습니다.",
+      tryAgain: "다시 시도",
+      account: "WeChat 계정 {digest}",
+      connectedAt: "{date}에 연결됨",
+      statusOnline: "온라인",
+      statusConnecting: "연결 중",
+      statusRetrying: "다시 시도 중",
+      statusReauth: "다시 스캔 필요",
+      statusPaused: "일시 중지됨",
+      receive: "WeChat에서 작업 받기",
+      receiveDescription:
+        "꺼져 있는 동안 Pine은 WeChat 메시지를 무시합니다. 다시 켜는 것은 이 컴퓨터에서만 할 수 있습니다.",
+      scanAgain: "다시 스캔",
+      disconnect: "연결 해제",
+      disconnectTitle: "WeChat 연결을 해제할까요?",
+      disconnectDescription:
+        "WeChat만 보유한 세션은 중지되고, WeChat 권한 설정은 기본값으로 돌아갑니다.",
+      defaultProject: "기본 프로젝트",
+      defaultProjectDescription: "WeChat에서 만든 새 세션이 시작되는 곳입니다.",
+      ceiling: "최고 승인 모드",
+      ceilingDescription:
+        "WeChat으로 진행하는 세션은 이보다 감독이 적은 모드로 실행되지 않습니다.",
+      yoloWarning:
+        "YOLO에서는 WeChat 계정에 들어온 누구나 이 컴퓨터를 제어할 수 있습니다.",
+      defaultMode: "기본 승인 모드",
+      defaultModeDescription: "WeChat에서 만든 세션의 모드입니다.",
+      allowHighRisk: "WeChat에서 고위험 작업 승인 허용",
+      allowHighRiskDescription:
+        "샌드박스 밖의 네이티브 실행과 파괴적인 명령입니다. 끄면 이 컴퓨터에서만 승인할 수 있습니다.",
+      allowFiles: "WeChat으로 파일 보내기 허용",
+      allowFilesDescription:
+        "에이전트가 제시한 파일만, 파일당 최대 100MB. 파일은 Tencent 서버를 거칩니다.",
+      keepAwake: "WeChat이 켜져 있는 동안 컴퓨터 깨우기 유지",
+      keepAwakeDescription: "덮개를 닫으면 여전히 잠자기 상태가 됩니다.",
+      notes: "참고",
+      noteRunning: "Pine이 실행 중이고 컴퓨터가 깨어 있을 때만 작동합니다.",
+      noteTencent: "메시지는 Tencent 서버를 거칩니다.",
+      noteReadScope:
+        "연결된 계정은 모든 프로젝트의 세션 제목, 검색 결과, 답장을 읽을 수 있습니다.",
+      noteNetwork: "프록시나 해외 네트워크 출구는 차단될 수 있습니다.",
+      noteOneComputer: "WeChat 계정 하나는 컴퓨터 한 대에만 연결됩니다.",
+      serverGuide: "서버에서 Pine 실행",
+      error: {
+        encryptionUnavailable:
+          "이 컴퓨터는 WeChat 자격 증명을 안전하게 저장할 수 없어 WeChat을 연결할 수 없습니다.",
+        bindingExpired: "확인되기 전에 코드가 만료되었습니다. 다시 시도하세요.",
+        bindingBlocked:
+          "Tencent가 연결을 거부했습니다. 나중에 다시 시도하세요.",
+        pairingFailed: "페어링 코드가 확인되지 않았습니다. 다시 연결하세요.",
+        bindingFailed: "WeChat을 연결할 수 없습니다. 다시 시도하세요.",
+        accountMismatch:
+          "다른 WeChat 계정이 코드를 스캔했습니다. 다른 계정을 연결하려면 먼저 연결을 해제하세요.",
+        network:
+          "Tencent 서버에 연결할 수 없습니다. 네트워크나 프록시를 확인하세요.",
+        settingsReset:
+          "WeChat 설정을 읽을 수 없어 초기화했습니다. WeChat 원격이 일시 중지되었습니다.",
+      },
+    },
     projectManagement: {
       title: "프로젝트",
       description:
@@ -646,6 +727,8 @@ export default {
     newProjectSession: "{project}에서 새 세션",
     current: "현재",
     noSessions: "아직 세션이 없습니다",
+    fromWeChat: "WeChat에서 시작",
+    usedFromWeChat: "WeChat에서 사용됨",
     awaitingApproval: "승인 대기 중",
     showSubSessions: "하위 세션 펼치기({count})",
     hideSubSessions: "하위 세션 접기({count})",
@@ -2146,6 +2229,14 @@ export default {
       deviceTitle: "이 기기를 업데이트할 수 없습니다",
       description: "나중에 다시 시도하세요.",
     },
+    wechatRemote: {
+      loadTitle: "WeChat 설정을 불러올 수 없습니다",
+      saveTitle: "WeChat 설정을 업데이트할 수 없습니다",
+      connectTitle: "WeChat을 연결할 수 없습니다",
+      codeTitle: "코드를 제출할 수 없습니다",
+      disconnectTitle: "WeChat 연결을 해제할 수 없습니다",
+      description: "잠시 후 다시 시도하세요.",
+    },
     quickComposer: {
       title: "빠른 입력창 설정을 업데이트할 수 없습니다",
       description: "나중에 다시 시도하세요.",
@@ -2373,6 +2464,7 @@ export default {
         enable: "켜기",
         delete: "삭제",
       },
+      viaWeChat: "WeChat에서 요청함",
       desktopOnly: "실행할 컴퓨터의 Pine에서 승인하세요.",
     },
     warnings: {
