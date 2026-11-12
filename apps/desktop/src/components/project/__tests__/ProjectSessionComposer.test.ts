@@ -959,7 +959,7 @@ describe("ProjectSessionComposer", () => {
     ).toBe(false);
     background.unmount();
   });
-  it("does not glow while an approval card replaces the text box", () => {
+  it("unmounts the glow with the text box when an approval card replaces it", () => {
     const wrapper = mountComposer({
       isRunning: true,
       isActive: true,

@@ -224,13 +224,11 @@ const hasPendingInterruption = computed(() =>
   ),
 );
 /**
- * The text box glows while this tab's agent works. Cards waiting on the user
- * take the text box's place, and background tabs stay still.
+ * The text box glows while this tab's agent works; background tabs stay
+ * still. Approval and questionnaire cards replace the text box, so the glow
+ * goes with it.
  */
-const glowActive = computed(
-  () =>
-    Boolean(props.isRunning && props.isActive) && !hasPendingInterruption.value,
-);
+const glowActive = computed(() => Boolean(props.isRunning && props.isActive));
 const approvalModes = computed<ApprovalModeOption[]>(() => [
   {
     value: "let-me-review",
