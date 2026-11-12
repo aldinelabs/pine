@@ -51,6 +51,19 @@ describe("createReportProgressToolDefinition", () => {
     expect(description).toMatch(/never both in the same step/);
   });
 
+  // Citation cards resolve within one text block, and each report is its own
+  // block: a footnote defined only in the final reply would dangle here.
+  it("tells the model to define a report's footnotes in that report", () => {
+    const { description } = createReportProgressToolDefinition();
+    expect(description).toMatch(/Each report is rendered on its own/);
+    expect(description).toMatch(
+      /define those footnotes at the end of that same report/,
+    );
+    expect(description).toMatch(
+      /define them again in the final reply if it cites them too/,
+    );
+  });
+
   // The acknowledgement is the last thing the model reads before it goes on.
   it("acknowledges with the end-of-turn rule", () => {
     for (const ack of [REPORT_PROGRESS_ACK, REPORT_PROGRESS_LONG_ACK]) {

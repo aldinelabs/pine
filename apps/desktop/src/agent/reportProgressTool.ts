@@ -29,6 +29,7 @@ const DESCRIPTION = [
   "- Do not use it for simple questions or short tasks; answer those directly.",
   "- It never replaces the final answer. Always end the turn with a normal reply. The user has already read your reports, so the final reply confirms, corrects or extends them instead of repeating them word for word.",
   "- Write in the language the user is using, and keep each report short: a few sentences to a few short paragraphs.",
+  "- Each report is rendered on its own, separately from the final reply. If a report cites web sources with footnote markers such as [^1], define those footnotes at the end of that same report, and define them again in the final reply if it cites them too.",
   "",
   "After the call returns, continue the work immediately. Do not stop and do not wait for the user to respond.",
 ].join("\n");
