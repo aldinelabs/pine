@@ -269,3 +269,96 @@ describe("PineAgentEventForwarder tool result messages", () => {
     ]);
   });
 });
+
+describe("PineAgentEventForwarder session summaries", () => {
+  function createSummaryForwarder() {
+    const emitted: PineAgentEvent[] = [];
+    const entries: { type: string; message?: unknown; timestamp: string }[] =
+      [];
+    const session = {
+      sessionId: SESSION_ID,
+      sessionName: undefined as string | undefined,
+      model: undefined,
+      sessionManager: {
+        getHeader: () => ({ timestamp: "2026-01-01T00:00:00.000Z" }),
+        getEntries: () => entries,
+      },
+    };
+    const live = { session } as unknown as LiveAgentSession;
+    const forwarder = new PineAgentEventForwarder({
+      emit: (event) => {
+        emitted.push(event);
+      },
+      getLiveSession: () => live,
+      getSession: () => live,
+      emitSteeringQueue: vi.fn(),
+      recordApprovalDecision: vi.fn(),
+      generateInitialTitle: vi.fn(() => Promise.resolve()),
+      getContextUsage: vi.fn(() => undefined),
+      emitContextUsage: vi.fn(),
+    });
+    const forward = (type: string) => {
+      forwarder.forward(
+        session as unknown as AgentSession,
+        { type } as unknown as AgentSessionEvent,
+      );
+    };
+    const summaries = () =>
+      emitted.flatMap((event) =>
+        event.type === "session-updated" ? [event.summary] : [],
+      );
+    return { entries, forward, forwarder, session, summaries };
+  }
+
+  it("sends the first summary and skips equal ones", () => {
+    const { entries, forward, summaries } = createSummaryForwarder();
+    entries.push({ type: "custom", timestamp: "2026-01-01T00:00:01.000Z" });
+    forward("entry_appended");
+    entries.push({ type: "custom", timestamp: "2026-01-01T00:00:02.000Z" });
+    forward("entry_appended");
+    forward("session_info_changed");
+
+    expect(summaries()).toHaveLength(1);
+    expect(summaries()[0]).toMatchObject({ id: SESSION_ID, messageCount: 0 });
+  });
+
+  it("sends a summary whose content changed", () => {
+    const { entries, forward, session, summaries } = createSummaryForwarder();
+    forward("entry_appended");
+    entries.push({
+      type: "message",
+      message: { role: "user", content: "hi", timestamp: Date.UTC(2026, 0, 2) },
+      timestamp: "2026-01-02T00:00:00.000Z",
+    });
+    forward("entry_appended");
+    session.sessionName = "Renamed";
+    forward("session_info_changed");
+
+    expect(summaries()).toEqual([
+      expect.objectContaining({ messageCount: 0 }),
+      expect.objectContaining({
+        messageCount: 1,
+        updatedAt: "2026-01-02T00:00:00.000Z",
+      }),
+      expect.objectContaining({ messageCount: 1, name: "Renamed" }),
+    ]);
+  });
+
+  it("always sends the summary when the run settles", () => {
+    const { forward, summaries } = createSummaryForwarder();
+    forward("entry_appended");
+    forward("agent_settled");
+
+    expect(summaries()).toHaveLength(2);
+    expect(summaries()[1]).toEqual(summaries()[0]);
+  });
+
+  it("sends the first summary again after the session is cleared", () => {
+    const { forward, forwarder, summaries } = createSummaryForwarder();
+    forward("entry_appended");
+    forwarder.clearSession(SESSION_ID);
+    forward("entry_appended");
+
+    expect(summaries()).toHaveLength(2);
+  });
+});

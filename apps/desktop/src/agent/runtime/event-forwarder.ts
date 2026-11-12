@@ -115,6 +115,11 @@ export class PineAgentEventForwarder {
    * runtime find the entry the renderer means.
    */
   private readonly streamedMessages = new Map<string, Map<string, unknown>>();
+  /**
+   * The JSON of the last summary sent per session. Most appended entries
+   * leave the summary as it was, so an equal one is not sent again.
+   */
+  private readonly emittedSummaries = new Map<string, string>();
 
   constructor(private readonly options: PineAgentEventForwarderOptions) {}
 
@@ -125,6 +130,7 @@ export class PineAgentEventForwarder {
     this.clearToolUpdates(sessionId);
     this.activeCompactionIds.delete(sessionId);
     this.streamedMessages.delete(sessionId);
+    this.emittedSummaries.delete(sessionId);
   }
 
   /** Sends everything still batched and stops every timer. */
@@ -312,13 +318,11 @@ export class PineAgentEventForwarder {
         break;
       case "entry_appended":
       case "session_info_changed":
-        this.options.emit({
-          type: "session-updated",
-          sessionId,
-          summary: sessionSummary(session),
-        });
+        this.emitSessionSummary(session, false);
         break;
       case "agent_settled":
+        // The run's final summary always goes out.
+        this.emitSessionSummary(session, true);
         void this.options.generateInitialTitle(
           this.options.getSession(sessionId),
         );
@@ -326,6 +330,15 @@ export class PineAgentEventForwarder {
       default:
         break;
     }
+  }
+
+  private emitSessionSummary(session: AgentSession, always: boolean): void {
+    const sessionId = session.sessionId;
+    const summary = sessionSummary(session);
+    const json = JSON.stringify(summary);
+    if (!always && this.emittedSummaries.get(sessionId) === json) return;
+    this.emittedSummaries.set(sessionId, json);
+    this.options.emit({ type: "session-updated", sessionId, summary });
   }
 
   private queueMessageUpdate(
