@@ -2,7 +2,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { DEFAULT_WECHAT_SETTINGS } from "../../../shared/wechatRemote";
 import type { ChannelSendResult, MessageChannel } from "../channel";
-import { MERGE_WINDOW_MS, OUT_QUEUE_MAX, USABLE } from "../constants";
+import {
+  MERGE_WINDOW_MS,
+  OUT_QUEUE_MAX,
+  REPLY_MAX,
+  USABLE,
+} from "../constants";
 import { Outbound, type OutboundDeps, type OutboundPush } from "../outbound";
 import type {
   DigestItem,
@@ -277,6 +282,51 @@ describe("Outbound pushes", () => {
       "CARD 11\n\nCARD 12\n\nCARD 13",
     ]);
     expect(t.store.get().outQueue.map((q) => q.key)).toEqual(["ask:14"]);
+  });
+
+  it("keeps every merged message within REPLY_MAX", async () => {
+    const t = setup();
+    t.outbound.onInbound("ctx-1");
+    const long = (push: OutboundPush, size: number): OutboundPush => ({
+      ...push,
+      text: `${push.text} ${"字".repeat(size)}`,
+    });
+    for (const n of [11, 12, 13]) t.outbound.push(long(card(n), 500));
+    for (const id of ["s1", "s2", "s3"]) {
+      t.outbound.push(long(result(id), 300));
+    }
+    await settle();
+    for (const sent of t.sent) {
+      expect(Array.from(sent.text).length).toBeLessThanOrEqual(REPLY_MAX);
+    }
+    expect(t.sent[0]?.text).toMatch(/^CARD 11 /);
+    expect(t.sent[0]?.text).toContain("CARD 13");
+    const delivered = t.delivered.map(([key]) => key);
+    expect(delivered).toEqual([
+      "ask:11",
+      "ask:12",
+      "ask:13",
+      "result:s1",
+      "result:s2",
+      "result:s3",
+    ]);
+    expect(t.sent).toHaveLength(2);
+  });
+
+  it("names the cards that do not fit with T-MORECARDS", async () => {
+    const t = setup();
+    t.outbound.onInbound("ctx-1");
+    for (const n of [11, 12, 13]) {
+      t.outbound.push({ ...card(n), text: `CARD ${n} ${"字".repeat(800)}` });
+    }
+    await settle();
+    expect(t.sent).toHaveLength(1);
+    const text = t.sent[0]?.text ?? "";
+    expect(Array.from(text).length).toBeLessThanOrEqual(REPLY_MAX);
+    expect(text).toContain("CARD 12");
+    expect(text).not.toContain("CARD 13");
+    expect(text.endsWith("MORE 1")).toBe(true);
+    expect(t.delivered.map(([key]) => key)).toEqual(["ask:11", "ask:12"]);
   });
 
   it("starts a new message after the window", async () => {

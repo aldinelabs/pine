@@ -42,6 +42,28 @@ export interface OutboundDeps {
 
 const SEPARATOR = "\n\n";
 
+/** The pushes (and an optional trailing line) joined fit in one message. */
+function fits(items: readonly OutboundPush[], tail?: string): boolean {
+  const parts = items.map((item) => item.text);
+  if (tail !== undefined) parts.push(tail);
+  return Array.from(parts.join(SEPARATOR)).length <= REPLY_MAX;
+}
+
+/** Splits pushes, in order, into messages of at most REPLY_MAX code points. */
+function fitChunks(items: readonly OutboundPush[]): OutboundPush[][] {
+  const chunks: OutboundPush[][] = [];
+  let current: OutboundPush[] = [];
+  for (const item of items) {
+    if (current.length > 0 && !fits([...current, item])) {
+      chunks.push(current);
+      current = [];
+    }
+    current.push(item);
+  }
+  if (current.length > 0) chunks.push(current);
+  return chunks;
+}
+
 export class Outbound {
   private buffer: OutboundPush[] = [];
   private timer: ReturnType<typeof setTimeout> | undefined;
@@ -170,22 +192,30 @@ export class Outbound {
   private async sendPushes(items: OutboundPush[]): Promise<void> {
     const plan = planMerge(items);
     if (plan.merged.length > 0) {
-      const more =
-        plan.overflow.length > 0
-          ? this.deps.renderMoreCards?.(plan.overflow.length)
-          : undefined;
-      const named = more !== undefined;
-      const unnamed = named ? [] : plan.overflow;
-      const parts = plan.merged.map((item) => item.text);
-      if (named) parts.push(more);
+      const merge = this.fitMerged(plan.merged, plan.overflow);
+      const parts = merge.included.map((item) => item.text);
+      if (merge.more !== undefined) parts.push(merge.more);
       const sent = await this.sendPush(1, parts.join(SEPARATOR), [
-        ...plan.merged,
-        ...(named ? plan.overflow : []),
+        ...merge.included,
+        ...(merge.more !== undefined ? merge.overflow : []),
       ]);
       if (sent !== undefined) {
-        for (const item of plan.merged) this.deps.onDelivered?.(item.key, sent);
+        for (const item of merge.included) {
+          this.deps.onDelivered?.(item.key, sent);
+        }
       }
-      if (unnamed.length > 0) this.queue(unnamed);
+      if (merge.more === undefined) this.queue(merge.overflow);
+      // Results that did not fit go in further P2 messages, each within REPLY_MAX.
+      for (const chunk of fitChunks(merge.leftover)) {
+        const sentAt = await this.sendPush(
+          2,
+          chunk.map((item) => item.text).join(SEPARATOR),
+          chunk,
+        );
+        if (sentAt !== undefined) {
+          for (const item of chunk) this.deps.onDelivered?.(item.key, sentAt);
+        }
+      }
     } else if (plan.overflow.length > 0) {
       this.queue(plan.overflow);
     }
@@ -193,6 +223,58 @@ export class Outbound {
     for (const item of plan.single) {
       await this.sendPush(item.priority, item.text, [item]);
     }
+  }
+
+  /**
+   * Fills the merged message greedily within REPLY_MAX (CMD §11.3: one
+   * message, never split): cards first, then results, then the T-MORECARDS
+   * line. Cards that do not fit join `overflow`; results that do not fit are
+   * `leftover`. The message always keeps its first item.
+   */
+  private fitMerged(
+    merged: readonly OutboundPush[],
+    planOverflow: readonly OutboundPush[],
+  ): {
+    included: OutboundPush[];
+    overflow: OutboundPush[];
+    leftover: OutboundPush[];
+    more?: string;
+  } {
+    const cards = merged.filter((item) => item.priority === 1);
+    const results = merged.filter((item) => item.priority !== 1);
+    const included: OutboundPush[] = [];
+    let index = 0;
+    while (index < cards.length) {
+      const card = cards[index];
+      if (!card) break;
+      if (included.length > 0 && !fits([...included, card])) break;
+      included.push(card);
+      index += 1;
+    }
+    let overflow = [...cards.slice(index), ...planOverflow];
+    let more: string | undefined;
+    while (overflow.length > 0 && this.deps.renderMoreCards) {
+      const line = this.deps.renderMoreCards(overflow.length);
+      if (fits(included, line)) {
+        more = line;
+        break;
+      }
+      const last = included.length > 1 ? included.pop() : undefined;
+      if (!last) break;
+      overflow = [last, ...overflow];
+    }
+    const leftover: OutboundPush[] = [];
+    for (const item of results) {
+      if (
+        leftover.length === 0 &&
+        (included.length === 0 || fits([...included, item], more))
+      ) {
+        included.push(item);
+      } else {
+        leftover.push(item);
+      }
+    }
+    return { included, overflow, leftover, ...(more ? { more } : {}) };
   }
 
   /** Sends one push message when the budget allows `priority`; otherwise queues `items`. Returns the send time. */
