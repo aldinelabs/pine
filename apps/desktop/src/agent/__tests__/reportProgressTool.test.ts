@@ -41,6 +41,29 @@ describe("createReportProgressToolDefinition", () => {
     expect(tool.description).toContain("\n- Lead with substance");
   });
 
+  // Reply text before a tool call is already on screen; a model that also
+  // reports it would show the user the same passage twice in a row.
+  it("tells the model not to repeat its own preamble in a report", () => {
+    const { description } = createReportProgressToolDefinition();
+    expect(description).toMatch(
+      /Reply text you write before a tool call is shown to the user as well/,
+    );
+    expect(description).toMatch(/never both in the same step/);
+  });
+
+  // The acknowledgement is the last thing the model reads before it goes on.
+  it("acknowledges with the end-of-turn rule", () => {
+    for (const ack of [REPORT_PROGRESS_ACK, REPORT_PROGRESS_LONG_ACK]) {
+      expect(ack).toMatch(/^Shown to the user as reply text\./);
+      expect(ack).toMatch(/Continue working now/);
+      expect(ack).toMatch(
+        /end with a normal reply that builds on this report instead of repeating it\.$/,
+      );
+    }
+    expect(REPORT_PROGRESS_LONG_ACK).toMatch(/keep interim reports brief/);
+    expect(REPORT_PROGRESS_ACK).not.toMatch(/keep interim reports brief/);
+  });
+
   it("requires a non-empty string content and sets no upper bound", () => {
     const schema = createReportProgressToolDefinition().parameters as {
       required?: string[];

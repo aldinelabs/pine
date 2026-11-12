@@ -5,11 +5,15 @@ import {
 import { Type, type Static } from "typebox";
 import { UI_REPORT_PROGRESS_TOOL_NAME } from "../shared/agent";
 
-export const REPORT_PROGRESS_ACK = "Shown to the user. Continue working.";
+// The acknowledgement is the last thing the model reads before its next step,
+// so it repeats the rule a misused report breaks: the turn still ends with a
+// normal reply, and that reply does not restate the report.
+const ACK_TAIL =
+  "Continue working now; when the work is done, end with a normal reply that builds on this report instead of repeating it.";
+export const REPORT_PROGRESS_ACK = `Shown to the user as reply text. ${ACK_TAIL}`;
 /** Soft limit: longer reports are still shown, the result asks for brevity. */
 export const REPORT_PROGRESS_LONG_CONTENT_CHARS = 4_000;
-export const REPORT_PROGRESS_LONG_ACK =
-  "Shown to the user. That report was long: keep interim reports brief and save the full write-up for the final answer. Continue working.";
+export const REPORT_PROGRESS_LONG_ACK = `Shown to the user as reply text. That report was long: keep interim reports brief and save the full write-up for the final reply. ${ACK_TAIL}`;
 
 // Pine passes its own system prompt, so pi does not render promptSnippet or
 // promptGuidelines: the description has to carry the guidance by itself.
@@ -20,6 +24,7 @@ const DESCRIPTION = [
   "",
   "- Lead with substance: the preliminary answer, conclusion or finding, plus what is still uncertain and what you will verify next. Say so when it is preliminary.",
   "- Call it early, before long reasoning or the first slow step. You may issue it together with other tool calls in the same step.",
+  "- Reply text you write before a tool call is shown to the user as well. Put an interim answer in one place, that text or this tool, never both in the same step.",
   "- Report again only when something material changes: the conclusion turns out to be different, or you reach a result the user would want before you finish. Do not narrate every step, tool call or plan item.",
   "- Do not use it for simple questions or short tasks; answer those directly.",
   "- It never replaces the final answer. Always end the turn with a normal reply. The user has already read your reports, so the final reply confirms, corrects or extends them instead of repeating them word for word.",
