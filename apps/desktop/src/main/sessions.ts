@@ -34,7 +34,7 @@ import {
   attachmentMessagePreview,
   type PineAttachment,
 } from "../shared/attachments";
-import { parseMessageBlocks } from "../shared/sessions";
+import { parseMessageBlocks, withoutRelayPrefix } from "../shared/sessions";
 import { sessionMutationToolCall } from "../shared/sessionMutators";
 import { replayTodoState } from "@pine/rpiv-todo";
 import { backgroundTaskNotificationTask } from "@pine/pi-background-tasks";
@@ -501,7 +501,9 @@ function exportFileName(summary: PineSessionSummary): string {
 function firstUserMessage(entries: Entry[]): string | undefined {
   for (const entry of entries) {
     if (entry.type !== "message" || entry.message.role !== "user") continue;
-    const text = attachmentMessagePreview(textFromMessage(entry)).trim();
+    const text = withoutRelayPrefix(
+      attachmentMessagePreview(textFromMessage(entry)),
+    ).trim();
     if (text) return text;
   }
 

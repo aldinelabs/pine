@@ -73,6 +73,7 @@ import {
   type PineSessionGroup,
 } from "@/shared/projects";
 import type { ProjectSessionSearchResult } from "@/shared/sessions";
+import { withoutRelayPrefix } from "@/shared/sessions";
 import { useAutomationsStore } from "@/stores/automations";
 import { useProjectStore } from "@/stores/project";
 import { useSessionHistoryStore } from "@/stores/sessionHistory";
@@ -291,7 +292,7 @@ function sessionTitle(session: ProjectSessionSearchResult): string {
   return (
     session.name ||
     session.automationRun?.name ||
-    session.preview ||
+    (session.preview && withoutRelayPrefix(session.preview)) ||
     t("sessions.newSession")
   );
 }

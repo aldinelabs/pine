@@ -66,6 +66,7 @@ import {
   type PineApprovalDecision,
   type PineApprovalReview,
   type PineContextUsage,
+  withoutRelayPrefix,
 } from "../shared/sessions";
 import type { RenameCurrentSessionResult } from "./sessionTools";
 import { attachmentMessagePreview } from "../shared/attachments";
@@ -2645,13 +2646,12 @@ export class PineAgentRuntime {
           const role = entry.message.role === "user" ? "User" : "Assistant";
           // Pine's routing line on a sub-session's or relayed message is
           // not what the conversation is about.
-          const text = attachmentMessagePreview(
-            textFromMessageContent(
-              "content" in entry.message ? entry.message.content : "",
+          const text = withoutRelayPrefix(
+            attachmentMessagePreview(
+              textFromMessageContent(
+                "content" in entry.message ? entry.message.content : "",
+              ),
             ),
-          ).replace(
-            /^\[(?:Sub-session of|Message from session)[^\]]*\]\s*/,
-            "",
           );
           return `${role}: ${truncateText(text, 4_000)}`;
         })

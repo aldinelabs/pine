@@ -126,6 +126,7 @@ const SessionHostOperationSchema = z.discriminatedUnion("op", [
     op: z.literal("start"),
     projectId: z.uuid().optional(),
     relation: z.enum(["child", "sibling"]),
+    title: z.string().trim().min(1).max(200).optional(),
     message: z.string().trim().min(1).max(100_000),
     approvalMode: z.enum([
       "let-me-review",
@@ -630,6 +631,16 @@ export async function answerSessionOperation(
     },
     { focus: false, ...(parentSessionId ? { parentSessionId } : {}) },
   );
+  if (parsed.title)
+    await runtimes
+      .renameSession(
+        requester.ownerId,
+        project.id,
+        result.session.id,
+        parsed.title,
+        "agent",
+      )
+      .catch(() => undefined);
   if (parentSessionId) {
     await repository.updateSessionParents(project.id, (parents) => ({
       ...parents,

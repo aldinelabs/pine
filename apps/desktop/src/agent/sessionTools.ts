@@ -199,6 +199,12 @@ export function createSessionToolDefinitions(
   });
 
   const newParams = Type.Object({
+    title: Type.Optional(
+      Type.String({
+        description:
+          "A short sidebar title naming its task, in the user's language (a few words). Without one, it shows the first message until Pine titles it.",
+      }),
+    ),
     message: Type.String({
       description:
         "The new session's first message. It starts with no memory of this conversation, so include everything it needs.",
@@ -226,6 +232,7 @@ export function createSessionToolDefinitions(
       `A sub-session suits a self-contained part of a larger task, or work that can run in parallel; several can run at once. Do small steps here instead. Start a separate top-level session only when the user asks for one.`,
       `After starting sub-sessions, Pine delivers a notice each time one finishes a turn or waits for approval; continue with other work or end your turn, and do not poll or sleep to wait. Use ${UI_SESSION_READ_TOOL_NAME} for more of a sub-session's messages and ${UI_SESSION_SEND_TOOL_NAME} to give it follow-up work.`,
       "A sub-session starts with no memory of this conversation, so its first message must include everything it needs and say what to report back.",
+      "Give each session a short title naming its task, so the user can tell sub-sessions apart in the sidebar.",
     ],
     parameters: newParams,
     prepareArguments: (args) => args as Static<typeof newParams>,
@@ -246,6 +253,7 @@ export function createSessionToolDefinitions(
           "This session is a sub-session, and sub-sessions go one level deep. Start a sibling instead.",
         );
       const projectId = params.projectId?.trim();
+      const title = params.title?.trim().slice(0, 80);
       if (callerMode === "let-me-review") {
         const decision = await context.requestApproval({
           toolCallId,
@@ -271,6 +279,7 @@ export function createSessionToolDefinitions(
         op: "start",
         ...(projectId ? { projectId } : {}),
         relation,
+        ...(title ? { title } : {}),
         message,
         approvalMode,
         locale: context.getLocale(),

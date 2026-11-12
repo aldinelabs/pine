@@ -415,6 +415,27 @@ describe("answerSessionOperation", () => {
     expect(result).toMatchObject({ parentSessionId: requester.sessionId });
   });
 
+  it("titles a session the agent named", async () => {
+    const { core, renameSession } = fixture();
+
+    await answerSessionOperation(core, requester, {
+      op: "start",
+      relation: "child",
+      title: "Check docs",
+      message: "Read the docs",
+      approvalMode: "auto-approve",
+      locale: "en-US",
+    });
+
+    expect(renameSession).toHaveBeenCalledWith(
+      7,
+      projectId,
+      "new-session",
+      "Check docs",
+      "agent",
+    );
+  });
+
   it("refuses a sub-session of a sub-session", async () => {
     const { core, prompt } = fixture({
       sessionParents: { [requester.sessionId]: filedSession },

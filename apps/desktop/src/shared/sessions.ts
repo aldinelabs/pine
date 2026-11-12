@@ -544,6 +544,8 @@ export type SessionHostOperation =
        * which for a sub-session means another sub-session of its parent.
        */
       relation: "child" | "sibling";
+      /** Sidebar title; Pine titles it after its first exchange otherwise. */
+      title?: string;
       message: string;
       approvalMode: PineApprovalMode;
       locale: "en-US" | "zh-CN";
@@ -676,4 +678,16 @@ export type SessionHostResult =
 export function sessionSearchQuery(query: string): string {
   const trimmed = query.trim();
   return /^\*+$/.test(trimmed) ? "" : trimmed;
+}
+
+/**
+ * A message without the routing line Pine puts before a sub-session's first
+ * message or a message relayed from another session; it is not what the
+ * conversation is about, so titles and previews skip it.
+ */
+export function withoutRelayPrefix(text: string): string {
+  return text.replace(
+    /^\[(?:Sub-session of|Message from session)[^\]]*\]\s*/,
+    "",
+  );
 }
