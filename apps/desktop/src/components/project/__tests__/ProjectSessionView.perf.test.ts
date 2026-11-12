@@ -13,12 +13,13 @@
  * | V3 |                                         | mounted rows (W)                        | 62 / 62      | <= 120          |
  * | V7 |                                         | ProjectSessionView updates per flush    | 0 / 0        | 0               |
  * | V4 | stop following, +100 messages, follow   | mounted rows                            | 60           | <= 120          |
- * | V5 | 10 flushes while the document is hidden | row renders per flush                   | 1            | 0               |
- * | V5 |                                         | row renders on return                   | 0            | 1               |
+ * | V5 | 10 flushes while the document is hidden | row renders per flush                   | 0            | 0               |
+ * | V5 |                                         | row renders on return                   | 1            | 1               |
  * | V6 | reply ended, idle, 2 s later            | pending timers                          | 0            | 0               |
  *
- * Holds today: V1, V2, V3, V4, V6, V7. Not met yet (`it.fails`): V5. When a
- * change makes one hold, turn it into `it` and update the measured column.
+ * Holds today: V1-V7. A target that is not met yet is written `it.fails`;
+ * when a change makes one hold, turn it into `it` and update the measured
+ * column.
  *
  * V1 was about 6 reads per loaded message per flush (window lookup, outline
  * turns, steering guard, tool-run scan; 961 / 12,481). Those are now O(1) or
@@ -317,38 +318,35 @@ describe("ProjectSessionView streaming cost", () => {
     expect(view.rows().length).toBeLessThanOrEqual(RENDER_WINDOW_MAX);
   });
 
-  it.fails(
-    "[V5] renders nothing while the document is hidden and catches up after",
-    async () => {
-      const view = await mountView();
-      await seedInChunks(view, HISTORY_SIZES[0]);
-      await startTurn(view);
-      await streamFlushes(view, 5);
+  it("[V5] renders nothing while the document is hidden and catches up after", async () => {
+    const view = await mountView();
+    await seedInChunks(view, HISTORY_SIZES[0]);
+    await startTurn(view);
+    await streamFlushes(view, 5);
 
-      setDocumentVisibility("hidden");
-      await flushPromises();
-      rowRenders = 0;
-      await streamFlushes(view, 10, 5);
-      const hiddenRenders = rowRenders;
-      const shownWhileHidden = view.rows().at(-1)?.text();
+    setDocumentVisibility("hidden");
+    await flushPromises();
+    rowRenders = 0;
+    await streamFlushes(view, 10, 5);
+    const hiddenRenders = rowRenders;
+    const shownWhileHidden = view.rows().at(-1)?.text();
 
-      setDocumentVisibility("visible");
-      await flushPromises();
-      reportMetrics("V5 hidden document", {
-        rowRendersPerFlushWhileHidden: hiddenRenders / 10,
-        rowRendersOnReturn: rowRenders - hiddenRenders,
-      });
-      expect(hiddenRenders).toBe(0);
-      // One render brings the row up to date.
-      expect(view.rows().at(-1)?.text()).not.toBe(shownWhileHidden);
-      expect(
-        view.wrapper
-          .findAllComponents({ name: "ProjectTranscriptMessage" })
-          .at(-1)
-          ?.props("message"),
-      ).toBe(view.state.messages.at(-1));
-    },
-  );
+    setDocumentVisibility("visible");
+    await flushPromises();
+    reportMetrics("V5 hidden document", {
+      rowRendersPerFlushWhileHidden: hiddenRenders / 10,
+      rowRendersOnReturn: rowRenders - hiddenRenders,
+    });
+    expect(hiddenRenders).toBe(0);
+    // One render brings the row up to date.
+    expect(view.rows().at(-1)?.text()).not.toBe(shownWhileHidden);
+    expect(
+      view.wrapper
+        .findAllComponents({ name: "ProjectTranscriptMessage" })
+        .at(-1)
+        ?.props("message"),
+    ).toBe(view.state.messages.at(-1));
+  });
 
   it("[V6] leaves no timer running once the reply has ended", async () => {
     const clock = frameClock();

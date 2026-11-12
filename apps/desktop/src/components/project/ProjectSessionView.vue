@@ -44,6 +44,7 @@ import {
 } from "@/components/ui/message-scroller";
 import { Spinner } from "@/components/ui/spinner";
 import { useContentTabNavigation } from "@/composables/useContentTabNavigation";
+import { useDocumentVisible } from "@/composables/useDocumentVisible";
 import { useDraftProjectOpener } from "@/composables/useDraftProjectOpener";
 import { usePhoneLayout } from "@/composables/usePhoneLayout";
 import { useToolActivityExpansion } from "@/composables/useToolActivityExpansion";
@@ -107,6 +108,13 @@ const composer = ref<InstanceType<typeof ProjectSessionComposer> | null>(null);
 const isActive = computed(
   () => tabNavigation.activeTabId.value === props.tabId,
 );
+const documentVisible = useDocumentVisible();
+/**
+ * Active and in a window the user can see. A hidden or minimised window holds
+ * the transcript like a background tab does; everything else that follows the
+ * tab (focus, Esc, selection menu, steering) still keys on `isActive`.
+ */
+const isShown = computed(() => isActive.value && documentVisible.value);
 
 // A newly opened tab lands in its composer once it is shown.
 watch(
@@ -200,13 +208,13 @@ const renderStart = computed(() => {
     : Math.max(0, messages.value.length - RENDER_WINDOW_KEEP);
 });
 /**
- * The messages the transcript renders. A background tab holds its last frame:
- * stream updates for it only land in the store, and the view catches up in a
- * single render when the tab is shown again.
+ * The messages the transcript renders. A background tab, or any tab of a
+ * hidden window, holds its last frame: stream updates for it only land in the
+ * store, and the view catches up in a single render when it is shown again.
  */
 const renderedMessages = computed(
   (previous?: readonly PineTranscriptMessage[]) => {
-    if (!isActive.value && previous) return previous;
+    if (!isShown.value && previous) return previous;
     const start = renderStart.value;
     return start > 0 ? messages.value.slice(start) : messages.value;
   },
@@ -765,7 +773,7 @@ async function handleDrop(event: DragEvent): Promise<void> {
   <MessageScrollerProvider
     ref="scroller"
     auto-scroll
-    :active="isActive"
+    :active="isShown"
     default-scroll-position="last-anchor"
     :scroll-previous-item-peek="64"
     :follow-animated="isRunning"
@@ -792,6 +800,7 @@ async function handleDrop(event: DragEvent): Promise<void> {
         />
         <ProjectSessionParallaxBackground
           v-if="isNewConversation && !hasSubmittedPrompt && !isPhone"
+          :active="isShown"
           class="-z-10"
         />
 
