@@ -41,6 +41,21 @@ const reportProgressParams = Type.Object({
 type ReportProgressParams = Static<typeof reportProgressParams>;
 
 /**
+ * pi coerces scalars to strings when it validates, but the transcript shows
+ * `content` only when the call carries a string. Dropping any other value
+ * makes validation fail, so the model is never told that something the user
+ * cannot see was shown.
+ */
+function withoutNonStringContent(args: unknown): ReportProgressParams {
+  if (typeof args !== "object" || args === null || Array.isArray(args))
+    return args as ReportProgressParams;
+  const { content, ...rest } = args as Record<string, unknown>;
+  return (
+    typeof content === "string" || content === undefined ? args : rest
+  ) as ReportProgressParams;
+}
+
+/**
  * Lets the model show an interim answer and keep working in the same turn.
  * The transcript renders the call's `content` as reply text; running the tool
  * only acknowledges it, so it has no side effects and needs no approval.
@@ -57,7 +72,7 @@ export function createReportProgressToolDefinition(): ToolDefinition {
       `${UI_REPORT_PROGRESS_TOOL_NAME} never replaces the final answer: always end the turn with a normal reply that builds on what you reported`,
     ],
     parameters: reportProgressParams,
-    prepareArguments: (args) => args as ReportProgressParams,
+    prepareArguments: withoutNonStringContent,
     execute: (_toolCallId, params) => {
       if (params.content.trim() === "")
         throw new Error(

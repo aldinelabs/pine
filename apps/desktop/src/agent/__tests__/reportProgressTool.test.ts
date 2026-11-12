@@ -1,3 +1,4 @@
+import { validateToolArguments, type ToolCall } from "@earendil-works/pi-ai";
 import { describe, expect, it } from "vitest";
 import {
   createReportProgressToolDefinition,
@@ -14,6 +15,17 @@ function run(content: string) {
     undefined,
     undefined as never,
   );
+}
+
+/** What pi does with a call's arguments before `execute` runs. */
+function validate(args: unknown) {
+  const tool = createReportProgressToolDefinition();
+  return validateToolArguments(tool, {
+    type: "toolCall",
+    id: "id",
+    name: tool.name,
+    arguments: tool.prepareArguments?.(args) as ToolCall["arguments"],
+  });
 }
 
 describe("createReportProgressToolDefinition", () => {
@@ -38,6 +50,21 @@ describe("createReportProgressToolDefinition", () => {
     expect(schema.properties.content.type).toBe("string");
     expect(schema.properties.content.minLength).toBe(1);
     expect(schema.properties.content.maxLength).toBeUndefined();
+  });
+
+  it("accepts string content as it is", () => {
+    expect(validate({ content: "Probably **X**." })).toEqual({
+      content: "Probably **X**.",
+    });
+  });
+
+  // pi coerces scalars to strings, but the transcript shows string content
+  // only: an accepted null or number would be acknowledged and never shown.
+  it("rejects content that is not a string", () => {
+    for (const content of [null, 123, true, ["a"], { text: "a" }])
+      expect(() => validate({ content })).toThrow(/content/);
+    expect(() => validate({})).toThrow(/content/);
+    expect(() => validate(null)).toThrow();
   });
 
   it("acknowledges a report and tells the model to continue", async () => {
