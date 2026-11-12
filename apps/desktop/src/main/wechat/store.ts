@@ -397,6 +397,13 @@ export class WeChatStore implements WeChatStateStore {
     });
   }
 
+  reloadLanguage(): Promise<void> {
+    return this.enqueuePlain(async () => {
+      const read = await this.readPlain();
+      this.state.language = read.language;
+    });
+  }
+
   async clearBinding(): Promise<void> {
     await this.updateSecure((draft) => {
       delete draft.token;

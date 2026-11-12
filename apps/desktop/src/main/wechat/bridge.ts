@@ -240,6 +240,7 @@ export class WeChatBridge implements WeChatBridgeApi {
   async reloadLocalConfig(): Promise<WeChatStatus> {
     await this.ready();
     const result = await this.store.reloadSecure();
+    await this.store.reloadLanguage();
     if (result === "reset") this.settingsReset();
     if (!this.isBound() && this.channel) {
       // The binding was removed on disk (headless `wechat unbind`).

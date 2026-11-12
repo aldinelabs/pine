@@ -304,6 +304,23 @@ describe("WeChatStore sealed blob", () => {
     expect(running.secure().paused).toBe(true);
   });
 
+  it("re-reads only the language from the plain file on reloadLanguage", async () => {
+    const { open } = await setup();
+    const running = open();
+    await running.load();
+    running.updateSoon((draft) => {
+      draft.cursor = "kept";
+    });
+    const offline = open();
+    await offline.load();
+    await offline.update((draft) => {
+      draft.language = "en";
+    });
+    await running.reloadLanguage();
+    expect(running.get().language).toBe("en");
+    expect(running.get().cursor).toBe("kept");
+  });
+
   it("clearBinding removes the account, resets permissions and keeps language, keep-awake and default project", async () => {
     const { open } = await setup();
     const store = open();

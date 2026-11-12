@@ -279,6 +279,8 @@ export interface WeChatStateStore {
   updateSecure(mutate: (draft: WeChatSecureState) => void): Promise<void>;
   /** Re-reads the blob from disk (SIGHUP on the headless server). */
   reloadSecure(): Promise<"ok" | "reset">;
+  /** Re-reads only `language` from the plain file (`pine-server wechat config --language`, then SIGHUP). */
+  reloadLanguage(): Promise<void>;
   /** Removes token and owner, resets the permission settings, and resets the plain state except language. */
   clearBinding(): Promise<void>;
 }
