@@ -484,7 +484,7 @@ describe("render", () => {
 
   it("neutralises agent text that starts a line", () => {
     const text = render("R-LAST", "en", { at, text: ".y 12 now" });
-    expect(text.split("\n")[1]).toBe(" .y 12 now");
+    expect(text.split("\n")[1]).toBe("› .y 12 now");
   });
 
   it("caps any reply at REPLY_MAX", () => {

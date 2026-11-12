@@ -1,6 +1,7 @@
 // @vitest-environment node
 import { describe, expect, it } from "vitest";
 import { QUOTE_MAX } from "../constants";
+import { parseCommand } from "../parseCommand";
 import {
   baseName,
   cleanInline,
@@ -44,9 +45,9 @@ describe("truncate", () => {
 
 describe("neutralise", () => {
   it.each([".y 12", "。y 12", "．y 12", "｡y 12"])(
-    "puts a space before a leading dot: %s",
+    "puts a visible mark before a leading dot: %s",
     (line) => {
-      expect(neutralise(line)).toBe(` ${line}`);
+      expect(neutralise(line)).toBe(`› ${line}`);
     },
   );
 
@@ -56,7 +57,14 @@ describe("neutralise", () => {
   });
 
   it("catches a dot that only leads after the clean-up", () => {
-    expect(neutralise("\u200b\n.y 12")).toBe(" .y 12");
+    expect(neutralise("\u200b\n.y 12")).toBe("› .y 12");
+  });
+
+  it("stays a plain message when copied or forwarded and trimmed", () => {
+    for (const line of [".y 12", "。delete 3", "．y 12"]) {
+      expect(parseCommand(neutralise(line)).kind).toBe("message");
+      expect(parseCommand(` ${neutraliseText(line)} `).kind).toBe("message");
+    }
   });
 
   it("leaves a dot inside the line alone", () => {
@@ -66,7 +74,7 @@ describe("neutralise", () => {
 
   it("neutralises every line of multi-line text and keeps paragraphs", () => {
     expect(neutraliseText("one\n.y 12\n\n\n\n  。d 13\ntwo")).toBe(
-      "one\n .y 12\n\n 。d 13\ntwo",
+      "one\n› .y 12\n\n› 。d 13\ntwo",
     );
   });
 });

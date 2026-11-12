@@ -38,6 +38,13 @@ export function isCut(text: string, max: number): boolean {
   return codePointLength(text) > max;
 }
 
+/**
+ * Put in front of a line of display data that starts with a command prefix.
+ * Visible and not whitespace, so a copied or forwarded line (which the
+ * parser trims) still does not start with a prefix.
+ */
+export const NEUTRAL_MARK = "› ";
+
 function startsWithPrefix(text: string): boolean {
   const first = text[0];
   return first !== undefined && PREFIX_CHARACTERS.has(first);
@@ -58,12 +65,13 @@ export function cleanInline(text: string): string {
 
 /**
  * One line of display data that may start a line of the reply. Like
- * `cleanInline`, and a leading `.` `。` `．` gets a space in front, so the
- * line is never a command typed by Pine on the user's behalf.
+ * `cleanInline`, and a leading `.` `。` `．` gets `NEUTRAL_MARK` in front, so
+ * the line is never a command typed by Pine on the user's behalf, even
+ * after it is copied or forwarded.
  */
 export function neutralise(line: string): string {
   const clean = cleanInline(line);
-  return startsWithPrefix(clean) ? ` ${clean}` : clean;
+  return startsWithPrefix(clean) ? `${NEUTRAL_MARK}${clean}` : clean;
 }
 
 /** Multi-line display data: every line neutralised, paragraphs kept. */
@@ -78,7 +86,7 @@ export function neutraliseText(text: string): string {
         .replace(INVISIBLE, "")
         .trimEnd();
       return startsWithPrefix(clean.trimStart())
-        ? ` ${clean.trimStart()}`
+        ? `${NEUTRAL_MARK}${clean.trimStart()}`
         : clean;
     })
     .join("\n")
