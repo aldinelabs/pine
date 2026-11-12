@@ -49,6 +49,8 @@ let bodyObserver: ResizeObserver | undefined;
 const FADE_EDGE_THRESHOLD = 1;
 const hasHiddenContentAbove = ref(false);
 const hasHiddenContentBelow = ref(false);
+/** Whether the panel has any scroll range at all. */
+const isPanelScrollable = ref(false);
 
 const isStreaming = computed(
   () => props.message.thinkingStatus === "streaming",
@@ -172,17 +174,21 @@ function updateScrollEdges(scrollTop: number, maxTop: number): void {
     hasHiddenContentAbove.value = above;
   if (hasHiddenContentBelow.value !== below)
     hasHiddenContentBelow.value = below;
+  const scrollable = maxTop > FADE_EDGE_THRESHOLD;
+  if (isPanelScrollable.value !== scrollable)
+    isPanelScrollable.value = scrollable;
 }
 
 /**
- * Like the transcript viewport, the bottom fade stays off while the panel
- * follows the stream: the follow glide keeps it a line short of the bottom
- * after every update, which would otherwise pulse the fade.
+ * The follow glide trails the newest line, so the bottom stays faded for the
+ * whole stream. Holding the fade on while following keeps each landing of the
+ * glide from pulsing it; once the stream ends, the glide's final scroll event
+ * clears it.
  */
 const scrollableAttr = computed(() => {
   const below =
-    hasHiddenContentBelow.value &&
-    !(isStreaming.value && isFollowingThinking.value);
+    hasHiddenContentBelow.value ||
+    (isStreaming.value && isFollowingThinking.value && isPanelScrollable.value);
   const edges = [hasHiddenContentAbove.value && "start", below && "end"].filter(
     Boolean,
   );

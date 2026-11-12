@@ -276,7 +276,16 @@ describe("project transcript markers", () => {
       wrapper.unmount();
       observers.restore();
     }
-    return { content, grow, scrollTo, cleanup };
+    return {
+      content,
+      grow,
+      scrollTo,
+      cleanup,
+      finish: () =>
+        wrapper.setProps({
+          message: { ...wrapper.props("message"), thinkingStatus: "complete" },
+        }),
+    };
   }
 
   it("follows streaming thinking with a native glide instead of a tween", async () => {
@@ -304,10 +313,31 @@ describe("project transcript markers", () => {
       [{ top: 600, behavior: "smooth" }],
       [{ top: 700, behavior: "smooth" }],
     ]);
-    // Without user intent, the glide's own positions do not stop following.
-    expect(marker.content.getAttribute("data-scrollable")).toBe("start");
+    // Without user intent, the glide's own positions do not stop following,
+    // and the newest line stays faded while the glide trails it.
+    expect(marker.content.getAttribute("data-scrollable")).toBe("start end");
     marker.cleanup();
     animateSpy.mockRestore();
+  });
+
+  it("keeps the bottom fade through each glide landing until the stream ends", async () => {
+    const marker = mountFollowingThinking();
+    await nextTick();
+    // The glide lands exactly on the bottom before the next update arrives.
+    marker.scrollTo.mockImplementation(({ top }: ScrollToOptions) => {
+      marker.content.scrollTop = top ?? 0;
+      marker.content.dispatchEvent(new Event("scroll"));
+    });
+    await marker.grow(700, "Inspect the request.\nCheck one more state.");
+    await nextTick();
+    expect(marker.content.scrollTop).toBe(600);
+    expect(marker.content.getAttribute("data-scrollable")).toBe("start end");
+
+    await marker.finish();
+    marker.content.dispatchEvent(new Event("scroll"));
+    await nextTick();
+    expect(marker.content.getAttribute("data-scrollable")).toBe("start");
+    marker.cleanup();
   });
 
   it("stops following thinking only after explicit user scroll intent", async () => {
