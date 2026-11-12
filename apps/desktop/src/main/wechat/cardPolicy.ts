@@ -18,6 +18,7 @@ import {
   CARD_SUBJECT_MAX,
   SHOW_INPUT_MAX,
 } from "./constants";
+import { neutraliseText } from "./text";
 import type { ApprovalAsk } from "./types";
 
 /**
@@ -109,7 +110,10 @@ export function approvalCardText(
     subject = nonEmptyString(ask.evidence);
   }
   const description = nonEmptyString(input?.description);
-  const length = subject === undefined ? 0 : codePointLength(subject);
+  // Measured on the text the card shows (`subjectLines` of replies.ts), which
+  // marks dot-led lines and so can be longer than the raw subject.
+  const length =
+    subject === undefined ? 0 : codePointLength(neutraliseText(subject));
   return {
     ...(subject !== undefined
       ? {

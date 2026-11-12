@@ -9,6 +9,7 @@ import {
   approvalCardText,
 } from "../cardPolicy";
 import type { CardPolicyContext } from "../cardPolicy";
+import { render } from "../replies";
 import type { ApprovalAsk } from "../types";
 
 function card(
@@ -122,6 +123,30 @@ describe("approvalCardPolicy", () => {
         off,
       ),
     ).toMatchObject({ needsShow: true });
+  });
+
+  it("measures the cut on the subject the card shows", () => {
+    const at = { project: "pine", title: "t" };
+    const tail = "\nrm -rf ~/secret";
+    for (const lines of [40, 60, 74, 75]) {
+      const subject = `${Array.from({ length: lines }, () => ".a").join("\n")}${tail}`;
+      const ask = card("bash", "pre-execution", { subject });
+      const verdict = approvalCardPolicy(ask, off);
+      const text = approvalCardText(ask);
+      const rendered = render("T-APPROVAL", "en", {
+        at,
+        ask: ask.number,
+        tool: ask.toolName,
+        trigger: ask.trigger,
+        ...(text.subject !== undefined ? { subject: text.fullSubject } : {}),
+        external: false,
+        cut: ask.subjectCut,
+      });
+      const showsCut = rendered.includes(render("T-CUT", "en", { ask: 12 }));
+      expect(verdict).toMatchObject({ kind: "approvable" });
+      expect(verdict.kind === "approvable" && verdict.needsShow).toBe(showsCut);
+      expect(rendered.includes("rm -rf ~/secret")).toBe(!showsCut);
+    }
   });
 
   it("keeps automation approvals local", () => {
