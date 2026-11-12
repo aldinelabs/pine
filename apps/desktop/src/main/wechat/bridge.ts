@@ -211,7 +211,7 @@ export class WeChatBridge implements WeChatBridgeApi {
       draft.paused = paused;
     });
     // CMD §6.5: open asks are invalidated; holds go as their sessions end.
-    if (paused) this.parts?.asks.closeWhere(() => true, "invalidated");
+    if (paused) this.invalidateAsks();
     this.applyKeepAwake();
     return this.emit();
   }
@@ -611,12 +611,21 @@ export class WeChatBridge implements WeChatBridgeApi {
     void parts.attachments.sweep(this.now()).catch(() => undefined);
   }
 
+  /** Closes every open ask and withdraws its card, so no digest names it later. */
+  private invalidateAsks(): void {
+    const parts = this.parts;
+    if (!parts) return;
+    for (const ask of parts.asks.closeWhere(() => true, "invalidated")) {
+      parts.outbound.retract(`ask:${ask.number}`);
+    }
+  }
+
   /** D18: abort sessions only the bridge holds, let go of every hold, forget asks. */
   private async forgetSessions(): Promise<void> {
     const parts = this.parts;
     if (!parts) return;
     parts.inbound.reset();
-    parts.asks.closeWhere(() => true, "invalidated");
+    this.invalidateAsks();
     parts.handles.clear();
     parts.pager.clear();
     await parts.sessions

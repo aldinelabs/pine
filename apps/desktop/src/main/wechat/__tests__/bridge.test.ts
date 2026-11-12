@@ -20,17 +20,43 @@ import type {
   MessageChannel,
 } from "../channel";
 import { PAIR_CODE_TTL_MS } from "../constants";
-import type { HandlerRegistry } from "../handlers/types";
+import type { CommandContext, HandlerRegistry } from "../handlers/types";
 import type { WeChatBridgeOptions, WeChatHostPorts } from "../ports";
 import { render } from "../replies";
 import { WeChatStore } from "../store";
 import { W, createFakeCore } from "./fakes";
+
+/** The context the last fake `.info` ran with. */
+let infoContext: CommandContext | undefined;
 
 /** Handlers that only echo, so the bridge tests do not depend on wave-5 bodies. */
 function fakeRegistry(): HandlerRegistry {
   return {
     commands: {
       status: () => Promise.resolve({ text: "ran status" }),
+      // Opens a question whose card is still queued, as while offline.
+      info: (ctx) => {
+        infoContext = ctx;
+        const ask = ctx.asks.open({
+          kind: "question",
+          requestId: "q1",
+          sessionId: "s1",
+          projectId: "p1",
+          questionnaire: { questions: [] },
+          answerable: true,
+        });
+        if (ask) {
+          ctx.store.updateSoon((draft) => {
+            draft.outQueue.push({
+              key: `ask:${ask.number}`,
+              priority: 2,
+              digest: { kind: "ask", number: ask.number },
+              queuedAtMs: ctx.now,
+            });
+          });
+        }
+        return Promise.resolve({ text: "opened" });
+      },
       pause: async (ctx) => {
         await ctx.bridge.pause();
         return { text: "paused now" };
@@ -753,6 +779,22 @@ describe("WeChatBridge composition", () => {
       "paused now",
       render("E-PAUSED", "en"),
     ]);
+  });
+
+  it("withdraws queued cards of the asks a pause invalidates", async () => {
+    const context = await setup();
+    await seedBound(context);
+    await context.bridge.start();
+    const channel = context.factory.channels[0];
+    await channel?.deliver([{ text: ".info", ...fresh(context) }]);
+    await context.bridge.idle();
+    const ctx = infoContext;
+    expect(ctx?.store.get().outQueue.map((item) => item.key)).toEqual([
+      "ask:11",
+    ]);
+    await context.bridge.setPaused(true);
+    expect(ctx?.asks.list()).toEqual([]);
+    expect(ctx?.store.get().outQueue).toEqual([]);
   });
 
   it("unbind aborts running sessions only the bridge holds", async () => {
