@@ -464,6 +464,25 @@ describe("inbox replay", () => {
     expect(t.texts()[0]).toContain("plain started");
     expect(t.ctx.store.get().inbox).toEqual([]);
   });
+
+  it("does not report a replayed entry as interrupted on a second replay", async () => {
+    const gate = deferred<CommandResult>();
+    const t = setup({
+      commands: { new: () => gate.promise },
+      state: { inbox: [entry("i1", ".new build it")] },
+    });
+    await t.pipeline.resume();
+    await vi.waitFor(() =>
+      expect(t.calls.map((call) => call.name)).toEqual(["new"]),
+    );
+    // A SIGHUP reload replays the inbox while the entry is being handled.
+    await t.pipeline.resume();
+    gate.resolve({ text: "started" });
+    await t.pipeline.idle();
+    expect(t.calls.map((call) => call.name)).toEqual(["new"]);
+    expect(t.texts()).toEqual(["started"]);
+    expect(t.ctx.store.get().inbox).toEqual([]);
+  });
 });
 
 describe("classification and replies", () => {

@@ -198,6 +198,8 @@ export class InboundPipeline {
   private readonly queue: string[] = [];
   /** Accepted in this run: the stale rule measures them from their poll time. */
   private readonly acceptedNow = new Set<string>();
+  /** Carried-over ids `resume` already queued or reported in this run. */
+  private readonly replayed = new Set<string>();
   private worker: Promise<void> | undefined;
   private priority: Promise<void> = Promise.resolve();
   private readonly side = new Set<Promise<unknown>>();
@@ -277,9 +279,15 @@ export class InboundPipeline {
     const inbox = this.deps.store.get().inbox;
     const interrupted: StoredInbound[] = [];
     for (const entry of inbox) {
-      if (this.queue.includes(entry.id) || this.acceptedNow.has(entry.id)) {
+      if (
+        this.queue.includes(entry.id) ||
+        this.acceptedNow.has(entry.id) ||
+        this.replayed.has(entry.id)
+      ) {
         continue;
       }
+      // A second replay (SIGHUP) must not report an entry the worker holds.
+      this.replayed.add(entry.id);
       if (entry.startedAtMs !== undefined && !rerunnable(entry)) {
         interrupted.push(entry);
       } else {
@@ -306,6 +314,8 @@ export class InboundPipeline {
   /** Stops taking entries; the one being handled finishes. */
   stop(): void {
     this.stopped = true;
+    // Entries never taken are replayed again by the next `resume`.
+    for (const id of this.queue) this.replayed.delete(id);
     this.queue.length = 0;
   }
 
@@ -318,6 +328,7 @@ export class InboundPipeline {
   reset(): void {
     this.queue.length = 0;
     this.acceptedNow.clear();
+    this.replayed.clear();
     this.staleBatch = [];
     this.digest = undefined;
   }
