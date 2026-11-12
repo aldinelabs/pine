@@ -29,7 +29,10 @@ import {
   progressReportText,
   transcriptRole,
 } from "@/shared/sessions";
-import type { PineSessionMutator } from "@/shared/sessionMutators";
+import {
+  uniqueSessionMutators,
+  type PineSessionMutator,
+} from "@/shared/sessionMutators";
 import { preferenceStorage } from "@/lib/preferenceStorage";
 import {
   summarizeThinking,
@@ -965,7 +968,10 @@ export const useSessionStore = defineStore("session", () => {
           : { kind: "new", projectId },
         ...(approvalMode ? { approvalMode } : {}),
         ...(streamingBehavior ? { streamingBehavior } : {}),
-        ...(mutators?.length ? { mutators: [...mutators] } : {}),
+        // Store state is reactive, and Electron cannot clone a proxy across IPC.
+        ...(mutators?.length
+          ? { mutators: uniqueSessionMutators(mutators) }
+          : {}),
       });
       sessionProjects.set(result.session.id, projectId);
       if (!sessionId && pendingNewSessionLimit != null) {

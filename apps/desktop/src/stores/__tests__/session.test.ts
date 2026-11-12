@@ -8,6 +8,7 @@ import {
   type PineSessionEvent,
 } from "@/shared/agent";
 import type { PineContextUsage, PineSessionSummary } from "@/shared/sessions";
+import { useContentTabsStore } from "../contentTabs";
 import { useModelsStore } from "../models";
 import { useSessionStore } from "../session";
 
@@ -568,6 +569,42 @@ describe("session store", () => {
       message: "Describe the task",
       target: { kind: "new", projectId: PROJECT_ID },
     });
+  });
+
+  it("sends a draft's mutators as plain objects the desktop IPC can clone", async () => {
+    // Electron clones IPC arguments and rejects a Vue proxy; do the same here.
+    const promptSession = vi.fn((request: unknown) => {
+      structuredClone(request);
+      return Promise.resolve({ session });
+    });
+    Object.defineProperty(window, "pine", {
+      configurable: true,
+      value: { promptSession },
+    });
+    const tabs = useContentTabsStore();
+    const draft = tabs.createSessionTab({
+      projectId: PROJECT_ID,
+      reuseDraft: false,
+      mutators: [{ kind: "activate-authoring", target: "mcp" }],
+    });
+    const mutators = tabs.mutatorsFor(draft.id);
+    expect(isReactive(mutators[0])).toBe(true);
+
+    await useSessionStore().prompt(
+      "Add the GitHub MCP server",
+      { projectId: PROJECT_ID },
+      "auto-approve",
+      undefined,
+      mutators,
+    );
+
+    const sent = promptSession.mock.calls[0]?.[0] as {
+      mutators: unknown[];
+    };
+    expect(sent.mutators).toEqual([
+      { kind: "activate-authoring", target: "mcp" },
+    ]);
+    expect(isReactive(sent.mutators[0])).toBe(false);
   });
 
   it("passes the current interface language to title generation", async () => {
