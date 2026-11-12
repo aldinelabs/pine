@@ -274,11 +274,10 @@ const renderItems = computed<RenderItem[]>(() => {
         items.push({ key, kind: "toolRun", toolCalls });
       }
     } else if (block.type === "text") {
-      items.push({
-        key,
-        kind: "text",
-        segments: splitTranscriptText(block.text),
-      });
+      // Blank text (a progress report whose content has not arrived, or an
+      // invalid one) shows nothing instead of an empty bubble.
+      const segments = splitTranscriptText(block.text);
+      if (segments.length > 0) items.push({ key, kind: "text", segments });
       index++;
     } else {
       items.push({ key, kind: "block", block });

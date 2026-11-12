@@ -464,6 +464,51 @@ describe("ProjectTranscriptMessage", () => {
     expect(wrapper.findComponent(ProjectToolCallGroup).exists()).toBe(true);
   });
 
+  it("shows reply text between tool calls as prose that splits the run", () => {
+    const toolCall = (id: string, name: string) => ({
+      type: "toolCall" as const,
+      toolCall: { id, name, status: "complete" as const, input: {} },
+    });
+    const wrapper = mountMessage({
+      createdAt: "2026-11-12T00:00:00.000Z",
+      id: "assistant-report",
+      role: "assistant",
+      status: "complete",
+      blocks: [
+        toolCall("call-a", "read"),
+        { type: "text", text: "Probably the cache." },
+        toolCall("call-b", "read"),
+        toolCall("call-c", "bash"),
+      ],
+    });
+
+    const groups = wrapper.findAllComponents(ProjectToolCallGroup);
+    expect(groups).toHaveLength(1);
+    const grouped = groups[0].findAllComponents(ProjectToolCallMarker).length;
+    expect(wrapper.findAllComponents(ProjectToolCallMarker)).toHaveLength(
+      1 + grouped,
+    );
+    const prose = wrapper.findAll(".transcript-prose");
+    expect(prose).toHaveLength(1);
+    expect(prose[0].text()).toContain("Probably the cache.");
+  });
+
+  it("renders no bubble for a blank text block", () => {
+    const wrapper = mountMessage({
+      createdAt: "2026-11-12T00:00:00.000Z",
+      id: "assistant-blank",
+      role: "assistant",
+      status: "streaming",
+      blocks: [
+        { type: "text", text: "" },
+        { type: "text", text: " \n" },
+      ],
+    });
+
+    expect(wrapper.find(".transcript-prose").exists()).toBe(false);
+    expect(wrapper.find('[data-slot="bubble"]').exists()).toBe(false);
+  });
+
   it("copies the user message text from the hover actions", async () => {
     const writeText = vi.fn().mockResolvedValue(undefined);
     Object.defineProperty(navigator, "clipboard", {

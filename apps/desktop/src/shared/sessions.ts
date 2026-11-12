@@ -1,4 +1,4 @@
-import type { PineApprovalMode } from "./agent";
+import { UI_REPORT_PROGRESS_TOOL_NAME, type PineApprovalMode } from "./agent";
 import type { AutomationRunSession } from "./automation";
 import { parseAttachmentMessage, type PineAttachment } from "./attachments";
 import { parseQuoteMessage, type PineQuote } from "./quotes";
@@ -235,6 +235,22 @@ export interface PineTextMessage {
 }
 
 /**
+ * The Markdown a `ui_report_progress` call shows as reply text; undefined for
+ * any other tool. Arguments still streaming, or invalid, give "".
+ */
+export function progressReportText(
+  name: unknown,
+  args: unknown,
+): string | undefined {
+  if (name !== UI_REPORT_PROGRESS_TOOL_NAME) return undefined;
+  if (typeof args !== "object" || args === null || Array.isArray(args)) {
+    return "";
+  }
+  const content = (args as { content?: unknown }).content;
+  return typeof content === "string" ? content : "";
+}
+
+/**
  * Parse a pi message `content` value (a string, or an array of
  * `text`/`thinking`/`toolCall` blocks) into ordered Pine content blocks.
  * Shared by the main-process read-back path and the renderer event store so
@@ -258,6 +274,10 @@ export function parseContentBlocks(content: unknown): PineContentBlock[] {
       typeof part.id === "string" &&
       typeof part.name === "string"
     ) {
+      // A progress report is reply text. The swap stays one block per content
+      // index, which thinking timing and render keys rely on.
+      const report = progressReportText(part.name, part.arguments);
+      if (report !== undefined) return [{ type: "text", text: report }];
       return [
         {
           type: "toolCall",

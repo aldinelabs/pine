@@ -1,0 +1,66 @@
+import { describe, expect, it } from "vitest";
+import {
+  createReportProgressToolDefinition,
+  REPORT_PROGRESS_ACK,
+  REPORT_PROGRESS_LONG_ACK,
+  REPORT_PROGRESS_LONG_CONTENT_CHARS,
+} from "../reportProgressTool";
+
+function run(content: string) {
+  return createReportProgressToolDefinition().execute(
+    "id",
+    { content },
+    undefined,
+    undefined,
+    undefined as never,
+  );
+}
+
+describe("createReportProgressToolDefinition", () => {
+  it("is named ui_report_progress and carries its guidance in the description", () => {
+    const tool = createReportProgressToolDefinition();
+    expect(tool.name).toBe("ui_report_progress");
+    expect(tool.label).toBe("Report Progress");
+    expect(tool.description).toMatch(/exactly like your normal reply text/);
+    expect(tool.description).toMatch(/not as a tool call/);
+    expect(tool.description).toMatch(/Do not use it for simple questions/);
+    expect(tool.description).toMatch(/never replaces the final answer/);
+    expect(tool.description).toMatch(/continue the work immediately/);
+    expect(tool.description).toContain("\n- Lead with substance");
+  });
+
+  it("requires a non-empty string content and sets no upper bound", () => {
+    const schema = createReportProgressToolDefinition().parameters as {
+      required?: string[];
+      properties: { content: Record<string, unknown> };
+    };
+    expect(schema.required).toEqual(["content"]);
+    expect(schema.properties.content.type).toBe("string");
+    expect(schema.properties.content.minLength).toBe(1);
+    expect(schema.properties.content.maxLength).toBeUndefined();
+  });
+
+  it("acknowledges a report and tells the model to continue", async () => {
+    const result = await run("Preliminary: **yes**, checking the workspace.");
+    expect(result.content).toEqual([
+      { type: "text", text: REPORT_PROGRESS_ACK },
+    ]);
+    expect(result.details).toEqual({});
+  });
+
+  it("asks for shorter reports above the soft limit without rejecting", async () => {
+    const atLimit = await run("a".repeat(REPORT_PROGRESS_LONG_CONTENT_CHARS));
+    expect(atLimit.content).toEqual([
+      { type: "text", text: REPORT_PROGRESS_ACK },
+    ]);
+    const over = await run("a".repeat(REPORT_PROGRESS_LONG_CONTENT_CHARS + 1));
+    expect(over.content).toEqual([
+      { type: "text", text: REPORT_PROGRESS_LONG_ACK },
+    ]);
+    expect(over.details).toEqual({});
+  });
+
+  it("rejects whitespace-only content", () => {
+    expect(() => run(" \n\t ")).toThrow(/content is empty/);
+  });
+});

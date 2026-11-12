@@ -101,6 +101,7 @@ import {
 } from "./sessionTools";
 import { createProjectToolDefinitions } from "./projectTools";
 import { createDatetimeToolDefinition } from "./datetimeTool";
+import { createReportProgressToolDefinition } from "./reportProgressTool";
 import { createFffToolDefinitions, FffIndexPool } from "./fffTools";
 import {
   createWorkbenchToolDefinitions,
@@ -1051,6 +1052,7 @@ export async function createPineToolDefinitions(
     ...(askUserQuestionTool ? [askUserQuestionTool] : []),
     createTodoToolDefinition(),
     createDatetimeToolDefinition(),
+    createReportProgressToolDefinition(),
     ...backgroundTaskTools,
     ...tinyFishTools,
     ...mediaTools,
