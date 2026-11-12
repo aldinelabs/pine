@@ -1493,6 +1493,24 @@ export default {
             error: "無法移動到專案 ",
             running: "正在請求移動到專案 ",
           },
+          create: {
+            running: "正在建立專案 ",
+            complete: "已建立專案 ",
+            declined: "未建立專案 ",
+            error: "無法建立專案 ",
+          },
+          update: {
+            running: "正在編輯專案 ",
+            complete: "已編輯專案 ",
+            declined: "未編輯專案 ",
+            error: "無法編輯專案 ",
+          },
+          delete: {
+            running: "正在刪除專案 ",
+            complete: "已刪除專案 ",
+            declined: "未刪除專案 ",
+            error: "無法刪除專案 ",
+          },
         },
         session: {
           search: {
@@ -1510,6 +1528,23 @@ export default {
             complete: "已建立會話，專案 ",
             declined: "未建立會話",
             error: "無法建立會話",
+          },
+          tree: {
+            running: "正在讀取會話資料夾：",
+            complete: "已讀取會話資料夾：",
+            error: "無法讀取會話資料夾：",
+          },
+          organize: {
+            running: "正在整理會話：",
+            complete: "已整理會話：",
+            declined: "未整理會話：",
+            error: "無法整理會話：",
+          },
+          delete: {
+            running: "正在刪除會話",
+            complete: "已刪除會話 ",
+            declined: "未刪除會話",
+            error: "無法刪除會話",
           },
         },
         background: {
@@ -2100,7 +2135,7 @@ export default {
       description: "請稍後重試",
     },
     sessionDelete: {
-      title: "無法刪除對話",
+      title: "無法刪除會話",
       description: "請稍後重試",
     },
     sessionRename: {

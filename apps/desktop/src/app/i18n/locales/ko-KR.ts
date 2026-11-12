@@ -1546,6 +1546,24 @@ export default {
             error: "프로젝트로 이동할 수 없음: ",
             running: "프로젝트 이동 요청 중: ",
           },
+          create: {
+            running: "프로젝트 만드는 중: ",
+            complete: "프로젝트 만듦: ",
+            declined: "프로젝트를 만들지 않음: ",
+            error: "프로젝트를 만들 수 없음: ",
+          },
+          update: {
+            running: "프로젝트 편집 중: ",
+            complete: "프로젝트 편집함: ",
+            declined: "프로젝트를 편집하지 않음: ",
+            error: "프로젝트를 편집할 수 없음: ",
+          },
+          delete: {
+            running: "프로젝트 삭제 중: ",
+            complete: "프로젝트 삭제함: ",
+            declined: "프로젝트를 삭제하지 않음: ",
+            error: "프로젝트를 삭제할 수 없음: ",
+          },
         },
         session: {
           search: {
@@ -1563,6 +1581,23 @@ export default {
             complete: "세션을 시작함. 프로젝트: ",
             declined: "세션을 시작하지 않음",
             error: "세션을 시작할 수 없음",
+          },
+          tree: {
+            running: "세션 폴더 읽는 중: ",
+            complete: "세션 폴더 읽음: ",
+            error: "세션 폴더를 읽을 수 없음: ",
+          },
+          organize: {
+            running: "세션 정리 중: ",
+            complete: "세션 정리함: ",
+            declined: "세션을 정리하지 않음: ",
+            error: "세션을 정리할 수 없음: ",
+          },
+          delete: {
+            running: "세션 삭제 중",
+            complete: "세션 삭제함: ",
+            declined: "세션을 삭제하지 않음",
+            error: "세션을 삭제할 수 없음",
           },
         },
         background: {

@@ -77,10 +77,21 @@ export const useProjectStore = defineStore("project", () => {
     if (isLoadingProjects.value) return;
     isLoadingProjects.value = true;
     try {
-      projects.value = (await window.pine.listProjects()).projects;
+      const loaded = (await window.pine.listProjects()).projects;
+      const kept = new Set(loaded.map((project) => project.id));
+      const removed = projects.value.filter((project) => !kept.has(project.id));
+      projects.value = loaded;
+      // A project deleted elsewhere, such as by the agent, leaves no tabs.
+      for (const { id } of removed) forgetRemovedProject(id);
     } finally {
       isLoadingProjects.value = false;
     }
+  }
+
+  function forgetRemovedProject(id: string): void {
+    setOpen(id, false);
+    sessionStore.forgetProject(id);
+    contentTabsStore.removeProject(id);
   }
 
   async function createProject(
@@ -167,9 +178,7 @@ export const useProjectStore = defineStore("project", () => {
     try {
       await window.pine.deleteProject({ id });
       projects.value = projects.value.filter((project) => project.id !== id);
-      setOpen(id, false);
-      sessionStore.forgetProject(id);
-      contentTabsStore.removeProject(id);
+      forgetRemovedProject(id);
     } finally {
       isSavingProject.value = false;
     }

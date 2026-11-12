@@ -1,4 +1,5 @@
 import type { AutomationHostOperation } from "./automation";
+import type { ProjectHostOperation } from "./projects";
 import type {
   PineApprovalReview,
   PineSessionSummary,
@@ -31,6 +32,16 @@ export const UI_SESSION_TELEPORT_TOOL_NAME = "ui_session_teleport" as const;
 export const UI_SESSION_SEARCH_TOOL_NAME = "ui_session_search" as const;
 /** Starts another session in the background with a first message. */
 export const UI_SESSION_NEW_TOOL_NAME = "ui_session_new" as const;
+/** Shows a project's session folders and the sessions in them. */
+export const UI_SESSION_TREE_TOOL_NAME = "ui_session_tree" as const;
+/** Edits session folders and titles, checked against the tree's revision. */
+export const UI_SESSION_ORGANIZE_TOOL_NAME = "ui_session_organize" as const;
+/** Deletes a session permanently; the user approves every call. */
+export const UI_SESSION_DELETE_TOOL_NAME = "ui_session_delete" as const;
+/** Project management; the user approves every call, in every mode. */
+export const UI_PROJECT_CREATE_TOOL_NAME = "ui_project_create" as const;
+export const UI_PROJECT_UPDATE_TOOL_NAME = "ui_project_update" as const;
+export const UI_PROJECT_DELETE_TOOL_NAME = "ui_project_delete" as const;
 
 /**
  * Names Pine's own tools had before they moved to `ui_<area>_<action>`.
@@ -391,6 +402,7 @@ export type PineHostRequest =
   | { kind: "list-projects" }
   | { kind: "teleport"; projectId: string }
   | { kind: "session"; operation: SessionHostOperation }
+  | { kind: "project"; operation: ProjectHostOperation }
   | { kind: "workbench-state" }
   | { kind: "approximate-location" }
   | { kind: "automation"; operation: AutomationHostOperation }

@@ -601,3 +601,33 @@ export interface PineDesktopApi
     request: UpdateProjectSessionGroupsRequest,
   ) => Promise<ProjectResult>;
 }
+
+/** A folder the agent names for a project, by absolute path. */
+export interface AgentProjectFolder {
+  path: string;
+  access: ProjectFolderAccess;
+}
+
+/** What the project tools ask of the main process, after the user approved. */
+export type ProjectHostOperation =
+  | { op: "create"; name: string; folders: AgentProjectFolder[] }
+  | {
+      op: "update";
+      projectId: string;
+      name?: string;
+      addFolders?: AgentProjectFolder[];
+      removeFolderPaths?: string[];
+      defaultFolderPath?: string;
+    }
+  | { op: "delete"; projectId: string };
+
+export type ProjectHostResult =
+  | { op: "create"; projectId: string; projectName: string }
+  | {
+      op: "update";
+      projectId: string;
+      projectName: string;
+      /** The asking session's own project changes once its reply ends. */
+      applied: "now" | "after-reply";
+    }
+  | { op: "delete"; projectName: string };

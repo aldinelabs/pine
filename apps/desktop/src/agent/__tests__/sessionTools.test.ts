@@ -8,7 +8,10 @@ import type {
   AgentHostRequest,
   AgentHostResponse,
   AgentHostSession,
+  AgentHostSessionTree,
   GateDecision,
+  SessionHostOperation,
+  SessionHostResult,
 } from "../protocol";
 import {
   createSessionToolDefinitions,
@@ -27,6 +30,47 @@ const session: AgentHostSession = {
   current: true,
 };
 
+const tree: AgentHostSessionTree = {
+  projectId: session.projectId,
+  projectName: "Pine",
+  revision: "r1",
+  folders: [
+    {
+      id: "f1",
+      name: "Release",
+      sessions: [{ id: session.id, title: "Release notes", current: true }],
+    },
+  ],
+  unfiled: [{ id: "s2", updatedAt: "2026-11-03T08:00:00.000Z" }],
+  moreUnfiled: 4,
+};
+
+function answer(operation: SessionHostOperation): SessionHostResult {
+  switch (operation.op) {
+    case "search":
+      return { op: "search", sessions: [session] };
+    case "start":
+      return {
+        op: "start",
+        sessionId: "new-session",
+        projectId: session.projectId,
+        projectName: "Pine",
+        approvalMode: operation.approvalMode,
+      };
+    case "tree":
+      return { op: "tree", tree };
+    case "organize":
+      return { op: "organize", tree, createdFolderIds: ["f2"] };
+    case "describe":
+      return {
+        op: "describe",
+        session: { ...session, id: "s2", current: undefined },
+      };
+    case "delete":
+      return { op: "delete", deleted: true };
+  }
+}
+
 function setup(
   approvalMode: PineApprovalMode,
   decision: GateDecision = { kind: "allow" },
@@ -35,20 +79,7 @@ function setup(
     (request: AgentHostRequest): Promise<AgentHostResponse> => {
       if (request.kind !== "session") throw new Error("unexpected request");
       const { operation } = request;
-      return Promise.resolve(
-        operation.op === "search"
-          ? { kind: "session", result: { op: "search", sessions: [session] } }
-          : {
-              kind: "session",
-              result: {
-                op: "start",
-                sessionId: "new-session",
-                projectId: session.projectId,
-                projectName: "Pine",
-                approvalMode: operation.approvalMode,
-              },
-            },
-      );
+      return Promise.resolve({ kind: "session", result: answer(operation) });
     },
   );
   const requestApproval = vi.fn().mockResolvedValue(decision);
@@ -58,8 +89,17 @@ function setup(
     getApprovalMode: () => approvalMode,
     getLocale: () => "en-US",
   };
-  const [search, start] = createSessionToolDefinitions(context);
-  return { search, start, requestHost, requestApproval };
+  const [search, start, treeTool, organize, remove] =
+    createSessionToolDefinitions(context);
+  return {
+    search,
+    start,
+    treeTool,
+    organize,
+    remove,
+    requestHost,
+    requestApproval,
+  };
 }
 
 function run(tool: ToolDefinition, params: unknown) {
@@ -168,5 +208,88 @@ describe("session tools", () => {
     expect(requestHost).not.toHaveBeenCalled();
     expect(result.details).toEqual({ started: false });
     expect(text(result)).toContain("Not now.");
+  });
+
+  it("shows folders, their sessions and what is outside them", async () => {
+    const { treeTool, requestHost } = setup("auto-approve");
+
+    const result = await run(treeTool, {});
+
+    expect(requestHost).toHaveBeenCalledWith({
+      kind: "session",
+      operation: { op: "tree", limit: 20 },
+    });
+    expect(text(result)).toBe(
+      [
+        `Project Pine (id: ${session.projectId}; revision: r1)`,
+        'Folder "Release" (id: f1)',
+        `  - Release notes (id: ${session.id}; current session)`,
+        "Not in a folder:",
+        "  - (untitled) (id: s2; updated 2026-11-03T08:00:00.000Z)",
+        "  …and 4 older; raise limit to see them.",
+      ].join("\n"),
+    );
+  });
+
+  it("maps organize edits and refers to new folders", async () => {
+    const { organize, requestHost, requestApproval } = setup("autonomous");
+
+    const result = await run(organize, {
+      projectId: "p1",
+      revision: "r1",
+      operations: [
+        { op: "create_folder", name: " Drafts " },
+        { op: "move", sessionId: "s2", folderId: "new:1" },
+        { op: "move", sessionId: "s3" },
+        { op: "rename_session", sessionId: "s2", name: "Plan" },
+      ],
+    });
+
+    expect(requestApproval).not.toHaveBeenCalled();
+    expect(requestHost).toHaveBeenCalledWith({
+      kind: "session",
+      operation: {
+        op: "organize",
+        projectId: "p1",
+        revision: "r1",
+        operations: [
+          { op: "create-folder", name: "Drafts" },
+          { op: "move", sessionId: "s2", folderId: "new:1" },
+          { op: "move", sessionId: "s3", folderId: null },
+          { op: "rename-session", sessionId: "s2", name: "Plan" },
+        ],
+      },
+    });
+    expect(text(result)).toContain("New folder ids: f2.");
+  });
+
+  it("rejects an edit missing what it needs", async () => {
+    const { organize, requestHost } = setup("auto-approve");
+
+    await expect(
+      run(organize, {
+        projectId: "p1",
+        revision: "r1",
+        operations: [{ op: "rename_folder", folderId: "f1" }],
+      }),
+    ).rejects.toThrow("Operation 1 (rename_folder) needs name.");
+    expect(requestHost).not.toHaveBeenCalled();
+  });
+
+  it("asks before deleting a session even in YOLO", async () => {
+    const { remove, requestHost, requestApproval } = setup("YOLO", {
+      kind: "deny",
+    });
+
+    const result = await run(remove, { projectId: "p1", sessionId: "s2" });
+
+    expect(requestApproval).toHaveBeenCalledWith(
+      expect.objectContaining({
+        toolName: "ui_session_delete",
+        subject: "Delete session “Release notes” permanently",
+      }),
+    );
+    expect(requestHost).toHaveBeenCalledTimes(1);
+    expect(result.details).toEqual({ done: false });
   });
 });

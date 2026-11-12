@@ -1551,6 +1551,24 @@ export default {
             error: "Couldn’t move to project ",
             running: "Asking to move to project ",
           },
+          create: {
+            running: "Creating project ",
+            complete: "Created project ",
+            declined: "Didn’t create project ",
+            error: "Couldn’t create project ",
+          },
+          update: {
+            running: "Editing project ",
+            complete: "Edited project ",
+            declined: "Didn’t edit project ",
+            error: "Couldn’t edit project ",
+          },
+          delete: {
+            running: "Deleting project ",
+            complete: "Deleted project ",
+            declined: "Didn’t delete project ",
+            error: "Couldn’t delete project ",
+          },
         },
         session: {
           search: {
@@ -1568,6 +1586,23 @@ export default {
             complete: "Started a session in ",
             declined: "Didn’t start a session",
             error: "Couldn’t start a session",
+          },
+          tree: {
+            running: "Reading session folders of ",
+            complete: "Read session folders of ",
+            error: "Couldn’t read session folders of ",
+          },
+          organize: {
+            running: "Organizing sessions in ",
+            complete: "Organized sessions in ",
+            declined: "Didn’t organize sessions in ",
+            error: "Couldn’t organize sessions in ",
+          },
+          delete: {
+            running: "Deleting a session",
+            complete: "Deleted session ",
+            declined: "Didn’t delete the session",
+            error: "Couldn’t delete the session",
           },
         },
         background: {

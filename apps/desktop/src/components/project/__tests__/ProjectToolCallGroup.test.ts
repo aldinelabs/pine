@@ -217,6 +217,50 @@ describe("ProjectToolCallGroup", () => {
     wrapper.unmount();
   });
 
+  it("describes managing projects and session folders", () => {
+    const wrapper = mountGroup({
+      expanded: true,
+      toolCalls: [
+        {
+          id: "t-create",
+          input: { name: "Site", folders: [{ path: "/code/site" }] },
+          name: "ui_project_create",
+          status: "complete",
+          output: { details: { done: true, projectName: "Site" } },
+        },
+        {
+          id: "t-delete-project",
+          input: { projectId: "p-gone" },
+          name: "ui_project_delete",
+          status: "complete",
+          output: { details: { done: false } },
+        },
+        {
+          id: "t-tree",
+          input: {},
+          name: "ui_session_tree",
+          status: "complete",
+          output: { details: { tree: { projectName: "Notes" } } },
+        },
+        {
+          id: "t-delete-session",
+          input: { projectId: "p-x", sessionId: "s" },
+          name: "ui_session_delete",
+          status: "complete",
+          output: { details: { done: true, title: "Old draft" } },
+        },
+      ],
+    });
+
+    const text = wrapper.text();
+    expect(text).toContain("已创建项目 Site");
+    expect(text).toContain("未删除项目");
+    expect(text).toContain("已读取会话文件夹：Notes");
+    expect(text).toContain("已删除会话 Old draft");
+    expect(text).not.toContain("ui_");
+    wrapper.unmount();
+  });
+
   it("describes listing projects and moving the session", () => {
     const wrapper = mountGroup({
       expanded: true,

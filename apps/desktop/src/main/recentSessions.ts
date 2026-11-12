@@ -58,6 +58,14 @@ async function searchSessionsOf(
   });
 }
 
+/** Every session of one project, newest first. */
+export function listProjectSessions(
+  project: PineProject,
+  sources: RecentSessionSources,
+): Promise<ProjectSessionSearchResult[]> {
+  return searchSessionsOf(project, "", sources);
+}
+
 /** Matches per project, newest first without starving quieter projects. */
 async function searchEveryProject(
   projects: readonly PineProject[],

@@ -75,6 +75,7 @@ import {
 import { registerCoreRequests } from "./requests";
 import { answerAutomationOperation } from "./requests/automations";
 import { answerMcpOperation } from "./requests/mcp";
+import { answerProjectOperation } from "./requests/projects";
 import { answerSessionOperation } from "./requests/sessions";
 
 /** How long a running agent gets to stop its work before Pine quits anyway. */
@@ -128,6 +129,8 @@ export class PineCore {
    * project's temporary files are in use, so they cannot be cleared.
    */
   private readonly runningSessions = new Set<string>();
+  /** Work a session asked for that must wait until its reply ends. */
+  private readonly afterReply = new Map<string, () => Promise<void>>();
   private readonly sessionsWithRunningTasks = new Set<string>();
 
   static async create(host: PineHost): Promise<PineCore> {
@@ -540,14 +543,24 @@ export class PineCore {
       .size;
   }
 
-  projectHasRunningWork(projectId: string): boolean {
+  /** Whether a session of the project, other than `except`, is working. */
+  projectHasRunningWork(projectId: string, except?: string): boolean {
     return this.runtimes
       .liveSessionIdsOf(projectId)
       .some(
         (sessionId) =>
-          this.runningSessions.has(sessionId) ||
-          this.sessionsWithRunningTasks.has(sessionId),
+          sessionId !== except &&
+          (this.runningSessions.has(sessionId) ||
+            this.sessionsWithRunningTasks.has(sessionId)),
       );
+  }
+
+  /**
+   * Runs `update` once the session's reply ends. An update of a session's
+   * own project restarts that project's sessions, so it cannot run mid-turn.
+   */
+  scheduleAfterReply(sessionId: string, update: () => Promise<void>): void {
+    this.afterReply.set(sessionId, update);
   }
 
   /** Stop the agent process and its tools, and close browser access. */
@@ -673,6 +686,13 @@ export class PineCore {
       this.notifyLibraryChanged("sessions", ownerId);
     if (teleportProjectId)
       void this.teleportSession(agentEvent.sessionId, teleportProjectId);
+    const scheduled = finished && this.afterReply.get(agentEvent.sessionId);
+    if (scheduled) {
+      this.afterReply.delete(agentEvent.sessionId);
+      void scheduled().catch((error: unknown) =>
+        console.error("Failed to apply a change the agent asked for.", error),
+      );
+    }
   }
 
   /**
@@ -689,8 +709,10 @@ export class PineCore {
       );
       if (
         agentEvent.request.kind === "teleport" ||
+        agentEvent.request.kind === "project" ||
         (agentEvent.request.kind === "session" &&
-          agentEvent.request.operation.op !== "search") ||
+          agentEvent.request.operation.op !== "search" &&
+          agentEvent.request.operation.op !== "tree") ||
         parentOwner === undefined
       ) {
         this.agentHost.respondHostRequest(agentEvent.requestId, {
@@ -767,6 +789,21 @@ export class PineCore {
         sessionReply = { ok: false, error: toErrorMessage(error) };
       }
       this.agentHost.respondHostRequest(event.requestId, sessionReply);
+      return;
+    }
+    if (event.request.kind === "project") {
+      let projectReply: AgentHostReply;
+      try {
+        const result = await answerProjectOperation(
+          this,
+          { sessionId: event.sessionId, ownerId },
+          event.request.operation,
+        );
+        projectReply = { ok: true, response: { kind: "project", result } };
+      } catch (error) {
+        projectReply = { ok: false, error: toErrorMessage(error) };
+      }
+      this.agentHost.respondHostRequest(event.requestId, projectReply);
       return;
     }
     if (event.request.kind === "mcp") {

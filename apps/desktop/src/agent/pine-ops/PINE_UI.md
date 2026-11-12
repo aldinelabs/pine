@@ -251,6 +251,20 @@ From top to bottom:
      or a stricter one, never a looser one. In Let Me Review, starting it
      shows an Approval required card with its first message. The agent can
      also search the user's sessions in every project.
+   - Sessions the agent organizes: when asked, the agent can create, rename
+     and delete session folders, move sessions into or out of folders, and
+     rename sessions; the left sidebar updates at once. In Let Me Review this
+     shows an Approval required card listing the changes. Deleting a session
+     always shows an Approval required card, in every mode, and a session
+     that is open in a tab cannot be deleted this way.
+   - Projects the agent manages: when asked, the agent can create a project
+     from folders, rename one, add or remove its folders, change its working
+     folder, or delete it. Each change shows an Approval required card in
+     every mode, YOLO included. Deleting a project deletes its sessions but
+     keeps its folders on disk; the agent cannot delete the project it runs
+     in, No Project, or a project with a session still working. Editing the
+     agent's own project takes effect when its reply ends and restarts that
+     project's sessions, like saving in Edit Project.
    - Computer Use: the first control action requests permission to control
      desktop apps and browser tabs for the current task. Let Me Review shows
      one Approval required card; Auto Approve and Autonomous Work review the

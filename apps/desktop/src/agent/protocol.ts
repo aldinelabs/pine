@@ -30,9 +30,21 @@ import type {
 
 export type {
   AgentHostSession,
+  AgentHostSessionTree,
+  AgentHostTreeSession,
   SessionHostOperation,
   SessionHostResult,
+  SessionTreeOperation,
 } from "../shared/sessions";
+import type {
+  ProjectHostOperation,
+  ProjectHostResult,
+} from "../shared/projects";
+export type {
+  AgentProjectFolder,
+  ProjectHostOperation,
+  ProjectHostResult,
+} from "../shared/projects";
 import type {
   PineContextCompactionRoute,
   PineContextCompactionStrategy,
@@ -111,6 +123,7 @@ export type AgentHostRequest =
   | { kind: "list-projects" }
   | { kind: "teleport"; projectId: string }
   | { kind: "session"; operation: SessionHostOperation }
+  | { kind: "project"; operation: ProjectHostOperation }
   | { kind: "workbench-state" }
   | { kind: "approximate-location" }
   | { kind: "automation"; operation: AutomationHostOperation }
@@ -122,6 +135,7 @@ export type AgentHostResponse =
   | { kind: "approximate-location"; location: ApproximateLocation | null }
   | { kind: "teleport"; projectName: string; cwd: string }
   | { kind: "session"; result: SessionHostResult }
+  | { kind: "project"; result: ProjectHostResult }
   | { kind: "automation"; result: PineJsonValue }
   | { kind: "mcp"; result: PineJsonValue };
 

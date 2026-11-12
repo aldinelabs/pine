@@ -1581,6 +1581,24 @@ export default {
             error: "Impossible de se déplacer vers le projet ",
             running: "Demande de déplacement vers le projet ",
           },
+          create: {
+            running: "Création du projet ",
+            complete: "Projet créé : ",
+            declined: "Projet non créé : ",
+            error: "Impossible de créer le projet ",
+          },
+          update: {
+            running: "Modification du projet ",
+            complete: "Projet modifié : ",
+            declined: "Projet non modifié : ",
+            error: "Impossible de modifier le projet ",
+          },
+          delete: {
+            running: "Suppression du projet ",
+            complete: "Projet supprimé : ",
+            declined: "Projet non supprimé : ",
+            error: "Impossible de supprimer le projet ",
+          },
         },
         session: {
           search: {
@@ -1598,6 +1616,23 @@ export default {
             complete: "Session démarrée dans ",
             declined: "Session non démarrée",
             error: "Impossible de démarrer une session",
+          },
+          tree: {
+            running: "Lecture des dossiers de sessions de ",
+            complete: "Dossiers de sessions lus : ",
+            error: "Impossible de lire les dossiers de sessions de ",
+          },
+          organize: {
+            running: "Organisation des sessions de ",
+            complete: "Sessions organisées : ",
+            declined: "Sessions non organisées : ",
+            error: "Impossible d’organiser les sessions de ",
+          },
+          delete: {
+            running: "Suppression d’une session",
+            complete: "Session supprimée : ",
+            declined: "Session non supprimée",
+            error: "Impossible de supprimer la session",
           },
         },
         background: {

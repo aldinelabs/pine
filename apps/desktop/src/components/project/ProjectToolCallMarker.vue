@@ -25,7 +25,13 @@ import { useProjectDisplayName } from "@/composables/useProjectDisplayName";
 import {
   ACTIVATE_PINE_OPS_TOOL_NAME,
   UI_PROJECT_LIST_TOOL_NAME,
+  UI_PROJECT_CREATE_TOOL_NAME,
+  UI_PROJECT_DELETE_TOOL_NAME,
+  UI_PROJECT_UPDATE_TOOL_NAME,
+  UI_SESSION_DELETE_TOOL_NAME,
+  UI_SESSION_ORGANIZE_TOOL_NAME,
   UI_SESSION_SEARCH_TOOL_NAME,
+  UI_SESSION_TREE_TOOL_NAME,
   currentToolName,
   UI_PRESENT_FILE_TOOL_NAME,
 } from "@/shared/agent";
@@ -1225,11 +1231,34 @@ const presentation = computed(() => {
       firstString(input, ["projectId"]) ??
       "";
     const project = projectStore?.projectById(projectId);
-    // A finished move the user turned down reads as declined, not done.
-    const outcome =
-      tense === "complete" && details.moved !== true ? "declined" : tense;
+    const toolName = normalizedToolName(props.toolCall.name);
+    const action =
+      toolName === UI_PROJECT_CREATE_TOOL_NAME
+        ? "create"
+        : toolName === UI_PROJECT_UPDATE_TOOL_NAME
+          ? "update"
+          : toolName === UI_PROJECT_DELETE_TOOL_NAME
+            ? "delete"
+            : "teleport";
+    // A finished call the user turned down reads as declined, not done.
+    const done = action === "teleport" ? details.moved : details.done;
+    const outcome = tense === "complete" && done !== true ? "declined" : tense;
+    if (action === "create")
+      return {
+        before: t(`project.transcript.tools.project.create.${outcome}`),
+        operation: undefined,
+        separator: "",
+        target:
+          firstString(details, ["projectName"]) ??
+          firstString(input, ["name"]) ??
+          "",
+        targetMono: false,
+        purpose: undefined,
+        faviconDataUrl: undefined,
+        after: "",
+      };
     return {
-      before: t(`project.transcript.tools.project.teleport.${outcome}`),
+      before: t(`project.transcript.tools.project.${action}.${outcome}`),
       operation: undefined,
       separator: "",
       target: project
@@ -1255,6 +1284,51 @@ const presentation = computed(() => {
         operation: undefined,
         separator: "",
         target: query,
+        targetMono: false,
+        purpose: undefined,
+        faviconDataUrl: undefined,
+        after: "",
+      };
+    }
+    const sessionTool = normalizedToolName(props.toolCall.name);
+    if (
+      sessionTool === UI_SESSION_TREE_TOOL_NAME ||
+      sessionTool === UI_SESSION_ORGANIZE_TOOL_NAME
+    ) {
+      const action =
+        sessionTool === UI_SESSION_TREE_TOOL_NAME ? "tree" : "organize";
+      const tree = inputRecord(details.tree);
+      const treeProjectId =
+        firstString(tree, ["projectId"]) ??
+        firstString(input, ["projectId"]) ??
+        "";
+      const treeProject = projectStore?.projectById(treeProjectId);
+      const outcome =
+        action === "organize" && tense === "complete" && details.done !== true
+          ? "declined"
+          : tense;
+      return {
+        before: t(`project.transcript.tools.session.${action}.${outcome}`),
+        operation: undefined,
+        separator: "",
+        target: treeProject
+          ? projectDisplayName(treeProject)
+          : (firstString(tree, ["projectName"]) ?? ""),
+        targetMono: false,
+        purpose: undefined,
+        faviconDataUrl: undefined,
+        after: "",
+      };
+    }
+    if (sessionTool === UI_SESSION_DELETE_TOOL_NAME) {
+      const outcome =
+        tense === "complete" && details.done !== true ? "declined" : tense;
+      return {
+        before: t(`project.transcript.tools.session.delete.${outcome}`),
+        operation: undefined,
+        separator: "",
+        target:
+          outcome === "complete" ? (firstString(details, ["title"]) ?? "") : "",
         targetMono: false,
         purpose: undefined,
         faviconDataUrl: undefined,

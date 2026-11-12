@@ -1580,6 +1580,24 @@ export default {
             error: "No se pudo mover al proyecto ",
             running: "Pidiendo mover al proyecto ",
           },
+          create: {
+            running: "Creando el proyecto ",
+            complete: "Proyecto creado: ",
+            declined: "No se creó el proyecto ",
+            error: "No se pudo crear el proyecto ",
+          },
+          update: {
+            running: "Editando el proyecto ",
+            complete: "Proyecto editado: ",
+            declined: "No se editó el proyecto ",
+            error: "No se pudo editar el proyecto ",
+          },
+          delete: {
+            running: "Eliminando el proyecto ",
+            complete: "Proyecto eliminado: ",
+            declined: "No se eliminó el proyecto ",
+            error: "No se pudo eliminar el proyecto ",
+          },
         },
         session: {
           search: {
@@ -1597,6 +1615,23 @@ export default {
             complete: "Sesión iniciada en ",
             declined: "No se inició la sesión",
             error: "No se pudo iniciar una sesión",
+          },
+          tree: {
+            running: "Leyendo las carpetas de sesiones de ",
+            complete: "Carpetas de sesiones leídas: ",
+            error: "No se pudieron leer las carpetas de sesiones de ",
+          },
+          organize: {
+            running: "Organizando las sesiones de ",
+            complete: "Sesiones organizadas: ",
+            declined: "No se organizaron las sesiones de ",
+            error: "No se pudieron organizar las sesiones de ",
+          },
+          delete: {
+            running: "Eliminando una sesión",
+            complete: "Sesión eliminada: ",
+            declined: "No se eliminó la sesión",
+            error: "No se pudo eliminar la sesión",
           },
         },
         background: {

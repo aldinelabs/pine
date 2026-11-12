@@ -1586,6 +1586,24 @@ export default {
             error: "Wechsel zu Projekt fehlgeschlagen: ",
             running: "Wechsel zu Projekt wird angefragt: ",
           },
+          create: {
+            running: "Erstelle Projekt ",
+            complete: "Projekt erstellt: ",
+            declined: "Projekt nicht erstellt: ",
+            error: "Projekt konnte nicht erstellt werden: ",
+          },
+          update: {
+            running: "Bearbeite Projekt ",
+            complete: "Projekt bearbeitet: ",
+            declined: "Projekt nicht bearbeitet: ",
+            error: "Projekt konnte nicht bearbeitet werden: ",
+          },
+          delete: {
+            running: "Lösche Projekt ",
+            complete: "Projekt gelöscht: ",
+            declined: "Projekt nicht gelöscht: ",
+            error: "Projekt konnte nicht gelöscht werden: ",
+          },
         },
         session: {
           search: {
@@ -1603,6 +1621,23 @@ export default {
             complete: "Sitzung gestartet in ",
             declined: "Keine Sitzung gestartet",
             error: "Sitzung konnte nicht gestartet werden",
+          },
+          tree: {
+            running: "Lese Sitzungsordner von ",
+            complete: "Sitzungsordner gelesen: ",
+            error: "Sitzungsordner konnten nicht gelesen werden: ",
+          },
+          organize: {
+            running: "Ordne Sitzungen in ",
+            complete: "Sitzungen geordnet: ",
+            declined: "Sitzungen nicht geordnet: ",
+            error: "Sitzungen konnten nicht geordnet werden: ",
+          },
+          delete: {
+            running: "Lösche eine Sitzung",
+            complete: "Sitzung gelöscht: ",
+            declined: "Sitzung nicht gelöscht",
+            error: "Sitzung konnte nicht gelöscht werden",
           },
         },
         background: {

@@ -46,9 +46,15 @@ import {
   currentToolName,
   UI_PRESENT_FILE_TOOL_NAME,
   UI_LIST_MODELS_TOOL_NAME,
+  UI_PROJECT_CREATE_TOOL_NAME,
+  UI_PROJECT_DELETE_TOOL_NAME,
+  UI_PROJECT_UPDATE_TOOL_NAME,
+  UI_SESSION_DELETE_TOOL_NAME,
   UI_SESSION_NEW_TOOL_NAME,
+  UI_SESSION_ORGANIZE_TOOL_NAME,
   UI_SESSION_SEARCH_TOOL_NAME,
   UI_SESSION_TELEPORT_TOOL_NAME,
+  UI_SESSION_TREE_TOOL_NAME,
 } from "@/shared/agent";
 import { ACTIVATE_AUTOMATION_AUTHORING_TOOL_NAME } from "@/shared/automation";
 import {
@@ -223,6 +229,22 @@ export function toolIconForName(name: string): Component {
   return TOOL_KIND_ICON[toolKind(name)];
 }
 
+const PROJECT_TOOL_NAMES = [
+  UI_PROJECT_LIST_TOOL_NAME,
+  UI_SESSION_TELEPORT_TOOL_NAME,
+  UI_PROJECT_CREATE_TOOL_NAME,
+  UI_PROJECT_UPDATE_TOOL_NAME,
+  UI_PROJECT_DELETE_TOOL_NAME,
+] as const;
+
+const SESSION_TOOL_NAMES = [
+  UI_SESSION_SEARCH_TOOL_NAME,
+  UI_SESSION_NEW_TOOL_NAME,
+  UI_SESSION_TREE_TOOL_NAME,
+  UI_SESSION_ORGANIZE_TOOL_NAME,
+  UI_SESSION_DELETE_TOOL_NAME,
+] as const;
+
 function normalizedName(name: string): string {
   return currentToolName(name.toLowerCase().split(/[.:/]/).at(-1) ?? name);
 }
@@ -239,15 +261,9 @@ export function toolKind(name: string): ToolKind {
   if (normalized === UI_WORKBENCH_STATE_TOOL_NAME) return "workbenchState";
   if ((UI_WORKBENCH_TOOL_NAMES as readonly string[]).includes(normalized))
     return "workbench";
-  if (
-    normalized === UI_PROJECT_LIST_TOOL_NAME ||
-    normalized === UI_SESSION_TELEPORT_TOOL_NAME
-  )
+  if ((PROJECT_TOOL_NAMES as readonly string[]).includes(normalized))
     return "project";
-  if (
-    normalized === UI_SESSION_SEARCH_TOOL_NAME ||
-    normalized === UI_SESSION_NEW_TOOL_NAME
-  )
+  if ((SESSION_TOOL_NAMES as readonly string[]).includes(normalized))
     return "session";
   if (
     normalized === ACTIVATE_AUTOMATION_AUTHORING_TOOL_NAME ||

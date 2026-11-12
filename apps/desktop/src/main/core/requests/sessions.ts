@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import {
   ABORT_SESSION_CHANNEL,
   APPROVAL_RESPONSE_CHANNEL,
@@ -49,9 +50,12 @@ import {
   ALL_PROJECTS_SEARCH_LIMIT,
   attachmentForProjectSession,
   listAllRecentSessions,
+  listProjectSessions,
   searchAllSessions,
 } from "../../recentSessions";
 import type {
+  AgentHostSessionTree,
+  AgentHostTreeSession,
   SessionHostOperation,
   SessionHostResult,
 } from "../../../shared/sessions";
@@ -121,7 +125,113 @@ const SessionHostOperationSchema = z.discriminatedUnion("op", [
     ]),
     locale: z.enum(["en-US", "zh-CN"]),
   }),
+  z.object({
+    op: z.literal("tree"),
+    projectId: z.uuid().optional(),
+    limit: z.number().int().min(1).max(ALL_PROJECTS_SEARCH_LIMIT),
+  }),
+  z.object({
+    op: z.literal("organize"),
+    projectId: z.uuid(),
+    revision: z.string().min(1),
+    operations: z
+      .array(
+        z.discriminatedUnion("op", [
+          z.object({
+            op: z.literal("create-folder"),
+            name: z.string().trim().min(1).max(100),
+          }),
+          z.object({
+            op: z.literal("rename-folder"),
+            folderId: z.string().min(1),
+            name: z.string().trim().min(1).max(100),
+          }),
+          z.object({
+            op: z.literal("delete-folder"),
+            folderId: z.string().min(1),
+          }),
+          z.object({
+            op: z.literal("move"),
+            sessionId: z.uuid(),
+            folderId: z.string().min(1).nullable(),
+          }),
+          z.object({
+            op: z.literal("rename-session"),
+            sessionId: z.uuid(),
+            name: z.string().trim().min(1).max(200),
+          }),
+        ]),
+      )
+      .min(1)
+      .max(100),
+  }),
+  z.object({
+    op: z.literal("describe"),
+    projectId: z.uuid(),
+    sessionId: z.uuid(),
+  }),
+  z.object({
+    op: z.literal("delete"),
+    projectId: z.uuid(),
+    sessionId: z.uuid(),
+  }),
 ]);
+
+/** A folder created earlier in the same call is named `new:1`, `new:2`, … */
+const NEW_FOLDER_REFERENCE = /^new:(\d+)$/;
+
+/** Makes sure the window holds the project, sharing it if no one does. */
+async function holdProject(
+  core: PineCore,
+  requester: { ownerId: number },
+  project: PineProject,
+): Promise<number> {
+  const { repository, runtimes } = core;
+  const owner = runtimes.ownerOfProject(project.id) ?? requester.ownerId;
+  if (!runtimes.isOpen(owner, project.id))
+    await runtimes.share(
+      owner,
+      await repository.open(project.id),
+      repository.dataPaths(project.id),
+    );
+  return owner;
+}
+
+async function sessionTree(
+  core: PineCore,
+  requester: { sessionId: string },
+  project: PineProject,
+  limit: number,
+  name: string,
+): Promise<AgentHostSessionTree> {
+  const sessions = await listProjectSessions(project, sessionLibrary(core));
+  const byId = new Map(sessions.map((session) => [session.id, session]));
+  const describe = (id: string): AgentHostTreeSession => {
+    const session = byId.get(id);
+    return {
+      id,
+      ...(session?.name ? { title: session.name } : {}),
+      ...(session ? { updatedAt: session.updatedAt } : {}),
+      ...(id === requester.sessionId ? { current: true as const } : {}),
+    };
+  };
+  const groups = project.sessionGroups ?? [];
+  const filed = new Set(groups.flatMap((group) => group.sessionIds));
+  const unfiled = sessions.filter((session) => !filed.has(session.id));
+  return {
+    projectId: project.id,
+    projectName: name,
+    revision: project.updatedAt,
+    folders: groups.map((group) => ({
+      id: group.id,
+      name: group.name,
+      // A deleted session can linger in a folder; it is not shown there.
+      sessions: group.sessionIds.filter((id) => byId.has(id)).map(describe),
+    })),
+    unfiled: unfiled.slice(0, limit).map((session) => describe(session.id)),
+    moreUnfiled: Math.max(unfiled.length - limit, 0),
+  };
+}
 
 /**
  * Answers the session tools of `requester`, a live session in the window
@@ -182,6 +292,173 @@ export async function answerSessionOperation(
         ...(session.automationRun ? { automationRun: true as const } : {}),
       })),
     };
+  }
+
+  if (parsed.op === "tree") {
+    const projectId =
+      parsed.projectId ??
+      runtimes.projectOfLiveSession(requester.sessionId)?.id;
+    const project = projects.find((candidate) => candidate.id === projectId);
+    if (!project) throw new Error("That project does not exist.");
+    return {
+      op: "tree",
+      tree: await sessionTree(
+        core,
+        requester,
+        project,
+        parsed.limit,
+        projectName(project),
+      ),
+    };
+  }
+
+  if (parsed.op === "organize") {
+    const project = projects.find(
+      (candidate) => candidate.id === parsed.projectId,
+    );
+    if (!project) throw new Error("That project does not exist.");
+    if (project.updatedAt !== parsed.revision)
+      throw new Error(
+        "The project's sessions changed since that tree was read. Read the tree again and redo the edits.",
+      );
+    const known = new Set(
+      (await listProjectSessions(project, sessionLibrary(core))).map(
+        (session) => session.id,
+      ),
+    );
+    let groups = (project.sessionGroups ?? []).map((group) => ({
+      ...group,
+      sessionIds: [...group.sessionIds],
+    }));
+    const created: string[] = [];
+    const renames: { sessionId: string; name: string }[] = [];
+    const folderId = (reference: string): string => {
+      const match = NEW_FOLDER_REFERENCE.exec(reference);
+      const id = match ? created[Number(match[1]) - 1] : reference;
+      if (!id || !groups.some((group) => group.id === id))
+        throw new Error(`No folder ${reference} in ${project.name}.`);
+      return id;
+    };
+    const session = (id: string): string => {
+      if (!known.has(id))
+        throw new Error(`No session ${id} in ${projectName(project)}.`);
+      return id;
+    };
+    for (const edit of parsed.operations) {
+      if (edit.op === "create-folder") {
+        const id = randomUUID();
+        groups.push({ id, name: edit.name, sessionIds: [] });
+        created.push(id);
+      } else if (edit.op === "rename-folder") {
+        const id = folderId(edit.folderId);
+        groups = groups.map((group) =>
+          group.id === id ? { ...group, name: edit.name } : group,
+        );
+      } else if (edit.op === "delete-folder") {
+        const id = folderId(edit.folderId);
+        groups = groups.filter((group) => group.id !== id);
+      } else if (edit.op === "move") {
+        const id = session(edit.sessionId);
+        const target = edit.folderId === null ? null : folderId(edit.folderId);
+        groups = groups.map((group) => ({
+          ...group,
+          sessionIds: group.sessionIds.filter((filed) => filed !== id),
+        }));
+        groups.find((group) => group.id === target)?.sessionIds.push(id);
+      } else {
+        renames.push({ sessionId: session(edit.sessionId), name: edit.name });
+      }
+    }
+    let updated = project;
+    if (parsed.operations.some((edit) => edit.op !== "rename-session")) {
+      updated = await repository.updateSessionGroups(project.id, groups);
+      core.notifyLibraryChanged("projects");
+    }
+    if (renames.length) {
+      const owner = await holdProject(core, requester, project);
+      for (const rename of renames)
+        await runtimes.renameSession(
+          owner,
+          project.id,
+          rename.sessionId,
+          rename.name,
+        );
+      core.notifyLibraryChanged("sessions");
+    }
+    return {
+      op: "organize",
+      tree: await sessionTree(
+        core,
+        requester,
+        updated,
+        ALL_PROJECTS_SEARCH_LIMIT,
+        projectName(updated),
+      ),
+      createdFolderIds: created,
+    };
+  }
+
+  if (parsed.op === "describe" || parsed.op === "delete") {
+    const project = projects.find(
+      (candidate) => candidate.id === parsed.projectId,
+    );
+    if (!project) throw new Error("That project does not exist.");
+    const known = (
+      await withAutomationRuns(
+        core,
+        await listProjectSessions(project, sessionLibrary(core)),
+      )
+    ).find((session) => session.id === parsed.sessionId);
+    if (!known)
+      throw new Error(
+        `No session ${parsed.sessionId} in ${projectName(project)}.`,
+      );
+    const open = runtimes.liveSessionIdsOf(project.id).includes(known.id);
+    if (parsed.op === "describe")
+      return {
+        op: "describe",
+        session: {
+          id: known.id,
+          projectId: project.id,
+          projectName: projectName(project),
+          ...(known.name ? { title: known.name } : {}),
+          ...(known.preview ? { snippet: known.preview } : {}),
+          createdAt: known.createdAt,
+          updatedAt: known.updatedAt,
+          messageCount: known.messageCount,
+          ...(known.id === requester.sessionId
+            ? { current: true as const }
+            : {}),
+          ...(known.automationRun ? { automationRun: true as const } : {}),
+        },
+        ...(open ? { open: true as const } : {}),
+      };
+    if (parsed.sessionId === requester.sessionId)
+      throw new Error("A session cannot delete itself.");
+    // An open session would leave its tab pointing at nothing.
+    if (open)
+      throw new Error(
+        "That session is open in Pine. Ask the user to close its tab first.",
+      );
+    const owner = await holdProject(core, requester, project);
+    const deleted = await runtimes.deleteSession(
+      owner,
+      project.id,
+      parsed.sessionId,
+    );
+    const groups = project.sessionGroups ?? [];
+    if (groups.some((group) => group.sessionIds.includes(parsed.sessionId))) {
+      await repository.updateSessionGroups(
+        project.id,
+        groups.map((group) => ({
+          ...group,
+          sessionIds: group.sessionIds.filter((id) => id !== parsed.sessionId),
+        })),
+      );
+      core.notifyLibraryChanged("projects");
+    }
+    core.notifyLibraryChanged("sessions");
+    return { op: "delete", deleted };
   }
 
   const callerMode = runtimes.approvalModeOfLiveSession(requester.sessionId);

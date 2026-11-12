@@ -1492,6 +1492,24 @@ export default {
             error: "无法移动到项目 ",
             running: "正在请求移动到项目 ",
           },
+          create: {
+            running: "正在创建项目 ",
+            complete: "已创建项目 ",
+            declined: "未创建项目 ",
+            error: "无法创建项目 ",
+          },
+          update: {
+            running: "正在编辑项目 ",
+            complete: "已编辑项目 ",
+            declined: "未编辑项目 ",
+            error: "无法编辑项目 ",
+          },
+          delete: {
+            running: "正在删除项目 ",
+            complete: "已删除项目 ",
+            declined: "未删除项目 ",
+            error: "无法删除项目 ",
+          },
         },
         session: {
           search: {
@@ -1509,6 +1527,23 @@ export default {
             complete: "已新建会话，项目 ",
             declined: "未新建会话",
             error: "无法新建会话",
+          },
+          tree: {
+            running: "正在读取会话文件夹：",
+            complete: "已读取会话文件夹：",
+            error: "无法读取会话文件夹：",
+          },
+          organize: {
+            running: "正在整理会话：",
+            complete: "已整理会话：",
+            declined: "未整理会话：",
+            error: "无法整理会话：",
+          },
+          delete: {
+            running: "正在删除会话",
+            complete: "已删除会话 ",
+            declined: "未删除会话",
+            error: "无法删除会话",
           },
         },
         background: {

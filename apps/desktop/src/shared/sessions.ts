@@ -460,7 +460,57 @@ export type SessionHostOperation =
       message: string;
       approvalMode: PineApprovalMode;
       locale: "en-US" | "zh-CN";
-    };
+    }
+  | {
+      op: "tree";
+      /** The asking session's project when omitted. */
+      projectId?: string;
+      /** Most unfiled sessions to list. */
+      limit: number;
+    }
+  | {
+      op: "organize";
+      projectId: string;
+      /** The tree's revision; a changed tree refuses the edits. */
+      revision: string;
+      operations: SessionTreeOperation[];
+    }
+  | { op: "describe"; projectId: string; sessionId: string }
+  | { op: "delete"; projectId: string; sessionId: string };
+
+/** One edit of a project's session folders, applied in order. */
+export type SessionTreeOperation =
+  | { op: "create-folder"; name: string }
+  | { op: "rename-folder"; folderId: string; name: string }
+  /** Its sessions move back to the project. */
+  | { op: "delete-folder"; folderId: string }
+  /** A `folderId` of null takes the session out of its folder. */
+  | { op: "move"; sessionId: string; folderId: string | null }
+  | { op: "rename-session"; sessionId: string; name: string };
+
+/** A project's session folders as the agent sees them. */
+export interface AgentHostSessionTree {
+  projectId: string;
+  projectName: string;
+  /** Changes whenever the project or its folders change. */
+  revision: string;
+  folders: {
+    id: string;
+    name: string;
+    sessions: AgentHostTreeSession[];
+  }[];
+  /** The most recent sessions outside every folder. */
+  unfiled: AgentHostTreeSession[];
+  /** Unfiled sessions beyond the limit. */
+  moreUnfiled: number;
+}
+
+export interface AgentHostTreeSession {
+  id: string;
+  title?: string;
+  updatedAt?: string;
+  current?: true;
+}
 
 export type SessionHostResult =
   | { op: "search"; sessions: AgentHostSession[] }
@@ -470,7 +520,21 @@ export type SessionHostResult =
       projectId: string;
       projectName: string;
       approvalMode: PineApprovalMode;
-    };
+    }
+  | { op: "tree"; tree: AgentHostSessionTree }
+  | {
+      op: "organize";
+      tree: AgentHostSessionTree;
+      /** Ids of folders the edits created, in order. */
+      createdFolderIds: string[];
+    }
+  | {
+      op: "describe";
+      session: AgentHostSession;
+      /** Open in a Pine tab, so it cannot be deleted. */
+      open?: true;
+    }
+  | { op: "delete"; deleted: boolean };
 
 /** A bare `*` (or nothing) lists sessions instead of searching their text. */
 export function sessionSearchQuery(query: string): string {
