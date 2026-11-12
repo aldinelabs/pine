@@ -11,6 +11,7 @@
  * | M1 | updates of the finished ProjectThinkingMarker          | 1      | 0      | 0      |
  * | M2 | splitTranscriptText calls                              | 3      | 1      | <= 1   |
  * | M2 | characters handed to splitTranscriptText, last flush   | 913    | 832    | -      |
+ * | M2 | contentBlocksToText calls by the row                   | 1      | 0      | 0      |
  * | M3 | updates of the two ProjectToolCallMarker rows          | 2      | 0      | 0      |
  * | M4 | earlier text blocks rendered as final while streaming  | 0 of 2 | 2 of 2 | 2 of 2 |
  * | -  | MarkdownContent updates                                | 1      | 1      | -      |
@@ -35,6 +36,7 @@ import { createAppI18n } from "@/app/i18n";
 import { splitTranscriptText } from "@/components/intelligent-ui/segments";
 import MarkdownContent from "@/components/markdown/MarkdownContent.vue";
 import type { PineSessionEvent } from "@/shared/agent";
+import { contentBlocksToText } from "@/shared/sessions";
 import { useSessionStore } from "@/stores/session";
 import ProjectTranscriptMessage from "../ProjectTranscriptMessage.vue";
 
@@ -45,6 +47,15 @@ vi.mock("@/components/intelligent-ui/segments", async (original) => {
   return {
     ...actual,
     splitTranscriptText: callCounter(actual.splitTranscriptText),
+  };
+});
+
+vi.mock("@/shared/sessions", async (original) => {
+  const actual = await original<typeof import("@/shared/sessions")>();
+  const { callCounter } = await import("@/__tests__/perf/streamHarness");
+  return {
+    ...actual,
+    contentBlocksToText: callCounter(actual.contentBlocksToText),
   };
 });
 
@@ -98,6 +109,7 @@ interface FlushMetrics {
   toolMarkerUpdates: number;
   splitCallsPerFlush: number;
   splitCharactersLastFlush: number;
+  joinCallsPerFlush: number;
   earlierTextBlocks: number;
   earlierTextBlocksFinal: number;
   markdownUpdatesPerFlush: number;
@@ -161,8 +173,10 @@ async function measureFlushes(): Promise<FlushMetrics> {
   expect(counter.mountedCount("ProjectToolCallMarker")).toBe(2);
 
   const split = callStats(splitTranscriptText);
+  const join = callStats(contentBlocksToText);
   counter.reset();
   split.reset();
+  let rowJoinCalls = 0;
   let splitCharactersLastFlush = 0;
   for (let flush = 0; flush < FLUSHES; flush++) {
     const untouched = live().blocks.slice(0, LAST_TEXT_INDEX);
@@ -177,8 +191,11 @@ async function measureFlushes(): Promise<FlushMetrics> {
       .forEach((block, index) => {
         expect(block).toBe(untouched[index]);
       });
+    // Counted around the row's render only: the store joins text too.
+    join.reset();
     await wrapper.setProps({ message: live() });
     await flushPromises();
+    rowJoinCalls += join.calls();
     splitCharactersLastFlush = split.size() - sizeBefore;
   }
 
@@ -192,6 +209,7 @@ async function measureFlushes(): Promise<FlushMetrics> {
     toolMarkerUpdates: counter.updates("ProjectToolCallMarker") / FLUSHES,
     splitCallsPerFlush: split.calls() / FLUSHES,
     splitCharactersLastFlush,
+    joinCallsPerFlush: rowJoinCalls / FLUSHES,
     earlierTextBlocks: earlier.length,
     earlierTextBlocksFinal: earlier.filter(
       (markdown) => markdown.props("final") === true,
@@ -227,6 +245,11 @@ describe("ProjectTranscriptMessage streaming cost", () => {
   it("[M2] splits at most one text block per flush", async () => {
     const metrics = await flushMetrics();
     expect(metrics.splitCallsPerFlush).toBeLessThanOrEqual(1);
+  });
+
+  it("[M2] never joins the streaming reply's text in the row", async () => {
+    const metrics = await flushMetrics();
+    expect(metrics.joinCallsPerFlush).toBe(0);
   });
 
   it("[M3] leaves finished tool call markers alone", async () => {

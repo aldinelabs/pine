@@ -449,7 +449,11 @@ watch(userTextViewport, (viewport) => {
   const text = viewport.firstElementChild;
   if (text) userTextObserver.observe(text);
 });
-watch(() => relay.value.body, measureUserText, { flush: "post" });
+// Assistant rows never show the bubble; tracking their body would join the
+// whole streaming reply on every flush.
+watch(() => (isUser.value ? relay.value.body : undefined), measureUserText, {
+  flush: "post",
+});
 onMounted(measureUserText);
 onUnmounted(stopObservingUserText);
 </script>
