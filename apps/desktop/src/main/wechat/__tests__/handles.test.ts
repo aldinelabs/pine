@@ -22,6 +22,7 @@ describe("HandleTables", () => {
   it("resolves rows 1-based and refuses out of range", () => {
     const tables = new HandleTables({ now: clock().now });
     tables.set("session", rows);
+    tables.noteDelivered("session", 1);
     expect(tables.resolve("session", 1)).toEqual(rows[0]);
     expect(tables.resolve("session", 2)?.id).toBe("s2");
     expect(tables.resolve("session", 0)).toBeUndefined();
@@ -34,7 +35,9 @@ describe("HandleTables", () => {
     const tables = new HandleTables({ now: clock().now });
     tables.set("session", rows);
     tables.set("project", [{ id: "p1", label: "pine" }]);
+    tables.noteDelivered("project", 1);
     tables.set("session", [{ id: "s9", label: "新的" }]);
+    tables.noteDelivered("session", 1);
     expect(tables.resolve("session", 1)?.id).toBe("s9");
     expect(tables.resolve("session", 2)).toBeUndefined();
     expect(tables.resolve("project", 1)?.id).toBe("p1");
@@ -44,6 +47,7 @@ describe("HandleTables", () => {
     const tables = new HandleTables({ now: clock().now });
     const live = [{ id: "a", label: "A" }];
     tables.set("model", live);
+    tables.noteDelivered("model", 1);
     live[0] = { id: "b", label: "B" };
     expect(tables.resolve("model", 1)?.id).toBe("a");
   });
@@ -65,6 +69,7 @@ describe("HandleTables", () => {
   it("scopes file, task and queue tables to one session", () => {
     const tables = new HandleTables({ now: clock().now });
     tables.set("file", [{ id: "f1", label: "report.pdf" }], "s1");
+    tables.noteDelivered("file", 1);
     expect(tables.resolve("file", 1, "s1")?.id).toBe("f1");
     expect(tables.resolve("file", 1, "s2")).toBeUndefined();
     expect(tables.resolve("file", 1)).toBeUndefined();
@@ -79,12 +84,27 @@ describe("HandleTables", () => {
     tables.noteDelivered("session", 5);
     expect(tables.last()).toEqual({ kind: "session", deliveredAtMs: 5 });
     tables.set("session", rows);
-    expect(tables.last()).toBeUndefined();
+    expect(tables.last()).toEqual({ kind: "session", deliveredAtMs: 5 });
     tables.noteDelivered("session", 6);
     tables.set("model", [{ id: "m", label: "m" }]);
     expect(tables.last()).toEqual({ kind: "session", deliveredAtMs: 6 });
     tables.noteDelivered("model", 7);
     expect(tables.last()?.kind).toBe("model");
+  });
+
+  it("keeps answering from the delivered table until a new one is delivered", () => {
+    const tables = new HandleTables({ now: clock().now });
+    tables.set("session", rows);
+    expect(tables.resolve("session", 1)).toBeUndefined();
+    expect(tables.table("session")).toBeUndefined();
+    tables.noteDelivered("session", 1);
+    tables.set("session", [{ id: "s9", label: "新的" }]);
+    expect(tables.resolve("session", 1)?.id).toBe("s1");
+    expect(tables.table("session")?.rows).toEqual(rows);
+    expect(tables.last()?.kind).toBe("session");
+    tables.noteDelivered("session", 2);
+    expect(tables.resolve("session", 1)?.id).toBe("s9");
+    expect(tables.resolve("session", 2)).toBeUndefined();
   });
 
   it("persists only delivered session and project tables", () => {
@@ -115,6 +135,7 @@ describe("HandleTables", () => {
     const tables = new HandleTables({ now: clock().now });
     tables.set("session", rows);
     tables.set("project", [{ id: "p1", label: "pine" }]);
+    tables.noteDelivered("project", 1);
     tables.noteDelivered("session", 1);
     tables.clear("session");
     expect(tables.resolve("session", 1)).toBeUndefined();

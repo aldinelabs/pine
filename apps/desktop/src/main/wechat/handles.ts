@@ -18,9 +18,7 @@ export const PERSISTED_HANDLES = ["session", "project"] as const;
 export type PersistedHandleKind = (typeof PERSISTED_HANDLES)[number];
 export type HandleSnapshot = WeChatPersistedState["handles"];
 
-interface Entry extends HandleTable {
-  delivered: boolean;
-}
+type Entry = HandleTable;
 
 export interface HandleTablesOptions {
   now?: () => number;
@@ -30,14 +28,16 @@ export interface HandleTablesOptions {
  * One table per kind. Only replies call `set` / `noteDelivered`; pushes never
  * touch a table (CMD §4.1).
  *
- * `set` replaces the table at once; the 30-minute expiry counts from `set`
- * until the reply is delivered, then from the delivery time. `last()` (the
- * bare `.N` target) names only a delivered table: setting a new table of the
- * same kind clears it until that table is delivered.
+ * `set` stores a pending table; `noteDelivered` makes it the table of its
+ * kind. Until then `resolve`, `table` and `last()` keep answering from the
+ * table the user last received, so a list reply that could not be sent never
+ * changes what a number means ("row N of the list of that kind I saw last").
+ * A delivered table expires 30 minutes after its delivery time.
  */
 export class HandleTables {
   private readonly now: () => number;
   private readonly tables = new Map<HandleKind, Entry>();
+  private readonly pending = new Map<HandleKind, Entry>();
   private lastNumbered: { kind: HandleKind; deliveredAtMs: number } | undefined;
 
   constructor(options: HandleTablesOptions = {}) {
@@ -52,14 +52,12 @@ export class HandleTables {
     const entry: Entry = {
       rows: rows.map((row) => ({ ...row })),
       sentAtMs: this.now(),
-      delivered: false,
     };
     if (sessionId !== undefined) entry.sessionId = sessionId;
-    this.tables.set(kind, entry);
-    if (this.lastNumbered?.kind === kind) this.lastNumbered = undefined;
+    this.pending.set(kind, entry);
   }
 
-  /** Row `n` (1-based) of the table of `kind`; undefined when missing, expired, out of range or of another session. */
+  /** Row `n` (1-based) of the delivered table of `kind`; undefined when missing, expired, out of range or of another session. */
   resolve(
     kind: HandleKind,
     n: number,
@@ -74,24 +72,19 @@ export class HandleTables {
     return row ? { ...row } : undefined;
   }
 
-  /** The table of `kind`, if still valid. */
+  /** The delivered table of `kind`, if still valid. */
   table(kind: HandleKind): Readonly<HandleTable> | undefined {
     const entry = this.live(kind);
     if (!entry) return undefined;
-    const table: HandleTable = {
-      rows: entry.rows.map((row) => ({ ...row })),
-      sentAtMs: entry.sentAtMs,
-    };
-    if (entry.sessionId !== undefined) table.sessionId = entry.sessionId;
-    return table;
+    return copy(entry);
   }
 
-  /** The reply that carried the table of `kind` was sent at `atMs`. */
+  /** The reply that carried the pending table of `kind` was sent at `atMs`. */
   noteDelivered(kind: HandleKind, atMs: number): void {
-    const entry = this.tables.get(kind);
+    const entry = this.pending.get(kind);
     if (!entry) return;
-    entry.delivered = true;
-    entry.sentAtMs = atMs;
+    this.pending.delete(kind);
+    this.tables.set(kind, { ...entry, sentAtMs: atMs });
     this.lastNumbered = { kind, deliveredAtMs: atMs };
   }
 
@@ -99,18 +92,19 @@ export class HandleTables {
   last(): { kind: HandleKind; deliveredAtMs: number } | undefined {
     const last = this.lastNumbered;
     if (!last) return undefined;
-    const entry = this.live(last.kind);
-    if (!entry?.delivered) return undefined;
+    if (!this.live(last.kind)) return undefined;
     return { ...last };
   }
 
   clear(kind?: HandleKind): void {
     if (kind === undefined) {
       this.tables.clear();
+      this.pending.clear();
       this.lastNumbered = undefined;
       return;
     }
     this.tables.delete(kind);
+    this.pending.delete(kind);
     if (this.lastNumbered?.kind === kind) this.lastNumbered = undefined;
   }
 
@@ -119,7 +113,7 @@ export class HandleTables {
     const snapshot: HandleSnapshot = {};
     for (const kind of PERSISTED_HANDLES) {
       const entry = this.live(kind);
-      if (!entry?.delivered) continue;
+      if (!entry) continue;
       snapshot[kind] = {
         rows: entry.rows.map((row) => ({ ...row })),
         sentAtMs: entry.sentAtMs,
@@ -137,7 +131,6 @@ export class HandleTables {
       this.tables.set(kind, {
         rows: table.rows.map((row) => ({ ...row })),
         sentAtMs: table.sentAtMs,
-        delivered: true,
       });
     }
   }
@@ -151,6 +144,15 @@ export class HandleTables {
     }
     return entry;
   }
+}
+
+function copy(entry: Entry): HandleTable {
+  const table: HandleTable = {
+    rows: entry.rows.map((row) => ({ ...row })),
+    sentAtMs: entry.sentAtMs,
+  };
+  if (entry.sessionId !== undefined) table.sessionId = entry.sessionId;
+  return table;
 }
 
 /** A page `.more` sends. `list` is set for a page of a numbered list: sending it replaces that table. */
