@@ -144,6 +144,43 @@ describe("animateScrollTop", () => {
     expect(element.scrollTop).toBe(900);
   });
 
+  it("lands on the target once less than half a pixel is left", () => {
+    const clock = installFrameClock();
+    const element = document.createElement("div");
+    const writes: number[] = [];
+    let top = 0;
+    Object.defineProperty(element, "scrollTop", {
+      get: () => top,
+      set: (value: number) => {
+        top = value;
+        writes.push(value);
+      },
+    });
+    animateScrollTop(element, 20);
+    clock.flush(400);
+    expect(element.scrollTop).toBe(20);
+    // It stopped before the full 500 ms, without sub-pixel tail frames.
+    const finishedAt = writes.length;
+    clock.flush(200);
+    expect(writes).toHaveLength(finishedAt);
+    expect(writes.at(-1)).toBe(20);
+    for (const value of writes.slice(0, -1)) {
+      expect(20 - value).toBeGreaterThanOrEqual(0.5);
+    }
+  });
+
+  it("keeps the full sweep while the remaining distance is visible", () => {
+    const clock = installFrameClock();
+    const element = createScroller();
+    animateScrollTop(element, 1000);
+    clock.flush(320);
+    // Far from the target, the curve keeps running.
+    expect(element.scrollTop).toBeGreaterThan(990);
+    expect(element.scrollTop).toBeLessThan(1000);
+    clock.flush(200);
+    expect(element.scrollTop).toBe(1000);
+  });
+
   it("jumps instantly under prefers-reduced-motion", () => {
     installFrameClock();
     vi.stubGlobal("matchMedia", vi.fn().mockReturnValue({ matches: true }));

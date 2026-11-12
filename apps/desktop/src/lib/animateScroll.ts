@@ -79,6 +79,8 @@ function prefersReducedMotion(): boolean {
 }
 
 const DEFAULT_DURATION_MS = 500;
+/** Remaining distance below which a tween lands on its target. */
+const FINISH_DISTANCE_PX = 0.5;
 
 export interface AnimateScrollTopOptions {
   /** Sweep duration in milliseconds (default 500). */
@@ -157,12 +159,18 @@ export function animateScrollTop(
     frame = null;
     const progress = easeOutExpo((now - startTime) / duration);
     lastTop = startTop + (target - startTop) * progress;
-    element.scrollTop = lastTop;
-    if (now - startTime >= duration) {
+    // The ease-out tail spends its last stretch on sub-pixel steps that
+    // paint nothing new. Land on the target once less than half a pixel is
+    // left instead of running a frame loop for them.
+    if (
+      now - startTime >= duration ||
+      Math.abs(target - lastTop) < FINISH_DISTANCE_PX
+    ) {
       element.scrollTop = target;
       cleanup();
       return;
     }
+    element.scrollTop = lastTop;
     frame = window.requestAnimationFrame(step);
   }
 
@@ -187,4 +195,9 @@ export function animateScrollTop(
   frame = window.requestAnimationFrame(step);
 
   return cleanup;
+}
+
+/** Whether a tween started by animateScrollTop is still moving the element. */
+export function isScrollAnimating(element: HTMLElement): boolean {
+  return activeAnimations.has(element);
 }

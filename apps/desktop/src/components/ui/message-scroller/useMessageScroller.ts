@@ -9,7 +9,7 @@ import {
   shallowRef,
   watch,
 } from "vue";
-import { animateScrollTop } from "@/lib/animateScroll";
+import { animateScrollTop, isScrollAnimating } from "@/lib/animateScroll";
 import { DURATION_MS } from "@/lib/motion";
 
 // -----------------------------------------------------------------------------
@@ -63,6 +63,9 @@ const DEFAULT_SCROLL_PREVIOUS_ITEM_PEEK = 64;
 const DEFAULT_SCROLL_MARGIN = 0;
 const SCROLL_EPSILON = 0.5;
 const AUTOSCROLLING_TIMEOUT = 180;
+/** Minimum spacing of visibility passes while the engine's own follow tween
+ * moves the viewport. A trailing pass always runs after the last request. */
+const FOLLOW_VISIBILITY_INTERVAL_MS = 100;
 
 /**
  * Whether a follow-to-bottom scroll should glide. Only a live streaming turn
@@ -195,15 +198,21 @@ function getRelativeTop(element: HTMLElement, viewport: HTMLElement): number {
 }
 
 export function measureContentHeight({
+  children: knownChildren,
   content,
+  padding: knownPadding,
   spacer,
 }: {
+  /** The content's message children, when the caller already has them. */
+  children?: HTMLElement[];
   content: HTMLElement;
+  /** The content's padding, when the caller already has it. */
+  padding?: { start: number; end: number };
   spacer: HTMLElement | null;
   viewport: HTMLElement;
 }): number {
-  const children = getMessageChildren(content, spacer);
-  const padding = getPadding(content);
+  const children = knownChildren ?? getMessageChildren(content, spacer);
+  const padding = knownPadding ?? getPadding(content);
   const lastChild = children.at(-1);
   if (!lastChild) return padding.start + padding.end;
 
@@ -228,36 +237,49 @@ function isAtScrollEnd(element: HTMLElement): boolean {
 }
 
 function computeSpacerHeight({
+  children,
   content,
+  padding,
   scrollTop,
   spacer,
   viewport,
 }: {
+  children?: HTMLElement[];
   content: HTMLElement;
+  padding?: { start: number; end: number };
   scrollTop: number;
   spacer: HTMLElement | null;
   viewport: HTMLElement;
 }): number {
-  const contentHeight = measureContentHeight({ content, spacer, viewport });
+  const contentHeight = measureContentHeight({
+    children,
+    content,
+    padding,
+    spacer,
+    viewport,
+  });
   return scrollTop + viewport.clientHeight - contentHeight;
 }
 
 function computeScrollTopForElement({
   align,
   element,
+  padding,
   scrollMargin,
   spacer,
   viewport,
 }: {
   align: MessageScrollerScrollAlign;
   element: HTMLElement;
+  /** The padding of the spacer's parent, when the caller already has it. */
+  padding?: { start: number; end: number };
   scrollMargin: number;
   spacer: HTMLElement | null;
   viewport: HTMLElement;
 }): number {
   const offsetTop = getElementOffsetTop(element, viewport);
   const height = element.getBoundingClientRect().height;
-  const padding = getContentPadding(spacer);
+  padding ??= getContentPadding(spacer);
 
   if (align === "center") {
     const available = Math.max(
@@ -285,18 +307,28 @@ function computeScrollTopForElement({
 }
 
 function computeScrollable({
+  children,
   content,
+  padding,
   scrollEdgeThreshold,
   spacer,
   viewport,
 }: {
+  children?: HTMLElement[];
   content: HTMLElement | null;
+  padding?: { start: number; end: number };
   scrollEdgeThreshold: number;
   spacer: HTMLElement | null;
   viewport: HTMLElement | null;
 }): MessageScrollerScrollable {
   if (!viewport || !content) return EMPTY_SCROLLABLE;
-  const contentHeight = measureContentHeight({ content, spacer, viewport });
+  const contentHeight = measureContentHeight({
+    children,
+    content,
+    padding,
+    spacer,
+    viewport,
+  });
   return {
     start: viewport.scrollTop > scrollEdgeThreshold,
     end:
@@ -306,6 +338,7 @@ function computeScrollable({
 }
 
 function computeVisibility({
+  children: knownChildren,
   content,
   scrollMargin,
   scrollPreviousItemPeek,
@@ -313,6 +346,7 @@ function computeVisibility({
   viewport,
   visibleMessageIds,
 }: {
+  children?: HTMLElement[];
   content: HTMLElement | null;
   scrollMargin: number;
   scrollPreviousItemPeek: number;
@@ -324,7 +358,7 @@ function computeVisibility({
   const viewportRect = viewport.getBoundingClientRect();
   const anchorLine = viewportRect.top + scrollMargin + scrollPreviousItemPeek;
   const noIntersectionObserver = typeof IntersectionObserver === "undefined";
-  const children = getMessageChildren(content, spacer);
+  const children = knownChildren ?? getMessageChildren(content, spacer);
   const visible: string[] = [];
   const anchorsBelowLine = new Set<string>();
   let currentAnchorId: string | null = null;
@@ -421,17 +455,19 @@ function findLastAnchor(elements: HTMLElement[]): HTMLElement | null {
 }
 
 function findFirstVisibleMessage({
+  children: knownChildren,
   content,
   spacer,
   viewport,
   visibleMessageIds,
 }: {
+  children?: HTMLElement[];
   content: HTMLElement;
   spacer: HTMLElement | null;
   viewport: HTMLElement;
   visibleMessageIds: Set<string>;
 }): HTMLElement | null {
-  const children = getMessageChildren(content, spacer);
+  const children = knownChildren ?? getMessageChildren(content, spacer);
   // Fast path: the IntersectionObserver already tracks which messages
   // intersect the viewport, so pick the topmost one without any layout read.
   // captureViewportAnchor runs on every content change and scroll event; a
@@ -540,6 +576,18 @@ function createEngine(props: MessageScrollerProviderProps) {
   let pendingScrollToMessage: PendingScrollToMessage | null = null;
   let stateFrame: number | null = null;
   let visibilityFrame: number | null = null;
+  /** Trailing visibility pass held back while the engine follows. */
+  let visibilityTimer: ReturnType<typeof setTimeout> | undefined;
+  let lastVisibilityPassAt = Number.NEGATIVE_INFINITY;
+  /** Message children of the content, refreshed by handleContentChange (the
+   * MutationObserver path) and whenever the child count no longer matches. */
+  let cachedChildren: HTMLElement[] | null = null;
+  let cachedChildCount = -1;
+  /** Content padding, refreshed on every resize and content change. */
+  let cachedPadding: {
+    element: HTMLElement;
+    value: { start: number; end: number };
+  } | null = null;
   let pendingScrollFrame: number | null = null;
   let autoscrollingTimeout: number | null = null;
   let cancelScrollAnimation: (() => void) | null = null;
@@ -576,6 +624,56 @@ function createEngine(props: MessageScrollerProviderProps) {
     return attr || undefined;
   });
 
+  // --- cached measurements ---------------------------------------------------
+
+  function messageChildren(): HTMLElement[] {
+    if (!content) return [];
+    if (cachedChildren && cachedChildCount === content.childElementCount)
+      return cachedChildren;
+    cachedChildren = getMessageChildren(content, spacer);
+    cachedChildCount = content.childElementCount;
+    return cachedChildren;
+  }
+
+  function invalidateChildren(): void {
+    cachedChildren = null;
+    cachedChildCount = -1;
+  }
+
+  function paddingOf(element: HTMLElement): { start: number; end: number } {
+    if (element !== content) return getPadding(element);
+    if (cachedPadding?.element === element) return cachedPadding.value;
+    const value = getPadding(element);
+    cachedPadding = { element, value };
+    return value;
+  }
+
+  function spacerParentPadding(): { start: number; end: number } {
+    const parent = spacer?.parentElement;
+    return parent ? paddingOf(parent) : { end: 0, start: 0 };
+  }
+
+  function contentMeasurements(): {
+    children: HTMLElement[];
+    padding: { start: number; end: number } | undefined;
+  } {
+    return {
+      children: messageChildren(),
+      padding: content ? paddingOf(content) : undefined,
+    };
+  }
+
+  /** Whether the engine's own follow tween is what moves the viewport. The
+   * reader's wheel, touch or key input cancels that tween first. */
+  function isEngineFollowing(): boolean {
+    return (
+      autoScroll() &&
+      mode === "following-bottom" &&
+      viewport !== null &&
+      isScrollAnimating(viewport)
+    );
+  }
+
   // --- scroll-state commit / visibility scheduling ---------------------------
 
   function updateModeFromScroll(next: MessageScrollerScrollable) {
@@ -607,7 +705,25 @@ function createEngine(props: MessageScrollerProviderProps) {
   }
 
   function commitScrollState() {
+    if (viewport && content && isEngineFollowing()) {
+      // While following, the measured end is discarded below. It only
+      // matters for leaving follow mode on an upward scroll the engine did
+      // not cause, so the frames of the follow tween skip the measurement.
+      const scrollTop = viewport.scrollTop;
+      const scrolledUp = scrollTop < lastScrollTop - SCROLL_EPSILON;
+      if (!scrolledUp || autoscrolling.value) {
+        const following: MessageScrollerScrollable = {
+          start: scrollTop > scrollEdgeThreshold(),
+          end: false,
+        };
+        updateModeFromScroll(following);
+        if (!scrollableEqual(scrollable.value, following))
+          scrollable.value = following;
+        return;
+      }
+    }
     const measured = computeScrollable({
+      ...contentMeasurements(),
       content,
       scrollEdgeThreshold: scrollEdgeThreshold(),
       spacer,
@@ -638,22 +754,51 @@ function createEngine(props: MessageScrollerProviderProps) {
       suspendedChanges = true;
       return;
     }
-    if (visibilityFrame === null) {
-      visibilityFrame = window.requestAnimationFrame(() => {
-        visibilityFrame = null;
-        if (visibilityConsumers > 0) {
-          const next = computeVisibility({
-            content,
-            scrollMargin: scrollMargin(),
-            scrollPreviousItemPeek: scrollPreviousItemPeek(),
-            spacer,
-            viewport,
-            visibleMessageIds,
-          });
-          if (!visibilityEqual(visibility.value, next)) visibility.value = next;
-        }
-      });
+    if (visibilityFrame !== null) return;
+    if (isEngineFollowing()) {
+      if (visibilityTimer !== undefined) return;
+      const wait =
+        lastVisibilityPassAt + FOLLOW_VISIBILITY_INTERVAL_MS -
+        performance.now();
+      if (wait > 0) {
+        visibilityTimer = setTimeout(() => {
+          visibilityTimer = undefined;
+          requestVisibilityPass();
+        }, wait);
+        return;
+      }
     }
+    requestVisibilityPass();
+  }
+
+  function cancelVisibilityTimer(): void {
+    clearTimeout(visibilityTimer);
+    visibilityTimer = undefined;
+  }
+
+  function requestVisibilityPass() {
+    cancelVisibilityTimer();
+    if (visibilityConsumers === 0 || visibilityFrame !== null) return;
+    if (!isActive()) {
+      suspendedChanges = true;
+      return;
+    }
+    visibilityFrame = window.requestAnimationFrame(() => {
+      visibilityFrame = null;
+      lastVisibilityPassAt = performance.now();
+      if (visibilityConsumers > 0) {
+        const next = computeVisibility({
+          children: messageChildren(),
+          content,
+          scrollMargin: scrollMargin(),
+          scrollPreviousItemPeek: scrollPreviousItemPeek(),
+          spacer,
+          viewport,
+          visibleMessageIds,
+        });
+        if (!visibilityEqual(visibility.value, next)) visibility.value = next;
+      }
+    });
   }
 
   // --- imperative scroll primitives ------------------------------------------
@@ -875,12 +1020,14 @@ function createEngine(props: MessageScrollerProviderProps) {
     const targetScrollTop = computeScrollTopForElement({
       align,
       element,
+      padding: spacerParentPadding(),
       scrollMargin: margin,
       spacer,
       viewport,
     });
     setSpacerHeight(
       computeSpacerHeight({
+        ...contentMeasurements(),
         content,
         scrollTop: targetScrollTop,
         spacer,
@@ -1007,6 +1154,7 @@ function createEngine(props: MessageScrollerProviderProps) {
       return;
     }
     const element = findFirstVisibleMessage({
+      children: messageChildren(),
       content,
       spacer,
       viewport,
@@ -1035,13 +1183,14 @@ function createEngine(props: MessageScrollerProviderProps) {
     if (position === "last-anchor") {
       const lastAnchor =
         content && viewport
-          ? findLastAnchor(getMessageChildren(content, spacer))
+          ? findLastAnchor(messageChildren())
           : null;
       if (!content || !viewport || !lastAnchor) {
         applied = scrollToEnd({ behavior: "auto" });
       } else {
         const anchorOffset = getElementOffsetTop(lastAnchor, viewport);
         const contentHeight = measureContentHeight({
+          ...contentMeasurements(),
           content,
           spacer,
           viewport,
@@ -1164,12 +1313,15 @@ function createEngine(props: MessageScrollerProviderProps) {
   }
 
   function handleContentChange() {
+    // The MutationObserver path: the child list or its layout may differ.
+    invalidateChildren();
+    cachedPadding = null;
     if (!content) return;
     if (!isActive()) {
       suspendedChanges = true;
       return;
     }
-    const children = getMessageChildren(content, spacer);
+    const children = messageChildren();
     const previousCount = itemCount;
     const previousFirst = firstItem;
     const { added, appended } = syncItems(children);
@@ -1179,6 +1331,8 @@ function createEngine(props: MessageScrollerProviderProps) {
   }
 
   function handleResize() {
+    // The ResizeObserver path: padding may follow a responsive layout change.
+    cachedPadding = null;
     if (!isActive()) {
       suspendedChanges = true;
       return;
@@ -1252,6 +1406,7 @@ function createEngine(props: MessageScrollerProviderProps) {
   }
 
   function unobserveVisibility() {
+    cancelVisibilityTimer();
     if (visibilityFrame !== null) {
       window.cancelAnimationFrame(visibilityFrame);
       visibilityFrame = null;
@@ -1344,10 +1499,13 @@ function createEngine(props: MessageScrollerProviderProps) {
 
   function setContentElement(element: HTMLElement | null) {
     content = element;
+    invalidateChildren();
+    cachedPadding = null;
   }
 
   function setSpacerElement(element: HTMLElement | null) {
     spacer = element;
+    invalidateChildren();
     spacerGap = getRowGap(element?.parentElement ?? null);
   }
 
@@ -1379,7 +1537,8 @@ function createEngine(props: MessageScrollerProviderProps) {
     suspendedChanges = false;
     if (isFollowingBottom() && itemCount > 0) {
       // Snap to the live end; whatever streamed in meanwhile must not glide.
-      syncItems(getMessageChildren(content, spacer));
+      invalidateChildren();
+      syncItems(messageChildren());
       scrollToEnd({ behavior: "auto" });
       return;
     }
@@ -1409,6 +1568,7 @@ function createEngine(props: MessageScrollerProviderProps) {
 
   function destroy() {
     releaseCollapseHold();
+    cancelVisibilityTimer();
     cancelScrollAnimation?.();
     cancelScrollAnimation = null;
     if (stateFrame !== null) {

@@ -7,26 +7,27 @@
  * resizes 120 ms apart, 44 px each, so the engine's own follow tween never
  * comes to rest.
  *
- * | id | metric                                                    | measured | target   |
- * | -- | --------------------------------------------------------- | -------- | -------- |
- * | L1 | getComputedStyle calls in 6 tween frames after the first  | 5        | 0        |
- * | L2 | frame time for animateScrollTop to finish a 20 px sweep   | 512 ms   | < 400 ms |
- * | L2 | first frame within 0.5 px of that target                  | 272 ms   | -        |
- * | L3 | passes of layout reads on message items in 1 s of follow  | 60       | <= 12    |
- * | -  | rectangle reads on message items in that second           | 125      | -        |
- * | -  | rectangle reads on any element in that second             | 258      | -        |
- * | -  | getComputedStyle calls in that second                     | 67       | -        |
- * | -  | animation frame callbacks run in that second              | 184      | -        |
- * | -  | scrollTop writes in that second                           | 60       | -        |
+ * | id | metric                                                    | baseline | now    | target   |
+ * | -- | --------------------------------------------------------- | -------- | ------ | -------- |
+ * | L1 | getComputedStyle calls in 6 tween frames after the first  | 5        | 0      | 0        |
+ * | L2 | frame time for animateScrollTop to finish a 20 px sweep   | 512 ms   | 272 ms | < 400 ms |
+ * | L2 | first frame within 0.5 px of that target                  | 272 ms   | 272 ms | -        |
+ * | L3 | passes of layout reads on message items in 1 s of follow  | 60       | 10     | <= 12    |
+ * | -  | rectangle reads on message items in that second           | 125      | 10     | -        |
+ * | -  | rectangle reads on any element in that second             | 258      | 28     | -        |
+ * | -  | getComputedStyle calls in that second                     | 67       | 1      | -        |
+ * | -  | animation frame callbacks run in that second              | 184      | 135    | -        |
+ * | -  | scrollTop writes in that second                           | 60       | 60     | -        |
  *
- * Holds today: none. Not met yet (`it.fails`): L1, L2, L3. When a change
- * makes one hold, turn it into `it` and update the measured column.
+ * Holds now: L1, L2, L3 (the follow tween skips the content measurement,
+ * spaces its visibility passes 100 ms apart with a trailing pass, and lands
+ * once less than half a pixel is left). Not met yet: none.
  *
  * A pass is one simulated instant at which message items were measured. The
  * stubbed viewport reports a scroll the way a browser does, at the start of
- * the frame after the write; that event is what makes the viewport measure
- * again on every frame of the tween. (L1 counts 5, not 6, because the event
- * for the first tween frame arrives one frame later.)
+ * the frame after the write; at baseline that event made the viewport
+ * measure again on every frame of the tween. (L1 counted 5, not 6, because
+ * the event for the first tween frame arrives one frame later.)
  *
  * Print the metrics with `PINE_PERF_LOG=1` (add `--reporter=default` when
  * vitest hides the output of passing tests).
@@ -151,7 +152,7 @@ async function mountFollowingScroller() {
 }
 
 describe("message scroller follow loop cost", () => {
-  it.fails("[L1] reads no computed style on the frames of its own follow tween", async () => {
+  it("[L1] reads no computed style on the frames of its own follow tween", async () => {
     const scroller = await mountFollowingScroller();
     scroller.grow();
     await scroller.clock.advance(FRAME_MS);
@@ -173,7 +174,7 @@ describe("message scroller follow loop cost", () => {
     expect(scroller.reads.computedStyleCalls()).toBe(0);
   });
 
-  it.fails("[L2] ends a 20 px sweep in under 400 ms", async () => {
+  it("[L2] ends a 20 px sweep in under 400 ms", async () => {
     const clock = frameClock();
     cleanups.push(() => clock.restore());
     const element = document.createElement("div");
@@ -198,7 +199,7 @@ describe("message scroller follow loop cost", () => {
     expect(finishedAfter).toBeLessThan(400);
   });
 
-  it.fails("[L3] measures message items on at most 12 passes per second of follow", async () => {
+  it("[L3] measures message items on at most 12 passes per second of follow", async () => {
     const scroller = await mountFollowingScroller();
     for (let flush = 0; flush < FLUSHES; flush++) {
       scroller.grow();
