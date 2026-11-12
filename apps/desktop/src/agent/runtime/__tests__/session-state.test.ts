@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   rewriteTargetEntryId,
   toolNamesForCompactionRoute,
+  toolNamesForSubSession,
 } from "../session-state";
 
 function messageEntry(
@@ -67,5 +68,16 @@ describe("toolNamesForCompactionRoute", () => {
       "read",
       "bash",
     ]);
+  });
+});
+
+describe("toolNamesForSubSession", () => {
+  const tools = ["read", "ui_report_progress", "bash"];
+
+  // The parent reads only a sub-session's final reply, so an interim answer
+  // would move findings out of the one message that reaches it.
+  it("keeps interim answers out of sub-sessions", () => {
+    expect(toolNamesForSubSession(tools, false)).toEqual(tools);
+    expect(toolNamesForSubSession(tools, true)).toEqual(["read", "bash"]);
   });
 });

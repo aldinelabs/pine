@@ -164,7 +164,8 @@ From top to bottom:
      as ordinary reply text, streams in like a reply, and can be selected,
      quoted, searched and exported like one. It is not shown as a tool call
      and never asks for approval; further reasoning, tool calls and the final
-     reply follow below it;
+     reply follow below it. Sub-sessions and automation runs do not post
+     interim answers;
    - for an automation run, a card at the top with the automation's name,
      trigger and start time; "Instructions" expands what it was asked to do;
    - tool call groups; clicking a call opens Tool call details (status,
