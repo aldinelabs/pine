@@ -81,7 +81,10 @@ import {
   TAKE_PENDING_PREFERENCES_SECTION_CHANNEL,
 } from "./shared/window";
 import { AppUpdater, readUpdateManifestUrl } from "./main/appUpdater";
-import { PreferenceStore } from "./main/preferenceStore";
+import {
+  notifyPreferenceChange,
+  PreferenceStore,
+} from "./main/preferenceStore";
 import type { PineHost } from "./main/core/host";
 import { PineCore } from "./main/core/pineCore";
 import { DesktopAttention, isChineseLocale } from "./main/desktop/attention";
@@ -485,12 +488,26 @@ const preferenceStore = new PreferenceStore(
 ipcMain.on(PREFERENCES_SNAPSHOT_CHANNEL, (event) => {
   event.returnValue = preferenceStore.snapshot();
 });
-ipcMain.on(PREFERENCES_SET_CHANNEL, (_event, key: unknown, value: unknown) =>
-  preferenceStore.set(key, value),
-);
-ipcMain.on(PREFERENCES_REMOVE_CHANNEL, (_event, key: unknown) =>
-  preferenceStore.remove(key),
-);
+const preferenceTargets = () =>
+  BrowserWindow.getAllWindows().map((window) => window.webContents);
+ipcMain.on(PREFERENCES_SET_CHANNEL, (event, key: unknown, value: unknown) => {
+  if (preferenceStore.set(key, value))
+    notifyPreferenceChange(
+      preferenceTargets(),
+      event.sender.id,
+      key as string,
+      value as string,
+    );
+});
+ipcMain.on(PREFERENCES_REMOVE_CHANNEL, (event, key: unknown) => {
+  if (preferenceStore.remove(key))
+    notifyPreferenceChange(
+      preferenceTargets(),
+      event.sender.id,
+      key as string,
+      null,
+    );
+});
 
 ipcMain.handle(
   GET_RUN_IN_BACKGROUND_CHANNEL,

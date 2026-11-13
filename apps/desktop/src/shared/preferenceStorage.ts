@@ -1,6 +1,8 @@
 export const PREFERENCES_SNAPSHOT_CHANNEL = "preferences:snapshot" as const;
 export const PREFERENCES_SET_CHANNEL = "preferences:set" as const;
 export const PREFERENCES_REMOVE_CHANNEL = "preferences:remove" as const;
+/** Main → renderer: another window changed a preference. */
+export const PREFERENCES_CHANGED_CHANNEL = "preferences:changed" as const;
 
 /** Renderer UI preferences all live under this key prefix. */
 export const PREFERENCE_KEY_PREFIX = "pine.";
@@ -12,6 +14,11 @@ export interface PinePreferencesApi {
   snapshot: Record<string, string>;
   set(key: string, value: string): void;
   remove(key: string): void;
+  /**
+   * Reports a preference another window set (a string) or removed (null).
+   * Returns the unsubscribe.
+   */
+  onChange?(listener: (key: string, value: string | null) => void): () => void;
 }
 
 export interface PinePreferenceStorageApi {

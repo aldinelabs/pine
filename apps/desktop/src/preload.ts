@@ -6,6 +6,7 @@ import {
   SET_RUN_IN_BACKGROUND_CHANNEL,
 } from "./shared/background";
 import {
+  PREFERENCES_CHANGED_CHANNEL,
   PREFERENCES_REMOVE_CHANNEL,
   PREFERENCES_SET_CHANNEL,
   PREFERENCES_SNAPSHOT_CHANNEL,
@@ -67,6 +68,13 @@ const pineApi: PineDesktopApi = {
     >,
     set: (key, value) => ipcRenderer.send(PREFERENCES_SET_CHANNEL, key, value),
     remove: (key) => ipcRenderer.send(PREFERENCES_REMOVE_CHANNEL, key),
+    onChange: (listener) => {
+      const handler = (_event: unknown, key: string, value: string | null) =>
+        listener(key, value);
+      ipcRenderer.on(PREFERENCES_CHANGED_CHANNEL, handler);
+      return () =>
+        ipcRenderer.removeListener(PREFERENCES_CHANGED_CHANNEL, handler);
+    },
   },
   getWebServer: () => ipcRenderer.invoke(GET_WEB_SERVER_CHANNEL),
   setWebPassword: (password) =>

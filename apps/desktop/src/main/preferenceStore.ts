@@ -2,6 +2,7 @@ import { mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import {
   MAX_PREFERENCE_KEY_LENGTH,
+  PREFERENCES_CHANGED_CHANNEL,
   MAX_PREFERENCE_VALUE_LENGTH,
   PREFERENCE_KEY_PREFIX,
 } from "../shared/preferenceStorage";
@@ -47,23 +48,27 @@ export class PreferenceStore {
     return { ...this.values };
   }
 
-  set(key: unknown, value: unknown): void {
+  /** Returns true when the stored value changed. */
+  set(key: unknown, value: unknown): boolean {
     if (
       !PreferenceStore.validKey(key) ||
       typeof value !== "string" ||
       value.length > MAX_PREFERENCE_VALUE_LENGTH
     ) {
-      return;
+      return false;
     }
-    if (this.values[key] === value) return;
+    if (this.values[key] === value) return false;
     this.values[key] = value;
     this.persist();
+    return true;
   }
 
-  remove(key: unknown): void {
-    if (!PreferenceStore.validKey(key) || !(key in this.values)) return;
+  /** Returns true when something was removed. */
+  remove(key: unknown): boolean {
+    if (!PreferenceStore.validKey(key) || !(key in this.values)) return false;
     delete this.values[key];
     this.persist();
+    return true;
   }
 
   private persist(): void {
@@ -74,6 +79,34 @@ export class PreferenceStore {
       renameSync(temporary, this.filePath);
     } catch {
       // Keep the in-memory values; the next change retries the write.
+    }
+  }
+}
+
+/** The part of a window's webContents a change notice needs. */
+export interface PreferenceChangeTarget {
+  id: number;
+  isDestroyed(): boolean;
+  send(channel: string, ...args: unknown[]): void;
+}
+
+/**
+ * Tells every other window that a preference changed, so settings such as
+ * the working glow apply everywhere at once. The window that made the
+ * change already has it.
+ */
+export function notifyPreferenceChange(
+  targets: readonly PreferenceChangeTarget[],
+  senderId: number,
+  key: string,
+  value: string | null,
+): void {
+  for (const target of targets) {
+    if (target.id === senderId || target.isDestroyed()) continue;
+    try {
+      target.send(PREFERENCES_CHANGED_CHANNEL, key, value);
+    } catch {
+      // A window closing right now misses nothing it still needs.
     }
   }
 }

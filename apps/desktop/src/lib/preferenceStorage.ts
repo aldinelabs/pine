@@ -57,6 +57,38 @@ export const preferenceStorage = {
 };
 
 /**
+ * Calls `listener` when `key` is changed elsewhere: by another window of the
+ * desktop app (which also updates this window's copy), or by another tab of
+ * the same browser for the web client. Returns the unsubscribe.
+ */
+export function subscribePreference(
+  key: string,
+  listener: (value: string | null) => void,
+): () => void {
+  try {
+    const preferences = mainProcessPreferences();
+    if (preferences) {
+      if (typeof preferences.api.onChange !== "function") return () => {};
+      const { values } = preferences;
+      return preferences.api.onChange((changedKey, value) => {
+        if (changedKey !== key) return;
+        if (value === null) delete values[key];
+        else values[key] = value;
+        listener(value);
+      });
+    }
+    if (typeof window.addEventListener !== "function") return () => {};
+    const onStorage = (event: StorageEvent) => {
+      if (event.key === key) listener(event.newValue);
+    };
+    window.addEventListener("storage", onStorage);
+    return () => window.removeEventListener("storage", onStorage);
+  } catch {
+    return () => {};
+  }
+}
+
+/**
  * Carries preferences a previous build kept in this origin's web storage into
  * the main process once, without overwriting anything it already has.
  */

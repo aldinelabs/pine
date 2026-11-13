@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   adoptWebStoragePreferences,
   preferenceStorage,
+  subscribePreference,
 } from "../preferenceStorage";
 
 function installPreferences(snapshot: Record<string, string> = {}) {
@@ -56,5 +57,75 @@ describe("preferenceStorage", () => {
     expect(preferences.set).toHaveBeenCalledTimes(1);
     expect(preferences.set).toHaveBeenCalledWith("pine.old", "kept");
     expect(preferenceStorage.getItem("pine.both")).toBe("main");
+  });
+});
+
+describe("subscribePreference", () => {
+  function installWithChanges(snapshot: Record<string, string> = {}) {
+    const listeners = new Set<(key: string, value: string | null) => void>();
+    const preferences = Object.freeze({
+      snapshot: Object.freeze({ ...snapshot }),
+      set: vi.fn(),
+      remove: vi.fn(),
+      onChange: vi.fn(
+        (listener: (key: string, value: string | null) => void) => {
+          listeners.add(listener);
+          return () => listeners.delete(listener);
+        },
+      ),
+    });
+    Object.defineProperty(window, "pine", {
+      configurable: true,
+      value: { preferences },
+    });
+    const report = (key: string, value: string | null) => {
+      for (const listener of [...listeners]) listener(key, value);
+    };
+    return { listeners, report };
+  }
+
+  it("reports another window's change to its key and keeps it", () => {
+    const { listeners, report } = installWithChanges({ "pine.glow": "true" });
+    const listener = vi.fn();
+    const unsubscribe = subscribePreference("pine.glow", listener);
+
+    report("pine.other", "x");
+    expect(listener).not.toHaveBeenCalled();
+
+    report("pine.glow", "false");
+    expect(listener).toHaveBeenLastCalledWith("false");
+    expect(preferenceStorage.getItem("pine.glow")).toBe("false");
+
+    report("pine.glow", null);
+    expect(listener).toHaveBeenLastCalledWith(null);
+    expect(preferenceStorage.getItem("pine.glow")).toBeNull();
+
+    unsubscribe();
+    expect(listeners.size).toBe(0);
+    report("pine.glow", "true");
+    expect(listener).toHaveBeenCalledTimes(2);
+  });
+
+  it("does nothing without change reports from the main process", () => {
+    installPreferences();
+    expect(() => subscribePreference("pine.glow", vi.fn())()).not.toThrow();
+  });
+
+  it("follows other tabs in a browser", () => {
+    const listener = vi.fn();
+    const unsubscribe = subscribePreference("pine.glow", listener);
+    window.dispatchEvent(
+      new StorageEvent("storage", { key: "pine.other", newValue: "x" }),
+    );
+    expect(listener).not.toHaveBeenCalled();
+    window.dispatchEvent(
+      new StorageEvent("storage", { key: "pine.glow", newValue: "false" }),
+    );
+    expect(listener).toHaveBeenCalledWith("false");
+    unsubscribe();
+    window.dispatchEvent(
+      new StorageEvent("storage", { key: "pine.glow", newValue: "true" }),
+    );
+    expect(listener).toHaveBeenCalledTimes(1);
   });
 });
