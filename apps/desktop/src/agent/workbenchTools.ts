@@ -3,7 +3,10 @@ import {
   type ToolDefinition,
 } from "@earendil-works/pi-coding-agent";
 import { Type, type Static } from "typebox";
-import { UI_PRESENT_FILE_TOOL_NAME } from "../shared/agent";
+import {
+  UI_PRESENT_FILE_TOOL_NAME,
+  UI_SUBMIT_ARTIFACT_TOOL_NAME,
+} from "../shared/agent";
 import {
   UI_WORKBENCH_ARRANGE_TOOL_NAME,
   UI_WORKBENCH_CLOSE_TOOL_NAME,
@@ -24,8 +27,7 @@ export interface PineWorkbenchToolContext {
   sendCommand(toolCallId: string, command: WorkbenchCommand): void;
 }
 
-const PANEL_DESCRIPTIONS =
-  "artifacts: files presented in this session; tasks: background processes started with bg_run, with their output; preview: the file last presented or picked from artifacts; files: the project's file tree";
+const PANEL_DESCRIPTIONS = `artifacts: the session's deliverables, files submitted with ${UI_SUBMIT_ARTIFACT_TOOL_NAME}; tasks: background processes started with bg_run, with their output; preview: the file last presented or picked from artifacts; files: the project's file tree`;
 
 // Spelled out rather than mapped so the schemas keep their literal types.
 function panelSchema(description: string) {

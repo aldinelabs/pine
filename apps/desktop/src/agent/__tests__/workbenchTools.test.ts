@@ -32,6 +32,15 @@ function setup() {
 }
 
 describe("workbench tools", () => {
+  it("describes the artifacts panel as submitted deliverables", () => {
+    const open = setup().tools.find(
+      (tool) => tool.name === UI_WORKBENCH_OPEN_TOOL_NAME,
+    );
+    const schema = JSON.stringify(open?.parameters);
+    expect(schema).toContain("files submitted with ui_submit_artifact");
+    expect(schema).not.toContain("files presented in this session");
+  });
+
   it("reads fresh user layout without changing it", async () => {
     const { run, readState, sendCommand } = setup();
     const first = await run(UI_WORKBENCH_STATE_TOOL_NAME, {});
