@@ -131,6 +131,40 @@ describe("ProjectThinkingLive", () => {
     expect(live.current()[0].attributes("data-tall")).toBe("true");
   });
 
+  it("keeps a tall outgoing block pinned at its tail while it fades", async () => {
+    const observers = resizeObserverStub();
+    cleanups.push(() => observers.restore());
+    const live = mountLive("Long paragraph.");
+    const stack = live.wrapper.get(".grid").element;
+    stubHeight(stack, () => 400);
+    const root = live.wrapper.get<HTMLElement>("[data-thinking-live]");
+    for (const item of live.current()) stubHeight(item.element, () => 400);
+    observers.fire();
+    await nextTick();
+    expect(root.classes()).toContain("justify-end");
+
+    await live.set("Long paragraph.\n\nShort.");
+    const [leaving] = live.leaving();
+    expect(leaving.attributes("data-tall")).toBe("true");
+    expect(live.current()[0].attributes("data-tall")).toBeUndefined();
+    // The new short block aligns to the top; the fading tail keeps its mask.
+    expect(root.classes()).not.toContain("justify-end");
+    expect(root.attributes("data-scrollable")).toBe("start");
+    expect(root.classes()).toContain("relative");
+
+    const source = readFileSync(
+      path.resolve(__dirname, "../ProjectThinkingLive.vue"),
+      "utf8",
+    );
+    // The leaving tall block is taken out of the grid, so it no longer sizes it.
+    expect(source).toMatch(
+      /\.thinking-live-block\[data-leaving\]\[data-tall\]\s*\{\s*position:\s*absolute;[^}]*bottom:\s*0;/,
+    );
+
+    await leaving.trigger("animationend");
+    expect(root.attributes("data-scrollable")).toBeUndefined();
+  });
+
   it("swaps with CSS only: no timer or frame, and no fade under reduced motion", async () => {
     vi.useFakeTimers({
       toFake: [

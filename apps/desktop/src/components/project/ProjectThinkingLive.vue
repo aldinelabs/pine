@@ -50,6 +50,8 @@ let observedItem: Element | undefined;
 const current = computed(() => items.value.at(-1));
 const currentKey = computed(() => current.value?.key);
 const isClipped = computed(() => current.value?.tall === true);
+/** A tall block, current or fading out, is shown by its tail: keep the top fade. */
+const showsTail = computed(() => items.value.some((item) => item.tall));
 
 function update(source: { segment: number; text: string }): void {
   if (source.segment !== splitSegment) {
@@ -158,9 +160,9 @@ onBeforeUnmount(() => {
   <div
     ref="root"
     data-thinking-live
-    class="thinking-scroll-fade mt-3 flex max-h-64 flex-col overflow-hidden pl-6 pr-3 text-sm text-muted-foreground"
+    class="thinking-scroll-fade relative mt-3 flex max-h-64 flex-col overflow-hidden pl-6 pr-3 text-sm text-muted-foreground"
     :class="isClipped && 'justify-end'"
-    :data-scrollable="isClipped ? 'start' : undefined"
+    :data-scrollable="showsTail ? 'start' : undefined"
     :style="minHeight ? { minHeight: `${minHeight}px` } : undefined"
   >
     <div ref="stack" class="grid shrink-0">
@@ -193,6 +195,20 @@ onBeforeUnmount(() => {
 
 .thinking-live-block[data-tall] {
   align-self: end;
+}
+
+/*
+ * A tall block that starts fading out leaves the stack's layout and stays
+ * pinned to the panel bottom, where it was shown, so the next (short) block
+ * can align to the top without the outgoing tail jumping. The padding
+ * matches the root's `pl-6 pr-3`.
+ */
+.thinking-live-block[data-leaving][data-tall] {
+  position: absolute;
+  inset-inline: 0;
+  bottom: 0;
+  padding-left: calc(var(--spacing) * 6);
+  padding-right: calc(var(--spacing) * 3);
 }
 
 .thinking-live-block[data-initial] {
