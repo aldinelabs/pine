@@ -122,4 +122,32 @@ describe("session todos", () => {
     );
     expect([...store.hiddenCompletedTodoIds]).toEqual([]);
   });
+
+  it("keeps a partly finished list when the turn ends", async () => {
+    const { store, emit } = await resumedStore();
+
+    emit(runState("idle"));
+
+    expect([...store.hiddenCompletedTodoIds]).toEqual([]);
+  });
+
+  it("hides a fully completed list when the turn ends", async () => {
+    const { store, emit } = await resumedStore();
+    emit(runState("running"));
+    emit(
+      todoEnd({
+        tasks: [
+          replayed.tasks[0],
+          { ...replayed.tasks[1], status: "completed" },
+          { id: 3, subject: "Dropped", status: "deleted" },
+        ],
+        nextId: 4,
+      }),
+    );
+    expect([...store.hiddenCompletedTodoIds]).toEqual([1]);
+
+    emit({ type: "run-state", sessionId: session.id, state: "failed" });
+
+    expect([...store.hiddenCompletedTodoIds]).toEqual([1, 2]);
+  });
 });

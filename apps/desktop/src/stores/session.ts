@@ -705,6 +705,18 @@ function createSessionState() {
     ]);
   }
 
+  /**
+   * When a turn ends with every listed task completed, the whole list fades
+   * from the Todos card, as finished background processes do.
+   */
+  function hideFinishedTodos(): void {
+    const listed = (todos.value?.tasks ?? []).filter(
+      (task) => task.status !== "deleted",
+    );
+    if (listed.every((task) => task.status === "completed"))
+      hideCompletedTodos();
+  }
+
   function patchToolCall(
     toolCallId: string,
     patch: Partial<PineToolCall>,
@@ -740,6 +752,7 @@ function createSessionState() {
     hiddenCompletedTodoIds,
     setTodos,
     hideCompletedTodos,
+    hideFinishedTodos,
     indexOfMessage,
     toolCallMessageIndexFor,
     approvalToolCallId,
@@ -1605,6 +1618,7 @@ export const useSessionStore = defineStore("session", () => {
       }
       isRunning.value = event.state === "running" || event.state === "aborting";
       if (event.state === "idle" || event.state === "failed") {
+        state.hideFinishedTodos();
         pendingApprovals.value = [];
         state.notifiedAutoApprovalFailureIds.clear();
         pendingQuestionnaires.value = [];

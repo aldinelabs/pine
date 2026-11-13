@@ -225,7 +225,9 @@ From top to bottom:
    horizontally when together they exceed the width. Swiping across the row
    keeps the cards in place; vertical gestures scroll the transcript. The
    row leaves room around the card edges so their outlines stay visible.
-   - Todos: progress of the agent's task list; opens All todos. The dialog is
+   - Todos: progress of the agent's task list; opens All todos. Completed
+     tasks leave the card when the next turn starts; once every task is
+     completed, the card disappears when the turn ends. The dialog is
      a larger version of the card: full task numbers, names and descriptions
      on the left, with the same dependency graph on the right. Wrapped rows
      keep their graph nodes aligned. The heading stays visible while the list
