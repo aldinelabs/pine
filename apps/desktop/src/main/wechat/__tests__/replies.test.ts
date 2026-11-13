@@ -982,7 +982,7 @@ describe("cards", () => {
         "",
         "Done **it**",
         "",
-        "> `.u 9` 切到它 · `.r` 全文 · `.o` 文件 (2)",
+        "> `.u 9` 切到它 · `.o` 文件 (2)",
       ].join("\n"),
     );
     expect(renderSample("T-DONE", "en")).toBe(
@@ -991,16 +991,38 @@ describe("cards", () => {
         "",
         "Done **it**",
         "",
-        "> `.u 9` switch to it · `.r` full reply · `.o` files (2)",
+        "> `.u 9` switch to it · `.o` files (2)",
       ].join("\n"),
     );
     const current = { at, text: "ok", files: 0, current: true };
+    // The whole reply fits, so there is no footer at all.
     expect(render("T-DONE", "en", current)).toBe(
-      "**pine › 修登录页** · Done\n\nok\n\n> `.r` full reply",
+      "**pine › 修登录页** · Done\n\nok",
     );
     expect(render("T-DONE", "zh", current)).toBe(
-      "**pine › 修登录页** · 完成\n\nok\n\n> `.r` 全文",
+      "**pine › 修登录页** · 完成\n\nok",
     );
+    const long = { ...current, text: "word ".repeat(200) };
+    expect(
+      render("T-DONE", "en", long).endsWith("…\n\n> `.r` full reply"),
+    ).toBe(true);
+    expect(render("T-DONE", "zh", long).endsWith("…\n\n> `.r` 全文")).toBe(
+      true,
+    );
+  });
+
+  it("closes a T-DONE excerpt cut inside a list-item fence within the item", () => {
+    const text = render("T-DONE", "en", {
+      at,
+      text: `1. Install:\n   \`\`\`bash\n${"   npm i some-package\n".repeat(40)}   \`\`\``,
+      files: 0,
+      current: true,
+    });
+    const [excerpt = "", footer] = text.split("\n\n").slice(1);
+    expect(excerpt.endsWith("…\n   ```")).toBe(true);
+    expect(footer).toBe("> `.r` full reply");
+    // Exactly one opener and one closer, both at the list item's indent.
+    expect(text.match(/^ *```/gm)).toEqual(["   ```", "   ```"]);
   });
 
   it("cuts the T-DONE excerpt and closes its fence", () => {

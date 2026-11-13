@@ -2360,11 +2360,15 @@ const TEMPLATES: { [K in ReplyId]: Template<K> } = {
       facts.push(formatDuration(data.durationMs, lang));
     if (data.costUsd !== undefined) facts.push(cost(data.costUsd));
     // The pre-slice keeps the work bounded on a very long reply.
-    const excerpt = cutMarkdown(
+    const { text: excerpt, cut } = cutMarkdown(
       agentMarkdown(data.text.slice(0, DONE_EXCERPT_MAX * 4), lang),
       DONE_EXCERPT_MAX,
-    ).text;
-    const actions = [pick(lang, "`.r` 全文", "`.r` full reply")];
+    );
+    // `.r` only when there is more to read than the excerpt shows.
+    const actions =
+      cut || data.text.length > DONE_EXCERPT_MAX * 4
+        ? [pick(lang, "`.r` 全文", "`.r` full reply")]
+        : [];
     if (data.files > 0)
       actions.push(
         pick(
