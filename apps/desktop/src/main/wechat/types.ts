@@ -290,6 +290,8 @@ export interface WeChatStateStore {
   reloadSecure(): Promise<"ok" | "reset">;
   /** Re-reads only `language` from the plain file (`pine-server wechat config --language`, then SIGHUP). */
   reloadLanguage(): Promise<void>;
+  /** True when a blob read in this run still held the old `settings.keepAwake: true` (sticky; migration only). */
+  legacyKeepAwake(): boolean;
   /** Removes token and owner, resets the permission settings, and resets the plain state except language. */
   clearBinding(): Promise<void>;
 }

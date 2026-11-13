@@ -40,6 +40,8 @@ export interface PineAgentSettings {
   attentionNotificationsEnabled?: boolean;
   quickComposerEnabled?: boolean;
   runInBackground?: boolean;
+  /** Desktop only: keep the computer awake while remote control is on; absent until migrated. */
+  remoteKeepAwake?: boolean;
   approximateLocationEnabled?: boolean;
   contextCompactionStrategy?: PineContextCompactionStrategy;
   contextCompactionRoute?: PineContextCompactionRoute;
@@ -184,6 +186,9 @@ export async function readPineAgentSettings(
       ...(typeof settings.runInBackground === "boolean"
         ? { runInBackground: settings.runInBackground }
         : {}),
+      ...(typeof settings.remoteKeepAwake === "boolean"
+        ? { remoteKeepAwake: settings.remoteKeepAwake }
+        : {}),
       ...(typeof settings.approximateLocationEnabled === "boolean"
         ? { approximateLocationEnabled: settings.approximateLocationEnabled }
         : {}),
@@ -293,6 +298,13 @@ export async function writeRunInBackground(
   runInBackground: boolean,
 ): Promise<void> {
   await writePineAgentSettings(agentDir, { runInBackground });
+}
+
+export async function writeRemoteKeepAwake(
+  agentDir: string,
+  remoteKeepAwake: boolean,
+): Promise<void> {
+  await writePineAgentSettings(agentDir, { remoteKeepAwake });
 }
 
 export async function writeApproximateLocationEnabled(

@@ -2,8 +2,6 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const electron = vi.hoisted(() => {
   const handlers = new Map<string, (...args: unknown[]) => unknown>();
-  const started = new Set<number>();
-  let nextBlocker = 1;
   const notifications: FakeNotification[] = [];
   class FakeNotification {
     static isSupported = vi.fn(() => true);
@@ -28,15 +26,6 @@ const electron = vi.hoisted(() => {
         },
       ),
     },
-    powerSaveBlocker: {
-      start: vi.fn(() => {
-        const id = nextBlocker++;
-        started.add(id);
-        return id;
-      }),
-      stop: vi.fn((id: number) => started.delete(id)),
-      isStarted: vi.fn((id: number) => started.has(id)),
-    },
     windows: [] as { isDestroyed(): boolean; webContents: { send: unknown } }[],
   };
 });
@@ -45,7 +34,6 @@ vi.mock("electron", () => ({
   BrowserWindow: { getAllWindows: () => electron.windows },
   ipcMain: electron.ipcMain,
   Notification: electron.Notification,
-  powerSaveBlocker: electron.powerSaveBlocker,
 }));
 
 import type { BrowserWindow } from "electron";
@@ -66,7 +54,6 @@ import {
 import type { PineCore } from "../../core/pineCore";
 import {
   broadcastWeChatStatus,
-  createKeepAwake,
   registerWeChatIpc,
   showWeChatNotification,
 } from "../wechatHost";
@@ -177,7 +164,7 @@ describe("WeChat remote IPC", () => {
       invoke(SET_WECHAT_SETTINGS_CHANNEL, { ceilingMode: "full-access" }),
     ).rejects.toThrow();
     await expect(
-      invoke(SET_WECHAT_SETTINGS_CHANNEL, { keepAwake: "on" }),
+      invoke(SET_WECHAT_SETTINGS_CHANNEL, { keepAwake: true }),
     ).rejects.toThrow();
     await expect(
       invoke(SET_WECHAT_SETTINGS_CHANNEL, { paused: false }),
@@ -196,7 +183,6 @@ describe("WeChat remote IPC", () => {
       defaultMode: "let-me-review",
       allowHighRiskApprovals: true,
       allowFileSending: false,
-      keepAwake: true,
     });
     expect(bridge.setSettings.mock.calls).toEqual([
       [{ defaultProjectId: PROJECT_ID }],
@@ -206,7 +192,6 @@ describe("WeChat remote IPC", () => {
           defaultMode: "let-me-review",
           allowHighRiskApprovals: true,
           allowFileSending: false,
-          keepAwake: true,
         },
       ],
     ]);
@@ -277,32 +262,5 @@ describe("WeChat notifications", () => {
       () => undefined,
     );
     expect(electron.notifications).toHaveLength(0);
-  });
-});
-
-describe("keeping the computer awake", () => {
-  beforeEach(() => {
-    electron.powerSaveBlocker.start.mockClear();
-    electron.powerSaveBlocker.stop.mockClear();
-  });
-
-  it("starts and stops one blocker however often it is asked", () => {
-    const keepAwake = createKeepAwake();
-    keepAwake(false);
-    expect(electron.powerSaveBlocker.stop).not.toHaveBeenCalled();
-
-    keepAwake(true);
-    keepAwake(true);
-    expect(electron.powerSaveBlocker.start).toHaveBeenCalledOnce();
-    expect(electron.powerSaveBlocker.start).toHaveBeenCalledWith(
-      "prevent-app-suspension",
-    );
-
-    keepAwake(false);
-    keepAwake(false);
-    expect(electron.powerSaveBlocker.stop).toHaveBeenCalledOnce();
-
-    keepAwake(true);
-    expect(electron.powerSaveBlocker.start).toHaveBeenCalledTimes(2);
   });
 });

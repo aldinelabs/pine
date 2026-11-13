@@ -24,6 +24,7 @@ describe("tray menu", () => {
     wechat: false,
     wechatBound: false,
     wechatNeedsScan: false,
+    keepAwake: false,
   };
 
   it("opens Pine first and quits last", () => {
@@ -54,7 +55,7 @@ describe("tray menu", () => {
     expect(actions(false)).toEqual(["open", "manage-remote", "quit"]);
   });
 
-  it("offers browser access, Aldine Remote Control and WeChat as switches", () => {
+  it("offers browser access, Aldine Remote Control, WeChat and keep-awake as switches", () => {
     const toggles = (state: typeof idle, chinese = false) =>
       trayMenu(state, chinese).flatMap((entry) =>
         entry.type === "toggle" ? [entry] : [],
@@ -81,6 +82,13 @@ describe("tray menu", () => {
         checked: false,
         enabled: false,
       },
+      {
+        type: "toggle",
+        action: "toggle-keep-awake",
+        label: "Keep computer awake for remote control",
+        checked: false,
+        enabled: true,
+      },
     ]);
     const on = toggles(
       {
@@ -89,6 +97,7 @@ describe("tray menu", () => {
         relayRemote: true,
         wechat: true,
         wechatBound: true,
+        keepAwake: true,
       },
       true,
     );
@@ -98,6 +107,7 @@ describe("tray menu", () => {
       ["浏览器访问", true, true],
       ["经 Aldine 远程控制", true, true],
       ["微信远程", true, true],
+      ["远程控制时保持电脑唤醒", true, true],
     ]);
   });
 
@@ -119,9 +129,53 @@ describe("tray menu", () => {
     expect(order.indexOf("toggle-wechat")).toBe(
       order.indexOf("toggle-relay-remote") + 1,
     );
-    expect(order.indexOf("manage-remote")).toBe(
+    expect(order.indexOf("toggle-keep-awake")).toBe(
       order.indexOf("toggle-wechat") + 1,
     );
+    expect(order.indexOf("manage-remote")).toBe(
+      order.indexOf("toggle-keep-awake") + 1,
+    );
+  });
+
+  it("offers keep-awake as an always enabled switch after WeChat and its scan line", () => {
+    const find = (state: typeof idle, chinese = false) =>
+      trayMenu(state, chinese).find(
+        (entry) =>
+          entry.type === "toggle" && entry.action === "toggle-keep-awake",
+      );
+    expect(find(idle)).toEqual({
+      type: "toggle",
+      action: "toggle-keep-awake",
+      label: "Keep computer awake for remote control",
+      checked: false,
+      enabled: true,
+    });
+    expect(find({ ...idle, keepAwake: true })).toMatchObject({
+      checked: true,
+      enabled: true,
+    });
+    expect(find(idle, true)).toMatchObject({
+      label: "远程控制时保持电脑唤醒",
+    });
+
+    const entries = trayMenu(
+      { ...idle, wechat: true, wechatBound: true, wechatNeedsScan: true },
+      false,
+    );
+    const scan = entries.findIndex(
+      (entry) =>
+        entry.type === "status" && entry.label === "WeChat: scan again needed",
+    );
+    const keepAwake = entries.findIndex(
+      (entry) =>
+        entry.type === "toggle" && entry.action === "toggle-keep-awake",
+    );
+    const manage = entries.findIndex(
+      (entry) => entry.type === "action" && entry.action === "manage-remote",
+    );
+    expect(scan).toBeGreaterThan(0);
+    expect(keepAwake).toBe(scan + 1);
+    expect(manage).toBe(keepAwake + 1);
   });
 
   it("shows a paused WeChat account as switched off but switchable", () => {

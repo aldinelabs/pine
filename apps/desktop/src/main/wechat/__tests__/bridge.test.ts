@@ -235,7 +235,6 @@ async function setup(
     localAutomationApprovals: true,
     changed: vi.fn((status: WeChatStatus) => statuses.push(status)),
     notify: vi.fn(),
-    keepAwake: vi.fn(),
   } satisfies WeChatHostPorts;
   const fakeCore = createFakeCore();
   for (const id of projects) fakeCore.addProject(id);
@@ -653,7 +652,6 @@ describe("WeChatBridge lifecycle and settings", () => {
     await context.bridge.setSettings({
       ceilingMode: "YOLO",
       allowFileSending: true,
-      keepAwake: true,
       defaultProjectId: "p1",
     });
     const status = await context.bridge.unbind();
@@ -661,14 +659,12 @@ describe("WeChatBridge lifecycle and settings", () => {
     expect(status).toMatchObject({ bound: false, connection: "unbound" });
     expect(status.settings).toEqual({
       ...DEFAULT_WECHAT_SETTINGS,
-      keepAwake: true,
       defaultProjectId: "p1",
     });
     const stored = context.openStore();
     await stored.load();
     expect(stored.secure().token).toBeUndefined();
     expect(stored.get().tracked).toEqual([]);
-    expect(context.host.keepAwake).toHaveBeenLastCalledWith(false);
   });
 
   it("keeps pause in the sealed blob", async () => {
@@ -702,14 +698,21 @@ describe("WeChatBridge lifecycle and settings", () => {
     expect(status.settings.defaultProjectId).toBeUndefined();
   });
 
-  it("keeps the computer awake only while listening with the switch on", async () => {
+  it("reports the old WeChat-only keep-awake switch for migration", async () => {
     const context = await setup();
     await seedBound(context);
-    await context.bridge.start();
-    await context.bridge.setSettings({ keepAwake: true });
-    expect(context.host.keepAwake).toHaveBeenLastCalledWith(true);
-    await context.bridge.setPaused(true);
-    expect(context.host.keepAwake).toHaveBeenLastCalledWith(false);
+    expect(await context.bridge.legacyKeepAwake()).toBe(false);
+
+    const legacy = await setup();
+    await seedBound(legacy);
+    const seed = legacy.openStore();
+    await seed.load();
+    await seed.updateSecure((draft) => {
+      (draft.settings as unknown as Record<string, unknown>).keepAwake = true;
+    });
+    expect(await legacy.bridge.legacyKeepAwake()).toBe(true);
+    await legacy.bridge.start();
+    expect(legacy.bridge.status().settings).not.toHaveProperty("keepAwake");
   });
 
   it("reloads paused and settings from disk", async () => {

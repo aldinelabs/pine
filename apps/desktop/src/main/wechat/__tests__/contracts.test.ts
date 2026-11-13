@@ -24,7 +24,6 @@ const wide: WeChatSettings = {
   defaultProjectId: "project-1",
   allowHighRiskApprovals: true,
   allowFileSending: true,
-  keepAwake: true,
 };
 
 describe("notification kinds", () => {
@@ -86,14 +85,13 @@ describe("settings", () => {
     });
     expect(next.ceilingMode).toBe("auto-approve");
     expect(next.defaultMode).toBe("auto-approve");
-    expect(next.keepAwake).toBe(true);
+    expect(next.defaultProjectId).toBe("project-1");
   });
 
   it("resets the permissions and keeps the rest", () => {
     expect(resetWeChatPermissions(wide)).toEqual({
       ...DEFAULT_WECHAT_SETTINGS,
       defaultProjectId: "project-1",
-      keepAwake: true,
     });
   });
 });

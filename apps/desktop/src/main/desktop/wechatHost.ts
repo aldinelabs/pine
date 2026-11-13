@@ -1,9 +1,4 @@
-import {
-  BrowserWindow,
-  ipcMain,
-  Notification,
-  powerSaveBlocker,
-} from "electron";
+import { BrowserWindow, ipcMain, Notification } from "electron";
 import { z } from "zod";
 import {
   CANCEL_WECHAT_BINDING_CHANNEL,
@@ -55,7 +50,6 @@ export const wechatSettingsPatchSchema: z.ZodType<WeChatSettingsPatch> = z
     defaultProjectId: z.uuid().nullable().optional(),
     allowHighRiskApprovals: z.boolean().optional(),
     allowFileSending: z.boolean().optional(),
-    keepAwake: z.boolean().optional(),
   })
   .strict();
 
@@ -151,23 +145,4 @@ export function showWeChatNotification(
   native.on("close", release);
   native.on("failed", release);
   native.show();
-}
-
-/**
- * Keeps the system from sleeping while asked to (`on`), for WeChat remote's
- * "Keep the computer awake" setting. Repeated calls with the same value do
- * nothing; the display may still turn off.
- */
-export function createKeepAwake(): (on: boolean) => void {
-  let blocker: number | undefined;
-  return (on) => {
-    if (on) {
-      if (blocker !== undefined && powerSaveBlocker.isStarted(blocker)) return;
-      blocker = powerSaveBlocker.start("prevent-app-suspension");
-      return;
-    }
-    if (blocker === undefined) return;
-    if (powerSaveBlocker.isStarted(blocker)) powerSaveBlocker.stop(blocker);
-    blocker = undefined;
-  };
 }

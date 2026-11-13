@@ -150,6 +150,13 @@ export default {
       removeDescription:
         "Cet appareil est déconnecté immédiatement et devra être de nouveau associé pour se reconnecter.",
     },
+    remoteKeepAwake: {
+      title:
+        "Garder l’ordinateur éveillé tant que le contrôle à distance est activé",
+      description:
+        "S’applique tant que l’accès par navigateur est activé ou que WeChat reçoit des tâches. Fermer le capot met quand même l’ordinateur en veille.",
+      idle: "Aucun contrôle à distance n’est activé pour l’instant : l’ordinateur se met en veille normalement.",
+    },
     wechatRemote: {
       title: "WeChat",
       experimental: "Expérimental",
@@ -206,9 +213,6 @@ export default {
       allowFiles: "Autoriser l’envoi de fichiers vers WeChat",
       allowFilesDescription:
         "Uniquement les artefacts de la session (fichiers remis par l’agent), jusqu’à 100 Mo chacun. Les fichiers transitent par les serveurs de Tencent.",
-      keepAwake: "Garder l’ordinateur éveillé tant que WeChat est activé",
-      keepAwakeDescription:
-        "Fermer le capot met quand même l’ordinateur en veille.",
       notes: "Bon à savoir",
       noteRunning:
         "Fonctionne uniquement quand Pine est ouvert et que l’ordinateur est éveillé.",
@@ -2389,6 +2393,11 @@ export default {
       saveTitle: "Impossible de mettre à jour le contrôle à distance",
       pairTitle: "Impossible de créer un code d'association",
       deviceTitle: "Impossible de mettre à jour cet appareil",
+      description: "Veuillez réessayer plus tard.",
+    },
+    remoteKeepAwake: {
+      loadTitle: "Impossible de charger le réglage de maintien en éveil",
+      saveTitle: "Impossible de mettre à jour le réglage de maintien en éveil",
       description: "Veuillez réessayer plus tard.",
     },
     wechatRemote: {

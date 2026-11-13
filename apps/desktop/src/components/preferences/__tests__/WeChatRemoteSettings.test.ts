@@ -514,12 +514,8 @@ describe("WeChat remote settings", () => {
         true,
       ),
     );
-    await expectPatch({ keepAwake: true }, () =>
-      switchOf(wrapper, "pine-wechat-keep-awake").vm.$emit(
-        "update:modelValue",
-        true,
-      ),
-    );
+    // Keeping the computer awake is a global remote control setting now.
+    expect(byTestId("pine-wechat-keep-awake")).toBeNull();
     expect(setWeChatSettings).toHaveBeenCalledTimes(patches.length);
 
     // "No Project" clears the default project instead of naming one.

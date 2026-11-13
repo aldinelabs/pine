@@ -144,7 +144,6 @@ export class WeChatBridge implements WeChatBridgeApi {
     this.started = true;
     await this.ready();
     this.connectStored();
-    this.applyKeepAwake();
     this.startPipeline();
     this.emit();
   }
@@ -164,7 +163,6 @@ export class WeChatBridge implements WeChatBridgeApi {
       .releaseAll({ abortOwnSessions: false })
       .catch(() => undefined);
     await this.storeInstance?.flush().catch(() => undefined);
-    this.options.host.keepAwake(false);
   }
 
   dispose(): void {
@@ -205,6 +203,12 @@ export class WeChatBridge implements WeChatBridgeApi {
     return status;
   }
 
+  /** Whether the stored settings still held the old WeChat-only keep-awake switch, read once for migration. */
+  async legacyKeepAwake(): Promise<boolean> {
+    await this.ready();
+    return this.store.legacyKeepAwake();
+  }
+
   isListening(): boolean {
     return this.isBound() && !this.store.secure().paused;
   }
@@ -219,7 +223,6 @@ export class WeChatBridge implements WeChatBridgeApi {
       this.invalidateAsks();
       this.parts?.outbound.setTyping(false);
     }
-    this.applyKeepAwake();
     return this.emit();
   }
 
@@ -358,7 +361,6 @@ export class WeChatBridge implements WeChatBridgeApi {
     this.error = undefined;
     this.reauth = false;
     this.reauthNotified = false;
-    this.applyKeepAwake();
     return this.emit();
   }
 
@@ -790,13 +792,7 @@ export class WeChatBridge implements WeChatBridgeApi {
   }
 
   private settingsChanged(): WeChatStatus {
-    this.applyKeepAwake();
     return this.emit();
-  }
-
-  private applyKeepAwake(): void {
-    const on = this.store.secure().settings.keepAwake && this.isListening();
-    this.options.host.keepAwake(on);
   }
 
   private async projectExists(projectId: string): Promise<boolean> {
@@ -998,7 +994,6 @@ export class WeChatBridge implements WeChatBridgeApi {
     this.reauthNotified = false;
     this.error = undefined;
     this.connectStored();
-    this.applyKeepAwake();
     this.startPipeline();
   }
 
@@ -1135,7 +1130,6 @@ export class WeChatBridge implements WeChatBridgeApi {
       const known = new Set(draft.seenMessageIds);
       draft.seenMessageIds.push(...pairing.seen.filter((id) => !known.has(id)));
     });
-    this.applyKeepAwake();
     this.startPipeline();
     const secure = this.store.secure();
     await pairing.channel

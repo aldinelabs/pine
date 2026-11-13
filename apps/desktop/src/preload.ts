@@ -13,6 +13,12 @@ import {
 } from "./shared/preferenceStorage";
 import { QUICK_COMPOSER_HANDOFF_ARGUMENT } from "./shared/quickComposer";
 import {
+  GET_REMOTE_KEEP_AWAKE_CHANNEL,
+  REMOTE_KEEP_AWAKE_CHANGED_CHANNEL,
+  SET_REMOTE_KEEP_AWAKE_CHANNEL,
+  type RemoteKeepAwakeStatus,
+} from "./shared/remoteKeepAwake";
+import {
   CANCEL_REMOTE_PAIRING_CHANNEL,
   GET_REMOTE_CONTROL_CHANNEL,
   REMOTE_CONTROL_CHANGED_CHANNEL,
@@ -117,6 +123,16 @@ const pineApi: PineDesktopApi = {
     ipcRenderer.on(WECHAT_REMOTE_CHANGED_CHANNEL, handler);
     return () =>
       ipcRenderer.removeListener(WECHAT_REMOTE_CHANGED_CHANNEL, handler);
+  },
+  getRemoteKeepAwake: () => ipcRenderer.invoke(GET_REMOTE_KEEP_AWAKE_CHANNEL),
+  setRemoteKeepAwake: (enabled) =>
+    ipcRenderer.invoke(SET_REMOTE_KEEP_AWAKE_CHANNEL, enabled),
+  onRemoteKeepAwakeChanged: (listener) => {
+    const handler = (_event: unknown, status: RemoteKeepAwakeStatus) =>
+      listener(status);
+    ipcRenderer.on(REMOTE_KEEP_AWAKE_CHANGED_CHANNEL, handler);
+    return () =>
+      ipcRenderer.removeListener(REMOTE_KEEP_AWAKE_CHANGED_CHANNEL, handler);
   },
 };
 contextBridge.exposeInMainWorld("pine", pineApi);

@@ -68,7 +68,6 @@ export interface WeChatHostPorts {
   localAutomationApprovals: boolean;
   changed(status: WeChatStatus): void;
   notify(notification: WeChatNotification): void;
-  keepAwake(on: boolean): void;
 }
 
 /** Media received from WeChat, staged until a prompt uses it. Implemented by attachments.ts. */

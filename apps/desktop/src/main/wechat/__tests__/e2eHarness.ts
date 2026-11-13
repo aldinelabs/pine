@@ -306,7 +306,6 @@ export async function createHarness(
     localAutomationApprovals: true,
     changed: (status) => statuses.push(status),
     notify: (notification) => notifications.push(notification),
-    keepAwake: vi.fn(),
   };
 
   const gated: Harness["gated"] = [];

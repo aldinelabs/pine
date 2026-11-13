@@ -469,9 +469,13 @@ the user opens themselves do not pulse.
     apply from the next message in every conversation.
   - Projects: every project with its data usage; New Project, Edit, clear
     temporary files, clear attachments.
-  - Remote control (desktop app only): "Remote control via Aldine" pairs
-    other devices by QR code or pairing link (no port forwarding, end-to-end
-    encrypted) and lists paired devices to rename or remove; it needs Browser
+  - Remote control (desktop app only): at the top, "Keep the computer awake
+    while remote control is on" (off by default) keeps the computer from
+    sleeping while Browser access is on or WeChat is receiving tasks; the
+    display can still turn off and closing the lid still sleeps. While it is
+    on and no remote control is on, it notes the computer sleeps as usual.
+    Below it, "Remote control via Aldine" pairs other devices by QR code or
+    pairing link (no port forwarding, end-to-end encrypted) and lists paired devices to rename or remove; it needs Browser
     access turned on. The pairing dialog recommends the system QR scanner
     (usually Camera) and native browser; Chinese text warns against scanners
     in WeChat, Alipay and QQ. Pine Remote's computer list has "Scan pairing
@@ -508,10 +512,9 @@ the user opens themselves do not pulse.
     an approval card from Auto Approve carries the reviewer's one-line
     summary ("Reviewer: …"), and .N also lists its risks),
     "Allow sending files to WeChat" (the session's artifacts, up to 100 MB;
-    off by default) and "Keep the computer awake while WeChat is on". "Good to
-    know" notes say it works only while Pine runs and the computer is awake,
-    messages pass through Tencent's servers, the account can read session
-    titles, search results and replies of every project, a proxy may be
+    off by default). "Good to know" notes say it works only while Pine runs
+    and the computer is awake, messages pass through Tencent's servers, the
+    account can read session titles, search results and replies of every project, a proxy may be
     blocked, one WeChat account connects to one computer, in WeChat .help
     (or .?) lists the commands and plain text goes to the current session,
     and tasks that reach Pine more than 10 minutes after they were sent wait
@@ -573,9 +576,10 @@ Quick composer, switches for Browser access, Remote Control via Aldine and
 "WeChat remote" (pauses or resumes receiving tasks from WeChat, the same as
 "Receive tasks from WeChat" in Settings; greyed out until a WeChat account is
 connected), a "WeChat: scan again needed" line when WeChat's login has to be
-renewed, "Manage more settings…" (opens Pine Settings › Remote control), a
-count of running sessions while any run, and Quit Pine. Quitting from the menu
-is the way to stop automations, Remote Control and WeChat remote.
+renewed, a "Keep computer awake for remote control" checkbox (the same
+setting as in Settings › Remote control), "Manage more settings…" (opens
+Pine Settings › Remote control), a count of running sessions while any run,
+and Quit Pine. Quitting from the menu is the way to stop automations, Remote Control and WeChat remote.
 
 ## Keyboard shortcuts
 

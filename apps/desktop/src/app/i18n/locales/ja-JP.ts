@@ -151,6 +151,12 @@ export default {
       removeDescription:
         "このデバイスは今すぐ切断され、再接続するには再度ペアリングが必要です。",
     },
+    remoteKeepAwake: {
+      title: "リモート操作がオンの間はスリープしない",
+      description:
+        "ブラウザアクセスがオン、または WeChat がタスクを受け付けている間に有効です。蓋を閉じるとスリープします。",
+      idle: "現在オンのリモート操作はないため、通常どおりスリープします。",
+    },
     wechatRemote: {
       title: "WeChat",
       experimental: "試験運用",
@@ -207,8 +213,6 @@ export default {
       allowFiles: "WeChat へのファイル送信を許可",
       allowFilesDescription:
         "セッションの成果物（エージェントが提出したファイル）のみ、1 つ 100 MB まで。ファイルは Tencent のサーバーを経由します。",
-      keepAwake: "WeChat がオンの間はスリープしない",
-      keepAwakeDescription: "蓋を閉じるとスリープします。",
       notes: "注意事項",
       noteRunning:
         "Pine が実行中で、コンピュータがスリープしていないときだけ使えます。",
@@ -2355,6 +2359,11 @@ export default {
       saveTitle: "リモート操作を更新できません",
       pairTitle: "ペアリングコードを作成できません",
       deviceTitle: "このデバイスを更新できません",
+      description: "しばらくしてからもう一度お試しください。",
+    },
+    remoteKeepAwake: {
+      loadTitle: "スリープ防止の設定を読み込めません",
+      saveTitle: "スリープ防止の設定を更新できません",
       description: "しばらくしてからもう一度お試しください。",
     },
     wechatRemote: {

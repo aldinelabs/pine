@@ -9,6 +9,7 @@ import {
   writeContextCompactionStrategy,
   writeDiagnosticLoggingEnabled,
   writePineUserProfile,
+  writeRemoteKeepAwake,
   writeApprovalModelSelection,
   writeUtilityModelSelection,
 } from "../pineSettings";
@@ -184,6 +185,26 @@ describe("Pine agent settings", () => {
       diagnosticLoggingEnabled: false,
     });
   });
+  it("persists the remote keep-awake setting and drops a non-boolean value", async () => {
+    const agentDir = await mkdtemp(
+      path.join(os.tmpdir(), "pine-remote-keep-awake-settings-"),
+    );
+    temporaryDirectories.push(agentDir);
+    await writeRemoteKeepAwake(agentDir, true);
+    await expect(readPineAgentSettings(agentDir)).resolves.toEqual({
+      remoteKeepAwake: true,
+    });
+    await writeRemoteKeepAwake(agentDir, false);
+    await expect(readPineAgentSettings(agentDir)).resolves.toEqual({
+      remoteKeepAwake: false,
+    });
+    await writeFile(
+      path.join(agentDir, "pine-settings.json"),
+      JSON.stringify({ remoteKeepAwake: "yes" }),
+    );
+    await expect(readPineAgentSettings(agentDir)).resolves.toEqual({});
+  });
+
   it("persists the context compaction strategy", async () => {
     const agentDir = await mkdtemp(
       path.join(os.tmpdir(), "pine-agent-settings-compaction-"),

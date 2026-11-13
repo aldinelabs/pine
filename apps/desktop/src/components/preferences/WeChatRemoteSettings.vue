@@ -396,7 +396,7 @@ function updateDefaultMode(value: unknown): void {
 }
 
 function updateSwitch(
-  key: "allowHighRiskApprovals" | "allowFileSending" | "keepAwake",
+  key: "allowHighRiskApprovals" | "allowFileSending",
   value: boolean,
 ): void {
   if (settings.value[key] === value) return;
@@ -686,26 +686,6 @@ function openServerGuide(): void {
           aria-labelledby="pine-wechat-files"
           @update:model-value="
             (value: boolean) => updateSwitch('allowFileSending', value)
-          "
-        />
-      </Field>
-
-      <Field orientation="horizontal">
-        <div class="flex min-w-0 flex-1 flex-col gap-1">
-          <FieldTitle id="pine-wechat-keep-awake">
-            {{ t("preferences.wechatRemote.keepAwake") }}
-          </FieldTitle>
-          <FieldDescription>
-            {{ t("preferences.wechatRemote.keepAwakeDescription") }}
-          </FieldDescription>
-        </div>
-        <Switch
-          data-testid="pine-wechat-keep-awake"
-          :model-value="settings.keepAwake"
-          :disabled="isBusy"
-          aria-labelledby="pine-wechat-keep-awake"
-          @update:model-value="
-            (value: boolean) => updateSwitch('keepAwake', value)
           "
         />
       </Field>

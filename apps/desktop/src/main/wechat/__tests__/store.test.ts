@@ -323,7 +323,7 @@ describe("WeChatStore sealed blob", () => {
     await running.flush();
   });
 
-  it("clearBinding removes the account, resets permissions and keeps language, keep-awake and default project", async () => {
+  it("clearBinding removes the account, resets permissions and keeps language and default project", async () => {
     const { open } = await setup();
     const store = open();
     await store.load();
@@ -336,7 +336,6 @@ describe("WeChatStore sealed blob", () => {
         defaultProjectId: "project-1",
         allowHighRiskApprovals: true,
         allowFileSending: true,
-        keepAwake: true,
       };
     });
     await store.update((draft) => {
@@ -350,7 +349,6 @@ describe("WeChatStore sealed blob", () => {
     expect(store.secure().settings).toEqual({
       ...DEFAULT_WECHAT_SETTINGS,
       defaultProjectId: "project-1",
-      keepAwake: true,
     });
     expect(store.get()).toMatchObject({
       language: "en",
@@ -361,5 +359,39 @@ describe("WeChatStore sealed blob", () => {
     await again.load();
     expect(again.secure().token).toBeUndefined();
     expect(again.get().language).toBe("en");
+  });
+
+  it("reads the old keep-awake switch once for migration and drops it from settings", async () => {
+    const { open, securePath } = await setup();
+    const decode = async () => {
+      const sealed = Buffer.from(
+        (await readFile(securePath, "utf8")).trim(),
+        "base64",
+      ).toString("utf8");
+      return Buffer.from(sealed.slice("sealed:".length), "hex").toString(
+        "utf8",
+      );
+    };
+    const seed = open();
+    await seed.load();
+    expect(seed.legacyKeepAwake()).toBe(false);
+    await seed.updateSecure((draft) => {
+      (draft.settings as unknown as Record<string, unknown>).keepAwake = true;
+    });
+    expect(await decode()).toContain("keepAwake");
+
+    const store = open();
+    await store.load();
+    expect(store.legacyKeepAwake()).toBe(true);
+    expect(store.secure().settings).not.toHaveProperty("keepAwake");
+    await store.updateSecure((draft) => {
+      draft.paused = true;
+    });
+    expect(store.legacyKeepAwake()).toBe(true);
+    expect(await decode()).not.toContain("keepAwake");
+
+    const fresh = open();
+    await fresh.load();
+    expect(fresh.legacyKeepAwake()).toBe(false);
   });
 });

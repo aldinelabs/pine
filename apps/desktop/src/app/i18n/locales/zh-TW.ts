@@ -138,6 +138,12 @@ export default {
       removeTitle: "移除“{name}”？",
       removeDescription: "這臺裝置會立即斷開，需要重新配對才能再次連線。",
     },
+    remoteKeepAwake: {
+      title: "遠端控制開啟時保持電腦喚醒",
+      description:
+        "瀏覽器存取開啟或微信正在接收任務時生效。闔上螢幕仍會讓電腦睡眠。",
+      idle: "目前沒有開啟任何遠端控制，電腦會照常睡眠。",
+    },
     wechatRemote: {
       title: "微信",
       experimental: "實驗性",
@@ -191,8 +197,6 @@ export default {
       allowFiles: "允許向微信傳送檔案",
       allowFilesDescription:
         "只傳送會話的產出檔案（智慧代理提交的檔案），每個不超過 100 MB。檔案會經過騰訊的伺服器。",
-      keepAwake: "微信開啟時保持電腦喚醒",
-      keepAwakeDescription: "闔上螢幕仍會讓電腦睡眠。",
       notes: "注意事項",
       noteRunning: "只有 Pine 正在執行且電腦未睡眠時才能使用。",
       noteTencent: "訊息會經過騰訊的伺服器。",
@@ -2233,6 +2237,11 @@ export default {
       pairTitle: "無法產生配對QR Code",
       deviceTitle: "無法更新這臺裝置",
       description: "請稍後重試。",
+    },
+    remoteKeepAwake: {
+      loadTitle: "無法載入保持喚醒設定",
+      saveTitle: "無法更新保持喚醒設定",
+      description: "請稍後再試。",
     },
     wechatRemote: {
       loadTitle: "無法載入微信設定",

@@ -37,6 +37,7 @@ import {
   persistAppLocale,
 } from "@/app/i18n";
 import RelayRemoteSettings from "./RelayRemoteSettings.vue";
+import RemoteKeepAwakeSettings from "./RemoteKeepAwakeSettings.vue";
 import RemoteControlSettings from "./RemoteControlSettings.vue";
 import WeChatRemoteSettings from "./WeChatRemoteSettings.vue";
 import AutoApprovalSettings from "./AutoApprovalSettings.vue";
@@ -138,6 +139,8 @@ const { locale, t } = useI18n();
 const isDesktop = isDesktopClient();
 const supportsRemoteControl =
   isDesktop && typeof window.pine?.getWebServer === "function";
+const hasRemoteKeepAwake =
+  isDesktop && typeof window.pine?.getRemoteKeepAwake === "function";
 const hasRelayRemote =
   isDesktop && typeof window.pine?.getRemoteControl === "function";
 const hasWeChatRemote =
@@ -1987,6 +1990,8 @@ defineExpose({ open });
             <ProjectManagementSettings />
           </div>
           <div v-else-if="activeSection === 'remote'" class="p-6 max-sm:px-4">
+            <RemoteKeepAwakeSettings v-if="hasRemoteKeepAwake" />
+            <FieldSeparator v-if="hasRemoteKeepAwake" class="my-6" />
             <RelayRemoteSettings v-if="hasRelayRemote" />
             <FieldSeparator v-if="hasRelayRemote" class="my-6" />
             <RemoteControlSettings />

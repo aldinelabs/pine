@@ -19,7 +19,10 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { z } from "zod";
 import { SYSTEM_LANGUAGES_ENV } from "./agent/network-region";
-import { writeRunInBackground } from "./agent/pineSettings";
+import {
+  writeRemoteKeepAwake,
+  writeRunInBackground,
+} from "./agent/pineSettings";
 import { ATTACHMENT_IMAGE_PROTOCOL } from "./shared/attachments";
 import {
   DEFAULT_RUN_IN_BACKGROUND,
@@ -91,8 +94,18 @@ import { DesktopAttention, isChineseLocale } from "./main/desktop/attention";
 import { DesktopBackground } from "./main/desktop/background";
 import { registerNativeIpc } from "./main/desktop/nativeIpc";
 import {
+  broadcastRemoteKeepAwake,
+  createPowerBlocker,
+  registerRemoteKeepAwakeIpc,
+} from "./main/desktop/remoteKeepAwake";
+import {
+  isRemoteAccessOn,
+  migrateRemoteKeepAwake,
+  RemoteKeepAwake,
+} from "./main/remoteKeepAwake";
+import type { RemoteKeepAwakeStatus } from "./shared/remoteKeepAwake";
+import {
   broadcastWeChatStatus,
-  createKeepAwake,
   registerWeChatIpc,
   showWeChatNotification,
   type WeChatNotificationTarget,
@@ -225,6 +238,7 @@ const background = new DesktopBackground({
   toggleWebAccess: () => void toggleWebAccess(),
   toggleRelayRemote: () => void toggleRelayRemote(),
   toggleWeChat: () => void toggleWeChat(),
+  toggleKeepAwake: () => void toggleKeepAwake(),
   manageRemote: () => openPreferencesSection("remote"),
   state: () => ({
     ...currentQuitBlockers(),
@@ -232,6 +246,7 @@ const background = new DesktopBackground({
     webAccess: core?.web.server.status().enabled ?? false,
     relayRemote: core?.remote.status().enabled ?? false,
     wechatBound: core?.wechat.status().bound ?? false,
+    keepAwake: remoteKeepAwake.enabled,
   }),
 });
 
@@ -271,7 +286,32 @@ function openPine(): void {
   }
 }
 
-const keepAwake = createKeepAwake();
+/**
+ * "Keep the computer awake while remote control is on": holds a sleep blocker
+ * while the setting is on and Browser access runs or WeChat receives tasks.
+ * Refreshed on remote events only.
+ */
+const remoteKeepAwake = new RemoteKeepAwake({
+  remoteOn: () =>
+    core
+      ? isRemoteAccessOn({
+          browserAccess: core.web.server.isRunning(),
+          wechatListening: core.wechat.isListening(),
+          wechatNeedsScan:
+            core.wechat.status().connection === "reauth-required",
+        })
+      : false,
+  block: createPowerBlocker(),
+  changed: broadcastRemoteKeepAwake,
+});
+
+/** Saves the setting first, then applies it; shared by the settings page and the tray. */
+async function setRemoteKeepAwake(
+  enabled: boolean,
+): Promise<RemoteKeepAwakeStatus> {
+  await writeRemoteKeepAwake(requireCore().agentDirectory, enabled);
+  return remoteKeepAwake.setEnabled(enabled);
+}
 
 /**
  * The window a WeChat notification leads to: the one holding its project,
@@ -349,7 +389,10 @@ function desktopHost(): PineHost {
     },
     observeAgentEvent: (event, ownerId) => attention.observe(event, ownerId),
     approveRemotePairing: confirmRemotePairing,
-    remoteControlChanged: broadcastRemoteStatus,
+    remoteControlChanged: (status) => {
+      broadcastRemoteStatus(status);
+      remoteKeepAwake.refresh();
+    },
     attentionNotificationsChanged: (enabled) => {
       if (!enabled) attention.closeAttentionNotifications();
     },
@@ -364,10 +407,12 @@ function desktopHost(): PineHost {
           window.webContents.send(AUTOMATIONS_CHANGED_CHANNEL, event);
     },
     locale: automationLocale,
-    wechatChanged: broadcastWeChatStatus,
+    wechatChanged: (status) => {
+      broadcastWeChatStatus(status);
+      remoteKeepAwake.refresh();
+    },
     notifyWeChat: (notification) =>
       showWeChatNotification(notification, wechatNotificationWindow),
-    keepAwake,
     // Automation approvals appear in this app's windows.
     localAutomationApprovals: true,
   };
@@ -537,10 +582,14 @@ ipcMain.handle(SET_WEB_SERVER_CHANNEL, async (_event, request: unknown) => {
     .custom<WebServerSettings>(isWebServerSettings)
     .parse(request);
   if (!core) throw new Error("The local web interface is not ready.");
-  const status = await core.web.configure(settings, true);
-  // Phones reach Pine through this server, so their settings change with it.
-  broadcastRemoteStatus(core.remote.status());
-  return status;
+  try {
+    const status = await core.web.configure(settings, true);
+    // Phones reach Pine through this server, so their settings change with it.
+    broadcastRemoteStatus(core.remote.status());
+    return status;
+  } finally {
+    remoteKeepAwake.refresh();
+  }
 });
 ipcMain.handle(SET_WEB_PASSWORD_CHANNEL, async (_event, request: unknown) => {
   const password = z
@@ -618,6 +667,10 @@ ipcMain.handle(
 
 // Desktop only, like Remote Control's: registered on ipcMain, not the router.
 registerWeChatIpc(() => core);
+registerRemoteKeepAwakeIpc({
+  controller: remoteKeepAwake,
+  set: setRemoteKeepAwake,
+});
 
 /** A section asked for before the window's renderer could listen. */
 let pendingPreferencesSection: string | null = null;
@@ -663,6 +716,8 @@ async function toggleWebAccess(): Promise<void> {
       "Pine",
       String(error instanceof Error ? error.message : error),
     );
+  } finally {
+    remoteKeepAwake.refresh();
   }
 }
 
@@ -686,6 +741,19 @@ async function toggleWeChat(): Promise<void> {
     const status = core.wechat.status();
     if (!status.bound) return;
     await core.wechat.setPaused(!status.paused);
+  } catch (error) {
+    dialog.showErrorBox(
+      "Pine",
+      String(error instanceof Error ? error.message : error),
+    );
+  }
+}
+
+/** The tray's keep-awake switch: the same setting as the settings page's. */
+async function toggleKeepAwake(): Promise<void> {
+  if (!core) return;
+  try {
+    await setRemoteKeepAwake(!remoteKeepAwake.enabled);
   } catch (error) {
     dialog.showErrorBox(
       "Pine",
@@ -854,11 +922,25 @@ async function initializeApp(): Promise<void> {
       (pine.settings.runInBackground ?? DEFAULT_RUN_IN_BACKGROUND),
   );
   appUpdater = await createAppUpdater();
+  try {
+    remoteKeepAwake.setEnabled(
+      await migrateRemoteKeepAwake({
+        stored: pine.settings.remoteKeepAwake,
+        legacy: () => pine.wechat.legacyKeepAwake(),
+        write: (value) => writeRemoteKeepAwake(pine.agentDirectory, value),
+      }),
+    );
+  } catch (error) {
+    // Left off for this run; the migration is tried again next start.
+    console.error("Failed to read the keep-awake setting.", error);
+  }
   if (pine.settings.webServer) {
     try {
       await pine.web.configure(pine.settings.webServer);
     } catch (error) {
       console.error("Failed to start the local web interface.", error);
+    } finally {
+      remoteKeepAwake.refresh();
     }
   }
   createWindow();
@@ -927,7 +1009,7 @@ app.on("before-quit", (event) => {
 app.on("will-quit", () => {
   quickComposer.dispose();
   background.dispose();
-  keepAwake(false);
+  remoteKeepAwake.dispose();
   core?.dispose();
   releaseWindowsSandboxRuntimeAccess();
 });

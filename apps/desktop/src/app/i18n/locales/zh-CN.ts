@@ -138,6 +138,12 @@ export default {
       removeTitle: "移除“{name}”？",
       removeDescription: "这台设备会立即断开，需要重新配对才能再次连接。",
     },
+    remoteKeepAwake: {
+      title: "远程控制开启时保持电脑唤醒",
+      description:
+        "浏览器访问开启或微信正在接收任务时生效。合上盖子仍会让电脑睡眠。",
+      idle: "当前没有开启任何远程控制，电脑会照常睡眠。",
+    },
     wechatRemote: {
       title: "微信",
       experimental: "实验性",
@@ -190,8 +196,6 @@ export default {
       allowFiles: "允许向微信发送文件",
       allowFilesDescription:
         "只发送会话的产出文件（智能体提交的文件），每个不超过 100 MB。文件会经过腾讯的服务器。",
-      keepAwake: "微信开启时保持电脑唤醒",
-      keepAwakeDescription: "合上盖子仍会让电脑睡眠。",
       notes: "注意事项",
       noteRunning: "只有 Pine 正在运行且电脑未睡眠时才能使用。",
       noteTencent: "消息会经过腾讯的服务器。",
@@ -2228,6 +2232,11 @@ export default {
       saveTitle: "无法更新远程控制",
       pairTitle: "无法生成配对二维码",
       deviceTitle: "无法更新这台设备",
+      description: "请稍后重试。",
+    },
+    remoteKeepAwake: {
+      loadTitle: "无法加载保持唤醒设置",
+      saveTitle: "无法更新保持唤醒设置",
       description: "请稍后重试。",
     },
     wechatRemote: {

@@ -60,12 +60,14 @@ const idle: TrayState = {
   wechat: false,
   wechatBound: false,
   wechatNeedsScan: false,
+  keepAwake: false,
 };
 
 function setup(platform = "darwin", state: TrayState = idle) {
   Object.defineProperty(process, "platform", { value: platform });
   const windows: FakeWindow[] = [];
   const toggleWeChat = vi.fn();
+  const toggleKeepAwake = vi.fn();
   const background = new DesktopBackground({
     iconDirectory: "/icons",
     appWindows: () => windows as unknown as BrowserWindow[],
@@ -75,6 +77,7 @@ function setup(platform = "darwin", state: TrayState = idle) {
     toggleWebAccess: vi.fn(),
     toggleRelayRemote: vi.fn(),
     toggleWeChat,
+    toggleKeepAwake,
     manageRemote: vi.fn(),
     state: () => state,
   });
@@ -84,7 +87,7 @@ function setup(platform = "darwin", state: TrayState = idle) {
     background.watch(window as unknown as BrowserWindow, () => auxiliary);
     return window;
   };
-  return { background, add, toggleWeChat };
+  return { background, add, toggleWeChat, toggleKeepAwake };
 }
 
 /** Opens the tray menu as a right click does and returns its items. */
@@ -196,6 +199,26 @@ describe("the tray's WeChat switch", () => {
     expect(
       openMenu().find((entry) => entry.label === "WeChat: scan again needed"),
     ).toEqual({ label: "WeChat: scan again needed", enabled: false });
+    background.dispose();
+  });
+
+  it("flips keep-awake for remote control when clicked", () => {
+    const { background, toggleKeepAwake } = setup("darwin", {
+      ...idle,
+      keepAwake: true,
+    });
+    background.start(true);
+
+    const item = openMenu().find(
+      (entry) => entry.label === "Keep computer awake for remote control",
+    );
+    expect(item).toMatchObject({
+      type: "checkbox",
+      checked: true,
+      enabled: true,
+    });
+    (item?.click as () => void)();
+    expect(toggleKeepAwake).toHaveBeenCalledOnce();
     background.dispose();
   });
 });

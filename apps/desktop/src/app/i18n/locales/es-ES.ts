@@ -151,6 +151,13 @@ export default {
       removeDescription:
         "Este dispositivo se desconecta ahora y deberá vincularse de nuevo para volver a conectarse.",
     },
+    remoteKeepAwake: {
+      title:
+        "Mantener el equipo activo mientras el control remoto esté activado",
+      description:
+        "Se aplica mientras el acceso desde el navegador esté activado o WeChat reciba tareas. Cerrar la tapa sigue suspendiendo el equipo.",
+      idle: "Ahora no hay ningún control remoto activado, así que el equipo se suspende como siempre.",
+    },
     wechatRemote: {
       title: "WeChat",
       experimental: "Experimental",
@@ -206,8 +213,6 @@ export default {
       allowFiles: "Permitir enviar archivos a WeChat",
       allowFilesDescription:
         "Solo los artefactos de la sesión (archivos que entregó el agente), hasta 100 MB cada uno. Los archivos pasan por los servidores de Tencent.",
-      keepAwake: "Mantener el equipo activo mientras WeChat esté activado",
-      keepAwakeDescription: "Cerrar la tapa sigue suspendiendo el equipo.",
       notes: "Conviene saber",
       noteRunning:
         "Solo funciona mientras Pine está abierto y el equipo no está suspendido.",
@@ -2371,6 +2376,12 @@ export default {
       saveTitle: "No se puede actualizar el control remoto",
       pairTitle: "No se puede crear un código de vinculación",
       deviceTitle: "No se puede actualizar este dispositivo",
+      description: "Inténtalo de nuevo más tarde.",
+    },
+    remoteKeepAwake: {
+      loadTitle: "No se puede cargar el ajuste para mantener el equipo activo",
+      saveTitle:
+        "No se puede actualizar el ajuste para mantener el equipo activo",
       description: "Inténtalo de nuevo más tarde.",
     },
     wechatRemote: {

@@ -147,6 +147,12 @@ export default {
       removeDescription:
         "이 기기는 지금 연결이 끊기며, 다시 연결하려면 다시 페어링해야 합니다.",
     },
+    remoteKeepAwake: {
+      title: "원격 제어가 켜져 있는 동안 컴퓨터가 잠자기 상태가 되지 않게 하기",
+      description:
+        "브라우저 접속이 켜져 있거나 WeChat이 작업을 받는 동안 적용됩니다. 덮개를 닫으면 여전히 잠자기 상태가 됩니다.",
+      idle: "지금 켜진 원격 제어가 없어 컴퓨터가 평소처럼 잠자기 상태가 됩니다.",
+    },
     wechatRemote: {
       title: "WeChat",
       experimental: "실험적",
@@ -201,9 +207,6 @@ export default {
       allowFiles: "WeChat으로 파일 보내기 허용",
       allowFilesDescription:
         "세션의 결과물(에이전트가 제출한 파일)만, 파일당 최대 100MB. 파일은 Tencent 서버를 거칩니다.",
-      keepAwake:
-        "WeChat이 켜져 있는 동안 컴퓨터가 잠자기 상태가 되지 않게 하기",
-      keepAwakeDescription: "덮개를 닫으면 여전히 잠자기 상태가 됩니다.",
       notes: "참고",
       noteRunning: "Pine이 실행 중이고 컴퓨터가 깨어 있을 때만 작동합니다.",
       noteTencent: "메시지는 Tencent 서버를 거칩니다.",
@@ -2316,6 +2319,11 @@ export default {
       pairTitle: "페어링 코드를 만들 수 없습니다",
       deviceTitle: "이 기기를 업데이트할 수 없습니다",
       description: "나중에 다시 시도하세요.",
+    },
+    remoteKeepAwake: {
+      loadTitle: "잠자기 방지 설정을 불러올 수 없습니다",
+      saveTitle: "잠자기 방지 설정을 업데이트할 수 없습니다",
+      description: "잠시 후 다시 시도하세요.",
     },
     wechatRemote: {
       loadTitle: "WeChat 설정을 불러올 수 없습니다",

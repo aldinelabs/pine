@@ -71,8 +71,6 @@ function serverHost(
     wechatChanged: (status) => wechat.changed(status),
     notifyWeChat: (notification) =>
       console.log(formatWeChatNotification(notification)),
-    // A server is not expected to sleep; there is nothing to hold awake.
-    keepAwake: () => undefined,
     // Automation approvals are answered on a desktop only.
     localAutomationApprovals: false,
   };

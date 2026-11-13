@@ -213,7 +213,6 @@ describe("PinePreferencesDialog", () => {
           defaultMode: "auto-approve",
           allowHighRiskApprovals: false,
           allowFileSending: false,
-          keepAwake: false,
         },
       }),
     });
@@ -222,6 +221,37 @@ describe("PinePreferencesDialog", () => {
     expect(
       wrapper.find('[data-testid="wechat-remote-settings"]').exists(),
     ).toBe(true);
+    wrapper.unmount();
+  });
+
+  it("puts keep-awake first in Remote Control where the desktop app offers it", async () => {
+    installPineApi("darwin");
+    Object.assign(window.pine, {
+      getWebServer: vi.fn().mockResolvedValue({ enabled: false, port: 9415 }),
+    });
+    const withoutApi = mountDialog().wrapper;
+    await openSection(withoutApi, "远程控制");
+    expect(
+      withoutApi.find('[data-testid="remote-keep-awake-settings"]').exists(),
+    ).toBe(false);
+    withoutApi.unmount();
+
+    Object.assign(window.pine, {
+      getRemoteKeepAwake: vi
+        .fn()
+        .mockResolvedValue({ enabled: false, remoteOn: false }),
+    });
+    const { wrapper } = mountDialog();
+    await openSection(wrapper, "远程控制");
+    const keepAwake = wrapper.find(
+      '[data-testid="remote-keep-awake-settings"]',
+    );
+    const browser = wrapper.find('[data-testid="remote-control-settings"]');
+    expect(keepAwake.exists()).toBe(true);
+    expect(
+      keepAwake.element.compareDocumentPosition(browser.element) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
     wrapper.unmount();
   });
 

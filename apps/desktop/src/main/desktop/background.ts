@@ -31,6 +31,8 @@ interface DesktopBackgroundOptions {
   toggleRelayRemote(): void;
   /** Pauses or resumes WeChat remote. */
   toggleWeChat(): void;
+  /** Flips "Keep the computer awake while remote control is on". */
+  toggleKeepAwake(): void;
   /** Opens Pine's preferences at the Remote Control section. */
   manageRemote(): void;
   state(): TrayState;
@@ -190,6 +192,7 @@ export class DesktopBackground {
       "toggle-web-access": () => this.options.toggleWebAccess(),
       "toggle-relay-remote": () => this.options.toggleRelayRemote(),
       "toggle-wechat": () => this.options.toggleWeChat(),
+      "toggle-keep-awake": () => this.options.toggleKeepAwake(),
       "manage-remote": () => this.options.manageRemote(),
       quit: () => this.options.quit(),
     };

@@ -171,6 +171,7 @@ export function createMemoryStore(
       }),
     reloadSecure: () => Promise.resolve("ok"),
     reloadLanguage: () => Promise.resolve(),
+    legacyKeepAwake: () => false,
     clearBinding: () =>
       serial(() => {
         const language = state.language;
@@ -913,7 +914,6 @@ export function createFakeHost(
     notify: vi.fn((notification: WeChatNotification) => {
       notifications.push(notification);
     }),
-    keepAwake: vi.fn(),
     ...overrides,
   };
 }

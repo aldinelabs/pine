@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import { REMOTE_KEEP_AWAKE_REQUEST_CHANNELS } from "../../shared/remoteKeepAwake";
 import { WECHAT_REQUEST_CHANNELS } from "../../shared/wechatRemote";
 import {
   createWebChannels,
@@ -37,6 +38,11 @@ describe("browser request policy", () => {
 
   it("never exposes the WeChat remote settings to the browser", () => {
     for (const channel of WECHAT_REQUEST_CHANNELS)
+      expect(() => webChannel(channels, channel)).toThrow("unavailable");
+  });
+
+  it("never exposes the keep-awake setting to the browser", () => {
+    for (const channel of REMOTE_KEEP_AWAKE_REQUEST_CHANNELS)
       expect(() => webChannel(channels, channel)).toThrow("unavailable");
   });
 

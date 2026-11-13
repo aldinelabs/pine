@@ -37,8 +37,6 @@ export interface WeChatSettings {
   allowHighRiskApprovals: boolean;
   /** Lets WeChat receive files the agent presented. */
   allowFileSending: boolean;
-  /** Keeps the computer awake while WeChat remote is listening. */
-  keepAwake: boolean;
 }
 
 /** `defaultProjectId: null` clears the field (back to "No Project"); `undefined` leaves it. */
@@ -51,7 +49,6 @@ export const DEFAULT_WECHAT_SETTINGS: WeChatSettings = {
   defaultMode: "auto-approve",
   allowHighRiskApprovals: false,
   allowFileSending: false,
-  keepAwake: false,
 };
 
 function modeRank(mode: PineApprovalMode): number {
@@ -80,7 +77,6 @@ export function applyWeChatSettingsPatch(
   if (patch.allowFileSending !== undefined) {
     next.allowFileSending = patch.allowFileSending;
   }
-  if (patch.keepAwake !== undefined) next.keepAwake = patch.keepAwake;
   if (patch.defaultProjectId === null) {
     delete next.defaultProjectId;
   } else if (patch.defaultProjectId !== undefined) {

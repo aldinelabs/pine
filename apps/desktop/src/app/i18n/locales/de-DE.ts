@@ -151,6 +151,12 @@ export default {
       removeDescription:
         "Dieses Gerät wird sofort getrennt und muss erneut gekoppelt werden, um sich wieder zu verbinden.",
     },
+    remoteKeepAwake: {
+      title: "Computer wach halten, solange die Fernsteuerung an ist",
+      description:
+        "Gilt, solange der Browserzugriff an ist oder WeChat Aufgaben empfängt. Ein geschlossener Deckel versetzt den Computer trotzdem in den Ruhezustand.",
+      idle: "Gerade ist keine Fernsteuerung an, daher schläft der Computer wie gewohnt.",
+    },
     wechatRemote: {
       title: "WeChat",
       experimental: "Experimentell",
@@ -207,9 +213,6 @@ export default {
       allowFiles: "Senden von Dateien an WeChat erlauben",
       allowFilesDescription:
         "Nur die Artefakte der Sitzung (vom Agenten eingereichte Dateien), bis 100 MB pro Datei. Dateien laufen über Tencents Server.",
-      keepAwake: "Computer wach halten, solange WeChat an ist",
-      keepAwakeDescription:
-        "Ein geschlossener Deckel versetzt den Computer trotzdem in den Ruhezustand.",
       notes: "Gut zu wissen",
       noteRunning:
         "Funktioniert nur, solange Pine läuft und der Computer wach ist.",
@@ -2390,6 +2393,11 @@ export default {
       pairTitle: "Kopplungscode konnte nicht erstellt werden",
       deviceTitle: "Dieses Gerät konnte nicht aktualisiert werden",
       description: "Bitte versuchen Sie es später erneut.",
+    },
+    remoteKeepAwake: {
+      loadTitle: "Die Wachhalte-Einstellung kann nicht geladen werden",
+      saveTitle: "Die Wachhalte-Einstellung kann nicht aktualisiert werden",
+      description: "Bitte versuche es später erneut.",
     },
     wechatRemote: {
       loadTitle: "WeChat-Einstellungen können nicht geladen werden",

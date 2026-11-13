@@ -72,8 +72,6 @@ export interface PineHost {
   wechatChanged?(status: WeChatStatus): void;
   /** Shows something WeChat remote did or needs at the OS level. */
   notifyWeChat?(notification: WeChatNotification): void;
-  /** Keeps the computer from sleeping while WeChat remote is listening. */
-  keepAwake?(on: boolean): void;
   /** A person here can see and answer automation approvals (not on the headless server). */
   localAutomationApprovals?: boolean;
 }

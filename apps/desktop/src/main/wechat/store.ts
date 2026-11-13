@@ -192,7 +192,8 @@ const settingsSchema = z.object({
   allowFileSending: z
     .boolean()
     .default(DEFAULT_WECHAT_SETTINGS.allowFileSending),
-  keepAwake: z.boolean().default(DEFAULT_WECHAT_SETTINGS.keepAwake),
+  /** Old WeChat-only keep-awake switch: read for migration, never kept. */
+  keepAwake: z.boolean().optional(),
 });
 
 /** Strict: anything unexpected in the sealed blob resets it (paused, default settings). */
@@ -320,6 +321,8 @@ export class WeChatStore implements WeChatStateStore {
   private secureQueue: Promise<unknown> = Promise.resolve();
   private timer: ReturnType<typeof setTimeout> | undefined;
   private dirty = false;
+  /** Sticky: a blob read in this run held the old keep-awake switch on. */
+  private legacy = false;
 
   constructor(private readonly options: WeChatStoreOptions) {}
 
@@ -370,6 +373,10 @@ export class WeChatStore implements WeChatStateStore {
     } catch {
       return false;
     }
+  }
+
+  legacyKeepAwake(): boolean {
+    return this.legacy;
   }
 
   secure(): Readonly<WeChatSecureState> {
@@ -475,9 +482,11 @@ export class WeChatStore implements WeChatStateStore {
         Buffer.from(encoded, "base64"),
       );
       const parsed = secureSchema.parse(JSON.parse(json));
+      const { keepAwake, ...settings } = parsed.settings;
+      this.legacy ||= keepAwake === true;
       const state: WeChatSecureState = withoutUndefined({
         ...parsed,
-        settings: clampSettings(withoutUndefined(parsed.settings)),
+        settings: clampSettings(withoutUndefined(settings)),
       });
       return { result: "ok", state };
     } catch {

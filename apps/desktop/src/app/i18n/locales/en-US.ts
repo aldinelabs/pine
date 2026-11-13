@@ -147,6 +147,12 @@ export default {
       removeDescription:
         "This device disconnects now and must pair again to reconnect.",
     },
+    remoteKeepAwake: {
+      title: "Keep the computer awake while remote control is on",
+      description:
+        "Applies while Browser access is on or WeChat is receiving tasks. A closed lid still puts the computer to sleep.",
+      idle: "No remote control is on right now, so the computer sleeps as usual.",
+    },
     wechatRemote: {
       title: "WeChat",
       experimental: "Experimental",
@@ -202,8 +208,6 @@ export default {
       allowFiles: "Allow sending files to WeChat",
       allowFilesDescription:
         "Only the session’s artifacts (files the agent submitted), up to 100 MB each. Files pass through Tencent's servers.",
-      keepAwake: "Keep the computer awake while WeChat is on",
-      keepAwakeDescription: "A closed lid still puts the computer to sleep.",
       notes: "Good to know",
       noteRunning:
         "Works only while Pine is running and the computer is awake.",
@@ -2314,6 +2318,11 @@ export default {
       saveTitle: "Unable to update remote control",
       pairTitle: "Unable to create a pairing code",
       deviceTitle: "Unable to update this device",
+      description: "Please try again later.",
+    },
+    remoteKeepAwake: {
+      loadTitle: "Unable to load the keep-awake setting",
+      saveTitle: "Unable to update the keep-awake setting",
       description: "Please try again later.",
     },
     wechatRemote: {

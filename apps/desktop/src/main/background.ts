@@ -9,6 +9,8 @@ export interface TrayState extends QuitBlockers {
   relayRemote: boolean;
   /** A WeChat account is bound, so its switch can be used. */
   wechatBound: boolean;
+  /** "Keep the computer awake while remote control is on" is switched on. */
+  keepAwake: boolean;
 }
 
 export type TrayAction =
@@ -17,6 +19,7 @@ export type TrayAction =
   | "toggle-web-access"
   | "toggle-relay-remote"
   | "toggle-wechat"
+  | "toggle-keep-awake"
   | "manage-remote"
   | "quit";
 
@@ -99,6 +102,15 @@ export function trayMenu(state: TrayState, chinese: boolean): TrayMenuEntry[] {
       type: "status",
       label: chinese ? "微信需要重新扫码" : "WeChat: scan again needed",
     });
+  entries.push({
+    type: "toggle",
+    action: "toggle-keep-awake",
+    label: chinese
+      ? "远程控制时保持电脑唤醒"
+      : "Keep computer awake for remote control",
+    checked: state.keepAwake,
+    enabled: true,
+  });
   entries.push({
     type: "action",
     action: "manage-remote",
