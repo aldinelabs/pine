@@ -18,7 +18,7 @@ export const REPORT_PROGRESS_LONG_ACK = `Shown to the user as reply text. That r
 // Pine passes its own system prompt, so pi does not render promptSnippet or
 // promptGuidelines: the description has to carry the guidance by itself.
 const DESCRIPTION = [
-  "Show the user an interim answer while you keep working. Pine displays `content` in the conversation exactly like your normal reply text (Markdown, including LaTeX math), not as a tool call. The tool does nothing else: it has no side effects, needs no approval, and its result only confirms that the text was shown.",
+  "Show the user an interim answer while you keep working. Pine displays `content` in the conversation exactly like your normal reply text (Markdown, including LaTeX math, and interactive answer blocks when those are enabled), not as a tool call. The tool does nothing else: it has no side effects, needs no approval, and its result only confirms that the text was shown.",
   "",
   'Before slow work (searching or fetching the web, reading or searching files, running commands, long reasoning), post a brief preliminary answer from what you already know, then continue and finish with the refined or final answer. If your knowledge or your reasoning so far already points to a likely answer, report it first, clearly marked as preliminary and still to be verified, instead of keeping it to yourself until the slow work is done. Example: asked who received the latest Nobel Peace Prize, report the most recent laureate you know of and say you are checking for a newer award, then search. State what you know "as of" your knowledge; do not guess today\'s date.',
   "",
@@ -44,7 +44,7 @@ const reportProgressParams = Type.Object({
   content: Type.String({
     minLength: 1,
     description:
-      "Markdown shown to the user as reply text. Lead with the preliminary answer, finding or solved part, mark what is not yet verified, and keep it short.",
+      "Markdown shown to the user as reply text; interactive answer blocks work here too when enabled. Lead with the preliminary answer, finding or solved part, mark what is not yet verified, and keep it short.",
   }),
 });
 

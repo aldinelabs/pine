@@ -12,6 +12,8 @@ import ProjectTranscriptMessage from "../ProjectTranscriptMessage.vue";
 import ProjectToolCallGroup from "../ProjectToolCallGroup.vue";
 import ProjectToolCallMarker from "../ProjectToolCallMarker.vue";
 import MarkdownContent from "@/components/markdown/MarkdownContent.vue";
+import IntelligentUiBlock from "@/components/intelligent-ui/IntelligentUiBlock.vue";
+import { parseContentBlocks } from "@/shared/sessions";
 import { provideMessageScroller } from "@/components/ui/message-scroller/useMessageScroller";
 
 function mountMessage(
@@ -93,6 +95,31 @@ describe("ProjectTranscriptMessage", () => {
       }
     },
   );
+
+  it("renders an interactive block inside a progress report", () => {
+    const wrapper = mountMessage({
+      id: "assistant",
+      createdAt: "2000-01-01T00:00:00Z",
+      role: "assistant",
+      status: "complete",
+      blocks: parseContentBlocks([
+        {
+          type: "toolCall",
+          id: "call-report",
+          name: "report_progress",
+          arguments: {
+            content:
+              'Two options so far.\n```openui\nroot = Card([b], "Pick")\nb = Button("A")\n```',
+          },
+        },
+        { type: "text", text: "Final answer." },
+      ]),
+    });
+    const blocks = wrapper.findAllComponents(IntelligentUiBlock);
+    expect(blocks).toHaveLength(1);
+    expect(blocks[0].props("code")).toContain('Button("A")');
+    wrapper.unmount();
+  });
 
   it("renders streaming assistant output as Markdown too", () => {
     const wrapper = mountMessage({
