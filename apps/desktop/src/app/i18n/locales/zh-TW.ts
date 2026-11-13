@@ -190,6 +190,10 @@ export default {
         "已連接的帳號可以讀取所有專案的工作階段標題、搜尋結果和回覆。",
       noteNetwork: "代理或境外網路出口可能被攔截。",
       noteOneComputer: "一個微信帳號只能連接一台電腦。",
+      noteHelp:
+        "在微信裡傳送 .help（或 .?）查看指令，直接傳文字會發給目前的工作階段。",
+      noteStale:
+        "傳出超過 10 分鐘才到達 Pine 的任務，要在微信裡確認後才會執行。",
       serverGuide: "在伺服器上執行 Pine",
       error: {
         encryptionUnavailable:

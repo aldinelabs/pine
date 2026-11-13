@@ -153,7 +153,7 @@ export default {
       verifyRetry: "코드가 맞지 않습니다. 다시 시도하세요.",
       submit: "제출",
       pairingInstructions:
-        "WeChat에서 봇에게 아무 메시지나 보내세요(점 하나면 충분합니다). 6자리 코드로 답장하면 여기에 입력하세요.",
+        "WeChat에서 봇에게 아무 메시지나 보내세요(점 하나면 충분합니다). 봇이 6자리 코드로 답장하면 그 코드를 여기에 입력하세요.",
       pairingCode: "6자리 코드",
       pairingWaiting: "WeChat에서 보낼 메시지를 기다리는 중…",
       pairingSent: "코드를 WeChat으로 보냈습니다.",
@@ -191,7 +191,8 @@ export default {
       allowFiles: "WeChat으로 파일 보내기 허용",
       allowFilesDescription:
         "에이전트가 제시한 파일만, 파일당 최대 100MB. 파일은 Tencent 서버를 거칩니다.",
-      keepAwake: "WeChat이 켜져 있는 동안 컴퓨터 깨우기 유지",
+      keepAwake:
+        "WeChat이 켜져 있는 동안 컴퓨터가 잠자기 상태가 되지 않게 하기",
       keepAwakeDescription: "덮개를 닫으면 여전히 잠자기 상태가 됩니다.",
       notes: "참고",
       noteRunning: "Pine이 실행 중이고 컴퓨터가 깨어 있을 때만 작동합니다.",
@@ -200,6 +201,10 @@ export default {
         "연결된 계정은 모든 프로젝트의 세션 제목, 검색 결과, 답장을 읽을 수 있습니다.",
       noteNetwork: "프록시나 해외 네트워크 출구는 차단될 수 있습니다.",
       noteOneComputer: "WeChat 계정 하나는 컴퓨터 한 대에만 연결됩니다.",
+      noteHelp:
+        "WeChat에서 .help(또는 .?)를 보내면 명령어를 볼 수 있습니다. 그냥 보낸 텍스트는 현재 세션으로 전달됩니다.",
+      noteStale:
+        "보낸 지 10분이 지나서 Pine에 도착한 작업은 WeChat에서 확인해야 실행됩니다.",
       serverGuide: "서버에서 Pine 실행",
       error: {
         encryptionUnavailable:

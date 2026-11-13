@@ -426,7 +426,8 @@ the user opens themselves do not pulse.
     "Receive tasks from WeChat" (off pauses it; only this computer can turn
     it back on), "Default project" (projects or "No Project"), "Highest
     approval mode" (Let Me Review, Auto Approve, Autonomous Work, YOLO, with
-    a warning under YOLO), "Default approval mode" (only modes within the
+    a warning under YOLO; choosing YOLO asks for confirmation first),
+    "Default approval mode" (only modes within the
     highest), "Allow approving high-risk actions from WeChat" (native
     execution outside the sandbox and destructive commands; off by default),
     "Allow sending files to WeChat" (presented files up to 100 MB; off by
@@ -434,8 +435,11 @@ the user opens themselves do not pulse.
     know" notes say it works only while Pine runs and the computer is awake,
     messages pass through Tencent's servers, the account can read session
     titles, search results and replies of every project, a proxy may be
-    blocked, and one WeChat account connects to one computer; "Run Pine on a
-    server" opens the server guide. If the settings could not be read, the
+    blocked, one WeChat account connects to one computer, in WeChat .help
+    (or .?) lists the commands and plain text goes to the current session,
+    and tasks that reach Pine more than 10 minutes after they were sent wait
+    until they are confirmed in WeChat; "Run Pine on a server" opens the
+    server guide. If the settings could not be read, the
     group says they were reset and WeChat remote is paused. WeChat remote
     always raises a system notification, even with attention notifications
     off, when a session is started from WeChat, an existing session is first

@@ -189,6 +189,10 @@ export default {
       noteReadScope: "已连接的账号可以读取所有项目的会话标题、搜索结果和回复。",
       noteNetwork: "代理或境外网络出口可能被拦截。",
       noteOneComputer: "一个微信账号只能连接一台电脑。",
+      noteHelp:
+        "在微信里发送 .help（或 .?）查看命令，直接发文字会发给当前会话。",
+      noteStale:
+        "发出超过 10 分钟才到达 Pine 的任务，要在微信里确认后才会执行。",
       serverGuide: "在服务器上运行 Pine",
       error: {
         encryptionUnavailable:

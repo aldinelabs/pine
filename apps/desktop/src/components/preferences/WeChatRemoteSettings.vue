@@ -99,6 +99,7 @@ const isLoading = ref(true);
 const isSaving = ref(false);
 const isBindDialogOpen = ref(false);
 const isDisconnectOpen = ref(false);
+const isYoloConfirmOpen = ref(false);
 const verifyCode = ref("");
 const pairingCode = ref("");
 const now = useNow({
@@ -334,7 +335,16 @@ function isApprovalMode(value: unknown): value is PineApprovalMode {
 
 function updateCeiling(value: unknown): void {
   if (!isApprovalMode(value) || value === settings.value.ceilingMode) return;
+  if (value === "YOLO") {
+    isYoloConfirmOpen.value = true;
+    return;
+  }
   saveSettings({ ceilingMode: value });
+}
+
+function confirmYoloCeiling(): void {
+  isYoloConfirmOpen.value = false;
+  saveSettings({ ceilingMode: "YOLO" });
 }
 
 function updateDefaultMode(value: unknown): void {
@@ -668,6 +678,8 @@ function openServerGuide(): void {
         <li>{{ t("preferences.wechatRemote.noteReadScope") }}</li>
         <li>{{ t("preferences.wechatRemote.noteNetwork") }}</li>
         <li>{{ t("preferences.wechatRemote.noteOneComputer") }}</li>
+        <li>{{ t("preferences.wechatRemote.noteHelp") }}</li>
+        <li>{{ t("preferences.wechatRemote.noteStale") }}</li>
       </ul>
       <Button
         type="button"
@@ -827,6 +839,29 @@ function openServerGuide(): void {
         </DialogFooter>
       </DialogContent>
     </Dialog>
+
+    <AlertDialog v-model:open="isYoloConfirmOpen">
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>
+            {{ t("project.composer.approval.yoloConfirmTitle") }}
+          </AlertDialogTitle>
+          <AlertDialogDescription>
+            {{ t("preferences.wechatRemote.yoloWarning") }}
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>{{ t("common.cancel") }}</AlertDialogCancel>
+          <AlertDialogAction
+            variant="destructive"
+            data-testid="pine-wechat-confirm-yolo"
+            @click="confirmYoloCeiling"
+          >
+            {{ t("project.composer.approval.yoloConfirmAction") }}
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
 
     <AlertDialog v-model:open="isDisconnectOpen">
       <AlertDialogContent>

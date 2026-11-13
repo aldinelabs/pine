@@ -208,6 +208,10 @@ export default {
       noteNetwork:
         "Un proxy ou une sortie réseau à l’étranger peut être bloqué.",
       noteOneComputer: "Un compte WeChat se connecte à un seul ordinateur.",
+      noteHelp:
+        "Dans WeChat, envoyez .help (ou .?) pour voir les commandes. Un texte simple est envoyé à la session en cours.",
+      noteStale:
+        "Les tâches qui arrivent dans Pine plus de 10 minutes après leur envoi attendent que vous les confirmiez dans WeChat.",
       serverGuide: "Exécuter Pine sur un serveur",
       error: {
         encryptionUnavailable:

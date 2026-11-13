@@ -209,6 +209,10 @@ export default {
         "プロキシや海外のネットワーク出口はブロックされる場合があります。",
       noteOneComputer:
         "1 つの WeChat アカウントは 1 台のコンピュータにだけ接続できます。",
+      noteHelp:
+        "WeChat で .help（または .?）を送るとコマンド一覧が表示されます。そのまま送ったテキストは現在のセッションに届きます。",
+      noteStale:
+        "送信から 10 分以上たって Pine に届いたタスクは、WeChat で確認するまで実行されません。",
       serverGuide: "サーバーで Pine を実行",
       error: {
         encryptionUnavailable:

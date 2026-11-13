@@ -202,6 +202,10 @@ export default {
         "The connected account can read session titles, search results and replies of every project.",
       noteNetwork: "A proxy or an overseas network exit may be blocked.",
       noteOneComputer: "One WeChat account connects to one computer.",
+      noteHelp:
+        "In WeChat, send .help (or .?) to see the commands. Plain text goes to the current session.",
+      noteStale:
+        "Tasks that reach Pine more than 10 minutes after you sent them wait until you confirm them in WeChat.",
       serverGuide: "Run Pine on a server",
       error: {
         encryptionUnavailable:

@@ -419,8 +419,16 @@ describe("WeChat remote settings", () => {
     await expectPatch({ defaultProjectId: "p1" }, () =>
       selectOf(wrapper, 0).vm.$emit("update:modelValue", "p1"),
     );
+    // YOLO waits for the confirmation dialog.
+    const before = setWeChatSettings.mock.calls.length;
+    selectOf(wrapper, 1).vm.$emit("update:modelValue", "YOLO");
+    await flushPromises();
+    expect(setWeChatSettings).toHaveBeenCalledTimes(before);
+    expect(document.body.textContent).toContain(
+      "anyone who gets into your WeChat account controls this computer",
+    );
     await expectPatch({ ceilingMode: "YOLO" }, () =>
-      selectOf(wrapper, 1).vm.$emit("update:modelValue", "YOLO"),
+      byTestId<HTMLButtonElement>("pine-wechat-confirm-yolo")!.click(),
     );
     await expectPatch({ defaultMode: "let-me-review" }, () =>
       selectOf(wrapper, 2).vm.$emit("update:modelValue", "let-me-review"),
