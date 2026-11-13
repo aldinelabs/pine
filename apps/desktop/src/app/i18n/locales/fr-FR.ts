@@ -349,7 +349,7 @@ export default {
       "Ouvre les PDF, les présentations et d'autres documents avec les pages inversées en mode sombre",
     composerGlow: "Halo de travail",
     composerGlowDescription:
-      "Affiche une lumière qui fait le tour de la zone de saisie pendant que l’agent travaille",
+      "Affiche une lumière qui parcourt le bord de la zone de saisie pendant que l’agent travaille",
     sidebarVibrancy: "Matériau natif de la barre latérale",
     sidebarVibrancyDescription:
       "Affiche la barre latérale avec le matériau natif de macOS",

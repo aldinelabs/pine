@@ -306,20 +306,16 @@ From top to bottom:
      appear and disappear.
    - Text box. In a new session with no project, typing `@` chooses the
      project.
-   - While the agent is working, a soft light in the project's accent color
-     (or, with "Pine Default", the Pine default color theme from Appearance
-     settings; grey for Neutral) surrounds the text box with no border
-     line: a brighter swell, plus a fainter one on the opposite side, circles
-     it clockwise, and the light reaches further out and brightens unevenly
-     as it goes, with a faint film grain. It spreads round the outline from
-     the text box's bottom-right corner when the run starts and dims and
-     fades away when the run ends (Neutral in the light theme shows only a
-     faint grey light, without the colored haze). The inside of the text box
-     stays clear. It is not shown while an approval or questionnaire card
-     takes the text box's place or while the session's tab is in the
+   - While the agent is working, a thin light runs clockwise along the text
+     box's border, in the project's accent color (or, with "Pine Default",
+     the Pine default color theme from Appearance settings; grey for
+     Neutral), with a soft glow just around it. It grows out from the text
+     box's bottom-right corner when the run starts and shrinks and fades away
+     when the run ends. It is not shown while an approval or questionnaire
+     card takes the text box's place or while the session's tab is in the
      background. With reduced motion turned on in the system, the light stays
-     still. It can be turned off with Working glow in Appearance settings.
-     The quick composer and side chats don't glow.
+     still at the bottom-right corner. It can be turned off with Working glow
+     in Appearance settings. The quick composer and side chats don't show it.
    - Add attachment menu: File, Folder, Conversation. Files can also be
      dropped or pasted.
    - Footer controls: project target ("Send to {name}"), Model, Reasoning
@@ -464,9 +460,10 @@ the user opens themselves do not pulse.
     (macOS and Windows desktop app), diagnostic logging.
   - Appearance: color mode (System, Light, Dark), Pine default color theme
     (Neutral unless changed; the palettes are Neutral, Olive, Red, Rose,
-    Orange, Green, Blue, Yellow, Violet), Working glow (the light round the
-    composer while the agent works; on by default, applies to every open
-    window), sidebar blur (macOS), inverted documents in dark mode.
+    Orange, Green, Blue, Yellow, Violet), Working glow (the light running
+    along the composer's border while the agent works; on by default,
+    applies to every open window), sidebar blur (macOS), inverted documents
+    in dark mode.
   - Models: model catalog refresh, title generation model, approval model,
     image generation model, video generation model, Decisions model.
   - Agent: Interactive answers switch (Enabled or Disabled; enabled by default),

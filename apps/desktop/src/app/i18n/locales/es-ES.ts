@@ -350,7 +350,7 @@ export default {
       "Abre PDF, presentaciones y otros documentos con las páginas invertidas en modo oscuro",
     composerGlow: "Brillo de trabajo",
     composerGlowDescription:
-      "Muestra una luz que rodea el cuadro de texto mientras el agente trabaja",
+      "Muestra una luz que recorre el borde del cuadro de texto mientras el agente trabaja",
     sidebarVibrancy: "Material nativo de la barra lateral",
     sidebarVibrancyDescription:
       "Dibuja la barra lateral con el material nativo de macOS",

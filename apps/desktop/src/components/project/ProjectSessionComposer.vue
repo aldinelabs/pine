@@ -28,7 +28,7 @@ import ProviderIcon from "@/components/models/ProviderIcon.vue";
 import ProjectComposerContext from "@/components/project/ProjectComposerContext.vue";
 import ProjectComposerAuthoring from "@/components/project/ProjectComposerAuthoring.vue";
 import ProjectComposerEasedHeight from "@/components/project/ProjectComposerEasedHeight.vue";
-import ProjectComposerGlow from "@/components/project/ProjectComposerGlow.vue";
+import ProjectComposerWorkingBorder from "@/components/project/ProjectComposerWorkingBorder.vue";
 import type { PineAuthoringTarget } from "@/shared/sessionMutators";
 import AutomationApprovalCard from "@/components/automations/AutomationApprovalCard.vue";
 import ProjectApprovalCard from "@/components/project/ProjectApprovalCard.vue";
@@ -225,13 +225,13 @@ const hasPendingInterruption = computed(() =>
   ),
 );
 /**
- * The text box glows while this tab's agent works, unless Working glow is
- * off in Appearance settings; background tabs stay still. Approval and
- * questionnaire cards replace the text box, so the glow goes with it.
- * Turning the setting off mid-run fades the light out like the end of a run.
+ * The text box's border lights up while this tab's agent works, unless
+ * Working glow is off in Appearance settings; background tabs stay still.
+ * Approval and questionnaire cards replace the text box, so the border goes
+ * with it. Turning the setting off mid-run takes the normal exit.
  */
 const appearanceStore = useAppearanceStore();
-const glowActive = computed(() =>
+const workingBorderActive = computed(() =>
   Boolean(props.isRunning && props.isActive && appearanceStore.composerGlow),
 );
 const approvalModes = computed<ApprovalModeOption[]>(() => [
@@ -777,9 +777,8 @@ function handleRootSubmit(event: Event): void {
     "
     @submit="handleRootSubmit"
   >
-    <!-- The root is positioned and isolated so the working glow, behind the
-         text box at z-index -1, still paints above everything under the
-         composer, including the transcript's bottom it may reach over. -->
+    <!-- The root is positioned and isolated so the working border's layers
+         (z-index 1-2 inside the text box) stay within the composer. -->
     <label class="sr-only" :for="messageId">
       {{ t("project.composer.label") }}
     </label>
@@ -810,7 +809,7 @@ function handleRootSubmit(event: Event): void {
           <InputGroup
             class="session-composer-control flex-col items-stretch min-h-[var(--session-composer-control-height)] rounded-[var(--session-composer-control-radius)] has-[textarea]:rounded-[var(--session-composer-control-radius)]"
           >
-            <ProjectComposerGlow :active="glowActive" />
+            <ProjectComposerWorkingBorder :active="workingBorderActive" />
             <!-- It opens and closes its row on the app's curve; leaving, it
                  keeps what it showed. -->
             <Transition :css="contextAnimates" name="session-composer-context">

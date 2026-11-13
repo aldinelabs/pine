@@ -36,6 +36,8 @@ interface ComposerProps {
   pendingAutomationApproval?: AutomationApprovalRequest | null;
 }
 
+const WORKING_BORDER = '[data-slot="session-composer-working-border"]';
+
 function mountComposer(
   props: ComposerProps = {},
   thinkingLevel: PineThinkingLevel = "high",
@@ -943,69 +945,71 @@ describe("ProjectSessionComposer", () => {
     });
     wrapper.unmount();
   });
-  it("glows around the text box while the active session works", () => {
+  it("lights the text box's border while the active session works", () => {
     const wrapper = mountComposer({ isRunning: true, isActive: true });
-    const glow = wrapper.find(
-      '.session-composer-control > [data-slot="session-composer-glow"]',
+    const border = wrapper.find(
+      '.session-composer-control > [data-slot="session-composer-working-border"]',
     );
-    expect(glow.exists()).toBe(true);
-    expect(glow.attributes("data-state")).toBe("on");
+    expect(border.exists()).toBe(true);
+    expect(border.attributes("data-state")).toBe("on");
+    expect(
+      wrapper
+        .find(
+          '.session-composer-control > [data-slot="session-composer-working-border-glow"]',
+        )
+        .exists(),
+    ).toBe(true);
     wrapper.unmount();
   });
-  it("does not glow when idle or in a background tab", () => {
+  it("shows no working border when idle or in a background tab", () => {
     const idle = mountComposer({ isRunning: false, isActive: true });
-    expect(idle.find('[data-slot="session-composer-glow"]').exists()).toBe(
-      false,
-    );
+    expect(idle.find(WORKING_BORDER).exists()).toBe(false);
     idle.unmount();
     const background = mountComposer({ isRunning: true, isActive: false });
-    expect(
-      background.find('[data-slot="session-composer-glow"]').exists(),
-    ).toBe(false);
+    expect(background.find(WORKING_BORDER).exists()).toBe(false);
     background.unmount();
   });
-  it("does not glow while Working glow is off in Appearance settings", async () => {
+  it("shows no working border in the quick composer, which has no run state", () => {
+    const wrapper = mountComposer({ isActive: true });
+    expect(wrapper.find(WORKING_BORDER).exists()).toBe(false);
+    wrapper.unmount();
+  });
+  it("shows no working border while Working glow is off in Appearance settings", async () => {
     window.localStorage.setItem(COMPOSER_GLOW_STORAGE_KEY, "false");
     const wrapper = mountComposer({ isRunning: true, isActive: true });
     try {
-      expect(wrapper.find('[data-slot="session-composer-glow"]').exists()).toBe(
-        false,
-      );
+      expect(wrapper.find(WORKING_BORDER).exists()).toBe(false);
 
       useAppearanceStore().setComposerGlow(true);
       await nextTick();
-      const glow = wrapper.find('[data-slot="session-composer-glow"]');
-      expect(glow.exists()).toBe(true);
-      expect(glow.attributes("data-state")).toBe("on");
+      const border = wrapper.find(WORKING_BORDER);
+      expect(border.exists()).toBe(true);
+      expect(border.attributes("data-state")).toBe("on");
 
-      // Off mid-run takes the normal fade-out.
+      // Off mid-run takes the normal exit.
       useAppearanceStore().setComposerGlow(false);
       await nextTick();
-      expect(
-        wrapper
-          .get('[data-slot="session-composer-glow"]')
-          .attributes("data-state"),
-      ).toBe("leaving");
+      expect(wrapper.get(WORKING_BORDER).attributes("data-state")).toBe(
+        "leaving",
+      );
     } finally {
       wrapper.unmount();
       window.localStorage.removeItem(COMPOSER_GLOW_STORAGE_KEY);
     }
   });
-  it("unmounts the glow with the text box when an approval card replaces it", () => {
+  it("unmounts the working border with the text box when an approval card replaces it", () => {
     const wrapper = mountComposer({
       isRunning: true,
       isActive: true,
       pendingApproval: {
-        requestId: "glow",
+        requestId: "working-border",
         toolCallId: "tool-1",
         toolName: "bash",
         trigger: "pre-execution",
       },
     });
     expect(wrapper.findComponent(ProjectApprovalCard).exists()).toBe(true);
-    expect(wrapper.find('[data-slot="session-composer-glow"]').exists()).toBe(
-      false,
-    );
+    expect(wrapper.find(WORKING_BORDER).exists()).toBe(false);
     wrapper.unmount();
   });
 });
