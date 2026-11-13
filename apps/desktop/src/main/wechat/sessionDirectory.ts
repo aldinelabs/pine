@@ -188,12 +188,27 @@ export function projectLabel(
   return project.name;
 }
 
+/**
+ * `approvalModeWithin`, except that a mode Pine does not know (a hand-edited
+ * state file) is never within the ceiling: its index would be -1.
+ */
+function withinCeiling(
+  mode: PineApprovalMode,
+  ceiling: PineApprovalMode,
+): boolean {
+  return (
+    APPROVAL_MODE_ORDER.includes(mode) &&
+    APPROVAL_MODE_ORDER.includes(ceiling) &&
+    approvalModeWithin(mode, ceiling)
+  );
+}
+
 /** `current` clamped to `ceiling`. */
 export function clampMode(
   mode: PineApprovalMode,
   ceiling: PineApprovalMode,
 ): PineApprovalMode {
-  return approvalModeWithin(mode, ceiling) ? mode : ceiling;
+  return withinCeiling(mode, ceiling) ? mode : ceiling;
 }
 
 /** Whether text would carry Pine's attachment block into a prompt (D20). */
@@ -960,7 +975,7 @@ export class SessionDirectory {
     const ceiling = this.deps.settings().ceilingMode;
     const overrides = this.deps.store.get().modeOverride;
     const above = Object.keys(overrides).filter(
-      (id) => !approvalModeWithin(overrides[id], ceiling),
+      (id) => !withinCeiling(overrides[id], ceiling),
     );
     if (above.length === 0) return;
     await this.deps.store.update((draft) => {
@@ -1129,7 +1144,7 @@ export class SessionDirectory {
     if (await this.isAutomationRun(sessionId, projectId))
       return "automation-run";
     const current = await this.currentMode(sessionId, projectId);
-    return approvalModeWithin(current, this.deps.settings().ceilingMode)
+    return withinCeiling(current, this.deps.settings().ceilingMode)
       ? undefined
       : "ceiling";
   }
@@ -1142,10 +1157,10 @@ export class SessionDirectory {
     if (await this.isAutomationRun(sessionId, projectId)) return "view-only";
     const ceiling = this.deps.settings().ceilingMode;
     const current = await this.currentMode(sessionId, projectId);
-    if (!approvalModeWithin(current, ceiling)) return "view-only";
+    if (!withinCeiling(current, ceiling)) return "view-only";
     const override = this.deps.store.get().modeOverride[sessionId];
     if (override === undefined) return current;
-    if (approvalModeWithin(override, ceiling)) return override;
+    if (withinCeiling(override, ceiling)) return override;
     await this.deps.store.update((draft) => {
       delete draft.modeOverride[sessionId];
     });
@@ -1434,7 +1449,7 @@ export class SessionDirectory {
   /** Throws unless `mode` is within the current ceiling; right before a prompt. */
   private assertWithinCeiling(mode: PineApprovalMode): void {
     const ceiling = this.deps.settings().ceilingMode;
-    if (!approvalModeWithin(mode, ceiling))
+    if (!withinCeiling(mode, ceiling))
       throw new Error("The approval mode is above the WeChat ceiling.");
   }
 
