@@ -848,7 +848,8 @@ export const sessionHandlers: CommandHandlers = {
       };
     }
     const state = ctx.sessions.runState(sessionId);
-    // An open card keeps the turn streaming ("waiting"), so it is queued too.
+    // It joins the steering queue (listed by `.q`, withdrawn by `.recall`); an
+    // open card keeps the turn streaming ("waiting"), so that case queues too.
     const running =
       ctx.sessions.isLive(sessionId) &&
       (state === "running" || state === "waiting");
@@ -859,7 +860,7 @@ export const sessionHandlers: CommandHandlers = {
       ...(ctx.inbound.quotedText !== undefined
         ? { quotedText: ctx.inbound.quotedText }
         : {}),
-      ...(running ? { behavior: "follow-up" as const } : {}),
+      ...(running ? { behavior: "steer" as const } : {}),
       attachments: ctx.attachments.list().length > 0,
     });
     // An idle session takes it as the next message, as plain text does.

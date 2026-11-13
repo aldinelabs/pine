@@ -247,8 +247,8 @@ export const COMMANDS: readonly CommandSpec[] = [
     stale: "hold",
     params: "[text]",
     summary: {
-      zh: "当前一轮结束后再发；不带文字则列出排队消息",
-      en: "Send after the running turn; without text list the queue",
+      zh: "加入插话队列，智能体下一步读到；不带文字则列出队列",
+      en: "Add to the steering queue, read at the agent's next step; without text list the queue",
     },
     example: ".q 顺便跑一下测试",
   }),

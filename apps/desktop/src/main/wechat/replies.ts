@@ -1331,8 +1331,8 @@ const TEMPLATES: { [K in ReplyId]: Template<K> } = {
   "R-QUEUED": (lang) =>
     pick(
       lang,
-      "已排队，这一轮结束后发送。",
-      "Queued. It will be sent after this turn.",
+      "已加入插话队列，智能体下一步会读到。发 .撤回 可撤回。",
+      "Queued. The agent reads it at its next step. Send .recall to withdraw it.",
     ),
   "R-QUEUEWAIT": (lang, { at, asks }) => {
     const items = asks
