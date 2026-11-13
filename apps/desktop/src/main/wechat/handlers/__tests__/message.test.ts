@@ -71,14 +71,19 @@ function approval(
   );
 }
 
-function question(ctx: TestContext, sessionId: string, requestId = REQ): void {
+function question(
+  ctx: TestContext,
+  sessionId: string,
+  requestId = REQ,
+  params: AskUserQuestionParams = questionnaire,
+): void {
   ctx.sessions.observe(
     {
       type: "questionnaire-request",
       sessionId,
       requestId,
       toolCallId: "tq",
-      questionnaire,
+      questionnaire: params,
     },
     W,
   );
@@ -181,7 +186,7 @@ describe("plain text routing (CMD §3.2, §3.3, ground rule 14)", () => {
       approvalMode: "auto-approve",
     });
     expect(result.text).toBe(
-      "[Project p1 › Session s1] Queued as steering; it reaches the agent once the waiting card is handled. Still waiting: 11 approval (.y 11 approves, .d 11 rejects). .recall withdraws this message.",
+      "[Project p1 › Session s1] Staged as a steering message; it reaches the agent once the waiting card is handled. Still waiting: 11 approval (.y 11 approves, .d 11 rejects). .recall withdraws this message.",
     );
     expect(ctx.asks.status(11)).toBe("open");
   });
@@ -197,6 +202,29 @@ describe("plain text routing (CMD §3.2, §3.3, ground rule 14)", () => {
     expect(result.text).toContain(
       "11 question (.a 11 your answer, .d 11 cancels)",
     );
+  });
+
+  it("does not offer .a for a question that must be answered in Pine", async () => {
+    const { ctx } = setup();
+    await tracked(ctx, "s1", { current: true });
+    const rich: AskUserQuestionParams = {
+      questions: [
+        {
+          question: "Which layout?",
+          header: "Layout",
+          options: [
+            { label: "Grid", description: "", preview: "<grid/>" },
+            { label: "List", description: "" },
+          ],
+        },
+      ],
+    };
+    question(ctx, "s1", REQ, rich);
+    const result = await handlePlainMessage(ctx, "either is fine");
+    expect(result.text).toContain(
+      "11 question (answer it in Pine, .d 11 cancels)",
+    );
+    expect(result.text).not.toContain(".a 11");
   });
 
   it("names every open card of the session", async () => {
@@ -222,7 +250,7 @@ describe("plain text routing (CMD §3.2, §3.3, ground rule 14)", () => {
     await tracked(ctx, "s1", { current: true });
     approval(ctx, "s1");
     const result = await handlePlainMessage(ctx, "继续");
-    expect(result.text).toContain("已加入引导队列");
+    expect(result.text).toContain("已作为暂存消息排队");
     expect(result.text).toContain("11 审批（.y 11 批准，.d 11 拒绝）");
     expect(result.text).toContain(".撤回");
   });

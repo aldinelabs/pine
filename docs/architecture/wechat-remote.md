@@ -52,7 +52,7 @@ main/core/pineCore.ts          main/desktop/wechatHost.ts（仅 Electron：IPC�
 | 没有当前会话           | 在当前项目里新开一个，等同 `.new 文字`                                                                                              |
 | 空闲                   | 作为下一条消息发送                                                                                                                  |
 | 运行中                 | 作为 steering 交给正在运行的一轮（`R-STEER`）                                                                                       |
-| 有它的审批或问题在等待 | 加入 steering 队列（与运行中的桌面排队相同），回复 `R-QUEUEWAIT`：列出仍在等待的卡片编号和回应方式，并提示 `.撤回` / `.recall` 撤回 |
+| 有它的审批或问题在等待 | 作为暂存消息（steering）排队（与运行中的桌面排队相同），回复 `R-QUEUEWAIT`：列出仍在等待的卡片编号和回应方式（需在 Pine 中回答的问题只给 `.d` 取消），并提示 `.撤回` / `.recall` 撤回 |
 | 只读（见下文）         | 拒绝，`E-VIEW`                                                                                                                      |
 | 发出已超过 10 分钟     | 暂存，等待确认（见“过期消息”）                                                                                                      |
 

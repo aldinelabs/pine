@@ -61,7 +61,8 @@ async function cardVariant(
   ctx: CommandContext,
   ask: ApprovalAsk | QuestionAsk,
 ): Promise<QueueWaitVariant> {
-  if (ask.kind !== "approval") return "question";
+  if (ask.kind !== "approval")
+    return ask.answerable ? "question" : "question-local";
   const verdict = await ctx.sessions.verdict(ask);
   if (verdict.kind === "display-only") return "display-only";
   if (verdict.kind === "long-context") return "long-context";

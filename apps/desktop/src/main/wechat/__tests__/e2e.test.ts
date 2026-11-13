@@ -273,7 +273,7 @@ describe("WeChat remote end to end", { timeout: 30_000 }, () => {
     const prompts = h.agentHost.prompt.mock.calls.length;
 
     const queued = await h.say("also check the footer");
-    expect(queued).toContain("Queued as steering");
+    expect(queued).toContain("Staged as a steering message");
     expect(queued).toContain(`${number} approval (.y ${number} approves`);
     expect(queued).toContain(".recall");
     expect(h.agentHost.prompt.mock.calls.length).toBe(prompts + 1);

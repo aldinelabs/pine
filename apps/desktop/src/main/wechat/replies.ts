@@ -196,7 +196,7 @@ function list(lang: L, items: readonly string[]): string {
 
 /** How `R-QUEUEWAIT` says a waiting card can be answered. */
 export type QueueWaitVariant =
-  "approval" | "question" | "display-only" | "long-context";
+  "approval" | "question" | "question-local" | "display-only" | "long-context";
 
 function queueWaitItem(lang: L, n: number, variant: QueueWaitVariant): string {
   switch (variant) {
@@ -212,6 +212,12 @@ function queueWaitItem(lang: L, n: number, variant: QueueWaitVariant): string {
         `${n} 问题（.a ${n} 你的回答，.d ${n} 取消）`,
         `${n} question (.a ${n} your answer, .d ${n} cancels)`,
       );
+    case "question-local":
+      return pick(
+        lang,
+        `${n} 问题（需在 Pine 中回答，.d ${n} 取消）`,
+        `${n} question (answer it in Pine, .d ${n} cancels)`,
+      );
     case "display-only":
       return pick(
         lang,
@@ -221,8 +227,8 @@ function queueWaitItem(lang: L, n: number, variant: QueueWaitVariant): string {
     case "long-context":
       return pick(
         lang,
-        `${n} 上下文过长（.c ${n} 压缩后继续，.d ${n} 停止）`,
-        `${n} long context (.c ${n} compacts and continues, .d ${n} stops)`,
+        `${n} 上下文较长（.c ${n} 先压缩再继续，.d ${n} 停止）`,
+        `${n} long context (.c ${n} compress, then continue, .d ${n} stop)`,
       );
   }
 }
@@ -1337,8 +1343,8 @@ const TEMPLATES: { [K in ReplyId]: Template<K> } = {
       items.push(pick(lang, `等 ${extra} 项`, `and ${extra} more`));
     return `${head(lang, at)}${pick(
       lang,
-      `已加入引导队列，等待的卡片处理后交给智能体。仍在等你：${list(lang, items)}。发 .撤回 可撤回这条消息。`,
-      `Queued as steering; it reaches the agent once the waiting card is handled. Still waiting: ${list(lang, items)}. .recall withdraws this message.`,
+      `已作为暂存消息排队，等待的卡片处理后交给智能体。仍在等你：${list(lang, items)}。发 .撤回 可撤回这条消息。`,
+      `Staged as a steering message; it reaches the agent once the waiting card is handled. Still waiting: ${list(lang, items)}. .recall withdraws this message.`,
     )}`;
   },
   "R-QUEUE": (lang, { rows: items }) => {
