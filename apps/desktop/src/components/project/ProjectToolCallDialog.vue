@@ -192,8 +192,10 @@ async function openDialog(): Promise<void> {
     <DialogContent
       v-if="hasOpened"
       :class="[
-        'w-fit min-w-[min(26rem,calc(100vw-2rem))] max-w-[calc(100vw-2rem)] max-sm:flex max-sm:flex-col max-sm:gap-4',
-        wideDetails ? 'sm:max-w-4xl' : 'sm:max-w-2xl',
+        // A fixed desktop width, so a narrow window or short details never
+        // squeeze it, capped to stay inside the window.
+        'max-w-[calc(100vw-2rem)] sm:max-w-[calc(100vw-2rem)] max-sm:flex max-sm:flex-col max-sm:gap-4',
+        wideDetails ? 'sm:w-4xl' : 'sm:w-2xl',
         PHONE_FULLSCREEN_DIALOG,
       ]"
     >

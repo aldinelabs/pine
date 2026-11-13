@@ -434,11 +434,13 @@ describe("ProjectToolCallDialog", () => {
         '[data-slot="dialog-content"] [data-slot="badge"]',
       ),
     ).toHaveLength(1);
-    expect(
-      document.body
-        .querySelector('[data-slot="dialog-content"]')
-        ?.classList.contains("w-fit"),
-    ).toBe(true);
+    // The desktop width is fixed rather than fitted to the details.
+    const content = document.body.querySelector('[data-slot="dialog-content"]');
+    expect(content?.classList.contains("sm:w-2xl")).toBe(true);
+    expect(content?.classList.contains("sm:max-w-[calc(100vw-2rem)]")).toBe(
+      true,
+    );
+    expect(content?.classList.contains("w-fit")).toBe(false);
     question.unmount();
   });
 
