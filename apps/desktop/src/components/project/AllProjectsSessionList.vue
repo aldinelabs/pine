@@ -17,6 +17,7 @@ import { useDebounceFn, useEventListener } from "@vueuse/core";
 import { storeToRefs } from "pinia";
 import {
   computed,
+  nextTick,
   onBeforeUnmount,
   onMounted,
   ref,
@@ -223,27 +224,38 @@ interface LeavingRow {
 const leavingRows = shallowRef(new Map<string, LeavingRow[]>());
 const enteringIds = shallowRef(new Set<string>());
 let previousRows = new Map<string, SessionRow[]>();
+/*
+ * Projects are known before their sessions load, so every list starts empty
+ * and the first load would fold every row in. Rows animate only once the
+ * first load has been rendered.
+ */
+let rowsSettled = allRecentSessions.value.length > 0;
 
-watch(projectGroups, (groups) => {
-  const next = new Map<string, SessionRow[]>();
-  for (const group of groups) {
-    next.set(group.project.id, group.visible);
-    for (const folder of group.folders) next.set(folder.group.id, folder.rows);
-  }
-  const animate = !prefersReducedMotion();
-  for (const [listId, rows] of animate ? next : []) {
-    const before = previousRows.get(listId);
-    if (!before) continue;
-    const now = new Set(rows.map((row) => row.session.id));
-    const then = new Set(before.map((row) => row.session.id));
-    before.forEach((row, index) => {
-      if (!now.has(row.session.id)) foldOut(listId, row, index);
-    });
-    for (const row of rows)
-      if (!then.has(row.session.id)) foldIn(row.session.id);
-  }
-  previousRows = next;
-});
+watch(
+  projectGroups,
+  (groups) => {
+    const next = new Map<string, SessionRow[]>();
+    for (const group of groups) {
+      next.set(group.project.id, group.visible);
+      for (const folder of group.folders)
+        next.set(folder.group.id, folder.rows);
+    }
+    const animate = rowsSettled && !prefersReducedMotion();
+    for (const [listId, rows] of animate ? next : []) {
+      const before = previousRows.get(listId);
+      if (!before) continue;
+      const now = new Set(rows.map((row) => row.session.id));
+      const then = new Set(before.map((row) => row.session.id));
+      before.forEach((row, index) => {
+        if (!now.has(row.session.id)) foldOut(listId, row, index);
+      });
+      for (const row of rows)
+        if (!then.has(row.session.id)) foldIn(row.session.id);
+    }
+    previousRows = next;
+  },
+  { immediate: true },
+);
 
 function foldOut(listId: string, row: SessionRow, index: number) {
   const entry = { row, index };
@@ -393,6 +405,10 @@ async function load(): Promise<void> {
       title: t("errors.sessionSearch.title"),
       description: t("errors.sessionSearch.description"),
     });
+  } finally {
+    // After the rows watcher has taken the loaded lists as its baseline.
+    await nextTick();
+    rowsSettled = true;
   }
 }
 

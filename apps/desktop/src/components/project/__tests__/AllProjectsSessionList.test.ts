@@ -21,6 +21,7 @@ import { useProjectStore } from "@/stores/project";
 import SessionGroupDialog from "@/components/sessions/SessionGroupDialog.vue";
 import { SESSION_DRAG_TYPE } from "@/lib/sessionDrag";
 import AllProjectsSessionList from "../AllProjectsSessionList.vue";
+import SessionHistoryItem from "../SessionHistoryItem.vue";
 
 function project(id: string, name: string): PineProject {
   return {
@@ -83,6 +84,9 @@ async function mountList(
   options: {
     projects?: PineProject[];
     sessions?: ProjectSessionSearchResult[];
+    listAllRecentSessions?: () => Promise<{
+      sessions: ProjectSessionSearchResult[];
+    }>;
   } = {},
 ) {
   const pinia = createPinia();
@@ -114,9 +118,9 @@ async function mountList(
   Object.defineProperty(window, "pine", {
     configurable: true,
     value: {
-      listAllRecentSessions: vi
-        .fn()
-        .mockResolvedValue({ sessions: options.sessions ?? sessions }),
+      listAllRecentSessions: options.listAllRecentSessions
+        ? vi.fn(options.listAllRecentSessions)
+        : vi.fn().mockResolvedValue({ sessions: options.sessions ?? sessions }),
       deleteProject: vi.fn().mockResolvedValue({ deleted: true }),
       openProject,
       updateProjectSessionGroups,
@@ -526,6 +530,44 @@ describe("AllProjectsSessionList", () => {
         .attributes("data-active"),
     ).toBe("true");
     wrapper.unmount();
+  });
+
+  it("shows the first loaded rows without folding them in", async () => {
+    setReducedMotion(false);
+    vi.useFakeTimers();
+    try {
+      let finishLoad = () => {};
+      const loaded = new Promise<{ sessions: ProjectSessionSearchResult[] }>(
+        (resolve) => (finishLoad = () => resolve({ sessions })),
+      );
+      const { wrapper } = await mountList({
+        listAllRecentSessions: () => loaded,
+      });
+      // Projects arrive before their sessions, as when the window opens.
+      useProjectStore().projects = [noProject, { ...pine }];
+      await flushPromises();
+      finishLoad();
+      await flushPromises();
+      const motions = () =>
+        wrapper
+          .findAllComponents(SessionHistoryItem)
+          .map((item) => item.props("motion"));
+      expect(motions()).toHaveLength(2);
+      expect(motions().every((motion) => motion === undefined)).toBe(true);
+
+      const added = { ...sessions[0], id: "added", name: "Added" };
+      useSessionStore().allRecentSessions = [added, ...sessions];
+      await flushPromises();
+      expect(
+        wrapper
+          .findAllComponents(SessionHistoryItem)
+          .find((item) => item.props("session").id === "added")
+          ?.props("motion"),
+      ).toBe("enter");
+      wrapper.unmount();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("keeps a removed row in place, unreachable, while it folds out", async () => {
