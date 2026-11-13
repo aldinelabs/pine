@@ -397,6 +397,22 @@ describe("createComposerGlowRenderer", () => {
     expect(frames.pending.size).toBe(1);
   });
 
+  it("carries on from the full comet when reduced motion is turned off", () => {
+    const { gl, frames, renderer } = setup({
+      state: { reducedMotion: true },
+    });
+    frames.run(0);
+    const still = uniformValues(gl, "uComet")[0];
+    renderer?.handle({ type: "motion", reducedMotion: false });
+    frames.run(17);
+    frames.run(34);
+    const reveals = uniformValues(gl, "uReveal").map((value) => value[0]);
+    expect(reveals).toEqual([1, 1, 1]);
+    const [tail, , intensity] = uniformValues(gl, "uComet").at(-1) ?? [];
+    expect(tail).toBeGreaterThan(still[0] * 0.5);
+    expect(intensity).toBeGreaterThan(still[2] * 0.5);
+  });
+
   it("recovers from a lost context", () => {
     const { gl, frames, canvas } = setup();
     frames.run(0);

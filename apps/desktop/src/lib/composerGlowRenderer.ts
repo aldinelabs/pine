@@ -238,7 +238,12 @@ export function createComposerGlowRenderer(
       0,
       Math.min(box.radius, box.width / 2, box.height / 2),
     );
-    if (!still) {
+    if (still) {
+      // A still frame shows the full comet; if motion resumes, it carries
+      // on from there instead of popping off and growing back.
+      if (state.present !== false && motion.reveal !== 1)
+        motion = { ...motion, reveal: 1 };
+    } else {
       const step = Number.isFinite(lastDraw) ? now - lastDraw : 0;
       motion = advanceComposerGlowMotion(
         motion,
