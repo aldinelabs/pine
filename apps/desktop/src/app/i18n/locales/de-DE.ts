@@ -432,7 +432,7 @@ export default {
     interactiveAnswersDisabled: "Deaktiviert",
     interimAnswers: "Zwischenantworten",
     interimAnswersDescription:
-      "Pine darf bei längeren Anfragen schon eine vorläufige Antwort oder jeden gelösten Teil zeigen und arbeitet dann weiter.",
+      "Pine darf eine vorläufige Antwort aus seinem Wissen oder jeden gelösten Teil zeigen, bevor es mit Suchen oder Arbeiten fertig ist.",
     interimAnswersEnabled: "Aktiviert",
     interimAnswersDisabled: "Deaktiviert",
     userProfileDetailsLabel: "Weitere persönliche Angaben",

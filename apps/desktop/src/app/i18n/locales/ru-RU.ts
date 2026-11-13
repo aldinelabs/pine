@@ -423,7 +423,7 @@ export default {
     interactiveAnswersDisabled: "Выключены",
     interimAnswers: "Промежуточные ответы",
     interimAnswersDescription:
-      "Разрешить Pine показывать предварительный ответ или каждую решённую часть, продолжая работу над длинным запросом.",
+      "Разрешить Pine давать предварительный ответ на основе того, что он уже знает, или каждую решённую часть, до завершения поиска или работы.",
     interimAnswersEnabled: "Включены",
     interimAnswersDisabled: "Выключены",
     userProfileDetailsLabel: "Другие сведения о вас",

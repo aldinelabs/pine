@@ -430,7 +430,7 @@ export default {
     interactiveAnswersDisabled: "無効",
     interimAnswers: "途中回答",
     interimAnswersDescription:
-      "長めの依頼では、作業を続けながら暫定的な回答や解けた部分を先に表示します。",
+      "調べものや作業を終える前に、すでに分かっている範囲の暫定的な回答や、解けた部分から先に表示します。",
     interimAnswersEnabled: "有効",
     interimAnswersDisabled: "無効",
     userProfileDetailsLabel: "その他の個人情報",

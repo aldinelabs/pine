@@ -397,7 +397,7 @@ export default {
     interactiveAnswersDisabled: "停用",
     interimAnswers: "中途回答",
     interimAnswersDescription:
-      "處理較長的請求時，允許 Pine 先給出初步答案，或每解決一部分就先回報，再繼續工作。",
+      "允許 Pine 在查資料或執行操作前先給出初步答案，或每解決一部分就先回報，再繼續工作。",
     interimAnswersEnabled: "啟用",
     interimAnswersDisabled: "停用",
     userProfileDetailsLabel: "其他個人細節",

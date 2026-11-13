@@ -430,7 +430,7 @@ export default {
     interactiveAnswersDisabled: "Désactivées",
     interimAnswers: "Réponses intermédiaires",
     interimAnswersDescription:
-      "Autoriser Pine à donner une réponse préliminaire, ou chaque partie dès qu'elle est résolue, pendant qu'il continue de travailler sur une demande longue.",
+      "Autoriser Pine à donner une réponse préliminaire à partir de ce qu'il sait déjà, ou chaque partie dès qu'elle est résolue, avant de finir ses recherches ou son travail.",
     interimAnswersEnabled: "Activées",
     interimAnswersDisabled: "Désactivées",
     userProfileDetailsLabel: "Autres informations personnelles",

@@ -419,7 +419,7 @@ export default {
     interactiveAnswersDisabled: "사용 안 함",
     interimAnswers: "중간 답변",
     interimAnswersDescription:
-      "긴 요청을 처리할 때 작업을 계속하면서 잠정 답변이나 해결한 부분을 먼저 보여 줍니다.",
+      "검색이나 작업을 마치기 전에 이미 알고 있는 내용으로 잠정 답변을 주거나, 해결한 부분부터 먼저 보여 줍니다.",
     interimAnswersEnabled: "사용",
     interimAnswersDisabled: "사용 안 함",
     userProfileDetailsLabel: "기타 개인 정보",

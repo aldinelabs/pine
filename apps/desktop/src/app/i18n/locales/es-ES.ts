@@ -430,7 +430,7 @@ export default {
     interactiveAnswersDisabled: "Desactivadas",
     interimAnswers: "Respuestas intermedias",
     interimAnswersDescription:
-      "Permitir que Pine muestre una respuesta preliminar, o cada parte en cuanto la resuelva, mientras sigue trabajando en una solicitud larga.",
+      "Permitir que Pine dé una respuesta preliminar con lo que ya sabe, o cada parte en cuanto la resuelva, antes de terminar de buscar o trabajar.",
     interimAnswersEnabled: "Activadas",
     interimAnswersDisabled: "Desactivadas",
     userProfileDetailsLabel: "Otros datos personales",

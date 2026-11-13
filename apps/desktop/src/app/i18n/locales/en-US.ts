@@ -420,7 +420,7 @@ export default {
     interactiveAnswersDisabled: "Disabled",
     interimAnswers: "Interim answers",
     interimAnswersDescription:
-      "Let Pine share a preliminary answer, or each part as it is solved, while it keeps working on a longer request.",
+      "Let Pine share a preliminary answer from what it already knows, or each part as soon as it is solved, before it finishes searching or working.",
     interimAnswersEnabled: "Enabled",
     interimAnswersDisabled: "Disabled",
     userProfileDetailsLabel: "Other personal details",
