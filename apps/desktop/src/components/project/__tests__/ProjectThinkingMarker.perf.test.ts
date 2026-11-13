@@ -11,12 +11,12 @@
  * | -- | ----------------------------------------------------- | ------ | ----- | --------------- |
  * | T1 | animateScrollTop calls during the stream              | 8      | 0     | 0               |
  * | T1 | animation frames run (opening pin and stream)         | 60     | 0     | 0               |
- * | T2 | scrollTop writes on the panel (5 panel updates)       | 60     | 5     | <= updates      |
+ * | T2 | scrollTop writes on the panel (8 panel updates)       | 60     | 8     | <= updates      |
  * | T2 | panel ends at the bottom                              | no     | yes   | yes             |
  * | T3 | panel carries the scroll-timeline `scroll-fade` class | yes    | no    | no              |
  * | T4 | timers / frames / glides left 600 ms after collapsing | 0/0/-  | 0/0/0 | 0 / 0 / 0       |
- * | T5 | panel updates (thinking Markdown changes)             | 8      | 4     | 3..5            |
- * | T6 | Element.animate calls (5 panel updates)               | -      | 5     | <= updates      |
+ * | T5 | panel updates (thinking Markdown changes)             | 8      | 8     | 6..8            |
+ * | T6 | Element.animate calls (8 panel updates)               | -      | 8     | <= updates      |
  * | T7 | Markdown chars re-rendered per update (max of 583)    | 583    | 93    | tail-bounded    |
  * | T8 | getComputedStyle / getBoundingClientRect calls        | 0 / 0  | 0 / 0 | 0 / 0           |
  *
@@ -25,7 +25,7 @@
  * update with one scroll write plus one transform glide on the body (FLIP,
  * run by the compositor), renders each completed Markdown block once and
  * re-renders only the block being written, and lets streamed text reach the
- * panel at most every 250 ms. All targets hold.
+ * panel at most every 125 ms. All targets hold.
  *
  * Print the metrics with `PINE_PERF_LOG=1` (add `--reporter=default` when
  * vitest hides the output of passing tests).
@@ -57,7 +57,7 @@ vi.mock("@/lib/animateScroll", async (original) => {
 const FLUSHES = 8;
 const FLUSH_INTERVAL_MS = 120;
 /** The marker's `THINKING_UPDATE_INTERVAL_MS`. */
-const THINKING_UPDATE_INTERVAL_MS = 250;
+const THINKING_UPDATE_INTERVAL_MS = 125;
 const PANEL_HEIGHT = 256;
 const LINE_HEIGHT = 44;
 const THINKING_STARTED_AT = Date.parse("2026-09-03T00:00:00.000Z");
@@ -381,11 +381,11 @@ describe("ProjectThinkingMarker streaming cost", () => {
     expect(running).toBe(0);
   });
 
-  it("[T5] updates the streaming panel at most every 250 ms", async () => {
+  it("[T5] updates the streaming panel at most every 125 ms", async () => {
     const { marker, metrics } = await streamOneSecond();
-    // 8 flushes over 960 ms: one change per 250 ms, the last held back.
-    expect(metrics.panelUpdates).toBeGreaterThanOrEqual(3);
-    expect(metrics.panelUpdates).toBeLessThanOrEqual(5);
+    // 8 flushes 120 ms apart: each lands within one 125 ms interval.
+    expect(metrics.panelUpdates).toBeGreaterThanOrEqual(6);
+    expect(metrics.panelUpdates).toBeLessThanOrEqual(8);
     // Nothing is lost: the held-back text lands.
     expect(marker.panel.textContent).toContain(`Step ${marker.lines()}:`);
   });

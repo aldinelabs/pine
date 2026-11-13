@@ -87,14 +87,14 @@ function sameSegments(
 }
 
 /** Streaming thinking reaches the panel at most this often. */
-const THINKING_UPDATE_INTERVAL_MS = 250;
+const THINKING_UPDATE_INTERVAL_MS = 125;
 
 /**
  * The thinking the panel renders. While thinking streams it follows
  * `thinkingSegments` at most every `THINKING_UPDATE_INTERVAL_MS`: the first
  * change after a quiet interval shows at once, later ones wait for one
  * pending timer, so a fast stream re-renders the Markdown and moves the
- * panel four times a second rather than on every flush. Anything else
+ * panel at most eight times a second, however often the store flushes. Anything else
  * (thinking finished, another message) shows at once.
  */
 const shownSegments = shallowRef<readonly string[]>(thinkingSegments.value);
