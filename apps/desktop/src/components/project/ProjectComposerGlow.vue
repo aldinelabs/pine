@@ -20,11 +20,13 @@ import {
 } from "@/lib/composerGlowHost";
 
 /**
- * A light that runs round the composer's text box while the agent works,
- * drawn by WebGL on a canvas (in a worker when it can, so the page does no
- * work per frame). It fades in once the first frame is on screen when
- * `active` turns on, and fades out, then unmounts with its worker and GPU
- * context, when it turns off, so an idle composer costs nothing.
+ * A light that circles the composer's text box clockwise while the agent
+ * works, drawn by WebGL on a canvas (in a worker when it can, so the page
+ * does no work per frame). When `active` turns on, the renderer grows the
+ * comet out from the bottom-right corner while the wrapper fades in once
+ * the first frame is on screen; when it turns off, the comet shrinks as the
+ * wrapper fades out, then everything unmounts with its worker and GPU
+ * context, so an idle composer costs nothing.
  */
 const props = defineProps<{
   active: boolean;
@@ -164,6 +166,7 @@ watch(
         activity,
         reducedMotion: reducedMotion.value,
         seed,
+        present: phase.value === "on",
       },
       {
         forceMain,
@@ -267,6 +270,11 @@ watch(
 );
 
 watch(reducedMotion, (reduce) => host?.update({ reducedMotion: reduce }));
+// Leaving shrinks the comet away; coming back mid fade-out grows it again
+// from where it is, on the same renderer.
+watch(phase, (next) => {
+  if (next !== "off") host?.update({ present: next === "on" });
+});
 
 onScopeDispose(() => {
   clearLeaveTimer();
@@ -295,15 +303,16 @@ onScopeDispose(() => {
  * paints over the transcript but under the text box, whose border and
  * focus ring stay crisp above it. The wrapper takes the insets, measured to
  * the room around the text box, because a positioned canvas would keep its
- * intrinsic size. It shows only once the first frame is drawn; the
- * fade-out matches COMPOSER_GLOW_FADE_OUT_MS.
+ * intrinsic size. It shows only once the first frame is drawn (at the
+ * start of the shader's growth, so a short linear fade lets that growth
+ * read); the fade-out matches COMPOSER_GLOW_FADE_OUT_MS.
  */
 .composer-glow {
   position: absolute;
   z-index: -1;
   pointer-events: none;
   opacity: 0;
-  transition: opacity 700ms var(--ease-out-expo);
+  transition: opacity 450ms ease-out;
 }
 
 .composer-glow[data-ready="true"][data-state="on"] {

@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import {
   type ComposerGlowEvent,
   type ComposerGlowState,
+  composerGlowEntryPoint,
   composerGlowSeed,
 } from "@/lib/composerGlow";
 import {
@@ -128,6 +129,7 @@ function state(overrides: Partial<ComposerGlowState> = {}): ComposerGlowState {
     activity: { focused: true, visible: true },
     reducedMotion: false,
     seed: composerGlowSeed(() => 0.5),
+    present: true,
     ...overrides,
   };
 }
@@ -156,6 +158,22 @@ function setup(
     },
   );
   return { gl, loseContext, canvas, frames, events, renderer };
+}
+
+/** Every value set on uniform `name` (as last looked up), in order. */
+function uniformValues(gl: FakeGl, name: string): number[][] {
+  const calls = gl.getUniformLocation.mock.calls as unknown[][];
+  let index = calls.length - 1;
+  while (index >= 0 && calls[index][1] !== name) index -= 1;
+  const location = gl.getUniformLocation.mock.results[index].value;
+  return [
+    ...gl.uniform1f.mock.calls,
+    ...gl.uniform2f.mock.calls,
+    ...gl.uniform3f.mock.calls,
+    ...gl.uniform4f.mock.calls,
+  ]
+    .filter((call: unknown[]) => call[0] === location)
+    .map((call: unknown[]) => call.slice(1) as number[]);
 }
 
 describe("createComposerGlowRenderer", () => {
@@ -190,16 +208,70 @@ describe("createComposerGlowRenderer", () => {
     expect(gl.createTexture).not.toHaveBeenCalled();
   });
 
+  it("looks up the comet's uniforms, not the old hot spots", () => {
+    const { gl } = setup();
+    const names = gl.getUniformLocation.mock.calls.map(
+      (call: unknown[]) => call[1],
+    );
+    expect(names).toEqual(
+      expect.arrayContaining(["uHead", "uComet", "uReveal", "uLevel"]),
+    );
+    expect(names).not.toContain("uSpots");
+    expect(names).not.toContain("uSpotAmp");
+    expect(names).not.toContain("uSpotWidth");
+  });
+
+  it("starts at the entry point and moves the head clockwise", () => {
+    const { gl, frames } = setup();
+    frames.run(0);
+    frames.run(17);
+    frames.run(34);
+    const heads = uniformValues(gl, "uHead").map((value) => value[0]);
+    expect(heads[0]).toBeCloseTo(
+      composerGlowEntryPoint(state().geometry.box),
+      9,
+    );
+    expect(heads[1]).toBeGreaterThan(heads[0]);
+    expect(heads[2]).toBeGreaterThan(heads[1]);
+  });
+
+  it("grows the comet in, and shrinks it once it leaves", () => {
+    const { gl, frames, renderer } = setup();
+    for (let at = 0; at <= 1200; at += 17) frames.run(at);
+    const reveals = uniformValues(gl, "uReveal").map((value) => value[0]);
+    expect(reveals[0]).toBe(0);
+    for (let index = 1; index < reveals.length; index += 1)
+      expect(reveals[index]).toBeGreaterThanOrEqual(reveals[index - 1]);
+    expect(reveals.at(-1)).toBe(1);
+    const comets = uniformValues(gl, "uComet");
+    expect(comets[0]).toEqual([0, 0, 0, 0]);
+    expect(comets.at(-1)?.[0]).toBeGreaterThan(0);
+
+    renderer?.handle({ type: "presence", present: false });
+    gl.uniform1f.mockClear();
+    for (let at = 1217; at <= 1700; at += 17) frames.run(at);
+    const leaving = uniformValues(gl, "uReveal").map((value) => value[0]);
+    expect(leaving.length).toBeGreaterThan(2);
+    expect(leaving.at(-1)).toBeLessThan(leaving[0]);
+    expect(leaving.at(-1)).toBeLessThan(1);
+  });
+
+  it("keeps the head and reveal through a lost context", () => {
+    const { gl, frames, canvas } = setup();
+    for (let at = 0; at <= 600; at += 17) frames.run(at);
+    const before = uniformValues(gl, "uReveal").at(-1)?.[0] ?? 0;
+    const headBefore = uniformValues(gl, "uHead").at(-1)?.[0] ?? 0;
+    expect(before).toBeGreaterThan(0);
+    canvas.dispatchEvent(new Event("webglcontextlost", { cancelable: true }));
+    canvas.dispatchEvent(new Event("webglcontextrestored"));
+    gl.uniform1f.mockClear();
+    gl.uniform2f.mockClear();
+    frames.run(5000);
+    expect(uniformValues(gl, "uReveal").at(-1)?.[0]).toBeCloseTo(before, 9);
+    expect(uniformValues(gl, "uHead").at(-1)?.[0]).toBeCloseTo(headBefore, 9);
+  });
+
   it("draws the light theme's haze only when the tints are not grey", () => {
-    const uniformValues = (gl: FakeGl, name: string) => {
-      const index = gl.getUniformLocation.mock.calls.findIndex(
-        (call: unknown[]) => call[1] === name,
-      );
-      const location = gl.getUniformLocation.mock.results[index].value;
-      return [...gl.uniform1f.mock.calls, ...gl.uniform3f.mock.calls]
-        .filter((call: unknown[]) => call[0] === location)
-        .map((call: unknown[]) => call.slice(1));
-    };
     const tinted = setup();
     tinted.frames.run(0);
     expect(uniformValues(tinted.gl, "uHazeOn")).toEqual([[1]]);
@@ -309,6 +381,12 @@ describe("createComposerGlowRenderer", () => {
     expect(frames.pending.size).toBe(0);
     renderer?.handle({ type: "colors", colors: state().colors });
     frames.run(40);
+    expect(gl.drawArrays).toHaveBeenCalledTimes(3);
+    expect(frames.pending.size).toBe(0);
+
+    expect(uniformValues(gl, "uReveal")).toEqual([[1], [1], [1]]);
+    renderer?.handle({ type: "presence", present: false });
+    frames.run(50);
     expect(gl.drawArrays).toHaveBeenCalledTimes(3);
     expect(frames.pending.size).toBe(0);
 

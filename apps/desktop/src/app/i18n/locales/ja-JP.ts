@@ -344,6 +344,9 @@ export default {
     invertDocuments: "ダークモードでドキュメントを反転",
     invertDocumentsDescription:
       "ダークモードで、PDF やプレゼンテーションなどのドキュメントのページを反転して開きます",
+    composerGlow: "作業中の光彩",
+    composerGlowDescription:
+      "エージェントの作業中、入力欄の周りを回る光を表示します",
     sidebarVibrancy: "ネイティブのサイドバー素材",
     sidebarVibrancyDescription:
       "macOS ネイティブのサイドバー素材でサイドバーを描画します",

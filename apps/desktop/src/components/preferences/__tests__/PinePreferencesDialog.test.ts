@@ -8,6 +8,7 @@ import { DEFAULT_AUTO_APPROVAL_SETTINGS } from "@/shared/preferences";
 import type { PineModelCatalog } from "@/shared/models";
 import { createDefaultPineUserProfile } from "@/shared/userProfile";
 import {
+  COMPOSER_GLOW_STORAGE_KEY,
   SIDEBAR_VIBRANCY_STORAGE_KEY,
   THEME_PREFERENCE_STORAGE_KEY,
   useAppearanceStore,
@@ -891,5 +892,24 @@ describe("PinePreferencesDialog", () => {
       "false",
     );
     expect(setSidebarVibrancy).toHaveBeenCalledWith({ enabled: false });
+  });
+
+  it("turns the working glow off and on", async () => {
+    installPineApi("linux");
+    const { wrapper } = mountDialog();
+    await openSection(wrapper, "外观");
+    const toggle = wrapper.get('[data-testid="pine-composer-glow-toggle"]');
+
+    expect(wrapper.text()).toContain("工作光效");
+    expect(toggle.attributes("aria-checked")).toBe("true");
+
+    await toggle.trigger("click");
+    expect(toggle.attributes("aria-checked")).toBe("false");
+    expect(window.localStorage.getItem(COMPOSER_GLOW_STORAGE_KEY)).toBe(
+      "false",
+    );
+
+    await toggle.trigger("click");
+    expect(window.localStorage.getItem(COMPOSER_GLOW_STORAGE_KEY)).toBe("true");
   });
 });

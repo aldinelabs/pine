@@ -333,6 +333,9 @@ export default {
     invertDocuments: "다크 모드에서 문서 반전",
     invertDocumentsDescription:
       "다크 모드에서 PDF, 프레젠테이션 등의 문서를 페이지를 반전하여 엽니다",
+    composerGlow: "작업 중 빛 효과",
+    composerGlowDescription:
+      "에이전트가 작업하는 동안 입력란 주위를 도는 빛을 표시합니다",
     sidebarVibrancy: "기본 사이드바 소재",
     sidebarVibrancyDescription:
       "macOS 기본 사이드바 소재로 사이드바를 표시합니다",

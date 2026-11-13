@@ -1,3 +1,4 @@
+import { nextTick } from "vue";
 import { flushPromises, mount } from "@vue/test-utils";
 import { createPinia, setActivePinia } from "pinia";
 import { describe, expect, it, vi } from "vitest";
@@ -8,6 +9,10 @@ import {
   type PineAttachment,
 } from "@/shared/attachments";
 import type { PineThinkingLevel } from "@/shared/models";
+import {
+  COMPOSER_GLOW_STORAGE_KEY,
+  useAppearanceStore,
+} from "@/stores/appearance";
 import { useModelsStore } from "@/stores/models";
 import { showProject } from "@/stores/__tests__/showProject";
 import { useProjectStore } from "@/stores/project";
@@ -958,6 +963,33 @@ describe("ProjectSessionComposer", () => {
       background.find('[data-slot="session-composer-glow"]').exists(),
     ).toBe(false);
     background.unmount();
+  });
+  it("does not glow while Working glow is off in Appearance settings", async () => {
+    window.localStorage.setItem(COMPOSER_GLOW_STORAGE_KEY, "false");
+    const wrapper = mountComposer({ isRunning: true, isActive: true });
+    try {
+      expect(wrapper.find('[data-slot="session-composer-glow"]').exists()).toBe(
+        false,
+      );
+
+      useAppearanceStore().setComposerGlow(true);
+      await nextTick();
+      const glow = wrapper.find('[data-slot="session-composer-glow"]');
+      expect(glow.exists()).toBe(true);
+      expect(glow.attributes("data-state")).toBe("on");
+
+      // Off mid-run takes the normal fade-out.
+      useAppearanceStore().setComposerGlow(false);
+      await nextTick();
+      expect(
+        wrapper
+          .get('[data-slot="session-composer-glow"]')
+          .attributes("data-state"),
+      ).toBe("leaving");
+    } finally {
+      wrapper.unmount();
+      window.localStorage.removeItem(COMPOSER_GLOW_STORAGE_KEY);
+    }
   });
   it("unmounts the glow with the text box when an approval card replaces it", () => {
     const wrapper = mountComposer({

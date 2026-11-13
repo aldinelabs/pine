@@ -1557,6 +1557,23 @@ defineExpose({ open });
                     </Select>
                   </Field>
 
+                  <Field orientation="horizontal">
+                    <div class="flex min-w-0 flex-1 flex-col gap-1">
+                      <FieldTitle id="pine-composer-glow-setting">
+                        {{ t("preferences.composerGlow") }}
+                      </FieldTitle>
+                      <FieldDescription>
+                        {{ t("preferences.composerGlowDescription") }}
+                      </FieldDescription>
+                    </div>
+                    <Switch
+                      data-testid="pine-composer-glow-toggle"
+                      :model-value="appearanceStore.composerGlow"
+                      aria-labelledby="pine-composer-glow-setting"
+                      @update:model-value="appearanceStore.setComposerGlow"
+                    />
+                  </Field>
+
                   <Field
                     v-if="supportsSidebarVibrancy"
                     orientation="horizontal"

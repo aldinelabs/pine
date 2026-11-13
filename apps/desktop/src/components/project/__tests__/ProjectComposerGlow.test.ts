@@ -180,7 +180,8 @@ describe("ProjectComposerGlow", () => {
     expect(state.geometry.box.height).toBe(48);
     expect(state.colors.tints).toHaveLength(3);
     expect(state.activity).toEqual({ focused: true, visible: true });
-    expect(state.seed.spots).toHaveLength(3);
+    expect(state.seed.waves).toHaveLength(3);
+    expect(state.present).toBe(true);
     expect(state.reducedMotion).toBe(false);
     wrapper.unmount();
   });
@@ -201,6 +202,7 @@ describe("ProjectComposerGlow", () => {
     await nextTick();
     await setActive(false);
     expect(wrapper.get(GLOW).attributes("data-state")).toBe("leaving");
+    expect(hosts[0].update).toHaveBeenCalledWith({ present: false });
     vi.advanceTimersByTime(COMPOSER_GLOW_FADE_OUT_MS - 1);
     await nextTick();
     expect(wrapper.find(GLOW).exists()).toBe(true);
@@ -225,8 +227,10 @@ describe("ProjectComposerGlow", () => {
     await nextTick();
     await setActive(false);
     vi.advanceTimersByTime(COMPOSER_GLOW_FADE_OUT_MS / 2);
+    expect(hosts[0].update).toHaveBeenLastCalledWith({ present: false });
     await setActive(true);
     expect(wrapper.get(GLOW).attributes("data-state")).toBe("on");
+    expect(hosts[0].update).toHaveBeenLastCalledWith({ present: true });
     vi.advanceTimersByTime(COMPOSER_GLOW_FADE_OUT_MS);
     await nextTick();
     expect(wrapper.find(GLOW).exists()).toBe(true);

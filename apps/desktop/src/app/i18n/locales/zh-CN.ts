@@ -313,6 +313,8 @@ export default {
     invertDocuments: "深色模式下反色文档",
     invertDocumentsDescription:
       "深色模式下默认反色显示 PDF、演示文稿等文档的页面",
+    composerGlow: "工作光效",
+    composerGlowDescription: "智能体工作时，在输入框四周显示环绕的光效",
     sidebarVibrancy: "侧栏原生材质",
     sidebarVibrancyDescription: "使用 macOS 原生侧栏材质渲染侧栏",
     modelCatalogRefresh: "模型目录",

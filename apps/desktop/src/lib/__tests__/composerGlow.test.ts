@@ -2,6 +2,17 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import {
+  COMPOSER_GLOW_COMPANION,
+  COMPOSER_GLOW_ENTER_MS,
+  COMPOSER_GLOW_FADE_OUT_MS,
+  COMPOSER_GLOW_LAP_SECONDS,
+  COMPOSER_GLOW_MAX_STEP_MS,
+  advanceComposerGlowMotion,
+  composerGlowEntryPoint,
+  composerGlowFrame,
+  composerGlowPerimeter,
+  composerGlowStartMotion,
+  composerGlowWave,
   COMPOSER_GLOW_DEFAULT_HAZE,
   COMPOSER_GLOW_DEFAULT_TINTS,
   composerGlowTintsAreGrey,
@@ -17,8 +28,6 @@ import {
   readComposerGlowColors,
 } from "@/lib/composerGlow";
 
-const BASE_PERIODS = [7.3, 11.9, 17.3];
-
 function rect(left: number, top: number, width: number, height: number) {
   return { left, top, right: left + width, bottom: top + height };
 }
@@ -26,14 +35,20 @@ function rect(left: number, top: number, width: number, height: number) {
 describe("composerGlowSeed", () => {
   it.each([0, 0.999])("stays in range for random() = %s", (value) => {
     const seed = composerGlowSeed(() => value);
-    expect(seed.spots).toHaveLength(3);
-    seed.spots.forEach((spot, index) => {
-      expect(spot.period).toBeGreaterThanOrEqual(BASE_PERIODS[index] * 0.85);
-      expect(spot.period).toBeLessThanOrEqual(BASE_PERIODS[index] * 1.15);
-      expect(spot.start).toBeGreaterThanOrEqual(0);
-      expect(spot.start).toBeLessThan(1);
-    });
-    expect(seed.spots.filter((spot) => spot.direction === -1)).toHaveLength(1);
+    expect(seed.lapSeconds).toBeGreaterThanOrEqual(
+      COMPOSER_GLOW_LAP_SECONDS * 0.92 - 1e-9,
+    );
+    expect(seed.lapSeconds).toBeLessThanOrEqual(
+      COMPOSER_GLOW_LAP_SECONDS * 1.08 + 1e-9,
+    );
+    expect(seed.waves).toHaveLength(3);
+    for (const phase of seed.waves) {
+      expect(phase).toBeGreaterThanOrEqual(0);
+      expect(phase).toBeLessThan(Math.PI * 2);
+    }
+    // One comet, always clockwise: nothing in the seed picks a direction.
+    expect(seed).not.toHaveProperty("direction");
+    expect(seed).not.toHaveProperty("spots");
     expect(seed.timeOffset).toBeGreaterThanOrEqual(0);
     expect(seed.timeOffset).toBeLessThan(1000);
     expect(seed.noise).toHaveLength(4);
@@ -55,10 +70,12 @@ describe("composerGlowMargins", () => {
     );
     expect(COMPOSER_GLOW_MAX_MARGINS).toEqual({
       top: 28,
-      right: 40,
-      bottom: 24,
-      left: 40,
+      right: 64,
+      bottom: 36,
+      left: 64,
     });
+    // The todo and steering cards sit 32 px above the composer.
+    expect(COMPOSER_GLOW_MAX_MARGINS.top).toBeLessThan(32);
   });
 
   it("uses only the room up to the clipping edge", () => {
@@ -85,15 +102,15 @@ describe("composerGlowGeometry", () => {
     );
     expect(geometry.margins).toEqual({
       top: 28,
-      right: 40,
+      right: 64,
       bottom: 12,
-      left: 40,
+      left: 64,
     });
-    expect(geometry.width).toBe(780);
+    expect(geometry.width).toBe(828);
     expect(geometry.height).toBe(88);
     expect(geometry.ratio).toBe(1);
     expect(geometry.box).toEqual({
-      x: 40,
+      x: 64,
       y: 28,
       width: 700,
       height: 48,
@@ -257,5 +274,142 @@ describe("findClipAncestor", () => {
     document.body.append(element);
     expect(findClipAncestor(element)).toBe(document.documentElement);
     element.remove();
+  });
+});
+
+describe("composer glow motion", () => {
+  const box = { x: 64, y: 28, width: 400, height: 100, radius: 20 };
+  const seed = composerGlowSeed(() => 0.5);
+
+  /** Advances `ms` in 16 ms steps. */
+  function run(
+    motion: ReturnType<typeof composerGlowStartMotion>,
+    ms: number,
+    present = true,
+  ) {
+    let next = motion;
+    for (let elapsed = 0; elapsed < ms; elapsed += 16)
+      next = advanceComposerGlowMotion(
+        next,
+        Math.min(16, ms - elapsed),
+        present,
+        seed,
+      );
+    return next;
+  }
+
+  it("starts at the midpoint of the bottom-right corner", () => {
+    const quarter = 180 + (Math.PI / 2) * 20 + 30;
+    expect(composerGlowEntryPoint(box)).toBeCloseTo(
+      (quarter + 30 + (Math.PI / 4) * 20) / (4 * quarter),
+      6,
+    );
+    expect(composerGlowEntryPoint(box)).toBeCloseTo(0.297, 3);
+    expect(
+      composerGlowEntryPoint({ x: 0, y: 0, width: 80, height: 80, radius: 0 }),
+    ).toBeCloseTo(0.375, 6);
+    expect(composerGlowStartMotion(box)).toEqual({
+      head: composerGlowEntryPoint(box),
+      reveal: 0,
+      clock: 0,
+    });
+  });
+
+  it("moves the head clockwise and wraps it", () => {
+    let motion = { ...composerGlowStartMotion(box), reveal: 1 };
+    let travelled = 0;
+    for (let step = 0; step < 500; step += 1) {
+      const next = advanceComposerGlowMotion(motion, 16, true, seed);
+      const delta = next.head - motion.head;
+      // Strictly forward, except where it wraps from 1 back to 0.
+      expect(delta > 0 || (delta < -0.9 && next.head < motion.head)).toBe(true);
+      travelled += delta > 0 ? delta : delta + 1;
+      expect(next.head).toBeGreaterThanOrEqual(0);
+      expect(next.head).toBeLessThan(1);
+      motion = next;
+    }
+    // 8 s at one lap per lapSeconds once fully revealed.
+    expect(travelled).toBeCloseTo(8 / seed.lapSeconds, 6);
+  });
+
+  it("grows in, shrinks away and turns back mid-exit", () => {
+    const start = composerGlowStartMotion(box);
+    const half = run(start, COMPOSER_GLOW_ENTER_MS / 2);
+    expect(half.reveal).toBeCloseTo(0.5, 6);
+    const full = run(start, COMPOSER_GLOW_ENTER_MS);
+    expect(full.reveal).toBe(1);
+    expect(run(full, 1000).reveal).toBe(1);
+    const leaving = run(full, COMPOSER_GLOW_FADE_OUT_MS / 2, false);
+    expect(leaving.reveal).toBeCloseTo(0.5, 6);
+    expect(run(full, COMPOSER_GLOW_FADE_OUT_MS, false).reveal).toBe(0);
+    const back = advanceComposerGlowMotion(leaving, 16, true, seed);
+    expect(back.reveal).toBeGreaterThan(leaving.reveal);
+  });
+
+  it("caps one step, so a hidden window neither skips nor jumps", () => {
+    const start = composerGlowStartMotion(box);
+    const long = advanceComposerGlowMotion(start, 60_000, true, seed);
+    const capped = advanceComposerGlowMotion(
+      start,
+      COMPOSER_GLOW_MAX_STEP_MS,
+      true,
+      seed,
+    );
+    expect(long).toEqual(capped);
+    expect(long.reveal).toBeCloseTo(
+      COMPOSER_GLOW_MAX_STEP_MS / COMPOSER_GLOW_ENTER_MS,
+      6,
+    );
+    expect(advanceComposerGlowMotion(start, -5, true, seed)).toEqual(start);
+  });
+
+  it("draws a point at the start and a full comet once revealed", () => {
+    const perimeter = composerGlowPerimeter(box);
+    const start = composerGlowFrame(
+      composerGlowStartMotion(box),
+      seed,
+      perimeter,
+      false,
+    );
+    expect(start.tail).toBe(0);
+    expect(start.width).toBe(0);
+    expect(start.companion).toBe(0);
+    expect(start.intensity).toBe(0);
+    expect(start.reveal).toBe(0);
+
+    let motion = run(composerGlowStartMotion(box), COMPOSER_GLOW_ENTER_MS);
+    for (let second = 0; second < 30; second += 1) {
+      motion = run(motion, 1000);
+      const frame = composerGlowFrame(motion, seed, perimeter, false);
+      expect(frame.reveal).toBe(1);
+      expect(frame.tail).toBeGreaterThanOrEqual(90);
+      expect(frame.tail).toBeLessThanOrEqual(420);
+      expect(frame.width).toBeGreaterThanOrEqual(40);
+      expect(frame.width).toBeLessThanOrEqual(90);
+      expect(frame.intensity).toBeGreaterThanOrEqual(0.75);
+      expect(frame.intensity).toBeLessThanOrEqual(1.25);
+      expect(frame.level).toBeGreaterThanOrEqual(0.85);
+      expect(frame.level).toBeLessThanOrEqual(1.05);
+      expect(frame.companion).toBeCloseTo(COMPOSER_GLOW_COMPANION, 6);
+      expect(frame.companionHead).toBeCloseTo((frame.head + 0.5) % 1, 6);
+    }
+  });
+
+  it("draws a still, full comet at the entry point for reduced motion", () => {
+    const perimeter = composerGlowPerimeter(box);
+    const start = composerGlowStartMotion(box);
+    const still = composerGlowFrame(start, seed, perimeter, true);
+    expect(still.reveal).toBe(1);
+    expect(still.head).toBe(composerGlowEntryPoint(box));
+    expect(still.tail).toBeGreaterThan(0);
+    expect(composerGlowFrame(start, seed, perimeter, true)).toEqual(still);
+  });
+
+  it("keeps the wave in 0-1", () => {
+    for (let t = -50; t < 500; t += 0.37) {
+      const value = composerGlowWave(t, seed.waves);
+      expect(value).toBeGreaterThanOrEqual(0);
+      expect(value).toBeLessThanOrEqual(1);
+    }
   });
 });

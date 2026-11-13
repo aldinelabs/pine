@@ -2,8 +2,13 @@ import {
   COMPOSER_GLOW_MAX_BUFFER_PX,
   type ComposerGlowEvent,
   type ComposerGlowMessage,
+  type ComposerGlowMotion,
   type ComposerGlowState,
+  advanceComposerGlowMotion,
+  composerGlowFrame,
   composerGlowFrameInterval,
+  composerGlowPerimeter,
+  composerGlowStartMotion,
 } from "@/lib/composerGlow";
 import {
   COMPOSER_GLOW_FRAGMENT,
@@ -40,8 +45,6 @@ const CONTEXT_ATTRIBUTES: WebGLContextAttributes = {
 
 /** A frame may come this much early and still be drawn. */
 const FRAME_SLACK_MS = 2;
-/** Hot spot widths along the outline in CSS px, before clamping. */
-const SPOT_WIDTHS = [70, 110, 160] as const;
 
 const UNIFORMS = [
   "uBuffer",
@@ -52,9 +55,9 @@ const UNIFORMS = [
   "uMargins",
   "uTime",
   "uNoise",
-  "uSpots",
-  "uSpotAmp",
-  "uSpotWidth",
+  "uHead",
+  "uComet",
+  "uReveal",
   "uLevel",
   "uTint0",
   "uTint1",
@@ -146,10 +149,6 @@ function createResources(gl: GL): Resources | null {
   return { program, vertex, fragment, buffer, uniforms };
 }
 
-function fract(value: number): number {
-  return value - Math.floor(value);
-}
-
 /**
  * Draws the composer light on `canvas` (an OffscreenCanvas in a worker, or a
  * page canvas as the fallback). It paces itself by `scheduler`, applies
@@ -181,7 +180,10 @@ export function createComposerGlowRenderer(
   }
 
   const state: ComposerGlowState = { ...initial };
-  const start = scheduler.now();
+  /** Kept across context loss and resizes, so the comet never jumps. */
+  let motion: ComposerGlowMotion = composerGlowStartMotion(
+    initial.geometry.box,
+  );
   let frame: number | null = null;
   let lastDraw = Number.NEGATIVE_INFINITY;
   let sizeDirty = true;
@@ -231,45 +233,27 @@ export function createComposerGlowRenderer(
     if (sizeDirty) scale = applySize();
     const { geometry, colors, seed } = state;
     const { uniforms: u } = resources;
-    const t = still ? seed.timeOffset : (now - start) / 1000 + seed.timeOffset;
     const { box, margins } = geometry;
     const radius = Math.max(
       0,
       Math.min(box.radius, box.width / 2, box.height / 2),
     );
-    const perimeter = Math.max(
-      2 * (box.width - 2 * radius) +
-        2 * (box.height - 2 * radius) +
-        2 * Math.PI * radius,
-      1,
-    );
-    const positions: number[] = [];
-    const amps: number[] = [];
-    seed.spots.slice(0, 3).forEach((spot, index) => {
-      if (still) {
-        positions.push(spot.start);
-        amps.push(0.8);
-        return;
-      }
-      positions.push(
-        fract(
-          spot.start +
-            (spot.direction * t) / spot.period +
-            0.05 * Math.sin(0.37 * t + spot.phase) +
-            0.025 * Math.sin(0.91 * t + 2 * spot.phase),
-        ),
+    if (!still) {
+      const step = Number.isFinite(lastDraw) ? now - lastDraw : 0;
+      motion = advanceComposerGlowMotion(
+        motion,
+        step,
+        state.present !== false,
+        seed,
       );
-      const pulse = Math.sin(0.23 * t * (1 + index * 0.31) + spot.phase);
-      amps.push(0.6 + 0.4 * pulse * pulse);
-    });
-    while (positions.length < 3) {
-      positions.push(0);
-      amps.push(0);
     }
-    const level = still
-      ? 1
-      : 0.88 + 0.12 * Math.sin(0.41 * t + (seed.spots[0]?.phase ?? 0));
-    const widths = SPOT_WIDTHS.map((width) => Math.min(width, perimeter / 6));
+    const values = composerGlowFrame(
+      motion,
+      seed,
+      composerGlowPerimeter(box),
+      still,
+    );
+    const t = (still ? 0 : motion.clock) + seed.timeOffset;
 
     gl.uniform2f(u.uBuffer, canvas.width, canvas.height);
     gl.uniform1f(u.uRatio, scale);
@@ -285,10 +269,16 @@ export function createComposerGlowRenderer(
     );
     gl.uniform1f(u.uTime, t);
     gl.uniform4f(u.uNoise, ...seed.noise);
-    gl.uniform3f(u.uSpots, positions[0], positions[1], positions[2]);
-    gl.uniform3f(u.uSpotAmp, amps[0], amps[1], amps[2]);
-    gl.uniform3f(u.uSpotWidth, widths[0], widths[1], widths[2]);
-    gl.uniform1f(u.uLevel, level);
+    gl.uniform2f(u.uHead, values.head, values.companionHead);
+    gl.uniform4f(
+      u.uComet,
+      values.tail,
+      values.width,
+      values.intensity,
+      values.companion,
+    );
+    gl.uniform1f(u.uReveal, values.reveal);
+    gl.uniform1f(u.uLevel, values.level);
     gl.uniform3f(u.uTint0, ...colors.tints[0]);
     gl.uniform3f(u.uTint1, ...colors.tints[1]);
     gl.uniform3f(u.uTint2, ...colors.tints[2]);
@@ -382,6 +372,11 @@ export function createComposerGlowRenderer(
         case "motion":
           state.reducedMotion = message.reducedMotion;
           dirty = true;
+          break;
+        case "presence":
+          // The animation grows or shrinks the comet; a still frame stays
+          // as it is and the page's opacity fade does the rest.
+          state.present = message.present;
           break;
         case "dispose":
           disposed = true;

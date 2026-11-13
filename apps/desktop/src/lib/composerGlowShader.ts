@@ -26,11 +26,11 @@ uniform vec2 uCenter;      // box centre, canvas CSS px, y down
 uniform vec2 uHalf;        // box half size
 uniform float uRadius;     // corner radius, <= min(uHalf)
 uniform vec4 uMargins;     // room: top, right, bottom, left
-uniform float uTime;       // seconds
+uniform float uTime;       // seconds, for the noise
 uniform vec4 uNoise;       // per-run noise offset
-uniform vec3 uSpots;       // hot spot positions along the outline, 0-1
-uniform vec3 uSpotAmp;     // hot spot brightness
-uniform vec3 uSpotWidth;   // hot spot widths, CSS px
+uniform vec2 uHead;        // comet heads (main, companion), 0-1 clockwise
+uniform vec4 uComet;       // tail px, core width px, intensity, companion
+uniform float uReveal;     // 0 (a point) to 1 (full comet), eased
 uniform float uLevel;      // overall breathing
 uniform vec3 uTint0;       // accent
 uniform vec3 uTint1;       // warmer (hue toward amber/red)
@@ -88,7 +88,8 @@ void main() {
   vec2 p = css - uCenter;
   float d = sdRoundBox(p, uHalf, uRadius);
   // Inside the text box, and beyond the light's reach: nothing to draw.
-  if (d < -1.5 || d > 46.0) {
+  float maxMargin = max(max(uMargins.x, uMargins.y), max(uMargins.z, uMargins.w));
+  if (d < -1.5 || d > maxMargin * 1.42 + 2.0) {
     gl_FragColor = vec4(0.0);
     return;
   }
@@ -115,49 +116,74 @@ void main() {
   float perimeter = max(4.0 * quarter, 1.0);
   float u = s / perimeter;
 
-  // Seamless noise round the loop: u lies on a circle, and the third axis
-  // carries the distance outward and time. The pattern flows clockwise.
-  float radius = perimeter / (TAU * 90.0);
-  float a = TAU * (u - 0.035 * uTime);
-  vec3 c = vec3(cos(a) * radius, sin(a) * radius, d / 22.0 - 0.18 * uTime)
-    + uNoise.xyz * 37.0;
-  vec3 w = vec3(
-    fbm3(c * 0.6 + vec3(0.0, 0.0, 0.11 * uTime)),
-    fbm3(c * 0.6 + vec3(5.2, 1.3, 2.8 + uNoise.w)),
-    0.0
-  );
-  float n = fbm3(c + 1.6 * w);
+  // The comet: px behind each head, positive counter-clockwise of it, so
+  // the head leads clockwise. A long tail and a hot core behind the head,
+  // a short soft edge ahead of it.
+  float tail = max(uComet.x, 1.0);
+  float width = max(uComet.y, 1.0);
+  float behind = (fract(uHead.x - u + 0.5) - 0.5) * perimeter;
+  float behind2 = (fract(uHead.y - u + 0.5) - 0.5) * perimeter;
+  float lead = 0.45 * width;
+  float core = exp(-(behind * behind) / (width * width));
+  float comet = behind >= 0.0
+    ? 0.6 * exp(-behind / tail) + 0.4 * core
+    : exp(-(behind * behind) / (lead * lead));
+  float trail = behind >= 0.0 ? exp(-behind / tail) : 0.0;
+  float tailEnd = trail * (1.0 - trail) * 4.0;
+  float core2 = exp(-(behind2 * behind2) / (width * width));
+  float comet2 = behind2 >= 0.0
+    ? 0.6 * exp(-behind2 / tail) + 0.4 * core2
+    : exp(-(behind2 * behind2) / (lead * lead));
+  // The white-hot centre at the head grows in with the comet.
+  float spot = core * uComet.z;
+  float companion = uComet.w * comet2;
+  float cometStrength = clamp(comet + companion, 0.0, 1.0);
 
-  // Hot spots: wrapped distance along the outline.
-  vec3 ds = abs(fract(u - uSpots + 0.5) - 0.5) * perimeter;
-  vec3 spot3 = uSpotAmp * exp(-(ds * ds) / (uSpotWidth * uSpotWidth));
-  float spot = spot3.x + spot3.y + spot3.z;
+  // Seamless noise round the loop only (no outward axis, so the edge stays
+  // smooth): it widens, narrows and brightens the glow, never moves it, and
+  // drifts clockwise with the head.
+  float radius = perimeter / (TAU * 140.0);
+  float a = TAU * (u - 0.25 * uHead.x);
+  vec3 c = vec3(cos(a) * radius, sin(a) * radius, 0.22 * uTime)
+    + uNoise.xyz * 37.0;
+  float nW = fbm3(c);
+  float nI = fbm3(c * 1.7 + vec3(5.2, 1.3, 2.8 + uNoise.w));
 
   float outd = max(d, 0.0);
   float inner = smoothstep(-1.5, 0.0, d);
-  float rim = inner * exp(-outd / 1.6);
-  float reach = mix(9.0, 34.0, clamp(spot, 0.0, 1.0)) * (0.7 + 0.6 * n);
-  float bloom = inner * exp(-outd / reach)
-    / (1.0 + outd * outd / (reach * reach * 0.6));
-  float flick = 0.6 + 0.8 * n;
+  float rim = inner * exp(-outd / 2.4);
+  float sigma = mix(12.0, 48.0, cometStrength) * (0.6 + 0.8 * nW)
+    * mix(0.3, 1.0, uReveal);
+  // A Gaussian body with a long exponential skirt: no visible outer edge.
+  float bloom = inner * (0.55 * exp(-(outd * outd) / (2.0 * sigma * sigma))
+    + 0.45 * exp(-outd / (0.8 * sigma)));
+  float flick = (0.7 + 0.6 * nI) * uComet.z;
 
-  // How much of each tint lands here, on the rim and in the bloom.
-  vec3 rimW = rim * flick * vec3(0.55 + 0.9 * spot3.x, 0.9 * spot3.y, 0.9 * spot3.z);
-  vec3 bloomW = bloom * flick * vec3(0.16 + 0.55 * spot3.x, 0.6 * spot3.y, 0.6 * spot3.z)
-    + vec3(0.0, bloom * 0.12 * smoothstep(0.55, 0.85, n), 0.0);
+  // How much of each tint lands here, on the rim and in the bloom: warm at
+  // the core, accent along the tail, cool toward its end and the companion.
+  vec3 rimW = rim * flick * vec3(
+    0.10 + 0.8 * comet + 0.5 * companion,
+    0.9 * core,
+    0.6 * tailEnd + 0.4 * companion
+  );
+  vec3 bloomW = bloom * flick * vec3(
+    0.06 + 0.5 * comet,
+    0.55 * core,
+    0.45 * tailEnd + 0.35 * companion
+  );
   vec3 wt = rimW + bloomW;
 
-  // Fade to nothing at the canvas edges, across whatever room there is.
+  // Fade gently to nothing at the canvas edges, across whatever room there is.
   vec2 size = uBuffer / uRatio;
-  float fade = smoothstep(0.0, 1.0, css.y / max(uMargins.x, 1.0))
-    * smoothstep(0.0, 1.0, (size.x - css.x) / max(uMargins.y, 1.0))
-    * smoothstep(0.0, 1.0, (size.y - css.y) / max(uMargins.z, 1.0))
-    * smoothstep(0.0, 1.0, css.x / max(uMargins.w, 1.0));
+  float fade = pow(smoothstep(0.0, 1.0, css.y / max(uMargins.x, 1.0)), 1.6)
+    * pow(smoothstep(0.0, 1.0, (size.x - css.x) / max(uMargins.y, 1.0)), 1.6)
+    * pow(smoothstep(0.0, 1.0, (size.y - css.y) / max(uMargins.z, 1.0)), 1.6)
+    * pow(smoothstep(0.0, 1.0, css.x / max(uMargins.w, 1.0)), 1.6);
   float scale = uLevel * fade;
 
   if (uDark > 0.5) {
-    // Dark: additive light with a white-hot core where a hot spot crosses
-    // the rim, tone-mapped and premultiplied so no channel exceeds alpha.
+    // Dark: additive light with a white-hot core where the comet's head
+    // crosses the rim, tone-mapped and premultiplied so no channel exceeds alpha.
     vec3 light = (uTint0 * wt.x + uTint1 * wt.y + uTint2 * wt.z
       + vec3(rim * spot * 0.45)) * scale * 1.7;
     float alpha = 1.0 - exp(-max(max(light.r, light.g), light.b));
@@ -169,13 +195,13 @@ void main() {
     // rim (the first couple of px) keeps the mid-lightness tints, at high
     // coverage; the bloom is a capped haze of lighter, more saturated
     // tints that tints the page without darkening it. Grey tints (Neutral)
-    // get no haze, just the rim and a sheen where a hot spot crosses it.
+    // get no haze, just the rim and a sheen where the comet crosses it.
     float rimWeight = rimW.x + rimW.y + rimW.z;
     vec3 rimTint = (uTint0 * rimW.x + uTint1 * rimW.y + uTint2 * rimW.z)
       / max(rimWeight, 1e-4);
-    // A crisper falloff than the dark theme's (1.6 px -> 0.9 px), so the
+    // A crisper falloff than the dark theme's (2.4 px -> 1.1 px), so the
     // rim stays a line of colour rather than a soft dark edge.
-    float crisp = exp(-outd * 0.49);
+    float crisp = exp(-outd * 0.42);
     float sheen = inner * exp(-outd / 1.8) * spot * 0.5 * flick;
     float rimAlpha = 1.0
       - exp(-(rimWeight * crisp * 2.2 + sheen * (1.0 - uHazeOn)) * scale);

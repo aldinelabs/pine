@@ -344,6 +344,9 @@ export default {
     invertDocuments: "Dokumente im Dunkelmodus invertieren",
     invertDocumentsDescription:
       "Öffnet PDFs, Präsentationen und andere Dokumente im Dunkelmodus mit invertierten Seiten",
+    composerGlow: "Leuchten bei der Arbeit",
+    composerGlowDescription:
+      "Zeigt ein Licht, das um das Eingabefeld kreist, während der Agent arbeitet",
     sidebarVibrancy: "Natives Seitenleistenmaterial",
     sidebarVibrancyDescription:
       "Stellt die Seitenleiste mit dem nativen macOS-Seitenleistenmaterial dar",

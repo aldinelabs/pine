@@ -34,6 +34,7 @@ export type ComposerGlowUpdate = Partial<{
   colors: ComposerGlowColors;
   activity: ComposerGlowActivity;
   reducedMotion: boolean;
+  present: boolean;
 }>;
 
 export interface ComposerGlowHost {
@@ -89,6 +90,10 @@ function diff(
   ) {
     current.reducedMotion = changes.reducedMotion;
     messages.push({ type: "motion", reducedMotion: changes.reducedMotion });
+  }
+  if (changes.present !== undefined && changes.present !== current.present) {
+    current.present = changes.present;
+    messages.push({ type: "presence", present: changes.present });
   }
   return messages;
 }

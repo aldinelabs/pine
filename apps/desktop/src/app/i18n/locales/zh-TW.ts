@@ -315,6 +315,8 @@ export default {
     monetMode: "Monet",
     invertDocuments: "深色模式下反色文件",
     invertDocumentsDescription: "深色模式下預設反色顯示 PDF、簡報等文件的頁面",
+    composerGlow: "工作光效",
+    composerGlowDescription: "智慧代理工作時，在輸入框四周顯示環繞的光效",
     sidebarVibrancy: "側欄原生材質",
     sidebarVibrancyDescription: "使用 macOS 原生側欄材質渲染側欄",
     modelCatalogRefresh: "模型目錄",

@@ -7,6 +7,16 @@ import {
   composerGlowSeed,
 } from "@/lib/composerGlow";
 import { createComposerGlowHost } from "@/lib/composerGlowHost";
+import { createComposerGlowRenderer } from "@/lib/composerGlowRenderer";
+
+vi.mock("@/lib/composerGlowRenderer", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@/lib/composerGlowRenderer")>();
+  return {
+    ...actual,
+    createComposerGlowRenderer: vi.fn(actual.createComposerGlowRenderer),
+  };
+});
 
 class FakeWorker extends EventTarget {
   static instances: FakeWorker[] = [];
@@ -56,6 +66,7 @@ function state(): ComposerGlowState {
     activity: { focused: true, visible: true },
     reducedMotion: false,
     seed: composerGlowSeed(() => 0.5),
+    present: true,
   };
 }
 
@@ -139,6 +150,22 @@ describe("createComposerGlowHost in a worker", () => {
     });
   });
 
+  it("posts a presence change once", () => {
+    const { host, worker } = start();
+    host.update({ present: false });
+    host.update({ present: false });
+    expect(worker.posted.map((post) => post.message)).toEqual([
+      expect.objectContaining({ type: "init" }),
+      { type: "presence", present: false },
+    ]);
+    host.update({ present: true });
+    expect(worker.posted.at(-1)?.message).toEqual({
+      type: "presence",
+      present: true,
+    });
+    expect(worker.posted).toHaveLength(3);
+  });
+
   it("reports the first frame once", () => {
     const { worker, options } = start();
     worker.reply({ type: "ready", api: "webgl2" });
@@ -209,6 +236,20 @@ describe("createComposerGlowHost on the page", () => {
       host.update({ reducedMotion: true });
       host.dispose();
     }).not.toThrow();
+  });
+
+  it("hands a presence change to the page renderer once", () => {
+    const handle = vi.fn();
+    vi.mocked(createComposerGlowRenderer).mockImplementationOnce(() => ({
+      handle,
+    }));
+    const canvas = document.createElement("canvas");
+    const host = createComposerGlowHost(canvas, state(), callbacks());
+    expect(host.mode).toBe("main");
+    host.update({ present: false });
+    host.update({ present: false });
+    expect(handle.mock.calls).toEqual([[{ type: "presence", present: false }]]);
+    host.dispose();
   });
 
   it("draws on the main thread when asked to", () => {

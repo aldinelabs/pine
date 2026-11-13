@@ -1,6 +1,7 @@
 import { createPinia, setActivePinia } from "pinia";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  COMPOSER_GLOW_STORAGE_KEY,
   INVERT_DOCUMENTS_STORAGE_KEY,
   PINE_COLOR_THEME_STORAGE_KEY,
   SIDEBAR_VIBRANCY_STORAGE_KEY,
@@ -190,5 +191,47 @@ describe("appearance store", () => {
     restored.setInvertDocuments(true);
     restored.setThemePreference("light");
     expect(restored.invertsDocuments).toBe(false);
+  });
+
+  it("shows the working glow unless turned off", () => {
+    const store = useAppearanceStore();
+    expect(store.composerGlow).toBe(true);
+
+    store.setComposerGlow(false);
+    expect(store.composerGlow).toBe(false);
+    expect(window.localStorage.getItem(COMPOSER_GLOW_STORAGE_KEY)).toBe(
+      "false",
+    );
+    setActivePinia(createPinia());
+    expect(useAppearanceStore().composerGlow).toBe(false);
+  });
+
+  it("follows a working glow change made in another window", () => {
+    let report: ((key: string, value: string | null) => void) | undefined;
+    const unsubscribe = vi.fn();
+    (window as unknown as { pine: unknown }).pine = {
+      platform: "linux",
+      setSidebarVibrancy,
+      setThemeSource,
+      preferences: {
+        snapshot: {},
+        set: vi.fn(),
+        remove: vi.fn(),
+        onChange: vi.fn((listener: typeof report) => {
+          report = listener;
+          return unsubscribe;
+        }),
+      },
+    };
+    const store = useAppearanceStore();
+    store.initialize();
+    expect(store.composerGlow).toBe(true);
+
+    report?.("pine.other", "false");
+    expect(store.composerGlow).toBe(true);
+    report?.(COMPOSER_GLOW_STORAGE_KEY, "false");
+    expect(store.composerGlow).toBe(false);
+    report?.(COMPOSER_GLOW_STORAGE_KEY, null);
+    expect(store.composerGlow).toBe(true);
   });
 });

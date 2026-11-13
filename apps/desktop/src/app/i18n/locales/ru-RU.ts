@@ -335,6 +335,9 @@ export default {
     invertDocuments: "Инвертировать документы в тёмном режиме",
     invertDocumentsDescription:
       "В тёмном режиме открывать PDF, презентации и другие документы с инвертированными страницами",
+    composerGlow: "Свечение во время работы",
+    composerGlowDescription:
+      "Показывать свет, обходящий поле ввода, пока агент работает",
     sidebarVibrancy: "Нативный материал боковой панели",
     sidebarVibrancyDescription:
       "Отображать боковую панель с нативным материалом macOS",

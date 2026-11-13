@@ -86,6 +86,7 @@ import { useProjectDisplayName } from "@/composables/useProjectDisplayName";
 import { projectIconComponent } from "@/lib/projectIcons";
 import { projectNameMatches } from "@/lib/projectNameMatches";
 import type { PineProject } from "@/shared/projects";
+import { useAppearanceStore } from "@/stores/appearance";
 import { useProjectStore } from "@/stores/project";
 import { cn } from "@/lib/utils";
 import type { PineApprovalAction, PineApprovalMode } from "@/shared/agent";
@@ -224,11 +225,15 @@ const hasPendingInterruption = computed(() =>
   ),
 );
 /**
- * The text box glows while this tab's agent works; background tabs stay
- * still. Approval and questionnaire cards replace the text box, so the glow
- * goes with it.
+ * The text box glows while this tab's agent works, unless Working glow is
+ * off in Appearance settings; background tabs stay still. Approval and
+ * questionnaire cards replace the text box, so the glow goes with it.
+ * Turning the setting off mid-run fades the light out like the end of a run.
  */
-const glowActive = computed(() => Boolean(props.isRunning && props.isActive));
+const appearanceStore = useAppearanceStore();
+const glowActive = computed(() =>
+  Boolean(props.isRunning && props.isActive && appearanceStore.composerGlow),
+);
 const approvalModes = computed<ApprovalModeOption[]>(() => [
   {
     value: "let-me-review",

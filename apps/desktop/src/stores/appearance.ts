@@ -6,7 +6,10 @@ import {
   PROJECT_COLOR_THEMES,
   type ProjectColorTheme,
 } from "@/shared/projects";
-import { preferenceStorage } from "@/lib/preferenceStorage";
+import {
+  preferenceStorage,
+  subscribePreference,
+} from "@/lib/preferenceStorage";
 import { useUserProfileStore } from "@/stores/userProfile";
 
 export const THEME_PREFERENCE_STORAGE_KEY = "pine.theme-preference";
@@ -24,6 +27,8 @@ export const READING_FONT_CLASS = "reading-font";
 /** Before 0.14.1 the reading font was a serif option kept under this key. */
 const LEGACY_TRANSCRIPT_SERIF_STORAGE_KEY = "pine.transcript-serif";
 export const INVERT_DOCUMENTS_STORAGE_KEY = "pine.invert-documents";
+/** The light round the composer while the agent works. */
+export const COMPOSER_GLOW_STORAGE_KEY = "pine.composer-glow";
 
 export type ColorScheme = "light" | "dark";
 export type ThemePreference = "system" | ColorScheme;
@@ -138,6 +143,15 @@ function readStoredInvertDocuments(): boolean {
   }
 }
 
+/** The working glow is on unless the user turned it off. */
+function readStoredComposerGlow(): boolean {
+  try {
+    return preferenceStorage.getItem(COMPOSER_GLOW_STORAGE_KEY) !== "false";
+  } catch {
+    return true;
+  }
+}
+
 function isMacOSPlatform(): boolean {
   return isDesktopClient() && window.pine?.platform === "darwin";
 }
@@ -150,6 +164,7 @@ export const useAppearanceStore = defineStore("appearance", () => {
   const sidebarVibrancy = ref(false);
   const readingFont = ref(readStoredReadingFont());
   const invertDocuments = ref(readStoredInvertDocuments());
+  const composerGlow = ref(readStoredComposerGlow());
   /** Whether previews that can invert their pages start inverted. */
   const invertsDocuments = computed(
     () => invertDocuments.value && colorScheme.value === "dark",
@@ -214,6 +229,10 @@ export const useAppearanceStore = defineStore("appearance", () => {
     applyColorScheme();
     applyReadingFont();
     followMonetMode();
+    // Follows a change made in another window (or browser tab) right away.
+    subscribePreference(COMPOSER_GLOW_STORAGE_KEY, (value) => {
+      composerGlow.value = value !== "false";
+    });
     if (supportsSidebarVibrancy.value) {
       migrateSidebarVibrancyOnce();
       sidebarVibrancy.value = readStoredSidebarVibrancy();
@@ -287,8 +306,23 @@ export const useAppearanceStore = defineStore("appearance", () => {
     }
   }
 
+  function setComposerGlow(enabled: boolean): void {
+    composerGlow.value = enabled;
+
+    try {
+      preferenceStorage.setItem(
+        COMPOSER_GLOW_STORAGE_KEY,
+        enabled ? "true" : "false",
+      );
+    } catch {
+      // The choice still applies for this session if storage is unavailable.
+    }
+  }
+
   return {
     colorScheme,
+    composerGlow,
+    setComposerGlow,
     invertDocuments,
     invertsDocuments,
     setInvertDocuments,

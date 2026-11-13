@@ -334,6 +334,9 @@ export default {
     invertDocuments: "Invert documents in dark mode",
     invertDocumentsDescription:
       "Open PDFs, presentations and other documents with inverted pages in dark mode",
+    composerGlow: "Working glow",
+    composerGlowDescription:
+      "Show a light circling the text box while the agent works",
     sidebarVibrancy: "Native sidebar material",
     sidebarVibrancyDescription:
       "Render the sidebar with the native macOS sidebar material",
