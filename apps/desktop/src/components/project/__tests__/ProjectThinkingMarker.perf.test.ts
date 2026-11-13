@@ -17,8 +17,9 @@
  *
  * "before" is the marker before any perf change; "W2-A" followed the stream
  * in a scroll container with one native smooth `scrollTo` per resize report.
- * "after" is the live view: while thinking streams the panel shows only the
- * newest complete paragraph, so it renders one block and never scrolls.
+ * "after" is the live view: while thinking streams the panel adds one whole
+ * block at a time, each rendered once on its own, and follows with one
+ * native smooth `scrollTo` per new bottom (no tween, no scrollTop writes).
  *
  * Print the metrics with `PINE_PERF_LOG=1` (add `--reporter=default` when
  * vitest hides the output of passing tests).
@@ -125,11 +126,10 @@ async function streamOneSecond() {
     scrollTopWrites: marker.layout.scrollTopWrites(),
   };
   reportMetrics("thinking stream, 1 s", metrics);
-  // The panel is open and shows the newest complete paragraph, not the first.
+  // The panel is open and ends at the newest complete paragraph.
   expect(marker.wrapper.get("button").attributes("aria-expanded")).toBe("true");
   expect(marker.panel.textContent).toContain(`Step ${marker.lines() - 1}:`);
   expect(marker.panel.textContent).not.toContain(`Step ${marker.lines()}:`);
-  expect(marker.panel.textContent).not.toContain("Step 1:");
   return { marker, metrics };
 }
 
@@ -182,7 +182,7 @@ describe("ProjectThinkingMarker streaming cost", () => {
     expect(marker.clock.pendingFrames()).toBe(0);
   });
 
-  it("[T5] renders only the newest complete paragraph, not the whole thinking", async () => {
+  it("[T5] renders each block once on its own, not the whole thinking per flush", async () => {
     const { marker } = await streamOneSecond();
     const sources = marker.wrapper
       .findAllComponents(MarkdownContent)
@@ -195,7 +195,9 @@ describe("ProjectThinkingMarker streaming cost", () => {
     expect(sources.at(-1)).toBe(
       `Step ${marker.lines() - 1}: weigh the next option.`,
     );
-    // At most the current paragraph and the one fading out.
-    expect(sources.length).toBeLessThanOrEqual(2);
+    // Every block added during the stream is its own render of one paragraph.
+    const streamed = sources.slice(1);
+    expect(streamed).toHaveLength(FLUSHES);
+    for (const source of streamed) expect(source).not.toContain("\n\n");
   });
 });

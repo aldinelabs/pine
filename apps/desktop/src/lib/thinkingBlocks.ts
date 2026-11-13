@@ -1,9 +1,9 @@
 /**
  * Incremental Markdown block splitter for streaming thinking.
  *
- * The live thinking view shows one Markdown block (paragraph, list, heading
- * section or code block) at a time, once it is complete: a block is complete
- * when the next one starts. Thinking text only grows by appending, so
+ * The live thinking view adds one whole Markdown block (paragraph, list,
+ * heading section or code block) at a time: a block is complete when the
+ * next one starts. Thinking text only grows by appending, so
  * the splitter resumes from the last complete line it classified: each update
  * costs the new characters plus the trailing partial line, never the whole
  * text. A non-append change (shorter text, or a rewrite before the resume
@@ -15,8 +15,6 @@ export interface ThinkingBlockState {
   blockStart: number;
   /** Increments each time a new block starts; used as the render key. */
   blockIndex: number;
-  /** Offset of the last completed block's first character, or -1 before any. */
-  completedStart: number;
   /** Offset of the first line not yet classified (start of the trailing partial line). */
   lineStart: number;
   /** Open fence (char + length) or open `$$` display math, else undefined. */
@@ -43,7 +41,6 @@ function initialState(): ThinkingBlockState {
   return {
     blockStart: 0,
     blockIndex: 0,
-    completedStart: -1,
     lineStart: 0,
     pendingBreak: false,
     hasContent: false,
@@ -66,7 +63,6 @@ function countMathDelimiters(line: string): number {
 /** Moves the block start to `offset`, counting a new block only once. */
 function startBlockAt(state: ThinkingBlockState, offset: number): void {
   if (state.blockStart === offset) return;
-  state.completedStart = state.blockStart;
   state.blockStart = offset;
   state.blockIndex += 1;
 }
@@ -160,13 +156,4 @@ export function currentThinkingBlock(
   text: string,
 ): string {
   return text.slice(state.blockStart).trimEnd();
-}
-
-/** The last completed block (index `blockIndex - 1`), or "" before any. */
-export function completedThinkingBlock(
-  state: ThinkingBlockState,
-  text: string,
-): string {
-  if (state.completedStart < 0) return "";
-  return text.slice(state.completedStart, state.blockStart).trim();
 }

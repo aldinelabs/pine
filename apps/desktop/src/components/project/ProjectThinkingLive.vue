@@ -10,30 +10,31 @@ import {
 } from "vue";
 import MarkdownContent from "@/components/markdown/MarkdownContent.vue";
 import { Skeleton } from "@/components/ui/skeleton";
+import { prefersReducedMotion } from "@/lib/animateScroll";
 import {
   advanceThinkingBlocks,
-  completedThinkingBlock,
-  currentThinkingBlock,
   type ThinkingBlockState,
 } from "@/lib/thinkingBlocks";
 
 /**
- * The thinking panel while the model is still thinking: one whole Markdown
- * block at a time, shown once the next block starts and crossfading to the
- * next completed one. Before the first block completes a one-line skeleton
- * holds the panel's starting height. It is not a scroll container and never
- * shrinks while mounted, so the transcript following the stream only ever
- * sees it grow.
+ * The thinking panel while the model is still thinking: a scroll area that
+ * grows one whole Markdown block at a time. A block is added once the next
+ * one starts (or its thinking segment ends), fades in, and the panel glides
+ * to it with the browser's own smooth scroll, unless the reader has scrolled
+ * up. Before the first block completes a one-line skeleton holds the panel's
+ * starting height. Blocks are only ever appended, so the panel never shrinks.
+ *
+ * Each block renders once into its own Markdown view, so adding one costs
+ * that block, not the thinking so far.
  *
  * Fallback for a block that takes long: once the block being written passes
  * `OVERDUE_CHARS` or has been written for `OVERDUE_MS`, it is shown as it
- * stands and refreshed at most every
- * `PARTIAL_REFRESH_MS` (not per token). Its completed text then replaces it
- * in place.
+ * stands and refreshed at most every `PARTIAL_REFRESH_MS` (not per token).
+ * Its completed text then replaces it in place.
  */
 const props = defineProps<{
-  /** The newest thinking content block with visible text. */
-  source: { segment: number; text: string };
+  /** The thinking content blocks with visible text, in order; the last streams. */
+  sources: readonly { segment: number; text: string }[];
 }>();
 
 interface LiveItem {
@@ -41,30 +42,35 @@ interface LiveItem {
   text: string;
   /** The whole block; false for an overdue block shown while written. */
   complete: boolean;
-  leaving: boolean;
-  tall: boolean;
+  /** Shown at mount: no enter animation. */
   initial: boolean;
 }
 
-/** Fallback for the panel's `max-h-64` when no computed style is available. */
-const DEFAULT_CAP_PX = 256;
 /** An unfinished block this long is shown as it stands. */
 const OVERDUE_CHARS = 600;
 /** An unfinished block written for this long is shown as it stands. */
 const OVERDUE_MS = 4000;
 /** An overdue block's shown text is refreshed at most this often. */
 const PARTIAL_REFRESH_MS = 1500;
+/** Within this distance of the bottom the panel follows new blocks again. */
+const FOLLOW_THRESHOLD_PX = 24;
+/** Scroll position past which an edge counts as scrollable (fade shown). */
+const FADE_EDGE_THRESHOLD = 1;
 
 const root = useTemplateRef<HTMLElement>("root");
-const stack = useTemplateRef<HTMLElement>("stack");
+const body = useTemplateRef<HTMLElement>("body");
 const items = shallowRef<LiveItem[]>([]);
-const minHeight = ref(0);
-let capPx = DEFAULT_CAP_PX;
+const hasHiddenAbove = ref(false);
+const hasHiddenBelow = ref(false);
+const isFollowing = ref(true);
+
 let split: ThinkingBlockState | undefined;
 let splitSegment: number | undefined;
 let splitText = "";
-let observer: ResizeObserver | undefined;
-let observedItem: Element | undefined;
+/** Offset in the streaming segment up to which whole blocks are shown. */
+let shownEnd = 0;
+/** Earlier segments already shown in full. */
+const shownSegments = new Set<number>();
 let isMounted = false;
 /** When the block being written started (or its segment did). */
 let blockSince = Date.now();
@@ -73,30 +79,29 @@ let partialKey: string | undefined;
 let partialAt = 0;
 let partialLength = 0;
 let timer: ReturnType<typeof setTimeout> | undefined;
-
-const current = computed(() => items.value.at(-1));
-const currentKey = computed(() => current.value?.key);
-const isClipped = computed(() => current.value?.tall === true);
-/** A tall block, current or fading out, is shown by its tail: keep the top fade. */
-const showsTail = computed(() => items.value.some((item) => item.tall));
+let observer: ResizeObserver | undefined;
+/** Panel scroll range from the last resize report. */
+let maxTop = 0;
+/** The bottom the panel was last sent to, so a repeat report does nothing. */
+let lastTarget: number | undefined;
+let hasUserScrollIntent = false;
 
 function show(key: string, text: string, complete: boolean): void {
-  const last = items.value.at(-1);
-  if (last?.key === key) {
-    if (last.text === text && last.complete === complete) return;
-    items.value = [...items.value.slice(0, -1), { ...last, text, complete }];
+  const list = items.value;
+  const index = list.findIndex((item) => item.key === key);
+  if (index >= 0) {
+    const item = list[index];
+    if (item.text === text && item.complete === complete) return;
+    const next = list.slice();
+    next[index] = { ...item, text, complete };
+    items.value = next;
     return;
   }
-  const next: LiveItem = {
-    key,
-    text,
-    complete,
-    leaving: false,
-    tall: false,
-    // Already-complete text at mount shows at once; after the skeleton it fades in.
-    initial: !last && !isMounted,
-  };
-  items.value = last ? [{ ...last, leaving: true }, next] : [next];
+  items.value = [
+    ...list,
+    // Text already complete at mount shows at once; later blocks fade in.
+    { key, text, complete, initial: !isMounted },
+  ];
 }
 
 /** One pending timer at most, so a stalled stream still reaches the fallback. */
@@ -105,7 +110,7 @@ function scheduleRecheck(delay: number): void {
   timer = setTimeout(
     () => {
       timer = undefined;
-      update(props.source);
+      update(props.sources);
     },
     Math.max(0, delay),
   );
@@ -117,29 +122,63 @@ function cancelRecheck(): void {
   timer = undefined;
 }
 
-function update(source: { segment: number; text: string }): void {
+/**
+ * Shows the segment's text from where the last whole block ended up to
+ * `end` as complete: one block normally, several at once when a flush
+ * finished more than one (or the panel mounted mid-stream). An overdue
+ * block shown while written is replaced in place.
+ */
+function showCompleted(end: number): void {
+  if (!split || splitSegment === undefined) return;
+  const text = splitText.slice(shownEnd, end).trim();
+  if (text === "") return;
+  const key = partialKey ?? `${splitSegment}:${split.blockIndex - 1}`;
+  show(key, text, true);
+  shownEnd = end;
+  partialKey = undefined;
+}
+
+function finishSplitSegment(): void {
+  if (splitSegment === undefined) return;
+  if (split) {
+    // The thinking content block ended: its last block is complete.
+    const end = splitText.length;
+    const text = splitText.slice(shownEnd, end).trim();
+    if (text !== "")
+      show(partialKey ?? `${splitSegment}:${split.blockIndex}`, text, true);
+  }
+  shownSegments.add(splitSegment);
+}
+
+function update(sources: readonly { segment: number; text: string }[]): void {
+  const source = sources.at(-1);
+  if (!source) return;
+  // Earlier segments not yet shown (the panel mounted mid-stream) show whole.
+  for (const earlier of sources.slice(0, -1)) {
+    if (shownSegments.has(earlier.segment) || earlier.segment === splitSegment)
+      continue;
+    const text = earlier.text.trim();
+    if (text !== "") show(`${earlier.segment}:all`, text, true);
+    shownSegments.add(earlier.segment);
+  }
   if (source.segment !== splitSegment) {
-    // The previous thinking content block ended: its last block is complete.
-    if (split && splitSegment !== undefined) {
-      const tail = currentThinkingBlock(split, splitText);
-      if (tail !== "") show(`${splitSegment}:${split.blockIndex}`, tail, true);
-    }
+    finishSplitSegment();
     split = undefined;
     splitSegment = source.segment;
+    shownEnd = 0;
+    partialKey = undefined;
     blockSince = Date.now();
     cancelRecheck();
   }
-  const previousIndex = split?.blockIndex;
+  // A rewrite shorter than what is shown starts the segment's text over.
+  if (source.text.length < shownEnd) shownEnd = 0;
+  const previousIndex = split?.blockIndex ?? 0;
   split = advanceThinkingBlocks(split, source.text);
   splitText = source.text;
-  if (previousIndex === undefined || split.blockIndex !== previousIndex) {
-    const completed = completedThinkingBlock(split, source.text);
-    if (completed !== "")
-      show(`${source.segment}:${split.blockIndex - 1}`, completed, true);
-    if (previousIndex !== undefined) {
-      blockSince = Date.now();
-      cancelRecheck();
-    }
+  if (split.blockIndex !== previousIndex) {
+    showCompleted(split.blockStart);
+    blockSince = Date.now();
+    cancelRecheck();
   }
 
   const written = source.text.length - split.blockStart;
@@ -156,7 +195,7 @@ function update(source: { segment: number; text: string }): void {
       return;
     }
   }
-  const text = currentThinkingBlock(split, source.text);
+  const text = source.text.slice(shownEnd).trim();
   if (text === "") return;
   partialKey = key;
   partialAt = now;
@@ -164,72 +203,88 @@ function update(source: { segment: number; text: string }): void {
   show(key, text, false);
 }
 
-watch(() => props.source, update, { immediate: true });
+watch(() => props.sources, update, { immediate: true });
 
-function dropLeaving(key: string): void {
-  const next = items.value.filter(
-    (item) => !(item.leaving && item.key === key),
-  );
-  if (next.length !== items.value.length) items.value = next;
+function updateEdges(scrollTop: number): void {
+  const above = scrollTop > FADE_EDGE_THRESHOLD;
+  const below = maxTop - scrollTop > FADE_EDGE_THRESHOLD;
+  if (hasHiddenAbove.value !== above) hasHiddenAbove.value = above;
+  if (hasHiddenBelow.value !== below) hasHiddenBelow.value = below;
 }
 
-function handleAnimationEnd(item: LiveItem): void {
-  if (item.leaving) dropLeaving(item.key);
-}
-
-function entryHeight(entry: ResizeObserverEntry): number {
-  return entry.borderBoxSize?.[0]?.blockSize ?? entry.contentRect.height;
+function scrollToBottom(element: HTMLElement, smooth: boolean): void {
+  if (maxTop === lastTarget) return;
+  lastTarget = maxTop;
+  if (typeof element.scrollTo !== "function") return;
+  element.scrollTo({
+    top: maxTop,
+    behavior: smooth && !prefersReducedMotion() ? "smooth" : "auto",
+  });
 }
 
 /**
- * Runs after layout, reading sizes the browser already computed: the panel
- * keeps the tallest height it has shown (up to its cap), and a block taller
- * than the cap aligns to the bottom so the newest line stays in view.
+ * Runs after layout whenever a block is added or reflows, so the
+ * measurements here force no extra layout. While following, the panel
+ * glides to the newest block with the browser's smooth scroll, which runs
+ * off the main thread and retargets itself if another block lands mid-glide.
  */
-function handleResize(entries: ResizeObserverEntry[]): void {
-  for (const entry of entries) {
-    const height = entryHeight(entry);
-    if (entry.target === stack.value) {
-      const capped = Math.min(height, capPx);
-      if (capped > minHeight.value) minHeight.value = capped;
-      continue;
-    }
-    const item = current.value;
-    if (entry.target === observedItem && item && !item.tall && height > capPx) {
-      items.value = [...items.value.slice(0, -1), { ...item, tall: true }];
-    }
+function handleResize(): void {
+  const element = root.value;
+  if (!element) return;
+  maxTop = Math.max(0, element.scrollHeight - element.clientHeight);
+  updateEdges(element.scrollTop);
+  if (isFollowing.value) scrollToBottom(element, true);
+}
+
+function handleScroll(): void {
+  const element = root.value;
+  if (!element) return;
+  const scrollTop = element.scrollTop;
+  updateEdges(scrollTop);
+  if (maxTop - scrollTop <= FOLLOW_THRESHOLD_PX) {
+    isFollowing.value = true;
+    hasUserScrollIntent = false;
+    return;
   }
+  // Only the reader's own scroll stops following, not the glide itself.
+  if (hasUserScrollIntent) {
+    isFollowing.value = false;
+    lastTarget = undefined;
+  }
+  hasUserScrollIntent = false;
 }
 
-function observeCurrentItem(): void {
-  if (!observer) return;
-  const element = stack.value?.lastElementChild ?? undefined;
-  if (element === observedItem) return;
-  if (observedItem) observer.unobserve(observedItem);
-  observedItem = element;
-  if (element) observer.observe(element);
+function markUserScrollIntent(): void {
+  hasUserScrollIntent = true;
 }
-
-watch(currentKey, observeCurrentItem, { flush: "post" });
 
 onMounted(() => {
   isMounted = true;
   const element = root.value;
   if (element) {
-    const max = Number.parseFloat(getComputedStyle(element).maxHeight);
-    if (Number.isFinite(max) && max > 0) capPx = max;
+    // Whatever was complete at mount is pinned at its end without a glide.
+    maxTop = Math.max(0, element.scrollHeight - element.clientHeight);
+    scrollToBottom(element, false);
   }
   if (typeof ResizeObserver === "undefined") return;
   observer = new ResizeObserver(handleResize);
-  if (stack.value) observer.observe(stack.value);
-  observeCurrentItem();
+  if (body.value) observer.observe(body.value);
 });
 
 onBeforeUnmount(() => {
   cancelRecheck();
   observer?.disconnect();
   observer = undefined;
-  observedItem = undefined;
+});
+
+const scrollableAttr = computed(() => {
+  // While following, the glide trails the newest block: no bottom fade
+  // pulsing on each landing.
+  const edges = [
+    hasHiddenAbove.value && "start",
+    hasHiddenBelow.value && !isFollowing.value && "end",
+  ].filter(Boolean);
+  return edges.length > 0 ? edges.join(" ") : undefined;
 });
 </script>
 
@@ -237,16 +292,22 @@ onBeforeUnmount(() => {
   <div
     ref="root"
     data-thinking-live
-    class="thinking-scroll-fade relative mt-3 flex max-h-64 flex-col overflow-hidden pl-6 pr-3 text-sm text-muted-foreground"
-    :class="isClipped && 'justify-end'"
-    :data-scrollable="showsTail ? 'start' : undefined"
-    :style="minHeight ? { minHeight: `${minHeight}px` } : undefined"
+    class="thinking-scroll-fade no-scrollbar mt-3 max-h-64 overflow-y-auto overscroll-contain pl-6 pr-3 text-sm text-muted-foreground"
+    :data-scrollable="scrollableAttr"
+    :data-following="isFollowing || undefined"
+    @scroll.passive="handleScroll"
+    @wheel.passive="markUserScrollIntent"
+    @touchstart.passive="markUserScrollIntent"
+    @pointerdown="markUserScrollIntent"
+    @keydown="markUserScrollIntent"
   >
-    <div ref="stack" class="grid shrink-0">
+    <!-- The gap matches the compact Markdown paragraph spacing, so the
+         finished panel's single render lines up with these blocks. -->
+    <div ref="body" class="flex flex-col gap-1.5">
       <div
         v-if="items.length === 0"
         data-thinking-placeholder
-        class="flex h-5 items-center [grid-area:1/1]"
+        class="flex h-5 items-center"
         aria-hidden="true"
       >
         <Skeleton class="h-3 w-2/3 rounded-full motion-reduce:animate-none" />
@@ -254,18 +315,10 @@ onBeforeUnmount(() => {
       <div
         v-for="item in items"
         :key="item.key"
-        class="thinking-live-block [grid-area:1/1]"
-        :data-leaving="item.leaving || undefined"
-        :data-tall="item.tall || undefined"
+        class="thinking-live-block"
         :data-initial="item.initial || undefined"
-        :aria-hidden="item.leaving || undefined"
-        @animationend.self="handleAnimationEnd(item)"
       >
-        <MarkdownContent
-          :source="item.text"
-          :final="item.complete || item.leaving"
-          compact
-        />
+        <MarkdownContent :source="item.text" :final="item.complete" compact />
       </div>
     </div>
   </div>
@@ -273,57 +326,26 @@ onBeforeUnmount(() => {
 
 <style scoped>
 /*
- * Opacity-only keyframes run on the compositor: a swap costs one render of
- * the new block and no per-frame script. The incoming block fades in while
- * the outgoing one fades out in the same grid cell, so nothing shifts.
+ * Opacity and transform only, so a new block's entrance runs on the
+ * compositor: adding one costs one render of that block and no per-frame
+ * script.
  */
 .thinking-live-block {
-  align-self: start;
-  animation: thinking-block-in 240ms var(--ease-out-expo) both;
-}
-
-.thinking-live-block[data-tall] {
-  align-self: end;
-}
-
-/*
- * A tall block that starts fading out leaves the stack's layout and stays
- * pinned to the panel bottom, where it was shown, so the next (short) block
- * can align to the top without the outgoing tail jumping. The padding
- * matches the root's `pl-6 pr-3`.
- */
-.thinking-live-block[data-leaving][data-tall] {
-  position: absolute;
-  inset-inline: 0;
-  bottom: 0;
-  padding-left: calc(var(--spacing) * 6);
-  padding-right: calc(var(--spacing) * 3);
+  animation: thinking-block-in 320ms var(--ease-out-expo) both;
 }
 
 .thinking-live-block[data-initial] {
   animation: none;
 }
 
-.thinking-live-block[data-leaving] {
-  animation: thinking-block-out 200ms ease-out both;
-  pointer-events: none;
-}
-
 @keyframes thinking-block-in {
   from {
     opacity: 0;
+    transform: translateY(6px);
   }
   to {
     opacity: 1;
-  }
-}
-
-@keyframes thinking-block-out {
-  from {
-    opacity: 1;
-  }
-  to {
-    opacity: 0;
+    transform: none;
   }
 }
 
@@ -355,13 +377,13 @@ onBeforeUnmount(() => {
   --scroll-fade-t: var(--_fade-size);
 }
 
+.thinking-scroll-fade[data-scrollable~="end"] {
+  --scroll-fade-b: var(--_fade-size);
+}
+
 @media (prefers-reduced-motion: reduce) {
   .thinking-live-block {
     animation: none;
-  }
-
-  .thinking-live-block[data-leaving] {
-    display: none;
   }
 
   .thinking-scroll-fade {

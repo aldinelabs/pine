@@ -274,7 +274,7 @@ describe("project transcript markers", () => {
     };
   }
 
-  it("shows one whole block at a time and completes a segment's last block when the next one starts", async () => {
+  it("adds whole blocks and completes a segment's last block when the next one starts", async () => {
     const wrapper = mountThinking(
       streamingThinking([
         {
@@ -298,9 +298,9 @@ describe("project transcript markers", () => {
     });
     expect(
       wrapper
-        .get("[data-thinking-live] .thinking-live-block:not([data-leaving])")
-        .text(),
-    ).toBe("Plan the change.");
+        .findAll("[data-thinking-live] .thinking-live-block")
+        .map((block) => block.text()),
+    ).toEqual(["Plan the change."]);
 
     await wrapper.setProps({
       message: streamingThinking([
@@ -313,9 +313,9 @@ describe("project transcript markers", () => {
     });
     expect(
       wrapper
-        .get("[data-thinking-live] .thinking-live-block:not([data-leaving])")
-        .text(),
-    ).toBe("Inspect the store.");
+        .findAll("[data-thinking-live] .thinking-live-block")
+        .map((block) => block.text()),
+    ).toEqual(["Plan the change.", "Inspect the store."]);
     wrapper.unmount();
   });
 
@@ -393,7 +393,7 @@ describe("project transcript markers", () => {
     wrapper.unmount();
   });
 
-  it("shows the current block again when reopened while streaming", async () => {
+  it("shows every complete block again when reopened while streaming", async () => {
     vi.useFakeTimers();
     const wrapper = mountThinking(
       streamingThinking([{ type: "thinking", thinking: "First.\n\nSecond." }]),
@@ -408,7 +408,8 @@ describe("project transcript markers", () => {
       ]),
     });
     await trigger.trigger("click");
-    expect(wrapper.get("[data-thinking-live]").text()).toBe("Second.");
+    expect(wrapper.get("[data-thinking-live]").text()).toBe("First.Second.");
+    expect(wrapper.get("[data-thinking-live]").text()).not.toContain("Third");
     expect(wrapper.find("[data-thinking-content]").exists()).toBe(false);
     wrapper.unmount();
   });

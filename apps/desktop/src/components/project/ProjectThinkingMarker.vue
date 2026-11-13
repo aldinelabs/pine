@@ -54,8 +54,8 @@ const isStreaming = computed(
 );
 
 /**
- * While thinking streams the panel shows only the block being written
- * (`ProjectThinkingLive`); once it finishes, the full text as a scroll area.
+ * While thinking streams the panel grows one whole block at a time
+ * (`ProjectThinkingLive`); once it finishes, the full text in one render.
  */
 const liveView = ref(isStreaming.value);
 
@@ -73,18 +73,16 @@ const hasThinking = computed(() =>
   ),
 );
 
-const EMPTY_LIVE_SOURCE = { segment: -1, text: "" };
 const NON_WHITESPACE = /\S/;
 
-/** The newest thinking block with visible text; each block starts anew. */
-const liveSource = computed(() => {
-  const blocks = props.message.blocks;
-  for (let index = blocks.length - 1; index >= 0; index--) {
-    const block = blocks[index];
+/** The thinking blocks with visible text, in order; the last one streams. */
+const liveSources = computed(() => {
+  const sources: { segment: number; text: string }[] = [];
+  props.message.blocks.forEach((block, index) => {
     if (block.type === "thinking" && NON_WHITESPACE.test(block.thinking))
-      return { segment: index, text: block.thinking };
-  }
-  return EMPTY_LIVE_SOURCE;
+      sources.push({ segment: index, text: block.thinking });
+  });
+  return sources;
 });
 
 const hasResponseAfterThinking = computed(
@@ -360,7 +358,7 @@ onBeforeUnmount(() => {
         <ProjectThinkingLive
           v-if="isContentMounted && liveView"
           ref="liveRoot"
-          :source="liveSource"
+          :sources="liveSources"
         />
         <div
           v-else-if="isContentMounted"
