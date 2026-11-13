@@ -361,12 +361,13 @@ describe("project transcript markers", () => {
       easing: "cubic-bezier(0.16, 1, 0.3, 1)",
     });
     expect(marker.glides[0].cancel).toHaveBeenCalledTimes(1);
-    // The fade mask stays on the scroller, not on the sliding body.
-    expect(marker.content.getAttribute("data-scrollable")).toBe("start end");
+    // The fade mask stays on the scroller, not on the sliding body, and the
+    // bottom stays clear so the newest line is readable.
+    expect(marker.content.getAttribute("data-scrollable")).toBe("start");
     marker.cleanup();
   });
 
-  it("keeps the bottom fade through each glide landing until the stream ends", async () => {
+  it("never fades the bottom while following the stream", async () => {
     const marker = mountFollowingThinking();
     await nextTick();
     // The scroll lands exactly on the bottom before the next update arrives.
@@ -377,7 +378,7 @@ describe("project transcript markers", () => {
     await marker.grow(700, "Inspect the request.\nCheck one more state.");
     await nextTick();
     expect(marker.content.scrollTop).toBe(600);
-    expect(marker.content.getAttribute("data-scrollable")).toBe("start end");
+    expect(marker.content.getAttribute("data-scrollable")).toBe("start");
 
     await marker.finish();
     marker.content.dispatchEvent(new Event("scroll"));
