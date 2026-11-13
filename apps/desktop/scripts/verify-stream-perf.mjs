@@ -2,8 +2,10 @@
  * Real-browser trace of a streaming reply. A measurement, not a check: it has
  * no thresholds, and only before/after ratios on one machine mean anything.
  * Run with: node apps/desktop/scripts/verify-stream-perf.mjs [--shimmer]
+ * [--phase-ms=<ms>]
  * Prints one JSON line per transcript size (10 and 120 mounted history
- * messages), with a thinking, a text and a settle phase each.
+ * messages), with a thinking, a text and a settle phase each. A longer
+ * phase streams a longer reply (about 830 characters a second).
  */
 import assert from "node:assert/strict";
 import { createRequire } from "node:module";
@@ -30,6 +32,12 @@ const PHASES = [
 ];
 
 const shimmer = process.argv.includes("--shimmer");
+const phaseArgument = process.argv.find((argument) =>
+  argument.startsWith("--phase-ms="),
+);
+const phaseMs = phaseArgument
+  ? Number(phaseArgument.slice("--phase-ms=".length))
+  : undefined;
 
 let browser;
 try {
@@ -125,7 +133,7 @@ try {
   // renderers are not charged to the first measured size.
   await trace(origin, 2, { phaseMs: 600 });
   for (const history of HISTORY_SIZES) {
-    console.log(JSON.stringify(await trace(origin, history, {})));
+    console.log(JSON.stringify(await trace(origin, history, { phaseMs })));
   }
 } finally {
   await browser.close();
