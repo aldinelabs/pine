@@ -20,7 +20,8 @@ import {
 import { sessionSummary } from "./session-state";
 import type { LiveAgentSession } from "./session-state";
 
-const MESSAGE_UPDATE_BATCH_MS = 120;
+/** Streamed message text reaches the UI at most ten times a second. */
+const MESSAGE_UPDATE_BATCH_MS = 100;
 /**
  * Live tool output reaches the UI at most this often per tool call: the SDK's
  * own bash update throttle, so coalescing never slows the refresh users see.
