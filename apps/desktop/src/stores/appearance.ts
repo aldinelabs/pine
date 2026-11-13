@@ -1,4 +1,5 @@
 import { isDesktopClient } from "@/lib/clientRuntime";
+import { COMPOSER_GLOW_PREFERENCE_KEY } from "@/shared/preferenceStorage";
 import { defineStore } from "pinia";
 import { computed, ref } from "vue";
 import {
@@ -28,7 +29,7 @@ export const READING_FONT_CLASS = "reading-font";
 const LEGACY_TRANSCRIPT_SERIF_STORAGE_KEY = "pine.transcript-serif";
 export const INVERT_DOCUMENTS_STORAGE_KEY = "pine.invert-documents";
 /** The light round the composer while the agent works. */
-export const COMPOSER_GLOW_STORAGE_KEY = "pine.composer-glow";
+export const COMPOSER_GLOW_STORAGE_KEY = COMPOSER_GLOW_PREFERENCE_KEY;
 
 export type ColorScheme = "light" | "dark";
 export type ThemePreference = "system" | ColorScheme;

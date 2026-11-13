@@ -93,4 +93,10 @@ describe("preference changes", () => {
       null,
     );
   });
+
+  it("does not broadcast keys that only matter when a window opens", () => {
+    const other = { id: 2, isDestroyed: () => false, send: vi.fn() };
+    notifyPreferenceChange([other], 1, "pine.content-tabs", "{}");
+    expect(other.send).not.toHaveBeenCalled();
+  });
 });

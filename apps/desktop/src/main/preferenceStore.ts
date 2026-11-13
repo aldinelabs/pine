@@ -1,6 +1,7 @@
 import { mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import {
+  LIVE_PREFERENCE_KEYS,
   MAX_PREFERENCE_KEY_LENGTH,
   PREFERENCES_CHANGED_CHANNEL,
   MAX_PREFERENCE_VALUE_LENGTH,
@@ -93,7 +94,7 @@ export interface PreferenceChangeTarget {
 /**
  * Tells every other window that a preference changed, so settings such as
  * the working glow apply everywhere at once. The window that made the
- * change already has it.
+ * change already has it. Only keys in LIVE_PREFERENCE_KEYS are sent.
  */
 export function notifyPreferenceChange(
   targets: readonly PreferenceChangeTarget[],
@@ -101,6 +102,7 @@ export function notifyPreferenceChange(
   key: string,
   value: string | null,
 ): void {
+  if (!LIVE_PREFERENCE_KEYS.has(key)) return;
   for (const target of targets) {
     if (target.id === senderId || target.isDestroyed()) continue;
     try {

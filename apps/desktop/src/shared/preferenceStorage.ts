@@ -6,6 +6,16 @@ export const PREFERENCES_CHANGED_CHANNEL = "preferences:changed" as const;
 
 /** Renderer UI preferences all live under this key prefix. */
 export const PREFERENCE_KEY_PREFIX = "pine.";
+/** The light round the composer while the agent works. */
+export const COMPOSER_GLOW_PREFERENCE_KEY = "pine.composer-glow";
+/**
+ * Preferences other windows apply as soon as they change. Everything else
+ * (tab layouts and the like) is only read when a window opens, so it is
+ * never broadcast.
+ */
+export const LIVE_PREFERENCE_KEYS: ReadonlySet<string> = new Set([
+  COMPOSER_GLOW_PREFERENCE_KEY,
+]);
 export const MAX_PREFERENCE_KEY_LENGTH = 256;
 export const MAX_PREFERENCE_VALUE_LENGTH = 1_000_000;
 
