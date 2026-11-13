@@ -34,7 +34,7 @@
         "@kenjiuno/msgreader": "1.29.0",
         "@ljheee/xmind-parser": "1.1.3",
         "@lobehub/icons-static-svg": "1.95.0",
-        "@lucide/vue": "1.64.0",
+        "@lucide/vue": "1.72.0",
         "@marcbachmann/cel-js": "8.0.0",
         "@myriaddreamin/typst-ts-renderer": "0.7.0",
         "@myriaddreamin/typst-ts-web-compiler": "0.7.0",
@@ -685,7 +685,7 @@
 
     "@lobehub/icons-static-svg": ["@lobehub/icons-static-svg@1.95.0", "", {}, "sha512-VSObF66DUVQe0EK3xbIoFcw+Fcia1+bLVFkMsQbmz0zCceMxPmoLImS5VM5SM7zL+/NarZ11/ySNfkekcomIkQ=="],
 
-    "@lucide/vue": ["@lucide/vue@1.64.0", "", { "peerDependencies": { "vue": ">=3.0.1" } }, "sha512-9Ta6cbHDk49GgKkSQRRVm55Cb99lou++5p4RNzUkS2NvOqD0RlWTEvidWgKMURUkfyz+3J6eeQz7tzCj3PJ0zA=="],
+    "@lucide/vue": ["@lucide/vue@1.72.0", "", { "peerDependencies": { "vue": ">=3.0.1" } }, "sha512-BPcYejGErv+kg4ilXyPU7j6YdA0kQaMiBnlcCElTsoLdQgD+6aoquA/0I4amN5yzkJrZgpULvpDonXui94ez8A=="],
 
     "@malept/cross-spawn-promise": ["@malept/cross-spawn-promise@2.0.0", "https://registry.npmmirror.com/@malept/cross-spawn-promise/-/cross-spawn-promise-2.0.0.tgz", { "dependencies": { "cross-spawn": "^7.0.1" } }, "sha512-1DpKU0Z5ThltBwjNySMC14g0CkbyhCaz9FkhxqNsZI6uAPJXFS8cMXlBKo26FJ8ZuW6S9GCMcR9IO5k2X5/9Fg=="],
 
