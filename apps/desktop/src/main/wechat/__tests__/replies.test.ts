@@ -535,7 +535,7 @@ describe("lists", () => {
       "No background processes.",
     );
     expect(render("R-FILES", "en", { at, canSend: true, rows: [] })).toBe(
-      "This session has not presented any file.",
+      "This session has no artifacts yet.",
     );
     expect(
       render("R-PENDING", "en", { asks: [], automationApprovals: 0 }),

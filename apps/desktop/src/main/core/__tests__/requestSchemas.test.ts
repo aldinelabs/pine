@@ -3,7 +3,10 @@ import {
   createDefaultPineUserProfile,
   PINE_PRONOUNS,
 } from "../../../shared/userProfile";
-import { UserProfileSchema } from "../requestSchemas";
+import {
+  ReopenPresentedToolFileRequestSchema,
+  UserProfileSchema,
+} from "../requestSchemas";
 
 describe("UserProfileSchema", () => {
   it.each(PINE_PRONOUNS)("accepts the %s pronouns", (pronouns) => {
@@ -36,5 +39,29 @@ describe("UserProfileSchema", () => {
     void pronouns;
 
     expect(UserProfileSchema.safeParse(withoutPronouns).success).toBe(false);
+  });
+});
+
+describe("ReopenPresentedToolFileRequestSchema", () => {
+  const request = {
+    projectId: "7f48c81c-f1dc-4be6-a8ee-55729ef647ba",
+    sessionId: "0198e338-fb55-7e18-a23e-a7028500f999",
+    toolCallId: "submit-1",
+  };
+
+  it("takes an optional artifact path", () => {
+    expect(ReopenPresentedToolFileRequestSchema.parse(request)).toEqual(
+      request,
+    );
+    expect(
+      ReopenPresentedToolFileRequestSchema.parse({
+        ...request,
+        path: "/work/report.md",
+      }),
+    ).toEqual({ ...request, path: "/work/report.md" });
+    expect(
+      ReopenPresentedToolFileRequestSchema.safeParse({ ...request, path: "" })
+        .success,
+    ).toBe(false);
   });
 });

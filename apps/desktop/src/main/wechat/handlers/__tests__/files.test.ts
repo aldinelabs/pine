@@ -64,14 +64,14 @@ async function setup(options: { allowFileSending?: boolean } = {}): Promise<{
   });
   const report = path.join(dir, "report.txt");
   await writeFile(report, "hello");
-  ctx.fake.core.runtimes.presented.set("s1", [
-    { toolCallId: "t1", path: report },
+  ctx.fake.core.runtimes.artifacts.set("s1", [
+    { toolCallId: "t1", path: report, submitted: false },
   ]);
   return { ctx, report, sendFile };
 }
 
 describe(".files", () => {
-  it("lists presented files by base name and size and fills the file table", async () => {
+  it("lists artifacts by base name and size and fills the file table", async () => {
     const { ctx } = await setup();
     const result = await files(ctx);
     expect(result.numbered).toEqual({ kind: "file" });
@@ -132,7 +132,7 @@ describe(".file", () => {
     expect(ctx.fake.host.notifications).toEqual([]);
   });
 
-  it("refuses a file replaced by a symlink since it was presented", async () => {
+  it("refuses a file replaced by a symlink since it was listed", async () => {
     const { ctx, report, sendFile } = await setup();
     await files(ctx);
     ctx.handles.noteDelivered("file", ctx.now);

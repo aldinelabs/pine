@@ -12,12 +12,14 @@ import {
 } from "@/shared/workbench";
 
 /**
- * The file in the preview card, the tool call that presented it, and where
- * the agent asked the preview to open.
+ * The file in the preview card, the tool call that presented or submitted it,
+ * and where the agent asked the preview to open.
  */
 export interface WorkbenchPreview {
   target: FilePreviewTarget;
   toolCallId?: string;
+  /** Set for a submitted artifact: the path its `ui_submit_artifact` result recorded. */
+  artifactPath?: string;
   reveal?: FileReveal;
 }
 
@@ -184,6 +186,9 @@ export function parseWorkbenchLayout(value: unknown): WorkbenchLayout | null {
             target: preview.target,
             ...(typeof preview.toolCallId === "string"
               ? { toolCallId: preview.toolCallId }
+              : {}),
+            ...(typeof preview.artifactPath === "string" && preview.artifactPath
+              ? { artifactPath: preview.artifactPath }
               : {}),
             ...(reveal ? { reveal } : {}),
           }

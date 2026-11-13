@@ -812,10 +812,112 @@ describe("ProjectSessionService", () => {
       expect(
         await service.presentedFilePath(session.metadata.id, "unknown"),
       ).toBeNull();
+      // A pre-feature session lists its presentations as artifacts.
+      await expect(service.listArtifacts(session.metadata.id)).resolves.toEqual(
+        [{ toolCallId: "present-ok", path: presentedPath, submitted: false }],
+      );
+      await expect(service.listArtifacts("missing")).resolves.toEqual([]);
+    } finally {
+      await service.dispose();
+    }
+  });
+
+  it("lists submitted artifacts newest first and checks their reopen path", async () => {
+    const rootPath = await createTemporaryProjectData();
+    const options = serviceOptions(rootPath);
+    await mkdir(options.cwd, { recursive: true });
+    const repository = createRepository(options.sessionsRoot);
+    const session = await createSession(repository, options.cwd);
+    const file = (name: string) => path.join(rootPath, "tmp", name);
+    const calls: {
+      id: string;
+      toolName: string;
+      input: Parameters<typeof fauxToolCall>[1];
+      details: Parameters<typeof fauxToolCall>[1];
+    }[] = [
+      {
+        id: "present-old",
+        toolName: "ui_present_file",
+        input: { path: file("old.md") },
+        details: { path: file("old.md") },
+      },
+      {
+        id: "present-new",
+        toolName: "ui_present_file",
+        input: { path: file("step.md") },
+        details: { path: file("step.md"), artifact: false },
+      },
+      {
+        id: "submit-1",
+        toolName: "ui_submit_artifact",
+        input: { files: [{ path: "a.md" }, { path: "b.md" }] },
+        details: {
+          files: [
+            { path: file("a.md"), requestedPath: "a.md", title: "A" },
+            { path: file("b.md"), requestedPath: "b.md" },
+          ],
+          rejected: [],
+        },
+      },
+      {
+        id: "submit-2",
+        toolName: "ui_submit_artifact",
+        input: { files: [{ path: "c.md" }, { path: "a.md" }] },
+        details: {
+          files: [
+            { path: file("c.md"), requestedPath: "c.md" },
+            { path: file("a.md"), requestedPath: "a.md", title: "A2" },
+          ],
+          rejected: [],
+        },
+      },
+    ];
+    for (const call of calls) {
+      await appendMessage(
+        session,
+        fauxAssistantMessage(
+          [fauxToolCall(call.toolName, call.input, { id: call.id })],
+          { stopReason: "toolUse" },
+        ),
+      );
+      await appendMessage(session, {
+        role: "toolResult",
+        toolCallId: call.id,
+        toolName: call.toolName,
+        content: [{ type: "text", text: "done" }],
+        details: call.details,
+        isError: false,
+        timestamp: Date.now(),
+      });
+    }
+    const service = await ProjectSessionService.create(options);
+    try {
+      await expect(service.listArtifacts(session.metadata.id)).resolves.toEqual(
+        [
+          { toolCallId: "submit-2", path: file("c.md"), submitted: true },
+          {
+            toolCallId: "submit-2",
+            path: file("a.md"),
+            title: "A2",
+            submitted: true,
+          },
+          { toolCallId: "submit-1", path: file("b.md"), submitted: true },
+        ],
+      );
+      const id = session.metadata.id;
       await expect(
-        service.listPresentedFiles(session.metadata.id),
-      ).resolves.toEqual([{ toolCallId: "present-ok", path: presentedPath }]);
-      await expect(service.listPresentedFiles("missing")).resolves.toEqual([]);
+        service.presentedFilePath(id, "submit-1", file("b.md")),
+      ).resolves.toBe(file("b.md"));
+      await expect(
+        service.presentedFilePath(id, "submit-1", file("c.md")),
+      ).resolves.toBeNull();
+      await expect(
+        service.presentedFilePath(id, "submit-1"),
+      ).resolves.toBeNull();
+      // A presentation ignores the artifact path.
+      await expect(
+        service.presentedFilePath(id, "present-new", file("a.md")),
+      ).resolves.toBe(file("step.md"));
     } finally {
       await service.dispose();
     }

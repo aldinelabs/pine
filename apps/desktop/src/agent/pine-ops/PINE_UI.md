@@ -11,8 +11,9 @@ Use this reference to explain Pine's interface to the user, to tell them where
 a control lives, or to plan changes to what they see. It describes the UI; it
 does not by itself change anything. Pine operations that act on the UI may be
 added to this session later; until then, change the UI only through tools that
-are already available (for example the `ui_workbench_*` tools and
-`ui_present_file`), and otherwise tell the user where to click.
+are already available (for example the `ui_workbench_*` tools,
+`ui_present_file` and `ui_submit_artifact`), and otherwise tell the user where
+to click.
 
 ## Concepts
 
@@ -194,6 +195,9 @@ From top to bottom:
      details list each file, line number and matching line;
    - markers for automation actions, model lookups and MCP configuration
      calls (for example "Ran 3 automation actions");
+   - artifact submissions ("Submitted 3 files report.md, data.csv, chart.png",
+     or "Submitted 2 of 3 files …" when some were rejected), naming the files
+     added to Artifacts;
    - markers for context compaction, errors, stopped responses and background
      process events;
    - interactive answer blocks (checklists, tables, charts, inputs) when
@@ -387,9 +391,14 @@ bottom, with a handle to resize them. Each card header
 has a panel switcher and buttons to open the content in a tab, add a card and
 close the card. The panels are:
 
-- Artifacts: files the agent presented in this session; Preview in workbench.
+- Artifacts: the session's deliverables, the files the agent submitted as
+  results (newest first, each file once, with the agent's title and a one-line
+  description when given); Preview in workbench. Files the agent only
+  presents (to show progress or comparisons) are not listed. Conversations
+  from before this feature list the files the agent presented.
 - Background processes: processes started by the agent, with their output.
-- Preview: the file last presented or picked from Artifacts; Open in tab.
+- Preview: the file last presented by the agent or picked from Artifacts;
+  Open in tab.
 - Files: the project's file tree, with its folders and access levels.
 - Side chat: opened by the user only (panel switcher, Add card, or Follow up
   in the transcript); the agent's `ui_workbench_*` tools cannot open it. A
@@ -474,8 +483,8 @@ the user opens themselves do not pulse.
     execution outside the sandbox and destructive commands; off by default;
     an approval card from Auto Approve carries the reviewer's one-line
     summary ("Reviewer: …"), and .N also lists its risks),
-    "Allow sending files to WeChat" (presented files up to 100 MB; off by
-    default) and "Keep the computer awake while WeChat is on". "Good to
+    "Allow sending files to WeChat" (the session's artifacts, up to 100 MB;
+    off by default) and "Keep the computer awake while WeChat is on". "Good to
     know" notes say it works only while Pine runs and the computer is awake,
     messages pass through Tencent's servers, the account can read session
     titles, search results and replies of every project, a proxy may be

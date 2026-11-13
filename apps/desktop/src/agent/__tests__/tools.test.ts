@@ -723,7 +723,15 @@ describeSandbox("createPineToolDefinitions", () => {
           undefined,
           undefined as never,
         );
-      return { ...fixture, approvalMode, gate, present, presentFile, tools };
+      return {
+        ...fixture,
+        approvalMode,
+        gate,
+        present,
+        presentFile,
+        tool,
+        tools,
+      };
     }
 
     it("is only offered when the host can open a tab", async () => {
@@ -735,8 +743,19 @@ describeSandbox("createPineToolDefinitions", () => {
       expect(tools.map((tool) => tool.name)).toContain(TOOL_NAME);
     });
 
+    it("offers ui_submit_artifact right after it, under the same condition", async () => {
+      const { location } = await createFixture();
+      const withoutHost = await createPineToolDefinitions(location);
+      expect(withoutHost.map((tool) => tool.name)).not.toContain(
+        "ui_submit_artifact",
+      );
+
+      const names = (await setup()).tools.map((tool) => tool.name);
+      expect(names[names.indexOf(TOOL_NAME) + 1]).toBe("ui_submit_artifact");
+    });
+
     it("presents a project file by its canonical absolute path", async () => {
-      const { present, presentFile, readOnly } = await setup();
+      const { present, presentFile, readOnly, tool } = await setup();
       const target = path.join(readOnly, "notes.md");
       await writeFile(target, "# Notes");
 
@@ -752,8 +771,14 @@ describeSandbox("createPineToolDefinitions", () => {
         "sidebar",
       );
       expect(result.content[0]).toMatchObject({
-        text: `Showing ${canonical} in the workbench preview and the session's artifacts.`,
+        text: `Showing ${canonical} in the workbench preview.`,
       });
+      // Presenting never makes the file an artifact.
+      expect(result.details).toMatchObject({
+        path: canonical,
+        artifact: false,
+      });
+      expect(tool?.description).toContain("ui_submit_artifact");
     });
 
     it("requests a full preview with source line targets", async () => {

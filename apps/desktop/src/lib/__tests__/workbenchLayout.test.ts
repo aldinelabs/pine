@@ -129,6 +129,25 @@ describe("workbench layout", () => {
     ).toMatchObject({ open: true, top: "artifacts" });
   });
 
+  it("restores a submitted artifact's path with its preview", () => {
+    const preview = {
+      target: { source: "presented" as const, path: "/tmp/report.pdf" },
+      toolCallId: "submit-1",
+      artifactPath: "/tmp/report.pdf",
+    };
+    expect(
+      parseWorkbenchLayout(
+        JSON.parse(JSON.stringify({ ...DEFAULT_WORKBENCH_LAYOUT, preview })),
+      )?.preview,
+    ).toEqual(preview);
+    expect(
+      parseWorkbenchLayout({
+        ...DEFAULT_WORKBENCH_LAYOUT,
+        preview: { ...preview, artifactPath: 3 },
+      })?.preview,
+    ).toEqual({ target: preview.target, toolCallId: "submit-1" });
+  });
+
   it("drops malformed stored layouts", () => {
     expect(parseWorkbenchLayout("nope")).toBeNull();
     expect(

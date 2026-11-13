@@ -20,7 +20,10 @@ import {
   validateVideoParameters,
   videoRequestBody,
 } from "./video-parameters";
-import { UI_PRESENT_FILE_TOOL_NAME } from "../../shared/agent";
+import {
+  UI_PRESENT_FILE_TOOL_NAME,
+  UI_SUBMIT_ARTIFACT_TOOL_NAME,
+} from "../../shared/agent";
 import {
   downloadVideo,
   pollVideo,
@@ -109,7 +112,7 @@ export function createVideoTools(options: MediaGenerationToolOptions) {
         const info = await stat(target);
         if (info.isFile() && info.size === saved.file.bytes)
           return result(
-            `Video saved to ${target}. Call ${UI_PRESENT_FILE_TOOL_NAME} to show it.`,
+            `Video saved to ${target}. Call ${UI_PRESENT_FILE_TOOL_NAME} to show it and, if it is a deliverable, submit it with ${UI_SUBMIT_ARTIFACT_TOOL_NAME}.`,
             { ...saved, files: [saved.file] },
           );
       } catch (error) {
@@ -126,7 +129,7 @@ export function createVideoTools(options: MediaGenerationToolOptions) {
       );
       await save(saved);
       return result(
-        `Video saved to ${saved.file.path}. Call ${UI_PRESENT_FILE_TOOL_NAME} to show it.`,
+        `Video saved to ${saved.file.path}. Call ${UI_PRESENT_FILE_TOOL_NAME} to show it and, if it is a deliverable, submit it with ${UI_SUBMIT_ARTIFACT_TOOL_NAME}.`,
         { ...saved, files: [saved.file] },
       );
     }

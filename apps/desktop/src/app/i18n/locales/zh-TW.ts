@@ -191,7 +191,7 @@ export default {
         "沙箱外的原生執行和破壞性指令。關閉時只能在這台電腦上核准。",
       allowFiles: "允許向微信傳送檔案",
       allowFilesDescription:
-        "只傳送智慧代理展示過的檔案，每個不超過 100 MB。檔案會經過騰訊的伺服器。",
+        "只傳送會話的產出檔案（智慧代理提交的檔案），每個不超過 100 MB。檔案會經過騰訊的伺服器。",
       keepAwake: "微信開啟時保持電腦喚醒",
       keepAwakeDescription: "闔上螢幕仍會讓電腦睡眠。",
       notes: "注意事項",
@@ -841,7 +841,7 @@ export default {
         "side-chat": "側邊對話",
       },
       artifacts: {
-        empty: "Pine 在此對話中展示的檔案會出現在這裡。",
+        empty: "Pine 在此對話中提交的產出檔案會顯示在這裡。",
         openFailed: "無法開啟此檔案",
         preview: "在工作臺中預覽",
       },
@@ -1295,6 +1295,10 @@ export default {
           active: "正在開啟 {count} 個檔案",
           complete: "開啟了 {count} 個檔案",
         },
+        submitArtifact: {
+          active: "正在提交產出檔案 {count} 次",
+          complete: "提交了 {count} 次產出檔案",
+        },
         workbenchState: {
           active: "正在檢視工作臺狀態",
           complete: "已檢視工作臺狀態",
@@ -1361,6 +1365,7 @@ export default {
         recall: "歷史記錄查詢",
         fetch: "網頁抓取",
         presentFile: "開啟檔案",
+        submitArtifact: "提交產出檔案",
         workbench: "工作臺調整",
         workbenchState: "工作臺狀態",
         automation: "自動化操作",
@@ -1491,6 +1496,12 @@ export default {
           complete: "已開啟 ",
           error: "無法開啟 ",
           running: "正在開啟 ",
+        },
+        submitArtifact: {
+          complete: "提交了 {count} 個檔案 ",
+          error: "無法提交 ",
+          partial: "提交了 {count}/{total} 個檔案 ",
+          running: "正在提交 {count} 個檔案 ",
         },
         workbench: {
           state: {

@@ -475,7 +475,10 @@ export const COMMANDS: readonly CommandSpec[] = [
     cls: "R",
     stale: "drop",
     params: "[N]",
-    summary: { zh: "智能体展示过的文件", en: "Files the agent presented" },
+    summary: {
+      zh: "智能体提交的产出文件",
+      en: "Files the agent submitted as artifacts",
+    },
     example: ".o",
   }),
   row({

@@ -206,7 +206,7 @@ export default {
         "Exécution native hors du bac à sable et commandes destructrices. Désactivé : elles ne peuvent être approuvées que sur cet ordinateur.",
       allowFiles: "Autoriser l’envoi de fichiers vers WeChat",
       allowFilesDescription:
-        "Uniquement les fichiers présentés par l’agent, jusqu’à 100 Mo chacun. Les fichiers transitent par les serveurs de Tencent.",
+        "Uniquement les artefacts de la session (fichiers remis par l’agent), jusqu’à 100 Mo chacun. Les fichiers transitent par les serveurs de Tencent.",
       keepAwake: "Garder l’ordinateur éveillé tant que WeChat est activé",
       keepAwakeDescription:
         "Fermer le capot met quand même l’ordinateur en veille.",
@@ -909,7 +909,7 @@ export default {
       },
       artifacts: {
         empty:
-          "Les fichiers que Pine vous présente dans cette conversation apparaissent ici.",
+          "Les fichiers que Pine remet comme résultats de cette conversation apparaissent ici.",
         openFailed: "Impossible d'ouvrir ce fichier",
         preview: "Aperçu dans l'espace de travail",
       },
@@ -1393,6 +1393,10 @@ export default {
           active: "Présentation de {count} fichiers",
           complete: "{count} fichiers présentés",
         },
+        submitArtifact: {
+          active: "Remise d’artefacts {count} fois",
+          complete: "Artefacts remis {count} fois",
+        },
         workbenchState: {
           active: "Vérification de l'état de l'espace de travail",
           complete: "État de l'espace de travail vérifié",
@@ -1459,6 +1463,7 @@ export default {
         recall: "recherche dans l'historique",
         fetch: "récupération web",
         presentFile: "présentation de fichier",
+        submitArtifact: "remise d’artefacts",
         workbench: "modification de l'espace de travail",
         workbenchState: "état de l'espace de travail",
         automation: "action d’automatisation",
@@ -1596,6 +1601,12 @@ export default {
           complete: "Fichier présenté : ",
           error: "Impossible de présenter : ",
           running: "Présentation de ",
+        },
+        submitArtifact: {
+          complete: "{count} fichiers remis : ",
+          error: "Impossible de remettre : ",
+          partial: "{count} fichiers remis sur {total} : ",
+          running: "Remise de {count} fichiers : ",
         },
         workbench: {
           state: {

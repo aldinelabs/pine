@@ -207,7 +207,7 @@ export default {
         "サンドボックス外のネイティブ実行と破壊的なコマンド。オフの場合、このコンピュータでのみ承認できます。",
       allowFiles: "WeChat へのファイル送信を許可",
       allowFilesDescription:
-        "エージェントが提示したファイルのみ、1 つ 100 MB まで。ファイルは Tencent のサーバーを経由します。",
+        "セッションの成果物（エージェントが提出したファイル）のみ、1 つ 100 MB まで。ファイルは Tencent のサーバーを経由します。",
       keepAwake: "WeChat がオンの間はスリープしない",
       keepAwakeDescription: "蓋を閉じるとスリープします。",
       notes: "注意事項",
@@ -900,7 +900,8 @@ export default {
         "side-chat": "サイドチャット",
       },
       artifacts: {
-        empty: "この会話で Pine が表示したファイルがここに並びます。",
+        empty:
+          "この会話で Pine が成果物として提出したファイルがここに並びます。",
         openFailed: "このファイルを開けませんでした",
         preview: "ワークベンチでプレビュー",
       },
@@ -1375,6 +1376,10 @@ export default {
           active: "{count} 件のファイルを提示中",
           complete: "{count} 件のファイルを提示しました",
         },
+        submitArtifact: {
+          active: "成果物を {count} 回提出中",
+          complete: "成果物を {count} 回提出しました",
+        },
         workbenchState: {
           active: "ワークベンチの状態を確認中",
           complete: "ワークベンチの状態を確認しました",
@@ -1441,6 +1446,7 @@ export default {
         recall: "履歴検索",
         fetch: "ウェブ取得",
         presentFile: "ファイルの提示",
+        submitArtifact: "成果物の提出",
         workbench: "ワークベンチの変更",
         workbenchState: "ワークベンチの状態",
         automation: "自動化の操作",
@@ -1576,6 +1582,12 @@ export default {
           complete: "提示しました：",
           error: "提示できませんでした：",
           running: "提示中：",
+        },
+        submitArtifact: {
+          complete: "{count} 件のファイルを提出しました：",
+          error: "提出できませんでした：",
+          partial: "{total} 件中 {count} 件のファイルを提出しました：",
+          running: "{count} 件のファイルを提出中：",
         },
         workbench: {
           state: {

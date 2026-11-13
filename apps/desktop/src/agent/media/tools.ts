@@ -23,7 +23,10 @@ import {
 } from "@earendil-works/pi-coding-agent";
 import { Type, type Static } from "typebox";
 import type { PineApprovalMode } from "../../shared/agent";
-import { UI_PRESENT_FILE_TOOL_NAME } from "../../shared/agent";
+import {
+  UI_PRESENT_FILE_TOOL_NAME,
+  UI_SUBMIT_ARTIFACT_TOOL_NAME,
+} from "../../shared/agent";
 import type { ToolGate } from "../gate";
 import { DEFAULT_IMAGE_MODEL_ID, imageModel, pineImagesModels } from "./models";
 import {
@@ -65,13 +68,13 @@ const IMAGE_FILE_EXTENSIONS: Record<string, string> = {
 
 const ACTIVATION_GUIDANCE = `Media generation is active for this session.
 
-For videos first call list_video_models to inspect the selected model and its capabilities. Call generate_video with a complete prompt, optional first_frame / last_frame images or frame_images, image/audio/video input_references, duration, resolution, aspect_ratio or size, generate_audio, seed, previous_job_id for continuation, upscale_factor/creativity for upscaling, and provider.options for model-specific controls. Use only capabilities the selected model supports. Frame images and general references are different modes; do not combine them. Provider option keys come from allowedPassthroughParameters, and their provider-specific nesting must follow the provider documentation. It uses the video model selected in Pine settings. After interruption or timeout, use get_video_generation to list saved jobs or resume by job_id; do not submit again. Stopping local waiting does not cancel cloud generation or billing. Save the MP4 in a shared folder and call ui_present_file to show it.
+For videos first call list_video_models to inspect the selected model and its capabilities. Call generate_video with a complete prompt, optional first_frame / last_frame images or frame_images, image/audio/video input_references, duration, resolution, aspect_ratio or size, generate_audio, seed, previous_job_id for continuation, upscale_factor/creativity for upscaling, and provider.options for model-specific controls. Use only capabilities the selected model supports. Frame images and general references are different modes; do not combine them. Provider option keys come from allowedPassthroughParameters, and their provider-specific nesting must follow the provider documentation. It uses the video model selected in Pine settings. After interruption or timeout, use get_video_generation to list saved jobs or resume by job_id; do not submit again. Stopping local waiting does not cancel cloud generation or billing. Save the MP4 in a shared folder and call ${UI_PRESENT_FILE_TOOL_NAME} to show it and, if it is a deliverable, submit it with ${UI_SUBMIT_ARTIFACT_TOOL_NAME}.
 
 Call ${GENERATE_IMAGE_TOOL_NAME} with a self-contained prompt: name the subject, its actions and setting, then the composition, medium or style, lighting, colour palette, and any text that must appear in the image. Write the prompt in the language the user is using unless the prompt itself benefits from another language. Prefer one clear image per call; ask for variants with separate calls instead of stacking contradictory instructions in one prompt. When the user attached reference images, pass their local paths from the <pine_attachments> block in input_references.
 
 The image model itself is a user preference: every call runs on the model the user picked in Pine's settings, and the tool has no model argument. Use parameters only for model-specific options the user asked for (for example size, quality, aspect ratio, or style).
 
-Generated files are written to disk but never opened for the user, and the default output lands in this project's temporary directory, outside the folders the user shares with Pine. When the user should actually look at the image, put it somewhere they can reach first — pass an output_path inside a folder shared with Pine, or copy the generated file there with the shell — and then call ${UI_PRESENT_FILE_TOOL_NAME} on that path. Mention the path you kept.`;
+Generated files are written to disk but never opened for the user, and the default output lands in this project's temporary directory, outside the folders the user shares with Pine. When the user should actually look at the image, put it somewhere they can reach first — pass an output_path inside a folder shared with Pine, or copy the generated file there with the shell — and then call ${UI_PRESENT_FILE_TOOL_NAME} on that path and, if it is a deliverable, submit it with ${UI_SUBMIT_ARTIFACT_TOOL_NAME}. Mention the path you kept.`;
 
 function textResult(
   text: string,
@@ -300,7 +303,9 @@ function createGenerateImageTool(options: MediaGenerationToolOptions) {
     description:
       "Generate an image from a text prompt and optional reference images with OpenRouter's aggregated image models, then save the result as a file. The file is not opened for the user: keep it in a folder shared with Pine and call " +
       UI_PRESENT_FILE_TOOL_NAME +
-      " if the user should see it. Requires activate_media_generation first. This call reaches the network and may cost money, so it is reviewed like other privileged actions.",
+      " if the user should see it, and " +
+      UI_SUBMIT_ARTIFACT_TOOL_NAME +
+      " if it is a deliverable. Requires activate_media_generation first. This call reaches the network and may cost money, so it is reviewed like other privileged actions.",
     promptSnippet:
       "Generate images from a prompt with OpenRouter image models and save them as project files",
     promptGuidelines: [
@@ -308,7 +313,7 @@ function createGenerateImageTool(options: MediaGenerationToolOptions) {
       `For image-to-image work, pass every intended reference in input_references. Use the exact local path from the current <pine_attachments> block, or an HTTP(S)/base64 data URL; do not describe an attached image and omit it from the request.`,
       `Prefer one image per call and iterate on the prompt instead of asking for many unrelated images at once.`,
       `Without output_path the image lands in this project's temporary directory, which never shows up in Pine's file tree and is not opened for the user.`,
-      `When the user should look at the image, write or copy it into a folder shared with Pine and call ${UI_PRESENT_FILE_TOOL_NAME} on that path; opening the temporary copy needs an approval and is a poor default.`,
+      `When the user should look at the image, write or copy it into a folder shared with Pine and call ${UI_PRESENT_FILE_TOOL_NAME} on that path (and, if it is a deliverable, submit it with ${UI_SUBMIT_ARTIFACT_TOOL_NAME}); opening the temporary copy needs an approval and is a poor default.`,
       `Generated images do not enter the conversation as attachments: describe what you created and name the path you kept.`,
     ],
     parameters: generateImageParams,
@@ -455,7 +460,7 @@ function createGenerateImageTool(options: MediaGenerationToolOptions) {
         `Generated ${files.length} image${files.length === 1 ? "" : "s"} with ${model.name}:`,
         list,
         ...(modelText ? [`\n${model.name} also returned:\n${modelText}`] : []),
-        `\nPine does not open generated images. To show one to the user, write or copy it into a folder shared with Pine and call ${UI_PRESENT_FILE_TOOL_NAME} on that path.`,
+        `\nPine does not open generated images. To show one to the user, write or copy it into a folder shared with Pine and call ${UI_PRESENT_FILE_TOOL_NAME} on that path and, if it is a deliverable, submit it with ${UI_SUBMIT_ARTIFACT_TOOL_NAME}.`,
       ]
         .filter(Boolean)
         .join("\n");

@@ -909,7 +909,8 @@ export interface ReplyData {
     at: SessionRef;
     canSend: boolean;
     /** `path` may be absolute; only its base name is shown. */
-    rows: { n: number; path: string; sizeBytes?: number }[];
+    /** `title` (the agent's label) is listed instead of the base name. */
+    rows: { n: number; path: string; title?: string; sizeBytes?: number }[];
   };
   "R-SENDING": { name: string; sizeBytes: number };
   "R-TASKS": {
@@ -1695,14 +1696,14 @@ const TEMPLATES: { [K in ReplyId]: Template<K> } = {
     if (items.length === 0)
       return pick(
         lang,
-        "这个会话还没有展示过文件。",
-        "This session has not presented any file.",
+        "这个会话还没有产出文件。",
+        "This session has no artifacts yet.",
       );
     return lines(
-      `${head(lang, at)}${pick(lang, `展示过的文件 ${items.length} 个`, `${items.length} presented file(s)`)}`,
+      `${head(lang, at)}${pick(lang, `产出文件 ${items.length} 个`, `${items.length} artifact(s)`)}`,
       ...rows(items).map((item) =>
         row(
-          `${item.n} ${cleanInline(baseName(item.path))}${item.sizeBytes === undefined ? "" : ` · ${formatSize(item.sizeBytes)}`}`,
+          `${item.n} ${cleanInline(item.title ?? baseName(item.path))}${item.sizeBytes === undefined ? "" : ` · ${formatSize(item.sizeBytes)}`}`,
         ),
       ),
       canSend
@@ -2443,8 +2444,8 @@ const TEMPLATES: { [K in ReplyId]: Template<K> } = {
       case "file-changed":
         return pick(
           lang,
-          "这个文件在展示之后发生了变化，已取消发送。",
-          "The file changed after it was presented, so it was not sent.",
+          "这个文件在提交之后发生了变化，已取消发送。",
+          "The file changed after it was submitted, so it was not sent.",
         );
       case "folders":
         return pick(

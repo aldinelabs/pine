@@ -17,6 +17,7 @@ import {
   ListTodoIcon,
   MessagesSquareIcon,
   MonitorCogIcon,
+  PackageCheckIcon,
   PanelRightIcon,
   PanelTopIcon,
   PlugIcon,
@@ -45,6 +46,7 @@ import {
   UI_PROJECT_LIST_TOOL_NAME,
   currentToolName,
   UI_PRESENT_FILE_TOOL_NAME,
+  UI_SUBMIT_ARTIFACT_TOOL_NAME,
   UI_LIST_MODELS_TOOL_NAME,
   UI_PROJECT_CREATE_TOOL_NAME,
   UI_PROJECT_DELETE_TOOL_NAME,
@@ -93,6 +95,7 @@ export type ToolKind =
   | "search"
   | "session"
   | "skill"
+  | "submitArtifact"
   | "todo"
   | "workbench"
   | "workbenchState"
@@ -121,6 +124,7 @@ export const TOOL_KIND_ICON: Record<ToolKind, Component> = {
   search: SearchIcon,
   session: MessagesSquareIcon,
   skill: WandSparklesIcon,
+  submitArtifact: PackageCheckIcon,
   todo: ListTodoIcon,
   workbench: PanelRightIcon,
   workbenchState: PanelRightIcon,
@@ -174,6 +178,7 @@ export const TOOL_KIND_ORDER: readonly ToolKind[] = [
   "recall",
   "fetch",
   "presentFile",
+  "submitArtifact",
   "workbench",
   "workbenchState",
   "todo",
@@ -266,6 +271,7 @@ export function toolKind(name: string): ToolKind {
   )
     return "mcp";
   if (normalized === UI_PRESENT_FILE_TOOL_NAME) return "presentFile";
+  if (normalized === UI_SUBMIT_ARTIFACT_TOOL_NAME) return "submitArtifact";
   if (normalized === UI_WORKBENCH_STATE_TOOL_NAME) return "workbenchState";
   if ((UI_WORKBENCH_TOOL_NAMES as readonly string[]).includes(normalized))
     return "workbench";

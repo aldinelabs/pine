@@ -71,6 +71,11 @@ export interface ReopenPresentedToolFileRequest {
   projectId: string;
   sessionId: string;
   toolCallId: string;
+  /**
+   * Required for a submitted artifact: the absolute path its
+   * `ui_submit_artifact` result recorded (one call submits many files).
+   */
+  path?: string;
 }
 export type ProjectFilePreviewRequest = ProjectEntryReference;
 /**

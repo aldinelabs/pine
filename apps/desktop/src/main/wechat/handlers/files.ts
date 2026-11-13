@@ -1,6 +1,6 @@
-// Handlers: files file. Only files the agent presented in the
-// current session can be sent, only with the local file switch on, and only
-// while the file on disk is still the one that was presented (invariant 5).
+// Handlers: files file. Only the current session's artifacts (files the
+// agent submitted) can be sent, only with the local file switch on, and only
+// while the file on disk is still the one that was submitted (invariant 5).
 
 import { readFile, realpath, stat } from "node:fs/promises";
 import path from "node:path";
@@ -9,7 +9,7 @@ import { FILE_MAX_BYTES, PAGE_ROWS } from "../constants";
 import { notice } from "../notices";
 import { resolveRef } from "../parseCommand";
 import { render } from "../replies";
-import type { PresentedFile } from "../sessionDirectory";
+import type { ArtifactFile } from "../sessionDirectory";
 import type { HandleRow } from "../types";
 import type {
   CommandContext,
@@ -105,11 +105,11 @@ function numberedList<T>(
   return { text: first.text, numbered: { kind: "file" } };
 }
 
-function fileRow(file: PresentedFile): HandleRow {
-  return { id: file.toolCallId, label: file.name };
+function fileRow(file: ArtifactFile): HandleRow {
+  return { id: file.id, label: file.name };
 }
 
-async function sizeOf(file: PresentedFile): Promise<number | undefined> {
+async function sizeOf(file: ArtifactFile): Promise<number | undefined> {
   try {
     const info = await stat(file.path);
     return info.isFile() ? info.size : undefined;
@@ -139,6 +139,7 @@ const listFiles = async (ctx: CommandContext): Promise<CommandResult> => {
         rows: page.map(({ n, item }) => ({
           n,
           path: item.file.name,
+          ...(item.file.title ? { title: item.file.title } : {}),
           ...(item.size === undefined ? {} : { sizeBytes: item.size }),
         })),
       }),
@@ -185,7 +186,7 @@ const sendFile = async (
   }
 
   const picked: HandleRow = row;
-  const file = files.find((candidate) => candidate.toolCallId === picked.id);
+  const file = files.find((candidate) => candidate.id === picked.id);
   if (!file)
     return {
       text: render("E-GONE", ctx.lang, { variant: "item", kind: "file" }),

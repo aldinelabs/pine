@@ -136,6 +136,7 @@ export const ReopenPresentedToolFileRequestSchema = z.object({
   projectId: z.uuid(),
   sessionId: z.uuid(),
   toolCallId: z.string().min(1).max(256),
+  path: z.string().min(1).max(4096).optional(),
 });
 
 export const UpdateProjectRequestSchema = ProjectMutationSchema.safeExtend({

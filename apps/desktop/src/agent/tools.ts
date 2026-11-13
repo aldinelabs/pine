@@ -41,7 +41,10 @@ import {
   type AskUserQuestionSubmission,
 } from "@pine/rpiv-ask-user-question";
 import type { AgentFolderGrant, AgentSessionLocation } from "./protocol";
-import { UI_PRESENT_FILE_TOOL_NAME } from "../shared/agent";
+import {
+  UI_PRESENT_FILE_TOOL_NAME,
+  UI_SUBMIT_ARTIFACT_TOOL_NAME,
+} from "../shared/agent";
 import {
   MAX_FILE_REVEAL_HIGHLIGHTS,
   MAX_TEXT_PREVIEW_BYTES,
@@ -102,6 +105,7 @@ import {
 import { createProjectToolDefinitions } from "./projectTools";
 import { createDatetimeToolDefinition } from "./datetimeTool";
 import { createReportProgressToolDefinition } from "./reportProgressTool";
+import { createSubmitArtifactToolDefinition } from "./submitArtifactTool";
 import { createFffToolDefinitions, FffIndexPool } from "./fffTools";
 import {
   createWorkbenchToolDefinitions,
@@ -764,12 +768,11 @@ export async function createPineToolDefinitions(
     return defineTool({
       name: UI_PRESENT_FILE_TOOL_NAME,
       label: "Present File",
-      description:
-        "Show a file in the compact right sidebar preview or the full previewer in a main content tab, and list it under the session's artifacts. Supported previews include text and source code; Markdown, HTML and SVG; PDF and Office/OpenDocument files (Word, Excel, PowerPoint); CSV/TSV tables; images (e.g. PNG, JPEG, WebP, HEIC, TIFF, PSD); audio/video (e.g. MP3, WAV, MP4, WebM, subject to codec support); archives (e.g. ZIP, TAR, 7z); and specialized formats such as EPUB, email (EML/MSG), diagrams (Mermaid, draw.io, Excalidraw), XMind, Typst, 3D/CAD (GLB, OBJ, STL, STEP, DWG), geodata (GeoJSON, KML, GPX), fonts and datasets (SQLite, Parquet). These are examples, not an exhaustive list. Choose display based on how the user will inspect the file; sidebar is the default. For a text file you can scroll to a line and tint line ranges; the preview then shows the file's source, so Markdown and HTML appear as source rather than rendered. Use this when the user asks to see a file or when showing the file is clearer than describing it. Presenting a path outside the shared project folders and the user's attachments needs approval, because Pine must read that path to display it.",
+      description: `Show a file in the compact right sidebar preview or the full previewer in a main content tab. Supported previews include text and source code; Markdown, HTML and SVG; PDF and Office/OpenDocument files (Word, Excel, PowerPoint); CSV/TSV tables; images (e.g. PNG, JPEG, WebP, HEIC, TIFF, PSD); audio/video (e.g. MP3, WAV, MP4, WebM, subject to codec support); archives (e.g. ZIP, TAR, 7z); and specialized formats such as EPUB, email (EML/MSG), diagrams (Mermaid, draw.io, Excalidraw), XMind, Typst, 3D/CAD (GLB, OBJ, STL, STEP, DWG), geodata (GeoJSON, KML, GPX), fonts and datasets (SQLite, Parquet). These are examples, not an exhaustive list. Choose display based on how the user will inspect the file; sidebar is the default. For a text file you can scroll to a line and tint line ranges; the preview then shows the file's source, so Markdown and HTML appear as source rather than rendered. Use this when the user asks to see a file or when showing the file is clearer than describing it. Presenting a path outside the shared project folders and the user's attachments needs approval, because Pine must read that path to display it. Presenting does not add the file to the session's artifacts; register deliverables with ${UI_SUBMIT_ARTIFACT_TOOL_NAME} (present the most significant one in parallel). Use this tool alone for intermediate results, process views or comparisons.`,
       promptSnippet: `Use ${UI_PRESENT_FILE_TOOL_NAME} proactively to show useful results, choosing sidebar for quick reference or fullscreen for detailed inspection`,
       promptGuidelines: [
         `Choose display="sidebar" for quick reference, intermediate progress, or comparing a file with the conversation. Choose display="fullscreen" for a deliverable that benefits from space, zoom, selection, or detailed reading, or when the user asks for a full preview. The full preview focuses a main content tab for the foreground conversation; background conversations must not take focus. Say what you presented and why rather than assuming the user read it.`,
-        `At meaningful milestones, present a real, readable intermediate result when it helps the user assess progress, and present the finished deliverable when it is ready. Do not manufacture progress files or repeatedly replace the preview just to appear active.`,
+        `At meaningful milestones, present a real, readable intermediate result when it helps the user assess progress, and when deliverables are ready, submit them with ${UI_SUBMIT_ARTIFACT_TOOL_NAME} and present the most significant one. Do not manufacture progress files or repeatedly replace the preview just to appear active.`,
         `Pass the file's project-relative path when it has one. Directories, missing files, and unsupported content are reported back to you.`,
         `When you discuss specific lines of a text file, pass highlight_lines (and line if the first range is not where the user should start) instead of quoting long passages.`,
         `Present only files that matter to the current request, and keep the preview stable while the user may be inspecting it.`,
@@ -810,7 +813,7 @@ export async function createPineToolDefinitions(
           content: [
             {
               type: "text" as const,
-              text: `Showing ${authorizedPath}${where} in ${display === "fullscreen" ? "a full preview tab" : "the workbench preview"} and the session's artifacts.${
+              text: `Showing ${authorizedPath}${where} in ${display === "fullscreen" ? "a full preview tab" : "the workbench preview"}.${
                 ignored.length ? ` Ignored ${ignored.join("; ")}.` : ""
               }`,
             },
@@ -819,6 +822,9 @@ export async function createPineToolDefinitions(
             path: authorizedPath,
             display,
             ...(reveal ? { reveal } : {}),
+            // Marks a presentation made after artifacts moved to
+            // ui_submit_artifact; older ones still list as artifacts.
+            artifact: false,
           },
         };
       },
@@ -860,6 +866,14 @@ export async function createPineToolDefinitions(
         getGate,
         getApprovalMode,
       )
+    : null;
+  const uiSubmitArtifactTool = presentFile
+    ? createSubmitArtifactToolDefinition({
+        cwd: location.cwd,
+        policy,
+        permissivePolicy,
+        getApprovalMode,
+      })
     : null;
   const askUserQuestionTool = requestQuestionnaire
     ? defineTool({
@@ -1046,6 +1060,7 @@ export async function createPineToolDefinitions(
     gatedWriteTool,
     ...(privilegedShellTool ? [privilegedShellTool] : []),
     ...(uiPresentFileTool ? [uiPresentFileTool] : []),
+    ...(uiSubmitArtifactTool ? [uiSubmitArtifactTool] : []),
     ...workbenchTools,
     ...workspaceTools,
     ...sessionTools,

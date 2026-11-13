@@ -575,6 +575,20 @@ describe("ProjectRuntimeRegistry", () => {
       expect(historicalPath).toHaveBeenCalledWith(
         historicalSessionId,
         "old-present-call",
+        undefined,
+      );
+      // A submitted artifact names its file, which is checked against the call.
+      await registry.reopenPresentedToolFile(
+        1,
+        project.id,
+        historicalSessionId,
+        "submit-call",
+        await realpath(externalPath),
+      );
+      expect(historicalPath).toHaveBeenLastCalledWith(
+        historicalSessionId,
+        "submit-call",
+        await realpath(externalPath),
       );
       historicalPath.mockResolvedValue(path.join(dataRoot, "missing.txt"));
       await expect(
@@ -1232,15 +1246,17 @@ describe("ProjectRuntimeRegistry with interfaces that are not windows", () => {
     }
   });
 
-  it("reads a live session's context usage and its presented files", async () => {
+  it("reads a live session's context usage and its artifacts", async () => {
     const registry = new ProjectRuntimeRegistry(
       createAgentHost(),
       "/pine/agent",
     );
     const { dataRoot, project } = await createRuntimeFixture();
-    const presented = [{ toolCallId: "call", path: "/tmp/report.pdf" }];
-    const listPresentedFiles = vi
-      .spyOn(ProjectSessionService.prototype, "listPresentedFiles")
+    const presented = [
+      { toolCallId: "call", path: "/tmp/report.pdf", submitted: true },
+    ];
+    const listArtifacts = vi
+      .spyOn(ProjectSessionService.prototype, "listArtifacts")
       .mockResolvedValue(presented);
     const contextUsage: PineContextUsage = {
       tokens: 1_000,
@@ -1261,11 +1277,11 @@ describe("ProjectRuntimeRegistry with interfaces that are not windows", () => {
       expect(registry.contextUsageOf("missing")).toBeUndefined();
 
       await expect(
-        registry.listPresentedFiles(wechat, project.id, sessionSummary.id),
+        registry.listArtifacts(wechat, project.id, sessionSummary.id),
       ).resolves.toEqual(presented);
-      expect(listPresentedFiles).toHaveBeenCalledWith(sessionSummary.id);
+      expect(listArtifacts).toHaveBeenCalledWith(sessionSummary.id);
       await expect(
-        registry.listPresentedFiles(9, project.id, sessionSummary.id),
+        registry.listArtifacts(9, project.id, sessionSummary.id),
       ).rejects.toThrow("not open");
     } finally {
       vi.restoreAllMocks();

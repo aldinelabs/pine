@@ -206,7 +206,7 @@ export default {
         "Ejecución nativa fuera del sandbox y comandos destructivos. Desactivado: solo se pueden aprobar en este equipo.",
       allowFiles: "Permitir enviar archivos a WeChat",
       allowFilesDescription:
-        "Solo archivos que el agente presentó, hasta 100 MB cada uno. Los archivos pasan por los servidores de Tencent.",
+        "Solo los artefactos de la sesión (archivos que entregó el agente), hasta 100 MB cada uno. Los archivos pasan por los servidores de Tencent.",
       keepAwake: "Mantener el equipo activo mientras WeChat esté activado",
       keepAwakeDescription: "Cerrar la tapa sigue suspendiendo el equipo.",
       notes: "Conviene saber",
@@ -908,7 +908,7 @@ export default {
       },
       artifacts: {
         empty:
-          "Los archivos que Pine te muestre en esta conversación aparecerán aquí.",
+          "Los archivos que Pine entregue como resultado de esta conversación aparecerán aquí.",
         openFailed: "No se pudo abrir este archivo",
         preview: "Previsualizar en el panel de trabajo",
       },
@@ -1391,6 +1391,10 @@ export default {
           active: "Presentando {count} archivos",
           complete: "Presentó {count} archivos",
         },
+        submitArtifact: {
+          active: "Entregando artefactos {count} veces",
+          complete: "Entregó artefactos {count} veces",
+        },
         workbenchState: {
           active: "Comprobando el estado del panel de trabajo",
           complete: "Comprobó el estado del panel de trabajo",
@@ -1457,6 +1461,7 @@ export default {
         recall: "búsqueda en el historial",
         fetch: "obtención web",
         presentFile: "presentación de archivo",
+        submitArtifact: "entrega de artefactos",
         workbench: "cambio del panel de trabajo",
         workbenchState: "estado del panel de trabajo",
         automation: "acción de automatización",
@@ -1594,6 +1599,12 @@ export default {
           complete: "Presentó ",
           error: "No se pudo presentar ",
           running: "Presentando ",
+        },
+        submitArtifact: {
+          complete: "Entregó {count} archivos ",
+          error: "No se pudo entregar ",
+          partial: "Entregó {count} de {total} archivos ",
+          running: "Entregando {count} archivos ",
         },
         workbench: {
           state: {

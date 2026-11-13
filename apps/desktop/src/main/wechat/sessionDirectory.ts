@@ -16,7 +16,9 @@ import {
   type PineApprovalMode,
   type PineJsonValue,
   type PromptSessionResult,
+  UI_SUBMIT_ARTIFACT_TOOL_NAME,
 } from "../../shared/agent";
+import { artifactKey, type SessionArtifact } from "../../shared/artifacts";
 import {
   parseAttachmentMessage,
   serializeAttachmentMessage,
@@ -127,13 +129,29 @@ export function refuse<K extends WeChatRefusalId>(
 
 export type RunState = "running" | "waiting" | "idle" | "failed";
 
-/** A file the agent presented in a session; the only files `.file` may send. */
-export interface PresentedFile {
+/** One of a session's artifacts; the only files `.file` may send. */
+export interface ArtifactFile {
+  /** Stable row id: the artifact key of the call (and path, when submitted). */
+  id: string;
   toolCallId: string;
-  /** Canonical absolute path recorded when it was presented. Never rendered. */
+  /** Canonical absolute path recorded when it was submitted. Never rendered. */
   path: string;
-  /** Base name, for display. */
+  /** Base name, the file name it is sent under. */
   name: string;
+  /** The agent's short title, listed instead of the name when given. */
+  title?: string;
+}
+
+function artifactFile(artifact: SessionArtifact): ArtifactFile {
+  return {
+    id: artifact.submitted
+      ? artifactKey(artifact.toolCallId, artifact.path)
+      : artifact.toolCallId,
+    toolCallId: artifact.toolCallId,
+    path: artifact.path,
+    name: path.basename(artifact.path),
+    ...(artifact.title ? { title: artifact.title } : {}),
+  };
 }
 
 /** What `.status`, `.use` and friends show about one session. */
@@ -238,8 +256,8 @@ interface Observed {
   title?: string;
   contextUsage?: PineContextUsage;
   todos?: { done: number; total: number };
-  presented: PresentedFile[];
-  /** Files presented during the current run. */
+  artifacts: ArtifactFile[];
+  /** Files submitted as artifacts during the current run. */
   runFiles: number;
   lastError?: string;
 }
@@ -275,6 +293,34 @@ function objectOf(
   return value !== null && typeof value === "object" && !Array.isArray(value)
     ? value
     : undefined;
+}
+
+/** Accepted files of a `ui_submit_artifact` result, if the payload carries them. */
+function submittedFiles(
+  payload: PineJsonValue | undefined,
+): { path: string; title?: string }[] {
+  const root = objectOf(payload);
+  const candidates = [
+    objectOf(root?.details),
+    objectOf(objectOf(root?.result)?.details),
+  ];
+  for (const candidate of candidates) {
+    const files = candidate?.files;
+    if (!Array.isArray(files)) continue;
+    return files.flatMap((entry) => {
+      const file = objectOf(entry);
+      if (typeof file?.path !== "string" || !file.path) return [];
+      return [
+        {
+          path: file.path,
+          ...(typeof file.title === "string" && file.title
+            ? { title: file.title }
+            : {}),
+        },
+      ];
+    });
+  }
+  return [];
 }
 
 /** Counts of a `todo` tool result's task snapshot, if the payload carries one. */
@@ -405,6 +451,12 @@ export class SessionDirectory {
         if (event.toolName === "todo" && !event.isError) {
           obs.todos = todoCounts(event.payload) ?? obs.todos;
         }
+        if (event.toolName === UI_SUBMIT_ARTIFACT_TOOL_NAME && !event.isError)
+          void this.recordSubmitted(
+            sessionId,
+            event.toolCallId,
+            submittedFiles(event.payload),
+          );
         break;
       case "approval-request":
         this.openApproval(sessionId, obs, event);
@@ -418,9 +470,6 @@ export class SessionDirectory {
       case "approval-decided":
       case "questionnaire-decided":
         this.closeRequest(event.requestId, "decided");
-        break;
-      case "present-file":
-        void this.recordPresented(sessionId, event.toolCallId, event.path);
         break;
       default:
         break;
@@ -443,7 +492,7 @@ export class SessionDirectory {
       external: false,
       queue: [],
       tasks: [],
-      presented: [],
+      artifacts: [],
       runFiles: 0,
     };
     this.observed.set(sessionId, obs);
@@ -682,28 +731,37 @@ export class SessionDirectory {
     this.deps.outbound.retract(`ask:${ask.number}`);
   }
 
-  private async recordPresented(
+  private async recordSubmitted(
     sessionId: string,
     toolCallId: string,
-    filePath: string,
+    files: { path: string; title?: string }[],
   ): Promise<void> {
-    try {
-      const target = await this.deps.core.runtimes.resolvePresentTarget(
-        sessionId,
-        filePath,
-      );
-      if (!target) return;
-      const canonical = await realpath(filePath);
-      const obs = this.touch(sessionId);
-      if (obs.presented.some((file) => file.toolCallId === toolCallId)) return;
-      obs.presented.push({
-        toolCallId,
-        path: canonical,
-        name: path.basename(canonical),
-      });
-      obs.runFiles += 1;
-    } catch {
-      // A file that cannot be resolved is not offered.
+    for (const file of files) {
+      try {
+        const target = await this.deps.core.runtimes.resolvePresentTarget(
+          sessionId,
+          file.path,
+        );
+        if (!target) continue;
+        const canonical = await realpath(file.path);
+        const obs = this.touch(sessionId);
+        // A resubmitted path replaces its entry and moves to the end (newest).
+        const before = obs.artifacts.length;
+        obs.artifacts = obs.artifacts.filter(
+          (known) => known.path !== canonical,
+        );
+        if (obs.artifacts.length === before) obs.runFiles += 1;
+        obs.artifacts.push(
+          artifactFile({
+            toolCallId,
+            path: canonical,
+            ...(file.title ? { title: file.title } : {}),
+            submitted: true,
+          }),
+        );
+      } catch {
+        // A file that cannot be resolved is not offered.
+      }
     }
   }
 
@@ -1353,12 +1411,15 @@ export class SessionDirectory {
     };
   }
 
-  /** Observed presentations, completed from the stored transcript. */
-  async files(sessionId: string, projectId: string): Promise<PresentedFile[]> {
+  /**
+   * The session's artifacts from the stored transcript (newest first), after
+   * observed submissions it does not hold yet, which are newer still.
+   */
+  async files(sessionId: string, projectId: string): Promise<ArtifactFile[]> {
     await this.hold(projectId);
-    let stored: { toolCallId: string; path: string }[] = [];
+    let stored: SessionArtifact[] = [];
     try {
-      stored = await this.deps.core.runtimes.listPresentedFiles(
+      stored = await this.deps.core.runtimes.listArtifacts(
         W,
         projectId,
         sessionId,
@@ -1366,16 +1427,13 @@ export class SessionDirectory {
     } catch {
       stored = [];
     }
-    const files: PresentedFile[] = stored.map((file) => ({
-      toolCallId: file.toolCallId,
-      path: file.path,
-      name: path.basename(file.path),
-    }));
-    for (const file of this.observed.get(sessionId)?.presented ?? []) {
-      if (!files.some((known) => known.toolCallId === file.toolCallId))
-        files.push({ ...file });
-    }
-    return files;
+    const files = stored.map(artifactFile);
+    const known = new Set(files.map((file) => file.path));
+    const observed = (this.observed.get(sessionId)?.artifacts ?? [])
+      .filter((file) => !known.has(file.path))
+      .map((file) => ({ ...file }))
+      .reverse();
+    return [...observed, ...files];
   }
 
   /** Tracked sessions that are running or waiting on an ask. */

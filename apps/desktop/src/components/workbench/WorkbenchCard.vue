@@ -16,6 +16,7 @@ import WorkbenchSideChatCard from "./WorkbenchSideChatCard.vue";
 import { useContentTabNavigation } from "@/composables/useContentTabNavigation";
 import { fileName, fileTargetPath } from "@/lib/filePreviewTarget";
 import { cn } from "@/lib/utils";
+import { artifactKey } from "@/shared/artifacts";
 import { useAttentionFlashStore } from "@/stores/attentionFlash";
 import { useBackgroundTasksStore } from "@/stores/backgroundTasks";
 import { useContentTabsStore } from "@/stores/contentTabs";
@@ -65,7 +66,9 @@ function openPreviewInTab(): void {
     contentTabs.presentFile(
       preview.target,
       projectId,
-      preview.toolCallId,
+      preview.toolCallId
+        ? artifactKey(preview.toolCallId, preview.artifactPath)
+        : undefined,
       preview.reveal,
     ).id,
   );

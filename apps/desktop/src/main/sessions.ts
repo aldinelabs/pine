@@ -29,7 +29,14 @@ import {
   isSandboxDeniedPayload,
   type PineApprovalMode,
   type PineJsonValue,
+  UI_SUBMIT_ARTIFACT_TOOL_NAME,
 } from "../shared/agent";
+import {
+  artifactsOfCalls,
+  collectArtifacts,
+  submittedArtifactsOfCall,
+  type SessionArtifact,
+} from "../shared/artifacts";
 import { formatSessionAsMarkdown } from "../shared/sessionExport";
 import { sessionActivityAt } from "../shared/sessionActivity";
 import {
@@ -838,10 +845,15 @@ export class ProjectSessionService {
     });
   }
 
-  /** Only a successful first-party presentation can restore a preview grant. */
+  /**
+   * Only a successful first-party presentation or submission can restore a
+   * preview grant. A submission names many files, so `artifactPath` must be
+   * one of the files it accepted.
+   */
   async presentedFilePath(
     sessionId: string,
     toolCallId: string,
+    artifactPath?: string,
   ): Promise<string | null> {
     const metadata = await this.findSession(sessionId);
     if (!metadata) return null;
@@ -852,6 +864,14 @@ export class ProjectSessionService {
           if (block.type !== "toolCall") continue;
           const call = block.toolCall;
           if (call.id !== toolCallId) continue;
+          if (call.name === UI_SUBMIT_ARTIFACT_TOOL_NAME) {
+            if (!artifactPath) return null;
+            return submittedArtifactsOfCall(call).some(
+              (artifact) => artifact.path === artifactPath,
+            )
+              ? artifactPath
+              : null;
+          }
           const presented = presentedFileOfCall(call);
           if (presented !== undefined) return presented;
         }
@@ -861,27 +881,24 @@ export class ProjectSessionService {
   }
 
   /**
-   * Every successful first-party presentation of a session in transcript
-   * order, with the path its tool result recorded.
+   * A session's artifacts over its whole stored transcript, newest first and
+   * one per path: submitted files, or presentations for older sessions.
    */
-  async listPresentedFiles(
-    sessionId: string,
-  ): Promise<{ toolCallId: string; path: string }[]> {
+  async listArtifacts(sessionId: string): Promise<SessionArtifact[]> {
     const metadata = await this.findSession(sessionId);
     if (!metadata) return [];
 
-    return this.withSession(metadata, (session) => {
-      const files: { toolCallId: string; path: string }[] = [];
-      for (const { message } of indexedTextMessages(session.getEntries())) {
-        for (const block of message.blocks) {
-          if (block.type !== "toolCall") continue;
-          const presented = presentedFileOfCall(block.toolCall);
-          if (presented)
-            files.push({ toolCallId: block.toolCall.id, path: presented });
-        }
-      }
-      return files;
-    });
+    return this.withSession(metadata, (session) =>
+      collectArtifacts(
+        indexedTextMessages(session.getEntries()).map(({ message }) =>
+          artifactsOfCalls(
+            message.blocks.flatMap((block) =>
+              block.type === "toolCall" ? [block.toolCall] : [],
+            ),
+          ),
+        ),
+      ),
+    );
   }
 
   async exportSession(

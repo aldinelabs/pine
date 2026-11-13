@@ -6,6 +6,7 @@ import {
   EyeIcon,
   ListTodoIcon,
   MonitorCogIcon,
+  PackageCheckIcon,
   PanelTopIcon,
   PlusIcon,
   SquarePenIcon,
@@ -800,6 +801,76 @@ describe("project transcript markers", () => {
       toolCall: { ...wrapper.props("toolCall"), status: "complete" },
     });
     expect(content.text()).toBe("已打开 quarterly.md");
+  });
+
+  it("names the submitted files in every state", async () => {
+    const input = {
+      files: [
+        { path: "/work/out/report.md" },
+        { path: "/work/out/data.csv" },
+        { path: "/work/out/missing.png" },
+      ],
+    };
+    const wrapper = mount(ProjectToolCallMarker, {
+      props: {
+        toolCall: {
+          id: "tool-submit",
+          input,
+          name: "ui_submit_artifact",
+          status: "running",
+        },
+      },
+      global: { plugins: [createAppI18n("en-US")] },
+    });
+    const content = wrapper.get('[data-slot="marker-content"]');
+    expect(content.text()).toBe(
+      "Submitting 3 files report.md, data.csv, missing.png",
+    );
+    expect(content.find("code").text()).toBe(
+      "report.md, data.csv, missing.png",
+    );
+    expect(wrapper.findComponent(PackageCheckIcon).exists()).toBe(true);
+
+    const files = [
+      {
+        path: "/work/out/report.md",
+        requestedPath: "report.md",
+        title: "Report",
+      },
+      { path: "/work/out/data.csv", requestedPath: "data.csv" },
+    ];
+    await wrapper.setProps({
+      toolCall: {
+        ...wrapper.props("toolCall"),
+        status: "complete",
+        output: { details: { files, rejected: [] } },
+      },
+    });
+    expect(content.text()).toBe("Submitted 2 files Report, data.csv");
+
+    await wrapper.setProps({
+      toolCall: {
+        ...wrapper.props("toolCall"),
+        output: {
+          details: {
+            files,
+            rejected: [{ path: "missing.png", reason: "file not found" }],
+          },
+        },
+      },
+    });
+    expect(content.text()).toBe("Submitted 2 of 3 files Report, data.csv");
+
+    await wrapper.setProps({
+      toolCall: {
+        ...wrapper.props("toolCall"),
+        status: "error",
+        output: undefined,
+      },
+    });
+    expect(content.text()).toBe(
+      "Couldn’t submit report.md, data.csv, missing.png",
+    );
   });
 
   it("describes workbench calls as sentences", () => {

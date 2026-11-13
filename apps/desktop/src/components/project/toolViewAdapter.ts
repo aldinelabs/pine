@@ -129,6 +129,9 @@ export function toolViewAdapter(call: PineToolCall): ToolViewAdapter {
     case "privileged_bash":
     case "privileged_powershell":
       return { detail: "shell" };
+    // The result text lists the accepted and rejected files.
+    case "ui_submit_artifact":
+      return { detail: "generic" };
     case "ask_user_question":
       return { detail: "questionnaire" };
     case "web_search":

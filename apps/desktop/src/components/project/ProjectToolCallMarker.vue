@@ -103,6 +103,49 @@ function isPresentFileTool(name: string): boolean {
   return normalizedToolName(name) === UI_PRESENT_FILE_TOOL_NAME;
 }
 
+/**
+ * A submission's label and the file names it lists: the accepted files once
+ * it completed (with how many of the requested ones), the requested files
+ * while it runs or after it failed.
+ */
+function submitArtifactSummary(
+  input: Record<string, unknown>,
+  output: unknown,
+  status: "running" | "complete" | "error",
+): { key: string; count: number; total: number; names: string[] } {
+  const requested = Array.isArray(input.files)
+    ? input.files.flatMap((file) => {
+        const path = firstString(inputRecord(file), ["path"]);
+        return path ? [path] : [];
+      })
+    : [];
+  const requestedNames = requested.map(filename);
+  if (status !== "complete")
+    return {
+      key: status === "error" ? "error" : "running",
+      count: requested.length,
+      total: requested.length,
+      names: requestedNames,
+    };
+  const details = inputRecord(inputRecord(output).details);
+  const accepted = Array.isArray(details.files)
+    ? details.files.map((file) => inputRecord(file))
+    : [];
+  const rejected = Array.isArray(details.rejected)
+    ? details.rejected.length
+    : 0;
+  return {
+    key: rejected > 0 ? "partial" : "complete",
+    count: accepted.length,
+    total: accepted.length + rejected,
+    names: accepted.flatMap((file) => {
+      const path = firstString(file, ["path"]);
+      const name = firstString(file, ["title"]) ?? (path && filename(path));
+      return name ? [name] : [];
+    }),
+  };
+}
+
 /** Reads a workbench call as a sentence, distinguishing inspection from edits. */
 function workbenchLabel(
   name: string,
@@ -964,6 +1007,7 @@ const presentation = computed(() => {
     kind === "mcpConfig" ||
     kind === "mcp" ||
     isPresentFileTool(props.toolCall.name) ||
+    kind === "submitArtifact" ||
     ((kind === "computer" || kind === "browser") &&
       computerUseTargetMono(
         input,
@@ -1424,6 +1468,30 @@ const presentation = computed(() => {
       operation: undefined,
       separator: "",
       target,
+      targetMono,
+      purpose: undefined,
+      faviconDataUrl: undefined,
+      after: "",
+    };
+  }
+  if (kind === "submitArtifact") {
+    const summary = submitArtifactSummary(
+      input,
+      props.toolCall.output,
+      state === "error"
+        ? "error"
+        : state === "complete"
+          ? "complete"
+          : "running",
+    );
+    return {
+      before: t(`project.transcript.tools.submitArtifact.${summary.key}`, {
+        count: summary.count,
+        total: summary.total,
+      }),
+      operation: undefined,
+      separator: "",
+      target: compactInline(summary.names.join(", "), 96),
       targetMono,
       purpose: undefined,
       faviconDataUrl: undefined,

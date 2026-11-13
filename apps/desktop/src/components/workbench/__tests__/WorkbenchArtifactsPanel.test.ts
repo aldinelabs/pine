@@ -8,6 +8,7 @@ import { SidebarProvider } from "@/components/ui/sidebar";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { UI_PRESENT_FILE_TOOL_NAME } from "@/shared/agent";
 import type { FilePreviewTarget } from "@/shared/projectFiles";
+import type { PineToolCall } from "@/shared/sessions";
 import { showProject } from "@/stores/__tests__/showProject";
 import { useContentTabsStore } from "@/stores/contentTabs";
 import { useSessionStore } from "@/stores/session";
@@ -23,9 +24,55 @@ const projectTarget: FilePreviewTarget = {
 };
 const wrappers: ReturnType<typeof mount>[] = [];
 
+const legacyPresentation: PineToolCall = {
+  id: "present-1",
+  name: UI_PRESENT_FILE_TOOL_NAME,
+  input: { path: "/project/out/report.md" },
+  status: "complete",
+};
+
+function presentation(id: string, path: string): PineToolCall {
+  return {
+    id,
+    name: UI_PRESENT_FILE_TOOL_NAME,
+    input: { path },
+    output: { details: { path, display: "sidebar", artifact: false } },
+    status: "complete",
+  };
+}
+
+function submission(
+  id: string,
+  files: { path: string; title?: string; description?: string }[],
+): PineToolCall {
+  return {
+    id,
+    name: "ui_submit_artifact",
+    input: { files },
+    output: {
+      details: {
+        files: files.map((file) => ({ ...file, requestedPath: file.path })),
+        rejected: [],
+      },
+    },
+    status: "complete",
+  };
+}
+
+function message(id: string, calls: PineToolCall[]) {
+  return {
+    createdAt: "2026-10-31T00:00:00.000Z",
+    id,
+    role: "assistant" as const,
+    status: "complete" as const,
+    blocks: calls.map((toolCall) => ({ type: "toolCall" as const, toolCall })),
+  };
+}
+
 function mountPanel(
   target: FilePreviewTarget = projectTarget,
   access: "read-only" | "read-write" = "read-write",
+  calls: PineToolCall[][] = [[legacyPresentation]],
 ) {
   const pinia = createPinia();
   setActivePinia(pinia);
@@ -53,25 +100,7 @@ function mountPanel(
     updatedAt: "",
     messageCount: 1,
   };
-  session.messages = [
-    {
-      createdAt: "2026-10-31T00:00:00.000Z",
-      id: "m1",
-      role: "assistant",
-      status: "complete",
-      blocks: [
-        {
-          type: "toolCall",
-          toolCall: {
-            id: "present-1",
-            name: UI_PRESENT_FILE_TOOL_NAME,
-            input: { path: "/project/out/report.md" },
-            status: "complete",
-          },
-        },
-      ],
-    },
-  ];
+  session.messages = calls.map((list, index) => message(`m${index + 1}`, list));
   const operateProjectFile = vi.fn(() => Promise.resolve());
   const operatePresentedFile = vi.fn(() => Promise.resolve());
   const reopenPresentedToolFile = vi.fn(() => Promise.resolve(target));
@@ -99,7 +128,18 @@ function mountPanel(
     global: { plugins: [pinia, router, createAppI18n("zh-CN")] },
   });
   wrappers.push(wrapper);
-  return { wrapper, operateProjectFile, operatePresentedFile };
+  return {
+    wrapper,
+    operateProjectFile,
+    operatePresentedFile,
+    reopenPresentedToolFile,
+  };
+}
+
+function rowTexts(wrapper: ReturnType<typeof mount>): string[] {
+  return wrapper
+    .findAll('[data-testid="workbench-artifact"]')
+    .map((row) => row.text());
 }
 
 function menuItem(text: string) {
@@ -206,5 +246,128 @@ describe("WorkbenchArtifactsPanel", () => {
     const { wrapper } = mountPanel(projectTarget, "read-only");
     await openMenu(wrapper);
     expect(menuItem("重命名").attributes("data-disabled")).toBeDefined();
+  });
+
+  it("shows the empty state when the agent only presented files", () => {
+    const { wrapper } = mountPanel(projectTarget, "read-write", [
+      [presentation("present-2", "/project/out/step.md")],
+    ]);
+    expect(wrapper.find('[data-testid="workbench-artifact"]').exists()).toBe(
+      false,
+    );
+    expect(wrapper.text()).toContain(
+      "Pine 在此对话中提交的产出文件会出现在这里。",
+    );
+  });
+
+  it("lists submitted files with their titles and descriptions, newest batch first", () => {
+    const { wrapper } = mountPanel(projectTarget, "read-write", [
+      [legacyPresentation],
+      [
+        submission("submit-1", [
+          { path: "/project/out/report.md", title: "Report" },
+          { path: "/project/out/data.csv", description: "Raw numbers" },
+        ]),
+      ],
+      [
+        submission("submit-2", [{ path: "/project/out/chart.png" }]),
+        presentation("present-3", "/project/out/compare.md"),
+      ],
+    ]);
+    expect(rowTexts(wrapper)).toEqual([
+      "chart.png",
+      "Report",
+      "data.csvRaw numbers",
+    ]);
+    expect(
+      wrapper.find('[data-testid="workbench-artifact-description"]').text(),
+    ).toBe("Raw numbers");
+  });
+
+  it("reopens a submitted file by its path and previews it as that artifact", async () => {
+    const { wrapper, reopenPresentedToolFile } = mountPanel(
+      projectTarget,
+      "read-write",
+      [[submission("submit-1", [{ path: "/project/out/report.md" }])]],
+    );
+    await wrapper
+      .get('[data-testid="workbench-artifact"] button')
+      .trigger("click");
+    await flushPromises();
+    expect(reopenPresentedToolFile).toHaveBeenCalledWith({
+      projectId: "p1",
+      sessionId: "s1",
+      toolCallId: "submit-1",
+      path: "/project/out/report.md",
+    });
+    expect(useWorkbenchStore().activeLayout.preview).toEqual({
+      target: projectTarget,
+      toolCallId: "submit-1",
+      artifactPath: "/project/out/report.md",
+    });
+    expect(
+      wrapper
+        .get('[data-testid="workbench-artifact"] button')
+        .attributes("data-active"),
+    ).toBeDefined();
+  });
+
+  it("renames and trashes a submitted file under its artifact key", async () => {
+    const key = "submit-1\n/project/out/report.md";
+    const { wrapper } = mountPanel(projectTarget, "read-write", [
+      [submission("submit-1", [{ path: "/project/out/report.md" }])],
+    ]);
+    await openMenu(wrapper);
+    await menuItem("重命名").trigger("click");
+    await flushPromises();
+    const input = new DOMWrapper(
+      document.querySelector<HTMLInputElement>("#workbench-artifact-name"),
+    );
+    await input.setValue("summary.md");
+    await new DOMWrapper(
+      document.querySelector('[role="dialog"] form'),
+    ).trigger("submit");
+    await flushPromises();
+    const contentTabs = useContentTabsStore();
+    expect(contentTabs.presentedTargetFor(key)).toEqual({
+      ...projectTarget,
+      relativePath: "out/summary.md",
+    });
+
+    await openMenu(wrapper);
+    await menuItem("移到废纸篓").trigger("click");
+    await flushPromises();
+    const confirm = [
+      ...document.querySelectorAll('[role="alertdialog"] button'),
+    ].find((button) => button.textContent?.includes("移到废纸篓"));
+    if (!confirm) throw new Error("Missing trash confirmation");
+    await new DOMWrapper(confirm).trigger("click");
+    await flushPromises();
+    expect(contentTabs.isPresentationRemoved(key)).toBe(true);
+    expect(wrapper.find('[data-testid="workbench-artifact"]').exists()).toBe(
+      false,
+    );
+  });
+
+  it("keeps the same list when a later message streams without artifacts", async () => {
+    const { wrapper } = mountPanel(projectTarget, "read-write", [
+      [submission("submit-1", [{ path: "/project/out/report.md" }])],
+    ]);
+    const panel = wrapper.findComponent(WorkbenchArtifactsPanel);
+    const before = (panel.vm as unknown as { artifacts: unknown[] }).artifacts;
+    const session = useSessionStore();
+    session.messages = [
+      ...session.messages,
+      message("m2", [presentation("present-2", "/project/out/step.md")]),
+    ];
+    await flushPromises();
+    session.messages = [
+      session.messages[0],
+      message("m2", [presentation("present-2", "/project/out/step.md")]),
+    ];
+    await flushPromises();
+    expect((panel.vm as unknown as { artifacts: unknown[] }).artifacts).toBe(
+      before,
+    );
   });
 });

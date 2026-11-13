@@ -24,6 +24,7 @@ import type {
   FilePreviewTarget,
   ProjectFilePreview,
 } from "@/shared/projectFiles";
+import { artifactKey } from "@/shared/artifacts";
 import { useAppearanceStore } from "@/stores/appearance";
 import { useContentTabsStore } from "@/stores/contentTabs";
 import { useProjectStore } from "@/stores/project";
@@ -129,6 +130,7 @@ function read(value: FilePreviewTarget): Promise<ProjectFilePreview> {
  */
 async function regrant(): Promise<boolean> {
   const toolCallId = current.value?.toolCallId;
+  const artifactPath = current.value?.artifactPath;
   const sessionId = sessionStore.activeSession?.id;
   if (target.value?.source !== "presented" || !toolCallId || !sessionId)
     return false;
@@ -137,12 +139,21 @@ async function regrant(): Promise<boolean> {
       projectId: projectIdOfSession(),
       sessionId,
       toolCallId,
+      ...(artifactPath ? { path: artifactPath } : {}),
     })
     .catch(() => null);
   if (!next) return false;
-  contentTabs.rememberPresentedTarget(toolCallId, next);
+  contentTabs.rememberPresentedTarget(
+    artifactKey(toolCallId, artifactPath),
+    next,
+  );
   if (JSON.stringify(next) === previewKey.value) return true;
-  workbench.preview({ ...current.value, target: next, toolCallId });
+  workbench.preview({
+    ...current.value,
+    target: next,
+    toolCallId,
+    ...(artifactPath ? { artifactPath } : {}),
+  });
   return false;
 }
 

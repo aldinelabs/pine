@@ -201,7 +201,7 @@ export default {
         "샌드박스 밖의 네이티브 실행과 파괴적인 명령입니다. 끄면 이 컴퓨터에서만 승인할 수 있습니다.",
       allowFiles: "WeChat으로 파일 보내기 허용",
       allowFilesDescription:
-        "에이전트가 제시한 파일만, 파일당 최대 100MB. 파일은 Tencent 서버를 거칩니다.",
+        "세션의 결과물(에이전트가 제출한 파일)만, 파일당 최대 100MB. 파일은 Tencent 서버를 거칩니다.",
       keepAwake:
         "WeChat이 켜져 있는 동안 컴퓨터가 잠자기 상태가 되지 않게 하기",
       keepAwakeDescription: "덮개를 닫으면 여전히 잠자기 상태가 됩니다.",
@@ -885,7 +885,7 @@ export default {
         "side-chat": "사이드 채팅",
       },
       artifacts: {
-        empty: "이 대화에서 Pine이 보여 주는 파일이 여기에 나타납니다.",
+        empty: "이 대화에서 Pine이 결과물로 제출한 파일이 여기에 나타납니다.",
         openFailed: "이 파일을 열 수 없습니다",
         preview: "작업대에서 미리보기",
       },
@@ -1355,6 +1355,10 @@ export default {
           active: "파일 {count}개 표시 중",
           complete: "파일 {count}개 표시함",
         },
+        submitArtifact: {
+          active: "결과물 {count}회 제출 중",
+          complete: "결과물 {count}회 제출함",
+        },
         workbenchState: {
           active: "작업대 상태 확인 중",
           complete: "작업대 상태를 확인함",
@@ -1421,6 +1425,7 @@ export default {
         recall: "기록 검색",
         fetch: "웹 가져오기",
         presentFile: "파일 표시",
+        submitArtifact: "결과물 제출",
         workbench: "작업대 변경",
         workbenchState: "작업대 상태",
         automation: "자동화 작업",
@@ -1555,6 +1560,12 @@ export default {
           complete: "표시함: ",
           error: "표시할 수 없음: ",
           running: "표시 중: ",
+        },
+        submitArtifact: {
+          complete: "파일 {count}개 제출함: ",
+          error: "제출할 수 없음: ",
+          partial: "파일 {total}개 중 {count}개 제출함: ",
+          running: "파일 {count}개 제출 중: ",
         },
         workbench: {
           state: {

@@ -63,7 +63,13 @@ import {
   operateFileTarget,
   projectFileDirectory,
 } from "@/lib/filePreviewTarget";
-import { UI_PRESENT_FILE_TOOL_NAME } from "@/shared/agent";
+import {
+  artifactKey,
+  artifactsOfCalls,
+  collectArtifacts,
+  type CallArtifacts,
+  type SessionArtifact,
+} from "@/shared/artifacts";
 import { isValidProjectEntryName } from "@/shared/fileNames";
 import type { FilePreviewTarget } from "@/shared/projectFiles";
 import { useContentTabsStore } from "@/stores/contentTabs";
@@ -71,10 +77,8 @@ import { useProjectStore } from "@/stores/project";
 import { useSessionStore, type PineTranscriptMessage } from "@/stores/session";
 import { useWorkbenchStore } from "@/stores/workbench";
 
-interface Artifact {
-  toolCallId: string;
-  path: string;
-}
+/** A listed artifact and the key its targets and removal are stored under. */
+type Artifact = SessionArtifact & { key: string };
 
 type ProjectTarget = Extract<FilePreviewTarget, { source: "project" }>;
 
@@ -87,74 +91,71 @@ const navigation = useContentTabNavigation();
 const { emitProjectFilesChanged } = useProjectFileChanges();
 const { messages, activeSession } = storeToRefs(sessionStore);
 
-function presentedPath(input: unknown): string | null {
-  if (typeof input !== "object" || input === null || !("path" in input))
-    return null;
-  return typeof input.path === "string" && input.path.trim()
-    ? input.path.trim()
-    : null;
-}
-
 /**
- * One message's presented files, in order. Transcript messages are immutable
- * records, so a streaming update only rescans the message it replaced.
+ * One message's artifacts. Transcript messages are immutable records, so a
+ * streaming update only rescans the message it replaced.
  */
-const presentedByMessage = new WeakMap<
-  PineTranscriptMessage,
-  readonly Artifact[]
->();
-function messageArtifacts(message: PineTranscriptMessage): readonly Artifact[] {
-  const cached = presentedByMessage.get(message);
+const artifactsByMessage = new WeakMap<PineTranscriptMessage, CallArtifacts>();
+function messageArtifacts(message: PineTranscriptMessage): CallArtifacts {
+  const cached = artifactsByMessage.get(message);
   if (cached) return cached;
-  const found: Artifact[] = [];
-  for (const block of message.blocks) {
-    if (block.type !== "toolCall") continue;
-    const { toolCall } = block;
-    if (
-      toolCall.name !== UI_PRESENT_FILE_TOOL_NAME ||
-      toolCall.status === "error"
-    )
-      continue;
-    const path = presentedPath(toolCall.input);
-    if (path) found.push({ toolCallId: toolCall.id, path });
-  }
-  presentedByMessage.set(message, found);
+  const found = artifactsOfCalls(
+    message.blocks.flatMap((block) =>
+      block.type === "toolCall" ? [block.toolCall] : [],
+    ),
+  );
+  artifactsByMessage.set(message, found);
   return found;
 }
 
-/** Files the session presented, newest first, each path once. */
+/**
+ * The session's artifacts, newest first, each path once: the files the agent
+ * submitted, or the files it presented in a session from before submitting.
+ */
 const artifacts = computed<Artifact[]>((previous) => {
-  const byPath = new Map<string, Artifact>();
-  for (const message of messages.value) {
-    for (const artifact of messageArtifacts(message)) {
-      byPath.delete(artifact.path);
-      byPath.set(artifact.path, artifact);
-    }
-  }
-  const next = [...byPath.values()]
-    .filter(
-      (artifact) => !contentTabs.isPresentationRemoved(artifact.toolCallId),
-    )
-    .reverse();
+  const next = collectArtifacts(messages.value.map(messageArtifacts))
+    .map((artifact) => ({
+      ...artifact,
+      key: artifact.submitted
+        ? artifactKey(artifact.toolCallId, artifact.path)
+        : artifact.toolCallId,
+    }))
+    .filter((artifact) => !contentTabs.isPresentationRemoved(artifact.key));
   // Keep the list (and its rows) when a stream update changed nothing here.
   return previous &&
     previous.length === next.length &&
     next.every(
       (artifact, index) =>
-        previous[index].toolCallId === artifact.toolCallId &&
-        previous[index].path === artifact.path,
+        previous[index].key === artifact.key &&
+        previous[index].path === artifact.path &&
+        previous[index].title === artifact.title &&
+        previous[index].description === artifact.description,
     )
     ? previous
     : next;
 });
 
-const previewedToolCallId = computed(
-  () => workbench.activeLayout.preview?.toolCallId,
-);
+const previewedKey = computed(() => {
+  const preview = workbench.activeLayout.preview;
+  return preview?.toolCallId
+    ? artifactKey(preview.toolCallId, preview.artifactPath)
+    : undefined;
+});
+const previewedFileKey = computed(() => {
+  const preview = workbench.activeLayout.preview;
+  return preview ? fileTargetKey(preview.target) : undefined;
+});
+
+/** The preview shows this artifact, opened from here or presented by the agent. */
+function isPreviewed(artifact: Artifact): boolean {
+  if (artifact.key === previewedKey.value) return true;
+  const target = contentTabs.presentedTargetFor(artifact.key);
+  return !!target && fileTargetKey(target) === previewedFileKey.value;
+}
 
 /** The file's current location, following a rename made from this list. */
 function displayPath(artifact: Artifact): string {
-  const target = contentTabs.presentedTargetFor(artifact.toolCallId);
+  const target = contentTabs.presentedTargetFor(artifact.key);
   return target ? fileTargetPath(target) : artifact.path;
 }
 
@@ -167,19 +168,20 @@ function sessionProjectId(): string {
 
 async function resolve(artifact: Artifact): Promise<FilePreviewTarget> {
   const sessionId = activeSession.value?.id;
-  // Files presented in this window were resolved already; older ones are
-  // resolved again from the tool call, which re-grants read access.
+  // Files resolved in this window are remembered; others are resolved again
+  // from the tool call, which re-grants read access.
   const target =
-    contentTabs.presentedTargetFor(artifact.toolCallId) ??
+    contentTabs.presentedTargetFor(artifact.key) ??
     (sessionId
       ? await window.pine.reopenPresentedToolFile({
           projectId: sessionProjectId(),
           sessionId,
           toolCallId: artifact.toolCallId,
+          ...(artifact.submitted ? { path: artifact.path } : {}),
         })
       : null);
   if (!target) throw new Error(artifact.path);
-  contentTabs.rememberPresentedTarget(artifact.toolCallId, target);
+  contentTabs.rememberPresentedTarget(artifact.key, target);
   return target;
 }
 
@@ -208,18 +210,20 @@ async function withTarget(
 
 function show(artifact: Artifact): Promise<void> {
   return withTarget(artifact, (target) =>
-    workbench.preview({ target, toolCallId: artifact.toolCallId }),
+    workbench.preview({
+      target,
+      toolCallId: artifact.toolCallId,
+      ...(artifact.submitted ? { artifactPath: artifact.path } : {}),
+    }),
   );
 }
 
 function openInTab(artifact: Artifact): Promise<void> {
   return withTarget(artifact, (target) => {
     navigation.activate(
-      contentTabs.presentFile(target, sessionProjectId(), artifact.toolCallId)
-        .id,
+      contentTabs.presentFile(target, sessionProjectId(), artifact.key).id,
     );
-    if (previewedToolCallId.value === artifact.toolCallId)
-      workbench.clearPreview();
+    if (isPreviewed(artifact)) workbench.clearPreview();
   });
 }
 
@@ -232,16 +236,16 @@ function runNative(
 
 // Changing a file (rename, trash) only applies inside a writable project
 // folder. A file presented from outside the project stays read-only.
-const menuTarget = ref<{ toolCallId: string; target: ProjectTarget | null }>();
+const menuTarget = ref<{ key: string; target: ProjectTarget | null }>();
 
 async function loadMenuTarget(
   artifact: Artifact,
   open: boolean,
 ): Promise<void> {
   if (!open) return;
-  menuTarget.value = { toolCallId: artifact.toolCallId, target: null };
+  menuTarget.value = { key: artifact.key, target: null };
   const target = await resolve(artifact).catch(() => null);
-  if (menuTarget.value?.toolCallId !== artifact.toolCallId) return;
+  if (menuTarget.value?.key !== artifact.key) return;
   menuTarget.value.target =
     target?.source === "project" && writable(target) ? target : null;
 }
@@ -256,7 +260,7 @@ function writable(target: ProjectTarget): boolean {
 }
 
 function editableTarget(artifact: Artifact): ProjectTarget | null {
-  return menuTarget.value?.toolCallId === artifact.toolCallId
+  return menuTarget.value?.key === artifact.key
     ? menuTarget.value.target
     : null;
 }
@@ -290,8 +294,7 @@ function dropViewsOf(artifact: Artifact, target: FilePreviewTarget): void {
       candidate.kind === "file" && fileTargetKey(candidate) === key,
   );
   if (tab) void navigation.close(tab.id);
-  if (previewedToolCallId.value === artifact.toolCallId)
-    workbench.clearPreview();
+  if (isPreviewed(artifact)) workbench.clearPreview();
 }
 
 async function submitDialog(): Promise<void> {
@@ -315,7 +318,7 @@ async function submitDialog(): Promise<void> {
       });
       dropViewsOf(artifact, target);
       const directory = projectFileDirectory(target.relativePath);
-      contentTabs.rememberPresentedTarget(artifact.toolCallId, {
+      contentTabs.rememberPresentedTarget(artifact.key, {
         ...target,
         relativePath: directory ? `${directory}/${name}` : name,
       });
@@ -325,7 +328,7 @@ async function submitDialog(): Promise<void> {
         target: reference,
       });
       dropViewsOf(artifact, target);
-      contentTabs.markPresentationRemoved(artifact.toolCallId);
+      contentTabs.markPresentationRemoved(artifact.key);
     }
     dialog.value = undefined;
     emitProjectFilesChanged();
@@ -361,8 +364,13 @@ async function submitDialog(): Promise<void> {
         <ContextMenu @update:open="loadMenuTarget(artifact, $event)">
           <ContextMenuTrigger as-child>
             <SidebarMenuButton
-              :is-active="artifact.toolCallId === previewedToolCallId"
-              :title="displayPath(artifact)"
+              :is-active="isPreviewed(artifact)"
+              :size="artifact.description ? 'lg' : 'default'"
+              :title="
+                artifact.description
+                  ? `${displayPath(artifact)}\n${artifact.description}`
+                  : displayPath(artifact)
+              "
               @click="show(artifact)"
               @dblclick="openInTab(artifact)"
             >
@@ -370,9 +378,25 @@ async function submitDialog(): Promise<void> {
                 :is="fileIcon(displayPath(artifact))"
                 aria-hidden="true"
               />
-              <span class="min-w-0 flex-1 truncate">{{
-                fileName(displayPath(artifact))
-              }}</span>
+              <span
+                v-if="artifact.description"
+                class="flex min-w-0 flex-1 flex-col"
+              >
+                <span data-testid="workbench-artifact-name" class="truncate">{{
+                  artifact.title ?? fileName(displayPath(artifact))
+                }}</span>
+                <span
+                  data-testid="workbench-artifact-description"
+                  class="truncate text-xs font-normal text-muted-foreground"
+                  >{{ artifact.description }}</span
+                >
+              </span>
+              <span
+                v-else
+                data-testid="workbench-artifact-name"
+                class="min-w-0 flex-1 truncate"
+                >{{ artifact.title ?? fileName(displayPath(artifact)) }}</span
+              >
             </SidebarMenuButton>
           </ContextMenuTrigger>
           <ContextMenuContent class="w-52">

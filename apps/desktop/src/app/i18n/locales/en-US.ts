@@ -202,7 +202,7 @@ export default {
         "Native execution outside the sandbox and destructive commands. Off: they can only be approved on this computer.",
       allowFiles: "Allow sending files to WeChat",
       allowFilesDescription:
-        "Only files the agent presented, up to 100 MB each. Files pass through Tencent's servers.",
+        "Only the session’s artifacts (files the agent submitted), up to 100 MB each. Files pass through Tencent's servers.",
       keepAwake: "Keep the computer awake while WeChat is on",
       keepAwakeDescription: "A closed lid still puts the computer to sleep.",
       notes: "Good to know",
@@ -891,7 +891,8 @@ export default {
         "side-chat": "Side chat",
       },
       artifacts: {
-        empty: "Files Pine shows you in this conversation appear here.",
+        empty:
+          "Files Pine submits as results of this conversation appear here.",
         openFailed: "Couldn’t open this file",
         preview: "Preview in workbench",
       },
@@ -1362,6 +1363,10 @@ export default {
           active: "Presenting {count} files",
           complete: "Presented {count} files",
         },
+        submitArtifact: {
+          active: "Submitting artifacts {count} times",
+          complete: "Submitted artifacts {count} times",
+        },
         workbenchState: {
           active: "Checking workbench state",
           complete: "Checked workbench state",
@@ -1428,6 +1433,7 @@ export default {
         recall: "history search",
         fetch: "web fetch",
         presentFile: "present file",
+        submitArtifact: "submit artifacts",
         workbench: "workbench change",
         workbenchState: "workbench state",
         automation: "automation action",
@@ -1562,6 +1568,12 @@ export default {
           complete: "Presented ",
           error: "Couldn’t present ",
           running: "Presenting ",
+        },
+        submitArtifact: {
+          complete: "Submitted {count} files ",
+          error: "Couldn’t submit ",
+          partial: "Submitted {count} of {total} files ",
+          running: "Submitting {count} files ",
         },
         workbench: {
           state: {

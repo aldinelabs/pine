@@ -190,7 +190,7 @@ export default {
         "沙箱外的原生执行和破坏性命令。关闭时只能在这台电脑上批准。",
       allowFiles: "允许向微信发送文件",
       allowFilesDescription:
-        "只发送智能体展示过的文件，每个不超过 100 MB。文件会经过腾讯的服务器。",
+        "只发送会话的产出文件（智能体提交的文件），每个不超过 100 MB。文件会经过腾讯的服务器。",
       keepAwake: "微信开启时保持电脑唤醒",
       keepAwakeDescription: "合上盖子仍会让电脑睡眠。",
       notes: "注意事项",
@@ -837,7 +837,7 @@ export default {
         "side-chat": "侧边对话",
       },
       artifacts: {
-        empty: "Pine 在此对话中展示的文件会出现在这里。",
+        empty: "Pine 在此对话中提交的产出文件会出现在这里。",
         openFailed: "无法打开此文件",
         preview: "在工作台中预览",
       },
@@ -1291,6 +1291,10 @@ export default {
           active: "正在打开 {count} 个文件",
           complete: "打开了 {count} 个文件",
         },
+        submitArtifact: {
+          active: "正在提交产出文件 {count} 次",
+          complete: "提交了 {count} 次产出文件",
+        },
         workbenchState: {
           active: "正在查看工作台状态",
           complete: "已查看工作台状态",
@@ -1357,6 +1361,7 @@ export default {
         recall: "历史记录查找",
         fetch: "网页抓取",
         presentFile: "打开文件",
+        submitArtifact: "提交产出文件",
         workbench: "工作台调整",
         workbenchState: "工作台状态",
         automation: "自动化操作",
@@ -1487,6 +1492,12 @@ export default {
           complete: "已打开 ",
           error: "无法打开 ",
           running: "正在打开 ",
+        },
+        submitArtifact: {
+          complete: "提交了 {count} 个文件 ",
+          error: "无法提交 ",
+          partial: "提交了 {count}/{total} 个文件 ",
+          running: "正在提交 {count} 个文件 ",
         },
         workbench: {
           state: {

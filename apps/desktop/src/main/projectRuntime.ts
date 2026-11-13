@@ -86,6 +86,7 @@ import {
   type PineSideChatSummary,
   type PromptSideChatRequest,
 } from "../shared/sideChats";
+import type { SessionArtifact } from "../shared/artifacts";
 import path from "node:path";
 
 function pathContains(parentPath: string, candidatePath: string): boolean {
@@ -1218,11 +1219,13 @@ export class ProjectRuntimeRegistry {
     projectId: string,
     sessionId: string,
     toolCallId: string,
+    artifactPath?: string,
   ): Promise<FilePreviewTarget | null> {
     const runtime = this.get(webContentsId, projectId);
     const filePath = await runtime.sessions.presentedFilePath(
       sessionId,
       toolCallId,
+      artifactPath,
     );
     if (!filePath) return null;
     const canonicalPath = await realpath(filePath).catch(() => null);
@@ -1274,16 +1277,16 @@ export class ProjectRuntimeRegistry {
   }
 
   /**
-   * The files a session presented through completed `ui_present_file` calls,
-   * read from its stored transcript in the project this client holds.
+   * A session's artifacts (newest first), read from its stored transcript in
+   * the project this client holds.
    */
-  async listPresentedFiles(
+  async listArtifacts(
     clientId: number,
     projectId: string,
     sessionId: string,
-  ): Promise<{ toolCallId: string; path: string }[]> {
+  ): Promise<SessionArtifact[]> {
     const runtime = this.get(clientId, projectId);
-    return await runtime.sessions.listPresentedFiles(sessionId);
+    return await runtime.sessions.listArtifacts(sessionId);
   }
 
   sessionSummary(sessionId: string): PineSessionSummary | undefined {

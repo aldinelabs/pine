@@ -132,8 +132,10 @@ export const useContentTabsStore = defineStore("content-tabs", () => {
   // project folder or temporary external-file grant. Keep that association
   // after a tab closes so its tool marker can reopen the same preview.
   // Reactive so the artifacts list follows a presented file that was renamed.
+  // Keys are opaque: a presentation's tool call id, or a submitted artifact's
+  // key (`artifactKey` in shared/artifacts.ts).
   const presentedTargets = reactive(new Map<string, FilePreviewTarget>());
-  /** Presentations whose file was moved to the trash from the artifacts list. */
+  /** Presentation or artifact keys whose file was trashed from the artifacts list. */
   const removedPresentations = reactive(new Set<string>());
   const composerAttachments = ref<Record<string, PineAttachment[]>>({});
   /**

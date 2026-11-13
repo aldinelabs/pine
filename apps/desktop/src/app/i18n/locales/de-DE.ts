@@ -207,7 +207,7 @@ export default {
         "Native Ausführung außerhalb der Sandbox und zerstörerische Befehle. Aus: Sie können nur auf diesem Computer freigegeben werden.",
       allowFiles: "Senden von Dateien an WeChat erlauben",
       allowFilesDescription:
-        "Nur Dateien, die der Agent präsentiert hat, bis 100 MB pro Datei. Dateien laufen über Tencents Server.",
+        "Nur die Artefakte der Sitzung (vom Agenten eingereichte Dateien), bis 100 MB pro Datei. Dateien laufen über Tencents Server.",
       keepAwake: "Computer wach halten, solange WeChat an ist",
       keepAwakeDescription:
         "Ein geschlossener Deckel versetzt den Computer trotzdem in den Ruhezustand.",
@@ -914,7 +914,7 @@ export default {
       },
       artifacts: {
         empty:
-          "Dateien, die Pine Ihnen in dieser Unterhaltung zeigt, erscheinen hier.",
+          "Dateien, die Pine in dieser Unterhaltung als Ergebnis einreicht, erscheinen hier.",
         openFailed: "Diese Datei konnte nicht geöffnet werden",
         preview: "Im Arbeitsbereich ansehen",
       },
@@ -1403,6 +1403,10 @@ export default {
           active: "{count} Dateien werden präsentiert",
           complete: "{count} Dateien präsentiert",
         },
+        submitArtifact: {
+          active: "Artefakte werden {count}-mal eingereicht",
+          complete: "Artefakte {count}-mal eingereicht",
+        },
         workbenchState: {
           active: "Status des Arbeitsbereichs wird geprüft",
           complete: "Status des Arbeitsbereichs geprüft",
@@ -1469,6 +1473,7 @@ export default {
         recall: "Verlaufssuche",
         fetch: "Webabruf",
         presentFile: "Dateipräsentation",
+        submitArtifact: "Artefakteinreichung",
         workbench: "Änderung am Arbeitsbereich",
         workbenchState: "Status des Arbeitsbereichs",
         automation: "Automatisierungsaktion",
@@ -1606,6 +1611,12 @@ export default {
           complete: "Präsentiert: ",
           error: "Präsentation fehlgeschlagen: ",
           running: "Präsentiert: ",
+        },
+        submitArtifact: {
+          complete: "{count} Dateien eingereicht: ",
+          error: "Einreichen fehlgeschlagen: ",
+          partial: "{count} von {total} Dateien eingereicht: ",
+          running: "{count} Dateien werden eingereicht: ",
         },
         workbench: {
           state: {

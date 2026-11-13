@@ -648,19 +648,34 @@ describe("observation and pushes", () => {
     expect(ctx.store.get().tracked.some((t) => t.sessionId === id)).toBe(true);
   });
 
-  it("presented files survive a restart through the stored transcript", async () => {
+  it("submitted artifacts survive a restart through the stored transcript", async () => {
     const dir = await mkdtemp(path.join(os.tmpdir(), "wechat-files-"));
     try {
       const file = path.join(dir, "report.md");
+      const step = path.join(dir, "step.md");
       await writeFile(file, "# hi");
+      await writeFile(step, "# step");
       const first = setup();
       await trackedSession(first.ctx);
+      // Presenting alone no longer offers a file.
       first.ctx.sessions.observe(
         {
           type: "present-file",
           sessionId: "s1",
+          toolCallId: "tc-0",
+          path: step,
+        },
+        W,
+      );
+      first.ctx.sessions.observe(
+        {
+          type: "tool-end",
+          sessionId: "s1",
           toolCallId: "tc-1",
-          path: file,
+          toolName: "ui_submit_artifact",
+          payload: {
+            details: { files: [{ path: file, title: "Report" }], rejected: [] },
+          },
         },
         W,
       );
@@ -671,12 +686,17 @@ describe("observation and pushes", () => {
       });
       // After a restart only the transcript knows the file.
       const second = setup();
-      second.runtimes.presented.set("s1", [
-        { toolCallId: "tc-1", path: await realpath(file) },
+      second.runtimes.artifacts.set("s1", [
+        { toolCallId: "tc-1", path: await realpath(file), submitted: true },
       ]);
       const files = await second.ctx.sessions.files("s1", P);
       expect(files).toEqual([
-        { toolCallId: "tc-1", path: await realpath(file), name: "report.md" },
+        {
+          id: `tc-1\n${await realpath(file)}`,
+          toolCallId: "tc-1",
+          path: await realpath(file),
+          name: "report.md",
+        },
       ]);
     } finally {
       await rm(dir, { recursive: true, force: true });

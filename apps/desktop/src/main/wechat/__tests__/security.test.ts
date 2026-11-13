@@ -345,7 +345,7 @@ describe("WeChat remote security invariants", { timeout: 40_000 }, () => {
     expect(respond).toHaveBeenLastCalledWith(cutRequest, { kind: "allow" });
   });
 
-  it("5. sends a file only with the switch on, only from the presented list, and only while its realpath is unchanged", async () => {
+  it("5. sends a file only with the switch on, only from the artifact list, and only while its realpath is unchanged", async () => {
     const h = await harness();
     const sessionId = await startSession(h);
     const file = path.join(h.projectFolder, "report.txt");
@@ -353,16 +353,17 @@ describe("WeChat remote security invariants", { timeout: 40_000 }, () => {
     await writeFile(file, "report");
     await writeFile(secret, "secret");
     h.emit({
-      type: "present-file",
+      type: "tool-end",
       sessionId,
       toolCallId: randomUUID(),
-      path: file,
+      toolName: "ui_submit_artifact",
+      payload: { details: { files: [{ path: file }], rejected: [] } },
     });
     await sleep(100);
     h.finish(sessionId, "Wrote the report.");
     await h.sent((text) => text.includes("Wrote the report."));
 
-    expect(await h.say(".o")).toContain("1 presented file(s)");
+    expect(await h.say(".o")).toContain("1 artifact(s)");
     expect(await h.say(".o 1")).toBe(render("E-SWITCH", "en"));
     expect(requestsTo(h, "/getuploadurl")).toBe(0);
 
@@ -457,10 +458,11 @@ describe("WeChat remote security invariants", { timeout: 40_000 }, () => {
     await writeFile(file, "out");
     await h.bridge.setSettings({ allowFileSending: true });
     h.emit({
-      type: "present-file",
+      type: "tool-end",
       sessionId,
       toolCallId: randomUUID(),
-      path: file,
+      toolName: "ui_submit_artifact",
+      payload: { details: { files: [{ path: file }], rejected: [] } },
     });
     await sleep(100);
     h.finish(sessionId, "Here it is.");

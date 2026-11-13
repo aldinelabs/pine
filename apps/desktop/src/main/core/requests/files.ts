@@ -127,13 +127,14 @@ export function registerFileRequests(core: PineCore): void {
   });
 
   core.handle(REOPEN_PRESENTED_TOOL_FILE_CHANNEL, async (context, request) => {
-    const { projectId, sessionId, toolCallId } =
+    const { projectId, sessionId, toolCallId, path } =
       ReopenPresentedToolFileRequestSchema.parse(request);
     const target = await runtimes.reopenPresentedToolFile(
       context.clientId,
       projectId,
       sessionId,
       toolCallId,
+      path,
     );
     if (target?.source === "presented")
       core.presentedFiles.remember(context.clientId, target.path);

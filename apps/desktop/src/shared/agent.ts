@@ -27,6 +27,11 @@ import type {
  * carries a raw path across the boundary.
  */
 export const UI_PRESENT_FILE_TOOL_NAME = "ui_present_file" as const;
+/**
+ * Registers files as the session's artifacts (its deliverables). Unlike
+ * presenting, it opens nothing; the Artifacts panel lists what it recorded.
+ */
+export const UI_SUBMIT_ARTIFACT_TOOL_NAME = "ui_submit_artifact" as const;
 export const UI_PROJECT_LIST_TOOL_NAME = "ui_project_list" as const;
 export const UI_LIST_MODELS_TOOL_NAME = "ui_list_models" as const;
 export const UI_SESSION_TELEPORT_TOOL_NAME = "ui_session_teleport" as const;

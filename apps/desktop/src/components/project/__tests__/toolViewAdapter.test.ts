@@ -26,6 +26,7 @@ describe("tool view adapter", () => {
       privileged_powershell: "shell",
       read: "file",
       ui_present_file: "file",
+      ui_submit_artifact: "generic",
       ask_user_question: "questionnaire",
       invoke_skill: "skill",
       list_skill_resources: "skill",

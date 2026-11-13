@@ -6,6 +6,7 @@ import {
   ServerCogIcon,
   FileSearchIcon,
   MonitorCogIcon,
+  PackageCheckIcon,
   PanelTopIcon,
   PlugIcon,
   TextSearchIcon,
@@ -29,6 +30,12 @@ describe("Computer Use tool kinds", () => {
     expect(toolKind("browser_snapshot")).toBe("browser");
     expect(TOOL_KIND_ICON.computer).toBe(MonitorCogIcon);
     expect(TOOL_KIND_ICON.browser).toBe(PanelTopIcon);
+  });
+
+  it("uses a dedicated kind for submitted artifacts", () => {
+    expect(toolKind("ui_submit_artifact")).toBe("submitArtifact");
+    expect(TOOL_KIND_ICON.submitArtifact).toBe(PackageCheckIcon);
+    expect(toolIconForName("ui_submit_artifact")).toBe(PackageCheckIcon);
   });
 
   it("keeps file search apart from web search", () => {

@@ -9,6 +9,7 @@ import type {
   PromptSessionRequest,
   PromptSessionResult,
 } from "../../../shared/agent";
+import type { SessionArtifact } from "../../../shared/artifacts";
 import type { PineAttachment } from "../../../shared/attachments";
 import type { PineProject } from "../../../shared/projects";
 import type {
@@ -358,10 +359,7 @@ export class FakeRuntimes {
   /** clientId → projectId → runtime. */
   readonly holders = new Map<number, Map<string, FakeRuntime>>();
   readonly live = new Map<string, FakeLiveSession>();
-  readonly presented = new Map<
-    string,
-    { toolCallId: string; path: string }[]
-  >();
+  readonly artifacts = new Map<string, SessionArtifact[]>();
   readonly transcripts = new Map<string, LoadSessionMessagesResult>();
 
   /** Opens a runtime for a client; `separate` gives it its own runtime even when another client holds the project. */
@@ -618,10 +616,10 @@ export class FakeRuntimes {
     );
   });
 
-  listPresentedFiles = vi.fn(
+  listArtifacts = vi.fn(
     (clientId: number, projectId: string, sessionId: string) => {
       this.requireOpen(clientId, projectId);
-      return Promise.resolve([...(this.presented.get(sessionId) ?? [])]);
+      return Promise.resolve([...(this.artifacts.get(sessionId) ?? [])]);
     },
   );
 
