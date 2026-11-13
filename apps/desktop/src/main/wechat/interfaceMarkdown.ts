@@ -11,12 +11,21 @@
 // escaped, and dot-guarded here as well, so a table cell or bullet never reads
 // as a command even where `agentMarkdown` only sees the start of a line.
 //
-// Controls are read-only: what the user picks lives only in the Pine window
-// that drew the block, so a WeChat reply cannot change it. A block with
-// controls ends with a note to answer in words or open Pine on the desktop.
+// Choices can be answered from WeChat. With `choices` on, every button that
+// sends a message gets a number (`- **1** Continue`); in a block with exactly
+// one picker and one such button, the picker's options get the numbers
+// instead and the button is folded into them. `interfaceChoices` returns the
+// message each number sends: the button's @ToAssistant text with the block's
+// values, as a click in Pine would send it, at the block's defaults plus the
+// picked option. Other controls (inputs, sliders, checkboxes, switches, other
+// pickers and buttons that only change the block) stay read-only: their values
+// live only in the window that drew the block. A block with controls ends with
+// a note saying which is which. A block cut short (an unclosed fence) is never
+// numbered, since a cut can change which mode the block is read in.
 
 import {
   createParser,
+  evaluate,
   evaluateElementProps,
   type ElementNode,
   type Library,
@@ -26,6 +35,7 @@ import {
   INTELLIGENT_UI_FENCE_LANGUAGE,
   createIntelligentUiLibrary,
 } from "../../shared/intelligentUi";
+import { interactionMessage } from "../../shared/intelligentUiMessage";
 import { FENCE, OPENUI_PLACEHOLDER, cleanInline, neutralise } from "./text";
 import type { ReplyLanguage } from "./types";
 
@@ -34,10 +44,31 @@ export const INTERFACE_ROWS_MAX = 30;
 /** Options of a picker kept; the rest are counted in one line. */
 export const INTERFACE_OPTIONS_MAX = 20;
 
+/** Choices numbered across one reply; a reply never has more. */
+export const INTERFACE_CHOICES_MAX = 20;
+
 const CONTROL_NOTE: Record<ReplyLanguage, string> = {
   zh: "（以上控件只能在桌面端 Pine 中操作；也可以直接回复你的选择。）",
   en: "(These controls work only in Pine on the desktop. You can also reply with your choice in words.)",
 };
+const CHOICE_NOTE: Record<ReplyLanguage, string> = {
+  zh: "（回复编号即可选择。）",
+  en: "(Reply with a number to choose.)",
+};
+const CHOICE_CONTROL_NOTE: Record<ReplyLanguage, string> = {
+  zh: "（回复编号即可选择；其余控件只能在桌面端 Pine 中操作。）",
+  en: "(Reply with a number to choose. The other controls work only in Pine on the desktop.)",
+};
+
+/** What a numbered reply sends to the agent. */
+export interface InterfaceChoice {
+  /** 1-based, as shown in WeChat. */
+  number: number;
+  /** The button or option text, one line. */
+  label: string;
+  /** The message a click in Pine would send. */
+  message: string;
+}
 
 const CHOICES: Record<ReplyLanguage, string> = {
   zh: "可选：",
@@ -62,6 +93,8 @@ export interface ExpandOptions {
    * Markdown-escaped, since the caller strips Markdown and escapes the line.
    */
   plain?: boolean;
+  /** Number the choices a WeChat reply can answer. */
+  choices?: boolean;
 }
 
 interface OpenFence {
@@ -156,14 +189,143 @@ function elements(value: unknown): ElementNode[] {
   return isElement(value) ? [value] : [];
 }
 
+/** A `$binding` prop's state name, if the prop is one. */
+function bindingTarget(raw: unknown): string | undefined {
+  if (
+    typeof raw === "object" &&
+    raw !== null &&
+    (raw as { __reactive?: unknown }).__reactive === "assign"
+  ) {
+    const target = (raw as { target?: unknown }).target;
+    return typeof target === "string" ? target : undefined;
+  }
+  return undefined;
+}
+
+/** Every element of a tree, depth first. */
+function walk(node: ElementNode, visit: (node: ElementNode) => void): void {
+  visit(node);
+  for (const key of ["children", "tabs"]) {
+    for (const child of elements(node.props[key])) walk(child, visit);
+  }
+}
+
+const PICKERS = new Set(["Select", "RadioGroup", "SegmentedControl"]);
+
 class Converter {
+  /** Read-only controls drawn. */
   controls = false;
+  /** Choices this block numbered. */
+  numbered = 0;
+  /** In option mode, the picker whose options are the choices. */
+  private optionPicker: ElementNode | undefined;
+  /** In option mode, the button the options submit through. */
+  private optionButton: ElementNode | undefined;
 
   constructor(
     private readonly lang: ReplyLanguage,
     private readonly state: Record<string, unknown>,
     private readonly plain: boolean,
+    /** Shared across the reply's blocks; `undefined` when not numbering. */
+    private readonly choices: InterfaceChoice[] | undefined,
   ) {}
+
+  /** Picks the mode: one picker and one sending button → option mode. */
+  plan(root: ElementNode): void {
+    if (!this.choices) return;
+    const pickers: ElementNode[] = [];
+    const senders: ElementNode[] = [];
+    walk(root, (node) => {
+      if (PICKERS.has(node.typeName)) pickers.push(node);
+      if (this.sends(node)) senders.push(node);
+    });
+    const [picker] = pickers;
+    if (
+      pickers.length === 1 &&
+      senders.length === 1 &&
+      picker &&
+      bindingTarget(picker.props.value) !== undefined
+    ) {
+      this.optionPicker = picker;
+      this.optionButton = senders[0];
+    }
+  }
+
+  private sends(node: ElementNode): boolean {
+    return (
+      node.typeName === "Button" &&
+      node.props.disabled !== true &&
+      this.message(node, {}) !== undefined
+    );
+  }
+
+  /**
+   * The message a click on `button` sends with `picked` set first, following
+   * Pine's renderer: the steps run in order, @Set and @Reset change the
+   * values, and the first @ToAssistant sends its text with every value; a
+   * button without an action sends its label. `undefined` when it sends
+   * nothing.
+   */
+  private message(
+    button: ElementNode,
+    picked: Record<string, unknown>,
+  ): string | undefined {
+    const values: Record<string, unknown> = { ...this.state, ...picked };
+    const action = button.props.action;
+    const label =
+      typeof button.props.label === "string" ? button.props.label : "";
+    let steps: unknown[] | undefined;
+    if (typeof action === "object" && action !== null) {
+      const plan = action as { steps?: unknown; type?: unknown };
+      if (Array.isArray(plan.steps)) steps = plan.steps;
+      else if (typeof plan.type === "string") steps = [action];
+    }
+    if (!steps) return interactionMessage(label, values) || undefined;
+    for (const raw of steps) {
+      const step = raw as {
+        type?: unknown;
+        target?: unknown;
+        targets?: unknown;
+        valueAST?: unknown;
+        message?: unknown;
+      };
+      if (step.type === "set" && typeof step.target === "string") {
+        try {
+          values[step.target] = evaluate(
+            step.valueAST as Parameters<typeof evaluate>[0],
+            { getState: (name) => values[name], resolveRef: () => null },
+          );
+        } catch {
+          return undefined;
+        }
+      } else if (step.type === "reset" && Array.isArray(step.targets)) {
+        for (const target of step.targets)
+          if (typeof target === "string")
+            values[target] = this.state[target] ?? null;
+      } else if (step.type === "continue_conversation") {
+        const text = typeof step.message === "string" ? step.message : "";
+        return interactionMessage(text, values) || undefined;
+      }
+    }
+    return undefined;
+  }
+
+  /** Numbers a choice; `undefined` once the reply has as many as it may. */
+  private choose(
+    label: unknown,
+    message: string | undefined,
+  ): number | undefined {
+    if (!this.choices || message === undefined) return undefined;
+    if (this.choices.length >= INTERFACE_CHOICES_MAX) return undefined;
+    const number = this.choices.length + 1;
+    this.choices.push({
+      number,
+      label: cleanInline(scalarText(label)),
+      message,
+    });
+    this.numbered += 1;
+    return number;
+  }
 
   private inline(value: unknown): string {
     return interfaceInline(value, this.plain);
@@ -227,9 +389,20 @@ class Converter {
           `- ${box} ${[label, description].filter(Boolean).join(" · ")}`.trimEnd(),
         );
       } else if (kind === "Button") {
-        this.controls = true;
+        // In option mode the button is folded into the numbered options.
+        if (node === this.optionButton) continue;
         const label = this.text(node.props, "label");
-        if (label) buttons.push(`- ${label}`);
+        if (!label) continue;
+        const number =
+          this.choices && this.sends(node)
+            ? this.choose(node.props.label, this.message(node, {}))
+            : undefined;
+        if (number === undefined) {
+          this.controls = true;
+          buttons.push(`- ${label}`);
+        } else {
+          buttons.push(`- **${number}** ${label}`);
+        }
       } else {
         const text = this.element(node);
         if (text) out.push(text);
@@ -301,7 +474,9 @@ class Converter {
       case "Select":
       case "RadioGroup":
       case "SegmentedControl":
-        return this.picker(props);
+        return node === this.optionPicker
+          ? this.options(node)
+          : this.picker(props);
       case "Badge":
       case "Checkbox":
       case "Switch":
@@ -439,6 +614,33 @@ class Converter {
     return [label, `**${value}** (${range})`].filter(Boolean).join(": ");
   }
 
+  /** The option-mode picker: each option a numbered choice. */
+  private options(node: ElementNode): string {
+    const options = this.value(node.props, "options");
+    const target = bindingTarget(node.props.value);
+    const button = this.optionButton;
+    if (!Array.isArray(options) || target === undefined || !button)
+      return this.picker(node.props);
+    const lines: string[] = [];
+    for (const option of options) {
+      const text = this.inline(option);
+      if (!text) continue;
+      const number = this.choose(
+        option,
+        this.message(button, { [target]: option }),
+      );
+      if (number === undefined) {
+        // Past the cap the rest are shown, without numbers.
+        this.controls = true;
+        lines.push(`- ${text}`);
+      } else {
+        lines.push(`- **${number}** ${text}`);
+      }
+    }
+    const label = this.bold(this.text(node.props, "label"));
+    return [label, lines.join("\n")].filter(Boolean).join("\n");
+  }
+
   private picker(props: Record<string, unknown>): string {
     this.controls = true;
     const options = this.value(props, "options");
@@ -467,6 +669,7 @@ export function interfaceBlockMarkdown(
   code: string,
   lang: ReplyLanguage,
   options: ExpandOptions = {},
+  choices?: InterfaceChoice[],
 ): string | undefined {
   let root: ElementNode | null;
   let state: Record<string, unknown>;
@@ -488,10 +691,23 @@ export function interfaceBlockMarkdown(
     return undefined;
   }
   if (!root) return undefined;
-  const converter = new Converter(lang, state, options.plain === true);
+  const taken = choices?.length ?? 0;
+  const converter = new Converter(lang, state, options.plain === true, choices);
+  converter.plan(root);
   const body = converter.children([root]).trim();
-  if (!body) return undefined;
-  return converter.controls ? `${body}\n\n${CONTROL_NOTE[lang]}` : body;
+  if (!body) {
+    choices?.splice(taken);
+    return undefined;
+  }
+  const note =
+    converter.numbered > 0
+      ? converter.controls
+        ? CHOICE_CONTROL_NOTE[lang]
+        : CHOICE_NOTE[lang]
+      : converter.controls
+        ? CONTROL_NOTE[lang]
+        : undefined;
+  return note ? `${body}\n\n${note}` : body;
 }
 
 /**
@@ -504,16 +720,37 @@ export function expandInterfaceBlocks(
   lang: ReplyLanguage,
   options: ExpandOptions = {},
 ): string {
+  return convert(markdown, lang, options).text;
+}
+
+/**
+ * The choices a WeChat reply of `markdown` numbers (with `choices` on), in
+ * order: what each number sends.
+ */
+export function interfaceChoices(markdown: string): InterfaceChoice[] {
+  return convert(markdown, "en", { choices: true }).choices;
+}
+
+function convert(
+  markdown: string,
+  lang: ReplyLanguage,
+  options: ExpandOptions,
+): { text: string; choices: InterfaceChoice[] } {
+  const choices: InterfaceChoice[] = [];
   if (!markdown.toLowerCase().includes(INTELLIGENT_UI_FENCE_LANGUAGE)) {
-    return markdown;
+    return { text: markdown, choices };
   }
   const out: string[] = [];
   let fence: (OpenFence & { openui: boolean; body: string[] }) | undefined;
-  const flush = (body: string[]) => {
+  const flush = (body: string[], closed: boolean) => {
     out.push(
       "",
-      interfaceBlockMarkdown(body.join("\n"), lang, options) ??
-        OPENUI_PLACEHOLDER[lang],
+      interfaceBlockMarkdown(
+        body.join("\n"),
+        lang,
+        options,
+        options.choices === true && closed ? choices : undefined,
+      ) ?? OPENUI_PLACEHOLDER[lang],
       "",
     );
   };
@@ -522,7 +759,7 @@ export function expandInterfaceBlocks(
       const closes = closesFence(line, fence);
       if (fence.openui) {
         if (closes) {
-          flush(fence.body);
+          flush(fence.body, true);
           fence = undefined;
         } else {
           fence.body.push(line);
@@ -545,6 +782,6 @@ export function expandInterfaceBlocks(
     out.push(line);
   }
   // An unterminated block still draws what has arrived, as in Pine.
-  if (fence?.openui) flush(fence.body);
-  return out.join("\n");
+  if (fence?.openui) flush(fence.body, false);
+  return { text: out.join("\n"), choices };
 }

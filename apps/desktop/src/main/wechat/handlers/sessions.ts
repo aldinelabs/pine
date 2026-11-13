@@ -39,7 +39,11 @@ import {
   refuse,
   type SessionView,
 } from "../sessionDirectory";
-import { expandInterfaceBlocks } from "../interfaceMarkdown";
+import {
+  expandInterfaceBlocks,
+  interfaceChoices,
+  type InterfaceChoice,
+} from "../interfaceMarkdown";
 import { toPlainText } from "../text";
 import type { HandleRow, ParsedCommand } from "../types";
 import type { CommandContext, CommandHandlers, CommandResult } from "./types";
@@ -354,6 +358,56 @@ function pagedList<T>(
 
 function messageText(message: PineTextMessage): string {
   return contentBlocksToText(message.blocks).trim();
+}
+
+/** The latest assistant message's text, as the done push shows it. */
+function finalMessage(messages: readonly PineTextMessage[]): string {
+  for (let index = messages.length - 1; index >= 0; index -= 1) {
+    const message = messages[index];
+    if (message?.role !== "assistant") continue;
+    const text = messageText(message);
+    if (text) return text;
+  }
+  return "";
+}
+
+function sameChoices(
+  a: readonly InterfaceChoice[],
+  b: readonly InterfaceChoice[],
+): boolean {
+  return (
+    a.length === b.length &&
+    a.every(
+      (choice, index) =>
+        choice.label === b[index]?.label &&
+        choice.message === b[index]?.message,
+    )
+  );
+}
+
+/**
+ * The choices a bare number answers in the current session: those the done
+ * push numbered in its final reply. None while it runs, since a new reply is
+ * on its way (the caller checks).
+ */
+export async function currentChoices(
+  ctx: CommandContext,
+  sessionId: string,
+  projectId: string,
+): Promise<InterfaceChoice[]> {
+  try {
+    const page = await ctx.core.runtimes.loadMessages(
+      W,
+      projectId,
+      sessionId,
+      undefined,
+      LAST_LOAD,
+    );
+    return interfaceChoices(finalMessage(page.messages));
+  } catch {
+    // A transcript that cannot be read never stops the text being sent.
+    return [];
+  }
 }
 
 /** Final assistant text of the last turn; the latest assistant text otherwise. */
@@ -699,11 +753,15 @@ export const sessionHandlers: CommandHandlers = {
       undefined,
       LAST_LOAD,
     );
-    const pages = renderLastPages(
-      ctx.lang,
-      refOf(view),
-      finalReply(page.messages),
-    );
+    const reply = finalReply(page.messages);
+    // Numbers only when they are the ones a bare number answers: the final
+    // message's, with no earlier message of the turn numbering first.
+    const choices = interfaceChoices(reply);
+    const pages = renderLastPages(ctx.lang, refOf(view), reply, {
+      choices:
+        choices.length > 0 &&
+        sameChoices(choices, interfaceChoices(finalMessage(page.messages))),
+    });
     const [first, ...rest] = pages;
     ctx.pager.set(rest);
     return { text: first ?? render("R-NOREPLY", ctx.lang) };

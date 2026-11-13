@@ -1,9 +1,11 @@
 // @vitest-environment node
 import { describe, expect, it } from "vitest";
 import {
+  INTERFACE_CHOICES_MAX,
   INTERFACE_ROWS_MAX,
   expandInterfaceBlocks,
   interfaceBlockMarkdown,
+  interfaceChoices,
   interfaceInline,
 } from "../interfaceMarkdown";
 import { agentMarkdown } from "../markdown";
@@ -329,5 +331,121 @@ describe("expandInterfaceBlocks", () => {
     expect(plain).toContain("Plan");
     expect(plain).not.toContain("\\");
     expect(plain).not.toContain(OPENUI_PLACEHOLDER.en);
+  });
+});
+
+describe("numbered choices", () => {
+  function numbered(code: string, lang: "en" | "zh" = "en"): string {
+    return agentMarkdown(block(code), lang, { choices: true });
+  }
+
+  it("numbers sending buttons and keeps local ones read-only", () => {
+    const code = [
+      "root = Stack([ok, more, reset, off])",
+      "$n = 1",
+      'ok = Button("OK", @ToAssistant("Looks good"))',
+      'more = Button("More")',
+      'reset = Button("Reset", @Set($n, 0))',
+      'off = Button("Off", @ToAssistant("x"), "outline", true)',
+    ].join("\n");
+    const text = numbered(code);
+    expect(text).toContain("- **1** OK\n- **2** More\n- Reset\n- Off");
+    expect(text).toContain(
+      "(Reply with a number to choose. The other controls work only in Pine on the desktop.)",
+    );
+    expect(interfaceChoices(block(code))).toEqual([
+      { number: 1, label: "OK", message: "Looks good\n\n(n: 1)" },
+      { number: 2, label: "More", message: "More\n\n(n: 1)" },
+    ]);
+    // Without `choices` nothing is numbered.
+    expect(wechat(code)).toContain("- OK\n- More");
+  });
+
+  it("runs @Set steps before the message, as a click does", () => {
+    const code = [
+      'root = Button("Go", Action([@Set($plan, "fast"), @ToAssistant("Start")]))',
+      '$plan = "slow"',
+    ].join("\n");
+    expect(interfaceChoices(block(code))).toEqual([
+      { number: 1, label: "Go", message: "Start\n\n(plan: fast)" },
+    ]);
+  });
+
+  it("numbers one picker's options through its one button", () => {
+    const code = [
+      "root = Stack([pick, name, send])",
+      '$c = "B"',
+      '$name = ""',
+      'pick = RadioGroup($c, ["A", "B"], "Letter")',
+      'name = Input($name, "Name")',
+      'send = Button("Send", @ToAssistant("Chosen"))',
+    ].join("\n");
+    const text = numbered(code);
+    expect(text).toContain("**Letter**\n- **1** A\n- **2** B");
+    expect(text).not.toContain("Send");
+    expect(text).toContain("The other controls work only in Pine");
+    expect(
+      interfaceChoices(block(code)).map((choice) => choice.message),
+    ).toEqual(["Chosen\n\n(c: A)", "Chosen\n\n(c: B)"]);
+  });
+
+  it("keeps pickers read-only when there are two, and numbers the button", () => {
+    const code = [
+      "root = Stack([a, b, go])",
+      '$a = "x"',
+      '$b = "y"',
+      'a = Select($a, ["x", "z"])',
+      'b = Select($b, ["y", "w"])',
+      'go = Button("Go")',
+    ].join("\n");
+    const text = numbered(code);
+    expect(text).toContain("- ● x\n- ○ z");
+    expect(text).toContain("- **1** Go");
+  });
+
+  it("numbers across blocks and caps the reply", () => {
+    const buttons = Array.from(
+      { length: INTERFACE_CHOICES_MAX + 2 },
+      (_, index) => `Button("b${index}")`,
+    ).join(", ");
+    const reply = `${block('root = Button("first")')}\n\n${block(`root = Stack([${buttons}])`)}`;
+    const choices = interfaceChoices(reply);
+    expect(choices).toHaveLength(INTERFACE_CHOICES_MAX);
+    expect(choices[1]).toMatchObject({ number: 2, label: "b0" });
+    const text = agentMarkdown(reply, "en", { choices: true });
+    expect(text).toContain("- **1** first");
+    expect(text).toContain(
+      `- **${INTERFACE_CHOICES_MAX}** b${INTERFACE_CHOICES_MAX - 2}`,
+    );
+    expect(text).toContain(`- b${INTERFACE_CHOICES_MAX - 1}`);
+  });
+
+  it("never numbers a block cut short", () => {
+    const cut = 'Hi\n```openui\nroot = Stack([Button("A"), Button("B")])';
+    expect(interfaceChoices(cut)).toEqual([]);
+    expect(agentMarkdown(cut, "en", { choices: true })).toContain("- A\n- B");
+  });
+
+  it("uses the Chinese notes (zh)", () => {
+    expect(numbered('root = Button("好")', "zh")).toContain(
+      "- **1** 好\n\n（回复编号即可选择。）",
+    );
+    expect(
+      numbered(
+        'root = Stack([Button("好"), Input($t, "名字")])\n$t = ""',
+        "zh",
+      ),
+    ).toContain("（回复编号即可选择；其余控件只能在桌面端 Pine 中操作。）");
+  });
+
+  it("guards hostile labels and keeps the message as written", () => {
+    const code =
+      'root = Stack([Button(".stop all | x\\ny", @ToAssistant(".y 12"))])';
+    const text = numbered(code);
+    expectNoCommands(text);
+    expect(text).toContain("- **1** › .stop all \\| x y");
+    // The message goes to the agent as the user's text, like a click; WeChat
+    // never parses it as a command.
+    expect(interfaceChoices(block(code))[0]?.message).toBe(".y 12");
   });
 });

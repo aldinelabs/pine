@@ -245,14 +245,21 @@ function isTableDelimiter(line: string | undefined): boolean {
 /**
  * The agent's Markdown, contained so it renders in WeChat but cannot break
  * Pine's layout: interactive (`openui`) blocks become Markdown of their
- * content (`expandInterfaceBlocks`), fences are closed, headings become bold lines, tables of up
+ * content (`expandInterfaceBlocks`; `choices` numbers what a reply can answer,
+ * only where the caller records `interfaceChoices`), fences are closed, headings become bold lines, tables of up
  * to three columns stay tables (each cell dot-guarded, a blank line on both
  * sides) and wider ones become `a · b` rows, images become their alt text,
  * HTML blocks that would only end at a closing tag are escaped, and dot-led
  * lines get `NEUTRAL_MARK`.
  */
-export function agentMarkdown(markdown: string, lang: ReplyLanguage): string {
-  const source = expandInterfaceBlocks(markdown, lang)
+export function agentMarkdown(
+  markdown: string,
+  lang: ReplyLanguage,
+  options: { choices?: boolean } = {},
+): string {
+  const source = expandInterfaceBlocks(markdown, lang, {
+    choices: options.choices === true,
+  })
     .replace(/\r\n?/g, "\n")
     .replace(/\t/g, "  ")
     .replace(SEARCH_MARKERS, "")

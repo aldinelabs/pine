@@ -24,6 +24,9 @@
 //   Other lists are `- ` bullets with the number in bold (`- **3** …`), never
 //   `1.` (ordered lists renumber). Bold only next to a space or a line edge;
 //   no italics, headings, rules, images or HTML of Pine's own.
+// - Interactive answers (`openui` blocks) become Markdown of their content
+//   (`interfaceMarkdown.ts`); in a session's final reply (`T-DONE`, `.r`)
+//   their choices are `- **1** …` bullets that a bare number answers.
 // - Every message closes its own blocks, so merged pushes never run together;
 //   `finish` closes a fence a cut leaves open. Field caps apply to the visible
 //   text; REPLY_MAX applies to the final string with its markup.
@@ -910,8 +913,11 @@ export function renderLastPages(
   lang: L,
   at: SessionRef,
   markdown: string,
+  options: { choices?: boolean } = {},
 ): string[] {
-  const text = agentMarkdown(markdown, lang);
+  const text = agentMarkdown(markdown, lang, {
+    choices: options.choices === true,
+  });
   if (!text) return [render("R-NOREPLY", lang)];
   return pagedText(
     lang,
@@ -986,6 +992,8 @@ export interface ReplyData {
   "R-NEWARMED": { project: string };
   "R-STEER": { at: SessionRef };
   "R-ROUTE": { at: SessionRef };
+  /** A numbered reply answered an interactive answer's choice. */
+  "R-CHOICE": { at: SessionRef; label: string; steered: boolean };
   "R-WELCOME": { computer: string; ceiling: PineApprovalMode; files: boolean };
   "R-SESSIONS": {
     now: number;
@@ -1481,6 +1489,20 @@ const TEMPLATES: { [K in ReplyId]: Template<K> } = {
       `→ ${headLine(at)} · \`.n\` 新开会话`,
       `→ ${headLine(at)} · \`.n\` starts a new one`,
     ),
+  "R-CHOICE": (lang, { at, label, steered }) => {
+    const choice = `**${inline(label, 40) || "?"}**`;
+    return headLine(
+      at,
+      // The bold label ends the line, so it is always flanked.
+      steered
+        ? pick(
+            lang,
+            `已转给正在运行的任务 · 选择 ${choice}`,
+            `Passed to the running task · chose ${choice}`,
+          )
+        : pick(lang, `已选择 ${choice}`, `Chose ${choice}`),
+    );
+  },
   "R-WELCOME": (lang, data) =>
     blocks(
       pick(
@@ -1631,7 +1653,7 @@ const TEMPLATES: { [K in ReplyId]: Template<K> } = {
   "R-LAST": (lang, { at, text, page }) =>
     blocks(
       headLine(at),
-      agentMarkdown(text, lang),
+      agentMarkdown(text, lang, { choices: true }),
       page && pageFooter(lang, page),
     ),
   "R-NOREPLY": (lang) =>
@@ -2489,7 +2511,9 @@ const TEMPLATES: { [K in ReplyId]: Template<K> } = {
     if (data.costUsd !== undefined) facts.push(cost(data.costUsd));
     // The pre-slice keeps the work bounded on a very long reply.
     const { text: excerpt, cut } = cutMarkdown(
-      agentMarkdown(data.text.slice(0, DONE_EXCERPT_MAX * 4), lang),
+      agentMarkdown(data.text.slice(0, DONE_EXCERPT_MAX * 4), lang, {
+        choices: true,
+      }),
       DONE_EXCERPT_MAX,
     );
     // `.r` only when there is more to read than the excerpt shows.

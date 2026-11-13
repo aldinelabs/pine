@@ -5,7 +5,9 @@
 // surprise the user, `R-ROUTE` otherwise, and `R-STEER` when it steers a
 // running turn. While an approval or question card of the current session is
 // open, the text joins the steering queue (delivered after the card is
-// handled) and `R-QUEUEWAIT` names the cards still waiting. A bare number is
+// handled) and `R-QUEUEWAIT` names the cards still waiting. Plain text that
+// is only a number of the last reply's interactive choices sends that
+// choice's message instead (`R-CHOICE`). A bare number is
 // turned into the command it stands for and run through `ctx.bridge.dispatch`,
 // so every gate of that command applies.
 
@@ -20,7 +22,7 @@ import type {
   ParsedCommand,
   QuestionAsk,
 } from "../types";
-import { sessionHandlers } from "./sessions";
+import { currentChoices, sessionHandlers } from "./sessions";
 import type {
   CommandContext,
   CommandResult,
@@ -97,10 +99,20 @@ export const handlePlainMessage: MessageHandler = async (ctx, text) => {
   // applies every gate (view-only, quote-only, attachments).
   const queued = ctx.sessions.asksOf(sessionId).length > 0;
   const running = view.live && view.state === "running";
+  // A bare number answers a numbered choice of the last reply: it sends what
+  // the button would send in Pine. Anything else is sent as typed.
+  const number =
+    quote || ctx.attachments.list().length > 0 ? undefined : choiceNumber(body);
+  const choice =
+    number === undefined || running
+      ? undefined
+      : (await currentChoices(ctx, sessionId, projectId)).find(
+          (entry) => entry.number === number,
+        );
   await ctx.sessions.send({
     sessionId,
     projectId,
-    text: body,
+    text: choice?.message ?? body,
     ...(ctx.inbound.quotedText !== undefined
       ? { quotedText: ctx.inbound.quotedText }
       : {}),
@@ -124,11 +136,21 @@ export const handlePlainMessage: MessageHandler = async (ctx, text) => {
   const steered = queued
     ? ctx.sessions.runState(sessionId) === "running"
     : running;
+  if (choice)
+    return {
+      text: render("R-CHOICE", ctx.lang, { at, label: choice.label, steered }),
+    };
   if (steered) return { text: render("R-STEER", ctx.lang, { at }) };
   if (route.kind === "ack")
     return { text: render("R-ROUTE", ctx.lang, { at }) };
   return {};
 };
+
+/** The number a plain message is, when it is only digits (full-width too). */
+function choiceNumber(text: string): number | undefined {
+  const digits = text.normalize("NFKC").trim();
+  return /^\d{1,2}$/.test(digits) ? Number(digits) : undefined;
+}
 
 function openQuestions(ctx: CommandContext): QuestionAsk[] {
   return ctx.asks

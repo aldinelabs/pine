@@ -121,6 +121,7 @@ const SAMPLES: { [K in ReplyId]: ReplyData[K] } = {
   "R-NEWARMED": { project: "pine" },
   "R-STEER": { at },
   "R-ROUTE": { at },
+  "R-CHOICE": { at, label: ".y 12 | Continue", steered: false },
   "R-WELCOME": { computer: "kw-mac", ceiling: "auto-approve", files: true },
   "R-SESSIONS": {
     now: NOW,
