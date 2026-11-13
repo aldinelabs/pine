@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/dialog";
 import DialogScrollArea from "@/components/dialogs/DialogScrollArea.vue";
 import { Separator } from "@/components/ui/separator";
+import { approvalFailureText, approvalReasonText } from "@/lib/approvalReasons";
 import { PHONE_FULLSCREEN_DIALOG } from "@/lib/dialogLayout";
 import type {
   PineApprovalReview,
@@ -152,8 +153,9 @@ function reviewReason(review: PineApprovalReview): string | undefined {
     (review.kind === "decisions" && review.reason
       ? legacyReviewReasonCodes[review.reason]
       : undefined);
-  return code
-    ? t(`project.transcript.toolDetails.reviewReasons.${code}`)
+  if (code) return t(`project.transcript.toolDetails.reviewReasons.${code}`);
+  return review.kind === "model" && review.reason
+    ? approvalFailureText(review.reason, t)
     : review.reason;
 }
 
@@ -351,7 +353,8 @@ async function openDialog(): Promise<void> {
               </h3>
               <pre
                 class="overflow-x-auto rounded-xl bg-muted/60 p-3 font-mono text-xs whitespace-pre-wrap"
-                >{{ toolCall.approval.reason }}</pre>
+                data-rejection-reason
+                >{{ approvalReasonText(toolCall.approval, t) }}</pre>
             </section>
           </template>
 

@@ -1213,6 +1213,26 @@ export default {
           "Cette session a atteint sa limite de coût. Augmentez ou supprimez la limite pour continuer.",
       },
     },
+    approvalReasons: {
+      failures: {
+        noApprovalModel: "Aucun modèle d’approbation n’est configuré.",
+        noResponse: "Le modèle de revue n’a renvoyé aucune réponse.",
+        noRuling: "Le modèle de revue n’a soumis aucune décision.",
+        malformedRulings:
+          "Les décisions du modèle de revue étaient mal formées.",
+        rulingCountMismatch:
+          "Le modèle de revue n’a pas renvoyé une décision par appel d’outil.",
+        streamFailed: "Le flux du modèle de revue a échoué.",
+        omittedCall:
+          "Le modèle de revue a omis cet appel d’outil dans ses décisions.",
+      },
+      autoReviewUnavailable: "Revue automatique indisponible : {detail}",
+      autoReviewerDenied: "La revue automatique a refusé cet appel.",
+      escalationLimit:
+        "Trop d’escalades pendant ce tour ; l’agent doit revoir l’action et sa justification avant de réessayer.",
+      authorizationUnclear:
+        "La justification n’établit pas encore l’autorisation de cet appel ; l’agent doit expliquer le besoin et la portée exacts avant de réessayer.",
+    },
     approvalRequest: {
       autoApprovalFailed: "L'approbation automatique a échoué",
       autoApprovalFallback:

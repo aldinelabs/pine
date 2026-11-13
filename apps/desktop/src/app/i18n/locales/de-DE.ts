@@ -1221,6 +1221,27 @@ export default {
           "Diese Sitzung hat ihr Kostenlimit erreicht. Erhöhe oder entferne das Limit, um fortzufahren.",
       },
     },
+    approvalReasons: {
+      failures: {
+        noApprovalModel: "Es ist kein Freigabemodell konfiguriert.",
+        noResponse: "Das Prüfmodell hat keine Antwort geliefert.",
+        noRuling: "Das Prüfmodell hat keine Entscheidung abgegeben.",
+        malformedRulings:
+          "Die Entscheidungen des Prüfmodells waren fehlerhaft.",
+        rulingCountMismatch:
+          "Das Prüfmodell hat nicht genau eine Entscheidung pro Tool-Aufruf geliefert.",
+        streamFailed: "Der Stream des Prüfmodells ist fehlgeschlagen.",
+        omittedCall:
+          "Das Prüfmodell hat diesen Tool-Aufruf in seinen Entscheidungen ausgelassen.",
+      },
+      autoReviewUnavailable: "Automatische Prüfung nicht verfügbar: {detail}",
+      autoReviewerDenied:
+        "Die automatische Prüfung hat diesen Aufruf abgelehnt.",
+      escalationLimit:
+        "Zu viele Eskalationen in diesem Durchgang; der Agent muss Aktion und Begründung überarbeiten, bevor er es erneut versucht.",
+      authorizationUnclear:
+        "Die Begründung belegt noch keine Berechtigung für diesen Aufruf; der Agent muss genauen Bedarf und Umfang erklären, bevor er es erneut versucht.",
+    },
     approvalRequest: {
       autoApprovalFailed: "Automatische Freigabe fehlgeschlagen",
       autoApprovalFallback:

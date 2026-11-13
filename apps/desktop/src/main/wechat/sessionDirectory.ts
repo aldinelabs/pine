@@ -624,6 +624,8 @@ export class SessionDirectory {
       toolName: event.toolName,
       ...(event.input !== undefined ? { input: event.input } : {}),
       ...(event.evidence !== undefined ? { evidence: event.evidence } : {}),
+      ...(event.reasonCode ? { reasonCode: event.reasonCode } : {}),
+      ...(event.reasonDetail ? { reasonDetail: event.reasonDetail } : {}),
       ...(event.explanation ? { explanation: event.explanation } : {}),
       subjectCut: card.subjectCut,
       external: obs.external,

@@ -1186,6 +1186,24 @@ export default {
           "This session has reached its cost limit. Raise or clear the limit to continue.",
       },
     },
+    approvalReasons: {
+      failures: {
+        noApprovalModel: "No approval model is configured.",
+        noResponse: "The reviewer returned no response.",
+        noRuling: "The reviewer did not submit a ruling.",
+        malformedRulings: "The reviewer's rulings were malformed.",
+        rulingCountMismatch:
+          "The reviewer did not return one ruling per tool call.",
+        streamFailed: "The reviewer stream failed.",
+        omittedCall: "The reviewer left this tool call out of its rulings.",
+      },
+      autoReviewUnavailable: "Auto-review unavailable: {detail}",
+      autoReviewerDenied: "The auto-reviewer denied this call.",
+      escalationLimit:
+        "Too many escalations in this turn; the agent must revise the action and its rationale before retrying.",
+      authorizationUnclear:
+        "The rationale does not yet establish authorization for this call; the agent must explain the exact need and scope before retrying.",
+    },
     approvalRequest: {
       autoApprovalFailed: "Automatic approval failed",
       autoApprovalFallback:

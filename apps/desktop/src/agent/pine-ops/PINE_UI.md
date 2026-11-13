@@ -178,8 +178,11 @@ From top to bottom:
      its actual model and provider, outcome and reason. Each outcome is shown in
      bold with its own icon and colour: green "Allowed", amber "Denied", blue
      "User confirmation required", grey "Sent for model review" and red "Review
-     failed". Pine's own screening reasons follow the interface language;
-     reasons written by the review model are shown as written. It keeps failed
+     failed". Pine's own screening reasons, review failures and denial
+     reasons (for example "Auto-review unavailable: …" or "The auto-reviewer
+     denied this call.") follow the interface language, also on the approval
+     card's Details and the WeChat `.N` view; reasons written by the review
+     model and provider error messages are shown as written. It keeps failed
      attempts and handoffs to detailed model review; Approval status shows when the call
      is awaiting user approval or was decided by the user. These records remain
      available when reopening the conversation. Older calls without review

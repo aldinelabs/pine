@@ -71,6 +71,7 @@ import {
 } from "../shared/sessions";
 import type { RenameCurrentSessionResult } from "./sessionTools";
 import { attachmentMessagePreview } from "../shared/attachments";
+import { REVIEW_FAILURE_MESSAGES } from "../shared/approvalReasons";
 import {
   type AgentHostReply,
   type AgentHostRequest,
@@ -2100,6 +2101,8 @@ export class PineAgentRuntime {
         input: Object.keys(reviewInput).length > 0 ? reviewInput : undefined,
         evidence: request.evidence,
         autoApprovalFailure: request.autoApprovalFailure,
+        ...(request.reasonCode ? { reasonCode: request.reasonCode } : {}),
+        ...(request.reasonDetail ? { reasonDetail: request.reasonDetail } : {}),
         ...(request.reviews?.length ? { reviews: request.reviews } : {}),
         ...(request.explanation
           ? { explanation: request.explanation }
@@ -2619,7 +2622,9 @@ export class PineAgentRuntime {
         modelRuntime,
       );
       if (!model)
-        throw new JudgeUnavailableError("No approval model is configured.");
+        throw new JudgeUnavailableError(
+          REVIEW_FAILURE_MESSAGES.noApprovalModel,
+        );
       reviewer = {
         kind: "model",
         providerId: model.provider,
@@ -2659,16 +2664,16 @@ export class PineAgentRuntime {
         else if (event.type === "error") {
           if (event.reason === "aborted") throw new Error("aborted");
           throw new Error(
-            event.error.errorMessage ?? "The reviewer stream failed.",
+            event.error.errorMessage ?? REVIEW_FAILURE_MESSAGES.streamFailed,
           );
         }
       }
-      if (!final) throw new Error("The reviewer returned no response.");
+      if (!final) throw new Error(REVIEW_FAILURE_MESSAGES.noResponse);
       const call = final.content.find(
         (block) => block.type === "toolCall" && block.name === RULING_TOOL.name,
       );
       if (!call || call.type !== "toolCall") {
-        throw new Error("The reviewer did not submit a ruling.");
+        throw new Error(REVIEW_FAILURE_MESSAGES.noRuling);
       }
       const rulings = parseJudgeRulings(
         call.arguments,

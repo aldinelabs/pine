@@ -2,6 +2,7 @@ import type { AutomationHostOperation } from "./automation";
 import type { ProjectHostOperation } from "./projects";
 import type {
   PineApprovalExplanation,
+  PineApprovalReasonCode,
   PineApprovalReview,
   PineSessionSummary,
   SessionHostOperation,
@@ -341,6 +342,12 @@ export type PineAgentEvent =
       /** Binds the approval card to the immutable worker-side call snapshot. */
       actionDigest?: string;
       autoApprovalFailure?: PineAutoApprovalFailure;
+      /**
+       * Fixed Pine-authored note on why the call reached the user (kept out
+       * of `evidence`), shown localized next to the evidence.
+       */
+      reasonCode?: PineApprovalReasonCode;
+      reasonDetail?: string;
       reviews?: PineApprovalReview[];
       /** Reviewer-written account of what the call does and its risks. */
       explanation?: PineApprovalExplanation;
@@ -364,6 +371,8 @@ export type PineAgentEvent =
       /** Who decided: the user (Let Me Review) or the model judge (Auto Approve). */
       decidedBy: "user" | "judge";
       reason?: string;
+      reasonCode?: PineApprovalReasonCode;
+      reasonDetail?: string;
       reviews?: PineApprovalReview[];
     }
   | {

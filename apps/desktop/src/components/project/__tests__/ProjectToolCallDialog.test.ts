@@ -166,6 +166,59 @@ describe("ProjectToolCallDialog", () => {
     wrapper.unmount();
   });
 
+  it.each([
+    [
+      {
+        reason: "Auto-review unavailable: No approval model is configured.",
+        reasonCode: "autoReviewUnavailable" as const,
+        reasonDetail: "No approval model is configured.",
+      },
+      "自动审查不可用：未配置审批模型。",
+    ],
+    [
+      // Saved before reasons carried a code; a provider error stays as written.
+      { reason: "Auto-review unavailable: HTTP 429: quota exceeded" },
+      "自动审查不可用：HTTP 429: quota exceeded",
+    ],
+    [
+      { reason: "The auto-reviewer denied this call." },
+      "自动审查拒绝了这次调用。",
+    ],
+    [
+      { reason: "请改用不会覆盖现有文件的命令。" },
+      "请改用不会覆盖现有文件的命令。",
+    ],
+  ])("localizes Pine-authored denial reasons %#", async (why, expected) => {
+    const wrapper = mountMarker("judge");
+    await wrapper.setProps({
+      toolCall: {
+        ...wrapper.props("toolCall"),
+        approval: {
+          state: "denied",
+          decidedBy: "judge",
+          ...why,
+          reviews: [
+            {
+              kind: "model",
+              outcome: "error",
+              reason: "The reviewer did not submit a ruling.",
+            },
+          ],
+        },
+      },
+    });
+    await wrapper.get('button[data-slot="marker"]').trigger("click");
+    expect(
+      document.body
+        .querySelector("[data-rejection-reason]")
+        ?.textContent?.trim(),
+    ).toBe(expected);
+    expect(
+      document.body.querySelector("[data-review-reason]")?.textContent?.trim(),
+    ).toBe("审查模型没有提交裁决。");
+    wrapper.unmount();
+  });
+
   it("emphasises each review outcome with its own tone and icon", async () => {
     const wrapper = mountMarker("user");
     const outcomes = [

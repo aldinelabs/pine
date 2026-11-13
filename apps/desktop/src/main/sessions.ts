@@ -21,6 +21,7 @@ import type {
   PineToolCall,
   PineToolCallApproval,
   PineApprovalDecision,
+  PineApprovalReasonCode,
   SessionSearchResult,
 } from "../shared/sessions";
 import { PINE_APPROVAL_DECISION_ENTRY } from "../shared/sessions";
@@ -236,6 +237,31 @@ function isApprovalDecision(value: unknown): value is PineApprovalDecision {
   );
 }
 
+const APPROVAL_REASON_CODES: ReadonlySet<string> =
+  new Set<PineApprovalReasonCode>([
+    "autoReviewUnavailable",
+    "autoReviewerDenied",
+    "escalationLimit",
+    "authorizationUnclear",
+  ]);
+
+/** A stored code from a newer build that this one does not know is dropped. */
+function approvalReasonFields(
+  decision: PineApprovalDecision,
+): Pick<PineToolCallApproval, "reasonCode" | "reasonDetail"> {
+  if (
+    typeof decision.reasonCode !== "string" ||
+    !APPROVAL_REASON_CODES.has(decision.reasonCode)
+  )
+    return {};
+  return {
+    reasonCode: decision.reasonCode,
+    ...(typeof decision.reasonDetail === "string" && decision.reasonDetail
+      ? { reasonDetail: decision.reasonDetail }
+      : {}),
+  };
+}
+
 function approvalDecisionsFromEntries(
   entries: readonly Entry[],
 ): Map<string, PineToolCallApproval> {
@@ -253,6 +279,7 @@ function approvalDecisionsFromEntries(
       decidedBy: entry.data.decidedBy,
       ...(entry.data.reviews ? { reviews: entry.data.reviews } : {}),
       ...(entry.data.reason ? { reason: entry.data.reason } : {}),
+      ...approvalReasonFields(entry.data),
     });
   }
   return decisions;

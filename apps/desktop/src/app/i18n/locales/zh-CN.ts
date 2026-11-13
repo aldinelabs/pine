@@ -1125,6 +1125,22 @@ export default {
         limitReachedPrompt: "本会话已达到成本上限。调高或清除上限后才能继续。",
       },
     },
+    approvalReasons: {
+      failures: {
+        noApprovalModel: "未配置审批模型。",
+        noResponse: "审查模型没有返回响应。",
+        noRuling: "审查模型没有提交裁决。",
+        malformedRulings: "审查模型的裁决格式有误。",
+        rulingCountMismatch: "审查模型没有为每次工具调用各返回一条裁决。",
+        streamFailed: "审查模型的响应流失败。",
+        omittedCall: "审查模型的裁决遗漏了这次工具调用。",
+      },
+      autoReviewUnavailable: "自动审查不可用：{detail}",
+      autoReviewerDenied: "自动审查拒绝了这次调用。",
+      escalationLimit: "本轮升级审查次数过多；智能体需修改操作及理由后再重试。",
+      authorizationUnclear:
+        "理由尚不足以证明这次调用已获授权；智能体需说明确切需要和范围后再重试。",
+    },
     approvalRequest: {
       autoApprovalFailed: "自动审批失败",
       autoApprovalFallback: "自动审批失败，请手动确认",

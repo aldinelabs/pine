@@ -1198,6 +1198,25 @@ export default {
           "このセッションはコスト上限に達しました。続けるには上限を引き上げるか解除してください。",
       },
     },
+    approvalReasons: {
+      failures: {
+        noApprovalModel: "承認モデルが設定されていません。",
+        noResponse: "レビュー担当モデルから応答がありませんでした。",
+        noRuling: "レビュー担当モデルが判定を提出しませんでした。",
+        malformedRulings: "レビュー担当モデルの判定の形式が正しくありません。",
+        rulingCountMismatch:
+          "レビュー担当モデルがツール呼び出しごとに 1 件の判定を返しませんでした。",
+        streamFailed: "レビュー担当モデルのストリームが失敗しました。",
+        omittedCall:
+          "レビュー担当モデルの判定にこのツール呼び出しが含まれていませんでした。",
+      },
+      autoReviewUnavailable: "自動レビューを利用できません：{detail}",
+      autoReviewerDenied: "自動レビューがこの呼び出しを拒否しました。",
+      escalationLimit:
+        "このターンのエスカレーションが多すぎます。エージェントは操作と理由を見直してから再試行する必要があります。",
+      authorizationUnclear:
+        "理由からはこの呼び出しが承認済みとは判断できません。エージェントは必要性と範囲を具体的に説明してから再試行する必要があります。",
+    },
     approvalRequest: {
       autoApprovalFailed: "自動承認に失敗しました",
       autoApprovalFallback: "自動承認に失敗しました。手動で確認してください。",

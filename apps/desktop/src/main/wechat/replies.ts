@@ -12,6 +12,11 @@ import {
   type PineApprovalTrigger,
 } from "../../shared/agent";
 import type { PineThinkingLevel } from "../../shared/models";
+import type { PineApprovalReasonCode } from "../../shared/sessions";
+import {
+  reviewFailureCode,
+  type ReviewFailureCode,
+} from "../../shared/approvalReasons";
 import {
   CARD_DESCRIPTION_MAX,
   CARD_RISK_MAX,
@@ -187,6 +192,50 @@ export function header(lang: L, project: string, title: string): string {
 function head(lang: L, at: SessionRef): string {
   const text = header(lang, at.project, at.title);
   return lang === "zh" ? text : `${text} `;
+}
+
+/** Pine's fixed approval reasons, worded as the desktop shows them. */
+const APPROVAL_REASONS: Record<
+  PineApprovalReasonCode,
+  { zh: string; en: string }
+> = {
+  autoReviewUnavailable: {
+    zh: "自动审查不可用：",
+    en: "Auto-review unavailable: ",
+  },
+  autoReviewerDenied: {
+    zh: "自动审查拒绝了这次调用。",
+    en: "The auto-reviewer denied this call.",
+  },
+  escalationLimit: {
+    zh: "本轮升级审查次数过多；智能体需修改操作及理由后再重试。",
+    en: "Too many escalations in this turn; the agent must revise the action and its rationale before retrying.",
+  },
+  authorizationUnclear: {
+    zh: "理由尚不足以证明这次调用已获授权；智能体需说明确切需要和范围后再重试。",
+    en: "The rationale does not yet establish authorization for this call; the agent must explain the exact need and scope before retrying.",
+  },
+};
+
+const REVIEW_FAILURES_ZH: Record<ReviewFailureCode, string> = {
+  noApprovalModel: "未配置审批模型。",
+  noResponse: "审查模型没有返回响应。",
+  noRuling: "审查模型没有提交裁决。",
+  malformedRulings: "审查模型的裁决格式有误。",
+  rulingCountMismatch: "审查模型没有为每次工具调用各返回一条裁决。",
+  streamFailed: "审查模型的响应流失败。",
+  omittedCall: "审查模型的裁决遗漏了这次工具调用。",
+};
+
+export function approvalReasonText(
+  lang: L,
+  code: PineApprovalReasonCode,
+  detail?: string,
+): string {
+  const text = APPROVAL_REASONS[code][lang];
+  if (code !== "autoReviewUnavailable") return text;
+  const failure = lang === "zh" ? reviewFailureCode(detail) : undefined;
+  return `${text}${failure ? REVIEW_FAILURES_ZH[failure] : (detail ?? "")}`;
 }
 
 function pick(lang: L, zh: string, en: string): string {
@@ -957,6 +1006,8 @@ export interface ReplyData {
   /** `.show`: the card again, subject up to SHOW_INPUT_MAX, plus the evidence. */
   "T-SHOW": ApprovalCardData & {
     evidence?: string;
+    reasonCode?: PineApprovalReasonCode;
+    reasonDetail?: string;
     local: boolean;
     risks?: string[];
   };
@@ -1960,7 +2011,14 @@ const TEMPLATES: { [K in ReplyId]: Template<K> } = {
   },
   "T-SHOW": (lang, data) => {
     const subject = subjectLines(data.subject, SHOW_INPUT_MAX);
-    const evidence = data.evidence ? neutraliseText(data.evidence) : "";
+    const evidence = [
+      data.evidence,
+      data.reasonCode &&
+        approvalReasonText(lang, data.reasonCode, data.reasonDetail),
+    ]
+      .filter(Boolean)
+      .map((part) => neutraliseText(part as string))
+      .join("\n\n");
     const what = data.local
       ? pick(
           lang,

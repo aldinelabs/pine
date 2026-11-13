@@ -475,7 +475,9 @@ describe("AutoReviewGate", () => {
     expect(mocks.requestUserApproval).toHaveBeenCalledWith(
       expect.objectContaining({
         toolCallId: "t1",
-        evidence: expect.stringContaining("provider down"),
+        evidence: expect.not.stringContaining("provider down"),
+        reasonCode: "autoReviewUnavailable",
+        reasonDetail: "provider down",
         autoApprovalFailure: {
           id: expect.any(String),
           message: "provider down",
@@ -512,7 +514,8 @@ describe("AutoReviewGate", () => {
     expect(mocks.requestUserApproval).toHaveBeenCalledWith(
       expect.objectContaining({
         toolCallId: "t-final",
-        evidence: expect.stringContaining("Too many escalations"),
+        evidence: expect.not.stringContaining("Too many escalations"),
+        reasonCode: "escalationLimit",
       }),
     );
   });
@@ -608,6 +611,72 @@ describe("AutoReviewGate", () => {
       reason: "Auto-review unavailable: provider down",
     });
     expect(mocks.requestUserApproval).not.toHaveBeenCalled();
+  });
+
+  it("codes Pine-authored denials while the agent keeps the English text", async () => {
+    const cases: Array<{
+      judge: (mock: ReturnType<typeof vi.fn>) => void;
+      reason: string;
+      coded: Record<string, string>;
+    }> = [
+      {
+        judge: (mock) => mock.mockRejectedValue(new Error("provider down")),
+        reason: "Auto-review unavailable: provider down",
+        coded: {
+          reasonCode: "autoReviewUnavailable",
+          reasonDetail: "provider down",
+        },
+      },
+      {
+        judge: (mock) => mock.mockResolvedValue([]),
+        reason:
+          "Auto-review unavailable: The reviewer omitted this tool call from its rulings.",
+        coded: {
+          reasonCode: "autoReviewUnavailable",
+          reasonDetail: "The reviewer omitted this tool call from its rulings.",
+        },
+      },
+      {
+        judge: (mock) =>
+          mock.mockResolvedValue([{ toolCallId: "t1", verdict: "deny" }]),
+        reason: "The auto-reviewer denied this call.",
+        coded: { reasonCode: "autoReviewerDenied" },
+      },
+      {
+        judge: (mock) =>
+          mock.mockResolvedValue([{ toolCallId: "t1", verdict: "needs_user" }]),
+        reason:
+          "The rationale does not yet establish authorization for this call. Explain the exact need and scope before retrying.",
+        coded: { reasonCode: "authorizationUnclear" },
+      },
+    ];
+    for (const { judge, reason, coded } of cases) {
+      const { host, mocks } = createHost();
+      judge(mocks.judge);
+      const gate = new AutoReviewGate(host, true);
+
+      await expect(
+        gate.reviewBashCommand({ toolCallId: "t1", command: "rm -rf build" }),
+      ).resolves.toEqual({ kind: "deny", reason });
+      expect(mocks.recordApprovalDecision).toHaveBeenCalledWith(
+        expect.objectContaining({ reason, ...coded }),
+      );
+      expect(mocks.emit).toHaveBeenCalledWith(
+        expect.objectContaining({ type: "approval-decided", reason, ...coded }),
+      );
+    }
+  });
+
+  it("leaves reviewer-written denials uncoded", async () => {
+    const { host, mocks } = createHost(() =>
+      Promise.resolve({ verdict: "deny", reason: "untracked files" }),
+    );
+    const gate = new AutoReviewGate(host, true);
+
+    await gate.reviewBashCommand({ toolCallId: "t1", command: "rm -rf x" });
+    expect(mocks.recordApprovalDecision.mock.calls[0][0]).not.toHaveProperty(
+      "reasonCode",
+    );
   });
 
   it("retries a transient reviewer failure once", async () => {

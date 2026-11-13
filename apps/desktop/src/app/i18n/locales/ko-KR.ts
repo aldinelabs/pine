@@ -1181,6 +1181,24 @@ export default {
           "이 세션은 비용 한도에 도달했습니다. 계속하려면 한도를 높이거나 해제하세요.",
       },
     },
+    approvalReasons: {
+      failures: {
+        noApprovalModel: "승인 모델이 설정되지 않았습니다.",
+        noResponse: "검토 모델이 응답하지 않았습니다.",
+        noRuling: "검토 모델이 판정을 제출하지 않았습니다.",
+        malformedRulings: "검토 모델의 판정 형식이 올바르지 않습니다.",
+        rulingCountMismatch:
+          "검토 모델이 도구 호출마다 판정을 하나씩 반환하지 않았습니다.",
+        streamFailed: "검토 모델의 스트림이 실패했습니다.",
+        omittedCall: "검토 모델의 판정에서 이 도구 호출이 빠졌습니다.",
+      },
+      autoReviewUnavailable: "자동 검토를 사용할 수 없음: {detail}",
+      autoReviewerDenied: "자동 검토가 이 호출을 거부했습니다.",
+      escalationLimit:
+        "이번 턴에 에스컬레이션이 너무 많습니다. 에이전트가 작업과 근거를 수정한 뒤 다시 시도해야 합니다.",
+      authorizationUnclear:
+        "근거만으로는 이 호출이 승인되었다고 볼 수 없습니다. 에이전트가 정확한 필요성과 범위를 설명한 뒤 다시 시도해야 합니다.",
+    },
     approvalRequest: {
       autoApprovalFailed: "자동 승인에 실패했습니다",
       autoApprovalFallback: "자동 승인에 실패했습니다. 직접 검토해 주세요.",

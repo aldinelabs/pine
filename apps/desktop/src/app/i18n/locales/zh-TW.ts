@@ -1129,6 +1129,22 @@ export default {
         limitReachedPrompt: "本對話已達到成本上限。調高或清除上限後才能繼續。",
       },
     },
+    approvalReasons: {
+      failures: {
+        noApprovalModel: "未設定審批模型。",
+        noResponse: "審查模型沒有回傳回應。",
+        noRuling: "審查模型沒有提交裁決。",
+        malformedRulings: "審查模型的裁決格式有誤。",
+        rulingCountMismatch: "審查模型沒有為每次工具呼叫各回傳一條裁決。",
+        streamFailed: "審查模型的回應串流失敗。",
+        omittedCall: "審查模型的裁決遺漏了這次工具呼叫。",
+      },
+      autoReviewUnavailable: "自動審查無法使用：{detail}",
+      autoReviewerDenied: "自動審查拒絕了這次呼叫。",
+      escalationLimit: "本輪升級審查次數過多；代理需修改操作及理由後再重試。",
+      authorizationUnclear:
+        "理由尚不足以證明這次呼叫已獲授權；代理需說明確切需要與範圍後再重試。",
+    },
     approvalRequest: {
       autoApprovalFailed: "自動審批失敗",
       autoApprovalFallback: "自動審批失敗，請手動確認",

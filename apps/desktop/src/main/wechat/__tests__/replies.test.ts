@@ -1041,6 +1041,27 @@ describe("reviewer explanations on approval cards", () => {
     ).toBe(false);
   });
 
+  it("shows Pine's escalation note on .show in the reply language", () => {
+    const sample = {
+      ...SAMPLES["T-SHOW"],
+      reasonCode: "autoReviewUnavailable" as const,
+      reasonDetail: "No approval model is configured.",
+    };
+    expect(render("T-SHOW", "zh", sample)).toContain(
+      "依据：stderr: denied\n\n自动审查不可用：未配置审批模型。",
+    );
+    expect(render("T-SHOW", "en", sample)).toContain(
+      "Auto-review unavailable: No approval model is configured.",
+    );
+    expect(
+      render("T-SHOW", "zh", {
+        ...SAMPLES["T-SHOW"],
+        evidence: undefined,
+        reasonCode: "escalationLimit",
+      }),
+    ).toContain("依据：本轮升级审查次数过多");
+  });
+
   it("lists the reviewer's risks on .show", () => {
     const text = render("T-SHOW", "en", {
       ...SAMPLES["T-SHOW"],

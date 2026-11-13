@@ -1211,6 +1211,26 @@ export default {
           "Esta sesión alcanzó su límite de coste. Aumenta o quita el límite para continuar.",
       },
     },
+    approvalReasons: {
+      failures: {
+        noApprovalModel: "No hay ningún modelo de aprobación configurado.",
+        noResponse: "El modelo revisor no devolvió ninguna respuesta.",
+        noRuling: "El modelo revisor no envió ninguna decisión.",
+        malformedRulings:
+          "Las decisiones del modelo revisor tenían un formato incorrecto.",
+        rulingCountMismatch:
+          "El modelo revisor no devolvió una decisión por cada llamada de herramienta.",
+        streamFailed: "Falló el flujo del modelo revisor.",
+        omittedCall:
+          "El modelo revisor omitió esta llamada de herramienta en sus decisiones.",
+      },
+      autoReviewUnavailable: "Revisión automática no disponible: {detail}",
+      autoReviewerDenied: "La revisión automática rechazó esta llamada.",
+      escalationLimit:
+        "Demasiadas escalaciones en este turno; el agente debe revisar la acción y su justificación antes de reintentar.",
+      authorizationUnclear:
+        "La justificación aún no demuestra autorización para esta llamada; el agente debe explicar la necesidad y el alcance exactos antes de reintentar.",
+    },
     approvalRequest: {
       autoApprovalFailed: "Falló la aprobación automática",
       autoApprovalFallback:

@@ -137,10 +137,23 @@ export const APPROVAL_EXPLANATION_SUMMARY_MAX = 400;
 export const APPROVAL_EXPLANATION_RISK_MAX = 240;
 export const APPROVAL_EXPLANATION_RISKS_MAX = 4;
 
+/**
+ * Fixed Pine-authored approval reasons. `reason` keeps the English text for
+ * the agent and older readers; the UI shows the code localized, with
+ * `reasonDetail` (a raw error message) appended where the code takes one.
+ */
+export type PineApprovalReasonCode =
+  | "autoReviewUnavailable"
+  | "autoReviewerDenied"
+  | "escalationLimit"
+  | "authorizationUnclear";
+
 export interface PineToolCallApproval {
   state: "reviewing" | "awaiting-user" | "approved" | "denied";
   decidedBy?: "user" | "judge" | "sandbox";
   reason?: string;
+  reasonCode?: PineApprovalReasonCode;
+  reasonDetail?: string;
   reviews?: PineApprovalReview[];
 }
 
@@ -150,6 +163,8 @@ export interface PineApprovalDecision {
   verdict: "approved" | "denied";
   decidedBy: "user" | "judge" | "sandbox";
   reason?: string;
+  reasonCode?: PineApprovalReasonCode;
+  reasonDetail?: string;
   reviews?: PineApprovalReview[];
 }
 

@@ -2,10 +2,12 @@ import { Type } from "typebox";
 import type { Tool } from "@earendil-works/pi-ai";
 import { createHash, randomUUID } from "node:crypto";
 import type { PineAgentEvent, PineAutoApprovalFailure } from "../shared/agent";
+import { REVIEW_FAILURE_MESSAGES } from "../shared/approvalReasons";
 import type {
   PineApprovalDecision,
   PineApprovalExplanation,
   PineApprovalReview,
+  PineApprovalReasonCode,
   PineApprovalReviewReasonCode,
 } from "../shared/sessions";
 import type { GateDecision } from "./protocol";
@@ -63,6 +65,16 @@ export interface JudgeRequest {
   onReview?: (review: PineApprovalReview) => void;
 }
 
+// Fixed Pine-authored reasons. The agent receives this English text; records
+// and events also carry a PineApprovalReasonCode so the UI shows it localized.
+export const AUTO_REVIEW_UNAVAILABLE_PREFIX = "Auto-review unavailable: ";
+export const AUTO_REVIEWER_DENIED_REASON =
+  "The auto-reviewer denied this call.";
+export const ESCALATION_LIMIT_REASON =
+  "Too many escalations in this turn; revise the requested action and its rationale before retrying.";
+export const AUTHORIZATION_UNCLEAR_REASON =
+  "The rationale does not yet establish authorization for this call. Explain the exact need and scope before retrying.";
+
 export interface JudgeRuling {
   toolCallId: string;
   verdict: "allow" | "deny" | "needs_user";
@@ -94,6 +106,9 @@ export interface UserApprovalRequest {
   description?: string;
   evidence?: string;
   autoApprovalFailure?: PineAutoApprovalFailure;
+  /** Fixed Pine note on why the call reached the user; kept out of `evidence`. */
+  reasonCode?: PineApprovalReasonCode;
+  reasonDetail?: string;
   reviews?: PineApprovalReview[];
   /** Reviewer-written account shown above the raw parameters. */
   explanation?: PineApprovalExplanation;
@@ -422,11 +437,13 @@ export class AutoReviewGate implements ToolGate {
     reviews.forEach((review, index) => {
       const sequence = ++this.sequence;
       if (this.consecutiveEscalations >= MAX_CONSECUTIVE_ESCALATIONS) {
-        const reason =
-          "Too many escalations in this turn; revise the requested action and its rationale before retrying.";
+        const reason = ESCALATION_LIMIT_REASON;
         if (this.autonomous) {
           capped = true;
-          this.emitDecided(sequence, review.input.toolCallId, "denied", reason);
+          this.emitDecided(sequence, review.input.toolCallId, "denied", {
+            reason,
+            reasonCode: "escalationLimit",
+          });
           decisions[index] = { kind: "deny", reason };
           return;
         }
@@ -438,9 +455,8 @@ export class AutoReviewGate implements ToolGate {
               toolName: review.input.toolName,
               subject: review.input.subject,
               description: review.input.description,
-              evidence: [review.input.evidence, reason]
-                .filter(Boolean)
-                .join("\n\n"),
+              evidence: review.input.evidence,
+              reasonCode: "escalationLimit",
               signal: review.input.signal,
             })
             .then((decision) => {
@@ -515,14 +531,18 @@ export class AutoReviewGate implements ToolGate {
         this.consecutiveEscalations - pending.length,
       );
       const message = error instanceof Error ? error.message : String(error);
-      const reason = `Auto-review unavailable: ${message}`;
+      const reason = `${AUTO_REVIEW_UNAVAILABLE_PREFIX}${message}`;
       if (this.autonomous) {
         for (const { index, input, sequence, reviews } of pending) {
           this.emitDecided(
             sequence,
             input.toolCallId,
             "denied",
-            reason,
+            {
+              reason,
+              reasonCode: "autoReviewUnavailable",
+              reasonDetail: message,
+            },
             reviews,
           );
           decisions[index] = { kind: "deny", reason };
@@ -537,7 +557,9 @@ export class AutoReviewGate implements ToolGate {
             toolName: input.toolName,
             subject: input.subject,
             description: input.description,
-            evidence: [input.evidence, reason].filter(Boolean).join("\n\n"),
+            evidence: input.evidence,
+            reasonCode: "autoReviewUnavailable",
+            reasonDetail: message,
             autoApprovalFailure: { id: reviewId, message },
             reviews: [...reviews],
             signal: input.signal,
@@ -564,14 +586,18 @@ export class AutoReviewGate implements ToolGate {
     } of pending) {
       const ruling = rulingsById.get(input.toolCallId);
       if (!ruling) {
-        const reason =
-          "Auto-review unavailable: The reviewer omitted this tool call from its rulings.";
+        const message = REVIEW_FAILURE_MESSAGES.omittedCall;
+        const reason = `${AUTO_REVIEW_UNAVAILABLE_PREFIX}${message}`;
         if (this.autonomous) {
           this.emitDecided(
             sequence,
             input.toolCallId,
             "denied",
-            reason,
+            {
+              reason,
+              reasonCode: "autoReviewUnavailable",
+              reasonDetail: message,
+            },
             reviewHistory,
           );
           decisions[index] = { kind: "deny", reason };
@@ -583,11 +609,10 @@ export class AutoReviewGate implements ToolGate {
           toolName: input.toolName,
           subject: input.subject,
           description: input.description,
-          evidence: [input.evidence, reason].filter(Boolean).join("\n\n"),
-          autoApprovalFailure: {
-            id: reviewId,
-            message: "The reviewer omitted this tool call from its rulings.",
-          },
+          evidence: input.evidence,
+          reasonCode: "autoReviewUnavailable",
+          reasonDetail: message,
+          autoApprovalFailure: { id: reviewId, message },
           reviews: [...reviewHistory],
           signal: input.signal,
         });
@@ -612,7 +637,7 @@ export class AutoReviewGate implements ToolGate {
           sequence,
           input.toolCallId,
           "approved",
-          ruling.reason,
+          { reason: ruling.reason },
           reviewHistory,
         );
         decisions[index] = {
@@ -624,14 +649,14 @@ export class AutoReviewGate implements ToolGate {
       }
       if (ruling.verdict === "needs_user") {
         if (this.autonomous) {
-          const reason =
-            ruling.reason ??
-            "The rationale does not yet establish authorization for this call. Explain the exact need and scope before retrying.";
+          const reason = ruling.reason ?? AUTHORIZATION_UNCLEAR_REASON;
           this.emitDecided(
             sequence,
             input.toolCallId,
             "denied",
-            reason,
+            ruling.reason
+              ? { reason }
+              : { reason, reasonCode: "authorizationUnclear" },
             reviewHistory,
           );
           decisions[index] = { kind: "deny", reason };
@@ -660,12 +685,14 @@ export class AutoReviewGate implements ToolGate {
         if (decision.kind === "allow") allowed = true;
         continue;
       }
-      const reason = ruling.reason ?? "The auto-reviewer denied this call.";
+      const reason = ruling.reason ?? AUTO_REVIEWER_DENIED_REASON;
       this.emitDecided(
         sequence,
         input.toolCallId,
         "denied",
-        reason,
+        ruling.reason
+          ? { reason }
+          : { reason, reasonCode: "autoReviewerDenied" },
         reviewHistory,
       );
       decisions[index] = { kind: "deny", reason };
@@ -694,10 +721,19 @@ export class AutoReviewGate implements ToolGate {
     sequence: number,
     toolCallId: string,
     verdict: "approved" | "denied",
-    reason?: string,
+    why: {
+      reason?: string;
+      reasonCode?: PineApprovalReasonCode;
+      reasonDetail?: string;
+    },
     reviews?: PineApprovalReview[],
   ): void {
     const requestId = `judge-${sequence}`;
+    const { reason, reasonCode, reasonDetail } = why;
+    const coded = {
+      ...(reasonCode ? { reasonCode } : {}),
+      ...(reasonDetail ? { reasonDetail } : {}),
+    };
     this.host.recordApprovalDecision({
       requestId,
       toolCallId,
@@ -705,6 +741,7 @@ export class AutoReviewGate implements ToolGate {
       decidedBy: "judge",
       ...(reviews?.length ? { reviews: [...reviews] } : {}),
       ...(reason ? { reason } : {}),
+      ...coded,
     });
     this.host.emit({
       type: "approval-decided",
@@ -714,6 +751,7 @@ export class AutoReviewGate implements ToolGate {
       verdict,
       decidedBy: "judge",
       reason,
+      ...coded,
       ...(reviews?.length ? { reviews: [...reviews] } : {}),
     });
   }

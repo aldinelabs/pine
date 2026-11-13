@@ -56,6 +56,23 @@ describe("ProjectApprovalCard", () => {
     wrapper.unmount();
   });
 
+  it("shows Pine's own escalation note after the evidence, localized", () => {
+    const wrapper = mount(ProjectApprovalCard, {
+      props: {
+        approval: {
+          ...approval,
+          reasonCode: "autoReviewUnavailable",
+          reasonDetail: "The reviewer did not submit a ruling.",
+        },
+      },
+      global: { plugins: [createAppI18n("zh-CN")] },
+    });
+    expect(wrapper.get("details pre").text()).toBe(
+      "Sandbox error\n\n自动审查不可用：审查模型没有提交裁决。",
+    );
+    wrapper.unmount();
+  });
+
   it("does not label ordinary manual confirmations as failures", () => {
     const wrapper = mount(ProjectApprovalCard, {
       props: { approval },

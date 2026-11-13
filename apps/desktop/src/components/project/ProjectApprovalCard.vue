@@ -20,6 +20,7 @@ import {
 import { Kbd } from "@/components/ui/kbd";
 import { Spinner } from "@/components/ui/spinner";
 import { useShortcutHints } from "@/composables/useShortcutHints";
+import { approvalReasonText } from "@/lib/approvalReasons";
 import type { PineApprovalAction } from "@/shared/agent";
 import type { PinePendingApproval } from "@/stores/session";
 
@@ -35,6 +36,25 @@ const emit = defineEmits<{
 
 const i18n = useI18n();
 const { t } = i18n;
+
+// Pine's own note on why the call reached the user follows the gate's
+// evidence, in the interface language.
+const evidence = computed(() =>
+  [
+    props.approval.evidence,
+    props.approval.reasonCode
+      ? approvalReasonText(
+          {
+            reasonCode: props.approval.reasonCode,
+            reasonDetail: props.approval.reasonDetail,
+          },
+          t,
+        )
+      : undefined,
+  ]
+    .filter(Boolean)
+    .join("\n\n"),
+);
 const showShortcutHints = useShortcutHints();
 const guidance = ref("");
 const guiding = ref(false);
@@ -231,13 +251,13 @@ function startGuidance(): void {
           </CollapsibleContent>
         </Collapsible>
       </template>
-      <details v-if="approval.evidence">
+      <details v-if="evidence">
         <summary class="cursor-pointer text-xs text-muted-foreground">
           {{ t("project.approvalRequest.evidence") }}
         </summary>
         <pre
           class="mt-1 overflow-x-auto rounded-lg bg-muted/60 p-2 font-mono text-xs whitespace-pre-wrap"
-          >{{ approval.evidence }}</pre>
+          >{{ evidence }}</pre>
       </details>
     </CardContent>
     <CardFooter class="mt-auto shrink-0 gap-2">

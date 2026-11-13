@@ -1,5 +1,6 @@
 import type { Api, Model, ModelsApiStreamOptions } from "@earendil-works/pi-ai";
 import type { GateTurnContext, JudgeRequest, JudgeRuling } from "../gate";
+import { REVIEW_FAILURE_MESSAGES } from "../../shared/approvalReasons";
 import {
   APPROVAL_EXPLANATION_RISK_MAX,
   APPROVAL_EXPLANATION_RISKS_MAX,
@@ -140,21 +141,21 @@ export function parseJudgeRulings(
   expectedToolCallIds: readonly string[],
 ): JudgeRuling[] {
   if (typeof value !== "object" || value === null || Array.isArray(value)) {
-    throw new Error("The reviewer's rulings were malformed.");
+    throw new Error(REVIEW_FAILURE_MESSAGES.malformedRulings);
   }
   const rulings = (value as { rulings?: unknown }).rulings;
   if (
     !Array.isArray(rulings) ||
     rulings.length !== expectedToolCallIds.length
   ) {
-    throw new Error("The reviewer did not return one ruling per tool call.");
+    throw new Error(REVIEW_FAILURE_MESSAGES.rulingCountMismatch);
   }
 
   const expected = new Set(expectedToolCallIds);
   const seen = new Set<string>();
   return rulings.map((value): JudgeRuling => {
     if (typeof value !== "object" || value === null || Array.isArray(value)) {
-      throw new Error("The reviewer's rulings were malformed.");
+      throw new Error(REVIEW_FAILURE_MESSAGES.malformedRulings);
     }
     const ruling = value as {
       toolCallId?: unknown;
@@ -173,7 +174,7 @@ export function parseJudgeRulings(
         ruling.verdict !== "deny" &&
         ruling.verdict !== "needs_user")
     ) {
-      throw new Error("The reviewer's rulings were malformed.");
+      throw new Error(REVIEW_FAILURE_MESSAGES.malformedRulings);
     }
     seen.add(ruling.toolCallId);
     const result: JudgeRuling = {

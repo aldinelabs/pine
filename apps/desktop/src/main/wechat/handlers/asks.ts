@@ -290,6 +290,8 @@ async function show(
     ...(card.summary !== undefined ? { summary: card.summary } : {}),
     ...(card.risks !== undefined ? { risks: card.risks } : {}),
     ...(ask.evidence !== undefined ? { evidence: ask.evidence } : {}),
+    ...(ask.reasonCode ? { reasonCode: ask.reasonCode } : {}),
+    ...(ask.reasonDetail ? { reasonDetail: ask.reasonDetail } : {}),
     external: ask.external,
     local: verdict.kind !== "approvable",
   });

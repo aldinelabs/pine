@@ -15,6 +15,7 @@ import {
 } from "@/shared/agent";
 import type {
   PineApprovalExplanation,
+  PineApprovalReasonCode,
   PineContentBlock,
   PineCompactionStatus,
   PineContextUsage,
@@ -25,6 +26,7 @@ import type {
   SessionSearchResult,
 } from "@/shared/sessions";
 import { attachmentMessagePreview } from "@/shared/attachments";
+import { reviewFailureCode } from "@/shared/approvalReasons";
 import {
   parseMessageBlocks,
   progressReportText,
@@ -57,6 +59,15 @@ import {
 
 const NO_SESSIONS: SessionSearchResult[] = [];
 
+/** The store has no i18n instance; read the failure text from the messages. */
+function autoApprovalFailureText(
+  messages: (typeof localeMessages)[keyof typeof localeMessages],
+  message: string,
+): string {
+  const code = reviewFailureCode(message);
+  return code ? messages.project.approvalReasons.failures[code] : message;
+}
+
 function currentAppLocale() {
   const locale = document.documentElement.lang;
   return isAppLocale(locale) ? locale : "en-US";
@@ -81,6 +92,8 @@ export interface PinePendingApproval {
   description?: string;
   evidence?: string;
   autoApprovalFailure?: PineAutoApprovalFailure;
+  reasonCode?: PineApprovalReasonCode;
+  reasonDetail?: string;
   /** Reviewer-written account of what the call does and its risks. */
   explanation?: PineApprovalExplanation;
   /** The approval model is still writing the explanation. */
@@ -1694,6 +1707,8 @@ export const useSessionStore = defineStore("session", () => {
               : undefined,
           evidence: event.evidence,
           autoApprovalFailure: event.autoApprovalFailure,
+          ...(event.reasonCode ? { reasonCode: event.reasonCode } : {}),
+          ...(event.reasonDetail ? { reasonDetail: event.reasonDetail } : {}),
           ...(explanation
             ? { explanation }
             : event.explanationPending === true
@@ -1707,7 +1722,7 @@ export const useSessionStore = defineStore("session", () => {
         const messages = localeMessages[currentAppLocale()];
         toast.error(messages.project.approvalRequest.autoApprovalFailed, {
           id: `auto-approval-failed-${failure.id}`,
-          description: failure.message,
+          description: autoApprovalFailureText(messages, failure.message),
         });
       }
       patchToolCall(toolCallId, {
@@ -1757,6 +1772,8 @@ export const useSessionStore = defineStore("session", () => {
           decidedBy: event.decidedBy,
           ...(event.reviews ? { reviews: event.reviews } : {}),
           ...(event.reason ? { reason: event.reason } : {}),
+          ...(event.reasonCode ? { reasonCode: event.reasonCode } : {}),
+          ...(event.reasonDetail ? { reasonDetail: event.reasonDetail } : {}),
         },
       });
       return;
