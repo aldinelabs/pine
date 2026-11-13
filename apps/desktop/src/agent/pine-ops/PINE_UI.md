@@ -159,10 +159,10 @@ From top to bottom:
      payloads do not add markers. Reasoning separated by a reply or tool call
      has its own expandable content and live timing. A reasoning panel opens
      while it streams. While the model is thinking the reasoning streams into
-     it as it is written, updated a few times a second, and the panel scrolls
-     smoothly to follow the newest line; scrolling up in the panel stops it
-     following, and scrolling back to the bottom resumes. With reduced motion
-     enabled, the panel jumps instead of scrolling smoothly. It collapses when
+     it as it is written, updated a few times a second, and the panel stays
+     at the newest line, jumping straight to it with each update; scrolling
+     up in the panel stops it following, and scrolling back to the bottom
+     resumes. It collapses when
      output follows that panel, without repeating other panels' content or
      timing.
      Web sources appear as inline

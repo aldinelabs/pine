@@ -311,8 +311,8 @@ describe("project transcript markers", () => {
 
     expect(animateSpy).not.toHaveBeenCalled();
     expect(marker.scrollTo.mock.calls).toEqual([
-      [{ top: 600, behavior: "smooth" }],
-      [{ top: 700, behavior: "smooth" }],
+      [{ top: 600, behavior: "instant" }],
+      [{ top: 700, behavior: "instant" }],
     ]);
     // Without user intent, the glide's own positions do not stop following,
     // and the newest line stays faded while the glide trails it.
@@ -360,7 +360,7 @@ describe("project transcript markers", () => {
     expect(marker.scrollTo).toHaveBeenCalledTimes(1);
     expect(marker.scrollTo).toHaveBeenLastCalledWith({
       top: 550,
-      behavior: "smooth",
+      behavior: "instant",
     });
 
     marker.scrollTo.mockClear();
@@ -379,7 +379,7 @@ describe("project transcript markers", () => {
     await marker.grow(760, "Inspect the request.\nBack at the end.");
     expect(marker.scrollTo).toHaveBeenCalledWith({
       top: 660,
-      behavior: "smooth",
+      behavior: "instant",
     });
     marker.cleanup();
     animateSpy.mockRestore();

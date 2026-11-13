@@ -17,7 +17,7 @@
  * | T5 | thinking Markdown re-renders during the stream        | 8      | 4     | <= 5   |
  *
  * "before" is the marker before any perf change; "after" follows with one
- * native smooth `scrollTo` per resize report (the stub applies it at once),
+ * instant `scrollTo` per resize report (the stub applies it at once),
  * a state-driven edge fade, and streamed text reaching the panel at most
  * every 250 ms. All targets hold.
  *

@@ -11,7 +11,7 @@ import {
   watch,
 } from "vue";
 import { useI18n } from "vue-i18n";
-import { animateScrollTop, prefersReducedMotion } from "@/lib/animateScroll";
+import { animateScrollTop } from "@/lib/animateScroll";
 import MarkdownContent from "@/components/markdown/MarkdownContent.vue";
 import { Marker, MarkerContent, MarkerIcon } from "@/components/ui/marker";
 import { useOptionalMessageScrollerContext } from "@/components/ui/message-scroller/useMessageScroller";
@@ -229,9 +229,9 @@ function updateScrollEdges(scrollTop: number, maxTop: number): void {
 }
 
 /**
- * The follow glide trails the newest line, so the bottom stays faded for the
- * whole stream. Holding the fade on while following keeps each landing of the
- * glide from pulsing it; once the stream ends, the glide's final scroll event
+ * While following the stream the bottom stays faded: each update grows the
+ * text before the panel jumps to it, so the fade would otherwise flicker on
+ * and off with every update. Once the stream ends, the next scroll event
  * clears it.
  */
 const scrollableAttr = computed(() => {
@@ -255,8 +255,8 @@ function scrollThinkingToBottom(): void {
 /**
  * Runs after layout whenever the rendered thinking grows or reflows, so the
  * measurements here force no extra layout. While following the stream the
- * panel glides to the newest line with the browser's own smooth scroll,
- * which runs off the main thread and retargets itself on the next update.
+ * panel jumps straight to the newest line: one scroll write per update (at
+ * most four a second), no glide.
  */
 function handleThinkingBodyResize(): void {
   const content = thinkingContent.value;
@@ -269,10 +269,7 @@ function handleThinkingBodyResize(): void {
   if (target === lastPinTarget) return;
   lastPinTarget = target;
   cancelScrollAnimation();
-  content.scrollTo({
-    top: target,
-    behavior: prefersReducedMotion() ? "auto" : "smooth",
-  });
+  content.scrollTo({ top: target, behavior: "instant" });
 }
 
 async function toggleExpanded(): Promise<void> {
