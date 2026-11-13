@@ -470,7 +470,9 @@ the user opens themselves do not pulse.
     "Scanned. Confirm on your phone.", a verification-code field when WeChat
     asks for one), and then a pairing step: "In WeChat, send any message (a
     single dot is enough) to the bot. It replies with a 6-digit code. Enter
-    it here." with a 6-digit field, attempts left and a countdown; "Try
+    it here." with six one-digit boxes (digits only; pasting the code fills
+    them all; the code is sent as soon as the sixth digit is entered, or
+    with Submit), attempts left and a countdown; "Try
     again" after the code expires. Connected: "WeChat account XXXX-XXXX" with
     a status badge (Online, Connecting, Retrying, Scan again needed, Paused),
     "Scan again" when needed, "Disconnect" (asks first: sessions only WeChat

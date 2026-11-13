@@ -8,7 +8,15 @@ import {
 } from "@lucide/vue";
 import { storeToRefs } from "pinia";
 import { encode } from "uqr";
-import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
+import {
+  computed,
+  nextTick,
+  onBeforeUnmount,
+  onMounted,
+  ref,
+  useTemplateRef,
+  watch,
+} from "vue";
 import { useI18n } from "vue-i18n";
 import { handleError } from "@/app/errors/errorHandler";
 import {
@@ -48,6 +56,11 @@ import {
   ItemTitle,
 } from "@/components/ui/item";
 import {
+  PinInput,
+  PinInputGroup,
+  PinInputSlot,
+} from "@/components/ui/pin-input";
+import {
   Select,
   SelectContent,
   SelectGroup,
@@ -69,6 +82,7 @@ import { useProjectStore } from "@/stores/project";
 
 /** The Select value standing for "No Project": the temporary workspace. */
 const NO_PROJECT = "no-project";
+const PAIRING_CODE_LENGTH = 6;
 const PAIRING_CODE = /^\d{6}$/;
 const SERVER_GUIDE = {
   zh: "https://docs.aldine.cn/zh/pine/advanced/server/",
@@ -102,7 +116,10 @@ const isBindDialogOpen = ref(false);
 const isDisconnectOpen = ref(false);
 const isYoloConfirmOpen = ref(false);
 const verifyCode = ref("");
-const pairingCode = ref("");
+/** One digit per PIN slot; slots reject anything but digits. */
+const pairingDigits = ref<number[]>([]);
+const pairingCode = computed(() => pairingDigits.value.join(""));
+const pairingGroup = useTemplateRef<{ $el: HTMLElement }>("pairingGroup");
 const now = useNow({
   scheduler: (callback) => useIntervalFn(callback, 1_000),
 });
@@ -257,9 +274,22 @@ watch(binding, (next, previous) => {
   }
   if (next?.phase !== previous?.phase) {
     verifyCode.value = "";
-    pairingCode.value = "";
+    pairingDigits.value = [];
   }
 });
+
+const showsPairingForm = computed(
+  () => binding.value?.phase === "pairing" && !isExpired.value,
+);
+watch(showsPairingForm, (shown) => {
+  if (shown) void focusPairingCode();
+});
+
+/** Puts the caret in the first PIN slot, once the slots are rendered. */
+async function focusPairingCode(): Promise<void> {
+  await nextTick();
+  pairingGroup.value?.$el.querySelector("input")?.focus();
+}
 
 async function run(
   action: () => Promise<WeChatStatus>,
@@ -308,13 +338,15 @@ async function submitVerifyCode(): Promise<void> {
 }
 
 async function submitPairingCode(): Promise<void> {
-  const code = pairingCode.value.trim();
+  const code = pairingCode.value;
   if (!PAIRING_CODE.test(code)) return;
   const sent = await run(() => window.pine.submitWeChatPairingCode!(code), {
     id: "preferences.wechatRemote.pairingCode",
     title: t("errors.wechatRemote.codeTitle"),
   });
-  if (sent) pairingCode.value = "";
+  if (sent) pairingDigits.value = [];
+  // The slots were disabled while verifying; a rejected code needs a retry.
+  if (showsPairingForm.value) void focusPairingCode();
 }
 
 function updateReceiving(receiving: boolean): void {
@@ -740,24 +772,37 @@ function openServerGuide(): void {
             }}
           </p>
           <form
-            v-if="!isExpired"
+            v-if="showsPairingForm"
             class="contents"
             data-testid="pine-wechat-pairing-form"
             @submit.prevent="submitPairingCode"
           >
             <Field>
-              <FieldLabel for="pine-wechat-pairing-code">
+              <FieldLabel id="pine-wechat-pairing-code-label">
                 {{ t("preferences.wechatRemote.pairingCode") }}
               </FieldLabel>
-              <Input
+              <PinInput
                 id="pine-wechat-pairing-code"
-                v-model="pairingCode"
+                v-model="pairingDigits"
+                type="number"
+                :disabled="isSaving"
                 data-testid="pine-wechat-pairing-code"
-                inputmode="numeric"
-                autocomplete="one-time-code"
-                maxlength="6"
-                class="font-mono tracking-widest"
-              />
+                @complete="submitPairingCode"
+              >
+                <PinInputGroup
+                  ref="pairingGroup"
+                  role="group"
+                  aria-labelledby="pine-wechat-pairing-code-label"
+                >
+                  <PinInputSlot
+                    v-for="index in PAIRING_CODE_LENGTH"
+                    :key="index"
+                    :index="index - 1"
+                    :data-testid="`pine-wechat-pairing-slot-${index - 1}`"
+                    class="font-mono"
+                  />
+                </PinInputGroup>
+              </PinInput>
               <FieldDescription v-if="binding.pairing">
                 {{
                   t("preferences.wechatRemote.attemptsLeft", {
@@ -770,7 +815,7 @@ function openServerGuide(): void {
               <Button
                 type="submit"
                 data-testid="pine-wechat-submit-pairing"
-                :disabled="isBusy || !PAIRING_CODE.test(pairingCode.trim())"
+                :disabled="isBusy || !PAIRING_CODE.test(pairingCode)"
               >
                 {{ t("preferences.wechatRemote.submit") }}
               </Button>

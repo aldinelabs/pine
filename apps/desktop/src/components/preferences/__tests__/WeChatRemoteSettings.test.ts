@@ -115,6 +115,29 @@ function selectOf(wrapper: VueWrapper, index: number) {
   return found;
 }
 
+function pairingSlots(): HTMLInputElement[] {
+  return Array.from(
+    document.querySelectorAll<HTMLInputElement>(
+      '[data-testid^="pine-wechat-pairing-slot-"]',
+    ),
+  );
+}
+
+async function typeDigit(slot: HTMLInputElement, key: string): Promise<void> {
+  slot.value = key;
+  slot.dispatchEvent(new InputEvent("input", { data: key }));
+  await flushPromises();
+}
+
+async function paste(slot: HTMLInputElement, text: string): Promise<void> {
+  const event = new Event("paste", { cancelable: true });
+  Object.defineProperty(event, "clipboardData", {
+    value: { getData: () => text },
+  });
+  slot.dispatchEvent(event);
+  await flushPromises();
+}
+
 async function type(input: HTMLInputElement, value: string): Promise<void> {
   input.value = value;
   input.dispatchEvent(new Event("input"));
@@ -261,20 +284,38 @@ describe("WeChat remote settings", () => {
       /Expires in [45]:\d\d\./,
     );
 
-    const input = byTestId<HTMLInputElement>("pine-wechat-pairing-code")!;
-    await type(input, "12345");
+    const slots = pairingSlots();
+    expect(slots).toHaveLength(6);
+    expect(document.activeElement).toBe(slots[0]);
+    const group = slots[0].closest('[role="group"]');
+    expect(group?.getAttribute("aria-labelledby")).toBe(
+      "pine-wechat-pairing-code-label",
+    );
+    expect(
+      document.getElementById("pine-wechat-pairing-code-label")?.textContent,
+    ).toContain("6-digit");
+
+    for (const [index, digit] of [..."12345"].entries())
+      await typeDigit(slots[index], digit);
+    await typeDigit(slots[5], "x");
+    expect(slots[5].value).toBe("");
     expect(
       byTestId<HTMLButtonElement>("pine-wechat-submit-pairing")!.disabled,
     ).toBe(true);
-    (input.form as HTMLFormElement).requestSubmit();
+    (slots[0].form as HTMLFormElement).requestSubmit();
     await flushPromises();
     expect(submitWeChatPairingCode).not.toHaveBeenCalled();
 
-    await type(input, "654321");
-    (input.form as HTMLFormElement).requestSubmit();
-    await flushPromises();
-    expect(submitWeChatPairingCode).toHaveBeenCalledWith("654321");
+    // The sixth digit sends the code without pressing Submit.
+    await typeDigit(slots[5], "6");
+    expect(submitWeChatPairingCode).toHaveBeenCalledWith("123456");
     expect(document.body.textContent).toContain("Attempts left: 2");
+    expect(pairingSlots().map((slot) => slot.value)).toEqual(Array(6).fill(""));
+
+    // Pasting a whole code fills every slot and sends it.
+    await paste(pairingSlots()[0], " 654-321 ");
+    expect(submitWeChatPairingCode).toHaveBeenLastCalledWith("654321");
+    expect(submitWeChatPairingCode).toHaveBeenCalledTimes(2);
 
     await push(bound);
     expect(byTestId("pine-wechat-pairing-code")).toBeNull();
