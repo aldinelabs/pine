@@ -418,6 +418,19 @@ describe(".queue, .unqueue, .rename", () => {
     expect(removed.text).toBe("Withdrawn: then deploy");
   });
 
+  it("queues text as a follow-up while a card keeps the turn waiting", async () => {
+    const { ctx, runtimes } = setup();
+    await currentSession(ctx);
+    ctx.sessions.observe(running("s1"), W);
+    ctx.sessions.observe(approval("s1"), W);
+    expect(ctx.sessions.runState("s1")).toBe("waiting");
+    const result = await run(ctx, "queue", { tail: "then deploy" });
+    expect(result.text).toBe("Queued. It will be sent after this turn.");
+    expect(runtimes.prompt.mock.calls[0]?.[1]).toMatchObject({
+      streamingBehavior: "follow-up",
+    });
+  });
+
   it("renames with the actor and refuses a view-only session", async () => {
     const { ctx, runtimes } = setup();
     await currentSession(ctx);

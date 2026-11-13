@@ -848,7 +848,10 @@ export const sessionHandlers: CommandHandlers = {
       };
     }
     const state = ctx.sessions.runState(sessionId);
-    const running = ctx.sessions.isLive(sessionId) && state === "running";
+    // An open card keeps the turn streaming ("waiting"), so it is queued too.
+    const running =
+      ctx.sessions.isLive(sessionId) &&
+      (state === "running" || state === "waiting");
     await ctx.sessions.send({
       sessionId,
       projectId,
