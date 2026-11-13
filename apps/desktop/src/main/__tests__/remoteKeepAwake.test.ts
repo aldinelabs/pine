@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import {
+  createRemoteKeepAwakeSetting,
   isRemoteAccessOn,
   migrateRemoteKeepAwake,
   RemoteKeepAwake,
@@ -136,5 +137,70 @@ describe("migrateRemoteKeepAwake", () => {
     ).resolves.toBe(true);
     expect(legacy).not.toHaveBeenCalled();
     expect(write).not.toHaveBeenCalled();
+  });
+});
+
+describe("createRemoteKeepAwakeSetting", () => {
+  function deferred<T>() {
+    let resolve!: (value: T) => void;
+    let reject!: (error: unknown) => void;
+    const promise = new Promise<T>((res, rej) => {
+      resolve = res;
+      reject = rej;
+    });
+    return { promise, resolve, reject };
+  }
+
+  function harness() {
+    const migration = deferred<boolean>();
+    const stored: { value?: boolean } = {};
+    const applied: boolean[] = [];
+    const onError = vi.fn();
+    const setting = createRemoteKeepAwakeSetting({
+      migrate: () => migration.promise,
+      write: (value) => {
+        stored.value = value;
+        return Promise.resolve();
+      },
+      apply: (value) => {
+        applied.push(value);
+        return { enabled: value, remoteOn: false };
+      },
+      onError,
+    });
+    return { migration, stored, applied, onError, setting };
+  }
+
+  it("applies the migrated value when nothing was toggled", async () => {
+    const { migration, applied, setting } = harness();
+    migration.resolve(true);
+    await setting.ready;
+    expect(applied).toEqual([true]);
+  });
+
+  it("keeps a toggle made before the migration resolves", async () => {
+    const { migration, stored, applied, setting } = harness();
+    const toggled = setting.set(false);
+    await Promise.resolve();
+    expect(stored.value).toBeUndefined();
+    // The migration writes the old WeChat value, then the toggle runs after it.
+    migration.resolve(true);
+    stored.value = true;
+    await expect(toggled).resolves.toEqual({
+      enabled: false,
+      remoteOn: false,
+    });
+    expect(stored.value).toBe(false);
+    expect(applied).toEqual([false]);
+  });
+
+  it("still saves toggles after the migration fails", async () => {
+    const { migration, stored, applied, onError, setting } = harness();
+    migration.reject(new Error("keychain"));
+    await setting.ready;
+    expect(onError).toHaveBeenCalled();
+    await setting.set(true);
+    expect(stored.value).toBe(true);
+    expect(applied).toEqual([true]);
   });
 });

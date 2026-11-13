@@ -84,3 +84,36 @@ export async function migrateRemoteKeepAwake(input: {
   await input.write(value);
   return value;
 }
+
+/**
+ * The stored setting: starts the one-time migration without blocking startup
+ * and orders every later change after it, so an early toggle (tray or
+ * Preferences) always wins over the migrated value.
+ */
+export function createRemoteKeepAwakeSetting(input: {
+  migrate(): Promise<boolean>;
+  write(value: boolean): Promise<void>;
+  apply(value: boolean): RemoteKeepAwakeStatus;
+  onError(error: unknown): void;
+}): {
+  ready: Promise<void>;
+  set(enabled: boolean): Promise<RemoteKeepAwakeStatus>;
+} {
+  let chosen = false;
+  const ready = input.migrate().then(
+    (value) => {
+      if (!chosen) input.apply(value);
+    },
+    // Left off for this run; the migration is tried again next start.
+    (error: unknown) => input.onError(error),
+  );
+  return {
+    ready,
+    async set(enabled) {
+      chosen = true;
+      await ready;
+      await input.write(enabled);
+      return input.apply(enabled);
+    },
+  };
+}

@@ -99,6 +99,7 @@ import {
   registerRemoteKeepAwakeIpc,
 } from "./main/desktop/remoteKeepAwake";
 import {
+  createRemoteKeepAwakeSetting,
   isRemoteAccessOn,
   migrateRemoteKeepAwake,
   RemoteKeepAwake,
@@ -306,11 +307,14 @@ const remoteKeepAwake = new RemoteKeepAwake({
 });
 
 /** Saves the setting first, then applies it; shared by the settings page and the tray. */
+let remoteKeepAwakeSetting:
+  ReturnType<typeof createRemoteKeepAwakeSetting> | undefined;
+
 async function setRemoteKeepAwake(
   enabled: boolean,
 ): Promise<RemoteKeepAwakeStatus> {
-  await writeRemoteKeepAwake(requireCore().agentDirectory, enabled);
-  return remoteKeepAwake.setEnabled(enabled);
+  if (!remoteKeepAwakeSetting) throw new Error("Pine is still starting.");
+  return remoteKeepAwakeSetting.set(enabled);
 }
 
 /**
@@ -916,24 +920,25 @@ async function initializeApp(): Promise<void> {
   quickComposer.start(
     pine.settings.quickComposerEnabled ?? DEFAULT_QUICK_COMPOSER_ENABLED,
   );
+  // Not awaited: the old WeChat switch may need the WeChat store to load.
+  remoteKeepAwakeSetting = createRemoteKeepAwakeSetting({
+    migrate: () =>
+      migrateRemoteKeepAwake({
+        stored: pine.settings.remoteKeepAwake,
+        legacy: () => pine.wechat.legacyKeepAwake(),
+        write: (value) => writeRemoteKeepAwake(pine.agentDirectory, value),
+      }),
+    write: (value) => writeRemoteKeepAwake(pine.agentDirectory, value),
+    apply: (value) => remoteKeepAwake.setEnabled(value),
+    onError: (error) =>
+      console.error("Failed to read the keep-awake setting.", error),
+  });
   // Smoke tests launch and exit; a tray would only outlive them.
   background.start(
     !isSmokeTest &&
       (pine.settings.runInBackground ?? DEFAULT_RUN_IN_BACKGROUND),
   );
   appUpdater = await createAppUpdater();
-  try {
-    remoteKeepAwake.setEnabled(
-      await migrateRemoteKeepAwake({
-        stored: pine.settings.remoteKeepAwake,
-        legacy: () => pine.wechat.legacyKeepAwake(),
-        write: (value) => writeRemoteKeepAwake(pine.agentDirectory, value),
-      }),
-    );
-  } catch (error) {
-    // Left off for this run; the migration is tried again next start.
-    console.error("Failed to read the keep-awake setting.", error);
-  }
   if (pine.settings.webServer) {
     try {
       await pine.web.configure(pine.settings.webServer);
