@@ -1473,12 +1473,7 @@ export class PineAgentRuntime {
                   userProfile,
                 ).trim(),
               };
-              // WeChat cannot show interactive answers: a WeChat session
-              // answers in Markdown only, for its whole life.
-              if (
-                userProfile.interactiveAnswersEnabled &&
-                live.promptChannel !== "wechat"
-              )
+              if (userProfile.interactiveAnswersEnabled)
                 notices.interface_elements = intelligentUiSystemPrompt();
               const skillList = skillRepository.promptList();
               if (skillList) notices.skills = skillList;

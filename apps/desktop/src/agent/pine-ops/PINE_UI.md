@@ -467,8 +467,8 @@ the user opens themselves do not pulse.
   - Models: model catalog refresh, title generation model, approval model,
     image generation model, video generation model, Decisions model.
   - Agent: Interactive answers switch (Enabled or Disabled; enabled by default;
-    sessions started from or used in WeChat never use interactive answers,
-    since WeChat cannot show them), Interim answers switch (Enabled or Disabled; enabled by default; applies
+    in WeChat an interactive answer arrives as text, lists and tables, and
+    its controls work only in Pine), Interim answers switch (Enabled or Disabled; enabled by default; applies
     from the next message), automatic approval path, context compaction
     strategy and method, TinyFish web tools key (shows Configured or Not
     configured), approximate location.
