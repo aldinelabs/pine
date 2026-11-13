@@ -137,12 +137,11 @@ void main() {
     / (1.0 + outd * outd / (reach * reach * 0.6));
   float flick = 0.6 + 0.8 * n;
 
-  vec3 light = uTint0 * (rim * (0.55 + 0.9 * spot3.x) + bloom * (0.16 + 0.55 * spot3.x)) * flick
-    + uTint1 * (rim * 0.9 + bloom * 0.6) * spot3.y * flick
-    + uTint1 * bloom * 0.12 * smoothstep(0.55, 0.85, n)
-    + uTint2 * (rim * 0.9 + bloom * 0.6) * spot3.z * flick;
-  // A white-hot core where a hot spot crosses the rim.
-  light += vec3(rim * spot * mix(0.15, 0.45, uDark));
+  // How much of each tint lands here.
+  float w0 = (rim * (0.55 + 0.9 * spot3.x) + bloom * (0.16 + 0.55 * spot3.x)) * flick;
+  float w1 = (rim * 0.9 + bloom * 0.6) * spot3.y * flick
+    + bloom * 0.12 * smoothstep(0.55, 0.85, n);
+  float w2 = (rim * 0.9 + bloom * 0.6) * spot3.z * flick;
 
   // Fade to nothing at the canvas edges, across whatever room there is.
   vec2 size = uBuffer / uRatio;
@@ -150,11 +149,24 @@ void main() {
     * smoothstep(0.0, 1.0, (size.x - css.x) / max(uMargins.y, 1.0))
     * smoothstep(0.0, 1.0, (size.y - css.y) / max(uMargins.z, 1.0))
     * smoothstep(0.0, 1.0, css.x / max(uMargins.w, 1.0));
-  light *= uLevel * fade * mix(1.35, 1.7, uDark);
+  float scale = uLevel * fade;
 
-  // Tone-mapped and premultiplied: no channel exceeds alpha.
-  float alpha = 1.0 - exp(-max(max(light.r, light.g), light.b));
-  vec3 col = 1.0 - exp(-light);
-  gl_FragColor = vec4(min(col, vec3(alpha)), alpha);
+  if (uDark > 0.5) {
+    // Dark: additive light with a white-hot core where a hot spot crosses
+    // the rim, tone-mapped and premultiplied so no channel exceeds alpha.
+    vec3 light = (uTint0 * w0 + uTint1 * w1 + uTint2 * w2
+      + vec3(rim * spot * 0.45)) * scale * 1.7;
+    float alpha = 1.0 - exp(-max(max(light.r, light.g), light.b));
+    vec3 col = 1.0 - exp(-light);
+    gl_FragColor = vec4(min(col, vec3(alpha)), alpha);
+  } else {
+    // Light: the tints themselves laid over the page by coverage, so a
+    // grey or olive stays grey or olive on white instead of lifting to its
+    // brightest (and on white, invisible) version.
+    float weight = w0 + w1 + w2;
+    vec3 tint = (uTint0 * w0 + uTint1 * w1 + uTint2 * w2) / max(weight, 1e-4);
+    float alpha = 1.0 - exp(-weight * scale * 1.1);
+    gl_FragColor = vec4(tint * alpha, alpha);
+  }
 }
 `;
