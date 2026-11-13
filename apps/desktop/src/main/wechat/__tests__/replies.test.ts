@@ -849,12 +849,18 @@ describe("errors", () => {
     }));
     const en = render("R-QUEUEWAIT", "en", { at, asks });
     expect(en).toBe(
-      "[p › t] Staged as a steering message; it reaches the agent once the waiting card is handled. Still waiting: 12 approval (.y 12 approves, .d 12 rejects), 13 question (.a 13 your answer, .d 13 cancels), 14 approve on the computer (.d 14 rejects), 15 long context (.c 15 compress, then continue, .d 15 stop), 16 question (answer it in Pine, .d 16 cancels). .recall withdraws this message.",
+      "[p › t] Staged as a steering message; it reaches the agent once the waiting cards are handled. Still waiting: 12 approval (.y 12 approves, .d 12 rejects), 13 question (.a 13 your answer, .d 13 cancels), 14 approve on the computer (.d 14 rejects), 15 long context (.c 15 compress, then continue, .d 15 stop), 16 question (answer it in Pine, .d 16 cancels). .recall withdraws this message.",
     );
     const zh = render("R-QUEUEWAIT", "zh", { at, asks });
     expect(zh).toBe(
       "【p › t】已作为暂存消息排队，等待的卡片处理后交给智能体。仍在等你：12 审批（.y 12 批准，.d 12 拒绝）、13 问题（.a 13 你的回答，.d 13 取消）、14 只能在电脑上批准（.d 14 拒绝）、15 上下文较长（.c 15 先压缩再继续，.d 15 停止）、16 问题（需在 Pine 中回答，.d 16 取消）。发 .撤回 可撤回这条消息。",
     );
+    expect(
+      render("R-QUEUEWAIT", "en", {
+        at,
+        asks: [{ number: 11, variant: "approval" }],
+      }),
+    ).toContain("once the waiting card is handled.");
     const many = Array.from({ length: PAGE_ROWS + 1 }, (_, index) => ({
       number: 11 + index,
       variant: "approval" as const,
@@ -867,12 +873,12 @@ describe("errors", () => {
     );
   });
 
-  it("points R-QUEUE at .recall in English and .qx in Chinese", () => {
+  it("points R-QUEUE at .recall in English and .撤回 in Chinese", () => {
     const rows = [{ n: 1, text: "go on" }];
     expect(render("R-QUEUE", "en", { rows })).toContain(
       ".recall number withdraws",
     );
-    expect(render("R-QUEUE", "zh", { rows })).toContain(".qx 数字 撤回");
+    expect(render("R-QUEUE", "zh", { rows })).toContain("发 .撤回 数字 撤回");
   });
 
   it("renders both E-BUSY variants and both E-LOCAL forms", () => {

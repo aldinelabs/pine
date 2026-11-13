@@ -1344,7 +1344,7 @@ const TEMPLATES: { [K in ReplyId]: Template<K> } = {
     return `${head(lang, at)}${pick(
       lang,
       `已作为暂存消息排队，等待的卡片处理后交给智能体。仍在等你：${list(lang, items)}。发 .撤回 可撤回这条消息。`,
-      `Staged as a steering message; it reaches the agent once the waiting card is handled. Still waiting: ${list(lang, items)}. .recall withdraws this message.`,
+      `Staged as a steering message; it reaches the agent once the waiting ${asks.length > 1 ? "cards are" : "card is"} handled. Still waiting: ${list(lang, items)}. .recall withdraws this message.`,
     )}`;
   },
   "R-QUEUE": (lang, { rows: items }) => {
@@ -1354,7 +1354,7 @@ const TEMPLATES: { [K in ReplyId]: Template<K> } = {
       ...rows(items).map((item) =>
         row(`${item.n} ${truncate(cleanInline(item.text), 80)}`),
       ),
-      pick(lang, ".qx 数字 撤回", ".recall number withdraws"),
+      pick(lang, "发 .撤回 数字 撤回", ".recall number withdraws"),
     );
   },
   "R-UNQUEUE": (lang, { text }) =>

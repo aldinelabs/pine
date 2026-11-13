@@ -92,29 +92,10 @@ export const handlePlainMessage: MessageHandler = async (ctx, text) => {
   const { sessionId, projectId } = current;
   const view = await ctx.sessions.view(sessionId, projectId);
   const at = { project: view.project, title: view.title };
-  const open = ctx.sessions.asksOf(sessionId);
-  if (open.length > 0) {
-    // Queued, never refused: `send` still applies every gate (view-only,
-    // quote-only, attachments) before anything reaches the agent.
-    await ctx.sessions.send({
-      sessionId,
-      projectId,
-      text: body,
-      ...(ctx.inbound.quotedText !== undefined
-        ? { quotedText: ctx.inbound.quotedText }
-        : {}),
-      behavior: "steer",
-      attachments: ctx.attachments.list().length > 0,
-    });
-    const asks = await Promise.all(
-      open.map(async (ask) => ({
-        number: ask.number,
-        variant: await cardVariant(ctx, ask),
-      })),
-    );
-    return { text: render("R-QUEUEWAIT", ctx.lang, { at, asks }) };
-  }
   const route = ctx.sessions.routeFor(ctx.now);
+  // While a card is open the text is queued, never refused: `send` still
+  // applies every gate (view-only, quote-only, attachments).
+  const queued = ctx.sessions.asksOf(sessionId).length > 0;
   const running = view.live && view.state === "running";
   await ctx.sessions.send({
     sessionId,
@@ -123,10 +104,27 @@ export const handlePlainMessage: MessageHandler = async (ctx, text) => {
     ...(ctx.inbound.quotedText !== undefined
       ? { quotedText: ctx.inbound.quotedText }
       : {}),
-    ...(running ? { behavior: "steer" as const } : {}),
+    ...(queued || running ? { behavior: "steer" as const } : {}),
     attachments: ctx.attachments.list().length > 0,
   });
-  if (running) return { text: render("R-STEER", ctx.lang, { at }) };
+  if (queued) {
+    // Read the cards again: one may have been answered, or the run ended,
+    // while `send` was awaiting.
+    const open = ctx.sessions.asksOf(sessionId);
+    if (open.length > 0) {
+      const asks = await Promise.all(
+        open.map(async (ask) => ({
+          number: ask.number,
+          variant: await cardVariant(ctx, ask),
+        })),
+      );
+      return { text: render("R-QUEUEWAIT", ctx.lang, { at, asks }) };
+    }
+  }
+  const steered = queued
+    ? ctx.sessions.runState(sessionId) === "running"
+    : running;
+  if (steered) return { text: render("R-STEER", ctx.lang, { at }) };
   if (route.kind === "ack")
     return { text: render("R-ROUTE", ctx.lang, { at }) };
   return {};

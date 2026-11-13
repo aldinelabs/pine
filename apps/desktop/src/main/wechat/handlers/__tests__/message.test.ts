@@ -191,6 +191,41 @@ describe("plain text routing (CMD §3.2, §3.3, ground rule 14)", () => {
     expect(ctx.asks.status(11)).toBe("open");
   });
 
+  it("drops the card list when the card closes while the text is sent", async () => {
+    const { ctx } = setup();
+    await tracked(ctx, "s1", { current: true });
+    ctx.sessions.observe(running("s1"), W);
+    approval(ctx, "s1");
+    const send = ctx.sessions.send.bind(ctx.sessions);
+    vi.spyOn(ctx.sessions, "send").mockImplementation(async (input) => {
+      ctx.asks.closeWhere((ask) => ask.kind === "approval", "invalidated");
+      return send(input);
+    });
+    const result = await handlePlainMessage(ctx, "go on");
+    expect(result.text).toBe(
+      "[Project p1 › Session s1] Passed to the running task.",
+    );
+  });
+
+  it("does not claim a waiting card when the run ends while the text is sent", async () => {
+    const { ctx } = setup();
+    await tracked(ctx, "s1", { current: true });
+    ctx.sessions.observe(running("s1"), W);
+    approval(ctx, "s1");
+    const send = ctx.sessions.send.bind(ctx.sessions);
+    vi.spyOn(ctx.sessions, "send").mockImplementation(async (input) => {
+      ctx.sessions.observe(
+        { type: "run-state", sessionId: "s1", state: "idle" },
+        W,
+      );
+      ctx.asks.closeWhere((ask) => ask.kind === "approval", "invalidated");
+      return send(input);
+    });
+    const result = await handlePlainMessage(ctx, "go on");
+    expect(result.text ?? "").not.toContain("Staged as a steering message");
+    expect(result.text ?? "").not.toContain("Passed to the running task");
+  });
+
   it("names how to answer an open question card", async () => {
     const { ctx, runtimes } = setup();
     await tracked(ctx, "s1", { current: true });
