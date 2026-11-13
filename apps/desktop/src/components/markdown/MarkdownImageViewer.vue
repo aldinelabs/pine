@@ -336,7 +336,15 @@ async function requestClose(): Promise<void> {
   const image = current.value;
   const reduced = prefersReducedMotion();
   const stageImg = stageImage();
-  const fromRect = !reduced && stageImg ? rectOf(stageImg) : undefined;
+  const stageRect = !reduced && stageImg ? rectOf(stageImg) : undefined;
+  // A copy far larger than the window (zoomed in) would make the compositor
+  // rasterise a huge layer; fade instead.
+  const fromRect =
+    stageRect &&
+    stageRect.width <= window.innerWidth &&
+    stageRect.height <= window.innerHeight
+      ? stageRect
+      : undefined;
   const toRect =
     fromRect && image ? visibleSourceRect(image.element) : undefined;
 

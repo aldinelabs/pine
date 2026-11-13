@@ -21,6 +21,8 @@ interface AnimateCall {
 let animateCalls: AnimateCall[] = [];
 let sourceRect: { left: number; top: number; width: number; height: number } =
   SOURCE_RECT;
+let stageRect = STAGE_RECT;
+let natural = NATURAL;
 let reducedMotion = false;
 const restorers: (() => void)[] = [];
 
@@ -68,6 +70,8 @@ function findDescriptor(target: object, key: string): PropertyDescriptor {
 function installStubs(): void {
   animateCalls = [];
   sourceRect = SOURCE_RECT;
+  stageRect = STAGE_RECT;
+  natural = NATURAL;
   reducedMotion = false;
   const elementRect = findDescriptor(
     HTMLElement.prototype,
@@ -76,8 +80,7 @@ function installStubs(): void {
   stub(HTMLElement.prototype, "getBoundingClientRect", {
     value(this: HTMLElement) {
       if (this instanceof HTMLImageElement) {
-        if (this.closest('[data-slot="image-preview"]'))
-          return rect(STAGE_RECT);
+        if (this.closest('[data-slot="image-preview"]')) return rect(stageRect);
         if (this.closest("[data-markdown-image]")) return rect(sourceRect);
       }
       return elementRect.call(this);
@@ -101,10 +104,10 @@ function installStubs(): void {
     },
   });
   stub(HTMLImageElement.prototype, "naturalWidth", {
-    get: () => NATURAL.width,
+    get: () => natural.width,
   });
   stub(HTMLImageElement.prototype, "naturalHeight", {
-    get: () => NATURAL.height,
+    get: () => natural.height,
   });
   for (const [key, size] of [
     ["clientWidth", STAGE_SIZE.width],
@@ -305,6 +308,30 @@ describe("Markdown image viewer", () => {
         JSON.stringify(call.keyframes).includes("translate(-"),
       ),
     ).toBe(false);
+    wrapper.unmount();
+  });
+
+  it("fades instead of flying back from a stage larger than the window", async () => {
+    const wrapper = mountMarkdown("![Plot](/docs/plot.png)");
+    await flushPromises();
+    await loadImages(wrapper);
+    await wrapper.get("img").trigger("click");
+    const content = await openedViewer();
+
+    // Zoomed far in: the stage image is many times the window's size.
+    stageRect = { left: -3000, top: -1500, width: 8000, height: 4000 };
+    animateCalls = [];
+    key(content, { key: "Escape" });
+    await closedViewer();
+    expect(animateCalls.length).toBeGreaterThan(0);
+    expect(
+      animateCalls.some(
+        (call) =>
+          call.element.dataset.slot === "markdown-image-flight" ||
+          hasMotion(call.keyframes),
+      ),
+    ).toBe(false);
+    expect((wrapper.get("img").element as HTMLElement).style.opacity).toBe("");
     wrapper.unmount();
   });
 
