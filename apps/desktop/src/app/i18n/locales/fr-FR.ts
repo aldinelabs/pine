@@ -1469,6 +1469,18 @@ export default {
           fallback: "Transmis au modèle de vérification",
           error: "Échec de la vérification",
         },
+        reviewReasons: {
+          decisionsAllow:
+            "La présélection Decisions a jugé cette action autorisée et permise.",
+          decisionsNeedsUser:
+            "La présélection Decisions vous demande de confirmer l'autorisation et les risques de cette action.",
+          decisionsModelReview:
+            "Decisions a demandé un examen détaillé par le modèle.",
+          decisionsNoAnswer:
+            "Decisions n'a renvoyé aucune réponse valide pour cet appel d'outil.",
+          decisionsNoApiKey:
+            "Aucune clé API OpenRouter n'est disponible pour la présélection Decisions.",
+        },
         title: "Détails de l'appel d'outil",
         description:
           "Consultez l'état, les paramètres et le résultat de cet appel d'outil.",

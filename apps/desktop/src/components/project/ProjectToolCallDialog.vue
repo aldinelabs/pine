@@ -20,7 +20,11 @@ import {
 import DialogScrollArea from "@/components/dialogs/DialogScrollArea.vue";
 import { Separator } from "@/components/ui/separator";
 import { PHONE_FULLSCREEN_DIALOG } from "@/lib/dialogLayout";
-import type { PineApprovalReview, PineToolCall } from "@/shared/sessions";
+import type {
+  PineApprovalReview,
+  PineApprovalReviewReasonCode,
+  PineToolCall,
+} from "@/shared/sessions";
 import ProjectToolSemanticValue from "./ProjectToolSemanticValue.vue";
 import { isDeniedTool } from "./toolKinds";
 import { toolViewAdapter } from "./toolViewAdapter";
@@ -126,6 +130,32 @@ const reviewOutcomeStyles: Record<
   fallback: { icon: ForwardIcon, class: "text-muted-foreground" },
   error: { icon: CircleAlertIcon, class: "text-destructive" },
 };
+
+// Records saved before reasons carried a code only have the fixed text, in
+// English or Chinese; recognise those so older history is localized too.
+const legacyReviewReasonCodes: Record<string, PineApprovalReviewReasonCode> = {
+  "Decisions requested detailed model review.": "decisionsModelReview",
+  "Decisions returned no valid answer for this tool call.": "decisionsNoAnswer",
+  "No OpenRouter API key is available for Decisions screening.":
+    "decisionsNoApiKey",
+  "Decisions screening classified this action as authorized and permitted.":
+    "decisionsAllow",
+  "Decisions 初筛认为该操作符合用户授权与审批规则。": "decisionsAllow",
+  "Decisions screening requests your confirmation of this action's authority and risks.":
+    "decisionsNeedsUser",
+  "Decisions 初筛建议由你确认此操作的授权与风险。": "decisionsNeedsUser",
+};
+
+function reviewReason(review: PineApprovalReview): string | undefined {
+  const code =
+    review.reasonCode ??
+    (review.kind === "decisions" && review.reason
+      ? legacyReviewReasonCodes[review.reason]
+      : undefined);
+  return code
+    ? t(`project.transcript.toolDetails.reviewReasons.${code}`)
+    : review.reason;
+}
 
 function formatDuration(durationMs: number): string {
   if (durationMs < 1_000) {
@@ -298,10 +328,11 @@ async function openDialog(): Promise<void> {
                     }}
                   </p>
                   <p
-                    v-if="review.reason"
+                    v-if="reviewReason(review)"
                     class="text-muted-foreground whitespace-pre-wrap break-words"
+                    data-review-reason
                   >
-                    {{ review.reason }}
+                    {{ reviewReason(review) }}
                   </p>
                 </li>
               </ol>

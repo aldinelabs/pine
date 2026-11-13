@@ -1,4 +1,5 @@
 import type { PineAutoApprovalSettings } from "../../shared/preferences";
+import type { PineApprovalReviewReasonCode } from "../../shared/sessions";
 import type { JudgeRequest, JudgeRuling } from "../gate";
 import {
   AUTONOMOUS_JUDGE_SYSTEM_PROMPT,
@@ -10,6 +11,8 @@ import {
 
 const DECISIONS_ENDPOINT = "https://openrouter.ai/api/alpha/decisions";
 const SCREENING_TIMEOUT_MS = 8_000;
+const NO_API_KEY_REASON =
+  "No OpenRouter API key is available for Decisions screening.";
 
 const DECISIONS_CHOICE_GUIDANCE = `Apply the review policy as a task-aware classifier. Choose the outcome justified by the action and user authority, rather than whichever label sounds most cautious. The following guidance clarifies the policy; it never overrides a hard denial or an explicit user limit.
 
@@ -186,7 +189,7 @@ export async function runApprovalReview(options: {
           failure = `Decisions API returned HTTP ${response.status}.`;
         }
       } else {
-        failure = "No OpenRouter API key is available for Decisions screening.";
+        failure = NO_API_KEY_REASON;
       }
     } catch (error) {
       // Missing access, unavailable alpha API, timeouts, and malformed JSON all
@@ -201,6 +204,19 @@ export async function runApprovalReview(options: {
     for (const request of requests) {
       const ruling = screenedById.get(request.toolCallId);
       const needsReview = deferred.has(request.toolCallId);
+      // Pine-authored reasons carry a code so the renderer can show them in
+      // the user's interface language; `reason` stays as readable fallback.
+      const reasonCode: PineApprovalReviewReasonCode | undefined = ruling
+        ? ruling.verdict === "allow"
+          ? "decisionsAllow"
+          : "decisionsNeedsUser"
+        : failure === NO_API_KEY_REASON
+          ? "decisionsNoApiKey"
+          : failure
+            ? undefined
+            : needsReview
+              ? "decisionsModelReview"
+              : "decisionsNoAnswer";
       request.onReview?.({
         kind: "decisions",
         providerId: "openrouter",
@@ -212,6 +228,7 @@ export async function runApprovalReview(options: {
           (needsReview
             ? "Decisions requested detailed model review."
             : "Decisions returned no valid answer for this tool call."),
+        ...(reasonCode ? { reasonCode } : {}),
       });
     }
   }

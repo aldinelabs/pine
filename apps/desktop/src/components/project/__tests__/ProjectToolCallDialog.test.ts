@@ -124,6 +124,48 @@ describe("ProjectToolCallDialog", () => {
     },
   );
 
+  it("localizes Pine-authored review reasons but keeps reviewer prose", async () => {
+    const wrapper = mountMarker("user");
+    await wrapper.setProps({
+      toolCall: {
+        ...wrapper.props("toolCall"),
+        approval: {
+          state: "approved",
+          decidedBy: "judge",
+          reviews: [
+            {
+              kind: "decisions",
+              outcome: "fallback",
+              reason: "Decisions requested detailed model review.",
+              reasonCode: "decisionsModelReview",
+            },
+            {
+              // Saved before reasons carried a code.
+              kind: "decisions",
+              outcome: "error",
+              reason: "Decisions returned no valid answer for this tool call.",
+            },
+            {
+              kind: "model",
+              outcome: "allow",
+              reason: "Concrete rationale from the review model",
+            },
+          ],
+        },
+      },
+    });
+    await wrapper.get('button[data-slot="marker"]').trigger("click");
+    const reasons = [
+      ...document.body.querySelectorAll<HTMLElement>("[data-review-reason]"),
+    ].map((node) => node.textContent?.trim());
+    expect(reasons).toEqual([
+      "Decisions 请求由大模型进行详细审核。",
+      "Decisions 未对此工具调用给出有效答复。",
+      "Concrete rationale from the review model",
+    ]);
+    wrapper.unmount();
+  });
+
   it("emphasises each review outcome with its own tone and icon", async () => {
     const wrapper = mountMarker("user");
     const outcomes = [

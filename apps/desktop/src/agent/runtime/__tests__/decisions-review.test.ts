@@ -102,15 +102,20 @@ describe("Decisions approval cascade", () => {
         providerId: "openrouter",
         modelId: options.settings.decisionsModel,
         outcome: "allow",
+        reasonCode: "decisionsAllow",
       }),
     );
     expect(callbacks[1]).toHaveBeenCalledWith(
-      expect.objectContaining({ outcome: "fallback" }),
+      expect.objectContaining({
+        outcome: "fallback",
+        reasonCode: "decisionsModelReview",
+      }),
     );
     expect(callbacks[2]).toHaveBeenCalledWith(
       expect.objectContaining({
         outcome: "error",
         reason: expect.stringContaining("no valid answer"),
+        reasonCode: "decisionsNoAnswer",
       }),
     );
   });
@@ -127,6 +132,7 @@ describe("Decisions approval cascade", () => {
           reason: "Decisions API returned HTTP 503.",
         }),
       );
+      expect(onReview.mock.calls[0]?.[0]).not.toHaveProperty("reasonCode");
       return Promise.resolve(
         pending.map(({ toolCallId }) => ({
           toolCallId,

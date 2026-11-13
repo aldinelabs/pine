@@ -1452,6 +1452,18 @@ export default {
           fallback: "モデル審査へ移行",
           error: "審査失敗",
         },
+        reviewReasons: {
+          decisionsAllow:
+            "Decisions の一次審査で、この操作はユーザーの許可と承認ルールに沿っていると判断されました。",
+          decisionsNeedsUser:
+            "Decisions の一次審査で、この操作の権限とリスクを確認するよう求められました。",
+          decisionsModelReview:
+            "Decisions がモデルによる詳細な審査を求めました。",
+          decisionsNoAnswer:
+            "Decisions はこのツール呼び出しに有効な回答を返しませんでした。",
+          decisionsNoApiKey:
+            "Decisions の一次審査に使える OpenRouter API キーがありません。",
+        },
         title: "ツール呼び出しの詳細",
         description: "このツール呼び出しの状態、パラメータ、結果を確認します。",
         status: "実行状態",

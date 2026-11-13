@@ -1478,6 +1478,18 @@ export default {
           fallback: "An das Prüfmodell weitergeleitet",
           error: "Prüfung fehlgeschlagen",
         },
+        reviewReasons: {
+          decisionsAllow:
+            "Die Decisions-Vorprüfung hat diese Aktion als autorisiert und zulässig eingestuft.",
+          decisionsNeedsUser:
+            "Die Decisions-Vorprüfung bittet Sie, Berechtigung und Risiken dieser Aktion zu bestätigen.",
+          decisionsModelReview:
+            "Decisions hat eine ausführliche Prüfung durch das Modell angefordert.",
+          decisionsNoAnswer:
+            "Decisions hat für diesen Werkzeugaufruf keine gültige Antwort geliefert.",
+          decisionsNoApiKey:
+            "Für die Decisions-Vorprüfung ist kein OpenRouter-API-Schlüssel verfügbar.",
+        },
         title: "Details des Werkzeugaufrufs",
         description:
           "Sehen Sie sich Status, Parameter und Ergebnis dieses Werkzeugaufrufs an.",

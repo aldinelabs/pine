@@ -178,7 +178,9 @@ From top to bottom:
      its actual model and provider, outcome and reason. Each outcome is shown in
      bold with its own icon and colour: green "Allowed", amber "Denied", blue
      "User confirmation required", grey "Sent for model review" and red "Review
-     failed". It keeps failed attempts and handoffs to detailed model review; Approval status shows when the call
+     failed". Pine's own screening reasons follow the interface language;
+     reasons written by the review model are shown as written. It keeps failed
+     attempts and handoffs to detailed model review; Approval status shows when the call
      is awaiting user approval or was decided by the user. These records remain
      available when reopening the conversation. Older calls without review
      records do not show a model inferred from current settings. During automatic

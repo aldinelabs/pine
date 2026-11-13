@@ -1440,6 +1440,17 @@ export default {
           fallback: "Sent for model review",
           error: "Review failed",
         },
+        reviewReasons: {
+          decisionsAllow:
+            "Decisions screening classified this action as authorized and permitted.",
+          decisionsNeedsUser:
+            "Decisions screening requests your confirmation of this action's authority and risks.",
+          decisionsModelReview: "Decisions requested detailed model review.",
+          decisionsNoAnswer:
+            "Decisions returned no valid answer for this tool call.",
+          decisionsNoApiKey:
+            "No OpenRouter API key is available for Decisions screening.",
+        },
         title: "Tool call details",
         description: "Inspect this tool call's status, parameters, and result.",
         status: "Execution status",

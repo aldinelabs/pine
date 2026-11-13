@@ -1373,6 +1373,14 @@ export default {
           fallback: "转交大模型审核",
           error: "审核失败",
         },
+        reviewReasons: {
+          decisionsAllow: "Decisions 初筛认为该操作符合用户授权与审批规则。",
+          decisionsNeedsUser: "Decisions 初筛建议由你确认此操作的授权与风险。",
+          decisionsModelReview: "Decisions 请求由大模型进行详细审核。",
+          decisionsNoAnswer: "Decisions 未对此工具调用给出有效答复。",
+          decisionsNoApiKey:
+            "没有可用于 Decisions 初筛的 OpenRouter API 密钥。",
+        },
         title: "工具调用详情",
         description: "查看这次工具调用的状态、参数与返回值。",
         status: "执行状态",

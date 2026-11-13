@@ -1466,6 +1466,18 @@ export default {
           fallback: "Enviado al modelo de revisión",
           error: "Error de revisión",
         },
+        reviewReasons: {
+          decisionsAllow:
+            "La evaluación previa de Decisions clasificó esta acción como autorizada y permitida.",
+          decisionsNeedsUser:
+            "La evaluación previa de Decisions pide que confirmes la autorización y los riesgos de esta acción.",
+          decisionsModelReview:
+            "Decisions solicitó una revisión detallada por el modelo.",
+          decisionsNoAnswer:
+            "Decisions no devolvió una respuesta válida para esta llamada a la herramienta.",
+          decisionsNoApiKey:
+            "No hay ninguna clave de API de OpenRouter disponible para la evaluación previa de Decisions.",
+        },
         title: "Detalles de la llamada a la herramienta",
         description:
           "Consulta el estado, los parámetros y el resultado de esta llamada a la herramienta.",

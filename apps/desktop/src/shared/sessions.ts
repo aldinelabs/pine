@@ -112,8 +112,18 @@ export interface PineApprovalReview {
   modelId?: string;
   modelName?: string;
   outcome: "allow" | "deny" | "needs_user" | "fallback" | "error";
+  /** Reviewer prose or a Pine diagnostic, shown as written without a code. */
   reason?: string;
+  /** Set for fixed Pine-authored reasons, which the UI shows localized. */
+  reasonCode?: PineApprovalReviewReasonCode;
 }
+
+export type PineApprovalReviewReasonCode =
+  | "decisionsAllow"
+  | "decisionsNeedsUser"
+  | "decisionsModelReview"
+  | "decisionsNoAnswer"
+  | "decisionsNoApiKey";
 
 export interface PineToolCallApproval {
   state: "reviewing" | "awaiting-user" | "approved" | "denied";

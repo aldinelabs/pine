@@ -1433,6 +1433,17 @@ export default {
           fallback: "모델 검토로 전환",
           error: "검토 실패",
         },
+        reviewReasons: {
+          decisionsAllow:
+            "Decisions 1차 심사에서 이 작업이 사용자 권한과 승인 규칙에 맞는다고 판단했습니다.",
+          decisionsNeedsUser:
+            "Decisions 1차 심사에서 이 작업의 권한과 위험을 확인해 달라고 요청했습니다.",
+          decisionsModelReview: "Decisions가 모델의 상세 심사를 요청했습니다.",
+          decisionsNoAnswer:
+            "Decisions가 이 도구 호출에 유효한 답변을 반환하지 않았습니다.",
+          decisionsNoApiKey:
+            "Decisions 1차 심사에 사용할 OpenRouter API 키가 없습니다.",
+        },
         title: "도구 호출 세부 정보",
         description: "이 도구 호출의 상태, 매개변수, 결과를 확인합니다.",
         status: "실행 상태",

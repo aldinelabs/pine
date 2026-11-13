@@ -1377,6 +1377,14 @@ export default {
           fallback: "轉交大模型審核",
           error: "審核失敗",
         },
+        reviewReasons: {
+          decisionsAllow: "Decisions 初篩認為此操作符合使用者授權與審批規則。",
+          decisionsNeedsUser: "Decisions 初篩建議由你確認此操作的授權與風險。",
+          decisionsModelReview: "Decisions 要求由大模型進行詳細審核。",
+          decisionsNoAnswer: "Decisions 未對此工具呼叫給出有效答覆。",
+          decisionsNoApiKey:
+            "沒有可用於 Decisions 初篩的 OpenRouter API 金鑰。",
+        },
         title: "工具呼叫詳情",
         description: "檢視這次工具呼叫的狀態、引數與返回值。",
         status: "執行狀態",

@@ -1453,6 +1453,18 @@ export default {
           fallback: "Передано модели проверки",
           error: "Ошибка проверки",
         },
+        reviewReasons: {
+          decisionsAllow:
+            "Предварительная проверка Decisions признала это действие разрешённым и допустимым.",
+          decisionsNeedsUser:
+            "Предварительная проверка Decisions просит вас подтвердить полномочия и риски этого действия.",
+          decisionsModelReview:
+            "Decisions запросил подробную проверку моделью.",
+          decisionsNoAnswer:
+            "Decisions не вернул корректный ответ для этого вызова инструмента.",
+          decisionsNoApiKey:
+            "Нет ключа API OpenRouter для предварительной проверки Decisions.",
+        },
         title: "Подробности вызова инструмента",
         description:
           "Посмотрите состояние, параметры и результат этого вызова инструмента.",
