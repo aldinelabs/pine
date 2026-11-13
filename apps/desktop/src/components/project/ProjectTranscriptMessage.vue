@@ -23,6 +23,13 @@ import { Button } from "@/components/ui/button";
 import { Message, MessageContent } from "@/components/ui/message";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  createMarkdownBlockView,
+  hasDocumentLevelDefinitions,
+  markdownFlowJoin,
+  type MarkdownBlockItem,
+  type MarkdownBlockView,
+} from "@/lib/markdownBlockView";
 import { cn } from "@/lib/utils";
 import { summarizeThinking } from "@/lib/transcriptThinking";
 import { serializeAttachmentMessage } from "@/shared/attachments";
@@ -415,6 +422,53 @@ onUnmounted(() => {
   settleTimers.clear();
 });
 
+/** Whether a text item's markdown segment renders as final. */
+function segmentFinal(
+  item: Extract<RenderItem, { kind: "text" }>,
+  segmentIndex: number,
+): boolean {
+  return (
+    props.message.status === "complete" ||
+    settledTextKeys.value.has(item.key) ||
+    segmentIndex < item.segments.length - 1
+  );
+}
+
+/**
+ * Markdown segments seen streaming on this mount render block by block, so
+ * a flush re-renders only the block being written instead of the whole
+ * reply. A segment stays in blocks until the row unmounts, so finishing
+ * re-lays nothing out; a reply already finished when the row mounts renders
+ * in one piece. `flow-join` collapses the blocks' margins as one render does.
+ * A segment with footnotes or link reference definitions resolves them
+ * across blocks, so it renders in one piece from then on.
+ */
+const markdownBlockViews = new Map<string, MarkdownBlockView | null>();
+const segmentBlocks = computed(() => {
+  const blocks = new Map<string, readonly MarkdownBlockItem[]>();
+  for (const item of renderItems.value) {
+    if (item.kind !== "text") continue;
+    item.segments.forEach((segment, segmentIndex) => {
+      if (segment.kind !== "markdown") return;
+      const key = `${item.key}:${segmentIndex}`;
+      const final = segmentFinal(item, segmentIndex);
+      let view = markdownBlockViews.get(key);
+      if (view === null) return;
+      if (hasDocumentLevelDefinitions(segment.text)) {
+        markdownBlockViews.set(key, null);
+        return;
+      }
+      if (!view) {
+        if (final) return;
+        view = createMarkdownBlockView();
+        markdownBlockViews.set(key, view);
+      }
+      blocks.set(key, view(segment.text, final));
+    });
+  }
+  return blocks;
+});
+
 /**
  * User bubbles taller than their max height scroll inside an overlay
  * scrollbar with edge fades. Shorter ones, nearly all of them, render the
@@ -537,14 +591,32 @@ onUnmounted(stopObservingUserText);
                 v-for="(segment, segmentIndex) in item.segments"
                 :key="segmentIndex"
               >
-                <MarkdownContent
-                  v-if="segment.kind === 'markdown'"
-                  :source="segment.text"
-                  :final="
-                    message.status === 'complete' ||
-                    settledTextKeys.has(item.key) ||
-                    segmentIndex < item.segments.length - 1
+                <template
+                  v-if="
+                    segment.kind === 'markdown' &&
+                    segmentBlocks.has(`${item.key}:${segmentIndex}`)
                   "
+                >
+                  <MarkdownContent
+                    v-for="(block, blockIndex) in segmentBlocks.get(
+                      `${item.key}:${segmentIndex}`,
+                    )"
+                    :key="block.key"
+                    :source="block.source"
+                    :final="block.final"
+                    :flow-join="
+                      markdownFlowJoin(
+                        blockIndex,
+                        segmentBlocks.get(`${item.key}:${segmentIndex}`)!
+                          .length,
+                      )
+                    "
+                  />
+                </template>
+                <MarkdownContent
+                  v-else-if="segment.kind === 'markdown'"
+                  :source="segment.text"
+                  :final="segmentFinal(item, segmentIndex)"
                 />
                 <IntelligentUiBlock
                   v-else

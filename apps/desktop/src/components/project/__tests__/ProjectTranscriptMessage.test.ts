@@ -653,6 +653,125 @@ describe("ProjectTranscriptMessage", () => {
     }
   });
 
+  it("renders a streaming reply block by block, re-rendering only the tail", async () => {
+    const base: PineTranscriptMessage = {
+      createdAt: "2026-11-13T00:00:00.000Z",
+      id: "assistant-blocks",
+      role: "assistant",
+      status: "streaming",
+      blocks: [{ type: "text", text: "One.\n\nTwo" }],
+    };
+    const wrapper = mountMessage(base);
+    const renders = () => wrapper.findAllComponents(MarkdownContent);
+    const shape = () =>
+      renders().map((markdown) => [
+        markdown.props("source"),
+        markdown.props("final"),
+        markdown.props("flowJoin"),
+      ]);
+    expect(shape()).toEqual([
+      ["One.", false, "end"],
+      ["Two", false, "start"],
+    ]);
+    const first = renders()[0].vm.$.uid;
+
+    await wrapper.setProps({
+      message: {
+        ...base,
+        blocks: [{ type: "text", text: "One.\n\nTwo.\n\nThree" }],
+      },
+    });
+    expect(shape()).toEqual([
+      ["One.", true, "end"],
+      ["Two.", false, "both"],
+      ["Three", false, "start"],
+    ]);
+    // A completed block keeps its render.
+    expect(renders()[0].vm.$.uid).toBe(first);
+
+    // Finishing keeps the blocks, so nothing is laid out again.
+    await wrapper.setProps({
+      message: {
+        ...base,
+        status: "complete",
+        blocks: [{ type: "text", text: "One.\n\nTwo.\n\nThree." }],
+      },
+    });
+    expect(shape()).toEqual([
+      ["One.", true, "end"],
+      ["Two.", true, "both"],
+      ["Three.", true, "start"],
+    ]);
+    expect(renders()[0].vm.$.uid).toBe(first);
+  });
+
+  it("renders a reply already finished at mount in one piece", () => {
+    const wrapper = mountMessage({
+      createdAt: "2026-11-13T00:00:00.000Z",
+      id: "assistant-finished",
+      role: "assistant",
+      status: "complete",
+      blocks: [{ type: "text", text: "One.\n\nTwo.\n\nThree." }],
+    });
+    const renders = wrapper.findAllComponents(MarkdownContent);
+    expect(renders).toHaveLength(1);
+    expect(renders[0].props("source")).toBe("One.\n\nTwo.\n\nThree.");
+    expect(renders[0].props("flowJoin")).toBeUndefined();
+  });
+
+  it("keeps interface blocks beside the streaming Markdown blocks", async () => {
+    const base: PineTranscriptMessage = {
+      createdAt: "2026-11-13T00:00:00.000Z",
+      id: "assistant-interface",
+      role: "assistant",
+      status: "streaming",
+      blocks: [{ type: "text", text: "Intro.\n\nMore" }],
+    };
+    const wrapper = mountMessage(base);
+    await wrapper.setProps({
+      message: {
+        ...base,
+        blocks: [
+          {
+            type: "text",
+            text: 'Intro.\n\nMore.\n\n```openui\nroot = Text("Hi")\n```\n\nAfter',
+          },
+        ],
+      },
+    });
+    const finals = wrapper
+      .findAllComponents(MarkdownContent)
+      .map((markdown) => [markdown.props("source"), markdown.props("final")]);
+    // The segment before the interface has ended: every block in it is final.
+    expect(finals).toEqual([
+      ["Intro.", true],
+      ["More.", true],
+      ["After", false],
+    ]);
+    expect(wrapper.findComponent(IntelligentUiBlock).exists()).toBe(true);
+  });
+
+  it("renders a streaming reply with citations in one piece", async () => {
+    const base: PineTranscriptMessage = {
+      createdAt: "2026-11-13T00:00:00.000Z",
+      id: "assistant-citations",
+      role: "assistant",
+      status: "streaming",
+      blocks: [{ type: "text", text: "Intro.\n\nMore" }],
+    };
+    const wrapper = mountMessage(base);
+    expect(wrapper.findAllComponents(MarkdownContent)).toHaveLength(2);
+    const text =
+      "Intro.\n\nMore, see this[^1].\n\n[^1]: https://example.com/a\n";
+    await wrapper.setProps({
+      message: { ...base, blocks: [{ type: "text", text }] },
+    });
+    // A reference resolves only against definitions in the same render.
+    const renders = wrapper.findAllComponents(MarkdownContent);
+    expect(renders).toHaveLength(1);
+    expect(renders[0].props("source")).toBe(text);
+  });
+
   it("keeps the thinking marker's message while later blocks stream", async () => {
     const thinking = { type: "thinking" as const, thinking: "Plan it." };
     const toolCall = {
