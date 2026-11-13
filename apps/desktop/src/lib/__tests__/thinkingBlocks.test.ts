@@ -96,6 +96,19 @@ describe("thinking block splitter", () => {
     expect(split("Para.\n\n    code").state.blockIndex).toBe(0);
   });
 
+  it("keeps a loose list that follows an intro line in one block", () => {
+    const text = "Steps:\n- a\n\n- b";
+    expect(split(text).state.blockIndex).toBe(0);
+    expect(blocksOf(text)).toEqual([text]);
+    expect(blocksOf(`${text}\n`)).toEqual([text]);
+    for (let end = 1; end <= text.length; end++) {
+      const prefix = text.slice(0, end);
+      expect(split(prefix).state.blockIndex).toBe(0);
+    }
+    // A paragraph after that list still starts a new block.
+    expect(split(`${text}\n\nAfter.`).block).toBe("After.");
+  });
+
   it("ends a list at an unindented paragraph and always splits at a heading", () => {
     const after = split("- a\n\n- b\n\nAfter the list.");
     expect(after.state.blockIndex).toBe(1);

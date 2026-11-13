@@ -23,7 +23,7 @@ export interface ThinkingBlockState {
   pendingBreak: boolean;
   /** The current block has at least one content line. */
   hasContent: boolean;
-  /** The current block's first line is a list item. */
+  /** A complete line of the current block (outside fences) is a list item. */
   listBlock: boolean;
   /** Short probe (<= 32 chars ending at lineStart) to detect non-append changes. */
   probe: string;
@@ -136,7 +136,10 @@ function classifyLine(
   ) {
     startBlockAt(state, offset, onBlockStart);
   }
-  if (offset === state.blockStart) state.listBlock = LIST_ITEM.test(line);
+  // Any list item makes this a list block, not only a first line: a list
+  // may follow an intro line, and its loose items must stay together.
+  if (offset === state.blockStart) state.listBlock = false;
+  if (LIST_ITEM.test(line)) state.listBlock = true;
   state.hasContent = true;
   state.pendingBreak = false;
   const open = FENCE_OPEN.exec(line);
