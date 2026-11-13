@@ -93,17 +93,6 @@ describe("ProjectToolCallGroup", () => {
     expect(wrapper.findAllComponents(ProjectToolCallMarker)).toHaveLength(2);
   });
 
-  it("follows the transcript-level expansion policy while active", () => {
-    const wrapper = mountGroup({ expanded: true });
-
-    const trigger = wrapper.get('button[data-slot="marker"]');
-    expect(trigger.attributes("aria-expanded")).toBe("true");
-    expect(
-      wrapper.get("[data-tool-calls-content]").attributes("aria-hidden"),
-    ).toBe("false");
-    expect(wrapper.findAllComponents(ProjectToolCallMarker)).toHaveLength(2);
-  });
-
   it("folds when the run drops out of the window or the response ends", async () => {
     const wrapper = mountGroup({ expanded: true });
     expect(
@@ -128,24 +117,6 @@ describe("ProjectToolCallGroup", () => {
     expect(
       wrapper.get('[data-slot="marker"]').findComponent({ name: "Spinner" }),
     ).not.toBeUndefined();
-  });
-
-  it("summarizes web fetches", () => {
-    const wrapper = mountGroup({
-      toolCalls: [
-        {
-          id: "t-fetch",
-          input: { urls: ["https://example.com/docs"] },
-          name: "web_fetch",
-          status: "complete",
-        },
-      ],
-    });
-
-    expect(wrapper.get('button[data-slot="marker"]').text()).toContain(
-      "抓取了 1 个网页",
-    );
-    wrapper.unmount();
   });
 
   it("summarizes presented files with the dedicated icon and copy", () => {

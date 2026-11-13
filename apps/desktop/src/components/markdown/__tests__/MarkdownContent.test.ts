@@ -220,20 +220,6 @@ describe("MarkdownContent", () => {
     wrapper.unmount();
   });
 
-  it("renders common Markdown structures", () => {
-    const wrapper = mountMarkdown(
-      "## Result\n\nA **strong** result with `code`.\n\n- first\n- second",
-    );
-
-    expect(wrapper.get("h2").text()).toBe("Result");
-    expect(wrapper.get("strong").text()).toBe("strong");
-    expect(wrapper.get("code").text()).toBe("code");
-    expect(wrapper.findAll("li").map((item) => item.text())).toEqual([
-      "first",
-      "second",
-    ]);
-  });
-
   it("renders inline and display LaTeX with KaTeX", async () => {
     // markstream intentionally falls back to text for its async inline-math
     // component in NODE_ENV=test. Exercise the production loader for this

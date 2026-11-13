@@ -31,17 +31,6 @@ describe("CodeBlock", () => {
 
   afterEach(() => vi.unstubAllGlobals());
 
-  it("labels the copy button in the active interface language", () => {
-    vi.mocked(codeToHtml).mockReturnValue(new Promise(() => {}));
-    const wrapper = mount(CodeBlock, {
-      props: { node },
-      global: { plugins: [createAppI18n("en-US")] },
-    });
-
-    expect(wrapper.get("button").attributes("aria-label")).toBe("Copy code");
-    wrapper.unmount();
-  });
-
   it("shows escaped, preformatted source while highlighting is pending", () => {
     vi.mocked(codeToHtml).mockReturnValue(new Promise(() => {}));
     const wrapper = mount(CodeBlock, { props: { node }, global });

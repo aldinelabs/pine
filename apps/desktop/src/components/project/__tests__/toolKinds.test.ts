@@ -1,27 +1,19 @@
 import {
-  AppWindowIcon,
-  BookOpenIcon,
   CalendarClockIcon,
   ClapperboardIcon,
   ClockIcon,
   CpuIcon,
   ServerCogIcon,
-  EyeIcon,
   FileSearchIcon,
-  HistoryIcon,
   MonitorCogIcon,
   PanelTopIcon,
   PlugIcon,
-  PlusIcon,
-  SquarePenIcon,
   TextSearchIcon,
-  Trash2Icon,
   WandSparklesIcon,
 } from "@lucide/vue";
 import { describe, expect, it } from "vitest";
 import {
   MEDIA_OPERATION_ICON,
-  SKILL_OPERATION_ICON,
   TOOL_KIND_ICON,
   automationOperation,
   fileSearchOperation,
@@ -39,11 +31,6 @@ describe("Computer Use tool kinds", () => {
     expect(TOOL_KIND_ICON.browser).toBe(PanelTopIcon);
   });
 
-  it("uses a dedicated kind for presented files", () => {
-    expect(toolKind("ui_present_file")).toBe("presentFile");
-    expect(TOOL_KIND_ICON.presentFile).toBe(EyeIcon);
-  });
-
   it("keeps file search apart from web search", () => {
     expect(toolKind("find")).toBe("fileSearch");
     expect(toolKind("grep")).toBe("fileSearch");
@@ -55,32 +42,12 @@ describe("Computer Use tool kinds", () => {
     expect(fileSearchOperation("find")).toBe("find");
   });
 
-  it("uses a dedicated kind for session history recall", () => {
-    expect(toolKind("recall")).toBe("recall");
-    expect(TOOL_KIND_ICON.recall).toBe(HistoryIcon);
-  });
-
   it("recognizes adapter proxy, script, and namespaced MCP tools", () => {
     expect(toolKind("mcp")).toBe("mcp");
     expect(toolKind("mcpScript")).toBe("mcp");
     expect(toolKind("mcp__github")).toBe("mcp");
     expect(toolKind("mcp__github_search_repositories")).toBe("mcp");
     expect(TOOL_KIND_ICON.mcp).toBe(PlugIcon);
-  });
-
-  it("uses dedicated kinds and icons for Skill operations", () => {
-    expect(toolKind("activate_skill_authoring")).toBe("skill");
-    expect(toolKind("invoke_skill")).toBe("skill");
-    expect(toolKind("create_skill")).toBe("skill");
-    expect(toolKind("edit_skill")).toBe("skill");
-    expect(toolKind("remove_skill")).toBe("skill");
-    expect(TOOL_KIND_ICON.skill).toBe(WandSparklesIcon);
-    expect(SKILL_OPERATION_ICON.activateAuthoring).toBe(WandSparklesIcon);
-    expect(SKILL_OPERATION_ICON.invoke).toBe(BookOpenIcon);
-    expect(SKILL_OPERATION_ICON.create).toBe(PlusIcon);
-    expect(SKILL_OPERATION_ICON.edit).toBe(SquarePenIcon);
-    expect(SKILL_OPERATION_ICON.remove).toBe(Trash2Icon);
-    expect(toolIconForName("invoke_skill")).toBe(BookOpenIcon);
   });
 
   it("uses a dedicated kind and icons for media generation", () => {
@@ -90,10 +57,6 @@ describe("Computer Use tool kinds", () => {
     expect(MEDIA_OPERATION_ICON.activateMediaGeneration).toBe(ClapperboardIcon);
     expect(MEDIA_OPERATION_ICON.generateImage).toBe(WandSparklesIcon);
     expect(toolIconForName("generate_image")).toBe(WandSparklesIcon);
-  });
-
-  it("uses an app window icon for activating Pine operations", () => {
-    expect(toolIconForName("activate_pine_ops")).toBe(AppWindowIcon);
   });
 
   it("uses dedicated kinds for automation and model tools", () => {

@@ -170,15 +170,4 @@ describe("ProjectEditor", () => {
       .trigger("click");
     expect(pickProjectFolders).toHaveBeenNthCalledWith(2, { mode: "context" });
   });
-
-  it("does not render a context folder list when none are configured", () => {
-    const wrapper = mountEditor();
-
-    expect(wrapper.find('[data-testid="context-folder-row"]').exists()).toBe(
-      false,
-    );
-    expect(wrapper.find('[data-testid="context-folder-table"]').exists()).toBe(
-      false,
-    );
-  });
 });

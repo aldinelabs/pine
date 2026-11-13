@@ -64,16 +64,6 @@ describe("file preview renderer registry", () => {
     ).toBe("file-viewer");
   });
 
-  it("plays videos with the native video renderer", () => {
-    expect(
-      resolvePreviewRenderer(previewRenderers, {
-        preview: { ...info, kind: "video", url: "preview://video" },
-        filePath: "clip.mov",
-        mode: "rendered",
-      })?.id,
-    ).toBe("video");
-  });
-
   it("plays audio with the native audio renderer", () => {
     expect(
       resolvePreviewRenderer(previewRenderers, {

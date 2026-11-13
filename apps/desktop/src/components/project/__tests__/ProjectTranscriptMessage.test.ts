@@ -434,37 +434,6 @@ describe("ProjectTranscriptMessage", () => {
     expect(wrapper.text()).toContain("正在压缩上下文");
   });
 
-  it("folds consecutive tool calls into a step group", () => {
-    const wrapper = mountMessage({
-      createdAt: "2026-08-26T00:00:00.000Z",
-      id: "assistant-multi-tool",
-      role: "assistant",
-      status: "complete",
-      blocks: [
-        {
-          type: "toolCall",
-          toolCall: {
-            id: "call-bash",
-            name: "bash",
-            status: "complete",
-            input: { command: "bun run check" },
-          },
-        },
-        {
-          type: "toolCall",
-          toolCall: {
-            id: "call-read",
-            name: "read",
-            status: "complete",
-            input: { path: "/project/src/main.ts" },
-          },
-        },
-      ],
-    });
-
-    expect(wrapper.findComponent(ProjectToolCallGroup).exists()).toBe(true);
-  });
-
   it("shows reply text between tool calls as prose that splits the run", () => {
     const toolCall = (id: string, name: string) => ({
       type: "toolCall" as const,

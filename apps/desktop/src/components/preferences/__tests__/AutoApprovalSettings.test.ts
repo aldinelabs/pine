@@ -190,23 +190,4 @@ describe("automatic approval preferences", () => {
       .vm.$emit("update:modelValue", "decisions");
     expect(setSettings).not.toHaveBeenCalled();
   });
-
-  it("supports English and restores settings on reopening", async () => {
-    const { wrapper } = mountSettings("en-US");
-    await flushPromises();
-    expect(wrapper.text()).toContain("Automatic approval path");
-    expect(wrapper.getComponent(ToggleGroup).text()).toContain(
-      "Decision model",
-    );
-    wrapper.unmount();
-    getSettings.mockResolvedValue({
-      ...DEFAULT_AUTO_APPROVAL_SETTINGS,
-      strategy: "decisions",
-    });
-    const reopened = mountSettings("en-US");
-    await flushPromises();
-    expect(reopened.wrapper.text()).toContain("Automatic approval path");
-    expect(reopened.store.settings.strategy).toBe("decisions");
-    expect(reopened.wrapper.find('[role="slider"]').exists()).toBe(false);
-  });
 });

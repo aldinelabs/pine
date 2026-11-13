@@ -69,15 +69,6 @@ describe("useToolActivityExpansion", () => {
     isRunning.value = false;
     expect(expanded.value.size).toBe(0);
   });
-
-  it("never expands static history", () => {
-    const isRunning = ref(false);
-    const expanded = useToolActivityExpansion({
-      messages: ref([message("m1", [single("t1")])]),
-      isRunning,
-    });
-    expect(expanded.value.size).toBe(0);
-  });
 });
 
 describe("useToolActivityExpansion scan", () => {

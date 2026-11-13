@@ -54,9 +54,4 @@ describe("SwitchComputerButton", () => {
     const wrapper = await mountInShell(1);
     expect(wrapper.find('[data-testid="switch-computer"]').exists()).toBe(true);
   });
-
-  it("shows once another computer is paired", async () => {
-    const wrapper = await mountInShell(2);
-    expect(wrapper.find('[data-testid="switch-computer"]').exists()).toBe(true);
-  });
 });

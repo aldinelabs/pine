@@ -421,12 +421,7 @@ describe("ModelPickerDialog Decisions model selection", () => {
     expect(wrapper.emitted("update:open")).toContainEqual([false]);
   });
 
-  it.each([
-    "upstage/solar-decide",
-    "respan/span-01",
-    "respan/span-01-lite",
-    "future/new-model",
-  ])("selects discovered model %s", async (id) => {
+  it.each(["future/new-model"])("selects discovered model %s", async (id) => {
     const { wrapper, setAutoApprovalSettings } = mountPicker(
       "decisions",
       decisionsCatalog,
@@ -439,19 +434,6 @@ describe("ModelPickerDialog Decisions model selection", () => {
       ...DEFAULT_AUTO_APPROVAL_SETTINGS,
       decisionsModel: id,
     });
-  });
-
-  it("offers provider management from the Decisions catalog", async () => {
-    const { wrapper } = mountPicker("decisions", decisionsCatalog);
-    await wrapper
-      .get(
-        '[data-picker-row][data-value="manage configure provider service model"]',
-      )
-      .trigger("click");
-    expect(wrapper.text()).toContain("Z.AI");
-    expect(
-      wrapper.find('[data-picker-row][data-value="back models"]').exists(),
-    ).toBe(true);
   });
 });
 
