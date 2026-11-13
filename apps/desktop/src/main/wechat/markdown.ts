@@ -1,9 +1,9 @@
 // Markdown helpers for WeChat replies. Pure: no I/O, no Electron.
 //
 // ClawBot renders bot text as Markdown, so Pine's replies use a small subset:
-// `**bold**`, `` `code` ``, fenced code, `> ` quotes and `- ` lists (no
-// italics, headings, tables, rules, images, HTML or ordered lists of Pine's
-// own). Display data is escaped; the agent's Markdown is contained so it
+// `**bold**`, `` `code` ``, fenced code, `> ` quotes, `- ` lists and narrow
+// GFM tables (no italics, headings, rules, images, HTML or ordered lists of
+// Pine's own). Display data is escaped; the agent's Markdown is contained so it
 // renders but cannot open a block that swallows Pine's footer. Every helper is
 // linear in the length of one message.
 
@@ -65,6 +65,39 @@ export function quote(...lines: (string | false | undefined)[]): string {
 /** `- item` lines. */
 export function bullets(items: readonly string[]): string {
   return items.map((item) => `- ${item}`).join("\n");
+}
+
+/**
+ * One table cell of display data: a single line, `|` as `｜` so the text
+ * cannot add a column, and a dot-led text guarded like a line.
+ */
+export function tableCell(text: string): string {
+  const clean = cleanInline(text).replace(/\|/g, "｜");
+  return clean ? neutraliseMarkdownLine(clean) : " ";
+}
+
+/**
+ * A GFM table. Header cells are Pine's literals; row cells are display data
+ * and go through `tableCell`, except a first column of commands (`command`),
+ * which the caller builds with `code` from Pine's own literals.
+ */
+export function table(
+  head: readonly string[],
+  rows: readonly (readonly string[])[],
+  options: { command?: boolean } = {},
+): string {
+  const line = (cells: readonly string[]) => `| ${cells.join(" | ")} |`;
+  return [
+    line(head),
+    `|${head.map(() => "---").join("|")}|`,
+    ...rows.map((cells) =>
+      line(
+        cells.map((cell, index) =>
+          options.command && index === 0 ? cell : tableCell(cell),
+        ),
+      ),
+    ),
+  ].join("\n");
 }
 
 /** Non-empty parts separated by a blank line. */
@@ -171,16 +204,33 @@ function headingText(line: string): string | undefined {
   return (bold?.[1] ?? text).trim();
 }
 
-function tableCells(line: string): string {
+/** The cells of a table line, split at unescaped pipes as GFM does. */
+function splitCells(line: string): string[] {
   return line
     .trim()
     .replace(/^\|/, "")
     .replace(/(?<!\\)\|$/, "")
     .split(/(?<!\\)\|/)
-    .map((cell) => cell.replace(/\\\|/g, "|").trim())
+    .map((cell) => cell.trim());
+}
+
+/** A table line flattened to `a · b · c` (tables wider than a phone). */
+function tableCells(line: string): string {
+  return splitCells(line)
+    .map((cell) => cell.replace(/\\\|/g, "|"))
     .filter((cell) => cell.length > 0)
     .join(" · ");
 }
+
+/** A table line rebuilt with outer pipes and every cell dot-guarded. */
+function tableLine(line: string): string {
+  return `| ${splitCells(line)
+    .map((cell) => (cell ? neutraliseMarkdownLine(cell) : " "))
+    .join(" | ")} |`;
+}
+
+/** Tables up to this many columns fit a phone and are kept as tables. */
+const TABLE_COLUMNS_MAX = 3;
 
 function isTableDelimiter(line: string | undefined): boolean {
   return (
@@ -193,9 +243,11 @@ function isTableDelimiter(line: string | undefined): boolean {
 
 /**
  * The agent's Markdown, contained so it renders in WeChat but cannot break
- * Pine's layout: fences are closed, headings become bold lines, tables become
- * `a · b` rows, images their alt text, HTML blocks that would only end at a
- * closing tag are escaped, and dot-led lines get `NEUTRAL_MARK`.
+ * Pine's layout: fences are closed, headings become bold lines, tables of up
+ * to three columns stay tables (each cell dot-guarded, a blank line on both
+ * sides) and wider ones become `a · b` rows, images become their alt text,
+ * HTML blocks that would only end at a closing tag are escaped, and dot-led
+ * lines get `NEUTRAL_MARK`.
  */
 export function agentMarkdown(markdown: string, lang: ReplyLanguage): string {
   const source = markdown
@@ -206,7 +258,8 @@ export function agentMarkdown(markdown: string, lang: ReplyLanguage): string {
     .split("\n");
   const out: string[] = [];
   let fence: (Fence & { openui: boolean }) | undefined;
-  let inTable = false;
+  // `undefined` outside a table; otherwise whether it is kept as a table.
+  let inTable: { keep: boolean } | undefined;
 
   for (let index = 0; index < source.length; index += 1) {
     const line = source[index] ?? "";
@@ -221,7 +274,8 @@ export function agentMarkdown(markdown: string, lang: ReplyLanguage): string {
     }
     const open = openingFence(line);
     if (open) {
-      inTable = false;
+      if (inTable?.keep) out.push("");
+      inTable = undefined;
       const openui = open.info.toLowerCase() === "openui";
       fence = { ...open, openui };
       if (openui) out.push(OPENUI_PLACEHOLDER[lang]);
@@ -230,14 +284,28 @@ export function agentMarkdown(markdown: string, lang: ReplyLanguage): string {
     }
     if (inTable) {
       if (line.includes("|") && line.trim() !== "") {
-        out.push(neutraliseMarkdownLine(tableCells(line)));
+        out.push(
+          inTable.keep
+            ? tableLine(line)
+            : neutraliseMarkdownLine(tableCells(line)),
+        );
         continue;
       }
-      inTable = false;
+      // GFM would read a following text line as one more row.
+      if (inTable.keep && line.trim() !== "") out.push("");
+      inTable = undefined;
     }
-    if (line.includes("|") && isTableDelimiter(source[index + 1])) {
-      inTable = true;
-      out.push(neutraliseMarkdownLine(tableCells(line)));
+    const delimiter = source[index + 1];
+    if (line.includes("|") && isTableDelimiter(delimiter)) {
+      const keep = splitCells(line).length <= TABLE_COLUMNS_MAX;
+      inTable = { keep };
+      if (keep) {
+        const previous = out.at(-1);
+        if (previous !== undefined && previous.trim() !== "") out.push("");
+        out.push(tableLine(line), (delimiter ?? "").trim());
+      } else {
+        out.push(neutraliseMarkdownLine(tableCells(line)));
+      }
       index += 1;
       continue;
     }
@@ -293,9 +361,11 @@ export function cutMarkdown(
   for (let attempt = 0; attempt < 3 && limit > 0; attempt += 1) {
     const head = points.slice(0, cutPoint(points, limit)).join("").trimEnd();
     const fence = fenceAtEnd(head);
-    const text = fence ? `${head}…\n${closer(fence)}` : `${head}…`;
+    // After a table row, `…` would read as one more cell; it goes below.
+    const mark = !fence && tableAtEnd(head) ? "\n\n…" : "…";
+    const text = fence ? `${head}…\n${closer(fence)}` : `${head}${mark}`;
     if (codePointLength(text) <= max) return { text, cut: true };
-    limit = max - (fence ? closer(fence).length + 2 : 1);
+    limit = max - (fence ? closer(fence).length + 2 : mark.length);
     if (attempt > 0) limit -= attempt * 4;
   }
   return { text: truncate(markdown, max), cut: true };
@@ -303,16 +373,59 @@ export function cutMarkdown(
 
 /** Room `paginateMarkdown` keeps on a page for a reopened and closed fence. */
 const FENCE_RESERVE = 24;
+/** Room kept on a page for a repeated table header; a longer one is not repeated. */
+const TABLE_RESERVE = 160;
+
+interface TableHead {
+  header: string;
+  delimiter: string;
+}
+
+/** The table whose rows `text` ends with, outside fences, if any. */
+function tableAtEnd(text: string): TableHead | undefined {
+  const lines = text.split("\n");
+  let fence: Fence | undefined;
+  let table: TableHead | undefined;
+  for (let index = 0; index < lines.length; index += 1) {
+    const line = lines[index] ?? "";
+    if (fence) {
+      if (closesFence(line, fence)) fence = undefined;
+      continue;
+    }
+    fence = openingFence(line);
+    if (fence) {
+      table = undefined;
+      continue;
+    }
+    if (table) {
+      if (line.includes("|") && line.trim() !== "") continue;
+      table = undefined;
+    }
+    const delimiter = lines[index + 1];
+    if (line.includes("|") && isTableDelimiter(delimiter)) {
+      table = { header: line, delimiter: delimiter ?? "" };
+      index += 1;
+    }
+  }
+  return table;
+}
 
 /**
  * Splits Markdown into pages of at most `max` code points. A fence that runs
  * across pages is closed at the end of one page and reopened, with its info
- * string, at the start of the next.
+ * string, at the start of the next; a table that runs across pages repeats
+ * its header row.
  */
 export function paginateMarkdown(markdown: string, max: number): string[] {
   const pages: string[] = [];
+  const hasTable = markdown.split("\n").some(isTableDelimiter);
+  // A small page keeps most of its room for text.
+  const tableRoom = hasTable ? Math.min(TABLE_RESERVE, Math.floor(max / 4)) : 0;
+  const size = max - FENCE_RESERVE - tableRoom;
   let carried: Fence | undefined;
-  for (const raw of paginate(markdown, Math.max(1, max - FENCE_RESERVE))) {
+  let carriedTable: TableHead | undefined;
+  let lastLine = "";
+  for (const raw of paginate(markdown, Math.max(1, size))) {
     let [first = "", ...rest] = raw.split("\n");
     let reopen = "";
     if (carried && closesFence(first, carried)) {
@@ -320,16 +433,49 @@ export function paginateMarkdown(markdown: string, max: number): string[] {
       [first = "", ...rest] = rest;
     } else if (carried) {
       reopen = `${carried.indent}${carried.marker}${truncate(carried.info, 12)}\n`;
+    } else if (hasTable) {
+      reopen = repeatedHeader(
+        carriedTable,
+        lastLine,
+        first,
+        rest[0],
+        tableRoom,
+      );
     }
     const body = [neutraliseMarkdownLine(first), ...rest].join("\n").trim();
     if (!body) {
       carried = undefined;
+      carriedTable = undefined;
       continue;
     }
     const page = `${reopen}${body}`;
     const open = fenceAtEnd(page);
     pages.push(open ? `${page}\n${closer(open)}` : page);
     carried = open;
+    carriedTable = open ? undefined : tableAtEnd(page);
+    lastLine = page.slice(page.lastIndexOf("\n") + 1);
   }
   return pages;
+}
+
+/**
+ * The header a page repeats when it starts inside a table: the header and
+ * delimiter rows when it starts with a row, or the previous page's last line
+ * when the split fell between a header and its delimiter row.
+ */
+function repeatedHeader(
+  table: TableHead | undefined,
+  lastLine: string,
+  first: string,
+  second: string | undefined,
+  room: number,
+): string {
+  if (!first.includes("|")) return "";
+  let head = "";
+  if (isTableDelimiter(first)) {
+    if (lastLine.includes("|")) head = `${lastLine}\n`;
+  } else if (table && !isTableDelimiter(second)) {
+    head = `${table.header}\n${table.delimiter}\n`;
+  }
+  return codePointLength(head) <= room ? head : "";
 }

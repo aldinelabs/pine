@@ -61,7 +61,7 @@ describe(".projects", () => {
     const { ctx, core } = setup();
     const result = await run(ctx);
     expect(result.text).toBe(
-      "- **1** Pine\n- **2** Pinecone\n- **3** No Project · current\n\n> Reply `.number` to switch",
+      "| # | Project |\n|---|---|\n| `.1` | Pine |\n| `.2` | Pinecone |\n| `.3` | No Project · current |\n\n> Reply `.number` to switch",
     );
     expect(result.text).not.toContain("/Users");
     expect(result.numbered).toEqual({ kind: "project" });
@@ -95,7 +95,7 @@ describe(".projects", () => {
     );
     const many = await run(ctx, { tail: "pin" });
     expect(many.text).toBe(
-      '"pin" matches several. Reply `.number` to choose:\n- **1** Pine\n- **2** Pinecone',
+      '"pin" matches several. Reply `.number` to choose:\n\n| # | Match |\n|---|---|\n| `.1` | Pine |\n| `.2` | Pinecone |',
     );
     expect(many.numbered).toEqual({ kind: "project" });
     expect((await run(ctx, { tail: "zzz" })).text).toBe(

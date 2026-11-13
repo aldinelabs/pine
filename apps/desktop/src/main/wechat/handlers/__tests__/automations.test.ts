@@ -161,9 +161,9 @@ describe(".autos", () => {
       ],
     });
     const text = await listed(ctx);
-    expect(text).toContain("**1** Auto a · pine · on");
-    expect(text).toContain("**2** Auto b · pine · off");
-    expect(text).toContain("**3** Auto c · pine · paused");
+    expect(text).toContain("| `.1` | Auto a · pine | on |");
+    expect(text).toContain("| `.2` | Auto b · pine | off |");
+    expect(text).toContain("| `.3` | Auto c · pine | paused |");
     expect(ctx.handles.resolve("automation", 2)).toMatchObject({
       id: "b",
       projectId: "p1",
@@ -412,7 +412,9 @@ describe(".runs", () => {
     ctx.fake.core.automations.listRuns.mockResolvedValue(runs);
     const list = await run(ctx, command("runs"));
     expect(list.numbered).toEqual({ kind: "run" });
-    expect(list.text).toContain("**1** Auto a · findings");
+    expect(list.text).toContain(
+      "| `.1` | Auto a · 1 h ago | findings · unread |",
+    );
     expect(list.text).toContain("unread");
     ctx.handles.noteDelivered("run", ctx.now);
     const one = (await run(ctx, command("runs", ["1"]))).text ?? "";

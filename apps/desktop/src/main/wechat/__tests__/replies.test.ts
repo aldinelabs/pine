@@ -494,6 +494,41 @@ function boldIsFlanked(line: string): boolean {
   );
 }
 
+/** Cells of a table line, split at unescaped pipes as GFM does. */
+function cellCount(line: string): number {
+  return line.replace(/\\./g, "  ").split("|").length - 2;
+}
+
+/**
+ * Every table is a block of its own (blank line or edge on both sides), has a
+ * `|---|` delimiter row, at most three columns, and the same number of cells
+ * on every row, so no title can add or split a column.
+ */
+function expectTables(prose: readonly string[]): void {
+  prose.forEach((line, index) => {
+    if (!line.startsWith("|")) return;
+    const previous = prose[index - 1];
+    const next = prose[index + 1];
+    expect(
+      previous === undefined || previous === "" || previous.startsWith("|"),
+      line,
+    ).toBe(true);
+    expect(
+      next === undefined || next === "" || next.startsWith("|"),
+      line,
+    ).toBe(true);
+    expect(line.endsWith(" |") || /^\|(?:---\|)+$/.test(line), line).toBe(true);
+    if (previous === undefined || previous === "") {
+      const columns = cellCount(line);
+      expect(columns).toBeGreaterThanOrEqual(1);
+      expect(columns).toBeLessThanOrEqual(3);
+      expect(next).toBe(`|${Array(columns).fill("---").join("|")}|`);
+      for (let row = index + 2; prose[row]?.startsWith("|"); row += 1)
+        expect(cellCount(prose[row] ?? ""), prose[row]).toBe(columns);
+    }
+  });
+}
+
 function render1(id: ReplyId, lang: ReplyLanguage, data: unknown): string {
   const call = render as (
     id: ReplyId,
@@ -524,10 +559,11 @@ describe("render", () => {
       for (const data of variants(id)) {
         const text = render1(id, lang, data);
         const prose = proseLines(text);
+        expectTables(prose);
         prose.forEach((line, index) => {
           expect(boldIsFlanked(line), line).toBe(true);
-          expect(line, "no heading, table or ordered list").not.toMatch(
-            /^(?:#|\||\d+[.)] )/,
+          expect(line, "no heading or ordered list").not.toMatch(
+            /^(?:#|\d+[.)] )/,
           );
           const next = prose[index + 1];
           if (line.startsWith(">") && next !== undefined)
@@ -570,6 +606,41 @@ describe("render", () => {
       expect(card).not.toMatch(COMMAND_LINE);
       expect(card.split("\n")[0]).toMatch(/^\*\*› /);
     }
+  });
+
+  it("keeps hostile titles inside one table cell", () => {
+    for (const lang of LANGS) {
+      const text = render("R-SESSIONS", lang, {
+        now: NOW,
+        rows: [
+          {
+            n: 1,
+            title: `${HOSTILE} | x\n| y |`,
+            project: "a|b",
+            atMs: NOW,
+            marks: [],
+          },
+        ],
+      });
+      const row = text.split("\n")[2] ?? "";
+      expect(text.split("\n")[3]).toBe("");
+      expect(row.startsWith("| `.1` | › .y 99 ")).toBe(true);
+      // Two cells after the command: no title text adds a column.
+      expect(row.split("|")).toHaveLength(5);
+      expect(row).toContain("a｜b");
+      expect(text).not.toMatch(COMMAND_LINE);
+    }
+  });
+
+  it("guards dot-led display data in a table cell", () => {
+    expect(
+      render("R-MCP", "en", {
+        rows: [{ name: ".y 97", scope: "global", status: "connected" }],
+      }),
+    ).toContain("| › .y 97 | global · connected |");
+    expect(
+      render("R-QUEUE", "zh", { rows: [{ n: 1, text: "。d 98 now" }] }),
+    ).toContain("| `.撤回 1` | › 。d 98 now |");
   });
 
   it("guards agent lines that start with a command inside Markdown", () => {
@@ -619,12 +690,12 @@ describe("lists", () => {
   it.each(LANGS)("shows at most PAGE_ROWS rows of ROW_MAX (%s)", (lang) => {
     const text = render("R-SESSIONS", lang, { now: NOW, rows: many });
     const lines = text.split("\n");
-    expect(lines).toHaveLength(PAGE_ROWS + 2);
-    for (const line of lines.slice(0, PAGE_ROWS)) {
-      expect(line).toMatch(/^- \*\*\d+\*\* /);
-      expect(
-        codePointLength(line.replace(/^- \*\*\d+\*\* /, "")),
-      ).toBeLessThanOrEqual(ROW_MAX);
+    expect(lines).toHaveLength(PAGE_ROWS + 4);
+    for (const line of lines.slice(2, PAGE_ROWS + 2)) {
+      const cells = /^\| `\.\d+` \| (.*) \| (.*) \|$/.exec(line);
+      expect(cells, line).not.toBeNull();
+      for (const cell of cells?.slice(1) ?? [])
+        expect(codePointLength(cell)).toBeLessThanOrEqual(ROW_MAX);
     }
     expect(lines.at(-2)).toBe("");
     expect(lines.at(-1)).toMatch(/^> .*`\.0`/);
@@ -654,10 +725,10 @@ describe("lists", () => {
   });
 
   it("names the temporary workspace and marks the current project", () => {
-    expect(renderSample("R-PROJECTS", "zh")).toContain("- **2** 无项目");
-    expect(renderSample("R-PROJECTS", "en")).toContain("- **2** No Project");
+    expect(renderSample("R-PROJECTS", "zh")).toContain("| `.2` | 无项目 |");
+    expect(renderSample("R-PROJECTS", "en")).toContain("| `.2` | No Project |");
     expect(renderSample("R-PROJECTS", "en")).toContain(
-      "- **1** pine · current",
+      "| `.1` | pine · current |",
     );
   });
 
@@ -671,7 +742,7 @@ describe("lists", () => {
       canSend: true,
       rows: [{ n: 1, path: "/tmp/my_file_v2.md" }],
     });
-    expect(text).toContain("- **1** my\\_file\\_v2.md");
+    expect(text).toContain("| `.1` | my\\_file\\_v2.md |");
   });
 
   it("shows at most 15 todos", () => {
@@ -1087,7 +1158,7 @@ describe("session replies", () => {
     );
   });
 
-  it("lists sessions as bullets with a footer", () => {
+  it("lists sessions as a table with a footer", () => {
     const rows = [
       {
         n: 1,
@@ -1100,16 +1171,20 @@ describe("session replies", () => {
     ];
     expect(render("R-SESSIONS", "zh", { now: NOW, rows })).toBe(
       [
-        "- **1** ▶ 修登录页 · pine · 5 分钟前",
-        "- **2** 调研 · docs · 刚刚",
+        "| # | 会话 | 时间 |",
+        "|---|---|---|",
+        "| `.1` | ▶ 修登录页 · pine | 5 分钟前 |",
+        "| `.2` | 调研 · docs | 刚刚 |",
         "",
         "> 回 `.数字` 切换 · `.0` 更多 · `.f` 搜索",
       ].join("\n"),
     );
     expect(render("R-SESSIONS", "en", { now: NOW, rows })).toBe(
       [
-        "- **1** ▶ 修登录页 · pine · 5 min ago",
-        "- **2** 调研 · docs · just now",
+        "| # | Session | When |",
+        "|---|---|---|",
+        "| `.1` | ▶ 修登录页 · pine | 5 min ago |",
+        "| `.2` | 调研 · docs | just now |",
         "",
         "> Reply `.number` to switch · `.0` more · `.f` search",
       ].join("\n"),
@@ -1237,7 +1312,7 @@ describe("errors", () => {
   it("does not leave half an escape where a list row is cut", () => {
     const rows = [{ n: 1, text: `${"a".repeat(68)}*b` }];
     const text = render("R-QUEUE", "en", { rows });
-    expect(text).toContain(`- **1** ${"a".repeat(68)}…`);
+    expect(text).toContain(`| \`.recall 1\` | ${"a".repeat(68)}… |`);
     expect(text).not.toContain("\\…");
   });
 
@@ -1362,14 +1437,26 @@ describe("help", () => {
         "**Pine 微信命令**",
         "以 `.` 或 `。` 开头；直接发文字 = 发给当前会话",
         "",
-        "- 会话：`.` 状态 · `.n` 新会话 · `.l` 列表 · `.f` 搜索 · `.u` 切换",
-        "- 回复：`.r` 最后回复 · `.x` 停止 · `.o` 文件 · `.p` 项目",
-        "- 待处理：`.w` 查看 · `.y` 批准 · `.d` 拒绝 · `.a` 回答",
-        "- 列表：`.数字` 选择 · `.0` 更多",
-        "- 更多：`.? 2` 更多命令 · `.pause` 立即停用",
+        "| 命令 | 作用 |",
+        "|---|---|",
+        "| `.` | 状态 |",
+        "| `.n` | 新会话 |",
+        "| `.l` | 会话列表 |",
+        "| `.f` | 搜索 |",
+        "| `.u` | 切换会话 |",
+        "| `.r` | 最后回复 |",
+        "| `.x` | 停止 |",
+        "| `.p` | 项目 |",
+        "| `.o` | 文件 |",
+        "| `.y` / `.d` | 批准 / 拒绝 |",
+        "| `.a` | 回答 |",
+        "| `.w` | 待处理 |",
+        "| `.0` | 下一页 |",
+        "| `.数字` | 选列表项 |",
+        "| `.pause` | 立即停用 |",
         "",
+        "> 更多命令：`.? 2` · 以点开头的普通文字请用两个点开头",
         "> 电脑：kw-mac · 最高模式：自动审批 · 发文件：关",
-        "> 以点开头的普通文字请用两个点开头",
       ].join("\n"),
     );
     expect(renderSample("R-HELP", "en")).toBe(
@@ -1377,14 +1464,26 @@ describe("help", () => {
         "**Pine WeChat commands**",
         "Start with `.` or `。`; plain text goes to the current session",
         "",
-        "- Sessions: `.` status · `.n` new · `.l` list · `.f` search · `.u` switch",
-        "- Replies: `.r` last reply · `.x` stop · `.o` files · `.p` projects",
-        "- Waiting: `.w` list · `.y` approve · `.d` reject · `.a` answer",
-        "- Lists: `.number` picks a row · `.0` more",
-        "- More: `.? 2` more commands · `.pause` turn off now",
+        "| Command | What it does |",
+        "|---|---|",
+        "| `.` | status |",
+        "| `.n` | new session |",
+        "| `.l` | sessions |",
+        "| `.f` | search |",
+        "| `.u` | switch session |",
+        "| `.r` | last reply |",
+        "| `.x` | stop |",
+        "| `.p` | projects |",
+        "| `.o` | files |",
+        "| `.y` / `.d` | approve / reject |",
+        "| `.a` | answer |",
+        "| `.w` | waiting |",
+        "| `.0` | next page |",
+        "| `.number` | pick a list row |",
+        "| `.pause` | turn off now |",
         "",
+        "> More: `.? 2` · start with two dots to send text that begins with a dot",
         "> Computer: kw-mac · Highest mode: Auto Approve · Files: off",
-        "> Start with two dots to send text that begins with a dot",
       ].join("\n"),
     );
     expect(renderSample("R-WELCOME", "en")).toMatch(
@@ -1400,11 +1499,27 @@ describe("help", () => {
       [
         "**更多命令**",
         "",
-        "- 会话设置：`.m` 模型 · `.e` 推理强度 · `.mode` 审批模式 · `.i` 用量 · `.c` 压缩",
-        "- 任务：`.t` 待办 · `.b` 后台进程 · `.k` 结束进程 · `.q` 排队",
-        "- 会话管理：`.hi` 历史 · `.rn` 改名 · `.del` 删除",
-        "- 自动化：`.au` 自动化 · `.ar` 运行记录 · `.sk` 技能 · `.mcp` MCP",
-        "- 其他：`.cfg` 设置 · `.lang` 语言 · `.drop` 丢弃附件",
+        "| 命令 | 作用 |",
+        "|---|---|",
+        "| `.m` | 模型 |",
+        "| `.e` | 推理强度 |",
+        "| `.mode` | 审批模式 |",
+        "| `.i` | 用量 |",
+        "| `.c` | 压缩 |",
+        "| `.t` | 待办 |",
+        "| `.b` | 后台进程 |",
+        "| `.k` | 结束进程 |",
+        "| `.q` | 排队 |",
+        "| `.hi` | 历史 |",
+        "| `.rn` | 改名 |",
+        "| `.del` | 删除 |",
+        "| `.au` | 自动化 |",
+        "| `.ar` | 运行记录 |",
+        "| `.sk` | 技能 |",
+        "| `.mcp` | MCP |",
+        "| `.cfg` | 设置 |",
+        "| `.lang` | 语言 |",
+        "| `.drop` | 丢弃附件 |",
         "",
         "> `.? 命令名` 查看用法",
       ].join("\n"),
@@ -1413,11 +1528,27 @@ describe("help", () => {
       [
         "**More commands**",
         "",
-        "- Session: `.m` model · `.e` effort · `.mode` approval mode · `.i` usage · `.c` compact",
-        "- Work: `.t` todos · `.b` processes · `.k` kill · `.q` queue",
-        "- Manage: `.hi` history · `.rn` rename · `.del` delete",
-        "- Automation: `.au` automations · `.ar` runs · `.sk` skills · `.mcp` MCP",
-        "- Other: `.cfg` settings · `.lang` language · `.drop` attachments",
+        "| Command | What it does |",
+        "|---|---|",
+        "| `.m` | model |",
+        "| `.e` | effort |",
+        "| `.mode` | approval mode |",
+        "| `.i` | usage |",
+        "| `.c` | compact |",
+        "| `.t` | todos |",
+        "| `.b` | processes |",
+        "| `.k` | kill |",
+        "| `.q` | queue |",
+        "| `.hi` | history |",
+        "| `.rn` | rename |",
+        "| `.del` | delete |",
+        "| `.au` | automations |",
+        "| `.ar` | runs |",
+        "| `.sk` | skills |",
+        "| `.mcp` | MCP |",
+        "| `.cfg` | settings |",
+        "| `.lang` | language |",
+        "| `.drop` | drop attachments |",
         "",
         "> `.? name` shows a command's usage",
       ].join("\n"),

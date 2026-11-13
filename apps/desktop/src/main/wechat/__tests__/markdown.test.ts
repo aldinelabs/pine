@@ -12,6 +12,8 @@ import {
   neutraliseMarkdownLine,
   paginateMarkdown,
   quote,
+  table,
+  tableCell,
 } from "../markdown";
 import { parseCommand } from "../parseCommand";
 import { codePointLength } from "../text";
@@ -63,6 +65,30 @@ describe("inline helpers", () => {
   });
 });
 
+describe("tables", () => {
+  it("builds a GFM table with a command column", () => {
+    expect(
+      table(
+        ["#", "Session"],
+        [
+          ["`.1`", "a"],
+          ["`.2`", "b"],
+        ],
+        { command: true },
+      ),
+    ).toBe("| # | Session |\n|---|---|\n| `.1` | a |\n| `.2` | b |");
+  });
+
+  it("keeps a pipe, a line break or a leading dot from breaking a cell", () => {
+    expect(tableCell("a | b\nc")).toBe("a ｜ b c");
+    expect(tableCell(".y 5")).toBe("› .y 5");
+    expect(tableCell("")).toBe(" ");
+    expect(table(["Server"], [[".y 5 | x"]])).toBe(
+      "| Server |\n|---|\n| › .y 5 ｜ x |",
+    );
+  });
+});
+
 describe("neutraliseMarkdownLine", () => {
   it("guards a dot after Markdown containers and inline markers", () => {
     expect(neutraliseMarkdownLine("- .y 12")).toBe("- › .y 12");
@@ -103,10 +129,34 @@ describe("agentMarkdown", () => {
     );
   });
 
-  it("turns tables into rows", () => {
+  it("keeps tables of up to three columns", () => {
     expect(
       agentMarkdown("| a | b |\n| --- | :-: |\n| 1 | 2 |\n\nafter", "en"),
-    ).toBe("a · b\n1 · 2\n\nafter");
+    ).toBe("| a | b |\n| --- | :-: |\n| 1 | 2 |\n\nafter");
+    expect(agentMarkdown("a | b | c\n-|-|-\n1 | 2 \\| x | 3", "en")).toBe(
+      "| a | b | c |\n-|-|-\n| 1 | 2 \\| x | 3 |",
+    );
+  });
+
+  it("puts a kept table in a block of its own", () => {
+    expect(
+      agentMarkdown("intro\n| a | b |\n|---|---|\n| 1 | 2 |\nafter", "en"),
+    ).toBe("intro\n\n| a | b |\n|---|---|\n| 1 | 2 |\n\nafter");
+  });
+
+  it("guards dot-led cells of a kept table", () => {
+    expect(
+      agentMarkdown("| cmd | note |\n|---|---|\n| .y 5 | `.d 6` |", "en"),
+    ).toBe("| cmd | note |\n|---|---|\n| › .y 5 | › `.d 6` |");
+  });
+
+  it("flattens tables wider than three columns into rows", () => {
+    expect(
+      agentMarkdown(
+        "| a | b | c | d |\n|---|---|---|---|\n| 1 | 2 | 3 | .y 4 |\n\nafter",
+        "en",
+      ),
+    ).toBe("a · b · c · d\n1 · 2 · 3 · .y 4\n\nafter");
   });
 
   it("keeps image alt text only", () => {
@@ -199,6 +249,15 @@ describe("cutMarkdown", () => {
     expect(text.endsWith("…")).toBe(true);
   });
 
+  it("puts the ellipsis below a table the cut lands in", () => {
+    const rows = Array.from({ length: 30 }, (_, i) => `| ${i} | row ${i} |`);
+    const markdown = ["| # | Row |", "|---|---|", ...rows].join("\n");
+    const { text, cut } = cutMarkdown(markdown, 120);
+    expect(cut).toBe(true);
+    expect(codePointLength(text)).toBeLessThanOrEqual(120);
+    expect(text).toMatch(/\|\n\n…$/);
+  });
+
   it("closes a fence the cut lands in", () => {
     const markdown = `intro\n\n\`\`\`ts\n${"const x = 1;\n".repeat(50)}\`\`\``;
     const { text } = cutMarkdown(markdown, 120);
@@ -237,6 +296,27 @@ describe("paginateMarkdown", () => {
     expect(pages[0]?.endsWith("\n   ```")).toBe(true);
     expect(pages[1]?.startsWith("   ```sh\n")).toBe(true);
     expect(pages[1]?.endsWith("\n   ```")).toBe(true);
+  });
+
+  it("repeats a table's header on every page it runs across", () => {
+    const rows = Array.from(
+      { length: 120 },
+      (_, i) => `| ${i} | row ${i} | ok |`,
+    );
+    const head = "| # | Row | State |\n|---|:-:|---|";
+    const markdown = `Rows:\n\n${head}\n${rows.join("\n")}\n\nDone.`;
+    const max = 600;
+    const pages = paginateMarkdown(markdown, max);
+    expect(pages.length).toBeGreaterThanOrEqual(3);
+    for (const page of pages) {
+      expect(codePointLength(page)).toBeLessThanOrEqual(max);
+      if (page.includes("| row "))
+        expect(page.slice(page.indexOf("|"))).toMatch(
+          /^\| # \| Row \| State \|\n\|---\|:-:\|---\|\n\| \d+ \|/,
+        );
+    }
+    expect(pages[1]?.startsWith(head)).toBe(true);
+    expect(pages.at(-1)).toContain("Done.");
   });
 
   it("guards the first line of every page", () => {

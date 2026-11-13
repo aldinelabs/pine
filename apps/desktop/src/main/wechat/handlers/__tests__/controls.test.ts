@@ -133,7 +133,7 @@ describe(".model", () => {
     expect(text.indexOf("Model delta")).toBeLessThan(
       text.indexOf("Model alpha"),
     );
-    expect(text).toContain("* Model alpha");
+    expect(text).toContain("| `.2` | Model alpha · current | Provider acme |");
     expect(result.numbered).toEqual({ kind: "model" });
   });
 

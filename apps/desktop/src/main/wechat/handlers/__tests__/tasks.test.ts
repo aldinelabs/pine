@@ -78,10 +78,10 @@ describe(".tasks", () => {
     ]);
     const result = await run("tasks", ctx);
     expect(result.numbered).toEqual({ kind: "task" });
-    const first = result.text?.split("\n")[0] ?? "";
-    expect(first).toContain("**1** task a · running 10");
+    const first = result.text?.split("\n")[2] ?? "";
+    expect(first).toMatch(/^\| `\.1` \| task a · `node x+…` \| running 10/);
     expect(first).not.toContain("x".repeat(60));
-    expect(result.text).toContain("**2** task b · exited 0");
+    expect(result.text).toMatch(/\| `\.2` \| task b · `[^`]+` \| exited 0 \|/);
     expect(ctx.fake.core.runtimes.listBackgroundTasks).toHaveBeenCalledWith(
       W,
       "s1",

@@ -161,7 +161,9 @@ describe("handles", () => {
     recent.sessions = [listed("a"), listed("b", "p2")];
     const result = await run(ctx, "sessions");
     expect(result.numbered).toEqual({ kind: "session" });
-    expect(result.text).toContain("**1** Session a · Project p1");
+    expect(result.text).toContain(
+      "| `.1` | Session a · Project p1 | just now |",
+    );
     expect(ctx.handles.resolve("session", 1)).toBeUndefined();
     ctx.handles.noteDelivered("session", ctx.now);
     expect(ctx.handles.resolve("session", 2)?.id).toBe("b");
@@ -410,7 +412,7 @@ describe(".queue, .unqueue, .rename", () => {
       W,
     );
     const list = await run(ctx, "queue");
-    expect(list.text).toContain("**1** then deploy");
+    expect(list.text).toContain("| `.recall 1` | then deploy |");
     ctx.handles.noteDelivered("queue", ctx.now);
     const removed = await run(ctx, "unqueue", { args: ["1"] });
     expect(runtimes.dequeueSteering).toHaveBeenCalledWith(
@@ -449,7 +451,7 @@ describe(".queue, .unqueue, .rename", () => {
       { type: "steering-queue", sessionId: "s1", messages: ["go on"] },
       W,
     );
-    expect((await run(ctx, "queue")).text).toContain("**1** go on");
+    expect((await run(ctx, "queue")).text).toContain("| `.recall 1` | go on |");
     const removed = await run(ctx, "unqueue");
     expect(runtimes.dequeueSteering).toHaveBeenCalledWith(W, "go on", "s1");
     expect(removed.text).toBe("Withdrawn: go on");

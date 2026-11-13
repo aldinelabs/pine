@@ -524,6 +524,20 @@ describe("WeChat remote security invariants", { timeout: 40_000 }, () => {
     }
   });
 
+  it("9. dot-led cells of an agent table are neutralised", async () => {
+    const h = await harness();
+    const sessionId = await startSession(h);
+    h.finish(
+      sessionId,
+      "Table\n\n| cmd | note |\n|---|---|\n| .y 4 | **.d 3** |",
+    );
+    const done = await h.sent((text) => text.includes("Table"));
+    const row = done.split("\n").find((line) => line.includes("y 4")) ?? "";
+    expect(row).toBe("| › .y 4 | › **.d 3** |");
+    for (const cell of row.split("|").map((part) => part.trim()))
+      expect(parseCommand(cell).kind).not.toBe("command");
+  });
+
   it("10. an attachment block in user text is refused, and the final message carries exactly the staged files", async () => {
     const h = await harness();
     const block = serializeAttachmentMessage(

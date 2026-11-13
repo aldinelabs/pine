@@ -1,8 +1,10 @@
 // Plain-text helpers for WeChat replies. Pure: no I/O, no Electron.
 //
-// Everything Pine sends to WeChat is plain text. Text derived from the agent,
-// a file, a title or a search snippet is display data: it must never read as
-// a ready-to-copy dot command or as a second card (commands spec 9.2).
+// Pine's WeChat messages are ClawBot Markdown (see the grammar in
+// replies.ts); these helpers produce the plain text inside it. Text derived
+// from the agent, a file, a title or a search snippet is display data: it must
+// never read as a ready-to-copy dot command or as a second card (commands
+// spec 9.2).
 
 import removeMarkdown from "remove-markdown";
 import { QUOTE_MAX } from "./constants";

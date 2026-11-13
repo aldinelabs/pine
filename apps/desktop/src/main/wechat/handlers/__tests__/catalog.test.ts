@@ -48,8 +48,8 @@ describe(".skills", () => {
     ctx.fake.core.ports.listSkills = listSkills;
     const text = (await run("skills", ctx)).text ?? "";
     expect(listSkills).toHaveBeenCalledWith("p1");
-    expect(text).toContain("**1** review · global · on · Reviews code");
-    expect(text).toContain("**2** deploy · project · off · Deploys");
+    expect(text).toContain("| 1 | review · Reviews code carefully");
+    expect(text).toContain("| 2 | deploy · Deploys | project · off |");
     expect(text).not.toContain("carefully ".repeat(5));
   });
 
@@ -95,9 +95,9 @@ describe(".mcp", () => {
     };
     ctx.fake.core.ports.listMcpServers = () => Promise.resolve(catalog);
     const text = (await run("mcp", ctx)).text ?? "";
-    expect(text).toContain("github · global · connected · 12 tools");
-    expect(text).toContain("notes · project · failed · 0 tools");
-    expect(text).toContain("idle · project · unknown");
+    expect(text).toContain("| github | global · connected · 12 tools |");
+    expect(text).toContain("| notes | project · failed · 0 tools |");
+    expect(text).toContain("| idle | project · unknown |");
     for (const secret of [
       "ghp_SECRET_TOKEN_123",
       "GITHUB_TOKEN",

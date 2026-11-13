@@ -44,7 +44,7 @@ describe(".help", () => {
     expect((await run(ctx, "help")).text).toContain(
       "Computer: Test Mac · Highest mode: Auto Approve · Files: off",
     );
-    expect((await run(ctx, "help", ["2"])).text).toContain("`.m` model");
+    expect((await run(ctx, "help", ["2"])).text).toContain("| `.m` | model |");
     expect((await run(ctx, "help", ["n"])).text).toContain(
       ".new [@project] [text]",
     );
@@ -152,7 +152,9 @@ describe(".status", () => {
     );
     const result = await run(ctx, "status");
     expect(result.text).toContain("**Project p1 › Session s1** · Idle");
-    expect(result.text).toContain("**1** ▶ Session s2 (Project p1)");
+    expect(result.text).toContain(
+      "| `.1` | Session s2 · Project p1 | ▶ Running |",
+    );
     expect(result.numbered).toEqual({ kind: "session" });
     ctx.handles.noteDelivered("session", ctx.now);
     expect(ctx.handles.resolve("session", 1)?.id).toBe("s2");

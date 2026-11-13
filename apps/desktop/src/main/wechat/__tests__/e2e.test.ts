@@ -288,7 +288,9 @@ describe("WeChat remote end to end", { timeout: 30_000 }, () => {
       sessionId,
       messages: ["also check the footer"],
     });
-    expect(await h.say(".q")).toContain("**1** also check the footer");
+    expect(await h.say(".q")).toContain(
+      "| `.recall 1` | also check the footer |",
+    );
     const dequeue = vi
       .spyOn(h.agentHost, "dequeueSteering")
       .mockResolvedValueOnce({
