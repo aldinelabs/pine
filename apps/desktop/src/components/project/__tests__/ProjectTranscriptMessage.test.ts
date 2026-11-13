@@ -287,7 +287,7 @@ describe("ProjectTranscriptMessage", () => {
       expect(markers[0].get("[data-thinking-content]").text()).toBe(
         "First summary",
       );
-      expect(markers[1].get("[data-thinking-content]").text()).toBe(
+      expect(markers[1].get("[data-thinking-live]").text()).toBe(
         "Second summary",
       );
     } finally {

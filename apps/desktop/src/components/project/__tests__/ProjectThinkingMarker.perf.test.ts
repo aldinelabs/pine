@@ -3,21 +3,22 @@
  * `ProjectThinkingMarker` and the real `animateScrollTop` run on a fake 60 Hz
  * clock; the panel's layout is stubbed (256 px tall, as `max-h-64`). One
  * second of fast thinking is simulated: 8 flushes 120 ms apart, each adding a
- * line (44 px) and followed by a resize notification, after the opening pin
- * has settled.
+ * paragraph and followed by a resize notification.
  *
- * | id | metric                                                | before | after | target |
- * | -- | ----------------------------------------------------- | ------ | ----- | ------ |
- * | T1 | animateScrollTop calls during the stream              | 8      | 0     | 0      |
- * | T1 | animation frames run during the stream                | 60     | 0     | 0      |
- * | T2 | scrollTop writes on the panel during the stream       | 60     | 8     | <= 8   |
- * | T2 | panel ends at scrollHeight - clientHeight             | no     | yes   | yes    |
- * | T3 | panel carries the scroll-timeline `scroll-fade` class | yes    | no    | no     |
- * | T4 | timers / frames pending 600 ms after it collapses     | 0 / 0  | 0 / 0 | 0 / 0  |
+ * | id | metric                                                | before | W2-A | after | target |
+ * | -- | ----------------------------------------------------- | ------ | ---- | ----- | ------ |
+ * | T1 | animateScrollTop calls during the stream              | 8      | 0    | 0     | 0      |
+ * | T1 | animation frames run during the stream                | 60     | 0    | 0     | 0      |
+ * | T2 | scrollTop writes on the panel during the stream       | 60     | 8    | 0     | 0      |
+ * | T2 | panel shows the newest paragraph                      | yes    | yes  | yes   | yes    |
+ * | T3 | panel carries the scroll-timeline `scroll-fade` class | yes    | no   | no    | no     |
+ * | T4 | timers / frames pending 600 ms after it collapses     | 0 / 0  | 0/0  | 0 / 0 | 0 / 0  |
+ * | T5 | markdown source rendered per flush                    | all    | all  | block | block  |
  *
- * "before" is the marker before any perf change; "after" is W2-A, where the
- * panel follows with one native smooth `scrollTo` per resize report (the
- * stub applies it at once) and a state-driven edge fade. All targets hold.
+ * "before" is the marker before any perf change; "W2-A" followed the stream
+ * in a scroll container with one native smooth `scrollTo` per resize report.
+ * "after" is the live view: while thinking streams the panel shows only the
+ * paragraph being written, so it renders one block and never scrolls.
  *
  * Print the metrics with `PINE_PERF_LOG=1` (add `--reporter=default` when
  * vitest hides the output of passing tests).
@@ -33,6 +34,7 @@ import {
   resizeObserverStub,
 } from "@/__tests__/perf/streamHarness";
 import { createAppI18n } from "@/app/i18n";
+import MarkdownContent from "@/components/markdown/MarkdownContent.vue";
 import { animateScrollTop } from "@/lib/animateScroll";
 import type { PineTranscriptMessage } from "@/stores/session";
 import ProjectThinkingMarker from "../ProjectThinkingMarker.vue";
@@ -46,7 +48,6 @@ vi.mock("@/lib/animateScroll", async (original) => {
 const FLUSHES = 8;
 const FLUSH_INTERVAL_MS = 120;
 const PANEL_HEIGHT = 256;
-const LINE_HEIGHT = 44;
 const THINKING_STARTED_AT = Date.parse("2026-09-03T00:00:00.000Z");
 
 const cleanups: (() => void)[] = [];
@@ -75,7 +76,7 @@ function thinkingMessage(lines: number): PineTranscriptMessage {
   };
 }
 
-/** A marker whose thinking already fills the panel and follows its end. */
+/** A marker whose thinking already fills the panel. */
 async function mountStreamingMarker() {
   const clock = frameClock({ now: THINKING_STARTED_AT });
   const observers = resizeObserverStub();
@@ -92,24 +93,21 @@ async function mountStreamingMarker() {
     () => observers.restore(),
     () => wrapper.unmount(),
   );
-  const panel = wrapper.get<HTMLElement>("[data-thinking-content]").element;
+  const panel = wrapper.get<HTMLElement>("[data-thinking-live]").element;
   const layout = layoutStub(panel, {
-    scrollHeight: lines * LINE_HEIGHT,
+    scrollHeight: PANEL_HEIGHT,
     clientHeight: PANEL_HEIGHT,
   });
-  // The opening pin may glide; the stream is measured after it has settled.
   await clock.advance(600);
-  expect(layout.scrollTop()).toBe(layout.maxScrollTop());
 
   const scroll = callStats(animateScrollTop);
   scroll.reset();
   clock.resetFrames();
   layout.reset();
 
-  /** One flush: a new line, its layout, the resize report, then 120 ms. */
+  /** One flush: a new paragraph, the resize report, then 120 ms. */
   async function flush(): Promise<void> {
     lines += 1;
-    layout.set({ scrollHeight: lines * LINE_HEIGHT });
     await wrapper.setProps({ message: thinkingMessage(lines) });
     observers.fire((target) => panel.contains(target));
     await clock.advance(FLUSH_INTERVAL_MS);
@@ -125,12 +123,12 @@ async function streamOneSecond() {
     animateScrollTopCalls: marker.scroll.calls(),
     framesRun: marker.clock.framesRun(),
     scrollTopWrites: marker.layout.scrollTopWrites(),
-    endsAtBottom: marker.layout.scrollTop() === marker.layout.maxScrollTop(),
   };
   reportMetrics("thinking stream, 1 s", metrics);
-  // The panel is open and shows the newest line.
+  // The panel is open and shows the newest paragraph, not the first.
   expect(marker.wrapper.get("button").attributes("aria-expanded")).toBe("true");
   expect(marker.panel.textContent).toContain(`Step ${marker.lines()}:`);
+  expect(marker.panel.textContent).not.toContain("Step 1:");
   return { marker, metrics };
 }
 
@@ -141,10 +139,9 @@ describe("ProjectThinkingMarker streaming cost", () => {
     expect(metrics.framesRun).toBe(0);
   });
 
-  it("[T2] writes the panel's scroll position at most once per flush and ends at the bottom", async () => {
+  it("[T2] never writes the panel's scroll position while thinking streams", async () => {
     const { metrics } = await streamOneSecond();
-    expect(metrics.scrollTopWrites).toBeLessThanOrEqual(FLUSHES);
-    expect(metrics.endsAtBottom).toBe(true);
+    expect(metrics.scrollTopWrites).toBe(0);
   });
 
   it("[T3] does not put a scroll-timeline fade on the panel", async () => {
@@ -174,10 +171,30 @@ describe("ProjectThinkingMarker streaming cost", () => {
     reportMetrics("thinking collapsed, 600 ms later", {
       pendingTimers: marker.clock.pendingTimers(),
       pendingFrames: marker.clock.pendingFrames(),
-      panelMounted: marker.wrapper.find("[data-thinking-content]").exists(),
+      panelMounted:
+        marker.wrapper.find("[data-thinking-content]").exists() ||
+        marker.wrapper.find("[data-thinking-live]").exists(),
     });
     expect(marker.wrapper.find("[data-thinking-content]").exists()).toBe(false);
+    expect(marker.wrapper.find("[data-thinking-live]").exists()).toBe(false);
     expect(marker.clock.pendingTimers()).toBe(0);
     expect(marker.clock.pendingFrames()).toBe(0);
+  });
+
+  it("[T5] renders only the paragraph being written, not the whole thinking", async () => {
+    const { marker } = await streamOneSecond();
+    const sources = marker.wrapper
+      .findAllComponents(MarkdownContent)
+      .map((component) => component.props("source") as string);
+    const total = thinkingMessage(marker.lines()).blocks[0];
+    reportMetrics("thinking markdown per flush", {
+      renderedChars: sources.at(-1)?.length ?? 0,
+      totalChars: total.type === "thinking" ? total.thinking.length : 0,
+    });
+    expect(sources.at(-1)).toBe(
+      `Step ${marker.lines()}: weigh the next option.`,
+    );
+    // At most the current paragraph and the one fading out.
+    expect(sources.length).toBeLessThanOrEqual(2);
   });
 });

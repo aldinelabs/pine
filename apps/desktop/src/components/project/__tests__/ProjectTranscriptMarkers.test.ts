@@ -17,9 +17,9 @@ import {
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { nextTick } from "vue";
 import { createAppI18n } from "@/app/i18n";
-import * as animateScroll from "@/lib/animateScroll";
 import { createPinia } from "pinia";
 import { resizeObserverStub } from "@/__tests__/perf/streamHarness";
+import type { PineTranscriptMessage } from "@/stores/session";
 import ProjectCompactionMarker from "../ProjectCompactionMarker.vue";
 import ProjectThinkingMarker from "../ProjectThinkingMarker.vue";
 import ProjectToolCallMarker from "../ProjectToolCallMarker.vue";
@@ -117,9 +117,10 @@ describe("project transcript markers", () => {
     expect(trigger.attributes("aria-expanded")).toBe("false");
     await trigger.trigger("click");
     expect(trigger.attributes("aria-expanded")).toBe("true");
-    expect(wrapper.get("[data-thinking-content]").text()).toBe(
+    expect(wrapper.get("[data-thinking-live]").text()).toBe(
       "Inspect the request.",
     );
+    expect(wrapper.find("[data-thinking-content]").exists()).toBe(false);
 
     await wrapper.setProps({
       message: {
@@ -132,7 +133,7 @@ describe("project transcript markers", () => {
         ],
       },
     });
-    expect(wrapper.get("[data-thinking-content]").text()).toContain(
+    expect(wrapper.get("[data-thinking-live]").text()).toContain(
       "Check the active session.",
     );
 
@@ -214,175 +215,222 @@ describe("project transcript markers", () => {
     expect(wrapper.get("[data-thinking-content]").text()).toContain(
       "Inspect the request.",
     );
+    expect(wrapper.find("[data-thinking-live]").exists()).toBe(false);
   });
 
-  /**
-   * A streaming marker whose panel reports a stubbed layout and resize
-   * notifications, as the browser does after each content update.
-   */
-  function mountFollowingThinking() {
-    const observers = resizeObserverStub();
-    const wrapper = mount(ProjectThinkingMarker, {
-      props: {
-        message: {
-          createdAt: "2026-08-26T00:00:00.000Z",
-          id: "assistant-1",
-          role: "assistant",
-          status: "streaming",
-          blocks: [{ type: "thinking", thinking: "Inspect the request." }],
-          thinkingStartedAt: Date.now(),
-          thinkingStatus: "streaming",
-        },
-      },
-      global: {
-        plugins: [createPinia(), createAppI18n("en-US")],
-      },
-    });
-    const content = wrapper.get("[data-thinking-content]")
-      .element as HTMLElement;
-    let scrollHeight = 600;
-    let scrollTop = 0;
-    Object.defineProperty(content, "clientHeight", {
-      configurable: true,
-      get: () => 100,
-    });
-    Object.defineProperty(content, "scrollHeight", {
-      configurable: true,
-      get: () => scrollHeight,
-    });
-    Object.defineProperty(content, "scrollTop", {
-      configurable: true,
-      get: () => scrollTop,
-      set: (value: number) => {
-        scrollTop = value;
-      },
-    });
-    const scrollTo = vi.fn();
-    Object.defineProperty(content, "scrollTo", {
-      configurable: true,
-      value: scrollTo,
-    });
-    async function grow(height: number, thinking: string): Promise<void> {
-      scrollHeight = height;
-      await wrapper.setProps({
-        message: {
-          ...wrapper.props("message"),
-          blocks: [{ type: "thinking", thinking }],
-        },
-      });
-      observers.fire((target) => content.contains(target));
-      await nextTick();
-    }
-    function cleanup(): void {
-      wrapper.unmount();
-      observers.restore();
-    }
+  function streamingThinking(
+    blocks: PineTranscriptMessage["blocks"],
+  ): PineTranscriptMessage {
     return {
-      content,
-      grow,
-      scrollTo,
-      cleanup,
-      finish: () =>
-        wrapper.setProps({
-          message: { ...wrapper.props("message"), thinkingStatus: "complete" },
-        }),
+      createdAt: "2026-08-26T00:00:00.000Z",
+      id: "assistant-1",
+      role: "assistant",
+      status: "streaming",
+      blocks,
+      thinkingStartedAt: Date.now(),
+      thinkingStatus: "streaming",
     };
   }
 
-  it("follows streaming thinking with a native glide instead of a tween", async () => {
-    const animateSpy = vi
-      .spyOn(animateScroll, "animateScrollTop")
-      .mockImplementation(() => () => undefined);
-    const marker = mountFollowingThinking();
-    await nextTick();
-    marker.content.scrollTop = 500;
-    // The browser glide reports scroll positions short of the bottom.
-    marker.scrollTo.mockImplementation(({ top }: ScrollToOptions) => {
-      marker.content.scrollTop = Math.max(0, (top ?? 0) - 40);
-      marker.content.dispatchEvent(new Event("scroll"));
+  function mountThinking(message: PineTranscriptMessage) {
+    return mount(ProjectThinkingMarker, {
+      props: { message },
+      attachTo: document.body,
+      global: { plugins: [createPinia(), createAppI18n("en-US")] },
     });
-    animateSpy.mockClear();
+  }
 
-    await marker.grow(700, "Inspect the request.\nCheck one more state.");
-    await marker.grow(
-      800,
-      "Inspect the request.\nCheck one more state.\nThen continue streaming.",
+  /** Scroll metrics for the finished panel, which mounts mid-test. */
+  function stubFinishedPanelLayout() {
+    const prototype = HTMLElement.prototype;
+    const scrollHeight = Object.getOwnPropertyDescriptor(
+      Element.prototype,
+      "scrollHeight",
     );
+    const clientHeight = Object.getOwnPropertyDescriptor(
+      Element.prototype,
+      "clientHeight",
+    );
+    const isPanel = (element: HTMLElement) =>
+      element.hasAttribute("data-thinking-content");
+    Object.defineProperties(prototype, {
+      scrollHeight: {
+        configurable: true,
+        get(this: HTMLElement) {
+          return isPanel(this) ? 600 : scrollHeight?.get?.call(this);
+        },
+      },
+      clientHeight: {
+        configurable: true,
+        get(this: HTMLElement) {
+          return isPanel(this) ? 256 : clientHeight?.get?.call(this);
+        },
+      },
+    });
+    return () => {
+      delete (prototype as unknown as Record<string, unknown>).scrollHeight;
+      delete (prototype as unknown as Record<string, unknown>).clientHeight;
+    };
+  }
 
-    expect(animateSpy).not.toHaveBeenCalled();
-    expect(marker.scrollTo.mock.calls).toEqual([
-      [{ top: 600, behavior: "smooth" }],
-      [{ top: 700, behavior: "smooth" }],
-    ]);
-    // Without user intent, the glide's own positions do not stop following,
-    // and the newest line stays faded while the glide trails it.
-    expect(marker.content.getAttribute("data-scrollable")).toBe("start end");
-    marker.cleanup();
-    animateSpy.mockRestore();
+  it("streams one block at a time and keeps the previous block for an empty new segment", async () => {
+    const wrapper = mountThinking(
+      streamingThinking([
+        {
+          type: "thinking",
+          thinking: "Plan the change.\n\nInspect the store.",
+        },
+      ]),
+    );
+    const live = wrapper.get("[data-thinking-live]");
+    expect(live.text()).toBe("Inspect the store.");
+    expect(live.text()).not.toContain("Plan the change.");
+
+    await wrapper.setProps({
+      message: streamingThinking([
+        {
+          type: "thinking",
+          thinking: "Plan the change.\n\nInspect the store.",
+        },
+        { type: "thinking", thinking: "" },
+      ]),
+    });
+    expect(
+      wrapper
+        .get("[data-thinking-live] .thinking-live-block:not([data-leaving])")
+        .text(),
+    ).toBe("Inspect the store.");
+
+    await wrapper.setProps({
+      message: streamingThinking([
+        {
+          type: "thinking",
+          thinking: "Plan the change.\n\nInspect the store.",
+        },
+        { type: "thinking", thinking: "Second summary" },
+      ]),
+    });
+    expect(
+      wrapper
+        .get("[data-thinking-live] .thinking-live-block:not([data-leaving])")
+        .text(),
+    ).toBe("Second summary");
+    wrapper.unmount();
   });
 
-  it("keeps the bottom fade through each glide landing until the stream ends", async () => {
-    const marker = mountFollowingThinking();
-    await nextTick();
-    // The glide lands exactly on the bottom before the next update arrives.
-    marker.scrollTo.mockImplementation(({ top }: ScrollToOptions) => {
-      marker.content.scrollTop = top ?? 0;
-      marker.content.dispatchEvent(new Event("scroll"));
-    });
-    await marker.grow(700, "Inspect the request.\nCheck one more state.");
-    await nextTick();
-    expect(marker.content.scrollTop).toBe(600);
-    expect(marker.content.getAttribute("data-scrollable")).toBe("start end");
+  it("switches to the full text pinned at the bottom when thinking ends without output", async () => {
+    const restoreLayout = stubFinishedPanelLayout();
+    const observers = resizeObserverStub();
+    try {
+      const wrapper = mountThinking(
+        streamingThinking([
+          {
+            type: "thinking",
+            thinking: "Plan the change.\n\nInspect the store.",
+          },
+        ]),
+      );
+      await wrapper.setProps({
+        message: { ...wrapper.props("message"), thinkingStatus: "complete" },
+      });
+      await nextTick();
+      await nextTick();
 
-    await marker.finish();
-    marker.content.dispatchEvent(new Event("scroll"));
-    await nextTick();
-    expect(marker.content.getAttribute("data-scrollable")).toBe("start");
-    marker.cleanup();
+      expect(
+        wrapper.get('button[data-slot="marker"]').attributes("aria-expanded"),
+      ).toBe("true");
+      expect(wrapper.find("[data-thinking-live]").exists()).toBe(false);
+      const content = wrapper.get<HTMLElement>("[data-thinking-content]");
+      expect(content.text()).toContain("Plan the change.");
+      expect(content.text()).toContain("Inspect the store.");
+      expect(content.element.scrollTop).toBe(600 - 256);
+      expect(content.attributes("data-scrollable")).toBe("start");
+      wrapper.unmount();
+    } finally {
+      observers.restore();
+      restoreLayout();
+    }
   });
 
-  it("stops following thinking only after explicit user scroll intent", async () => {
-    const animateSpy = vi
-      .spyOn(animateScroll, "animateScrollTop")
-      .mockImplementation(() => () => undefined);
-    const marker = mountFollowingThinking();
-    await nextTick();
-    marker.content.scrollTop = 500;
-    // The opening pin may glide; the stream itself must not.
-    animateSpy.mockClear();
-    await marker.grow(600, "Inspect the request.\nMeasured.");
-    expect(marker.scrollTo).not.toHaveBeenCalled();
-
-    // A scroll away from the bottom without intent keeps following.
-    marker.content.scrollTop = 300;
-    marker.content.dispatchEvent(new Event("scroll"));
-    await marker.grow(650, "Inspect the request.\nStill following.");
-    expect(marker.scrollTo).toHaveBeenCalledTimes(1);
-    expect(marker.scrollTo).toHaveBeenLastCalledWith({
-      top: 550,
-      behavior: "smooth",
+  it("folds with the last block and opens the full text afterwards", async () => {
+    vi.useFakeTimers();
+    const wrapper = mountThinking(
+      streamingThinking([
+        {
+          type: "thinking",
+          thinking: "Plan the change.\n\nInspect the store.",
+        },
+      ]),
+    );
+    const trigger = wrapper.get('button[data-slot="marker"]');
+    await wrapper.setProps({
+      message: {
+        ...wrapper.props("message"),
+        thinkingStatus: "complete",
+        blocks: [
+          {
+            type: "thinking",
+            thinking: "Plan the change.\n\nInspect the store.",
+          },
+          { type: "text", text: "Here is the result." },
+        ],
+      },
     });
+    expect(trigger.attributes("aria-expanded")).toBe("false");
+    // The fold still shows the block that was streaming.
+    expect(wrapper.get("[data-thinking-live]").text()).toBe(
+      "Inspect the store.",
+    );
+    expect(wrapper.find("[data-thinking-content]").exists()).toBe(false);
 
-    marker.scrollTo.mockClear();
-    marker.content.dispatchEvent(new Event("wheel"));
-    marker.content.scrollTop = 300;
-    marker.content.dispatchEvent(new Event("scroll"));
-    await marker.grow(700, "Inspect the request.\nThe user is reading above.");
-    expect(marker.scrollTo).not.toHaveBeenCalled();
-    expect(animateSpy).not.toHaveBeenCalled();
-    // Off the bottom and no longer following: both edges fade.
-    expect(marker.content.getAttribute("data-scrollable")).toBe("start end");
+    await vi.advanceTimersByTimeAsync(500);
+    expect(wrapper.find("[data-thinking-live]").exists()).toBe(false);
 
-    // Returning to the bottom resumes following.
-    marker.content.scrollTop = 600;
-    marker.content.dispatchEvent(new Event("scroll"));
-    await marker.grow(760, "Inspect the request.\nBack at the end.");
-    expect(marker.scrollTo).toHaveBeenCalledWith({
-      top: 660,
-      behavior: "smooth",
+    await trigger.trigger("click");
+    const content = wrapper.get("[data-thinking-content]");
+    expect(content.text()).toContain("Plan the change.");
+    expect(content.text()).toContain("Inspect the store.");
+    expect(wrapper.find("[data-thinking-live]").exists()).toBe(false);
+    wrapper.unmount();
+  });
+
+  it("shows the current block again when reopened while streaming", async () => {
+    vi.useFakeTimers();
+    const wrapper = mountThinking(
+      streamingThinking([{ type: "thinking", thinking: "First.\n\nSecond." }]),
+    );
+    const trigger = wrapper.get('button[data-slot="marker"]');
+    await trigger.trigger("click");
+    await vi.advanceTimersByTimeAsync(500);
+    expect(wrapper.find("[data-thinking-live]").exists()).toBe(false);
+    await wrapper.setProps({
+      message: streamingThinking([
+        { type: "thinking", thinking: "First.\n\nSecond.\n\nThird." },
+      ]),
     });
-    marker.cleanup();
-    animateSpy.mockRestore();
+    await trigger.trigger("click");
+    expect(wrapper.get("[data-thinking-live]").text()).toBe("Third.");
+    expect(wrapper.find("[data-thinking-content]").exists()).toBe(false);
+    wrapper.unmount();
+  });
+
+  it("opens the full text when thinking finished while folded away", async () => {
+    vi.useFakeTimers();
+    const wrapper = mountThinking(
+      streamingThinking([{ type: "thinking", thinking: "First.\n\nSecond." }]),
+    );
+    const trigger = wrapper.get('button[data-slot="marker"]');
+    await trigger.trigger("click");
+    await vi.advanceTimersByTimeAsync(500);
+    await wrapper.setProps({
+      message: { ...wrapper.props("message"), thinkingStatus: "complete" },
+    });
+    await trigger.trigger("click");
+    expect(wrapper.find("[data-thinking-live]").exists()).toBe(false);
+    const content = wrapper.get("[data-thinking-content]");
+    expect(content.text()).toContain("First.");
+    expect(content.text()).toContain("Second.");
+    wrapper.unmount();
   });
 
   it("uses semantic labels for primary tools and truncates commands", () => {
