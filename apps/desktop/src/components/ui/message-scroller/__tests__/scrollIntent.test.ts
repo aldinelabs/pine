@@ -76,6 +76,7 @@ function createScroller(followAnimated = false) {
       content.append(anchor);
       context.handleContentChange();
     },
+    message,
     destroy() {
       wrapper.unmount();
       viewport.remove();
@@ -200,6 +201,18 @@ describe("message scroller user intent", () => {
     expect(scroller.viewport.scrollTop).toBe(1700);
     scroller.destroy();
     now.mockRestore();
+  });
+
+  it("keeps a growing message's top in place instead of following the end", () => {
+    const scroller = createScroller();
+    expect(scroller.viewport.scrollTop).toBe(1500);
+    expect(scroller.context.followingBottom.value).toBe(true);
+    // A message opening its editor below its current top.
+    scroller.context.holdElementTop(scroller.message);
+    scroller.grow();
+    expect(scroller.viewport.scrollTop).toBe(1500);
+    expect(scroller.context.followingBottom.value).toBe(false);
+    scroller.destroy();
   });
 
   it("follows the end as thinking folds, holding no room below it", () => {

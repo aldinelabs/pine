@@ -513,6 +513,11 @@ export interface MessageScrollerContext {
   followStreamingContent: () => void;
   holdViewForRewrite: () => void;
   releaseRewriteHold: () => void;
+  /**
+   * Keeps `element`'s top where it is while it grows, such as a message
+   * opening its editor, instead of following the bottom past it.
+   */
+  holdElementTop: (element: HTMLElement) => void;
   scrollToEnd: (options?: { behavior?: ScrollBehavior }) => boolean;
   scrollToMessage: (
     messageId: string,
@@ -877,6 +882,19 @@ function createEngine(props: MessageScrollerProviderProps) {
       minHeight: content.style.minHeight,
     };
     content.style.minHeight = `${content.getBoundingClientRect().height}px`;
+  }
+
+  function holdElementTop(element: HTMLElement) {
+    if (!viewport || !content?.contains(element)) return;
+    // A new turn's anchor already holds its message by the top.
+    if (mode === "anchored-to-message") return;
+    cancelScrollAnimation?.();
+    cancelScrollAnimation = null;
+    if (mode === "following-bottom") setMode("free-scrolling");
+    viewportAnchor = {
+      element,
+      viewportTop: getRelativeTop(element, viewport),
+    };
   }
 
   function releaseRewriteHold() {
@@ -1604,6 +1622,7 @@ function createEngine(props: MessageScrollerProviderProps) {
     followStreamingContent,
     holdViewForRewrite,
     releaseRewriteHold,
+    holdElementTop,
     scrollToEnd,
     scrollToMessage,
     scrollToStart,

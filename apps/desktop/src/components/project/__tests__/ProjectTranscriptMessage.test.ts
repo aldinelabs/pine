@@ -96,6 +96,37 @@ describe("ProjectTranscriptMessage", () => {
     },
   );
 
+  it("holds the message's top when its editor opens", async () => {
+    const holdElementTop = vi.fn();
+    const wrapper = mount(
+      defineComponent({
+        setup() {
+          const engine = provideMessageScroller({ autoScroll: true });
+          engine.context.holdElementTop = holdElementTop;
+          return () =>
+            h(ProjectTranscriptMessage, {
+              message: {
+                createdAt: "2026-10-02T00:00:00.000Z",
+                id: "user-edit",
+                role: "user",
+                status: "complete",
+                blocks: [{ type: "text", text: "Original" }],
+              },
+              canRewrite: true,
+              rewriteMessage: () => Promise.resolve(true),
+            });
+        },
+      }),
+      { global: { plugins: [createAppI18n("zh-CN")] } },
+    );
+    await wrapper.get('[aria-label="编辑消息"]').trigger("click");
+    expect(holdElementTop).toHaveBeenCalledTimes(1);
+    expect(holdElementTop.mock.calls[0][0]).toBe(
+      wrapper.get('[data-slot="message"]').element,
+    );
+    wrapper.unmount();
+  });
+
   it("renders an interactive block inside a progress report", () => {
     const wrapper = mountMessage({
       id: "assistant",

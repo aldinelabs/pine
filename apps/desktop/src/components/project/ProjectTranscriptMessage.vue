@@ -8,6 +8,7 @@ import {
   ref,
   shallowRef,
   toRaw,
+  useTemplateRef,
   watch,
 } from "vue";
 import { useI18n } from "vue-i18n";
@@ -21,6 +22,7 @@ import MarkdownContent from "@/components/markdown/MarkdownContent.vue";
 import { Bubble, BubbleContent } from "@/components/ui/bubble";
 import { Button } from "@/components/ui/button";
 import { Message, MessageContent } from "@/components/ui/message";
+import { useOptionalMessageScrollerContext } from "@/components/ui/message-scroller/useMessageScroller";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -117,8 +119,15 @@ const canSendEdit = computed(
       quotes.value.length > 0),
 );
 
+const scroller = useOptionalMessageScrollerContext();
+const messageRoot = useTemplateRef<{ $el: HTMLElement }>("messageRoot");
+
 async function startEditing(): Promise<void> {
   editDraft.value = text.value;
+  // The editor and its buttons grow the message downward; keep its top in
+  // place rather than following the bottom and pushing it up.
+  const root = messageRoot.value?.$el;
+  if (root instanceof HTMLElement) scroller?.holdElementTop(root);
   isEditing.value = true;
   await nextTick();
   const input = editInput.value?.$el as HTMLTextAreaElement | undefined;
@@ -512,7 +521,7 @@ onMounted(measureUserText);
 onUnmounted(stopObservingUserText);
 </script>
 <template>
-  <Message :align="isUser ? 'end' : 'start'">
+  <Message ref="messageRoot" :align="isUser ? 'end' : 'start'">
     <MessageContent
       :class="
         cn(
