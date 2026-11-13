@@ -23,6 +23,17 @@ export default {
       "Nach der Bestätigung wird diese URL in Ihrem Standardbrowser geöffnet:",
     openExternalLink: "Link öffnen",
     externalLinkOpenFailed: "Der Link konnte nicht im Browser geöffnet werden.",
+    imageViewer: {
+      open: "{name} vergrößert anzeigen",
+      untitled: "Bild",
+      description:
+        "Vergrößertes Bild. Mit den Zoomsteuerungen zoomen, mit den Pfeiltasten zwischen Bildern wechseln.",
+      controls: "Bildsteuerung",
+      previous: "Vorheriges Bild",
+      next: "Nächstes Bild",
+      position: "{index} / {count}",
+      fit: "An Fenster anpassen",
+    },
   },
   updater: {
     available: "Neue Pine-Version verfügbar",

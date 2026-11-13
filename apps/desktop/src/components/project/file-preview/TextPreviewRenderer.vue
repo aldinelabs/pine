@@ -188,6 +188,7 @@ defineExpose({ readSelection });
         :nodes="markdownNodes"
         :document-url="preview.kind === 'text' ? preview.url : undefined"
         final
+        zoomable-images
       />
       <CodeBlock
         v-else

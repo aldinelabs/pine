@@ -367,6 +367,10 @@ Text view, page navigation, search, zoom, fit width, rotate, invert colors,
 play and pause for media, sheet and layer pickers, and Open with default
 application. "Send to tab…" or "Send selection to tab…" attaches the file or
 the selected content to a session tab, or creates a session for it.
+In the Rendered view of a Markdown file, clicking an image (or focusing it and
+pressing Enter) opens it enlarged in a dialog titled with its alt text or file
+name, with Fit to window and zoom buttons (Mod + scroll also zooms) and, when the document has several images, previous and next buttons
+or the Left and Right arrow keys; images that failed to load do not open.
 
 ### Workbench
 
@@ -552,3 +556,5 @@ is the way to stop automations, Remote Control and WeChat remote.
 - Mod+U: Automations manager
 - Mod+/: MCP servers manager
 - Mod+L: focus the composer
+- Enlarged Markdown image: Left / Right previous / next image; Mod+= / Mod+−
+  zoom in / out; Mod+0 fit to window; Esc closes

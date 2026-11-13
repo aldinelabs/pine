@@ -24,6 +24,17 @@ export default {
     openExternalLink: "Ouvrir le lien",
     externalLinkOpenFailed:
       "Impossible d'ouvrir le lien dans votre navigateur.",
+    imageViewer: {
+      open: "Agrandir {name}",
+      untitled: "Image",
+      description:
+        "Image agrandie. Utilisez les commandes de zoom pour zoomer et les flèches pour changer d’image.",
+      controls: "Commandes de l’image",
+      previous: "Image précédente",
+      next: "Image suivante",
+      position: "{index} / {count}",
+      fit: "Ajuster à la fenêtre",
+    },
   },
   updater: {
     available: "Une nouvelle version de Pine est disponible",

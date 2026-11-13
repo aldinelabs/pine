@@ -28,7 +28,14 @@ setCustomComponents("pine-chat", {
 </script>
 
 <script setup lang="ts">
-import { computed, provide, ref } from "vue";
+import {
+  computed,
+  defineAsyncComponent,
+  provide,
+  ref,
+  shallowRef,
+  useTemplateRef,
+} from "vue";
 import { storeToRefs } from "pinia";
 import MarkdownRender from "markstream-vue";
 import type { BaseNode } from "markstream-vue";
@@ -42,7 +49,11 @@ import {
   shareMarkdownCitations,
   type MarkdownCitations,
 } from "./citation";
-import { markdownImageDocumentUrl } from "./markdownImageContext";
+import {
+  markdownImageDocumentUrl,
+  markdownImageZoom,
+  type MarkdownViewerImage,
+} from "./markdownImageContext";
 import { Button } from "@/components/ui/button";
 import DialogScrollArea from "@/components/dialogs/DialogScrollArea.vue";
 import {
@@ -67,7 +78,50 @@ const props = defineProps<{
   /** Muted, small-scale typography for secondary surfaces (thinking
    * panels); tightens markstream's `--ms-*` type scale. */
   compact?: boolean;
+  /** Clicking an image opens an enlarged, zoomable view (file previews). */
+  zoomableImages?: boolean;
 }>();
+
+const MarkdownImageViewer = defineAsyncComponent(
+  () => import("./MarkdownImageViewer.vue"),
+);
+const root = useTemplateRef<HTMLDivElement>("root");
+const viewerImages = shallowRef<MarkdownViewerImage[]>([]);
+const viewerIndex = ref(0);
+const viewerOpen = ref(false);
+// Mounted on the first image click and kept for its close animation.
+const hasOpenedImageViewer = ref(false);
+
+/**
+ * Collects the document's loaded images when one is clicked, so the view can
+ * move between them. Nothing is tracked while no image is open.
+ */
+function openImageViewer(target: HTMLElement): void {
+  const frames = [
+    ...(root.value?.querySelectorAll<HTMLElement>(
+      "[data-markdown-image][data-zoomable]",
+    ) ?? []),
+  ];
+  const images: MarkdownViewerImage[] = [];
+  let index = 0;
+  for (const frame of frames) {
+    const image = frame.querySelector("img");
+    const src = image?.currentSrc || image?.getAttribute("src");
+    if (!src) continue;
+    if (frame === target) index = images.length;
+    images.push({ src, name: frame.dataset.imageName ?? "" });
+  }
+  if (!images.length) return;
+  viewerImages.value = images;
+  viewerIndex.value = index;
+  hasOpenedImageViewer.value = true;
+  viewerOpen.value = true;
+}
+
+provide(
+  markdownImageZoom,
+  computed(() => (props.zoomableImages ? openImageViewer : undefined)),
+);
 
 provide(
   markdownImageDocumentUrl,
@@ -165,6 +219,7 @@ async function confirmExternalLink(): Promise<void> {
 
 <template>
   <div
+    ref="root"
     class="markdown-content"
     data-slot="markdown-content"
     :data-streaming="final === false ? 'true' : undefined"
@@ -199,6 +254,13 @@ async function confirmExternalLink(): Promise<void> {
       :fade="final === false"
       :max-live-nodes="0"
       :is-dark="isDark"
+    />
+
+    <MarkdownImageViewer
+      v-if="hasOpenedImageViewer"
+      v-model:open="viewerOpen"
+      v-model:index="viewerIndex"
+      :images="viewerImages"
     />
 
     <AlertDialog

@@ -22,6 +22,17 @@ export default {
     externalLinkDescription: "확인하면 다음 URL이 기본 브라우저에서 열립니다:",
     openExternalLink: "링크 열기",
     externalLinkOpenFailed: "브라우저에서 링크를 열 수 없습니다.",
+    imageViewer: {
+      open: "{name} 크게 보기",
+      untitled: "이미지",
+      description:
+        "확대한 이미지입니다. 확대/축소 컨트롤로 크기를 바꾸고 화살표 키로 이미지를 전환합니다.",
+      controls: "이미지 컨트롤",
+      previous: "이전 이미지",
+      next: "다음 이미지",
+      position: "{index} / {count}",
+      fit: "창에 맞추기",
+    },
   },
   updater: {
     available: "새로운 Pine 버전이 있습니다",

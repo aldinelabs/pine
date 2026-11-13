@@ -23,6 +23,17 @@ export default {
       "After you confirm, this URL will open in your default browser:",
     openExternalLink: "Open link",
     externalLinkOpenFailed: "Could not open the link in your browser.",
+    imageViewer: {
+      open: "View {name} larger",
+      untitled: "Image",
+      description:
+        "Enlarged image. Use the zoom controls to zoom and the arrow keys to switch images.",
+      controls: "Image controls",
+      previous: "Previous image",
+      next: "Next image",
+      position: "{index} / {count}",
+      fit: "Fit to window",
+    },
   },
   updater: {
     available: "New Pine version available",

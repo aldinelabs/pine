@@ -22,6 +22,16 @@ export default {
     externalLinkDescription: "确认后将在默认浏览器中打开以下 URL：",
     openExternalLink: "打开链接",
     externalLinkOpenFailed: "无法在浏览器中打开该链接。",
+    imageViewer: {
+      open: "放大查看 {name}",
+      untitled: "图片",
+      description: "放大的图片。可使用缩放控件缩放，用方向键切换图片。",
+      controls: "图片控件",
+      previous: "上一张图片",
+      next: "下一张图片",
+      position: "{index} / {count}",
+      fit: "适合窗口",
+    },
   },
   updater: {
     available: "新版本 Pine 可用",

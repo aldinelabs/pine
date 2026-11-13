@@ -22,6 +22,16 @@ export default {
     externalLinkDescription: "確認後將在預設瀏覽器中開啟以下 URL：",
     openExternalLink: "開啟連結",
     externalLinkOpenFailed: "無法在瀏覽器中開啟該連結。",
+    imageViewer: {
+      open: "放大檢視 {name}",
+      untitled: "圖片",
+      description: "放大的圖片。可使用縮放控制項縮放，用方向鍵切換圖片。",
+      controls: "圖片控制項",
+      previous: "上一張圖片",
+      next: "下一張圖片",
+      position: "{index} / {count}",
+      fit: "符合視窗",
+    },
   },
   updater: {
     available: "新版本 Pine 可用",

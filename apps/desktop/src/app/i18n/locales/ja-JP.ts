@@ -23,6 +23,17 @@ export default {
       "確認すると、次の URL が既定のブラウザで開きます：",
     openExternalLink: "リンクを開く",
     externalLinkOpenFailed: "ブラウザでリンクを開けませんでした。",
+    imageViewer: {
+      open: "{name} を拡大表示",
+      untitled: "画像",
+      description:
+        "拡大した画像です。ズームボタンで拡大縮小し、矢印キーで画像を切り替えます。",
+      controls: "画像のコントロール",
+      previous: "前の画像",
+      next: "次の画像",
+      position: "{index} / {count}",
+      fit: "ウインドウに合わせる",
+    },
   },
   updater: {
     available: "Pine の新しいバージョンがあります",
