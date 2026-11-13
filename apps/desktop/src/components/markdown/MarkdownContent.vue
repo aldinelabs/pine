@@ -137,23 +137,30 @@ async function openImageViewer(target: HTMLElement): Promise<void> {
     ) ?? []),
   ];
   const images: MarkdownViewerImage[] = [];
-  let index = 0;
+  let index = -1;
   for (const frame of frames) {
     const image = frame.querySelector("img");
     const src = image?.currentSrc || image?.getAttribute("src");
-    if (!image || !src || !image.naturalWidth || !image.naturalHeight) {
-      continue;
+    if (!image || !src) continue;
+    // An SVG with only a viewBox loads without a natural size: fit it from
+    // its rendered size instead.
+    let width = image.naturalWidth;
+    let height = image.naturalHeight;
+    if (!width || !height) {
+      ({ width, height } = image.getBoundingClientRect());
     }
+    if (!width || !height) continue;
     if (frame === target) index = images.length;
     images.push({
       src,
       name: frame.dataset.imageName ?? "",
       element: image,
-      width: image.naturalWidth,
-      height: image.naturalHeight,
+      width,
+      height,
     });
   }
-  if (!images.length) return;
+  // Never open a different image than the one clicked.
+  if (index < 0) return;
   const sequence = ++openSequence;
   let viewer: Component;
   try {

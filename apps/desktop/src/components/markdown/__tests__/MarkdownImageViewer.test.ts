@@ -335,6 +335,21 @@ describe("Markdown image viewer", () => {
     wrapper.unmount();
   });
 
+  it("opens the clicked image when it has no natural size", async () => {
+    const wrapper = mountMarkdown(
+      "![First](/docs/first.png)\n\n![Diagram](/docs/diagram.svg)",
+    );
+    await flushPromises();
+    // An SVG with only a viewBox loads without reporting a natural size.
+    natural = { width: 0, height: 0 };
+    await loadImages(wrapper);
+    await wrapper.findAll("img")[1].trigger("click");
+    const content = await openedViewer();
+    expect(content.textContent).toContain("Diagram");
+    expect(content.textContent).not.toContain("First");
+    wrapper.unmount();
+  });
+
   it("floats the title, close button and toolbar without a card", async () => {
     const wrapper = mountMarkdown(
       "![One](/docs/one.png)\n\n![Two](/docs/two.png)",
