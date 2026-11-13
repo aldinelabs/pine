@@ -1,6 +1,10 @@
+import { readFileSync } from "node:fs";
+import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import {
+  COMPOSER_GLOW_DEFAULT_HAZE,
   COMPOSER_GLOW_DEFAULT_TINTS,
+  composerGlowTintsAreGrey,
   COMPOSER_GLOW_MAX_MARGINS,
   composerGlowFrameInterval,
   composerGlowGeometry,
@@ -182,7 +186,57 @@ describe("colours", () => {
     const colors = readComposerGlowColors(element);
     element.remove();
     expect(colors.tints).toEqual(COMPOSER_GLOW_DEFAULT_TINTS);
+    expect(colors.haze).toEqual(COMPOSER_GLOW_DEFAULT_HAZE);
     expect(colors.dark).toBe(true);
+  });
+
+  it("tells grey (Neutral) tints from coloured ones", () => {
+    expect(
+      composerGlowTintsAreGrey([
+        [0.55, 0.55, 0.55],
+        [0.62, 0.62, 0.621],
+      ]),
+    ).toBe(true);
+    expect(composerGlowTintsAreGrey(COMPOSER_GLOW_DEFAULT_TINTS)).toBe(false);
+  });
+
+  it("turns the warm tokens toward amber and the cool ones toward green", () => {
+    const css = readFileSync(
+      path.resolve(__dirname, "../../index.css"),
+      "utf8",
+    );
+    const hue = (token: string) =>
+      [
+        ...css.matchAll(
+          new RegExp(
+            `${token}: oklch\\(\\s*[\\d.]+ [\\d.]+ calc\\(([\\d.]+)`,
+            "g",
+          ),
+        ),
+      ].map((match) => Number(match[1]));
+    const accent = hue("--composer-glow-color");
+    expect(accent.length).toBeGreaterThan(0);
+    // OKLCH hue falls toward amber/red and rises toward green/blue.
+    for (const suffix of ["color", "haze"]) {
+      const base = hue(`--composer-glow-${suffix}`)[0];
+      expect(hue(`--composer-glow-${suffix}-warm`).length).toBeGreaterThan(0);
+      expect(hue(`--composer-glow-${suffix}-cool`).length).toBeGreaterThan(0);
+      for (const warm of hue(`--composer-glow-${suffix}-warm`))
+        expect(warm).toBeLessThan(base);
+      for (const cool of hue(`--composer-glow-${suffix}-cool`))
+        expect(cool).toBeGreaterThan(base);
+    }
+  });
+
+  it("orders the default tints accent, warmer (redder), cooler (greener)", () => {
+    // The warm tint once turned the hue toward green, the cool one toward
+    // amber: the names said the opposite of what the light showed.
+    const [, warm, cool] = COMPOSER_GLOW_DEFAULT_TINTS;
+    expect(warm[0]).toBeGreaterThan(warm[1]);
+    expect(cool[1]).toBeGreaterThan(cool[0]);
+    const [, hazeWarm, hazeCool] = COMPOSER_GLOW_DEFAULT_HAZE;
+    expect(hazeWarm[0]).toBeGreaterThan(hazeWarm[1]);
+    expect(hazeCool[1]).toBeGreaterThan(hazeCool[0]);
   });
 });
 

@@ -263,8 +263,10 @@ From top to bottom:
    - While the agent is working, a bright, flowing light in the project's
      accent color (or, with "Pine Default", the Pine default color theme from
      Appearance settings; grey for Neutral) runs around the text box's
-     outline and glows softly outward, with brighter spots travelling round
-     it. The inside of the text box stays clear. It fades away when the run
+     outline and glows softly outward as a colored haze, with brighter spots
+     travelling round it (Neutral in the light theme shows only the outline
+     and its travelling spots, without the haze). The inside of the text box
+     stays clear. It fades away when the run
      ends, and is not shown while an approval or questionnaire card takes the
      text box's place or while the session's tab is in the background. With
      reduced motion turned on in the system, the light stays still. The quick

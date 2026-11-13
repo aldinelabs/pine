@@ -59,6 +59,10 @@ const UNIFORMS = [
   "uTint0",
   "uTint1",
   "uTint2",
+  "uHaze0",
+  "uHaze1",
+  "uHaze2",
+  "uHazeOn",
   "uDark",
 ] as const;
 
@@ -288,6 +292,11 @@ export function createComposerGlowRenderer(
     gl.uniform3f(u.uTint0, ...colors.tints[0]);
     gl.uniform3f(u.uTint1, ...colors.tints[1]);
     gl.uniform3f(u.uTint2, ...colors.tints[2]);
+    const haze = colors.haze ?? colors.tints;
+    gl.uniform3f(u.uHaze0, ...haze[0]);
+    gl.uniform3f(u.uHaze1, ...haze[1]);
+    gl.uniform3f(u.uHaze2, ...haze[2]);
+    gl.uniform1f(u.uHazeOn, colors.haze ? 1 : 0);
     gl.uniform1f(u.uDark, colors.dark ? 1 : 0);
     gl.drawArrays(gl.TRIANGLES, 0, 3);
     lastDraw = now;

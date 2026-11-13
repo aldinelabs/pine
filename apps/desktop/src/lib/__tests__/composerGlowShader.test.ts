@@ -7,13 +7,16 @@ describe("composer glow fragment shader", () => {
   );
   const [dark, light] = branch.split("} else {");
 
-  it("composites the light theme by coverage, with the tint itself", () => {
-    // Lifting the tint to its brightest channel made Neutral white on white
-    // and olive a near-invisible yellow.
+  it("keeps the light theme's bloom from reading as a drop shadow", () => {
+    // Mid-lightness tints laid over a white page by coverage darken it, so
+    // the bloom looked like a CSS box-shadow round the text box. Only the
+    // rim keeps those tints; the bloom is a capped haze of lighter tints.
     expect(light).toBeDefined();
-    expect(light).toContain("gl_FragColor = vec4(tint * alpha, alpha);");
+    expect(light).toContain("uTint0 * rimW.x");
+    expect(light).not.toMatch(/uTint\d \* bloomW/);
+    expect(light).toContain("uHaze0 * bloomW.x");
+    expect(light).toMatch(/hazeAlpha = uHazeOn \* min\([^;]*, 0\.35\)/);
     expect(light).not.toContain("1.0 - exp(-light)");
-    expect(light).not.toContain("rim * spot");
   });
 
   it("keeps the additive white-hot core for the dark theme", () => {

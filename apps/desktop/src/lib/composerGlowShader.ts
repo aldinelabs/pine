@@ -33,8 +33,12 @@ uniform vec3 uSpotAmp;     // hot spot brightness
 uniform vec3 uSpotWidth;   // hot spot widths, CSS px
 uniform float uLevel;      // overall breathing
 uniform vec3 uTint0;       // accent
-uniform vec3 uTint1;       // warmer
-uniform vec3 uTint2;       // cooler
+uniform vec3 uTint1;       // warmer (hue toward amber/red)
+uniform vec3 uTint2;       // cooler (hue toward green/blue)
+uniform vec3 uHaze0;       // light theme haze: lighter, more saturated tints
+uniform vec3 uHaze1;
+uniform vec3 uHaze2;
+uniform float uHazeOn;     // 0 for grey tints (Neutral): rim only
 uniform float uDark;       // 1 in dark mode
 
 const float HALF_PI = 1.5707963;
@@ -137,11 +141,11 @@ void main() {
     / (1.0 + outd * outd / (reach * reach * 0.6));
   float flick = 0.6 + 0.8 * n;
 
-  // How much of each tint lands here.
-  float w0 = (rim * (0.55 + 0.9 * spot3.x) + bloom * (0.16 + 0.55 * spot3.x)) * flick;
-  float w1 = (rim * 0.9 + bloom * 0.6) * spot3.y * flick
-    + bloom * 0.12 * smoothstep(0.55, 0.85, n);
-  float w2 = (rim * 0.9 + bloom * 0.6) * spot3.z * flick;
+  // How much of each tint lands here, on the rim and in the bloom.
+  vec3 rimW = rim * flick * vec3(0.55 + 0.9 * spot3.x, 0.9 * spot3.y, 0.9 * spot3.z);
+  vec3 bloomW = bloom * flick * vec3(0.16 + 0.55 * spot3.x, 0.6 * spot3.y, 0.6 * spot3.z)
+    + vec3(0.0, bloom * 0.12 * smoothstep(0.55, 0.85, n), 0.0);
+  vec3 wt = rimW + bloomW;
 
   // Fade to nothing at the canvas edges, across whatever room there is.
   vec2 size = uBuffer / uRatio;
@@ -154,19 +158,37 @@ void main() {
   if (uDark > 0.5) {
     // Dark: additive light with a white-hot core where a hot spot crosses
     // the rim, tone-mapped and premultiplied so no channel exceeds alpha.
-    vec3 light = (uTint0 * w0 + uTint1 * w1 + uTint2 * w2
+    vec3 light = (uTint0 * wt.x + uTint1 * wt.y + uTint2 * wt.z
       + vec3(rim * spot * 0.45)) * scale * 1.7;
     float alpha = 1.0 - exp(-max(max(light.r, light.g), light.b));
     vec3 col = 1.0 - exp(-light);
     gl_FragColor = vec4(min(col, vec3(alpha)), alpha);
   } else {
-    // Light: the tints themselves laid over the page by coverage, so a
-    // grey or olive stays grey or olive on white instead of lifting to its
-    // brightest (and on white, invisible) version.
-    float weight = w0 + w1 + w2;
-    vec3 tint = (uTint0 * w0 + uTint1 * w1 + uTint2 * w2) / max(weight, 1e-4);
-    float alpha = 1.0 - exp(-weight * scale * 1.1);
-    gl_FragColor = vec4(tint * alpha, alpha);
+    // Light: laying mid-lightness tints over a white page by coverage
+    // darkens it, so a wide bloom reads as a drop shadow. Only the crisp
+    // rim (the first couple of px) keeps the mid-lightness tints, at high
+    // coverage; the bloom is a capped haze of lighter, more saturated
+    // tints that tints the page without darkening it. Grey tints (Neutral)
+    // get no haze, just the rim and a sheen where a hot spot crosses it.
+    float rimWeight = rimW.x + rimW.y + rimW.z;
+    vec3 rimTint = (uTint0 * rimW.x + uTint1 * rimW.y + uTint2 * rimW.z)
+      / max(rimWeight, 1e-4);
+    // A crisper falloff than the dark theme's (1.6 px -> 0.9 px), so the
+    // rim stays a line of colour rather than a soft dark edge.
+    float crisp = exp(-outd * 0.49);
+    float sheen = inner * exp(-outd / 1.8) * spot * 0.5 * flick;
+    float rimAlpha = 1.0
+      - exp(-(rimWeight * crisp * 2.2 + sheen * (1.0 - uHazeOn)) * scale);
+    float hazeWeight = bloomW.x + bloomW.y + bloomW.z;
+    vec3 hazeTint = (uHaze0 * bloomW.x + uHaze1 * bloomW.y + uHaze2 * bloomW.z)
+      / max(hazeWeight, 1e-4);
+    float hazeAlpha = uHazeOn * min(1.0 - exp(-hazeWeight * scale * 1.4), 0.35);
+    // Rim over haze, premultiplied.
+    float alpha = rimAlpha + hazeAlpha * (1.0 - rimAlpha);
+    gl_FragColor = vec4(
+      rimTint * rimAlpha + hazeTint * hazeAlpha * (1.0 - rimAlpha),
+      alpha
+    );
   }
 }
 `;

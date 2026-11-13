@@ -152,16 +152,26 @@
   --session-composer-max-width: 48rem;
   --session-composer-gutter: 1rem;
   /* The working composer's light uses the theme swatch's hue (see
-     lib/projectColorThemes.ts), plus a warmer and a cooler tint; the
-     interface tokens are too grey to tint with. */
+     lib/projectColorThemes.ts), plus a warmer tint (hue turned toward
+     amber/red) and a cooler one (turned toward green/blue); the interface
+     tokens are too grey to tint with. The rim uses the -color tokens; on
+     light backgrounds the haze around it uses the lighter, more saturated
+     -haze tokens so it reads as coloured light, not as a shadow. */
   --composer-glow-color: oklch(
     0.62 0.17 calc(107.4 + var(--pine-hue-shift, 0))
   );
   --composer-glow-color-warm: oklch(
-    0.66 0.15 calc(135.4 + var(--pine-hue-shift, 0))
+    0.58 0.16 calc(85.4 + var(--pine-hue-shift, 0))
   );
   --composer-glow-color-cool: oklch(
-    0.58 0.16 calc(85.4 + var(--pine-hue-shift, 0))
+    0.66 0.15 calc(135.4 + var(--pine-hue-shift, 0))
+  );
+  --composer-glow-haze: oklch(0.84 0.17 calc(107.4 + var(--pine-hue-shift, 0)));
+  --composer-glow-haze-warm: oklch(
+    0.82 0.17 calc(85.4 + var(--pine-hue-shift, 0))
+  );
+  --composer-glow-haze-cool: oklch(
+    0.86 0.16 calc(135.4 + var(--pine-hue-shift, 0))
   );
   --session-input-padding-inline: 0.75rem;
   --session-content-max-width: calc(
@@ -920,16 +930,20 @@ html.sidebar-vibrancy:has(
     0.74 0.16 calc(107.4 + var(--pine-hue-shift, 0))
   );
   --composer-glow-color-warm: oklch(
-    0.8 0.13 calc(135.4 + var(--pine-hue-shift, 0))
+    0.7 0.16 calc(85.4 + var(--pine-hue-shift, 0))
   );
   --composer-glow-color-cool: oklch(
-    0.7 0.16 calc(85.4 + var(--pine-hue-shift, 0))
+    0.8 0.13 calc(135.4 + var(--pine-hue-shift, 0))
   );
 }
 :root[data-project-color-theme="neutral"] {
   --composer-glow-color: oklch(0.55 0 0);
   --composer-glow-color-warm: oklch(0.62 0 0);
   --composer-glow-color-cool: oklch(0.48 0 0);
+  /* Grey haze on a light page reads as a drop shadow: Neutral has none. */
+  --composer-glow-haze: oklch(0.55 0 0);
+  --composer-glow-haze-warm: oklch(0.62 0 0);
+  --composer-glow-haze-cool: oklch(0.48 0 0);
 }
 :root.dark[data-project-color-theme="neutral"] {
   --composer-glow-color: oklch(0.82 0 0);

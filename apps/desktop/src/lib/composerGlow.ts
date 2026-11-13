@@ -50,8 +50,18 @@ export interface ComposerGlowGeometry {
 }
 
 export interface ComposerGlowColors {
-  /** Accent, warmer and cooler tint. */
+  /**
+   * Accent, warmer tint (hue toward amber/red) and cooler tint (toward
+   * green/blue), for the rim and, in the dark theme, the bloom.
+   */
   tints: [Rgb, Rgb, Rgb];
+  /**
+   * Lighter, more saturated versions of the tints for the haze round the
+   * rim on light backgrounds, or null when the tints are grey (Neutral):
+   * a grey haze on a light page reads as a drop shadow, so it draws only
+   * the rim and its hot spots.
+   */
+  haze: [Rgb, Rgb, Rgb] | null;
   dark: boolean;
 }
 
@@ -216,11 +226,16 @@ export function composerGlowColorsEqual(
   a: ComposerGlowColors,
   b: ComposerGlowColors,
 ): boolean {
+  const same = (x: [Rgb, Rgb, Rgb], y: [Rgb, Rgb, Rgb]) =>
+    x.every((tint, index) =>
+      tint.every((channel, c) => channel === y[index][c]),
+    );
   return (
     a.dark === b.dark &&
-    a.tints.every((tint, index) =>
-      tint.every((channel, c) => channel === b.tints[index][c]),
-    )
+    same(a.tints, b.tints) &&
+    (a.haze === null || b.haze === null
+      ? a.haze === b.haze
+      : same(a.haze, b.haze))
   );
 }
 
@@ -258,15 +273,30 @@ export function parseHexColor(value: string): Rgb | null {
 /** The light theme's olive tints, for when the tokens cannot be resolved. */
 export const COMPOSER_GLOW_DEFAULT_TINTS: [Rgb, Rgb, Rgb] = [
   [0.575, 0.545, 0],
-  [0.403, 0.651, 0.252],
   [0.645, 0.437, 0],
+  [0.403, 0.651, 0.252],
+];
+
+/** The light theme's olive haze, for when the tokens cannot be resolved. */
+export const COMPOSER_GLOW_DEFAULT_HAZE: [Rgb, Rgb, Rgb] = [
+  [0.851, 0.796, 0.255],
+  [0.976, 0.725, 0.329],
+  [0.643, 0.902, 0.459],
 ];
 
 const TINT_TOKENS = {
   accent: "--composer-glow-color",
   warm: "--composer-glow-color-warm",
   cool: "--composer-glow-color-cool",
+  hazeAccent: "--composer-glow-haze",
+  hazeWarm: "--composer-glow-haze-warm",
+  hazeCool: "--composer-glow-haze-cool",
 } as const;
+
+/** True when every tint is grey, as with the Neutral theme. */
+export function composerGlowTintsAreGrey(tints: readonly Rgb[]): boolean {
+  return tints.every((tint) => Math.max(...tint) - Math.min(...tint) < 0.02);
+}
 
 /** The light's tints from the current theme's tokens. */
 export function readComposerGlowColors(element: Element): ComposerGlowColors {
@@ -277,20 +307,27 @@ export function readComposerGlowColors(element: Element): ComposerGlowColors {
   } catch {
     resolved = undefined;
   }
-  const keys = ["accent", "warm", "cool"] as const;
-  const tints = keys.map((key, index) => {
-    const value = resolved?.[key];
-    let rgb: Rgb | null = null;
-    if (value) {
-      try {
-        rgb = parseHexColor(toHex(value));
-      } catch {
-        rgb = null;
+  const read = (
+    keys: readonly (keyof typeof TINT_TOKENS)[],
+    fallback: [Rgb, Rgb, Rgb],
+  ) =>
+    keys.map((key, index) => {
+      const value = resolved?.[key];
+      let rgb: Rgb | null = null;
+      if (value) {
+        try {
+          rgb = parseHexColor(toHex(value));
+        } catch {
+          rgb = null;
+        }
       }
-    }
-    return rgb ?? COMPOSER_GLOW_DEFAULT_TINTS[index];
-  }) as [Rgb, Rgb, Rgb];
-  return { tints, dark };
+      return rgb ?? fallback[index];
+    }) as [Rgb, Rgb, Rgb];
+  const tints = read(["accent", "warm", "cool"], COMPOSER_GLOW_DEFAULT_TINTS);
+  const haze = composerGlowTintsAreGrey(tints)
+    ? null
+    : read(["hazeAccent", "hazeWarm", "hazeCool"], COMPOSER_GLOW_DEFAULT_HAZE);
+  return { tints, haze, dark };
 }
 
 /** The nearest ancestor that clips `element`, or the root element. */

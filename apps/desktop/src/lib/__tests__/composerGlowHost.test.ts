@@ -46,6 +46,11 @@ function state(): ComposerGlowState {
         [0.4, 0.6, 0.2],
         [0.6, 0.4, 0],
       ],
+      haze: [
+        [0.8, 0.8, 0.3],
+        [0.6, 0.9, 0.4],
+        [0.9, 0.7, 0.3],
+      ],
       dark: false,
     },
     activity: { focused: true, visible: true },

@@ -118,6 +118,11 @@ function state(overrides: Partial<ComposerGlowState> = {}): ComposerGlowState {
         [0.4, 0.6, 0.2],
         [0.6, 0.4, 0],
       ],
+      haze: [
+        [0.8, 0.8, 0.3],
+        [0.6, 0.9, 0.4],
+        [0.9, 0.7, 0.3],
+      ],
       dark: false,
     },
     activity: { focused: true, visible: true },
@@ -183,6 +188,38 @@ describe("createComposerGlowRenderer", () => {
     expect(gl.drawArrays).toHaveBeenCalledWith(gl.TRIANGLES, 0, 3);
     expect(gl.bindFramebuffer).not.toHaveBeenCalled();
     expect(gl.createTexture).not.toHaveBeenCalled();
+  });
+
+  it("draws the light theme's haze only when the tints are not grey", () => {
+    const uniformValues = (gl: FakeGl, name: string) => {
+      const index = gl.getUniformLocation.mock.calls.findIndex(
+        (call: unknown[]) => call[1] === name,
+      );
+      const location = gl.getUniformLocation.mock.results[index].value;
+      return [...gl.uniform1f.mock.calls, ...gl.uniform3f.mock.calls]
+        .filter((call: unknown[]) => call[0] === location)
+        .map((call: unknown[]) => call.slice(1));
+    };
+    const tinted = setup();
+    tinted.frames.run(0);
+    expect(uniformValues(tinted.gl, "uHazeOn")).toEqual([[1]]);
+    expect(uniformValues(tinted.gl, "uHaze0")).toEqual([[0.8, 0.8, 0.3]]);
+
+    const grey = setup({
+      state: {
+        colors: {
+          tints: [
+            [0.5, 0.5, 0.5],
+            [0.6, 0.6, 0.6],
+            [0.4, 0.4, 0.4],
+          ],
+          haze: null,
+          dark: false,
+        },
+      },
+    });
+    grey.frames.run(0);
+    expect(uniformValues(grey.gl, "uHazeOn")).toEqual([[0]]);
   });
 
   it("caps the frame rate and stops while hidden", () => {
