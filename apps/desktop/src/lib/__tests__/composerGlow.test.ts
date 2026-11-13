@@ -50,7 +50,7 @@ describe("composerGlowMargins", () => {
       COMPOSER_GLOW_MAX_MARGINS,
     );
     expect(COMPOSER_GLOW_MAX_MARGINS).toEqual({
-      top: 40,
+      top: 28,
       right: 40,
       bottom: 24,
       left: 40,
@@ -62,7 +62,7 @@ describe("composerGlowMargins", () => {
     expect(margins.bottom).toBe(12);
     expect(margins.left).toBe(0);
     expect(margins.right).toBe(0);
-    expect(margins.top).toBe(40);
+    expect(margins.top).toBe(28);
   });
 
   it("clamps a control outside the clip to zero", () => {
@@ -80,17 +80,17 @@ describe("composerGlowGeometry", () => {
       2,
     );
     expect(geometry.margins).toEqual({
-      top: 40,
+      top: 28,
       right: 40,
       bottom: 12,
       left: 40,
     });
     expect(geometry.width).toBe(780);
-    expect(geometry.height).toBe(100);
+    expect(geometry.height).toBe(88);
     expect(geometry.ratio).toBe(1);
     expect(geometry.box).toEqual({
       x: 40,
-      y: 40,
+      y: 28,
       width: 700,
       height: 48,
       radius: 24,

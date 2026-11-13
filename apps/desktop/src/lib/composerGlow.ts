@@ -9,14 +9,16 @@ import { resolveColors, toHex } from "@/lib/themeColors";
 
 /** Must match the `leaving` opacity transition in `ProjectComposerGlow.vue`. */
 export const COMPOSER_GLOW_FADE_OUT_MS = 900;
-/** Must match the opacity transition in `ProjectComposerGlow.vue`. */
-export const COMPOSER_GLOW_FADE_IN_MS = 700;
 /** How long a disposed worker may take to release its GPU context. */
 export const COMPOSER_GLOW_DISPOSE_TIMEOUT_MS = 250;
 
-/** The most room, in CSS px, the light takes on each side of the text box. */
+/**
+ * The most room, in CSS px, the light takes on each side of the text box.
+ * The top stays under the 32 px gap to the todo and steering cards pinned
+ * above the composer, so the light never washes over them.
+ */
 export const COMPOSER_GLOW_MAX_MARGINS = {
-  top: 40,
+  top: 28,
   right: 40,
   bottom: 24,
   left: 40,

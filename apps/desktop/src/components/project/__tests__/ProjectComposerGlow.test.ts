@@ -299,7 +299,7 @@ describe("ProjectComposerGlow", () => {
     await nextTick();
     const { update } = hosts[0];
     const glow = wrapper.get(GLOW).element as HTMLElement;
-    expect(glow.style.top).toBe("-40px");
+    expect(glow.style.top).toBe("-28px");
     resizeObservers[0].callback();
     expect(update).not.toHaveBeenCalled();
 
