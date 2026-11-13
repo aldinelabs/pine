@@ -465,7 +465,8 @@ the user opens themselves do not pulse.
     password. Below it, the "WeChat" group (marked Experimental; it may stop
     working if Tencent changes its policy) lets the user send tasks to Pine
     from their own WeChat. Not connected: "Connect WeChat" opens a dialog
-    with a QR code to scan in WeChat, a countdown, the phase text (scan,
+    with a QR code to scan in WeChat (a placeholder of the same size holds
+    its place while it loads), a countdown, the phase text (scan,
     "Scanned. Confirm on your phone.", a verification-code field when WeChat
     asks for one), and then a pairing step: "In WeChat, send any message (a
     single dot is enough) to the bot. It replies with a 6-digit code. Enter
@@ -491,8 +492,9 @@ the user opens themselves do not pulse.
     blocked, one WeChat account connects to one computer, in WeChat .help
     (or .?) lists the commands and plain text goes to the current session,
     and tasks that reach Pine more than 10 minutes after they were sent wait
-    until they are confirmed in WeChat; "Run Pine on a server" opens the
-    server guide. If the settings could not be read, the
+    until they are confirmed in WeChat. Below the notes, the "Run Pine on a
+    server" row has a "View docs" button that opens the server guide. If the
+    settings could not be read, the
     group says they were reset and WeChat remote is paused. WeChat remote
     always raises a system notification, even with attention notifications
     off, when a session is started from WeChat, an existing session is first

@@ -206,6 +206,8 @@ export default {
       noteStale:
         "傳出超過 10 分鐘才到達 Pine 的任務，要在微信裡確認後才會執行。",
       serverGuide: "在伺服器上執行 Pine",
+      serverGuideDescription: "在常開的機器上執行，讓微信遠端隨時可用。",
+      serverGuideAction: "查看文件",
       error: {
         encryptionUnavailable:
           "這台電腦無法安全儲存微信憑證，因此不能連接微信。",

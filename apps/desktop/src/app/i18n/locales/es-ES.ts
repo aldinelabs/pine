@@ -223,6 +223,9 @@ export default {
       noteStale:
         "Las tareas que llegan a Pine más de 10 minutos después de enviarlas esperan a que las confirmes en WeChat.",
       serverGuide: "Ejecutar Pine en un servidor",
+      serverGuideDescription:
+        "Mantén el acceso remoto de WeChat disponible en un equipo siempre encendido.",
+      serverGuideAction: "Ver la documentación",
       error: {
         encryptionUnavailable:
           "Este equipo no puede guardar las credenciales de WeChat de forma segura, así que no se puede conectar WeChat.",

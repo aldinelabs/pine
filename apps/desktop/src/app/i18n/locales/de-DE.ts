@@ -225,6 +225,9 @@ export default {
       noteStale:
         "Aufgaben, die Pine erst mehr als 10 Minuten nach dem Senden erreichen, warten, bis du sie in WeChat bestätigst.",
       serverGuide: "Pine auf einem Server ausführen",
+      serverGuideDescription:
+        "Hält WeChat-Fernzugriff auf einem ständig laufenden Rechner verfügbar.",
+      serverGuideAction: "Dokumentation ansehen",
       error: {
         encryptionUnavailable:
           "Dieser Computer kann die WeChat-Zugangsdaten nicht sicher speichern, daher lässt sich WeChat nicht verbinden.",

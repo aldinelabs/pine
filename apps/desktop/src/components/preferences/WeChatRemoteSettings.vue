@@ -55,6 +55,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import { APPROVAL_MODE_ORDER, type PineApprovalMode } from "@/shared/agent";
 import { isTemporaryWorkspace } from "@/shared/projects";
@@ -146,6 +147,16 @@ const showsQr = computed(
     qr.value !== undefined &&
     !isExpired.value &&
     (binding.value?.phase === "qr" || binding.value?.phase === "scanned"),
+);
+
+/** Before the QR code arrives, its place and the countdown's are held. */
+const isWaitingForQr = computed(
+  () =>
+    !showsQr.value &&
+    !isExpired.value &&
+    (!binding.value ||
+      binding.value.phase === "starting" ||
+      binding.value.phase === "qr"),
 );
 
 const phaseText = computed(() => {
@@ -681,15 +692,27 @@ function openServerGuide(): void {
         <li>{{ t("preferences.wechatRemote.noteHelp") }}</li>
         <li>{{ t("preferences.wechatRemote.noteStale") }}</li>
       </ul>
+    </Field>
+
+    <Field orientation="horizontal" data-testid="pine-wechat-server">
+      <div class="flex min-w-0 flex-1 flex-col gap-1">
+        <FieldTitle id="pine-wechat-server-guide">
+          {{ t("preferences.wechatRemote.serverGuide") }}
+        </FieldTitle>
+        <FieldDescription>
+          {{ t("preferences.wechatRemote.serverGuideDescription") }}
+        </FieldDescription>
+      </div>
       <Button
         type="button"
-        variant="link"
+        variant="outline"
         size="sm"
-        class="w-fit px-0"
+        class="shrink-0"
         data-testid="pine-wechat-server-guide"
+        aria-describedby="pine-wechat-server-guide"
         @click="openServerGuide"
       >
-        {{ t("preferences.wechatRemote.serverGuide") }}
+        {{ t("preferences.wechatRemote.serverGuideAction") }}
         <ExternalLinkIcon data-icon="inline-end" />
       </Button>
     </Field>
@@ -779,6 +802,12 @@ function openServerGuide(): void {
             >
               {{ t("preferences.wechatRemote.expired") }}
             </div>
+            <!-- Holds the QR code's place while it is fetched. -->
+            <Skeleton
+              v-else-if="isWaitingForQr"
+              class="size-56 rounded-md"
+              data-testid="pine-wechat-qr-skeleton"
+            />
             <p
               v-if="phaseText"
               class="text-center text-sm"
@@ -827,6 +856,14 @@ function openServerGuide(): void {
         >
           {{ t("preferences.wechatRemote.expires", { time: countdown }) }}
         </p>
+        <!-- The countdown line arrives with the QR code. -->
+        <div
+          v-else-if="isWaitingForQr"
+          class="flex h-5 items-center justify-center"
+          data-testid="pine-wechat-countdown-skeleton"
+        >
+          <Skeleton class="h-4 w-32" />
+        </div>
         <DialogFooter v-if="isExpired">
           <Button
             type="button"

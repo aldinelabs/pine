@@ -204,6 +204,8 @@ export default {
       noteStale:
         "发出超过 10 分钟才到达 Pine 的任务，要在微信里确认后才会执行。",
       serverGuide: "在服务器上运行 Pine",
+      serverGuideDescription: "在常开的机器上运行，让微信远程随时可用。",
+      serverGuideAction: "查看文档",
       error: {
         encryptionUnavailable:
           "这台电脑无法安全保存微信凭据，因此不能连接微信。",

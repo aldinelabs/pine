@@ -217,6 +217,9 @@ export default {
       noteStale:
         "보낸 지 10분이 지나서 Pine에 도착한 작업은 WeChat에서 확인해야 실행됩니다.",
       serverGuide: "서버에서 Pine 실행",
+      serverGuideDescription:
+        "항상 켜져 있는 기기에서 실행해 WeChat 원격을 언제든 사용할 수 있게 합니다.",
+      serverGuideAction: "문서 보기",
       error: {
         encryptionUnavailable:
           "이 컴퓨터는 WeChat 자격 증명을 안전하게 저장할 수 없어 WeChat을 연결할 수 없습니다.",

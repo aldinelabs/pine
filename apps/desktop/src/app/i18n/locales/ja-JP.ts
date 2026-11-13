@@ -225,6 +225,9 @@ export default {
       noteStale:
         "送信から 10 分以上たって Pine に届いたタスクは、WeChat で確認するまで実行されません。",
       serverGuide: "サーバーで Pine を実行",
+      serverGuideDescription:
+        "常時稼働のマシンで動かし、WeChat リモートをいつでも使えるようにします。",
+      serverGuideAction: "ドキュメントを見る",
       error: {
         encryptionUnavailable:
           "このコンピュータは WeChat の資格情報を安全に保存できないため、WeChat を接続できません。",

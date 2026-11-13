@@ -157,6 +157,34 @@ describe("WeChat remote settings", () => {
     wrapper.unmount();
   });
 
+  it("holds the QR code's place while it is fetched", async () => {
+    const starting: WeChatStatus = {
+      ...unbound,
+      connection: "connecting",
+      binding: { phase: "starting" },
+    };
+    const { wrapper, push } = mountWith({
+      getWeChatRemote: vi.fn().mockResolvedValue(unbound),
+      startWeChatBinding: vi.fn().mockResolvedValue(starting),
+    });
+    await flushPromises();
+    await wrapper.get('[data-testid="pine-wechat-connect"]').trigger("click");
+    await flushPromises();
+    // Same size as the QR code, and a line for the countdown to come.
+    expect(byTestId("pine-wechat-qr")).toBeNull();
+    expect(byTestId("pine-wechat-qr-skeleton")?.classList).toContain("size-56");
+    expect(byTestId("pine-wechat-countdown-skeleton")?.classList).toContain(
+      "h-5",
+    );
+
+    await push(qrPhase);
+    expect(byTestId("pine-wechat-qr")?.classList).toContain("size-56");
+    expect(byTestId("pine-wechat-qr-skeleton")).toBeNull();
+    expect(byTestId("pine-wechat-countdown-skeleton")).toBeNull();
+    expect(byTestId("pine-wechat-countdown")).not.toBeNull();
+    wrapper.unmount();
+  });
+
   it("follows the binding phases and submits the verify code", async () => {
     const submitWeChatVerifyCode = vi.fn().mockResolvedValue({
       ...qrPhase,
@@ -500,9 +528,12 @@ describe("WeChat remote settings", () => {
     expect(wrapper.text()).toContain(
       "The connected account can read session titles, search results and replies of every project.",
     );
-    await wrapper
-      .get('[data-testid="pine-wechat-server-guide"]')
-      .trigger("click");
+    // A settings row: title and description beside a View docs button.
+    const server = wrapper.get('[data-testid="pine-wechat-server"]');
+    expect(server.text()).toContain("Run Pine on a server");
+    const guide = server.get('[data-testid="pine-wechat-server-guide"]');
+    expect(guide.text()).toBe("View docs");
+    await guide.trigger("click");
     expect(openExternalUrl).toHaveBeenCalledWith(
       "https://docs.aldine.cn/en/pine/advanced/server/",
     );

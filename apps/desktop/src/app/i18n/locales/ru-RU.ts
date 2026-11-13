@@ -220,6 +220,9 @@ export default {
       noteStale:
         "Задачи, которые дошли до Pine более чем через 10 минут после отправки, ждут вашего подтверждения в WeChat.",
       serverGuide: "Запуск Pine на сервере",
+      serverGuideDescription:
+        "Удалённый доступ через WeChat работает на постоянно включённой машине.",
+      serverGuideAction: "Открыть документацию",
       error: {
         encryptionUnavailable:
           "Этот компьютер не может надёжно хранить учётные данные WeChat, поэтому WeChat нельзя подключить.",

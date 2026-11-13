@@ -218,6 +218,9 @@ export default {
       noteStale:
         "Tasks that reach Pine more than 10 minutes after you sent them wait until you confirm them in WeChat.",
       serverGuide: "Run Pine on a server",
+      serverGuideDescription:
+        "Keep WeChat remote available on an always-on machine.",
+      serverGuideAction: "View docs",
       error: {
         encryptionUnavailable:
           "This computer cannot store the WeChat credentials securely, so WeChat cannot be connected.",
