@@ -158,20 +158,13 @@ From top to bottom:
      consecutive reasoning summaries share one marker, and empty reasoning
      payloads do not add markers. Reasoning separated by a reply or tool call
      has its own expandable content and live timing. A reasoning panel opens
-     while it streams. While the model is thinking it fills with whole
-     paragraphs (or lists, headings or code blocks), not word by word: a
-     paragraph is added below the earlier ones once it is finished, fades in,
-     and the panel scrolls smoothly down to it. Scrolling up in the panel
-     stops it following; scrolling back to the bottom resumes. Until the
-     first paragraph is finished, a one-line placeholder bar holds the panel.
-     A paragraph that runs long (several hundred characters, or about four
-     seconds without a finished one) is shown while it is written and
-     refreshed every second or two. Once thinking finishes, the panel holds
-     the full reasoning as a scrollable area. It collapses when output follows
-     that panel, without repeating other panels' content or timing. With
-     reduced motion enabled, paragraphs appear without fading, the panel jumps
-     instead of scrolling smoothly, and the
-     placeholder does not pulse.
+     while it streams. While the model is thinking the reasoning streams into
+     it as it is written, updated a few times a second, and the panel scrolls
+     smoothly to follow the newest line; scrolling up in the panel stops it
+     following, and scrolling back to the bottom resumes. With reduced motion
+     enabled, the panel jumps instead of scrolling smoothly. It collapses when
+     output follows that panel, without repeating other panels' content or
+     timing.
      Web sources appear as inline
      citation cards (hover for title and URL, click to open). Source definitions
      are not repeated below the message and do not leave a trailing blank gap;

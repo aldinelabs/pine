@@ -271,7 +271,7 @@ describe("ProjectTranscriptMessage", () => {
       blocks: [
         { type: "thinking", thinking: "First summary" },
         { type: "text", text: "Progress update" },
-        { type: "thinking", thinking: "Second summary\n\nNext" },
+        { type: "thinking", thinking: "Second summary" },
       ],
     });
     try {
@@ -287,7 +287,7 @@ describe("ProjectTranscriptMessage", () => {
       expect(markers[0].get("[data-thinking-content]").text()).toBe(
         "First summary",
       );
-      expect(markers[1].get("[data-thinking-live]").text()).toBe(
+      expect(markers[1].get("[data-thinking-content]").text()).toBe(
         "Second summary",
       );
     } finally {

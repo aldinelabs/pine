@@ -11,9 +11,8 @@ import {
   watch,
 } from "vue";
 import { useI18n } from "vue-i18n";
-import { animateScrollTop } from "@/lib/animateScroll";
+import { animateScrollTop, prefersReducedMotion } from "@/lib/animateScroll";
 import MarkdownContent from "@/components/markdown/MarkdownContent.vue";
-import ProjectThinkingLive from "@/components/project/ProjectThinkingLive.vue";
 import { Marker, MarkerContent, MarkerIcon } from "@/components/ui/marker";
 import { useOptionalMessageScrollerContext } from "@/components/ui/message-scroller/useMessageScroller";
 import type { PineTranscriptMessage } from "@/stores/session";
@@ -32,34 +31,31 @@ const { locale, t } = useI18n();
 const contentId = useId();
 const thinkingContent = useTemplateRef<HTMLElement>("thinkingContent");
 const thinkingBody = useTemplateRef<HTMLElement>("thinkingBody");
-const liveRoot =
-  useTemplateRef<InstanceType<typeof ProjectThinkingLive>>("liveRoot");
 const scroller = useOptionalMessageScrollerContext();
 const isExpanded = ref(false);
 /** Matches the 500ms grid-rows collapse transition below. */
 const isContentMounted = useMountedWhileOpen(isExpanded, 500);
+const isFollowingThinking = ref(true);
+const hasThinkingUserScrollIntent = ref(false);
 const now = ref(Date.now());
 let elapsedTimer: number | undefined;
 let scrollAnimation: (() => void) | undefined;
 /** Panel scroll range, measured after layout by the resize observer. */
 let panelMetrics: { scrollHeight: number; clientHeight: number } | undefined;
+/** The bottom the panel was last sent to, so a repeat report does nothing. */
+let lastPinTarget: number | undefined;
 let bodyObserver: ResizeObserver | undefined;
 /** Scroll position past which an edge counts as scrollable (fade shown). */
 const FADE_EDGE_THRESHOLD = 1;
 const hasHiddenContentAbove = ref(false);
 const hasHiddenContentBelow = ref(false);
+/** Whether the panel has any scroll range at all. */
+const isPanelScrollable = ref(false);
 
 const isStreaming = computed(
   () => props.message.thinkingStatus === "streaming",
 );
 
-/**
- * While thinking streams the panel grows one whole block at a time
- * (`ProjectThinkingLive`); once it finishes, the full text in one render.
- */
-const liveView = ref(isStreaming.value);
-
-/** The full text, read only by the finished view. */
 const thinkingText = computed(() =>
   props.message.blocks
     .filter((block) => block.type === "thinking")
@@ -67,22 +63,53 @@ const thinkingText = computed(() =>
     .join("\n"),
 );
 
-const hasThinking = computed(() =>
-  props.message.blocks.some(
-    (block) => block.type === "thinking" && block.thinking !== "",
-  ),
-);
+/** Streaming thinking reaches the panel at most this often. */
+const THINKING_UPDATE_INTERVAL_MS = 250;
 
-const NON_WHITESPACE = /\S/;
+/**
+ * The text the panel renders. While thinking streams it follows
+ * `thinkingText` at most every `THINKING_UPDATE_INTERVAL_MS`: the first
+ * change after a quiet interval shows at once, later ones wait for one
+ * pending timer, so a fast stream re-renders the Markdown and moves the
+ * panel four times a second rather than on every flush. Anything else
+ * (thinking finished, another message) shows at once.
+ */
+const shownThinkingText = ref(thinkingText.value);
+let lastThinkingUpdateAt = 0;
+let thinkingUpdateTimer: ReturnType<typeof setTimeout> | undefined;
 
-/** The thinking blocks with visible text, in order; the last one streams. */
-const liveSources = computed(() => {
-  const sources: { segment: number; text: string }[] = [];
-  props.message.blocks.forEach((block, index) => {
-    if (block.type === "thinking" && NON_WHITESPACE.test(block.thinking))
-      sources.push({ segment: index, text: block.thinking });
-  });
-  return sources;
+function cancelThinkingUpdate(): void {
+  if (thinkingUpdateTimer === undefined) return;
+  clearTimeout(thinkingUpdateTimer);
+  thinkingUpdateTimer = undefined;
+}
+
+function showThinkingText(): void {
+  cancelThinkingUpdate();
+  lastThinkingUpdateAt = Date.now();
+  if (shownThinkingText.value !== thinkingText.value)
+    shownThinkingText.value = thinkingText.value;
+}
+
+watch(thinkingText, () => {
+  if (!isStreaming.value) {
+    showThinkingText();
+    return;
+  }
+  if (thinkingUpdateTimer !== undefined) return;
+  const wait = lastThinkingUpdateAt + THINKING_UPDATE_INTERVAL_MS - Date.now();
+  if (wait <= 0) {
+    showThinkingText();
+    return;
+  }
+  thinkingUpdateTimer = setTimeout(() => {
+    thinkingUpdateTimer = undefined;
+    showThinkingText();
+  }, wait);
+});
+
+watch(isStreaming, (streaming) => {
+  if (!streaming) showThinkingText();
 });
 
 const hasResponseAfterThinking = computed(
@@ -196,13 +223,24 @@ function updateScrollEdges(scrollTop: number, maxTop: number): void {
     hasHiddenContentAbove.value = above;
   if (hasHiddenContentBelow.value !== below)
     hasHiddenContentBelow.value = below;
+  const scrollable = maxTop > FADE_EDGE_THRESHOLD;
+  if (isPanelScrollable.value !== scrollable)
+    isPanelScrollable.value = scrollable;
 }
 
+/**
+ * The follow glide trails the newest line, so the bottom stays faded for the
+ * whole stream. Holding the fade on while following keeps each landing of the
+ * glide from pulsing it; once the stream ends, the glide's final scroll event
+ * clears it.
+ */
 const scrollableAttr = computed(() => {
-  const edges = [
-    hasHiddenContentAbove.value && "start",
-    hasHiddenContentBelow.value && "end",
-  ].filter(Boolean);
+  const below =
+    hasHiddenContentBelow.value ||
+    (isStreaming.value && isFollowingThinking.value && isPanelScrollable.value);
+  const edges = [hasHiddenContentAbove.value && "start", below && "end"].filter(
+    Boolean,
+  );
   return edges.length > 0 ? edges.join(" ") : undefined;
 });
 
@@ -210,32 +248,37 @@ function scrollThinkingToBottom(): void {
   const content = thinkingContent.value;
   if (!content) return;
   const target = maxScrollTop(measurePanel(content));
+  lastPinTarget = target;
   scrollAnimation = animateScrollTop(content, target);
 }
 
-/** Where the last streamed block was, without a glide. */
-function pinThinkingToBottom(): void {
-  const content = thinkingContent.value;
-  if (!content) return;
-  const target = maxScrollTop(measurePanel(content));
-  content.scrollTop = target;
-  updateScrollEdges(target, target);
-}
-
 /**
- * Runs after layout whenever the finished text reflows, so the measurements
- * here force no extra layout. Only the edge fades depend on it.
+ * Runs after layout whenever the rendered thinking grows or reflows, so the
+ * measurements here force no extra layout. While following the stream the
+ * panel glides to the newest line with the browser's own smooth scroll,
+ * which runs off the main thread and retargets itself on the next update.
  */
 function handleThinkingBodyResize(): void {
   const content = thinkingContent.value;
   if (!content) return;
   const target = maxScrollTop(measurePanel(content));
   updateScrollEdges(content.scrollTop, target);
+  if (!isStreaming.value || !isExpanded.value || !isFollowingThinking.value) {
+    return;
+  }
+  if (target === lastPinTarget) return;
+  lastPinTarget = target;
+  cancelScrollAnimation();
+  content.scrollTo({
+    top: target,
+    behavior: prefersReducedMotion() ? "auto" : "smooth",
+  });
 }
 
 async function toggleExpanded(): Promise<void> {
   isExpanded.value = !isExpanded.value;
   if (!isExpanded.value) return;
+  isFollowingThinking.value = true;
   await nextTick();
   scrollThinkingToBottom();
 }
@@ -244,25 +287,42 @@ function handleThinkingScroll(event: Event): void {
   const content = event.currentTarget as HTMLElement;
   // The range comes from the last resize report; only the position is read.
   const maxTop = maxScrollTop(panelMetrics ?? measurePanel(content));
-  updateScrollEdges(content.scrollTop, maxTop);
+  const scrollTop = content.scrollTop;
+  updateScrollEdges(scrollTop, maxTop);
+  const nearBottom = maxTop - scrollTop <= 24;
+  if (nearBottom) {
+    isFollowingThinking.value = true;
+    hasThinkingUserScrollIntent.value = false;
+    return;
+  }
+  if (hasThinkingUserScrollIntent.value) isFollowingThinking.value = false;
+  hasThinkingUserScrollIntent.value = false;
+}
+
+function markThinkingUserScrollIntent(): void {
+  hasThinkingUserScrollIntent.value = true;
 }
 
 watch(
   isStreaming,
   (streaming) => {
     syncElapsedTimer(streaming);
-    if (streaming) liveView.value = true;
-    // Finished while folded away: the next expand opens the full text.
-    else if (!isContentMounted.value) liveView.value = false;
   },
   { immediate: true },
 );
 watch(
-  [() => props.message.id, hasThinking, hasResponseAfterThinking],
-  ([messageId, thinkingPresent, hasResponse], previous) => {
+  [
+    () => props.message.id,
+    () => Boolean(thinkingText.value),
+    hasResponseAfterThinking,
+  ],
+  ([messageId, hasThinking, hasResponse], previous) => {
     const messageChanged = messageId !== previous?.[0];
-    const thinkingStarted = thinkingPresent && !previous?.[1];
-    if (messageChanged) isExpanded.value = false;
+    const thinkingStarted = hasThinking && !previous?.[1];
+    if (messageChanged) {
+      isExpanded.value = false;
+      isFollowingThinking.value = true;
+    }
     if (hasResponse) {
       if (
         isExpanded.value &&
@@ -270,39 +330,22 @@ watch(
           props.message.blocks.some((block) => block.type === "text"))
       )
         scroller?.preserveViewportOnCollapse(
-          (liveView.value
-            ? (liveRoot.value?.$el as HTMLElement | null | undefined)
-            : thinkingContent.value) ?? undefined,
+          thinkingContent.value ?? undefined,
         );
       isExpanded.value = false;
       return;
     }
     if (isStreaming.value && (messageChanged || thinkingStarted)) {
       isExpanded.value = true;
+      isFollowingThinking.value = true;
       void nextTick(() => {
         scroller?.followStreamingContent();
+        scrollThinkingToBottom();
       });
     }
   },
   { immediate: true },
 );
-/*
- * Runs after the collapse watcher above, so output arriving in the same flush
- * has already folded the panel: a folding panel keeps showing the last block,
- * an open one switches to the full text, pinned where that block was.
- */
-watch(
-  [isStreaming, isExpanded],
-  ([streaming, expanded]) => {
-    if (streaming || !liveView.value || !expanded) return;
-    liveView.value = false;
-    void nextTick(pinThinkingToBottom);
-  },
-  { flush: "post" },
-);
-watch(isContentMounted, (mounted) => {
-  if (!mounted) liveView.value = isStreaming.value;
-});
 watch(
   thinkingBody,
   (body, previous) => {
@@ -310,6 +353,7 @@ watch(
     if (!body) {
       // The panel unmounted on collapse; it remeasures when it mounts again.
       panelMetrics = undefined;
+      lastPinTarget = undefined;
       return;
     }
     if (typeof ResizeObserver === "undefined") return;
@@ -320,6 +364,7 @@ watch(
 );
 onBeforeUnmount(() => {
   stopElapsedTimer();
+  cancelThinkingUpdate();
   cancelScrollAnimation();
   bodyObserver?.disconnect();
   bodyObserver = undefined;
@@ -355,24 +400,28 @@ onBeforeUnmount(() => {
       :aria-hidden="!isExpanded"
     >
       <div class="min-h-0 overflow-hidden">
-        <ProjectThinkingLive
-          v-if="isContentMounted && liveView"
-          ref="liveRoot"
-          :sources="liveSources"
-        />
         <div
-          v-else-if="isContentMounted"
+          v-if="isContentMounted"
           ref="thinkingContent"
           data-thinking-content
           :data-scrollable="scrollableAttr"
           class="thinking-scroll-fade no-scrollbar mt-3 max-h-64 overflow-y-auto overscroll-contain pl-6 pr-3 text-sm text-muted-foreground"
           @scroll.passive="handleThinkingScroll"
+          @wheel.passive="markThinkingUserScrollIntent"
+          @touchstart.passive="markThinkingUserScrollIntent"
+          @pointerdown.passive="markThinkingUserScrollIntent"
         >
           <!-- Thinking renders through the same markdown pipeline as the
                message body (reasoning carries lists/code/math too); the
-               compact variant keeps the muted small-type panel. -->
+               compact variant keeps the muted small-type panel. `final`
+               follows the thinking block, not the whole message, so deltas
+               fade only while thinking streams. -->
           <div ref="thinkingBody">
-            <MarkdownContent :source="thinkingText" final compact />
+            <MarkdownContent
+              :source="shownThinkingText"
+              :final="message.thinkingStatus !== 'streaming'"
+              compact
+            />
           </div>
         </div>
       </div>
@@ -385,8 +434,8 @@ onBeforeUnmount(() => {
  * Edge fades keyed to the panel's scroll state, as the transcript viewport
  * does (`.message-scroller-fade`), instead of shadcn's scroll-fade utility.
  * That one animates registered properties on a scroll timeline, which cannot
- * run on the compositor: every scrolled frame waited on a main-thread style
- * recalc and a mask repaint. Here the mask changes only
+ * run on the compositor: every frame of the follow glide waited on a
+ * main-thread style recalc and a mask repaint. Here the mask changes only
  * when an edge is crossed, with a short transition. The fade length matches
  * the utility's default.
  */
