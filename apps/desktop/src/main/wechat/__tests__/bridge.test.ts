@@ -556,7 +556,8 @@ describe("WeChatBridge binding and pairing", () => {
     expect(stored.secure().token).toBe("new-token");
     expect(stored.get()).toMatchObject({
       cursor: "",
-      seenMessageIds: [],
+      // Kept, so a message iLink delivers again is not run twice.
+      seenMessageIds: ["old-1"],
       current: { projectId: "p1", sessionId: "s1", usedAtMs: 1 },
     });
     expect(stored.get().tracked).toHaveLength(1);

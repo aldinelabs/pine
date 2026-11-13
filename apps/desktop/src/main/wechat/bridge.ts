@@ -987,13 +987,13 @@ export class WeChatBridge implements WeChatBridgeApi {
         draft.owner.baseUrl = credentials.baseUrl;
       }
     });
+    // Only the cursor and the reply token belong to the old token. The seen
+    // ids stay, so a message iLink delivers again from the empty cursor is not
+    // run twice; the inbox stays, so accepted messages are still handled.
     await this.store.update((draft) => {
       draft.cursor = "";
       delete draft.contextToken;
-      draft.seenMessageIds = [];
-      draft.inbox = [];
     });
-    this.parts?.inbound.reset();
     this.reauth = false;
     this.reauthNotified = false;
     this.error = undefined;
