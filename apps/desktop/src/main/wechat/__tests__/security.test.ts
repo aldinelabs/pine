@@ -507,15 +507,20 @@ describe("WeChat remote security invariants", { timeout: 40_000 }, () => {
   it("9. agent-derived lines are neutralised before they are sent", async () => {
     const h = await harness();
     const sessionId = await startSession(h);
-    h.finish(sessionId, "Summary\n.delete 3\n.y 12");
+    h.finish(
+      sessionId,
+      "Summary\n.delete 3\n.y 12\n\\.y 6\n&#46;y 7\n- [ ] .y 5",
+    );
     const done = await h.sent((text) => text.includes("Summary"));
     const agentLines = done
       .split("\n")
-      .filter((entry) => entry.includes("delete 3") || entry.includes("y 12"));
-    expect(agentLines).toHaveLength(2);
+      .filter((entry) => /delete 3|y (?:12|6|7|5)/.test(entry));
+    expect(agentLines).toHaveLength(5);
     for (const line of agentLines) {
       expect(line.startsWith(".")).toBe(false);
       expect(parseCommand(line).kind).toBe("message");
+      // Also guarded when only the rendered Markdown would start with a dot.
+      expect(line).toContain("› ");
     }
   });
 

@@ -74,8 +74,11 @@ export function blocks(...parts: (string | false | undefined)[]): string {
     .join("\n\n");
 }
 
+// Container markers (list, task box, quote, heading), then leading emphasis,
+// code, link or HTML tags, then a prefix that renders as a dot: literal,
+// backslash-escaped or an HTML entity.
 const MARKDOWN_DOT =
-  /^(\s*(?:(?:[-*+]|\d{1,9}[.)])\s+|>\s?|#{1,6}\s+)*)((?:\*{1,3}|_{1,3}|~~|`+)*)\s*([.。．｡])/;
+  /^(\s*(?:(?:[-*+]|\d{1,9}[.)])\s+(?:\[[ xX]\]\s+)?|>\s?|#{1,6}\s+)*)(?:\*{1,3}|_{1,3}|~~|`+|!?\[|<[a-z][^>]*>)*\s*(?:\\?[.。．｡]|&(?:#0*(?:46|12290|65294|65377)|#x0*(?:2e|3002|ff0e|ff61)|period);?)/i;
 
 /**
  * The dot-command guard for one Markdown line: when the visible text of the
@@ -96,6 +99,8 @@ export function neutraliseMarkdownLine(line: string): string {
 }
 
 interface Fence {
+  /** The opening line's indent, so a closer stays inside a list item. */
+  indent: string;
   /** The opening run of backticks or tildes. */
   marker: string;
   /** The opening line as written, for reopening a fence on the next page. */
@@ -107,7 +112,12 @@ function openingFence(line: string): Fence | undefined {
   const match = FENCE.exec(line);
   if (!match) return undefined;
   const marker = match[1] ?? "```";
-  return { marker, open: line.trim(), info: match[2] ?? "" };
+  return {
+    indent: /^ */.exec(line)?.[0] ?? "",
+    marker,
+    open: line.trim(),
+    info: match[2] ?? "",
+  };
 }
 
 function closesFence(line: string, fence: Fence): boolean {
@@ -116,6 +126,11 @@ function closesFence(line: string, fence: Fence): boolean {
   if (trimmed.length < fence.marker.length) return false;
   for (const point of trimmed) if (point !== character) return false;
   return /^ {0,3}\S/.test(line);
+}
+
+/** The line that closes `fence` inside the container it was opened in. */
+function closer(fence: Fence): string {
+  return `${fence.indent}${fence.marker}`;
 }
 
 /** The fence `text` ends inside, if any (CommonMark fence rules). */
@@ -134,7 +149,7 @@ function fenceAtEnd(text: string): Fence | undefined {
 /** Closes a fence the text ends inside, so the message is self-contained. */
 export function closeOpenFence(text: string): string {
   const fence = fenceAtEnd(text);
-  return fence ? `${text}\n${fence.marker}` : text;
+  return fence ? `${text}\n${closer(fence)}` : text;
 }
 
 const ATX_HEADING = /^ {0,3}#{1,6}(?:\s+(.*?))?\s*$/;
@@ -197,7 +212,7 @@ export function agentMarkdown(markdown: string, lang: ReplyLanguage): string {
     const line = source[index] ?? "";
     if (fence) {
       if (closesFence(line, fence)) {
-        if (!fence.openui) out.push(fence.marker);
+        if (!fence.openui) out.push(closer(fence));
         fence = undefined;
       } else if (!fence.openui) {
         out.push(neutraliseMarkdownLine(line.trimEnd()));
@@ -243,7 +258,7 @@ export function agentMarkdown(markdown: string, lang: ReplyLanguage): string {
       .trimEnd();
     out.push(neutraliseMarkdownLine(text));
   }
-  if (fence && !fence.openui) out.push(fence.marker);
+  if (fence && !fence.openui) out.push(closer(fence));
 
   return out
     .join("\n")
@@ -278,9 +293,9 @@ export function cutMarkdown(
   for (let attempt = 0; attempt < 3 && limit > 0; attempt += 1) {
     const head = points.slice(0, cutPoint(points, limit)).join("").trimEnd();
     const fence = fenceAtEnd(head);
-    const text = fence ? `${head}…\n${fence.marker}` : `${head}…`;
+    const text = fence ? `${head}…\n${closer(fence)}` : `${head}…`;
     if (codePointLength(text) <= max) return { text, cut: true };
-    limit = max - (fence ? fence.marker.length + 2 : 1);
+    limit = max - (fence ? closer(fence).length + 2 : 1);
     if (attempt > 0) limit -= attempt * 4;
   }
   return { text: truncate(markdown, max), cut: true };
@@ -304,7 +319,7 @@ export function paginateMarkdown(markdown: string, max: number): string[] {
       // The page starts with the fence's own closing line: nothing to reopen.
       [first = "", ...rest] = rest;
     } else if (carried) {
-      reopen = `${carried.marker}${truncate(carried.info, 12)}\n`;
+      reopen = `${carried.indent}${carried.marker}${truncate(carried.info, 12)}\n`;
     }
     const body = [neutraliseMarkdownLine(first), ...rest].join("\n").trim();
     if (!body) {
@@ -313,7 +328,7 @@ export function paginateMarkdown(markdown: string, max: number): string[] {
     }
     const page = `${reopen}${body}`;
     const open = fenceAtEnd(page);
-    pages.push(open ? `${page}\n${open.marker}` : page);
+    pages.push(open ? `${page}\n${closer(open)}` : page);
     carried = open;
   }
   return pages;

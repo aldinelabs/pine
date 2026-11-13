@@ -74,6 +74,20 @@ describe("neutraliseMarkdownLine", () => {
     expect(neutraliseMarkdownLine("。d 98")).toBe("› 。d 98");
   });
 
+  it("guards lines that only render as dot-led", () => {
+    expect(neutraliseMarkdownLine("\\.y 6")).toBe("› \\.y 6");
+    expect(neutraliseMarkdownLine("&#46;y 7")).toBe("› &#46;y 7");
+    expect(neutraliseMarkdownLine("&period;y 7")).toBe("› &period;y 7");
+    expect(neutraliseMarkdownLine("&#X2E;y 7")).toBe("› &#X2E;y 7");
+    expect(neutraliseMarkdownLine("&#12290;d 3")).toBe("› &#12290;d 3");
+    expect(neutraliseMarkdownLine("- [ ] .y 5")).toBe("- [ ] › .y 5");
+    expect(neutraliseMarkdownLine("* [x] \\.y 5")).toBe("* [x] › \\.y 5");
+    expect(neutraliseMarkdownLine("[.y 4](https://x)")).toBe(
+      "› [.y 4](https://x)",
+    );
+    expect(neutraliseMarkdownLine("<b>.y 4</b>")).toBe("› <b>.y 4</b>");
+  });
+
   it("leaves other lines alone and keeps indentation", () => {
     expect(neutraliseMarkdownLine("Ready at 1.5 s")).toBe("Ready at 1.5 s");
     expect(neutraliseMarkdownLine("  - nested")).toBe("  - nested");
@@ -165,6 +179,19 @@ describe("cutMarkdown", () => {
     expect(cutMarkdown("short", 10)).toEqual({ text: "short", cut: false });
   });
 
+  it("closes a fence opened in a list item at the item's indent", () => {
+    const markdown = `1. Install:\n   \`\`\`bash\n${"   npm i pkg\n".repeat(40)}   \`\`\``;
+    const { text } = cutMarkdown(markdown, 120);
+    expect(codePointLength(text)).toBeLessThanOrEqual(120);
+    expect(text.endsWith("…\n   ```")).toBe(true);
+    expect(closeOpenFence("1. a\n   ```\n   b")).toBe(
+      "1. a\n   ```\n   b\n   ```",
+    );
+    expect(agentMarkdown("- a\n  ~~~\n  b", "en")).toBe(
+      "- a\n  ~~~\n  b\n  ~~~",
+    );
+  });
+
   it("cuts at a boundary and ends with an ellipsis", () => {
     const { text, cut } = cutMarkdown("word ".repeat(100), 50);
     expect(cut).toBe(true);
@@ -196,6 +223,20 @@ describe("paginateMarkdown", () => {
     }
     expect(pages[1]?.startsWith("```python\n")).toBe(true);
     expect(pages.at(-1)).toContain("Done.");
+  });
+
+  it("reopens a list-item fence at its indent", () => {
+    const code = Array.from({ length: 120 }, (_, i) => `   line ${i} ok`).join(
+      "\n",
+    );
+    const pages = paginateMarkdown(
+      `1. Run:\n   \`\`\`sh\n${code}\n   \`\`\``,
+      600,
+    );
+    expect(pages.length).toBeGreaterThanOrEqual(3);
+    expect(pages[0]?.endsWith("\n   ```")).toBe(true);
+    expect(pages[1]?.startsWith("   ```sh\n")).toBe(true);
+    expect(pages[1]?.endsWith("\n   ```")).toBe(true);
   });
 
   it("guards the first line of every page", () => {
