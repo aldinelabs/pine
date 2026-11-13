@@ -301,12 +301,13 @@ From top to bottom:
      project.
    - While the agent is working, a soft light in the project's accent color
      (or, with "Pine Default", the Pine default color theme from Appearance
-     settings; grey for Neutral) circles the text box clockwise: a bright
-     comet with a fading tail, plus a fainter one on the opposite side, whose
-     glow widens, narrows and brightens as it goes. It grows out from the
-     text box's bottom-right corner when the run starts and shrinks and fades
-     away when the run ends (Neutral in the light theme shows only the
-     outline light, without the colored haze). The inside of the text box
+     settings; grey for Neutral) surrounds the text box with no border
+     line: a brighter swell, plus a fainter one on the opposite side, circles
+     it clockwise, and the light reaches further out and brightens unevenly
+     as it goes, with a faint film grain. It spreads round the outline from
+     the text box's bottom-right corner when the run starts and dims and
+     fades away when the run ends (Neutral in the light theme shows only a
+     faint grey light, without the colored haze). The inside of the text box
      stays clear. It is not shown while an approval or questionnaire card
      takes the text box's place or while the session's tab is in the
      background. With reduced motion turned on in the system, the light stays

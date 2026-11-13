@@ -2,7 +2,6 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import {
-  COMPOSER_GLOW_COMPANION,
   COMPOSER_GLOW_ENTER_MS,
   COMPOSER_GLOW_FADE_OUT_MS,
   COMPOSER_GLOW_LAP_SECONDS,
@@ -311,6 +310,7 @@ describe("composer glow motion", () => {
     expect(composerGlowStartMotion(box)).toEqual({
       head: composerGlowEntryPoint(box),
       reveal: 0,
+      spread: 0,
       clock: 0,
     });
   });
@@ -346,6 +346,18 @@ describe("composer glow motion", () => {
     expect(back.reveal).toBeGreaterThan(leaving.reveal);
   });
 
+  it("opens the ring with the reveal and keeps it open while leaving", () => {
+    const start = composerGlowStartMotion(box);
+    const half = run(start, COMPOSER_GLOW_ENTER_MS / 2);
+    expect(half.spread).toBeCloseTo(half.reveal, 6);
+    const full = run(start, COMPOSER_GLOW_ENTER_MS);
+    expect(full.spread).toBe(1);
+    const leaving = run(full, COMPOSER_GLOW_FADE_OUT_MS / 2, false);
+    expect(leaving.spread).toBe(1);
+    // Gone: the next run opens from the entry point again.
+    expect(run(full, COMPOSER_GLOW_FADE_OUT_MS, false).spread).toBe(0);
+  });
+
   it("caps one step, so a hidden window neither skips nor jumps", () => {
     const start = composerGlowStartMotion(box);
     const long = advanceComposerGlowMotion(start, 60_000, true, seed);
@@ -363,46 +375,47 @@ describe("composer glow motion", () => {
     expect(advanceComposerGlowMotion(start, -5, true, seed)).toEqual(start);
   });
 
-  it("draws a point at the start and a full comet once revealed", () => {
-    const perimeter = composerGlowPerimeter(box);
+  it("starts closed and dark, then varies only size and brightness", () => {
     const start = composerGlowFrame(
       composerGlowStartMotion(box),
       seed,
-      perimeter,
+      box,
       false,
     );
-    expect(start.tail).toBe(0);
-    expect(start.width).toBe(0);
-    expect(start.companion).toBe(0);
-    expect(start.intensity).toBe(0);
     expect(start.reveal).toBe(0);
+    expect(start.spread).toBe(0);
+    expect(start.entry).toBeCloseTo(composerGlowEntryPoint(box), 9);
 
+    const perimeter = composerGlowPerimeter(box);
     let motion = run(composerGlowStartMotion(box), COMPOSER_GLOW_ENTER_MS);
     for (let second = 0; second < 30; second += 1) {
       motion = run(motion, 1000);
-      const frame = composerGlowFrame(motion, seed, perimeter, false);
+      const frame = composerGlowFrame(motion, seed, box, false);
       expect(frame.reveal).toBe(1);
-      expect(frame.tail).toBeGreaterThanOrEqual(90);
-      expect(frame.tail).toBeLessThanOrEqual(420);
-      expect(frame.width).toBeGreaterThanOrEqual(40);
-      expect(frame.width).toBeLessThanOrEqual(90);
-      expect(frame.intensity).toBeGreaterThanOrEqual(0.75);
-      expect(frame.intensity).toBeLessThanOrEqual(1.25);
-      expect(frame.level).toBeGreaterThanOrEqual(0.85);
+      expect(frame.spread).toBe(1);
+      // The head is the motion's: noise never moves the light's path.
+      expect(frame.head).toBe(motion.head);
+      expect(frame.length).toBeGreaterThan(0);
+      expect(frame.length).toBeLessThanOrEqual(0.4);
+      expect(frame.length * perimeter).toBeGreaterThanOrEqual(219);
+      expect(frame.reach).toBeGreaterThanOrEqual(18);
+      expect(frame.reach).toBeLessThanOrEqual(30);
+      expect(frame.intensity).toBeGreaterThanOrEqual(0.85);
+      expect(frame.intensity).toBeLessThanOrEqual(1.2);
+      expect(frame.level).toBeGreaterThanOrEqual(0.88);
       expect(frame.level).toBeLessThanOrEqual(1.05);
-      expect(frame.companion).toBeCloseTo(COMPOSER_GLOW_COMPANION, 6);
-      expect(frame.companionHead).toBeCloseTo((frame.head + 0.5) % 1, 6);
+      expect(frame.floor).toBeGreaterThan(0);
+      expect(frame.floor).toBeLessThan(0.5);
     }
   });
 
-  it("draws a still, full comet at the entry point for reduced motion", () => {
-    const perimeter = composerGlowPerimeter(box);
+  it("draws the still, full light at the entry point for reduced motion", () => {
     const start = composerGlowStartMotion(box);
-    const still = composerGlowFrame(start, seed, perimeter, true);
+    const still = composerGlowFrame(start, seed, box, true);
     expect(still.reveal).toBe(1);
+    expect(still.spread).toBe(1);
     expect(still.head).toBe(composerGlowEntryPoint(box));
-    expect(still.tail).toBeGreaterThan(0);
-    expect(composerGlowFrame(start, seed, perimeter, true)).toEqual(still);
+    expect(composerGlowFrame(start, seed, box, true)).toEqual(still);
   });
 
   it("keeps the wave in 0-1", () => {

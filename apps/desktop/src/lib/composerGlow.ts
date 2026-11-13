@@ -13,8 +13,6 @@ export const COMPOSER_GLOW_FADE_OUT_MS = 900;
 export const COMPOSER_GLOW_ENTER_MS = 1100;
 /** Seconds per lap round the outline, before the per-run jitter. */
 export const COMPOSER_GLOW_LAP_SECONDS = 6;
-/** Strength of the fainter comet on the opposite side of the outline. */
-export const COMPOSER_GLOW_COMPANION = 0.35;
 /** The longest step, in ms, the motion takes between two frames. */
 export const COMPOSER_GLOW_MAX_STEP_MS = 100;
 /** How long a disposed worker may take to release its GPU context. */
@@ -141,23 +139,34 @@ export function composerGlowSeed(
 export interface ComposerGlowMotion {
   /** The comet's head, 0-1 clockwise from the top centre of the outline. */
   head: number;
-  /** 0 (a point, or gone) to 1 (full comet), linear in time. */
+  /** 0 (a point, or gone) to 1 (full light), linear in time. */
   reveal: number;
+  /**
+   * How much of the outline the entrance has opened, 0-1. It follows the
+   * reveal while the light grows in and stays at 1 while it leaves, so the
+   * exit dims and narrows the whole ring instead of closing it up again.
+   */
+  spread: number;
   /** Seconds of animation so far, for the noise. */
   clock: number;
 }
 
 /** The values one frame is drawn with. */
 export interface ComposerGlowFrame {
-  /** Main and companion comet heads, 0-1 clockwise from the top centre. */
+  /** The main swell's head, 0-1 clockwise from the top centre. */
   head: number;
-  companionHead: number;
-  /** Companion strength. */
-  companion: number;
-  /** Tail length and core width along the outline, CSS px. */
-  tail: number;
-  width: number;
+  /** Where the entrance opens from, same units. */
+  entry: number;
+  /** How much of the outline is lit, 0-1 (eased). */
+  spread: number;
+  /** Length of a swell along the outline, as a fraction of a lap. */
+  length: number;
+  /** How far the light reaches outward at a swell, CSS px, before the reveal. */
+  reach: number;
+  /** Brightness before the reveal. */
   intensity: number;
+  /** Share of the light that stays lit between the swells, 0-1. */
+  floor: number;
   level: number;
   /** Eased reveal, 0-1. */
   reveal: number;
@@ -210,7 +219,12 @@ export function composerGlowEntryPoint(box: GlowBox): number {
 
 /** The motion at the start of a run: a point at the entry point. */
 export function composerGlowStartMotion(box: GlowBox): ComposerGlowMotion {
-  return { head: composerGlowEntryPoint(box), reveal: 0, clock: 0 };
+  return {
+    head: composerGlowEntryPoint(box),
+    reveal: 0,
+    spread: 0,
+    clock: 0,
+  };
 }
 
 /**
@@ -238,9 +252,16 @@ export function advanceComposerGlowMotion(
   const reveal = raw >= 1 - 1e-9 ? 1 : raw <= 1e-9 ? 0 : raw;
   const speed = mix(0.45, 1, smoothstep(reveal));
   const lap = Math.max(seed.lapSeconds, 0.1);
+  const spread =
+    reveal === 0
+      ? 0
+      : present
+        ? Math.max(motion.spread, reveal)
+        : motion.spread;
   return {
     head: fract(motion.head + (dt / 1000 / lap) * speed),
     reveal,
+    spread,
     clock: motion.clock + dt / 1000,
   };
 }
@@ -262,30 +283,40 @@ export function composerGlowWave(
 
 /**
  * The uniform values for one frame. The path never wobbles; the waves only
- * swell and shrink the comet's tail, width and brightness. `still` draws
- * the full comet where the motion is, for reduced motion.
+ * change how long the swells are, how far the light reaches and how bright
+ * it is. `still` draws the full light where the motion is, for reduced
+ * motion.
  */
 export function composerGlowFrame(
   motion: ComposerGlowMotion,
   seed: ComposerGlowSeed,
-  perimeter: number,
+  box: GlowBox,
   still: boolean,
 ): ComposerGlowFrame {
   const reveal = still ? 1 : smoothstep(motion.reveal);
+  const spread = still ? 1 : smoothstep(motion.spread);
   const t = (still ? 0 : motion.clock) + seed.timeOffset;
   const wave = (rate: number, shift: number) =>
     composerGlowWave(rate * t + shift, seed.waves);
-  const tail = clamp(perimeter * mix(0.18, 0.32, wave(1, 0)), 90, 420);
-  const width = mix(40, 90, wave(1.13, 17.3));
-  const intensity = mix(0.75, 1.25, wave(0.87, 41.9));
-  const level = still ? 1 : mix(0.85, 1.05, wave(0.71, 73.1));
+  const perimeter = composerGlowPerimeter(box);
+  // About a fifth of the lap per swell on a typical composer, never
+  // shorter than 220 px or longer than 40 % of the lap.
+  const length = clamp(
+    (mix(260, 420, wave(1, 0)) / perimeter) * 1,
+    Math.min(0.4, 220 / perimeter),
+    0.4,
+  );
+  const reach = mix(18, 30, wave(1.13, 17.3));
+  const intensity = mix(0.85, 1.2, wave(0.87, 41.9));
+  const level = still ? 1 : mix(0.88, 1.05, wave(0.71, 73.1));
   return {
     head: motion.head,
-    companionHead: fract(motion.head + 0.5),
-    companion: COMPOSER_GLOW_COMPANION * reveal * reveal,
-    tail: tail * reveal,
-    width: width * reveal,
-    intensity: intensity * reveal,
+    entry: composerGlowEntryPoint(box),
+    spread,
+    length,
+    reach,
+    intensity,
+    floor: 0.2,
     level,
     reveal,
   };

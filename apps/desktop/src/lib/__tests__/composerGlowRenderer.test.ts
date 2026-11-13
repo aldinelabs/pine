@@ -208,14 +208,22 @@ describe("createComposerGlowRenderer", () => {
     expect(gl.createTexture).not.toHaveBeenCalled();
   });
 
-  it("looks up the comet's uniforms, not the old hot spots", () => {
+  it("looks up the light's uniforms, not the old comet or hot spots", () => {
     const { gl } = setup();
     const names = gl.getUniformLocation.mock.calls.map(
       (call: unknown[]) => call[1],
     );
     expect(names).toEqual(
-      expect.arrayContaining(["uHead", "uComet", "uReveal", "uLevel"]),
+      expect.arrayContaining([
+        "uHead",
+        "uEntry",
+        "uSpread",
+        "uShape",
+        "uReveal",
+        "uLevel",
+      ]),
     );
+    expect(names).not.toContain("uComet");
     expect(names).not.toContain("uSpots");
     expect(names).not.toContain("uSpotAmp");
     expect(names).not.toContain("uSpotWidth");
@@ -235,7 +243,7 @@ describe("createComposerGlowRenderer", () => {
     expect(heads[2]).toBeGreaterThan(heads[1]);
   });
 
-  it("grows the comet in, and shrinks it once it leaves", () => {
+  it("grows the light in, and dims it once it leaves", () => {
     const { gl, frames, renderer } = setup();
     for (let at = 0; at <= 1200; at += 17) frames.run(at);
     const reveals = uniformValues(gl, "uReveal").map((value) => value[0]);
@@ -243,9 +251,9 @@ describe("createComposerGlowRenderer", () => {
     for (let index = 1; index < reveals.length; index += 1)
       expect(reveals[index]).toBeGreaterThanOrEqual(reveals[index - 1]);
     expect(reveals.at(-1)).toBe(1);
-    const comets = uniformValues(gl, "uComet");
-    expect(comets[0]).toEqual([0, 0, 0, 0]);
-    expect(comets.at(-1)?.[0]).toBeGreaterThan(0);
+    const spreads = uniformValues(gl, "uSpread").map((value) => value[0]);
+    expect(spreads[0]).toBe(0);
+    expect(spreads.at(-1)).toBe(1);
 
     renderer?.handle({ type: "presence", present: false });
     gl.uniform1f.mockClear();
@@ -254,6 +262,8 @@ describe("createComposerGlowRenderer", () => {
     expect(leaving.length).toBeGreaterThan(2);
     expect(leaving.at(-1)).toBeLessThan(leaving[0]);
     expect(leaving.at(-1)).toBeLessThan(1);
+    // Leaving dims the whole ring; it does not close back up.
+    expect(uniformValues(gl, "uSpread").at(-1)).toEqual([1]);
   });
 
   it("keeps the head and reveal through a lost context", () => {
@@ -397,19 +407,21 @@ describe("createComposerGlowRenderer", () => {
     expect(frames.pending.size).toBe(1);
   });
 
-  it("carries on from the full comet when reduced motion is turned off", () => {
+  it("carries on from the full light when reduced motion is turned off", () => {
     const { gl, frames, renderer } = setup({
       state: { reducedMotion: true },
     });
     frames.run(0);
-    const still = uniformValues(gl, "uComet")[0];
+    const still = uniformValues(gl, "uShape")[0];
     renderer?.handle({ type: "motion", reducedMotion: false });
     frames.run(17);
     frames.run(34);
     const reveals = uniformValues(gl, "uReveal").map((value) => value[0]);
     expect(reveals).toEqual([1, 1, 1]);
-    const [tail, , intensity] = uniformValues(gl, "uComet").at(-1) ?? [];
-    expect(tail).toBeGreaterThan(still[0] * 0.5);
+    expect(uniformValues(gl, "uSpread").at(-1)).toEqual([1]);
+    const [length, reach, intensity] = uniformValues(gl, "uShape").at(-1) ?? [];
+    expect(length).toBeGreaterThan(still[0] * 0.5);
+    expect(reach).toBeGreaterThan(still[1] * 0.5);
     expect(intensity).toBeGreaterThan(still[2] * 0.5);
   });
 

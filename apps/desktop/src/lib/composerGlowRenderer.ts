@@ -7,7 +7,6 @@ import {
   advanceComposerGlowMotion,
   composerGlowFrame,
   composerGlowFrameInterval,
-  composerGlowPerimeter,
   composerGlowStartMotion,
 } from "@/lib/composerGlow";
 import {
@@ -56,8 +55,10 @@ const UNIFORMS = [
   "uTime",
   "uNoise",
   "uHead",
-  "uComet",
+  "uEntry",
+  "uSpread",
   "uReveal",
+  "uShape",
   "uLevel",
   "uTint0",
   "uTint1",
@@ -242,7 +243,7 @@ export function createComposerGlowRenderer(
       // A still frame shows the full comet; if motion resumes, it carries
       // on from there instead of popping off and growing back.
       if (state.present !== false && motion.reveal !== 1)
-        motion = { ...motion, reveal: 1 };
+        motion = { ...motion, reveal: 1, spread: 1 };
     } else {
       const step = Number.isFinite(lastDraw) ? now - lastDraw : 0;
       motion = advanceComposerGlowMotion(
@@ -252,12 +253,7 @@ export function createComposerGlowRenderer(
         seed,
       );
     }
-    const values = composerGlowFrame(
-      motion,
-      seed,
-      composerGlowPerimeter(box),
-      still,
-    );
+    const values = composerGlowFrame(motion, seed, box, still);
     const t = (still ? 0 : motion.clock) + seed.timeOffset;
 
     gl.uniform2f(u.uBuffer, canvas.width, canvas.height);
@@ -274,15 +270,17 @@ export function createComposerGlowRenderer(
     );
     gl.uniform1f(u.uTime, t);
     gl.uniform4f(u.uNoise, ...seed.noise);
-    gl.uniform2f(u.uHead, values.head, values.companionHead);
-    gl.uniform4f(
-      u.uComet,
-      values.tail,
-      values.width,
-      values.intensity,
-      values.companion,
-    );
+    gl.uniform1f(u.uHead, values.head);
+    gl.uniform1f(u.uEntry, values.entry);
+    gl.uniform1f(u.uSpread, values.spread);
     gl.uniform1f(u.uReveal, values.reveal);
+    gl.uniform4f(
+      u.uShape,
+      values.length,
+      values.reach,
+      values.intensity,
+      values.floor,
+    );
     gl.uniform1f(u.uLevel, values.level);
     gl.uniform3f(u.uTint0, ...colors.tints[0]);
     gl.uniform3f(u.uTint1, ...colors.tints[1]);
