@@ -1602,9 +1602,12 @@ export default {
         },
         submitArtifact: {
           complete: "Entregó {count} archivos ",
+          completeOne: "Entregó ",
           error: "No se pudo entregar ",
           partial: "Entregó {count} de {total} archivos ",
+          partialOne: "Entregó 1 de {total} archivos ",
           running: "Entregando {count} archivos ",
+          runningOne: "Entregando ",
         },
         workbench: {
           state: {

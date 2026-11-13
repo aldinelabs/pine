@@ -1563,9 +1563,12 @@ export default {
         },
         submitArtifact: {
           complete: "파일 {count}개 제출함: ",
+          completeOne: "파일 제출함: ",
           error: "제출할 수 없음: ",
           partial: "파일 {total}개 중 {count}개 제출함: ",
+          partialOne: "파일 {total}개 중 1개 제출함: ",
           running: "파일 {count}개 제출 중: ",
+          runningOne: "파일 제출 중: ",
         },
         workbench: {
           state: {

@@ -1499,9 +1499,12 @@ export default {
         },
         submitArtifact: {
           complete: "提交了 {count} 個檔案 ",
+          completeOne: "提交了 ",
           error: "無法提交 ",
           partial: "提交了 {count}/{total} 個檔案 ",
+          partialOne: "提交了 1/{total} 個檔案 ",
           running: "正在提交 {count} 個檔案 ",
+          runningOne: "正在提交 ",
         },
         workbench: {
           state: {

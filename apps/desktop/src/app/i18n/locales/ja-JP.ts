@@ -1585,9 +1585,12 @@ export default {
         },
         submitArtifact: {
           complete: "{count} 件のファイルを提出しました：",
+          completeOne: "ファイルを提出しました：",
           error: "提出できませんでした：",
           partial: "{total} 件中 {count} 件のファイルを提出しました：",
+          partialOne: "{total} 件中 1 件のファイルを提出しました：",
           running: "{count} 件のファイルを提出中：",
+          runningOne: "ファイルを提出中：",
         },
         workbench: {
           state: {

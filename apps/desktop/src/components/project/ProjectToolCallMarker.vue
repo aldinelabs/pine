@@ -1485,10 +1485,18 @@ const presentation = computed(() => {
           : "running",
     );
     return {
-      before: t(`project.transcript.tools.submitArtifact.${summary.key}`, {
-        count: summary.count,
-        total: summary.total,
-      }),
+      // One file reads without a count ("Submitted report.md").
+      before: t(
+        `project.transcript.tools.submitArtifact.${
+          summary.count === 1 && summary.key !== "error"
+            ? `${summary.key}One`
+            : summary.key
+        }`,
+        {
+          count: summary.count,
+          total: summary.total,
+        },
+      ),
       operation: undefined,
       separator: "",
       target: compactInline(summary.names.join(", "), 96),

@@ -1571,9 +1571,12 @@ export default {
         },
         submitArtifact: {
           complete: "Submitted {count} files ",
+          completeOne: "Submitted ",
           error: "Couldn’t submit ",
           partial: "Submitted {count} of {total} files ",
+          partialOne: "Submitted 1 of {total} files ",
           running: "Submitting {count} files ",
+          runningOne: "Submitting ",
         },
         workbench: {
           state: {

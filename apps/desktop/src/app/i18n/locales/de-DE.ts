@@ -1614,9 +1614,12 @@ export default {
         },
         submitArtifact: {
           complete: "{count} Dateien eingereicht: ",
+          completeOne: "Datei eingereicht: ",
           error: "Einreichen fehlgeschlagen: ",
           partial: "{count} von {total} Dateien eingereicht: ",
+          partialOne: "1 von {total} Dateien eingereicht: ",
           running: "{count} Dateien werden eingereicht: ",
+          runningOne: "Datei wird eingereicht: ",
         },
         workbench: {
           state: {

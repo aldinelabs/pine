@@ -873,6 +873,45 @@ describe("project transcript markers", () => {
     );
   });
 
+  it("names a single submitted file without a plural count", async () => {
+    const wrapper = mount(ProjectToolCallMarker, {
+      props: {
+        toolCall: {
+          id: "tool-submit-one",
+          input: { files: [{ path: "/work/out/report.md" }] },
+          name: "ui_submit_artifact",
+          status: "running",
+        },
+      },
+      global: { plugins: [createAppI18n("en-US")] },
+    });
+    const content = wrapper.get('[data-slot="marker-content"]');
+    expect(content.text()).toBe("Submitting report.md");
+
+    const report = { path: "/work/out/report.md", requestedPath: "report.md" };
+    await wrapper.setProps({
+      toolCall: {
+        ...wrapper.props("toolCall"),
+        status: "complete",
+        output: { details: { files: [report], rejected: [] } },
+      },
+    });
+    expect(content.text()).toBe("Submitted report.md");
+
+    await wrapper.setProps({
+      toolCall: {
+        ...wrapper.props("toolCall"),
+        output: {
+          details: {
+            files: [report],
+            rejected: [{ path: "missing.png", reason: "file not found" }],
+          },
+        },
+      },
+    });
+    expect(content.text()).toBe("Submitted 1 of 2 files report.md");
+  });
+
   it("describes workbench calls as sentences", () => {
     const cases = [
       { name: "ui_workbench_state", input: {}, expected: "已查看工作台状态" },

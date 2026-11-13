@@ -1587,9 +1587,12 @@ export default {
         },
         submitArtifact: {
           complete: "Сдано файлов ({count}): ",
+          completeOne: "Сдан файл: ",
           error: "Не удалось сдать: ",
           partial: "Сдано файлов ({count} из {total}): ",
+          partialOne: "Сдан 1 файл из {total}: ",
           running: "Сдаются файлы ({count}): ",
+          runningOne: "Сдаётся файл: ",
         },
         workbench: {
           state: {

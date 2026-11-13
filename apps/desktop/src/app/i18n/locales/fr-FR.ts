@@ -1604,9 +1604,12 @@ export default {
         },
         submitArtifact: {
           complete: "{count} fichiers remis : ",
+          completeOne: "Fichier remis : ",
           error: "Impossible de remettre : ",
           partial: "{count} fichiers remis sur {total} : ",
+          partialOne: "1 fichier remis sur {total} : ",
           running: "Remise de {count} fichiers : ",
+          runningOne: "Remise du fichier : ",
         },
         workbench: {
           state: {
