@@ -118,15 +118,32 @@ onScopeDispose(clearLeaveTimer);
   position: absolute;
   top: 50%;
   left: 50%;
-  width: hypot(
-    calc(100cqw + 2 * var(--chat-input-working-border-width)),
-    calc(100cqh + 2 * var(--chat-input-working-border-width))
+  /*
+   * Pine: VS Code's square gradient sweeps a long, thin box unevenly: its
+   * arc is a short dash along the long edges and wraps far round the ends.
+   * The square is stretched along the box by part of its aspect ratio (the
+   * 0.6 power), so the colour runs longer along the long edges. The square
+   * shrinks by the same factor, so the stretched layer still just covers
+   * the box.
+   */
+  --composer-working-border-stretch: pow(tan(atan2(100cqw, 100cqh)), 0.6);
+  width: calc(
+    1.4143 *
+      hypot(
+        calc(
+          100cqw / var(--composer-working-border-stretch) + 2 *
+            var(--chat-input-working-border-width)
+        ),
+        calc(100cqh + 2 * var(--chat-input-working-border-width))
+      )
   );
   aspect-ratio: 1;
-  transform: translate(-50%, -50%);
+  transform: translate(-50%, -50%)
+    scaleX(var(--composer-working-border-stretch));
   /*
    * Pine: VS Code starts `from 135deg`. Here the brightest stop (30deg)
-   * sits on the ray to the bottom-right corner (90deg + atan2(h, w)) at
+   * sits on the ray to the bottom-right corner (90deg + atan2(h, w), with
+   * w taken before the stretch) at
    * the spin's start, where the old glow entered, and every stop scales
    * with the grow so the arc grows out of that corner. At grow 1 this is
    * VS Code's arc with only a phase offset.
@@ -134,8 +151,9 @@ onScopeDispose(clearLeaveTimer);
   background: conic-gradient(
     from
       calc(
-        90deg + atan2(100cqh, 100cqw) - 30deg *
-          var(--composer-working-border-grow)
+        90deg +
+          atan2(100cqh, calc(100cqw / var(--composer-working-border-stretch))) -
+          30deg * var(--composer-working-border-grow)
       ),
     transparent 0deg,
     color-mix(in srgb, var(--chat-input-working-border-color1) 90%, transparent)
@@ -159,8 +177,9 @@ onScopeDispose(clearLeaveTimer);
   background: conic-gradient(
     from
       calc(
-        90deg + atan2(100cqh, 100cqw) - 30deg *
-          var(--composer-working-border-grow)
+        90deg +
+          atan2(100cqh, calc(100cqw / var(--composer-working-border-stretch))) -
+          30deg * var(--composer-working-border-grow)
       ),
     transparent 0deg,
     color-mix(in srgb, var(--chat-input-working-border-color1) 60%, transparent)
@@ -215,10 +234,12 @@ onScopeDispose(clearLeaveTimer);
 
 @keyframes chat-input-working-border-spin {
   0% {
-    transform: translate(-50%, -50%) rotate(0);
+    transform: translate(-50%, -50%)
+      scaleX(var(--composer-working-border-stretch)) rotate(0);
   }
   to {
-    transform: translate(-50%, -50%) rotate(360deg);
+    transform: translate(-50%, -50%)
+      scaleX(var(--composer-working-border-stretch)) rotate(360deg);
   }
 }
 

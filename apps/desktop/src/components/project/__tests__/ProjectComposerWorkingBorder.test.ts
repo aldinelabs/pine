@@ -97,7 +97,8 @@ describe("ProjectComposerWorkingBorder", () => {
       "blur(1.5px)",
       "var(--composer-working-border-color)",
       "@property --composer-working-border-grow",
-      "atan2(100cqh, 100cqw)",
+      "pow(tan(atan2(100cqw, 100cqh)), 0.6)",
+      "scaleX(var(--composer-working-border-stretch))",
       "1100ms",
       "900ms",
     ])
