@@ -1318,8 +1318,10 @@ export default {
       sendEditedMessage: "Enviar",
       error: "Error",
       stopped: "Detenido",
-      awaitingResponse:
-        "Pine sigue esperando la respuesta del proveedor del modelo. Si este mensaje no desaparece tras varias decenas de segundos, comprueba tu conexión de red y la disponibilidad del proveedor del modelo.",
+      awaitingResponse: {
+        status: "Pine sigue esperando la respuesta del proveedor del modelo.",
+        hint: "Si este mensaje no desaparece tras varias decenas de segundos, comprueba tu conexión de red y la disponibilidad del proveedor del modelo.",
+      },
       emptyDescription:
         "Empieza con una pregunta, una tarea o una idea atrevida.",
       emptyTitle: "Imagina lo que es posible",

@@ -41,9 +41,8 @@ describe("locale catalogs", () => {
   });
 
   it("ja-JP waiting marker uses the catalog's プロバイダ and says still", () => {
-    const text = flatten(localeMessages["ja-JP"]).get(
-      "project.transcript.awaitingResponse",
-    );
+    const messages = flatten(localeMessages["ja-JP"]);
+    const text = `${messages.get("project.transcript.awaitingResponse.status")}${messages.get("project.transcript.awaitingResponse.hint")}`;
     expect(text).toContain("まだ");
     expect(text).toContain("モデルプロバイダ");
     expect(text).not.toContain("プロバイダー");

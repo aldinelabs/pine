@@ -1218,8 +1218,10 @@ export default {
       sendEditedMessage: "发送",
       error: "错误",
       stopped: "已停止",
-      awaitingResponse:
-        "Pine 仍在等待模型提供商返回内容。若这条消息持续数十秒仍然不消失，考虑检查您的网络状况和模型提供商的可用性。",
+      awaitingResponse: {
+        status: "Pine 仍在等待模型提供商返回内容。",
+        hint: "若这条消息持续数十秒仍然不消失，考虑检查您的网络状况和模型提供商的可用性。",
+      },
       emptyDescription: "从一个问题、一项任务，或一个大胆的想法开始。",
       emptyTitle: "不妨大胆想象",
       loadHistory: "加载更早的消息",

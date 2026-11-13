@@ -1290,8 +1290,10 @@ export default {
       sendEditedMessage: "Send",
       error: "Error",
       stopped: "Stopped",
-      awaitingResponse:
-        "Pine is still waiting for the model provider to respond. If this message stays for more than a few tens of seconds, check your network connection and the model provider’s availability.",
+      awaitingResponse: {
+        status: "Pine is still waiting for the model provider to respond.",
+        hint: "If this message stays for more than a few tens of seconds, check your network connection and the model provider’s availability.",
+      },
       emptyDescription: "Start with a question, a task, or a bold idea.",
       emptyTitle: "Imagine what’s possible",
       loadHistory: "Load earlier messages",

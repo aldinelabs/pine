@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import path from "node:path";
 import { mount } from "@vue/test-utils";
 import {
   afterEach,
@@ -17,11 +19,14 @@ import ProjectAwaitingResponseMarker, {
 
 const MARKER = '[data-testid="awaiting-response-marker"]';
 
-function mountMarker(props: { waiting: boolean; active: boolean }) {
+function mountMarker(
+  props: { waiting: boolean; active: boolean },
+  locale: Parameters<typeof createAppI18n>[0] = "en-US",
+) {
   return mount(ProjectAwaitingResponseMarker, {
     props,
     global: {
-      plugins: [createAppI18n("en-US")],
+      plugins: [createAppI18n(locale)],
       stubs: {
         // The real item registers with a MessageScroller; only its box matters.
         MessageScrollerItem: { template: "<div><slot /></div>" },
@@ -56,7 +61,20 @@ describe("ProjectAwaitingResponseMarker", () => {
     vi.advanceTimersByTime(1);
     await nextTick();
     const marker = wrapper.get(MARKER);
-    expect(marker.text()).toBe(enUS.project.transcript.awaitingResponse);
+    const { status, hint } = enUS.project.transcript.awaitingResponse;
+    // One sentence per line.
+    expect(marker.get('[data-slot="awaiting-response-status"]').text()).toBe(
+      status,
+    );
+    const hintLine = marker.get('[data-slot="awaiting-response-hint"]');
+    expect(hintLine.text()).toBe(hint);
+    // The hint breaks only between clauses.
+    expect(
+      hintLine.findAll(".inline-block").map((part) => part.text()),
+    ).toEqual([
+      "If this message stays for more than a few tens of seconds,",
+      "check your network connection and the model provider’s availability.",
+    ]);
     expect(marker.find('[role="status"]').exists()).toBe(true);
     expect(vi.getTimerCount()).toBe(0);
     wrapper.unmount();
@@ -126,5 +144,32 @@ describe("ProjectAwaitingResponseMarker", () => {
     expect(item.classes()).toContain("-mt-8");
     expect(item.find(MARKER).exists()).toBe(false);
     wrapper.unmount();
+  });
+
+  it("keeps Chinese clauses whole without adding spaces", async () => {
+    const wrapper = mountMarker({ waiting: true, active: true }, "zh-CN");
+    vi.advanceTimersByTime(3000);
+    await nextTick();
+    const hintLine = wrapper.get('[data-slot="awaiting-response-hint"]');
+    expect(
+      hintLine.findAll(".inline-block").map((part) => part.text()),
+    ).toEqual([
+      "若这条消息持续数十秒仍然不消失，",
+      "考虑检查您的网络状况和模型提供商的可用性。",
+    ]);
+    expect(hintLine.text()).not.toContain(" ");
+    wrapper.unmount();
+  });
+
+  it("fades in and out instead of growing open", () => {
+    const source = readFileSync(
+      path.resolve(__dirname, "../ProjectAwaitingResponseMarker.vue"),
+      "utf8",
+    );
+    expect(source).toContain('<Transition name="awaiting-response-fade">');
+    expect(source).not.toContain("useCollapseTransition");
+    expect(source).toMatch(
+      /\.awaiting-response-fade-enter-active\s*\{\s*transition:\s*opacity/,
+    );
   });
 });

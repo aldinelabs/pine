@@ -1327,8 +1327,10 @@ export default {
       sendEditedMessage: "Senden",
       error: "Fehler",
       stopped: "Gestoppt",
-      awaitingResponse:
-        "Pine wartet noch auf eine Antwort des Modellanbieters. Wenn diese Meldung länger als einige Dutzend Sekunden bleibt, prüfen Sie Ihre Netzwerkverbindung und die Verfügbarkeit des Modellanbieters.",
+      awaitingResponse: {
+        status: "Pine wartet noch auf eine Antwort des Modellanbieters.",
+        hint: "Wenn diese Meldung länger als einige Dutzend Sekunden bleibt, prüfen Sie Ihre Netzwerkverbindung und die Verfügbarkeit des Modellanbieters.",
+      },
       emptyDescription:
         "Beginnen Sie mit einer Frage, einer Aufgabe oder einer kühnen Idee.",
       emptyTitle: "Stellen Sie sich vor, was möglich ist",
