@@ -403,8 +403,11 @@ async function confirmExternalLink(): Promise<void> {
 /* Renders that continue one flow (`flowJoin`) drop the renderer's layout
    containment: it makes each renderer its own formatting context, so margins
    would not collapse across renders and the gap between two blocks would
-   differ from the same text rendered in one piece. They are few and small. */
-.markdown-content[data-flow-join] :deep(.markdown-renderer) {
+   differ from the same text rendered in one piece. They are few and small.
+   Only the top-level renderer: the nested ones markstream mounts in list
+   items, blockquotes and footnotes keep their own `contain: content`, as they
+   do in one piece. */
+.markdown-content[data-flow-join] > :deep(.markdown-renderer) {
   contain: none;
   content-visibility: visible;
   contain-intrinsic-size: none;
@@ -534,6 +537,20 @@ async function confirmExternalLink(): Promise<void> {
    continues the flow of the one above). */
 .markdown-content:not([data-flow-join~="start"])
   :deep(.node-slot:first-child .node-content > :first-child) {
+  margin-top: 0;
+}
+
+/* A render that continues the flow keeps its top-level first margin, but the
+   first block inside each nested renderer (list items, blockquotes,
+   footnotes) still drops its top margin, as it does in one piece. */
+.markdown-content[data-flow-join~="start"]
+  :deep(
+    .markdown-renderer
+      .markdown-renderer
+      .node-slot:first-child
+      .node-content
+      > :first-child
+  ) {
   margin-top: 0;
 }
 

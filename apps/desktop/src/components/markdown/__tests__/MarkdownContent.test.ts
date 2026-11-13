@@ -121,6 +121,21 @@ describe("MarkdownContent", () => {
     }
   });
 
+  it("limits flow-join overrides to the top-level renderer", () => {
+    // Nested renderers (list items, blockquotes) keep markstream's
+    // containment and first-margin reset, as they have in one piece.
+    const style = markdownComponentSource.replace(/\s+/gu, " ");
+    expect(style).toContain(
+      ".markdown-content[data-flow-join] > :deep(.markdown-renderer) { contain: none;",
+    );
+    expect(style).not.toMatch(
+      /\.markdown-content\[data-flow-join\] :deep\(\.markdown-renderer\)/u,
+    );
+    expect(style).toContain(
+      '.markdown-content[data-flow-join~="start"] :deep( .markdown-renderer .markdown-renderer .node-slot:first-child .node-content > :first-child ) { margin-top: 0; }',
+    );
+  });
+
   it("keeps ordinary footnotes visible alongside hidden citation definitions", async () => {
     const wrapper = mountMarkdown(
       "Result[^1] and note[^2].\n\n[^1]: [Source](https://example.com)\n[^2]: Keep this ordinary footnote.",
