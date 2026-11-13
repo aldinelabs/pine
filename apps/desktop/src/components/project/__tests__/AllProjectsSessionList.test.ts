@@ -570,6 +570,38 @@ describe("AllProjectsSessionList", () => {
     }
   });
 
+  it("does not fold in rows of a load that overtook the first one", async () => {
+    setReducedMotion(false);
+    vi.useFakeTimers();
+    try {
+      const pending: ((sessions: ProjectSessionSearchResult[]) => void)[] = [];
+      const { wrapper } = await mountList({
+        listAllRecentSessions: () =>
+          new Promise((resolve) =>
+            pending.push((list) => resolve({ sessions: list })),
+          ),
+      });
+      // A project added at startup starts a second load before the first ends.
+      const extra = { ...pine, id: "extra", name: "Extra" };
+      useProjectStore().projects = [noProject, pine, extra];
+      await flushPromises();
+      expect(pending).toHaveLength(2);
+      // The first, overtaken load ends first and its result is dropped.
+      pending[0]([]);
+      await flushPromises();
+      pending[1](sessions);
+      await flushPromises();
+      const motions = wrapper
+        .findAllComponents(SessionHistoryItem)
+        .map((item) => item.props("motion"));
+      expect(motions).toHaveLength(2);
+      expect(motions.every((motion) => motion === undefined)).toBe(true);
+      wrapper.unmount();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("keeps a removed row in place, unreachable, while it folds out", async () => {
     setReducedMotion(false);
     vi.useFakeTimers();
