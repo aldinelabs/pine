@@ -6,6 +6,7 @@ import type {
   PineApprovalDecision,
   PineApprovalExplanation,
   PineApprovalReview,
+  PineApprovalReviewReasonCode,
 } from "../shared/sessions";
 import type { GateDecision } from "./protocol";
 import { matchDestructive } from "./destructive";
@@ -66,6 +67,11 @@ export interface JudgeRuling {
   toolCallId: string;
   verdict: "allow" | "deny" | "needs_user";
   reason?: string;
+  /**
+   * Marks `reason` as Pine-authored boilerplate. The review history shows it
+   * localized by this code, so it stays out of the card's free-text evidence.
+   */
+  reasonCode?: PineApprovalReviewReasonCode;
   scope?: "once" | "session";
   /** User-facing account of a needs_user call, written with the ruling. */
   explanation?: PineApprovalExplanation;
@@ -637,7 +643,10 @@ export class AutoReviewGate implements ToolGate {
           toolName: input.toolName,
           subject: input.subject,
           description: input.description,
-          evidence: [input.evidence, ruling.reason]
+          evidence: [
+            input.evidence,
+            ruling.reasonCode ? undefined : ruling.reason,
+          ]
             .filter(Boolean)
             .join("\n\n"),
           reviews: [...reviewHistory],

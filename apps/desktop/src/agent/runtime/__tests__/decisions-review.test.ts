@@ -247,7 +247,17 @@ describe("Decisions approval cascade", () => {
         false,
         "en-US",
       ),
-    ).toMatchObject([{ verdict: "allow" }]);
+    ).toMatchObject([{ verdict: "allow", reasonCode: "decisionsAllow" }]);
+    expect(
+      parseDecisionsReview(
+        { answers: { call_0: answer("needs_user") } },
+        [requests[0]],
+        false,
+        "en-US",
+      ),
+    ).toMatchObject([
+      { verdict: "needs_user", reasonCode: "decisionsNeedsUser" },
+    ]);
     expect(
       parseDecisionsReview(
         { answers: { call_0: answer("deny", 1) } },

@@ -395,6 +395,25 @@ describe("AutoReviewGate", () => {
     );
   });
 
+  it("keeps Pine-authored coded reasons out of the card's evidence", async () => {
+    const { host, mocks } = createHost(() =>
+      Promise.resolve({
+        verdict: "needs_user",
+        reason: "Decisions screening requests your confirmation.",
+        reasonCode: "decisionsNeedsUser",
+      }),
+    );
+    const gate = new AutoReviewGate(host);
+
+    await gate.reviewBashCommand({
+      toolCallId: "coded",
+      command: "bun publish",
+    });
+    const evidence = mocks.requestUserApproval.mock.calls[0][0].evidence;
+    expect(evidence).not.toContain("Decisions screening");
+    expect(evidence).toContain("Matched destructive-command heuristic");
+  });
+
   it("passes the reviewer explanation, inline or pending, to the approval UI", async () => {
     const explanation = {
       summary: "Publishes the package.",

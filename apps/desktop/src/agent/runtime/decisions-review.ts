@@ -114,7 +114,16 @@ export function parseDecisionsReview(
         : verdict === "allow"
           ? "Decisions screening classified this action as authorized and permitted."
           : "Decisions screening requests your confirmation of this action's authority and risks.";
-    return [{ toolCallId: request.toolCallId, verdict, reason, scope: "once" }];
+    return [
+      {
+        toolCallId: request.toolCallId,
+        verdict,
+        reason,
+        reasonCode:
+          verdict === "allow" ? "decisionsAllow" : "decisionsNeedsUser",
+        scope: "once",
+      },
+    ];
   });
 }
 
@@ -214,9 +223,7 @@ export async function runApprovalReview(options: {
       // Pine-authored reasons carry a code so the renderer can show them in
       // the user's interface language; `reason` stays as readable fallback.
       const reasonCode: PineApprovalReviewReasonCode | undefined = ruling
-        ? ruling.verdict === "allow"
-          ? "decisionsAllow"
-          : "decisionsNeedsUser"
+        ? ruling.reasonCode
         : failure === NO_API_KEY_REASON
           ? "decisionsNoApiKey"
           : failure
