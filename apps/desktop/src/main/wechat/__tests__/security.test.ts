@@ -247,6 +247,38 @@ describe("WeChat remote security invariants", { timeout: 40_000 }, () => {
     ).toBeUndefined();
   });
 
+  it("3c. a local session a WeChat-driven one relayed to is held to the same limits", async () => {
+    const h = await harness({ afterBind: { ceilingMode: "auto-approve" } });
+    const projectId = h.project.id;
+    const sub = await startSession(h, "sub task");
+    h.finish(sub, "done");
+    await h.settle();
+    const sibling = await startSession(h, "sibling task");
+    h.finish(sibling, "done");
+    await h.settle();
+    await h.registry.prompt(-2, {
+      message: "local",
+      target: { kind: "session", projectId, sessionId: sibling },
+      approvalMode: "YOLO",
+    });
+    // A parent WeChat never drove.
+    const parent = randomUUID();
+    const automation = { id: "auto-1", name: "Nightly", enabled: true };
+    expect(
+      await h.bridge.relayRefusal(parent, sibling, projectId),
+    ).toBeUndefined();
+    expect(h.bridge.automationRunRefusal(parent, automation)).toBeUndefined();
+
+    // The WeChat-driven sub-session hands its reply to the parent.
+    await h.bridge.sessionRelayed(sub, parent, projectId);
+    expect(await h.bridge.relayRefusal(parent, sibling, projectId)).toContain(
+      "above WeChat's highest approval mode",
+    );
+    expect(h.bridge.automationRunRefusal(parent, automation)).toContain(
+      "below Autonomous Work",
+    );
+  });
+
   it("4. never approves a display-only card, from a stale message, twice, after the action changed, or before a cut subject was read", async () => {
     const h = await harness();
     const sessionId = await startSession(h);

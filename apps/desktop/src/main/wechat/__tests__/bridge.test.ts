@@ -23,6 +23,7 @@ import { PAIR_CODE_TTL_MS } from "../constants";
 import type { CommandContext, HandlerRegistry } from "../handlers/types";
 import type { WeChatBridgeOptions, WeChatHostPorts } from "../ports";
 import { render } from "../replies";
+import { SessionDirectory } from "../sessionDirectory";
 import { WeChatStore } from "../store";
 import { W, createFakeCore } from "./fakes";
 
@@ -732,6 +733,68 @@ describe("WeChatBridge lifecycle and settings", () => {
     expect(context.bridge.originOf("s1")).toBe("wechat");
     expect(context.bridge.originOf("s2")).toBe("wechat-used");
     expect(context.bridge.originOf("s3")).toBeUndefined();
+  });
+
+  it("refuses a WeChat-driven session's automation run until it can check it", async () => {
+    const context = await setup();
+    await seedBound(context, { tracked: true });
+    const store = context.openStore();
+    await store.load();
+    // Not composed yet: the store is loaded, the session directory is not.
+    const early = new TestBridge({
+      core: context.fakeCore.ports,
+      host: context.host,
+      channels: context.factory,
+      now: () => context.clock.now,
+      randomCode: () => CODE,
+      store,
+    });
+    const automation = { id: "a1", name: "Nightly", enabled: true };
+    expect(early.automationRunRefusal("s1", automation)).toContain(
+      "driven from WeChat",
+    );
+    expect(early.automationRunRefusal("s3", automation)).toBeUndefined();
+
+    // Composed, but the check itself throws.
+    await context.bridge.start();
+    const spy = vi
+      .spyOn(SessionDirectory.prototype, "automationRunRefusal")
+      .mockImplementation(() => {
+        throw new Error("broken");
+      });
+    const errors = vi.spyOn(console, "error").mockImplementation(() => {});
+    try {
+      expect(context.bridge.automationRunRefusal("s1", automation)).toContain(
+        "driven from WeChat",
+      );
+    } finally {
+      spy.mockRestore();
+      errors.mockRestore();
+    }
+  });
+
+  it("marks a relative a WeChat-driven session relays to, before and after composing", async () => {
+    const context = await setup();
+    await seedBound(context, { tracked: true });
+    const store = context.openStore();
+    await store.load();
+    const early = new TestBridge({
+      core: context.fakeCore.ports,
+      host: context.host,
+      channels: context.factory,
+      now: () => context.clock.now,
+      randomCode: () => CODE,
+      store,
+    });
+    await early.sessionRelayed("s1", "local-parent", "p1");
+    expect(early.originOf("local-parent")).toBe("wechat-used");
+    // A session WeChat never drove taints nothing.
+    await early.sessionRelayed("s3", "other", "p1");
+    expect(early.originOf("other")).toBeUndefined();
+
+    await context.bridge.start();
+    await context.bridge.sessionRelayed("s2", "sibling", "p1");
+    expect(context.bridge.originOf("sibling")).toBe("wechat-used");
   });
 
   it("stops the channel on stop", async () => {

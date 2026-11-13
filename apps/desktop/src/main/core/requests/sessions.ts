@@ -638,6 +638,13 @@ export async function answerSessionOperation(
       project.id,
     );
     if (refusal) throw new Error(refusal);
+    // Work from a WeChat-driven session carries WeChat's content along, so
+    // the target is held to the same limits from here on.
+    await core.wechat.sessionRelayed(
+      requester.sessionId,
+      parsed.sessionId,
+      project.id,
+    );
     const running = core.sessionActivity(parsed.sessionId) !== "idle";
     const name = byId.get(requester.sessionId)?.name;
     const sender = name ? relayTitle(name) : undefined;
@@ -665,6 +672,15 @@ export async function answerSessionOperation(
     throw new Error(
       `A session in ${callerMode} cannot start one in ${parsed.approvalMode}.`,
     );
+  // The ceiling may have been lowered while a WeChat-started turn runs on in
+  // its old mode; what it starts is held to the current ceiling.
+  if (core.wechat.originOf(requester.sessionId) !== undefined) {
+    const ceiling = core.wechat.status().settings.ceilingMode;
+    if (!approvalModeWithin(parsed.approvalMode, ceiling))
+      throw new Error(
+        `This session is driven from WeChat; WeChat's highest approval mode is ${ceiling}.`,
+      );
+  }
   const ownProjectId = runtimes.projectOfLiveSession(requester.sessionId)?.id;
   const projectId = parsed.projectId ?? ownProjectId;
   const project = projects.find((candidate) => candidate.id === projectId);

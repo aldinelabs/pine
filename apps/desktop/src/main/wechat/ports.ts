@@ -131,6 +131,12 @@ export interface WeChatBridgeApi {
     fromProjectId: string,
     projectId: string,
   ): void;
+  /** A WeChat-driven session handed work to a relative. Never throws. */
+  sessionRelayed(
+    fromSessionId: string,
+    toSessionId: string,
+    projectId: string,
+  ): Promise<void>;
   automationsChanged(): void;
   /** Sidebar marker. */
   originOf(sessionId: string): "wechat" | "wechat-used" | undefined;

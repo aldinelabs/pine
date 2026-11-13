@@ -168,6 +168,8 @@ export async function notifyParentOf(
   const relayed =
     (await core.wechat.relayRefusal(sessionId, parentId, project.id)) ===
     undefined;
+  if (relayed)
+    await core.wechat.sessionRelayed(sessionId, parentId, project.id);
   if (!runtimes.liveSessionIdsOf(project.id).includes(parentId)) {
     if (!relayed) return;
     await runtimes.resume(owner, project.id, parentId, { focus: false });

@@ -88,6 +88,9 @@ interface PairingAttempt {
   completing?: boolean;
 }
 
+const AUTOMATION_REFUSAL =
+  "This session is driven from WeChat, and WeChat remote's highest approval mode is below Autonomous Work, so it cannot start automations. Ask the user to run the automation in Pine on this computer.";
+
 const FAILED_BINDING: Record<
   Extract<ChannelBindingEvent, { type: "failed" }>["reason"],
   WeChatErrorCode | undefined
@@ -425,16 +428,59 @@ export class WeChatBridge implements WeChatBridgeApi {
       : "This session is driven from WeChat; that session runs above WeChat's highest approval mode, so it cannot be sent work from here.";
   }
 
+  /**
+   * A WeChat-driven session handed work to a relative; the relative is then
+   * held to the same limits. Before the bridge is composed the origin is
+   * written to the store directly. Never throws.
+   */
+  async sessionRelayed(
+    fromSessionId: string,
+    toSessionId: string,
+    projectId: string,
+  ): Promise<void> {
+    try {
+      if (this.parts) {
+        await this.parts.sessions.sessionRelayed(
+          fromSessionId,
+          toSessionId,
+          projectId,
+        );
+        return;
+      }
+      if (this.originOf(fromSessionId) === undefined) return;
+      if (this.originOf(toSessionId) !== undefined) return;
+      await this.store.update((draft) => {
+        if (draft.origins.some((entry) => entry.sessionId === toSessionId))
+          return;
+        draft.origins.push({
+          sessionId: toSessionId,
+          projectId,
+          kind: "used",
+          atMs: this.now(),
+        });
+      });
+    } catch (error) {
+      console.error("WeChat relay bookkeeping failed.", describe(error));
+    }
+  }
+
+  /**
+   * Why a WeChat-driven session may not start this automation. Fails closed
+   * until the bridge is composed, or when the check itself fails.
+   */
   automationRunRefusal(
     sessionId: string | undefined,
     automation: { id: string; name: string; enabled: boolean },
   ): string | undefined {
+    if (sessionId === undefined || this.originOf(sessionId) === undefined)
+      return undefined;
     try {
-      return this.parts?.sessions.automationRunRefusal(sessionId, automation);
+      if (this.parts)
+        return this.parts.sessions.automationRunRefusal(sessionId, automation);
     } catch (error) {
       console.error("WeChat automation check failed.", describe(error));
-      return undefined;
     }
+    return AUTOMATION_REFUSAL;
   }
 
   /** The inbound pipeline, once composed (tests and the headless server). */

@@ -898,6 +898,33 @@ export class SessionDirectory {
       .catch(() => undefined);
   }
 
+  /**
+   * A WeChat-driven session handed work to a relative (`ui_session_send`, or
+   * a finished turn that woke its parent). The relative now carries content
+   * from WeChat, so it is held to the same limits as one WeChat used.
+   */
+  async sessionRelayed(
+    fromSessionId: string,
+    toSessionId: string,
+    projectId: string,
+  ): Promise<void> {
+    const state = this.deps.store.get();
+    if (!state.origins.some((entry) => entry.sessionId === fromSessionId))
+      return;
+    if (state.origins.some((entry) => entry.sessionId === toSessionId)) return;
+    const now = this.deps.now();
+    await this.deps.store.update((draft) => {
+      if (!draft.origins.some((entry) => entry.sessionId === toSessionId))
+        addOrigin(draft.origins, {
+          sessionId: toSessionId,
+          projectId,
+          kind: "used",
+          atMs: now,
+        });
+    });
+    this.deps.core.notifyLibraryChanged("sessions");
+  }
+
   sessionMoved(
     sessionId: string,
     fromProjectId: string,

@@ -51,6 +51,8 @@ function fixture({
   sharing = [] as number[],
   inTemporaryWorkspace = false,
   relayRefusal = undefined as string | undefined,
+  origin = undefined as "wechat" | "wechat-used" | undefined,
+  ceilingMode = "YOLO",
 }: {
   callerMode?: string;
   owner?: number;
@@ -62,6 +64,8 @@ function fixture({
   sharing?: number[];
   inTemporaryWorkspace?: boolean;
   relayRefusal?: string;
+  origin?: "wechat" | "wechat-used";
+  ceilingMode?: string;
 } = {}) {
   const projects = [
     {
@@ -111,6 +115,7 @@ function fixture({
     nextBefore: "older",
   });
   const relayRefusalCheck = vi.fn().mockResolvedValue(relayRefusal);
+  const sessionRelayed = vi.fn().mockResolvedValue(undefined);
   const core = {
     repository: {
       list: vi.fn().mockResolvedValue(projects),
@@ -144,8 +149,10 @@ function fixture({
       runSessions: vi.fn().mockResolvedValue(new Map([["run", {}]])),
     },
     wechat: {
-      originOf: vi.fn(),
+      originOf: vi.fn().mockReturnValue(origin),
       relayRefusal: relayRefusalCheck,
+      sessionRelayed,
+      status: vi.fn(() => ({ settings: { ceilingMode } })),
     },
     notifyLibraryChanged,
     notifySessionsDeleted,
@@ -164,6 +171,7 @@ function fixture({
     clientsSharingRuntime,
     notifyLibraryChanged,
     relayRefusalCheck,
+    sessionRelayed,
   };
 }
 
@@ -290,6 +298,26 @@ describe("answerSessionOperation", () => {
         locale: "en-US",
       }),
     ).rejects.toThrow("cannot start one in YOLO");
+    expect(prompt).not.toHaveBeenCalled();
+  });
+
+  it("holds a WeChat-driven session to the current WeChat ceiling when it starts one", async () => {
+    // The ceiling was lowered while the turn runs on in its old mode.
+    const { core, prompt } = fixture({
+      callerMode: "auto-approve",
+      origin: "wechat",
+      ceilingMode: "let-me-review",
+    });
+
+    await expect(
+      answerSessionOperation(core, requester, {
+        op: "start",
+        relation: "child",
+        message: "Go",
+        approvalMode: "auto-approve",
+        locale: "en-US",
+      }),
+    ).rejects.toThrow("WeChat's highest approval mode is let-me-review");
     expect(prompt).not.toHaveBeenCalled();
   });
 
@@ -744,6 +772,29 @@ describe("answerSessionOperation", () => {
       projectId,
     );
     expect(prompt).not.toHaveBeenCalled();
+  });
+
+  it("marks the relative a WeChat-driven session sends work to", async () => {
+    const { core, prompt, sessionRelayed } = fixture({
+      sessionParents: { [looseSession]: requester.sessionId },
+      origin: "wechat",
+    });
+
+    await answerSessionOperation(core, requester, {
+      op: "send",
+      sessionId: looseSession,
+      message: "Carry on",
+      locale: "en-US",
+    });
+
+    expect(sessionRelayed).toHaveBeenCalledWith(
+      requester.sessionId,
+      looseSession,
+      projectId,
+    );
+    expect(sessionRelayed.mock.invocationCallOrder[0]).toBeLessThan(
+      prompt.mock.invocationCallOrder[0] ?? 0,
+    );
   });
 
   it("steers a message into a running sub-session", async () => {
