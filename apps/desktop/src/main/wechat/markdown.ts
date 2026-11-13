@@ -19,6 +19,7 @@ import {
   startsWithPrefix,
   truncate,
 } from "./text";
+import { expandInterfaceBlocks } from "./interfaceMarkdown";
 import type { ReplyLanguage } from "./types";
 
 /** Backslash-escapes the characters that would start inline Markdown. */
@@ -243,14 +244,15 @@ function isTableDelimiter(line: string | undefined): boolean {
 
 /**
  * The agent's Markdown, contained so it renders in WeChat but cannot break
- * Pine's layout: fences are closed, headings become bold lines, tables of up
+ * Pine's layout: interactive (`openui`) blocks become Markdown of their
+ * content (`expandInterfaceBlocks`), fences are closed, headings become bold lines, tables of up
  * to three columns stay tables (each cell dot-guarded, a blank line on both
  * sides) and wider ones become `a · b` rows, images become their alt text,
  * HTML blocks that would only end at a closing tag are escaped, and dot-led
  * lines get `NEUTRAL_MARK`.
  */
 export function agentMarkdown(markdown: string, lang: ReplyLanguage): string {
-  const source = markdown
+  const source = expandInterfaceBlocks(markdown, lang)
     .replace(/\r\n?/g, "\n")
     .replace(/\t/g, "  ")
     .replace(SEARCH_MARKERS, "")

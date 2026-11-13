@@ -39,6 +39,7 @@ import {
   refuse,
   type SessionView,
 } from "../sessionDirectory";
+import { expandInterfaceBlocks } from "../interfaceMarkdown";
 import { toPlainText } from "../text";
 import type { HandleRow, ParsedCommand } from "../types";
 import type { CommandContext, CommandHandlers, CommandResult } from "./types";
@@ -735,7 +736,12 @@ export const sessionHandlers: CommandHandlers = {
           ? [
               {
                 role: "assistant" as const,
-                text: toPlainText(turn.assistant, ctx.lang),
+                text: toPlainText(
+                  expandInterfaceBlocks(turn.assistant, ctx.lang, {
+                    plain: true,
+                  }),
+                  ctx.lang,
+                ),
               },
             ]
           : []),
