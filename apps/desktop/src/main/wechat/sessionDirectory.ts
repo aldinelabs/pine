@@ -170,7 +170,7 @@ export interface SessionDirectoryDeps {
   >;
   store: WeChatStateStore;
   asks: AskBook;
-  outbound: Pick<Outbound, "push" | "retract">;
+  outbound: Pick<Outbound, "push" | "retract" | "setTyping">;
   attachments: InboundAttachmentsApi;
   settings: () => WeChatSettings;
   lang: () => ReplyLanguage;
@@ -519,6 +519,8 @@ export class SessionDirectory {
     state: "idle" | "failed",
     completion: { text: string } | undefined,
   ): void {
+    // The "typing…" a silently forwarded message turned on ends with its run.
+    if (wasRunning && obs.bridgeRun) this.deps.outbound.setTyping(false);
     const closed = this.deps.asks.closeWhere(
       (ask) => askSession(ask) === sessionId,
       "invalidated",

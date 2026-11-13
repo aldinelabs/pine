@@ -155,6 +155,7 @@ export class WeChatBridge implements WeChatBridgeApi {
     this.parts?.inbound.stop();
     this.cancelBindingAttempt();
     await this.endPairing(undefined);
+    this.parts?.outbound.setTyping(false);
     const channel = this.channel;
     this.channel = undefined;
     this.channelState = undefined;
@@ -213,8 +214,11 @@ export class WeChatBridge implements WeChatBridgeApi {
     await this.store.updateSecure((draft) => {
       draft.paused = paused;
     });
-    // CMD §6.5: open asks are invalidated; holds go as their sessions end.
-    if (paused) this.invalidateAsks();
+    // Open asks are invalidated; holds go as their sessions end.
+    if (paused) {
+      this.invalidateAsks();
+      this.parts?.outbound.setTyping(false);
+    }
     this.applyKeepAwake();
     return this.emit();
   }
@@ -344,6 +348,7 @@ export class WeChatBridge implements WeChatBridgeApi {
     await this.ready();
     this.cancelBindingAttempt();
     await this.endPairing(undefined);
+    this.parts?.outbound.setTyping(false);
     const channel = this.channel;
     this.channel = undefined;
     this.channelState = undefined;

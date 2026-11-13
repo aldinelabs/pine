@@ -13,7 +13,12 @@ import {
   type OutboundPriority,
 } from "./budget";
 import type { ChannelSendResult, MessageChannel } from "./channel";
-import { MERGE_WINDOW_MS, REPLY_MAX, USABLE } from "./constants";
+import {
+  MERGE_WINDOW_MS,
+  PROGRESS_AFTER_MS,
+  REPLY_MAX,
+  USABLE,
+} from "./constants";
 import type { DigestItem, WeChatStateStore } from "./types";
 
 export interface OutboundPush {
@@ -70,6 +75,9 @@ export class Outbound {
   private chain: Promise<unknown> = Promise.resolve();
   private halted = false;
   private disposed = false;
+  /** "Typing…" is on in WeChat; it ends with the next message out or the run. */
+  private typing = false;
+  private typingTimer: ReturnType<typeof setTimeout> | undefined;
 
   constructor(private readonly deps: OutboundDeps) {}
 
@@ -146,6 +154,7 @@ export class Outbound {
       if (token && !allows(0, this.remaining())) {
         return { ok: false, reason: "rejected" };
       }
+      this.setTyping(false);
       let result: ChannelSendResult;
       try {
         result = await channel.sendFile(owner, token?.value, file);
@@ -157,12 +166,31 @@ export class Outbound {
     });
   }
 
+  /**
+   * Shows or cancels "typing…" in WeChat. It is cancelled when the run ends,
+   * right before the next message goes out, on pause or halt, and at the
+   * latest after PROGRESS_AFTER_MS, so the keepalive never runs on.
+   */
   setTyping(on: boolean): void {
+    if (this.typingTimer !== undefined) clearTimeout(this.typingTimer);
+    this.typingTimer = undefined;
+    if (!on && !this.typing) return;
     const channel = this.deps.channel();
     const owner = this.deps.ownerUserId();
-    if (!channel || owner === undefined || this.halted) return;
+    if (!channel || owner === undefined || (on && this.halted)) {
+      this.typing = false;
+      return;
+    }
+    this.typing = on;
     const token = this.deps.store.get().contextToken?.value;
     void channel.setTyping(owner, token, on).catch(() => undefined);
+    if (on) {
+      this.typingTimer = setTimeout(
+        () => this.setTyping(false),
+        PROGRESS_AFTER_MS,
+      );
+      this.typingTimer.unref?.();
+    }
   }
 
   /**
@@ -170,6 +198,7 @@ export class Outbound {
    * pushes for the digest, until the next inbound message renews the budget.
    */
   halt(): void {
+    this.setTyping(false);
     this.halted = true;
   }
 
@@ -181,6 +210,7 @@ export class Outbound {
 
   /** Stops the merge timer; pushes still waiting are queued for the digest. */
   dispose(): void {
+    this.setTyping(false);
     this.disposed = true;
     if (this.timer !== undefined) clearTimeout(this.timer);
     this.timer = undefined;
@@ -325,6 +355,7 @@ export class Outbound {
     const owner = this.deps.ownerUserId();
     if (!channel || owner === undefined) return undefined;
     const token = this.deps.store.get().contextToken?.value;
+    this.setTyping(false);
     let result: ChannelSendResult;
     try {
       result = await channel.sendText(owner, token, text);
