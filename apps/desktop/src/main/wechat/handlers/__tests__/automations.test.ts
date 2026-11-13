@@ -161,9 +161,9 @@ describe(".autos", () => {
       ],
     });
     const text = await listed(ctx);
-    expect(text).toContain("1 Auto a · pine · on");
-    expect(text).toContain("2 Auto b · pine · off");
-    expect(text).toContain("3 Auto c · pine · paused");
+    expect(text).toContain("**1** Auto a · pine · on");
+    expect(text).toContain("**2** Auto b · pine · off");
+    expect(text).toContain("**3** Auto c · pine · paused");
     expect(ctx.handles.resolve("automation", 2)).toMatchObject({
       id: "b",
       projectId: "p1",
@@ -189,7 +189,7 @@ describe(".auto N", () => {
     const ctx = setup();
     await listed(ctx);
     const text = (await run(ctx, command("auto", ["1"]))).text ?? "";
-    expect(text).toContain("Auto a (pine) on");
+    expect(text).toContain("**Auto a** · pine · on");
     expect(text).toContain("Reads: inbox");
     expect(text).toContain("Writes: out · Network: api.example.com");
     expect(text).not.toContain(SECRET);
@@ -205,7 +205,7 @@ describe(".auto N", () => {
     );
     await listed(ctx);
     expect((await run(ctx, command("auto", ["1", "explode"]))).text).toContain(
-      "Usage: .auto",
+      "Usage: `.auto",
     );
   });
 
@@ -412,12 +412,12 @@ describe(".runs", () => {
     ctx.fake.core.automations.listRuns.mockResolvedValue(runs);
     const list = await run(ctx, command("runs"));
     expect(list.numbered).toEqual({ kind: "run" });
-    expect(list.text).toContain("1 Auto a · findings");
+    expect(list.text).toContain("**1** Auto a · findings");
     expect(list.text).toContain("unread");
     ctx.handles.noteDelivered("run", ctx.now);
     const one = (await run(ctx, command("runs", ["1"]))).text ?? "";
-    expect(one).toContain("(Summary written by the automation)");
-    expect(one).toContain("Found two new invoices.");
+    expect(one).toContain("> Summary written by the automation");
+    expect(one).toContain("Found **two** new invoices.");
   });
 
   it("answers E-REF without a delivered list", async () => {

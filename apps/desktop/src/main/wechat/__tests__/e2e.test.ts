@@ -32,7 +32,7 @@ async function harness(
 
 /** The ask number on a card: `.y NN approve`. */
 function cardNumber(text: string): number {
-  const match = /\.y (\d+) approve/.exec(text);
+  const match = /\.y (\d+)` approve/.exec(text);
   if (!match) throw new Error(`no approvable card in ${JSON.stringify(text)}`);
   return Number(match[1]);
 }
@@ -65,7 +65,7 @@ const BLOCK = serializeAttachmentMessage(
 
 async function startSession(h: Harness, text = "fix the bug") {
   const reply = await h.say(`.new ${text}`);
-  expect(reply).toContain("Started in Garden");
+  expect(reply).toContain("**Garden** · Started");
   const sessionId = h.createdSession(
     h.agentHost.createSession.mock.calls.length - 1,
   );
@@ -222,7 +222,7 @@ describe("WeChat remote end to end", { timeout: 30_000 }, () => {
     expect(h.mock.sent.length).toBe(sends);
 
     const next = await h.say(".status");
-    expect(next.startsWith("While you were away:")).toBe(true);
+    expect(next.startsWith("**While you were away**")).toBe(true);
     expect(next).toContain("finished");
     expect(h.mock.sent.length).toBe(sends + 1);
   });
@@ -258,7 +258,7 @@ describe("WeChat remote end to end", { timeout: 30_000 }, () => {
     expect(h.agentHost.createSession).not.toHaveBeenCalled();
     const started = await h.say(`.y ${askNumber(held)}`);
     await waitFor(() => h.agentHost.createSession.mock.calls.length === 1);
-    await h.sent((text) => text.includes("Started in Garden: old task"));
+    await h.sent((text) => text.includes("**Garden** · Started: old task"));
     expect(started).toBeTruthy();
   });
 
@@ -273,7 +273,9 @@ describe("WeChat remote end to end", { timeout: 30_000 }, () => {
 
     const queued = await h.say("also check the footer");
     expect(queued).toContain("Staged as a steering message");
-    expect(queued).toContain(`${number} approval (.y ${number} approves`);
+    expect(queued).toContain(
+      `**${number}** approval · \`.y ${number}\` approves`,
+    );
     expect(queued).toContain(".recall");
     expect(h.agentHost.prompt.mock.calls.length).toBe(prompts + 1);
     const call = h.agentHost.prompt.mock.calls[prompts] as unknown[];
@@ -286,7 +288,7 @@ describe("WeChat remote end to end", { timeout: 30_000 }, () => {
       sessionId,
       messages: ["also check the footer"],
     });
-    expect(await h.say(".q")).toContain("1 also check the footer");
+    expect(await h.say(".q")).toContain("**1** also check the footer");
     const dequeue = vi
       .spyOn(h.agentHost, "dequeueSteering")
       .mockResolvedValueOnce({

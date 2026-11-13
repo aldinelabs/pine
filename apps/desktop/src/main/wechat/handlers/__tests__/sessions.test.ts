@@ -118,7 +118,7 @@ describe(".new", () => {
     expect(ctx.fake.core.startBackgroundSession).toHaveBeenCalledWith(
       expect.objectContaining({ approvalMode: "auto-approve", ownerId: W }),
     );
-    expect(result.text).toContain("Started in Project p1: run the tests");
+    expect(result.text).toContain("**Project p1** · Started: run the tests");
     expect(ctx.store.get().current?.projectId).toBe(P);
     expect(runtimes.prompt).toHaveBeenCalledTimes(1);
   });
@@ -128,7 +128,7 @@ describe(".new", () => {
     await currentSession(ctx);
     ctx.sessions.observe(approval("s1"), undefined);
     const result = await run(ctx, "new");
-    expect(result.text).toContain("To reject 11, reply .d 11");
+    expect(result.text).toContain("To reject 11, reply `.d 11`");
     expect(ctx.store.get().current?.sessionId).toBe("s1");
     expect(ctx.fake.core.startBackgroundSession).not.toHaveBeenCalled();
   });
@@ -161,7 +161,7 @@ describe("handles", () => {
     recent.sessions = [listed("a"), listed("b", "p2")];
     const result = await run(ctx, "sessions");
     expect(result.numbered).toEqual({ kind: "session" });
-    expect(result.text).toContain("1 Session a · Project p1");
+    expect(result.text).toContain("**1** Session a · Project p1");
     expect(ctx.handles.resolve("session", 1)).toBeUndefined();
     ctx.handles.noteDelivered("session", ctx.now);
     expect(ctx.handles.resolve("session", 2)?.id).toBe("b");
@@ -197,7 +197,7 @@ describe(".use", () => {
     ctx.handles.noteDelivered("session", ctx.now);
     const result = await run(ctx, "use", { args: ["1"] });
     expect(result.text).toContain("View only");
-    expect(result.text).toContain("Reply .mode 2");
+    expect(result.text).toContain("Reply `.mode 2`");
     expect(runtimes.prompt).not.toHaveBeenCalled();
     expect(ctx.store.get().current?.sessionId).toBe("hi");
   });
@@ -211,7 +211,7 @@ describe(".use", () => {
     ctx.handles.set("session", [{ id: "s9", label: "s9", projectId: P }]);
     ctx.handles.noteDelivered("session", ctx.now);
     const result = await run(ctx, "use", { args: ["1"] });
-    expect(result.text).toContain("Current session: Session s9");
+    expect(result.text).toContain("Session s9** · Current session");
     expect(result.text).toContain("Approval needed 11");
     expect(result.shown).toEqual([{ ask: 11, full: false }]);
     expect(ctx.store.get().tracked.map((t) => t.sessionId)).toContain("s9");
@@ -225,14 +225,14 @@ describe(".use", () => {
       delete draft.current;
     });
     const result = await run(ctx, "use", { args: ["9"] });
-    expect(result.text).toContain("Current session: Session s2");
+    expect(result.text).toContain("Session s2** · Current session");
     expect(ctx.store.get().current?.sessionId).toBe("s2");
   });
 
   it("an unknown handle is E-REF", async () => {
     const { ctx } = setup();
     const result = await run(ctx, "use", { args: ["3"] });
-    expect(result.text).toBe("Number 3 is no longer valid. List again (.l).");
+    expect(result.text).toBe("Number 3 is no longer valid. List again (`.l`).");
   });
 });
 
@@ -279,7 +279,7 @@ describe(".last and .history", () => {
     expect(result.text).not.toContain("SECRET-THOUGHT");
     expect(result.text).not.toContain("TOOL-OUTPUT");
     expect([...(result.text ?? "")].length).toBeLessThanOrEqual(REPLY_MAX);
-    expect(result.text).toContain("reply .0 for the next part");
+    expect(result.text).toContain("reply `.0` for the next part");
     expect(ctx.pager.remaining()).toBeGreaterThan(0);
     expect(runtimes.loadMessages.mock.calls[0]?.[0]).toBe(W);
   });
@@ -314,10 +314,10 @@ describe(".last and .history", () => {
     });
     const result = await run(ctx, "history", { args: ["2"] });
     expect(result.text).toBe(
-      "You: question 3\nPine: answer 3\nYou: question 4\nPine: answer 4\n(.r for the full last reply)",
+      "- **You:** question 3\n- **Pine:** answer 3\n- **You:** question 4\n- **Pine:** answer 4\n\n> `.r` for the full last reply",
     );
     expect((await run(ctx, "history", { args: ["x"] })).text).toContain(
-      "Usage: .history",
+      "Usage: `.history",
     );
   });
 });
@@ -399,7 +399,7 @@ describe(".queue, .unqueue, .rename", () => {
     ctx.sessions.observe(running("s1"), W);
     const result = await run(ctx, "queue", { tail: "then deploy" });
     expect(result.text).toBe(
-      "Queued. The agent reads it at its next step. Send .recall to withdraw it.",
+      "Queued. The agent reads it at its next step.\n\n> Send `.recall` to withdraw it.",
     );
     expect(runtimes.prompt.mock.calls[0]?.[1]).toMatchObject({
       streamingBehavior: "steer",
@@ -410,7 +410,7 @@ describe(".queue, .unqueue, .rename", () => {
       W,
     );
     const list = await run(ctx, "queue");
-    expect(list.text).toContain("1 then deploy");
+    expect(list.text).toContain("**1** then deploy");
     ctx.handles.noteDelivered("queue", ctx.now);
     const removed = await run(ctx, "unqueue", { args: ["1"] });
     expect(runtimes.dequeueSteering).toHaveBeenCalledWith(
@@ -429,7 +429,7 @@ describe(".queue, .unqueue, .rename", () => {
     expect(ctx.sessions.runState("s1")).toBe("waiting");
     const result = await run(ctx, "queue", { tail: "then deploy" });
     expect(result.text).toBe(
-      "Queued. The agent reads it at its next step. Send .recall to withdraw it.",
+      "Queued. The agent reads it at its next step.\n\n> Send `.recall` to withdraw it.",
     );
     expect(runtimes.prompt.mock.calls[0]?.[1]).toMatchObject({
       streamingBehavior: "steer",
@@ -449,7 +449,7 @@ describe(".queue, .unqueue, .rename", () => {
       { type: "steering-queue", sessionId: "s1", messages: ["go on"] },
       W,
     );
-    expect((await run(ctx, "queue")).text).toContain("1 go on");
+    expect((await run(ctx, "queue")).text).toContain("**1** go on");
     const removed = await run(ctx, "unqueue");
     expect(runtimes.dequeueSteering).toHaveBeenCalledWith(W, "go on", "s1");
     expect(removed.text).toBe("Withdrawn: go on");
@@ -501,7 +501,7 @@ describe(".delete", () => {
     expect(asked.text).toContain(
       'Delete "Session d1" (Project p1, 1 messages)?',
     );
-    expect(asked.text).toContain("Reply .y 11 within 2 minutes");
+    expect(asked.text).toContain("Reply `.y 11` within 2 minutes");
     expect(runtimes.deleteSession).not.toHaveBeenCalled();
     const ask = ctx.asks.get(11);
     if (ask?.kind !== "confirm") throw new Error("no confirm ask");
@@ -520,7 +520,7 @@ describe(".delete", () => {
   it("requires a reference and never defaults to the current session", async () => {
     const { ctx } = setup();
     await currentSession(ctx);
-    expect((await run(ctx, "delete")).text).toContain("Usage: .delete");
+    expect((await run(ctx, "delete")).text).toContain("Usage: `.delete");
   });
 
   it("refuses a session not started from WeChat or only used from it", async () => {
@@ -549,7 +549,7 @@ describe(".delete", () => {
     await started(ctx, "d2");
     ctx.sessions.observe(running("d2"), W);
     expect((await run(ctx, "delete", { args: ["1"] })).text).toBe(
-      '"Session d2" is running. Stop it with .x first.',
+      '"Session d2" is running. Stop it with `.x` first.',
     );
     ctx.sessions.observe(
       { type: "run-state", sessionId: "d2", state: "idle" },

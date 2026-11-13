@@ -75,7 +75,7 @@ describe(".files", () => {
     const { ctx } = await setup();
     const result = await files(ctx);
     expect(result.numbered).toEqual({ kind: "file" });
-    expect(result.text).toContain("1 report.txt");
+    expect(result.text).toContain("**1** report.txt");
     expect(result.text).not.toContain(dir);
     ctx.handles.noteDelivered("file", ctx.now);
     expect(ctx.handles.resolve("file", 1, "s1")).toMatchObject({ id: "t1" });
@@ -200,6 +200,6 @@ describe(".file", () => {
 
   it("needs a number", async () => {
     const { ctx } = await setup();
-    expect((await file(ctx)).text).toContain("Usage: .file");
+    expect((await file(ctx)).text).toContain("Usage: `.file");
   });
 });

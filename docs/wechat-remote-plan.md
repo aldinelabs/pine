@@ -92,7 +92,7 @@
 - **语音。** 带服务端转写的 `text`，原始格式为 SILK 等。用 Bot 发送语音气泡，据报告不显示。[代码] S8，[第三方] S16
 - **发送。**
   - `sendmessage` 每次只发一个条目，必须原样带回 `context_token`。
-  - Markdown 会被去掉，用户看到纯文本。[代码] S9a，[官方] S6
+  - 官方插件 2.1.3 起不再去掉 Markdown，ClawBot 会渲染粗体、行内代码、代码块、引用、列表和表格（只去掉图片和 H5/H6 标题）。[代码] S9a，[官方] S6
 - **媒体。**
   - 上传：生成随机 16 字节密钥，用 AES-128-ECB 加密，先 `getuploadurl`，再把密文上传到 CDN，然后在消息里引用。
   - 下载：从 CDN 取回后解密。
@@ -290,7 +290,7 @@ Pine 主进程 / 无头服务端 (main/core)
 
 ## 7. 命令与交互
 
-微信只显示纯文本，Markdown 会被去掉，而且每条入站消息之后能回复的条数有限、有时效。设计原则是：**一条入站消息只回一条（`.file` 和 `.compact` 回两条），每条回复都能单独看懂，发不出去的推送排队，等用户下一条消息时合并成一段摘要补发。**完整的命令参考见 [`docs/architecture/wechat-remote.md`](architecture/wechat-remote.md)。
+ClawBot 会渲染一小部分 Markdown（Pine 只用粗体、行内代码、代码块、引用和列表），而且每条入站消息之后能回复的条数有限、有时效。设计原则是：**一条入站消息只回一条（`.file` 和 `.compact` 回两条），每条回复都能单独看懂，发不出去的推送排队，等用户下一条消息时合并成一段摘要补发。**完整的命令参考见 [`docs/architecture/wechat-remote.md`](architecture/wechat-remote.md)。
 
 ### 7.1 语法与命令
 

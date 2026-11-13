@@ -98,7 +98,9 @@ describe("plain text routing (CMD §3.2, §3.3, ground rule 14)", () => {
     const { ctx } = setup();
     ctx.fake.core.addProject(TEMPORARY_WORKSPACE_PROJECT_ID);
     const result = await handlePlainMessage(ctx, "fix the login page");
-    expect(result.text).toContain("Started in No Project: fix the login page");
+    expect(result.text).toContain(
+      "**No Project** · Started: fix the login page",
+    );
     expect(ctx.fake.core.startBackgroundSession).toHaveBeenCalledTimes(1);
   });
 
@@ -126,7 +128,7 @@ describe("plain text routing (CMD §3.2, §3.3, ground rule 14)", () => {
     ctx.fake.clock.advance(CURRENT_IDLE_ACK_MS + 1);
     const result = await handlePlainMessage(ctx, "still there?");
     expect(result.text).toBe(
-      "→ [Project p1 › Session s1] · .n starts a new one",
+      "→ **Project p1 › Session s1** · `.n` starts a new one",
     );
     expect(runtimes.prompt).toHaveBeenCalledTimes(1);
   });
@@ -139,7 +141,7 @@ describe("plain text routing (CMD §3.2, §3.3, ground rule 14)", () => {
     ctx.sessions.observe(running("s2"), W);
     ctx.sessions.observe(running("s3"), W);
     const result = await handlePlainMessage(ctx, "hello");
-    expect(result.text).toContain("→ [Project p1 › Session s1]");
+    expect(result.text).toContain("→ **Project p1 › Session s1**");
   });
 
   it("after a push about another session the text still goes to current, with R-ROUTE", async () => {
@@ -166,7 +168,7 @@ describe("plain text routing (CMD §3.2, §3.3, ground rule 14)", () => {
     ctx.sessions.observe(running("s1"), W);
     const result = await handlePlainMessage(ctx, "use pnpm");
     expect(result.text).toBe(
-      "[Project p1 › Session s1] Passed to the running task.",
+      "**Project p1 › Session s1** · Passed to the running task.",
     );
     expect(runtimes.prompt.mock.calls[0]?.[1]).toMatchObject({
       streamingBehavior: "steer",
@@ -186,7 +188,16 @@ describe("plain text routing (CMD §3.2, §3.3, ground rule 14)", () => {
       approvalMode: "auto-approve",
     });
     expect(result.text).toBe(
-      "[Project p1 › Session s1] Staged as a steering message; it reaches the agent once the waiting card is handled. Still waiting: 11 approval (.y 11 approves, .d 11 rejects). .recall withdraws this message.",
+      [
+        "**Project p1 › Session s1** · Staged as a steering message",
+        "",
+        "It reaches the agent once the waiting card is handled.",
+        "",
+        "**Still waiting**",
+        "- **11** approval · `.y 11` approves · `.d 11` rejects",
+        "",
+        "> `.recall` withdraws this message",
+      ].join("\n"),
     );
     expect(ctx.asks.status(11)).toBe("open");
   });
@@ -203,7 +214,7 @@ describe("plain text routing (CMD §3.2, §3.3, ground rule 14)", () => {
     });
     const result = await handlePlainMessage(ctx, "go on");
     expect(result.text).toBe(
-      "[Project p1 › Session s1] Passed to the running task.",
+      "**Project p1 › Session s1** · Passed to the running task.",
     );
   });
 
@@ -235,7 +246,7 @@ describe("plain text routing (CMD §3.2, §3.3, ground rule 14)", () => {
       streamingBehavior: "steer",
     });
     expect(result.text).toContain(
-      "11 question (.a 11 your answer, .d 11 cancels)",
+      "**11** question · `.a 11 your answer` · `.d 11` cancels",
     );
   });
 
@@ -257,7 +268,7 @@ describe("plain text routing (CMD §3.2, §3.3, ground rule 14)", () => {
     question(ctx, "s1", REQ, rich);
     const result = await handlePlainMessage(ctx, "either is fine");
     expect(result.text).toContain(
-      "11 question (answer it in Pine, .d 11 cancels)",
+      "**11** question · answer it in Pine · `.d 11` cancels",
     );
     expect(result.text).not.toContain(".a 11");
   });
@@ -268,8 +279,8 @@ describe("plain text routing (CMD §3.2, §3.3, ground rule 14)", () => {
     approval(ctx, "s1");
     question(ctx, "s1", "2b2c3d4e-5f60-4a71-8b92-a3b4c5d6e7f8");
     const result = await handlePlainMessage(ctx, "also this");
-    expect(result.text).toContain("11 approval (.y 11 approves");
-    expect(result.text).toContain("12 question (.a 12 your answer");
+    expect(result.text).toContain("**11** approval · `.y 11` approves");
+    expect(result.text).toContain("**12** question · `.a 12 your answer`");
   });
 
   it("uses the display-only wording for a high-risk card", async () => {
@@ -277,7 +288,9 @@ describe("plain text routing (CMD §3.2, §3.3, ground rule 14)", () => {
     await tracked(ctx, "s1", { current: true });
     approval(ctx, "s1", "privileged-execution");
     const result = await handlePlainMessage(ctx, "go on");
-    expect(result.text).toContain("11 approve on the computer (.d 11 rejects)");
+    expect(result.text).toContain(
+      "**11** approve on the computer · `.d 11` rejects",
+    );
   });
 
   it("answers in Chinese", async () => {
@@ -286,7 +299,7 @@ describe("plain text routing (CMD §3.2, §3.3, ground rule 14)", () => {
     approval(ctx, "s1");
     const result = await handlePlainMessage(ctx, "继续");
     expect(result.text).toContain("已作为暂存消息排队");
-    expect(result.text).toContain("11 审批（.y 11 批准，.d 11 拒绝）");
+    expect(result.text).toContain("**11** 审批 · `.y 11` 批准 · `.d 11` 拒绝");
     expect(result.text).toContain(".撤回");
   });
 
@@ -358,7 +371,7 @@ describe("bare numbers (CMD §4.3)", () => {
       { kind: "command", name: "show", args: ["14"] },
     ]);
     expect((await handleNumber(ctx, [10])).text).toBe(
-      "Number 10 is no longer valid. List again (.l).",
+      "Number 10 is no longer valid. List again (`.l`).",
     );
   });
 
@@ -384,13 +397,13 @@ describe("bare numbers (CMD §4.3)", () => {
     const { ctx } = setup();
     ctx.handles.set("queue", [{ id: "x", label: "x" }], "s1");
     ctx.handles.noteDelivered("queue", ctx.now);
-    expect((await handleNumber(ctx, [1])).text).toContain("Usage: .unqueue");
+    expect((await handleNumber(ctx, [1])).text).toContain("Usage: `.unqueue");
     expect(ctx.fake.dispatch).not.toHaveBeenCalled();
   });
 
   it("a number list outside a question card is E-ARGS", async () => {
     const { ctx } = setup();
-    expect((await handleNumber(ctx, [1, 3])).text).toContain("Usage: .answer");
+    expect((await handleNumber(ctx, [1, 3])).text).toContain("Usage: `.answer");
   });
 
   describe("after a pushed question card", () => {
@@ -429,7 +442,7 @@ describe("bare numbers (CMD §4.3)", () => {
       });
       const result = await handleNumber(within, [2]);
       expect(result.text).toBe(
-        ".2 could mean two things. Write it out: .a 11 2 answers question 11; .u 2 picks row 2 of the list.",
+        "`.2` could mean two things. Write it out: `.a 11 2` answers question 11; `.u 2` picks row 2 of the list.",
       );
       expect(ctx.fake.dispatch).not.toHaveBeenCalled();
     });

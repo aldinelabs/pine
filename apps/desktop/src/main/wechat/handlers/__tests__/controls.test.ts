@@ -216,7 +216,7 @@ describe(".effort", () => {
     const ctx = setup();
     await ctx.store.flush();
     const result = await run(ctx, ".e max");
-    expect(result.text).toContain("Usage: .effort");
+    expect(result.text).toContain("Usage: `.effort");
     expect(ctx.fake.core.runtimes.selectModel).not.toHaveBeenCalled();
   });
 });
@@ -401,7 +401,7 @@ describe(".compact", () => {
       resolved: {},
     }) as ConfirmAsk;
     const result = await run(ctx, `.c ${confirm.number}`);
-    expect(result.text).toContain("Usage: .compact");
+    expect(result.text).toContain("Usage: `.compact");
     expect(result.text).toContain(`.d ${confirm.number}`);
     expect(ctx.fake.core.runtimes.compact).not.toHaveBeenCalled();
     expect(ctx.fake.core.runtimes.respondApproval).not.toHaveBeenCalled();

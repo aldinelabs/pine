@@ -79,9 +79,9 @@ describe(".tasks", () => {
     const result = await run("tasks", ctx);
     expect(result.numbered).toEqual({ kind: "task" });
     const first = result.text?.split("\n")[0] ?? "";
-    expect(first).toContain("1 task a · running 10");
+    expect(first).toContain("**1** task a · running 10");
     expect(first).not.toContain("x".repeat(60));
-    expect(result.text).toContain("2 task b · exited 0");
+    expect(result.text).toContain("**2** task b · exited 0");
     expect(ctx.fake.core.runtimes.listBackgroundTasks).toHaveBeenCalledWith(
       W,
       "s1",
@@ -95,7 +95,7 @@ describe(".tasks", () => {
       Array.from({ length: 10 }, (_, i) => snapshot(`t${i}`)),
     );
     const result = await run("tasks", ctx);
-    expect(result.text).toContain("(1/2, reply .0 for the next part)");
+    expect(result.text).toContain("(1/2, reply `.0` for the next part)");
     expect(ctx.pager.remaining()).toBe(1);
     expect(ctx.pager.next()?.list?.rows.map((row) => row.id)).toEqual([
       "t8",
@@ -172,7 +172,7 @@ describe(".task", () => {
       truncated: false,
     });
     const text = (await run("task", ctx, "1")).text ?? "";
-    const body = text.split("\n")[1] ?? "";
+    const body = text.split("\n")[3] ?? "";
     expect(Array.from(body).length).toBe(TASK_OUTPUT_MAX);
     expect(ctx.pager.remaining()).toBe(1);
   });
@@ -223,6 +223,6 @@ describe(".kill", () => {
 
   it("needs a number", async () => {
     const ctx = await setup();
-    expect((await run("kill", ctx)).text).toContain("Usage: .kill");
+    expect((await run("kill", ctx)).text).toContain("Usage: `.kill");
   });
 });

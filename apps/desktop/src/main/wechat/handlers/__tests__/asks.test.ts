@@ -245,7 +245,7 @@ describe(".approve", () => {
       subjectCut: true,
     });
     const first = await run(ctx, `.y ${ask.number}`);
-    expect(first.text).toContain(`Reply .${ask.number} to read all of it`);
+    expect(first.text).toContain(`Reply \`.${ask.number}\` to read all of it`);
     expect(respond(ctx)).not.toHaveBeenCalled();
 
     const shown = await run(ctx, `.show ${ask.number}`);
@@ -460,7 +460,7 @@ describe(".reject and .guide", () => {
   it(".guide needs text", async () => {
     const ctx = setup();
     const a = openApproval(ctx);
-    expect((await run(ctx, `.g ${a.number}`)).text).toContain("Usage: .guide");
+    expect((await run(ctx, `.g ${a.number}`)).text).toContain("Usage: `.guide");
     await run(ctx, `.g ${a.number} use the staging db`);
     expect(respond(ctx)).toHaveBeenCalledWith(W, {
       requestId: a.requestId,
@@ -655,8 +655,8 @@ describe(".pending and .show", () => {
     ctx.fake.core.automations.pendingApprovals.mockReturnValue([{}, {}]);
     const result = await run(ctx, ".w");
     expect(result.text).toContain("2 waiting");
-    expect(result.text).toContain(`${a.number} bash`);
-    expect(result.text).toContain(`${q.number} question`);
+    expect(result.text).toContain(`**${a.number}** bash`);
+    expect(result.text).toContain(`**${q.number}** question`);
     expect(result.text).toContain("2 automation change(s)");
   });
 
@@ -676,7 +676,7 @@ describe(".pending and .show", () => {
       subjectCut: true,
     });
     const result = await run(ctx, `.show ${a.number}`);
-    expect(result.text).toContain("reply .0 for the next part");
+    expect(result.text).toContain("reply `.0` for the next part");
     expect(ctx.pager.remaining()).toBeGreaterThan(0);
     const rest: string[] = [];
     for (let page = ctx.pager.next(); page; page = ctx.pager.next())

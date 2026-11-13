@@ -571,7 +571,7 @@ describe("observation and pushes", () => {
     await flush();
     expect(pushes.map((p) => [p.key, p.priority])).toEqual([["result:s1", 2]]);
     expect(pushes[0].digest).toEqual({ kind: "done", title: "Session s1" });
-    const excerpt = pushes[0].text.split("\n")[1];
+    const excerpt = pushes[0].text.split("\n\n")[1];
     expect(Array.from(excerpt).length).toBeLessThanOrEqual(DONE_EXCERPT_MAX);
     expect(excerpt.endsWith("…")).toBe(true);
   });

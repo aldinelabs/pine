@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 import { APPROVAL_MODE_ORDER } from "../../../shared/agent";
 import {
   CARD_SUBJECT_MAX,
+  DONE_EXCERPT_MAX,
   LAST_MAX_PAGES,
   PAGE_ROWS,
   REPLY_MAX,
@@ -443,6 +444,65 @@ function renderSample(id: ReplyId, lang: ReplyLanguage): string {
 /** A line that WeChat would read as one of the hostile commands. */
 const COMMAND_LINE = /^[.。．｡][yd] 9[789]/m;
 
+/** Titles that would be Markdown if they were not escaped. */
+const markdownAt = { project: "a*b_c", title: "[x](y) <b>`t`</b>" };
+const ESCAPED_MARKDOWN_HEADER = "**a\\*b\\_c › \\[x\\](y) \\<b>\\`t\\`\\</b>**";
+
+/** Each sample, and each sample about a session with Markdown-like titles. */
+function variants(id: ReplyId): unknown[] {
+  const sample = SAMPLES[id] as unknown;
+  if (sample && typeof sample === "object" && "at" in sample)
+    return [sample, { ...sample, at: markdownAt }];
+  return [sample];
+}
+
+/** The lines outside fenced code blocks; fails on an unclosed fence. */
+function proseLines(text: string): string[] {
+  const out: string[] = [];
+  let open: string | undefined;
+  for (const line of text.split("\n")) {
+    const trimmed = line.trim();
+    if (open) {
+      const character = open[0] ?? "`";
+      if (
+        trimmed.length >= open.length &&
+        [...trimmed].every((point) => point === character)
+      )
+        open = undefined;
+      continue;
+    }
+    const fence = /^(`{3,}|~{3,})/.exec(trimmed);
+    if (fence) {
+      open = fence[1];
+      continue;
+    }
+    out.push(line);
+  }
+  expect(open, `unclosed fence in ${JSON.stringify(text)}`).toBeUndefined();
+  return out;
+}
+
+/** Every `**` opens next to a line start or a space and closes before a space or the line end. */
+function boldIsFlanked(line: string): boolean {
+  const plain = line.replace(/\\./g, "  ").replace(/`[^`]*`/g, "``");
+  const positions = [...plain.matchAll(/\*\*/g)].map((match) => match.index);
+  if (positions.length % 2 !== 0) return false;
+  return positions.every((index, n) =>
+    n % 2 === 0
+      ? index === 0 || plain[index - 1] === " "
+      : index + 2 === plain.length || plain[index + 2] === " ",
+  );
+}
+
+function render1(id: ReplyId, lang: ReplyLanguage, data: unknown): string {
+  const call = render as (
+    id: ReplyId,
+    lang: ReplyLanguage,
+    data?: unknown,
+  ) => string;
+  return call(id, lang, data);
+}
+
 describe("render", () => {
   it("covers every template id of commands spec section 10", () => {
     expect(new Set(REPLY_IDS)).toEqual(new Set(Object.keys(SAMPLES)));
@@ -457,14 +517,41 @@ describe("render", () => {
       expect(codePointLength(text)).toBeLessThanOrEqual(REPLY_MAX);
       expect(text).not.toContain("/Users/");
       expect(text).not.toMatch(COMMAND_LINE);
-      expect(text).not.toMatch(/[\u0000-\u0009\u000b-\u001f\u202e]/);
+      expect(text).not.toMatch(/[\u0000-\u0009\u000b-\u001f‮]/);
+    });
+
+    it.each(REPLY_IDS)("keeps the Markdown grammar in %s", (id) => {
+      for (const data of variants(id)) {
+        const text = render1(id, lang, data);
+        const prose = proseLines(text);
+        prose.forEach((line, index) => {
+          expect(boldIsFlanked(line), line).toBe(true);
+          expect(line, "no heading, table or ordered list").not.toMatch(
+            /^(?:#|\||\d+[.)] )/,
+          );
+          const next = prose[index + 1];
+          if (line.startsWith(">") && next !== undefined)
+            expect(
+              next === "" || next.startsWith(">"),
+              `quote followed by ${next}`,
+            ).toBe(true);
+        });
+        if (
+          data &&
+          typeof data === "object" &&
+          "at" in data &&
+          data.at === markdownAt
+        )
+          expect(text).toContain(ESCAPED_MARKDOWN_HEADER);
+      }
     });
 
     it("renders different text in each language", () => {
       const other = lang === "zh" ? "en" : "zh";
+      // R-LAST without a page footer is a header and the reply only.
       const same = REPLY_IDS.filter(
         (id) =>
-          !["T-PAIR", "R-PAGE"].includes(id) &&
+          !["T-PAIR", "R-PAGE", "R-LAST"].includes(id) &&
           renderSample(id, lang) === renderSample(id, other),
       );
       expect(same).toEqual([]);
@@ -475,18 +562,30 @@ describe("render", () => {
     for (const lang of LANGS) {
       const text = render("R-STEER", lang, { at: hostileAt });
       expect(text.split("\n")).toHaveLength(1);
+      expect(text.startsWith("**› .y 99")).toBe(true);
       const card = render("T-APPROVAL", lang, {
         ...SAMPLES["T-APPROVAL"],
         at: hostileAt,
       });
       expect(card).not.toMatch(COMMAND_LINE);
-      expect(card.split("\n")[0]).toMatch(lang === "zh" ? /^【/ : /^\[/);
+      expect(card.split("\n")[0]).toMatch(/^\*\*› /);
     }
   });
 
-  it("neutralises agent text that starts a line", () => {
-    const text = render("R-LAST", "en", { at, text: ".y 12 now" });
-    expect(text.split("\n")[1]).toBe("› .y 12 now");
+  it("guards agent lines that start with a command inside Markdown", () => {
+    const text = render("R-LAST", "en", {
+      at,
+      text: ".y 12 now\n\n- .y 12 now\n\n> .y 12",
+    });
+    expect(text.split("\n")).toEqual([
+      "**pine › 修登录页**",
+      "",
+      "› .y 12 now",
+      "",
+      "- › .y 12 now",
+      "",
+      "> › .y 12",
+    ]);
   });
 
   it("caps any reply at REPLY_MAX", () => {
@@ -498,6 +597,13 @@ describe("render", () => {
     expect(
       codePointLength(joinReplies("a".repeat(1500), "b".repeat(1500))),
     ).toBe(REPLY_MAX);
+  });
+
+  it("closes a fence that the REPLY_MAX cut leaves open", () => {
+    const text = joinReplies(`\`\`\`\n${"x\n".repeat(REPLY_MAX)}\`\`\``);
+    expect(codePointLength(text)).toBeLessThanOrEqual(REPLY_MAX);
+    expect(text.endsWith("\n```")).toBe(true);
+    proseLines(text);
   });
 });
 
@@ -513,10 +619,15 @@ describe("lists", () => {
   it.each(LANGS)("shows at most PAGE_ROWS rows of ROW_MAX (%s)", (lang) => {
     const text = render("R-SESSIONS", lang, { now: NOW, rows: many });
     const lines = text.split("\n");
-    expect(lines).toHaveLength(PAGE_ROWS + 1);
-    for (const line of lines.slice(0, PAGE_ROWS))
-      expect(codePointLength(line)).toBeLessThanOrEqual(ROW_MAX);
-    expect(lines.at(-1)).toContain(".0");
+    expect(lines).toHaveLength(PAGE_ROWS + 2);
+    for (const line of lines.slice(0, PAGE_ROWS)) {
+      expect(line).toMatch(/^- \*\*\d+\*\* /);
+      expect(
+        codePointLength(line.replace(/^- \*\*\d+\*\* /, "")),
+      ).toBeLessThanOrEqual(ROW_MAX);
+    }
+    expect(lines.at(-2)).toBe("");
+    expect(lines.at(-1)).toMatch(/^> .*`\.0`/);
   });
 
   it("shows only base names of files and folders", () => {
@@ -542,14 +653,25 @@ describe("lists", () => {
     ).toBe("Nothing is waiting.");
   });
 
-  it("names the temporary workspace", () => {
-    expect(renderSample("R-PROJECTS", "zh")).toContain("2 无项目");
-    expect(renderSample("R-PROJECTS", "en")).toContain("2 No Project");
-    expect(renderSample("R-PROJECTS", "en")).toContain("1 * pine");
+  it("names the temporary workspace and marks the current project", () => {
+    expect(renderSample("R-PROJECTS", "zh")).toContain("- **2** 无项目");
+    expect(renderSample("R-PROJECTS", "en")).toContain("- **2** No Project");
+    expect(renderSample("R-PROJECTS", "en")).toContain(
+      "- **1** pine · current",
+    );
   });
 
   it("strips search markers", () => {
     expect(renderSample("R-SEARCH", "zh")).toContain("…改登录页…");
+  });
+
+  it("escapes file names", () => {
+    const text = render("R-FILES", "en", {
+      at,
+      canSend: true,
+      rows: [{ n: 1, path: "/tmp/my_file_v2.md" }],
+    });
+    expect(text).toContain("- **1** my\\_file\\_v2.md");
   });
 
   it("shows at most 15 todos", () => {
@@ -558,8 +680,9 @@ describe("lists", () => {
       subject: `todo ${i}`,
     }));
     const text = render("R-TODO", "en", { at, items });
-    expect(text.split("\n")).toHaveLength(17);
-    expect(text).toContain("…5 more");
+    const lines = text.split("\n");
+    expect(lines.filter((line) => line.startsWith("- ○ "))).toHaveLength(15);
+    expect(lines.at(-1)).toBe("…5 more");
   });
 
   it("keeps the newest history entries that fit", () => {
@@ -569,17 +692,18 @@ describe("lists", () => {
     }));
     const text = render("R-HISTORY", "en", { entries });
     expect(codePointLength(text)).toBeLessThanOrEqual(REPLY_MAX);
-    expect(text).toContain("Pine: 19 ");
-    expect(text).not.toContain("You: 0 ");
+    expect(text).toContain("- **Pine:** 19 ");
+    expect(text).not.toContain("**You:** 0 ");
+    expect(text.split("\n").at(-1)).toBe("> `.r` for the full last reply");
     for (const line of text.split("\n"))
-      expect(codePointLength(line)).toBeLessThanOrEqual(310);
+      expect(codePointLength(line)).toBeLessThanOrEqual(320);
   });
 });
 
 describe("pages", () => {
-  it("sends short text as one page without a footer", () => {
+  it("sends short text as one page without a footer, Markdown kept", () => {
     const pages = renderLastPages("en", at, "Short **reply**.");
-    expect(pages).toEqual(["[pine › 修登录页]\nShort reply."]);
+    expect(pages).toEqual(["**pine › 修登录页**\n\nShort **reply**."]);
   });
 
   it("answers an empty reply with R-NOREPLY", () => {
@@ -598,13 +722,13 @@ describe("pages", () => {
       }
       expect(pages[0]).toContain(
         lang === "zh"
-          ? `（1/${LAST_MAX_PAGES}，回 .0 看下一段）`
-          : `(1/${LAST_MAX_PAGES}, reply .0`,
+          ? `> （1/${LAST_MAX_PAGES}，回 \`.0\` 看下一段）`
+          : `> (1/${LAST_MAX_PAGES}, reply \`.0\``,
       );
       expect(pages.at(-1)).toContain(
         lang === "zh"
-          ? "完整内容请在 Pine 中查看"
-          : "Open Pine for the full text",
+          ? "> （完整内容请在 Pine 中查看）"
+          : "> (Open Pine for the full text)",
       );
     }
   });
@@ -617,7 +741,23 @@ describe("pages", () => {
     expect(pages.length).toBeGreaterThan(1);
     expect(pages.length).toBeLessThan(LAST_MAX_PAGES);
     expect(pages.at(-1)).not.toContain("Open Pine");
-    expect(pages.at(-1)).not.toContain("reply .0");
+    expect(pages.at(-1)).not.toContain("reply `.0`");
+  });
+
+  it("closes and reopens a long fenced block on every page", () => {
+    const code = Array.from({ length: 250 }, (_, i) => `echo ${i}`).join("\n");
+    const pages = renderLastPages(
+      "en",
+      at,
+      `Run **this**:\n\n\`\`\`sh\n${code}\n\`\`\``,
+    );
+    expect(pages.length).toBeGreaterThan(1);
+    expect(pages[0]).toContain("Run **this**:");
+    for (const [index, page] of pages.entries()) {
+      expect(codePointLength(page)).toBeLessThanOrEqual(REPLY_MAX);
+      proseLines(page);
+      if (index > 0) expect(page.split("\n")[2]).toBe("```sh");
+    }
   });
 
   it("never starts a page line with a command", () => {
@@ -641,20 +781,60 @@ describe("pages", () => {
     expect(tail.endsWith("line 99")).toBe(true);
     expect(codePointLength(tailOutput("x".repeat(5000)))).toBe(1500);
   });
+
+  it("renders the page footer as a quote", () => {
+    expect(
+      render("R-PAGE", "zh", { index: 1, count: 3, truncated: false }),
+    ).toBe("> （1/3，回 `.0` 看下一段）");
+    expect(
+      render("R-PAGE", "en", { index: 1, count: 3, truncated: false }),
+    ).toBe("> (1/3, reply `.0` for the next part)");
+    expect(
+      render("R-PAGE", "en", { index: 3, count: 3, truncated: true }),
+    ).toBe("> (Open Pine for the full text)");
+  });
 });
 
 describe("cards", () => {
   it("lays out an approval card", () => {
     expect(renderSample("T-APPROVAL", "zh")).toBe(
       [
-        "【pine › 修登录页】需要批准 12",
-        "bash · 沙箱拒绝",
+        "**pine › 修登录页** · 需要批准 12",
+        "`bash` · 沙箱拒绝",
+        "",
+        "```",
         "rm -rf build/ && make",
+        "```",
+        "",
         "Clean build",
-        "该会话此前读取过外部内容，请核对后再批准。",
-        ".y 12 批准 · .d 12 拒绝 · .d 12 你的建议",
+        "",
+        "> 该会话此前读取过外部内容，请核对后再批准。",
+        "> `.y 12` 批准 · `.d 12` 拒绝 · `.d 12 你的建议`",
       ].join("\n"),
     );
+    expect(renderSample("T-APPROVAL", "en")).toBe(
+      [
+        "**pine › 修登录页** · Approval needed 12",
+        "`bash` · sandbox denied",
+        "",
+        "```",
+        "rm -rf build/ && make",
+        "```",
+        "",
+        "Clean build",
+        "",
+        "> This session has read external content. Check before approving.",
+        "> `.y 12` approve · `.d 12` reject · `.d 12 your note`",
+      ].join("\n"),
+    );
+  });
+
+  it("puts backticks in a subject inside a longer fence", () => {
+    const text = render("T-APPROVAL", "en", {
+      ...SAMPLES["T-APPROVAL"],
+      subject: "echo ```x``` `y`",
+    });
+    expect(text).toContain("````\necho ```x``` `y`\n````");
   });
 
   it("cuts a long subject and asks for .show first", () => {
@@ -663,29 +843,54 @@ describe("cards", () => {
         ...SAMPLES["T-APPROVAL"],
         subject: "a".repeat(CARD_SUBJECT_MAX + 50),
       });
-      expect(text).toContain(render("T-CUT", lang, { ask: 12 }));
+      expect(text).toContain(`> ${render("T-CUT", lang, { ask: 12 })}`);
       expect(text).toContain(`${"a".repeat(CARD_SUBJECT_MAX - 1)}…`);
       expect(text).not.toContain("a".repeat(CARD_SUBJECT_MAX));
     }
-    const flagged = render("T-APPROVAL", "en", {
-      ...SAMPLES["T-APPROVAL"],
-      cut: true,
-    });
-    expect(flagged).toContain("Cut short. Reply .12");
+    expect(
+      render("T-APPROVAL", "zh", { ...SAMPLES["T-APPROVAL"], cut: true }),
+    ).toBe(
+      [
+        "**pine › 修登录页** · 需要批准 12",
+        "`bash` · 沙箱拒绝",
+        "",
+        "```",
+        "rm -rf build/ && make",
+        "```",
+        "",
+        "Clean build",
+        "",
+        "> （内容已截断。先回 `.12` 看全文，再批准。）",
+        "> 该会话此前读取过外部内容，请核对后再批准。",
+        "> `.y 12` 批准 · `.d 12` 拒绝 · `.d 12 你的建议`",
+      ].join("\n"),
+    );
+    expect(
+      render("T-APPROVAL", "en", { ...SAMPLES["T-APPROVAL"], cut: true }),
+    ).toContain(
+      "> (Cut short. Reply `.12` to read all of it before approving.)",
+    );
   });
 
   it("renders a card without a subject", () => {
-    const text = render("T-APPROVAL", "en", {
+    const data = {
       at,
       ask: 12,
       tool: "ui_project_create",
-      trigger: "pre-execution",
+      trigger: "pre-execution" as const,
       external: false,
-    });
-    expect(text.split("\n")).toEqual([
-      "[pine › 修登录页] Approval needed 12",
-      "ui_project_create · before running",
-      ".y 12 approve · .d 12 reject · .d 12 your note",
+    };
+    expect(render("T-APPROVAL", "en", data).split("\n")).toEqual([
+      "**pine › 修登录页** · Approval needed 12",
+      "`ui_project_create` · before running",
+      "",
+      "> `.y 12` approve · `.d 12` reject · `.d 12 your note`",
+    ]);
+    expect(render("T-APPROVAL", "zh", data).split("\n")).toEqual([
+      "**pine › 修登录页** · 需要批准 12",
+      "`ui_project_create` · 执行前确认",
+      "",
+      "> `.y 12` 批准 · `.d 12` 拒绝 · `.d 12 你的建议`",
     ]);
   });
 
@@ -714,21 +919,40 @@ describe("cards", () => {
   it("shows a long subject in .show up to its own cap", () => {
     const text = renderSample("T-SHOW", "en");
     expect(text).toContain("x".repeat(800));
-    expect(text).toContain("Evidence: stderr: denied");
+    expect(text).toContain("Evidence:\n```\nstderr: denied\n```");
   });
 
   it("lays out a question card", () => {
     expect(renderSample("T-QCARD", "zh")).toBe(
       [
-        "【pine › 修登录页】问题 13",
-        "Q1 Which login?（单选）",
-        " 1 Email code",
-        " 2 Password · Classic",
-        "Q2 Which environments?（可多选）",
-        " 1 dev",
-        " 2 staging",
-        " 3 prod",
-        "回答：.a 13 1; 1,2 · 自己写：.a 13 =文字 · 取消：.d 13",
+        "**pine › 修登录页** · 问题 13",
+        "",
+        "**Q1** Which login?（单选）",
+        "- **1** Email code",
+        "- **2** Password · Classic",
+        "",
+        "**Q2** Which environments?（可多选）",
+        "- **1** dev",
+        "- **2** staging",
+        "- **3** prod",
+        "",
+        "> 回答：`.a 13 1; 1,2` · 自己写：`.a 13 =文字` · 取消：`.d 13`",
+      ].join("\n"),
+    );
+    expect(renderSample("T-QCARD", "en")).toBe(
+      [
+        "**pine › 修登录页** · Question 13",
+        "",
+        "**Q1** Which login? (pick one)",
+        "- **1** Email code",
+        "- **2** Password · Classic",
+        "",
+        "**Q2** Which environments? (pick any)",
+        "- **1** dev",
+        "- **2** staging",
+        "- **3** prod",
+        "",
+        "> Answer: `.a 13 1; 1,2` · own words: `.a 13 =text` · cancel: `.d 13`",
       ].join("\n"),
     );
     expect(answerExample(questionnaire)).toBe("1; 1,2");
@@ -751,31 +975,68 @@ describe("cards", () => {
     expect(questionCardAnswerable("en", at, 13, preview)).toBe(false);
   });
 
-  it("offers .u 9 when a done session is not the current one", () => {
+  it("renders a finished run with the reply as Markdown", () => {
     expect(renderSample("T-DONE", "zh")).toBe(
       [
-        "【pine › 修登录页】完成（3 分 20 秒，$0.12）",
-        "Done it",
-        ".u 9 切到它 · .r 全文 · .o 文件(2)",
+        "**pine › 修登录页** · 完成 · 3 分 20 秒 · $0.12",
+        "",
+        "Done **it**",
+        "",
+        "> `.u 9` 切到它 · `.r` 全文 · `.o` 文件 (2)",
       ].join("\n"),
     );
-    const current = render("T-DONE", "en", {
+    expect(renderSample("T-DONE", "en")).toBe(
+      [
+        "**pine › 修登录页** · Done · 3m 20s · $0.12",
+        "",
+        "Done **it**",
+        "",
+        "> `.u 9` switch to it · `.r` full reply · `.o` files (2)",
+      ].join("\n"),
+    );
+    const current = { at, text: "ok", files: 0, current: true };
+    expect(render("T-DONE", "en", current)).toBe(
+      "**pine › 修登录页** · Done\n\nok\n\n> `.r` full reply",
+    );
+    expect(render("T-DONE", "zh", current)).toBe(
+      "**pine › 修登录页** · 完成\n\nok\n\n> `.r` 全文",
+    );
+  });
+
+  it("cuts the T-DONE excerpt and closes its fence", () => {
+    const text = render("T-DONE", "en", {
       at,
-      text: "ok",
+      text: `Intro\n\n\`\`\`\n${"code line\n".repeat(200)}\`\`\``,
       files: 0,
       current: true,
     });
-    expect(current).toBe("[pine › 修登录页] Done\nok\n.r full reply");
+    const excerpt = text.split("\n\n").slice(1, -1).join("\n\n");
+    expect(codePointLength(excerpt)).toBeLessThanOrEqual(DONE_EXCERPT_MAX);
+    expect(excerpt.endsWith("…\n```")).toBe(true);
+    proseLines(text);
   });
 
   it("renders the stale digest with and without held messages", () => {
     expect(renderSample("T-STALE", "zh")).toBe(
       [
         "离线期间收到 3 条消息（最早 3 小时前）：",
-        "1 .new @pine 跑一遍测试",
-        "2 把结果发我",
-        "未执行：.y 12（已过期）",
-        "回 .y 15 按顺序执行第 1、2 条，.d 15 丢弃。10 分钟内有效。",
+        "- **1** `.new @pine 跑一遍测试`",
+        "- **2** 把结果发我",
+        "",
+        "未执行：`.y 12`（已过期）",
+        "",
+        "> 回 `.y 15` 按顺序执行第 1、2 条，`.d 15` 丢弃。10 分钟内有效。",
+      ].join("\n"),
+    );
+    expect(renderSample("T-STALE", "en")).toBe(
+      [
+        "3 message(s) arrived while offline (oldest 3 hours ago):",
+        "- **1** `.new @pine 跑一遍测试`",
+        "- **2** 把结果发我",
+        "",
+        "Not run: `.y 12` (too old)",
+        "",
+        "> Reply `.y 15` to run 1, 2 in order, `.d 15` to discard. Valid for 10 minutes.",
       ].join("\n"),
     );
     expect(
@@ -784,7 +1045,53 @@ describe("cards", () => {
         notRun: [".y 12", ".m 2"],
         oldestAgeMs: 0,
       }),
-    ).toBe("Not run: .y 12, .m 2 (too old)");
+    ).toBe("Not run: `.y 12`, `.m 2` (too old)");
+  });
+});
+
+describe("session replies", () => {
+  it("announces a new session with its meta in the footer", () => {
+    const data = {
+      project: "无项目",
+      text: "中午好啊",
+      mode: "auto-approve" as const,
+      model: "deepseek-flash",
+    };
+    expect(render("R-NEW", "zh", data)).toBe(
+      "**无项目** · 已开始：中午好啊\n\n> 自动审批 · deepseek-flash · 完成后通知你，`.x` 可停止",
+    );
+    expect(render("R-NEW", "en", data)).toBe(
+      "**无项目** · Started: 中午好啊\n\n> Auto Approve · deepseek-flash · I'll tell you when it's done; `.x` stops it",
+    );
+  });
+
+  it("lists sessions as bullets with a footer", () => {
+    const rows = [
+      {
+        n: 1,
+        title: "修登录页",
+        project: "pine",
+        atMs: NOW - 5 * 60_000,
+        marks: ["running"] as "running"[],
+      },
+      { n: 2, title: "调研", project: "docs", atMs: NOW, marks: [] },
+    ];
+    expect(render("R-SESSIONS", "zh", { now: NOW, rows })).toBe(
+      [
+        "- **1** ▶ 修登录页 · pine · 5 分钟前",
+        "- **2** 调研 · docs · 刚刚",
+        "",
+        "> 回 `.数字` 切换 · `.0` 更多 · `.f` 搜索",
+      ].join("\n"),
+    );
+    expect(render("R-SESSIONS", "en", { now: NOW, rows })).toBe(
+      [
+        "- **1** ▶ 修登录页 · pine · 5 min ago",
+        "- **2** 调研 · docs · just now",
+        "",
+        "> Reply `.number` to switch · `.0` more · `.f` search",
+      ].join("\n"),
+    );
   });
 });
 
@@ -799,7 +1106,7 @@ describe("digest", () => {
         { kind: "ask", number: 12 },
       ]),
     ).toBe(
-      "你不在时：「修登录页」已完成、「跑测试」失败、2 项待处理（12、13）。",
+      "**你不在时**\n- 「修登录页」已完成\n- 「跑测试」失败\n- 2 项待处理：12、13",
     );
     expect(
       renderDigest("en", [
@@ -808,7 +1115,7 @@ describe("digest", () => {
         { kind: "auto-on", name: "sync", result: "timeout" },
       ]),
     ).toBe(
-      'While you were away: "a" finished, automation "nightly" finished: ok, request to turn on "sync" expired.',
+      '**While you were away**\n- "a" finished\n- automation "nightly" finished: ok\n- request to turn on "sync" expired',
     );
     expect(renderDigest("en", [])).toBe("");
   });
@@ -817,10 +1124,10 @@ describe("digest", () => {
 describe("errors", () => {
   it("names the .mode way out of view-only", () => {
     expect(renderSample("E-VIEW", "zh")).toContain(
-      "回 .mode 2 把它降到 自动审批 后可继续",
+      "> 回 `.mode 2` 把它降到 自动审批 后可继续",
     );
     expect(renderSample("R-USEVIEW", "en")).toContain(
-      "Reply .mode 2 to lower it to Auto Approve",
+      "> Reply `.mode 2` to lower it to Auto Approve",
     );
     expect(
       render("R-USEVIEW", "en", {
@@ -845,13 +1152,37 @@ describe("errors", () => {
       number: 12 + index,
       variant,
     }));
-    const en = render("R-QUEUEWAIT", "en", { at, asks });
-    expect(en).toBe(
-      "[p › t] Staged as a steering message; it reaches the agent once the waiting cards are handled. Still waiting: 12 approval (.y 12 approves, .d 12 rejects), 13 question (.a 13 your answer, .d 13 cancels), 14 approve on the computer (.d 14 rejects), 15 long context (.c 15 compress, then continue, .d 15 stop), 16 question (answer it in Pine, .d 16 cancels). .recall withdraws this message.",
+    expect(render("R-QUEUEWAIT", "en", { at, asks })).toBe(
+      [
+        "**p › t** · Staged as a steering message",
+        "",
+        "It reaches the agent once the waiting cards are handled.",
+        "",
+        "**Still waiting**",
+        "- **12** approval · `.y 12` approves · `.d 12` rejects",
+        "- **13** question · `.a 13 your answer` · `.d 13` cancels",
+        "- **14** approve on the computer · `.d 14` rejects",
+        "- **15** long context · `.c 15` compress, then continue · `.d 15` stop",
+        "- **16** question · answer it in Pine · `.d 16` cancels",
+        "",
+        "> `.recall` withdraws this message",
+      ].join("\n"),
     );
-    const zh = render("R-QUEUEWAIT", "zh", { at, asks });
-    expect(zh).toBe(
-      "【p › t】已作为暂存消息排队，等待的卡片处理后交给智能体。仍在等你：12 审批（.y 12 批准，.d 12 拒绝）、13 问题（.a 13 你的回答，.d 13 取消）、14 只能在电脑上批准（.d 14 拒绝）、15 上下文较长（.c 15 先压缩再继续，.d 15 停止）、16 问题（需在 Pine 中回答，.d 16 取消）。发 .撤回 可撤回这条消息。",
+    expect(render("R-QUEUEWAIT", "zh", { at, asks })).toBe(
+      [
+        "**p › t** · 已作为暂存消息排队",
+        "",
+        "等待的卡片处理后交给智能体。",
+        "",
+        "**仍在等你**",
+        "- **12** 审批 · `.y 12` 批准 · `.d 12` 拒绝",
+        "- **13** 问题 · `.a 13 你的回答` · `.d 13` 取消",
+        "- **14** 只能在电脑上批准 · `.d 14` 拒绝",
+        "- **15** 上下文较长 · `.c 15` 先压缩再继续 · `.d 15` 停止",
+        "- **16** 问题 · 需在 Pine 中回答 · `.d 16` 取消",
+        "",
+        "> 发 `.撤回` 可撤回这条消息",
+      ].join("\n"),
     );
     expect(
       render("R-QUEUEWAIT", "en", {
@@ -864,38 +1195,56 @@ describe("errors", () => {
       variant: "approval" as const,
     }));
     const long = render("R-QUEUEWAIT", "en", { at, asks: many });
-    expect(long).toContain("and 1 more");
-    expect(long).not.toContain(`${11 + PAGE_ROWS} approval`);
+    expect(long).toContain("- and 1 more");
+    expect(long).not.toContain(`**${11 + PAGE_ROWS}** approval`);
     expect(render("R-QUEUEWAIT", "zh", { at, asks: many })).toContain(
-      "等 1 项",
+      "- 等 1 项",
     );
   });
 
   it("points R-QUEUE at .recall in English and .撤回 in Chinese", () => {
     const rows = [{ n: 1, text: "go on" }];
     expect(render("R-QUEUE", "en", { rows })).toContain(
-      ".recall number withdraws",
+      "> `.recall number` withdraws",
     );
-    expect(render("R-QUEUE", "zh", { rows })).toContain("发 .撤回 数字 撤回");
+    expect(render("R-QUEUE", "zh", { rows })).toContain(
+      "> 发 `.撤回 数字` 撤回",
+    );
+  });
+
+  it("does not leave half an escape where a list row is cut", () => {
+    const rows = [{ n: 1, text: `${"a".repeat(68)}*b` }];
+    const text = render("R-QUEUE", "en", { rows });
+    expect(text).toContain(`- **1** ${"a".repeat(68)}…`);
+    expect(text).not.toContain("\\…");
   });
 
   it("renders both E-BUSY variants and both E-LOCAL forms", () => {
     expect(
       render("E-BUSY", "en", { variant: "running", title: "t" }),
-    ).toContain("Stop it with .x");
+    ).toContain("Stop it with `.x`");
     expect(render("E-BUSY", "zh", { variant: "local", title: "t" })).toContain(
       "在电脑上也用过",
     );
     expect(render("E-LOCAL", "en", {})).toBe(
       "This can only be done on the computer.",
     );
-    expect(render("E-LOCAL", "zh", { ask: 12 })).toContain(".d 12");
+    expect(render("E-LOCAL", "zh", { ask: 12 })).toContain("`.d 12`");
+  });
+
+  it("names the unknown command and the suggestion as code", () => {
+    expect(renderSample("E-UNKNOWN", "zh")).toBe(
+      "没有 `.stpo` 这个命令。是不是 `.stop`？\n\n> 回 `.?` 看全部。要把以点开头的文字发给 Pine，请用两个点开头。",
+    );
+    expect(renderSample("E-UNKNOWN", "en")).toBe(
+      "There is no `.stpo` command. Did you mean `.stop`?\n\n> Reply `.?` for the list. To send text that starts with a dot, start it with two dots.",
+    );
   });
 
   it("caps echoed user input", () => {
     const text = render("E-UNKNOWN", "en", { token: "x".repeat(200) });
-    expect(text).toContain(`.${"x".repeat(39)}…`);
-    expect(text).not.toContain("x".repeat(41));
+    expect(text).toContain(`\`.${"x".repeat(38)}…\``);
+    expect(text).not.toContain("x".repeat(40));
   });
 
   it("explains an answer that does not fit", () => {
@@ -907,14 +1256,16 @@ describe("errors", () => {
         problem: { kind: "option", part: 2, option: 5 },
       }),
     ).toBe(
-      "Part 2 has no option 5.\nQuestion 13 has 2 part(s). Answer in order, separated by semicolons, for example .a 13 1; 1,2",
+      "Part 2 has no option 5.\nQuestion 13 has 2 part(s). Answer in order, separated by semicolons, for example `.a 13 1; 1,2`",
     );
   });
 
   it("lists the asks for E-WHICH with the command typed", () => {
     expect(
       render("E-WHICH", "zh", { ...SAMPLES["E-WHICH"], command: "d" }),
-    ).toBe("有 2 项待处理：12 bash（a）、13 问题（b）。请带编号，如 .d 12");
+    ).toBe(
+      "有 2 项待处理：\n- **12** bash（a）\n- **13** 问题（b）\n\n> 请带编号，如 `.d 12`",
+    );
   });
 
   it("renders the E-GONE and E-SIZE variants", () => {
@@ -960,36 +1311,103 @@ describe("labels", () => {
         ceiling: "auto-approve",
       }),
     ).toBe(
-      "1 Let Me Review · 2 * Auto Approve · 3 🔒 Autonomous Work · 4 🔒 YOLO\nThe highest mode is set on the computer.",
+      [
+        "- **1** Let Me Review",
+        "- **2** Auto Approve · current",
+        "- **3** 🔒 Autonomous Work",
+        "- **4** 🔒 YOLO",
+        "",
+        "> The highest mode is set on the computer.",
+      ].join("\n"),
     );
   });
 
   it("builds the header", () => {
-    expect(header("zh", "pine", "修登录页")).toBe("【pine › 修登录页】");
+    expect(header("zh", "pine", "修登录页")).toBe("**pine › 修登录页**");
     expect(header("en", "pine", "x".repeat(50))).toBe(
-      `[pine › ${"x".repeat(29)}…]`,
+      `**pine › ${"x".repeat(29)}…**`,
+    );
+    expect(header("en", markdownAt.project, markdownAt.title)).toBe(
+      ESCAPED_MARKDOWN_HEADER,
     );
   });
 });
 
 describe("help", () => {
   it("renders the hot path with the computer facts", () => {
-    const text = renderSample("R-HELP", "zh");
-    expect(text.split("\n")[0]).toBe("Pine 微信命令（以 . 或 。开头）");
-    expect(text.split("\n").at(-1)).toBe(
-      "电脑：kw-mac · 最高模式：自动审批 · 发文件：关",
+    expect(renderSample("R-HELP", "zh")).toBe(
+      [
+        "**Pine 微信命令**",
+        "以 `.` 或 `。` 开头；直接发文字 = 发给当前会话",
+        "",
+        "- 会话：`.` 状态 · `.n` 新会话 · `.l` 列表 · `.f` 搜索 · `.u` 切换",
+        "- 回复：`.r` 最后回复 · `.x` 停止 · `.o` 文件 · `.p` 项目",
+        "- 待处理：`.w` 查看 · `.y` 批准 · `.d` 拒绝 · `.a` 回答",
+        "- 列表：`.数字` 选择 · `.0` 更多",
+        "- 更多：`.? 2` 更多命令 · `.pause` 立即停用",
+        "",
+        "> 电脑：kw-mac · 最高模式：自动审批 · 发文件：关",
+        "> 以点开头的普通文字请用两个点开头",
+      ].join("\n"),
+    );
+    expect(renderSample("R-HELP", "en")).toBe(
+      [
+        "**Pine WeChat commands**",
+        "Start with `.` or `。`; plain text goes to the current session",
+        "",
+        "- Sessions: `.` status · `.n` new · `.l` list · `.f` search · `.u` switch",
+        "- Replies: `.r` last reply · `.x` stop · `.o` files · `.p` projects",
+        "- Waiting: `.w` list · `.y` approve · `.d` reject · `.a` answer",
+        "- Lists: `.number` picks a row · `.0` more",
+        "- More: `.? 2` more commands · `.pause` turn off now",
+        "",
+        "> Computer: kw-mac · Highest mode: Auto Approve · Files: off",
+        "> Start with two dots to send text that begins with a dot",
+      ].join("\n"),
     );
     expect(renderSample("R-WELCOME", "en")).toMatch(
-      /^Connected to Pine on kw-mac \(experimental\)\.\nPine WeChat commands/,
+      /^Connected to Pine on kw-mac \(experimental\)\.\n\n\*\*Pine WeChat commands\*\*/,
+    );
+    expect(
+      render("R-HELP", "en", { ...SAMPLES["R-HELP"], computer: "my_mac" }),
+    ).toContain("> Computer: my\\_mac ·");
+  });
+
+  it("lists the other commands", () => {
+    expect(renderSample("R-HELP2", "zh")).toBe(
+      [
+        "**更多命令**",
+        "",
+        "- 会话设置：`.m` 模型 · `.e` 推理强度 · `.mode` 审批模式 · `.i` 用量 · `.c` 压缩",
+        "- 任务：`.t` 待办 · `.b` 后台进程 · `.k` 结束进程 · `.q` 排队",
+        "- 会话管理：`.hi` 历史 · `.rn` 改名 · `.del` 删除",
+        "- 自动化：`.au` 自动化 · `.ar` 运行记录 · `.sk` 技能 · `.mcp` MCP",
+        "- 其他：`.cfg` 设置 · `.lang` 语言 · `.drop` 丢弃附件",
+        "",
+        "> `.? 命令名` 查看用法",
+      ].join("\n"),
+    );
+    expect(renderSample("R-HELP2", "en")).toBe(
+      [
+        "**More commands**",
+        "",
+        "- Session: `.m` model · `.e` effort · `.mode` approval mode · `.i` usage · `.c` compact",
+        "- Work: `.t` todos · `.b` processes · `.k` kill · `.q` queue",
+        "- Manage: `.hi` history · `.rn` rename · `.del` delete",
+        "- Automation: `.au` automations · `.ar` runs · `.sk` skills · `.mcp` MCP",
+        "- Other: `.cfg` settings · `.lang` language · `.drop` attachments",
+        "",
+        "> `.? name` shows a command's usage",
+      ].join("\n"),
     );
   });
 
   it("renders one command's usage from its spec", () => {
     expect(renderSample("R-HELP1", "zh")).toBe(
-      ".use [ref] — 切换当前会话\n别名：.u .sw .切换 .接管\n例如：.u 2",
+      "`.use [ref]` — 切换当前会话\n\n> 别名：`.u` `.sw` `.切换` `.接管`\n> 例如：`.u 2`",
     );
     expect(renderSample("E-ARGS", "en")).toBe(
-      "Usage: .use [ref]. Example: .u 2",
+      "Usage: `.use [ref]`\n\n> Example: `.u 2`",
     );
   });
 });
@@ -1010,7 +1428,7 @@ describe("reviewer explanations on approval cards", () => {
     ).toContain("审批模型：删除 build 后重新构建。");
   });
 
-  it("cuts and neutralises the summary", () => {
+  it("cuts, neutralises and escapes the summary", () => {
     const long = render("T-APPROVAL", "en", {
       ...SAMPLES["T-APPROVAL"],
       summary: "s".repeat(500),
@@ -1025,6 +1443,12 @@ describe("reviewer explanations on approval cards", () => {
     expect(
       hostile.split("\n").some((line) => /^[.。．][yd] 9/.test(line)),
     ).toBe(false);
+    expect(
+      render("T-APPROVAL", "en", {
+        ...SAMPLES["T-APPROVAL"],
+        summary: "Runs *all* tests",
+      }),
+    ).toContain("Reviewer: Runs \\*all\\* tests");
   });
 
   it("shows Pine's escalation note on .show in the reply language", () => {
@@ -1034,7 +1458,7 @@ describe("reviewer explanations on approval cards", () => {
       reasonDetail: "No approval model is configured.",
     };
     expect(render("T-SHOW", "zh", sample)).toContain(
-      "依据：stderr: denied\n\n自动审查不可用：未配置审批模型。",
+      "依据：\n```\nstderr: denied\n\n自动审查不可用：未配置审批模型。\n```",
     );
     expect(render("T-SHOW", "en", sample)).toContain(
       "Auto-review unavailable: No approval model is configured.",
@@ -1045,7 +1469,7 @@ describe("reviewer explanations on approval cards", () => {
         evidence: undefined,
         reasonCode: "escalationLimit",
       }),
-    ).toContain("依据：本轮升级审查次数过多");
+    ).toContain("依据：\n```\n本轮升级审查次数过多");
   });
 
   it("lists the reviewer's risks on .show", () => {

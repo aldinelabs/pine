@@ -8,7 +8,7 @@ import { specOf } from "../commandSpec";
 import { FILE_MAX_BYTES, PAGE_ROWS } from "../constants";
 import { notice } from "../notices";
 import { resolveRef } from "../parseCommand";
-import { render } from "../replies";
+import { joinReplies, render } from "../replies";
 import type { ArtifactFile } from "../sessionDirectory";
 import type { HandleRow } from "../types";
 import type {
@@ -89,7 +89,7 @@ function numberedList<T>(
           })
         : "";
     return {
-      text: footer ? `${body}\n${footer}` : body,
+      text: joinReplies(body, footer),
       rows: page.map(handle),
     };
   });

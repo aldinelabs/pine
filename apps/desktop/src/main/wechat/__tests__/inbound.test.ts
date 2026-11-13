@@ -555,7 +555,7 @@ describe("classification and replies", () => {
     const t = setup();
     await t.deliver([{ text: ".stauts" }]);
     expect(t.calls).toHaveLength(0);
-    expect(t.texts()[0]).toContain("There is no .stauts command");
+    expect(t.texts()[0]).toContain("There is no `.stauts` command");
   });
 
   it("answers voice without a transcript, media only and quote only", async () => {

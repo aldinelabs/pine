@@ -21,7 +21,7 @@ describe("WeChat correctness probes", { timeout: 30_000 }, () => {
   it("cancels the typing indicator once the run a silent message started has ended", async () => {
     const h = await harness();
     const reply = await h.say(".new fix the bug");
-    expect(reply).toContain("Started in Garden");
+    expect(reply).toContain("**Garden** · Started");
     const sessionId = h.createdSession(0);
     h.running(sessionId);
     h.finish(sessionId, "First run done.");
@@ -41,7 +41,7 @@ describe("WeChat correctness probes", { timeout: 30_000 }, () => {
   it("does not run a message again when iLink re-delivers it after a re-scan", async () => {
     const h = await harness();
     const first = h.push(".new fix the bug");
-    await h.sent((text) => text.includes("Started in Garden"));
+    await h.sent((text) => text.includes("**Garden** · Started"));
     await h.settle();
     expect(h.agentHost.createSession).toHaveBeenCalledTimes(1);
 

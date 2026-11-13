@@ -48,8 +48,8 @@ describe(".skills", () => {
     ctx.fake.core.ports.listSkills = listSkills;
     const text = (await run("skills", ctx)).text ?? "";
     expect(listSkills).toHaveBeenCalledWith("p1");
-    expect(text).toContain("1 review · global · on · Reviews code");
-    expect(text).toContain("2 deploy · project · off · Deploys");
+    expect(text).toContain("**1** review · global · on · Reviews code");
+    expect(text).toContain("**2** deploy · project · off · Deploys");
     expect(text).not.toContain("carefully ".repeat(5));
   });
 

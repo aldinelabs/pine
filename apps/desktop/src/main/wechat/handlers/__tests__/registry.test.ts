@@ -28,7 +28,7 @@ describe("handler registry", () => {
         render("R-HELP2", lang),
       ].join("\n");
       // ".number" is the placeholder of the bare-number rule, not an alias.
-      const aliases = [...help.matchAll(/(?:^|\s)\.([a-z][a-z0-9]*)/g)]
+      const aliases = [...help.matchAll(/(?:^|\s|`)\.([a-z][a-z0-9]*)/g)]
         .map((match) => match[1] ?? "")
         .filter((alias) => alias !== "number");
       expect(aliases.length).toBeGreaterThan(10);

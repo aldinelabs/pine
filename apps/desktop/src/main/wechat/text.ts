@@ -13,9 +13,9 @@ const PREFIX_CHARACTERS = new Set([".", "。", "．", "｡"]);
 
 const LINE_BREAKS = /[\r\n\t\v\f\u0085\u2028\u2029]+/g;
 // C0 and C1 controls, zero-width characters, bidi overrides and isolates.
-const INVISIBLE =
+export const INVISIBLE =
   /[\u0000-\u001f\u007f-\u009f\u200b-\u200f\u202a-\u202e\u2060-\u2064\u2066-\u2069\ufeff]/g;
-const SEARCH_MARKERS = /[\u0001\u0002]/g;
+export const SEARCH_MARKERS = /[\u0001\u0002]/g;
 
 /** Number of Unicode code points (an emoji counts once, unlike `length`). */
 export function codePointLength(text: string): number {
@@ -45,7 +45,7 @@ export function isCut(text: string, max: number): boolean {
  */
 export const NEUTRAL_MARK = "› ";
 
-function startsWithPrefix(text: string): boolean {
+export function startsWithPrefix(text: string): boolean {
   const first = text[0];
   return first !== undefined && PREFIX_CHARACTERS.has(first);
 }
@@ -108,12 +108,12 @@ export function baseName(filePath: string): string {
   return name || trimmed || filePath;
 }
 
-const OPENUI_PLACEHOLDER: Record<ReplyLanguage, string> = {
+export const OPENUI_PLACEHOLDER: Record<ReplyLanguage, string> = {
   zh: "【这里是一段交互内容，请在 Pine 中查看】",
   en: "[Interactive content here. Open Pine to see it.]",
 };
 
-const FENCE = /^ {0,3}(`{3,}|~{3,})\s*([^\s`]*)[^`]*$/;
+export const FENCE = /^ {0,3}(`{3,}|~{3,})\s*([^\s`]*)[^`]*$/;
 const TABLE_SEPARATOR = /^\s*\|?\s*:?-{2,}:?\s*(\|\s*:?-{2,}:?\s*)*\|?\s*$/;
 
 function tableRow(line: string): string | undefined {

@@ -3,7 +3,7 @@
 
 import { TEMPORARY_WORKSPACE_PROJECT_ID } from "../../../shared/projects";
 import { PAGE_ROWS } from "../constants";
-import { render } from "../replies";
+import { joinReplies, render } from "../replies";
 import type { CommandContext, CommandHandler, CommandHandlers } from "./types";
 
 /** The current session's project, else the project for new sessions. */
@@ -43,7 +43,7 @@ function pagedList<T>(
       count: pages.length,
       truncated: false,
     });
-    return footer ? `${body}\n${footer}` : body;
+    return joinReplies(body, footer);
   });
   const [first = "", ...rest] = texts;
   ctx.pager.set(rest);

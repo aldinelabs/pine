@@ -51,7 +51,7 @@ async function stopBridge(h: Harness): Promise<void> {
 }
 
 function cardNumber(text: string): number {
-  const match = /\.y (\d+) approve/.exec(text);
+  const match = /\.y (\d+)` approve/.exec(text);
   if (!match) throw new Error(`no approvable card in ${JSON.stringify(text)}`);
   return Number(match[1]);
 }
@@ -64,7 +64,7 @@ function askNumber(text: string): number {
 
 async function startSession(h: Harness, text = "fix the bug") {
   const reply = await h.say(`.new ${text}`);
-  expect(reply).toContain("Started in Garden");
+  expect(reply).toContain("**Garden** · Started");
   const sessionId = h.createdSession(
     h.agentHost.createSession.mock.calls.length - 1,
   );

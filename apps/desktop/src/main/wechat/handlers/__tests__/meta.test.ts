@@ -44,12 +44,12 @@ describe(".help", () => {
     expect((await run(ctx, "help")).text).toContain(
       "Computer: Test Mac · Highest mode: Auto Approve · Files: off",
     );
-    expect((await run(ctx, "help", ["2"])).text).toContain(".m model");
+    expect((await run(ctx, "help", ["2"])).text).toContain("`.m` model");
     expect((await run(ctx, "help", ["n"])).text).toContain(
       ".new [@project] [text]",
     );
     expect((await run(ctx, "help", ["nope"])).text).toContain(
-      "There is no .nope command.",
+      "There is no `.nope` command.",
     );
   });
 });
@@ -59,7 +59,7 @@ describe(".help recall", () => {
     const { ctx } = setup();
     const text = (await run(ctx, "help", ["recall"])).text ?? "";
     expect(text).toContain(".unqueue");
-    expect(text).toContain(".qx .recall .撤回");
+    expect(text).toContain("`.qx` `.recall` `.撤回`");
   });
 });
 
@@ -67,7 +67,7 @@ describe(".info", () => {
   it("never shows a path or the token", async () => {
     const { ctx } = setup();
     const text = (await run(ctx, "info")).text ?? "";
-    expect(text).toContain("Computer: Test Mac · Pine 1.4.2");
+    expect(text).toContain("**Test Mac** · Pine 1.4.2");
     expect(text).toContain("High-risk approvals: computer only · Files: off");
     expect(text).not.toContain("fake-token");
     expect(text).not.toContain("/fake");
@@ -82,7 +82,7 @@ describe(".lang", () => {
     expect((await run(ctx, "lang", ["zh"])).text).toBe("回复语言：中文");
     expect(ctx.store.get().language).toBe("zh");
     expect(ctx.fake.store.writes.secure).toBe(secureWrites);
-    expect((await run(ctx, "lang", ["fr"])).text).toContain("Usage: .lang");
+    expect((await run(ctx, "lang", ["fr"])).text).toContain("Usage: `.lang");
   });
 });
 
@@ -128,7 +128,7 @@ describe(".pause", () => {
 
   it("refuses an unknown parameter", async () => {
     const { ctx } = setup();
-    expect((await run(ctx, "pause", ["now"])).text).toContain("Usage: .pause");
+    expect((await run(ctx, "pause", ["now"])).text).toContain("Usage: `.pause");
     expect(ctx.fake.pause).not.toHaveBeenCalled();
   });
 });
@@ -137,7 +137,7 @@ describe(".status", () => {
   it("without a current session names the project and the default mode", async () => {
     const { ctx } = setup();
     expect((await run(ctx, "status")).text).toBe(
-      "No current session. Project: No Project · Default mode: Auto Approve\nSend text to start one, or .l to pick a session.",
+      "No current session. Project **No Project** · Default mode: Auto Approve\n\n> Send text to start one, or `.l` to pick a session.",
     );
   });
 
@@ -151,8 +151,8 @@ describe(".status", () => {
       W,
     );
     const result = await run(ctx, "status");
-    expect(result.text).toContain("[Project p1 › Session s1] Idle");
-    expect(result.text).toContain("1 ▶ Session s2 (Project p1)");
+    expect(result.text).toContain("**Project p1 › Session s1** · Idle");
+    expect(result.text).toContain("**1** ▶ Session s2 (Project p1)");
     expect(result.numbered).toEqual({ kind: "session" });
     ctx.handles.noteDelivered("session", ctx.now);
     expect(ctx.handles.resolve("session", 1)?.id).toBe("s2");

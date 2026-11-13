@@ -16,7 +16,7 @@ import { specOf } from "../commandSpec";
 import { PAGE_ROWS } from "../constants";
 import { notice } from "../notices";
 import { autoActionOf as actionOf, resolveRef } from "../parseCommand";
-import { render } from "../replies";
+import { joinReplies, render } from "../replies";
 import type {
   CommandName,
   HandleKind,
@@ -67,7 +67,7 @@ function numberedList<T>(
           })
         : "";
     return {
-      text: footer ? `${body}\n${footer}` : body,
+      text: joinReplies(body, footer),
       rows: page.map(handle),
     };
   });

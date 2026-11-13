@@ -4,6 +4,26 @@
 // Fields that come from the agent, a file, a title or a snippet are display
 // data and are cleaned here; the size caps of commands spec 11.3 are applied
 // here too, so a handler cannot send an oversized or command-like reply.
+//
+// ClawBot renders bot text as Markdown, so every reply follows one grammar:
+// - Header: `**{project} › {title}** · {status}` (a project alone:
+//   `**{project}** · {status}`).
+// - Body after a blank line: Pine's facts as plain lines; the agent's Markdown
+//   through `agentMarkdown` (fences closed, headings bold, tables as rows);
+//   commands, process output, approval subjects and evidence in fenced code;
+//   short display data escaped with `escapeInline`.
+// - Footer after a blank line: `> ` lines with what the user can do next and
+//   secondary meta. A quote is always last in its block.
+// - Commands as code spans (`` `.y 12` ``), actions joined with ` · `.
+// - Lists are `- ` bullets with the number in bold (`- **3** …`), never
+//   `1.` (ordered lists renumber). Bold only next to a space or a line edge;
+//   no italics, headings, tables, rules, images or HTML of Pine's own.
+// - Every message closes its own blocks, so merged pushes never run together;
+//   `finish` closes a fence a cut leaves open. Field caps apply to the visible
+//   text; REPLY_MAX applies to the final string with its markup.
+// - Dot-led display lines get `› ` (after any list or quote marker), so a
+//   line never reads as a command Pine typed for the user.
+// The raw text still reads acceptably on a client that shows no Markdown.
 
 import type { AskUserQuestionParams } from "@pine/rpiv-ask-user-question";
 import {
@@ -47,11 +67,21 @@ import {
   isCut,
   neutralise,
   neutraliseText,
-  paginate,
   stripSearchMarkers,
-  toPlainText,
   truncate,
 } from "./text";
+import {
+  agentMarkdown,
+  blocks,
+  bullets,
+  closeOpenFence,
+  code,
+  codeBlock,
+  cutMarkdown,
+  escapeInline,
+  paginateMarkdown,
+  quote,
+} from "./markdown";
 import type {
   Ask,
   CommandSpec,
@@ -178,20 +208,20 @@ export function effortLabel(lang: L, level: PineThinkingLevel): string {
   return EFFORT_LABELS[level][lang];
 }
 
+/** A title, name or project as escaped display data of at most TITLE_MAX. */
 function displayTitle(title: string): string {
-  return truncate(cleanInline(title), TITLE_MAX) || "…";
+  return escapeInline(truncate(neutralise(title), TITLE_MAX) || "…");
 }
 
-/** `【{project} › {title}】` / `[{project} › {title}]`. */
-export function header(lang: L, project: string, title: string): string {
-  const name = `${displayTitle(project)} › ${displayTitle(title)}`;
-  return lang === "zh" ? `【${name}】` : `[${name}]`;
+/** `**{project} › {title}**`, the same in both languages. */
+export function header(_lang: L, project: string, title: string): string {
+  return `**${displayTitle(project)} › ${displayTitle(title)}**`;
 }
 
-/** The header as the start of a line: English gets a space before the text. */
-function head(lang: L, at: SessionRef): string {
-  const text = header(lang, at.project, at.title);
-  return lang === "zh" ? text : `${text} `;
+/** The header line of a reply about one session: `**p › t** · {status}`. */
+function headLine(at: SessionRef, status?: string): string {
+  const text = header("en", at.project, at.title);
+  return status ? `${text} · ${status}` : text;
 }
 
 /** Pine's fixed approval reasons, worded as the desktop shows them. */
@@ -255,42 +285,59 @@ function queueWaitItem(lang: L, n: number, variant: QueueWaitVariant): string {
     case "approval":
       return pick(
         lang,
-        `${n} 审批（.y ${n} 批准，.d ${n} 拒绝）`,
-        `${n} approval (.y ${n} approves, .d ${n} rejects)`,
+        `**${n}** 审批 · \`.y ${n}\` 批准 · \`.d ${n}\` 拒绝`,
+        `**${n}** approval · \`.y ${n}\` approves · \`.d ${n}\` rejects`,
       );
     case "question":
       return pick(
         lang,
-        `${n} 问题（.a ${n} 你的回答，.d ${n} 取消）`,
-        `${n} question (.a ${n} your answer, .d ${n} cancels)`,
+        `**${n}** 问题 · \`.a ${n} 你的回答\` · \`.d ${n}\` 取消`,
+        `**${n}** question · \`.a ${n} your answer\` · \`.d ${n}\` cancels`,
       );
     case "question-local":
       return pick(
         lang,
-        `${n} 问题（需在 Pine 中回答，.d ${n} 取消）`,
-        `${n} question (answer it in Pine, .d ${n} cancels)`,
+        `**${n}** 问题 · 需在 Pine 中回答 · \`.d ${n}\` 取消`,
+        `**${n}** question · answer it in Pine · \`.d ${n}\` cancels`,
       );
     case "display-only":
       return pick(
         lang,
-        `${n} 只能在电脑上批准（.d ${n} 拒绝）`,
-        `${n} approve on the computer (.d ${n} rejects)`,
+        `**${n}** 只能在电脑上批准 · \`.d ${n}\` 拒绝`,
+        `**${n}** approve on the computer · \`.d ${n}\` rejects`,
       );
     case "long-context":
       return pick(
         lang,
-        `${n} 上下文较长（.c ${n} 先压缩再继续，.d ${n} 停止）`,
-        `${n} long context (.c ${n} compress, then continue, .d ${n} stop)`,
+        `**${n}** 上下文较长 · \`.c ${n}\` 先压缩再继续 · \`.d ${n}\` 停止`,
+        `**${n}** long context · \`.c ${n}\` compress, then continue · \`.d ${n}\` stop`,
       );
   }
 }
 
+/** Echoed user text as escaped display data of at most ECHO_MAX. */
 function echo(text: string): string {
-  return truncate(cleanInline(text), ECHO_MAX);
+  return escapeInline(truncate(cleanInline(text), ECHO_MAX));
+}
+
+/** Echoed user text that may be a command, as a code span. */
+function echoCode(text: string): string {
+  return code(truncate(cleanInline(text), ECHO_MAX));
+}
+
+/** Escaped inline display data of at most `max` visible code points. */
+function inline(text: string, max: number): string {
+  return escapeInline(truncate(cleanInline(text), max));
 }
 
 function row(text: string): string {
-  return truncate(text, ROW_MAX);
+  // A cut must not leave half of an escape (`\…`) behind.
+  return truncate(text, ROW_MAX).replace(/(?<!\\)((?:\\\\)*)\\…$/, "$1…");
+}
+
+/** A list item with its handle or ask number: `**n** text`. */
+function item(n: number | string, text: string): string {
+  return `**${n}** ${row(text)}`;
 }
 
 function rows<T>(items: readonly T[]): readonly T[] {
@@ -337,7 +384,7 @@ function stateLabel(lang: L, state: SessionState, runningMs?: number): string {
 function askWhat(lang: L, ask: AskSummary): string {
   switch (ask.kind) {
     case "approval":
-      return ask.tool ? cleanInline(ask.tool) : pick(lang, "批准", "approval");
+      return ask.tool ? inline(ask.tool, 40) : pick(lang, "批准", "approval");
     case "question":
       return pick(lang, "问题", "question");
     case "confirm":
@@ -358,10 +405,12 @@ function languageLabel(lang: L, language: L | "auto"): string {
 }
 
 function confirmLine(lang: L, ask: number): string {
-  return pick(
-    lang,
-    `2 分钟内回 .y ${ask} 确认，.d ${ask} 取消。`,
-    `Reply .y ${ask} within 2 minutes to confirm, .d ${ask} to cancel.`,
+  return quote(
+    pick(
+      lang,
+      `2 分钟内回 \`.y ${ask}\` 确认，\`.d ${ask}\` 取消。`,
+      `Reply \`.y ${ask}\` within 2 minutes to confirm, \`.d ${ask}\` to cancel.`,
+    ),
   );
 }
 
@@ -371,9 +420,18 @@ function lines(...parts: (string | false | undefined)[]): string {
     .join("\n");
 }
 
-/** Cuts a finished reply to one WeChat message. */
+/**
+ * Cuts a finished reply to one WeChat message; a fence the cut leaves open is
+ * closed, so the reply stays self-contained when it is merged with others.
+ */
 function finish(text: string): string {
-  return truncate(text.replace(/\s+$/, ""), REPLY_MAX);
+  const trimmed = text.replace(/\s+$/, "");
+  if (codePointLength(trimmed) <= REPLY_MAX) return trimmed;
+  const cut = truncate(trimmed, REPLY_MAX);
+  const closed = closeOpenFence(cut);
+  if (closed === cut) return cut;
+  const room = REPLY_MAX - (codePointLength(closed) - codePointLength(cut));
+  return truncate(closeOpenFence(truncate(trimmed, room)), REPLY_MAX);
 }
 
 /** Several rendered parts as one reply (for example `.use` followed by cards), capped. */
@@ -386,49 +444,47 @@ export function joinReplies(...parts: (string | undefined)[]): string {
 // ---------------------------------------------------------------------------
 // Help
 
-const HELP_LINES: Record<L, readonly string[]> = {
+const HELP_INTRO: Record<L, string> = {
+  zh: "**Pine 微信命令**\n以 `.` 或 `。` 开头；直接发文字 = 发给当前会话",
+  en: "**Pine WeChat commands**\nStart with `.` or `。`; plain text goes to the current session",
+};
+
+const HELP_ROWS: Record<L, readonly string[]> = {
   zh: [
-    "Pine 微信命令（以 . 或 。开头）",
-    "直接发文字 = 发给当前会话",
-    ".  状态　.n 新会话　.l 会话列表",
-    ".f 搜索　.u 切换　.r 最后回复",
-    ".x 停止　.p 项目　.o 文件",
-    ".y 批准　.d 拒绝　.a 回答",
-    ".w 待处理　.0 更多　.数字 选列表项",
-    ".? 2 更多命令　.pause 立即停用",
-    "以点开头的普通文字请用两个点开头",
+    "会话：`.` 状态 · `.n` 新会话 · `.l` 列表 · `.f` 搜索 · `.u` 切换",
+    "回复：`.r` 最后回复 · `.x` 停止 · `.o` 文件 · `.p` 项目",
+    "待处理：`.w` 查看 · `.y` 批准 · `.d` 拒绝 · `.a` 回答",
+    "列表：`.数字` 选择 · `.0` 更多",
+    "更多：`.? 2` 更多命令 · `.pause` 立即停用",
   ],
   en: [
-    "Pine WeChat commands (start with . or 。)",
-    "Plain text goes to the current session",
-    ".  status   .n new session   .l sessions",
-    ".f search   .u switch   .r last reply",
-    ".x stop   .p projects   .o files",
-    ".y approve   .d reject   .a answer",
-    ".w waiting   .0 more   .number picks a list row",
-    ".? 2 more commands   .pause turn off now",
-    "Start with two dots to send text that begins with a dot",
+    "Sessions: `.` status · `.n` new · `.l` list · `.f` search · `.u` switch",
+    "Replies: `.r` last reply · `.x` stop · `.o` files · `.p` projects",
+    "Waiting: `.w` list · `.y` approve · `.d` reject · `.a` answer",
+    "Lists: `.number` picks a row · `.0` more",
+    "More: `.? 2` more commands · `.pause` turn off now",
   ],
 };
 
-const HELP2_LINES: Record<L, readonly string[]> = {
+const HELP_DOTS: Record<L, string> = {
+  zh: "以点开头的普通文字请用两个点开头",
+  en: "Start with two dots to send text that begins with a dot",
+};
+
+const HELP2_ROWS: Record<L, readonly string[]> = {
   zh: [
-    ".m 模型　.e 推理强度　.mode 审批模式",
-    ".i 用量　.c 压缩　.t 待办",
-    ".b 后台进程　.k 结束进程　.q 排队",
-    ".hi 历史　.rn 改名　.del 删除",
-    ".au 自动化　.ar 运行记录　.sk 技能　.mcp",
-    ".cfg 设置　.lang 语言　.drop 丢弃附件",
-    ".? 命令名 查看用法",
+    "会话设置：`.m` 模型 · `.e` 推理强度 · `.mode` 审批模式 · `.i` 用量 · `.c` 压缩",
+    "任务：`.t` 待办 · `.b` 后台进程 · `.k` 结束进程 · `.q` 排队",
+    "会话管理：`.hi` 历史 · `.rn` 改名 · `.del` 删除",
+    "自动化：`.au` 自动化 · `.ar` 运行记录 · `.sk` 技能 · `.mcp` MCP",
+    "其他：`.cfg` 设置 · `.lang` 语言 · `.drop` 丢弃附件",
   ],
   en: [
-    ".m model   .e effort   .mode approval mode",
-    ".i usage   .c compact   .t todos",
-    ".b processes   .k kill   .q queue",
-    ".hi history   .rn rename   .del delete",
-    ".au automations   .ar runs   .sk skills   .mcp",
-    ".cfg settings   .lang language   .drop attachments",
-    ".? name shows a command's usage",
+    "Session: `.m` model · `.e` effort · `.mode` approval mode · `.i` usage · `.c` compact",
+    "Work: `.t` todos · `.b` processes · `.k` kill · `.q` queue",
+    "Manage: `.hi` history · `.rn` rename · `.del` delete",
+    "Automation: `.au` automations · `.ar` runs · `.sk` skills · `.mcp` MCP",
+    "Other: `.cfg` settings · `.lang` language · `.drop` attachments",
   ],
 };
 
@@ -436,33 +492,48 @@ function helpFooter(
   lang: L,
   data: { computer: string; ceiling: PineApprovalMode; files: boolean },
 ): string {
-  const computer = truncate(cleanInline(data.computer), TITLE_MAX);
-  return pick(
-    lang,
-    `电脑：${computer} · 最高模式：${modeLabel(lang, data.ceiling)} · 发文件：${onOff(lang, data.files)}`,
-    `Computer: ${computer} · Highest mode: ${modeLabel(lang, data.ceiling)} · Files: ${onOff(lang, data.files)}`,
+  const computer = inline(data.computer, TITLE_MAX);
+  return quote(
+    pick(
+      lang,
+      `电脑：${computer} · 最高模式：${modeLabel(lang, data.ceiling)} · 发文件：${onOff(lang, data.files)}`,
+      `Computer: ${computer} · Highest mode: ${modeLabel(lang, data.ceiling)} · Files: ${onOff(lang, data.files)}`,
+    ),
+    HELP_DOTS[lang],
   );
 }
 
 /** `.help name`: usage and aliases of one command, from its spec. */
 function helpOne(lang: L, spec: CommandSpec): string {
-  const usage = `.${spec.name}${spec.params ? ` ${spec.params}` : ""} — ${spec.summary[lang]}`;
+  const usage = `${code(`.${spec.name}${spec.params ? ` ${spec.params}` : ""}`)} — ${spec.summary[lang]}`;
   const aliases = [...spec.aliases, ...spec.zhAliases]
     .filter((alias) => alias !== spec.name)
-    .map((alias) => `.${alias}`)
+    .map((alias) => code(`.${alias}`))
     .join(" ");
-  return lines(
+  return blocks(
     usage,
-    aliases ? pick(lang, `别名：${aliases}`, `Aliases: ${aliases}`) : undefined,
-    spec.example
-      ? pick(lang, `例如：${spec.example}`, `Example: ${spec.example}`)
-      : undefined,
+    quote(
+      aliases
+        ? pick(lang, `别名：${aliases}`, `Aliases: ${aliases}`)
+        : undefined,
+      spec.example
+        ? pick(
+            lang,
+            `例如：${code(spec.example)}`,
+            `Example: ${code(spec.example)}`,
+          )
+        : undefined,
+    ),
   );
 }
 
 // ---------------------------------------------------------------------------
 // Cards
 
+/**
+ * The subject as a fenced code block. The cut is measured on the neutralised
+ * text, as `cardPolicy` measures it.
+ */
 function subjectLines(
   subject: string | undefined,
   max: number,
@@ -470,13 +541,15 @@ function subjectLines(
   if (subject === undefined) return { cut: false };
   const clean = neutraliseText(subject);
   if (!clean) return { cut: false };
-  return { text: truncate(clean, max), cut: isCut(clean, max) };
+  return { text: codeBlock(truncate(clean, max)), cut: isCut(clean, max) };
 }
 
 function descriptionLine(description: string | undefined): string | undefined {
   if (description === undefined) return undefined;
   const clean = neutralise(description);
-  return clean ? truncate(clean, CARD_DESCRIPTION_MAX) : undefined;
+  return clean
+    ? escapeInline(truncate(clean, CARD_DESCRIPTION_MAX))
+    : undefined;
 }
 
 /** The reviewer's account, attributed so it never reads as Pine's own words. */
@@ -484,7 +557,7 @@ function summaryLine(lang: L, summary: string | undefined): string | undefined {
   if (summary === undefined) return undefined;
   const clean = neutralise(summary);
   return clean
-    ? `${pick(lang, "审批模型：", "Reviewer: ")}${truncate(clean, CARD_SUMMARY_MAX)}`
+    ? `${pick(lang, "审批模型：", "Reviewer: ")}${escapeInline(truncate(clean, CARD_SUMMARY_MAX))}`
     : undefined;
 }
 
@@ -493,7 +566,7 @@ function risksLine(lang: L, risks: string[] | undefined): string | undefined {
     .map((risk) => cleanInline(risk))
     .filter(Boolean)
     .slice(0, CARD_RISKS_MAX)
-    .map((risk) => truncate(risk, CARD_RISK_MAX));
+    .map((risk) => escapeInline(truncate(risk, CARD_RISK_MAX)));
   if (items.length === 0) return undefined;
   return pick(lang, `风险：${items.join("；")}`, `Risks: ${items.join("; ")}`);
 }
@@ -513,7 +586,8 @@ interface ApprovalCardData {
   cut?: boolean;
 }
 
-function approvalHead(lang: L, data: ApprovalCardData, local: boolean) {
+/** The header and tool line of an approval card. */
+function approvalTop(lang: L, data: ApprovalCardData, local: boolean): string {
   const what = local
     ? pick(
         lang,
@@ -521,17 +595,34 @@ function approvalHead(lang: L, data: ApprovalCardData, local: boolean) {
         `Approve on the computer ${data.ask}`,
       )
     : pick(lang, `需要批准 ${data.ask}`, `Approval needed ${data.ask}`);
+  return lines(
+    headLine(data.at, what),
+    `${code(truncate(cleanInline(data.tool), 40)) || "?"} · ${triggerLabel(lang, data.trigger)}`,
+  );
+}
+
+function approvalHead(lang: L, data: ApprovalCardData, local: boolean) {
   const subject = subjectLines(data.subject, CARD_SUBJECT_MAX);
   return {
-    text: lines(
-      `${head(lang, data.at)}${what}`,
-      `${truncate(cleanInline(data.tool), 40)} · ${triggerLabel(lang, data.trigger)}`,
+    text: blocks(
+      approvalTop(lang, data, local),
       subject.text,
       summaryLine(lang, data.summary) ?? descriptionLine(data.description),
-      data.external ? render("T-EXTERNAL", lang) : undefined,
     ),
     cut: subject.cut || data.cut === true,
   };
+}
+
+/** `.y 12` approve · `.d 12` reject · `.d 12` your note (local: no approve). */
+function approvalActions(lang: L, ask: number, local: boolean): string {
+  const reject = pick(
+    lang,
+    `\`.d ${ask}\` 拒绝 · \`.d ${ask} 你的建议\``,
+    `\`.d ${ask}\` reject · \`.d ${ask} your note\``,
+  );
+  return local
+    ? reject
+    : `${pick(lang, `\`.y ${ask}\` 批准`, `\`.y ${ask}\` approve`)} · ${reject}`;
 }
 
 /** Example answer for a question card: `2; 1,3`. */
@@ -573,33 +664,38 @@ function questionCard(
   ask: number,
   questionnaire: AskUserQuestionParams,
 ): string {
-  const body = questionnaire.questions.flatMap((question, index) => {
+  const body = questionnaire.questions.map((question, index) => {
     const kind = question.multiSelect
       ? pick(lang, "可多选", "pick any")
       : pick(lang, "单选", "pick one");
-    const title = cleanInline(question.question);
-    return [
+    const title = escapeInline(cleanInline(question.question));
+    return lines(
       pick(
         lang,
-        `Q${index + 1} ${title}（${kind}）`,
-        `Q${index + 1} ${title} (${kind})`,
+        `**Q${index + 1}** ${title}（${kind}）`,
+        `**Q${index + 1}** ${title} (${kind})`,
       ),
-      ...question.options.map((option, optionIndex) => {
-        const description = cleanInline(option.description);
-        return row(
-          ` ${optionIndex + 1} ${cleanInline(option.label)}${description ? ` · ${truncate(description, 40)}` : ""}`,
-        );
-      }),
-    ];
+      bullets(
+        question.options.map((option, optionIndex) => {
+          const description = cleanInline(option.description);
+          return item(
+            optionIndex + 1,
+            `${escapeInline(cleanInline(option.label))}${description ? ` · ${escapeInline(truncate(description, 40))}` : ""}`,
+          );
+        }),
+      ),
+    );
   });
   const example = answerExample(questionnaire);
-  return lines(
-    `${head(lang, at)}${pick(lang, `问题 ${ask}`, `Question ${ask}`)}`,
+  return blocks(
+    headLine(at, pick(lang, `问题 ${ask}`, `Question ${ask}`)),
     ...body,
-    pick(
-      lang,
-      `回答：.a ${ask} ${example} · 自己写：.a ${ask} =文字 · 取消：.d ${ask}`,
-      `Answer: .a ${ask} ${example} · own words: .a ${ask} =text · cancel: .d ${ask}`,
+    quote(
+      pick(
+        lang,
+        `回答：\`.a ${ask} ${example}\` · 自己写：\`.a ${ask} =文字\` · 取消：\`.d ${ask}\``,
+        `Answer: \`.a ${ask} ${example}\` · own words: \`.a ${ask} =text\` · cancel: \`.d ${ask}\``,
+      ),
     ),
   );
 }
@@ -607,34 +703,38 @@ function questionCard(
 /** `T-DIGEST`: what happened while the replies were used up. */
 export function renderDigest(lang: L, items: readonly DigestItem[]): string {
   const parts: string[] = [];
-  const quote = (title: string) =>
+  const named = (title: string) =>
     pick(lang, `「${displayTitle(title)}」`, `"${displayTitle(title)}"`);
   const asks: number[] = [];
-  for (const item of items) {
-    switch (item.kind) {
+  for (const entry of items) {
+    switch (entry.kind) {
       case "done":
         parts.push(
           pick(
             lang,
-            `${quote(item.title)}已完成`,
-            `${quote(item.title)} finished`,
+            `${named(entry.title)}已完成`,
+            `${named(entry.title)} finished`,
           ),
         );
         break;
       case "failed":
         parts.push(
-          pick(lang, `${quote(item.title)}失败`, `${quote(item.title)} failed`),
+          pick(
+            lang,
+            `${named(entry.title)}失败`,
+            `${named(entry.title)} failed`,
+          ),
         );
         break;
       case "ask":
-        if (!asks.includes(item.number)) asks.push(item.number);
+        if (!asks.includes(entry.number)) asks.push(entry.number);
         break;
       case "autorun":
         parts.push(
           pick(
             lang,
-            `自动化${quote(item.name)}运行结束：${truncate(cleanInline(item.result), 40)}`,
-            `automation ${quote(item.name)} finished: ${truncate(cleanInline(item.result), 40)}`,
+            `自动化${named(entry.name)}运行结束：${inline(entry.result, 40)}`,
+            `automation ${named(entry.name)} finished: ${inline(entry.result, 40)}`,
           ),
         );
         break;
@@ -642,8 +742,8 @@ export function renderDigest(lang: L, items: readonly DigestItem[]): string {
         parts.push(
           pick(
             lang,
-            `开启${quote(item.name)}的请求${{ approved: "已批准", denied: "被拒绝", timeout: "已失效" }[item.result]}`,
-            `request to turn on ${quote(item.name)} ${{ approved: "approved", denied: "declined", timeout: "expired" }[item.result]}`,
+            `开启${named(entry.name)}的请求${{ approved: "已批准", denied: "被拒绝", timeout: "已失效" }[entry.result]}`,
+            `request to turn on ${named(entry.name)} ${{ approved: "approved", denied: "declined", timeout: "expired" }[entry.result]}`,
           ),
         );
         break;
@@ -653,16 +753,15 @@ export function renderDigest(lang: L, items: readonly DigestItem[]): string {
     parts.push(
       pick(
         lang,
-        `${asks.length} 项待处理（${list(lang, asks.map(String))}）`,
-        `${asks.length} waiting (${list(lang, asks.map(String))})`,
+        `${asks.length} 项待处理：${list(lang, asks.map(String))}`,
+        `${asks.length} waiting: ${list(lang, asks.map(String))}`,
       ),
     );
   if (parts.length === 0) return "";
   return finish(
-    pick(
-      lang,
-      `你不在时：${list(lang, parts)}。`,
-      `While you were away: ${list(lang, parts)}.`,
+    lines(
+      pick(lang, "**你不在时**", "**While you were away**"),
+      bullets(parts),
     ),
   );
 }
@@ -672,26 +771,31 @@ export function renderDigest(lang: L, items: readonly DigestItem[]): string {
 
 function pageFooter(lang: L, page: PageInfo): string | undefined {
   if (page.index < page.count)
-    return pick(
-      lang,
-      `（${page.index}/${page.count}，回 .0 看下一段）`,
-      `(${page.index}/${page.count}, reply .0 for the next part)`,
+    return quote(
+      pick(
+        lang,
+        `（${page.index}/${page.count}，回 \`.0\` 看下一段）`,
+        `(${page.index}/${page.count}, reply \`.0\` for the next part)`,
+      ),
     );
   if (page.truncated)
-    return pick(
-      lang,
-      "（完整内容请在 Pine 中查看）",
-      "(Open Pine for the full text)",
+    return quote(
+      pick(
+        lang,
+        "（完整内容请在 Pine 中查看）",
+        "(Open Pine for the full text)",
+      ),
     );
   return undefined;
 }
 
-const FOOTER_RESERVE = 40;
+const FOOTER_RESERVE = 48;
 
 /**
- * Splits text under a fixed first line into replies of at most REPLY_MAX code
- * points, each with its `R-PAGE` footer; at most `maxPages` pages, the last
- * one saying "open Pine" when the text went on.
+ * Splits Markdown under a fixed first line into replies of at most REPLY_MAX
+ * code points, each with its `R-PAGE` footer; at most `maxPages` pages, the
+ * last one saying "open Pine" when the text went on. A fence that runs across
+ * pages is closed and reopened, so every page renders on its own.
  */
 export function pagedText(
   lang: L,
@@ -699,18 +803,14 @@ export function pagedText(
   text: string,
   maxPages: number,
 ): string[] {
-  const reserve = (first ? codePointLength(first) + 1 : 0) + FOOTER_RESERVE;
-  // Pages are trimmed, so each one is neutralised again: a page may start
-  // with a line whose guarding space the cut removed.
-  const all = paginate(neutraliseText(text), REPLY_MAX - reserve).map(
-    neutraliseText,
-  );
+  const reserve = (first ? codePointLength(first) + 2 : 0) + FOOTER_RESERVE;
+  const all = paginateMarkdown(text, REPLY_MAX - reserve);
   const kept = all.slice(0, Math.max(1, maxPages));
   const truncated = all.length > kept.length;
   if (kept.length === 0) return first ? [finish(first)] : [];
   return kept.map((page, index) =>
     finish(
-      lines(
+      blocks(
         first,
         page,
         pageFooter(lang, { index: index + 1, count: kept.length, truncated }),
@@ -719,13 +819,13 @@ export function pagedText(
   );
 }
 
-/** `.last`: the final reply as plain text, in pages for `.more`. */
+/** `.last`: the final reply as contained Markdown, in pages for `.more`. */
 export function renderLastPages(
   lang: L,
   at: SessionRef,
   markdown: string,
 ): string[] {
-  const text = toPlainText(markdown, lang);
+  const text = agentMarkdown(markdown, lang);
   if (!text) return [render("R-NOREPLY", lang)];
   return pagedText(
     lang,
@@ -1115,8 +1215,16 @@ type Template<K extends ReplyId> = (lang: L, data: ReplyData[K]) => string;
 // Templates
 
 const TEMPLATES: { [K in ReplyId]: Template<K> } = {
-  "R-HELP": (lang, data) => lines(...HELP_LINES[lang], helpFooter(lang, data)),
-  "R-HELP2": (lang) => lines(...HELP2_LINES[lang]),
+  "R-HELP": (lang, data) =>
+    blocks(HELP_INTRO[lang], bullets(HELP_ROWS[lang]), helpFooter(lang, data)),
+  "R-HELP2": (lang) =>
+    blocks(
+      pick(lang, "**更多命令**", "**More commands**"),
+      bullets(HELP2_ROWS[lang]),
+      quote(
+        pick(lang, "`.? 命令名` 查看用法", "`.? name` shows a command's usage"),
+      ),
+    ),
   "R-HELP1": (lang, { spec }) => helpOne(lang, spec),
   "R-STATUS": (lang, data) => {
     const facts = [stateLabel(lang, data.state, data.runningMs)];
@@ -1137,55 +1245,68 @@ const TEMPLATES: { [K in ReplyId]: Template<K> } = {
         ),
       );
     if (data.costUsd !== undefined) facts.push(cost(data.costUsd));
-    const asks = data.asks.map((ask) => `${ask.number} ${askWhat(lang, ask)}`);
+    const asks = data.asks.map((ask) => item(ask.number, askWhat(lang, ask)));
     const others = data.others.slice(0, 5).map((other) => {
       const mark =
         other.state === "running" ? "▶" : other.state === "waiting" ? "!" : "·";
-      return row(
+      return item(
+        other.n,
         pick(
           lang,
-          `${other.n} ${mark} ${displayTitle(other.title)}（${displayTitle(other.project)}）`,
-          `${other.n} ${mark} ${displayTitle(other.title)} (${displayTitle(other.project)})`,
+          `${mark} ${displayTitle(other.title)}（${displayTitle(other.project)}）`,
+          `${mark} ${displayTitle(other.title)} (${displayTitle(other.project)})`,
         ),
       );
     });
-    return lines(
-      `${head(lang, data.at)}${facts.join(" · ")}`,
+    return blocks(
+      headLine(data.at, facts.join(" · ")),
       asks.length > 0 &&
-        pick(
-          lang,
-          `待处理：${list(lang, asks)}`,
-          `Waiting: ${list(lang, asks)}`,
+        lines(pick(lang, "**待处理**", "**Waiting**"), bullets(asks)),
+      others.length > 0 &&
+        lines(
+          pick(lang, "**其他会话**", "**Other sessions**"),
+          bullets(others),
         ),
-      others.length > 0 && pick(lang, "其他：", "Others:"),
-      ...others,
     );
   },
   "R-STATUS0": (lang, { project, mode }) =>
-    pick(
-      lang,
-      `还没有当前会话。项目：${displayTitle(project)} · 默认模式：${modeLabel(lang, mode)}\n直接发文字开始，或 .l 选择会话。`,
-      `No current session. Project: ${displayTitle(project)} · Default mode: ${modeLabel(lang, mode)}\nSend text to start one, or .l to pick a session.`,
+    blocks(
+      pick(
+        lang,
+        `还没有当前会话。项目 **${displayTitle(project)}** · 默认模式：${modeLabel(lang, mode)}`,
+        `No current session. Project **${displayTitle(project)}** · Default mode: ${modeLabel(lang, mode)}`,
+      ),
+      quote(
+        pick(
+          lang,
+          "直接发文字开始，或 `.l` 选择会话。",
+          "Send text to start one, or `.l` to pick a session.",
+        ),
+      ),
     ),
   "R-INFO": (lang, data) => {
-    const computer = truncate(cleanInline(data.computer), TITLE_MAX);
-    const version = truncate(cleanInline(data.version), 30);
+    const computer = displayTitle(data.computer);
+    const version = inline(data.version, 30);
     const bound = data.boundAt === undefined ? "?" : formatDate(data.boundAt);
     return pick(
       lang,
-      lines(
-        `电脑：${computer} · Pine ${version}（实验性功能）`,
-        `最高审批模式 ${modeLabel(lang, data.ceiling)} · 默认 ${modeLabel(lang, data.defaultMode)}`,
-        `高风险审批：${data.highRisk ? "允许" : "仅电脑"} · 发文件：${onOff(lang, data.files)}`,
-        `回复语言：${languageLabel(lang, data.language)} · 绑定于 ${bound}`,
-        "这些设置只能在电脑上修改。",
+      blocks(
+        `**${computer}** · Pine ${version}（实验性功能）`,
+        lines(
+          `最高审批模式 ${modeLabel(lang, data.ceiling)} · 默认 ${modeLabel(lang, data.defaultMode)}`,
+          `高风险审批：${data.highRisk ? "允许" : "仅电脑"} · 发文件：${onOff(lang, data.files)}`,
+          `回复语言：${languageLabel(lang, data.language)} · 绑定于 ${bound}`,
+        ),
+        quote("这些设置只能在电脑上修改。"),
       ),
-      lines(
-        `Computer: ${computer} · Pine ${version} (experimental)`,
-        `Highest approval mode ${modeLabel(lang, data.ceiling)} · Default ${modeLabel(lang, data.defaultMode)}`,
-        `High-risk approvals: ${data.highRisk ? "allowed" : "computer only"} · Files: ${onOff(lang, data.files)}`,
-        `Reply language: ${languageLabel(lang, data.language)} · Bound on ${bound}`,
-        "These settings can only be changed on the computer.",
+      blocks(
+        `**${computer}** · Pine ${version} (experimental)`,
+        lines(
+          `Highest approval mode ${modeLabel(lang, data.ceiling)} · Default ${modeLabel(lang, data.defaultMode)}`,
+          `High-risk approvals: ${data.highRisk ? "allowed" : "computer only"} · Files: ${onOff(lang, data.files)}`,
+          `Reply language: ${languageLabel(lang, data.language)} · Bound on ${bound}`,
+        ),
+        quote("These settings can only be changed on the computer."),
       ),
     );
   },
@@ -1220,25 +1341,33 @@ const TEMPLATES: { [K in ReplyId]: Template<K> } = {
   "R-DROP": (lang, { count }) =>
     pick(lang, `已丢弃 ${count} 个附件。`, `Dropped ${count} attachment(s).`),
   "R-ATTACH": (lang, { name, sizeBytes }) => {
-    const file = truncate(cleanInline(baseName(name)), 60);
+    const file = inline(baseName(name), 60);
     return pick(
       lang,
-      `已收到 ${file}（${formatSize(sizeBytes)}）。发送说明文字即可带上它，.drop 丢弃。`,
-      `Received ${file} (${formatSize(sizeBytes)}). Send your text to include it, or .drop to discard.`,
+      blocks(
+        `已收到 ${file}（${formatSize(sizeBytes)}）。`,
+        quote("发送说明文字即可带上它，`.drop` 丢弃。"),
+      ),
+      blocks(
+        `Received ${file} (${formatSize(sizeBytes)}).`,
+        quote("Send your text to include it, or `.drop` to discard."),
+      ),
     );
   },
   "R-NEW": (lang, data) => {
     const facts = [modeLabel(lang, data.mode)];
-    if (data.model) facts.push(truncate(cleanInline(data.model), 40));
+    if (data.model) facts.push(inline(data.model, 40));
     return pick(
       lang,
-      lines(
-        `已在 ${displayTitle(data.project)} 开始：${echo(data.text)}`,
-        `${facts.join(" · ")} · 完成后通知你，.x 可停止`,
+      blocks(
+        `**${displayTitle(data.project)}** · 已开始：${echo(data.text)}`,
+        quote(`${facts.join(" · ")} · 完成后通知你，\`.x\` 可停止`),
       ),
-      lines(
-        `Started in ${displayTitle(data.project)}: ${echo(data.text)}`,
-        `${facts.join(" · ")} · I'll tell you when it's done; .x stops it`,
+      blocks(
+        `**${displayTitle(data.project)}** · Started: ${echo(data.text)}`,
+        quote(
+          `${facts.join(" · ")} · I'll tell you when it's done; \`.x\` stops it`,
+        ),
       ),
     );
   },
@@ -1249,24 +1378,25 @@ const TEMPLATES: { [K in ReplyId]: Template<K> } = {
       `Your next message starts a new session in ${displayTitle(project)}.`,
     ),
   "R-STEER": (lang, { at }) =>
-    `${head(lang, at)}${pick(lang, "已转给正在运行的任务。", "Passed to the running task.")}`,
+    headLine(
+      at,
+      pick(lang, "已转给正在运行的任务。", "Passed to the running task."),
+    ),
   "R-ROUTE": (lang, { at }) =>
     pick(
       lang,
-      `→ ${header(lang, at.project, at.title)} · .n 新开会话`,
-      `→ ${header(lang, at.project, at.title)} · .n starts a new one`,
+      `→ ${headLine(at)} · \`.n\` 新开会话`,
+      `→ ${headLine(at)} · \`.n\` starts a new one`,
     ),
-  "R-WELCOME": (lang, data) => {
-    const computer = truncate(cleanInline(data.computer), TITLE_MAX);
-    return lines(
+  "R-WELCOME": (lang, data) =>
+    blocks(
       pick(
         lang,
-        `已连接到 ${computer} 上的 Pine（实验性功能）。`,
-        `Connected to Pine on ${computer} (experimental).`,
+        `已连接到 ${displayTitle(data.computer)} 上的 Pine（实验性功能）。`,
+        `Connected to Pine on ${displayTitle(data.computer)} (experimental).`,
       ),
       TEMPLATES["R-HELP"](lang, data),
-    );
-  },
+    ),
   "R-SESSIONS": (lang, { rows: items, now }) => {
     if (items.length === 0)
       return pick(
@@ -1280,17 +1410,22 @@ const TEMPLATES: { [K in ReplyId]: Template<K> } = {
       wechat: pick(lang, "微", "WX"),
       automation: pick(lang, "自动", "auto"),
     };
-    return lines(
-      ...rows(items).map((item) => {
-        const marks = item.marks.map((mark) => markText[mark]).join("");
-        return row(
-          `${item.n} ${marks ? `${marks} ` : ""}${displayTitle(item.title)} · ${displayTitle(item.project)} · ${formatWhen(item.atMs, now, lang)}`,
-        );
-      }),
-      pick(
-        lang,
-        "回 .数字 切换 · .0 更多 · .f 搜索",
-        "Reply .number to switch · .0 more · .f search",
+    return blocks(
+      bullets(
+        rows(items).map((entry) => {
+          const marks = entry.marks.map((mark) => markText[mark]).join("");
+          return item(
+            entry.n,
+            `${marks ? `${marks} ` : ""}${displayTitle(entry.title)} · ${displayTitle(entry.project)} · ${formatWhen(entry.atMs, now, lang)}`,
+          );
+        }),
+      ),
+      quote(
+        pick(
+          lang,
+          "回 `.数字` 切换 · `.0` 更多 · `.f` 搜索",
+          "Reply `.number` to switch · `.0` more · `.f` search",
+        ),
       ),
     );
   },
@@ -1305,45 +1440,63 @@ const TEMPLATES: { [K in ReplyId]: Template<K> } = {
         `「${q}」找到 ${count} 个：`,
         `${count} result(s) for "${q}":`,
       ),
-      ...rows(items).map((item) => {
-        const snippet = item.snippet
-          ? ` · …${truncate(cleanInline(stripSearchMarkers(item.snippet)), 40)}…`
-          : "";
-        return row(
-          `${item.n} ${displayTitle(item.title)} · ${displayTitle(item.project)}${snippet}`,
-        );
-      }),
+      bullets(
+        rows(items).map((entry) => {
+          const snippet = entry.snippet
+            ? ` · …${inline(stripSearchMarkers(entry.snippet), 40)}…`
+            : "";
+          return item(
+            entry.n,
+            `${displayTitle(entry.title)} · ${displayTitle(entry.project)}${snippet}`,
+          );
+        }),
+      ),
     );
   },
   "R-MATCHES": (lang, { query, rows: items }) =>
     lines(
       pick(
         lang,
-        `「${echo(query)}」匹配多个，回 .数字 选择：`,
-        `"${echo(query)}" matches several. Reply .number to choose:`,
+        `「${echo(query)}」匹配多个，回 \`.数字\` 选择：`,
+        `"${echo(query)}" matches several. Reply \`.number\` to choose:`,
       ),
-      ...rows(items).map((item) => row(`${item.n} ${cleanInline(item.label)}`)),
+      bullets(
+        rows(items).map((entry) =>
+          item(entry.n, escapeInline(cleanInline(entry.label))),
+        ),
+      ),
     ),
-  "R-USE": (lang, data) =>
-    pick(
+  "R-USE": (lang, data) => {
+    const at = { project: data.project, title: data.title };
+    return pick(
       lang,
-      lines(
-        `当前会话：${displayTitle(data.title)}（${displayTitle(data.project)}）· ${stateLabel(lang, data.state)} · ${modeLabel(lang, data.mode)} · ${data.count} 条消息`,
-        "直接发文字继续 · .r 看上次回复",
+      blocks(
+        headLine(
+          at,
+          `当前会话 · ${stateLabel(lang, data.state)} · ${modeLabel(lang, data.mode)} · ${data.count} 条消息`,
+        ),
+        quote("直接发文字继续 · `.r` 看上次回复"),
       ),
-      lines(
-        `Current session: ${displayTitle(data.title)} (${displayTitle(data.project)}) · ${stateLabel(lang, data.state)} · ${modeLabel(lang, data.mode)} · ${data.count} messages`,
-        "Send text to continue · .r for the last reply",
+      blocks(
+        headLine(
+          at,
+          `Current session · ${stateLabel(lang, data.state)} · ${modeLabel(lang, data.mode)} · ${data.count} messages`,
+        ),
+        quote("Send text to continue · `.r` for the last reply"),
       ),
-    ),
+    );
+  },
   "R-USEVIEW": (lang, data) => {
-    const first = pick(
-      lang,
-      `当前会话：${displayTitle(data.title)}（${displayTitle(data.project)}）· ${stateLabel(lang, data.state)}`,
-      `Current session: ${displayTitle(data.title)} (${displayTitle(data.project)}) · ${stateLabel(lang, data.state)}`,
+    const first = headLine(
+      { project: data.project, title: data.title },
+      pick(
+        lang,
+        `当前会话 · ${stateLabel(lang, data.state)}`,
+        `Current session · ${stateLabel(lang, data.state)}`,
+      ),
     );
     if (data.reason === "automation-run" || !data.mode || !data.ceiling)
-      return lines(
+      return blocks(
         first,
         pick(
           lang,
@@ -1354,55 +1507,55 @@ const TEMPLATES: { [K in ReplyId]: Template<K> } = {
     const mode = modeLabel(lang, data.mode);
     const ceiling = modeLabel(lang, data.ceiling);
     const n = modeNumber(data.ceiling);
-    return lines(
+    return blocks(
       first,
       pick(
         lang,
         `只读：它的审批模式（${mode}）高于微信上限（${ceiling}）。可查看和停止。`,
         `View only: its approval mode (${mode}) is above the WeChat ceiling (${ceiling}). You can read and stop it.`,
       ),
-      pick(
-        lang,
-        `回 .mode ${n} 把它降到 ${ceiling} 后可继续。`,
-        `Reply .mode ${n} to lower it to ${ceiling} and continue.`,
+      quote(
+        pick(
+          lang,
+          `回 \`.mode ${n}\` 把它降到 ${ceiling} 后可继续。`,
+          `Reply \`.mode ${n}\` to lower it to ${ceiling} and continue.`,
+        ),
       ),
     );
   },
   "R-LAST": (lang, { at, text, page }) =>
-    lines(
-      header(lang, at.project, at.title),
-      neutraliseText(text),
+    blocks(
+      headLine(at),
+      agentMarkdown(text, lang),
       page && pageFooter(lang, page),
     ),
   "R-NOREPLY": (lang) =>
     pick(lang, "这个会话还没有回复。", "This session has no reply yet."),
   "R-HISTORY": (lang, { entries }) => {
-    const footer = pick(
-      lang,
-      "（.r 看最后一条全文）",
-      "(.r for the full last reply)",
+    const footer = quote(
+      pick(lang, "`.r` 看最后一条全文", "`.r` for the full last reply"),
     );
     const kept: string[] = [];
-    let used = codePointLength(footer) + 1;
+    let used = codePointLength(footer) + 2;
     for (const entry of [...entries].reverse()) {
       const who =
         entry.role === "user"
-          ? pick(lang, "你：", "You: ")
-          : pick(lang, "Pine：", "Pine: ");
-      const line = `${who}${truncate(cleanInline(entry.text), HISTORY_ENTRY_MAX)}`;
-      const size = codePointLength(line) + 1;
+          ? pick(lang, "**你：**", "**You:**")
+          : pick(lang, "**Pine：**", "**Pine:**");
+      const line = `${who} ${escapeInline(truncate(cleanInline(entry.text), HISTORY_ENTRY_MAX))}`;
+      const size = codePointLength(line) + 3;
       if (used + size > REPLY_MAX) break;
       kept.unshift(line);
       used += size;
     }
     if (kept.length === 0) return TEMPLATES["R-NOREPLY"](lang, undefined);
-    return lines(...kept, footer);
+    return blocks(bullets(kept), footer);
   },
   "R-STOP": (lang, { title, backgroundTasks }) =>
     pick(
       lang,
-      `已停止：${displayTitle(title)}。${backgroundTasks > 0 ? `还有 ${backgroundTasks} 个后台进程在运行（.b）。` : ""}`,
-      `Stopped: ${displayTitle(title)}.${backgroundTasks > 0 ? ` ${backgroundTasks} background process(es) still running (.b).` : ""}`,
+      `已停止：${displayTitle(title)}。${backgroundTasks > 0 ? `还有 ${backgroundTasks} 个后台进程在运行（\`.b\`）。` : ""}`,
+      `Stopped: ${displayTitle(title)}.${backgroundTasks > 0 ? ` ${backgroundTasks} background process(es) still running (\`.b\`).` : ""}`,
     ),
   "R-STOPNONE": (lang) =>
     pick(lang, "没有正在运行的回复。", "Nothing is running."),
@@ -1411,8 +1564,14 @@ const TEMPLATES: { [K in ReplyId]: Template<K> } = {
   "R-QUEUED": (lang) =>
     pick(
       lang,
-      "已加入插话队列，智能体下一步会读到。发 .撤回 可撤回。",
-      "Queued. The agent reads it at its next step. Send .recall to withdraw it.",
+      blocks(
+        "已加入插话队列，智能体下一步会读到。",
+        quote("发 `.撤回` 可撤回。"),
+      ),
+      blocks(
+        "Queued. The agent reads it at its next step.",
+        quote("Send `.recall` to withdraw it."),
+      ),
     ),
   "R-QUEUEWAIT": (lang, { at, asks }) => {
     const items = asks
@@ -1421,20 +1580,34 @@ const TEMPLATES: { [K in ReplyId]: Template<K> } = {
     const extra = asks.length - items.length;
     if (extra > 0)
       items.push(pick(lang, `等 ${extra} 项`, `and ${extra} more`));
-    return `${head(lang, at)}${pick(
-      lang,
-      `已作为暂存消息排队，等待的卡片处理后交给智能体。仍在等你：${list(lang, items)}。发 .撤回 可撤回这条消息。`,
-      `Staged as a steering message; it reaches the agent once the waiting ${asks.length > 1 ? "cards are" : "card is"} handled. Still waiting: ${list(lang, items)}. .recall withdraws this message.`,
-    )}`;
+    return blocks(
+      headLine(
+        at,
+        pick(lang, "已作为暂存消息排队", "Staged as a steering message"),
+      ),
+      pick(
+        lang,
+        "等待的卡片处理后交给智能体。",
+        `It reaches the agent once the waiting ${asks.length > 1 ? "cards are" : "card is"} handled.`,
+      ),
+      lines(pick(lang, "**仍在等你**", "**Still waiting**"), bullets(items)),
+      quote(
+        pick(
+          lang,
+          "发 `.撤回` 可撤回这条消息",
+          "`.recall` withdraws this message",
+        ),
+      ),
+    );
   },
   "R-QUEUE": (lang, { rows: items }) => {
     if (items.length === 0)
       return pick(lang, "没有排队的消息。", "No queued messages.");
-    return lines(
-      ...rows(items).map((item) =>
-        row(`${item.n} ${truncate(cleanInline(item.text), 80)}`),
+    return blocks(
+      bullets(
+        rows(items).map((entry) => item(entry.n, inline(entry.text, 80))),
       ),
-      pick(lang, "发 .撤回 数字 撤回", ".recall number withdraws"),
+      quote(pick(lang, "发 `.撤回 数字` 撤回", "`.recall number` withdraws")),
     );
   },
   "R-UNQUEUE": (lang, { text }) =>
@@ -1446,7 +1619,7 @@ const TEMPLATES: { [K in ReplyId]: Template<K> } = {
       `Renamed to: ${displayTitle(title)}`,
     ),
   "R-DELETE-ASK": (lang, data) =>
-    lines(
+    blocks(
       pick(
         lang,
         `删除「${displayTitle(data.title)}」（${displayTitle(data.project)}，${data.count} 条消息）？不可恢复。`,
@@ -1467,16 +1640,21 @@ const TEMPLATES: { [K in ReplyId]: Template<K> } = {
         "没有可用的模型。请在电脑上配置模型服务商。",
         "No models available. Set up a provider on the computer.",
       );
-    return lines(
-      ...rows(items).map((item) =>
-        row(
-          `${item.n} ${item.current ? "* " : ""}${cleanInline(item.model)} · ${cleanInline(item.provider)}`,
+    return blocks(
+      bullets(
+        rows(items).map((entry) =>
+          item(
+            entry.n,
+            `${escapeInline(cleanInline(entry.model))} · ${escapeInline(cleanInline(entry.provider))}${entry.current ? pick(lang, " · 当前", " · current") : ""}`,
+          ),
         ),
       ),
-      pick(
-        lang,
-        "回 .数字 切换 · .m 关键词 筛选",
-        "Reply .number to switch · .m words to filter",
+      quote(
+        pick(
+          lang,
+          "回 `.数字` 切换 · `.m 关键词` 筛选",
+          "Reply `.number` to switch · `.m words` to filter",
+        ),
       ),
     );
   },
@@ -1484,22 +1662,30 @@ const TEMPLATES: { [K in ReplyId]: Template<K> } = {
     const level = effort
       ? effortLabel(lang, effort)
       : pick(lang, "默认", "default");
-    const name = truncate(cleanInline(model), 60);
-    return `${head(lang, at)}${pick(
-      lang,
-      `模型：${name} · 推理强度 ${level}。下一条回复生效。`,
-      `Model: ${name} · effort ${level}. Applies from the next reply.`,
-    )}`;
+    const name = inline(model, 60);
+    return headLine(
+      at,
+      pick(
+        lang,
+        `模型：${name} · 推理强度 ${level}。下一条回复生效。`,
+        `Model: ${name} · effort ${level}. Applies from the next reply.`,
+      ),
+    );
   },
   "R-EFFORTS": (lang, { rows: items }) =>
-    lines(
-      `${pick(lang, "推理强度：", "Reasoning effort: ")}${items
-        .map(
-          (item) =>
-            `${item.n} ${item.current ? "* " : ""}${effortLabel(lang, item.level)}`,
-        )
-        .join(" · ")}`,
-      pick(lang, "回 .数字 切换", "Reply .number to switch"),
+    blocks(
+      lines(
+        pick(lang, "推理强度：", "Reasoning effort:"),
+        bullets(
+          items.map((entry) =>
+            item(
+              entry.n,
+              `${effortLabel(lang, entry.level)}${entry.current ? pick(lang, " · 当前", " · current") : ""}`,
+            ),
+          ),
+        ),
+      ),
+      quote(pick(lang, "回 `.数字` 切换", "Reply `.number` to switch")),
     ),
   "R-EFFORT": (lang, { level }) =>
     pick(
@@ -1509,26 +1695,38 @@ const TEMPLATES: { [K in ReplyId]: Template<K> } = {
     ),
   "R-MODES": (lang, { current, ceiling }) => {
     const limit = modeNumber(ceiling);
-    return lines(
-      APPROVAL_MODE_ORDER.map((mode, index) => {
-        const mark = mode === current ? "* " : index + 1 > limit ? "🔒 " : "";
-        return `${index + 1} ${mark}${modeLabel(lang, mode)}`;
-      }).join(" · "),
-      pick(
-        lang,
-        "最高模式在电脑上设置。",
-        "The highest mode is set on the computer.",
+    return blocks(
+      bullets(
+        APPROVAL_MODE_ORDER.map((mode, index) => {
+          const locked = mode !== current && index + 1 > limit;
+          const suffix =
+            mode === current ? pick(lang, " · 当前", " · current") : "";
+          return item(
+            index + 1,
+            `${locked ? "🔒 " : ""}${modeLabel(lang, mode)}${suffix}`,
+          );
+        }),
+      ),
+      quote(
+        pick(
+          lang,
+          "最高模式在电脑上设置。",
+          "The highest mode is set on the computer.",
+        ),
       ),
     );
   },
   "R-MODE": (lang, { at, mode, ceiling }) =>
-    `${head(lang, at)}${pick(
-      lang,
-      `审批模式：${modeLabel(lang, mode)}（最高模式 ${modeLabel(lang, ceiling)}）`,
-      `Approval mode: ${modeLabel(lang, mode)} (highest mode ${modeLabel(lang, ceiling)})`,
-    )}`,
+    headLine(
+      at,
+      pick(
+        lang,
+        `审批模式：${modeLabel(lang, mode)}（最高模式 ${modeLabel(lang, ceiling)}）`,
+        `Approval mode: ${modeLabel(lang, mode)} (highest mode ${modeLabel(lang, ceiling)})`,
+      ),
+    ),
   "R-MODE-REVIEW": (lang, data) =>
-    lines(
+    blocks(
       TEMPLATES["R-MODE"](lang, data),
       pick(
         lang,
@@ -1537,7 +1735,7 @@ const TEMPLATES: { [K in ReplyId]: Template<K> } = {
       ),
     ),
   "R-YOLO-ASK": (lang, { title, ask }) =>
-    lines(
+    blocks(
       pick(
         lang,
         `为「${displayTitle(title)}」启用“干就完了”？它会关闭一切权限约束和审批，你需自行承担数据不可逆损失等风险。`,
@@ -1546,7 +1744,7 @@ const TEMPLATES: { [K in ReplyId]: Template<K> } = {
       confirmLine(lang, ask),
     ),
   "R-USAGE": (lang, data) => {
-    const model = data.model ? truncate(cleanInline(data.model), 50) : "?";
+    const model = data.model ? inline(data.model, 50) : "?";
     const effort = data.effort
       ? effortLabel(lang, data.effort)
       : pick(lang, "默认", "default");
@@ -1582,23 +1780,25 @@ const TEMPLATES: { [K in ReplyId]: Template<K> } = {
         ),
       );
     const spent = data.costUsd === undefined ? "$?" : cost(data.costUsd);
-    return lines(
-      header(lang, data.at.project, data.at.title),
-      pick(
-        lang,
-        `模型 ${model} · 推理强度 ${effort}`,
-        `Model ${model} · effort ${effort}`,
-      ),
-      pick(
-        lang,
-        `模式 ${modeLabel(lang, data.mode)}（最高模式 ${modeLabel(lang, data.ceiling)}）`,
-        `Mode ${modeLabel(lang, data.mode)} (highest mode ${modeLabel(lang, data.ceiling)})`,
-      ),
-      context.length > 0 && context.join(" · "),
-      pick(
-        lang,
-        `本会话 ${spent} · ${data.count} 条消息`,
-        `This session ${spent} · ${data.count} messages`,
+    return blocks(
+      headLine(data.at),
+      lines(
+        pick(
+          lang,
+          `模型 ${model} · 推理强度 ${effort}`,
+          `Model ${model} · effort ${effort}`,
+        ),
+        pick(
+          lang,
+          `模式 ${modeLabel(lang, data.mode)}（最高模式 ${modeLabel(lang, data.ceiling)}）`,
+          `Mode ${modeLabel(lang, data.mode)} (highest mode ${modeLabel(lang, data.ceiling)})`,
+        ),
+        context.length > 0 && context.join(" · "),
+        pick(
+          lang,
+          `本会话 ${spent} · ${data.count} 条消息`,
+          `This session ${spent} · ${data.count} messages`,
+        ),
       ),
     );
   },
@@ -1611,15 +1811,16 @@ const TEMPLATES: { [K in ReplyId]: Template<K> } = {
   "R-COMPACTING": (lang) =>
     pick(lang, "正在压缩上下文…", "Compacting the context…"),
   "R-COMPACTED": (lang, { at, error }) =>
-    `${head(lang, at)}${
+    headLine(
+      at,
       error === undefined
         ? pick(lang, "上下文已压缩。", "Context compacted.")
         : pick(
             lang,
-            `压缩失败：${truncate(cleanInline(error), 200)}`,
-            `Compaction failed: ${truncate(cleanInline(error), 200)}`,
-          )
-    }`,
+            `压缩失败：${inline(error, 200)}`,
+            `Compaction failed: ${inline(error, 200)}`,
+          ),
+    ),
   "R-COMPACT-IDLE": (lang) =>
     pick(
       lang,
@@ -1629,13 +1830,24 @@ const TEMPLATES: { [K in ReplyId]: Template<K> } = {
   "R-TODO": (lang, { at, items }) => {
     if (items.length === 0)
       return pick(lang, "这个会话没有待办。", "This session has no todos.");
-    const done = items.filter((item) => item.status === "completed").length;
+    const done = items.filter((entry) => entry.status === "completed").length;
     const shown = items.slice(0, 15);
     const icon = { completed: "✓", in_progress: "▶", pending: "○" };
-    return lines(
-      `${head(lang, at)}${pick(lang, `待办 ${done}/${items.length}`, `Todos ${done}/${items.length}`)}`,
-      ...shown.map((item) =>
-        row(`${icon[item.status]} ${cleanInline(item.subject)}`),
+    return blocks(
+      headLine(
+        at,
+        pick(
+          lang,
+          `待办 ${done}/${items.length}`,
+          `Todos ${done}/${items.length}`,
+        ),
+      ),
+      bullets(
+        shown.map((entry) =>
+          row(
+            `${icon[entry.status]} ${escapeInline(cleanInline(entry.subject))}`,
+          ),
+        ),
       ),
       items.length > shown.length &&
         pick(
@@ -1648,28 +1860,35 @@ const TEMPLATES: { [K in ReplyId]: Template<K> } = {
   "R-PENDING": (lang, { asks, automationApprovals }) => {
     const automation =
       automationApprovals > 0 &&
-      pick(
-        lang,
-        `另有 ${automationApprovals} 个自动化变更需在电脑上批准。`,
-        `${automationApprovals} automation change(s) need approval on the computer.`,
+      quote(
+        pick(
+          lang,
+          `另有 ${automationApprovals} 个自动化变更需在电脑上批准。`,
+          `${automationApprovals} automation change(s) need approval on the computer.`,
+        ),
       );
     if (asks.length === 0)
-      return lines(
+      return blocks(
         pick(lang, "没有待处理项。", "Nothing is waiting."),
         automation,
       );
-    return lines(
-      pick(lang, `待处理 ${asks.length} 项：`, `${asks.length} waiting:`),
-      ...asks.map((ask) =>
-        row(
-          `${ask.number} ${askWhat(lang, ask)}${ask.title ? ` · ${displayTitle(ask.title)}` : ""}`,
+    return blocks(
+      lines(
+        pick(lang, `待处理 ${asks.length} 项：`, `${asks.length} waiting:`),
+        bullets(
+          asks.map((ask) =>
+            item(
+              ask.number,
+              `${askWhat(lang, ask)}${ask.title ? ` · ${displayTitle(ask.title)}` : ""}`,
+            ),
+          ),
         ),
       ),
       automation,
     );
   },
   "R-APPROVED": (lang, { ask, subject }) => {
-    const what = subject ? truncate(cleanInline(subject), 60) : "";
+    const what = subject ? code(truncate(cleanInline(subject), 60)) : "";
     return pick(
       lang,
       what ? `已批准 ${ask}：${what}` : `已批准 ${ask}。`,
@@ -1699,24 +1918,36 @@ const TEMPLATES: { [K in ReplyId]: Template<K> } = {
         "这个会话还没有产出文件。",
         "This session has no artifacts yet.",
       );
-    return lines(
-      `${head(lang, at)}${pick(lang, `产出文件 ${items.length} 个`, `${items.length} artifact(s)`)}`,
-      ...rows(items).map((item) =>
-        row(
-          `${item.n} ${cleanInline(item.title ?? baseName(item.path))}${item.sizeBytes === undefined ? "" : ` · ${formatSize(item.sizeBytes)}`}`,
+    return blocks(
+      headLine(
+        at,
+        pick(
+          lang,
+          `产出文件 ${items.length} 个`,
+          `${items.length} artifact(s)`,
         ),
       ),
-      canSend
-        ? pick(lang, "回 .数字 发送", "Reply .number to send")
-        : pick(
-            lang,
-            "发文件已在电脑上关闭，这里只能看文件名。",
-            "Sending files is turned off on the computer; only names are shown.",
+      bullets(
+        rows(items).map((entry) =>
+          item(
+            entry.n,
+            `${escapeInline(cleanInline(entry.title ?? baseName(entry.path)))}${entry.sizeBytes === undefined ? "" : ` · ${formatSize(entry.sizeBytes)}`}`,
           ),
+        ),
+      ),
+      quote(
+        canSend
+          ? pick(lang, "回 `.数字` 发送", "Reply `.number` to send")
+          : pick(
+              lang,
+              "发文件已在电脑上关闭，这里只能看文件名。",
+              "Sending files is turned off on the computer; only names are shown.",
+            ),
+      ),
     );
   },
   "R-SENDING": (lang, { name, sizeBytes }) => {
-    const file = truncate(cleanInline(baseName(name)), 60);
+    const file = inline(baseName(name), 60);
     return pick(
       lang,
       `正在发送 ${file}（${formatSize(sizeBytes)}）…`,
@@ -1726,37 +1957,46 @@ const TEMPLATES: { [K in ReplyId]: Template<K> } = {
   "R-TASKS": (lang, { rows: items }) => {
     if (items.length === 0)
       return pick(lang, "没有后台进程。", "No background processes.");
-    return lines(
-      ...rows(items).map((item) => {
-        const state = item.running
-          ? pick(
-              lang,
-              `运行 ${formatDuration(item.runningMs ?? 0, lang)}`,
-              `running ${formatDuration(item.runningMs ?? 0, lang)}`,
-            )
-          : item.exitCode === undefined
-            ? pick(lang, "已结束", "ended")
-            : pick(lang, `已退出 ${item.exitCode}`, `exited ${item.exitCode}`);
-        return row(
-          `${item.n} ${displayTitle(item.title)} · ${state} · ${truncate(cleanInline(item.command), 60)}`,
-        );
-      }),
-      pick(
-        lang,
-        "回 .数字 看输出 · .k 数字 结束",
-        "Reply .number for output · .k number to stop",
+    return blocks(
+      bullets(
+        rows(items).map((entry) => {
+          const state = entry.running
+            ? pick(
+                lang,
+                `运行 ${formatDuration(entry.runningMs ?? 0, lang)}`,
+                `running ${formatDuration(entry.runningMs ?? 0, lang)}`,
+              )
+            : entry.exitCode === undefined
+              ? pick(lang, "已结束", "ended")
+              : pick(
+                  lang,
+                  `已退出 ${entry.exitCode}`,
+                  `exited ${entry.exitCode}`,
+                );
+          return item(
+            entry.n,
+            `${displayTitle(entry.title)} · ${state} · ${code(truncate(cleanInline(entry.command), 40))}`,
+          );
+        }),
+      ),
+      quote(
+        pick(
+          lang,
+          "回 `.数字` 看输出 · `.k 数字` 结束",
+          "Reply `.number` for output · `.k number` to stop",
+        ),
       ),
     );
   },
   "R-TASK": (lang, { title, output }) => {
     const tail = neutraliseText(tailOutput(output));
-    return lines(
+    return blocks(
       pick(
         lang,
-        `${displayTitle(title)} 最近输出：`,
-        `${displayTitle(title)}, latest output:`,
+        `**${displayTitle(title)}** · 最近输出`,
+        `**${displayTitle(title)}** · latest output`,
       ),
-      tail || pick(lang, "（没有输出）", "(no output)"),
+      tail ? codeBlock(tail) : pick(lang, "（没有输出）", "(no output)"),
     );
   },
   "R-KILLED": (lang, { title }) =>
@@ -1766,14 +2006,19 @@ const TEMPLATES: { [K in ReplyId]: Template<K> } = {
       `Stopped: ${displayTitle(title)}`,
     ),
   "R-PROJECTS": (lang, { rows: items }) =>
-    lines(
-      ...rows(items).map((item) => {
-        const name = item.temporary
-          ? pick(lang, "无项目", "No Project")
-          : displayTitle(item.name);
-        return row(`${item.n} ${item.current ? "* " : ""}${name}`);
-      }),
-      pick(lang, "回 .数字 切换", "Reply .number to switch"),
+    blocks(
+      bullets(
+        rows(items).map((entry) => {
+          const name = entry.temporary
+            ? pick(lang, "无项目", "No Project")
+            : displayTitle(entry.name);
+          return item(
+            entry.n,
+            `${name}${entry.current ? pick(lang, " · 当前", " · current") : ""}`,
+          );
+        }),
+      ),
+      quote(pick(lang, "回 `.数字` 切换", "Reply `.number` to switch")),
     ),
   "R-PROJECT": (lang, data) => {
     const name = data.temporary
@@ -1782,7 +2027,7 @@ const TEMPLATES: { [K in ReplyId]: Template<K> } = {
     const folders = list(
       lang,
       data.folders.slice(0, 5).map((folder) => {
-        const base = truncate(cleanInline(baseName(folder.path)), 30);
+        const base = inline(baseName(folder.path), 30);
         return folder.access === "read-only"
           ? pick(lang, `${base}（只读）`, `${base} (read-only)`)
           : base;
@@ -1813,56 +2058,67 @@ const TEMPLATES: { [K in ReplyId]: Template<K> } = {
       off: pick(lang, "关", "off"),
       paused: pick(lang, "已暂停", "paused"),
     };
-    return lines(
-      ...rows(items).map((item) => {
+    return bullets(
+      rows(items).map((entry) => {
         const parts = [
-          `${item.n} ${displayTitle(item.name)}`,
-          displayTitle(item.project),
-          state[item.state],
+          displayTitle(entry.name),
+          displayTitle(entry.project),
+          state[entry.state],
         ];
-        if (item.nextAtMs !== undefined)
+        if (entry.nextAtMs !== undefined)
           parts.push(
             pick(
               lang,
-              `下次 ${whenAhead(item.nextAtMs, now, lang)}`,
-              `next ${whenAhead(item.nextAtMs, now, lang)}`,
+              `下次 ${whenAhead(entry.nextAtMs, now, lang)}`,
+              `next ${whenAhead(entry.nextAtMs, now, lang)}`,
             ),
           );
-        if (item.lastResult)
+        if (entry.lastResult)
           parts.push(
             pick(
               lang,
-              `上次：${cleanInline(item.lastResult)}`,
-              `last: ${cleanInline(item.lastResult)}`,
+              `上次：${escapeInline(cleanInline(entry.lastResult))}`,
+              `last: ${escapeInline(cleanInline(entry.lastResult))}`,
             ),
           );
-        return row(parts.join(" · "));
+        return item(entry.n, parts.join(" · "));
       }),
     );
   },
   "R-AUTO": (lang, data) => {
-    const field = (text: string) => truncate(cleanInline(text), 120) || "—";
+    const field = (text: string) => inline(text, 120) || "—";
+    const head = `**${displayTitle(data.name)}** · ${displayTitle(data.project)} · ${onOff(lang, data.enabled)}`;
     return pick(
       lang,
-      lines(
-        `${displayTitle(data.name)}（${displayTitle(data.project)}）${onOff(lang, data.enabled)}`,
-        `触发：${field(data.triggers)}`,
-        `读取：${field(data.reads)}`,
-        `写入：${field(data.writes)} · 联网：${field(data.hosts)}`,
+      blocks(
+        head,
+        lines(
+          `触发：${field(data.triggers)}`,
+          `读取：${field(data.reads)}`,
+          `写入：${field(data.writes)} · 联网：${field(data.hosts)}`,
+        ),
       ),
-      lines(
-        `${displayTitle(data.name)} (${displayTitle(data.project)}) ${onOff(lang, data.enabled)}`,
-        `Triggers: ${field(data.triggers)}`,
-        `Reads: ${field(data.reads)}`,
-        `Writes: ${field(data.writes)} · Network: ${field(data.hosts)}`,
+      blocks(
+        head,
+        lines(
+          `Triggers: ${field(data.triggers)}`,
+          `Reads: ${field(data.reads)}`,
+          `Writes: ${field(data.writes)} · Network: ${field(data.hosts)}`,
+        ),
       ),
     );
   },
   "R-AUTO-OFF": (lang, { name }) =>
     pick(
       lang,
-      `已关闭：${displayTitle(name)}。重新开启需要在电脑上批准。`,
-      `Turned off: ${displayTitle(name)}. Turning it back on needs approval on the computer.`,
+      blocks(
+        `已关闭：${displayTitle(name)}。`,
+        quote("重新开启需要在电脑上批准。"),
+      ),
+      blocks(
+        `Turned off: ${displayTitle(name)}.`,
+        quote("Turning it back on needs approval on the computer."),
+      ),
     ),
   "R-AUTO-ON": (lang, { name }) =>
     pick(
@@ -1883,7 +2139,7 @@ const TEMPLATES: { [K in ReplyId]: Template<K> } = {
       `A request to turn on ${displayTitle(name)} is already waiting on the computer.`,
     ),
   "R-AUTO-RUN-ASK": (lang, { name, ask }) =>
-    lines(
+    blocks(
       pick(
         lang,
         `立即运行「${displayTitle(name)}」？它会按已批准的权限以“自主工作”运行，并产生费用。`,
@@ -1900,44 +2156,46 @@ const TEMPLATES: { [K in ReplyId]: Template<K> } = {
   "R-RUNS": (lang, { rows: items, now }) => {
     if (items.length === 0)
       return pick(lang, "还没有运行记录。", "No runs yet.");
-    return lines(
-      ...rows(items).map((item) =>
-        row(
+    return bullets(
+      rows(items).map((entry) =>
+        item(
+          entry.n,
           [
-            `${item.n} ${displayTitle(item.name)}`,
-            truncate(cleanInline(item.result), 20),
-            formatWhen(item.atMs, now, lang),
-            ...(item.unread ? [pick(lang, "未读", "unread")] : []),
+            displayTitle(entry.name),
+            inline(entry.result, 20),
+            formatWhen(entry.atMs, now, lang),
+            ...(entry.unread ? [pick(lang, "未读", "unread")] : []),
           ].join(" · "),
         ),
       ),
     );
   },
   "R-RUN": (lang, data) =>
-    lines(
-      `${displayTitle(data.name)} · ${formatWhen(data.atMs, data.now, lang)} · ${truncate(cleanInline(data.result), 40)}`,
-      pick(
-        lang,
-        "（以下为自动化生成的摘要）",
-        "(Summary written by the automation)",
+    blocks(
+      `**${displayTitle(data.name)}** · ${formatWhen(data.atMs, data.now, lang)} · ${inline(data.result, 40)}`,
+      cutMarkdown(agentMarkdown(data.summary.slice(0, 2000), lang), 500).text,
+      quote(
+        pick(
+          lang,
+          "以上为自动化生成的摘要",
+          "Summary written by the automation",
+        ),
       ),
-      truncate(neutraliseText(toPlainText(data.summary, lang)), 500),
     ),
   "R-SKILLS": (lang, { rows: items }) => {
     if (items.length === 0)
       return pick(lang, "这个项目没有技能。", "This project has no Skills.");
-    return lines(
-      ...rows(items).map((item) =>
-        row(
+    return bullets(
+      rows(items).map((entry) =>
+        item(
+          entry.n,
           [
-            `${item.n} ${truncate(cleanInline(item.name), 30)}`,
-            item.scope === "global"
+            inline(entry.name, 30),
+            entry.scope === "global"
               ? pick(lang, "全局", "global")
               : pick(lang, "项目", "project"),
-            onOff(lang, item.enabled),
-            ...(item.description
-              ? [truncate(cleanInline(item.description), 40)]
-              : []),
+            onOff(lang, entry.enabled),
+            ...(entry.description ? [inline(entry.description, 40)] : []),
           ].join(" · "),
         ),
       ),
@@ -1951,18 +2209,18 @@ const TEMPLATES: { [K in ReplyId]: Template<K> } = {
       failed: pick(lang, "连接失败", "failed"),
       unknown: pick(lang, "状态未知", "unknown"),
     };
-    return lines(
-      ...rows(items).map((item) =>
+    return bullets(
+      rows(items).map((entry) =>
         row(
           [
-            truncate(cleanInline(item.name), 30),
-            item.scope === "global"
+            inline(entry.name, 30),
+            entry.scope === "global"
               ? pick(lang, "全局", "global")
               : pick(lang, "项目", "project"),
-            status[item.status],
-            ...(item.tools === undefined
+            status[entry.status],
+            ...(entry.tools === undefined
               ? []
-              : [pick(lang, `${item.tools} 个工具`, `${item.tools} tools`)]),
+              : [pick(lang, `${entry.tools} 个工具`, `${entry.tools} tools`)]),
           ].join(" · "),
         ),
       ),
@@ -1971,21 +2229,20 @@ const TEMPLATES: { [K in ReplyId]: Template<K> } = {
 
   "T-APPROVAL": (lang, data) => {
     const card = approvalHead(lang, data, false);
-    return lines(
+    return blocks(
       card.text,
-      card.cut && TEMPLATES["T-CUT"](lang, { ask: data.ask }),
-      pick(
-        lang,
-        `.y ${data.ask} 批准 · .d ${data.ask} 拒绝 · .d ${data.ask} 你的建议`,
-        `.y ${data.ask} approve · .d ${data.ask} reject · .d ${data.ask} your note`,
+      quote(
+        card.cut && TEMPLATES["T-CUT"](lang, { ask: data.ask }),
+        data.external && TEMPLATES["T-EXTERNAL"](lang, undefined),
+        approvalActions(lang, data.ask, false),
       ),
     );
   },
   "T-CUT": (lang, { ask }) =>
     pick(
       lang,
-      `（内容已截断。先回 .${ask} 看全文，再批准。）`,
-      `(Cut short. Reply .${ask} to read all of it before approving.)`,
+      `（内容已截断。先回 \`.${ask}\` 看全文，再批准。）`,
+      `(Cut short. Reply \`.${ask}\` to read all of it before approving.)`,
     ),
   "T-APPROVAL-LOCAL": (lang, data) => {
     const card = approvalHead(lang, data, true);
@@ -1993,22 +2250,25 @@ const TEMPLATES: { [K in ReplyId]: Template<K> } = {
     if (data.reason === "view-only" && data.viewOnly === "automation-run")
       reason = pick(
         lang,
-        `这个会话属于自动化运行，请在电脑上处理；.d ${data.ask} 可拒绝。`,
-        `This session belongs to an automation run. Handle it on the computer; .d ${data.ask} rejects it.`,
+        `这个会话属于自动化运行，请在电脑上处理；\`.d ${data.ask}\` 可拒绝。`,
+        `This session belongs to an automation run. Handle it on the computer; \`.d ${data.ask}\` rejects it.`,
       );
     else if (data.reason === "view-only")
       reason = pick(
         lang,
-        `这个会话的审批模式高于微信上限，请在电脑上处理；.d ${data.ask} 可拒绝。`,
-        `This session's approval mode is above the WeChat ceiling. Handle it on the computer; .d ${data.ask} rejects it.`,
+        `这个会话的审批模式高于微信上限，请在电脑上处理；\`.d ${data.ask}\` 可拒绝。`,
+        `This session's approval mode is above the WeChat ceiling. Handle it on the computer; \`.d ${data.ask}\` rejects it.`,
       );
     else
       reason = pick(
         lang,
-        `这类操作不能在微信里批准，请在这台电脑或 Pine Remote 中处理。.d ${data.ask} 可在这里拒绝。`,
-        `This kind of action cannot be approved from WeChat. Use the computer or Pine Remote. .d ${data.ask} rejects it here.`,
+        `这类操作不能在微信里批准，请在这台电脑或 Pine Remote 中处理。\`.d ${data.ask}\` 可在这里拒绝。`,
+        `This kind of action cannot be approved from WeChat. Use the computer or Pine Remote. \`.d ${data.ask}\` rejects it here.`,
       );
-    return lines(card.text, reason);
+    return blocks(
+      card.text,
+      quote(data.external && TEMPLATES["T-EXTERNAL"](lang, undefined), reason),
+    );
   },
   "T-SHOW": (lang, data) => {
     const subject = subjectLines(data.subject, SHOW_INPUT_MAX);
@@ -2020,16 +2280,8 @@ const TEMPLATES: { [K in ReplyId]: Template<K> } = {
       .filter(Boolean)
       .map((part) => neutraliseText(part as string))
       .join("\n\n");
-    const what = data.local
-      ? pick(
-          lang,
-          `需在电脑上批准 ${data.ask}`,
-          `Approve on the computer ${data.ask}`,
-        )
-      : pick(lang, `需要批准 ${data.ask}`, `Approval needed ${data.ask}`);
-    return lines(
-      `${head(lang, data.at)}${what}`,
-      `${truncate(cleanInline(data.tool), 40)} · ${triggerLabel(lang, data.trigger)}`,
+    return blocks(
+      approvalTop(lang, data, data.local),
       subject.text,
       subject.cut &&
         pick(
@@ -2037,37 +2289,36 @@ const TEMPLATES: { [K in ReplyId]: Template<K> } = {
           "（内容过长，完整内容请在 Pine 中查看）",
           "(Too long to show in full. Open Pine for all of it.)",
         ),
-      summaryLine(lang, data.summary),
-      risksLine(lang, data.risks),
-      descriptionLine(data.description),
+      lines(
+        summaryLine(lang, data.summary),
+        risksLine(lang, data.risks),
+        descriptionLine(data.description),
+      ),
       evidence &&
-        `${pick(lang, "依据：", "Evidence: ")}${truncate(evidence, 300)}`,
-      data.external && render("T-EXTERNAL", lang),
-      data.local
-        ? pick(
-            lang,
-            `.d ${data.ask} 拒绝 · .d ${data.ask} 你的建议`,
-            `.d ${data.ask} reject · .d ${data.ask} your note`,
-          )
-        : pick(
-            lang,
-            `.y ${data.ask} 批准 · .d ${data.ask} 拒绝 · .d ${data.ask} 你的建议`,
-            `.y ${data.ask} approve · .d ${data.ask} reject · .d ${data.ask} your note`,
-          ),
+        lines(
+          pick(lang, "依据：", "Evidence:"),
+          codeBlock(truncate(evidence, 300)),
+        ),
+      quote(
+        data.external && TEMPLATES["T-EXTERNAL"](lang, undefined),
+        approvalActions(lang, data.ask, data.local),
+      ),
     );
   },
   "T-LONGCTX": (lang, { at, ask }) =>
-    lines(
-      `${head(lang, at)}${pick(lang, `上下文较长 ${ask}`, `Long context ${ask}`)}`,
+    blocks(
+      headLine(at, pick(lang, `上下文较长 ${ask}`, `Long context ${ask}`)),
       pick(
         lang,
         "启用新工具会重写已缓存的长上下文。",
         "Turning on new tools would rewrite a long cached context.",
       ),
-      pick(
-        lang,
-        `.c ${ask} 先压缩再继续 · .d ${ask} 停止`,
-        `.c ${ask} compress, then continue · .d ${ask} stop`,
+      quote(
+        pick(
+          lang,
+          `\`.c ${ask}\` 先压缩再继续 · \`.d ${ask}\` 停止`,
+          `\`.c ${ask}\` compress, then continue · \`.d ${ask}\` stop`,
+        ),
       ),
     ),
   "T-EXTERNAL": (lang) =>
@@ -2078,75 +2329,88 @@ const TEMPLATES: { [K in ReplyId]: Template<K> } = {
     ),
   "T-TRIGGER": (lang, { trigger }) => triggerLabel(lang, trigger),
   "T-MORECARDS": (lang, { count }) =>
-    pick(
-      lang,
-      `还有 ${count} 项，回 .w 查看。`,
-      `${count} more. Reply .w to see them.`,
+    quote(
+      pick(
+        lang,
+        `还有 ${count} 项，回 \`.w\` 查看。`,
+        `${count} more. Reply \`.w\` to see them.`,
+      ),
     ),
   "T-QCARD": (lang, { at, ask, questionnaire }) =>
     questionCard(lang, at, ask, questionnaire),
   "T-QCARD-LOCAL": (lang, { at, ask, questionnaire }) =>
-    lines(
-      `${head(lang, at)}${pick(lang, `问题 ${ask}`, `Question ${ask}`)}`,
-      ...questionnaire.questions.map((question) =>
-        row(neutralise(question.question)),
+    blocks(
+      headLine(at, pick(lang, `问题 ${ask}`, `Question ${ask}`)),
+      bullets(
+        questionnaire.questions.map((question) =>
+          row(escapeInline(cleanInline(question.question))),
+        ),
       ),
-      pick(
-        lang,
-        `这个问题需要在 Pine 中回答。.d ${ask} 可取消。`,
-        `Answer this one in Pine. .d ${ask} cancels it.`,
+      quote(
+        pick(
+          lang,
+          `这个问题需要在 Pine 中回答。\`.d ${ask}\` 可取消。`,
+          `Answer this one in Pine. \`.d ${ask}\` cancels it.`,
+        ),
       ),
     ),
   "T-DONE": (lang, data) => {
-    const facts: string[] = [];
+    const facts = [pick(lang, "完成", "Done")];
     if (data.durationMs !== undefined)
       facts.push(formatDuration(data.durationMs, lang));
     if (data.costUsd !== undefined) facts.push(cost(data.costUsd));
-    const done =
-      facts.length > 0
-        ? pick(
-            lang,
-            `完成（${facts.join("，")}）`,
-            `Done (${facts.join(", ")})`,
-          )
-        : pick(lang, "完成", "Done");
-    const excerpt = truncate(
-      neutraliseText(toPlainText(data.text, lang)),
+    // The pre-slice keeps the work bounded on a very long reply.
+    const excerpt = cutMarkdown(
+      agentMarkdown(data.text.slice(0, DONE_EXCERPT_MAX * 4), lang),
       DONE_EXCERPT_MAX,
-    );
-    const actions = [pick(lang, ".r 全文", ".r full reply")];
+    ).text;
+    const actions = [pick(lang, "`.r` 全文", "`.r` full reply")];
     if (data.files > 0)
       actions.push(
-        pick(lang, `.o 文件(${data.files})`, `.o files (${data.files})`),
+        pick(
+          lang,
+          `\`.o\` 文件 (${data.files})`,
+          `\`.o\` files (${data.files})`,
+        ),
       );
     if (!data.current)
-      actions.unshift(pick(lang, ".u 9 切到它", ".u 9 switch to it"));
-    return lines(
-      `${head(lang, data.at)}${done}`,
-      excerpt || undefined,
-      actions.join(" · "),
+      actions.unshift(pick(lang, "`.u 9` 切到它", "`.u 9` switch to it"));
+    return blocks(
+      headLine(data.at, facts.join(" · ")),
+      excerpt,
+      quote(actions.join(" · ")),
     );
   },
   "T-FAILED": (lang, { at, error }) =>
-    lines(
-      `${head(lang, at)}${pick(lang, "失败：", "Failed: ")}${truncate(cleanInline(error), 200)}`,
-      pick(lang, "直接发消息可重试。", "Send a message to retry."),
+    blocks(
+      headLine(at, pick(lang, "失败", "Failed")),
+      escapeInline(truncate(neutralise(error), 200)),
+      quote(pick(lang, "直接发消息可重试。", "Send a message to retry.")),
     ),
   "T-PROGRESS": (lang, { at, todos }) =>
-    `${head(lang, at)}${pick(lang, "仍在运行", "Still running")}${
-      todos
-        ? pick(
-            lang,
-            ` · 待办 ${todos.done}/${todos.total}`,
-            ` · Todos ${todos.done}/${todos.total}`,
-          )
-        : ""
-    }`,
+    headLine(
+      at,
+      `${pick(lang, "仍在运行", "Still running")}${
+        todos
+          ? pick(
+              lang,
+              ` · 待办 ${todos.done}/${todos.total}`,
+              ` · Todos ${todos.done}/${todos.total}`,
+            )
+          : ""
+      }`,
+    ),
   "T-AUTORUN": (lang, { name, result }) =>
     pick(
       lang,
-      `自动化「${displayTitle(name)}」运行结束：${truncate(cleanInline(result), 60)}。.ar 查看`,
-      `Automation "${displayTitle(name)}" finished: ${truncate(cleanInline(result), 60)}. .ar to view`,
+      blocks(
+        `自动化「${displayTitle(name)}」运行结束：${inline(result, 60)}。`,
+        quote("`.ar` 查看"),
+      ),
+      blocks(
+        `Automation "${displayTitle(name)}" finished: ${inline(result, 60)}.`,
+        quote("`.ar` to view"),
+      ),
     ),
   "T-AUTO-ON": (lang, { name, result }) =>
     pick(
@@ -2154,57 +2418,49 @@ const TEMPLATES: { [K in ReplyId]: Template<K> } = {
       `开启「${displayTitle(name)}」的请求：${{ approved: "已在电脑上批准，现已开启", denied: "在电脑上被拒绝", timeout: "30 分钟内无人处理，已失效" }[result]}。`,
       `Request to turn on "${displayTitle(name)}": ${{ approved: "approved on the computer, now on", denied: "declined on the computer", timeout: "not handled within 30 minutes, expired" }[result]}.`,
     ),
-  "T-PAIR": (lang, { code }) =>
+  "T-PAIR": (lang, { code: pairCode }) =>
     pick(
       lang,
-      `Pine 配对码：${cleanInline(code)}\n请在电脑上的 Pine 里输入它，完成连接。如果不是你在连接，请忽略这条消息。`,
-      `Pine pairing code: ${cleanInline(code)}\nEnter it in Pine on the computer to finish connecting. If you are not connecting Pine, ignore this message.`,
+      blocks(
+        `Pine 配对码：${code(pairCode)}`,
+        quote(
+          "请在电脑上的 Pine 里输入它，完成连接。如果不是你在连接，请忽略这条消息。",
+        ),
+      ),
+      blocks(
+        `Pine pairing code: ${code(pairCode)}`,
+        quote(
+          "Enter it in Pine on the computer to finish connecting. If you are not connecting Pine, ignore this message.",
+        ),
+      ),
     ),
   "T-INTERRUPTED": (lang, { items }) =>
-    lines(
+    heldList(
+      lang,
       pick(
         lang,
         `Pine 上次退出时有 ${items.length} 条消息没有处理完，没有重新执行：`,
         `${items.length} message(s) were not finished when Pine last stopped and were not run again:`,
       ),
-      ...rows(items).map((item, index) => `${index + 1} ${echo(item)}`),
-      items.length > PAGE_ROWS &&
-        pick(
-          lang,
-          `…还有 ${items.length - PAGE_ROWS} 条`,
-          `…${items.length - PAGE_ROWS} more`,
-        ),
-      pick(
-        lang,
-        "需要的话请重新发送。",
-        "Send them again if you still need them.",
-      ),
+      items,
     ),
   "T-OVERFLOW": (lang, { items }) =>
-    lines(
+    heldList(
+      lang,
       pick(
         lang,
         `一次收到的消息太多，有 ${items.length} 条没有执行：`,
         `Too many messages arrived at once; ${items.length} were not run:`,
       ),
-      ...rows(items).map((item, index) => `${index + 1} ${echo(item)}`),
-      items.length > PAGE_ROWS &&
-        pick(
-          lang,
-          `…还有 ${items.length - PAGE_ROWS} 条`,
-          `…${items.length - PAGE_ROWS} more`,
-        ),
-      pick(
-        lang,
-        "需要的话请重新发送。",
-        "Send them again if you still need them.",
-      ),
+      items,
     ),
   "T-BUDGET": (lang) =>
-    pick(
-      lang,
-      "回复额度即将用完。之后的通知会在你下次发消息时送达（发 . 即可）。",
-      "I'm about to run out of replies. Later notices arrive with your next message (send . to check).",
+    quote(
+      pick(
+        lang,
+        "回复额度即将用完。之后的通知会在你下次发消息时送达（发 `.` 即可）。",
+        "I'm about to run out of replies. Later notices arrive with your next message (send `.` to check).",
+      ),
     ),
   "T-DIGEST": (lang, { items }) => renderDigest(lang, items),
   "T-STALE": (lang, { held, notRun, oldestAgeMs, ask }) => {
@@ -2212,8 +2468,8 @@ const TEMPLATES: { [K in ReplyId]: Template<K> } = {
       notRun.length > 0 &&
       pick(
         lang,
-        `未执行：${list(lang, notRun.slice(0, PAGE_ROWS).map(echo))}（已过期）`,
-        `Not run: ${list(lang, notRun.slice(0, PAGE_ROWS).map(echo))} (too old)`,
+        `未执行：${list(lang, notRun.slice(0, PAGE_ROWS).map(echoCode))}（已过期）`,
+        `Not run: ${list(lang, notRun.slice(0, PAGE_ROWS).map(echoCode))} (too old)`,
       );
     if (held.length === 0 || ask === undefined) return notRunLine || "";
     const total = held.length + notRun.length;
@@ -2223,45 +2479,66 @@ const TEMPLATES: { [K in ReplyId]: Template<K> } = {
       lang,
       shown.map((_, index) => String(index + 1)),
     );
-    return lines(
-      pick(
-        lang,
-        `离线期间收到 ${total} 条消息（最早 ${age}前）：`,
-        `${total} message(s) arrived while offline (oldest ${age} ago):`,
+    return blocks(
+      lines(
+        pick(
+          lang,
+          `离线期间收到 ${total} 条消息（最早 ${age}前）：`,
+          `${total} message(s) arrived while offline (oldest ${age} ago):`,
+        ),
+        bullets(shown.map((entry, index) => item(index + 1, heldText(entry)))),
       ),
-      ...shown.map((item, index) => `${index + 1} ${echo(item)}`),
       notRunLine,
-      pick(
-        lang,
-        `回 .y ${ask} 按顺序执行第 ${numbers} 条，.d ${ask} 丢弃。10 分钟内有效。`,
-        `Reply .y ${ask} to run ${numbers} in order, .d ${ask} to discard. Valid for 10 minutes.`,
+      quote(
+        pick(
+          lang,
+          `回 \`.y ${ask}\` 按顺序执行第 ${numbers} 条，\`.d ${ask}\` 丢弃。10 分钟内有效。`,
+          `Reply \`.y ${ask}\` to run ${numbers} in order, \`.d ${ask}\` to discard. Valid for 10 minutes.`,
+        ),
       ),
     );
   },
 
   "E-UNKNOWN": (lang, { token, suggestion }) => {
-    const name = echo(token);
-    const hint = suggestion ? echo(suggestion) : undefined;
+    const name = echoCode(`.${token}`);
+    const hint = suggestion ? echoCode(`.${suggestion}`) : undefined;
     return pick(
       lang,
-      `没有 .${name} 这个命令。${hint ? `是不是 .${hint}？` : ""}回 .? 看全部。要把以点开头的文字发给 Pine，请用两个点开头。`,
-      `There is no .${name} command. ${hint ? `Did you mean .${hint}? ` : ""}Reply .? for the list. To send text that starts with a dot, start it with two dots.`,
+      blocks(
+        `没有 ${name} 这个命令。${hint ? `是不是 ${hint}？` : ""}`,
+        quote("回 `.?` 看全部。要把以点开头的文字发给 Pine，请用两个点开头。"),
+      ),
+      blocks(
+        `There is no ${name} command.${hint ? ` Did you mean ${hint}?` : ""}`,
+        quote(
+          "Reply `.?` for the list. To send text that starts with a dot, start it with two dots.",
+        ),
+      ),
     );
   },
   "E-ARGS": (lang, { spec, hint }) =>
-    lines(
+    blocks(
       pick(
         lang,
-        `用法：.${spec.name}${spec.params ? ` ${spec.params}` : ""}。例如 ${spec.example}`,
-        `Usage: .${spec.name}${spec.params ? ` ${spec.params}` : ""}. Example: ${spec.example}`,
+        `用法：${code(`.${spec.name}${spec.params ? ` ${spec.params}` : ""}`)}`,
+        `Usage: ${code(`.${spec.name}${spec.params ? ` ${spec.params}` : ""}`)}`,
       ),
-      hint ? truncate(cleanInline(hint), ROW_MAX) : undefined,
+      quote(
+        spec.example
+          ? pick(
+              lang,
+              `例如 ${code(spec.example)}`,
+              `Example: ${code(spec.example)}`,
+            )
+          : undefined,
+        hint ? inline(hint, ROW_MAX) : undefined,
+      ),
     ),
   "E-REF": (lang, { n, list: command }) =>
     pick(
       lang,
-      `编号 ${echo(String(n))} 已失效，请重新列出（${command}）。`,
-      `Number ${echo(String(n))} is no longer valid. List again (${command}).`,
+      `编号 ${echo(String(n))} 已失效，请重新列出（${code(command)}）。`,
+      `Number ${echo(String(n))} is no longer valid. List again (${code(command)}).`,
     ),
   "E-NOMATCH": (lang, { query, kind }) =>
     pick(
@@ -2272,8 +2549,8 @@ const TEMPLATES: { [K in ReplyId]: Template<K> } = {
   "E-NOSESSION": (lang) =>
     pick(
       lang,
-      "还没有当前会话。直接发文字开始一个，或 .l 选择。",
-      "No current session. Send text to start one, or .l to pick one.",
+      "还没有当前会话。直接发文字开始一个，或 `.l` 选择。",
+      "No current session. Send text to start one, or `.l` to pick one.",
     ),
   "E-VIEW": (lang, { title, mode, ceiling }) => {
     const m = modeLabel(lang, mode);
@@ -2281,8 +2558,14 @@ const TEMPLATES: { [K in ReplyId]: Template<K> } = {
     const n = modeNumber(ceiling);
     return pick(
       lang,
-      `「${displayTitle(title)}」的审批模式（${m}）高于微信上限（${c}），在微信里只能查看和停止。回 .mode ${n} 把它降到 ${c} 后可继续。`,
-      `"${displayTitle(title)}" runs in ${m}, above the WeChat ceiling (${c}). From WeChat you can only read and stop it. Reply .mode ${n} to lower it to ${c} and continue.`,
+      blocks(
+        `「${displayTitle(title)}」的审批模式（${m}）高于微信上限（${c}），在微信里只能查看和停止。`,
+        quote(`回 \`.mode ${n}\` 把它降到 ${c} 后可继续。`),
+      ),
+      blocks(
+        `"${displayTitle(title)}" runs in ${m}, above the WeChat ceiling (${c}). From WeChat you can only read and stop it.`,
+        quote(`Reply \`.mode ${n}\` to lower it to ${c} and continue.`),
+      ),
     );
   },
   "E-VIEWRUN": (lang, { title }) =>
@@ -2306,8 +2589,8 @@ const TEMPLATES: { [K in ReplyId]: Template<K> } = {
         )
       : pick(
           lang,
-          `${ask} 只能在电脑或 Pine Remote 上批准。回 .d ${ask} 可拒绝。`,
-          `${ask} can only be approved on the computer or Pine Remote. .d ${ask} rejects it.`,
+          `${ask} 只能在电脑或 Pine Remote 上批准。回 \`.d ${ask}\` 可拒绝。`,
+          `${ask} can only be approved on the computer or Pine Remote. \`.d ${ask}\` rejects it.`,
         ),
   "E-SWITCH": (lang) =>
     pick(
@@ -2318,8 +2601,8 @@ const TEMPLATES: { [K in ReplyId]: Template<K> } = {
   "E-CODE": (lang, { ask }) =>
     pick(
       lang,
-      `没有编号 ${ask} 的待处理项。回 .w 查看。`,
-      `Nothing is waiting under ${ask}. Reply .w to see what is.`,
+      `没有编号 ${ask} 的待处理项。回 \`.w\` 查看。`,
+      `Nothing is waiting under ${ask}. Reply \`.w\` to see what is.`,
     ),
   "E-DONE": (lang, { ask }) =>
     pick(
@@ -2333,30 +2616,42 @@ const TEMPLATES: { [K in ReplyId]: Template<K> } = {
       : "y";
     const items = asks.slice(0, PAGE_ROWS).map((ask) => {
       const title = ask.title ? displayTitle(ask.title) : undefined;
-      return pick(
-        lang,
-        `${ask.number} ${askWhat(lang, ask)}${title ? `（${title}）` : ""}`,
-        `${ask.number} ${askWhat(lang, ask)}${title ? ` (${title})` : ""}`,
+      return item(
+        ask.number,
+        pick(
+          lang,
+          `${askWhat(lang, ask)}${title ? `（${title}）` : ""}`,
+          `${askWhat(lang, ask)}${title ? ` (${title})` : ""}`,
+        ),
       );
     });
     const first = asks[0]?.number ?? 11;
-    return pick(
-      lang,
-      `有 ${asks.length} 项待处理：${list(lang, items)}。请带编号，如 .${verb} ${first}`,
-      `${asks.length} waiting: ${list(lang, items)}. Add the number, for example .${verb} ${first}`,
+    const example = code(`.${verb} ${first}`);
+    return blocks(
+      lines(
+        pick(lang, `有 ${asks.length} 项待处理：`, `${asks.length} waiting:`),
+        bullets(items),
+      ),
+      quote(
+        pick(
+          lang,
+          `请带编号，如 ${example}`,
+          `Add the number, for example ${example}`,
+        ),
+      ),
     );
   },
   "E-AMBIG": (lang, { n, ask, list: command }) =>
     pick(
       lang,
-      `.${n} 有两种含义，请写完整：回答问题 ${ask} 用 .a ${ask} ${n}；选择列表第 ${n} 项用 ${command} ${n}。`,
-      `.${n} could mean two things. Write it out: .a ${ask} ${n} answers question ${ask}; ${command} ${n} picks row ${n} of the list.`,
+      `\`.${n}\` 有两种含义，请写完整：回答问题 ${ask} 用 \`.a ${ask} ${n}\`；选择列表第 ${n} 项用 ${code(`${command} ${n}`)}。`,
+      `\`.${n}\` could mean two things. Write it out: \`.a ${ask} ${n}\` answers question ${ask}; ${code(`${command} ${n}`)} picks row ${n} of the list.`,
     ),
   "E-SHOWFIRST": (lang, { ask }) =>
     pick(
       lang,
-      `${ask} 的内容在卡片上被截断了。先回 .${ask} 看全文，再回 .y ${ask}。`,
-      `The card for ${ask} was cut short. Reply .${ask} to read all of it, then .y ${ask}.`,
+      `${ask} 的内容在卡片上被截断了。先回 \`.${ask}\` 看全文，再回 \`.y ${ask}\`。`,
+      `The card for ${ask} was cut short. Reply \`.${ask}\` to read all of it, then \`.y ${ask}\`.`,
     ),
   "E-TEXT": (lang) =>
     pick(
@@ -2379,14 +2674,17 @@ const TEMPLATES: { [K in ReplyId]: Template<K> } = {
   "E-NGUARD": (lang, { ask }) =>
     pick(
       lang,
-      `要拒绝 ${ask} 请回 .d ${ask}；要新建会话请回 .new 加任务内容。`,
-      `To reject ${ask}, reply .d ${ask}. To start a session, reply .new followed by the task.`,
+      `要拒绝 ${ask} 请回 \`.d ${ask}\`；要新建会话请回 \`.new\` 加任务内容。`,
+      `To reject ${ask}, reply \`.d ${ask}\`. To start a session, reply \`.new\` followed by the task.`,
     ),
   "E-ANSWER": (lang, { ask, count, example, problem }) => {
+    const sample = code(
+      `.a ${ask} ${truncate(cleanInline(example), ECHO_MAX)}`,
+    );
     const shape = pick(
       lang,
-      `问题 ${ask} 有 ${count} 题，请按顺序回答，用分号隔开，如 .a ${ask} ${echo(example)}`,
-      `Question ${ask} has ${count} part(s). Answer in order, separated by semicolons, for example .a ${ask} ${echo(example)}`,
+      `问题 ${ask} 有 ${count} 题，请按顺序回答，用分号隔开，如 ${sample}`,
+      `Question ${ask} has ${count} part(s). Answer in order, separated by semicolons, for example ${sample}`,
     );
     if (!problem) return shape;
     const detail =
@@ -2407,8 +2705,8 @@ const TEMPLATES: { [K in ReplyId]: Template<K> } = {
     variant === "running"
       ? pick(
           lang,
-          `「${displayTitle(title)}」正在运行，先 .x 停止。`,
-          `"${displayTitle(title)}" is running. Stop it with .x first.`,
+          `「${displayTitle(title)}」正在运行，先 \`.x\` 停止。`,
+          `"${displayTitle(title)}" is running. Stop it with \`.x\` first.`,
         )
       : pick(
           lang,
@@ -2430,8 +2728,8 @@ const TEMPLATES: { [K in ReplyId]: Template<K> } = {
         )
       : pick(
           lang,
-          `${truncate(cleanInline(baseName(data.name)), 60)} 有 ${formatSize(data.sizeBytes)}，超过 100 MB 上限。`,
-          `${truncate(cleanInline(baseName(data.name)), 60)} is ${formatSize(data.sizeBytes)}, over the 100 MB limit.`,
+          `${inline(baseName(data.name), 60)} 有 ${formatSize(data.sizeBytes)}，超过 100 MB 上限。`,
+          `${inline(baseName(data.name), 60)} is ${formatSize(data.sizeBytes)}, over the 100 MB limit.`,
         ),
   "E-GONE": (lang, data) => {
     switch (data.variant) {
@@ -2481,6 +2779,37 @@ const TEMPLATES: { [K in ReplyId]: Template<K> } = {
     ),
 };
 
+/** A held or unrun message the user sent: a command as code, text escaped. */
+function heldText(text: string): string {
+  const clean = cleanInline(text);
+  return /^[.。．｡]/.test(clean) ? echoCode(clean) : echo(clean);
+}
+
+/** `T-INTERRUPTED` / `T-OVERFLOW`: a label, the messages, and the footer. */
+function heldList(lang: L, label: string, items: readonly string[]): string {
+  return blocks(
+    lines(
+      label,
+      bullets(
+        rows(items).map((entry, index) => item(index + 1, heldText(entry))),
+      ),
+    ),
+    items.length > PAGE_ROWS &&
+      pick(
+        lang,
+        `…还有 ${items.length - PAGE_ROWS} 条`,
+        `…${items.length - PAGE_ROWS} more`,
+      ),
+    quote(
+      pick(
+        lang,
+        "需要的话请重新发送。",
+        "Send them again if you still need them.",
+      ),
+    ),
+  );
+}
+
 function whenAhead(atMs: number, nowMs: number, lang: L): string {
   const ahead = atMs - nowMs;
   if (ahead <= 60_000) return pick(lang, "马上", "soon");
@@ -2495,8 +2824,8 @@ function whenAhead(atMs: number, nowMs: number, lang: L): string {
 export const REPLY_IDS = Object.keys(TEMPLATES) as ReplyId[];
 
 /**
- * Renders one reply template. The result is plain text of at most REPLY_MAX
- * code points; agent-derived fields in `data` are cleaned and capped.
+ * Renders one reply template. The result is Markdown of at most REPLY_MAX
+ * code points; agent-derived fields in `data` are cleaned, escaped and capped.
  */
 export function render<K extends ReplyId>(
   id: K,

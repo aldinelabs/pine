@@ -23,7 +23,7 @@ import { PAGE_ROWS } from "../constants";
 import { notice } from "../notices";
 import { resolveRef } from "../parseCommand";
 import type { PagerPage } from "../handles";
-import { parseMode, render, type SessionRef } from "../replies";
+import { joinReplies, parseMode, render, type SessionRef } from "../replies";
 import type { ApprovalAsk, HandleRow, ParsedCommand } from "../types";
 import type { CommandContext, CommandHandlers, CommandResult } from "./types";
 
@@ -340,7 +340,14 @@ async function model(
     return {
       text:
         pages.length > 0
-          ? `${first}\n${render("R-PAGE", ctx.lang, { index: 1, count: pages.length + 1, truncated: false })}`
+          ? joinReplies(
+              first,
+              render("R-PAGE", ctx.lang, {
+                index: 1,
+                count: pages.length + 1,
+                truncated: false,
+              }),
+            )
           : first,
       numbered: { kind: "model" },
     };

@@ -6,7 +6,7 @@ import type { BackgroundTaskSnapshot } from "@pine/pi-background-tasks";
 import { specOf } from "../commandSpec";
 import { PAGE_ROWS, TASK_OUTPUT_LINES, TASK_OUTPUT_MAX } from "../constants";
 import { resolveRef } from "../parseCommand";
-import { render } from "../replies";
+import { joinReplies, render } from "../replies";
 import type { CommandName, HandleRow } from "../types";
 import type {
   CommandContext,
@@ -60,7 +60,7 @@ function pageFooter(
 }
 
 function withFooter(body: string, footer: string): string {
-  return footer ? `${body}\n${footer}` : body;
+  return joinReplies(body, footer);
 }
 
 function taskRow(task: BackgroundTaskSnapshot): HandleRow {

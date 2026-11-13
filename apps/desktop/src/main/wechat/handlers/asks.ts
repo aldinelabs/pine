@@ -34,6 +34,7 @@ import {
   type ReplyData,
   type SessionRef,
 } from "../replies";
+import { codeBlock } from "../markdown";
 import { neutraliseText, paginate } from "../text";
 import type {
   ApprovalAsk,
@@ -299,7 +300,7 @@ async function show(
     ctx.pager.set(
       pages.slice(1).map((page, index) =>
         joinReplies(
-          page,
+          codeBlock(page),
           render("R-PAGE", ctx.lang, {
             index: index + 2,
             count: pages.length,

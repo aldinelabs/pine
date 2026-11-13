@@ -47,14 +47,18 @@ export interface OutboundDeps {
 
 const SEPARATOR = "\n\n";
 
-/** The pushes (and an optional trailing line) joined fit in one message. */
+/**
+ * The pushes (and an optional trailing line) joined fit in one message. The
+ * count includes Markdown markup; each push closes its own blocks, so a blank
+ * line between them keeps them apart.
+ */
 function fits(items: readonly OutboundPush[], tail?: string): boolean {
   const parts = items.map((item) => item.text);
   if (tail !== undefined) parts.push(tail);
   return Array.from(parts.join(SEPARATOR)).length <= REPLY_MAX;
 }
 
-/** Splits pushes, in order, into messages of at most REPLY_MAX code points. */
+/** Splits pushes, in order, into messages of at most REPLY_MAX code points (markup included). */
 function fitChunks(items: readonly OutboundPush[]): OutboundPush[][] {
   const chunks: OutboundPush[][] = [];
   let current: OutboundPush[] = [];
