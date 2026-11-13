@@ -28,10 +28,8 @@ const props = withDefaults(
     message: PineTranscriptMessage;
     /** Only output after this run should collapse it; earlier text must not. */
     hasResponseAfterThinking?: boolean;
-    /** Reserve the hand-over only for body text, not a following tool run. */
-    hasTextAfterThinking?: boolean;
   }>(),
-  { hasResponseAfterThinking: undefined, hasTextAfterThinking: undefined },
+  { hasResponseAfterThinking: undefined },
 );
 const { locale, t } = useI18n();
 const contentId = useId();
@@ -447,15 +445,9 @@ watch(
       isFollowingThinking.value = true;
       if (previous) resetBlockView();
     }
+    // The conversation follows the fold like any other resize; no room is
+    // held below it.
     if (hasResponse) {
-      if (
-        isExpanded.value &&
-        (props.hasTextAfterThinking ??
-          props.message.blocks.some((block) => block.type === "text"))
-      )
-        scroller?.preserveViewportOnCollapse(
-          thinkingContent.value ?? undefined,
-        );
       isExpanded.value = false;
       return;
     }

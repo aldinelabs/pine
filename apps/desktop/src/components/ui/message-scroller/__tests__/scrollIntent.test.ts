@@ -202,76 +202,14 @@ describe("message scroller user intent", () => {
     now.mockRestore();
   });
 
-  it("keeps the view steady when body text appears as thinking folds", () => {
-    vi.useFakeTimers();
+  it("follows the end as thinking folds, holding no room below it", () => {
     const scroller = createAnchoredScroller();
     expect(scroller.viewport.scrollTop).toBe(1500);
-    scroller.context.preserveViewportOnCollapse();
-    expect(scroller.content.style.minHeight).toBe("2000px");
-
-    scroller.resizeInitial(40);
-    expect(scroller.viewport.scrollTop).toBe(1500);
-    // The browser may clamp the viewport as the thinking panel contracts.
-    scroller.viewport.scrollTop = 1340;
     scroller.resizeInitial(-200);
-    expect(scroller.viewport.scrollTop).toBe(1500);
-    expect(scroller.spacer.style.height).toBe("160px");
-
-    vi.advanceTimersByTime(500);
     expect(scroller.content.style.minHeight).toBe("");
-    expect(scroller.viewport.scrollTop).toBe(1500);
-    scroller.resizeInitial(100);
-    expect(scroller.spacer.style.height).toBe("60px");
-    expect(scroller.viewport.scrollTop).toBe(1500);
-    scroller.resizeInitial(100);
-    expect(scroller.spacer.hidden).toBe(true);
-    expect(scroller.viewport.scrollTop).toBe(1540);
+    expect(Number.parseFloat(scroller.spacer.style.height) || 0).toBe(0);
+    expect(scroller.viewport.scrollTop).toBe(1300);
     scroller.destroy();
-    vi.useRealTimers();
-  });
-
-  it("releases the collapse hold immediately when the reader scrolls", () => {
-    vi.useFakeTimers();
-    const scroller = createAnchoredScroller();
-    scroller.context.preserveViewportOnCollapse();
-    scroller.resizeInitial(-200);
-    scroller.context.userScrollIntent("start");
-    expect(scroller.content.style.minHeight).toBe("");
-    scroller.viewport.scrollTop = 1400;
-    scroller.context.syncAfterScroll();
-    const height = scroller.spacer.style.height;
-    vi.advanceTimersByTime(600);
-    expect(scroller.viewport.scrollTop).toBe(1400);
-    expect(scroller.spacer.style.height).toBe(height);
-    expect(scroller.context.followingBottom.value).toBe(false);
-    scroller.destroy();
-    vi.useRealTimers();
-  });
-
-  it("holds the view when the first body text consumes the last anchor space", () => {
-    vi.useFakeTimers();
-    const scroller = createAnchoredScroller();
-    scroller.startTurn();
-    scroller.grow(367);
-    expect(scroller.spacer.style.height).toBe("19px");
-    expect(scroller.context.followingBottom.value).toBe(false);
-    scroller.context.preserveViewportOnCollapse();
-
-    // Body text fills the viewport just before thinking contracts. That
-    // hand-off from anchoring to bottom following must retain the hold.
-    scroller.grow(38);
-    expect(scroller.viewport.scrollTop).toBe(1936);
-    expect(scroller.context.followingBottom.value).toBe(true);
-    scroller.grow(-200);
-    expect(scroller.viewport.scrollTop).toBe(1936);
-    expect(scroller.spacer.style.height).toBe("181px");
-    vi.advanceTimersByTime(500);
-    expect(scroller.viewport.scrollTop).toBe(1936);
-    scroller.grow(200);
-    expect(scroller.spacer.hidden).toBe(true);
-    expect(scroller.viewport.scrollTop).toBe(1955);
-    scroller.destroy();
-    vi.useRealTimers();
   });
 
   it("animates a new turn and its resize corrections without snapping first", () => {

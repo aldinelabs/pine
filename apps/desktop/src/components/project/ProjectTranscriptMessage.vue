@@ -220,7 +220,6 @@ type RenderItem = { key: string } & (
       kind: "thinking";
       message: PineTranscriptMessage;
       hasResponseAfterThinking: boolean;
-      hasTextAfterThinking: boolean;
     }
 );
 
@@ -337,9 +336,6 @@ const renderItems = computed<RenderItem[]>(() => {
         hasResponseAfterThinking: blocks
           .slice(index)
           .some((part) => part.type !== "thinking"),
-        hasTextAfterThinking: blocks
-          .slice(index)
-          .some((part) => part.type === "text"),
       });
     } else if (block.type === "toolCall") {
       const start = index;
@@ -479,7 +475,6 @@ onUnmounted(stopObservingUserText);
             v-if="item.kind === 'thinking'"
             :message="item.message"
             :has-response-after-thinking="item.hasResponseAfterThinking"
-            :has-text-after-thinking="item.hasTextAfterThinking"
           />
           <ProjectErrorMarker
             v-else-if="item.kind === 'block' && item.block.type === 'error'"

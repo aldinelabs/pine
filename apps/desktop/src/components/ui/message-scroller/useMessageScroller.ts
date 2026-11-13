@@ -511,7 +511,6 @@ export interface MessageScrollerContext {
   handleContentChange: () => void;
   handleResize: () => void;
   followStreamingContent: () => void;
-  preserveViewportOnCollapse: (element?: HTMLElement) => void;
   holdViewForRewrite: () => void;
   releaseRewriteHold: () => void;
   scrollToEnd: (options?: { behavior?: ScrollBehavior }) => boolean;
@@ -595,9 +594,6 @@ function createEngine(props: MessageScrollerProviderProps) {
   let pendingScrollFrame: number | null = null;
   let autoscrollingTimeout: number | null = null;
   let cancelScrollAnimation: (() => void) | null = null;
-  let collapseHoldTop: number | null = null;
-  let collapseSettling = false;
-  let collapseTimer: ReturnType<typeof setTimeout> | undefined;
   let collapseFootprint:
     | { element: HTMLElement; minHeight: string }
     | undefined;
@@ -692,7 +688,6 @@ function createEngine(props: MessageScrollerProviderProps) {
       autoScroll() &&
       !next.end &&
       spacerHeight === 0 &&
-      collapseHoldTop === null &&
       // A resize or a small upward wheel delta inside the edge threshold must
       // not undo userScrollIntent. Resume only after scrolling down to the edge.
       (mode === "following-bottom" || scrolledDown) &&
@@ -846,10 +841,6 @@ function createEngine(props: MessageScrollerProviderProps) {
   }
 
   function releaseCollapseHold() {
-    clearTimeout(collapseTimer);
-    collapseTimer = undefined;
-    collapseHoldTop = null;
-    collapseSettling = false;
     restoreCollapseFootprint();
   }
 
@@ -865,51 +856,6 @@ function createEngine(props: MessageScrollerProviderProps) {
       spacerHeight + Math.max(0, top - maxScrollTop(viewport)),
     );
     viewport.scrollTop = top;
-  }
-
-  /** Thinking folds as the first body text arrives. Following each increase
-   * and decrease separately makes the conversation move down, then back up.
-   * Hold the view through that hand-over and let later text consume its room. */
-  function preserveViewportOnCollapse(element?: HTMLElement) {
-    if (
-      !viewport ||
-      !content ||
-      !isActive() ||
-      (mode !== "following-bottom" && mode !== "anchored-to-message") ||
-      !autoScroll() ||
-      window.matchMedia?.("(prefers-reduced-motion: reduce)").matches
-    )
-      return;
-    // A previous turn folding above the held user message must instead
-    // rebase that anchor each frame. Freezing the whole column's footprint
-    // would hide those resizes and let the user message drift upward.
-    if (
-      mode === "anchored-to-message" &&
-      streamingTurn &&
-      element &&
-      element.compareDocumentPosition(streamingTurn) &
-        Node.DOCUMENT_POSITION_FOLLOWING
-    )
-      return;
-    cancelScrollAnimation?.();
-    cancelScrollAnimation = null;
-    collapseHoldTop = viewport.scrollTop;
-    collapseSettling = true;
-    collapseFootprint ??= {
-      element: content,
-      minHeight: content.style.minHeight,
-    };
-    // Keep the outer scroller's footprint through the CSS collapse. Updating
-    // a spacer from that same element's ResizeObserver every frame otherwise
-    // creates a resize loop, leaving one frame of browser clamping behind.
-    content.style.minHeight = `${content.getBoundingClientRect().height}px`;
-    clearTimeout(collapseTimer);
-    collapseTimer = setTimeout(() => {
-      collapseTimer = undefined;
-      collapseSettling = false;
-      restoreCollapseFootprint();
-      handleResize();
-    }, DURATION_MS);
   }
 
   /** Editing an earlier message removes it and everything after it, then the
@@ -1028,20 +974,10 @@ function createEngine(props: MessageScrollerProviderProps) {
   }: { behavior?: ScrollBehavior; animated?: boolean } = {}): boolean {
     if (!viewport) return false;
     setProgrammaticScroll(false);
-    // Enter follow mode even when a folding panel temporarily holds the
-    // viewport. Otherwise the anchor-to-bottom hand-off returns early and
-    // subsequent resizes keep re-anchoring to the old user message.
+    // Enter follow mode so later resizes stop re-anchoring to the old user
+    // message.
     streamingTurn = null;
     setMode(autoScroll() ? "following-bottom" : "free-scrolling");
-    if (animated && collapseHoldTop !== null) {
-      const contentEnd = maxScrollTop(viewport) - spacerHeight;
-      setSpacerHeight(collapseHoldTop - contentEnd);
-      if (collapseSettling || spacerHeight > 0) {
-        scrollTo(collapseHoldTop, { preserveAnchor: true });
-        scheduleVisibilitySync();
-        return true;
-      }
-    }
     clearSpacer();
     scrollTo(maxScrollTop(viewport), {
       autoscrolling: true,
@@ -1666,7 +1602,6 @@ function createEngine(props: MessageScrollerProviderProps) {
     handleContentChange,
     handleResize,
     followStreamingContent,
-    preserveViewportOnCollapse,
     holdViewForRewrite,
     releaseRewriteHold,
     scrollToEnd,

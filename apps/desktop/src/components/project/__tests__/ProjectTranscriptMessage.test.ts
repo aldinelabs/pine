@@ -33,9 +33,8 @@ describe("ProjectTranscriptMessage", () => {
   beforeEach(() => setActivePinia(createPinia()));
 
   it.each(["text", "toolCall"] as const)(
-    "only reserves the thinking hand-over for subsequent body text: %s",
+    "folds live thinking when %s follows it",
     async (kind) => {
-      const preserve = vi.fn();
       const message = ref<PineTranscriptMessage>({
         id: "assistant",
         createdAt: "2000-01-01T00:00:00Z",
@@ -50,8 +49,7 @@ describe("ProjectTranscriptMessage", () => {
       const wrapper = mount(
         defineComponent({
           setup() {
-            const engine = provideMessageScroller({ autoScroll: true });
-            engine.context.preserveViewportOnCollapse = preserve;
+            provideMessageScroller({ autoScroll: true });
             return () =>
               h(ProjectTranscriptMessage, { message: message.value });
           },
@@ -90,7 +88,6 @@ describe("ProjectTranscriptMessage", () => {
             .get("button")
             .attributes("aria-expanded"),
         ).toBe("false");
-        expect(preserve).toHaveBeenCalledTimes(kind === "text" ? 1 : 0);
       } finally {
         wrapper.unmount();
       }
