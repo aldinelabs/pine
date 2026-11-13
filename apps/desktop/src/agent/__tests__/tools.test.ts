@@ -1497,6 +1497,8 @@ describeSandbox("createPineToolDefinitions", () => {
         ),
       ).rejects.toThrow("operation not permitted");
     },
+    // Spawns several sandboxed shells; slow under a loaded full-suite run.
+    30_000,
   );
 
   it("escalates authorize denials and writes beyond grants on approval", async () => {
