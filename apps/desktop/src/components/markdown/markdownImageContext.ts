@@ -10,14 +10,30 @@ export interface MarkdownViewerImage {
   src: string;
   /** The image's alt text, or its file name when it has none. */
   name: string;
+  /** The image in the document; the viewer flies to and from it. */
+  element: HTMLImageElement;
+  /** The loaded image's natural size, so the viewer can fit before loading. */
+  width: number;
+  height: number;
+}
+
+export interface MarkdownImageZoomApi {
+  /** Opens the enlarged view on the image inside `target`. */
+  open(target: HTMLElement): void;
+  /**
+   * Starts loading the viewer's code: when the browser is idle, or at once
+   * with `immediate` (the pointer or focus is on an image). Cheap and
+   * idempotent.
+   */
+  preload(immediate?: boolean): void;
 }
 
 /**
- * Opens the enlarged view on the image inside `target`. Only renderers that
- * opt in (the file preview) provide it; transcript images stay inline.
+ * The enlarged view of a document's images. Only renderers that opt in (the
+ * file preview) provide it; transcript images stay inline.
  */
 export const markdownImageZoom: InjectionKey<
-  ComputedRef<((target: HTMLElement) => void) | undefined>
+  ComputedRef<MarkdownImageZoomApi | undefined>
 > = Symbol("markdownImageZoom");
 
 /** The name shown for an image: its alt text, else its file name. */

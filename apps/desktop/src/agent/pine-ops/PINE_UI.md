@@ -393,10 +393,16 @@ Text view, page navigation, search, zoom, fit width, rotate, invert colors,
 play and pause for media, sheet and layer pickers, and Open with default
 application. "Send to tab…" or "Send selection to tab…" attaches the file or
 the selected content to a session tab, or creates a session for it.
-In the Rendered view of a Markdown file, clicking an image (or focusing it and
-pressing Enter) opens it enlarged in a dialog titled with its alt text or file
-name, with Fit to window and zoom buttons (Mod + scroll also zooms) and, when the document has several images, previous and next buttons
-or the Left and Right arrow keys; images that failed to load do not open.
+In the Rendered view of a Markdown file, clicking an image (or focusing it
+and pressing Enter) enlarges it: the window is blurred and the image moves
+from its place in the document to the middle of the window. Its alt text or
+file name is shown at the top with a close button (X) at the top right; a
+floating toolbar at the bottom has previous and next buttons with the image
+number ("2 / 5", only when the document has several images), Fit to window,
+Zoom out, the zoom percentage and Zoom in. Mod + scroll also zooms; a
+zoomed image can be scrolled around. Clicking outside the image, the close
+button or Esc closes it, and the image returns to its place in the document.
+Images that failed to load, are still loading or are links do not open.
 
 ### Workbench
 

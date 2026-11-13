@@ -91,6 +91,13 @@ const zoomable = computed(
 function imageLoaded(): void {
   failed.value = false;
   loaded.value = true;
+  // The first image that can open schedules the viewer's code for idle time.
+  if (canZoom.value) zoomImage?.value?.preload();
+}
+
+/** The pointer or focus on an image fetches the viewer's code right away. */
+function preloadViewer(): void {
+  if (zoomable.value) zoomImage?.value?.preload(true);
 }
 
 function imageFailed(): void {
@@ -99,7 +106,7 @@ function imageFailed(): void {
 }
 
 function openViewer(): void {
-  if (zoomable.value && root.value) zoomImage?.value?.(root.value);
+  if (zoomable.value && root.value) zoomImage?.value?.open(root.value);
 }
 
 function handleKeydown(event: KeyboardEvent): void {
@@ -137,6 +144,8 @@ function handleKeydown(event: KeyboardEvent): void {
       @error="imageFailed"
       @click="openViewer"
       @keydown="handleKeydown"
+      @pointerenter="preloadViewer"
+      @focus="preloadViewer"
     />
     <span
       v-else
@@ -155,6 +164,8 @@ function handleKeydown(event: KeyboardEvent): void {
     :data-zoomable="zoomable ? 'true' : undefined"
     :class="zoomable && 'markdown-image-zoomable'"
     @keydown="handleKeydown"
+    @pointerenter="preloadViewer"
+    @focusin="preloadViewer"
   >
     <ImageNode
       :node="displayNode"

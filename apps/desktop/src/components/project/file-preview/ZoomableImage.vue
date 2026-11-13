@@ -30,6 +30,13 @@ const props = withDefaults(
     maxFit?: number;
     /** Shows transparent pixels on a checkerboard. */
     checkerboard?: boolean;
+    /** Space in pixels kept around the image when it is fitted. */
+    fitInsets?: { top: number; right: number; bottom: number; left: number };
+    /**
+     * The image's natural size when it is already known: the image shows and
+     * fits as it mounts instead of after it loads.
+     */
+    naturalSize?: { width: number; height: number };
   }>(),
   { rotation: 0, maxFit: 1, checkerboard: true },
 );
@@ -44,7 +51,18 @@ const emit = defineEmits<{
 const MARGIN = 24;
 
 const viewport = useTemplateRef<HTMLDivElement>("viewport");
-const natural = ref<{ width: number; height: number }>();
+const natural = ref<{ width: number; height: number } | undefined>(
+  props.naturalSize ? { ...props.naturalSize } : undefined,
+);
+const insets = computed(
+  () =>
+    props.fitInsets ?? {
+      top: MARGIN,
+      right: MARGIN,
+      bottom: MARGIN,
+      left: MARGIN,
+    },
+);
 const scale = ref(1);
 const turned = computed(() => props.rotation % 180 !== 0);
 const frame = computed(() => {
@@ -64,8 +82,9 @@ function fitScale(widthOnly = false): number {
   const [width, height] = turned.value
     ? [size.height, size.width]
     : [size.width, size.height];
-  const byWidth = (element.clientWidth - MARGIN * 2) / width;
-  const byHeight = (element.clientHeight - MARGIN * 2) / height;
+  const { top, right, bottom, left } = insets.value;
+  const byWidth = (element.clientWidth - left - right) / width;
+  const byHeight = (element.clientHeight - top - bottom) / height;
   return Math.max(
     0.01,
     widthOnly ? byWidth : Math.min(byWidth, byHeight, props.maxFit),
@@ -124,10 +143,16 @@ function fitWhenSized(): void {
 
 function loaded(event: Event): void {
   const image = event.target as HTMLImageElement;
-  const first = !natural.value;
-  natural.value = { width: image.naturalWidth, height: image.naturalHeight };
-  emit("load", natural.value);
-  if (first) void nextTick(fitWhenSized);
+  const previous = natural.value;
+  const size = { width: image.naturalWidth, height: image.naturalHeight };
+  // A size known ahead stays fitted unless the file turned out different.
+  const refit =
+    !previous ||
+    previous.width !== size.width ||
+    previous.height !== size.height;
+  if (refit) natural.value = size;
+  emit("load", size);
+  if (refit) void nextTick(fitWhenSized);
 }
 
 watch(
@@ -143,6 +168,7 @@ watch(
 
 let resizeObserver: ResizeObserver | undefined;
 onMounted(() => {
+  if (props.naturalSize) fitWhenSized();
   if (!props.compact || !viewport.value) return;
   resizeObserver = new ResizeObserver(() => void applyScale(fitScale()));
   resizeObserver.observe(viewport.value);
@@ -163,7 +189,9 @@ defineExpose({ fit, fitWidth });
   >
     <div
       class="grid min-h-full min-w-full place-items-center"
-      :style="{ padding: `${MARGIN}px` }"
+      :style="{
+        padding: `${insets.top}px ${insets.right}px ${insets.bottom}px ${insets.left}px`,
+      }"
     >
       <div
         :class="['relative', checkerboard && 'image-preview-frame']"

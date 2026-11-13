@@ -27,7 +27,8 @@ export default {
       open: "Ver {name} ampliada",
       untitled: "Imagen",
       description:
-        "Imagen ampliada. Usa los controles de zoom para acercar y las flechas para cambiar de imagen.",
+        "Imagen ampliada. Usa la barra de herramientas o Mod + desplazamiento para hacer zoom, las flechas para cambiar de imagen y Esc o un clic fuera de la imagen para cerrar.",
+      close: "Cerrar imagen",
       controls: "Controles de imagen",
       previous: "Imagen anterior",
       next: "Imagen siguiente",

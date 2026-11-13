@@ -27,7 +27,8 @@ export default {
       open: "View {name} larger",
       untitled: "Image",
       description:
-        "Enlarged image. Use the zoom controls to zoom and the arrow keys to switch images.",
+        "Enlarged image. Use the toolbar or Mod + scroll to zoom, the arrow keys to switch images, and Esc or a click outside the image to close.",
+      close: "Close image",
       controls: "Image controls",
       previous: "Previous image",
       next: "Next image",

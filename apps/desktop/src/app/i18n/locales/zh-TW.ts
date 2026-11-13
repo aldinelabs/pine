@@ -25,7 +25,9 @@ export default {
     imageViewer: {
       open: "放大檢視 {name}",
       untitled: "圖片",
-      description: "放大的圖片。可使用縮放控制項縮放，用方向鍵切換圖片。",
+      description:
+        "放大的圖片。可用工具列或 Mod + 滾輪縮放，用方向鍵切換圖片，按 Esc 或點擊圖片外部關閉。",
+      close: "關閉圖片",
       controls: "圖片控制項",
       previous: "上一張圖片",
       next: "下一張圖片",

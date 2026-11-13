@@ -28,7 +28,8 @@ export default {
       open: "Agrandir {name}",
       untitled: "Image",
       description:
-        "Image agrandie. Utilisez les commandes de zoom pour zoomer et les flèches pour changer d’image.",
+        "Image agrandie. Utilisez la barre d’outils ou Mod + défilement pour zoomer, les touches fléchées pour changer d’image, et Échap ou un clic en dehors de l’image pour fermer.",
+      close: "Fermer l’image",
       controls: "Commandes de l’image",
       previous: "Image précédente",
       next: "Image suivante",

@@ -27,7 +27,8 @@ export default {
       open: "{name} vergrößert anzeigen",
       untitled: "Bild",
       description:
-        "Vergrößertes Bild. Mit den Zoomsteuerungen zoomen, mit den Pfeiltasten zwischen Bildern wechseln.",
+        "Vergrößertes Bild. Mit der Werkzeugleiste oder Mod + Scrollen zoomen, mit den Pfeiltasten zwischen Bildern wechseln, mit Esc oder einem Klick neben das Bild schließen.",
+      close: "Bild schließen",
       controls: "Bildsteuerung",
       previous: "Vorheriges Bild",
       next: "Nächstes Bild",

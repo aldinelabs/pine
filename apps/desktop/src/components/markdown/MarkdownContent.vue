@@ -25,16 +25,50 @@ setCustomComponents("pine-chat", {
   image: MarkdownImage,
   table: MarkdownTable,
 });
+
+// The enlarged image view's code, shared by every renderer. It loads ahead
+// of the first click so opening does not fetch and evaluate it mid-animation.
+let imageViewerChunk:
+  Promise<typeof import("./MarkdownImageViewer.vue")> | undefined;
+function loadImageViewer(): Promise<
+  typeof import("./MarkdownImageViewer.vue")
+> {
+  imageViewerChunk ??= import("./MarkdownImageViewer.vue").catch(
+    (error: unknown) => {
+      imageViewerChunk = undefined;
+      throw error;
+    },
+  );
+  return imageViewerChunk;
+}
+
+let imageViewerPreloadScheduled = false;
+function preloadImageViewer(immediate = false): void {
+  if (imageViewerChunk) return;
+  if (immediate) {
+    void loadImageViewer().catch(() => {});
+    return;
+  }
+  if (imageViewerPreloadScheduled) return;
+  imageViewerPreloadScheduled = true;
+  const load = () => void loadImageViewer().catch(() => {});
+  if (typeof window.requestIdleCallback === "function") {
+    window.requestIdleCallback(load, { timeout: 2000 });
+  } else {
+    setTimeout(load, 200);
+  }
+}
 </script>
 
 <script setup lang="ts">
 import {
   computed,
-  defineAsyncComponent,
+  markRaw,
   provide,
   ref,
   shallowRef,
   useTemplateRef,
+  type Component,
 } from "vue";
 import { storeToRefs } from "pinia";
 import MarkdownRender from "markstream-vue";
@@ -52,6 +86,7 @@ import {
 import {
   markdownImageDocumentUrl,
   markdownImageZoom,
+  type MarkdownImageZoomApi,
   type MarkdownViewerImage,
 } from "./markdownImageContext";
 import { Button } from "@/components/ui/button";
@@ -82,21 +117,20 @@ const props = defineProps<{
   zoomableImages?: boolean;
 }>();
 
-const MarkdownImageViewer = defineAsyncComponent(
-  () => import("./MarkdownImageViewer.vue"),
-);
 const root = useTemplateRef<HTMLDivElement>("root");
 const viewerImages = shallowRef<MarkdownViewerImage[]>([]);
 const viewerIndex = ref(0);
 const viewerOpen = ref(false);
-// Mounted on the first image click and kept for its close animation.
-const hasOpenedImageViewer = ref(false);
+// Mounted on the first image click, once its code has loaded, and kept for
+// its close animation.
+const imageViewer = shallowRef<Component>();
+let openSequence = 0;
 
 /**
  * Collects the document's loaded images when one is clicked, so the view can
  * move between them. Nothing is tracked while no image is open.
  */
-function openImageViewer(target: HTMLElement): void {
+async function openImageViewer(target: HTMLElement): Promise<void> {
   const frames = [
     ...(root.value?.querySelectorAll<HTMLElement>(
       "[data-markdown-image][data-zoomable]",
@@ -107,20 +141,42 @@ function openImageViewer(target: HTMLElement): void {
   for (const frame of frames) {
     const image = frame.querySelector("img");
     const src = image?.currentSrc || image?.getAttribute("src");
-    if (!src) continue;
+    if (!image || !src || !image.naturalWidth || !image.naturalHeight) {
+      continue;
+    }
     if (frame === target) index = images.length;
-    images.push({ src, name: frame.dataset.imageName ?? "" });
+    images.push({
+      src,
+      name: frame.dataset.imageName ?? "",
+      element: image,
+      width: image.naturalWidth,
+      height: image.naturalHeight,
+    });
   }
   if (!images.length) return;
+  const sequence = ++openSequence;
+  let viewer: Component;
+  try {
+    viewer = (await loadImageViewer()).default;
+  } catch {
+    return;
+  }
+  // A later click started its own open.
+  if (sequence !== openSequence) return;
+  imageViewer.value ??= markRaw(viewer);
   viewerImages.value = images;
   viewerIndex.value = index;
-  hasOpenedImageViewer.value = true;
   viewerOpen.value = true;
 }
 
+const imageZoomApi: MarkdownImageZoomApi = {
+  open: (target) => void openImageViewer(target),
+  preload: preloadImageViewer,
+};
+
 provide(
   markdownImageZoom,
-  computed(() => (props.zoomableImages ? openImageViewer : undefined)),
+  computed(() => (props.zoomableImages ? imageZoomApi : undefined)),
 );
 
 provide(
@@ -256,8 +312,9 @@ async function confirmExternalLink(): Promise<void> {
       :is-dark="isDark"
     />
 
-    <MarkdownImageViewer
-      v-if="hasOpenedImageViewer"
+    <component
+      :is="imageViewer"
+      v-if="imageViewer"
       v-model:open="viewerOpen"
       v-model:index="viewerIndex"
       :images="viewerImages"
