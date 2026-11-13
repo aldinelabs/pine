@@ -37,6 +37,7 @@ import {
   type PineApprovalMode,
   type PineJsonValue,
   type PineMessageRewriteTarget,
+  type PinePromptChannel,
 } from "../shared/agent";
 import type {
   AddCustomModelRequest,
@@ -542,8 +543,11 @@ export class PineAgentRuntime {
     approvalMode?: PineApprovalMode,
     locale: "en-US" | "zh-CN" = "en-US",
     rewrite?: PineMessageRewriteTarget,
+    channel?: PinePromptChannel,
   ): Promise<AgentWorkerPromptResult> {
     const live = this.getSession(sessionId);
+    // Once WeChat has used the session it stays a WeChat session.
+    live.promptChannel ??= channel;
     approvalMode ??= live.approvalMode;
     if (rewrite) await this.rewindToUserMessage(live, rewrite);
     live.locale = locale;
@@ -1468,7 +1472,12 @@ export class PineAgentRuntime {
                   userProfile,
                 ).trim(),
               };
-              if (userProfile.interactiveAnswersEnabled)
+              // WeChat cannot show interactive answers: a WeChat session
+              // answers in Markdown only, for its whole life.
+              if (
+                userProfile.interactiveAnswersEnabled &&
+                live.promptChannel !== "wechat"
+              )
                 notices.interface_elements = intelligentUiSystemPrompt();
               const skillList = skillRepository.promptList();
               if (skillList) notices.skills = skillList;

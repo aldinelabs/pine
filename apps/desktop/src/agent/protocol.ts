@@ -2,6 +2,7 @@ import type {
   PineAgentEvent,
   PineApprovalMode,
   PineMessageRewriteTarget,
+  PinePromptChannel,
   PineApprovalTrigger,
   PineJsonValue,
 } from "../shared/agent";
@@ -210,6 +211,8 @@ export type AgentWorkerRequest =
       approvalMode?: PineApprovalMode;
       streamingBehavior?: "followUp" | "steer";
       rewrite?: PineMessageRewriteTarget;
+      /** The session belongs to a channel other than a Pine window. */
+      channel?: PinePromptChannel;
     }
   | {
       id: string;

@@ -35,6 +35,7 @@ async function handleRequest(request: AgentWorkerRequest): Promise<void> {
         request.approvalMode,
         request.locale,
         request.rewrite,
+        request.channel,
       );
       break;
     case "session:mutate":

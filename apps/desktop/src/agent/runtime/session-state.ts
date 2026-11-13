@@ -11,6 +11,7 @@ import {
   type PineAgentEvent,
   type PineApprovalMode,
   type PineMessageRewriteTarget,
+  type PinePromptChannel,
 } from "../../shared/agent";
 import type { McpStatusSnapshot } from "pi-mcp-adapter";
 import type { McpScriptApprovalCache } from "../mcp-approval";
@@ -71,6 +72,11 @@ export interface LiveAgentSession {
   mcpScriptApprovals: McpScriptApprovalCache;
   /** Fallback while a newly submitted prompt has not reached session entries. */
   latestUserPrompt?: string;
+  /**
+   * Set once the session is used from WeChat (and on every message to a
+   * WeChat session after a restart): it then never gets interactive answers.
+   */
+  promptChannel?: PinePromptChannel;
   authorizationGrants: AuthorizationGrant[];
   /** Paths directly attached by the user; read-only for file tools. */
   attachedPaths: PineAttachedPathAccess;

@@ -17,6 +17,7 @@ import type {
 } from "../shared/preferences";
 import type {
   PineApprovalMode,
+  PinePromptChannel,
   PromptSessionRequest,
   PromptSessionResult,
   RespondApprovalRequest,
@@ -87,6 +88,7 @@ import {
   type PromptSideChatRequest,
 } from "../shared/sideChats";
 import type { SessionArtifact } from "../shared/artifacts";
+import { WECHAT_CLIENT_ID } from "../shared/wechatRemote";
 import path from "node:path";
 
 function pathContains(parentPath: string, candidatePath: string): boolean {
@@ -265,6 +267,13 @@ export class ProjectRuntimeRegistry {
    * end that owner's run.
    */
   heldElsewhere: (sessionId: string) => boolean = () => false;
+
+  /**
+   * Sessions started from or used in WeChat. They never get interactive
+   * answers, which WeChat cannot show: decided per session rather than per
+   * message, so the system prompt stays the same across the conversation.
+   */
+  isWeChatSession: (sessionId: string) => boolean = () => false;
 
   private async releaseAgentSession(sessionId: string): Promise<void> {
     if (!this.heldElsewhere(sessionId))
@@ -976,25 +985,33 @@ export class ProjectRuntimeRegistry {
         : request.streamingBehavior;
     const controlled = runtime.liveSessions.get(activeSession.id);
     if (controlled) controlled.controllerId = webContentsId;
-    const promptArguments = [
-      activeSession.id,
-      request.message,
-      streamingBehavior,
-      attachedPaths.length > 0 ? attachedPaths : undefined,
-      approvalMode,
-      ...(request.locale ? [request.locale] : []),
-    ] as const;
-    const result = request.rewrite
-      ? await this.agentHost.prompt(
-          activeSession.id,
-          request.message,
-          undefined,
-          attachedPaths.length > 0 ? attachedPaths : undefined,
-          approvalMode,
-          request.locale,
-          request.rewrite,
-        )
-      : await this.agentHost.prompt(...promptArguments);
+    // A WeChat session, or one WeChat is about to use, is answered for
+    // WeChat, which cannot show interactive answers.
+    const channel: PinePromptChannel | undefined =
+      webContentsId === WECHAT_CLIENT_ID ||
+      this.isWeChatSession(activeSession.id)
+        ? "wechat"
+        : undefined;
+    const result =
+      request.rewrite || channel
+        ? await this.agentHost.prompt(
+            activeSession.id,
+            request.message,
+            request.rewrite ? undefined : streamingBehavior,
+            attachedPaths.length > 0 ? attachedPaths : undefined,
+            approvalMode,
+            request.locale,
+            request.rewrite,
+            channel,
+          )
+        : await this.agentHost.prompt(
+            activeSession.id,
+            request.message,
+            streamingBehavior,
+            attachedPaths.length > 0 ? attachedPaths : undefined,
+            approvalMode,
+            ...(request.locale ? ([request.locale] as const) : []),
+          );
     const live = runtime.liveSessions.get(result.session.id);
     if (live) {
       live.summary = result.session;

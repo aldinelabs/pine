@@ -8,6 +8,7 @@ import type {
 import type {
   PineApprovalMode,
   PineMessageRewriteTarget,
+  PinePromptChannel,
 } from "../shared/agent";
 import type {
   PineContextCompactionRoute,
@@ -99,6 +100,7 @@ export interface AgentHost {
     approvalMode?: PineApprovalMode,
     locale?: "en-US" | "zh-CN",
     rewrite?: PineMessageRewriteTarget,
+    channel?: PinePromptChannel,
   ): Promise<AgentWorkerPromptResult>;
   renameSession(
     sessionId: string,
@@ -272,6 +274,7 @@ export class AgentProcessHost implements AgentHost {
     approvalMode?: PineApprovalMode,
     locale: "en-US" | "zh-CN" = "en-US",
     rewrite?: PineMessageRewriteTarget,
+    channel?: PinePromptChannel,
   ): Promise<AgentWorkerPromptResult> {
     return this.request({
       type: "session:prompt",
@@ -282,6 +285,7 @@ export class AgentProcessHost implements AgentHost {
       ...(approvalMode ? { approvalMode } : {}),
       locale,
       ...(rewrite ? { rewrite } : {}),
+      ...(channel ? { channel } : {}),
     });
   }
 

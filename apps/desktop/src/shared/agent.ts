@@ -498,6 +498,9 @@ export type PineSessionEvent =
  * text. Live messages carry renderer-only ids, so the position counted from the
  * end of the active branch is the fallback when the id is not an entry id.
  */
+/** Where a message to the agent came from, when not a Pine window. */
+export type PinePromptChannel = "wechat";
+
 export interface PineMessageRewriteTarget {
   messageId: string;
   /** Number of later user messages on the active branch. */

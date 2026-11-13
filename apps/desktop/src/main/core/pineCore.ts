@@ -383,6 +383,8 @@ export class PineCore {
       onChange: () => host.remoteControlChanged?.(this.remote.status()),
     });
     // WeChat calls the core directly, as its own client, never the router.
+    this.runtimes.isWeChatSession = (sessionId) =>
+      this.wechat.originOf(sessionId) !== undefined;
     this.wechat = new WeChatBridge({
       core: {
         runtimes: this.runtimes,

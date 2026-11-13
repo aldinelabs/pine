@@ -1,3 +1,4 @@
+import { WECHAT_CLIENT_ID } from "../../shared/wechatRemote";
 import { createAgentHost as createMockAgentHost } from "./agentHostFixture";
 // @vitest-environment node
 import {
@@ -833,6 +834,96 @@ describe("ProjectRuntimeRegistry", () => {
       );
     } finally {
       await registry.dispose(3);
+    }
+  });
+
+  it("marks WeChat sessions so they never get interactive answers", async () => {
+    const agentHost = createAgentHost();
+    const prompt = vi.spyOn(agentHost, "prompt");
+    const registry = new ProjectRuntimeRegistry(agentHost, "/pine/agent");
+    const wechatSessions = new Set<string>();
+    registry.isWeChatSession = (sessionId) => wechatSessions.has(sessionId);
+    const { dataRoot, project } = await createRuntimeFixture();
+
+    try {
+      await registry.open(3, project, {
+        attachmentsRoot: path.join(dataRoot, "attachments"),
+        cacheRoot: path.join(dataRoot, "cache"),
+        projectRoot: dataRoot,
+        sessionsRoot: path.join(dataRoot, "sessions"),
+      });
+      // A desktop session is not marked.
+      await registry.prompt(3, {
+        message: "From the window",
+        target: { kind: "new", projectId: project.id },
+      });
+      expect(prompt).toHaveBeenLastCalledWith(
+        sessionSummary.id,
+        "From the window",
+        undefined,
+        undefined,
+        "auto-approve",
+      );
+
+      // Once WeChat knows the session, every message to it is marked, even
+      // one sent from the desktop window.
+      wechatSessions.add(sessionSummary.id);
+      await registry.prompt(3, {
+        message: "Still from the window",
+        target: {
+          kind: "session",
+          projectId: project.id,
+          sessionId: sessionSummary.id,
+        },
+      });
+      expect(prompt).toHaveBeenLastCalledWith(
+        sessionSummary.id,
+        "Still from the window",
+        undefined,
+        undefined,
+        "auto-approve",
+        undefined,
+        undefined,
+        "wechat",
+      );
+    } finally {
+      await registry.dispose(3);
+    }
+  });
+
+  it("marks a message WeChat sends before its session is recorded", async () => {
+    const agentHost = createAgentHost();
+    const prompt = vi.spyOn(agentHost, "prompt");
+    const registry = new ProjectRuntimeRegistry(agentHost, "/pine/agent");
+    const { dataRoot, project } = await createRuntimeFixture();
+
+    try {
+      await registry.open(WECHAT_CLIENT_ID, project, {
+        attachmentsRoot: path.join(dataRoot, "attachments"),
+        cacheRoot: path.join(dataRoot, "cache"),
+        projectRoot: dataRoot,
+        sessionsRoot: path.join(dataRoot, "sessions"),
+      });
+      await registry.prompt(
+        WECHAT_CLIENT_ID,
+        {
+          message: "From WeChat",
+          target: { kind: "new", projectId: project.id },
+        },
+        { focus: false },
+      );
+      expect(prompt).toHaveBeenLastCalledWith(
+        sessionSummary.id,
+        "From WeChat",
+        undefined,
+        undefined,
+        "auto-approve",
+        undefined,
+        undefined,
+        "wechat",
+      );
+    } finally {
+      await registry.dispose(WECHAT_CLIENT_ID);
     }
   });
 
