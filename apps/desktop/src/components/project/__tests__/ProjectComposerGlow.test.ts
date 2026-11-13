@@ -326,11 +326,61 @@ describe("ProjectComposerGlow", () => {
     wrapper.unmount();
   });
 
+  it("places the canvas from the text box's border edge", async () => {
+    const realStyle = window.getComputedStyle.bind(window);
+    vi.spyOn(window, "getComputedStyle").mockImplementation((element) => {
+      const style = realStyle(element);
+      if (!element.classList?.contains("control")) return style;
+      return {
+        ...style,
+        overflowX: style.overflowX,
+        overflowY: style.overflowY,
+        overflow: style.overflow,
+        borderTopLeftRadius: "24px",
+        borderTopWidth: "1px",
+        borderRightWidth: "1px",
+        borderBottomWidth: "2px",
+        borderLeftWidth: "1px",
+      };
+    });
+    const { wrapper } = mountGlow(true);
+    await nextTick();
+    await nextTick();
+    const glow = wrapper.get(GLOW).element as HTMLElement;
+    const { margins } = hosts[0].state.geometry;
+    expect(glow.style.top).toBe(`-${margins.top + 1}px`);
+    expect(glow.style.right).toBe(`-${margins.right + 1}px`);
+    expect(glow.style.bottom).toBe(`-${margins.bottom + 2}px`);
+    expect(glow.style.left).toBe(`-${margins.left + 1}px`);
+    wrapper.unmount();
+  });
+
+  it("re-measures when the window moves to another pixel density", async () => {
+    const dpr = vi.spyOn(window, "devicePixelRatio", "get").mockReturnValue(1);
+    const { wrapper } = mountGlow(true);
+    await nextTick();
+    const { state, update } = hosts[0];
+    expect(state.geometry.ratio).toBe(0.75);
+    const media = vi.mocked(window.matchMedia);
+    const query = media.mock.results.find((result) =>
+      String(result.value.media).includes("1dppx"),
+    )?.value as { addEventListener: Mock };
+    const listener = query.addEventListener.mock.calls[0][1] as () => void;
+    dpr.mockReturnValue(2);
+    listener();
+    expect(update).toHaveBeenCalledWith({
+      geometry: expect.objectContaining({ ratio: 1 }),
+    });
+    expect(media).toHaveBeenLastCalledWith("(resolution: 2dppx)");
+    wrapper.unmount();
+    expect(mediaListeners.has(listener)).toBe(false);
+  });
+
   it("passes on reduced motion changes", async () => {
     const { wrapper } = mountGlow(true);
     await nextTick();
     reduceMotion = true;
-    for (const listener of mediaListeners) listener({ matches: true });
+    for (const listener of [...mediaListeners]) listener({ matches: true });
     await nextTick();
     expect(hosts[0].update).toHaveBeenCalledWith({ reducedMotion: true });
     wrapper.unmount();

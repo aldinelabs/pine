@@ -41,6 +41,16 @@ const margins = ref<ComposerGlowMargins>({
   bottom: 0,
   left: 0,
 });
+/**
+ * The text box's border widths. The wrapper's insets resolve against its
+ * padding box, while the light is measured from its border box.
+ */
+const border = ref<ComposerGlowMargins>({
+  top: 0,
+  right: 0,
+  bottom: 0,
+  left: 0,
+});
 const root = ref<HTMLElement | null>(null);
 const canvas = ref<HTMLCanvasElement | null>(null);
 const reducedMotion = useMediaQuery("(prefers-reduced-motion: reduce)");
@@ -53,10 +63,10 @@ let teardown: (() => void) | undefined;
 let leaveTimer: ReturnType<typeof setTimeout> | undefined;
 
 const insetStyle = computed(() => ({
-  top: `${-margins.value.top}px`,
-  right: `${-margins.value.right}px`,
-  bottom: `${-margins.value.bottom}px`,
-  left: `${-margins.value.left}px`,
+  top: `${-(margins.value.top + border.value.top)}px`,
+  right: `${-(margins.value.right + border.value.right)}px`,
+  bottom: `${-(margins.value.bottom + border.value.bottom)}px`,
+  left: `${-(margins.value.left + border.value.left)}px`,
 }));
 
 function clearLeaveTimer() {
@@ -125,8 +135,15 @@ watch(
     const control = root.value?.parentElement;
     if (!element || !control || !seed) return;
     const clip = findClipAncestor(control);
-    const radius =
-      Number.parseFloat(getComputedStyle(control).borderTopLeftRadius) || 0;
+    const style = getComputedStyle(control);
+    const radius = Number.parseFloat(style.borderTopLeftRadius) || 0;
+    const width = (value: string) => Number.parseFloat(value) || 0;
+    border.value = {
+      top: width(style.borderTopWidth),
+      right: width(style.borderRightWidth),
+      bottom: width(style.borderBottomWidth),
+      left: width(style.borderLeftWidth),
+    };
     const measure = () =>
       composerGlowGeometry(
         control.getBoundingClientRect(),
@@ -165,20 +182,21 @@ watch(
     );
     host = glowHost;
 
+    const remeasure = () => {
+      const next = measure();
+      if (composerGlowGeometryEqual(geometry, next)) return;
+      const marginsChanged =
+        next.margins.top !== geometry.margins.top ||
+        next.margins.right !== geometry.margins.right ||
+        next.margins.bottom !== geometry.margins.bottom ||
+        next.margins.left !== geometry.margins.left;
+      geometry = next;
+      if (marginsChanged) margins.value = next.margins;
+      glowHost.update({ geometry: next });
+    };
     const resizeObserver =
       typeof ResizeObserver === "function"
-        ? new ResizeObserver(() => {
-            const next = measure();
-            if (composerGlowGeometryEqual(geometry, next)) return;
-            const marginsChanged =
-              next.margins.top !== geometry.margins.top ||
-              next.margins.right !== geometry.margins.right ||
-              next.margins.bottom !== geometry.margins.bottom ||
-              next.margins.left !== geometry.margins.left;
-            geometry = next;
-            if (marginsChanged) margins.value = next.margins;
-            glowHost.update({ geometry: next });
-          })
+        ? new ResizeObserver(remeasure)
         : undefined;
     resizeObserver?.observe(control);
     if (clip !== document.documentElement) resizeObserver?.observe(clip);
@@ -207,6 +225,25 @@ watch(
       activity = next;
       glowHost.update({ activity: next });
     };
+    // Moving the window to a display with another pixel density changes
+    // the drawing-buffer ratio but not the text box's size.
+    let densityQuery: MediaQueryList | undefined;
+    const unwatchDensity = () =>
+      densityQuery?.removeEventListener("change", onDensityChange);
+    const watchDensity = () => {
+      unwatchDensity();
+      densityQuery =
+        typeof window.matchMedia === "function"
+          ? window.matchMedia(`(resolution: ${window.devicePixelRatio}dppx)`)
+          : undefined;
+      densityQuery?.addEventListener("change", onDensityChange);
+    };
+    const onDensityChange = () => {
+      watchDensity();
+      remeasure();
+    };
+    watchDensity();
+
     window.addEventListener("focus", onActivity);
     window.addEventListener("blur", onActivity);
     document.addEventListener("visibilitychange", onActivity);
@@ -214,6 +251,7 @@ watch(
     const stop = () => {
       resizeObserver?.disconnect();
       themeObserver?.disconnect();
+      unwatchDensity();
       window.removeEventListener("focus", onActivity);
       window.removeEventListener("blur", onActivity);
       document.removeEventListener("visibilitychange", onActivity);
