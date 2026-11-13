@@ -1,182 +1,208 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 import {
-  composerGlowKeyframes,
-  composerGlowOrbits,
-  composerGlowOutline,
-  composerGlowStyle,
-} from "../composerGlow";
+  COMPOSER_GLOW_DEFAULT_TINTS,
+  COMPOSER_GLOW_MAX_MARGINS,
+  composerGlowFrameInterval,
+  composerGlowGeometry,
+  composerGlowGeometryEqual,
+  composerGlowMargins,
+  composerGlowPixelRatio,
+  composerGlowSeed,
+  findClipAncestor,
+  parseHexColor,
+  readComposerGlowColors,
+} from "@/lib/composerGlow";
 
-const TIMINGS = [
-  ["breathe", "delay-breathe", 6.1],
-  ["pulse", "delay-pulse", 4.3],
-] as const;
+const BASE_PERIODS = [7.3, 11.9, 17.3];
 
-function seconds(value: string | undefined): number {
-  expect(value).toMatch(/^-?\d+(\.\d+)?s$/);
-  return Number.parseFloat(value!);
+function rect(left: number, top: number, width: number, height: number) {
+  return { left, top, right: left + width, bottom: top + height };
 }
 
-/** The default composer: 736x48 text box, pill corners, 4px ring. */
-const OUTLINE = composerGlowOutline({
-  clientWidth: 736,
-  clientHeight: 48,
-  spread: 4,
-  outerRadius: 28,
-})!;
-
-const FLAT = { warp: [0], wobble: [0] };
-
-function position(keyframe: Keyframe): { x: number; y: number } {
-  const match = /translate\((-?[\d.]+)px, (-?[\d.]+)px\)/.exec(
-    String(keyframe.transform),
-  );
-  expect(match).not.toBeNull();
-  return { x: Number(match![1]), y: Number(match![2]) };
-}
-
-/** Pixels travelled per unit of animation time, for each keyframe step. */
-function speeds(keyframes: Keyframe[]): number[] {
-  const result: number[] = [];
-  for (let index = 1; index < keyframes.length; index += 1) {
-    const a = position(keyframes[index - 1]);
-    const b = position(keyframes[index]);
-    const time = keyframes[index].offset! - keyframes[index - 1].offset!;
-    if (time > 0) result.push(Math.hypot(b.x - a.x, b.y - a.y) / time);
-  }
-  return result;
-}
-
-describe("composerGlowStyle", () => {
-  it.each([0, 0.5, 0.999])(
-    "jitters each period and starts at a random phase (random %s)",
-    (value) => {
-      const style = composerGlowStyle(() => value);
-      expect(Object.keys(style)).toHaveLength(4);
-      for (const [durationName, delayName, base] of TIMINGS) {
-        const duration = seconds(style[`--composer-glow-${durationName}`]);
-        const delay = seconds(style[`--composer-glow-${delayName}`]);
-        expect(duration).toBeGreaterThanOrEqual(base * 0.85 - 0.001);
-        expect(duration).toBeLessThanOrEqual(base * 1.15 + 0.001);
-        expect(delay).toBeLessThanOrEqual(0);
-        expect(delay).toBeGreaterThan(-duration);
-      }
-    },
-  );
+describe("composerGlowSeed", () => {
+  it.each([0, 0.999])("stays in range for random() = %s", (value) => {
+    const seed = composerGlowSeed(() => value);
+    expect(seed.spots).toHaveLength(3);
+    seed.spots.forEach((spot, index) => {
+      expect(spot.period).toBeGreaterThanOrEqual(BASE_PERIODS[index] * 0.85);
+      expect(spot.period).toBeLessThanOrEqual(BASE_PERIODS[index] * 1.15);
+      expect(spot.start).toBeGreaterThanOrEqual(0);
+      expect(spot.start).toBeLessThan(1);
+    });
+    expect(seed.spots.filter((spot) => spot.direction === -1)).toHaveLength(1);
+    expect(seed.timeOffset).toBeGreaterThanOrEqual(0);
+    expect(seed.timeOffset).toBeLessThan(1000);
+    expect(seed.noise).toHaveLength(4);
+  });
 
   it("differs between random sources", () => {
-    expect(composerGlowStyle(() => 0.1)).not.toEqual(
-      composerGlowStyle(() => 0.8),
+    expect(composerGlowSeed(() => 0.2)).not.toEqual(
+      composerGlowSeed(() => 0.7),
     );
   });
 });
 
-describe("composerGlowOrbits", () => {
-  it.each([0, 0.5, 0.999])(
-    "jitters lap times, phases and noise (random %s)",
-    (value) => {
-      const orbits = composerGlowOrbits(() => value);
-      expect(orbits).toHaveLength(2);
-      for (const [index, base] of [9.7, 14.3].entries()) {
-        const orbit = orbits[index];
-        expect(orbit.durationMs).toBeGreaterThanOrEqual(base * 850 - 1);
-        expect(orbit.durationMs).toBeLessThanOrEqual(base * 1150 + 1);
-        expect(orbit.delayMs).toBeLessThanOrEqual(0);
-        expect(orbit.delayMs).toBeGreaterThan(-orbit.durationMs);
-        for (const value of [...orbit.warp, ...orbit.wobble]) {
-          expect(Math.abs(value)).toBeLessThanOrEqual(1);
-        }
-      }
-    },
-  );
-});
+describe("composerGlowMargins", () => {
+  const clip = rect(0, 0, 1000, 800);
 
-describe("composerGlowOutline", () => {
-  it("follows the middle of the ring", () => {
-    expect(OUTLINE).toEqual({
-      x: -2,
-      y: -2,
-      width: 740,
-      height: 52,
-      radius: 26,
-    });
-  });
-
-  it("is null before the ring has a size", () => {
-    expect(
-      composerGlowOutline({
-        clientWidth: 0,
-        clientHeight: 0,
-        spread: 0,
-        outerRadius: 0,
-      }),
-    ).toBeNull();
-  });
-});
-
-describe("composerGlowKeyframes", () => {
-  it("closes the lap with offsets that only grow", () => {
-    const keyframes = composerGlowKeyframes(OUTLINE, FLAT);
-    expect(keyframes[0].offset).toBe(0);
-    expect(keyframes.at(-1)!.offset).toBe(1);
-    for (let index = 1; index < keyframes.length; index += 1) {
-      expect(keyframes[index].offset!).toBeGreaterThanOrEqual(
-        keyframes[index - 1].offset!,
-      );
-    }
-    expect(position(keyframes.at(-1)!)).toEqual(position(keyframes[0]));
-    expect(String(keyframes.at(-1)!.transform)).toContain("rotate(360deg)");
-  });
-
-  it("stays on the outline", () => {
-    for (const keyframe of composerGlowKeyframes(OUTLINE, FLAT)) {
-      const { x, y } = position(keyframe);
-      expect(x).toBeGreaterThanOrEqual(-2.01);
-      expect(x).toBeLessThanOrEqual(738.01);
-      expect(y).toBeGreaterThanOrEqual(-2.01);
-      expect(y).toBeLessThanOrEqual(50.01);
-    }
-  });
-
-  it("travels at an even pace on a wide, short text box", () => {
-    // Rotating at a constant angle spent ~96% of a lap on the long edges and
-    // whipped round the ends; arc-length offsets keep the pace even.
-    const pace = speeds(composerGlowKeyframes(OUTLINE, FLAT));
-    const min = Math.min(...pace);
-    const max = Math.max(...pace);
-    // Corner chords are a touch shorter than their arcs.
-    expect(max / min).toBeLessThan(1.02);
-  });
-
-  it("bends the pace only within the speed noise", () => {
-    const pace = speeds(
-      composerGlowKeyframes(OUTLINE, { warp: [1, -1, 0.5], wobble: [0] }),
+  it("takes the most room when there is plenty", () => {
+    expect(composerGlowMargins(rect(100, 300, 700, 48), clip)).toEqual(
+      COMPOSER_GLOW_MAX_MARGINS,
     );
-    const min = Math.min(...pace);
-    const max = Math.max(...pace);
-    expect(max / min).toBeGreaterThan(1.3);
-    expect(max / min).toBeLessThan((1.3 / 0.7) * 1.02);
-  });
-
-  it("strays slightly across the outline", () => {
-    const flat = composerGlowKeyframes(OUTLINE, FLAT);
-    const wobbly = composerGlowKeyframes(OUTLINE, {
-      warp: [0],
-      wobble: [1, -1, 0.3, -0.6],
-    });
-    expect(wobbly).not.toEqual(flat);
-    wobbly.forEach((keyframe, index) => {
-      const a = position(keyframe);
-      const b = position(flat[index]);
-      expect(Math.hypot(a.x - b.x, a.y - b.y)).toBeLessThanOrEqual(1.51);
+    expect(COMPOSER_GLOW_MAX_MARGINS).toEqual({
+      top: 40,
+      right: 40,
+      bottom: 24,
+      left: 40,
     });
   });
 
-  it("is empty for an outline with no size", () => {
-    expect(
-      composerGlowKeyframes(
-        { x: 0, y: 0, width: 0, height: 0, radius: 0 },
-        FLAT,
-      ),
-    ).toEqual([]);
+  it("uses only the room up to the clipping edge", () => {
+    const margins = composerGlowMargins(rect(0, 300, 1000, 488), clip);
+    expect(margins.bottom).toBe(12);
+    expect(margins.left).toBe(0);
+    expect(margins.right).toBe(0);
+    expect(margins.top).toBe(40);
+  });
+
+  it("clamps a control outside the clip to zero", () => {
+    const margins = composerGlowMargins(rect(-10, -5, 1020, 820), clip);
+    expect(margins).toEqual({ top: 0, right: 0, bottom: 0, left: 0 });
+  });
+});
+
+describe("composerGlowGeometry", () => {
+  it("sizes the canvas as the box plus its margins", () => {
+    const geometry = composerGlowGeometry(
+      rect(100, 300, 700, 48),
+      rect(0, 0, 1000, 360),
+      24,
+      2,
+    );
+    expect(geometry.margins).toEqual({
+      top: 40,
+      right: 40,
+      bottom: 12,
+      left: 40,
+    });
+    expect(geometry.width).toBe(780);
+    expect(geometry.height).toBe(100);
+    expect(geometry.ratio).toBe(1);
+    expect(geometry.box).toEqual({
+      x: 40,
+      y: 40,
+      width: 700,
+      height: 48,
+      radius: 24,
+    });
+  });
+
+  it("clamps the radius to half the smaller side", () => {
+    const geometry = composerGlowGeometry(
+      rect(100, 300, 700, 30),
+      rect(0, 0, 1000, 800),
+      24,
+      1,
+    );
+    expect(geometry.box.radius).toBe(15);
+  });
+
+  it("compares with a half-pixel tolerance", () => {
+    const clip = rect(0, 0, 1000, 800);
+    const a = composerGlowGeometry(rect(100, 300, 700, 48), clip, 24, 2);
+    const b = composerGlowGeometry(rect(100, 300, 700.3, 48), clip, 24, 2);
+    const c = composerGlowGeometry(rect(100, 300, 701, 48), clip, 24, 2);
+    expect(composerGlowGeometryEqual(a, b)).toBe(true);
+    expect(composerGlowGeometryEqual(a, c)).toBe(false);
+  });
+});
+
+describe("composerGlowPixelRatio", () => {
+  it.each([
+    [1, 0.75],
+    [2, 1],
+    [3, 1],
+    [1.5, 0.75],
+    [Number.NaN, 0.75],
+  ])("dpr %s → %s", (dpr, ratio) => {
+    expect(composerGlowPixelRatio(dpr)).toBe(ratio);
+  });
+});
+
+describe("composerGlowFrameInterval", () => {
+  const focused = { focused: true, visible: true };
+  const unfocused = { focused: false, visible: true };
+  const hidden = { focused: false, visible: false };
+
+  it("draws nothing while hidden", () => {
+    expect(composerGlowFrameInterval(hidden, false, "worker")).toBeNull();
+    expect(composerGlowFrameInterval(hidden, true, "main")).toBeNull();
+  });
+
+  it("draws one still frame with reduced motion", () => {
+    expect(composerGlowFrameInterval(focused, true, "worker")).toBe("static");
+    expect(composerGlowFrameInterval(unfocused, true, "main")).toBe("static");
+  });
+
+  it("caps the frame rate by host and focus", () => {
+    expect(composerGlowFrameInterval(focused, false, "worker")).toBeCloseTo(
+      1000 / 60,
+    );
+    expect(composerGlowFrameInterval(unfocused, false, "worker")).toBeCloseTo(
+      1000 / 30,
+    );
+    expect(composerGlowFrameInterval(focused, false, "main")).toBeCloseTo(
+      1000 / 30,
+    );
+    expect(composerGlowFrameInterval(unfocused, false, "main")).toBeCloseTo(
+      1000 / 15,
+    );
+  });
+});
+
+describe("colours", () => {
+  afterEach(() => {
+    document.documentElement.classList.remove("dark");
+  });
+
+  it("parses hex colours", () => {
+    const rgb = parseHexColor("#ff8000");
+    expect(rgb?.[0]).toBe(1);
+    expect(rgb?.[1]).toBeCloseTo(0.502, 3);
+    expect(rgb?.[2]).toBe(0);
+    expect(parseHexColor("#fff")).toEqual([1, 1, 1]);
+    expect(parseHexColor("oklch(0.6 0.1 100)")).toBeNull();
+    expect(parseHexColor("#12345")).toBeNull();
+  });
+
+  it("falls back to the olive tints when the tokens cannot be resolved", () => {
+    document.documentElement.classList.add("dark");
+    const element = document.createElement("div");
+    document.body.append(element);
+    const colors = readComposerGlowColors(element);
+    element.remove();
+    expect(colors.tints).toEqual(COMPOSER_GLOW_DEFAULT_TINTS);
+    expect(colors.dark).toBe(true);
+  });
+});
+
+describe("findClipAncestor", () => {
+  it("finds the nearest ancestor that clips", () => {
+    const outer = document.createElement("div");
+    outer.style.overflow = "hidden";
+    const middle = document.createElement("div");
+    const inner = document.createElement("div");
+    middle.append(inner);
+    outer.append(middle);
+    document.body.append(outer);
+    expect(findClipAncestor(inner)).toBe(outer);
+    outer.remove();
+  });
+
+  it("falls back to the root element", () => {
+    const element = document.createElement("div");
+    document.body.append(element);
+    expect(findClipAncestor(element)).toBe(document.documentElement);
+    element.remove();
   });
 });

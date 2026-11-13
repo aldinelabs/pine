@@ -1,228 +1,312 @@
+import { resolveColors, toHex } from "@/lib/themeColors";
+
 /**
- * Timing for the glow that orbits the session composer while the agent
- * works. Must match the `leaving` opacity transition in
- * `ProjectComposerGlow.vue`.
+ * The light that runs round the session composer while the agent works.
+ * This module holds its constants, the messages between the component and
+ * the renderer (which runs in a worker when it can), and the pure helpers
+ * that measure, seed and pace it.
  */
+
+/** Must match the `leaving` opacity transition in `ProjectComposerGlow.vue`. */
 export const COMPOSER_GLOW_FADE_OUT_MS = 900;
+/** Must match the opacity transition in `ProjectComposerGlow.vue`. */
+export const COMPOSER_GLOW_FADE_IN_MS = 700;
+/** How long a disposed worker may take to release its GPU context. */
+export const COMPOSER_GLOW_DISPOSE_TIMEOUT_MS = 250;
 
-/**
- * Base periods in seconds for the CSS opacity animations. They are mutually
- * non-commensurate with each other and with the orbits, so the combined
- * motion never visibly repeats.
- */
-const COMPOSER_GLOW_TIMINGS = [
-  ["breathe", "delay-breathe", 6.1],
-  ["pulse", "delay-pulse", 4.3],
-] as const;
+/** The most room, in CSS px, the light takes on each side of the text box. */
+export const COMPOSER_GLOW_MAX_MARGINS = {
+  top: 40,
+  right: 40,
+  bottom: 24,
+  left: 40,
+} as const;
 
-/** Base lap times in seconds for the two lights travelling the outline. */
-const COMPOSER_GLOW_ORBIT_PERIODS = [9.7, 14.3] as const;
-/** Control points of each orbit's speed and wobble noise, per lap. */
-const ORBIT_WARP_POINTS = [5, 7] as const;
-const ORBIT_WOBBLE_POINTS = [7, 5] as const;
+/** Each side of the drawing buffer is capped at this many pixels. */
+export const COMPOSER_GLOW_MAX_BUFFER_PX = 2048;
 
-const JITTER = 0.15;
-/** Speed varies by up to ±30% along a lap. */
-const SPEED_WARP = 0.3;
-/** Pixels a light strays across the outline, either way. */
-const WOBBLE_PX = 1.5;
-const EDGE_STEPS = 4;
-const ARC_STEPS = 6;
+/** sRGB in 0-1. */
+export type Rgb = [number, number, number];
 
-function seconds(value: number): string {
-  return `${Number(value.toFixed(3))}s`;
+export interface ComposerGlowMargins {
+  top: number;
+  right: number;
+  bottom: number;
+  left: number;
 }
 
-function jittered(base: number, random: () => number): number {
-  return base * (1 - JITTER + 2 * JITTER * random());
-}
-
-/**
- * Per-mount CSS custom properties: each period is jittered by up to ±15% and
- * starts at a random phase (a negative delay), so every run moves
- * differently. Written once per mount; nothing runs per frame.
- */
-export function composerGlowStyle(
-  random: () => number = Math.random,
-): Record<string, string> {
-  const style: Record<string, string> = {};
-  for (const [durationName, delayName, base] of COMPOSER_GLOW_TIMINGS) {
-    const duration = jittered(base, random);
-    const delay = -duration * random();
-    style[`--composer-glow-${durationName}`] = seconds(duration);
-    style[`--composer-glow-${delayName}`] = seconds(delay);
-  }
-  return style;
-}
-
-/** One light's lap: its timing and the noise that makes it uneven. */
-export interface ComposerGlowOrbit {
-  durationMs: number;
-  /** Negative, so the lap starts at a random point. */
-  delayMs: number;
-  /** Values in [-1, 1], spread evenly over a lap: speed changes. */
-  warp: number[];
-  /** Values in [-1, 1], spread evenly over a lap: sideways stray. */
-  wobble: number[];
-}
-
-/**
- * The random part of one run, chosen once when the glow appears and kept
- * when the composer resizes so a resize does not visibly jump.
- */
-export function composerGlowOrbits(
-  random: () => number = Math.random,
-): ComposerGlowOrbit[] {
-  return COMPOSER_GLOW_ORBIT_PERIODS.map((base, index) => {
-    const durationMs = Math.round(jittered(base, random) * 1000);
-    const noise = (count: number) =>
-      Array.from({ length: count }, () => 2 * random() - 1);
-    return {
-      durationMs,
-      delayMs: -Math.round(durationMs * random()),
-      warp: noise(ORBIT_WARP_POINTS[index]),
-      wobble: noise(ORBIT_WOBBLE_POINTS[index]),
-    };
-  });
-}
-
-/** The rounded rectangle the lights travel, in their positioning frame. */
-export interface ComposerGlowOutline {
-  x: number;
-  y: number;
+export interface ComposerGlowGeometry {
+  /** Canvas size in CSS px (control border box + margins). */
   width: number;
   height: number;
-  radius: number;
+  /** Drawing-buffer px per CSS px. */
+  ratio: number;
+  /** The control's border box inside the canvas, CSS px, y down. */
+  box: { x: number; y: number; width: number; height: number; radius: number };
+  /** Room on each side, CSS px; the shader fades to 0 across it. */
+  margins: ComposerGlowMargins;
 }
 
+export interface ComposerGlowColors {
+  /** Accent, warmer and cooler tint. */
+  tints: [Rgb, Rgb, Rgb];
+  dark: boolean;
+}
+
+export interface ComposerGlowActivity {
+  focused: boolean;
+  visible: boolean;
+}
+
+export interface ComposerGlowSpot {
+  /** Where on the outline it starts, 0-1 clockwise from the top centre. */
+  start: number;
+  /** Seconds per lap. */
+  period: number;
+  direction: 1 | -1;
+  /** Radians, offsets its speed wobble and pulse. */
+  phase: number;
+}
+
+export interface ComposerGlowSeed {
+  spots: ComposerGlowSpot[];
+  noise: [number, number, number, number];
+  /** Seconds added to the clock, so each run starts somewhere else. */
+  timeOffset: number;
+}
+
+export interface ComposerGlowState {
+  geometry: ComposerGlowGeometry;
+  colors: ComposerGlowColors;
+  activity: ComposerGlowActivity;
+  reducedMotion: boolean;
+  seed: ComposerGlowSeed;
+}
+
+/** Main thread → renderer. */
+export type ComposerGlowMessage =
+  | { type: "init"; canvas: OffscreenCanvas; state: ComposerGlowState }
+  | { type: "resize"; geometry: ComposerGlowGeometry }
+  | { type: "colors"; colors: ComposerGlowColors }
+  | { type: "activity"; activity: ComposerGlowActivity }
+  | { type: "motion"; reducedMotion: boolean }
+  | { type: "dispose" };
+
+/** Renderer → main thread. */
+export type ComposerGlowEvent =
+  | { type: "ready"; api: "webgl2" | "webgl" }
+  | { type: "unsupported" }
+  /** The first presented frame, once per GL context. */
+  | { type: "frame" }
+  | { type: "disposed" };
+
+/** Base lap times in seconds; mutually non-commensurate. */
+const SPOT_PERIODS = [7.3, 11.9, 17.3] as const;
+const PERIOD_JITTER = 0.15;
+const TIME_OFFSET_RANGE = 1000;
+
 /**
- * The centre line of the glow ring. `clientWidth`/`clientHeight` are the
- * ring's padding box (the text box's border box), `spread` its border width
- * and `outerRadius` its outer corner radius. Returns null while it has no
- * size.
+ * The random part of one run, chosen when the light appears and kept while
+ * it fades out and back in, so it never jumps.
  */
-export function composerGlowOutline(ring: {
-  clientWidth: number;
-  clientHeight: number;
-  spread: number;
-  outerRadius: number;
-}): ComposerGlowOutline | null {
-  const width = ring.clientWidth + ring.spread;
-  const height = ring.clientHeight + ring.spread;
-  if (!(width > 0 && height > 0)) return null;
+export function composerGlowSeed(
+  random: () => number = Math.random,
+): ComposerGlowSeed {
+  const unit = () => Math.min(Math.max(random(), 0), 0.999999);
+  const spots = SPOT_PERIODS.map((base, index): ComposerGlowSpot => ({
+    start: unit(),
+    period: base * (1 - PERIOD_JITTER + 2 * PERIOD_JITTER * unit()),
+    direction: index === 0 ? -1 : 1,
+    phase: unit() * Math.PI * 2,
+  }));
   return {
-    x: -ring.spread / 2,
-    y: -ring.spread / 2,
-    width,
-    height,
-    radius: ring.outerRadius - ring.spread / 2,
+    spots,
+    noise: [unit(), unit(), unit(), unit()],
+    timeOffset: unit() * TIME_OFFSET_RANGE,
   };
 }
 
-interface PathPoint {
-  x: number;
-  y: number;
-  /** Direction of travel in degrees, clockwise from the +x axis. */
-  angle: number;
-}
-
-/** Clockwise points round the outline, starting where the top edge starts. */
-function outlinePoints(outline: ComposerGlowOutline): PathPoint[] {
-  const { x, y, width: w, height: h } = outline;
-  const r = Math.min(Math.max(outline.radius, 0), w / 2, h / 2);
-  const points: PathPoint[] = [];
-  const edge = (
-    x0: number,
-    y0: number,
-    x1: number,
-    y1: number,
-    angle: number,
-  ) => {
-    for (let step = 0; step < EDGE_STEPS; step += 1) {
-      const t = step / EDGE_STEPS;
-      points.push({ x: x0 + (x1 - x0) * t, y: y0 + (y1 - y0) * t, angle });
-    }
-  };
-  const arc = (cx: number, cy: number, from: number) => {
-    for (let step = 0; step < ARC_STEPS; step += 1) {
-      const degrees = from + (90 * step) / ARC_STEPS;
-      const radians = (degrees * Math.PI) / 180;
-      points.push({
-        x: cx + r * Math.cos(radians),
-        y: cy + r * Math.sin(radians),
-        angle: degrees + 90,
-      });
-    }
-  };
-  edge(x + r, y, x + w - r, y, 0);
-  arc(x + w - r, y + r, -90);
-  edge(x + w, y + r, x + w, y + h - r, 90);
-  arc(x + w - r, y + h - r, 0);
-  edge(x + w - r, y + h, x + r, y + h, 180);
-  arc(x + r, y + h - r, 90);
-  edge(x, y + h - r, x, y + r, 270);
-  arc(x + r, y + r, 180);
-  points.push({ ...points[0], angle: 360 });
-  return points;
-}
-
-/** Cyclic linear interpolation of evenly spaced control points. */
-function noiseAt(values: readonly number[], fraction: number): number {
-  if (values.length === 0) return 0;
-  const position = (((fraction % 1) + 1) % 1) * values.length;
-  const index = Math.floor(position);
-  const t = position - index;
-  const a = values[index % values.length];
-  const b = values[(index + 1) % values.length];
-  return a * (1 - t) + b * t;
-}
-
-function px(value: number): string {
-  return `${Number(value.toFixed(2))}px`;
+export interface GlowRect {
+  left: number;
+  top: number;
+  right: number;
+  bottom: number;
 }
 
 /**
- * Keyframes that carry a light once round the outline. Offsets follow arc
- * length, so the light keeps a near-even pace along edges and corners alike,
- * bent only by the orbit's speed noise. The light also turns to follow the
- * outline and strays slightly across it. Computed once per size, never per
- * frame.
+ * Room on each side of the control, up to the maximum, inside the nearest
+ * ancestor that clips it.
  */
-export function composerGlowKeyframes(
-  outline: ComposerGlowOutline,
-  orbit: Pick<ComposerGlowOrbit, "warp" | "wobble">,
-): Keyframe[] {
-  const points = outlinePoints(outline);
-  const lengths = [0];
-  for (let index = 1; index < points.length; index += 1) {
-    const a = points[index - 1];
-    const b = points[index];
-    lengths.push(lengths[index - 1] + Math.hypot(b.x - a.x, b.y - a.y));
-  }
-  const total = lengths[lengths.length - 1];
-  if (!(total > 0)) return [];
+export function composerGlowMargins(
+  control: GlowRect,
+  clip: GlowRect,
+): ComposerGlowMargins {
+  const room = (available: number, max: number) =>
+    Math.min(max, Math.max(0, Math.floor(available)));
+  return {
+    top: room(control.top - clip.top, COMPOSER_GLOW_MAX_MARGINS.top),
+    right: room(clip.right - control.right, COMPOSER_GLOW_MAX_MARGINS.right),
+    bottom: room(
+      clip.bottom - control.bottom,
+      COMPOSER_GLOW_MAX_MARGINS.bottom,
+    ),
+    left: room(control.left - clip.left, COMPOSER_GLOW_MAX_MARGINS.left),
+  };
+}
 
-  const times = [0];
-  for (let index = 1; index < points.length; index += 1) {
-    const segment = lengths[index] - lengths[index - 1];
-    const middle = (lengths[index] + lengths[index - 1]) / 2 / total;
-    const speed = 1 + SPEED_WARP * noiseAt(orbit.warp, middle);
-    times.push(times[index - 1] + segment / speed);
-  }
-  const duration = times[times.length - 1];
+/** Drawing-buffer px per CSS px: about half the device pixels. */
+export function composerGlowPixelRatio(devicePixelRatio: number): number {
+  const dpr =
+    Number.isFinite(devicePixelRatio) && devicePixelRatio > 0
+      ? devicePixelRatio
+      : 1;
+  return Math.min(1, Math.max(0.75, dpr * 0.5));
+}
 
-  return points.map((point, index) => {
-    const along = lengths[index] / total;
-    const stray = WOBBLE_PX * noiseAt(orbit.wobble, along);
-    const radians = (point.angle * Math.PI) / 180;
-    // Outward normal of clockwise travel with y pointing down.
-    const nx = Math.sin(radians);
-    const ny = -Math.cos(radians);
-    return {
-      offset: index === points.length - 1 ? 1 : times[index] / duration,
-      transform: `translate(${px(point.x + nx * stray)}, ${px(
-        point.y + ny * stray,
-      )}) rotate(${Number(point.angle.toFixed(2))}deg)`,
-    };
-  });
+export function composerGlowGeometry(
+  control: GlowRect,
+  clip: GlowRect,
+  radius: number,
+  devicePixelRatio: number,
+): ComposerGlowGeometry {
+  const margins = composerGlowMargins(control, clip);
+  const width = Math.max(0, control.right - control.left);
+  const height = Math.max(0, control.bottom - control.top);
+  return {
+    width: width + margins.left + margins.right,
+    height: height + margins.top + margins.bottom,
+    ratio: composerGlowPixelRatio(devicePixelRatio),
+    box: {
+      x: margins.left,
+      y: margins.top,
+      width,
+      height,
+      radius: Math.max(0, Math.min(radius, width / 2, height / 2)),
+    },
+    margins,
+  };
+}
+
+/** Whether two geometries differ by less than `tolerance` CSS px. */
+export function composerGlowGeometryEqual(
+  a: ComposerGlowGeometry,
+  b: ComposerGlowGeometry,
+  tolerance = 0.5,
+): boolean {
+  const near = (x: number, y: number) => Math.abs(x - y) < tolerance;
+  return (
+    a.ratio === b.ratio &&
+    near(a.width, b.width) &&
+    near(a.height, b.height) &&
+    near(a.box.x, b.box.x) &&
+    near(a.box.y, b.box.y) &&
+    near(a.box.width, b.box.width) &&
+    near(a.box.height, b.box.height) &&
+    near(a.box.radius, b.box.radius) &&
+    near(a.margins.top, b.margins.top) &&
+    near(a.margins.right, b.margins.right) &&
+    near(a.margins.bottom, b.margins.bottom) &&
+    near(a.margins.left, b.margins.left)
+  );
+}
+
+export function composerGlowColorsEqual(
+  a: ComposerGlowColors,
+  b: ComposerGlowColors,
+): boolean {
+  return (
+    a.dark === b.dark &&
+    a.tints.every((tint, index) =>
+      tint.every((channel, c) => channel === b.tints[index][c]),
+    )
+  );
+}
+
+/**
+ * Milliseconds between frames, `"static"` for one still frame redrawn only
+ * when something changes, or null to draw nothing (hidden window). The
+ * main-thread fallback runs at half the worker's rate.
+ */
+export function composerGlowFrameInterval(
+  activity: ComposerGlowActivity,
+  reducedMotion: boolean,
+  host: "worker" | "main",
+): number | "static" | null {
+  if (!activity.visible) return null;
+  if (reducedMotion) return "static";
+  const fps = host === "worker" ? 60 : 30;
+  return 1000 / (activity.focused ? fps : fps / 2);
+}
+
+/** `#rrggbb` (or `#rgb`) as sRGB in 0-1, or null. */
+export function parseHexColor(value: string): Rgb | null {
+  const match = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(value.trim());
+  if (!match) return null;
+  let hex = match[1];
+  if (hex.length === 3)
+    hex = hex
+      .split("")
+      .map((digit) => digit + digit)
+      .join("");
+  return [0, 2, 4].map(
+    (offset) => Number.parseInt(hex.slice(offset, offset + 2), 16) / 255,
+  ) as Rgb;
+}
+
+/** The light theme's olive tints, for when the tokens cannot be resolved. */
+export const COMPOSER_GLOW_DEFAULT_TINTS: [Rgb, Rgb, Rgb] = [
+  [0.575, 0.545, 0],
+  [0.403, 0.651, 0.252],
+  [0.645, 0.437, 0],
+];
+
+const TINT_TOKENS = {
+  accent: "--composer-glow-color",
+  warm: "--composer-glow-color-warm",
+  cool: "--composer-glow-color-cool",
+} as const;
+
+/** The light's tints from the current theme's tokens. */
+export function readComposerGlowColors(element: Element): ComposerGlowColors {
+  const dark = document.documentElement.classList.contains("dark");
+  let resolved: Record<keyof typeof TINT_TOKENS, string> | undefined;
+  try {
+    resolved = resolveColors(TINT_TOKENS, element);
+  } catch {
+    resolved = undefined;
+  }
+  const keys = ["accent", "warm", "cool"] as const;
+  const tints = keys.map((key, index) => {
+    const value = resolved?.[key];
+    let rgb: Rgb | null = null;
+    if (value) {
+      try {
+        rgb = parseHexColor(toHex(value));
+      } catch {
+        rgb = null;
+      }
+    }
+    return rgb ?? COMPOSER_GLOW_DEFAULT_TINTS[index];
+  }) as [Rgb, Rgb, Rgb];
+  return { tints, dark };
+}
+
+/** The nearest ancestor that clips `element`, or the root element. */
+export function findClipAncestor(element: Element): Element {
+  for (
+    let current = element.parentElement;
+    current && current !== document.documentElement;
+    current = current.parentElement
+  ) {
+    const style = getComputedStyle(current);
+    const clips = (overflow: string) =>
+      overflow !== "" && overflow !== "visible";
+    if (
+      clips(style.overflowX) ||
+      clips(style.overflowY) ||
+      clips(style.overflow)
+    )
+      return current;
+  }
+  return document.documentElement;
 }

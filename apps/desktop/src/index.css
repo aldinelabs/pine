@@ -151,11 +151,18 @@
 :root {
   --session-composer-max-width: 48rem;
   --session-composer-gutter: 1rem;
-  /* The working composer's glow uses the theme swatch's hue (see
-     lib/projectColorThemes.ts); the interface tokens are too grey to tint
-     with. */
-  --composer-glow-color: oklch(0.7 0.15 calc(107.4 + var(--pine-hue-shift, 0)));
-  --composer-glow-strength: 0.55;
+  /* The working composer's light uses the theme swatch's hue (see
+     lib/projectColorThemes.ts), plus a warmer and a cooler tint; the
+     interface tokens are too grey to tint with. */
+  --composer-glow-color: oklch(
+    0.62 0.17 calc(107.4 + var(--pine-hue-shift, 0))
+  );
+  --composer-glow-color-warm: oklch(
+    0.66 0.15 calc(135.4 + var(--pine-hue-shift, 0))
+  );
+  --composer-glow-color-cool: oklch(
+    0.58 0.16 calc(85.4 + var(--pine-hue-shift, 0))
+  );
   --session-input-padding-inline: 0.75rem;
   --session-content-max-width: calc(
     var(--session-composer-max-width) - var(--session-composer-gutter) -
@@ -910,15 +917,24 @@ html.sidebar-vibrancy:has(
 
 :root.dark {
   --composer-glow-color: oklch(
-    0.72 0.14 calc(107.4 + var(--pine-hue-shift, 0))
+    0.74 0.16 calc(107.4 + var(--pine-hue-shift, 0))
   );
-  --composer-glow-strength: 0.5;
+  --composer-glow-color-warm: oklch(
+    0.8 0.13 calc(135.4 + var(--pine-hue-shift, 0))
+  );
+  --composer-glow-color-cool: oklch(
+    0.7 0.16 calc(85.4 + var(--pine-hue-shift, 0))
+  );
 }
 :root[data-project-color-theme="neutral"] {
-  --composer-glow-color: oklch(0.6 0 0);
+  --composer-glow-color: oklch(0.55 0 0);
+  --composer-glow-color-warm: oklch(0.62 0 0);
+  --composer-glow-color-cool: oklch(0.48 0 0);
 }
 :root.dark[data-project-color-theme="neutral"] {
-  --composer-glow-color: oklch(0.8 0 0);
+  --composer-glow-color: oklch(0.82 0 0);
+  --composer-glow-color-warm: oklch(0.92 0 0);
+  --composer-glow-color-cool: oklch(0.7 0 0);
 }
 
 /* A draft's project chip moving from the input to the project picker. */

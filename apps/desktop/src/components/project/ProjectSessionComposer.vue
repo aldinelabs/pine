@@ -774,7 +774,7 @@ function handleRootSubmit(event: Event): void {
   >
     <!-- The root is positioned and isolated so the working glow, behind the
          text box at z-index -1, still paints above everything under the
-         composer. -->
+         composer, including the transcript's bottom it may reach over. -->
     <label class="sr-only" :for="messageId">
       {{ t("project.composer.label") }}
     </label>

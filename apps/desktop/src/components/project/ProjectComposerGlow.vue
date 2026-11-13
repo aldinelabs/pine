@@ -1,21 +1,30 @@
 <script setup lang="ts">
-import { onScopeDispose, ref, watch } from "vue";
+import { computed, onScopeDispose, ref, watch } from "vue";
 import { useMediaQuery } from "@vueuse/core";
 import {
   COMPOSER_GLOW_FADE_OUT_MS,
-  type ComposerGlowOrbit,
-  composerGlowKeyframes,
-  composerGlowOrbits,
-  composerGlowOutline,
-  composerGlowStyle,
+  type ComposerGlowActivity,
+  type ComposerGlowMargins,
+  type ComposerGlowSeed,
+  type GlowRect,
+  composerGlowColorsEqual,
+  composerGlowGeometry,
+  composerGlowGeometryEqual,
+  composerGlowSeed,
+  findClipAncestor,
+  readComposerGlowColors,
 } from "@/lib/composerGlow";
+import {
+  type ComposerGlowHost,
+  createComposerGlowHost,
+} from "@/lib/composerGlowHost";
 
 /**
- * A soft glow in the accent colour that travels round the composer's text
- * box while the agent works. It fades in when `active` turns on and fades
- * out, then unmounts, when it turns off, so an idle composer costs nothing.
- * The lights move by Web Animations on transform, which the compositor runs;
- * their keyframes are rebuilt only once the text box settles at a new size.
+ * A light that runs round the composer's text box while the agent works,
+ * drawn by WebGL on a canvas (in a worker when it can, so the page does no
+ * work per frame). It fades in once the first frame is on screen when
+ * `active` turns on, and fades out, then unmounts with its worker and GPU
+ * context, when it turns off, so an idle composer costs nothing.
  */
 const props = defineProps<{
   active: boolean;
@@ -24,13 +33,31 @@ const props = defineProps<{
 type GlowPhase = "off" | "on" | "leaving";
 
 const phase = ref<GlowPhase>("off");
-const vars = ref<Record<string, string>>({});
+const ready = ref(false);
+const canvasKey = ref(0);
+const margins = ref<ComposerGlowMargins>({
+  top: 0,
+  right: 0,
+  bottom: 0,
+  left: 0,
+});
+const root = ref<HTMLElement | null>(null);
+const canvas = ref<HTMLCanvasElement | null>(null);
 const reducedMotion = useMediaQuery("(prefers-reduced-motion: reduce)");
-const ring = ref<HTMLElement | null>(null);
-const orbitA = ref<HTMLElement | null>(null);
-const orbitB = ref<HTMLElement | null>(null);
-let orbits: ComposerGlowOrbit[] = [];
+
+let seed: ComposerGlowSeed | undefined;
+/** The worker could not draw this run: draw on the page instead. */
+let forceMain = false;
+let host: ComposerGlowHost | undefined;
+let teardown: (() => void) | undefined;
 let leaveTimer: ReturnType<typeof setTimeout> | undefined;
+
+const insetStyle = computed(() => ({
+  top: `${-margins.value.top}px`,
+  right: `${-margins.value.right}px`,
+  bottom: `${-margins.value.bottom}px`,
+  left: `${-margins.value.left}px`,
+}));
 
 function clearLeaveTimer() {
   if (leaveTimer === undefined) return;
@@ -38,19 +65,23 @@ function clearLeaveTimer() {
   leaveTimer = undefined;
 }
 
+function runTeardown() {
+  const current = teardown;
+  teardown = undefined;
+  current?.();
+}
+
 watch(
   () => props.active,
   (active) => {
     if (active) {
       clearLeaveTimer();
-      // A fresh run starts at a new phase; returning mid fade-out keeps
-      // moving where it was.
+      // A fresh run gets new randomness; returning mid fade-out keeps
+      // drawing where it was.
       if (phase.value === "off") {
-        orbits = composerGlowOrbits();
-        vars.value = {
-          ...composerGlowStyle(),
-          "--composer-glow-fade-out": `${COMPOSER_GLOW_FADE_OUT_MS}ms`,
-        };
+        seed = composerGlowSeed();
+        forceMain = false;
+        ready.value = false;
       }
       phase.value = "on";
       return;
@@ -65,250 +96,191 @@ watch(
   { immediate: true },
 );
 
-/** How long the text box must keep its size before the lights re-path. */
-const RESIZE_SETTLE_MS = 120;
-/** Size changes smaller than this leave the current path in place. */
-const RESIZE_THRESHOLD_PX = 1;
+function readActivity(): ComposerGlowActivity {
+  return {
+    focused: document.hasFocus(),
+    visible: document.visibilityState === "visible",
+  };
+}
 
-// One lap per light, laid out for the current size. The ring's spread and
-// radius are fixed CSS values, read once. The first measurement lays out on
-// the next frame; later resizes (the composer's rows ease their height over
-// several hundred milliseconds) wait until the size settles, so a transition
-// never rebuilds keyframes on every frame. A rebuild keeps each animation's
-// time and swaps only its keyframes.
+function clipRect(clip: Element): GlowRect {
+  if (clip === document.documentElement)
+    return {
+      left: 0,
+      top: 0,
+      right: window.innerWidth,
+      bottom: window.innerHeight,
+    };
+  return clip.getBoundingClientRect();
+}
+
+// Starts drawing whenever a canvas mounts (each run, and again on a fresh
+// canvas when the worker falls back to the page), and stops when it goes.
+// Nothing here runs per frame: only resizes, theme changes and window
+// focus or visibility changes send a message.
 watch(
-  [ring, orbitA, orbitB],
-  ([ringElement, ...lights], _previous, onCleanup) => {
-    if (!ringElement || lights.some((light) => !light)) return;
-    if (
-      typeof ResizeObserver === "undefined" ||
-      typeof ringElement.animate !== "function"
-    )
-      return;
-    const style = getComputedStyle(ringElement);
-    const spread = Number.parseFloat(style.borderTopWidth) || 0;
-    const outerRadius = Number.parseFloat(style.borderTopLeftRadius) || 0;
-    const animations: (Animation | undefined)[] = [];
-    let laidOut: { width: number; height: number } | undefined;
-    let frame = 0;
-    let settle: ReturnType<typeof setTimeout> | undefined;
-    const layout = () => {
-      frame = 0;
-      settle = undefined;
-      const width = ringElement.clientWidth;
-      const height = ringElement.clientHeight;
+  canvas,
+  (element, _previous, onCleanup) => {
+    runTeardown();
+    const control = root.value?.parentElement;
+    if (!element || !control || !seed) return;
+    const clip = findClipAncestor(control);
+    const radius =
+      Number.parseFloat(getComputedStyle(control).borderTopLeftRadius) || 0;
+    const measure = () =>
+      composerGlowGeometry(
+        control.getBoundingClientRect(),
+        clipRect(clip),
+        radius,
+        window.devicePixelRatio,
+      );
+    let geometry = measure();
+    let colors = readComposerGlowColors(control);
+    let activity = readActivity();
+    margins.value = geometry.margins;
+
+    const glowHost = createComposerGlowHost(
+      element,
+      {
+        geometry,
+        colors,
+        activity,
+        reducedMotion: reducedMotion.value,
+        seed,
+      },
+      {
+        forceMain,
+        onFirstFrame: () => {
+          if (host === glowHost) ready.value = true;
+        },
+        onFallback: () => {
+          if (host !== glowHost) return;
+          // The old canvas now belongs to the worker; draw on a new one.
+          forceMain = true;
+          canvasKey.value += 1;
+        },
+        // Nothing to draw with: the light stays transparent.
+        onUnavailable: () => {},
+      },
+    );
+    host = glowHost;
+
+    const resizeObserver =
+      typeof ResizeObserver === "function"
+        ? new ResizeObserver(() => {
+            const next = measure();
+            if (composerGlowGeometryEqual(geometry, next)) return;
+            const marginsChanged =
+              next.margins.top !== geometry.margins.top ||
+              next.margins.right !== geometry.margins.right ||
+              next.margins.bottom !== geometry.margins.bottom ||
+              next.margins.left !== geometry.margins.left;
+            geometry = next;
+            if (marginsChanged) margins.value = next.margins;
+            glowHost.update({ geometry: next });
+          })
+        : undefined;
+    resizeObserver?.observe(control);
+    if (clip !== document.documentElement) resizeObserver?.observe(clip);
+
+    const themeObserver =
+      typeof MutationObserver === "function"
+        ? new MutationObserver(() => {
+            const next = readComposerGlowColors(control);
+            if (composerGlowColorsEqual(colors, next)) return;
+            colors = next;
+            glowHost.update({ colors: next });
+          })
+        : undefined;
+    themeObserver?.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ["class", "data-project-color-theme"],
+    });
+
+    const onActivity = () => {
+      const next = readActivity();
       if (
-        laidOut &&
-        Math.abs(width - laidOut.width) < RESIZE_THRESHOLD_PX &&
-        Math.abs(height - laidOut.height) < RESIZE_THRESHOLD_PX
+        next.focused === activity.focused &&
+        next.visible === activity.visible
       )
         return;
-      const outline = composerGlowOutline({
-        clientWidth: width,
-        clientHeight: height,
-        spread,
-        outerRadius,
-      });
-      if (!outline) return;
-      laidOut = { width, height };
-      lights.forEach((light, index) => {
-        const orbit = orbits[index];
-        if (!light || !orbit) return;
-        const keyframes = composerGlowKeyframes(outline, orbit);
-        const animation = animations[index];
-        if (animation) {
-          (animation.effect as KeyframeEffect | null)?.setKeyframes(keyframes);
-          return;
-        }
-        animations[index] = light.animate(keyframes, {
-          duration: orbit.durationMs,
-          delay: orbit.delayMs,
-          iterations: Infinity,
-          easing: "linear",
-          direction: index === 0 ? "normal" : "reverse",
-        });
-      });
+      activity = next;
+      glowHost.update({ activity: next });
     };
-    const observer = new ResizeObserver(() => {
-      if (!laidOut) {
-        if (!frame) frame = requestAnimationFrame(layout);
-        return;
-      }
-      if (settle !== undefined) clearTimeout(settle);
-      settle = setTimeout(layout, RESIZE_SETTLE_MS);
-    });
-    observer.observe(ringElement);
+    window.addEventListener("focus", onActivity);
+    window.addEventListener("blur", onActivity);
+    document.addEventListener("visibilitychange", onActivity);
+
+    const stop = () => {
+      resizeObserver?.disconnect();
+      themeObserver?.disconnect();
+      window.removeEventListener("focus", onActivity);
+      window.removeEventListener("blur", onActivity);
+      document.removeEventListener("visibilitychange", onActivity);
+      glowHost.dispose();
+      if (host === glowHost) host = undefined;
+    };
+    teardown = stop;
     onCleanup(() => {
-      observer.disconnect();
-      if (frame) cancelAnimationFrame(frame);
-      if (settle !== undefined) clearTimeout(settle);
-      for (const animation of animations) animation?.cancel();
+      if (teardown === stop) runTeardown();
     });
   },
   { flush: "post" },
 );
 
-onScopeDispose(clearLeaveTimer);
+watch(reducedMotion, (reduce) => host?.update({ reducedMotion: reduce }));
+
+onScopeDispose(() => {
+  clearLeaveTimer();
+  runTeardown();
+});
 </script>
 
 <template>
   <div
     v-if="phase !== 'off'"
+    ref="root"
     data-slot="session-composer-glow"
     class="composer-glow"
     aria-hidden="true"
     :data-state="phase"
-    :data-motion="reducedMotion ? 'reduced' : 'full'"
-    :style="vars"
+    :data-ready="ready ? 'true' : 'false'"
+    :style="insetStyle"
   >
-    <div ref="ring" class="composer-glow-ring">
-      <span class="composer-glow-base" />
-      <template v-if="!reducedMotion">
-        <span ref="orbitA" class="composer-glow-orbit" />
-        <span
-          ref="orbitB"
-          class="composer-glow-orbit composer-glow-orbit--wide"
-        />
-      </template>
-    </div>
+    <canvas :key="canvasKey" ref="canvas" class="composer-glow-canvas" />
   </div>
 </template>
 
 <style scoped>
 /*
- * Sits behind the text box (z-index -1 in the composer's stacking context)
- * and shows only in a thin ring just outside its rounded outline, so the
- * translucent fill is not tinted. Visual reach ≈ spread + 2 × blur ≈ 10px,
- * which the composer's bottom padding and gutter leave room for.
+ * Behind the text box (z-index -1 in the composer's isolated root), so it
+ * paints over the transcript but under the text box, whose border and
+ * focus ring stay crisp above it. The wrapper takes the insets, measured to
+ * the room around the text box, because a positioned canvas would keep its
+ * intrinsic size. It shows only once the first frame is drawn; the
+ * fade-out matches COMPOSER_GLOW_FADE_OUT_MS.
  */
 .composer-glow {
-  --composer-glow-spread: 4px;
   position: absolute;
-  inset: calc(-1 * var(--composer-glow-spread));
   z-index: -1;
   pointer-events: none;
-  border-radius: calc(
-    var(--session-composer-control-radius) + var(--composer-glow-spread)
-  );
-  /* Static; the compositor applies it without repainting. */
-  filter: blur(3px);
-  opacity: var(--composer-glow-strength);
+  opacity: 0;
   transition: opacity 700ms var(--ease-out-expo);
 }
 
-@starting-style {
-  .composer-glow {
-    opacity: 0;
-  }
+.composer-glow[data-ready="true"][data-state="on"] {
+  opacity: 1;
 }
 
 .composer-glow[data-state="leaving"] {
   opacity: 0;
-  transition-duration: var(--composer-glow-fade-out, 900ms);
+  transition-duration: 900ms;
   transition-timing-function: ease-out;
 }
 
-/* A fixed ring mask whose inner edge is the text box's border box. */
-.composer-glow-ring {
-  position: absolute;
-  inset: 0;
-  border: var(--composer-glow-spread) solid transparent;
-  border-radius: inherit;
-  container-type: size;
-  -webkit-mask:
-    linear-gradient(#000 0 0) padding-box,
-    linear-gradient(#000 0 0) border-box;
-  -webkit-mask-composite: xor;
-  mask:
-    linear-gradient(#000 0 0) padding-box,
-    linear-gradient(#000 0 0) border-box;
-  mask-composite: exclude;
-}
-
-.composer-glow-base {
-  position: absolute;
-  inset: calc(-1 * var(--composer-glow-spread));
-  background: var(--composer-glow-color);
-  opacity: 0.3;
-  animation: composer-glow-breathe var(--composer-glow-breathe, 6.1s)
-    ease-in-out var(--composer-glow-delay-breathe, 0s) infinite alternate;
-}
-
-/*
- * A soft light at the ring, carried round it by Web Animations (see the
- * script) and turned to lie along the outline. It is thinner than the text
- * box is tall, so it never lights both long edges at once.
- */
-.composer-glow-orbit {
-  position: absolute;
-  left: 0;
-  top: 0;
-  width: 6rem;
-  height: min(3rem, 80cqh);
-  translate: -50% -50%;
-  background: radial-gradient(
-    closest-side,
-    var(--composer-glow-color),
-    transparent
-  );
-  will-change: transform;
-}
-
-.composer-glow-orbit--wide {
-  width: 9rem;
-  height: min(4rem, 90cqh);
-  background: radial-gradient(
-    closest-side,
-    color-mix(in oklab, var(--composer-glow-color) 70%, transparent),
-    transparent
-  );
-  animation: composer-glow-pulse var(--composer-glow-pulse, 4.3s) ease-in-out
-    var(--composer-glow-delay-pulse, 0s) infinite alternate;
-}
-
-.composer-glow[data-motion="reduced"] .composer-glow-base {
-  animation: none;
-  opacity: 0.4;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .composer-glow-base {
-    animation: none;
-    opacity: 0.4;
-  }
-
-  .composer-glow-orbit--wide {
-    animation: none;
-  }
-}
-
-@keyframes composer-glow-breathe {
-  0% {
-    opacity: 0.2;
-  }
-  37% {
-    opacity: 0.38;
-  }
-  58% {
-    opacity: 0.27;
-  }
-  100% {
-    opacity: 0.45;
-  }
-}
-
-@keyframes composer-glow-pulse {
-  0% {
-    opacity: 0.5;
-  }
-  45% {
-    opacity: 0.85;
-  }
-  70% {
-    opacity: 0.7;
-  }
-  100% {
-    opacity: 1;
-  }
+.composer-glow-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
 }
 </style>
