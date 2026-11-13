@@ -57,3 +57,21 @@
 .flyfish-pptx-presentation .slide {
   color: #000;
 }
+
+/*
+ * PDF text is drawn on a canvas; pdf.js lays transparent text over it to
+ * select, so the selection background is the only sign of a selection.
+ * file-viewer ships pdf.js's stylesheet with that background made
+ * transparent (and the XFA form one opaque), which leaves selections
+ * invisible. Selections use the system highlight like the rest of Pine,
+ * translucent so the glyphs underneath stay readable; line breaks stay
+ * unpainted as in pdf.js.
+ */
+.pine-file-viewer :is(.textLayer, .xfaLayer) ::selection {
+  background: rgb(0 0 255 / 25%);
+  background: rgb(from Highlight r g b / 40%);
+}
+
+.pine-file-viewer .textLayer br::selection {
+  background: transparent;
+}
