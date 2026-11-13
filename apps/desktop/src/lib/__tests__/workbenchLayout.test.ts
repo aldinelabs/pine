@@ -134,6 +134,7 @@ describe("workbench layout", () => {
       target: { source: "presented" as const, path: "/tmp/report.pdf" },
       toolCallId: "submit-1",
       artifactPath: "/tmp/report.pdf",
+      path: "/tmp/report.pdf",
     };
     expect(
       parseWorkbenchLayout(
@@ -143,7 +144,7 @@ describe("workbench layout", () => {
     expect(
       parseWorkbenchLayout({
         ...DEFAULT_WORKBENCH_LAYOUT,
-        preview: { ...preview, artifactPath: 3 },
+        preview: { ...preview, artifactPath: 3, path: 3 },
       })?.preview,
     ).toEqual({ target: preview.target, toolCallId: "submit-1" });
   });

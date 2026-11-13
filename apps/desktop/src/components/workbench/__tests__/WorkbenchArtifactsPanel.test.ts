@@ -303,6 +303,7 @@ describe("WorkbenchArtifactsPanel", () => {
     expect(useWorkbenchStore().activeLayout.preview).toEqual({
       target: projectTarget,
       toolCallId: "submit-1",
+      path: "/project/out/report.md",
       artifactPath: "/project/out/report.md",
     });
     expect(
@@ -310,6 +311,30 @@ describe("WorkbenchArtifactsPanel", () => {
         .get('[data-testid="workbench-artifact"] button')
         .attributes("data-active"),
     ).toBeDefined();
+  });
+
+  it("marks the submitted file the agent presented in parallel", async () => {
+    const { wrapper } = mountPanel(projectTarget, "read-write", [
+      [
+        submission("submit-1", [
+          { path: "/project/out/report.md" },
+          { path: "/project/out/data.csv" },
+        ]),
+        presentation("present-1", "/project/out/data.csv"),
+      ],
+    ]);
+    // As useWorkbenchEvents stores the present-file event.
+    useWorkbenchStore().preview({
+      target: { ...projectTarget, relativePath: "out/data.csv" },
+      toolCallId: "present-1",
+      path: "/project/out/data.csv",
+    });
+    await flushPromises();
+    const rows = wrapper.findAll('[data-testid="workbench-artifact"] button');
+    expect(rows.map((row) => row.attributes("data-active"))).toEqual([
+      undefined,
+      "true",
+    ]);
   });
 
   it("renames and trashes a submitted file under its artifact key", async () => {

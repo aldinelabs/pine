@@ -145,10 +145,16 @@ const previewedFileKey = computed(() => {
   const preview = workbench.activeLayout.preview;
   return preview ? fileTargetKey(preview.target) : undefined;
 });
+const previewedPath = computed(() => workbench.activeLayout.preview?.path);
 
-/** The preview shows this artifact, opened from here or presented by the agent. */
+/**
+ * The preview shows this artifact: opened from here, presented by the agent
+ * (matched by the absolute path, as a parallel presentation has its own tool
+ * call), or resolved here earlier.
+ */
 function isPreviewed(artifact: Artifact): boolean {
   if (artifact.key === previewedKey.value) return true;
+  if (previewedPath.value && previewedPath.value === artifact.path) return true;
   const target = contentTabs.presentedTargetFor(artifact.key);
   return !!target && fileTargetKey(target) === previewedFileKey.value;
 }
@@ -213,6 +219,7 @@ function show(artifact: Artifact): Promise<void> {
     workbench.preview({
       target,
       toolCallId: artifact.toolCallId,
+      path: artifact.path,
       ...(artifact.submitted ? { artifactPath: artifact.path } : {}),
     }),
   );

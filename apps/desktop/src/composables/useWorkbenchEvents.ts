@@ -41,6 +41,7 @@ export function useWorkbenchEvents(): void {
       workbench.present(event.sessionId, {
         target: event.target,
         toolCallId: event.toolCallId,
+        path: event.path,
         ...(reveal ? { reveal } : {}),
       });
       workbench.highlight(event.sessionId, "preview");

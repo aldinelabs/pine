@@ -58,7 +58,7 @@ it("shows a presented file in its session's preview card", async () => {
   expect(useWorkbenchStore().layoutFor("session-1")).toMatchObject({
     open: true,
     bottom: "preview",
-    preview: { target, toolCallId: "call-1" },
+    preview: { target, toolCallId: "call-1", path: target.path },
   });
   expect(useContentTabsStore().presentedTargetFor("call-1")).toEqual(target);
   // The active draft's workbench is untouched.
@@ -123,11 +123,13 @@ it("keeps a presented file's line targets and drops malformed ones", async () =>
   expect(useWorkbenchStore().layoutFor("session-1").preview).toEqual({
     target,
     toolCallId: "call-1",
+    path: target.path,
     reveal: { line: 12, highlights: [{ start: 12, end: 14 }] },
   });
   expect(useWorkbenchStore().layoutFor("session-2").preview).toEqual({
     target,
     toolCallId: "call-2",
+    path: target.path,
   });
   wrapper.unmount();
 });

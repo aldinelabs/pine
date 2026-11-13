@@ -20,6 +20,11 @@ export interface WorkbenchPreview {
   toolCallId?: string;
   /** Set for a submitted artifact: the path its `ui_submit_artifact` result recorded. */
   artifactPath?: string;
+  /**
+   * The absolute path the agent presented or the artifact recorded, so the
+   * Artifacts list can mark the row the preview shows.
+   */
+  path?: string;
   reveal?: FileReveal;
 }
 
@@ -189,6 +194,9 @@ export function parseWorkbenchLayout(value: unknown): WorkbenchLayout | null {
               : {}),
             ...(typeof preview.artifactPath === "string" && preview.artifactPath
               ? { artifactPath: preview.artifactPath }
+              : {}),
+            ...(typeof preview.path === "string" && preview.path
+              ? { path: preview.path }
               : {}),
             ...(reveal ? { reveal } : {}),
           }
