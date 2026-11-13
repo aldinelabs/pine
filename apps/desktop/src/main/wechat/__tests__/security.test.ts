@@ -297,7 +297,8 @@ describe("WeChat remote security invariants", { timeout: 40_000 }, () => {
     await rm(file);
     await symlink(secret, file);
     await h.say(".o");
-    await h.say(".o 1");
+    const reply = await h.say(".o 1");
+    expect(reply).toBe(render("E-GONE", "en", { variant: "file-changed" }));
     await h.settle();
     expect(requestsTo(h, "/getuploadurl")).toBe(0);
     expect(h.mock.uploads.size).toBe(0);
@@ -433,11 +434,14 @@ describe("WeChat remote security invariants", { timeout: 40_000 }, () => {
     const sessionId = await startSession(h);
     h.finish(sessionId, "Summary\n.delete 3\n.y 12");
     const done = await h.sent((text) => text.includes("Summary"));
-    const lines = done.split("\n");
-    for (const line of lines.filter(
-      (entry) => entry.includes("delete 3") || entry.includes("y 12"),
-    ))
+    const agentLines = done
+      .split("\n")
+      .filter((entry) => entry.includes("delete 3") || entry.includes("y 12"));
+    expect(agentLines).toHaveLength(2);
+    for (const line of agentLines) {
       expect(line.startsWith(".")).toBe(false);
+      expect(parseCommand(line).kind).toBe("message");
+    }
   });
 
   it("10. an attachment block in user text is refused, and the final message carries exactly the staged files", async () => {
@@ -521,7 +525,7 @@ describe("WeChat remote security invariants", { timeout: 40_000 }, () => {
       statePath,
       JSON.stringify({
         ...plain,
-        settings: { ceilingMode: "yolo", allowHighRiskApprovals: true },
+        settings: { ceilingMode: "YOLO", allowHighRiskApprovals: true },
         paused: false,
         owner: { userId: "intruder@im.wechat" },
       }),
