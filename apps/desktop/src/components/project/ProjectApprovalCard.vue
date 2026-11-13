@@ -39,7 +39,9 @@ const showShortcutHints = useShortcutHints();
 const guidance = ref("");
 const guiding = ref(false);
 // Decided once: an inline explanation starts with the parameters collapsed; a
-// late one leaves them expanded so nothing moves away under the reader.
+// late one leaves them expanded so nothing moves away under the reader. With
+// no explanation view (none arrived) they are forced open: the trigger is
+// hidden then, so the raw parameters must never stay collapsed.
 const showParameters = ref(!props.approval.explanation);
 const hasExplanationView = computed(
   () =>
@@ -195,8 +197,9 @@ function startGuidance(): void {
         </p>
         <Collapsible
           v-if="approval.description || approval.subject"
-          v-model:open="showParameters"
+          :open="showParameters || !hasExplanationView"
           class="flex flex-col gap-2"
+          @update:open="showParameters = $event"
         >
           <CollapsibleTrigger
             v-if="hasExplanationView"

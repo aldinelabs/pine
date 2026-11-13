@@ -1,5 +1,6 @@
 import { mount } from "@vue/test-utils";
 import { describe, expect, it } from "vitest";
+import { nextTick } from "vue";
 import { createAppI18n } from "@/app/i18n";
 import type { PinePendingApproval } from "@/stores/session";
 import ProjectApprovalCard from "../ProjectApprovalCard.vue";
@@ -112,6 +113,25 @@ describe("ProjectApprovalCard", () => {
       expect(wrapper.find(loading).exists()).toBe(false);
       expect(wrapper.text()).toContain("Builds the project into dist.");
       expect(wrapper.text()).toContain("bun run build");
+      wrapper.unmount();
+    });
+
+    it("reopens the parameters when a hidden-while-pending explanation never arrives", async () => {
+      const wrapper = mount(ProjectApprovalCard, {
+        props: { approval: { ...approval, explanationPending: true } },
+        global: i18n(),
+      });
+      await toggle(wrapper)!.trigger("click");
+      expect(wrapper.text()).not.toContain("bun run build");
+      await wrapper.setProps({
+        approval: { ...approval, explanationPending: false },
+      });
+      // The collapsible's presence settles on the next frame.
+      await new Promise(requestAnimationFrame);
+      await nextTick();
+      expect(toggle(wrapper)).toBeUndefined();
+      expect(wrapper.text()).toContain("bun run build");
+      expect(wrapper.text()).toContain("Run the build");
       wrapper.unmount();
     });
 
