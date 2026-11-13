@@ -40,6 +40,15 @@ describe("locale catalogs", () => {
     expect(mismatched.map(([key]) => key)).toEqual([]);
   });
 
+  it("ja-JP waiting marker uses the catalog's プロバイダ and says still", () => {
+    const text = flatten(localeMessages["ja-JP"]).get(
+      "project.transcript.awaitingResponse",
+    );
+    expect(text).toContain("まだ");
+    expect(text).toContain("モデルプロバイダ");
+    expect(text).not.toContain("プロバイダー");
+  });
+
   it("names every locale in its own language", () => {
     expect(Object.keys(APP_LOCALE_NAMES).sort()).toEqual(
       [...APP_LOCALES].sort(),
