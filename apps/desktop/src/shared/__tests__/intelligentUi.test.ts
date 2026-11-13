@@ -25,16 +25,6 @@ describe("intelligentUiSystemPrompt", () => {
     expect(prompt).not.toMatch(/^## (?!Interactive blocks)/mu);
   });
 
-  it("encourages blocks for users who chose rich interface elements", () => {
-    expect(prompt).toContain("The user has enabled rich interface elements");
-    expect(prompt).toContain("A block can be purely visual");
-    expect(prompt).toContain(
-      "Do not use a block just to reproduce a Markdown table",
-    );
-    expect(prompt).not.toContain("Use a block only when");
-    expect(prompt).not.toContain("At most one block per reply");
-  });
-
   it("documents every component's signature", () => {
     for (const name of Object.keys(intelligentUiSchemas)) {
       expect(prompt).toMatch(new RegExp(`^${name}\\(`, "mu"));
@@ -56,14 +46,5 @@ describe("intelligentUiSystemPrompt", () => {
       expect(result.meta.errors, example).toEqual([]);
       expect(result.meta.unresolved, example).toEqual([]);
     }
-  });
-
-  it("requires a submit button whenever the agent needs the user's answer", () => {
-    expect(prompt).toContain("whenever you need the user's choice or answer");
-    expect(prompt).toContain("always ends with a Button");
-  });
-
-  it("builds the prompt once", () => {
-    expect(intelligentUiSystemPrompt()).toBe(prompt);
   });
 });

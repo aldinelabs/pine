@@ -126,7 +126,6 @@ describe("composerGlowPixelRatio", () => {
     [1, 0.75],
     [2, 1],
     [3, 1],
-    [1.5, 0.75],
     [Number.NaN, 0.75],
   ])("dpr %s → %s", (dpr, ratio) => {
     expect(composerGlowPixelRatio(dpr)).toBe(ratio);

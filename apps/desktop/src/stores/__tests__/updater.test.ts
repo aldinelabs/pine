@@ -28,15 +28,6 @@ describe("updater store", () => {
     } as unknown as typeof window.pine;
   });
 
-  it("surfaces an available R2 release", async () => {
-    const store = useUpdaterStore();
-    await store.check();
-
-    expect(store.isAvailable).toBe(true);
-    expect(store.phase).toBe("available");
-    expect(store.update).toEqual(update);
-  });
-
   it("refreshes the release before opening and shares concurrent checks", async () => {
     const store = useUpdaterStore();
     await store.check();

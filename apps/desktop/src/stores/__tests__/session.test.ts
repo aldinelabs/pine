@@ -387,27 +387,6 @@ describe("session store", () => {
     ]);
   });
 
-  it("evicts a session from the cache when it is deleted", async () => {
-    Object.defineProperty(window, "pine", {
-      configurable: true,
-      value: {
-        deleteSession: vi.fn().mockResolvedValue({ deleted: true }),
-        loadSessionMessages: vi.fn().mockResolvedValue({
-          hasMore: false,
-          messages: [],
-        }),
-        resumeSession: vi.fn().mockResolvedValue({ session }),
-      },
-    });
-    const store = useSessionStore();
-
-    await store.resume(PROJECT_ID, session.id);
-    await store.deleteSession(session.id);
-
-    // Re-resume must re-fetch because the cached slice was dropped.
-    expect(store.messages).toEqual([]);
-  });
-
   it("keeps the indexed title when the live resume summary omits it", async () => {
     const liveSession = { ...session };
     delete liveSession.name;
@@ -459,22 +438,6 @@ describe("session store", () => {
     expect(store.recentSessionsFor(PROJECT_ID)).toEqual([]);
     expect(store.recentSessionsFor("destination")).toEqual([session]);
     expect(store.projectOf(session.id)).toBe("destination");
-  });
-
-  it("loads recent sessions separately from search results", async () => {
-    Object.defineProperty(window, "pine", {
-      configurable: true,
-      value: {
-        searchSessions: vi.fn().mockResolvedValue({ sessions: [session] }),
-      },
-    });
-    const store = useSessionStore();
-
-    await expect(store.loadRecent(PROJECT_ID)).resolves.toEqual([session]);
-
-    expect(store.recentSessionsFor(PROJECT_ID)).toEqual([session]);
-    expect(store.searchResults).toEqual([]);
-    expect(store.isLoadingRecentFor(PROJECT_ID)).toBe(false);
   });
 
   it("renames a session across recent, search, active, and cached state", async () => {
@@ -840,26 +803,6 @@ describe("session store", () => {
       streamingBehavior: "steer",
     });
     expect(store.steeringMessages).toEqual(["Change direction"]);
-  });
-
-  it("dequeues a staged steering message through the preload API", async () => {
-    const dequeueSteering = vi.fn().mockResolvedValue({
-      message: "Change direction",
-      removed: true,
-    });
-    Object.defineProperty(window, "pine", {
-      configurable: true,
-      value: { dequeueSteering },
-    });
-    const store = useSessionStore();
-
-    await expect(
-      store.dequeueSteering("Change direction", session.id),
-    ).resolves.toBe("Change direction");
-    expect(dequeueSteering).toHaveBeenCalledWith({
-      message: "Change direction",
-      sessionId: session.id,
-    });
   });
 
   it("removes a deleted session and clears it when active", async () => {

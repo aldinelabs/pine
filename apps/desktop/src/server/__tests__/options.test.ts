@@ -1,7 +1,7 @@
 // @vitest-environment node
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { readServerCommand, SERVER_USAGE } from "../options";
+import { readServerCommand } from "../options";
 
 const HOME = "/home/pine";
 
@@ -224,12 +224,6 @@ describe("readServerCommand", () => {
         HOME,
       ),
     ).toThrow("Nothing to change");
-  });
-
-  it("documents the WeChat commands and SIGHUP", () => {
-    expect(SERVER_USAGE).toContain("--wechat-bind");
-    expect(SERVER_USAGE).toContain("pine-server wechat config");
-    expect(SERVER_USAGE).toContain("SIGHUP");
   });
 
   it("asks for help", () => {

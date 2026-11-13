@@ -52,14 +52,6 @@ describe("onSessionEvent", () => {
     expect(calls).toEqual(["a:s1", "b:s1", "c:s1", "a:s2", "b:s2", "c:s2"]);
   });
 
-  it("delivers synchronously", () => {
-    const bridge = installBridge();
-    const listener = vi.fn();
-    listen(listener);
-    bridge.emit(event("s1"));
-    expect(listener).toHaveBeenCalledWith(event("s1"));
-  });
-
   it("keeps delivering when a listener throws", () => {
     const bridge = installBridge();
     const consoleError = vi

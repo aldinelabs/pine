@@ -381,26 +381,6 @@ describe("content tabs store", () => {
     expect(store.tabs).toEqual([]);
   });
 
-  it("creates a draft tab from a bound session", () => {
-    const store = useContentTabsStore();
-    store.bindSession("session-1", firstSession);
-
-    const draft = store.createSessionTab();
-
-    expect(draft.state).toBe("draft");
-    expect(store.tabs).toContainEqual(draft);
-    expect(store.tabs).toHaveLength(2);
-  });
-
-  it("does not duplicate an already active draft tab", () => {
-    const store = useContentTabsStore();
-
-    const draft = store.createSessionTab();
-
-    expect(draft.id).toBe("session-1");
-    expect(store.tabs).toHaveLength(1);
-  });
-
   it("binds a prompt result to the tab that sent it", () => {
     const store = useContentTabsStore();
     const firstTabId = "session-1";

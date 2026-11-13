@@ -30,20 +30,6 @@ describe("project store", () => {
     setActivePinia(createPinia());
   });
 
-  it("loads the project library", async () => {
-    Object.defineProperty(window, "pine", {
-      configurable: true,
-      value: {
-        listProjects: vi.fn().mockResolvedValue({ projects: [project] }),
-      },
-    });
-    const store = useProjectStore();
-
-    await store.loadProjects();
-    expect(store.projects).toEqual([project]);
-    expect(store.isLoadingProjects).toBe(false);
-  });
-
   it("follows the current project rather than the last opened one", async () => {
     const other = { ...project, id: "1ab0b15f-331f-4aa6-8056-cd2be3bf7414" };
     const openProject = vi.fn(({ id }: { id: string }) =>

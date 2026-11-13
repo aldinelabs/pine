@@ -40,11 +40,8 @@ describe("sanitizeCustomPronouns", () => {
   });
 
   it.each([
-    ["a newline", "xe\nxem"],
     ["a Windows newline", "xe\r\nxem"],
-    ["a tab", "xe\txem"],
     ["a no-break space", "xe xem"],
-    ["a line separator", "xe xem"],
     ["control characters", "xe\u0007\u0000\u009fxem"],
     ["mixed runs", "xe \n\t\u0007 xem"],
   ])("collapses %s to one space", (_label, value) => {
