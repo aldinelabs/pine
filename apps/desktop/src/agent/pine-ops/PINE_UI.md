@@ -462,11 +462,11 @@ the user opens themselves do not pulse.
     paired computer, so another can be added. Selecting a computer keeps that
     connection until the user switches or it disconnects.
     Browser access serves Pine to a browser behind an access
-    password. Below it, the "WeChat" group (marked Experimental; it may stop
-    working if Tencent changes its policy) lets the user send tasks to Pine
-    from their own WeChat. Not connected: "Connect WeChat" opens a dialog
-    with a QR code to scan in WeChat (a placeholder of the same size holds
-    its place while it loads), a countdown, the phase text (scan,
+    password. Below it, the "WeChat" group (marked Experimental) lets the
+    user send tasks to Pine from their own WeChat through ClawBot. Not
+    connected: "Connect WeChat" opens a dialog with a QR code to scan in
+    WeChat (a placeholder of the same size holds its place while it loads),
+    a countdown, the phase text (scan,
     "Scanned. Confirm on your phone.", a verification-code field when WeChat
     asks for one), and then a pairing step: "In WeChat, send any message (a
     single dot is enough) to the bot. It replies with a 6-digit code. Enter

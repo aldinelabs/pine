@@ -154,8 +154,7 @@ export default {
     wechatRemote: {
       title: "WeChat",
       experimental: "Experimental",
-      description:
-        "Envía tareas a Pine desde tu propio WeChat a través del ClawBot de Tencent. Puede dejar de funcionar si Tencent cambia su política.",
+      description: "Envía tareas a Pine desde WeChat con ClawBot.",
       notConnected: "No hay ninguna cuenta de WeChat conectada.",
       connect: "Conectar WeChat",
       connectTitle: "Conectar WeChat",

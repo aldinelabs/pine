@@ -150,8 +150,7 @@ export default {
     wechatRemote: {
       title: "WeChat",
       experimental: "실험적",
-      description:
-        "Tencent의 ClawBot을 통해 내 WeChat에서 Pine으로 작업을 보냅니다. Tencent의 정책이 바뀌면 작동하지 않을 수 있습니다.",
+      description: "ClawBot으로 WeChat에서 Pine에 작업을 보냅니다.",
       notConnected: "연결된 WeChat 계정이 없습니다.",
       connect: "WeChat 연결",
       connectTitle: "WeChat 연결",

@@ -141,8 +141,7 @@ export default {
     wechatRemote: {
       title: "微信",
       experimental: "实验性",
-      description:
-        "通过腾讯的 ClawBot，用你自己的微信向 Pine 发送任务。腾讯调整政策后，此功能可能失效。",
+      description: "用微信通过腾讯 ClawBot 给 Pine 发送任务。",
       notConnected: "尚未连接微信账号。",
       connect: "连接微信",
       connectTitle: "连接微信",

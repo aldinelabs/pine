@@ -154,8 +154,7 @@ export default {
     wechatRemote: {
       title: "WeChat",
       experimental: "試験運用",
-      description:
-        "Tencent の ClawBot を通じて、自分の WeChat から Pine にタスクを送れます。Tencent のポリシー変更により使えなくなる場合があります。",
+      description: "WeChat から ClawBot 経由で Pine にタスクを送信。",
       notConnected: "WeChat アカウントは接続されていません。",
       connect: "WeChat を接続",
       connectTitle: "WeChat を接続",
