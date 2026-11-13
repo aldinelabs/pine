@@ -3,7 +3,11 @@ import type {
   ExtensionToolContext,
   ToolDefinition,
 } from "@earendil-works/pi-coding-agent";
-import type { PineApprovalMode } from "../../shared/agent";
+import {
+  UI_SESSION_READ_TOOL_NAME,
+  UI_SESSION_SEND_TOOL_NAME,
+  type PineApprovalMode,
+} from "../../shared/agent";
 import type {
   AgentHostRequest,
   AgentHostResponse,
@@ -192,6 +196,16 @@ describe("session tools", () => {
         limit: 50,
       },
     });
+  });
+
+  it("tells the model in its description when sub-sessions pay off", () => {
+    // Pine's own system prompt leaves out pi's prompt guidelines.
+    const { description, promptGuidelines } = setup("YOLO").start;
+    expect(promptGuidelines).toBeUndefined();
+    expect(description).toContain("Start them all in the same step");
+    expect(description).toContain("Do the work directly here instead");
+    expect(description).toContain(UI_SESSION_READ_TOOL_NAME);
+    expect(description).toContain(UI_SESSION_SEND_TOOL_NAME);
   });
 
   it("starts a session in the caller's mode without asking outside Let Me Review", async () => {
