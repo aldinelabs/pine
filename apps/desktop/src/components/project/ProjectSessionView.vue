@@ -195,6 +195,8 @@ const scroller = useTemplateRef<{
   isFollowingBottom?: () => boolean;
   /** Exposed as a ref; the component proxy unwraps it. */
   followingBottom?: boolean;
+  holdViewForRewrite?: () => void;
+  releaseRewriteHold?: () => void;
 }>("scroller");
 /** The first rendered message; null renders from the oldest loaded one. */
 const windowStartId = ref<string | null>(null);
@@ -544,6 +546,9 @@ async function rewriteMessage(
 ): Promise<boolean> {
   const sessionId = props.sessionId;
   if (!sessionId || isRunning.value) return false;
+  // The edited message leaves and comes back as a new turn; neither should
+  // move the transcript.
+  scroller.value?.holdViewForRewrite?.();
   try {
     await sessionStore.rewrite(
       sessionId,
@@ -553,6 +558,7 @@ async function rewriteMessage(
     );
     return true;
   } catch {
+    scroller.value?.releaseRewriteHold?.();
     toast.error(t("project.transcript.editMessageFailed"));
     return false;
   }

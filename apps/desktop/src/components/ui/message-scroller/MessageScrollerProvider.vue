@@ -12,6 +12,9 @@ defineExpose({
   isFollowingBottom: engine.context.isFollowingBottom,
   /** Read-only: whether the viewport is pinned to the live end. */
   followingBottom: engine.context.followingBottom,
+  /** Keep the view still while an edited message is resent. */
+  holdViewForRewrite: engine.context.holdViewForRewrite,
+  releaseRewriteHold: engine.context.releaseRewriteHold,
 });
 </script>
 

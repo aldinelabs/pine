@@ -512,6 +512,8 @@ export interface MessageScrollerContext {
   handleResize: () => void;
   followStreamingContent: () => void;
   preserveViewportOnCollapse: (element?: HTMLElement) => void;
+  holdViewForRewrite: () => void;
+  releaseRewriteHold: () => void;
   scrollToEnd: (options?: { behavior?: ScrollBehavior }) => boolean;
   scrollToMessage: (
     messageId: string,
@@ -567,6 +569,8 @@ function createEngine(props: MessageScrollerProviderProps) {
   } | null = null;
   let mode: Mode = autoScroll() ? "following-bottom" : "free-scrolling";
   let streamingTurn: HTMLElement | null = null;
+  /** The scroll margin the streaming turn was placed with. */
+  let streamingTurnMargin = 0;
   let firstItem: HTMLElement | null = null;
   let itemCount = 0;
   let lastScrollTop = 0;
@@ -597,6 +601,9 @@ function createEngine(props: MessageScrollerProviderProps) {
   let collapseFootprint:
     | { element: HTMLElement; minHeight: string }
     | undefined;
+  /** An edited message is leaving to be sent again; the next turn that
+   * arrives takes its place without moving the view. */
+  let rewriteHold = false;
   let visibilityObserver: IntersectionObserver | null = null;
   let visibilityConsumers = 0;
   /** Content or size changes that arrived while the transcript was hidden. */
@@ -905,6 +912,50 @@ function createEngine(props: MessageScrollerProviderProps) {
     }, DURATION_MS);
   }
 
+  /** Editing an earlier message removes it and everything after it, then the
+   * rewritten message arrives again as a new turn. Keep the view where it is
+   * through both: the scroll range keeps its footprint while the old turn is
+   * gone, and the new one is held at the place the old one left instead of
+   * being scrolled to the top like a fresh send. */
+  function holdViewForRewrite() {
+    if (!viewport || !content || !isActive()) return;
+    cancelScrollAnimation?.();
+    cancelScrollAnimation = null;
+    releaseCollapseHold();
+    streamingTurn = null;
+    spacerAnchor = null;
+    setMode("free-scrolling");
+    rewriteHold = true;
+    collapseFootprint = {
+      element: content,
+      minHeight: content.style.minHeight,
+    };
+    content.style.minHeight = `${content.getBoundingClientRect().height}px`;
+  }
+
+  function releaseRewriteHold() {
+    if (!rewriteHold) return;
+    rewriteHold = false;
+    releaseCollapseHold();
+  }
+
+  /** Anchor the rewritten message exactly where it already sits. */
+  function holdRewrittenTurn(anchor: HTMLElement) {
+    rewriteHold = false;
+    handledScrollAnchors.add(anchor);
+    if (!viewport) return;
+    const margin =
+      getElementOffsetTop(anchor, viewport) -
+      spacerParentPadding().start -
+      viewport.scrollTop -
+      scrollPreviousItemPeek();
+    scrollToElement(
+      anchor,
+      { align: "start", scrollMargin: margin },
+      { keepPreviousPeek: true },
+    );
+  }
+
   /** After the reader leaves an anchored turn, discard blank space below
    * their viewport as soon as they scroll up. Keep only the room needed to
    * preserve the current view, so a quick reversal cannot enter the old gap. */
@@ -1070,6 +1121,7 @@ function createEngine(props: MessageScrollerProviderProps) {
     };
     setMode(keepPreviousPeek ? "anchored-to-message" : "settling-jump");
     streamingTurn = keepPreviousPeek ? element : null;
+    streamingTurnMargin = margin;
     scrollTo(targetScrollTop, { behavior, preserveAnchor });
     scheduleVisibilitySync();
     return true;
@@ -1084,7 +1136,7 @@ function createEngine(props: MessageScrollerProviderProps) {
       return false;
     return scrollToElement(
       streamingTurn,
-      { align: "start" },
+      { align: "start", scrollMargin: streamingTurnMargin },
       { keepPreviousPeek: true, preserveAnchor: true },
     );
   }
@@ -1227,6 +1279,15 @@ function createEngine(props: MessageScrollerProviderProps) {
     appended: HTMLElement[],
   ) {
     if (flushPendingScrollToMessage()) return;
+    if (rewriteHold) {
+      const anchor = findFirstAnchorFrom(appended, 0);
+      if (anchor) holdRewrittenTurn(anchor);
+      else {
+        commitScrollState();
+        scheduleVisibilitySync();
+      }
+      return;
+    }
     if (mode === "settling-jump" && isProgrammaticScroll.value) {
       scheduleStateCommit();
       scheduleVisibilitySync();
@@ -1456,6 +1517,7 @@ function createEngine(props: MessageScrollerProviderProps) {
   }
 
   function userScrollIntent(direction?: MessageScrollerScrollDirection) {
+    rewriteHold = false;
     releaseCollapseHold();
     userScrollRevision.value += 1;
     setProgrammaticScroll(false);
@@ -1605,6 +1667,8 @@ function createEngine(props: MessageScrollerProviderProps) {
     handleResize,
     followStreamingContent,
     preserveViewportOnCollapse,
+    holdViewForRewrite,
+    releaseRewriteHold,
     scrollToEnd,
     scrollToMessage,
     scrollToStart,
