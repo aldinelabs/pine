@@ -58,6 +58,58 @@ export function parseMarkdownCitations(source: string): MarkdownCitations {
   return citations;
 }
 
+/** A line that starts a footnote definition, complete or still streaming in. */
+const DEFINITION_START = /^[ ]{0,3}\[\^(?:[^\]\s]*(?:\](?::.*)?)?)?$/u;
+/** A continuation line of a footnote definition. */
+const CONTINUATION = /^(?: {4}|\t)/u;
+
+/**
+ * The streaming source with only finished web-source definitions kept.
+ * Definitions stream in last: a partial one renders as text or as a visible
+ * footnote until it turns into a hidden citation, so the reply's end jumps
+ * as each arrives. A definition shows once its line is complete and names a
+ * web source; other footnotes wait for the final render.
+ */
+export function withoutPendingFootnoteDefinitions(source: string): string {
+  if (!source.includes("[^")) return source;
+  const lines = source.split("\n");
+  const kept: string[] = [];
+  let dropping = false;
+  let fence: string | undefined;
+  for (const [index, line] of lines.entries()) {
+    const marker = /^[ ]{0,3}(`{3,}|~{3,})/u.exec(line)?.[1];
+    if (fence) {
+      if (marker?.[0] === fence[0] && marker.length >= fence.length)
+        fence = undefined;
+      kept.push(line);
+      continue;
+    }
+    if (dropping && (CONTINUATION.test(line) || line.trim() === "")) continue;
+    dropping = false;
+    if (marker) {
+      fence = marker;
+      kept.push(line);
+      continue;
+    }
+    if (DEFINITION_START.test(line)) {
+      const complete = index < lines.length - 1;
+      const next = lines[index + 1] ?? "";
+      if (
+        complete &&
+        !CONTINUATION.test(next) &&
+        parseMarkdownCitations(line).size > 0
+      ) {
+        kept.push(line);
+        continue;
+      }
+      dropping = true;
+      continue;
+    }
+    kept.push(line);
+  }
+  return kept.join("\n");
+}
+
 function sameCitation(
   left: MarkdownCitation,
   right: MarkdownCitation,

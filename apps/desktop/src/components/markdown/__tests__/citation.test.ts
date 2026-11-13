@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { parseMarkdownCitations, shareMarkdownCitations } from "../citation";
+import {
+  parseMarkdownCitations,
+  shareMarkdownCitations,
+  withoutPendingFootnoteDefinitions,
+} from "../citation";
 
 describe("parseMarkdownCitations", () => {
   it("reads titled and bare web-source definitions", () => {
@@ -80,5 +84,42 @@ describe("shareMarkdownCitations", () => {
   it("uses the new map when there is no previous one", () => {
     const next = parseMarkdownCitations(source);
     expect(shareMarkdownCitations(undefined, next)).toBe(next);
+  });
+});
+
+describe("withoutPendingFootnoteDefinitions", () => {
+  it("keeps finished web sources and drops partial or plain definitions", () => {
+    expect(
+      withoutPendingFootnoteDefinitions(
+        [
+          "Intro[^1] and more[^2].",
+          "",
+          "[^1]: https://one.example.com",
+          "[^2]: A note",
+          "    that continues.",
+          "",
+          "After the notes.",
+          "[^3]: https://thr",
+        ].join("\n"),
+      ),
+    ).toBe(
+      [
+        "Intro[^1] and more[^2].",
+        "",
+        "[^1]: https://one.example.com",
+        "After the notes.",
+      ].join("\n"),
+    );
+    expect(withoutPendingFootnoteDefinitions("Text\n\n[^")).toBe("Text\n");
+  });
+
+  it("keeps references at a line start and definitions in code", () => {
+    const source = [
+      "[^1] opens this line.",
+      "```md",
+      "[^1]: https://example.com",
+      "```",
+    ].join("\n");
+    expect(withoutPendingFootnoteDefinitions(source)).toBe(source);
   });
 });

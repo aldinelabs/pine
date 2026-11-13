@@ -519,7 +519,7 @@ describe("MarkdownContent", () => {
     );
 
     await wrapper.setProps({
-      source: `${table}\n\n[^1]: [Docs](https://docs.example.com/page)`,
+      source: `${table}\n\n[^1]: [Docs](https://docs.example.com/page)\n`,
     });
     await flushPromises();
     expect(wrapper.get('tbody [data-slot="inline-citation"]').text()).toContain(
@@ -547,8 +547,33 @@ describe("MarkdownContent", () => {
     wrapper.unmount();
   });
 
+  it("shows a streaming definition only once it is a finished web source", async () => {
+    const wrapper = mountMarkdown({
+      source: "Claim[^1] and a note[^2].\n\n[^1]: https://exa",
+      final: false,
+    });
+    await flushPromises();
+    expect(wrapper.find('[data-slot="inline-citation"]').exists()).toBe(false);
+    expect(wrapper.text()).not.toContain("https://exa");
+
+    await wrapper.setProps({
+      source:
+        "Claim[^1] and a note[^2].\n\n[^1]: https://example.com\n[^2]: Plain",
+    });
+    await flushPromises();
+    expect(wrapper.get('[data-slot="inline-citation"]').text()).toContain(
+      "example.com",
+    );
+    expect(wrapper.text()).not.toContain("Plain");
+
+    await wrapper.setProps({ final: true });
+    await flushPromises();
+    expect(wrapper.text()).toContain("Plain");
+    wrapper.unmount();
+  });
+
   it("updates a citation chip whose source changes while streaming", async () => {
-    const body = "Claim[^1].\n\n[^1]: [First](https://first.example.com/a)";
+    const body = "Claim[^1].\n\n[^1]: [First](https://first.example.com/a)\n";
     const wrapper = mountMarkdown({ source: body, final: false });
     await flushPromises();
     expect(wrapper.get('[data-slot="inline-citation"]').text()).toContain(
@@ -562,7 +587,7 @@ describe("MarkdownContent", () => {
     );
 
     await wrapper.setProps({
-      source: "Claim[^1].\n\n[^1]: [Second](https://second.example.com/b)",
+      source: "Claim[^1].\n\n[^1]: [Second](https://second.example.com/b)\n",
     });
     await flushPromises();
     const chip = wrapper.get('[data-slot="inline-citation"]');

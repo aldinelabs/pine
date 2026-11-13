@@ -80,6 +80,7 @@ import { useAppearanceStore } from "@/stores/appearance";
 import {
   markdownCitations,
   parseMarkdownCitations,
+  withoutPendingFootnoteDefinitions,
   shareMarkdownCitations,
   type MarkdownCitations,
 } from "./citation";
@@ -207,7 +208,10 @@ provide(
   // Structurally shared: an unchanged map keeps its identity, so citation
   // chips do not re-render on every streamed flush.
   computed<MarkdownCitations>((previous) =>
-    shareMarkdownCitations(previous, parseMarkdownCitations(props.source)),
+    shareMarkdownCitations(
+      previous,
+      parseMarkdownCitations(visibleSource.value),
+    ),
   ),
 );
 
@@ -215,8 +219,15 @@ provide(
 // do not track a `.dark` ancestor), so drive it from the app's color scheme.
 const { colorScheme } = storeToRefs(useAppearanceStore());
 const isDark = computed(() => colorScheme.value === "dark");
+// While streaming, a footnote definition shows only once it is a finished
+// web source, so the reply's end does not jump as each one arrives.
+const visibleSource = computed(() =>
+  props.final === false
+    ? withoutPendingFootnoteDefinitions(props.source)
+    : props.source,
+);
 const renderedSource = computed(() =>
-  escapeProseDollarDelimiters(props.source),
+  escapeProseDollarDelimiters(visibleSource.value),
 );
 const markdownParseOptions = { streamParse: "auto" } as const;
 const { t } = useI18n();
