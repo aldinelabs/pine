@@ -38,6 +38,9 @@ const attentionFlash = useAttentionFlashStore();
 /** The panel's content changed in a way it cannot point at itself. */
 const changeFlashId = computed(() => `workbench-card:${props.position}`);
 
+const HIGHLIGHT_CLASS =
+  "attention-flash [--attention-flash-box-shadow:none] [--attention-flash-overlay-z-index:50] before:pointer-events-none before:absolute before:inset-0 before:z-50 before:rounded-[inherit] before:outline-1 before:-outline-offset-1 before:outline-(--attention-flash-color) before:content-['']";
+
 const PANEL_COMPONENTS: Record<AgentWorkbenchPanel, Component> = {
   artifacts: WorkbenchArtifactsPanel,
   tasks: ProjectBackgroundTaskPanel,
@@ -92,15 +95,18 @@ const summary = computed(() => {
     :data-highlighted="workbench.isHighlighted(panel) || undefined"
     :class="
       cn(
-        'h-full min-h-0 gap-0 rounded-(--workbench-radius) py-0 shadow-none ring-0',
+        // `isolate` keeps previewers' own z-indexes inside the card, so the
+        // overlays below can sit above every previewer.
+        'isolate h-full min-h-0 gap-0 rounded-(--workbench-radius) py-0 shadow-none ring-0',
         // The agent pointed the user here: the same pulse as a presented tab.
         // The splitter clips anything outside the card, so the border is an
-        // inset outline instead of the pulse's outer shadow.
-        workbench.isHighlighted(panel) &&
-          'attention-flash outline-1 -outline-offset-1 outline-(--attention-flash-color) [--attention-flash-box-shadow:none]',
+        // inset ring instead of the pulse's outer shadow. It is drawn by an
+        // overlay above the content: an outline on the card itself is painted
+        // under positioned previewer content (canvases, iframes, toolbars).
+        workbench.isHighlighted(panel) && HIGHLIGHT_CLASS,
         // A one-shot info pulse, as on a content tab whose file changed.
         attentionFlash.isFlashingOnce(changeFlashId) &&
-          'attention-flash attention-flash-once',
+          'attention-flash attention-flash-once [--attention-flash-overlay-z-index:50]',
       )
     "
     @pointerenter="workbench.acknowledge(panel)"

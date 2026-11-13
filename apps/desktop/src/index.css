@@ -119,7 +119,8 @@
     content: "";
     position: absolute;
     inset: 0;
-    z-index: 1;
+    /* Raise it inside a container whose children set their own z-index. */
+    z-index: var(--attention-flash-overlay-z-index, 1);
     border-radius: inherit;
     background-color: var(--attention-flash-color);
     opacity: 0;
