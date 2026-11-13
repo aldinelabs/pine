@@ -376,6 +376,7 @@ const SAMPLES: { [K in ReplyId]: ReplyData[K] } = {
   "T-AUTO-ON": { name: "nightly", result: "approved" },
   "T-PAIR": { code: "123456" },
   "T-INTERRUPTED": { items: [".new run tests", HOSTILE] },
+  "T-OVERFLOW": { items: [".new run tests", HOSTILE] },
   "T-BUDGET": undefined,
   "T-DIGEST": {
     items: [

@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { ChannelInboundMessage } from "../channel";
-import { PAUSED_NOTICE_INTERVAL_MS, STALE_MS } from "../constants";
+import { INBOX_MAX, PAUSED_NOTICE_INTERVAL_MS, STALE_MS } from "../constants";
 import type {
   CommandContext,
   CommandHandler,
@@ -209,6 +209,20 @@ describe("acceptance", () => {
     expect(state.inbox.map((entry) => entry.text)).toEqual(["a", "b"]);
     gate.resolve({});
     await slow.pipeline.idle();
+  });
+
+  it("lists the messages that do not fit in the inbox instead of losing them", async () => {
+    const t = setup();
+    const batch = Array.from({ length: INBOX_MAX + 2 }, (_, index) => ({
+      text: `task ${index + 1}`,
+    }));
+    await t.deliver(batch);
+    expect(t.calls).toHaveLength(INBOX_MAX);
+    const notice = t.texts().find((text) => text.includes("were not run"));
+    expect(notice).toContain("2 were not run");
+    expect(notice).toContain(`task ${INBOX_MAX + 1}`);
+    expect(notice).toContain(`task ${INBOX_MAX + 2}`);
+    expect(t.ctx.store.get().seenMessageIds).toHaveLength(INBOX_MAX + 2);
   });
 });
 

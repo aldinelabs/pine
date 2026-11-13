@@ -918,6 +918,7 @@ export interface ReplyData {
   "T-AUTO-ON": { name: string; result: "approved" | "denied" | "timeout" };
   "T-PAIR": { code: string };
   "T-INTERRUPTED": { items: string[] };
+  "T-OVERFLOW": { items: string[] };
   "T-BUDGET": undefined;
   "T-DIGEST": { items: DigestItem[] };
   "T-STALE": {
@@ -2020,6 +2021,26 @@ const TEMPLATES: { [K in ReplyId]: Template<K> } = {
         lang,
         `Pine 上次退出时有 ${items.length} 条消息没有处理完，没有重新执行：`,
         `${items.length} message(s) were not finished when Pine last stopped and were not run again:`,
+      ),
+      ...rows(items).map((item, index) => `${index + 1} ${echo(item)}`),
+      items.length > PAGE_ROWS &&
+        pick(
+          lang,
+          `…还有 ${items.length - PAGE_ROWS} 条`,
+          `…${items.length - PAGE_ROWS} more`,
+        ),
+      pick(
+        lang,
+        "需要的话请重新发送。",
+        "Send them again if you still need them.",
+      ),
+    ),
+  "T-OVERFLOW": (lang, { items }) =>
+    lines(
+      pick(
+        lang,
+        `一次收到的消息太多，有 ${items.length} 条没有执行：`,
+        `Too many messages arrived at once; ${items.length} were not run:`,
       ),
       ...rows(items).map((item, index) => `${index + 1} ${echo(item)}`),
       items.length > PAGE_ROWS &&

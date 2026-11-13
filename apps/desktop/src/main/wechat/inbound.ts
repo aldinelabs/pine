@@ -20,6 +20,7 @@ import { specOf } from "./commandSpec";
 import {
   FILE_MAX_BYTES,
   FUTURE_SKEW_MS,
+  INBOX_MAX,
   PAUSED_NOTICE_INTERVAL_MS,
   STALE_MS,
 } from "./constants";
@@ -180,6 +181,12 @@ export function rerunnable(entry: StoredInbound): boolean {
   }
 }
 
+/** How an entry is listed when it is not run: its text, or its files. */
+function describeEntry(entry: StoredInbound): string[] {
+  if (entry.text !== undefined) return [entry.text];
+  return entry.media.map((media) => `[${media.fileName ?? media.kind}]`);
+}
+
 function describe(error: unknown): string {
   return error instanceof Error ? `${error.name}: ${error.message}` : "error";
 }
@@ -230,6 +237,7 @@ export class InboundPipeline {
     }
     const paused = this.deps.paused();
     const entries: StoredInbound[] = [];
+    const overflow: string[] = [];
     let pausedNotice: { token: string | undefined } | undefined;
     if (paused) {
       const last = accepted.at(-1);
@@ -238,9 +246,18 @@ export class InboundPipeline {
         pausedNotice = { token: last.contextToken };
       }
     } else {
+      // The inbox keeps at most INBOX_MAX entries; what does not fit is never
+      // run, and the user is told so once instead of losing it silently.
+      let room = INBOX_MAX - state.inbox.length;
       for (const message of accepted) {
         this.renewBudget(message.contextToken);
-        entries.push(toStoredInbound(message));
+        const entry = toStoredInbound(message);
+        if (room > 0) {
+          entries.push(entry);
+          room -= 1;
+        } else {
+          overflow.push(...describeEntry(entry));
+        }
       }
     }
     const nowMs = this.deps.now();
@@ -255,6 +272,13 @@ export class InboundPipeline {
         this.deps.sendDirect(
           render("E-PAUSED", this.deps.lang()),
           pausedNotice.token,
+        ),
+      );
+    }
+    if (overflow.length > 0) {
+      this.track(
+        this.sendReply(
+          render("T-OVERFLOW", this.deps.lang(), { items: overflow }),
         ),
       );
     }
