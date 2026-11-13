@@ -215,6 +215,11 @@ From top to bottom:
      added to Artifacts;
    - markers for context compaction, errors, stopped responses and background
      process events;
+   - a temporary "Pine is still waiting for the model provider to respond. …"
+     note where the reply will appear, when about three seconds pass after a
+     message is sent without any reply, reasoning or tool call arriving. It
+     fades out as soon as the first content arrives or the run ends, fails or
+     is stopped, and is not kept in the conversation;
    - interactive answer blocks (checklists, tables, charts, inputs) when
      interactive answers are enabled in Pine Settings › Agent.
      "Load earlier messages" appears at the top of long sessions. The

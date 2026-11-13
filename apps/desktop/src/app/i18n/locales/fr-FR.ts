@@ -1318,6 +1318,8 @@ export default {
       sendEditedMessage: "Envoyer",
       error: "Erreur",
       stopped: "Arrêté",
+      awaitingResponse:
+        "Pine attend toujours la réponse du fournisseur de modèles. Si ce message reste affiché pendant plusieurs dizaines de secondes, vérifiez votre connexion réseau et la disponibilité du fournisseur de modèles.",
       emptyDescription:
         "Commencez par une question, une tâche ou une idée audacieuse.",
       emptyTitle: "Imaginez ce qui est possible",

@@ -1281,6 +1281,8 @@ export default {
       sendEditedMessage: "보내기",
       error: "오류",
       stopped: "중지됨",
+      awaitingResponse:
+        "Pine이 아직 모델 제공업체의 응답을 기다리고 있습니다. 이 메시지가 수십 초가 지나도 사라지지 않으면 네트워크 연결과 모델 제공업체의 서비스 상태를 확인해 보세요.",
       emptyDescription: "질문, 작업, 또는 대담한 아이디어로 시작해 보세요.",
       emptyTitle: "가능성을 상상해 보세요",
       loadHistory: "이전 메시지 불러오기",

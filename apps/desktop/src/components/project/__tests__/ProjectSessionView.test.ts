@@ -918,6 +918,61 @@ describe("ProjectSessionView file drop", () => {
   });
 });
 
+describe("ProjectSessionView awaiting-response marker", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("shows while the sent message waits for its first content", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "Date"] });
+    const { wrapper } = mountView();
+    const sessionId = "019cfe51-7166-79b9-a5b9-c652fcca9eac";
+    await wrapper.setProps({ sessionId });
+    const state = useSessionStore().stateFor(sessionId);
+    const prompt = {
+      id: "prompt",
+      createdAt: "2026-11-13T00:00:00Z",
+      role: "user" as const,
+      status: "complete" as const,
+      blocks: [{ type: "text" as const, text: "Hello" }],
+    };
+    state.messages = [prompt];
+    state.isRunning = true;
+    await flushPromises();
+    const marker = '[data-testid="awaiting-response-marker"]';
+    vi.advanceTimersByTime(2999);
+    await flushPromises();
+    expect(wrapper.find(marker).exists()).toBe(false);
+    vi.advanceTimersByTime(1);
+    await flushPromises();
+    expect(wrapper.find(marker).exists()).toBe(true);
+
+    // The first content takes it away.
+    state.messages = [
+      prompt,
+      {
+        id: "reply",
+        createdAt: "2026-11-13T00:00:01Z",
+        role: "assistant",
+        status: "streaming",
+        blocks: [{ type: "text", text: "Hi" }],
+      },
+    ];
+    await flushPromises();
+    expect(wrapper.find(marker).exists()).toBe(false);
+
+    // A follow-up waits again; the run ending before any content ends it.
+    state.messages = [...state.messages, { ...prompt, id: "follow-up" }];
+    await flushPromises();
+    vi.advanceTimersByTime(3000);
+    await flushPromises();
+    expect(wrapper.find(marker).exists()).toBe(true);
+    state.isRunning = false;
+    await flushPromises();
+    expect(wrapper.find(marker).exists()).toBe(false);
+  });
+});
+
 describe("ProjectSessionView Esc interrupt", () => {
   async function mountRunningView() {
     const { wrapper } = mountView();

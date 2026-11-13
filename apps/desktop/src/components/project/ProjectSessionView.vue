@@ -53,6 +53,7 @@ import { useContentTabsStore } from "@/stores/contentTabs";
 import { useProjectStore } from "@/stores/project";
 import { useQuickComposerHandoffStore } from "@/stores/quickComposerHandoff";
 import { useSessionStore, type PineTranscriptMessage } from "@/stores/session";
+import ProjectAwaitingResponseMarker from "./ProjectAwaitingResponseMarker.vue";
 import ProjectSessionParallaxBackground from "./ProjectSessionParallaxBackground.vue";
 import ProjectSessionComposer from "./ProjectSessionComposer.vue";
 import ProjectSessionStatus from "./ProjectSessionStatus.vue";
@@ -60,6 +61,7 @@ import ProjectStagedSteering from "./ProjectStagedSteering.vue";
 import ProjectTranscriptMessage from "./ProjectTranscriptMessage.vue";
 import ProjectTranscriptSelectionMenu from "./ProjectTranscriptSelectionMenu.vue";
 import { normalizeQuoteText, type PineQuote } from "@/shared/quotes";
+import { isAwaitingFirstResponse } from "@/lib/sessionStatus";
 import type { TranscriptSelection } from "@/lib/transcriptSelection";
 import { useSideChat } from "@/composables/useSideChat";
 import { useSideChatHighlights } from "@/composables/useSideChatHighlights";
@@ -181,6 +183,10 @@ const isRunning = computed(
   () => isSubmitting.value || (tabState.value?.isRunning ?? false),
 );
 const messages = computed(() => tabState.value?.messages ?? []);
+/** The live run has sent the user's message and no reply content is back yet. */
+const awaitingFirstResponse = computed(() =>
+  isAwaitingFirstResponse(messages.value, isRunning.value),
+);
 /** Changes only when the set or order of message ids changes. */
 const structureVersion = computed(() => tabState.value?.structureVersion ?? 0);
 const NO_MESSAGES: readonly PineTranscriptMessage[] = [];
@@ -894,6 +900,10 @@ async function handleDrop(event: DragEvent): Promise<void> {
                   "
                 />
               </MessageScrollerItem>
+              <ProjectAwaitingResponseMarker
+                :waiting="awaitingFirstResponse"
+                :active="isActive"
+              />
 
               <template #tail>
                 <ProjectStagedSteering
