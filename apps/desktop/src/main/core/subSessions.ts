@@ -110,9 +110,11 @@ function lastReply(messages: readonly PineTextMessage[]): string {
 export function noticeContent(
   notice: PineSessionNotice,
   reply: string,
+  relayed = true,
 ): string {
-  const guidance =
-    notice.state === "awaiting-approval"
+  const guidance = !relayed
+    ? "This sub-session is driven from WeChat and this session runs above WeChat's highest approval mode, so its reply is not passed on. Do not act on it unless the user asks you to here."
+    : notice.state === "awaiting-approval"
       ? "It is waiting for the user to approve a tool call in its own tab and does nothing until then. Tell the user if they need to act."
       : "Use ui_session_read for more of its messages or ui_session_send to give it follow-up work. Do not poll it; Pine reports each turn it finishes.";
   return [
@@ -161,15 +163,24 @@ export async function notifyParentOf(
     state,
     ...(title ? { title } : {}),
   };
-  if (!runtimes.liveSessionIdsOf(project.id).includes(parentId))
+  // A sub-session WeChat drives never wakes, or passes its reply to, a
+  // parent that runs above WeChat's ceiling: the parent sees the state only.
+  const relayed =
+    (await core.wechat.relayRefusal(sessionId, parentId, project.id)) ===
+    undefined;
+  if (!runtimes.liveSessionIdsOf(project.id).includes(parentId)) {
+    if (!relayed) return;
     await runtimes.resume(owner, project.id, parentId, { focus: false });
+  }
   await core.agentHost.notifySession(
     parentId,
     notice,
     noticeContent(
       notice,
-      state === "awaiting-approval" ? "" : lastReply(page.messages),
+      state === "awaiting-approval" || !relayed ? "" : lastReply(page.messages),
+      relayed,
     ),
+    { triggerTurn: relayed },
   );
 }
 

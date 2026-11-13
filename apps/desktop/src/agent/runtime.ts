@@ -1925,6 +1925,7 @@ export class PineAgentRuntime {
     sessionId: string,
     notice: PineSessionNotice,
     content: string,
+    triggerTurn = true,
   ): Promise<{ delivered: boolean }> {
     const live = this.liveSessions.get(sessionId);
     if (!live) return { delivered: false };
@@ -1936,7 +1937,7 @@ export class PineAgentRuntime {
         display: true,
         details: notice,
       },
-      { triggerTurn: true },
+      { triggerTurn },
     );
     return { delivered: true };
   }

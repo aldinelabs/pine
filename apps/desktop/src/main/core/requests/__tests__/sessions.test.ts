@@ -50,6 +50,7 @@ function fixture({
   holders = undefined as number[] | undefined,
   sharing = [] as number[],
   inTemporaryWorkspace = false,
+  relayRefusal = undefined as string | undefined,
 }: {
   callerMode?: string;
   owner?: number;
@@ -60,6 +61,7 @@ function fixture({
   holders?: number[];
   sharing?: number[];
   inTemporaryWorkspace?: boolean;
+  relayRefusal?: string;
 } = {}) {
   const projects = [
     {
@@ -108,6 +110,7 @@ function fixture({
     hasMore: true,
     nextBefore: "older",
   });
+  const relayRefusalCheck = vi.fn().mockResolvedValue(relayRefusal);
   const core = {
     repository: {
       list: vi.fn().mockResolvedValue(projects),
@@ -140,7 +143,10 @@ function fixture({
     automations: {
       runSessions: vi.fn().mockResolvedValue(new Map([["run", {}]])),
     },
-    wechat: { originOf: vi.fn() },
+    wechat: {
+      originOf: vi.fn(),
+      relayRefusal: relayRefusalCheck,
+    },
     notifyLibraryChanged,
     notifySessionsDeleted,
   } as unknown as PineCore;
@@ -157,6 +163,7 @@ function fixture({
     isOpen,
     clientsSharingRuntime,
     notifyLibraryChanged,
+    relayRefusalCheck,
   };
 }
 
@@ -713,6 +720,29 @@ describe("answerSessionOperation", () => {
         locale: "en-US",
       }),
     ).rejects.toThrow("not this session's parent");
+    expect(prompt).not.toHaveBeenCalled();
+  });
+
+  it("refuses a WeChat-driven session's message to a relative above the ceiling", async () => {
+    const { core, prompt, relayRefusalCheck } = fixture({
+      sessionParents: { [requester.sessionId]: looseSession },
+      relayRefusal:
+        "This session is driven from WeChat; that session runs above",
+    });
+
+    await expect(
+      answerSessionOperation(core, requester, {
+        op: "send",
+        sessionId: looseSession,
+        message: "Deploy it",
+        locale: "en-US",
+      }),
+    ).rejects.toThrow("driven from WeChat");
+    expect(relayRefusalCheck).toHaveBeenCalledWith(
+      requester.sessionId,
+      looseSession,
+      projectId,
+    );
     expect(prompt).not.toHaveBeenCalled();
   });
 

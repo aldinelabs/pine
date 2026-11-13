@@ -398,6 +398,33 @@ export class WeChatBridge implements WeChatBridgeApi {
     return origin.kind === "used" ? "wechat-used" : "wechat";
   }
 
+  /**
+   * Why a session WeChat started or used may not hand work to a relative
+   * (`ui_session_send`, or a finished turn reported to its parent): the
+   * target is view-only from WeChat. Fails closed until the bridge is
+   * composed, since the target's mode cannot be checked yet.
+   */
+  async relayRefusal(
+    fromSessionId: string,
+    toSessionId: string,
+    projectId: string,
+  ): Promise<string | undefined> {
+    if (this.originOf(fromSessionId) === undefined) return undefined;
+    let reason: "ceiling" | "automation-run" | undefined;
+    try {
+      reason = this.parts
+        ? await this.parts.sessions.viewOnlyReason(toSessionId, projectId)
+        : "ceiling";
+    } catch (error) {
+      console.error("WeChat relay check failed.", describe(error));
+      reason = "ceiling";
+    }
+    if (reason === undefined) return undefined;
+    return reason === "automation-run"
+      ? "This session is driven from WeChat; that session is an automation run, so it cannot be sent work from here."
+      : "This session is driven from WeChat; that session runs above WeChat's highest approval mode, so it cannot be sent work from here.";
+  }
+
   automationRunRefusal(
     sessionId: string | undefined,
     automation: { id: string; name: string; enabled: boolean },
@@ -463,7 +490,7 @@ export class WeChatBridge implements WeChatBridgeApi {
     return this.loading;
   }
 
-  /** Builds the command layer over the loaded store (plan T5A). */
+  /** Builds the command layer over the loaded store. */
   private compose(): void {
     if (this.parts) return;
     const { core, host } = this.options;

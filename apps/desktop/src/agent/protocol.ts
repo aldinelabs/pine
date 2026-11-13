@@ -255,6 +255,8 @@ export type AgentWorkerRequest =
       notice: PineSessionNotice;
       /** What the model reads: the sub-session's state and last reply. */
       content: string;
+      /** False: add the notice without waking an idle session. */
+      triggerTurn?: boolean;
     }
   | {
       id: string;

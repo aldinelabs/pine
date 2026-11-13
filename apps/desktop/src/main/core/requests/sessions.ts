@@ -632,6 +632,12 @@ export async function answerSessionOperation(
           : {}),
       };
     }
+    const refusal = await core.wechat.relayRefusal(
+      requester.sessionId,
+      parsed.sessionId,
+      project.id,
+    );
+    if (refusal) throw new Error(refusal);
     const running = core.sessionActivity(parsed.sessionId) !== "idle";
     const name = byId.get(requester.sessionId)?.name;
     const sender = name ? relayTitle(name) : undefined;

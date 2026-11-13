@@ -76,6 +76,7 @@ async function handleRequest(request: AgentWorkerRequest): Promise<void> {
         request.sessionId,
         request.notice,
         request.content,
+        request.triggerTurn ?? true,
       );
       break;
     case "session:dispose":

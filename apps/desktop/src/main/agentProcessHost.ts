@@ -109,6 +109,7 @@ export interface AgentHost {
     sessionId: string,
     notice: PineSessionNotice,
     content: string,
+    options?: { triggerTurn?: boolean },
   ): Promise<{ delivered: boolean }>;
   mutateSession(
     sessionId: string,
@@ -344,12 +345,14 @@ export class AgentProcessHost implements AgentHost {
     sessionId: string,
     notice: PineSessionNotice,
     content: string,
+    options: { triggerTurn?: boolean } = {},
   ): Promise<{ delivered: boolean }> {
     return this.request({
       type: "session:notify",
       sessionId,
       notice,
       content,
+      ...(options.triggerTurn === false ? { triggerTurn: false } : {}),
     });
   }
 

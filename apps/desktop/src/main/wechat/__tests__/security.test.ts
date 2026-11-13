@@ -220,6 +220,33 @@ describe("WeChat remote security invariants", { timeout: 40_000 }, () => {
     expect(h.agentHost.respondApproval.mock.calls[0]?.[0]).toBe(requestId);
   });
 
+  it("3b. a WeChat-driven session cannot hand work to a relative above the ceiling", async () => {
+    const h = await harness({ afterBind: { ceilingMode: "let-me-review" } });
+    const child = await startSession(h, "child task");
+    h.finish(child, "done");
+    await h.settle();
+    const parent = await startSession(h, "parent task");
+    h.finish(parent, "done");
+    await h.settle();
+    const projectId = h.project.id;
+    expect(await h.bridge.relayRefusal(child, parent, projectId)).toBe(
+      undefined,
+    );
+    // The parent is then run locally in YOLO.
+    await h.registry.prompt(-2, {
+      message: "local",
+      target: { kind: "session", projectId, sessionId: parent },
+      approvalMode: "YOLO",
+    });
+    expect(await h.bridge.relayRefusal(child, parent, projectId)).toContain(
+      "above WeChat's highest approval mode",
+    );
+    // A session WeChat never drove is not restricted.
+    expect(
+      await h.bridge.relayRefusal(randomUUID(), parent, projectId),
+    ).toBeUndefined();
+  });
+
   it("4. never approves a display-only card, from a stale message, twice, after the action changed, or before a cut subject was read", async () => {
     const h = await harness();
     const sessionId = await startSession(h);
