@@ -2,7 +2,7 @@ import type { WebSessionSnapshot } from "@/shared/webControl";
 import { createPinia, setActivePinia } from "pinia";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { toast } from "vue-sonner";
-import type { PineSessionEvent } from "@/shared/agent";
+import type { PineJsonValue, PineSessionEvent } from "@/shared/agent";
 import type { PineSessionSummary, PineTextMessage } from "@/shared/sessions";
 import { useSessionStore } from "../session";
 
@@ -496,6 +496,123 @@ describe("concurrent session state", () => {
     });
     await store.resume(PROJECT_ID, a.id);
     expect(store.messages.map((message) => message.id)).toEqual(["live-user"]);
+  });
+
+  it("does not repeat a background session's live messages when it is first opened", async () => {
+    const { store, api, emit } = fixture();
+    const user: PineJsonValue = {
+      role: "user",
+      content: [{ type: "text", text: "Task" }],
+    };
+    const reply: PineJsonValue = {
+      role: "assistant",
+      content: [
+        { type: "text", text: "Checking" },
+        { type: "toolCall", id: "call-1", name: "bash", arguments: {} },
+      ],
+    };
+    // A sub-session runs before anyone opens it.
+    emit({ type: "run-state", sessionId: a.id, state: "running" });
+    emit({
+      type: "message-start",
+      sessionId: a.id,
+      messageId: "live-user",
+      message: user,
+    });
+    emit({
+      type: "message-end",
+      sessionId: a.id,
+      messageId: "live-user",
+      message: user,
+    });
+    emit({
+      type: "message-start",
+      sessionId: a.id,
+      messageId: "live-reply",
+      message: reply,
+    });
+    emit({
+      type: "message-end",
+      sessionId: a.id,
+      messageId: "live-reply",
+      message: reply,
+    });
+    emit({
+      type: "tool-start",
+      sessionId: a.id,
+      toolCallId: "call-1",
+      toolName: "bash",
+    });
+    const history = deferred<{
+      messages: PineTextMessage[];
+      hasMore: boolean;
+    }>();
+    api.loadSessionMessages.mockReturnValueOnce(history.promise);
+    const opening = store.resume(PROJECT_ID, a.id);
+    await vi.waitFor(() =>
+      expect(api.loadSessionMessages).toHaveBeenCalledOnce(),
+    );
+    // Closes while history is read, so it may be missing from the result.
+    emit({
+      type: "message-start",
+      sessionId: a.id,
+      messageId: "live-late",
+      message: { role: "assistant", content: [{ type: "text", text: "Late" }] },
+    });
+    emit({
+      type: "message-end",
+      sessionId: a.id,
+      messageId: "live-late",
+      message: { role: "assistant", content: [{ type: "text", text: "Late" }] },
+    });
+    history.resolve({
+      messages: [
+        {
+          id: "persisted-user",
+          createdAt: a.createdAt,
+          role: "user",
+          blocks: [{ type: "text", text: "Task" }],
+        },
+        {
+          id: "persisted-reply",
+          createdAt: a.createdAt,
+          role: "assistant",
+          blocks: [
+            { type: "text", text: "Checking" },
+            {
+              type: "toolCall",
+              toolCall: {
+                id: "call-1",
+                name: "bash",
+                input: {},
+                status: "pending",
+              },
+            },
+          ],
+        },
+      ],
+      hasMore: false,
+    });
+    await opening;
+    expect(store.messages.map((message) => message.id)).toEqual([
+      "persisted-user",
+      "persisted-reply",
+      "live-late",
+    ]);
+    expect(store.messages[1]?.blocks[1]).toMatchObject({
+      type: "toolCall",
+      toolCall: { id: "call-1", status: "running" },
+    });
+    emit({
+      type: "tool-end",
+      sessionId: a.id,
+      toolCallId: "call-1",
+      toolName: "bash",
+      payload: { content: [] },
+    });
+    expect(store.messages[1]?.blocks[1]).toMatchObject({
+      toolCall: { id: "call-1", status: "complete" },
+    });
   });
 
   it("does not activate an older prompt result after switching tabs", async () => {

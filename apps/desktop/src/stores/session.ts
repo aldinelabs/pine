@@ -794,6 +794,12 @@ function createSessionState() {
     putMessage,
     patchToolCall,
     notifiedAutoApprovalFailureIds: new Set<string>(),
+    /**
+     * Live messages that closed before this session's history was loaded.
+     * Live ids differ from persisted ones, and a closed message is already
+     * persisted, so the first history load replaces them with their copies.
+     */
+    settledLiveMessageIds: new Set<string>(),
     historyLoaded: false,
     historyLoad: null as Promise<void> | null,
   });
@@ -1109,10 +1115,26 @@ export const useSessionStore = defineStore("session", () => {
   function mergeHistory(
     source: readonly PineTextMessage[],
     live: PineTranscriptMessage[],
+    settled: ReadonlySet<string> = new Set(),
   ): PineTranscriptMessage[] {
-    const byId = new Map(
-      toTranscriptMessages(source).map((message) => [message.id, message]),
-    );
+    let history = toTranscriptMessages(source);
+    if (settled.size > 0) {
+      // A settled live message is in `source` under its persisted id: drop
+      // the live copy, and keep the tool state it gathered (status, output)
+      // on the persisted one.
+      const liveToolCalls = live.flatMap((message) =>
+        settled.has(message.id)
+          ? message.blocks.filter((block) => block.type === "toolCall")
+          : [],
+      );
+      live = live.filter((message) => !settled.has(message.id));
+      if (liveToolCalls.length > 0)
+        history = history.map((message) => ({
+          ...message,
+          blocks: mergeBlockStatuses(message.blocks, liveToolCalls),
+        }));
+    }
+    const byId = new Map(history.map((message) => [message.id, message]));
     for (const message of live) byId.set(message.id, message);
     return [...byId.values()];
   }
@@ -1129,8 +1151,10 @@ export const useSessionStore = defineStore("session", () => {
   function applyHistory(
     state: SessionState,
     result: Awaited<ReturnType<typeof fetchInitialMessages>>,
+    settled?: ReadonlySet<string>,
   ): void {
-    state.messages = mergeHistory(result.messages, state.messages);
+    state.messages = mergeHistory(result.messages, state.messages, settled);
+    state.settledLiveMessageIds.clear();
     state.outlineMessages = mergeHistory(
       result.outline ?? result.messages,
       state.outlineMessages,
@@ -1147,10 +1171,14 @@ export const useSessionStore = defineStore("session", () => {
     if (state.historyLoaded) return;
     if (state.historyLoad) return state.historyLoad;
     state.isLoadingMessages = true;
+    // Only messages closed before the request are sure to be in its result;
+    // one that closes while it is read may or may not be.
+    const settled = new Set(state.settledLiveMessageIds);
     const request = (async () => {
       applyHistory(
         state,
         await fetchInitialMessages(requireProjectOf(sessionId), sessionId),
+        settled,
       );
     })();
     state.historyLoad = request;
@@ -1258,7 +1286,10 @@ export const useSessionStore = defineStore("session", () => {
       // A new session's whole transcript arrives through live events, whose
       // ids differ from the persisted ones. Loading history on top of them
       // (e.g. when its tab is reopened) would show every message twice.
-      if (!sessionId) state.historyLoaded = true;
+      if (!sessionId) {
+        state.historyLoaded = true;
+        state.settledLiveMessageIds.clear();
+      }
       modelsStore.setSessionSelection(summary.id, summary.modelSelection);
       if (sequence === activationSequence) currentSessionId.value = summary.id;
       return summary;
@@ -1992,6 +2023,10 @@ export const useSessionStore = defineStore("session", () => {
     const nextMessage = transcriptMessageFromEvent(event, previous);
     if (!nextMessage) return;
     putMessage(nextMessage, previousIndex);
+    // A session running before it is opened (a sub-session, an automation
+    // run, another window's session) builds live messages before its history.
+    if (event.type === "message-end" && !state.historyLoaded)
+      state.settledLiveMessageIds.add(event.messageId);
   }
 
   function connectAgentEvents(): void {
