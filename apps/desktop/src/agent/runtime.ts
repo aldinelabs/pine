@@ -2077,7 +2077,6 @@ export class PineAgentRuntime {
         live,
         request,
         actionDigest: approvalActionDigest(request),
-        ...(request.explanation ? { explanation: request.explanation } : {}),
       };
       this.pendingApprovals.set(requestId, pending);
       const onAbort = () => {
@@ -2115,7 +2114,6 @@ export class PineAgentRuntime {
           .then((explanation) => {
             // A decided or aborted card no longer shows anything.
             if (this.pendingApprovals.get(requestId) !== pending) return;
-            if (explanation) pending.explanation = explanation;
             this.options.emit({
               type: "approval-explanation",
               sessionId,
@@ -2161,7 +2159,6 @@ export class PineAgentRuntime {
       ...(decision.kind === "deny" && decision.reason
         ? { reason: decision.reason }
         : {}),
-      ...(pending.explanation ? { explanation: pending.explanation } : {}),
     };
     this.recordApprovalDecision(pending.live, persistedDecision);
     this.options.emit({

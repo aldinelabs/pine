@@ -20,10 +20,7 @@ import type {
   PineContextCompactionStrategy,
 } from "../../shared/preferences";
 import { sessionActivityAt } from "../../shared/sessionActivity";
-import type {
-  PineApprovalExplanation,
-  PineSessionSummary,
-} from "../../shared/sessions";
+import type { PineSessionSummary } from "../../shared/sessions";
 import {
   PINE_AUTHORIZATION_GRANT_ENTRY,
   PINE_COMPUTER_USE_ACTIVE_ENTRY,
@@ -134,8 +131,6 @@ export interface PendingUserApproval {
   live: LiveAgentSession;
   request: UserApprovalRequest;
   actionDigest: string;
-  /** Reviewer explanation shown on the card, persisted with the decision. */
-  explanation?: PineApprovalExplanation;
 }
 
 export interface PendingQuestionnaire {

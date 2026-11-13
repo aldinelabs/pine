@@ -679,7 +679,7 @@ describe("PineAgentRuntime", () => {
       return { runtime, request, events, approvalRequest, appendCustomEntry };
     }
 
-    it("emits an inline explanation and persists it with the decision", async () => {
+    it("emits an inline explanation without persisting it with the decision", async () => {
       const harness = approvalHarness();
       try {
         const result = harness.request({ explanation });
@@ -690,7 +690,11 @@ describe("PineAgentRuntime", () => {
         await result;
         expect(harness.appendCustomEntry).toHaveBeenCalledWith(
           PINE_APPROVAL_DECISION_ENTRY,
-          expect.objectContaining({ decidedBy: "user", explanation }),
+          expect.objectContaining({ decidedBy: "user" }),
+        );
+        expect(harness.appendCustomEntry).toHaveBeenCalledWith(
+          PINE_APPROVAL_DECISION_ENTRY,
+          expect.not.objectContaining({ explanation: expect.anything() }),
         );
         expect(
           harness.events().some((e) => e.type === "approval-explanation"),
@@ -700,7 +704,7 @@ describe("PineAgentRuntime", () => {
       }
     });
 
-    it("emits a late explanation once and persists it", async () => {
+    it("emits a late explanation once", async () => {
       const harness = approvalHarness();
       try {
         const result = harness.request({
@@ -722,7 +726,7 @@ describe("PineAgentRuntime", () => {
         await result;
         expect(harness.appendCustomEntry).toHaveBeenCalledWith(
           PINE_APPROVAL_DECISION_ENTRY,
-          expect.objectContaining({ explanation }),
+          expect.not.objectContaining({ explanation: expect.anything() }),
         );
       } finally {
         await harness.runtime.dispose();

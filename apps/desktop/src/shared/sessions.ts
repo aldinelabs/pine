@@ -151,8 +151,6 @@ export interface PineApprovalDecision {
   decidedBy: "user" | "judge" | "sandbox";
   reason?: string;
   reviews?: PineApprovalReview[];
-  /** The reviewer explanation the user saw on the approval card. */
-  explanation?: PineApprovalExplanation;
 }
 
 export interface PineToolCall {
