@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   rewriteTargetEntryId,
   toolNamesForCompactionRoute,
+  toolNamesForInterimAnswers,
   toolNamesForSubSession,
 } from "../session-state";
 
@@ -79,5 +80,14 @@ describe("toolNamesForSubSession", () => {
   it("keeps interim answers out of sub-sessions", () => {
     expect(toolNamesForSubSession(tools, false)).toEqual(tools);
     expect(toolNamesForSubSession(tools, true)).toEqual(["read", "bash"]);
+  });
+});
+
+describe("toolNamesForInterimAnswers", () => {
+  const tools = ["read", "ui_report_progress", "bash"];
+
+  it("drops only the interim answer tool when the switch is off", () => {
+    expect(toolNamesForInterimAnswers(tools, true)).toEqual(tools);
+    expect(toolNamesForInterimAnswers(tools, false)).toEqual(["read", "bash"]);
   });
 });

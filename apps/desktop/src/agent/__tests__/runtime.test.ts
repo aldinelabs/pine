@@ -42,6 +42,8 @@ import {
 } from "../computer-use/tools";
 import { UI_WORKBENCH_STATE_TOOL_NAME } from "../../shared/workbench";
 import { TODO_REMINDER_HEADING } from "../runtime/progress-reminders";
+import { writePineUserProfile } from "../pineSettings";
+import { createDefaultPineUserProfile } from "../../shared/userProfile";
 
 const temporaryDirectories: string[] = [];
 
@@ -1721,6 +1723,54 @@ describe("PineAgentRuntime", () => {
       await runtime.disposeSession(child.session.id);
       const reopened = await runtime.openSession(location, child.sessionFile!);
       expect(activeTools(reopened.session.id)).not.toContain(
+        "ui_report_progress",
+      );
+    } finally {
+      await runtime.dispose();
+    }
+  });
+
+  it("hides interim answers while the Preferences switch is off", async () => {
+    const root = await mkdtemp(path.join(os.tmpdir(), "pine-agent-runtime-"));
+    temporaryDirectories.push(root);
+    const location = {
+      agentDir: path.join(root, "agent"),
+      cwd: path.join(root, "source"),
+      folders: [
+        {
+          access: "read-write" as const,
+          path: path.join(root, "source"),
+        },
+      ],
+      sessionsRoot: path.join(root, "sessions"),
+    };
+    await mkdir(location.cwd, { recursive: true });
+    await writePineUserProfile(location.agentDir, {
+      ...createDefaultPineUserProfile(),
+      interimAnswersEnabled: false,
+    });
+    const runtime = new PineAgentRuntime({ emit: () => undefined });
+
+    try {
+      const internals = runtime as unknown as {
+        liveSessions: Map<string, LiveAgentSession>;
+        applyInterimAnswersSetting(
+          live: LiveAgentSession,
+          enabled: boolean,
+        ): void;
+      };
+      const created = await runtime.createSession(location);
+      const live = internals.liveSessions.get(created.session.id)!;
+      expect(live.session.getActiveToolNames()).not.toContain(
+        "ui_report_progress",
+      );
+      expect(live.session.getActiveToolNames()).toContain("datetime");
+
+      // Run start applies the saved value for the new turn.
+      internals.applyInterimAnswersSetting(live, true);
+      expect(live.session.getActiveToolNames()).toContain("ui_report_progress");
+      internals.applyInterimAnswersSetting(live, false);
+      expect(live.session.getActiveToolNames()).not.toContain(
         "ui_report_progress",
       );
     } finally {

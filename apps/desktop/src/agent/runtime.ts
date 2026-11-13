@@ -245,6 +245,7 @@ import {
   toolNamesForComputerUseState,
   toolNamesForMediaGenerationState,
   toolNamesForSkillAuthoringState,
+  toolNamesForInterimAnswers,
   toolNamesForSubSession,
   toolNamesForAutomationAuthoringState,
   toolNamesForAutomationRun,
@@ -1295,6 +1296,8 @@ export class PineAgentRuntime {
       attachedPaths,
       availableToolNames: [],
       subSession: subSessionParentOf(sessionManager.getEntries()) !== undefined,
+      interimAnswersEnabled:
+        pineSettings.userProfile?.interimAnswersEnabled ?? true,
       computerUseActive: computerUseActiveFromSessionEntries(
         sessionManager.getEntries(),
       ),
@@ -1445,6 +1448,11 @@ export class PineAgentRuntime {
               const settings = await readPineAgentSettings(live.agentDir);
               const userProfile =
                 settings.userProfile ?? createDefaultPineUserProfile();
+              // Applied for this run: pi keeps a tool list set here.
+              this.applyInterimAnswersSetting(
+                live,
+                userProfile.interimAnswersEnabled,
+              );
               const notices: PineContextNoticeState = {
                 user_profile: systemPromptWithUserProfile(
                   "",
@@ -1816,6 +1824,19 @@ export class PineAgentRuntime {
     });
   }
 
+  /**
+   * Preferences › Agent › Interim answers, read at each run start. A running
+   * turn keeps its tools; the next message picks up the new value.
+   */
+  private applyInterimAnswersSetting(
+    live: LiveAgentSession,
+    enabled: boolean,
+  ): void {
+    if (live.interimAnswersEnabled === enabled) return;
+    live.interimAnswersEnabled = enabled;
+    this.syncActiveTools(live);
+  }
+
   private syncActiveTools(live: LiveAgentSession): void {
     const activeToolNames = live.session.getActiveToolNames();
     const mcpToolNames = live.session
@@ -1838,9 +1859,12 @@ export class PineAgentRuntime {
                 toolNamesForAutomationAuthoringState(
                   toolNamesForSkillAuthoringState(
                     toolNamesForCompactionRoute(
-                      toolNamesForSubSession(
-                        [...live.availableToolNames, ...mcpToolNames],
-                        live.subSession,
+                      toolNamesForInterimAnswers(
+                        toolNamesForSubSession(
+                          [...live.availableToolNames, ...mcpToolNames],
+                          live.subSession,
+                        ),
+                        live.interimAnswersEnabled,
                       ),
                       live.contextCompactionRoute,
                     ),

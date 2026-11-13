@@ -417,6 +417,11 @@ export default {
       "필요할 때 답변에 직접 조작할 수 있는 체크리스트, 계산기, 표, 차트를 포함합니다.",
     interactiveAnswersEnabled: "사용",
     interactiveAnswersDisabled: "사용 안 함",
+    interimAnswers: "중간 답변",
+    interimAnswersDescription:
+      "긴 요청을 처리할 때 작업을 계속하면서 잠정 답변이나 해결한 부분을 먼저 보여 줍니다.",
+    interimAnswersEnabled: "사용",
+    interimAnswersDisabled: "사용 안 함",
     userProfileDetailsLabel: "기타 개인 정보",
     userProfileDetailsPlaceholder: "예: 하는 일, 관심사, 선호, 현재 목표",
     userProfileDetailsDescription:

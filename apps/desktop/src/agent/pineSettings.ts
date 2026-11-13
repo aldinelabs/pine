@@ -82,6 +82,7 @@ function isPineUserProfile(value: unknown): value is PineUserProfile {
     typeof profile.technicalBackground === "string" &&
     isPineTechnicalBackground(profile.technicalBackground) &&
     typeof profile.interactiveAnswersEnabled === "boolean" &&
+    typeof profile.interimAnswersEnabled === "boolean" &&
     typeof profile.monetMode === "boolean" &&
     isPinePronouns(profile.pronouns) &&
     typeof profile.customPronouns === "string"
@@ -107,6 +108,9 @@ function migrateUserProfile(value: unknown): unknown {
       : {}),
     ...(profile.interactiveAnswersEnabled === undefined
       ? { interactiveAnswersEnabled: true }
+      : {}),
+    ...(profile.interimAnswersEnabled === undefined
+      ? { interimAnswersEnabled: true }
       : {}),
     ...(profile.monetMode === undefined ? { monetMode: false } : {}),
     // Coerced rather than only back-filled: a missing or invalid value must

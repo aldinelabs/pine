@@ -369,6 +369,7 @@ export const UserProfileSchema = z.object({
   customInstructions: z.string().max(20_000),
   customPronouns: z.string().max(1_000).transform(sanitizeCustomPronouns),
   interactiveAnswersEnabled: z.boolean(),
+  interimAnswersEnabled: z.boolean().default(true),
   monetMode: z.boolean(),
   nickname: z.string().trim().max(100),
   personalDetails: z.string().max(10_000),

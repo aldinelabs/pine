@@ -135,6 +135,7 @@ describe("PinePreferencesDialog", () => {
       communicationStyle: "calm-professional",
       customInstructions: "",
       interactiveAnswersEnabled: true,
+      interimAnswersEnabled: true,
       monetMode: false,
       nickname: "",
       personalDetails: "",
@@ -500,6 +501,40 @@ describe("PinePreferencesDialog", () => {
     },
   );
 
+  it.each([true, false])(
+    "edits interim answers as an Agent switch (saved value: %s)",
+    async (enabled) => {
+      installPineApi("linux");
+      getUserProfile.mockResolvedValue({
+        ...createDefaultPineUserProfile(),
+        interimAnswersEnabled: enabled,
+        nickname: "Existing user",
+      });
+      const { wrapper } = mountDialog();
+      await openSection(wrapper, "自定义");
+      expect(
+        wrapper.find('[data-testid="pine-interim-answers-toggle"]').exists(),
+      ).toBe(false);
+      await openSection(wrapper, "智能体");
+      expect(wrapper.text()).toContain("中途回答");
+      const toggle = wrapper.get('[data-testid="pine-interim-answers-toggle"]');
+      expect(toggle.attributes("role")).toBe("switch");
+      expect(toggle.attributes("aria-checked")).toBe(String(enabled));
+      await toggle.trigger("click");
+      expect(toggle.attributes("aria-checked")).toBe(String(!enabled));
+      await vi.waitFor(() =>
+        expect(setUserProfile).toHaveBeenCalledWith(
+          expect.objectContaining({
+            interactiveAnswersEnabled: true,
+            interimAnswersEnabled: !enabled,
+            nickname: "Existing user",
+          }),
+        ),
+      );
+      wrapper.unmount();
+    },
+  );
+
   it("edits the user profile inline in the personalization section", async () => {
     installPineApi("linux");
     getUserProfile.mockResolvedValue({
@@ -550,6 +585,7 @@ describe("PinePreferencesDialog", () => {
         customInstructions: "先给出结论，再解释关键原因。",
         customPronouns: "",
         interactiveAnswersEnabled: true,
+        interimAnswersEnabled: true,
         monetMode: false,
         nickname: "小 Pine",
         personalDetails: "正在学习桌面应用开发",

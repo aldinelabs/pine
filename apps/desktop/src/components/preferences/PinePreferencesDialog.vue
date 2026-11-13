@@ -380,7 +380,8 @@ function userProfilesEqual(a: PineUserProfile, b: PineUserProfile): boolean {
     a.pronouns === b.pronouns &&
     a.customPronouns === b.customPronouns &&
     a.technicalBackground === b.technicalBackground &&
-    a.interactiveAnswersEnabled === b.interactiveAnswersEnabled
+    a.interactiveAnswersEnabled === b.interactiveAnswersEnabled &&
+    a.interimAnswersEnabled === b.interimAnswersEnabled
   );
 }
 
@@ -1773,6 +1774,30 @@ defineExpose({ open });
                   :disabled="!hasHydratedProfile"
                   aria-labelledby="pine-interactive-answers-setting"
                   aria-describedby="pine-interactive-answers-description"
+                />
+              </Field>
+              <Field orientation="horizontal">
+                <div class="flex min-w-0 flex-1 flex-col gap-1">
+                  <FieldTitle id="pine-interim-answers-setting">
+                    {{ t("preferences.interimAnswers") }}
+                  </FieldTitle>
+                  <FieldDescription id="pine-interim-answers-description">
+                    {{ t("preferences.interimAnswersDescription") }}
+                  </FieldDescription>
+                </div>
+                <span class="text-sm text-muted-foreground" aria-hidden="true">
+                  {{
+                    profileDraft.interimAnswersEnabled
+                      ? t("preferences.interimAnswersEnabled")
+                      : t("preferences.interimAnswersDisabled")
+                  }}
+                </span>
+                <Switch
+                  v-model="profileDraft.interimAnswersEnabled"
+                  data-testid="pine-interim-answers-toggle"
+                  :disabled="!hasHydratedProfile"
+                  aria-labelledby="pine-interim-answers-setting"
+                  aria-describedby="pine-interim-answers-description"
                 />
               </Field>
 

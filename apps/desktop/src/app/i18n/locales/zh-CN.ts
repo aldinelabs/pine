@@ -393,6 +393,11 @@ export default {
       "允许 Pine 用可操作的清单、计算器、表格和图表作答。",
     interactiveAnswersEnabled: "启用",
     interactiveAnswersDisabled: "禁用",
+    interimAnswers: "中途回答",
+    interimAnswersDescription:
+      "处理较长的请求时，允许 Pine 先给出初步答案，或每解决一部分就先汇报，再继续工作。",
+    interimAnswersEnabled: "启用",
+    interimAnswersDisabled: "禁用",
     userProfileDetailsLabel: "其他个人细节",
     userProfileDetailsPlaceholder: "例如：你的工作、兴趣、偏好或当前目标",
     userProfileDetailsDescription: "补充这些信息可以帮助 Pine 更好地了解你。",

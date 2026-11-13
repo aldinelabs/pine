@@ -428,6 +428,11 @@ export default {
       "Autoriser Pine à inclure des listes à cocher, calculatrices, tableaux et graphiques interactifs dans ses réponses lorsque cela est utile.",
     interactiveAnswersEnabled: "Activées",
     interactiveAnswersDisabled: "Désactivées",
+    interimAnswers: "Réponses intermédiaires",
+    interimAnswersDescription:
+      "Autoriser Pine à donner une réponse préliminaire, ou chaque partie dès qu'elle est résolue, pendant qu'il continue de travailler sur une demande longue.",
+    interimAnswersEnabled: "Activées",
+    interimAnswersDisabled: "Désactivées",
     userProfileDetailsLabel: "Autres informations personnelles",
     userProfileDetailsPlaceholder:
       "Par exemple : votre métier, vos centres d'intérêt, vos préférences ou vos objectifs actuels",

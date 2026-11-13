@@ -428,6 +428,11 @@ export default {
       "Permitir que Pine incluya listas de verificación, calculadoras, tablas y gráficos interactivos en sus respuestas cuando sea útil.",
     interactiveAnswersEnabled: "Activadas",
     interactiveAnswersDisabled: "Desactivadas",
+    interimAnswers: "Respuestas intermedias",
+    interimAnswersDescription:
+      "Permitir que Pine muestre una respuesta preliminar, o cada parte en cuanto la resuelva, mientras sigue trabajando en una solicitud larga.",
+    interimAnswersEnabled: "Activadas",
+    interimAnswersDisabled: "Desactivadas",
     userProfileDetailsLabel: "Otros datos personales",
     userProfileDetailsPlaceholder:
       "Por ejemplo: tu trabajo, intereses, preferencias u objetivos actuales",

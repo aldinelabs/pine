@@ -20,14 +20,18 @@ export const REPORT_PROGRESS_LONG_ACK = `Shown to the user as reply text. That r
 const DESCRIPTION = [
   "Show the user an interim answer while you keep working. Pine displays `content` in the conversation exactly like your normal reply text (Markdown, including LaTeX math), not as a tool call. The tool does nothing else: it has no side effects, needs no approval, and its result only confirms that the text was shown.",
   "",
-  "Use it when a request is complex or will take a while (long reasoning, several tool calls, research across files or the web) and you already have something useful to say: think briefly, report a preliminary answer, then continue working in the same turn. Typical case: a question you can answer from your own knowledge while the workspace may hold more specific context. Report the answer you already know and what you are going to check, then read the workspace and refine it. A person does the same: a rough answer first, then the investigation.",
+  'Before slow work (searching or fetching the web, reading or searching files, running commands, long reasoning), post a brief preliminary answer from what you already know, then continue and finish with the refined or final answer. If your knowledge or your reasoning so far already points to a likely answer, report it first, clearly marked as preliminary and still to be verified, instead of keeping it to yourself until the slow work is done. Example: asked who received the latest Nobel Peace Prize, report the most recent laureate you know of and say you are checking for a newer award, then search. State what you know "as of" your knowledge; do not guess today\'s date.',
   "",
-  "- Lead with substance: the preliminary answer, conclusion or finding, plus what is still uncertain and what you will verify next. Say so when it is preliminary.",
-  "- Call it early, before long reasoning or the first slow step. You may issue it together with other tool calls in the same step.",
+  "Exception: skip the preliminary answer when the question is strongly time-sensitive, so that an unverified answer would almost certainly be wrong or misleading: the latest software versions or releases, current events and news, prices and exchange rates, scores, weather or other live data. Look those up first. Facts that change only occasionally, such as an annual award, are not this exception.",
+  "",
+  "For multi-part work (an exam or worksheet with many questions, a list of independent items to answer, look up or fix), report each part as soon as it is solved instead of waiting for all of them. Parts solved in the same step go into one report.",
+  "",
+  "- Lead with substance: the preliminary answer, conclusion, finding or solved part, plus what is still uncertain and what you will verify next. Say so when it is preliminary.",
+  "- Call it early, before the first slow step. You may issue it together with other tool calls in the same step.",
   "- Reply text you write before a tool call is shown to the user as well. Put an interim answer in one place, that text or this tool, never both in the same step.",
-  "- Report again only when something material changes: the conclusion turns out to be different, or you reach a result the user would want before you finish. Do not narrate every step, tool call or plan item.",
-  "- Do not use it for simple questions or short tasks; answer those directly.",
-  "- It never replaces the final answer. Always end the turn with a normal reply. The user has already read your reports, so the final reply confirms, corrects or extends them instead of repeating them word for word.",
+  "- Report again only when you have something new for the user: a conclusion that changed, another solved part, or a result they would want before you finish. Do not narrate every step, tool call or plan item.",
+  "- Skip it when you can give the complete answer right away without slow work; answer directly.",
+  "- It never replaces the final answer. Always end the turn with a normal reply. The user has already read your reports, so the final reply confirms, corrects or extends them instead of repeating them word for word; after per-part reports, it covers the remaining parts and a short wrap-up.",
   "- Write in the language the user is using, and keep each report short: a few sentences to a few short paragraphs.",
   "- Each report is rendered on its own, separately from the final reply. If a report cites web sources with footnote markers such as [^1], define those footnotes at the end of that same report, and define them again in the final reply if it cites them too.",
   "",
@@ -40,7 +44,7 @@ const reportProgressParams = Type.Object({
   content: Type.String({
     minLength: 1,
     description:
-      "Markdown shown to the user as reply text. Lead with the preliminary answer or finding and keep it short.",
+      "Markdown shown to the user as reply text. Lead with the preliminary answer, finding or solved part, mark what is not yet verified, and keep it short.",
   }),
 });
 
@@ -71,10 +75,10 @@ export function createReportProgressToolDefinition(): ToolDefinition {
     name: UI_REPORT_PROGRESS_TOOL_NAME,
     label: "Report Progress",
     description: DESCRIPTION,
-    promptSnippet: `Use ${UI_REPORT_PROGRESS_TOOL_NAME} to give the user an interim answer on a complex or long-running request, then keep working`,
+    promptSnippet: `Use ${UI_REPORT_PROGRESS_TOOL_NAME} to post a preliminary answer, or each solved part, before slow work, then keep working`,
     promptGuidelines: [
-      `On a complex or long-running request, call ${UI_REPORT_PROGRESS_TOOL_NAME} early with a preliminary answer, then continue investigating in the same turn`,
-      `Call ${UI_REPORT_PROGRESS_TOOL_NAME} again only when the conclusion changes materially; never use it to narrate individual steps or for simple questions`,
+      `Before slow work (search, reading files, running commands), call ${UI_REPORT_PROGRESS_TOOL_NAME} with what you already know, marked as preliminary, unless the question is strongly time-sensitive (latest versions, news, prices, live data)`,
+      `For multi-part work, call ${UI_REPORT_PROGRESS_TOOL_NAME} as each part is solved; otherwise call it again only when the conclusion changes; never narrate steps or use it when you can answer completely right away`,
       `${UI_REPORT_PROGRESS_TOOL_NAME} never replaces the final answer: always end the turn with a normal reply that builds on what you reported`,
     ],
     parameters: reportProgressParams,

@@ -90,6 +90,8 @@ export interface LiveAgentSession {
   mcpReloadPending?: boolean;
   /** Whether the session file names a parent: this is a sub-session. */
   subSession: boolean;
+  /** Preferences › Agent › Interim answers, read at each run start. */
+  interimAnswersEnabled: boolean;
   /** Set for a read-only side chat forked from another conversation. */
   sideChat?: { parentSessionId: string; persistent: boolean };
   /** Set for an unattended automation run; its envelope replaces the tool list. */
@@ -236,6 +238,15 @@ export function toolNamesForSubSession(
   subSession: boolean,
 ): string[] {
   if (!subSession) return [...toolNames];
+  return toolNames.filter((name) => name !== UI_REPORT_PROGRESS_TOOL_NAME);
+}
+
+/** The Preferences switch for interim answers; off hides the tool from the model. */
+export function toolNamesForInterimAnswers(
+  toolNames: readonly string[],
+  enabled: boolean,
+): string[] {
+  if (enabled) return [...toolNames];
   return toolNames.filter((name) => name !== UI_REPORT_PROGRESS_TOOL_NAME);
 }
 

@@ -428,6 +428,11 @@ export default {
       "必要に応じて、回答に操作可能なチェックリスト、計算機、表、グラフを含めます。",
     interactiveAnswersEnabled: "有効",
     interactiveAnswersDisabled: "無効",
+    interimAnswers: "途中回答",
+    interimAnswersDescription:
+      "長めの依頼では、作業を続けながら暫定的な回答や解けた部分を先に表示します。",
+    interimAnswersEnabled: "有効",
+    interimAnswersDisabled: "無効",
     userProfileDetailsLabel: "その他の個人情報",
     userProfileDetailsPlaceholder: "例：仕事、興味、好み、現在の目標など",
     userProfileDetailsDescription:

@@ -270,6 +270,7 @@ describe("Pine agent settings", () => {
       customInstructions: "Lead with the result.",
       customPronouns: "xe/xem",
       interactiveAnswersEnabled: false,
+      interimAnswersEnabled: false,
       monetMode: false,
       nickname: "Pine user",
       personalDetails: "Enjoys learning by doing.",
@@ -287,6 +288,7 @@ describe("Pine agent settings", () => {
         customInstructions: "Lead with the result.",
         customPronouns: "xe/xem",
         interactiveAnswersEnabled: false,
+        interimAnswersEnabled: false,
         monetMode: false,
         nickname: "Pine user",
         personalDetails: "Enjoys learning by doing.",
@@ -352,6 +354,7 @@ describe("Pine agent settings", () => {
       communicationStyle: "neutral",
       customPronouns: "",
       interactiveAnswersEnabled: true,
+      interimAnswersEnabled: true,
       monetMode: false,
       pronouns: "unspecified",
       technicalBackground: "general-user",
@@ -380,6 +383,7 @@ describe("Pine agent settings", () => {
     expect((await readPineAgentSettings(agentDir)).userProfile).toEqual({
       ...userProfile,
       customPronouns: "",
+      interimAnswersEnabled: true,
       pronouns: "unspecified",
     });
   });
@@ -408,7 +412,35 @@ describe("Pine agent settings", () => {
     expect((await readPineAgentSettings(agentDir)).userProfile).toEqual({
       ...userProfile,
       customPronouns: "",
+      interimAnswersEnabled: true,
       pronouns: "unspecified",
+    });
+  });
+
+  it("enables interim answers for a profile saved before the switch existed", async () => {
+    const agentDir = await mkdtemp(
+      path.join(os.tmpdir(), "pine-agent-settings-interim-legacy-"),
+    );
+    temporaryDirectories.push(agentDir);
+    const userProfile = {
+      communicationStyle: "warm-friendly",
+      customInstructions: "Keep this instruction.",
+      customPronouns: "",
+      interactiveAnswersEnabled: false,
+      monetMode: false,
+      nickname: "Existing user",
+      personalDetails: "Keep these details.",
+      pronouns: "they",
+      technicalBackground: "professional-user",
+    };
+    await writeFile(
+      path.join(agentDir, "pine-settings.json"),
+      JSON.stringify({ userProfile }),
+    );
+
+    expect((await readPineAgentSettings(agentDir)).userProfile).toEqual({
+      ...userProfile,
+      interimAnswersEnabled: true,
     });
   });
 

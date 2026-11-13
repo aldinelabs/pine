@@ -40,6 +40,16 @@ describe("UserProfileSchema", () => {
 
     expect(UserProfileSchema.safeParse(withoutPronouns).success).toBe(false);
   });
+
+  it("keeps interim answers on when an older client omits the switch", () => {
+    const { interimAnswersEnabled, ...withoutSwitch } =
+      createDefaultPineUserProfile();
+    void interimAnswersEnabled;
+
+    expect(UserProfileSchema.parse(withoutSwitch)).toMatchObject({
+      interimAnswersEnabled: true,
+    });
+  });
 });
 
 describe("ReopenPresentedToolFileRequestSchema", () => {

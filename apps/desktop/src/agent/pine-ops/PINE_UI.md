@@ -162,9 +162,11 @@ From top to bottom:
      repeating other panels' content or timing. Web sources appear as inline
      citation cards (hover for title and URL, click to open). Source definitions
      are not repeated below the message and do not leave a trailing blank gap;
-   - interim answers: on a complex or long-running request the agent may post
-     a preliminary answer early and keep working in the same turn. It appears
-     as ordinary reply text, streams in like a reply, and can be selected,
+   - interim answers: when Interim answers is enabled in Pine Settings › Agent
+     (the default), the agent may post a preliminary answer before slow work
+     such as a web search, or post each part of a multi-part request as soon
+     as it is solved, and keep working in the same turn. It appears as
+     ordinary reply text, streams in like a reply, and can be selected,
      quoted, searched and exported like one. It is not shown as a tool call
      and never asks for approval; further reasoning, tool calls and the final
      reply follow below it. Sub-sessions and automation runs do not post
@@ -436,9 +438,10 @@ the user opens themselves do not pulse.
   - Models: model catalog refresh, title generation model, approval model,
     image generation model, video generation model, Decisions model.
   - Agent: Interactive answers switch (Enabled or Disabled; enabled by default),
-    automatic approval path, context compaction strategy and method,
-    TinyFish web tools key (shows Configured or Not configured), approximate
-    location.
+    Interim answers switch (Enabled or Disabled; enabled by default; applies
+    from the next message), automatic approval path, context compaction
+    strategy and method, TinyFish web tools key (shows Configured or Not
+    configured), approximate location.
   - User profile: nickname, pronouns (a dropdown: Not specified, he/him,
     she/her, they/them or Custom; Custom shows a short text field for your own
     wording; Not specified by default; Pine uses them when it refers to you in

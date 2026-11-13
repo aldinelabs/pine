@@ -39,6 +39,45 @@ describe("createReportProgressToolDefinition", () => {
     expect(description).toMatch(/never both in the same step/);
   });
 
+  // Knowledge the model already has is worth showing before a slow lookup.
+  it("asks for a preliminary answer before slow work", () => {
+    const { description } = createReportProgressToolDefinition();
+    expect(description).toMatch(/Before slow work/);
+    expect(description).toMatch(
+      /post a brief preliminary answer from what you already know/,
+    );
+    expect(description).toMatch(
+      /clearly marked as preliminary and still to be verified/,
+    );
+    expect(description).toMatch(/latest Nobel Peace Prize/);
+  });
+
+  it("keeps strongly time-sensitive questions as the exception", () => {
+    const { description } = createReportProgressToolDefinition();
+    expect(description).toMatch(/strongly time-sensitive/);
+    expect(description).toMatch(/almost certainly be wrong or misleading/);
+    expect(description).toMatch(/latest software versions/);
+    expect(description).toMatch(/current events and news/);
+    expect(description).toMatch(/prices/);
+    expect(description).toMatch(/live data/);
+    expect(description).toMatch(/Look those up first/);
+  });
+
+  it("reports multi-part work part by part", () => {
+    const { description } = createReportProgressToolDefinition();
+    expect(description).toMatch(/report each part as soon as it is solved/);
+    expect(description).toMatch(/exam or worksheet/);
+  });
+
+  it("still avoids duplicates and noise", () => {
+    const { description } = createReportProgressToolDefinition();
+    expect(description).toMatch(/never both in the same step/);
+    expect(description).toMatch(/instead of repeating them word for word/);
+    expect(description).toMatch(
+      /Skip it when you can give the complete answer right away/,
+    );
+  });
+
   // Citation cards resolve within one text block, and each report is its own
   // block: a footnote defined only in the final reply would dangle here.
   it("tells the model to define a report's footnotes in that report", () => {

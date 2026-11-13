@@ -26,6 +26,11 @@ export interface PineUserProfile {
   customPronouns: string;
   interactiveAnswersEnabled: boolean;
   /**
+   * Lets the agent post interim answers while it keeps working; off removes
+   * the tool from the model's tool list.
+   */
+  interimAnswersEnabled: boolean;
+  /**
    * Monet mode: Sóber's voice and the reading font. While on, it replaces the
    * communication style.
    */
@@ -46,6 +51,7 @@ export function createDefaultPineUserProfile(): PineUserProfile {
     customInstructions: "",
     customPronouns: "",
     interactiveAnswersEnabled: true,
+    interimAnswersEnabled: true,
     monetMode: false,
     nickname: "",
     personalDetails: "",
@@ -62,6 +68,7 @@ export function normalizePineUserProfile(
     customInstructions: profile.customInstructions.trim(),
     customPronouns: sanitizeCustomPronouns(profile.customPronouns),
     interactiveAnswersEnabled: profile.interactiveAnswersEnabled ?? true,
+    interimAnswersEnabled: profile.interimAnswersEnabled ?? true,
     monetMode: profile.monetMode,
     nickname: profile.nickname.trim(),
     personalDetails: profile.personalDetails.trim(),

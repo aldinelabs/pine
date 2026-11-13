@@ -421,6 +421,11 @@ export default {
       "Разрешить Pine добавлять в ответы интерактивные списки, калькуляторы, таблицы и диаграммы, когда это полезно.",
     interactiveAnswersEnabled: "Включены",
     interactiveAnswersDisabled: "Выключены",
+    interimAnswers: "Промежуточные ответы",
+    interimAnswersDescription:
+      "Разрешить Pine показывать предварительный ответ или каждую решённую часть, продолжая работу над длинным запросом.",
+    interimAnswersEnabled: "Включены",
+    interimAnswersDisabled: "Выключены",
     userProfileDetailsLabel: "Другие сведения о вас",
     userProfileDetailsPlaceholder:
       "Например: ваша работа, интересы, предпочтения или текущие цели",
