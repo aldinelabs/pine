@@ -148,13 +148,24 @@ export const useModelsStore = defineStore("models", () => {
     sessionId: string,
     nextSelection: PineModelSelection | undefined,
   ): void {
+    const current = sessionSelections.value[sessionId];
     if (nextSelection) {
+      // Every session-updated event repeats the selection; an unchanged one
+      // must not replace the map and wake everything that reads it.
+      if (
+        current &&
+        current.providerId === nextSelection.providerId &&
+        current.modelId === nextSelection.modelId &&
+        current.thinkingLevel === nextSelection.thinkingLevel
+      )
+        return;
       sessionSelections.value = {
         ...sessionSelections.value,
         [sessionId]: nextSelection,
       };
       return;
     }
+    if (!(sessionId in sessionSelections.value)) return;
     const next = { ...sessionSelections.value };
     delete next[sessionId];
     sessionSelections.value = next;

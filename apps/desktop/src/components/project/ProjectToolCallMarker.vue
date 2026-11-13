@@ -22,6 +22,7 @@ import {
   BG_STATUS_TOOL_NAME,
 } from "@pine/pi-background-tasks";
 import { useProjectDisplayName } from "@/composables/useProjectDisplayName";
+import { countLines, countNonEmptyLines } from "@/lib/lineCount";
 import {
   ACTIVATE_PINE_OPS_TOOL_NAME,
   UI_PROJECT_LIST_TOOL_NAME,
@@ -431,8 +432,7 @@ function filename(value: string): string {
 }
 
 function nonEmptyLineCount(value: unknown): number {
-  if (typeof value !== "string" || !value.trim()) return 0;
-  return value.split("\n").filter((line) => line.trim()).length;
+  return typeof value === "string" ? countNonEmptyLines(value) : 0;
 }
 
 function firstKey(record: Record<string, unknown>, keys: readonly string[]) {
@@ -884,7 +884,7 @@ const writeLineCount = computed(() => {
   if (toolKind(props.toolCall.name) !== "write") return undefined;
   const content = inputRecord(props.toolCall.input).content;
   return typeof content === "string" && content
-    ? content.split("\n").length
+    ? countLines(content)
     : undefined;
 });
 

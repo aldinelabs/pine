@@ -1,7 +1,19 @@
 import { flushPromises, mount } from "@vue/test-utils";
-import { defineComponent, ref, type Ref } from "vue";
+import {
+  computed,
+  defineComponent,
+  effectScope,
+  nextTick,
+  ref,
+  type Ref,
+} from "vue";
 import { createPinia } from "pinia";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import {
+  historyReads,
+  resetHistoryReads,
+  seedHistory,
+} from "@/__tests__/perf/streamHarness";
 import { createAppI18n } from "@/app/i18n";
 import ProjectStagedSteering from "@/components/project/ProjectStagedSteering.vue";
 import ProjectTranscriptMessage from "@/components/project/ProjectTranscriptMessage.vue";
@@ -46,6 +58,13 @@ function setup(queueValues = ["Queued message"]) {
           container,
           queue,
           messages,
+          // What the store's structure version tracks: the ids in order.
+          structureVersion: computed(() =>
+            messages.value.map((message) => message.id).join("\n"),
+          ),
+          userMessages: computed(() =>
+            messages.value.filter((message) => message.role === "user"),
+          ),
           active,
           sessionId,
         });
@@ -430,4 +449,84 @@ it("expires unmatched snapshots so later messages do not fly from stale position
   expect(
     document.querySelector('[data-slot="steering-message-flight"]'),
   ).toBeNull();
+});
+
+it("is not woken by a streaming update that replaces a message in place", async () => {
+  const list = ref([message("user-1", "Hello")]);
+  const version = ref(1);
+  let reads = 0;
+  const messages = {
+    get value() {
+      reads += 1;
+      return list.value;
+    },
+  } as Ref<PineTranscriptMessage[]>;
+  const scope = effectScope();
+  scope.run(() =>
+    useSteeringMessageTransition({
+      container: ref(null),
+      queue: ref([]),
+      messages,
+      structureVersion: version,
+      userMessages: computed(() => list.value),
+      active: ref(true),
+      sessionId: ref("session"),
+    }),
+  );
+  expect(reads).toBe(1);
+
+  // Same ids in the same order: the store keeps its structure version.
+  list.value = [message("user-1", "Hello, again")];
+  await nextTick();
+  expect(reads).toBe(1);
+
+  list.value = [...list.value, message("user-2", "Next")];
+  version.value += 1;
+  await nextTick();
+  expect(reads).toBe(2);
+  scope.stop();
+});
+
+it("reads only the appended messages when the transcript grows", async () => {
+  /** History reads of appending an assistant row, then a user message. */
+  async function appendReads(count: number) {
+    const list = ref<PineTranscriptMessage[]>(seedHistory(count));
+    const users = ref<readonly PineTranscriptMessage[]>(
+      list.value.filter((entry) => entry.role === "user"),
+    );
+    const version = ref(0);
+    const scope = effectScope();
+    scope.run(() =>
+      useSteeringMessageTransition({
+        container: ref(null),
+        queue: ref([]),
+        messages: list,
+        structureVersion: version,
+        userMessages: users,
+        active: ref(true),
+        sessionId: ref("session"),
+      }),
+    );
+    await nextTick();
+    resetHistoryReads();
+    const assistant: PineTranscriptMessage = {
+      ...message("assistant-new", "Working on it."),
+      role: "assistant",
+    };
+    list.value = [...list.value, assistant];
+    version.value += 1;
+    await nextTick();
+    const user = message("user-new", "Next");
+    list.value = [...list.value, user];
+    users.value = [...users.value, user];
+    version.value += 1;
+    await nextTick();
+    const reads = historyReads();
+    scope.stop();
+    return reads;
+  }
+
+  const short = await appendReads(130);
+  const long = await appendReads(2050);
+  expect(long).toBe(short);
 });

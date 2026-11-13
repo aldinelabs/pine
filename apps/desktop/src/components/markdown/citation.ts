@@ -57,3 +57,39 @@ export function parseMarkdownCitations(source: string): MarkdownCitations {
   }
   return citations;
 }
+
+function sameCitation(
+  left: MarkdownCitation,
+  right: MarkdownCitation,
+): boolean {
+  return (
+    left.href === right.href &&
+    left.hostname === right.hostname &&
+    left.favicon === right.favicon &&
+    left.title === right.title
+  );
+}
+
+/**
+ * Reuse what did not change between two parses of a growing message: an equal
+ * citation keeps its previous object, and an equal map is `previous` itself,
+ * so chips whose source is unchanged are not re-rendered on every flush.
+ */
+export function shareMarkdownCitations(
+  previous: MarkdownCitations | undefined,
+  next: MarkdownCitations,
+): MarkdownCitations {
+  if (!previous) return next;
+  const shared = new Map<string, MarkdownCitation>();
+  let changed = previous.size !== next.size;
+  for (const [id, citation] of next) {
+    const before = previous.get(id);
+    if (before && sameCitation(before, citation)) {
+      shared.set(id, before);
+    } else {
+      shared.set(id, citation);
+      changed = true;
+    }
+  }
+  return changed ? shared : previous;
+}

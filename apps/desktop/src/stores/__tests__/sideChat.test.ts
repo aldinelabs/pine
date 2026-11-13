@@ -1,6 +1,6 @@
 import { createPinia, setActivePinia } from "pinia";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { nextTick } from "vue";
+import { computed, isReactive, nextTick } from "vue";
 import type { PineSessionSummary } from "@/shared/sessions";
 import { useContentTabsStore } from "../contentTabs";
 import { sideChatTranscript, useSideChatStore } from "../sideChat";
@@ -84,6 +84,82 @@ describe("side chat store", () => {
     await nextTick();
     expect(sideChats.active(session.id)).toBeUndefined();
     expect(pine.closeSideChat).toHaveBeenCalledOnce();
+  });
+
+  it("keeps streamed records raw and replaces them on every change", async () => {
+    stubPine();
+    const { sideChats } = await openSideChatWithQuestion();
+    const chat = sideChats.active(session.id)!;
+    const rows = computed(() => sideChats.active(session.id)?.messages ?? []);
+    const base = { sessionId: "side-chat", messageId: "reply" } as const;
+
+    sideChats.handleEvent({
+      ...base,
+      type: "message-update",
+      updates: [{ type: "text-start", contentIndex: 0, text: "Be" }],
+    });
+    const first = rows.value[1];
+    expect(isReactive(first)).toBe(false);
+    expect(isReactive(first.blocks)).toBe(false);
+
+    sideChats.handleEvent({
+      ...base,
+      type: "message-update",
+      updates: [{ type: "text-delta", contentIndex: 0, delta: "cause" }],
+    });
+    const second = rows.value[1];
+    expect(second).not.toBe(first);
+    expect(first.blocks).toEqual([{ type: "text", text: "Be" }]);
+    expect(second.blocks).toEqual([{ type: "text", text: "Because" }]);
+
+    sideChats.handleEvent({
+      ...base,
+      type: "message-end",
+      message: {
+        role: "assistant",
+        content: [
+          { type: "text", text: "Because" },
+          { type: "toolCall", id: "tool", name: "read", arguments: {} },
+        ],
+      },
+    });
+    const ended = rows.value[1];
+    sideChats.handleEvent({
+      type: "tool-end",
+      sessionId: "side-chat",
+      toolCallId: "tool",
+      toolName: "read",
+      payload: { content: [], details: null },
+    });
+    const withTool = rows.value[1];
+    expect(withTool).not.toBe(ended);
+    expect(isReactive(withTool)).toBe(false);
+    expect(
+      withTool.blocks.find((block) => block.type === "toolCall"),
+    ).toMatchObject({ toolCall: { id: "tool", status: "complete" } });
+    expect(chat.messages).toHaveLength(2);
+  });
+
+  it("keeps opened records raw", async () => {
+    const pine = stubPine();
+    pine.openSideChat.mockResolvedValue({
+      sideChatId: "side-chat",
+      parentSessionId: session.id,
+      persistent: false,
+      messages: [
+        {
+          id: "saved",
+          message: { role: "user", content: [{ type: "text", text: "Hi" }] },
+        },
+      ],
+    });
+    useContentTabsStore().openSession(session, "project");
+    const chat = await useSideChatStore().open({
+      projectId: "project",
+      sessionId: session.id,
+    });
+    expect(chat.messages).toHaveLength(1);
+    expect(isReactive(chat.messages[0])).toBe(false);
   });
 
   it("shows a saved progress report as reply text", () => {

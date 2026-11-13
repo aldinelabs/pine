@@ -4,6 +4,7 @@
  * which can pair a literal currency symbol with the next dollar in a sentence.
  */
 export function escapeProseDollarDelimiters(source: string): string {
+  if (!source.includes("$")) return source;
   const delimiters = findSingleDollarDelimiters(source);
   const escaped = new Set<number>();
 

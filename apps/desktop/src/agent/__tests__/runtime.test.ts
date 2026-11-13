@@ -569,6 +569,16 @@ describe("parseJudgeRulings", () => {
 });
 
 describe("PineAgentRuntime", () => {
+  it("flushes batched events and stops their timers when disposed", async () => {
+    const runtime = new PineAgentRuntime({ emit: vi.fn() });
+    const forwarder = (
+      runtime as unknown as { eventForwarder: { dispose: () => void } }
+    ).eventForwarder;
+    const dispose = vi.spyOn(forwarder, "dispose");
+    await runtime.dispose();
+    expect(dispose).toHaveBeenCalledTimes(1);
+  });
+
   it("keeps failed reviewer history through the manual decision and its persisted record", async () => {
     const emit = vi.fn();
     const runtime = new PineAgentRuntime({ emit });

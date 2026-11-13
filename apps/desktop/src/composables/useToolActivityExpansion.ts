@@ -30,6 +30,21 @@ export function toolRunKeys(
   return keys;
 }
 
+/**
+ * The run keys of one message, newest first. Messages are immutable records
+ * replaced on every change, so the keys are cached by record: a streaming
+ * flush only reads the message it replaced.
+ */
+const messageRunKeys = new WeakMap<PineTranscriptMessage, readonly string[]>();
+
+function runKeysOf(message: PineTranscriptMessage): readonly string[] {
+  const cached = messageRunKeys.get(message);
+  if (cached) return cached;
+  const keys = toolRunKeys([message]).reverse();
+  messageRunKeys.set(message, keys);
+  return keys;
+}
+
 function latestToolRunKeys(
   messages: readonly PineTranscriptMessage[],
   limit: number,
@@ -40,21 +55,9 @@ function latestToolRunKeys(
     messageIndex >= 0 && keys.length < limit;
     messageIndex--
   ) {
-    const message = messages[messageIndex];
-    const blocks = message.blocks;
-    let blockIndex = blocks.length - 1;
-    while (blockIndex >= 0 && keys.length < limit) {
-      if (blocks[blockIndex]?.type !== "toolCall") {
-        blockIndex--;
-        continue;
-      }
-      let start = blockIndex;
-      while (start > 0 && blocks[start - 1]?.type === "toolCall") start--;
-      const block = blocks[start];
-      if (block?.type === "toolCall") {
-        keys.push(`${message.id}:${block.toolCall.id}`);
-      }
-      blockIndex = start - 1;
+    for (const key of runKeysOf(messages[messageIndex])) {
+      if (keys.length >= limit) break;
+      keys.push(key);
     }
   }
   return keys.reverse();
@@ -70,12 +73,16 @@ function latestToolRunKeys(
  * reader toggles a run open manually.
  */
 export function useToolActivityExpansion(options: {
+  /** The messages the transcript renders; only those can show a run. */
   messages: Ref<readonly PineTranscriptMessage[]>;
   isRunning: Ref<boolean>;
 }): ComputedRef<Set<string>> {
-  const keys = computed(() => latestToolRunKeys(options.messages.value, 2));
+  // Static history never expands, so it is not scanned (or tracked) at all.
+  const keys = computed(() =>
+    options.isRunning.value ? latestToolRunKeys(options.messages.value, 2) : [],
+  );
   return computed((previous) => {
-    const nextKeys = options.isRunning.value ? keys.value.slice(-2) : [];
+    const nextKeys = keys.value;
     if (
       previous &&
       previous.size === nextKeys.length &&

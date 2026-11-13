@@ -59,6 +59,7 @@ function onUserScrollIntent(direction?: MessageScrollerScrollDirection): void {
   emit("userScrollIntent");
 }
 
+/** Passive: it only records intent and never calls preventDefault. */
 function onWheel(event: WheelEvent): void {
   onUserScrollIntent(
     event.deltaY > 0 ? "end" : event.deltaY < 0 ? "start" : undefined,
@@ -156,7 +157,7 @@ onBeforeUnmount(() => {
       )
     "
     @scroll="onViewportScroll"
-    @wheel="onWheel"
+    @wheel.passive="onWheel"
     @touchstart.passive="onTouchStart"
     @touchmove.passive="onTouchMove"
     @touchend.passive="onTouchEnd"

@@ -7,6 +7,7 @@ import {
 import type { ReadBackgroundTaskOutputResult } from "@/shared/backgroundTasks";
 import type { PineSessionEvent } from "@/shared/agent";
 import { useSessionStore } from "@/stores/session";
+import { onSessionEvent } from "@/client/sessionEvents";
 
 const NO_TASKS: readonly BackgroundTaskSnapshot[] = [];
 
@@ -83,7 +84,7 @@ export const useBackgroundTasksStore = defineStore("backgroundTasks", () => {
 
   function connect(): void {
     if (stopEvents || !window.pine?.onSessionEvent) return;
-    stopEvents = window.pine.onSessionEvent(handleEvent);
+    stopEvents = onSessionEvent(handleEvent);
   }
 
   function disconnect(): void {

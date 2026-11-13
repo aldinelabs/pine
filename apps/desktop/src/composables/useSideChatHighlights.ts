@@ -11,6 +11,7 @@ import type { SideChatHighlight } from "@/stores/sideChat";
 
 const HIGHLIGHT = "pine-side-chat";
 const ACTIVE_HIGHLIGHT = "pine-side-chat-active";
+const MESSAGE_SELECTOR = "[data-message-id]";
 
 interface PlacedHighlight extends SideChatHighlight {
   range: Range;
@@ -22,6 +23,22 @@ const ownRanges = new Map<symbol, { normal: Range[]; active: Range[] }>();
 
 function supportsHighlights(): boolean {
   return typeof Highlight !== "undefined" && "highlights" in CSS;
+}
+
+function sameRanges(previous: Range[], next: Range[]): boolean {
+  return (
+    previous.length === next.length &&
+    previous.every((range, index) => {
+      const other = next[index];
+      return (
+        other !== undefined &&
+        range.startContainer === other.startContainer &&
+        range.startOffset === other.startOffset &&
+        range.endContainer === other.endContainer &&
+        range.endOffset === other.endOffset
+      );
+    })
+  );
 }
 
 function publish(): void {
@@ -58,7 +75,7 @@ export function useSideChatHighlights(options: {
     placed = [];
     if (container && options.enabled.value && options.highlights.value.length)
       for (const root of container.querySelectorAll<HTMLElement>(
-        "[data-message-id]",
+        MESSAGE_SELECTOR,
       )) {
         const entryId = options.entryIdOf(root.dataset.messageId ?? "");
         for (const highlight of options.highlights.value) {
@@ -67,29 +84,76 @@ export function useSideChatHighlights(options: {
           if (range) placed.push({ ...highlight, range, root });
         }
       }
-    const previous = ownRanges.get(key);
-    // Nothing placed before or now: the shared registry is unchanged, so skip
-    // rebuilding it (this runs on every streaming frame of a transcript).
-    if (
-      placed.length === 0 &&
-      (!previous ||
-        (previous.normal.length === 0 && previous.active.length === 0))
-    )
-      return;
     const activeId = options.activeSideChatId.value;
-    ownRanges.set(key, {
+    const next = {
       normal: placed
         .filter((item) => item.sideChatId !== activeId)
         .map((item) => item.range),
       active: placed
         .filter((item) => item.sideChatId === activeId)
         .map((item) => item.range),
-    });
+    };
+    const previous = ownRanges.get(key) ?? { normal: [], active: [] };
+    // The same passages in the same places: the shared registry already shows
+    // them, so skip rebuilding it.
+    if (
+      sameRanges(previous.normal, next.normal) &&
+      sameRanges(previous.active, next.active)
+    )
+      return;
+    ownRanges.set(key, next);
     publish();
   }
 
   function schedule(): void {
     if (!frame) frame = requestAnimationFrame(place);
+  }
+
+  /** Whether a rendered message stands for an entry that has a follow-up. */
+  function isHighlightedRoot(root: HTMLElement): boolean {
+    const entryId = options.entryIdOf(root.dataset.messageId ?? "");
+    return options.highlights.value.some(
+      (highlight) => highlight.anchor.messageId === entryId,
+    );
+  }
+
+  function holdsHighlightedRoot(node: Node): boolean {
+    if (!(node instanceof HTMLElement)) return false;
+    if (node.matches(MESSAGE_SELECTOR) && isHighlightedRoot(node)) return true;
+    for (const root of node.querySelectorAll<HTMLElement>(MESSAGE_SELECTOR))
+      if (isHighlightedRoot(root)) return true;
+    return false;
+  }
+
+  function holdsPlacedRoot(node: Node): boolean {
+    return placed.some(
+      (item) => node === item.root || node.contains(item.root),
+    );
+  }
+
+  /**
+   * Whether a mutation can move a marked passage: it changes a message that
+   * has a follow-up, mounts such a message, or removes a marked one. Streaming
+   * into other messages leaves every placed range where it is.
+   */
+  function movesPassages(record: MutationRecord): boolean {
+    const target =
+      record.target instanceof Element
+        ? record.target
+        : record.target.parentElement;
+    const root = target?.closest<HTMLElement>(MESSAGE_SELECTOR);
+    if (root) return isHighlightedRoot(root);
+    if (record.type !== "childList") return false;
+    for (const node of record.addedNodes)
+      if (holdsHighlightedRoot(node)) return true;
+    for (const node of record.removedNodes)
+      if (holdsPlacedRoot(node)) return true;
+    return false;
+  }
+
+  function onMutations(records: MutationRecord[]): void {
+    if (frame) return;
+    if (records.some(movesPassages)) schedule();
   }
 
   let observer: MutationObserver | undefined;
@@ -106,7 +170,7 @@ export function useSideChatHighlights(options: {
       observer = undefined;
       if (!container) return;
       if (active) {
-        observer = new MutationObserver(schedule);
+        observer = new MutationObserver(onMutations);
         observer.observe(container, {
           childList: true,
           subtree: true,

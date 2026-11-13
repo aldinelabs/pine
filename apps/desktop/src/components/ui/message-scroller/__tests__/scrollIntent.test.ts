@@ -7,7 +7,11 @@ import {
   provideMessageScroller,
 } from "../useMessageScroller";
 
-vi.mock("@/lib/animateScroll", () => ({ animateScrollTop: vi.fn() }));
+// The mocked tween lands at once, so no follow tween is ever in flight.
+vi.mock("@/lib/animateScroll", () => ({
+  animateScrollTop: vi.fn(),
+  isScrollAnimating: vi.fn(() => false),
+}));
 
 function createScroller(followAnimated = false) {
   let engine!: ReturnType<typeof provideMessageScroller>;

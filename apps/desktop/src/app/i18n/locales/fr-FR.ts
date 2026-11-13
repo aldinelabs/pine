@@ -381,6 +381,16 @@ export default {
     userProfileNicknamePlaceholder: "Comment Pine doit-il vous appeler ?",
     userProfileNicknameDescription:
       "Pine utilisera ce nom lorsque c'est approprié.",
+    userProfilePronounsLabel: "Pronoms",
+    userProfilePronounsUnspecified: "Non précisé",
+    userProfilePronounsHe: "il/lui",
+    userProfilePronounsShe: "elle",
+    userProfilePronounsThey: "iel",
+    userProfilePronounsCustom: "Personnalisé",
+    userProfilePronounsCustomLabel: "Pronoms personnalisés",
+    userProfilePronounsCustomPlaceholder: "Saisissez vos pronoms",
+    userProfilePronounsDescription:
+      "Pine utilise ces pronoms lorsqu'il parle de vous à la troisième personne, par exemple dans les documents ou les messages qu'il rédige pour vous.",
     userProfileStyleLabel: "Style de communication",
     userProfileStyleCalm: "Posé et professionnel",
     userProfileStyleNeutral: "Neutre",

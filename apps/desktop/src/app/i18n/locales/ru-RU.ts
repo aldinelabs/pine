@@ -374,6 +374,16 @@ export default {
     userProfileNicknamePlaceholder: "Как Pine следует вас называть?",
     userProfileNicknameDescription:
       "Pine будет использовать это имя, когда это уместно.",
+    userProfilePronounsLabel: "Местоимения",
+    userProfilePronounsUnspecified: "Не указано",
+    userProfilePronounsHe: "он/его",
+    userProfilePronounsShe: "она/её",
+    userProfilePronounsThey: "они/их",
+    userProfilePronounsCustom: "Другое",
+    userProfilePronounsCustomLabel: "Свои местоимения",
+    userProfilePronounsCustomPlaceholder: "Введите свои местоимения",
+    userProfilePronounsDescription:
+      "Pine использует эти местоимения, когда говорит о вас в третьем лице, например в документах или сообщениях, которые пишет за вас.",
     userProfileStyleLabel: "Стиль общения",
     userProfileStyleCalm: "Спокойный и профессиональный",
     userProfileStyleNeutral: "Нейтральный",

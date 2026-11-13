@@ -19,8 +19,24 @@ let followingBottom = true;
 /** Views listen on the window, so none may outlive its test. */
 const mountedViews: VueWrapper[] = [];
 
+let documentVisibilityStubbed = false;
+
+function setDocumentVisibility(state: "hidden" | "visible"): void {
+  documentVisibilityStubbed = true;
+  Object.defineProperty(document, "visibilityState", {
+    configurable: true,
+    get: () => state,
+  });
+  document.dispatchEvent(new Event("visibilitychange"));
+}
+
 afterEach(() => {
   for (const view of mountedViews.splice(0)) view.unmount();
+  if (documentVisibilityStubbed) {
+    setDocumentVisibility("visible");
+    Reflect.deleteProperty(document, "visibilityState");
+    documentVisibilityStubbed = false;
+  }
 });
 
 vi.mock("@/composables/useContentTabNavigation", () => ({
@@ -91,6 +107,8 @@ function mountView() {
       plugins: [pinia, createAppI18n("zh-CN")],
       stubs: {
         MessageScrollerProvider: {
+          name: "MessageScrollerProvider",
+          props: ["active"],
           template: "<div><slot /></div>",
           methods: { isFollowingBottom: () => followingBottom },
         },
@@ -448,6 +466,40 @@ describe("ProjectSessionView file drop", () => {
     wrapper.unmount();
   });
 
+  it("trims a window that grew while away once its tab is shown again", async () => {
+    const { wrapper } = mountView();
+    followingBottom = false;
+    const state = useSessionStore().stateFor("session-a");
+    await wrapper.setProps({ sessionId: "session-a" });
+    const transcript = (count: number) =>
+      Array.from({ length: count }, (_, index) => ({
+        id: `message-${index}`,
+        createdAt: "2026-09-03T00:00:00Z",
+        role: "assistant" as const,
+        status: "complete" as const,
+        blocks: [],
+      }));
+    const rendered = () =>
+      wrapper
+        .findAllComponents({ name: "ProjectTranscriptMessage" })
+        .map((message) => message.props("message").id as string);
+
+    state.messages = transcript(180);
+    await flushPromises();
+    expect(rendered()).toHaveLength(180);
+
+    // The reader went back to the live end, then left the tab.
+    activeTabId.value = "file-tab";
+    await flushPromises();
+    followingBottom = true;
+
+    activeTabId.value = "session-1";
+    await flushPromises();
+    expect(rendered()).toHaveLength(60);
+    expect(rendered()[0]).toBe("message-120");
+    wrapper.unmount();
+  });
+
   it("holds a background transcript until its tab is shown again", async () => {
     const { wrapper } = mountView();
     const state = useSessionStore().stateFor("session-a");
@@ -666,6 +718,39 @@ describe("ProjectSessionView file drop", () => {
         .props("message").id,
     ).toBe("first-message");
     wrapper.unmount();
+  });
+
+  it("holds the transcript of a hidden window and catches up when shown", async () => {
+    const { wrapper } = mountView();
+    const state = useSessionStore().stateFor("session-a");
+    await wrapper.setProps({ sessionId: "session-a" });
+    const message = (id: string, text: string) => ({
+      id,
+      createdAt: "2026-09-03T00:00:00Z",
+      role: "assistant" as const,
+      status: "complete" as const,
+      blocks: [{ type: "text" as const, text }],
+    });
+    state.messages = [message("first-message", "First")];
+    await flushPromises();
+    const scroller = () =>
+      wrapper.findComponent({ name: "MessageScrollerProvider" });
+    const renderedIds = () =>
+      wrapper
+        .findAllComponents({ name: "ProjectTranscriptMessage" })
+        .map((row) => row.props("message").id);
+    expect(scroller().props("active")).toBe(true);
+
+    setDocumentVisibility("hidden");
+    state.messages = [...state.messages, message("second-message", "Second")];
+    await flushPromises();
+    expect(scroller().props("active")).toBe(false);
+    expect(renderedIds()).toEqual(["first-message"]);
+
+    setDocumentVisibility("visible");
+    await flushPromises();
+    expect(scroller().props("active")).toBe(true);
+    expect(renderedIds()).toEqual(["first-message", "second-message"]);
   });
 
   it("shows and clears the attachment drop overlay", async () => {

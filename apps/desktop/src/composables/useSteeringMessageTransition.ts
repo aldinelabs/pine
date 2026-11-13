@@ -59,6 +59,38 @@ function transcriptSource(message: PineTranscriptMessage): string {
   );
 }
 
+/**
+ * Whether `next` keeps every message of `previous` and adds some after them.
+ * Message ids change only through writes that also change the structure
+ * version, so the ends of the old list are enough to tell; checking every id
+ * would cost a pass over the transcript on each appended message.
+ */
+function extendsList(
+  next: readonly PineTranscriptMessage[],
+  previous: readonly PineTranscriptMessage[],
+): boolean {
+  return (
+    next.length > previous.length &&
+    (previous.length === 0 ||
+      (next[0]?.id === previous[0]?.id &&
+        next[previous.length - 1]?.id === previous.at(-1)?.id))
+  );
+}
+
+/** User messages in `next` that were not in `previous`. */
+function newUserMessages(
+  next: readonly PineTranscriptMessage[],
+  previous: readonly PineTranscriptMessage[] | undefined,
+): readonly PineTranscriptMessage[] {
+  if (!previous) return next;
+  // Most structure changes add an assistant or tool row and leave the list
+  // of user messages as it was.
+  if (next === previous) return [];
+  if (extendsList(next, previous)) return next.slice(previous.length);
+  const previousIds = new Set(previous.map((message) => message.id));
+  return next.filter((message) => !previousIds.has(message.id));
+}
+
 function transcriptRow(container: HTMLElement | null, messageId: string) {
   return (
     [
@@ -320,6 +352,17 @@ export function useSteeringMessageTransition(options: {
   container: Ref<HTMLElement | null>;
   queue: Ref<readonly string[]>;
   messages: Ref<readonly PineTranscriptMessage[]>;
+  /**
+   * Changes whenever the set or order of message ids changes, and only then.
+   * A streaming update replaces a message in place and sends, edits or
+   * appends nothing, so it does not need to wake this watcher at all.
+   */
+  structureVersion: Ref<unknown>;
+  /**
+   * The user messages of `messages`, in order, as the store keeps them: the
+   * list is replaced only when a user message is added, removed or replaced.
+   */
+  userMessages: Ref<readonly PineTranscriptMessage[]>;
   active: Ref<boolean>;
   sessionId: Ref<string | undefined>;
 }): void {
@@ -331,6 +374,10 @@ export function useSteeringMessageTransition(options: {
   /** An edited turn is removed and sent again; its message is a replay of an
    * earlier one, so it should be there at once rather than fly in. */
   let rewritten = false;
+  /** The transcript and its structure as of the last pass. */
+  let lastMessages: readonly PineTranscriptMessage[] | undefined;
+  let lastUserMessages: readonly PineTranscriptMessage[] | undefined;
+  let lastVersion: unknown;
   function reset(): void {
     generation++;
     queued = [];
@@ -347,8 +394,22 @@ export function useSteeringMessageTransition(options: {
   }
   watch([options.active, options.sessionId], reset, { flush: "sync" });
   watch(
-    [options.queue, options.messages, options.active, options.sessionId],
-    ([queue, messages], previous) => {
+    [
+      options.queue,
+      options.structureVersion,
+      options.active,
+      options.sessionId,
+    ],
+    ([queue, version]) => {
+      const messages = options.messages.value;
+      const userMessages = options.userMessages.value;
+      const oldMessages = lastMessages;
+      const oldUserMessages = lastUserMessages;
+      const structureChanged =
+        oldMessages === undefined || version !== lastVersion;
+      lastMessages = messages;
+      lastUserMessages = userMessages;
+      lastVersion = version;
       if (!options.active.value || prefersReducedMotion()) {
         reset();
         return;
@@ -388,19 +449,9 @@ export function useSteeringMessageTransition(options: {
           pending.length = 0;
         }, 5_000);
       }
-      const oldMessages = previous?.[1];
-      // A streaming update replaces a message in place. With the same ids in
-      // the same order nothing was sent, edited or appended, so the scan over
-      // the whole transcript below would find nothing.
-      if (
-        oldMessages &&
-        oldMessages.length === messages.length &&
-        messages.every(
-          (message, index) => oldMessages[index]?.id === message.id,
-        )
-      )
-        return;
-      const oldIds = new Set((oldMessages ?? []).map((message) => message.id));
+      // With the same ids in the same order nothing was sent, edited or
+      // appended, so the checks below would find nothing.
+      if (!structureChanged) return;
       // An edit removes the turn from the tail before sending it again.
       if (
         oldMessages &&
@@ -414,19 +465,14 @@ export function useSteeringMessageTransition(options: {
       // Pure appends only: loading older history prepends and switching
       // sessions replaces, and neither should play the arrival reveal.
       const appended =
-        oldMessages &&
-        messages.length > oldMessages.length &&
-        oldMessages.every(
-          (message, index) => messages[index]?.id === message.id,
-        )
+        oldMessages && extendsList(messages, oldMessages)
           ? messages.slice(oldMessages.length)
           : [];
       // One message appended to the end is a send. Hydrating a session can
       // also append into an empty list, so a batch is never an arrival.
       const arrived = appended.length === 1 ? appended : [];
       const flown = new Set<PineTranscriptMessage>();
-      for (const message of messages) {
-        if (message.role !== "user" || oldIds.has(message.id)) continue;
+      for (const message of newUserMessages(userMessages, oldUserMessages)) {
         const source = transcriptSource(message);
         const entry = [...pending, ...queued].find(
           (entry) =>

@@ -14,6 +14,11 @@ const FENCE = /^ {0,3}(`{3,}|~{3,})(.*)$/u;
  * including ones that quote an `openui` fence, stay in the markdown.
  */
 export function splitTranscriptText(text: string): TranscriptTextSegment[] {
+  // Without the fence language anywhere in the text no line can open an
+  // interface fence, so the whole text is one markdown segment.
+  if (!text.toLowerCase().includes(INTELLIGENT_UI_FENCE_LANGUAGE)) {
+    return text.trim() ? [{ kind: "markdown", text }] : [];
+  }
   const segments: TranscriptTextSegment[] = [];
   let markdown: string[] = [];
   let fence: { marker: string; isInterface: boolean; body: string[] } | null =

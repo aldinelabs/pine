@@ -36,7 +36,12 @@ import { useI18n } from "vue-i18n";
 import { toast } from "vue-sonner";
 import "markstream-vue/index.css";
 import { useAppearanceStore } from "@/stores/appearance";
-import { markdownCitations, parseMarkdownCitations } from "./citation";
+import {
+  markdownCitations,
+  parseMarkdownCitations,
+  shareMarkdownCitations,
+  type MarkdownCitations,
+} from "./citation";
 import { markdownImageDocumentUrl } from "./markdownImageContext";
 import { Button } from "@/components/ui/button";
 import DialogScrollArea from "@/components/dialogs/DialogScrollArea.vue";
@@ -71,7 +76,11 @@ provide(
 
 provide(
   markdownCitations,
-  computed(() => parseMarkdownCitations(props.source)),
+  // Structurally shared: an unchanged map keeps its identity, so citation
+  // chips do not re-render on every streamed flush.
+  computed<MarkdownCitations>((previous) =>
+    shareMarkdownCitations(previous, parseMarkdownCitations(props.source)),
+  ),
 );
 
 // markstream themes its code block via the `is-dark` prop (its inline style vars
@@ -84,6 +93,10 @@ const renderedSource = computed(() =>
 const markdownParseOptions = { streamParse: "auto" } as const;
 const { t } = useI18n();
 const pendingExternalUrl = ref<string>();
+// Most renderers never see a link click: mount the dialog tree on the first
+// one and keep it afterwards so its close animation and later opens behave
+// as before.
+const hasOpenedExternalLinkDialog = ref(false);
 
 function normalizeExternalUrl(link: Element): string | undefined {
   const rawHref = link.getAttribute("href")?.trim();
@@ -129,6 +142,7 @@ function handleMarkdownClick(event: MouseEvent): void {
   const url = normalizeExternalUrl(link);
   if (!url) return;
 
+  hasOpenedExternalLinkDialog.value = true;
   pendingExternalUrl.value = url;
 }
 
@@ -188,6 +202,7 @@ async function confirmExternalLink(): Promise<void> {
     />
 
     <AlertDialog
+      v-if="hasOpenedExternalLinkDialog"
       :open="pendingExternalUrl !== undefined"
       @update:open="handleExternalLinkDialogOpenChanged"
     >

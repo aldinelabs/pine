@@ -260,6 +260,13 @@ From top to bottom:
      appear and disappear.
    - Text box. In a new session with no project, typing `@` chooses the
      project.
+   - While the agent is working, a soft glow in the project's accent color
+     (or, with "Pine Default", the Pine default color theme from Appearance
+     settings; grey for Neutral) drifts around the text box's outline. It
+     fades away when the run ends, and is not shown while an approval or
+     questionnaire card takes the text box's place. With reduced motion
+     turned on in the system, the glow stays still. The quick composer and
+     side chats don't glow.
    - Add attachment menu: File, Folder, Conversation. Files can also be
      dropped or pasted.
    - Footer controls: project target ("Send to {name}"), Model, Reasoning
@@ -302,12 +309,17 @@ From top to bottom:
      in a tab stops and its tab closes once it is deleted.
    - Projects the agent manages: when asked, the agent can create a project
      from folders, rename one, add or remove its folders, change its working
-     folder, or delete it. Each change shows an Approval required card in
-     every mode, YOLO included. Deleting a project deletes its sessions but
-     keeps its folders on disk; the agent cannot delete the project it runs
-     in, No Project, or a project with a session still working. Editing the
-     agent's own project takes effect when its reply ends and restarts that
-     project's sessions, like saving in Edit Project.
+     folder, set its icon and accent color (the same choices as Edit Project,
+     including "Pine Default"), or delete it. Each change shows an Approval
+     required card in every mode, YOLO included; its Details list what will
+     change. Deleting a project deletes its sessions but keeps its folders on
+     disk; the agent cannot delete the project it runs in, No Project, or a
+     project with a session still working. Renaming or changing the folders of
+     the agent's own project takes effect when its reply ends and restarts that
+     project's sessions, like saving in Edit Project; an icon or accent color
+     change applies at once, even alongside a rename (the icon in the sidebar
+     and project pickers, the accent color across the window while that
+     project is active), and restarts nothing.
    - Computer Use: the first control action requests permission to control
      desktop apps and browser tabs for the current task. Let Me Review shows
      one Approval required card; Auto Approve and Autonomous Work review the
@@ -392,9 +404,13 @@ the user opens themselves do not pulse.
     automatic approval path, context compaction strategy and method,
     TinyFish web tools key (shows Configured or Not configured), approximate
     location.
-  - User profile: nickname, communication style (Calm & professional,
-    Neutral or Warm & friendly; disabled while Monet mode is on), technical
-    background, personal details, custom instructions.
+  - User profile: nickname, pronouns (a dropdown: Not specified, he/him,
+    she/her, they/them or Custom; Custom shows a short text field for your own
+    wording; Not specified by default; Pine uses them when it refers to you in
+    the third person), communication style (Calm & professional, Neutral or
+    Warm & friendly; disabled while Monet mode is on), technical background,
+    personal details, custom instructions. Changes save automatically and
+    apply from the next message in every conversation.
   - Projects: every project with its data usage; New Project, Edit, clear
     temporary files, clear attachments.
   - Remote control (desktop app only): "Remote control via Aldine" pairs

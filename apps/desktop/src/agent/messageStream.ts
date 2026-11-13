@@ -191,42 +191,64 @@ export class AssistantMessageUpdateCompactor {
 
   /**
    * Parse tool arguments once per transport batch, capped so large write/patch
-   * payloads cannot restore the former quadratic streaming cost.
+   * payloads cannot restore the former quadratic streaming cost. The result is
+   * what goes on the wire: argument deltas carry only the parsed `input`
+   * (consumers never read the raw JSON), and a delta with no preview to show
+   * is dropped.
    */
   addToolInputPreviews(
     updates: readonly PineAssistantMessageUpdate[],
   ): PineAssistantMessageUpdate[] {
-    return updates.map((update) => {
+    const result: PineAssistantMessageUpdate[] = [];
+    for (const update of updates) {
       if (update.type === "tool-call-end") {
         this.toolCalls.delete(update.contentIndex);
-        return update;
+        result.push(update);
+        continue;
       }
-      if (update.type !== "tool-call-delta") return update;
-
-      const cursor = this.toolCalls.get(update.contentIndex) ?? {
-        disabled: false,
-        json: "",
-      };
-      this.toolCalls.set(update.contentIndex, cursor);
-      if (cursor.disabled) return update;
-
-      cursor.json += update.delta;
-      if (cursor.json.length > MAX_STREAMED_TOOL_PREVIEW_CHARS) {
-        cursor.disabled = true;
-        cursor.json = "";
-        return update;
+      if (update.type !== "tool-call-delta") {
+        result.push(update);
+        continue;
       }
-
-      const input = toPineJsonValue(parseStreamingJson(cursor.json));
-      if (
-        cursor.initialInput !== undefined &&
-        !isJsonPrefix(cursor.initialInput, input)
-      ) {
-        return update;
+      const input = this.toolInputPreview(update.contentIndex, update.delta);
+      if (input !== undefined) {
+        result.push({
+          type: "tool-call-delta",
+          contentIndex: update.contentIndex,
+          input,
+        });
       }
-      cursor.initialInput = undefined;
-      return { ...update, input };
-    });
+    }
+    return result;
+  }
+
+  private toolInputPreview(
+    contentIndex: number,
+    delta: string | undefined,
+  ): PineJsonValue | undefined {
+    const cursor = this.toolCalls.get(contentIndex) ?? {
+      disabled: false,
+      json: "",
+    };
+    this.toolCalls.set(contentIndex, cursor);
+    if (cursor.disabled) return undefined;
+
+    cursor.json += delta ?? "";
+    if (cursor.json.length > MAX_STREAMED_TOOL_PREVIEW_CHARS) {
+      cursor.disabled = true;
+      cursor.json = "";
+      return undefined;
+    }
+
+    const input = toPineJsonValue(parseStreamingJson(cursor.json));
+    if (
+      cursor.initialInput !== undefined &&
+      !isJsonPrefix(cursor.initialInput, input)
+    ) {
+      return undefined;
+    }
+    cursor.initialInput = undefined;
+    return input;
   }
 
   private startBlock(
@@ -275,7 +297,7 @@ export function coalesceAssistantMessageUpdates(
       previous?.type === "tool-call-delta" &&
       previous.contentIndex === update.contentIndex
     ) {
-      previous.delta += update.delta;
+      previous.delta = (previous.delta ?? "") + (update.delta ?? "");
     } else {
       result.push({ ...update });
     }

@@ -31,6 +31,7 @@ import {
   type ProjectColorTheme,
   type ProjectColorThemeSetting,
   type ProjectFolderInput,
+  type ProjectIcon,
   type ProjectMutationInput,
 } from "../../shared/projects";
 
@@ -299,6 +300,33 @@ export class ProjectRepository {
     });
     await this.write(project);
     return this.toPublic(project);
+  }
+
+  /**
+   * Changes only the icon and/or colour theme, on fresh data; leaving one out
+   * keeps it. Runtimes never read either, so nothing needs to restart.
+   */
+  updateAppearance(
+    id: string,
+    appearance: {
+      projectIcon?: ProjectIcon;
+      projectColorTheme?: ProjectColorThemeSetting;
+    },
+  ): Promise<PineProject> {
+    return this.serialize(id, async () => {
+      assertEditable(id);
+      const current = await this.read(id);
+      const project = this.validateProject({
+        ...current,
+        ...(appearance.projectColorTheme
+          ? colorThemeFields(appearance.projectColorTheme)
+          : {}),
+        projectIcon: appearance.projectIcon ?? current.projectIcon,
+        updatedAt: new Date().toISOString(),
+      });
+      await this.write(project);
+      return this.toPublic(project);
+    });
   }
 
   updateSessionGroups(

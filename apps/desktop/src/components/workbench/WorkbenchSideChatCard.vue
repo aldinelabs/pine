@@ -242,6 +242,11 @@ watch(
               <MessageScrollerItem
                 v-for="(message, index) in messages"
                 :key="message.id"
+                v-memo="[
+                  message,
+                  chat?.isRunning,
+                  collapsesTranscriptGap(messages, index),
+                ]"
                 :message-id="message.id"
                 :scroll-anchor="message.role === 'user'"
                 :class="

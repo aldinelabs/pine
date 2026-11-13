@@ -148,6 +148,33 @@ describe("CodeBlock", () => {
     wrapper.unmount();
   });
 
+  it("keeps the highlight when a parent passes an equal node again", async () => {
+    vi.mocked(codeToHtml).mockResolvedValue(
+      '<pre class="shiki"><code>highlighted</code></pre>',
+    );
+    const wrapper = mount(CodeBlock, { props: { node }, global });
+    await flushPromises();
+    const pre = wrapper.get("pre.shiki").element;
+
+    for (let render = 0; render < 3; render++) {
+      await wrapper.setProps({ node: { ...node } });
+      expect(wrapper.get("pre.shiki").element).toBe(pre);
+    }
+    await flushPromises();
+    expect(codeToHtml).toHaveBeenCalledOnce();
+
+    // A language change on the same code still highlights again.
+    await wrapper.setProps({ node: { ...node, language: "ts" } });
+    await flushPromises();
+    expect(codeToHtml).toHaveBeenCalledTimes(2);
+    expect(codeToHtml).toHaveBeenLastCalledWith(source, {
+      lang: "ts",
+      themes: { light: "vitesse-light", dark: "vitesse-dark" },
+      defaultColor: false,
+    });
+    wrapper.unmount();
+  });
+
   it("skips Shiki while a code fence streams and highlights its final source once", async () => {
     vi.mocked(codeToHtml).mockResolvedValue(
       '<pre class="shiki"><code>final source</code></pre>',

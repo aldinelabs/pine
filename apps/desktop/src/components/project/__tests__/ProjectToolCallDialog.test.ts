@@ -8,6 +8,7 @@ import {
 import { describe, expect, it, vi } from "vitest";
 import { createPinia } from "pinia";
 import { createAppI18n } from "@/app/i18n";
+import { DialogContent } from "@/components/ui/dialog";
 import ProjectToolCallMarker from "../ProjectToolCallMarker.vue";
 
 function mountMarker(decidedBy: "judge" | "user" | "sandbox" | null = "judge") {
@@ -45,6 +46,38 @@ function mountMarker(decidedBy: "judge" | "user" | "sandbox" | null = "judge") {
 }
 
 describe("ProjectToolCallDialog", () => {
+  it("mounts the dialog content only once it has been opened", async () => {
+    const wrapper = mountMarker();
+    expect(wrapper.findComponent(DialogContent).exists()).toBe(false);
+    const trigger = wrapper.get('button[data-slot="marker"]');
+    (trigger.element as HTMLElement).focus();
+    await trigger.trigger("click");
+    await flushPromises();
+    const content = document.body.querySelector<HTMLElement>(
+      '[data-slot="dialog-content"]',
+    );
+    expect(content?.getAttribute("data-state")).toBe("open");
+    expect(content?.contains(document.activeElement)).toBe(true);
+
+    content?.dispatchEvent(
+      new KeyboardEvent("keydown", { key: "Escape", bubbles: true }),
+    );
+    await flushPromises();
+    expect(
+      document.body.querySelector('[data-slot="dialog-content"]'),
+    ).toBeNull();
+    // The tree stays mounted after the first open; reopening works.
+    expect(wrapper.findComponent(DialogContent).exists()).toBe(true);
+    await trigger.trigger("click");
+    await flushPromises();
+    expect(
+      document.body
+        .querySelector('[data-slot="dialog-content"]')
+        ?.getAttribute("data-state"),
+    ).toBe("open");
+    wrapper.unmount();
+  });
+
   it.each(["awaiting-user", "approved"] as const)(
     "shows the actual reviewers and failures after handoff: %s",
     async (state) => {

@@ -13,7 +13,7 @@ type PineSessionMutator = {
 };
 ```
 
-- 可序列化，原样经过 renderer → main → agent worker。
+- 可序列化，原样经过 renderer → main → agent worker。renderer 的 store 状态是 Vue 响应式代理，Electron 的 IPC 无法克隆代理对象，所以发送前用 `uniqueSessionMutators` 取普通对象副本。
 - renderer 把 mutator 挂在 draft tab 上（`contentTabs` 的 `mutators`），发送第一条消息时随 `PromptSessionRequest.mutators` 一起提交。composer 上方以标签显示，用户可以移除，移除后就是普通 draft。
 - main 在会话创建或恢复之后、发送消息之前调用 worker 请求 `session:mutate`。会话正在运行（steer、follow-up）或改写消息时不接受 mutator。
 - worker 的 `PineAgentRuntime.mutateSession` 只在空闲会话上执行；自动化运行会话不接受。已经激活的目标会跳过。

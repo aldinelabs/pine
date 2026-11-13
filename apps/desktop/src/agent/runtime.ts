@@ -1065,6 +1065,9 @@ export class PineAgentRuntime {
 
   async dispose(): Promise<{ disposed: boolean }> {
     this.modelService.dispose();
+    // Send what is still batched and stop the throttle timers before the
+    // sessions go, so no timer fires into a torn-down runtime.
+    this.eventForwarder.dispose();
     this.rejectHostRequests(null, "The agent runtime was disposed.");
     for (const [requestId, pending] of this.pendingApprovals) {
       this.pendingApprovals.delete(requestId);
@@ -2750,9 +2753,11 @@ export class PineAgentRuntime {
     session: AgentSession,
     currentAssistantMessage?: AssistantMessage,
   ): PineContextUsage | undefined {
-    const usage = session.getContextUsage();
-    if (!usage) return undefined;
+    // The stats already carry the context usage; asking for it separately
+    // would project the whole session a second time.
     const stats = session.getSessionStats();
+    const usage = stats.contextUsage;
+    if (!usage) return undefined;
     const currentCacheUsage = currentAssistantMessage?.usage;
     const hasCacheUsage =
       stats.tokens.cacheRead > 0 ||

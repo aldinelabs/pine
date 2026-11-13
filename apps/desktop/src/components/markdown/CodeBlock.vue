@@ -169,17 +169,15 @@ async function drainHighlightQueue(): Promise<void> {
   }
 }
 
+// Watch each source on its own: callers often pass a fresh `node` literal with
+// the same code on every parent render, and a single getter returning a new
+// array would rerun this (blanking and re-highlighting the block) each time.
 watch(
-  () =>
-    [
-      props.node.code,
-      language.value,
-      isLoading.value,
-      isNearViewport.value,
-    ] as const,
+  [() => props.node.code, language, isLoading, isNearViewport],
   ([code, currentLanguage, loading, visible]) => {
     // An open fence changes on every stream update. Keep it as escaped plain
     // text until it closes instead of repeatedly highlighting its full prefix.
+    // Changed code shows as plain text at once rather than as stale highlighting.
     html.value = "";
     if (loading || !visible) {
       pendingHighlight = undefined;

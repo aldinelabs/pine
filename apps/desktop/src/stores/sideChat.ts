@@ -1,5 +1,5 @@
 import { acceptHMRUpdate, defineStore } from "pinia";
-import { reactive, ref, watch } from "vue";
+import { markRaw, reactive, ref, watch } from "vue";
 import { agentLocale, isAppLocale } from "@/app/i18n";
 import { useContentTabsStore } from "@/stores/contentTabs";
 import type { PineAgentEvent, PineJsonValue } from "@/shared/agent";
@@ -28,6 +28,10 @@ export interface SideChatState {
   /** Saved with the conversation; a plain side chat is not. */
   persistent: boolean;
   anchor?: PineSideChatAnchor;
+  /**
+   * Raw, immutable records, as in the main transcript: a change replaces
+   * the record, so a streamed reply does not make every row reactive.
+   */
   messages: PineTranscriptMessage[];
   isRunning: boolean;
   error?: string;
@@ -49,6 +53,11 @@ function record(
   return typeof value === "object" && value !== null && !Array.isArray(value)
     ? value
     : null;
+}
+
+/** Keeps a transcript record out of deep reactivity; it is replaced, never edited. */
+function rawMessage(message: PineTranscriptMessage): PineTranscriptMessage {
+  return markRaw(message);
 }
 
 /**
@@ -254,7 +263,7 @@ export const useSideChatStore = defineStore("sideChat", () => {
         parentSessionId: result.parentSessionId,
         persistent: result.persistent,
         ...(result.anchor ? { anchor: result.anchor } : {}),
-        messages: sideChatTranscript(result.messages),
+        messages: sideChatTranscript(result.messages).map(rawMessage),
         isRunning: false,
       };
       chats.set(state.id, state);
@@ -405,8 +414,8 @@ export const useSideChatStore = defineStore("sideChat", () => {
 
   function putMessage(chat: SideChatState, message: PineTranscriptMessage) {
     const index = chat.messages.findIndex((item) => item.id === message.id);
-    if (index < 0) chat.messages.push(message);
-    else chat.messages[index] = message;
+    if (index < 0) chat.messages.push(rawMessage(message));
+    else chat.messages[index] = rawMessage(message);
   }
 
   function toolMessageIndex(chat: SideChatState, toolCallId: string): number {
@@ -454,10 +463,10 @@ export const useSideChatStore = defineStore("sideChat", () => {
             : {}),
         };
         const message = chat.messages[index];
-        chat.messages[index] = {
+        chat.messages[index] = rawMessage({
           ...message,
           blocks: mergeToolCallBlocks(message.blocks, event.toolCallId, patch),
-        };
+        });
         return;
       }
       case "message-start":

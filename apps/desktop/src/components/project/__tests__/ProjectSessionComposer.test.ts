@@ -938,4 +938,42 @@ describe("ProjectSessionComposer", () => {
     });
     wrapper.unmount();
   });
+  it("glows around the text box while the active session works", () => {
+    const wrapper = mountComposer({ isRunning: true, isActive: true });
+    const glow = wrapper.find(
+      '.session-composer-control > [data-slot="session-composer-glow"]',
+    );
+    expect(glow.exists()).toBe(true);
+    expect(glow.attributes("data-state")).toBe("on");
+    wrapper.unmount();
+  });
+  it("does not glow when idle or in a background tab", () => {
+    const idle = mountComposer({ isRunning: false, isActive: true });
+    expect(idle.find('[data-slot="session-composer-glow"]').exists()).toBe(
+      false,
+    );
+    idle.unmount();
+    const background = mountComposer({ isRunning: true, isActive: false });
+    expect(
+      background.find('[data-slot="session-composer-glow"]').exists(),
+    ).toBe(false);
+    background.unmount();
+  });
+  it("unmounts the glow with the text box when an approval card replaces it", () => {
+    const wrapper = mountComposer({
+      isRunning: true,
+      isActive: true,
+      pendingApproval: {
+        requestId: "glow",
+        toolCallId: "tool-1",
+        toolName: "bash",
+        trigger: "pre-execution",
+      },
+    });
+    expect(wrapper.findComponent(ProjectApprovalCard).exists()).toBe(true);
+    expect(wrapper.find('[data-slot="session-composer-glow"]').exists()).toBe(
+      false,
+    );
+    wrapper.unmount();
+  });
 });

@@ -50,6 +50,10 @@ function describeProject(project: AgentHostProject): string {
     .join("\n");
   return `- ${project.name} (id: ${project.id})${
     project.current ? " (current: this session runs here)" : ""
+  }\n  icon: ${project.icon}, accent color: ${
+    project.accentColor === "default"
+      ? "default (Pine Default, follows Appearance)"
+      : project.accentColor
   }\n${folders}`;
 }
 
@@ -116,7 +120,7 @@ export function createWorkspaceToolDefinitions(
   const listTool = defineTool({
     name: UI_PROJECT_LIST_TOOL_NAME,
     label: "List Projects",
-    description: `List the user's Pine projects with their names, ids, and folder paths; the project this session runs in is marked as current. This session runs in ${here}.`,
+    description: `List the user's Pine projects with their names, ids, icons, accent colors, and folder paths; the project this session runs in is marked as current. This session runs in ${here}.`,
     promptSnippet: `This session runs in ${here}. Use ${UI_PROJECT_LIST_TOOL_NAME} to see the user's Pine projects and their folders, for example to check whether a request belongs to another project`,
     parameters: Type.Object({}),
     execute: async () => {

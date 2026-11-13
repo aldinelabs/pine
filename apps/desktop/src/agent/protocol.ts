@@ -41,8 +41,10 @@ export type {
   SessionTreeOperation,
 } from "../shared/sessions";
 import type {
+  ProjectColorThemeSetting,
   ProjectHostOperation,
   ProjectHostResult,
+  ProjectIcon,
 } from "../shared/projects";
 export type {
   AgentProjectFolder,
@@ -125,6 +127,9 @@ export interface AgentHostProject {
   current?: boolean;
   defaultFolderPath: string;
   folders: { access: "read-only" | "read-write"; name: string; path: string }[];
+  icon: ProjectIcon;
+  /** `default` follows Pine's default colour theme from Appearance. */
+  accentColor: ProjectColorThemeSetting;
 }
 
 /** Questions only the main process can answer, asked from inside a tool. */

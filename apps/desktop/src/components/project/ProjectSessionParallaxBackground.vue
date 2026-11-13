@@ -57,6 +57,14 @@ interface ParallaxIcon {
   fadeDelay: number;
 }
 
+const props = withDefaults(
+  defineProps<{
+    /** False while the tab is not shown: the parallax loop then runs no frame. */
+    active?: boolean;
+  }>(),
+  { active: true },
+);
+
 const FADE_STEP_MS = 20;
 const FADE_DURATION_MS = 900;
 const ICON_BLUR_PX = 8;
@@ -304,6 +312,7 @@ onBeforeUnmount(() => {
     hard while horizontal travel keeps its full range. -->
     <ParallaxFloat
       class="absolute inset-0"
+      :active="props.active"
       :easing-factor="0.05"
       :sensitivity="-0.25"
       :vertical-resistance="0.15"

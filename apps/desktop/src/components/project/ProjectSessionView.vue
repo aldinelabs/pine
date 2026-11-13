@@ -44,6 +44,7 @@ import {
 } from "@/components/ui/message-scroller";
 import { Spinner } from "@/components/ui/spinner";
 import { useContentTabNavigation } from "@/composables/useContentTabNavigation";
+import { useDocumentVisible } from "@/composables/useDocumentVisible";
 import { useDraftProjectOpener } from "@/composables/useDraftProjectOpener";
 import { usePhoneLayout } from "@/composables/usePhoneLayout";
 import { useToolActivityExpansion } from "@/composables/useToolActivityExpansion";
@@ -107,6 +108,13 @@ const composer = ref<InstanceType<typeof ProjectSessionComposer> | null>(null);
 const isActive = computed(
   () => tabNavigation.activeTabId.value === props.tabId,
 );
+const documentVisible = useDocumentVisible();
+/**
+ * Active and in a window the user can see. A hidden or minimised window holds
+ * the transcript like a background tab does; everything else that follows the
+ * tab (focus, Esc, selection menu, steering) still keys on `isActive`.
+ */
+const isShown = computed(() => isActive.value && documentVisible.value);
 
 // A newly opened tab lands in its composer once it is shown.
 watch(
@@ -173,28 +181,40 @@ const isRunning = computed(
   () => isSubmitting.value || (tabState.value?.isRunning ?? false),
 );
 const messages = computed(() => tabState.value?.messages ?? []);
-const scroller = useTemplateRef<{ isFollowingBottom?: () => boolean }>(
-  "scroller",
+/** Changes only when the set or order of message ids changes. */
+const structureVersion = computed(() => tabState.value?.structureVersion ?? 0);
+const NO_MESSAGES: readonly PineTranscriptMessage[] = [];
+const userMessages = computed(
+  () => tabState.value?.userMessages ?? NO_MESSAGES,
 );
+/** The index of a loaded message, or -1, without scanning the transcript. */
+function indexOfMessage(messageId: string): number {
+  return tabState.value?.indexOfMessage(messageId) ?? -1;
+}
+const scroller = useTemplateRef<{
+  isFollowingBottom?: () => boolean;
+  /** Exposed as a ref; the component proxy unwraps it. */
+  followingBottom?: boolean;
+}>("scroller");
 /** The first rendered message; null renders from the oldest loaded one. */
 const windowStartId = ref<string | null>(null);
 const renderStart = computed(() => {
   const id = windowStartId.value;
   if (!id) return 0;
-  const index = messages.value.findIndex((message) => message.id === id);
+  const index = indexOfMessage(id);
   // A rewrite can remove the first rendered message; keep the recent tail.
   return index >= 0
     ? index
     : Math.max(0, messages.value.length - RENDER_WINDOW_KEEP);
 });
 /**
- * The messages the transcript renders. A background tab holds its last frame:
- * stream updates for it only land in the store, and the view catches up in a
- * single render when the tab is shown again.
+ * The messages the transcript renders. A background tab, or any tab of a
+ * hidden window, holds its last frame: stream updates for it only land in the
+ * store, and the view catches up in a single render when it is shown again.
  */
 const renderedMessages = computed(
   (previous?: readonly PineTranscriptMessage[]) => {
-    if (!isActive.value && previous) return previous;
+    if (!isShown.value && previous) return previous;
     const start = renderStart.value;
     return start > 0 ? messages.value.slice(start) : messages.value;
   },
@@ -222,6 +242,18 @@ function revealEarlierMessages(): boolean {
 }
 
 watch(() => messages.value.length, trimRenderWindow);
+// Nothing above the window is dropped while the reader is away from the live
+// end, or while the tab is in the background; trim as soon as either ends
+// rather than waiting for the next appended message.
+watch(
+  () => scroller.value?.followingBottom === true,
+  (following) => {
+    if (following) trimRenderWindow();
+  },
+);
+watch(isActive, (active) => {
+  if (active) trimRenderWindow();
+});
 watch(
   () => props.sessionId,
   () => {
@@ -229,11 +261,14 @@ watch(
   },
 );
 const outlineMessages = computed(() => tabState.value?.outlineMessages ?? []);
+// Built from the user messages only, which the store replaces just when one
+// of them changes, so a streaming reply never re-derives the outline.
 const transcriptTurns = computed((previous?: PineTranscriptMessage[]) => {
   const allMessages = new Map(
     outlineMessages.value.map((message) => [message.id, message]),
   );
-  for (const message of messages.value) allMessages.set(message.id, message);
+  for (const message of userMessages.value)
+    allMessages.set(message.id, message);
   const next = [...allMessages.values()].filter(
     (message) => message.role === "user",
   );
@@ -305,6 +340,8 @@ useSteeringMessageTransition({
   // The transcript as rendered, not the outline: only this list says which
   // user message just arrived and where it landed.
   messages,
+  structureVersion,
+  userMessages,
   active: isActive,
   sessionId: computed(() => props.sessionId),
 });
@@ -388,7 +425,11 @@ const awaitingApprovalToolCallIds = computed(
 
 /** While a response runs, its last two tool units (folded groups and
  * standalone calls alike) stay expanded; everything folds when it ends. */
-const expandedToolRuns = useToolActivityExpansion({ messages, isRunning });
+const expandedToolRuns = useToolActivityExpansion({
+  // Only rendered rows can show a run, and the window bounds the scan.
+  messages: renderedMessages,
+  isRunning,
+});
 
 /** Per-message `v-memo` key: only the transcript state a message reads. */
 function messageRenderSignature(message: PineTranscriptMessage): string {
@@ -696,17 +737,14 @@ function handleTranscriptScroll(
 }
 
 async function ensureTranscriptMessageLoaded(messageId: string): Promise<void> {
-  while (
-    !messages.value.some((message) => message.id === messageId) &&
-    hasEarlierMessages.value
-  ) {
+  while (indexOfMessage(messageId) < 0 && hasEarlierMessages.value) {
     const previousCount = messages.value.length;
     await loadEarlierMessages();
     if (messages.value.length === previousCount && hasEarlierMessages.value) {
       throw new Error(`Transcript message ${messageId} was not loaded`);
     }
   }
-  const index = messages.value.findIndex((message) => message.id === messageId);
+  const index = indexOfMessage(messageId);
   if (index < 0) {
     throw new Error(`Transcript message ${messageId} was not found`);
   }
@@ -748,7 +786,7 @@ async function handleDrop(event: DragEvent): Promise<void> {
   <MessageScrollerProvider
     ref="scroller"
     auto-scroll
-    :active="isActive"
+    :active="isShown"
     default-scroll-position="last-anchor"
     :scroll-previous-item-peek="64"
     :follow-animated="isRunning"
@@ -775,6 +813,7 @@ async function handleDrop(event: DragEvent): Promise<void> {
         />
         <ProjectSessionParallaxBackground
           v-if="isNewConversation && !hasSubmittedPrompt && !isPhone"
+          :active="isShown"
           class="-z-10"
         />
 

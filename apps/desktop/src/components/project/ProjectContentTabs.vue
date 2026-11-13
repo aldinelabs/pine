@@ -59,6 +59,7 @@ import { useWorkbenchStore } from "@/stores/workbench";
 import type { ProjectContentTab } from "@/stores/contentTabs";
 import { useContentTabsStore } from "@/stores/contentTabs";
 import { useSessionStore } from "@/stores/session";
+import { onSessionEvent } from "@/client/sessionEvents";
 import { useProjectStore } from "@/stores/project";
 import { useQuickComposerHandoffStore } from "@/stores/quickComposerHandoff";
 import { Spinner } from "@/components/ui/spinner";
@@ -428,7 +429,7 @@ onBeforeUnmount(() => attentionFlash.stopAll());
 // A confirmed ui_session_teleport moves a session to another project;
 // its tabs follow, which also switches the sidebars to the new project.
 onMounted(() => {
-  const stop = window.pine.onSessionEvent((event) => {
+  const stop = onSessionEvent((event) => {
     if (event.type === "session-teleported")
       contentTabsStore.moveSessionToProject(event.sessionId, event.projectId);
   });

@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { isReactive, reactive } from "vue";
 import {
   PINE_SESSION_MUTATION_MESSAGE,
   isPineSessionMutator,
@@ -34,6 +35,14 @@ describe("session mutators", () => {
 
   it("drops repeats and keeps order", () => {
     expect(uniqueSessionMutators([mcp, skill, mcp])).toEqual([mcp, skill]);
+  });
+
+  it("returns plain copies of mutators held in reactive state", () => {
+    const held = reactive([{ ...mcp }, { ...skill }, { ...mcp }]);
+    const unique = uniqueSessionMutators(held);
+    expect(unique).toEqual([mcp, skill]);
+    expect(unique.some((mutator) => isReactive(mutator))).toBe(false);
+    expect(() => structuredClone(unique)).not.toThrow();
   });
 
   it("shows a mutation as the activation tool it stands in for", () => {

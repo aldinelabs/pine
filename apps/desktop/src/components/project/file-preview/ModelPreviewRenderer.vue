@@ -25,6 +25,7 @@ import { resolveColors } from "@/lib/themeColors";
 import { useThemeRoot } from "@/composables/useThemeRoot";
 import { previewExtension } from "@/shared/previewFormats";
 import { useAppearanceStore } from "@/stores/appearance";
+import { loadingTextures, textureLoading } from "./modelTextures";
 import { readPreviewBytes } from "./previewBytes";
 import type {
   PreviewRendererEvents,
@@ -75,6 +76,26 @@ let resizeObserver: ResizeObserver | undefined;
 let fitDistance = 1;
 let modelRadius = 1;
 let applyingZoom = false;
+/** True while the pointer drives the controls (between `start` and `end`). */
+let interacting = false;
+/** True when no frame chain is running, so the clock holds idle time. */
+let idle = true;
+let lastPosition: THREE.Vector3 | undefined;
+let lastQuaternion: THREE.Quaternion | undefined;
+/** Textures whose image is still loading; frames continue until they land. */
+let pendingTextures: THREE.Texture[] = [];
+/** `performance.now()` after which a texture that never loads stops the wait. */
+let texturesDeadline = 0;
+
+/**
+ * Smallest per-frame camera motion still treated as moving, relative to the
+ * orbit distance. Far below a pixel, so damping settles out of sight; it is
+ * tighter than OrbitControls' own absolute change threshold, which would
+ * stop a small model's glide early.
+ */
+const SETTLED_EPSILON = 1e-7;
+/** How long to keep drawing for textures that have not loaded yet. */
+const TEXTURE_WAIT_MS = 5000;
 
 function draw(): void {
   if (!renderer || !scene || !camera) return;
@@ -84,9 +105,48 @@ function draw(): void {
   renderer.render(scene, camera);
 }
 
-function loop(): void {
+/** Request one frame; repeated calls before it runs share it. */
+function invalidate(): void {
+  if (frame !== undefined || !props.active || !renderer) return;
+  // Drop the time spent idle so the first frame advances like a steady one.
+  if (idle) clock?.getDelta();
+  idle = false;
+  frame = requestAnimationFrame(tick);
+}
+
+/** Whether the camera moved since the previous frame (damping still settling). */
+function cameraMoved(): boolean {
+  if (!camera || !controls) return false;
+  if (!lastPosition || !lastQuaternion) {
+    lastPosition = camera.position.clone();
+    lastQuaternion = camera.quaternion.clone();
+    return true;
+  }
+  const distance = Math.max(camera.position.distanceTo(controls.target), 1e-12);
+  const shift = camera.position.distanceTo(lastPosition) / distance;
+  const turn = 1 - Math.abs(lastQuaternion.dot(camera.quaternion));
+  lastPosition.copy(camera.position);
+  lastQuaternion.copy(camera.quaternion);
+  return shift > SETTLED_EPSILON || turn > SETTLED_EPSILON ** 2;
+}
+
+function tick(): void {
+  frame = undefined;
   draw();
-  frame = props.active ? requestAnimationFrame(loop) : undefined;
+  const moved = cameraMoved();
+  if (pendingTextures.length) {
+    pendingTextures = pendingTextures.filter(textureLoading);
+    if (performance.now() > texturesDeadline) pendingTextures = [];
+  }
+  if (
+    interacting ||
+    moved ||
+    mixer ||
+    controls?.autoRotate ||
+    pendingTextures.length
+  )
+    invalidate();
+  idle = frame === undefined;
 }
 
 function fit(): void {
@@ -104,6 +164,7 @@ function fit(): void {
   controls.target.copy(sphere.center);
   controls.update();
   emit("zoomChange", 100);
+  invalidate();
 }
 
 function setZoom(percent: number): void {
@@ -114,6 +175,7 @@ function setZoom(percent: number): void {
   camera.position.copy(controls.target).add(offset);
   controls.update();
   applyingZoom = false;
+  invalidate();
 }
 
 function themeHelpers(): void {
@@ -134,6 +196,7 @@ function themeHelpers(): void {
   }
   grid.visible = options.value.includes("grid");
   scene.add(grid);
+  invalidate();
 }
 
 function applyOptions(): void {
@@ -148,6 +211,7 @@ function applyOptions(): void {
       if ("wireframe" in material)
         (material as THREE.MeshStandardMaterial).wireframe = wireframe;
   });
+  invalidate();
 }
 
 async function setup(): Promise<void> {
@@ -182,6 +246,8 @@ async function setup(): Promise<void> {
   renderer.setSize(element.clientWidth, element.clientHeight);
   renderer.outputColorSpace = three.SRGBColorSpace;
   element.append(renderer.domElement);
+  // three rebuilds its state on a restored context but does not draw.
+  renderer.domElement.addEventListener("webglcontextrestored", invalidate);
   scene = new three.Scene();
   camera = new three.PerspectiveCamera(
     40,
@@ -195,13 +261,24 @@ async function setup(): Promise<void> {
   controls = new Controls(camera, renderer.domElement);
   controls.enableDamping = true;
   controls.autoRotateSpeed = 1.5;
+  controls.addEventListener("start", () => {
+    interacting = true;
+    invalidate();
+  });
+  controls.addEventListener("end", () => {
+    interacting = false;
+    invalidate();
+  });
   controls.addEventListener("change", () => {
+    invalidate();
     if (applyingZoom || !camera || !controls) return;
     const distance = camera.position.distanceTo(controls.target);
     emit("zoomChange", Math.round((fitDistance / distance) * 100));
   });
   model = loaded.object;
   scene.add(model);
+  pendingTextures = loadingTextures(model);
+  texturesDeadline = performance.now() + TEXTURE_WAIT_MS;
   if (loaded.animations.length) {
     mixer = new three.AnimationMixer(model);
     for (const clip of loaded.animations) mixer.clipAction(clip).play();
@@ -230,9 +307,10 @@ async function setup(): Promise<void> {
     camera.aspect = element.clientWidth / Math.max(1, element.clientHeight);
     camera.updateProjectionMatrix();
     draw();
+    invalidate();
   });
   resizeObserver.observe(element);
-  loop();
+  invalidate();
 }
 
 onMounted(async () => {
@@ -268,7 +346,13 @@ watch(
 watch(
   () => props.active,
   (active) => {
-    if (active && frame === undefined && renderer) loop();
+    if (active) {
+      invalidate();
+    } else if (frame !== undefined) {
+      cancelAnimationFrame(frame);
+      frame = undefined;
+      idle = true;
+    }
   },
 );
 watch(

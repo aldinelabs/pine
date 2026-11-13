@@ -1,5 +1,6 @@
 import { createPinia, setActivePinia } from "pinia";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { effect } from "vue";
 import type { PineModelCatalog, PineModelDescriptor } from "@/shared/models";
 import {
   MODEL_FAVORITES_STORAGE_KEY,
@@ -265,5 +266,35 @@ describe("defaultThinkingLevel", () => {
     [["off"], "off"],
   ] as const)("chooses %s as %s", (supported, expected) => {
     expect(defaultThinkingLevel(supported)).toBe(expected);
+  });
+});
+
+describe("session model selections", () => {
+  it("leaves the selections alone when nothing changes", () => {
+    const store = useModelsStore();
+    const selection = {
+      providerId: "provider",
+      modelId: "alpha",
+      thinkingLevel: "high" as const,
+    };
+    let runs = 0;
+    effect(() => {
+      store.selectionFor("session");
+      runs += 1;
+    });
+
+    store.setSessionSelection("session", selection);
+    expect(runs).toBe(2);
+    store.setSessionSelection("session", { ...selection });
+    store.setSessionSelection("other", undefined);
+    expect(runs).toBe(2);
+    expect(store.selectionFor("session")).toEqual(selection);
+
+    store.setSessionSelection("session", { ...selection, modelId: "beta" });
+    expect(runs).toBe(3);
+    expect(store.selectionFor("session")?.modelId).toBe("beta");
+    store.setSessionSelection("session", undefined);
+    expect(runs).toBe(4);
+    expect(store.selectionFor("session")).toBeUndefined();
   });
 });

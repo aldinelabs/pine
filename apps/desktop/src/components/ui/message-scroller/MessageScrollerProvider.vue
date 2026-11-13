@@ -8,7 +8,11 @@ const props = withDefaults(defineProps<MessageScrollerProviderProps>(), {
 
 const engine = provideMessageScroller(props);
 
-defineExpose({ isFollowingBottom: engine.context.isFollowingBottom });
+defineExpose({
+  isFollowingBottom: engine.context.isFollowingBottom,
+  /** Read-only: whether the viewport is pinned to the live end. */
+  followingBottom: engine.context.followingBottom,
+});
 </script>
 
 <template>

@@ -1151,4 +1151,152 @@ describe("ProjectSessionService", () => {
       await service.dispose();
     }
   });
+
+  it("parses a session file once while paging and again after it changes", async () => {
+    const rootPath = await createTemporaryProjectData();
+    const options = serviceOptions(rootPath);
+    await mkdir(options.cwd, { recursive: true });
+    const repository = createRepository(options.sessionsRoot);
+    const session = await createSession(repository, options.cwd);
+    for (const content of ["one", "two", "three", "four", "five", "six"]) {
+      await appendMessage(session, {
+        role: "user",
+        content,
+        timestamp: Date.now(),
+      });
+    }
+    const service = await ProjectSessionService.create(options);
+    const opens = vi.spyOn(SessionManager, "open");
+
+    try {
+      const described = await service.describeSession(session.metadata.id);
+      expect(described.summary.preview).toBe("one");
+      let page = await service.loadMessages(
+        session.metadata.id,
+        undefined,
+        2,
+        true,
+      );
+      const seen = page.messages.map((message) => textOf(message));
+      while (page.hasMore) {
+        page = await service.loadMessages(
+          session.metadata.id,
+          page.nextBefore,
+          2,
+        );
+        seen.unshift(...page.messages.map((message) => textOf(message)));
+      }
+      expect(seen).toEqual(["one", "two", "three", "four", "five", "six"]);
+      expect(opens).toHaveBeenCalledTimes(1);
+
+      await appendMessage(session, {
+        role: "user",
+        content: "seven",
+        timestamp: Date.now(),
+      });
+      const latest = await service.loadMessages(session.metadata.id);
+      expect(latest.messages.map((message) => textOf(message)).at(-1)).toBe(
+        "seven",
+      );
+      expect(opens).toHaveBeenCalledTimes(2);
+
+      await service.renameSession(session.metadata.id, "Renamed");
+      await expect(
+        service.describeSession(session.metadata.id),
+      ).resolves.toMatchObject({ summary: { name: "Renamed" } });
+    } finally {
+      opens.mockRestore();
+      await service.dispose();
+    }
+  });
+
+  it("finds a known session without listing the library, and rescans when it moves", async () => {
+    const rootPath = await createTemporaryProjectData();
+    const options = serviceOptions(rootPath);
+    await mkdir(options.cwd, { recursive: true });
+    const repository = createRepository(options.sessionsRoot);
+    const session = await createSession(repository, options.cwd);
+    await appendMessage(session, {
+      role: "user",
+      content: "Where am I",
+      timestamp: Date.now(),
+    });
+    const service = await ProjectSessionService.create(options);
+    const listings = vi.spyOn(
+      service as unknown as { listSessions: () => Promise<unknown[]> },
+      "listSessions",
+    );
+
+    try {
+      await expect(service.search("")).resolves.toHaveLength(1);
+      expect(listings).toHaveBeenCalledTimes(1);
+      await service.loadMessages(session.metadata.id);
+      await service.describeSession(session.metadata.id);
+      expect(listings).toHaveBeenCalledTimes(1);
+
+      const movedDirectory = path.join(options.sessionsRoot, "elsewhere");
+      await mkdir(movedDirectory, { recursive: true });
+      const movedPath = path.join(
+        movedDirectory,
+        path.basename(session.metadata.path),
+      );
+      await writeFile(
+        movedPath,
+        await readFile(session.metadata.path, "utf8"),
+        "utf8",
+      );
+      await rm(session.metadata.path);
+
+      await expect(
+        service.describeSession(session.metadata.id),
+      ).resolves.toMatchObject({ sessionFile: movedPath });
+      expect(listings).toHaveBeenCalledTimes(2);
+      await expect(
+        service.loadMessages(session.metadata.id),
+      ).resolves.toMatchObject({
+        messages: [{ blocks: [{ text: "Where am I" }] }],
+      });
+      expect(listings).toHaveBeenCalledTimes(2);
+      await expect(service.loadMessages("missing")).rejects.toThrow(
+        "Session not found",
+      );
+    } finally {
+      await service.dispose();
+    }
+  });
+
+  it("shares index refreshes between concurrent callers", async () => {
+    const rootPath = await createTemporaryProjectData();
+    const options = serviceOptions(rootPath);
+    await mkdir(options.cwd, { recursive: true });
+    const repository = createRepository(options.sessionsRoot);
+    const session = await createSession(repository, options.cwd);
+    await appendMessage(session, {
+      role: "user",
+      content: "Shared refresh",
+      timestamp: Date.now(),
+    });
+    const service = await ProjectSessionService.create(options);
+    const refreshes = vi.spyOn(
+      service as unknown as { refreshIndexNow: () => Promise<void> },
+      "refreshIndexNow",
+    );
+
+    try {
+      const results = await Promise.all([
+        service.search(""),
+        service.search("Shared"),
+        service.search("refresh"),
+        service.search(""),
+      ]);
+      expect(results.map((result) => result.length)).toEqual([1, 1, 1, 1]);
+      // One running refresh plus one follow-up for callers that arrived late.
+      expect(refreshes).toHaveBeenCalledTimes(2);
+
+      await service.search("");
+      expect(refreshes).toHaveBeenCalledTimes(3);
+    } finally {
+      await service.dispose();
+    }
+  });
 });

@@ -146,7 +146,8 @@ export { projectSessionDirectory } from "../../shared/sessionPaths";
 export function sessionSummary(session: AgentSession): PineSessionSummary {
   const header = session.sessionManager.getHeader();
   const entries = session.sessionManager.getEntries();
-  const messages = entries.filter((entry) => entry.type === "message");
+  let messageCount = 0;
+  for (const entry of entries) if (entry.type === "message") messageCount++;
   const createdAt = header?.timestamp ?? new Date().toISOString();
 
   return {
@@ -155,7 +156,7 @@ export function sessionSummary(session: AgentSession): PineSessionSummary {
     createdAt,
     // Same rule as the session list, so opening a session never moves it.
     updatedAt: sessionActivityAt(entries, Date.parse(createdAt), Date.now()),
-    messageCount: messages.length,
+    messageCount,
     ...(session.model
       ? {
           modelSelection: {

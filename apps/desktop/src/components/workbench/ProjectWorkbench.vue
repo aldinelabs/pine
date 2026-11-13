@@ -247,6 +247,8 @@ watch(
 
 onUnmounted(() => {
   for (const timer of timers) clearTimeout(timer);
+  // A drag cut short by the column unmounting still keeps its split.
+  workbench.saveSplit();
 });
 
 const liveCount = computed(
@@ -283,12 +285,15 @@ function startDrag(event: PointerEvent): void {
 function drag(event: PointerEvent): void {
   if (!dragStart || dragStart.height <= 0) return;
   const delta = ((event.clientY - dragStart.y) / dragStart.height) * 100;
-  workbench.setSplit(dragStart.split + delta);
+  workbench.setSplit(dragStart.split + delta, { persist: false });
 }
 
+// Pointer up, cancel and the capture loss that follows each all end a drag;
+// the split is stored on the first of them.
 function endDrag(): void {
   dragStart = null;
   isDragging.value = false;
+  workbench.saveSplit();
 }
 
 function resizeWithKeyboard(event: KeyboardEvent): void {
