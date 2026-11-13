@@ -172,7 +172,8 @@ export default {
       defaultProjectDescription: "從微信新建的工作階段在這裡開始。",
       ceiling: "最高核准模式",
       ceilingDescription: "由微信驅動的工作階段，監管程度不會低於這一檔。",
-      yoloWarning: "選擇 YOLO 後，任何進入你微信帳號的人都能控制這台電腦。",
+      yoloWarning:
+        "選擇「幹就完了」後，任何進入你微信帳號的人都能控制這台電腦。",
       defaultMode: "預設核准模式",
       defaultModeDescription: "從微信新建的工作階段使用的模式。",
       allowHighRisk: "允許在微信中核准高風險操作",

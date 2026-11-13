@@ -922,7 +922,7 @@ describe("labels", () => {
         ceiling: "auto-approve",
       }),
     ).toBe(
-      "1 Let Me Review · 2 * Auto Approve · 3 🔒 Autonomous Work · 4 🔒 YOLO\nThe ceiling is set on the computer.",
+      "1 Let Me Review · 2 * Auto Approve · 3 🔒 Autonomous Work · 4 🔒 YOLO\nThe highest mode is set on the computer.",
     );
   });
 
@@ -951,10 +951,10 @@ describe("help", () => {
     const text = renderSample("R-HELP", "zh");
     expect(text.split("\n")[0]).toBe("Pine 微信命令（以 . 或 。开头）");
     expect(text.split("\n").at(-1)).toBe(
-      "电脑：kw-mac · 上限：自动审批 · 发文件：关",
+      "电脑：kw-mac · 最高模式：自动审批 · 发文件：关",
     );
     expect(renderSample("R-WELCOME", "en")).toMatch(
-      /^Connected to Pine on kw-mac \(experimental\)\. Highest approval mode: Auto Approve\.\nPine WeChat commands/,
+      /^Connected to Pine on kw-mac \(experimental\)\.\nPine WeChat commands/,
     );
   });
 

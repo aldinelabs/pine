@@ -348,8 +348,8 @@ function helpFooter(
   const computer = truncate(cleanInline(data.computer), TITLE_MAX);
   return pick(
     lang,
-    `电脑：${computer} · 上限：${modeLabel(lang, data.ceiling)} · 发文件：${onOff(lang, data.files)}`,
-    `Computer: ${computer} · Ceiling: ${modeLabel(lang, data.ceiling)} · Files: ${onOff(lang, data.files)}`,
+    `电脑：${computer} · 最高模式：${modeLabel(lang, data.ceiling)} · 发文件：${onOff(lang, data.files)}`,
+    `Computer: ${computer} · Highest mode: ${modeLabel(lang, data.ceiling)} · Files: ${onOff(lang, data.files)}`,
   );
 }
 
@@ -1142,8 +1142,8 @@ const TEMPLATES: { [K in ReplyId]: Template<K> } = {
     return lines(
       pick(
         lang,
-        `已连接到 ${computer} 上的 Pine（实验性功能）。最高审批模式：${modeLabel(lang, data.ceiling)}。`,
-        `Connected to Pine on ${computer} (experimental). Highest approval mode: ${modeLabel(lang, data.ceiling)}.`,
+        `已连接到 ${computer} 上的 Pine（实验性功能）。`,
+        `Connected to Pine on ${computer} (experimental).`,
       ),
       TEMPLATES["R-HELP"](lang, data),
     );
@@ -1382,14 +1382,18 @@ const TEMPLATES: { [K in ReplyId]: Template<K> } = {
         const mark = mode === current ? "* " : index + 1 > limit ? "🔒 " : "";
         return `${index + 1} ${mark}${modeLabel(lang, mode)}`;
       }).join(" · "),
-      pick(lang, "上限在电脑上设置。", "The ceiling is set on the computer."),
+      pick(
+        lang,
+        "最高模式在电脑上设置。",
+        "The highest mode is set on the computer.",
+      ),
     );
   },
   "R-MODE": (lang, { at, mode, ceiling }) =>
     `${head(lang, at)}${pick(
       lang,
-      `审批模式：${modeLabel(lang, mode)}（上限 ${modeLabel(lang, ceiling)}）`,
-      `Approval mode: ${modeLabel(lang, mode)} (ceiling ${modeLabel(lang, ceiling)})`,
+      `审批模式：${modeLabel(lang, mode)}（最高模式 ${modeLabel(lang, ceiling)}）`,
+      `Approval mode: ${modeLabel(lang, mode)} (highest mode ${modeLabel(lang, ceiling)})`,
     )}`,
   "R-MODE-REVIEW": (lang, data) =>
     lines(
@@ -1455,8 +1459,8 @@ const TEMPLATES: { [K in ReplyId]: Template<K> } = {
       ),
       pick(
         lang,
-        `模式 ${modeLabel(lang, data.mode)}（上限 ${modeLabel(lang, data.ceiling)}）`,
-        `Mode ${modeLabel(lang, data.mode)} (ceiling ${modeLabel(lang, data.ceiling)})`,
+        `模式 ${modeLabel(lang, data.mode)}（最高模式 ${modeLabel(lang, data.ceiling)}）`,
+        `Mode ${modeLabel(lang, data.mode)} (highest mode ${modeLabel(lang, data.ceiling)})`,
       ),
       context.length > 0 && context.join(" · "),
       pick(
@@ -2149,8 +2153,8 @@ const TEMPLATES: { [K in ReplyId]: Template<K> } = {
   "E-CEIL": (lang, { ceiling }) =>
     pick(
       lang,
-      `微信最高只能用 ${modeLabel(lang, ceiling)}。上限只能在电脑上修改。`,
-      `WeChat can go no higher than ${modeLabel(lang, ceiling)}. The ceiling can only be changed on the computer.`,
+      `微信最高只能用 ${modeLabel(lang, ceiling)}。最高模式只能在电脑上修改。`,
+      `WeChat can go no higher than ${modeLabel(lang, ceiling)}. The highest mode can only be changed on the computer.`,
     ),
   "E-LOCAL": (lang, { ask }) =>
     ask === undefined

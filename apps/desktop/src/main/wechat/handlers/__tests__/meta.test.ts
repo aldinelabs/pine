@@ -42,7 +42,7 @@ describe(".help", () => {
   it("lists the hot path, the rest, and one command", async () => {
     const { ctx } = setup();
     expect((await run(ctx, "help")).text).toContain(
-      "Computer: Test Mac · Ceiling: Auto Approve · Files: off",
+      "Computer: Test Mac · Highest mode: Auto Approve · Files: off",
     );
     expect((await run(ctx, "help", ["2"])).text).toContain(".m model");
     expect((await run(ctx, "help", ["n"])).text).toContain(

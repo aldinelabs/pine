@@ -172,7 +172,7 @@ export default {
       defaultProjectDescription: "从微信新建的会话在这里开始。",
       ceiling: "最高审批模式",
       ceilingDescription: "由微信驱动的会话，监管程度不会低于这一档。",
-      yoloWarning: "选择 YOLO 后，任何进入你微信账号的人都能控制这台电脑。",
+      yoloWarning: "选择“干就完了”后，任何进入你微信账号的人都能控制这台电脑。",
       defaultMode: "默认审批模式",
       defaultModeDescription: "从微信新建的会话使用的模式。",
       allowHighRisk: "允许在微信中批准高风险操作",
