@@ -127,15 +127,15 @@ export type PineApprovalReviewReasonCode =
 
 /** Reviewer-written account of a call that needs the user. Untrusted model text. */
 export interface PineApprovalExplanation {
-  /** What the exact call does, one or two sentences. */
+  /** What the exact call does, one plain sentence. */
   summary: string;
-  /** Concrete risk points, 0–4 short sentences. */
+  /** Concrete risk points, 0–3 short items. */
   risks: string[];
 }
 
 export const APPROVAL_EXPLANATION_SUMMARY_MAX = 400;
 export const APPROVAL_EXPLANATION_RISK_MAX = 240;
-export const APPROVAL_EXPLANATION_RISKS_MAX = 4;
+export const APPROVAL_EXPLANATION_RISKS_MAX = 3;
 
 /**
  * Fixed Pine-authored approval reasons. `reason` keeps the English text for

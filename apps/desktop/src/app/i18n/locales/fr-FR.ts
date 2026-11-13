@@ -1257,13 +1257,16 @@ export default {
         "Cette opération demande une exécution native en dehors du bac à sable du projet de Pine.",
       triggerLongContextActivation:
         "Pine veut activer de nouveaux outils. Confirmez avant de continuer.",
-      evidence: "Détails",
       explanationLoading: "Le modèle d’approbation décrit cette opération…",
-      explanationNote:
-        "Rédigé par le modèle d’approbation. Ce sont les paramètres d’origine qui seront exécutés.",
       risks: "Risques",
-      showParameters: "Afficher les paramètres d’origine",
-      hideParameters: "Masquer les paramètres d’origine",
+      details: "Détails techniques",
+      explainedBy: "Expliqué par le modèle d’approbation",
+      explanationCaveat:
+        "Voici comment le modèle d’approbation comprend la demande. Ce sont les paramètres d’origine, sous « Détails techniques », qui seront exécutés.",
+      detailsReason: "Pourquoi Pine demande",
+      detailsDescription: "Description de l’agent",
+      detailsParameters: "Paramètres d’origine",
+      detailsReviewerNotes: "Notes de vérification",
       approve: "Approuver",
       reject: "Refuser",
       activateNow: "Activer maintenant",

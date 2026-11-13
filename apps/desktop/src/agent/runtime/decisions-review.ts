@@ -254,7 +254,8 @@ export async function runApprovalReview(options: {
       const explained = requests.filter((request) =>
         ids.has(request.toolCallId),
       );
-      // One request for the whole batch; the card never waits for it.
+      // One request for the whole batch; each card waits for it only up to
+      // APPROVAL_EXPLANATION_WAIT_MS (agent/runtime.ts).
       const batch = Promise.resolve()
         .then(() => explain(explained))
         .catch(() => new Map<string, PineApprovalExplanation>());

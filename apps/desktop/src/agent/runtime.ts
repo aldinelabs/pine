@@ -191,7 +191,10 @@ import {
   piProjectSkillPaths,
 } from "./skills/piDiscovery";
 import { readPineAgentSettings } from "./pineSettings";
-import { createDefaultPineUserProfile } from "../shared/userProfile";
+import {
+  createDefaultPineUserProfile,
+  type PineUserProfile,
+} from "../shared/userProfile";
 import { intelligentUiSystemPrompt } from "../shared/intelligentUi";
 import {
   approximateLocationNotice,
@@ -267,7 +270,9 @@ import { createSemanticCompactionExtension } from "./runtime/semantic-compaction
 import {
   AUTONOMOUS_JUDGE_SYSTEM_PROMPT,
   JUDGE_SYSTEM_PROMPT,
+  approvalExplanationAudience,
   approvalExplanationSystemPrompt,
+  awaitApprovalExplanation,
   buildApprovalExplanationContent,
   buildJudgeEvidence,
   buildJudgeSharedContext,
@@ -349,8 +354,12 @@ const AUTHORING_TARGET_LABEL: Record<PineAuthoringTarget, string> = {
 };
 
 const JUDGE_TIMEOUT_MS = 60_000;
-/** Explanation-only requests for Decisions needs_user cards; never block the card. */
+/**
+ * Explanation-only requests for Decisions needs_user cards. The card waits up
+ * to APPROVAL_EXPLANATION_WAIT_MS; an account landing later still fills it.
+ */
 const APPROVAL_EXPLANATION_TIMEOUT_MS = 20_000;
+export const APPROVAL_EXPLANATION_WAIT_MS = 10_000;
 const BACKGROUND_TASKS_EVENT_MS = 200;
 const TITLE_TIMEOUT_MS = 30_000;
 const TITLE_MAX_TOKENS = 4_096;
@@ -2115,30 +2124,53 @@ export class PineAgentRuntime {
       if (request.description !== undefined) {
         reviewInput.description = request.description;
       }
-      this.options.emit({
-        type: "approval-request",
-        sessionId,
-        requestId,
-        toolCallId: request.toolCallId,
-        toolName: request.toolName,
-        trigger: request.trigger,
-        input: Object.keys(reviewInput).length > 0 ? reviewInput : undefined,
-        evidence: request.evidence,
-        autoApprovalFailure: request.autoApprovalFailure,
-        ...(request.reasonCode ? { reasonCode: request.reasonCode } : {}),
-        ...(request.reasonDetail ? { reasonDetail: request.reasonDetail } : {}),
-        ...(request.reviews?.length ? { reviews: request.reviews } : {}),
-        ...(request.explanation
-          ? { explanation: request.explanation }
-          : request.pendingExplanation
-            ? { explanationPending: true }
+      const emitRequest = (
+        explanation: PineApprovalExplanation | undefined,
+        explanationPending: boolean,
+      ) =>
+        this.options.emit({
+          type: "approval-request",
+          sessionId,
+          requestId,
+          toolCallId: request.toolCallId,
+          toolName: request.toolName,
+          trigger: request.trigger,
+          input: Object.keys(reviewInput).length > 0 ? reviewInput : undefined,
+          evidence: request.evidence,
+          autoApprovalFailure: request.autoApprovalFailure,
+          ...(request.reasonCode ? { reasonCode: request.reasonCode } : {}),
+          ...(request.reasonDetail
+            ? { reasonDetail: request.reasonDetail }
             : {}),
-        actionDigest: pending.actionDigest,
-      });
-      if (request.pendingExplanation && !request.explanation) {
-        void request.pendingExplanation
+          ...(request.reviews?.length ? { reviews: request.reviews } : {}),
+          ...(explanation
+            ? { explanation }
+            : explanationPending
+              ? { explanationPending: true }
+              : {}),
+          actionDigest: pending.actionDigest,
+        });
+      const pendingExplanation = request.pendingExplanation;
+      if (request.explanation || !pendingExplanation) {
+        emitRequest(request.explanation, false);
+        return;
+      }
+      // Show the card once its account is ready, or after the wait window.
+      void awaitApprovalExplanation(
+        pendingExplanation,
+        request.signal,
+        APPROVAL_EXPLANATION_WAIT_MS,
+      ).then(({ explanation, timedOut }) => {
+        // Aborted, decided elsewhere, or the session closed meanwhile.
+        if (this.pendingApprovals.get(requestId) !== pending) return;
+        if (!timedOut) {
+          emitRequest(explanation, false);
+          return;
+        }
+        emitRequest(undefined, true);
+        void pendingExplanation
           .catch(() => undefined)
-          .then((explanation) => {
+          .then((late) => {
             // A decided or aborted card no longer shows anything.
             if (this.pendingApprovals.get(requestId) !== pending) return;
             this.options.emit({
@@ -2146,10 +2178,10 @@ export class PineAgentRuntime {
               sessionId,
               requestId,
               toolCallId: request.toolCallId,
-              ...(explanation ? { explanation } : {}),
+              ...(late ? { explanation: late } : {}),
             });
           });
-      }
+      });
     });
   }
 
@@ -2547,9 +2579,10 @@ export class PineAgentRuntime {
       request.signal ? [request.signal] : [],
     );
     const signal = AbortSignal.any([...requestSignals, timeout]);
+    const pineSettings = await readPineAgentSettings(live.agentDir);
     const settings =
-      (await readPineAgentSettings(live.agentDir)).autoApproval ??
-      DEFAULT_AUTO_APPROVAL_SETTINGS;
+      pineSettings.autoApproval ?? DEFAULT_AUTO_APPROVAL_SETTINGS;
+    const profile = pineSettings.userProfile ?? createDefaultPineUserProfile();
     return runApprovalReview({
       requests,
       settings,
@@ -2563,11 +2596,12 @@ export class PineAgentRuntime {
             await this.getModelRuntime(live.agentDir)
           ).getAuth("openrouter")
         )?.auth.apiKey,
-      reviewWithModel: (pending) => this.runModelJudge(live, pending, signal),
+      reviewWithModel: (pending) =>
+        this.runModelJudge(live, pending, signal, profile),
       ...(live.approvalMode !== "autonomous"
         ? {
             explainWithModel: (pending: JudgeRequest[]) =>
-              this.runModelExplanation(live, pending),
+              this.runModelExplanation(live, pending, profile),
           }
         : {}),
     });
@@ -2580,6 +2614,7 @@ export class PineAgentRuntime {
   private async runModelExplanation(
     live: LiveAgentSession,
     requests: JudgeRequest[],
+    profile: PineUserProfile = createDefaultPineUserProfile(),
   ): Promise<Map<string, PineApprovalExplanation>> {
     const none = new Map<string, PineApprovalExplanation>();
     if (requests.length === 0) return none;
@@ -2597,7 +2632,10 @@ export class PineAgentRuntime {
         AbortSignal.timeout(APPROVAL_EXPLANATION_TIMEOUT_MS),
       ]);
       const context: Context = {
-        systemPrompt: approvalExplanationSystemPrompt(live.locale),
+        systemPrompt: approvalExplanationSystemPrompt(
+          live.locale,
+          approvalExplanationAudience(profile, { includeNotes: true }),
+        ),
         messages: [
           {
             role: "user",
@@ -2610,7 +2648,7 @@ export class PineAgentRuntime {
       let final: AssistantMessage | undefined;
       for await (const event of modelRuntime.stream(model, context, {
         ...judgeStreamOptions(model, signal),
-        maxTokens: Math.min(2_000, 300 + 350 * requests.length),
+        maxTokens: Math.min(1_500, 250 + 250 * requests.length),
       })) {
         if (event.type === "done") final = event.message;
         else if (event.type === "error") return none;
@@ -2633,6 +2671,7 @@ export class PineAgentRuntime {
     live: LiveAgentSession,
     requests: JudgeRequest[],
     signal: AbortSignal,
+    profile: PineUserProfile = createDefaultPineUserProfile(),
   ): Promise<JudgeRuling[]> {
     let reviewer: Pick<
       PineApprovalReview,
@@ -2662,6 +2701,10 @@ export class PineAgentRuntime {
           requests.every((request) => request.allowSessionScope === false)
             ? '\n\nThese privileged calls must each receive an independent verdict. Set every scope to "once"; session scope is not available.'
             : ""
+        }${
+          autonomous
+            ? ""
+            : `\n\nReader of summary and risks (affects only their wording, never the verdict): ${approvalExplanationAudience(profile, { includeNotes: false })}`
         }`,
         messages: [
           {

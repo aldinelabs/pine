@@ -1255,14 +1255,17 @@ export default {
         "Esta operación solicita una ejecución nativa fuera del sandbox de proyecto de Pine.",
       triggerLongContextActivation:
         "Pine quiere activar nuevas herramientas. Confírmalo antes de continuar.",
-      evidence: "Detalles",
       explanationLoading:
         "El modelo de aprobación está describiendo esta operación…",
-      explanationNote:
-        "Redactado por el modelo de aprobación. Lo que se ejecuta son los parámetros originales.",
       risks: "Riesgos",
-      showParameters: "Mostrar parámetros originales",
-      hideParameters: "Ocultar parámetros originales",
+      details: "Detalles técnicos",
+      explainedBy: "Explicado por el modelo de aprobación",
+      explanationCaveat:
+        "Así interpreta la solicitud el modelo de aprobación. Lo que se ejecuta son los parámetros originales de «Detalles técnicos».",
+      detailsReason: "Por qué pregunta Pine",
+      detailsDescription: "Descripción del agente",
+      detailsParameters: "Parámetros originales",
+      detailsReviewerNotes: "Notas de la revisión",
       approve: "Aprobar",
       reject: "Rechazar",
       activateNow: "Activar ahora",

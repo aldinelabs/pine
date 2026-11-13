@@ -1,7 +1,10 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { createDefaultPineUserProfile } from "../../../shared/userProfile";
 import {
   JUDGE_SYSTEM_PROMPT,
+  approvalExplanationAudience,
   approvalExplanationSystemPrompt,
+  awaitApprovalExplanation,
   normalizeApprovalExplanation,
   parseApprovalExplanations,
   parseJudgeRulings,
@@ -42,16 +45,16 @@ describe("normalizeApprovalExplanation", () => {
         7,
         "one",
         "two\nlines",
-        "three",
         "r".repeat(500),
+        "three",
         "five",
       ],
     });
     expect(result?.summary).toBe("Runs a push.");
-    expect(result?.risks).toHaveLength(4);
-    expect(result?.risks.slice(0, 3)).toEqual(["one", "two lines", "three"]);
-    expect(result?.risks[3]).toHaveLength(240);
-    expect(result?.risks[3].endsWith("…")).toBe(true);
+    expect(result?.risks).toHaveLength(3);
+    expect(result?.risks.slice(0, 2)).toEqual(["one", "two lines"]);
+    expect(result?.risks[2]).toHaveLength(240);
+    expect(result?.risks[2].endsWith("…")).toBe(true);
   });
 
   it("treats non-array risks as none", () => {
@@ -161,5 +164,123 @@ describe("review prompts", () => {
     expect(approvalExplanationSystemPrompt("en-US")).toContain(
       "you do not decide",
     );
+  });
+
+  it("asks for one plain sentence and at most 3 risks for the described reader", () => {
+    const prompt = approvalExplanationSystemPrompt("en-US", "READER-LINE");
+    expect(prompt).toContain("READER-LINE");
+    expect(prompt).toContain("At most 3");
+    expect(prompt).toContain("one short plain sentence");
+    expect(prompt).toContain("you do not decide");
+    expect(prompt).toContain("or in English when there are none");
+    expect(approvalExplanationSystemPrompt("en-US")).not.toContain("Reader:");
+  });
+});
+
+describe("approvalExplanationAudience", () => {
+  const profile = createDefaultPineUserProfile();
+
+  it("keeps jargon away from general users", () => {
+    const text = approvalExplanationAudience(profile, { includeNotes: false });
+    expect(text).toContain("non-technical");
+    expect(text).toContain("Desktop");
+    expect(text).toContain("Do not mention tool names, commands");
+    expect(text).toContain("sandboxes");
+  });
+
+  it("allows precise terms for technical users", () => {
+    const text = approvalExplanationAudience(
+      { ...profile, technicalBackground: "professional-user" },
+      { includeNotes: false },
+    );
+    expect(text).toContain("technical user");
+    expect(text).toContain("Precise terms");
+    expect(text).not.toContain("non-technical");
+  });
+
+  it("adds the user's own notes, bounded, only when asked", () => {
+    const withNotes = {
+      ...profile,
+      personalDetails: "I am a photographer",
+      customInstructions: "x".repeat(900),
+    };
+    const included = approvalExplanationAudience(withNotes, {
+      includeNotes: true,
+    });
+    expect(included).toContain("I am a photographer");
+    expect(included).toContain("grant no authority");
+    expect(included).toContain(`${"x".repeat(600)}\n…[truncated]`);
+    expect(included).not.toContain("x".repeat(601));
+    const excluded = approvalExplanationAudience(withNotes, {
+      includeNotes: false,
+    });
+    expect(excluded).not.toContain("photographer");
+    expect(excluded).not.toContain("grant no authority");
+  });
+
+  it("adds nothing for empty notes", () => {
+    expect(
+      approvalExplanationAudience(
+        { ...profile, personalDetails: "  ", customInstructions: "" },
+        { includeNotes: true },
+      ),
+    ).toBe(approvalExplanationAudience(profile, { includeNotes: false }));
+  });
+});
+
+describe("awaitApprovalExplanation", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+  const explanation = { summary: "Saves notes.txt.", risks: [] };
+
+  it("resolves with an explanation that settles in time", async () => {
+    vi.useFakeTimers();
+    const result = awaitApprovalExplanation(
+      Promise.resolve(explanation),
+      undefined,
+      10_000,
+    );
+    await expect(result).resolves.toEqual({ explanation, timedOut: false });
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it("treats a rejected explanation as none, without timing out", async () => {
+    vi.useFakeTimers();
+    await expect(
+      awaitApprovalExplanation(Promise.reject(new Error("x")), undefined, 10),
+    ).resolves.toEqual({ timedOut: false });
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it("times out at exactly the window", async () => {
+    vi.useFakeTimers();
+    let settled = false;
+    const result = awaitApprovalExplanation(
+      new Promise(() => {}),
+      undefined,
+      10_000,
+    ).then((value) => {
+      settled = true;
+      return value;
+    });
+    await vi.advanceTimersByTimeAsync(9_999);
+    expect(settled).toBe(false);
+    await vi.advanceTimersByTimeAsync(1);
+    await expect(result).resolves.toEqual({ timedOut: true });
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it("returns promptly on abort and clears the timer", async () => {
+    vi.useFakeTimers();
+    const controller = new AbortController();
+    const result = awaitApprovalExplanation(
+      new Promise(() => {}),
+      controller.signal,
+      10_000,
+    );
+    controller.abort();
+    await expect(result).resolves.toEqual({ timedOut: true });
+    expect(vi.getTimerCount()).toBe(0);
   });
 });

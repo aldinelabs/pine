@@ -1,7 +1,12 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 import { useI18n } from "vue-i18n";
-import { ChevronRightIcon, TriangleAlertIcon } from "@lucide/vue";
+import {
+  ChevronRightIcon,
+  ShieldAlertIcon,
+  TriangleAlertIcon,
+} from "@lucide/vue";
+import ApprovalAttribution from "@/components/project/ApprovalAttribution.vue";
 import ApprovalGuidanceComposer from "@/components/approval/ApprovalGuidanceComposer.vue";
 import { Button } from "@/components/ui/button";
 import {
@@ -58,15 +63,11 @@ const evidence = computed(() =>
 const showShortcutHints = useShortcutHints();
 const guidance = ref("");
 const guiding = ref(false);
-// Decided once: an inline explanation starts with the parameters collapsed; a
-// late one leaves them expanded so nothing moves away under the reader. With
-// no explanation view (none arrived) they are forced open: the trigger is
-// hidden then, so the raw parameters must never stay collapsed.
-const showParameters = ref(!props.approval.explanation);
-const hasExplanationView = computed(
-  () =>
-    Boolean(props.approval.explanation) ||
-    props.approval.explanationPending === true,
+// Decided once at mount: an inline explanation starts with the technical
+// details closed; a pending one (shown after the wait window) leaves them open
+// so a late explanation never collapses what the reader is looking at.
+const showDetails = ref(
+  !props.approval.explanation && props.approval.explanationPending === true,
 );
 
 const triggerKey = computed(() => {
@@ -90,6 +91,14 @@ const triggerKey = computed(() => {
 // what happens next and the "reject with guidance" path does not apply.
 const isActivationChoice = computed(
   () => props.approval.trigger === "long-context-activation",
+);
+// The approval model's account leads; without one (none requested, or none
+// arrived) the description and parameters are shown directly.
+const explainedView = computed(
+  () =>
+    !isActivationChoice.value &&
+    (Boolean(props.approval.explanation) ||
+      props.approval.explanationPending === true),
 );
 
 function respond(action: PineApprovalAction, guidanceText?: string): void {
@@ -136,7 +145,7 @@ function startGuidance(): void {
   <Card class="max-h-[min(28rem,60dvh)] min-h-0">
     <CardHeader class="shrink-0">
       <CardTitle>{{ t("project.approvalRequest.title") }}</CardTitle>
-      <CardDescription>
+      <CardDescription v-if="approval.autoApprovalFailure || !explainedView">
         <span
           v-if="approval.autoApprovalFailure"
           class="mb-1 flex items-center gap-1.5 text-foreground"
@@ -145,7 +154,9 @@ function startGuidance(): void {
           <TriangleAlertIcon class="size-4 shrink-0" aria-hidden="true" />
           {{ t("project.approvalRequest.autoApprovalFallback") }}
         </span>
-        {{ t(`project.approvalRequest.${triggerKey}`) }}
+        <template v-if="!explainedView">
+          {{ t(`project.approvalRequest.${triggerKey}`) }}
+        </template>
       </CardDescription>
     </CardHeader>
     <CardContent
@@ -177,36 +188,17 @@ function startGuidance(): void {
           <li>{{ t("project.approvalRequest.activationCompactEffect") }}</li>
         </ul>
       </div>
-      <template v-else>
-        <!-- Reviewer prose is untrusted model text: plain interpolation only. -->
-        <div
-          v-if="approval.explanation"
-          class="flex flex-col gap-2"
-          data-slot="approval-explanation"
-        >
-          <p class="text-sm">{{ approval.explanation.summary }}</p>
-          <div
-            v-if="approval.explanation.risks.length > 0"
-            class="flex flex-col gap-1"
-          >
-            <p class="text-xs font-medium">
-              {{ t("project.approvalRequest.risks") }}
-            </p>
-            <ul class="list-disc space-y-1 pl-5 text-sm">
-              <li
-                v-for="(risk, index) in approval.explanation.risks"
-                :key="index"
-              >
-                {{ risk }}
-              </li>
-            </ul>
-          </div>
-          <p class="text-xs text-muted-foreground">
-            {{ t("project.approvalRequest.explanationNote") }}
-          </p>
-        </div>
+      <!-- Reviewer prose is untrusted model text: plain interpolation only. -->
+      <template v-else-if="explainedView">
         <p
-          v-else-if="approval.explanationPending"
+          v-if="approval.explanation"
+          class="text-sm leading-relaxed text-foreground"
+          data-slot="approval-summary"
+        >
+          {{ approval.explanation.summary }}
+        </p>
+        <p
+          v-else
           class="flex items-center gap-2 text-xs text-muted-foreground"
           role="status"
           aria-live="polite"
@@ -215,50 +207,106 @@ function startGuidance(): void {
           <Spinner class="size-3.5" aria-hidden="true" />
           {{ t("project.approvalRequest.explanationLoading") }}
         </p>
-        <Collapsible
-          v-if="approval.description || approval.subject"
-          :open="showParameters || !hasExplanationView"
-          class="flex flex-col gap-2"
-          @update:open="showParameters = $event"
+        <div
+          v-if="approval.explanation && approval.explanation.risks.length > 0"
+          class="flex flex-col gap-1 rounded-lg bg-muted/50 px-3 py-2"
+          data-slot="approval-risks"
+        >
+          <p
+            class="flex items-center gap-1.5 text-xs font-medium text-muted-foreground"
+          >
+            <ShieldAlertIcon class="size-3.5 shrink-0" aria-hidden="true" />
+            {{ t("project.approvalRequest.risks") }}
+          </p>
+          <ul
+            class="list-disc space-y-0.5 pl-4 text-sm marker:text-muted-foreground"
+          >
+            <li
+              v-for="(risk, index) in approval.explanation.risks"
+              :key="index"
+            >
+              {{ risk }}
+            </li>
+          </ul>
+        </div>
+      </template>
+      <template v-else>
+        <p v-if="approval.description" class="text-sm">
+          {{ approval.description }}
+        </p>
+        <div
+          v-if="approval.subject"
+          class="overflow-x-auto rounded-lg bg-muted/60 px-3 py-2 font-mono text-xs whitespace-pre-wrap"
+        >
+          {{ approval.subject }}
+        </div>
+      </template>
+      <!-- One disclosure for everything technical, in every layout. -->
+      <Collapsible
+        v-if="explainedView || evidence"
+        v-model:open="showDetails"
+        class="flex flex-col gap-2"
+      >
+        <div
+          class="flex flex-wrap items-center justify-between gap-x-3 gap-y-1"
         >
           <CollapsibleTrigger
-            v-if="hasExplanationView"
             class="flex w-fit cursor-pointer items-center gap-1 text-xs text-muted-foreground"
+            data-slot="approval-details-trigger"
           >
             <ChevronRightIcon
               class="size-3.5 transition-transform"
-              :class="showParameters && 'rotate-90'"
+              :class="showDetails && 'rotate-90'"
               aria-hidden="true"
             />
-            {{
-              t(
-                showParameters
-                  ? "project.approvalRequest.hideParameters"
-                  : "project.approvalRequest.showParameters",
-              )
-            }}
+            {{ t("project.approvalRequest.details") }}
           </CollapsibleTrigger>
-          <CollapsibleContent class="flex flex-col gap-2">
-            <p v-if="approval.description" class="text-sm">
-              {{ approval.description }}
-            </p>
-            <div
-              v-if="approval.subject"
-              class="overflow-x-auto rounded-lg bg-muted/60 px-3 py-2 font-mono text-xs whitespace-pre-wrap"
-            >
-              {{ approval.subject }}
+          <ApprovalAttribution v-if="explainedView && approval.explanation" />
+        </div>
+        <CollapsibleContent
+          class="flex flex-col gap-2.5"
+          data-slot="approval-details"
+        >
+          <template v-if="explainedView">
+            <div class="flex flex-col gap-1">
+              <p class="text-xs font-medium text-muted-foreground">
+                {{ t("project.approvalRequest.detailsReason") }}
+              </p>
+              <p class="text-sm">
+                {{ t(`project.approvalRequest.${triggerKey}`) }}
+              </p>
             </div>
-          </CollapsibleContent>
-        </Collapsible>
-      </template>
-      <details v-if="evidence">
-        <summary class="cursor-pointer text-xs text-muted-foreground">
-          {{ t("project.approvalRequest.evidence") }}
-        </summary>
-        <pre
-          class="mt-1 overflow-x-auto rounded-lg bg-muted/60 p-2 font-mono text-xs whitespace-pre-wrap"
-          >{{ evidence }}</pre>
-      </details>
+            <div v-if="approval.description" class="flex flex-col gap-1">
+              <p class="text-xs font-medium text-muted-foreground">
+                {{ t("project.approvalRequest.detailsDescription") }}
+              </p>
+              <p class="text-sm">{{ approval.description }}</p>
+            </div>
+            <div v-if="approval.subject" class="flex flex-col gap-1">
+              <p class="text-xs font-medium text-muted-foreground">
+                {{ t("project.approvalRequest.detailsParameters") }}
+              </p>
+              <div
+                class="overflow-x-auto rounded-lg bg-muted/60 px-3 py-2 font-mono text-xs whitespace-pre-wrap"
+              >
+                {{ approval.subject }}
+              </div>
+            </div>
+          </template>
+          <div
+            v-if="evidence"
+            class="flex flex-col gap-1"
+            data-slot="approval-reviewer-notes"
+          >
+            <p class="text-xs font-medium text-muted-foreground">
+              {{ t("project.approvalRequest.detailsReviewerNotes") }}
+            </p>
+            <pre
+              class="overflow-x-auto rounded-lg bg-muted/60 p-2 font-mono text-xs whitespace-pre-wrap"
+              >{{ evidence }}</pre>
+          </div>
+        </CollapsibleContent>
+      </Collapsible>
     </CardContent>
     <CardFooter class="mt-auto shrink-0 gap-2">
       <!-- Decisions as compact buttons with their shortcut keys; the

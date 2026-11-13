@@ -256,17 +256,26 @@ From top to bottom:
    - Approval required card, when a tool call needs the user: Approve, Reject,
      Reject with guidance (multi-line: Enter sends, Shift+Enter adds a line,
      Esc returns to the buttons). When the automatic reviewer (Auto Approve)
-     sent the call to you, the card starts with the reviewer's plain-language
-     account of what the operation does and a Risks list, marked "Written by
-     the approval model. The original parameters are what will run."; the
-     exact command or path and the agent's description are under "Show
-     original parameters" (collapsed). With the Decisions path the card
-     appears at once with the parameters shown and the line "The approval
-     model is describing this operation…" until the account arrives; if none
-     arrives the card stays as is. Details shows the sandbox or policy
-     evidence and the reviewer's reason. When enabling a new tool would make
-     the provider reprocess a very long context at full price, the card
-     offers Activate now, Compress, then continue, or stopping the run.
+     sent the call to you, the card leads with the approval model's
+     plain-language account: one sentence on what the operation does and a
+     short Risks list. Its wording follows the Technical background setting in
+     Preferences (everyday words for a General user, precise terms for a
+     Professional user). A small "Explained by the approval model" label
+     explains on hover or tap that what actually runs is the original
+     parameters. One "Technical details" toggle (collapsed) shows Why Pine
+     asked, the Agent's description, the Original parameters and Reviewer
+     notes. With the Decisions path Pine waits up to about 10 seconds for the
+     account before showing the card (the call shows "Automatic approval in
+     progress" meanwhile); if it is not ready in time, the card appears with
+     Technical details open and "The approval model is describing this
+     operation…" until it arrives, and if none arrives the card shows the
+     description and parameters directly. Cards without an account show why
+     Pine asked under the title, then the description and parameters;
+     Technical details then holds only the Reviewer notes (the sandbox or
+     policy evidence and the reviewer's reason) and appears only when there
+     are any. When enabling a new tool would make the provider reprocess a
+     very long context at full price, the card offers Activate now, Compress,
+     then continue, or stopping the run.
    - Automation approval card, in place of the composer, when the agent asks to
      create, change, turn on or delete an automation: it lists the triggers,
      what the automation reads, writes and can reach, and warnings; Approve

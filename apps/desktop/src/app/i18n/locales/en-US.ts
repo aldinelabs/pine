@@ -1229,13 +1229,16 @@ export default {
         "This operation requests native execution outside Pine's project sandbox.",
       triggerLongContextActivation:
         "Pine wants to enable new tools. Please confirm before it does.",
-      evidence: "Details",
       explanationLoading: "The approval model is describing this operation…",
-      explanationNote:
-        "Written by the approval model. The original parameters are what will run.",
       risks: "Risks",
-      showParameters: "Show original parameters",
-      hideParameters: "Hide original parameters",
+      details: "Technical details",
+      explainedBy: "Explained by the approval model",
+      explanationCaveat:
+        "This is the approval model's reading of the request. What actually runs is the original parameters under Technical details.",
+      detailsReason: "Why Pine asked",
+      detailsDescription: "Agent's description",
+      detailsParameters: "Original parameters",
+      detailsReviewerNotes: "Reviewer notes",
       approve: "Approve",
       reject: "Reject",
       activateNow: "Activate now",

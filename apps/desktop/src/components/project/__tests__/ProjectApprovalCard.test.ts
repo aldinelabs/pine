@@ -56,7 +56,7 @@ describe("ProjectApprovalCard", () => {
     wrapper.unmount();
   });
 
-  it("shows Pine's own escalation note after the evidence, localized", () => {
+  it("shows Pine's own escalation note after the evidence, localized", async () => {
     const wrapper = mount(ProjectApprovalCard, {
       props: {
         approval: {
@@ -67,9 +67,12 @@ describe("ProjectApprovalCard", () => {
       },
       global: { plugins: [createAppI18n("zh-CN")] },
     });
-    expect(wrapper.get("details pre").text()).toBe(
-      "Sandbox error\n\n自动审查不可用：审查模型没有提交裁决。",
-    );
+    await wrapper
+      .get('[data-slot="approval-details-trigger"]')
+      .trigger("click");
+    expect(
+      wrapper.get('[data-slot="approval-reviewer-notes"] pre').text(),
+    ).toBe("Sandbox error\n\n自动审查不可用：审查模型没有提交裁决。");
     wrapper.unmount();
   });
 
@@ -89,32 +92,52 @@ describe("ProjectApprovalCard", () => {
       risks: ["Overwrites dist.", "Runs project scripts."],
     };
     const i18n = () => ({ plugins: [createAppI18n("en-US")] });
-    const toggle = (wrapper: ReturnType<typeof mount>) =>
-      wrapper
-        .findAll("button")
-        .find((button) => button.text().includes("original parameters"));
+    const trigger = '[data-slot="approval-details-trigger"]';
+    const details = '[data-slot="approval-details"]';
+    const triggerText =
+      "This operation was blocked by the sandbox. Approving re-runs it outside the sandbox.";
 
-    it("leads with the explanation and keeps the parameters one click away", async () => {
+    it("leads with the explanation and keeps every technical detail behind one toggle", async () => {
       const wrapper = mount(ProjectApprovalCard, {
         props: { approval: { ...approval, explanation } },
         global: i18n(),
       });
-      const text = wrapper.text();
-      expect(text).toContain("Builds the project into dist.");
-      expect(text).toContain("Risks");
-      expect(text).toContain("Overwrites dist.");
-      expect(text).toContain("Runs project scripts.");
-      expect(text).toContain("Written by the approval model.");
-      expect(text).not.toContain("bun run build");
-      expect(toggle(wrapper)?.text()).toBe("Show original parameters");
-      await toggle(wrapper)!.trigger("click");
-      expect(wrapper.text()).toContain("bun run build");
-      expect(wrapper.text()).toContain("Run the build");
-      expect(toggle(wrapper)?.text()).toBe("Hide original parameters");
+      expect(wrapper.get('[data-slot="approval-summary"]').text()).toBe(
+        "Builds the project into dist.",
+      );
+      const risks = wrapper.get('[data-slot="approval-risks"]');
+      expect(risks.text()).toContain("Risks");
+      expect(risks.findAll("li").map((item) => item.text())).toEqual([
+        "Overwrites dist.",
+        "Runs project scripts.",
+      ]);
+      const attribution = wrapper.get('[data-slot="approval-attribution"]');
+      expect(attribution.text()).toContain("Explained by the approval model");
+      expect(attribution.get(".sr-only").text()).toBe(
+        "This is the approval model's reading of the request. What actually runs is the original parameters under Technical details.",
+      );
+      expect(wrapper.find('[data-slot="card-header"]').text()).not.toContain(
+        triggerText,
+      );
+      expect(wrapper.findAll(trigger)).toHaveLength(1);
+      expect(wrapper.find("details").exists()).toBe(false);
+      expect(wrapper.text()).not.toContain("bun run build");
+      expect(wrapper.text()).not.toContain(triggerText);
+
+      await wrapper.get(trigger).trigger("click");
+      const content = wrapper.get(details).text();
+      expect(content).toContain("Why Pine asked");
+      expect(content).toContain(triggerText);
+      expect(content).toContain("Agent's description");
+      expect(content).toContain("Run the build");
+      expect(content).toContain("Original parameters");
+      expect(content).toContain("bun run build");
+      expect(content).toContain("Reviewer notes");
+      expect(content).toContain("Sandbox error");
       wrapper.unmount();
     });
 
-    it("shows a loading line with the parameters, then fills in the explanation", async () => {
+    it("opens the details while pending and keeps them open when the explanation arrives", async () => {
       const wrapper = mount(ProjectApprovalCard, {
         props: { approval: { ...approval, explanationPending: true } },
         global: i18n(),
@@ -123,32 +146,43 @@ describe("ProjectApprovalCard", () => {
       expect(wrapper.get(loading).text()).toContain(
         "The approval model is describing this operation…",
       );
-      expect(wrapper.text()).toContain("bun run build");
+      expect(wrapper.get(details).text()).toContain("bun run build");
       await wrapper.setProps({
         approval: { ...approval, explanationPending: false, explanation },
       });
       expect(wrapper.find(loading).exists()).toBe(false);
       expect(wrapper.text()).toContain("Builds the project into dist.");
-      expect(wrapper.text()).toContain("bun run build");
+      expect(wrapper.get(details).text()).toContain("bun run build");
       wrapper.unmount();
     });
 
-    it("reopens the parameters when a hidden-while-pending explanation never arrives", async () => {
+    it("falls back to the plain layout when a pending explanation never arrives", async () => {
       const wrapper = mount(ProjectApprovalCard, {
         props: { approval: { ...approval, explanationPending: true } },
         global: i18n(),
       });
-      await toggle(wrapper)!.trigger("click");
-      expect(wrapper.text()).not.toContain("bun run build");
+      await wrapper.get(trigger).trigger("click");
       await wrapper.setProps({
         approval: { ...approval, explanationPending: false },
       });
       // The collapsible's presence settles on the next frame.
       await new Promise(requestAnimationFrame);
       await nextTick();
-      expect(toggle(wrapper)).toBeUndefined();
+      expect(wrapper.find('[data-slot="card-header"]').text()).toContain(
+        triggerText,
+      );
       expect(wrapper.text()).toContain("bun run build");
       expect(wrapper.text()).toContain("Run the build");
+      expect(wrapper.find('[data-slot="approval-attribution"]').exists()).toBe(
+        false,
+      );
+      // Only the reviewer notes remain behind the single toggle.
+      expect(wrapper.findAll(trigger)).toHaveLength(1);
+      await wrapper.get(trigger).trigger("click");
+      const content = wrapper.get(details);
+      expect(content.text()).toContain("Reviewer notes");
+      expect(content.text()).not.toContain("Original parameters");
+      expect(content.text()).not.toContain("Why Pine asked");
       wrapper.unmount();
     });
 
@@ -168,12 +202,13 @@ describe("ProjectApprovalCard", () => {
       wrapper.unmount();
     });
 
-    it("keeps today's card without a toggle when there is no explanation", () => {
+    it("keeps the plain card without a toggle when there is no explanation or evidence", () => {
       const wrapper = mount(ProjectApprovalCard, {
-        props: { approval },
+        props: { approval: { ...approval, evidence: undefined } },
         global: i18n(),
       });
-      expect(toggle(wrapper)).toBeUndefined();
+      expect(wrapper.find(trigger).exists()).toBe(false);
+      expect(wrapper.text()).toContain(triggerText);
       expect(wrapper.text()).toContain("bun run build");
       expect(wrapper.text()).toContain("Run the build");
       wrapper.unmount();

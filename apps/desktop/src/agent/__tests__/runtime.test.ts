@@ -18,6 +18,7 @@ import {
   judgeStreamOptions,
   normalizeGeneratedTitle,
   parseJudgeRulings,
+  APPROVAL_EXPLANATION_WAIT_MS,
   PineAgentRuntime,
   getLatestCacheHitRate,
   projectSessionDirectory,
@@ -35,6 +36,10 @@ import type { LiveAgentSession } from "../runtime/session-state";
 import type { GateDecision } from "../protocol";
 import type { PineAgentEvent } from "../../shared/agent";
 import { PINE_APPROVAL_DECISION_ENTRY } from "../../shared/sessions";
+import {
+  createDefaultPineUserProfile,
+  type PineUserProfile,
+} from "../../shared/userProfile";
 import { serializeAttachmentMessage } from "../../shared/attachments";
 import {
   ACTIVATE_COMPUTER_USE_TOOL_NAME,
@@ -43,7 +48,6 @@ import {
 import { UI_WORKBENCH_STATE_TOOL_NAME } from "../../shared/workbench";
 import { TODO_REMINDER_HEADING } from "../runtime/progress-reminders";
 import { writePineUserProfile } from "../pineSettings";
-import { createDefaultPineUserProfile } from "../../shared/userProfile";
 
 const temporaryDirectories: string[] = [];
 
@@ -706,84 +710,192 @@ describe("PineAgentRuntime", () => {
       }
     });
 
-    it("emits a late explanation once", async () => {
+    const pendingCount = (harness: ReturnType<typeof approvalHarness>) =>
+      harness.events().filter((e) => e.type === "approval-request").length;
+    const lateEvents = (harness: ReturnType<typeof approvalHarness>) =>
+      harness.events().filter((e) => e.type === "approval-explanation");
+    function deferred<T>() {
+      let resolve!: (value: T) => void;
+      let reject!: (reason: unknown) => void;
+      const promise = new Promise<T>((res, rej) => {
+        resolve = res;
+        reject = rej;
+      });
+      return { promise, resolve, reject };
+    }
+    const useTimers = () =>
+      vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+
+    it("waits for the explanation before showing the card", async () => {
       const harness = approvalHarness();
+      const pending = deferred<typeof explanation | undefined>();
       try {
         const result = harness.request({
-          pendingExplanation: Promise.resolve(explanation),
+          pendingExplanation: pending.promise,
         });
+        await Promise.resolve();
+        expect(pendingCount(harness)).toBe(0);
+        pending.resolve(explanation);
+        await vi.waitFor(() => expect(pendingCount(harness)).toBe(1));
+        const event = harness.approvalRequest();
+        expect(event.explanation).toEqual(explanation);
+        expect(event).not.toHaveProperty("explanationPending");
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        expect(lateEvents(harness)).toEqual([]);
+        harness.runtime.resolveApproval(event.requestId, { kind: "allow" });
+        await result;
+        expect(harness.appendCustomEntry).toHaveBeenCalledWith(
+          PINE_APPROVAL_DECISION_ENTRY,
+          expect.not.objectContaining({ explanation: expect.anything() }),
+        );
+      } finally {
+        await harness.runtime.dispose();
+      }
+    });
+
+    it.each([
+      ["fails", () => Promise.reject(new Error("offline"))],
+      ["is empty", () => Promise.resolve(undefined)],
+    ])(
+      "shows a plain card when the explanation %s within the wait",
+      async (_label, make) => {
+        const harness = approvalHarness();
+        try {
+          const result = harness.request({ pendingExplanation: make() });
+          await vi.waitFor(() => expect(pendingCount(harness)).toBe(1));
+          const event = harness.approvalRequest();
+          expect(event).not.toHaveProperty("explanation");
+          expect(event).not.toHaveProperty("explanationPending");
+          await new Promise((resolve) => setTimeout(resolve, 0));
+          expect(lateEvents(harness)).toEqual([]);
+          harness.runtime.resolveApproval(event.requestId, { kind: "deny" });
+          await result;
+        } finally {
+          await harness.runtime.dispose();
+        }
+      },
+    );
+
+    it("shows a pending card after the wait and fills it in later", async () => {
+      useTimers();
+      const harness = approvalHarness();
+      const pending = deferred<typeof explanation | undefined>();
+      try {
+        const result = harness.request({
+          pendingExplanation: pending.promise,
+        });
+        await vi.advanceTimersByTimeAsync(APPROVAL_EXPLANATION_WAIT_MS - 1);
+        expect(pendingCount(harness)).toBe(0);
+        await vi.advanceTimersByTimeAsync(1);
+        expect(pendingCount(harness)).toBe(1);
         const event = harness.approvalRequest();
         expect(event.explanationPending).toBe(true);
         expect(event).not.toHaveProperty("explanation");
-        await vi.waitFor(() =>
-          expect(harness.events()).toContainEqual({
+        pending.resolve(explanation);
+        await vi.advanceTimersByTimeAsync(0);
+        expect(lateEvents(harness)).toEqual([
+          {
             type: "approval-explanation",
             sessionId: "explained-session",
             requestId: event.requestId,
             toolCallId: "push-1",
             explanation,
-          }),
-        );
+          },
+        ]);
         harness.runtime.resolveApproval(event.requestId, { kind: "allow" });
         await result;
-        expect(harness.appendCustomEntry).toHaveBeenCalledWith(
-          PINE_APPROVAL_DECISION_ENTRY,
-          expect.not.objectContaining({ explanation: expect.anything() }),
-        );
       } finally {
+        vi.useRealTimers();
         await harness.runtime.dispose();
       }
     });
 
-    it("clears the loading state when no explanation arrives", async () => {
+    it("clears the loading state when no explanation arrives after the wait", async () => {
+      useTimers();
       const harness = approvalHarness();
+      const pending = deferred<typeof explanation | undefined>();
       try {
         const result = harness.request({
-          pendingExplanation: Promise.reject(new Error("offline")),
+          pendingExplanation: pending.promise,
         });
+        await vi.advanceTimersByTimeAsync(APPROVAL_EXPLANATION_WAIT_MS);
         const event = harness.approvalRequest();
-        await vi.waitFor(() =>
-          expect(
-            harness.events().filter((e) => e.type === "approval-explanation"),
-          ).toEqual([
-            {
-              type: "approval-explanation",
-              sessionId: "explained-session",
-              requestId: event.requestId,
-              toolCallId: "push-1",
-            },
-          ]),
-        );
+        expect(event.explanationPending).toBe(true);
+        pending.reject(new Error("offline"));
+        await vi.advanceTimersByTimeAsync(0);
+        expect(lateEvents(harness)).toEqual([
+          {
+            type: "approval-explanation",
+            sessionId: "explained-session",
+            requestId: event.requestId,
+            toolCallId: "push-1",
+          },
+        ]);
         harness.runtime.resolveApproval(event.requestId, { kind: "deny" });
         await result;
-        expect(harness.appendCustomEntry).toHaveBeenCalledWith(
-          PINE_APPROVAL_DECISION_ENTRY,
-          expect.not.objectContaining({ explanation: expect.anything() }),
-        );
       } finally {
+        vi.useRealTimers();
         await harness.runtime.dispose();
       }
     });
 
     it("emits nothing for an explanation that arrives after the decision", async () => {
+      useTimers();
       const harness = approvalHarness();
-      let resolveExplanation!: (value: typeof explanation) => void;
+      const pending = deferred<typeof explanation | undefined>();
       try {
         const result = harness.request({
-          pendingExplanation: new Promise((resolve) => {
-            resolveExplanation = resolve;
-          }),
+          pendingExplanation: pending.promise,
         });
+        await vi.advanceTimersByTimeAsync(APPROVAL_EXPLANATION_WAIT_MS);
         const event = harness.approvalRequest();
         harness.runtime.resolveApproval(event.requestId, { kind: "allow" });
         await result;
-        resolveExplanation(explanation);
-        await new Promise((resolve) => setTimeout(resolve, 0));
-        expect(
-          harness.events().some((e) => e.type === "approval-explanation"),
-        ).toBe(false);
+        pending.resolve(explanation);
+        await vi.advanceTimersByTimeAsync(0);
+        expect(lateEvents(harness)).toEqual([]);
       } finally {
+        vi.useRealTimers();
         await harness.runtime.dispose();
+      }
+    });
+
+    it("never shows a card for a call aborted while waiting", async () => {
+      useTimers();
+      const harness = approvalHarness();
+      const controller = new AbortController();
+      try {
+        const result = harness.request({
+          pendingExplanation: new Promise(() => {}),
+          signal: controller.signal,
+        });
+        controller.abort();
+        await expect(result).resolves.toEqual({
+          kind: "deny",
+          reason: "aborted",
+        });
+        await vi.advanceTimersByTimeAsync(APPROVAL_EXPLANATION_WAIT_MS);
+        expect(pendingCount(harness)).toBe(0);
+        expect(vi.getTimerCount()).toBe(0);
+      } finally {
+        vi.useRealTimers();
+        await harness.runtime.dispose();
+      }
+    });
+
+    it("never shows a card when the runtime is disposed while waiting", async () => {
+      useTimers();
+      const harness = approvalHarness();
+      try {
+        const result = harness.request({
+          pendingExplanation: new Promise(() => {}),
+        });
+        await harness.runtime.dispose();
+        await expect(result).resolves.toMatchObject({ kind: "deny" });
+        await vi.advanceTimersByTimeAsync(APPROVAL_EXPLANATION_WAIT_MS);
+        expect(pendingCount(harness)).toBe(0);
+      } finally {
+        vi.useRealTimers();
       }
     });
 
@@ -798,10 +910,12 @@ describe("PineAgentRuntime", () => {
           live: { agentDir: string; approvalMode: string },
           requests: JudgeRequest[],
           signal: AbortSignal,
+          profile?: PineUserProfile,
         ) => Promise<JudgeRuling[]>;
         runModelExplanation: (
           live: { agentDir: string; locale: string },
           requests: JudgeRequest[],
+          profile?: PineUserProfile,
         ) => Promise<Map<string, unknown>>;
       };
       internals.modelService.approvalModel = vi.fn().mockResolvedValue({
@@ -885,6 +999,72 @@ describe("PineAgentRuntime", () => {
         await runtime.dispose();
       }
     });
+
+    const systemPromptOf = (streamMock: ReturnType<typeof vi.fn>) =>
+      (
+        streamMock.mock.calls[0] as unknown as [
+          unknown,
+          { systemPrompt: string },
+        ]
+      )[1].systemPrompt;
+
+    it("writes the explanation for the user's profile, notes included", async () => {
+      const { runtime, internals, streamMock } = modelHarness(function* () {
+        yield done("submit_explanations", { explanations: [] });
+      });
+      try {
+        await internals.runModelExplanation(
+          { agentDir: "/unused", locale: "en-US" },
+          [judgeRequest],
+          {
+            ...createDefaultPineUserProfile(),
+            personalDetails: "I am a photographer",
+          },
+        );
+        const prompt = systemPromptOf(streamMock);
+        expect(prompt).toContain("general, non-technical user");
+        expect(prompt).toContain("I am a photographer");
+      } finally {
+        await runtime.dispose();
+      }
+    });
+
+    it.each(["auto-approve", "autonomous"])(
+      "gives the %s judge only the technical background",
+      async (approvalMode) => {
+        const { runtime, internals, streamMock } = modelHarness(function* () {
+          yield done("submit_ruling", {
+            rulings: [{ toolCallId: "push-1", verdict: "deny", reason: "No." }],
+          });
+        });
+        try {
+          await internals.runModelJudge(
+            { agentDir: "/unused", approvalMode },
+            [judgeRequest],
+            new AbortController().signal,
+            {
+              ...createDefaultPineUserProfile(),
+              technicalBackground: "professional-user",
+              personalDetails: "I am a photographer",
+            },
+          );
+          const prompt = systemPromptOf(streamMock);
+          expect(prompt).not.toContain("photographer");
+          if (approvalMode === "autonomous") {
+            expect(prompt).not.toContain("Reader of summary and risks");
+          } else {
+            expect(prompt).toContain(
+              "Reader of summary and risks (affects only their wording, never the verdict)",
+            );
+            expect(prompt).toContain(
+              "describes themselves as a technical user",
+            );
+          }
+        } finally {
+          await runtime.dispose();
+        }
+      },
+    );
 
     it("returns no explanations when the explanation stream fails", async () => {
       const { runtime, internals } = modelHarness(function* () {

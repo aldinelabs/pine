@@ -1221,13 +1221,16 @@ export default {
         "이 작업은 Pine의 프로젝트 샌드박스 밖에서의 네이티브 실행을 요청합니다.",
       triggerLongContextActivation:
         "Pine이 새 도구를 활성화하려고 합니다. 진행하기 전에 확인해 주세요.",
-      evidence: "세부 정보",
       explanationLoading: "승인 모델이 이 작업을 설명하는 중…",
-      explanationNote:
-        "승인 모델이 작성한 설명입니다. 실제로 실행되는 것은 원래 매개변수입니다.",
       risks: "위험",
-      showParameters: "원래 매개변수 보기",
-      hideParameters: "원래 매개변수 숨기기",
+      details: "기술 세부 정보",
+      explainedBy: "승인 모델의 설명",
+      explanationCaveat:
+        "승인 모델이 요청을 해석한 내용입니다. 실제로 실행되는 것은 '기술 세부 정보'의 원래 매개변수입니다.",
+      detailsReason: "확인이 필요한 이유",
+      detailsDescription: "에이전트의 설명",
+      detailsParameters: "원래 매개변수",
+      detailsReviewerNotes: "검토 메모",
       approve: "승인",
       reject: "거부",
       activateNow: "바로 활성화",

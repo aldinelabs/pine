@@ -1266,13 +1266,16 @@ export default {
         "Dieser Vorgang verlangt eine native Ausführung außerhalb der Projekt-Sandbox von Pine.",
       triggerLongContextActivation:
         "Pine möchte neue Tools aktivieren. Bitte bestätigen Sie das zuerst.",
-      evidence: "Details",
       explanationLoading: "Das Freigabemodell beschreibt diesen Vorgang…",
-      explanationNote:
-        "Vom Freigabemodell verfasst. Ausgeführt werden die ursprünglichen Parameter.",
       risks: "Risiken",
-      showParameters: "Ursprüngliche Parameter anzeigen",
-      hideParameters: "Ursprüngliche Parameter ausblenden",
+      details: "Technische Details",
+      explainedBy: "Vom Freigabemodell erklärt",
+      explanationCaveat:
+        "So versteht das Freigabemodell die Anfrage. Ausgeführt werden die ursprünglichen Parameter unter „Technische Details“.",
+      detailsReason: "Warum Pine fragt",
+      detailsDescription: "Beschreibung des Agenten",
+      detailsParameters: "Ursprüngliche Parameter",
+      detailsReviewerNotes: "Hinweise der Prüfung",
       approve: "Genehmigen",
       reject: "Ablehnen",
       activateNow: "Jetzt aktivieren",

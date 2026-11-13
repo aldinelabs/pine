@@ -792,14 +792,14 @@ export const RULING_TOOL: Tool = {
         summary: Type.Optional(
           Type.String({
             description:
-              "Only for needs_user (omit otherwise). One or two plain sentences, for the user, saying what this exact call does: the actual tool or command, its concrete targets (files, folders, hosts, branches, packages, apps) and its effect. Use the names from the call; no jargon. At most 300 characters. Same language as the user's messages.",
+              "Only for needs_user (omit otherwise). One short plain sentence saying what this exact call will do and to what (at most about 25 words, or 60 characters in Chinese/Japanese/Korean). Match the reader described in the instructions. Same language as the user's messages.",
           }),
         ),
         risks: Type.Optional(
           Type.Array(Type.String(), {
-            maxItems: 4,
+            maxItems: 3,
             description:
-              "Only for needs_user (omit otherwise). Up to 4 short factual sentences, each naming one concrete risk of this exact call: what could be deleted or overwritten, what cannot be undone, what data leaves the machine and to where, which part is not covered by the user's instructions (why it was not approved automatically). No generic warnings, no speculation, no advice to the agent.",
+              "Only for needs_user (omit otherwise). At most 3 short items, usually 1–2, each one concrete consequence the user cares about (what may be lost or overwritten, what cannot be undone, what leaves the computer and where it goes, what the user's instructions do not cover). One clause each, no technical mechanism, no generic warnings; omit risks that do not matter.",
           }),
         ),
       }),
@@ -828,12 +828,12 @@ export const EXPLANATION_TOOL: Tool = {
         }),
         summary: Type.String({
           description:
-            "One or two plain sentences saying what this exact call does: the actual tool or command, its concrete targets and its effect.",
+            "One short plain sentence saying what this exact call will do and to what (at most about 25 words, or 60 characters in Chinese/Japanese/Korean). Match the reader described in the instructions.",
         }),
         risks: Type.Array(Type.String(), {
-          maxItems: 4,
+          maxItems: 3,
           description:
-            "Up to 4 short factual sentences, each naming one concrete risk of this exact call.",
+            "At most 3 short items, usually 1–2, each one concrete consequence the user cares about (what may be lost or overwritten, what cannot be undone, what leaves the computer and where it goes, what the user's instructions do not cover). One clause each, no technical mechanism, no generic warnings; omit risks that do not matter.",
         }),
       }),
       {
