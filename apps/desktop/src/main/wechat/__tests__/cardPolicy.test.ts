@@ -267,3 +267,28 @@ describe("EXTERNAL_CONTENT_TOOLS", () => {
     );
   });
 });
+
+describe("approvalCardText reviewer explanation", () => {
+  it("returns a cut summary and the first two cut risks", () => {
+    const text = approvalCardText({
+      toolName: "bash",
+      input: { subject: "rm -rf build", description: "clean" },
+      explanation: {
+        summary: "x".repeat(300),
+        risks: ["r".repeat(100), " ", "second", "third"],
+      },
+    });
+    expect(text.description).toBe("clean");
+    expect(text.summary).toBe(`${"x".repeat(199)}…`);
+    expect(text.risks).toEqual([`${"r".repeat(79)}…`, "second"]);
+  });
+
+  it("omits both without an explanation", () => {
+    const text = approvalCardText({
+      toolName: "bash",
+      input: { command: "ls" },
+    });
+    expect(text).not.toHaveProperty("summary");
+    expect(text).not.toHaveProperty("risks");
+  });
+});

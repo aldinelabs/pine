@@ -16,6 +16,23 @@ describe("attention notifications", () => {
     );
   });
 
+  it("leads with the reviewer's summary when there is one", () => {
+    expect(
+      approvalNotificationBody(
+        "bash",
+        { command: "git push --force" },
+        false,
+        "Force-pushes main.",
+      ),
+    ).toBe("Pine wants approval: Force-pushes main.");
+    expect(
+      approvalNotificationBody("bash", undefined, true, "强制推送 main。"),
+    ).toBe("Pine 请求批准：强制推送 main。");
+    expect(
+      approvalNotificationBody("bash", { command: "ls" }, false, "  "),
+    ).toBe("Pine wants approval to run bash: ls");
+  });
+
   it("falls back to the tool name when the input has no obvious subject", () => {
     expect(approvalNotificationBody("mcp", { count: 3 }, false)).toBe(
       "Pine wants approval to run mcp.",

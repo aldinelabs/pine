@@ -4,6 +4,7 @@ import { createHash, randomUUID } from "node:crypto";
 import type { PineAgentEvent, PineAutoApprovalFailure } from "../shared/agent";
 import type {
   PineApprovalDecision,
+  PineApprovalExplanation,
   PineApprovalReview,
 } from "../shared/sessions";
 import type { GateDecision } from "./protocol";
@@ -66,6 +67,10 @@ export interface JudgeRuling {
   verdict: "allow" | "deny" | "needs_user";
   reason?: string;
   scope?: "once" | "session";
+  /** User-facing account of a needs_user call, written with the ruling. */
+  explanation?: PineApprovalExplanation;
+  /** A separately requested explanation (Decisions screening); never re-decides. */
+  pendingExplanation?: Promise<PineApprovalExplanation | undefined>;
 }
 
 export interface UserApprovalRequest {
@@ -84,6 +89,10 @@ export interface UserApprovalRequest {
   evidence?: string;
   autoApprovalFailure?: PineAutoApprovalFailure;
   reviews?: PineApprovalReview[];
+  /** Reviewer-written account shown above the raw parameters. */
+  explanation?: PineApprovalExplanation;
+  /** Explanation still being written; the card updates when it resolves. */
+  pendingExplanation?: Promise<PineApprovalExplanation | undefined>;
   signal?: AbortSignal;
 }
 
@@ -632,6 +641,10 @@ export class AutoReviewGate implements ToolGate {
             .filter(Boolean)
             .join("\n\n"),
           reviews: [...reviewHistory],
+          ...(ruling.explanation ? { explanation: ruling.explanation } : {}),
+          ...(ruling.pendingExplanation
+            ? { pendingExplanation: ruling.pendingExplanation }
+            : {}),
           signal: input.signal,
         });
         decisions[index] = decision;
@@ -729,10 +742,56 @@ export const RULING_TOOL: Tool = {
               "once (default): the allowance applies to this single execution. session: identical commands are allowed without re-review for the rest of the session.",
           }),
         ),
+        summary: Type.Optional(
+          Type.String({
+            description:
+              "Only for needs_user (omit otherwise). One or two plain sentences, for the user, saying what this exact call does: the actual tool or command, its concrete targets (files, folders, hosts, branches, packages, apps) and its effect. Use the names from the call; no jargon. At most 300 characters. Same language as the user's messages.",
+          }),
+        ),
+        risks: Type.Optional(
+          Type.Array(Type.String(), {
+            maxItems: 4,
+            description:
+              "Only for needs_user (omit otherwise). Up to 4 short factual sentences, each naming one concrete risk of this exact call: what could be deleted or overwritten, what cannot be undone, what data leaves the machine and to where, which part is not covered by the user's instructions (why it was not approved automatically). No generic warnings, no speculation, no advice to the agent.",
+          }),
+        ),
       }),
       {
         description:
           "One ruling per reviewed tool call. Do not omit, duplicate, or invent toolCallIds.",
+        minItems: 1,
+      },
+    ),
+  }),
+};
+
+/**
+ * Explanation-only contract for calls screening already sent to the user.
+ * It has no verdict field, so it cannot change a decision.
+ */
+export const EXPLANATION_TOOL: Tool = {
+  name: "submit_explanations",
+  description:
+    "Submit one plain-language explanation for every listed tool call. Call this exactly once and do not answer in plain text.",
+  parameters: Type.Object({
+    explanations: Type.Array(
+      Type.Object({
+        toolCallId: Type.String({
+          description: "The exact toolCallId from the request.",
+        }),
+        summary: Type.String({
+          description:
+            "One or two plain sentences saying what this exact call does: the actual tool or command, its concrete targets and its effect.",
+        }),
+        risks: Type.Array(Type.String(), {
+          maxItems: 4,
+          description:
+            "Up to 4 short factual sentences, each naming one concrete risk of this exact call.",
+        }),
+      }),
+      {
+        description:
+          "One explanation per listed tool call. Do not omit, duplicate, or invent toolCallIds.",
         minItems: 1,
       },
     ),

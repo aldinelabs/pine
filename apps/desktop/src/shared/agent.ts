@@ -1,6 +1,7 @@
 import type { AutomationHostOperation } from "./automation";
 import type { ProjectHostOperation } from "./projects";
 import type {
+  PineApprovalExplanation,
   PineApprovalReview,
   PineSessionSummary,
   SessionHostOperation,
@@ -341,6 +342,18 @@ export type PineAgentEvent =
       actionDigest?: string;
       autoApprovalFailure?: PineAutoApprovalFailure;
       reviews?: PineApprovalReview[];
+      /** Reviewer-written account of what the call does and its risks. */
+      explanation?: PineApprovalExplanation;
+      /** A reviewer explanation is being written and follows as approval-explanation. */
+      explanationPending?: boolean;
+    }
+  | {
+      /** Late reviewer explanation; without `explanation`, none is coming. */
+      type: "approval-explanation";
+      sessionId: string;
+      requestId: string;
+      toolCallId: string;
+      explanation?: PineApprovalExplanation;
     }
   | {
       type: "approval-decided";

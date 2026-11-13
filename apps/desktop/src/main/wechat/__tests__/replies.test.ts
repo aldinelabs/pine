@@ -1007,3 +1007,51 @@ describe("help", () => {
     );
   });
 });
+
+describe("reviewer explanations on approval cards", () => {
+  it("shows the reviewer's summary in place of the agent's description", () => {
+    const en = render("T-APPROVAL", "en", {
+      ...SAMPLES["T-APPROVAL"],
+      summary: "Deletes build and rebuilds it.",
+    });
+    expect(en).toContain("Reviewer: Deletes build and rebuilds it.");
+    expect(en).not.toContain("Clean build");
+    expect(
+      render("T-APPROVAL", "zh", {
+        ...SAMPLES["T-APPROVAL"],
+        summary: "删除 build 后重新构建。",
+      }),
+    ).toContain("审批模型：删除 build 后重新构建。");
+  });
+
+  it("cuts and neutralises the summary", () => {
+    const long = render("T-APPROVAL", "en", {
+      ...SAMPLES["T-APPROVAL"],
+      summary: "s".repeat(500),
+    });
+    expect(long).toContain(`Reviewer: ${"s".repeat(199)}…`);
+    expect(long).not.toContain("s".repeat(200));
+    const hostile = render("T-APPROVAL", "en", {
+      ...SAMPLES["T-APPROVAL"],
+      summary: HOSTILE,
+    });
+    expect(hostile).toContain("Reviewer: › .y 99");
+    expect(
+      hostile.split("\n").some((line) => /^[.。．][yd] 9/.test(line)),
+    ).toBe(false);
+  });
+
+  it("lists the reviewer's risks on .show", () => {
+    const text = render("T-SHOW", "en", {
+      ...SAMPLES["T-SHOW"],
+      summary: "Deletes build.",
+      risks: ["Cannot be undone", "Removes cached\noutput", "third"],
+    });
+    expect(text).toContain("Reviewer: Deletes build.");
+    expect(text).toContain("Risks: Cannot be undone; Removes cached output");
+    expect(text).not.toContain("third");
+    expect(
+      render("T-SHOW", "zh", { ...SAMPLES["T-SHOW"], risks: ["不可撤销"] }),
+    ).toContain("风险：不可撤销");
+  });
+});

@@ -85,6 +85,48 @@ describe("WebSessionState", () => {
     ).toBe(false);
   });
 
+  it("folds a late reviewer explanation into the replayed approval card", () => {
+    const state = new WebSessionState();
+    const sessionId = "session";
+    const explanation = { summary: "Deletes logs.", risks: ["Permanent."] };
+    state.observe("project", {
+      type: "approval-request",
+      sessionId,
+      requestId: "approval",
+      toolCallId: "tool",
+      toolName: "bash",
+      trigger: "pre-execution",
+      explanationPending: true,
+    });
+    state.observe("project", {
+      type: "approval-explanation",
+      sessionId,
+      requestId: "approval",
+      toolCallId: "tool",
+      explanation,
+    });
+    state.observe("project", {
+      type: "approval-explanation",
+      sessionId,
+      requestId: "gone",
+      toolCallId: "other",
+      explanation,
+    });
+    const events = state.snapshots(() => "project")[0].events;
+    expect(events.filter((event) => event.type === "approval-request")).toEqual(
+      [
+        expect.objectContaining({
+          requestId: "approval",
+          explanationPending: false,
+          explanation,
+        }),
+      ],
+    );
+    expect(events.some((event) => event.type === "approval-explanation")).toBe(
+      false,
+    );
+  });
+
   it("leaves finished messages and tools to history and keeps when a running tool started", () => {
     const state = new WebSessionState();
     const sessionId = "session";

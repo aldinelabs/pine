@@ -1218,6 +1218,13 @@ export default {
       triggerLongContextActivation:
         "Pine quiere activar nuevas herramientas. Confírmalo antes de continuar.",
       evidence: "Detalles",
+      explanationLoading:
+        "El modelo de aprobación está describiendo esta operación…",
+      explanationNote:
+        "Redactado por el modelo de aprobación. Lo que se ejecuta son los parámetros originales.",
+      risks: "Riesgos",
+      showParameters: "Mostrar parámetros originales",
+      hideParameters: "Ocultar parámetros originales",
       approve: "Aprobar",
       reject: "Rechazar",
       activateNow: "Activar ahora",

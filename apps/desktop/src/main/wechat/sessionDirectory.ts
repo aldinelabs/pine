@@ -409,6 +409,9 @@ export class SessionDirectory {
       case "approval-request":
         this.openApproval(sessionId, obs, event);
         break;
+      case "approval-explanation":
+        this.applyExplanation(event);
+        break;
       case "questionnaire-request":
         this.openQuestion(sessionId, obs, event);
         break;
@@ -621,10 +624,28 @@ export class SessionDirectory {
       toolName: event.toolName,
       ...(event.input !== undefined ? { input: event.input } : {}),
       ...(event.evidence !== undefined ? { evidence: event.evidence } : {}),
+      ...(event.explanation ? { explanation: event.explanation } : {}),
       subjectCut: card.subjectCut,
       external: obs.external,
     });
     if (ask) void this.pushCard(ask.number).catch(() => undefined);
+  }
+
+  /**
+   * A late reviewer explanation. A card still waiting to go out is rebuilt
+   * with it; a delivered one is not repeated (`.N` shows it).
+   */
+  private applyExplanation(
+    event: Extract<PineAgentEvent, { type: "approval-explanation" }>,
+  ): void {
+    if (!event.explanation) return;
+    const ask = this.deps.asks.setExplanation(
+      event.requestId,
+      event.explanation,
+    );
+    if (!ask || ask.deliveredAtMs !== undefined) return;
+    this.deps.outbound.retract(`ask:${ask.number}`);
+    void this.pushCard(ask.number).catch(() => undefined);
   }
 
   private openQuestion(
@@ -780,6 +801,7 @@ export class SessionDirectory {
       ...(card.description !== undefined
         ? { description: card.description }
         : {}),
+      ...(card.summary !== undefined ? { summary: card.summary } : {}),
       external: ask.external,
       cut: card.subjectCut,
     };

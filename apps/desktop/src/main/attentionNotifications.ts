@@ -19,7 +19,14 @@ export function approvalNotificationBody(
   toolName: string,
   input: PineJsonValue | undefined,
   chinese: boolean,
+  summary?: string,
 ): string {
+  // The reviewer's plain-language account says more than the raw subject.
+  const explained = summary?.trim();
+  if (explained)
+    return chinese
+      ? `Pine 请求批准：${explained}`
+      : `Pine wants approval: ${explained}`;
   const subject = approvalSubject(input);
   if (chinese)
     return subject

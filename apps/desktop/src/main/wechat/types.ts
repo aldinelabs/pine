@@ -4,6 +4,7 @@ import type {
   PineApprovalTrigger,
   PineJsonValue,
 } from "../../shared/agent";
+import type { PineApprovalExplanation } from "../../shared/sessions";
 import type { WeChatSettings } from "../../shared/wechatRemote";
 
 export type ReplyLanguage = "zh" | "en";
@@ -134,6 +135,8 @@ export interface ApprovalAsk extends AskBase {
   toolName: string;
   input?: PineJsonValue;
   evidence?: string;
+  /** Reviewer-written account; may arrive after the ask opened. */
+  explanation?: PineApprovalExplanation;
   /** The card showed a cut subject; `.show` must be delivered before `.approve`. */
   subjectCut: boolean;
   shownAtMs?: number;

@@ -287,6 +287,8 @@ async function show(
     ...(card.description !== undefined
       ? { description: card.description }
       : {}),
+    ...(card.summary !== undefined ? { summary: card.summary } : {}),
+    ...(card.risks !== undefined ? { risks: card.risks } : {}),
     ...(ask.evidence !== undefined ? { evidence: ask.evidence } : {}),
     external: ask.external,
     local: verdict.kind !== "approvable",

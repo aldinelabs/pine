@@ -64,6 +64,7 @@ import {
   PINE_AUTOMATION_AUTHORING_ACTIVE_ENTRY,
   PINE_MCP_AUTHORING_ACTIVE_ENTRY,
   type PineApprovalDecision,
+  type PineApprovalExplanation,
   type PineApprovalReview,
   type PineContextUsage,
   withoutRelayPrefix,
@@ -95,6 +96,7 @@ import {
   AutoReviewGate,
   RULING_TOOL,
   AUTONOMOUS_RULING_TOOL,
+  EXPLANATION_TOOL,
   JudgeUnavailableError,
   UserApprovalGate,
   type AuthorizationGrant,
@@ -263,9 +265,12 @@ import { createSemanticCompactionExtension } from "./runtime/semantic-compaction
 import {
   AUTONOMOUS_JUDGE_SYSTEM_PROMPT,
   JUDGE_SYSTEM_PROMPT,
+  approvalExplanationSystemPrompt,
+  buildApprovalExplanationContent,
   buildJudgeEvidence,
   buildJudgeSharedContext,
   judgeStreamOptions,
+  parseApprovalExplanations,
   parseJudgeRulings,
   truncateText,
 } from "./runtime/review";
@@ -342,6 +347,8 @@ const AUTHORING_TARGET_LABEL: Record<PineAuthoringTarget, string> = {
 };
 
 const JUDGE_TIMEOUT_MS = 60_000;
+/** Explanation-only requests for Decisions needs_user cards; never block the card. */
+const APPROVAL_EXPLANATION_TIMEOUT_MS = 20_000;
 const BACKGROUND_TASKS_EVENT_MS = 200;
 const TITLE_TIMEOUT_MS = 30_000;
 const TITLE_MAX_TOKENS = 4_096;
@@ -2070,6 +2077,7 @@ export class PineAgentRuntime {
         live,
         request,
         actionDigest: approvalActionDigest(request),
+        ...(request.explanation ? { explanation: request.explanation } : {}),
       };
       this.pendingApprovals.set(requestId, pending);
       const onAbort = () => {
@@ -2094,8 +2102,29 @@ export class PineAgentRuntime {
         evidence: request.evidence,
         autoApprovalFailure: request.autoApprovalFailure,
         ...(request.reviews?.length ? { reviews: request.reviews } : {}),
+        ...(request.explanation
+          ? { explanation: request.explanation }
+          : request.pendingExplanation
+            ? { explanationPending: true }
+            : {}),
         actionDigest: pending.actionDigest,
       });
+      if (request.pendingExplanation && !request.explanation) {
+        void request.pendingExplanation
+          .catch(() => undefined)
+          .then((explanation) => {
+            // A decided or aborted card no longer shows anything.
+            if (this.pendingApprovals.get(requestId) !== pending) return;
+            if (explanation) pending.explanation = explanation;
+            this.options.emit({
+              type: "approval-explanation",
+              sessionId,
+              requestId,
+              toolCallId: request.toolCallId,
+              ...(explanation ? { explanation } : {}),
+            });
+          });
+      }
     });
   }
 
@@ -2132,6 +2161,7 @@ export class PineAgentRuntime {
       ...(decision.kind === "deny" && decision.reason
         ? { reason: decision.reason }
         : {}),
+      ...(pending.explanation ? { explanation: pending.explanation } : {}),
     };
     this.recordApprovalDecision(pending.live, persistedDecision);
     this.options.emit({
@@ -2510,7 +2540,69 @@ export class PineAgentRuntime {
           ).getAuth("openrouter")
         )?.auth.apiKey,
       reviewWithModel: (pending) => this.runModelJudge(live, pending, signal),
+      ...(live.approvalMode !== "autonomous"
+        ? {
+            explainWithModel: (pending: JudgeRequest[]) =>
+              this.runModelExplanation(live, pending),
+          }
+        : {}),
     });
+  }
+
+  /**
+   * Plain-language account of calls Decisions screening sent to the user,
+   * written by the approval model. It fills text only and cannot re-decide.
+   */
+  private async runModelExplanation(
+    live: LiveAgentSession,
+    requests: JudgeRequest[],
+  ): Promise<Map<string, PineApprovalExplanation>> {
+    const none = new Map<string, PineApprovalExplanation>();
+    if (requests.length === 0) return none;
+    try {
+      const modelRuntime = await this.getModelRuntime(live.agentDir);
+      const model = await this.modelService.approvalModel(
+        live.agentDir,
+        modelRuntime,
+      );
+      if (!model) return none;
+      const signal = AbortSignal.any([
+        ...requests.flatMap((request) =>
+          request.signal ? [request.signal] : [],
+        ),
+        AbortSignal.timeout(APPROVAL_EXPLANATION_TIMEOUT_MS),
+      ]);
+      const context: Context = {
+        systemPrompt: approvalExplanationSystemPrompt(live.locale),
+        messages: [
+          {
+            role: "user",
+            timestamp: Date.now(),
+            content: `Explain all ${requests.length} tool call${requests.length === 1 ? "" : "s"} below, one entry per exact toolCallId.\n\n${buildApprovalExplanationContent(requests)}`,
+          },
+        ],
+        tools: [EXPLANATION_TOOL],
+      };
+      let final: AssistantMessage | undefined;
+      for await (const event of modelRuntime.stream(model, context, {
+        ...judgeStreamOptions(model, signal),
+        maxTokens: Math.min(2_000, 300 + 350 * requests.length),
+      })) {
+        if (event.type === "done") final = event.message;
+        else if (event.type === "error") return none;
+      }
+      const call = final?.content.find(
+        (block) =>
+          block.type === "toolCall" && block.name === EXPLANATION_TOOL.name,
+      );
+      if (!call || call.type !== "toolCall") return none;
+      return parseApprovalExplanations(
+        call.arguments,
+        requests.map((request) => request.toolCallId),
+      );
+    } catch {
+      return none;
+    }
   }
 
   private async runModelJudge(

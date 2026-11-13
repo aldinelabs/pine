@@ -246,9 +246,18 @@ From top to bottom:
 3. Composer ("Session message"):
    - Approval required card, when a tool call needs the user: Approve, Reject,
      Reject with guidance (multi-line: Enter sends, Shift+Enter adds a line,
-     Esc returns to the buttons). When enabling a new tool would make the
-     provider reprocess a very long context at full price, the card offers
-     Activate now, Compress, then continue, or stopping the run.
+     Esc returns to the buttons). When the automatic reviewer (Auto Approve)
+     sent the call to you, the card starts with the reviewer's plain-language
+     account of what the operation does and a Risks list, marked "Written by
+     the approval model. The original parameters are what will run."; the
+     exact command or path and the agent's description are under "Show
+     original parameters" (collapsed). With the Decisions path the card
+     appears at once with the parameters shown and the line "The approval
+     model is describing this operation…" until the account arrives; if none
+     arrives the card stays as is. Details shows the sandbox or policy
+     evidence and the reviewer's reason. When enabling a new tool would make
+     the provider reprocess a very long context at full price, the card
+     offers Activate now, Compress, then continue, or stopping the run.
    - Automation approval card, in place of the composer, when the agent asks to
      create, change, turn on or delete an automation: it lists the triggers,
      what the automation reads, writes and can reach, and warnings; Approve
@@ -455,7 +464,9 @@ the user opens themselves do not pulse.
     a warning under YOLO; choosing YOLO asks for confirmation first),
     "Default approval mode" (only modes within the
     highest), "Allow approving high-risk actions from WeChat" (native
-    execution outside the sandbox and destructive commands; off by default),
+    execution outside the sandbox and destructive commands; off by default;
+    an approval card from Auto Approve carries the reviewer's one-line
+    summary ("Reviewer: …"), and .N also lists its risks),
     "Allow sending files to WeChat" (presented files up to 100 MB; off by
     default) and "Keep the computer awake while WeChat is on". "Good to
     know" notes say it works only while Pine runs and the computer is awake,

@@ -86,6 +86,18 @@ export class WebSessionState {
       }
       return;
     }
+    if (event.type === "approval-explanation") {
+      // Fold the late explanation into the card a reconnecting client replays.
+      const key = `approval:${event.requestId}`;
+      const previous = state.values.get(key);
+      if (previous?.type === "approval-request")
+        state.values.set(key, {
+          ...previous,
+          explanationPending: false,
+          ...(event.explanation ? { explanation: event.explanation } : {}),
+        });
+      return;
+    }
     if (event.type === "approval-decided")
       state.values.delete(`approval:${event.requestId}`);
     if (event.type === "questionnaire-decided")
@@ -195,6 +207,7 @@ function retainedKey(event: PineSessionEvent): string | null {
     case "message-end":
     case "message-update":
     case "questionnaire-decided":
+    case "approval-explanation":
     case "workbench-state-request":
     case "session-teleported":
     case "session-reset":

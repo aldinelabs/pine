@@ -64,4 +64,82 @@ describe("ProjectApprovalCard", () => {
     expect(wrapper.text()).toContain("Approval required");
     wrapper.unmount();
   });
+
+  describe("reviewer explanation", () => {
+    const explanation = {
+      summary: "Builds the project into dist.",
+      risks: ["Overwrites dist.", "Runs project scripts."],
+    };
+    const i18n = () => ({ plugins: [createAppI18n("en-US")] });
+    const toggle = (wrapper: ReturnType<typeof mount>) =>
+      wrapper
+        .findAll("button")
+        .find((button) => button.text().includes("original parameters"));
+
+    it("leads with the explanation and keeps the parameters one click away", async () => {
+      const wrapper = mount(ProjectApprovalCard, {
+        props: { approval: { ...approval, explanation } },
+        global: i18n(),
+      });
+      const text = wrapper.text();
+      expect(text).toContain("Builds the project into dist.");
+      expect(text).toContain("Risks");
+      expect(text).toContain("Overwrites dist.");
+      expect(text).toContain("Runs project scripts.");
+      expect(text).toContain("Written by the approval model.");
+      expect(text).not.toContain("bun run build");
+      expect(toggle(wrapper)?.text()).toBe("Show original parameters");
+      await toggle(wrapper)!.trigger("click");
+      expect(wrapper.text()).toContain("bun run build");
+      expect(wrapper.text()).toContain("Run the build");
+      expect(toggle(wrapper)?.text()).toBe("Hide original parameters");
+      wrapper.unmount();
+    });
+
+    it("shows a loading line with the parameters, then fills in the explanation", async () => {
+      const wrapper = mount(ProjectApprovalCard, {
+        props: { approval: { ...approval, explanationPending: true } },
+        global: i18n(),
+      });
+      const loading = '[data-slot="approval-explanation-loading"]';
+      expect(wrapper.get(loading).text()).toContain(
+        "The approval model is describing this operation…",
+      );
+      expect(wrapper.text()).toContain("bun run build");
+      await wrapper.setProps({
+        approval: { ...approval, explanationPending: false, explanation },
+      });
+      expect(wrapper.find(loading).exists()).toBe(false);
+      expect(wrapper.text()).toContain("Builds the project into dist.");
+      expect(wrapper.text()).toContain("bun run build");
+      wrapper.unmount();
+    });
+
+    it("renders model text literally", () => {
+      const wrapper = mount(ProjectApprovalCard, {
+        props: {
+          approval: {
+            ...approval,
+            explanation: { summary: "<b>x</b>", risks: ["<img src=y>"] },
+          },
+        },
+        global: i18n(),
+      });
+      expect(wrapper.find("b").exists()).toBe(false);
+      expect(wrapper.find("img").exists()).toBe(false);
+      expect(wrapper.text()).toContain("<b>x</b>");
+      wrapper.unmount();
+    });
+
+    it("keeps today's card without a toggle when there is no explanation", () => {
+      const wrapper = mount(ProjectApprovalCard, {
+        props: { approval },
+        global: i18n(),
+      });
+      expect(toggle(wrapper)).toBeUndefined();
+      expect(wrapper.text()).toContain("bun run build");
+      expect(wrapper.text()).toContain("Run the build");
+      wrapper.unmount();
+    });
+  });
 });

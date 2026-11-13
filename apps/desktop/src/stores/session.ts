@@ -14,6 +14,7 @@ import {
   type PineJsonValue,
 } from "@/shared/agent";
 import type {
+  PineApprovalExplanation,
   PineContentBlock,
   PineCompactionStatus,
   PineContextUsage,
@@ -80,6 +81,23 @@ export interface PinePendingApproval {
   description?: string;
   evidence?: string;
   autoApprovalFailure?: PineAutoApprovalFailure;
+  /** Reviewer-written account of what the call does and its risks. */
+  explanation?: PineApprovalExplanation;
+  /** The approval model is still writing the explanation. */
+  explanationPending?: boolean;
+}
+
+/** Wire data can come from a replayed snapshot; keep only the expected shape. */
+function approvalExplanation(
+  value: unknown,
+): PineApprovalExplanation | undefined {
+  if (typeof value !== "object" || value === null) return undefined;
+  const { summary, risks } = value as { summary?: unknown; risks?: unknown };
+  if (typeof summary !== "string" || !Array.isArray(risks)) return undefined;
+  return {
+    summary,
+    risks: risks.filter((risk): risk is string => typeof risk === "string"),
+  };
 }
 
 export interface PinePendingQuestionnaire {
@@ -1660,6 +1678,7 @@ export const useSessionStore = defineStore("session", () => {
       const toolCallId = approvalToolCallId(event.toolCallId, event.toolName);
       const input = event.input as
         { subject?: unknown; description?: unknown } | undefined;
+      const explanation = approvalExplanation(event.explanation);
       pendingApprovals.value = [
         ...pendingApprovals.value,
         {
@@ -1675,6 +1694,11 @@ export const useSessionStore = defineStore("session", () => {
               : undefined,
           evidence: event.evidence,
           autoApprovalFailure: event.autoApprovalFailure,
+          ...(explanation
+            ? { explanation }
+            : event.explanationPending === true
+              ? { explanationPending: true }
+              : {}),
         },
       ];
       const failure = event.autoApprovalFailure;
@@ -1692,6 +1716,26 @@ export const useSessionStore = defineStore("session", () => {
           ...(event.reviews ? { reviews: event.reviews } : {}),
         },
       });
+      return;
+    }
+    if (event.type === "approval-explanation") {
+      const explanation = approvalExplanation(event.explanation);
+      if (
+        !pendingApprovals.value.some(
+          (approval) => approval.requestId === event.requestId,
+        )
+      ) {
+        return;
+      }
+      pendingApprovals.value = pendingApprovals.value.map((approval) =>
+        approval.requestId === event.requestId
+          ? {
+              ...approval,
+              explanationPending: false,
+              ...(explanation ? { explanation } : {}),
+            }
+          : approval,
+      );
       return;
     }
     if (event.type === "approval-decided") {

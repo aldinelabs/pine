@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { DEFAULT_AUTO_APPROVAL_SETTINGS } from "../../../shared/preferences";
+import type { PineApprovalExplanation } from "../../../shared/sessions";
 import type { JudgeRequest, JudgeRuling } from "../../gate";
 import {
   buildDecisionsReviewBody,
@@ -402,5 +403,100 @@ describe("Decisions approval cascade", () => {
     expect(await runApprovalReview({ ...options, requests: [] })).toEqual([]);
     expect(fetchMock).not.toHaveBeenCalled();
     expect(options.reviewWithModel).not.toHaveBeenCalled();
+  });
+});
+
+describe("Decisions needs_user explanations", () => {
+  const explanation = (id: string): PineApprovalExplanation => ({
+    summary: `Explains ${id}`,
+    risks: [`Risk of ${id}`],
+  });
+
+  function answers(...choices: string[]) {
+    return Response.json({
+      answers: Object.fromEntries(
+        choices.map((choice, index) => [`call_${index}`, answer(choice)]),
+      ),
+    });
+  }
+
+  it("requests one explanation batch for screened needs_user calls without waiting for it", async () => {
+    const { fetchMock, options } = setup();
+    fetchMock.mockResolvedValue(answers("needs_user", "needs_user", "allow"));
+    let resolve!: (value: Map<string, PineApprovalExplanation>) => void;
+    const explainWithModel = vi.fn(
+      () =>
+        new Promise<Map<string, PineApprovalExplanation>>((done) => {
+          resolve = done;
+        }),
+    );
+    const rulings = await runApprovalReview({ ...options, explainWithModel });
+    expect(rulings.map(({ verdict }) => verdict)).toEqual([
+      "needs_user",
+      "needs_user",
+      "allow",
+    ]);
+    expect(explainWithModel).toHaveBeenCalledExactlyOnceWith([
+      requests[0],
+      requests[1],
+    ]);
+    expect(rulings[2].pendingExplanation).toBeUndefined();
+    resolve(new Map([["id-b", explanation("id-b")]]));
+    await expect(rulings[0].pendingExplanation).resolves.toEqual(
+      explanation("id-b"),
+    );
+    await expect(rulings[1].pendingExplanation).resolves.toBeUndefined();
+  });
+
+  it("explains only screened calls, not those the model judge decided", async () => {
+    const { fetchMock, options } = setup();
+    options.reviewWithModel.mockResolvedValueOnce([
+      { toolCallId: "id-a", verdict: "needs_user", reason: "model" },
+    ]);
+    const explainWithModel = vi.fn(() => Promise.resolve(new Map()));
+    const rulings = await runApprovalReview({ ...options, explainWithModel });
+    expect(fetchMock).toHaveBeenCalledOnce();
+    expect(explainWithModel).toHaveBeenCalledExactlyOnceWith([requests[2]]);
+    expect(rulings[1]).toMatchObject({ verdict: "needs_user" });
+    expect(rulings[1].pendingExplanation).toBeUndefined();
+    expect(rulings[2].pendingExplanation).toBeInstanceOf(Promise);
+  });
+
+  it.each([
+    ["all allow", ["allow", "allow", "allow"]],
+    ["allow and deny", ["allow", "deny", "allow"]],
+  ])("does not request explanations for %s", async (_, choices) => {
+    const { fetchMock, options } = setup();
+    fetchMock.mockResolvedValue(answers(...choices));
+    const explainWithModel = vi.fn(() => Promise.resolve(new Map()));
+    await runApprovalReview({ ...options, explainWithModel });
+    expect(explainWithModel).not.toHaveBeenCalled();
+  });
+
+  it("resolves to no explanation when the explanation request fails", async () => {
+    const { fetchMock, options } = setup();
+    fetchMock.mockResolvedValue(answers("needs_user"));
+    const explainWithModel = vi.fn(() => Promise.reject(new Error("offline")));
+    const rulings = await runApprovalReview({
+      ...options,
+      requests: [requests[0]],
+      explainWithModel,
+    });
+    await expect(rulings[0].pendingExplanation).resolves.toBeUndefined();
+  });
+
+  it("never requests explanations in autonomous mode", async () => {
+    const { fetchMock, options } = setup();
+    fetchMock.mockResolvedValue(answers("needs_user", "allow", "allow"));
+    options.reviewWithModel.mockResolvedValueOnce([
+      { toolCallId: "id-b", verdict: "deny" },
+    ]);
+    const explainWithModel = vi.fn(() => Promise.resolve(new Map()));
+    await runApprovalReview({
+      ...options,
+      autonomous: true,
+      explainWithModel,
+    });
+    expect(explainWithModel).not.toHaveBeenCalled();
   });
 });

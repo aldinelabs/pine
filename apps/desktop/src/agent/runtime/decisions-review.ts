@@ -1,5 +1,8 @@
 import type { PineAutoApprovalSettings } from "../../shared/preferences";
-import type { PineApprovalReviewReasonCode } from "../../shared/sessions";
+import type {
+  PineApprovalExplanation,
+  PineApprovalReviewReasonCode,
+} from "../../shared/sessions";
 import type { JudgeRequest, JudgeRuling } from "../gate";
 import {
   AUTONOMOUS_JUDGE_SYSTEM_PROMPT,
@@ -124,6 +127,10 @@ export async function runApprovalReview(options: {
   signal: AbortSignal;
   resolveApiKey: () => Promise<string | undefined>;
   reviewWithModel: (requests: JudgeRequest[]) => Promise<JudgeRuling[]>;
+  /** Writes user-facing prose for screened needs_user calls; never re-decides. */
+  explainWithModel?: (
+    requests: JudgeRequest[],
+  ) => Promise<Map<string, PineApprovalExplanation>>;
 }): Promise<JudgeRuling[]> {
   const { requests, settings, signal } = options;
   if (requests.length === 0) return [];
@@ -230,6 +237,25 @@ export async function runApprovalReview(options: {
             : "Decisions returned no valid answer for this tool call."),
         ...(reasonCode ? { reasonCode } : {}),
       });
+    }
+    const needsUser = screened.filter(
+      (ruling) => ruling.verdict === "needs_user",
+    );
+    const explain = options.explainWithModel;
+    if (needsUser.length > 0 && explain && !options.autonomous) {
+      const ids = new Set(needsUser.map((ruling) => ruling.toolCallId));
+      const explained = requests.filter((request) =>
+        ids.has(request.toolCallId),
+      );
+      // One request for the whole batch; the card never waits for it.
+      const batch = Promise.resolve()
+        .then(() => explain(explained))
+        .catch(() => new Map<string, PineApprovalExplanation>());
+      for (const ruling of needsUser) {
+        ruling.pendingExplanation = batch.then((explanations) =>
+          explanations.get(ruling.toolCallId),
+        );
+      }
     }
   }
   signal.throwIfAborted();

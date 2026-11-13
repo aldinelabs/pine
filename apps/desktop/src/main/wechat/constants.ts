@@ -57,6 +57,11 @@ export const ALLOW_BARE_APPROVE = false;
 export const LAST_MAX_PAGES = 6;
 export const CARD_SUBJECT_MAX = 300;
 export const CARD_DESCRIPTION_MAX = 120;
+/** The reviewer's summary replaces the description line, so it may be longer. */
+export const CARD_SUMMARY_MAX = 200;
+/** `.show` lists at most this many reviewer risks, each cut to the size below. */
+export const CARD_RISKS_MAX = 2;
+export const CARD_RISK_MAX = 80;
 export const SHOW_INPUT_MAX = 1500;
 export const DONE_EXCERPT_MAX = 300;
 export const HISTORY_ENTRY_MAX = 300;

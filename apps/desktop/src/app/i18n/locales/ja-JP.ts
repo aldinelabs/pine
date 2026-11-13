@@ -1203,6 +1203,12 @@ export default {
       triggerLongContextActivation:
         "Pine が新しいツールを有効にしようとしています。続ける前に確認してください。",
       evidence: "詳細",
+      explanationLoading: "承認モデルがこの操作を説明しています…",
+      explanationNote:
+        "承認モデルが作成した説明です。実際に実行されるのは元のパラメーターです。",
+      risks: "リスク",
+      showParameters: "元のパラメーターを表示",
+      hideParameters: "元のパラメーターを隠す",
       approve: "承認",
       reject: "拒否",
       activateNow: "今すぐ有効化",

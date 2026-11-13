@@ -350,6 +350,62 @@ describe("concurrent session state", () => {
     },
   );
 
+  it("fills in a late reviewer explanation on the matching approval only", async () => {
+    const { store, emit } = fixture();
+    await store.resume(PROJECT_ID, a.id);
+    const explanation = { summary: "Deletes logs.", risks: ["Permanent."] };
+    emit({ ...approval(a.id, "late"), explanationPending: true });
+    emit({ ...approval(a.id, "none"), explanationPending: true });
+    emit(approval(a.id, "plain"));
+    expect(store.pendingApprovals[0]?.explanationPending).toBe(true);
+    emit({
+      type: "approval-explanation",
+      sessionId: a.id,
+      requestId: "late",
+      toolCallId: "late",
+      explanation,
+    });
+    emit({
+      type: "approval-explanation",
+      sessionId: a.id,
+      requestId: "none",
+      toolCallId: "none",
+    });
+    emit({
+      type: "approval-explanation",
+      sessionId: a.id,
+      requestId: "unknown",
+      toolCallId: "unknown",
+      explanation,
+    });
+    expect(store.pendingApprovals).toHaveLength(3);
+    expect(store.pendingApprovals[0]).toMatchObject({
+      requestId: "late",
+      explanationPending: false,
+      explanation,
+    });
+    expect(store.pendingApprovals[1]).toMatchObject({
+      requestId: "none",
+      explanationPending: false,
+    });
+    expect(store.pendingApprovals[1]?.explanation).toBeUndefined();
+    expect(store.pendingApprovals[2]?.explanation).toBeUndefined();
+    expect(store.pendingApprovals[2]?.explanationPending).toBeUndefined();
+  });
+
+  it("keeps an inline explanation and drops a malformed one", async () => {
+    const { store, emit } = fixture();
+    await store.resume(PROJECT_ID, a.id);
+    const explanation = { summary: "Publishes.", risks: ["Public."] };
+    emit({ ...approval(a.id, "inline"), explanation });
+    emit({
+      ...approval(a.id, "bad"),
+      explanation: { summary: 3 } as unknown as typeof explanation,
+    });
+    expect(store.pendingApprovals[0]?.explanation).toEqual(explanation);
+    expect(store.pendingApprovals[1]?.explanation).toBeUndefined();
+  });
+
   it("does not notify for ordinary manual confirmations", async () => {
     const { store, emit } = fixture();
     await store.resume(PROJECT_ID, a.id);

@@ -434,6 +434,49 @@ describe("observation and pushes", () => {
     expect(ctx.handles.last()).toBeUndefined();
   });
 
+  it("carries an inline reviewer summary on the card", async () => {
+    const { ctx, pushes } = setup();
+    await trackedSession(ctx);
+    ctx.sessions.observe(
+      approval("s1", "req-1", {
+        explanation: { summary: "Deletes build.", risks: [] },
+      }),
+      W,
+    );
+    await flush();
+    expect(pushes).toHaveLength(1);
+    expect(pushes[0].text).toContain("Deletes build.");
+    expect(pushes[0].text).not.toContain("clean");
+  });
+
+  it("replaces an undelivered card with a late explanation and leaves a delivered one", async () => {
+    const { ctx, pushes, retracted } = setup();
+    await trackedSession(ctx);
+    const explanation = { summary: "Deletes build.", risks: ["Permanent."] };
+    ctx.sessions.observe(approval("s1", "a"), W);
+    ctx.sessions.observe(approval("s1", "b", { actionDigest: "digest-b" }), W);
+    await flush();
+    expect(pushes).toHaveLength(2);
+    ctx.asks.markDelivered(12, Date.now());
+    for (const requestId of ["a", "b"])
+      ctx.sessions.observe(
+        {
+          type: "approval-explanation",
+          sessionId: "s1",
+          requestId,
+          toolCallId: `tc-${requestId}`,
+          explanation,
+        },
+        W,
+      );
+    await flush();
+    expect(retracted).toEqual(["ask:11"]);
+    expect(pushes).toHaveLength(3);
+    expect(pushes[2]).toMatchObject({ key: "ask:11" });
+    expect(pushes[2].text).toContain("Deletes build.");
+    expect(ctx.asks.get(12)).toMatchObject({ explanation });
+  });
+
   it("renumbers an approval whose action digest changed", async () => {
     const { ctx, retracted } = setup();
     await trackedSession(ctx);

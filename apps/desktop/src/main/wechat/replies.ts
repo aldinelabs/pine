@@ -14,7 +14,10 @@ import {
 import type { PineThinkingLevel } from "../../shared/models";
 import {
   CARD_DESCRIPTION_MAX,
+  CARD_RISK_MAX,
+  CARD_RISKS_MAX,
   CARD_SUBJECT_MAX,
+  CARD_SUMMARY_MAX,
   DONE_EXCERPT_MAX,
   ECHO_MAX,
   HISTORY_ENTRY_MAX,
@@ -427,6 +430,25 @@ function descriptionLine(description: string | undefined): string | undefined {
   return clean ? truncate(clean, CARD_DESCRIPTION_MAX) : undefined;
 }
 
+/** The reviewer's account, attributed so it never reads as Pine's own words. */
+function summaryLine(lang: L, summary: string | undefined): string | undefined {
+  if (summary === undefined) return undefined;
+  const clean = neutralise(summary);
+  return clean
+    ? `${pick(lang, "审批模型：", "Reviewer: ")}${truncate(clean, CARD_SUMMARY_MAX)}`
+    : undefined;
+}
+
+function risksLine(lang: L, risks: string[] | undefined): string | undefined {
+  const items = (risks ?? [])
+    .map((risk) => cleanInline(risk))
+    .filter(Boolean)
+    .slice(0, CARD_RISKS_MAX)
+    .map((risk) => truncate(risk, CARD_RISK_MAX));
+  if (items.length === 0) return undefined;
+  return pick(lang, `风险：${items.join("；")}`, `Risks: ${items.join("; ")}`);
+}
+
 interface ApprovalCardData {
   at: SessionRef;
   ask: number;
@@ -434,6 +456,8 @@ interface ApprovalCardData {
   trigger: PineApprovalTrigger;
   subject?: string;
   description?: string;
+  /** The reviewer's summary; shown in place of the agent's description. */
+  summary?: string;
   /** The session read external content before the request (`T-EXTERNAL`). */
   external: boolean;
   /** The caller already cut the subject (for example `approvalCardText`). */
@@ -454,7 +478,7 @@ function approvalHead(lang: L, data: ApprovalCardData, local: boolean) {
       `${head(lang, data.at)}${what}`,
       `${truncate(cleanInline(data.tool), 40)} · ${triggerLabel(lang, data.trigger)}`,
       subject.text,
-      descriptionLine(data.description),
+      summaryLine(lang, data.summary) ?? descriptionLine(data.description),
       data.external ? render("T-EXTERNAL", lang) : undefined,
     ),
     cut: subject.cut || data.cut === true,
@@ -931,7 +955,11 @@ export interface ReplyData {
     viewOnly?: "ceiling" | "automation-run";
   };
   /** `.show`: the card again, subject up to SHOW_INPUT_MAX, plus the evidence. */
-  "T-SHOW": ApprovalCardData & { evidence?: string; local: boolean };
+  "T-SHOW": ApprovalCardData & {
+    evidence?: string;
+    local: boolean;
+    risks?: string[];
+  };
   "T-LONGCTX": { at: SessionRef; ask: number };
   "T-EXTERNAL": undefined;
   "T-TRIGGER": { trigger: PineApprovalTrigger };
@@ -1950,6 +1978,8 @@ const TEMPLATES: { [K in ReplyId]: Template<K> } = {
           "（内容过长，完整内容请在 Pine 中查看）",
           "(Too long to show in full. Open Pine for all of it.)",
         ),
+      summaryLine(lang, data.summary),
+      risksLine(lang, data.risks),
       descriptionLine(data.description),
       evidence &&
         `${pick(lang, "依据：", "Evidence: ")}${truncate(evidence, 300)}`,

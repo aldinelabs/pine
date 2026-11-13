@@ -12,6 +12,7 @@ import {
   HELD_TTL_MS,
   TOMBSTONE_TTL_MS,
 } from "./constants";
+import type { PineApprovalExplanation } from "../../shared/sessions";
 import type {
   ApprovalAsk,
   Ask,
@@ -145,6 +146,17 @@ export class AskBook {
       }
     }
     return undefined;
+  }
+
+  /** A late reviewer explanation for an open approval. Returns that ask. */
+  setExplanation(
+    requestId: string,
+    explanation: PineApprovalExplanation,
+  ): ApprovalAsk | undefined {
+    const ask = this.byRequest(requestId);
+    if (ask?.kind !== "approval") return undefined;
+    ask.explanation = explanation;
+    return ask;
   }
 
   /** The card was delivered; the first delivery counts. */

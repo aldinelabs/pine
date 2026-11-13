@@ -638,6 +638,265 @@ describe("PineAgentRuntime", () => {
     }
   });
 
+  describe("approval explanations", () => {
+    const explanation = {
+      summary: "Force-pushes main to origin.",
+      risks: ["Overwrites the remote history."],
+    };
+
+    function approvalHarness() {
+      const emit = vi.fn();
+      const runtime = new PineAgentRuntime({ emit });
+      const internals = runtime as unknown as {
+        requestUserApproval: (
+          live: LiveAgentSession,
+          request: UserApprovalRequest,
+        ) => Promise<GateDecision>;
+      };
+      const appendCustomEntry = vi.fn();
+      const live = {
+        authorizationGrants: [],
+        session: {
+          sessionId: "explained-session",
+          sessionManager: { appendCustomEntry },
+        },
+      } as unknown as LiveAgentSession;
+      const request = (extra: Partial<UserApprovalRequest>) =>
+        internals.requestUserApproval(live, {
+          toolCallId: "push-1",
+          toolName: "bash",
+          trigger: "destructive-pattern",
+          subject: "git push --force",
+          ...extra,
+        });
+      const events = () =>
+        emit.mock.calls.map(([event]) => event as PineAgentEvent);
+      const approvalRequest = () =>
+        events().find((event) => event.type === "approval-request") as Extract<
+          PineAgentEvent,
+          { type: "approval-request" }
+        >;
+      return { runtime, request, events, approvalRequest, appendCustomEntry };
+    }
+
+    it("emits an inline explanation and persists it with the decision", async () => {
+      const harness = approvalHarness();
+      try {
+        const result = harness.request({ explanation });
+        const event = harness.approvalRequest();
+        expect(event.explanation).toEqual(explanation);
+        expect(event).not.toHaveProperty("explanationPending");
+        harness.runtime.resolveApproval(event.requestId, { kind: "allow" });
+        await result;
+        expect(harness.appendCustomEntry).toHaveBeenCalledWith(
+          PINE_APPROVAL_DECISION_ENTRY,
+          expect.objectContaining({ decidedBy: "user", explanation }),
+        );
+        expect(
+          harness.events().some((e) => e.type === "approval-explanation"),
+        ).toBe(false);
+      } finally {
+        await harness.runtime.dispose();
+      }
+    });
+
+    it("emits a late explanation once and persists it", async () => {
+      const harness = approvalHarness();
+      try {
+        const result = harness.request({
+          pendingExplanation: Promise.resolve(explanation),
+        });
+        const event = harness.approvalRequest();
+        expect(event.explanationPending).toBe(true);
+        expect(event).not.toHaveProperty("explanation");
+        await vi.waitFor(() =>
+          expect(harness.events()).toContainEqual({
+            type: "approval-explanation",
+            sessionId: "explained-session",
+            requestId: event.requestId,
+            toolCallId: "push-1",
+            explanation,
+          }),
+        );
+        harness.runtime.resolveApproval(event.requestId, { kind: "allow" });
+        await result;
+        expect(harness.appendCustomEntry).toHaveBeenCalledWith(
+          PINE_APPROVAL_DECISION_ENTRY,
+          expect.objectContaining({ explanation }),
+        );
+      } finally {
+        await harness.runtime.dispose();
+      }
+    });
+
+    it("clears the loading state when no explanation arrives", async () => {
+      const harness = approvalHarness();
+      try {
+        const result = harness.request({
+          pendingExplanation: Promise.reject(new Error("offline")),
+        });
+        const event = harness.approvalRequest();
+        await vi.waitFor(() =>
+          expect(
+            harness.events().filter((e) => e.type === "approval-explanation"),
+          ).toEqual([
+            {
+              type: "approval-explanation",
+              sessionId: "explained-session",
+              requestId: event.requestId,
+              toolCallId: "push-1",
+            },
+          ]),
+        );
+        harness.runtime.resolveApproval(event.requestId, { kind: "deny" });
+        await result;
+        expect(harness.appendCustomEntry).toHaveBeenCalledWith(
+          PINE_APPROVAL_DECISION_ENTRY,
+          expect.not.objectContaining({ explanation: expect.anything() }),
+        );
+      } finally {
+        await harness.runtime.dispose();
+      }
+    });
+
+    it("emits nothing for an explanation that arrives after the decision", async () => {
+      const harness = approvalHarness();
+      let resolveExplanation!: (value: typeof explanation) => void;
+      try {
+        const result = harness.request({
+          pendingExplanation: new Promise((resolve) => {
+            resolveExplanation = resolve;
+          }),
+        });
+        const event = harness.approvalRequest();
+        harness.runtime.resolveApproval(event.requestId, { kind: "allow" });
+        await result;
+        resolveExplanation(explanation);
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        expect(
+          harness.events().some((e) => e.type === "approval-explanation"),
+        ).toBe(false);
+      } finally {
+        await harness.runtime.dispose();
+      }
+    });
+
+    function modelHarness(
+      stream: () => AsyncGenerator<unknown> | Generator<unknown>,
+    ) {
+      const runtime = new PineAgentRuntime({ emit: () => undefined });
+      const internals = runtime as unknown as {
+        getModelRuntime: () => Promise<unknown>;
+        modelService: { approvalModel: () => Promise<unknown> };
+        runModelJudge: (
+          live: { agentDir: string; approvalMode: string },
+          requests: JudgeRequest[],
+          signal: AbortSignal,
+        ) => Promise<JudgeRuling[]>;
+        runModelExplanation: (
+          live: { agentDir: string; locale: string },
+          requests: JudgeRequest[],
+        ) => Promise<Map<string, unknown>>;
+      };
+      internals.modelService.approvalModel = vi.fn().mockResolvedValue({
+        id: "reviewer",
+        name: "Reviewer",
+        provider: "custom-provider",
+        api: "openai-completions",
+      });
+      const streamMock = vi.fn(stream);
+      internals.getModelRuntime = vi
+        .fn()
+        .mockResolvedValue({ stream: streamMock });
+      return { runtime, internals, streamMock };
+    }
+
+    const judgeRequest: JudgeRequest = {
+      toolCallId: "push-1",
+      toolName: "bash",
+      trigger: "destructive-pattern",
+      subject: "git push --force",
+      turn: { recentUserStatements: [], recentEvents: [], grants: [] },
+    };
+
+    function done(name: string, args: unknown) {
+      return {
+        type: "done",
+        message: { content: [{ type: "toolCall", name, arguments: args }] },
+      };
+    }
+
+    it("returns the model judge's needs_user summary and risks as an explanation", async () => {
+      const { runtime, internals } = modelHarness(function* () {
+        yield done("submit_ruling", {
+          rulings: [
+            {
+              toolCallId: "push-1",
+              verdict: "needs_user",
+              reason: "Rewrites shared history.",
+              ...explanation,
+            },
+          ],
+        });
+      });
+      try {
+        await expect(
+          internals.runModelJudge(
+            { agentDir: "/unused", approvalMode: "auto-approve" },
+            [judgeRequest],
+            new AbortController().signal,
+          ),
+        ).resolves.toMatchObject([{ verdict: "needs_user", explanation }]);
+      } finally {
+        await runtime.dispose();
+      }
+    });
+
+    it("writes explanation-only requests with the approval model", async () => {
+      const { runtime, internals, streamMock } = modelHarness(function* () {
+        yield done("submit_explanations", {
+          explanations: [{ toolCallId: "push-1", ...explanation }],
+        });
+      });
+      try {
+        const result = await internals.runModelExplanation(
+          { agentDir: "/unused", locale: "en-US" },
+          [judgeRequest],
+        );
+        expect([...result.entries()]).toEqual([["push-1", explanation]]);
+        const [, context] = streamMock.mock.calls[0] as unknown as [
+          unknown,
+          { tools: { name: string }[]; messages: { content: string }[] },
+        ];
+        expect(context.tools.map((tool) => tool.name)).toEqual([
+          "submit_explanations",
+        ]);
+        expect(context.messages[0].content).toContain("git push --force");
+        expect(context.messages[0].content).toContain(
+          "Automatic screening outcome: needs the user's decision.",
+        );
+      } finally {
+        await runtime.dispose();
+      }
+    });
+
+    it("returns no explanations when the explanation stream fails", async () => {
+      const { runtime, internals } = modelHarness(function* () {
+        throw new Error("Provider unavailable");
+      });
+      try {
+        await expect(
+          internals.runModelExplanation(
+            { agentDir: "/unused", locale: "en-US" },
+            [judgeRequest],
+          ),
+        ).resolves.toEqual(new Map());
+      } finally {
+        await runtime.dispose();
+      }
+    });
+  });
+
   it.each([false, true])(
     "records the resolved review model on success or provider failure: %s",
     async (fails) => {

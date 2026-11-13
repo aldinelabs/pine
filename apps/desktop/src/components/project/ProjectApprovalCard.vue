@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 import { useI18n } from "vue-i18n";
-import { TriangleAlertIcon } from "@lucide/vue";
+import { ChevronRightIcon, TriangleAlertIcon } from "@lucide/vue";
 import ApprovalGuidanceComposer from "@/components/approval/ApprovalGuidanceComposer.vue";
 import { Button } from "@/components/ui/button";
 import {
@@ -12,7 +12,13 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 import { Kbd } from "@/components/ui/kbd";
+import { Spinner } from "@/components/ui/spinner";
 import { useShortcutHints } from "@/composables/useShortcutHints";
 import type { PineApprovalAction } from "@/shared/agent";
 import type { PinePendingApproval } from "@/stores/session";
@@ -32,6 +38,14 @@ const { t } = i18n;
 const showShortcutHints = useShortcutHints();
 const guidance = ref("");
 const guiding = ref(false);
+// Decided once: an inline explanation starts with the parameters collapsed; a
+// late one leaves them expanded so nothing moves away under the reader.
+const showParameters = ref(!props.approval.explanation);
+const hasExplanationView = computed(
+  () =>
+    Boolean(props.approval.explanation) ||
+    props.approval.explanationPending === true,
+);
 
 const triggerKey = computed(() => {
   switch (props.approval.trigger) {
@@ -141,20 +155,79 @@ function startGuidance(): void {
           <li>{{ t("project.approvalRequest.activationCompactEffect") }}</li>
         </ul>
       </div>
-      <div
-        v-else-if="approval.description || approval.subject"
-        class="flex flex-col gap-2"
-      >
-        <p v-if="approval.description" class="text-sm">
-          {{ approval.description }}
-        </p>
+      <template v-else>
+        <!-- Reviewer prose is untrusted model text: plain interpolation only. -->
         <div
-          v-if="approval.subject"
-          class="overflow-x-auto rounded-lg bg-muted/60 px-3 py-2 font-mono text-xs whitespace-pre-wrap"
+          v-if="approval.explanation"
+          class="flex flex-col gap-2"
+          data-slot="approval-explanation"
         >
-          {{ approval.subject }}
+          <p class="text-sm">{{ approval.explanation.summary }}</p>
+          <div
+            v-if="approval.explanation.risks.length > 0"
+            class="flex flex-col gap-1"
+          >
+            <p class="text-xs font-medium">
+              {{ t("project.approvalRequest.risks") }}
+            </p>
+            <ul class="list-disc space-y-1 pl-5 text-sm">
+              <li
+                v-for="(risk, index) in approval.explanation.risks"
+                :key="index"
+              >
+                {{ risk }}
+              </li>
+            </ul>
+          </div>
+          <p class="text-xs text-muted-foreground">
+            {{ t("project.approvalRequest.explanationNote") }}
+          </p>
         </div>
-      </div>
+        <p
+          v-else-if="approval.explanationPending"
+          class="flex items-center gap-2 text-xs text-muted-foreground"
+          role="status"
+          aria-live="polite"
+          data-slot="approval-explanation-loading"
+        >
+          <Spinner class="size-3.5" aria-hidden="true" />
+          {{ t("project.approvalRequest.explanationLoading") }}
+        </p>
+        <Collapsible
+          v-if="approval.description || approval.subject"
+          v-model:open="showParameters"
+          class="flex flex-col gap-2"
+        >
+          <CollapsibleTrigger
+            v-if="hasExplanationView"
+            class="flex w-fit cursor-pointer items-center gap-1 text-xs text-muted-foreground"
+          >
+            <ChevronRightIcon
+              class="size-3.5 transition-transform"
+              :class="showParameters && 'rotate-90'"
+              aria-hidden="true"
+            />
+            {{
+              t(
+                showParameters
+                  ? "project.approvalRequest.hideParameters"
+                  : "project.approvalRequest.showParameters",
+              )
+            }}
+          </CollapsibleTrigger>
+          <CollapsibleContent class="flex flex-col gap-2">
+            <p v-if="approval.description" class="text-sm">
+              {{ approval.description }}
+            </p>
+            <div
+              v-if="approval.subject"
+              class="overflow-x-auto rounded-lg bg-muted/60 px-3 py-2 font-mono text-xs whitespace-pre-wrap"
+            >
+              {{ approval.subject }}
+            </div>
+          </CollapsibleContent>
+        </Collapsible>
+      </template>
       <details v-if="approval.evidence">
         <summary class="cursor-pointer text-xs text-muted-foreground">
           {{ t("project.approvalRequest.evidence") }}

@@ -76,7 +76,12 @@ export class DesktopAttention {
       const chinese = isChineseLocale();
       this.requestApprovalAttention(ownerId, event.sessionId, {
         requestId: event.requestId,
-        body: approvalNotificationBody(event.toolName, event.input, chinese),
+        body: approvalNotificationBody(
+          event.toolName,
+          event.input,
+          chinese,
+          event.explanation?.summary,
+        ),
         actions: approvalNotificationActions(chinese),
         onAction: (actionIndex) =>
           this.answerApprovalFromNotification(

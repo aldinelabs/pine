@@ -1228,6 +1228,12 @@ export default {
       triggerLongContextActivation:
         "Pine möchte neue Tools aktivieren. Bitte bestätigen Sie das zuerst.",
       evidence: "Details",
+      explanationLoading: "Das Freigabemodell beschreibt diesen Vorgang…",
+      explanationNote:
+        "Vom Freigabemodell verfasst. Ausgeführt werden die ursprünglichen Parameter.",
+      risks: "Risiken",
+      showParameters: "Ursprüngliche Parameter anzeigen",
+      hideParameters: "Ursprüngliche Parameter ausblenden",
       approve: "Genehmigen",
       reject: "Ablehnen",
       activateNow: "Jetzt aktivieren",

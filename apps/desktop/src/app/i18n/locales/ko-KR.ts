@@ -1186,6 +1186,12 @@ export default {
       triggerLongContextActivation:
         "Pine이 새 도구를 활성화하려고 합니다. 진행하기 전에 확인해 주세요.",
       evidence: "세부 정보",
+      explanationLoading: "승인 모델이 이 작업을 설명하는 중…",
+      explanationNote:
+        "승인 모델이 작성한 설명입니다. 실제로 실행되는 것은 원래 매개변수입니다.",
+      risks: "위험",
+      showParameters: "원래 매개변수 보기",
+      hideParameters: "원래 매개변수 숨기기",
       approve: "승인",
       reject: "거부",
       activateNow: "바로 활성화",

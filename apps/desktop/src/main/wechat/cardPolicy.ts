@@ -15,7 +15,10 @@ import {
 import type { WeChatSettings } from "../../shared/wechatRemote";
 import {
   CARD_DESCRIPTION_MAX,
+  CARD_RISK_MAX,
+  CARD_RISKS_MAX,
   CARD_SUBJECT_MAX,
+  CARD_SUMMARY_MAX,
   SHOW_INPUT_MAX,
 } from "./constants";
 import { neutraliseText } from "./text";
@@ -84,6 +87,10 @@ export interface ApprovalCardText {
   fullSubject?: string;
   /** Cut to CARD_DESCRIPTION_MAX code points. */
   description?: string;
+  /** The reviewer's summary, cut to CARD_SUMMARY_MAX code points. */
+  summary?: string;
+  /** The reviewer's first risks for `.show`, each cut to CARD_RISK_MAX. */
+  risks?: string[];
   /** The card cannot show the whole subject: `.show` before `.approve`. */
   subjectCut: boolean;
   /** Longer than `.show` shows on one page. */
@@ -94,7 +101,7 @@ const SUBJECT_FALLBACK_KEYS = ["command", "path", "file_path", "url"] as const;
 
 /** Subject, optional description, and whether the subject was cut; from `input.subject` first. */
 export function approvalCardText(
-  ask: Pick<ApprovalAsk, "toolName" | "input" | "evidence">,
+  ask: Pick<ApprovalAsk, "toolName" | "input" | "evidence" | "explanation">,
 ): ApprovalCardText {
   const input = objectOf(ask.input);
   let subject = nonEmptyString(input?.subject);
@@ -110,6 +117,12 @@ export function approvalCardText(
     subject = nonEmptyString(ask.evidence);
   }
   const description = nonEmptyString(input?.description);
+  const summary = nonEmptyString(ask.explanation?.summary);
+  const risks = (ask.explanation?.risks ?? [])
+    .map((risk) => risk.trim())
+    .filter(Boolean)
+    .slice(0, CARD_RISKS_MAX)
+    .map((risk) => cutCodePoints(risk, CARD_RISK_MAX));
   // Measured on the text the card shows (`subjectLines` of replies.ts), which
   // marks dot-led lines and so can be longer than the raw subject.
   const length =
@@ -124,6 +137,10 @@ export function approvalCardText(
     ...(description !== undefined
       ? { description: cutCodePoints(description, CARD_DESCRIPTION_MAX) }
       : {}),
+    ...(summary !== undefined
+      ? { summary: cutCodePoints(summary, CARD_SUMMARY_MAX) }
+      : {}),
+    ...(risks.length > 0 ? { risks } : {}),
     subjectCut: length > CARD_SUBJECT_MAX,
     tooLong: length > SHOW_INPUT_MAX,
   };

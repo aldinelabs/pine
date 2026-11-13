@@ -395,6 +395,54 @@ describe("AutoReviewGate", () => {
     );
   });
 
+  it("passes the reviewer explanation, inline or pending, to the approval UI", async () => {
+    const explanation = {
+      summary: "Publishes the package.",
+      risks: ["Public."],
+    };
+    const pendingExplanation = Promise.resolve(explanation);
+    const { host, mocks } = createHost((request) =>
+      Promise.resolve(
+        request.toolCallId === "inline"
+          ? { verdict: "needs_user", explanation }
+          : { verdict: "needs_user", pendingExplanation },
+      ),
+    );
+    const gate = new AutoReviewGate(host);
+
+    await gate.reviewBashCommand({
+      toolCallId: "inline",
+      command: "bun publish",
+    });
+    await gate.reviewBashCommand({
+      toolCallId: "late",
+      command: "npm publish",
+    });
+    expect(mocks.requestUserApproval.mock.calls[0][0]).toMatchObject({
+      explanation,
+    });
+    expect(mocks.requestUserApproval.mock.calls[0][0]).not.toHaveProperty(
+      "pendingExplanation",
+    );
+    expect(mocks.requestUserApproval.mock.calls[1][0].pendingExplanation).toBe(
+      pendingExplanation,
+    );
+    expect(mocks.requestUserApproval.mock.calls[1][0]).not.toHaveProperty(
+      "explanation",
+    );
+  });
+
+  it("sends no explanation when the reviewer fails", async () => {
+    const { host, mocks } = createHost();
+    mocks.judge.mockRejectedValue(new Error("provider down"));
+    const gate = new AutoReviewGate(host);
+
+    await gate.reviewBashCommand({ toolCallId: "t1", command: "rm -rf build" });
+    const request = mocks.requestUserApproval.mock.calls[0][0];
+    expect(request).not.toHaveProperty("explanation");
+    expect(request).not.toHaveProperty("pendingExplanation");
+  });
+
   it("asks the user when the judge errors", async () => {
     const { host, mocks } = createHost(undefined, () =>
       Promise.resolve({ kind: "allow" }),

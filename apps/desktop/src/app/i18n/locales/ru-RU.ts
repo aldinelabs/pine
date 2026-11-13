@@ -1206,6 +1206,12 @@ export default {
       triggerLongContextActivation:
         "Pine хочет включить новые инструменты. Подтвердите, прежде чем продолжить.",
       evidence: "Подробности",
+      explanationLoading: "Модель одобрения описывает эту операцию…",
+      explanationNote:
+        "Написано моделью одобрения. Выполняются исходные параметры.",
+      risks: "Риски",
+      showParameters: "Показать исходные параметры",
+      hideParameters: "Скрыть исходные параметры",
       approve: "Разрешить",
       reject: "Отклонить",
       activateNow: "Активировать сейчас",
