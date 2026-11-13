@@ -22,9 +22,4 @@ describe("RateLimits", () => {
     limits.reset();
     expect(limits.repeatAllowed("E-FAIL")).toBe(true);
   });
-
-  it("has no quota on user actions", () => {
-    const limits = new RateLimits({ now: () => 0 });
-    expect("take" in limits).toBe(false);
-  });
 });

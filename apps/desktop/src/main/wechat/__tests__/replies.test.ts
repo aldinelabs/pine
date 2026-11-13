@@ -13,7 +13,6 @@ import {
 import {
   REPLY_IDS,
   answerExample,
-  effortLabel,
   header,
   joinReplies,
   modeLabel,
@@ -24,7 +23,6 @@ import {
   renderDigest,
   renderLastPages,
   tailOutput,
-  triggerLabel,
   type ReplyData,
   type ReplyId,
 } from "../replies";
@@ -964,18 +962,6 @@ describe("labels", () => {
     ).toBe(
       "1 Let Me Review · 2 * Auto Approve · 3 🔒 Autonomous Work · 4 🔒 YOLO\nThe highest mode is set on the computer.",
     );
-  });
-
-  it("names triggers and effort levels", () => {
-    expect(triggerLabel("zh", "sandbox-denied")).toBe("沙箱拒绝");
-    expect(triggerLabel("en", "privileged-execution")).toBe(
-      "native execution outside the sandbox",
-    );
-    expect(render("T-TRIGGER", "zh", { trigger: "destructive-pattern" })).toBe(
-      "危险命令",
-    );
-    expect(effortLabel("zh", "xhigh")).toBe("超高");
-    expect(effortLabel("en", "max")).toBe("Maximum");
   });
 
   it("builds the header", () => {

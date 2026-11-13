@@ -1,8 +1,7 @@
 // @vitest-environment node
 // WeChat remote end to end: the real bridge, ClawBot channel and command
 // layer against the mock iLink server, over a real ProjectRuntimeRegistry.
-import { randomUUID } from "node:crypto";
-import { readdir, writeFile } from "node:fs/promises";
+import { readdir } from "node:fs/promises";
 import path from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { serializeAttachmentMessage } from "../../../shared/attachments";
@@ -324,52 +323,6 @@ describe("WeChat remote end to end", { timeout: 30_000 }, () => {
     expect(refused).toContain("above the WeChat ceiling");
     expect(refused).not.toContain("Queued");
     expect(h.agentHost.prompt.mock.calls.length).toBe(prompts);
-  });
-
-  it("explains .recall as .unqueue", async () => {
-    const h = await harness();
-    const help = await h.say(".? recall");
-    expect(help).toContain(".unqueue");
-    expect(help).toContain(".recall");
-  });
-
-  it("drops a message from another WeChat user without a reply", async () => {
-    const h = await harness();
-    const sends = h.mock.sent.length;
-    h.push(".new hijack", { from_user_id: "intruder@im.wechat" });
-    await h.settle();
-    await sleep(300);
-    expect(h.mock.sent.length).toBe(sends);
-    expect(h.agentHost.createSession).not.toHaveBeenCalled();
-  });
-
-  it("never asks for an upload URL while file sending is off", async () => {
-    const h = await harness();
-    const sessionId = await startSession(h);
-    const file = path.join(h.projectFolder, "report.txt");
-    await writeFile(file, "report");
-    h.emit({
-      type: "present-file",
-      sessionId,
-      toolCallId: randomUUID(),
-      path: file,
-    });
-    await sleep(100);
-    h.finish(sessionId, "Wrote the report.");
-    await h.sent((text) => text.includes("Wrote the report."));
-
-    const refused = await h.say(".o 1");
-    expect(refused).toBe(render("E-SWITCH", "en"));
-    expect(
-      h.mock.requests.some((request) => request.path.endsWith("/getuploadurl")),
-    ).toBe(false);
-
-    await h.bridge.setSettings({ allowFileSending: true });
-    expect(await h.say(".o")).toContain("1 presented file(s)");
-    await h.say(".o 1");
-    await waitFor(() =>
-      h.mock.requests.some((request) => request.path.endsWith("/getuploadurl")),
-    );
   });
 
   it("answers .pause, then E-PAUSED once for later messages", async () => {

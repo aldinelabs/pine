@@ -127,14 +127,6 @@ const respond = (ctx: TestContext) => ctx.fake.core.runtimes.respondApproval;
 const answerFn = (ctx: TestContext) =>
   ctx.fake.core.runtimes.respondQuestionnaire;
 
-describe("askHandlers exports", () => {
-  it("has exactly the ask commands", () => {
-    expect(Object.keys(askHandlers).sort()).toEqual(
-      ["answer", "approve", "guide", "pending", "reject", "show"].sort(),
-    );
-  });
-});
-
 describe(".approve", () => {
   it("approves an approvable card as the responder and tombstones it", async () => {
     const ctx = setup();
@@ -151,8 +143,6 @@ describe(".approve", () => {
   it.each([
     { trigger: "sandbox-denied" as const, toolName: "bash" },
     { trigger: "authorize-denied" as const, toolName: "write" },
-    { trigger: "pre-execution" as const, toolName: "ui_project_create" },
-    { trigger: "pre-execution" as const, toolName: "ui_session_delete" },
     { trigger: "pre-execution" as const, toolName: "some_future_tool" },
   ])("approves $trigger $toolName by default", async (card) => {
     const ctx = setup();

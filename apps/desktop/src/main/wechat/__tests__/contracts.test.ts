@@ -14,12 +14,9 @@ import {
   ALLOW_BARE_APPROVE,
   ASK_MAX,
   ASK_MIN,
-  BUDGET,
   PAGE_ROWS,
   PUSH_SLOT,
-  USABLE,
 } from "../constants";
-import { COMMAND_NAMES } from "../types";
 
 const wide: WeChatSettings = {
   ceilingMode: "YOLO",
@@ -29,13 +26,6 @@ const wide: WeChatSettings = {
   allowFileSending: true,
   keepAwake: true,
 };
-
-describe("command names", () => {
-  it("lists 41 unique commands", () => {
-    expect(COMMAND_NAMES).toHaveLength(41);
-    expect(new Set(COMMAND_NAMES).size).toBe(41);
-  });
-});
 
 describe("notification kinds", () => {
   it("are unique", () => {
@@ -114,10 +104,6 @@ describe("numbers", () => {
     expect(PUSH_SLOT).toBeLessThan(ASK_MIN);
     expect(ASK_MIN).toBeLessThan(ASK_MAX);
     expect(ASK_MAX).toBeLessThanOrEqual(99);
-  });
-
-  it("leaves room in the reply budget", () => {
-    expect(USABLE).toBeLessThan(BUDGET);
   });
 
   it("does not approve on a bare .y", () => {

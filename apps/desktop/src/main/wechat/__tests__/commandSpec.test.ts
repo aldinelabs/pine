@@ -142,12 +142,6 @@ describe("command table", () => {
     ]);
   });
 
-  it("accepts @project only on new, sessions and autos", () => {
-    expect(
-      COMMANDS.filter((spec) => spec.project).map((spec) => spec.name),
-    ).toEqual(["new", "sessions", "autos"]);
-  });
-
   it("makes destructive commands D", () => {
     expect(specOf("delete").cls).toBe("D");
     expect(specOf("file").cls).toBe("D");

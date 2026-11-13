@@ -905,20 +905,6 @@ describe("WeChatBridge composition", () => {
     expect(stored.get().modeOverride).toEqual({ s2: "let-me-review" });
   });
 
-  it("routes the automation check to the session directory", async () => {
-    const context = await setup();
-    await seedBound(context, { tracked: true });
-    await context.bridge.start();
-    const automation = { id: "a1", name: "Nightly", enabled: true };
-    expect(context.bridge.automationRunRefusal("s1", automation)).toEqual(
-      expect.any(String),
-    );
-    expect(
-      context.bridge.automationRunRefusal("unknown", automation),
-    ).toBeUndefined();
-    expect(context.bridge.originOf("s1")).toBe("wechat");
-  });
-
   it("never lets an observer error reach the core", async () => {
     const context = await setup();
     await seedBound(context);

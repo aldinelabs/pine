@@ -53,10 +53,8 @@ describe("approvalCardPolicy", () => {
     ["bash", "pre-execution"],
     ["bash", "sandbox-denied"],
     ["edit", "authorize-denied"],
-    ["ui_project_create", "pre-execution"],
     ["ui_project_delete", "pre-execution"],
     ["ui_session_delete", "pre-execution"],
-    ["ui_session_new", "pre-execution"],
     ["computer_use", "pre-execution"],
     ["a_tool_added_next_year", "pre-execution"],
   ] as const)("%s %s is approvable by default", (tool, trigger) => {

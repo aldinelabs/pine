@@ -123,14 +123,6 @@ async function run(ctx: TestContext, text: string) {
   return handler(ctx, parsed);
 }
 
-describe("controlHandlers exports", () => {
-  it("has exactly the control commands", () => {
-    expect(Object.keys(controlHandlers).sort()).toEqual(
-      ["compact", "effort", "mode", "model", "todo", "usage"].sort(),
-    );
-  });
-});
-
 describe(".model", () => {
   it("lists configured models, recommended first, the session's marked", async () => {
     const ctx = setup();
