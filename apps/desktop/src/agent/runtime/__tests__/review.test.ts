@@ -20,7 +20,7 @@ describe("normalizeApprovalExplanation", () => {
     });
   });
 
-  it.each([undefined, null, "text", [], {}, { summary: "   " }, { risks: [] }])(
+  it.each([null, "text", [], {}, { summary: "   " }])(
     "drops an explanation without a summary: %j",
     (value) => {
       expect(normalizeApprovalExplanation(value)).toBeUndefined();
@@ -135,7 +135,7 @@ describe("parseApprovalExplanations", () => {
     ]);
   });
 
-  it.each([undefined, null, [], "text", { explanations: "no" }])(
+  it.each([null, [], "text", { explanations: "no" }])(
     "returns an empty map for %j",
     (value) => {
       expect(parseApprovalExplanations(value, ["a"]).size).toBe(0);

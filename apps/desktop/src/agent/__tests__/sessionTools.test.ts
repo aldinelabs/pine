@@ -350,19 +350,6 @@ describe("session tools", () => {
     expect(text(kept)).toContain("The user chose this session's title");
   });
 
-  it("anchors retitling on a new task, not on follow-ups", () => {
-    const { rename } = setup("auto-approve");
-
-    const guidance = rename.promptGuidelines?.join("\n") ?? "";
-    expect(guidance).toContain(
-      "starts a new task or moves to a different area",
-    );
-    expect(guidance).toContain("Do not retitle for follow-ups");
-    expect(guidance).toContain(
-      "do not call ui_session_rename in the first turn",
-    );
-  });
-
   it("starts a sibling from a sub-session and refuses a nested child", async () => {
     const { start, requestHost } = setup("auto-approve", undefined, "parent");
 

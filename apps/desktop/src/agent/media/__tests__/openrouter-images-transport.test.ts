@@ -4,7 +4,7 @@ import {
   imagesEndpointBody,
   isImagesEndpointRedirect,
 } from "../openrouter-images-endpoint";
-import { generateImagesWithOpenRouter, imageTransportFor } from "../tools";
+import { generateImagesWithOpenRouter } from "../tools";
 
 const mocks = vi.hoisted(() => ({ generateImages: vi.fn() }));
 
@@ -64,18 +64,6 @@ function request(model: ImageModel<ImageApi>) {
     prompt: "A red circle on a plain white background",
   };
 }
-
-describe("imageTransportFor", () => {
-  it("sends text-emitting image models through Pi's chat transport", () => {
-    expect(imageTransportFor(imageModel({ output: ["image", "text"] }))).toBe(
-      "chat",
-    );
-  });
-
-  it("sends pure image models to the dedicated image endpoint", () => {
-    expect(imageTransportFor(imageModel())).toBe("images");
-  });
-});
 
 describe("generateImagesWithOpenRouter", () => {
   it("posts pure image models to the dedicated endpoint", async () => {

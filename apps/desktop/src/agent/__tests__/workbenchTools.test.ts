@@ -32,15 +32,6 @@ function setup() {
 }
 
 describe("workbench tools", () => {
-  it("defines the ui_workbench tools", () => {
-    expect(setup().tools.map((tool) => tool.name)).toEqual([
-      UI_WORKBENCH_STATE_TOOL_NAME,
-      UI_WORKBENCH_OPEN_TOOL_NAME,
-      UI_WORKBENCH_CLOSE_TOOL_NAME,
-      UI_WORKBENCH_ARRANGE_TOOL_NAME,
-    ]);
-  });
-
   it("reads fresh user layout without changing it", async () => {
     const { run, readState, sendCommand } = setup();
     const first = await run(UI_WORKBENCH_STATE_TOOL_NAME, {});

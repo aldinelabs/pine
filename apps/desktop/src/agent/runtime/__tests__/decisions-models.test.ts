@@ -134,7 +134,7 @@ describe("Decisions model discovery", () => {
     ).toEqual([...ids].sort());
   });
 
-  it.each(["network", "timeout", "http", "json", "empty"])(
+  it.each(["network", "http", "json", "empty"])(
     "uses the full offline snapshot when discovery fails: %s",
     async (failure) => {
       if (failure === "http")

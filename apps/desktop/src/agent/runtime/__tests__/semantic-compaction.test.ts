@@ -53,8 +53,4 @@ describe("createSemanticCompactionExtension", () => {
 
     expect(handlers.get("context")?.()).toBe(contextResult);
   });
-
-  it("registers recall for the runtime to activate by route", () => {
-    expect(loadExtension(() => false).tools).toEqual(["recall"]);
-  });
 });

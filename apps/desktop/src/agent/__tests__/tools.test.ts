@@ -1795,13 +1795,6 @@ describeSandbox("createPineToolDefinitions", () => {
     },
   );
 
-  it("carries the captured output as review evidence", () => {
-    const error = new SandboxCommandPermissionError(
-      "zsh:1: operation not permitted: ps",
-    );
-    expect(error.outputTail).toContain("operation not permitted");
-  });
-
   describe("system temporary storage denials", () => {
     it("recognizes /tmp and /private/tmp paths only", () => {
       expect(

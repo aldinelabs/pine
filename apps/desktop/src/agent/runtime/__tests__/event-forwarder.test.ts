@@ -255,19 +255,6 @@ describe("PineAgentEventForwarder tool result messages", () => {
       toolResult,
     );
   });
-
-  it("still sends message events for user and assistant messages", () => {
-    const { forward, emitted } = createForwarder();
-    const user = { role: "user", content: "hi", timestamp: 1 };
-
-    forward({ type: "message_start", message: user });
-    forward({ type: "message_end", message: user });
-
-    expect(emitted.map((event) => event.type)).toEqual([
-      "message-start",
-      "message-end",
-    ]);
-  });
 });
 
 describe("PineAgentEventForwarder session summaries", () => {

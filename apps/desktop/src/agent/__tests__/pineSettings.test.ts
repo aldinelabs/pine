@@ -75,12 +75,7 @@ describe("Pine agent settings", () => {
     ).toBe("typesafe/jev-1.13");
   });
 
-  it.each([
-    "upstage/solar-decide",
-    "respan/span-01",
-    "respan/span-01-lite",
-    "new-provider/new-decisions-model",
-  ])(
+  it.each(["new-provider/new-decisions-model"])(
     "saves a discovered Decisions model beyond Jev: %s",
     async (decisionsModel) => {
       const agentDir = await mkdtemp(

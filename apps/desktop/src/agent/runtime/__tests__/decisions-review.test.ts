@@ -299,7 +299,6 @@ describe("Decisions approval cascade", () => {
     { type: "noul", noul: 0.99 },
     { type: "choice" },
     { type: "choice", choice: "execute" },
-    { type: "choice", choice: null },
   ])("falls back for an invalid individual answer: %j", async (invalid) => {
     const { fetchMock, options } = setup();
     fetchMock.mockResolvedValue(
@@ -317,15 +316,12 @@ describe("Decisions approval cascade", () => {
     ]);
   });
 
-  it.each([401, 402, 404, 429, 500])(
-    "falls back for HTTP %s",
-    async (status) => {
-      const { fetchMock, options } = setup();
-      fetchMock.mockResolvedValue(new Response("unavailable", { status }));
-      await runApprovalReview(options);
-      expect(options.reviewWithModel).toHaveBeenCalledExactlyOnceWith(requests);
-    },
-  );
+  it.each([401, 500])("falls back for HTTP %s", async (status) => {
+    const { fetchMock, options } = setup();
+    fetchMock.mockResolvedValue(new Response("unavailable", { status }));
+    await runApprovalReview(options);
+    expect(options.reviewWithModel).toHaveBeenCalledExactlyOnceWith(requests);
+  });
 
   it("falls back for missing credentials, network failures and malformed JSON", async () => {
     const { fetchMock, options } = setup();

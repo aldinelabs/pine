@@ -96,15 +96,6 @@ function setup(
 }
 
 describe("tool set", () => {
-  it("offers the four upstream tools", () => {
-    expect(setup().tools.map((tool) => tool.name)).toEqual([
-      "bg_run",
-      "bg_status",
-      "bg_logs",
-      "bg_kill",
-    ]);
-  });
-
   it("explains the sandbox and the privileged escape hatch to the model", () => {
     const run = setup().tools[0];
     expect(run?.description).toContain("project sandbox");

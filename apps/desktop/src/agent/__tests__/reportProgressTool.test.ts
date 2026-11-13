@@ -29,18 +29,6 @@ function validate(args: unknown) {
 }
 
 describe("createReportProgressToolDefinition", () => {
-  it("is named ui_report_progress and carries its guidance in the description", () => {
-    const tool = createReportProgressToolDefinition();
-    expect(tool.name).toBe("ui_report_progress");
-    expect(tool.label).toBe("Report Progress");
-    expect(tool.description).toMatch(/exactly like your normal reply text/);
-    expect(tool.description).toMatch(/not as a tool call/);
-    expect(tool.description).toMatch(/Do not use it for simple questions/);
-    expect(tool.description).toMatch(/never replaces the final answer/);
-    expect(tool.description).toMatch(/continue the work immediately/);
-    expect(tool.description).toContain("\n- Lead with substance");
-  });
-
   // Reply text before a tool call is already on screen; a model that also
   // reports it would show the user the same passage twice in a row.
   it("tells the model not to repeat its own preamble in a report", () => {

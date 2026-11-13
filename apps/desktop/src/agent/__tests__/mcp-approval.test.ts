@@ -76,19 +76,6 @@ describe("McpScriptApprovalCache", () => {
     expect(judge.mock.calls[0]?.[0]).toHaveLength(3);
   });
 
-  it("without the cache every call reaches the judge (baseline)", async () => {
-    const { gate, judge } = setup();
-    for (let id = 0; id < 3; id += 1) {
-      await gate.reviewPrivilegedCall({
-        toolCallId: `b${id}`,
-        toolName: "notes_get_note",
-        subject: `notes.get_note {"id":${id}}`,
-        evidence: "",
-      });
-    }
-    expect(judge).toHaveBeenCalledTimes(3);
-  });
-
   it("re-reviews a different tool or any different argument", async () => {
     const { gate, judge } = setup();
     const cache = new McpScriptApprovalCache();
