@@ -704,6 +704,71 @@ describe("observation and pushes", () => {
   });
 });
 
+describe("run files", () => {
+  async function runWithFiles(
+    settings: { allowFileSending?: boolean },
+    names: string[],
+  ) {
+    const dir = await mkdtemp(path.join(os.tmpdir(), "wechat-run-files-"));
+    const { ctx, pushes } = setup({ settings });
+    const sent: string[] = [];
+    vi.spyOn(ctx.outbound, "sendFile").mockImplementation((file) => {
+      sent.push(file.name);
+      return Promise.resolve({ ok: true as const });
+    });
+    await trackedSession(ctx);
+    await ctx.sessions.send({
+      sessionId: "s1",
+      projectId: P,
+      text: "send me the files",
+      attachments: false,
+    });
+    ctx.sessions.observe(runState("s1", "running"), W);
+    for (const [index, name] of names.entries()) {
+      const file = path.join(dir, name);
+      await writeFile(file, name);
+      ctx.sessions.observe(
+        {
+          type: "tool-end",
+          sessionId: "s1",
+          toolCallId: `tc-${index}`,
+          toolName: index === 0 ? "ui_present_file" : "ui_submit_artifact",
+          payload:
+            index === 0
+              ? { details: { path: file } }
+              : { details: { files: [{ path: file }], rejected: [] } },
+        },
+        W,
+      );
+    }
+    await vi.waitFor(async () => {
+      expect(await ctx.sessions.files("s1", P)).toHaveLength(names.length);
+    });
+    ctx.sessions.observe(assistant("s1", "here they are"), W);
+    ctx.sessions.observe(runState("s1", "idle"), W);
+    await vi.waitFor(() => expect(pushes).toHaveLength(1));
+    await flush();
+    await rm(dir, { recursive: true, force: true });
+    return { pushes, sent };
+  }
+
+  it("counts a presented file toward `.o` and sends nothing while sending is off", async () => {
+    const { pushes, sent } = await runWithFiles({}, ["shown.md", "made.md"]);
+    expect(pushes[0].text).toContain("(2)");
+    expect(sent).toEqual([]);
+  });
+
+  it("sends the run's newest files after the result while sending is on", async () => {
+    const { sent } = await runWithFiles({ allowFileSending: true }, [
+      "a.md",
+      "b.md",
+      "c.md",
+      "d.md",
+    ]);
+    expect(sent).toEqual(["b.md", "c.md", "d.md"]);
+  });
+});
+
 describe("actor and responder", () => {
   it("prefers a window or browser controller", () => {
     const { ctx, runtimes } = setup();

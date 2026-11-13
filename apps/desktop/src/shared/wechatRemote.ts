@@ -3,6 +3,16 @@ import { APPROVAL_MODE_ORDER, type PineApprovalMode } from "./agent";
 /** The WeChat bridge's place among the clients that hold project runtimes. */
 export const WECHAT_CLIENT_ID = -2;
 
+/**
+ * Told to the agent in a session used from WeChat, where the user may be
+ * away from the computer and cannot see Pine's previews.
+ */
+export const WECHAT_SESSION_NOTICE = [
+  "This session is also used from WeChat through Pine's remote control. The user may be reading on their phone, away from this computer, and cannot see Pine's preview panel or anything opened on screen.",
+  "- When the user asks you to send, share or show them a file, submit it with ui_submit_artifact; presenting it alone does not reach them. Pine delivers submitted files to WeChat: right after your reply when file sending is turned on in Pine's WeChat settings, otherwise the user fetches them with `.o`.",
+  "- Do not claim a file was sent or opened for them; say it was submitted and how to get it.",
+].join("\n");
+
 export const GET_WECHAT_REMOTE_CHANNEL = "wechat:get";
 export const SET_WECHAT_PAUSED_CHANNEL = "wechat:set-paused";
 export const START_WECHAT_BINDING_CHANNEL = "wechat:start-binding";

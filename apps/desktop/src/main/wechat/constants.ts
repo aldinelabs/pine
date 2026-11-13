@@ -88,6 +88,8 @@ export const HOLD_IDLE_MS = 10 * MINUTE;
 
 /** Largest file received from or sent to WeChat. To be confirmed in phase 0. */
 export const FILE_MAX_BYTES = 100 * 1024 * 1024;
+/** Files a run sends after its result when file sending is on; the rest stay on `.o`. */
+export const RUN_FILES_SENT_MAX = 3;
 export const PENDING_ATTACHMENTS_MAX = 10;
 export const PENDING_ATTACHMENT_TTL_MS = 10 * MINUTE;
 /** To be confirmed in phase 0. */

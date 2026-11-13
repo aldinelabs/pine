@@ -467,9 +467,11 @@ describe("WeChat remote security invariants", { timeout: 40_000 }, () => {
     await sleep(100);
     h.finish(sessionId, "Here it is.");
     await h.sent((text) => text.includes("Here it is."));
+    // With sending on, the run's file follows the result; `.o 1` sends it again.
+    await waitFor(() => h.mock.uploads.size === 1);
     await h.say(".o");
     await h.say(".o 1");
-    await waitFor(() => h.mock.uploads.size === 1);
+    await waitFor(() => h.mock.uploads.size === 2);
 
     const gated = new Set(h.gated.map((entry) => new URL(entry.url).pathname));
     for (const request of h.mock.requests)

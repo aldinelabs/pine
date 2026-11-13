@@ -197,6 +197,7 @@ import {
   type PineUserProfile,
 } from "../shared/userProfile";
 import { intelligentUiSystemPrompt } from "../shared/intelligentUi";
+import { WECHAT_SESSION_NOTICE } from "../shared/wechatRemote";
 import {
   approximateLocationNotice,
   localNetworkRegionSignals,
@@ -1485,6 +1486,9 @@ export class PineAgentRuntime {
                 localNetworkRegionSignals(),
               );
               if (networkRegion) notices.network_region = networkRegion;
+              // Fixed for the session's life, like the setting above.
+              if (live.promptChannel === "wechat")
+                notices.wechat = WECHAT_SESSION_NOTICE;
               if (
                 settings.approximateLocationEnabled ??
                 DEFAULT_APPROXIMATE_LOCATION_ENABLED

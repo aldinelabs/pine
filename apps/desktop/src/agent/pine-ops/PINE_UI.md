@@ -524,7 +524,8 @@ the user opens themselves do not pulse.
     an approval card from Auto Approve carries the reviewer's one-line
     summary ("Reviewer: …"), and .N also lists its risks),
     "Allow sending files to WeChat" (the session's artifacts, up to 100 MB;
-    off by default). "Good to know" notes say it works only while Pine runs
+    off by default; when on, up to three files a task submitted or opened
+    are also sent right after its result, and the rest stay on `.o`). "Good to know" notes say it works only while Pine runs
     and the computer is awake, messages pass through Tencent's servers, the
     account can read session titles, search results and replies of every project, a proxy may be
     blocked, one WeChat account connects to one computer, in WeChat .help

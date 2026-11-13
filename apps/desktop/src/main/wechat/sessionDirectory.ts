@@ -6,7 +6,7 @@
 // but pushes cards and results only for tracked sessions. Results are pushed
 // only for a run whose latest prompt this bridge sent.
 
-import { realpath } from "node:fs/promises";
+import { readFile, realpath } from "node:fs/promises";
 import path from "node:path";
 import type { BackgroundTaskSnapshot } from "@pine/pi-background-tasks";
 import {
@@ -16,6 +16,7 @@ import {
   type PineApprovalMode,
   type PineJsonValue,
   type PromptSessionResult,
+  UI_PRESENT_FILE_TOOL_NAME,
   UI_SUBMIT_ARTIFACT_TOOL_NAME,
 } from "../../shared/agent";
 import { artifactKey, type SessionArtifact } from "../../shared/artifacts";
@@ -48,7 +49,10 @@ import {
   PROGRESS_AFTER_MS,
   TRACK_IDLE_MS,
   TRACKED_MAX,
+  FILE_MAX_BYTES,
+  RUN_FILES_SENT_MAX,
 } from "./constants";
+import { checkFile } from "./fileCheck";
 import { notice, type NoticeData } from "./notices";
 import type { Outbound } from "./outbound";
 import type {
@@ -187,7 +191,7 @@ export interface SessionDirectoryDeps {
   >;
   store: WeChatStateStore;
   asks: AskBook;
-  outbound: Pick<Outbound, "push" | "retract" | "setTyping">;
+  outbound: Pick<Outbound, "push" | "retract" | "setTyping" | "sendFile">;
   attachments: InboundAttachmentsApi;
   settings: () => WeChatSettings;
   lang: () => ReplyLanguage;
@@ -257,8 +261,10 @@ interface Observed {
   contextUsage?: PineContextUsage;
   todos?: { done: number; total: number };
   artifacts: ArtifactFile[];
-  /** Files submitted as artifacts during the current run. */
+  /** Files submitted or presented during the current run. */
   runFiles: number;
+  /** Those files, oldest first: sent with the result when sending is on. */
+  runArtifacts: ArtifactFile[];
   lastError?: string;
 }
 
@@ -321,6 +327,21 @@ function submittedFiles(
     });
   }
   return [];
+}
+
+/** The file of a `ui_present_file` result, if the payload carries it. */
+function presentedFile(
+  payload: PineJsonValue | undefined,
+): { path: string } | undefined {
+  const root = objectOf(payload);
+  for (const candidate of [
+    objectOf(root?.details),
+    objectOf(objectOf(root?.result)?.details),
+  ]) {
+    const filePath = candidate?.path;
+    if (typeof filePath === "string" && filePath) return { path: filePath };
+  }
+  return undefined;
 }
 
 /** Counts of a `todo` tool result's task snapshot, if the payload carries one. */
@@ -457,6 +478,13 @@ export class SessionDirectory {
             event.toolCallId,
             submittedFiles(event.payload),
           );
+        // A file the agent only opened in the preview is something the user
+        // asked to see: from WeChat they can only get it with `.o`.
+        if (event.toolName === UI_PRESENT_FILE_TOOL_NAME && !event.isError) {
+          const presented = presentedFile(event.payload);
+          if (presented)
+            void this.recordSubmitted(sessionId, event.toolCallId, [presented]);
+        }
         break;
       case "approval-request":
         this.openApproval(sessionId, obs, event);
@@ -494,6 +522,7 @@ export class SessionDirectory {
       tasks: [],
       artifacts: [],
       runFiles: 0,
+      runArtifacts: [],
     };
     this.observed.set(sessionId, obs);
     while (this.observed.size > OBSERVED_SESSIONS_MAX) {
@@ -524,6 +553,7 @@ export class SessionDirectory {
       obs.aborted = false;
       obs.progressSent = false;
       obs.runFiles = 0;
+      obs.runArtifacts = [];
       obs.bridgeRun = obs.pendingPrompt;
       obs.pendingPrompt = false;
       if (!obs.bridgeRun) this.foreignRun(sessionId);
@@ -585,6 +615,7 @@ export class SessionDirectory {
       this.pushesResults(sessionId);
     const startedAt = obs.runStartedAtMs;
     const files = obs.runFiles;
+    const runArtifacts = obs.runArtifacts;
     obs.bridgeRun = false;
     obs.runStartedAtMs = undefined;
     if (report) {
@@ -596,6 +627,7 @@ export class SessionDirectory {
           startedAt === undefined ? undefined : this.deps.now() - startedAt,
         cost: obs.contextUsage?.cost,
         files,
+        artifacts: runArtifacts,
       }).catch(() => undefined);
     }
     void this.releaseIdle().catch(() => undefined);
@@ -751,14 +783,17 @@ export class SessionDirectory {
           (known) => known.path !== canonical,
         );
         if (obs.artifacts.length === before) obs.runFiles += 1;
-        obs.artifacts.push(
-          artifactFile({
-            toolCallId,
-            path: canonical,
-            ...(file.title ? { title: file.title } : {}),
-            submitted: true,
-          }),
-        );
+        const artifact = artifactFile({
+          toolCallId,
+          path: canonical,
+          ...(file.title ? { title: file.title } : {}),
+          submitted: true,
+        });
+        obs.artifacts.push(artifact);
+        obs.runArtifacts = [
+          ...obs.runArtifacts.filter((known) => known.path !== canonical),
+          artifact,
+        ];
       } catch {
         // A file that cannot be resolved is not offered.
       }
@@ -888,6 +923,8 @@ export class SessionDirectory {
       durationMs?: number;
       cost?: number;
       files: number;
+      /** The run's files, sent after the result when file sending is on. */
+      artifacts?: readonly ArtifactFile[];
     },
   ): Promise<void> {
     const projectId = this.projectOfSession(sessionId);
@@ -923,8 +960,27 @@ export class SessionDirectory {
         }),
         digest: { kind: "done", title },
       });
+      if (this.deps.settings().allowFileSending)
+        await this.sendRunFiles(result.artifacts ?? []);
     }
     this.recordPush(sessionId, projectId);
+  }
+
+  /**
+   * With file sending on, the files a run submitted or presented follow its
+   * result, newest last, up to `RUN_FILES_SENT_MAX`; the rest stay on `.o`.
+   * Each passes the same checks as `.o N` right before it is read.
+   */
+  private async sendRunFiles(files: readonly ArtifactFile[]): Promise<void> {
+    for (const file of files.slice(-RUN_FILES_SENT_MAX)) {
+      const check = await checkFile(file.path);
+      if (check.kind !== "ok") continue;
+      const data = await readFile(check.path).catch(() => undefined);
+      if (!data || data.length !== check.size || data.length > FILE_MAX_BYTES)
+        continue;
+      const sent = await this.deps.outbound.sendFile({ name: file.name, data });
+      if (!sent.ok) return;
+    }
   }
 
   private async pushProgress(sessionId: string, obs: Observed): Promise<void> {

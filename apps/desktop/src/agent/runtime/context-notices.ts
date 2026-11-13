@@ -12,6 +12,7 @@ export const PINE_CONTEXT_NOTICE = "pine.context-notice";
 export const PINE_CONTEXT_NOTICE_KEYS = [
   "user_profile",
   "interface_elements",
+  "wechat",
   "skills",
   "network_region",
   "approximate_location",
