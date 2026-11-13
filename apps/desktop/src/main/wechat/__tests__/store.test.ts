@@ -45,12 +45,12 @@ async function setup(storage = fakeStorage()) {
   const securePath = path.join(directory, "data", "wechat-remote-secure");
   await mkdir(path.dirname(statePath), { recursive: true });
   await mkdir(path.dirname(securePath), { recursive: true });
-  const open = (override = storage) =>
+  const open = (override = storage, debounceMs = 5) =>
     new WeChatStore({
       statePath,
       securePath,
       storage: override,
-      debounceMs: 5,
+      debounceMs,
     });
   return { directory, statePath, securePath, open };
 }
@@ -306,7 +306,8 @@ describe("WeChatStore sealed blob", () => {
 
   it("re-reads only the language from the plain file on reloadLanguage", async () => {
     const { open } = await setup();
-    const running = open();
+    // A long debounce keeps the pending write from racing the offline edit.
+    const running = open(undefined, 60_000);
     await running.load();
     running.updateSoon((draft) => {
       draft.cursor = "kept";
@@ -319,6 +320,7 @@ describe("WeChatStore sealed blob", () => {
     await running.reloadLanguage();
     expect(running.get().language).toBe("en");
     expect(running.get().cursor).toBe("kept");
+    await running.flush();
   });
 
   it("clearBinding removes the account, resets permissions and keeps language, keep-awake and default project", async () => {
