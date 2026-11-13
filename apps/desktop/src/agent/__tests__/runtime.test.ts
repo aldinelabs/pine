@@ -1902,9 +1902,7 @@ describe("PineAgentRuntime", () => {
         });
       await runtime.disposeSession(child.session.id);
       const reopened = await runtime.openSession(location, child.sessionFile!);
-      expect(activeTools(reopened.session.id)).not.toContain(
-        "report_progress",
-      );
+      expect(activeTools(reopened.session.id)).not.toContain("report_progress");
     } finally {
       await runtime.dispose();
     }
