@@ -175,8 +175,10 @@ From top to bottom:
    - tool call groups; clicking a call opens Tool call details (status,
      approval, parameters, result). When a call has automatic review records,
      Review history lists each Decisions screening or approval-model attempt,
-     its actual model and provider, outcome and reason. It keeps failed attempts
-     and handoffs to detailed model review; Approval status shows when the call
+     its actual model and provider, outcome and reason. Each outcome is shown in
+     bold with its own icon and colour: green "Allowed", amber "Denied", blue
+     "User confirmation required", grey "Sent for model review" and red "Review
+     failed". It keeps failed attempts and handoffs to detailed model review; Approval status shows when the call
      is awaiting user approval or was decided by the user. These records remain
      available when reopening the conversation. Older calls without review
      records do not show a model inferred from current settings. During automatic

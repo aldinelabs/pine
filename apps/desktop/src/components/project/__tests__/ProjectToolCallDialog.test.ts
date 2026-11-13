@@ -124,6 +124,48 @@ describe("ProjectToolCallDialog", () => {
     },
   );
 
+  it("emphasises each review outcome with its own tone and icon", async () => {
+    const wrapper = mountMarker("user");
+    const outcomes = [
+      "fallback",
+      "allow",
+      "deny",
+      "needs_user",
+      "error",
+    ] as const;
+    await wrapper.setProps({
+      toolCall: {
+        ...wrapper.props("toolCall"),
+        approval: {
+          state: "approved",
+          decidedBy: "judge",
+          reviews: outcomes.map((outcome) => ({
+            kind: outcome === "fallback" ? "decisions" : "model",
+            modelId: "reviewer",
+            outcome,
+          })),
+        },
+      },
+    });
+    await wrapper.get('button[data-slot="marker"]').trigger("click");
+    const rendered = [
+      ...document.body.querySelectorAll<HTMLElement>("[data-review-outcome]"),
+    ];
+    expect(rendered.map((node) => node.dataset.reviewOutcome)).toEqual([
+      ...outcomes,
+    ]);
+    const tones = rendered.map((node) => node.className);
+    expect(tones[1]).toContain("text-emerald-600");
+    expect(tones[2]).toContain("text-warning");
+    expect(tones[3]).toContain("text-info");
+    expect(tones[4]).toContain("text-destructive");
+    for (const node of rendered) {
+      expect(node.className).toContain("font-semibold");
+      expect(node.querySelector("svg")).not.toBeNull();
+    }
+    wrapper.unmount();
+  });
+
   it.each([
     ["read", "src/main.ts", undefined],
     ["write", "src/main.ts", undefined],

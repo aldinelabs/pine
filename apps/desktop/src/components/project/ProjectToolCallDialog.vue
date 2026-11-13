@@ -1,6 +1,12 @@
 <script setup lang="ts">
-import { computed, ref, watch } from "vue";
-import { ShieldBanIcon } from "@lucide/vue";
+import { computed, ref, watch, type Component } from "vue";
+import {
+  CircleAlertIcon,
+  CircleCheckIcon,
+  ForwardIcon,
+  ShieldBanIcon,
+  UserRoundIcon,
+} from "@lucide/vue";
 import { useI18n } from "vue-i18n";
 import { toast } from "vue-sonner";
 import { Badge, type BadgeVariants } from "@/components/ui/badge";
@@ -14,7 +20,7 @@ import {
 import DialogScrollArea from "@/components/dialogs/DialogScrollArea.vue";
 import { Separator } from "@/components/ui/separator";
 import { PHONE_FULLSCREEN_DIALOG } from "@/lib/dialogLayout";
-import type { PineToolCall } from "@/shared/sessions";
+import type { PineApprovalReview, PineToolCall } from "@/shared/sessions";
 import ProjectToolSemanticValue from "./ProjectToolSemanticValue.vue";
 import { isDeniedTool } from "./toolKinds";
 import { toolViewAdapter } from "./toolViewAdapter";
@@ -104,6 +110,22 @@ const approvalKey = computed(() => {
 const approvalVariant = computed<BadgeVariants["variant"]>(() =>
   isDenied.value ? "outline" : "secondary",
 );
+
+// Each review's result is the part a reader scans for, so it carries its own
+// icon and tone; deny matches the warning tone of the denied status badge.
+const reviewOutcomeStyles: Record<
+  PineApprovalReview["outcome"],
+  { icon: Component; class: string }
+> = {
+  allow: {
+    icon: CircleCheckIcon,
+    class: "text-emerald-600 dark:text-emerald-400",
+  },
+  deny: { icon: ShieldBanIcon, class: "text-warning" },
+  needs_user: { icon: UserRoundIcon, class: "text-info" },
+  fallback: { icon: ForwardIcon, class: "text-muted-foreground" },
+  error: { icon: CircleAlertIcon, class: "text-destructive" },
+};
 
 function formatDuration(durationMs: number): string {
   if (durationMs < 1_000) {
@@ -223,18 +245,35 @@ async function openDialog(): Promise<void> {
                   :key="index"
                   class="flex min-w-0 flex-col gap-1 text-sm"
                 >
-                  <p class="font-medium">
-                    {{
-                      t(
-                        `project.transcript.toolDetails.reviewKinds.${review.kind}`,
-                      )
-                    }}
-                    ·
-                    {{
-                      t(
-                        `project.transcript.toolDetails.reviewOutcomes.${review.outcome}`,
-                      )
-                    }}
+                  <p class="flex min-w-0 flex-wrap items-center gap-x-1.5">
+                    <span class="text-muted-foreground">
+                      {{
+                        t(
+                          `project.transcript.toolDetails.reviewKinds.${review.kind}`,
+                        )
+                      }}
+                    </span>
+                    <span class="text-muted-foreground" aria-hidden="true">
+                      ·
+                    </span>
+                    <span
+                      :class="[
+                        'inline-flex items-center gap-1 font-semibold',
+                        reviewOutcomeStyles[review.outcome].class,
+                      ]"
+                      :data-review-outcome="review.outcome"
+                    >
+                      <component
+                        :is="reviewOutcomeStyles[review.outcome].icon"
+                        class="size-3.5 shrink-0"
+                        aria-hidden="true"
+                      />
+                      {{
+                        t(
+                          `project.transcript.toolDetails.reviewOutcomes.${review.outcome}`,
+                        )
+                      }}
+                    </span>
                   </p>
                   <p class="break-words">
                     {{
