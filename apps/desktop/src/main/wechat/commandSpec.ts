@@ -254,7 +254,7 @@ export const COMMANDS: readonly CommandSpec[] = [
   }),
   row({
     name: "unqueue",
-    aliases: ["qx"],
+    aliases: ["qx", "recall"],
     zhAliases: ["撤回"],
     positional: ["n"],
     glued: true,

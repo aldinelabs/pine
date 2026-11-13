@@ -54,6 +54,15 @@ describe(".help", () => {
   });
 });
 
+describe(".help recall", () => {
+  it("shows the .unqueue usage with .recall among the aliases", async () => {
+    const { ctx } = setup();
+    const text = (await run(ctx, "help", ["recall"])).text ?? "";
+    expect(text).toContain(".unqueue");
+    expect(text).toContain(".qx .recall .撤回");
+  });
+});
+
 describe(".info", () => {
   it("never shows a path or the token", async () => {
     const { ctx } = setup();

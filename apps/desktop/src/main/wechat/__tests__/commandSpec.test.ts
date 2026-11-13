@@ -165,6 +165,9 @@ describe("lookupCommand", () => {
     expect(lookupCommand("取消")).toBe("reject");
     expect(lookupCommand("更多")).toBe("more");
     expect(lookupCommand("gitignore")).toBeUndefined();
+    expect(lookupCommand("recall")).toBe("unqueue");
+    expect(lookupCommand("qx")).toBe("unqueue");
+    expect(lookupCommand("撤回")).toBe("unqueue");
   });
 });
 

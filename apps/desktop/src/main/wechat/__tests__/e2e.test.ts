@@ -4,7 +4,7 @@
 import { randomUUID } from "node:crypto";
 import { readdir, writeFile } from "node:fs/promises";
 import path from "node:path";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { serializeAttachmentMessage } from "../../../shared/attachments";
 import { STALE_MS } from "../constants";
 import { render } from "../replies";
@@ -261,6 +261,76 @@ describe("WeChat remote end to end", { timeout: 30_000 }, () => {
     await waitFor(() => h.agentHost.createSession.mock.calls.length === 1);
     await h.sent((text) => text.includes("Started in Garden: old task"));
     expect(started).toBeTruthy();
+  });
+
+  it("queues plain text as steering behind an open card and withdraws it with .recall", async () => {
+    const h = await harness();
+    const sessionId = await startSession(h);
+    h.approval(sessionId, { subject: "npm test" });
+    const number = cardNumber(
+      await h.sent((text) => text.includes("npm test")),
+    );
+    const prompts = h.agentHost.prompt.mock.calls.length;
+
+    const queued = await h.say("also check the footer");
+    expect(queued).toContain("Queued as steering");
+    expect(queued).toContain(`${number} approval (.y ${number} approves`);
+    expect(queued).toContain(".recall");
+    expect(h.agentHost.prompt.mock.calls.length).toBe(prompts + 1);
+    const call = h.agentHost.prompt.mock.calls[prompts] as unknown[];
+    expect(call[0]).toBe(sessionId);
+    expect(call[1]).toBe("also check the footer");
+    expect(call[2]).toBe("steer");
+
+    h.emit({
+      type: "steering-queue",
+      sessionId,
+      messages: ["also check the footer"],
+    });
+    expect(await h.say(".q")).toContain("1 also check the footer");
+    const dequeue = vi
+      .spyOn(h.agentHost, "dequeueSteering")
+      .mockResolvedValueOnce({
+        removed: true,
+        message: "also check the footer",
+      });
+    expect(await h.say(".recall")).toBe("Withdrawn: also check the footer");
+    expect(dequeue).toHaveBeenCalledWith(sessionId, "also check the footer");
+    expect(h.agentHost.respondApproval).not.toHaveBeenCalled();
+    expect(await h.say(".w")).toContain(String(number));
+  });
+
+  it("still holds late plain text while a card is open", async () => {
+    const h = await harness();
+    const sessionId = await startSession(h);
+    h.approval(sessionId, { subject: "npm test" });
+    await h.sent((text) => text.includes("npm test"));
+    const prompts = h.agentHost.prompt.mock.calls.length;
+    const held = await h.say("old thought", {
+      create_time_ms: Date.now() - STALE_MS - 60_000,
+    });
+    expect(held).toContain("arrived while offline");
+    expect(h.agentHost.prompt.mock.calls.length).toBe(prompts);
+  });
+
+  it("refuses plain text for a view-only session with an open card", async () => {
+    const h = await harness();
+    const sessionId = await startSession(h);
+    await h.bridge.setSettings({ ceilingMode: "let-me-review" });
+    h.approval(sessionId, { subject: "rm build" });
+    await h.sent((text) => text.includes("rm build"));
+    const prompts = h.agentHost.prompt.mock.calls.length;
+    const refused = await h.say("keep going");
+    expect(refused).toContain("above the WeChat ceiling");
+    expect(refused).not.toContain("Queued");
+    expect(h.agentHost.prompt.mock.calls.length).toBe(prompts);
+  });
+
+  it("explains .recall as .unqueue", async () => {
+    const h = await harness();
+    const help = await h.say(".? recall");
+    expect(help).toContain(".unqueue");
+    expect(help).toContain(".recall");
   });
 
   it("drops a message from another WeChat user without a reply", async () => {

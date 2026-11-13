@@ -174,6 +174,10 @@ const SAMPLES: { [K in ReplyId]: ReplyData[K] } = {
   "R-STOPNONE": undefined,
   "R-STOPALL": { count: 2 },
   "R-QUEUED": undefined,
+  "R-QUEUEWAIT": {
+    at: { project: "p", title: "修登录页" },
+    asks: [{ number: 12, variant: "approval" }],
+  },
   "R-QUEUE": { rows: [{ n: 1, text: HOSTILE }] },
   "R-UNQUEUE": { text: "later" },
   "R-RENAME": { title: "新标题" },
@@ -408,7 +412,6 @@ const SAMPLES: { [K in ReplyId]: ReplyData[K] } = {
       { number: 13, kind: "question", title: "b" },
     ],
   },
-  "E-WAITING": { title: "修登录页", ask: 12, variant: "approval" },
   "E-AMBIG": { n: 2, ask: 13, list: ".u" },
   "E-SHOWFIRST": { ask: 12 },
   "E-TEXT": undefined,
@@ -831,14 +834,44 @@ describe("errors", () => {
     ).not.toContain(".mode");
   });
 
-  it("renders every E-WAITING variant", () => {
-    const variants = ["approval", "question", "display-only"] as const;
-    const texts = variants.map((variant) =>
-      render("E-WAITING", "en", { title: "t", ask: 12, variant }),
+  it("renders every R-QUEUEWAIT variant and the overflow", () => {
+    const at = { project: "p", title: "t" };
+    const variants = [
+      "approval",
+      "question",
+      "display-only",
+      "long-context",
+    ] as const;
+    const asks = variants.map((variant, index) => ({
+      number: 12 + index,
+      variant,
+    }));
+    const en = render("R-QUEUEWAIT", "en", { at, asks });
+    expect(en).toBe(
+      "[p › t] Queued as steering; it reaches the agent once the waiting card is handled. Still waiting: 12 approval (.y 12 approves, .d 12 rejects), 13 question (.a 13 your answer, .d 13 cancels), 14 approve on the computer (.d 14 rejects), 15 long context (.c 15 compacts and continues, .d 15 stops). .recall withdraws this message.",
     );
-    expect(texts[0]).toContain(".y 12 or .d 12");
-    expect(texts[1]).toContain(".a 12 your answer");
-    expect(texts[2]).toContain("only be approved on the computer");
+    const zh = render("R-QUEUEWAIT", "zh", { at, asks });
+    expect(zh).toBe(
+      "【p › t】已加入引导队列，等待的卡片处理后交给智能体。仍在等你：12 审批（.y 12 批准，.d 12 拒绝）、13 问题（.a 13 你的回答，.d 13 取消）、14 只能在电脑上批准（.d 14 拒绝）、15 上下文过长（.c 15 压缩后继续，.d 15 停止）。发 .撤回 可撤回这条消息。",
+    );
+    const many = Array.from({ length: PAGE_ROWS + 1 }, (_, index) => ({
+      number: 11 + index,
+      variant: "approval" as const,
+    }));
+    const long = render("R-QUEUEWAIT", "en", { at, asks: many });
+    expect(long).toContain("and 1 more");
+    expect(long).not.toContain(`${11 + PAGE_ROWS} approval`);
+    expect(render("R-QUEUEWAIT", "zh", { at, asks: many })).toContain(
+      "等 1 项",
+    );
+  });
+
+  it("points R-QUEUE at .recall in English and .qx in Chinese", () => {
+    const rows = [{ n: 1, text: "go on" }];
+    expect(render("R-QUEUE", "en", { rows })).toContain(
+      ".recall number withdraws",
+    );
+    expect(render("R-QUEUE", "zh", { rows })).toContain(".qx 数字 撤回");
   });
 
   it("renders both E-BUSY variants and both E-LOCAL forms", () => {

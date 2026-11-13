@@ -194,6 +194,39 @@ function list(lang: L, items: readonly string[]): string {
   return items.join(lang === "zh" ? "、" : ", ");
 }
 
+/** How `R-QUEUEWAIT` says a waiting card can be answered. */
+export type QueueWaitVariant =
+  "approval" | "question" | "display-only" | "long-context";
+
+function queueWaitItem(lang: L, n: number, variant: QueueWaitVariant): string {
+  switch (variant) {
+    case "approval":
+      return pick(
+        lang,
+        `${n} 审批（.y ${n} 批准，.d ${n} 拒绝）`,
+        `${n} approval (.y ${n} approves, .d ${n} rejects)`,
+      );
+    case "question":
+      return pick(
+        lang,
+        `${n} 问题（.a ${n} 你的回答，.d ${n} 取消）`,
+        `${n} question (.a ${n} your answer, .d ${n} cancels)`,
+      );
+    case "display-only":
+      return pick(
+        lang,
+        `${n} 只能在电脑上批准（.d ${n} 拒绝）`,
+        `${n} approve on the computer (.d ${n} rejects)`,
+      );
+    case "long-context":
+      return pick(
+        lang,
+        `${n} 上下文过长（.c ${n} 压缩后继续，.d ${n} 停止）`,
+        `${n} long context (.c ${n} compacts and continues, .d ${n} stops)`,
+      );
+  }
+}
+
 function echo(text: string): string {
   return truncate(cleanInline(text), ECHO_MAX);
 }
@@ -728,6 +761,11 @@ export interface ReplyData {
   "R-STOPNONE": undefined;
   "R-STOPALL": { count: number };
   "R-QUEUED": undefined;
+  /** Plain text queued as steering while cards of the session are open. */
+  "R-QUEUEWAIT": {
+    at: SessionRef;
+    asks: { number: number; variant: QueueWaitVariant }[];
+  };
   "R-QUEUE": { rows: { n: number; text: string }[] };
   "R-UNQUEUE": { text: string };
   "R-RENAME": { title: string };
@@ -953,11 +991,6 @@ export interface ReplyData {
   "E-CODE": { ask: number };
   "E-DONE": { ask: number };
   "E-WHICH": { asks: AskSummary[]; command?: string };
-  "E-WAITING": {
-    title: string;
-    ask: number;
-    variant: "approval" | "question" | "display-only";
-  };
   "E-AMBIG": { n: number; ask: number; list: string };
   "E-SHOWFIRST": { ask: number };
   "E-TEXT": undefined;
@@ -1295,6 +1328,19 @@ const TEMPLATES: { [K in ReplyId]: Template<K> } = {
       "已排队，这一轮结束后发送。",
       "Queued. It will be sent after this turn.",
     ),
+  "R-QUEUEWAIT": (lang, { at, asks }) => {
+    const items = asks
+      .slice(0, PAGE_ROWS)
+      .map(({ number: n, variant }) => queueWaitItem(lang, n, variant));
+    const extra = asks.length - items.length;
+    if (extra > 0)
+      items.push(pick(lang, `等 ${extra} 项`, `and ${extra} more`));
+    return `${head(lang, at)}${pick(
+      lang,
+      `已加入引导队列，等待的卡片处理后交给智能体。仍在等你：${list(lang, items)}。发 .撤回 可撤回这条消息。`,
+      `Queued as steering; it reaches the agent once the waiting card is handled. Still waiting: ${list(lang, items)}. .recall withdraws this message.`,
+    )}`;
+  },
   "R-QUEUE": (lang, { rows: items }) => {
     if (items.length === 0)
       return pick(lang, "没有排队的消息。", "No queued messages.");
@@ -1302,7 +1348,7 @@ const TEMPLATES: { [K in ReplyId]: Template<K> } = {
       ...rows(items).map((item) =>
         row(`${item.n} ${truncate(cleanInline(item.text), 80)}`),
       ),
-      pick(lang, ".qx 数字 撤回", ".qx number withdraws"),
+      pick(lang, ".qx 数字 撤回", ".recall number withdraws"),
     );
   },
   "R-UNQUEUE": (lang, { text }) =>
@@ -2204,29 +2250,6 @@ const TEMPLATES: { [K in ReplyId]: Template<K> } = {
       `有 ${asks.length} 项待处理：${list(lang, items)}。请带编号，如 .${verb} ${first}`,
       `${asks.length} waiting: ${list(lang, items)}. Add the number, for example .${verb} ${first}`,
     );
-  },
-  "E-WAITING": (lang, { title, ask, variant }) => {
-    const t = displayTitle(title);
-    switch (variant) {
-      case "approval":
-        return pick(
-          lang,
-          `「${t}」在等你处理 ${ask}：回 .y ${ask} 或 .d ${ask}；要补充说明用 .d ${ask} 你的说明；要排到这一轮之后用 .q 文字。`,
-          `"${t}" is waiting for you on ${ask}: reply .y ${ask} or .d ${ask}; add a note with .d ${ask} your note; queue text for later with .q text.`,
-        );
-      case "question":
-        return pick(
-          lang,
-          `「${t}」在等你回答 ${ask}：回 .a ${ask} 你的回答，或 .d ${ask} 取消；要排到这一轮之后用 .q 文字。`,
-          `"${t}" is waiting for your answer to ${ask}: reply .a ${ask} your answer, or .d ${ask} to cancel; queue text for later with .q text.`,
-        );
-      case "display-only":
-        return pick(
-          lang,
-          `「${t}」在等待 ${ask}，它只能在电脑上批准；回 .d ${ask} 可拒绝；要排到这一轮之后用 .q 文字。`,
-          `"${t}" is waiting on ${ask}, which can only be approved on the computer; .d ${ask} rejects it; queue text for later with .q text.`,
-        );
-    }
   },
   "E-AMBIG": (lang, { n, ask, list: command }) =>
     pick(

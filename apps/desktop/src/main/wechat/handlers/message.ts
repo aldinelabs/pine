@@ -3,14 +3,18 @@
 // Plain text always goes to the current session; it is never held because a
 // push was about another session. The reply is silent when the routing cannot
 // surprise the user, `R-ROUTE` otherwise, and `R-STEER` when it steers a
-// running turn. A bare number is turned into the command it stands for and
-// run through `ctx.bridge.dispatch`, so every gate of that command applies.
+// running turn. While an approval or question card of the current session is
+// open, the text joins the steering queue (delivered after the card is
+// handled) and `R-QUEUEWAIT` names the cards still waiting. A bare number is
+// turned into the command it stands for and run through `ctx.bridge.dispatch`,
+// so every gate of that command applies.
 
 import { bareAnswerAllowed } from "../asks";
 import { specOf } from "../commandSpec";
 import { ASK_MAX, ASK_MIN, PUSH_SLOT } from "../constants";
-import { render } from "../replies";
+import { render, type QueueWaitVariant } from "../replies";
 import type {
+  ApprovalAsk,
   CommandName,
   HandleKind,
   ParsedCommand,
@@ -53,6 +57,17 @@ const PICK_COMMAND: Record<HandleKind, string> = {
   queue: ".qx",
 };
 
+async function cardVariant(
+  ctx: CommandContext,
+  ask: ApprovalAsk | QuestionAsk,
+): Promise<QueueWaitVariant> {
+  if (ask.kind !== "approval") return "question";
+  const verdict = await ctx.sessions.verdict(ask);
+  if (verdict.kind === "display-only") return "display-only";
+  if (verdict.kind === "long-context") return "long-context";
+  return "approval";
+}
+
 function command(name: CommandName, args: string[] = []): ParsedCommand {
   return { kind: "command", name, args };
 }
@@ -76,20 +91,27 @@ export const handlePlainMessage: MessageHandler = async (ctx, text) => {
   const { sessionId, projectId } = current;
   const view = await ctx.sessions.view(sessionId, projectId);
   const at = { project: view.project, title: view.title };
-  const open = ctx.sessions.asksOf(sessionId)[0];
-  if (open) {
-    let variant: "approval" | "question" | "display-only" = "question";
-    if (open.kind === "approval") {
-      const verdict = await ctx.sessions.verdict(open);
-      variant = verdict.kind === "display-only" ? "display-only" : "approval";
-    }
-    return {
-      text: render("E-WAITING", ctx.lang, {
-        title: view.title,
-        ask: open.number,
-        variant,
-      }),
-    };
+  const open = ctx.sessions.asksOf(sessionId);
+  if (open.length > 0) {
+    // Queued, never refused: `send` still applies every gate (view-only,
+    // quote-only, attachments) before anything reaches the agent.
+    await ctx.sessions.send({
+      sessionId,
+      projectId,
+      text: body,
+      ...(ctx.inbound.quotedText !== undefined
+        ? { quotedText: ctx.inbound.quotedText }
+        : {}),
+      behavior: "steer",
+      attachments: ctx.attachments.list().length > 0,
+    });
+    const asks = await Promise.all(
+      open.map(async (ask) => ({
+        number: ask.number,
+        variant: await cardVariant(ctx, ask),
+      })),
+    );
+    return { text: render("R-QUEUEWAIT", ctx.lang, { at, asks }) };
   }
   const route = ctx.sessions.routeFor(ctx.now);
   const running = view.live && view.state === "running";

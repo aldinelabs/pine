@@ -12,6 +12,7 @@ import {
   W,
   type TestContext,
 } from "../../__tests__/fakes";
+import { handlePlainMessage } from "../message";
 import { sessionHandlers } from "../sessions";
 
 const recent = vi.hoisted(() => ({
@@ -429,6 +430,25 @@ describe(".queue, .unqueue, .rename", () => {
     expect(runtimes.prompt.mock.calls[0]?.[1]).toMatchObject({
       streamingBehavior: "follow-up",
     });
+  });
+
+  it("lists and withdraws plain text queued as steering behind a card", async () => {
+    const { ctx, runtimes } = setup();
+    await currentSession(ctx);
+    ctx.sessions.observe(running("s1"), W);
+    ctx.sessions.observe(approval("s1"), W);
+    await handlePlainMessage(ctx, "go on");
+    expect(runtimes.prompt.mock.calls[0]?.[1]).toMatchObject({
+      streamingBehavior: "steer",
+    });
+    ctx.sessions.observe(
+      { type: "steering-queue", sessionId: "s1", messages: ["go on"] },
+      W,
+    );
+    expect((await run(ctx, "queue")).text).toContain("1 go on");
+    const removed = await run(ctx, "unqueue");
+    expect(runtimes.dequeueSteering).toHaveBeenCalledWith(W, "go on", "s1");
+    expect(removed.text).toBe("Withdrawn: go on");
   });
 
   it("renames with the actor and refuses a view-only session", async () => {

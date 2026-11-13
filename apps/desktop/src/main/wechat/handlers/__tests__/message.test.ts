@@ -52,6 +52,38 @@ function running(sessionId: string): PineAgentEvent {
   return { type: "run-state", sessionId, state: "running" };
 }
 
+function approval(
+  ctx: TestContext,
+  sessionId: string,
+  trigger: "pre-execution" | "privileged-execution" = "pre-execution",
+): void {
+  ctx.sessions.observe(
+    {
+      type: "approval-request",
+      sessionId,
+      requestId: REQ,
+      toolCallId: "tc",
+      toolName: "bash",
+      trigger,
+      input: { subject: "make" },
+    },
+    W,
+  );
+}
+
+function question(ctx: TestContext, sessionId: string, requestId = REQ): void {
+  ctx.sessions.observe(
+    {
+      type: "questionnaire-request",
+      sessionId,
+      requestId,
+      toolCallId: "tq",
+      questionnaire,
+    },
+    W,
+  );
+}
+
 afterEach(() => {
   vi.restoreAllMocks();
 });
@@ -137,42 +169,93 @@ describe("plain text routing (CMD §3.2, §3.3, ground rule 14)", () => {
     });
   });
 
-  it("is not forwarded while an ask of the current session is open", async () => {
+  it("queues plain text as steering while an approval card is open", async () => {
     const { ctx, runtimes } = setup();
     await tracked(ctx, "s1", { current: true });
     ctx.sessions.observe(running("s1"), W);
-    ctx.sessions.observe(
-      {
-        type: "approval-request",
-        sessionId: "s1",
-        requestId: REQ,
-        toolCallId: "tc",
-        toolName: "bash",
-        trigger: "pre-execution",
-        input: { subject: "make" },
-      },
-      W,
-    );
+    approval(ctx, "s1");
     const result = await handlePlainMessage(ctx, "go on");
-    expect(result.text).toContain('"Session s1" is waiting for you on 11');
-    expect(runtimes.prompt).not.toHaveBeenCalled();
+    expect(runtimes.prompt).toHaveBeenCalledTimes(1);
+    expect(runtimes.prompt.mock.calls[0]?.[1]).toMatchObject({
+      streamingBehavior: "steer",
+      approvalMode: "auto-approve",
+    });
+    expect(result.text).toBe(
+      "[Project p1 › Session s1] Queued as steering; it reaches the agent once the waiting card is handled. Still waiting: 11 approval (.y 11 approves, .d 11 rejects). .recall withdraws this message.",
+    );
+    expect(ctx.asks.status(11)).toBe("open");
   });
 
-  it("uses the question variant of E-WAITING", async () => {
+  it("names how to answer an open question card", async () => {
+    const { ctx, runtimes } = setup();
+    await tracked(ctx, "s1", { current: true });
+    question(ctx, "s1");
+    const result = await handlePlainMessage(ctx, "email");
+    expect(runtimes.prompt.mock.calls[0]?.[1]).toMatchObject({
+      streamingBehavior: "steer",
+    });
+    expect(result.text).toContain(
+      "11 question (.a 11 your answer, .d 11 cancels)",
+    );
+  });
+
+  it("names every open card of the session", async () => {
     const { ctx } = setup();
     await tracked(ctx, "s1", { current: true });
-    ctx.sessions.observe(
-      {
-        type: "questionnaire-request",
-        sessionId: "s1",
-        requestId: REQ,
-        toolCallId: "tc",
-        questionnaire,
-      },
-      W,
-    );
-    const result = await handlePlainMessage(ctx, "email");
-    expect(result.text).toContain("is waiting for your answer to 11");
+    approval(ctx, "s1");
+    question(ctx, "s1", "2b2c3d4e-5f60-4a71-8b92-a3b4c5d6e7f8");
+    const result = await handlePlainMessage(ctx, "also this");
+    expect(result.text).toContain("11 approval (.y 11 approves");
+    expect(result.text).toContain("12 question (.a 12 your answer");
+  });
+
+  it("uses the display-only wording for a high-risk card", async () => {
+    const { ctx } = setup();
+    await tracked(ctx, "s1", { current: true });
+    approval(ctx, "s1", "privileged-execution");
+    const result = await handlePlainMessage(ctx, "go on");
+    expect(result.text).toContain("11 approve on the computer (.d 11 rejects)");
+  });
+
+  it("answers in Chinese", async () => {
+    const { ctx } = setup({ lang: "zh" });
+    await tracked(ctx, "s1", { current: true });
+    approval(ctx, "s1");
+    const result = await handlePlainMessage(ctx, "继续");
+    expect(result.text).toContain("已加入引导队列");
+    expect(result.text).toContain("11 审批（.y 11 批准，.d 11 拒绝）");
+    expect(result.text).toContain(".撤回");
+  });
+
+  it("carries the quote and staged attachments into the queued message", async () => {
+    const { ctx, runtimes } = setup({ inbound: { quotedText: "earlier" } });
+    await tracked(ctx, "s1", { current: true });
+    approval(ctx, "s1");
+    ctx.fake.attachments.add("a.png");
+    await handlePlainMessage(ctx, "look at this");
+    const request = runtimes.prompt.mock.calls[0]?.[1];
+    expect(request).toMatchObject({ streamingBehavior: "steer" });
+    expect(request?.message).toContain("look at this");
+    expect(request?.message).toContain("earlier");
+    expect(request?.message).toContain("a.png");
+  });
+
+  it("refuses a view-only session with an open card", async () => {
+    const { ctx, runtimes } = setup();
+    await ctx.sessions.hold(P);
+    runtimes.addLiveSession({
+      sessionId: "hi",
+      projectId: P,
+      clientId: W,
+      mode: "autonomous",
+    });
+    await ctx.sessions.setCurrent({ projectId: P, sessionId: "hi" });
+    approval(ctx, "hi");
+    expect(ctx.sessions.asksOf("hi")).toHaveLength(1);
+    await expect(handlePlainMessage(ctx, "go")).rejects.toMatchObject({
+      id: "E-VIEW",
+    });
+    expect(runtimes.prompt).not.toHaveBeenCalled();
   });
 
   it("refuses a view-only session", async () => {

@@ -139,6 +139,13 @@ describe("parseCommand: classification rules", () => {
     expect(parseCommand(".cancel 12")).toEqual(cmd("reject", { tail: "12" }));
   });
 
+  it(".recall is .unqueue, with a spaced or glued row number", () => {
+    expect(parseCommand(".recall")).toEqual(cmd("unqueue"));
+    expect(parseCommand(".recall 2")).toEqual(cmd("unqueue", { args: ["2"] }));
+    expect(parseCommand(".recall2")).toEqual(cmd("unqueue", { args: ["2"] }));
+    expect(parseCommand(".RECALL")).toEqual(cmd("unqueue"));
+  });
+
   it("rule 9: glued digits only for glued commands", () => {
     expect(parseCommand(".a1,3")).toEqual(cmd("answer", { tail: "1,3" }));
     expect(parseCommand(".a13 2; 1")).toEqual(
