@@ -208,6 +208,16 @@ describe("WeChat remote security invariants", { timeout: 40_000 }, () => {
     const prompts = h.agentHost.prompt.mock.calls.length;
     expect(await h.say("third")).toContain("above the WeChat ceiling");
     expect(h.agentHost.prompt.mock.calls.length).toBe(prompts);
+
+    // Guidance steers the agent too, so it is refused; a bare reject is not.
+    const requestId = h.approval(sessionId, { subject: "npm test" });
+    const card = await h.sent((text) => text.includes("npm test"));
+    const n = askNumber(card);
+    expect(await h.say(`.g ${n} do X`)).toContain("above the WeChat ceiling");
+    expect(h.agentHost.respondApproval).not.toHaveBeenCalled();
+    await h.say(`.d ${n}`);
+    expect(h.agentHost.respondApproval).toHaveBeenCalledTimes(1);
+    expect(h.agentHost.respondApproval.mock.calls[0]?.[0]).toBe(requestId);
   });
 
   it("4. never approves a display-only card, from a stale message, twice, after the action changed, or before a cut subject was read", async () => {
@@ -268,7 +278,11 @@ describe("WeChat remote security invariants", { timeout: 40_000 }, () => {
     await h.say(`.y ${number}`);
     expect(respond).toHaveBeenCalledTimes(2);
     await h.say(`.show ${number}`);
+    // Written right after the full subject went out: the server clock may be
+    // ahead of ours, so it waits for a clear margin.
     await h.say(`.y ${number}`);
+    expect(respond).toHaveBeenCalledTimes(2);
+    await h.say(`.y ${number}`, { create_time_ms: Date.now() + 10_000 });
     expect(respond).toHaveBeenLastCalledWith(cutRequest, { kind: "allow" });
   });
 

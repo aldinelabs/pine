@@ -266,9 +266,37 @@ describe(".approve", () => {
     const early = await run(ctx, `.y ${ask.number}`);
     expect(early.text).toContain("cut short");
 
+    const shownAt = ctx.now;
+    // Written a second later by the server clock, in the same poll batch: the
+    // clocks may disagree by that much, so it is still too early.
     ctx.fake.clock.advance(1000);
+    const sameBatch = Object.assign(Object.create(ctx) as TestContext, {
+      inbound: {
+        ...ctx.inbound,
+        createdAtMs: ctx.now,
+        pollStartedAtMs: shownAt,
+      },
+    });
+    expect((await run(sameBatch, `.y ${ask.number}`)).text).toContain(
+      "cut short",
+    );
+    const skewed = Object.assign(Object.create(ctx) as TestContext, {
+      inbound: {
+        ...ctx.inbound,
+        createdAtMs: ctx.now,
+        pollStartedAtMs: ctx.now,
+      },
+    });
+    expect((await run(skewed, `.y ${ask.number}`)).text).toContain("cut short");
+    expect(respond(ctx)).not.toHaveBeenCalled();
+
+    ctx.fake.clock.advance(10_000);
     const later = Object.assign(Object.create(ctx) as TestContext, {
-      inbound: { ...ctx.inbound, createdAtMs: ctx.now },
+      inbound: {
+        ...ctx.inbound,
+        createdAtMs: ctx.now,
+        pollStartedAtMs: ctx.now,
+      },
     });
     const approved = await run(later, `.y ${ask.number}`);
     expect(approved.text).toContain("Approved");
@@ -456,6 +484,20 @@ describe(".reject and .guide", () => {
     const a = openApproval(ctx, { trigger: "destructive-pattern" });
     expect((await run(ctx, `.d ${a.number}`)).text).toContain("Rejected");
     expect(respond(ctx)).toHaveBeenCalledTimes(1);
+  });
+
+  it("refuses guidance to a view-only session but still lets it reject", async () => {
+    const ctx = setup({ mode: "autonomous" });
+    const a = openApproval(ctx);
+    for (const text of [`.g ${a.number} do X`, `.d ${a.number} do X`]) {
+      expect((await run(ctx, text)).text).toContain("above the WeChat ceiling");
+    }
+    expect(respond(ctx)).not.toHaveBeenCalled();
+    expect((await run(ctx, `.d ${a.number}`)).text).toContain("Rejected");
+    expect(respond(ctx)).toHaveBeenCalledExactlyOnceWith(W, {
+      requestId: a.requestId,
+      action: "reject",
+    });
   });
 
   it("stops on a long-context card", async () => {

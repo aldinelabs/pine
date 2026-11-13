@@ -17,7 +17,12 @@ import {
 import { bareApproveAllowed } from "../asks";
 import { approvalCardText } from "../cardPolicy";
 import { specOf } from "../commandSpec";
-import { FUTURE_SKEW_MS, SHOW_INPUT_MAX, STALE_MS } from "../constants";
+import {
+  ASK_SKEW_MS,
+  FUTURE_SKEW_MS,
+  SHOW_INPUT_MAX,
+  STALE_MS,
+} from "../constants";
 import { classify } from "../inbound";
 import { notice } from "../notices";
 import { parseAnswers, splitAskPrefix } from "../parseCommand";
@@ -432,8 +437,14 @@ async function approveCard(
     return reply(render("E-LOCAL", ctx.lang, { ask: n }));
   }
   if (verdict.needsShow) {
+    // Same guard as a bare approve: the full subject went out before this
+    // poll started and well before the message was written (server clock).
     const shownAt = ask.shownAtMs;
-    if (shownAt === undefined || shownAt >= ctx.inbound.createdAtMs)
+    if (
+      shownAt === undefined ||
+      shownAt >= ctx.inbound.pollStartedAtMs ||
+      shownAt + ASK_SKEW_MS >= ctx.inbound.createdAtMs
+    )
       return reply(render("E-SHOWFIRST", ctx.lang, { ask: n }));
   }
   const card = approvalCardText(ask);
@@ -572,6 +583,16 @@ async function rejectOrGuide(
         return reply(render("R-REJECTED", ctx.lang, { ask: n }));
       }
       const guidance = text.length > 0 ? text : undefined;
+      // Guidance steers the agent like a typed instruction, so a view-only
+      // session refuses it; a bare reject only stops the action.
+      if (
+        guidance &&
+        (await ctx.sessions.modeFor(ask.sessionId, ask.projectId)) ===
+          "view-only"
+      )
+        return viewRefusal(ctx, ask.sessionId, ask.projectId);
+      if (!unchanged(ctx, ask))
+        return reply(render("E-DONE", ctx.lang, { ask: n }));
       const lost = await respondApproval(
         ctx,
         ask,
