@@ -29,9 +29,14 @@ mkdirSync(output, { recursive: true });
 // Installed Chrome avoids downloading Playwright's own browser for a one-off render.
 const browser = await chromium.launch({ channel: "chrome" });
 try {
-  const page = await browser.newPage();
   for (const { name, size, scale } of icons) {
-    await page.setViewportSize({ width: size, height: size });
+    // A small CSS viewport with a matching pixel ratio renders every size in
+    // full. Chrome's window could not open a 512 px tall viewport, so the
+    // 512 px icon was captured short and its top repeated along the bottom.
+    const page = await browser.newPage({
+      viewport: { width: 128, height: 128 },
+      deviceScaleFactor: size / 128,
+    });
     await page.setContent(`<!doctype html>
 <style>
   html, body { margin: 0; width: 100%; height: 100%; background: ${BACKGROUND}; }
@@ -41,6 +46,7 @@ try {
 </style>
 ${logo.replace(/^<\?xml[^>]*>\s*<!DOCTYPE[^>]*>/s, "")}`);
     await page.screenshot({ path: path.join(output, name) });
+    await page.close();
   }
 } finally {
   await browser.close();
