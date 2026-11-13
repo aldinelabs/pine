@@ -100,7 +100,10 @@ export interface CallArtifacts {
    */
   submitted: readonly SessionArtifact[];
   legacy: readonly SessionArtifact[];
-  /** Any submission that did not fail, including one still running. */
+  /**
+   * A completed submission that accepted a file. A running or failed one does
+   * not count, so the list switches from legacy to submitted in one step.
+   */
   hasSubmission: boolean;
 }
 
@@ -110,8 +113,8 @@ export function artifactsOfCalls(calls: Iterable<PineToolCall>): CallArtifacts {
   let hasSubmission = false;
   for (const call of calls) {
     if (call.name === UI_SUBMIT_ARTIFACT_TOOL_NAME) {
-      if (call.status !== "error") hasSubmission = true;
       const files = submittedArtifactsOfCall(call);
+      if (files.length > 0) hasSubmission = true;
       for (let index = files.length - 1; index >= 0; index -= 1)
         submitted.push(files[index]);
       continue;

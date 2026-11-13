@@ -77,10 +77,13 @@ describe("session artifacts", () => {
     ).toBeNull();
   });
 
-  it("ignores legacy presentations once any submission exists, even a running one", () => {
+  it("keeps legacy presentations until a submission completes", () => {
     expect(
-      collect([present("p1", "a.md")], [submit("s1", [], "running")]),
-    ).toEqual([]);
+      collect(
+        [present("p1", "a.md")],
+        [submit("s1", [{ path: "r.md" }], "running")],
+      ).map((artifact) => artifact.path),
+    ).toEqual(["/abs/a.md"]);
     expect(
       collect([present("p1", "a.md")], [submit("s1", [{ path: "r.md" }])]).map(
         (artifact) => artifact.path,
