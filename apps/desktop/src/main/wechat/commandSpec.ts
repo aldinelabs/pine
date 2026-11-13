@@ -1,4 +1,4 @@
-// The dot-command table (CMD §7). Parser, `.help` and the view-only matrix
+// The dot-command table. Parser, `.help` and the view-only matrix
 // are derived from it. Pure: no I/O.
 import { COMMAND_NAMES, type CommandName, type CommandSpec } from "./types";
 
@@ -52,7 +52,7 @@ function row(spec: Row): CommandSpec {
  * drops the other forms. `viewOnlyOk` is false only
  * for commands refused on a view-only session in every form; commands with a
  * read form (`.model`, `.effort`, `.mode`, `.queue`) keep it true and their
- * handler refuses the mutating form (CMD §8).
+ * handler refuses the mutating form.
  */
 export const COMMANDS: readonly CommandSpec[] = [
   row({
@@ -615,7 +615,7 @@ for (const spec of COMMANDS) {
   }
 }
 
-/** Chinese aliases, longest first, for the prefix rule (CMD §2.3 rule 10). */
+/** Chinese aliases, longest first, for the prefix rule. */
 const ZH_ALIASES = COMMANDS.flatMap((spec) =>
   spec.zhAliases.map((alias) => ({ name: spec.name, alias })),
 ).sort((a, b) => [...b.alias].length - [...a.alias].length);

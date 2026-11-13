@@ -1,4 +1,4 @@
-// Numbered references (CMD §4.1) and the `.more` cursor. Pure: no I/O.
+// Numbered references and the `.more` cursor. Pure: no I/O.
 import { HANDLE_TTL_MS, PAGER_TTL_MS } from "./constants";
 import type {
   HandleKind,
@@ -26,7 +26,7 @@ export interface HandleTablesOptions {
 
 /**
  * One table per kind. Only replies call `set` / `noteDelivered`; pushes never
- * touch a table (CMD §4.1).
+ * touch a table.
  *
  * `set` stores a pending table; `noteDelivered` makes it the table of its
  * kind. Until then `resolve`, `table` and `last()` keep answering from the
@@ -166,7 +166,7 @@ export interface PagerOptions {
 }
 
 /**
- * The one `.more` cursor (CMD §7.1). `set` takes the pages still to come (the
+ * The one `.more` cursor. `set` takes the pages still to come (the
  * caller sends the first page itself) and replaces any earlier cursor. The
  * cursor expires `PAGER_TTL_MS` after it was set or last advanced.
  */

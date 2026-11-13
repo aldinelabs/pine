@@ -1,4 +1,4 @@
-// Handlers: help status info lang pause more drop (CMD §7.1). None of them
+// Handlers: help status info lang pause more drop. None of them
 // writes a WeChat or Pine setting (invariant 6): `.lang` changes only the
 // reply language kept in the bridge state, and `.pause` can only turn the
 // bridge off; resuming is local.
@@ -178,7 +178,7 @@ export const metaHandlers: CommandHandlers = {
     if (arg !== undefined && arg !== "all") return argsError(ctx, "pause");
     let stopped = 0;
     if (arg === "all") {
-      // After pausing nothing is accepted, so `all` acts first (CMD §6.5).
+      // After pausing nothing is accepted, so `all` acts first.
       const tracked = ctx.store.get().tracked;
       for (const sessionId of ctx.sessions.runningWeChatSessions()) {
         if (!ctx.sessions.isLive(sessionId)) continue;

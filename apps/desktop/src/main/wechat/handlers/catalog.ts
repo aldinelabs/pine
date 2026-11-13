@@ -1,4 +1,4 @@
-// Handlers: skills mcp (CMD §7.7). Names, scope, state and counts only: a
+// Handlers: skills mcp. Names, scope, state and counts only: a
 // skill's body and an MCP server's definition never reach WeChat.
 
 import { TEMPORARY_WORKSPACE_PROJECT_ID } from "../../../shared/projects";

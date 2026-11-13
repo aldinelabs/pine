@@ -1,8 +1,8 @@
 // Handlers: new sessions search use last history stop queue unqueue rename
-// delete (CMD §7.2). Read commands use `loadMessages` and the bridge's cache,
+// delete. Read commands use `loadMessages` and the bridge's cache,
 // never `resume`. Calls that act on a session go through `ctx.sessions.actor`,
 // ask responses through `responder`, holds and reads through the bridge's own
-// client id (CMD §7 conventions).
+// client id.
 
 import type { PineApprovalMode } from "../../../shared/agent";
 import {
@@ -130,7 +130,7 @@ async function viewOnlyRefusal(
   return undefined;
 }
 
-/** A plain message or `.new` drops a held batch (CMD §5.1). */
+/** A plain message or `.new` drops a held batch. */
 function dropHeldBatches(ctx: CommandContext): void {
   if (ctx.heldConfirmed) return;
   ctx.asks.closeWhere((ask) => ask.kind === "held", "invalidated");
@@ -154,7 +154,7 @@ async function projectNames(
 type Resolved<T> =
   { kind: "ok"; value: T } | { kind: "reply"; result: CommandResult };
 
-/** `@N` (project table) or `@name` (CMD §4.2). */
+/** `@N` (project table) or `@name`. */
 async function resolveProject(
   ctx: CommandContext,
   ref: string,
@@ -254,7 +254,7 @@ interface SessionTarget {
   projectId: string;
 }
 
-/** A session handle, `9` (latest push) when allowed, or a title (CMD §4.2). */
+/** A session handle, `9` (latest push) when allowed, or a title. */
 async function resolveSession(
   ctx: CommandContext,
   command: ParsedCommand,
@@ -804,7 +804,7 @@ export const sessionHandlers: CommandHandlers = {
         };
       }
     }
-    // `abort` throws for a session that is not live (CMD §7 conventions).
+    // `abort` throws for a session that is not live.
     const state = ctx.sessions.runState(sessionId);
     if (
       !ctx.sessions.isLive(sessionId) ||

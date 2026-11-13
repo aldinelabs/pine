@@ -524,7 +524,7 @@ export class WeChatBridge implements WeChatBridgeApi {
     return this.channelFactory;
   }
 
-  /** CMD §9.1: `.lang` wins, else Pine's locale, else English. */
+  /** `.lang` wins, else Pine's locale, else English. */
   protected lang(): ReplyLanguage {
     const language = this.store.get().language;
     if (language !== "auto") return language;
@@ -651,7 +651,7 @@ export class WeChatBridge implements WeChatBridgeApi {
     };
   }
 
-  /** Pushes and replies stop while paused (CMD §6.5); `E-PAUSED` goes direct. */
+  /** Pushes and replies stop while paused; `E-PAUSED` goes direct. */
   private outboundChannel(): MessageChannel | undefined {
     if (this.store.secure().paused && this.pausedSends === 0) return undefined;
     return this.channel;
@@ -698,7 +698,7 @@ export class WeChatBridge implements WeChatBridgeApi {
     }
   }
 
-  /** D18: abort sessions only the bridge holds, let go of every hold, forget asks. */
+  /** Abort sessions only the bridge holds, let go of every hold, forget asks. */
   private async forgetSessions(): Promise<void> {
     const parts = this.parts;
     if (!parts) return;

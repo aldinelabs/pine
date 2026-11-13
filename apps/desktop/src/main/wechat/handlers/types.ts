@@ -1,7 +1,7 @@
-// The contract between the inbound pipeline and the command handlers
-// (plan section 3.7). Handlers never send anything themselves: they return
-// the one reply, and the pipeline sends it and marks lists and cards
-// delivered with the send time.
+// The contract between the inbound pipeline and the command handlers.
+// Handlers never send anything themselves: they return the one reply, and
+// the pipeline sends it and marks lists and cards delivered with the send
+// time.
 
 import type { WeChatSettings } from "../../../shared/wechatRemote";
 import type { AskBook } from "../asks";
@@ -48,7 +48,7 @@ export interface CommandContext {
   readonly asks: AskBook;
   readonly handles: HandleTables;
   readonly pager: Pager;
-  /** Only `repeatAllowed` (plan ground rule 13: no usage limits). */
+  /** Only `repeatAllowed` (there are no usage limits). */
   readonly limits: RateLimits;
   readonly outbound: Outbound;
   readonly attachments: InboundAttachmentsApi;

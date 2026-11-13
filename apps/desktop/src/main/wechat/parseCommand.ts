@@ -1,4 +1,4 @@
-// Dot-command parser (CMD §2). Pure: no I/O.
+// Dot-command parser. Pure: no I/O.
 import type {
   AskUserQuestionParams,
   AskUserQuestionSubmission,
@@ -24,7 +24,7 @@ function isWs(char: string | undefined): boolean {
 }
 
 /**
- * Zero-width characters are removed (CMD §2.2 step 1), except a zero-width
+ * Zero-width characters are removed, except a zero-width
  * joiner inside an emoji sequence, so emoji in a prompt stay intact.
  */
 const ZERO_WIDTH =
@@ -51,7 +51,8 @@ const ASCII_NAME = /^[a-z][a-z0-9]{0,15}$/;
 const CJK_NAME = /^[一-鿿]{1,4}$/u;
 
 /**
- * Classifies one user-typed TEXT item. Rules of CMD §2.3, first match wins.
+ * Classifies one user-typed TEXT item. The rules apply in order; the first
+ * match wins.
  *
  * - `unknown.suggestion` has no leading dot (`status`, `停止`, `n 2`).
  * - A bare number followed by more text (`.3 个文件`) is `unknown` with no
@@ -204,7 +205,7 @@ function withParams(name: CommandName, rest: string): Parsed {
     remainder = remainder.slice(token.end).trim();
   }
   if (spec.tail) {
-    // `[ref]` commands: one number is a handle, anything else is a name (CMD §4.2).
+    // `[ref]` commands: one number is a handle, anything else is a name.
     if (spec.positional.length > 0 && isDigitToken(remainder)) {
       return command(name, { project, args: [remainder.normalize("NFKC")] });
     }
@@ -222,7 +223,7 @@ function withGlued(name: CommandName, digits: string, rest: string): Parsed {
   const spec = specOf(name);
   const remainder = rest.trim();
   if (spec.tail && spec.positional.length === 0) {
-    // `.d12 text`, `.a13 2; 1`: the ask number leads the tail (CMD §2.5).
+    // `.d12 text`, `.a13 2; 1`: the ask number leads the tail.
     return command(name, {
       tail: remainder.length > 0 ? `${digits} ${remainder}` : digits,
     });
@@ -238,7 +239,7 @@ function withGlued(name: CommandName, digits: string, rest: string): Parsed {
 }
 
 /**
- * CMD §2.5: the first token of a tail is an ask number only when it is two
+ * The first token of a tail is an ask number only when it is two
  * digits (after NFKC) and in `known` (open or tombstoned asks).
  */
 export function splitAskPrefix(
@@ -270,7 +271,7 @@ export type AnswerParse =
 const OPTION_ANSWER = /^[1-4](?:\s*[,\s]\s*[1-4])*$/;
 
 /**
- * CMD §5.3. Answers are split on `;`, `；` or a line break, in question order;
+ * Answers are split on `;`, `；` or a line break, in question order;
  * a card with one question is never split. `1-4` select options (1-based on
  * WeChat, 0-based in the submission); `=` forces free text.
  */
@@ -340,7 +341,7 @@ function foldName(text: string): string {
 }
 
 /**
- * CMD §4.2: a name matched case-insensitively, exact first, then unique
+ * A name matched case-insensitively, exact first, then unique
  * prefix, then unique substring. Several matches at the first level that has
  * any → `many` (the caller lists them, nothing is done).
  */

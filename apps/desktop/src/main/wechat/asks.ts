@@ -1,4 +1,4 @@
-// Numbered asks: everything the bridge waits on the user for (CMD §5.1).
+// Numbered asks: everything the bridge waits on the user for.
 // Numbers are 11-99, single use, and leave a tombstone when closed so a late
 // reply reads "already handled" instead of "unknown number".
 
@@ -235,7 +235,7 @@ export interface MessageTiming {
 }
 
 /**
- * `.y` without a number (CMD §5.1). Always: exactly one ask is open and it is
+ * `.y` without a number. Always: exactly one ask is open and it is
  * a held batch. With ALLOW_BARE_APPROVE also a single approval whose card was
  * delivered more than ASK_SKEW_MS before the message was written and before
  * the poll that returned it started. Never a confirmation.
@@ -258,7 +258,7 @@ export function bareApproveAllowed(
 }
 
 /**
- * A bare `.2` / `.1,3` while a question card is open (CMD §4.3).
+ * A bare `.2` / `.1,3` while a question card is open.
  * `lastListDeliveredAtMs` is the delivery time of a numbered list that is
  * still valid, `undefined` when none is.
  */

@@ -1,4 +1,4 @@
-// Pure decisions about the reply budget (CMD §11): how many sends a context
+// Pure decisions about the reply budget: how many sends a context
 // token has left, which priority may still send, when the budget notice is
 // due, how the out-queue collapses, and how pushes merge.
 
@@ -89,7 +89,7 @@ export function withoutKey(
   return queue.filter((queued) => queued.key !== key);
 }
 
-/** Cards per merged message (CMD §5.2). */
+/** Cards per merged message. */
 export const MERGE_CARDS_MAX = 3;
 
 export interface MergePlan<T> {

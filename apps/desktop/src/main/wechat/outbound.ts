@@ -1,4 +1,4 @@
-// Everything the bridge sends to WeChat goes through `Outbound` (CMD §11).
+// Everything the bridge sends to WeChat goes through `Outbound`.
 // Replies (P0) go first; pushes (P1-P4) are merged within MERGE_WINDOW_MS,
 // sent while the token's budget allows their priority, and otherwise queued
 // for the digest that leads the reply to the user's next message.
@@ -264,8 +264,8 @@ export class Outbound {
   }
 
   /**
-   * Fills the merged message greedily within REPLY_MAX (CMD §11.3: one
-   * message, never split): cards first, then results, then the T-MORECARDS
+   * Fills the merged message greedily within REPLY_MAX (one message,
+   * never split): cards first, then results, then the T-MORECARDS
    * line. Cards that do not fit join `overflow`; results that do not fit are
    * `leftover`. The message always keeps its first item.
    */

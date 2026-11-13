@@ -1,6 +1,6 @@
-// Pine does not rate-limit what the bound account may do (plan ground rule
-// 13). What stays is protecting the reply budget: the same error reply is not
-// sent again within ERROR_REPEAT_MS (CMD §6.3, last row).
+// Pine does not rate-limit what the bound account may do. What stays is
+// protecting the reply budget: the same error reply is not sent again within
+// ERROR_REPEAT_MS.
 
 import { ERROR_REPEAT_MS } from "./constants";
 

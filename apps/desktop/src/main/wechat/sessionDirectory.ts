@@ -1,6 +1,5 @@
 // What the WeChat bridge knows about Pine's sessions, and the only two ways a
-// prompt leaves the bridge (plan section 3.7, D3, D6, D8, D14, D20, D24,
-// D26-D28).
+// prompt leaves the bridge.
 //
 // `observe` sees the events of every session that passes the core hook. It
 // caches run state, open asks and a few per-session facts for all of them,
@@ -211,7 +210,7 @@ export function clampMode(
   return withinCeiling(mode, ceiling) ? mode : ceiling;
 }
 
-/** Whether text would carry Pine's attachment block into a prompt (D20). */
+/** Whether text would carry Pine's attachment block into a prompt. */
 export function carriesAttachmentBlock(text: string): boolean {
   return (
     ATTACHMENT_BLOCK_MARKER.test(text) ||
@@ -335,7 +334,7 @@ export class SessionDirectory {
 
   /** Every session's events; synchronous and never throws. */
   observe(event: PineAgentEvent, ownerId: number | undefined): void {
-    // Sessions no interface holds (owner undefined) are observed too (D28).
+    // Sessions no interface holds (owner undefined) are observed too.
     void ownerId;
     try {
       this.observeEvent(event);
@@ -488,7 +487,7 @@ export class SessionDirectory {
     this.endRun(sessionId, obs, wasRunning, state, completion);
   }
 
-  /** A run started that the bridge did not prompt (D26). */
+  /** A run started that the bridge did not prompt. */
   private foreignRun(sessionId: string): void {
     const state = this.deps.store.get();
     const tracked = state.tracked.find(
@@ -1013,7 +1012,7 @@ export class SessionDirectory {
   }
 
   // -------------------------------------------------------------------------
-  // Holding projects (plan section 5.3)
+  // Holding projects
 
   /** Shares the project as the bridge; before every per-project call. */
   async hold(projectId: string): Promise<PineProject> {
@@ -1077,7 +1076,7 @@ export class SessionDirectory {
     });
   }
 
-  /** On stop and unbind. With `abortOwnSessions`, first aborts running sessions only the bridge holds (D18). */
+  /** On stop and unbind. With `abortOwnSessions`, first aborts running sessions only the bridge holds. */
   async releaseAll(options: { abortOwnSessions: boolean }): Promise<void> {
     const { runtimes } = this.deps.core;
     if (options.abortOwnSessions) {
@@ -1095,7 +1094,7 @@ export class SessionDirectory {
   }
 
   // -------------------------------------------------------------------------
-  // Identity (D3)
+  // Identity
 
   /** The client id that acts on a session (prompt, abort, mode, compact). */
   actor(sessionId: string | undefined, projectId: string): number {
@@ -1131,7 +1130,7 @@ export class SessionDirectory {
   }
 
   // -------------------------------------------------------------------------
-  // Modes (CMD §6.1)
+  // Modes
 
   private async currentMode(
     sessionId: string,
@@ -1178,7 +1177,7 @@ export class SessionDirectory {
       : "ceiling";
   }
 
-  /** The mode to pass to the next prompt, or "view-only" (CMD §6.1). */
+  /** The mode to pass to the next prompt, or "view-only". */
   async modeFor(
     sessionId: string,
     projectId: string,
@@ -1328,7 +1327,7 @@ export class SessionDirectory {
     };
   }
 
-  /** Observed presentations, completed from the stored transcript (D14). */
+  /** Observed presentations, completed from the stored transcript. */
   async files(sessionId: string, projectId: string): Promise<PresentedFile[]> {
     await this.hold(projectId);
     let stored: { toolCallId: string; path: string }[] = [];
@@ -1362,7 +1361,7 @@ export class SessionDirectory {
   }
 
   // -------------------------------------------------------------------------
-  // Routing (CMD §3.3 as changed by plan ground rule 14)
+  // Routing
 
   routeFor(nowMs: number): RouteDecision {
     const state = this.deps.store.get();
@@ -1388,7 +1387,7 @@ export class SessionDirectory {
   }
 
   // -------------------------------------------------------------------------
-  // Automations (D24)
+  // Automations
 
   watchAutomationRun(
     projectId: string,
@@ -1468,7 +1467,7 @@ export class SessionDirectory {
   }
 
   // -------------------------------------------------------------------------
-  // The two prompt exits (D20, invariant 3)
+  // The two prompt exits (invariant 3)
 
   private guardText(text: string, quotedText: string | undefined): void {
     if (carriesAttachmentBlock(text)) throw refuse("E-TEXT");

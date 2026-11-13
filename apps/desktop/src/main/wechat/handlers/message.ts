@@ -1,5 +1,4 @@
-// Plain text (CMD §3.2, §3.3 as changed by plan ground rule 14) and bare
-// numbers (CMD §4.3).
+// Plain text and bare numbers.
 //
 // Plain text always goes to the current session; it is never held because a
 // push was about another session. The reply is silent when the routing cannot
@@ -36,7 +35,7 @@ const PICK: Record<HandleKind, CommandName | undefined> = {
   task: "task",
   automation: "auto",
   run: "runs",
-  // A bare number never withdraws a queued message (CMD §4.3).
+  // A bare number never withdraws a queued message.
   queue: undefined,
 };
 
@@ -62,7 +61,7 @@ export const handlePlainMessage: MessageHandler = async (ctx, text) => {
   const body = text.trim();
   const quote = ctx.inbound.quotedText?.trim();
   if (!body && !quote) return {};
-  // A new plain message drops a held batch (CMD §5.1).
+  // A new plain message drops a held batch.
   if (!ctx.heldConfirmed)
     ctx.asks.closeWhere((ask) => ask.kind === "held", "invalidated");
   const current = ctx.store.get().current;

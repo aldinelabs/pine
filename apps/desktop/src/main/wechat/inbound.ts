@@ -1,6 +1,6 @@
-// The inbound pipeline (plan section 5.2): acceptance, persistence, the
-// priority lane, the serial worker, the stale rule, media staging, dispatch
-// to the command handlers and the one reply per message.
+// The inbound pipeline: acceptance, persistence, the priority lane, the
+// serial worker, the stale rule, media staging, dispatch to the command
+// handlers and the one reply per message.
 //
 // `onMessages` only persists and enqueues; it never handles a message and
 // never downloads media, so the poller is released at once. Handling happens
@@ -156,14 +156,14 @@ export function classify(entry: StoredInbound): Parsed | undefined {
   return parseCommand(entry.text);
 }
 
-/** CMD §5.5: too old, without a usable time, or dated in the future. */
+/** Too old, without a usable time, or dated in the future. */
 export function isStale(createdAtMs: number, referenceMs: number): boolean {
   if (!Number.isFinite(createdAtMs) || createdAtMs <= 0) return true;
   if (createdAtMs > referenceMs + FUTURE_SKEW_MS) return true;
   return referenceMs - createdAtMs > STALE_MS;
 }
 
-/** Whether a started entry may run again after a restart (CMD §5.5). */
+/** Whether a started entry may run again after a restart. */
 export function rerunnable(entry: StoredInbound): boolean {
   const parsed = classify(entry);
   if (!parsed) return true;
@@ -299,7 +299,7 @@ export class InboundPipeline {
     this.kick();
   }
 
-  /** Inbox entries left from the previous run (D17, CMD §5.5). */
+  /** Inbox entries left from the previous run. */
   async resume(): Promise<void> {
     const inbox = this.deps.store.get().inbox;
     const interrupted: StoredInbound[] = [];
@@ -610,7 +610,7 @@ export class InboundPipeline {
     await this.deps.sessions.noteAccepted(this.deps.now());
   }
 
-  /** Downloads and stages the entry's media (the worker only; D15). */
+  /** Downloads and stages the entry's media (the worker only). */
   private async stageMedia(
     entry: StoredInbound,
   ): Promise<{ replies: string[]; failure?: string }> {
@@ -715,7 +715,7 @@ export class InboundPipeline {
     return Promise.resolve(this.errorResult(key, text));
   }
 
-  /** CMD §10.3: refusals render, known Pine errors map, the rest is E-FAIL. */
+  /** Refusals render, known Pine errors map, the rest is E-FAIL. */
   private errorText(error: unknown, parsed: Parsed | undefined): string {
     const lang = this.deps.lang();
     if (error instanceof WeChatRefusal) return error.render(lang);
@@ -737,7 +737,7 @@ export class InboundPipeline {
   }
 
   // -------------------------------------------------------------------------
-  // Stale entries (CMD §5.5)
+  // Stale entries
 
   private async handleStale(entry: StoredInbound): Promise<void> {
     if (this.deps.paused()) {
@@ -753,7 +753,7 @@ export class InboundPipeline {
         return;
       }
       // `.mode` when tightening and `.auto N off` are guard commands though
-      // their other forms are dropped (CMD §5.5).
+      // their other forms are dropped.
       if (
         spec.stale === "guard" ||
         parsed.name === "mode" ||

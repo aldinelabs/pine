@@ -1,4 +1,4 @@
-// Handlers: tasks task kill (CMD §7.5). Background-task calls throw for a
+// Handlers: tasks task kill. Background-task calls throw for a
 // session that is not live, so liveness is tested first; a session that is
 // not live has no processes to show or stop.
 

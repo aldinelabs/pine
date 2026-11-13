@@ -1,4 +1,4 @@
-// Handlers: autos auto runs (CMD §7.7). WeChat never enables an automation
+// Handlers: autos auto runs. WeChat never enables an automation
 // itself: `.auto N on` raises the same approval card an agent request would
 // (marked as from WeChat) and returns at once; the outcome is pushed later.
 // `.auto N run` needs an Autonomous ceiling, an enabled automation and a
@@ -80,7 +80,7 @@ function numberedList<T>(
   return { text: first.text, numbered: { kind } };
 }
 
-/** A handle (all digits) or a name matched against `rows` (CMD §4.2). */
+/** A handle (all digits) or a name matched against `rows`. */
 async function pickRow(
   ctx: CommandContext,
   kind: HandleKind,

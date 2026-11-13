@@ -1,4 +1,4 @@
-// Handler: projects (CMD §7.6). Lists projects or sets the project for new
+// Handler: projects. Lists projects or sets the project for new
 // sessions. It never calls the `OPEN_PROJECT` handler (the bridge only holds
 // the project as its own client) and never shows an absolute path: folders
 // are named by their base name.
@@ -17,7 +17,7 @@ import { baseName } from "../text";
 import type { HandleRow } from "../types";
 import type { CommandContext, CommandHandlers, CommandResult } from "./types";
 
-/** Projects in list order, the temporary workspace last (CMD §7.6). */
+/** Projects in list order, the temporary workspace last. */
 async function projectsInOrder(ctx: CommandContext): Promise<PineProject[]> {
   const projects = await ctx.core.repository.list();
   return [

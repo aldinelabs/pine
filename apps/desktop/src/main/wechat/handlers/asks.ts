@@ -1,4 +1,4 @@
-// Handlers: pending show approve reject guide answer (CMD §5, §7.4).
+// Handlers: pending show approve reject guide answer.
 //
 // Every response to an ask is re-checked here right before it is sent to the
 // runtime: the ask is still open and unchanged, the session is not view-only,
@@ -51,7 +51,7 @@ const QUESTION_GONE = "This questionnaire is no longer pending.";
 // ---------------------------------------------------------------------------
 // Shared pieces
 
-/** CMD §5.5: missing, zero, non-finite, too old or too far ahead. */
+/** Missing, zero, non-finite, too old or too far ahead. */
 function isStale(ctx: CommandContext): boolean {
   const created = ctx.inbound.createdAtMs;
   if (!Number.isFinite(created) || created <= 0) return true;
@@ -330,7 +330,7 @@ async function runConfirmed(
   return ctx.bridge.dispatch(ask.command, { confirmed: ask });
 }
 
-/** Runs the held messages in order, as if they had just arrived (CMD §5.5). */
+/** Runs the held messages in order, as if they had just arrived. */
 async function runHeld(
   ctx: CommandContext,
   ask: HeldAsk,

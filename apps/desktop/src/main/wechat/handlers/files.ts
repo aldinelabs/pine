@@ -1,4 +1,4 @@
-// Handlers: files file (CMD §7.5). Only files the agent presented in the
+// Handlers: files file. Only files the agent presented in the
 // current session can be sent, only with the local file switch on, and only
 // while the file on disk is still the one that was presented (invariant 5).
 

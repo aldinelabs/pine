@@ -1,4 +1,4 @@
-// Local notifications raised by WeChat remote (plan D12). They are always
+// Local notifications raised by WeChat remote. They are always
 // shown, whatever the attention-notification setting, because each one tells
 // the person at the computer that WeChat did something here.
 

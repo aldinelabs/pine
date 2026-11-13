@@ -46,7 +46,7 @@ export interface ClawBotChannelOptions {
   typingKeepaliveMs?: number;
 }
 
-/** Typing tickets are refreshed at a random point within this period (PROTO §3.6). */
+/** Typing tickets are refreshed at a random point within this period. */
 const TICKET_REFRESH_MS = 24 * 60 * 60_000;
 const TICKET_RETRY_FIRST_MS = 2_000;
 const TICKET_RETRY_MAX_MS = 60 * 60_000;
@@ -460,7 +460,7 @@ class ClawBotChannel implements MessageChannel {
     return result.data;
   }
 
-  /** The cached ticket, refreshed when due (PROTO §3.6). Never throws. */
+  /** The cached ticket, refreshed when due. Never throws. */
   private async typingTicket(
     client: IlinkClient,
     userId: string,

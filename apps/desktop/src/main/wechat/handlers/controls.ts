@@ -1,4 +1,4 @@
-// Handlers: model effort mode usage compact todo (CMD §7.3).
+// Handlers: model effort mode usage compact todo.
 //
 // Calls that act on a session use `actor(session)`; ask responses use
 // `responder(session)`. Liveness is tested first: `compact` and
@@ -30,7 +30,7 @@ import type { CommandContext, CommandHandlers, CommandResult } from "./types";
 const W = WECHAT_CLIENT_ID;
 const APPROVAL_GONE = "This approval request is no longer pending.";
 
-/** CMD §7.3 order; `.effort N` numbers the supported ones in this order. */
+/** Display order; `.effort N` numbers the supported ones in this order. */
 const THINKING_ORDER: readonly PineThinkingLevel[] = [
   "off",
   "minimal",
@@ -274,7 +274,7 @@ function offeredModels(catalog: PineModelCatalog): PineModelDescriptor[] {
     .map((entry) => entry.model);
 }
 
-/** Selects a model for the current session, `sessionId` always passed (D7). */
+/** Selects a model for the current session, `sessionId` always passed. */
 async function applyModel(
   ctx: CommandContext,
   current: Current,
@@ -506,7 +506,7 @@ async function mode(
     current.sessionId,
     current.projectId,
   );
-  // An automation run is never changed from WeChat (D8).
+  // An automation run is never changed from WeChat.
   if (viewOnly === "automation-run") return viewRefusal(ctx, current);
   const tightening = rank(target) <= rank(base);
   if (!tightening) {
