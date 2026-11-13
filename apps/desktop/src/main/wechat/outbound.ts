@@ -132,14 +132,22 @@ export class Outbound {
     this.timer ??= setTimeout(() => this.flush(), MERGE_WINDOW_MS);
   }
 
-  /** Withdraws a push that is waiting or queued (a decided card, an ended run). */
-  retract(key: string): void {
+  /**
+   * Withdraws a push that is waiting or queued (a decided card, an ended run).
+   * Returns whether one was withdrawn; false once it is being sent or was sent.
+   */
+  retract(key: string): boolean {
+    const buffered = this.buffer.length;
     this.buffer = this.buffer.filter((pending) => pending.key !== key);
-    if (this.deps.store.get().outQueue.some((item) => item.key === key)) {
+    const queued = this.deps.store
+      .get()
+      .outQueue.some((item) => item.key === key);
+    if (queued) {
       this.deps.store.updateSoon((draft) => {
         draft.outQueue = withoutKey(draft.outQueue, key);
       });
     }
+    return queued || this.buffer.length !== buffered;
   }
 
   sendFile(file: { name: string; data: Buffer }): Promise<ChannelSendResult> {

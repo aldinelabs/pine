@@ -38,7 +38,7 @@ function setup(options: Parameters<typeof createTestContext>[0] = {}) {
   vi.spyOn(ctx.outbound, "push").mockImplementation((item) => {
     pushes.push(item);
   });
-  vi.spyOn(ctx.outbound, "retract").mockImplementation(() => undefined);
+  vi.spyOn(ctx.outbound, "retract").mockImplementation(() => false);
   recent.sessions = [];
   return { ctx, pushes, runtimes: ctx.fake.core.runtimes };
 }

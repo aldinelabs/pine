@@ -346,9 +346,11 @@ describe("Outbound pushes", () => {
     t.outbound.push(result("s1", "first"));
     t.outbound.push(result("s1", "second"));
     t.outbound.push(card(11));
-    t.outbound.retract("ask:11");
+    expect(t.outbound.retract("ask:11")).toBe(true);
+    expect(t.outbound.retract("ask:11")).toBe(false);
     await settle();
     expect(t.sent.map((s) => s.text)).toEqual(["DONE second"]);
+    expect(t.outbound.retract("result:s1")).toBe(false);
   });
 
   it("applies the priority thresholds and spends the last slot on T-BUDGET", async () => {

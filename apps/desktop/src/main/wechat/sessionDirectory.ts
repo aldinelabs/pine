@@ -632,8 +632,8 @@ export class SessionDirectory {
   }
 
   /**
-   * A late reviewer explanation. A card still waiting to go out is rebuilt
-   * with it; a delivered one is not repeated (`.N` shows it).
+   * A late reviewer explanation. A card still waiting or queued is rebuilt
+   * with it; one already sent or being sent is not repeated (`.N` shows it).
    */
   private applyExplanation(
     event: Extract<PineAgentEvent, { type: "approval-explanation" }>,
@@ -644,7 +644,9 @@ export class SessionDirectory {
       event.explanation,
     );
     if (!ask || ask.deliveredAtMs !== undefined) return;
-    this.deps.outbound.retract(`ask:${ask.number}`);
+    // Only a withdrawn card is rebuilt; a send in flight would otherwise
+    // reach the user twice and spend another reply.
+    if (!this.deps.outbound.retract(`ask:${ask.number}`)) return;
     void this.pushCard(ask.number).catch(() => undefined);
   }
 

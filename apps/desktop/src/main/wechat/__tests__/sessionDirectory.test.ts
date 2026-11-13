@@ -32,6 +32,7 @@ function setup(options: Parameters<typeof createTestContext>[0] = {}) {
   const retracted: string[] = [];
   vi.spyOn(ctx.outbound, "retract").mockImplementation((key) => {
     retracted.push(key);
+    return true;
   });
   return { ctx, pushes, retracted, runtimes: ctx.fake.core.runtimes };
 }
@@ -475,6 +476,35 @@ describe("observation and pushes", () => {
     expect(pushes[2]).toMatchObject({ key: "ask:11" });
     expect(pushes[2].text).toContain("Deletes build.");
     expect(ctx.asks.get(12)).toMatchObject({ explanation });
+  });
+
+  it("does not repeat a card whose send is already in flight", async () => {
+    const { ctx, pushes, retracted } = setup();
+    await trackedSession(ctx);
+    ctx.sessions.observe(approval("s1", "a"), W);
+    await flush();
+    expect(pushes).toHaveLength(1);
+    // Flushed from the merge buffer but not yet delivered.
+    vi.spyOn(ctx.outbound, "retract").mockImplementation((key) => {
+      retracted.push(key);
+      return false;
+    });
+    ctx.sessions.observe(
+      {
+        type: "approval-explanation",
+        sessionId: "s1",
+        requestId: "a",
+        toolCallId: "tc-a",
+        explanation: { summary: "Deletes build.", risks: [] },
+      },
+      W,
+    );
+    await flush();
+    expect(retracted).toEqual(["ask:11"]);
+    expect(pushes).toHaveLength(1);
+    expect(ctx.asks.get(11)).toMatchObject({
+      explanation: { summary: "Deletes build." },
+    });
   });
 
   it("renumbers an approval whose action digest changed", async () => {

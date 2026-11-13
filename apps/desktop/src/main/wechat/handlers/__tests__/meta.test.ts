@@ -10,7 +10,7 @@ function setup(options: Parameters<typeof createTestContext>[0] = {}) {
   const ctx = createTestContext(options);
   ctx.fake.core.addProject(P);
   vi.spyOn(ctx.outbound, "push").mockImplementation(() => undefined);
-  vi.spyOn(ctx.outbound, "retract").mockImplementation(() => undefined);
+  vi.spyOn(ctx.outbound, "retract").mockImplementation(() => false);
   return { ctx, runtimes: ctx.fake.core.runtimes };
 }
 
