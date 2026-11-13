@@ -450,7 +450,9 @@ describe("PineToolAccessPolicy", () => {
 const describeSandbox = describe.runIf(
   process.platform === "darwin" && !process.env.CODEX_SANDBOX,
 );
-describeSandbox("createPineToolDefinitions", () => {
+// These tests spawn real sandboxed shells; under a loaded full-suite run a
+// single test can exceed the default 5 s.
+describeSandbox("createPineToolDefinitions", { timeout: 30_000 }, () => {
   it("adds the background task tools and hands the session its registry", async () => {
     const { location } = await createFixture();
     const attach = vi.fn();
@@ -1497,8 +1499,6 @@ describeSandbox("createPineToolDefinitions", () => {
         ),
       ).rejects.toThrow("operation not permitted");
     },
-    // Spawns several sandboxed shells; slow under a loaded full-suite run.
-    30_000,
   );
 
   it("escalates authorize denials and writes beyond grants on approval", async () => {
