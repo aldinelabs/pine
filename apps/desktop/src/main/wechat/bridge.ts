@@ -791,6 +791,8 @@ export class WeChatBridge implements WeChatBridgeApi {
 
   private enterReauth(): void {
     this.reauth = true;
+    // No send is tried with a token iLink has rejected (-14).
+    this.parts?.outbound.halt();
     if (!this.reauthNotified) {
       this.reauthNotified = true;
       this.notify("reauth-required");

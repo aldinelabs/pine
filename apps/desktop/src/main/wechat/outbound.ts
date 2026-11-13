@@ -165,6 +165,14 @@ export class Outbound {
     void channel.setTyping(owner, token, on).catch(() => undefined);
   }
 
+  /**
+   * The channel reported an expired token (iLink -14): send nothing, queue
+   * pushes for the digest, until the next inbound message renews the budget.
+   */
+  halt(): void {
+    this.halted = true;
+  }
+
   /** Sends left on the current token. */
   remaining(): number {
     if (this.halted) return 0;
