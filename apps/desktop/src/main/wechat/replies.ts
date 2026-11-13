@@ -140,6 +140,26 @@ export function modeOfNumber(n: number): PineApprovalMode | undefined {
   return Number.isInteger(n) ? APPROVAL_MODE_ORDER[n - 1] : undefined;
 }
 
+const MODE_WORDS: Record<string, PineApprovalMode> = {
+  review: "let-me-review",
+  "let-me-review": "let-me-review",
+  过目: "let-me-review",
+  auto: "auto-approve",
+  "auto-approve": "auto-approve",
+  自动: "auto-approve",
+  autonomous: "autonomous",
+  自主: "autonomous",
+  yolo: "YOLO",
+  干就完了: "YOLO",
+};
+
+/** The mode a `.mode` argument names: its number or one of its words. */
+export function parseMode(arg: string): PineApprovalMode | undefined {
+  const value = arg.trim().normalize("NFKC");
+  if (/^\d+$/.test(value)) return modeOfNumber(Number(value));
+  return MODE_WORDS[value.toLowerCase()];
+}
+
 /** Why an approval card appeared, in words (`T-TRIGGER`). */
 export function triggerLabel(lang: L, trigger: PineApprovalTrigger): string {
   return TRIGGER_LABELS[trigger][lang];

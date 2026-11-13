@@ -364,3 +364,26 @@ export function resolveRef<T extends { label: string }>(
   }
   return { kind: "none" };
 }
+
+export type AutoAction = "detail" | "on" | "off" | "run";
+
+const AUTO_ACTIONS: Record<string, AutoAction> = {
+  on: "on",
+  enable: "on",
+  开: "on",
+  开启: "on",
+  打开: "on",
+  off: "off",
+  disable: "off",
+  关: "off",
+  关闭: "off",
+  run: "run",
+  运行: "run",
+  执行: "run",
+};
+
+/** The action word of `.auto N [on | off | run]`; none means the details. */
+export function autoActionOf(word: string | undefined): AutoAction | undefined {
+  if (word === undefined) return "detail";
+  return AUTO_ACTIONS[word.normalize("NFKC").toLowerCase()];
+}

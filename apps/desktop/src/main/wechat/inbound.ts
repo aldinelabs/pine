@@ -7,6 +7,7 @@
 // on two lanes: `stop`, `pause`, `reject`, `guide` and `kill` run on the
 // priority lane, everything else on the serial worker, in arrival order.
 
+import { APPROVAL_MODE_ORDER } from "../../shared/agent";
 import type { WeChatSettings } from "../../shared/wechatRemote";
 import type { AskBook } from "./asks";
 import {
@@ -29,10 +30,10 @@ import type {
   HandlerRegistry,
 } from "./handlers/types";
 import type { Outbound } from "./outbound";
-import { parseCommand, splitAskPrefix } from "./parseCommand";
+import { autoActionOf, parseCommand, splitAskPrefix } from "./parseCommand";
 import type { InboundAttachmentsApi, WeChatCorePorts } from "./ports";
 import type { RateLimits } from "./rateLimit";
-import { joinReplies, render } from "./replies";
+import { joinReplies, parseMode, render } from "./replies";
 import { WeChatRefusal, type SessionDirectory } from "./sessionDirectory";
 import type {
   CommandName,
@@ -727,7 +728,13 @@ export class InboundPipeline {
         await this.handleEntry(entry.id, true);
         return;
       }
-      if (spec.stale === "guard") {
+      // `.mode` when tightening and `.auto N off` are guard commands though
+      // their other forms are dropped (CMD §5.5).
+      if (
+        spec.stale === "guard" ||
+        parsed.name === "mode" ||
+        parsed.name === "auto"
+      ) {
         if (await this.guardTargetExisted(parsed, entry)) {
           await this.flushStale();
           await this.handleEntry(entry.id, true);
@@ -784,6 +791,46 @@ export class InboundPipeline {
         const current = store.get().current;
         if (!current) return false;
         return this.runStartedBefore(sessions, current, at);
+      }
+      case "mode": {
+        const current = store.get().current;
+        const arg = command.args[0];
+        const target = arg === undefined ? undefined : parseMode(arg);
+        if (!current || !target) return false;
+        const existed =
+          current.usedAtMs <= at ||
+          store
+            .get()
+            .tracked.some(
+              (entry) =>
+                entry.sessionId === current.sessionId &&
+                entry.trackedAtMs <= at,
+            ) ||
+          (await this.runStartedBefore(sessions, current, at));
+        if (!existed) return false;
+        try {
+          const now = await sessions.sessionMode(
+            current.sessionId,
+            current.projectId,
+          );
+          return (
+            APPROVAL_MODE_ORDER.indexOf(target) <
+            APPROVAL_MODE_ORDER.indexOf(now)
+          );
+        } catch {
+          return false;
+        }
+      }
+      case "auto": {
+        const [ref, word] = command.args;
+        if (ref === undefined || autoActionOf(word) !== "off") return false;
+        if (!/^\d+$/.test(ref)) return true;
+        const table = handles.table("automation");
+        return (
+          table !== undefined &&
+          table.sentAtMs <= at &&
+          handles.resolve("automation", Number(ref)) !== undefined
+        );
       }
       default:
         return false;

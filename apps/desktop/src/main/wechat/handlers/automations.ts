@@ -15,7 +15,7 @@ import type {
 import { specOf } from "../commandSpec";
 import { PAGE_ROWS } from "../constants";
 import { notice } from "../notices";
-import { resolveRef } from "../parseCommand";
+import { autoActionOf as actionOf, resolveRef } from "../parseCommand";
 import { render } from "../replies";
 import type {
   CommandName,
@@ -271,28 +271,6 @@ const autos: CommandHandler = async (ctx, command) => {
 
 // ---------------------------------------------------------------------------
 // .auto N [on | off | run]
-
-type AutoAction = "detail" | "on" | "off" | "run";
-
-const ACTIONS: Record<string, AutoAction> = {
-  on: "on",
-  enable: "on",
-  开: "on",
-  开启: "on",
-  打开: "on",
-  off: "off",
-  disable: "off",
-  关: "off",
-  关闭: "off",
-  run: "run",
-  运行: "run",
-  执行: "run",
-};
-
-function actionOf(word: string | undefined): AutoAction | undefined {
-  if (word === undefined) return "detail";
-  return ACTIONS[word.normalize("NFKC").toLowerCase()];
-}
 
 async function detail(
   ctx: CommandContext,

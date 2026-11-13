@@ -48,7 +48,8 @@ function row(spec: Row): CommandSpec {
  * `cls` is the class of the command's mutating form; a handler refines it per
  * form (`.model` without a parameter is a read, `.mode yolo` and `.auto N run`
  * are D with a confirmation). `stale` likewise: `.mode` tightening and
- * `.auto N off` are `guard`, decided by the handler. `viewOnlyOk` is false only
+ * `.auto N off` are `guard`, which the inbound pipeline recognises before it
+ * drops the other forms. `viewOnlyOk` is false only
  * for commands refused on a view-only session in every form; commands with a
  * read form (`.model`, `.effort`, `.mode`, `.queue`) keep it true and their
  * handler refuses the mutating form (CMD §8).

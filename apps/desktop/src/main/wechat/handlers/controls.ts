@@ -23,7 +23,7 @@ import { PAGE_ROWS } from "../constants";
 import { notice } from "../notices";
 import { resolveRef } from "../parseCommand";
 import type { PagerPage } from "../handles";
-import { modeOfNumber, render, type SessionRef } from "../replies";
+import { parseMode, render, type SessionRef } from "../replies";
 import type { ApprovalAsk, HandleRow, ParsedCommand } from "../types";
 import type { CommandContext, CommandHandlers, CommandResult } from "./types";
 
@@ -70,19 +70,6 @@ const THINKING_WORDS: Record<string, PineThinkingLevel> = {
 };
 
 const TODO_STATUSES = ["pending", "in_progress", "completed"] as const;
-
-const MODE_WORDS: Record<string, PineApprovalMode> = {
-  review: "let-me-review",
-  "let-me-review": "let-me-review",
-  过目: "let-me-review",
-  auto: "auto-approve",
-  "auto-approve": "auto-approve",
-  自动: "auto-approve",
-  autonomous: "autonomous",
-  自主: "autonomous",
-  yolo: "YOLO",
-  干就完了: "YOLO",
-};
 
 // ---------------------------------------------------------------------------
 // Shared pieces
@@ -477,12 +464,6 @@ async function effort(
 
 // ---------------------------------------------------------------------------
 // .mode
-
-function parseMode(arg: string): PineApprovalMode | undefined {
-  const value = arg.trim().normalize("NFKC");
-  if (/^\d+$/.test(value)) return modeOfNumber(Number(value));
-  return MODE_WORDS[value.toLowerCase()];
-}
 
 async function mode(
   ctx: CommandContext,

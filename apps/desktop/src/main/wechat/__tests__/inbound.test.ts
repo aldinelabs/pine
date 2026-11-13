@@ -20,6 +20,7 @@ import {
 import {
   BOT_ID,
   OWNER_USER_ID,
+  W,
   createTestContext,
   type TestContext,
 } from "./fakes";
@@ -306,6 +307,56 @@ describe("stale messages", () => {
     expect(t.calls.map((call) => call.name)).toEqual(["reject", "pause"]);
     expect(t.texts().at(-1)).toContain("Not run:");
     expect(t.texts().at(-1)).toContain(".stop");
+  });
+});
+
+describe("stale .mode and .auto (guard forms)", () => {
+  it("runs a stale tightening .mode on a session that was current, and drops the rest", async () => {
+    const t = setup();
+    t.ctx.fake.core.addProject("p1");
+    t.ctx.fake.core.runtimes.addLiveSession({
+      sessionId: "s1",
+      projectId: "p1",
+      clientId: W,
+      mode: "auto-approve",
+      name: "Fix login",
+    });
+    const usedAtMs = t.ctx.fake.clock.now();
+    await t.ctx.store.update((draft) => {
+      draft.current = { projectId: "p1", sessionId: "s1", usedAtMs };
+    });
+    t.ctx.fake.clock.advance(STALE_MS + 60_000);
+    const old = t.ctx.fake.clock.now() - STALE_MS - 30_000;
+    await t.deliver([
+      { text: ".mode review", createdAtMs: old },
+      { text: ".mode yolo", createdAtMs: old },
+      { text: ".mode auto", createdAtMs: old },
+      { text: ".mode", createdAtMs: old },
+      { text: ".mode review", createdAtMs: usedAtMs - 1 },
+    ]);
+    expect(t.calls.map((call) => call.name)).toEqual(["mode"]);
+    const last = t.texts().at(-1) ?? "";
+    expect(last).toContain(".mode yolo");
+    expect(last).toContain(".mode auto");
+  });
+
+  it("runs a stale .auto N off from a list it saw, and drops .auto N on", async () => {
+    const t = setup();
+    t.ctx.handles.set("automation", [
+      { id: "a1", label: "Nightly", projectId: "p1" },
+    ]);
+    t.ctx.handles.noteDelivered("automation", t.ctx.fake.clock.now());
+    t.ctx.fake.clock.advance(STALE_MS + 60_000);
+    const old = t.ctx.fake.clock.now() - STALE_MS - 30_000;
+    await t.deliver([
+      { text: ".auto 1 off", createdAtMs: old },
+      { text: ".auto 1 on", createdAtMs: old },
+      { text: ".auto 2 off", createdAtMs: old },
+    ]);
+    expect(t.calls.map((call) => call.name)).toEqual(["auto"]);
+    const last = t.texts().at(-1) ?? "";
+    expect(last).toContain(".auto 1 on");
+    expect(last).toContain(".auto 2 off");
   });
 });
 
