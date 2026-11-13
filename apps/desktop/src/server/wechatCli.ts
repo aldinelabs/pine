@@ -38,6 +38,9 @@ export const WECHAT_SIGHUP_HINT =
 export const WECHAT_YOLO_WARNING =
   "Warning: the ceiling is yolo. Sessions driven from WeChat may then run every tool without asking, once the mode is raised and confirmed in WeChat.";
 
+export const WECHAT_YOLO_DEFAULT_WARNING =
+  "Warning: the default mode is yolo. Every session started from WeChat runs every tool without asking; anyone who gets into the WeChat account controls this machine.";
+
 function modeWord(mode: PineApprovalMode): string {
   return mode === "YOLO" ? "yolo" : mode;
 }
@@ -80,7 +83,13 @@ export function formatWeChatSettings(
     `Send files to WeChat: ${yesNo(settings.allowFileSending)}`,
     `Reply language: ${language}`,
   ];
-  if (settings.ceilingMode === "YOLO") lines.push("", WECHAT_YOLO_WARNING);
+  if (settings.ceilingMode === "YOLO")
+    lines.push(
+      "",
+      settings.defaultMode === "YOLO"
+        ? WECHAT_YOLO_DEFAULT_WARNING
+        : WECHAT_YOLO_WARNING,
+    );
   return lines.join("\n");
 }
 

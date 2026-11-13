@@ -14,6 +14,7 @@ import { fileCredentialStorage } from "../credentialStorage";
 import {
   WECHAT_BIND_NEEDS_TTY,
   WECHAT_SIGHUP_HINT,
+  WECHAT_YOLO_DEFAULT_WARNING,
   WECHAT_YOLO_WARNING,
   WeChatTerminalBinding,
   canBindInteractively,
@@ -219,6 +220,16 @@ describe("runWeChatAction", () => {
     });
     expect(lowered).toContain("Default mode: let-me-review");
     expect(lowered).toContain("lowered to let-me-review");
+  });
+
+  it("warns that every WeChat session runs in YOLO when the default mode is YOLO too", async () => {
+    const text = await runWeChatAction(directory, {
+      kind: "config",
+      patch: { ceilingMode: "YOLO", defaultMode: "YOLO" },
+    });
+    expect(text).toContain("Default mode: yolo");
+    expect(text).toContain(WECHAT_YOLO_DEFAULT_WARNING);
+    expect(text).not.toContain(WECHAT_YOLO_WARNING);
   });
 
   it("keeps a change another store instance made in between", async () => {

@@ -27,7 +27,7 @@ src/server.ts + server/     Node 宿主：参数、fork 出的 agent、文件凭
   pine-server wechat config [--data-dir <dir>] [options]
   ```
 
-  `config` 的选项：`--ceiling <mode>`、`--default-mode <mode>`（`let-me-review`、`auto-approve`、`autonomous`、`yolo`；默认模式会被钳制到上限以内并提示）、`--default-project <id|none>`（项目必须存在，`none` 表示临时工作区）、`--allow-high-risk <yes|no>`、`--allow-files <yes|no>`（只接受 `yes` 或 `no`）、`--language <zh|en|auto>`、`--pause`、`--resume`（二选一）。上限设为 `yolo` 时会打印警告。`unbind` 清除绑定，并把权限设置恢复默认。
+  `config` 的选项：`--ceiling <mode>`、`--default-mode <mode>`（`let-me-review`、`auto-approve`、`autonomous`、`yolo`；默认模式会被钳制到上限以内并提示）、`--default-project <id|none>`（项目必须存在，`none` 表示临时工作区）、`--allow-high-risk <yes|no>`、`--allow-files <yes|no>`（只接受 `yes` 或 `no`）、`--language <zh|en|auto>`、`--pause`、`--resume`（二选一）。上限设为 `yolo` 时会打印警告；默认模式也是 `yolo` 时，警告会说明从微信新建的每个会话都直接以 YOLO 运行。`unbind` 清除绑定，并把权限设置恢复默认。
 
 - **生效。** 运行中的服务端在收到 `SIGHUP`（`kill -HUP <pid>`）或重启时读取改动。`unbind` 后收到 `SIGHUP` 的服务端会停止微信通道，中止只有桥接器持有的会话。
 - **存储。** 密封数据（`<data-dir>/wechat-remote-secure`：bot token、主人身份、权限设置、暂停状态）在服务端**不加密**，只靠 `0600` 文件权限保护；普通状态在 `<data-dir>/agent/wechat-remote.json`。
