@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   advanceThinkingBlocks,
+  completedThinkingBlock,
   currentThinkingBlock,
   type ThinkingBlockState,
 } from "../thinkingBlocks";
@@ -28,6 +29,30 @@ function blocksOf(text: string): string[] {
 }
 
 describe("thinking block splitter", () => {
+  it("reports the last completed block once the next one starts", () => {
+    let state: ThinkingBlockState | undefined;
+    const completed: string[] = [];
+    const text =
+      "\n\nFirst line.\nSecond line.\n\n- item\n\n```\na\n\nb\n```\n# Head";
+    for (let end = 1; end <= text.length; end++) {
+      const prefix = text.slice(0, end);
+      state = advanceThinkingBlocks(state, prefix);
+      const block = completedThinkingBlock(state, prefix);
+      if (block !== "" && block !== completed.at(-1)) completed.push(block);
+    }
+    expect(completed).toEqual([
+      "First line.\nSecond line.",
+      "- item",
+      "```\na\n\nb\n```",
+    ]);
+    expect(
+      completedThinkingBlock(
+        advanceThinkingBlocks(undefined, "Only."),
+        "Only.",
+      ),
+    ).toBe("");
+  });
+
   it("splits paragraphs on blank lines, counting each boundary once", () => {
     const { state, block } = split("First.\n\nSecond.\n \t\n\n\nThird.");
     expect(state.blockIndex).toBe(2);

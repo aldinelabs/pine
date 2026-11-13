@@ -271,7 +271,7 @@ describe("ProjectTranscriptMessage", () => {
       blocks: [
         { type: "thinking", thinking: "First summary" },
         { type: "text", text: "Progress update" },
-        { type: "thinking", thinking: "Second summary" },
+        { type: "thinking", thinking: "Second summary\n\nNext" },
       ],
     });
     try {

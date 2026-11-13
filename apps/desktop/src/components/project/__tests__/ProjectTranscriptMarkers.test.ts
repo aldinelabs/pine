@@ -117,9 +117,9 @@ describe("project transcript markers", () => {
     expect(trigger.attributes("aria-expanded")).toBe("false");
     await trigger.trigger("click");
     expect(trigger.attributes("aria-expanded")).toBe("true");
-    expect(wrapper.get("[data-thinking-live]").text()).toBe(
-      "Inspect the request.",
-    );
+    // The first block is still being written: a skeleton holds its place.
+    expect(wrapper.get("[data-thinking-live]").text()).toBe("");
+    expect(wrapper.find("[data-thinking-placeholder]").exists()).toBe(true);
     expect(wrapper.find("[data-thinking-content]").exists()).toBe(false);
 
     await wrapper.setProps({
@@ -128,14 +128,15 @@ describe("project transcript markers", () => {
         blocks: [
           {
             type: "thinking",
-            thinking: "Inspect the request.\nCheck the active session.",
+            thinking: "Inspect the request.\nCheck the active session.\n\nThen",
           },
         ],
       },
     });
-    expect(wrapper.get("[data-thinking-live]").text()).toContain(
-      "Check the active session.",
-    );
+    const live = wrapper.get("[data-thinking-live]").text();
+    expect(live).toContain("Inspect the request.");
+    expect(live).toContain("Check the active session.");
+    expect(live).not.toContain("Then");
 
     vi.setSystemTime(3_250);
     await vi.advanceTimersByTimeAsync(250);
@@ -273,7 +274,7 @@ describe("project transcript markers", () => {
     };
   }
 
-  it("streams one block at a time and keeps the previous block for an empty new segment", async () => {
+  it("shows one whole block at a time and completes a segment's last block when the next one starts", async () => {
     const wrapper = mountThinking(
       streamingThinking([
         {
@@ -283,8 +284,8 @@ describe("project transcript markers", () => {
       ]),
     );
     const live = wrapper.get("[data-thinking-live]");
-    expect(live.text()).toBe("Inspect the store.");
-    expect(live.text()).not.toContain("Plan the change.");
+    expect(live.text()).toBe("Plan the change.");
+    expect(live.text()).not.toContain("Inspect the store.");
 
     await wrapper.setProps({
       message: streamingThinking([
@@ -299,7 +300,7 @@ describe("project transcript markers", () => {
       wrapper
         .get("[data-thinking-live] .thinking-live-block:not([data-leaving])")
         .text(),
-    ).toBe("Inspect the store.");
+    ).toBe("Plan the change.");
 
     await wrapper.setProps({
       message: streamingThinking([
@@ -314,7 +315,7 @@ describe("project transcript markers", () => {
       wrapper
         .get("[data-thinking-live] .thinking-live-block:not([data-leaving])")
         .text(),
-    ).toBe("Second summary");
+    ).toBe("Inspect the store.");
     wrapper.unmount();
   });
 
@@ -377,10 +378,8 @@ describe("project transcript markers", () => {
       },
     });
     expect(trigger.attributes("aria-expanded")).toBe("false");
-    // The fold still shows the block that was streaming.
-    expect(wrapper.get("[data-thinking-live]").text()).toBe(
-      "Inspect the store.",
-    );
+    // The fold still shows the last complete block.
+    expect(wrapper.get("[data-thinking-live]").text()).toBe("Plan the change.");
     expect(wrapper.find("[data-thinking-content]").exists()).toBe(false);
 
     await vi.advanceTimersByTimeAsync(500);
@@ -409,7 +408,7 @@ describe("project transcript markers", () => {
       ]),
     });
     await trigger.trigger("click");
-    expect(wrapper.get("[data-thinking-live]").text()).toBe("Third.");
+    expect(wrapper.get("[data-thinking-live]").text()).toBe("Second.");
     expect(wrapper.find("[data-thinking-content]").exists()).toBe(false);
     wrapper.unmount();
   });

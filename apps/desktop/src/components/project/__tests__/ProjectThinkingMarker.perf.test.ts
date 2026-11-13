@@ -18,7 +18,7 @@
  * "before" is the marker before any perf change; "W2-A" followed the stream
  * in a scroll container with one native smooth `scrollTo` per resize report.
  * "after" is the live view: while thinking streams the panel shows only the
- * paragraph being written, so it renders one block and never scrolls.
+ * newest complete paragraph, so it renders one block and never scrolls.
  *
  * Print the metrics with `PINE_PERF_LOG=1` (add `--reporter=default` when
  * vitest hides the output of passing tests).
@@ -125,9 +125,10 @@ async function streamOneSecond() {
     scrollTopWrites: marker.layout.scrollTopWrites(),
   };
   reportMetrics("thinking stream, 1 s", metrics);
-  // The panel is open and shows the newest paragraph, not the first.
+  // The panel is open and shows the newest complete paragraph, not the first.
   expect(marker.wrapper.get("button").attributes("aria-expanded")).toBe("true");
-  expect(marker.panel.textContent).toContain(`Step ${marker.lines()}:`);
+  expect(marker.panel.textContent).toContain(`Step ${marker.lines() - 1}:`);
+  expect(marker.panel.textContent).not.toContain(`Step ${marker.lines()}:`);
   expect(marker.panel.textContent).not.toContain("Step 1:");
   return { marker, metrics };
 }
@@ -181,7 +182,7 @@ describe("ProjectThinkingMarker streaming cost", () => {
     expect(marker.clock.pendingFrames()).toBe(0);
   });
 
-  it("[T5] renders only the paragraph being written, not the whole thinking", async () => {
+  it("[T5] renders only the newest complete paragraph, not the whole thinking", async () => {
     const { marker } = await streamOneSecond();
     const sources = marker.wrapper
       .findAllComponents(MarkdownContent)
@@ -192,7 +193,7 @@ describe("ProjectThinkingMarker streaming cost", () => {
       totalChars: total.type === "thinking" ? total.thinking.length : 0,
     });
     expect(sources.at(-1)).toBe(
-      `Step ${marker.lines()}: weigh the next option.`,
+      `Step ${marker.lines() - 1}: weigh the next option.`,
     );
     // At most the current paragraph and the one fading out.
     expect(sources.length).toBeLessThanOrEqual(2);

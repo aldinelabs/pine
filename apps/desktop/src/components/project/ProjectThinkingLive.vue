@@ -9,17 +9,27 @@ import {
   watch,
 } from "vue";
 import MarkdownContent from "@/components/markdown/MarkdownContent.vue";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   advanceThinkingBlocks,
+  completedThinkingBlock,
   currentThinkingBlock,
   type ThinkingBlockState,
 } from "@/lib/thinkingBlocks";
 
 /**
- * The thinking panel while the model is still thinking: only the Markdown
- * block being written, crossfading to the next one when it starts. It is not
- * a scroll container and never shrinks while mounted, so the transcript
- * following the stream only ever sees it grow.
+ * The thinking panel while the model is still thinking: one whole Markdown
+ * block at a time, shown once the next block starts and crossfading to the
+ * next completed one. Before the first block completes a one-line skeleton
+ * holds the panel's starting height. It is not a scroll container and never
+ * shrinks while mounted, so the transcript following the stream only ever
+ * sees it grow.
+ *
+ * Fallback for a block that takes long: once the block being written passes
+ * `OVERDUE_CHARS` or has been written for `OVERDUE_MS`, it is shown as it
+ * stands and refreshed at most every
+ * `PARTIAL_REFRESH_MS` (not per token). Its completed text then replaces it
+ * in place.
  */
 const props = defineProps<{
   /** The newest thinking content block with visible text. */
@@ -29,6 +39,8 @@ const props = defineProps<{
 interface LiveItem {
   key: string;
   text: string;
+  /** The whole block; false for an overdue block shown while written. */
+  complete: boolean;
   leaving: boolean;
   tall: boolean;
   initial: boolean;
@@ -36,6 +48,12 @@ interface LiveItem {
 
 /** Fallback for the panel's `max-h-64` when no computed style is available. */
 const DEFAULT_CAP_PX = 256;
+/** An unfinished block this long is shown as it stands. */
+const OVERDUE_CHARS = 600;
+/** An unfinished block written for this long is shown as it stands. */
+const OVERDUE_MS = 4000;
+/** An overdue block's shown text is refreshed at most this often. */
+const PARTIAL_REFRESH_MS = 1500;
 
 const root = useTemplateRef<HTMLElement>("root");
 const stack = useTemplateRef<HTMLElement>("stack");
@@ -44,8 +62,17 @@ const minHeight = ref(0);
 let capPx = DEFAULT_CAP_PX;
 let split: ThinkingBlockState | undefined;
 let splitSegment: number | undefined;
+let splitText = "";
 let observer: ResizeObserver | undefined;
 let observedItem: Element | undefined;
+let isMounted = false;
+/** When the block being written started (or its segment did). */
+let blockSince = Date.now();
+/** The overdue block last shown while written: its key, time and length. */
+let partialKey: string | undefined;
+let partialAt = 0;
+let partialLength = 0;
+let timer: ReturnType<typeof setTimeout> | undefined;
 
 const current = computed(() => items.value.at(-1));
 const currentKey = computed(() => current.value?.key);
@@ -53,40 +80,88 @@ const isClipped = computed(() => current.value?.tall === true);
 /** A tall block, current or fading out, is shown by its tail: keep the top fade. */
 const showsTail = computed(() => items.value.some((item) => item.tall));
 
-function update(source: { segment: number; text: string }): void {
-  if (source.segment !== splitSegment) {
-    // A new thinking content block is always a new block.
-    split = undefined;
-    splitSegment = source.segment;
-  }
-  const previousStart = split?.blockStart;
-  const previousIndex = split?.blockIndex;
-  split = advanceThinkingBlocks(split, source.text);
-  const text = currentThinkingBlock(split, source.text);
-  // Never fade to an empty block: keep the last one until text arrives.
-  if (text === "") return;
-  const key = `${source.segment}:${split.blockIndex}`;
+function show(key: string, text: string, complete: boolean): void {
   const last = items.value.at(-1);
   if (last?.key === key) {
-    if (last.text === text) return;
-    items.value = [...items.value.slice(0, -1), { ...last, text }];
+    if (last.text === text && last.complete === complete) return;
+    items.value = [...items.value.slice(0, -1), { ...last, text, complete }];
     return;
   }
-  if (!last) {
-    items.value = [{ key, text, leaving: false, tall: false, initial: true }];
+  const next: LiveItem = {
+    key,
+    text,
+    complete,
+    leaving: false,
+    tall: false,
+    // Already-complete text at mount shows at once; after the skeleton it fades in.
+    initial: !last && !isMounted,
+  };
+  items.value = last ? [{ ...last, leaving: true }, next] : [next];
+}
+
+/** One pending timer at most, so a stalled stream still reaches the fallback. */
+function scheduleRecheck(delay: number): void {
+  if (timer !== undefined) return;
+  timer = setTimeout(
+    () => {
+      timer = undefined;
+      update(props.source);
+    },
+    Math.max(0, delay),
+  );
+}
+
+function cancelRecheck(): void {
+  if (timer === undefined) return;
+  clearTimeout(timer);
+  timer = undefined;
+}
+
+function update(source: { segment: number; text: string }): void {
+  if (source.segment !== splitSegment) {
+    // The previous thinking content block ended: its last block is complete.
+    if (split && splitSegment !== undefined) {
+      const tail = currentThinkingBlock(split, splitText);
+      if (tail !== "") show(`${splitSegment}:${split.blockIndex}`, tail, true);
+    }
+    split = undefined;
+    splitSegment = source.segment;
+    blockSince = Date.now();
+    cancelRecheck();
+  }
+  const previousIndex = split?.blockIndex;
+  split = advanceThinkingBlocks(split, source.text);
+  splitText = source.text;
+  if (previousIndex === undefined || split.blockIndex !== previousIndex) {
+    const completed = completedThinkingBlock(split, source.text);
+    if (completed !== "")
+      show(`${source.segment}:${split.blockIndex - 1}`, completed, true);
+    if (previousIndex !== undefined) {
+      blockSince = Date.now();
+      cancelRecheck();
+    }
+  }
+
+  const written = source.text.length - split.blockStart;
+  const now = Date.now();
+  if (written <= OVERDUE_CHARS && now - blockSince < OVERDUE_MS) {
+    scheduleRecheck(blockSince + OVERDUE_MS - now);
     return;
   }
-  // Freeze the outgoing block at what it held when the next one began.
-  const leavingText =
-    previousStart !== undefined &&
-    previousIndex === split.blockIndex - 1 &&
-    last.key === `${source.segment}:${previousIndex}`
-      ? source.text.slice(previousStart, split.blockStart).trim()
-      : last.text;
-  items.value = [
-    { ...last, text: leavingText || last.text, leaving: true },
-    { key, text, leaving: false, tall: false, initial: false },
-  ];
+  const key = `${source.segment}:${split.blockIndex}`;
+  if (partialKey === key) {
+    if (source.text.length === partialLength) return;
+    if (now - partialAt < PARTIAL_REFRESH_MS) {
+      scheduleRecheck(partialAt + PARTIAL_REFRESH_MS - now);
+      return;
+    }
+  }
+  const text = currentThinkingBlock(split, source.text);
+  if (text === "") return;
+  partialKey = key;
+  partialAt = now;
+  partialLength = source.text.length;
+  show(key, text, false);
 }
 
 watch(() => props.source, update, { immediate: true });
@@ -138,6 +213,7 @@ function observeCurrentItem(): void {
 watch(currentKey, observeCurrentItem, { flush: "post" });
 
 onMounted(() => {
+  isMounted = true;
   const element = root.value;
   if (element) {
     const max = Number.parseFloat(getComputedStyle(element).maxHeight);
@@ -150,6 +226,7 @@ onMounted(() => {
 });
 
 onBeforeUnmount(() => {
+  cancelRecheck();
   observer?.disconnect();
   observer = undefined;
   observedItem = undefined;
@@ -167,6 +244,14 @@ onBeforeUnmount(() => {
   >
     <div ref="stack" class="grid shrink-0">
       <div
+        v-if="items.length === 0"
+        data-thinking-placeholder
+        class="flex h-5 items-center [grid-area:1/1]"
+        aria-hidden="true"
+      >
+        <Skeleton class="h-3 w-2/3 rounded-full motion-reduce:animate-none" />
+      </div>
+      <div
         v-for="item in items"
         :key="item.key"
         class="thinking-live-block [grid-area:1/1]"
@@ -176,7 +261,11 @@ onBeforeUnmount(() => {
         :aria-hidden="item.leaving || undefined"
         @animationend.self="handleAnimationEnd(item)"
       >
-        <MarkdownContent :source="item.text" :final="item.leaving" compact />
+        <MarkdownContent
+          :source="item.text"
+          :final="item.complete || item.leaving"
+          compact
+        />
       </div>
     </div>
   </div>
