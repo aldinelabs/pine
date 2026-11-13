@@ -575,7 +575,7 @@ export class SessionDirectory {
     void this.pushProgress(sessionId, obs).catch(() => undefined);
   }
 
-  /** Progress pushes that fell due without an event; T5A may call it on a timer. */
+  /** Progress pushes that fell due without an event; the bridge's sweep timer calls it. */
   tick(): void {
     for (const [sessionId, obs] of this.observed)
       this.checkProgress(sessionId, obs);

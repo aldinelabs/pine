@@ -64,10 +64,11 @@ main/core/pineCore.ts          main/desktop/wechatHost.ts（仅 Electron：IPC�
 
 本机设置决定上限，微信命令改不了任何设置：
 
-- `modeFor(session)`：会话当前模式（活动会话的模式、已保存的模式或默认模式）高于“Highest approval mode”时，或会话属于自动化运行时，结果是 `view-only`。只读会话只能查看、停止、拒绝、取消排队、结束后台进程，以及用 `.mode` 降到上限以内。
+- `modeFor(session)`：会话当前模式（活动会话的模式、已保存的模式或默认模式）高于“Highest approval mode”时，或会话属于自动化运行时，结果是 `view-only`。只读会话只能查看、停止、拒绝（不带说明）、取消排队、结束后台进程，以及用 `.mode` 降到上限以内；带说明的 `.reject` 和 `.guide` 会像用户指令一样引导智能体，因此对只读会话回复 `E-VIEW`。
 - 新会话使用“Default approval mode”，并钳制在上限以内。每次 `prompt`（包括 steering）都显式传入审批模式；调用前有一个断言，模式超出当前上限就抛出，不发送。
 - `.mode` 收紧总是允许；放宽只到上限（否则 `E-CEIL`）；`yolo` 需要上限是 YOLO 并确认。非活动会话的选择存为 `modeOverride`，下一次发送时使用并删除；高于上限的覆盖值一律删除。
 - 本机降低上限时，超出的会话变为只读，不会被强制降级。
+- **会话之间的转发。** 微信启动或用过的会话，不能用 `ui_session_send` 给只读的亲属会话（父会话、子会话或同级会话）发消息；子会话结束一轮时，只读的父会话只看到状态，不会被唤醒，也拿不到子会话的回复。这样上限不会经由会话家族里模式更高的会话被绕过。
 - `.model` 总是带 `sessionId`，只改当前会话，不改全局默认模型。
 - 从微信启动、使用或派生的会话（记录在 `origins`）调用 `automation_run_now` 时，只有上限至少为 Autonomous Work 且自动化已开启才放行，并发本机通知（`automationRunRefusal`）。微信从未接触的会话不受影响。
 
@@ -197,8 +198,8 @@ rm -rf build/ && make
 | `.pending`  | `.w` `.approvals` `.待处理`                  | —                      | R+    | 所有待处理的审批和问题，以及本机待批的自动化变更数                                |
 | `.show`     | `.详情` `.NN`                                | `NN`                   | R+    | 卡片全文                                                                          |
 | `.approve`  | `.y` `.yes` `.ok` `.批准` `.同意` `.确认`    | `[NN]`                 | M     | 批准卡片、确认或执行暂存批次                                                      |
-| `.reject`   | `.d` `.no` `.deny` `.cancel` `.拒绝` `.取消` | `[NN] [说明]`          | M−    | 拒绝（带说明即指导）、取消问题、丢弃确认或批次                                    |
-| `.guide`    | `.g` `.指导` `.建议`                         | `[NN] 说明`            | M−    | 拒绝并附上说明                                                                    |
+| `.reject`   | `.d` `.no` `.deny` `.cancel` `.拒绝` `.取消` | `[NN] [说明]`          | M−    | 拒绝（带说明即指导，只读会话不接受说明）、取消问题、丢弃确认或批次                |
+| `.guide`    | `.g` `.指导` `.建议`                         | `[NN] 说明`            | M−    | 拒绝并附上说明（只读会话回复 `E-VIEW`）                                           |
 | `.answer`   | `.a` `.ans` `.回答` `.答`                    | `[NN] 答案`            | M     | 回答问题卡片                                                                      |
 | `.files`    | `.o` `.out` `.文件` `.产物`                  | `[N]`                  | R     | 当前。智能体展示过的文件                                                          |
 | `.file`     | `.send` `.发送`                              | `N`                    | D     | 当前。发送一个展示过的文件，需本机开关                                            |
@@ -256,8 +257,8 @@ Pine 不对绑定账号做使用频率限制：没有每小时新会话数、同
 
 1. **接收。** 只处理满足以下全部条件的消息：有消息 id；是用户消息；`from_user_id` 等于主人；`to_user_id` 缺失或等于本 Bot；`group_id` 为空；id 没有处理过。其余静默丢弃。时间戳缺失、为 0、不是有限数或超前过多的消息一律视为过期。
 2. 只解析用户亲手输入的文本条目。语音转写作为普通消息；引用追加在用户文字之后、带标签并截断，从不放在最前面，也从不单独转发；文件名只是显示数据。
-3. 每个提示都经 `SessionDirectory.startSession` 或 `send` 发出。`core.startBackgroundSession` 和 `runtimes.prompt` 之前的断言检查显式审批模式在**当前**上限以内。`view-only` 挡住所有修改路径；高于上限的 `modeOverride` 被删除，从不传出。
-4. 以下情况从不调用 `respondApproval(approve)`：策略判为不可批准的卡片、只读会话、过期消息、已作废的编号、`actionDigest` 变化、主题被截断且 `.show NN` 尚未送达。
+3. 每个提示都经 `SessionDirectory.startSession` 或 `send` 发出。`core.startBackgroundSession` 和 `runtimes.prompt` 之前的断言检查显式审批模式在**当前**上限以内。`view-only` 挡住所有修改路径（包括带说明的拒绝，以及经 `ui_session_send` 或子会话轮次报告转给只读亲属会话）；高于上限的 `modeOverride` 被删除，从不传出。
+4. 以下情况从不调用 `respondApproval(approve)`：策略判为不可批准的卡片、只读会话、过期消息、已作废的编号、`actionDigest` 变化、主题被截断且 `.show NN` 尚未送达（完整主题须在本次拉取开始前发出，且比消息的 `create_time_ms` 早 `ASK_SKEW_MS` 以上）。
 5. “Allow sending files to WeChat”关闭时从不请求 `getuploadurl`。文件只从展示过的文件表发送，且真实路径必须仍等于记录的路径。
 6. 微信命令从不写入微信设置、Pine 设置、凭据或项目文件夹。暂停后只能在本机恢复。
 7. `core.router` 上没有 `wechat:*` 通道，`createWebChannels` 里也没有。
