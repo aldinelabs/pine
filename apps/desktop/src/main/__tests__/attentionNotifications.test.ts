@@ -16,7 +16,7 @@ describe("attention notifications", () => {
     );
   });
 
-  it("leads with the reviewer's summary when there is one", () => {
+  it("keeps the tool and subject first and adds the reviewer's summary below", () => {
     expect(
       approvalNotificationBody(
         "bash",
@@ -24,10 +24,12 @@ describe("attention notifications", () => {
         false,
         "Force-pushes main.",
       ),
-    ).toBe("Pine wants approval: Force-pushes main.");
+    ).toBe(
+      "Pine wants approval to run bash: git push --force\nForce-pushes main.",
+    );
     expect(
       approvalNotificationBody("bash", undefined, true, "强制推送 main。"),
-    ).toBe("Pine 请求批准：强制推送 main。");
+    ).toBe("Pine 请求批准运行 bash。\n强制推送 main。");
     expect(
       approvalNotificationBody("bash", { command: "ls" }, false, "  "),
     ).toBe("Pine wants approval to run bash: ls");

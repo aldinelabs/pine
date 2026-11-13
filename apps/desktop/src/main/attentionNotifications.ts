@@ -21,20 +21,18 @@ export function approvalNotificationBody(
   chinese: boolean,
   summary?: string,
 ): string {
-  // The reviewer's plain-language account says more than the raw subject.
-  const explained = summary?.trim();
-  if (explained)
-    return chinese
-      ? `Pine 请求批准：${explained}`
-      : `Pine wants approval: ${explained}`;
+  // The notification carries an Approve action, so the authoritative tool and
+  // subject always lead; the reviewer's untrusted prose only follows them.
   const subject = approvalSubject(input);
-  if (chinese)
-    return subject
+  const head = chinese
+    ? subject
       ? `Pine 请求批准运行 ${toolName}：${subject}`
-      : `Pine 请求批准运行 ${toolName}。`;
-  return subject
-    ? `Pine wants approval to run ${toolName}: ${subject}`
-    : `Pine wants approval to run ${toolName}.`;
+      : `Pine 请求批准运行 ${toolName}。`
+    : subject
+      ? `Pine wants approval to run ${toolName}: ${subject}`
+      : `Pine wants approval to run ${toolName}.`;
+  const explained = summary?.trim();
+  return explained ? `${head}\n${explained}` : head;
 }
 
 export function questionnaireNotificationBody(
