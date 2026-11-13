@@ -7,7 +7,7 @@ import type {
 import { createHash } from "node:crypto";
 import {
   RECALL_TOOL_NAME,
-  UI_REPORT_PROGRESS_TOOL_NAME,
+  REPORT_PROGRESS_TOOL_NAME,
   type PineAgentEvent,
   type PineApprovalMode,
   type PineMessageRewriteTarget,
@@ -244,7 +244,7 @@ export function toolNamesForSubSession(
   subSession: boolean,
 ): string[] {
   if (!subSession) return [...toolNames];
-  return toolNames.filter((name) => name !== UI_REPORT_PROGRESS_TOOL_NAME);
+  return toolNames.filter((name) => name !== REPORT_PROGRESS_TOOL_NAME);
 }
 
 /** The Preferences switch for interim answers; off hides the tool from the model. */
@@ -253,7 +253,7 @@ export function toolNamesForInterimAnswers(
   enabled: boolean,
 ): string[] {
   if (enabled) return [...toolNames];
-  return toolNames.filter((name) => name !== UI_REPORT_PROGRESS_TOOL_NAME);
+  return toolNames.filter((name) => name !== REPORT_PROGRESS_TOOL_NAME);
 }
 
 export function toolNamesForComputerUseState(

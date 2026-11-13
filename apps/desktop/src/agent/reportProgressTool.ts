@@ -3,7 +3,7 @@ import {
   type ToolDefinition,
 } from "@earendil-works/pi-coding-agent";
 import { Type, type Static } from "typebox";
-import { UI_REPORT_PROGRESS_TOOL_NAME } from "../shared/agent";
+import { REPORT_PROGRESS_TOOL_NAME } from "../shared/agent";
 
 // The acknowledgement is the last thing the model reads before its next step,
 // so it repeats the rule a misused report breaks: the turn still ends with a
@@ -72,14 +72,14 @@ function withoutNonStringContent(args: unknown): ReportProgressParams {
  */
 export function createReportProgressToolDefinition(): ToolDefinition {
   return defineTool({
-    name: UI_REPORT_PROGRESS_TOOL_NAME,
+    name: REPORT_PROGRESS_TOOL_NAME,
     label: "Report Progress",
     description: DESCRIPTION,
-    promptSnippet: `Use ${UI_REPORT_PROGRESS_TOOL_NAME} to post a preliminary answer, or each solved part, before slow work, then keep working`,
+    promptSnippet: `Use ${REPORT_PROGRESS_TOOL_NAME} to post a preliminary answer, or each solved part, before slow work, then keep working`,
     promptGuidelines: [
-      `Before slow work (search, reading files, running commands), call ${UI_REPORT_PROGRESS_TOOL_NAME} with what you already know, marked as preliminary, unless the question is strongly time-sensitive (latest versions, news, prices, live data)`,
-      `For multi-part work, call ${UI_REPORT_PROGRESS_TOOL_NAME} as each part is solved; otherwise call it again only when the conclusion changes; never narrate steps or use it when you can answer completely right away`,
-      `${UI_REPORT_PROGRESS_TOOL_NAME} never replaces the final answer: always end the turn with a normal reply that builds on what you reported`,
+      `Before slow work (search, reading files, running commands), call ${REPORT_PROGRESS_TOOL_NAME} with what you already know, marked as preliminary, unless the question is strongly time-sensitive (latest versions, news, prices, live data)`,
+      `For multi-part work, call ${REPORT_PROGRESS_TOOL_NAME} as each part is solved; otherwise call it again only when the conclusion changes; never narrate steps or use it when you can answer completely right away`,
+      `${REPORT_PROGRESS_TOOL_NAME} never replaces the final answer: always end the turn with a normal reply that builds on what you reported`,
     ],
     parameters: reportProgressParams,
     prepareArguments: withoutNonStringContent,

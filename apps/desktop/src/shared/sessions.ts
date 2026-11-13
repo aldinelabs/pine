@@ -1,4 +1,8 @@
-import { UI_REPORT_PROGRESS_TOOL_NAME, type PineApprovalMode } from "./agent";
+import {
+  currentToolName,
+  REPORT_PROGRESS_TOOL_NAME,
+  type PineApprovalMode,
+} from "./agent";
 import type { AutomationRunSession } from "./automation";
 import { parseAttachmentMessage, type PineAttachment } from "./attachments";
 import { parseQuoteMessage, type PineQuote } from "./quotes";
@@ -272,14 +276,18 @@ export interface PineTextMessage {
 }
 
 /**
- * The Markdown a `ui_report_progress` call shows as reply text; undefined for
+ * The Markdown a `report_progress` call shows as reply text; undefined for
  * any other tool. Arguments still streaming, or invalid, give "".
  */
 export function progressReportText(
   name: unknown,
   args: unknown,
 ): string | undefined {
-  if (name !== UI_REPORT_PROGRESS_TOOL_NAME) return undefined;
+  if (
+    typeof name !== "string" ||
+    currentToolName(name) !== REPORT_PROGRESS_TOOL_NAME
+  )
+    return undefined;
   if (typeof args !== "object" || args === null || Array.isArray(args)) {
     return "";
   }

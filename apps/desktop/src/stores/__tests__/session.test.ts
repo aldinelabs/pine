@@ -1235,7 +1235,7 @@ describe("session store", () => {
         type: "tool-call-start",
         contentIndex: 0,
         id: "call-report",
-        name: "ui_report_progress",
+        name: "report_progress",
       },
     ]);
     expect(blocks()).toEqual([{ type: "text", text: "" }]);
@@ -1268,7 +1268,7 @@ describe("session store", () => {
         type: "tool-call-start",
         contentIndex: 0,
         id: "call-report",
-        name: "ui_report_progress",
+        name: "report_progress",
       },
     ]);
     expect(blocks()).toEqual([{ type: "text", text: "Probably the cache." }]);
@@ -1279,7 +1279,7 @@ describe("session store", () => {
         type: "tool-call-end",
         contentIndex: 0,
         id: "call-report",
-        name: "ui_report_progress",
+        name: "report_progress",
         input: { content: "Probably the cache. Checking." },
       },
       {
@@ -1304,14 +1304,14 @@ describe("session store", () => {
       type: "tool-start",
       sessionId,
       toolCallId: "call-report",
-      toolName: "ui_report_progress",
+      toolName: "report_progress",
       payload: { content: "Probably the cache. Checking." },
     });
     listener?.({
       type: "tool-end",
       sessionId,
       toolCallId: "call-report",
-      toolName: "ui_report_progress",
+      toolName: "report_progress",
       payload: {
         content: [
           { type: "text", text: "Shown to the user. Continue working." },
@@ -1333,7 +1333,7 @@ describe("session store", () => {
           {
             type: "toolCall",
             id: "call-report",
-            name: "ui_report_progress",
+            name: "report_progress",
             arguments: { content: "Probably the cache. Checking." },
           },
           {
@@ -1347,7 +1347,7 @@ describe("session store", () => {
     });
     expect(store.messages).toHaveLength(1);
     expect(blocks()).toEqual(streamed);
-    expect(JSON.stringify(store.messages)).not.toContain("ui_report_progress");
+    expect(JSON.stringify(store.messages)).not.toContain("report_progress");
     expect(JSON.stringify(store.messages)).not.toContain("Shown to the user");
   });
 

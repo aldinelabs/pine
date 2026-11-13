@@ -58,15 +58,16 @@ export const UI_PROJECT_CREATE_TOOL_NAME = "ui_project_create" as const;
 export const UI_PROJECT_UPDATE_TOOL_NAME = "ui_project_update" as const;
 export const UI_PROJECT_DELETE_TOOL_NAME = "ui_project_delete" as const;
 /** Shows the user an interim answer as reply text while the agent keeps working. */
-export const UI_REPORT_PROGRESS_TOOL_NAME = "ui_report_progress" as const;
+export const REPORT_PROGRESS_TOOL_NAME = "report_progress" as const;
 
 /**
- * Names Pine's own tools had before they moved to `ui_<area>_<action>`.
+ * Names Pine's own tools had before they were renamed.
  * Transcripts keep the name a call was made with; readers map it here.
  */
 const LEGACY_TOOL_NAMES: Readonly<Record<string, string>> = {
   ui_list_project: UI_PROJECT_LIST_TOOL_NAME,
   ui_teleport: UI_SESSION_TELEPORT_TOOL_NAME,
+  ui_report_progress: REPORT_PROGRESS_TOOL_NAME,
 };
 
 /** The current name of a tool that a transcript may record under an old one. */

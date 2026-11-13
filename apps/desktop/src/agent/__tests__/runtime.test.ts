@@ -1865,13 +1865,13 @@ describe("PineAgentRuntime", () => {
       const activeTools = (sessionId: string) =>
         internals.liveSessions.get(sessionId)!.session.getActiveToolNames();
       const parent = await runtime.createSession(location);
-      expect(activeTools(parent.session.id)).toContain("ui_report_progress");
+      expect(activeTools(parent.session.id)).toContain("report_progress");
 
       const child = await runtime.createSession({
         ...location,
         parentSessionId: parent.session.id,
       });
-      expect(activeTools(child.session.id)).not.toContain("ui_report_progress");
+      expect(activeTools(child.session.id)).not.toContain("report_progress");
       expect(activeTools(child.session.id)).toContain("datetime");
 
       // The marker lives in the session file, so reopening changes nothing.
@@ -1903,7 +1903,7 @@ describe("PineAgentRuntime", () => {
       await runtime.disposeSession(child.session.id);
       const reopened = await runtime.openSession(location, child.sessionFile!);
       expect(activeTools(reopened.session.id)).not.toContain(
-        "ui_report_progress",
+        "report_progress",
       );
     } finally {
       await runtime.dispose();
@@ -1942,16 +1942,16 @@ describe("PineAgentRuntime", () => {
       const created = await runtime.createSession(location);
       const live = internals.liveSessions.get(created.session.id)!;
       expect(live.session.getActiveToolNames()).not.toContain(
-        "ui_report_progress",
+        "report_progress",
       );
       expect(live.session.getActiveToolNames()).toContain("datetime");
 
       // Run start applies the saved value for the new turn.
       internals.applyInterimAnswersSetting(live, true);
-      expect(live.session.getActiveToolNames()).toContain("ui_report_progress");
+      expect(live.session.getActiveToolNames()).toContain("report_progress");
       internals.applyInterimAnswersSetting(live, false);
       expect(live.session.getActiveToolNames()).not.toContain(
-        "ui_report_progress",
+        "report_progress",
       );
     } finally {
       await runtime.dispose();

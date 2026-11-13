@@ -96,7 +96,7 @@ describe("CompletionSignalTracker", () => {
         {
           type: "toolCall",
           id: "t1",
-          name: "ui_report_progress",
+          name: "report_progress",
           arguments: { content: "Probably the cache." },
         },
       ]),

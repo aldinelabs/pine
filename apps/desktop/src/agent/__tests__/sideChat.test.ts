@@ -32,7 +32,7 @@ describe("side chats", () => {
   it("only lets read-only tools run", () => {
     expect(isSideChatReadOnlyTool("read")).toBe(true);
     expect(isSideChatReadOnlyTool("web_search")).toBe(true);
-    expect(isSideChatReadOnlyTool("ui_report_progress")).toBe(true);
+    expect(isSideChatReadOnlyTool("report_progress")).toBe(true);
     for (const name of ["bash", "write", "edit", "privileged_bash", "todo"])
       expect(isSideChatReadOnlyTool(name)).toBe(false);
   });

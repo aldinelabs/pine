@@ -543,7 +543,7 @@ describeSandbox("createPineToolDefinitions", { timeout: 30_000 }, () => {
       "write",
       "todo",
       "datetime",
-      "ui_report_progress",
+      "report_progress",
     ]);
     const scratchDirectory = path.join(
       path.dirname(location.sessionsRoot),

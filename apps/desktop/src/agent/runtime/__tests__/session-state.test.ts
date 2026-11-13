@@ -73,7 +73,7 @@ describe("toolNamesForCompactionRoute", () => {
 });
 
 describe("toolNamesForSubSession", () => {
-  const tools = ["read", "ui_report_progress", "bash"];
+  const tools = ["read", "report_progress", "bash"];
 
   // The parent reads only a sub-session's final reply, so an interim answer
   // would move findings out of the one message that reaches it.
@@ -84,7 +84,7 @@ describe("toolNamesForSubSession", () => {
 });
 
 describe("toolNamesForInterimAnswers", () => {
-  const tools = ["read", "ui_report_progress", "bash"];
+  const tools = ["read", "report_progress", "bash"];
 
   it("drops only the interim answer tool when the switch is off", () => {
     expect(toolNamesForInterimAnswers(tools, true)).toEqual(tools);

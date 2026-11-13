@@ -2,7 +2,7 @@ import { acceptHMRUpdate, defineStore } from "pinia";
 import { computed, reactive, ref, shallowRef, toRefs } from "vue";
 import { toast } from "vue-sonner";
 import {
-  UI_REPORT_PROGRESS_TOOL_NAME,
+  REPORT_PROGRESS_TOOL_NAME,
   isSandboxDeniedPayload,
   type PineAgentEvent,
   type PineSessionEvent,
@@ -342,7 +342,7 @@ function applyAssistantMessageUpdates(
           // only receive a tool-call delta when it is a converted progress
           // report (the delta itself carries no tool name).
           const report = progressReportText(
-            UI_REPORT_PROGRESS_TOOL_NAME,
+            REPORT_PROGRESS_TOOL_NAME,
             update.input,
           );
           if (report) {
@@ -1914,7 +1914,7 @@ export const useSessionStore = defineStore("session", () => {
       event.type === "tool-end"
     ) {
       // A progress report is reply text, not a tool marker: its execution events show nothing.
-      if (event.toolName === UI_REPORT_PROGRESS_TOOL_NAME) return;
+      if (event.toolName === REPORT_PROGRESS_TOOL_NAME) return;
       if (event.type === "tool-start") {
         state.activeMcpToolCalls.set(event.toolCallId, event.toolName);
       }

@@ -705,7 +705,7 @@ describe("ProjectSessionService", () => {
         [
           { type: "text", text: "Let me check." },
           fauxToolCall(
-            "ui_report_progress",
+            "report_progress",
             { content: "Probably the zanzibar cache." },
             { id: toolCallId },
           ),
@@ -716,7 +716,7 @@ describe("ProjectSessionService", () => {
     await appendMessage(session, {
       role: "toolResult",
       toolCallId,
-      toolName: "ui_report_progress",
+      toolName: "report_progress",
       content: [{ type: "text", text: acknowledgement }],
       isError: false,
       timestamp: Date.now() - 1_000,
@@ -744,7 +744,7 @@ describe("ProjectSessionService", () => {
       expect(exported.markdown).toContain(
         "Let me check.\n\nProbably the zanzibar cache.\n",
       );
-      expect(exported.markdown).not.toContain("ui_report_progress");
+      expect(exported.markdown).not.toContain("report_progress");
       expect(exported.markdown).not.toContain("#### Tool call");
       expect(exported.markdown).not.toContain(acknowledgement);
 

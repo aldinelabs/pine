@@ -173,7 +173,7 @@ describe("side chat store", () => {
             {
               type: "toolCall",
               id: "call-report",
-              name: "ui_report_progress",
+              name: "report_progress",
               arguments: { content: "Probably the cache." },
             },
           ],
@@ -184,7 +184,7 @@ describe("side chat store", () => {
         message: {
           role: "toolResult",
           toolCallId: "call-report",
-          toolName: "ui_report_progress",
+          toolName: "report_progress",
           content: [
             { type: "text", text: "Shown to the user. Continue working." },
           ],
