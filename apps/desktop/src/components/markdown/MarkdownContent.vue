@@ -115,7 +115,18 @@ const props = defineProps<{
   compact?: boolean;
   /** Clicking an image opens an enlarged, zoomable view (file previews). */
   zoomableImages?: boolean;
+  /**
+   * This render continues one Markdown flow with the render above
+   * (`start`), below (`end`) or both, as the live thinking panel's per-block
+   * renders do: block margins then collapse across renders exactly as they
+   * would inside one.
+   */
+  flowJoin?: "start" | "end" | "both";
 }>();
+
+const flowJoinAttr = computed(() =>
+  props.flowJoin === "both" ? "start end" : props.flowJoin,
+);
 
 const root = useTemplateRef<HTMLDivElement>("root");
 const viewerImages = shallowRef<MarkdownViewerImage[]>([]);
@@ -287,6 +298,7 @@ async function confirmExternalLink(): Promise<void> {
     data-slot="markdown-content"
     :data-streaming="final === false ? 'true' : undefined"
     :data-compact="compact ? 'true' : undefined"
+    :data-flow-join="flowJoinAttr"
     @click="handleMarkdownClick"
   >
     <!--
@@ -384,6 +396,16 @@ async function confirmExternalLink(): Promise<void> {
    every flush, and a stale intrinsic placeholder would fight the transcript's
    scroll following. */
 .markdown-content[data-streaming] :deep(.markdown-renderer) {
+  content-visibility: visible;
+  contain-intrinsic-size: none;
+}
+
+/* Renders that continue one flow (`flowJoin`) drop the renderer's layout
+   containment: it makes each renderer its own formatting context, so margins
+   would not collapse across renders and the gap between two blocks would
+   differ from the same text rendered in one piece. They are few and small. */
+.markdown-content[data-flow-join] :deep(.markdown-renderer) {
+  contain: none;
   content-visibility: visible;
   contain-intrinsic-size: none;
 }
@@ -508,8 +530,10 @@ async function confirmExternalLink(): Promise<void> {
 }
 
 /* markstream's flow spacing gives each block a top margin; neutralize the very
-   first one so the message doesn't start with a gap. */
-.markdown-content :deep(.node-slot:first-child .node-content > :first-child) {
+   first one so the message doesn't start with a gap (unless this render
+   continues the flow of the one above). */
+.markdown-content:not([data-flow-join~="start"])
+  :deep(.node-slot:first-child .node-content > :first-child) {
   margin-top: 0;
 }
 
@@ -520,10 +544,11 @@ async function confirmExternalLink(): Promise<void> {
   display: none;
 }
 
-/* MessageContent owns the gap to the next block. Ignore hidden citation
-   definitions when finding the last visible block; ordinary footnotes and
-   paragraph spacing inside Markdown remain unchanged. */
-.markdown-content
+/* MessageContent owns the gap to the next block (unless this render
+   continues the flow of the one below). Ignore hidden citation definitions
+   when finding the last visible block; ordinary footnotes and paragraph
+   spacing inside Markdown remain unchanged. */
+.markdown-content:not([data-flow-join~="end"])
   > :deep(
     .markdown-renderer
       > .node-slot:nth-last-child(

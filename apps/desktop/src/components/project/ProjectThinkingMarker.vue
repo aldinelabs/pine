@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useFlipFollowScroll } from "@/composables/useFlipFollowScroll";
 import { useMountedWhileOpen } from "@/composables/useMountedWhileOpen";
 import { ChevronRightIcon } from "@lucide/vue";
 import {
@@ -6,12 +7,17 @@ import {
   nextTick,
   onBeforeUnmount,
   ref,
+  shallowRef,
   useId,
   useTemplateRef,
   watch,
 } from "vue";
 import { useI18n } from "vue-i18n";
-import { animateScrollTop } from "@/lib/animateScroll";
+import {
+  advanceThinkingSegment,
+  thinkingSegmentBlock,
+  type ThinkingSegmentSplit,
+} from "@/lib/thinkingBlocks";
 import MarkdownContent from "@/components/markdown/MarkdownContent.vue";
 import { Marker, MarkerContent, MarkerIcon } from "@/components/ui/marker";
 import { useOptionalMessageScrollerContext } from "@/components/ui/message-scroller/useMessageScroller";
@@ -39,11 +45,17 @@ const isFollowingThinking = ref(true);
 const hasThinkingUserScrollIntent = ref(false);
 const now = ref(Date.now());
 let elapsedTimer: number | undefined;
-let scrollAnimation: (() => void) | undefined;
 /** Panel scroll range, measured after layout by the resize observer. */
-let panelMetrics: { scrollHeight: number; clientHeight: number } | undefined;
+let panelMetrics: { range: number } | undefined;
 /** The bottom the panel was last sent to, so a repeat report does nothing. */
 let lastPinTarget: number | undefined;
+/** The panel was just opened: its next size report glides it to the bottom. */
+let pendingOpenPin = false;
+/** Glides the body on the compositor; the panel scrolls once per update. */
+const follow = useFlipFollowScroll({
+  scroller: () => thinkingContent.value,
+  content: () => thinkingBody.value,
+});
 let bodyObserver: ResizeObserver | undefined;
 /** Scroll position past which an edge counts as scrollable (fade shown). */
 const FADE_EDGE_THRESHOLD = 1;
@@ -56,25 +68,38 @@ const isStreaming = computed(
   () => props.message.thinkingStatus === "streaming",
 );
 
-const thinkingText = computed(() =>
-  props.message.blocks
-    .filter((block) => block.type === "thinking")
-    .map((block) => (block.type === "thinking" ? block.thinking : ""))
-    .join("\n"),
-);
+/** One string per thinking content block; nothing is joined per flush. */
+const thinkingSegments = computed<readonly string[]>(() => {
+  const segments: string[] = [];
+  for (const block of props.message.blocks)
+    if (block.type === "thinking") segments.push(block.thinking);
+  return segments;
+});
+
+function sameSegments(
+  left: readonly string[],
+  right: readonly string[],
+): boolean {
+  return (
+    left.length === right.length &&
+    left.every((segment, index) => segment === right[index])
+  );
+}
 
 /** Streaming thinking reaches the panel at most this often. */
 const THINKING_UPDATE_INTERVAL_MS = 250;
 
 /**
- * The text the panel renders. While thinking streams it follows
- * `thinkingText` at most every `THINKING_UPDATE_INTERVAL_MS`: the first
+ * The thinking the panel renders. While thinking streams it follows
+ * `thinkingSegments` at most every `THINKING_UPDATE_INTERVAL_MS`: the first
  * change after a quiet interval shows at once, later ones wait for one
  * pending timer, so a fast stream re-renders the Markdown and moves the
  * panel four times a second rather than on every flush. Anything else
  * (thinking finished, another message) shows at once.
  */
-const shownThinkingText = ref(thinkingText.value);
+const shownSegments = shallowRef<readonly string[]>(thinkingSegments.value);
+/** The finished view renders every segment in one piece. */
+const shownThinkingText = computed(() => shownSegments.value.join("\n"));
 let lastThinkingUpdateAt = 0;
 let thinkingUpdateTimer: ReturnType<typeof setTimeout> | undefined;
 
@@ -87,11 +112,11 @@ function cancelThinkingUpdate(): void {
 function showThinkingText(): void {
   cancelThinkingUpdate();
   lastThinkingUpdateAt = Date.now();
-  if (shownThinkingText.value !== thinkingText.value)
-    shownThinkingText.value = thinkingText.value;
+  if (!sameSegments(shownSegments.value, thinkingSegments.value))
+    shownSegments.value = thinkingSegments.value;
 }
 
-watch(thinkingText, () => {
+watch(thinkingSegments, () => {
   if (!isStreaming.value) {
     showThinkingText();
     return;
@@ -111,6 +136,113 @@ watch(thinkingText, () => {
 watch(isStreaming, (streaming) => {
   if (!streaming) showThinkingText();
 });
+
+interface ThinkingBlockItem {
+  key: string;
+  source: string;
+  final: boolean;
+}
+
+/**
+ * While the panel is open on streaming thinking, each segment is split into
+ * Markdown blocks and each block renders on its own: completed blocks render
+ * once and are never touched again, so an update re-renders only the block
+ * being written. The view stays in blocks for this message until the panel
+ * unmounts, so finishing re-lays nothing out; a later mount of finished
+ * thinking renders it in one piece.
+ */
+const useBlockView = ref(false);
+const blockItems = shallowRef<readonly ThinkingBlockItem[]>([]);
+/** Per-segment split state and the items built from it (not reactive). */
+let segmentSplits: (ThinkingSegmentSplit | undefined)[] = [];
+let segmentItems: ThinkingBlockItem[][] = [];
+/** The text and tail state each segment's items were built from. */
+let segmentBuilds: { text: string; tailFinal: boolean }[] = [];
+
+function resetBlockView(): void {
+  useBlockView.value = false;
+  blockItems.value = [];
+  segmentSplits = [];
+  segmentItems = [];
+  segmentBuilds = [];
+}
+
+function startBlockView(): void {
+  if (useBlockView.value) return;
+  useBlockView.value = true;
+  rebuildBlocks();
+}
+
+/** Items for one segment, reusing the completed ones already built. */
+function segmentBlockItems(
+  segmentIndex: number,
+  text: string,
+  isLast: boolean,
+): ThinkingBlockItem[] {
+  const tailFinal = !isLast || !isStreaming.value;
+  const built = segmentBuilds[segmentIndex];
+  const cached = segmentItems[segmentIndex];
+  // An earlier segment no longer changes: nothing to scan or slice.
+  if (cached && built?.text === text && built.tailFinal === tailFinal)
+    return cached;
+  segmentBuilds[segmentIndex] = { text, tailFinal };
+  const previous = segmentSplits[segmentIndex];
+  const split = advanceThinkingSegment(previous, text);
+  segmentSplits[segmentIndex] = split;
+  const items =
+    previous && split.starts === previous.starts
+      ? (segmentItems[segmentIndex] ?? [])
+      : [];
+  segmentItems[segmentIndex] = items;
+  const last = split.starts.length - 1;
+  for (let index = 0; index <= last; index++) {
+    const existing = items[index];
+    const complete = !isLast || index < last;
+    // Completed blocks keep their item, so their render is skipped.
+    if (existing?.final && complete && index < items.length - 1) continue;
+    const final = complete || tailFinal;
+    const source = thinkingSegmentBlock(split, text, index);
+    if (existing && existing.source === source && existing.final === final)
+      continue;
+    items[index] = {
+      key: `${segmentIndex}:${index}`,
+      source,
+      final,
+    };
+  }
+  items.length = last + 1;
+  return items;
+}
+
+function rebuildBlocks(): void {
+  if (!useBlockView.value) return;
+  const segments = shownSegments.value;
+  segmentSplits.length = Math.min(segmentSplits.length, segments.length);
+  segmentItems.length = Math.min(segmentItems.length, segments.length);
+  segmentBuilds.length = Math.min(segmentBuilds.length, segments.length);
+  const next: ThinkingBlockItem[] = [];
+  segments.forEach((text, segmentIndex) => {
+    for (const item of segmentBlockItems(
+      segmentIndex,
+      text,
+      segmentIndex === segments.length - 1,
+    ))
+      if (item.source) next.push(item);
+  });
+  blockItems.value = next;
+}
+
+watch([shownSegments, isStreaming], rebuildBlocks);
+
+/** Which neighbouring renders block `index` continues the flow of. */
+function flowJoinFor(
+  index: number,
+  count: number,
+): "start" | "end" | "both" | undefined {
+  if (count < 2) return undefined;
+  if (index === 0) return "end";
+  return index === count - 1 ? "start" : "both";
+}
 
 const hasResponseAfterThinking = computed(
   () =>
@@ -195,26 +327,6 @@ function syncElapsedTimer(streaming: boolean): void {
   scheduleElapsedTick();
 }
 
-function cancelScrollAnimation(): void {
-  scrollAnimation?.();
-  scrollAnimation = undefined;
-}
-
-function measurePanel(content: HTMLElement) {
-  panelMetrics = {
-    scrollHeight: content.scrollHeight,
-    clientHeight: content.clientHeight,
-  };
-  return panelMetrics;
-}
-
-function maxScrollTop(metrics: {
-  scrollHeight: number;
-  clientHeight: number;
-}): number {
-  return Math.max(0, metrics.scrollHeight - metrics.clientHeight);
-}
-
 /** Records which edges hide content; the fade attribute follows from it. */
 function updateScrollEdges(scrollTop: number, maxTop: number): void {
   const above = scrollTop > FADE_EDGE_THRESHOLD;
@@ -230,7 +342,7 @@ function updateScrollEdges(scrollTop: number, maxTop: number): void {
 
 /**
  * While following the stream the bottom stays faded: each update grows the
- * text before the panel jumps to it, so the fade would otherwise flicker on
+ * text before the panel glides to it, so the fade would otherwise flicker on
  * and off with every update. Once the stream ends, the next scroll event
  * clears it.
  */
@@ -244,46 +356,58 @@ const scrollableAttr = computed(() => {
   return edges.length > 0 ? edges.join(" ") : undefined;
 });
 
-function scrollThinkingToBottom(): void {
-  const content = thinkingContent.value;
-  if (!content) return;
-  const target = maxScrollTop(measurePanel(content));
-  lastPinTarget = target;
-  scrollAnimation = animateScrollTop(content, target);
-}
-
 /**
  * Runs after layout whenever the rendered thinking grows or reflows, so the
- * measurements here force no extra layout. While following the stream the
- * panel jumps straight to the newest line: one scroll write per update (at
- * most four a second), no glide.
+ * measurements here force no extra layout. While following the stream (and
+ * once after opening) the panel glides to the newest line: one scroll write
+ * and one compositor animation per update (at most four a second), nothing
+ * per frame.
  */
 function handleThinkingBodyResize(): void {
   const content = thinkingContent.value;
-  if (!content) return;
-  const target = maxScrollTop(measurePanel(content));
+  const body = thinkingBody.value;
+  if (!content || !body) return;
+  // The body's layout height ignores the glide's transform, which a
+  // scrollHeight read would include. The panel has no vertical padding; any
+  // added later belongs in this range.
+  const target = Math.max(0, body.offsetHeight - content.clientHeight);
+  panelMetrics = { range: target };
   updateScrollEdges(content.scrollTop, target);
-  if (!isStreaming.value || !isExpanded.value || !isFollowingThinking.value) {
-    return;
-  }
-  if (target === lastPinTarget) return;
+  if (!isExpanded.value) return;
+  const pin =
+    pendingOpenPin || (isStreaming.value && isFollowingThinking.value);
+  if (!pin || target === lastPinTarget) return;
+  pendingOpenPin = false;
   lastPinTarget = target;
-  cancelScrollAnimation();
-  content.scrollTo({ top: target, behavior: "instant" });
+  follow.glideTo(target);
 }
 
-async function toggleExpanded(): Promise<void> {
+/** The next size report (the first one after mounting) glides to the end. */
+function pinOnOpen(): void {
+  pendingOpenPin = true;
+  lastPinTarget = undefined;
+}
+
+function toggleExpanded(): void {
   isExpanded.value = !isExpanded.value;
   if (!isExpanded.value) return;
   isFollowingThinking.value = true;
-  await nextTick();
-  scrollThinkingToBottom();
+  pinOnOpen();
+  // Reopened before the fold finished: the body never left, so no size
+  // report follows; the last measured range still holds.
+  if (panelMetrics) {
+    pendingOpenPin = false;
+    lastPinTarget = panelMetrics.range;
+    follow.glideTo(panelMetrics.range);
+  }
 }
 
 function handleThinkingScroll(event: Event): void {
   const content = event.currentTarget as HTMLElement;
   // The range comes from the last resize report; only the position is read.
-  const maxTop = maxScrollTop(panelMetrics ?? measurePanel(content));
+  const maxTop =
+    panelMetrics?.range ??
+    Math.max(0, content.scrollHeight - content.clientHeight);
   const scrollTop = content.scrollTop;
   updateScrollEdges(scrollTop, maxTop);
   const nearBottom = maxTop - scrollTop <= 24;
@@ -296,8 +420,10 @@ function handleThinkingScroll(event: Event): void {
   hasThinkingUserScrollIntent.value = false;
 }
 
+/** The user takes over: a running glide stops where it shows. */
 function markThinkingUserScrollIntent(): void {
   hasThinkingUserScrollIntent.value = true;
+  follow.interrupt();
 }
 
 watch(
@@ -310,7 +436,7 @@ watch(
 watch(
   [
     () => props.message.id,
-    () => Boolean(thinkingText.value),
+    () => thinkingSegments.value.some(Boolean),
     hasResponseAfterThinking,
   ],
   ([messageId, hasThinking, hasResponse], previous) => {
@@ -319,6 +445,7 @@ watch(
     if (messageChanged) {
       isExpanded.value = false;
       isFollowingThinking.value = true;
+      if (previous) resetBlockView();
     }
     if (hasResponse) {
       if (
@@ -335,22 +462,38 @@ watch(
     if (isStreaming.value && (messageChanged || thinkingStarted)) {
       isExpanded.value = true;
       isFollowingThinking.value = true;
+      pinOnOpen();
       void nextTick(() => {
         scroller?.followStreamingContent();
-        scrollThinkingToBottom();
       });
     }
   },
   { immediate: true },
 );
+// Before the panel renders, so it mounts straight into the block view. Runs
+// after the message watch above, which resets the view for a new message.
+watch(
+  [isContentMounted, isStreaming, () => props.message.id],
+  ([mounted, streaming]) => {
+    if (mounted && streaming) startBlockView();
+  },
+  { immediate: true },
+);
+watch(isExpanded, (expanded) => {
+  if (!expanded) follow.interrupt();
+});
 watch(
   thinkingBody,
   (body, previous) => {
     if (previous) bodyObserver?.unobserve(previous);
     if (!body) {
       // The panel unmounted on collapse; it remeasures when it mounts again.
+      follow.cancel();
       panelMetrics = undefined;
       lastPinTarget = undefined;
+      // A later mount starts over: the block view again while thinking
+      // streams, the single render once it is done.
+      if (previous) resetBlockView();
       return;
     }
     if (typeof ResizeObserver === "undefined") return;
@@ -362,7 +505,6 @@ watch(
 onBeforeUnmount(() => {
   stopElapsedTimer();
   cancelThinkingUpdate();
-  cancelScrollAnimation();
   bodyObserver?.disconnect();
   bodyObserver = undefined;
 });
@@ -410,11 +552,25 @@ onBeforeUnmount(() => {
         >
           <!-- Thinking renders through the same markdown pipeline as the
                message body (reasoning carries lists/code/math too); the
-               compact variant keeps the muted small-type panel. `final`
-               follows the thinking block, not the whole message, so deltas
-               fade only while thinking streams. -->
+               compact variant keeps the muted small-type panel. While it
+               streams, each Markdown block renders on its own so an update
+               re-renders only the block being written; only that block is
+               not `final`, so deltas fade there alone. `flow-join` lets the
+               blocks' margins collapse as in one render, so the spacing
+               matches the finished view. -->
           <div ref="thinkingBody">
+            <template v-if="useBlockView">
+              <MarkdownContent
+                v-for="(item, index) in blockItems"
+                :key="item.key"
+                :source="item.source"
+                :final="item.final"
+                :flow-join="flowJoinFor(index, blockItems.length)"
+                compact
+              />
+            </template>
             <MarkdownContent
+              v-else
               :source="shownThinkingText"
               :final="message.thinkingStatus !== 'streaming'"
               compact

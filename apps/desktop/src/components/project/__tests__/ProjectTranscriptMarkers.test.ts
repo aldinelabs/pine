@@ -20,6 +20,7 @@ import { createAppI18n } from "@/app/i18n";
 import * as animateScroll from "@/lib/animateScroll";
 import { createPinia } from "pinia";
 import { resizeObserverStub } from "@/__tests__/perf/streamHarness";
+import MarkdownContent from "@/components/markdown/MarkdownContent.vue";
 import ProjectCompactionMarker from "../ProjectCompactionMarker.vue";
 import ProjectThinkingMarker from "../ProjectThinkingMarker.vue";
 import ProjectToolCallMarker from "../ProjectToolCallMarker.vue";
@@ -216,9 +217,17 @@ describe("project transcript markers", () => {
     );
   });
 
+  interface FakeGlide {
+    currentTime: number | null;
+    playState: AnimationPlayState;
+    cancel: ReturnType<typeof vi.fn>;
+    addEventListener: ReturnType<typeof vi.fn>;
+  }
+
   /**
    * A streaming marker whose panel reports a stubbed layout and resize
-   * notifications, as the browser does after each content update.
+   * notifications, as the browser does after each content update. The body
+   * records its compositor glides.
    */
   function mountFollowingThinking() {
     const observers = resizeObserverStub();
@@ -240,7 +249,8 @@ describe("project transcript markers", () => {
     });
     const content = wrapper.get("[data-thinking-content]")
       .element as HTMLElement;
-    let scrollHeight = 600;
+    const body = content.firstElementChild as HTMLElement;
+    let bodyHeight = 600;
     let scrollTop = 0;
     Object.defineProperty(content, "clientHeight", {
       configurable: true,
@@ -248,7 +258,11 @@ describe("project transcript markers", () => {
     });
     Object.defineProperty(content, "scrollHeight", {
       configurable: true,
-      get: () => scrollHeight,
+      get: () => bodyHeight,
+    });
+    Object.defineProperty(body, "offsetHeight", {
+      configurable: true,
+      get: () => bodyHeight,
     });
     Object.defineProperty(content, "scrollTop", {
       configurable: true,
@@ -257,13 +271,32 @@ describe("project transcript markers", () => {
         scrollTop = value;
       },
     });
-    const scrollTo = vi.fn();
+    const scrollTo = vi.fn(({ top }: ScrollToOptions) => {
+      scrollTop = top ?? scrollTop;
+    });
     Object.defineProperty(content, "scrollTo", {
       configurable: true,
       value: scrollTo,
     });
+    const glides: FakeGlide[] = [];
+    const animate = vi.fn<
+      (keyframes: Keyframe[], options: KeyframeAnimationOptions) => FakeGlide
+    >((): FakeGlide => {
+      const glide: FakeGlide = {
+        currentTime: 0,
+        playState: "running",
+        cancel: vi.fn(),
+        addEventListener: vi.fn(),
+      };
+      glides.push(glide);
+      return glide;
+    });
+    Object.defineProperty(body, "animate", {
+      configurable: true,
+      value: animate,
+    });
     async function grow(height: number, thinking: string): Promise<void> {
-      scrollHeight = height;
+      bodyHeight = height;
       await wrapper.setProps({
         message: {
           ...wrapper.props("message"),
@@ -278,9 +311,13 @@ describe("project transcript markers", () => {
       observers.restore();
     }
     return {
+      wrapper,
       content,
+      body,
       grow,
       scrollTo,
+      animate,
+      glides,
       cleanup,
       finish: () =>
         wrapper.setProps({
@@ -289,19 +326,17 @@ describe("project transcript markers", () => {
     };
   }
 
-  it("follows streaming thinking with a native glide instead of a tween", async () => {
+  const glideStart = (call: unknown[]) =>
+    ((call[0] as Keyframe[])[0] as { transform: string }).transform;
+
+  it("follows streaming thinking with a compositor glide instead of a tween", async () => {
     const animateSpy = vi
       .spyOn(animateScroll, "animateScrollTop")
       .mockImplementation(() => () => undefined);
+    const frameSpy = vi.spyOn(window, "requestAnimationFrame");
     const marker = mountFollowingThinking();
     await nextTick();
     marker.content.scrollTop = 500;
-    // The browser glide reports scroll positions short of the bottom.
-    marker.scrollTo.mockImplementation(({ top }: ScrollToOptions) => {
-      marker.content.scrollTop = Math.max(0, (top ?? 0) - 40);
-      marker.content.dispatchEvent(new Event("scroll"));
-    });
-    animateSpy.mockClear();
 
     await marker.grow(700, "Inspect the request.\nCheck one more state.");
     await marker.grow(
@@ -310,21 +345,31 @@ describe("project transcript markers", () => {
     );
 
     expect(animateSpy).not.toHaveBeenCalled();
+    expect(frameSpy).not.toHaveBeenCalled();
     expect(marker.scrollTo.mock.calls).toEqual([
       [{ top: 600, behavior: "instant" }],
       [{ top: 700, behavior: "instant" }],
     ]);
-    // Without user intent, the glide's own positions do not stop following,
-    // and the newest line stays faded while the glide trails it.
+    // One transform glide per update on the body; the second starts where
+    // the first still showed the text (100 px short), so nothing jumps.
+    expect(marker.animate.mock.calls.map(glideStart)).toEqual([
+      "translateY(100px)",
+      "translateY(200px)",
+    ]);
+    expect(marker.animate.mock.calls[1][1]).toEqual({
+      duration: 500,
+      easing: "cubic-bezier(0.16, 1, 0.3, 1)",
+    });
+    expect(marker.glides[0].cancel).toHaveBeenCalledTimes(1);
+    // The fade mask stays on the scroller, not on the sliding body.
     expect(marker.content.getAttribute("data-scrollable")).toBe("start end");
     marker.cleanup();
-    animateSpy.mockRestore();
   });
 
   it("keeps the bottom fade through each glide landing until the stream ends", async () => {
     const marker = mountFollowingThinking();
     await nextTick();
-    // The glide lands exactly on the bottom before the next update arrives.
+    // The scroll lands exactly on the bottom before the next update arrives.
     marker.scrollTo.mockImplementation(({ top }: ScrollToOptions) => {
       marker.content.scrollTop = top ?? 0;
       marker.content.dispatchEvent(new Event("scroll"));
@@ -348,10 +393,10 @@ describe("project transcript markers", () => {
     const marker = mountFollowingThinking();
     await nextTick();
     marker.content.scrollTop = 500;
-    // The opening pin may glide; the stream itself must not.
-    animateSpy.mockClear();
+    // Already at the bottom when the panel first reports: nothing moves.
     await marker.grow(600, "Inspect the request.\nMeasured.");
     expect(marker.scrollTo).not.toHaveBeenCalled();
+    expect(marker.animate).not.toHaveBeenCalled();
 
     // A scroll away from the bottom without intent keeps following.
     marker.content.scrollTop = 300;
@@ -362,13 +407,22 @@ describe("project transcript markers", () => {
       top: 550,
       behavior: "instant",
     });
+    expect(marker.animate.mock.calls.map(glideStart)).toEqual([
+      "translateY(250px)",
+    ]);
 
+    // The wheel stops the glide where it shows: 250 px short of the bottom.
     marker.scrollTo.mockClear();
     marker.content.dispatchEvent(new Event("wheel"));
-    marker.content.scrollTop = 300;
+    expect(marker.glides[0].cancel).toHaveBeenCalledTimes(1);
+    expect(marker.scrollTo.mock.calls).toEqual([
+      [{ top: 300, behavior: "instant" }],
+    ]);
+    marker.scrollTo.mockClear();
     marker.content.dispatchEvent(new Event("scroll"));
     await marker.grow(700, "Inspect the request.\nThe user is reading above.");
     expect(marker.scrollTo).not.toHaveBeenCalled();
+    expect(marker.animate).toHaveBeenCalledTimes(1);
     expect(animateSpy).not.toHaveBeenCalled();
     // Off the bottom and no longer following: both edges fade.
     expect(marker.content.getAttribute("data-scrollable")).toBe("start end");
@@ -382,7 +436,92 @@ describe("project transcript markers", () => {
       behavior: "instant",
     });
     marker.cleanup();
-    animateSpy.mockRestore();
+  });
+
+  it("lets a running glide land when thinking finishes and stops it on collapse", async () => {
+    const marker = mountFollowingThinking();
+    await nextTick();
+    await marker.grow(700, "Inspect the request.\nCheck one more state.");
+    expect(marker.glides).toHaveLength(1);
+
+    await marker.finish();
+    expect(marker.glides[0].cancel).not.toHaveBeenCalled();
+    expect(marker.content.scrollTop).toBe(600);
+
+    // Folding mid-glide freezes the text where it shows.
+    marker.glides[0].currentTime = 0;
+    marker.scrollTo.mockClear();
+    await marker.wrapper.get("button").trigger("click");
+    expect(marker.wrapper.get("button").attributes("aria-expanded")).toBe(
+      "false",
+    );
+    expect(marker.glides[0].cancel).toHaveBeenCalledTimes(1);
+    expect(marker.scrollTo.mock.calls).toEqual([
+      [{ top: 0, behavior: "instant" }],
+    ]);
+    marker.cleanup();
+  });
+
+  it("renders streaming thinking block by block, writing only the last block", async () => {
+    vi.useFakeTimers();
+    const observers = resizeObserverStub();
+    const message = {
+      createdAt: "2026-08-26T00:00:00.000Z",
+      id: "assistant-blocks",
+      role: "assistant" as const,
+      status: "streaming" as const,
+      blocks: [
+        { type: "thinking" as const, thinking: "First idea.\n\nSecond idea." },
+        { type: "thinking" as const, thinking: "Another\n\nsummary" },
+      ],
+      thinkingStartedAt: Date.now(),
+      thinkingStatus: "streaming" as const,
+    };
+    const wrapper = mount(ProjectThinkingMarker, {
+      props: { message },
+      global: { plugins: [createPinia(), createAppI18n("en-US")] },
+    });
+    await nextTick();
+    const renders = () =>
+      wrapper.findAllComponents(MarkdownContent).map((render) => ({
+        source: render.props("source") as string,
+        final: render.props("final") as boolean,
+        join: render.props("flowJoin") as string | undefined,
+      }));
+    // Each thinking block splits on its own; only the newest block streams.
+    expect(renders()).toEqual([
+      { source: "First idea.", final: true, join: "end" },
+      { source: "Second idea.", final: true, join: "both" },
+      { source: "Another", final: true, join: "both" },
+      { source: "summary", final: false, join: "start" },
+    ]);
+
+    // Finishing keeps the blocks in place; all of them are final now.
+    await wrapper.setProps({
+      message: { ...message, thinkingStatus: "complete" },
+    });
+    expect(renders().map(({ source, final }) => [source, final])).toEqual([
+      ["First idea.", true],
+      ["Second idea.", true],
+      ["Another", true],
+      ["summary", true],
+    ]);
+
+    // Once the panel has folded away, reopening renders it in one piece.
+    const trigger = wrapper.get("button");
+    await trigger.trigger("click");
+    await vi.advanceTimersByTimeAsync(600);
+    expect(wrapper.find("[data-thinking-content]").exists()).toBe(false);
+    await trigger.trigger("click");
+    expect(renders()).toEqual([
+      {
+        source: "First idea.\n\nSecond idea.\nAnother\n\nsummary",
+        final: true,
+        join: undefined,
+      },
+    ]);
+    wrapper.unmount();
+    observers.restore();
   });
 
   it("uses semantic labels for primary tools and truncates commands", () => {
