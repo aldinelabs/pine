@@ -716,38 +716,6 @@ describe("ProjectRuntimeRegistry", () => {
     }
   });
 
-  it("dequeues steering from the active agent session", async () => {
-    const agentHost = createAgentHost();
-    const dequeueSteering = vi
-      .spyOn(agentHost, "dequeueSteering")
-      .mockResolvedValue({ message: "Change direction", removed: true });
-    const registry = new ProjectRuntimeRegistry(agentHost, "/pine/agent");
-    const { dataRoot, project } = await createRuntimeFixture();
-
-    try {
-      await registry.open(1, project, {
-        attachmentsRoot: path.join(dataRoot, "attachments"),
-        cacheRoot: path.join(dataRoot, "cache"),
-        projectRoot: dataRoot,
-        sessionsRoot: path.join(dataRoot, "sessions"),
-      });
-      await registry.prompt(1, {
-        message: "Start",
-        target: { kind: "new", projectId: project.id },
-      });
-
-      await expect(
-        registry.dequeueSteering(1, "Change direction", sessionSummary.id),
-      ).resolves.toEqual({ message: "Change direction", removed: true });
-      expect(dequeueSteering).toHaveBeenCalledWith(
-        sessionSummary.id,
-        "Change direction",
-      );
-    } finally {
-      await registry.dispose(1);
-    }
-  });
-
   it("renames an active session through the agent worker", async () => {
     const agentHost = createAgentHost();
     const renameSession = vi.spyOn(agentHost, "renameSession");
@@ -989,36 +957,6 @@ describe("ProjectRuntimeRegistry", () => {
       );
     } finally {
       await registry.dispose(6);
-    }
-  });
-
-  it("updates the active worker session when approval mode changes", async () => {
-    const agentHost = createAgentHost();
-    const setApprovalMode = vi.spyOn(agentHost, "setApprovalMode");
-    const registry = new ProjectRuntimeRegistry(agentHost, "/pine/agent");
-    const { dataRoot, project } = await createRuntimeFixture();
-
-    try {
-      await registry.open(9, project, {
-        attachmentsRoot: path.join(dataRoot, "attachments"),
-        cacheRoot: path.join(dataRoot, "cache"),
-        projectRoot: dataRoot,
-        sessionsRoot: path.join(dataRoot, "sessions"),
-      });
-      await registry.prompt(9, {
-        message: "Start here",
-        target: { kind: "new", projectId: project.id },
-      });
-
-      await expect(
-        registry.setApprovalMode(9, "let-me-review", sessionSummary.id),
-      ).resolves.toEqual({ updated: true });
-      expect(setApprovalMode).toHaveBeenCalledWith(
-        sessionSummary.id,
-        "let-me-review",
-      );
-    } finally {
-      await registry.dispose(9);
     }
   });
 

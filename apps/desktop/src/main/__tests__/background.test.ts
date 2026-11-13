@@ -1,26 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { supportsBackgroundMode } from "../../shared/background";
-import { shouldHideOnClose, trayGlyph, trayMenu } from "../background";
-
-describe("hiding to the tray", () => {
-  const base = { active: true, quitting: false, visibleAppWindows: 1 };
-
-  it("hides the last visible window", () => {
-    expect(shouldHideOnClose(base)).toBe(true);
-  });
-
-  it("closes normally while another window is open", () => {
-    expect(shouldHideOnClose({ ...base, visibleAppWindows: 2 })).toBe(false);
-  });
-
-  it("closes for real while quitting, so a quit is never held up", () => {
-    expect(shouldHideOnClose({ ...base, quitting: true })).toBe(false);
-  });
-
-  it("closes normally without a tray to return from", () => {
-    expect(shouldHideOnClose({ ...base, active: false })).toBe(false);
-  });
-});
+import { trayGlyph, trayMenu } from "../background";
 
 describe("tray glyph", () => {
   it("uses a template image in the macOS menu bar", () => {

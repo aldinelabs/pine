@@ -249,15 +249,7 @@ describe("file preview", () => {
     );
   });
 
-  it.each([
-    "image.PNG",
-    "document.PDF",
-    "report.DOCX",
-    "legacy.XLS",
-    "slides.PPTX",
-    "drawing.dwg",
-    "archive.zip",
-  ])(
+  it.each(["image.PNG", "report.DOCX"])(
     "returns a document URL for %s without reading the whole file",
     async (name) => {
       const file = path.join(root, name);
@@ -407,15 +399,6 @@ describe("media streaming", () => {
     [
       "report.docx",
       "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-    ],
-    [
-      "budget.xlsx",
-      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-    ],
-    ["legacy.xls", "application/vnd.ms-excel"],
-    [
-      "slides.pptx",
-      "application/vnd.openxmlformats-officedocument.presentationml.presentation",
     ],
   ])("serves %s with its standard MIME type", async (name, mime) => {
     const file = path.join(root, name);

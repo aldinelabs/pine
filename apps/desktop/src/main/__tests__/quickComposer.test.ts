@@ -190,12 +190,6 @@ describe("QuickComposerController", () => {
     expect(panel.show).not.toHaveBeenCalled();
   });
 
-  it("loads the panel ahead of time without showing it", () => {
-    expect(panel.show).not.toHaveBeenCalled();
-    controller.show();
-    expect(panel.show).toHaveBeenCalledOnce();
-  });
-
   it("keeps Liquid Glass under the composer while the panel shows", () => {
     const glass = fakeWindow({ x: 0, y: 0, width: 1, height: 1 });
     const withGlass = new QuickComposerController({

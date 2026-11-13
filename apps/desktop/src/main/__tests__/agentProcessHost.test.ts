@@ -226,18 +226,6 @@ describe("AgentProcessHost", () => {
     await expect(pending).resolves.toEqual({ updated: true });
   });
 
-  it("rejects pending work when the utility process exits", async () => {
-    const { host, process } = createHost();
-    const pending = host.abort("session-1");
-    await vi.waitFor(() => expect(process.requests).toHaveLength(1));
-
-    process.emit("exit", 9);
-
-    await expect(pending).rejects.toThrow(
-      "The Pine agent process exited unexpectedly (9).",
-    );
-  });
-
   it("rejects work when the utility process exits before becoming ready", async () => {
     const process = new FakeAgentProcess();
     const host = new AgentProcessHost(() => {

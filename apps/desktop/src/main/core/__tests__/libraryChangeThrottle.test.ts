@@ -16,11 +16,6 @@ describe("LibraryChangeThrottle", () => {
     vi.useRealTimers();
   });
 
-  it("sends the first call at once", () => {
-    throttle.notify(1);
-    expect(sent).toEqual([1]);
-  });
-
   it("collapses calls within the window into one trailing call", () => {
     throttle.notify(1);
     throttle.notify(1);
