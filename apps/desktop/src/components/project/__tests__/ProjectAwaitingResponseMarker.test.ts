@@ -161,13 +161,14 @@ describe("ProjectAwaitingResponseMarker", () => {
     wrapper.unmount();
   });
 
-  it("fades in and out instead of growing open", () => {
+  it("fades in, and goes at once when replaced", () => {
     const source = readFileSync(
       path.resolve(__dirname, "../ProjectAwaitingResponseMarker.vue"),
       "utf8",
     );
     expect(source).toContain('<Transition name="awaiting-response-fade">');
     expect(source).not.toContain("useCollapseTransition");
+    expect(source).not.toContain("leave-active");
     expect(source).toMatch(
       /\.awaiting-response-fade-enter-active\s*\{\s*transition:\s*opacity/,
     );

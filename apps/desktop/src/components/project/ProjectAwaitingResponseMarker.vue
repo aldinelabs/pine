@@ -91,7 +91,7 @@ onScopeDispose(clearTimer);
        hidden; the marker's own pt-8 brings the gap back. No message id and
        no scroll anchor: the reply's item lands before it. -->
   <MessageScrollerItem data-slot="awaiting-response-item" class="-mt-8">
-    <!-- A plain fade: the note is small, so it does not grow open. -->
+    <!-- A plain fade in; the reply replaces it at once, with no fade out. -->
     <Transition name="awaiting-response-fade">
       <div v-if="shown" data-testid="awaiting-response-marker">
         <div class="pt-8">
@@ -123,18 +123,12 @@ onScopeDispose(clearTimer);
   transition: opacity 300ms ease-out;
 }
 
-.awaiting-response-fade-leave-active {
-  transition: opacity 200ms ease-out;
-}
-
-.awaiting-response-fade-enter-from,
-.awaiting-response-fade-leave-to {
+.awaiting-response-fade-enter-from {
   opacity: 0;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .awaiting-response-fade-enter-active,
-  .awaiting-response-fade-leave-active {
+  .awaiting-response-fade-enter-active {
     transition: none;
   }
 }
