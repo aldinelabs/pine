@@ -26,7 +26,7 @@ export default {
       open: "放大查看 {name}",
       untitled: "图片",
       description:
-        "放大的图片。可用工具栏或 Mod + 滚轮缩放，用方向键切换图片，按 Esc 或点击图片外部关闭。",
+        "放大的图片。可用工具栏或 ⌘ 或 Ctrl + 滚轮缩放，用方向键切换图片，按 Esc 或点击图片外部关闭。",
       close: "关闭图片",
       controls: "图片控件",
       previous: "上一张图片",
