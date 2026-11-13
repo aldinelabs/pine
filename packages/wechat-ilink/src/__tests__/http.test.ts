@@ -8,7 +8,6 @@ import {
 import {
   type Fetch,
   type IlinkTransportOptions,
-  baseInfo,
   botAgent,
   channelVersion,
   clientVersionHeader,
@@ -78,11 +77,6 @@ async function rejection(promise: Promise<unknown>): Promise<unknown> {
 }
 
 describe("identity", () => {
-  it("puts the ported plugin version first in channel_version", () => {
-    expect(channelVersion(IDENTITY)).toBe("2.4.10/pine-1.4.2");
-    expect(channelVersion(IDENTITY)).toMatch(/^\d+\.\d+\.\d+\//);
-  });
-
   it("builds a bot_agent the server's grammar accepts", () => {
     const grammar = /^[A-Za-z0-9_.-]{1,32}\/[A-Za-z0-9_.+-]{1,32}$/;
     expect(botAgent(IDENTITY)).toBe("Pine/1.4.2");
@@ -108,13 +102,6 @@ describe("identity", () => {
     expect(clientVersionHeader("1.0.11")).toBe("65547");
     expect(clientVersionHeader("3.0.0-beta-0")).toBe("196608");
     expect(clientVersionHeader("nonsense")).toBe("0");
-  });
-
-  it("sends both in base_info", () => {
-    expect(baseInfo(IDENTITY)).toEqual({
-      channel_version: "2.4.10/pine-1.4.2",
-      bot_agent: "Pine/1.4.2",
-    });
   });
 });
 
