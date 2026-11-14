@@ -27,7 +27,7 @@ function annotationFor(
   return {
     id: "a",
     mode: "code",
-    anchor: createTextAnchor(root, range)!,
+    anchor: { ...createTextAnchor(root, range)!, kind: "text" },
     text: range.toString(),
     comment: "c",
     createdAt: 0,
@@ -46,7 +46,7 @@ function run(
   const scope = effectScope();
   const api = scope.run(() =>
     usePreviewAnnotationHighlights({
-      surface: () => ({ root }),
+      surfaces: () => [{ root }],
       host: ref(host),
       annotations: ref([annotation]),
       mode: ref("code"),
@@ -71,7 +71,7 @@ describe("usePreviewAnnotationHighlights", () => {
       annotationFor(root, 6, 10),
     );
     await frame();
-    expect(api.surface.value?.root).toBe(root);
+    expect(api.surfaces.value[0]?.root).toBe(root);
     expect(api.rangeOf("a")?.toString()).toBe("beta");
     expect(onPlaced).not.toHaveBeenCalled();
     expect(onLost).not.toHaveBeenCalled();

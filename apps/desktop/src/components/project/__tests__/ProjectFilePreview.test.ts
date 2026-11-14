@@ -943,7 +943,14 @@ describe("ProjectFilePreview", () => {
     for (const comment of ["Rename", "Shorter"])
       annotations.add(key, {
         mode: "code",
-        anchor: { start: 0, end: 5, exact: "hello", prefix: "", suffix: "" },
+        anchor: {
+          kind: "text",
+          start: 0,
+          end: 5,
+          exact: "hello",
+          prefix: "",
+          suffix: "",
+        },
         text: "hello",
         comment,
         version: "1",
@@ -955,7 +962,7 @@ describe("ProjectFilePreview", () => {
     await button().trigger("click");
     await flushPromises();
     await new DOMWrapper(
-      document.querySelector('[data-action="new-session"]')!,
+      document.querySelector('[data-action="new-session"]'),
     ).trigger("click");
     await flushPromises();
     const createdId = store.fallbackActiveTabId!;

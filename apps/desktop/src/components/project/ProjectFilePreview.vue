@@ -22,6 +22,7 @@ import {
   MoveHorizontal,
   Plus,
   Send,
+  SquareDashedMousePointer,
   SquareTerminal,
 } from "@lucide/vue";
 import { toast } from "vue-sonner";
@@ -51,8 +52,12 @@ import { useContentTabsStore } from "@/stores/contentTabs";
 import { useAppearanceStore } from "@/stores/appearance";
 import { useAttentionFlashStore } from "@/stores/attentionFlash";
 import { useFileToSession } from "@/composables/useFileToSession";
-import { usePreviewAnnotationHighlights } from "@/composables/usePreviewAnnotationHighlights";
+import {
+  surfaceOf,
+  usePreviewAnnotationHighlights,
+} from "@/composables/usePreviewAnnotationHighlights";
 import { createTextAnchor } from "@/lib/annotationAnchors";
+import { annotationPosition, regionText } from "@/lib/annotationLocation";
 import {
   MAX_ANNOTATIONS,
   annotationFileKey,
@@ -76,17 +81,26 @@ import type {
 import { parseFileReveal } from "@/shared/projectFiles";
 import type { FileContentTab } from "@/stores/contentTabs";
 import {
+  previewAnnotationsKey,
   previewRendererKey,
   previewToolbarKey,
   resolvePreviewRenderer,
 } from "./file-preview/previewRenderer";
 import type {
+  AnnotationCellSelection,
+  AnnotationCells,
+  AnnotationComposeRequest,
+  AnnotationPlace,
+  AnnotationShape,
+  AnnotationSurface,
+  AnnotationTarget,
   PreviewRendererCapabilities,
   PreviewRendererHandle,
   PreviewRendererMetadata,
 } from "./file-preview/previewRenderer";
 import { previewRenderers } from "./file-preview/previewRenderers";
 import ProjectPreviewAnnotationMenu from "./ProjectPreviewAnnotationMenu.vue";
+import ProjectPreviewAnnotationOverlay from "./ProjectPreviewAnnotationOverlay.vue";
 import ProjectPreviewAnnotationPanel from "./ProjectPreviewAnnotationPanel.vue";
 
 const props = withDefaults(
@@ -497,7 +511,8 @@ onBeforeUnmount(() => {
   if (zoomCommitTimer) clearTimeout(zoomCommitTimer);
 });
 
-// Comments on passages of a project file, collected here and sent together.
+// Comments on passages, cells, areas and time spans of a project file,
+// collected here and sent together.
 const annotationsStore = usePreviewAnnotationsStore();
 const annotationKey = computed(() =>
   projectTarget.value ? annotationFileKey(projectTarget.value) : undefined,
@@ -508,23 +523,77 @@ const annotations = computed(() =>
     : [],
 );
 const canAnnotate = computed(
-  () => Boolean(projectTarget.value) && Boolean(capabilities.value.annotate),
+  () =>
+    Boolean(projectTarget.value) &&
+    !failed.value &&
+    Boolean(
+      capabilities.value.annotate ||
+      capabilities.value.annotateRegions ||
+      capabilities.value.annotateCells ||
+      capabilities.value.annotateTime,
+    ),
+);
+const canAnnotateRegions = computed(
+  () => canAnnotate.value && Boolean(capabilities.value.annotateRegions),
 );
 const annotationsOpen = ref(false);
 const activeAnnotationId = ref<string>();
 const annotationDraft = shallowRef<Range>();
+const shapeDraft = shallowRef<AnnotationComposeRequest>();
+/** Drawing a box for a new area comment. */
+const drawingRegion = ref(false);
 const rendererHost = useTemplateRef<HTMLElement>("rendererHost");
+const annotationMenu =
+  useTemplateRef<InstanceType<typeof ProjectPreviewAnnotationMenu>>(
+    "annotationMenu",
+  );
+const annotationOverlay =
+  useTemplateRef<InstanceType<typeof ProjectPreviewAnnotationOverlay>>(
+    "annotationOverlay",
+  );
 const annotationsFull = computed(
   () => annotations.value.length >= MAX_ANNOTATIONS,
 );
+
+function annotationSurfaces(): readonly AnnotationSurface[] {
+  const handle = rendererInstance.value;
+  if (!capabilities.value.annotate || !handle) return [];
+  if (handle.annotationSurfaces) return handle.annotationSurfaces();
+  const surface = handle.annotationSurface?.();
+  return surface ? [surface] : [];
+}
+
+function annotationTargets(): readonly AnnotationTarget[] {
+  return capabilities.value.annotateRegions
+    ? (rendererInstance.value?.annotationTargets?.() ?? [])
+    : [];
+}
+
+function annotationCellRects(cells: AnnotationCells): readonly DOMRect[] {
+  return capabilities.value.annotateCells
+    ? (rendererInstance.value?.annotationCellRects?.(cells) ?? [])
+    : [];
+}
+
+function readAnnotationCells(): AnnotationCellSelection | undefined {
+  return capabilities.value.annotateCells
+    ? rendererInstance.value?.annotationCellSelection?.()
+    : undefined;
+}
+
+function openAnnotation(id: string): void {
+  annotationsOpen.value = true;
+  activeAnnotationId.value = id;
+}
+
 const highlights = usePreviewAnnotationHighlights({
-  surface: () => rendererInstance.value?.annotationSurface?.(),
+  surfaces: annotationSurfaces,
   host: rendererHost,
   annotations,
   mode: viewMode,
   activeId: activeAnnotationId,
   draft: annotationDraft,
-  enabled: computed(() => canAnnotate.value && !failed.value),
+  enabled: canAnnotate,
   lines: (range) => rendererInstance.value?.annotationLines?.(range),
   onPlaced: (id, placement) => {
     if (annotationKey.value)
@@ -541,16 +610,25 @@ const highlights = usePreviewAnnotationHighlights({
         preview.value?.modifiedAt ?? "",
       );
   },
-  onHit: (id) => {
-    annotationsOpen.value = true;
-    activeAnnotationId.value = id;
-  },
+  onHit: openAnnotation,
 });
+
+/** Places every comment again: the renderer says what they point at moved. */
+function refreshAnnotations(): void {
+  highlights.refresh();
+  annotationOverlay.value?.refresh();
+}
+
 watch(annotationKey, () => {
   activeAnnotationId.value = undefined;
   annotationDraft.value = undefined;
+  shapeDraft.value = undefined;
+  drawingRegion.value = false;
 });
-// A renderer reports its surface as it loads, switches view or re-renders.
+watch(canAnnotateRegions, (can) => {
+  if (!can) drawingRegion.value = false;
+});
+// A renderer reports its surfaces as it loads, switches view or re-renders.
 watch(
   () =>
     [
@@ -562,16 +640,33 @@ watch(
   () => void nextTick(highlights.refresh),
 );
 
+provide(previewAnnotationsKey, {
+  annotations,
+  activeId: activeAnnotationId,
+  enabled: canAnnotate,
+  draft: computed(() => shapeDraft.value?.shape),
+  select: (id) => void revealAnnotation(id),
+  compose: (request) => annotationMenu.value?.compose(request),
+});
+
 function saveAnnotation(range: Range, comment: string): void {
   const key = annotationKey.value;
-  const surface = highlights.surface.value;
+  const surface = surfaceOf(
+    highlights.surfaces.value,
+    range.commonAncestorContainer,
+  );
   if (!key || !surface) return;
   const anchor = createTextAnchor(surface.root, range, surface.excluded);
   if (!anchor) return;
   const added = annotationsStore.add(key, {
     mode: viewMode.value,
-    anchor,
+    anchor: {
+      ...anchor,
+      kind: "text",
+      ...(surface.segment !== undefined ? { segment: surface.segment } : {}),
+    },
     lines: rendererInstance.value?.annotationLines?.(range),
+    ...(surface.place ? { place: surface.place } : {}),
     text: range.toString(),
     comment,
     version: preview.value?.modifiedAt ?? "",
@@ -579,21 +674,84 @@ function saveAnnotation(range: Range, comment: string): void {
   if (!added) showAnnotationLimit();
 }
 
+function saveShapeAnnotation(
+  request: AnnotationComposeRequest,
+  comment: string,
+): void {
+  const key = annotationKey.value;
+  if (!key) return;
+  const added = annotationsStore.add(key, {
+    mode: viewMode.value,
+    anchor: request.shape,
+    ...(request.place ? { place: request.place } : {}),
+    text: request.text,
+    comment,
+    version: preview.value?.modifiedAt ?? "",
+  });
+  if (!added) showAnnotationLimit();
+}
+
+function startDrawingRegion(): void {
+  if (annotationsFull.value) {
+    showAnnotationLimit();
+    return;
+  }
+  drawingRegion.value = !drawingRegion.value;
+}
+
+function composeRegion(input: {
+  shape: Extract<AnnotationShape, { kind: "region" }>;
+  place?: AnnotationPlace;
+  size?: AnnotationTarget["size"];
+  rect: () => DOMRect;
+}): void {
+  drawingRegion.value = false;
+  annotationMenu.value?.compose({
+    shape: input.shape,
+    text: regionText(input.shape, input.size, t),
+    ...(input.place ? { place: input.place } : {}),
+    rect: input.rect,
+  });
+}
+
 function showAnnotationLimit(): void {
   toast.error(t("project.preview.annotations.limit", { max: MAX_ANNOTATIONS }));
 }
 
-/** Shows a comment's passage, in the view it was made in. */
+/** Shows a comment's passage, cells, area or time, in the view it was made in. */
 async function revealAnnotation(id: string): Promise<void> {
-  activeAnnotationId.value = id;
+  openAnnotation(id);
   const annotation = annotations.value.find((item) => item.id === id);
   if (!annotation) return;
-  if (annotation.mode !== viewMode.value && capabilities.value.renderToggle)
+  const anchor = annotation.anchor;
+  if (
+    anchor.kind === "text" &&
+    annotation.mode !== viewMode.value &&
+    capabilities.value.renderToggle
+  )
     viewMode.value = annotation.mode;
-  // The other view may still be rendering; look for the passage a while.
-  for (let attempt = 0; attempt < 30; attempt += 1) {
+  const segment = "segment" in anchor ? anchor.segment : undefined;
+  if (segment !== undefined || annotation.place || anchor.kind !== "text") {
+    await nextTick();
+    await rendererInstance.value?.revealAnnotation?.({
+      ...(segment !== undefined ? { segment } : {}),
+      ...(annotation.place ? { place: annotation.place } : {}),
+      ...(anchor.kind !== "text" ? { shape: anchor } : {}),
+    });
+  }
+  if (anchor.kind !== "text" && anchor.kind !== "region") return;
+  // The other view, page or chapter may still be rendering; look a while.
+  for (let attempt = 0; attempt < 60; attempt += 1) {
     await new Promise((resolve) => requestAnimationFrame(resolve));
     if (activeAnnotationId.value !== id) return;
+    if (anchor.kind === "region") {
+      const target =
+        annotationTargets().find((item) => item.segment === anchor.segment) ??
+        (annotationTargets().length === 1 ? annotationTargets()[0] : undefined);
+      if (!target) continue;
+      target.element.scrollIntoView({ block: "nearest", behavior: "smooth" });
+      return;
+    }
     const range = highlights.rangeOf(id);
     if (!range) continue;
     const node = range.startContainer;
@@ -614,7 +772,9 @@ async function sendAnnotations(target: string | null): Promise<void> {
   if (!key || !file) return;
   const sent = [...annotations.value];
   const delivered = await sendQuotes(file, target, (path) =>
-    annotationQuotes(path, sent),
+    annotationQuotes(path, sent, (annotation) =>
+      annotationPosition(annotation, t),
+    ),
   );
   if (!delivered) return;
   for (const annotation of sent) annotationsStore.remove(key, annotation.id);
@@ -725,9 +885,12 @@ function clearAnnotations(): void {
     </div>
     <div
       v-if="preview && preview.kind !== 'unsupported' && renderer && !failed"
-      class="flex min-h-0 flex-1"
+      class="@container flex min-h-0 flex-1"
     >
-      <div ref="rendererHost" class="flex min-h-0 min-w-0 flex-1 flex-col">
+      <div
+        ref="rendererHost"
+        class="relative flex min-h-0 min-w-0 flex-1 flex-col"
+      >
         <component
           :is="renderer.component"
           ref="renderer"
@@ -748,38 +911,68 @@ function clearAnnotations(): void {
           @zoom-change="handleZoomChange"
           @selection-change="handleSelectionChange"
           @zoom-wheel="handlePreviewWheel"
+          @annotations-change="refreshAnnotations"
+        />
+        <ProjectPreviewAnnotationOverlay
+          v-if="
+            canAnnotate &&
+            (capabilities.annotateRegions || capabilities.annotateCells)
+          "
+          ref="annotationOverlay"
+          :container="rendererHost"
+          :annotations="annotations"
+          :active-id="activeAnnotationId"
+          :draft="shapeDraft?.shape"
+          :drawing="drawingRegion"
+          :targets="annotationTargets"
+          :cell-rects="annotationCellRects"
+          @select="openAnnotation"
+          @drawn="composeRegion"
+          @cancel-drawing="drawingRegion = false"
         />
       </div>
-      <ProjectPreviewAnnotationPanel
-        v-if="annotationsOpen && projectTarget"
-        :annotations="annotations"
-        :active-id="activeAnnotationId"
-        :mode="viewMode"
-        :has-views="capabilities.renderToggle"
-        :session-tabs="sessionTargets"
-        :sending="isSending"
-        @select="revealAnnotation"
-        @update="
-          (id, comment) =>
-            annotationKey &&
-            annotationsStore.updateComment(annotationKey, id, comment)
-        "
-        @remove="
-          (id) => annotationKey && annotationsStore.remove(annotationKey, id)
-        "
-        @clear="clearAnnotations"
-        @send="sendAnnotations"
-        @close="annotationsOpen = false"
-      />
+      <Transition
+        enter-active-class="transition-[width,opacity] duration-200 ease-(--ease-out-expo)"
+        leave-active-class="transition-[width,opacity] duration-200 ease-(--ease-out-expo)"
+        enter-from-class="w-0 opacity-0"
+        leave-to-class="w-0 opacity-0"
+      >
+        <ProjectPreviewAnnotationPanel
+          v-if="annotationsOpen && projectTarget"
+          :annotations="annotations"
+          :active-id="activeAnnotationId"
+          :mode="viewMode"
+          :has-views="capabilities.renderToggle"
+          :session-tabs="sessionTargets"
+          :sending="isSending"
+          @select="revealAnnotation"
+          @update="
+            (id, comment) =>
+              annotationKey &&
+              annotationsStore.updateComment(annotationKey, id, comment)
+          "
+          @remove="
+            (id) => annotationKey && annotationsStore.remove(annotationKey, id)
+          "
+          @clear="clearAnnotations"
+          @send="sendAnnotations"
+          @close="annotationsOpen = false"
+        />
+      </Transition>
     </div>
     <ProjectPreviewAnnotationMenu
       v-if="canAnnotate"
-      :surface="highlights.surface.value"
+      ref="annotationMenu"
+      :surfaces="highlights.surfaces.value"
+      :read-cells="readAnnotationCells"
+      :cell-rects="annotationCellRects"
       :container="rendererHost"
       :active="active"
       :full="annotationsFull"
       @save="saveAnnotation"
+      @save-shape="saveShapeAnnotation"
       @draft-change="annotationDraft = $event"
+      @shape-draft-change="shapeDraft = $event"
       @full="showAnnotationLimit"
     />
     <footer
@@ -836,6 +1029,18 @@ function clearAnnotations(): void {
         <Label :for="renderSwitchId">{{ t("project.preview.rendered") }}</Label>
       </div>
       <div class="ml-auto flex items-center gap-3">
+        <Button
+          v-if="canAnnotateRegions"
+          data-action="comment-on-area"
+          variant="ghost"
+          size="sm"
+          :aria-pressed="drawingRegion"
+          :class="drawingRegion && 'bg-muted text-foreground'"
+          @click="startDrawingRegion"
+        >
+          <SquareDashedMousePointer data-icon="inline-start" />
+          {{ t("project.preview.annotations.commentOnArea") }}
+        </Button>
         <Button
           v-if="projectTarget && (canAnnotate || annotations.length)"
           data-action="toggle-annotations"

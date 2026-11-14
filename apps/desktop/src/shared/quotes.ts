@@ -12,6 +12,11 @@ export interface PineQuote {
   file?: string;
   /** Source lines of the passage, "12" or "12-18". */
   lines?: string;
+  /**
+   * Where else in the file the comment points, in the user's language: a
+   * page, slide, chapter, sheet and cells, an area or a time span.
+   */
+  location?: string;
   /** The user's comment on the passage. */
   comment?: string;
   /** The file changed and the passage was no longer in it when sent. */
@@ -45,25 +50,36 @@ function isQuote(value: unknown): value is PineQuote {
       quote.role === "user") &&
     isOptionalText(quote.file) &&
     isOptionalText(quote.lines) &&
+    isOptionalText(quote.location) &&
     isOptionalText(quote.comment) &&
     (quote.stale === undefined || quote.stale === true)
   );
 }
 
 /**
- * Where a preview comment points, as "<file name>:<lines>", leaving out
- * whichever part is missing; empty for a plain quote.
+ * Where a preview comment points, as "<file name>:<lines> · <location>",
+ * leaving out whichever part is missing; empty for a plain quote.
  */
 export function quoteSourceLabel(quote: PineQuote): string {
   const name = quote.file
     ? (quote.file.split(/[\\/]/).filter(Boolean).at(-1) ?? quote.file)
     : "";
-  return [name, quote.lines ?? ""].filter(Boolean).join(":");
+  return [
+    [name, quote.lines ?? ""].filter(Boolean).join(":"),
+    quote.location ?? "",
+  ]
+    .filter(Boolean)
+    .join(" · ");
 }
 
 /** Whether two quotes stage the same passage and comment. */
 export function isSameQuote(a: PineQuote, b: PineQuote): boolean {
-  return a.text === b.text && a.file === b.file && a.comment === b.comment;
+  return (
+    a.text === b.text &&
+    a.file === b.file &&
+    a.comment === b.comment &&
+    a.location === b.location
+  );
 }
 
 /** Trims a selection into a quote, or undefined when nothing is left. */

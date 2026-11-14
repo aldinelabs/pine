@@ -1,13 +1,15 @@
-import { useEventListener } from "@vueuse/core";
 import { onScopeDispose, shallowRef, watch, type Ref } from "vue";
-import { locateTextAnchor, type TextAnchor } from "@/lib/annotationAnchors";
+import { locateTextAnchor } from "@/lib/annotationAnchors";
 import { rangeContainsPoint } from "@/lib/transcriptSelection";
 import type {
   AnnotationLines,
   AnnotationSurface,
   PreviewDisplayMode,
 } from "@/components/project/file-preview/previewRenderer";
-import type { PreviewAnnotation } from "@/stores/previewAnnotations";
+import type {
+  PreviewAnnotation,
+  TextAnnotationAnchor,
+} from "@/stores/previewAnnotations";
 
 export const ANNOTATION_HIGHLIGHT = "pine-annotation";
 export const ACTIVE_ANNOTATION_HIGHLIGHT = "pine-annotation-active";
@@ -58,19 +60,44 @@ function setRanges(view: Window, key: symbol, ranges?: OwnRanges): void {
 }
 
 export interface AnnotationPlacement {
-  anchor: TextAnchor;
+  anchor: TextAnnotationAnchor;
   lines?: AnnotationLines;
+}
+
+function sameSurfaces(
+  a: readonly AnnotationSurface[],
+  b: readonly AnnotationSurface[],
+): boolean {
+  return (
+    a.length === b.length &&
+    a.every(
+      (surface, index) =>
+        surface.root === b[index]?.root &&
+        surface.excluded === b[index]?.excluded &&
+        surface.segment === b[index]?.segment,
+    )
+  );
+}
+
+/** The surface a node is in, if any. */
+export function surfaceOf(
+  surfaces: readonly AnnotationSurface[],
+  node: Node,
+): AnnotationSurface | undefined {
+  return surfaces.find((surface) => surface.root.contains(node));
 }
 
 /**
  * Marks the commented passages of a preview in amber, finds them again after
  * the content re-renders or the file changes, and reports which comment a
  * click lands on. The marks are CSS highlights, so the renderer's markup
- * (and a page's frame) stays untouched.
+ * (and a page's frame) stays untouched. A preview may have several surfaces
+ * (pages, slides, chapters); a comment is only looked for in its own, and a
+ * surface that is not rendered leaves its comments as they are.
  */
 export function usePreviewAnnotationHighlights(options: {
-  /** Read on every pass: renderers replace their text's root as they re-render. */
-  surface: () => AnnotationSurface | undefined;
+  /** Read on every pass: renderers replace their text's roots as they re-render. */
+  surfaces: () => readonly AnnotationSurface[];
   /** Element around the renderer; its mutations mean the text may have moved. */
   host: Ref<HTMLElement | null>;
   annotations: Ref<readonly PreviewAnnotation[]>;
@@ -87,70 +114,89 @@ export function usePreviewAnnotationHighlights(options: {
   onHit: (id: string) => void;
 }) {
   const key = Symbol("preview-annotations");
-  /** The surface as of the last pass. */
-  const surface = shallowRef<AnnotationSurface>();
-  let view: Window | undefined;
+  /** The surfaces as of the last pass. */
+  const surfaces = shallowRef<readonly AnnotationSurface[]>([]);
+  /** Documents the surfaces live in, listened to for clicks. */
+  const documents = shallowRef<readonly Document[]>([]);
+  let views = new Set<Window>();
   let placed: { id: string; range: Range }[] = [];
   let frame = 0;
 
-  function clearView(): void {
-    if (view) setRanges(view, key);
-    view = undefined;
+  function clearViews(keep: ReadonlySet<Window> = new Set()): void {
+    for (const view of views) if (!keep.has(view)) setRanges(view, key);
+    views = new Set([...views].filter((view) => keep.has(view)));
   }
 
   function place(): void {
     frame = 0;
-    const next = options.enabled.value ? options.surface() : undefined;
-    if (
-      next?.root !== surface.value?.root ||
-      next?.excluded !== surface.value?.excluded
-    )
-      surface.value = next;
+    const next = options.enabled.value ? options.surfaces() : [];
+    if (!sameSurfaces(next, surfaces.value)) surfaces.value = next;
     placed = [];
-    const nextView = next?.root.ownerDocument.defaultView ?? undefined;
-    if (view && view !== nextView) clearView();
-    if (!next || !nextView) {
-      clearView();
-      return;
-    }
-    view = nextView;
-    const { root, excluded } = next;
-    // Nothing rendered yet: keep every comment as it is until there is text.
-    if (root.textContent?.trim()) {
-      for (const annotation of options.annotations.value) {
-        if (annotation.mode !== options.mode.value) continue;
-        const found = locateTextAnchor(root, annotation.anchor, excluded);
-        if (!found) {
-          if (!annotation.orphaned) options.onLost(annotation.id);
-          continue;
-        }
-        placed.push({ id: annotation.id, range: found.range });
-        if (
-          annotation.orphaned ||
-          found.anchor.start !== annotation.anchor.start ||
-          found.anchor.end !== annotation.anchor.end
-        )
-          options.onPlaced(annotation.id, {
-            anchor: found.anchor,
-            lines: options.lines(found.range) ?? annotation.lines,
-          });
+    const nextDocuments = [
+      ...new Set(next.map((surface) => surface.root.ownerDocument)),
+    ];
+    if (
+      nextDocuments.length !== documents.value.length ||
+      nextDocuments.some(
+        (document, index) => document !== documents.value[index],
+      )
+    )
+      documents.value = nextDocuments;
+    for (const annotation of options.annotations.value) {
+      const anchor = annotation.anchor;
+      if (anchor.kind !== "text" || annotation.mode !== options.mode.value)
+        continue;
+      const surface = next.find(
+        (candidate) => candidate.segment === anchor.segment,
+      );
+      // Nothing rendered there yet: keep the comment as it is.
+      if (!surface?.root.textContent?.trim()) continue;
+      const found = locateTextAnchor(surface.root, anchor, surface.excluded);
+      if (!found) {
+        if (!annotation.orphaned) options.onLost(annotation.id);
+        continue;
       }
+      placed.push({ id: annotation.id, range: found.range });
+      if (
+        annotation.orphaned ||
+        found.anchor.start !== anchor.start ||
+        found.anchor.end !== anchor.end
+      )
+        options.onPlaced(annotation.id, {
+          anchor: {
+            ...found.anchor,
+            kind: "text",
+            ...(anchor.segment !== undefined
+              ? { segment: anchor.segment }
+              : {}),
+          },
+          lines: options.lines(found.range) ?? annotation.lines,
+        });
     }
     const activeId = options.activeId.value;
     const draft = options.draft.value;
-    setRanges(view, key, {
-      normal: placed
-        .filter((item) => item.id !== activeId)
-        .map((item) => item.range),
-      active: [
-        ...placed
-          .filter((item) => item.id === activeId)
-          .map((item) => item.range),
-        ...(draft && draft.startContainer.ownerDocument === root.ownerDocument
-          ? [draft]
-          : []),
-      ],
-    });
+    const byView = new Map<Window, OwnRanges>();
+    const rangesOf = (range: Range): OwnRanges | undefined => {
+      const view = range.startContainer.ownerDocument?.defaultView;
+      if (!view) return undefined;
+      let ranges = byView.get(view);
+      if (!ranges) byView.set(view, (ranges = { normal: [], active: [] }));
+      return ranges;
+    };
+    for (const document of nextDocuments)
+      if (document.defaultView && !byView.has(document.defaultView))
+        byView.set(document.defaultView, { normal: [], active: [] });
+    for (const item of placed)
+      rangesOf(item.range)?.[item.id === activeId ? "active" : "normal"].push(
+        item.range,
+      );
+    if (draft && surfaceOf(next, draft.commonAncestorContainer))
+      rangesOf(draft)?.active.push(draft);
+    clearViews(new Set(byView.keys()));
+    for (const [view, ranges] of byView) {
+      views.add(view);
+      setRanges(view, key, ranges);
+    }
   }
 
   function schedule(): void {
@@ -191,27 +237,41 @@ export function usePreviewAnnotationHighlights(options: {
     )?.id;
   }
 
-  const surfaceDocument = () => surface.value?.root.ownerDocument ?? null;
-  useEventListener(surfaceDocument, "click", (event: MouseEvent) => {
-    const root = surface.value?.root;
+  function handleClick(event: MouseEvent): void {
+    const target = event.target as Node | null;
+    // A frame's nodes are not instances of this window's Node.
+    const surface = target ? surfaceOf(surfaces.value, target) : undefined;
     if (
-      !root ||
+      !surface ||
       event.button !== 0 ||
-      // A frame's nodes are not instances of this window's Node.
-      !root.contains(event.target as Node | null) ||
-      !root.ownerDocument.getSelection()?.isCollapsed
+      !surface.root.ownerDocument.getSelection()?.isCollapsed
     )
       return;
     const id = hit(event);
     if (id) options.onHit(id);
-  });
+  }
+
   let pointerFrame = 0;
-  useEventListener(surfaceDocument, "mousemove", (event: MouseEvent) => {
+  function handlePointerMove(event: MouseEvent): void {
     if (pointerFrame || !placed.length) return;
     pointerFrame = requestAnimationFrame(() => {
       pointerFrame = 0;
-      const root = surface.value?.root;
-      if (root) root.style.cursor = hit(event) ? "pointer" : "";
+      const target = event.target as Node | null;
+      const surface = target ? surfaceOf(surfaces.value, target) : undefined;
+      if (surface) surface.root.style.cursor = hit(event) ? "pointer" : "";
+    });
+  }
+
+  watch(documents, (next, _previous, onCleanup) => {
+    for (const document of next) {
+      document.addEventListener("click", handleClick);
+      document.addEventListener("mousemove", handlePointerMove);
+    }
+    onCleanup(() => {
+      for (const document of next) {
+        document.removeEventListener("click", handleClick);
+        document.removeEventListener("mousemove", handlePointerMove);
+      }
     });
   });
 
@@ -224,10 +284,11 @@ export function usePreviewAnnotationHighlights(options: {
     observer?.disconnect();
     if (frame) cancelAnimationFrame(frame);
     if (pointerFrame) cancelAnimationFrame(pointerFrame);
-    clearView();
+    documents.value = [];
+    clearViews();
   });
 
-  return { surface, refresh: schedule, rangeOf };
+  return { surfaces, refresh: schedule, rangeOf };
 }
 
 /**

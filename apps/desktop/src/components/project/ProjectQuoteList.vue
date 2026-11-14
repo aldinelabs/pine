@@ -35,8 +35,10 @@ const { t } = useI18n();
 /** File, passage and comment on separate lines, for a comment's tooltip. */
 function quoteTitle(quote: PineQuote): string {
   if (!quote.comment) return quote.text;
-  const location = [quote.file, quote.lines].filter(Boolean).join(":");
-  return [location, quote.text, quote.comment].filter(Boolean).join("\n");
+  const source = [quote.file, quote.lines].filter(Boolean).join(":");
+  return [source, quote.location, quote.text, quote.comment]
+    .filter(Boolean)
+    .join("\n");
 }
 </script>
 

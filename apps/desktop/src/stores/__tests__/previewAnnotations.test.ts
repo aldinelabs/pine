@@ -22,7 +22,14 @@ function input(
 ): NewPreviewAnnotation {
   return {
     mode: "code",
-    anchor: { start, end: start + 3, exact: "abc", prefix: "", suffix: "" },
+    anchor: {
+      kind: "text",
+      start,
+      end: start + 3,
+      exact: "abc",
+      prefix: "",
+      suffix: "",
+    },
     text: "abc",
     comment: "note",
     version: "v1",
@@ -165,6 +172,7 @@ describe("preview annotations store", () => {
     });
 
     const anchor = {
+      kind: "text" as const,
       start: 80,
       end: 83,
       exact: "abc",
@@ -205,7 +213,14 @@ describe("annotationQuotes", () => {
   it("maps comments to quotes with file and line ranges", () => {
     const base: Omit<PreviewAnnotation, "id" | "lines"> = {
       mode: "code",
-      anchor: { start: 0, end: 3, exact: "abc", prefix: "", suffix: "" },
+      anchor: {
+        kind: "text",
+        start: 0,
+        end: 3,
+        exact: "abc",
+        prefix: "",
+        suffix: "",
+      },
       text: "abc",
       comment: "c",
       createdAt: 0,

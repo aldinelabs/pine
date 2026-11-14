@@ -44,6 +44,7 @@ import {
 } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
 import { documentPreviewSelection } from "@/lib/filePreviewSelection";
+import { fileViewerAnnotationAdapter } from "@/lib/fileViewerAnnotations";
 import { skinFileViewerStyles } from "@/lib/fileViewerSkin";
 import { themeSpreadsheets } from "@/lib/spreadsheetTheme";
 import {
@@ -55,6 +56,8 @@ import type { AttachmentSelection } from "@/shared/attachments";
 import { useAppearanceStore } from "@/stores/appearance";
 import {
   previewToolbarKey,
+  type AnnotationCells,
+  type AnnotationRevealRequest,
   type PreviewRendererEvents,
   type PreviewRendererProps,
 } from "./previewRenderer";
@@ -115,6 +118,13 @@ const viewState = shallowRef<FileViewerViewState | null>(null);
 const searchState = shallowRef<FileViewerSearchState>();
 const rendererId = ref("");
 const searchable = computed(() => searchableRenderers.has(rendererId.value));
+/** How comments work in the loaded format; the workbench card takes none. */
+const annotationAdapter = computed(() =>
+  props.compact || loading.value
+    ? undefined
+    : fileViewerAnnotationAdapter(rendererId.value),
+);
+let stopAnnotationObserver: (() => void) | undefined;
 const searchQuery = ref("");
 
 // Inverting a light page reads as dark, so the chrome around it stays light.
@@ -294,6 +304,7 @@ function syncViewerState(): void {
       ? { gestureZoom: true, fitWidth: true }
       : {}),
     ...(toolbarVisible.value ? { toolbar: true } : {}),
+    ...annotationAdapter.value?.capabilities,
   };
   const serialized = JSON.stringify(capabilities);
   if (serialized !== reportedCapabilities) {
@@ -391,6 +402,9 @@ onMounted(async () => {
       attributeFilter: ["class", "hidden"],
     });
     reportMediaMetadata();
+    stopAnnotationObserver = annotationAdapter.value?.observe?.(element, () =>
+      emit("annotationsChange"),
+    );
   } catch (error) {
     if (disposed) return;
     console.error("Failed to render the file preview.", error);
@@ -403,6 +417,7 @@ onMounted(async () => {
 onBeforeUnmount(() => {
   disposed = true;
   stopSkin?.();
+  stopAnnotationObserver?.();
   chromeObserver?.disconnect();
   clearTimeout(chromeTimer);
   reading.abort();
@@ -530,7 +545,45 @@ function updateSelection(): void {
   emit("selectionChange", readSelection());
 }
 
-defineExpose({ readSelection, fitWidth });
+function annotationSurfaces() {
+  const element = host.value;
+  return element ? (annotationAdapter.value?.surfaces?.(element) ?? []) : [];
+}
+
+function annotationTargets() {
+  const element = host.value;
+  return element ? (annotationAdapter.value?.targets?.(element) ?? []) : [];
+}
+
+function annotationCellSelection() {
+  const element = host.value;
+  return element && props.active
+    ? annotationAdapter.value?.cellSelection?.(element)
+    : undefined;
+}
+
+function annotationCellRects(cells: AnnotationCells) {
+  const element = host.value;
+  return element
+    ? (annotationAdapter.value?.cellRects?.(element, cells) ?? [])
+    : [];
+}
+
+async function revealAnnotation(request: AnnotationRevealRequest) {
+  const element = host.value;
+  if (element && viewer)
+    await annotationAdapter.value?.reveal?.(element, request, viewer);
+}
+
+defineExpose({
+  readSelection,
+  fitWidth,
+  annotationSurfaces,
+  annotationTargets,
+  annotationCellSelection,
+  annotationCellRects,
+  revealAnnotation,
+});
 </script>
 
 <template>

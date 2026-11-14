@@ -18,15 +18,25 @@ import {
 } from "@/components/ui/popover";
 import { Textarea } from "@/components/ui/textarea";
 import { rectInTopWindow } from "@/composables/usePreviewAnnotationHighlights";
-import type { AnnotationSurface } from "./file-preview/previewRenderer";
+import { annotationPosition } from "@/lib/annotationLocation";
+import type {
+  AnnotationCellSelection,
+  AnnotationCells,
+  AnnotationComposeRequest,
+  AnnotationSurface,
+} from "./file-preview/previewRenderer";
 
 /**
- * Floats under text selected in a preview and offers to comment on it; the
- * menu then becomes the comment box. The selection may lie in a page's frame,
- * so it is read from the surface's own document.
+ * Floats under text or cells selected in a preview and offers to comment on
+ * them; the menu then becomes the comment box. A selection may lie in a
+ * page's frame, so it is read from each surface's own document. Areas and
+ * time spans skip the menu: their own controls open the box with `compose`.
  */
 const props = defineProps<{
-  surface: AnnotationSurface | undefined;
+  surfaces: readonly AnnotationSurface[];
+  /** The cells selected in a grid, when the renderer has one. */
+  readCells?: () => AnnotationCellSelection | undefined;
+  cellRects?: (cells: AnnotationCells) => readonly DOMRect[];
   /** Element the popover keeps within; the preview around the renderer. */
   container: HTMLElement | null;
   /** The preview is the visible tab. */
@@ -36,45 +46,99 @@ const props = defineProps<{
 }>();
 const emit = defineEmits<{
   save: [range: Range, comment: string];
+  saveShape: [request: AnnotationComposeRequest, comment: string];
   /** The passage being commented on, to show it marked while typing. */
   draftChange: [range: Range | undefined];
+  /** The cells, area or time span being commented on. */
+  shapeDraftChange: [request: AnnotationComposeRequest | undefined];
   full: [];
 }>();
 const { t } = useI18n();
 
+type Candidate =
+  | { kind: "text"; range: Range }
+  | { kind: "shape"; request: AnnotationComposeRequest };
+
 const MENU_GAP = 8;
-const selection = shallowRef<Range>();
+const selection = shallowRef<Candidate>();
 const editing = ref(false);
 const comment = ref("");
 const textarea = useTemplateRef<InstanceType<typeof Textarea>>("textarea");
 
+function unionRect(rects: readonly DOMRect[]): DOMRect {
+  const left = Math.min(...rects.map((rect) => rect.left));
+  const top = Math.min(...rects.map((rect) => rect.top));
+  const right = Math.max(...rects.map((rect) => rect.right));
+  const bottom = Math.max(...rects.map((rect) => rect.bottom));
+  return new DOMRect(left, top, right - left, bottom - top);
+}
+
 /** Follows the selection's last line, so the menu stays under it on scroll. */
 const anchor = computed(() => {
-  const range = selection.value;
-  if (!range) return undefined;
-  const document = range.startContainer.ownerDocument;
-  if (!document) return undefined;
-  const lastLine = () =>
-    rectInTopWindow(
-      [...range.getClientRects()].at(-1) ?? range.getBoundingClientRect(),
-      document,
-    );
+  const candidate = selection.value;
+  if (!candidate) return undefined;
+  let bottom: () => DOMRect;
+  if (candidate.kind === "shape") {
+    bottom = candidate.request.rect;
+  } else {
+    const range = candidate.range;
+    const document = range.startContainer.ownerDocument;
+    if (!document) return undefined;
+    bottom = () =>
+      rectInTopWindow(
+        [...range.getClientRects()].at(-1) ?? range.getBoundingClientRect(),
+        document,
+      );
+  }
   return {
-    getBoundingClientRect: lastLine,
-    getClientRects: () => [lastLine()],
+    getBoundingClientRect: bottom,
+    getClientRects: () => [bottom()],
     contextElement: props.container ?? undefined,
   };
 });
 
-function readSelection(): Range | undefined {
-  const root = props.surface?.root;
-  if (!root || !props.active) return undefined;
-  const current = root.ownerDocument.getSelection();
-  if (!current || current.isCollapsed || !current.rangeCount) return undefined;
-  const range = current.getRangeAt(0);
-  if (!root.contains(range.commonAncestorContainer) || !range.toString().trim())
-    return undefined;
-  return range.cloneRange();
+function readTextSelection(): Candidate | undefined {
+  for (const document of new Set(
+    props.surfaces.map((surface) => surface.root.ownerDocument),
+  )) {
+    const current = document.getSelection();
+    if (!current || current.isCollapsed || !current.rangeCount) continue;
+    const range = current.getRangeAt(0);
+    // One passage lies in one surface: a page, a slide or a chapter.
+    const inOne = props.surfaces.some(
+      (surface) =>
+        surface.root.contains(range.startContainer) &&
+        surface.root.contains(range.endContainer),
+    );
+    if (inOne && range.toString().trim())
+      return { kind: "text", range: range.cloneRange() };
+  }
+  return undefined;
+}
+
+function readCellSelection(): Candidate | undefined {
+  const cells = props.readCells?.();
+  if (!cells?.text.trim()) return undefined;
+  const sheet = cells.cells.sheet;
+  return {
+    kind: "shape",
+    request: {
+      shape: { kind: "cells", cells: cells.cells },
+      text: cells.text,
+      ...(sheet ? { place: { kind: "sheet" as const, name: sheet } } : {}),
+      rect: () => {
+        const rects = props.cellRects?.(cells.cells) ?? [];
+        return rects.length
+          ? unionRect(rects)
+          : (props.container?.getBoundingClientRect() ?? new DOMRect());
+      },
+    },
+  };
+}
+
+function readSelection(): Candidate | undefined {
+  if (!props.active) return undefined;
+  return readTextSelection() ?? readCellSelection();
 }
 
 function hide(): void {
@@ -82,6 +146,7 @@ function hide(): void {
   editing.value = false;
   comment.value = "";
   emit("draftChange", undefined);
+  emit("shapeDraftChange", undefined);
 }
 
 function update(): void {
@@ -99,26 +164,47 @@ function schedule(event?: Event): void {
   requestAnimationFrame(update);
 }
 
-async function startEditing(): Promise<void> {
-  const range = selection.value ?? readSelection();
-  if (!range) return;
+async function startEditing(candidate = selection.value ?? readSelection()) {
+  if (!candidate) return;
   if (props.full) {
     emit("full");
     return;
   }
-  selection.value = range;
+  selection.value = candidate;
   editing.value = true;
-  emit("draftChange", range);
-  range.startContainer.ownerDocument?.getSelection()?.removeAllRanges();
+  if (candidate.kind === "text") {
+    emit("draftChange", candidate.range);
+    candidate.range.startContainer.ownerDocument
+      ?.getSelection()
+      ?.removeAllRanges();
+  } else {
+    emit("shapeDraftChange", candidate.request);
+  }
   await nextTick();
   (textarea.value?.$el as HTMLTextAreaElement | undefined)?.focus();
 }
 
+/** Opens the comment box for cells, an area or a time span. */
+function compose(request: AnnotationComposeRequest): void {
+  void startEditing({ kind: "shape", request });
+}
+
+defineExpose({ compose });
+
+/** What a comment on cells, an area or a time span is about, over the box. */
+const shapeLabel = computed(() => {
+  const candidate = selection.value;
+  if (candidate?.kind !== "shape") return undefined;
+  const { shape, place } = candidate.request;
+  return annotationPosition({ anchor: shape, place }, t);
+});
+
 function save(): void {
-  const range = selection.value;
+  const candidate = selection.value;
   const text = comment.value.trim();
-  if (!range || !text) return;
-  emit("save", range, text);
+  if (!candidate || !text) return;
+  if (candidate.kind === "text") emit("save", candidate.range, text);
+  else emit("saveShape", candidate.request, text);
   hide();
 }
 
@@ -157,37 +243,72 @@ function handleInteractOutside(event: Event): void {
   if (editing.value && comment.value.trim()) event.preventDefault();
 }
 
-const surfaceDocument = computed(
-  () => props.surface?.root.ownerDocument ?? null,
-);
-// A frame's document gets its own listeners; the app's document covers the rest.
-const frameDocument = computed(() =>
-  surfaceDocument.value && surfaceDocument.value !== document
-    ? surfaceDocument.value
-    : null,
-);
-for (const target of [() => document, () => frameDocument.value]) {
-  useEventListener(target, "mouseup", schedule);
-  useEventListener(target, "keyup", (event: KeyboardEvent) => {
-    if (event.shiftKey || event.key === "Shift" || event.key === "a")
-      schedule(event);
-  });
-  useEventListener(target, "keydown", handleKey);
+function handleKeyUp(event: KeyboardEvent): void {
+  if (event.shiftKey || event.key === "Shift" || event.key === "a")
+    schedule(event);
 }
-useEventListener(surfaceDocument, "selectionchange", () => {
+
+function handleSelectionChange(event: Event): void {
+  const candidate = selection.value;
   if (
-    selection.value &&
+    candidate?.kind === "text" &&
     !editing.value &&
-    surfaceDocument.value?.getSelection()?.isCollapsed
+    (event.target as Document).getSelection()?.isCollapsed
   )
     selection.value = undefined;
-});
+}
+
+// Frames' documents get their own listeners; the app's document covers the
+// rest, including grids.
+const documents = computed(() => [
+  ...new Set([
+    document,
+    ...props.surfaces.map((surface) => surface.root.ownerDocument),
+  ]),
+]);
+watch(
+  documents,
+  (next, _previous, onCleanup) => {
+    for (const target of next) {
+      target.addEventListener("mouseup", schedule);
+      target.addEventListener("keyup", handleKeyUp);
+      target.addEventListener("keydown", handleKey);
+      target.addEventListener("selectionchange", handleSelectionChange);
+    }
+    onCleanup(() => {
+      for (const target of next) {
+        target.removeEventListener("mouseup", schedule);
+        target.removeEventListener("keyup", handleKeyUp);
+        target.removeEventListener("keydown", handleKey);
+        target.removeEventListener("selectionchange", handleSelectionChange);
+      }
+    });
+  },
+  { immediate: true },
+);
 useEventListener(window, "resize", () => {
   if (!editing.value) hide();
 });
 watch(
-  () => [props.surface?.root, props.active] as const,
-  () => hide(),
+  () => props.active,
+  (active) => {
+    if (!active) hide();
+  },
+);
+// A re-render replaces the text a selection was in; a page scrolled into
+// view only adds a surface, and keeps the box being typed in.
+watch(
+  () => props.surfaces,
+  (surfaces) => {
+    const candidate = selection.value;
+    if (
+      candidate?.kind === "text" &&
+      !surfaces.some((surface) =>
+        surface.root.contains(candidate.range.commonAncestorContainer),
+      )
+    )
+      hide();
+  },
 );
 </script>
 
@@ -212,6 +333,12 @@ watch(
       @mousedown="!editing && $event.preventDefault()"
     >
       <template v-if="editing">
+        <p
+          v-if="shapeLabel"
+          class="truncate px-1 text-xs text-muted-foreground tabular-nums"
+        >
+          {{ shapeLabel }}
+        </p>
         <Textarea
           ref="textarea"
           v-model="comment"
@@ -240,7 +367,7 @@ watch(
         variant="ghost"
         size="sm"
         class="font-normal"
-        @click="startEditing"
+        @click="startEditing()"
       >
         <MessageSquareTextIcon />
         {{ t("project.preview.annotations.comment") }}

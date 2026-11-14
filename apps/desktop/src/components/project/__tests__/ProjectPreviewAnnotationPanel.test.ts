@@ -11,7 +11,14 @@ function annotation(
   return {
     id,
     mode: "code",
-    anchor: { start: 0, end: 5, exact: "hello", prefix: "", suffix: "" },
+    anchor: {
+      kind: "text",
+      start: 0,
+      end: 5,
+      exact: "hello",
+      prefix: "",
+      suffix: "",
+    },
     lines: { startLine: 3, endLine: 3 },
     text: "hello",
     comment: `comment ${id}`,

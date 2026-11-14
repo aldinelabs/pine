@@ -2,6 +2,8 @@ import { acceptHMRUpdate, defineStore } from "pinia";
 import { ref } from "vue";
 import type {
   AnnotationLines,
+  AnnotationPlace,
+  AnnotationShape,
   PreviewDisplayMode,
 } from "@/components/project/file-preview/previewRenderer";
 import type { TextAnchor } from "@/lib/annotationAnchors";
@@ -12,13 +14,27 @@ export const MAX_ANNOTATIONS = 50;
 /** Longest passage a comment keeps, in characters. */
 export const MAX_ANNOTATION_TEXT = 2_000;
 
+/** A passage of a surface's text; `segment` names the surface. */
+export type TextAnnotationAnchor = TextAnchor & {
+  kind: "text";
+  segment?: string;
+};
+
+/** What a comment points at: a passage of text, cells, an area or a time span. */
+export type PreviewAnnotationAnchor = TextAnnotationAnchor | AnnotationShape;
+
 export interface PreviewAnnotation {
   id: string;
   /** The view the comment was made in; anchors count in that view's text. */
   mode: PreviewDisplayMode;
-  anchor: TextAnchor;
+  anchor: PreviewAnnotationAnchor;
   lines?: AnnotationLines;
-  /** The passage as the user selected it, trimmed and capped. */
+  /** The page, slide, chapter or sheet it is on. */
+  place?: AnnotationPlace;
+  /**
+   * The passage as the user selected it, trimmed and capped; for other
+   * anchors, what they point at in words (cell values, an area, a time span).
+   */
   text: string;
   comment: string;
   createdAt: number;
@@ -30,11 +46,11 @@ export interface PreviewAnnotation {
 
 export type NewPreviewAnnotation = Pick<
   PreviewAnnotation,
-  "mode" | "anchor" | "lines" | "text" | "comment" | "version"
+  "mode" | "anchor" | "lines" | "place" | "text" | "comment" | "version"
 >;
 
 export interface AnnotationPlacement {
-  anchor: TextAnchor;
+  anchor: TextAnnotationAnchor;
   lines?: AnnotationLines;
   version: string;
 }
@@ -61,7 +77,28 @@ function capText(text: string): string {
     : normalized;
 }
 
-/** Document order: by start line, then offset; comments without lines last. */
+function placeOrder(place: AnnotationPlace | undefined): number {
+  return place?.kind === "page" || place?.kind === "slide" ? place.number : 0;
+}
+
+/** Where an anchor starts within its page, slide or text, for ordering. */
+function anchorOrder(anchor: PreviewAnnotationAnchor): number {
+  switch (anchor.kind) {
+    case "text":
+      return anchor.start;
+    case "cells":
+      return anchor.cells.startRow * 100_000 + anchor.cells.startColumn;
+    case "region":
+      return anchor.y * 1_000_000 + anchor.x * 1_000;
+    case "time":
+      return anchor.start;
+  }
+}
+
+/**
+ * Document order: by start line, then page or slide, then position; comments
+ * without lines come last, and equal positions keep the order they were made.
+ */
 function compareAnnotations(
   a: PreviewAnnotation,
   b: PreviewAnnotation,
@@ -72,7 +109,11 @@ function compareAnnotations(
     return aLine - bLine;
   if (aLine === undefined && bLine !== undefined) return 1;
   if (aLine !== undefined && bLine === undefined) return -1;
-  return a.anchor.start - b.anchor.start;
+  return (
+    placeOrder(a.place) - placeOrder(b.place) ||
+    anchorOrder(a.anchor) - anchorOrder(b.anchor) ||
+    a.createdAt - b.createdAt
+  );
 }
 
 function formatLines(lines: AnnotationLines): string {
@@ -81,18 +122,27 @@ function formatLines(lines: AnnotationLines): string {
     : `${lines.startLine}`;
 }
 
-/** The quotes a set of comments travels as when sent to a session. */
+/**
+ * The quotes a set of comments travels as when sent to a session. `locate`
+ * describes where each comment is beyond its lines (page, slide, cells, time).
+ */
 export function annotationQuotes(
   filePath: string,
   annotations: readonly PreviewAnnotation[],
+  locate: (annotation: PreviewAnnotation) => string | undefined = () =>
+    undefined,
 ): PineQuote[] {
-  return annotations.map((annotation) => ({
-    text: annotation.text,
-    file: filePath,
-    comment: annotation.comment,
-    ...(annotation.lines ? { lines: formatLines(annotation.lines) } : {}),
-    ...(annotation.orphaned ? { stale: true as const } : {}),
-  }));
+  return annotations.map((annotation) => {
+    const location = locate(annotation);
+    return {
+      text: annotation.text,
+      file: filePath,
+      comment: annotation.comment,
+      ...(annotation.lines ? { lines: formatLines(annotation.lines) } : {}),
+      ...(location ? { location } : {}),
+      ...(annotation.orphaned ? { stale: true as const } : {}),
+    };
+  });
 }
 
 /**
@@ -143,6 +193,7 @@ export const usePreviewAnnotationsStore = defineStore(
         mode: input.mode,
         anchor: input.anchor,
         ...(input.lines ? { lines: input.lines } : {}),
+        ...(input.place ? { place: input.place } : {}),
         text: capText(input.text),
         comment,
         createdAt: Date.now(),
