@@ -10,6 +10,7 @@ import type {
   ProjectFilePreviewRequest,
 } from "@/shared/projectFiles";
 import type { PineAttachment } from "@/shared/attachments";
+import { isSameQuote, type PineQuote } from "@/shared/quotes";
 import { fileName, fileTargetKey } from "@/lib/filePreviewTarget";
 import { randomId } from "@/lib/randomId";
 import { parseFileReveal } from "@/shared/projectFiles";
@@ -138,6 +139,8 @@ export const useContentTabsStore = defineStore("content-tabs", () => {
   /** Presentation or artifact keys whose file was trashed from the artifacts list. */
   const removedPresentations = reactive(new Set<string>());
   const composerAttachments = ref<Record<string, PineAttachment[]>>({});
+  /** Quotes and preview comments staged in each session tab's composer. */
+  const composerQuotes = ref<Record<string, PineQuote[]>>({});
   /**
    * The one tab a casual open (sidebar, search, file tree) may replace, as
    * in VS Code's preview tab. It stops being one as soon as the user does
@@ -151,6 +154,9 @@ export const useContentTabsStore = defineStore("content-tabs", () => {
     (ids) => {
       for (const id of Object.keys(composerAttachments.value)) {
         if (!ids.includes(id)) delete composerAttachments.value[id];
+      }
+      for (const id of Object.keys(composerQuotes.value)) {
+        if (!ids.includes(id)) delete composerQuotes.value[id];
       }
     },
     { flush: "sync" },
@@ -187,6 +193,27 @@ export const useContentTabsStore = defineStore("content-tabs", () => {
     attachments: PineAttachment[],
   ): boolean {
     return setAttachments(tabId, [...attachmentsFor(tabId), ...attachments]);
+  }
+
+  function quotesFor(tabId: string): PineQuote[] {
+    return composerQuotes.value[tabId] ?? [];
+  }
+
+  /** Replaces a session tab's staged quotes, dropping repeats. */
+  function setQuotes(tabId: string, quotes: PineQuote[]): boolean {
+    if (!tabs.value.some((tab) => tab.id === tabId && tab.kind === "session"))
+      return false;
+    composerQuotes.value[tabId] = quotes.filter(
+      (quote, index) =>
+        quotes.findIndex((other) => isSameQuote(other, quote)) === index,
+    );
+    if (quotes.length) keepTab(tabId);
+    return true;
+  }
+
+  /** Stages quotes after a session tab's current ones. */
+  function addQuotes(tabId: string, quotes: PineQuote[]): boolean {
+    return setQuotes(tabId, [...quotesFor(tabId), ...quotes]);
   }
 
   function moveTab(
@@ -481,6 +508,7 @@ export const useContentTabsStore = defineStore("content-tabs", () => {
     );
     if (existingDraft) {
       addAttachments(existingDraft.id, attachmentsFor(tabId));
+      addQuotes(existingDraft.id, quotesFor(tabId));
       if (target.mutators?.length)
         setDraftMutators(existingDraft.id, [
           ...(existingDraft.mutators ?? []),
@@ -561,6 +589,7 @@ export const useContentTabsStore = defineStore("content-tabs", () => {
     );
     if (existing) {
       addAttachments(existing.id, attachmentsFor(tabId));
+      addQuotes(existing.id, quotesFor(tabId));
       tabs.value = tabs.value.filter((tab) => tab.id !== tabId);
       updateSession(session);
       return existing;
@@ -719,6 +748,7 @@ export const useContentTabsStore = defineStore("content-tabs", () => {
     removedPresentations.clear();
     composerFocusTabId.value = null;
     composerAttachments.value = {};
+    composerQuotes.value = {};
     previewTabId.value = null;
     closedTabs.value = [];
     nextSessionTabNumber = 2;
@@ -728,6 +758,7 @@ export const useContentTabsStore = defineStore("content-tabs", () => {
 
   return {
     addAttachments,
+    addQuotes,
     attachmentsFor,
     beginPrompt,
     bindSession,
@@ -735,6 +766,7 @@ export const useContentTabsStore = defineStore("content-tabs", () => {
     close,
     composerAttachments,
     composerFocusTabId,
+    composerQuotes,
     createSessionTab,
     failPrompt,
     fallbackActiveTabId,
@@ -749,6 +781,7 @@ export const useContentTabsStore = defineStore("content-tabs", () => {
     presentFile,
     presentedTargetFor,
     previewTabId,
+    quotesFor,
     rememberPresentedTarget,
     reopenClosedTab,
     markPresentationRemoved,
@@ -761,6 +794,7 @@ export const useContentTabsStore = defineStore("content-tabs", () => {
     setAttachments,
     setDraftMutators,
     setDraftProject,
+    setQuotes,
     tabs,
     updateSession,
   };

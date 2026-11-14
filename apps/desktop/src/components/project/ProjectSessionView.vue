@@ -339,7 +339,12 @@ const weChatOriginLabel = computed(() => {
   }
 });
 /** Passages quoted from this transcript into the composer. */
-const quotes = ref<PineQuote[]>([]);
+const quotes = computed<PineQuote[]>({
+  get: () => contentTabsStore.quotesFor(props.tabId),
+  set: (value) => {
+    contentTabsStore.setQuotes(props.tabId, value);
+  },
+});
 const transcriptRegion = useTemplateRef<HTMLElement>("transcriptRegion");
 const sessionLayout = useTemplateRef<HTMLElement>("sessionLayout");
 useSteeringMessageTransition({
@@ -415,8 +420,9 @@ async function quoteSelection(selection: TranscriptSelection): Promise<void> {
   const text = normalizeQuoteText(selection.quote);
   if (!text) return;
   const role = messageRole(selection.messageId);
-  if (!quotes.value.some((quote) => quote.text === text))
-    quotes.value = [...quotes.value, { text, ...(role ? { role } : {}) }];
+  contentTabsStore.addQuotes(props.tabId, [
+    { text, ...(role ? { role } : {}) },
+  ]);
   await nextTick();
   composer.value?.focus();
 }

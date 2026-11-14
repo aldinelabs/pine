@@ -877,6 +877,7 @@ export default {
       label: "인용",
       listLabel: "인용한 구절",
       remove: "인용 삭제",
+      comment: "댓글",
     },
     selection: {
       label: "선택한 텍스트",
@@ -1092,6 +1093,31 @@ export default {
       archiveEmpty: "파일을 찾을 수 없습니다",
       archiveEmptyDescription:
         "압축 파일이 비어 있거나 Zstandard처럼 Pine이 읽을 수 없는 압축 방식을 사용합니다.",
+      annotations: {
+        comment: "댓글",
+        placeholder: "댓글 추가…",
+        cancel: "취소",
+        title: "댓글",
+        close: "댓글 닫기",
+        empty: "아직 댓글이 없습니다",
+        emptyDescription:
+          "미리보기에서 텍스트를 선택한 뒤 “댓글”을 선택하세요.",
+        send: "댓글 {count}개 보내기 | 댓글 {count}개 보내기",
+        clearAll: "모두 지우기",
+        clearTitle: "댓글을 모두 지울까요?",
+        clearDescription:
+          "이 파일의 댓글 {count}개가 삭제됩니다. | 이 파일의 댓글 {count}개가 삭제됩니다.",
+        clearConfirm: "지우기",
+        edit: "편집",
+        delete: "삭제",
+        save: "저장",
+        orphaned: "원문이 변경됨",
+        line: "{line}번 줄",
+        lines: "{start}–{end}번 줄",
+        sourceView: "소스 보기",
+        renderedView: "렌더링 보기",
+        limit: "파일 하나에 댓글은 최대 {max}개까지 달 수 있습니다.",
+      },
     },
     contentTabs: {
       emptyTitle: "열려 있는 탭이 없습니다",

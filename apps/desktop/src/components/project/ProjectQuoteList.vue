@@ -1,16 +1,22 @@
 <script setup lang="ts">
 import type { HTMLAttributes } from "vue";
-import { MessageSquareQuoteIcon, XIcon } from "@lucide/vue";
+import {
+  MessageSquareQuoteIcon,
+  MessageSquareTextIcon,
+  XIcon,
+} from "@lucide/vue";
 import { useI18n } from "vue-i18n";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import type { PineQuote } from "@/shared/quotes";
+import { quoteSourceLabel, type PineQuote } from "@/shared/quotes";
 
 /**
  * Passages quoted from the conversation, as chips like the composer's
  * authoring ones: a line of the passage behind a quote mark. In the
  * composer each can be removed; in a sent message they sit above its
  * bubble. A surface with its own corner passes it through `itemClass`.
+ * A quote carrying a preview comment shows where it points and the
+ * comment instead of the passage.
  */
 const props = withDefaults(
   defineProps<{
@@ -25,6 +31,13 @@ const props = withDefaults(
 
 const emit = defineEmits<{ remove: [index: number] }>();
 const { t } = useI18n();
+
+/** File, passage and comment on separate lines, for a comment's tooltip. */
+function quoteTitle(quote: PineQuote): string {
+  if (!quote.comment) return quote.text;
+  const location = [quote.file, quote.lines].filter(Boolean).join(":");
+  return [location, quote.text, quote.comment].filter(Boolean).join("\n");
+}
 </script>
 
 <template>
@@ -57,16 +70,34 @@ const { t } = useI18n();
           props.itemClass,
         )
       "
-      :title="quote.text"
+      :title="quoteTitle(quote)"
     >
-      <MessageSquareQuoteIcon
-        class="size-3.5 shrink-0 text-muted-foreground"
-        aria-hidden="true"
-      />
-      <span class="min-w-0 truncate">
-        <span class="sr-only">{{ t("project.quote.label") }}: </span>
-        {{ quote.text }}
-      </span>
+      <template v-if="quote.comment">
+        <MessageSquareTextIcon
+          class="size-3.5 shrink-0 text-muted-foreground"
+          aria-hidden="true"
+        />
+        <span class="min-w-0 truncate">
+          <span class="sr-only">{{ t("project.quote.comment") }}: </span>
+          <span
+            v-if="quoteSourceLabel(quote)"
+            data-slot="quote-source"
+            class="text-muted-foreground"
+            >{{ quoteSourceLabel(quote) }}
+          </span>
+          {{ quote.comment }}
+        </span>
+      </template>
+      <template v-else>
+        <MessageSquareQuoteIcon
+          class="size-3.5 shrink-0 text-muted-foreground"
+          aria-hidden="true"
+        />
+        <span class="min-w-0 truncate">
+          <span class="sr-only">{{ t("project.quote.label") }}: </span>
+          {{ quote.text }}
+        </span>
+      </template>
       <Button
         v-if="removable"
         type="button"

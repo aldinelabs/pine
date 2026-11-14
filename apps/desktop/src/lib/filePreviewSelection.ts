@@ -1,7 +1,8 @@
 import type { BaseNode } from "markstream-vue";
 import type { AttachmentSelection } from "@/shared/attachments";
 
-const excluded =
+/** Rendered Markdown elements whose text is not part of the source (toolbars, gutters, controls). */
+export const filePreviewExcluded =
   '[data-slot="code-block-toolbar"], [aria-hidden="true"], button';
 
 /** Read a browser text selection contained by a rendered document preview. */
@@ -28,7 +29,7 @@ export function documentPreviewSelection(
   };
 }
 
-/** Read only selections contained in this preview, excluding gutters and controls. */
+/** Read the window selection when it is contained in this preview. */
 export function filePreviewSelection(
   root: HTMLElement,
   source: string,
@@ -36,8 +37,23 @@ export function filePreviewSelection(
 ): AttachmentSelection | undefined {
   const selection = window.getSelection();
   if (!selection || selection.isCollapsed || !selection.rangeCount) return;
-  const range = selection.getRangeAt(0);
+  return filePreviewRangeSelection(
+    root,
+    selection.getRangeAt(0),
+    source,
+    nodes,
+  );
+}
+
+/** Map a range contained in this preview to source lines, excluding gutters and controls. */
+export function filePreviewRangeSelection(
+  root: HTMLElement,
+  range: Range,
+  source: string,
+  nodes?: BaseNode[],
+): AttachmentSelection | undefined {
   if (
+    range.collapsed ||
     !root.contains(range.startContainer) ||
     !root.contains(range.endContainer)
   ) {
@@ -80,7 +96,8 @@ export function filePreviewSelection(
     let cursor = 0;
     while (walker.nextNode()) {
       const node = walker.currentNode as Text;
-      if (!node.data || node.parentElement?.closest(excluded)) continue;
+      if (!node.data || node.parentElement?.closest(filePreviewExcluded))
+        continue;
       // Match within each source block so repeated text elsewhere in the file
       // cannot resolve to an earlier occurrence. Inline markup is skipped.
       const offset = blockSource.indexOf(node.data, cursor);

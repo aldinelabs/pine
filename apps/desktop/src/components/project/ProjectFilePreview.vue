@@ -2,10 +2,12 @@
 import { isWebClient } from "@/lib/clientRuntime";
 import {
   computed,
+  nextTick,
   onBeforeUnmount,
   onMounted,
   provide,
   ref,
+  shallowRef,
   useId,
   useTemplateRef,
   watch,
@@ -16,12 +18,15 @@ import {
   ExternalLink,
   FileQuestion,
   FileWarning,
+  MessageSquareTextIcon,
   MoveHorizontal,
   Plus,
   Send,
   SquareTerminal,
 } from "@lucide/vue";
+import { toast } from "vue-sonner";
 import { handleError } from "@/app/errors/errorHandler";
+import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Slider } from "@/components/ui/slider";
 import { Label } from "@/components/ui/label";
@@ -46,6 +51,14 @@ import { useContentTabsStore } from "@/stores/contentTabs";
 import { useAppearanceStore } from "@/stores/appearance";
 import { useAttentionFlashStore } from "@/stores/attentionFlash";
 import { useFileToSession } from "@/composables/useFileToSession";
+import { usePreviewAnnotationHighlights } from "@/composables/usePreviewAnnotationHighlights";
+import { createTextAnchor } from "@/lib/annotationAnchors";
+import {
+  MAX_ANNOTATIONS,
+  annotationFileKey,
+  annotationQuotes,
+  usePreviewAnnotationsStore,
+} from "@/stores/previewAnnotations";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   fileName as pathBaseName,
@@ -73,6 +86,8 @@ import type {
   PreviewRendererMetadata,
 } from "./file-preview/previewRenderer";
 import { previewRenderers } from "./file-preview/previewRenderers";
+import ProjectPreviewAnnotationMenu from "./ProjectPreviewAnnotationMenu.vue";
+import ProjectPreviewAnnotationPanel from "./ProjectPreviewAnnotationPanel.vue";
 
 const props = withDefaults(
   defineProps<{ file: FileContentTab; active?: boolean }>(),
@@ -216,7 +231,17 @@ const sessionTabs = computed(() =>
     (tab) => tab.kind === "session" && tab.projectId === props.file.projectId,
   ),
 );
-const { isSending, sendFile, sendFileToNewSession } = useFileToSession();
+const { isSending, sendFile, sendFileToNewSession, sendQuotes } =
+  useFileToSession();
+const sessionTargets = computed(() =>
+  sessionTabs.value.map((tab) => ({
+    id: tab.id,
+    label:
+      "label" in tab && tab.label
+        ? tab.label
+        : t("project.contentTabs.newSession"),
+  })),
+);
 const failed = ref(false);
 const revision = ref(0);
 const stale = ref(false);
@@ -472,6 +497,136 @@ onBeforeUnmount(() => {
   if (zoomFrame !== undefined) cancelAnimationFrame(zoomFrame);
   if (zoomCommitTimer) clearTimeout(zoomCommitTimer);
 });
+
+// Comments on passages of a project file, collected here and sent together.
+const annotationsStore = usePreviewAnnotationsStore();
+const annotationKey = computed(() =>
+  projectTarget.value ? annotationFileKey(projectTarget.value) : undefined,
+);
+const annotations = computed(() =>
+  annotationKey.value
+    ? annotationsStore.annotationsFor(annotationKey.value)
+    : [],
+);
+const canAnnotate = computed(
+  () => Boolean(projectTarget.value) && Boolean(capabilities.value.annotate),
+);
+const annotationsOpen = ref(false);
+const activeAnnotationId = ref<string>();
+const annotationDraft = shallowRef<Range>();
+const rendererHost = useTemplateRef<HTMLElement>("rendererHost");
+const annotationsFull = computed(
+  () => annotations.value.length >= MAX_ANNOTATIONS,
+);
+const highlights = usePreviewAnnotationHighlights({
+  surface: () => rendererInstance.value?.annotationSurface?.(),
+  host: rendererHost,
+  annotations,
+  mode: viewMode,
+  activeId: activeAnnotationId,
+  draft: annotationDraft,
+  enabled: computed(() => canAnnotate.value && !failed.value),
+  lines: (range) => rendererInstance.value?.annotationLines?.(range),
+  onPlaced: (id, placement) => {
+    if (annotationKey.value)
+      annotationsStore.place(annotationKey.value, id, {
+        ...placement,
+        version: preview.value?.modifiedAt ?? "",
+      });
+  },
+  onLost: (id) => {
+    if (annotationKey.value)
+      annotationsStore.orphan(
+        annotationKey.value,
+        id,
+        preview.value?.modifiedAt ?? "",
+      );
+  },
+  onHit: (id) => {
+    annotationsOpen.value = true;
+    activeAnnotationId.value = id;
+  },
+});
+watch(annotationKey, () => {
+  activeAnnotationId.value = undefined;
+  annotationDraft.value = undefined;
+});
+// A renderer reports its surface as it loads, switches view or re-renders.
+watch(
+  () =>
+    [
+      rendererInstance.value,
+      capabilities.value.annotate,
+      viewMode.value,
+      preview.value,
+    ] as const,
+  () => void nextTick(highlights.refresh),
+);
+
+function saveAnnotation(range: Range, comment: string): void {
+  const key = annotationKey.value;
+  const surface = highlights.surface.value;
+  if (!key || !surface) return;
+  const anchor = createTextAnchor(surface.root, range, surface.excluded);
+  if (!anchor) return;
+  const added = annotationsStore.add(key, {
+    mode: viewMode.value,
+    anchor,
+    lines: rendererInstance.value?.annotationLines?.(range),
+    text: range.toString(),
+    comment,
+    version: preview.value?.modifiedAt ?? "",
+  });
+  if (!added) showAnnotationLimit();
+}
+
+function showAnnotationLimit(): void {
+  toast.error(t("project.preview.annotations.limit", { max: MAX_ANNOTATIONS }));
+}
+
+/** Shows a comment's passage, in the view it was made in. */
+async function revealAnnotation(id: string): Promise<void> {
+  activeAnnotationId.value = id;
+  const annotation = annotations.value.find((item) => item.id === id);
+  if (!annotation) return;
+  if (annotation.mode !== viewMode.value && capabilities.value.renderToggle)
+    viewMode.value = annotation.mode;
+  // The other view may still be rendering; look for the passage a while.
+  for (let attempt = 0; attempt < 30; attempt += 1) {
+    await new Promise((resolve) => requestAnimationFrame(resolve));
+    if (activeAnnotationId.value !== id) return;
+    const range = highlights.rangeOf(id);
+    if (!range) continue;
+    const node = range.startContainer;
+    // The passage may be in a page's frame, whose nodes are not this
+    // window's Element instances.
+    const element =
+      node.nodeType === Node.ELEMENT_NODE
+        ? (node as Element)
+        : node.parentElement;
+    element?.scrollIntoView({ block: "center", behavior: "smooth" });
+    return;
+  }
+}
+
+async function sendAnnotations(target: string | null): Promise<void> {
+  const key = annotationKey.value;
+  const file = projectTarget.value;
+  if (!key || !file) return;
+  const sent = [...annotations.value];
+  const delivered = await sendQuotes(file, target, (path) =>
+    annotationQuotes(path, sent),
+  );
+  if (!delivered) return;
+  for (const annotation of sent) annotationsStore.remove(key, annotation.id);
+  activeAnnotationId.value = undefined;
+  annotationsOpen.value = false;
+}
+
+function clearAnnotations(): void {
+  if (annotationKey.value) annotationsStore.clear(annotationKey.value);
+  activeAnnotationId.value = undefined;
+}
 </script>
 
 <template>
@@ -561,27 +716,64 @@ onBeforeUnmount(() => {
         <span class="w-10 text-right tabular-nums">{{ zoom }}%</span>
       </div>
     </div>
-    <component
-      :is="renderer.component"
+    <div
       v-if="preview && preview.kind !== 'unsupported' && renderer && !failed"
-      ref="renderer"
-      :key="previewRendererKey(previewKey, renderer, preview)"
-      class="min-h-0 flex-1"
-      :preview="preview"
-      :file-name="fileName"
-      :file-path="filePath"
+      class="flex min-h-0 flex-1"
+    >
+      <div ref="rendererHost" class="flex min-h-0 min-w-0 flex-1 flex-col">
+        <component
+          :is="renderer.component"
+          ref="renderer"
+          :key="previewRendererKey(previewKey, renderer, preview)"
+          class="min-h-0 flex-1"
+          :preview="preview"
+          :file-name="fileName"
+          :file-path="filePath"
+          :active="active"
+          :mode="viewMode"
+          :reveal="reveal"
+          :zoom="appliedZoom"
+          :inverted="previewInverted"
+          :selection-label="t('project.preview.selectedContent')"
+          @failed="failed = true"
+          @metadata-change="handleMetadataChange"
+          @capabilities-change="handleCapabilitiesChange"
+          @zoom-change="handleZoomChange"
+          @selection-change="handleSelectionChange"
+          @zoom-wheel="handlePreviewWheel"
+        />
+      </div>
+      <ProjectPreviewAnnotationPanel
+        v-if="annotationsOpen && projectTarget"
+        :annotations="annotations"
+        :active-id="activeAnnotationId"
+        :mode="viewMode"
+        :has-views="capabilities.renderToggle"
+        :session-tabs="sessionTargets"
+        :sending="isSending"
+        @select="revealAnnotation"
+        @update="
+          (id, comment) =>
+            annotationKey &&
+            annotationsStore.updateComment(annotationKey, id, comment)
+        "
+        @remove="
+          (id) => annotationKey && annotationsStore.remove(annotationKey, id)
+        "
+        @clear="clearAnnotations"
+        @send="sendAnnotations"
+        @close="annotationsOpen = false"
+      />
+    </div>
+    <ProjectPreviewAnnotationMenu
+      v-if="canAnnotate"
+      :surface="highlights.surface.value"
+      :container="rendererHost"
       :active="active"
-      :mode="viewMode"
-      :reveal="reveal"
-      :zoom="appliedZoom"
-      :inverted="previewInverted"
-      :selection-label="t('project.preview.selectedContent')"
-      @failed="failed = true"
-      @metadata-change="handleMetadataChange"
-      @capabilities-change="handleCapabilitiesChange"
-      @zoom-change="handleZoomChange"
-      @selection-change="handleSelectionChange"
-      @zoom-wheel="handlePreviewWheel"
+      :full="annotationsFull"
+      @save="saveAnnotation"
+      @draft-change="annotationDraft = $event"
+      @full="showAnnotationLimit"
     />
     <footer
       class="mt-auto flex min-h-12 shrink-0 flex-wrap items-center gap-x-4 gap-y-1 pl-5 pr-2 py-2 text-sm text-muted-foreground"
@@ -637,6 +829,20 @@ onBeforeUnmount(() => {
         <Label :for="renderSwitchId">{{ t("project.preview.rendered") }}</Label>
       </div>
       <div class="ml-auto flex items-center gap-3">
+        <Button
+          v-if="projectTarget && (canAnnotate || annotations.length)"
+          data-action="toggle-annotations"
+          variant="ghost"
+          size="sm"
+          :aria-pressed="annotationsOpen"
+          @click="annotationsOpen = !annotationsOpen"
+        >
+          <MessageSquareTextIcon data-icon="inline-start" />
+          {{ t("project.preview.annotations.title") }}
+          <Badge v-if="annotations.length" variant="secondary">{{
+            annotations.length
+          }}</Badge>
+        </Button>
         <Button
           v-if="preview"
           data-action="open-default"

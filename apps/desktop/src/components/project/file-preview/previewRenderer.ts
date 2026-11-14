@@ -50,10 +50,32 @@ export type PreviewRendererEvents = {
   zoomChange: [zoom: number];
 };
 
+/**
+ * The rendered text a renderer lets the user comment on. Comments are
+ * anchored to character offsets in the text nodes under `root` (minus
+ * `excluded`), so the root may live in a frame's document; its window is
+ * `root.ownerDocument.defaultView`.
+ */
+export interface AnnotationSurface {
+  root: HTMLElement;
+  /** Selector for elements inside `root` whose text is skipped (gutters, toolbars). */
+  excluded?: string;
+}
+
+/** Inclusive, 1-based source lines. */
+export interface AnnotationLines {
+  startLine: number;
+  endLine: number;
+}
+
 export interface PreviewRendererHandle {
   readSelection?: () => AttachmentSelection | undefined;
   /** Fits the content to the preview's width; offered with `fitWidth`. */
   fitWidth?: () => void;
+  /** The text comments anchor in; offered with `annotate`. */
+  annotationSurface?: () => AnnotationSurface | undefined;
+  /** The source lines a range of the surface covers, when the view maps to them. */
+  annotationLines?: (range: Range) => AnnotationLines | undefined;
 }
 
 /**
@@ -77,6 +99,8 @@ export interface PreviewRendererCapabilities {
   fitWidth?: boolean;
   /** The renderer placed controls in the preview's top bar. */
   toolbar?: boolean;
+  /** The renderer offers `annotationSurface` (once its content is shown). */
+  annotate?: boolean;
 }
 
 export interface PreviewRendererContext {

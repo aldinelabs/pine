@@ -13,9 +13,15 @@ import { configurePineMarkdown } from "@/components/markdown/configureMarkdown";
 import MarkdownContent from "@/components/markdown/MarkdownContent.vue";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { fileLanguage } from "@/lib/fileLanguage";
-import { filePreviewSelection } from "@/lib/filePreviewSelection";
+import {
+  filePreviewExcluded,
+  filePreviewRangeSelection,
+  filePreviewSelection,
+} from "@/lib/filePreviewSelection";
 import type { AttachmentSelection } from "@/shared/attachments";
 import type {
+  AnnotationLines,
+  AnnotationSurface,
   PreviewRendererEvents,
   PreviewRendererProps,
 } from "./previewRenderer";
@@ -168,7 +174,37 @@ function updateSelection(): void {
 
 useEventListener(document, "selectionchange", updateSelection);
 watch(() => props.mode, updateSelection);
-defineExpose({ readSelection });
+/**
+ * The text comments anchor in: the source code in code view (line numbers
+ * sit outside it), or the rendered Markdown minus its toolbars and controls.
+ */
+function annotationSurface(): AnnotationSurface | undefined {
+  const root = content.value;
+  if (!root) return undefined;
+  if (markdownNodes.value) {
+    const renderer = root.querySelector<HTMLElement>(".markdown-renderer");
+    return renderer
+      ? { root: renderer, excluded: filePreviewExcluded }
+      : undefined;
+  }
+  const code = root.querySelector<HTMLElement>("pre code");
+  return code ? { root: code } : undefined;
+}
+
+function annotationLines(range: Range): AnnotationLines | undefined {
+  if (!content.value) return undefined;
+  const selection = filePreviewRangeSelection(
+    content.value,
+    range,
+    source.value,
+    markdownNodes.value,
+  );
+  return selection
+    ? { startLine: selection.startLine, endLine: selection.endLine }
+    : undefined;
+}
+
+defineExpose({ readSelection, annotationSurface, annotationLines });
 </script>
 
 <template>

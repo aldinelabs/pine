@@ -284,6 +284,7 @@ export const previewRenderers: readonly PreviewRenderer[] = [
       ...noControls,
       renderToggle:
         fileLanguage(filePath) === "markdown" || hasRenderedView(filePath),
+      annotate: true,
     }),
   },
   {

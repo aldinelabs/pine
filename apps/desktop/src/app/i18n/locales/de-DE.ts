@@ -905,6 +905,7 @@ export default {
       label: "Zitat",
       listLabel: "Zitierte Stellen",
       remove: "Zitat entfernen",
+      comment: "Kommentar",
     },
     selection: {
       label: "Ausgewählter Text",
@@ -1125,6 +1126,31 @@ export default {
       archiveEmpty: "Keine Dateien gefunden",
       archiveEmptyDescription:
         "Das Archiv ist leer oder verwendet eine Kompression, die Pine nicht lesen kann, etwa Zstandard.",
+      annotations: {
+        comment: "Kommentieren",
+        placeholder: "Kommentar hinzufügen…",
+        cancel: "Abbrechen",
+        title: "Kommentare",
+        close: "Kommentare schließen",
+        empty: "Noch keine Kommentare",
+        emptyDescription:
+          "Markiere Text in der Vorschau und wähle „Kommentieren“.",
+        send: "{count} Kommentar senden | {count} Kommentare senden",
+        clearAll: "Alle löschen",
+        clearTitle: "Alle Kommentare löschen?",
+        clearDescription:
+          "Dadurch wird {count} Kommentar zu dieser Datei entfernt. | Dadurch werden {count} Kommentare zu dieser Datei entfernt.",
+        clearConfirm: "Löschen",
+        edit: "Bearbeiten",
+        delete: "Löschen",
+        save: "Speichern",
+        orphaned: "Originaltext geändert",
+        line: "Zeile {line}",
+        lines: "Zeilen {start}–{end}",
+        sourceView: "Quelltextansicht",
+        renderedView: "Gerenderte Ansicht",
+        limit: "Eine Datei kann bis zu {max} Kommentare enthalten.",
+      },
     },
     contentTabs: {
       emptyTitle: "Keine Tabs geöffnet",

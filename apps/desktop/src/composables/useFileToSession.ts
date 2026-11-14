@@ -3,6 +3,7 @@ import { useI18n } from "vue-i18n";
 import { handleError } from "@/app/errors/errorHandler";
 import type { ProjectFilePreviewRequest } from "@/shared/projectFiles";
 import type { AttachmentSelection } from "@/shared/attachments";
+import type { PineQuote } from "@/shared/quotes";
 import type { PineSessionSummary } from "@/shared/sessions";
 import { useContentTabsStore } from "@/stores/contentTabs";
 import { useProjectStore } from "@/stores/project";
@@ -15,6 +16,23 @@ export function useFileToSession() {
   const navigation = useContentTabNavigation();
   const pending = ref(0);
   const isSending = computed(() => pending.value > 0);
+
+  /** The session tab a file's content goes to, opened or created as needed. */
+  function targetTab(
+    projectId: string,
+    target: string | PineSessionSummary | null,
+  ) {
+    return target === null
+      ? tabs.createSessionTab({ projectId, reuseDraft: false })
+      : typeof target === "string"
+        ? tabs.tabs.find(
+            (tab) =>
+              tab.id === target &&
+              tab.kind === "session" &&
+              tab.projectId === projectId,
+          )
+        : tabs.openSession(target, projectId);
+  }
 
   async function sendFile(
     file: ProjectFilePreviewRequest,
@@ -34,20 +52,7 @@ export function useFileToSession() {
       // Do not deliver late results once the project has closed. A file only
       // goes to sessions of its own project, whose sandbox can read it.
       if (!project.isOpen(file.projectId)) return;
-      const tab =
-        target === null
-          ? tabs.createSessionTab({
-              projectId: file.projectId,
-              reuseDraft: false,
-            })
-          : typeof target === "string"
-            ? tabs.tabs.find(
-                (tab) =>
-                  tab.id === target &&
-                  tab.kind === "session" &&
-                  tab.projectId === file.projectId,
-              )
-            : tabs.openSession(target, file.projectId);
+      const tab = targetTab(file.projectId, target);
       const attachments = selection
         ? result.attachments.map((attachment) => ({ ...attachment, selection }))
         : result.attachments;
@@ -70,5 +75,46 @@ export function useFileToSession() {
     return sendFile(file, null, selection);
   }
 
-  return { isSending, sendFile, sendFileToNewSession };
+  /**
+   * Puts comments on a file into a session's composer, with the file itself
+   * attached, and shows that session. The quotes are built from the file's
+   * absolute path, which only the main process knows. False when nothing
+   * could be delivered, so the caller keeps its comments.
+   */
+  async function sendQuotes(
+    file: ProjectFilePreviewRequest,
+    target: string | null,
+    quotesFor: (path: string) => PineQuote[],
+  ): Promise<boolean> {
+    if (!project.isOpen(file.projectId)) return false;
+    pending.value += 1;
+    try {
+      const result = await window.pine.inspectProjectAttachments([
+        {
+          folderId: file.folderId,
+          projectId: file.projectId,
+          relativePath: file.relativePath,
+        },
+      ]);
+      const attachment = result.attachments[0];
+      if (!attachment || !project.isOpen(file.projectId)) return false;
+      const quotes = quotesFor(attachment.path);
+      const tab = targetTab(file.projectId, target);
+      if (!quotes.length || !tab || !tabs.addQuotes(tab.id, quotes))
+        return false;
+      tabs.addAttachments(tab.id, [attachment]);
+      navigation.activate(tab.id);
+      return true;
+    } catch (error) {
+      handleError(error, {
+        id: "project.preview.send",
+        title: t("project.preview.sendFailed"),
+      });
+      return false;
+    } finally {
+      pending.value -= 1;
+    }
+  }
+
+  return { isSending, sendFile, sendFileToNewSession, sendQuotes };
 }

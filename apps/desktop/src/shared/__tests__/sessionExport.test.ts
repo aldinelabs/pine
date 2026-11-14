@@ -94,4 +94,44 @@ describe("formatSessionAsMarkdown", () => {
     expect(markdown).toContain("- Reason: Safe\n\nConfirmed: X.\n");
     expect(markdown).not.toMatch(/\n{3,}/u);
   });
+
+  it("follows a commented quote with its comment and location", () => {
+    const markdown = formatSessionAsMarkdown({
+      approvalMode: "auto-approve",
+      messages: [
+        {
+          createdAt: "2026-09-08T12:00:00.000Z",
+          id: "user-1",
+          role: "user",
+          blocks: [
+            {
+              type: "quotes",
+              quotes: [
+                { text: "plain" },
+                {
+                  text: "line one\nline two",
+                  file: "/repo/src/a.ts",
+                  lines: "12-13",
+                  comment: "Rename this",
+                },
+                { text: "loose", comment: "Where?" },
+              ],
+            },
+          ],
+        },
+      ],
+      models: [],
+      summary: {
+        createdAt: "2026-09-08T12:00:00.000Z",
+        id: "session-1",
+        messageCount: 1,
+        preview: "",
+        updatedAt: "2026-09-08T12:00:00.000Z",
+      },
+    });
+
+    expect(markdown).toContain(
+      "> plain\n\n> line one\n> line two\nComment (a.ts:12-13): Rename this\n\n> loose\nComment: Where?\n",
+    );
+  });
 });

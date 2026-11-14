@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, useTemplateRef, watch } from "vue";
+import { computed, ref, shallowRef, useTemplateRef, watch } from "vue";
 import { sandboxHtml } from "@/lib/htmlSandbox";
 
 /**
@@ -25,13 +25,36 @@ const props = withDefaults(
   }>(),
   { zoom: 100, stylesheet: undefined, background: "#ffffff" },
 );
+const emit = defineEmits<{
+  /** The frame finished loading a page; it reloads whenever the page changes. */
+  load: [];
+}>();
 const viewport = useTemplateRef<HTMLDivElement>("viewport");
 const frame = useTemplateRef<HTMLIFrameElement>("frame");
 const scale = computed(() => props.zoom / 100);
+/**
+ * How comment highlights look in the page. Pages are shown on white, so the
+ * colours are fixed; `!important` keeps a page's own CSS from hiding them.
+ */
+const ANNOTATION_STYLESHEET = `
+::highlight(pine-annotation) {
+  background-color: rgb(245 158 11 / 0.22) !important;
+  text-decoration: underline 1.5px rgb(217 119 6 / 0.7) !important;
+  text-underline-offset: 3px !important;
+}
+::highlight(pine-annotation-active) {
+  background-color: rgb(245 158 11 / 0.4) !important;
+  text-decoration: underline 2px rgb(217 119 6) !important;
+  text-underline-offset: 3px !important;
+}
+`;
+
 const document = computed(() => {
   const html = sandboxHtml(props.html);
-  if (!props.stylesheet) return html;
-  const style = `<style>${props.stylesheet.replace(/<\//g, "<\\/")}</style>`;
+  const css = [props.stylesheet, ANNOTATION_STYLESHEET]
+    .filter(Boolean)
+    .join("\n");
+  const style = `<style>${css.replace(/<\//g, "<\\/")}</style>`;
   const close = html.search(/<\/head>/i);
   return close < 0
     ? html + style
@@ -110,13 +133,24 @@ function forwardZoomKey(event: KeyboardEvent): void {
   );
 }
 
+/** The document of the page the frame last finished loading. */
+const page = shallowRef<Document>();
+
 function listen(): void {
-  const page = frame.value?.contentDocument;
-  page?.addEventListener("wheel", handleWheel, { passive: false });
-  page?.addEventListener("keydown", forwardZoomKey);
+  const loaded = frame.value?.contentDocument ?? undefined;
+  page.value = loaded;
+  loaded?.addEventListener("wheel", handleWheel, { passive: false });
+  loaded?.addEventListener("keydown", forwardZoomKey);
+  emit("load");
 }
 
+defineExpose({
+  /** The loaded page's body; undefined until the frame loads, and while it reloads. */
+  body: (): HTMLElement | undefined => page.value?.body ?? undefined,
+});
+
 watch(document, () => {
+  page.value = undefined;
   magnification.value = 1;
   offset.value = { x: 0, y: 0 };
 });

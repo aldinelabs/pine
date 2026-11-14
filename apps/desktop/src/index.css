@@ -215,6 +215,7 @@
   --info: var(--pine-olive-info);
   /* Side chats and the transcript passages their follow-ups ask about. */
   --side-chat: oklch(0.558 0.288 302.321);
+  --annotation: oklch(0.769 0.188 70.08);
   --pine-olive-border: oklch(0.93 0.007 106.5);
   --border: var(--pine-olive-border);
   --pine-olive-input: oklch(0.93 0.007 106.5);
@@ -329,6 +330,7 @@
   --pine-olive-info: oklch(0.707 0.165 254.624);
   --info: var(--pine-olive-info);
   --side-chat: oklch(0.714 0.203 305.504);
+  --annotation: oklch(0.828 0.189 84.429);
   --pine-olive-border: oklch(1 0 0 / 10%);
   --border: var(--pine-olive-border);
   --pine-olive-input: oklch(1 0 0 / 15%);
@@ -400,6 +402,7 @@
   --color-warning: var(--warning);
   --color-info: var(--info);
   --color-side-chat: var(--side-chat);
+  --color-annotation: var(--annotation);
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
@@ -1147,5 +1150,20 @@ html.sidebar-vibrancy:has(
 ::highlight(pine-side-chat-active) {
   background-color: color-mix(in oklch, var(--side-chat) 30%, transparent);
   text-decoration: underline 2px var(--side-chat);
+  text-underline-offset: 3px;
+}
+
+/* Passages of a file preview that the user commented on. */
+::highlight(pine-annotation) {
+  background-color: color-mix(in oklch, var(--annotation) 18%, transparent);
+  text-decoration: underline 1.5px
+    color-mix(in oklch, var(--annotation) 70%, transparent);
+  text-underline-offset: 3px;
+}
+
+/* The commented passage the user is looking at. */
+::highlight(pine-annotation-active) {
+  background-color: color-mix(in oklch, var(--annotation) 32%, transparent);
+  text-decoration: underline 2px solid var(--annotation);
   text-underline-offset: 3px;
 }

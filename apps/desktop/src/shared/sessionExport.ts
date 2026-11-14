@@ -1,4 +1,5 @@
 import type { PineApprovalMode } from "./agent";
+import { quoteSourceLabel } from "./quotes";
 import type {
   PineContentBlock,
   PineSessionModel,
@@ -85,8 +86,14 @@ function appendBlock(lines: string[], block: PineContentBlock): void {
     return;
   }
   if (block.type === "quotes") {
-    for (const quote of block.quotes)
-      lines.push(quote.text.replace(/^/gm, "> "), "");
+    for (const quote of block.quotes) {
+      lines.push(quote.text.replace(/^/gm, "> "));
+      if (quote.comment) {
+        const source = quoteSourceLabel(quote);
+        lines.push(`Comment${source ? ` (${source})` : ""}: ${quote.comment}`);
+      }
+      lines.push("");
+    }
     return;
   }
   if (block.type === "toolCall") {

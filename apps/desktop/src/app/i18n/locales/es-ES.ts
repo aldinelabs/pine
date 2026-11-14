@@ -901,6 +901,7 @@ export default {
       label: "Cita",
       listLabel: "Fragmentos citados",
       remove: "Quitar cita",
+      comment: "Comentario",
     },
     selection: {
       label: "Texto seleccionado",
@@ -1120,6 +1121,31 @@ export default {
       archiveEmpty: "No se encontraron archivos",
       archiveEmptyDescription:
         "El archivo comprimido está vacío o usa una compresión que Pine no puede leer, como Zstandard.",
+      annotations: {
+        comment: "Comentar",
+        placeholder: "Añade un comentario…",
+        cancel: "Cancelar",
+        title: "Comentarios",
+        close: "Cerrar comentarios",
+        empty: "Aún no hay comentarios",
+        emptyDescription:
+          "Selecciona texto en la vista previa y elige «Comentar».",
+        send: "Enviar {count} comentario | Enviar {count} comentarios",
+        clearAll: "Borrar todo",
+        clearTitle: "¿Borrar todos los comentarios?",
+        clearDescription:
+          "Se eliminará {count} comentario de este archivo. | Se eliminarán {count} comentarios de este archivo.",
+        clearConfirm: "Borrar",
+        edit: "Editar",
+        delete: "Eliminar",
+        save: "Guardar",
+        orphaned: "El texto original cambió",
+        line: "Línea {line}",
+        lines: "Líneas {start}–{end}",
+        sourceView: "Vista de código",
+        renderedView: "Vista renderizada",
+        limit: "Un archivo admite hasta {max} comentarios.",
+      },
     },
     contentTabs: {
       emptyTitle: "No hay pestañas abiertas",

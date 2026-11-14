@@ -314,7 +314,9 @@ From top to bottom:
      turns the draft into an ordinary conversation.
    - Attachment list (files, folders, conversations, pasted text and images),
      a chip for selected content sent from a preview, and "Quoted passages"
-     chips, each with Remove quote. The composer resizes smoothly as these
+     chips, each with Remove quote. Comment chips sent from a file preview's
+     Comments panel show the file, the lines and the comment. The composer
+     resizes smoothly as these
      appear and disappear.
    - Text box. In a new session with no project, typing `@` chooses the
      project.
@@ -428,6 +430,35 @@ Zoom out, the zoom percentage and Zoom in. Mod + scroll also zooms; a
 zoomed image can be scrolled around. Clicking outside the image, the close
 button or Esc closes it, and the image returns to its place in the document.
 Images that failed to load, are still loading or are links do not open.
+
+##### Comments
+
+In a preview of a project file that shows text, code, Markdown (Text or
+Rendered view) or an HTML page, comments collect change requests on passages
+of the file and send them to a session together.
+
+- Selecting text shows a small floating menu under the selection with
+  Comment. Choosing it, or pressing Mod+Alt+M, turns the menu into a comment
+  box ("Add a comment…") with Cancel and Comment. Mod+Enter saves; Esc
+  cancels.
+- Commented passages are highlighted in amber. Clicking one opens the
+  Comments panel at that comment.
+- The preview footer has a Comments button with the number of comments. It
+  opens a panel on the right of the preview (Close comments closes it) that
+  lists the comments in document order. Each shows its location ("Line 12" or
+  "Lines 12–18"), a "Source view" or "Rendered view" tag when it was made in
+  the other view, the quoted text, the comment, and Edit and Delete (editing
+  offers Cancel and Save). "Original text changed" marks a comment whose
+  passage is no longer in the file after it changed. Clicking a comment
+  scrolls to its passage, switching view if needed. With no comments the
+  panel shows "No comments yet".
+- At the bottom of the panel, "Send N comments" opens a list of the project's
+  session tabs and New session. Choosing one puts the comments into that
+  session's composer as comment chips (file, lines and comment), opens the
+  session, and clears the comments from the preview. Clear all asks "Clear
+  all comments?" before removing them.
+- A file holds up to 50 comments. Comments last until they are sent or
+  cleared; they are not kept when Pine quits.
 
 ### Workbench
 
@@ -636,3 +667,5 @@ and Quit Pine. Quitting from the menu is the way to stop automations, Remote Con
 - Mod+L: focus the composer
 - Enlarged Markdown image: Left / Right previous / next image; Mod+= / Mod+−
   zoom in / out; Mod+0 fit to window; Esc closes
+- File preview with text selected: Mod+Alt+M comments on the selection; in
+  the comment box Mod+Enter saves and Esc cancels

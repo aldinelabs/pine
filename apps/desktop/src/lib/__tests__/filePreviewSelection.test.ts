@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 import {
   documentPreviewSelection,
+  filePreviewRangeSelection,
   filePreviewSelection,
 } from "../filePreviewSelection";
 
@@ -87,5 +88,43 @@ describe("file preview selections", () => {
         { type: "paragraph", raw: "", sourceMap: { startLine: 0, endLine: 2 } },
       ]),
     ).toEqual({ startLine: 2, endLine: 2, text: "bold" });
+  });
+});
+
+describe("file preview range selections", () => {
+  it("maps an arbitrary range in code without reading the window selection", () => {
+    const root = document.createElement("div");
+    root.innerHTML = "<pre><code>first\nsecond\nthird</code></pre>";
+    document.body.append(root);
+    const text = root.querySelector("code")!.firstChild!;
+    const range = document.createRange();
+    range.setStart(text, 2);
+    range.setEnd(text, "first\nsecond\nth".length);
+    expect(window.getSelection()?.rangeCount).toBe(0);
+    expect(
+      filePreviewRangeSelection(root, range, "first\nsecond\nthird"),
+    ).toEqual({ startLine: 1, endLine: 3, text: "rst\nsecond\nth" });
+  });
+
+  it("maps an arbitrary range in rendered Markdown and rejects outside ranges", () => {
+    const root = document.createElement("div");
+    root.innerHTML =
+      '<div class="markdown-renderer"><div data-node-index="0"><h1>Title</h1></div><div data-node-index="1"><p>Body <button>copy</button>text</p></div></div>';
+    const outside = document.createTextNode("outside");
+    document.body.append(root, outside);
+    const nodes = [
+      { type: "heading", raw: "", sourceMap: { startLine: 0, endLine: 1 } },
+      { type: "paragraph", raw: "", sourceMap: { startLine: 2, endLine: 3 } },
+    ];
+    const range = document.createRange();
+    range.selectNodeContents(root.querySelector("p")!);
+    expect(
+      filePreviewRangeSelection(root, range, "# Title\n\nBody text", nodes),
+    ).toEqual({ startLine: 3, endLine: 3, text: "Body copytext" });
+
+    range.selectNodeContents(outside);
+    expect(
+      filePreviewRangeSelection(root, range, "# Title\n\nBody text", nodes),
+    ).toBeUndefined();
   });
 });

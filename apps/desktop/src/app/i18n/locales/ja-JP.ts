@@ -893,6 +893,7 @@ export default {
       label: "引用",
       listLabel: "引用した箇所",
       remove: "引用を削除",
+      comment: "コメント",
     },
     selection: {
       label: "選択したテキスト",
@@ -1109,6 +1110,31 @@ export default {
       archiveEmpty: "ファイルが見つかりません",
       archiveEmptyDescription:
         "アーカイブが空か、Zstandard など Pine が読み取れない圧縮方式を使用しています。",
+      annotations: {
+        comment: "コメント",
+        placeholder: "コメントを入力…",
+        cancel: "キャンセル",
+        title: "コメント",
+        close: "コメントを閉じる",
+        empty: "コメントはまだありません",
+        emptyDescription:
+          "プレビューでテキストを選択し、「コメント」を選んでください。",
+        send: "コメント {count} 件を送信 | コメント {count} 件を送信",
+        clearAll: "すべてクリア",
+        clearTitle: "すべてのコメントをクリアしますか？",
+        clearDescription:
+          "このファイルのコメント {count} 件が削除されます。 | このファイルのコメント {count} 件が削除されます。",
+        clearConfirm: "クリア",
+        edit: "編集",
+        delete: "削除",
+        save: "保存",
+        orphaned: "元のテキストが変更されました",
+        line: "{line} 行目",
+        lines: "{start}–{end} 行目",
+        sourceView: "ソース表示",
+        renderedView: "レンダリング表示",
+        limit: "1 つのファイルに付けられるコメントは最大 {max} 件です。",
+      },
     },
     contentTabs: {
       emptyTitle: "開いているタブはありません",

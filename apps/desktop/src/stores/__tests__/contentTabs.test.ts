@@ -38,6 +38,75 @@ describe("content tabs store", () => {
     expect(store.addAttachments(draft.id, [attachment])).toBe(false);
   });
 
+  it("stages composer quotes per session tab, skipping repeats, and releases closed tabs", () => {
+    const store = useContentTabsStore();
+    store.bindSession("session-1", firstSession);
+    const draft = store.createSessionTab();
+    const comment = {
+      text: "passage",
+      file: "/repo/a.md",
+      lines: "3",
+      comment: "Why?",
+    };
+    expect(store.addQuotes("session-1", [comment, { text: "passage" }])).toBe(
+      true,
+    );
+    store.addQuotes("session-1", [{ ...comment, lines: "4" }]);
+    store.addQuotes(draft.id, [{ text: "other" }]);
+    expect(store.quotesFor("session-1")).toEqual([
+      comment,
+      { text: "passage" },
+    ]);
+    expect(store.quotesFor(draft.id)).toEqual([{ text: "other" }]);
+    expect(store.setQuotes("session-1", [])).toBe(true);
+    expect(store.quotesFor("session-1")).toEqual([]);
+    store.close(draft.id, draft.id);
+    expect(store.composerQuotes[draft.id]).toBeUndefined();
+    expect(store.addQuotes(draft.id, [comment])).toBe(false);
+    const file = store.openFile({
+      projectId: "p1",
+      folderId: "f1",
+      relativePath: "a.md",
+    });
+    expect(store.addQuotes(file.id, [comment])).toBe(false);
+    expect(store.quotesFor(file.id)).toEqual([]);
+  });
+
+  it("keeps a tab that quotes are staged into", () => {
+    const store = useContentTabsStore();
+    const tab = store.openSession(firstSession, "p1", "session-1", {
+      preview: true,
+    });
+    expect(store.isPreviewTab(tab.id)).toBe(true);
+    store.addQuotes(tab.id, []);
+    expect(store.isPreviewTab(tab.id)).toBe(true);
+    store.addQuotes(tab.id, [{ text: "a" }]);
+    expect(store.isPreviewTab(tab.id)).toBe(false);
+  });
+
+  it("carries staged quotes through a failed first message and a rebind", () => {
+    const store = useContentTabsStore();
+    const quote = { text: "q", file: "/a.md", comment: "c" };
+    const draft = store.createSessionTab({
+      projectId: "p1",
+      reuseDraft: false,
+    });
+    store.addQuotes(draft.id, [quote]);
+    store.beginPrompt(draft.id, "hi");
+    const restored = store.failPrompt(draft.id)!;
+    expect(store.quotesFor(restored)).toEqual([quote]);
+
+    const bound = store.bindSession(restored, firstSession)!;
+    const other = store.createSessionTab({ reuseDraft: false });
+    store.addQuotes(other.id, [{ text: "more" }]);
+    expect(store.bindSession(other.id, firstSession)?.id).toBe(bound.id);
+    expect(store.quotesFor(bound.id)).toEqual([quote, { text: "more" }]);
+    expect(store.composerQuotes[other.id]).toBeUndefined();
+
+    store.reset();
+    expect(store.composerQuotes).toEqual({});
+  });
+
   it("keeps a draft's mutators through a failed first message", () => {
     const store = useContentTabsStore();
     const mutator = {

@@ -43,6 +43,48 @@ describe("HtmlFrame", () => {
     expect(frame.attributes("srcdoc")).toContain("default-src 'none'");
   });
 
+  it("styles comment highlights in the page, after its own CSS", () => {
+    const wrapper = mount(HtmlFrame, {
+      props: {
+        html: "<html><head><style>p{}</style></head><body></body></html>",
+        title: "Page",
+        stylesheet: "body { margin: 0 }",
+      },
+    });
+    const parsed = new DOMParser().parseFromString(
+      wrapper.get("iframe").attributes("srcdoc") ?? "",
+      "text/html",
+    );
+    const styles = [...parsed.head.querySelectorAll("style")].map(
+      (style) => style.textContent ?? "",
+    );
+    const own = styles.at(-1) ?? "";
+    expect(styles[0]).toBe("p{}");
+    expect(own).toContain("body { margin: 0 }");
+    expect(own).toMatch(
+      /::highlight\(pine-annotation\) \{[^}]*rgb\(245 158 11 \/ 0\.22\) !important/,
+    );
+    expect(own).toMatch(
+      /::highlight\(pine-annotation-active\) \{[^}]*rgb\(245 158 11 \/ 0\.4\) !important/,
+    );
+  });
+
+  it("exposes the loaded page's body and reports each load", async () => {
+    const { wrapper, frame, page } = await mountFrame();
+    expect(wrapper.emitted("load")).toHaveLength(1);
+    const exposed = wrapper.vm as unknown as {
+      body: () => HTMLElement | undefined;
+    };
+    expect(exposed.body()).toBe(page.body);
+
+    // A new page reloads the frame; until it loads there is no body.
+    await wrapper.setProps({ html: "<p>Again</p>" });
+    expect(exposed.body()).toBeUndefined();
+    await frame.trigger("load");
+    expect(wrapper.emitted("load")).toHaveLength(2);
+    expect(exposed.body()).toBe(page.body);
+  });
+
   it("magnifies the page under the pointer on a pinch, without page zoom", async () => {
     const mounted = await mountFrame();
     const event = pinch(-100 * Math.LN2, 100, 50);

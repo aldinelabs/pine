@@ -2,8 +2,10 @@ import { describe, expect, it } from "vitest";
 import { serializeAttachmentMessage } from "../attachments";
 import {
   MAX_QUOTE_LENGTH,
+  isSameQuote,
   normalizeQuoteText,
   parseQuoteMessage,
+  quoteSourceLabel,
   serializeQuoteMessage,
 } from "../quotes";
 import { parseMessageBlocks } from "../sessions";
@@ -42,5 +44,61 @@ describe("quote messages", () => {
     expect(normalizeQuoteText("x".repeat(MAX_QUOTE_LENGTH + 5))).toHaveLength(
       MAX_QUOTE_LENGTH + 1,
     );
+  });
+
+  it("round-trips a preview comment as plain JSON fields", () => {
+    const quotes = [
+      {
+        text: "const a = 1;",
+        file: "/repo/src/a.ts",
+        lines: "12-18",
+        comment: "Rename this",
+      },
+      {
+        text: "old",
+        file: "/repo/src/a.ts",
+        comment: "Gone?",
+        stale: true as const,
+      },
+    ];
+    const message = serializeQuoteMessage(quotes, "");
+    expect(message).toContain(
+      '{"text":"const a = 1;","file":"/repo/src/a.ts","lines":"12-18","comment":"Rename this"}',
+    );
+    expect(parseQuoteMessage(message)).toEqual({ quotes, prompt: "" });
+  });
+
+  it.each([
+    { file: "" },
+    { lines: 12 },
+    { comment: null },
+    { comment: ["x"] },
+    { stale: false },
+  ])("rejects a quote with an invalid comment field %o", (field) => {
+    const message = [
+      '<pine_quotes version="1">',
+      JSON.stringify({ quotes: [{ text: "passage", ...field }] }),
+      "</pine_quotes>",
+    ].join("\n");
+    expect(parseQuoteMessage(message)).toEqual({
+      quotes: [],
+      prompt: message,
+    });
+  });
+
+  it("labels where a comment points", () => {
+    expect(
+      quoteSourceLabel({ text: "a", file: "C:\\repo\\b.md", lines: "3" }),
+    ).toBe("b.md:3");
+    expect(quoteSourceLabel({ text: "a", file: "/repo/b.md" })).toBe("b.md");
+    expect(quoteSourceLabel({ text: "a", lines: "3-4" })).toBe("3-4");
+    expect(quoteSourceLabel({ text: "a" })).toBe("");
+  });
+
+  it("treats quotes as the same by text, file, and comment", () => {
+    const quote = { text: "a", file: "/b.md", comment: "c" };
+    expect(isSameQuote(quote, { ...quote, lines: "1" })).toBe(true);
+    expect(isSameQuote(quote, { ...quote, comment: "d" })).toBe(false);
+    expect(isSameQuote({ text: "a" }, { text: "a", role: "user" })).toBe(true);
   });
 });

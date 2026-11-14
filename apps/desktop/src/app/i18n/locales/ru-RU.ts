@@ -890,6 +890,7 @@ export default {
       label: "Цитата",
       listLabel: "Цитаты",
       remove: "Убрать цитату",
+      comment: "Комментарий",
     },
     selection: {
       label: "Выделенный текст",
@@ -1107,6 +1108,31 @@ export default {
       archiveEmpty: "Файлы не найдены",
       archiveEmptyDescription:
         "Архив пуст или использует сжатие, которое Pine не умеет читать, например Zstandard.",
+      annotations: {
+        comment: "Комментировать",
+        placeholder: "Добавьте комментарий…",
+        cancel: "Отмена",
+        title: "Комментарии",
+        close: "Закрыть комментарии",
+        empty: "Комментариев пока нет",
+        emptyDescription:
+          "Выделите текст в предпросмотре и выберите «Комментировать».",
+        send: "Отправить комментарии ({count}) | Отправить комментарии ({count})",
+        clearAll: "Очистить всё",
+        clearTitle: "Удалить все комментарии?",
+        clearDescription:
+          "Будут удалены комментарии к этому файлу: {count}. | Будут удалены комментарии к этому файлу: {count}.",
+        clearConfirm: "Очистить",
+        edit: "Изменить",
+        delete: "Удалить",
+        save: "Сохранить",
+        orphaned: "Исходный текст изменился",
+        line: "Строка {line}",
+        lines: "Строки {start}–{end}",
+        sourceView: "Исходный код",
+        renderedView: "Отрисованный вид",
+        limit: "Максимум комментариев к одному файлу: {max}.",
+      },
     },
     contentTabs: {
       emptyTitle: "Нет открытых вкладок",

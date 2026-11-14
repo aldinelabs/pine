@@ -833,6 +833,7 @@ export default {
       label: "引用",
       listLabel: "引用的片段",
       remove: "移除引用",
+      comment: "批註",
     },
     selection: {
       label: "選取的文字",
@@ -1046,6 +1047,30 @@ export default {
       archiveEmpty: "沒有讀到檔案",
       archiveEmptyDescription:
         "壓縮檔是空的，或使用了不支援的壓縮方式（如 Zstandard）。",
+      annotations: {
+        comment: "批註",
+        placeholder: "寫下修改意見…",
+        cancel: "取消",
+        title: "批註",
+        close: "關閉批註",
+        empty: "還沒有批註",
+        emptyDescription: "在預覽中選取文字，然後選擇「批註」。",
+        send: "傳送 {count} 則批註 | 傳送 {count} 則批註",
+        clearAll: "全部清除",
+        clearTitle: "清除全部批註？",
+        clearDescription:
+          "這會移除此檔案上的 {count} 則批註。 | 這會移除此檔案上的 {count} 則批註。",
+        clearConfirm: "清除",
+        edit: "編輯",
+        delete: "刪除",
+        save: "儲存",
+        orphaned: "原文已變更",
+        line: "第 {line} 行",
+        lines: "第 {start}–{end} 行",
+        sourceView: "原始碼檢視",
+        renderedView: "渲染檢視",
+        limit: "每個檔案最多 {max} 則批註。",
+      },
     },
     contentTabs: {
       emptyTitle: "無選項卡",

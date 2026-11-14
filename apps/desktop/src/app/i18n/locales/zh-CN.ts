@@ -829,6 +829,7 @@ export default {
       label: "引用",
       listLabel: "引用的片段",
       remove: "移除引用",
+      comment: "批注",
     },
     selection: {
       label: "选中的文字",
@@ -1042,6 +1043,30 @@ export default {
       archiveEmpty: "没有读到文件",
       archiveEmptyDescription:
         "压缩包是空的，或使用了不支持的压缩方式（如 Zstandard）。",
+      annotations: {
+        comment: "批注",
+        placeholder: "写下修改意见…",
+        cancel: "取消",
+        title: "批注",
+        close: "关闭批注",
+        empty: "还没有批注",
+        emptyDescription: "在预览中选中文字，然后选择「批注」。",
+        send: "发送 {count} 条批注 | 发送 {count} 条批注",
+        clearAll: "全部清除",
+        clearTitle: "清除全部批注？",
+        clearDescription:
+          "这会移除此文件上的 {count} 条批注。 | 这会移除此文件上的 {count} 条批注。",
+        clearConfirm: "清除",
+        edit: "编辑",
+        delete: "删除",
+        save: "保存",
+        orphaned: "原文已变化",
+        line: "第 {line} 行",
+        lines: "第 {start}–{end} 行",
+        sourceView: "源码视图",
+        renderedView: "渲染视图",
+        limit: "每个文件最多 {max} 条批注。",
+      },
     },
     contentTabs: {
       emptyTitle: "无选项卡",

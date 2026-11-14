@@ -884,6 +884,7 @@ export default {
       label: "Quote",
       listLabel: "Quoted passages",
       remove: "Remove quote",
+      comment: "Comment",
     },
     selection: {
       label: "Selected text",
@@ -1100,6 +1101,30 @@ export default {
       archiveEmpty: "No files found",
       archiveEmptyDescription:
         "The archive is empty or uses a compression Pine can't read, such as Zstandard.",
+      annotations: {
+        comment: "Comment",
+        placeholder: "Add a comment…",
+        cancel: "Cancel",
+        title: "Comments",
+        close: "Close comments",
+        empty: "No comments yet",
+        emptyDescription: "Select text in the preview and choose Comment.",
+        send: "Send {count} comment | Send {count} comments",
+        clearAll: "Clear all",
+        clearTitle: "Clear all comments?",
+        clearDescription:
+          "This removes {count} comment on this file. | This removes {count} comments on this file.",
+        clearConfirm: "Clear",
+        edit: "Edit",
+        delete: "Delete",
+        save: "Save",
+        orphaned: "Original text changed",
+        line: "Line {line}",
+        lines: "Lines {start}–{end}",
+        sourceView: "Source view",
+        renderedView: "Rendered view",
+        limit: "A file can hold up to {max} comments.",
+      },
     },
     contentTabs: {
       emptyTitle: "No tabs open",
