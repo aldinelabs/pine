@@ -1131,6 +1131,8 @@ export default {
         emptyDescription:
           "Sélectionnez du texte dans l’aperçu, puis choisissez « Commenter ».",
         send: "Envoyer {count} commentaire | Envoyer {count} commentaires",
+        sendToTab:
+          "Envoyer {count} commentaire vers un onglet… | Envoyer {count} commentaires vers un onglet…",
         clearAll: "Tout effacer",
         clearTitle: "Effacer tous les commentaires ?",
         clearDescription:

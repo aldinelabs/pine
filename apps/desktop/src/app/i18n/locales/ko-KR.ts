@@ -1103,6 +1103,8 @@ export default {
         emptyDescription:
           "미리보기에서 텍스트를 선택한 뒤 “댓글”을 선택하세요.",
         send: "댓글 {count}개 보내기 | 댓글 {count}개 보내기",
+        sendToTab:
+          "댓글 {count}개를 탭으로 보내기… | 댓글 {count}개를 탭으로 보내기…",
         clearAll: "모두 지우기",
         clearTitle: "댓글을 모두 지울까요?",
         clearDescription:

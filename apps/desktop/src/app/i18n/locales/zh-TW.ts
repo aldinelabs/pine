@@ -1056,6 +1056,8 @@ export default {
         empty: "還沒有批註",
         emptyDescription: "在預覽中選取文字，然後選擇「批註」。",
         send: "傳送 {count} 則批註 | 傳送 {count} 則批註",
+        sendToTab:
+          "傳送 {count} 則批註到選項卡… | 傳送 {count} 則批註到選項卡…",
         clearAll: "全部清除",
         clearTitle: "清除全部批註？",
         clearDescription:

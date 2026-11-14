@@ -2,6 +2,10 @@ import { DOMWrapper, flushPromises, mount } from "@vue/test-utils";
 import { createPinia, setActivePinia } from "pinia";
 import { createMemoryHistory, createRouter } from "vue-router";
 import { useContentTabsStore } from "@/stores/contentTabs";
+import {
+  annotationFileKey,
+  usePreviewAnnotationsStore,
+} from "@/stores/previewAnnotations";
 import { useAppearanceStore } from "@/stores/appearance";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createAppI18n } from "@/app/i18n";
@@ -896,6 +900,73 @@ describe("ProjectFilePreview", () => {
       state: "draft",
     });
     expect(store.attachmentsFor(createdId)).toEqual([attachment]);
+  });
+
+  it("sends the file's comments from the footer button once there are any", async () => {
+    const wrapper = render(
+      vi.fn().mockResolvedValue({
+        ...info,
+        kind: "text",
+        text: "hello world",
+        encoding: "UTF-8",
+      }),
+    );
+    const store = useContentTabsStore();
+    const draft = store.createSessionTab({ projectId: "p1" });
+    store.openFile(fileRequest);
+    showProject({
+      id: "p1",
+      name: "Project",
+      schemaVersion: 1,
+      createdAt: "",
+      updatedAt: "",
+      defaultFolderId: "f1",
+      folders: [],
+    });
+    const attachment = {
+      name: "main.py",
+      path: "/project/src/main.py",
+      extension: "py",
+      size: 11,
+      modifiedAt: "",
+    };
+    window.pine.inspectProjectAttachments = vi
+      .fn()
+      .mockResolvedValue({ attachments: [attachment] });
+    await flushPromises();
+    const button = () => wrapper.get('[data-action="send-to-tab"]');
+    expect(button().attributes("data-variant")).toBe("outline");
+    expect(button().text()).toBe("Send to tab…");
+
+    const annotations = usePreviewAnnotationsStore();
+    const key = annotationFileKey(fileRequest);
+    for (const comment of ["Rename", "Shorter"])
+      annotations.add(key, {
+        mode: "code",
+        anchor: { start: 0, end: 5, exact: "hello", prefix: "", suffix: "" },
+        text: "hello",
+        comment,
+        version: "1",
+      });
+    await flushPromises();
+    expect(button().attributes("data-variant")).toBe("default");
+    expect(button().text()).toBe("Send 2 comments to tab…");
+
+    await button().trigger("click");
+    await flushPromises();
+    await new DOMWrapper(
+      document.querySelector('[data-action="new-session"]')!,
+    ).trigger("click");
+    await flushPromises();
+    const createdId = store.fallbackActiveTabId!;
+    expect(createdId).not.toBe(draft.id);
+    expect(store.quotesFor(createdId).map((quote) => quote.comment)).toEqual([
+      "Rename",
+      "Shorter",
+    ]);
+    expect(store.attachmentsFor(createdId)).toEqual([attachment]);
+    expect(annotations.annotationsFor(key)).toEqual([]);
+    expect(button().text()).toBe("Send to tab…");
   });
 
   it("ignores stale reads when switching files", async () => {

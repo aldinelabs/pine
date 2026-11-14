@@ -231,8 +231,7 @@ const sessionTabs = computed(() =>
     (tab) => tab.kind === "session" && tab.projectId === props.file.projectId,
   ),
 );
-const { isSending, sendFile, sendFileToNewSession, sendQuotes } =
-  useFileToSession();
+const { isSending, sendFile, sendQuotes } = useFileToSession();
 const sessionTargets = computed(() =>
   sessionTabs.value.map((tab) => ({
     id: tab.id,
@@ -623,6 +622,14 @@ async function sendAnnotations(target: string | null): Promise<void> {
   annotationsOpen.value = false;
 }
 
+/** The footer's send menu: the comments when there are any, else the file. */
+function sendFromMenu(target: string | null): void {
+  const file = projectTarget.value;
+  if (!file) return;
+  if (annotations.value.length) void sendAnnotations(target);
+  else void sendFile(file, target, menuSelection.value);
+}
+
 function clearAnnotations(): void {
   if (annotationKey.value) annotationsStore.clear(annotationKey.value);
   activeAnnotationId.value = undefined;
@@ -860,17 +867,23 @@ function clearAnnotations(): void {
           @update:open="updateMenu"
         >
           <DropdownMenuTrigger as-child>
+            <!-- With comments on the file, sending means sending them. -->
             <Button
-              variant="outline"
+              data-action="send-to-tab"
+              :variant="annotations.length ? 'default' : 'outline'"
               :disabled="isSending"
               @pointerdown.prevent="updateSelection"
             >
               <Send data-icon="inline-start" />{{
-                t(
-                  selectedRange
-                    ? "project.preview.sendSelectionToTab"
-                    : "project.preview.sendToTab",
-                )
+                annotations.length
+                  ? t("project.preview.annotations.sendToTab", {
+                      count: annotations.length,
+                    })
+                  : t(
+                      selectedRange
+                        ? "project.preview.sendSelectionToTab"
+                        : "project.preview.sendToTab",
+                    )
               }}
             </Button>
           </DropdownMenuTrigger>
@@ -884,7 +897,7 @@ function clearAnnotations(): void {
               <DropdownMenuItem
                 v-for="tab in sessionTabs"
                 :key="tab.id"
-                @select="sendFile(projectTarget, tab.id, menuSelection)"
+                @select="sendFromMenu(tab.id)"
               >
                 <SquareTerminal />
                 <span class="truncate">{{
@@ -901,7 +914,7 @@ function clearAnnotations(): void {
             <DropdownMenuGroup>
               <DropdownMenuItem
                 data-action="new-session"
-                @select="sendFileToNewSession(projectTarget, menuSelection)"
+                @select="sendFromMenu(null)"
               >
                 <Plus />{{ t("project.preview.newSession") }}
               </DropdownMenuItem>

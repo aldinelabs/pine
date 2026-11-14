@@ -1052,6 +1052,8 @@ export default {
         empty: "还没有批注",
         emptyDescription: "在预览中选中文字，然后选择「批注」。",
         send: "发送 {count} 条批注 | 发送 {count} 条批注",
+        sendToTab:
+          "发送 {count} 条批注到选项卡… | 发送 {count} 条批注到选项卡…",
         clearAll: "全部清除",
         clearTitle: "清除全部批注？",
         clearDescription:

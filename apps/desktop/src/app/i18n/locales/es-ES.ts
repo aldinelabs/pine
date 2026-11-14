@@ -1131,6 +1131,8 @@ export default {
         emptyDescription:
           "Selecciona texto en la vista previa y elige «Comentar».",
         send: "Enviar {count} comentario | Enviar {count} comentarios",
+        sendToTab:
+          "Enviar {count} comentario a una pestaña… | Enviar {count} comentarios a una pestaña…",
         clearAll: "Borrar todo",
         clearTitle: "¿Borrar todos los comentarios?",
         clearDescription:

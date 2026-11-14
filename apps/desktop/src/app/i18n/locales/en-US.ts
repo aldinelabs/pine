@@ -1110,6 +1110,8 @@ export default {
         empty: "No comments yet",
         emptyDescription: "Select text in the preview and choose Comment.",
         send: "Send {count} comment | Send {count} comments",
+        sendToTab:
+          "Send {count} comment to tab… | Send {count} comments to tab…",
         clearAll: "Clear all",
         clearTitle: "Clear all comments?",
         clearDescription:

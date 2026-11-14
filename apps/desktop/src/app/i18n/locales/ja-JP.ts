@@ -1120,6 +1120,8 @@ export default {
         emptyDescription:
           "プレビューでテキストを選択し、「コメント」を選んでください。",
         send: "コメント {count} 件を送信 | コメント {count} 件を送信",
+        sendToTab:
+          "コメント {count} 件をタブに送信… | コメント {count} 件をタブに送信…",
         clearAll: "すべてクリア",
         clearTitle: "すべてのコメントをクリアしますか？",
         clearDescription:
