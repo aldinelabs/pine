@@ -1,10 +1,12 @@
 <script setup lang="ts">
 import {
   computed,
+  nextTick,
   onBeforeUnmount,
   onMounted,
   ref,
   shallowRef,
+  useTemplateRef,
   watch,
 } from "vue";
 import { useI18n } from "vue-i18n";
@@ -22,7 +24,10 @@ import HtmlFrame from "./HtmlFrame.vue";
 import PreviewPager from "./PreviewPager.vue";
 import { readPreviewBytes } from "./previewBytes";
 import type {
+  AnnotationRevealRequest,
+  AnnotationSurface,
   PreviewRendererEvents,
+  PreviewRendererHandle,
   PreviewRendererProps,
 } from "./previewRenderer";
 import { usePreviewToolbar } from "./usePreviewToolbar";
@@ -40,6 +45,9 @@ const BASE_FONT = 17;
 const book = shallowRef<Ebook>();
 const chapter = ref(1);
 const html = ref<string>();
+/** The chapter `html` holds; `chapter` moves first, while it loads. */
+const shown = ref(1);
+const frame = useTemplateRef<InstanceType<typeof HtmlFrame>>("frame");
 const contents = ref(true);
 const colors = ref(readerColors());
 const reading = new AbortController();
@@ -74,19 +82,65 @@ function readerColors() {
   };
 }
 
-async function open(index: number): Promise<void> {
+/** The chapter being opened, or the last one. */
+let pending: Promise<void> = Promise.resolve();
+
+function open(index: number): Promise<void> {
+  return (pending = load(index));
+}
+
+async function load(index: number): Promise<void> {
   const target = book.value?.chapters[index - 1];
   if (!target) return;
   const current = ++opening;
+  let loaded: string;
   try {
-    const loaded = await target.load();
-    if (current === opening) html.value = loaded;
+    loaded = await target.load();
   } catch (error) {
     if (current !== opening) return;
     console.error("Failed to open the chapter.", error);
-    html.value = `<p>${t("project.preview.ebookChapterFailed")}</p>`;
+    loaded = `<p>${t("project.preview.ebookChapterFailed")}</p>`;
   }
+  if (current !== opening) return;
+  html.value = loaded;
+  shown.value = index;
 }
+
+/**
+ * Comments anchor in the shown chapter's body, one segment per chapter by its
+ * place in the book's contents. A chapter is one frame document, however
+ * long, so offsets hold across scrolling.
+ */
+function annotationSurfaces(): readonly AnnotationSurface[] {
+  const body = frame.value?.body();
+  if (!body) return [];
+  return [
+    {
+      root: body,
+      segment: `chapter:${shown.value}`,
+      place: {
+        kind: "chapter",
+        title:
+          book.value?.chapters[shown.value - 1]?.title ||
+          book.value?.title ||
+          props.fileName,
+      },
+    },
+  ];
+}
+
+/** Opens a comment's chapter. */
+async function revealAnnotation(
+  request: AnnotationRevealRequest,
+): Promise<void> {
+  const index = Number(/^chapter:(\d+)$/.exec(request.segment ?? "")?.[1]);
+  if (!book.value?.chapters[index - 1]) return;
+  chapter.value = index;
+  await nextTick();
+  await pending;
+}
+
+defineExpose<PreviewRendererHandle>({ annotationSurfaces, revealAnnotation });
 
 onMounted(async () => {
   // Read the colors where the reader shows, now that it has an element.
@@ -117,6 +171,7 @@ onMounted(async () => {
     book.value = opened;
     emit("metadataChange", { pageCount: opened.chapters.length });
     await open(1);
+    if (!props.compact) emit("capabilitiesChange", { annotate: true });
   } catch (error) {
     if (reading.signal.aborted) return;
     console.error("Failed to read the book.", error);
@@ -194,12 +249,14 @@ onBeforeUnmount(() => {
     </aside>
     <HtmlFrame
       v-if="html !== undefined"
-      :key="chapter"
+      ref="frame"
+      :key="shown"
       class="min-w-0 flex-1"
       :html="html"
-      :title="book?.chapters[chapter - 1]?.title ?? fileName"
+      :title="book?.chapters[shown - 1]?.title ?? fileName"
       :stylesheet="stylesheet"
       :background="colors.background"
+      @load="emit('annotationsChange')"
     />
     <div v-else class="grid flex-1 place-items-center" role="status">
       <Spinner class="size-5 text-muted-foreground" />

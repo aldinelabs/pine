@@ -103,15 +103,16 @@ function readTextSelection(): Candidate | undefined {
   )) {
     const current = document.getSelection();
     if (!current || current.isCollapsed || !current.rangeCount) continue;
-    const range = current.getRangeAt(0);
-    // One passage lies in one surface: a page, a slide or a chapter.
-    const inOne = props.surfaces.some(
-      (surface) =>
-        surface.root.contains(range.startContainer) &&
-        surface.root.contains(range.endContainer),
+    const range = current.getRangeAt(0).cloneRange();
+    // One passage lies in one surface: a page, a slide or a chapter. A
+    // selection running on into the next page keeps the part on the first.
+    const surface = props.surfaces.find((candidate) =>
+      candidate.root.contains(range.startContainer),
     );
-    if (inOne && range.toString().trim())
-      return { kind: "text", range: range.cloneRange() };
+    if (!surface) continue;
+    if (!surface.root.contains(range.endContainer))
+      range.setEnd(surface.root, surface.root.childNodes.length);
+    if (range.toString().trim()) return { kind: "text", range };
   }
   return undefined;
 }

@@ -1,5 +1,12 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref, shallowRef } from "vue";
+import {
+  computed,
+  onBeforeUnmount,
+  onMounted,
+  ref,
+  shallowRef,
+  useTemplateRef,
+} from "vue";
 import { useI18n } from "vue-i18n";
 import {
   ResizableHandle,
@@ -21,7 +28,11 @@ import { previewExtension } from "@/shared/previewFormats";
 import MailMessageView from "./MailMessageView.vue";
 import { readPreviewBytes } from "./previewBytes";
 import type {
+  AnnotationPlace,
+  AnnotationRevealRequest,
+  AnnotationSurface,
   PreviewRendererEvents,
+  PreviewRendererHandle,
   PreviewRendererProps,
 } from "./previewRenderer";
 import { usePreviewToolbar } from "./usePreviewToolbar";
@@ -41,12 +52,51 @@ interface MailboxEntry {
 const message = shallowRef<MailMessage>();
 const mailbox = shallowRef<MailboxEntry[]>();
 const selected = ref(0);
+/** The mailbox message `message` holds; `selected` moves first, while it parses. */
+const shown = ref(0);
 const view = ref<"body" | "headers">("body");
 const loading = ref(true);
 const reading = new AbortController();
 let opening = 0;
 
 const zoom = computed(() => (props.compact ? 100 : props.zoom));
+const messageView =
+  useTemplateRef<InstanceType<typeof MailMessageView>>("messageView");
+
+/** A mailbox's messages are segments of their own, named by position. */
+const segment = computed(() =>
+  mailbox.value ? `message:${shown.value}` : undefined,
+);
+const place = computed<AnnotationPlace | undefined>(() =>
+  mailbox.value
+    ? {
+        kind: "chapter",
+        title:
+          message.value?.subject ||
+          mailbox.value[shown.value]?.subject ||
+          t("project.preview.mailNoSubject"),
+      }
+    : undefined,
+);
+
+function annotationSurfaces(): readonly AnnotationSurface[] {
+  return messageView.value?.annotationSurfaces() ?? [];
+}
+
+/** Opens a comment's message, in the view (body or raw headers) it is in. */
+async function revealAnnotation(
+  request: AnnotationRevealRequest,
+): Promise<void> {
+  const name = request.segment ?? "";
+  const part = name.replace(/^message:\d+:?/, "");
+  if (part === "headers:raw") view.value = "headers";
+  else if (part === "") view.value = "body";
+  const index = /^message:(\d+)/.exec(name)?.[1];
+  if (index !== undefined && mailbox.value && Number(index) !== shown.value)
+    await openMailboxMessage(Number(index));
+}
+
+defineExpose<PreviewRendererHandle>({ annotationSurfaces, revealAnnotation });
 
 async function openMailboxMessage(index: number): Promise<void> {
   const entry = mailbox.value?.[index];
@@ -54,7 +104,9 @@ async function openMailboxMessage(index: number): Promise<void> {
   const current = ++opening;
   selected.value = index;
   const parsed = await parseEml(entry.bytes);
-  if (current === opening) message.value = parsed;
+  if (current !== opening) return;
+  message.value = parsed;
+  shown.value = index;
 }
 
 async function load(): Promise<void> {
@@ -85,6 +137,7 @@ onMounted(async () => {
   });
   try {
     await load();
+    if (!props.compact) emit("capabilitiesChange", { annotate: true });
   } catch (error) {
     if (reading.signal.aborted) return;
     console.error("Failed to read the email.", error);
@@ -164,22 +217,30 @@ onBeforeUnmount(() => reading.abort());
       <ResizablePanel :default-size="70">
         <MailMessageView
           v-if="message"
+          ref="messageView"
           :message="message"
           :fallback-title="t('project.preview.mailNoSubject')"
           :view="view"
           :zoom="zoom"
           :active="active"
+          :segment="segment"
+          :place="place"
+          @annotations-change="emit('annotationsChange')"
         />
       </ResizablePanel>
     </ResizablePanelGroup>
 
     <MailMessageView
       v-else-if="message"
+      ref="messageView"
       :message="message"
       :fallback-title="fileName"
       :view="view"
       :zoom="zoom"
       :active="active"
+      :segment="segment"
+      :place="place"
+      @annotations-change="emit('annotationsChange')"
     />
   </div>
 </template>
