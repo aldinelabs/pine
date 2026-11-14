@@ -218,17 +218,22 @@ watch(
               class="relative max-h-40 text-sm"
               @keydown="handleEditKey"
             />
-            <div class="relative flex justify-end gap-1.5">
+            <!-- The buttons sit one bottom inset (py-2) from the card's sides
+                 too, with the card's radius minus that inset, so their
+                 corners stay concentric with the card's. -->
+            <div class="relative -mx-1 flex justify-end gap-1.5">
               <Button
                 type="button"
                 variant="ghost"
                 size="sm"
+                class="rounded-[calc(var(--radius-xl)-0.5rem)]"
                 @click="editingId = undefined"
                 >{{ t("project.preview.annotations.cancel") }}</Button
               >
               <Button
                 type="button"
                 size="sm"
+                class="rounded-[calc(var(--radius-xl)-0.5rem)]"
                 :disabled="!draft.trim()"
                 @click="commitEdit"
                 >{{ t("project.preview.annotations.save") }}</Button
