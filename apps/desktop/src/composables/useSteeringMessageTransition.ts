@@ -444,8 +444,8 @@ export function useSteeringMessageTransition(options: {
         const rect = source?.getBoundingClientRect();
         if (source && isMeasurable(rect)) {
           const content = source.cloneNode(true) as HTMLElement;
-          // A preview still rising in carries its arrival styles; the copy
-          // starts from where it is painted and must not carry them along.
+          // The copy starts from where the preview is painted, and must not
+          // carry any arrival styles along.
           content.style.removeProperty("opacity");
           content.style.removeProperty("transform");
           entry.snapshot = { rect, content };
@@ -463,6 +463,7 @@ export function useSteeringMessageTransition(options: {
       for (const entry of unused) entry.cancelReveal?.();
       // A message sent while the agent runs rises from the composer into the
       // staged previews, as a normally sent message rises into the transcript.
+      // The whole row rises, so its actions travel with the bubble.
       if (lastGeneration === generation) {
         for (const entry of added) {
           const currentGeneration = generation;
@@ -473,7 +474,7 @@ export function useSteeringMessageTransition(options: {
               return index < 0
                 ? null
                 : (options.container.value?.querySelectorAll<HTMLElement>(
-                    "[data-steering-content]",
+                    '[data-slot="staged-steering-message"]',
                   )[index] ?? null);
             };
             const cancel = revealMessage(

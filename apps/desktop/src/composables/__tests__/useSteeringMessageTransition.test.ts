@@ -100,7 +100,7 @@ beforeEach(() => {
     function (this: HTMLElement) {
       // Previews and the composer sit at the bottom; messages sit above them.
       const atTail =
-        !!this.closest("[data-steering-content]") ||
+        !!this.closest('[data-slot="staged-steering-message"]') ||
         this.matches('[data-slot="session-composer"]');
       return new DOMRect(200, atTail ? 600 : 300, 100, 40);
     },
@@ -391,7 +391,13 @@ it("raises a message sent while the agent runs from the composer into the staged
   await flushPromises();
   queue.value = ["Steer this way"];
   await flushPromises();
-  const preview = wrapper.get<HTMLElement>("[data-steering-content]");
+  // The bubble and its actions rise together.
+  const preview = wrapper.get<HTMLElement>(
+    '[data-slot="staged-steering-message"]',
+  );
+  expect(preview.find('[data-slot="staged-steering-actions"]').exists()).toBe(
+    true,
+  );
   expect(preview.element.style.opacity).toBe("0");
   // The composer sits at the same height as the preview in this layout; the
   // vertical offset is what the preview travels.
@@ -416,14 +422,17 @@ it("rises the preview from the composer's position", async () => {
   );
   queue.value = ["Steer this way"];
   await flushPromises();
-  const preview = wrapper.get<HTMLElement>("[data-steering-content]");
+  const preview = wrapper.get<HTMLElement>(
+    '[data-slot="staged-steering-message"]',
+  );
   expect(preview.element.style.transform).toBe("translate(0px, 100px)");
 });
 
 it("does not raise previews that were already queued when a session opens or returns", async () => {
   const { wrapper, active, sessionId, queue } = setup(["Already queued"]);
   await flushPromises();
-  const preview = () => wrapper.get<HTMLElement>("[data-steering-content]");
+  const preview = () =>
+    wrapper.get<HTMLElement>('[data-slot="staged-steering-message"]');
   expect(preview().element.style.opacity).toBe("");
 
   active.value = false;
@@ -444,7 +453,8 @@ it("flies a preview consumed while it is still rising without its arrival styles
   queue.value = ["Quick steer"];
   await flushPromises();
   expect(
-    wrapper.get<HTMLElement>("[data-steering-content]").element.style.opacity,
+    wrapper.get<HTMLElement>('[data-slot="staged-steering-message"]').element
+      .style.opacity,
   ).toBe("0");
   queue.value = [];
   messages.value = [message("user-1", "Quick steer")];

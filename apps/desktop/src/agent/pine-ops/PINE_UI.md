@@ -233,9 +233,9 @@ From top to bottom:
      message yet, or over text already in a follow-up. Clicking a highlighted
      passage reopens its follow-up.
    - Staged steering messages sit above the status cards. A message sent
-     while the agent runs rises from the composer into them and fades in.
-     Withdraw and Send now sit below each message, aligned to the right, and
-     wrap when needed.
+     while the agent runs rises from the composer into them and fades in,
+     together with its Withdraw and Send now buttons, which sit below each
+     message, aligned to the right, and wrap when needed.
      Their attachments, quotes and text use the same layout as sent messages.
      When the agent consumes one, its complete content moves smoothly into
      the transcript and blends into the sent message without stretching text
