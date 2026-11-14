@@ -55,6 +55,8 @@ import type { PineContextCompactionStrategy } from "../../shared/preferences";
 import { decisionsModelDescriptors } from "./decisions-models";
 import { videoModelDescriptors } from "../media/video-models";
 import type { LiveAgentSession } from "./session-state";
+import type { PiProvidersStatus } from "../../shared/piProviders";
+import { PiProviderSync } from "./pi-provider-sync";
 
 interface PendingAuthPrompt {
   loginId: string;
@@ -75,6 +77,7 @@ export interface PineModelServiceOptions {
 /** Owns provider/model configuration and authentication state for the agent runtime. */
 export class PineModelService {
   private readonly modelRuntimes = new Map<string, Promise<ModelRuntime>>();
+  private readonly piProviderSyncs = new Map<string, PiProviderSync>();
   private readonly loginControllers = new Map<string, AbortController>();
   private readonly pendingAuthPrompts = new Map<string, PendingAuthPrompt>();
 
@@ -88,10 +91,38 @@ export class PineModelService {
         authPath: path.join(agentDir, "auth.json"),
         modelsPath: path.join(agentDir, "models.json"),
         modelsStorePath: path.join(agentDir, "models-store.json"),
+      }).then(async (created) => {
+        const sync = new PiProviderSync(created, agentDir);
+        this.piProviderSyncs.set(agentDir, sync);
+        // Pi's providers are optional; a broken file never blocks Pine's own.
+        await sync.sync().catch(() => undefined);
+        return created;
       });
       this.modelRuntimes.set(agentDir, runtime);
     }
     return runtime;
+  }
+
+  /** What Pine reads from Pi's models.json; never includes keys. */
+  async getPiProvidersStatus(agentDir: string): Promise<PiProvidersStatus> {
+    await this.getModelRuntime(agentDir);
+    return this.requirePiProviderSync(agentDir).status();
+  }
+
+  /** Applies the saved Pi providers setting and re-reads Pi's models.json. */
+  async syncPiProviders(agentDir: string): Promise<PiProvidersStatus> {
+    await this.getModelRuntime(agentDir);
+    return this.requirePiProviderSync(agentDir).sync();
+  }
+
+  private requirePiProviderSync(agentDir: string): PiProviderSync {
+    const sync = this.piProviderSyncs.get(agentDir);
+    if (!sync) throw new Error("The model runtime is not ready.");
+    return sync;
+  }
+
+  private isPiProvider(agentDir: string, providerId: string): boolean {
+    return this.piProviderSyncs.get(agentDir)?.has(providerId) ?? false;
   }
 
   async getModelCatalog(agentDir: string): Promise<PineModelCatalog> {
@@ -106,14 +137,16 @@ export class PineModelService {
       const status = runtime.getProviderAuthStatus(provider.id);
       const config = customModelsFile.providers[provider.id];
       const isCustom = isCustomProviderId(provider.id) && config !== undefined;
+      const fromPi = this.isPiProvider(agentDir, provider.id);
+      // Keys for Pi's providers are managed in Pi or CC Switch, not here.
       const authMethods = [];
-      if (provider.auth.apiKey?.login) {
+      if (!fromPi && provider.auth.apiKey?.login) {
         authMethods.push({
           type: "api_key" as const,
           label: provider.auth.apiKey.name,
         });
       }
-      if (provider.auth.oauth) {
+      if (!fromPi && provider.auth.oauth) {
         authMethods.push({
           type: "oauth" as const,
           label: provider.auth.oauth.loginLabel ?? provider.auth.oauth.name,
@@ -144,6 +177,7 @@ export class PineModelService {
           : {}),
         modelCount: models.filter((model) => model.provider === provider.id)
           .length,
+        ...(fromPi ? { source: "pi" as const, readOnly: true } : {}),
       };
     });
     const defaultProvider = settings.getDefaultProvider();
@@ -211,9 +245,16 @@ export class PineModelService {
         ? { imageSelection: effectiveImageSelection }
         : {}),
       providers,
-      models: models.map((model) =>
-        this.describeModel(model, providers, customModelsFile),
-      ),
+      models: models.map((model) => {
+        const descriptor = this.describeModel(
+          model,
+          providers,
+          customModelsFile,
+        );
+        return this.isPiProvider(agentDir, model.provider)
+          ? { ...descriptor, source: "pi" as const }
+          : descriptor;
+      }),
       ...(validUtilitySelection
         ? { utilitySelection: validUtilitySelection }
         : {}),
@@ -268,6 +309,11 @@ export class PineModelService {
     input: AddCustomModelRequest,
   ): Promise<PineModelCatalog> {
     const runtime = await this.getModelRuntime(agentDir);
+    if (this.isPiProvider(agentDir, input.providerId)) {
+      throw new Error(
+        `Provider "${input.providerId}" comes from Pi's models.json. Change it in Pi or CC Switch.`,
+      );
+    }
     const provider = runtime.getProvider(input.providerId);
     if (input.providerMode === "existing" && !provider) {
       throw new Error(`Provider "${input.providerId}" was not found.`);
@@ -348,6 +394,11 @@ export class PineModelService {
     providerId: string,
     authType: PineAuthType,
   ): Promise<ProviderLoginResult> {
+    if (this.isPiProvider(agentDir, providerId)) {
+      throw new Error(
+        `Provider "${providerId}" comes from Pi's models.json. Change its key in Pi or CC Switch.`,
+      );
+    }
     if (this.loginControllers.has(loginId)) {
       throw new Error("Provider login is already in progress.");
     }
@@ -562,6 +613,8 @@ export class PineModelService {
 
   dispose(): void {
     for (const controller of this.loginControllers.values()) controller.abort();
+    for (const sync of this.piProviderSyncs.values()) sync.dispose();
+    this.piProviderSyncs.clear();
   }
 
   private describeModel(

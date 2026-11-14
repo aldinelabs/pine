@@ -47,6 +47,8 @@ export interface PineModelDescriptor {
   reasoning: boolean;
   supportedThinkingLevels: readonly PineThinkingLevel[];
   isCustom?: boolean;
+  /** Set when the provider comes from Pi's models.json (Pi or CC Switch). */
+  source?: "pi";
 }
 
 export interface PineProviderDescriptor {
@@ -60,6 +62,10 @@ export interface PineProviderDescriptor {
   api?: PineCustomModelApi;
   baseUrl?: string;
   hasApiKey?: boolean;
+  /** Set when the provider comes from Pi's models.json (Pi or CC Switch). */
+  source?: "pi";
+  /** Pine cannot edit, sign in to or remove this provider. */
+  readOnly?: boolean;
 }
 
 export interface PineModelSelection {

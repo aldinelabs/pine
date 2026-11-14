@@ -8,6 +8,7 @@ import {
   type PineSessionNotice,
   type SessionRenamer,
 } from "../shared/sessions";
+import type { PiProvidersStatus } from "../shared/piProviders";
 import {
   createAgentSession,
   DefaultResourceLoader,
@@ -1128,6 +1129,14 @@ export class PineAgentRuntime {
 
   refreshModelCatalog(agentDir: string): Promise<PineModelCatalog> {
     return this.modelService.refreshModelCatalog(agentDir);
+  }
+
+  getPiProvidersStatus(agentDir: string): Promise<PiProvidersStatus> {
+    return this.modelService.getPiProvidersStatus(agentDir);
+  }
+
+  syncPiProviders(agentDir: string): Promise<PiProvidersStatus> {
+    return this.modelService.syncPiProviders(agentDir);
   }
 
   addCustomModel(

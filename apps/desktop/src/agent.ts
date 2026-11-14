@@ -111,6 +111,12 @@ async function handleRequest(request: AgentWorkerRequest): Promise<void> {
     case "models:refresh-catalog":
       result = await runtime.refreshModelCatalog(request.agentDir);
       break;
+    case "pi-providers:status":
+      result = await runtime.getPiProvidersStatus(request.agentDir);
+      break;
+    case "pi-providers:sync":
+      result = await runtime.syncPiProviders(request.agentDir);
+      break;
     case "models:add-custom":
       result = await runtime.addCustomModel(request.agentDir, request);
       break;

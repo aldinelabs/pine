@@ -4,6 +4,7 @@ import type {
   ProjectEntry,
   FilePreviewTarget,
 } from "../shared/projectFiles";
+import type { PiProvidersStatus } from "../shared/piProviders";
 import {
   isTemporaryWorkspace,
   type PineProject,
@@ -1081,6 +1082,14 @@ export class ProjectRuntimeRegistry {
 
   refreshModelCatalog(): Promise<PineModelCatalog> {
     return this.agentHost.refreshModelCatalog(this.agentDir);
+  }
+
+  getPiProvidersStatus(): Promise<PiProvidersStatus> {
+    return this.agentHost.getPiProvidersStatus(this.agentDir);
+  }
+
+  syncPiProviders(): Promise<PiProvidersStatus> {
+    return this.agentHost.syncPiProviders(this.agentDir);
   }
 
   addCustomModel(request: AddCustomModelRequest): Promise<PineModelCatalog> {

@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import { PI_PROVIDERS_REQUEST_CHANNELS } from "../../shared/piProviders";
 import { REMOTE_KEEP_AWAKE_REQUEST_CHANNELS } from "../../shared/remoteKeepAwake";
 import { WECHAT_REQUEST_CHANNELS } from "../../shared/wechatRemote";
 import {
@@ -43,6 +44,11 @@ describe("browser request policy", () => {
 
   it("never exposes the keep-awake setting to the browser", () => {
     for (const channel of REMOTE_KEEP_AWAKE_REQUEST_CHANNELS)
+      expect(() => webChannel(channels, channel)).toThrow("unavailable");
+  });
+
+  it("never exposes the host's Pi provider settings to the browser", () => {
+    for (const channel of PI_PROVIDERS_REQUEST_CHANNELS)
       expect(() => webChannel(channels, channel)).toThrow("unavailable");
   });
 

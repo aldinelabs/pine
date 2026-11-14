@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import type { PiProvidersStatus } from "../shared/piProviders";
 import type { McpStatusSnapshot } from "pi-mcp-adapter";
 import type {
   BackgroundTaskResult,
@@ -119,6 +120,8 @@ export interface AgentHost {
   ): Promise<AgentWorkerMutateResult>;
   getModelCatalog(agentDir: string): Promise<PineModelCatalog>;
   refreshModelCatalog(agentDir: string): Promise<PineModelCatalog>;
+  getPiProvidersStatus(agentDir: string): Promise<PiProvidersStatus>;
+  syncPiProviders(agentDir: string): Promise<PiProvidersStatus>;
   addCustomModel(
     agentDir: string,
     request: AddCustomModelRequest,
@@ -366,6 +369,14 @@ export class AgentProcessHost implements AgentHost {
 
   refreshModelCatalog(agentDir: string): Promise<PineModelCatalog> {
     return this.request({ type: "models:refresh-catalog", agentDir });
+  }
+
+  getPiProvidersStatus(agentDir: string): Promise<PiProvidersStatus> {
+    return this.request({ type: "pi-providers:status", agentDir });
+  }
+
+  syncPiProviders(agentDir: string): Promise<PiProvidersStatus> {
+    return this.request({ type: "pi-providers:sync", agentDir });
   }
 
   addCustomModel(

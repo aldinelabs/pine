@@ -1,3 +1,4 @@
+import path from "node:path";
 import { z } from "zod";
 import {
   readPineAgentSettings,
@@ -8,8 +9,14 @@ import {
   writeContextCompactionRoute,
   writeContextCompactionStrategy,
   writeDiagnosticLoggingEnabled,
+  writePiProvidersSetting,
   writePineUserProfile,
 } from "../../../agent/pineSettings";
+import {
+  GET_PI_PROVIDERS_CHANNEL,
+  SET_PI_PROVIDERS_CHANNEL,
+  type PiProvidersStatus,
+} from "../../../shared/piProviders";
 import {
   DEFAULT_APPROXIMATE_LOCATION_ENABLED,
   GET_APPROXIMATE_LOCATION_CHANNEL,
@@ -69,6 +76,33 @@ import {
   SetTinyFishApiKeyRequestSchema,
   UserProfileSchema,
 } from "../requestSchemas";
+
+const SetPiProvidersRequestSchema = z.object({
+  enabled: z.boolean(),
+  agentDir: z
+    .string()
+    .min(1)
+    .max(4_096)
+    .refine((folder) => path.isAbsolute(folder))
+    .nullable()
+    .optional(),
+});
+
+/** Saves the Pi providers setting and has the agent re-read Pi's models.json. */
+export async function setPiProviders(
+  core: PineCore,
+  request: unknown,
+): Promise<PiProvidersStatus> {
+  const { enabled, agentDir } = SetPiProvidersRequestSchema.parse(request);
+  const current = (await readPineAgentSettings(core.agentDirectory))
+    .piProviders;
+  const nextDir = agentDir === undefined ? current?.agentDir : agentDir;
+  await writePiProvidersSetting(core.agentDirectory, {
+    enabled,
+    ...(nextDir ? { agentDir: nextDir } : {}),
+  });
+  return core.runtimes.syncPiProviders();
+}
 
 export function registerSettingsRequests(core: PineCore): void {
   const settings = () => readPineAgentSettings(core.agentDirectory);
@@ -234,6 +268,16 @@ export function registerSettingsRequests(core: PineCore): void {
       if (enabled) void core.location().refresh();
       return { enabled };
     },
+  );
+
+  core.handle(GET_PI_PROVIDERS_CHANNEL, (): Promise<PiProvidersStatus> =>
+    core.runtimes.getPiProvidersStatus(),
+  );
+
+  core.handle(
+    SET_PI_PROVIDERS_CHANNEL,
+    (_context, request: unknown): Promise<PiProvidersStatus> =>
+      setPiProviders(core, request),
   );
 
   core.handle(

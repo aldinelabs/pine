@@ -22,6 +22,7 @@ import {
   type PineContextCompactionRoute,
   type PineContextCompactionStrategy,
 } from "../shared/preferences";
+import type { PiProvidersSetting } from "../shared/piProviders";
 import {
   isPineCommunicationStyle,
   isPinePronouns,
@@ -50,6 +51,23 @@ export interface PineAgentSettings {
   utilityModel?: PineUtilityModelSelection;
   approvalModel?: PineApprovalModelSelection;
   userProfile?: PineUserProfile;
+  /** Read providers from Pi's models.json (as written by Pi or CC Switch). */
+  piProviders?: PiProvidersSetting;
+}
+
+function isPiProvidersSetting(value: unknown): value is PiProvidersSetting {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    return false;
+  }
+  const setting = value as Record<string, unknown>;
+  return (
+    typeof setting.enabled === "boolean" &&
+    (setting.agentDir === undefined ||
+      (typeof setting.agentDir === "string" &&
+        setting.agentDir.length > 0 &&
+        setting.agentDir.length <= 4_096 &&
+        path.isAbsolute(setting.agentDir)))
+  );
 }
 
 function isModelSelection(
@@ -203,6 +221,16 @@ export async function readPineAgentSettings(
       ...(isModelSelection(utilityModel) ? { utilityModel } : {}),
       ...(isModelSelection(approvalModel) ? { approvalModel } : {}),
       ...(isPineUserProfile(userProfile) ? { userProfile } : {}),
+      ...(isPiProvidersSetting(settings.piProviders)
+        ? {
+            piProviders: {
+              enabled: settings.piProviders.enabled,
+              ...(settings.piProviders.agentDir
+                ? { agentDir: settings.piProviders.agentDir }
+                : {}),
+            },
+          }
+        : {}),
     };
   } catch (error) {
     if (
@@ -312,6 +340,21 @@ export async function writeApproximateLocationEnabled(
   approximateLocationEnabled: boolean,
 ): Promise<void> {
   await writePineAgentSettings(agentDir, { approximateLocationEnabled });
+}
+
+export async function writePiProvidersSetting(
+  agentDir: string,
+  piProviders: PiProvidersSetting,
+): Promise<void> {
+  if (!isPiProvidersSetting(piProviders)) {
+    throw new Error("Invalid Pi providers setting.");
+  }
+  await writePineAgentSettings(agentDir, {
+    piProviders: {
+      enabled: piProviders.enabled,
+      ...(piProviders.agentDir ? { agentDir: piProviders.agentDir } : {}),
+    },
+  });
 }
 
 export async function writeAutoApprovalSettings(

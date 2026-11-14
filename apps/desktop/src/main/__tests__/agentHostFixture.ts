@@ -20,6 +20,8 @@ export function createAgentHost(sessionSummary: PineSessionSummary): AgentHost {
       .fn()
       .mockResolvedValue({ models: [], providers: [] }),
     getModelCatalog: vi.fn().mockResolvedValue({ models: [], providers: [] }),
+    getPiProvidersStatus: vi.fn(),
+    syncPiProviders: vi.fn(),
     refreshModelCatalog: vi
       .fn()
       .mockResolvedValue({ models: [], providers: [] }),

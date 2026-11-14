@@ -64,6 +64,7 @@ import type {
 } from "../shared/automation";
 import type { ApproximateLocation } from "../shared/approximateLocation";
 import type { McpHostOperation } from "../shared/mcp";
+import type { PiProvidersStatus } from "../shared/piProviders";
 import type { PineSessionMutator } from "../shared/sessionMutators";
 import type { WorkbenchState } from "../shared/workbench";
 import type {
@@ -309,6 +310,11 @@ export type AgentWorkerRequest =
       type: "models:refresh-catalog";
       agentDir: string;
     }
+  | {
+      id: string;
+      type: "pi-providers:status" | "pi-providers:sync";
+      agentDir: string;
+    }
   | ({
       id: string;
       type: "models:add-custom";
@@ -460,6 +466,7 @@ export type AgentWorkerResult =
   | AgentWorkerSideChatResult
   | AgentWorkerPromptResult
   | PineModelCatalog
+  | PiProvidersStatus
   | ProviderLoginResult
   | { accepted: boolean }
   | { aborted: boolean }

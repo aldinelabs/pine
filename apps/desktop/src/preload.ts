@@ -11,6 +11,12 @@ import {
   PREFERENCES_SET_CHANNEL,
   PREFERENCES_SNAPSHOT_CHANNEL,
 } from "./shared/preferenceStorage";
+import {
+  GET_PI_PROVIDERS_CHANNEL,
+  PICK_PI_AGENT_DIR_CHANNEL,
+  REVEAL_PI_PROVIDERS_CHANNEL,
+  SET_PI_PROVIDERS_CHANNEL,
+} from "./shared/piProviders";
 import { QUICK_COMPOSER_HANDOFF_ARGUMENT } from "./shared/quickComposer";
 import {
   GET_REMOTE_KEEP_AWAKE_CHANNEL,
@@ -124,6 +130,11 @@ const pineApi: PineDesktopApi = {
     return () =>
       ipcRenderer.removeListener(WECHAT_REMOTE_CHANGED_CHANNEL, handler);
   },
+  getPiProviders: () => ipcRenderer.invoke(GET_PI_PROVIDERS_CHANNEL),
+  setPiProviders: (request) =>
+    ipcRenderer.invoke(SET_PI_PROVIDERS_CHANNEL, request),
+  revealPiProviders: () => ipcRenderer.invoke(REVEAL_PI_PROVIDERS_CHANNEL),
+  pickPiAgentDir: () => ipcRenderer.invoke(PICK_PI_AGENT_DIR_CHANNEL),
   getRemoteKeepAwake: () => ipcRenderer.invoke(GET_REMOTE_KEEP_AWAKE_CHANNEL),
   setRemoteKeepAwake: (enabled) =>
     ipcRenderer.invoke(SET_REMOTE_KEEP_AWAKE_CHANNEL, enabled),

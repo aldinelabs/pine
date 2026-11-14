@@ -20,6 +20,12 @@ import {
   type PickAttachmentsResult,
 } from "../../shared/attachments";
 import { OPEN_PROVIDER_AUTH_URL_CHANNEL } from "../../shared/models";
+import {
+  PICK_PI_AGENT_DIR_CHANNEL,
+  REVEAL_PI_PROVIDERS_CHANNEL,
+  type PickPiAgentDirResult,
+} from "../../shared/piProviders";
+import { setPiProviders } from "../core/requests/settings";
 import { START_PROJECT_FILE_DRAG_CHANNEL } from "../../shared/projectFiles";
 import {
   PICK_PROJECT_FOLDERS_CHANNEL,
@@ -125,6 +131,51 @@ export function registerNativeIpc(
       buttonLabel: "Add",
       properties: ["openDirectory", "multiSelections"],
     }),
+  );
+
+  // The path comes from the agent's own status, never from the renderer.
+  ipcMain.handle(
+    REVEAL_PI_PROVIDERS_CHANNEL,
+    async (): Promise<{ revealed: boolean }> => {
+      const status = await core.runtimes.getPiProvidersStatus();
+      if (status.found) {
+        shell.showItemInFolder(status.path);
+        return { revealed: true };
+      }
+      try {
+        if (!(await stat(status.agentDir)).isDirectory()) {
+          return { revealed: false };
+        }
+      } catch {
+        return { revealed: false };
+      }
+      return { revealed: (await shell.openPath(status.agentDir)) === "" };
+    },
+  );
+
+  handleTraced(
+    PICK_PI_AGENT_DIR_CHANNEL,
+    async (event): Promise<PickPiAgentDirResult> => {
+      const parentWindow = BrowserWindow.fromWebContents(event.sender);
+      const current = await core.runtimes.getPiProvidersStatus();
+      const options: OpenDialogOptions = {
+        title: "Choose Pi Agent Folder",
+        buttonLabel: "Choose",
+        defaultPath: current.agentDir,
+        properties: ["openDirectory", "showHiddenFiles"],
+      };
+      const selection = parentWindow
+        ? await dialog.showOpenDialog(parentWindow, options)
+        : await dialog.showOpenDialog(options);
+      const folder = selection.filePaths[0];
+      if (selection.canceled || !folder) return {};
+      return {
+        status: await setPiProviders(core, {
+          enabled: current.enabled,
+          agentDir: folder,
+        }),
+      };
+    },
   );
 
   ipcMain.handle(
