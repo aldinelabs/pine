@@ -204,6 +204,60 @@ describe("session store", () => {
     expect(store.isRunning).toBe(true);
   });
 
+  // A WeChat run (or one from before a reload) is under way when this window
+  // starts listening: its `run-state` went out earlier, but its stream does
+  // reach the window. Without the resume reply's run flag the transcript
+  // streams while the composer offers Send and the scroll stops animating.
+  it("treats a session joined mid-run as running", async () => {
+    let listener: ((event: PineAgentEvent) => void) | undefined;
+    Object.defineProperty(window, "pine", {
+      configurable: true,
+      value: {
+        loadSessionMessages: vi
+          .fn()
+          .mockResolvedValue({ hasMore: false, messages: [] }),
+        resumeSession: vi.fn().mockResolvedValue({ session, running: true }),
+        onSessionEvent: vi.fn((callback) => {
+          listener = callback;
+          return () => undefined;
+        }),
+      },
+    });
+    const store = useSessionStore();
+    store.connectAgentEvents();
+
+    await store.resume(PROJECT_ID, session.id);
+    listener?.({
+      type: "message-update",
+      sessionId: session.id,
+      messageId: "streaming",
+      updates: [{ type: "thinking-start", contentIndex: 0, thinking: "Hm" }],
+    });
+
+    expect(store.messages.at(-1)?.status).toBe("streaming");
+    expect(store.isRunning).toBe(true);
+
+    listener?.({ type: "run-state", sessionId: session.id, state: "idle" });
+    expect(store.isRunning).toBe(false);
+  });
+
+  it("leaves a resumed idle session idle", async () => {
+    Object.defineProperty(window, "pine", {
+      configurable: true,
+      value: {
+        loadSessionMessages: vi
+          .fn()
+          .mockResolvedValue({ hasMore: false, messages: [] }),
+        resumeSession: vi.fn().mockResolvedValue({ session }),
+      },
+    });
+    const store = useSessionStore();
+
+    await store.resume(PROJECT_ID, session.id);
+
+    expect(store.isRunning).toBe(false);
+  });
+
   it("keeps transcript messages as plain records and replaces the array on change", () => {
     let listener: ((event: PineAgentEvent) => void) | undefined;
     Object.defineProperty(window, "pine", {

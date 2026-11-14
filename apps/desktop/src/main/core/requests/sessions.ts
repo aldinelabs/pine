@@ -857,7 +857,9 @@ export function registerSessionRequests(core: PineCore): void {
         [result.session],
         projectId,
       );
-      return { ...result, session };
+      // Read last, so a later `run-state` reaches the window after this reply.
+      const running = core.sessionActivity(sessionId) !== "idle";
+      return { ...result, session, ...(running ? { running } : {}) };
     },
   );
 

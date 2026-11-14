@@ -527,6 +527,12 @@ export interface PineContextUsage {
 export interface ResumeSessionResult {
   session: PineSessionSummary;
   contextUsage?: PineContextUsage;
+  /**
+   * The session is mid-run. A window that joins a run already under way (one
+   * WeChat or another window started, or after a reload) missed its
+   * `run-state` event and learns it here.
+   */
+  running?: boolean;
 }
 
 export type DeleteSessionRequest = ProjectSessionReference;

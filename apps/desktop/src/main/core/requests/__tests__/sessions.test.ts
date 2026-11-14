@@ -2,7 +2,10 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { PineCore } from "../../pineCore";
 import type { PineProject } from "../../../../shared/projects";
 import { TEMPORARY_WORKSPACE_PROJECT_ID } from "../../../../shared/projects";
-import { LIST_ALL_RECENT_SESSIONS_CHANNEL } from "../../../../shared/sessions";
+import {
+  LIST_ALL_RECENT_SESSIONS_CHANNEL,
+  RESUME_SESSION_CHANNEL,
+} from "../../../../shared/sessions";
 import {
   answerSessionOperation,
   registerSessionRequests,
@@ -884,5 +887,46 @@ describe("session lists", () => {
       { ...summary("run"), automationRun: run, origin: "wechat-used" },
       summary("plain"),
     ]);
+  });
+});
+
+describe("resuming a session", () => {
+  function resumeWith(activity: "running" | "awaiting-approval" | "idle") {
+    const handlers = new Map<string, (...args: unknown[]) => unknown>();
+    const summary = {
+      id: requester.sessionId,
+      projectId,
+      createdAt: "c",
+      updatedAt: "u",
+      messageCount: 1,
+    };
+    const core = {
+      runtimes: { resume: vi.fn().mockResolvedValue({ session: summary }) },
+      automations: { runSessions: vi.fn().mockResolvedValue(new Map()) },
+      wechat: { originOf: vi.fn().mockReturnValue(undefined) },
+      sessionActivity: vi.fn().mockReturnValue(activity),
+      handle: (channel: string, handler: (...args: unknown[]) => unknown) =>
+        handlers.set(channel, handler),
+    } as unknown as PineCore;
+    registerSessionRequests(core);
+    return handlers.get(RESUME_SESSION_CHANNEL)?.(
+      { clientId: 7 },
+      { projectId, sessionId: requester.sessionId },
+    ) as Promise<{ running?: boolean }>;
+  }
+
+  // A window that opens a session WeChat (or another window) already runs
+  // missed its `run-state` event; the reply must carry the run.
+  it("tells the window a run is under way", async () => {
+    await expect(resumeWith("running")).resolves.toMatchObject({
+      running: true,
+    });
+    await expect(resumeWith("awaiting-approval")).resolves.toMatchObject({
+      running: true,
+    });
+  });
+
+  it("leaves an idle session's reply unchanged", async () => {
+    await expect(resumeWith("idle")).resolves.not.toHaveProperty("running");
   });
 });

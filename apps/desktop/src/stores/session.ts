@@ -1138,6 +1138,9 @@ export const useSessionStore = defineStore("session", () => {
       state.summary = mergeSessionSummary(summary, state.summary ?? undefined);
       modelsStore.setSessionSelection(sessionId, summary.modelSelection);
       state.contextUsage = state.contextUsage ?? result.contextUsage ?? null;
+      // Joining a run under way: its `run-state` event went out before this
+      // window was listening, yet its stream arrives from now on.
+      if (result.running) state.isRunning = true;
       await loadInitialMessages(sessionId);
       return state.summary;
     } catch (error) {
