@@ -195,7 +195,7 @@ const descriptions: Record<IntelligentUiComponentName, string> = {
   Table: "Rows and columns of plain values.",
   Progress: "Bar from 0 to 100.",
   Chart:
-    "Chart over a list of objects: x names the category key, series the numeric keys. Donut uses the first series.",
+    "Chart over a list of objects: x names the category key, series the numeric keys. Every series entry must be a key spelled exactly as in the data objects, never a separate display name; the legend shows these keys, so name the keys the way the reader should see them. Donut uses the first series.",
 };
 
 const componentGroups = [
@@ -289,6 +289,7 @@ const rules = [
   "$variable defaults are literals (numbers, strings, booleans, lists, objects), never expressions.",
   "Keep blocks focused: one Heading or Card title, short Text, then the interactive or visual part. Include everything the task needs (all options, rows or steps) rather than trimming it to a token example. Do not repeat the block's content in the surrounding prose.",
   "Write the text in the user's language.",
+  'A Chart reads each series straight from its data keys: Chart("bar", rows, "species", ["Brain", "Cortex"]) needs rows like {species: "Human", Brain: 86, Cortex: 16}. Series names that are not keys of the rows draw as empty bars at 0. To show labels in the user\'s language, use them as the keys themselves, and quote every key that is not a plain ASCII name: {species: "人", "全脑": 86, "皮层": 16} with series ["全脑", "皮层"]. An unquoted non-ASCII key is not read.',
 ];
 
 const PREAMBLE = `## Interactive blocks

@@ -47,4 +47,24 @@ describe("intelligentUiSystemPrompt", () => {
       expect(result.meta.unresolved, example).toEqual([]);
     }
   });
+
+  it("teaches chart rows whose keys are the series, quoted when not ASCII", () => {
+    const library = createIntelligentUiLibrary();
+    const parser = createParser(library.toJSONSchema(), library.root);
+    const rows = /\{species: "人", "全脑": 86, "皮层": 16\}/u.exec(prompt)?.[0];
+    expect(rows).toBeDefined();
+
+    const parsed = parser.parse(
+      `root = Chart("bar", [${rows}], "species", ["全脑", "皮层"])`,
+    );
+    expect(parsed.root?.props.data).toEqual([
+      { species: "人", 全脑: 86, 皮层: 16 },
+    ]);
+    // Unquoted, the same keys are lost, which the prompt warns about.
+    expect(
+      parser.parse(
+        'root = Chart("bar", [{species: "人", 全脑: 86}], "species", ["全脑"])',
+      ).root?.props.data,
+    ).not.toEqual([{ species: "人", 全脑: 86 }]);
+  });
 });

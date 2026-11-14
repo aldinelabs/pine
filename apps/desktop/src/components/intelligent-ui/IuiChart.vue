@@ -19,6 +19,7 @@ import {
   type ChartConfig,
 } from "@/components/ui/chart";
 import type { IntelligentUiProps } from "@/shared/intelligentUi";
+import { chartSeriesKeys } from "@/shared/intelligentUiChart";
 
 type Datum = Record<string, string | number | null>;
 
@@ -38,6 +39,9 @@ const data = computed<Datum[]>(() =>
   ),
 );
 const series = computed(() => (props.props.series ?? []).filter(Boolean));
+const seriesKeys = computed(() =>
+  chartSeriesKeys(data.value, props.props.x, series.value),
+);
 const isDonut = computed(() => props.props.type === "donut");
 
 /** Series for XY charts; categories for a donut, which has one series. */
@@ -53,16 +57,16 @@ const config = computed<ChartConfig>(() =>
         ]),
       )
     : Object.fromEntries(
-        series.value.map((key, index) => [
+        seriesKeys.value.map((key, index) => [
           key,
-          { label: key, color: colorAt(index) },
+          { label: series.value[index] ?? key, color: colorAt(index) },
         ]),
       ),
 );
 
 const numberAt = (item: Datum, key: string) => Number(item[key]) || 0;
 const y = computed(() =>
-  series.value.map((key) => (item: Datum) => numberAt(item, key)),
+  seriesKeys.value.map((key) => (item: Datum) => numberAt(item, key)),
 );
 const seriesColor = (_item: Datum, index: number) => colorAt(index);
 const xValue = (_item: Datum, index: number) => index;
@@ -85,7 +89,7 @@ function tooltip(item: Datum, x: number | Date): string {
   );
   return container.innerHTML;
 }
-const donutValue = (item: Datum) => numberAt(item, series.value[0] ?? "");
+const donutValue = (item: Datum) => numberAt(item, seriesKeys.value[0] ?? "");
 const donutColor = (_item: Datum, index: number) => colorAt(index);
 </script>
 

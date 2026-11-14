@@ -23,6 +23,7 @@
 // a note saying which is which. A block cut short (an unclosed fence) is never
 // numbered, since a cut can change which mode the block is read in.
 
+import { chartSeriesKeys } from "../../shared/intelligentUiChart";
 import {
   createParser,
   evaluate,
@@ -573,19 +574,20 @@ class Converter {
     const allSeries = Array.isArray(seriesProp)
       ? seriesProp.filter((name): name is string => typeof name === "string")
       : [];
-    const series =
-      this.value(props, "type") === "donut" ? allSeries.slice(0, 1) : allSeries;
-    const keys = [x, ...series];
-    const rows = data
-      .filter(
-        (datum): datum is Record<string, unknown> =>
-          typeof datum === "object" && datum !== null,
-      )
-      .map((datum) => keys.map((key) => datum[key]));
+    const rowsData = data.filter(
+      (datum): datum is Record<string, unknown> =>
+        typeof datum === "object" && datum !== null,
+    );
+    // Series named apart from the rows' keys read the matching keys in order.
+    const seriesKeys = chartSeriesKeys(rowsData, x, allSeries);
+    const count = this.value(props, "type") === "donut" ? 1 : allSeries.length;
+    const keys = [x, ...seriesKeys.slice(0, count)];
+    const labels = [x, ...allSeries.slice(0, count)];
+    const rows = rowsData.map((datum) => keys.map((key) => datum[key]));
     return [
       this.bold(this.text(props, "title")),
       this.gfm(
-        keys.map((key) => this.inline(key)),
+        labels.map((key) => this.inline(key)),
         rows,
       ),
     ]

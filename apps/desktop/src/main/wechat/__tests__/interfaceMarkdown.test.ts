@@ -182,6 +182,16 @@ describe("tables and charts", () => {
     expect(donut).toContain("| quarter | cloud |\n|---|---|\n| Q1 | 120 |");
   });
 
+  it("reads chart series named apart from the rows' keys in order", () => {
+    const code = [
+      'root = Chart("bar", data, "species", ["Brain", "Cortex"])',
+      'data = [{species: "Human", total: 86, cortex: 16}]',
+    ].join("\n");
+    expect(wechat(code)).toContain(
+      "| species | Brain | Cortex |\n|---|---|---|\n| Human | 86 | 16 |",
+    );
+  });
+
   it("evaluates expressions at the block's default values", () => {
     const code = [
       "root = Stack([view, shown])",
