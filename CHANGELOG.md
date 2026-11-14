@@ -9,6 +9,22 @@ Every release section here has a matching section in the Chinese changelog.
 
 ## [Unreleased]
 
+## [0.20.1] - 2026-11-14
+
+### Added
+
+- **Use model providers set up in Pi and CC Switch**: turn on Use providers from Pi in Settings › Models › Pi providers (CC Switch), and Pine reads Pi's `models.json` and follows changes to it. These providers and models carry a "Pi" badge in the model picker and are edited in Pi or CC Switch.
+- **The update dialog lists every skipped version**: when an update spans several versions, the dialog shows the notes of each one, newest first.
+
+### Changed
+
+- **The waiting-for-provider note appears later**: it shows when about 5 seconds pass after sending without any reply, instead of 3 seconds.
+
+### Fixed
+
+- A session whose run started in another window, before a window reload, or from WeChat now shows as running when opened, and can be stopped.
+- Expanding a project again shows five sessions straight away, instead of growing to the earlier count and jumping back.
+
 ## [0.20.0] - 2026-11-14
 
 > **Highlights**: send tasks to Pine from WeChat, comment on files right in the preview, let the agent run sub-sessions in parallel, and smoother long conversations.
