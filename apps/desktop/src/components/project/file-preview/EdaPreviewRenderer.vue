@@ -17,6 +17,10 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Spinner } from "@/components/ui/spinner";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { layerColor, type OrcadContents } from "@/lib/eda";
+import {
+  layoutProperties,
+  orcadProperties,
+} from "@/lib/previewProperties/assets";
 import { resolveColors } from "@/lib/themeColors";
 import { useThemeRoot } from "@/composables/useThemeRoot";
 import { cn } from "@/lib/utils";
@@ -111,9 +115,21 @@ onMounted(async () => {
     if (isLayout) {
       layout.value = await eda.readLayout(bytes, extension);
       layers.value = eda.layoutLayers(layout.value);
+      emit("metadataChange", {
+        properties: layoutProperties({
+          libraryName: layout.value.libraryName,
+          userUnit: layout.value.userUnit,
+          databaseUnit: layout.value.databaseUnit,
+          layers: layers.value.length,
+          elements: layout.value.elements.length,
+        }),
+      });
       await render();
     } else {
       orcad.value = await eda.readOrcad(bytes);
+      emit("metadataChange", {
+        properties: orcadProperties(orcad.value.streams.length),
+      });
       if (!orcad.value.streams.length) view.value = "strings";
     }
   } catch (error) {

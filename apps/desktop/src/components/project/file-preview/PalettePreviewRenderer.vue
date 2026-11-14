@@ -9,6 +9,7 @@ import {
   type Swatch,
   type SwatchGroup,
 } from "@/lib/palettes";
+import { paletteProperties } from "@/lib/previewProperties/assets";
 import { previewExtension } from "@/shared/previewFormats";
 import { readPreviewBytes } from "./previewBytes";
 import type {
@@ -42,6 +43,7 @@ onMounted(async () => {
       previewExtension(props.filePath) === "aco"
         ? readAco(bytes)
         : readAse(bytes);
+    emit("metadataChange", { properties: paletteProperties(groups.value) });
   } catch (error) {
     if (reading.signal.aborted) return;
     console.error("Failed to read the swatch file.", error);

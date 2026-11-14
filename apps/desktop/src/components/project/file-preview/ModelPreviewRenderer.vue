@@ -25,6 +25,7 @@ import { resolveColors } from "@/lib/themeColors";
 import { useThemeRoot } from "@/composables/useThemeRoot";
 import { previewExtension } from "@/shared/previewFormats";
 import { useAppearanceStore } from "@/stores/appearance";
+import { modelProperties } from "@/lib/previewProperties/assets";
 import { loadingTextures, textureLoading } from "./modelTextures";
 import { readPreviewBytes } from "./previewBytes";
 import type {
@@ -287,15 +288,26 @@ async function setup(): Promise<void> {
   let meshes = 0;
   let triangles = 0;
   let points = 0;
+  let vertices = 0;
+  const materials = new Set<THREE.Material>();
   model.traverse((child) => {
     const object = child as THREE.Mesh | THREE.Points;
     const position = object.geometry?.getAttribute("position");
     if ((object as THREE.Points).isPoints) points += position?.count ?? 0;
     if (!(object as THREE.Mesh).isMesh) return;
     meshes++;
+    vertices += position?.count ?? 0;
     triangles += (object.geometry.index?.count ?? position?.count ?? 0) / 3;
+    for (const material of [object.material].flat()) materials.add(material);
   });
   stats.value = { meshes, triangles: Math.round(triangles), points };
+  emit("metadataChange", {
+    properties: modelProperties({
+      vertices: vertices + points,
+      meshes,
+      materials: materials.size,
+    }),
+  });
   fit();
   axes = new three.AxesHelper(modelRadius * 1.2);
   scene.add(axes);

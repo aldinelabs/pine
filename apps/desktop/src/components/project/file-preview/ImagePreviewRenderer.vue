@@ -13,6 +13,14 @@ import { RotateCcw, RotateCw } from "@lucide/vue";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { decodeHeic, openTiff, type TiffDocument } from "@/lib/imageDecoding";
+import {
+  fetchHead,
+  fetchImageFacts,
+  imageProperties,
+  readImageFacts,
+  readSvgFacts,
+  type ImageFacts,
+} from "@/lib/previewProperties/image";
 import { previewExtension } from "@/shared/previewFormats";
 import PreviewPager from "./PreviewPager.vue";
 import ZoomableImage from "./ZoomableImage.vue";
@@ -21,6 +29,7 @@ import { readPreviewBytes } from "./previewBytes";
 import type {
   AnnotationRevealRequest,
   AnnotationTarget,
+  PreviewProperty,
   PreviewRendererCapabilities,
   PreviewRendererEvents,
   PreviewRendererProps,
@@ -44,6 +53,10 @@ const tiff = shallowRef<TiffDocument>();
 const reading = new AbortController();
 const objectUrls = new Map<number, string>();
 let ownedUrl: string | undefined;
+/** Bytes already read to decode the image (TIFF, HEIF, inline SVG). */
+let fileBytes: ArrayBuffer | undefined;
+let size: { width: number; height: number } | undefined;
+let properties: readonly PreviewProperty[] | undefined;
 
 function rotate(step: 1 | -1): void {
   rotation.value = (rotation.value + step * 90 + 360) % 360;
@@ -60,15 +73,47 @@ function capabilities(): Partial<PreviewRendererCapabilities> {
   };
 }
 
-function imageLoaded(size: { width: number; height: number }): void {
-  if (!loaded.value) {
-    loaded.value = true;
-    emit("capabilitiesChange", capabilities());
-  }
+function emitMetadata(): void {
   emit("metadataChange", {
     ...size,
     ...(tiff.value ? { pageCount: tiff.value.pageCount } : {}),
+    ...(properties?.length ? { properties } : {}),
   });
+}
+
+function imageLoaded(next: { width: number; height: number }): void {
+  size = next;
+  emitMetadata();
+  if (!loaded.value) {
+    loaded.value = true;
+    emit("capabilitiesChange", capabilities());
+    void readProperties();
+  }
+}
+
+/** Reads what the file records about itself once the image shows. */
+async function readProperties(): Promise<void> {
+  const preview = props.preview;
+  let facts: ImageFacts;
+  try {
+    if (extension.value === "svg")
+      facts = readSvgFacts(
+        preview.kind === "text"
+          ? preview.text
+          : new TextDecoder().decode(
+              (await fetchHead(preview.url, reading.signal)).bytes,
+            ),
+      );
+    else if (fileBytes) facts = readImageFacts(new Uint8Array(fileBytes));
+    else if (preview.kind === "document")
+      facts = await fetchImageFacts(preview.url, reading.signal);
+    else return;
+  } catch {
+    return;
+  }
+  if (reading.signal.aborted) return;
+  properties = imageProperties(facts);
+  if (properties.length) emitMetadata();
 }
 
 function fitWidth(): void {
@@ -101,6 +146,7 @@ async function load(): Promise<void> {
     return;
   }
   const bytes = await readPreviewBytes(preview, reading.signal);
+  if (kind !== "svg") fileBytes = bytes;
   if (kind === "tif" || kind === "tiff") {
     tiff.value = await openTiff(bytes);
     await showTiffPage(1);

@@ -19,6 +19,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Spinner } from "@/components/ui/spinner";
 import { formatGridCell } from "@/lib/dataGrid";
 import { featureName, geometryKind, type GeoFeature } from "@/lib/geo";
+import { geoProperties } from "@/lib/previewProperties/assets";
 import { resolveColors } from "@/lib/themeColors";
 import { useThemeRoot } from "@/composables/useThemeRoot";
 import { cn } from "@/lib/utils";
@@ -105,6 +106,7 @@ onMounted(async () => {
           Object.keys(feature.properties ?? {}),
         ),
       ).size,
+      properties: geoProperties(features.value),
     });
     await render();
   } catch (error) {

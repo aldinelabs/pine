@@ -19,6 +19,7 @@ import {
   hasRealComposite,
   layerTree,
 } from "@/lib/psdComposite";
+import { psdProperties } from "@/lib/previewProperties/assets";
 import { cn } from "@/lib/utils";
 import { readPreviewBytes } from "./previewBytes";
 import type {
@@ -107,7 +108,11 @@ function imageLoaded(size: { width: number; height: number }): void {
     loaded.value = true;
     emit("capabilitiesChange", capabilities());
   }
-  emit("metadataChange", size);
+  const properties = psd.value ? psdProperties(psd.value) : [];
+  emit("metadataChange", {
+    ...size,
+    ...(properties.length ? { properties } : {}),
+  });
 }
 
 /** The composite image; areas stay put as layers are turned on and off. */

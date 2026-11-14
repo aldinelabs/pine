@@ -32,6 +32,7 @@ import { resolveColors, toHex } from "@/lib/themeColors";
 import { useThemeRoot } from "@/composables/useThemeRoot";
 import { cn } from "@/lib/utils";
 import { useAppearanceStore } from "@/stores/appearance";
+import { cadProperties } from "@/lib/previewProperties/assets";
 import { readPreviewBytes } from "./previewBytes";
 import type {
   PreviewRendererEvents,
@@ -216,6 +217,12 @@ onMounted(async () => {
     );
     emit("metadataChange", {
       pageCount: result.value.summary.pageCount || undefined,
+      properties: cadProperties({
+        entityCount: result.value.summary.entityCount,
+        layerCount: layers.value.length,
+        header: result.value.document.header,
+        units: result.value.document.units,
+      }),
     });
   } catch (error) {
     if (reading.signal.aborted) return;

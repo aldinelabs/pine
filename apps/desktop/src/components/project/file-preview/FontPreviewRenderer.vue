@@ -10,6 +10,7 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { Spinner } from "@/components/ui/spinner";
 import { readFontInfo, type FontInfo } from "@/lib/fontInfo";
+import { fontProperties } from "@/lib/previewProperties/assets";
 import { readPreviewBytes } from "./previewBytes";
 import type {
   PreviewRendererEvents,
@@ -70,6 +71,7 @@ onMounted(async () => {
   try {
     const bytes = await readPreviewBytes(props.preview, reading.signal);
     info.value = await readFontInfo(bytes);
+    emit("metadataChange", { properties: fontProperties(info.value) });
     const loaded = await new FontFace(family, bytes).load();
     if (reading.signal.aborted) return;
     document.fonts.add(loaded);
