@@ -230,20 +230,42 @@ let previousRows = new Map<string, SessionRow[]>();
  * first load has been rendered.
  */
 let rowsSettled = allRecentSessions.value.length > 0;
+/*
+ * Projects that were open at the last update. Reopening a project resets it
+ * to five rows in the same tick; folding the extra rows out would keep them
+ * on screen while the project measures its height to expand.
+ */
+let previouslyOpen = new Set<string>();
 
 watch(
-  projectGroups,
-  (groups) => {
+  // Collapsing alone leaves the rows as they are; it still has to be seen.
+  () => [projectGroups.value, [...historyStore.collapsed]] as const,
+  ([groups]) => {
     const next = new Map<string, SessionRow[]>();
+    const open = new Set<string>();
+    // Lists of projects open both before and now; only these animate.
+    const steady = new Set<string>();
     for (const group of groups) {
-      next.set(group.project.id, group.visible);
-      for (const folder of group.folders)
-        next.set(folder.group.id, folder.rows);
+      const projectId = group.project.id;
+      const lists: [string, SessionRow[]][] = [
+        [projectId, group.visible],
+        ...group.folders.map((folder): [string, SessionRow[]] => [
+          folder.group.id,
+          folder.rows,
+        ]),
+      ];
+      const isSteady =
+        historyStore.isOpen(projectId) && previouslyOpen.has(projectId);
+      if (historyStore.isOpen(projectId)) open.add(projectId);
+      for (const [listId, rows] of lists) {
+        next.set(listId, rows);
+        if (isSteady) steady.add(listId);
+      }
     }
     const animate = rowsSettled && !prefersReducedMotion();
     for (const [listId, rows] of animate ? next : []) {
       const before = previousRows.get(listId);
-      if (!before) continue;
+      if (!before || !steady.has(listId)) continue;
       const now = new Set(rows.map((row) => row.session.id));
       const then = new Set(before.map((row) => row.session.id));
       before.forEach((row, index) => {
@@ -253,6 +275,7 @@ watch(
         if (!then.has(row.session.id)) foldIn(row.session.id);
     }
     previousRows = next;
+    previouslyOpen = open;
   },
   { immediate: true },
 );

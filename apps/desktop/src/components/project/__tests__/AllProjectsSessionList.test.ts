@@ -602,6 +602,38 @@ describe("AllProjectsSessionList", () => {
     }
   });
 
+  it("reopens a project at five rows without folding the extra ones out", async () => {
+    setReducedMotion(false);
+    vi.useFakeTimers();
+    try {
+      const many = Array.from({ length: 12 }, (_, index) => ({
+        ...sessions[0],
+        id: `session-${index}`,
+        name: `Conversation ${index}`,
+      }));
+      const { wrapper } = await mountList({ sessions: [...many, sessions[1]] });
+      await wrapper
+        .get(`[data-project-show-more="${pine.id}"]`)
+        .trigger("click");
+      vi.advanceTimersByTime(500);
+      await flushPromises();
+      expect(wrapper.findAll(`[data-project-id="${pine.id}"]`)).toHaveLength(
+        10,
+      );
+
+      const toggle = wrapper.get(`[data-project-toggle="${pine.id}"]`);
+      await toggle.trigger("click");
+      await flushPromises();
+      await toggle.trigger("click");
+      await flushPromises();
+      // Straight to five: no rows linger from the longer list.
+      expect(wrapper.findAll(`[data-project-id="${pine.id}"]`)).toHaveLength(5);
+      wrapper.unmount();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("keeps a removed row in place, unreachable, while it folds out", async () => {
     setReducedMotion(false);
     vi.useFakeTimers();
