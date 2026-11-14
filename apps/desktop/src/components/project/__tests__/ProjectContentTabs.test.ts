@@ -437,7 +437,7 @@ describe("ProjectContentTabs", () => {
     wrapper.unmount();
   });
 
-  it("keeps the tabs in place when a sidebar moves the tab list's edge", async () => {
+  it("keeps the tabs against the edge whose sidebar opened or closed", async () => {
     const callbacks: ResizeObserverCallback[] = [];
     vi.stubGlobal(
       "ResizeObserver",
@@ -454,31 +454,36 @@ describe("ProjectContentTabs", () => {
       const { wrapper } = await mountTabs(true);
       const viewport = wrapper.get<HTMLDivElement>('[role="tablist"]').element;
       let left = 100;
+      let right = 420;
       Object.defineProperties(viewport, {
-        clientWidth: { get: () => 420 - left },
+        clientWidth: { get: () => right - left },
         scrollWidth: { value: 1000 },
         scrollLeft: { value: 200, writable: true },
       });
       vi.spyOn(viewport, "getBoundingClientRect").mockImplementation(
-        () => new DOMRect(left, 0, 420 - left, 40),
+        () => new DOMRect(left, 0, right - left, 40),
       );
-      vi.spyOn(viewport, "scrollTo").mockImplementation(
-        (options: number | ScrollToOptions) => {
+      const scroll = vi
+        .spyOn(viewport, "scrollTo")
+        .mockImplementation((options: number | ScrollToOptions) => {
           if (typeof options === "object")
             viewport.scrollLeft = options.left ?? 0;
-        },
-      );
+        });
       const resize = () =>
         callbacks.forEach((callback) => callback([], {} as ResizeObserver));
       resize();
-      expect(viewport.scrollLeft).toBe(200);
 
-      // The left sidebar opens: the left edge moves 60 px right.
+      // The left sidebar opens: the tabs move with the left edge.
       left = 160;
       resize();
+      expect(scroll).not.toHaveBeenCalled();
+      expect(viewport.scrollLeft).toBe(200);
+
+      // The right sidebar opens: the tabs keep their distance to the right edge.
+      right = 360;
+      resize();
       expect(viewport.scrollLeft).toBe(260);
-      // And closes again.
-      left = 100;
+      right = 420;
       resize();
       expect(viewport.scrollLeft).toBe(200);
       wrapper.unmount();

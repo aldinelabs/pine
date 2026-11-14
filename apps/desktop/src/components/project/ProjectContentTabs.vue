@@ -253,31 +253,37 @@ onMounted(() => {
   updateTabListOverflow();
 });
 /*
- * A sidebar opening or closing moves the tab list's edge on its side. Keep
- * the tabs where they are on screen, so the edge that moved covers or shows
- * tabs on that side only: the left sidebar anchors the tabs to the right
- * edge, the right sidebar to the left one. Read in the observer callback,
- * after layout, so the measurement forces none.
+ * A sidebar opening or closing moves the tab list's edge on its side. The
+ * tabs stay put relative to that edge, as if the sidebar pushed them: the
+ * left sidebar keeps them against the left edge (the browser's own
+ * behaviour), the right sidebar against the right edge. Read in the
+ * observer callback, after layout, so the measurement forces none.
  */
-let tabListLeft: number | undefined;
-function keepTabsInPlace(): void {
+let tabListEdges: { left: number; right: number } | undefined;
+function followMovedEdge(): void {
   const viewport = tabList.value;
   if (!viewport) {
-    tabListLeft = undefined;
+    tabListEdges = undefined;
     return;
   }
-  const left = viewport.getBoundingClientRect().left;
-  const moved = tabListLeft === undefined ? 0 : left - tabListLeft;
-  tabListLeft = left;
-  if (Math.abs(moved) < 0.5 || viewport.scrollWidth <= viewport.clientWidth)
+  const { left, right } = viewport.getBoundingClientRect();
+  const previous = tabListEdges;
+  tabListEdges = { left, right };
+  if (!previous || viewport.scrollWidth <= viewport.clientWidth) return;
+  const rightMoved = right - previous.right;
+  // Only the right edge moved: keep the tabs' distance to it.
+  if (Math.abs(rightMoved) < 0.5 || Math.abs(left - previous.left) >= 0.5)
     return;
-  viewport.scrollTo({ left: viewport.scrollLeft + moved, behavior: "instant" });
+  viewport.scrollTo({
+    left: viewport.scrollLeft - rightMoved,
+    behavior: "instant",
+  });
 }
 
 // The strip comes and goes with the phone layout, so observe whichever list
 // is mounted.
 useResizeObserver(tabList, () => {
-  keepTabsInPlace();
+  followMovedEdge();
   updateTabListOverflow();
 });
 
