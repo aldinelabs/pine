@@ -45,6 +45,10 @@ import {
 import { Spinner } from "@/components/ui/spinner";
 import { documentPreviewSelection } from "@/lib/filePreviewSelection";
 import { fileViewerAnnotationAdapter } from "@/lib/fileViewerAnnotations";
+import {
+  readFileViewerProperties,
+  withViewerCounts,
+} from "@/lib/fileViewerProperties";
 import { skinFileViewerStyles } from "@/lib/fileViewerSkin";
 import { themeSpreadsheets } from "@/lib/spreadsheetTheme";
 import {
@@ -58,6 +62,7 @@ import {
   previewToolbarKey,
   type AnnotationCells,
   type AnnotationRevealRequest,
+  type PreviewProperty,
   type PreviewRendererEvents,
   type PreviewRendererProps,
 } from "./previewRenderer";
@@ -321,6 +326,45 @@ function syncViewerState(): void {
     reportedPageCount = count;
     emit("metadataChange", { pageCount: count });
   }
+  reportProperties();
+}
+
+/** What the file records about itself, read once it is on screen. */
+let fileProperties: readonly PreviewProperty[] = [];
+let reportedProperties = "";
+function reportProperties(): void {
+  if (props.compact || loading.value) return;
+  const properties = withViewerCounts(fileProperties, props.fileName, {
+    pages: viewState.value?.pageCount,
+    sheets: sheets.value.length,
+  });
+  const serialized = JSON.stringify(properties);
+  if (serialized === reportedProperties) return;
+  reportedProperties = serialized;
+  emit("metadataChange", { properties });
+}
+
+/**
+ * Parses document properties from the bytes already read, when the browser
+ * is idle after the first paint, so the visible render never waits for it.
+ */
+function readFileProperties(source: FileViewerSource): void {
+  const buffer = source.buffer;
+  if (props.compact || !buffer) return;
+  const read = async (): Promise<void> => {
+    const properties = await readFileViewerProperties({
+      rendererId: rendererId.value,
+      fileName: props.fileName,
+      buffer,
+      locale: locale.value,
+    });
+    if (disposed) return;
+    fileProperties = properties;
+    reportProperties();
+  };
+  if (typeof requestIdleCallback === "function")
+    requestIdleCallback(() => void read(), { timeout: 1000 });
+  else setTimeout(() => void read(), 0);
 }
 
 function mediaElements(): HTMLMediaElement[] {
@@ -402,6 +446,7 @@ onMounted(async () => {
       attributeFilter: ["class", "hidden"],
     });
     reportMediaMetadata();
+    readFileProperties(loadedSource);
     stopAnnotationObserver = annotationAdapter.value?.observe?.(element, () =>
       emit("annotationsChange"),
     );
