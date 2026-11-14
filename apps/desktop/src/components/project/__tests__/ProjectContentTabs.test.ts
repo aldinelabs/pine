@@ -437,7 +437,7 @@ describe("ProjectContentTabs", () => {
     wrapper.unmount();
   });
 
-  it("keeps the tabs against the edge whose sidebar opened or closed", async () => {
+  it("keeps the selected tab in its place when a sidebar resizes the tab list", async () => {
     const callbacks: ResizeObserverCallback[] = [];
     vi.stubGlobal(
       "ResizeObserver",
@@ -453,6 +453,9 @@ describe("ProjectContentTabs", () => {
     try {
       const { wrapper } = await mountTabs(true);
       const viewport = wrapper.get<HTMLDivElement>('[role="tablist"]').element;
+      const selected = wrapper.get<HTMLButtonElement>(
+        '[role="tab"][aria-selected="true"]',
+      ).element;
       let left = 100;
       let right = 420;
       Object.defineProperties(viewport, {
@@ -463,29 +466,37 @@ describe("ProjectContentTabs", () => {
       vi.spyOn(viewport, "getBoundingClientRect").mockImplementation(
         () => new DOMRect(left, 0, right - left, 40),
       );
-      const scroll = vi
-        .spyOn(viewport, "scrollTo")
-        .mockImplementation((options: number | ScrollToOptions) => {
+      // The selected tab sits 400px into the list and is 80px wide.
+      vi.spyOn(selected, "getBoundingClientRect").mockImplementation(
+        () => new DOMRect(left + 400 - viewport.scrollLeft, 0, 80, 40),
+      );
+      vi.spyOn(viewport, "scrollTo").mockImplementation(
+        (options: number | ScrollToOptions) => {
           if (typeof options === "object")
             viewport.scrollLeft = options.left ?? 0;
-        });
+        },
+      );
       const resize = () =>
         callbacks.forEach((callback) => callback([], {} as ResizeObserver));
       resize();
 
-      // The left sidebar opens: the tabs move with the left edge.
-      left = 160;
-      resize();
-      expect(scroll).not.toHaveBeenCalled();
-      expect(viewport.scrollLeft).toBe(200);
-
-      // The right sidebar opens: the tabs keep their distance to the right edge.
+      // Its center sits three quarters across the visible strip, and stays
+      // there whichever sidebar narrows the list.
       right = 360;
       resize();
-      expect(viewport.scrollLeft).toBe(260);
+      expect(viewport.scrollLeft).toBe(245);
+      left = 160;
+      resize();
+      expect(viewport.scrollLeft).toBe(290);
+      left = 100;
       right = 420;
       resize();
       expect(viewport.scrollLeft).toBe(200);
+
+      // A tab that would not fit whole at that place stays whole.
+      left = 300;
+      resize();
+      expect(viewport.scrollLeft).toBe(360);
       wrapper.unmount();
     } finally {
       vi.unstubAllGlobals();

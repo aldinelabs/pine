@@ -134,8 +134,8 @@ Tab bar ("Open content"):
 
 - Each tab is a session or a file; each has a close button ("Close {name}").
   Tabs can be dragged to reorder. When the tabs overflow, the bar scrolls
-  sideways with faded edges; opening or closing a sidebar moves the tabs
-  with the edge on that sidebar's side, keeping their distance to it.
+  sideways with faded edges; opening or closing a sidebar keeps the selected
+  tab in its place in the visible strip, fully shown.
 - Add session tab: always opens and selects a fresh session tab, keeping
   existing drafts and preview tabs open. Each click adds another tab. Its
   project defaults to the most recent session activity, falling back to the

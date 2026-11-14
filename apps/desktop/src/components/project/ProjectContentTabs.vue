@@ -253,37 +253,59 @@ onMounted(() => {
   updateTabListOverflow();
 });
 /*
- * A sidebar opening or closing moves the tab list's edge on its side. The
- * tabs stay put relative to that edge, as if the sidebar pushed them: the
- * left sidebar keeps them against the left edge (the browser's own
- * behaviour), the right sidebar against the right edge. Read in the
- * observer callback, after layout, so the measurement forces none.
+ * A sidebar opening or closing changes the tab list's width. The selected tab
+ * is the anchor: it keeps its relative place in the visible strip and stays
+ * whole, so the tab the user is on never slides under an edge fade. The width
+ * and scroll offset before the change are remembered (scroll events arrive
+ * before the layout that resizes the list), and the new geometry is read in
+ * the observer callback, after layout, so the measurement forces none.
  */
-let tabListEdges: { left: number; right: number } | undefined;
-function followMovedEdge(): void {
+let tabListGeometry: { width: number; scrollLeft: number } | undefined;
+function recordTabListScroll(): void {
+  if (tabListGeometry && tabList.value)
+    tabListGeometry.scrollLeft = tabList.value.scrollLeft;
+}
+function keepSelectedTabInPlace(): void {
   const viewport = tabList.value;
   if (!viewport) {
-    tabListEdges = undefined;
+    tabListGeometry = undefined;
     return;
   }
-  const { left, right } = viewport.getBoundingClientRect();
-  const previous = tabListEdges;
-  tabListEdges = { left, right };
-  if (!previous || viewport.scrollWidth <= viewport.clientWidth) return;
-  const rightMoved = right - previous.right;
-  // Only the right edge moved: keep the tabs' distance to it.
-  if (Math.abs(rightMoved) < 0.5 || Math.abs(left - previous.left) >= 0.5)
+  const previous = tabListGeometry;
+  const width = viewport.clientWidth;
+  tabListGeometry = { width, scrollLeft: viewport.scrollLeft };
+  const button = tabButtons.get(activeTabId.value);
+  if (
+    !previous ||
+    !button ||
+    width === 0 ||
+    previous.width === 0 ||
+    Math.abs(width - previous.width) < 0.5 ||
+    viewport.scrollWidth <= width
+  )
     return;
+  const viewportLeft =
+    viewport.getBoundingClientRect().left + viewport.clientLeft;
+  const rect = button.getBoundingClientRect();
+  const start = rect.left - viewportLeft + viewport.scrollLeft;
+  const end = start + rect.width;
+  const center = (start + end) / 2;
+  const fraction = (center - previous.scrollLeft) / previous.width;
+  const kept = Math.min(
+    Math.max(center - fraction * width, end - width),
+    start,
+  );
   viewport.scrollTo({
-    left: viewport.scrollLeft - rightMoved,
+    left: Math.max(0, Math.min(kept, viewport.scrollWidth - width)),
     behavior: "instant",
   });
+  tabListGeometry.scrollLeft = viewport.scrollLeft;
 }
 
 // The strip comes and goes with the phone layout, so observe whichever list
 // is mounted.
 useResizeObserver(tabList, () => {
-  followMovedEdge();
+  keepSelectedTabInPlace();
   updateTabListOverflow();
 });
 
@@ -785,6 +807,7 @@ watch(activeSession, (session) => {
           role="tablist"
           :aria-label="t('project.contentTabs.tabListLabel')"
           @wheel="scrollTabListWithWheel"
+          @scroll.passive="recordTabListScroll"
           class="scroll-fade-x pointer-events-auto -mx-1 flex min-w-0 flex-initial items-center justify-start self-stretch overflow-x-auto no-scrollbar"
           :class="
             cn(
