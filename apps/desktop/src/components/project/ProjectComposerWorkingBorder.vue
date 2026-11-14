@@ -58,13 +58,17 @@ onScopeDispose(clearLeaveTimer);
       class="chat-input-working-border"
       :data-state="phase"
       aria-hidden="true"
-    />
+    >
+      <div class="chat-input-working-border-arc" />
+    </div>
     <div
       data-slot="session-composer-working-border-glow"
       class="chat-input-working-border chat-input-working-border-glow"
       :data-state="phase"
       aria-hidden="true"
-    />
+    >
+      <div class="chat-input-working-border-arc" />
+    </div>
   </template>
 </template>
 
@@ -113,8 +117,16 @@ onScopeDispose(clearLeaveTimer);
   z-index: 2;
 }
 
-.chat-input-working-border::before {
-  content: "";
+/*
+ * Pine: VS Code spins the layer's ::before. Here a still element holds the
+ * stretch and its ::before spins: the stretch depends on the box's size, and
+ * Chrome keeps the size-dependent values of a running animation's keyframes
+ * from when they were first computed, so a composer that shrank while
+ * working (several lines sent, back to one) left the spin stretched for the
+ * old shape, too short to reach the box's ends. Only the spin animates now,
+ * with no size in it.
+ */
+.chat-input-working-border-arc {
   position: absolute;
   top: 50%;
   left: 50%;
@@ -140,6 +152,12 @@ onScopeDispose(clearLeaveTimer);
   aspect-ratio: 1;
   transform: translate(-50%, -50%)
     scaleX(var(--composer-working-border-stretch));
+}
+
+.chat-input-working-border-arc::before {
+  content: "";
+  position: absolute;
+  inset: 0;
   /*
    * Pine: VS Code starts `from 135deg`. Here the brightest stop (30deg)
    * sits on the ray to the bottom-right corner (90deg + atan2(h, w), with
@@ -173,7 +191,7 @@ onScopeDispose(clearLeaveTimer);
   z-index: 1;
 }
 
-.chat-input-working-border-glow::before {
+.chat-input-working-border-glow .chat-input-working-border-arc::before {
   background: conic-gradient(
     from
       calc(
@@ -206,7 +224,8 @@ onScopeDispose(clearLeaveTimer);
  * Pine: the arc grows in over the old glow's entrance (1100ms) while it
  * starts to spin. Returning mid-exit grows it in again from the corner.
  */
-.chat-input-working-border[data-state="on"]::before {
+.chat-input-working-border[data-state="on"]
+  .chat-input-working-border-arc::before {
   animation:
     composer-working-border-grow-in 1100ms ease-out both,
     chat-input-working-border-spin var(--chat-input-anim-duration) linear
@@ -225,7 +244,8 @@ onScopeDispose(clearLeaveTimer);
   transition-timing-function: ease-out;
 }
 
-.chat-input-working-border[data-state="leaving"]::before {
+.chat-input-working-border[data-state="leaving"]
+  .chat-input-working-border-arc::before {
   animation:
     composer-working-border-grow-out 900ms ease-out forwards,
     chat-input-working-border-spin var(--chat-input-anim-duration) linear
@@ -234,12 +254,10 @@ onScopeDispose(clearLeaveTimer);
 
 @keyframes chat-input-working-border-spin {
   0% {
-    transform: translate(-50%, -50%)
-      scaleX(var(--composer-working-border-stretch)) rotate(0);
+    transform: rotate(0);
   }
   to {
-    transform: translate(-50%, -50%)
-      scaleX(var(--composer-working-border-stretch)) rotate(360deg);
+    transform: rotate(360deg);
   }
 }
 
@@ -266,7 +284,8 @@ onScopeDispose(clearLeaveTimer);
  * at the bottom-right corner at full length and only fades in and out.
  */
 @media (prefers-reduced-motion: reduce) {
-  .chat-input-working-border[data-state]::before {
+  .chat-input-working-border[data-state]
+    .chat-input-working-border-arc::before {
     animation: none;
   }
 }

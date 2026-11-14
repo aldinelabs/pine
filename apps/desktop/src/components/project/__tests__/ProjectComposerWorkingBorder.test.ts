@@ -45,6 +45,8 @@ describe("ProjectComposerWorkingBorder", () => {
     expect(border.attributes("data-state")).toBe("on");
     expect(glow.attributes("data-state")).toBe("on");
     expect(border.attributes("aria-hidden")).toBe("true");
+    expect(border.find(".chat-input-working-border-arc").exists()).toBe(true);
+    expect(glow.find(".chat-input-working-border-arc").exists()).toBe(true);
     wrapper.unmount();
   });
 
@@ -104,6 +106,12 @@ describe("ProjectComposerWorkingBorder", () => {
     ])
       expect(source).toContain(fragment);
     expect(source).toMatch(/conic-gradient\(\s*from/);
+    // Chrome keeps a running animation's size-dependent keyframe values, so
+    // the spin carries no size: the stretch stays on a still element.
+    const spin = source.slice(
+      source.indexOf("@keyframes chat-input-working-border-spin"),
+    );
+    expect(spin.slice(0, spin.indexOf("\n}"))).not.toMatch(/var\(|cq[wh]/);
     const reduced = source.slice(
       source.indexOf("@media (prefers-reduced-motion: reduce)"),
     );
