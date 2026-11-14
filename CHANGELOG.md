@@ -9,6 +9,61 @@ Every release section here has a matching section in the Chinese changelog.
 
 ## [Unreleased]
 
+## [0.20.0] - 2026-11-14
+
+> **Highlights**: send tasks to Pine from WeChat, comment on files right in the preview, let the agent run sub-sessions in parallel, and smoother long conversations.
+
+### Added
+
+#### WeChat remote (experimental)
+
+- **Send tasks to Pine from your own WeChat**: scan the QR code in Settings › Remote control › WeChat and enter the 6-digit pairing code, then message Pine through Tencent's ClawBot. Plain text goes to the current session, and `.help` lists every command (switch sessions and projects, answer questions, approve, fetch files and more). Replies are formatted as Markdown, and interactive answers can be answered with a number.
+- **Set limits for WeChat**: choose the default project, the highest and default approval modes, and whether high-risk actions can be approved and files can be sent from WeChat. Sessions started or used from WeChat are marked in the sidebar, key actions raise a system notification, and the tray menu can pause receiving at any time.
+- **WeChat on Pine servers**: a headless Pine server can bind and configure WeChat remote from the command line.
+
+#### Comments in file previews
+
+- **Comment in the preview and send it all to a session**: comment on selected text in text, code, Markdown, Word, PDF, slides, e-books and email; on cells in tables; on boxed areas of images, pages and diagrams; and on time spans in audio and video. Comments collect in the Comments card in the right sidebar and go into any session's composer in one step.
+- **File details**: a file tab's right sidebar shows the file's type, size, dates and location, plus what the format records, such as a document's author and word count, a photo's camera and date taken, or a recording's codec.
+- **Built-in audio and video player**: seek, loop, playback speed, volume, picture in picture and full screen, with keyboard shortcuts (Space to play, `J` / `L` to skip and more).
+- **Enlarge images in Markdown**: click an image in the Rendered view to enlarge it, then zoom, pan and step through the document's images.
+
+#### Sessions and the agent
+
+- **Sub-sessions**: the agent can start sub-sessions to work on independent parts in parallel. When one finishes, fails or waits for an approval, its parent is told, reads the result and carries on; sub-sessions sit indented under their parent in the sidebar and can be expanded or collapsed.
+- **Let the agent organize sessions and projects**: the agent can search and start sessions, organize session folders, rename or delete sessions, and create, change or delete projects (including their icon and accent color). Deleting a session or changing a project always asks for your approval, in every mode.
+- **Drag a session into the composer as an attachment**: drop a session from the sidebar and the agent can read that conversation.
+- **Interim answers**: the agent can post a preliminary answer before slow work, or answer each part of a multi-part request as it is solved, while it keeps working. Turn it off in Settings › Agent › Interim answers.
+- **Session titles follow the current task**: when a later message starts a different task, the title updates; a title you renamed yourself stays.
+- **Sessions waiting for approval in the sidebar**: a session stopped on an approval shows a shield icon at the end of its row.
+
+#### Other
+
+- **Approval cards explain operations plainly**: when the automatic reviewer sends a call to you, the card opens with one sentence on what the operation does and a list of risks, worded for your Technical background setting, with the original parameters under Technical details. Adding or changing an MCP server shows the command it runs on this computer or the address it connects to, and where it applies.
+- **Working glow**: while the agent works, a light runs clockwise along the composer's border; turn it off with Settings › Appearance › Working glow.
+- **Waiting-for-provider note**: when about 3 seconds pass after sending without any reply, Pine notes it is still waiting for the model provider and suggests checking the network.
+- **Pronouns**: choose your pronouns in Settings › User profile; Pine uses them when it refers to you in the third person.
+- **Keep the computer awake for remote control**: turn it on in Settings › Remote control so the computer does not sleep while Browser access or WeChat remote is on.
+- **Pair by pasting a link**: the Remote Control web page and Home Screen app can pair by pasting a pairing link as well as by scanning.
+
+### Changed
+
+- **Reload the window with `⌘/Ctrl + Shift + R`**: plain `⌘/Ctrl + R` no longer reloads, so a stray press does not lose your place.
+- **Smoother long conversations**: replies appear block by block and live thinking scrolls to its newest line; long conversations use noticeably less of the interface while streaming, and rendering pauses while the window is hidden.
+- **Clearer review outcomes**: tool call details show each review outcome in bold with its own icon and color, and Pine's own review and denial reasons follow the interface language.
+- **Artifacts lists deliverables only**: the workbench's Artifacts lists only the results the agent submitted; files it showed just to report progress no longer appear.
+- **Todos card tidies itself**: once every task is completed, the card disappears when the turn ends.
+- **Startup screen**: the window shows the Pine logo while it starts and fades in once it is ready.
+
+### Fixed
+
+- Text selections in PDF previews are now visible.
+- The conversation no longer jumps when you open the message editor or resend an edited message.
+- Sideways trackpad swipes no longer make the conversation bounce, and scrolling inside a wide table, code block or the thinking panel no longer stops it following the newest reply.
+- Opening or closing a sidebar keeps the current tab in view, and the tab bar scrolls to a file the agent opens.
+- Background sessions such as automation runs no longer show their messages twice when first opened.
+- The Remote Control Home Screen app icon is no longer cut off.
+
 ## [0.15.8] - 2026-11-07
 
 ### Fixed
