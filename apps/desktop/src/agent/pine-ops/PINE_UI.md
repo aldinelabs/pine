@@ -519,9 +519,6 @@ How to comment:
   session's composer as comment chips (file, location and comment), opens the
   session, and clears the comments from the preview. Clear all asks "Clear
   all comments?" before removing them.
-- While a file has comments, the footer's send button is highlighted as the
-  primary action and reads "Send N comments to tab…"; its menu sends the
-  comments the same way instead of attaching the file or a selection.
 - A file holds up to 50 comments. Comments last until they are sent or
   cleared; they are not kept when Pine quits.
 

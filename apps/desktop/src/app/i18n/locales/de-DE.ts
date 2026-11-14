@@ -1231,8 +1231,6 @@ export default {
         emptyDescription:
           "Kommentare, die Sie in der Vorschau hinzufügen, erscheinen hier.",
         send: "{count} Kommentar senden | {count} Kommentare senden",
-        sendToTab:
-          "{count} Kommentar an Tab senden… | {count} Kommentare an Tab senden…",
         clearAll: "Alle löschen",
         clearTitle: "Alle Kommentare löschen?",
         clearDescription:

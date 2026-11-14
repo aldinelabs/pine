@@ -1150,8 +1150,6 @@ export default {
         empty: "還沒有批註",
         emptyDescription: "在預覽中新增的註解會顯示在這裡。",
         send: "傳送 {count} 則批註 | 傳送 {count} 則批註",
-        sendToTab:
-          "傳送 {count} 則批註到選項卡… | 傳送 {count} 則批註到選項卡…",
         clearAll: "全部清除",
         clearTitle: "清除全部批註？",
         clearDescription:

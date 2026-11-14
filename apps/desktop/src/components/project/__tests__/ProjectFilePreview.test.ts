@@ -1009,7 +1009,7 @@ describe("ProjectFilePreview", () => {
     expect(useWorkbenchStore().activeFile?.commentCount).toBe(2);
   });
 
-  it("sends the file's comments from the footer button once there are any", async () => {
+  it("keeps the footer button sending the file while it has comments", async () => {
     const wrapper = render(
       vi.fn().mockResolvedValue({
         ...info,
@@ -1063,8 +1063,8 @@ describe("ProjectFilePreview", () => {
         version: "1",
       });
     await flushPromises();
-    expect(button().attributes("data-variant")).toBe("default");
-    expect(button().text()).toBe("Send 2 comments to tab…");
+    expect(button().attributes("data-variant")).toBe("outline");
+    expect(button().text()).toBe("Send to tab…");
 
     await button().trigger("click");
     await flushPromises();
@@ -1074,13 +1074,9 @@ describe("ProjectFilePreview", () => {
     await flushPromises();
     const createdId = store.fallbackActiveTabId!;
     expect(createdId).not.toBe(draft.id);
-    expect(store.quotesFor(createdId).map((quote) => quote.comment)).toEqual([
-      "Rename",
-      "Shorter",
-    ]);
+    expect(store.quotesFor(createdId)).toEqual([]);
     expect(store.attachmentsFor(createdId)).toEqual([attachment]);
-    expect(annotations.annotationsFor(key)).toEqual([]);
-    expect(button().text()).toBe("Send to tab…");
+    expect(annotations.annotationsFor(key)).toHaveLength(2);
   });
 
   it("ignores stale reads when switching files", async () => {

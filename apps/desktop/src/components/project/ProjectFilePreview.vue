@@ -818,12 +818,10 @@ async function sendAnnotations(target: string | null): Promise<void> {
   sidebarOpen.value = false;
 }
 
-/** The footer's send menu: the comments when there are any, else the file. */
+/** The footer's send menu: the file, or the selection in it. */
 function sendFromMenu(target: string | null): void {
   const file = projectTarget.value;
-  if (!file) return;
-  if (annotations.value.length) void sendAnnotations(target);
-  else void sendFile(file, target, menuSelection.value);
+  if (file) void sendFile(file, target, menuSelection.value);
 }
 
 function clearAnnotations(): void {
@@ -1105,23 +1103,18 @@ function clearAnnotations(): void {
           @update:open="updateMenu"
         >
           <DropdownMenuTrigger as-child>
-            <!-- With comments on the file, sending means sending them. -->
             <Button
               data-action="send-to-tab"
-              :variant="annotations.length ? 'default' : 'outline'"
+              variant="outline"
               :disabled="isSending"
               @pointerdown.prevent="updateSelection"
             >
               <Send data-icon="inline-start" />{{
-                annotations.length
-                  ? t("project.preview.annotations.sendToTab", {
-                      count: annotations.length,
-                    })
-                  : t(
-                      selectedRange
-                        ? "project.preview.sendSelectionToTab"
-                        : "project.preview.sendToTab",
-                    )
+                t(
+                  selectedRange
+                    ? "project.preview.sendSelectionToTab"
+                    : "project.preview.sendToTab",
+                )
               }}
             </Button>
           </DropdownMenuTrigger>

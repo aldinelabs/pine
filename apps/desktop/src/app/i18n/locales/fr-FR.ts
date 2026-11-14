@@ -1226,8 +1226,6 @@ export default {
         emptyDescription:
           "Les commentaires ajoutés dans l’aperçu apparaissent ici.",
         send: "Envoyer {count} commentaire | Envoyer {count} commentaires",
-        sendToTab:
-          "Envoyer {count} commentaire vers un onglet… | Envoyer {count} commentaires vers un onglet…",
         clearAll: "Tout effacer",
         clearTitle: "Effacer tous les commentaires ?",
         clearDescription:

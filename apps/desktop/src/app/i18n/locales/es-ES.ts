@@ -1226,8 +1226,6 @@ export default {
         emptyDescription:
           "Los comentarios que añadas en la vista previa aparecen aquí.",
         send: "Enviar {count} comentario | Enviar {count} comentarios",
-        sendToTab:
-          "Enviar {count} comentario a una pestaña… | Enviar {count} comentarios a una pestaña…",
         clearAll: "Borrar todo",
         clearTitle: "¿Borrar todos los comentarios?",
         clearDescription:

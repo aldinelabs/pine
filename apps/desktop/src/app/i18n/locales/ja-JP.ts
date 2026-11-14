@@ -1214,8 +1214,6 @@ export default {
         empty: "コメントはまだありません",
         emptyDescription: "プレビューで追加したコメントがここに表示されます。",
         send: "コメント {count} 件を送信 | コメント {count} 件を送信",
-        sendToTab:
-          "コメント {count} 件をタブに送信… | コメント {count} 件をタブに送信…",
         clearAll: "すべてクリア",
         clearTitle: "すべてのコメントをクリアしますか？",
         clearDescription:

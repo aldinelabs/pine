@@ -1197,8 +1197,6 @@ export default {
         empty: "아직 댓글이 없습니다",
         emptyDescription: "미리 보기에서 추가한 댓글이 여기에 표시됩니다.",
         send: "댓글 {count}개 보내기 | 댓글 {count}개 보내기",
-        sendToTab:
-          "댓글 {count}개를 탭으로 보내기… | 댓글 {count}개를 탭으로 보내기…",
         clearAll: "모두 지우기",
         clearTitle: "댓글을 모두 지울까요?",
         clearDescription:
