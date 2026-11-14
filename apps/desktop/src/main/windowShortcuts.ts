@@ -14,6 +14,12 @@ export function installWindowShortcuts(
     // Ctrl/Cmd+W closes the tab, Ctrl/Cmd+N or Ctrl/Cmd+T opens a tab, and
     // Ctrl/Cmd+Shift+N opens a window.
     const key = input.key.toLowerCase();
+    // Plain Ctrl/Cmd+R is too easy to hit by accident and reloading drops the
+    // window's state; only Ctrl/Cmd+Shift+R (force reload) reloads Pine.
+    if (key === "r" && !input.shift) {
+      event.preventDefault();
+      return;
+    }
     const action =
       key === "n"
         ? input.shift

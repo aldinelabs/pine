@@ -97,4 +97,27 @@ describe("native close shortcut", () => {
     }
     expect(onCreateWindow).toHaveBeenCalledTimes(2);
   });
+
+  it("swallows Ctrl/Cmd+R so only Ctrl/Cmd+Shift+R reloads", () => {
+    const contents = Object.assign(new EventEmitter(), { send: vi.fn() });
+    installWindowShortcuts(contents as unknown as WebContents, vi.fn());
+    for (const modifiers of [{ control: true }, { meta: true }]) {
+      const reload = { preventDefault: vi.fn() };
+      contents.emit("before-input-event", reload, {
+        type: "keyDown",
+        key: "r",
+        ...modifiers,
+      });
+      expect(reload.preventDefault).toHaveBeenCalledOnce();
+      const forceReload = { preventDefault: vi.fn() };
+      contents.emit("before-input-event", forceReload, {
+        type: "keyDown",
+        key: "R",
+        shift: true,
+        ...modifiers,
+      });
+      expect(forceReload.preventDefault).not.toHaveBeenCalled();
+    }
+    expect(contents.send).not.toHaveBeenCalled();
+  });
 });
