@@ -9,7 +9,14 @@ import {
   VisSingleContainer,
   VisXYContainer,
 } from "@unovis/vue";
-import { computed, h, render } from "vue";
+import {
+  computed,
+  h,
+  onBeforeUnmount,
+  onMounted,
+  render,
+  useTemplateRef,
+} from "vue";
 import {
   ChartContainer,
   ChartCrosshair,
@@ -20,12 +27,21 @@ import {
 } from "@/components/ui/chart";
 import type { IntelligentUiProps } from "@/shared/intelligentUi";
 import { chartSeriesKeys } from "@/shared/intelligentUiChart";
+import { observeCrosshairFlip } from "./crosshairFlip";
 
 type Datum = Record<string, string | number | null>;
 
 const props = defineProps<ComponentRenderProps<IntelligentUiProps<"Chart">>>();
 
 const isStreaming = useIsStreaming();
+
+// The crosshair jumps between points (duration 0) and eases there as a FLIP.
+const figure = useTemplateRef<HTMLElement>("figure");
+let stopCrosshairFlip: (() => void) | undefined;
+onMounted(() => {
+  if (figure.value) stopCrosshairFlip = observeCrosshairFlip(figure.value);
+});
+onBeforeUnmount(() => stopCrosshairFlip?.());
 /** Each streamed batch updates the data; transitions would restart on every
  * one, so draw instantly until the block closes. */
 const duration = computed(() => (isStreaming.value ? 0 : undefined));
@@ -94,7 +110,7 @@ const donutColor = (_item: Datum, index: number) => colorAt(index);
 </script>
 
 <template>
-  <figure data-iui="chart" class="flex min-w-0 flex-col gap-2">
+  <figure ref="figure" data-iui="chart" class="flex min-w-0 flex-col gap-2">
     <figcaption v-if="props.props.title" class="text-sm font-medium">
       {{ props.props.title }}
     </figcaption>
@@ -141,7 +157,11 @@ const donutColor = (_item: Datum, index: number) => colorAt(index);
           :num-ticks="4"
         />
         <ChartTooltip />
-        <ChartCrosshair :template="tooltip" :color="seriesColor" />
+        <ChartCrosshair
+          :template="tooltip"
+          :color="seriesColor"
+          :duration="0"
+        />
       </VisXYContainer>
       <ChartLegendContent v-if="isDonut || series.length > 1" />
     </ChartContainer>
