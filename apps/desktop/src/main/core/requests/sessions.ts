@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { sessionAttachment } from "../../../shared/attachments";
 import {
   ABORT_SESSION_CHANNEL,
   APPROVAL_RESPONSE_CHANNEL,
@@ -51,7 +52,7 @@ import {
 import { z } from "zod";
 import {
   ALL_PROJECTS_SEARCH_LIMIT,
-  attachmentForProjectSession,
+  attachmentTitleOfProjectSession,
   listAllRecentSessions,
   listProjectSessions,
   searchAllSessions,
@@ -823,15 +824,21 @@ export function registerSessionRequests(core: PineCore): void {
       const { projectId, sessionId } =
         ProjectSessionRequestSchema.parse(request);
       // A session dragged in from another project may not be open here.
-      const attachment = runtimes.isOpen(context.clientId, projectId)
-        ? await runtimes.attachmentForSession(
-            context.clientId,
-            projectId,
-            sessionId,
-          )
-        : await attachmentForProjectSession(projectId, sessionId, library);
-      core.rememberAttachments(context.clientId, [attachment.path]);
-      return { attachment };
+      const { title, updatedAt } = runtimes.isOpen(context.clientId, projectId)
+        ? await runtimes.attachmentTitle(context.clientId, projectId, sessionId)
+        : await attachmentTitleOfProjectSession(projectId, sessionId, library);
+      const project = await repository.get(projectId);
+      // A reference, not the session file: the agent reads it with its
+      // session tools, so attaching grants no file access.
+      return {
+        attachment: sessionAttachment({
+          projectId,
+          sessionId,
+          projectName: project.name,
+          title,
+          updatedAt,
+        }),
+      };
     },
   );
 

@@ -108,7 +108,19 @@ export function attachmentImageUrl(path: string): string {
   return `${ATTACHMENT_IMAGE_PROTOCOL}://local/?p=${encodeURIComponent(path)}`;
 }
 
-export type PineAttachmentKind = "directory" | "file";
+export type PineAttachmentKind = "directory" | "file" | "session";
+
+/**
+ * A conversation attached by reference: the agent reads it with its session
+ * tools instead of a file, and reads it without review because the user
+ * attached it.
+ */
+export interface AttachedSession {
+  projectId: string;
+  sessionId: string;
+  /** The session's project, for the model and the chip. */
+  projectName?: string;
+}
 
 export interface AttachmentSelection {
   /** Inclusive, 1-based source line numbers. */
@@ -140,6 +152,61 @@ export interface PineAttachment {
   size: number;
   selection?: AttachmentSelection;
   source?: AttachmentSource;
+  /** Set exactly when `kind` is "session". */
+  session?: AttachedSession;
+}
+
+const SESSION_ATTACHMENT_SCHEME = "pine-session://";
+
+/** The stand-in path that keys a session attachment; never a file. */
+export function sessionAttachmentPath(session: AttachedSession): string {
+  return `${SESSION_ATTACHMENT_SCHEME}${session.projectId}/${session.sessionId}`;
+}
+
+/** A conversation as an attachment; `name` is its title. */
+export function sessionAttachment(input: {
+  projectId: string;
+  sessionId: string;
+  projectName?: string;
+  title: string;
+  updatedAt: string;
+}): PineAttachment {
+  const session: AttachedSession = {
+    projectId: input.projectId,
+    sessionId: input.sessionId,
+    ...(input.projectName ? { projectName: input.projectName } : {}),
+  };
+  return {
+    extension: "",
+    kind: "session",
+    modifiedAt: input.updatedAt,
+    name: input.title,
+    path: sessionAttachmentPath(session),
+    size: 0,
+    session,
+  };
+}
+
+export function isSessionAttachment(
+  attachment: Pick<PineAttachment, "kind">,
+): boolean {
+  return attachment.kind === "session";
+}
+
+/** The file and folder paths of attachments: what may grant read access. */
+export function attachmentFilePaths(
+  attachments: readonly PineAttachment[],
+): string[] {
+  return attachments
+    .filter((attachment) => !isSessionAttachment(attachment))
+    .map((attachment) => attachment.path);
+}
+
+/** The sessions a user message attached. */
+export function attachedSessionsOf(message: string): AttachedSession[] {
+  return parseAttachmentMessage(message).attachments.flatMap((attachment) =>
+    attachment.session ? [attachment.session] : [],
+  );
 }
 
 export interface PickAttachmentsResult {
@@ -180,7 +247,13 @@ function isAttachment(value: unknown): value is PineAttachment {
     typeof attachment.extension === "string" &&
     (attachment.kind === undefined ||
       attachment.kind === "directory" ||
-      attachment.kind === "file") &&
+      attachment.kind === "file" ||
+      attachment.kind === "session") &&
+    (attachment.kind === "session"
+      ? isAttachedSession(attachment.session) &&
+        attachment.path === sessionAttachmentPath(attachment.session) &&
+        attachment.selection === undefined
+      : attachment.session === undefined) &&
     typeof attachment.modifiedAt === "string" &&
     typeof attachment.name === "string" &&
     typeof attachment.path === "string" &&
@@ -191,6 +264,19 @@ function isAttachment(value: unknown): value is PineAttachment {
       (attachment.kind !== "directory" &&
         isAttachmentSelection(attachment.selection))) &&
     (attachment.source === undefined || isAttachmentSource(attachment.source))
+  );
+}
+
+function isAttachedSession(value: unknown): value is AttachedSession {
+  if (typeof value !== "object" || value === null) return false;
+  const session = value as Record<string, unknown>;
+  const id = (field: unknown) =>
+    typeof field === "string" && /^[A-Za-z0-9._-]{1,200}$/.test(field);
+  return (
+    id(session.projectId) &&
+    id(session.sessionId) &&
+    (session.projectName === undefined ||
+      typeof session.projectName === "string")
   );
 }
 

@@ -1,7 +1,7 @@
 import { mount } from "@vue/test-utils";
 import { describe, expect, it } from "vitest";
 import { createAppI18n } from "@/app/i18n";
-import type { PineAttachment } from "@/shared/attachments";
+import { sessionAttachment, type PineAttachment } from "@/shared/attachments";
 import ProjectAttachmentList from "../ProjectAttachmentList.vue";
 
 const imageAttachment: PineAttachment = {
@@ -54,6 +54,23 @@ describe("ProjectAttachmentList", () => {
       expect(wrapper.text()).not.toContain("MD ·");
     },
   );
+
+  it("shows an attached conversation by its title and project", () => {
+    const session = sessionAttachment({
+      projectId: "p1",
+      sessionId: "s1",
+      projectName: "Pine",
+      title: "",
+      updatedAt: "2026-09-02T12:00:00.000Z",
+    });
+    const wrapper = mountList({ attachments: [session], surface: "composer" });
+    expect(wrapper.get('[data-slot="attachment-title"]').text()).toBe(
+      "未命名会话",
+    );
+    expect(wrapper.get('[data-slot="attachment-description"]').text()).toBe(
+      "会话 · Pine",
+    );
+  });
 
   it("shows a rendered-document location instead of source lines", () => {
     const wrapper = mountList({

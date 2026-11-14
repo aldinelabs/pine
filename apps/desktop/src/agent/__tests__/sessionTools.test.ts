@@ -1,3 +1,4 @@
+import type { AttachedSession } from "../../shared/attachments";
 import { describe, expect, it, vi } from "vitest";
 import type {
   ExtensionToolContext,
@@ -101,6 +102,7 @@ function setup(
   approvalMode: PineApprovalMode,
   decision: GateDecision = { kind: "allow" },
   parentSessionId?: string,
+  attachedSessions: AttachedSession[] = [],
 ) {
   const requestHost = vi.fn(
     (request: AgentHostRequest): Promise<AgentHostResponse> => {
@@ -123,6 +125,7 @@ function setup(
     reviewOutOfScope,
     renameCurrentSession,
     getParentSessionId: () => parentSessionId,
+    attachedSessions: () => attachedSessions,
     getApprovalMode: () => approvalMode,
     getLocale: () => "en-US",
   };
@@ -425,6 +428,29 @@ describe("session tools", () => {
     });
     await run(read, { sessionId: "s2", projectId: "p1", before: "c1" });
     expect(reviewOutOfScope).toHaveBeenCalledTimes(1);
+  });
+
+  it("reads a session the user attached without review", async () => {
+    const { read, requestHost, reviewOutOfScope } = setup(
+      "auto-approve",
+      { kind: "deny" },
+      undefined,
+      [{ projectId: "p1", sessionId: "s2", projectName: "Pine" }],
+    );
+
+    // The attachment supplies the project when the model leaves it out.
+    const result = await run(read, { sessionId: "s2" });
+    expect(text(result)).toContain("[user · t1]\nGo");
+    expect(reviewOutOfScope).not.toHaveBeenCalled();
+    expect(requestHost).toHaveBeenLastCalledWith({
+      kind: "session",
+      operation: { op: "read", sessionId: "s2", projectId: "p1", limit: 10 },
+    });
+
+    // The same id in another project is not the attached session.
+    const other = await run(read, { sessionId: "s2", projectId: "p9" });
+    expect(reviewOutOfScope).toHaveBeenCalledTimes(1);
+    expect(text(other)).toContain("was not approved");
   });
 
   it("does not read a session outside the relatives when the review denies it", async () => {

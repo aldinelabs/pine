@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { PineAttachment } from "@/shared/attachments";
 import { CheckIcon, CopyIcon, PencilIcon } from "@lucide/vue";
 import {
   computed,
@@ -80,9 +81,9 @@ const props = defineProps<{
 const isUser = computed(() => props.message.role === "user");
 const { t } = useI18n();
 
-async function openAttachment(path: string): Promise<void> {
+async function openAttachment(attachment: PineAttachment): Promise<void> {
   try {
-    const result = await window.pine.openAttachment({ path });
+    const result = await window.pine.openAttachment({ path: attachment.path });
     if (!result.opened) throw new Error(result.error);
   } catch {
     toast.error(t("project.composer.attachmentOpenFailed"));

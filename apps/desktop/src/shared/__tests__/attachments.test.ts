@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
+  attachedSessionsOf,
+  attachmentFilePaths,
   attachmentImageUrl,
   attachmentMessagePreview,
   extensionForPastedImage,
@@ -9,6 +11,7 @@ import {
   pastedTextByteLength,
   parseAttachmentMessage,
   serializeAttachmentMessage,
+  sessionAttachment,
   shouldAttachPastedText,
   type PineAttachment,
 } from "../attachments";
@@ -115,6 +118,49 @@ describe("attachment messages", () => {
       "Hi",
     );
     expect(parseAttachmentMessage(message).attachments).toEqual([]);
+  });
+
+  it("round-trips an attached conversation as a reference, not a file", () => {
+    const session = sessionAttachment({
+      projectId: "p1",
+      sessionId: "s1",
+      projectName: "Pine",
+      title: "Release notes",
+      updatedAt: "2026-09-02T12:00:00.000Z",
+    });
+    expect(session).toMatchObject({
+      kind: "session",
+      name: "Release notes",
+      path: "pine-session://p1/s1",
+      session: { projectId: "p1", sessionId: "s1", projectName: "Pine" },
+    });
+    const message = serializeAttachmentMessage([attachment, session], "Read.");
+    expect(parseAttachmentMessage(message).attachments).toEqual([
+      attachment,
+      session,
+    ]);
+    expect(attachedSessionsOf(message)).toEqual([session.session]);
+    // Only files and folders turn into read access.
+    expect(attachmentFilePaths([attachment, session])).toEqual([
+      attachment.path,
+    ]);
+  });
+
+  it("rejects a session attachment whose path is not its reference", () => {
+    const session = sessionAttachment({
+      projectId: "p1",
+      sessionId: "s1",
+      title: "x",
+      updatedAt: "2026-09-02T12:00:00.000Z",
+    });
+    for (const forged of [
+      { ...session, path: "/Users/example/.ssh/id_rsa" },
+      { ...session, session: undefined },
+      { ...attachment, session: session.session },
+    ]) {
+      const message = serializeAttachmentMessage([forged], "Read.");
+      expect(parseAttachmentMessage(message).attachments).toEqual([]);
+    }
   });
 
   it("leaves malformed or ordinary user text untouched", () => {

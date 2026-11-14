@@ -68,8 +68,8 @@ import {
 } from "../shared/backgroundTasks";
 import type { GateDecision } from "../agent/protocol";
 import {
+  attachmentFilePaths,
   parseAttachmentMessage,
-  type PineAttachment,
 } from "../shared/attachments";
 import { mkdir, realpath, rename, stat } from "node:fs/promises";
 import {
@@ -529,12 +529,12 @@ export class ProjectRuntimeRegistry {
     );
   }
 
-  async attachmentForSession(
+  async attachmentTitle(
     webContentsId: number,
     projectId: string,
     sessionId: string,
-  ): Promise<PineAttachment> {
-    return this.get(webContentsId, projectId).sessions.attachmentForSession(
+  ): Promise<{ title: string; updatedAt: string }> {
+    return this.get(webContentsId, projectId).sessions.attachmentTitle(
       sessionId,
     );
   }
@@ -975,8 +975,9 @@ export class ProjectRuntimeRegistry {
       request.approvalMode ?? activeSession.approvalMode ?? "auto-approve";
     if (mutators.length > 0)
       await this.agentHost.mutateSession(activeSession.id, mutators);
-    const attachedPaths = parseAttachmentMessage(request.message)
-      .attachments.map((attachment) => attachment.path)
+    const attachedPaths = attachmentFilePaths(
+      parseAttachmentMessage(request.message).attachments,
+    )
       .filter((attachmentPath) => attachmentPath.length <= 4_096)
       .slice(0, 100);
     const streamingBehavior =

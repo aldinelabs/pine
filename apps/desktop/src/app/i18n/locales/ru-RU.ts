@@ -1145,6 +1145,9 @@ export default {
       addFolder: "Добавить папку",
       addSession: "Разговор",
       folderAttachment: "Папка",
+      sessionAttachment: "Разговор",
+      sessionAttachmentIn: "Разговор · {project}",
+      untitledSessionAttachment: "Разговор без названия",
       attachmentLines: "Строки {startLine}–{endLine}",
       openAttachment: "Открыть вложение {name}",
       attachmentOpenFailed:

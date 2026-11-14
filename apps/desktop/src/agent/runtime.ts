@@ -232,6 +232,7 @@ import type {
 import {
   approvalActionDigest,
   attachedPathsFromSessionEntries,
+  attachedSessionsFromSessionEntries,
   authorizationGrantsFromSessionEntries,
   automationAuthoringActiveFromSessionEntries,
   buildGateTurnContext,
@@ -1676,6 +1677,10 @@ export class PineAgentRuntime {
           renameCurrentSession: (title) => this.retitleByAgent(live, title),
           getParentSessionId: () =>
             subSessionParentOf(live.session.sessionManager.getEntries()),
+          attachedSessions: () =>
+            attachedSessionsFromSessionEntries(
+              live.session.sessionManager.getEntries(),
+            ),
           reviewOutOfScope: (input) =>
             live.approvalMode === "YOLO"
               ? Promise.resolve({ kind: "allow" as const })

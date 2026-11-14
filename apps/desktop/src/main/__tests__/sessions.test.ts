@@ -159,9 +159,10 @@ describe("ProjectSessionService", () => {
       const exported = await service.exportSession(sessionId, "auto-approve");
       expect(exported.markdown).toContain("Original omitted message");
       expect(exported.markdown).toContain("Latest message");
-      expect((await service.attachmentForSession(sessionId)).path).toBe(
-        sessionFile,
-      );
+      await expect(service.attachmentTitle(sessionId)).resolves.toEqual({
+        title: "Original omitted message",
+        updatedAt: expect.any(String),
+      });
       expect(await readFile(sessionFile, "utf8")).toBe(original);
 
       const reopened = SessionManager.open(sessionFile);
@@ -441,7 +442,7 @@ describe("ProjectSessionService", () => {
     }
   });
 
-  it("resolves a session JSONL document as a regular file attachment", async () => {
+  it("reads the title a session attachment shows", async () => {
     const rootPath = await createTemporaryProjectData();
     const options = serviceOptions(rootPath);
     await mkdir(options.cwd, { recursive: true });
@@ -457,15 +458,10 @@ describe("ProjectSessionService", () => {
     const service = await ProjectSessionService.create(options);
 
     try {
-      await expect(service.attachmentForSession(metadata.id)).resolves.toEqual(
-        expect.objectContaining({
-          extension: "jsonl",
-          kind: "file",
-          name: "Architecture review.jsonl",
-          path: metadata.path,
-          size: expect.any(Number),
-        }),
-      );
+      await expect(service.attachmentTitle(metadata.id)).resolves.toEqual({
+        title: "Architecture review",
+        updatedAt: expect.any(String),
+      });
     } finally {
       await service.dispose();
     }

@@ -1158,6 +1158,9 @@ export default {
       addFolder: "Añadir carpeta",
       addSession: "Conversación",
       folderAttachment: "Carpeta",
+      sessionAttachment: "Conversación",
+      sessionAttachmentIn: "Conversación · {project}",
+      untitledSessionAttachment: "Conversación sin título",
       attachmentLines: "Líneas {startLine}–{endLine}",
       openAttachment: "Abrir el adjunto {name}",
       attachmentOpenFailed:

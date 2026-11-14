@@ -329,7 +329,12 @@ From top to bottom:
      still at the bottom-right corner. It can be turned off with Working glow
      in Appearance settings. The quick composer and side chats don't show it.
    - Add attachment menu: File, Folder, Conversation. Files can also be
-     dropped or pasted.
+     dropped or pasted; a session dragged from the sidebar is attached as a
+     conversation. An attached conversation shows as a chip with its title
+     ("Untitled conversation" when it has none) and "Conversation · {project}";
+     in a sent message, clicking the chip opens that session in a tab. The
+     agent reads an attached conversation with its session tools, without
+     asking for approval.
    - Footer controls: project target ("Send to {name}"), Model, Reasoning
      effort, approval mode, Context usage, and the action button.
    - Approval modes: Let Me Review (ask before risky actions), Auto Approve

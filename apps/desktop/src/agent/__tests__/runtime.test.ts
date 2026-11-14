@@ -30,7 +30,10 @@ import {
   toolNamesForMediaGenerationState,
   toolNamesForSkillAuthoringState,
 } from "../runtime";
-import { PINE_APPROVAL_MODE_NOTICE } from "../runtime/session-state";
+import {
+  attachedSessionsFromSessionEntries,
+  PINE_APPROVAL_MODE_NOTICE,
+} from "../runtime/session-state";
 import type { JudgeRequest, JudgeRuling, UserApprovalRequest } from "../gate";
 import type { LiveAgentSession } from "../runtime/session-state";
 import type { GateDecision } from "../protocol";
@@ -40,7 +43,10 @@ import {
   createDefaultPineUserProfile,
   type PineUserProfile,
 } from "../../shared/userProfile";
-import { serializeAttachmentMessage } from "../../shared/attachments";
+import {
+  serializeAttachmentMessage,
+  sessionAttachment,
+} from "../../shared/attachments";
 import {
   ACTIVATE_COMPUTER_USE_TOOL_NAME,
   type ComputerUseController,
@@ -113,6 +119,26 @@ afterEach(async () => {
       .splice(0)
       .map((directory) => rm(directory, { recursive: true, force: true })),
   );
+});
+
+describe("attachedSessionsFromSessionEntries", () => {
+  it("lists the sessions the user attached, and grants them no paths", () => {
+    const session = sessionAttachment({
+      projectId: "p1",
+      sessionId: "s1",
+      title: "Plan",
+      updatedAt: "2026-09-02T12:00:00.000Z",
+    });
+    const block = serializeAttachmentMessage([session], "Read it.");
+    const entries = [
+      { type: "message", message: { role: "user", content: block } },
+      { type: "message", message: { role: "assistant", content: block } },
+    ];
+    expect(attachedSessionsFromSessionEntries(entries)).toEqual([
+      { projectId: "p1", sessionId: "s1" },
+    ]);
+    expect(attachedPathsFromSessionEntries(entries)).toEqual([]);
+  });
 });
 
 describe("attachedPathsFromSessionEntries", () => {

@@ -1,4 +1,3 @@
-import type { PineAttachment } from "../shared/attachments";
 import type { PineProject } from "../shared/projects";
 import type { ProjectSessionSearchResult } from "../shared/sessions";
 import type { ProjectDataPaths } from "./projects/projectRepository";
@@ -37,13 +36,13 @@ async function withSessionService<T>(
 }
 
 /** A session's attachment, even when its project is not open in the window. */
-export function attachmentForProjectSession(
+export function attachmentTitleOfProjectSession(
   projectId: string,
   sessionId: string,
   sources: RecentSessionSources,
-): Promise<PineAttachment> {
+): Promise<{ title: string; updatedAt: string }> {
   return withSessionService(projectId, sources, (service) =>
-    service.attachmentForSession(sessionId),
+    service.attachmentTitle(sessionId),
   );
 }
 

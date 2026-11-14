@@ -47,7 +47,10 @@ import type { AskUserQuestionSubmission } from "@pine/rpiv-ask-user-question";
 import type { GateDecision } from "../protocol";
 import {
   attachmentMessagePreview,
+  attachmentFilePaths,
   parseAttachmentMessage,
+  type AttachedSession,
+  type PineAttachment,
 } from "../../shared/attachments";
 import { TINYFISH_TOOL_NAMES } from "../tinyfishTools";
 import { COMPUTER_USE_DYNAMIC_TOOL_NAMES } from "../computer-use/tools";
@@ -582,11 +585,11 @@ export function buildGateTurnContext(
   };
 }
 
-/** Recover direct user attachment grants when reopening a persisted session. */
-export function attachedPathsFromSessionEntries(
+/** Attachments of the user's own messages in a session's entries. */
+function userAttachmentsFromSessionEntries(
   entries: readonly unknown[],
-): string[] {
-  const paths = new Set<string>();
+): PineAttachment[] {
+  const attachments: PineAttachment[] = [];
   for (const value of entries) {
     if (typeof value !== "object" || value === null || Array.isArray(value)) {
       continue;
@@ -605,9 +608,31 @@ export function attachedPathsFromSessionEntries(
     const content = textFromMessageContent(
       (message as Record<string, unknown>).content,
     );
-    for (const attachment of parseAttachmentMessage(content).attachments) {
-      if (attachment.path.length <= 4_096) paths.add(attachment.path);
-    }
+    attachments.push(...parseAttachmentMessage(content).attachments);
+  }
+  return attachments;
+}
+
+/** Recover direct user attachment grants when reopening a persisted session. */
+export function attachedPathsFromSessionEntries(
+  entries: readonly unknown[],
+): string[] {
+  const paths = new Set<string>();
+  for (const attachmentPath of attachmentFilePaths(
+    userAttachmentsFromSessionEntries(entries),
+  )) {
+    if (attachmentPath.length <= 4_096) paths.add(attachmentPath);
   }
   return [...paths];
+}
+
+/** Sessions the user attached to their messages, which the agent may read. */
+export function attachedSessionsFromSessionEntries(
+  entries: readonly unknown[],
+): AttachedSession[] {
+  const sessions = new Map<string, AttachedSession>();
+  for (const attachment of userAttachmentsFromSessionEntries(entries))
+    if (attachment.session)
+      sessions.set(attachment.session.sessionId, attachment.session);
+  return [...sessions.values()];
 }

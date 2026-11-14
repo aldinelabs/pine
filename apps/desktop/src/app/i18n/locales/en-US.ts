@@ -1137,6 +1137,9 @@ export default {
       addFolder: "Add folder",
       addSession: "Conversation",
       folderAttachment: "Folder",
+      sessionAttachment: "Conversation",
+      sessionAttachmentIn: "Conversation · {project}",
+      untitledSessionAttachment: "Untitled conversation",
       attachmentLines: "Lines {startLine}–{endLine}",
       openAttachment: "Open attachment {name}",
       attachmentOpenFailed:

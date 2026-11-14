@@ -39,10 +39,7 @@ import {
 } from "../shared/artifacts";
 import { formatSessionAsMarkdown } from "../shared/sessionExport";
 import { sessionActivityAt } from "../shared/sessionActivity";
-import {
-  attachmentMessagePreview,
-  type PineAttachment,
-} from "../shared/attachments";
+import { attachmentMessagePreview } from "../shared/attachments";
 import {
   parseMessageBlocks,
   progressReportText,
@@ -792,19 +789,17 @@ export class ProjectSessionService {
     };
   }
 
-  async attachmentForSession(sessionId: string): Promise<PineAttachment> {
-    const descriptor = await this.describeSession(sessionId);
-    const metadata = await stat(descriptor.sessionFile);
-    if (!metadata.isFile()) throw new Error("Session document is not a file.");
-    const extension =
-      path.extname(descriptor.sessionFile).slice(1).toLowerCase() || "jsonl";
+  /** What a session attachment shows: its title and last update. */
+  async attachmentTitle(
+    sessionId: string,
+  ): Promise<{ title: string; updatedAt: string }> {
+    const { summary } = await this.describeSession(sessionId);
     return {
-      extension,
-      kind: "file",
-      modifiedAt: metadata.mtime.toISOString(),
-      name: sessionDisplayName(descriptor.summary, extension),
-      path: descriptor.sessionFile,
-      size: metadata.size,
+      title: (summary.name || summary.preview || "")
+        .replace(/\s+/gu, " ")
+        .trim()
+        .slice(0, 100),
+      updatedAt: summary.updatedAt,
     };
   }
 

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { attachmentImageUrl } from "@/lib/clientAssets";
 import type { HTMLAttributes } from "vue";
-import { FileIcon, FolderIcon, XIcon } from "@lucide/vue";
+import { FileIcon, FolderIcon, MessageSquareIcon, XIcon } from "@lucide/vue";
 import { ref } from "vue";
 import { useI18n } from "vue-i18n";
 import {
@@ -15,6 +15,7 @@ import {
   AttachmentTitle,
   AttachmentTrigger,
 } from "@/components/ui/attachment";
+import ProjectSessionAttachmentTrigger from "@/components/project/ProjectSessionAttachmentTrigger.vue";
 import { cn } from "@/lib/utils";
 import { isImageAttachment, type PineAttachment } from "@/shared/attachments";
 
@@ -29,7 +30,7 @@ const props = withDefaults(
 );
 
 const emit = defineEmits<{
-  open: [path: string];
+  open: [attachment: PineAttachment];
   remove: [path: string];
 }>();
 
@@ -96,26 +97,37 @@ function formatFileSize(size: number): string {
         />
       </AttachmentMedia>
       <AttachmentMedia v-else>
-        <FolderIcon v-if="attachment.kind === 'directory'" />
+        <MessageSquareIcon v-if="attachment.kind === 'session'" />
+        <FolderIcon v-else-if="attachment.kind === 'directory'" />
         <FileIcon v-else />
       </AttachmentMedia>
       <AttachmentContent>
-        <AttachmentTitle>{{ attachment.name }}</AttachmentTitle>
+        <AttachmentTitle>{{
+          attachment.kind === "session" && !attachment.name
+            ? t("project.composer.untitledSessionAttachment")
+            : attachment.name
+        }}</AttachmentTitle>
         <AttachmentDescription>
           {{
-            attachment.selection
-              ? (attachment.selection.label ??
-                t("project.composer.attachmentLines", {
-                  startLine: attachment.selection.startLine,
-                  endLine: attachment.selection.endLine,
-                }))
-              : attachment.source
-                ? attachment.source.app
-                : attachment.kind === "directory"
-                  ? t("project.composer.folderAttachment")
-                  : attachment.extension
-                    ? `${attachment.extension.toUpperCase()} · ${formatFileSize(attachment.size)}`
-                    : formatFileSize(attachment.size)
+            attachment.session
+              ? attachment.session.projectName
+                ? t("project.composer.sessionAttachmentIn", {
+                    project: attachment.session.projectName,
+                  })
+                : t("project.composer.sessionAttachment")
+              : attachment.selection
+                ? (attachment.selection.label ??
+                  t("project.composer.attachmentLines", {
+                    startLine: attachment.selection.startLine,
+                    endLine: attachment.selection.endLine,
+                  }))
+                : attachment.source
+                  ? attachment.source.app
+                  : attachment.kind === "directory"
+                    ? t("project.composer.folderAttachment")
+                    : attachment.extension
+                      ? `${attachment.extension.toUpperCase()} · ${formatFileSize(attachment.size)}`
+                      : formatFileSize(attachment.size)
           }}
         </AttachmentDescription>
       </AttachmentContent>
@@ -130,14 +142,18 @@ function formatFileSize(size: number): string {
           <XIcon />
         </AttachmentAction>
       </AttachmentActions>
+      <ProjectSessionAttachmentTrigger
+        v-if="surface === 'message' && attachment.session"
+        :attachment="attachment"
+      />
       <AttachmentTrigger
-        v-if="surface === 'message'"
+        v-else-if="surface === 'message'"
         type="button"
         class="cursor-pointer"
         :aria-label="
           t('project.composer.openAttachment', { name: attachment.name })
         "
-        @click="emit('open', attachment.path)"
+        @click="emit('open', attachment)"
       />
     </Attachment>
   </AttachmentGroup>

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { PineAttachment } from "@/shared/attachments";
 import { SendHorizontalIcon, Undo2Icon } from "@lucide/vue";
 import { computed } from "vue";
 import { useI18n } from "vue-i18n";
@@ -31,9 +32,9 @@ const stagedSteeringMessages = computed(() =>
   }),
 );
 
-async function openAttachment(path: string): Promise<void> {
+async function openAttachment(attachment: PineAttachment): Promise<void> {
   try {
-    const result = await window.pine.openAttachment({ path });
+    const result = await window.pine.openAttachment({ path: attachment.path });
     if (!result.opened) throw new Error(result.error);
   } catch {
     toast.error(t("project.composer.attachmentOpenFailed"));

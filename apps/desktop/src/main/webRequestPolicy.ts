@@ -157,9 +157,9 @@ export function createWebChannels(
         prepare: async (request) => {
           const { message } = z.object({ message: z.string() }).parse(request);
           await requireSharedAttachments(
-            attachments
-              .parseAttachmentMessage(message)
-              .attachments.map(({ path }) => path),
+            attachments.attachmentFilePaths(
+              attachments.parseAttachmentMessage(message).attachments,
+            ),
           );
           return request;
         },

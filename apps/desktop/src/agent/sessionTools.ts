@@ -30,6 +30,7 @@ import type {
   SessionTreeOperation,
 } from "./protocol";
 import { sessionSearchQuery } from "../shared/sessions";
+import type { AttachedSession } from "../shared/attachments";
 
 export interface PineSessionToolContext {
   /** Ask main, which owns session storage and the project library. */
@@ -43,6 +44,8 @@ export interface PineSessionToolContext {
   renameCurrentSession(title: string): RenameCurrentSessionResult;
   /** Set when this session is a sub-session of another. */
   getParentSessionId(): string | undefined;
+  /** Sessions the user attached to their messages in this session. */
+  attachedSessions(): readonly AttachedSession[];
   /**
    * Reviews access past the session tools' own scope, such as reading a
    * session that is not this one's parent, sub-session or sibling, the way
@@ -565,7 +568,7 @@ export function createSessionToolDefinitions(
     name: UI_SESSION_READ_TOOL_NAME,
     label: "Read Session",
     description:
-      "Read the latest messages of a session, as text with tool calls named in brackets. This session's parent, sub-sessions and siblings are read directly. Any other session (found with " +
+      'Read the latest messages of a session, as text with tool calls named in brackets. This session\'s parent, sub-sessions and siblings are read directly, and so is a session the user attached: an entry of kind "session" in a <pine_attachments> block, whose session.sessionId and session.projectId you pass here (its path is not a file). Any other session (found with ' +
       `${UI_SESSION_SEARCH_TOOL_NAME}, passing its projectId) is reviewed first, like other access beyond the current work: depending on the approval mode the user or the approval reviewer decides. Read another session only when the user's request needs it.`,
     parameters: readParams,
     prepareArguments: (args) => args as Static<typeof readParams>,
@@ -580,14 +583,21 @@ export function createSessionToolDefinitions(
         ...relatives.children,
         ...relatives.siblings,
       ].some((relative) => relative?.id === sessionId);
+      // The user attaching a session is their consent to reading it.
+      const attached = context
+        .attachedSessions()
+        .find((session) => session.sessionId === sessionId);
       let projectId: string | undefined;
       if (!isRelative) {
-        projectId = params.projectId?.trim();
+        projectId = params.projectId?.trim() || attached?.projectId;
         if (!projectId)
           throw new Error(
             `That session is not this session's parent, sub-session or sibling. Pass its projectId from ${UI_SESSION_SEARCH_TOOL_NAME} to read it.`,
           );
-        if (!approvedReads.has(sessionId)) {
+        if (
+          !approvedReads.has(sessionId) &&
+          attached?.projectId !== projectId
+        ) {
           const { session } = await callSessionHost(context, {
             op: "describe",
             projectId,

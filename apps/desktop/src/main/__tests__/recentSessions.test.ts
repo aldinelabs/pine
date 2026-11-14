@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import type { PineProject } from "../../shared/projects";
 import type { SessionSearchResult } from "../../shared/sessions";
 import {
-  attachmentForProjectSession,
+  attachmentTitleOfProjectSession,
   listAllRecentSessions,
   searchAllSessions,
 } from "../recentSessions";
@@ -110,25 +110,25 @@ describe("searchAllSessions", () => {
   });
 });
 
-describe("attachmentForProjectSession", () => {
+describe("attachmentTitleOfProjectSession", () => {
   it("reads from a session index another window already holds open", async () => {
-    const attachmentForSession = vi.fn(() =>
-      Promise.resolve({ name: "a.jsonl", path: "/a.jsonl" }),
+    const attachmentTitle = vi.fn(() =>
+      Promise.resolve({ title: "A", updatedAt: "2026-01-01T00:00:00Z" }),
     );
     const open = {
-      attachmentForSession,
+      attachmentTitle,
       dispose,
     } as unknown as ProjectSessionService;
 
     await expect(
-      attachmentForProjectSession("a", "s1", {
+      attachmentTitleOfProjectSession("a", "s1", {
         dataPaths: () => {
           throw new Error("an open index needs no data paths");
         },
         openSessionService: () => open,
       }),
-    ).resolves.toMatchObject({ path: "/a.jsonl" });
-    expect(attachmentForSession).toHaveBeenCalledWith("s1");
+    ).resolves.toMatchObject({ title: "A" });
+    expect(attachmentTitle).toHaveBeenCalledWith("s1");
     expect(dispose).not.toHaveBeenCalled();
   });
 });
