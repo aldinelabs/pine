@@ -9,6 +9,7 @@ import {
   fileViewerWorkers,
 } from "./vite.file-viewer-internals";
 import { vueCompiler } from "./vite.vue-compiler";
+import { flattenHasAncestorsPlugin } from "./src/build/flattenHasAncestors";
 import {
   PINE_LOGO_PATH,
   PINE_LOGO_VIEW_BOX,
@@ -55,6 +56,13 @@ export default defineConfig({
     fileViewerWorkers(),
     pineSplashLogo(),
   ],
+  css: {
+    postcss: {
+      // Tailwind's group-has variants otherwise make every DOM insertion
+      // restyle the whole window; see flattenHasAncestors.
+      plugins: [flattenHasAncestorsPlugin()],
+    },
+  },
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
