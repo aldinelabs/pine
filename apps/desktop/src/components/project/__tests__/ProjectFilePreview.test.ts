@@ -20,6 +20,7 @@ import type { ProjectFilePreview as Preview } from "@/shared/projectFiles";
 import { FILE_COMMENTS_PANEL, FILE_DETAILS_PANEL } from "@/shared/workbench";
 import { useWorkbenchStore } from "@/stores/workbench";
 import ProjectPreviewAnnotationMenu from "../ProjectPreviewAnnotationMenu.vue";
+import ProjectPreviewAnnotationPanel from "../ProjectPreviewAnnotationPanel.vue";
 import ProjectFilePreview from "../ProjectFilePreview.vue";
 import FileViewerPreviewRenderer from "../file-preview/FileViewerPreviewRenderer.vue";
 import TextPreviewRenderer from "../file-preview/TextPreviewRenderer.vue";
@@ -1077,6 +1078,22 @@ describe("ProjectFilePreview", () => {
     expect(store.quotesFor(createdId)).toEqual([]);
     expect(store.attachmentsFor(createdId)).toEqual([attachment]);
     expect(annotations.annotationsFor(key)).toHaveLength(2);
+
+    // The Comments card sends the comments alone: each names its file. The
+    // sidebar stays as it was.
+    await openDetails(wrapper);
+    wrapper
+      .findComponent(ProjectPreviewAnnotationPanel)
+      .vm.$emit("send", draft.id);
+    await flushPromises();
+    expect(store.quotesFor(draft.id).map((quote) => quote.comment)).toEqual([
+      "Rename",
+      "Shorter",
+    ]);
+    expect(store.quotesFor(draft.id)[0].file).toBe(attachment.path);
+    expect(store.attachmentsFor(draft.id)).toEqual([]);
+    expect(annotations.annotationsFor(key)).toEqual([]);
+    expect(sidebarOpen(wrapper)).toBe(true);
   });
 
   it("ignores stale reads when switching files", async () => {

@@ -76,8 +76,8 @@ export function useFileToSession() {
   }
 
   /**
-   * Puts comments on a file into a session's composer, with the file itself
-   * attached, and shows that session. The quotes are built from the file's
+   * Puts comments on a file into a session's composer and shows that
+   * session. Each comment names its file, so the file is not attached too. The quotes are built from the file's
    * absolute path, which only the main process knows. False when nothing
    * could be delivered, so the caller keeps its comments.
    */
@@ -102,7 +102,6 @@ export function useFileToSession() {
       const tab = targetTab(file.projectId, target);
       if (!quotes.length || !tab || !tabs.addQuotes(tab.id, quotes))
         return false;
-      tabs.addAttachments(tab.id, [attachment]);
       navigation.activate(tab.id);
       return true;
     } catch (error) {

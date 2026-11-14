@@ -815,7 +815,6 @@ async function sendAnnotations(target: string | null): Promise<void> {
   if (!delivered) return;
   for (const annotation of sent) annotationsStore.remove(key, annotation.id);
   activeAnnotationId.value = undefined;
-  sidebarOpen.value = false;
 }
 
 /** The footer's send menu: the file, or the selection in it. */
