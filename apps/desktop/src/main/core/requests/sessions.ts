@@ -264,6 +264,7 @@ const SessionHostOperationSchema = z.discriminatedUnion("op", [
   z.object({
     op: z.literal("read"),
     sessionId: z.uuid(),
+    projectId: z.uuid().optional(),
     limit: z.number().int().min(1).max(50),
     before: z.string().min(1).max(200).optional(),
   }),
@@ -279,6 +280,38 @@ const SessionHostOperationSchema = z.discriminatedUnion("op", [
 const NEW_FOLDER_REFERENCE = /^new:(\d+)$/;
 
 /** Makes sure the window holds the project, sharing it if no one does. */
+/** One page of a session's messages as the agent reads them. */
+async function readSessionPage(
+  core: PineCore,
+  owner: number,
+  projectId: string,
+  parsed: Extract<SessionHostOperation, { op: "read" }>,
+  title: string | undefined,
+): Promise<Extract<SessionHostResult, { op: "read" }>> {
+  const page = await core.runtimes.loadMessages(
+    owner,
+    projectId,
+    parsed.sessionId,
+    parsed.before,
+    parsed.limit,
+  );
+  return {
+    op: "read",
+    sessionId: parsed.sessionId,
+    ...(title ? { title } : {}),
+    messages: page.messages
+      .map((message) => ({
+        role: message.role,
+        createdAt: message.createdAt,
+        text: messageText(message.blocks),
+      }))
+      .filter((message) => message.text),
+    ...(page.hasMore && page.nextBefore
+      ? { olderCursor: page.nextBefore }
+      : {}),
+  };
+}
+
 async function holdProject(
   core: PineCore,
   requester: { ownerId: number },
@@ -567,6 +600,26 @@ export async function answerSessionOperation(
     return { op: "delete", deleted };
   }
 
+  // An approved read past the relatives scope, in any project.
+  if (parsed.op === "read" && parsed.projectId) {
+    const project = projects.find(
+      (candidate) => candidate.id === parsed.projectId,
+    );
+    if (!project) throw new Error("That project does not exist.");
+    const known = (
+      await withAutomationRuns(
+        core,
+        await listProjectSessions(project, sessionLibrary(core)),
+      )
+    ).find((session) => session.id === parsed.sessionId);
+    if (!known)
+      throw new Error(
+        `No session ${parsed.sessionId} in ${projectName(project)}.`,
+      );
+    const owner = await holdProject(core, requester, project);
+    return readSessionPage(core, owner, project.id, parsed, known.name);
+  }
+
   if (
     parsed.op === "relatives" ||
     parsed.op === "read" ||
@@ -606,32 +659,14 @@ export async function answerSessionOperation(
         "That session is not this session's parent, sub-session or sibling. Call ui_session_relatives for the ones it can reach.",
       );
     const owner = await holdProject(core, requester, project);
-    if (parsed.op === "read") {
-      const page = await runtimes.loadMessages(
+    if (parsed.op === "read")
+      return readSessionPage(
+        core,
         owner,
         project.id,
-        parsed.sessionId,
-        parsed.before,
-        parsed.limit,
+        parsed,
+        byId.get(parsed.sessionId)?.name,
       );
-      return {
-        op: "read",
-        sessionId: parsed.sessionId,
-        ...(byId.get(parsed.sessionId)?.name
-          ? { title: byId.get(parsed.sessionId)?.name }
-          : {}),
-        messages: page.messages
-          .map((message) => ({
-            role: message.role,
-            createdAt: message.createdAt,
-            text: messageText(message.blocks),
-          }))
-          .filter((message) => message.text),
-        ...(page.hasMore && page.nextBefore
-          ? { olderCursor: page.nextBefore }
-          : {}),
-      };
-    }
     const refusal = await core.wechat.relayRefusal(
       requester.sessionId,
       parsed.sessionId,

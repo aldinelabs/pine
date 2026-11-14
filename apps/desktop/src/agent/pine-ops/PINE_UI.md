@@ -342,7 +342,11 @@ From top to bottom:
      the current one (the usual choice) or as a sibling; a sub-session can
      start only siblings, not sub-sessions of its own. The agent can list a
      session's parent, sub-sessions and siblings, read their messages, and
-     send them messages; it cannot reach other sessions this way. When a
+     send them messages. It can also read any other session it found by
+     searching, but only after a review, as for other access beyond the
+     current work: in Let Me Review an Approval required card ("Read session
+     …"), in Auto Approve and Autonomous Work the approval reviewer, in YOLO
+     none. It cannot send messages to those sessions. When a
      sub-session finishes a turn, fails, or waits for an approval, the
      parent's transcript shows a marker ("Sub-session {name} finished",
      "Sub-session {name} failed", "Sub-session {name} is waiting for your

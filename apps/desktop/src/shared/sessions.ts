@@ -638,6 +638,11 @@ export type SessionHostOperation =
   | {
       op: "read";
       sessionId: string;
+      /**
+       * Read any session of this project, past the parent, sub-session and
+       * sibling scope; the tool sets it only after the read was approved.
+       */
+      projectId?: string;
       limit: number;
       /** Cursor from an earlier page, for older messages. */
       before?: string;

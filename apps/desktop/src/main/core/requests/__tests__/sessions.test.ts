@@ -737,6 +737,26 @@ describe("answerSessionOperation", () => {
     });
   });
 
+  it("reads any session of a project once the tool passes its project", async () => {
+    const { core, loadMessages } = fixture();
+
+    const result = await answerSessionOperation(core, requester, {
+      op: "read",
+      sessionId: looseSession,
+      projectId,
+      limit: 5,
+    });
+
+    expect(loadMessages).toHaveBeenCalledWith(
+      7,
+      projectId,
+      looseSession,
+      undefined,
+      5,
+    );
+    expect(result).toMatchObject({ op: "read", sessionId: looseSession });
+  });
+
   it("refuses to read or message a session that is not a relative", async () => {
     const { core, prompt } = fixture();
 

@@ -1676,6 +1676,10 @@ export class PineAgentRuntime {
           renameCurrentSession: (title) => this.retitleByAgent(live, title),
           getParentSessionId: () =>
             subSessionParentOf(live.session.sessionManager.getEntries()),
+          reviewOutOfScope: (input) =>
+            live.approvalMode === "YOLO"
+              ? Promise.resolve({ kind: "allow" as const })
+              : live.gate.reviewDenial("authorize", input),
           requestApproval: (input) =>
             this.requestUserApproval(live, {
               trigger: "pre-execution",

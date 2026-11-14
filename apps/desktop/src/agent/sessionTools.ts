@@ -43,6 +43,19 @@ export interface PineSessionToolContext {
   renameCurrentSession(title: string): RenameCurrentSessionResult;
   /** Set when this session is a sub-session of another. */
   getParentSessionId(): string | undefined;
+  /**
+   * Reviews access past the session tools' own scope, such as reading a
+   * session that is not this one's parent, sub-session or sibling, the way
+   * the approval mode reviews other out-of-scope access.
+   */
+  reviewOutOfScope(input: {
+    toolCallId: string;
+    toolName: string;
+    subject: string;
+    description: string;
+    evidence: string;
+    signal?: AbortSignal;
+  }): Promise<GateDecision>;
   /** Let Me Review: the user approves starting a session. */
   requestApproval(input: {
     toolCallId: string;
@@ -524,10 +537,17 @@ export function createSessionToolDefinitions(
     },
   });
 
+  /** Sessions past the relatives scope whose reading was approved; later pages need no new review. */
+  const approvedReads = new Set<string>();
   const readParams = Type.Object({
     sessionId: Type.String({
-      description: `A parent, sub-session or sibling, from ${UI_SESSION_RELATIVES_TOOL_NAME}.`,
+      description: `The session to read: a parent, sub-session or sibling from ${UI_SESSION_RELATIVES_TOOL_NAME}, or any session from ${UI_SESSION_SEARCH_TOOL_NAME}.`,
     }),
+    projectId: Type.Optional(
+      Type.String({
+        description: `The session's project, from ${UI_SESSION_SEARCH_TOOL_NAME}. Needed for a session that is not this one's parent, sub-session or sibling.`,
+      }),
+    ),
     limit: Type.Optional(
       Type.Integer({
         minimum: 1,
@@ -545,15 +565,70 @@ export function createSessionToolDefinitions(
     name: UI_SESSION_READ_TOOL_NAME,
     label: "Read Session",
     description:
-      "Read the latest messages of this session's parent, a sub-session or a sibling, as text with tool calls named in brackets.",
+      "Read the latest messages of a session, as text with tool calls named in brackets. This session's parent, sub-sessions and siblings are read directly. Any other session (found with " +
+      `${UI_SESSION_SEARCH_TOOL_NAME}, passing its projectId) is reviewed first, like other access beyond the current work: depending on the approval mode the user or the approval reviewer decides. Read another session only when the user's request needs it.`,
     parameters: readParams,
     prepareArguments: (args) => args as Static<typeof readParams>,
-    execute: async (_toolCallId, params) => {
+    executionMode: "sequential",
+    execute: async (toolCallId, params, signal) => {
       const before = params.before?.trim();
+      const sessionId = params.sessionId.trim();
+      const limit = Math.min(Math.max(Math.trunc(params.limit ?? 10), 1), 50);
+      const relatives = await callSessionHost(context, { op: "relatives" });
+      const isRelative = [
+        relatives.parent,
+        ...relatives.children,
+        ...relatives.siblings,
+      ].some((relative) => relative?.id === sessionId);
+      let projectId: string | undefined;
+      if (!isRelative) {
+        projectId = params.projectId?.trim();
+        if (!projectId)
+          throw new Error(
+            `That session is not this session's parent, sub-session or sibling. Pass its projectId from ${UI_SESSION_SEARCH_TOOL_NAME} to read it.`,
+          );
+        if (!approvedReads.has(sessionId)) {
+          const { session } = await callSessionHost(context, {
+            op: "describe",
+            projectId,
+            sessionId,
+          });
+          if (!session.current) {
+            const decision = await context.reviewOutOfScope({
+              toolCallId,
+              toolName: UI_SESSION_READ_TOOL_NAME,
+              subject: `Read session “${session.title ?? "Untitled"}” in ${session.projectName}`,
+              description: "Read another session's messages",
+              evidence: [
+                "The session is not this session's parent, sub-session or sibling.",
+                `Project: ${session.projectName}`,
+                `${session.messageCount} messages, last updated ${session.updatedAt}`,
+                session.snippet?.replace(/\s+/g, " ").trim(),
+              ]
+                .filter(Boolean)
+                .join("\n"),
+              signal,
+            });
+            if (decision.kind !== "allow")
+              return {
+                content: [
+                  {
+                    type: "text" as const,
+                    text: `Reading that session was not approved.${decision.kind === "deny" && decision.reason ? ` ${decision.reason}` : ""}`,
+                  },
+                ],
+                details: { sessionId, title: undefined },
+              };
+          }
+          approvedReads.add(sessionId);
+        }
+      }
+      if (signal?.aborted) throw new Error("aborted");
       const result = await callSessionHost(context, {
         op: "read",
-        sessionId: params.sessionId.trim(),
-        limit: Math.min(Math.max(Math.trunc(params.limit ?? 10), 1), 50),
+        sessionId,
+        ...(projectId ? { projectId } : {}),
+        limit,
         ...(before ? { before } : {}),
       });
       const body = result.messages

@@ -110,6 +110,7 @@ function setup(
     },
   );
   const requestApproval = vi.fn().mockResolvedValue(decision);
+  const reviewOutOfScope = vi.fn().mockResolvedValue(decision);
   const renameCurrentSession = vi.fn(
     (title: string): RenameCurrentSessionResult =>
       title === "Locked"
@@ -119,6 +120,7 @@ function setup(
   const context: PineSessionToolContext = {
     requestHost,
     requestApproval,
+    reviewOutOfScope,
     renameCurrentSession,
     getParentSessionId: () => parentSessionId,
     getApprovalMode: () => approvalMode,
@@ -148,6 +150,7 @@ function setup(
     renameCurrentSession,
     requestHost,
     requestApproval,
+    reviewOutOfScope,
   };
 }
 
@@ -402,6 +405,45 @@ describe("session tools", () => {
     });
     expect(text(result)).toContain("[assistant · t2]\nDone [tool bash]");
     expect(text(result)).toContain('read again with before "c1"');
+  });
+
+  it("reviews reading a session outside the relatives once, then pages freely", async () => {
+    const { read, requestHost, reviewOutOfScope } = setup("auto-approve");
+
+    await expect(run(read, { sessionId: "s2" })).rejects.toThrow(
+      /Pass its projectId/,
+    );
+    await run(read, { sessionId: "s2", projectId: "p1" });
+    expect(reviewOutOfScope).toHaveBeenCalledTimes(1);
+    expect(reviewOutOfScope.mock.calls[0][0]).toMatchObject({
+      toolName: "ui_session_read",
+      subject: "Read session “Release notes” in Pine",
+    });
+    expect(requestHost).toHaveBeenLastCalledWith({
+      kind: "session",
+      operation: { op: "read", sessionId: "s2", projectId: "p1", limit: 10 },
+    });
+    await run(read, { sessionId: "s2", projectId: "p1", before: "c1" });
+    expect(reviewOutOfScope).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not read a session outside the relatives when the review denies it", async () => {
+    const { read, requestHost } = setup("auto-approve", {
+      kind: "deny",
+      reason: "Not needed.",
+    });
+
+    const result = await run(read, { sessionId: "s2", projectId: "p1" });
+
+    expect(text(result)).toBe(
+      "Reading that session was not approved. Not needed.",
+    );
+    expect(
+      requestHost.mock.calls.some(
+        ([request]) =>
+          request.kind === "session" && request.operation.op === "read",
+      ),
+    ).toBe(false);
   });
 
   it("says a message to a running session arrives at its next step", async () => {
