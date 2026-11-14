@@ -45,6 +45,7 @@ import { useWorkbenchEvents } from "@/composables/useWorkbenchEvents";
 import { useContentTabNavigation } from "@/composables/useContentTabNavigation";
 import type { PineAuthoringTarget } from "@/shared/sessionMutators";
 import { useWorkbenchStore } from "@/stores/workbench";
+import { holdSplash, holdSplashWhile } from "@/lib/splash";
 
 const { t } = useI18n();
 const isSessionSearchOpen = ref(false);
@@ -324,23 +325,30 @@ onMounted(async () => {
   backgroundTasks.connect();
   sessionStore.connectAgentEvents();
   void automations.start();
-  void loadProjects();
-  await window.pine?.setWindowLayout?.("project");
-  const open = sidebar.open;
-  await frozenResize.run(
-    { kind: "fit-sidebar", open },
-    open
-      ? { ...growingWindowHooks, afterCommit: resetTrailingControls }
-      : {
-          onCommitStart: followShrinkingWindow,
-          afterCommit: resetTrailingControls,
-        },
-  );
-  resetTrailingControls();
-  // Main remembers whether the window already holds the workbench, so a
-  // reload neither adds its width twice nor leaves a closed one's width.
-  isWorkbenchReady = true;
-  await syncWorkbench(true);
+  // The startup splash covers the window until the projects are listed and
+  // the window has taken its layout.
+  void holdSplashWhile(loadProjects());
+  const releaseSplash = holdSplash();
+  try {
+    await window.pine?.setWindowLayout?.("project");
+    const open = sidebar.open;
+    await frozenResize.run(
+      { kind: "fit-sidebar", open },
+      open
+        ? { ...growingWindowHooks, afterCommit: resetTrailingControls }
+        : {
+            onCommitStart: followShrinkingWindow,
+            afterCommit: resetTrailingControls,
+          },
+    );
+    resetTrailingControls();
+    // Main remembers whether the window already holds the workbench, so a
+    // reload neither adds its width twice nor leaves a closed one's width.
+    isWorkbenchReady = true;
+    await syncWorkbench(true);
+  } finally {
+    releaseSplash();
+  }
 });
 
 // Cmd/Ctrl+B belongs to the left SidebarProvider; Cmd/Ctrl+Option/Alt+B

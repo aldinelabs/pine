@@ -28,9 +28,65 @@
       content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https: http: pine-attachment: pine-project-media:; media-src 'self' blob: data: pine-project-media:; font-src 'self' data: blob:; connect-src 'self' blob: data: pine-project-media: ws: http://localhost:*; worker-src 'self' blob:; frame-src 'self' blob: data:"
     />
     <title>Pine</title>
+    <!-- The splash paints with the first frame, before any script runs. -->
+    <style>
+      #pine-splash {
+        position: fixed;
+        inset: 0;
+        z-index: 2147483647;
+        display: grid;
+        place-items: center;
+        background: var(--background, #fbfbf9);
+        color: var(--foreground, #1f1f1a);
+        transition: opacity 320ms cubic-bezier(0.4, 0, 0.2, 1);
+        -webkit-app-region: drag;
+        user-select: none;
+      }
+      #pine-splash svg {
+        width: 112px;
+        height: 112px;
+        animation: pine-splash-breathe 2400ms cubic-bezier(0.45, 0, 0.55, 1)
+          infinite;
+      }
+      #pine-splash[data-state="leaving"] {
+        opacity: 0;
+        pointer-events: none;
+      }
+      @keyframes pine-splash-breathe {
+        0%,
+        100% {
+          transform: scale(0.9);
+          opacity: 0.55;
+        }
+        50% {
+          transform: scale(1);
+          opacity: 1;
+        }
+      }
+      @media (prefers-color-scheme: dark) {
+        #pine-splash {
+          background: var(--background, #0c0c09);
+          color: var(--foreground, #f6f6f1);
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        #pine-splash svg {
+          animation: none;
+        }
+      }
+    </style>
   </head>
   <body>
     <div id="app"></div>
+    <div id="pine-splash" aria-hidden="true">
+      <svg
+        viewBox="__PINE_LOGO_VIEW_BOX__"
+        fill="currentColor"
+        xmlns="http://www.w3.org/2000/svg"
+      >
+        <path d="__PINE_LOGO_PATH__" />
+      </svg>
+    </div>
     <script type="module" src="/src/renderer.ts"></script>
   </body>
 </html>

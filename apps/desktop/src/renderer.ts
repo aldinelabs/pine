@@ -10,6 +10,7 @@ import {
 } from "./app/i18n";
 import { isWebClient } from "./lib/clientRuntime";
 import { playCompletionSound } from "./lib/completionSound";
+import { dismissSplash, holdSplash } from "./lib/splash";
 import { syncThemeColor } from "./lib/themeColor";
 import { createAppRouter } from "./router";
 import { useAppearanceStore } from "./stores/appearance";
@@ -24,6 +25,8 @@ import {
 } from "@/lib/preferenceStorage";
 
 async function startRenderer(): Promise<void> {
+  // The splash stays until the app has mounted and its views have loaded.
+  const releaseSplash = holdSplash();
   adoptWebStoragePreferences();
   // A browser that is not signed in loads only the sign-in view; Pine's data
   // stays behind the password.
@@ -51,8 +54,10 @@ async function startRenderer(): Promise<void> {
   document.addEventListener("touchstart", () => undefined, { passive: true });
   // The floating composer window is transparent from its first frame, before
   // its view mounts.
-  if (window.location.hash.startsWith(`#/${QUICK_COMPOSER_ROUTE_HASH}`))
+  if (window.location.hash.startsWith(`#/${QUICK_COMPOSER_ROUTE_HASH}`)) {
     document.documentElement.dataset.quickComposer = "";
+    dismissSplash();
+  }
   useAppearanceStore(pinia).initialize();
   if (document.documentElement.dataset.client === "web") syncThemeColor();
   if (needsSignIn) {
@@ -62,6 +67,7 @@ async function startRenderer(): Promise<void> {
       .use(pinia)
       .use(i18n)
       .mount("#app");
+    releaseSplash();
     return;
   }
   const app = createApp(App);
@@ -75,9 +81,11 @@ async function startRenderer(): Promise<void> {
   app.use(router);
   await router.isReady();
   app.mount("#app");
+  releaseSplash();
   browserClient?.connect();
 }
 void startRenderer().catch((error: unknown) => {
+  dismissSplash();
   const root = document.getElementById("app");
   if (root)
     root.textContent = error instanceof Error ? error.message : String(error);

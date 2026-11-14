@@ -49,6 +49,10 @@ to click.
 
 ## Main window
 
+While Pine starts, the window shows only the Pine logo, gently pulsing, on a
+plain background; once the projects, tabs and layout are ready, it fades away
+to the full window. With reduced motion turned on, the logo stays still.
+
 On macOS, scrolling uses normal inertia and native rubber-banding at the
 content's edges. Scrollable dialog bodies use an overlay scrollbar at their
 outer edge rather than taking width from the text or graph. Headings and action

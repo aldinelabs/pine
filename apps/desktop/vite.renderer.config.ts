@@ -1,4 +1,4 @@
-import { defineConfig } from "vite";
+import { defineConfig, type Plugin } from "vite";
 import vue from "@vitejs/plugin-vue";
 import tailwindcss from "@tailwindcss/vite";
 import { fileViewerRenderers } from "@file-viewer/vite-plugin";
@@ -9,6 +9,22 @@ import {
   fileViewerWorkers,
 } from "./vite.file-viewer-internals";
 import { vueCompiler } from "./vite.vue-compiler";
+import {
+  PINE_LOGO_PATH,
+  PINE_LOGO_VIEW_BOX,
+} from "./src/components/pine/pineLogoPath";
+
+/** Draws the splash's logo from the same outline as the app's. */
+function pineSplashLogo(): Plugin {
+  const { x, y, width, height } = PINE_LOGO_VIEW_BOX;
+  return {
+    name: "pine-splash-logo",
+    transformIndexHtml: (html) =>
+      html
+        .replace("__PINE_LOGO_VIEW_BOX__", `${x} ${y} ${width} ${height}`)
+        .replace("__PINE_LOGO_PATH__", PINE_LOGO_PATH),
+  };
+}
 
 /**
  * file-viewer's preset is served unbundled and imports its capability
@@ -37,6 +53,7 @@ export default defineConfig({
       copyAssets: { baseDir: "file-viewer" },
     }),
     fileViewerWorkers(),
+    pineSplashLogo(),
   ],
   resolve: {
     alias: {
