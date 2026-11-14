@@ -148,6 +148,35 @@ export default {
       removeDescription:
         "This device disconnects now and must pair again to reconnect.",
     },
+    piProviders: {
+      group: "Pi providers (CC Switch)",
+      title: "Use providers from Pi",
+      description:
+        "Adds the providers in Pi's models.json, as set up in Pi or CC Switch. Pine only reads the file and follows changes; edit those providers in Pi or CC Switch.",
+      file: "Pi models file",
+      count: "{count} providers added",
+      off: "Off. Turn it on to add these providers.",
+      notFound:
+        "No models.json here yet. Pine adds its providers when the file appears.",
+      skipped: "Skipped {key}: {reason}",
+      reveal: "Show in folder",
+      choose: "Choose folder…",
+      useDefault: "Use default folder",
+      reason: {
+        commandValue:
+          "its key or a header runs a command, which Pine never does",
+        noModels: "it lists no models",
+        missingBaseUrl: "it has no base URL",
+        missingApi: "its API type is missing or not supported",
+        conflict: "Pine already has a provider with this ID",
+        invalid: "its settings are not valid",
+      },
+      error: {
+        tooLarge: "models.json is larger than 1 MB, so Pine did not read it.",
+        invalidJson: "models.json is not valid JSON.",
+        unreadable: "Pine could not read models.json.",
+      },
+    },
     remoteKeepAwake: {
       title: "Keep the computer awake while remote control is on",
       description:
@@ -540,6 +569,10 @@ export default {
     },
   },
   providers: {
+    pi: {
+      label: "Pi",
+      title: "From Pi's models.json (Pi or CC Switch)",
+    },
     connected: "Connected",
     custom: {
       label: "Custom",
@@ -2470,6 +2503,11 @@ export default {
       saveTitle: "Unable to update remote control",
       pairTitle: "Unable to create a pairing code",
       deviceTitle: "Unable to update this device",
+      description: "Please try again later.",
+    },
+    piProviders: {
+      loadTitle: "Unable to load Pi providers",
+      saveTitle: "Unable to update Pi providers",
       description: "Please try again later.",
     },
     remoteKeepAwake: {

@@ -152,6 +152,36 @@ export default {
       removeDescription:
         "このデバイスは今すぐ切断され、再接続するには再度ペアリングが必要です。",
     },
+    piProviders: {
+      group: "Pi のプロバイダー（CC Switch）",
+      title: "Pi のプロバイダーを使う",
+      description:
+        "Pi または CC Switch で設定した、Pi の models.json にあるプロバイダーを追加します。Pine はファイルを読み取って変更に追従するだけです。これらのプロバイダーは Pi または CC Switch で編集してください。",
+      file: "Pi のモデルファイル",
+      count: "{count} 個のプロバイダーを追加済み",
+      off: "オフです。オンにするとこれらのプロバイダーを追加します。",
+      notFound:
+        "ここにはまだ models.json がありません。ファイルが作成されると Pine がプロバイダーを追加します。",
+      skipped: "{key} をスキップ：{reason}",
+      reveal: "フォルダーで表示",
+      choose: "フォルダーを選択…",
+      useDefault: "既定のフォルダーを使う",
+      reason: {
+        commandValue:
+          "キーまたはヘッダーがコマンドを実行するため（Pine は実行しません）",
+        noModels: "モデルが記載されていません",
+        missingBaseUrl: "ベース URL がありません",
+        missingApi: "API の種類がないか、サポートされていません",
+        conflict: "同じ ID のプロバイダーが Pine にすでにあります",
+        invalid: "設定が無効です",
+      },
+      error: {
+        tooLarge:
+          "models.json が 1 MB を超えているため、Pine は読み取りませんでした。",
+        invalidJson: "models.json が有効な JSON ではありません。",
+        unreadable: "Pine は models.json を読み取れませんでした。",
+      },
+    },
     remoteKeepAwake: {
       title: "リモート操作がオンの間はスリープしない",
       description:
@@ -549,6 +579,10 @@ export default {
     },
   },
   providers: {
+    pi: {
+      label: "Pi",
+      title: "Pi の models.json から（Pi または CC Switch）",
+    },
     connected: "接続済み",
     custom: {
       label: "カスタム",
@@ -2512,6 +2546,11 @@ export default {
       saveTitle: "リモート操作を更新できません",
       pairTitle: "ペアリングコードを作成できません",
       deviceTitle: "このデバイスを更新できません",
+      description: "しばらくしてからもう一度お試しください。",
+    },
+    piProviders: {
+      loadTitle: "Pi のプロバイダーを読み込めません",
+      saveTitle: "Pi のプロバイダーを更新できません",
       description: "しばらくしてからもう一度お試しください。",
     },
     remoteKeepAwake: {

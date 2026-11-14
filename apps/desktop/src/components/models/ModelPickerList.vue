@@ -690,6 +690,14 @@ function withSearchReset(action: () => void): void {
             <Badge v-if="row.provider.configured" variant="secondary">
               {{ t("providers.connected") }}
             </Badge>
+            <Badge
+              v-if="row.provider.source === 'pi'"
+              variant="outline"
+              data-testid="provider-pi-badge"
+              :title="t('providers.pi.title')"
+            >
+              {{ t("providers.pi.label") }}
+            </Badge>
             <template v-if="row.provider.isCustom">
               <Badge variant="outline">
                 {{ t("providers.custom.label") }}
@@ -720,7 +728,11 @@ function withSearchReset(action: () => void): void {
               </Button>
             </template>
             <Button
-              v-if="row.provider.configured && !row.provider.isCustom"
+              v-if="
+                row.provider.configured &&
+                !row.provider.isCustom &&
+                !row.provider.readOnly
+              "
               type="button"
               data-testid="provider-disconnect"
               variant="ghost"
@@ -764,6 +776,14 @@ function withSearchReset(action: () => void): void {
             </span>
           </span>
           <span class="ml-auto flex shrink-0 items-center gap-1">
+            <Badge
+              v-if="row.model.source === 'pi'"
+              variant="outline"
+              data-testid="model-pi-badge"
+              :title="t('providers.pi.title')"
+            >
+              {{ t("providers.pi.label") }}
+            </Badge>
             <ModelCapabilities
               :model="row.model"
               :recommended="

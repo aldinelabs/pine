@@ -59,6 +59,10 @@ const emit = defineEmits<{ saved: [] }>();
 const { t } = useI18n();
 const modelsStore = useModelsStore();
 const { providers } = storeToRefs(modelsStore);
+// Pi's providers are managed in Pi or CC Switch, so models are not added to them here.
+const editableProviders = computed(() =>
+  providers.value.filter((provider) => !provider.readOnly),
+);
 const isSaving = ref(false);
 const isLookingUpMetadata = ref(false);
 const hasAttemptedSave = ref(false);
@@ -362,7 +366,7 @@ async function save(): Promise<void> {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem
-                    v-for="provider in providers"
+                    v-for="provider in editableProviders"
                     :key="provider.id"
                     :value="provider.id"
                   >

@@ -150,6 +150,35 @@ export default {
       removeDescription:
         "Устройство будет отключено сейчас, и для повторного подключения его придётся привязать заново.",
     },
+    piProviders: {
+      group: "Провайдеры Pi (CC Switch)",
+      title: "Использовать провайдеров из Pi",
+      description:
+        "Добавляет провайдеров из models.json Pi, настроенных в Pi или CC Switch. Pine только читает файл и следит за изменениями; редактируйте этих провайдеров в Pi или CC Switch.",
+      file: "Файл моделей Pi",
+      count: "Добавлено провайдеров: {count}",
+      off: "Выключено. Включите, чтобы добавить этих провайдеров.",
+      notFound:
+        "Здесь пока нет models.json. Pine добавит провайдеров, когда файл появится.",
+      skipped: "Пропущен {key}: {reason}",
+      reveal: "Показать в папке",
+      choose: "Выбрать папку…",
+      useDefault: "Папка по умолчанию",
+      reason: {
+        commandValue:
+          "его ключ или заголовок запускает команду, а Pine этого никогда не делает",
+        noModels: "в нём нет моделей",
+        missingBaseUrl: "не указан базовый URL",
+        missingApi: "тип API не указан или не поддерживается",
+        conflict: "в Pine уже есть провайдер с таким ID",
+        invalid: "его настройки недействительны",
+      },
+      error: {
+        tooLarge: "models.json больше 1 МБ, поэтому Pine не стал его читать.",
+        invalidJson: "models.json — недопустимый JSON.",
+        unreadable: "Pine не удалось прочитать models.json.",
+      },
+    },
     remoteKeepAwake: {
       title:
         "Не давать компьютеру засыпать, пока включено удалённое управление",
@@ -544,6 +573,10 @@ export default {
     },
   },
   providers: {
+    pi: {
+      label: "Pi",
+      title: "Из models.json Pi (Pi или CC Switch)",
+    },
     connected: "Подключено",
     custom: {
       label: "Свой",
@@ -2507,6 +2540,11 @@ export default {
       saveTitle: "Не удалось обновить удалённое управление",
       pairTitle: "Не удалось создать код привязки",
       deviceTitle: "Не удалось обновить это устройство",
+      description: "Повторите попытку позже.",
+    },
+    piProviders: {
+      loadTitle: "Не удалось загрузить провайдеров Pi",
+      saveTitle: "Не удалось обновить провайдеров Pi",
       description: "Повторите попытку позже.",
     },
     remoteKeepAwake: {

@@ -582,8 +582,17 @@ the user opens themselves do not pulse.
     along the composer's border while the agent works; on by default,
     applies to every open window), sidebar blur (macOS), inverted documents
     in dark mode.
-  - Models: model catalog refresh, title generation model, approval model,
-    image generation model, video generation model, Decisions model.
+  - Models: model catalog refresh; "Pi providers (CC Switch)" (desktop app
+    only): a "Use providers from Pi" switch, off by default, that adds the
+    providers in Pi's models.json (as set up in Pi or CC Switch), the file's
+    path, how many providers were added and which were skipped and why, "Show
+    in folder", "Choose folder…" and, after choosing one, "Use default
+    folder" (the default is `PI_CODING_AGENT_DIR` or `~/.pi/agent`). Pine only
+    reads that file, follows changes to it within a moment, never runs a key
+    written as a `!command` (that provider is skipped), and cannot edit, sign
+    in to or remove these providers; change them in Pi or CC Switch. Then
+    title generation model, approval model, image generation model, video
+    generation model, Decisions model.
   - Agent: Interactive answers switch (Enabled or Disabled; enabled by default;
     in WeChat an interactive answer arrives as text, lists and tables; its
     buttons, or the options of a block's only picker, are numbered and the
@@ -682,6 +691,9 @@ the user opens themselves do not pulse.
 - Session search overlay: search across all projects, open a result.
 - Model picker, provider sign-in, custom model and custom provider dialogs,
   opened from the composer's Model control or Pine Settings › Models.
+  Providers and models from Pi's models.json carry a "Pi" badge, their
+  provider IDs start with `pi-`, and they have no sign-in or disconnect
+  action.
 - Update dialog: release notes and installing an update. The notes cover every
   version released after the installed one, up to the new version, newest
   first, each under its own version heading and date, in the interface

@@ -42,6 +42,7 @@ import RemoteControlSettings from "./RemoteControlSettings.vue";
 import WeChatRemoteSettings from "./WeChatRemoteSettings.vue";
 import AutoApprovalSettings from "./AutoApprovalSettings.vue";
 import DecisionsModelSettings from "./DecisionsModelSettings.vue";
+import PiProvidersSettings from "./PiProvidersSettings.vue";
 import ProjectManagementSettings from "./ProjectManagementSettings.vue";
 import ModelPickerDialog from "@/components/models/ModelPickerDialog.vue";
 import HelpHint from "./HelpHint.vue";
@@ -139,6 +140,8 @@ const { locale, t } = useI18n();
 const isDesktop = isDesktopClient();
 const supportsRemoteControl =
   isDesktop && typeof window.pine?.getWebServer === "function";
+const hasPiProviders =
+  isDesktop && typeof window.pine?.getPiProviders === "function";
 const hasRemoteKeepAwake =
   isDesktop && typeof window.pine?.getRemoteKeepAwake === "function";
 const hasRelayRemote =
@@ -1668,6 +1671,11 @@ defineExpose({ open });
                   </Field>
                 </FieldGroup>
               </FieldSet>
+
+              <template v-if="hasPiProviders">
+                <FieldSeparator />
+                <PiProvidersSettings />
+              </template>
 
               <FieldSeparator />
 

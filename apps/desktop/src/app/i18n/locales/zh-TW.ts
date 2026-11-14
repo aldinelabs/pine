@@ -140,6 +140,34 @@ export default {
       removeTitle: "移除“{name}”？",
       removeDescription: "這臺裝置會立即斷開，需要重新配對才能再次連線。",
     },
+    piProviders: {
+      group: "Pi 供應商（CC Switch）",
+      title: "使用 Pi 的供應商",
+      description:
+        "加入 Pi 的 models.json 中的供應商（在 Pi 或 CC Switch 中設定）。Pine 只讀取該檔案並跟隨變更；如需修改這些供應商，請在 Pi 或 CC Switch 中進行。",
+      file: "Pi 模型檔案",
+      count: "已加入 {count} 個供應商",
+      off: "已關閉。開啟後會加入這些供應商。",
+      notFound:
+        "這裡還沒有 models.json。檔案出現後 Pine 會自動加入其中的供應商。",
+      skipped: "已略過 {key}：{reason}",
+      reveal: "在資料夾中顯示",
+      choose: "選擇資料夾…",
+      useDefault: "使用預設資料夾",
+      reason: {
+        commandValue: "它的金鑰或請求標頭會執行指令，Pine 不會執行",
+        noModels: "沒有列出任何模型",
+        missingBaseUrl: "缺少 Base URL",
+        missingApi: "缺少 API 類型或類型不受支援",
+        conflict: "Pine 中已有相同 ID 的供應商",
+        invalid: "設定無效",
+      },
+      error: {
+        tooLarge: "models.json 超過 1 MB，Pine 未讀取。",
+        invalidJson: "models.json 不是有效的 JSON。",
+        unreadable: "Pine 無法讀取 models.json。",
+      },
+    },
     remoteKeepAwake: {
       title: "遠端控制開啟時保持電腦喚醒",
       description:
@@ -511,6 +539,10 @@ export default {
     },
   },
   providers: {
+    pi: {
+      label: "Pi",
+      title: "來自 Pi 的 models.json（Pi 或 CC Switch）",
+    },
     connected: "已連線",
     custom: {
       label: "自定義",
@@ -2388,6 +2420,11 @@ export default {
       pairTitle: "無法產生配對QR Code",
       deviceTitle: "無法更新這臺裝置",
       description: "請稍後重試。",
+    },
+    piProviders: {
+      loadTitle: "無法載入 Pi 供應商",
+      saveTitle: "無法更新 Pi 供應商",
+      description: "請稍後再試。",
     },
     remoteKeepAwake: {
       loadTitle: "無法載入保持喚醒設定",

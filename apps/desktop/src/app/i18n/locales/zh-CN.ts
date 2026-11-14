@@ -140,6 +140,34 @@ export default {
       removeTitle: "移除“{name}”？",
       removeDescription: "这台设备会立即断开，需要重新配对才能再次连接。",
     },
+    piProviders: {
+      group: "Pi 供应商（CC Switch）",
+      title: "使用 Pi 的供应商",
+      description:
+        "添加 Pi 的 models.json 里的供应商（在 Pi 或 CC Switch 中配置）。Pine 只读取该文件并跟随变化；如需修改这些供应商，请在 Pi 或 CC Switch 中进行。",
+      file: "Pi 模型文件",
+      count: "已添加 {count} 个供应商",
+      off: "已关闭。打开后会添加这些供应商。",
+      notFound:
+        "这里还没有 models.json。文件出现后 Pine 会自动添加其中的供应商。",
+      skipped: "已跳过 {key}：{reason}",
+      reveal: "在文件夹中显示",
+      choose: "选择文件夹…",
+      useDefault: "使用默认文件夹",
+      reason: {
+        commandValue: "它的密钥或请求头会执行命令，Pine 不会执行",
+        noModels: "没有列出任何模型",
+        missingBaseUrl: "缺少 Base URL",
+        missingApi: "缺少 API 类型或类型不受支持",
+        conflict: "Pine 中已有相同 ID 的供应商",
+        invalid: "配置无效",
+      },
+      error: {
+        tooLarge: "models.json 超过 1 MB，Pine 未读取。",
+        invalidJson: "models.json 不是有效的 JSON。",
+        unreadable: "Pine 无法读取 models.json。",
+      },
+    },
     remoteKeepAwake: {
       title: "远程控制开启时保持电脑唤醒",
       description:
@@ -509,6 +537,10 @@ export default {
     },
   },
   providers: {
+    pi: {
+      label: "Pi",
+      title: "来自 Pi 的 models.json（Pi 或 CC Switch）",
+    },
     connected: "已连接",
     custom: {
       label: "自定义",
@@ -2383,6 +2415,11 @@ export default {
       saveTitle: "无法更新远程控制",
       pairTitle: "无法生成配对二维码",
       deviceTitle: "无法更新这台设备",
+      description: "请稍后重试。",
+    },
+    piProviders: {
+      loadTitle: "无法加载 Pi 供应商",
+      saveTitle: "无法更新 Pi 供应商",
       description: "请稍后重试。",
     },
     remoteKeepAwake: {

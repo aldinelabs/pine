@@ -148,6 +148,35 @@ export default {
       removeDescription:
         "이 기기는 지금 연결이 끊기며, 다시 연결하려면 다시 페어링해야 합니다.",
     },
+    piProviders: {
+      group: "Pi 제공자(CC Switch)",
+      title: "Pi의 제공자 사용",
+      description:
+        "Pi 또는 CC Switch에서 설정한 Pi의 models.json에 있는 제공자를 추가합니다. Pine은 파일을 읽고 변경 사항을 따라가기만 합니다. 이 제공자들은 Pi 또는 CC Switch에서 편집하세요.",
+      file: "Pi 모델 파일",
+      count: "제공자 {count}개 추가됨",
+      off: "꺼져 있습니다. 켜면 이 제공자들을 추가합니다.",
+      notFound:
+        "아직 models.json이 없습니다. 파일이 생기면 Pine이 제공자를 추가합니다.",
+      skipped: "{key} 건너뜀: {reason}",
+      reveal: "폴더에서 보기",
+      choose: "폴더 선택…",
+      useDefault: "기본 폴더 사용",
+      reason: {
+        commandValue:
+          "키나 헤더가 명령을 실행하며, Pine은 이를 실행하지 않습니다",
+        noModels: "모델이 없습니다",
+        missingBaseUrl: "기본 URL이 없습니다",
+        missingApi: "API 유형이 없거나 지원되지 않습니다",
+        conflict: "Pine에 같은 ID의 제공자가 이미 있습니다",
+        invalid: "설정이 올바르지 않습니다",
+      },
+      error: {
+        tooLarge: "models.json이 1MB보다 커서 Pine이 읽지 않았습니다.",
+        invalidJson: "models.json이 올바른 JSON이 아닙니다.",
+        unreadable: "Pine이 models.json을 읽을 수 없습니다.",
+      },
+    },
     remoteKeepAwake: {
       title: "원격 제어가 켜져 있는 동안 컴퓨터가 잠자기 상태가 되지 않게 하기",
       description:
@@ -537,6 +566,10 @@ export default {
     },
   },
   providers: {
+    pi: {
+      label: "Pi",
+      title: "Pi의 models.json에서(Pi 또는 CC Switch)",
+    },
     connected: "연결됨",
     custom: {
       label: "사용자 지정",
@@ -2471,6 +2504,11 @@ export default {
       pairTitle: "페어링 코드를 만들 수 없습니다",
       deviceTitle: "이 기기를 업데이트할 수 없습니다",
       description: "나중에 다시 시도하세요.",
+    },
+    piProviders: {
+      loadTitle: "Pi 제공자를 불러올 수 없습니다",
+      saveTitle: "Pi 제공자를 업데이트할 수 없습니다",
+      description: "잠시 후 다시 시도하세요.",
     },
     remoteKeepAwake: {
       loadTitle: "잠자기 방지 설정을 불러올 수 없습니다",

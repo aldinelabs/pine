@@ -152,6 +152,35 @@ export default {
       removeDescription:
         "Este dispositivo se desconecta ahora y deberá vincularse de nuevo para volver a conectarse.",
     },
+    piProviders: {
+      group: "Proveedores de Pi (CC Switch)",
+      title: "Usar proveedores de Pi",
+      description:
+        "Añade los proveedores del models.json de Pi, configurados en Pi o CC Switch. Pine solo lee el archivo y sigue sus cambios; edita esos proveedores en Pi o CC Switch.",
+      file: "Archivo de modelos de Pi",
+      count: "{count} proveedores añadidos",
+      off: "Desactivado. Actívalo para añadir estos proveedores.",
+      notFound:
+        "Aún no hay un models.json aquí. Pine añadirá sus proveedores cuando aparezca el archivo.",
+      skipped: "Omitido {key}: {reason}",
+      reveal: "Mostrar en la carpeta",
+      choose: "Elegir carpeta…",
+      useDefault: "Usar carpeta predeterminada",
+      reason: {
+        commandValue:
+          "su clave o un encabezado ejecuta un comando, y Pine nunca lo hace",
+        noModels: "no incluye modelos",
+        missingBaseUrl: "no tiene URL base",
+        missingApi: "falta su tipo de API o no es compatible",
+        conflict: "Pine ya tiene un proveedor con este ID",
+        invalid: "su configuración no es válida",
+      },
+      error: {
+        tooLarge: "models.json ocupa más de 1 MB, así que Pine no lo ha leído.",
+        invalidJson: "models.json no es un JSON válido.",
+        unreadable: "Pine no ha podido leer models.json.",
+      },
+    },
     remoteKeepAwake: {
       title:
         "Mantener el equipo activo mientras el control remoto esté activado",
@@ -551,6 +580,10 @@ export default {
     },
   },
   providers: {
+    pi: {
+      label: "Pi",
+      title: "Del models.json de Pi (Pi o CC Switch)",
+    },
     connected: "Conectado",
     custom: {
       label: "Personalizado",
@@ -2529,6 +2562,11 @@ export default {
       saveTitle: "No se puede actualizar el control remoto",
       pairTitle: "No se puede crear un código de vinculación",
       deviceTitle: "No se puede actualizar este dispositivo",
+      description: "Inténtalo de nuevo más tarde.",
+    },
+    piProviders: {
+      loadTitle: "No se pudieron cargar los proveedores de Pi",
+      saveTitle: "No se pudieron actualizar los proveedores de Pi",
       description: "Inténtalo de nuevo más tarde.",
     },
     remoteKeepAwake: {

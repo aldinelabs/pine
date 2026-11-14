@@ -152,6 +152,36 @@ export default {
       removeDescription:
         "Dieses Gerät wird sofort getrennt und muss erneut gekoppelt werden, um sich wieder zu verbinden.",
     },
+    piProviders: {
+      group: "Pi-Anbieter (CC Switch)",
+      title: "Anbieter aus Pi verwenden",
+      description:
+        "Fügt die Anbieter aus Pis models.json hinzu, wie sie in Pi oder CC Switch eingerichtet sind. Pine liest die Datei nur und übernimmt Änderungen; bearbeite diese Anbieter in Pi oder CC Switch.",
+      file: "Pi-Modelldatei",
+      count: "{count} Anbieter hinzugefügt",
+      off: "Aus. Schalte es ein, um diese Anbieter hinzuzufügen.",
+      notFound:
+        "Hier gibt es noch keine models.json. Pine fügt die Anbieter hinzu, sobald die Datei erscheint.",
+      skipped: "{key} übersprungen: {reason}",
+      reveal: "Im Ordner zeigen",
+      choose: "Ordner wählen…",
+      useDefault: "Standardordner verwenden",
+      reason: {
+        commandValue:
+          "sein Schlüssel oder ein Header führt einen Befehl aus, was Pine nie tut",
+        noModels: "er enthält keine Modelle",
+        missingBaseUrl: "ihm fehlt die Basis-URL",
+        missingApi: "der API-Typ fehlt oder wird nicht unterstützt",
+        conflict: "Pine hat bereits einen Anbieter mit dieser ID",
+        invalid: "seine Einstellungen sind ungültig",
+      },
+      error: {
+        tooLarge:
+          "models.json ist größer als 1 MB, daher hat Pine sie nicht gelesen.",
+        invalidJson: "models.json ist kein gültiges JSON.",
+        unreadable: "Pine konnte models.json nicht lesen.",
+      },
+    },
     remoteKeepAwake: {
       title: "Computer wach halten, solange die Fernsteuerung an ist",
       description:
@@ -553,6 +583,10 @@ export default {
     },
   },
   providers: {
+    pi: {
+      label: "Pi",
+      title: "Aus Pis models.json (Pi oder CC Switch)",
+    },
     connected: "Verbunden",
     custom: {
       label: "Benutzerdefiniert",
@@ -2546,6 +2580,11 @@ export default {
       pairTitle: "Kopplungscode konnte nicht erstellt werden",
       deviceTitle: "Dieses Gerät konnte nicht aktualisiert werden",
       description: "Bitte versuchen Sie es später erneut.",
+    },
+    piProviders: {
+      loadTitle: "Pi-Anbieter konnten nicht geladen werden",
+      saveTitle: "Pi-Anbieter konnten nicht aktualisiert werden",
+      description: "Bitte versuche es später erneut.",
     },
     remoteKeepAwake: {
       loadTitle: "Die Wachhalte-Einstellung kann nicht geladen werden",

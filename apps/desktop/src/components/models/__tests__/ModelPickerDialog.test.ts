@@ -214,6 +214,45 @@ describe("ModelPickerDialog provider management", () => {
     ).toBe("true");
   });
 
+  it("marks Pi's providers and models and offers no credential actions", async () => {
+    const piModel: PineModelDescriptor = {
+      ...utilityModel,
+      id: "kimi-k3",
+      name: "Kimi K3",
+      providerId: "pi-cc-switch-demo",
+      providerName: "Demo",
+      source: "pi",
+    };
+    const { wrapper } = mountPicker("session", {
+      models: [piModel],
+      providers: [
+        {
+          authMethods: [],
+          configured: true,
+          id: "pi-cc-switch-demo",
+          modelCount: 1,
+          name: "Demo",
+          source: "pi",
+          readOnly: true,
+        },
+      ],
+    });
+    await flushPromises();
+    expect(wrapper.find('[data-testid="model-pi-badge"]').text()).toBe("Pi");
+
+    await wrapper
+      .get(
+        '[data-picker-row][data-value="manage configure provider service model"]',
+      )
+      .trigger("click");
+    expect(wrapper.find('[data-testid="provider-pi-badge"]').exists()).toBe(
+      true,
+    );
+    expect(wrapper.find('[data-testid="provider-disconnect"]').exists()).toBe(
+      false,
+    );
+  });
+
   it("confirms credential removal", async () => {
     const { getModelCatalog, logoutProvider, wrapper } = mountPicker();
     const manageItem = wrapper.get(

@@ -151,6 +151,35 @@ export default {
       removeDescription:
         "Cet appareil est déconnecté immédiatement et devra être de nouveau associé pour se reconnecter.",
     },
+    piProviders: {
+      group: "Fournisseurs Pi (CC Switch)",
+      title: "Utiliser les fournisseurs de Pi",
+      description:
+        "Ajoute les fournisseurs du fichier models.json de Pi, configurés dans Pi ou CC Switch. Pine se contente de lire le fichier et d’en suivre les modifications ; modifiez ces fournisseurs dans Pi ou CC Switch.",
+      file: "Fichier de modèles de Pi",
+      count: "{count} fournisseurs ajoutés",
+      off: "Désactivé. Activez-le pour ajouter ces fournisseurs.",
+      notFound:
+        "Aucun models.json ici pour l’instant. Pine ajoutera ses fournisseurs dès que le fichier apparaîtra.",
+      skipped: "{key} ignoré : {reason}",
+      reveal: "Afficher dans le dossier",
+      choose: "Choisir un dossier…",
+      useDefault: "Utiliser le dossier par défaut",
+      reason: {
+        commandValue:
+          "sa clé ou un en-tête exécute une commande, ce que Pine ne fait jamais",
+        noModels: "il ne contient aucun modèle",
+        missingBaseUrl: "il n’a pas d’URL de base",
+        missingApi: "son type d’API est absent ou non pris en charge",
+        conflict: "Pine a déjà un fournisseur avec cet identifiant",
+        invalid: "ses réglages ne sont pas valides",
+      },
+      error: {
+        tooLarge: "models.json dépasse 1 Mo, Pine ne l’a donc pas lu.",
+        invalidJson: "models.json n’est pas un JSON valide.",
+        unreadable: "Pine n’a pas pu lire models.json.",
+      },
+    },
     remoteKeepAwake: {
       title:
         "Garder l’ordinateur éveillé tant que le contrôle à distance est activé",
@@ -552,6 +581,10 @@ export default {
     },
   },
   providers: {
+    pi: {
+      label: "Pi",
+      title: "Depuis le models.json de Pi (Pi ou CC Switch)",
+    },
     connected: "Connecté",
     custom: {
       label: "Personnalisé",
@@ -2546,6 +2579,11 @@ export default {
       saveTitle: "Impossible de mettre à jour le contrôle à distance",
       pairTitle: "Impossible de créer un code d'association",
       deviceTitle: "Impossible de mettre à jour cet appareil",
+      description: "Veuillez réessayer plus tard.",
+    },
+    piProviders: {
+      loadTitle: "Impossible de charger les fournisseurs Pi",
+      saveTitle: "Impossible de mettre à jour les fournisseurs Pi",
       description: "Veuillez réessayer plus tard.",
     },
     remoteKeepAwake: {
