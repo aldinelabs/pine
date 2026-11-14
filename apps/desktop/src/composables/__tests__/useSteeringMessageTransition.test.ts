@@ -386,6 +386,76 @@ it("reveals a normally sent message from the composer, without a flight overlay"
   expect(target.element.style.transform).toBe("");
 });
 
+it("raises a message sent while the agent runs from the composer into the staged previews", async () => {
+  const { wrapper, queue } = setup([]);
+  await flushPromises();
+  queue.value = ["Steer this way"];
+  await flushPromises();
+  const preview = wrapper.get<HTMLElement>("[data-steering-content]");
+  expect(preview.element.style.opacity).toBe("0");
+  // The composer sits at the same height as the preview in this layout; the
+  // vertical offset is what the preview travels.
+  expect(preview.element.style.transform).toBe("translate(0px, 0px)");
+  frame(0);
+  frame(250);
+  expect(Number(preview.element.style.opacity)).toBeGreaterThan(0);
+  frame(500);
+  expect(preview.element.style.opacity).toBe("");
+  expect(preview.element.style.transform).toBe("");
+});
+
+it("rises the preview from the composer's position", async () => {
+  const { wrapper, queue } = setup([]);
+  await flushPromises();
+  vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(
+    function (this: HTMLElement) {
+      return this.matches('[data-slot="session-composer"]')
+        ? new DOMRect(200, 700, 100, 40)
+        : new DOMRect(200, 600, 100, 40);
+    },
+  );
+  queue.value = ["Steer this way"];
+  await flushPromises();
+  const preview = wrapper.get<HTMLElement>("[data-steering-content]");
+  expect(preview.element.style.transform).toBe("translate(0px, 100px)");
+});
+
+it("does not raise previews that were already queued when a session opens or returns", async () => {
+  const { wrapper, active, sessionId, queue } = setup(["Already queued"]);
+  await flushPromises();
+  const preview = () => wrapper.get<HTMLElement>("[data-steering-content]");
+  expect(preview().element.style.opacity).toBe("");
+
+  active.value = false;
+  await flushPromises();
+  active.value = true;
+  await flushPromises();
+  expect(preview().element.style.opacity).toBe("");
+
+  sessionId.value = "other";
+  queue.value = ["Another session's queue"];
+  await flushPromises();
+  expect(preview().element.style.opacity).toBe("");
+});
+
+it("flies a preview consumed while it is still rising without its arrival styles", async () => {
+  const { wrapper, queue, messages } = setup([]);
+  await flushPromises();
+  queue.value = ["Quick steer"];
+  await flushPromises();
+  expect(
+    wrapper.get<HTMLElement>("[data-steering-content]").element.style.opacity,
+  ).toBe("0");
+  queue.value = [];
+  messages.value = [message("user-1", "Quick steer")];
+  await flushPromises();
+  const flight = document.querySelector<HTMLElement>(
+    '[data-slot="steering-message-flight"] [data-steering-content]',
+  )!;
+  expect(flight.style.opacity).toBe("");
+  expect(flight.style.transform).toBe("");
+});
+
 it("does not reveal history loads, prepends or assistant messages", async () => {
   const { wrapper, messages } = setup([]);
   await flushPromises();

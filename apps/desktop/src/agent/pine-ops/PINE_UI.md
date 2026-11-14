@@ -228,8 +228,10 @@ From top to bottom:
      Follow up is unavailable while a reply is running, in a session with no
      message yet, or over text already in a follow-up. Clicking a highlighted
      passage reopens its follow-up.
-   - Staged steering messages sit above the status cards. Withdraw and Send
-     now sit below each message, aligned to the right, and wrap when needed.
+   - Staged steering messages sit above the status cards. A message sent
+     while the agent runs rises from the composer into them and fades in.
+     Withdraw and Send now sit below each message, aligned to the right, and
+     wrap when needed.
      Their attachments, quotes and text use the same layout as sent messages.
      When the agent consumes one, its complete content moves smoothly into
      the transcript and blends into the sent message without stretching text

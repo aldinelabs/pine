@@ -17,6 +17,8 @@ interface Entry {
   message: string;
   snapshot?: Snapshot;
   consumed?: boolean;
+  /** Stops the preview's own arrival, while it is still playing. */
+  cancelReveal?: () => void;
 }
 
 /** Becomes visible only once the copy is most of the way there, so the dashed
@@ -115,6 +117,15 @@ function transcriptOrigin(container: HTMLElement | null): DOMRect | null {
     ) ??
     container?.querySelector<HTMLElement>('[data-slot="session-composer"]');
   return host?.getBoundingClientRect() ?? null;
+}
+
+/** Where a steering message leaves from: the composer it was typed in. */
+function composerOrigin(container: HTMLElement | null): DOMRect | null {
+  return (
+    container
+      ?.querySelector<HTMLElement>('[data-slot="session-composer"]')
+      ?.getBoundingClientRect() ?? null
+  );
 }
 
 function isMeasurable(
@@ -378,6 +389,10 @@ export function useSteeringMessageTransition(options: {
   let lastMessages: readonly PineTranscriptMessage[] | undefined;
   let lastUserMessages: readonly PineTranscriptMessage[] | undefined;
   let lastVersion: unknown;
+  /** The generation of the last active pass. A queue first seen after a
+   * reset (opening, switching or reactivating a session) is already there,
+   * not sent, so its previews do not rise in. */
+  let lastGeneration: number | undefined;
   function reset(): void {
     generation++;
     queued = [];
@@ -428,17 +443,53 @@ export function useSteeringMessageTransition(options: {
         const source = sourceNodes?.[index];
         const rect = source?.getBoundingClientRect();
         if (source && isMeasurable(rect)) {
-          entry.snapshot = {
-            rect,
-            content: source.cloneNode(true) as HTMLElement,
-          };
+          const content = source.cloneNode(true) as HTMLElement;
+          // A preview still rising in carries its arrival styles; the copy
+          // starts from where it is painted and must not carry them along.
+          content.style.removeProperty("opacity");
+          content.style.removeProperty("transform");
+          entry.snapshot = { rect, content };
         }
       });
       const unused = [...queued];
+      const added: Entry[] = [];
       queued = queue.map((message) => {
         const index = unused.findIndex((entry) => entry.message === message);
-        return index >= 0 ? unused.splice(index, 1)[0] : { message };
+        if (index >= 0) return unused.splice(index, 1)[0];
+        const entry: Entry = { message };
+        added.push(entry);
+        return entry;
       });
+      for (const entry of unused) entry.cancelReveal?.();
+      // A message sent while the agent runs rises from the composer into the
+      // staged previews, as a normally sent message rises into the transcript.
+      if (lastGeneration === generation) {
+        for (const entry of added) {
+          const currentGeneration = generation;
+          void nextTick(() => {
+            if (generation !== currentGeneration) return;
+            const resolveTarget = () => {
+              const index = queued.indexOf(entry);
+              return index < 0
+                ? null
+                : (options.container.value?.querySelectorAll<HTMLElement>(
+                    "[data-steering-content]",
+                  )[index] ?? null);
+            };
+            const cancel = revealMessage(
+              resolveTarget,
+              () => composerOrigin(options.container.value),
+              () => {
+                cancellations.delete(cancel);
+                if (entry.cancelReveal === cancel) delete entry.cancelReveal;
+              },
+            );
+            entry.cancelReveal = cancel;
+            cancellations.add(cancel);
+          });
+        }
+      }
+      lastGeneration = generation;
       pending.push(
         ...unused.filter((entry) => !entry.consumed && entry.snapshot),
       );
