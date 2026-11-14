@@ -3,6 +3,7 @@ import SwitchComputerButton from "@/components/window/SwitchComputerButton.vue";
 import {
   ChevronDownIcon,
   MessageSquareTextIcon,
+  MessagesSquareIcon,
   PlusIcon,
   WorkflowIcon,
   XIcon,
@@ -536,9 +537,14 @@ watch(
 
 function tabIcon(tab: ProjectContentTab) {
   if (tab.kind !== "session") return fileIcon(fileTargetPath(tab));
+  if (tab.state !== "bound") return MessageSquareTextIcon;
   // An automation run keeps its icon until the user replies to it.
-  return tab.state === "bound" && sessionStore.automationRunOf(tab.sessionId)
-    ? WorkflowIcon
+  if (sessionStore.automationRunOf(tab.sessionId)) return WorkflowIcon;
+  // A sub-session, started by another session to work for it.
+  return projectStore.projectById(tab.projectId)?.sessionParents?.[
+    tab.sessionId
+  ]
+    ? MessagesSquareIcon
     : MessageSquareTextIcon;
 }
 

@@ -143,7 +143,9 @@ Tab bar ("Open content"):
 - More actions: for a file tab, Open, Reveal, Copy path, New folder, Rename,
   Refresh and Move to trash; for a session tab, Rename, Export and Delete.
 - A running session's tab title shimmers; a tab for an automation run keeps a
-  workflow icon until the user replies to it.
+  workflow icon until the user replies to it. A sub-session's tab (one another
+  session started) shows two speech bubbles instead of the single bubble of
+  other session tabs.
 - Switch computer: shown only when Pine is opened in a browser through Remote
   Control and at least one computer is paired; returns to the list of
   computers. The workbench header has the same button.

@@ -26,7 +26,10 @@ import {
 import { PROJECT_ENTRY_DRAG_TYPE } from "@/lib/projectFileDrag";
 import { SESSION_DRAG_TYPE } from "@/lib/sessionDrag";
 import ProjectContentTabs from "../ProjectContentTabs.vue";
-import { TEMPORARY_WORKSPACE_PROJECT_ID } from "@/shared/projects";
+import {
+  TEMPORARY_WORKSPACE_PROJECT_ID,
+  type PineProject,
+} from "@/shared/projects";
 
 const sidebar = vi.hoisted(() => ({
   state: "expanded",
@@ -290,6 +293,33 @@ describe("ProjectContentTabs", () => {
     useSessionStore().stateFor(firstSession.id).isRunning = false;
     await nextTick();
     expect(title().classes()).not.toContain("shimmer");
+    wrapper.unmount();
+  });
+
+  it("shows a sub-session tab with its own icon", async () => {
+    const { wrapper } = await mountTabs();
+    const tabs = useContentTabsStore();
+    tabs.bindSession("session-1", firstSession);
+    const projectId = tabs.tabs.find(
+      (tab) => tab.id === "session-1",
+    )!.projectId;
+    const tabIcon = () =>
+      wrapper.get('[data-tab-id="session-1"] svg').classes().join(" ");
+    await flushPromises();
+    expect(tabIcon()).toContain("lucide-message-square-text");
+
+    useProjectStore().projects = [
+      {
+        id: projectId,
+        name: "Project",
+        defaultFolderId: "f1",
+        folders: [],
+        sessionGroups: [],
+        sessionParents: { [firstSession.id]: secondSession.id },
+      } as unknown as PineProject,
+    ];
+    await flushPromises();
+    expect(tabIcon()).toContain("lucide-messages-square");
     wrapper.unmount();
   });
 
