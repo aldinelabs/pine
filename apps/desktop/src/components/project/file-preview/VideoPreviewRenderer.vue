@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { inject, onBeforeUnmount, useTemplateRef, watch } from "vue";
 import PreviewMediaControls from "./PreviewMediaControls.vue";
+import { useMediaDetails } from "./mediaDetails";
 import {
   previewAnnotationsKey,
   type AnnotationRevealRequest,
@@ -15,6 +16,11 @@ const root = useTemplateRef<HTMLElement>("root");
 const video = useTemplateRef<HTMLVideoElement>("video");
 const controls =
   useTemplateRef<InstanceType<typeof PreviewMediaControls>>("controls");
+const describe = useMediaDetails(
+  "video",
+  () => (props.preview.kind === "video" ? props.preview.url : ""),
+  (properties) => emit("metadataChange", { properties }),
+);
 
 function videoLoaded(): void {
   if (!video.value) return;
@@ -23,6 +29,7 @@ function videoLoaded(): void {
     height: video.value.videoHeight,
     duration: video.value.duration,
   });
+  void describe(video.value.duration);
   // Time comments are made on the timeline once its length is known.
   if (annotations) emit("capabilitiesChange", { annotateTime: true });
 }

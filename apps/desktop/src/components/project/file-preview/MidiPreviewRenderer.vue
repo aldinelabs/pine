@@ -14,6 +14,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { formatDuration } from "@/lib/formatDuration";
+import { midiProperties } from "@/lib/previewProperties/midiProperties";
 import { cn } from "@/lib/utils";
 import { readPreviewBytes } from "./previewBytes";
 import type {
@@ -105,7 +106,12 @@ onMounted(async () => {
       readPreviewBytes(props.preview, reading.signal),
     ]);
     midi.value = new Midi(bytes);
-    emit("metadataChange", { duration: midi.value.duration });
+    emit("metadataChange", {
+      duration: midi.value.duration,
+      properties: midiProperties(midi.value, (bpm) =>
+        t("project.preview.midiTempo", { bpm }),
+      ),
+    });
   } catch (error) {
     if (reading.signal.aborted) return;
     console.error("Failed to read the MIDI file.", error);

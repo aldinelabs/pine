@@ -3,6 +3,7 @@ import { computed, inject, onBeforeUnmount, useTemplateRef, watch } from "vue";
 import { Music } from "@lucide/vue";
 import { previewExtension } from "@/shared/previewFormats";
 import PreviewMediaControls from "./PreviewMediaControls.vue";
+import { useMediaDetails } from "./mediaDetails";
 import {
   previewAnnotationsKey,
   type AnnotationRevealRequest,
@@ -16,11 +17,17 @@ const annotations = inject(previewAnnotationsKey, undefined);
 const root = useTemplateRef<HTMLElement>("root");
 const audio = useTemplateRef<HTMLAudioElement>("audio");
 const format = computed(() => previewExtension(props.filePath).toUpperCase());
+const describe = useMediaDetails(
+  "audio",
+  () => (props.preview.kind === "audio" ? props.preview.url : ""),
+  (properties) => emit("metadataChange", { properties }),
+);
 
 function loaded(): void {
   const element = audio.value;
   if (!element) return;
   emit("metadataChange", { duration: element.duration });
+  void describe(element.duration);
   // Time comments are made on the timeline once its length is known.
   if (annotations) emit("capabilitiesChange", { annotateTime: true });
 }
