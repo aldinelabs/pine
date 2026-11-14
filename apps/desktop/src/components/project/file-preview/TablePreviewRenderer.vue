@@ -1,5 +1,11 @@
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted, ref, shallowRef } from "vue";
+import {
+  onBeforeUnmount,
+  onMounted,
+  ref,
+  shallowRef,
+  useTemplateRef,
+} from "vue";
 import { useI18n } from "vue-i18n";
 import { Badge } from "@/components/ui/badge";
 import { Spinner } from "@/components/ui/spinner";
@@ -9,7 +15,9 @@ import { previewExtension } from "@/shared/previewFormats";
 import DataGrid, { type DataGridColumn } from "./DataGrid.vue";
 import { readPreviewBytes, readPreviewText } from "./previewBytes";
 import type {
+  AnnotationRevealRequest,
   PreviewRendererEvents,
+  PreviewRendererHandle,
   PreviewRendererProps,
 } from "./previewRenderer";
 import { usePreviewToolbar } from "./usePreviewToolbar";
@@ -27,6 +35,18 @@ const loadRows = shallowRef<
 >(() => Promise.resolve([]));
 const loading = ref(true);
 const reading = new AbortController();
+const grid = useTemplateRef<InstanceType<typeof DataGrid>>("grid");
+
+async function revealAnnotation(request: AnnotationRevealRequest) {
+  if (request.shape?.kind === "cells")
+    await grid.value?.revealCells(request.shape.cells);
+}
+
+defineExpose<PreviewRendererHandle>({
+  annotationCellSelection: () => grid.value?.cellSelection(),
+  annotationCellRects: (cells) => grid.value?.cellRects(cells) ?? [],
+  revealAnnotation,
+});
 
 async function load(): Promise<void> {
   const extension = previewExtension(props.filePath);
@@ -66,7 +86,10 @@ onMounted(async () => {
       rowCount: rowCount.value,
       columnCount: columns.value.length,
     });
-    if (truncated.value) emit("capabilitiesChange", { toolbar: true });
+    emit("capabilitiesChange", {
+      annotateCells: true,
+      ...(truncated.value ? { toolbar: true } : {}),
+    });
   } catch (error) {
     if (reading.signal.aborted) return;
     console.error("Failed to read the table preview.", error);
@@ -89,10 +112,12 @@ onBeforeUnmount(() => reading.abort());
     </Teleport>
     <DataGrid
       v-if="!loading"
+      ref="grid"
       :columns="columns"
       :row-count="rowCount"
       :load-rows="loadRows"
       @failed="emit('failed')"
+      @view-change="emit('annotationsChange')"
     />
     <div v-else class="absolute inset-0 grid place-items-center" role="status">
       <Spinner class="size-5 text-muted-foreground" />

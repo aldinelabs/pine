@@ -4,6 +4,17 @@ import { computed, ref, shallowRef, useTemplateRef, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { cn } from "@/lib/utils";
 import { formatGridCell, type GridCell } from "@/lib/dataGrid";
+import {
+  dataGridCellText,
+  dataGridRangeRect,
+  dataGridRevealScroll,
+  dataGridSelectedCells,
+  type DataGridGeometry,
+} from "./dataGridCells";
+import type {
+  AnnotationCellSelection,
+  AnnotationCells,
+} from "./previewRenderer";
 
 export interface DataGridColumn {
   key: string;
@@ -23,7 +34,11 @@ const props = withDefaults(
   }>(),
   { rowNumbers: true },
 );
-const emit = defineEmits<{ failed: [error: unknown] }>();
+const emit = defineEmits<{
+  failed: [error: unknown];
+  /** The cells moved on screen: the grid scrolled or its columns were sized. */
+  viewChange: [];
+}>();
 const { t, locale } = useI18n();
 
 const ROW_HEIGHT = 32;
@@ -32,6 +47,7 @@ const MIN_WIDTH = 72;
 const MAX_WIDTH = 320;
 
 const scroller = useTemplateRef<HTMLDivElement>("scroller");
+const header = useTemplateRef<HTMLDivElement>("header");
 /** Loaded pages of rows; a page is requested once. */
 const pages = shallowRef(new Map<number, GridCell[][]>());
 const requested = new Set<number>();
@@ -45,18 +61,13 @@ const numberWidth = computed(() =>
 const template = computed(() =>
   [
     ...(props.rowNumbers ? [`${numberWidth.value}px`] : []),
-    ...props.columns.map(
-      (_, index) => `${widths.value[index] ?? MIN_WIDTH * 1.5}px`,
-    ),
+    ...props.columns.map((_, index) => `${columnWidth(index)}px`),
   ].join(" "),
 );
 const totalWidth = computed(
   () =>
     numberWidth.value +
-    props.columns.reduce(
-      (sum, _, index) => sum + (widths.value[index] ?? MIN_WIDTH * 1.5),
-      0,
-    ),
+    props.columns.reduce((sum, _, index) => sum + columnWidth(index), 0),
 );
 
 const virtualizer = useVirtualizer(
@@ -156,6 +167,72 @@ function rowAt(index: number): GridCell[] | undefined {
 function cell(index: number, column: number) {
   return formatGridCell(rowAt(index)?.[column], locale.value);
 }
+
+function columnWidth(index: number): number {
+  return widths.value[index] ?? MIN_WIDTH * 1.5;
+}
+
+function geometry(): DataGridGeometry | undefined {
+  const element = scroller.value;
+  if (!element) return undefined;
+  const box = element.getBoundingClientRect();
+  return {
+    viewport: {
+      left: box.left + element.clientLeft,
+      top: box.top + element.clientTop,
+      width: element.clientWidth,
+      height: element.clientHeight,
+    },
+    scrollLeft: element.scrollLeft,
+    scrollTop: element.scrollTop,
+    headerHeight: header.value?.offsetHeight ?? 0,
+    numberWidth: numberWidth.value,
+    rowHeight: ROW_HEIGHT,
+    columnWidths: props.columns.map((_, index) => columnWidth(index)),
+  };
+}
+
+/** The cells the text selection spans, with their loaded values. */
+function cellSelection(): AnnotationCellSelection | undefined {
+  const element = scroller.value;
+  const cells = element
+    ? dataGridSelectedCells(
+        element,
+        element.ownerDocument.getSelection(),
+        props.columns.length,
+      )
+    : undefined;
+  if (!cells) return undefined;
+  const lines: string[] = [];
+  for (let row = cells.startRow; row <= cells.endRow; row += 1) {
+    const values = rowAt(row);
+    const line: string[] = [];
+    for (let column = cells.startColumn; column <= cells.endColumn; column++)
+      line.push(dataGridCellText(values?.[column], locale.value));
+    lines.push(line.join("\t"));
+  }
+  return { cells, text: lines.join("\n") };
+}
+
+/** Where the cells show now; empty when they are scrolled out. */
+function cellRects(cells: AnnotationCells): DOMRect[] {
+  const current = geometry();
+  const rect = current ? dataGridRangeRect(current, cells) : undefined;
+  return rect ? [rect] : [];
+}
+
+/** Scrolls the range's first cell into view once the columns are sized. */
+async function revealCells(cells: AnnotationCells): Promise<void> {
+  for (let frame = 0; frame < 60 && !widths.value.length; frame += 1)
+    await new Promise((resolve) => requestAnimationFrame(resolve));
+  const current = geometry();
+  const target = current ? dataGridRevealScroll(current, cells) : undefined;
+  if (target) scroller.value?.scrollTo(target);
+}
+
+watch(widths, () => emit("viewChange"), { flush: "post" });
+
+defineExpose({ cellSelection, cellRects, revealCells });
 </script>
 
 <template>
@@ -166,9 +243,11 @@ function cell(index: number, column: number) {
     :aria-rowcount="rowCount + 1"
     :aria-colcount="columns.length"
     class="relative h-full min-h-0 overflow-auto text-sm"
+    @scroll.passive="emit('viewChange')"
   >
     <div :style="{ width: `${totalWidth}px`, minWidth: '100%' }">
       <div
+        ref="header"
         role="row"
         class="sticky top-0 z-10 grid border-b bg-background"
         :style="{ gridTemplateColumns: template }"
@@ -205,6 +284,7 @@ function cell(index: number, column: number) {
           :key="item.index"
           role="row"
           :aria-rowindex="item.index + 2"
+          :data-row="item.index"
           class="absolute inset-x-0 grid border-b border-border/60 hover:bg-muted/50 active:bg-muted/50"
           :style="{
             gridTemplateColumns: template,
@@ -222,6 +302,7 @@ function cell(index: number, column: number) {
             v-for="(column, columnIndex) in columns"
             :key="column.key"
             role="gridcell"
+            :data-column="columnIndex"
             :title="cell(item.index, columnIndex).text"
             :class="
               cn(
