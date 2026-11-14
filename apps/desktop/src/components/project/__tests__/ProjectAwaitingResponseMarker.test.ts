@@ -51,11 +51,11 @@ describe("ProjectAwaitingResponseMarker", () => {
     vi.useRealTimers();
   });
 
-  it("shows the note after three seconds of waiting", async () => {
-    expect(AWAITING_RESPONSE_DELAY_MS).toBe(3000);
+  it("shows the note after five seconds of waiting", async () => {
+    expect(AWAITING_RESPONSE_DELAY_MS).toBe(5000);
     const wrapper = mountMarker({ waiting: true, active: true });
     expect(vi.getTimerCount()).toBe(1);
-    vi.advanceTimersByTime(2999);
+    vi.advanceTimersByTime(4999);
     await nextTick();
     expect(wrapper.find(MARKER).exists()).toBe(false);
     vi.advanceTimersByTime(1);
@@ -82,7 +82,7 @@ describe("ProjectAwaitingResponseMarker", () => {
 
   it("goes as soon as the wait ends", async () => {
     const wrapper = mountMarker({ waiting: true, active: true });
-    vi.advanceTimersByTime(3000);
+    vi.advanceTimersByTime(5000);
     await nextTick();
     expect(wrapper.find(MARKER).exists()).toBe(true);
     await wrapper.setProps({ waiting: false });
@@ -96,7 +96,7 @@ describe("ProjectAwaitingResponseMarker", () => {
     vi.advanceTimersByTime(1000);
     await wrapper.setProps({ waiting: false });
     expect(vi.getTimerCount()).toBe(0);
-    vi.advanceTimersByTime(5000);
+    vi.advanceTimersByTime(10000);
     await nextTick();
     expect(wrapper.find(MARKER).exists()).toBe(false);
     wrapper.unmount();
@@ -105,7 +105,7 @@ describe("ProjectAwaitingResponseMarker", () => {
   it("runs no timer in a background tab and shows at once on return", async () => {
     const wrapper = mountMarker({ waiting: true, active: false });
     expect(vi.getTimerCount()).toBe(0);
-    vi.advanceTimersByTime(5000);
+    vi.advanceTimersByTime(10000);
     await nextTick();
     expect(wrapper.find(MARKER).exists()).toBe(false);
     await wrapper.setProps({ active: true });
@@ -122,7 +122,7 @@ describe("ProjectAwaitingResponseMarker", () => {
       vi.advanceTimersByTime(500);
     }
     // 2.5 s of waiting so far: the rest of the delay, not a fresh one.
-    vi.advanceTimersByTime(499);
+    vi.advanceTimersByTime(2499);
     await nextTick();
     expect(wrapper.find(MARKER).exists()).toBe(false);
     vi.advanceTimersByTime(1);
@@ -148,7 +148,7 @@ describe("ProjectAwaitingResponseMarker", () => {
 
   it("keeps Chinese clauses whole without adding spaces", async () => {
     const wrapper = mountMarker({ waiting: true, active: true }, "zh-CN");
-    vi.advanceTimersByTime(3000);
+    vi.advanceTimersByTime(5000);
     await nextTick();
     const hintLine = wrapper.get('[data-slot="awaiting-response-hint"]');
     expect(

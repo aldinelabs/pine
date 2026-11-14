@@ -1,6 +1,6 @@
 <script lang="ts">
 /** How long a sent message waits without any reply before the note shows. */
-export const AWAITING_RESPONSE_DELAY_MS = 3000;
+export const AWAITING_RESPONSE_DELAY_MS = 5000;
 </script>
 
 <script setup lang="ts">
@@ -12,7 +12,7 @@ import { MessageScrollerItem } from "@/components/ui/message-scroller";
 
 /**
  * A temporary note, where the reply will appear, that the model provider has
- * not answered yet. It shows once the run has waited three seconds for the
+ * not answered yet. It shows once the run has waited five seconds for the
  * first content after the user's message, and goes as soon as any content
  * arrives or the run ends. It is only ever derived from the live run, never
  * stored. One timer at most, and none while the tab is in the background;

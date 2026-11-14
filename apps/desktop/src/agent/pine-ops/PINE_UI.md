@@ -217,7 +217,7 @@ From top to bottom:
    - markers for context compaction, errors, stopped responses and background
      process events;
    - a temporary "Pine is still waiting for the model provider to respond. …"
-     note where the reply will appear, when about three seconds pass after a
+     note where the reply will appear, when about five seconds pass after a
      message is sent without any reply, reasoning or tool call arriving. Its
      second line suggests checking the network connection and the model
      provider's availability if it stays for tens of seconds. It
