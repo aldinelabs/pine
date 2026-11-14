@@ -712,13 +712,12 @@ html.sidebar-vibrancy [data-slot="sidebar-container"][data-side="left"] {
  * overlay hides the change. It turns opaque without a fade, since a
  * half-transparent sidebar would still blur to black; the overlay is removed
  * only after its close animation, so fading back in blurs nothing.
+ *
+ * `data-behind-modal` comes from trackModalOverlays: an `html:has(...)`
+ * here made every DOM insertion restyle the whole window.
  */
-html.sidebar-vibrancy:has(
-    [data-slot="dialog-overlay"],
-    [data-slot="sheet-overlay"],
-    [data-slot="alert-dialog-overlay"]
-  )
-  [data-slot="sidebar-container"][data-side="left"] {
+html.sidebar-vibrancy
+  [data-slot="sidebar-container"][data-side="left"][data-behind-modal] {
   background: var(--sidebar);
   transition-property: left, right, width;
 }

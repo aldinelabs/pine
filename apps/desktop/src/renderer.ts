@@ -10,6 +10,7 @@ import {
 } from "./app/i18n";
 import { isWebClient } from "./lib/clientRuntime";
 import { playCompletionSound } from "./lib/completionSound";
+import { trackModalOverlays } from "./lib/modalOverlayState";
 import { dismissSplash, holdSplash } from "./lib/splash";
 import { syncThemeColor } from "./lib/themeColor";
 import { createAppRouter } from "./router";
@@ -59,6 +60,7 @@ async function startRenderer(): Promise<void> {
     dismissSplash();
   }
   useAppearanceStore(pinia).initialize();
+  trackModalOverlays();
   if (document.documentElement.dataset.client === "web") syncThemeColor();
   if (needsSignIn) {
     const { default: WebSignInView } =
