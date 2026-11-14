@@ -122,6 +122,17 @@ function revealAnnotation(request: AnnotationRevealRequest): void {
   if (index >= 0 && index < sheets.value.length) sheet.value = String(index);
 }
 
+/** The central topic and how many topics the map has, for Details. */
+async function describe(): Promise<void> {
+  try {
+    const { mindMapProperties } =
+      await import("@/lib/previewProperties/structure");
+    emit("metadataChange", { properties: mindMapProperties(sheets.value) });
+  } catch (error) {
+    console.error("Failed to read the mind map's properties.", error);
+  }
+}
+
 onMounted(async () => {
   emit("capabilitiesChange", capabilities());
   try {
@@ -131,6 +142,7 @@ onMounted(async () => {
     );
     if (sheets.value.length > 1) emit("capabilitiesChange", capabilities());
     await render();
+    void describe();
   } catch (error) {
     if (reading.signal.aborted) return;
     console.error("Failed to read the mind map.", error);

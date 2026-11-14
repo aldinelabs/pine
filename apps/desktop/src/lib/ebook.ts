@@ -15,6 +15,13 @@ export interface EbookChapter {
 export interface Ebook {
   title?: string;
   author?: string;
+  /** What the book's package records about it, where the format has them. */
+  publisher?: string;
+  /** Publication date as the book writes it (a year, a date or a date-time). */
+  published?: string;
+  language?: string;
+  /** ISBN, UUID or another unique identifier. */
+  identifier?: string;
   chapters: EbookChapter[];
   close?: () => void;
 }
@@ -199,9 +206,22 @@ export async function readEpub(buffer: ArrayBuffer): Promise<Ebook> {
       }
     }
   }
+  const uniqueId = opf.documentElement.getAttribute("unique-identifier");
+  const identifier =
+    Array.from(opf.getElementsByTagName("*"))
+      .find(
+        (element) =>
+          element.localName === "identifier" &&
+          (!uniqueId || element.getAttribute("id") === uniqueId),
+      )
+      ?.textContent?.trim() || metadata("identifier");
   return {
     title: metadata("title"),
     author: metadata("creator"),
+    publisher: metadata("publisher"),
+    published: metadata("date"),
+    language: metadata("language"),
+    identifier: identifier?.replace(/^urn:(uuid|isbn):/i, ""),
     chapters: spine.map((path, index) => ({
       title: titles.get(path)?.title || `${index + 1}`,
       depth: titles.get(path)?.depth ?? 0,
@@ -250,6 +270,7 @@ export async function readFb2(buffer: ArrayBuffer): Promise<Ebook> {
   return {
     title: book.title,
     author: book.authors.join(", ") || undefined,
+    language: book.language,
     chapters: [...intro, ...flatten(book.chapters, 0)],
   };
 }

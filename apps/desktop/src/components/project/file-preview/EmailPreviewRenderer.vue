@@ -6,6 +6,7 @@ import {
   ref,
   shallowRef,
   useTemplateRef,
+  watch,
 } from "vue";
 import { useI18n } from "vue-i18n";
 import {
@@ -23,6 +24,7 @@ import {
   splitMbox,
   type MailMessage,
 } from "@/lib/email";
+import { mailProperties } from "@/lib/previewProperties/document";
 import { cn } from "@/lib/utils";
 import { previewExtension } from "@/shared/previewFormats";
 import MailMessageView from "./MailMessageView.vue";
@@ -97,6 +99,12 @@ async function revealAnnotation(
 }
 
 defineExpose<PreviewRendererHandle>({ annotationSurfaces, revealAnnotation });
+
+/** Details describe the message shown, which in a mailbox is the open one. */
+watch(message, (shownMessage) => {
+  if (shownMessage)
+    emit("metadataChange", { properties: mailProperties(shownMessage) });
+});
 
 async function openMailboxMessage(index: number): Promise<void> {
   const entry = mailbox.value?.[index];

@@ -11,11 +11,13 @@ import { Badge } from "@/components/ui/badge";
 import { Spinner } from "@/components/ui/spinner";
 import type { GridCell } from "@/lib/dataGrid";
 import { MAX_TABLE_ROWS, parseDelimited, readDbf } from "@/lib/tabularData";
+import { dbfProperties } from "@/lib/previewProperties/structure";
 import { previewExtension } from "@/shared/previewFormats";
 import DataGrid, { type DataGridColumn } from "./DataGrid.vue";
 import { readPreviewBytes, readPreviewText } from "./previewBytes";
 import type {
   AnnotationRevealRequest,
+  PreviewProperty,
   PreviewRendererEvents,
   PreviewRendererHandle,
   PreviewRendererProps,
@@ -34,6 +36,7 @@ const loadRows = shallowRef<
   (start: number, end: number) => Promise<GridCell[][]>
 >(() => Promise.resolve([]));
 const loading = ref(true);
+let properties: PreviewProperty[] = [];
 const reading = new AbortController();
 const grid = useTemplateRef<InstanceType<typeof DataGrid>>("grid");
 
@@ -51,9 +54,13 @@ defineExpose<PreviewRendererHandle>({
 async function load(): Promise<void> {
   const extension = previewExtension(props.filePath);
   if (extension === "dbf") {
-    const table = readDbf(
-      await readPreviewBytes(props.preview, reading.signal),
-    );
+    const bytes = await readPreviewBytes(props.preview, reading.signal);
+    const table = readDbf(bytes);
+    try {
+      properties = dbfProperties(bytes);
+    } catch {
+      properties = [];
+    }
     columns.value = table.fields.map((field) => ({
       key: field.name,
       label: field.name,
@@ -65,10 +72,14 @@ async function load(): Promise<void> {
     loadRows.value = (start, end) => Promise.resolve(table.rows(start, end));
     return;
   }
+  const delimiter = extension === "tsv" ? "\t" : ",";
   const table = parseDelimited(
     await readPreviewText(props.preview, reading.signal),
-    extension === "tsv" ? "\t" : ",",
+    delimiter,
   );
+  properties = [
+    { key: "delimiter", value: delimiter === "\t" ? "Tab" : delimiter },
+  ];
   columns.value = table.columns.map((label, index) => ({
     key: String(index),
     label,
@@ -85,6 +96,7 @@ onMounted(async () => {
     emit("metadataChange", {
       rowCount: rowCount.value,
       columnCount: columns.value.length,
+      properties,
     });
     emit("capabilitiesChange", {
       annotateCells: true,

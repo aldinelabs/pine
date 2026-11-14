@@ -10,6 +10,7 @@ import {
   EmptyTitle,
 } from "@/components/ui/empty";
 import { Spinner } from "@/components/ui/spinner";
+import { typstProperties } from "@/lib/previewProperties/document";
 import { compileTypst, splitTypstPages, typstErrorMessages } from "@/lib/typst";
 import PreviewPager from "./PreviewPager.vue";
 import { pageTarget, requestedPage } from "./annotationPages";
@@ -107,6 +108,15 @@ function revealAnnotation(request: AnnotationRevealRequest): void {
 
 defineExpose({ annotationTargets, revealAnnotation });
 
+function documentProperties(source: string) {
+  try {
+    return typstProperties(source);
+  } catch (reason) {
+    console.error("Failed to read the Typst document's properties.", reason);
+    return [];
+  }
+}
+
 onMounted(async () => {
   emit("capabilitiesChange", capabilities());
   measure();
@@ -131,7 +141,10 @@ onMounted(async () => {
       height: item.height,
       url: URL.createObjectURL(new Blob([item.svg], { type: "image/svg+xml" })),
     }));
-    emit("metadataChange", { pageCount: compiled.length });
+    emit("metadataChange", {
+      pageCount: compiled.length,
+      properties: documentProperties(source),
+    });
     if (compiled.length) emit("capabilitiesChange", capabilities());
   } catch (reason) {
     if (reading.signal.aborted) return;

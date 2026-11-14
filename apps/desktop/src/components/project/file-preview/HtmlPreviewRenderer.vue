@@ -3,6 +3,7 @@ import { onBeforeUnmount, onMounted, ref, useTemplateRef } from "vue";
 import { Spinner } from "@/components/ui/spinner";
 import { readWebArchive } from "@/lib/bplist";
 import { decodeHtml, inlineResources } from "@/lib/htmlSandbox";
+import { htmlProperties } from "@/lib/previewProperties/document";
 import { previewExtension } from "@/shared/previewFormats";
 import HtmlFrame from "./HtmlFrame.vue";
 import { readPreviewBytes } from "./previewBytes";
@@ -25,8 +26,18 @@ function annotationSurface(): AnnotationSurface | undefined {
   return body ? { root: body } : undefined;
 }
 
+let described = false;
+
 function handleLoad(): void {
   if (!props.compact) emit("capabilitiesChange", { annotate: true });
+  // The page's head is read once it shows, not before.
+  if (described || html.value === undefined) return;
+  described = true;
+  try {
+    emit("metadataChange", { properties: htmlProperties(html.value) });
+  } catch (error) {
+    console.error("Failed to read the page's properties.", error);
+  }
 }
 
 defineExpose<PreviewRendererHandle>({ annotationSurface });

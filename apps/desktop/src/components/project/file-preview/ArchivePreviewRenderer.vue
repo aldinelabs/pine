@@ -45,6 +45,7 @@ import {
 } from "@/lib/archive";
 import { archiveTree, visibleArchiveRows } from "@/lib/archiveTree";
 import { formatBytes } from "@/lib/formatBytes";
+import { archiveProperties } from "@/lib/previewProperties/structure";
 import { cn } from "@/lib/utils";
 import { previewExtension } from "@/shared/previewFormats";
 import NestedPreview from "./NestedPreview.vue";
@@ -92,6 +93,20 @@ const comic = computed(() => {
 });
 const comicPage = ref(1);
 
+/** Entries, sizes and the archive's own comment, for Details. */
+function describe(encrypted: boolean): void {
+  try {
+    emit("metadataChange", {
+      properties: archiveProperties(
+        { entries: archive.value?.entries, bytes: bytes.value, encrypted },
+        locale.value,
+      ),
+    });
+  } catch (error) {
+    console.error("Failed to read the archive's properties.", error);
+  }
+}
+
 async function open(withPassword?: string): Promise<void> {
   opening.value = true;
   try {
@@ -103,6 +118,7 @@ async function open(withPassword?: string): Promise<void> {
       withPassword,
     );
     locked.value = undefined;
+    describe(withPassword !== undefined);
     // Archives of one folder open with it expanded.
     const top = tree.value.filter((node) => node.folder);
     if (top.length === 1 && tree.value.length === 1)
@@ -115,6 +131,7 @@ async function open(withPassword?: string): Promise<void> {
     if (reading.signal.aborted) return;
     if (error instanceof ArchivePasswordError) {
       locked.value = error.wrongPassword ? "wrong" : "encrypted";
+      describe(true);
       return;
     }
     console.error("Failed to open the archive.", error);

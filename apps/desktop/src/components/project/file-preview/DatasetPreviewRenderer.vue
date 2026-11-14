@@ -133,11 +133,23 @@ onMounted(async () => {
       ...(opened.tables.length > 1 ? { toolbar: true } : {}),
     });
     const first = opened.tables[0];
-    if (first)
-      emit("metadataChange", {
-        rowCount: first.rowCount,
-        columnCount: first.columns.length,
-      });
+    // A database's table count is worth knowing; other formats have one.
+    const tables =
+      opened.tables.length > 1 || open === openSqlite
+        ? [
+            {
+              key: "tables" as const,
+              type: "number" as const,
+              value: opened.tables.length,
+            },
+          ]
+        : [];
+    emit("metadataChange", {
+      ...(first
+        ? { rowCount: first.rowCount, columnCount: first.columns.length }
+        : {}),
+      properties: tables,
+    });
   } catch (error) {
     if (reading.signal.aborted) return;
     console.error("Failed to read the data preview.", error);

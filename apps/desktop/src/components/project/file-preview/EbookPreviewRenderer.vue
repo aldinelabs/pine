@@ -17,6 +17,7 @@ import { Toggle } from "@/components/ui/toggle";
 import type { Ebook } from "@/lib/ebook";
 import { resolveColors } from "@/lib/themeColors";
 import { useThemeRoot } from "@/composables/useThemeRoot";
+import { ebookProperties } from "@/lib/previewProperties/document";
 import { cn } from "@/lib/utils";
 import { previewExtension } from "@/shared/previewFormats";
 import { useAppearanceStore } from "@/stores/appearance";
@@ -169,8 +170,8 @@ onMounted(async () => {
     }
     if (!opened.chapters.length) throw new Error("The book has no chapters.");
     book.value = opened;
-    emit("metadataChange", { pageCount: opened.chapters.length });
     await open(1);
+    emit("metadataChange", { properties: ebookProperties(opened) });
     if (!props.compact) emit("capabilitiesChange", { annotate: true });
   } catch (error) {
     if (reading.signal.aborted) return;

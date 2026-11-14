@@ -3,16 +3,19 @@ import {
   computed,
   nextTick,
   onBeforeUnmount,
+  onMounted,
   useTemplateRef,
   watch,
 } from "vue";
 import { useEventListener } from "@vueuse/core";
+import { useI18n } from "vue-i18n";
 import { getMarkdown, parseMarkdownToStructure } from "markstream-vue";
 import CodeBlock from "@/components/markdown/CodeBlock.vue";
 import { configurePineMarkdown } from "@/components/markdown/configureMarkdown";
 import MarkdownContent from "@/components/markdown/MarkdownContent.vue";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { fileLanguage } from "@/lib/fileLanguage";
+import { syntaxName, textProperties } from "@/lib/previewProperties/text";
 import {
   filePreviewExcluded,
   filePreviewRangeSelection,
@@ -46,6 +49,37 @@ const markdownNodes = computed(() =>
       )
     : undefined,
 );
+
+/** Above this size the code view shows plain text, without highlighting. */
+const HIGHLIGHT_LIMIT = 200_000;
+const highlighted = computed(() =>
+  source.value.length > HIGHLIGHT_LIMIT ? "text" : language.value,
+);
+
+/**
+ * Counts and line endings for Details, worked out once the text has shown;
+ * a newer text replaces a pending count.
+ */
+const { locale } = useI18n();
+let countTimer: ReturnType<typeof setTimeout> | undefined;
+function emitProperties(): void {
+  clearTimeout(countTimer);
+  countTimer = setTimeout(() => {
+    try {
+      emit("metadataChange", {
+        properties: textProperties(source.value, {
+          syntax: syntaxName(highlighted.value),
+          markdown: language.value === "markdown",
+          locale: locale.value,
+        }),
+      });
+    } catch (error) {
+      console.error("Failed to read the text's properties.", error);
+    }
+  }, 0);
+}
+onMounted(emitProperties);
+watch(source, emitProperties);
 
 let stopScrollRestore: (() => void) | undefined;
 watch(source, () => {
@@ -158,6 +192,7 @@ watch(
   { immediate: true },
 );
 onBeforeUnmount(() => {
+  clearTimeout(countTimer);
   stopScrollRestore?.();
   stopReveal?.();
 });
@@ -232,7 +267,7 @@ defineExpose({ readSelection, annotationSurface, annotationLines });
         :node="{
           type: 'code_block',
           code: source,
-          language: source.length > 200_000 ? 'text' : language,
+          language: highlighted,
         }"
         :highlight-lines="reveal?.highlights"
         :reveal-line="reveal?.line"

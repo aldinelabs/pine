@@ -147,6 +147,18 @@ function goTo(target: number): void {
   requestAnimationFrame(() => (scrolling = false));
 }
 
+/** The document information OFD.xml records, read after the pages show. */
+async function describe(bytes: ArrayBuffer): Promise<void> {
+  try {
+    const { readOfdProperties } =
+      await import("@/lib/previewProperties/document");
+    const properties = await readOfdProperties(bytes);
+    if (!reading.signal.aborted) emit("metadataChange", { properties });
+  } catch (error) {
+    console.error("Failed to read the OFD file's properties.", error);
+  }
+}
+
 onMounted(async () => {
   emit("capabilitiesChange", capabilities());
   try {
@@ -162,6 +174,7 @@ onMounted(async () => {
     document_.value = documents[0];
     loading.value = false;
     await render();
+    void describe(bytes);
     if (stage.value) {
       resizeObserver = new ResizeObserver(() => scheduleRender());
       resizeObserver.observe(stage.value);

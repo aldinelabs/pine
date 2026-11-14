@@ -62,6 +62,23 @@ async function svgFor(text: string): Promise<string> {
   return renderDrawioPage(current);
 }
 
+let described = false;
+
+/** What the diagram file records, read once its first image is shown. */
+async function describe(text: string): Promise<void> {
+  try {
+    const formats = await import("@/lib/previewProperties/structure");
+    const read = {
+      drawio: formats.drawioProperties,
+      excalidraw: formats.excalidrawProperties,
+      mermaid: formats.mermaidProperties,
+    }[kind.value];
+    emit("metadataChange", { properties: read(text) });
+  } catch (error) {
+    console.error("Failed to read the diagram's properties.", error);
+  }
+}
+
 async function render(): Promise<void> {
   const current = ++generation;
   try {
@@ -75,6 +92,10 @@ async function render(): Promise<void> {
     shownPage.value = page.value;
     if (pages.value.length > 1)
       emit("metadataChange", { pageCount: pages.value.length });
+    if (!described) {
+      described = true;
+      void describe(source.value);
+    }
   } catch (error) {
     if (reading.signal.aborted || current !== generation) return;
     console.error("Failed to render the diagram.", error);

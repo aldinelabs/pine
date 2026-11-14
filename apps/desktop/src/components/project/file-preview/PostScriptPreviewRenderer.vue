@@ -11,6 +11,7 @@ import {
 import { Spinner } from "@/components/ui/spinner";
 import { openTiff } from "@/lib/imageDecoding";
 import { readPostScript, type PostScriptContent } from "@/lib/postscript";
+import { postScriptProperties } from "@/lib/previewProperties/document";
 import { readPreviewBytes } from "./previewBytes";
 import type {
   AnnotationRevealRequest,
@@ -73,6 +74,15 @@ async function bitmapUrl(
   return undefined;
 }
 
+/** The DSC comments the file starts with; a PDF-compatible file has its PDF's. */
+function describe(source: string): void {
+  try {
+    emit("metadataChange", { properties: postScriptProperties(source) });
+  } catch (error) {
+    console.error("Failed to read the PostScript file's properties.", error);
+  }
+}
+
 onMounted(async () => {
   try {
     const value = readPostScript(
@@ -80,6 +90,7 @@ onMounted(async () => {
     );
     image.value = await bitmapUrl(value);
     content.value = value;
+    if (value.kind !== "pdf") describe(value.source);
     if (image.value)
       emit("capabilitiesChange", {
         zoom: !props.compact,
