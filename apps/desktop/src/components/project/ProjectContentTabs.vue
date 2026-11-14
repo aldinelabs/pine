@@ -416,6 +416,18 @@ watch(
   { flush: "post" },
 );
 
+// A tab the agent opened behind the current one starts flashing; bring it
+// into view so the flash is not hidden past the tab list's edge.
+watch(
+  () => tabs.value.filter((tab) => attentionFlash.isFlashing(tab.id)),
+  (flashing, previous) => {
+    const started = flashing.filter((tab) => !previous?.includes(tab));
+    const newest = started.at(-1);
+    if (newest && !closingTab) revealTab(newest.id);
+  },
+  { flush: "post" },
+);
+
 // Opening a flashing tab is the user's acknowledgement; hovering it counts
 // too, and closing a tab drops its flash.
 watch(activeTabId, (tabId) => attentionFlash.stop(tabId), { immediate: true });

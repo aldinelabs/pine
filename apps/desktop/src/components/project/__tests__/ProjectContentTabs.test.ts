@@ -18,6 +18,7 @@ import { useProjectStore } from "@/stores/project";
 import { useSessionStore } from "@/stores/session";
 import { useContentTabsStore } from "@/stores/contentTabs";
 import { useWorkbenchStore } from "@/stores/workbench";
+import { useAttentionFlashStore } from "@/stores/attentionFlash";
 import {
   CONTENT_TAB_DRAG_TYPE,
   FILE_TAB_DRAG_TYPE,
@@ -433,6 +434,35 @@ describe("ProjectContentTabs", () => {
         behavior: "smooth",
       });
     }
+    wrapper.unmount();
+  });
+
+  it("reveals a tab the agent opened behind the current one", async () => {
+    const { wrapper, file } = await mountTabs(true);
+    const viewport = wrapper.get<HTMLDivElement>('[role="tablist"]').element;
+    const button = wrapper.get<HTMLButtonElement>(
+      `#project-content-tab-${file!.id}`,
+    ).element;
+    Object.defineProperties(viewport, {
+      clientWidth: { value: 320 },
+      scrollWidth: { value: 1000 },
+      scrollLeft: { value: 200, writable: true },
+    });
+    vi.spyOn(viewport, "getBoundingClientRect").mockReturnValue(
+      new DOMRect(100, 0, 320, 40),
+    );
+    vi.spyOn(button, "getBoundingClientRect").mockReturnValue(
+      new DOMRect(500, 0, 160, 32),
+    );
+    const scroll = vi.spyOn(viewport, "scrollTo").mockImplementation(() => {});
+
+    useAttentionFlashStore().flash(file!.id);
+    await flushPromises();
+
+    expect(scroll).toHaveBeenCalledExactlyOnceWith({
+      left: 520,
+      behavior: "smooth",
+    });
     wrapper.unmount();
   });
 

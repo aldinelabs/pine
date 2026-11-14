@@ -446,7 +446,8 @@ The footer shows Pine's version.
 When the agent opens a card, or presents a file in the Preview card, that
 card pulses in yellow until the user hovers or focuses it. A file the agent
 presents fullscreen opens as a tab behind the active one, never taking
-focus, and the tab pulses the same way until the user opens it. Cards or tabs
+focus; the tab bar scrolls to show it, and the tab pulses the same way until
+the user opens it. Cards or tabs
 the user opens themselves do not pulse.
 
 ## Dialogs and overlays
