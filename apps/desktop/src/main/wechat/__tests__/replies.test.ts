@@ -901,6 +901,54 @@ describe("cards", () => {
     );
   });
 
+  it("describes an MCP server change in plain terms", () => {
+    const mcp = {
+      action: "add" as const,
+      scope: "global" as const,
+      name: "github",
+      command: "npx -y server",
+      credentials: ["GITHUB_TOKEN"],
+      definition: '{\n  "command": "npx"\n}',
+    };
+    const data = {
+      ...SAMPLES["T-APPROVAL"],
+      tool: "mcp_config_save",
+      trigger: "privileged-execution" as const,
+      subject: "npx -y server",
+      description: 'Save MCP server "github"',
+      external: false,
+      mcp,
+    };
+    expect(render("T-APPROVAL", "zh", data)).toBe(
+      [
+        "**pine › 修登录页** · 需要批准 12",
+        "Pine 想添加 MCP 服务器“github”。",
+        "",
+        "在这台电脑上运行（使用你的权限，不受 Pine 沙箱限制）：",
+        "```",
+        "npx -y server",
+        "```",
+        "",
+        "可用范围：所有项目",
+        "提供给它的凭据：`GITHUB_TOKEN`（值已隐藏）",
+        "批准后，智能体从下一条消息起可以使用它提供的工具。",
+        "",
+        "> `.y 12` 批准 · `.d 12` 拒绝 · `.d 12 你的建议`",
+      ].join("\n"),
+    );
+    const shown = render("T-SHOW", "en", {
+      ...data,
+      evidence: "It launches `npx -y server`.",
+      local: false,
+    });
+    expect(shown).toContain("Pine wants to add the MCP server “github”.");
+    expect(shown).toContain(
+      'Server definition:\n```\n{\n  "command": "npx"\n}\n```',
+    );
+    expect(shown).not.toContain("Save MCP server");
+    expect(shown).not.toContain("It launches");
+  });
+
   it("puts backticks in a subject inside a longer fence", () => {
     const text = render("T-APPROVAL", "en", {
       ...SAMPLES["T-APPROVAL"],

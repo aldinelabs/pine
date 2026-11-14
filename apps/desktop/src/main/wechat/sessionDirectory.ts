@@ -708,6 +708,7 @@ export class SessionDirectory {
       ...(event.reasonCode ? { reasonCode: event.reasonCode } : {}),
       ...(event.reasonDetail ? { reasonDetail: event.reasonDetail } : {}),
       ...(event.explanation ? { explanation: event.explanation } : {}),
+      ...(event.mcpChange ? { mcpChange: event.mcpChange } : {}),
       subjectCut: card.subjectCut,
       external: obs.external,
     });
@@ -899,6 +900,7 @@ export class SessionDirectory {
         ? { description: card.description }
         : {}),
       ...(card.summary !== undefined ? { summary: card.summary } : {}),
+      ...(ask.mcpChange ? { mcp: ask.mcpChange } : {}),
       external: ask.external,
       cut: card.subjectCut,
     };

@@ -266,6 +266,43 @@ describe("EXTERNAL_CONTENT_TOOLS", () => {
   });
 });
 
+describe("approvalCardText MCP change", () => {
+  it("shows the command or address instead of the tool's summary", () => {
+    const base = {
+      toolName: "mcp_config_save",
+      input: { subject: "global MCP server x", description: "Save x" },
+    };
+    expect(
+      approvalCardText({
+        ...base,
+        mcpChange: {
+          action: "add",
+          scope: "global",
+          name: "x",
+          command: "npx -y server",
+          credentials: [],
+        },
+      }),
+    ).toEqual({
+      subject: "npx -y server",
+      fullSubject: "npx -y server",
+      subjectCut: false,
+      tooLong: false,
+    });
+    expect(
+      approvalCardText({
+        ...base,
+        mcpChange: {
+          action: "enable",
+          scope: "project",
+          name: "x",
+          credentials: [],
+        },
+      }),
+    ).toEqual({ subjectCut: false, tooLong: false });
+  });
+});
+
 describe("approvalCardText reviewer explanation", () => {
   it("returns a cut summary and the first two cut risks", () => {
     const text = approvalCardText({

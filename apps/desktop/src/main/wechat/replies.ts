@@ -40,6 +40,7 @@ import {
   type PineApprovalMode,
   type PineApprovalTrigger,
 } from "../../shared/agent";
+import type { PineMcpChangeSummary } from "../../shared/mcp";
 import type { PineThinkingLevel } from "../../shared/models";
 import type { PineApprovalReasonCode } from "../../shared/sessions";
 import {
@@ -673,6 +674,82 @@ interface ApprovalCardData {
   external: boolean;
   /** The caller already cut the subject (for example `approvalCardText`). */
   cut?: boolean;
+  /** An MCP server change; its subject is the command or address. */
+  mcp?: PineMcpChangeSummary;
+}
+
+/** What Pine wants to do with an MCP server, in one sentence. */
+function mcpTitle(lang: L, mcp: PineMcpChangeSummary): string {
+  const name = escapeInline(truncate(cleanInline(mcp.name), TITLE_MAX));
+  const previous = escapeInline(
+    truncate(cleanInline(mcp.previousName ?? ""), TITLE_MAX),
+  );
+  switch (mcp.action) {
+    case "update":
+      return pick(
+        lang,
+        `Pine 想修改 MCP 服务器“${name}”。`,
+        `Pine wants to change the MCP server “${name}”.`,
+      );
+    case "rename":
+      return pick(
+        lang,
+        `Pine 想修改 MCP 服务器“${previous}”，并改名为“${name}”。`,
+        `Pine wants to change the MCP server “${previous}” and rename it “${name}”.`,
+      );
+    case "enable":
+      return pick(
+        lang,
+        `Pine 想重新启用 MCP 服务器“${name}”。`,
+        `Pine wants to turn the MCP server “${name}” back on.`,
+      );
+    default:
+      return pick(
+        lang,
+        `Pine 想添加 MCP 服务器“${name}”。`,
+        `Pine wants to add the MCP server “${name}”.`,
+      );
+  }
+}
+
+/** What the server runs or reaches, where it is available, what it receives. */
+function mcpBody(
+  lang: L,
+  mcp: PineMcpChangeSummary,
+  subject: string | undefined,
+): string {
+  const target = mcp.command
+    ? pick(
+        lang,
+        "在这台电脑上运行（使用你的权限，不受 Pine 沙箱限制）：",
+        "Runs on this computer (with your permissions, outside Pine's sandbox):",
+      )
+    : mcp.address
+      ? pick(lang, "连接到：", "Connects to:")
+      : undefined;
+  const credentials = mcp.credentials
+    .map((name) => code(truncate(cleanInline(name), 40)))
+    .filter(Boolean)
+    .slice(0, 8);
+  return blocks(
+    target && subject && lines(target, subject),
+    lines(
+      mcp.scope === "global"
+        ? pick(lang, "可用范围：所有项目", "Available in: all projects")
+        : pick(lang, "可用范围：仅此项目", "Available in: this project only"),
+      credentials.length > 0 &&
+        pick(
+          lang,
+          `提供给它的凭据：${credentials.join("、")}（值已隐藏）`,
+          `Credentials it receives: ${credentials.join(", ")} (values hidden)`,
+        ),
+      pick(
+        lang,
+        "批准后，智能体从下一条消息起可以使用它提供的工具。",
+        "Once approved, the agent can use its tools from the next message.",
+      ),
+    ),
+  );
 }
 
 /** The header and tool line of an approval card. */
@@ -686,18 +763,25 @@ function approvalTop(lang: L, data: ApprovalCardData, local: boolean): string {
     : pick(lang, `需要批准 ${data.ask}`, `Approval needed ${data.ask}`);
   return lines(
     headLine(data.at, what),
-    `${code(truncate(cleanInline(data.tool), 40)) || "?"} · ${triggerLabel(lang, data.trigger)}`,
+    data.mcp
+      ? mcpTitle(lang, data.mcp)
+      : `${code(truncate(cleanInline(data.tool), 40)) || "?"} · ${triggerLabel(lang, data.trigger)}`,
   );
 }
 
 function approvalHead(lang: L, data: ApprovalCardData, local: boolean) {
   const subject = subjectLines(data.subject, CARD_SUBJECT_MAX);
   return {
-    text: blocks(
-      approvalTop(lang, data, local),
-      subject.text,
-      summaryLine(lang, data.summary) ?? descriptionLine(data.description),
-    ),
+    text: data.mcp
+      ? blocks(
+          approvalTop(lang, data, local),
+          mcpBody(lang, data.mcp, subject.text),
+        )
+      : blocks(
+          approvalTop(lang, data, local),
+          subject.text,
+          summaryLine(lang, data.summary) ?? descriptionLine(data.description),
+        ),
     cut: subject.cut || data.cut === true,
   };
 }
@@ -2430,6 +2514,26 @@ const TEMPLATES: { [K in ReplyId]: Template<K> } = {
       .filter(Boolean)
       .map((part) => neutraliseText(part as string))
       .join("\n\n");
+    if (data.mcp)
+      return blocks(
+        approvalTop(lang, data, data.local),
+        mcpBody(lang, data.mcp, subject.text),
+        subject.cut &&
+          pick(
+            lang,
+            "（内容过长，完整内容请在 Pine 中查看）",
+            "(Too long to show in full. Open Pine for all of it.)",
+          ),
+        data.mcp.definition &&
+          lines(
+            pick(lang, "服务器定义：", "Server definition:"),
+            codeBlock(truncate(neutraliseText(data.mcp.definition), 600)),
+          ),
+        quote(
+          data.external && TEMPLATES["T-EXTERNAL"](lang, undefined),
+          approvalActions(lang, data.ask, data.local),
+        ),
+      );
     return blocks(
       approvalTop(lang, data, data.local),
       subject.text,

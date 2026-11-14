@@ -1,4 +1,5 @@
 import type { AskUserQuestionParams } from "@pine/rpiv-ask-user-question";
+import type { PineMcpChangeSummary } from "../../shared/mcp";
 import type {
   PineApprovalMode,
   PineApprovalTrigger,
@@ -143,6 +144,8 @@ export interface ApprovalAsk extends AskBase {
   reasonDetail?: string;
   /** Reviewer-written account; may arrive after the ask opened. */
   explanation?: PineApprovalExplanation;
+  /** An MCP server change, which the card describes in plain terms. */
+  mcpChange?: PineMcpChangeSummary;
   /** The card showed a cut subject; `.show` must be delivered before `.approve`. */
   subjectCut: boolean;
   shownAtMs?: number;

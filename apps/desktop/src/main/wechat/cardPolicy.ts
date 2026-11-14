@@ -63,7 +63,7 @@ export interface CardPolicyContext {
 export function approvalCardPolicy(
   ask: Pick<
     ApprovalAsk,
-    "trigger" | "toolName" | "input" | "evidence" | "subjectCut"
+    "trigger" | "toolName" | "input" | "evidence" | "subjectCut" | "mcpChange"
   >,
   context: CardPolicyContext,
 ): CardVerdict {
@@ -101,11 +101,19 @@ const SUBJECT_FALLBACK_KEYS = ["command", "path", "file_path", "url"] as const;
 
 /** Subject, optional description, and whether the subject was cut; from `input.subject` first. */
 export function approvalCardText(
-  ask: Pick<ApprovalAsk, "toolName" | "input" | "evidence" | "explanation">,
+  ask: Pick<
+    ApprovalAsk,
+    "toolName" | "input" | "evidence" | "explanation" | "mcpChange"
+  >,
 ): ApprovalCardText {
   const input = objectOf(ask.input);
-  let subject = nonEmptyString(input?.subject);
-  for (const key of SUBJECT_FALLBACK_KEYS) {
+  // An MCP change shows what the server runs or reaches, not the tool's
+  // English summary.
+  const mcp = ask.mcpChange;
+  let subject = mcp
+    ? nonEmptyString(mcp.command ?? mcp.address)
+    : nonEmptyString(input?.subject);
+  for (const key of mcp ? [] : SUBJECT_FALLBACK_KEYS) {
     if (subject !== undefined) break;
     subject = nonEmptyString(input?.[key]);
   }
@@ -116,7 +124,7 @@ export function approvalCardText(
   ) {
     subject = nonEmptyString(ask.evidence);
   }
-  const description = nonEmptyString(input?.description);
+  const description = mcp ? undefined : nonEmptyString(input?.description);
   const summary = nonEmptyString(ask.explanation?.summary);
   const risks = (ask.explanation?.risks ?? [])
     .map((risk) => risk.trim())

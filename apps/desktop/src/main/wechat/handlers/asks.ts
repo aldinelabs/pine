@@ -290,6 +290,7 @@ async function show(
       : {}),
     ...(card.summary !== undefined ? { summary: card.summary } : {}),
     ...(card.risks !== undefined ? { risks: card.risks } : {}),
+    ...(ask.mcpChange ? { mcp: ask.mcpChange } : {}),
     ...(ask.evidence !== undefined ? { evidence: ask.evidence } : {}),
     ...(ask.reasonCode ? { reasonCode: ask.reasonCode } : {}),
     ...(ask.reasonDetail ? { reasonDetail: ask.reasonDetail } : {}),
