@@ -18,7 +18,17 @@ export type AgentWorkbenchPanel = (typeof WORKBENCH_PANELS)[number];
  * not outlive the window.
  */
 export const SIDE_CHAT_PANEL = "side-chat" as const;
-export type WorkbenchPanel = AgentWorkbenchPanel | typeof SIDE_CHAT_PANEL;
+/**
+ * The cards beside a file tab: the file's details on top and its comments
+ * below. They replace the session's cards while a file tab is active, and
+ * neither the card menus nor the agent can pick them.
+ */
+export const FILE_DETAILS_PANEL = "file-details" as const;
+export const FILE_COMMENTS_PANEL = "file-comments" as const;
+export type FileWorkbenchPanel =
+  typeof FILE_DETAILS_PANEL | typeof FILE_COMMENTS_PANEL;
+export type WorkbenchPanel =
+  AgentWorkbenchPanel | typeof SIDE_CHAT_PANEL | FileWorkbenchPanel;
 /** Every panel a card can show, in the order the card menus list them. */
 export const WORKBENCH_CARD_PANELS = [
   ...WORKBENCH_PANELS,

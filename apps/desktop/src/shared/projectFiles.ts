@@ -119,6 +119,8 @@ export interface FilePreviewChangedEvent {
 export interface ProjectFileMetadata {
   size: number;
   modifiedAt: string;
+  /** When the file was created, where the file system records it. */
+  createdAt?: string;
 }
 export type ProjectFilePreview = ProjectFileMetadata &
   (

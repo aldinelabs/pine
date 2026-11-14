@@ -6,12 +6,15 @@ import ProjectBackgroundTaskPanel from "@/components/project/ProjectBackgroundTa
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import {
+  FILE_COMMENTS_PANEL,
+  FILE_DETAILS_PANEL,
   type AgentWorkbenchPanel,
   type WorkbenchPanel,
   type WorkbenchPosition,
 } from "@/shared/workbench";
 import WorkbenchCardAddMenu from "./WorkbenchCardAddMenu.vue";
 import WorkbenchCardPanelMenu from "./WorkbenchCardPanelMenu.vue";
+import WorkbenchFileCard from "./WorkbenchFileCard.vue";
 import WorkbenchSideChatCard from "./WorkbenchSideChatCard.vue";
 import { useContentTabNavigation } from "@/composables/useContentTabNavigation";
 import { fileName, fileTargetPath } from "@/lib/filePreviewTarget";
@@ -89,6 +92,11 @@ const summary = computed(() => {
 
 <template>
   <WorkbenchSideChatCard v-if="panel === 'side-chat'" :position="position" />
+  <WorkbenchFileCard
+    v-else-if="panel === FILE_DETAILS_PANEL || panel === FILE_COMMENTS_PANEL"
+    :panel="panel"
+    :position="position"
+  />
   <Card
     v-else
     size="sm"

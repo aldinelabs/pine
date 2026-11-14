@@ -317,7 +317,7 @@ From top to bottom:
    - Attachment list (files, folders, conversations, pasted text and images),
      a chip for selected content sent from a preview, and "Quoted passages"
      chips, each with Remove quote. Comment chips sent from a file preview's
-     Comments panel show the file, the comment's location and the comment. The composer
+     Comments card show the file, the comment's location and the comment. The composer
      resizes smoothly as these
      appear and disappear.
    - Text box. In a new session with no project, typing `@` chooses the
@@ -422,6 +422,25 @@ Text view, page navigation, search, zoom, fit width, rotate, invert colors,
 media player controls, sheet and layer pickers, and Open with default
 application. "Send to tab…" or "Send selection to tab…" attaches the file or
 the selected content to a session tab, or creates a session for it.
+
+While a file tab is in front, Pine's right sidebar (the workbench column)
+shows two cards for that file instead of the session's cards: Details on top
+and, for project files that can take comments, Comments below, with the same
+handle to resize them. It is closed by default for each file tab; the
+footer's Comments button (Details for files that cannot take comments; with
+the number of comments when there are any), the title bar's workbench button
+and Mod+Alt+B open and close it, and the X on either card closes it. Each
+file tab remembers whether it is open until the tab closes; switching to a
+session tab brings back that session's own workbench.
+
+The Details card lists the file's Type, Size (also in bytes), Modified,
+Created (where the file system records it) and Location (its path in the
+project, or its full path), then what the preview measured — Encoding and
+Lines for text, Dimensions, Duration, Pages, Rows and Columns — and what the
+format itself records, such as a document's title, author, application and
+word count, a photo's camera, date taken, color mode and resolution, a
+recording's codec and tags, an email's sender and recipients, or an
+archive's entries.
 In the Rendered view of a Markdown file, clicking an image (or focusing it
 and pressing Enter) enlarges it: the window is blurred and the image moves
 from its place in the document to the middle of the window. Its alt text or
@@ -475,10 +494,12 @@ How to comment:
   0:12–0:30" and Esc clears the marks. Commented spans show as amber bars
   above the timeline; clicking one jumps there and opens its comment.
 - Commented passages are highlighted in amber, and commented cells and areas
-  are boxed in amber. Clicking one opens the Comments panel at that comment.
-- The preview footer has a Comments button with the number of comments. It
-  opens a panel that slides in on the right of the preview (Close comments
-  slides it closed) and lists the comments in document order. Each shows its
+  are boxed in amber. Clicking one opens the right sidebar at that comment.
+- Saving the first comment on a file opens the right sidebar with that
+  comment highlighted; later comments are highlighted there without
+  reopening it.
+- The Comments card (with the number of comments in its header) lists the
+  comments in document order. Each shows its
   location — "Line 12" or "Lines 12–18", "Page 3", "Slide 2", a chapter or
   sheet name, cells ("B2:D5"), "Area", or a time span ("0:12–0:30") — a
   "Source view" or "Rendered view" tag when it was made in the other view,
@@ -486,8 +507,8 @@ How to comment:
   (editing offers Cancel and Save). "Original text changed" marks a comment
   whose passage is no longer in the file after it changed. Clicking a comment
   scrolls to its passage, page, cells, area or time, switching view if
-  needed. With no comments the panel shows "No comments yet".
-- At the bottom of the panel, "Send N comments" opens a list of the project's
+  needed. With no comments the card shows "No comments yet".
+- At the bottom of the card, "Send N comments" opens a list of the project's
   session tabs and New session. Choosing one puts the comments into that
   session's composer as comment chips (file, location and comment), opens the
   session, and clears the comments from the preview. Clear all asks "Clear
@@ -519,6 +540,9 @@ close the card. The panels are:
 - Preview: the file last presented by the agent or picked from Artifacts;
   Open in tab.
 - Files: the project's file tree, with its folders and access levels.
+- Details and Comments: shown only while a file tab is in front, in place of
+  the session's cards (see File tab); they have no panel switcher or Add
+  card.
 - Side chat: opened by the user only (panel switcher, Add card, or Follow up
   in the transcript); the agent's `ui_workbench_*` tools cannot open it. A
   card for the whole conversation shows "Not saved" and is discarded when

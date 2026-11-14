@@ -61,6 +61,10 @@ export async function readProjectFilePreview(
     const info = {
       size: metadata.size,
       modifiedAt: metadata.mtime.toISOString(),
+      // File systems without a creation time report the epoch.
+      ...(metadata.birthtimeMs > 0
+        ? { createdAt: metadata.birthtime.toISOString() }
+        : {}),
     };
     const extension = previewExtension(filePath);
     if (videoPreviewExtensions.has(extension))

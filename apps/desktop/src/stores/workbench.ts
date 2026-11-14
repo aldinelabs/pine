@@ -1,5 +1,5 @@
 import { defineStore } from "pinia";
-import { computed, reactive, ref, watch } from "vue";
+import { computed, reactive, ref, shallowReactive, watch } from "vue";
 import {
   DEFAULT_WORKBENCH_LAYOUT,
   applyWorkbenchCommand,
@@ -15,10 +15,13 @@ import {
 import {
   clampWorkbenchSplit,
   clampWorkbenchWidth,
+  FILE_COMMENTS_PANEL,
+  FILE_DETAILS_PANEL,
   highlightedPanel,
   WORKBENCH_DEFAULT_WIDTH,
   SIDE_CHAT_PANEL,
   WORKBENCH_PANELS,
+  type FileWorkbenchPanel,
   type WorkbenchCommand,
   type WorkbenchPanel,
   type WorkbenchPosition,
@@ -31,6 +34,8 @@ export const WORKBENCH_STORAGE_KEY = "pine.workbench.v1";
 /** Layouts of new conversations, until their session exists. */
 export const DRAFT_WORKBENCH_KEY = "draft";
 export const WORKBENCH_WIDTH_STORAGE_KEY = "pine.workbench-width.v1";
+/** Keys of file tabs' layouts, which are never stored. */
+const FILE_KEY_PREFIX = "file:";
 /** Only the most recently arranged sessions keep their layout. */
 const MAX_STORED_LAYOUTS = 200;
 
@@ -85,8 +90,40 @@ export const useWorkbenchStore = defineStore("workbench", () => {
    */
   const highlights = reactive(new Map<string, Set<WorkbenchPanel>>());
 
-  const activeKey = computed(
-    () => sessionStore.activeSession?.id ?? DRAFT_WORKBENCH_KEY,
+  /**
+   * The file tab in front, if any: its column shows the file's details and
+   * comments instead of the session's cards.
+   */
+  const activeFile = ref<{
+    tabId: string;
+    /** The file takes comments, so the comments card shows. */
+    comments: boolean;
+    commentCount: number;
+  }>();
+  /** Whether each file tab's column is open; closed until asked for. */
+  const fileOpen = reactive(new Map<string, boolean>());
+  /** One split for every file tab. */
+  const fileSplit = ref(50);
+  /**
+   * Where the file cards' content goes: the file tab in front renders its
+   * details and comments into these elements, so they stay its own state.
+   */
+  const fileCardTargets = shallowReactive(
+    new Map<FileWorkbenchPanel, HTMLElement>(),
+  );
+
+  function setFileCardTarget(
+    panel: FileWorkbenchPanel,
+    element: HTMLElement | null,
+  ): void {
+    if (element) fileCardTargets.set(panel, element);
+    else fileCardTargets.delete(panel);
+  }
+
+  const activeKey = computed(() =>
+    activeFile.value
+      ? `${FILE_KEY_PREFIX}${activeFile.value.tabId}`
+      : (sessionStore.activeSession?.id ?? DRAFT_WORKBENCH_KEY),
   );
 
   /**
@@ -95,7 +132,21 @@ export const useWorkbenchStore = defineStore("workbench", () => {
    */
   let startsCollapsed = isQuickComposerHandoffWindow();
 
+  function fileLayout(tabId: string): WorkbenchLayout {
+    const comments =
+      activeFile.value?.tabId === tabId && activeFile.value.comments;
+    return {
+      open: fileOpen.get(tabId) ?? false,
+      top: FILE_DETAILS_PANEL,
+      bottom: comments ? FILE_COMMENTS_PANEL : null,
+      split: fileSplit.value,
+      preview: null,
+    };
+  }
+
   function layoutFor(key: string): WorkbenchLayout {
+    if (key.startsWith(FILE_KEY_PREFIX))
+      return fileLayout(key.slice(FILE_KEY_PREFIX.length));
     const own = layouts.get(key);
     if (own && !(startsCollapsed && key === DRAFT_WORKBENCH_KEY)) return own;
     const draft = layouts.get(DRAFT_WORKBENCH_KEY);
@@ -140,7 +191,11 @@ export const useWorkbenchStore = defineStore("workbench", () => {
   watch(
     activeKey,
     (key, previous) => {
-      if (key !== DRAFT_WORKBENCH_KEY || previous === DRAFT_WORKBENCH_KEY)
+      if (
+        key !== DRAFT_WORKBENCH_KEY ||
+        previous === DRAFT_WORKBENCH_KEY ||
+        previous.startsWith(FILE_KEY_PREFIX)
+      )
         return;
       layouts.delete(DRAFT_WORKBENCH_KEY);
       layouts.set(DRAFT_WORKBENCH_KEY, {
@@ -159,6 +214,12 @@ export const useWorkbenchStore = defineStore("workbench", () => {
     persist = true,
   ): void {
     const next = change(layoutFor(key));
+    if (key.startsWith(FILE_KEY_PREFIX)) {
+      // A file tab keeps only whether its column is open and the split.
+      fileOpen.set(key.slice(FILE_KEY_PREFIX.length), next.open);
+      fileSplit.value = next.split;
+      return;
+    }
     startsCollapsed = false;
     // Re-inserting keeps the most recently arranged sessions last.
     layouts.delete(key);
@@ -229,6 +290,11 @@ export const useWorkbenchStore = defineStore("workbench", () => {
   }
 
   function closeCard(panel: WorkbenchPanel): void {
+    // A file tab's cards come and go together.
+    if (activeFile.value) {
+      setOpen(false);
+      return;
+    }
     update(activeKey.value, (layout) => {
       const next = closePanel(layout, panel);
       // Closing the last card keeps it as the one to reopen, but never the
@@ -298,6 +364,33 @@ export const useWorkbenchStore = defineStore("workbench", () => {
     if (!resizing) saveWidth();
   }
 
+  /**
+   * A file tab came to the front, or what it shows changed; `undefined` when
+   * the tab with `tabId` left the front.
+   */
+  function showFile(
+    tabId: string,
+    file: { comments: boolean; commentCount: number } | undefined,
+  ): void {
+    if (file) activeFile.value = { tabId, ...file };
+    else if (activeFile.value?.tabId === tabId) activeFile.value = undefined;
+  }
+
+  function isFileOpen(tabId: string): boolean {
+    return fileOpen.get(tabId) ?? false;
+  }
+
+  /** Opens or closes a file tab's column, in front or not. */
+  function setFileOpen(tabId: string, open: boolean): void {
+    fileOpen.set(tabId, open);
+  }
+
+  /** Forgets a closed file tab. */
+  function forgetFile(tabId: string): void {
+    showFile(tabId, undefined);
+    fileOpen.delete(tabId);
+  }
+
   function setDisplayedOpen(open: boolean): void {
     displayedOpen.value = open;
   }
@@ -308,10 +401,14 @@ export const useWorkbenchStore = defineStore("workbench", () => {
 
   return {
     acknowledge,
+    activeFile,
     activeKey,
     activeLayout,
+    fileCardTargets,
     displayedOpen,
+    forgetFile,
     isClosing,
+    isFileOpen,
     isResizing,
     width,
     apply,
@@ -328,10 +425,13 @@ export const useWorkbenchStore = defineStore("workbench", () => {
     saveWidth,
     setClosing,
     setDisplayedOpen,
+    setFileCardTarget,
+    setFileOpen,
     setOpen,
     setResizing,
     setSplit,
     setWidth,
+    showFile,
     showPanel,
     showSideChat,
     toggle,

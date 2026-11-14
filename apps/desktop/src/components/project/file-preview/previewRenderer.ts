@@ -30,6 +30,83 @@ export interface PreviewRendererProps {
   compact?: boolean;
 }
 
+/** Facts a format records about a file, each with its label in Details. */
+export type PreviewPropertyKey =
+  | "title"
+  | "subject"
+  | "author"
+  | "lastModifiedBy"
+  | "application"
+  | "producer"
+  | "keywords"
+  | "documentCreated"
+  | "documentModified"
+  | "published"
+  | "publisher"
+  | "identifier"
+  | "language"
+  | "version"
+  | "words"
+  | "characters"
+  | "paragraphs"
+  | "slides"
+  | "sheets"
+  | "chapters"
+  | "tables"
+  | "layers"
+  | "colorMode"
+  | "bitDepth"
+  | "resolution"
+  | "frames"
+  | "camera"
+  | "taken"
+  | "codec"
+  | "frameRate"
+  | "sampleRate"
+  | "channels"
+  | "bitrate"
+  | "artist"
+  | "album"
+  | "from"
+  | "to"
+  | "cc"
+  | "sent"
+  | "attachments"
+  | "delimiter"
+  | "lineEndings"
+  | "syntax"
+  | "entries"
+  | "topics"
+  | "encrypted"
+  | "fontFamily"
+  | "fontStyle"
+  | "glyphs"
+  | "features"
+  | "geometry"
+  | "vertices"
+  | "meshes"
+  | "materials"
+  | "tracks"
+  | "tempo"
+  | "timeSignature"
+  | "colors"
+  | "units"
+  | "entities"
+  | "uncompressedSize"
+  | "comment";
+
+/**
+ * One format-specific fact shown in the preview's Details, in the order
+ * given. Numbers and dates are formatted for the user's language; text is
+ * shown as is (units included, e.g. "300 dpi", "44.1 kHz").
+ */
+export type PreviewProperty =
+  | { key: PreviewPropertyKey; type?: "text"; value: string }
+  | { key: PreviewPropertyKey; type: "number"; value: number }
+  /** An ISO 8601 date and time. */
+  | { key: PreviewPropertyKey; type: "date"; value: string }
+  | { key: PreviewPropertyKey; type: "boolean"; value: boolean };
+
 export interface PreviewRendererMetadata {
   width?: number;
   height?: number;
@@ -38,6 +115,12 @@ export interface PreviewRendererMetadata {
   /** Rows and columns of tabular content. */
   rowCount?: number;
   columnCount?: number;
+  /**
+   * What the format itself records about the file (document properties,
+   * EXIF, tags, headers). Replaces any earlier list; empty values are left
+   * out by the renderer.
+   */
+  properties?: readonly PreviewProperty[];
 }
 
 export type PreviewRendererEvents = {

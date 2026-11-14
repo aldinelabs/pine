@@ -19,6 +19,7 @@ import {
   FileQuestion,
   FileWarning,
   MessageSquareTextIcon,
+  PanelRightIcon,
   MoveHorizontal,
   Plus,
   Send,
@@ -62,16 +63,17 @@ import {
   MAX_ANNOTATIONS,
   annotationFileKey,
   annotationQuotes,
+  type PreviewAnnotation,
   usePreviewAnnotationsStore,
 } from "@/stores/previewAnnotations";
 import { Skeleton } from "@/components/ui/skeleton";
+import { FILE_COMMENTS_PANEL, FILE_DETAILS_PANEL } from "@/shared/workbench";
+import { useWorkbenchStore } from "@/stores/workbench";
 import {
   fileName as pathBaseName,
   fileTargetPath,
   operateFileTarget,
 } from "@/lib/filePreviewTarget";
-import { formatBytes } from "@/lib/formatBytes";
-import { formatDuration } from "@/lib/formatDuration";
 import type { AttachmentSelection } from "@/shared/attachments";
 import type {
   ProjectFilePreview,
@@ -102,12 +104,13 @@ import { previewRenderers } from "./file-preview/previewRenderers";
 import ProjectPreviewAnnotationMenu from "./ProjectPreviewAnnotationMenu.vue";
 import ProjectPreviewAnnotationOverlay from "./ProjectPreviewAnnotationOverlay.vue";
 import ProjectPreviewAnnotationPanel from "./ProjectPreviewAnnotationPanel.vue";
+import ProjectPreviewDetails from "./ProjectPreviewDetails.vue";
 
 const props = withDefaults(
   defineProps<{ file: FileContentTab; active?: boolean }>(),
   { active: true },
 );
-const { t, locale } = useI18n();
+const { t } = useI18n();
 const isWeb = isWebClient();
 // Presented files live outside the project, so they cannot be sent to a
 // session as a project entry; opening with the default app still works.
@@ -274,19 +277,6 @@ const fileType = computed(() => {
     extension?.toUpperCase() ||
     t(`project.preview.${preview.value?.kind === "text" ? "text" : "file"}`)
   );
-});
-const fileSize = computed(() =>
-  formatBytes(preview.value?.size ?? 0, locale.value),
-);
-const lineCount = computed(() =>
-  preview.value?.kind === "text"
-    ? preview.value.text.split(/\r\n|\r|\n/).length
-    : 0,
-);
-const duration = computed(() => {
-  const seconds = contentMetadata.value?.duration;
-  if (seconds === undefined || !Number.isFinite(seconds)) return "";
-  return formatDuration(seconds);
 });
 
 function scheduleZoom(value: number): void {
@@ -536,7 +526,40 @@ const canAnnotate = computed(
 const canAnnotateRegions = computed(
   () => canAnnotate.value && Boolean(capabilities.value.annotateRegions),
 );
-const annotationsOpen = ref(false);
+// Pine's right sidebar shows the file's details and comments while this tab
+// is in front; it stays closed until asked for.
+const workbench = useWorkbenchStore();
+const sidebarOpen = computed({
+  get: () => workbench.isFileOpen(props.file.id),
+  set: (open: boolean) => workbench.setFileOpen(props.file.id, open),
+});
+const detailsTarget = computed(() =>
+  props.active ? workbench.fileCardTargets.get(FILE_DETAILS_PANEL) : undefined,
+);
+const commentsTarget = computed(() =>
+  props.active ? workbench.fileCardTargets.get(FILE_COMMENTS_PANEL) : undefined,
+);
+/** Comments are listed for files that take them or still have some. */
+const showCommentsSection = computed(
+  () =>
+    Boolean(projectTarget.value) &&
+    (canAnnotate.value || annotations.value.length > 0),
+);
+watch(
+  () =>
+    [
+      props.active,
+      showCommentsSection.value,
+      annotations.value.length,
+    ] as const,
+  ([active, comments, commentCount]) =>
+    workbench.showFile(
+      props.file.id,
+      active ? { comments, commentCount } : undefined,
+    ),
+  { immediate: true },
+);
+onBeforeUnmount(() => workbench.forgetFile(props.file.id));
 const activeAnnotationId = ref<string>();
 const annotationDraft = shallowRef<Range>();
 const shapeDraft = shallowRef<AnnotationComposeRequest>();
@@ -582,7 +605,7 @@ function readAnnotationCells(): AnnotationCellSelection | undefined {
 }
 
 function openAnnotation(id: string): void {
-  annotationsOpen.value = true;
+  sidebarOpen.value = true;
   activeAnnotationId.value = id;
 }
 
@@ -671,7 +694,20 @@ function saveAnnotation(range: Range, comment: string): void {
     comment,
     version: preview.value?.modifiedAt ?? "",
   });
-  if (!added) showAnnotationLimit();
+  showAdded(added);
+}
+
+/**
+ * Marks a new comment in the sidebar; the first comment on a file opens the
+ * sidebar so it is clear where comments collect.
+ */
+function showAdded(added: PreviewAnnotation | undefined): void {
+  if (!added) {
+    showAnnotationLimit();
+    return;
+  }
+  activeAnnotationId.value = added.id;
+  if (annotations.value.length === 1) sidebarOpen.value = true;
 }
 
 function saveShapeAnnotation(
@@ -688,7 +724,7 @@ function saveShapeAnnotation(
     comment,
     version: preview.value?.modifiedAt ?? "",
   });
-  if (!added) showAnnotationLimit();
+  showAdded(added);
 }
 
 function startDrawingRegion(): void {
@@ -779,7 +815,7 @@ async function sendAnnotations(target: string | null): Promise<void> {
   if (!delivered) return;
   for (const annotation of sent) annotationsStore.remove(key, annotation.id);
   activeAnnotationId.value = undefined;
-  annotationsOpen.value = false;
+  sidebarOpen.value = false;
 }
 
 /** The footer's send menu: the comments when there are any, else the file. */
@@ -803,142 +839,158 @@ function clearAnnotations(): void {
     @wheel.capture="handlePreviewWheel"
     @keydown="handleZoomKey"
   >
-    <Empty v-if="failed" class="flex-1" role="alert">
-      <EmptyHeader>
-        <EmptyMedia variant="icon"><FileWarning /></EmptyMedia>
-        <EmptyTitle>{{ t("project.preview.failedTitle") }}</EmptyTitle>
-        <EmptyDescription>{{
-          t("project.preview.failedDescription")
-        }}</EmptyDescription>
-      </EmptyHeader>
-      <EmptyContent
-        ><Button variant="outline" @click="revision += 1">{{
-          t("project.preview.retry")
-        }}</Button></EmptyContent
-      >
-    </Empty>
-    <div
-      v-else-if="!preview"
-      class="flex flex-1 flex-col gap-3 p-6"
-      role="status"
-      :aria-label="t('project.files.loading')"
-    >
-      <Skeleton class="h-4 w-3/4" /><Skeleton class="h-4 w-1/2" /><Skeleton
-        class="h-4 w-2/3"
-      />
-    </div>
-    <Empty
-      v-else-if="preview.kind === 'unsupported' || !renderer"
-      class="flex-1"
-    >
-      <EmptyHeader>
-        <EmptyMedia variant="icon"><FileQuestion /></EmptyMedia>
-        <EmptyTitle>{{ t("project.preview.unsupportedTitle") }}</EmptyTitle>
-        <EmptyDescription>{{
-          t(
-            preview.kind === "unsupported" && preview.reason === "too-large"
-              ? "project.preview.tooLarge"
-              : preview.kind === "unsupported" &&
-                  preview.reason === "document-too-large"
-                ? "project.preview.documentTooLarge"
-                : "project.preview.unsupportedDescription",
-          )
-        }}</EmptyDescription>
-      </EmptyHeader>
-    </Empty>
-    <div
-      v-show="toolbarVisible && !failed"
-      role="toolbar"
-      :aria-label="t('project.preview.documentControls')"
-      class="flex min-h-10 shrink-0 items-center gap-2 px-3 pb-1"
-    >
-      <div
-        ref="toolbar"
-        data-slot="preview-toolbar-start"
-        class="flex min-w-0 flex-1 items-center gap-2"
-      />
-      <Button
-        v-if="capabilities.fitWidth"
-        variant="ghost"
-        size="sm"
-        @click="rendererInstance?.fitWidth?.()"
-      >
-        <MoveHorizontal data-icon="inline-start" />
-        {{ t("project.preview.fitWidth") }}
-      </Button>
-      <div
-        v-if="capabilities.zoom"
-        class="flex items-center gap-2 text-sm text-muted-foreground"
-      >
-        <Slider
-          v-model="previewZoom"
-          class="w-20"
-          :min="zoomMin"
-          :max="zoomMax"
-          :step="10"
-          :aria-label="t('project.preview.zoom')"
-          :title="t('project.preview.zoomValue', { value: zoom })"
-          @value-commit="commitZoom"
-        />
-        <span class="w-10 text-right tabular-nums">{{ zoom }}%</span>
-      </div>
-    </div>
-    <div
-      v-if="preview && preview.kind !== 'unsupported' && renderer && !failed"
-      class="@container flex min-h-0 flex-1"
-    >
-      <div
-        ref="rendererHost"
-        class="relative flex min-h-0 min-w-0 flex-1 flex-col"
-      >
-        <component
-          :is="renderer.component"
-          ref="renderer"
-          :key="previewRendererKey(previewKey, renderer, preview)"
-          class="min-h-0 flex-1"
-          :preview="preview"
-          :file-name="fileName"
-          :file-path="filePath"
-          :active="active"
-          :mode="viewMode"
-          :reveal="reveal"
-          :zoom="appliedZoom"
-          :inverted="previewInverted"
-          :selection-label="t('project.preview.selectedContent')"
-          @failed="failed = true"
-          @metadata-change="handleMetadataChange"
-          @capabilities-change="handleCapabilitiesChange"
-          @zoom-change="handleZoomChange"
-          @selection-change="handleSelectionChange"
-          @zoom-wheel="handlePreviewWheel"
-          @annotations-change="refreshAnnotations"
-        />
-        <ProjectPreviewAnnotationOverlay
+    <div class="flex min-h-0 flex-1">
+      <div class="flex min-h-0 min-w-0 flex-1 flex-col">
+        <Empty v-if="failed" class="flex-1" role="alert">
+          <EmptyHeader>
+            <EmptyMedia variant="icon"><FileWarning /></EmptyMedia>
+            <EmptyTitle>{{ t("project.preview.failedTitle") }}</EmptyTitle>
+            <EmptyDescription>{{
+              t("project.preview.failedDescription")
+            }}</EmptyDescription>
+          </EmptyHeader>
+          <EmptyContent
+            ><Button variant="outline" @click="revision += 1">{{
+              t("project.preview.retry")
+            }}</Button></EmptyContent
+          >
+        </Empty>
+        <div
+          v-else-if="!preview"
+          class="flex flex-1 flex-col gap-3 p-6"
+          role="status"
+          :aria-label="t('project.files.loading')"
+        >
+          <Skeleton class="h-4 w-3/4" /><Skeleton class="h-4 w-1/2" /><Skeleton
+            class="h-4 w-2/3"
+          />
+        </div>
+        <Empty
+          v-else-if="preview.kind === 'unsupported' || !renderer"
+          class="flex-1"
+        >
+          <EmptyHeader>
+            <EmptyMedia variant="icon"><FileQuestion /></EmptyMedia>
+            <EmptyTitle>{{ t("project.preview.unsupportedTitle") }}</EmptyTitle>
+            <EmptyDescription>{{
+              t(
+                preview.kind === "unsupported" && preview.reason === "too-large"
+                  ? "project.preview.tooLarge"
+                  : preview.kind === "unsupported" &&
+                      preview.reason === "document-too-large"
+                    ? "project.preview.documentTooLarge"
+                    : "project.preview.unsupportedDescription",
+              )
+            }}</EmptyDescription>
+          </EmptyHeader>
+        </Empty>
+        <div
+          v-show="toolbarVisible && !failed"
+          role="toolbar"
+          :aria-label="t('project.preview.documentControls')"
+          class="flex min-h-10 shrink-0 items-center gap-2 px-3 pb-1"
+        >
+          <div
+            ref="toolbar"
+            data-slot="preview-toolbar-start"
+            class="flex min-w-0 flex-1 items-center gap-2"
+          />
+          <Button
+            v-if="capabilities.fitWidth"
+            variant="ghost"
+            size="sm"
+            @click="rendererInstance?.fitWidth?.()"
+          >
+            <MoveHorizontal data-icon="inline-start" />
+            {{ t("project.preview.fitWidth") }}
+          </Button>
+          <div
+            v-if="capabilities.zoom"
+            class="flex items-center gap-2 text-sm text-muted-foreground"
+          >
+            <Slider
+              v-model="previewZoom"
+              class="w-20"
+              :min="zoomMin"
+              :max="zoomMax"
+              :step="10"
+              :aria-label="t('project.preview.zoom')"
+              :title="t('project.preview.zoomValue', { value: zoom })"
+              @value-commit="commitZoom"
+            />
+            <span class="w-10 text-right tabular-nums">{{ zoom }}%</span>
+          </div>
+        </div>
+        <div
           v-if="
-            canAnnotate &&
-            (capabilities.annotateRegions || capabilities.annotateCells)
+            preview && preview.kind !== 'unsupported' && renderer && !failed
           "
-          ref="annotationOverlay"
-          :container="rendererHost"
-          :annotations="annotations"
-          :active-id="activeAnnotationId"
-          :draft="shapeDraft?.shape"
-          :drawing="drawingRegion"
-          :targets="annotationTargets"
-          :cell-rects="annotationCellRects"
-          @select="openAnnotation"
-          @drawn="composeRegion"
-          @cancel-drawing="drawingRegion = false"
-        />
+          class="flex min-h-0 flex-1"
+        >
+          <div
+            ref="rendererHost"
+            class="relative flex min-h-0 min-w-0 flex-1 flex-col"
+          >
+            <component
+              :is="renderer.component"
+              ref="renderer"
+              :key="previewRendererKey(previewKey, renderer, preview)"
+              class="min-h-0 flex-1"
+              :preview="preview"
+              :file-name="fileName"
+              :file-path="filePath"
+              :active="active"
+              :mode="viewMode"
+              :reveal="reveal"
+              :zoom="appliedZoom"
+              :inverted="previewInverted"
+              :selection-label="t('project.preview.selectedContent')"
+              @failed="failed = true"
+              @metadata-change="handleMetadataChange"
+              @capabilities-change="handleCapabilitiesChange"
+              @zoom-change="handleZoomChange"
+              @selection-change="handleSelectionChange"
+              @zoom-wheel="handlePreviewWheel"
+              @annotations-change="refreshAnnotations"
+            />
+            <ProjectPreviewAnnotationOverlay
+              v-if="
+                canAnnotate &&
+                (capabilities.annotateRegions || capabilities.annotateCells)
+              "
+              ref="annotationOverlay"
+              :container="rendererHost"
+              :annotations="annotations"
+              :active-id="activeAnnotationId"
+              :draft="shapeDraft?.shape"
+              :drawing="drawingRegion"
+              :targets="annotationTargets"
+              :cell-rects="annotationCellRects"
+              @select="openAnnotation"
+              @drawn="composeRegion"
+              @cancel-drawing="drawingRegion = false"
+            />
+          </div>
+        </div>
       </div>
-      <Transition
-        enter-active-class="transition-[width,opacity] duration-200 ease-(--ease-out-expo)"
-        leave-active-class="transition-[width,opacity] duration-200 ease-(--ease-out-expo)"
-        enter-from-class="w-0 opacity-0"
-        leave-to-class="w-0 opacity-0"
+      <!-- The file's details and comments, in the cards of Pine's right
+           sidebar while this tab is in front. -->
+      <Teleport v-if="detailsTarget" :to="detailsTarget">
+        <ProjectPreviewDetails
+          class="no-scrollbar scroll-fade-y min-h-0 flex-1 overflow-y-auto"
+          :preview="preview"
+          :loading="!preview && !failed"
+          :file-type="fileType"
+          :path="filePath"
+          :metadata="contentMetadata"
+        />
+      </Teleport>
+      <Teleport
+        v-if="commentsTarget && showCommentsSection"
+        :to="commentsTarget"
       >
         <ProjectPreviewAnnotationPanel
-          v-if="annotationsOpen && projectTarget"
+          class="min-h-0 flex-1"
           :annotations="annotations"
           :active-id="activeAnnotationId"
           :mode="viewMode"
@@ -956,9 +1008,8 @@ function clearAnnotations(): void {
           "
           @clear="clearAnnotations"
           @send="sendAnnotations"
-          @close="annotationsOpen = false"
         />
-      </Transition>
+      </Teleport>
     </div>
     <ProjectPreviewAnnotationMenu
       v-if="canAnnotate"
@@ -977,37 +1028,7 @@ function clearAnnotations(): void {
     />
     <footer
       class="mt-auto flex min-h-12 shrink-0 flex-wrap items-center gap-x-4 gap-y-1 pl-5 pr-2 py-2 text-sm text-muted-foreground"
-      :title="filePath"
-      :aria-label="t('project.preview.metadata')"
     >
-      <template v-if="preview">
-        <span>{{ fileType }}</span>
-        <span>{{ fileSize }}</span>
-        <template v-if="preview.kind === 'text'">
-          <span>{{ preview.encoding }}</span>
-          <span v-if="contentMetadata?.rowCount === undefined">{{
-            t("project.preview.lines", { count: lineCount })
-          }}</span>
-        </template>
-        <span
-          v-if="
-            contentMetadata?.width !== undefined &&
-            contentMetadata.height !== undefined
-          "
-          >{{ contentMetadata.width }} × {{ contentMetadata.height }}</span
-        >
-        <span v-if="duration">{{ duration }}</span>
-        <span v-if="contentMetadata?.pageCount">{{
-          t("project.preview.pages", { count: contentMetadata.pageCount })
-        }}</span>
-        <span v-if="contentMetadata?.rowCount !== undefined">{{
-          t("project.preview.tableSize", {
-            rows: contentMetadata.rowCount.toLocaleString(locale),
-            columns: (contentMetadata.columnCount ?? 0).toLocaleString(locale),
-          })
-        }}</span>
-      </template>
-      <Skeleton v-else-if="!failed" class="h-3 w-40" />
       <div v-if="capabilities.invert" class="flex items-center gap-2">
         <Switch
           :id="invertSwitchId"
@@ -1041,16 +1062,28 @@ function clearAnnotations(): void {
           <SquareDashedMousePointer data-icon="inline-start" />
           {{ t("project.preview.annotations.commentOnArea") }}
         </Button>
+        <!-- Opens the sidebar: the file's details, and its comments where
+             it can have them. -->
         <Button
-          v-if="projectTarget && (canAnnotate || annotations.length)"
-          data-action="toggle-annotations"
+          data-action="toggle-sidebar"
           variant="ghost"
           size="sm"
-          :aria-pressed="annotationsOpen"
-          @click="annotationsOpen = !annotationsOpen"
+          :aria-pressed="sidebarOpen"
+          :aria-expanded="sidebarOpen"
+          @click="sidebarOpen = !sidebarOpen"
         >
-          <MessageSquareTextIcon data-icon="inline-start" />
-          {{ t("project.preview.annotations.title") }}
+          <MessageSquareTextIcon
+            v-if="showCommentsSection"
+            data-icon="inline-start"
+          />
+          <PanelRightIcon v-else data-icon="inline-start" />
+          {{
+            t(
+              showCommentsSection
+                ? "project.preview.annotations.title"
+                : "project.preview.details.title",
+            )
+          }}
           <Badge v-if="annotations.length" variant="secondary">{{
             annotations.length
           }}</Badge>

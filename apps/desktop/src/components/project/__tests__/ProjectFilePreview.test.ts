@@ -1,4 +1,9 @@
-import { DOMWrapper, flushPromises, mount } from "@vue/test-utils";
+import {
+  DOMWrapper,
+  type VueWrapper,
+  flushPromises,
+  mount,
+} from "@vue/test-utils";
 import { createPinia, setActivePinia } from "pinia";
 import { createMemoryHistory, createRouter } from "vue-router";
 import { useContentTabsStore } from "@/stores/contentTabs";
@@ -12,6 +17,9 @@ import { createAppI18n } from "@/app/i18n";
 import { codeToHtml } from "@/lib/codeHighlight";
 import { Slider } from "@/components/ui/slider";
 import type { ProjectFilePreview as Preview } from "@/shared/projectFiles";
+import { FILE_COMMENTS_PANEL, FILE_DETAILS_PANEL } from "@/shared/workbench";
+import { useWorkbenchStore } from "@/stores/workbench";
+import ProjectPreviewAnnotationMenu from "../ProjectPreviewAnnotationMenu.vue";
 import ProjectFilePreview from "../ProjectFilePreview.vue";
 import FileViewerPreviewRenderer from "../file-preview/FileViewerPreviewRenderer.vue";
 import TextPreviewRenderer from "../file-preview/TextPreviewRenderer.vue";
@@ -188,6 +196,7 @@ function render(
 }
 afterEach(() => {
   wrappers.splice(0).forEach((wrapper) => wrapper.unmount());
+  cards.splice(0).forEach((card) => card.remove());
   Object.assign(fileViewer.state, {
     rendererId: "pdf",
     zoom: true,
@@ -227,6 +236,50 @@ function selectText(
   window.getSelection()?.removeAllRanges();
   window.getSelection()?.addRange(range);
   document.dispatchEvent(new Event("selectionchange"));
+}
+
+const cards: HTMLElement[] = [];
+
+/** Stands in for the right sidebar's file cards, which the workbench draws. */
+async function showFileCards(): Promise<void> {
+  const workbench = useWorkbenchStore();
+  for (const panel of [FILE_DETAILS_PANEL, FILE_COMMENTS_PANEL]) {
+    const card = document.createElement("div");
+    card.dataset.card = panel;
+    document.body.append(card);
+    cards.push(card);
+    workbench.setFileCardTarget(panel, card);
+  }
+  await flushPromises();
+}
+
+/** Whether the file tab asks for the right sidebar. */
+function sidebarOpen(wrapper: VueWrapper): boolean {
+  const { file } = wrapper.props() as { file: { id: string } };
+  return useWorkbenchStore().isFileOpen(file.id);
+}
+
+function inCards(selector: string): DOMWrapper<Element> {
+  return new DOMWrapper(document.querySelector(`[data-card] ${selector}`));
+}
+
+/** Opens the right sidebar from the footer and returns the file's details. */
+async function openDetails(wrapper: VueWrapper) {
+  await wrapper.get('[data-action="toggle-sidebar"]').trigger("click");
+  expect(sidebarOpen(wrapper)).toBe(true);
+  if (!cards.length) await showFileCards();
+  return inCards('[data-slot="preview-details"]');
+}
+
+/** One row of the details, by its key. */
+function detail(
+  details: Pick<DOMWrapper<Element>, "find">,
+  key: string,
+): string {
+  const term = details.find(`[data-detail="${key}"]`);
+  return term.exists()
+    ? (term.element.nextElementSibling?.textContent?.trim() ?? "")
+    : "";
 }
 
 describe("ProjectFilePreview", () => {
@@ -778,13 +831,15 @@ describe("ProjectFilePreview", () => {
       "print(1)\n",
       expect.objectContaining({ lang: "python" }),
     );
-    const metadata = wrapper.get('[aria-label="File metadata"]');
-    expect(metadata.text()).toContain("PY");
-    expect(metadata.text()).toContain("2 KB");
-    expect(metadata.text()).toContain("UTF-8");
-    expect(metadata.text()).toContain("2 lines");
-    expect(metadata.text()).not.toContain("Modified");
-    expect(wrapper.element.lastElementChild).toBe(metadata.element);
+    // The sidebar is closed until asked for.
+    expect(sidebarOpen(wrapper)).toBe(false);
+    const metadata = await openDetails(wrapper);
+    expect(detail(metadata, "type")).toBe("PY");
+    expect(detail(metadata, "size")).toContain("2 KB");
+    expect(detail(metadata, "modified")).toBeTruthy();
+    expect(detail(metadata, "location")).toBe("src/main.py");
+    expect(detail(metadata, "encoding")).toBe("UTF-8");
+    expect(detail(metadata, "lines")).toBe("2");
     expect(metadata.text()).not.toContain("Read only");
     expect(wrapper.find("textarea, [contenteditable=true]").exists()).toBe(
       false,
@@ -805,8 +860,13 @@ describe("ProjectFilePreview", () => {
     await flushPromises();
 
     expect(readPresented).toHaveBeenCalledWith({ path: "/tmp/report.md" });
-    const metadata = wrapper.get('[aria-label="File metadata"]');
-    expect(metadata.text()).toContain("2 KB");
+    const metadata = await openDetails(wrapper);
+    expect(detail(metadata, "size")).toContain("2 KB");
+    expect(detail(metadata, "location")).toBe("/tmp/report.md");
+    // Without a project entry there are no comments, only details.
+    expect(inCards('[data-slot="preview-annotation-panel"]').exists()).toBe(
+      false,
+    );
     // Sending to a session needs a project entry; opening does not.
     expect(wrapper.find('footer button[aria-haspopup="menu"]').exists()).toBe(
       false,
@@ -900,6 +960,53 @@ describe("ProjectFilePreview", () => {
       state: "draft",
     });
     expect(store.attachmentsFor(createdId)).toEqual([attachment]);
+  });
+
+  it("opens the sidebar at the first comment on a file, not later ones", async () => {
+    const wrapper = render(
+      vi.fn().mockResolvedValue({
+        ...info,
+        kind: "text",
+        text: "hello world",
+        encoding: "UTF-8",
+      }),
+    );
+    await flushPromises();
+    const menu = wrapper.findComponent(ProjectPreviewAnnotationMenu);
+    const save = async (comment: string) => {
+      menu.vm.$emit(
+        "save-shape",
+        {
+          shape: {
+            kind: "cells",
+            cells: { startRow: 0, endRow: 0, startColumn: 0, endColumn: 0 },
+          },
+          text: "hello",
+          rect: () => new DOMRect(),
+        },
+        comment,
+      );
+      await flushPromises();
+    };
+    await showFileCards();
+    const toggle = () => wrapper.get('[data-action="toggle-sidebar"]');
+    const active = () =>
+      inCards('[data-slot="preview-annotation-panel"] li.bg-muted');
+    expect(sidebarOpen(wrapper)).toBe(false);
+    expect(useWorkbenchStore().activeFile).toMatchObject({
+      comments: true,
+      commentCount: 0,
+    });
+
+    await save("First");
+    expect(sidebarOpen(wrapper)).toBe(true);
+    expect(active().text()).toContain("First");
+
+    await toggle().trigger("click");
+    await save("Second");
+    expect(sidebarOpen(wrapper)).toBe(false);
+    expect(active().text()).toContain("Second");
+    expect(useWorkbenchStore().activeFile?.commentCount).toBe(2);
   });
 
   it("sends the file's comments from the footer button once there are any", async () => {
@@ -1008,7 +1115,7 @@ describe("ProjectFilePreview", () => {
       naturalHeight: { value: 480 },
     });
     await image.trigger("load");
-    expect(wrapper.text()).toContain("640 × 480");
+    expect(detail(await openDetails(wrapper), "dimensions")).toBe("640 × 480");
   });
 
   it("plays video with Pine's controls, dimensions and duration", async () => {
@@ -1035,8 +1142,9 @@ describe("ProjectFilePreview", () => {
       duration: { value: 65 },
     });
     await video.trigger("loadedmetadata");
-    expect(wrapper.text()).toContain("1920 × 1080");
-    expect(wrapper.text()).toContain("1:05");
+    const metadata = await openDetails(wrapper);
+    expect(detail(metadata, "dimensions")).toBe("1,920 × 1,080");
+    expect(detail(metadata, "duration")).toBe("1:05");
     await video.trigger("error");
     expect(wrapper.text()).toContain("Unable to preview file");
   });
@@ -1077,7 +1185,7 @@ describe("ProjectFilePreview", () => {
       pdf: { toolbar: false },
       locale: "en-US",
     });
-    expect(wrapper.get("footer").text()).toContain("3 pages");
+    expect(detail(await openDetails(wrapper), "pages")).toBe("3");
 
     const surface = wrapper.get('[data-slot="file-viewer"]');
     const invertSwitch = wrapper.get('[role="switch"]');

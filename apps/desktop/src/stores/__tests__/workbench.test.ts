@@ -245,3 +245,45 @@ it("starts a new conversation without the side chat of the one it leaves", () =>
   expect(store.activeLayout.open).toBe(true);
   expect(store.activeLayout.top).not.toBe("side-chat");
 });
+
+it("shows a file tab's details and comments, closed until asked for", () => {
+  const store = useWorkbenchStore();
+  store.toggle();
+  const sessionLayout = store.activeLayout;
+
+  store.showFile("file-1", { comments: true, commentCount: 2 });
+  expect(store.activeKey).toBe("file:file-1");
+  expect(store.activeLayout).toMatchObject({
+    open: false,
+    top: "file-details",
+    bottom: "file-comments",
+  });
+
+  store.toggle();
+  expect(store.isFileOpen("file-1")).toBe(true);
+  store.setSplit(30);
+  expect(store.activeLayout).toMatchObject({ open: true, split: 30 });
+  // Closing either card hides both.
+  store.closeCard("file-comments");
+  expect(store.activeLayout.open).toBe(false);
+
+  store.showFile("file-2", { comments: false, commentCount: 0 });
+  expect(store.activeLayout).toMatchObject({
+    open: false,
+    top: "file-details",
+    bottom: null,
+  });
+
+  // Leaving the file tabs brings the session's own cards back, untouched.
+  store.showFile("file-1", undefined);
+  expect(store.activeKey).toBe("file:file-2");
+  store.showFile("file-2", undefined);
+  expect(store.activeLayout).toEqual(sessionLayout);
+  expect(window.localStorage.getItem(WORKBENCH_STORAGE_KEY)).not.toContain(
+    "file:",
+  );
+
+  store.setFileOpen("file-1", true);
+  store.forgetFile("file-1");
+  expect(store.isFileOpen("file-1")).toBe(false);
+});
