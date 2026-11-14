@@ -184,4 +184,60 @@ describe("ImagePreviewRenderer", () => {
     await wrapper.get("img").trigger("error");
     expect(renderer.emitted("failed")).toHaveLength(1);
   });
+
+  it("lets areas of the image be commented once it loads", async () => {
+    const { wrapper, renderer } = render("/p/photo.png", document_);
+    await flushPromises();
+    expect(renderer.emitted("capabilitiesChange")?.[0]?.[0]).toMatchObject({
+      annotateRegions: false,
+    });
+    const image = await loadImage(wrapper);
+    expect(renderer.emitted("capabilitiesChange")?.at(-1)?.[0]).toEqual({
+      zoom: true,
+      fitWidth: true,
+      zoomMin: 10,
+      zoomMax: 800,
+      toolbar: true,
+      annotateRegions: true,
+    });
+    const handle = renderer.vm as unknown as {
+      annotationTargets: () => unknown[];
+    };
+    expect(handle.annotationTargets()).toEqual([
+      { element: image.element, size: { width: 800, height: 600 } },
+    ]);
+  });
+
+  it("names TIFF pages as segments and turns to a comment's page", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() => Promise.resolve(new Response(new ArrayBuffer(4)))),
+    );
+    vi.stubGlobal("URL", {
+      ...URL,
+      createObjectURL: vi.fn(() => "blob:page"),
+      revokeObjectURL: vi.fn(),
+    });
+    const { openTiff } = await import("@/lib/imageDecoding");
+    const { wrapper, renderer } = render("/p/scan.tiff", document_);
+    await flushPromises();
+    const image = await loadImage(wrapper);
+    const handle = renderer.vm as unknown as {
+      annotationTargets: () => unknown[];
+      revealAnnotation: (request: object) => void;
+    };
+    expect(handle.annotationTargets()).toEqual([
+      {
+        element: image.element,
+        segment: "page:1",
+        place: { kind: "page", number: 1 },
+        size: { width: 800, height: 600 },
+      },
+    ]);
+    handle.revealAnnotation({ segment: "page:3" });
+    await flushPromises();
+    const tiff = await vi.mocked(openTiff).mock.results.at(-1)!.value;
+    expect(tiff.page).toHaveBeenLastCalledWith(3);
+    expect(handle.annotationTargets()).toMatchObject([{ segment: "page:3" }]);
+  });
 });

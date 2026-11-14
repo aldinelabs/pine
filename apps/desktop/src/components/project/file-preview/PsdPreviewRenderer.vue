@@ -22,6 +22,8 @@ import {
 import { cn } from "@/lib/utils";
 import { readPreviewBytes } from "./previewBytes";
 import type {
+  AnnotationTarget,
+  PreviewRendererCapabilities,
   PreviewRendererEvents,
   PreviewRendererProps,
 } from "./previewRenderer";
@@ -90,13 +92,32 @@ function fitWidth(): void {
   stage.value?.fitWidth();
 }
 
-onMounted(async () => {
-  emit("capabilitiesChange", {
+function capabilities(): Partial<PreviewRendererCapabilities> {
+  return {
     zoom: !props.compact,
     fitWidth: !props.compact,
     zoomMin: 10,
     zoomMax: 800,
-  });
+    annotateRegions: loaded.value,
+  };
+}
+
+function imageLoaded(size: { width: number; height: number }): void {
+  if (!loaded.value) {
+    loaded.value = true;
+    emit("capabilitiesChange", capabilities());
+  }
+  emit("metadataChange", size);
+}
+
+/** The composite image; areas stay put as layers are turned on and off. */
+function annotationTargets(): readonly AnnotationTarget[] {
+  const target = stage.value?.annotationTarget();
+  return target ? [target] : [];
+}
+
+onMounted(async () => {
+  emit("capabilitiesChange", capabilities());
   try {
     const [{ readPsd }, bytes] = await Promise.all([
       import("ag-psd"),
@@ -138,7 +159,7 @@ onBeforeUnmount(() => {
   if (source.value) URL.revokeObjectURL(source.value);
 });
 
-defineExpose({ fitWidth });
+defineExpose({ fitWidth, annotationTargets });
 </script>
 
 <template>
@@ -150,10 +171,7 @@ defineExpose({ fitWidth });
         :alt="fileName"
         :zoom="zoom"
         :compact="compact"
-        @load="
-          loaded = true;
-          emit('metadataChange', $event);
-        "
+        @load="imageLoaded"
         @error="emit('failed')"
         @zoom-change="emit('zoomChange', $event)"
       />

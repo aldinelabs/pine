@@ -13,6 +13,9 @@ import { openTiff } from "@/lib/imageDecoding";
 import { readPostScript, type PostScriptContent } from "@/lib/postscript";
 import { readPreviewBytes } from "./previewBytes";
 import type {
+  AnnotationRevealRequest,
+  AnnotationSurface,
+  AnnotationTarget,
   PreviewRendererEvents,
   PreviewRendererHandle,
   PreviewRendererProps,
@@ -83,6 +86,7 @@ onMounted(async () => {
         fitWidth: !props.compact,
         zoomMin: 10,
         zoomMax: 800,
+        annotateRegions: true,
       });
   } catch (error) {
     if (reading.signal.aborted) return;
@@ -96,10 +100,29 @@ onBeforeUnmount(() => {
   if (image.value) URL.revokeObjectURL(image.value);
 });
 
+/** The rendered preview image; a PDF-compatible file defers to its PDF. */
+function annotationTargets(): readonly AnnotationTarget[] {
+  if (!image.value) return pdf.value?.annotationTargets?.() ?? [];
+  const target = stage.value?.annotationTarget();
+  return target ? [target] : [];
+}
+
+function annotationSurfaces(): readonly AnnotationSurface[] {
+  const handle = pdf.value;
+  if (handle?.annotationSurfaces) return handle.annotationSurfaces();
+  const surface = handle?.annotationSurface?.();
+  return surface ? [surface] : [];
+}
+
 defineExpose({
   fitWidth: () =>
     image.value ? stage.value?.fitWidth() : pdf.value?.fitWidth?.(),
   readSelection: () => pdf.value?.readSelection?.(),
+  annotationTargets,
+  annotationSurfaces,
+  annotationLines: (range: Range) => pdf.value?.annotationLines?.(range),
+  revealAnnotation: (request: AnnotationRevealRequest) =>
+    pdf.value?.revealAnnotation?.(request),
 });
 </script>
 
@@ -114,6 +137,7 @@ defineExpose({
     @metadata-change="emit('metadataChange', $event)"
     @selection-change="emit('selectionChange', $event)"
     @capabilities-change="emit('capabilitiesChange', $event)"
+    @annotations-change="emit('annotationsChange')"
     @zoom-change="emit('zoomChange', $event)"
   />
   <div v-else-if="image" class="relative h-full min-h-0">

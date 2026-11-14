@@ -12,8 +12,12 @@ import {
 import { Spinner } from "@/components/ui/spinner";
 import { compileTypst, splitTypstPages, typstErrorMessages } from "@/lib/typst";
 import PreviewPager from "./PreviewPager.vue";
+import { pageTarget, requestedPage } from "./annotationPages";
 import { readPreviewText } from "./previewBytes";
 import type {
+  AnnotationRevealRequest,
+  AnnotationTarget,
+  PreviewRendererCapabilities,
   PreviewRendererEvents,
   PreviewRendererProps,
 } from "./previewRenderer";
@@ -21,7 +25,8 @@ import { usePreviewToolbar } from "./usePreviewToolbar";
 
 /**
  * Typst documents as pages. Each page is an SVG shown as an image, which
- * runs no scripts and loads nothing; 100% fits the preview's width.
+ * runs no scripts and loads nothing; 100% fits the preview's width. As
+ * images, pages have no selectable text: comments are on areas of a page.
  */
 const props = defineProps<PreviewRendererProps>();
 const emit = defineEmits<PreviewRendererEvents>();
@@ -70,15 +75,40 @@ function goTo(target: number): void {
   requestAnimationFrame(() => (scrolling = false));
 }
 
-onMounted(async () => {
-  emit("capabilitiesChange", {
+function capabilities(): Partial<PreviewRendererCapabilities> {
+  return {
     zoom: !props.compact,
     invert: true,
     zoomMin: 25,
     zoomMax: 400,
     renderToggle: props.preview.kind === "text",
     toolbar: !props.compact,
+    annotateRegions: pages.value.length > 0,
+  };
+}
+
+/** Every page, as an area target named by its number. */
+function annotationTargets(): readonly AnnotationTarget[] {
+  const frames = stage.value?.querySelectorAll("[data-typst-page]") ?? [];
+  return Array.from(frames, (frame, index) => {
+    const item = pages.value[index];
+    return pageTarget(
+      frame,
+      index + 1,
+      item ? { width: item.width, height: item.height } : undefined,
+    );
   });
+}
+
+function revealAnnotation(request: AnnotationRevealRequest): void {
+  const number = requestedPage(request);
+  if (number && number <= pages.value.length) goTo(number);
+}
+
+defineExpose({ annotationTargets, revealAnnotation });
+
+onMounted(async () => {
+  emit("capabilitiesChange", capabilities());
   measure();
   if (stage.value) {
     resizeObserver = new ResizeObserver(measure);
@@ -102,6 +132,7 @@ onMounted(async () => {
       url: URL.createObjectURL(new Blob([item.svg], { type: "image/svg+xml" })),
     }));
     emit("metadataChange", { pageCount: compiled.length });
+    if (compiled.length) emit("capabilitiesChange", capabilities());
   } catch (reason) {
     if (reading.signal.aborted) return;
     // A document with errors is still the user's to fix, so the compiler's

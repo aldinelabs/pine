@@ -110,4 +110,45 @@ describe("ZoomableImage", () => {
       restore();
     }
   });
+
+  it("offers the shown image as an area target once its size is known", async () => {
+    const { wrapper, restore } = mountImage({});
+    try {
+      await flushPromises();
+      const stage = wrapper.vm as unknown as {
+        annotationTarget: () => unknown;
+      };
+      expect(stage.annotationTarget()).toBeUndefined();
+      const image = wrapper.get("img").element as HTMLImageElement;
+      Object.defineProperty(image, "naturalWidth", { value: NATURAL.width });
+      Object.defineProperty(image, "naturalHeight", { value: NATURAL.height });
+      await wrapper.get("img").trigger("load");
+      await flushPromises();
+      // The image itself, whose box follows zoom and scrolling.
+      expect(stage.annotationTarget()).toEqual({
+        element: image,
+        size: NATURAL,
+      });
+    } finally {
+      restore();
+    }
+  });
+
+  it("offers no area target while the image is turned", async () => {
+    const { wrapper, restore } = mountImage({
+      naturalSize: NATURAL,
+      rotation: 90,
+    });
+    try {
+      await flushPromises();
+      const stage = wrapper.vm as unknown as {
+        annotationTarget: () => unknown;
+      };
+      expect(stage.annotationTarget()).toBeUndefined();
+      await wrapper.setProps({ rotation: 360 });
+      expect(stage.annotationTarget()).toMatchObject({ size: NATURAL });
+    } finally {
+      restore();
+    }
+  });
 });

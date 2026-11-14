@@ -9,8 +9,13 @@ import {
 } from "vue";
 import { Spinner } from "@/components/ui/spinner";
 import PreviewPager from "./PreviewPager.vue";
+import { pageSegment, pageTarget, requestedPage } from "./annotationPages";
 import { readPreviewBytes } from "./previewBytes";
 import type {
+  AnnotationRevealRequest,
+  AnnotationSurface,
+  AnnotationTarget,
+  PreviewRendererCapabilities,
   PreviewRendererEvents,
   PreviewRendererProps,
 } from "./previewRenderer";
@@ -19,7 +24,8 @@ import { usePreviewToolbar } from "./usePreviewToolbar";
 /**
  * OFD (China's fixed-layout format) with the ofd.js engine. Pages render
  * for the width they are shown at, so zooming re-renders them sharp
- * instead of scaling pixels; 100% fits the preview's width.
+ * instead of scaling pixels; 100% fits the preview's width. Pages draw
+ * their text as SVG text, so passages and areas of a page can be commented.
  */
 const props = defineProps<PreviewRendererProps>();
 const emit = defineEmits<PreviewRendererEvents>();
@@ -63,9 +69,51 @@ async function render(): Promise<void> {
       return frame;
     }),
   );
+  const firstRender = !pageCount.value;
   pageCount.value = pages.length;
   emit("metadataChange", { pageCount: pages.length });
+  if (firstRender && pages.length) emit("capabilitiesChange", capabilities());
 }
+
+function capabilities(): Partial<PreviewRendererCapabilities> {
+  return {
+    zoom: !props.compact,
+    invert: true,
+    zoomMin: 25,
+    zoomMax: 400,
+    toolbar: !props.compact,
+    annotate: pageCount.value > 0,
+    annotateRegions: pageCount.value > 0,
+  };
+}
+
+/** The rendered pages; ofd.js sizes each page's own element. */
+function pageElements(): HTMLElement[] {
+  return Array.from(
+    pagesHost.value?.querySelectorAll<HTMLElement>(
+      ":scope > .ofd-page-frame > :first-child",
+    ) ?? [],
+  );
+}
+
+function annotationSurfaces(): readonly AnnotationSurface[] {
+  return pageElements().map((root, index) => ({
+    root,
+    segment: pageSegment(index + 1),
+    place: { kind: "page", number: index + 1 },
+  }));
+}
+
+function annotationTargets(): readonly AnnotationTarget[] {
+  return pageElements().map((element, index) => pageTarget(element, index + 1));
+}
+
+function revealAnnotation(request: AnnotationRevealRequest): void {
+  const number = requestedPage(request);
+  if (number && number <= pageCount.value) goTo(number);
+}
+
+defineExpose({ annotationSurfaces, annotationTargets, revealAnnotation });
 
 function scheduleRender(delay = 150): void {
   if (renderTimer) clearTimeout(renderTimer);
@@ -100,13 +148,7 @@ function goTo(target: number): void {
 }
 
 onMounted(async () => {
-  emit("capabilitiesChange", {
-    zoom: !props.compact,
-    invert: true,
-    zoomMin: 25,
-    zoomMax: 400,
-    toolbar: !props.compact,
-  });
+  emit("capabilitiesChange", capabilities());
   try {
     const [ofd, bytes] = await Promise.all([
       import("@file-viewer-internal/ofd"),

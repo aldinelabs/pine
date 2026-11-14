@@ -16,8 +16,12 @@ import { decodeHeic, openTiff, type TiffDocument } from "@/lib/imageDecoding";
 import { previewExtension } from "@/shared/previewFormats";
 import PreviewPager from "./PreviewPager.vue";
 import ZoomableImage from "./ZoomableImage.vue";
+import { pageTarget, requestedPage } from "./annotationPages";
 import { readPreviewBytes } from "./previewBytes";
 import type {
+  AnnotationRevealRequest,
+  AnnotationTarget,
+  PreviewRendererCapabilities,
   PreviewRendererEvents,
   PreviewRendererProps,
 } from "./previewRenderer";
@@ -34,6 +38,8 @@ const source = ref<string>();
 const loaded = ref(false);
 const rotation = ref(0);
 const page = ref(1);
+/** The TIFF page the image shows now; `page` changes before it loads. */
+const shownPage = ref(1);
 const tiff = shallowRef<TiffDocument>();
 const reading = new AbortController();
 const objectUrls = new Map<number, string>();
@@ -43,8 +49,22 @@ function rotate(step: 1 | -1): void {
   rotation.value = (rotation.value + step * 90 + 360) % 360;
 }
 
+function capabilities(): Partial<PreviewRendererCapabilities> {
+  return {
+    zoom: !props.compact,
+    fitWidth: !props.compact,
+    zoomMin: 10,
+    zoomMax: 800,
+    toolbar: true,
+    annotateRegions: loaded.value,
+  };
+}
+
 function imageLoaded(size: { width: number; height: number }): void {
-  loaded.value = true;
+  if (!loaded.value) {
+    loaded.value = true;
+    emit("capabilitiesChange", capabilities());
+  }
   emit("metadataChange", {
     ...size,
     ...(tiff.value ? { pageCount: tiff.value.pageCount } : {}),
@@ -64,6 +84,7 @@ async function showTiffPage(number: number): Promise<void> {
     objectUrls.set(number, url);
   }
   source.value = url;
+  shownPage.value = number;
 }
 
 async function load(): Promise<void> {
@@ -94,13 +115,7 @@ async function load(): Promise<void> {
 }
 
 onMounted(async () => {
-  emit("capabilitiesChange", {
-    zoom: !props.compact,
-    fitWidth: !props.compact,
-    zoomMin: 10,
-    zoomMax: 800,
-    toolbar: true,
-  });
+  emit("capabilitiesChange", capabilities());
   try {
     await load();
   } catch (error) {
@@ -123,7 +138,22 @@ watch(page, (value) => {
   });
 });
 
-defineExpose({ fitWidth });
+/** The shown image; each page of a multi-page TIFF is its own segment. */
+function annotationTargets(): readonly AnnotationTarget[] {
+  const target = stage.value?.annotationTarget();
+  if (!target) return [];
+  return tiff.value && tiff.value.pageCount > 1
+    ? [pageTarget(target.element, shownPage.value, target.size)]
+    : [target];
+}
+
+function revealAnnotation(request: AnnotationRevealRequest): void {
+  const number = requestedPage(request);
+  const count = tiff.value?.pageCount ?? 1;
+  if (number && number <= count) page.value = number;
+}
+
+defineExpose({ fitWidth, annotationTargets, revealAnnotation });
 </script>
 
 <template>

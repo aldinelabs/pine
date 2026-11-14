@@ -13,8 +13,12 @@ import type { DrawioPage } from "@/lib/drawio";
 import { previewExtension } from "@/shared/previewFormats";
 import { useAppearanceStore } from "@/stores/appearance";
 import PreviewPager from "./PreviewPager.vue";
+import { pageTarget, requestedPage } from "./annotationPages";
 import { readPreviewText } from "./previewBytes";
 import type {
+  AnnotationRevealRequest,
+  AnnotationTarget,
+  PreviewRendererCapabilities,
   PreviewRendererEvents,
   PreviewRendererProps,
 } from "./previewRenderer";
@@ -37,6 +41,9 @@ const source = shallowRef<string>();
 const pages = shallowRef<DrawioPage[]>([]);
 const page = ref(1);
 const image = ref<string>();
+/** The draw.io page the image shows; `page` changes before it renders. */
+const shownPage = ref(1);
+const loaded = ref(false);
 const reading = new AbortController();
 let generation = 0;
 
@@ -65,6 +72,7 @@ async function render(): Promise<void> {
     image.value = URL.createObjectURL(
       new Blob([svg], { type: "image/svg+xml" }),
     );
+    shownPage.value = page.value;
     if (pages.value.length > 1)
       emit("metadataChange", { pageCount: pages.value.length });
   } catch (error) {
@@ -74,14 +82,39 @@ async function render(): Promise<void> {
   }
 }
 
-onMounted(() => {
-  emit("capabilitiesChange", {
+function capabilities(): Partial<PreviewRendererCapabilities> {
+  return {
     zoom: !props.compact,
     fitWidth: !props.compact,
     zoomMin: 10,
     zoomMax: 800,
     toolbar: kind.value === "drawio",
-  });
+    annotateRegions: loaded.value,
+  };
+}
+
+function imageLoaded(): void {
+  if (loaded.value) return;
+  loaded.value = true;
+  emit("capabilitiesChange", capabilities());
+}
+
+/** The drawn diagram; each page of a draw.io file is its own segment. */
+function annotationTargets(): readonly AnnotationTarget[] {
+  const target = stage.value?.annotationTarget();
+  if (!target) return [];
+  return pages.value.length > 1
+    ? [pageTarget(target.element, shownPage.value, target.size)]
+    : [target];
+}
+
+function revealAnnotation(request: AnnotationRevealRequest): void {
+  const number = requestedPage(request);
+  if (number && number <= pages.value.length) page.value = number;
+}
+
+onMounted(() => {
+  emit("capabilitiesChange", capabilities());
   void render();
 });
 watch(page, () => void render());
@@ -97,7 +130,11 @@ onBeforeUnmount(() => {
   if (image.value) URL.revokeObjectURL(image.value);
 });
 
-defineExpose({ fitWidth: () => stage.value?.fitWidth() });
+defineExpose({
+  fitWidth: () => stage.value?.fitWidth(),
+  annotationTargets,
+  revealAnnotation,
+});
 </script>
 
 <template>
@@ -117,6 +154,7 @@ defineExpose({ fitWidth: () => stage.value?.fitWidth() });
       :compact="compact"
       :max-fit="2"
       :checkerboard="false"
+      @load="imageLoaded"
       @error="emit('failed')"
       @zoom-change="emit('zoomChange', $event)"
     />

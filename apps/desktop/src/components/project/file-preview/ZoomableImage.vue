@@ -8,6 +8,7 @@ import {
   useTemplateRef,
   watch,
 } from "vue";
+import type { AnnotationTarget } from "./previewRenderer";
 
 /**
  * An image on a scrollable stage that follows the preview's zoom. It fits
@@ -51,6 +52,7 @@ const emit = defineEmits<{
 const MARGIN = 24;
 
 const viewport = useTemplateRef<HTMLDivElement>("viewport");
+const image = useTemplateRef<HTMLImageElement>("image");
 const natural = ref<{ width: number; height: number } | undefined>(
   props.naturalSize ? { ...props.naturalSize } : undefined,
 );
@@ -178,7 +180,20 @@ onBeforeUnmount(() => {
   pendingFit?.disconnect();
 });
 
-defineExpose({ fit, fitWidth });
+/**
+ * The shown image as an area comments are drawn on. Its box follows zoom
+ * and scrolling; areas are fractions of it, so a turned image offers none,
+ * as its box no longer lines up with the picture's own axes.
+ */
+function annotationTarget():
+  Omit<AnnotationTarget, "segment" | "place"> | undefined {
+  const element = image.value;
+  const size = natural.value;
+  if (!element || !size || props.rotation % 360 !== 0) return undefined;
+  return { element, size: { ...size } };
+}
+
+defineExpose({ fit, fitWidth, annotationTarget });
 </script>
 
 <template>
@@ -203,6 +218,7 @@ defineExpose({ fit, fitWidth });
       >
         <img
           v-if="src"
+          ref="image"
           :src="src"
           :alt="alt"
           draggable="false"
