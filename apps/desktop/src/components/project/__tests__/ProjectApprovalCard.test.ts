@@ -76,6 +76,50 @@ describe("ProjectApprovalCard", () => {
     wrapper.unmount();
   });
 
+  it("describes an MCP server change in plain terms", async () => {
+    const wrapper = mount(ProjectApprovalCard, {
+      props: {
+        approval: {
+          requestId: "approval-mcp",
+          toolCallId: "tool-mcp",
+          toolName: "mcp_config_save",
+          trigger: "privileged-execution",
+          description: 'Save MCP server "github"',
+          subject: "global MCP server github",
+          evidence: "It launches `npx -y server` with your permissions.",
+          mcpChange: {
+            action: "add",
+            scope: "global",
+            name: "github",
+            command: "npx -y server",
+            credentials: ["GITHUB_TOKEN"],
+            definition: '{\n  "command": "npx"\n}',
+          },
+        },
+      },
+      global: { plugins: [createAppI18n("zh-CN")] },
+    });
+    const text = wrapper.text();
+    expect(text).toContain("Pine 想添加 MCP 服务器“github”。");
+    expect(text).toContain("npx -y server");
+    expect(text).toContain("使用你的权限，不受 Pine 沙箱限制。");
+    expect(text).toContain("所有项目");
+    expect(text).toContain("GITHUB_TOKEN");
+    // The generic notice and the English tool summary give way to the account.
+    expect(text).not.toContain("沙箱外使用原生权限");
+    expect(text).not.toContain("Save MCP server");
+    await wrapper
+      .get('[data-slot="approval-details-trigger"]')
+      .trigger("click");
+    expect(
+      wrapper.get('[data-slot="approval-mcp-definition"] pre').text(),
+    ).toBe('{\n  "command": "npx"\n}');
+    expect(wrapper.find('[data-slot="approval-reviewer-notes"]').exists()).toBe(
+      false,
+    );
+    wrapper.unmount();
+  });
+
   it("does not label ordinary manual confirmations as failures", () => {
     const wrapper = mount(ProjectApprovalCard, {
       props: { approval },

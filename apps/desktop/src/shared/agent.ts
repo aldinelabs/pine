@@ -8,7 +8,7 @@ import type {
   SessionHostOperation,
 } from "./sessions";
 import type { PineSessionMutator } from "./sessionMutators";
-import type { McpHostOperation } from "./mcp";
+import type { McpHostOperation, PineMcpChangeSummary } from "./mcp";
 import type { BackgroundTaskSnapshot } from "@pine/pi-background-tasks";
 import type {
   FilePresentationDisplay,
@@ -359,6 +359,8 @@ export type PineAgentEvent =
       explanation?: PineApprovalExplanation;
       /** A reviewer explanation is being written and follows as approval-explanation. */
       explanationPending?: boolean;
+      /** An MCP server change, which the card describes in plain terms. */
+      mcpChange?: PineMcpChangeSummary;
     }
   | {
       /** Late reviewer explanation; without `explanation`, none is coming. */

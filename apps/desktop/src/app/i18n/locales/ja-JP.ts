@@ -1257,6 +1257,25 @@ export default {
       detailsReason: "確認が必要な理由",
       detailsDescription: "エージェントの説明",
       detailsParameters: "元のパラメーター",
+      mcp: {
+        titleAdd: "Pine が MCP サーバー「{name}」を追加しようとしています。",
+        titleUpdate: "Pine が MCP サーバー「{name}」を変更しようとしています。",
+        titleRename:
+          "Pine が MCP サーバー「{previousName}」を変更し、名前を「{name}」に変えようとしています。",
+        titleEnable:
+          "Pine が MCP サーバー「{name}」を再び有効にしようとしています。",
+        intro:
+          "承認すると、次のメッセージからエージェントがこのサーバーのツールを使えるようになります。",
+        runs: "このコンピューターで実行",
+        runsNote: "あなたの権限で、Pine のサンドボックスの外で動作します。",
+        connects: "接続先",
+        scope: "利用範囲",
+        scopeGlobal: "すべてのプロジェクト",
+        scopeProject: "このプロジェクトのみ",
+        credentials: "渡される認証情報",
+        credentialsNote: "値は表示されません。",
+        definition: "サーバー定義",
+      },
       detailsReviewerNotes: "レビューのメモ",
       approve: "承認",
       reject: "拒否",

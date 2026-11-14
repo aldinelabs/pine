@@ -27,6 +27,7 @@ import type {
 } from "@/shared/sessions";
 import { attachmentMessagePreview } from "@/shared/attachments";
 import { reviewFailureCode } from "@/shared/approvalReasons";
+import type { PineMcpChangeSummary } from "@/shared/mcp";
 import {
   parseMessageBlocks,
   progressReportText,
@@ -98,6 +99,41 @@ export interface PinePendingApproval {
   explanation?: PineApprovalExplanation;
   /** The approval model is still writing the explanation. */
   explanationPending?: boolean;
+  /** An MCP server change, which the card describes in plain terms. */
+  mcpChange?: PineMcpChangeSummary;
+}
+
+const MCP_CHANGE_ACTIONS: ReadonlySet<unknown> = new Set([
+  "add",
+  "update",
+  "rename",
+  "enable",
+]);
+
+/** Wire data can come from a replayed snapshot; keep only the expected shape. */
+function mcpChangeSummary(value: unknown): PineMcpChangeSummary | undefined {
+  if (typeof value !== "object" || value === null) return undefined;
+  const change = value as Record<string, unknown>;
+  if (
+    !MCP_CHANGE_ACTIONS.has(change.action) ||
+    (change.scope !== "global" && change.scope !== "project") ||
+    typeof change.name !== "string"
+  )
+    return undefined;
+  const text = (key: string) =>
+    typeof change[key] === "string" ? { [key]: change[key] } : {};
+  return {
+    action: change.action as PineMcpChangeSummary["action"],
+    scope: change.scope,
+    name: change.name,
+    ...text("previousName"),
+    ...text("command"),
+    ...text("address"),
+    ...text("definition"),
+    credentials: Array.isArray(change.credentials)
+      ? change.credentials.filter((entry) => typeof entry === "string")
+      : [],
+  };
 }
 
 /** Wire data can come from a replayed snapshot; keep only the expected shape. */
@@ -1723,6 +1759,7 @@ export const useSessionStore = defineStore("session", () => {
       const input = event.input as
         { subject?: unknown; description?: unknown } | undefined;
       const explanation = approvalExplanation(event.explanation);
+      const mcpChange = mcpChangeSummary(event.mcpChange);
       pendingApprovals.value = [
         ...pendingApprovals.value,
         {
@@ -1745,6 +1782,7 @@ export const useSessionStore = defineStore("session", () => {
             : event.explanationPending === true
               ? { explanationPending: true }
               : {}),
+          ...(mcpChange ? { mcpChange } : {}),
         },
       ];
       const failure = event.autoApprovalFailure;

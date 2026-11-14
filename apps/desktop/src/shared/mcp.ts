@@ -169,3 +169,70 @@ export function restoreRedactedMcpValues(
   }
   return restored;
 }
+
+/** What an MCP change's approval card shows, as data the card localizes. */
+export interface PineMcpChangeSummary {
+  action: "add" | "update" | "rename" | "enable";
+  scope: PineMcpScope;
+  name: string;
+  previousName?: string;
+  /** The program a local server launches, with its arguments. */
+  command?: string;
+  /** The address a remote server is reached at. */
+  address?: string;
+  /** Environment variables, headers and tokens the server is given; names only. */
+  credentials: string[];
+  /** The definition with literal credentials hidden, as formatted JSON. */
+  definition?: string;
+}
+
+const MCP_CHANGE_DEFINITION_MAX = 12_000;
+
+function recordKeys(value: unknown): string[] {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? Object.keys(value)
+    : [];
+}
+
+/** The approval card's account of saving or enabling a server definition. */
+export function mcpChangeSummary(
+  change: Pick<PineMcpChangeSummary, "action" | "scope" | "name"> & {
+    previousName?: string;
+  },
+  definition: Record<string, unknown> | undefined,
+): PineMcpChangeSummary {
+  const summary: PineMcpChangeSummary = {
+    action: change.action,
+    scope: change.scope,
+    name: change.name,
+    ...(change.previousName ? { previousName: change.previousName } : {}),
+    credentials: [],
+  };
+  if (!definition) return summary;
+  if (typeof definition.command === "string") {
+    const args = Array.isArray(definition.args)
+      ? definition.args.filter((arg) => typeof arg === "string")
+      : [];
+    summary.command = [definition.command, ...args].join(" ");
+  } else {
+    const address = definition.url ?? definition.socket;
+    if (typeof address === "string") summary.address = address;
+  }
+  const oauth = definition.oauth;
+  summary.credentials = [
+    ...recordKeys(definition.env),
+    ...recordKeys(definition.headers),
+    ...(typeof definition.bearerToken === "string" ? ["bearerToken"] : []),
+    ...(oauth &&
+    typeof oauth === "object" &&
+    typeof (oauth as Record<string, unknown>).clientSecret === "string"
+      ? ["oauth.clientSecret"]
+      : []),
+  ];
+  summary.definition = JSON.stringify(
+    redactMcpDefinition(definition),
+    null,
+    2,
+  ).slice(0, MCP_CHANGE_DEFINITION_MAX);
+  return summary;
+}

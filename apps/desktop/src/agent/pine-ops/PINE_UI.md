@@ -292,7 +292,13 @@ From top to bottom:
      Pine asked under the title, then the description and parameters;
      Technical details then holds only the Reviewer notes (the sandbox or
      policy evidence and the reviewer's reason) and appears only when there
-     are any. When enabling a new tool would make the provider reprocess a
+     are any. Adding, changing, renaming or turning on an MCP server always
+     asks, in every mode, with a card that says which server Pine wants to add
+     or change, the command it runs on this computer (with the user's
+     permissions, outside Pine's sandbox) or the address it connects to, where
+     it is available (All projects or This project only) and the names of the
+     credentials it receives (values hidden); Technical details holds the
+     Server definition. When enabling a new tool would make the provider reprocess a
      very long context at full price, the card offers Activate now, Compress,
      then continue, or stopping the run.
    - Automation approval card, in place of the composer, when the agent asks to

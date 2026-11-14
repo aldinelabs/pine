@@ -13,8 +13,10 @@ import {
   MCP_CONFIG_SAVE_TOOL_NAME,
   MCP_CONFIG_SET_ENABLED_TOOL_NAME,
   MCP_SERVER_NAME_PATTERN,
+  mcpChangeSummary,
   redactMcpDefinition,
   type McpHostOperation,
+  type PineMcpChangeSummary,
   type PineMcpScope,
 } from "../../shared/mcp";
 import { ACTIVATE_MCP_AUTHORING_TOOL_NAME } from "../../shared/sessionMutators";
@@ -40,6 +42,8 @@ export interface McpAuthoringOptions {
     subject: string;
     description: string;
     evidence: string;
+    /** The plain account the approval card leads with. */
+    mcpChange: PineMcpChangeSummary;
     signal?: AbortSignal;
   }): Promise<GateDecision>;
   /** Reload this session's MCP connections once its run ends. */
@@ -130,6 +134,30 @@ function approvalEvidence(
   return `${transport} ${where}\n\nDefinition of "${name}" (credentials hidden):\n${JSON.stringify(redactMcpDefinition(definition), null, 2).slice(0, 12_000)}`;
 }
 
+/** A configured server's definition, or undefined when there is none. */
+async function configuredDefinition(
+  options: McpAuthoringOptions,
+  scope: PineMcpScope,
+  name: string,
+): Promise<Record<string, unknown> | undefined> {
+  try {
+    const catalog = asRecord(await options.call({ op: "list" }));
+    const servers = Array.isArray(catalog.servers) ? catalog.servers : [];
+    for (const server of servers) {
+      const entry = asRecord(server);
+      if (
+        entry.scope === scope &&
+        entry.name === name &&
+        isRecord(entry.definition)
+      )
+        return entry.definition;
+    }
+  } catch {
+    // The card then describes the change without the current definition.
+  }
+  return undefined;
+}
+
 async function requireApproval(
   options: McpAuthoringOptions,
   input: Parameters<McpAuthoringOptions["requestApproval"]>[0],
@@ -208,6 +236,14 @@ function createDefinitions(
       execute: async (toolCallId, params, signal) => {
         const errors = mcpDefinitionErrors(params.definition);
         if (errors.length > 0) return jsonResult({ saved: false, errors });
+        const renamed =
+          params.previousName !== undefined &&
+          params.previousName !== params.name;
+        const action = renamed
+          ? "rename"
+          : (await configuredDefinition(options, params.scope, params.name))
+            ? "update"
+            : "add";
         await requireApproval(options, {
           toolCallId,
           toolName: MCP_CONFIG_SAVE_TOOL_NAME,
@@ -218,6 +254,15 @@ function createDefinitions(
           evidence: approvalEvidence(
             params.scope,
             params.name,
+            params.definition,
+          ),
+          mcpChange: mcpChangeSummary(
+            {
+              action,
+              scope: params.scope,
+              name: params.name,
+              ...(renamed ? { previousName: params.previousName } : {}),
+            },
             params.definition,
           ),
           signal,
@@ -253,6 +298,10 @@ function createDefinitions(
             subject: `${params.scope} MCP server ${params.name}`,
             description: `Enable MCP server "${params.name}"`,
             evidence: `Pine will connect to the ${params.scope} MCP server "${params.name}" again and its tools become available.`,
+            mcpChange: mcpChangeSummary(
+              { action: "enable", scope: params.scope, name: params.name },
+              await configuredDefinition(options, params.scope, params.name),
+            ),
             signal,
           });
         const result = await options.call({

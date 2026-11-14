@@ -82,6 +82,14 @@ describe("MCP authoring tools", () => {
     expect(options.requestApproval.mock.calls[0][0].evidence).not.toContain(
       "secret",
     );
+    expect(options.requestApproval.mock.calls[0][0].mcpChange).toEqual({
+      action: "add",
+      scope: "project",
+      name: "github",
+      command: "npx -y server@1.0.0",
+      credentials: ["TOKEN"],
+      definition: expect.not.stringContaining("secret"),
+    });
     expect(options.call).toHaveBeenCalledWith({
       op: "save",
       scope: "project",
@@ -101,7 +109,9 @@ describe("MCP authoring tools", () => {
         definition: { url: "https://mcp.example.com" },
       }),
     ).rejects.toThrow("No thanks");
-    expect(options.call).not.toHaveBeenCalled();
+    expect(options.call).not.toHaveBeenCalledWith(
+      expect.objectContaining({ op: "save" }),
+    );
   });
 
   it("refuses an invalid definition without asking", async () => {
@@ -130,6 +140,76 @@ describe("MCP authoring tools", () => {
       enabled: true,
     });
     expect(options.requestApproval).toHaveBeenCalledOnce();
+  });
+});
+
+describe("MCP change summaries", () => {
+  const remote = {
+    url: "https://mcp.example.com",
+    headers: { Authorization: "Bearer x" },
+  };
+
+  it("tells a change or rename of a configured server from an addition", async () => {
+    const { options, run } = setup();
+    options.call.mockImplementation((operation: { op: string }) =>
+      Promise.resolve(
+        operation.op === "list"
+          ? {
+              servers: [
+                { scope: "global", name: "remote", definition: remote },
+              ],
+            }
+          : {},
+      ),
+    );
+    await run("mcp_config_save", {
+      scope: "global",
+      name: "remote",
+      definition: remote,
+    });
+    await run("mcp_config_save", {
+      scope: "global",
+      name: "remote-2",
+      previousName: "remote",
+      definition: remote,
+    });
+    await run("mcp_config_save", {
+      scope: "project",
+      name: "remote",
+      definition: remote,
+    });
+    expect(
+      options.requestApproval.mock.calls.map(([input]) => [
+        input.mcpChange.action,
+        input.mcpChange.previousName,
+      ]),
+    ).toEqual([
+      ["update", undefined],
+      ["rename", "remote"],
+      ["add", undefined],
+    ]);
+    expect(options.requestApproval.mock.calls[0][0].mcpChange).toMatchObject({
+      address: "https://mcp.example.com",
+      credentials: ["Authorization"],
+    });
+  });
+
+  it("describes the configured server it enables", async () => {
+    const { options, run } = setup();
+    options.call.mockResolvedValue({
+      servers: [{ scope: "project", name: "remote", definition: remote }],
+    });
+    await run("mcp_config_set_enabled", {
+      scope: "project",
+      name: "remote",
+      enabled: true,
+    });
+    expect(options.requestApproval.mock.calls[0][0].mcpChange).toMatchObject({
+      action: "enable",
+      scope: "project",
+      name: "remote",
+      address: "https://mcp.example.com",
+    });
   });
 });
 

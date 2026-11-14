@@ -101,6 +101,29 @@ const explainedView = computed(
       props.approval.explanationPending === true),
 );
 
+// An MCP server change gets its own plain account: what runs or where it
+// connects, where it is available and which credentials it receives.
+const mcpChange = computed(() =>
+  explainedView.value ? undefined : props.approval.mcpChange,
+);
+const mcpTitleKey = computed(() => {
+  switch (mcpChange.value?.action) {
+    case "update":
+      return "titleUpdate";
+    case "rename":
+      return "titleRename";
+    case "enable":
+      return "titleEnable";
+    default:
+      return "titleAdd";
+  }
+});
+const showDetailsDisclosure = computed(() =>
+  mcpChange.value
+    ? Boolean(mcpChange.value.definition)
+    : explainedView.value || Boolean(evidence.value),
+);
+
 function respond(action: PineApprovalAction, guidanceText?: string): void {
   if (props.isResponding) return;
   emit("respond", action, guidanceText);
@@ -154,7 +177,15 @@ function startGuidance(): void {
           <TriangleAlertIcon class="size-4 shrink-0" aria-hidden="true" />
           {{ t("project.approvalRequest.autoApprovalFallback") }}
         </span>
-        <template v-if="!explainedView">
+        <template v-if="mcpChange">
+          {{
+            t(`project.approvalRequest.mcp.${mcpTitleKey}`, {
+              name: mcpChange.name,
+              previousName: mcpChange.previousName ?? "",
+            })
+          }}
+        </template>
+        <template v-else-if="!explainedView">
           {{ t(`project.approvalRequest.${triggerKey}`) }}
         </template>
       </CardDescription>
@@ -230,6 +261,74 @@ function startGuidance(): void {
           </ul>
         </div>
       </template>
+      <div
+        v-else-if="mcpChange"
+        class="flex flex-col gap-3 text-sm"
+        data-slot="approval-mcp-change"
+      >
+        <p>{{ t("project.approvalRequest.mcp.intro") }}</p>
+        <dl class="flex flex-col gap-2.5">
+          <div v-if="mcpChange.command" class="flex flex-col gap-1">
+            <dt class="text-xs font-medium text-muted-foreground">
+              {{ t("project.approvalRequest.mcp.runs") }}
+            </dt>
+            <dd class="flex flex-col gap-1">
+              <code
+                class="overflow-x-auto rounded-lg bg-muted/60 px-3 py-2 font-mono text-xs break-all whitespace-pre-wrap"
+                >{{ mcpChange.command }}</code
+              >
+              <span class="flex items-center gap-1.5 text-muted-foreground">
+                <ShieldAlertIcon class="size-3.5 shrink-0" aria-hidden="true" />
+                {{ t("project.approvalRequest.mcp.runsNote") }}
+              </span>
+            </dd>
+          </div>
+          <div v-else-if="mcpChange.address" class="flex flex-col gap-1">
+            <dt class="text-xs font-medium text-muted-foreground">
+              {{ t("project.approvalRequest.mcp.connects") }}
+            </dt>
+            <dd>
+              <code
+                class="block overflow-x-auto rounded-lg bg-muted/60 px-3 py-2 font-mono text-xs break-all whitespace-pre-wrap"
+                >{{ mcpChange.address }}</code
+              >
+            </dd>
+          </div>
+          <div class="flex flex-col gap-1">
+            <dt class="text-xs font-medium text-muted-foreground">
+              {{ t("project.approvalRequest.mcp.scope") }}
+            </dt>
+            <dd>
+              {{
+                t(
+                  mcpChange.scope === "global"
+                    ? "project.approvalRequest.mcp.scopeGlobal"
+                    : "project.approvalRequest.mcp.scopeProject",
+                )
+              }}
+            </dd>
+          </div>
+          <div
+            v-if="mcpChange.credentials.length > 0"
+            class="flex flex-col gap-1"
+          >
+            <dt class="text-xs font-medium text-muted-foreground">
+              {{ t("project.approvalRequest.mcp.credentials") }}
+            </dt>
+            <dd class="flex flex-wrap items-center gap-1.5">
+              <code
+                v-for="credential in mcpChange.credentials"
+                :key="credential"
+                class="rounded-md bg-muted/60 px-1.5 py-0.5 font-mono text-xs"
+                >{{ credential }}</code
+              >
+              <span class="text-muted-foreground">
+                {{ t("project.approvalRequest.mcp.credentialsNote") }}
+              </span>
+            </dd>
+          </div>
+        </dl>
+      </div>
       <template v-else>
         <p v-if="approval.description" class="text-sm">
           {{ approval.description }}
@@ -243,7 +342,7 @@ function startGuidance(): void {
       </template>
       <!-- One disclosure for everything technical, in every layout. -->
       <Collapsible
-        v-if="explainedView || evidence"
+        v-if="showDetailsDisclosure"
         v-model:open="showDetails"
         class="flex flex-col gap-2"
       >
@@ -294,7 +393,19 @@ function startGuidance(): void {
             </div>
           </template>
           <div
-            v-if="evidence"
+            v-if="mcpChange?.definition"
+            class="flex flex-col gap-1"
+            data-slot="approval-mcp-definition"
+          >
+            <p class="text-xs font-medium text-muted-foreground">
+              {{ t("project.approvalRequest.mcp.definition") }}
+            </p>
+            <pre
+              class="overflow-x-auto rounded-lg bg-muted/60 p-2 font-mono text-xs whitespace-pre-wrap"
+              >{{ mcpChange.definition }}</pre>
+          </div>
+          <div
+            v-else-if="evidence"
             class="flex flex-col gap-1"
             data-slot="approval-reviewer-notes"
           >

@@ -2160,6 +2160,7 @@ export class PineAgentRuntime {
             : explanationPending
               ? { explanationPending: true }
               : {}),
+          ...(request.mcpChange ? { mcpChange: request.mcpChange } : {}),
           actionDigest: pending.actionDigest,
         });
       const pendingExplanation = request.pendingExplanation;

@@ -3,6 +3,7 @@ import type { Tool } from "@earendil-works/pi-ai";
 import { createHash, randomUUID } from "node:crypto";
 import type { PineAgentEvent, PineAutoApprovalFailure } from "../shared/agent";
 import { REVIEW_FAILURE_MESSAGES } from "../shared/approvalReasons";
+import type { PineMcpChangeSummary } from "../shared/mcp";
 import type {
   PineApprovalDecision,
   PineApprovalExplanation,
@@ -114,6 +115,8 @@ export interface UserApprovalRequest {
   explanation?: PineApprovalExplanation;
   /** Explanation still being written; the card updates when it resolves. */
   pendingExplanation?: Promise<PineApprovalExplanation | undefined>;
+  /** An MCP server change, which the card describes in plain terms. */
+  mcpChange?: PineMcpChangeSummary;
   signal?: AbortSignal;
 }
 
