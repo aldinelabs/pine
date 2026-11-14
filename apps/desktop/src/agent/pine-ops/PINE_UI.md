@@ -317,7 +317,7 @@ From top to bottom:
    - Attachment list (files, folders, conversations, pasted text and images),
      a chip for selected content sent from a preview, and "Quoted passages"
      chips, each with Remove quote. Comment chips sent from a file preview's
-     Comments panel show the file, the lines and the comment. The composer
+     Comments panel show the file, the comment's location and the comment. The composer
      resizes smoothly as these
      appear and disappear.
    - Text box. In a new session with no project, typing `@` chooses the
@@ -419,7 +419,7 @@ From top to bottom:
 
 A preview of one file, with controls that depend on the format: Rendered or
 Text view, page navigation, search, zoom, fit width, rotate, invert colors,
-play and pause for media, sheet and layer pickers, and Open with default
+media player controls, sheet and layer pickers, and Open with default
 application. "Send to tab…" or "Send selection to tab…" attaches the file or
 the selected content to a session tab, or creates a session for it.
 In the Rendered view of a Markdown file, clicking an image (or focusing it
@@ -433,31 +433,63 @@ zoomed image can be scrolled around. Clicking outside the image, the close
 button or Esc closes it, and the image returns to its place in the document.
 Images that failed to load, are still loading or are links do not open.
 
+Audio and video play in Pine's own player: a timeline (click or drag to
+seek) above a row with Play/Pause, the current time and length, Comment on
+this moment, Loop, Playback speed (a menu of speeds), Mute with a Volume
+slider, and for video Picture in picture and Full screen. The player's
+keyboard shortcuts work while the preview is the active tab and focus is not
+in a text field.
+
 ##### Comments
 
-In a preview of a project file that shows text, code, Markdown (Text or
-Rendered view) or an HTML page, comments collect change requests on passages
-of the file and send them to a session together.
+In a preview of a project file, comments collect change requests on parts of
+the file and send them to a session together. What can be commented depends
+on the format:
+
+- Text: text, code, Markdown (Text or Rendered view), HTML, Word and other
+  word-processor documents (DOCX, DOC, ODT, RTF, Pages), PDF, slides (PPTX,
+  PPT, Keynote), EPUB e-books and email (EML, MSG).
+- Cells: spreadsheet workbooks (XLSX, Numbers), CSV/TSV and other data
+  tables, and SQLite tables.
+- Areas: images, PDF pages, slides, PSD, OFD, Typst, PostScript, draw.io,
+  Mermaid and other diagrams, and mind maps (XMind and similar).
+- Time spans: audio and video.
+
+How to comment:
 
 - Selecting text shows a small floating menu under the selection with
   Comment. Choosing it, or pressing Mod+Alt+M, replaces the menu with a comment
   box ("Add a comment…") with Cancel and Comment. Enter saves, Shift+Enter
   starts a new line, and Esc cancels. Editing a comment in the panel works the
-  same way.
-- Commented passages are highlighted in amber. Clicking one opens the
-  Comments panel at that comment.
+  same way. A selection that runs onto the next page or slide comments only
+  on the part on the first one.
+- Selecting cells in a table shows the same Comment menu; the comment box
+  names the range ("B2:D5", with the sheet name in workbooks).
+- In formats with areas, the footer has "Comment on area". It turns the
+  pointer into a crosshair with the hint "Drag to box an area. Esc cancels."
+  at the top of the preview; dragging a box on an image, page or slide opens
+  the comment box for that area.
+- In audio and video, "Comment on this moment" in the player comments on the
+  current time. To comment on a span, Shift-drag along the timeline, or press
+  I at its start and O at its end; the button then reads "Comment on
+  0:12–0:30" and Esc clears the marks. Commented spans show as amber bars
+  above the timeline; clicking one jumps there and opens its comment.
+- Commented passages are highlighted in amber, and commented cells and areas
+  are boxed in amber. Clicking one opens the Comments panel at that comment.
 - The preview footer has a Comments button with the number of comments. It
-  opens a panel on the right of the preview (Close comments closes it) that
-  lists the comments in document order. Each shows its location ("Line 12" or
-  "Lines 12–18"), a "Source view" or "Rendered view" tag when it was made in
-  the other view, the quoted text, the comment, and Edit and Delete (editing
-  offers Cancel and Save). "Original text changed" marks a comment whose
-  passage is no longer in the file after it changed. Clicking a comment
-  scrolls to its passage, switching view if needed. With no comments the
-  panel shows "No comments yet".
+  opens a panel that slides in on the right of the preview (Close comments
+  slides it closed) and lists the comments in document order. Each shows its
+  location — "Line 12" or "Lines 12–18", "Page 3", "Slide 2", a chapter or
+  sheet name, cells ("B2:D5"), "Area", or a time span ("0:12–0:30") — a
+  "Source view" or "Rendered view" tag when it was made in the other view,
+  the quoted text (not for time spans), the comment, and Edit and Delete
+  (editing offers Cancel and Save). "Original text changed" marks a comment
+  whose passage is no longer in the file after it changed. Clicking a comment
+  scrolls to its passage, page, cells, area or time, switching view if
+  needed. With no comments the panel shows "No comments yet".
 - At the bottom of the panel, "Send N comments" opens a list of the project's
   session tabs and New session. Choosing one puts the comments into that
-  session's composer as comment chips (file, lines and comment), opens the
+  session's composer as comment chips (file, location and comment), opens the
   session, and clears the comments from the preview. Clear all asks "Clear
   all comments?" before removing them.
 - While a file has comments, the footer's send button is highlighted as the
@@ -677,3 +709,7 @@ and Quit Pine. Quitting from the menu is the way to stop automations, Remote Con
   zoom in / out; Mod+0 fit to window; Esc closes
 - File preview with text selected: Mod+Alt+M comments on the selection; in
   the comment box Enter saves, Shift+Enter starts a new line and Esc cancels
+- File preview while drawing an area to comment on: Esc cancels
+- Audio and video preview: Space or K play / pause; Left / Right seek 5
+  seconds; J / L seek 10 seconds; M mute; F full screen (video); I / O mark
+  the start / end of a span to comment on; Esc clears the marks

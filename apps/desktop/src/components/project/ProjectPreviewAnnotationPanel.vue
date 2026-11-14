@@ -219,7 +219,9 @@ watch(
                 >{{ t("project.preview.annotations.orphaned") }}</Badge
               >
             </div>
+            <!-- A time comment's passage is its span, already shown above. -->
             <blockquote
+              v-if="annotation.anchor.kind !== 'time'"
               :class="
                 cn(
                   'line-clamp-2 border-l-2 border-annotation pl-2 text-xs whitespace-pre-line break-words text-muted-foreground',

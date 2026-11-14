@@ -1011,7 +1011,7 @@ describe("ProjectFilePreview", () => {
     expect(wrapper.text()).toContain("640 × 480");
   });
 
-  it("plays video natively with dimensions and duration", async () => {
+  it("plays video with Pine's controls, dimensions and duration", async () => {
     const wrapper = render(
       vi.fn().mockResolvedValue({
         ...info,
@@ -1023,9 +1023,9 @@ describe("ProjectFilePreview", () => {
     const video = wrapper.get("video");
     expect(video.attributes()).toMatchObject({
       src: "pine-project-media://preview/video",
-      controls: "",
       preload: "metadata",
     });
+    expect(video.attributes("controls")).toBeUndefined();
     expect(video.attributes("autoplay")).toBeUndefined();
     expect(fileViewer.state.instances).toHaveLength(0);
     expect(fetch).not.toHaveBeenCalled();
