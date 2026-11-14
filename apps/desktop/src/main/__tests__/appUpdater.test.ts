@@ -4,6 +4,7 @@ import {
   type AppUpdaterOptions,
   compareVersions,
   parseUpdateManifest,
+  releasesForUpdate,
   resolveCurrentAppPath,
   resolveWindowsFeedUrl,
 } from "../appUpdater";
@@ -188,5 +189,97 @@ describe("app updater", () => {
     await expect(updater.install()).rejects.toThrow(
       "No downloaded Windows update is ready",
     );
+  });
+
+  it("keeps usable history entries and drops the rest", () => {
+    expect(parseUpdateManifest(manifest, manifestUrl).history).toBeUndefined();
+    expect(
+      parseUpdateManifest(
+        {
+          ...manifest,
+          history: [
+            {
+              changelogs: { "en-US": "- Two." },
+              date: "2026-09-10",
+              version: "1.2.0",
+            },
+            { changelogs: { "en-US": "- Bad." }, version: "one" },
+            { changelogs: {}, version: "1.1.5" },
+            {
+              changelogs: { "zh-CN": "- 一。" },
+              date: "soon",
+              version: "1.1.0",
+            },
+            "junk",
+          ],
+        },
+        manifestUrl,
+      ).history,
+    ).toEqual([
+      {
+        changelogs: { "en-US": "- Two." },
+        date: "2026-09-10",
+        version: "1.2.0",
+      },
+      { changelogs: { "zh-CN": "- 一。" }, version: "1.1.0" },
+    ]);
+  });
+
+  it("adds the manifest's own notes when its version is not in the history", () => {
+    expect(
+      releasesForUpdate(
+        {
+          changelogs: { "en-US": "- Three." },
+          history: [{ changelogs: { "en-US": "- Two." }, version: "1.2.0" }],
+          version: "1.3.0",
+        },
+        "1.1.0",
+      ),
+    ).toEqual([
+      { changelogs: { "en-US": "- Three." }, version: "1.3.0" },
+      { changelogs: { "en-US": "- Two." }, version: "1.2.0" },
+    ]);
+    expect(
+      releasesForUpdate(
+        { changelogs: { "en-US": "- Two." }, version: "1.2.0" },
+        "1.1.0",
+      ),
+    ).toBeUndefined();
+  });
+
+  it("reports the notes of every skipped version", async () => {
+    const withHistory = {
+      ...manifest,
+      changelogs: { "en-US": "- Two." },
+      history: [
+        { changelogs: { "en-US": "- Two." }, version: "1.2.0" },
+        { changelogs: { "en-US": "- One ten." }, version: "1.1.10" },
+        { changelogs: { "en-US": "- One nine." }, version: "1.1.9" },
+        { changelogs: { "en-US": "- One." }, version: "1.1.0" },
+      ],
+    };
+    const updater = new AppUpdater({
+      arch: "arm64",
+      currentExecutable: "/Applications/Pine.app/Contents/MacOS/Pine",
+      currentVersion: "1.1.9",
+      emit: vi.fn(),
+      fetch: vi
+        .fn()
+        .mockResolvedValue(
+          new Response(JSON.stringify(withHistory), { status: 200 }),
+        ),
+      manifestUrl,
+      platform: "darwin",
+      quit: vi.fn(),
+      tempDirectory: "/tmp",
+    });
+
+    const result = await updater.check();
+    expect(result.status).toBe("available");
+    expect(
+      result.status === "available"
+        ? result.update.releases?.map((release) => release.version)
+        : undefined,
+    ).toEqual(["1.2.0", "1.1.10"]);
   });
 });

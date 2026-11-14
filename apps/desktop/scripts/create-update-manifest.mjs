@@ -27,6 +27,8 @@ const internalVersion = required("INTERNAL_VERSION");
 const publicBaseUrl = required("R2_PUBLIC_BASE_URL").replace(/\/$/, "");
 const prefix = process.env.R2_PREFIX ?? "";
 const changelogs = JSON.parse(readFileSync(required("CHANGELOG_FILE"), "utf8"));
+// Earlier versions' notes, so a client several versions behind sees them all.
+const history = JSON.parse(readFileSync(required("HISTORY_FILE"), "utf8"));
 const files = readdirSync(assetsDirectory);
 const assets = {};
 
@@ -63,6 +65,7 @@ const manifest = {
   // Versions before per-language changelogs read only this field.
   changelog: formatBilingualChangelog(changelogs),
   changelogs,
+  history,
   assets,
 };
 writeFileSync(

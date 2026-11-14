@@ -1,3 +1,5 @@
+import { compareVersions } from "../shared/semver";
+
 export interface ChangelogSection {
   body: string;
   date?: string;
@@ -117,4 +119,58 @@ export function formatBilingualChangelog(
     "",
     changelogs["en-US"],
   ].join("\n");
+}
+
+/** Every dated release section, in file order. Undated ones are skipped. */
+export function listChangelogSections(changelog: string): ChangelogSection[] {
+  const lines = changelog.replace(/\r\n/g, "\n").split("\n");
+  const sections: ChangelogSection[] = [];
+  let current: { date?: string; start: number; version: string } | undefined;
+  const close = (end: number): void => {
+    if (!current) return;
+    const body = lines.slice(current.start, end).join("\n").trim();
+    if (current.date && body.length > 0 && isReleaseVersion(current.version))
+      sections.push({ body, date: current.date, version: current.version });
+  };
+  for (let index = 0; index < lines.length; index += 1) {
+    const match = RELEASE_HEADING.exec(lines[index]);
+    if (!match) continue;
+    close(index);
+    current = { date: match[2], start: index + 1, version: match[1] };
+  }
+  close(lines.length);
+  return sections;
+}
+
+export interface ReleaseHistoryEntry {
+  changelogs: Partial<ReleaseChangelogs>;
+  date: string;
+  version: string;
+}
+
+/**
+ * The notes of every released version up to and including `upTo`, newest
+ * first, in each language that has them. The update manifest carries this so
+ * a client several versions behind can show everything it skipped.
+ */
+export function extractReleaseHistory(
+  changelogs: ReleaseChangelogs,
+  upTo: string,
+): ReleaseHistoryEntry[] {
+  const entries = new Map<string, ReleaseHistoryEntry>();
+  for (const locale of Object.keys(CHANGELOG_FILES) as ChangelogLocale[]) {
+    for (const section of listChangelogSections(changelogs[locale])) {
+      if (compareVersions(section.version, upTo) > 0) continue;
+      const entry = entries.get(section.version) ?? {
+        changelogs: {},
+        date: section.date as string,
+        version: section.version,
+      };
+      entry.changelogs[locale] ??= section.body;
+      entries.set(section.version, entry);
+    }
+  }
+  return [...entries.values()].sort((left, right) =>
+    compareVersions(right.version, left.version),
+  );
 }

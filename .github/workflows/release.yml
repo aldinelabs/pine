@@ -77,6 +77,7 @@ jobs:
           path: |
             ${{ steps.metadata.outputs.notes_file }}
             ${{ steps.metadata.outputs.changelog_file }}
+            ${{ steps.metadata.outputs.history_file }}
           if-no-files-found: error
           retention-days: 1
 
@@ -128,6 +129,7 @@ jobs:
         env:
           ASSETS_DIRECTORY: release-assets
           CHANGELOG_FILE: release-metadata/release-changelogs.json
+          HISTORY_FILE: release-metadata/release-history.json
           INTERNAL_VERSION: ${{ needs.precheck.outputs.short_sha }}
           R2_PREFIX: ${{ needs.precheck.outputs.r2_prefix }}
           R2_PUBLIC_BASE_URL: ${{ needs.precheck.outputs.r2_public_base_url }}

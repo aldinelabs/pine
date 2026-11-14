@@ -5,6 +5,7 @@ import {
   CHANGELOG_FILES,
   extractChangelogSection,
   extractReleaseChangelogs,
+  extractReleaseHistory,
   formatBilingualChangelog,
   isReleaseVersion,
 } from "../src/release/changelog.ts";
@@ -52,15 +53,14 @@ if (collidingTags.length > 0) {
 }
 
 const previousTag = releases[0]?.tag_name ?? "";
-const changelogs = extractReleaseChangelogs(
-  Object.fromEntries(
-    Object.entries(CHANGELOG_FILES).map(([locale, file]) => [
-      locale,
-      readFileSync(join(repositoryRoot, file), "utf8"),
-    ]),
-  ),
-  version,
+const changelogFiles = Object.fromEntries(
+  Object.entries(CHANGELOG_FILES).map(([locale, file]) => [
+    locale,
+    readFileSync(join(repositoryRoot, file), "utf8"),
+  ]),
 );
+const changelogs = extractReleaseChangelogs(changelogFiles, version);
+const history = extractReleaseHistory(changelogFiles, version);
 
 if (previousTag) {
   for (const file of Object.values(CHANGELOG_FILES)) {
@@ -188,8 +188,10 @@ if (r2Enabled) {
 const runnerTemp = process.env.RUNNER_TEMP ?? join(repositoryRoot, ".tmp");
 const notesFile = join(runnerTemp, "release-notes.md");
 const changelogFile = join(runnerTemp, "release-changelogs.json");
+const historyFile = join(runnerTemp, "release-history.json");
 writeFileSync(notesFile, `${notes}\n`);
 writeFileSync(changelogFile, `${JSON.stringify(changelogs, null, 2)}\n`);
+writeFileSync(historyFile, `${JSON.stringify(history)}\n`);
 
 const outputPath = process.env.GITHUB_OUTPUT;
 if (!outputPath) throw new Error("GITHUB_OUTPUT is required");
@@ -200,6 +202,7 @@ const outputs = {
   source_sha: sha,
   notes_file: notesFile,
   changelog_file: changelogFile,
+  history_file: historyFile,
   r2_enabled: String(r2Enabled),
   r2_account_id: accountId,
   r2_bucket: bucket,

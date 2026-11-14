@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   extractChangelogSection,
   extractReleaseChangelogs,
+  extractReleaseHistory,
   formatBilingualChangelog,
   isReleaseVersion,
 } from "../changelog";
@@ -89,5 +90,56 @@ describe("release changelog", () => {
         "1.2.0",
       ),
     ).toThrow("has 1 entries for 1.2.0, but CHANGELOG.md has 2");
+  });
+
+  it("collects every released version up to the target, newest first", () => {
+    const en = `# Changelog
+
+## [Unreleased]
+
+- Not yet.
+
+## [1.10.0] - 2026-10-01
+
+- Ten.
+
+## [1.9.0] - 2026-09-20
+
+- Nine.
+
+## [1.2.0] - 2026-09-10
+
+- Two.
+`;
+    const zh = `# 更新日志
+
+## [1.10.0] - 2026-10-01
+
+- 十。
+
+## [1.2.0] - 2026-09-10
+
+- 二。
+`;
+
+    expect(
+      extractReleaseHistory({ "zh-CN": zh, "en-US": en }, "1.9.0"),
+    ).toEqual([
+      {
+        changelogs: { "en-US": "- Nine." },
+        date: "2026-09-20",
+        version: "1.9.0",
+      },
+      {
+        changelogs: { "zh-CN": "- 二。", "en-US": "- Two." },
+        date: "2026-09-10",
+        version: "1.2.0",
+      },
+    ]);
+    expect(
+      extractReleaseHistory({ "zh-CN": zh, "en-US": en }, "1.10.0").map(
+        (entry) => entry.version,
+      ),
+    ).toEqual(["1.10.0", "1.9.0", "1.2.0"]);
   });
 });

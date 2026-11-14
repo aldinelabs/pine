@@ -12,12 +12,19 @@ import path from "node:path";
 import type { AutoUpdater } from "electron";
 import {
   UPDATE_CHANGELOG_LOCALES,
+  releaseNotesBetween,
   type DownloadUpdateResult,
   type InstallUpdateResult,
   type PineUpdateEvent,
+  type PineReleaseNotes,
   type PineUpdateInfo,
   type UpdateCheckResult,
 } from "../shared/updates";
+import {
+  compareVersions,
+  isValidVersion,
+  parseVersion,
+} from "../shared/semver";
 
 interface UpdateAsset {
   sha256: string;
@@ -25,8 +32,10 @@ interface UpdateAsset {
   url: string;
 }
 
-interface UpdateManifest extends PineUpdateInfo {
+interface UpdateManifest extends Omit<PineUpdateInfo, "releases"> {
   assets: Record<string, UpdateAsset>;
+  /** Notes of earlier versions too, so a skipped range can be shown. */
+  history?: PineReleaseNotes[];
   schemaVersion: 1;
 }
 
@@ -51,48 +60,10 @@ export interface AppUpdaterOptions {
   >;
 }
 
-const VERSION_PATTERN =
-  /^(\d+)\.(\d+)\.(\d+)(?:-([0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*))?(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$/;
 const SHA256_PATTERN = /^[a-f0-9]{64}$/;
 const MAX_INSTALLER_BYTES = 2 * 1024 * 1024 * 1024;
 
-function parseVersion(version: string): {
-  core: [number, number, number];
-  prerelease: string[];
-} {
-  const match = VERSION_PATTERN.exec(version);
-  if (!match) throw new Error(`Invalid update version: ${version}`);
-  return {
-    core: [Number(match[1]), Number(match[2]), Number(match[3])],
-    prerelease: match[4]?.split(".") ?? [],
-  };
-}
-
-export function compareVersions(left: string, right: string): number {
-  const a = parseVersion(left);
-  const b = parseVersion(right);
-  for (let index = 0; index < a.core.length; index += 1) {
-    if (a.core[index] !== b.core[index]) return a.core[index] - b.core[index];
-  }
-  if (a.prerelease.length === 0) return b.prerelease.length === 0 ? 0 : 1;
-  if (b.prerelease.length === 0) return -1;
-  const length = Math.max(a.prerelease.length, b.prerelease.length);
-  for (let index = 0; index < length; index += 1) {
-    const aPart = a.prerelease[index];
-    const bPart = b.prerelease[index];
-    if (aPart === undefined) return -1;
-    if (bPart === undefined) return 1;
-    if (aPart === bPart) continue;
-    const aNumber = /^\d+$/.test(aPart) ? Number(aPart) : undefined;
-    const bNumber = /^\d+$/.test(bPart) ? Number(bPart) : undefined;
-    if (aNumber !== undefined && bNumber !== undefined)
-      return aNumber - bNumber;
-    if (aNumber !== undefined) return -1;
-    if (bNumber !== undefined) return 1;
-    return aPart.localeCompare(bPart, "en");
-  }
-  return 0;
-}
+export { compareVersions };
 
 export function resolveCurrentAppPath(executablePath: string): string | null {
   const marker = ".app/Contents/MacOS/";
@@ -136,6 +107,56 @@ function parseChangelogs(
   return Object.keys(changelogs).length > 0 ? changelogs : undefined;
 }
 
+const RELEASE_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+
+/** History is optional, and unusable entries are dropped rather than fatal. */
+function parseHistory(value: unknown): PineReleaseNotes[] | undefined {
+  if (!Array.isArray(value)) return undefined;
+  const history: PineReleaseNotes[] = [];
+  for (const entry of value) {
+    if (!entry || typeof entry !== "object") continue;
+    const raw = entry as Record<string, unknown>;
+    if (typeof raw.version !== "string" || !isValidVersion(raw.version))
+      continue;
+    const changelogs = parseChangelogs(raw.changelogs);
+    if (!changelogs) continue;
+    history.push({
+      changelogs,
+      ...(typeof raw.date === "string" && RELEASE_DATE_PATTERN.test(raw.date)
+        ? { date: raw.date }
+        : {}),
+      version: raw.version,
+    });
+  }
+  return history.length > 0 ? history : undefined;
+}
+
+/**
+ * Notes for every version after `installed` up to the manifest's, or nothing
+ * when the manifest carries no history. The manifest's own notes stand in when
+ * its version is missing from the history.
+ */
+export function releasesForUpdate(
+  manifest: Pick<UpdateManifest, "changelogs" | "history" | "version">,
+  installed: string,
+): PineReleaseNotes[] | undefined {
+  if (!manifest.history) return undefined;
+  const history = [...manifest.history];
+  if (
+    manifest.changelogs &&
+    !history.some(
+      (release) => compareVersions(release.version, manifest.version) === 0,
+    )
+  ) {
+    history.push({
+      changelogs: manifest.changelogs,
+      version: manifest.version,
+    });
+  }
+  const releases = releaseNotesBetween(history, installed, manifest.version);
+  return releases.length > 0 ? releases : undefined;
+}
+
 export function parseUpdateManifest(
   input: unknown,
   manifestUrl: string,
@@ -158,6 +179,7 @@ export function parseUpdateManifest(
     nonEmpty: true,
   });
   const changelogs = parseChangelogs(value.changelogs);
+  const history = parseHistory(value.history);
   const publishedAt = requireString(value.publishedAt, "publishedAt", {
     nonEmpty: true,
   });
@@ -202,6 +224,7 @@ export function parseUpdateManifest(
     assets,
     changelog,
     ...(changelogs ? { changelogs } : {}),
+    ...(history ? { history } : {}),
     internalVersion,
     publishedAt,
     schemaVersion: 1,
@@ -345,6 +368,7 @@ export class AppUpdater {
       this.windowsUpdateReady = false;
     }
     this.update = manifest;
+    const releases = releasesForUpdate(manifest, this.options.currentVersion);
     return {
       status: "available",
       update: {
@@ -352,6 +376,7 @@ export class AppUpdater {
         ...(manifest.changelogs ? { changelogs: manifest.changelogs } : {}),
         internalVersion: manifest.internalVersion,
         publishedAt: manifest.publishedAt,
+        ...(releases ? { releases } : {}),
         version: manifest.version,
       },
     };
