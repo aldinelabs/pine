@@ -273,19 +273,18 @@ watch(
     </ScrollArea>
     <footer
       v-if="annotations.length"
-      class="flex shrink-0 flex-wrap items-center justify-end gap-2 border-t px-3 py-2"
+      class="flex shrink-0 flex-wrap items-center justify-end gap-2 border-t p-(--workbench-inset)"
     >
       <Button
         type="button"
         variant="ghost"
-        size="sm"
         class="mr-auto"
         @click="confirmingClear = true"
         >{{ t("project.preview.annotations.clearAll") }}</Button
       >
       <DropdownMenu>
         <DropdownMenuTrigger as-child>
-          <Button type="button" size="sm" :disabled="sending">
+          <Button type="button" :disabled="sending">
             <Send data-icon="inline-start" />
             {{
               t("project.preview.annotations.send", {
