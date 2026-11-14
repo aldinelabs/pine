@@ -1470,7 +1470,31 @@ function createEngine(props: MessageScrollerProviderProps) {
     isProgrammaticScroll.value = active;
   }
 
+  /** Whether the viewport has no room left to scroll toward `direction`. */
+  function isAtScrollEdge(
+    element: HTMLElement,
+    direction: MessageScrollerScrollDirection,
+  ): boolean {
+    return direction === "start"
+      ? element.scrollTop <= SCROLL_EPSILON
+      : isAtScrollEnd(element);
+  }
+
   function userScrollIntent(direction?: MessageScrollerScrollDirection) {
+    // Input toward an edge the viewport already rests on scrolls nothing, so
+    // it cannot be the reader taking over. A new conversation's first turn
+    // is shorter than the viewport, which then cannot scroll at all: one
+    // stray wheel tick used to end its anchor hold there, and the reply then
+    // grew past the fold with nothing following it. (Toward the end with no
+    // room held below, the input still resumes following, as below.)
+    if (
+      direction &&
+      viewport &&
+      (mode === "anchored-to-message" || mode === "following-bottom") &&
+      !(direction === "end" && spacerHeight === 0) &&
+      isAtScrollEdge(viewport, direction)
+    )
+      return;
     rewriteHold = false;
     releaseCollapseHold();
     userScrollRevision.value += 1;

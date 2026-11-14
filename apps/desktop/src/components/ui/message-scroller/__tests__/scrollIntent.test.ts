@@ -352,6 +352,21 @@ describe("message scroller user intent", () => {
     scroller.destroy();
   });
 
+  it("keeps an anchored turn's hold through input that cannot scroll it", () => {
+    const scroller = createAnchoredScroller();
+    scroller.startTurn();
+    // The anchor hold rests on the end of the scroll range, so wheeling on
+    // toward the end moves nothing.
+    expect(scroller.viewport.scrollTop).toBe(1936);
+    scroller.context.userScrollIntent("end");
+    scroller.grow(100);
+    expect(scroller.viewport.scrollTop).toBe(1936);
+    // Once the reply fills the view, the hold still hands off to following.
+    scroller.grow(286);
+    expect(scroller.context.followingBottom.value).toBe(true);
+    scroller.destroy();
+  });
+
   it("does not follow the bottom while a new turn is anchored", () => {
     const scroller = createAnchoredScroller();
     scroller.startTurn();
