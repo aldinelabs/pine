@@ -234,8 +234,12 @@ From top to bottom:
      conversation scrolls smoothly to each new turn while the message arrives.
      Once a turn is positioned, folding thinking or tool details above it
      keeps its position steady.
-     When thinking folds as an answer begins, the view holds steady and the
-     answer fills the room it leaves before following new text again.
+     When thinking folds as an answer begins, the conversation keeps
+     following the end of the reply, with no blank space held below it.
+     Scrolling that cannot move the conversation does not stop it following
+     the reply: sideways scrolling over a wide table or code block, scrolling
+     inside the thinking panel, or scrolling while a new conversation's first
+     reply is still too short to scroll.
      Alternating short thinking and tool runs follows their actual height
      without reserving extra blank space. The last tool runs still fold with
      smooth scroll following as a reply finishes.

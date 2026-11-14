@@ -2,6 +2,7 @@
 import type { HTMLAttributes } from "vue";
 import { onBeforeUnmount, onMounted, useTemplateRef, watch } from "vue";
 import { cn } from "@/lib/utils";
+import { nestedScrollerTakes } from "./nestedScroll";
 import {
   SCROLL_KEYS,
   type MessageScrollerScrollDirection,
@@ -59,11 +60,18 @@ function onUserScrollIntent(direction?: MessageScrollerScrollDirection): void {
   emit("userScrollIntent");
 }
 
-/** Passive: it only records intent and never calls preventDefault. */
+/**
+ * Passive: it only records intent and never calls preventDefault. A
+ * sideways wheel (a wide table or code block) and one a nested scroller
+ * such as the thinking panel takes move nothing here, so they leave the
+ * transcript's follow alone.
+ */
 function onWheel(event: WheelEvent): void {
-  onUserScrollIntent(
-    event.deltaY > 0 ? "end" : event.deltaY < 0 ? "start" : undefined,
-  );
+  const viewport = viewportEl.value;
+  if (event.deltaY === 0 || !viewport) return;
+  const direction = event.deltaY > 0 ? "end" : "start";
+  if (nestedScrollerTakes(event.target, viewport, direction)) return;
+  onUserScrollIntent(direction);
 }
 
 let touchStart: { x: number; y: number } | null = null;
@@ -96,6 +104,13 @@ function onTouchMove(event: TouchEvent): void {
           : undefined
       : undefined;
   lastTouchY = touch.clientY;
+  const viewport = viewportEl.value;
+  if (
+    direction &&
+    viewport &&
+    nestedScrollerTakes(event.target, viewport, direction)
+  )
+    return;
   onUserScrollIntent(direction);
 }
 

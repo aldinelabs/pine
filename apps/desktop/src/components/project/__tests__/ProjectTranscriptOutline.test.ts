@@ -133,7 +133,7 @@ describe("ProjectTranscriptOutline navigation", () => {
       .trigger("click");
     await wrapper
       .get('[data-slot="message-scroller-viewport"]')
-      .trigger("wheel");
+      .trigger("wheel", { deltaY: -40 });
     resolveLoad?.();
     await nextTick();
     await nextTick();
