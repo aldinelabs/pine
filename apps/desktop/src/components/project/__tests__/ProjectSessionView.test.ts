@@ -940,7 +940,7 @@ describe("ProjectSessionView awaiting-response marker", () => {
     state.isRunning = true;
     await flushPromises();
     const marker = '[data-testid="awaiting-response-marker"]';
-    vi.advanceTimersByTime(2999);
+    vi.advanceTimersByTime(4999);
     await flushPromises();
     expect(wrapper.find(marker).exists()).toBe(false);
     vi.advanceTimersByTime(1);
@@ -964,7 +964,7 @@ describe("ProjectSessionView awaiting-response marker", () => {
     // A follow-up waits again; the run ending before any content ends it.
     state.messages = [...state.messages, { ...prompt, id: "follow-up" }];
     await flushPromises();
-    vi.advanceTimersByTime(3000);
+    vi.advanceTimersByTime(5000);
     await flushPromises();
     expect(wrapper.find(marker).exists()).toBe(true);
     state.isRunning = false;
