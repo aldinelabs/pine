@@ -252,9 +252,34 @@ onMounted(() => {
   }
   updateTabListOverflow();
 });
+/*
+ * A sidebar opening or closing moves the tab list's edge on its side. Keep
+ * the tabs where they are on screen, so the edge that moved covers or shows
+ * tabs on that side only: the left sidebar anchors the tabs to the right
+ * edge, the right sidebar to the left one. Read in the observer callback,
+ * after layout, so the measurement forces none.
+ */
+let tabListLeft: number | undefined;
+function keepTabsInPlace(): void {
+  const viewport = tabList.value;
+  if (!viewport) {
+    tabListLeft = undefined;
+    return;
+  }
+  const left = viewport.getBoundingClientRect().left;
+  const moved = tabListLeft === undefined ? 0 : left - tabListLeft;
+  tabListLeft = left;
+  if (Math.abs(moved) < 0.5 || viewport.scrollWidth <= viewport.clientWidth)
+    return;
+  viewport.scrollTo({ left: viewport.scrollLeft + moved, behavior: "instant" });
+}
+
 // The strip comes and goes with the phone layout, so observe whichever list
 // is mounted.
-useResizeObserver(tabList, updateTabListOverflow);
+useResizeObserver(tabList, () => {
+  keepTabsInPlace();
+  updateTabListOverflow();
+});
 
 onBeforeUnmount(() => {
   if (windowCloseTabHandler?.value === closeTabFromWindowShortcut) {
