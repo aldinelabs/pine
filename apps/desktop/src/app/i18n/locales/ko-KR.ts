@@ -1131,7 +1131,6 @@ export default {
       addSession: "대화",
       folderAttachment: "폴더",
       sessionAttachment: "대화",
-      sessionAttachmentIn: "대화 · {project}",
       untitledSessionAttachment: "제목 없는 대화",
       attachmentLines: "{startLine}–{endLine}줄",
       openAttachment: "첨부 파일 {name} 열기",

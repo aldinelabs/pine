@@ -1159,7 +1159,6 @@ export default {
       addSession: "Conversation",
       folderAttachment: "Dossier",
       sessionAttachment: "Conversation",
-      sessionAttachmentIn: "Conversation · {project}",
       untitledSessionAttachment: "Conversation sans titre",
       attachmentLines: "Lignes {startLine}–{endLine}",
       openAttachment: "Ouvrir la pièce jointe {name}",

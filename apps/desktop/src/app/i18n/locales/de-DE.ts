@@ -1165,7 +1165,6 @@ export default {
       addSession: "Unterhaltung",
       folderAttachment: "Ordner",
       sessionAttachment: "Unterhaltung",
-      sessionAttachmentIn: "Unterhaltung · {project}",
       untitledSessionAttachment: "Unbenannte Unterhaltung",
       attachmentLines: "Zeilen {startLine}–{endLine}",
       openAttachment: "Anhang {name} öffnen",

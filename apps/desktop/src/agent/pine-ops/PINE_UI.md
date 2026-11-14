@@ -331,7 +331,7 @@ From top to bottom:
    - Add attachment menu: File, Folder, Conversation. Files can also be
      dropped or pasted; a session dragged from the sidebar is attached as a
      conversation. An attached conversation shows as a chip with its title
-     ("Untitled conversation" when it has none) and "Conversation · {project}";
+     ("Untitled conversation" when it has none) and its project's name;
      in a sent message, clicking the chip opens that session in a tab. The
      agent reads an attached conversation with its session tools, without
      asking for approval.

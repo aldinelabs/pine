@@ -72,7 +72,9 @@ function formatFileSize(size: number): string {
       :key="attachment.path"
       :class="
         cn(
-          'project-attachment max-w-36',
+          'project-attachment',
+          // A conversation's title needs more room than a file name.
+          attachment.session ? 'max-w-64' : 'max-w-36',
           surface === 'composer' &&
             'rounded-[var(--session-composer-attachment-radius)]',
           surface === 'message' && 'hover:bg-muted/50 active:bg-muted/50',
@@ -110,11 +112,8 @@ function formatFileSize(size: number): string {
         <AttachmentDescription>
           {{
             attachment.session
-              ? attachment.session.projectName
-                ? t("project.composer.sessionAttachmentIn", {
-                    project: attachment.session.projectName,
-                  })
-                : t("project.composer.sessionAttachment")
+              ? attachment.session.projectName ||
+                t("project.composer.sessionAttachment")
               : attachment.selection
                 ? (attachment.selection.label ??
                   t("project.composer.attachmentLines", {

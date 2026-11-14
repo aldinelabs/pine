@@ -68,7 +68,7 @@ describe("ProjectAttachmentList", () => {
       "未命名会话",
     );
     expect(wrapper.get('[data-slot="attachment-description"]').text()).toBe(
-      "会话 · Pine",
+      "Pine",
     );
   });
 

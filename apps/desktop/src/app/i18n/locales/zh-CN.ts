@@ -1079,7 +1079,6 @@ export default {
       addSession: "会话",
       folderAttachment: "文件夹",
       sessionAttachment: "会话",
-      sessionAttachmentIn: "会话 · {project}",
       untitledSessionAttachment: "未命名会话",
       attachmentLines: "第 {startLine}–{endLine} 行",
       openAttachment: "打开附件 {name}",

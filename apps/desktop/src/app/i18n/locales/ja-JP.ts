@@ -1148,7 +1148,6 @@ export default {
       addSession: "会話",
       folderAttachment: "フォルダ",
       sessionAttachment: "会話",
-      sessionAttachmentIn: "会話 · {project}",
       untitledSessionAttachment: "無題の会話",
       attachmentLines: "{startLine}～{endLine} 行目",
       openAttachment: "添付ファイル {name} を開く",

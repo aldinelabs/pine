@@ -1083,7 +1083,6 @@ export default {
       addSession: "會話",
       folderAttachment: "資料夾",
       sessionAttachment: "會話",
-      sessionAttachmentIn: "會話 · {project}",
       untitledSessionAttachment: "未命名會話",
       attachmentLines: "第 {startLine}–{endLine} 行",
       openAttachment: "開啟附件 {name}",
