@@ -1066,6 +1066,7 @@ function clearAnnotations(): void {
           data-action="toggle-sidebar"
           variant="ghost"
           size="sm"
+          class="has-data-[slot=badge]:pr-1"
           :aria-pressed="sidebarOpen"
           :aria-expanded="sidebarOpen"
           @click="sidebarOpen = !sidebarOpen"
