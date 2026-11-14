@@ -14,7 +14,9 @@ function crosshair() {
   svg.append(group);
   root.append(svg);
   document.body.append(root);
-  const animate = vi.fn(() => ({ cancel: vi.fn() }) as unknown as Animation);
+  const animate = vi.fn<Element["animate"]>(
+    () => ({ cancel: vi.fn() }) as unknown as Animation,
+  );
   line.animate = animate;
   dot.animate = animate;
   return { root, group, line, dot, animate };
