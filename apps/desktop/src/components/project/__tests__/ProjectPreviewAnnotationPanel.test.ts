@@ -78,7 +78,11 @@ describe("ProjectPreviewAnnotationPanel", () => {
     await wrapper.get('[aria-label="Edit"]').trigger("click");
     const textarea = wrapper.get("textarea");
     await textarea.setValue("  better  ");
-    await textarea.trigger("keydown", { key: "Enter", metaKey: true });
+    // Shift+Enter and Enter that ends an IME composition stay in the box.
+    await textarea.trigger("keydown", { key: "Enter", shiftKey: true });
+    await textarea.trigger("keydown", { key: "Enter", isComposing: true });
+    expect(wrapper.emitted("update")).toBeUndefined();
+    await textarea.trigger("keydown", { key: "Enter" });
     expect(wrapper.emitted("update")).toEqual([["a", "better"]]);
 
     await wrapper.get('[aria-label="Delete"]').trigger("click");

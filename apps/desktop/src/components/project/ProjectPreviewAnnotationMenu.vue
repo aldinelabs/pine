@@ -136,7 +136,14 @@ function handleKey(event: KeyboardEvent): void {
 }
 
 function handleEditorKey(event: KeyboardEvent): void {
-  if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
+  // Enter saves and Shift+Enter starts a new line; Enter that confirms an
+  // input method's composition belongs to the input method.
+  if (
+    event.key === "Enter" &&
+    !event.shiftKey &&
+    !event.isComposing &&
+    event.keyCode !== 229
+  ) {
     event.preventDefault();
     save();
   } else if (event.key === "Escape") {
@@ -187,7 +194,10 @@ watch(
 <template>
   <Popover :open="Boolean(anchor)" @update:open="(open) => !open && hide()">
     <PopoverAnchor v-if="anchor" :reference="anchor" />
+    <!-- The comment box replaces the menu as a popover of its own, with the
+         popover's own entrance, rather than growing out of the menu. -->
     <PopoverContent
+      :key="editing ? 'editor' : 'menu'"
       data-slot="preview-annotation-menu"
       side="bottom"
       align="start"

@@ -440,9 +440,10 @@ Rendered view) or an HTML page, comments collect change requests on passages
 of the file and send them to a session together.
 
 - Selecting text shows a small floating menu under the selection with
-  Comment. Choosing it, or pressing Mod+Alt+M, turns the menu into a comment
-  box ("Add a comment…") with Cancel and Comment. Mod+Enter saves; Esc
-  cancels.
+  Comment. Choosing it, or pressing Mod+Alt+M, replaces the menu with a comment
+  box ("Add a comment…") with Cancel and Comment. Enter saves, Shift+Enter
+  starts a new line, and Esc cancels. Editing a comment in the panel works the
+  same way.
 - Commented passages are highlighted in amber. Clicking one opens the
   Comments panel at that comment.
 - The preview footer has a Comments button with the number of comments. It
@@ -670,4 +671,4 @@ and Quit Pine. Quitting from the menu is the way to stop automations, Remote Con
 - Enlarged Markdown image: Left / Right previous / next image; Mod+= / Mod+−
   zoom in / out; Mod+0 fit to window; Esc closes
 - File preview with text selected: Mod+Alt+M comments on the selection; in
-  the comment box Mod+Enter saves and Esc cancels
+  the comment box Enter saves, Shift+Enter starts a new line and Esc cancels

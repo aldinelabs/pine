@@ -110,7 +110,14 @@ function commitEdit(): void {
 }
 
 function handleEditKey(event: KeyboardEvent): void {
-  if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
+  // Enter saves and Shift+Enter starts a new line; Enter that confirms an
+  // input method's composition belongs to the input method.
+  if (
+    event.key === "Enter" &&
+    !event.shiftKey &&
+    !event.isComposing &&
+    event.keyCode !== 229
+  ) {
     event.preventDefault();
     commitEdit();
   } else if (event.key === "Escape") {
