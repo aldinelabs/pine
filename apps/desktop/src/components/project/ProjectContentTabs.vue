@@ -170,6 +170,8 @@ let closingTab = false;
 let tabShiftAnimationScheduled = false;
 let pendingTabPositions: Map<string, number> | null = null;
 const tabShiftAnimations = new WeakMap<HTMLElement, Animation>();
+/** Tab shifts still playing after a close; see keepSelectedTabInPlace. */
+const runningTabShifts = new Set<Animation>();
 const draggingTabId = ref<string | null>(null);
 const dropPosition = ref<{ tabId: string; side: "before" | "after" } | null>(
   null,
@@ -234,7 +236,12 @@ function animateTabShifts(positions: Map<string, number>): void {
       [{ transform: `translateX(${delta}px)` }, { transform: "translateX(0)" }],
       { duration: 320, easing: "cubic-bezier(0.16, 1, 0.3, 1)" },
     );
-    if (animation) tabShiftAnimations.set(element, animation);
+    if (!animation) continue;
+    tabShiftAnimations.set(element, animation);
+    runningTabShifts.add(animation);
+    const settle = () => runningTabShifts.delete(animation);
+    animation.addEventListener?.("finish", settle);
+    animation.addEventListener?.("cancel", settle);
   }
 }
 
@@ -276,6 +283,11 @@ function keepSelectedTabInPlace(): void {
   tabListGeometry = { width, scrollLeft: viewport.scrollLeft };
   const button = tabButtons.get(activeTabId.value);
   if (
+    // A closed tab shrinks the list itself. Its neighbours are still sliding
+    // in, and their transforms would be read as layout and widen the scroll
+    // range, so the selected tab is left where the close put it.
+    closingTab ||
+    runningTabShifts.size ||
     !previous ||
     !button ||
     width === 0 ||
