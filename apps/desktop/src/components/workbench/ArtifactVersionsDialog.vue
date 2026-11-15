@@ -72,8 +72,19 @@ function target() {
   };
 }
 
+/**
+ * A plain copy of the version's ref: `history` is reactive, and Electron's
+ * IPC structured-clones every argument, which rejects proxies.
+ */
 function request(version: ArtifactVersion) {
-  return { ...target(), version: version.ref };
+  const ref = version.ref;
+  return {
+    ...target(),
+    version:
+      ref.kind === "submission"
+        ? { kind: "submission" as const, toolCallId: ref.toolCallId }
+        : { kind: "backup" as const, id: ref.id },
+  };
 }
 
 async function load(): Promise<void> {

@@ -105,14 +105,22 @@ function mountPanel(
   const operateProjectFile = vi.fn(() => Promise.resolve());
   const operatePresentedFile = vi.fn(() => Promise.resolve());
   const reopenPresentedToolFile = vi.fn(() => Promise.resolve(target));
-  const artifactVersions = vi.fn(() => Promise.resolve(versionHistory));
-  const openArtifactVersion = vi.fn(() =>
-    Promise.resolve({
+  // Electron structured-clones every IPC argument, which rejects Vue proxies.
+  const artifactVersions = vi.fn((request: unknown) => {
+    structuredClone(request);
+    return Promise.resolve(versionHistory);
+  });
+  const openArtifactVersion = vi.fn((request: unknown) => {
+    structuredClone(request);
+    return Promise.resolve({
       source: "presented" as const,
       path: "/data/tmp/artifact-versions/abc/report.md",
-    }),
-  );
-  const restoreArtifactVersion = vi.fn(() => Promise.resolve());
+    });
+  });
+  const restoreArtifactVersion = vi.fn((request: unknown) => {
+    structuredClone(request);
+    return Promise.resolve();
+  });
   Object.defineProperty(window, "pine", {
     configurable: true,
     value: {
