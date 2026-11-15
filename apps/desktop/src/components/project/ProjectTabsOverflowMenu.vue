@@ -238,7 +238,7 @@ async function trashActiveFile(): Promise<void> {
       </Button>
     </DropdownMenuTrigger>
 
-    <DropdownMenuContent align="end" class="w-56">
+    <DropdownMenuContent align="end" class="w-max min-w-36">
       <DropdownMenuGroup v-if="activeFileTab">
         <DropdownMenuItem @select="runFileOperation('open')">
           <ExternalLinkIcon aria-hidden="true" />
