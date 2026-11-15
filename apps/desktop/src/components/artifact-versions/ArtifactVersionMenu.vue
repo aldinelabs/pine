@@ -124,7 +124,7 @@ async function select(version: ArtifactVersion): Promise<void> {
     </DropdownMenuTrigger>
     <DropdownMenuContent
       align="end"
-      class="max-h-96 w-80"
+      class="max-h-96 w-max max-w-[min(24rem,calc(100vw-2rem))] min-w-56"
       @close-auto-focus.prevent
     >
       <DropdownMenuLabel>
