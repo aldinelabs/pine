@@ -13,7 +13,7 @@
 - 使用 TypeScript 严格模式。
 - 测试文件放在 `__tests__/` 目录。
 - Electron 渲染进程不直接访问 Node.js、文件系统或 shell；通过 preload 暴露的最小 IPC API 访问主进程能力。
-- 项目级 Pine 元数据放在 `.pine/` 目录。
+- 项目级 Pine 数据放在应用数据目录的 `projects/<id>/` 下（见 `docs/project-system.md`），不写入用户文件夹；仓库根目录的 `.pine/` 只保存本仓库的发布配置。
 - 应用基础设施和横切能力应在功能开发初期统一规划，避免随着页面推进零散引入依赖；新增包必须有明确职责、稳定边界和验证方式。
 - Renderer 的可导航 UI 状态使用 Vue Router，跨视图应用状态使用 Pinia；文件系统和 Electron 原生能力仍只通过 preload IPC 访问。
 - 异步加载的界面区域（二维码、远程数据、预览等）在加载期间用等高的 shadcn-vue `Skeleton` 占住最终尺寸，不要先坍缩再撑开。
