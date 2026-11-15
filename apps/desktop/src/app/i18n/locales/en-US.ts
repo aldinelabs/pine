@@ -951,6 +951,8 @@ export default {
           viewing: "Version from {time}",
           backToCurrent: "Back to current file",
           count: "{count} versions kept",
+          rendered: "Rendered",
+          source: "Source",
           loadFailed: "Couldn’t load the version history",
           empty:
             "No versions were kept for this file. Versions are kept from the next time Pine submits it.",

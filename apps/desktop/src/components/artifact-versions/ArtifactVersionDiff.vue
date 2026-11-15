@@ -1,12 +1,31 @@
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { fileLanguage } from "@/lib/fileLanguage";
 import type { ArtifactVersionDiff } from "@/shared/artifacts";
+import MarkdownVersionDiff from "./MarkdownVersionDiff.vue";
 
-/** The line changes from a kept version to the current file, in place of the preview. */
-const props = defineProps<{ diff?: ArtifactVersionDiff }>();
+/**
+ * The changes from a kept version to the current file, in place of the
+ * preview: line by line, or for Markdown rendered as it reads.
+ */
+const props = defineProps<{
+  diff?: ArtifactVersionDiff;
+  /** The file's name, which decides whether a rendered comparison applies. */
+  fileName?: string;
+}>();
 const { t } = useI18n();
+
+const markdown = computed(
+  () => !!props.fileName && fileLanguage(props.fileName) === "markdown",
+);
+const mode = ref<"rendered" | "source">("rendered");
+const rendered = computed(
+  () =>
+    markdown.value && mode.value === "rendered" && props.diff?.status === "ok",
+);
 
 const message = computed(() => {
   const diff = props.diff;
@@ -37,26 +56,63 @@ const message = computed(() => {
     >
       {{ message }}
     </p>
-    <div v-else-if="diff.status === 'ok'" class="py-2 font-mono text-xs">
-      <div v-for="(hunk, hunkIndex) in diff.hunks" :key="hunkIndex">
-        <div class="bg-muted px-3 py-1 text-muted-foreground">
-          @@ −{{ hunk.oldStart }} +{{ hunk.newStart }} @@
-        </div>
-        <div
-          v-for="(line, lineIndex) in hunk.lines"
-          :key="lineIndex"
-          class="px-3 whitespace-pre-wrap break-all"
-          :class="{
-            'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300':
-              line.type === 'add',
-            'bg-red-500/10 text-red-700 dark:text-red-300':
-              line.type === 'remove',
-          }"
+    <template v-else-if="diff.status === 'ok'">
+      <div
+        v-if="markdown"
+        class="sticky top-0 z-10 flex shrink-0 justify-end bg-background/90 px-3 py-1.5 backdrop-blur"
+      >
+        <ToggleGroup
+          type="single"
+          variant="outline"
+          size="sm"
+          :model-value="mode"
+          :aria-label="t('project.workbench.artifacts.versions.compare')"
+          @update:model-value="
+            (value) => {
+              if (value === 'rendered' || value === 'source') mode = value;
+            }
+          "
         >
-          {{ line.type === "add" ? "+" : line.type === "remove" ? "−" : " "
-          }}{{ line.text }}
+          <ToggleGroupItem
+            value="rendered"
+            data-testid="artifact-version-diff-rendered"
+          >
+            {{ t("project.workbench.artifacts.versions.rendered") }}
+          </ToggleGroupItem>
+          <ToggleGroupItem
+            value="source"
+            data-testid="artifact-version-diff-source"
+          >
+            {{ t("project.workbench.artifacts.versions.source") }}
+          </ToggleGroupItem>
+        </ToggleGroup>
+      </div>
+      <MarkdownVersionDiff
+        v-if="rendered"
+        :before="diff.before"
+        :after="diff.after"
+      />
+      <div v-else class="py-2 font-mono text-xs">
+        <div v-for="(hunk, hunkIndex) in diff.hunks" :key="hunkIndex">
+          <div class="bg-muted px-3 py-1 text-muted-foreground">
+            @@ −{{ hunk.oldStart }} +{{ hunk.newStart }} @@
+          </div>
+          <div
+            v-for="(line, lineIndex) in hunk.lines"
+            :key="lineIndex"
+            class="px-3 whitespace-pre-wrap break-all"
+            :class="{
+              'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300':
+                line.type === 'add',
+              'bg-red-500/10 text-red-700 dark:text-red-300':
+                line.type === 'remove',
+            }"
+          >
+            {{ line.type === "add" ? "+" : line.type === "remove" ? "−" : " "
+            }}{{ line.text }}
+          </div>
         </div>
       </div>
-    </div>
+    </template>
   </div>
 </template>

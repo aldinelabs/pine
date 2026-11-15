@@ -140,6 +140,8 @@ describe("artifact versions", () => {
           ],
         },
       ],
+      before: "a\nb\nc\n",
+      after: "a\nB\nc\n",
     });
   });
 

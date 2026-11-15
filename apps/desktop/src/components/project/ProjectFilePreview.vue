@@ -1027,7 +1027,11 @@ function clearAnnotations(): void {
             </div>
           </div>
         </template>
-        <ArtifactVersionDiff v-else :diff="versionView?.diff" />
+        <ArtifactVersionDiff
+          v-else
+          :diff="versionView?.diff"
+          :file-name="fileName"
+        />
       </div>
       <!-- The file's details and comments, in the cards of Pine's right
            sidebar while this tab is in front. -->

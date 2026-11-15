@@ -968,6 +968,8 @@ export default {
           viewing: "Versión del {time}",
           backToCurrent: "Volver al archivo actual",
           count: "{count} versiones guardadas",
+          rendered: "Renderizado",
+          source: "Código fuente",
           loadFailed: "No se pudo cargar el historial de versiones",
           empty:
             "No se guardaron versiones de este archivo. Se guardarán a partir de la próxima vez que Pine lo entregue.",

@@ -961,6 +961,8 @@ export default {
           viewing: "{time} のバージョン",
           backToCurrent: "現在のファイルに戻る",
           count: "保存済みのバージョン: {count}",
+          rendered: "レンダリング",
+          source: "ソース",
           loadFailed: "バージョン履歴を読み込めませんでした",
           empty:
             "このファイルの保存済みバージョンはありません。次に Pine が提出したときから保存されます。",

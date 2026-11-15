@@ -288,6 +288,8 @@ export async function diffVersion(
         return [];
       }),
     })),
+    before: oldText,
+    after: newText,
   };
 }
 

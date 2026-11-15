@@ -261,6 +261,12 @@ export interface ArtifactDiffHunk {
 }
 
 export type ArtifactVersionDiff =
-  | { status: "ok"; hunks: ArtifactDiffHunk[] }
+  | {
+      status: "ok";
+      hunks: ArtifactDiffHunk[];
+      /** Both texts in full, for a rendered comparison (Markdown). */
+      before: string;
+      after: string;
+    }
   | { status: "identical" }
   | { status: "unsupported"; reason: "binary" | "too-large" | "missing" };

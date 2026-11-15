@@ -290,6 +290,7 @@ watch(
     <ArtifactVersionDiff
       v-if="versionView?.viewing && versionView.comparing"
       :diff="versionView.diff"
+      :file-name="fileName"
     />
     <Empty v-else-if="!target && !versionLoading" class="flex-1 border-0">
       <EmptyHeader>
