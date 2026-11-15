@@ -2,6 +2,11 @@ import { flushPromises, mount } from "@vue/test-utils";
 import { createPinia, setActivePinia } from "pinia";
 import { beforeEach, expect, it, vi } from "vitest";
 import { createAppI18n } from "@/app/i18n";
+import {
+  useArtifactVersionStore,
+  workbenchVersionKey,
+} from "@/stores/artifactVersions";
+import { useSessionStore } from "@/stores/session";
 import { useWorkbenchStore } from "@/stores/workbench";
 import WorkbenchPreviewPanel from "../WorkbenchPreviewPanel.vue";
 
@@ -138,5 +143,89 @@ it("pulses the card for a change with no lines to tint", async () => {
   // Saving the same content again changes nothing.
   await change();
   expect(wrapper.emitted("contentChanged")).toHaveLength(1);
+  wrapper.unmount();
+});
+
+it("shows a kept version of a submitted artifact in place of the file", async () => {
+  const readProjectFilePreview = ipc({ kind: "unsupported", size: 4 });
+  const readPresentedFilePreview = ipc({ kind: "unsupported", size: 2 });
+  const version = {
+    ref: { kind: "submission" as const, toolCallId: "call-1" },
+    time: Date.UTC(2026, 10, 1),
+    size: 2,
+    state: "available" as const,
+    current: false,
+  };
+  const copy = { source: "presented" as const, path: "/tmp/v/report.md" };
+  Object.defineProperty(window, "pine", {
+    configurable: true,
+    value: {
+      onFilePreviewChanged: vi.fn(() => () => undefined),
+      readProjectFilePreview,
+      readPresentedFilePreview,
+      setWatchedFilePreview: ipc(undefined),
+      artifactVersions: ipc({
+        path: "/project/report.md",
+        versions: [version],
+        missing: false,
+        modified: true,
+        restorable: true,
+      }),
+      openArtifactVersion: ipc(copy),
+      diffArtifactVersion: ipc({ status: "identical" }),
+    },
+  });
+  const session = useSessionStore();
+  session.activeSession = {
+    id: "s1",
+    createdAt: "",
+    updatedAt: "",
+    messageCount: 1,
+  };
+  useWorkbenchStore().preview({
+    target: {
+      source: "project",
+      projectId: "project-1",
+      folderId: "folder-1",
+      relativePath: "report.md",
+    },
+    toolCallId: "call-1",
+    artifactPath: "/project/report.md",
+  });
+  const wrapper = mount(WorkbenchPreviewPanel, {
+    global: { plugins: [createAppI18n("en-US")] },
+  });
+  await flushPromises();
+  const versions = useArtifactVersionStore();
+  const key = workbenchVersionKey("s1");
+  expect(versions.viewOf(key)?.source.path).toBe("/project/report.md");
+  expect(wrapper.find('[data-testid="artifact-version-bar"]').exists()).toBe(
+    false,
+  );
+
+  await versions.show(key, version);
+  await flushPromises();
+
+  expect(readPresentedFilePreview).toHaveBeenCalledWith({
+    path: "/tmp/v/report.md",
+  });
+  expect(wrapper.get('[data-testid="artifact-version-bar"]').text()).toContain(
+    "Version from",
+  );
+
+  await wrapper
+    .get('[data-testid="artifact-version-compare"]')
+    .trigger("click");
+  await flushPromises();
+  expect(wrapper.get('[data-testid="artifact-version-diff"]').text()).toContain(
+    "same as the current file",
+  );
+
+  await wrapper.get('[data-testid="artifact-version-back"]').trigger("click");
+  await flushPromises();
+  expect(wrapper.find('[data-testid="artifact-version-bar"]').exists()).toBe(
+    false,
+  );
+  expect(readProjectFilePreview).toHaveBeenCalledTimes(2);
   wrapper.unmount();
 });

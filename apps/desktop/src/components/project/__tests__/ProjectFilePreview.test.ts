@@ -6,6 +6,7 @@ import {
 } from "@vue/test-utils";
 import { createPinia, setActivePinia } from "pinia";
 import { createMemoryHistory, createRouter } from "vue-router";
+import { useArtifactVersionStore } from "@/stores/artifactVersions";
 import { useContentTabsStore } from "@/stores/contentTabs";
 import {
   annotationFileKey,
@@ -1321,5 +1322,62 @@ describe("ProjectFilePreview", () => {
     await flushPromises();
     expect(wrapper.text()).toContain("2 MB");
     expect(wrapper.find('[role="status"]').exists()).toBe(false);
+  });
+
+  it("shows a submitted artifact's kept version read-only in its tab", async () => {
+    const text = (value: string) =>
+      Promise.resolve({
+        kind: "text" as const,
+        text: value,
+        encoding: "UTF-8",
+        ...info,
+      });
+    const readPresented = vi.fn(() => text("old"));
+    const wrapper = render(() => text("new"), readPresented);
+    const version = {
+      ref: { kind: "submission" as const, toolCallId: "submit-1" },
+      time: 1,
+      size: 3,
+      state: "available" as const,
+      current: false,
+    };
+    Object.assign(window.pine, {
+      openArtifactVersion: vi.fn((request: unknown) => {
+        structuredClone(request);
+        return Promise.resolve({
+          source: "presented",
+          path: "/data/tmp/main.py",
+        });
+      }),
+    });
+    expect(wrapper.find('[data-testid="artifact-version-menu"]').exists()).toBe(
+      false,
+    );
+    const tabs = useContentTabsStore();
+    tabs.tabs.push(file);
+    tabs.presentFile(
+      { ...fileRequest, source: "project" },
+      "p1",
+      undefined,
+      undefined,
+      {
+        sessionId: "s1",
+        path: "/project/src/main.py",
+      },
+    );
+    await flushPromises();
+    expect(wrapper.find('[data-testid="artifact-version-menu"]').exists()).toBe(
+      true,
+    );
+    expect(wrapper.find('[data-action="send-to-tab"]').exists()).toBe(true);
+
+    await useArtifactVersionStore().show("tab:file-1", version);
+    await flushPromises();
+
+    expect(readPresented).toHaveBeenCalledWith({ path: "/data/tmp/main.py" });
+    expect(wrapper.find('[data-testid="artifact-version-bar"]').exists()).toBe(
+      true,
+    );
+    expect(wrapper.find('[data-action="send-to-tab"]').exists()).toBe(false);
   });
 });

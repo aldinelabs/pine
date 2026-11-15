@@ -946,7 +946,11 @@ export default {
         preview: "Preview in workbench",
         versions: {
           menu: "Version history",
-          title: "Version history",
+          currentFile: "Current file",
+          openFailed: "Couldn’t open this version",
+          viewing: "Version from {time}",
+          backToCurrent: "Back to current file",
+          count: "{count} versions kept",
           loadFailed: "Couldn’t load the version history",
           empty:
             "No versions were kept for this file. Versions are kept from the next time Pine submits it.",
@@ -957,8 +961,6 @@ export default {
           failed: "Not kept",
           compare: "Compare with current",
           compareFailed: "Couldn’t compare this version",
-          back: "Back",
-          comparing: "Changes from {time} to the current file",
           identical: "This version is the same as the current file.",
           binary: "This file can’t be compared as text.",
           missing: "The file no longer exists at this path.",

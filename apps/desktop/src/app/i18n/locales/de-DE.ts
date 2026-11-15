@@ -968,7 +968,11 @@ export default {
         preview: "Im Arbeitsbereich ansehen",
         versions: {
           menu: "Versionsverlauf",
-          title: "Versionsverlauf",
+          currentFile: "Aktuelle Datei",
+          openFailed: "Diese Version konnte nicht geöffnet werden",
+          viewing: "Version vom {time}",
+          backToCurrent: "Zurück zur aktuellen Datei",
+          count: "{count} Versionen gespeichert",
           loadFailed: "Der Versionsverlauf konnte nicht geladen werden",
           empty:
             "Für diese Datei wurden keine Versionen gespeichert. Versionen werden ab der nächsten Einreichung durch Pine gespeichert.",
@@ -979,8 +983,6 @@ export default {
           failed: "Nicht gespeichert",
           compare: "Mit aktueller Datei vergleichen",
           compareFailed: "Diese Version konnte nicht verglichen werden",
-          back: "Zurück",
-          comparing: "Änderungen von {time} bis zur aktuellen Datei",
           identical: "Diese Version entspricht der aktuellen Datei.",
           binary: "Diese Datei kann nicht als Text verglichen werden.",
           missing: "Unter diesem Pfad gibt es die Datei nicht mehr.",

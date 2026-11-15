@@ -963,7 +963,11 @@ export default {
         preview: "Previsualizar en el panel de trabajo",
         versions: {
           menu: "Historial de versiones",
-          title: "Historial de versiones",
+          currentFile: "Archivo actual",
+          openFailed: "No se pudo abrir esta versión",
+          viewing: "Versión del {time}",
+          backToCurrent: "Volver al archivo actual",
+          count: "{count} versiones guardadas",
           loadFailed: "No se pudo cargar el historial de versiones",
           empty:
             "No se guardaron versiones de este archivo. Se guardarán a partir de la próxima vez que Pine lo entregue.",
@@ -974,8 +978,6 @@ export default {
           failed: "No guardada",
           compare: "Comparar con el actual",
           compareFailed: "No se pudo comparar esta versión",
-          back: "Volver",
-          comparing: "Cambios desde {time} hasta el archivo actual",
           identical: "Esta versión es igual al archivo actual.",
           binary: "Este archivo no se puede comparar como texto.",
           missing: "El archivo ya no existe en esta ruta.",

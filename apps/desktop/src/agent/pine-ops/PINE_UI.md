@@ -542,19 +542,15 @@ close the card. The panels are:
   presents (to show progress or comparisons) are not listed. Conversations
   from before this feature list the files the agent presented.
   Each submission keeps a copy of the file (files up to 25 MB; up to 1 GB
-  of copies per project, the oldest removed first). Right-click a submitted
-  file › Version history lists its versions, newest first, with time and
-  size, a "Current" badge on the one matching the file on disk, and a note
-  when the file changed since its last submission or no longer exists.
-  Each kept version has Preview in workbench (opens that copy read-only),
-  Compare with current (a line diff for text files up to 1 MB) and Restore
-  (asks first; only for files in a read-write project folder). Restoring
-  first keeps the current file as a "Before restore" version, so it can be
-  undone. Versions removed to save space, too large to keep or not kept are
-  listed without actions. Deleting a conversation deletes its versions.
+  of copies per project, the oldest removed first); a file with more than
+  one kept version shows a clock badge with the number of versions.
+  Right-click a submitted file › Version history previews it with the
+  Version history menu open (see Preview). Deleting a conversation deletes
+  its versions.
 - Background processes: processes started by the agent, with their output.
 - Preview: the file last presented by the agent or picked from Artifacts;
-  Open in tab.
+  Open in tab. For a submitted file, the header also has Version history (a
+  clock button; see Artifact versions below).
 - Files: the project's file tree, with its folders and access levels.
 - Details and Comments: shown only while a file tab is in front, in place of
   the session's cards (see File tab); they have no panel switcher or Add
@@ -568,6 +564,26 @@ close the card. The panels are:
   one message.
 
 The footer shows Pine's version.
+
+#### Artifact versions
+
+The Version history menu (in the Preview card's header, and in the footer of
+a file tab opened from Artifacts or from the Preview card's Open in tab)
+lists Current file, then the kept versions newest first, each with its time,
+the agent's title (or "Before restore"), its size and a "Current" badge on
+the one matching the file on disk. A note says when the file changed since
+its last submission or no longer exists. Versions removed to save space, too
+large to keep or not kept are listed but cannot be picked.
+
+Picking a version shows that copy read-only in the same preview, with a bar
+on top: "Version from …", Compare with current (shows the line changes from
+that version to the current file in place of the preview; text files up to
+1 MB; press again to go back to the preview), Restore (asks first; only for
+files in a read-write project folder) and an X for Back to current file.
+Restoring first keeps the current file as a "Before restore" version, so it
+can be undone, then shows the file as restored. While a file tab shows a
+version, comments, Open with default application and Send to tab are hidden.
+Picking another file in the Preview card returns it to the current file.
 
 When the agent opens a card, or presents a file in the Preview card, that
 card pulses in yellow until the user hovers or focuses it. A file the agent

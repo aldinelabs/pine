@@ -105,6 +105,14 @@ import ProjectPreviewAnnotationMenu from "./ProjectPreviewAnnotationMenu.vue";
 import ProjectPreviewAnnotationOverlay from "./ProjectPreviewAnnotationOverlay.vue";
 import ProjectPreviewAnnotationPanel from "./ProjectPreviewAnnotationPanel.vue";
 import ProjectPreviewDetails from "./ProjectPreviewDetails.vue";
+import ArtifactVersionBar from "@/components/artifact-versions/ArtifactVersionBar.vue";
+import ArtifactVersionDiff from "@/components/artifact-versions/ArtifactVersionDiff.vue";
+import ArtifactVersionMenu from "@/components/artifact-versions/ArtifactVersionMenu.vue";
+import {
+  tabVersionKey,
+  useArtifactVersionStore,
+  type ArtifactVersionSource,
+} from "@/stores/artifactVersions";
 
 const props = withDefaults(
   defineProps<{ file: FileContentTab; active?: boolean }>(),
@@ -375,7 +383,38 @@ async function openWithDefaultApplication(): Promise<void> {
 }
 
 const watchId = useId();
+// A tab opened from a submitted artifact can show its kept versions in place
+// of the file: read-only, without comments or sending.
+const versions = useArtifactVersionStore();
+const versionViewKey = computed(() => tabVersionKey(props.file.id));
+const versionSource = computed<ArtifactVersionSource | undefined>(() => {
+  const artifact = tabsStore.artifactOfTab(props.file.id);
+  return artifact
+    ? { projectId: props.file.projectId, ...artifact }
+    : undefined;
+});
+watch(
+  [versionViewKey, versionSource],
+  ([key, source], previous) => {
+    const previousKey = previous?.[0];
+    if (previousKey && previousKey !== key)
+      versions.bind(previousKey, undefined);
+    versions.bind(key, source);
+  },
+  { immediate: true },
+);
+onBeforeUnmount(() => versions.bind(versionViewKey.value, undefined));
+const versionView = computed(() => versions.viewOf(versionViewKey.value));
+const viewingVersion = computed(() => !!versionView.value?.viewing);
+/** A kept version is shown, and its copy is still being written out. */
+const versionLoading = computed(
+  () => viewingVersion.value && !versionView.value?.target,
+);
+
 const previewTarget = computed<FilePreviewTarget>(() => {
+  const version = versionView.value?.target;
+  if (viewingVersion.value && version?.source === "presented")
+    return { source: "presented", path: version.path };
   const file = props.file;
   return file.source === "project"
     ? {
@@ -516,6 +555,7 @@ const canAnnotate = computed(
   () =>
     Boolean(projectTarget.value) &&
     !failed.value &&
+    !viewingVersion.value &&
     Boolean(
       capabilities.value.annotate ||
       capabilities.value.annotateRegions ||
@@ -842,137 +882,152 @@ function clearAnnotations(): void {
   >
     <div class="flex min-h-0 flex-1">
       <div class="flex min-h-0 min-w-0 flex-1 flex-col">
-        <Empty v-if="failed" class="flex-1" role="alert">
-          <EmptyHeader>
-            <EmptyMedia variant="icon"><FileWarning /></EmptyMedia>
-            <EmptyTitle>{{ t("project.preview.failedTitle") }}</EmptyTitle>
-            <EmptyDescription>{{
-              t("project.preview.failedDescription")
-            }}</EmptyDescription>
-          </EmptyHeader>
-          <EmptyContent
-            ><Button variant="outline" @click="revision += 1">{{
-              t("project.preview.retry")
-            }}</Button></EmptyContent
-          >
-        </Empty>
-        <div
-          v-else-if="!preview"
-          class="flex flex-1 flex-col gap-3 p-6"
-          role="status"
-          :aria-label="t('project.files.loading')"
-        >
-          <Skeleton class="h-4 w-3/4" /><Skeleton class="h-4 w-1/2" /><Skeleton
-            class="h-4 w-2/3"
-          />
-        </div>
-        <Empty
-          v-else-if="preview.kind === 'unsupported' || !renderer"
-          class="flex-1"
-        >
-          <EmptyHeader>
-            <EmptyMedia variant="icon"><FileQuestion /></EmptyMedia>
-            <EmptyTitle>{{ t("project.preview.unsupportedTitle") }}</EmptyTitle>
-            <EmptyDescription>{{
-              t(
-                preview.kind === "unsupported" && preview.reason === "too-large"
-                  ? "project.preview.tooLarge"
-                  : preview.kind === "unsupported" &&
-                      preview.reason === "document-too-large"
-                    ? "project.preview.documentTooLarge"
-                    : "project.preview.unsupportedDescription",
-              )
-            }}</EmptyDescription>
-          </EmptyHeader>
-        </Empty>
-        <div
-          v-show="toolbarVisible && !failed"
-          role="toolbar"
-          :aria-label="t('project.preview.documentControls')"
-          class="flex min-h-10 shrink-0 items-center gap-2 px-3 pb-1"
-        >
+        <ArtifactVersionBar
+          v-if="versionSource"
+          :view-key="versionViewKey"
+          :name="fileName"
+        />
+        <template v-if="!versionView?.comparing">
+          <Empty v-if="failed" class="flex-1" role="alert">
+            <EmptyHeader>
+              <EmptyMedia variant="icon"><FileWarning /></EmptyMedia>
+              <EmptyTitle>{{ t("project.preview.failedTitle") }}</EmptyTitle>
+              <EmptyDescription>{{
+                t("project.preview.failedDescription")
+              }}</EmptyDescription>
+            </EmptyHeader>
+            <EmptyContent
+              ><Button variant="outline" @click="revision += 1">{{
+                t("project.preview.retry")
+              }}</Button></EmptyContent
+            >
+          </Empty>
           <div
-            ref="toolbar"
-            data-slot="preview-toolbar-start"
-            class="flex min-w-0 flex-1 items-center gap-2"
-          />
-          <Button
-            v-if="capabilities.fitWidth"
-            variant="ghost"
-            size="sm"
-            @click="rendererInstance?.fitWidth?.()"
+            v-else-if="!preview || versionLoading"
+            class="flex flex-1 flex-col gap-3 p-6"
+            role="status"
+            :aria-label="t('project.files.loading')"
           >
-            <MoveHorizontal data-icon="inline-start" />
-            {{ t("project.preview.fitWidth") }}
-          </Button>
-          <div
-            v-if="capabilities.zoom"
-            class="flex items-center gap-2 text-sm text-muted-foreground"
-          >
-            <Slider
-              v-model="previewZoom"
-              class="w-20"
-              :min="zoomMin"
-              :max="zoomMax"
-              :step="10"
-              :aria-label="t('project.preview.zoom')"
-              :title="t('project.preview.zoomValue', { value: zoom })"
-              @value-commit="commitZoom"
-            />
-            <span class="w-10 text-right tabular-nums">{{ zoom }}%</span>
+            <Skeleton class="h-4 w-3/4" /><Skeleton
+              class="h-4 w-1/2"
+            /><Skeleton class="h-4 w-2/3" />
           </div>
-        </div>
-        <div
-          v-if="
-            preview && preview.kind !== 'unsupported' && renderer && !failed
-          "
-          class="flex min-h-0 flex-1"
-        >
-          <div
-            ref="rendererHost"
-            class="relative flex min-h-0 min-w-0 flex-1 flex-col"
+          <Empty
+            v-else-if="preview.kind === 'unsupported' || !renderer"
+            class="flex-1"
           >
-            <component
-              :is="renderer.component"
-              ref="renderer"
-              :key="previewRendererKey(previewKey, renderer, preview)"
-              class="min-h-0 flex-1"
-              :preview="preview"
-              :file-name="fileName"
-              :file-path="filePath"
-              :active="active"
-              :mode="viewMode"
-              :reveal="reveal"
-              :zoom="appliedZoom"
-              :inverted="previewInverted"
-              :selection-label="t('project.preview.selectedContent')"
-              @failed="failed = true"
-              @metadata-change="handleMetadataChange"
-              @capabilities-change="handleCapabilitiesChange"
-              @zoom-change="handleZoomChange"
-              @selection-change="handleSelectionChange"
-              @zoom-wheel="handlePreviewWheel"
-              @annotations-change="refreshAnnotations"
+            <EmptyHeader>
+              <EmptyMedia variant="icon"><FileQuestion /></EmptyMedia>
+              <EmptyTitle>{{
+                t("project.preview.unsupportedTitle")
+              }}</EmptyTitle>
+              <EmptyDescription>{{
+                t(
+                  preview.kind === "unsupported" &&
+                    preview.reason === "too-large"
+                    ? "project.preview.tooLarge"
+                    : preview.kind === "unsupported" &&
+                        preview.reason === "document-too-large"
+                      ? "project.preview.documentTooLarge"
+                      : "project.preview.unsupportedDescription",
+                )
+              }}</EmptyDescription>
+            </EmptyHeader>
+          </Empty>
+          <div
+            v-show="toolbarVisible && !failed"
+            role="toolbar"
+            :aria-label="t('project.preview.documentControls')"
+            class="flex min-h-10 shrink-0 items-center gap-2 px-3 pb-1"
+          >
+            <div
+              ref="toolbar"
+              data-slot="preview-toolbar-start"
+              class="flex min-w-0 flex-1 items-center gap-2"
             />
-            <ProjectPreviewAnnotationOverlay
-              v-if="
-                canAnnotate &&
-                (capabilities.annotateRegions || capabilities.annotateCells)
-              "
-              ref="annotationOverlay"
-              :container="rendererHost"
-              :annotations="annotations"
-              :active-id="activeAnnotationId"
-              :draft="shapeDraft?.shape"
-              :drawing="drawingRegion"
-              :targets="annotationTargets"
-              :cell-rects="annotationCellRects"
-              @select="openAnnotation"
-              @drawn="composeRegion"
-              @cancel-drawing="drawingRegion = false"
-            />
+            <Button
+              v-if="capabilities.fitWidth"
+              variant="ghost"
+              size="sm"
+              @click="rendererInstance?.fitWidth?.()"
+            >
+              <MoveHorizontal data-icon="inline-start" />
+              {{ t("project.preview.fitWidth") }}
+            </Button>
+            <div
+              v-if="capabilities.zoom"
+              class="flex items-center gap-2 text-sm text-muted-foreground"
+            >
+              <Slider
+                v-model="previewZoom"
+                class="w-20"
+                :min="zoomMin"
+                :max="zoomMax"
+                :step="10"
+                :aria-label="t('project.preview.zoom')"
+                :title="t('project.preview.zoomValue', { value: zoom })"
+                @value-commit="commitZoom"
+              />
+              <span class="w-10 text-right tabular-nums">{{ zoom }}%</span>
+            </div>
           </div>
-        </div>
+          <div
+            v-if="
+              preview &&
+              preview.kind !== 'unsupported' &&
+              renderer &&
+              !failed &&
+              !versionLoading
+            "
+            class="flex min-h-0 flex-1"
+          >
+            <div
+              ref="rendererHost"
+              class="relative flex min-h-0 min-w-0 flex-1 flex-col"
+            >
+              <component
+                :is="renderer.component"
+                ref="renderer"
+                :key="previewRendererKey(previewKey, renderer, preview)"
+                class="min-h-0 flex-1"
+                :preview="preview"
+                :file-name="fileName"
+                :file-path="filePath"
+                :active="active"
+                :mode="viewMode"
+                :reveal="reveal"
+                :zoom="appliedZoom"
+                :inverted="previewInverted"
+                :selection-label="t('project.preview.selectedContent')"
+                @failed="failed = true"
+                @metadata-change="handleMetadataChange"
+                @capabilities-change="handleCapabilitiesChange"
+                @zoom-change="handleZoomChange"
+                @selection-change="handleSelectionChange"
+                @zoom-wheel="handlePreviewWheel"
+                @annotations-change="refreshAnnotations"
+              />
+              <ProjectPreviewAnnotationOverlay
+                v-if="
+                  canAnnotate &&
+                  (capabilities.annotateRegions || capabilities.annotateCells)
+                "
+                ref="annotationOverlay"
+                :container="rendererHost"
+                :annotations="annotations"
+                :active-id="activeAnnotationId"
+                :draft="shapeDraft?.shape"
+                :drawing="drawingRegion"
+                :targets="annotationTargets"
+                :cell-rects="annotationCellRects"
+                @select="openAnnotation"
+                @drawn="composeRegion"
+                @cancel-drawing="drawingRegion = false"
+              />
+            </div>
+          </div>
+        </template>
+        <ArtifactVersionDiff v-else :diff="versionView?.diff" />
       </div>
       <!-- The file's details and comments, in the cards of Pine's right
            sidebar while this tab is in front. -->
@@ -1063,6 +1118,11 @@ function clearAnnotations(): void {
           <SquareDashedMousePointer data-icon="inline-start" />
           {{ t("project.preview.annotations.commentOnArea") }}
         </Button>
+        <ArtifactVersionMenu
+          v-if="versionSource"
+          :view-key="versionViewKey"
+          labelled
+        />
         <!-- Opens the sidebar: the file's details, and its comments where
              it can have them. -->
         <Button
@@ -1091,7 +1151,7 @@ function clearAnnotations(): void {
           }}</Badge>
         </Button>
         <Button
-          v-if="preview"
+          v-if="preview && !viewingVersion"
           data-action="open-default"
           variant="ghost"
           size="sm"
@@ -1102,7 +1162,7 @@ function clearAnnotations(): void {
           {{ t(isWeb ? "common.downloadFile" : "project.preview.openDefault") }}
         </Button>
         <DropdownMenu
-          v-if="projectTarget"
+          v-if="projectTarget && !viewingVersion"
           :open="menuOpen"
           @update:open="updateMenu"
         >

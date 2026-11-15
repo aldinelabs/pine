@@ -35,6 +35,12 @@ export type FileContentTab = {
   reveal?: FileReveal;
 } & FilePreviewTarget;
 
+/** A submitted artifact: the session that submitted it and the path it recorded. */
+export interface TabArtifact {
+  sessionId: string;
+  path: string;
+}
+
 export interface DraftSessionTab {
   id: string;
   kind: "session";
@@ -138,6 +144,11 @@ export const useContentTabsStore = defineStore("content-tabs", () => {
   const presentedTargets = reactive(new Map<string, FilePreviewTarget>());
   /** Presentation or artifact keys whose file was trashed from the artifacts list. */
   const removedPresentations = reactive(new Set<string>());
+  /**
+   * The submitted artifact a file tab was opened from, so the tab can show
+   * its kept versions. Not saved: a restored tab opens as a plain file.
+   */
+  const tabArtifacts = reactive(new Map<string, TabArtifact>());
   const composerAttachments = ref<Record<string, PineAttachment[]>>({});
   /** Quotes and preview comments staged in each session tab's composer. */
   const composerQuotes = ref<Record<string, PineQuote[]>>({});
@@ -336,9 +347,15 @@ export const useContentTabsStore = defineStore("content-tabs", () => {
     projectId: string,
     toolCallId?: string,
     reveal?: FileReveal,
+    artifact?: TabArtifact,
   ): FileContentTab {
     if (toolCallId) presentedTargets.set(toolCallId, target);
     const tab = ensureFileTab(target, projectId);
+    if (artifact)
+      tabArtifacts.set(tab.id, {
+        sessionId: artifact.sessionId,
+        path: artifact.path,
+      });
     const location = parseFileReveal(reveal);
     if (location) tab.reveal = location;
     else delete tab.reveal;
@@ -351,6 +368,10 @@ export const useContentTabsStore = defineStore("content-tabs", () => {
     target: FilePreviewTarget,
   ): void {
     presentedTargets.set(toolCallId, target);
+  }
+
+  function artifactOfTab(tabId: string): TabArtifact | undefined {
+    return tabArtifacts.get(tabId);
   }
 
   function presentedTargetFor(
@@ -778,6 +799,7 @@ export const useContentTabsStore = defineStore("content-tabs", () => {
     mutatorsFor,
     openFile,
     openSession,
+    artifactOfTab,
     presentFile,
     presentedTargetFor,
     previewTabId,

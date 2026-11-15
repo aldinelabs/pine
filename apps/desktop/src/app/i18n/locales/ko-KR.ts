@@ -938,7 +938,11 @@ export default {
         preview: "작업대에서 미리보기",
         versions: {
           menu: "버전 기록",
-          title: "버전 기록",
+          currentFile: "현재 파일",
+          openFailed: "이 버전을 열 수 없음",
+          viewing: "{time} 버전",
+          backToCurrent: "현재 파일로 돌아가기",
+          count: "보관된 버전 {count}개",
           loadFailed: "버전 기록을 불러올 수 없습니다",
           empty:
             "이 파일에 저장된 버전이 없습니다. Pine이 다음에 제출할 때부터 저장됩니다.",
@@ -949,8 +953,6 @@ export default {
           failed: "저장되지 않음",
           compare: "현재 파일과 비교",
           compareFailed: "이 버전을 비교할 수 없습니다",
-          back: "뒤로",
-          comparing: "{time}부터 현재 파일까지의 변경 사항",
           identical: "이 버전은 현재 파일과 같습니다.",
           binary: "이 파일은 텍스트로 비교할 수 없습니다.",
           missing: "이 경로에 파일이 더 이상 없습니다.",

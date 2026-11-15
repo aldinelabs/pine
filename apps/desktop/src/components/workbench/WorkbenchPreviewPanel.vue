@@ -30,6 +30,10 @@ import { useContentTabsStore } from "@/stores/contentTabs";
 import { useProjectStore } from "@/stores/project";
 import { useSessionStore } from "@/stores/session";
 import { useWorkbenchStore } from "@/stores/workbench";
+import { useArtifactVersionStore } from "@/stores/artifactVersions";
+import { useWorkbenchArtifactVersions } from "@/composables/useWorkbenchArtifactVersions";
+import ArtifactVersionBar from "@/components/artifact-versions/ArtifactVersionBar.vue";
+import ArtifactVersionDiff from "@/components/artifact-versions/ArtifactVersionDiff.vue";
 
 /**
  * A compact variant of the file preview: the rendered view at its natural
@@ -48,12 +52,35 @@ const projectStore = useProjectStore();
 const appearance = useAppearanceStore();
 
 const current = computed(() => workbench.activeLayout.preview);
+const versions = useArtifactVersionStore();
+const {
+  key: versionViewKey,
+  source: versionSource,
+  view: versionView,
+} = useWorkbenchArtifactVersions();
+watch(
+  [versionViewKey, versionSource],
+  ([key, source]) => {
+    if (key) versions.bind(key, source);
+  },
+  { immediate: true },
+);
+// Another file, or the same one picked again, shows as it is now.
+watch(current, () => {
+  if (versionViewKey.value) versions.showCurrent(versionViewKey.value);
+});
+/** A kept version is shown, and its copy is still being written out. */
+const versionLoading = computed(
+  () => !!versionView.value?.viewing && !versionView.value.target,
+);
 /**
- * A plain copy of the stored target: the store's reactive proxy cannot cross
- * Electron's IPC, which structured-clones every argument.
+ * A plain copy of the stored target, or of the kept version shown in its
+ * place: the stores' reactive proxies cannot cross Electron's IPC, which
+ * structured-clones every argument.
  */
 const target = computed<FilePreviewTarget | null>(() => {
-  const stored = current.value?.target;
+  const view = versionView.value;
+  const stored = view?.viewing ? view.target : current.value?.target;
   if (!stored) return null;
   return stored.source === "project"
     ? {
@@ -132,7 +159,12 @@ async function regrant(): Promise<boolean> {
   const toolCallId = current.value?.toolCallId;
   const artifactPath = current.value?.artifactPath;
   const sessionId = sessionStore.activeSession?.id;
-  if (target.value?.source !== "presented" || !toolCallId || !sessionId)
+  if (
+    target.value?.source !== "presented" ||
+    !toolCallId ||
+    !sessionId ||
+    versionView.value?.viewing
+  )
     return false;
   const next = await window.pine
     .reopenPresentedToolFile({
@@ -249,7 +281,17 @@ watch(
     data-slot="workbench-preview"
     class="flex h-full min-h-0 flex-col"
   >
-    <Empty v-if="!target" class="flex-1 border-0">
+    <ArtifactVersionBar
+      v-if="versionViewKey"
+      :view-key="versionViewKey"
+      :name="fileName"
+      compact
+    />
+    <ArtifactVersionDiff
+      v-if="versionView?.viewing && versionView.comparing"
+      :diff="versionView.diff"
+    />
+    <Empty v-else-if="!target && !versionLoading" class="flex-1 border-0">
       <EmptyHeader>
         <EmptyMedia variant="icon">
           <EyeIcon aria-hidden="true" />

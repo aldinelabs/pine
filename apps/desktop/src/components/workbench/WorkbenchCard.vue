@@ -29,6 +29,8 @@ import { useWorkbenchStore } from "@/stores/workbench";
 import WorkbenchArtifactsPanel from "./WorkbenchArtifactsPanel.vue";
 import WorkbenchFilesPanel from "./WorkbenchFilesPanel.vue";
 import WorkbenchPreviewPanel from "./WorkbenchPreviewPanel.vue";
+import ArtifactVersionMenu from "@/components/artifact-versions/ArtifactVersionMenu.vue";
+import { useWorkbenchArtifactVersions } from "@/composables/useWorkbenchArtifactVersions";
 
 const props = defineProps<{
   panel: WorkbenchPanel;
@@ -56,6 +58,7 @@ const contentTabs = useContentTabsStore();
 const projectStore = useProjectStore();
 const navigation = useContentTabNavigation();
 const previewTarget = computed(() => workbench.activeLayout.preview?.target);
+const { key: versionViewKey } = useWorkbenchArtifactVersions();
 
 /** The full previewer, with zoom, selection, and file actions. */
 function openPreviewInTab(): void {
@@ -73,6 +76,9 @@ function openPreviewInTab(): void {
         ? artifactKey(preview.toolCallId, preview.artifactPath)
         : undefined,
       preview.reveal,
+      sessionId && preview.artifactPath
+        ? { sessionId, path: preview.artifactPath }
+        : undefined,
     ).id,
   );
   // The file now lives in its tab; the card goes back to waiting for one.
@@ -134,6 +140,10 @@ const summary = computed(() => {
         {{ summary }}
       </span>
       <div class="flex shrink-0 items-center">
+        <ArtifactVersionMenu
+          v-if="panel === 'preview' && versionViewKey"
+          :view-key="versionViewKey"
+        />
         <Button
           v-if="panel === 'preview' && previewTarget"
           variant="ghost"

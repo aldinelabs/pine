@@ -956,7 +956,11 @@ export default {
         preview: "ワークベンチでプレビュー",
         versions: {
           menu: "バージョン履歴",
-          title: "バージョン履歴",
+          currentFile: "現在のファイル",
+          openFailed: "このバージョンを開けません",
+          viewing: "{time} のバージョン",
+          backToCurrent: "現在のファイルに戻る",
+          count: "保存済みのバージョン: {count}",
           loadFailed: "バージョン履歴を読み込めませんでした",
           empty:
             "このファイルの保存済みバージョンはありません。次に Pine が提出したときから保存されます。",
@@ -967,8 +971,6 @@ export default {
           failed: "未保存",
           compare: "現在のファイルと比較",
           compareFailed: "このバージョンを比較できませんでした",
-          back: "戻る",
-          comparing: "{time} から現在のファイルまでの変更",
           identical: "このバージョンは現在のファイルと同じです。",
           binary: "このファイルはテキストとして比較できません。",
           missing: "このパスにファイルが存在しません。",

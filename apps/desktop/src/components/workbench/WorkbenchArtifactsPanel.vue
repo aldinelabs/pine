@@ -51,10 +51,10 @@ import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import {
   SidebarMenu,
+  SidebarMenuBadge,
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
-import ArtifactVersionsDialog from "@/components/workbench/ArtifactVersionsDialog.vue";
 import { useContentTabNavigation } from "@/composables/useContentTabNavigation";
 import { useProjectFileChanges } from "@/composables/useProjectFileChanges";
 import { fileIcon } from "@/lib/fileIcon";
@@ -74,6 +74,10 @@ import {
 } from "@/shared/artifacts";
 import { isValidProjectEntryName } from "@/shared/fileNames";
 import type { FilePreviewTarget } from "@/shared/projectFiles";
+import {
+  useArtifactVersionStore,
+  workbenchVersionKey,
+} from "@/stores/artifactVersions";
 import { useContentTabsStore } from "@/stores/contentTabs";
 import { useProjectStore } from "@/stores/project";
 import { useSessionStore, type PineTranscriptMessage } from "@/stores/session";
@@ -230,7 +234,15 @@ function show(artifact: Artifact): Promise<void> {
 function openInTab(artifact: Artifact): Promise<void> {
   return withTarget(artifact, (target) => {
     navigation.activate(
-      contentTabs.presentFile(target, sessionProjectId(), artifact.key).id,
+      contentTabs.presentFile(
+        target,
+        sessionProjectId(),
+        artifact.key,
+        undefined,
+        artifact.submitted && activeSession.value
+          ? { sessionId: activeSession.value.id, path: artifact.path }
+          : undefined,
+      ).id,
     );
     if (isPreviewed(artifact)) workbench.clearPreview();
   });
@@ -243,16 +255,34 @@ function runNative(
   return withTarget(artifact, (target) => operateFileTarget(target, action));
 }
 
-/** The artifact whose version history is open. */
-const versionsOf = ref<Artifact>();
+const versions = useArtifactVersionStore();
 
-function showVersions(artifact: Artifact): void {
-  if (!artifact.submitted || !activeSession.value) return;
-  versionsOf.value = artifact;
+/** Kept versions per submitted path: its submissions that recorded a copy. */
+const versionCounts = computed(() => {
+  const counts = new Map<string, number>();
+  for (const message of messages.value)
+    for (const artifact of messageArtifacts(message).submitted)
+      if (artifact.snapshot)
+        counts.set(artifact.path, (counts.get(artifact.path) ?? 0) + 1);
+  return counts;
+});
+
+function versionCount(artifact: Artifact): number {
+  return artifact.submitted ? (versionCounts.value.get(artifact.path) ?? 0) : 0;
 }
 
-function previewVersion(target: FilePreviewTarget): void {
-  workbench.preview({ target });
+/** Previews the file with its version menu open. */
+async function showVersions(artifact: Artifact): Promise<void> {
+  const session = activeSession.value;
+  if (!artifact.submitted || !session) return;
+  await show(artifact);
+  const key = workbenchVersionKey(session.id);
+  versions.bind(key, {
+    projectId: sessionProjectId(),
+    sessionId: session.id,
+    path: artifact.path,
+  });
+  versions.requestMenu(key);
 }
 
 // Changing a file (rename, trash) only applies inside a writable project
@@ -387,6 +417,7 @@ async function submitDialog(): Promise<void> {
             <SidebarMenuButton
               :is-active="isPreviewed(artifact)"
               :size="artifact.description ? 'lg' : 'default'"
+              :class="versionCount(artifact) > 1 && 'pr-12'"
               :title="
                 artifact.description
                   ? `${displayPath(artifact)}\n${artifact.description}`
@@ -474,25 +505,22 @@ async function submitDialog(): Promise<void> {
             </ContextMenuGroup>
           </ContextMenuContent>
         </ContextMenu>
+        <SidebarMenuBadge
+          v-if="versionCount(artifact) > 1"
+          data-testid="workbench-artifact-version-count"
+          class="gap-0.5 text-muted-foreground"
+        >
+          <HistoryIcon class="size-3" aria-hidden="true" />
+          <span aria-hidden="true">{{ versionCount(artifact) }}</span>
+          <span class="sr-only">{{
+            t("project.workbench.artifacts.versions.count", {
+              count: versionCount(artifact),
+            })
+          }}</span>
+        </SidebarMenuBadge>
       </SidebarMenuItem>
     </SidebarMenu>
   </div>
-
-  <ArtifactVersionsDialog
-    v-if="versionsOf && activeSession"
-    :open="!!versionsOf"
-    :project-id="sessionProjectId()"
-    :session-id="activeSession.id"
-    :path="versionsOf.path"
-    :name="versionsOf.title ?? fileName(displayPath(versionsOf))"
-    @update:open="
-      (open) => {
-        if (!open) versionsOf = undefined;
-      }
-    "
-    @preview="previewVersion"
-    @restored="emitProjectFilesChanged()"
-  />
 
   <Dialog
     :open="dialog?.mode === 'rename'"
