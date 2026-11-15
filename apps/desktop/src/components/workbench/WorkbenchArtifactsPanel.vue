@@ -6,6 +6,7 @@ import {
   EyeIcon,
   FilesIcon,
   FolderOpenIcon,
+  HistoryIcon,
   PencilIcon,
   Trash2Icon,
 } from "@lucide/vue";
@@ -53,6 +54,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
+import ArtifactVersionsDialog from "@/components/workbench/ArtifactVersionsDialog.vue";
 import { useContentTabNavigation } from "@/composables/useContentTabNavigation";
 import { useProjectFileChanges } from "@/composables/useProjectFileChanges";
 import { fileIcon } from "@/lib/fileIcon";
@@ -241,6 +243,18 @@ function runNative(
   return withTarget(artifact, (target) => operateFileTarget(target, action));
 }
 
+/** The artifact whose version history is open. */
+const versionsOf = ref<Artifact>();
+
+function showVersions(artifact: Artifact): void {
+  if (!artifact.submitted || !activeSession.value) return;
+  versionsOf.value = artifact;
+}
+
+function previewVersion(target: FilePreviewTarget): void {
+  workbench.preview({ target });
+}
+
 // Changing a file (rename, trash) only applies inside a writable project
 // folder. A file presented from outside the project stays read-only.
 const menuTarget = ref<{ key: string; target: ProjectTarget | null }>();
@@ -416,6 +430,14 @@ async function submitDialog(): Promise<void> {
                 <AppWindowIcon aria-hidden="true" />
                 {{ t("project.workbench.preview.openInTab") }}
               </ContextMenuItem>
+              <ContextMenuItem
+                v-if="artifact.submitted"
+                data-testid="workbench-artifact-versions"
+                @select="showVersions(artifact)"
+              >
+                <HistoryIcon aria-hidden="true" />
+                {{ t("project.workbench.artifacts.versions.menu") }}
+              </ContextMenuItem>
             </ContextMenuGroup>
             <ContextMenuSeparator />
             <ContextMenuGroup>
@@ -455,6 +477,22 @@ async function submitDialog(): Promise<void> {
       </SidebarMenuItem>
     </SidebarMenu>
   </div>
+
+  <ArtifactVersionsDialog
+    v-if="versionsOf && activeSession"
+    :open="!!versionsOf"
+    :project-id="sessionProjectId()"
+    :session-id="activeSession.id"
+    :path="versionsOf.path"
+    :name="versionsOf.title ?? fileName(displayPath(versionsOf))"
+    @update:open="
+      (open) => {
+        if (!open) versionsOf = undefined;
+      }
+    "
+    @preview="previewVersion"
+    @restored="emitProjectFilesChanged()"
+  />
 
   <Dialog
     :open="dialog?.mode === 'rename'"

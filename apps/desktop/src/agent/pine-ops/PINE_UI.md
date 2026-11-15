@@ -541,6 +541,17 @@ close the card. The panels are:
   description when given); Preview in workbench. Files the agent only
   presents (to show progress or comparisons) are not listed. Conversations
   from before this feature list the files the agent presented.
+  Each submission keeps a copy of the file (files up to 25 MB; up to 1 GB
+  of copies per project, the oldest removed first). Right-click a submitted
+  file › Version history lists its versions, newest first, with time and
+  size, a "Current" badge on the one matching the file on disk, and a note
+  when the file changed since its last submission or no longer exists.
+  Each kept version has Preview in workbench (opens that copy read-only),
+  Compare with current (a line diff for text files up to 1 MB) and Restore
+  (asks first; only for files in a read-write project folder). Restoring
+  first keeps the current file as a "Before restore" version, so it can be
+  undone. Versions removed to save space, too large to keep or not kept are
+  listed without actions. Deleting a conversation deletes its versions.
 - Background processes: processes started by the agent, with their output.
 - Preview: the file last presented by the agent or picked from Artifacts;
   Open in tab.

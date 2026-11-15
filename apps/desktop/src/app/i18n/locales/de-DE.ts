@@ -966,6 +966,35 @@ export default {
           "Dateien, die Pine in dieser Unterhaltung als Ergebnis einreicht, erscheinen hier.",
         openFailed: "Diese Datei konnte nicht geöffnet werden",
         preview: "Im Arbeitsbereich ansehen",
+        versions: {
+          menu: "Versionsverlauf",
+          title: "Versionsverlauf",
+          loadFailed: "Der Versionsverlauf konnte nicht geladen werden",
+          empty:
+            "Für diese Datei wurden keine Versionen gespeichert. Versionen werden ab der nächsten Einreichung durch Pine gespeichert.",
+          current: "Aktuell",
+          backup: "Vor dem Wiederherstellen",
+          pruned: "Entfernt, um Speicher zu sparen",
+          tooLarge: "Zu groß zum Speichern",
+          failed: "Nicht gespeichert",
+          compare: "Mit aktueller Datei vergleichen",
+          compareFailed: "Diese Version konnte nicht verglichen werden",
+          back: "Zurück",
+          comparing: "Änderungen von {time} bis zur aktuellen Datei",
+          identical: "Diese Version entspricht der aktuellen Datei.",
+          binary: "Diese Datei kann nicht als Text verglichen werden.",
+          missing: "Unter diesem Pfad gibt es die Datei nicht mehr.",
+          diffTooLarge: "Diese Datei ist zu groß zum Vergleichen.",
+          modified: "Die Datei wurde seit der letzten Einreichung geändert.",
+          readOnly:
+            "Nur Dateien in einem Projektordner mit Lese- und Schreibzugriff können wiederhergestellt werden.",
+          restore: "Wiederherstellen",
+          restoreTitle: "Diese Version wiederherstellen?",
+          restoreDescription:
+            "{name} wird durch die Version vom {time} ersetzt. Die aktuelle Datei bleibt im Verlauf, sodass du das rückgängig machen kannst.",
+          restored: "Version wiederhergestellt",
+          restoreFailed: "Diese Version konnte nicht wiederhergestellt werden",
+        },
       },
       preview: {
         empty:

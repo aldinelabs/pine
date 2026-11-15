@@ -7,6 +7,7 @@ import { createAppI18n } from "@/app/i18n";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { UI_PRESENT_FILE_TOOL_NAME } from "@/shared/agent";
+import type { ArtifactVersionHistory } from "@/shared/artifacts";
 import type { FilePreviewTarget } from "@/shared/projectFiles";
 import type { PineToolCall } from "@/shared/sessions";
 import { showProject } from "@/stores/__tests__/showProject";
@@ -104,6 +105,14 @@ function mountPanel(
   const operateProjectFile = vi.fn(() => Promise.resolve());
   const operatePresentedFile = vi.fn(() => Promise.resolve());
   const reopenPresentedToolFile = vi.fn(() => Promise.resolve(target));
+  const artifactVersions = vi.fn(() => Promise.resolve(versionHistory));
+  const openArtifactVersion = vi.fn(() =>
+    Promise.resolve({
+      source: "presented" as const,
+      path: "/data/tmp/artifact-versions/abc/report.md",
+    }),
+  );
+  const restoreArtifactVersion = vi.fn(() => Promise.resolve());
   Object.defineProperty(window, "pine", {
     configurable: true,
     value: {
@@ -111,6 +120,9 @@ function mountPanel(
       operateProjectFile,
       operatePresentedFile,
       reopenPresentedToolFile,
+      artifactVersions,
+      openArtifactVersion,
+      restoreArtifactVersion,
     },
   });
   const router = createRouter({
@@ -133,8 +145,34 @@ function mountPanel(
     operateProjectFile,
     operatePresentedFile,
     reopenPresentedToolFile,
+    artifactVersions,
+    openArtifactVersion,
+    restoreArtifactVersion,
   };
 }
+
+const versionHistory: ArtifactVersionHistory = {
+  path: "/project/out/report.md",
+  missing: false,
+  modified: true,
+  restorable: true,
+  versions: [
+    {
+      ref: { kind: "submission", toolCallId: "submit-2" },
+      time: Date.UTC(2026, 10, 2),
+      size: 2048,
+      state: "available",
+      current: false,
+    },
+    {
+      ref: { kind: "submission", toolCallId: "submit-1" },
+      time: Date.UTC(2026, 10, 1),
+      size: 1024,
+      state: "pruned",
+      current: false,
+    },
+  ],
+};
 
 function rowTexts(wrapper: ReturnType<typeof mount>): string[] {
   return wrapper
@@ -394,5 +432,88 @@ describe("WorkbenchArtifactsPanel", () => {
     expect((panel.vm as unknown as { artifacts: unknown[] }).artifacts).toBe(
       before,
     );
+  });
+
+  it("lists a submitted file's versions and restores one after confirming", async () => {
+    const { wrapper, artifactVersions, restoreArtifactVersion } = mountPanel(
+      projectTarget,
+      "read-write",
+      [[submission("submit-2", [{ path: "/project/out/report.md" }])]],
+    );
+    await openMenu(wrapper);
+    await menuItem("版本历史").trigger("click");
+    await flushPromises();
+
+    expect(artifactVersions).toHaveBeenCalledWith({
+      projectId: "p1",
+      sessionId: "s1",
+      path: "/project/out/report.md",
+    });
+    const rows = document.querySelectorAll('[data-testid="artifact-version"]');
+    expect(rows).toHaveLength(2);
+    expect(document.body.textContent).toContain("文件在上次提交后已被修改。");
+    expect(rows[1].textContent).toContain("已清理以节省空间");
+    // A pruned version has no actions.
+    expect(rows[1].querySelectorAll("button")).toHaveLength(0);
+
+    const restore = rows[0].querySelector<HTMLButtonElement>(
+      'button[aria-label="恢复"]',
+    );
+    restore!.click();
+    await flushPromises();
+    const confirm = [
+      ...document.querySelectorAll<HTMLButtonElement>(
+        '[role="alertdialog"] button',
+      ),
+    ].find((button) => button.textContent?.trim() === "恢复");
+    confirm!.click();
+    await flushPromises();
+
+    expect(restoreArtifactVersion).toHaveBeenCalledWith({
+      projectId: "p1",
+      sessionId: "s1",
+      path: "/project/out/report.md",
+      version: { kind: "submission", toolCallId: "submit-2" },
+    });
+    expect(artifactVersions).toHaveBeenCalledTimes(2);
+  });
+
+  it("previews a stored version in the workbench", async () => {
+    const { wrapper, openArtifactVersion } = mountPanel(
+      projectTarget,
+      "read-write",
+      [[submission("submit-2", [{ path: "/project/out/report.md" }])]],
+    );
+    await openMenu(wrapper);
+    await menuItem("版本历史").trigger("click");
+    await flushPromises();
+
+    document
+      .querySelector<HTMLButtonElement>(
+        '[data-testid="artifact-version"] button[aria-label="在工作台中预览"]',
+      )!
+      .click();
+    await flushPromises();
+
+    expect(openArtifactVersion).toHaveBeenCalledWith(
+      expect.objectContaining({
+        version: { kind: "submission", toolCallId: "submit-2" },
+      }),
+    );
+    expect(useWorkbenchStore().activeLayout.preview?.target).toEqual({
+      source: "presented",
+      path: "/data/tmp/artifact-versions/abc/report.md",
+    });
+  });
+
+  it("offers no version history for a legacy presentation", async () => {
+    const { wrapper } = mountPanel();
+    await openMenu(wrapper);
+
+    expect(
+      [...document.querySelectorAll('[role="menuitem"]')].some((item) =>
+        item.textContent?.includes("版本历史"),
+      ),
+    ).toBe(false);
   });
 });
