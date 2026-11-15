@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { GitCompareIcon, RotateCcwIcon, XIcon } from "@lucide/vue";
-import { computed, ref } from "vue";
+import { computed, ref, useId } from "vue";
 import { useI18n } from "vue-i18n";
 import { toast } from "vue-sonner";
 import { handleError } from "@/app/errors/errorHandler";
@@ -14,13 +14,15 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import { useProjectFileChanges } from "@/composables/useProjectFileChanges";
 import { useArtifactVersionStore } from "@/stores/artifactVersions";
 import { versionTimeFormat } from "./versionFormat";
 
 /**
  * Shown above a preview while it shows a kept version: which version it is,
- * and Compare with current, Restore and Back to current.
+ * a Compare with current switch, Restore and Back to current.
  */
 const props = defineProps<{
   viewKey: string;
@@ -36,14 +38,15 @@ const { emitProjectFilesChanged } = useProjectFileChanges();
 const view = computed(() => versions.viewOf(props.viewKey));
 const time = computed(() => versionTimeFormat(locale.value));
 const confirming = ref(false);
+const compareSwitchId = useId();
 
 const canRestore = computed(
   () => !!view.value?.history?.restorable && !view.value.viewing?.current,
 );
 
-async function toggleCompare(): Promise<void> {
+async function setComparing(comparing: boolean): Promise<void> {
   try {
-    await versions.setComparing(props.viewKey, !view.value?.comparing);
+    await versions.setComparing(props.viewKey, comparing);
   } catch (error) {
     handleError(error, {
       id: "artifact-versions.compare",
@@ -83,22 +86,30 @@ async function restore(): Promise<void> {
         })
       }}
     </span>
-    <Button
-      data-testid="artifact-version-compare"
-      variant="ghost"
-      :size="compact ? 'icon-sm' : 'sm'"
-      :aria-pressed="view.comparing"
-      :class="view.comparing && 'bg-background text-foreground'"
-      :disabled="view.history?.missing"
-      :aria-label="t('project.workbench.artifacts.versions.compare')"
+    <div
+      class="mr-1 flex shrink-0 items-center gap-2"
       :title="t('project.workbench.artifacts.versions.compare')"
-      @click="toggleCompare"
     >
-      <GitCompareIcon :data-icon="compact ? undefined : 'inline-start'" />
-      <template v-if="!compact">
-        {{ t("project.workbench.artifacts.versions.compare") }}
-      </template>
-    </Button>
+      <Switch
+        :id="compareSwitchId"
+        data-testid="artifact-version-compare"
+        size="sm"
+        :model-value="view.comparing"
+        :disabled="view.history?.missing"
+        :aria-label="
+          compact
+            ? t('project.workbench.artifacts.versions.compare')
+            : undefined
+        "
+        @update:model-value="setComparing"
+      />
+      <Label :for="compareSwitchId">
+        <GitCompareIcon v-if="compact" class="size-4" aria-hidden="true" />
+        <template v-else>
+          {{ t("project.workbench.artifacts.versions.compare") }}
+        </template>
+      </Label>
+    </div>
     <Button
       data-testid="artifact-version-restore"
       variant="ghost"

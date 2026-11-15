@@ -583,14 +583,15 @@ its last submission or no longer exists. Versions removed to save space, too
 large to keep or not kept are listed but cannot be picked.
 
 Picking a version shows that copy read-only in the same preview, with a bar
-on top: "Version from …", Compare with current (shows the line changes from
-that version to the current file in place of the preview; text files up to
-1 MB; press again to go back to the preview. A Markdown file's
-comparison is rendered: the document as it reads, with added blocks tinted green, removed ones red, and edited headings,
-paragraphs and list items as plain text with the changed words marked;
-tables, code and formulas that changed show their old and new form. In a
-file tab, turning off the footer's Rendered switch shows the line changes
-instead), Restore (asks first; only for
+on top: "Version from …", a Compare with current switch (in the narrow
+Preview card it is labelled with a compare icon; turned on, it shows the
+changes from that version to the current file in place of the preview, for
+text files up to 1 MB; turned off, the preview comes back. A Markdown file's
+comparison is rendered: the document as it reads, with added blocks tinted
+green, removed ones red, and edited headings, paragraphs and list items as
+plain text with the changed words marked; tables, code and formulas that
+changed show their old and new form. In a file tab, turning off the footer's
+Rendered switch shows the line changes instead), Restore (asks first; only for
 files in a read-write project folder) and an X for Back to current file.
 Restoring first keeps the current file as a "Before restore" version, so it
 can be undone, then shows the file as restored. While a file tab shows a
