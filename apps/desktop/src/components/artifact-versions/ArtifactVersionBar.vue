@@ -117,10 +117,13 @@ async function restore(): Promise<void> {
         {{ t("project.workbench.artifacts.versions.restore") }}
       </template>
     </Button>
+    <!-- The X glyph sits further inside its box than the icons before it;
+         pulling the button in keeps the gaps between glyphs even. -->
     <Button
       data-testid="artifact-version-back"
       variant="ghost"
       size="icon-sm"
+      class="-ml-0.5"
       :aria-label="t('project.workbench.artifacts.versions.backToCurrent')"
       :title="t('project.workbench.artifacts.versions.backToCurrent')"
       @click="versions.showCurrent(viewKey)"
