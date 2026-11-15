@@ -1,5 +1,12 @@
 <script setup lang="ts">
-import { FilesIcon, HistoryIcon, PencilIcon, Trash2Icon } from "@lucide/vue";
+import {
+  AppWindowIcon,
+  EyeIcon,
+  FilesIcon,
+  HistoryIcon,
+  PencilIcon,
+  Trash2Icon,
+} from "@lucide/vue";
 import { storeToRefs } from "pinia";
 import { computed, ref } from "vue";
 import { useI18n } from "vue-i18n";
@@ -443,18 +450,20 @@ async function submitDialog(): Promise<void> {
           </ContextMenuTrigger>
           <ContextMenuContent class="w-52 [&_[data-inset]]:pl-8">
             <ContextMenuGroup>
-              <ContextMenuItem inset @select="show(artifact)">
+              <ContextMenuItem @select="show(artifact)">
+                <EyeIcon aria-hidden="true" />
                 {{ t("project.workbench.artifacts.preview") }}
               </ContextMenuItem>
-              <ContextMenuItem inset @select="openInTab(artifact)">
+              <ContextMenuItem @select="openInTab(artifact)">
+                <AppWindowIcon aria-hidden="true" />
                 {{ t("project.workbench.preview.openInTab") }}
               </ContextMenuItem>
               <ContextMenuItem
                 v-if="artifact.submitted"
-                inset
                 data-testid="workbench-artifact-versions"
                 @select="showVersions(artifact)"
               >
+                <HistoryIcon aria-hidden="true" />
                 {{ t("project.workbench.artifacts.versions.menu") }}
               </ContextMenuItem>
             </ContextMenuGroup>
