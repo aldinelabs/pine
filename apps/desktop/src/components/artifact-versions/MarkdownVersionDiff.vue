@@ -37,9 +37,8 @@ const HEADING_CLASSES: Record<number, string> = {
         v-if="segment.type !== 'changed'"
         :data-diff="segment.type"
         :class="{
-          'rounded-md border-l-2 border-emerald-500 bg-emerald-500/10 px-3':
-            segment.type === 'added',
-          'rounded-md border-l-2 border-red-500 bg-red-500/10 px-3 opacity-70':
+          '-mx-3 rounded-md bg-emerald-500/10 px-3': segment.type === 'added',
+          '-mx-3 rounded-md bg-red-500/10 px-3 opacity-70':
             segment.type === 'removed',
         }"
       >
@@ -48,7 +47,7 @@ const HEADING_CLASSES: Record<number, string> = {
       <div
         v-else
         data-diff="changed"
-        class="rounded-md border-l-2 border-amber-500 px-3 py-2 leading-7"
+        class="py-2 leading-7"
         :class="
           segment.kind === 'heading'
             ? [
