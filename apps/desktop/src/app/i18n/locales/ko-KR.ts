@@ -965,6 +965,9 @@ export default {
             "{name}이(가) {time} 버전으로 바뀝니다. 현재 파일은 기록에 남아 되돌릴 수 있습니다.",
           restored: "버전을 복원했습니다",
           restoreFailed: "이 버전을 복원할 수 없습니다",
+          saveAs: "다른 이름으로 저장…",
+          saveFailed: "이 버전을 저장할 수 없습니다",
+          saved: "이 버전의 사본을 저장했습니다",
         },
       },
       preview: {

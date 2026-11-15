@@ -253,6 +253,13 @@ export async function initializeWebClient(): Promise<
         await navigator.clipboard.writeText(request.path);
       else await api.openAttachment(request);
     },
+    // The browser downloads the version instead of a native save dialog.
+    saveArtifactVersion: async (request) => {
+      const target = await api.openArtifactVersion(request);
+      if (target.source !== "presented") return { saved: false };
+      await api.openAttachment({ path: target.path });
+      return { saved: true };
+    },
     exportSession: async (request) => {
       const result = await rpc<PineSessionExportDocument>(
         EXPORT_SESSION_CHANNEL,

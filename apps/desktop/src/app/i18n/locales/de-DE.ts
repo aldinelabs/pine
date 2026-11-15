@@ -996,6 +996,9 @@ export default {
             "{name} wird durch die Version vom {time} ersetzt. Die aktuelle Datei bleibt im Verlauf, sodass du das rückgängig machen kannst.",
           restored: "Version wiederhergestellt",
           restoreFailed: "Diese Version konnte nicht wiederhergestellt werden",
+          saveAs: "Speichern unter…",
+          saveFailed: "Diese Version konnte nicht gespeichert werden",
+          saved: "Kopie dieser Version gespeichert",
         },
       },
       preview: {

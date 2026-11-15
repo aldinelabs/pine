@@ -915,6 +915,9 @@ export default {
             "{name} 将被替换为 {time} 的版本。当前文件会保留在历史中，可以撤销。",
           restored: "已恢复版本",
           restoreFailed: "无法恢复此版本",
+          saveAs: "另存为…",
+          saveFailed: "无法保存此版本",
+          saved: "已保存此版本的副本",
         },
       },
       preview: {

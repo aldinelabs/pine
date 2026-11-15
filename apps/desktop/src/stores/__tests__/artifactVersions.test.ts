@@ -47,6 +47,7 @@ beforeEach(() => {
     openArtifactVersion: ipc(copy),
     diffArtifactVersion: ipc({ status: "identical" }),
     restoreArtifactVersion: ipc(undefined),
+    saveArtifactVersion: ipc({ saved: true, path: "/saved/report.md" }),
   };
   Object.defineProperty(window, "pine", { configurable: true, value: pine });
 });
@@ -113,6 +114,21 @@ describe("artifact version store", () => {
     });
     expect(store.viewOf("k")?.viewing).toBeUndefined();
     expect(pine.artifactVersions).toHaveBeenCalledTimes(2);
+  });
+
+  it("saves a copy of the shown version", async () => {
+    const store = await loaded();
+    await expect(store.saveAs("k")).resolves.toEqual({ saved: false });
+    await store.show("k", store.viewOf("k")!.history!.versions[1]);
+
+    await expect(store.saveAs("k")).resolves.toEqual({
+      saved: true,
+      path: "/saved/report.md",
+    });
+    expect(pine.saveArtifactVersion).toHaveBeenCalledWith({
+      ...source,
+      version: { kind: "submission", toolCallId: "submit-1" },
+    });
   });
 
   it("starts over when the preview shows another artifact", async () => {

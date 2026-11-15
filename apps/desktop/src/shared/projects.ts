@@ -76,6 +76,7 @@ import type {
   ReopenPresentedToolFileRequest,
   ArtifactVersionRequest,
   ArtifactVersionsRequest,
+  SaveArtifactVersionResult,
   FilePreviewTarget,
   ProjectFileOperation,
   StartProjectFileDragRequest,
@@ -428,6 +429,10 @@ export interface PineDesktopApi
     request: ArtifactVersionRequest,
   ) => Promise<ArtifactVersionDiff>;
   restoreArtifactVersion: (request: ArtifactVersionRequest) => Promise<void>;
+  /** Saves a copy of a version where the user picks: a save dialog, or a download. */
+  saveArtifactVersion: (
+    request: ArtifactVersionRequest,
+  ) => Promise<SaveArtifactVersionResult>;
   abortSession: (request: SessionControlRequest) => Promise<AbortSessionResult>;
   listBackgroundTasks: (
     request: SessionControlRequest,

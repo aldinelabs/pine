@@ -919,6 +919,9 @@ export default {
             "{name} 將被替換為 {time} 的版本。目前檔案會保留在紀錄中，可以復原。",
           restored: "已還原版本",
           restoreFailed: "無法還原此版本",
+          saveAs: "另存新檔…",
+          saveFailed: "無法儲存此版本",
+          saved: "已儲存此版本的副本",
         },
       },
       preview: {

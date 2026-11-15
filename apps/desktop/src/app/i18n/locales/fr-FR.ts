@@ -991,6 +991,9 @@ export default {
             "{name} sera remplacé par la version du {time}. Le fichier actuel reste dans l'historique, vous pouvez donc annuler.",
           restored: "Version restaurée",
           restoreFailed: "Impossible de restaurer cette version",
+          saveAs: "Enregistrer sous…",
+          saveFailed: "Impossible d’enregistrer cette version",
+          saved: "Copie de cette version enregistrée",
         },
       },
       preview: {

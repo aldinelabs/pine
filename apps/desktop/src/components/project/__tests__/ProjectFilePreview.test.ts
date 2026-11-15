@@ -1349,6 +1349,10 @@ describe("ProjectFilePreview", () => {
           path: "/data/tmp/main.py",
         });
       }),
+      saveArtifactVersion: vi.fn((request: unknown) => {
+        structuredClone(request);
+        return Promise.resolve({ saved: false });
+      }),
     });
     expect(wrapper.find('[data-testid="artifact-version-menu"]').exists()).toBe(
       false,
@@ -1373,5 +1377,14 @@ describe("ProjectFilePreview", () => {
       true,
     );
     expect(wrapper.find('[data-action="send-to-tab"]').exists()).toBe(false);
+    expect(wrapper.find('[data-action="open-default"]').exists()).toBe(false);
+
+    await wrapper.get('[data-action="save-version"]').trigger("click");
+    expect(window.pine.saveArtifactVersion).toHaveBeenCalledWith({
+      projectId: file.projectId,
+      sessionId: "s1",
+      path: "/project/src/main.py",
+      version: version.ref,
+    });
   });
 });

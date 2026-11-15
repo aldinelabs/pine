@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { stat, writeFile } from "node:fs/promises";
+import { copyFile, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { z } from "zod";
 import {
@@ -26,7 +26,11 @@ import {
   type PickPiAgentDirResult,
 } from "../../shared/piProviders";
 import { setPiProviders } from "../core/requests/settings";
-import { START_PROJECT_FILE_DRAG_CHANNEL } from "../../shared/projectFiles";
+import {
+  SAVE_ARTIFACT_VERSION_CHANNEL,
+  START_PROJECT_FILE_DRAG_CHANNEL,
+  type SaveArtifactVersionResult,
+} from "../../shared/projectFiles";
 import {
   PICK_PROJECT_FOLDERS_CHANNEL,
   type PickProjectFoldersResult,
@@ -39,7 +43,10 @@ import { OPEN_EXTERNAL_URL_CHANNEL } from "../../shared/window";
 import { WORKBENCH_STATE_RESPONSE_CHANNEL } from "../../shared/workbench";
 import type { PineCore } from "../core/pineCore";
 import { inspectAttachmentPaths } from "../core/requests/files";
-import { ProjectSessionRequestSchema } from "../core/requestSchemas";
+import {
+  ArtifactVersionRequestSchema,
+  ProjectSessionRequestSchema,
+} from "../core/requestSchemas";
 import { ProjectEntryReferenceSchema } from "../projectFileOperations";
 import { startProjectFileDrag } from "../projectFileDrag";
 import type { QuickComposerController } from "../quickComposer";
@@ -244,6 +251,35 @@ export function registerNativeIpc(
       if (result.canceled || !result.filePath) return { saved: false };
 
       await writeFile(result.filePath, document.markdown, "utf8");
+      return { path: result.filePath, saved: true };
+    },
+  );
+
+  ipcMain.handle(
+    SAVE_ARTIFACT_VERSION_CHANNEL,
+    async (event, request: unknown): Promise<SaveArtifactVersionResult> => {
+      const {
+        projectId,
+        sessionId,
+        path: filePath,
+        version,
+      } = ArtifactVersionRequestSchema.parse(request);
+      const parentWindow = BrowserWindow.fromWebContents(event.sender);
+      if (!parentWindow) return { saved: false };
+      const copy = await core.runtimes.openArtifactVersion(
+        event.sender.id,
+        projectId,
+        sessionId,
+        filePath,
+        version,
+      );
+      const result = await dialog.showSaveDialog(parentWindow, {
+        defaultPath: path.basename(filePath),
+        properties: ["createDirectory", "showOverwriteConfirmation"],
+      });
+      if (result.canceled || !result.filePath) return { saved: false };
+
+      await copyFile(copy, result.filePath);
       return { path: result.filePath, saved: true };
     },
   );

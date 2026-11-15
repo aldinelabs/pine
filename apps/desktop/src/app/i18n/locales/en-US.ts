@@ -974,6 +974,9 @@ export default {
             "{name} will be replaced with the version from {time}. The current file is kept in the history, so you can undo this.",
           restored: "Version restored",
           restoreFailed: "Couldn’t restore this version",
+          saveAs: "Save as…",
+          saveFailed: "Couldn’t save this version",
+          saved: "Saved a copy of this version",
         },
       },
       preview: {

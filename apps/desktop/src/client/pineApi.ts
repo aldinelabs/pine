@@ -239,6 +239,7 @@ import {
   REOPEN_PRESENTED_TOOL_FILE_CHANNEL,
   ARTIFACT_VERSIONS_CHANNEL,
   OPEN_ARTIFACT_VERSION_CHANNEL,
+  SAVE_ARTIFACT_VERSION_CHANNEL,
   DIFF_ARTIFACT_VERSION_CHANNEL,
   RESTORE_ARTIFACT_VERSION_CHANNEL,
   PROJECT_FILES_CHANGED_CHANNEL,
@@ -395,6 +396,8 @@ export function createPineApi(transport: PineTransport): PineDesktopApi {
       transport.invoke(DIFF_ARTIFACT_VERSION_CHANNEL, request),
     restoreArtifactVersion: (request) =>
       transport.invoke(RESTORE_ARTIFACT_VERSION_CHANNEL, request),
+    saveArtifactVersion: (request) =>
+      transport.invoke(SAVE_ARTIFACT_VERSION_CHANNEL, request),
     closeWindow: () => transport.invoke(CLOSE_WINDOW_CHANNEL),
     setWindowBackground: (color: string) =>
       transport.invoke(SET_WINDOW_BACKGROUND_CHANNEL, color),

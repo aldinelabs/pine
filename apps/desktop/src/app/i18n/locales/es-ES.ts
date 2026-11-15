@@ -991,6 +991,9 @@ export default {
             "{name} se sustituirá por la versión del {time}. El archivo actual se conserva en el historial, así que puedes deshacerlo.",
           restored: "Versión restaurada",
           restoreFailed: "No se pudo restaurar esta versión",
+          saveAs: "Guardar como…",
+          saveFailed: "No se pudo guardar esta versión",
+          saved: "Se guardó una copia de esta versión",
         },
       },
       preview: {

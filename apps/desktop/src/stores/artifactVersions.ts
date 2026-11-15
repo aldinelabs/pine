@@ -6,7 +6,10 @@ import type {
   ArtifactVersionHistory,
   ArtifactVersionRef,
 } from "@/shared/artifacts";
-import type { FilePreviewTarget } from "@/shared/projectFiles";
+import type {
+  FilePreviewTarget,
+  SaveArtifactVersionResult,
+} from "@/shared/projectFiles";
 
 /** A submitted artifact: the session that submitted it and the path it recorded. */
 export interface ArtifactVersionSource {
@@ -201,6 +204,13 @@ export const useArtifactVersionStore = defineStore("artifactVersions", () => {
     }
   }
 
+  /** Saves a copy of the shown version where the user picks. */
+  async function saveAs(key: string): Promise<SaveArtifactVersionResult> {
+    const view = views.value[key];
+    if (!view?.viewing) return { saved: false };
+    return window.pine.saveArtifactVersion(request(view, view.viewing));
+  }
+
   /** Asks the preview bound under `key` to open its version menu. */
   function requestMenu(key: string): void {
     const view = views.value[key];
@@ -219,6 +229,7 @@ export const useArtifactVersionStore = defineStore("artifactVersions", () => {
     load,
     requestMenu,
     restore,
+    saveAs,
     setComparing,
     show,
     showCurrent,

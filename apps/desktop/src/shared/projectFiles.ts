@@ -74,6 +74,9 @@ export const DIFF_ARTIFACT_VERSION_CHANNEL =
   "project-files:diff-artifact-version" as const;
 export const RESTORE_ARTIFACT_VERSION_CHANNEL =
   "project-files:restore-artifact-version" as const;
+/** Desktop only: asks where to save a version, then writes a copy there. */
+export const SAVE_ARTIFACT_VERSION_CHANNEL =
+  "project-files:save-artifact-version" as const;
 /** A file a session submitted, by the absolute path its submissions recorded. */
 export interface ArtifactVersionsRequest {
   projectId: string;
@@ -82,6 +85,10 @@ export interface ArtifactVersionsRequest {
 }
 export interface ArtifactVersionRequest extends ArtifactVersionsRequest {
   version: ArtifactVersionRef;
+}
+export interface SaveArtifactVersionResult {
+  path?: string;
+  saved: boolean;
 }
 export const PROJECT_MEDIA_PROTOCOL = "pine-project-media" as const;
 export const MARKDOWN_IMAGE_PARAM = "markdownImage" as const;

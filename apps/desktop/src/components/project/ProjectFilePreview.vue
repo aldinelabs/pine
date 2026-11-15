@@ -16,6 +16,7 @@ import { useI18n } from "vue-i18n";
 import {
   Download,
   ExternalLink,
+  Save,
   FileQuestion,
   FileWarning,
   MessageSquareTextIcon,
@@ -378,6 +379,21 @@ async function openWithDefaultApplication(): Promise<void> {
     handleError(error, {
       id: "project.preview.open-default",
       title: t("project.preview.openDefaultFailed"),
+    });
+  }
+}
+
+async function saveVersionAs(): Promise<void> {
+  try {
+    const result = await versions.saveAs(versionViewKey.value);
+    if (result.path)
+      toast.success(t("project.workbench.artifacts.versions.saved"), {
+        description: result.path,
+      });
+  } catch (error) {
+    handleError(error, {
+      id: "artifact-versions.save",
+      title: t("project.workbench.artifacts.versions.saveFailed"),
     });
   }
 }
@@ -1102,6 +1118,26 @@ function clearAnnotations(): void {
         <Download v-if="isWeb" data-icon="inline-start" />
         <ExternalLink v-else data-icon="inline-start" />
         {{ t(isWeb ? "common.downloadFile" : "project.preview.openDefault") }}
+      </Button>
+      <!-- A version is a copy outside the project: it is saved, not opened,
+           so edits are not made to a copy that is thrown away. -->
+      <Button
+        v-else-if="preview && viewingVersion"
+        data-action="save-version"
+        variant="ghost"
+        size="sm"
+        class="-ml-2"
+        @click="saveVersionAs"
+      >
+        <Download v-if="isWeb" data-icon="inline-start" />
+        <Save v-else data-icon="inline-start" />
+        {{
+          t(
+            isWeb
+              ? "common.downloadFile"
+              : "project.workbench.artifacts.versions.saveAs",
+          )
+        }}
       </Button>
       <div v-if="capabilities.invert" class="flex items-center gap-2">
         <Switch

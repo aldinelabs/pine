@@ -595,7 +595,9 @@ Rendered switch shows the line changes instead), Restore (asks first; only for
 files in a read-write project folder) and an X for Back to current file.
 Restoring first keeps the current file as a "Before restore" version, so it
 can be undone, then shows the file as restored. While a file tab shows a
-version, comments, Open with default application and Send to tab are hidden.
+version, comments and Send to tab are hidden, and Open with default
+application becomes Save as… (asks where to save a copy of that version; in
+the browser it downloads the copy).
 Picking another file in the Preview card returns it to the current file.
 
 When the agent opens a card, or presents a file in the Preview card, that
