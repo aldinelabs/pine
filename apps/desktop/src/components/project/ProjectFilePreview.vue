@@ -388,7 +388,7 @@ const watchId = useId();
 const versions = useArtifactVersionStore();
 const versionViewKey = computed(() => tabVersionKey(props.file.id));
 const versionSource = computed<ArtifactVersionSource | undefined>(() => {
-  const artifact = tabsStore.artifactOfTab(props.file.id);
+  const artifact = props.file.artifact;
   return artifact
     ? { projectId: props.file.projectId, ...artifact }
     : undefined;

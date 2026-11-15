@@ -297,6 +297,29 @@ describe("content tabs store", () => {
     expect(restored.fallbackActiveTabId).toBe(file.id);
   });
 
+  it("restores the artifact a file tab was opened from", () => {
+    const store = useContentTabsStore();
+    const tab = store.presentFile(
+      {
+        source: "project",
+        projectId: "one",
+        folderId: "folder",
+        relativePath: "report.md",
+      },
+      "one",
+      "submit-1",
+      undefined,
+      { sessionId: "s1", path: "/project/report.md" },
+    );
+
+    const restored = reloadStore().tabs.find(
+      (candidate) => candidate.id === tab.id,
+    );
+    expect(restored).toMatchObject({
+      artifact: { sessionId: "s1", path: "/project/report.md" },
+    });
+  });
+
   it("prefers this window's reload state over the last launch", () => {
     const store = useContentTabsStore();
     store.openFile({ projectId: "one", folderId: "root", relativePath: "a" });

@@ -22,6 +22,9 @@ const stateSchema = z.object({
         projectId: id,
         folderId: id,
         relativePath: id,
+        artifact: z
+          .object({ sessionId: id, path: z.string().min(1).max(4096) })
+          .optional(),
       }),
       // Accepted so a single presented tab cannot invalidate the whole saved
       // state; the restore pass below drops it deliberately.

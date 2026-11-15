@@ -1353,18 +1353,12 @@ describe("ProjectFilePreview", () => {
     expect(wrapper.find('[data-testid="artifact-version-menu"]').exists()).toBe(
       false,
     );
-    const tabs = useContentTabsStore();
-    tabs.tabs.push(file);
-    tabs.presentFile(
-      { ...fileRequest, source: "project" },
-      "p1",
-      undefined,
-      undefined,
-      {
-        sessionId: "s1",
-        path: "/project/src/main.py",
+    await wrapper.setProps({
+      file: {
+        ...file,
+        artifact: { sessionId: "s1", path: "/project/src/main.py" },
       },
-    );
+    });
     await flushPromises();
     expect(wrapper.find('[data-testid="artifact-version-menu"]').exists()).toBe(
       true,

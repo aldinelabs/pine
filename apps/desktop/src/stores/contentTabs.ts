@@ -33,6 +33,11 @@ export type FileContentTab = {
   projectId: string;
   /** Optional source location for the most recent presentation. */
   reveal?: FileReveal;
+  /**
+   * The submitted artifact the tab was opened from, so it can show its kept
+   * versions. Saved with the tab; main checks the session submitted the path.
+   */
+  artifact?: TabArtifact;
 } & FilePreviewTarget;
 
 /** A submitted artifact: the session that submitted it and the path it recorded. */
@@ -144,11 +149,6 @@ export const useContentTabsStore = defineStore("content-tabs", () => {
   const presentedTargets = reactive(new Map<string, FilePreviewTarget>());
   /** Presentation or artifact keys whose file was trashed from the artifacts list. */
   const removedPresentations = reactive(new Set<string>());
-  /**
-   * The submitted artifact a file tab was opened from, so the tab can show
-   * its kept versions. Not saved: a restored tab opens as a plain file.
-   */
-  const tabArtifacts = reactive(new Map<string, TabArtifact>());
   const composerAttachments = ref<Record<string, PineAttachment[]>>({});
   /** Quotes and preview comments staged in each session tab's composer. */
   const composerQuotes = ref<Record<string, PineQuote[]>>({});
@@ -351,11 +351,18 @@ export const useContentTabsStore = defineStore("content-tabs", () => {
   ): FileContentTab {
     if (toolCallId) presentedTargets.set(toolCallId, target);
     const tab = ensureFileTab(target, projectId);
-    if (artifact)
-      tabArtifacts.set(tab.id, {
-        sessionId: artifact.sessionId,
-        path: artifact.path,
-      });
+    if (artifact) {
+      // Through the list, so the change is saved with the tab.
+      const stored = tabs.value.find(
+        (candidate): candidate is FileContentTab =>
+          candidate.id === tab.id && candidate.kind === "file",
+      );
+      if (stored)
+        stored.artifact = {
+          sessionId: artifact.sessionId,
+          path: artifact.path,
+        };
+    }
     const location = parseFileReveal(reveal);
     if (location) tab.reveal = location;
     else delete tab.reveal;
@@ -368,10 +375,6 @@ export const useContentTabsStore = defineStore("content-tabs", () => {
     target: FilePreviewTarget,
   ): void {
     presentedTargets.set(toolCallId, target);
-  }
-
-  function artifactOfTab(tabId: string): TabArtifact | undefined {
-    return tabArtifacts.get(tabId);
   }
 
   function presentedTargetFor(
@@ -799,7 +802,6 @@ export const useContentTabsStore = defineStore("content-tabs", () => {
     mutatorsFor,
     openFile,
     openSession,
-    artifactOfTab,
     presentFile,
     presentedTargetFor,
     previewTabId,
