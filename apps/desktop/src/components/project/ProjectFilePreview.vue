@@ -1085,6 +1085,19 @@ function clearAnnotations(): void {
     <footer
       class="mt-auto flex min-h-12 shrink-0 flex-wrap items-center gap-x-4 gap-y-1 pl-5 pr-2 py-2 text-sm text-muted-foreground"
     >
+      <!-- The icon lines up with the footer's left edge. -->
+      <Button
+        v-if="preview && !viewingVersion"
+        data-action="open-default"
+        variant="ghost"
+        size="sm"
+        class="-ml-2"
+        @click="openWithDefaultApplication"
+      >
+        <Download v-if="isWeb" data-icon="inline-start" />
+        <ExternalLink v-else data-icon="inline-start" />
+        {{ t(isWeb ? "common.downloadFile" : "project.preview.openDefault") }}
+      </Button>
       <div v-if="capabilities.invert" class="flex items-center gap-2">
         <Switch
           :id="invertSwitchId"
@@ -1149,17 +1162,6 @@ function clearAnnotations(): void {
           <Badge v-if="annotations.length" variant="secondary">{{
             annotations.length
           }}</Badge>
-        </Button>
-        <Button
-          v-if="preview && !viewingVersion"
-          data-action="open-default"
-          variant="ghost"
-          size="sm"
-          @click="openWithDefaultApplication"
-        >
-          <Download v-if="isWeb" data-icon="inline-start" />
-          <ExternalLink v-else data-icon="inline-start" />
-          {{ t(isWeb ? "common.downloadFile" : "project.preview.openDefault") }}
         </Button>
         <DropdownMenu
           v-if="projectTarget && !viewingVersion"
