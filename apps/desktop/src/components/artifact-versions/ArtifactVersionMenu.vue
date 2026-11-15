@@ -122,6 +122,8 @@ async function select(version: ArtifactVersion): Promise<void> {
         </template>
       </Button>
     </DropdownMenuTrigger>
+    <!-- As wide as the version rows: the notes wrap to that width rather
+         than widen the menu. -->
     <DropdownMenuContent
       align="end"
       class="max-h-96 w-max max-w-[min(24rem,calc(100vw-2rem))] min-w-56"
@@ -132,7 +134,7 @@ async function select(version: ArtifactVersion): Promise<void> {
       </DropdownMenuLabel>
       <p
         v-if="view.history?.missing || view.history?.modified"
-        class="px-3 pb-2 text-xs text-muted-foreground"
+        class="w-0 min-w-full px-3 pb-2 text-xs text-muted-foreground"
       >
         {{
           view.history.missing
@@ -153,12 +155,12 @@ async function select(version: ArtifactVersion): Promise<void> {
         </DropdownMenuItem>
       </DropdownMenuGroup>
       <DropdownMenuSeparator />
-      <div v-if="!view.history" class="flex flex-col gap-1 p-1">
+      <div v-if="!view.history" class="flex w-64 flex-col gap-1 p-1">
         <Skeleton v-for="index in 3" :key="index" class="h-12 w-full" />
       </div>
       <p
         v-else-if="!view.history.versions.length"
-        class="px-3 py-4 text-center text-sm text-muted-foreground"
+        class="w-0 min-w-full px-3 py-4 text-center text-sm text-muted-foreground"
       >
         {{ t("project.workbench.artifacts.versions.empty") }}
       </p>
