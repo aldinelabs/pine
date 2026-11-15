@@ -79,6 +79,25 @@ function sameSurfaces(
   );
 }
 
+/**
+ * The visible faces of the surface's atoms a passage covers: the passage
+ * itself runs through their hidden source text.
+ */
+function atomFaces(surface: AnnotationSurface, range: Range): Range[] {
+  if (!surface.atoms) return [];
+  const { selector, face } = surface.atoms;
+  const faces: Range[] = [];
+  for (const atom of surface.root.querySelectorAll(selector)) {
+    if (!range.intersectsNode(atom)) continue;
+    const shown = atom.querySelector(face);
+    if (!shown) continue;
+    const faceRange = surface.root.ownerDocument.createRange();
+    faceRange.selectNodeContents(shown);
+    faces.push(faceRange);
+  }
+  return faces;
+}
+
 /** The surface a node is in, if any. */
 export function surfaceOf(
   surfaces: readonly AnnotationSurface[],
@@ -119,7 +138,8 @@ export function usePreviewAnnotationHighlights(options: {
   /** Documents the surfaces live in, listened to for clicks. */
   const documents = shallowRef<readonly Document[]>([]);
   let views = new Set<Window>();
-  let placed: { id: string; range: Range }[] = [];
+  /** Each placed comment's passage, and the formulas' faces it covers. */
+  let placed: { id: string; range: Range; faces: Range[] }[] = [];
   let frame = 0;
 
   function clearViews(keep: ReadonlySet<Window> = new Set()): void {
@@ -156,7 +176,11 @@ export function usePreviewAnnotationHighlights(options: {
         if (!annotation.orphaned) options.onLost(annotation.id);
         continue;
       }
-      placed.push({ id: annotation.id, range: found.range });
+      placed.push({
+        id: annotation.id,
+        range: found.range,
+        faces: atomFaces(surface, found.range),
+      });
       if (
         annotation.orphaned ||
         found.anchor.start !== anchor.start ||
@@ -189,6 +213,7 @@ export function usePreviewAnnotationHighlights(options: {
     for (const item of placed)
       rangesOf(item.range)?.[item.id === activeId ? "active" : "normal"].push(
         item.range,
+        ...item.faces,
       );
     if (draft && surfaceOf(next, draft.commonAncestorContainer))
       rangesOf(draft)?.active.push(draft);
@@ -233,7 +258,9 @@ export function usePreviewAnnotationHighlights(options: {
 
   function hit(event: MouseEvent): string | undefined {
     return placed.find((item) =>
-      rangeContainsPoint(item.range, event.clientX, event.clientY),
+      [item.range, ...item.faces].some((range) =>
+        rangeContainsPoint(range, event.clientX, event.clientY),
+      ),
     )?.id;
   }
 

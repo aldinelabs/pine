@@ -57,7 +57,7 @@ import {
   surfaceOf,
   usePreviewAnnotationHighlights,
 } from "@/composables/usePreviewAnnotationHighlights";
-import { createTextAnchor } from "@/lib/annotationAnchors";
+import { createTextAnchor, rangeAroundAtoms } from "@/lib/annotationAnchors";
 import { annotationPosition, regionText } from "@/lib/annotationLocation";
 import {
   MAX_ANNOTATIONS,
@@ -672,13 +672,17 @@ provide(previewAnnotationsKey, {
   compose: (request) => annotationMenu.value?.compose(request),
 });
 
-function saveAnnotation(range: Range, comment: string): void {
+function saveAnnotation(selected: Range, comment: string): void {
   const key = annotationKey.value;
   const surface = surfaceOf(
     highlights.surfaces.value,
-    range.commonAncestorContainer,
+    selected.commonAncestorContainer,
   );
   if (!key || !surface) return;
+  // A formula is commented on whole, by its source.
+  const range = surface.atoms
+    ? rangeAroundAtoms(selected, surface.atoms.selector)
+    : selected;
   const anchor = createTextAnchor(surface.root, range, surface.excluded);
   if (!anchor) return;
   const added = annotationsStore.add(key, {
@@ -690,7 +694,7 @@ function saveAnnotation(range: Range, comment: string): void {
     },
     lines: rendererInstance.value?.annotationLines?.(range),
     ...(surface.place ? { place: surface.place } : {}),
-    text: range.toString(),
+    text: surface.atoms ? anchor.exact : range.toString(),
     comment,
     version: preview.value?.modifiedAt ?? "",
   });

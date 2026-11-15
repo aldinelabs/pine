@@ -166,6 +166,13 @@ export interface AnnotationSurface {
    */
   segment?: string;
   place?: AnnotationPlace;
+  /**
+   * Elements commented on whole, such as rendered formulas: a selection that
+   * starts or ends inside one takes all of it. Their text is whatever
+   * `excluded` leaves of them (a formula's source), and the highlight is
+   * drawn on their `face`, the part the user sees.
+   */
+  atoms?: { selector: string; face: string };
 }
 
 /** Inclusive, 1-based source lines. */

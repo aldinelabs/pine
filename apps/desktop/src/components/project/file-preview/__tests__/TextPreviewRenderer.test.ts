@@ -77,7 +77,13 @@ describe("TextPreviewRenderer annotations", () => {
 
     const surface = handle.annotationSurface?.();
     const renderer = wrapper.get(".markdown-renderer").element;
-    expect(surface).toEqual({ root: renderer, excluded: filePreviewExcluded });
+    expect(surface?.root).toBe(renderer);
+    expect(surface?.excluded).toContain(filePreviewExcluded);
+    // Formulas are commented on whole, by their TeX source.
+    expect(surface?.atoms).toEqual({
+      selector: ".katex",
+      face: ".katex-html",
+    });
 
     const paragraph = [...renderer.querySelectorAll("p")].find(
       (element) => element.textContent === "Second paragraph.",

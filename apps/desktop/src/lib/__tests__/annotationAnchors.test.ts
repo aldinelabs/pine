@@ -6,6 +6,7 @@ import {
   annotationTextNodes,
   createTextAnchor,
   locateTextAnchor,
+  rangeAroundAtoms,
   rangeFromOffsets,
   rangeOffsets,
 } from "../annotationAnchors";
@@ -242,5 +243,50 @@ describe("roots in another document", () => {
     expect(located.range.startContainer.ownerDocument).toBe(doc);
     expect(located.range.toString()).toBe("the fr");
     void frame.happyDOM.close();
+  });
+});
+
+describe("formulas", () => {
+  // KaTeX's shape: MathML with the TeX source, then the drawn formula.
+  const FORMULA =
+    '<span class="katex"><span class="katex-mathml"><math><semantics>' +
+    "<mrow><mi>E</mi><mo>=</mo></mrow>" +
+    '<annotation encoding="application/x-tex">E = mc^2</annotation>' +
+    '</semantics></math></span><span class="katex-html" aria-hidden="true">' +
+    "<span>E</span><span>=</span><span>mc2</span></span></span>";
+  const EXCLUDED =
+    '[aria-hidden="true"], .katex-mathml semantics > :not(annotation)';
+
+  afterEach(() => {
+    document.body.innerHTML = "";
+  });
+
+  it("comments on a formula selected inside its drawing by its source", () => {
+    const root = mount(`<p>Energy is ${FORMULA} at rest.</p>`);
+    const drawn = root.querySelector(".katex-html span:last-child")!;
+    const range = document.createRange();
+    range.selectNodeContents(drawn);
+
+    expect(createTextAnchor(root, range, EXCLUDED)).toBeUndefined();
+    const anchor = createTextAnchor(
+      root,
+      rangeAroundAtoms(range, ".katex"),
+      EXCLUDED,
+    );
+    expect(anchor?.exact).toBe("E = mc^2");
+  });
+
+  it("takes a formula whole when a selection ends inside it", () => {
+    const root = mount(`<p>Energy is ${FORMULA} at rest.</p>`);
+    const range = document.createRange();
+    range.setStart(root.querySelector("p")!.firstChild!, 0);
+    range.setEnd(root.querySelector(".katex-html span")!.firstChild!, 1);
+
+    const anchor = createTextAnchor(
+      root,
+      rangeAroundAtoms(range, ".katex"),
+      EXCLUDED,
+    );
+    expect(anchor?.exact).toBe("Energy is E = mc^2");
   });
 });

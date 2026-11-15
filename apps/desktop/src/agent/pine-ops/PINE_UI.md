@@ -487,7 +487,9 @@ How to comment:
   box ("Add a comment…") with Cancel and Comment. Enter saves, Shift+Enter
   starts a new line, and Esc cancels. Editing a comment in the panel works the
   same way. A selection that runs onto the next page or slide comments only
-  on the part on the first one.
+  on the part on the first one. In rendered Markdown, a math formula is
+  commented on whole: selecting any part of it takes all of it, and the
+  comment quotes the formula's TeX source.
 - Selecting cells in a table shows the same Comment menu; the comment box
   names the range ("B2:D5", with the sheet name in workbooks).
 - In formats with areas, the footer has "Comment on area". It turns the

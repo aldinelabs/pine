@@ -209,9 +209,13 @@ function updateSelection(): void {
 
 useEventListener(document, "selectionchange", updateSelection);
 watch(() => props.mode, updateSelection);
+/** A KaTeX formula's MathML other than its TeX source annotation. */
+const KATEX_MATHML_PRESENTATION = ".katex-mathml semantics > :not(annotation)";
+
 /**
  * The text comments anchor in: the source code in code view (line numbers
- * sit outside it), or the rendered Markdown minus its toolbars and controls.
+ * sit outside it), or the rendered Markdown minus its toolbars and controls,
+ * with each formula commented on whole.
  */
 function annotationSurface(): AnnotationSurface | undefined {
   const root = content.value;
@@ -219,7 +223,13 @@ function annotationSurface(): AnnotationSurface | undefined {
   if (markdownNodes.value) {
     const renderer = root.querySelector<HTMLElement>(".markdown-renderer");
     return renderer
-      ? { root: renderer, excluded: filePreviewExcluded }
+      ? {
+          root: renderer,
+          // KaTeX hides the formula users see from assistive tech and keeps
+          // its TeX source in the MathML; a formula reads as that source.
+          excluded: `${filePreviewExcluded}, ${KATEX_MATHML_PRESENTATION}`,
+          atoms: { selector: ".katex", face: ".katex-html" },
+        }
       : undefined;
   }
   const code = root.querySelector<HTMLElement>("pre code");

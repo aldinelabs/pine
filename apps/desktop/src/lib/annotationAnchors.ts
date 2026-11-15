@@ -194,6 +194,23 @@ function anchorAt(text: string, { start, end }: TextOffsets): TextAnchor {
   };
 }
 
+function elementOf(node: Node): Element | null {
+  return node.nodeType === TEXT_NODE ? node.parentElement : (node as Element);
+}
+
+/**
+ * The range grown so that an element matching `selector` that it starts or
+ * ends inside is taken whole.
+ */
+export function rangeAroundAtoms(range: Range, selector: string): Range {
+  const grown = range.cloneRange();
+  const start = elementOf(range.startContainer)?.closest(selector);
+  if (start) grown.setStartBefore(start);
+  const end = elementOf(range.endContainer)?.closest(selector);
+  if (end) grown.setEndAfter(end);
+  return grown;
+}
+
 /** The anchor for a range inside root, or undefined when it holds no non-blank text. */
 export function createTextAnchor(
   root: HTMLElement,
