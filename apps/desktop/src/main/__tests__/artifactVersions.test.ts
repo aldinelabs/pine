@@ -78,6 +78,33 @@ describe("artifact versions", () => {
     expect(history.missing).toBe(false);
   });
 
+  it("keeps each submission's title and description", async () => {
+    const { submit, input } = await setup();
+    await submit("call-1", "one\n");
+    await submit("call-2", "two\n");
+    const submissions = input().submissions as SessionArtifact[];
+    Object.assign(submissions[0], {
+      title: "Report",
+      description: "First draft",
+    });
+    Object.assign(submissions[1], {
+      title: "Report",
+      description: "Adds a summary",
+    });
+
+    const history = await readVersionHistory(input());
+
+    expect(
+      history.versions.map(({ title, description }) => ({
+        title,
+        description,
+      })),
+    ).toEqual([
+      { title: "Report", description: "Adds a summary" },
+      { title: "Report", description: "First draft" },
+    ]);
+  });
+
   it("notices a file changed after its last submission", async () => {
     const { file, submit, input } = await setup();
     await submit("call-1", "one\n");

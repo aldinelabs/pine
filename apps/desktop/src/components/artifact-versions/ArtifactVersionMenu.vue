@@ -82,7 +82,10 @@ function details(version: ArtifactVersion): string {
   return [
     version.ref.kind === "backup"
       ? t("project.workbench.artifacts.versions.backup")
-      : version.title,
+      : // The description tells versions apart; the title rarely changes.
+        version.description
+        ? undefined
+        : version.title,
     version.size === undefined
       ? undefined
       : formatBytes(version.size, locale.value),
@@ -170,7 +173,8 @@ async function select(version: ArtifactVersion): Promise<void> {
           :key="versionKey(version)"
           data-testid="artifact-version"
           :disabled="version.state !== 'available'"
-          class="h-12"
+          class="min-h-12"
+          :title="version.description"
           @select="select(version)"
         >
           <span class="flex min-w-0 flex-1 flex-col">
@@ -180,7 +184,17 @@ async function select(version: ArtifactVersion): Promise<void> {
                 {{ t("project.workbench.artifacts.versions.current") }}
               </Badge>
             </span>
-            <span class="truncate text-xs font-normal text-muted-foreground">
+            <span
+              v-if="version.description"
+              data-testid="artifact-version-description"
+              class="line-clamp-2 text-xs font-normal"
+            >
+              {{ version.description }}
+            </span>
+            <span
+              v-if="details(version)"
+              class="truncate text-xs font-normal text-muted-foreground"
+            >
               {{ details(version) }}
             </span>
           </span>

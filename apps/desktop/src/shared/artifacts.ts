@@ -225,6 +225,8 @@ export interface ArtifactVersion {
   time: number;
   size?: number;
   title?: string;
+  /** What the agent said about this submission. */
+  description?: string;
   /**
    * `available` can be previewed and restored; `pruned` was stored and later
    * dropped to stay within the storage limit; `too-large` and `failed` were

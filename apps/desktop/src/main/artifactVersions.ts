@@ -126,7 +126,12 @@ async function collectVersions(
       kind: "submission",
       toolCallId: submission.toolCallId,
     };
-    const title = submission.title ? { title: submission.title } : {};
+    const title = {
+      ...(submission.title ? { title: submission.title } : {}),
+      ...(submission.description
+        ? { description: submission.description }
+        : {}),
+    };
     if (snapshot.status === "stored") {
       const available = await hasContent(input.store, snapshot.integrity);
       found.push({
