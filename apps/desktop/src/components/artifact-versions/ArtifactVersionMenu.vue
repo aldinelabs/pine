@@ -80,12 +80,11 @@ function details(version: ArtifactVersion): string {
           ? t("project.workbench.artifacts.versions.failed")
           : undefined;
   return [
+    // The title is the same file's name in every version, so only the
+    // description tells them apart.
     version.ref.kind === "backup"
       ? t("project.workbench.artifacts.versions.backup")
-      : // The description tells versions apart; the title rarely changes.
-        version.description
-        ? undefined
-        : version.title,
+      : undefined,
     version.size === undefined
       ? undefined
       : formatBytes(version.size, locale.value),

@@ -578,8 +578,7 @@ a file tab opened from Artifacts or from the Preview card's Open in tab)
 lists Current file, then the kept versions newest first, each with its time,
 what the agent said about that submission (up to two lines; hover for all of
 it), its size and a "Current" badge on the one matching the file on disk. A
-submission without a description shows the agent's title, and a copy kept
-before a restore shows "Before restore". A note says when the file changed since
+copy kept before a restore shows "Before restore". A note says when the file changed since
 its last submission or no longer exists. Versions removed to save space, too
 large to keep or not kept are listed but cannot be picked.
 
