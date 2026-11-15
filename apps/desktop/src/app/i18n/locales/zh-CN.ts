@@ -1654,6 +1654,7 @@ export default {
         duration: "耗时",
         durationMilliseconds: "{value} 毫秒",
         durationSeconds: "{value} 秒",
+        submittedFiles: "提交的文件",
         parameters: "LLM 输出参数",
         result: "工具返回值",
         field: "字段",

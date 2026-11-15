@@ -1766,6 +1766,7 @@ export default {
         duration: "Duración",
         durationMilliseconds: "{value} ms",
         durationSeconds: "{value} s",
+        submittedFiles: "Archivos entregados",
         parameters: "Parámetros del LLM",
         result: "Resultado de la herramienta",
         field: "Campo",

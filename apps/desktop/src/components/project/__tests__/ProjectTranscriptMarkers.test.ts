@@ -1052,6 +1052,35 @@ describe("project transcript markers", () => {
     expect(content.text()).toBe("Submitted 1 of 2 files report.md");
   });
 
+  it("shows submitted titles as text rather than code", () => {
+    const wrapper = mount(ProjectToolCallMarker, {
+      props: {
+        toolCall: {
+          id: "tool-submit-titled",
+          input: { files: [{ path: "/work/out/report.md" }] },
+          name: "ui_submit_artifact",
+          status: "complete",
+          output: {
+            details: {
+              files: [
+                {
+                  path: "/work/out/report.md",
+                  requestedPath: "report.md",
+                  title: "Quarterly report",
+                },
+              ],
+              rejected: [],
+            },
+          },
+        },
+      },
+      global: { plugins: [createAppI18n("en-US")] },
+    });
+    const content = wrapper.get('[data-slot="marker-content"]');
+    expect(content.text()).toBe("Submitted Quarterly report");
+    expect(content.find("code").exists()).toBe(false);
+  });
+
   it("describes workbench calls as sentences", () => {
     const cases = [
       { name: "ui_workbench_state", input: {}, expected: "已查看工作台状态" },

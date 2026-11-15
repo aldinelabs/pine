@@ -213,7 +213,13 @@ From top to bottom:
      calls (for example "Ran 3 automation actions");
    - artifact submissions ("Submitted 3 files report.md, data.csv, chart.png",
      or "Submitted 2 of 3 files …" when some were rejected), naming the files
-     added to Artifacts;
+     added to Artifacts by the titles the agent gave them, or else by file
+     name. Clicking a submission of one file previews it in the workbench as
+     that submission left it: the version it kept, shown with the version bar
+     (see Artifact versions), or the file itself when it has not changed
+     since or no copy was kept. A submission of several files opens its
+     details, which list them under "Submitted files" (title and
+     description); clicking one opens it the same way;
    - markers for context compaction, errors, stopped responses and background
      process events;
    - a temporary "Pine is still waiting for the model provider to respond. …"

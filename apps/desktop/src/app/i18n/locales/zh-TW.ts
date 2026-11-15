@@ -1658,6 +1658,7 @@ export default {
         duration: "耗時",
         durationMilliseconds: "{value} 毫秒",
         durationSeconds: "{value} 秒",
+        submittedFiles: "提交的檔案",
         parameters: "LLM 輸出引數",
         result: "工具返回值",
         field: "欄位",

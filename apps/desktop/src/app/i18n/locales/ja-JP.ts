@@ -1750,6 +1750,7 @@ export default {
         duration: "所要時間",
         durationMilliseconds: "{value} ミリ秒",
         durationSeconds: "{value} 秒",
+        submittedFiles: "提出したファイル",
         parameters: "LLM パラメータ",
         result: "ツールの結果",
         field: "フィールド",

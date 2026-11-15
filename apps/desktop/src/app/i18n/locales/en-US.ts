@@ -1734,6 +1734,7 @@ export default {
         duration: "Duration",
         durationMilliseconds: "{value} ms",
         durationSeconds: "{value} s",
+        submittedFiles: "Submitted files",
         parameters: "LLM parameters",
         result: "Tool result",
         field: "Field",

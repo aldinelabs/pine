@@ -1767,6 +1767,7 @@ export default {
         duration: "Durée",
         durationMilliseconds: "{value} ms",
         durationSeconds: "{value} s",
+        submittedFiles: "Fichiers remis",
         parameters: "Paramètres du LLM",
         result: "Résultat de l'outil",
         field: "Champ",

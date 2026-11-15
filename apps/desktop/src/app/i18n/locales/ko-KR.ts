@@ -1724,6 +1724,7 @@ export default {
         duration: "소요 시간",
         durationMilliseconds: "{value}ms",
         durationSeconds: "{value}초",
+        submittedFiles: "제출한 파일",
         parameters: "LLM 매개변수",
         result: "도구 결과",
         field: "필드",

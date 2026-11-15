@@ -112,7 +112,14 @@ function submitArtifactSummary(
   input: Record<string, unknown>,
   output: unknown,
   status: "running" | "complete" | "error",
-): { key: string; count: number; total: number; names: string[] } {
+): {
+  key: string;
+  count: number;
+  total: number;
+  names: string[];
+  /** Every name is a title the agent gave, not a file name. */
+  titled: boolean;
+} {
   const requested = Array.isArray(input.files)
     ? input.files.flatMap((file) => {
         const path = firstString(inputRecord(file), ["path"]);
@@ -126,6 +133,7 @@ function submitArtifactSummary(
       count: requested.length,
       total: requested.length,
       names: requestedNames,
+      titled: false,
     };
   const details = inputRecord(inputRecord(output).details);
   const accepted = Array.isArray(details.files)
@@ -143,6 +151,9 @@ function submitArtifactSummary(
       const name = firstString(file, ["title"]) ?? (path && filename(path));
       return name ? [name] : [];
     }),
+    titled:
+      accepted.length > 0 &&
+      accepted.every((file) => firstString(file, ["title"])),
   };
 }
 
@@ -1500,7 +1511,8 @@ const presentation = computed(() => {
       operation: undefined,
       separator: "",
       target: compactInline(summary.names.join(", "), 96),
-      targetMono,
+      // Titles read as prose; file names keep the code face.
+      targetMono: !summary.titled,
       purpose: undefined,
       faviconDataUrl: undefined,
       after: "",

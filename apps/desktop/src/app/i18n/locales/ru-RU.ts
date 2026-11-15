@@ -1750,6 +1750,7 @@ export default {
         duration: "Длительность",
         durationMilliseconds: "{value} мс",
         durationSeconds: "{value} с",
+        submittedFiles: "Переданные файлы",
         parameters: "Параметры LLM",
         result: "Результат инструмента",
         field: "Поле",

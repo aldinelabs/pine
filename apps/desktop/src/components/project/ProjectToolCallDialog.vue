@@ -21,6 +21,9 @@ import DialogScrollArea from "@/components/dialogs/DialogScrollArea.vue";
 import { Separator } from "@/components/ui/separator";
 import { approvalFailureText, approvalReasonText } from "@/lib/approvalReasons";
 import { PHONE_FULLSCREEN_DIALOG } from "@/lib/dialogLayout";
+import { fileIcon } from "@/lib/fileIcon";
+import { fileName } from "@/lib/filePreviewTarget";
+import { submittedArtifactsOfCall } from "@/shared/artifacts";
 import type {
   PineApprovalReview,
   PineApprovalReviewReasonCode,
@@ -55,6 +58,11 @@ watch(
 );
 const isDenied = computed(() => isDeniedTool(props.toolCall));
 const view = computed(() => toolViewAdapter(props.toolCall));
+/** The files of a submission with several; one file opens directly. */
+const submittedFiles = computed(() => {
+  const files = submittedArtifactsOfCall(props.toolCall);
+  return files.length > 1 ? files : [];
+});
 const wideDetails = computed(() =>
   ["edit", "search", "fetch", "fileSearch"].includes(view.value.detail),
 );
@@ -167,6 +175,21 @@ function formatDuration(durationMs: number): string {
   }
   return t("project.transcript.toolDetails.durationSeconds", {
     value: (durationMs / 1_000).toFixed(durationMs < 10_000 ? 1 : 0),
+  });
+}
+
+async function openSubmittedFile(path: string): Promise<void> {
+  if (!props.openFile) return;
+  try {
+    if (await props.openFile(path, props.toolCall)) {
+      isOpen.value = false;
+      return;
+    }
+  } catch {
+    // Reported below, as for a file that no longer opens.
+  }
+  toast.error(t("project.preview.failedTitle"), {
+    description: t("project.preview.failedDescription"),
   });
 }
 
@@ -357,6 +380,45 @@ async function openDialog(): Promise<void> {
                 class="overflow-x-auto rounded-xl bg-muted/60 p-3 font-mono text-xs whitespace-pre-wrap"
                 data-rejection-reason
                 >{{ approvalReasonText(toolCall.approval, t) }}</pre>
+            </section>
+          </template>
+
+          <template v-if="submittedFiles.length">
+            <Separator />
+            <section
+              class="flex min-w-0 flex-col gap-2"
+              data-testid="submitted-artifacts"
+            >
+              <h3 class="text-sm font-medium">
+                {{ t("project.transcript.toolDetails.submittedFiles") }}
+              </h3>
+              <ul class="flex min-w-0 flex-col gap-1">
+                <li v-for="file in submittedFiles" :key="file.path">
+                  <button
+                    type="button"
+                    class="flex w-full min-w-0 items-start gap-3 rounded-xl px-3 py-2 text-left text-sm hover:bg-muted focus-visible:bg-muted focus-visible:outline-none disabled:pointer-events-none"
+                    :disabled="!openFile"
+                    :title="file.path"
+                    @click="openSubmittedFile(file.path)"
+                  >
+                    <component
+                      :is="fileIcon(file.path)"
+                      class="mt-0.5 size-4 shrink-0 text-muted-foreground"
+                      aria-hidden="true"
+                    />
+                    <span class="flex min-w-0 flex-1 flex-col">
+                      <span class="truncate font-medium">{{
+                        file.title ?? fileName(file.path)
+                      }}</span>
+                      <span
+                        v-if="file.description"
+                        class="line-clamp-2 text-xs text-muted-foreground"
+                        >{{ file.description }}</span
+                      >
+                    </span>
+                  </button>
+                </li>
+              </ul>
             </section>
           </template>
 

@@ -49,6 +49,27 @@ describe("tool view adapter", () => {
     ).toBe("generic");
   });
 
+  it("opens a submission's file directly only when it submitted one", () => {
+    const submission = (paths: string[]) =>
+      toolViewAdapter({
+        id: "submit",
+        name: "ui_submit_artifact",
+        status: "complete",
+        input: { files: paths.map((path) => ({ path })) },
+        output: {
+          details: {
+            files: paths.map((path) => ({ path, requestedPath: path })),
+            rejected: [],
+          },
+        },
+      });
+    expect(submission(["/out/report.md"])).toEqual({
+      detail: "generic",
+      filePath: "/out/report.md",
+    });
+    expect(submission(["/out/a.md", "/out/b.md"]).filePath).toBeUndefined();
+  });
+
   it("opens only successful first-party reads and writes", () => {
     expect(
       toolViewAdapter({

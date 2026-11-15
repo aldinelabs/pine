@@ -18,7 +18,11 @@ import {
 } from "vue";
 import { useI18n } from "vue-i18n";
 import { toast } from "vue-sonner";
-import type { PineApprovalAction, PineApprovalMode } from "@/shared/agent";
+import {
+  UI_SUBMIT_ARTIFACT_TOOL_NAME,
+  type PineApprovalAction,
+  type PineApprovalMode,
+} from "@/shared/agent";
 import type { AskUserQuestionSubmission } from "@pine/rpiv-ask-user-question";
 import {
   attachmentMessagePreview,
@@ -46,6 +50,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { useContentTabNavigation } from "@/composables/useContentTabNavigation";
 import { useDocumentVisible } from "@/composables/useDocumentVisible";
 import { useDraftProjectOpener } from "@/composables/useDraftProjectOpener";
+import { useOpenSubmittedArtifact } from "@/composables/useOpenSubmittedArtifact";
 import { usePhoneLayout } from "@/composables/usePhoneLayout";
 import { useToolActivityExpansion } from "@/composables/useToolActivityExpansion";
 import { useSteeringMessageTransition } from "@/composables/useSteeringMessageTransition";
@@ -130,10 +135,22 @@ watch(
   { immediate: true, flush: "post" },
 );
 
+const openSubmittedArtifact = useOpenSubmittedArtifact();
+
 async function openToolFile(
   path: string,
   toolCall: PineToolCall,
 ): Promise<boolean> {
+  // A submitted file opens as that submission left it.
+  if (toolCall.name === UI_SUBMIT_ARTIFACT_TOOL_NAME)
+    return props.sessionId
+      ? openSubmittedArtifact({
+          projectId: props.projectId,
+          sessionId: props.sessionId,
+          toolCallId: toolCall.id,
+          path,
+        })
+      : false;
   const presentedTarget = contentTabsStore.presentedTargetFor(toolCall.id);
   if (presentedTarget) {
     tabNavigation.activate(

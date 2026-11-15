@@ -796,4 +796,57 @@ describe("ProjectToolCallDialog", () => {
     expect(content.text()).not.toContain("https://deploymentsafety.openai.com");
     wrapper.unmount();
   });
+
+  it("lists a submission's files and opens the one picked", async () => {
+    const openFile = vi.fn().mockResolvedValue(true);
+    const files = [
+      {
+        path: "/work/out/report.md",
+        requestedPath: "report.md",
+        title: "Report",
+        description: "Adds the summary",
+      },
+      { path: "/work/out/data.csv", requestedPath: "data.csv" },
+    ];
+    const wrapper = mount(ProjectToolCallMarker, {
+      attachTo: document.body,
+      props: {
+        toolCall: {
+          id: "submit-1",
+          name: "ui_submit_artifact",
+          status: "complete",
+          input: {
+            files: files.map(({ requestedPath }) => ({ path: requestedPath })),
+          },
+          output: { details: { files, rejected: [] } },
+        },
+        openFile,
+      },
+      global: { plugins: [createPinia(), createAppI18n("en-US")] },
+    });
+    await wrapper.get('button[data-slot="marker"]').trigger("click");
+    await flushPromises();
+    expect(openFile).not.toHaveBeenCalled();
+    const list = document.body.querySelector(
+      '[data-testid="submitted-artifacts"]',
+    );
+    const buttons = [...list!.querySelectorAll("button")];
+    expect(buttons.map((button) => button.textContent?.trim())).toEqual([
+      expect.stringContaining("Adds the summary"),
+      "data.csv",
+    ]);
+
+    buttons[1].click();
+    await flushPromises();
+    expect(openFile).toHaveBeenCalledWith(
+      "/work/out/data.csv",
+      expect.objectContaining({ id: "submit-1" }),
+    );
+    expect(
+      document.body
+        .querySelector('[data-slot="dialog-content"]')
+        ?.getAttribute("data-state"),
+    ).not.toBe("open");
+    wrapper.unmount();
+  });
 });

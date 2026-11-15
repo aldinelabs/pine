@@ -1777,6 +1777,7 @@ export default {
         duration: "Dauer",
         durationMilliseconds: "{value} ms",
         durationSeconds: "{value} s",
+        submittedFiles: "Übergebene Dateien",
         parameters: "LLM-Parameter",
         result: "Werkzeugergebnis",
         field: "Feld",

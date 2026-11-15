@@ -1,6 +1,7 @@
 import type { PineProject } from "@/shared/projects";
 import type { ProjectFilePreviewRequest } from "@/shared/projectFiles";
 import type { PineToolCall } from "@/shared/sessions";
+import { submittedArtifactsOfCall } from "@/shared/artifacts";
 
 export type ToolDetailView =
   | "generic"
@@ -129,9 +130,15 @@ export function toolViewAdapter(call: PineToolCall): ToolViewAdapter {
     case "privileged_bash":
     case "privileged_powershell":
       return { detail: "shell" };
-    // The result text lists the accepted and rejected files.
-    case "ui_submit_artifact":
-      return { detail: "generic" };
+    // A single submitted file opens directly; a batch lists its files in
+    // the details, and the result text the rejected ones.
+    case "ui_submit_artifact": {
+      const files = submittedArtifactsOfCall(call);
+      return {
+        detail: "generic",
+        ...(files.length === 1 ? { filePath: files[0].path } : {}),
+      };
+    }
     case "ask_user_question":
       return { detail: "questionnaire" };
     case "web_search":
