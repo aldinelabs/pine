@@ -1378,6 +1378,12 @@ describe("ProjectFilePreview", () => {
     );
     expect(wrapper.find('[data-action="send-to-tab"]').exists()).toBe(false);
     expect(wrapper.find('[data-action="open-default"]').exists()).toBe(false);
+    // A version has no sidebar cards of its own; the session's stay.
+    expect(wrapper.find('[data-action="toggle-sidebar"]').exists()).toBe(false);
+    expect(useWorkbenchStore().activeFile).toBeUndefined();
+    expect(wrapper.get('[data-testid="version-metadata"]').text()).toBe(
+      "PY · 2 KB",
+    );
 
     await wrapper.get('[data-action="save-version"]').trigger("click");
     expect(window.pine.saveArtifactVersion).toHaveBeenCalledWith({

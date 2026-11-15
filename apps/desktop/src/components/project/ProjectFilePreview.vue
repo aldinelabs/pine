@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { isWebClient } from "@/lib/clientRuntime";
+import { formatBytes } from "@/lib/formatBytes";
 import {
   computed,
   nextTick,
@@ -119,7 +120,7 @@ const props = withDefaults(
   defineProps<{ file: FileContentTab; active?: boolean }>(),
   { active: true },
 );
-const { t } = useI18n();
+const { t, locale } = useI18n();
 const isWeb = isWebClient();
 // Presented files live outside the project, so they cannot be sent to a
 // session as a project entry; opening with the default app still works.
@@ -583,7 +584,8 @@ const canAnnotateRegions = computed(
   () => canAnnotate.value && Boolean(capabilities.value.annotateRegions),
 );
 // Pine's right sidebar shows the file's details and comments while this tab
-// is in front; it stays closed until asked for.
+// is in front; it stays closed until asked for. A kept version has neither:
+// the sidebar stays the session's own.
 const workbench = useWorkbenchStore();
 const sidebarOpen = computed({
   get: () => workbench.isFileOpen(props.file.id),
@@ -604,14 +606,14 @@ const showCommentsSection = computed(
 watch(
   () =>
     [
-      props.active,
+      props.active && !viewingVersion.value,
       showCommentsSection.value,
       annotations.value.length,
     ] as const,
-  ([active, comments, commentCount]) =>
+  ([front, comments, commentCount]) =>
     workbench.showFile(
       props.file.id,
-      active ? { comments, commentCount } : undefined,
+      front ? { comments, commentCount } : undefined,
     ),
   { immediate: true },
 );
@@ -1172,6 +1174,12 @@ function clearAnnotations(): void {
           <SquareDashedMousePointer data-icon="inline-start" />
           {{ t("project.preview.annotations.commentOnArea") }}
         </Button>
+        <span
+          v-if="viewingVersion && preview"
+          data-testid="version-metadata"
+          class="tabular-nums"
+          >{{ fileType }} · {{ formatBytes(preview.size, locale) }}</span
+        >
         <ArtifactVersionMenu
           v-if="versionSource"
           :view-key="versionViewKey"
@@ -1180,6 +1188,7 @@ function clearAnnotations(): void {
         <!-- Opens the sidebar: the file's details, and its comments where
              it can have them. -->
         <Button
+          v-if="!viewingVersion"
           data-action="toggle-sidebar"
           variant="ghost"
           size="sm"

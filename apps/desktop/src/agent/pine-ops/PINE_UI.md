@@ -443,7 +443,11 @@ footer's Comments button (Details for files that cannot take comments; with
 the number of comments when there are any), the title bar's workbench button
 and Mod+Alt+B open and close it, and the X on either card closes it. Each
 file tab remembers whether it is open until the tab closes; switching to a
-session tab brings back that session's own workbench.
+session tab brings back that session's own workbench. While a file tab shows
+a kept version (see Artifact versions) it has no cards of its own: the
+footer's Comments / Details button is hidden, the sidebar shows the
+session's workbench as it was, and the footer's right side reads the file's
+type and size instead.
 
 The Details card lists the file's Type, Size (also in bytes), Modified,
 Created (where the file system records it) and Location (its path in the
