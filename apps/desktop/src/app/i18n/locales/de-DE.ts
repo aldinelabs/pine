@@ -973,8 +973,6 @@ export default {
           viewing: "Version vom {time}",
           backToCurrent: "Zurück zur aktuellen Datei",
           count: "{count} Versionen gespeichert",
-          rendered: "Gerendert",
-          source: "Quelltext",
           loadFailed: "Der Versionsverlauf konnte nicht geladen werden",
           empty:
             "Für diese Datei wurden keine Versionen gespeichert. Versionen werden ab der nächsten Einreichung durch Pine gespeichert.",

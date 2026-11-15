@@ -1031,6 +1031,7 @@ function clearAnnotations(): void {
           v-else
           :diff="versionView?.diff"
           :file-name="fileName"
+          :source="viewMode === 'code'"
         />
       </div>
       <!-- The file's details and comments, in the cards of Pine's right

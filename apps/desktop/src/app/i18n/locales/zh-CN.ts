@@ -894,8 +894,6 @@ export default {
           viewing: "{time} 的版本",
           backToCurrent: "返回当前文件",
           count: "已保存 {count} 个版本",
-          rendered: "渲染",
-          source: "源码",
           loadFailed: "无法加载版本历史",
           empty: "此文件没有保存的版本。从 Pine 下次提交它起开始保存。",
           current: "当前",

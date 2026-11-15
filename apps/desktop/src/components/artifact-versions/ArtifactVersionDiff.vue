@@ -1,8 +1,7 @@
 <script setup lang="ts">
-import { computed, ref } from "vue";
+import { computed } from "vue";
 import { useI18n } from "vue-i18n";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { fileLanguage } from "@/lib/fileLanguage";
 import type { ArtifactVersionDiff } from "@/shared/artifacts";
 import MarkdownVersionDiff from "./MarkdownVersionDiff.vue";
@@ -15,16 +14,17 @@ const props = defineProps<{
   diff?: ArtifactVersionDiff;
   /** The file's name, which decides whether a rendered comparison applies. */
   fileName?: string;
+  /** Shows a Markdown file's line changes, as its preview's Text view does. */
+  source?: boolean;
 }>();
 const { t } = useI18n();
 
-const markdown = computed(
-  () => !!props.fileName && fileLanguage(props.fileName) === "markdown",
-);
-const mode = ref<"rendered" | "source">("rendered");
 const rendered = computed(
   () =>
-    markdown.value && mode.value === "rendered" && props.diff?.status === "ok",
+    !props.source &&
+    !!props.fileName &&
+    fileLanguage(props.fileName) === "markdown" &&
+    props.diff?.status === "ok",
 );
 
 const message = computed(() => {
@@ -57,36 +57,6 @@ const message = computed(() => {
       {{ message }}
     </p>
     <template v-else-if="diff.status === 'ok'">
-      <div
-        v-if="markdown"
-        class="sticky top-0 z-10 flex shrink-0 justify-end bg-background/90 px-3 py-1.5 backdrop-blur"
-      >
-        <ToggleGroup
-          type="single"
-          variant="outline"
-          size="sm"
-          :model-value="mode"
-          :aria-label="t('project.workbench.artifacts.versions.compare')"
-          @update:model-value="
-            (value) => {
-              if (value === 'rendered' || value === 'source') mode = value;
-            }
-          "
-        >
-          <ToggleGroupItem
-            value="rendered"
-            data-testid="artifact-version-diff-rendered"
-          >
-            {{ t("project.workbench.artifacts.versions.rendered") }}
-          </ToggleGroupItem>
-          <ToggleGroupItem
-            value="source"
-            data-testid="artifact-version-diff-source"
-          >
-            {{ t("project.workbench.artifacts.versions.source") }}
-          </ToggleGroupItem>
-        </ToggleGroup>
-      </div>
       <MarkdownVersionDiff
         v-if="rendered"
         :before="diff.before"

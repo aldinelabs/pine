@@ -943,8 +943,6 @@ export default {
           viewing: "{time} 버전",
           backToCurrent: "현재 파일로 돌아가기",
           count: "보관된 버전 {count}개",
-          rendered: "렌더링",
-          source: "소스",
           loadFailed: "버전 기록을 불러올 수 없습니다",
           empty:
             "이 파일에 저장된 버전이 없습니다. Pine이 다음에 제출할 때부터 저장됩니다.",

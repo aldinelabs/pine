@@ -21,37 +21,38 @@ const diff: Diff = {
   after: "# Plan\n\nBudget is 35 thousand.\n",
 };
 
-function render(fileName: string) {
+function render(fileName: string, source?: boolean) {
   return mount(ArtifactVersionDiff, {
-    props: { diff, fileName },
+    props: { diff, fileName, source },
     global: { plugins: [createPinia(), createAppI18n("en-US")] },
   });
 }
 
 describe("ArtifactVersionDiff", () => {
-  it("renders a Markdown comparison and can switch to the source", async () => {
+  it("renders a Markdown comparison", async () => {
     const wrapper = render("plan.md");
     await flushPromises();
 
     const rendered = wrapper.get('[data-testid="markdown-version-diff"]');
     expect(rendered.find("del").text()).toBe("30");
     expect(rendered.find("ins").text()).toBe("35");
+  });
 
-    await wrapper
-      .get('[data-testid="artifact-version-diff-source"]')
-      .trigger("click");
+  it("shows a Markdown file's line changes when its preview shows text", () => {
+    const wrapper = render("plan.md", true);
+
     expect(wrapper.find('[data-testid="markdown-version-diff"]').exists()).toBe(
       false,
     );
     expect(wrapper.text()).toContain("−Budget is 30 thousand.");
   });
 
-  it("shows other text files line by line without the switch", () => {
+  it("shows other text files line by line", () => {
     const wrapper = render("notes.txt");
 
-    expect(
-      wrapper.find('[data-testid="artifact-version-diff-rendered"]').exists(),
-    ).toBe(false);
+    expect(wrapper.find('[data-testid="markdown-version-diff"]').exists()).toBe(
+      false,
+    );
     expect(wrapper.text()).toContain("+Budget is 35 thousand.");
   });
 });
