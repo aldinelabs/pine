@@ -1,15 +1,5 @@
 <script setup lang="ts">
-import {
-  AppWindowIcon,
-  CopyIcon,
-  ExternalLinkIcon,
-  EyeIcon,
-  FilesIcon,
-  FolderOpenIcon,
-  HistoryIcon,
-  PencilIcon,
-  Trash2Icon,
-} from "@lucide/vue";
+import { FilesIcon, HistoryIcon, PencilIcon, Trash2Icon } from "@lucide/vue";
 import { storeToRefs } from "pinia";
 import { computed, ref } from "vue";
 import { useI18n } from "vue-i18n";
@@ -451,37 +441,32 @@ async function submitDialog(): Promise<void> {
               >
             </SidebarMenuButton>
           </ContextMenuTrigger>
-          <ContextMenuContent class="w-52">
+          <ContextMenuContent class="w-52 [&_[data-inset]]:pl-8">
             <ContextMenuGroup>
-              <ContextMenuItem @select="show(artifact)">
-                <EyeIcon aria-hidden="true" />
+              <ContextMenuItem inset @select="show(artifact)">
                 {{ t("project.workbench.artifacts.preview") }}
               </ContextMenuItem>
-              <ContextMenuItem @select="openInTab(artifact)">
-                <AppWindowIcon aria-hidden="true" />
+              <ContextMenuItem inset @select="openInTab(artifact)">
                 {{ t("project.workbench.preview.openInTab") }}
               </ContextMenuItem>
               <ContextMenuItem
                 v-if="artifact.submitted"
+                inset
                 data-testid="workbench-artifact-versions"
                 @select="showVersions(artifact)"
               >
-                <HistoryIcon aria-hidden="true" />
                 {{ t("project.workbench.artifacts.versions.menu") }}
               </ContextMenuItem>
             </ContextMenuGroup>
             <ContextMenuSeparator />
             <ContextMenuGroup>
-              <ContextMenuItem @select="runNative(artifact, 'open')">
-                <ExternalLinkIcon aria-hidden="true" />
+              <ContextMenuItem inset @select="runNative(artifact, 'open')">
                 {{ t("project.files.open") }}
               </ContextMenuItem>
-              <ContextMenuItem @select="runNative(artifact, 'reveal')">
-                <FolderOpenIcon aria-hidden="true" />
+              <ContextMenuItem inset @select="runNative(artifact, 'reveal')">
                 {{ t("project.files.reveal") }}
               </ContextMenuItem>
-              <ContextMenuItem @select="runNative(artifact, 'copy-path')">
-                <CopyIcon aria-hidden="true" />
+              <ContextMenuItem inset @select="runNative(artifact, 'copy-path')">
                 {{ t("project.files.copyPath") }}
               </ContextMenuItem>
             </ContextMenuGroup>
