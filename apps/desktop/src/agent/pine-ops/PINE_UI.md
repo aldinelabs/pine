@@ -446,7 +446,7 @@ file tab remembers whether it is open until the tab closes; switching to a
 session tab brings back that session's own workbench. While a file tab shows
 a kept version (see Artifact versions) it has no cards of its own: the
 footer's Comments / Details button is hidden, the sidebar shows the
-session's workbench as it was, and the footer's right side reads the file's
+session's workbench as it was, and the footer's left side reads the file's
 type and size instead.
 
 The Details card lists the file's Type, Size (also in bytes), Modified,
@@ -600,8 +600,8 @@ files in a read-write project folder) and an X for Back to current file.
 Restoring first keeps the current file as a "Before restore" version, so it
 can be undone, then shows the file as restored. While a file tab shows a
 version, comments and Send to tab are hidden, and Open with default
-application becomes Save as… (asks where to save a copy of that version; in
-the browser it downloads the copy).
+application gives way to a Save as… button at the footer's right end (asks
+where to save a copy of that version; in the browser it downloads the copy).
 Picking another file in the Preview card returns it to the current file.
 
 When the agent opens a card, or presents a file in the Preview card, that

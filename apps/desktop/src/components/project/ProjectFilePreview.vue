@@ -1121,26 +1121,12 @@ function clearAnnotations(): void {
         <ExternalLink v-else data-icon="inline-start" />
         {{ t(isWeb ? "common.downloadFile" : "project.preview.openDefault") }}
       </Button>
-      <!-- A version is a copy outside the project: it is saved, not opened,
-           so edits are not made to a copy that is thrown away. -->
-      <Button
-        v-else-if="preview && viewingVersion"
-        data-action="save-version"
-        variant="ghost"
-        size="sm"
-        class="-ml-2"
-        @click="saveVersionAs"
+      <span
+        v-if="viewingVersion && preview"
+        data-testid="version-metadata"
+        class="tabular-nums"
+        >{{ fileType }} · {{ formatBytes(preview.size, locale) }}</span
       >
-        <Download v-if="isWeb" data-icon="inline-start" />
-        <Save v-else data-icon="inline-start" />
-        {{
-          t(
-            isWeb
-              ? "common.downloadFile"
-              : "project.workbench.artifacts.versions.saveAs",
-          )
-        }}
-      </Button>
       <div v-if="capabilities.invert" class="flex items-center gap-2">
         <Switch
           :id="invertSwitchId"
@@ -1174,12 +1160,6 @@ function clearAnnotations(): void {
           <SquareDashedMousePointer data-icon="inline-start" />
           {{ t("project.preview.annotations.commentOnArea") }}
         </Button>
-        <span
-          v-if="viewingVersion && preview"
-          data-testid="version-metadata"
-          class="tabular-nums"
-          >{{ fileType }} · {{ formatBytes(preview.size, locale) }}</span
-        >
         <ArtifactVersionMenu
           v-if="versionSource"
           :view-key="versionViewKey"
@@ -1268,6 +1248,25 @@ function clearAnnotations(): void {
             </DropdownMenuGroup>
           </DropdownMenuContent>
         </DropdownMenu>
+        <!-- A version is a copy outside the project: it is saved, not opened,
+             so edits are not made to a copy that is thrown away. -->
+        <Button
+          v-if="preview && viewingVersion"
+          data-action="save-version"
+          variant="outline"
+          size="sm"
+          @click="saveVersionAs"
+        >
+          <Download v-if="isWeb" data-icon="inline-start" />
+          <Save v-else data-icon="inline-start" />
+          {{
+            t(
+              isWeb
+                ? "common.downloadFile"
+                : "project.workbench.artifacts.versions.saveAs",
+            )
+          }}
+        </Button>
       </div>
     </footer>
   </section>
