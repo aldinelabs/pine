@@ -237,6 +237,10 @@ import {
   READ_PROJECT_FILE_PREVIEW_CHANNEL,
   READ_PRESENTED_FILE_PREVIEW_CHANNEL,
   REOPEN_PRESENTED_TOOL_FILE_CHANNEL,
+  ARTIFACT_VERSIONS_CHANNEL,
+  OPEN_ARTIFACT_VERSION_CHANNEL,
+  DIFF_ARTIFACT_VERSION_CHANNEL,
+  RESTORE_ARTIFACT_VERSION_CHANNEL,
   PROJECT_FILES_CHANGED_CHANNEL,
   SET_WATCHED_PROJECT_DIRECTORIES_CHANNEL,
   SET_WATCHED_FILE_PREVIEW_CHANNEL,
@@ -383,6 +387,14 @@ export function createPineApi(transport: PineTransport): PineDesktopApi {
       transport.invoke(READ_PRESENTED_FILE_PREVIEW_CHANNEL, request),
     reopenPresentedToolFile: (request: ReopenPresentedToolFileRequest) =>
       transport.invoke(REOPEN_PRESENTED_TOOL_FILE_CHANNEL, request),
+    artifactVersions: (request) =>
+      transport.invoke(ARTIFACT_VERSIONS_CHANNEL, request),
+    openArtifactVersion: (request) =>
+      transport.invoke(OPEN_ARTIFACT_VERSION_CHANNEL, request),
+    diffArtifactVersion: (request) =>
+      transport.invoke(DIFF_ARTIFACT_VERSION_CHANNEL, request),
+    restoreArtifactVersion: (request) =>
+      transport.invoke(RESTORE_ARTIFACT_VERSION_CHANNEL, request),
     closeWindow: () => transport.invoke(CLOSE_WINDOW_CHANNEL),
     setWindowBackground: (color: string) =>
       transport.invoke(SET_WINDOW_BACKGROUND_CHANNEL, color),

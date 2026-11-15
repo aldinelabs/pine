@@ -19,8 +19,13 @@ import {
   READ_PRESENTED_FILE_PREVIEW_CHANNEL,
   READ_PROJECT_FILE_PREVIEW_CHANNEL,
   REOPEN_PRESENTED_TOOL_FILE_CHANNEL,
+  ARTIFACT_VERSIONS_CHANNEL,
+  OPEN_ARTIFACT_VERSION_CHANNEL,
+  DIFF_ARTIFACT_VERSION_CHANNEL,
+  RESTORE_ARTIFACT_VERSION_CHANNEL,
   SET_WATCHED_FILE_PREVIEW_CHANNEL,
   SET_WATCHED_PROJECT_DIRECTORIES_CHANNEL,
+  type FilePreviewTarget,
   type ListProjectDirectoryResult,
 } from "../../../shared/projectFiles";
 import {
@@ -43,6 +48,8 @@ import {
   PresentedFilePreviewRequestSchema,
   ProjectFilePreviewRequestSchema,
   ReopenPresentedToolFileRequestSchema,
+  ArtifactVersionRequestSchema,
+  ArtifactVersionsRequestSchema,
   SavePastedAttachmentRequestSchema,
 } from "../requestSchemas";
 
@@ -139,6 +146,57 @@ export function registerFileRequests(core: PineCore): void {
     if (target?.source === "presented")
       core.presentedFiles.remember(context.clientId, target.path);
     return target;
+  });
+
+  core.handle(ARTIFACT_VERSIONS_CHANNEL, (context, request) => {
+    const { projectId, sessionId, path } =
+      ArtifactVersionsRequestSchema.parse(request);
+    return runtimes.artifactVersions(
+      context.clientId,
+      projectId,
+      sessionId,
+      path,
+    );
+  });
+
+  core.handle(OPEN_ARTIFACT_VERSION_CHANNEL, async (context, request) => {
+    const { projectId, sessionId, path, version } =
+      ArtifactVersionRequestSchema.parse(request);
+    const copy = await runtimes.openArtifactVersion(
+      context.clientId,
+      projectId,
+      sessionId,
+      path,
+      version,
+    );
+    // The copy lives in Pine's temporary folder, outside every project
+    // folder, so the window reads it as a presented file.
+    core.presentedFiles.remember(context.clientId, copy);
+    return { path: copy, source: "presented" } satisfies FilePreviewTarget;
+  });
+
+  core.handle(DIFF_ARTIFACT_VERSION_CHANNEL, (context, request) => {
+    const { projectId, sessionId, path, version } =
+      ArtifactVersionRequestSchema.parse(request);
+    return runtimes.diffArtifactVersion(
+      context.clientId,
+      projectId,
+      sessionId,
+      path,
+      version,
+    );
+  });
+
+  core.handle(RESTORE_ARTIFACT_VERSION_CHANNEL, (context, request) => {
+    const { projectId, sessionId, path, version } =
+      ArtifactVersionRequestSchema.parse(request);
+    return runtimes.restoreArtifactVersion(
+      context.clientId,
+      projectId,
+      sessionId,
+      path,
+      version,
+    );
   });
 
   core.handle(

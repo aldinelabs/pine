@@ -17,6 +17,8 @@ export interface SessionArtifact {
   description?: string;
   /** True for a submitted file, false for a legacy presentation. */
   submitted: boolean;
+  /** The copy a submission kept; absent for presentations and older submissions. */
+  snapshot?: ArtifactSnapshot;
 }
 
 /** Most files one `ui_submit_artifact` call accepts. */
@@ -57,12 +59,14 @@ export function submittedArtifactsOfCall(
     if (typeof record.path !== "string" || !record.path) continue;
     const title = optionalText(record.title);
     const description = optionalText(record.description);
+    const snapshot = parseArtifactSnapshot(record.snapshot);
     artifacts.push({
       toolCallId: call.id,
       path: record.path,
       ...(title ? { title } : {}),
       ...(description ? { description } : {}),
       submitted: true,
+      ...(snapshot ? { snapshot } : {}),
     });
   }
   return artifacts;
@@ -148,3 +152,113 @@ export function collectArtifacts(
   }
   return [...byPath.values()].reverse();
 }
+
+/** Largest file a submission keeps a copy of; a larger one only records its size. */
+export const MAX_ARTIFACT_SNAPSHOT_BYTES = 25 * 1024 * 1024;
+/** Stored versions a project keeps before the oldest are dropped. */
+export const ARTIFACT_VERSION_QUOTA_BYTES = 1024 * 1024 * 1024;
+/** Largest text file "Compare with current" reads. */
+export const MAX_ARTIFACT_DIFF_BYTES = 1024 * 1024;
+
+/**
+ * What a submission kept of one file, recorded in the tool result. `time` is
+ * when the copy was taken, in milliseconds since the epoch.
+ */
+export type ArtifactSnapshot =
+  | {
+      status: "stored";
+      integrity: string;
+      size: number;
+      mtimeMs: number;
+      time: number;
+    }
+  | { status: "skipped"; reason: "too-large"; size: number; time: number }
+  | { status: "failed"; reason: string; time: number };
+
+/** Reads a snapshot record from untrusted tool output; undefined when absent or malformed. */
+export function parseArtifactSnapshot(
+  value: unknown,
+): ArtifactSnapshot | undefined {
+  if (typeof value !== "object" || value === null) return undefined;
+  const record = value as Record<string, unknown>;
+  const time = typeof record.time === "number" ? record.time : undefined;
+  if (time === undefined) return undefined;
+  if (
+    record.status === "stored" &&
+    typeof record.integrity === "string" &&
+    record.integrity &&
+    typeof record.size === "number" &&
+    typeof record.mtimeMs === "number"
+  )
+    return {
+      status: "stored",
+      integrity: record.integrity,
+      size: record.size,
+      mtimeMs: record.mtimeMs,
+      time,
+    };
+  if (
+    record.status === "skipped" &&
+    record.reason === "too-large" &&
+    typeof record.size === "number"
+  )
+    return { status: "skipped", reason: "too-large", size: record.size, time };
+  if (record.status === "failed")
+    return {
+      status: "failed",
+      reason: typeof record.reason === "string" ? record.reason : "",
+      time,
+    };
+  return undefined;
+}
+
+/**
+ * One version of an artifact. A submission is identified by its tool call; a
+ * copy Pine took of the file before restoring an older version, by its id.
+ */
+export type ArtifactVersionRef =
+  { kind: "submission"; toolCallId: string } | { kind: "backup"; id: string };
+
+export interface ArtifactVersion {
+  ref: ArtifactVersionRef;
+  /** When the copy was taken (or the submission recorded, for one without a copy). */
+  time: number;
+  size?: number;
+  title?: string;
+  /**
+   * `available` can be previewed and restored; `pruned` was stored and later
+   * dropped to stay within the storage limit; `too-large` and `failed` were
+   * never stored.
+   */
+  state: "available" | "pruned" | "too-large" | "failed";
+  /** The file on disk still has this content (by size and modification time). */
+  current: boolean;
+}
+
+export interface ArtifactVersionHistory {
+  path: string;
+  /** Newest first. */
+  versions: ArtifactVersion[];
+  /** The file exists but differs from its newest stored version. */
+  modified: boolean;
+  /** The file no longer exists at its path. */
+  missing: boolean;
+  /** Restoring is possible: the file is in a read-write project folder. */
+  restorable: boolean;
+}
+
+export type ArtifactDiffLine = {
+  type: "add" | "remove" | "context";
+  text: string;
+};
+
+export interface ArtifactDiffHunk {
+  oldStart: number;
+  newStart: number;
+  lines: ArtifactDiffLine[];
+}
+
+export type ArtifactVersionDiff =
+  | { status: "ok"; hunks: ArtifactDiffHunk[] }
+  | { status: "identical" }
+  | { status: "unsupported"; reason: "binary" | "too-large" | "missing" };

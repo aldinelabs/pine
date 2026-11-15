@@ -88,7 +88,22 @@ import {
   type PineSideChatSummary,
   type PromptSideChatRequest,
 } from "../shared/sideChats";
-import type { SessionArtifact } from "../shared/artifacts";
+import type {
+  ArtifactVersionDiff,
+  ArtifactVersionHistory,
+  ArtifactVersionRef,
+  SessionArtifact,
+} from "../shared/artifacts";
+import {
+  artifactStoreRoot,
+  diffVersion,
+  maintainStore,
+  materializeVersion,
+  readVersionHistory,
+  removeSessionVersions,
+  restoreVersion,
+  type ArtifactHistoryInput,
+} from "./artifactVersions";
 import { WECHAT_CLIENT_ID } from "../shared/wechatRemote";
 import path from "node:path";
 
@@ -421,6 +436,11 @@ export class ProjectRuntimeRegistry {
       pendingCreations: new Set(),
       sessions,
     });
+    // Keeps the project's stored artifact versions within their quota; at
+    // most one full pass a day.
+    void maintainStore(artifactStoreRoot(dataPaths)).catch((error: unknown) =>
+      console.error("Failed to check stored artifact versions.", error),
+    );
   }
 
   isOpen(webContentsId: number, projectId: string): boolean {
@@ -756,10 +776,17 @@ export class ProjectRuntimeRegistry {
     this.clearSessionInteractions(sessionId);
     await this.disposeSideChatsOf(runtime, sessionId);
     const deleted = await runtime.sessions.deleteSession(sessionId);
-    if (deleted)
+    if (deleted) {
       await deleteSideChatsOf(
         sideChatsDirectory(runtime.dataPaths.projectRoot, sessionId),
       );
+      void removeSessionVersions(
+        artifactStoreRoot(runtime.dataPaths),
+        sessionId,
+      ).catch((error: unknown) =>
+        console.error("Failed to remove a session's artifact versions.", error),
+      );
+    }
     return deleted;
   }
 
@@ -1316,6 +1343,116 @@ export class ProjectRuntimeRegistry {
     return await runtime.sessions.listArtifacts(sessionId);
   }
 
+  /**
+   * The version history of a file this session submitted. The path must be
+   * one the transcript recorded, so a client cannot read the store or
+   * restore over an arbitrary file.
+   */
+  private async artifactHistoryInput(
+    runtime: ProjectRuntime,
+    sessionId: string,
+    filePath: string,
+  ): Promise<ArtifactHistoryInput> {
+    const submissions = await runtime.sessions.artifactSubmissions(
+      sessionId,
+      filePath,
+    );
+    if (!submissions.length)
+      throw new Error("This file is not an artifact of the session.");
+    return {
+      store: artifactStoreRoot(runtime.dataPaths),
+      sessionId,
+      path: filePath,
+      submissions,
+      restorable: await this.isRestorable(runtime, filePath),
+    };
+  }
+
+  /**
+   * A restore writes the file, so it must sit in a read-write project folder,
+   * and neither it nor its folder may have become a symlink elsewhere since
+   * it was submitted.
+   */
+  private async isRestorable(
+    runtime: ProjectRuntime,
+    filePath: string,
+  ): Promise<boolean> {
+    if (!path.isAbsolute(filePath) || filePath.includes("\0")) return false;
+    const resolved = path.resolve(filePath);
+    const canonical =
+      (await realpath(resolved).catch(() => null)) ??
+      (await realpath(path.dirname(resolved))
+        .then((directory) => path.join(directory, path.basename(resolved)))
+        .catch(() => null));
+    if (canonical !== resolved) return false;
+    for (const folder of runtime.project.folders) {
+      if (!folder.isAvailable || folder.access !== "read-write") continue;
+      const root = await realpath(folder.path).catch(() => null);
+      if (root && pathContains(root, canonical)) return true;
+    }
+    return false;
+  }
+
+  async artifactVersions(
+    clientId: number,
+    projectId: string,
+    sessionId: string,
+    filePath: string,
+  ): Promise<ArtifactVersionHistory> {
+    const runtime = this.get(clientId, projectId);
+    return readVersionHistory(
+      await this.artifactHistoryInput(runtime, sessionId, filePath),
+    );
+  }
+
+  /** Writes a version out for the preview and returns its path, which the caller grants as presented. */
+  async openArtifactVersion(
+    clientId: number,
+    projectId: string,
+    sessionId: string,
+    filePath: string,
+    version: ArtifactVersionRef,
+  ): Promise<string> {
+    const runtime = this.get(clientId, projectId);
+    const input = await this.artifactHistoryInput(runtime, sessionId, filePath);
+    return materializeVersion(
+      input,
+      version,
+      runtime.dataPaths.temporaryRoot ??
+        path.join(runtime.dataPaths.projectRoot, "tmp"),
+    );
+  }
+
+  async diffArtifactVersion(
+    clientId: number,
+    projectId: string,
+    sessionId: string,
+    filePath: string,
+    version: ArtifactVersionRef,
+  ): Promise<ArtifactVersionDiff> {
+    const runtime = this.get(clientId, projectId);
+    return diffVersion(
+      await this.artifactHistoryInput(runtime, sessionId, filePath),
+      version,
+    );
+  }
+
+  async restoreArtifactVersion(
+    clientId: number,
+    projectId: string,
+    sessionId: string,
+    filePath: string,
+    version: ArtifactVersionRef,
+  ): Promise<void> {
+    const runtime = this.get(clientId, projectId);
+    const input = await this.artifactHistoryInput(runtime, sessionId, filePath);
+    if (!input.restorable)
+      throw new Error(
+        "Only a file in a read-write project folder can be restored.",
+      );
+    await restoreVersion(input, version);
+  }
+
   sessionSummary(sessionId: string): PineSessionSummary | undefined {
     return this.entryForSession(sessionId)?.runtime.liveSessions.get(sessionId)
       ?.summary;
@@ -1646,6 +1783,7 @@ export class ProjectRuntimeRegistry {
         runtime.dataPaths.skillsSettingsPath ??
         path.join(runtime.dataPaths.projectRoot, "skills.json"),
       sessionsRoot: runtime.dataPaths.sessionsRoot,
+      artifactStoreRoot: artifactStoreRoot(runtime.dataPaths),
       ...(isTemporaryWorkspace(runtime.project.id)
         ? { temporaryWorkspace: true }
         : { projectName: runtime.project.name }),

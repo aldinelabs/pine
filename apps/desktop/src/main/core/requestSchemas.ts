@@ -139,6 +139,22 @@ export const ReopenPresentedToolFileRequestSchema = z.object({
   path: z.string().min(1).max(4096).optional(),
 });
 
+export const ArtifactVersionsRequestSchema = z.object({
+  projectId: z.uuid(),
+  sessionId: z.uuid(),
+  path: z.string().min(1).max(4096),
+});
+export const ArtifactVersionRequestSchema =
+  ArtifactVersionsRequestSchema.extend({
+    version: z.discriminatedUnion("kind", [
+      z.object({
+        kind: z.literal("submission"),
+        toolCallId: z.string().min(1).max(256),
+      }),
+      z.object({ kind: z.literal("backup"), id: z.uuid() }),
+    ]),
+  });
+
 export const UpdateProjectRequestSchema = ProjectMutationSchema.safeExtend({
   id: z.uuid(),
 });

@@ -1,3 +1,4 @@
+import type { ArtifactVersionRef } from "./artifacts";
 export const LIST_PROJECT_DIRECTORY_CHANNEL =
   "project-files:list-directory" as const;
 
@@ -65,6 +66,23 @@ export const READ_PRESENTED_FILE_PREVIEW_CHANNEL =
   "project-files:preview-presented" as const;
 export const REOPEN_PRESENTED_TOOL_FILE_CHANNEL =
   "project-files:reopen-presented-tool-file" as const;
+export const ARTIFACT_VERSIONS_CHANNEL =
+  "project-files:artifact-versions" as const;
+export const OPEN_ARTIFACT_VERSION_CHANNEL =
+  "project-files:open-artifact-version" as const;
+export const DIFF_ARTIFACT_VERSION_CHANNEL =
+  "project-files:diff-artifact-version" as const;
+export const RESTORE_ARTIFACT_VERSION_CHANNEL =
+  "project-files:restore-artifact-version" as const;
+/** A file a session submitted, by the absolute path its submissions recorded. */
+export interface ArtifactVersionsRequest {
+  projectId: string;
+  sessionId: string;
+  path: string;
+}
+export interface ArtifactVersionRequest extends ArtifactVersionsRequest {
+  version: ArtifactVersionRef;
+}
 export const PROJECT_MEDIA_PROTOCOL = "pine-project-media" as const;
 export const MARKDOWN_IMAGE_PARAM = "markdownImage" as const;
 export interface ReopenPresentedToolFileRequest {

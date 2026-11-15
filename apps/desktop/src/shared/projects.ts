@@ -66,6 +66,7 @@ import type {
   UpdateCustomModelRequest,
   UpdateCustomProviderRequest,
 } from "./models";
+import type { ArtifactVersionDiff, ArtifactVersionHistory } from "./artifacts";
 import type {
   ProjectEntryReference,
   ProjectFilePreview,
@@ -73,6 +74,8 @@ import type {
   PresentedFileOperation,
   PresentedFilePreviewRequest,
   ReopenPresentedToolFileRequest,
+  ArtifactVersionRequest,
+  ArtifactVersionsRequest,
   FilePreviewTarget,
   ProjectFileOperation,
   StartProjectFileDragRequest,
@@ -414,6 +417,17 @@ export interface PineDesktopApi
   reopenPresentedToolFile: (
     request: ReopenPresentedToolFileRequest,
   ) => Promise<FilePreviewTarget | null>;
+  artifactVersions: (
+    request: ArtifactVersionsRequest,
+  ) => Promise<ArtifactVersionHistory>;
+  /** Writes a stored version out and returns it as a presented file. */
+  openArtifactVersion: (
+    request: ArtifactVersionRequest,
+  ) => Promise<FilePreviewTarget>;
+  diffArtifactVersion: (
+    request: ArtifactVersionRequest,
+  ) => Promise<ArtifactVersionDiff>;
+  restoreArtifactVersion: (request: ArtifactVersionRequest) => Promise<void>;
   abortSession: (request: SessionControlRequest) => Promise<AbortSessionResult>;
   listBackgroundTasks: (
     request: SessionControlRequest,

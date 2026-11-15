@@ -87,6 +87,8 @@ export interface AgentSessionLocation {
   /** Project-specific global Skill enablement settings. */
   skillsSettingsPath?: string;
   sessionsRoot: string;
+  /** The project's store of submitted artifact versions. */
+  artifactStoreRoot?: string;
   /** In-memory TinyFish credential; never written to a session file. */
   tinyFishApiKey?: string;
   /** Pine's built-in temporary workspace ("No Project"). */

@@ -896,6 +896,30 @@ export class ProjectSessionService {
     );
   }
 
+  /**
+   * Every complete submission of one file over the session's whole stored
+   * transcript, oldest first. Its tool results record each version's copy.
+   */
+  async artifactSubmissions(
+    sessionId: string,
+    artifactPath: string,
+  ): Promise<SessionArtifact[]> {
+    const metadata = await this.findSession(sessionId);
+    if (!metadata) return [];
+
+    return this.withSession(metadata, (session) =>
+      indexedTextMessages(session.getEntries()).flatMap(({ message }) =>
+        message.blocks.flatMap((block) =>
+          block.type === "toolCall"
+            ? submittedArtifactsOfCall(block.toolCall).filter(
+                (artifact) => artifact.path === artifactPath,
+              )
+            : [],
+        ),
+      ),
+    );
+  }
+
   async exportSession(
     sessionId: string,
     fallbackApprovalMode: PineApprovalMode,

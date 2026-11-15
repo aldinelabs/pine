@@ -262,6 +262,10 @@ export function createWebChannels(
       },
     ],
     [files.REOPEN_PRESENTED_TOOL_FILE_CHANNEL, command("project")],
+    [files.ARTIFACT_VERSIONS_CHANNEL, query("project")],
+    [files.OPEN_ARTIFACT_VERSION_CHANNEL, command("project")],
+    [files.DIFF_ARTIFACT_VERSION_CHANNEL, query("project")],
+    [files.RESTORE_ARTIFACT_VERSION_CHANNEL, command("project")],
     [files.PROJECT_FILE_ATTACHMENTS_CHANNEL, command("entries")],
     [
       files.PROJECT_FILE_OPERATION_CHANNEL,

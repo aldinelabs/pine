@@ -10,7 +10,11 @@ import {
   UI_SUBMIT_ARTIFACT_TOOL_NAME,
   type PineApprovalMode,
 } from "../shared/agent";
-import { MAX_SUBMITTED_ARTIFACTS } from "../shared/artifacts";
+import {
+  MAX_SUBMITTED_ARTIFACTS,
+  type ArtifactSnapshot,
+} from "../shared/artifacts";
+import { snapshotFile, submissionEntryKey } from "./artifactStore";
 import type { PineToolAccessPolicy } from "./tool-access-policy";
 
 // Pine passes its own system prompt, so pi does not render promptSnippet or
@@ -20,7 +24,8 @@ const DESCRIPTION = [
   "",
   `- When your work produces deliverables, submit all of them in one call with every file in \`files\`, and in the same step call ${UI_PRESENT_FILE_TOOL_NAME} in parallel for the single most significant one (the file the user most likely wants to see first).`,
   `- Submit only finished results the user would keep: reports, documents, data, generated media, code they asked for. Do not submit intermediate files, scratch outputs, logs, or files you only present to show progress or a comparison; use ${UI_PRESENT_FILE_TOOL_NAME} alone for those.`,
-  "- Submitting a path again updates its title and description and moves it to the top; you do not need to resubmit unchanged files.",
+  "- Every submission keeps a copy of each file as a version the user can preview, compare with the current file and restore. Whenever you finish a major revision of a deliverable (a new draft, a substantial rewrite, changes the user asked for), submit it again so that version is kept; do not resubmit unchanged files or after every small edit.",
+  "- Submitting a path again also updates its title and description and moves it to the top.",
   "- Paths must be files inside the folders shared with Pine or the user's attachments; save or copy a deliverable into a shared folder first. Directories and missing files are rejected per file, and the result lists what was accepted and rejected.",
   "- title (short) and description (one line) are optional and shown in the Artifacts list.",
 ].join("\n");
@@ -61,6 +66,8 @@ export interface SubmittedArtifactDetail {
   requestedPath: string;
   title?: string;
   description?: string;
+  /** The copy kept of the file; absent when the session has no version store. */
+  snapshot?: ArtifactSnapshot;
 }
 
 export interface SubmitArtifactDetails {
@@ -73,6 +80,10 @@ export interface SubmitArtifactToolOptions {
   policy: PineToolAccessPolicy;
   permissivePolicy: PineToolAccessPolicy;
   getApprovalMode: () => PineApprovalMode;
+  /** The project's version store; without it submissions keep no copies. */
+  versionStore?: string;
+  /** Overrides the largest file a submission copies, for tests. */
+  snapshotLimit?: number;
 }
 
 function trimmed(value: string | undefined): string | undefined {
@@ -100,7 +111,7 @@ export function createSubmitArtifactToolDefinition(
     ],
     parameters: submitArtifactParams,
     prepareArguments: (args) => args as SubmitArtifactParams,
-    execute: async (_toolCallId, inputParams, signal) => {
+    execute: async (toolCallId, inputParams, signal, _onUpdate, context) => {
       const policy =
         options.getApprovalMode() === "YOLO"
           ? options.permissivePolicy
@@ -152,6 +163,28 @@ export function createSubmitArtifactToolDefinition(
         });
       }
       const files = [...accepted.values()];
+      const sessionId = context?.sessionManager?.getSessionId();
+      if (options.versionStore && sessionId) {
+        const store = options.versionStore;
+        const time = Date.now();
+        // One file at a time: a batch of large files would otherwise be read
+        // into memory together.
+        for (const file of files) {
+          file.snapshot = await snapshotFile(
+            store,
+            submissionEntryKey(sessionId, toolCallId, file.path),
+            file.path,
+            {
+              kind: "submission",
+              sessionId,
+              path: file.path,
+              time,
+              toolCallId,
+            },
+            options.snapshotLimit,
+          );
+        }
+      }
       const rejectedText = rejected
         .map(({ path: requested, reason }) => `- ${requested}: ${reason}`)
         .join("\n");

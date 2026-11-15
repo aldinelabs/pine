@@ -873,6 +873,7 @@ export async function createPineToolDefinitions(
         policy,
         permissivePolicy,
         getApprovalMode,
+        versionStore: location.artifactStoreRoot,
       })
     : null;
   const askUserQuestionTool = requestQuestionnaire
