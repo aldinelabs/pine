@@ -85,9 +85,6 @@ function details(version: ArtifactVersion): string {
     version.ref.kind === "backup"
       ? t("project.workbench.artifacts.versions.backup")
       : undefined,
-    version.size === undefined
-      ? undefined
-      : formatBytes(version.size, locale.value),
     state,
   ]
     .filter(Boolean)
@@ -128,7 +125,7 @@ async function select(version: ArtifactVersion): Promise<void> {
          than widen the menu. -->
     <DropdownMenuContent
       align="end"
-      class="max-h-96 w-max max-w-[min(24rem,calc(100vw-2rem))] min-w-56"
+      class="max-h-96 w-max max-w-[min(20rem,calc(100vw-2rem))] min-w-56"
       @close-auto-focus.prevent
     >
       <DropdownMenuLabel>
@@ -179,6 +176,11 @@ async function select(version: ArtifactVersion): Promise<void> {
           <span class="flex min-w-0 flex-1 flex-col">
             <span class="flex items-center gap-2">
               <span class="truncate">{{ time.format(version.time) }}</span>
+              <span
+                v-if="version.size !== undefined"
+                class="shrink-0 text-xs font-normal text-muted-foreground tabular-nums"
+                >{{ formatBytes(version.size, locale) }}</span
+              >
               <Badge v-if="version.current" variant="secondary">
                 {{ t("project.workbench.artifacts.versions.current") }}
               </Badge>
@@ -186,7 +188,7 @@ async function select(version: ArtifactVersion): Promise<void> {
             <span
               v-if="version.description"
               data-testid="artifact-version-description"
-              class="line-clamp-2 text-xs font-normal"
+              class="line-clamp-2 text-xs font-normal text-muted-foreground"
             >
               {{ version.description }}
             </span>
