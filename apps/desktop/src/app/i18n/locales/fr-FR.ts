@@ -276,6 +276,28 @@ export default {
           "Les réglages WeChat n’ont pas pu être lus et ont été réinitialisés. Le contrôle depuis WeChat est en pause.",
       },
     },
+    memory: {
+      title: "Mémoriser d’une session à l’autre",
+      description:
+        "Pine enregistre des notes sur vos préférences, vos décisions et ce qu’il a appris, et les reprend dans les sessions suivantes. Les notes restent sur cet appareil.",
+      empty:
+        "Aucun souvenir pour l’instant. Demandez à Pine de retenir quelque chose et il apparaîtra ici.",
+      scopeGlobal: "Tous les projets",
+      unverified: "Non vérifié",
+      actions: "Actions pour {name}",
+      editTitle: "Modifier le souvenir",
+      summaryLabel: "Résumé",
+      detailsLabel: "Détails",
+      verifiedLabel: "Vérifié",
+      verifiedDescription:
+        "Pine traite les souvenirs non vérifiés comme des pistes à confirmer, pas comme des faits.",
+      deleteTitle: "Supprimer le souvenir « {name} » ?",
+      deleteDescription:
+        "Pine ne le verra plus dans les sessions suivantes. Cette action est irréversible.",
+      loadFailed: "Impossible de charger les souvenirs",
+      saveFailed: "Impossible d’enregistrer le souvenir",
+      deleteFailed: "Impossible de supprimer le souvenir",
+    },
     projectManagement: {
       title: "Projets",
       description:
@@ -322,6 +344,7 @@ export default {
       permissions: "Autorisations",
       context: "Contexte",
       tools: "Outils et confidentialité",
+      memory: "Mémoire",
     },
     sectionsLabel: "Sections des réglages",
     language: "Langue",

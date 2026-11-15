@@ -281,6 +281,28 @@ export default {
           "WeChat の設定を読み込めなかったため、リセットしました。WeChat リモートは一時停止中です。",
       },
     },
+    memory: {
+      title: "セッションをまたいで記憶する",
+      description:
+        "Pine はあなたの好み、決定事項、学んだことをメモとして保存し、以降のセッションに引き継ぎます。メモはこのデバイスにのみ保存されます。",
+      empty:
+        "メモリはまだありません。Pine に何かを覚えるよう頼むと、ここに表示されます。",
+      scopeGlobal: "すべてのプロジェクト",
+      unverified: "未確認",
+      actions: "{name} の操作",
+      editTitle: "メモリを編集",
+      summaryLabel: "要約",
+      detailsLabel: "詳細",
+      verifiedLabel: "確認済み",
+      verifiedDescription:
+        "未確認のメモリは、事実ではなく確認すべき手がかりとして扱われます。",
+      deleteTitle: "メモリ「{name}」を削除しますか？",
+      deleteDescription:
+        "以降のセッションでは参照されなくなります。この操作は取り消せません。",
+      loadFailed: "メモリを読み込めませんでした",
+      saveFailed: "メモリを保存できませんでした",
+      deleteFailed: "メモリを削除できませんでした",
+    },
     projectManagement: {
       title: "プロジェクト",
       description:
@@ -327,6 +349,7 @@ export default {
       permissions: "権限",
       context: "コンテキスト",
       tools: "ツールとプライバシー",
+      memory: "メモリ",
     },
     sectionsLabel: "設定のセクション",
     language: "言語",

@@ -16,6 +16,7 @@ import {
   PROJECT_ATTACHMENTS_DIRECTORY,
   PROJECT_METADATA_FILE,
   PROJECT_SESSIONS_DIRECTORY,
+  PROJECT_MEMORY_DIRECTORY,
   PROJECT_SKILLS_DIRECTORY,
   PROJECT_SKILLS_SETTINGS_FILE,
   PROJECT_TEMPORARY_DIRECTORY,
@@ -78,6 +79,7 @@ type StoredProject = z.infer<typeof StoredProjectSchema>;
 export interface ProjectDataPaths {
   attachmentsRoot: string;
   cacheRoot: string;
+  memoryRoot?: string;
   projectRoot: string;
   sessionsRoot: string;
   skillsRoot?: string;
@@ -377,6 +379,7 @@ export class ProjectRepository {
     return {
       attachmentsRoot: path.join(projectRoot, PROJECT_ATTACHMENTS_DIRECTORY),
       cacheRoot: path.join(projectRoot, PROJECT_CACHE_DIRECTORY),
+      memoryRoot: path.join(projectRoot, PROJECT_MEMORY_DIRECTORY),
       projectRoot,
       sessionsRoot: path.join(projectRoot, PROJECT_SESSIONS_DIRECTORY),
       skillsRoot: path.join(projectRoot, PROJECT_SKILLS_DIRECTORY),

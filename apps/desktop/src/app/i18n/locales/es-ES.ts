@@ -277,6 +277,28 @@ export default {
           "No se pudieron leer los ajustes de WeChat y se restablecieron. El control desde WeChat está en pausa.",
       },
     },
+    memory: {
+      title: "Recordar entre sesiones",
+      description:
+        "Pine guarda notas sobre tus preferencias, decisiones y lo que ha aprendido, y las lleva a sesiones posteriores. Las notas permanecen en este dispositivo.",
+      empty:
+        "Aún no hay recuerdos. Pide a Pine que recuerde algo y aparecerá aquí.",
+      scopeGlobal: "Todos los proyectos",
+      unverified: "Sin verificar",
+      actions: "Acciones para {name}",
+      editTitle: "Editar recuerdo",
+      summaryLabel: "Resumen",
+      detailsLabel: "Detalles",
+      verifiedLabel: "Verificado",
+      verifiedDescription:
+        "Pine trata los recuerdos sin verificar como pistas por confirmar, no como hechos.",
+      deleteTitle: "¿Eliminar el recuerdo «{name}»?",
+      deleteDescription:
+        "Pine dejará de verlo en sesiones posteriores. Esta acción no se puede deshacer.",
+      loadFailed: "No se pudieron cargar los recuerdos",
+      saveFailed: "No se pudo guardar el recuerdo",
+      deleteFailed: "No se pudo eliminar el recuerdo",
+    },
     projectManagement: {
       title: "Proyectos",
       description:
@@ -323,6 +345,7 @@ export default {
       permissions: "Permisos",
       context: "Contexto",
       tools: "Herramientas y privacidad",
+      memory: "Memoria",
     },
     sectionsLabel: "Secciones de ajustes",
     language: "Idioma",

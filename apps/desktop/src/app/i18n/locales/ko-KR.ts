@@ -268,6 +268,28 @@ export default {
           "WeChat 설정을 읽을 수 없어 초기화했습니다. WeChat 원격이 일시 중지되었습니다.",
       },
     },
+    memory: {
+      title: "세션 간 기억",
+      description:
+        "Pine은 사용자의 선호, 결정 사항, 배운 내용을 메모로 저장해 이후 세션에 가져옵니다. 메모는 이 기기에만 저장됩니다.",
+      empty:
+        "아직 메모리가 없습니다. Pine에게 기억해 달라고 요청하면 여기에 표시됩니다.",
+      scopeGlobal: "모든 프로젝트",
+      unverified: "미확인",
+      actions: "{name} 작업",
+      editTitle: "메모리 편집",
+      summaryLabel: "요약",
+      detailsLabel: "세부 내용",
+      verifiedLabel: "확인됨",
+      verifiedDescription:
+        "미확인 메모리는 사실이 아니라 확인이 필요한 단서로 취급됩니다.",
+      deleteTitle: "메모리 “{name}”을(를) 삭제할까요?",
+      deleteDescription:
+        "이후 세션에서는 더 이상 참조되지 않습니다. 이 작업은 되돌릴 수 없습니다.",
+      loadFailed: "메모리를 불러올 수 없습니다",
+      saveFailed: "메모리를 저장할 수 없습니다",
+      deleteFailed: "메모리를 삭제할 수 없습니다",
+    },
     projectManagement: {
       title: "프로젝트",
       description:
@@ -314,6 +336,7 @@ export default {
       permissions: "권한",
       context: "컨텍스트",
       tools: "도구 및 개인정보 보호",
+      memory: "메모리",
     },
     sectionsLabel: "설정 섹션",
     language: "언어",

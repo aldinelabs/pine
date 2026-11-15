@@ -14,6 +14,7 @@ export const PINE_CONTEXT_NOTICE_KEYS = [
   "interface_elements",
   "wechat",
   "skills",
+  "memory",
   "network_region",
   "approximate_location",
 ] as const;

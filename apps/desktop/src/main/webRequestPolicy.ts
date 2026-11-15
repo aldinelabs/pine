@@ -8,6 +8,7 @@ import * as models from "../shared/models";
 import * as preferences from "../shared/preferences";
 import * as skills from "../shared/skills";
 import * as mcp from "../shared/mcp";
+import * as memory from "../shared/memory";
 import * as background from "../shared/backgroundTasks";
 import * as attachments from "../shared/attachments";
 import * as sideChats from "../shared/sideChats";
@@ -230,6 +231,13 @@ export function createWebChannels(
     [skills.EDIT_SKILL_CHANNEL, command("optional-project")],
     [skills.REMOVE_SKILL_CHANNEL, command("optional-project")],
     [skills.SET_GLOBAL_SKILL_ENABLED_CHANNEL, command("project")],
+
+    [memory.LIST_MEMORIES_CHANNEL, query("optional-project")],
+    [memory.READ_MEMORY_CHANNEL, query("optional-project")],
+    [memory.SAVE_MEMORY_CHANNEL, command("optional-project")],
+    [memory.REMOVE_MEMORY_CHANNEL, command("optional-project")],
+    [memory.GET_MEMORY_ENABLED_CHANNEL, query("none")],
+    [memory.SET_MEMORY_ENABLED_CHANNEL, command("none")],
 
     [mcp.LIST_MCP_SERVERS_CHANNEL, query("project")],
     [mcp.SAVE_MCP_SERVER_CHANNEL, command("project")],

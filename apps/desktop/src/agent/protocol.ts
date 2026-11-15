@@ -86,6 +86,8 @@ export interface AgentSessionLocation {
   skillsRoot?: string;
   /** Project-specific global Skill enablement settings. */
   skillsSettingsPath?: string;
+  /** The project's long-term memory notes, outside the user's shared folders. */
+  memoryRoot?: string;
   sessionsRoot: string;
   /** The project's store of submitted artifact versions. */
   artifactStoreRoot?: string;

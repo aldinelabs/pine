@@ -19,6 +19,7 @@ import {
   UI_SESSION_TREE_TOOL_NAME,
 } from "../shared/agent";
 import { MCP_CONFIG_LIST_TOOL_NAME } from "../shared/mcp";
+import { MEMORY_READ_TOOL_NAME } from "../shared/memory";
 import { PINE_SIDE_CHAT_ENTRY } from "../shared/sideChats";
 import { UI_WORKBENCH_STATE_TOOL_NAME } from "../shared/workbench";
 import {
@@ -71,6 +72,7 @@ export const SIDE_CHAT_READ_ONLY_TOOL_NAMES: ReadonlySet<string> = new Set([
   AUTOMATION_LIST_TOOL_NAME,
   AUTOMATION_GET_TOOL_NAME,
   MCP_CONFIG_LIST_TOOL_NAME,
+  MEMORY_READ_TOOL_NAME,
 ]);
 
 export function isSideChatReadOnlyTool(toolName: string): boolean {

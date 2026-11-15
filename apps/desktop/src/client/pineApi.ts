@@ -172,6 +172,14 @@ import {
   SET_GLOBAL_SKILL_ENABLED_CHANNEL,
 } from "../shared/skills";
 import {
+  GET_MEMORY_ENABLED_CHANNEL,
+  LIST_MEMORIES_CHANNEL,
+  READ_MEMORY_CHANNEL,
+  REMOVE_MEMORY_CHANNEL,
+  SAVE_MEMORY_CHANNEL,
+  SET_MEMORY_ENABLED_CHANNEL,
+} from "../shared/memory";
+import {
   CREATE_PROJECT_CHANNEL,
   CLOSE_PROJECT_CHANNEL,
   DELETE_PROJECT_CHANNEL,
@@ -564,6 +572,14 @@ export function createPineApi(transport: PineTransport): PineDesktopApi {
     removeSkill: (request) => transport.invoke(REMOVE_SKILL_CHANNEL, request),
     setGlobalSkillEnabled: (request) =>
       transport.invoke(SET_GLOBAL_SKILL_ENABLED_CHANNEL, request),
+    listMemories: (request) => transport.invoke(LIST_MEMORIES_CHANNEL, request),
+    readMemory: (request) => transport.invoke(READ_MEMORY_CHANNEL, request),
+    saveMemory: (request) => transport.invoke(SAVE_MEMORY_CHANNEL, request),
+    removeMemory: (request) => transport.invoke(REMOVE_MEMORY_CHANNEL, request),
+    getMemoryEnabled: (): Promise<boolean> =>
+      transport.invoke(GET_MEMORY_ENABLED_CHANNEL),
+    setMemoryEnabled: (request) =>
+      transport.invoke(SET_MEMORY_ENABLED_CHANNEL, request),
     getModelCatalog: (): Promise<PineModelCatalog> =>
       transport.invoke(GET_MODEL_CATALOG_CHANNEL),
     refreshModelCatalog: (): Promise<PineModelCatalog> =>

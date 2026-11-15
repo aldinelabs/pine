@@ -4,6 +4,7 @@ import {
   rewriteTargetEntryId,
   toolNamesForCompactionRoute,
   toolNamesForInterimAnswers,
+  toolNamesForMemory,
   toolNamesForSubSession,
 } from "../session-state";
 
@@ -89,5 +90,14 @@ describe("toolNamesForInterimAnswers", () => {
   it("drops only the interim answer tool when the switch is off", () => {
     expect(toolNamesForInterimAnswers(tools, true)).toEqual(tools);
     expect(toolNamesForInterimAnswers(tools, false)).toEqual(["read", "bash"]);
+  });
+});
+
+describe("toolNamesForMemory", () => {
+  const tools = ["read", "memory_read", "memory_save", "memory_remove", "bash"];
+
+  it("drops the memory tools when the switch is off", () => {
+    expect(toolNamesForMemory(tools, true)).toEqual(tools);
+    expect(toolNamesForMemory(tools, false)).toEqual(["read", "bash"]);
   });
 });

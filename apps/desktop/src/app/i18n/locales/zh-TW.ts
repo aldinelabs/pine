@@ -254,6 +254,26 @@ export default {
         settingsReset: "無法讀取微信設定，已重設。微信遠端已暫停。",
       },
     },
+    memory: {
+      title: "跨對話記憶",
+      description:
+        "Pine 會把你的偏好、做過的決定和學到的經驗記成筆記，並帶到之後的對話裡。筆記只儲存在這台裝置上。",
+      empty: "還沒有記憶。請 Pine 記住某件事後，它會出現在這裡。",
+      scopeGlobal: "所有專案",
+      unverified: "未驗證",
+      actions: "「{name}」的操作",
+      editTitle: "編輯記憶",
+      summaryLabel: "摘要",
+      detailsLabel: "詳細內容",
+      verifiedLabel: "已驗證",
+      verifiedDescription:
+        "未驗證的記憶只會被 Pine 當作待確認的線索，而不是事實。",
+      deleteTitle: "刪除記憶「{name}」？",
+      deleteDescription: "之後的對話將不再看到它。此操作無法復原。",
+      loadFailed: "無法載入記憶",
+      saveFailed: "無法儲存記憶",
+      deleteFailed: "無法刪除記憶",
+    },
     projectManagement: {
       title: "專案管理",
       description:
@@ -299,6 +319,7 @@ export default {
       permissions: "許可權",
       context: "上下文",
       tools: "工具與隱私",
+      memory: "記憶",
     },
     sectionsLabel: "設定分類",
     language: "語言",

@@ -130,6 +130,16 @@ import type {
   SetGlobalSkillEnabledResult,
 } from "./skills";
 import type {
+  ListMemoriesResult,
+  MemoryEnabledResult,
+  MemoryIdentityRequest,
+  MemoryScopeRequest,
+  PineMemoryNote,
+  PineMemorySummary,
+  RemoveMemoryResult,
+  SaveMemoryRequest,
+} from "./memory";
+import type {
   SetTinyFishApiKeyRequest,
   SetTinyFishApiKeyResult,
   TinyFishCredentialStatus,
@@ -148,6 +158,8 @@ export const PROJECT_CACHE_DIRECTORY = "cache" as const;
 /** Pine-managed storage for attachments pasted without a filesystem path. */
 export const PROJECT_ATTACHMENTS_DIRECTORY = "attachments" as const;
 export const PROJECT_SKILLS_DIRECTORY = "skills" as const;
+/** The agent's long-term memory notes for the project. */
+export const PROJECT_MEMORY_DIRECTORY = "memory" as const;
 /** The agent's temporary storage: scratch files and background task output. */
 export const PROJECT_TEMPORARY_DIRECTORY = "tmp" as const;
 export const PROJECT_SKILLS_SETTINGS_FILE = "skills.json" as const;
@@ -499,6 +511,14 @@ export interface PineDesktopApi
   setGlobalSkillEnabled: (
     request: SetGlobalSkillEnabledRequest,
   ) => Promise<SetGlobalSkillEnabledResult>;
+  listMemories: (request: MemoryScopeRequest) => Promise<ListMemoriesResult>;
+  readMemory: (request: MemoryIdentityRequest) => Promise<PineMemoryNote>;
+  saveMemory: (request: SaveMemoryRequest) => Promise<PineMemorySummary>;
+  removeMemory: (request: MemoryIdentityRequest) => Promise<RemoveMemoryResult>;
+  getMemoryEnabled: () => Promise<boolean>;
+  setMemoryEnabled: (request: {
+    enabled: boolean;
+  }) => Promise<MemoryEnabledResult>;
   getModelCatalog: () => Promise<PineModelCatalog>;
   refreshModelCatalog: () => Promise<PineModelCatalog>;
   lookupModelMetadata: (

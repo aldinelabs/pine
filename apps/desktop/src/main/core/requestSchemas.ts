@@ -1,5 +1,11 @@
 import { z } from "zod";
 import {
+  MEMORY_CONTENT_MAX_LENGTH,
+  MEMORY_DESCRIPTION_MAX_LENGTH,
+  MEMORY_NAME_MAX_LENGTH,
+  MEMORY_NAME_PATTERN,
+} from "../../shared/memory";
+import {
   MAX_PASTED_IMAGE_BYTES,
   MAX_PASTED_TEXT_BYTES,
   PASTED_IMAGE_MIME_TYPES,
@@ -127,6 +133,30 @@ export const SetGlobalSkillEnabledRequestSchema = z.object({
   enabled: z.boolean(),
   name: SkillNameSchema,
   projectId: z.uuid(),
+});
+const MemoryNameSchema = z
+  .string()
+  .max(MEMORY_NAME_MAX_LENGTH)
+  .regex(new RegExp(MEMORY_NAME_PATTERN));
+export const MemoryScopeRequestSchema = z.object({
+  projectId: z.uuid().optional(),
+});
+export const MemoryIdentityRequestSchema = MemoryScopeRequestSchema.extend({
+  name: MemoryNameSchema,
+  scope: z.enum(["global", "project"]),
+}).superRefine((request, context) => {
+  if (request.scope === "project" && !request.projectId) {
+    context.addIssue({
+      code: "custom",
+      message: "Project scope requires a project ID.",
+      path: ["projectId"],
+    });
+  }
+});
+export const SaveMemoryRequestSchema = MemoryIdentityRequestSchema.safeExtend({
+  content: z.string().trim().min(1).max(MEMORY_CONTENT_MAX_LENGTH),
+  description: z.string().trim().min(1).max(MEMORY_DESCRIPTION_MAX_LENGTH),
+  verified: z.boolean(),
 });
 export const ProjectFilePreviewRequestSchema = ProjectEntryReferenceSchema;
 export const PresentedFilePreviewRequestSchema = z.object({

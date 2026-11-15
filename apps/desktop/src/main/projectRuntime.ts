@@ -7,6 +7,7 @@ import type {
 import type { PiProvidersStatus } from "../shared/piProviders";
 import {
   isTemporaryWorkspace,
+  PROJECT_MEMORY_DIRECTORY,
   type PineProject,
   type PineProjectFolder,
 } from "../shared/projects";
@@ -1782,6 +1783,9 @@ export class ProjectRuntimeRegistry {
       skillsSettingsPath:
         runtime.dataPaths.skillsSettingsPath ??
         path.join(runtime.dataPaths.projectRoot, "skills.json"),
+      memoryRoot:
+        runtime.dataPaths.memoryRoot ??
+        path.join(runtime.dataPaths.projectRoot, PROJECT_MEMORY_DIRECTORY),
       sessionsRoot: runtime.dataPaths.sessionsRoot,
       artifactStoreRoot: artifactStoreRoot(runtime.dataPaths),
       ...(isTemporaryWorkspace(runtime.project.id)

@@ -9,6 +9,11 @@ Every release section here has a matching section in the Chinese changelog.
 
 ## [Unreleased]
 
+### Added
+
+- **Pine remembers across sessions**: when you ask Pine to remember something, or it learns your preferences, a decision you made or a trap it fell into, it saves a memory, and new sessions start with those memories. A memory applies either to the current project or to every project, and stays on this device.
+- **View and manage memories**: Settings › Agent › Memory lists the memories of the current project and of all projects, where you can edit one, mark whether it is verified, or delete it. Memory can also be turned off there.
+
 ## [0.20.1] - 2026-11-14
 
 ### Added

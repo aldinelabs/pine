@@ -44,6 +44,8 @@ export interface PineAgentSettings {
   /** Desktop only: keep the computer awake while remote control is on; absent until migrated. */
   remoteKeepAwake?: boolean;
   approximateLocationEnabled?: boolean;
+  /** Long-term memory; absent means on. */
+  memoryEnabled?: boolean;
   contextCompactionStrategy?: PineContextCompactionStrategy;
   contextCompactionRoute?: PineContextCompactionRoute;
   imageModel?: PineImageModelSelection;
@@ -210,6 +212,9 @@ export async function readPineAgentSettings(
       ...(typeof settings.approximateLocationEnabled === "boolean"
         ? { approximateLocationEnabled: settings.approximateLocationEnabled }
         : {}),
+      ...(typeof settings.memoryEnabled === "boolean"
+        ? { memoryEnabled: settings.memoryEnabled }
+        : {}),
       ...(isPineContextCompactionStrategy(contextCompactionStrategy)
         ? { contextCompactionStrategy }
         : {}),
@@ -340,6 +345,13 @@ export async function writeApproximateLocationEnabled(
   approximateLocationEnabled: boolean,
 ): Promise<void> {
   await writePineAgentSettings(agentDir, { approximateLocationEnabled });
+}
+
+export async function writeMemoryEnabled(
+  agentDir: string,
+  memoryEnabled: boolean,
+): Promise<void> {
+  await writePineAgentSettings(agentDir, { memoryEnabled });
 }
 
 export async function writePiProvidersSetting(

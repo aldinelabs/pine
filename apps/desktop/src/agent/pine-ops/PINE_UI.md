@@ -28,6 +28,13 @@ to click.
 - Automation: work Pine does unattended when a schedule, a folder change, a
   system event or a website or feed check calls for it. Each run is a session
   in the project, marked with a workflow icon.
+- Memory: notes Pine keeps across sessions about the user's preferences,
+  decisions and what it has learned. Each note is either a project note (seen
+  in that project's sessions) or a global note (seen in every project). Later
+  sessions start with the list of notes and read a note in full when it is
+  relevant. Pine saves a note when asked to remember something or when it
+  learns something worth keeping; saving or deleting a note shows as a tool
+  call in the conversation. Automation runs neither see nor save notes.
 - Manage with Pine: starts a new session whose composer already has Pine's
   authoring tools on for a Skill, an automation or an MCP server.
 - Content tab: a session or a file opened in the main content area. The window
@@ -647,8 +654,14 @@ the user opens themselves do not pulse.
     user answers by replying with the number; other controls work only in
     Pine), Interim answers switch (Enabled or Disabled; enabled by default; applies
     from the next message), automatic approval path, context compaction
-    strategy and method, TinyFish web tools key (shows Configured or Not
-    configured), approximate location.
+    strategy and method, Memory (Remember across sessions switch, enabled by
+    default, applies from the next message; below it a list of the saved
+    notes of the active tab's project and of All projects, each with its
+    name, one-line summary, a scope badge and an Unverified badge when Pine
+    has not confirmed it; a note's … menu has Edit, which opens Edit memory
+    with Summary, Details and a Verified switch, and Delete, which asks
+    first; notes are created by Pine, not here), TinyFish web tools key
+    (shows Configured or Not configured), approximate location.
   - User profile: nickname, pronouns (a dropdown: Not specified, he/him,
     she/her, they/them or Custom; Custom shows a short text field for your own
     wording; Not specified by default; Pine uses them when it refers to you in
@@ -753,7 +766,8 @@ the user opens themselves do not pulse.
   WeChat remote is listening ("WeChat remote is on. Tasks sent from WeChat
   will not arrive after you quit."; not shown while it is paused or needs a
   new scan).
-- Confirmation dialogs for deleting projects, sessions, folders and Skills,
+- Confirmation dialogs for deleting projects, sessions, folders, Skills and
+  memories,
   and for enabling YOLO.
 
 ## Quick composer window

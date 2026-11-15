@@ -251,6 +251,26 @@ export default {
         settingsReset: "无法读取微信设置，已重置。微信远程已暂停。",
       },
     },
+    memory: {
+      title: "跨会话记忆",
+      description:
+        "Pine 会把你的偏好、做过的决定和学到的经验记成笔记，并带到之后的会话里。笔记只保存在这台设备上。",
+      empty: "还没有记忆。让 Pine 记住某件事后，它会出现在这里。",
+      scopeGlobal: "所有项目",
+      unverified: "未验证",
+      actions: "“{name}”的操作",
+      editTitle: "编辑记忆",
+      summaryLabel: "摘要",
+      detailsLabel: "详细内容",
+      verifiedLabel: "已验证",
+      verifiedDescription:
+        "未验证的记忆只会被 Pine 当作待确认的线索，而不是事实。",
+      deleteTitle: "删除记忆“{name}”？",
+      deleteDescription: "之后的会话将不再看到它。此操作无法撤销。",
+      loadFailed: "无法加载记忆",
+      saveFailed: "无法保存记忆",
+      deleteFailed: "无法删除记忆",
+    },
     projectManagement: {
       title: "项目管理",
       description:
@@ -296,6 +316,7 @@ export default {
       permissions: "权限",
       context: "上下文",
       tools: "工具与隐私",
+      memory: "记忆",
     },
     sectionsLabel: "设置分类",
     language: "语言",

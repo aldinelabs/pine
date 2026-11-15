@@ -188,6 +188,10 @@ import {
 } from "../shared/automation";
 import { imageModel, IMAGE_MODEL_PROVIDER_ID } from "./media/models";
 import { PineSkillRepository } from "./skills/repository";
+import { PineMemoryRepository } from "./memory/repository";
+import { memoryNotice } from "./memory/prompt";
+import { createMemoryToolDefinitions } from "./memory/tools";
+import { DEFAULT_MEMORY_ENABLED } from "../shared/memory";
 import {
   filterPineManagedSkills,
   piProjectSkillPaths,
@@ -253,6 +257,7 @@ import {
   toolNamesForMediaGenerationState,
   toolNamesForSkillAuthoringState,
   toolNamesForInterimAnswers,
+  toolNamesForMemory,
   toolNamesForSubSession,
   toolNamesForAutomationAuthoringState,
   toolNamesForAutomationRun,
@@ -1322,6 +1327,7 @@ export class PineAgentRuntime {
       subSession: subSessionParentOf(sessionManager.getEntries()) !== undefined,
       interimAnswersEnabled:
         pineSettings.userProfile?.interimAnswersEnabled ?? true,
+      memoryEnabled: pineSettings.memoryEnabled ?? DEFAULT_MEMORY_ENABLED,
       computerUseActive: computerUseActiveFromSessionEntries(
         sessionManager.getEntries(),
       ),
@@ -1373,6 +1379,12 @@ export class PineAgentRuntime {
       project:
         location.skillsRoot ??
         path.join(path.dirname(location.sessionsRoot), "skills"),
+    });
+    const memoryRepository = new PineMemoryRepository({
+      global: path.join(location.agentDir, "memory"),
+      project:
+        location.memoryRoot ??
+        path.join(path.dirname(location.sessionsRoot), "memory"),
     });
     const skillTools = createSkillToolsExtension({
       repository: skillRepository,
@@ -1487,6 +1499,13 @@ export class PineAgentRuntime {
                 notices.interface_elements = intelligentUiSystemPrompt();
               const skillList = skillRepository.promptList();
               if (skillList) notices.skills = skillList;
+              // An automation run is unattended and keeps no memory.
+              const memoryEnabled =
+                !live.automation &&
+                (settings.memoryEnabled ?? DEFAULT_MEMORY_ENABLED);
+              this.applyMemorySetting(live, memoryEnabled);
+              if (memoryEnabled)
+                notices.memory = memoryNotice(await memoryRepository.list());
               const networkRegion = networkRegionSystemPrompt(
                 localNetworkRegionSignals(),
               );
@@ -1727,6 +1746,14 @@ export class PineAgentRuntime {
             }),
             // Always listed so a compaction request never changes the tools.
             createSubmitSessionSummaryToolDefinition(),
+            ...createMemoryToolDefinitions({
+              repository: memoryRepository,
+              getApprovalMode: () => live.approvalMode,
+              getGate: () => live.gate,
+              isEnabled: () => live.memoryEnabled,
+              afterExternalContent: () => this.turnReadExternalContent(live),
+              sessionId: () => live.session.sessionId,
+            }),
           ]),
     ];
     live.availableToolNames = [
@@ -1872,6 +1899,13 @@ export class PineAgentRuntime {
     this.syncActiveTools(live);
   }
 
+  /** Preferences › Agent › Memory, read at each run start. */
+  private applyMemorySetting(live: LiveAgentSession, enabled: boolean): void {
+    if (live.memoryEnabled === enabled) return;
+    live.memoryEnabled = enabled;
+    this.syncActiveTools(live);
+  }
+
   private syncActiveTools(live: LiveAgentSession): void {
     const activeToolNames = live.session.getActiveToolNames();
     const mcpToolNames = live.session
@@ -1896,7 +1930,10 @@ export class PineAgentRuntime {
                     toolNamesForCompactionRoute(
                       toolNamesForInterimAnswers(
                         toolNamesForSubSession(
-                          [...live.availableToolNames, ...mcpToolNames],
+                          toolNamesForMemory(
+                            [...live.availableToolNames, ...mcpToolNames],
+                            live.memoryEnabled,
+                          ),
                           live.subSession,
                         ),
                         live.interimAnswersEnabled,

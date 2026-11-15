@@ -43,6 +43,7 @@ import WeChatRemoteSettings from "./WeChatRemoteSettings.vue";
 import AutoApprovalSettings from "./AutoApprovalSettings.vue";
 import DecisionsModelSettings from "./DecisionsModelSettings.vue";
 import PiProvidersSettings from "./PiProvidersSettings.vue";
+import MemorySettings from "./MemorySettings.vue";
 import ProjectManagementSettings from "./ProjectManagementSettings.vue";
 import ModelPickerDialog from "@/components/models/ModelPickerDialog.vue";
 import HelpHint from "./HelpHint.vue";
@@ -1910,6 +1911,17 @@ defineExpose({ open });
                     </ToggleGroup>
                   </Field>
                 </FieldGroup>
+              </FieldSet>
+
+              <FieldSeparator />
+
+              <FieldSet>
+                <FieldLegend
+                  variant="label"
+                  class="text-xs text-muted-foreground"
+                  >{{ t("preferences.groups.memory") }}</FieldLegend
+                >
+                <MemorySettings />
               </FieldSet>
 
               <FieldSeparator />

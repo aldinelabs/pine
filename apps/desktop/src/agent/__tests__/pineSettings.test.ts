@@ -8,6 +8,7 @@ import {
   writeContextCompactionRoute,
   writeContextCompactionStrategy,
   writeDiagnosticLoggingEnabled,
+  writeMemoryEnabled,
   writePineUserProfile,
   writeRemoteKeepAwake,
   writeApprovalModelSelection,
@@ -201,6 +202,22 @@ describe("Pine agent settings", () => {
     await writeFile(
       path.join(agentDir, "pine-settings.json"),
       JSON.stringify({ remoteKeepAwake: "yes" }),
+    );
+    await expect(readPineAgentSettings(agentDir)).resolves.toEqual({});
+  });
+
+  it("persists the memory switch and drops a non-boolean value", async () => {
+    const agentDir = await mkdtemp(
+      path.join(os.tmpdir(), "pine-memory-settings-"),
+    );
+    temporaryDirectories.push(agentDir);
+    await writeMemoryEnabled(agentDir, false);
+    await expect(readPineAgentSettings(agentDir)).resolves.toEqual({
+      memoryEnabled: false,
+    });
+    await writeFile(
+      path.join(agentDir, "pine-settings.json"),
+      JSON.stringify({ memoryEnabled: "no" }),
     );
     await expect(readPineAgentSettings(agentDir)).resolves.toEqual({});
   });

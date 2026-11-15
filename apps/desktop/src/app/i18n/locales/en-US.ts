@@ -270,6 +270,28 @@ export default {
           "WeChat settings could not be read and were reset. WeChat remote is paused.",
       },
     },
+    memory: {
+      title: "Remember across sessions",
+      description:
+        "Pine saves notes about your preferences, decisions, and what it has learned, and brings them into later sessions. Notes stay on this device.",
+      empty:
+        "No memories yet. Ask Pine to remember something and it will appear here.",
+      scopeGlobal: "All projects",
+      unverified: "Unverified",
+      actions: "Actions for {name}",
+      editTitle: "Edit memory",
+      summaryLabel: "Summary",
+      detailsLabel: "Details",
+      verifiedLabel: "Verified",
+      verifiedDescription:
+        "Pine treats unverified memories as leads to confirm, not as facts.",
+      deleteTitle: "Delete the memory “{name}”?",
+      deleteDescription:
+        "Pine will no longer see it in later sessions. This cannot be undone.",
+      loadFailed: "Could not load memories",
+      saveFailed: "Could not save the memory",
+      deleteFailed: "Could not delete the memory",
+    },
     projectManagement: {
       title: "Projects",
       description:
@@ -316,6 +338,7 @@ export default {
       permissions: "Permissions",
       context: "Context",
       tools: "Tools & privacy",
+      memory: "Memory",
     },
     sectionsLabel: "Settings sections",
     language: "Language",

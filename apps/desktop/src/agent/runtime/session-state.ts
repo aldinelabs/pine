@@ -31,6 +31,7 @@ import {
   PINE_MCP_AUTHORING_ACTIVE_ENTRY,
 } from "../../shared/sessions";
 import { MCP_AUTHORING_DYNAMIC_TOOL_NAMES } from "../../shared/mcp";
+import { MEMORY_TOOL_NAMES } from "../../shared/memory";
 import { AUTOMATION_REPORT_TOOL_NAME } from "../../shared/automation";
 import { AUTOMATION_AUTHORING_DYNAMIC_TOOL_NAMES } from "../automation/tools";
 import type { AgentAutomationRun } from "../protocol";
@@ -101,6 +102,8 @@ export interface LiveAgentSession {
   subSession: boolean;
   /** Preferences › Agent › Interim answers, read at each run start. */
   interimAnswersEnabled: boolean;
+  /** Preferences › Agent › Memory, read at each run start. */
+  memoryEnabled: boolean;
   /** Set for a read-only side chat forked from another conversation. */
   sideChat?: { parentSessionId: string; persistent: boolean };
   /** Set for an unattended automation run; its envelope replaces the tool list. */
@@ -257,6 +260,18 @@ export function toolNamesForInterimAnswers(
 ): string[] {
   if (enabled) return [...toolNames];
   return toolNames.filter((name) => name !== REPORT_PROGRESS_TOOL_NAME);
+}
+
+/** The Preferences switch for long-term memory; off hides its tools. */
+export function toolNamesForMemory(
+  toolNames: readonly string[],
+  enabled: boolean,
+): string[] {
+  if (enabled) return [...toolNames];
+  return toolNames.filter(
+    (name) =>
+      !MEMORY_TOOL_NAMES.includes(name as (typeof MEMORY_TOOL_NAMES)[number]),
+  );
 }
 
 export function toolNamesForComputerUseState(

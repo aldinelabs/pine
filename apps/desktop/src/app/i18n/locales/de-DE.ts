@@ -280,6 +280,28 @@ export default {
           "Die WeChat-Einstellungen konnten nicht gelesen werden und wurden zurückgesetzt. WeChat-Fernsteuerung ist pausiert.",
       },
     },
+    memory: {
+      title: "Über Sitzungen hinweg merken",
+      description:
+        "Pine speichert Notizen zu deinen Vorlieben, Entscheidungen und Erkenntnissen und bringt sie in spätere Sitzungen ein. Die Notizen bleiben auf diesem Gerät.",
+      empty:
+        "Noch keine Erinnerungen. Bitte Pine, sich etwas zu merken, dann erscheint es hier.",
+      scopeGlobal: "Alle Projekte",
+      unverified: "Ungeprüft",
+      actions: "Aktionen für {name}",
+      editTitle: "Erinnerung bearbeiten",
+      summaryLabel: "Zusammenfassung",
+      detailsLabel: "Details",
+      verifiedLabel: "Geprüft",
+      verifiedDescription:
+        "Ungeprüfte Erinnerungen behandelt Pine als Hinweise, die zu bestätigen sind, nicht als Fakten.",
+      deleteTitle: "Erinnerung „{name}“ löschen?",
+      deleteDescription:
+        "Pine sieht sie in späteren Sitzungen nicht mehr. Dies kann nicht rückgängig gemacht werden.",
+      loadFailed: "Erinnerungen konnten nicht geladen werden",
+      saveFailed: "Die Erinnerung konnte nicht gespeichert werden",
+      deleteFailed: "Die Erinnerung konnte nicht gelöscht werden",
+    },
     projectManagement: {
       title: "Projekte",
       description:
@@ -326,6 +348,7 @@ export default {
       permissions: "Berechtigungen",
       context: "Kontext",
       tools: "Werkzeuge und Datenschutz",
+      memory: "Gedächtnis",
     },
     sectionsLabel: "Einstellungsbereiche",
     language: "Sprache",

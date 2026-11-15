@@ -104,6 +104,8 @@ function mountDialog(options: { attachTo?: HTMLElement } = {}) {
         DialogHeader: passthroughStub,
         DialogTitle: passthroughStub,
         DialogTrigger: passthroughStub,
+        // Covered by its own tests; its editor dialog would render inline here.
+        MemorySettings: true,
         ModelPickerDialog: modelPickerStub,
       },
     },
@@ -455,6 +457,15 @@ describe("PinePreferencesDialog", () => {
     await openSection(wrapper, "模型");
 
     expect(wrapper.text()).toContain("尚未配置 OpenRouter");
+  });
+
+  it("shows memory in the Agent section", async () => {
+    installPineApi("linux");
+    const { wrapper } = mountDialog();
+    expect(wrapper.find("memory-settings-stub").exists()).toBe(false);
+    await openSection(wrapper, "智能体");
+    expect(wrapper.find("memory-settings-stub").exists()).toBe(true);
+    expect(wrapper.text()).toContain("记忆");
   });
 
   it("saves a TinyFish key from the harness section", async () => {
