@@ -91,45 +91,52 @@ onScopeDispose(clearTimer);
        hidden; the marker's own pt-8 brings the gap back. No message id and
        no scroll anchor: the reply's item lands before it. -->
   <MessageScrollerItem data-slot="awaiting-response-item" class="-mt-8">
-    <!-- A plain fade in; the reply replaces it at once, with no fade out. -->
-    <Transition name="awaiting-response-fade">
-      <div v-if="shown" data-testid="awaiting-response-marker">
-        <div class="pt-8">
-          <Marker role="status" aria-live="polite">
-            <MarkerIcon>
-              <HourglassIcon />
-            </MarkerIcon>
-            <!-- One sentence per line: what is happening, then what to do. -->
-            <MarkerContent class="flex flex-col">
-              <span data-slot="awaiting-response-status">{{
-                t("project.transcript.awaitingResponse.status")
-              }}</span>
-              <span data-slot="awaiting-response-hint"
-                ><template v-for="(clause, index) in hintClauses" :key="index"
-                  ><span class="inline-block max-w-full">{{ clause.text }}</span
-                  >{{ clause.space ? " " : "" }}</template
-                ></span
-              >
-            </MarkerContent>
-          </Marker>
-        </div>
+    <!-- A plain fade in, as a CSS animation rather than a Vue transition: a
+         Transition keeps the leaving element for a couple of frames, during
+         which the reply renders above it and pushes it down. Without one the
+         reply replaces it in the same frame. -->
+    <div
+      v-if="shown"
+      data-testid="awaiting-response-marker"
+      class="awaiting-response-fade-in"
+    >
+      <div class="pt-8">
+        <Marker role="status" aria-live="polite">
+          <MarkerIcon>
+            <HourglassIcon />
+          </MarkerIcon>
+          <!-- One sentence per line: what is happening, then what to do. -->
+          <MarkerContent class="flex flex-col">
+            <span data-slot="awaiting-response-status">{{
+              t("project.transcript.awaitingResponse.status")
+            }}</span>
+            <span data-slot="awaiting-response-hint"
+              ><template v-for="(clause, index) in hintClauses" :key="index"
+                ><span class="inline-block max-w-full">{{ clause.text }}</span
+                >{{ clause.space ? " " : "" }}</template
+              ></span
+            >
+          </MarkerContent>
+        </Marker>
       </div>
-    </Transition>
+    </div>
   </MessageScrollerItem>
 </template>
 
 <style scoped>
-.awaiting-response-fade-enter-active {
-  transition: opacity 300ms ease-out;
+.awaiting-response-fade-in {
+  animation: awaiting-response-fade-in 300ms ease-out;
 }
 
-.awaiting-response-fade-enter-from {
-  opacity: 0;
+@keyframes awaiting-response-fade-in {
+  from {
+    opacity: 0;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .awaiting-response-fade-enter-active {
-    transition: none;
+  .awaiting-response-fade-in {
+    animation: none;
   }
 }
 </style>

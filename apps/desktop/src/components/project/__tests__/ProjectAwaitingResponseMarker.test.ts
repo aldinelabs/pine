@@ -166,11 +166,12 @@ describe("ProjectAwaitingResponseMarker", () => {
       path.resolve(__dirname, "../ProjectAwaitingResponseMarker.vue"),
       "utf8",
     );
-    expect(source).toContain('<Transition name="awaiting-response-fade">');
+    // A <Transition> would hold the leaving marker for a few frames while
+    // the reply renders above it, so it fades in with a CSS animation.
+    expect(source).not.toContain("<Transition");
     expect(source).not.toContain("useCollapseTransition");
-    expect(source).not.toContain("leave-active");
     expect(source).toMatch(
-      /\.awaiting-response-fade-enter-active\s*\{\s*transition:\s*opacity/,
+      /\.awaiting-response-fade-in\s*\{\s*animation:\s*awaiting-response-fade-in/,
     );
   });
 });
