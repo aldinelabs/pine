@@ -13,6 +13,7 @@ import type {
 } from "../shared/sessions";
 import type { GateDecision } from "./protocol";
 import { matchDestructive } from "./destructive";
+import type { InjectionSignal } from "./runtime/injection-signals";
 
 export interface AuthorizationStatement {
   id: string;
@@ -42,6 +43,17 @@ export interface GateTurnContext {
   recentUserStatements: AuthorizationStatement[];
   recentEvents: ApprovalCausalEvent[];
   grants: AuthorizationGrant[];
+  /** Injection-shaped untrusted content read since the latest user message. */
+  injectionSignals?: Array<{
+    eventId: string;
+    /** Tool that produced the content. */
+    source: string;
+    signals: InjectionSignal[];
+  }>;
+  /** Destinations in the reviewed calls that no user statement names. */
+  untrustedTargets?: Array<{ target: string; firstSeenIn?: string }>;
+  /** Lowercased text of all user statements, for Pine's deterministic floor. */
+  userText?: string;
 }
 
 export interface JudgeRequest {

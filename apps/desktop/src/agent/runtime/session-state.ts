@@ -6,6 +6,11 @@ import type {
 } from "@earendil-works/pi-coding-agent";
 import { createHash } from "node:crypto";
 import {
+  detectInjectionSignals,
+  extractTargets,
+  type InjectionSignal,
+} from "./injection-signals";
+import {
   RECALL_TOOL_NAME,
   REPORT_PROGRESS_TOOL_NAME,
   type PineAgentEvent,
@@ -584,19 +589,63 @@ export function buildGateTurnContext(
         ]
       : [];
   });
+  // Untrusted content read since the user's latest message is what could have
+  // steered the calls under review; injection-shaped results stay in context
+  // even when they are older than the recent window.
+  let lastUserIndex = -1;
+  entries.forEach((entry, index) => {
+    if (entry.type === "message" && entry.message.role === "user")
+      lastUserIndex = index;
+  });
+  const entryIndex = new Map(entries.map((entry, index) => [entry.id, index]));
+  const signalsByEvent = new Map<string, InjectionSignal[]>();
+  for (const event of causalEvents) {
+    if (event.kind !== "tool-result") continue;
+    if ((entryIndex.get(event.id) ?? -1) < lastUserIndex) continue;
+    const signals = detectInjectionSignals(event.summary);
+    if (signals.length > 0) signalsByEvent.set(event.id, signals);
+  }
   const recentEventIds = new Set(
     causalEvents.slice(-8).map((event) => event.id),
   );
+  const flagged = causalEvents.filter((event) => signalsByEvent.has(event.id));
   const recentEvents = causalEvents
     .filter(
       (event) => recentEventIds.has(event.id) || matchesSubject(event.summary),
     )
     .slice(-12);
+  for (const event of flagged.slice(-3)) {
+    if (!recentEvents.some((kept) => kept.id === event.id)) {
+      recentEvents.unshift(event);
+    }
+  }
+  const injectionSignals = flagged.map((event) => ({
+    eventId: event.id,
+    source: event.summary.split(/\s/, 1)[0] ?? "tool",
+    signals: signalsByEvent.get(event.id)!,
+  }));
+  const userCorpus = userStatements
+    .map((statement) => statement.text.toLocaleLowerCase())
+    .join("\n");
+  const untrustedTargets = [
+    ...new Set(subjects.flatMap((subject) => extractTargets(subject))),
+  ].flatMap((target) => {
+    if (userCorpus.includes(target)) return [];
+    const origin = causalEvents.find(
+      (event) =>
+        event.kind === "tool-result" &&
+        event.summary.toLocaleLowerCase().includes(target),
+    );
+    return [{ target, ...(origin ? { firstSeenIn: origin.id } : {}) }];
+  });
   return {
     ...(rootGoal ? { rootGoal } : {}),
     recentUserStatements,
     recentEvents,
     grants: grants.slice(-6),
+    ...(injectionSignals.length > 0 ? { injectionSignals } : {}),
+    ...(untrustedTargets.length > 0 ? { untrustedTargets } : {}),
+    userText: userCorpus,
   };
 }
 

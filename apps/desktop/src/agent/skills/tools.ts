@@ -69,6 +69,7 @@ async function reviewMutation(
   scope: PineSkillScope,
   name: string,
   signal?: AbortSignal,
+  content?: string,
 ): Promise<void> {
   if (options.getApprovalMode() === "YOLO") return;
   const gate = options.getGate();
@@ -79,7 +80,10 @@ async function reviewMutation(
     subject: `${scope} skill ${name}`,
     description: `${toolName.replaceAll("_", " ")} for ${scope} scope`,
     evidence:
-      "This changes reusable instructions that Pine may load in future sessions. Global scope affects every project; project scope affects the current project.",
+      "This changes reusable instructions that Pine may load in future sessions. Global scope affects every project; project scope affects the current project." +
+      (content === undefined
+        ? ""
+        : `\n\nProposed SKILL.md content (written by the agent):\n${content.slice(0, 2_000)}${content.length > 2_000 ? "\n…[truncated]" : ""}`),
     signal,
   });
   if (decision.kind === "deny") {
@@ -228,6 +232,7 @@ function createDefinitions(
           params.scope,
           params.name,
           signal,
+          params.content,
         );
         const result = await options.repository.create(
           params.scope,
@@ -260,6 +265,7 @@ function createDefinitions(
           params.scope,
           params.name,
           signal,
+          params.content,
         );
         const result = await options.repository.edit(
           params.scope,
