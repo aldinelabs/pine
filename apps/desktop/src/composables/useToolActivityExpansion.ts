@@ -55,7 +55,10 @@ function latestToolRunKeys(
     messageIndex >= 0 && keys.length < limit;
     messageIndex--
   ) {
-    for (const key of runKeysOf(messages[messageIndex])) {
+    const message = messages[messageIndex];
+    // A user message opens the current turn; earlier turns stay folded.
+    if (message.role === "user") break;
+    for (const key of runKeysOf(message)) {
       if (keys.length >= limit) break;
       keys.push(key);
     }
@@ -67,6 +70,8 @@ function latestToolRunKeys(
  * Transcript-level expansion policy for tool runs: while a response is
  * active, its last two tool units stay expanded (a standalone call counts
  * as a unit and is visible either way — it only reserves a window slot).
+ * Only the current turn counts: the scan stops at the latest user message,
+ * so a new prompt never reopens the previous turn's last units.
  * Older units collapse as newer ones arrive, and when the response finally
  * ends without another tool call the set empties so everything folds up.
  * Static history (no active response) stays fully collapsed unless the

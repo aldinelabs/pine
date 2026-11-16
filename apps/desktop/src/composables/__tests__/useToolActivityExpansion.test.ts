@@ -60,6 +60,20 @@ describe("useToolActivityExpansion", () => {
     expect(expanded.value).toEqual(new Set(["m4:t4", "m5:t5"]));
   });
 
+  it("does not reach past the latest user message", () => {
+    const messages = ref([
+      message("m1", [single("t1")]),
+      message("m2", [single("t2")]),
+      { ...message("u1", [{ type: "text", text: "Next" }]), role: "user" },
+    ] as PineTranscriptMessage[]);
+    const isRunning = ref(true);
+    const expanded = useToolActivityExpansion({ messages, isRunning });
+    expect(expanded.value.size).toBe(0);
+
+    messages.value = [...messages.value, message("m3", [single("t3")])];
+    expect(expanded.value).toEqual(new Set(["m3:t3"]));
+  });
+
   it("collapses everything once the response ends", () => {
     const messages = ref([message("m1", [single("t1")])]);
     const isRunning = ref(true);
