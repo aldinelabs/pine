@@ -76,8 +76,7 @@ import type { PineAuthoringTarget } from "@/shared/sessionMutators";
 import { toolFileRequest } from "./toolViewAdapter";
 import ProjectTranscriptOutline from "./ProjectTranscriptOutline.vue";
 import {
-  collapsesTranscriptGap,
-  TOOL_CALL_TURN_MARGIN_CLASS,
+  transcriptItemClass,
   transcriptMessageRenderSignature,
 } from "./transcriptLayout";
 
@@ -901,15 +900,11 @@ async function handleDrop(event: DragEvent): Promise<void> {
                 v-memo="[
                   message,
                   messageRenderSignature(message),
-                  collapsesTranscriptGap(renderedMessages, index),
+                  transcriptItemClass(renderedMessages, index),
                 ]"
                 :message-id="message.id"
                 :scroll-anchor="message.role === 'user'"
-                :class="
-                  collapsesTranscriptGap(renderedMessages, index)
-                    ? TOOL_CALL_TURN_MARGIN_CLASS
-                    : undefined
-                "
+                :class="transcriptItemClass(renderedMessages, index)"
               >
                 <ProjectTranscriptMessage
                   :message="message"

@@ -236,7 +236,9 @@ async function measureStream(history: number): Promise<StreamMetrics> {
   await seedInChunks(view, history);
   await startTurn(view);
   const mutations = mutationCounter(view.wrapper.element);
-  const streamingRow = view.rows().at(-1)?.element ?? null;
+  // The row's scroller item counts as part of it: the item drops the margin
+  // that keeps an empty reply from taking room once the reply shows content.
+  const streamingRow = view.rows().at(-1)?.element.parentElement ?? null;
 
   resetHistoryReads();
   rowRenders = 0;

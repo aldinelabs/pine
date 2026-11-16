@@ -2,6 +2,9 @@ import type { PineContentBlock, PineToolCall } from "@/shared/sessions";
 import { describe, expect, it } from "vitest";
 import {
   collapsesTranscriptGap,
+  EMPTY_MESSAGE_MARGIN_CLASS,
+  TOOL_CALL_TURN_MARGIN_CLASS,
+  transcriptItemClass,
   transcriptMessageRenderSignature,
   type TranscriptRenderState,
 } from "../transcriptLayout";
@@ -72,6 +75,37 @@ describe("collapsesTranscriptGap", () => {
         0,
       ),
     ).toBe(false);
+  });
+});
+
+describe("transcriptItemClass", () => {
+  it("takes no room for a reply that shows nothing yet", () => {
+    for (const blocks of [
+      [],
+      [{ type: "thinking", thinking: "" }],
+      [{ type: "text", text: " " }],
+    ] satisfies PineContentBlock[][])
+      expect(transcriptItemClass([user(), assistant(blocks)], 1)).toBe(
+        EMPTY_MESSAGE_MARGIN_CLASS,
+      );
+  });
+
+  it("keeps the gap once the reply shows content", () => {
+    expect(
+      transcriptItemClass(
+        [user(), assistant([{ type: "thinking", thinking: "Hmm" }])],
+        1,
+      ),
+    ).toBeUndefined();
+    expect(transcriptItemClass([user()], 0)).toBeUndefined();
+  });
+
+  it("still collapses a tool-call-only turn", () => {
+    const messages = [
+      assistant([{ type: "text", text: "Working on it." }]),
+      assistant([{ type: "toolCall", toolCall: toolCall("t1") }]),
+    ];
+    expect(transcriptItemClass(messages, 1)).toBe(TOOL_CALL_TURN_MARGIN_CLASS);
   });
 });
 

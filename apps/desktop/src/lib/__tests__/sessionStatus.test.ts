@@ -4,12 +4,16 @@ import { isAwaitingFirstResponse } from "../sessionStatus";
 type Message = Parameters<typeof isAwaitingFirstResponse>[0][number];
 
 function user(): Message {
-  return { role: "user", status: "complete", blocks: [{ type: "text" }] };
+  return {
+    role: "user",
+    status: "complete",
+    blocks: [{ type: "text", text: "hi" }],
+  };
 }
 
 function assistant(
   status: Message["status"],
-  blocks: readonly unknown[] = [],
+  blocks: Message["blocks"] = [],
 ): Message {
   return { role: "assistant", status, blocks };
 }
@@ -34,13 +38,33 @@ describe("isAwaitingFirstResponse", () => {
   });
 
   it("is false once the reply has any content", () => {
-    for (const type of ["thinking", "text", "toolCall", "error"])
+    for (const block of [
+      { type: "thinking", thinking: "Let me see" },
+      { type: "text", text: "Sure" },
+      { type: "toolCall" },
+      { type: "error" },
+    ])
       expect(
         isAwaitingFirstResponse(
-          [user(), assistant("streaming", [{ type }])],
+          [user(), assistant("streaming", [block])],
           true,
         ),
       ).toBe(false);
+  });
+
+  it("is true while the reply has only blank thinking or text", () => {
+    expect(
+      isAwaitingFirstResponse(
+        [
+          user(),
+          assistant("streaming", [
+            { type: "thinking", thinking: "" },
+            { type: "text", text: "  \n" },
+          ]),
+        ],
+        true,
+      ),
+    ).toBe(true);
   });
 
   it("is false for a complete reply", () => {

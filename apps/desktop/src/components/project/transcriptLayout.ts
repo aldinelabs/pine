@@ -1,3 +1,4 @@
+import { hasVisibleBlocks } from "@/lib/sessionStatus";
 import type { PineContentBlock } from "@/shared/sessions";
 import type { PineTranscriptMessage } from "@/stores/session";
 
@@ -32,6 +33,31 @@ export function collapsesTranscriptGap(
  * MessageScrollerContent `gap-8` down to that rhythm.
  */
 export const TOOL_CALL_TURN_MARGIN_CLASS = "-mt-5";
+
+/**
+ * Cancels the MessageScrollerContent `gap-8` in front of the tail assistant
+ * message while it shows nothing yet (a reply that has started streaming but
+ * holds only blank thinking or text), so it takes no room and does not push
+ * the awaiting-response note down before its first visible content.
+ */
+export const EMPTY_MESSAGE_MARGIN_CLASS = "-mt-8";
+
+/** The spacing class of a transcript item, if it needs one. */
+export function transcriptItemClass(
+  messages: readonly Pick<PineTranscriptMessage, "role" | "blocks">[],
+  index: number,
+): string | undefined {
+  // Only the tail can be a reply that has not shown anything yet; checking
+  // it alone keeps the per-row cost flat while a reply streams.
+  if (index === messages.length - 1) {
+    const message = messages[index];
+    if (message?.role === "assistant" && !hasVisibleBlocks(message.blocks))
+      return EMPTY_MESSAGE_MARGIN_CLASS;
+  }
+  return collapsesTranscriptGap(messages, index)
+    ? TOOL_CALL_TURN_MARGIN_CLASS
+    : undefined;
+}
 
 export interface TranscriptRenderState {
   expandedToolRuns: ReadonlySet<string>;
