@@ -218,6 +218,9 @@ From top to bottom:
      details list each file, line number and matching line;
    - markers for automation actions, model lookups and MCP configuration
      calls (for example "Ran 3 automation actions");
+   - memory calls ("Saved memory release-flow", "Read memory …",
+     "Removed memory …", "Listed memories"), which name the note; a folded
+     run counts them as "Used memory 2 times";
    - artifact submissions ("Submitted 3 files report.md, data.csv, chart.png",
      or "Submitted 2 of 3 files …" when some were rejected), naming the files
      added to Artifacts by the titles the agent gave them, or else by file

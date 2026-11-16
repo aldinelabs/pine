@@ -1,4 +1,5 @@
 import {
+  BrainIcon,
   CalendarClockIcon,
   ClapperboardIcon,
   ClockIcon,
@@ -19,6 +20,7 @@ import {
   automationOperation,
   fileSearchOperation,
   mcpConfigOperation,
+  memoryOperation,
   toolIconForName,
   toolKind,
 } from "../toolKinds";
@@ -78,6 +80,23 @@ describe("Computer Use tool kinds", () => {
   it("gives the datetime tool its own kind and clock icon", () => {
     expect(toolKind("datetime")).toBe("datetime");
     expect(toolIconForName("datetime")).toBe(ClockIcon);
+  });
+
+  it("gives memory tools their own kind and tells their operations apart", () => {
+    expect(toolKind("memory_read")).toBe("memory");
+    expect(toolKind("memory_save")).toBe("memory");
+    expect(toolKind("memory_remove")).toBe("memory");
+    expect(toolIconForName("memory_save")).toBe(BrainIcon);
+    expect(memoryOperation("memory_read", {})).toBe("list");
+    expect(memoryOperation("memory_read", { name: "release-flow" })).toBe(
+      "read",
+    );
+    expect(memoryOperation("memory_save", { name: "release-flow" })).toBe(
+      "save",
+    );
+    expect(memoryOperation("memory_remove", { name: "release-flow" })).toBe(
+      "remove",
+    );
   });
 
   it("gives MCP configuration tools their own kind, apart from MCP calls", () => {

@@ -1661,6 +1661,10 @@ export default {
           active: "時刻を {count} 回確認中",
           complete: "時刻を {count} 回確認しました",
         },
+        memory: {
+          active: "メモリを {count} 回使用中",
+          complete: "メモリを {count} 回使用しました",
+        },
         mcpConfig: {
           active: "MCP サーバーを {count} 回設定中",
           complete: "MCP サーバーを {count} 回設定しました",
@@ -1714,6 +1718,7 @@ export default {
         model: "モデルの確認",
         datetime: "日時",
         mcpConfig: "MCP 設定",
+        memory: "メモリ",
         project: "プロジェクト操作",
         session: "セッション操作",
         background: "バックグラウンドプロセス",
@@ -1952,6 +1957,28 @@ export default {
           running: "日時を取得中",
           complete: "日時を取得しました",
           error: "日時を取得できませんでした",
+        },
+        memory: {
+          list: {
+            running: "メモリ一覧を確認中",
+            complete: "メモリ一覧を確認しました",
+            error: "メモリ一覧を読み込めませんでした",
+          },
+          read: {
+            running: "メモリを読み込み中: ",
+            complete: "メモリを読み込みました: ",
+            error: "メモリを読み込めませんでした: ",
+          },
+          save: {
+            running: "メモリを保存中: ",
+            complete: "メモリを保存しました: ",
+            error: "メモリを保存できませんでした: ",
+          },
+          remove: {
+            running: "メモリを削除中: ",
+            complete: "メモリを削除しました: ",
+            error: "メモリを削除できませんでした: ",
+          },
         },
         mcpConfig: {
           activate: {

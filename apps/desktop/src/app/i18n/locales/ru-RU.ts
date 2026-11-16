@@ -1660,6 +1660,10 @@ export default {
           active: "Проверка времени: {count}",
           complete: "Время проверено: {count}",
         },
+        memory: {
+          active: "Работа с памятью: {count}",
+          complete: "Обращений к памяти: {count}",
+        },
         mcpConfig: {
           active: "Настройка MCP-серверов: {count}",
           complete: "Настроено MCP-серверов: {count}",
@@ -1713,6 +1717,7 @@ export default {
         model: "просмотр моделей",
         datetime: "дата и время",
         mcpConfig: "Настройка MCP",
+        memory: "память",
         project: "действие с проектом",
         session: "действие с сеансом",
         background: "фоновый процесс",
@@ -1954,6 +1959,28 @@ export default {
           running: "Получение даты и времени",
           complete: "Дата и время получены",
           error: "Не удалось получить дату и время",
+        },
+        memory: {
+          list: {
+            running: "Просмотр заметок в памяти",
+            complete: "Просмотрен список заметок в памяти",
+            error: "Не удалось получить список заметок в памяти",
+          },
+          read: {
+            running: "Чтение заметки ",
+            complete: "Прочитана заметка ",
+            error: "Не удалось прочитать заметку ",
+          },
+          save: {
+            running: "Сохранение заметки ",
+            complete: "Сохранена заметка ",
+            error: "Не удалось сохранить заметку ",
+          },
+          remove: {
+            running: "Удаление заметки ",
+            complete: "Удалена заметка ",
+            error: "Не удалось удалить заметку ",
+          },
         },
         mcpConfig: {
           activate: {

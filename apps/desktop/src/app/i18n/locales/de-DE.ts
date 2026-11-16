@@ -1687,6 +1687,10 @@ export default {
           active: "Uhrzeit wird {count}-mal abgefragt",
           complete: "Uhrzeit {count}-mal abgefragt",
         },
+        memory: {
+          active: "Nutze Gedächtnis ({count}×)",
+          complete: "Gedächtnis genutzt ({count}×)",
+        },
         mcpConfig: {
           active: "Konfiguriere MCP-Server ({count}×)",
           complete: "MCP-Server konfiguriert ({count}×)",
@@ -1740,6 +1744,7 @@ export default {
         model: "Modellabfrage",
         datetime: "Datum und Uhrzeit",
         mcpConfig: "MCP-Konfiguration",
+        memory: "Gedächtnis",
         project: "Projektaktion",
         session: "Sitzungsaktion",
         background: "Hintergrundprozess",
@@ -1980,6 +1985,28 @@ export default {
           running: "Datum und Uhrzeit werden abgefragt",
           complete: "Datum und Uhrzeit abgefragt",
           error: "Datum und Uhrzeit konnten nicht abgefragt werden",
+        },
+        memory: {
+          list: {
+            running: "Liste Notizen im Gedächtnis auf",
+            complete: "Notizen im Gedächtnis aufgelistet",
+            error: "Notizen im Gedächtnis konnten nicht aufgelistet werden",
+          },
+          read: {
+            running: "Lese Notiz: ",
+            complete: "Notiz gelesen: ",
+            error: "Notiz konnte nicht gelesen werden: ",
+          },
+          save: {
+            running: "Speichere Notiz: ",
+            complete: "Notiz gespeichert: ",
+            error: "Notiz konnte nicht gespeichert werden: ",
+          },
+          remove: {
+            running: "Entferne Notiz: ",
+            complete: "Notiz entfernt: ",
+            error: "Notiz konnte nicht entfernt werden: ",
+          },
         },
         mcpConfig: {
           activate: {

@@ -1636,6 +1636,10 @@ export default {
           active: "시간을 {count}회 확인하는 중",
           complete: "시간을 {count}회 확인했습니다",
         },
+        memory: {
+          active: "메모리를 {count}회 사용하는 중",
+          complete: "메모리를 {count}회 사용함",
+        },
         mcpConfig: {
           active: "MCP 서버를 {count}회 구성하는 중",
           complete: "MCP 서버를 {count}회 구성함",
@@ -1689,6 +1693,7 @@ export default {
         model: "모델 조회",
         datetime: "날짜 및 시간",
         mcpConfig: "MCP 구성",
+        memory: "메모리",
         project: "프로젝트 작업",
         session: "세션 작업",
         background: "백그라운드 프로세스",
@@ -1926,6 +1931,28 @@ export default {
           running: "날짜와 시간을 가져오는 중",
           complete: "날짜와 시간을 가져왔습니다",
           error: "날짜와 시간을 가져오지 못했습니다",
+        },
+        memory: {
+          list: {
+            running: "메모리 목록을 확인하는 중",
+            complete: "메모리 목록을 확인함",
+            error: "메모리 목록을 읽을 수 없음",
+          },
+          read: {
+            running: "메모리 읽는 중: ",
+            complete: "메모리 읽음: ",
+            error: "메모리를 읽을 수 없음: ",
+          },
+          save: {
+            running: "메모리 저장 중: ",
+            complete: "메모리 저장함: ",
+            error: "메모리를 저장할 수 없음: ",
+          },
+          remove: {
+            running: "메모리 삭제 중: ",
+            complete: "메모리 삭제함: ",
+            error: "메모리를 삭제할 수 없음: ",
+          },
         },
         mcpConfig: {
           activate: {

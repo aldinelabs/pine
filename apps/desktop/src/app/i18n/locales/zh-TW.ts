@@ -1571,6 +1571,10 @@ export default {
           active: "正在查看 {count} 次時間",
           complete: "查看了 {count} 次時間",
         },
+        memory: {
+          active: "正在使用 {count} 次記憶",
+          complete: "使用了 {count} 次記憶",
+        },
         mcpConfig: {
           active: "正在設定 {count} 次 MCP 伺服器",
           complete: "設定了 {count} 次 MCP 伺服器",
@@ -1624,6 +1628,7 @@ export default {
         model: "模型查詢",
         datetime: "日期時間",
         mcpConfig: "MCP 設定",
+        memory: "記憶",
         project: "專案操作",
         session: "會話操作",
         background: "後臺程序",
@@ -1856,6 +1861,28 @@ export default {
           running: "正在取得日期和時間",
           complete: "已取得日期和時間",
           error: "無法取得日期和時間",
+        },
+        memory: {
+          list: {
+            running: "正在查看記憶清單",
+            complete: "已查看記憶清單",
+            error: "無法讀取記憶清單",
+          },
+          read: {
+            running: "正在讀取記憶 ",
+            complete: "已讀取記憶 ",
+            error: "無法讀取記憶 ",
+          },
+          save: {
+            running: "正在儲存記憶 ",
+            complete: "已儲存記憶 ",
+            error: "無法儲存記憶 ",
+          },
+          remove: {
+            running: "正在刪除記憶 ",
+            complete: "已刪除記憶 ",
+            error: "無法刪除記憶 ",
+          },
         },
         mcpConfig: {
           activate: {

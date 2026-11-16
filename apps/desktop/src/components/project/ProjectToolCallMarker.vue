@@ -55,6 +55,7 @@ import {
   automationOperation,
   fileSearchOperation,
   mcpConfigOperation,
+  memoryOperation,
   isDeniedTool,
   isRunningTool,
   mediaOperationKey,
@@ -1006,7 +1007,9 @@ const presentation = computed(() => {
                     ? `${filename(path)}${suffix}`
                     : kind === "recall"
                       ? recallTarget(input)
-                      : props.toolCall.name;
+                      : kind === "memory"
+                        ? (firstString(input, ["name"]) ?? "")
+                        : props.toolCall.name;
   const targetMono =
     kind === "bash" ||
     kind === "read" ||
@@ -1016,6 +1019,7 @@ const presentation = computed(() => {
     kind === "fileSearch" ||
     kind === "datetime" ||
     kind === "mcpConfig" ||
+    kind === "memory" ||
     kind === "mcp" ||
     isPresentFileTool(props.toolCall.name) ||
     kind === "submitArtifact" ||
@@ -1266,6 +1270,21 @@ const presentation = computed(() => {
         operation === "activate" || operation === "list"
           ? ""
           : (firstString(input, ["name"]) ?? ""),
+      targetMono,
+      purpose: undefined,
+      faviconDataUrl: undefined,
+      after: "",
+    };
+  }
+  if (kind === "memory") {
+    const tense = state === "running" || state === "error" ? state : "complete";
+    return {
+      before: t(
+        `project.transcript.tools.memory.${memoryOperation(props.toolCall.name, input)}.${tense}`,
+      ),
+      operation: undefined,
+      separator: "",
+      target,
       targetMono,
       purpose: undefined,
       faviconDataUrl: undefined,

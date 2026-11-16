@@ -1677,6 +1677,10 @@ export default {
           active: "Consultation de l’heure {count} fois",
           complete: "Heure consultée {count} fois",
         },
+        memory: {
+          active: "Utilisation de la mémoire ({count} fois)",
+          complete: "Mémoire utilisée ({count} fois)",
+        },
         mcpConfig: {
           active: "Configuration de serveurs MCP ({count} fois)",
           complete: "Serveurs MCP configurés ({count} fois)",
@@ -1730,6 +1734,7 @@ export default {
         model: "consultation des modèles",
         datetime: "date et heure",
         mcpConfig: "Configuration MCP",
+        memory: "mémoire",
         project: "action de projet",
         session: "action de session",
         background: "processus en arrière-plan",
@@ -1971,6 +1976,28 @@ export default {
           running: "Consultation de la date et de l’heure",
           complete: "Date et heure consultées",
           error: "Impossible d’obtenir la date et l’heure",
+        },
+        memory: {
+          list: {
+            running: "Liste des notes en mémoire",
+            complete: "Notes en mémoire listées",
+            error: "Impossible de lister les notes en mémoire",
+          },
+          read: {
+            running: "Lecture de la note ",
+            complete: "Note lue : ",
+            error: "Impossible de lire la note ",
+          },
+          save: {
+            running: "Enregistrement de la note ",
+            complete: "Note enregistrée : ",
+            error: "Impossible d’enregistrer la note ",
+          },
+          remove: {
+            running: "Suppression de la note ",
+            complete: "Note supprimée : ",
+            error: "Impossible de supprimer la note ",
+          },
         },
         mcpConfig: {
           activate: {

@@ -1,6 +1,7 @@
 import {
   AppWindowIcon,
   BookOpenIcon,
+  BrainIcon,
   CalendarClockIcon,
   ClockIcon,
   ClapperboardIcon,
@@ -71,6 +72,12 @@ import {
 } from "@/shared/mcp";
 import { ACTIVATE_MCP_AUTHORING_TOOL_NAME } from "@/shared/sessionMutators";
 import { FFF_GREP_TOOL_NAME } from "@/shared/fffSearch";
+import {
+  MEMORY_READ_TOOL_NAME,
+  MEMORY_REMOVE_TOOL_NAME,
+  MEMORY_SAVE_TOOL_NAME,
+  MEMORY_TOOL_NAMES,
+} from "@/shared/memory";
 import type { PineToolCall } from "@/shared/sessions";
 
 export type ToolKind =
@@ -87,6 +94,7 @@ export type ToolKind =
   | "media"
   | "mcp"
   | "mcpConfig"
+  | "memory"
   | "model"
   | "presentFile"
   | "project"
@@ -116,6 +124,7 @@ export const TOOL_KIND_ICON: Record<ToolKind, Component> = {
   media: ClapperboardIcon,
   mcp: PlugIcon,
   mcpConfig: ServerCogIcon,
+  memory: BrainIcon,
   model: CpuIcon,
   presentFile: EyeIcon,
   project: FolderInputIcon,
@@ -176,6 +185,7 @@ export const TOOL_KIND_ORDER: readonly ToolKind[] = [
   "fileSearch",
   "search",
   "recall",
+  "memory",
   "fetch",
   "presentFile",
   "submitArtifact",
@@ -293,6 +303,8 @@ export function toolKind(name: string): ToolKind {
   if (normalized === TODO_TOOL_NAME) return "todo";
   if (normalized === DATETIME_TOOL_NAME) return "datetime";
   if (normalized === RECALL_TOOL_NAME) return "recall";
+  if ((MEMORY_TOOL_NAMES as readonly string[]).includes(normalized))
+    return "memory";
   if ((BACKGROUND_TASK_TOOL_NAMES as readonly string[]).includes(normalized))
     return "background";
   if (normalized.startsWith("browser_")) return "browser";
@@ -423,6 +435,24 @@ export function mcpConfigOperation(
     case MCP_CONFIG_LIST_TOOL_NAME:
     default:
       return "list";
+  }
+}
+
+export type MemoryOperation = "list" | "read" | "remove" | "save";
+
+/** Which memory tool a call is. A read that names no note lists them all. */
+export function memoryOperation(
+  name: string,
+  input: Record<string, unknown>,
+): MemoryOperation {
+  switch (normalizedName(name)) {
+    case MEMORY_SAVE_TOOL_NAME:
+      return "save";
+    case MEMORY_REMOVE_TOOL_NAME:
+      return "remove";
+    case MEMORY_READ_TOOL_NAME:
+    default:
+      return typeof input.name === "string" && input.name ? "read" : "list";
   }
 }
 

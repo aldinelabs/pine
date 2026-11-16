@@ -33,6 +33,7 @@ describe("project transcript markers", () => {
   it.each([
     { name: "mcp__example__run", input: { tool: "run", server: "example" } },
     { name: "mcp_config_save", input: { name: "example", config: {} } },
+    { name: "memory_save", input: { scope: "project", name: "example" } },
     { name: "ui_present_file", input: { path: "report.md" } },
     { name: "find", input: { pattern: "*.vue" } },
   ])(
@@ -546,6 +547,47 @@ describe("project transcript markers", () => {
     expect(wrapper.get('[data-slot="marker"]').attributes("aria-live")).toBe(
       "polite",
     );
+  });
+
+  it("labels memory calls by operation and note name", () => {
+    const mountCall = (
+      locale: "en-US" | "zh-CN",
+      name: string,
+      input: Record<string, unknown>,
+      status: "complete" | "error" | "running",
+    ) =>
+      mount(ProjectToolCallMarker, {
+        props: { toolCall: { id: `memory-${name}`, name, input, status } },
+        global: { plugins: [createAppI18n(locale)] },
+      });
+
+    expect(
+      mountCall(
+        "en-US",
+        "memory_save",
+        { scope: "project", name: "release-flow" },
+        "complete",
+      ).text(),
+    ).toContain("Saved memory release-flow");
+    expect(mountCall("en-US", "memory_read", {}, "complete").text()).toBe(
+      "Listed memories",
+    );
+    expect(
+      mountCall(
+        "en-US",
+        "memory_read",
+        { name: "release-flow" },
+        "error",
+      ).text(),
+    ).toContain("Couldn’t read memory release-flow");
+    expect(
+      mountCall(
+        "zh-CN",
+        "memory_remove",
+        { scope: "global", name: "reply-language" },
+        "running",
+      ).text(),
+    ).toContain("正在删除记忆 reply-language");
   });
 
   it("labels MCP configuration calls by operation and server name", () => {

@@ -1646,6 +1646,10 @@ export default {
           active: "Checking the time {count} times",
           complete: "Checked the time {count} times",
         },
+        memory: {
+          active: "Using memory {count} times",
+          complete: "Used memory {count} times",
+        },
         mcpConfig: {
           active: "Configuring MCP servers {count} times",
           complete: "Configured MCP servers {count} times",
@@ -1699,6 +1703,7 @@ export default {
         model: "model lookup",
         datetime: "date and time",
         mcpConfig: "MCP configuration",
+        memory: "memory",
         project: "project action",
         session: "session action",
         background: "background process",
@@ -1935,6 +1940,28 @@ export default {
           running: "Checking the date and time",
           complete: "Checked the date and time",
           error: "Couldn’t get the date and time",
+        },
+        memory: {
+          list: {
+            running: "Listing memories",
+            complete: "Listed memories",
+            error: "Couldn’t list memories",
+          },
+          read: {
+            running: "Reading memory ",
+            complete: "Read memory ",
+            error: "Couldn’t read memory ",
+          },
+          save: {
+            running: "Saving memory ",
+            complete: "Saved memory ",
+            error: "Couldn’t save memory ",
+          },
+          remove: {
+            running: "Removing memory ",
+            complete: "Removed memory ",
+            error: "Couldn’t remove memory ",
+          },
         },
         mcpConfig: {
           activate: {
