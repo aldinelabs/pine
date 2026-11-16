@@ -9,10 +9,36 @@ Every release section here has a matching section in the Chinese changelog.
 
 ## [Unreleased]
 
+## [0.21.0] - 2026-11-15
+
+> **Highlights**: Pine remembers across sessions, and every file the agent submits keeps its versions for you to compare and restore.
+
 ### Added
+
+#### Memory
 
 - **Pine remembers across sessions**: when you ask Pine to remember something, or it learns your preferences, a decision you made or a trap it fell into, it saves a memory, and new sessions start with those memories. A memory applies either to the current project or to every project, and stays on this device.
 - **View and manage memories**: Settings › Agent › Memory lists the memories of the current project and of all projects, where you can edit one, mark whether it is verified, or delete it. Memory can also be turned off there.
+- **Memory in the transcript**: saving, reading, changing or deleting a memory shows as its own entry that names the operation and the memory, instead of a raw tool name.
+
+#### Versions of submitted files
+
+- **Every submitted file keeps its versions**: each time the agent submits a file to Artifacts, Pine keeps a copy as it was submitted (files up to 25 MB; each project keeps up to 1 GB, dropping the oldest first). Artifacts shows how many versions a file has.
+- **Browse, compare and restore versions in the preview**: the Preview card's header and the footer of a file tab opened from Artifacts have a Version history menu that lists each version with the agent's description of it. A picked version opens read-only, where you can turn on Compare with current, Restore it (the replaced file stays in the history, so it can be undone) or go back to the current file.
+- **Compare Markdown as rendered documents**: comparing a Markdown file shows it rendered, with added and removed blocks tinted and changed words marked; turn off Rendered to see the line diff.
+- **Save a version as a copy**: while a file tab shows a kept version, Save as… saves a copy of that version wherever you choose.
+- **Open a submission from the transcript**: clicking a submitted file in the conversation opens it as it was when submitted.
+
+### Changed
+
+- **Automatic review resists prompt injection**: when web pages, files or tool output contain instructions aimed at the agent, the automatic reviewer no longer lets a high-risk call through on its own, such as sending data to an address you never named; it asks you instead, and denies the call in Autonomous Work.
+- **Open with default application moves left**: in a file tab's footer, the button now sits at the left end.
+
+### Fixed
+
+- Selecting text inside a math formula in rendered Markdown and choosing Comment now comments on the whole formula, instead of doing nothing.
+- The waiting-for-provider note no longer jumps down a line just as the reply starts.
+- Sending a new message no longer expands the previous reply's last tool calls.
 
 ## [0.20.1] - 2026-11-14
 
