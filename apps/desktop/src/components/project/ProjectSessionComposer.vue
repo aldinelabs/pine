@@ -74,6 +74,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { Kbd, KbdGroup } from "@/components/ui/kbd";
+import { useCollapseTransition } from "@/composables/useCollapseTransition";
 import { useModifierHold } from "@/composables/useModifierHold";
 import ProjectComposerOptimizeButton from "@/components/project/ProjectComposerOptimizeButton.vue";
 import { useShortcutHints } from "@/composables/useShortcutHints";
@@ -356,24 +357,41 @@ useEventListener(window, "keydown", (event: KeyboardEvent) => {
   focus();
 });
 
-// ⌘; / Ctrl+; opens the approval mode menu and ⌘' / Ctrl+' the model menu.
+// ⌘R / Ctrl+R opens the approval mode menu and ⌘I / Ctrl+I the model menu.
+// The main process keeps the menu's reload accelerator off plain ⌘R.
 const menuShortcuts: Record<string, Ref<boolean>> = {
-  ";": isApprovalMenuOpen,
-  "'": isModelMenuOpen,
+  r: isApprovalMenuOpen,
+  i: isModelMenuOpen,
 };
-// Holding Cmd/Ctrl swaps each menu's chevron for its shortcut.
+/** Text fields outside the composer keep ⌘R / ⌘I to themselves. */
+function isOtherTextField(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) return false;
+  if (target.closest('[data-slot="session-composer"]')) return false;
+  if (target instanceof HTMLInputElement)
+    return !["button", "checkbox", "radio", "reset", "submit"].includes(
+      target.type,
+    );
+  return (
+    target instanceof HTMLTextAreaElement ||
+    target instanceof HTMLSelectElement ||
+    target.isContentEditable
+  );
+}
+// Holding Cmd/Ctrl makes room beside each menu's chevron for its shortcut.
 const modifierHeld = useModifierHold();
+const menuShortcutTransition = useCollapseTransition("width");
 const modifierLabel =
   (window.pine?.platform ?? "darwin") === "darwin" ? "⌘" : "Ctrl";
 useEventListener(window, "keydown", (event: KeyboardEvent) => {
-  const menu = menuShortcuts[event.key];
+  const menu = menuShortcuts[event.key.toLowerCase()];
   if (
     !menu ||
     !props.isActive ||
     !(event.metaKey || event.ctrlKey) ||
     event.shiftKey ||
     event.altKey ||
-    event.defaultPrevented
+    event.defaultPrevented ||
+    isOtherTextField(event.target)
   )
     return;
   if (!(document.getElementById(messageId) instanceof HTMLTextAreaElement))
@@ -1415,15 +1433,22 @@ function handleRootSubmit(event: Event): void {
               >
                 {{ selectedApprovalMode.label }}
               </span>
-              <KbdGroup
-                v-if="modifierHeld"
-                data-slot="approval-menu-shortcut"
-                aria-hidden="true"
+              <Transition
+                :css="false"
+                @enter="menuShortcutTransition.onEnter"
+                @leave="menuShortcutTransition.onLeave"
               >
-                <Kbd>{{ modifierLabel }}</Kbd>
-                <Kbd>;</Kbd>
-              </KbdGroup>
-              <ChevronDownIcon v-else data-icon="inline-end" />
+                <KbdGroup
+                  v-if="modifierHeld"
+                  data-slot="approval-menu-shortcut"
+                  class="shrink-0"
+                  aria-hidden="true"
+                >
+                  <Kbd>{{ modifierLabel }}</Kbd>
+                  <Kbd>R</Kbd>
+                </KbdGroup>
+              </Transition>
+              <ChevronDownIcon data-icon="inline-end" />
             </Button>
           </DropdownMenuTrigger>
 
@@ -1494,15 +1519,22 @@ function handleRootSubmit(event: Event): void {
             >
               · {{ t(`models.thinkingLevels.${selection.thinkingLevel}`) }}
             </span>
-            <KbdGroup
-              v-if="modifierHeld"
-              data-slot="model-menu-shortcut"
-              aria-hidden="true"
+            <Transition
+              :css="false"
+              @enter="menuShortcutTransition.onEnter"
+              @leave="menuShortcutTransition.onLeave"
             >
-              <Kbd>{{ modifierLabel }}</Kbd>
-              <Kbd>'</Kbd>
-            </KbdGroup>
-            <ChevronDownIcon v-else data-icon="inline-end" />
+              <KbdGroup
+                v-if="modifierHeld"
+                data-slot="model-menu-shortcut"
+                class="shrink-0"
+                aria-hidden="true"
+              >
+                <Kbd>{{ modifierLabel }}</Kbd>
+                <Kbd>I</Kbd>
+              </KbdGroup>
+            </Transition>
+            <ChevronDownIcon data-icon="inline-end" />
           </Button>
         </DropdownMenuTrigger>
 

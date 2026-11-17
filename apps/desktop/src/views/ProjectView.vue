@@ -370,7 +370,7 @@ useEventListener(window, "keydown", (event: KeyboardEvent) => {
 
 // Cmd/Ctrl+, opens Pine Settings, K searches sessions, P manages projects,
 // S manages skills, / manages MCP servers and U manages automations.
-// Cmd/Ctrl+L, ; and ' live with the composer and Cmd/Ctrl+N is handled in
+// Cmd/Ctrl+L, R and I live with the composer and Cmd/Ctrl+N is handled in
 // the main process.
 const sidebarShortcuts: Record<string, () => void> = {
   ",": () => preferencesDialog.value?.open(),

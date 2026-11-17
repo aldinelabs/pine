@@ -9,17 +9,16 @@ export function installWindowShortcuts(
   onNewWindow: () => void,
 ): void {
   contents.on("before-input-event", (event, input) => {
-    if (input.type !== "keyDown" || !(input.control || input.meta) || input.alt)
-      return;
+    if (input.type !== "keyDown") return;
+    const modified = Boolean(input.control || input.meta) && !input.alt;
+    const key = input.key.toLowerCase();
+    // Plain Ctrl/Cmd+R opens the composer's approval mode menu, so the page
+    // gets the key while the menu's Reload accelerator is skipped; only
+    // Ctrl/Cmd+Shift+R (force reload) reloads Pine.
+    contents.setIgnoreMenuShortcuts(modified && key === "r" && !input.shift);
+    if (!modified) return;
     // Ctrl/Cmd+W closes the tab, Ctrl/Cmd+N or Ctrl/Cmd+T opens a tab, and
     // Ctrl/Cmd+Shift+N opens a window.
-    const key = input.key.toLowerCase();
-    // Plain Ctrl/Cmd+R is too easy to hit by accident and reloading drops the
-    // window's state; only Ctrl/Cmd+Shift+R (force reload) reloads Pine.
-    if (key === "r" && !input.shift) {
-      event.preventDefault();
-      return;
-    }
     const action =
       key === "n"
         ? input.shift

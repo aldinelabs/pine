@@ -400,9 +400,9 @@ From top to bottom:
    - Footer controls: project target ("Send to {name}", beside the action
      button in a new session), Model, Reasoning effort, approval mode, the
      Optimize prompt button in a new session or Context usage once the
-     session has started, and the action button. Mod+; opens the approval
-     mode menu and Mod+' the model menu; holding Cmd/Ctrl swaps each menu's
-     arrow for its shortcut.
+     session has started, and the action button. Mod+R opens the approval
+     mode menu and Mod+I the model menu; holding Cmd/Ctrl slides each
+     menu's shortcut in beside its arrow.
    - Approval modes: Let Me Review (ask before risky actions), Auto Approve
      (balance autonomy and control), Autonomous Work (maximize autonomy
      without user action), YOLO (no permission constraints; asks the user to
@@ -849,8 +849,7 @@ and Quit Pine. Quitting from the menu is the way to stop automations, Remote Con
 - Mod+W: close tab (middle-click a tab also closes it)
 - Mod+Shift+T: reopen the last closed tab
 - Mod+Shift+N: new window
-- Mod+Shift+R: reload the window (plain Mod+R does nothing, so a stray
-  press does not reload Pine)
+- Mod+Shift+R: reload the window (plain Mod+R never reloads Pine)
 - Mod+1 … Mod+8: jump to that tab; Mod+9: the last tab
 - Mod+Alt+Left / Right: previous / next tab
 - Mod+B: toggle left sidebar
@@ -862,8 +861,9 @@ and Quit Pine. Quitting from the menu is the way to stop automations, Remote Con
 - Mod+U: Automations manager
 - Mod+/: MCP servers manager
 - Mod+L: focus the composer
-- Mod+;: open the composer's approval mode menu
-- Mod+': open the composer's model menu
+- Mod+R: open the composer's approval mode menu (outside other text
+  fields)
+- Mod+I: open the composer's model menu (outside other text fields)
 - Tab in an empty composer showing a reply suggestion: use the suggestion
 - Option+Enter (Alt+Enter): Optimize prompt in the composer; Esc cancels it
 - Enlarged Markdown image: Left / Right previous / next image; Mod+= / Mod+−

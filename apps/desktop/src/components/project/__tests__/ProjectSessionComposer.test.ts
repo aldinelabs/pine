@@ -299,27 +299,49 @@ describe("ProjectSessionComposer", () => {
     wrapper.unmount();
   });
 
-  it("opens the approval mode menu with Cmd+; and the model menu with Cmd+'", async () => {
+  it("opens the approval mode menu with Cmd+R and the model menu with Cmd+I", async () => {
     const wrapper = mountComposer({ isActive: true });
     const approval = wrapper.get('[data-slot="approval-mode-trigger"]');
     const model = wrapper.get('[data-slot="model-selector-trigger"]');
     expect(approval.attributes("aria-expanded")).toBe("false");
 
-    const cmdSemicolon = new KeyboardEvent("keydown", {
-      key: ";",
+    const cmdBracket = new KeyboardEvent("keydown", {
+      key: "r",
       metaKey: true,
       cancelable: true,
     });
-    window.dispatchEvent(cmdSemicolon);
+    window.dispatchEvent(cmdBracket);
     await flushPromises();
-    expect(cmdSemicolon.defaultPrevented).toBe(true);
+    expect(cmdBracket.defaultPrevented).toBe(true);
     expect(approval.attributes("aria-expanded")).toBe("true");
 
     window.dispatchEvent(
-      new KeyboardEvent("keydown", { key: "'", ctrlKey: true }),
+      new KeyboardEvent("keydown", { key: "i", ctrlKey: true }),
     );
     await flushPromises();
     expect(model.attributes("aria-expanded")).toBe("true");
+    wrapper.unmount();
+  });
+
+  it("leaves Cmd+R to text fields outside the composer", async () => {
+    const wrapper = mountComposer({ isActive: true });
+    const field = document.createElement("input");
+    document.body.append(field);
+    const cmdR = new KeyboardEvent("keydown", {
+      key: "r",
+      metaKey: true,
+      bubbles: true,
+      cancelable: true,
+    });
+    field.dispatchEvent(cmdR);
+    await flushPromises();
+    expect(cmdR.defaultPrevented).toBe(false);
+    expect(
+      wrapper
+        .get('[data-slot="approval-mode-trigger"]')
+        .attributes("aria-expanded"),
+    ).toBe("false");
+    field.remove();
     wrapper.unmount();
   });
 
@@ -333,9 +355,9 @@ describe("ProjectSessionComposer", () => {
     vi.advanceTimersByTime(MODIFIER_HOLD_DELAY_MS);
     await nextTick();
     expect(wrapper.get('[data-slot="approval-menu-shortcut"]').text()).toBe(
-      "⌘;",
+      "⌘R",
     );
-    expect(wrapper.get('[data-slot="model-menu-shortcut"]').text()).toBe("⌘'");
+    expect(wrapper.get('[data-slot="model-menu-shortcut"]').text()).toBe("⌘I");
     window.dispatchEvent(new KeyboardEvent("keyup", { key: "Meta" }));
     await nextTick();
     expect(wrapper.find('[data-slot="model-menu-shortcut"]').exists()).toBe(
@@ -345,7 +367,7 @@ describe("ProjectSessionComposer", () => {
     vi.useRealTimers();
   });
 
-  it("ignores Cmd+L and Cmd+; in a hidden tab", async () => {
+  it("ignores Cmd+L and Cmd+R in a hidden tab", async () => {
     const wrapper = mountComposer({ isActive: false });
     const button = wrapper.find("button").element;
     button.focus();
@@ -354,7 +376,7 @@ describe("ProjectSessionComposer", () => {
     );
     expect(document.activeElement).toBe(button);
     window.dispatchEvent(
-      new KeyboardEvent("keydown", { key: ";", metaKey: true }),
+      new KeyboardEvent("keydown", { key: "r", metaKey: true }),
     );
     await flushPromises();
     expect(

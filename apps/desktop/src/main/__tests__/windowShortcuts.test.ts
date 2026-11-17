@@ -15,7 +15,10 @@ describe("native close shortcut", () => {
   ])(
     "intercepts Ctrl/Cmd+%s before the menu and ignores repeats and other shortcuts",
     (key, channel) => {
-      const contents = Object.assign(new EventEmitter(), { send: vi.fn() });
+      const contents = Object.assign(new EventEmitter(), {
+        send: vi.fn(),
+        setIgnoreMenuShortcuts: vi.fn(),
+      });
       installWindowShortcuts(contents as unknown as WebContents, vi.fn());
       for (const modifiers of [{ control: true }, { meta: true }]) {
         const event = { preventDefault: vi.fn() };
@@ -58,7 +61,10 @@ describe("native close shortcut", () => {
   );
 
   it("creates a new window instance on Ctrl/Cmd+Shift+N but ignores repeats and modifiers", () => {
-    const contents = Object.assign(new EventEmitter(), { send: vi.fn() });
+    const contents = Object.assign(new EventEmitter(), {
+      send: vi.fn(),
+      setIgnoreMenuShortcuts: vi.fn(),
+    });
     const onCreateWindow = vi.fn();
     installWindowShortcuts(contents as unknown as WebContents, onCreateWindow);
 
@@ -98,8 +104,11 @@ describe("native close shortcut", () => {
     expect(onCreateWindow).toHaveBeenCalledTimes(2);
   });
 
-  it("swallows Ctrl/Cmd+R so only Ctrl/Cmd+Shift+R reloads", () => {
-    const contents = Object.assign(new EventEmitter(), { send: vi.fn() });
+  it("passes Ctrl/Cmd+R to the page but keeps the menu from reloading", () => {
+    const contents = Object.assign(new EventEmitter(), {
+      send: vi.fn(),
+      setIgnoreMenuShortcuts: vi.fn(),
+    });
     installWindowShortcuts(contents as unknown as WebContents, vi.fn());
     for (const modifiers of [{ control: true }, { meta: true }]) {
       const reload = { preventDefault: vi.fn() };
@@ -108,7 +117,8 @@ describe("native close shortcut", () => {
         key: "r",
         ...modifiers,
       });
-      expect(reload.preventDefault).toHaveBeenCalledOnce();
+      expect(reload.preventDefault).not.toHaveBeenCalled();
+      expect(contents.setIgnoreMenuShortcuts).toHaveBeenLastCalledWith(true);
       const forceReload = { preventDefault: vi.fn() };
       contents.emit("before-input-event", forceReload, {
         type: "keyDown",
@@ -117,6 +127,19 @@ describe("native close shortcut", () => {
         ...modifiers,
       });
       expect(forceReload.preventDefault).not.toHaveBeenCalled();
+      expect(contents.setIgnoreMenuShortcuts).toHaveBeenLastCalledWith(false);
+    }
+    for (const input of [
+      { key: "r" },
+      { key: "r", meta: true, alt: true },
+      { key: "i", meta: true },
+    ]) {
+      contents.emit(
+        "before-input-event",
+        { preventDefault: vi.fn() },
+        { type: "keyDown", ...input },
+      );
+      expect(contents.setIgnoreMenuShortcuts).toHaveBeenLastCalledWith(false);
     }
     expect(contents.send).not.toHaveBeenCalled();
   });
