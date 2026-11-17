@@ -174,12 +174,18 @@ describe("AllProjectsSessionList", () => {
     expect(
       document.querySelector('[data-slot="popover-content"]'),
     ).not.toBeNull();
-    expect(entries()).toEqual(["自动化⌘U", "工作技能⌘S", "MCP 服务器⌘/"]);
+    expect(entries()).toEqual([
+      "自动化⌘U",
+      "工作技能⌘S",
+      "MCP 服务器⌘/",
+      "记忆",
+    ]);
 
     for (const [testId, event] of [
       ["manage-automations", "manageAutomations"],
       ["manage-skills", "manageSkills"],
       ["manage-mcp", "manageMcp"],
+      ["manage-memory", "manageMemory"],
     ] as const) {
       if (!document.querySelector('[data-slot="popover-content"]')) {
         await more.trigger("click");

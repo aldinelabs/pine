@@ -257,8 +257,15 @@ export default {
     memory: {
       title: "跨對話記憶",
       description:
-        "Pine 會把你的偏好、做過的決定和學到的經驗記成筆記，並帶到之後的對話裡。筆記只儲存在這台裝置上。",
-      empty: "還沒有記憶。請 Pine 記住某件事後，它會出現在這裡。",
+        "Pine 會把你的偏好、做過的決定和學到的經驗記成筆記，並帶到之後的對話裡。筆記只儲存在這台裝置上。可以在側欄的「更多功能 › 記憶」裡管理。",
+      empty: "請 Pine 記住某件事後，它會出現在這裡。",
+      managerTitle: "記憶",
+      managerDescription:
+        "Pine 跨對話保留的筆記。即使在「設定 › 智慧體」裡關閉了跨對話記憶，也可以在這裡查看、修改和刪除；只有開啟時 Pine 才會讀取和儲存它們。",
+      editNamed: "編輯「{name}」",
+      scopeProject: "本專案",
+      emptyTitle: "還沒有記憶",
+      refresh: "重新整理記憶",
       scopeGlobal: "所有專案",
       unverified: "未驗證",
       actions: "「{name}」的操作",
@@ -319,7 +326,6 @@ export default {
       permissions: "許可權",
       context: "上下文",
       tools: "工具與隱私",
-      memory: "記憶",
     },
     sectionsLabel: "設定分類",
     language: "語言",

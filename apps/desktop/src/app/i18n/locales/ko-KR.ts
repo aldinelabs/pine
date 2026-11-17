@@ -271,9 +271,15 @@ export default {
     memory: {
       title: "세션 간 기억",
       description:
-        "Pine은 사용자의 선호, 결정 사항, 배운 내용을 메모로 저장해 이후 세션에 가져옵니다. 메모는 이 기기에만 저장됩니다.",
-      empty:
-        "아직 메모리가 없습니다. Pine에게 기억해 달라고 요청하면 여기에 표시됩니다.",
+        "Pine은 사용자의 선호, 결정 사항, 배운 내용을 메모로 저장해 이후 세션에 가져옵니다. 메모는 이 기기에만 저장됩니다. 사이드바의 더 보기 › 메모리에서 관리할 수 있습니다.",
+      empty: "Pine에게 기억해 달라고 요청하면 여기에 표시됩니다.",
+      managerTitle: "메모리",
+      managerDescription:
+        "Pine이 세션 간에 유지하는 메모입니다. 설정 › 에이전트에서 메모리를 꺼도 여기서 확인, 수정, 삭제할 수 있으며, Pine은 켜져 있을 때만 메모를 읽고 저장합니다.",
+      editNamed: "{name} 편집",
+      scopeProject: "이 프로젝트",
+      emptyTitle: "메모리가 없습니다",
+      refresh: "메모리 새로 고침",
       scopeGlobal: "모든 프로젝트",
       unverified: "미확인",
       actions: "{name} 작업",
@@ -336,7 +342,6 @@ export default {
       permissions: "권한",
       context: "컨텍스트",
       tools: "도구 및 개인정보 보호",
-      memory: "메모리",
     },
     sectionsLabel: "설정 섹션",
     language: "언어",

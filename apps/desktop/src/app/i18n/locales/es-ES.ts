@@ -280,9 +280,15 @@ export default {
     memory: {
       title: "Recordar entre sesiones",
       description:
-        "Pine guarda notas sobre tus preferencias, decisiones y lo que ha aprendido, y las lleva a sesiones posteriores. Las notas permanecen en este dispositivo.",
-      empty:
-        "Aún no hay recuerdos. Pide a Pine que recuerde algo y aparecerá aquí.",
+        "Pine guarda notas sobre tus preferencias, decisiones y lo que ha aprendido, y las lleva a sesiones posteriores. Las notas permanecen en este dispositivo. Gestiónalas en la barra lateral, en Más › Memoria.",
+      empty: "Pide a Pine que recuerde algo y aparecerá aquí.",
+      managerTitle: "Memoria",
+      managerDescription:
+        "Notas que Pine conserva entre sesiones. Puedes revisarlas, corregirlas y eliminarlas aquí aunque la memoria esté desactivada en Ajustes › Agente; Pine solo las lee y guarda mientras está activada.",
+      editNamed: "Editar {name}",
+      scopeProject: "Este proyecto",
+      emptyTitle: "No hay recuerdos",
+      refresh: "Actualizar recuerdos",
       scopeGlobal: "Todos los proyectos",
       unverified: "Sin verificar",
       actions: "Acciones para {name}",
@@ -345,7 +351,6 @@ export default {
       permissions: "Permisos",
       context: "Contexto",
       tools: "Herramientas y privacidad",
-      memory: "Memoria",
     },
     sectionsLabel: "Secciones de ajustes",
     language: "Idioma",

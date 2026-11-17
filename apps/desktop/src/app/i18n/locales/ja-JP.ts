@@ -284,9 +284,15 @@ export default {
     memory: {
       title: "セッションをまたいで記憶する",
       description:
-        "Pine はあなたの好み、決定事項、学んだことをメモとして保存し、以降のセッションに引き継ぎます。メモはこのデバイスにのみ保存されます。",
-      empty:
-        "メモリはまだありません。Pine に何かを覚えるよう頼むと、ここに表示されます。",
+        "Pine はあなたの好み、決定事項、学んだことをメモとして保存し、以降のセッションに引き継ぎます。メモはこのデバイスにのみ保存されます。サイドバーの「その他 › メモリ」で管理できます。",
+      empty: "Pine に何かを覚えるよう頼むと、ここに表示されます。",
+      managerTitle: "メモリ",
+      managerDescription:
+        "Pine がセッションをまたいで保持するメモです。設定 › エージェントでメモリをオフにしていても、ここで確認・修正・削除できます。Pine が読み書きするのはオンのときだけです。",
+      editNamed: "{name} を編集",
+      scopeProject: "このプロジェクト",
+      emptyTitle: "メモリはまだありません",
+      refresh: "メモリを再読み込み",
       scopeGlobal: "すべてのプロジェクト",
       unverified: "未確認",
       actions: "{name} の操作",
@@ -349,7 +355,6 @@ export default {
       permissions: "権限",
       context: "コンテキスト",
       tools: "ツールとプライバシー",
-      memory: "メモリ",
     },
     sectionsLabel: "設定のセクション",
     language: "言語",

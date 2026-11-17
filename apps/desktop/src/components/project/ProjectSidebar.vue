@@ -14,6 +14,7 @@ const emit = defineEmits<{
   manageProjects: [];
   manageSkills: [];
   manageMcp: [];
+  manageMemory: [];
   manageAutomations: [];
   searchSessions: [];
 }>();
@@ -58,6 +59,7 @@ useSidebarGlassWidth(() => {
         @manage-automations="handOff(() => emit('manageAutomations'))"
         @manage-skills="handOff(() => emit('manageSkills'))"
         @manage-mcp="handOff(() => emit('manageMcp'))"
+        @manage-memory="handOff(() => emit('manageMemory'))"
       />
     </SidebarContent>
 

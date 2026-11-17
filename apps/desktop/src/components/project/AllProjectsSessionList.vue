@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import {
   Blocks,
+  Brain,
   Ellipsis,
   Folder,
   FolderKanban,
@@ -98,6 +99,7 @@ const emit = defineEmits<{
   manageAutomations: [];
   manageSkills: [];
   manageMcp: [];
+  manageMemory: [];
 }>();
 const { t } = useI18n();
 const tabNavigation = useContentTabNavigation();
@@ -749,6 +751,16 @@ function drop(event: DragEvent, projectId: string, groupId: string | null) {
                       <Blocks aria-hidden="true" />
                       <span>{{ t("mcp.title") }}</span>
                       <ModifierShortcut class="ml-auto" key-label="/" />
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                  <SidebarMenuItem>
+                    <SidebarMenuButton
+                      data-testid="manage-memory"
+                      class="rounded-2xl"
+                      @click="pick(() => emit('manageMemory'))"
+                    >
+                      <Brain aria-hidden="true" />
+                      <span>{{ t("preferences.memory.managerTitle") }}</span>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
                 </SidebarMenu>

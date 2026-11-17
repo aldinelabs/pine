@@ -279,9 +279,15 @@ export default {
     memory: {
       title: "Mémoriser d’une session à l’autre",
       description:
-        "Pine enregistre des notes sur vos préférences, vos décisions et ce qu’il a appris, et les reprend dans les sessions suivantes. Les notes restent sur cet appareil.",
-      empty:
-        "Aucun souvenir pour l’instant. Demandez à Pine de retenir quelque chose et il apparaîtra ici.",
+        "Pine enregistre des notes sur vos préférences, vos décisions et ce qu’il a appris, et les reprend dans les sessions suivantes. Les notes restent sur cet appareil. Gérez-les dans la barre latérale, sous Plus › Mémoire.",
+      empty: "Demandez à Pine de retenir quelque chose et il apparaîtra ici.",
+      managerTitle: "Mémoire",
+      managerDescription:
+        "Notes que Pine conserve d’une session à l’autre. Vous pouvez les consulter, les corriger et les supprimer ici même lorsque la mémoire est désactivée dans Réglages › Agent ; Pine ne les lit et ne les enregistre que lorsqu’elle est activée.",
+      editNamed: "Modifier {name}",
+      scopeProject: "Ce projet",
+      emptyTitle: "Aucun souvenir",
+      refresh: "Actualiser les souvenirs",
       scopeGlobal: "Tous les projets",
       unverified: "Non vérifié",
       actions: "Actions pour {name}",
@@ -344,7 +350,6 @@ export default {
       permissions: "Autorisations",
       context: "Contexte",
       tools: "Outils et confidentialité",
-      memory: "Mémoire",
     },
     sectionsLabel: "Sections des réglages",
     language: "Langue",

@@ -273,9 +273,15 @@ export default {
     memory: {
       title: "Remember across sessions",
       description:
-        "Pine saves notes about your preferences, decisions, and what it has learned, and brings them into later sessions. Notes stay on this device.",
-      empty:
-        "No memories yet. Ask Pine to remember something and it will appear here.",
+        "Pine saves notes about your preferences, decisions, and what it has learned, and brings them into later sessions. Notes stay on this device. Manage them in the sidebar under More › Memory.",
+      empty: "Ask Pine to remember something and it will appear here.",
+      managerTitle: "Memory",
+      managerDescription:
+        "Notes Pine keeps across sessions. You can review, correct and delete them here even while Remember across sessions is off in Settings › Agent; Pine only reads and saves them while it is on.",
+      editNamed: "Edit {name}",
+      scopeProject: "This project",
+      emptyTitle: "No memories",
+      refresh: "Refresh memories",
       scopeGlobal: "All projects",
       unverified: "Unverified",
       actions: "Actions for {name}",
@@ -338,7 +344,6 @@ export default {
       permissions: "Permissions",
       context: "Context",
       tools: "Tools & privacy",
-      memory: "Memory",
     },
     sectionsLabel: "Settings sections",
     language: "Language",

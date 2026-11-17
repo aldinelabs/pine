@@ -283,9 +283,15 @@ export default {
     memory: {
       title: "Über Sitzungen hinweg merken",
       description:
-        "Pine speichert Notizen zu deinen Vorlieben, Entscheidungen und Erkenntnissen und bringt sie in spätere Sitzungen ein. Die Notizen bleiben auf diesem Gerät.",
-      empty:
-        "Noch keine Erinnerungen. Bitte Pine, sich etwas zu merken, dann erscheint es hier.",
+        "Pine speichert Notizen zu deinen Vorlieben, Entscheidungen und Erkenntnissen und bringt sie in spätere Sitzungen ein. Die Notizen bleiben auf diesem Gerät. Verwalte sie in der Seitenleiste unter Mehr › Gedächtnis.",
+      empty: "Bitte Pine, sich etwas zu merken, dann erscheint es hier.",
+      managerTitle: "Gedächtnis",
+      managerDescription:
+        "Notizen, die Pine sitzungsübergreifend behält. Du kannst sie hier ansehen, korrigieren und löschen, auch wenn das Gedächtnis unter Einstellungen › Agent aus ist; Pine liest und speichert sie nur, solange es an ist.",
+      editNamed: "{name} bearbeiten",
+      scopeProject: "Dieses Projekt",
+      emptyTitle: "Keine Erinnerungen",
+      refresh: "Erinnerungen aktualisieren",
       scopeGlobal: "Alle Projekte",
       unverified: "Ungeprüft",
       actions: "Aktionen für {name}",
@@ -348,7 +354,6 @@ export default {
       permissions: "Berechtigungen",
       context: "Kontext",
       tools: "Werkzeuge und Datenschutz",
-      memory: "Gedächtnis",
     },
     sectionsLabel: "Einstellungsbereiche",
     language: "Sprache",

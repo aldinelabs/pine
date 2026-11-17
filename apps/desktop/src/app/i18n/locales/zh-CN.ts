@@ -254,8 +254,15 @@ export default {
     memory: {
       title: "跨会话记忆",
       description:
-        "Pine 会把你的偏好、做过的决定和学到的经验记成笔记，并带到之后的会话里。笔记只保存在这台设备上。",
-      empty: "还没有记忆。让 Pine 记住某件事后，它会出现在这里。",
+        "Pine 会把你的偏好、做过的决定和学到的经验记成笔记，并带到之后的会话里。笔记只保存在这台设备上。可以在侧栏的「更多功能 › 记忆」里管理。",
+      empty: "让 Pine 记住某件事后，它会出现在这里。",
+      managerTitle: "记忆",
+      managerDescription:
+        "Pine 跨会话保留的笔记。即使在「设置 › 智能体」里关闭了跨会话记忆，也可以在这里查看、修改和删除；只有开启时 Pine 才会读取和保存它们。",
+      editNamed: "编辑“{name}”",
+      scopeProject: "本项目",
+      emptyTitle: "还没有记忆",
+      refresh: "刷新记忆",
       scopeGlobal: "所有项目",
       unverified: "未验证",
       actions: "“{name}”的操作",
@@ -316,7 +323,6 @@ export default {
       permissions: "权限",
       context: "上下文",
       tools: "工具与隐私",
-      memory: "记忆",
     },
     sectionsLabel: "设置分类",
     language: "语言",

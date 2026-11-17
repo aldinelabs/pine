@@ -98,6 +98,7 @@ function mountDialog(options: { attachTo?: HTMLElement } = {}) {
     global: {
       plugins: [pinia, i18n],
       stubs: {
+        MemoryEnabledSetting: true,
         Dialog: passthroughStub,
         DialogContent: passthroughStub,
         DialogDescription: passthroughStub,
@@ -105,7 +106,6 @@ function mountDialog(options: { attachTo?: HTMLElement } = {}) {
         DialogTitle: passthroughStub,
         DialogTrigger: passthroughStub,
         // Covered by its own tests; its editor dialog would render inline here.
-        MemorySettings: true,
         ModelPickerDialog: modelPickerStub,
       },
     },
@@ -459,13 +459,12 @@ describe("PinePreferencesDialog", () => {
     expect(wrapper.text()).toContain("尚未配置 OpenRouter");
   });
 
-  it("shows memory in the Agent section", async () => {
+  it("has the memory switch in the Agent section", async () => {
     installPineApi("linux");
     const { wrapper } = mountDialog();
-    expect(wrapper.find("memory-settings-stub").exists()).toBe(false);
+    expect(wrapper.find("memory-enabled-setting-stub").exists()).toBe(false);
     await openSection(wrapper, "智能体");
-    expect(wrapper.find("memory-settings-stub").exists()).toBe(true);
-    expect(wrapper.text()).toContain("记忆");
+    expect(wrapper.find("memory-enabled-setting-stub").exists()).toBe(true);
   });
 
   it("saves a TinyFish key from the harness section", async () => {

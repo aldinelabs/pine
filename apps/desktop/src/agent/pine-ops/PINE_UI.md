@@ -72,7 +72,7 @@ window
 │   └── trailing: Toggle workbench · [macOS/Linux: Pine Settings]
 ├── left sidebar                      (Mod+B)
 │   ├── top menu: Search sessions · New session · Projects · More
-│   │   └── More menu (opens to the right): Automations · Skills · MCP servers
+│   │   └── More menu (opens to the right): Automations · Skills · MCP servers · Memory
 │   ├── session list (all projects)
 │   │   └── project group (collapsible)
 │   │       ├── session folder (collapsible) → session items
@@ -138,6 +138,7 @@ More menu:
   runs plus automation approvals waiting for the user.
 - Skills: opens the Skills manager for the active tab's project.
 - MCP servers: opens the MCP servers manager for the active tab's project.
+- Memory: opens the Memory manager for the active tab's project.
 
 ### Content area
 
@@ -695,14 +696,10 @@ the user opens themselves do not pulse.
     Pine), Interim answers switch (Enabled or Disabled; enabled by default; applies
     from the next message), Reply suggestions switch (suggest the next
     message in the composer after the agent answers; on by default),
-    automatic approval path, context compaction
-    strategy and method, Memory (Remember across sessions switch, enabled by
-    default, applies from the next message; below it a list of the saved
-    notes of the active tab's project and of All projects, each with its
-    name, one-line summary, a scope badge and an Unverified badge when Pine
-    has not confirmed it; a note's … menu has Edit, which opens Edit memory
-    with Summary, Details and a Verified switch, and Delete, which asks
-    first; notes are created by Pine, not here), TinyFish web tools key
+    Remember across sessions switch (enabled by default, applies from the
+    next message; off, Pine neither reads nor saves memory notes, which stay
+    and can still be managed in the Memory manager), automatic approval
+    path, context compaction strategy and method, TinyFish web tools key
     (shows Configured or Not configured), approximate location.
   - User profile: nickname, pronouns (a dropdown: Not specified, he/him,
     she/her, they/them or Custom; Custom shows a short text field for your own
@@ -791,6 +788,12 @@ the user opens themselves do not pulse.
   delete; Manage with Pine.
 - MCP servers manager: servers for this project or all projects; add, edit,
   enable, remove, refresh status; Manage with Pine.
+- Memory manager: the saved notes in two tabs, This project and All
+  projects, each note with its name, one-line summary, an Unverified badge
+  when Pine has not confirmed it, and an Edit button. Edit opens Edit memory
+  with Summary, Details and a Verified switch, plus Delete, which asks first.
+  Refresh memories reloads the list. It works whether or not Remember across
+  sessions is on (Pine Settings › Agent). Notes are created by Pine, not here.
 - Session search overlay: search across all projects, open a result.
 - Model picker, provider sign-in, custom model and custom provider dialogs,
   opened from the composer's Model control or Pine Settings › Models.

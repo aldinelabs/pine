@@ -14,6 +14,7 @@ import {
 import { useI18n } from "vue-i18n";
 import { handleError } from "@/app/errors/errorHandler";
 import McpManagerDialog from "@/components/mcp/McpManagerDialog.vue";
+import MemoryManagerDialog from "@/components/memory/MemoryManagerDialog.vue";
 import AutomationManagerDialog from "@/components/automations/AutomationManagerDialog.vue";
 import { useAutomationsStore } from "@/stores/automations";
 import { PineLogo } from "@/components/pine";
@@ -51,6 +52,7 @@ const { t } = useI18n();
 const isSessionSearchOpen = ref(false);
 const isSkillManagerOpen = ref(false);
 const isMcpManagerOpen = ref(false);
+const isMemoryManagerOpen = ref(false);
 // Only one titlebar position renders the preferences dialog per platform.
 const preferencesDialog =
   useTemplateRef<InstanceType<typeof PinePreferencesDialog>>(
@@ -397,6 +399,7 @@ onKeyStroke(Object.keys(sidebarShortcuts), (event) => {
       @manage-projects="preferencesDialog?.open('projects')"
       @manage-skills="isSkillManagerOpen = true"
       @manage-mcp="isMcpManagerOpen = true"
+      @manage-memory="isMemoryManagerOpen = true"
       @manage-automations="automations.open()"
       @search-sessions="isSessionSearchOpen = true"
     />
@@ -498,6 +501,10 @@ onKeyStroke(Object.keys(sidebarShortcuts), (event) => {
         v-model:open="isMcpManagerOpen"
         :project-id="projectStore.activeProject.id"
         @create-with-pine="createWithPine($event, 'mcp')"
+      />
+      <MemoryManagerDialog
+        v-model:open="isMemoryManagerOpen"
+        :project-id="projectStore.activeProject.id"
       />
       <AutomationManagerDialog
         v-model:open="automations.isManagerOpen"
