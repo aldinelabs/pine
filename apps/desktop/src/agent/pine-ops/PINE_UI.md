@@ -373,9 +373,10 @@ From top to bottom:
      prompt optimization model suggests the user's likely next message from
      the conversation. Once the placeholder has faded out, it fades in at
      the same place, in the same grey, followed by a "Tab" key; Tab puts it
-     in the text box. Any typing, including text an input method is still
-     composing, replaces it at once; it comes back whenever the text box is
-     empty again, and goes away when a new run starts. It can be
+     in the text box and uses it up. Any typing, including text an input
+     method is still composing, replaces it at once; if the text box is
+     emptied without using Tab, it comes back, until a new run starts. It
+     can be
      turned off with Reply suggestions in Pine Settings › Agent.
    - While the agent is working, a thin light runs clockwise along the text
      box's border, in the project's accent color (or, with "Pine Default",

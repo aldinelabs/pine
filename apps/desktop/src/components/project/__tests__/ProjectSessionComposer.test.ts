@@ -1282,11 +1282,9 @@ describe("ProjectSessionComposer", () => {
     );
     expect(wrapper.find('[data-slot="reply-suggestion"]').exists()).toBe(false);
 
-    // Emptying the box again brings the same suggestion back.
+    // Filling it in uses it up: emptying the box leaves the placeholder.
     await textarea.setValue("");
-    expect(wrapper.get('[data-slot="reply-suggestion"]').text()).toContain(
-      "再按日期排序",
-    );
+    expect(wrapper.find('[data-slot="reply-suggestion"]').exists()).toBe(false);
     wrapper.unmount();
   });
 

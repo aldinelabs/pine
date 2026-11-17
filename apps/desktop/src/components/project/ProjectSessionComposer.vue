@@ -693,7 +693,8 @@ async function rewritePrompt(): Promise<void> {
  * Reply suggestion: once the agent finishes answering, the prompt rewrite
  * model guesses the user's next message. It takes the placeholder's place
  * while the text box is empty and nothing is being typed, and Tab fills it
- * in; it stays until the next run, so emptying the box shows it again.
+ * in and uses it up. Typing hides it without using it up, so emptying the
+ * box shows it again until the next run.
  */
 const replySuggestion = ref("");
 let suggestionRun = 0;
@@ -747,9 +748,9 @@ watch(
   },
 );
 
-/** Tab fills the suggestion in; emptying the box brings it back. */
 function acceptReplySuggestion(): void {
   const suggestion = replySuggestion.value;
+  clearReplySuggestion();
   message.value = suggestion;
   void nextTick(() => {
     const textarea = messageInput.value?.$el;
