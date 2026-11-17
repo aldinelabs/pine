@@ -350,7 +350,8 @@ From top to bottom:
      gradient, right of the approval mode; holding Cmd/Ctrl shows the
      shortcut beside it. Once the session has started it sits left of the
      action button while the agent is not working, in muted grey like a new
-     session's project picker; holding Cmd/Ctrl swaps its sparkles icon
+     session's project picker, taking the gradient on hover; holding
+     Cmd/Ctrl swaps its sparkles icon
      for the "⌥ ↵" keys. The
      prompt optimization model rewrites what was typed into a clearer, more
      specific prompt, following prompt-writing best practices, and keeps
