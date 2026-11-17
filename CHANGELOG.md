@@ -9,6 +9,22 @@ Every release section here has a matching section in the Chinese changelog.
 
 ## [Unreleased]
 
+## [0.21.1] - 2026-11-17
+
+> **Highlights**: Optimize a prompt in one step, get a suggested reply once the agent answers, and manage memories in their own window.
+
+### Added
+
+- **Optimize prompt**: press `⌥/Alt + Enter` in the composer, or click Optimize prompt, and Pine rewrites what you typed into a clearer, more specific prompt; information only you know is left as a `[[…]]` blank, with the first one selected. The rewrite takes into account the project, the conversation's opening and latest turns, attachments and quoted passages. Press `Esc` to cancel while it runs; afterwards, Undo optimization or `⌘/Ctrl + Z` brings back your text. Choose the model it uses in Settings › Models › Prompt optimization model.
+- **Reply suggestions**: after the agent answers in a session, a suggested next message fades into the composer; press `Tab` to use it. Turn it off in Settings › Agent › Reply suggestions.
+- **Forward messages to other sessions**: the agent can now message any session, with every message reviewed; when a message of yours plainly belongs to another session, it forwards it there and tells you where it went.
+
+### Changed
+
+- **Memories have their own window**: view, edit and delete memories for This project and All projects from More › Memory in the sidebar, even while Remember across sessions is off. The Remember across sessions switch stays in Settings › Agent.
+- **Best practices first for general users**: with Technical background set to General user in Settings › User profile, the agent looks up the common practice of a task's field before starting on anything non-trivial.
+- **Todos show only the step labels**: the expanded todo list no longer shows a separate description for each task.
+
 ## [0.21.0] - 2026-11-15
 
 > **Highlights**: Pine remembers across sessions, and every file the agent submits keeps its versions for you to compare and restore.
