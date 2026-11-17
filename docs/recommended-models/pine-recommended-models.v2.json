@@ -1,0 +1,6 @@
+{
+  "version": 2,
+  "chat": ["glm-5.3-flash", "deepseek-flash", "hy4-flash"],
+  "image": ["google/gemini-3-pro-image"],
+  "video": []
+}
