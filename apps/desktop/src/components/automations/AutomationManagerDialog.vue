@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { focusDialogContainer } from "@/lib/dialogFocus";
 import {
   HistoryIcon,
   KeyRoundIcon,
@@ -231,6 +232,7 @@ const pendingApprovals = computed(() =>
 <template>
   <Dialog v-model:open="open">
     <DialogContent
+      @open-auto-focus="focusDialogContainer"
       data-testid="automation-manager"
       :class="[
         'flex h-[min(85vh,44rem)] flex-col sm:max-w-3xl',

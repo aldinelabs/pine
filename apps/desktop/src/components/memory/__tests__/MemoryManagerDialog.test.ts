@@ -163,3 +163,25 @@ it("manages notes without asking whether memory is on", async () => {
   expect(findAll('[data-slot="memory-row"]')).toHaveLength(1);
   expect(api).not.toHaveProperty("getMemoryEnabled");
 });
+
+it("opens focused on the dialog, not ringed around its first tab", async () => {
+  Object.defineProperty(window, "pine", {
+    configurable: true,
+    value: { listMemories: vi.fn().mockResolvedValue({ memories: [] }) },
+  });
+  const pinia = createPinia();
+  setActivePinia(pinia);
+  const wrapper = mount(MemoryManagerDialog, {
+    attachTo: document.body,
+    props: { projectId: PROJECT_ID, open: false },
+    global: { plugins: [pinia, createAppI18n("en-US")] },
+  });
+  wrappers.push(wrapper);
+
+  await wrapper.setProps({ open: true });
+  await flushPromises();
+
+  expect(document.activeElement).toBe(
+    document.querySelector('[data-testid="memory-manager"]'),
+  );
+});

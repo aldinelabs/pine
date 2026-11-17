@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { focusDialogContainer } from "@/lib/dialogFocus";
 import {
   PlugIcon,
   PlusIcon,
@@ -228,6 +229,7 @@ function statusFor(name: string): string {
 <template>
   <Dialog v-model:open="open">
     <DialogContent
+      @open-auto-focus="focusDialogContainer"
       :class="[
         'flex h-[min(85vh,36rem)] flex-col sm:max-w-2xl',
         PHONE_FULLSCREEN_DIALOG,

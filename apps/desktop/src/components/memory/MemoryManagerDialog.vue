@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { focusDialogContainer } from "@/lib/dialogFocus";
 import { BrainIcon, RefreshCwIcon, Trash2Icon } from "@lucide/vue";
 import { computed, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
@@ -200,6 +201,7 @@ async function confirmDelete(): Promise<void> {
 <template>
   <Dialog v-model:open="open">
     <DialogContent
+      @open-auto-focus="focusDialogContainer"
       data-testid="memory-manager"
       :class="[
         'flex h-[min(85vh,36rem)] flex-col sm:max-w-2xl',

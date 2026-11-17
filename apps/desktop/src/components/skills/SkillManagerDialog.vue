@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { focusDialogContainer } from "@/lib/dialogFocus";
 import {
   ChevronLeftIcon,
   FileIcon,
@@ -536,6 +537,7 @@ watch(activeScope, () => {
 <template>
   <Dialog v-model:open="open">
     <DialogContent
+      @open-auto-focus="focusDialogContainer"
       data-dialog-pages
       :class="[
         'gap-0 overflow-hidden p-0 sm:max-w-3xl max-sm:flex max-sm:flex-col',
