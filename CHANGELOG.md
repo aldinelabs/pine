@@ -9,6 +9,28 @@ Every release section here has a matching section in the Chinese changelog.
 
 ## [Unreleased]
 
+## [0.21.4] - 2026-11-17
+
+> **Highlights**: the composer shows what the conversation has cost, model pickers show makers' icons, and image and video models get recommendations too.
+
+### Added
+
+- **Conversation cost**: the context usage control at the bottom of the composer now shows the conversation's cost so far (for example `10%  $0.42`) in the currency chosen in Settings › General. Models without pricing show no amount.
+- **Model icons**: in the Decisions screening, image generation and video generation model pickers, each model starts with the icon of the company that makes it, and the composer's Model button starts with the current model provider's icon.
+- **Recommended image and video models**: the image and video generation model pickers list Pine's recommended models at the top.
+- **Asked before a rename**: when you have renamed a session yourself, the agent no longer changes its title directly. It suggests the new title at the end of the conversation, and you can choose Rename, Not now or Don't suggest again.
+- **New tab-switching shortcuts**: `⌘/Ctrl + [` and `⌘/Ctrl + ]` switch to the previous and next tab.
+
+### Changed
+
+- **The composer's menus now open with `⌘/Ctrl + R` and `⌘/Ctrl + I`**: `⌘/Ctrl + R` opens the approval mode menu and `⌘/Ctrl + I` the model menu, replacing `⌘/Ctrl + ;` and `⌘/Ctrl + '`. Holding `⌘/Ctrl` slides each shortcut in beside the menu's arrow instead of replacing the arrow.
+
+### Fixed
+
+- Changing a project's accent color or icon no longer ends its running sessions or leaves open tabs showing an empty session.
+- Opening the Automations, Skills, MCP servers or Memory window no longer shows a selection ring around its content.
+- Dialogs with long content now scroll above their buttons instead of running over them.
+
 ## [0.21.3] - 2026-11-17
 
 ### Added
