@@ -63,6 +63,7 @@ import ProjectSessionParallaxBackground from "./ProjectSessionParallaxBackground
 import ProjectSessionComposer from "./ProjectSessionComposer.vue";
 import ProjectSessionStatus from "./ProjectSessionStatus.vue";
 import ProjectStagedSteering from "./ProjectStagedSteering.vue";
+import ProjectTitleSuggestion from "./ProjectTitleSuggestion.vue";
 import ProjectTranscriptMessage from "./ProjectTranscriptMessage.vue";
 import ProjectTranscriptSelectionMenu from "./ProjectTranscriptSelectionMenu.vue";
 import { normalizeQuoteText, type PineQuote } from "@/shared/quotes";
@@ -307,6 +308,11 @@ const pendingQuestionnaires = computed(
   () => tabState.value?.pendingQuestionnaires ?? [],
 );
 const steeringMessages = computed(() => tabState.value?.steeringMessages ?? []);
+const titleSuggestion = computed(() =>
+  props.sessionId
+    ? sessionStore.titleSuggestionFor(props.sessionId)
+    : undefined,
+);
 const reviewingToolCallIds = computed(
   () => tabState.value?.reviewingToolCallIds ?? new Set<string>(),
 );
@@ -928,6 +934,11 @@ async function handleDrop(event: DragEvent): Promise<void> {
                   :steering-messages="steeringMessages"
                   @withdraw-steering="withdrawSteering"
                   @send-steering-now="sendSteeringNow"
+                />
+                <ProjectTitleSuggestion
+                  v-if="props.sessionId && titleSuggestion"
+                  :session-id="props.sessionId"
+                  :suggestion="titleSuggestion"
                 />
                 <ProjectSessionStatus
                   :todos="tabState?.todos ?? null"

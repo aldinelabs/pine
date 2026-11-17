@@ -116,8 +116,10 @@ function setup(
   const renameCurrentSession = vi.fn(
     (title: string): RenameCurrentSessionResult =>
       title === "Locked"
-        ? { renamed: false, reason: "user-title" }
-        : { renamed: true, title },
+        ? { renamed: false, reason: "declined" }
+        : title === "Proposed"
+          ? { renamed: false, reason: "suggested", title }
+          : { renamed: true, title },
   );
   const context: PineSessionToolContext = {
     requestHost,
@@ -359,15 +361,17 @@ describe("session tools", () => {
     expect(result.details).toEqual({ done: false });
   });
 
-  it("retitles this session and keeps a title the user chose", async () => {
+  it("retitles this session and asks before replacing a title the user chose", async () => {
     const { rename, renameCurrentSession } = setup("let-me-review");
 
     const renamed = await run(rename, { title: "Session folder tools" });
+    const suggested = await run(rename, { title: "Proposed" });
     const kept = await run(rename, { title: "Locked" });
 
-    expect(renameCurrentSession).toHaveBeenCalledTimes(2);
+    expect(renameCurrentSession).toHaveBeenCalledTimes(3);
     expect(text(renamed)).toBe('Title set to "Session folder tools".');
-    expect(text(kept)).toContain("The user chose this session's title");
+    expect(text(suggested)).toContain('whether to use "Proposed"');
+    expect(text(kept)).toContain("no title suggestions");
   });
 
   it("starts a sibling from a sub-session and refuses a nested child", async () => {

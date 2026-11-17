@@ -29,6 +29,7 @@ import type {
   PineSessionNotice,
   PineSessionSummary,
   SessionRenamer,
+  TitleSuggestionReply,
   SessionHostOperation,
   SessionHostResult,
 } from "../shared/sessions";
@@ -261,6 +262,12 @@ export type AgentWorkerRequest =
       sessionId: string;
       name: string;
       by: SessionRenamer;
+    }
+  | {
+      id: string;
+      type: "session:reply-title-suggestion";
+      sessionId: string;
+      reply: TitleSuggestionReply;
     }
   | {
       id: string;

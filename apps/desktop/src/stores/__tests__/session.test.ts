@@ -1471,6 +1471,56 @@ describe("session store", () => {
     );
   });
 
+  it("shows the agent's title suggestion until the user answers it", async () => {
+    let listener: ((event: PineAgentEvent) => void) | undefined;
+    const renameSession = vi.fn(({ name }: { name: string }) =>
+      Promise.resolve({ session: { ...session, name } }),
+    );
+    const replyTitleSuggestion = vi.fn().mockResolvedValue({ session });
+    Object.defineProperty(window, "pine", {
+      configurable: true,
+      value: {
+        onSessionEvent: vi.fn((nextListener) => {
+          listener = nextListener;
+          return () => undefined;
+        }),
+        promptSession: vi.fn().mockResolvedValue({ session }),
+        renameSession,
+        replyTitleSuggestion,
+      },
+    });
+    const store = useSessionStore();
+    store.connectAgentEvents();
+    await store.prompt("Describe the task", { projectId: PROJECT_ID });
+    const suggest = () =>
+      listener?.({
+        type: "session-updated",
+        sessionId: session.id,
+        summary: { ...session, titleSuggestion: "Agent title" },
+      });
+
+    suggest();
+    expect(store.titleSuggestionFor(session.id)).toBe("Agent title");
+
+    await store.replyTitleSuggestion(session.id, "dismiss");
+    expect(replyTitleSuggestion).toHaveBeenCalledWith({
+      projectId: PROJECT_ID,
+      sessionId: session.id,
+      reply: "dismiss",
+    });
+    expect(store.titleSuggestionFor(session.id)).toBeUndefined();
+
+    suggest();
+    await store.replyTitleSuggestion(session.id, "accept");
+    expect(renameSession).toHaveBeenCalledWith({
+      projectId: PROJECT_ID,
+      sessionId: session.id,
+      name: "Agent title",
+    });
+    expect(store.titleSuggestionFor(session.id)).toBeUndefined();
+    expect(store.recentSessionsFor(PROJECT_ID)[0]?.name).toBe("Agent title");
+  });
+
   it("keeps an existing session's preview when a later prompt is sent", async () => {
     Object.defineProperty(window, "pine", {
       configurable: true,

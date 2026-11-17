@@ -211,6 +211,10 @@ export const BackgroundTaskRequestSchema = SessionIdRequestSchema.extend({
 export const RenameSessionRequestSchema = ProjectSessionRequestSchema.extend({
   name: z.string().trim().min(1).max(200),
 });
+export const ReplyTitleSuggestionRequestSchema =
+  ProjectSessionRequestSchema.extend({
+    reply: z.enum(["dismiss", "never"]),
+  });
 export const LoadSessionMessagesRequestSchema = z.object({
   // History cursors are opaque, versioned strings derived from stable entry
   // sequence numbers; entry-ID cursors remain accepted for compatibility.

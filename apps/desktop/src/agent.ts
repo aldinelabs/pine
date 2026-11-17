@@ -72,6 +72,9 @@ async function handleRequest(request: AgentWorkerRequest): Promise<void> {
         request.by,
       );
       break;
+    case "session:reply-title-suggestion":
+      result = runtime.replyTitleSuggestion(request.sessionId, request.reply);
+      break;
     case "session:notify":
       result = await runtime.notifySession(
         request.sessionId,

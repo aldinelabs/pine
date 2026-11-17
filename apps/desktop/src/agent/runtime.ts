@@ -5,11 +5,16 @@ import {
 import {
   PINE_SESSION_NOTICE_TYPE,
   PINE_SUB_SESSION_ENTRY,
+  PINE_TITLE_SUGGESTION_ENTRY,
+  PINE_TITLE_SUGGESTION_REPLY_ENTRY,
   PINE_USER_TITLE_ENTRY,
   approvalModeFromEntries,
   isUserChosenTitle,
+  titleSuggestionFromEntries,
+  type TitleSuggestionReply,
   subSessionParentOf,
   type PineSessionNotice,
+  type PineSessionSummary,
   type SessionRenamer,
 } from "../shared/sessions";
 import type { PiProvidersStatus } from "../shared/piProviders";
@@ -1068,6 +1073,30 @@ export class PineAgentRuntime {
       session.sessionManager.appendCustomEntry(PINE_USER_TITLE_ENTRY, { name });
     session.setSessionName(name);
     return { session: sessionSummary(session) };
+  }
+
+  /** The user turns the agent's title suggestion down, once or for good. */
+  replyTitleSuggestion(
+    sessionId: string,
+    reply: TitleSuggestionReply,
+  ): AgentWorkerSessionResult {
+    const session = this.getSession(sessionId).session;
+    session.sessionManager.appendCustomEntry(
+      PINE_TITLE_SUGGESTION_REPLY_ENTRY,
+      { reply },
+    );
+    return { session: this.emitSummary(session) };
+  }
+
+  /** Sends a summary change that no session event reports. */
+  private emitSummary(session: AgentSession): PineSessionSummary {
+    const summary = sessionSummary(session);
+    this.options.emit({
+      type: "session-updated",
+      sessionId: session.sessionId,
+      summary,
+    });
+    return summary;
   }
 
   async disposeSession(sessionId: string): Promise<{ disposed: boolean }> {
@@ -2930,7 +2959,11 @@ export class PineAgentRuntime {
     }
   }
 
-  /** The agent's own retitle; a title the user chose is never replaced. */
+  /**
+   * The agent's own retitle. A title the user chose is never replaced
+   * silently: the new one waits as a suggestion the user accepts or turns
+   * down, and after "never" the agent proposes none for the session.
+   */
   private retitleByAgent(
     live: LiveAgentSession,
     title: string,
@@ -2938,15 +2971,20 @@ export class PineAgentRuntime {
     const session = live.session;
     const normalized = normalizeGeneratedTitle(title);
     if (!normalized) return { renamed: false, reason: "invalid" };
-    if (
-      isUserChosenTitle(
-        session.sessionManager.getEntries(),
-        session.sessionName,
-      )
-    )
-      return { renamed: false, reason: "user-title" };
     if (normalized === session.sessionName)
       return { renamed: false, reason: "unchanged" };
+    const entries = session.sessionManager.getEntries();
+    if (isUserChosenTitle(entries, session.sessionName)) {
+      const { suggestion, declined } = titleSuggestionFromEntries(entries);
+      if (declined) return { renamed: false, reason: "declined" };
+      if (suggestion !== normalized) {
+        session.sessionManager.appendCustomEntry(PINE_TITLE_SUGGESTION_ENTRY, {
+          name: normalized,
+        });
+        this.emitSummary(session);
+      }
+      return { renamed: false, reason: "suggested", title: normalized };
+    }
     session.setSessionName(normalized);
     return { renamed: true, title: normalized };
   }

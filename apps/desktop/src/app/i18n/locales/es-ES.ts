@@ -1419,6 +1419,13 @@ export default {
       withdrawSteering: "Retirar el mensaje en cola",
       withdrawSteeringFailed: "No se pudo retirar el mensaje en cola",
       withdrawSteeringLabel: "Retirar",
+      titleSuggestion: "¿Cambiar el nombre de esta sesión a «{title}»?",
+      titleSuggestionHint:
+        "Pusiste tú el nombre de esta sesión, así que Pine pregunta antes de cambiar su título.",
+      titleSuggestionAccept: "Cambiar nombre",
+      titleSuggestionDismiss: "Ahora no",
+      titleSuggestionNever: "No volver a sugerir",
+      titleSuggestionFailed: "No se pudo actualizar el título de la sesión",
       sendSteeringNow: "Enviar ahora el mensaje en cola",
       sendSteeringNowLabel: "Enviar ahora",
       sendSteeringNowFailed: "No se pudo enviar el mensaje en cola",

@@ -2504,4 +2504,87 @@ describe("PineAgentRuntime", () => {
       await runtime.dispose();
     }
   });
+
+  it("asks before the agent replaces a title the user chose", async () => {
+    const root = await mkdtemp(path.join(os.tmpdir(), "pine-agent-runtime-"));
+    temporaryDirectories.push(root);
+    const location = {
+      agentDir: path.join(root, "agent"),
+      cwd: path.join(root, "source"),
+      folders: [
+        {
+          access: "read-write" as const,
+          path: path.join(root, "source"),
+        },
+      ],
+      sessionsRoot: path.join(root, "sessions"),
+    };
+    await mkdir(location.cwd, { recursive: true });
+    const events: unknown[] = [];
+    const runtime = new PineAgentRuntime({
+      emit: (event) => events.push(event),
+    });
+    type Retitle = (
+      live: unknown,
+      title: string,
+    ) => { renamed: boolean; reason?: string };
+    const internals = runtime as unknown as {
+      liveSessions: Map<string, unknown>;
+      retitleByAgent: Retitle;
+    };
+    const retitle = (sessionId: string, title: string) =>
+      internals.retitleByAgent.call(
+        runtime,
+        internals.liveSessions.get(sessionId),
+        title,
+      );
+
+    try {
+      const generated = await runtime.createSession(location);
+      expect(retitle(generated.session.id, "Agent title")).toEqual({
+        renamed: true,
+        title: "Agent title",
+      });
+
+      const { session } = await runtime.createSession(location);
+      runtime.renameSession(session.id, "Mine");
+
+      expect(retitle(session.id, "New work")).toMatchObject({
+        renamed: false,
+        reason: "suggested",
+      });
+      expect(events).toContainEqual(
+        expect.objectContaining({
+          type: "session-updated",
+          sessionId: session.id,
+          summary: expect.objectContaining({
+            name: "Mine",
+            titleSuggestion: "New work",
+          }),
+        }),
+      );
+
+      const dismissed = runtime.replyTitleSuggestion(session.id, "dismiss");
+      expect(dismissed.session).toMatchObject({ name: "Mine" });
+      expect(dismissed.session.titleSuggestion).toBeUndefined();
+
+      retitle(session.id, "Other work");
+      const accepted = runtime.renameSession(session.id, "Other work");
+      expect(accepted.session.titleSuggestion).toBeUndefined();
+      expect(retitle(session.id, "Third")).toMatchObject({
+        reason: "suggested",
+      });
+
+      runtime.replyTitleSuggestion(session.id, "never");
+      expect(retitle(session.id, "Fourth")).toEqual({
+        renamed: false,
+        reason: "declined",
+      });
+      expect(
+        runtime.renameSession(session.id, "Other work").session,
+      ).not.toHaveProperty("titleSuggestion");
+    } finally {
+      await runtime.dispose();
+    }
+  });
 });

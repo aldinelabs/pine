@@ -1328,6 +1328,13 @@ export default {
       withdrawSteering: "撤回暂存消息",
       withdrawSteeringFailed: "无法撤回该暂存消息",
       withdrawSteeringLabel: "撤回",
+      titleSuggestion: "将此会话重命名为“{title}”？",
+      titleSuggestionHint:
+        "这个会话的名称是你自己取的，所以 Pine 会先征求你的同意。",
+      titleSuggestionAccept: "重命名",
+      titleSuggestionDismiss: "暂不",
+      titleSuggestionNever: "不再建议",
+      titleSuggestionFailed: "无法更新会话标题",
       sendSteeringNow: "立即发送暂存消息",
       sendSteeringNowLabel: "立即发送",
       sendSteeringNowFailed: "无法立即发送该暂存消息",

@@ -1,8 +1,11 @@
 import {
+  PINE_TITLE_SUGGESTION_REPLY_ENTRY,
   PINE_USER_TITLE_ENTRY,
   approvalModeFromEntries,
   sessionNoticeOf,
+  titleSuggestionField,
   type SessionRenamer,
+  type TitleSuggestionReply,
 } from "../shared/sessions";
 import type {
   SessionEntry as Entry,
@@ -983,6 +986,26 @@ export class ProjectSessionService {
     return summary;
   }
 
+  /** The user turns a title suggestion down while the session is closed. */
+  async replyTitleSuggestion(
+    sessionId: string,
+    reply: TitleSuggestionReply,
+  ): Promise<PineSessionSummary> {
+    const metadata = await this.findSession(sessionId);
+    if (!metadata) throw new Error("Session not found in the active project.");
+
+    await this.readSessionDocument(metadata);
+    const manager = (await loadSessionManager()).open(metadata.path);
+    try {
+      manager.appendCustomEntry(PINE_TITLE_SUGGESTION_REPLY_ENTRY, { reply });
+    } finally {
+      this.parseCache.invalidate(metadata.path);
+    }
+    const summary = await this.readSessionDocument(metadata);
+    await this.refreshIndex();
+    return summary;
+  }
+
   async search(query: string): Promise<SessionSearchResult[]> {
     await this.refreshIndex();
     const normalizedQuery = query.trim();
@@ -1201,6 +1224,7 @@ export class ProjectSessionService {
       body: sessionBody(entries),
       ...(name ? { name } : {}),
       ...(preview ? { preview } : {}),
+      ...titleSuggestionField(openedSession.getEntries()),
     };
   }
 

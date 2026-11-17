@@ -1428,6 +1428,14 @@ export default {
       withdrawSteeringFailed:
         "Die vorgemerkte Nachricht konnte nicht zurückgezogen werden",
       withdrawSteeringLabel: "Zurückziehen",
+      titleSuggestion: "Diese Sitzung in „{title}“ umbenennen?",
+      titleSuggestionHint:
+        "Du hast diese Sitzung selbst benannt, daher fragt Pine, bevor der Titel geändert wird.",
+      titleSuggestionAccept: "Umbenennen",
+      titleSuggestionDismiss: "Nicht jetzt",
+      titleSuggestionNever: "Nicht mehr vorschlagen",
+      titleSuggestionFailed:
+        "Der Sitzungstitel konnte nicht aktualisiert werden",
       sendSteeringNow: "Vorgemerkte Nachricht jetzt senden",
       sendSteeringNowLabel: "Jetzt senden",
       sendSteeringNowFailed:

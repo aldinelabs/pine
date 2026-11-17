@@ -30,6 +30,60 @@ export const PINE_APPROVAL_MODE_ENTRY = "pine.approval-mode" as const;
 /** Marks a title the user chose, which the agent then leaves alone. */
 export const PINE_USER_TITLE_ENTRY = "pine.user-title" as const;
 
+/** A title the agent proposed for a session whose title the user chose. */
+export const PINE_TITLE_SUGGESTION_ENTRY = "pine.title-suggestion" as const;
+/** The user's answer to a title suggestion other than accepting it. */
+export const PINE_TITLE_SUGGESTION_REPLY_ENTRY =
+  "pine.title-suggestion-reply" as const;
+export const REPLY_TITLE_SUGGESTION_CHANNEL =
+  "sessions:reply-title-suggestion" as const;
+
+/**
+ * Turning a suggestion down: "dismiss" for this once, "never" so the agent
+ * proposes no other title for the session. Accepting is a user rename.
+ */
+export type TitleSuggestionReply = "dismiss" | "never";
+
+export interface ReplyTitleSuggestionRequest extends ProjectSessionReference {
+  reply: TitleSuggestionReply;
+}
+
+export interface ReplyTitleSuggestionResult {
+  session: PineSessionSummary;
+}
+
+/**
+ * The agent's open title suggestion, and whether the user asked for no more.
+ * A later user rename or reply settles a suggestion.
+ */
+export function titleSuggestionFromEntries(
+  entries: readonly { type: string; customType?: string; data?: unknown }[],
+): { suggestion?: string; declined: boolean } {
+  let suggestion: string | undefined;
+  let declined = false;
+  for (const entry of entries) {
+    if (entry.type !== "custom") continue;
+    const data = entry.data as { name?: unknown; reply?: unknown } | undefined;
+    if (entry.customType === PINE_TITLE_SUGGESTION_ENTRY)
+      suggestion =
+        typeof data?.name === "string" && data.name ? data.name : undefined;
+    else if (entry.customType === PINE_USER_TITLE_ENTRY) suggestion = undefined;
+    else if (entry.customType === PINE_TITLE_SUGGESTION_REPLY_ENTRY) {
+      suggestion = undefined;
+      if (data?.reply === "never") declined = true;
+    }
+  }
+  return declined ? { declined } : { suggestion, declined };
+}
+
+/** The open title suggestion as a session summary field. */
+export function titleSuggestionField(
+  entries: Parameters<typeof titleSuggestionFromEntries>[0],
+): { titleSuggestion?: string } {
+  const { suggestion } = titleSuggestionFromEntries(entries);
+  return suggestion ? { titleSuggestion: suggestion } : {};
+}
+
 /** Who renames a session: the user's own title is never replaced by the agent. */
 export type SessionRenamer = "user" | "agent";
 
@@ -474,6 +528,11 @@ export interface PineSessionSummary {
   modelSelection?: PineModelSelection;
   name?: string;
   preview?: string;
+  /**
+   * A title the agent proposed for a session the user named; it applies only
+   * once the user accepts it.
+   */
+  titleSuggestion?: string;
   updatedAt: string;
 }
 

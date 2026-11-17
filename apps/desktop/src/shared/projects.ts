@@ -99,6 +99,8 @@ import type {
   LoadSessionMessagesResult,
   RenameSessionRequest,
   RenameSessionResult,
+  ReplyTitleSuggestionRequest,
+  ReplyTitleSuggestionResult,
   ResumeSessionRequest,
   ResumeSessionResult,
   SearchSessionsRequest,
@@ -669,6 +671,10 @@ export interface PineDesktopApi
   renameSession: (
     request: RenameSessionRequest,
   ) => Promise<RenameSessionResult>;
+  /** Turns the agent's title suggestion down, once or for good. */
+  replyTitleSuggestion: (
+    request: ReplyTitleSuggestionRequest,
+  ) => Promise<ReplyTitleSuggestionResult>;
   searchSessions: (
     request: SearchSessionsRequest,
   ) => Promise<SearchSessionsResult>;

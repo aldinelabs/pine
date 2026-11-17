@@ -53,6 +53,7 @@ import type {
   PineSessionSummary,
   ResumeSessionResult,
   SessionRenamer,
+  TitleSuggestionReply,
   SessionSearchResult,
 } from "../shared/sessions";
 import {
@@ -813,6 +814,25 @@ export class ProjectRuntimeRegistry {
       return result.session;
     }
     return runtime.sessions.renameSession(sessionId, name, by);
+  }
+
+  async replyTitleSuggestion(
+    webContentsId: number,
+    projectId: string,
+    sessionId: string,
+    reply: TitleSuggestionReply,
+  ): Promise<PineSessionSummary> {
+    const runtime = this.get(webContentsId, projectId);
+    const live = runtime.liveSessions.get(sessionId);
+    if (live) {
+      const result = await this.agentHost.replyTitleSuggestion(
+        sessionId,
+        reply,
+      );
+      live.summary = result.session;
+      return result.session;
+    }
+    return runtime.sessions.replyTitleSuggestion(sessionId, reply);
   }
 
   async projectEntryPaths(

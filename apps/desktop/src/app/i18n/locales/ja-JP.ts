@@ -1406,6 +1406,13 @@ export default {
       withdrawSteering: "待機中のメッセージを取り消す",
       withdrawSteeringFailed: "待機中のメッセージを取り消せませんでした",
       withdrawSteeringLabel: "取り消す",
+      titleSuggestion: "このセッションの名前を「{title}」に変更しますか？",
+      titleSuggestionHint:
+        "このセッションの名前はあなたが付けたため、Pine は変更前に確認します。",
+      titleSuggestionAccept: "名前を変更",
+      titleSuggestionDismiss: "今はしない",
+      titleSuggestionNever: "今後提案しない",
+      titleSuggestionFailed: "セッションのタイトルを更新できませんでした",
       sendSteeringNow: "待機中のメッセージを今すぐ送信",
       sendSteeringNowLabel: "今すぐ送信",
       sendSteeringNowFailed: "待機中のメッセージを送信できませんでした",

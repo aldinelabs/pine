@@ -439,7 +439,14 @@ From top to bottom:
    - Session titles: Pine titles a new session after its first exchange.
      When a later message starts a different task, the agent may update the
      title in the sidebar and tab to the work it is now doing. A title the
-     user set with Rename conversation stays until the user renames it again.
+     user set with Rename conversation is never replaced silently: the
+     agent's new title waits in a card at the end of the transcript, above
+     the status cards ("Rename this session to “…”?", noting that the user
+     named the session), with Don't suggest again, Not now and Rename.
+     Rename applies the title (it then counts as the user's own), Not now
+     keeps the current title, and Don't suggest again also stops the agent
+     from proposing titles for that session. Renaming the session by hand
+     closes an open suggestion.
    - Sessions the agent organizes: when asked, the agent can create, rename
      and delete session folders, move sessions into or out of folders, and
      rename sessions; the left sidebar updates at once. In Let Me Review this

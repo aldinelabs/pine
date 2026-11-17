@@ -224,6 +224,7 @@ import {
   EXPORT_SESSION_CHANNEL,
   LOAD_SESSION_MESSAGES_CHANNEL,
   RENAME_SESSION_CHANNEL,
+  REPLY_TITLE_SUGGESTION_CHANNEL,
   RESUME_SESSION_CHANNEL,
   SEARCH_SESSIONS_CHANNEL,
   LIST_ALL_RECENT_SESSIONS_CHANNEL,
@@ -238,6 +239,8 @@ import {
   type LoadSessionMessagesResult,
   type RenameSessionRequest,
   type RenameSessionResult,
+  type ReplyTitleSuggestionRequest,
+  type ReplyTitleSuggestionResult,
   type ResumeSessionRequest,
   type ResumeSessionResult,
   type SearchSessionsRequest,
@@ -828,6 +831,10 @@ export function createPineApi(transport: PineTransport): PineDesktopApi {
       request: RenameSessionRequest,
     ): Promise<RenameSessionResult> =>
       transport.invoke(RENAME_SESSION_CHANNEL, request),
+    replyTitleSuggestion: (
+      request: ReplyTitleSuggestionRequest,
+    ): Promise<ReplyTitleSuggestionResult> =>
+      transport.invoke(REPLY_TITLE_SUGGESTION_CHANNEL, request),
     searchSessions: (
       request: SearchSessionsRequest,
     ): Promise<SearchSessionsResult> =>

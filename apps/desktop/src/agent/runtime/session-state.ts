@@ -1,4 +1,7 @@
-import { approvalModeFromEntries } from "../../shared/sessions";
+import {
+  approvalModeFromEntries,
+  titleSuggestionField,
+} from "../../shared/sessions";
 import type { BackgroundTaskRegistry } from "@pine/pi-background-tasks/registry";
 import type {
   AgentSession,
@@ -186,6 +189,7 @@ export function sessionSummary(session: AgentSession): PineSessionSummary {
         }
       : {}),
     ...(session.sessionName ? { name: session.sessionName } : {}),
+    ...titleSuggestionField(entries),
   };
 }
 

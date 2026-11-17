@@ -1386,6 +1386,13 @@ export default {
       withdrawSteering: "대기 중인 메시지 철회",
       withdrawSteeringFailed: "대기 중인 메시지를 철회할 수 없습니다",
       withdrawSteeringLabel: "철회",
+      titleSuggestion: "이 세션 이름을 “{title}”(으)로 바꿀까요?",
+      titleSuggestionHint:
+        "이 세션 이름은 직접 지정하셨기 때문에 Pine이 바꾸기 전에 먼저 묻습니다.",
+      titleSuggestionAccept: "이름 바꾸기",
+      titleSuggestionDismiss: "나중에",
+      titleSuggestionNever: "다시 제안하지 않기",
+      titleSuggestionFailed: "세션 제목을 업데이트할 수 없습니다",
       sendSteeringNow: "대기 중인 메시지 지금 보내기",
       sendSteeringNowLabel: "지금 보내기",
       sendSteeringNowFailed: "대기 중인 메시지를 보낼 수 없습니다",

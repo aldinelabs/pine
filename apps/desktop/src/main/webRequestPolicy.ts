@@ -141,6 +141,7 @@ export function createWebChannels(
     [sessions.RESUME_SESSION_CHANNEL, command("project")],
     [sessions.DELETE_SESSION_CHANNEL, command("project")],
     [sessions.RENAME_SESSION_CHANNEL, command("project")],
+    [sessions.REPLY_TITLE_SUGGESTION_CHANNEL, command("project")],
     [
       sessions.EXPORT_SESSION_CHANNEL,
       {

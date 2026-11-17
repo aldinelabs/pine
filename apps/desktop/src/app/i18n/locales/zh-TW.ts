@@ -1332,6 +1332,13 @@ export default {
       withdrawSteering: "撤回暫存訊息",
       withdrawSteeringFailed: "無法撤回該暫存訊息",
       withdrawSteeringLabel: "撤回",
+      titleSuggestion: "將此工作階段重新命名為「{title}」？",
+      titleSuggestionHint:
+        "這個工作階段的名稱是你自己取的，所以 Pine 會先徵求你的同意。",
+      titleSuggestionAccept: "重新命名",
+      titleSuggestionDismiss: "暫不",
+      titleSuggestionNever: "不再建議",
+      titleSuggestionFailed: "無法更新工作階段標題",
       sendSteeringNow: "立即傳送暫存訊息",
       sendSteeringNowLabel: "立即傳送",
       sendSteeringNowFailed: "無法立即傳送該暫存訊息",

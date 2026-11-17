@@ -24,6 +24,7 @@ import type {
   PineToolCall,
   ProjectSessionSearchResult,
   SessionSearchResult,
+  TitleSuggestionReply,
 } from "@/shared/sessions";
 import { attachmentMessagePreview } from "@/shared/attachments";
 import { reviewFailureCode } from "@/shared/approvalReasons";
@@ -967,7 +968,7 @@ export const useSessionStore = defineStore("session", () => {
     session: PineSessionSummary,
     previous?: PineSessionSummary,
   ): PineSessionSummary {
-    return {
+    const merged: PineSessionSummary = {
       ...previous,
       ...session,
       ...(session.name || previous?.name
@@ -977,6 +978,10 @@ export const useSessionStore = defineStore("session", () => {
         ? { preview: session.preview || previous?.preview }
         : {}),
     };
+    // Every summary states the open title suggestion; without one, an
+    // earlier suggestion has been answered.
+    if (!session.titleSuggestion) delete merged.titleSuggestion;
+    return merged;
   }
 
   /**
@@ -1609,6 +1614,47 @@ export const useSessionStore = defineStore("session", () => {
       sessionId,
       name,
     });
+    return applyChangedSummary(projectId, sessionId, result.session);
+  }
+
+  /** The agent's open title suggestion for a session, if any. */
+  function titleSuggestionFor(sessionId: string): string | undefined {
+    if (activeSession.value?.id === sessionId)
+      return activeSession.value.titleSuggestion;
+    return (
+      recentSessionsFor(sessionProjects.get(sessionId)).find(
+        (session) => session.id === sessionId,
+      )?.titleSuggestion ??
+      sessionCache.get(sessionId)?.summary?.titleSuggestion
+    );
+  }
+
+  /**
+   * Answers the agent's title suggestion: accepting renames the session as
+   * the user would; "dismiss" and "never" keep the title.
+   */
+  async function replyTitleSuggestion(
+    sessionId: string,
+    reply: "accept" | TitleSuggestionReply,
+  ): Promise<PineSessionSummary | undefined> {
+    const suggestion = titleSuggestionFor(sessionId);
+    if (reply === "accept")
+      return suggestion ? renameSession(sessionId, suggestion) : undefined;
+    const projectId = requireProjectOf(sessionId);
+    const result = await window.pine.replyTitleSuggestion({
+      projectId,
+      sessionId,
+      reply,
+    });
+    return applyChangedSummary(projectId, sessionId, result.session);
+  }
+
+  /** Puts a summary the user just changed into every list holding it. */
+  function applyChangedSummary(
+    projectId: string,
+    sessionId: string,
+    changed: PineSessionSummary,
+  ): PineSessionSummary {
     const previous =
       recentSessionsFor(projectId).find(
         (session) => session.id === sessionId,
@@ -1620,7 +1666,7 @@ export const useSessionStore = defineStore("session", () => {
         : undefined) ??
       sessionCache.get(sessionId)?.summary ??
       undefined;
-    const session = mergeSessionSummary(result.session, previous ?? undefined);
+    const session = mergeSessionSummary(changed, previous ?? undefined);
 
     bumpRecentSequence(projectId);
     searchSequence += 1;
@@ -2326,6 +2372,8 @@ export const useSessionStore = defineStore("session", () => {
     pendingQuestionnaires,
     prompt,
     renameSession,
+    replyTitleSuggestion,
+    titleSuggestionFor,
     reset,
     respondApproval,
     respondQuestionnaire,

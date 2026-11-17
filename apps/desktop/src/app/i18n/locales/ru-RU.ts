@@ -1405,6 +1405,13 @@ export default {
       withdrawSteering: "Отозвать отложенное сообщение",
       withdrawSteeringFailed: "Не удалось отозвать отложенное сообщение",
       withdrawSteeringLabel: "Отозвать",
+      titleSuggestion: "Переименовать этот сеанс в «{title}»?",
+      titleSuggestionHint:
+        "Вы сами назвали этот сеанс, поэтому Pine спрашивает, прежде чем менять название.",
+      titleSuggestionAccept: "Переименовать",
+      titleSuggestionDismiss: "Не сейчас",
+      titleSuggestionNever: "Больше не предлагать",
+      titleSuggestionFailed: "Не удалось обновить название сеанса",
       sendSteeringNow: "Отправить отложенное сообщение сейчас",
       sendSteeringNowLabel: "Отправить сейчас",
       sendSteeringNowFailed: "Не удалось отправить отложенное сообщение",

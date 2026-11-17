@@ -1394,6 +1394,13 @@ export default {
       withdrawSteering: "Withdraw staged message",
       withdrawSteeringFailed: "Could not withdraw the staged message",
       withdrawSteeringLabel: "Withdraw",
+      titleSuggestion: "Rename this session to “{title}”?",
+      titleSuggestionHint:
+        "You named this session yourself, so Pine asks before changing its title.",
+      titleSuggestionAccept: "Rename",
+      titleSuggestionDismiss: "Not now",
+      titleSuggestionNever: "Don't suggest again",
+      titleSuggestionFailed: "Could not update the session title",
       sendSteeringNow: "Send staged message now",
       sendSteeringNowLabel: "Send now",
       sendSteeringNowFailed: "Could not send the staged message",

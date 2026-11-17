@@ -1420,6 +1420,14 @@ export default {
       withdrawSteering: "Retirer le message en attente",
       withdrawSteeringFailed: "Impossible de retirer le message en attente",
       withdrawSteeringLabel: "Retirer",
+      titleSuggestion: "Renommer cette session en « {title} » ?",
+      titleSuggestionHint:
+        "Vous avez nommé cette session vous-même : Pine demande avant d'en changer le titre.",
+      titleSuggestionAccept: "Renommer",
+      titleSuggestionDismiss: "Pas maintenant",
+      titleSuggestionNever: "Ne plus suggérer",
+      titleSuggestionFailed:
+        "Impossible de mettre à jour le titre de la session",
       sendSteeringNow: "Envoyer maintenant le message en attente",
       sendSteeringNowLabel: "Envoyer maintenant",
       sendSteeringNowFailed: "Impossible d'envoyer le message en attente",

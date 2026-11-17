@@ -38,8 +38,9 @@ export interface PineSessionToolContext {
   getApprovalMode(): PineApprovalMode;
   getLocale(): "en-US" | "zh-CN";
   /**
-   * Renames the asking session itself. A title the user chose stays; the
-   * worker reports that instead of replacing it.
+   * Renames the asking session itself. A title the user chose is not
+   * replaced: the new one waits for the user's answer, unless the user asked
+   * for no more suggestions.
    */
   renameCurrentSession(title: string): RenameCurrentSessionResult;
   /** Set when this session is a sub-session of another. */
@@ -72,7 +73,8 @@ export interface PineSessionToolContext {
 
 export type RenameCurrentSessionResult =
   | { renamed: true; title: string }
-  | { renamed: false; reason: "user-title" | "unchanged" | "invalid" };
+  | { renamed: false; reason: "suggested"; title: string }
+  | { renamed: false; reason: "declined" | "unchanged" | "invalid" };
 
 const DEFAULT_SEARCH_LIMIT = 20;
 const MAX_SEARCH_LIMIT = 50;
@@ -482,12 +484,12 @@ export function createSessionToolDefinitions(
     name: UI_SESSION_RENAME_TOOL_NAME,
     label: "Retitle Session",
     description:
-      "Set this session's title in the sidebar and tab to what it is working on now. A title the user chose themselves is kept.",
+      "Set this session's title in the sidebar and tab to what it is working on now. If the user chose the current title themselves, Pine asks them before changing it.",
     promptSnippet: `Use ${UI_SESSION_RENAME_TOOL_NAME} to keep this session's title in step with the task it is working on`,
     promptGuidelines: [
       `When the user's message starts a new task or moves to a different area, call ${UI_SESSION_RENAME_TOOL_NAME} once you understand what the new work is, if the current title no longer describes it. Name the work, not the request's wording.`,
       `Do not retitle for follow-ups, corrections or steps within the same task, and at most once per new task. Pine titles a new session after its first exchange, so do not call ${UI_SESSION_RENAME_TOOL_NAME} in the first turn.`,
-      `Call it alongside other work without mentioning it in the reply. If it reports that the user chose the title, leave the title alone for the rest of the session.`,
+      `Call it alongside other work without mentioning it in the reply. If it reports that the user will decide, do not suggest another title for the same task; if it reports that the user declined suggestions, leave the title alone for the rest of the session.`,
     ],
     parameters: renameParams,
     prepareArguments: (args) => args as Static<typeof renameParams>,
@@ -495,11 +497,13 @@ export function createSessionToolDefinitions(
       const result = context.renameCurrentSession(params.title);
       const text = result.renamed
         ? `Title set to "${result.title}".`
-        : result.reason === "user-title"
-          ? "The user chose this session's title; it stays. Do not retitle this session again."
-          : result.reason === "unchanged"
-            ? "The title already says that."
-            : "The title is empty.";
+        : result.reason === "suggested"
+          ? `The user chose this session's title, so Pine asks them whether to use "${result.title}" instead; the title changes only if they accept. Do not suggest another title for this task.`
+          : result.reason === "declined"
+            ? "The user asked for no title suggestions in this session; the title stays. Do not retitle this session again."
+            : result.reason === "unchanged"
+              ? "The title already says that."
+              : "The title is empty.";
       return Promise.resolve({
         content: [{ type: "text" as const, text }],
         details: result,
