@@ -496,13 +496,9 @@ export default {
     interactiveAnswers: "インタラクティブな回答",
     interactiveAnswersDescription:
       "必要に応じて、回答に操作可能なチェックリスト、計算機、表、グラフを含めます。",
-    interactiveAnswersEnabled: "有効",
-    interactiveAnswersDisabled: "無効",
     interimAnswers: "途中回答",
     interimAnswersDescription:
       "調べものや作業を終える前に、すでに分かっている範囲の暫定的な回答や、解けた部分から先に表示します。",
-    interimAnswersEnabled: "有効",
-    interimAnswersDisabled: "無効",
     userProfileDetailsLabel: "その他の個人情報",
     userProfileDetailsPlaceholder: "例：仕事、興味、好み、現在の目標など",
     userProfileDetailsDescription:

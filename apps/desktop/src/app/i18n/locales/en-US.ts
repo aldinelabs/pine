@@ -485,13 +485,9 @@ export default {
     interactiveAnswers: "Interactive answers",
     interactiveAnswersDescription:
       "Allow Pine to include interactive checklists, calculators, tables, and charts in replies when useful.",
-    interactiveAnswersEnabled: "Enabled",
-    interactiveAnswersDisabled: "Disabled",
     interimAnswers: "Interim answers",
     interimAnswersDescription:
       "Let Pine share a preliminary answer from what it already knows, or each part as soon as it is solved, before it finishes searching or working.",
-    interimAnswersEnabled: "Enabled",
-    interimAnswersDisabled: "Disabled",
     userProfileDetailsLabel: "Other personal details",
     userProfileDetailsPlaceholder:
       "For example: your work, interests, preferences, or current goals",

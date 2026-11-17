@@ -497,13 +497,9 @@ export default {
     interactiveAnswers: "Interaktive Antworten",
     interactiveAnswersDescription:
       "Pine darf bei Bedarf interaktive Checklisten, Rechner, Tabellen und Diagramme in Antworten einfügen.",
-    interactiveAnswersEnabled: "Aktiviert",
-    interactiveAnswersDisabled: "Deaktiviert",
     interimAnswers: "Zwischenantworten",
     interimAnswersDescription:
       "Pine darf eine vorläufige Antwort aus seinem Wissen oder jeden gelösten Teil zeigen, bevor es mit Suchen oder Arbeiten fertig ist.",
-    interimAnswersEnabled: "Aktiviert",
-    interimAnswersDisabled: "Deaktiviert",
     userProfileDetailsLabel: "Weitere persönliche Angaben",
     userProfileDetailsPlaceholder:
       "Zum Beispiel: Ihr Beruf, Interessen, Vorlieben oder aktuelle Ziele",

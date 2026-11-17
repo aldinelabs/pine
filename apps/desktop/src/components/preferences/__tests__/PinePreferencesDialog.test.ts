@@ -525,7 +525,8 @@ describe("PinePreferencesDialog", () => {
       );
       expect(toggle.attributes("role")).toBe("switch");
       expect(toggle.attributes("aria-checked")).toBe(String(enabled));
-      expect(wrapper.text()).toContain(enabled ? "启用" : "禁用");
+      // Like every other switch, it shows no On/Off text beside it.
+      expect(toggle.element.previousElementSibling?.tagName).not.toBe("SPAN");
       expect(wrapper.text()).not.toContain("丰富");
       expect(wrapper.text()).not.toContain("简洁");
       await toggle.trigger("click");

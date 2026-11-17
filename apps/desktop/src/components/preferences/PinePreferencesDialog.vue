@@ -1816,13 +1816,6 @@ defineExpose({ open });
                     {{ t("preferences.interactiveAnswersDescription") }}
                   </FieldDescription>
                 </div>
-                <span class="text-sm text-muted-foreground" aria-hidden="true">
-                  {{
-                    profileDraft.interactiveAnswersEnabled
-                      ? t("preferences.interactiveAnswersEnabled")
-                      : t("preferences.interactiveAnswersDisabled")
-                  }}
-                </span>
                 <Switch
                   v-model="profileDraft.interactiveAnswersEnabled"
                   data-testid="pine-interactive-answers-toggle"
@@ -1840,13 +1833,6 @@ defineExpose({ open });
                     {{ t("preferences.interimAnswersDescription") }}
                   </FieldDescription>
                 </div>
-                <span class="text-sm text-muted-foreground" aria-hidden="true">
-                  {{
-                    profileDraft.interimAnswersEnabled
-                      ? t("preferences.interimAnswersEnabled")
-                      : t("preferences.interimAnswersDisabled")
-                  }}
-                </span>
                 <Switch
                   v-model="profileDraft.interimAnswersEnabled"
                   data-testid="pine-interim-answers-toggle"

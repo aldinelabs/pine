@@ -483,13 +483,9 @@ export default {
     interactiveAnswers: "인터랙티브 답변",
     interactiveAnswersDescription:
       "필요할 때 답변에 직접 조작할 수 있는 체크리스트, 계산기, 표, 차트를 포함합니다.",
-    interactiveAnswersEnabled: "사용",
-    interactiveAnswersDisabled: "사용 안 함",
     interimAnswers: "중간 답변",
     interimAnswersDescription:
       "검색이나 작업을 마치기 전에 이미 알고 있는 내용으로 잠정 답변을 주거나, 해결한 부분부터 먼저 보여 줍니다.",
-    interimAnswersEnabled: "사용",
-    interimAnswersDisabled: "사용 안 함",
     userProfileDetailsLabel: "기타 개인 정보",
     userProfileDetailsPlaceholder: "예: 하는 일, 관심사, 선호, 현재 목표",
     userProfileDetailsDescription:

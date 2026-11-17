@@ -460,13 +460,9 @@ export default {
     interactiveAnswers: "互動式回答",
     interactiveAnswersDescription:
       "啟用後，Pine 可在合適時使用能直接操作的清單、計算機、表格和圖表回答。",
-    interactiveAnswersEnabled: "啟用",
-    interactiveAnswersDisabled: "停用",
     interimAnswers: "中途回答",
     interimAnswersDescription:
       "允許 Pine 在查資料或執行操作前先給出初步答案，或每解決一部分就先回報，再繼續工作。",
-    interimAnswersEnabled: "啟用",
-    interimAnswersDisabled: "停用",
     userProfileDetailsLabel: "其他個人細節",
     userProfileDetailsPlaceholder: "例如：你的工作、興趣、偏好或當前目標",
     userProfileDetailsDescription: "補充這些資訊可以幫助 Pine 更好地瞭解你。",
