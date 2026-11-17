@@ -29,10 +29,13 @@ const contentPadding = computed(() => ({
 </script>
 
 <template>
+  <!-- A flex column, so the viewport is bounded by a root that only gets its
+       height from a parent flex column (`flex-1` under a `max-h` dialog);
+       `h-full` would resolve to auto there and never scroll. -->
   <ScrollAreaRoot
     data-slot="dialog-scroll-area"
     type="auto"
-    :class="cn('relative min-h-0 min-w-0', props.class)"
+    :class="cn('relative flex min-h-0 min-w-0 flex-col', props.class)"
     :style="{
       '--dialog-scroll-edge': edgeInset,
       marginInlineEnd: 'calc(-1 * var(--dialog-scroll-edge))',
@@ -43,7 +46,7 @@ const contentPadding = computed(() => ({
       data-slot="scroll-area-viewport"
       :class="
         cn(
-          'size-full max-h-[inherit] overscroll-contain rounded-[inherit] outline-none focus-visible:ring-2 focus-visible:ring-ring',
+          'min-h-0 w-full flex-1 max-h-[inherit] overscroll-contain rounded-[inherit] outline-none focus-visible:ring-2 focus-visible:ring-ring',
           viewportClass,
         )
       "

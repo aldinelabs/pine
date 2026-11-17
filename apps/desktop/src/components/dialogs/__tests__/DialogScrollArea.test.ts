@@ -56,3 +56,22 @@ it("exposes the actual viewport and forwards scroll events for log tail-followin
   expect(wrapper.emitted("scroll")).toHaveLength(1);
   expect(wrapper.vm.viewport?.scrollTop).toBe(100);
 });
+
+it("bounds the viewport by a root sized only by a parent flex column", () => {
+  // `flex-1` under a `max-h` dialog gives the root no definite height, so a
+  // percentage-height viewport would grow with its content and never scroll.
+  const wrapper = mount(DialogScrollArea, {
+    props: { class: "flex-1" },
+    slots: { default: "Content" },
+  });
+  wrappers.push(wrapper);
+  const root = wrapper.get('[data-slot="dialog-scroll-area"]');
+  expect(root.classes()).toEqual(
+    expect.arrayContaining(["flex", "flex-col", "min-h-0", "flex-1"]),
+  );
+  const viewport = wrapper.get('[data-slot="scroll-area-viewport"]');
+  expect(viewport.classes()).toEqual(
+    expect.arrayContaining(["min-h-0", "flex-1", "w-full"]),
+  );
+  expect(viewport.classes()).not.toContain("size-full");
+});
