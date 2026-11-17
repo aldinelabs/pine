@@ -144,7 +144,12 @@ export interface PineModelCatalog {
   imageSelection?: PineImageModelSelection;
   models: readonly PineModelDescriptor[];
   providers: readonly PineProviderDescriptor[];
+  /** Recommended chat (session) model IDs, filtered to `models`. */
   recommendedModelIds?: readonly string[];
+  /** Recommended image generation model IDs, filtered to `imageModels`. */
+  recommendedImageModelIds?: readonly string[];
+  /** Recommended video generation model IDs, filtered to `videoModels`. */
+  recommendedVideoModelIds?: readonly string[];
   selection?: PineModelSelection;
   utilitySelection?: PineUtilityModelSelection;
   approvalSelection?: PineApprovalModelSelection;

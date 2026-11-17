@@ -119,6 +119,12 @@ export const useModelsStore = defineStore("models", () => {
   const recommendedModelIds = computed(
     () => new Set(catalog.value.recommendedModelIds ?? []),
   );
+  const recommendedImageModelIds = computed(
+    () => new Set(catalog.value.recommendedImageModelIds ?? []),
+  );
+  const recommendedVideoModelIds = computed(
+    () => new Set(catalog.value.recommendedVideoModelIds ?? []),
+  );
   const selectedModel = computed(() => {
     const selected = selection.value;
     return selected
@@ -302,6 +308,14 @@ export const useModelsStore = defineStore("models", () => {
 
   function isRecommended(model: PineModelDescriptor): boolean {
     return recommendedModelIds.value.has(model.id);
+  }
+
+  function isRecommendedImageModel(model: PineImageModelDescriptor): boolean {
+    return recommendedImageModelIds.value.has(model.id);
+  }
+
+  function isRecommendedVideoModel(model: PineVideoModelDescriptor): boolean {
+    return recommendedVideoModelIds.value.has(model.id);
   }
 
   function toggleFavorite(model: PineModelDescriptor): void {
@@ -565,6 +579,8 @@ export const useModelsStore = defineStore("models", () => {
     videoSelection,
     isFavorite,
     isRecommended,
+    isRecommendedImageModel,
+    isRecommendedVideoModel,
     isLoading,
     load,
     login,

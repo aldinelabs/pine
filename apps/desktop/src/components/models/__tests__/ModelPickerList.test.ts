@@ -67,19 +67,52 @@ const catalog: PineModelCatalog = {
     },
   ],
   recommendedModelIds: ["glm-4.6"],
+  imageModels: [
+    {
+      acceptsImageInput: true,
+      id: "google/gemini-3-pro-image",
+      name: "Nano Banana Pro",
+      providerId: "openrouter",
+      providerName: "OpenRouter",
+      returnsText: true,
+    },
+    {
+      acceptsImageInput: false,
+      id: "openai/gpt-image-1",
+      name: "GPT Image 1",
+      providerId: "openrouter",
+      providerName: "OpenRouter",
+      returnsText: false,
+    },
+  ],
+  recommendedImageModelIds: ["openai/gpt-image-1"],
+  videoModels: [
+    {
+      id: "vendor/video-a",
+      name: "Video A",
+      providerId: "openrouter",
+      providerName: "OpenRouter",
+      supportedAspectRatios: [],
+      supportedDurations: [],
+      supportedResolutions: [],
+    },
+  ],
 };
 
-function mountList() {
+type Purpose = "session" | "image" | "video";
+
+function mountList(purpose: Purpose = "session") {
   const pinia = createPinia();
   setActivePinia(pinia);
   useModelsStore().catalog = catalog;
 
   const Host = defineComponent({
     components: { Command, CommandInput, ModelPickerList },
+    setup: () => ({ purpose }),
     template: `
       <Command>
         <CommandInput placeholder="search" />
-        <ModelPickerList :favorite-keys="[]" view="models" />
+        <ModelPickerList :favorite-keys="[]" :purpose="purpose" view="models" />
       </Command>
     `,
   });
@@ -95,6 +128,15 @@ function mountList() {
 function rowValues(wrapper: ReturnType<typeof mountList>): (string | null)[] {
   return wrapper
     .findAll("[data-picker-row]")
+    .map((row) => row.attributes("data-value") ?? null);
+}
+
+function mediaRowValues(
+  wrapper: ReturnType<typeof mountList>,
+  kind: "image" | "video",
+): (string | null)[] {
+  return wrapper
+    .findAll(`[data-picker-row=${kind}]`)
     .map((row) => row.attributes("data-value") ?? null);
 }
 
@@ -135,5 +177,26 @@ describe("ModelPickerList", () => {
     expect(wrapper.get("[data-slot=command-empty]").text()).toContain(
       "没有匹配的模型",
     );
+  });
+
+  it("lists recommended image models before the full image catalog", () => {
+    const wrapper = mountList("image");
+
+    expect(wrapper.text()).toContain("推荐的模型");
+    expect(mediaRowValues(wrapper, "image")).toEqual([
+      "OpenRouter GPT Image 1 openai/gpt-image-1",
+      "OpenRouter Nano Banana Pro google/gemini-3-pro-image",
+      "OpenRouter GPT Image 1 openai/gpt-image-1",
+    ]);
+    expect(wrapper.text()).not.toContain("GLM 4.6");
+  });
+
+  it("omits the recommended group when no video model is recommended", () => {
+    const wrapper = mountList("video");
+
+    expect(wrapper.text()).not.toContain("推荐的模型");
+    expect(mediaRowValues(wrapper, "video")).toEqual([
+      "OpenRouter Video A vendor/video-a",
+    ]);
   });
 });

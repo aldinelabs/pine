@@ -816,7 +816,11 @@ the user opens themselves do not pulse.
   opened from the composer's Model control or Pine Settings › Models.
   Providers and models from Pi's models.json carry a "Pi" badge, their
   provider IDs start with `pi-`, and they have no sign-in or disconnect
-  action.
+  action. The chat model list starts with a "Recommended models" group (those
+  models also carry a "Recommended" badge in the session picker); the image
+  and video generation model pickers start with their own "Recommended
+  models" group when Pine recommends any. Recommendations are fetched online
+  and only name models the user can pick.
 - Update dialog: release notes and installing an update. The notes cover every
   version released after the installed one, up to the new version, newest
   first, each under its own version heading and date, in the interface

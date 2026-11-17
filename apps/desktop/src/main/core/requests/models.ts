@@ -60,14 +60,22 @@ export function registerModelRequests(core: PineCore): void {
   async function withRecommendations(
     catalog: Promise<PineModelCatalog>,
   ): Promise<PineModelCatalog> {
-    const [models, recommendedIds] = await Promise.all([
+    const [models, recommended] = await Promise.all([
       catalog,
       core.modelRecommendations.get(),
     ]);
-    const availableIds = new Set(models.models.map((model) => model.id));
+    const offered = (
+      ids: readonly string[],
+      available: readonly { id: string }[] | undefined,
+    ): string[] => {
+      const availableIds = new Set((available ?? []).map((model) => model.id));
+      return ids.filter((id) => availableIds.has(id));
+    };
     return {
       ...models,
-      recommendedModelIds: recommendedIds.filter((id) => availableIds.has(id)),
+      recommendedModelIds: offered(recommended.chat, models.models),
+      recommendedImageModelIds: offered(recommended.image, models.imageModels),
+      recommendedVideoModelIds: offered(recommended.video, models.videoModels),
     };
   }
 

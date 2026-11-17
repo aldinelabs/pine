@@ -173,26 +173,36 @@ const modelGroups = computed(() =>
  * image purpose skips favorites, capabilities, and custom-model management.
  */
 const imageModelGroups = computed(() =>
-  modelsStore.imageModels.length > 0
-    ? [
-        {
-          heading: modelsStore.imageModels[0]?.providerName ?? "",
-          id: "image-models",
-          models: modelsStore.imageModels,
-        },
-      ]
-    : [],
+  [
+    {
+      heading: t("models.recommended"),
+      id: "image-recommended",
+      models: modelsStore.imageModels.filter((model) =>
+        modelsStore.isRecommendedImageModel(model),
+      ),
+    },
+    {
+      heading: modelsStore.imageModels[0]?.providerName ?? "",
+      id: "image-models",
+      models: modelsStore.imageModels,
+    },
+  ].filter((group) => group.models.length > 0),
 );
 const videoModelGroups = computed(() =>
-  modelsStore.videoModels.length > 0
-    ? [
-        {
-          heading: modelsStore.videoModels[0]?.providerName ?? "",
-          id: "video-models",
-          models: modelsStore.videoModels,
-        },
-      ]
-    : [],
+  [
+    {
+      heading: t("models.recommended"),
+      id: "video-recommended",
+      models: modelsStore.videoModels.filter((model) =>
+        modelsStore.isRecommendedVideoModel(model),
+      ),
+    },
+    {
+      heading: modelsStore.videoModels[0]?.providerName ?? "",
+      id: "video-models",
+      models: modelsStore.videoModels,
+    },
+  ].filter((group) => group.models.length > 0),
 );
 
 function rowId(kind: string, id: string): string {
