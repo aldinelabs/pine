@@ -54,7 +54,14 @@ beforeEach(async () => {
 afterEach(async () => {
   service.dispose();
   vi.restoreAllMocks();
-  await rm(root, { recursive: true, force: true });
+  // Registering a provider starts a background refresh that Pi does not
+  // expose; its locked models-store.json write can outlast the test.
+  await rm(root, {
+    recursive: true,
+    force: true,
+    maxRetries: 10,
+    retryDelay: 50,
+  });
 });
 
 it("lists Pi's providers as read-only and never sends their keys", async () => {
