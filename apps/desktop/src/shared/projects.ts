@@ -62,6 +62,7 @@ import type {
   SelectImageModelRequest,
   SelectVideoModelRequest,
   SelectApprovalModelRequest,
+  SelectPromptRewriteModelRequest,
   SelectUtilityModelRequest,
   UpdateCustomModelRequest,
   UpdateCustomProviderRequest,
@@ -107,6 +108,10 @@ import type {
   SearchAllSessionsResult,
 } from "./sessions";
 import type { WorkbenchStateResponse } from "./workbench";
+import type {
+  RewritePromptRequest,
+  RewritePromptResult,
+} from "./promptRewrite";
 import type { PineWindowApi } from "./window";
 import type { PineBackgroundApi } from "./background";
 import type { PinePreferenceStorageApi } from "./preferenceStorage";
@@ -601,6 +606,13 @@ export interface PineDesktopApi
   selectApprovalModel: (
     request: SelectApprovalModelRequest,
   ) => Promise<{ updated: boolean }>;
+  selectPromptRewriteModel: (
+    request: SelectPromptRewriteModelRequest,
+  ) => Promise<{ updated: boolean }>;
+  /** Rewrites a composer draft into a clearer prompt. */
+  rewritePrompt: (
+    request: RewritePromptRequest,
+  ) => Promise<RewritePromptResult>;
   selectImageModel: (
     request: SelectImageModelRequest,
   ) => Promise<{ updated: boolean }>;

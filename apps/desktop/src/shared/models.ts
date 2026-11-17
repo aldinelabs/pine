@@ -11,6 +11,8 @@ export const LOOKUP_MODEL_METADATA_CHANNEL = "models:lookup-metadata" as const;
 export const SELECT_MODEL_CHANNEL = "models:select" as const;
 export const SELECT_UTILITY_MODEL_CHANNEL = "models:select-utility" as const;
 export const SELECT_APPROVAL_MODEL_CHANNEL = "models:select-approval" as const;
+export const SELECT_PROMPT_REWRITE_MODEL_CHANNEL =
+  "models:select-prompt-rewrite" as const;
 export const SELECT_IMAGE_MODEL_CHANNEL = "models:select-image" as const;
 export const SELECT_VIDEO_MODEL_CHANNEL = "models:select-video" as const;
 export const LOGIN_PROVIDER_CHANNEL = "providers:login" as const;
@@ -79,6 +81,8 @@ export type PineUtilityModelSelection = Pick<
   "modelId" | "providerId"
 >;
 export type PineApprovalModelSelection = PineUtilityModelSelection;
+/** The model that rewrites a composer prompt; falls back to the utility model. */
+export type PinePromptRewriteModelSelection = PineUtilityModelSelection;
 
 /**
  * An image-generation model from pi-ai's image catalog. Image models live in
@@ -144,6 +148,7 @@ export interface PineModelCatalog {
   selection?: PineModelSelection;
   utilitySelection?: PineUtilityModelSelection;
   approvalSelection?: PineApprovalModelSelection;
+  promptRewriteSelection?: PinePromptRewriteModelSelection;
 }
 
 export interface CustomModelDefinition {
@@ -276,6 +281,7 @@ export type SelectModelRequest = PineModelSelection & {
 };
 export type SelectUtilityModelRequest = PineUtilityModelSelection;
 export type SelectApprovalModelRequest = PineApprovalModelSelection;
+export type SelectPromptRewriteModelRequest = PinePromptRewriteModelSelection;
 export type SelectImageModelRequest = PineImageModelSelection;
 export type SelectVideoModelRequest = PineVideoModelSelection;
 

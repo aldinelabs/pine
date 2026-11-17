@@ -284,7 +284,7 @@ From top to bottom:
    - Todos: progress of the agent's task list; opens All todos. Completed
      tasks leave the card when the next turn starts; once every task is
      completed, the card disappears when the turn ends. The dialog is
-     a larger version of the card: full task numbers, names and descriptions
+     a larger version of the card: full task numbers, names and progress labels
      on the left, with the same dependency graph on the right. Wrapped rows
      keep their graph nodes aligned. The heading stays visible while the list
      scrolls internally; deleted tasks are omitted.
@@ -344,6 +344,30 @@ From top to bottom:
      appear and disappear.
    - Text box. In a new session with no project, typing `@` chooses the
      project.
+   - Optimize prompt (or Option+Enter / Alt+Enter in the text box). In a new
+     session it is a sparkles button with its label in a peach-to-blue
+     gradient, right of the approval mode; holding Cmd/Ctrl shows the
+     shortcut beside it. Once the session has started it sits left of the
+     action button while the agent is not working, in muted grey like a new
+     session's project picker; holding Cmd/Ctrl swaps its sparkles icon
+     for the "⌥ ↵" keys. The
+     prompt optimization model rewrites what was typed into a clearer, more
+     specific prompt, following prompt-writing best practices, and keeps
+     the same language. It also reads the project's name and folders, the
+     session's opening request and its latest three turns (each request with
+     the agent's final reply), and the names of
+     attached files and quoted passages, to resolve references such as
+     "that file" or "like before" without repeating them. Details only the user can supply are left as `[[…]]`
+     blanks; the first one is selected afterwards. The button then becomes
+     Undo optimization, which restores the original text, until the text
+     box is emptied or sent; Cmd/Ctrl+Z in the text box also brings it back.
+     While it works the text box, Send and Add attachment are disabled, the
+     button reads "Optimizing…" (the gradient flows through it in a new
+     session; it shimmers in a session), and the working light runs along
+     the border in the same gradient instead of the accent color, growing in
+     and fading out the same way; Esc cancels. It needs typed text and is
+     not available while the agent is working. Attachments and quotes are
+     kept as they are.
    - While the agent is working, a thin light runs clockwise along the text
      box's border, in the project's accent color (or, with "Pine Default",
      the Pine default color theme from Appearance settings; grey for
@@ -361,8 +385,10 @@ From top to bottom:
      in a sent message, clicking the chip opens that session in a tab. The
      agent reads an attached conversation with its session tools, without
      asking for approval.
-   - Footer controls: project target ("Send to {name}"), Model, Reasoning
-     effort, approval mode, Context usage, and the action button.
+   - Footer controls: project target ("Send to {name}", beside the action
+     button in a new session), Model, Reasoning effort, approval mode, the
+     Optimize prompt button in a new session or Context usage once the
+     session has started, and the action button.
    - Approval modes: Let Me Review (ask before risky actions), Auto Approve
      (balance autonomy and control), Autonomous Work (maximize autonomy
      without user action), YOLO (no permission constraints; asks the user to
@@ -652,8 +678,10 @@ the user opens themselves do not pulse.
     reads that file, follows changes to it within a moment, never runs a key
     written as a `!command` (that provider is skipped), and cannot edit, sign
     in to or remove these providers; change them in Pi or CC Switch. Then
-    title generation model, approval model, image generation model, video
-    generation model, Decisions model.
+    title generation model, approval model, prompt optimization model (used
+    by the composer's Optimize prompt; without one it uses the title
+    generation model), image generation model, video generation model,
+    Decisions model.
   - Agent: Interactive answers switch (Enabled or Disabled; enabled by default;
     in WeChat an interactive answer arrives as text, lists and tables; its
     buttons, or the options of a block's only picker, are numbered and the
@@ -815,6 +843,7 @@ and Quit Pine. Quitting from the menu is the way to stop automations, Remote Con
 - Mod+U: Automations manager
 - Mod+/: MCP servers manager
 - Mod+L: focus the composer
+- Option+Enter (Alt+Enter): Optimize prompt in the composer; Esc cancels it
 - Enlarged Markdown image: Left / Right previous / next image; Mod+= / Mod+−
   zoom in / out; Mod+0 fit to window; Esc closes
 - File preview with text selected: Mod+Alt+M comments on the selection; in

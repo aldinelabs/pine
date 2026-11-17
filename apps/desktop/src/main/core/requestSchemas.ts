@@ -1,5 +1,9 @@
 import { z } from "zod";
 import {
+  MAX_PROMPT_REWRITE_INPUT_LENGTH,
+  PROMPT_REWRITE_LIMITS,
+} from "../../shared/promptRewrite";
+import {
   MEMORY_CONTENT_MAX_LENGTH,
   MEMORY_DESCRIPTION_MAX_LENGTH,
   MEMORY_NAME_MAX_LENGTH,
@@ -398,6 +402,66 @@ export const SelectApprovalModelRequestSchema = SelectModelRequestSchema.pick({
   modelId: true,
   providerId: true,
 });
+export const SelectPromptRewriteModelRequestSchema =
+  SelectModelRequestSchema.pick({
+    modelId: true,
+    providerId: true,
+  });
+const PromptRewriteContextSchema = z
+  .object({
+    project: z
+      .object({
+        name: z.string().max(PROMPT_REWRITE_LIMITS.nameLength),
+        folders: z
+          .array(z.string().max(PROMPT_REWRITE_LIMITS.pathLength))
+          .max(PROMPT_REWRITE_LIMITS.folders),
+      })
+      .strict()
+      .optional(),
+    conversation: z
+      .array(
+        z
+          .object({
+            role: z.enum(["assistant", "user"]),
+            text: z.string().max(PROMPT_REWRITE_LIMITS.messageLength),
+          })
+          .strict(),
+      )
+      .max(PROMPT_REWRITE_LIMITS.conversationMessages)
+      .optional(),
+    conversationTrimmed: z.boolean().optional(),
+    attachments: z
+      .array(
+        z
+          .object({
+            name: z.string().max(PROMPT_REWRITE_LIMITS.nameLength),
+            path: z.string().max(PROMPT_REWRITE_LIMITS.pathLength),
+            kind: z.string().max(32).optional(),
+          })
+          .strict(),
+      )
+      .max(PROMPT_REWRITE_LIMITS.attachments)
+      .optional(),
+    quotes: z
+      .array(
+        z
+          .object({
+            text: z.string().max(PROMPT_REWRITE_LIMITS.quoteLength),
+            file: z.string().max(PROMPT_REWRITE_LIMITS.pathLength).optional(),
+            lines: z.string().max(32).optional(),
+          })
+          .strict(),
+      )
+      .max(PROMPT_REWRITE_LIMITS.quotes)
+      .optional(),
+  })
+  .strict();
+export const RewritePromptRequestSchema = z
+  .object({
+    prompt: z.string().trim().min(1).max(MAX_PROMPT_REWRITE_INPUT_LENGTH),
+    context: PromptRewriteContextSchema.optional(),
+  })
+  .strict();
 export const SelectImageModelRequestSchema = SelectModelRequestSchema.pick({
   modelId: true,
   providerId: true,

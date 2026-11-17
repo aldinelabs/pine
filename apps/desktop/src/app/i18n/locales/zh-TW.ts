@@ -393,6 +393,7 @@ export default {
       "尚未配置 OpenRouter，可在“管理服務或模型”中新增憑據；配置前使用大模型審批。",
     utilityModel: "標題產生模型",
     approvalModel: "審批模型",
+    promptRewriteModel: "指令最佳化模型",
     selectUtilityModel: "選擇模型",
     noUtilityModelSelected: "未選擇任何模型",
     imageModel: "影象產生模型",
@@ -1288,6 +1289,12 @@ export default {
       placeholder: "描述任務、明確需求……",
       draftPlaceholder: "描述任務，或輸入 {'@'} 選擇專案",
       steeringPlaceholder: "追加要求、改變方向……",
+      optimizePrompt: "最佳化指令",
+      optimizingPrompt: "正在最佳化…",
+      optimizePromptFailed: "無法最佳化指令",
+      optimizePromptFailedDescription:
+        "請在 設定 › 模型 中檢查指令最佳化模型後重試。",
+      undoPromptOptimization: "復原最佳化",
       addAttachment: "新增附件",
       addFile: "新增檔案",
       addFolder: "新增資料夾",
@@ -2556,6 +2563,10 @@ export default {
     approvalModel: {
       title: "無法更新審批模型",
       description: "請檢查模型服務後重試",
+    },
+    promptRewriteModel: {
+      title: "無法更新指令最佳化模型",
+      description: "請檢查模型供應商後重試",
     },
     imageModel: {
       title: "無法更新影象模型",

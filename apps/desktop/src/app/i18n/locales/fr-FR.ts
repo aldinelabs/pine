@@ -425,6 +425,7 @@ export default {
       "OpenRouter n'est pas configuré. Ajoutez un identifiant dans « Gérer les fournisseurs et les modèles » ; d'ici là, l'examen par un modèle est utilisé.",
     utilityModel: "Modèle de génération de titres",
     approvalModel: "Modèle d'examen des approbations",
+    promptRewriteModel: "Modèle d'optimisation des prompts",
     selectUtilityModel: "Choisir un modèle",
     noUtilityModelSelected: "Aucun modèle sélectionné",
     imageModel: "Modèle de génération d'images",
@@ -1371,6 +1372,12 @@ export default {
       draftPlaceholder:
         "Décrivez une tâche, ou saisissez {'@'} pour choisir un projet",
       steeringPlaceholder: "Ajoutez des exigences ou changez de direction…",
+      optimizePrompt: "Optimiser le prompt",
+      optimizingPrompt: "Optimisation…",
+      optimizePromptFailed: "Impossible d'optimiser le prompt",
+      optimizePromptFailedDescription:
+        "Vérifiez le modèle d'optimisation des prompts dans Réglages › Modèles, puis réessayez.",
+      undoPromptOptimization: "Annuler l'optimisation",
       addAttachment: "Ajouter une pièce jointe",
       addFile: "Ajouter un fichier",
       addFolder: "Ajouter un dossier",
@@ -2723,6 +2730,10 @@ export default {
     approvalModel: {
       title: "Impossible de mettre à jour le modèle d'examen",
       description: "Vérifiez le fournisseur du modèle, puis réessayez",
+    },
+    promptRewriteModel: {
+      title: "Impossible de modifier le modèle d'optimisation des prompts",
+      description: "Vérifiez le fournisseur du modèle et réessayez",
     },
     imageModel: {
       title: "Impossible de mettre à jour le modèle d'image",

@@ -1,3 +1,4 @@
+import type { PromptRewriteContext } from "../shared/promptRewrite";
 import {
   PINE_SESSION_NOTICE_TYPE,
   PINE_SUB_SESSION_ENTRY,
@@ -51,6 +52,7 @@ import type {
   PineModelSelection,
   PineThinkingLevel,
   PineApprovalModelSelection,
+  PinePromptRewriteModelSelection,
   PineUtilityModelSelection,
   ProviderLoginResult,
   UpdateCustomModelRequest,
@@ -290,6 +292,12 @@ import {
   parseJudgeRulings,
   truncateText,
 } from "./runtime/review";
+import {
+  PROMPT_REWRITE_MAX_TOKENS,
+  PROMPT_REWRITE_TIMEOUT_MS,
+  promptRewriteContext,
+  rewrittenPromptFromAssistantMessage,
+} from "./runtime/prompt-rewrite";
 import {
   MAX_GENERATED_TITLE_LENGTH,
   TITLE_TOOL,
@@ -1248,6 +1256,50 @@ export class PineAgentRuntime {
   ): Promise<{ updated: boolean }> {
     return this.modelService.selectImageModel(agentDir, selection);
   }
+
+  selectPromptRewriteModel(
+    agentDir: string,
+    selection: PinePromptRewriteModelSelection,
+  ): Promise<{ updated: boolean }> {
+    return this.modelService.selectPromptRewriteModel(agentDir, selection);
+  }
+
+  /** Rewrites a composer draft with the prompt rewrite model. */
+  async rewritePrompt(
+    agentDir: string,
+    prompt: string,
+    context?: PromptRewriteContext,
+  ): Promise<{ prompt: string }> {
+    const draft = prompt.trim();
+    if (!draft) throw new Error("There is no prompt to rewrite.");
+    const modelRuntime = await this.getModelRuntime(agentDir);
+    const model = await this.modelService.promptRewriteModel(
+      agentDir,
+      modelRuntime,
+    );
+    if (!model) throw new Error("No prompt rewrite model is configured.");
+    const signal = AbortSignal.timeout(PROMPT_REWRITE_TIMEOUT_MS);
+    const options = {
+      ...judgeStreamOptions(model, signal),
+      maxTokens: PROMPT_REWRITE_MAX_TOKENS,
+    };
+    let final: AssistantMessage | undefined;
+    for await (const event of modelRuntime.stream(
+      model,
+      promptRewriteContext(draft, context),
+      options,
+    )) {
+      if (event.type === "done") final = event.message;
+      else if (event.type === "error")
+        throw new Error(
+          event.error.errorMessage ?? "The model could not rewrite the prompt.",
+        );
+    }
+    const rewritten = rewrittenPromptFromAssistantMessage(final);
+    if (!rewritten) throw new Error("The model returned an empty prompt.");
+    return { prompt: rewritten };
+  }
+
   selectVideoModel(
     agentDir: string,
     selection: PineVideoModelSelection,

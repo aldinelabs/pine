@@ -163,6 +163,7 @@ const {
   videoSelectedModel,
   utilitySelectedModel,
   approvalSelectedModel,
+  promptRewriteSelectedModel,
 } = storeToRefs(modelsStore);
 const isOpen = ref(false);
 const activeSection = ref<PreferenceSection>("general");
@@ -174,6 +175,7 @@ const isSectionShown = ref(false);
 const showPage = useDialogPages();
 const isUtilityModelPickerOpen = ref(false);
 const isApprovalModelPickerOpen = ref(false);
+const isPromptRewriteModelPickerOpen = ref(false);
 const isImageModelPickerOpen = ref(false);
 const isVideoModelPickerOpen = ref(false);
 const isTinyFishCredentialDialogOpen = ref(false);
@@ -1736,6 +1738,30 @@ defineExpose({ open });
 
                   <Field orientation="responsive">
                     <div class="flex min-w-0 flex-1 flex-col gap-1">
+                      <FieldTitle id="pine-prompt-rewrite-model-setting">
+                        {{ t("preferences.promptRewriteModel") }}
+                      </FieldTitle>
+                      <FieldDescription>
+                        {{
+                          promptRewriteSelectedModel?.name ??
+                          utilitySelectedModel?.name ??
+                          t("preferences.noUtilityModelSelected")
+                        }}
+                      </FieldDescription>
+                    </div>
+                    <Button
+                      data-testid="pine-prompt-rewrite-model-button"
+                      variant="outline"
+                      size="sm"
+                      aria-labelledby="pine-prompt-rewrite-model-setting"
+                      @click="isPromptRewriteModelPickerOpen = true"
+                    >
+                      {{ t("preferences.selectUtilityModel") }}
+                    </Button>
+                  </Field>
+
+                  <Field orientation="responsive">
+                    <div class="flex min-w-0 flex-1 flex-col gap-1">
                       <FieldTitle id="pine-image-model-setting">
                         {{ t("preferences.imageModel") }}
                       </FieldTitle>
@@ -2076,6 +2102,10 @@ defineExpose({ open });
   <ModelPickerDialog
     v-model:open="isApprovalModelPickerOpen"
     purpose="approval"
+  />
+  <ModelPickerDialog
+    v-model:open="isPromptRewriteModelPickerOpen"
+    purpose="promptRewrite"
   />
 
   <ModelPickerDialog v-model:open="isImageModelPickerOpen" purpose="image" />

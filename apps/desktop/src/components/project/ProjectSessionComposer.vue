@@ -74,6 +74,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { Kbd } from "@/components/ui/kbd";
+import ProjectComposerOptimizeButton from "@/components/project/ProjectComposerOptimizeButton.vue";
 import { useShortcutHints } from "@/composables/useShortcutHints";
 import {
   Popover,
@@ -99,6 +100,15 @@ import {
   type PastedImageMimeType,
 } from "@/shared/attachments";
 import type { PineThinkingLevel } from "@/shared/models";
+import {
+  MAX_PROMPT_REWRITE_INPUT_LENGTH,
+  PROMPT_REWRITE_LIMITS,
+  PROMPT_REWRITE_PLACEHOLDER_PATTERN,
+  promptRewriteConversation,
+  type PromptRewriteContext,
+} from "@/shared/promptRewrite";
+import { withoutRelayPrefix } from "@/shared/sessions";
+import { useSessionStore } from "@/stores/session";
 import type { ProjectSessionSearchResult } from "@/shared/sessions";
 import type {
   PinePendingApproval,
@@ -212,10 +222,11 @@ const hasMessage = computed(
 const isSteering = computed(() => props.isRunning && hasMessage.value);
 const canSubmit = computed(
   () =>
-    props.isRunning ||
-    (hasMessage.value &&
-      selectedModel.value !== undefined &&
-      !isMentioning.value),
+    !isRewriting.value &&
+    (props.isRunning ||
+      (hasMessage.value &&
+        selectedModel.value !== undefined &&
+        !isMentioning.value)),
 );
 const hasPendingInterruption = computed(() =>
   Boolean(
@@ -231,8 +242,13 @@ const hasPendingInterruption = computed(() =>
  * with it. Turning the setting off mid-run takes the normal exit.
  */
 const appearanceStore = useAppearanceStore();
+const isRewriting = ref(false);
 const workingBorderActive = computed(() =>
-  Boolean(props.isRunning && props.isActive && appearanceStore.composerGlow),
+  Boolean(
+    (props.isRunning || isRewriting.value) &&
+    props.isActive &&
+    appearanceStore.composerGlow,
+  ),
 );
 const approvalModes = computed<ApprovalModeOption[]>(() => [
   {
@@ -511,7 +527,184 @@ function handleChooserKeydown(event: KeyboardEvent): void {
   }
 }
 
+/*
+ * Optimize prompt (⌥/Alt+Enter): the prompt rewrite model rewrites what was
+ * typed, leaving [[blanks]] for what only the user knows. The input is
+ * disabled meanwhile and the working border runs in colour; Escape cancels.
+ */
+let rewriteRun = 0;
+/** What was typed before the last rewrite; Undo takes Optimize's place. */
+const promptBeforeRewrite = ref<string | null>(null);
+watch(message, (value) => {
+  if (!value) promptBeforeRewrite.value = null;
+});
+
+function undoRewrite(): void {
+  if (promptBeforeRewrite.value === null) return;
+  message.value = promptBeforeRewrite.value;
+  promptBeforeRewrite.value = null;
+  void nextTick(focus);
+}
+const canRewrite = computed(
+  () =>
+    message.value.trim().length > 0 &&
+    message.value.length <= MAX_PROMPT_REWRITE_INPUT_LENGTH &&
+    !props.isRunning &&
+    !isRewriting.value &&
+    !isMentioning.value &&
+    !committingProject.value &&
+    !hasPendingInterruption.value,
+);
+
+const messageInput = ref<{ $el?: unknown } | null>(null);
+
+/**
+ * Replace the whole message as an edit of the text box, so Cmd/Ctrl+Z in the
+ * box also brings back what was typed; falls back to setting it directly.
+ */
+function replaceMessageUndoably(text: string): void {
+  const textarea = messageInput.value?.$el;
+  if (textarea instanceof HTMLTextAreaElement) {
+    textarea.focus({ preventScroll: true });
+    textarea.select();
+    try {
+      document.execCommand("insertText", false, text);
+    } catch {
+      // Not supported here; set the value below.
+    }
+  }
+  if (message.value !== text) message.value = text;
+}
+
+/** Select the first blank to fill in, or put the caret at the end. */
+function focusFirstBlank(): void {
+  const textarea = messageInput.value?.$el;
+  if (!(textarea instanceof HTMLTextAreaElement)) return;
+  textarea.focus({ preventScroll: true });
+  const blank = PROMPT_REWRITE_PLACEHOLDER_PATTERN.exec(textarea.value);
+  if (blank) {
+    textarea.setSelectionRange(blank.index, blank.index + blank[0].length);
+  } else {
+    const end = textarea.value.length;
+    textarea.setSelectionRange(end, end);
+  }
+}
+
+function clipText(text: string, length: number): string {
+  return text.length > length ? `${text.slice(0, length - 1)}…` : text;
+}
+
+/**
+ * What the rewriter is told besides the draft: the project, the
+ * conversation's opening request and latest messages (trimmed as
+ * `promptRewriteConversation` decides), and what is attached or quoted.
+ */
+/** The project and the conversation so far, trimmed to whole turns. */
+function conversationContext(): PromptRewriteContext {
+  const context: PromptRewriteContext = {};
+  const project = projectStore.projectById(props.projectId);
+  if (project) {
+    context.project = {
+      name: clipText(displayName(project), PROMPT_REWRITE_LIMITS.nameLength),
+      folders: project.folders
+        .slice(0, PROMPT_REWRITE_LIMITS.folders)
+        .map((folder) =>
+          clipText(folder.path, PROMPT_REWRITE_LIMITS.pathLength),
+        ),
+    };
+  }
+  if (props.sessionId) {
+    const state = useSessionStore().stateFor(props.sessionId);
+    const { conversation, trimmed } = promptRewriteConversation(
+      state.messages.map((item) => {
+        const text = item.blocks
+          .flatMap((block) => (block.type === "text" ? [block.text] : []))
+          .join("\n");
+        return {
+          role: item.role,
+          text: item.role === "user" ? withoutRelayPrefix(text) : text,
+        };
+      }),
+    );
+    if (conversation.length > 0) {
+      context.conversation = conversation;
+      context.conversationTrimmed = trimmed || state.hasEarlierMessages;
+    }
+  }
+  return context;
+}
+
+function rewriteContext(): PromptRewriteContext {
+  const context = conversationContext();
+  const attached = [...props.context, ...attachments.value];
+  if (attached.length > 0) {
+    context.attachments = attached
+      .slice(0, PROMPT_REWRITE_LIMITS.attachments)
+      .map((attachment) => ({
+        name: clipText(attachment.name, PROMPT_REWRITE_LIMITS.nameLength),
+        path: clipText(attachment.path, PROMPT_REWRITE_LIMITS.pathLength),
+        ...(attachment.kind ? { kind: attachment.kind } : {}),
+      }));
+  }
+  if (quotes.value.length > 0) {
+    context.quotes = quotes.value
+      .slice(0, PROMPT_REWRITE_LIMITS.quotes)
+      .map((quote) => ({
+        text: clipText(quote.text, PROMPT_REWRITE_LIMITS.quoteLength),
+        ...(quote.file
+          ? { file: clipText(quote.file, PROMPT_REWRITE_LIMITS.pathLength) }
+          : {}),
+        ...(quote.lines ? { lines: quote.lines.slice(0, 32) } : {}),
+      }));
+  }
+  return context;
+}
+
+async function rewritePrompt(): Promise<void> {
+  if (!canRewrite.value) return;
+  const original = message.value;
+  const run = ++rewriteRun;
+  promptBeforeRewrite.value = null;
+  isRewriting.value = true;
+  try {
+    const result = await window.pine.rewritePrompt({
+      prompt: original,
+      context: rewriteContext(),
+    });
+    if (run !== rewriteRun) return;
+    isRewriting.value = false;
+    await nextTick();
+    replaceMessageUndoably(result.prompt);
+    promptBeforeRewrite.value = original;
+    await nextTick();
+    focusFirstBlank();
+  } catch {
+    if (run !== rewriteRun) return;
+    isRewriting.value = false;
+    toast.error(t("project.composer.optimizePromptFailed"), {
+      description: t("project.composer.optimizePromptFailedDescription"),
+    });
+    await nextTick();
+    focus();
+  }
+}
+
+function cancelRewrite(): void {
+  rewriteRun++;
+  isRewriting.value = false;
+  void nextTick(focus);
+}
+
+// The disabled input cannot hear Escape, so the window does.
+useEventListener(window, "keydown", (event: KeyboardEvent) => {
+  if (!isRewriting.value || event.key !== "Escape" || event.defaultPrevented)
+    return;
+  event.preventDefault();
+  cancelRewrite();
+});
+
 function submitMessage(): void {
+  if (isRewriting.value) return;
   const normalizedMessage = message.value.trim();
   if (
     !normalizedMessage &&
@@ -709,6 +902,10 @@ function handleKeydown(event: KeyboardEvent): void {
   if (event.key !== "Enter" || event.shiftKey || event.isComposing) return;
 
   event.preventDefault();
+  if (event.altKey) {
+    if (!event.metaKey && !event.ctrlKey) void rewritePrompt();
+    return;
+  }
   submitMessage();
 }
 
@@ -809,7 +1006,10 @@ function handleRootSubmit(event: Event): void {
           <InputGroup
             class="session-composer-control flex-col items-stretch min-h-[var(--session-composer-control-height)] rounded-[var(--session-composer-control-radius)] has-[textarea]:rounded-[var(--session-composer-control-radius)]"
           >
-            <ProjectComposerWorkingBorder :active="workingBorderActive" />
+            <ProjectComposerWorkingBorder
+              :active="workingBorderActive"
+              :variant="isRewriting ? 'spectrum' : 'accent'"
+            />
             <!-- It opens and closes its row on the app's curve; leaving, it
                  keeps what it showed. -->
             <Transition :css="contextAnimates" name="session-composer-context">
@@ -889,6 +1089,7 @@ function handleRootSubmit(event: Event): void {
                       size="icon-sm"
                       type="button"
                       variant="secondary"
+                      :disabled="isRewriting"
                       :aria-label="t('project.composer.addAttachment')"
                     >
                       <PlusIcon />
@@ -916,32 +1117,50 @@ function handleRootSubmit(event: Event): void {
                 </DropdownMenu>
               </InputGroupAddon>
 
-              <InputGroupTextarea
-                :id="messageId"
-                v-model="message"
-                v-bind="chooserInputAttrs"
-                class="session-composer-input scroll-fade-y max-h-48 min-h-[var(--session-composer-control-height)] overflow-y-auto overscroll-contain pt-3.5 pb-3.5 text-sm leading-5"
-                :placeholder="
-                  committingProject
-                    ? ''
-                    : isMentioning
-                      ? t('project.composer.chooseProjectPlaceholder')
-                      : props.isRunning
-                        ? t('project.composer.steeringPlaceholder')
-                        : props.sessionId
-                          ? t('project.composer.placeholder')
-                          : t('project.composer.draftPlaceholder')
-                "
-                @focus="isInputFocused = true"
-                @blur="isInputFocused = false"
-                @keydown="handleKeydown"
-                @paste="handlePaste"
-              />
+              <div
+                class="session-composer-input-wrap relative flex min-w-0 flex-1"
+              >
+                <InputGroupTextarea
+                  :id="messageId"
+                  ref="messageInput"
+                  v-model="message"
+                  v-bind="chooserInputAttrs"
+                  :disabled="isRewriting"
+                  :aria-busy="isRewriting || undefined"
+                  class="session-composer-input w-full min-w-0 scroll-fade-y max-h-48 min-h-[var(--session-composer-control-height)] overflow-y-auto overscroll-contain pt-3.5 pb-3.5 text-sm leading-5"
+                  :placeholder="
+                    committingProject
+                      ? ''
+                      : isMentioning
+                        ? t('project.composer.chooseProjectPlaceholder')
+                        : props.isRunning
+                          ? t('project.composer.steeringPlaceholder')
+                          : props.sessionId
+                            ? t('project.composer.placeholder')
+                            : t('project.composer.draftPlaceholder')
+                  "
+                  @focus="isInputFocused = true"
+                  @blur="isInputFocused = false"
+                  @keydown="handleKeydown"
+                  @paste="handlePaste"
+                />
+              </div>
 
               <InputGroupAddon
                 class="max-w-[50%] self-end py-1.5 pr-2.5"
                 align="inline-end"
               >
+                <!-- In a session, Optimize prompt sits beside Send; a draft
+                     has it below, next to the approval mode. -->
+                <ProjectComposerOptimizeButton
+                  v-if="props.sessionId && !props.isRunning"
+                  placement="inline"
+                  :can-rewrite="canRewrite"
+                  :is-rewriting="isRewriting"
+                  :can-undo="promptBeforeRewrite !== null"
+                  @optimize="rewritePrompt"
+                  @undo="undoRewrite"
+                />
                 <!-- A draft still chooses its project right beside Send. -->
                 <ProjectTargetPicker
                   v-if="
@@ -1090,7 +1309,17 @@ function handleRootSubmit(event: Event): void {
           </DropdownMenuContent>
         </DropdownMenu>
 
-        <ContextUsageIndicator class="shrink-0" />
+        <!-- A new session has used no context yet, so it shows the
+             Optimize prompt shortcut instead; it works in a session too. -->
+        <ProjectComposerOptimizeButton
+          v-if="!props.sessionId && !props.isRunning"
+          :can-rewrite="canRewrite"
+          :is-rewriting="isRewriting"
+          :can-undo="promptBeforeRewrite !== null"
+          @optimize="rewritePrompt"
+          @undo="undoRewrite"
+        />
+        <ContextUsageIndicator v-else class="shrink-0" />
       </div>
 
       <DropdownMenu>
@@ -1312,9 +1541,12 @@ function handleRootSubmit(event: Event): void {
     flex-wrap: wrap;
   }
 
-  .session-composer-row > .session-composer-input {
+  .session-composer-row > .session-composer-input-wrap {
     order: 0;
     flex-basis: 100%;
+  }
+
+  .session-composer-input {
     padding-inline: var(--session-input-padding-inline, 1rem);
     padding-bottom: 0.25rem;
   }
@@ -1329,7 +1561,8 @@ function handleRootSubmit(event: Event): void {
     margin-inline-start: auto;
   }
 
-  .session-composer-approval-label {
+  .session-composer-approval-label,
+  .session-composer-row :deep(.composer-optimize-label) {
     display: none;
   }
 }

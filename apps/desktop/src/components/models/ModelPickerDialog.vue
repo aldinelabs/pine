@@ -34,7 +34,13 @@ const props = withDefaults(
   defineProps<{
     open: boolean;
     purpose?:
-      "session" | "utility" | "approval" | "image" | "video" | "decisions";
+      | "session"
+      | "utility"
+      | "approval"
+      | "promptRewrite"
+      | "image"
+      | "video"
+      | "decisions";
     sessionId?: string;
   }>(),
   { purpose: "session" },
@@ -189,14 +195,25 @@ async function selectModel(model: PineModelDescriptor): Promise<void> {
       await modelsStore.selectUtilityModel(model);
     } else if (props.purpose === "approval") {
       await modelsStore.selectApprovalModel(model);
+    } else if (props.purpose === "promptRewrite") {
+      await modelsStore.selectPromptRewriteModel(model);
     } else {
       await modelsStore.select(model, undefined, props.sessionId);
     }
     emit("update:open", false);
   } catch (error) {
-    if (props.purpose !== "utility" && props.purpose !== "approval")
+    if (
+      props.purpose !== "utility" &&
+      props.purpose !== "approval" &&
+      props.purpose !== "promptRewrite"
+    )
       throw error;
-    const key = props.purpose === "approval" ? "approvalModel" : "utilityModel";
+    const key =
+      props.purpose === "approval"
+        ? "approvalModel"
+        : props.purpose === "promptRewrite"
+          ? "promptRewriteModel"
+          : "utilityModel";
     handleError(error, {
       id: `preferences.${props.purpose}-model`,
       title: t(`errors.${key}.title`),

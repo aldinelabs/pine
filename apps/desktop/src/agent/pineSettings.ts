@@ -10,6 +10,7 @@ import type {
   PineImageModelSelection,
   PineVideoModelSelection,
   PineApprovalModelSelection,
+  PinePromptRewriteModelSelection,
   PineUtilityModelSelection,
 } from "../shared/models";
 import {
@@ -52,6 +53,7 @@ export interface PineAgentSettings {
   videoModel?: PineVideoModelSelection;
   utilityModel?: PineUtilityModelSelection;
   approvalModel?: PineApprovalModelSelection;
+  promptRewriteModel?: PinePromptRewriteModelSelection;
   userProfile?: PineUserProfile;
   /** Read providers from Pi's models.json (as written by Pi or CC Switch). */
   piProviders?: PiProvidersSetting;
@@ -167,6 +169,7 @@ export async function readPineAgentSettings(
     const videoModel = settings.videoModel;
     const utilityModel = settings.utilityModel;
     const approvalModel = settings.approvalModel;
+    const promptRewriteModel = settings.promptRewriteModel;
     const userProfile = migrateUserProfile(settings.userProfile);
     const contextCompactionStrategy = settings.contextCompactionStrategy;
     const contextCompactionRoute = settings.contextCompactionRoute;
@@ -225,6 +228,7 @@ export async function readPineAgentSettings(
       ...(isModelSelection(videoModel) ? { videoModel } : {}),
       ...(isModelSelection(utilityModel) ? { utilityModel } : {}),
       ...(isModelSelection(approvalModel) ? { approvalModel } : {}),
+      ...(isModelSelection(promptRewriteModel) ? { promptRewriteModel } : {}),
       ...(isPineUserProfile(userProfile) ? { userProfile } : {}),
       ...(isPiProvidersSetting(settings.piProviders)
         ? {
@@ -262,6 +266,13 @@ export async function writeApprovalModelSelection(
   approvalModel: PineApprovalModelSelection,
 ): Promise<void> {
   await writePineAgentSettings(agentDir, { approvalModel });
+}
+
+export async function writePromptRewriteModelSelection(
+  agentDir: string,
+  promptRewriteModel: PinePromptRewriteModelSelection,
+): Promise<void> {
+  await writePineAgentSettings(agentDir, { promptRewriteModel });
 }
 
 export async function writeImageModelSelection(

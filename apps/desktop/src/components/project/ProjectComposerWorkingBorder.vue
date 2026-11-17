@@ -14,13 +14,30 @@ import { onScopeDispose, ref, watch } from "vue";
  * then unmounts, so an idle composer costs nothing. Both layers are direct
  * children of the text box, as VS Code's are of its input container.
  */
-const props = defineProps<{
-  active: boolean;
-}>();
+const props = withDefaults(
+  defineProps<{
+    active: boolean;
+    /**
+     * `spectrum` runs the same arc in several hues instead of the accent, for
+     * work on the prompt itself (Optimize prompt) rather than the agent's.
+     */
+    variant?: "accent" | "spectrum";
+  }>(),
+  { variant: "accent" },
+);
 
 type WorkingBorderPhase = "off" | "on" | "leaving";
 
 const phase = ref<WorkingBorderPhase>("off");
+// The colours a run started with stay through its exit, so a spectrum
+// light fades out in its own colours rather than the accent's.
+const shownVariant = ref(props.variant);
+watch(
+  () => [props.active, props.variant] as const,
+  ([active, variant]) => {
+    if (active) shownVariant.value = variant;
+  },
+);
 let leaveTimer: ReturnType<typeof setTimeout> | undefined;
 
 function clearLeaveTimer() {
@@ -57,6 +74,7 @@ onScopeDispose(clearLeaveTimer);
       data-slot="session-composer-working-border"
       class="chat-input-working-border"
       :data-state="phase"
+      :data-variant="shownVariant"
       aria-hidden="true"
     >
       <div class="chat-input-working-border-arc" />
@@ -65,6 +83,7 @@ onScopeDispose(clearLeaveTimer);
       data-slot="session-composer-working-border-glow"
       class="chat-input-working-border chat-input-working-border-glow"
       :data-state="phase"
+      :data-variant="shownVariant"
       aria-hidden="true"
     >
       <div class="chat-input-working-border-arc" />
@@ -203,6 +222,53 @@ onScopeDispose(clearLeaveTimer);
     color-mix(in srgb, var(--chat-input-working-border-color1) 60%, transparent)
       calc(25deg * var(--composer-working-border-grow)),
     color-mix(in srgb, var(--chat-input-working-border-color1) 35%, transparent)
+      calc(50deg * var(--composer-working-border-grow)),
+    transparent calc(90deg * var(--composer-working-border-grow)),
+    transparent 360deg
+  );
+}
+
+/*
+ * Pine: the spectrum variant is the same arc, glow and motion in Pine's
+ * spectrum (--spectrum-1 to 5, index.css) instead of the accent's colour.
+ */
+
+.chat-input-working-border[data-variant="spectrum"]
+  .chat-input-working-border-arc::before {
+  background: conic-gradient(
+    from
+      calc(
+        90deg +
+          atan2(100cqh, calc(100cqw / var(--composer-working-border-stretch))) -
+          30deg * var(--composer-working-border-grow)
+      ),
+    transparent 0deg,
+    color-mix(in srgb, var(--spectrum-1) 90%, transparent)
+      calc(15deg * var(--composer-working-border-grow)),
+    var(--spectrum-2) calc(25deg * var(--composer-working-border-grow)),
+    var(--spectrum-3) calc(35deg * var(--composer-working-border-grow)),
+    color-mix(in srgb, var(--spectrum-4) 80%, transparent)
+      calc(52deg * var(--composer-working-border-grow)),
+    color-mix(in srgb, var(--spectrum-5) 50%, transparent)
+      calc(70deg * var(--composer-working-border-grow)),
+    transparent calc(90deg * var(--composer-working-border-grow)),
+    transparent 360deg
+  );
+}
+
+.chat-input-working-border-glow[data-variant="spectrum"]
+  .chat-input-working-border-arc::before {
+  background: conic-gradient(
+    from
+      calc(
+        90deg +
+          atan2(100cqh, calc(100cqw / var(--composer-working-border-stretch))) -
+          30deg * var(--composer-working-border-grow)
+      ),
+    transparent 0deg,
+    color-mix(in srgb, var(--spectrum-2) 60%, transparent)
+      calc(25deg * var(--composer-working-border-grow)),
+    color-mix(in srgb, var(--spectrum-4) 35%, transparent)
       calc(50deg * var(--composer-working-border-grow)),
     transparent calc(90deg * var(--composer-working-border-grow)),
     transparent 360deg

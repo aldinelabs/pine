@@ -391,6 +391,7 @@ export default {
       "尚未配置 OpenRouter，可在“管理服务或模型”中添加凭据；配置前使用大模型审批。",
     utilityModel: "标题生成模型",
     approvalModel: "审批模型",
+    promptRewriteModel: "指令优化模型",
     selectUtilityModel: "选择模型",
     noUtilityModelSelected: "未选择任何模型",
     imageModel: "图像生成模型",
@@ -1284,6 +1285,12 @@ export default {
       placeholder: "描述任务、明确需求……",
       draftPlaceholder: "描述任务，或输入 {'@'} 选择项目",
       steeringPlaceholder: "追加要求、改变方向……",
+      optimizePrompt: "优化指令",
+      optimizingPrompt: "正在优化…",
+      optimizePromptFailed: "无法优化指令",
+      optimizePromptFailedDescription:
+        "请在 设置 › 模型 中检查指令优化模型后重试。",
+      undoPromptOptimization: "撤销优化",
       addAttachment: "添加附件",
       addFile: "添加文件",
       addFolder: "添加文件夹",
@@ -2552,6 +2559,10 @@ export default {
     approvalModel: {
       title: "无法更新审批模型",
       description: "请检查模型服务后重试",
+    },
+    promptRewriteModel: {
+      title: "无法更新指令优化模型",
+      description: "请检查模型提供商后重试",
     },
     imageModel: {
       title: "无法更新图像模型",

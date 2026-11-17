@@ -428,6 +428,7 @@ export default {
       "OpenRouter が設定されていません。「プロバイダとモデルを管理」で認証情報を追加してください。それまではモデルによるレビューが使用されます。",
     utilityModel: "タイトル生成用モデル",
     approvalModel: "承認レビュー用モデル",
+    promptRewriteModel: "指示最適化モデル",
     selectUtilityModel: "モデルを選択",
     noUtilityModelSelected: "モデルが選択されていません",
     imageModel: "画像生成モデル",
@@ -1360,6 +1361,12 @@ export default {
       draftPlaceholder:
         "タスクを説明するか、{'@'} を入力してプロジェクトを選択",
       steeringPlaceholder: "要件を追加するか、方向を変更してください…",
+      optimizePrompt: "指示を最適化",
+      optimizingPrompt: "最適化しています…",
+      optimizePromptFailed: "指示を最適化できませんでした",
+      optimizePromptFailedDescription:
+        "設定 › モデル で指示最適化モデルを確認して、もう一度お試しください。",
+      undoPromptOptimization: "最適化を元に戻す",
       addAttachment: "添付ファイルを追加",
       addFile: "ファイルを追加",
       addFolder: "フォルダを追加",
@@ -2687,6 +2694,10 @@ export default {
     approvalModel: {
       title: "承認レビュー用モデルを更新できません",
       description: "モデルプロバイダを確認して、もう一度お試しください",
+    },
+    promptRewriteModel: {
+      title: "指示最適化モデルを更新できません",
+      description: "モデルプロバイダーを確認して、もう一度お試しください",
     },
     imageModel: {
       title: "画像モデルを更新できません",

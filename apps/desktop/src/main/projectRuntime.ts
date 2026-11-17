@@ -34,12 +34,17 @@ import type {
   ProviderLoginResult,
   SelectModelRequest,
   SelectApprovalModelRequest,
+  SelectPromptRewriteModelRequest,
   SelectUtilityModelRequest,
   SelectImageModelRequest,
   SelectVideoModelRequest,
   UpdateCustomModelRequest,
   UpdateCustomProviderRequest,
 } from "../shared/models";
+import type {
+  RewritePromptRequest,
+  RewritePromptResult,
+} from "../shared/promptRewrite";
 import type {
   LoadSessionMessagesResult,
   PineContextUsage,
@@ -1202,6 +1207,20 @@ export class ProjectRuntimeRegistry {
     request: SelectApprovalModelRequest,
   ): Promise<{ updated: boolean }> {
     return this.agentHost.selectApprovalModel(this.agentDir, request);
+  }
+
+  selectPromptRewriteModel(
+    request: SelectPromptRewriteModelRequest,
+  ): Promise<{ updated: boolean }> {
+    return this.agentHost.selectPromptRewriteModel(this.agentDir, request);
+  }
+
+  rewritePrompt(request: RewritePromptRequest): Promise<RewritePromptResult> {
+    return this.agentHost.rewritePrompt(
+      this.agentDir,
+      request.prompt,
+      request.context,
+    );
   }
 
   selectImageModel(

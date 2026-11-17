@@ -14,6 +14,7 @@ import {
   useAppearanceStore,
 } from "@/stores/appearance";
 import { useModelsStore } from "@/stores/models";
+import { useSessionStore } from "@/stores/session";
 import { showProject } from "@/stores/__tests__/showProject";
 import { useProjectStore } from "@/stores/project";
 import {
@@ -32,6 +33,7 @@ interface ComposerProps {
   approvalMode?: "let-me-review" | "auto-approve" | "autonomous" | "YOLO";
   isRunning?: boolean;
   isActive?: boolean;
+  sessionId?: string;
   pendingApproval?: PinePendingApproval | null;
   pendingAutomationApproval?: AutomationApprovalRequest | null;
 }
@@ -1010,6 +1012,221 @@ describe("ProjectSessionComposer", () => {
     });
     expect(wrapper.findComponent(ProjectApprovalCard).exists()).toBe(true);
     expect(wrapper.find(WORKING_BORDER).exists()).toBe(false);
+    wrapper.unmount();
+  });
+
+  it("optimizes the prompt with Option+Enter, disabling the input in colour meanwhile", async () => {
+    let resolve: (value: { prompt: string }) => void = () => undefined;
+    const rewritePrompt = vi.fn(
+      () =>
+        new Promise<{ prompt: string }>((done) => {
+          resolve = done;
+        }),
+    );
+    const wrapper = mountComposer({ isActive: true }, "high", "zh-CN", {
+      rewritePrompt,
+    });
+    const textarea = wrapper.get("textarea");
+    await textarea.setValue("写个周报");
+
+    await textarea.trigger("keydown", { key: "Enter", altKey: true });
+
+    expect(rewritePrompt).toHaveBeenCalledWith(
+      expect.objectContaining({ prompt: "写个周报" }),
+    );
+    expect(wrapper.emitted("submit")).toBeUndefined();
+    expect(textarea.attributes("disabled")).toBeDefined();
+    expect(wrapper.get(WORKING_BORDER).attributes("data-variant")).toBe(
+      "spectrum",
+    );
+    expect(
+      wrapper.get('button[aria-label="发送消息"]').attributes("disabled"),
+    ).toBeDefined();
+
+    resolve({ prompt: "为 [[团队名称]] 写一份本周周报。" });
+    await flushPromises();
+
+    await flushPromises();
+    const element = textarea.element as HTMLTextAreaElement;
+    expect(element.value).toBe("为 [[团队名称]] 写一份本周周报。");
+    expect(textarea.attributes("disabled")).toBeUndefined();
+    expect(
+      element.value.slice(element.selectionStart, element.selectionEnd),
+    ).toBe("[[团队名称]]");
+    wrapper.unmount();
+  });
+
+  it("ignores an optimized prompt that arrives after Escape", async () => {
+    let resolve: (value: { prompt: string }) => void = () => undefined;
+    const rewritePrompt = vi.fn(
+      () =>
+        new Promise<{ prompt: string }>((done) => {
+          resolve = done;
+        }),
+    );
+    const wrapper = mountComposer({ isActive: true }, "high", "zh-CN", {
+      rewritePrompt,
+    });
+    const textarea = wrapper.get("textarea");
+    await textarea.trigger("keydown", { key: "Enter", altKey: true });
+    expect(rewritePrompt).not.toHaveBeenCalled();
+    await textarea.setValue("整理一下");
+
+    await textarea.trigger("keydown", { key: "Enter", altKey: true });
+    expect(rewritePrompt).toHaveBeenCalledTimes(1);
+    window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+    await nextTick();
+    resolve({ prompt: "改写后的内容" });
+    await flushPromises();
+
+    expect((wrapper.get("textarea").element as HTMLTextAreaElement).value).toBe(
+      "整理一下",
+    );
+    expect(wrapper.get("textarea").attributes("disabled")).toBeUndefined();
+    wrapper.unmount();
+  });
+
+  it("does not optimize while the agent is running", async () => {
+    const rewritePrompt = vi.fn();
+    const wrapper = mountComposer({ isRunning: true }, "high", "zh-CN", {
+      rewritePrompt,
+    });
+    const textarea = wrapper.get("textarea");
+    await textarea.setValue("补充一点");
+
+    await textarea.trigger("keydown", { key: "Enter", altKey: true });
+
+    expect(rewritePrompt).not.toHaveBeenCalled();
+    expect(wrapper.emitted("submit")).toBeUndefined();
+  });
+
+  it("offers Optimize prompt in a new session's footer and beside Send in a session", async () => {
+    const rewritePrompt = vi.fn(() => new Promise(() => undefined));
+    const draft = mountComposer({}, "high", "zh-CN", { rewritePrompt });
+    const trigger = draft
+      .get('[data-slot="session-composer-footer"]')
+      .get('[data-slot="optimize-prompt-trigger"]');
+    expect(trigger.text()).toContain("优化指令");
+    expect(trigger.attributes("disabled")).toBeDefined();
+
+    await draft.get("textarea").setValue("写个周报");
+    await trigger.trigger("click");
+    expect(rewritePrompt).toHaveBeenCalledWith(
+      expect.objectContaining({ prompt: "写个周报" }),
+    );
+
+    // A rewrite turns the button into Undo, which brings the text back.
+    draft.unmount();
+    let resolve: (value: { prompt: string }) => void = () => undefined;
+    const undoable = mountComposer({}, "high", "zh-CN", {
+      rewritePrompt: () =>
+        new Promise<{ prompt: string }>((done) => {
+          resolve = done;
+        }),
+    });
+    await undoable.get("textarea").setValue("写个周报");
+    await undoable
+      .get('[data-slot="optimize-prompt-trigger"]')
+      .trigger("click");
+    resolve({ prompt: "为 [[团队名称]] 写周报。" });
+    await flushPromises();
+    await flushPromises();
+    expect(
+      undoable.find('[data-slot="optimize-prompt-trigger"]').exists(),
+    ).toBe(false);
+    await undoable
+      .get('[data-slot="undo-prompt-optimization"]')
+      .trigger("click");
+    expect(
+      (undoable.get("textarea").element as HTMLTextAreaElement).value,
+    ).toBe("写个周报");
+    expect(
+      undoable.find('[data-slot="optimize-prompt-trigger"]').exists(),
+    ).toBe(true);
+    undoable.unmount();
+
+    // In a session it sits beside Send instead, and hides while running.
+    const session = mountComposer({ sessionId: "session-1" });
+    expect(
+      session
+        .get('[data-slot="session-composer-footer"]')
+        .find('[data-slot="optimize-prompt-trigger"]')
+        .exists(),
+    ).toBe(false);
+    expect(
+      session
+        .get('.session-composer-row [data-align="inline-end"]')
+        .find('[data-slot="optimize-prompt-trigger"]')
+        .exists(),
+    ).toBe(true);
+    session.unmount();
+    const running = mountComposer({ sessionId: "session-1", isRunning: true });
+    expect(running.find('[data-slot="optimize-prompt-trigger"]').exists()).toBe(
+      false,
+    );
+    running.unmount();
+  });
+
+  it("gives the rewriter the conversation, attachments and quotes as context", async () => {
+    const rewritePrompt = vi.fn(() => new Promise(() => undefined));
+    const wrapper = mountComposer(
+      { sessionId: "session-1", isActive: true },
+      "high",
+      "zh-CN",
+      { rewritePrompt },
+    );
+    const state = useSessionStore().stateFor("session-1");
+    state.messages = [
+      {
+        id: "m1",
+        createdAt: "2026-11-17T00:00:00.000Z",
+        role: "user",
+        status: "complete",
+        blocks: [{ type: "text", text: "整理 docs 目录" }],
+      },
+      {
+        id: "m2",
+        createdAt: "2026-11-17T00:00:01.000Z",
+        role: "assistant",
+        status: "complete",
+        blocks: [
+          { type: "thinking", thinking: "内部推理" },
+          { type: "text", text: "已整理，共 12 个文件。" },
+        ],
+      },
+    ];
+    await wrapper.setProps({
+      quotes: [{ text: "共 12 个文件", role: "assistant" }],
+      attachments: [
+        {
+          extension: "md",
+          kind: "file",
+          modifiedAt: "2026-11-17T00:00:00.000Z",
+          name: "README.md",
+          path: "/repo/README.md",
+          size: 10,
+        },
+      ],
+    });
+    const textarea = wrapper.get("textarea");
+    await textarea.setValue("把刚才那些再按日期排一下");
+
+    await textarea.trigger("keydown", { key: "Enter", altKey: true });
+
+    expect(rewritePrompt).toHaveBeenCalledWith({
+      prompt: "把刚才那些再按日期排一下",
+      context: {
+        conversation: [
+          { role: "user", text: "整理 docs 目录" },
+          { role: "assistant", text: "已整理，共 12 个文件。" },
+        ],
+        conversationTrimmed: false,
+        attachments: [
+          { name: "README.md", path: "/repo/README.md", kind: "file" },
+        ],
+        quotes: [{ text: "共 12 个文件" }],
+      },
+    });
     wrapper.unmount();
   });
 });

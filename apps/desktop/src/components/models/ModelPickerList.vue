@@ -87,7 +87,13 @@ const props = withDefaults(
   defineProps<{
     favoriteKeys: readonly string[];
     purpose?:
-      "session" | "utility" | "approval" | "image" | "video" | "decisions";
+      | "session"
+      | "utility"
+      | "approval"
+      | "promptRewrite"
+      | "image"
+      | "video"
+      | "decisions";
     sessionId?: string;
     view: PickerView;
     class?: HTMLAttributes["class"];
@@ -495,7 +501,9 @@ function isSelected(model: PineModelDescriptor): boolean {
       ? modelsStore.utilitySelection
       : props.purpose === "approval"
         ? modelsStore.approvalSelection
-        : sessionSelection.value;
+        : props.purpose === "promptRewrite"
+          ? modelsStore.promptRewriteSelection
+          : sessionSelection.value;
   return (
     selected?.providerId === model.providerId && selected.modelId === model.id
   );

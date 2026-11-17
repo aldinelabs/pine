@@ -426,6 +426,7 @@ export default {
       "OpenRouter no está configurado. Añade una credencial en «Gestionar proveedores y modelos»; mientras tanto se usa la revisión por modelo.",
     utilityModel: "Modelo de generación de títulos",
     approvalModel: "Modelo de revisión de aprobaciones",
+    promptRewriteModel: "Modelo de optimización de prompts",
     selectUtilityModel: "Elegir modelo",
     noUtilityModelSelected: "Ningún modelo seleccionado",
     imageModel: "Modelo de generación de imágenes",
@@ -1371,6 +1372,12 @@ export default {
       draftPlaceholder:
         "Describe una tarea o escribe {'@'} para elegir un proyecto",
       steeringPlaceholder: "Añade requisitos o cambia de rumbo…",
+      optimizePrompt: "Optimizar prompt",
+      optimizingPrompt: "Optimizando…",
+      optimizePromptFailed: "No se pudo optimizar el prompt",
+      optimizePromptFailedDescription:
+        "Revisa el modelo de optimización de prompts en Ajustes › Modelos e inténtalo de nuevo.",
+      undoPromptOptimization: "Deshacer optimización",
       addAttachment: "Añadir adjunto",
       addFile: "Añadir archivo",
       addFolder: "Añadir carpeta",
@@ -2705,6 +2712,10 @@ export default {
     approvalModel: {
       title: "No se puede actualizar el modelo de revisión",
       description: "Comprueba el proveedor del modelo e inténtalo de nuevo",
+    },
+    promptRewriteModel: {
+      title: "No se pudo actualizar el modelo de optimización de prompts",
+      description: "Revisa el proveedor del modelo e inténtalo de nuevo",
     },
     imageModel: {
       title: "No se puede actualizar el modelo de imagen",

@@ -1,3 +1,4 @@
+import type { PromptRewriteContext } from "../shared/promptRewrite";
 import type {
   PineAgentEvent,
   PineApprovalMode,
@@ -17,6 +18,7 @@ import type {
   PineProviderAuthEvent,
   PineThinkingLevel,
   PineApprovalModelSelection,
+  PinePromptRewriteModelSelection,
   PineUtilityModelSelection,
   ProviderLoginResult,
   UpdateCustomModelRequest,
@@ -390,6 +392,19 @@ export type AgentWorkerRequest =
     }
   | {
       id: string;
+      type: "models:select-prompt-rewrite";
+      agentDir: string;
+      selection: PinePromptRewriteModelSelection;
+    }
+  | {
+      id: string;
+      type: "prompts:rewrite";
+      agentDir: string;
+      prompt: string;
+      context?: PromptRewriteContext;
+    }
+  | {
+      id: string;
       type: "models:select-image";
       agentDir: string;
       selection: PineImageModelSelection;
@@ -481,6 +496,7 @@ export type AgentWorkerResult =
   | { disposed: boolean }
   | { delivered: boolean }
   | { updated: boolean }
+  | { prompt: string }
   | AgentWorkerMutateResult;
 
 /** The mutators that changed the session; already-applied ones are skipped. */

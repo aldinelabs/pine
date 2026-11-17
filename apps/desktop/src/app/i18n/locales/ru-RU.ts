@@ -418,6 +418,7 @@ export default {
       "OpenRouter не настроен. Добавьте учётные данные в разделе «Управление провайдерами и моделями»; пока используется проверка моделью.",
     utilityModel: "Модель генерации заголовков",
     approvalModel: "Модель проверки разрешений",
+    promptRewriteModel: "Модель оптимизации запросов",
     selectUtilityModel: "Выбрать модель",
     noUtilityModelSelected: "Модель не выбрана",
     imageModel: "Модель генерации изображений",
@@ -1358,6 +1359,12 @@ export default {
       draftPlaceholder:
         "Опишите задачу или введите {'@'}, чтобы выбрать проект",
       steeringPlaceholder: "Добавьте требования или измените направление…",
+      optimizePrompt: "Улучшить запрос",
+      optimizingPrompt: "Улучшаем…",
+      optimizePromptFailed: "Не удалось улучшить запрос",
+      optimizePromptFailedDescription:
+        "Проверьте модель оптимизации запросов в разделе Настройки › Модели и повторите попытку.",
+      undoPromptOptimization: "Отменить улучшение",
       addAttachment: "Добавить вложение",
       addFile: "Добавить файл",
       addFolder: "Добавить папку",
@@ -2682,6 +2689,10 @@ export default {
     approvalModel: {
       title: "Не удалось обновить модель проверки разрешений",
       description: "Проверьте провайдера модели и повторите попытку",
+    },
+    promptRewriteModel: {
+      title: "Не удалось изменить модель оптимизации запросов",
+      description: "Проверьте поставщика модели и повторите попытку",
     },
     imageModel: {
       title: "Не удалось обновить модель изображений",

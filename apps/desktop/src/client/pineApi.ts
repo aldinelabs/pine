@@ -140,6 +140,7 @@ import {
   SELECT_IMAGE_MODEL_CHANNEL,
   SELECT_VIDEO_MODEL_CHANNEL,
   SELECT_APPROVAL_MODEL_CHANNEL,
+  SELECT_PROMPT_REWRITE_MODEL_CHANNEL,
   SELECT_UTILITY_MODEL_CHANNEL,
   UPDATE_CUSTOM_MODEL_CHANNEL,
   UPDATE_CUSTOM_PROVIDER_CHANNEL,
@@ -161,8 +162,14 @@ import {
   type SelectImageModelRequest,
   type SelectVideoModelRequest,
   type SelectApprovalModelRequest,
+  type SelectPromptRewriteModelRequest,
   type SelectUtilityModelRequest,
 } from "../shared/models";
+import {
+  REWRITE_PROMPT_CHANNEL,
+  type RewritePromptRequest,
+  type RewritePromptResult,
+} from "../shared/promptRewrite";
 import {
   CREATE_SKILL_CHANNEL,
   EDIT_SKILL_CHANNEL,
@@ -749,6 +756,14 @@ export function createPineApi(transport: PineTransport): PineDesktopApi {
       request: SelectApprovalModelRequest,
     ): Promise<{ updated: boolean }> =>
       transport.invoke(SELECT_APPROVAL_MODEL_CHANNEL, request),
+    selectPromptRewriteModel: (
+      request: SelectPromptRewriteModelRequest,
+    ): Promise<{ updated: boolean }> =>
+      transport.invoke(SELECT_PROMPT_REWRITE_MODEL_CHANNEL, request),
+    rewritePrompt: (
+      request: RewritePromptRequest,
+    ): Promise<RewritePromptResult> =>
+      transport.invoke(REWRITE_PROMPT_CHANNEL, request),
     selectImageModel: (
       request: SelectImageModelRequest,
     ): Promise<{ updated: boolean }> =>

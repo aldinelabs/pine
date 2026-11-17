@@ -13,6 +13,7 @@ import {
   SELECT_VIDEO_MODEL_CHANNEL,
   SELECT_MODEL_CHANNEL,
   SELECT_APPROVAL_MODEL_CHANNEL,
+  SELECT_PROMPT_REWRITE_MODEL_CHANNEL,
   SELECT_UTILITY_MODEL_CHANNEL,
   UPDATE_CUSTOM_MODEL_CHANNEL,
   UPDATE_CUSTOM_PROVIDER_CHANNEL,
@@ -26,6 +27,10 @@ import {
   type UpdateCustomModelRequest,
   type UpdateCustomProviderRequest,
 } from "../../../shared/models";
+import {
+  REWRITE_PROMPT_CHANNEL,
+  type RewritePromptResult,
+} from "../../../shared/promptRewrite";
 import type { PineCore } from "../pineCore";
 import {
   AddCustomModelRequestSchema,
@@ -40,6 +45,8 @@ import {
   SelectVideoModelRequestSchema,
   SelectModelRequestSchema,
   SelectApprovalModelRequestSchema,
+  SelectPromptRewriteModelRequestSchema,
+  RewritePromptRequestSchema,
   SelectUtilityModelRequestSchema,
   UpdateCustomModelRequestSchema,
   UpdateCustomProviderRequestSchema,
@@ -198,6 +205,20 @@ export function registerModelRequests(core: PineCore): void {
       core.runtimes.selectApprovalModel(
         SelectApprovalModelRequestSchema.parse(request),
       ),
+  );
+
+  core.handle(
+    SELECT_PROMPT_REWRITE_MODEL_CHANNEL,
+    (_context, request: unknown): Promise<{ updated: boolean }> =>
+      core.runtimes.selectPromptRewriteModel(
+        SelectPromptRewriteModelRequestSchema.parse(request),
+      ),
+  );
+
+  core.handle(
+    REWRITE_PROMPT_CHANNEL,
+    (_context, request: unknown): Promise<RewritePromptResult> =>
+      core.runtimes.rewritePrompt(RewritePromptRequestSchema.parse(request)),
   );
 
   core.handle(

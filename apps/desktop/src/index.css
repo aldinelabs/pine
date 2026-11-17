@@ -43,6 +43,74 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* Pine's spectrum: one multicoloured gradient (peach, pink, lavender, blue,
+   pale cyan) for work Pine does on the prompt itself, such as Optimize
+   prompt. Light themes take deeper tones so text stays readable. */
+:root {
+  --spectrum-1: oklch(0.62 0.11 55);
+  --spectrum-2: oklch(0.58 0.14 355);
+  --spectrum-3: oklch(0.55 0.17 295);
+  --spectrum-4: oklch(0.57 0.15 260);
+  --spectrum-5: oklch(0.6 0.1 215);
+}
+
+:root.dark {
+  --spectrum-1: oklch(0.91 0.05 70);
+  --spectrum-2: oklch(0.79 0.08 355);
+  --spectrum-3: oklch(0.71 0.14 295);
+  --spectrum-4: oklch(0.73 0.12 260);
+  --spectrum-5: oklch(0.91 0.06 210);
+}
+
+/* Text filled with the spectrum, left to right. */
+@utility text-spectrum {
+  background-image: linear-gradient(
+    90deg,
+    var(--spectrum-1),
+    var(--spectrum-2),
+    var(--spectrum-3),
+    var(--spectrum-4),
+    var(--spectrum-5)
+  );
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* The spectrum flows through the text while its work runs. */
+@utility text-spectrum-flow {
+  background-image: linear-gradient(
+    90deg,
+    var(--spectrum-1),
+    var(--spectrum-2),
+    var(--spectrum-3),
+    var(--spectrum-4),
+    var(--spectrum-5),
+    var(--spectrum-4),
+    var(--spectrum-3),
+    var(--spectrum-2),
+    var(--spectrum-1)
+  );
+  background-size: 200% 100%;
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: text-spectrum-flow 2s linear infinite;
+
+  @media (prefers-reduced-motion: reduce) {
+    animation: none;
+  }
+}
+
+@keyframes text-spectrum-flow {
+  from {
+    background-position: 0 0;
+  }
+  to {
+    background-position: -200% 0;
+  }
+}
+
 @utility window-drag {
   -webkit-app-region: drag;
   app-region: drag;

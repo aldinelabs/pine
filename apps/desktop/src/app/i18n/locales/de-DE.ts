@@ -427,6 +427,7 @@ export default {
       "OpenRouter ist nicht eingerichtet. Fügen Sie unter „Anbieter und Modelle verwalten“ Zugangsdaten hinzu; bis dahin wird die Prüfung durch ein Modell verwendet.",
     utilityModel: "Modell für Titelerzeugung",
     approvalModel: "Modell für Freigabeprüfung",
+    promptRewriteModel: "Modell für Prompt-Optimierung",
     selectUtilityModel: "Modell auswählen",
     noUtilityModelSelected: "Kein Modell ausgewählt",
     imageModel: "Modell für Bilderzeugung",
@@ -1378,6 +1379,12 @@ export default {
       draftPlaceholder:
         "Beschreiben Sie eine Aufgabe oder geben Sie {'@'} ein, um ein Projekt auszuwählen",
       steeringPlaceholder: "Anforderungen ergänzen oder die Richtung ändern…",
+      optimizePrompt: "Prompt optimieren",
+      optimizingPrompt: "Wird optimiert…",
+      optimizePromptFailed: "Der Prompt konnte nicht optimiert werden",
+      optimizePromptFailedDescription:
+        "Prüfe das Modell für Prompt-Optimierung unter Einstellungen › Modelle und versuche es erneut.",
+      undoPromptOptimization: "Optimierung rückgängig machen",
       addAttachment: "Anhang hinzufügen",
       addFile: "Datei hinzufügen",
       addFolder: "Ordner hinzufügen",
@@ -2725,6 +2732,10 @@ export default {
     approvalModel: {
       title: "Freigabemodell konnte nicht aktualisiert werden",
       description: "Prüfen Sie den Modellanbieter und versuchen Sie es erneut",
+    },
+    promptRewriteModel: {
+      title: "Modell für Prompt-Optimierung konnte nicht geändert werden",
+      description: "Prüfe den Modellanbieter und versuche es erneut",
     },
     imageModel: {
       title: "Bildmodell konnte nicht aktualisiert werden",

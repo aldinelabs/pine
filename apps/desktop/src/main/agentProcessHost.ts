@@ -1,3 +1,4 @@
+import type { PromptRewriteContext } from "../shared/promptRewrite";
 import { randomUUID } from "node:crypto";
 import type { PiProvidersStatus } from "../shared/piProviders";
 import type { McpStatusSnapshot } from "pi-mcp-adapter";
@@ -26,6 +27,7 @@ import type {
   PineModelCatalog,
   PineThinkingLevel,
   PineApprovalModelSelection,
+  PinePromptRewriteModelSelection,
   PineUtilityModelSelection,
   ProviderLoginResult,
   UpdateCustomModelRequest,
@@ -171,6 +173,15 @@ export interface AgentHost {
     agentDir: string,
     selection: PineApprovalModelSelection,
   ): Promise<{ updated: boolean }>;
+  selectPromptRewriteModel(
+    agentDir: string,
+    selection: PinePromptRewriteModelSelection,
+  ): Promise<{ updated: boolean }>;
+  rewritePrompt(
+    agentDir: string,
+    prompt: string,
+    context?: PromptRewriteContext,
+  ): Promise<{ prompt: string }>;
   selectImageModel(
     agentDir: string,
     selection: PineImageModelSelection,
@@ -489,6 +500,30 @@ export class AgentProcessHost implements AgentHost {
       type: "models:select-approval",
       agentDir,
       selection,
+    });
+  }
+
+  selectPromptRewriteModel(
+    agentDir: string,
+    selection: PinePromptRewriteModelSelection,
+  ): Promise<{ updated: boolean }> {
+    return this.request({
+      type: "models:select-prompt-rewrite",
+      agentDir,
+      selection,
+    });
+  }
+
+  rewritePrompt(
+    agentDir: string,
+    prompt: string,
+    context?: PromptRewriteContext,
+  ): Promise<{ prompt: string }> {
+    return this.request({
+      type: "prompts:rewrite",
+      agentDir,
+      prompt,
+      ...(context ? { context } : {}),
     });
   }
 

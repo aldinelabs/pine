@@ -23,6 +23,7 @@ import {
   type PineProviderAuthEvent,
   type PineThinkingLevel,
   type PineApprovalModelSelection,
+  type PinePromptRewriteModelSelection,
   type PineUtilityModelSelection,
   type ProviderLoginResult,
   type UpdateCustomModelRequest,
@@ -49,6 +50,7 @@ import {
   writeImageModelSelection,
   writeVideoModelSelection,
   writeApprovalModelSelection,
+  writePromptRewriteModelSelection,
   writeUtilityModelSelection,
 } from "../pineSettings";
 import type { PineContextCompactionStrategy } from "../../shared/preferences";
@@ -213,6 +215,17 @@ export class PineModelService {
         ? approvalSelection
         : undefined;
 
+    const promptRewriteSelection = pineSettings.promptRewriteModel;
+    const validPromptRewriteSelection =
+      promptRewriteSelection &&
+      runtime.hasConfiguredAuth(promptRewriteSelection.providerId) &&
+      runtime.getModel(
+        promptRewriteSelection.providerId,
+        promptRewriteSelection.modelId,
+      )
+        ? promptRewriteSelection
+        : undefined;
+
     const imageSelection = pineSettings.imageModel;
     const storedImageSelection =
       imageSelection &&
@@ -260,6 +273,9 @@ export class PineModelService {
         : {}),
       ...(validApprovalSelection
         ? { approvalSelection: validApprovalSelection }
+        : {}),
+      ...(validPromptRewriteSelection
+        ? { promptRewriteSelection: validPromptRewriteSelection }
         : {}),
       ...(defaultProvider &&
       defaultModel &&
@@ -522,6 +538,21 @@ export class PineModelService {
     return { updated: true };
   }
 
+  async selectPromptRewriteModel(
+    agentDir: string,
+    selection: PinePromptRewriteModelSelection,
+  ): Promise<{ updated: boolean }> {
+    const runtime = await this.getModelRuntime(agentDir);
+    const model = runtime.getModel(selection.providerId, selection.modelId);
+    if (!model) throw new Error("Model not found.");
+    const available = await runtime.getAvailable(selection.providerId);
+    if (!available.some((candidate) => candidate.id === selection.modelId)) {
+      throw new Error("Configure this provider before selecting its model.");
+    }
+    await writePromptRewriteModelSelection(agentDir, selection);
+    return { updated: true };
+  }
+
   async selectVideoModel(
     agentDir: string,
     selection: PineVideoModelSelection,
@@ -601,6 +632,23 @@ export class PineModelService {
     runtime: ModelRuntime,
   ): Promise<Model<Api> | undefined> {
     const selection = (await readPineAgentSettings(agentDir)).approvalModel;
+    if (
+      selection &&
+      runtime.hasConfiguredAuth(selection.providerId) &&
+      runtime.getModel(selection.providerId, selection.modelId)
+    ) {
+      return runtime.getModel(selection.providerId, selection.modelId);
+    }
+    return this.utilityModel(agentDir, runtime);
+  }
+
+  /** The prompt rewriter's model; falls back to the title/utility model. */
+  async promptRewriteModel(
+    agentDir: string,
+    runtime: ModelRuntime,
+  ): Promise<Model<Api> | undefined> {
+    const selection = (await readPineAgentSettings(agentDir))
+      .promptRewriteModel;
     if (
       selection &&
       runtime.hasConfiguredAuth(selection.providerId) &&

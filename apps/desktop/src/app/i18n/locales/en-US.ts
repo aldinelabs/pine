@@ -417,6 +417,7 @@ export default {
       "OpenRouter is not configured. Add a credential in Manage providers or models; model review is used until then.",
     utilityModel: "Title generation model",
     approvalModel: "Approval model",
+    promptRewriteModel: "Prompt optimization model",
     selectUtilityModel: "Choose model",
     noUtilityModelSelected: "No model selected",
     imageModel: "Image generation model",
@@ -1349,6 +1350,12 @@ export default {
       placeholder: "Describe a task or clarify what you need…",
       draftPlaceholder: "Describe a task, or type {'@'} to choose a project",
       steeringPlaceholder: "Add requirements or change direction…",
+      optimizePrompt: "Optimize prompt",
+      optimizingPrompt: "Optimizing…",
+      optimizePromptFailed: "Couldn't optimize the prompt",
+      optimizePromptFailedDescription:
+        "Check the prompt optimization model in Settings › Models, then try again.",
+      undoPromptOptimization: "Undo optimization",
       addAttachment: "Add attachment",
       addFile: "Add file",
       addFolder: "Add folder",
@@ -2643,6 +2650,10 @@ export default {
     },
     approvalModel: {
       title: "Unable to update approval model",
+      description: "Check the model provider and try again",
+    },
+    promptRewriteModel: {
+      title: "Unable to update prompt optimization model",
       description: "Check the model provider and try again",
     },
     imageModel: {

@@ -177,6 +177,19 @@ async function handleRequest(request: AgentWorkerRequest): Promise<void> {
         request.selection,
       );
       break;
+    case "models:select-prompt-rewrite":
+      result = await runtime.selectPromptRewriteModel(
+        request.agentDir,
+        request.selection,
+      );
+      break;
+    case "prompts:rewrite":
+      result = await runtime.rewritePrompt(
+        request.agentDir,
+        request.prompt,
+        request.context,
+      );
+      break;
     case "models:select-image":
       result = await runtime.selectImageModel(
         request.agentDir,
