@@ -9,6 +9,12 @@ Every release section here has a matching section in the Chinese changelog.
 
 ## [Unreleased]
 
+## [0.21.2] - 2026-11-17
+
+### Fixed
+
+- The reply suggestion in the composer now waits for the placeholder to fade out before it appears, disappears as soon as you start typing (including while composing with an input method), and comes back if you clear the box after filling it in with `Tab`.
+
 ## [0.21.1] - 2026-11-17
 
 > **Highlights**: Optimize a prompt in one step, get a suggested reply once the agent answers, and manage memories in their own window.
