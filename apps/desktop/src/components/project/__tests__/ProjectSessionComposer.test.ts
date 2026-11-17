@@ -8,6 +8,7 @@ import {
   PASTED_TEXT_ATTACHMENT_THRESHOLD_BYTES,
   type PineAttachment,
 } from "@/shared/attachments";
+import { resolveProviderIcon } from "@/lib/provider-icons";
 import type { PineThinkingLevel } from "@/shared/models";
 import {
   COMPOSER_GLOW_STORAGE_KEY,
@@ -297,6 +298,14 @@ describe("ProjectSessionComposer", () => {
     );
     expect(document.activeElement).toBe(textarea);
     wrapper.unmount();
+  });
+
+  it("shows the selected model's provider icon in the model trigger", () => {
+    const wrapper = mountComposer();
+    const icon = wrapper.get('[data-slot="model-selector-trigger"] img');
+
+    expect(icon.attributes("data-icon")).toBe("inline-start");
+    expect(icon.attributes("src")).toBe(resolveProviderIcon("anthropic")?.src);
   });
 
   it("opens the approval mode menu with Cmd+R and the model menu with Cmd+I", async () => {

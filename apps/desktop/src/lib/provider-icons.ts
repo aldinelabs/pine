@@ -1,3 +1,18 @@
+import ai21Icon from "@lobehub/icons-static-svg/icons/ai21.svg";
+import alibabaIcon from "@lobehub/icons-static-svg/icons/alibaba-color.svg";
+import baiduIcon from "@lobehub/icons-static-svg/icons/baidu-color.svg";
+import bflIcon from "@lobehub/icons-static-svg/icons/bfl.svg";
+import byteDanceIcon from "@lobehub/icons-static-svg/icons/bytedance-color.svg";
+import cohereIcon from "@lobehub/icons-static-svg/icons/cohere-color.svg";
+import hunyuanIcon from "@lobehub/icons-static-svg/icons/hunyuan-color.svg";
+import ibmIcon from "@lobehub/icons-static-svg/icons/ibm.svg";
+import klingIcon from "@lobehub/icons-static-svg/icons/kling-color.svg";
+import metaIcon from "@lobehub/icons-static-svg/icons/meta-color.svg";
+import microsoftIcon from "@lobehub/icons-static-svg/icons/microsoft-color.svg";
+import novaIcon from "@lobehub/icons-static-svg/icons/nova-color.svg";
+import perplexityIcon from "@lobehub/icons-static-svg/icons/perplexity-color.svg";
+import qwenIcon from "@lobehub/icons-static-svg/icons/qwen-color.svg";
+import stepfunIcon from "@lobehub/icons-static-svg/icons/stepfun-color.svg";
 import amazonBedrockIcon from "@lobehub/icons-static-svg/icons/bedrock-color.svg";
 import antGroupIcon from "@lobehub/icons-static-svg/icons/antgroup-color.svg";
 import anthropicIcon from "@lobehub/icons-static-svg/icons/anthropic.svg";
@@ -32,6 +47,21 @@ export interface ProviderIconDefinition {
 }
 
 const PROVIDER_ICONS = {
+  ai21: { monochrome: true, src: ai21Icon },
+  alibaba: { src: alibabaIcon },
+  baidu: { src: baiduIcon },
+  bfl: { monochrome: true, src: bflIcon },
+  bytedance: { src: byteDanceIcon },
+  cohere: { src: cohereIcon },
+  hunyuan: { src: hunyuanIcon },
+  ibm: { monochrome: true, src: ibmIcon },
+  kling: { src: klingIcon },
+  meta: { src: metaIcon },
+  microsoft: { src: microsoftIcon },
+  nova: { src: novaIcon },
+  perplexity: { src: perplexityIcon },
+  qwen: { src: qwenIcon },
+  stepfun: { src: stepfunIcon },
   antgroup: { src: antGroupIcon },
   anthropic: { monochrome: true, src: anthropicIcon },
   azure: { src: azureIcon },
@@ -128,4 +158,102 @@ export function resolveProviderIcon(
       ? PROVIDER_ALIASES[normalizeProvider(providerName)]
       : undefined);
   return iconId ? PROVIDER_ICONS[iconId] : undefined;
+}
+
+/**
+ * Model vendors as they appear before the `/` in aggregator model IDs
+ * (OpenRouter, Vercel AI Gateway, …), normalized like provider IDs.
+ */
+const VENDOR_ALIASES: Readonly<Record<string, ProviderIconId>> = {
+  ...PROVIDER_ALIASES,
+  ai21: "ai21",
+  alibaba: "alibaba",
+  amazon: "nova",
+  baidu: "baidu",
+  blackforestlabs: "bfl",
+  bytedance: "bytedance",
+  bytedanceseed: "bytedance",
+  cohere: "cohere",
+  ibm: "ibm",
+  ibmgranite: "ibm",
+  kwaivgi: "kling",
+  meta: "meta",
+  metallama: "meta",
+  microsoft: "microsoft",
+  mistralai: "mistral",
+  perplexity: "perplexity",
+  qwen: "qwen",
+  stepfun: "stepfun",
+  stepfunai: "stepfun",
+  tencent: "hunyuan",
+  thudm: "zhipu",
+};
+
+/** Name prefixes of bare model IDs (no vendor segment), checked in order. */
+const MODEL_NAME_PATTERNS: readonly (readonly [RegExp, ProviderIconId])[] = [
+  [/^claude/, "anthropic"],
+  [/^(gpt|chatgpt|o[134](\b|-|$)|codex|dall-?e|sora|whisper|tts-)/, "openai"],
+  [/^(gemini|gemma|imagen|veo|nano-?banana)/, "google"],
+  [/^grok/, "xai"],
+  [/^deepseek/, "deepseek"],
+  [/^(qwen|qwq|qvq|wan\d)/, "qwen"],
+  [/^(kimi|moonshot)/, "moonshot"],
+  [/^(glm|chatglm|cogview|cogvideo)/, "zhipu"],
+  [/^(minimax|abab|hailuo)/, "minimax"],
+  [/^(doubao|seed)/, "bytedance"],
+  [/^(llama|meta-llama)/, "meta"],
+  [
+    /^(mistral|mixtral|codestral|devstral|magistral|ministral|pixtral)/,
+    "mistral",
+  ],
+  [/^phi-?\d/, "microsoft"],
+  [/^(hunyuan|hy\d)/, "hunyuan"],
+  [/^mimo/, "xiaomimimo"],
+  [/^ernie/, "baidu"],
+  [/^(amazon[.-])?nova/, "nova"],
+  [/^command/, "cohere"],
+  [/^flux/, "bfl"],
+  [/^kling/, "kling"],
+  [/^step-?\d/, "stepfun"],
+  [/^sonar/, "perplexity"],
+  [/^granite/, "ibm"],
+];
+
+export interface ModelIconSource {
+  id: string;
+  name?: string;
+  providerId: string;
+  providerName?: string;
+}
+
+function matchModelName(value: string): ProviderIconId | undefined {
+  // OpenRouter display names read "Vendor: Model"; the model part matters.
+  const name = (value.split(": ").at(-1) ?? value)
+    .trim()
+    .toLocaleLowerCase("en-US");
+  return MODEL_NAME_PATTERNS.find(([pattern]) => pattern.test(name))?.[1];
+}
+
+/**
+ * The icon of the vendor that makes a model: the `vendor/` segment of an
+ * aggregator ID, then well-known model name prefixes, then — only for bare IDs,
+ * which a provider serves under its own name — the provider's icon. An unknown
+ * `vendor/` segment does not fall back to the aggregator's logo. `undefined`
+ * means callers show their generic icon.
+ */
+export function resolveModelIcon(
+  model: ModelIconSource,
+): ProviderIconDefinition | undefined {
+  const segments = model.id.split("/").filter(Boolean);
+  const hasVendorSegment = segments.length > 1;
+  const iconId =
+    (hasVendorSegment
+      ? VENDOR_ALIASES[normalizeProvider(segments[0] ?? "")]
+      : undefined) ??
+    matchModelName(segments.at(-1) ?? model.id) ??
+    (model.name ? matchModelName(model.name) : undefined);
+  if (iconId) return PROVIDER_ICONS[iconId];
+  return hasVendorSegment
+    ? undefined
+    : resolveProviderIcon(model.providerId, model.providerName);
 }

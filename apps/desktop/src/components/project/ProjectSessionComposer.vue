@@ -1504,6 +1504,12 @@ function handleRootSubmit(event: Event): void {
             variant="ghost"
             size="sm"
           >
+            <ProviderIcon
+              v-if="selectedModel"
+              data-icon="inline-start"
+              :provider-id="selectedModel.providerId"
+              :provider-name="selectedModel.providerName"
+            />
             <span class="truncate">
               {{ selectedModel?.name ?? t("project.composer.selectModel") }}
             </span>

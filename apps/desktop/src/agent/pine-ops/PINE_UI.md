@@ -402,7 +402,8 @@ From top to bottom:
      Optimize prompt button in a new session or Context usage once the
      session has started, and the action button. Mod+R opens the approval
      mode menu and Mod+I the model menu; holding Cmd/Ctrl slides each
-     menu's shortcut in beside its arrow.
+     menu's shortcut in beside its arrow. The Model control starts with the
+     selected model's provider icon (e.g. OpenRouter).
    - Approval modes: Let Me Review (ask before risky actions), Auto Approve
      (balance autonomy and control), Autonomous Work (maximize autonomy
      without user action), YOLO (no permission constraints; asks the user to
@@ -821,6 +822,12 @@ the user opens themselves do not pulse.
   and video generation model pickers start with their own "Recommended
   models" group when Pine recommends any. Recommendations are fetched online
   and only name models the user can pick.
+  Chat model rows start with their provider's icon (e.g. OpenRouter). In the
+  decisions, image and video generation model pickers, where every model comes
+  from OpenRouter, each row instead starts with the icon of the company that
+  makes the model (Google, OpenAI, Black Forest Labs, …), or a generic shield,
+  image or video icon when Pine doesn't recognize the maker. The selected
+  model's row shows a check mark in its place.
 - Update dialog: release notes and installing an update. The notes cover every
   version released after the installed one, up to the new version, newest
   first, each under its own version heading and date, in the interface

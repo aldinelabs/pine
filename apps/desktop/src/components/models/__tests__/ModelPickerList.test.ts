@@ -5,6 +5,7 @@ import { describe, expect, it, vi } from "vitest";
 import { createAppI18n } from "@/app/i18n";
 import { Command, CommandInput } from "@/components/ui/command";
 import type { PineModelCatalog, PineModelDescriptor } from "@/shared/models";
+import { resolveModelIcon } from "@/lib/provider-icons";
 import { useModelsStore } from "@/stores/models";
 import ModelPickerList from "../ModelPickerList.vue";
 
@@ -189,6 +190,37 @@ describe("ModelPickerList", () => {
       "OpenRouter GPT Image 1 openai/gpt-image-1",
     ]);
     expect(wrapper.text()).not.toContain("GLM 4.6");
+  });
+
+  it("keeps the provider icon on chat model rows", () => {
+    const wrapper = mountList();
+    const row = wrapper.get("[data-picker-row=model]");
+
+    expect(row.find("[data-slot=model-icon]").exists()).toBe(false);
+    expect(row.find("provider-icon-stub").exists()).toBe(true);
+  });
+
+  it("uses the vendor segment for aggregator image models", () => {
+    const wrapper = mountList("image");
+    const sources = wrapper
+      .findAll("[data-picker-row=image] [data-slot=model-icon]")
+      .map((icon) => icon.attributes("src"));
+
+    expect(sources).toContain(
+      resolveModelIcon({ id: "google/gemini-3-pro-image", providerId: "x" })
+        ?.src,
+    );
+    expect(sources).not.toContain(
+      resolveModelIcon({ id: "any", providerId: "openrouter" })?.src,
+    );
+  });
+
+  it("keeps the generic row icon for unknown vendors", () => {
+    const wrapper = mountList("video");
+    const row = wrapper.get("[data-picker-row=video]");
+
+    expect(row.find("[data-slot=model-icon]").exists()).toBe(false);
+    expect(row.find("svg").exists()).toBe(true);
   });
 
   it("omits the recommended group when no video model is recommended", () => {

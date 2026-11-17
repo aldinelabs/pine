@@ -32,6 +32,7 @@ import type {
 import { useAutoApprovalStore } from "@/stores/autoApproval";
 import { pineModelKey, useModelsStore } from "@/stores/models";
 import ModelCapabilities from "./ModelCapabilities.vue";
+import ModelIcon from "./ModelIcon.vue";
 import ProviderIcon from "./ProviderIcon.vue";
 
 type PickerView = "models" | "providers";
@@ -621,7 +622,9 @@ function withSearchReset(action: () => void): void {
             v-if="isImageModelSelected(row.model)"
             aria-hidden="true"
           />
-          <ImageIcon v-else aria-hidden="true" />
+          <ModelIcon v-else :model="row.model">
+            <template #fallback><ImageIcon aria-hidden="true" /></template>
+          </ModelIcon>
           <span class="flex min-w-0 flex-1 flex-col gap-0.5">
             <span class="truncate">{{ row.model.name }}</span>
             <span class="truncate text-xs font-normal text-muted-foreground">
@@ -641,7 +644,9 @@ function withSearchReset(action: () => void): void {
             v-if="isVideoModelSelected(row.model)"
             aria-hidden="true"
           />
-          <VideoIcon v-else aria-hidden="true" />
+          <ModelIcon v-else :model="row.model">
+            <template #fallback><VideoIcon aria-hidden="true" /></template>
+          </ModelIcon>
           <span class="flex min-w-0 flex-1 flex-col gap-0.5">
             <span class="truncate">{{ row.model.name }}</span>
             <span class="truncate text-xs font-normal text-muted-foreground">
@@ -664,7 +669,11 @@ function withSearchReset(action: () => void): void {
             v-if="autoApprovalStore.settings.decisionsModel === row.model.id"
             aria-hidden="true"
           />
-          <ShieldCheckIcon v-else aria-hidden="true" />
+          <ModelIcon v-else :model="row.model">
+            <template #fallback>
+              <ShieldCheckIcon aria-hidden="true" />
+            </template>
+          </ModelIcon>
           <span class="flex min-w-0 flex-1 flex-col gap-0.5">
             <span class="truncate">{{ row.model.name }}</span>
             <span class="truncate text-xs font-normal text-muted-foreground">{{
