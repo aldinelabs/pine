@@ -26,6 +26,7 @@ import type { PinePendingApproval } from "@/stores/session";
 import AutomationApprovalCard from "@/components/automations/AutomationApprovalCard.vue";
 import ProjectApprovalCard from "../ProjectApprovalCard.vue";
 import ProjectSessionComposer from "../ProjectSessionComposer.vue";
+import { MODIFIER_HOLD_DELAY_MS } from "@/composables/useModifierHold";
 
 interface ComposerProps {
   edgeInset?: boolean;
@@ -298,7 +299,53 @@ describe("ProjectSessionComposer", () => {
     wrapper.unmount();
   });
 
-  it("ignores Cmd+L in a hidden tab", () => {
+  it("opens the approval mode menu with Cmd+; and the model menu with Cmd+'", async () => {
+    const wrapper = mountComposer({ isActive: true });
+    const approval = wrapper.get('[data-slot="approval-mode-trigger"]');
+    const model = wrapper.get('[data-slot="model-selector-trigger"]');
+    expect(approval.attributes("aria-expanded")).toBe("false");
+
+    const cmdSemicolon = new KeyboardEvent("keydown", {
+      key: ";",
+      metaKey: true,
+      cancelable: true,
+    });
+    window.dispatchEvent(cmdSemicolon);
+    await flushPromises();
+    expect(cmdSemicolon.defaultPrevented).toBe(true);
+    expect(approval.attributes("aria-expanded")).toBe("true");
+
+    window.dispatchEvent(
+      new KeyboardEvent("keydown", { key: "'", ctrlKey: true }),
+    );
+    await flushPromises();
+    expect(model.attributes("aria-expanded")).toBe("true");
+    wrapper.unmount();
+  });
+
+  it("shows the menu shortcuts while Cmd is held", async () => {
+    vi.useFakeTimers();
+    const wrapper = mountComposer({ isActive: true });
+    expect(wrapper.find('[data-slot="approval-menu-shortcut"]').exists()).toBe(
+      false,
+    );
+    window.dispatchEvent(new KeyboardEvent("keydown", { key: "Meta" }));
+    vi.advanceTimersByTime(MODIFIER_HOLD_DELAY_MS);
+    await nextTick();
+    expect(wrapper.get('[data-slot="approval-menu-shortcut"]').text()).toBe(
+      "⌘;",
+    );
+    expect(wrapper.get('[data-slot="model-menu-shortcut"]').text()).toBe("⌘'");
+    window.dispatchEvent(new KeyboardEvent("keyup", { key: "Meta" }));
+    await nextTick();
+    expect(wrapper.find('[data-slot="model-menu-shortcut"]').exists()).toBe(
+      false,
+    );
+    wrapper.unmount();
+    vi.useRealTimers();
+  });
+
+  it("ignores Cmd+L and Cmd+; in a hidden tab", async () => {
     const wrapper = mountComposer({ isActive: false });
     const button = wrapper.find("button").element;
     button.focus();
@@ -306,6 +353,15 @@ describe("ProjectSessionComposer", () => {
       new KeyboardEvent("keydown", { key: "l", metaKey: true }),
     );
     expect(document.activeElement).toBe(button);
+    window.dispatchEvent(
+      new KeyboardEvent("keydown", { key: ";", metaKey: true }),
+    );
+    await flushPromises();
+    expect(
+      wrapper
+        .get('[data-slot="approval-mode-trigger"]')
+        .attributes("aria-expanded"),
+    ).toBe("false");
     wrapper.unmount();
   });
 

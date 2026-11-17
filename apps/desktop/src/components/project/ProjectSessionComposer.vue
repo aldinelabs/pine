@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { isWebClient } from "@/lib/clientRuntime";
-import type { Component } from "vue";
+import type { Component, Ref } from "vue";
 import {
   ArrowUpIcon,
   BrainCircuitIcon,
@@ -73,7 +73,8 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { Kbd } from "@/components/ui/kbd";
+import { Kbd, KbdGroup } from "@/components/ui/kbd";
+import { useModifierHold } from "@/composables/useModifierHold";
 import ProjectComposerOptimizeButton from "@/components/project/ProjectComposerOptimizeButton.vue";
 import { useShortcutHints } from "@/composables/useShortcutHints";
 import {
@@ -204,6 +205,8 @@ const selectedModel = computed(() =>
 );
 const messageId = useId();
 const isModelPickerOpen = ref(false);
+const isApprovalMenuOpen = ref(false);
+const isModelMenuOpen = ref(false);
 const isSessionPickerOpen = ref(false);
 const isYoloConfirmationOpen = ref(false);
 const attachments = defineModel<PineAttachment[]>("attachments", {
@@ -351,6 +354,33 @@ useEventListener(window, "keydown", (event: KeyboardEvent) => {
     return;
   event.preventDefault();
   focus();
+});
+
+// ⌘; / Ctrl+; opens the approval mode menu and ⌘' / Ctrl+' the model menu.
+const menuShortcuts: Record<string, Ref<boolean>> = {
+  ";": isApprovalMenuOpen,
+  "'": isModelMenuOpen,
+};
+// Holding Cmd/Ctrl swaps each menu's chevron for its shortcut.
+const modifierHeld = useModifierHold();
+const modifierLabel =
+  (window.pine?.platform ?? "darwin") === "darwin" ? "⌘" : "Ctrl";
+useEventListener(window, "keydown", (event: KeyboardEvent) => {
+  const menu = menuShortcuts[event.key];
+  if (
+    !menu ||
+    !props.isActive ||
+    !(event.metaKey || event.ctrlKey) ||
+    event.shiftKey ||
+    event.altKey ||
+    event.defaultPrevented
+  )
+    return;
+  if (!(document.getElementById(messageId) instanceof HTMLTextAreaElement))
+    return;
+  event.preventDefault();
+  if (event.repeat) return;
+  menu.value = true;
 });
 
 /*
@@ -1360,7 +1390,7 @@ function handleRootSubmit(event: Event): void {
       class="session-composer-footer flex min-w-0 items-center justify-between gap-3 pt-2"
     >
       <div class="flex min-w-0 items-center gap-1">
-        <DropdownMenu>
+        <DropdownMenu v-model:open="isApprovalMenuOpen">
           <DropdownMenuTrigger as-child>
             <Button
               data-slot="approval-mode-trigger"
@@ -1385,7 +1415,15 @@ function handleRootSubmit(event: Event): void {
               >
                 {{ selectedApprovalMode.label }}
               </span>
-              <ChevronDownIcon data-icon="inline-end" />
+              <KbdGroup
+                v-if="modifierHeld"
+                data-slot="approval-menu-shortcut"
+                aria-hidden="true"
+              >
+                <Kbd>{{ modifierLabel }}</Kbd>
+                <Kbd>;</Kbd>
+              </KbdGroup>
+              <ChevronDownIcon v-else data-icon="inline-end" />
             </Button>
           </DropdownMenuTrigger>
 
@@ -1432,7 +1470,7 @@ function handleRootSubmit(event: Event): void {
         <ContextUsageIndicator v-else class="shrink-0" />
       </div>
 
-      <DropdownMenu>
+      <DropdownMenu v-model:open="isModelMenuOpen">
         <DropdownMenuTrigger as-child>
           <Button
             data-slot="model-selector-trigger"
@@ -1456,7 +1494,15 @@ function handleRootSubmit(event: Event): void {
             >
               · {{ t(`models.thinkingLevels.${selection.thinkingLevel}`) }}
             </span>
-            <ChevronDownIcon data-icon="inline-end" />
+            <KbdGroup
+              v-if="modifierHeld"
+              data-slot="model-menu-shortcut"
+              aria-hidden="true"
+            >
+              <Kbd>{{ modifierLabel }}</Kbd>
+              <Kbd>'</Kbd>
+            </KbdGroup>
+            <ChevronDownIcon v-else data-icon="inline-end" />
           </Button>
         </DropdownMenuTrigger>
 

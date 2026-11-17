@@ -368,10 +368,12 @@ useEventListener(window, "keydown", (event: KeyboardEvent) => {
   workbench.toggle();
 });
 
-// Cmd/Ctrl+K searches sessions, P manages projects, S manages skills, / manages
-// MCP servers and U manages automations. Cmd/Ctrl+L (composer focus) lives
-// with the composer and Cmd/Ctrl+N is handled in the main process.
+// Cmd/Ctrl+, opens Pine Settings, K searches sessions, P manages projects,
+// S manages skills, / manages MCP servers and U manages automations.
+// Cmd/Ctrl+L, ; and ' live with the composer and Cmd/Ctrl+N is handled in
+// the main process.
 const sidebarShortcuts: Record<string, () => void> = {
+  ",": () => preferencesDialog.value?.open(),
   k: () => (isSessionSearchOpen.value = true),
   p: () => preferencesDialog.value?.open("projects"),
   s: () => (isSkillManagerOpen.value = true),

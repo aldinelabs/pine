@@ -89,6 +89,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import ModifierShortcut from "@/components/window/ModifierShortcut.vue";
 import { useCurrencyStore } from "@/stores/currency";
 import { useModelsStore } from "@/stores/models";
 import { useUserProfileStore } from "@/stores/userProfile";
@@ -975,12 +976,18 @@ defineExpose({ open });
     <DialogTrigger as-child>
       <Button
         data-slot="pine-preferences-trigger"
+        class="relative"
         variant="ghost"
         size="icon-sm"
         :aria-label="t('preferences.open')"
         :title="t('preferences.open')"
       >
         <SettingsIcon />
+        <!-- Holding Cmd/Ctrl shows the shortcut just below the gear. -->
+        <ModifierShortcut
+          class="pointer-events-none absolute top-full left-1/2 z-50 mt-1 -translate-x-1/2"
+          key-label=","
+        />
       </Button>
     </DialogTrigger>
 

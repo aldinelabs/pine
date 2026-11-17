@@ -93,7 +93,8 @@ window
 
 - Toggle left sidebar: shows or hides the left sidebar.
 - Toggle workbench: shows or hides the workbench; pressed while it is open.
-- Pine Settings (gear): opens the Pine Settings dialog.
+- Pine Settings (gear): opens the Pine Settings dialog (Mod+,); holding
+  Cmd/Ctrl shows the shortcut below the gear.
 
 ### Left sidebar
 
@@ -399,7 +400,9 @@ From top to bottom:
    - Footer controls: project target ("Send to {name}", beside the action
      button in a new session), Model, Reasoning effort, approval mode, the
      Optimize prompt button in a new session or Context usage once the
-     session has started, and the action button.
+     session has started, and the action button. Mod+; opens the approval
+     mode menu and Mod+' the model menu; holding Cmd/Ctrl swaps each menu's
+     arrow for its shortcut.
    - Approval modes: Let Me Review (ask before risky actions), Auto Approve
      (balance autonomy and control), Autonomous Work (maximize autonomy
      without user action), YOLO (no permission constraints; asks the user to
@@ -852,12 +855,15 @@ and Quit Pine. Quitting from the menu is the way to stop automations, Remote Con
 - Mod+Alt+Left / Right: previous / next tab
 - Mod+B: toggle left sidebar
 - Mod+Alt+B: toggle workbench
+- Mod+,: Pine Settings
 - Mod+K: search sessions
 - Mod+P: Pine Settings › Projects
 - Mod+S: Skills manager
 - Mod+U: Automations manager
 - Mod+/: MCP servers manager
 - Mod+L: focus the composer
+- Mod+;: open the composer's approval mode menu
+- Mod+': open the composer's model menu
 - Tab in an empty composer showing a reply suggestion: use the suggestion
 - Option+Enter (Alt+Enter): Optimize prompt in the composer; Esc cancels it
 - Enlarged Markdown image: Left / Right previous / next image; Mod+= / Mod+−
