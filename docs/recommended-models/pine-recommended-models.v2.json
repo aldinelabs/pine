@@ -1,6 +1,21 @@
 {
   "version": 2,
-  "chat": ["glm-5.3-flash", "deepseek-flash", "hy4-flash"],
-  "image": ["google/gemini-3-pro-image"],
-  "video": []
+  "chat": [
+    "deepseek-flash",
+    "hy4-flash",
+    "anthropic/claude-opus-5.5",
+    "claude-opus-5.5"
+  ],
+  "image": [
+    "microsoft/mai-image-2.7",
+    "microsoft/mai-image-2.7-flash",
+    "openai/gpt-image-2.6-flare",
+    "bytedance-seed/seedream-5-5"
+  ],
+  "video": [
+    "bytedance/seedance-2.5",
+    "bytedance/seedance-2.5-flash",
+    "minimax/hailuo-3-max",
+    "heygen/heygen-video-1"
+  ]
 }
