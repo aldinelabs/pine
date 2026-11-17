@@ -183,6 +183,9 @@ async function handleRequest(request: AgentWorkerRequest): Promise<void> {
         request.selection,
       );
       break;
+    case "prompts:suggest-reply":
+      result = await runtime.suggestReply(request.agentDir, request.context);
+      break;
     case "prompts:rewrite":
       result = await runtime.rewritePrompt(
         request.agentDir,

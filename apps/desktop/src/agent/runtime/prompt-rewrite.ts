@@ -131,3 +131,58 @@ export function rewrittenPromptFromAssistantMessage(
   ).trim();
   return body || undefined;
 }
+
+export const REPLY_SUGGESTION_TIMEOUT_MS = 30_000;
+export const REPLY_SUGGESTION_MAX_TOKENS = 1_024;
+
+const SUGGESTION_TAG = "reply";
+
+/**
+ * Predicts the user's next message to Pine's agent from the conversation so
+ * far, so the composer can offer it as a suggestion to accept with Tab.
+ */
+export const REPLY_SUGGESTION_SYSTEM_PROMPT = `You suggest what the user will most likely send next to Pine, an AI agent working on their computer, given the conversation so far. Write it as the user, in the language the user writes in, as one short message of a single sentence. If the agent asked a question or offered options, answer it the way the user most plausibly would; otherwise suggest the natural next step. If there is no sensible next message, reply with an empty tag.
+
+Reply with the suggested message only, wrapped in <${SUGGESTION_TAG}> and </${SUGGESTION_TAG}>.`;
+
+export function replySuggestionContext(context: PromptRewriteContext): Context {
+  const background = promptRewriteBackground(context);
+  return {
+    systemPrompt: REPLY_SUGGESTION_SYSTEM_PROMPT,
+    messages: [
+      {
+        role: "user",
+        timestamp: Date.now(),
+        content: `${background}\n\nSuggest the user's next message.`,
+      },
+    ],
+  };
+}
+
+/** The suggestion as one line, or "" when the model offered none. */
+export function replySuggestionFromAssistantMessage(
+  message: AssistantMessage | undefined,
+  maxLength: number,
+): string {
+  if (!message) return "";
+  const text = message.content
+    .flatMap((part) => (part.type === "text" ? [part.text] : []))
+    .join("");
+  const open = `<${SUGGESTION_TAG}>`;
+  const close = `</${SUGGESTION_TAG}>`;
+  const start = text.indexOf(open);
+  const body =
+    start < 0
+      ? text
+      : text.slice(
+          start + open.length,
+          text.indexOf(close, start) < 0
+            ? undefined
+            : text.indexOf(close, start),
+        );
+  const line = body.replace(/\s+/g, " ").trim();
+  if (!line) return "";
+  return line.length > maxLength
+    ? `${line.slice(0, maxLength - 1).trimEnd()}…`
+    : line;
+}

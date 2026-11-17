@@ -1,5 +1,8 @@
 import { isDesktopClient } from "@/lib/clientRuntime";
-import { COMPOSER_GLOW_PREFERENCE_KEY } from "@/shared/preferenceStorage";
+import {
+  COMPOSER_GLOW_PREFERENCE_KEY,
+  REPLY_SUGGESTIONS_PREFERENCE_KEY,
+} from "@/shared/preferenceStorage";
 import { defineStore } from "pinia";
 import { computed, ref } from "vue";
 import {
@@ -30,6 +33,7 @@ const LEGACY_TRANSCRIPT_SERIF_STORAGE_KEY = "pine.transcript-serif";
 export const INVERT_DOCUMENTS_STORAGE_KEY = "pine.invert-documents";
 /** The light round the composer while the agent works. */
 export const COMPOSER_GLOW_STORAGE_KEY = COMPOSER_GLOW_PREFERENCE_KEY;
+export const REPLY_SUGGESTIONS_STORAGE_KEY = REPLY_SUGGESTIONS_PREFERENCE_KEY;
 
 export type ColorScheme = "light" | "dark";
 export type ThemePreference = "system" | ColorScheme;
@@ -153,6 +157,15 @@ function readStoredComposerGlow(): boolean {
   }
 }
 
+/** Reply suggestions are on unless the user turned them off. */
+function readStoredReplySuggestions(): boolean {
+  try {
+    return preferenceStorage.getItem(REPLY_SUGGESTIONS_STORAGE_KEY) !== "false";
+  } catch {
+    return true;
+  }
+}
+
 function isMacOSPlatform(): boolean {
   return isDesktopClient() && window.pine?.platform === "darwin";
 }
@@ -166,6 +179,7 @@ export const useAppearanceStore = defineStore("appearance", () => {
   const readingFont = ref(readStoredReadingFont());
   const invertDocuments = ref(readStoredInvertDocuments());
   const composerGlow = ref(readStoredComposerGlow());
+  const replySuggestions = ref(readStoredReplySuggestions());
   /** Whether previews that can invert their pages start inverted. */
   const invertsDocuments = computed(
     () => invertDocuments.value && colorScheme.value === "dark",
@@ -233,6 +247,9 @@ export const useAppearanceStore = defineStore("appearance", () => {
     // Follows a change made in another window (or browser tab) right away.
     subscribePreference(COMPOSER_GLOW_STORAGE_KEY, (value) => {
       composerGlow.value = value !== "false";
+    });
+    subscribePreference(REPLY_SUGGESTIONS_STORAGE_KEY, (value) => {
+      replySuggestions.value = value !== "false";
     });
     if (supportsSidebarVibrancy.value) {
       migrateSidebarVibrancyOnce();
@@ -320,10 +337,25 @@ export const useAppearanceStore = defineStore("appearance", () => {
     }
   }
 
+  function setReplySuggestions(enabled: boolean): void {
+    replySuggestions.value = enabled;
+
+    try {
+      preferenceStorage.setItem(
+        REPLY_SUGGESTIONS_STORAGE_KEY,
+        enabled ? "true" : "false",
+      );
+    } catch {
+      // The choice still applies for this session if storage is unavailable.
+    }
+  }
+
   return {
     colorScheme,
     composerGlow,
     setComposerGlow,
+    replySuggestions,
+    setReplySuggestions,
     invertDocuments,
     invertsDocuments,
     setInvertDocuments,

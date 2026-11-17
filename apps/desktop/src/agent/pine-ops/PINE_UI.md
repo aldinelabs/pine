@@ -368,6 +368,12 @@ From top to bottom:
      and fading out the same way; Esc cancels. It needs typed text and is
      not available while the agent is working. Attachments and quotes are
      kept as they are.
+   - Reply suggestion: when the agent finishes answering in a session, the
+     prompt optimization model suggests the user's likely next message from
+     the conversation. It fades in where the placeholder was, in the same
+     grey, followed by a "Tab" key; Tab puts it in the text box. It hides
+     while the user types, and goes away when a new run starts. It can be
+     turned off with Reply suggestions in Pine Settings › Agent.
    - While the agent is working, a thin light runs clockwise along the text
      box's border, in the project's accent color (or, with "Pine Default",
      the Pine default color theme from Appearance settings; grey for
@@ -687,7 +693,9 @@ the user opens themselves do not pulse.
     buttons, or the options of a block's only picker, are numbered and the
     user answers by replying with the number; other controls work only in
     Pine), Interim answers switch (Enabled or Disabled; enabled by default; applies
-    from the next message), automatic approval path, context compaction
+    from the next message), Reply suggestions switch (suggest the next
+    message in the composer after the agent answers; on by default),
+    automatic approval path, context compaction
     strategy and method, Memory (Remember across sessions switch, enabled by
     default, applies from the next message; below it a list of the saved
     notes of the active tab's project and of All projects, each with its
@@ -843,6 +851,7 @@ and Quit Pine. Quitting from the menu is the way to stop automations, Remote Con
 - Mod+U: Automations manager
 - Mod+/: MCP servers manager
 - Mod+L: focus the composer
+- Tab in an empty composer showing a reply suggestion: use the suggestion
 - Option+Enter (Alt+Enter): Optimize prompt in the composer; Esc cancels it
 - Enlarged Markdown image: Left / Right previous / next image; Mod+= / Mod+−
   zoom in / out; Mod+0 fit to window; Esc closes

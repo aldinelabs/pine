@@ -1229,4 +1229,117 @@ describe("ProjectSessionComposer", () => {
     });
     wrapper.unmount();
   });
+
+  it("suggests a reply after the agent answers and fills it in with Tab", async () => {
+    const suggestReply = vi
+      .fn()
+      .mockResolvedValue({ suggestion: "再按日期排序" });
+    const wrapper = mountComposer(
+      { sessionId: "session-1", isRunning: true, isActive: true },
+      "high",
+      "zh-CN",
+      { suggestReply },
+    );
+    useSessionStore().stateFor("session-1").messages = [
+      {
+        id: "m1",
+        createdAt: "2026-11-17T00:00:00.000Z",
+        role: "user",
+        status: "complete",
+        blocks: [{ type: "text", text: "整理 docs 目录" }],
+      },
+      {
+        id: "m2",
+        createdAt: "2026-11-17T00:00:01.000Z",
+        role: "assistant",
+        status: "complete",
+        blocks: [{ type: "text", text: "已整理。" }],
+      },
+    ];
+
+    await wrapper.setProps({ isRunning: false });
+    await flushPromises();
+
+    expect(suggestReply).toHaveBeenCalledWith({
+      context: {
+        conversation: [
+          { role: "user", text: "整理 docs 目录" },
+          { role: "assistant", text: "已整理。" },
+        ],
+        conversationTrimmed: false,
+      },
+    });
+    const suggestion = wrapper.get('[data-slot="reply-suggestion"]');
+    expect(suggestion.text()).toContain("再按日期排序");
+    expect(suggestion.text()).toContain("Tab");
+    const textarea = wrapper.get("textarea");
+    expect(textarea.classes()).toContain("session-composer-input--suggesting");
+
+    await textarea.trigger("keydown", { key: "Tab" });
+
+    expect((textarea.element as HTMLTextAreaElement).value).toBe(
+      "再按日期排序",
+    );
+    expect(wrapper.find('[data-slot="reply-suggestion"]').exists()).toBe(false);
+    wrapper.unmount();
+  });
+
+  it("hides the suggestion while typing and drops it when a run starts", async () => {
+    const wrapper = mountComposer(
+      { sessionId: "session-1", isRunning: true },
+      "high",
+      "zh-CN",
+      { suggestReply: vi.fn().mockResolvedValue({ suggestion: "继续" }) },
+    );
+    useSessionStore().stateFor("session-1").messages = [
+      {
+        id: "m1",
+        createdAt: "2026-11-17T00:00:00.000Z",
+        role: "user",
+        status: "complete",
+        blocks: [{ type: "text", text: "开始" }],
+      },
+    ];
+    await wrapper.setProps({ isRunning: false });
+    await flushPromises();
+    const textarea = wrapper.get("textarea");
+
+    await textarea.setValue("自己写");
+    expect(wrapper.find('[data-slot="reply-suggestion"]').exists()).toBe(false);
+    await textarea.trigger("keydown", { key: "Tab" });
+    expect((textarea.element as HTMLTextAreaElement).value).toBe("自己写");
+
+    await textarea.setValue("");
+    expect(wrapper.find('[data-slot="reply-suggestion"]').exists()).toBe(true);
+    await wrapper.setProps({ isRunning: true });
+    await wrapper.setProps({ isRunning: false, sessionId: "session-2" });
+    await flushPromises();
+    expect(wrapper.find('[data-slot="reply-suggestion"]').exists()).toBe(false);
+    wrapper.unmount();
+  });
+
+  it("does not ask for a suggestion while reply suggestions are off", async () => {
+    const suggestReply = vi.fn().mockResolvedValue({ suggestion: "继续" });
+    const wrapper = mountComposer(
+      { sessionId: "session-1", isRunning: true },
+      "high",
+      "zh-CN",
+      { suggestReply },
+    );
+    useAppearanceStore().setReplySuggestions(false);
+    useSessionStore().stateFor("session-1").messages = [
+      {
+        id: "m1",
+        createdAt: "2026-11-17T00:00:00.000Z",
+        role: "user",
+        status: "complete",
+        blocks: [{ type: "text", text: "开始" }],
+      },
+    ];
+    await wrapper.setProps({ isRunning: false });
+    await flushPromises();
+    expect(suggestReply).not.toHaveBeenCalled();
+    useAppearanceStore().setReplySuggestions(true);
+    wrapper.unmount();
+  });
 });

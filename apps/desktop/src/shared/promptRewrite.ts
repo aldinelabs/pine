@@ -1,4 +1,8 @@
 export const REWRITE_PROMPT_CHANNEL = "prompts:rewrite" as const;
+export const SUGGEST_REPLY_CHANNEL = "prompts:suggest-reply" as const;
+
+/** The longest reply suggestion the composer shows. */
+export const MAX_REPLY_SUGGESTION_LENGTH = 200;
 
 /** The longest composer text Pine sends to be rewritten. */
 export const MAX_PROMPT_REWRITE_INPUT_LENGTH = 20_000;
@@ -53,6 +57,16 @@ export interface RewritePromptRequest {
 
 export interface RewritePromptResult {
   prompt: string;
+}
+
+/** Asks for the user's likely next message once the agent has replied. */
+export interface SuggestReplyRequest {
+  context: PromptRewriteContext;
+}
+
+export interface SuggestReplyResult {
+  /** Empty when there is no natural next message. */
+  suggestion: string;
 }
 
 export const PROMPT_REWRITE_LIMITS = {

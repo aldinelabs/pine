@@ -456,6 +456,9 @@ const PromptRewriteContextSchema = z
       .optional(),
   })
   .strict();
+export const SuggestReplyRequestSchema = z
+  .object({ context: PromptRewriteContextSchema })
+  .strict();
 export const RewritePromptRequestSchema = z
   .object({
     prompt: z.string().trim().min(1).max(MAX_PROMPT_REWRITE_INPUT_LENGTH),

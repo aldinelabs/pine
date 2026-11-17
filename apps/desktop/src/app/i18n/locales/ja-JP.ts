@@ -405,6 +405,9 @@ export default {
     composerGlow: "作業中の光彩",
     composerGlowDescription:
       "エージェントの作業中、入力欄の枠に沿って流れる光を表示します",
+    replySuggestions: "返信の提案",
+    replySuggestionsDescription:
+      "エージェントが回答した後、次のメッセージの候補を入力欄に表示します。Tab キーで採用します。指示最適化モデルを使用します。",
     sidebarVibrancy: "ネイティブのサイドバー素材",
     sidebarVibrancyDescription:
       "macOS ネイティブのサイドバー素材でサイドバーを描画します",
@@ -1367,6 +1370,7 @@ export default {
       optimizePromptFailedDescription:
         "設定 › モデル で指示最適化モデルを確認して、もう一度お試しください。",
       undoPromptOptimization: "最適化を元に戻す",
+      acceptReplySuggestion: "Tab キーで提案を採用",
       addAttachment: "添付ファイルを追加",
       addFile: "ファイルを追加",
       addFolder: "フォルダを追加",

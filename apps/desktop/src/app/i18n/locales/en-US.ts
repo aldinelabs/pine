@@ -394,6 +394,9 @@ export default {
     composerGlow: "Working glow",
     composerGlowDescription:
       "Show a light running along the text box’s border while the agent works",
+    replySuggestions: "Reply suggestions",
+    replySuggestionsDescription:
+      "After the agent answers, suggest a next message in the text box; press Tab to use it. Uses the prompt optimization model.",
     sidebarVibrancy: "Native sidebar material",
     sidebarVibrancyDescription:
       "Render the sidebar with the native macOS sidebar material",
@@ -1356,6 +1359,7 @@ export default {
       optimizePromptFailedDescription:
         "Check the prompt optimization model in Settings › Models, then try again.",
       undoPromptOptimization: "Undo optimization",
+      acceptReplySuggestion: "Press Tab to use the suggestion",
       addAttachment: "Add attachment",
       addFile: "Add file",
       addFolder: "Add folder",

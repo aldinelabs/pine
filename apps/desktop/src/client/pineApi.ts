@@ -167,8 +167,11 @@ import {
 } from "../shared/models";
 import {
   REWRITE_PROMPT_CHANNEL,
+  SUGGEST_REPLY_CHANNEL,
   type RewritePromptRequest,
   type RewritePromptResult,
+  type SuggestReplyRequest,
+  type SuggestReplyResult,
 } from "../shared/promptRewrite";
 import {
   CREATE_SKILL_CHANNEL,
@@ -764,6 +767,8 @@ export function createPineApi(transport: PineTransport): PineDesktopApi {
       request: RewritePromptRequest,
     ): Promise<RewritePromptResult> =>
       transport.invoke(REWRITE_PROMPT_CHANNEL, request),
+    suggestReply: (request: SuggestReplyRequest): Promise<SuggestReplyResult> =>
+      transport.invoke(SUGGEST_REPLY_CHANNEL, request),
     selectImageModel: (
       request: SelectImageModelRequest,
     ): Promise<{ updated: boolean }> =>

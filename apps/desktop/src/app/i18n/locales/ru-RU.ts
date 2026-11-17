@@ -395,6 +395,9 @@ export default {
     composerGlow: "Свечение во время работы",
     composerGlowDescription:
       "Показывать свет, бегущий по рамке поля ввода, пока агент работает",
+    replySuggestions: "Подсказки ответа",
+    replySuggestionsDescription:
+      "После ответа агента предлагает следующее сообщение в поле ввода; нажмите Tab, чтобы использовать его. Использует модель оптимизации запросов.",
     sidebarVibrancy: "Нативный материал боковой панели",
     sidebarVibrancyDescription:
       "Отображать боковую панель с нативным материалом macOS",
@@ -1365,6 +1368,7 @@ export default {
       optimizePromptFailedDescription:
         "Проверьте модель оптимизации запросов в разделе Настройки › Модели и повторите попытку.",
       undoPromptOptimization: "Отменить улучшение",
+      acceptReplySuggestion: "Нажмите Tab, чтобы использовать подсказку",
       addAttachment: "Добавить вложение",
       addFile: "Добавить файл",
       addFolder: "Добавить папку",

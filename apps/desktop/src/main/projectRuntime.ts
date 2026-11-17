@@ -44,6 +44,8 @@ import type {
 import type {
   RewritePromptRequest,
   RewritePromptResult,
+  SuggestReplyRequest,
+  SuggestReplyResult,
 } from "../shared/promptRewrite";
 import type {
   LoadSessionMessagesResult,
@@ -1213,6 +1215,10 @@ export class ProjectRuntimeRegistry {
     request: SelectPromptRewriteModelRequest,
   ): Promise<{ updated: boolean }> {
     return this.agentHost.selectPromptRewriteModel(this.agentDir, request);
+  }
+
+  suggestReply(request: SuggestReplyRequest): Promise<SuggestReplyResult> {
+    return this.agentHost.suggestReply(this.agentDir, request.context);
   }
 
   rewritePrompt(request: RewritePromptRequest): Promise<RewritePromptResult> {

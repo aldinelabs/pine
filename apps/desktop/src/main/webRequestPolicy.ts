@@ -13,7 +13,10 @@ import * as background from "../shared/backgroundTasks";
 import * as attachments from "../shared/attachments";
 import * as sideChats from "../shared/sideChats";
 import { GET_EXCHANGE_RATES_CHANNEL } from "../shared/currency";
-import { REWRITE_PROMPT_CHANNEL } from "../shared/promptRewrite";
+import {
+  REWRITE_PROMPT_CHANNEL,
+  SUGGEST_REPLY_CHANNEL,
+} from "../shared/promptRewrite";
 import { GET_APP_VERSION_CHANNEL } from "../shared/window";
 import {
   GET_USER_PROFILE_CHANNEL,
@@ -205,6 +208,7 @@ export function createWebChannels(
     [models.SELECT_APPROVAL_MODEL_CHANNEL, command("none")],
     [models.SELECT_PROMPT_REWRITE_MODEL_CHANNEL, command("none")],
     [REWRITE_PROMPT_CHANNEL, command("none")],
+    [SUGGEST_REPLY_CHANNEL, command("none")],
     [models.ADD_CUSTOM_MODEL_CHANNEL, command("none")],
     [models.UPDATE_CUSTOM_MODEL_CHANNEL, command("none")],
     [models.DELETE_CUSTOM_MODEL_CHANNEL, command("none")],

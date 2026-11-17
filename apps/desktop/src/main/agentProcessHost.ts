@@ -182,6 +182,10 @@ export interface AgentHost {
     prompt: string,
     context?: PromptRewriteContext,
   ): Promise<{ prompt: string }>;
+  suggestReply(
+    agentDir: string,
+    context: PromptRewriteContext,
+  ): Promise<{ suggestion: string }>;
   selectImageModel(
     agentDir: string,
     selection: PineImageModelSelection,
@@ -525,6 +529,13 @@ export class AgentProcessHost implements AgentHost {
       prompt,
       ...(context ? { context } : {}),
     });
+  }
+
+  suggestReply(
+    agentDir: string,
+    context: PromptRewriteContext,
+  ): Promise<{ suggestion: string }> {
+    return this.request({ type: "prompts:suggest-reply", agentDir, context });
   }
 
   selectImageModel(

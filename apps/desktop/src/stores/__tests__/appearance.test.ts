@@ -207,7 +207,10 @@ describe("appearance store", () => {
   });
 
   it("follows a working glow change made in another window", () => {
-    let report: ((key: string, value: string | null) => void) | undefined;
+    type Listener = (key: string, value: string | null) => void;
+    const listeners: Listener[] = [];
+    const report = (key: string, value: string | null) =>
+      listeners.forEach((listener) => listener(key, value));
     const unsubscribe = vi.fn();
     (window as unknown as { pine: unknown }).pine = {
       platform: "linux",
@@ -217,8 +220,8 @@ describe("appearance store", () => {
         snapshot: {},
         set: vi.fn(),
         remove: vi.fn(),
-        onChange: vi.fn((listener: typeof report) => {
-          report = listener;
+        onChange: vi.fn((listener: Listener) => {
+          listeners.push(listener);
           return unsubscribe;
         }),
       },
@@ -227,11 +230,11 @@ describe("appearance store", () => {
     store.initialize();
     expect(store.composerGlow).toBe(true);
 
-    report?.("pine.other", "false");
+    report("pine.other", "false");
     expect(store.composerGlow).toBe(true);
-    report?.(COMPOSER_GLOW_STORAGE_KEY, "false");
+    report(COMPOSER_GLOW_STORAGE_KEY, "false");
     expect(store.composerGlow).toBe(false);
-    report?.(COMPOSER_GLOW_STORAGE_KEY, null);
+    report(COMPOSER_GLOW_STORAGE_KEY, null);
     expect(store.composerGlow).toBe(true);
   });
 });

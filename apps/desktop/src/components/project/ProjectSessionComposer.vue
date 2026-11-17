@@ -689,6 +689,71 @@ async function rewritePrompt(): Promise<void> {
   }
 }
 
+/*
+ * Reply suggestion: once the agent finishes answering, the prompt rewrite
+ * model guesses the user's next message. It takes the placeholder's place
+ * (fading over it) while the text box is empty, and Tab fills it in.
+ */
+const replySuggestion = ref("");
+let suggestionRun = 0;
+const showsReplySuggestion = computed(
+  () =>
+    replySuggestion.value.length > 0 &&
+    message.value === "" &&
+    !props.isRunning &&
+    !isRewriting.value &&
+    !isMentioning.value &&
+    !committingProject.value,
+);
+const replySuggestionId = `${messageId}-suggestion`;
+
+async function requestReplySuggestion(): Promise<void> {
+  const run = ++suggestionRun;
+  replySuggestion.value = "";
+  if (!props.sessionId || !appearanceStore.replySuggestions) return;
+  const context = conversationContext();
+  if (!context.conversation?.length || !window.pine.suggestReply) return;
+  try {
+    const { suggestion } = await window.pine.suggestReply({ context });
+    if (run === suggestionRun && !props.isRunning)
+      replySuggestion.value = suggestion;
+  } catch {
+    // A suggestion is optional; the placeholder simply stays.
+  }
+}
+
+function clearReplySuggestion(): void {
+  suggestionRun++;
+  replySuggestion.value = "";
+}
+
+watch(
+  () => props.isRunning,
+  (running, wasRunning) => {
+    if (running) clearReplySuggestion();
+    else if (wasRunning) void requestReplySuggestion();
+  },
+);
+watch(() => props.sessionId, clearReplySuggestion);
+watch(
+  () => appearanceStore.replySuggestions,
+  (enabled) => {
+    if (!enabled) clearReplySuggestion();
+  },
+);
+
+function acceptReplySuggestion(): void {
+  const suggestion = replySuggestion.value;
+  clearReplySuggestion();
+  message.value = suggestion;
+  void nextTick(() => {
+    const textarea = messageInput.value?.$el;
+    if (!(textarea instanceof HTMLTextAreaElement)) return;
+    textarea.focus({ preventScroll: true });
+    textarea.setSelectionRange(suggestion.length, suggestion.length);
+  });
+}
+
 function cancelRewrite(): void {
   rewriteRun++;
   isRewriting.value = false;
@@ -897,6 +962,19 @@ function handleKeydown(event: KeyboardEvent): void {
   ) {
     event.preventDefault();
     emit("dismissContext");
+    return;
+  }
+  if (
+    event.key === "Tab" &&
+    showsReplySuggestion.value &&
+    !event.shiftKey &&
+    !event.altKey &&
+    !event.metaKey &&
+    !event.ctrlKey &&
+    !event.isComposing
+  ) {
+    event.preventDefault();
+    acceptReplySuggestion();
     return;
   }
   if (event.key !== "Enter" || event.shiftKey || event.isComposing) return;
@@ -1127,6 +1205,12 @@ function handleRootSubmit(event: Event): void {
                   v-bind="chooserInputAttrs"
                   :disabled="isRewriting"
                   :aria-busy="isRewriting || undefined"
+                  :class="
+                    showsReplySuggestion && 'session-composer-input--suggesting'
+                  "
+                  :aria-describedby="
+                    showsReplySuggestion ? replySuggestionId : undefined
+                  "
                   class="session-composer-input w-full min-w-0 scroll-fade-y max-h-48 min-h-[var(--session-composer-control-height)] overflow-y-auto overscroll-contain pt-3.5 pb-3.5 text-sm leading-5"
                   :placeholder="
                     committingProject
@@ -1144,6 +1228,24 @@ function handleRootSubmit(event: Event): void {
                   @keydown="handleKeydown"
                   @paste="handlePaste"
                 />
+                <!-- The suggestion fades in over the placeholder, which fades
+                     out, in the same colour and position. -->
+                <Transition name="session-composer-suggestion">
+                  <div
+                    v-if="showsReplySuggestion"
+                    data-slot="reply-suggestion"
+                    class="session-composer-suggestion pointer-events-none absolute inset-x-0 top-0 flex items-center gap-2 pt-3.5 text-sm leading-5 text-muted-foreground"
+                  >
+                    <span class="min-w-0 truncate" aria-hidden="true">{{
+                      replySuggestion
+                    }}</span>
+                    <Kbd class="shrink-0" aria-hidden="true">Tab</Kbd>
+                    <span :id="replySuggestionId" class="sr-only">
+                      {{ replySuggestion }} —
+                      {{ t("project.composer.acceptReplySuggestion") }}
+                    </span>
+                  </div>
+                </Transition>
               </div>
 
               <InputGroupAddon
@@ -1534,6 +1636,29 @@ function handleRootSubmit(event: Event): void {
   padding-inline-end: var(--session-input-padding-inline, 1rem);
 }
 
+.session-composer-input::placeholder {
+  transition: color 300ms ease-out;
+}
+
+.session-composer-input--suggesting::placeholder {
+  color: transparent;
+}
+
+.session-composer-suggestion {
+  padding-inline-start: var(--session-composer-control-inset);
+  padding-inline-end: var(--session-input-padding-inline, 1rem);
+}
+
+.session-composer-suggestion-enter-active,
+.session-composer-suggestion-leave-active {
+  transition: opacity 300ms ease-out;
+}
+
+.session-composer-suggestion-enter-from,
+.session-composer-suggestion-leave-to {
+  opacity: 0;
+}
+
 /* At phone width the message takes the whole first row; its actions move to
    a row below, and the approval mode shows only its icon. */
 @container composer (width < 28rem) {
@@ -1549,6 +1674,10 @@ function handleRootSubmit(event: Event): void {
   .session-composer-input {
     padding-inline: var(--session-input-padding-inline, 1rem);
     padding-bottom: 0.25rem;
+  }
+
+  .session-composer-suggestion {
+    padding-inline: var(--session-input-padding-inline, 1rem);
   }
 
   .session-composer-row > [data-align="inline-start"] {

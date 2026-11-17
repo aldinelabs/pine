@@ -405,6 +405,12 @@ export type AgentWorkerRequest =
     }
   | {
       id: string;
+      type: "prompts:suggest-reply";
+      agentDir: string;
+      context: PromptRewriteContext;
+    }
+  | {
+      id: string;
       type: "models:select-image";
       agentDir: string;
       selection: PineImageModelSelection;
@@ -497,6 +503,7 @@ export type AgentWorkerResult =
   | { delivered: boolean }
   | { updated: boolean }
   | { prompt: string }
+  | { suggestion: string }
   | AgentWorkerMutateResult;
 
 /** The mutators that changed the session; already-applied ones are skipped. */

@@ -3,6 +3,9 @@ import { describe, expect, it } from "vitest";
 import {
   PROMPT_REWRITE_SYSTEM_PROMPT,
   promptRewriteContext,
+  REPLY_SUGGESTION_SYSTEM_PROMPT,
+  replySuggestionContext,
+  replySuggestionFromAssistantMessage,
   rewrittenPromptFromAssistantMessage,
 } from "../prompt-rewrite";
 
@@ -83,5 +86,39 @@ describe("prompt rewrite", () => {
     expect(promptRewriteContext("x", {}).messages[0]?.content).toBe(
       "Rewrite this draft prompt:\n\n<draft_prompt>\nx\n</draft_prompt>",
     );
+  });
+
+  it("asks for the next message from the conversation alone", () => {
+    const context = replySuggestionContext({
+      conversation: [
+        { role: "user", text: "整理 docs" },
+        { role: "assistant", text: "要按日期还是名称排序？" },
+      ],
+    });
+    expect(context.systemPrompt).toBe(REPLY_SUGGESTION_SYSTEM_PROMPT);
+    expect(context.messages[0]?.content).toContain(
+      "[Agent]\n要按日期还是名称排序？",
+    );
+  });
+
+  it("takes one line of suggestion, or nothing", () => {
+    expect(
+      replySuggestionFromAssistantMessage(
+        reply({ type: "text", text: "<reply>\n按日期\n排序\n</reply>" }),
+        200,
+      ),
+    ).toBe("按日期 排序");
+    expect(
+      replySuggestionFromAssistantMessage(
+        reply({ type: "text", text: "<reply></reply>" }),
+        200,
+      ),
+    ).toBe("");
+    expect(
+      replySuggestionFromAssistantMessage(
+        reply({ type: "text", text: "x".repeat(300) }),
+        200,
+      ),
+    ).toHaveLength(200);
   });
 });

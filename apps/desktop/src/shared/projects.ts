@@ -111,6 +111,8 @@ import type { WorkbenchStateResponse } from "./workbench";
 import type {
   RewritePromptRequest,
   RewritePromptResult,
+  SuggestReplyRequest,
+  SuggestReplyResult,
 } from "./promptRewrite";
 import type { PineWindowApi } from "./window";
 import type { PineBackgroundApi } from "./background";
@@ -613,6 +615,8 @@ export interface PineDesktopApi
   rewritePrompt: (
     request: RewritePromptRequest,
   ) => Promise<RewritePromptResult>;
+  /** The user's likely next message, for the composer to suggest. */
+  suggestReply: (request: SuggestReplyRequest) => Promise<SuggestReplyResult>;
   selectImageModel: (
     request: SelectImageModelRequest,
   ) => Promise<{ updated: boolean }>;

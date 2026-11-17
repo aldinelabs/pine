@@ -1,4 +1,7 @@
-import type { PromptRewriteContext } from "../shared/promptRewrite";
+import {
+  MAX_REPLY_SUGGESTION_LENGTH,
+  type PromptRewriteContext,
+} from "../shared/promptRewrite";
 import {
   PINE_SESSION_NOTICE_TYPE,
   PINE_SUB_SESSION_ENTRY,
@@ -296,6 +299,10 @@ import {
   PROMPT_REWRITE_MAX_TOKENS,
   PROMPT_REWRITE_TIMEOUT_MS,
   promptRewriteContext,
+  REPLY_SUGGESTION_MAX_TOKENS,
+  REPLY_SUGGESTION_TIMEOUT_MS,
+  replySuggestionContext,
+  replySuggestionFromAssistantMessage,
   rewrittenPromptFromAssistantMessage,
 } from "./runtime/prompt-rewrite";
 import {
@@ -1300,6 +1307,45 @@ export class PineAgentRuntime {
     return { prompt: rewritten };
   }
 
+  /**
+   * Suggests the user's next message with the prompt rewrite model; empty
+   * when no model is set up or the model has nothing to suggest.
+   */
+  async suggestReply(
+    agentDir: string,
+    context: PromptRewriteContext,
+  ): Promise<{ suggestion: string }> {
+    if (!context.conversation?.length) return { suggestion: "" };
+    const modelRuntime = await this.getModelRuntime(agentDir);
+    const model = await this.modelService.promptRewriteModel(
+      agentDir,
+      modelRuntime,
+    );
+    if (!model) return { suggestion: "" };
+    const signal = AbortSignal.timeout(REPLY_SUGGESTION_TIMEOUT_MS);
+    const options = {
+      ...judgeStreamOptions(model, signal),
+      maxTokens: REPLY_SUGGESTION_MAX_TOKENS,
+    };
+    let final: AssistantMessage | undefined;
+    for await (const event of modelRuntime.stream(
+      model,
+      replySuggestionContext(context),
+      options,
+    )) {
+      if (event.type === "done") final = event.message;
+      else if (event.type === "error")
+        throw new Error(
+          event.error.errorMessage ?? "The model could not suggest a reply.",
+        );
+    }
+    return {
+      suggestion: replySuggestionFromAssistantMessage(
+        final,
+        MAX_REPLY_SUGGESTION_LENGTH,
+      ),
+    };
+  }
   selectVideoModel(
     agentDir: string,
     selection: PineVideoModelSelection,

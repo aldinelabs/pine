@@ -29,7 +29,9 @@ import {
 } from "../../../shared/models";
 import {
   REWRITE_PROMPT_CHANNEL,
+  SUGGEST_REPLY_CHANNEL,
   type RewritePromptResult,
+  type SuggestReplyResult,
 } from "../../../shared/promptRewrite";
 import type { PineCore } from "../pineCore";
 import {
@@ -47,6 +49,7 @@ import {
   SelectApprovalModelRequestSchema,
   SelectPromptRewriteModelRequestSchema,
   RewritePromptRequestSchema,
+  SuggestReplyRequestSchema,
   SelectUtilityModelRequestSchema,
   UpdateCustomModelRequestSchema,
   UpdateCustomProviderRequestSchema,
@@ -213,6 +216,12 @@ export function registerModelRequests(core: PineCore): void {
       core.runtimes.selectPromptRewriteModel(
         SelectPromptRewriteModelRequestSchema.parse(request),
       ),
+  );
+
+  core.handle(
+    SUGGEST_REPLY_CHANNEL,
+    (_context, request: unknown): Promise<SuggestReplyResult> =>
+      core.runtimes.suggestReply(SuggestReplyRequestSchema.parse(request)),
   );
 
   core.handle(

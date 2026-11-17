@@ -1855,6 +1855,23 @@ defineExpose({ open });
                   aria-describedby="pine-interim-answers-description"
                 />
               </Field>
+              <Field orientation="horizontal">
+                <div class="flex min-w-0 flex-1 flex-col gap-1">
+                  <FieldTitle id="pine-reply-suggestions-setting">
+                    {{ t("preferences.replySuggestions") }}
+                  </FieldTitle>
+                  <FieldDescription id="pine-reply-suggestions-description">
+                    {{ t("preferences.replySuggestionsDescription") }}
+                  </FieldDescription>
+                </div>
+                <Switch
+                  data-testid="pine-reply-suggestions-toggle"
+                  :model-value="appearanceStore.replySuggestions"
+                  aria-labelledby="pine-reply-suggestions-setting"
+                  aria-describedby="pine-reply-suggestions-description"
+                  @update:model-value="appearanceStore.setReplySuggestions"
+                />
+              </Field>
 
               <FieldSeparator />
               <FieldSet>
