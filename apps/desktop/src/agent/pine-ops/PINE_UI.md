@@ -781,7 +781,10 @@ the user opens themselves do not pulse.
     (see Tray and menu bar).
 - New Project / Edit Project: name, icon, accent color ("Pine Default", which
   follows the Appearance setting, or a palette of its own), default folder,
-  additional context folders with access (Read only, Read and write).
+  additional context folders with access (Read only, Read and write). Saving
+  a new name or folders restarts the project's sessions; a save that changes
+  only the icon or accent color applies at once and leaves open sessions and
+  their tabs as they are.
 - Automations manager, with tabs: Activity (runs with status such as Running,
   Found something, Nothing new, Failed; Refresh, Mark all as read, Show runs
   with nothing new; opening a run opens its session), Automations (each with

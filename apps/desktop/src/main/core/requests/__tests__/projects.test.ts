@@ -7,6 +7,7 @@ import type {
 import {
   OPEN_PROJECT_CHANNEL,
   TEMPORARY_WORKSPACE_PROJECT_ID,
+  UPDATE_PROJECT_CHANNEL,
 } from "../../../../shared/projects";
 import type { PineRequestContext } from "../../../requestRouter";
 import {
@@ -530,6 +531,92 @@ describe("OPEN_PROJECT_CHANNEL", () => {
       7,
       expect.objectContaining({ id: ownId }),
       {},
+    );
+  });
+});
+
+describe("UPDATE_PROJECT_CHANNEL", () => {
+  function updateFixture() {
+    const handlers = new Map<
+      string,
+      (context: PineRequestContext, request?: unknown) => unknown
+    >();
+    const stored = project(ownId, "Pine");
+    const repository = {
+      get: vi.fn().mockResolvedValue(stored),
+      update: vi.fn((_id: string, input: object) =>
+        Promise.resolve({ ...stored, ...input }),
+      ),
+      updateAppearance: vi.fn((_id: string, appearance: object) =>
+        Promise.resolve({ ...stored, ...appearance }),
+      ),
+      dataPaths: vi.fn().mockReturnValue({}),
+    };
+    const runtimes = {
+      liveSessionIdsOf: vi.fn().mockReturnValue(["live-session"]),
+      refresh: vi.fn().mockResolvedValue(undefined),
+    };
+    const sendSessionEvent = vi.fn();
+    const core = {
+      repository,
+      runtimes,
+      sendSessionEvent,
+      notifyLibraryChanged: vi.fn(),
+      handle: vi.fn(
+        (
+          channel: string,
+          handler: (context: PineRequestContext, request?: unknown) => unknown,
+        ) => handlers.set(channel, handler),
+      ),
+    } as unknown as PineCore;
+    registerProjectRequests(core);
+    const save = (changes: object) =>
+      handlers.get(UPDATE_PROJECT_CHANNEL)?.(
+        { clientId: 7, source: "desktop" },
+        {
+          id: ownId,
+          defaultFolderId: stored.defaultFolderId,
+          folders: stored.folders.map(({ access, id, name, path }) => ({
+            access,
+            id,
+            name,
+            path,
+          })),
+          name: stored.name,
+          projectIcon: stored.projectIcon,
+          projectColorTheme: "default",
+          ...changes,
+        },
+      );
+    return { save, repository, runtimes, sendSessionEvent };
+  }
+
+  it("changes only the accent colour without restarting open sessions", async () => {
+    const { save, repository, runtimes, sendSessionEvent } = updateFixture();
+
+    await expect(save({ projectColorTheme: "blue" })).resolves.toMatchObject({
+      project: { projectColorTheme: "blue" },
+    });
+
+    expect(repository.updateAppearance).toHaveBeenCalledWith(ownId, {
+      projectIcon: "inbox",
+      projectColorTheme: "blue",
+    });
+    expect(repository.update).not.toHaveBeenCalled();
+    expect(runtimes.refresh).not.toHaveBeenCalled();
+    expect(sendSessionEvent).not.toHaveBeenCalled();
+  });
+
+  it("restarts the runtime when the name changes", async () => {
+    const { save, repository, runtimes, sendSessionEvent } = updateFixture();
+
+    await save({ name: "Renamed", projectColorTheme: "blue" });
+
+    expect(repository.update).toHaveBeenCalled();
+    expect(runtimes.refresh).toHaveBeenCalled();
+    expect(sendSessionEvent).toHaveBeenCalledWith(
+      7,
+      expect.objectContaining({ type: "session-reset" }),
     );
   });
 });

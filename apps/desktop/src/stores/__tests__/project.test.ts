@@ -210,4 +210,50 @@ describe("project store", () => {
     );
     expect(tabs.tabs).toContainEqual(file);
   });
+
+  async function saveWith(changes: Partial<PineProject>) {
+    const saved = { ...project, ...changes };
+    Object.defineProperty(window, "pine", {
+      configurable: true,
+      value: {
+        listProjects: vi.fn().mockResolvedValue({ projects: [project] }),
+        openProject: vi.fn().mockResolvedValue({ opened: true, project }),
+        updateProject: vi.fn().mockResolvedValue({ project: saved }),
+      },
+    });
+    const store = useProjectStore();
+    const sessions = useSessionStore();
+    const forgetProject = vi.spyOn(sessions, "forgetProject");
+    await store.loadProjects();
+    await store.ensureOpen(project.id);
+
+    await store.updateProject({
+      id: project.id,
+      defaultFolderId: saved.defaultFolderId,
+      folders: saved.folders.map(({ access, id, name, path }) => ({
+        access,
+        id,
+        name,
+        path,
+      })),
+      name: saved.name,
+      projectColorTheme: saved.projectColorTheme,
+    });
+    return { store, forgetProject };
+  }
+
+  it("keeps open sessions when only the accent colour changes", async () => {
+    const { store, forgetProject } = await saveWith({
+      projectColorTheme: "blue",
+    });
+
+    expect(store.projectById(project.id)?.projectColorTheme).toBe("blue");
+    expect(forgetProject).not.toHaveBeenCalled();
+  });
+
+  it("forgets open sessions when a rename restarts the runtime", async () => {
+    const { forgetProject } = await saveWith({ name: "renamed" });
+
+    expect(forgetProject).toHaveBeenCalledWith(project.id);
+  });
 });

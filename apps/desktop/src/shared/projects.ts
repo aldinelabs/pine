@@ -335,6 +335,32 @@ export interface ProjectMutationInput {
 
 export type CreateProjectRequest = ProjectMutationInput;
 
+/**
+ * Whether saving `input` changes what the project's runtime reads: its name,
+ * folders or default folder. The icon and accent colour restart nothing, so
+ * a save that changes only those leaves open sessions running.
+ */
+export function changesProjectRuntime(
+  current: Pick<PineProject, "defaultFolderId" | "folders" | "name">,
+  input: Pick<ProjectMutationInput, "defaultFolderId" | "folders" | "name">,
+): boolean {
+  if (
+    current.name !== input.name ||
+    current.defaultFolderId !== input.defaultFolderId ||
+    current.folders.length !== input.folders.length
+  )
+    return true;
+  return input.folders.some((folder, index) => {
+    const existing = current.folders[index];
+    return (
+      existing.id !== folder.id ||
+      existing.path !== folder.path ||
+      existing.name !== folder.name ||
+      existing.access !== folder.access
+    );
+  });
+}
+
 export interface UpdateProjectRequest extends ProjectMutationInput {
   id: string;
 }

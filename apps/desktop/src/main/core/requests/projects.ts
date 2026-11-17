@@ -11,6 +11,7 @@ import {
   PROJECT_STORAGE_CHANNEL,
   UPDATE_PROJECT_CHANNEL,
   UPDATE_PROJECT_SESSION_GROUPS_CHANNEL,
+  changesProjectRuntime,
   isTemporaryWorkspace,
   type DeleteProjectResult,
   type ListProjectsResult,
@@ -436,9 +437,16 @@ export function registerProjectRequests(core: PineCore): void {
         projectColorTheme: parsed.projectColorTheme,
         projectIcon: parsed.projectIcon,
       };
-      const project = await applyProjectUpdate(core, id, input, [
-        context.clientId,
-      ]);
+      const current = await repository.get(id);
+      // Only the name and folders restart the runtime; an icon or accent
+      // colour change keeps the project's open sessions running.
+      const project =
+        current && !changesProjectRuntime(current, input)
+          ? await repository.updateAppearance(id, {
+              projectIcon: input.projectIcon,
+              projectColorTheme: input.projectColorTheme,
+            })
+          : await applyProjectUpdate(core, id, input, [context.clientId]);
       core.notifyLibraryChanged("projects", context.clientId);
       return { project };
     },

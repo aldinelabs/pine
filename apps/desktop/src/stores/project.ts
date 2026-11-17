@@ -2,6 +2,7 @@ import { acceptHMRUpdate, defineStore } from "pinia";
 import { computed, ref, shallowRef } from "vue";
 import {
   TEMPORARY_WORKSPACE_PROJECT_ID,
+  changesProjectRuntime,
   type CreateProjectRequest,
   type OpenProjectResult,
   type PineProject,
@@ -142,12 +143,18 @@ export const useProjectStore = defineStore("project", () => {
     request: UpdateProjectRequest,
   ): Promise<PineProject> {
     isSavingProject.value = true;
+    const previous = projectById(request.id);
     try {
       const project = (await window.pine.updateProject(request)).project;
       upsertProject(project);
-      // Main restarts an open project's runtime with the new settings, which
-      // ends its live sessions; their views resume from history.
-      if (isOpen(project.id)) sessionStore.forgetProject(project.id);
+      // A new name or folders restart an open project's runtime, which ends
+      // its live sessions; their views resume from history. An icon or
+      // accent colour change restarts nothing, so open tabs keep theirs.
+      if (
+        isOpen(project.id) &&
+        (!previous || changesProjectRuntime(previous, request))
+      )
+        sessionStore.forgetProject(project.id);
       return project;
     } finally {
       isSavingProject.value = false;
