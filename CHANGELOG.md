@@ -25,6 +25,10 @@ Every release section here has a matching section in the Chinese changelog.
 - **Best practices first for general users**: with Technical background set to General user in Settings › User profile, the agent looks up the common practice of a task's field before starting on anything non-trivial.
 - **Todos show only the step labels**: the expanded todo list no longer shows a separate description for each task.
 
+### Fixed
+
+- In Settings › Agent, the Interactive answers and Interim answers switches no longer show extra Enabled or Disabled text, matching the other switches.
+
 ## [0.21.0] - 2026-11-15
 
 > **Highlights**: Pine remembers across sessions, and every file the agent submits keeps its versions for you to compare and restore.
