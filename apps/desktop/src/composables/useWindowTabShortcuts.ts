@@ -34,13 +34,23 @@ export function useWindowTabShortcuts(): void {
       }
     });
   });
-  // ⌘⌥← / ⌘⌥→ step through the tabs, wrapping at either end.
+  // ⌘⌥← / ⌘⌥→ and ⌘[ / ⌘] step through the tabs, wrapping at either end.
+  // The brackets match by physical key, so layouts that type them with
+  // Option/AltGr reach them from the same keys.
   useEventListener(window, "keydown", (event: KeyboardEvent) => {
-    const step =
-      event.key === "ArrowLeft" ? -1 : event.key === "ArrowRight" ? 1 : 0;
+    const step = event.altKey
+      ? event.key === "ArrowLeft"
+        ? -1
+        : event.key === "ArrowRight"
+          ? 1
+          : 0
+      : event.code === "BracketLeft"
+        ? -1
+        : event.code === "BracketRight"
+          ? 1
+          : 0;
     if (
       !step ||
-      !event.altKey ||
       !(event.metaKey || event.ctrlKey) ||
       event.shiftKey ||
       event.defaultPrevented

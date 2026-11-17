@@ -851,7 +851,7 @@ and Quit Pine. Quitting from the menu is the way to stop automations, Remote Con
 - Mod+Shift+N: new window
 - Mod+Shift+R: reload the window (plain Mod+R never reloads Pine)
 - Mod+1 … Mod+8: jump to that tab; Mod+9: the last tab
-- Mod+Alt+Left / Right: previous / next tab
+- Mod+Alt+Left / Right or Mod+[ / Mod+]: previous / next tab
 - Mod+B: toggle left sidebar
 - Mod+Alt+B: toggle workbench
 - Mod+,: Pine Settings

@@ -130,7 +130,7 @@ describe("window close navigation", () => {
     wrapper.unmount();
   });
 
-  it("switches tabs with Cmd+Option+Left and Right, wrapping around", async () => {
+  it("switches tabs with Cmd+Option+Left and Right or Cmd+[ and ], wrapping around", async () => {
     const pinia = createPinia();
     setActivePinia(pinia);
     const router = createRouter({
@@ -192,6 +192,26 @@ describe("window close navigation", () => {
     const plain = await press("ArrowLeft", { metaKey: true });
     expect(plain.defaultPrevented).toBe(false);
     expect(router.currentRoute.value.query.tab).toBe(third.id);
+
+    const bracket = (key: string, init: KeyboardEventInit) =>
+      press(key, {
+        code: key === "[" ? "BracketLeft" : "BracketRight",
+        ...init,
+      });
+    expect((await bracket("]", { metaKey: true })).defaultPrevented).toBe(true);
+    expect(router.currentRoute.value.query.tab).toBe(first.id);
+    await bracket("[", { ctrlKey: true });
+    expect(router.currentRoute.value.query.tab).toBe(third.id);
+    await bracket("[", { metaKey: true });
+    expect(router.currentRoute.value.query.tab).toBe(second.id);
+    for (const init of [
+      {},
+      { metaKey: true, shiftKey: true },
+      { metaKey: true, altKey: true },
+    ]) {
+      expect((await bracket("[", init)).defaultPrevented).toBe(false);
+    }
+    expect(router.currentRoute.value.query.tab).toBe(second.id);
     wrapper.unmount();
   });
 
