@@ -8,7 +8,7 @@ import {
   PASTED_TEXT_ATTACHMENT_THRESHOLD_BYTES,
   type PineAttachment,
 } from "@/shared/attachments";
-import { resolveProviderIcon } from "@/lib/provider-icons";
+import { monoIconSource, resolveProviderIcon } from "@/lib/provider-icons";
 import type { PineThinkingLevel } from "@/shared/models";
 import {
   COMPOSER_GLOW_STORAGE_KEY,
@@ -300,12 +300,19 @@ describe("ProjectSessionComposer", () => {
     wrapper.unmount();
   });
 
-  it("shows the selected model's provider icon in the model trigger", () => {
+  it("shows the selected model's single-colour provider icon in the model trigger", () => {
     const wrapper = mountComposer();
-    const icon = wrapper.get('[data-slot="model-selector-trigger"] img');
+    const icon = wrapper.get(
+      '[data-slot="model-selector-trigger"] [data-slot="provider-icon"]',
+    );
+    const expected = resolveProviderIcon("anthropic");
 
+    expect(icon.element.tagName).toBe("SPAN");
+    expect(icon.attributes("data-variant")).toBe("mono");
     expect(icon.attributes("data-icon")).toBe("inline-start");
-    expect(icon.attributes("src")).toBe(resolveProviderIcon("anthropic")?.src);
+    expect(icon.attributes("style")).toContain(
+      expected ? monoIconSource(expected) : "missing",
+    );
   });
 
   it("opens the approval mode menu with Cmd+R and the model menu with Cmd+I", async () => {

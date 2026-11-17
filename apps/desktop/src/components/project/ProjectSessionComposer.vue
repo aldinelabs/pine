@@ -1506,6 +1506,7 @@ function handleRootSubmit(event: Event): void {
           >
             <ProviderIcon
               v-if="selectedModel"
+              mono
               data-icon="inline-start"
               :provider-id="selectedModel.providerId"
               :provider-name="selectedModel.providerName"

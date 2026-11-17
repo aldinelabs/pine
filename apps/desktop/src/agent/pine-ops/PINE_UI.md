@@ -403,7 +403,8 @@ From top to bottom:
      session has started, and the action button. Mod+R opens the approval
      mode menu and Mod+I the model menu; holding Cmd/Ctrl slides each
      menu's shortcut in beside its arrow. The Model control starts with the
-     selected model's provider icon (e.g. OpenRouter).
+     selected model's provider icon (e.g. OpenRouter), drawn in a single
+     colour that matches the control's text.
    - Approval modes: Let Me Review (ask before risky actions), Auto Approve
      (balance autonomy and control), Autonomous Work (maximize autonomy
      without user action), YOLO (no permission constraints; asks the user to

@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { resolveModelIcon, resolveProviderIcon } from "../provider-icons";
+import {
+  monoIconSource,
+  resolveModelIcon,
+  resolveProviderIcon,
+} from "../provider-icons";
 
 function vendorIcon(vendor: string) {
   const icon = resolveProviderIcon(vendor);
@@ -96,5 +100,38 @@ describe("resolveModelIcon", () => {
     expect(
       resolveModelIcon({ id: "my-model", providerId: "my-proxy" }),
     ).toBeUndefined();
+  });
+});
+
+describe("monoIconSource", () => {
+  it("uses the single-colour variant of a colour icon", () => {
+    const openRouter = resolveProviderIcon("openrouter");
+    expect(openRouter?.monoSrc).toEqual(expect.any(String));
+    expect(openRouter && monoIconSource(openRouter)).toBe(openRouter?.monoSrc);
+    expect(openRouter?.monoSrc).not.toBe(openRouter?.src);
+  });
+
+  it("keeps an icon that is already single-colour", () => {
+    const anthropic = resolveProviderIcon("anthropic");
+    expect(anthropic?.monochrome).toBe(true);
+    expect(anthropic && monoIconSource(anthropic)).toBe(anthropic?.src);
+  });
+
+  it("has a single-colour source for every colour provider icon", () => {
+    for (const provider of [
+      "amazon-bedrock",
+      "azure-openai-responses",
+      "deepseek",
+      "google",
+      "google-vertex",
+      "kimi-coding",
+      "minimax",
+      "mistral",
+      "openrouter",
+      "zai",
+    ]) {
+      const icon = resolveProviderIcon(provider);
+      expect(icon?.monochrome || Boolean(icon?.monoSrc), provider).toBe(true);
+    }
   });
 });

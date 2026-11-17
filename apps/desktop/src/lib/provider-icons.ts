@@ -40,10 +40,36 @@ import workersAiIcon from "@lobehub/icons-static-svg/icons/workersai-color.svg";
 import xAiIcon from "@lobehub/icons-static-svg/icons/xai.svg";
 import xiaomiMimoIcon from "@lobehub/icons-static-svg/icons/xiaomimimo.svg";
 import zhipuIcon from "@lobehub/icons-static-svg/icons/zhipu-color.svg";
+import antgroupMonoIcon from "@lobehub/icons-static-svg/icons/antgroup.svg";
+import azureMonoIcon from "@lobehub/icons-static-svg/icons/azure.svg";
+import bedrockMonoIcon from "@lobehub/icons-static-svg/icons/bedrock.svg";
+import cerebrasMonoIcon from "@lobehub/icons-static-svg/icons/cerebras.svg";
+import cloudflareMonoIcon from "@lobehub/icons-static-svg/icons/cloudflare.svg";
+import deepseekMonoIcon from "@lobehub/icons-static-svg/icons/deepseek.svg";
+import fireworksMonoIcon from "@lobehub/icons-static-svg/icons/fireworks.svg";
+import googleMonoIcon from "@lobehub/icons-static-svg/icons/google.svg";
+import huggingfaceMonoIcon from "@lobehub/icons-static-svg/icons/huggingface.svg";
+import kimiMonoIcon from "@lobehub/icons-static-svg/icons/kimi.svg";
+import minimaxMonoIcon from "@lobehub/icons-static-svg/icons/minimax.svg";
+import mistralMonoIcon from "@lobehub/icons-static-svg/icons/mistral.svg";
+import nvidiaMonoIcon from "@lobehub/icons-static-svg/icons/nvidia.svg";
+import openrouterMonoIcon from "@lobehub/icons-static-svg/icons/openrouter.svg";
+import togetherMonoIcon from "@lobehub/icons-static-svg/icons/together.svg";
+import vertexaiMonoIcon from "@lobehub/icons-static-svg/icons/vertexai.svg";
+import workersaiMonoIcon from "@lobehub/icons-static-svg/icons/workersai.svg";
+import zhipuMonoIcon from "@lobehub/icons-static-svg/icons/zhipu.svg";
 
 export interface ProviderIconDefinition {
+  /** `src` is single-colour (black) and needs inverting on dark surfaces. */
   monochrome?: boolean;
+  /** Single-colour (`currentColor`) variant of a colour `src`. */
+  monoSrc?: string;
   src: string;
+}
+
+/** The icon's single-colour SVG, for drawing in the surrounding text colour. */
+export function monoIconSource(icon: ProviderIconDefinition): string {
+  return icon.monoSrc ?? icon.src;
 }
 
 const PROVIDER_ICONS = {
@@ -62,33 +88,33 @@ const PROVIDER_ICONS = {
   perplexity: { src: perplexityIcon },
   qwen: { src: qwenIcon },
   stepfun: { src: stepfunIcon },
-  antgroup: { src: antGroupIcon },
+  antgroup: { monoSrc: antgroupMonoIcon, src: antGroupIcon },
   anthropic: { monochrome: true, src: anthropicIcon },
-  azure: { src: azureIcon },
-  bedrock: { src: amazonBedrockIcon },
-  cerebras: { src: cerebrasIcon },
-  cloudflare: { src: cloudflareIcon },
-  deepseek: { src: deepSeekIcon },
-  fireworks: { src: fireworksIcon },
+  azure: { monoSrc: azureMonoIcon, src: azureIcon },
+  bedrock: { monoSrc: bedrockMonoIcon, src: amazonBedrockIcon },
+  cerebras: { monoSrc: cerebrasMonoIcon, src: cerebrasIcon },
+  cloudflare: { monoSrc: cloudflareMonoIcon, src: cloudflareIcon },
+  deepseek: { monoSrc: deepseekMonoIcon, src: deepSeekIcon },
+  fireworks: { monoSrc: fireworksMonoIcon, src: fireworksIcon },
   githubcopilot: { monochrome: true, src: githubCopilotIcon },
-  google: { src: googleIcon },
+  google: { monoSrc: googleMonoIcon, src: googleIcon },
   groq: { monochrome: true, src: groqIcon },
-  huggingface: { src: huggingFaceIcon },
-  kimi: { src: kimiIcon },
-  minimax: { src: minimaxIcon },
-  mistral: { src: mistralIcon },
+  huggingface: { monoSrc: huggingfaceMonoIcon, src: huggingFaceIcon },
+  kimi: { monoSrc: kimiMonoIcon, src: kimiIcon },
+  minimax: { monoSrc: minimaxMonoIcon, src: minimaxIcon },
+  mistral: { monoSrc: mistralMonoIcon, src: mistralIcon },
   moonshot: { monochrome: true, src: moonshotIcon },
-  nvidia: { src: nvidiaIcon },
+  nvidia: { monoSrc: nvidiaMonoIcon, src: nvidiaIcon },
   openai: { monochrome: true, src: openAiIcon },
   opencode: { monochrome: true, src: opencodeIcon },
-  openrouter: { src: openRouterIcon },
-  together: { src: togetherIcon },
+  openrouter: { monoSrc: openrouterMonoIcon, src: openRouterIcon },
+  together: { monoSrc: togetherMonoIcon, src: togetherIcon },
   vercel: { monochrome: true, src: vercelIcon },
-  vertexai: { src: vertexAiIcon },
-  workersai: { src: workersAiIcon },
+  vertexai: { monoSrc: vertexaiMonoIcon, src: vertexAiIcon },
+  workersai: { monoSrc: workersaiMonoIcon, src: workersAiIcon },
   xai: { monochrome: true, src: xAiIcon },
   xiaomimimo: { monochrome: true, src: xiaomiMimoIcon },
-  zhipu: { src: zhipuIcon },
+  zhipu: { monoSrc: zhipuMonoIcon, src: zhipuIcon },
 } as const satisfies Record<string, ProviderIconDefinition>;
 
 type ProviderIconId = keyof typeof PROVIDER_ICONS;
