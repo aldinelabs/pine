@@ -272,6 +272,7 @@ const SessionHostOperationSchema = z.discriminatedUnion("op", [
   z.object({
     op: z.literal("send"),
     sessionId: z.uuid(),
+    projectId: z.uuid().optional(),
     message: z.string().trim().min(1).max(100_000),
     locale: z.enum(["en-US", "zh-CN"]),
   }),
@@ -311,6 +312,44 @@ async function readSessionPage(
       ? { olderCursor: page.nextBefore }
       : {}),
   };
+}
+
+/** Hands a message to another session as coming from the asking one. */
+async function relayMessage(
+  core: PineCore,
+  requester: { sessionId: string },
+  owner: number,
+  projectId: string,
+  parsed: Extract<SessionHostOperation, { op: "send" }>,
+  senderName: string | undefined,
+): Promise<Extract<SessionHostResult, { op: "send" }>> {
+  const refusal = await core.wechat.relayRefusal(
+    requester.sessionId,
+    parsed.sessionId,
+    projectId,
+  );
+  if (refusal) throw new Error(refusal);
+  // Work from a WeChat-driven session carries WeChat's content along, so
+  // the target is held to the same limits from here on.
+  await core.wechat.sessionRelayed(
+    requester.sessionId,
+    parsed.sessionId,
+    projectId,
+  );
+  const running = core.sessionActivity(parsed.sessionId) !== "idle";
+  const sender = senderName ? relayTitle(senderName) : undefined;
+  await core.runtimes.prompt(
+    owner,
+    {
+      locale: parsed.locale,
+      message: `[Message from session ${sender ? `"${sender}" ` : ""}(${requester.sessionId})]\n\n${parsed.message}`,
+      target: { kind: "session", projectId, sessionId: parsed.sessionId },
+      ...(running ? { streamingBehavior: "steer" as const } : {}),
+    },
+    { focus: false },
+  );
+  core.notifyLibraryChanged("sessions");
+  return { op: "send", delivered: running ? "steer" : "turn" };
 }
 
 async function holdProject(
@@ -621,6 +660,32 @@ export async function answerSessionOperation(
     return readSessionPage(core, owner, project.id, parsed, known.name);
   }
 
+  // An approved message past the relatives scope, in any project.
+  if (parsed.op === "send" && parsed.projectId) {
+    if (parsed.sessionId === requester.sessionId)
+      throw new Error("A session cannot message itself.");
+    const project = projects.find(
+      (candidate) => candidate.id === parsed.projectId,
+    );
+    if (!project) throw new Error("That project does not exist.");
+    const library = sessionLibrary(core);
+    const known = (await listProjectSessions(project, library)).some(
+      (session) => session.id === parsed.sessionId,
+    );
+    if (!known)
+      throw new Error(
+        `No session ${parsed.sessionId} in ${projectName(project)}.`,
+      );
+    const own = runtimes.projectOfLiveSession(requester.sessionId);
+    const senderName = own
+      ? (await listProjectSessions(await repository.get(own.id), library)).find(
+          (session) => session.id === requester.sessionId,
+        )?.name
+      : undefined;
+    const owner = await holdProject(core, requester, project);
+    return relayMessage(core, requester, owner, project.id, parsed, senderName);
+  }
+
   if (
     parsed.op === "relatives" ||
     parsed.op === "read" ||
@@ -668,38 +733,14 @@ export async function answerSessionOperation(
         parsed,
         byId.get(parsed.sessionId)?.name,
       );
-    const refusal = await core.wechat.relayRefusal(
-      requester.sessionId,
-      parsed.sessionId,
-      project.id,
-    );
-    if (refusal) throw new Error(refusal);
-    // Work from a WeChat-driven session carries WeChat's content along, so
-    // the target is held to the same limits from here on.
-    await core.wechat.sessionRelayed(
-      requester.sessionId,
-      parsed.sessionId,
-      project.id,
-    );
-    const running = core.sessionActivity(parsed.sessionId) !== "idle";
-    const name = byId.get(requester.sessionId)?.name;
-    const sender = name ? relayTitle(name) : undefined;
-    await runtimes.prompt(
+    return relayMessage(
+      core,
+      requester,
       owner,
-      {
-        locale: parsed.locale,
-        message: `[Message from session ${sender ? `"${sender}" ` : ""}(${requester.sessionId})]\n\n${parsed.message}`,
-        target: {
-          kind: "session",
-          projectId: project.id,
-          sessionId: parsed.sessionId,
-        },
-        ...(running ? { streamingBehavior: "steer" as const } : {}),
-      },
-      { focus: false },
+      project.id,
+      parsed,
+      byId.get(requester.sessionId)?.name,
     );
-    core.notifyLibraryChanged("sessions");
-    return { op: "send", delivered: running ? "steer" : "turn" };
   }
 
   const callerMode = runtimes.approvalModeOfLiveSession(requester.sessionId);

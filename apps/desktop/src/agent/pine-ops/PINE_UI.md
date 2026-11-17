@@ -383,7 +383,10 @@ From top to bottom:
      searching, but only after a review, as for other access beyond the
      current work: in Let Me Review an Approval required card ("Read session
      …"), in Auto Approve and Autonomous Work the approval reviewer, in YOLO
-     none. It cannot send messages to those sessions. When a
+     none. It can message those sessions too, reviewed the same way for
+     every message ("Message session …"); when a message of yours clearly
+     belongs to another session, the agent may forward it there and say
+     where it went. When a
      sub-session finishes a turn, fails, or waits for an approval, the
      parent's transcript shows a marker ("Sub-session {name} finished",
      "Sub-session {name} failed", "Sub-session {name} is waiting for your

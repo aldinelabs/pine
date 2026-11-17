@@ -186,7 +186,7 @@ export function createSessionToolDefinitions(
     label: "Search Sessions",
     description:
       'Search the user\'s Pine sessions across projects by title and message text, newest first, with a matching snippet. Use "*" to list recent sessions.',
-    promptSnippet: `Use ${UI_SESSION_SEARCH_TOOL_NAME} when the user refers to an earlier conversation or asks what they worked on`,
+    promptSnippet: `Use ${UI_SESSION_SEARCH_TOOL_NAME} when the user refers to an earlier conversation or asks what they worked on. When a new user message has nothing to do with this conversation and reads like a reply or instruction meant for another session (it answers a question this session never asked, or names work that happens elsewhere), check ${UI_SESSION_RELATIVES_TOOL_NAME} and recent sessions ("*") to find the one it fits, then forward it there with ${UI_SESSION_SEND_TOOL_NAME} and tell the user where it went. A message that merely starts a new topic is for this session`,
     parameters: searchParams,
     prepareArguments: (args) => args as Static<typeof searchParams>,
     execute: async (_toolCallId, params) => {
@@ -513,7 +513,7 @@ export function createSessionToolDefinitions(
     name: UI_SESSION_RELATIVES_TOOL_NAME,
     label: "List Related Sessions",
     description:
-      "List this session's parent, its sub-sessions and its siblings (the parent's other sub-sessions), with what each is doing now.",
+      "List this session's parent, its sub-sessions and its siblings (the parent's other sub-sessions), with what each is doing now. Check here first when a user message seems meant for another session: these are read and messaged without review.",
     parameters: Type.Object({}),
     execute: async () => {
       const result = await callSessionHost(context, { op: "relatives" });
@@ -667,10 +667,16 @@ export function createSessionToolDefinitions(
     },
   });
 
+  type SendDelivery = "steer" | "turn" | undefined;
   const sendParams = Type.Object({
     sessionId: Type.String({
-      description: `A parent, sub-session or sibling, from ${UI_SESSION_RELATIVES_TOOL_NAME}.`,
+      description: `The session to message: a parent, sub-session or sibling from ${UI_SESSION_RELATIVES_TOOL_NAME}, or any session from ${UI_SESSION_SEARCH_TOOL_NAME}.`,
     }),
+    projectId: Type.Optional(
+      Type.String({
+        description: `The session's project, from ${UI_SESSION_SEARCH_TOOL_NAME}. Needed for a session that is not this one's parent, sub-session or sibling.`,
+      }),
+    ),
     message: Type.String({
       description:
         "What to tell it. A running session reads it at its next step; an idle one starts a new turn.",
@@ -680,17 +686,65 @@ export function createSessionToolDefinitions(
     name: UI_SESSION_SEND_TOOL_NAME,
     label: "Message Session",
     description:
-      "Send a message to this session's parent, a sub-session or a sibling, for example follow-up work for a sub-session. It is marked as coming from this session.",
+      "Send a message to another session, for example follow-up work for a sub-session. It is marked as coming from this session. This session's parent, sub-sessions and siblings are messaged directly; any other session (found with " +
+      `${UI_SESSION_SEARCH_TOOL_NAME}, passing its projectId) is reviewed first for every message: depending on the approval mode the user or the approval reviewer decides. When the user's message plainly belongs to another session rather than this conversation (after reading the likely one to confirm the fit), forward the user's words unchanged, say they come from the user, and tell the user where it went; when the fit is unclear, ask the user instead.`,
     parameters: sendParams,
     prepareArguments: (args) => args as Static<typeof sendParams>,
     executionMode: "sequential",
-    execute: async (_toolCallId, params) => {
+    execute: async (toolCallId, params, signal) => {
       const message = params.message.trim();
       if (!message) throw new Error("The message is empty.");
       const sessionId = params.sessionId.trim();
+      const relatives = await callSessionHost(context, { op: "relatives" });
+      const isRelative = [
+        relatives.parent,
+        ...relatives.children,
+        ...relatives.siblings,
+      ].some((relative) => relative?.id === sessionId);
+      let projectId: string | undefined;
+      if (!isRelative) {
+        projectId = params.projectId?.trim();
+        if (!projectId)
+          throw new Error(
+            `That session is not this session's parent, sub-session or sibling. Pass its projectId from ${UI_SESSION_SEARCH_TOOL_NAME} to message it.`,
+          );
+        const { session } = await callSessionHost(context, {
+          op: "describe",
+          projectId,
+          sessionId,
+        });
+        if (session.current)
+          throw new Error("A session cannot message itself.");
+        // Each message is new work for that session, so each one is reviewed.
+        const decision = await context.reviewOutOfScope({
+          toolCallId,
+          toolName: UI_SESSION_SEND_TOOL_NAME,
+          subject: `Message session “${session.title ?? "Untitled"}” in ${session.projectName}`,
+          description: "Send a message to another session",
+          evidence: [
+            "The session is not this session's parent, sub-session or sibling.",
+            `Project: ${session.projectName}`,
+            `Last updated ${session.updatedAt}`,
+            `Message: ${message}`,
+          ].join("\n"),
+          signal,
+        });
+        if (decision.kind !== "allow")
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: `Messaging that session was not approved.${decision.kind === "deny" && decision.reason ? ` ${decision.reason}` : ""}`,
+              },
+            ],
+            details: { sessionId, delivered: undefined as SendDelivery },
+          };
+      }
+      if (signal?.aborted) throw new Error("aborted");
       const result = await callSessionHost(context, {
         op: "send",
         sessionId,
+        ...(projectId ? { projectId } : {}),
         message,
         locale: context.getLocale(),
       });

@@ -774,6 +774,47 @@ describe("answerSessionOperation", () => {
     expect(prompt).not.toHaveBeenCalled();
   });
 
+  it("messages any session of a project once the tool passes its project", async () => {
+    const { core, prompt, relayRefusalCheck } = fixture();
+
+    const result = await answerSessionOperation(core, requester, {
+      op: "send",
+      sessionId: looseSession,
+      projectId,
+      message: "Hi",
+      locale: "en-US",
+    });
+
+    expect(relayRefusalCheck).toHaveBeenCalledWith(
+      requester.sessionId,
+      looseSession,
+      projectId,
+    );
+    expect(prompt.mock.calls[0]?.[1]).toMatchObject({
+      message: `[Message from session (${requester.sessionId})]\n\nHi`,
+      target: { kind: "session", projectId, sessionId: looseSession },
+    });
+    expect(result).toEqual({ op: "send", delivered: "turn" });
+  });
+
+  it("refuses a message to an unknown session or to itself", async () => {
+    const { core, prompt } = fixture();
+    const send = (sessionId: string) =>
+      answerSessionOperation(core, requester, {
+        op: "send",
+        sessionId,
+        projectId,
+        message: "Hi",
+        locale: "en-US",
+      });
+
+    await expect(send("55555555-5555-4555-8555-555555555555")).rejects.toThrow(
+      "No session",
+    );
+    await expect(send(requester.sessionId)).rejects.toThrow("itself");
+    expect(prompt).not.toHaveBeenCalled();
+  });
+
   it("refuses a WeChat-driven session's message to a relative above the ceiling", async () => {
     const { core, prompt, relayRefusalCheck } = fixture({
       sessionParents: { [requester.sessionId]: looseSession },

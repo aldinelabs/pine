@@ -480,6 +480,56 @@ describe("session tools", () => {
     expect(text(result)).toContain("reads the message at its next step");
   });
 
+  it("reviews every message to a session outside the relatives", async () => {
+    const { send, requestHost, reviewOutOfScope } = setup("auto-approve");
+
+    await expect(run(send, { sessionId: "s2", message: "Go" })).rejects.toThrow(
+      /Pass its projectId/,
+    );
+    await run(send, { sessionId: "s2", projectId: "p1", message: "Go" });
+    await run(send, { sessionId: "s2", projectId: "p1", message: "Again" });
+
+    expect(reviewOutOfScope).toHaveBeenCalledTimes(2);
+    expect(reviewOutOfScope.mock.calls[0][0]).toMatchObject({
+      toolName: "ui_session_send",
+      subject: "Message session “Release notes” in Pine",
+      evidence: expect.stringContaining("Message: Go"),
+    });
+    expect(requestHost).toHaveBeenLastCalledWith({
+      kind: "session",
+      operation: {
+        op: "send",
+        sessionId: "s2",
+        projectId: "p1",
+        message: "Again",
+        locale: "en-US",
+      },
+    });
+  });
+
+  it("does not message a session outside the relatives when the review denies it", async () => {
+    const { send, requestHost } = setup("auto-approve", {
+      kind: "deny",
+      reason: "Ask first.",
+    });
+
+    const result = await run(send, {
+      sessionId: "s2",
+      projectId: "p1",
+      message: "Go",
+    });
+
+    expect(text(result)).toBe(
+      "Messaging that session was not approved. Ask first.",
+    );
+    expect(
+      requestHost.mock.calls.some(
+        ([request]) =>
+          request.kind === "session" && request.operation.op === "send",
+      ),
+    ).toBe(false);
+  });
+
   it("names the sub-sessions a deletion takes with it", async () => {
     const { remove, requestApproval } = setup("auto-approve", { kind: "deny" });
 

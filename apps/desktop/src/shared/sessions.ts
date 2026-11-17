@@ -656,6 +656,11 @@ export type SessionHostOperation =
   | {
       op: "send";
       sessionId: string;
+      /**
+       * Message any session of this project, past the parent, sub-session
+       * and sibling scope; the tool sets it only after sending was approved.
+       */
+      projectId?: string;
       message: string;
       locale: "en-US" | "zh-CN";
     };
