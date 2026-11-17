@@ -126,7 +126,6 @@ function taskChanged(before: Task, after: Task): boolean {
   return (
     before.subject !== after.subject ||
     before.status !== after.status ||
-    before.description !== after.description ||
     before.activeForm !== after.activeForm ||
     before.owner !== after.owner ||
     !sameNumberList(before.blockedBy, after.blockedBy) ||
@@ -248,7 +247,6 @@ function createTasks(
       subject: item.subject,
       status: item.status ?? "pending",
     };
-    if (item.description) task.description = item.description;
     if (item.activeForm) task.activeForm = item.activeForm;
     if (blockedBy.length) task.blockedBy = blockedBy;
     if (!batch) {
@@ -289,7 +287,6 @@ export function applyTaskMutation(
 
       const hasMutation =
         params.subject !== undefined ||
-        params.description !== undefined ||
         params.activeForm !== undefined ||
         params.status !== undefined ||
         params.owner !== undefined ||
@@ -299,7 +296,7 @@ export function applyTaskMutation(
       if (!hasMutation) {
         return errorResult(
           state,
-          "update requires at least one mutable field: subject, description, activeForm, status, owner, metadata, addBlockedBy, or removeBlockedBy",
+          "update requires at least one mutable field: subject, activeForm, status, owner, metadata, addBlockedBy, or removeBlockedBy",
         );
       }
 
@@ -358,9 +355,6 @@ export function applyTaskMutation(
 
       const updated: Task = { ...current, status };
       if (params.subject !== undefined) updated.subject = params.subject;
-      if (params.description !== undefined) {
-        updated.description = params.description;
-      }
       if (params.activeForm !== undefined) {
         updated.activeForm = params.activeForm;
       }

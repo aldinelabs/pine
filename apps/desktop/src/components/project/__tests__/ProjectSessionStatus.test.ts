@@ -119,17 +119,6 @@ it("shows a short todo list in full, with what the active task is doing", () => 
   ).toBe(false);
 });
 
-it("falls back to the description for the active task", () => {
-  const wrapper = mountCard({
-    nextId: 2,
-    tasks: [task(1, "in_progress", { description: "Run the full check" })],
-  });
-
-  expect(wrapper.get("[data-testid=project-todo-detail]").text()).toBe(
-    "Run the full check",
-  );
-});
-
 it("lists every todo, whatever the card's height, so the graph stays whole", () => {
   const tasks = Array.from({ length: 8 }, (_, index) =>
     task(index + 1, index < 3 ? "completed" : "pending"),

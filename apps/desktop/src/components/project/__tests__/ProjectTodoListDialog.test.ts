@@ -22,13 +22,13 @@ function mountDialog() {
           {
             id: 1,
             subject: "Finished",
-            description: "Full finished details",
+            activeForm: "Full finished details",
             status: "completed",
           },
           {
             id: 2,
             subject: "Pending ".repeat(50),
-            description: "Full pending description\nSecond line",
+            activeForm: "Full pending label\nSecond line",
             status: "pending",
             blockedBy: [1],
           },
@@ -36,7 +36,6 @@ function mountDialog() {
             id: 3,
             subject: "Active",
             activeForm: "Checking layout",
-            description: "Full active description",
             status: "in_progress",
             blockedBy: [2],
           },
@@ -75,7 +74,7 @@ it("keeps the header outside a bounded list scroller", () => {
   expect(scroll.find("[data-slot=dialog-header]").exists()).toBe(false);
 });
 
-it("shows the compact card's graph with full subjects and descriptions, without status groups", () => {
+it("shows the compact card's graph with full subjects and progress labels, without status groups", () => {
   const wrapper = mountDialog();
   expect(wrapper.getComponent(ProjectTodoGraph).props("detailed")).toBe(true);
   expect(wrapper.findAll("[data-testid=project-todo-node]")).toHaveLength(3);
@@ -87,8 +86,8 @@ it("shows the compact card's graph with full subjects and descriptions, without 
     "3",
   ]);
   expect(wrapper.text()).toContain("Full finished details");
-  expect(wrapper.text()).toContain("Full pending description");
-  expect(wrapper.text()).toContain("Full active description");
+  expect(wrapper.text()).toContain("Full pending label");
+  expect(wrapper.text()).toContain("Checking layout");
   expect(wrapper.find(".truncate").exists()).toBe(false);
   expect(wrapper.find("[data-testid^=project-todo-section-]").exists()).toBe(
     false,

@@ -45,9 +45,6 @@ function formatGetLines(task: Task, state: TaskState): string {
   const lines = [
     `#${task.id} [${task.status}] ${sanitizeTaskText(task.subject)}`,
   ];
-  if (task.description) {
-    lines.push(`  description: ${sanitizeTaskText(task.description)}`);
-  }
   if (task.activeForm) {
     lines.push(`  activeForm: ${sanitizeTaskText(task.activeForm)}`);
   }

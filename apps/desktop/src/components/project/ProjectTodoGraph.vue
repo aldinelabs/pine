@@ -63,10 +63,7 @@ watch(
 /** What the task in progress is doing, under its subject. */
 function detail(task: Task): string | null {
   if (!props.detailed && task.status !== "in_progress") return null;
-  const text = props.detailed
-    ? task.description || task.activeForm
-    : task.activeForm || task.description;
-  return text ? sanitizeTaskText(text) : null;
+  return task.activeForm ? sanitizeTaskText(task.activeForm) : null;
 }
 
 /** Each row's top, and the graph's full height last. */

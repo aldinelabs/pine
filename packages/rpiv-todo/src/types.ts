@@ -28,7 +28,6 @@ export type TaskAction = (typeof TASK_ACTIONS)[number];
 export interface Task {
   id: number;
   subject: string;
-  description?: string;
   activeForm?: string;
   status: TaskStatus;
   blockedBy?: number[];
@@ -56,7 +55,6 @@ export interface TaskDetails {
 /** One step of a batch `create`. */
 export interface TaskCreateItem {
   subject?: string;
-  description?: string;
   activeForm?: string;
   status?: TaskStatus;
   dependsOn?: number[];
@@ -67,7 +65,6 @@ export interface TaskCreateItem {
 export interface TaskMutationParams {
   [key: string]: unknown;
   subject?: string;
-  description?: string;
   activeForm?: string;
   status?: TaskStatus;
   blockedBy?: number[];
@@ -104,9 +101,6 @@ export const CREATE_STATUSES = ["pending", "in_progress"] as const;
 
 const TaskCreateItemSchema = Type.Object({
   subject: Type.String({ description: "Short imperative step" }),
-  description: Type.Optional(
-    Type.String({ description: "Long-form task description" }),
-  ),
   activeForm: Type.Optional(
     Type.String({
       description: "Present-continuous label shown while in_progress",
@@ -143,9 +137,6 @@ export const TodoParamsSchema = Type.Object({
       description:
         "create: subject of one task added to an existing list (use tasks to start a list)",
     }),
-  ),
-  description: Type.Optional(
-    Type.String({ description: "Long-form task description" }),
   ),
   activeForm: Type.Optional(
     Type.String({
@@ -213,5 +204,5 @@ export const TODO_PROMPT_GUIDELINES = [
   "Never create tasks for work you have already finished. The list is a plan for what is ahead, not a log of what happened.",
   'Exactly one task is in_progress while you work. Mark the next step in_progress (with an activeForm) BEFORE starting it, and mark it completed IMMEDIATELY when it is done and verified, e.g. {"action":"update","id":3,"status":"completed"}. Never batch completions. Never mark a task completed while tests fail or the work is partial; keep it in_progress and add a task for the blocker.',
   "Keep the list truthful: add steps you discover with a single-task create (subject plus blockedBy ids, [] for none), reword steps whose scope changed, delete steps that became unnecessary, and use addBlockedBy / removeBlockedBy on update to change dependencies. Before your final reply, no finished work may still be pending or in_progress.",
-  "list hides deleted tasks unless includeDeleted is true; pass status to filter. Subjects are short and imperative; description holds long-form detail.",
+  "list hides deleted tasks unless includeDeleted is true; pass status to filter. Subjects are short and imperative.",
 ] as const;
