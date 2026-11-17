@@ -1281,10 +1281,16 @@ describe("ProjectSessionComposer", () => {
       "再按日期排序",
     );
     expect(wrapper.find('[data-slot="reply-suggestion"]').exists()).toBe(false);
+
+    // Emptying the box again brings the same suggestion back.
+    await textarea.setValue("");
+    expect(wrapper.get('[data-slot="reply-suggestion"]').text()).toContain(
+      "再按日期排序",
+    );
     wrapper.unmount();
   });
 
-  it("hides the suggestion while typing and drops it when a run starts", async () => {
+  it("hides the suggestion while typing or composing and drops it when a run starts", async () => {
     const wrapper = mountComposer(
       { sessionId: "session-1", isRunning: true },
       "high",
@@ -1303,6 +1309,12 @@ describe("ProjectSessionComposer", () => {
     await wrapper.setProps({ isRunning: false });
     await flushPromises();
     const textarea = wrapper.get("textarea");
+
+    // An input method composing text hides it before v-model sees any.
+    await textarea.trigger("compositionstart");
+    expect(wrapper.find('[data-slot="reply-suggestion"]').exists()).toBe(false);
+    await textarea.trigger("compositionend");
+    expect(wrapper.find('[data-slot="reply-suggestion"]').exists()).toBe(true);
 
     await textarea.setValue("自己写");
     expect(wrapper.find('[data-slot="reply-suggestion"]').exists()).toBe(false);

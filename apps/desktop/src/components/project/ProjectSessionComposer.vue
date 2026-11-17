@@ -692,14 +692,19 @@ async function rewritePrompt(): Promise<void> {
 /*
  * Reply suggestion: once the agent finishes answering, the prompt rewrite
  * model guesses the user's next message. It takes the placeholder's place
- * (fading over it) while the text box is empty, and Tab fills it in.
+ * while the text box is empty and nothing is being typed, and Tab fills it
+ * in; it stays until the next run, so emptying the box shows it again.
  */
 const replySuggestion = ref("");
 let suggestionRun = 0;
+// v-model holds back the text while an input method composes it, so the
+// composition itself has to hide the suggestion.
+const isComposingText = ref(false);
 const showsReplySuggestion = computed(
   () =>
     replySuggestion.value.length > 0 &&
     message.value === "" &&
+    !isComposingText.value &&
     !props.isRunning &&
     !isRewriting.value &&
     !isMentioning.value &&
@@ -742,9 +747,9 @@ watch(
   },
 );
 
+/** Tab fills the suggestion in; emptying the box brings it back. */
 function acceptReplySuggestion(): void {
   const suggestion = replySuggestion.value;
-  clearReplySuggestion();
   message.value = suggestion;
   void nextTick(() => {
     const textarea = messageInput.value?.$el;
@@ -1227,9 +1232,11 @@ function handleRootSubmit(event: Event): void {
                   @blur="isInputFocused = false"
                   @keydown="handleKeydown"
                   @paste="handlePaste"
+                  @compositionstart="isComposingText = true"
+                  @compositionend="isComposingText = false"
                 />
-                <!-- The suggestion fades in over the placeholder, which fades
-                     out, in the same colour and position. -->
+                <!-- Once the placeholder has faded out, the suggestion fades
+                     in at its place, in the same colour. -->
                 <Transition name="session-composer-suggestion">
                   <div
                     v-if="showsReplySuggestion"
@@ -1649,13 +1656,13 @@ function handleRootSubmit(event: Event): void {
   padding-inline-end: var(--session-input-padding-inline, 1rem);
 }
 
-.session-composer-suggestion-enter-active,
-.session-composer-suggestion-leave-active {
-  transition: opacity 300ms ease-out;
+/* The placeholder fades out first, then the suggestion fades in. Leaving
+   has no transition: any input replaces the suggestion at once. */
+.session-composer-suggestion-enter-active {
+  transition: opacity 300ms ease-out 300ms;
 }
 
-.session-composer-suggestion-enter-from,
-.session-composer-suggestion-leave-to {
+.session-composer-suggestion-enter-from {
   opacity: 0;
 }
 
