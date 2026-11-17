@@ -9,6 +9,17 @@ Every release section here has a matching section in the Chinese changelog.
 
 ## [Unreleased]
 
+## [0.21.3] - 2026-11-17
+
+### Added
+
+- **Keyboard shortcuts for Settings and the composer's menus**: `⌘/Ctrl + ,` opens Settings, `⌘/Ctrl + ;` opens the approval mode menu and `⌘/Ctrl + '` opens the model menu. Hold `⌘/Ctrl` to see these shortcuts beside the controls.
+
+### Changed
+
+- **A reply suggestion is used up once you take it**: after `Tab` fills a suggestion in, clearing the box no longer brings it back. If you typed your own message instead, clearing the box still shows the suggestion.
+- **Livelier Optimize prompt button**: in a session, the Optimize prompt button beside Send turns to its colour gradient when you point at it. In a new session, the button's label no longer dims while the optimization runs.
+
 ## [0.21.2] - 2026-11-17
 
 ### Fixed
