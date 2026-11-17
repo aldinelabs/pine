@@ -7,6 +7,45 @@ import ContextUsageIndicator from "../ContextUsageIndicator.vue";
 
 const passthroughStub = { template: "<div><slot /></div>" };
 
+async function mountWithCost(cost: number) {
+  Object.defineProperty(window, "pine", {
+    configurable: true,
+    value: {
+      loadSessionMessages: vi.fn().mockResolvedValue({ messages: [] }),
+      resumeSession: vi.fn().mockResolvedValue({
+        session: {
+          id: "session-cost",
+          createdAt: "2026-09-07T12:00:00.000Z",
+          updatedAt: "2026-09-07T12:00:00.000Z",
+          messageCount: 2,
+        },
+        contextUsage: {
+          tokens: 12_800,
+          contextWindow: 128_000,
+          percent: 10,
+          cost,
+          cacheHitRate: null,
+        },
+      }),
+    },
+  });
+  const pinia = createPinia();
+  setActivePinia(pinia);
+  const store = useSessionStore();
+  await store.resume("project-1", "session-cost");
+  const wrapper = mount(ContextUsageIndicator, {
+    global: {
+      plugins: [pinia, createAppI18n("en-US")],
+      stubs: {
+        Popover: passthroughStub,
+        PopoverContent: passthroughStub,
+        PopoverTrigger: passthroughStub,
+      },
+    },
+  });
+  return { wrapper, store };
+}
+
 describe("ContextUsageIndicator", () => {
   it("allows the active session to be compacted manually", async () => {
     const compactSession = vi.fn().mockResolvedValue({ compacted: true });
@@ -151,5 +190,27 @@ describe("ContextUsageIndicator", () => {
     await wrapper.get('[data-testid="cost-limit-toggle"]').trigger("click");
     expect(store.costLimitFor("session-limit")).toBeNull();
     store.setCostLimit("session-limit", null);
+  });
+  it("shows the session cost beside the percentage", async () => {
+    const { wrapper } = await mountWithCost(0.4249);
+    const trigger = wrapper.get('[data-slot="context-usage-trigger"]');
+    expect(trigger.text()).toContain("10%");
+    expect(
+      trigger.get('[data-testid="context-usage-trigger-cost"]').text(),
+    ).toContain("$0.42");
+  });
+
+  it("shows tiny costs as less than one cent", async () => {
+    const { wrapper } = await mountWithCost(0.0004);
+    expect(
+      wrapper.get('[data-testid="context-usage-trigger-cost"]').text(),
+    ).toContain("<$0.01");
+  });
+
+  it("hides the cost when nothing has been charged", async () => {
+    const { wrapper } = await mountWithCost(0);
+    expect(
+      wrapper.find('[data-testid="context-usage-trigger-cost"]').exists(),
+    ).toBe(false);
   });
 });

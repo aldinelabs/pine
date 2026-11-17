@@ -126,6 +126,20 @@ const costText = computed(() =>
     : t("project.composer.contextUsage.unknown"),
 );
 
+/**
+ * Session cost beside the percentage. Hidden while nothing has been charged:
+ * Pi reports 0 both before the first priced reply and for models without
+ * pricing (local or custom models), and "$0.00" would read as "free".
+ */
+const triggerCostText = computed(() => {
+  const cost = usage.value?.cost ?? 0;
+  if (!(cost > 0)) return null;
+  const minimum = currencyStore.toUsd(0.01);
+  return cost < minimum
+    ? `<${currencyStore.format(minimum, 2)}`
+    : currencyStore.format(cost, 2);
+});
+
 const cacheHitRateText = computed(() =>
   usage.value?.cacheHitRate == null
     ? t("project.composer.contextUsage.unknown")
@@ -188,6 +202,14 @@ async function compactContext(): Promise<void> {
           />
         </svg>
         <span class="tabular-nums">{{ usagePercentText }}%</span>
+        <span
+          v-if="triggerCostText"
+          data-testid="context-usage-trigger-cost"
+          class="tabular-nums"
+        >
+          <span class="opacity-50" aria-hidden="true">·</span>
+          {{ triggerCostText }}
+        </span>
       </Button>
     </PopoverTrigger>
 

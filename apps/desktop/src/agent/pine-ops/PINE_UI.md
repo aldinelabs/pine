@@ -480,7 +480,11 @@ From top to bottom:
      such as payments, sending, publishing, irreversible deletion, security
      changes, or sharing sensitive information with a new recipient. This
      depends on the agent's judgment, not an independent check on each click.
-   - Context usage: a popover with a Context section (tokens used, context
+   - Context usage: the button shows a ring and the share of the context
+     window in use, followed by the conversation's cost so far (e.g.
+     "10% · $0.42", "<$0.01" for tiny amounts) once a priced model has
+     charged anything; models without pricing show no cost. It opens a
+     popover with a Context section (tokens used, context
      window, utilization, cache hit rate, Compact context now) and a Cost
      section (conversation cost, in the currency chosen in Pine Settings ›
      General) with a Session cost limit switch and amount. Reaching the limit
