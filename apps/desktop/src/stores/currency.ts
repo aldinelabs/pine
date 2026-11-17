@@ -86,8 +86,15 @@ export const useCurrencyStore = defineStore("currency", () => {
   const fromUsd = (usd: number): number => usd * rateValue.value;
   const toUsd = (amount: number): number => amount / rateValue.value;
 
-  /** Formats a USD amount in the display currency. */
-  function format(usd: number, fractionDigits?: number): string {
+  /**
+   * Formats a USD amount in the display currency. `narrow` uses the bare
+   * symbol ("¥" rather than "CN¥") where space is tight.
+   */
+  function format(
+    usd: number,
+    fractionDigits?: number,
+    { narrow = false }: { narrow?: boolean } = {},
+  ): string {
     const amount = fromUsd(usd);
     const digits =
       fractionDigits ?? (currency.value === "USD" || amount < 100 ? 4 : 2);
@@ -95,6 +102,7 @@ export const useCurrencyStore = defineStore("currency", () => {
       return new Intl.NumberFormat(undefined, {
         style: "currency",
         currency: currency.value,
+        currencyDisplay: narrow ? "narrowSymbol" : "symbol",
         minimumFractionDigits: Math.min(digits, 2),
         maximumFractionDigits: digits,
       }).format(amount);

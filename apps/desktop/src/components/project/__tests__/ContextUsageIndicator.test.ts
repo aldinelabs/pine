@@ -197,14 +197,14 @@ describe("ContextUsageIndicator", () => {
     expect(trigger.text()).toContain("10%");
     expect(
       trigger.get('[data-testid="context-usage-trigger-cost"]').text(),
-    ).toContain("$0.42");
+    ).toBe("$0.42");
   });
 
   it("shows tiny costs as less than one cent", async () => {
     const { wrapper } = await mountWithCost(0.0004);
     expect(
       wrapper.get('[data-testid="context-usage-trigger-cost"]').text(),
-    ).toContain("<$0.01");
+    ).toBe("<$0.01");
   });
 
   it("hides the cost when nothing has been charged", async () => {

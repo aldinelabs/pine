@@ -134,10 +134,12 @@ const costText = computed(() =>
 const triggerCostText = computed(() => {
   const cost = usage.value?.cost ?? 0;
   if (!(cost > 0)) return null;
+  // The footer is tight: the bare symbol ("¥") rather than "CN¥".
   const minimum = currencyStore.toUsd(0.01);
+  const options = { narrow: true };
   return cost < minimum
-    ? `<${currencyStore.format(minimum, 2)}`
-    : currencyStore.format(cost, 2);
+    ? `<${currencyStore.format(minimum, 2, options)}`
+    : currencyStore.format(cost, 2, options);
 });
 
 const cacheHitRateText = computed(() =>
@@ -205,9 +207,8 @@ async function compactContext(): Promise<void> {
         <span
           v-if="triggerCostText"
           data-testid="context-usage-trigger-cost"
-          class="tabular-nums"
+          class="ml-1 tabular-nums"
         >
-          <span class="opacity-50" aria-hidden="true">·</span>
           {{ triggerCostText }}
         </span>
       </Button>
