@@ -17,6 +17,16 @@ import {
   REVEAL_PI_PROVIDERS_CHANNEL,
   SET_PI_PROVIDERS_CHANNEL,
 } from "./shared/piProviders";
+import {
+  LIVE_CONTEXT_EVENT_CHANNEL,
+  LIVE_CONTEXT_PAUSE_CHANNEL,
+  LIVE_CONTEXT_RESUME_CHANNEL,
+  LIVE_CONTEXT_START_CHANNEL,
+  LIVE_CONTEXT_STATUS_CHANNEL,
+  LIVE_CONTEXT_STOP_CHANNEL,
+  LIVE_CONTEXT_TRANSCRIPT_CHANNEL,
+  type LiveContextEvent,
+} from "./shared/liveContext";
 import { QUICK_COMPOSER_HANDOFF_ARGUMENT } from "./shared/quickComposer";
 import {
   GET_REMOTE_KEEP_AWAKE_CHANNEL,
@@ -135,6 +145,22 @@ const pineApi: PineDesktopApi = {
     ipcRenderer.invoke(SET_PI_PROVIDERS_CHANNEL, request),
   revealPiProviders: () => ipcRenderer.invoke(REVEAL_PI_PROVIDERS_CHANNEL),
   pickPiAgentDir: () => ipcRenderer.invoke(PICK_PI_AGENT_DIR_CHANNEL),
+  liveContext: {
+    status: () => ipcRenderer.invoke(LIVE_CONTEXT_STATUS_CHANNEL),
+    start: (request) => ipcRenderer.invoke(LIVE_CONTEXT_START_CHANNEL, request),
+    pause: () => ipcRenderer.invoke(LIVE_CONTEXT_PAUSE_CHANNEL),
+    resume: () => ipcRenderer.invoke(LIVE_CONTEXT_RESUME_CHANNEL),
+    stop: () => ipcRenderer.invoke(LIVE_CONTEXT_STOP_CHANNEL),
+    transcript: (target) =>
+      ipcRenderer.invoke(LIVE_CONTEXT_TRANSCRIPT_CHANNEL, target),
+    subscribe: (listener) => {
+      const handler = (_event: unknown, event: LiveContextEvent) =>
+        listener(event);
+      ipcRenderer.on(LIVE_CONTEXT_EVENT_CHANNEL, handler);
+      return () =>
+        ipcRenderer.removeListener(LIVE_CONTEXT_EVENT_CHANNEL, handler);
+    },
+  },
   getRemoteKeepAwake: () => ipcRenderer.invoke(GET_REMOTE_KEEP_AWAKE_CHANNEL),
   setRemoteKeepAwake: (enabled) =>
     ipcRenderer.invoke(SET_REMOTE_KEEP_AWAKE_CHANNEL, enabled),

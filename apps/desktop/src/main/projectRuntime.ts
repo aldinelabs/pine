@@ -90,6 +90,7 @@ import {
   listSideChats,
   sideChatsDirectory,
 } from "./sideChats";
+import { deleteLiveTranscript } from "./liveContext";
 import {
   isSideChatAnchor,
   type OpenSideChatRequest,
@@ -789,6 +790,7 @@ export class ProjectRuntimeRegistry {
       await deleteSideChatsOf(
         sideChatsDirectory(runtime.dataPaths.projectRoot, sessionId),
       );
+      await deleteLiveTranscript(runtime.dataPaths.projectRoot, sessionId);
       void removeSessionVersions(
         artifactStoreRoot(runtime.dataPaths),
         sessionId,

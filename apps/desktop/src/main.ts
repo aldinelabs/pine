@@ -98,6 +98,7 @@ import {
   createPowerBlocker,
   registerRemoteKeepAwakeIpc,
 } from "./main/desktop/remoteKeepAwake";
+import { createLiveContext } from "./main/desktop/liveContext";
 import {
   createRemoteKeepAwakeSetting,
   isRemoteAccessOn,
@@ -675,6 +676,12 @@ registerRemoteKeepAwakeIpc({
   controller: remoteKeepAwake,
   set: setRemoteKeepAwake,
 });
+const liveContext = createLiveContext({
+  projectRoot: (projectId) => {
+    if (!core) throw new Error("Pine is still starting.");
+    return core.repository.dataPaths(projectId).projectRoot;
+  },
+});
 
 /** A section asked for before the window's renderer could listen. */
 let pendingPreferencesSection: string | null = null;
@@ -1015,6 +1022,7 @@ app.on("will-quit", () => {
   quickComposer.dispose();
   background.dispose();
   remoteKeepAwake.dispose();
+  liveContext.dispose();
   core?.dispose();
   releaseWindowsSandboxRuntimeAccess();
 });

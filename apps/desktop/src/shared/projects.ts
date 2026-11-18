@@ -412,6 +412,8 @@ export interface PineDesktopApi
     PineRemoteKeepAwakeApi,
     PinePiProvidersApi {
   runtime?: "desktop" | "web";
+  /** Desktop only; see docs/live-context.md. */
+  liveContext?: import("./liveContext").PineLiveContextApi;
   getWebServer?: () => Promise<import("./webControl").WebServerStatus>;
   setWebServer?: (
     request: import("./webControl").WebServerSettings,
