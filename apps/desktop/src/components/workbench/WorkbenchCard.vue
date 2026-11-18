@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import {
   FILE_COMMENTS_PANEL,
   FILE_DETAILS_PANEL,
+  LIVE_CONTEXT_PANEL,
   type AgentWorkbenchPanel,
   type WorkbenchPanel,
   type WorkbenchPosition,
@@ -15,6 +16,7 @@ import {
 import WorkbenchCardAddMenu from "./WorkbenchCardAddMenu.vue";
 import WorkbenchCardPanelMenu from "./WorkbenchCardPanelMenu.vue";
 import WorkbenchFileCard from "./WorkbenchFileCard.vue";
+import WorkbenchLiveContextPanel from "./WorkbenchLiveContextPanel.vue";
 import WorkbenchSideChatCard from "./WorkbenchSideChatCard.vue";
 import { useContentTabNavigation } from "@/composables/useContentTabNavigation";
 import { fileName, fileTargetPath } from "@/lib/filePreviewTarget";
@@ -47,11 +49,15 @@ const changeFlashId = computed(() => `workbench-card:${props.position}`);
 const HIGHLIGHT_CLASS =
   "attention-flash [--attention-flash-box-shadow:none] [--attention-flash-overlay-z-index:50] before:pointer-events-none before:absolute before:inset-0 before:z-50 before:rounded-[inherit] before:outline-1 before:-outline-offset-1 before:outline-(--attention-flash-color) before:content-['']";
 
-const PANEL_COMPONENTS: Record<AgentWorkbenchPanel, Component> = {
+const PANEL_COMPONENTS: Record<
+  AgentWorkbenchPanel | typeof LIVE_CONTEXT_PANEL,
+  Component
+> = {
   artifacts: WorkbenchArtifactsPanel,
   tasks: ProjectBackgroundTaskPanel,
   preview: WorkbenchPreviewPanel,
   files: WorkbenchFilesPanel,
+  [LIVE_CONTEXT_PANEL]: WorkbenchLiveContextPanel,
 };
 
 const contentTabs = useContentTabsStore();
@@ -178,7 +184,11 @@ const summary = computed(() => {
           class="scroll-fade-y no-scrollbar absolute inset-0 overflow-y-auto"
         >
           <component
-            :is="PANEL_COMPONENTS[panel as AgentWorkbenchPanel]"
+            :is="
+              PANEL_COMPONENTS[
+                panel as AgentWorkbenchPanel | typeof LIVE_CONTEXT_PANEL
+              ]
+            "
             @content-changed="attentionFlash.flashOnce(changeFlashId)"
           />
         </div>

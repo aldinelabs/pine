@@ -976,6 +976,44 @@ export default {
         preview: "プレビュー",
         files: "ファイル",
         "side-chat": "サイドチャット",
+        "live-context": "ライブコンテキスト",
+      },
+      liveContext: {
+        start: "開始",
+        resume: "再開",
+        pause: "一時停止",
+        stop: "停止",
+        sources: "ソース",
+        language: "言語",
+        source: {
+          mic: "マイク",
+          system: "システムオーディオ",
+        },
+        speaker: {
+          mic: "自分",
+          system: "相手",
+        },
+        state: {
+          preparing: "準備中…",
+          downloading: "音声モデルをダウンロード中… {percent}%",
+          listening: "聞き取り中",
+          paused: "一時停止中",
+          stopping: "停止中…",
+        },
+        noSession: "会話を開くと、その会話のライブコンテキストを記録できます。",
+        elsewhere: "別の会話がライブコンテキストを記録しています。",
+        empty:
+          "この Mac で会議や授業を文字起こしし、この会話で使います。音声は保存しません。",
+        systemSilent:
+          "システムオーディオをまだ受け取っていません。音声を再生中なら、システム設定 › プライバシーとセキュリティ › 画面収録とシステムオーディオ録音 で Pine を許可してください。",
+        loadFailed: "文字起こしを読み込めませんでした",
+        actionFailed: "ライブコンテキストが応答しません",
+        unavailable: {
+          platform: "ライブコンテキストには macOS 26 以降が必要です。",
+          "helper-missing":
+            "この Pine ビルドにはライブコンテキストが含まれていません。",
+          disabled: "ライブコンテキストは試験的な機能で、現在オフです。",
+        },
       },
       artifacts: {
         empty:

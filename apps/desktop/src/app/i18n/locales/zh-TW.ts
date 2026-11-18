@@ -913,6 +913,42 @@ export default {
         preview: "預覽",
         files: "檔案",
         "side-chat": "側邊對話",
+        "live-context": "即時上下文",
+      },
+      liveContext: {
+        start: "開始",
+        resume: "繼續",
+        pause: "暫停",
+        stop: "停止",
+        sources: "來源",
+        language: "語言",
+        source: {
+          mic: "麥克風",
+          system: "系統音訊",
+        },
+        speaker: {
+          mic: "我",
+          system: "其他人",
+        },
+        state: {
+          preparing: "正在準備…",
+          downloading: "正在下載語音模型… {percent}%",
+          listening: "正在收聽",
+          paused: "已暫停",
+          stopping: "正在停止…",
+        },
+        noSession: "開啟一個對話後即可為其記錄即時上下文。",
+        elsewhere: "另一個對話正在記錄即時上下文。",
+        empty: "在本機轉寫會議或課堂內容，供這個對話使用。不會儲存音訊。",
+        systemSilent:
+          "尚未收到系統音訊。如果正在播放聲音，請在 系統設定 › 隱私權與安全性 › 螢幕與系統錄音 中允許 Pine。",
+        loadFailed: "無法載入轉寫內容",
+        actionFailed: "即時上下文沒有回應",
+        unavailable: {
+          platform: "即時上下文需要 macOS 26 或更新版本。",
+          "helper-missing": "此版本的 Pine 不包含即時上下文。",
+          disabled: "即時上下文是實驗功能，目前未開啟。",
+        },
       },
       artifacts: {
         empty: "Pine 在此對話中提交的產出檔案會顯示在這裡。",

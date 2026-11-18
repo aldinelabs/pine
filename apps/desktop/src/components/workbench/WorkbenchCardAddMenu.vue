@@ -11,11 +11,13 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useSideChat } from "@/composables/useSideChat";
 import {
+  LIVE_CONTEXT_PANEL,
   SIDE_CHAT_PANEL,
   WORKBENCH_CARD_PANELS,
   type WorkbenchPanel,
   type WorkbenchPosition,
 } from "@/shared/workbench";
+import { useLiveContextStore } from "@/stores/liveContext";
 import { useSessionStore } from "@/stores/session";
 import { useWorkbenchStore } from "@/stores/workbench";
 
@@ -27,6 +29,7 @@ const props = defineProps<{
 const { t } = useI18n();
 const workbench = useWorkbenchStore();
 const sessionStore = useSessionStore();
+const liveContext = useLiveContextStore();
 const sideChat = useSideChat();
 
 const addablePanels = computed(() =>
@@ -35,7 +38,8 @@ const addablePanels = computed(() =>
         (panel) =>
           panel !== props.panel &&
           // A side chat needs a conversation to fork.
-          (panel !== SIDE_CHAT_PANEL || Boolean(sessionStore.activeSession)),
+          (panel !== SIDE_CHAT_PANEL || Boolean(sessionStore.activeSession)) &&
+          (panel !== LIVE_CONTEXT_PANEL || liveContext.available),
       )
     : [],
 );

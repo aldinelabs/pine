@@ -988,6 +988,44 @@ export default {
         preview: "Vorschau",
         files: "Dateien",
         "side-chat": "Seitenchat",
+        "live-context": "Live-Kontext",
+      },
+      liveContext: {
+        start: "Starten",
+        resume: "Fortsetzen",
+        pause: "Pausieren",
+        stop: "Beenden",
+        sources: "Quellen",
+        language: "Sprache",
+        source: {
+          mic: "Mikrofon",
+          system: "Systemaudio",
+        },
+        speaker: {
+          mic: "Ich",
+          system: "Andere",
+        },
+        state: {
+          preparing: "Wird vorbereitet …",
+          downloading: "Sprachmodell wird geladen … {percent} %",
+          listening: "Hört zu",
+          paused: "Pausiert",
+          stopping: "Wird beendet …",
+        },
+        noSession:
+          "Öffne eine Unterhaltung, um Live-Kontext dafür aufzunehmen.",
+        elsewhere: "Eine andere Unterhaltung nimmt gerade Live-Kontext auf.",
+        empty:
+          "Transkribiert ein Meeting oder eine Vorlesung auf diesem Mac für diese Unterhaltung. Audio wird nie gespeichert.",
+        systemSilent:
+          "Noch kein Systemaudio. Wenn etwas abgespielt wird, erlaube Pine unter Systemeinstellungen › Datenschutz & Sicherheit › Bildschirm- & Systemaudioaufnahme.",
+        loadFailed: "Transkript konnte nicht geladen werden",
+        actionFailed: "Live-Kontext reagiert nicht",
+        unavailable: {
+          platform: "Live-Kontext benötigt macOS 26 oder neuer.",
+          "helper-missing": "Dieser Pine-Build enthält keinen Live-Kontext.",
+          disabled: "Live-Kontext ist experimentell und ausgeschaltet.",
+        },
       },
       artifacts: {
         empty:

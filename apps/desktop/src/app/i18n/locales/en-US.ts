@@ -966,6 +966,43 @@ export default {
         preview: "Preview",
         files: "Files",
         "side-chat": "Side chat",
+        "live-context": "Live context",
+      },
+      liveContext: {
+        start: "Start",
+        resume: "Resume",
+        pause: "Pause",
+        stop: "Stop",
+        sources: "Sources",
+        language: "Language",
+        source: {
+          mic: "Microphone",
+          system: "System audio",
+        },
+        speaker: {
+          mic: "Me",
+          system: "Others",
+        },
+        state: {
+          preparing: "Preparing…",
+          downloading: "Downloading speech model… {percent}%",
+          listening: "Listening",
+          paused: "Paused",
+          stopping: "Stopping…",
+        },
+        noSession: "Open a conversation to capture live context for it.",
+        elsewhere: "Another conversation is capturing live context.",
+        empty:
+          "Transcribes a meeting or class on this Mac, for this conversation. Audio is never saved.",
+        systemSilent:
+          "No system audio yet. If something is playing, allow Pine under System Settings › Privacy & Security › Screen & System Audio Recording.",
+        loadFailed: "Couldn't load the transcript",
+        actionFailed: "Live context didn't respond",
+        unavailable: {
+          platform: "Live context needs macOS 26 or later.",
+          "helper-missing": "This build of Pine doesn't include live context.",
+          disabled: "Live context is experimental and turned off.",
+        },
       },
       artifacts: {
         empty:

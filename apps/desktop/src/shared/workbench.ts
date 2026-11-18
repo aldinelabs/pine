@@ -19,6 +19,11 @@ export type AgentWorkbenchPanel = (typeof WORKBENCH_PANELS)[number];
  */
 export const SIDE_CHAT_PANEL = "side-chat" as const;
 /**
+ * The Live Context card (experimental, desktop only). Only the user opens
+ * it, and, like the side chat, it is not saved with the layout yet.
+ */
+export const LIVE_CONTEXT_PANEL = "live-context" as const;
+/**
  * The cards beside a file tab: the file's details on top and its comments
  * below. They replace the session's cards while a file tab is active, and
  * neither the card menus nor the agent can pick them.
@@ -28,11 +33,15 @@ export const FILE_COMMENTS_PANEL = "file-comments" as const;
 export type FileWorkbenchPanel =
   typeof FILE_DETAILS_PANEL | typeof FILE_COMMENTS_PANEL;
 export type WorkbenchPanel =
-  AgentWorkbenchPanel | typeof SIDE_CHAT_PANEL | FileWorkbenchPanel;
+  | AgentWorkbenchPanel
+  | typeof SIDE_CHAT_PANEL
+  | typeof LIVE_CONTEXT_PANEL
+  | FileWorkbenchPanel;
 /** Every panel a card can show, in the order the card menus list them. */
 export const WORKBENCH_CARD_PANELS = [
   ...WORKBENCH_PANELS,
   SIDE_CHAT_PANEL,
+  LIVE_CONTEXT_PANEL,
 ] as const satisfies readonly WorkbenchPanel[];
 
 export const WORKBENCH_POSITIONS = ["top", "bottom"] as const;

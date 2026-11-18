@@ -983,6 +983,46 @@ export default {
         preview: "Vista previa",
         files: "Archivos",
         "side-chat": "Chat lateral",
+        "live-context": "Contexto en directo",
+      },
+      liveContext: {
+        start: "Iniciar",
+        resume: "Reanudar",
+        pause: "Pausar",
+        stop: "Detener",
+        sources: "Fuentes",
+        language: "Idioma",
+        source: {
+          mic: "Micrófono",
+          system: "Audio del sistema",
+        },
+        speaker: {
+          mic: "Yo",
+          system: "Otros",
+        },
+        state: {
+          preparing: "Preparando…",
+          downloading: "Descargando el modelo de voz… {percent} %",
+          listening: "Escuchando",
+          paused: "En pausa",
+          stopping: "Deteniendo…",
+        },
+        noSession:
+          "Abre una conversación para capturar su contexto en directo.",
+        elsewhere: "Otra conversación está capturando contexto en directo.",
+        empty:
+          "Transcribe una reunión o clase en este Mac para esta conversación. Nunca se guarda el audio.",
+        systemSilent:
+          "Aún no llega audio del sistema. Si algo se está reproduciendo, permite Pine en Ajustes del Sistema › Privacidad y seguridad › Grabación de pantalla y audio del sistema.",
+        loadFailed: "No se pudo cargar la transcripción",
+        actionFailed: "El contexto en directo no responde",
+        unavailable: {
+          platform: "El contexto en directo requiere macOS 26 o posterior.",
+          "helper-missing":
+            "Esta versión de Pine no incluye contexto en directo.",
+          disabled:
+            "El contexto en directo es experimental y está desactivado.",
+        },
       },
       artifacts: {
         empty:

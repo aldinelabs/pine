@@ -959,6 +959,44 @@ export default {
         preview: "미리보기",
         files: "파일",
         "side-chat": "사이드 채팅",
+        "live-context": "실시간 컨텍스트",
+      },
+      liveContext: {
+        start: "시작",
+        resume: "계속",
+        pause: "일시정지",
+        stop: "중지",
+        sources: "소스",
+        language: "언어",
+        source: {
+          mic: "마이크",
+          system: "시스템 오디오",
+        },
+        speaker: {
+          mic: "나",
+          system: "다른 사람",
+        },
+        state: {
+          preparing: "준비 중…",
+          downloading: "음성 모델 다운로드 중… {percent}%",
+          listening: "듣는 중",
+          paused: "일시정지됨",
+          stopping: "중지하는 중…",
+        },
+        noSession:
+          "대화를 열면 해당 대화의 실시간 컨텍스트를 기록할 수 있습니다.",
+        elsewhere: "다른 대화에서 실시간 컨텍스트를 기록하고 있습니다.",
+        empty:
+          "이 Mac에서 회의나 수업을 받아 적어 이 대화에 사용합니다. 오디오는 저장하지 않습니다.",
+        systemSilent:
+          "아직 시스템 오디오가 들어오지 않습니다. 소리가 재생 중이라면 시스템 설정 › 개인정보 보호 및 보안 › 화면 및 시스템 오디오 녹음에서 Pine을 허용하세요.",
+        loadFailed: "받아쓴 내용을 불러올 수 없습니다",
+        actionFailed: "실시간 컨텍스트가 응답하지 않습니다",
+        unavailable: {
+          platform: "실시간 컨텍스트에는 macOS 26 이상이 필요합니다.",
+          "helper-missing": "이 Pine 빌드에는 실시간 컨텍스트가 없습니다.",
+          disabled: "실시간 컨텍스트는 실험 기능이며 현재 꺼져 있습니다.",
+        },
       },
       artifacts: {
         empty: "이 대화에서 Pine이 결과물로 제출한 파일이 여기에 나타납니다.",
