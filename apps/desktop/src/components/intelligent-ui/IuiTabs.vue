@@ -28,7 +28,7 @@ const tabs = computed(() =>
 
 <template>
   <Tabs v-if="tabs.length > 0" data-iui="tabs" default-value="0">
-    <TabsList>
+    <TabsList class="max-w-full justify-start overflow-x-auto">
       <TabsTrigger v-for="tab in tabs" :key="tab.value" :value="tab.value">
         {{ tab.label }}
       </TabsTrigger>

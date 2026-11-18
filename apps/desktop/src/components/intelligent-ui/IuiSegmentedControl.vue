@@ -26,7 +26,7 @@ const model = computed({
     variant="outline"
     size="sm"
     :spacing="2"
-    class="w-fit"
+    class="w-fit max-w-full overflow-x-auto"
     :disabled="isStreaming"
   >
     <ToggleGroupItem

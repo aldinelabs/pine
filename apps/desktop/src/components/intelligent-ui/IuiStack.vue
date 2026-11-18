@@ -17,7 +17,9 @@ const classes = computed(() => {
     pick(GAP, gap) ?? (row ? GAP.sm : GAP.md),
     pick(ALIGN, align) ?? (row ? ALIGN.center : ALIGN.stretch),
     pick(JUSTIFY, justify),
-    wrap && "flex-wrap",
+    // A row wraps by default, as Row does; one asked not to wrap scrolls.
+    row && (wrap === false ? "overflow-x-auto" : "flex-wrap"),
+    !row && wrap && "flex-wrap",
   );
 });
 </script>

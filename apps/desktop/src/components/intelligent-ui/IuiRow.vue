@@ -15,7 +15,9 @@ const classes = computed(() => {
     pick(GAP, gap) ?? GAP.sm,
     pick(ALIGN, align) ?? ALIGN.center,
     pick(JUSTIFY, justify),
-    wrap && "flex-wrap",
+    // Buttons and badges cannot shrink: wrap them by default, and scroll a
+    // row asked not to wrap, so neither runs past the message column.
+    wrap === false ? "overflow-x-auto" : "flex-wrap",
   );
 });
 </script>
