@@ -162,6 +162,8 @@ async function mountView() {
           template: '<div><slot /><slot name="tail" /></div>',
         },
         MessageScrollerItem: slotStub,
+        // Reads the real scroller context, which the provider stub lacks.
+        ProjectScrollToBottomButton: true,
         PineCharacter: true,
         ProjectSessionComposer: {
           name: "ProjectSessionComposer",
