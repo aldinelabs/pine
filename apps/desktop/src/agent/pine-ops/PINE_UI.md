@@ -287,11 +287,13 @@ From top to bottom:
      Scrolling up releases unused space below a newly positioned turn; a quick
      downward scroll cannot return to that discarded blank area or snap the
      conversation back to the bottom.
-     Scrolled away from the bottom, a round "Scroll to bottom" button with a
-     down arrow fades in at the bottom center of the conversation, just
-     above the composer; clicking it scrolls smoothly to the end and keeps
-     following the reply. It fades out at the bottom and never shows in an
-     empty session.
+     Scrolled well up from the bottom (about a screen's height, at least
+     400px), a round "Scroll to bottom" button with a down arrow, the size of
+     the composer's Send button, fades in at the bottom center of the
+     conversation, just above the composer; clicking it scrolls smoothly to
+     the end and keeps following the reply. It fades out once the reader is
+     back within half that distance of the bottom, never appears just
+     because a reply grows below, and never shows in an empty session.
      With reduced motion enabled, messages and scroll positions appear at once.
 2. Status cards above the composer, shown when relevant. The row sizes itself
    to its content, up to the available width; a lone card is not stretched to
