@@ -259,7 +259,9 @@ From top to bottom:
      the transcript and blends into the sent message without stretching text
      or attachments, or delaying the response. Ordinary sent messages rise
      together with their attachments and quotes from the composer. The
-     conversation scrolls smoothly to each new turn while the message arrives.
+     conversation scrolls smoothly to each new turn while the message arrives,
+     unless it was sent with Option+Enter (Alt+Enter); a steer sent with
+     Enter also scrolls back to the end of the reply.
      Once a turn is positioned, folding thinking or tool details above it
      keeps its position steady.
      When thinking folds as an answer begins, the conversation keeps
@@ -344,16 +346,20 @@ From top to bottom:
      Comments card show the file, the comment's location and the comment. The composer
      resizes smoothly as these
      appear and disappear.
-   - Text box. In a new session with no project, typing `@` chooses the
-     project.
-   - Optimize prompt (or Option+Enter / Alt+Enter in the text box). In a new
+   - Text box. Enter sends (Steer response while the agent works) and
+     scrolls the conversation to the new message; Option+Enter (Alt+Enter)
+     sends without moving the conversation, which keeps following the reply
+     only if it was already at the bottom; Shift+Enter starts a new line.
+     Send behaves like Enter. In a new session with no project, typing `@`
+     chooses the project.
+   - Optimize prompt (or Cmd+Enter / Ctrl+Enter in the text box). In a new
      session it is a sparkles button with its label in a peach-to-blue
      gradient, right of the approval mode; holding Cmd/Ctrl shows the
      shortcut beside it. Once the session has started it sits left of the
      action button while the agent is not working, in muted grey like a new
      session's project picker, taking the gradient on hover; holding
      Cmd/Ctrl swaps its sparkles icon
-     for the "⌥ ↵" keys. The
+     for the "⌘ ↵" (Ctrl ↵) keys. The
      prompt optimization model rewrites what was typed into a clearer, more
      specific prompt, following prompt-writing best practices, and keeps
      the same language. It also reads the project's name and folders, the
@@ -900,7 +906,10 @@ and Quit Pine. Quitting from the menu is the way to stop automations, Remote Con
   fields)
 - Mod+I: open the composer's model menu (outside other text fields)
 - Tab in an empty composer showing a reply suggestion: use the suggestion
-- Option+Enter (Alt+Enter): Optimize prompt in the composer; Esc cancels it
+- Composer text box: Enter sends and scrolls the conversation smoothly to
+  the new message; Option+Enter (Alt+Enter) sends without moving the
+  conversation; Shift+Enter starts a new line
+- Mod+Enter: Optimize prompt in the composer; Esc cancels it
 - Enlarged Markdown image: Left / Right previous / next image; Mod+= / Mod+−
   zoom in / out; Mod+0 fit to window; Esc closes
 - File preview with text selected: Mod+Alt+M comments on the selection; in

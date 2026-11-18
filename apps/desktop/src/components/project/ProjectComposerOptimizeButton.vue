@@ -12,7 +12,7 @@ import { cn } from "@/lib/utils";
 /**
  * The composer's Optimize prompt button, or Undo optimization after a
  * rewrite. Below a draft's input (`footer`) it has a sparkles icon and a
- * gradient label, and holding Cmd/Ctrl shows its Option/Alt+Enter shortcut
+ * gradient label, and holding Cmd/Ctrl shows its Cmd/Ctrl+Enter shortcut
  * beside it. Beside Send in a session (`inline`) it is muted like the
  * draft's project picker, and holding Cmd/Ctrl swaps its icon for the
  * shortcut.
@@ -44,7 +44,9 @@ const buttonClass = computed(() =>
       cn("min-w-0", props.isRewriting && "disabled:opacity-100"),
 );
 const modifierHeld = useModifierHold();
-const altLabel = (window.pine?.platform ?? "darwin") === "darwin" ? "⌥" : "Alt";
+const isMac = (window.pine?.platform ?? "darwin") === "darwin";
+const modLabel = isMac ? "⌘" : "Ctrl";
+const keyShortcut = isMac ? "Meta+Enter" : "Control+Enter";
 const showsUndo = computed(() => props.canUndo && !props.isRewriting);
 const label = computed(() =>
   props.isRewriting
@@ -94,11 +96,11 @@ const labelClass = computed(() =>
       :disabled="!props.canRewrite"
       :aria-busy="props.isRewriting || undefined"
       :aria-label="t('project.composer.optimizePrompt')"
-      aria-keyshortcuts="Alt+Enter"
+      :aria-keyshortcuts="keyShortcut"
       @click="emit('optimize')"
     >
       <KbdGroup v-if="isInline && modifierHeld" aria-hidden="true">
-        <Kbd>{{ altLabel }}</Kbd>
+        <Kbd>{{ modLabel }}</Kbd>
         <Kbd>↵</Kbd>
       </KbdGroup>
       <SparklesIcon
@@ -117,7 +119,6 @@ const labelClass = computed(() =>
     <ModifierShortcut
       v-if="!isInline && !showsUndo"
       class="pointer-events-none absolute left-full ml-1"
-      modifier="alt"
       key-label="↵"
     />
   </div>

@@ -702,6 +702,46 @@ describe("ProjectSessionComposer", () => {
     expect(wrapper.emitted("submit")).toEqual([["检查当前项目"]]);
   });
 
+  it("sends without moving the transcript with Option+Enter", async () => {
+    const wrapper = mountComposer();
+    const textarea = wrapper.get("textarea");
+    await textarea.setValue("稍后再看");
+
+    await textarea.trigger("keydown", { key: "Enter", altKey: true });
+
+    expect(wrapper.emitted("submit")).toEqual([
+      ["稍后再看", { holdView: true }],
+    ]);
+  });
+
+  it("optimizes instead of sending with Ctrl+Enter, and ignores Cmd+Option+Enter", async () => {
+    const rewritePrompt = vi.fn(() => new Promise(() => undefined));
+    const wrapper = mountComposer({}, "high", "zh-CN", { rewritePrompt });
+    const textarea = wrapper.get("textarea");
+    await textarea.setValue("写个周报");
+
+    await textarea.trigger("keydown", {
+      key: "Enter",
+      metaKey: true,
+      altKey: true,
+    });
+    expect(rewritePrompt).not.toHaveBeenCalled();
+
+    await textarea.trigger("keydown", { key: "Enter", ctrlKey: true });
+    expect(rewritePrompt).toHaveBeenCalledTimes(1);
+    expect(wrapper.emitted("submit")).toBeUndefined();
+    wrapper.unmount();
+  });
+
+  it("sends like Enter from the Send button", async () => {
+    const wrapper = mountComposer();
+    await wrapper.get("textarea").setValue("检查当前项目");
+
+    await wrapper.get('button[aria-label="发送消息"]').trigger("click");
+
+    expect(wrapper.emitted("submit")).toEqual([["检查当前项目"]]);
+  });
+
   it("keeps Shift+Enter and IME Enter available for text input", async () => {
     const wrapper = mountComposer();
     const textarea = wrapper.get("textarea");
@@ -1135,7 +1175,7 @@ describe("ProjectSessionComposer", () => {
     wrapper.unmount();
   });
 
-  it("optimizes the prompt with Option+Enter, disabling the input in colour meanwhile", async () => {
+  it("optimizes the prompt with Cmd+Enter, disabling the input in colour meanwhile", async () => {
     let resolve: (value: { prompt: string }) => void = () => undefined;
     const rewritePrompt = vi.fn(
       () =>
@@ -1149,7 +1189,7 @@ describe("ProjectSessionComposer", () => {
     const textarea = wrapper.get("textarea");
     await textarea.setValue("写个周报");
 
-    await textarea.trigger("keydown", { key: "Enter", altKey: true });
+    await textarea.trigger("keydown", { key: "Enter", metaKey: true });
 
     expect(rewritePrompt).toHaveBeenCalledWith(
       expect.objectContaining({ prompt: "写个周报" }),
@@ -1188,11 +1228,11 @@ describe("ProjectSessionComposer", () => {
       rewritePrompt,
     });
     const textarea = wrapper.get("textarea");
-    await textarea.trigger("keydown", { key: "Enter", altKey: true });
+    await textarea.trigger("keydown", { key: "Enter", metaKey: true });
     expect(rewritePrompt).not.toHaveBeenCalled();
     await textarea.setValue("整理一下");
 
-    await textarea.trigger("keydown", { key: "Enter", altKey: true });
+    await textarea.trigger("keydown", { key: "Enter", metaKey: true });
     expect(rewritePrompt).toHaveBeenCalledTimes(1);
     window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
     await nextTick();
@@ -1214,7 +1254,7 @@ describe("ProjectSessionComposer", () => {
     const textarea = wrapper.get("textarea");
     await textarea.setValue("补充一点");
 
-    await textarea.trigger("keydown", { key: "Enter", altKey: true });
+    await textarea.trigger("keydown", { key: "Enter", metaKey: true });
 
     expect(rewritePrompt).not.toHaveBeenCalled();
     expect(wrapper.emitted("submit")).toBeUndefined();
@@ -1331,7 +1371,7 @@ describe("ProjectSessionComposer", () => {
     const textarea = wrapper.get("textarea");
     await textarea.setValue("把刚才那些再按日期排一下");
 
-    await textarea.trigger("keydown", { key: "Enter", altKey: true });
+    await textarea.trigger("keydown", { key: "Enter", metaKey: true });
 
     expect(rewritePrompt).toHaveBeenCalledWith({
       prompt: "把刚才那些再按日期排一下",

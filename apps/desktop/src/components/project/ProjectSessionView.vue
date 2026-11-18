@@ -220,6 +220,9 @@ const scroller = useTemplateRef<{
   followingBottom?: boolean;
   holdViewForRewrite?: () => void;
   releaseRewriteHold?: () => void;
+  holdViewForNextTurn?: () => void;
+  releaseTurnHold?: () => void;
+  revealNextTurn?: (options?: { scrollToEnd?: boolean }) => void;
 }>("scroller");
 /** The first rendered message; null renders from the oldest loaded one. */
 const windowStartId = ref<string | null>(null);
@@ -510,12 +513,28 @@ function removeDraftAuthoring(target: PineAuthoringTarget): void {
   );
 }
 
-function submit(message: string, options?: { keepDraft?: boolean }): void {
+/**
+ * Send from the composer. A send scrolls the transcript to the new turn,
+ * or for a steer to the live end where it waits; `holdView` (Option/Alt+
+ * Enter) leaves the transcript where it is instead. A draft has no
+ * transcript yet, so its first message is shown either way.
+ */
+function submit(
+  message: string,
+  options?: { keepDraft?: boolean; holdView?: boolean },
+): void {
+  const holdView = options?.holdView === true && messages.value.length > 0;
+  if (holdView) scroller.value?.holdViewForNextTurn?.();
+  else scroller.value?.revealNextTurn?.({ scrollToEnd: isRunning.value });
+  const releaseHold = () => {
+    if (holdView) scroller.value?.releaseTurnHold?.();
+  };
   if (isRunning.value) {
     if (!options?.keepDraft) draft.value = "";
     void sessionStore
       .steer(message, approvalMode.value, props.sessionId ?? null)
       .catch(() => {
+        releaseHold();
         restoreComposerMessage(message);
         toast.error(t("errors.sessionPrompt.title"), {
           description: t("errors.sessionPrompt.description"),
@@ -533,6 +552,7 @@ function submit(message: string, options?: { keepDraft?: boolean }): void {
       attachmentMessagePreview(message),
     )
   ) {
+    releaseHold();
     return;
   }
   hasSubmittedPrompt.value = true;
@@ -562,6 +582,7 @@ function submit(message: string, options?: { keepDraft?: boolean }): void {
       tabNavigation.bindSession(props.tabId, session);
     })
     .catch(() => {
+      releaseHold();
       restoreComposerMessage(message);
       tabNavigation.failPrompt(props.tabId);
       hasSubmittedPrompt.value = false;
@@ -986,7 +1007,10 @@ async function handleDrop(event: DragEvent): Promise<void> {
         @abort="abort"
         @respond="respondToApproval"
         @respond-questionnaire="respondToQuestionnaire"
-        @submit="(message: string) => submit(message)"
+        @submit="
+          (message: string, options?: { holdView?: boolean }) =>
+            submit(message, options)
+        "
       />
 
       <Empty

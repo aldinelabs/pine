@@ -16,6 +16,11 @@ const activeTabId = ref("session-1");
 const navigationTabs = ref([]);
 const activateTab = vi.fn();
 let followingBottom = true;
+const turnScroll = {
+  holdViewForNextTurn: vi.fn(),
+  releaseTurnHold: vi.fn(),
+  revealNextTurn: vi.fn(),
+};
 /** Views listen on the window, so none may outlive its test. */
 const mountedViews: VueWrapper[] = [];
 
@@ -110,7 +115,13 @@ function mountView() {
           name: "MessageScrollerProvider",
           props: ["active"],
           template: "<div><slot /></div>",
-          methods: { isFollowingBottom: () => followingBottom },
+          methods: {
+            isFollowingBottom: () => followingBottom,
+            holdViewForNextTurn: () => turnScroll.holdViewForNextTurn(),
+            releaseTurnHold: () => turnScroll.releaseTurnHold(),
+            revealNextTurn: (options?: unknown) =>
+              turnScroll.revealNextTurn(options),
+          },
         },
         MessageScroller: slotStub,
         MessageScrollerViewport: viewportStub,
@@ -526,6 +537,42 @@ describe("ProjectSessionView file drop", () => {
     await flushPromises();
     expect(rendered()).toBe(2);
     wrapper.unmount();
+  });
+
+  it("scrolls to a sent turn unless it was sent holding the view", async () => {
+    for (const spy of Object.values(turnScroll)) spy.mockClear();
+    const { wrapper } = mountView();
+    const composer = () =>
+      wrapper.findComponent({ name: "ProjectSessionComposer" });
+    window.pine.promptSession = vi.fn().mockRejectedValue(new Error("down"));
+
+    // A draft has no transcript to hold: its first message is shown.
+    composer().vm.$emit("submit", "First", { holdView: true });
+    await flushPromises();
+    expect(turnScroll.holdViewForNextTurn).not.toHaveBeenCalled();
+    expect(turnScroll.revealNextTurn).toHaveBeenCalledWith({
+      scrollToEnd: false,
+    });
+
+    await wrapper.setProps({ sessionId: "session-hold" });
+    useSessionStore().stateFor("session-hold").messages = [
+      {
+        id: "earlier",
+        createdAt: "2026-09-03T00:00:00Z",
+        role: "assistant",
+        status: "complete",
+        blocks: [{ type: "text", text: "Earlier" }],
+      },
+    ];
+    await flushPromises();
+    turnScroll.revealNextTurn.mockClear();
+
+    composer().vm.$emit("submit", "Later", { holdView: true });
+    expect(turnScroll.holdViewForNextTurn).toHaveBeenCalledTimes(1);
+    expect(turnScroll.revealNextTurn).not.toHaveBeenCalled();
+    // The send failed, so the hold does not wait for a turn that never comes.
+    await flushPromises();
+    expect(turnScroll.releaseTurnHold).toHaveBeenCalledTimes(1);
   });
 
   it("steers the session owned by a bound tab", async () => {

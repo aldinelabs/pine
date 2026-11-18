@@ -514,6 +514,19 @@ export interface MessageScrollerContext {
   holdViewForRewrite: () => void;
   releaseRewriteHold: () => void;
   /**
+   * The next turn sent is not scrolled to: the view stays where it is, and
+   * keeps following the bottom only if it already was. Each call covers one
+   * turn; `releaseTurnHold` returns one that was never sent.
+   */
+  holdViewForNextTurn: () => void;
+  releaseTurnHold: () => void;
+  /**
+   * Sent turns are scrolled to again, ending any hold still pending. With
+   * `scrollToEnd`, a reader away from the live end is also taken there
+   * smoothly now, for a message that waits below the transcript (a steer).
+   */
+  revealNextTurn: (options?: { scrollToEnd?: boolean }) => void;
+  /**
    * Keeps `element`'s top where it is while it grows, such as a message
    * opening its editor, instead of following the bottom past it.
    */
@@ -605,6 +618,8 @@ function createEngine(props: MessageScrollerProviderProps) {
   /** An edited message is leaving to be sent again; the next turn that
    * arrives takes its place without moving the view. */
   let rewriteHold = false;
+  /** Sent turns still to arrive that should not move the view. */
+  let heldTurns = 0;
   let visibilityObserver: IntersectionObserver | null = null;
   let visibilityConsumers = 0;
   /** Content or size changes that arrived while the transcript was hidden. */
@@ -895,6 +910,36 @@ function createEngine(props: MessageScrollerProviderProps) {
       element,
       viewportTop: getRelativeTop(element, viewport),
     };
+  }
+
+  function holdViewForNextTurn() {
+    heldTurns += 1;
+  }
+
+  function releaseTurnHold() {
+    heldTurns = Math.max(0, heldTurns - 1);
+  }
+
+  function revealNextTurn({
+    scrollToEnd: toEnd = false,
+  }: { scrollToEnd?: boolean } = {}) {
+    heldTurns = 0;
+    // Following the bottom, or holding the running turn by its top, already
+    // shows the live end.
+    if (!toEnd || mode === "following-bottom" || mode === "anchored-to-message")
+      return;
+    scrollToEnd({ behavior: "smooth" });
+  }
+
+  /** Consume the hold for the turns among `appended`; true when held. */
+  function consumeTurnHold(appended: HTMLElement[]): boolean {
+    if (heldTurns === 0) return false;
+    for (const element of appended) {
+      if (element.dataset.scrollAnchor !== "true") continue;
+      handledScrollAnchors.add(element);
+      heldTurns = Math.max(0, heldTurns - 1);
+    }
+    return true;
   }
 
   function releaseRewriteHold() {
@@ -1248,6 +1293,8 @@ function createEngine(props: MessageScrollerProviderProps) {
       return;
     }
     if (previousCount === 0) {
+      // A first turn has no position to keep.
+      heldTurns = 0;
       if (
         applyDefaultScrollPosition() ||
         (children.length > 0 &&
@@ -1269,7 +1316,7 @@ function createEngine(props: MessageScrollerProviderProps) {
     // the transcript trims its oldest messages while following the bottom,
     // so the previous count no longer marks where new content starts.
     const anchor = findFirstAnchorFrom(appended, 0);
-    if (anchor) {
+    if (anchor && !consumeTurnHold(appended)) {
       if (
         autoScroll() &&
         mode === "following-bottom" &&
@@ -1648,6 +1695,9 @@ function createEngine(props: MessageScrollerProviderProps) {
     followStreamingContent,
     holdViewForRewrite,
     releaseRewriteHold,
+    holdViewForNextTurn,
+    releaseTurnHold,
+    revealNextTurn,
     holdElementTop,
     scrollToEnd,
     scrollToMessage,

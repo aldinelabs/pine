@@ -144,7 +144,11 @@ const emit = defineEmits<{
   respond: [action: PineApprovalAction, guidance?: string];
   respondQuestionnaire: [submission: AskUserQuestionSubmission];
   selectProject: [projectId: string];
-  submit: [message: string];
+  /**
+   * `holdView`: sent with Option/Alt+Enter, the transcript stays where it
+   * is instead of scrolling to the new turn.
+   */
+  submit: [message: string, options?: { holdView?: boolean }];
 }>();
 
 const props = withDefaults(
@@ -588,7 +592,7 @@ function handleChooserKeydown(event: KeyboardEvent): void {
 }
 
 /*
- * Optimize prompt (⌥/Alt+Enter): the prompt rewrite model rewrites what was
+ * Optimize prompt (⌘/Ctrl+Enter): the prompt rewrite model rewrites what was
  * typed, leaving [[blanks]] for what only the user knows. The input is
  * disabled meanwhile and the working border runs in colour; Escape cancels.
  */
@@ -834,7 +838,7 @@ useEventListener(window, "keydown", (event: KeyboardEvent) => {
   cancelRewrite();
 });
 
-function submitMessage(): void {
+function submitMessage(options?: { holdView?: boolean }): void {
   if (isRewriting.value) return;
   const normalizedMessage = message.value.trim();
   if (
@@ -844,13 +848,12 @@ function submitMessage(): void {
   )
     return;
 
-  emit(
-    "submit",
-    serializeAttachmentMessage(
-      attachments.value,
-      serializeQuoteMessage(quotes.value, normalizedMessage),
-    ),
+  const serialized = serializeAttachmentMessage(
+    attachments.value,
+    serializeQuoteMessage(quotes.value, normalizedMessage),
   );
+  if (options?.holdView) emit("submit", serialized, { holdView: true });
+  else emit("submit", serialized);
   attachments.value = [];
   quotes.value = [];
 }
@@ -1046,11 +1049,13 @@ function handleKeydown(event: KeyboardEvent): void {
   if (event.key !== "Enter" || event.shiftKey || event.isComposing) return;
 
   event.preventDefault();
-  if (event.altKey) {
-    if (!event.metaKey && !event.ctrlKey) void rewritePrompt();
+  // Enter sends and scrolls to the new turn; Option/Alt+Enter sends without
+  // moving the transcript; Cmd/Ctrl+Enter optimizes the prompt instead.
+  if (event.metaKey || event.ctrlKey) {
+    if (!event.altKey) void rewritePrompt();
     return;
   }
-  submitMessage();
+  submitMessage({ holdView: event.altKey });
 }
 
 function updateThinkingLevel(value: unknown): void {

@@ -23,7 +23,7 @@ function row(top: () => number, height: () => number, id?: string) {
  * message id that stays after the last message (like the waiting-for-reply
  * note). The reader has scrolled up to the top.
  */
-function createTranscript() {
+function createTranscript({ atEnd = false }: { atEnd?: boolean } = {}) {
   let engine!: ReturnType<typeof provideMessageScroller>;
   const wrapper = mount(
     defineComponent({
@@ -71,9 +71,11 @@ function createTranscript() {
   context.setSpacerElement(spacer);
   context.handleContentChange();
   context.syncAfterScroll();
-  context.userScrollIntent("start");
-  viewport.scrollTop = 0;
-  context.syncAfterScroll();
+  if (!atEnd) {
+    context.userScrollIntent("start");
+    viewport.scrollTop = 0;
+    context.syncAfterScroll();
+  }
 
   return {
     context,
@@ -113,5 +115,54 @@ it("scrolls to a sent turn that lands before a trailing status row", () => {
   const top = transcript.sentTop();
   expect(top).toBeGreaterThan(0);
   expect(top).toBeLessThan(100);
+  transcript.destroy();
+});
+
+it("leaves the view where it is for a turn sent with the view held", () => {
+  const transcript = createTranscript();
+  transcript.context.holdViewForNextTurn();
+
+  transcript.send();
+
+  expect(animateScrollTop).not.toHaveBeenCalled();
+  expect(transcript.viewport.scrollTop).toBe(0);
+  expect(transcript.context.isFollowingBottom()).toBe(false);
+  transcript.destroy();
+});
+
+it("keeps following the bottom for a held turn sent from the bottom", () => {
+  const transcript = createTranscript({ atEnd: true });
+  expect(transcript.context.isFollowingBottom()).toBe(true);
+  transcript.context.holdViewForNextTurn();
+
+  transcript.send();
+
+  expect(transcript.context.isFollowingBottom()).toBe(true);
+  expect(transcript.viewport.scrollTop).toBe(2100 - 500);
+  transcript.destroy();
+});
+
+it("scrolls to the turn again once a hold is revealed or released", () => {
+  const revealed = createTranscript();
+  revealed.context.holdViewForNextTurn();
+  revealed.context.revealNextTurn();
+  revealed.send();
+  expect(revealed.sentTop()).toBeLessThan(100);
+  revealed.destroy();
+
+  const released = createTranscript();
+  released.context.holdViewForNextTurn();
+  released.context.releaseTurnHold();
+  released.send();
+  expect(released.sentTop()).toBeLessThan(100);
+  released.destroy();
+});
+
+it("takes a reader in the history to the live end for a steer", () => {
+  const transcript = createTranscript();
+  transcript.context.revealNextTurn({ scrollToEnd: true });
+
+  expect(transcript.viewport.scrollTop).toBe(2000 - 500);
+  expect(transcript.context.isFollowingBottom()).toBe(true);
   transcript.destroy();
 });
