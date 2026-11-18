@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>CFBundleIdentifier</key>
+  <string>com.electron.pine.live-context</string>
+  <key>CFBundleName</key>
+  <string>Pine Live Context</string>
+  <key>NSMicrophoneUsageDescription</key>
+  <string>Pine transcribes what you say into the conversation's live context.</string>
+  <key>NSAudioCaptureUsageDescription</key>
+  <string>Pine transcribes the meeting or class audio playing on this Mac into the conversation's live context.</string>
+</dict>
+</plist>
