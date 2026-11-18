@@ -1480,6 +1480,7 @@ export default {
       emptyTitle: "不妨大膽想象",
       loadHistory: "載入更早的訊息",
       loadingHistory: "正在載入",
+      scrollToBottom: "捲動到底部",
       outline: "對話大綱",
       outlineAttachments: "[附件]",
       outlineEmpty: "傳送訊息後，回合會顯示在這裡。",

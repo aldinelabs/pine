@@ -1568,6 +1568,7 @@ export default {
       emptyTitle: "できることを思い描いてみましょう",
       loadHistory: "以前のメッセージを読み込む",
       loadingHistory: "読み込み中",
+      scrollToBottom: "一番下までスクロール",
       outline: "会話のアウトライン",
       outlineAttachments: "[添付ファイル]",
       outlineEmpty:

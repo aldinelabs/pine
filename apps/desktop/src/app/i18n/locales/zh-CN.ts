@@ -1476,6 +1476,7 @@ export default {
       emptyTitle: "不妨大胆想象",
       loadHistory: "加载更早的消息",
       loadingHistory: "正在加载",
+      scrollToBottom: "滚动到底部",
       outline: "对话大纲",
       outlineAttachments: "[附件]",
       outlineEmpty: "发送消息后，回合会显示在这里。",

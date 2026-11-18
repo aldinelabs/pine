@@ -1544,6 +1544,7 @@ export default {
       emptyTitle: "가능성을 상상해 보세요",
       loadHistory: "이전 메시지 불러오기",
       loadingHistory: "불러오는 중",
+      scrollToBottom: "맨 아래로 스크롤",
       outline: "대화 개요",
       outlineAttachments: "[첨부 파일]",
       outlineEmpty: "메시지를 보내면 내 발언이 여기에 표시됩니다.",

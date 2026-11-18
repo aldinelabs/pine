@@ -1554,6 +1554,7 @@ export default {
       emptyTitle: "Imagine what’s possible",
       loadHistory: "Load earlier messages",
       loadingHistory: "Loading",
+      scrollToBottom: "Scroll to bottom",
       outline: "Conversation outline",
       outlineAttachments: "[Attachment]",
       outlineEmpty: "Your turns will appear here after you send a message.",

@@ -1568,6 +1568,7 @@ export default {
       emptyTitle: "Представьте, что возможно",
       loadHistory: "Загрузить более ранние сообщения",
       loadingHistory: "Загрузка",
+      scrollToBottom: "Прокрутить вниз",
       outline: "Структура разговора",
       outlineAttachments: "[Вложение]",
       outlineEmpty: "Ваши реплики появятся здесь после отправки сообщения.",

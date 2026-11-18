@@ -129,6 +129,10 @@ function mountView() {
           template: '<div><slot /><slot name="tail" /></div>',
         },
         MessageScrollerItem: slotStub,
+        MessageScrollerButton: {
+          template:
+            '<button data-slot="message-scroller-button-stub"><slot /></button>',
+        },
         PineCharacter: true,
         ProjectSessionComposer: {
           name: "ProjectSessionComposer",
@@ -537,6 +541,26 @@ describe("ProjectSessionView file drop", () => {
     await flushPromises();
     expect(rendered()).toBe(2);
     wrapper.unmount();
+  });
+
+  it("offers a labelled scroll-to-bottom button only once there are messages", async () => {
+    const { wrapper } = mountView();
+    const button = () =>
+      wrapper.find('[data-slot="message-scroller-button-stub"]');
+    expect(button().exists()).toBe(false);
+
+    await wrapper.setProps({ sessionId: "session-button" });
+    useSessionStore().stateFor("session-button").messages = [
+      {
+        id: "first",
+        createdAt: "2026-09-03T00:00:00Z",
+        role: "assistant",
+        status: "complete",
+        blocks: [{ type: "text", text: "Hello" }],
+      },
+    ];
+    await flushPromises();
+    expect(button().text()).toBe("滚动到底部");
   });
 
   it("scrolls to a sent turn unless it was sent holding the view", async () => {

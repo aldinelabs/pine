@@ -1584,6 +1584,7 @@ export default {
       emptyTitle: "Imagina lo que es posible",
       loadHistory: "Cargar mensajes anteriores",
       loadingHistory: "Cargando",
+      scrollToBottom: "Desplazarse hasta abajo",
       outline: "Esquema de la conversación",
       outlineAttachments: "[Adjunto]",
       outlineEmpty: "Tus turnos aparecerán aquí después de enviar un mensaje.",

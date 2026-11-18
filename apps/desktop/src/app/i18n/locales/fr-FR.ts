@@ -1585,6 +1585,7 @@ export default {
       emptyTitle: "Imaginez ce qui est possible",
       loadHistory: "Charger les messages précédents",
       loadingHistory: "Chargement",
+      scrollToBottom: "Défiler jusqu’en bas",
       outline: "Plan de la conversation",
       outlineAttachments: "[Pièce jointe]",
       outlineEmpty:

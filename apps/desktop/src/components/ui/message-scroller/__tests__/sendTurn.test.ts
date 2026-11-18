@@ -166,3 +166,18 @@ it("takes a reader in the history to the live end for a steer", () => {
   expect(transcript.context.isFollowingBottom()).toBe(true);
   transcript.destroy();
 });
+
+it("shows the scroll-to-end state away from the bottom and follows again from it", async () => {
+  const transcript = createTranscript();
+  await new Promise((resolve) => requestAnimationFrame(resolve));
+  expect(transcript.context.scrollable.value.end).toBe(true);
+
+  // What the scroll-to-bottom button does.
+  transcript.context.scrollToEnd({ behavior: "smooth" });
+
+  expect(transcript.viewport.scrollTop).toBe(2000 - 500);
+  expect(transcript.context.isFollowingBottom()).toBe(true);
+  await new Promise((resolve) => requestAnimationFrame(resolve));
+  expect(transcript.context.scrollable.value.end).toBe(false);
+  transcript.destroy();
+});

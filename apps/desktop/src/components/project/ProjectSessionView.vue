@@ -5,7 +5,7 @@ import {
   dragContainsAttachments,
   useAttachmentDrop,
 } from "@/composables/useAttachmentDrop";
-import { FilesIcon, MessageCircleIcon } from "@lucide/vue";
+import { ArrowDownIcon, FilesIcon, MessageCircleIcon } from "@lucide/vue";
 import { useEventListener } from "@vueuse/core";
 import {
   computed,
@@ -41,6 +41,7 @@ import {
 } from "@/components/ui/empty";
 import {
   MessageScroller,
+  MessageScrollerButton,
   MessageScrollerContent,
   MessageScrollerItem,
   MessageScrollerProvider,
@@ -972,6 +973,16 @@ async function handleDrop(event: DragEvent): Promise<void> {
               </template>
             </MessageScrollerContent>
           </MessageScrollerViewport>
+          <!-- shadcn-vue's scroll-to-end button, bottom-center above the
+               composer. It shows only while the reader is away from the
+               bottom (the engine's own state, which the send keys share)
+               and resumes following the reply on click. -->
+          <MessageScrollerButton v-if="renderedMessages.length > 0">
+            <ArrowDownIcon />
+            <span class="sr-only">{{
+              t("project.transcript.scrollToBottom")
+            }}</span>
+          </MessageScrollerButton>
         </MessageScroller>
 
         <ProjectTranscriptOutline

@@ -1595,6 +1595,7 @@ export default {
       emptyTitle: "Stellen Sie sich vor, was möglich ist",
       loadHistory: "Frühere Nachrichten laden",
       loadingHistory: "Wird geladen",
+      scrollToBottom: "Nach unten scrollen",
       outline: "Gliederung der Unterhaltung",
       outlineAttachments: "[Anhang]",
       outlineEmpty:
