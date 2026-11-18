@@ -7,6 +7,7 @@ import {
   existsSync,
   mkdirSync,
   readdirSync,
+  rmSync,
   statSync,
 } from "node:fs";
 import path from "node:path";
@@ -94,9 +95,11 @@ function latestModifiedAt(root) {
 
 /**
  * The Live Context helper (native/live-context) uses SpeechAnalyzer, which
- * needs the macOS 26 SDK. An older Xcode skips it with a warning, and Pine
- * then reports the feature as unavailable; PINE_REQUIRE_LIVE_CONTEXT=1 makes
- * that an error instead.
+ * needs the macOS 26 SDK. The feature is experimental and flag-gated, so a
+ * helper that cannot be built (old SDK, failed build) is skipped with a
+ * warning and Pine reports Live Context as unavailable; any earlier build is
+ * removed so a stale binary is never packaged. PINE_REQUIRE_LIVE_CONTEXT=1
+ * makes these failures errors instead.
  */
 function buildLiveContextHelper() {
   const root = path.join(nativeRoot, "live-context");
@@ -107,17 +110,22 @@ function buildLiveContextHelper() {
   ) {
     return;
   }
-  const sdk = spawnSync("xcrun", ["--sdk", "macosx", "--show-sdk-version"], {
-    encoding: "utf8",
-  });
-  const sdkMajor = Number.parseInt(sdk.stdout ?? "", 10);
-  if (!(sdkMajor >= 26)) {
-    const message = `Skipping the Live Context helper: it needs the macOS 26 SDK (found ${sdk.stdout?.trim() || "none"}).`;
+  const skip = (reason) => {
+    rmSync(output, { force: true });
+    const message = `Skipping the Live Context helper: ${reason}`;
     if (process.env.PINE_REQUIRE_LIVE_CONTEXT === "1") {
       console.error(message);
       process.exit(1);
     }
     console.warn(message);
+  };
+
+  const sdk = spawnSync("xcrun", ["--sdk", "macosx", "--show-sdk-version"], {
+    encoding: "utf8",
+  });
+  const sdkMajor = Number.parseInt(sdk.stdout ?? "", 10);
+  if (!(sdkMajor >= 26)) {
+    skip(`it needs the macOS 26 SDK (found ${sdk.stdout?.trim() || "none"}).`);
     return;
   }
   const swiftArgs = [
@@ -148,14 +156,26 @@ function buildLiveContextHelper() {
     ],
     { stdio: "inherit" },
   );
-  if (result.error) throw result.error;
-  if (result.status !== 0) process.exit(result.status ?? 1);
+  if (result.error || result.status !== 0) {
+    skip(
+      `swift build failed (${result.error?.message ?? `status ${result.status}`}).`,
+    );
+    return;
+  }
   const binPath = spawnSync("swift", [...swiftArgs, "--show-bin-path"], {
     encoding: "utf8",
   });
-  if (binPath.status !== 0) process.exit(binPath.status ?? 1);
-  mkdirSync(path.dirname(output), { recursive: true });
-  copyFileSync(path.join(binPath.stdout.trim(), "pine-live-context"), output);
+  if (binPath.error || binPath.status !== 0) {
+    skip("swift build --show-bin-path failed.");
+    return;
+  }
+  try {
+    mkdirSync(path.dirname(output), { recursive: true });
+    copyFileSync(path.join(binPath.stdout.trim(), "pine-live-context"), output);
+  } catch (error) {
+    skip(`could not copy the built helper (${error.message}).`);
+    return;
+  }
   console.log(`Built ${path.relative(process.cwd(), output)}`);
 }
 
