@@ -28,7 +28,8 @@ import { useMessageScrollerContext } from "@/components/ui/message-scroller/useM
 /**
  * The transcript's scroll-to-bottom button: shadcn-vue's message-scroller
  * button (same placement and enter/leave transition), at the size of the
- * composer's Send button. The engine's at-bottom state still hides it, but
+ * composer's Send button, edged like a popover: a faint ring and shadow,
+ * no border. The engine's at-bottom state still hides it, but
  * it only appears once the reader has scrolled a meaningful distance up.
  * Distance is measured on scroll only, so a reply growing below a reader
  * resting just above the bottom does not bring it in.
@@ -101,7 +102,7 @@ function onClick(event: MouseEvent): void {
     size="icon-lg"
     :inert="!active"
     :tabindex="active ? undefined : -1"
-    class="absolute bottom-4 left-1/2 -translate-x-1/2 rounded-full border-border bg-background text-foreground shadow-md ring-1 ring-foreground/10 transition-[translate,scale,opacity] duration-200 hover:bg-muted hover:text-foreground data-[active=false]:pointer-events-none data-[active=false]:translate-y-full data-[active=false]:scale-95 data-[active=false]:opacity-0 data-[active=false]:duration-400 data-[active=false]:ease-[cubic-bezier(0.7,0,0.84,0)] data-[active=true]:translate-y-0 data-[active=true]:scale-100 data-[active=true]:opacity-100 data-[active=true]:ease-[cubic-bezier(0.23,1,0.32,1)]"
+    class="absolute bottom-4 left-1/2 -translate-x-1/2 rounded-full border-transparent bg-background text-foreground shadow-md ring-1 ring-foreground/10 transition-[translate,scale,opacity] duration-200 hover:bg-muted hover:text-foreground data-[active=false]:pointer-events-none data-[active=false]:translate-y-full data-[active=false]:scale-95 data-[active=false]:opacity-0 data-[active=false]:duration-400 data-[active=false]:ease-[cubic-bezier(0.7,0,0.84,0)] data-[active=true]:translate-y-0 data-[active=true]:scale-100 data-[active=true]:opacity-100 data-[active=true]:ease-[cubic-bezier(0.23,1,0.32,1)]"
     @click="onClick"
   >
     <ArrowDownIcon />
