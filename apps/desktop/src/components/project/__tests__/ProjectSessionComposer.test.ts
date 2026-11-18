@@ -1432,6 +1432,17 @@ describe("ProjectSessionComposer", () => {
     const suggestion = wrapper.get('[data-slot="reply-suggestion"]');
     expect(suggestion.text()).toContain("再按日期排序");
     expect(suggestion.text()).toContain("Tab");
+    // A white keycap on the light composer surface, the default in dark.
+    expect(
+      suggestion.get('[data-slot="reply-suggestion-key"]').classes(),
+    ).toEqual(
+      expect.arrayContaining([
+        "in-data-[slot=input-group]:bg-background",
+        "ring-1",
+        "dark:in-data-[slot=input-group]:bg-input",
+        "dark:ring-0",
+      ]),
+    );
     const textarea = wrapper.get("textarea");
     expect(textarea.classes()).toContain("session-composer-input--suggesting");
 

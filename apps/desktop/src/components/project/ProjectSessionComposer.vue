@@ -1312,7 +1312,15 @@ function handleRootSubmit(event: Event): void {
                     <span class="min-w-0 truncate" aria-hidden="true">{{
                       replySuggestion
                     }}</span>
-                    <Kbd class="shrink-0" aria-hidden="true">Tab</Kbd>
+                    <!-- On the light composer surface the default key fill
+                         nearly matches it; a white keycap with a hairline
+                         ring reads as a key. Dark keeps the default. -->
+                    <Kbd
+                      data-slot="reply-suggestion-key"
+                      class="shrink-0 ring-1 ring-foreground/10 in-data-[slot=input-group]:bg-background dark:ring-0 dark:in-data-[slot=input-group]:bg-input"
+                      aria-hidden="true"
+                      >Tab</Kbd
+                    >
                     <span :id="replySuggestionId" class="sr-only">
                       {{ replySuggestion }} —
                       {{ t("project.composer.acceptReplySuggestion") }}
