@@ -23,10 +23,14 @@ typedef struct PineSherpaEngine PineSherpaEngine;
  */
 const char *pine_sherpa_load(const char *library_path);
 
-/** NULL when a model fails to load (the library logs why to stderr). */
+/**
+ * NULL when a model fails to load (the library logs why to stderr).
+ * `provider` is ONNX Runtime's execution provider: "cpu" or "coreml".
+ */
 PineSherpaEngine *pine_sherpa_create(const char *segmentation_model,
                                      const char *embedding_model,
-                                     int32_t num_threads);
+                                     int32_t num_threads,
+                                     const char *provider);
 void pine_sherpa_destroy(PineSherpaEngine *engine);
 int32_t pine_sherpa_sample_rate(const PineSherpaEngine *engine);
 int32_t pine_sherpa_embedding_dim(const PineSherpaEngine *engine);

@@ -135,19 +135,20 @@ const char *pine_sherpa_load(const char *library_path) {
 
 PineSherpaEngine *pine_sherpa_create(const char *segmentation_model,
                                      const char *embedding_model,
-                                     int32_t num_threads) {
+                                     int32_t num_threads,
+                                     const char *provider) {
   if (!api.handle) return NULL;
   SherpaOnnxSpeakerEmbeddingExtractorConfig embedding;
   memset(&embedding, 0, sizeof(embedding));
   embedding.model = embedding_model;
   embedding.num_threads = num_threads;
-  embedding.provider = "cpu";
+  embedding.provider = provider;
 
   SherpaOnnxOfflineSpeakerDiarizationConfig config;
   memset(&config, 0, sizeof(config));
   config.segmentation.pyannote.model = segmentation_model;
   config.segmentation.num_threads = num_threads;
-  config.segmentation.provider = "cpu";
+  config.segmentation.provider = provider;
   // Never used: one window at a time skips sherpa-onnx's own embeddings and
   // clustering, but the config must name a model.
   config.embedding = embedding;

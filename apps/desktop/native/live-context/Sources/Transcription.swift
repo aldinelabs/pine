@@ -81,7 +81,7 @@ final class SourcePipeline: @unchecked Sendable {
           return id
         }
         if text.isEmpty && !final { continue }
-        Output.emit([
+        var event: [String: Any] = [
           "type": "segment",
           "id": id,
           "source": source,
@@ -90,13 +90,17 @@ final class SourcePipeline: @unchecked Sendable {
           "text": text,
           "final": final,
           "at": nowMs(),
-        ])
-        // After the segment, so its label never arrives first.
-        if let tracker, !text.isEmpty {
-          tracker.noteSegment(
-            id: id, start: result.range.start.seconds, end: result.range.end.seconds,
-            words: words(of: result.text, trimmedFrom: raw), length: text.utf16.count)
+        ]
+        // With speakers, where the words are on the audio timeline the
+        // speaker events use, so Pine can split the text into turns.
+        if tracker != nil && !text.isEmpty {
+          event["a0"] = rounded(result.range.start.seconds)
+          event["a1"] = rounded(result.range.end.seconds)
+          event["words"] = words(of: result.text, trimmedFrom: raw).map {
+            [$0.offset, rounded($0.start), rounded($0.end)] as [Any]
+          }
         }
+        Output.emit(event)
       }
     } catch {
       Output.error("transcription_failed", error.localizedDescription, source: source)
@@ -190,6 +194,7 @@ final class SourcePipeline: @unchecked Sendable {
   /// A restarted capture starts a new stream of buffers.
   func resetConverter() {
     lock.withLock { converter = nil }
+    tracker?.restart()
   }
 
   func finish() async {
@@ -207,6 +212,17 @@ struct HelperError: Error {
     self.code = code
     self.message = message
   }
+}
+
+/// A run of transcribed text and when it was said (analyzer seconds).
+struct TimedWord {
+  var offset: Int
+  var start: Double
+  var end: Double
+}
+
+private func rounded(_ seconds: Double) -> Double {
+  seconds.isFinite ? (seconds * 100).rounded() / 100 : 0
 }
 
 /// Capture-timeline seconds as whole milliseconds.

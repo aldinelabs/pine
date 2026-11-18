@@ -10,8 +10,11 @@
 //
 // For a terminal test, `--start --sources mic,system --locale zh-CN` starts
 // at once, and `--check` prints what this Mac supports. `--file x.wav`
-// (with `--speed 4`) plays a file into the first source instead of a device;
+// (with `--speed 4`) plays a file into the first source instead of a device,
+// `--mic-file`/`--system-file` into that source (both at once to test echo);
 // `--segmentation a.onnx --embedding b.onnx` turns speaker labels on.
+// Speaker events (window, embedding, echo, device, speakers-state) are
+// measurements only; Pine clusters them (docs/live-context.md §3.4).
 import AVFoundation
 import Foundation
 import Speech
@@ -25,8 +28,9 @@ final class Controller: @unchecked Sendable {
   private var startedAt = Date()
   private var silenceTask: Task<Void, Never>?
   private var diarization: DiarizationEngine?
-  /// Testing: feed this file instead of a device.
-  var fileInput: (url: URL, speed: Double)?
+  /// Testing: feed these files instead of devices.
+  var fileInputs: [String: URL] = [:]
+  var fileSpeed = 1.0
   var onFileEnd: (@Sendable () -> Void)?
 
   func handle(_ command: [String: Any]) async {
@@ -88,7 +92,9 @@ final class Controller: @unchecked Sendable {
     }
 
     var wanted = Array(Set(sources.filter { $0 == "mic" || $0 == "system" })).sorted()
-    let micAllowed = wanted.contains("mic") ? await microphoneAllowed() : true
+    // A file standing in for the mic (testing) needs no permission.
+    let micAllowed =
+      wanted.contains("mic") && fileInputs["mic"] == nil ? await microphoneAllowed() : true
     if !micAllowed {
       Output.error("permission_denied", "Microphone access is off for Pine.", source: "mic")
       wanted.removeAll { $0 == "mic" }
@@ -112,7 +118,7 @@ final class Controller: @unchecked Sendable {
         if let diarization {
           pipeline.tracker = SpeakerTracker(source: source, engine: diarization)
         }
-        let capture = try makeCapture(source, fromFile: source == wanted.first)
+        let capture = try makeCapture(source)
         try capture.start { pipeline.append($0) }
         captures[source] = capture
       } catch let error as HelperError {
@@ -139,10 +145,19 @@ final class Controller: @unchecked Sendable {
     watchSilence()
   }
 
-  private func makeCapture(_ source: String, fromFile: Bool) throws -> AudioCapture {
-    if let fileInput, fromFile {
-      let capture = try FileCapture(url: fileInput.url, speed: fileInput.speed)
-      capture.onEnd = onFileEnd
+  private var filesPlaying = 0
+
+  private func makeCapture(_ source: String) throws -> AudioCapture {
+    if let url = fileInputs[source] {
+      let capture = try FileCapture(url: url, speed: fileSpeed)
+      filesPlaying += 1
+      capture.onEnd = { [weak self] in
+        guard let self else { return }
+        Task { @MainActor in
+          self.filesPlaying -= 1
+          if self.filesPlaying == 0 { self.onFileEnd?() }
+        }
+      }
       return capture
     }
     return source == "mic" ? MicrophoneCapture() : SystemAudioCapture()
@@ -249,10 +264,16 @@ if CommandLine.arguments.contains("--check") {
   exit(0)
 }
 
-// Testing: `--file` stands in for the first source's device, whether the
-// capture starts from the command line or from Pine.
-if let file = argument("--file") {
-  controller.fileInput = (URL(fileURLWithPath: file), argument("--speed").flatMap(Double.init) ?? 1)
+// Testing: files stand in for devices, whether the capture starts from the
+// command line or from Pine. `--file` is the first source's.
+let firstSource = (argument("--sources") ?? "mic").split(separator: ",").map(String.init).sorted()
+  .first ?? "mic"
+for (flag, source) in [("--file", firstSource), ("--mic-file", "mic"), ("--system-file", "system")] {
+  if let file = argument(flag) { controller.fileInputs[source] = URL(fileURLWithPath: file) }
+}
+if !controller.fileInputs.isEmpty {
+  EchoGuard.audioFiles = true
+  controller.fileSpeed = argument("--speed").flatMap(Double.init) ?? 1
   controller.onFileEnd = {
     Task {
       // Let the last words settle before stopping.
@@ -279,8 +300,8 @@ if CommandLine.arguments.contains("--start") {
     speakers = DiarizationOptions(
       library: argument("--speaker-library") ?? DiarizationOptions.defaultLibrary,
       segmentationModel: segmentation, embeddingModel: embedding)
-    if let threshold = argument("--speaker-threshold").flatMap(Float.init) {
-      speakers?.threshold = threshold
+    if let continuity = argument("--continuity").flatMap(Float.init) {
+      speakers?.continuity = continuity
     }
   }
   await controller.start(

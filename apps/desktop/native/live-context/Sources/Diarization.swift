@@ -8,12 +8,11 @@ struct DiarizationOptions {
   var library: String
   var segmentationModel: String
   var embeddingModel: String
-  /// Cosine similarity a voice needs to join a known speaker.
-  var threshold: Float = 0.6
-  /// New voices beyond this join the closest known speaker.
-  var maxSpeakers = 8
-  /// Speakers from earlier captures of the session, per source.
-  var voices: [String: [Voice]] = [:]
+  /// ONNX Runtime's execution provider ("cpu", or "coreml" to try).
+  var provider = ProcessInfo.processInfo.environment["PINE_LIVE_CONTEXT_PROVIDER"] ?? "cpu"
+  var threads = 1
+  /// A chunk this similar to the voice just heard continues it (fast path).
+  var continuity: Float = 0.65
 
   /// The library ships beside the helper: build/live-context-lib in
   /// development, Contents/Resources/live-context-lib in Pine.app.
@@ -29,7 +28,7 @@ struct DiarizationOptions {
     self.embeddingModel = embeddingModel
   }
 
-  /// `{"segmentation": path, "embedding": path, "threshold"?, "maxSpeakers"?, "voices"?}`
+  /// `{"segmentation": path, "embedding": path, "library"?, "continuity"?}`
   init?(command: [String: Any]) {
     guard
       let segmentation = command["segmentation"] as? String,
@@ -38,54 +37,19 @@ struct DiarizationOptions {
     self.init(
       library: (command["library"] as? String) ?? Self.defaultLibrary,
       segmentationModel: segmentation, embeddingModel: embedding)
-    if let threshold = command["threshold"] as? Double { self.threshold = Float(threshold) }
-    if let maxSpeakers = command["maxSpeakers"] as? Int { self.maxSpeakers = max(1, maxSpeakers) }
-    if let voices = command["voices"] as? [String: Any] {
-      for (source, list) in voices {
-        self.voices[source] = ((list as? [[String: Any]]) ?? []).compactMap(Voice.init(json:))
-      }
-    }
+    if let continuity = command["continuity"] as? Double { self.continuity = Float(continuity) }
   }
 }
 
-/// A speaker's voice print: the sum of its normalized embeddings.
-struct Voice {
-  var speaker: Int
-  var sum: [Float]
-  var count: Int
-
-  init(speaker: Int, sum: [Float], count: Int) {
-    self.speaker = speaker
-    self.sum = sum
-    self.count = count
-  }
-
-  init?(json: [String: Any]) {
-    guard
-      let speaker = json["speaker"] as? Int,
-      let centroid = json["centroid"] as? [Double], !centroid.isEmpty
-    else { return nil }
-    let count = max(1, (json["count"] as? Int) ?? 1)
-    self.init(
-      speaker: speaker, sum: normalized(centroid.map { Float($0) }).map { $0 * Float(count) },
-      count: count)
-  }
-
-  var json: [String: Any] {
-    [
-      "speaker": speaker,
-      "centroid": normalized(sum).map { (Double($0) * 1e5).rounded() / 1e5 },
-      "count": count,
-    ]
-  }
-}
-
-/// The models, loaded once per capture and shared by both sources. All
-/// inference runs on one serial, low-priority queue, so diarization never
-/// competes with transcription for more than one core.
+/// The models, loaded when a capture with speakers starts and released when
+/// it stops, shared by both sources. All inference runs on one serial,
+/// utility-QoS queue on one thread, so it never takes more than one core
+/// from transcription.
 final class DiarizationEngine: @unchecked Sendable {
   let queue = DispatchQueue(label: "pine.live-context.diarization", qos: .utility)
   let options: DiarizationOptions
+  let budget = DiarizationBudget()
+  let echo = EchoGuard()
   private let engine: OpaquePointer
   let sampleRate: Int
   let dimension: Int
@@ -108,7 +72,8 @@ final class DiarizationEngine: @unchecked Sendable {
       throw HelperError("speakers_unavailable", String(cString: error))
     }
     guard
-      let engine = pine_sherpa_create(options.segmentationModel, options.embeddingModel, 1)
+      let engine = pine_sherpa_create(
+        options.segmentationModel, options.embeddingModel, Int32(options.threads), options.provider)
     else {
       throw HelperError("speakers_unavailable", "The speaker models could not be loaded.")
     }
@@ -141,88 +106,264 @@ final class DiarizationEngine: @unchecked Sendable {
   }
 }
 
-/// Labels one source's segments "speaker 1, 2, …" as they arrive.
+/// Scales speaker labels back, never transcription: when inference falls
+/// behind or takes too much CPU, when the Mac runs hot, or in Low Power
+/// Mode. Level 1 analyzes every 3 s instead of 1.5 s, 2 also segments at
+/// most every 5 s, 3 only embeds (labels wait for the final pass), 4 stops.
+/// It degrades at once and recovers one level per 30 s of calm.
+final class DiarizationBudget: @unchecked Sendable {
+  // Engine queue only.
+  private(set) var level = 0
+  private var reason: String?
+  private var busy: [(at: Double, seconds: Double)] = []
+  private var lastChange = -Double.infinity
+  private var lastLoadStep = -Double.infinity
+  private let started = ProcessInfo.processInfo.systemUptime
+
+  var hopSeconds: Double { level >= 1 ? 3 : 1.5 }
+  var slowInterval: Double { level >= 2 ? 5 : 2.5 }
+  var segments: Bool { level < 3 }
+  var paused: Bool { level >= 4 }
+
+  /// Share of one core used for inference over the last 30 s.
+  private(set) var share: Double = 0
+
+  func record(busy seconds: Double, backlog: Double) {
+    let now = ProcessInfo.processInfo.systemUptime
+    busy.append((now, seconds))
+    busy.removeAll { $0.at < now - 30 }
+    share = busy.reduce(0) { $0 + $1.seconds } / max(5, min(30, now - started))
+
+    let environment = ProcessInfo.processInfo.environment
+    let thermal: ProcessInfo.ThermalState =
+      switch environment["PINE_LIVE_CONTEXT_THERMAL"] {
+      case "serious": .serious
+      case "critical": .critical
+      default: ProcessInfo.processInfo.thermalState
+      }
+    let lowPower =
+      environment["PINE_LIVE_CONTEXT_LOW_POWER"] == "1"
+      || ProcessInfo.processInfo.isLowPowerModeEnabled
+    var target = 0
+    var why: String?
+    if thermal == .critical {
+      target = 4
+      why = "thermal"
+    } else if thermal == .serious {
+      target = 2
+      why = "thermal"
+    }
+    if lowPower && target < 2 {
+      target = 2
+      why = "power"
+    }
+    // Load: one step at a time, and back only once well under the limit.
+    let overloaded = share > 0.25 || backlog > 6
+    if overloaded {
+      let next = now - lastLoadStep >= 10 ? min(4, level + 1) : level
+      if next > target {
+        target = next
+        why = "load"
+        lastLoadStep = now
+      }
+    } else if share > 0.12 && level > target {
+      target = level
+      why = reason
+    }
+    var next = level
+    if target > level {
+      next = target
+    } else if target < level && now - lastChange >= 30 {
+      next = level - 1
+    }
+    guard next != level else { return }
+    level = next
+    reason = next == 0 ? nil : why ?? reason
+    lastChange = now
+    Output.emit([
+      "type": "speakers-state", "level": level, "reason": reason ?? NSNull(),
+    ])
+  }
+}
+
+/// Keeps the other side's voice from turning up twice. When the Mac plays a
+/// call through its speakers, the mic hears it again a little later; mic
+/// audio whose loudness follows the system audio's (normalized
+/// cross-correlation of 10 ms envelopes, 0–300 ms behind, at least 0.8) is
+/// echo and left out of the mic's speakers.
+final class EchoGuard: @unchecked Sendable {
+  private let lock = NSLock()
+  private struct Envelope {
+    /// Frame index (10 ms of uptime) of `values[0]`.
+    var start = 0
+    var values: [Float] = []
+    var remainder: [Float] = []
+    /// The source's sample index at frame `origin`; frames count samples
+    /// from there, so timing follows the audio, not callback jitter.
+    var originSample = 0
+    var origin = 0
+  }
+  private var envelopes: [String: Envelope] = [:]
+  private static let keep = 2000
+  /// Testing with `--file`: the sources play together, at any speed.
+  nonisolated(unsafe) static var audioFiles = false
+
+  /// Called on the capture thread with 16 kHz audio, its first sample's
+  /// index and when it began.
+  func push(_ source: String, samples: UnsafeBufferPointer<Float>, sample: Int, at wall: Double) {
+    lock.lock()
+    defer { lock.unlock() }
+    var envelope = envelopes[source] ?? Envelope()
+    let frame = Int((wall * 100).rounded())
+    let counted = envelope.origin + (sample - envelope.originSample) / 160
+    // Device clocks drift a little; resync when they are half a second
+    // apart (never for test files, which may play faster than real time).
+    let drifted = !Self.audioFiles && abs(frame - counted) > 50
+    if envelope.values.isEmpty || drifted
+      || sample != envelope.originSample + (envelope.start - envelope.origin + envelope.values.count) * 160
+        + envelope.remainder.count
+    {
+      // A gap (pause, device change) or drift: start over from here.
+      envelope = Envelope(start: frame, originSample: sample, origin: frame)
+    }
+    envelope.remainder.append(contentsOf: samples)
+    var index = 0
+    while envelope.remainder.count - index >= 160 {
+      var sum: Float = 0
+      for i in index..<(index + 160) { sum += envelope.remainder[i] * envelope.remainder[i] }
+      envelope.values.append(sqrt(sum / 160))
+      index += 160
+    }
+    envelope.remainder.removeFirst(index)
+    if envelope.values.count > Self.keep {
+      let excess = envelope.values.count - Self.keep
+      envelope.values.removeFirst(excess)
+      envelope.start += excess
+    }
+    envelopes[source] = envelope
+  }
+
+  /// The mic frame of one of its samples.
+  private func micFrame(_ sample: Int) -> Int? {
+    guard let mic = envelopes["mic"] else { return nil }
+    return mic.origin + (sample - mic.originSample) / 160
+  }
+
+  /// The best correlation of mic samples [from, to) with the system audio
+  /// shortly before, or nil when the system was quiet.
+  func echo(from: Int, to: Int) -> Float? {
+    lock.lock()
+    defer { lock.unlock() }
+    guard let mic = envelopes["mic"], let system = envelopes["system"],
+      let a = micFrame(from), let b = micFrame(to)
+    else { return nil }
+    guard b - a >= 50, a >= mic.start, b <= mic.start + mic.values.count else { return nil }
+    let micValues = mic.values[(a - mic.start)..<(b - mic.start)].map { log(1e-4 + $0) }
+    var best: Float = -1
+    var active = 0
+    // The system tap hears audio before the speakers play it; allow a
+    // little jitter the other way.
+    for lag in -5...30 {
+      let s0 = a - lag - system.start
+      let s1 = b - lag - system.start
+      guard s0 >= 0, s1 <= system.values.count else { continue }
+      let slice = system.values[s0..<s1]
+      active = max(active, slice.filter { $0 > 0.005 }.count)
+      best = max(best, correlation(micValues, slice.map { log(1e-4 + $0) }))
+    }
+    guard active * 10 >= (b - a) * 4 else { return nil }
+    return best
+  }
+
+  private func correlation(_ x: [Float], _ y: [Float]) -> Float {
+    let n = Float(x.count)
+    let mx = x.reduce(0, +) / n
+    let my = y.reduce(0, +) / n
+    var sxy: Float = 0
+    var sxx: Float = 0
+    var syy: Float = 0
+    for i in x.indices {
+      let dx = x[i] - mx
+      let dy = y[i] - my
+      sxy += dx * dy
+      sxx += dx * dx
+      syy += dy * dy
+    }
+    return sxx > 0 && syy > 0 ? sxy / sqrt(sxx * syy) : 0
+  }
+}
+
+typealias LevelFrame = (sample: Int, speech: Bool, level: Float)
+
+/// Measures who speaks when in one source and reports it to Pine, which
+/// does the clustering (see src/main/liveContextDiarizer.ts).
 ///
-/// Every `hop` of new audio it runs the segmentation model once over the
-/// last window (10 s), embeds only the speech that is new since the last
-/// pass, and assigns it to a speaker by cosine similarity with the running
-/// voice prints (online clustering), so the cost stays flat however long the
-/// capture runs. Labels for a segment may change as more audio arrives; each
-/// change is a `speaker` event. At the end, a short re-pass over the stored
-/// embeddings (never audio) merges speakers that turned out to be one voice
-/// and relabels.
+/// Every hop (1.5 s) of new audio: silence is skipped; mic audio that is
+/// loudspeaker echo is reported and skipped. While one voice keeps talking
+/// (no pause, no jump in loudness, and its 3 s chunk sounds like the voice
+/// just heard) only an embedding is computed: the fast path. Otherwise the
+/// segmentation model looks at the last 10 s for local speakers, turn
+/// changes and overlap, and each local speaker with new clean speech (at
+/// least 1 s, overlaps removed) gets an embedding: the slow path. No audio
+/// is kept beyond the last 15 s.
 final class SpeakerTracker: @unchecked Sendable {
   let source: String
   private let engine: DiarizationEngine
-  private let hop: Int
-  /// The end of each window is not yet settled; labels wait for this much.
+  private let rate: Int
+  private let frame = 160
   private let margin: Int
-  /// Below this RMS, new audio counts as silence and is skipped.
-  private let silenceRMS: Float = 0.003
 
   // Written on the capture thread, read on the engine queue.
   private let lock = NSLock()
   private var incoming: [Float] = []
+  /// Absolute sample index of `incoming[0]`.
+  private var incomingStart = 0
   private var scheduled = false
+  private var hopSamples: Int
   private var converter: AVAudioConverter?
   private let format: AVAudioFormat
+  private var deviceChanged = false
+  private var restarted = false
 
   // Engine queue only.
-  private var audio: [Float] = []
-  /// Absolute sample index of `audio[0]`.
-  private var audioStart = 0
-  private var committed = 0
-  private var voices: [Voice]
-  private var nextSpeaker: Int
-  private var regions: [Region] = []
-  private var segments: [String: Span] = [:]
-  private var segmentOrder: [String] = []
-  /// Seconds of inference, for the performance log.
-  private(set) var busySeconds: Double = 0
-  private(set) var passes = 0
+  private var ring: [Float] = []
+  private var ringStart = 0
+  /// Per 10 ms frame of `ring`.
+  private var levels: [Float] = []
+  private var noiseFloor: Float = 0.002
+  private var processed = 0
+  private var lastSlow = -Double.infinity
+  /// The slow path has embedded speech up to here.
+  private var embeddedUntil = 0
+  private var run: [Float]?
+  private var lastWindow: Int?
+  /// Mic audio found to be loudspeaker echo, as sample ranges.
+  private var echoes: [(Int, Int)] = []
+  private var wasSilent = true
+  private var windowId = 0
+  private var stats = (fast: 0, slow: 0, embeddings: 0, echo: 0, skipped: 0, busy: 0.0)
 
-  private struct Region {
-    var start: Int
-    var end: Int
-    var speaker: Int
-    var similarity: Float
-    var embedding: [Float]
-  }
-
-  private struct Span {
-    var start: Double
-    var end: Double
-    var words: [TimedWord]
-    /// UTF-16 length of the text.
-    var length: Int
-    /// What was last reported, to report only changes.
-    var turns: [Turn] = []
-    var confidence: Double = 0
-  }
-
-  private struct Turn: Equatable {
-    var offset: Int
-    var speaker: Int
-  }
-
-  init(source: String, engine: DiarizationEngine, hopSeconds: Double = 2, marginSeconds: Double = 0.5) {
+  init(source: String, engine: DiarizationEngine) {
     self.source = source
     self.engine = engine
-    hop = Int(hopSeconds * Double(engine.sampleRate))
-    margin = Int(marginSeconds * Double(engine.sampleRate))
+    rate = engine.sampleRate
+    margin = Int(0.3 * Double(engine.sampleRate))
+    hopSamples = Int(1.5 * Double(engine.sampleRate))
     format = AVAudioFormat(
       commonFormat: .pcmFormatFloat32, sampleRate: Double(engine.sampleRate), channels: 1,
       interleaved: false)!
-    voices = engine.options.voices[source] ?? []
-    nextSpeaker = (voices.map(\.speaker).max() ?? 0) + 1
   }
 
   /// Called on the capture thread with the audio the analyzer gets, so both
   /// share one timeline.
   func append(_ buffer: AVAudioPCMBuffer) {
+    let wall = ProcessInfo.processInfo.systemUptime
+      - Double(buffer.frameLength) / buffer.format.sampleRate
     lock.lock()
     defer { lock.unlock() }
     if converter == nil || converter?.inputFormat != buffer.format {
+      if converter != nil && !restarted { deviceChanged = true }
+      restarted = false
       converter = AVAudioConverter(from: buffer.format, to: format)
     }
     guard let converter, buffer.frameLength > 0 else { return }
@@ -241,49 +382,38 @@ final class SpeakerTracker: @unchecked Sendable {
     }
     guard status != .error, output.frameLength > 0, let channel = output.floatChannelData?[0]
     else { return }
-    incoming.append(contentsOf: UnsafeBufferPointer(start: channel, count: Int(output.frameLength)))
-    if !scheduled && incoming.count >= hop {
+    let samples = UnsafeBufferPointer(start: channel, count: Int(output.frameLength))
+    engine.echo.push(source, samples: samples, sample: incomingStart + incoming.count, at: wall)
+    incoming.append(contentsOf: samples)
+    if !scheduled && incoming.count >= hopSamples {
       scheduled = true
-      engine.queue.async { [self] in pass(final: false) }
+      engine.queue.async { [self] in step(final: false) }
     }
   }
 
-  /// A segment's span on the analyzer timeline, in seconds. Volatile
-  /// updates widen it; the label follows.
-  func noteSegment(id: String, start: Double, end: Double, words: [TimedWord], length: Int) {
+  /// A capture restarts after a pause: what came before is not continuous
+  /// with what follows.
+  func restart() {
+    lock.withLock {
+      restarted = true
+      converter = nil
+    }
     engine.queue.async { [self] in
-      if segments[id] == nil { segmentOrder.append(id) }
-      var span = segments[id] ?? Span(start: start, end: end, words: words, length: length)
-      span.start = start
-      span.end = end
-      span.words = words
-      span.length = length
-      segments[id] = span
-      relabel([id])
+      let start = lock.withLock { () -> Int in
+        incomingStart += incoming.count
+        incoming.removeAll()
+        return incomingStart
+      }
+      reset(at: start)
     }
   }
 
-  /// Labels what is left, cleans up with the re-pass, and reports the voice
-  /// prints so a later capture of the session keeps the same numbers.
   func finish() async {
     await withCheckedContinuation { (done: CheckedContinuation<Void, Never>) in
       engine.queue.async { [self] in
-        pass(final: true)
-        recluster()
-        relabel(segmentOrder)
-        Output.emit([
-          "type": "voices", "source": source, "voices": voices.map(\.json),
-        ])
-        if ProcessInfo.processInfo.environment["PINE_LIVE_CONTEXT_DEBUG"] == "1" {
-          let rate = Double(engine.sampleRate)
-          for region in regions {
-            Output.log(
-              "region \(source) \(Double(region.start) / rate) \(Double(region.end) / rate) \(region.speaker) \(region.similarity)"
-            )
-          }
-        }
+        step(final: true)
         Output.log(
-          "speakers(\(source)): \(passes) passes, \(String(format: "%.2f", busySeconds)) s inference, \(voices.count) speakers"
+          "speakers(\(source)): \(stats.fast) fast, \(stats.slow) slow, \(stats.embeddings) embeddings, \(stats.echo) echo, \(stats.skipped) skipped, \(String(format: "%.2f", stats.busy)) s inference"
         )
         done.resume()
       }
@@ -292,275 +422,323 @@ final class SpeakerTracker: @unchecked Sendable {
 
   // MARK: - Engine queue
 
-  private func pass(final: Bool) {
-    lock.lock()
-    audio.append(contentsOf: incoming)
-    incoming.removeAll(keepingCapacity: true)
-    scheduled = false
-    lock.unlock()
+  private func seconds(_ sample: Int) -> Double { Double(sample) / Double(rate) }
 
-    let end = audioStart + audio.count
-    let commitEnd = final ? end : end - margin
-    defer { trim(keeping: engine.windowSamples) }
-    guard commitEnd > committed else { return }
-    let windowStart = max(audioStart, end - engine.windowSamples)
-    let window = audio[(windowStart - audioStart)..<audio.count]
+  private func reset(at start: Int) {
+    ring.removeAll()
+    levels.removeAll()
+    ringStart = start
+    processed = start
+    embeddedUntil = start
+    run = nil
+    lastWindow = nil
+    wasSilent = true
+  }
 
-    if rms(audio[(max(committed, windowStart) - audioStart)..<(commitEnd - audioStart)]) < silenceRMS {
-      committed = commitEnd
+  private func step(final: Bool) {
+    let (samples, start, changed) = lock.withLock { () -> ([Float], Int, Bool) in
+      let taken = (incoming, incomingStart, deviceChanged)
+      incomingStart += incoming.count
+      incoming.removeAll(keepingCapacity: true)
+      scheduled = false
+      deviceChanged = false
+      return taken
+    }
+    if changed {
+      Output.emit(["type": "device", "source": source])
+      run = nil
+      lastWindow = nil
+    }
+    // Audio arrives whole; anything else (a restart) starts over.
+    if ring.isEmpty || start != ringStart + ring.count { reset(at: start) }
+    let first = levels.count * frame
+    ring.append(contentsOf: samples)
+    for index in stride(from: first, through: ring.count - frame, by: frame) {
+      var sum: Float = 0
+      for i in index..<(index + frame) { sum += ring[i] * ring[i] }
+      let level = sqrt(sum / Float(frame))
+      levels.append(level)
+      // The noise floor falls at once and rises slowly.
+      noiseFloor = level < noiseFloor ? max(0.0003, level) : min(0.05, noiseFloor * 1.0005)
+    }
+
+    let end = ringStart + levels.count * frame
+    let commit = final ? end : end - margin
+    let started = Date()
+    while commit - processed >= hopSamples || (final && commit - processed > rate / 2) {
+      let cut = min(processed + hopSamples, commit)
+      process(until: cut)
+      processed = cut
+    }
+    let busy = Date().timeIntervalSince(started)
+    stats.busy += busy
+    let keep = 15 * rate
+    if ring.count > keep {
+      let excess = ((ring.count - keep) / frame) * frame
+      ring.removeFirst(excess)
+      levels.removeFirst(excess / frame)
+      ringStart += excess
+    }
+    engine.budget.record(busy: busy, backlog: seconds(lock.withLock { incoming.count }))
+    let hop = Int(engine.budget.hopSeconds * Double(rate))
+    lock.withLock { hopSamples = hop }
+  }
+
+  private func isSpeech(_ level: Float) -> Bool {
+    level > max(0.003, noiseFloor * 2.5)
+  }
+
+  /// The 10 ms frames of [from, to).
+  private func frames(_ from: Int, _ to: Int) -> [LevelFrame] {
+    let a = max(0, (from - ringStart) / frame)
+    let b = min(levels.count, (to - ringStart) / frame)
+    guard a < b else { return [] }
+    return (a..<b).map { (ringStart + $0 * frame, isSpeech(levels[$0]), levels[$0]) }
+  }
+
+  private func process(until cut: Int) {
+    if engine.budget.paused {
+      run = nil
+      wasSilent = true
       return
     }
-
-    let started = Date()
-    passes += 1
-    let rate = Double(engine.sampleRate)
-    let turns = engine.segment(window).map {
-      (
-        start: windowStart + Int(Double($0.start) * rate),
-        end: min(end, windowStart + Int(Double($0.end) * rate)), speaker: Int($0.speaker)
-      )
-    }.filter { $0.end > $0.start }
-    // One embedding per turn with new speech: that turn's own audio (where
-    // no one else talks), up to its last 6 s, topped up from the same
-    // voice's nearest other turns when shorter than 1.5 s. Pooling a whole
-    // window mixes voices whenever the segmentation slips.
-    let clean = turns.map { turn in
-      subtract((turn.start, turn.end), turns.filter { $0.speaker != turn.speaker }.map { ($0.start, $0.end) })
+    let fresh = frames(processed, cut)
+    // Gating: silence costs nothing.
+    guard !fresh.isEmpty, fresh.filter(\.speech).count * 5 >= fresh.count else {
+      wasSilent = true
+      run = nil
+      stats.skipped += 1
+      return
     }
-    var touched: [Region] = []
-    for (index, turn) in turns.enumerated() {
-      let start = max(turn.start, committed)
-      let stop = min(turn.end, commitEnd)
-      guard stop - start > Int(0.25 * rate) else { continue }
-      var pieces = clean[index]
-      let nearby = turns.indices.filter { $0 != index && turns[$0].speaker == turn.speaker }
-        .sorted { abs(turns[$0].start - turn.start) < abs(turns[$1].start - turn.start) }
-      for other in nearby where length(pieces) < Int(1.5 * rate) {
-        pieces += clean[other]
+    let chunkStart = max(ringStart, cut - 3 * rate)
+    let echoCorrelation = source == "mic" ? engine.echo.echo(from: chunkStart, to: cut) : nil
+    if debug, source == "mic" {
+      Output.log("echo? \(round2(seconds(cut))) \(echoCorrelation.map { String($0) } ?? "quiet")")
+    }
+    if let correlation = echoCorrelation, correlation >= 0.8 {
+      Output.emit([
+        "type": "echo", "source": source, "t0": round2(seconds(processed)),
+        "t1": round2(seconds(cut)), "correlation": round2(Double(correlation)),
+      ])
+      stats.echo += 1
+      echoes.append((processed, cut))
+      echoes.removeAll { $0.1 < ringStart }
+      run = nil
+      lastWindow = nil
+      return
+    }
+    let chunk = frames(chunkStart, cut)
+    let onset = wasSilent
+    wasSilent = false
+
+    // Fast path: the same voice keeps talking.
+    if let run, let lastWindow, !onset, !hasPause(chunk), !loudnessJump(chunk),
+      let (vector, speech, quality) = embedSpeech(chunk), dot(vector, run) >= engine.options.continuity
+    {
+      let id = emitWindow(
+        from: chunkStart, to: cut, slow: false, turns: speechRuns(chunk), after: lastWindow)
+      emitEmbedding(
+        window: id, local: 0, from: chunkStart, to: cut, seconds: speech, quality: quality,
+        vector: vector)
+      self.run = normalized(zip(run, vector).map { 0.7 * $0 + 0.3 * $1 })
+      self.lastWindow = id
+      stats.fast += 1
+      return
+    }
+    guard engine.budget.segments else {
+      // Embeddings only; the final pass sorts out the turns.
+      if let (vector, speech, quality) = embedSpeech(chunk) {
+        let id = emitWindow(from: chunkStart, to: cut, slow: false, turns: speechRuns(chunk))
+        emitEmbedding(
+          window: id, local: 0, from: chunkStart, to: cut, seconds: speech, quality: quality,
+          vector: vector)
+        run = vector
+        lastWindow = id
+        stats.fast += 1
+      }
+      return
+    }
+    // Slow path, at most every `slowInterval`; until then the next hop
+    // retries (its window still covers this audio).
+    guard seconds(cut) - lastSlow >= engine.budget.slowInterval else {
+      run = nil
+      return
+    }
+    slowPath(until: cut)
+  }
+
+  private func slowPath(until cut: Int) {
+    lastSlow = seconds(cut)
+    let from = max(ringStart, cut - engine.windowSamples)
+    let turns = engine.segment(ring[(from - ringStart)..<(cut - ringStart)]).map {
+      (
+        start: from + Int(Double($0.start) * Double(rate)),
+        end: min(cut, from + Int(Double($0.end) * Double(rate))), local: Int($0.speaker)
+      )
+    }.flatMap { turn in
+      // Echo is nobody's speech here.
+      subtract((turn.start, turn.end), echoes).map { (start: $0.0, end: $0.1, local: turn.local) }
+    }.filter { $0.end > $0.start }
+    stats.slow += 1
+    let id = emitWindow(
+      from: from, to: cut, slow: true, turns: turns.map { ($0.start, $0.end, $0.local) })
+    run = nil
+    lastWindow = id
+    var lastEnd = -1
+    for local in Set(turns.map(\.local)).sorted() {
+      let mine = turns.filter { $0.local == local }
+      let others = turns.filter { $0.local != local }.map { ($0.start, $0.end) }
+      // Only speech no one else talks over.
+      let clean = mine.flatMap { subtract(($0.start, $0.end), others) }.sorted { $0.0 < $1.0 }
+      // Speech since the last slow pass (hops in between may have waited).
+      let since = min(processed, embeddedUntil) - rate / 2
+      let recent = clean.reduce(0) { $0 + max(0, $1.1 - max($1.0, since)) }
+      guard recent >= Int(0.3 * Double(rate)) else { continue }
+      // Its last 3 s of clean speech, from one stretch of talking: within
+      // a window the model sometimes gives two similar voices one number,
+      // so pieces far apart are not trusted to be one voice.
+      var pieces: [(Int, Int)] = []
+      var total = 0
+      for piece in clean.reversed() where total < 3 * rate {
+        if let next = pieces.first, next.0 - piece.1 > 3 * rate / 2 { break }
+        let start = max(piece.0, piece.1 - (3 * rate - total))
+        pieces.insert((start, piece.1), at: 0)
+        total += piece.1 - start
+      }
+      guard total >= rate, let firstPiece = pieces.first, let lastPiece = pieces.last else {
+        continue
       }
       var samples: [Float] = []
-      for (from, to) in pieces.sorted(by: { $0.0 < $1.0 }) {
-        samples.append(contentsOf: audio[(from - audioStart)..<(to - audioStart)])
+      for (a, b) in pieces { samples.append(contentsOf: ring[(a - ringStart)..<(b - ringStart)]) }
+      guard let vector = engine.embed(samples) else { continue }
+      let spoken = mine.reduce(0) { $0 + $1.end - $1.start }
+      let alone = clean.reduce(0) { $0 + $1.1 - $1.0 }
+      let quality =
+        min(1, Double(total) / Double(3 * rate))
+        * snrFactor(frames(firstPiece.0, lastPiece.1))
+        * max(0.3, Double(alone) / Double(max(1, spoken)))
+      emitEmbedding(
+        window: id, local: local, from: firstPiece.0, to: lastPiece.1,
+        seconds: seconds(total), quality: quality, vector: vector)
+      // The voice talking at the end carries on into the fast path.
+      if let end = mine.map(\.end).max(), end > lastEnd, cut - end < rate / 2 {
+        lastEnd = end
+        run = vector
       }
-      if samples.count > Int(6 * rate) { samples = Array(samples.suffix(Int(6 * rate))) }
-      guard samples.count >= Int(0.5 * rate), let embedding = engine.embed(samples),
-        let (speaker, similarity) = assign(embedding, seconds: Double(samples.count) / rate)
-      else { continue }
-      let region = Region(
-        start: start, end: stop, speaker: speaker, similarity: similarity, embedding: embedding)
-      regions.append(region)
-      touched.append(region)
     }
-    committed = commitEnd
-    busySeconds += Date().timeIntervalSince(started)
-    if touched.isEmpty { return }
-    let from = Double(touched.map(\.start).min()!) / rate
-    let to = Double(touched.map(\.end).max()!) / rate
-    relabel(segmentOrder.filter { id in
-      guard let span = segments[id] else { return false }
-      return span.end >= from - 2 && span.start <= to + 2
-    })
+    embeddedUntil = cut
   }
 
-  /// The speaker for a new embedding: the closest known voice when similar
-  /// enough, else a new speaker (while under the cap and long enough to
-  /// trust), else the closest anyway.
-  private func assign(_ embedding: [Float], seconds: Double) -> (Int, Float)? {
-    var best: Int?
-    var bestSimilarity: Float = -1
-    for (index, voice) in voices.enumerated() {
-      let similarity = dot(embedding, normalized(voice.sum))
-      if similarity > bestSimilarity {
-        best = index
-        bestSimilarity = similarity
-      }
+  /// The speech frames' audio, embedded, when there is at least 1 s.
+  private func embedSpeech(_ chunk: [LevelFrame]) -> ([Float], Double, Double)? {
+    var samples: [Float] = []
+    for item in chunk where item.speech {
+      let offset = item.sample - ringStart
+      samples.append(contentsOf: ring[offset..<(offset + frame)])
     }
-    let threshold = engine.options.threshold
-    if let best, bestSimilarity >= threshold {
-      if seconds >= 1 {
-        voices[best].sum = zip(voices[best].sum, embedding).map(+)
-        voices[best].count += 1
-      }
-      return (voices[best].speaker, bestSimilarity)
-    }
-    if seconds >= 1, voices.count < engine.options.maxSpeakers {
-      let speaker = nextSpeaker
-      nextSpeaker += 1
-      voices.append(Voice(speaker: speaker, sum: embedding, count: 1))
-      return (speaker, threshold)
-    }
-    if let best { return (voices[best].speaker, bestSimilarity) }
-    return nil
+    guard samples.count >= rate, let vector = engine.embed(samples) else { return nil }
+    let speech = seconds(samples.count)
+    return (vector, speech, min(1, speech / 3) * snrFactor(chunk))
   }
 
-  /// Merges speakers whose voice prints (rebuilt from this capture's
-  /// embeddings) are as close as one voice, then moves every region to its
-  /// closest speaker. Earlier labels were made with less evidence.
-  private func recluster() {
-    guard !regions.isEmpty else { return }
-    let threshold = engine.options.threshold
-    var prints: [Int: [Float]] = [:]
-    var counts: [Int: Int] = [:]
-    for voice in voices {
-      prints[voice.speaker] = voice.sum
-      counts[voice.speaker] = voice.count
-    }
-    var merged = true
-    while merged && prints.count > 1 {
-      merged = false
-      let ids = prints.keys.sorted()
-      var best: (Int, Int, Float)?
-      for (i, a) in ids.enumerated() {
-        for b in ids[(i + 1)...] {
-          let similarity = dot(normalized(prints[a]!), normalized(prints[b]!))
-          if similarity >= threshold, similarity > (best?.2 ?? -1) { best = (a, b, similarity) }
-        }
-      }
-      if let (keep, drop, _) = best {
-        prints[keep] = zip(prints[keep]!, prints[drop]!).map(+)
-        counts[keep, default: 0] += counts[drop] ?? 0
-        prints[drop] = nil
-        merged = true
-      }
-    }
-    let centroids = prints.mapValues(normalized)
-    for index in regions.indices {
-      if let (speaker, similarity) = centroids.map({
-        ($0.key, dot(regions[index].embedding, $0.value))
-      }).max(by: { $0.1 < $1.1 }) {
-        regions[index].speaker = speaker
-        regions[index].similarity = similarity
-      }
-    }
-    voices = prints.keys.sorted().map {
-      Voice(speaker: $0, sum: prints[$0]!, count: counts[$0] ?? 1)
-    }
+  private func snrFactor(_ chunk: [LevelFrame]) -> Double {
+    let speech = chunk.filter(\.speech).map(\.level)
+    guard !speech.isEmpty else { return 0.2 }
+    let level = speech.reduce(0, +) / Float(speech.count)
+    let snr = 20 * log10(Double(level / max(noiseFloor, 1e-4)))
+    return min(1, max(0.2, (snr - 3) / 15))
   }
 
-  /// Splits each segment into speaker turns: every timed word goes to the
-  /// speaker whose speech covers it (or the nearest one, within 2 s), and
-  /// turns shorter than half a second join their neighbor. Reports a
-  /// segment whenever its turns change.
-  private func relabel(_ ids: [String]) {
-    let rate = Double(engine.sampleRate)
-    func speaker(_ start: Double, _ end: Double) -> (Int, Float)? {
-      var cover: [Int: Double] = [:]
-      var similarity: [Int: Float] = [:]
-      var nearest: (gap: Double, region: Region)?
-      for region in nearby(start, end) {
-        let from = Double(region.start) / rate
-        let to = Double(region.end) / rate
-        let overlap = min(end, to) - max(start, from)
-        if overlap > 0 {
-          cover[region.speaker, default: 0] += overlap
-          similarity[region.speaker] = max(similarity[region.speaker] ?? -1, region.similarity)
-        } else {
-          let gap = max(from - end, start - to)
-          if gap < (nearest?.gap ?? 2) { nearest = (gap, region) }
-        }
+  /// Where the chunk has speech, as one speaker's turns (short gaps bridged).
+  private func speechRuns(_ chunk: [LevelFrame]) -> [(Int, Int, Int)] {
+    var runs: [(Int, Int, Int)] = []
+    for item in chunk where item.speech {
+      if let last = runs.last, item.sample - last.1 <= 30 * frame {
+        runs[runs.count - 1].1 = item.sample + frame
+      } else {
+        runs.append((item.sample, item.sample + frame, 0))
       }
-      if let (speaker, _) = cover.max(by: { $0.value < $1.value }) {
-        return (speaker, similarity[speaker] ?? 0)
-      }
-      return nearest.map { ($0.region.speaker, $0.region.similarity) }
     }
-
-    for id in ids {
-      guard var span = segments[id] else { continue }
-      let words =
-        span.words.isEmpty
-        ? [TimedWord(offset: 0, start: span.start, end: span.end)] : span.words
-      var labels = words.map { speaker($0.start, $0.end) }
-      guard labels.contains(where: { $0 != nil }) else { continue }
-      // Words no voice covers take the speaker before them (or after).
-      for index in labels.indices where labels[index] == nil {
-        labels[index] = labels[..<index].last(where: { $0 != nil }) ?? labels[index...].first { $0 != nil }!
-      }
-      var runs: [(turn: Turn, seconds: Double)] = []
-      var weighted = 0.0
-      var total = 0.0
-      for (word, label) in zip(words, labels) {
-        guard let (speaker, similarity) = label else { continue }
-        let seconds = max(0.05, word.end - word.start)
-        weighted += Double(similarity) * seconds
-        total += seconds
-        if runs.last?.turn.speaker == speaker {
-          runs[runs.count - 1].seconds += seconds
-        } else {
-          runs.append((Turn(offset: runs.isEmpty ? 0 : word.offset, speaker: speaker), seconds))
-        }
-      }
-      // A blip shorter than half a second is more likely noise than a turn.
-      var index = 0
-      while runs.count > 1 && index < runs.count {
-        if runs[index].seconds < 0.5 {
-          let into = index == 0 ? 1 : index - 1
-          runs[into].seconds += runs[index].seconds
-          if index == 0 { runs[1].turn.offset = 0 }
-          runs.remove(at: index)
-          // Neighbors of the same speaker become one turn.
-          var merged: [(turn: Turn, seconds: Double)] = []
-          for run in runs {
-            if merged.last?.turn.speaker == run.turn.speaker {
-              merged[merged.count - 1].seconds += run.seconds
-            } else {
-              merged.append(run)
-            }
-          }
-          runs = merged
-          index = 0
-        } else {
-          index += 1
-        }
-      }
-      let turns = runs.map(\.turn)
-      let confidence = total > 0 ? min(1, max(0, weighted / total)) : 0
-      if turns == span.turns && abs(confidence - span.confidence) < 0.1 { continue }
-      span.turns = turns
-      span.confidence = confidence
-      segments[id] = span
-      let dominant = runs.max { $0.seconds < $1.seconds }!.turn.speaker
-      Output.emit([
-        "type": "speaker", "id": id, "source": source, "speaker": dominant,
-        "turns": turns.map { ["offset": $0.offset, "speaker": $0.speaker] },
-        "confidence": (confidence * 100).rounded() / 100, "at": nowMs(),
-      ])
-    }
+    return runs
   }
 
-  /// Regions that may touch [start - 2 s, end + 2 s]. Each pass adds
-  /// regions only after the last pass's, so they are ordered by pass and at
-  /// most one window apart within one; a binary search skips the rest, which
-  /// keeps hour-long captures as cheap as short ones.
-  private func nearby(_ start: Double, _ end: Double) -> ArraySlice<Region> {
-    let rate = Double(engine.sampleRate)
-    let from = Int((start - 2) * rate) - engine.windowSamples
-    let to = Int((end + 2) * rate) + engine.windowSamples
-    var low = 0
-    var high = regions.count
-    while low < high {
-      let middle = (low + high) / 2
-      if regions[middle].end < from { low = middle + 1 } else { high = middle }
+  /// A third of a second without speech: someone may have taken over.
+  private func hasPause(_ chunk: [LevelFrame]) -> Bool {
+    var silent = 0
+    for item in chunk {
+      silent = item.speech ? 0 : silent + 1
+      if silent >= 35 { return true }
     }
-    var stop = low
-    while stop < regions.count && regions[stop].start <= to { stop += 1 }
-    return regions[low..<stop]
+    return false
   }
 
-  private func trim(keeping samples: Int) {
-    let excess = audio.count - samples
-    if excess > 0 {
-      audio.removeFirst(excess)
-      audioStart += excess
+  /// The second half 8 dB louder or quieter than the first.
+  private func loudnessJump(_ chunk: [LevelFrame]) -> Bool {
+    let half = chunk.count / 2
+    func decibels(_ part: ArraySlice<LevelFrame>) -> Double? {
+      let speech = part.filter(\.speech).map(\.level)
+      guard speech.count >= 10 else { return nil }
+      return 20 * log10(Double(speech.reduce(0, +) / Float(speech.count)))
     }
+    guard let a = decibels(chunk[..<half]), let b = decibels(chunk[half...]) else { return false }
+    return abs(a - b) > 8
+  }
+
+  private func emitWindow(
+    from: Int, to: Int, slow: Bool, turns: [(Int, Int, Int)], after: Int? = nil
+  ) -> Int {
+    let id = windowId
+    windowId += 1
+    var event: [String: Any] = [
+      "type": "window", "source": source, "id": id, "t0": round2(seconds(from)),
+      "t1": round2(seconds(to)), "slow": slow,
+      "turns": turns.map { [round2(seconds($0.0)), round2(seconds($0.1)), $0.2] },
+      "at": nowMs(),
+    ]
+    if let after { event["after"] = after }
+    Output.emit(event)
+    return id
+  }
+
+  private func emitEmbedding(
+    window: Int, local: Int, from: Int, to: Int, seconds speech: Double, quality: Double,
+    vector: [Float]
+  ) {
+    stats.embeddings += 1
+    Output.emit([
+      "type": "embedding", "source": source, "window": window, "local": local,
+      "t0": round2(seconds(from)), "t1": round2(seconds(to)), "seconds": round2(speech),
+      "quality": round2(quality), "vector": float16Base64(vector),
+    ])
   }
 }
 
-/// A run of transcribed text and when it was said (analyzer seconds).
-struct TimedWord {
-  var offset: Int
-  var start: Double
-  var end: Double
+private let debug = ProcessInfo.processInfo.environment["PINE_LIVE_CONTEXT_DEBUG"] == "1"
+
+private func round2(_ value: Double) -> Double { (value * 100).rounded() / 100 }
+
+/// Little-endian IEEE half floats, base64: 384 bytes for 192 numbers.
+func float16Base64(_ vector: [Float]) -> String {
+  var bytes = [UInt8]()
+  bytes.reserveCapacity(vector.count * 2)
+  for value in vector {
+    let bits = value.bitPattern
+    let sign = UInt16((bits >> 16) & 0x8000)
+    let exponent = Int((bits >> 23) & 0xff) - 127 + 15
+    let fraction = bits & 0x7f_ffff
+    var half: UInt16
+    if exponent <= 0 {
+      half = sign
+    } else if exponent >= 31 {
+      half = sign | 0x7bff
+    } else {
+      let rounded = (UInt32(exponent) << 10) + ((fraction + 0x1000) >> 13)
+      half = sign | UInt16(min(rounded, 0x7bff))
+    }
+    bytes.append(UInt8(half & 0xff))
+    bytes.append(UInt8(half >> 8))
+  }
+  return Data(bytes).base64EncodedString()
 }
 
 // MARK: - Vector helpers
@@ -572,15 +750,6 @@ func normalized(_ vector: [Float]) -> [Float] {
 
 func dot(_ a: [Float], _ b: [Float]) -> Float {
   zip(a, b).reduce(0) { $0 + $1.0 * $1.1 }
-}
-
-private func rms(_ samples: ArraySlice<Float>) -> Float {
-  guard !samples.isEmpty else { return 0 }
-  return sqrt(samples.reduce(0) { $0 + $1 * $1 } / Float(samples.count))
-}
-
-private func length(_ pieces: [(Int, Int)]) -> Int {
-  pieces.reduce(0) { $0 + $1.1 - $1.0 }
 }
 
 /// `range` minus `holes`, as sorted half-open pieces.
