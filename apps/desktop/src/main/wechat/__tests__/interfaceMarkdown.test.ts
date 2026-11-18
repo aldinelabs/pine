@@ -459,3 +459,65 @@ describe("numbered choices", () => {
     expect(interfaceChoices(block(code))[0]?.message).toBe(".y 12");
   });
 });
+
+describe("newer components", () => {
+  const md = (code: string) => interfaceBlockMarkdown(code, "en") ?? "";
+
+  it("lays out containers, accordions, popovers and flashcards as text", () => {
+    const out = md(
+      `root = Row([Box([Text("In a box")]), Accordion([AccordionItem("FAQ", [Text("Answer")])]), Popover("Term", "Meaning"), Flashcard("Q", "A"), Spacer(), Celebration(true)])`,
+    );
+    expect(out).toContain("In a box");
+    expect(out).toContain("**FAQ**\n\nAnswer");
+    expect(out).toContain("Term: Meaning");
+    expect(out).toContain("Q → A");
+  });
+
+  it("renders rich text, links, quotes, math, code and list items", () => {
+    const out = md(
+      `root = Stack([Text([Icon("clock"), "25 min ", Badge("Easy")]), Link("Docs", "https://example.com"), Quote("Less is more", "Mies"), Math("x^2"), Code("let a = 1;", "ts"), List([ListItem("Kickoff", "Agree on scope", "09:00")], false, true)])`,
+    );
+    expect(out).toContain("25 min **Easy**");
+    expect(out).toContain("Docs (https://example.com)");
+    expect(out).toContain("“Less is more” — Mies");
+    expect(out).toContain("x^2");
+    expect(out).toContain("```ts\nlet a = 1;\n```");
+    expect(out).toContain("- Kickoff · Agree on scope");
+  });
+
+  it("numbers Steps and ticks the done ones", () => {
+    const out = md(
+      `root = Steps([Step("Install"), Step("Sign in", "With email"), Step("Go")], 2)`,
+    );
+    expect(out).toBe("- ✓ Install\n- **2** Sign in · With email\n- **3** Go");
+  });
+
+  it("infers a chart's x and series and draws component table cells", () => {
+    const out = md(
+      `root = Stack([Chart("pie", [{part: "A", n: 3}, {part: "B", n: 5}]), Table(["Item", "State"], [["One", Badge("Ready")]])])`,
+    );
+    expect(out).toContain("| part | n |");
+    expect(out).toContain("| A | 3 |");
+    expect(out).toContain("| One | **Ready** |");
+  });
+
+  it("shows option labels and numbers options by value", () => {
+    const code = `root = Stack([RadioGroup($plan, [{value: "free", label: "Free plan"}, {value: "pro", label: "Pro plan"}], "Plan", "cards"), Button("Go", @ToAssistant("Pick"))])
+$plan = "free"`;
+    expect(md(code)).toContain("Free plan");
+    expect(interfaceChoices(block(code))).toEqual([
+      { number: 1, label: "Free plan", message: "Pick\n\n(plan: free)" },
+      { number: 2, label: "Pro plan", message: "Pick\n\n(plan: pro)" },
+    ]);
+  });
+
+  it("treats date pickers and timers as desktop-only controls", () => {
+    const out =
+      md(`root = Stack([DatePicker($day, "Day"), Timer($left, "Break")])
+$day = "2026-11-20"
+$left = 90`);
+    expect(out).toContain("Day: **2026-11-20**");
+    expect(out).toContain("Break: **1:30**");
+    expect(out).toContain(NOTE_EN);
+  });
+});

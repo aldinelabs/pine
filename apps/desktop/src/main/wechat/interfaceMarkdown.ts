@@ -23,7 +23,7 @@
 // a note saying which is which. A block cut short (an unclosed fence) is never
 // numbered, since a cut can change which mode the block is read in.
 
-import { chartSeriesKeys } from "../../shared/intelligentUiChart";
+import { chartAxes, chartSeriesKeys } from "../../shared/intelligentUiChart";
 import {
   createParser,
   evaluate,
@@ -35,6 +35,7 @@ import {
 import {
   INTELLIGENT_UI_FENCE_LANGUAGE,
   createIntelligentUiLibrary,
+  intelligentUiOptions,
 } from "../../shared/intelligentUi";
 import { interactionMessage } from "../../shared/intelligentUiMessage";
 import { FENCE, OPENUI_PLACEHOLDER, cleanInline, neutralise } from "./text";
@@ -203,15 +204,48 @@ function bindingTarget(raw: unknown): string | undefined {
   return undefined;
 }
 
+/** Props that hold child elements. */
+const CHILD_PROPS = [
+  "children",
+  "tabs",
+  "items",
+  "trigger",
+  "content",
+  "front",
+  "back",
+  "text",
+];
+
 /** Every element of a tree, depth first. */
 function walk(node: ElementNode, visit: (node: ElementNode) => void): void {
   visit(node);
-  for (const key of ["children", "tabs"]) {
+  for (const key of CHILD_PROPS) {
     for (const child of elements(node.props[key])) walk(child, visit);
   }
 }
 
 const PICKERS = new Set(["Select", "RadioGroup", "SegmentedControl"]);
+/** Buttons that send their label (or an action's message) when clicked. */
+const BUTTONS = new Set(["Button", "IconButton"]);
+/** Components that only lay out their children. */
+const CONTAINERS = new Set([
+  "Stack",
+  "Row",
+  "Box",
+  "Grid",
+  "Tab",
+  "Form",
+  "Carousel",
+  "AccordionItem",
+  "Pressable",
+]);
+
+/** A button's label: IconButton falls back to its icon name. */
+function buttonLabel(node: ElementNode): string {
+  const { label, icon } = node.props;
+  if (typeof label === "string" && label) return label;
+  return node.typeName === "IconButton" && typeof icon === "string" ? icon : "";
+}
 
 class Converter {
   /** Read-only controls drawn. */
@@ -254,7 +288,7 @@ class Converter {
 
   private sends(node: ElementNode): boolean {
     return (
-      node.typeName === "Button" &&
+      BUTTONS.has(node.typeName) &&
       node.props.disabled !== true &&
       this.message(node, {}) !== undefined
     );
@@ -273,8 +307,7 @@ class Converter {
   ): string | undefined {
     const values: Record<string, unknown> = { ...this.state, ...picked };
     const action = button.props.action;
-    const label =
-      typeof button.props.label === "string" ? button.props.label : "";
+    const label = buttonLabel(button);
     let steps: unknown[] | undefined;
     if (typeof action === "object" && action !== null) {
       const plan = action as { steps?: unknown; type?: unknown };
@@ -377,7 +410,7 @@ class Converter {
       const kind = node.typeName;
       if (kind !== "Badge") flushRow();
       if (kind !== "Checkbox" && kind !== "Switch") flushBullets();
-      if (kind !== "Button") flushButtons();
+      if (!BUTTONS.has(kind)) flushButtons();
       if (kind === "Badge") {
         const text = this.text(node.props, "text");
         if (text) row.push(`**${text}**`);
@@ -389,14 +422,14 @@ class Converter {
         bullets.push(
           `- ${box} ${[label, description].filter(Boolean).join(" · ")}`.trimEnd(),
         );
-      } else if (kind === "Button") {
+      } else if (BUTTONS.has(kind)) {
         // In option mode the button is folded into the numbered options.
         if (node === this.optionButton) continue;
-        const label = this.text(node.props, "label");
+        const label = this.inline(buttonLabel(node));
         if (!label) continue;
         const number =
           this.choices && this.sends(node)
-            ? this.choose(node.props.label, this.message(node, {}))
+            ? this.choose(buttonLabel(node), this.message(node, {}))
             : undefined;
         if (number === undefined) {
           this.controls = true;
@@ -417,11 +450,11 @@ class Converter {
 
   private element(node: ElementNode): string {
     const props = node.props;
+    if (CONTAINERS.has(node.typeName)) {
+      if (node.typeName === "Pressable") this.controls = true;
+      return this.children(props.children);
+    }
     switch (node.typeName) {
-      case "Stack":
-      case "Grid":
-      case "Tab":
-        return this.children(props.children);
       case "Card":
         return [
           this.bold(this.text(props, "title")),
@@ -442,10 +475,45 @@ class Converter {
           )
           .filter(Boolean)
           .join("\n\n");
+      case "Accordion":
+        return elements(props.items)
+          .map((item) =>
+            [
+              this.bold(this.text(item.props, "title")),
+              this.children(item.props.children),
+            ]
+              .filter(Boolean)
+              .join("\n\n"),
+          )
+          .filter(Boolean)
+          .join("\n\n");
+      case "Popover":
+        return [this.rich(props.trigger), this.rich(props.content)]
+          .filter(Boolean)
+          .join(": ");
+      case "Flashcard":
+        return [this.rich(props.front), this.rich(props.back)]
+          .filter(Boolean)
+          .join(" → ");
       case "Heading":
         return this.bold(this.text(props, "text"));
       case "Text":
+        return Array.isArray(props.text)
+          ? this.rich(props.text)
+          : this.lines(this.value(props, "text"));
+      case "Caption":
+      case "Label":
         return this.lines(this.value(props, "text"));
+      case "Link":
+      case "Quote":
+      case "Math":
+      case "Image":
+      case "ListItem":
+        return this.rich([node]);
+      case "Code":
+        return this.code(props);
+      case "Steps":
+        return this.steps(props);
       case "Markdown": {
         const source = this.value(props, "source");
         return typeof source === "string" ? closeFences(source.trim()) : "";
@@ -469,7 +537,10 @@ class Converter {
         return this.chart(props);
       case "Input":
       case "Textarea":
+      case "DatePicker":
         return this.field(props);
+      case "Timer":
+        return this.timer(props);
       case "Slider":
         return this.slider(props);
       case "Select":
@@ -482,9 +553,11 @@ class Converter {
       case "Checkbox":
       case "Switch":
       case "Button":
+      case "IconButton":
         return this.children([node]);
       default:
-        // Separator and anything unknown draw nothing in WeChat.
+        // Separator, Spacer, Icon, Celebration and anything unknown draw
+        // nothing in WeChat.
         return "";
     }
   }
@@ -493,12 +566,121 @@ class Converter {
     return text ? `**${text}**` : "";
   }
 
+  /**
+   * One line of inline content: strings and the text of inline components
+   * (a Badge in bold, a Link with its URL, a formula as written). Icons and
+   * other decoration drop.
+   */
+  private rich(value: unknown): string {
+    const parts: string[] = [];
+    const visit = (item: unknown): void => {
+      if (Array.isArray(item)) {
+        item.forEach(visit);
+        return;
+      }
+      if (!isElement(item)) {
+        const text = this.inline(item);
+        if (text) parts.push(text);
+        return;
+      }
+      const props = item.props;
+      switch (item.typeName) {
+        case "Badge":
+          parts.push(this.bold(this.text(props, "text")));
+          return;
+        case "Link": {
+          const text = this.text(props, "text");
+          const url = this.text(props, "url");
+          parts.push(
+            text && url && text !== url ? `${text} (${url})` : text || url,
+          );
+          return;
+        }
+        case "Quote": {
+          const text = this.text(props, "text");
+          const cite = this.text(props, "cite");
+          parts.push(cite ? `“${text}” — ${cite}` : `“${text}”`);
+          return;
+        }
+        case "Math":
+          parts.push(this.text(props, "tex"));
+          return;
+        case "Image":
+          parts.push(this.text(props, "alt"));
+          return;
+        case "ListItem":
+          parts.push(
+            [this.text(props, "title"), this.text(props, "description")]
+              .filter(Boolean)
+              .join(" · "),
+          );
+          return;
+        case "Text":
+        case "Caption":
+        case "Label":
+        case "Heading":
+          visit(props.text);
+          return;
+        case "Button":
+        case "IconButton":
+          parts.push(this.inline(buttonLabel(item)));
+          return;
+        default:
+          for (const key of CHILD_PROPS) visit(props[key]);
+      }
+    };
+    visit(value);
+    return parts.filter(Boolean).join(" ").replace(/\s+/gu, " ").trim();
+  }
+
+  private code(props: Record<string, unknown>): string {
+    const code = this.value(props, "code");
+    if (typeof code !== "string" || !code.trim()) return "";
+    const language = this.value(props, "language");
+    const longest = Math.max(
+      2,
+      ...[...code.matchAll(/`+/gu)].map((match) => match[0].length),
+    );
+    const fence = "`".repeat(longest + 1);
+    const info =
+      typeof language === "string" ? language.replace(/[^\w+#.-]/gu, "") : "";
+    return `${fence}${info}\n${code.replace(/\s+$/u, "")}\n${fence}`;
+  }
+
+  private steps(props: Record<string, unknown>): string {
+    const current = Number(this.value(props, "current"));
+    return elements(props.items)
+      .filter((item) => item.typeName === "Step")
+      .map((item, index) => {
+        const title = this.text(item.props, "title");
+        const description = this.text(item.props, "description");
+        const mark =
+          Number.isFinite(current) && index + 1 < current
+            ? "✓"
+            : `**${index + 1}**`;
+        return `- ${mark} ${[title, description].filter(Boolean).join(" · ")}`;
+      })
+      .join("\n");
+  }
+
+  private timer(props: Record<string, unknown>): string {
+    this.controls = true;
+    const seconds = Math.max(
+      0,
+      Math.round(Number(this.value(props, "seconds")) || 0),
+    );
+    const clock = `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
+    const label = this.text(props, "label");
+    return [label, `**${clock}**`].filter(Boolean).join(": ");
+  }
+
   private list(props: Record<string, unknown>): string {
     const items = this.value(props, "items");
     if (!Array.isArray(items)) return "";
     const ordered = this.value(props, "ordered") === true;
     return items
-      .map((item) => this.inline(item))
+      .flat()
+      .map((item) => (isElement(item) ? this.rich([item]) : this.inline(item)))
       .filter(Boolean)
       .map((item, index) =>
         ordered ? `- **${index + 1}** ${item}` : `- ${item}`,
@@ -545,7 +727,16 @@ class Converter {
       ...kept.map((cells) =>
         // `—` keeps an empty cell, so a table flattened to `a · b · c`
         // rows stays aligned with its header.
-        line(head.map((_, index) => this.inline(cells[index]) || "—")),
+        line(
+          head.map((_, index) => {
+            const cell = cells[index];
+            const text =
+              isElement(cell) || Array.isArray(cell)
+                ? this.rich(cell)
+                : this.inline(cell);
+            return text || "—";
+          }),
+        ),
       ),
       ...(rows.length > kept.length
         ? ["", more(this.lang, rows.length - kept.length)]
@@ -568,19 +759,27 @@ class Converter {
 
   private chart(props: Record<string, unknown>): string {
     const data = this.value(props, "data");
-    const x = this.value(props, "x");
+    const xProp = this.value(props, "x");
     const seriesProp = this.value(props, "series");
-    if (!Array.isArray(data) || typeof x !== "string") return "";
-    const allSeries = Array.isArray(seriesProp)
-      ? seriesProp.filter((name): name is string => typeof name === "string")
-      : [];
+    const type = this.value(props, "type");
+    if (!Array.isArray(data)) return "";
     const rowsData = data.filter(
       (datum): datum is Record<string, unknown> =>
         typeof datum === "object" && datum !== null,
     );
+    // x and series may be left out; the rows say which keys they are.
+    const { x, series: allSeries } = chartAxes(
+      rowsData,
+      typeof type === "string" ? type : "bar",
+      typeof xProp === "string" ? xProp : undefined,
+      Array.isArray(seriesProp)
+        ? seriesProp.filter((name): name is string => typeof name === "string")
+        : undefined,
+    );
+    if (!x) return "";
     // Series named apart from the rows' keys read the matching keys in order.
     const seriesKeys = chartSeriesKeys(rowsData, x, allSeries);
-    const count = this.value(props, "type") === "donut" ? 1 : allSeries.length;
+    const count = type === "donut" || type === "pie" ? 1 : allSeries.length;
     const keys = [x, ...seriesKeys.slice(0, count)];
     const labels = [x, ...allSeries.slice(0, count)];
     const rows = rowsData.map((datum) => keys.map((key) => datum[key]));
@@ -624,12 +823,12 @@ class Converter {
     if (!Array.isArray(options) || target === undefined || !button)
       return this.picker(node.props);
     const lines: string[] = [];
-    for (const option of options) {
-      const text = this.inline(option);
+    for (const option of intelligentUiOptions(options)) {
+      const text = this.inline(option.label);
       if (!text) continue;
       const number = this.choose(
-        option,
-        this.message(button, { [target]: option }),
+        option.label,
+        this.message(button, { [target]: option.value }),
       );
       if (number === undefined) {
         // Past the cap the rest are shown, without numbers.
@@ -648,16 +847,17 @@ class Converter {
     const options = this.value(props, "options");
     const current = this.value(props, "value");
     if (!Array.isArray(options)) return "";
-    const kept = options.slice(0, INTERFACE_OPTIONS_MAX);
+    const all = intelligentUiOptions(options);
+    const kept = all.slice(0, INTERFACE_OPTIONS_MAX);
     const lines = kept
       .map((option) => {
-        const text = this.inline(option);
+        const text = this.inline(option.label);
         if (!text) return "";
-        return `- ${option === current ? "●" : "○"} ${text}`;
+        return `- ${option.value === current ? "●" : "○"} ${text}`;
       })
       .filter(Boolean);
-    if (options.length > kept.length)
-      lines.push(`- ${more(this.lang, options.length - kept.length)}`);
+    if (all.length > kept.length)
+      lines.push(`- ${more(this.lang, all.length - kept.length)}`);
     const label = this.bold(this.text(props, "label"));
     return [label, lines.join("\n")].filter(Boolean).join("\n");
   }
