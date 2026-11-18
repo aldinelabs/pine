@@ -8,7 +8,11 @@ let package = Package(
   name: "pine-live-context",
   platforms: [.macOS("26.0")],
   targets: [
-    .executableTarget(name: "pine-live-context", path: "Sources")
+    // Opens sherpa-onnx with dlopen for optional speaker diarization; the
+    // helper never links it.
+    .target(name: "CSherpaOnnx", path: "CSherpaOnnx"),
+    .executableTarget(
+      name: "pine-live-context", dependencies: ["CSherpaOnnx"], path: "Sources"),
   ],
   swiftLanguageModes: [.v5]
 )

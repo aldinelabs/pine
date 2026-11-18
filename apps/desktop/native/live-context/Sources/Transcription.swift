@@ -3,10 +3,12 @@ import Foundation
 import Speech
 
 /// One source's transcription: audio buffers in, segments out. Each source
-/// has its own analyzer, so the channel says who spoke (mic = me, system =
-/// others) without diarization.
+/// has its own analyzer, so the channel says which side spoke (mic = me,
+/// system = others); an optional tracker tells the speakers within it apart.
 final class SourcePipeline: @unchecked Sendable {
   let source: String
+  /// Set before audio flows; nil unless the capture asked for speakers.
+  var tracker: SpeakerTracker?
   private let transcriber: SpeechTranscriber
   private let analyzer: SpeechAnalyzer
   private let format: AVAudioFormat
@@ -70,7 +72,8 @@ final class SourcePipeline: @unchecked Sendable {
   private func readResults() async {
     do {
       for try await result in transcriber.results {
-        let text = String(result.text.characters).trimmingCharacters(in: .whitespacesAndNewlines)
+        let raw = String(result.text.characters)
+        let text = raw.trimmingCharacters(in: .whitespacesAndNewlines)
         let final = result.isFinal
         let id = lock.withLock { () -> String in
           let id = "\(source)-\(segmentIndex)"
@@ -88,10 +91,37 @@ final class SourcePipeline: @unchecked Sendable {
           "final": final,
           "at": nowMs(),
         ])
+        // After the segment, so its label never arrives first.
+        if let tracker, !text.isEmpty {
+          tracker.noteSegment(
+            id: id, start: result.range.start.seconds, end: result.range.end.seconds,
+            words: words(of: result.text, trimmedFrom: raw), length: text.utf16.count)
+        }
       }
     } catch {
       Output.error("transcription_failed", error.localizedDescription, source: source)
     }
+  }
+
+  /// Where each timed run of the text starts (UTF-16 offset into the
+  /// trimmed text, as JavaScript counts) and when it was said, so speaker
+  /// changes inside one segment can split it.
+  private func words(of text: AttributedString, trimmedFrom raw: String) -> [TimedWord] {
+    let leading = raw.utf16.count
+      - raw.drop(while: { $0.isWhitespace || $0.isNewline }).utf16.count
+    var offset = 0
+    var words: [TimedWord] = []
+    for run in text.runs {
+      let length = String(text[run.range].characters).utf16.count
+      if let range = run.audioTimeRange {
+        words.append(
+          TimedWord(
+            offset: max(0, offset - leading), start: range.start.seconds,
+            end: range.end.seconds))
+      }
+      offset += length
+    }
+    return words
   }
 
   /// Called on the capture thread. The buffer may not outlive this call.
@@ -128,6 +158,7 @@ final class SourcePipeline: @unchecked Sendable {
     let start = CMTime(value: nextFrame, timescale: CMTimeScale(format.sampleRate))
     nextFrame += Int64(output.frameLength)
     nextTime = Double(nextFrame) / format.sampleRate
+    tracker?.append(output)
     input.yield(AnalyzerInput(buffer: output, bufferStartTime: start))
   }
 
@@ -165,6 +196,7 @@ final class SourcePipeline: @unchecked Sendable {
     input.finish()
     try? await analyzer.finalizeAndFinishThroughEndOfInput()
     await resultsTask?.value
+    await tracker?.finish()
   }
 }
 

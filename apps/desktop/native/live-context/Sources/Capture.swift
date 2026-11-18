@@ -140,3 +140,50 @@ final class SystemAudioCapture: AudioCapture {
       }, "read an audio property")
   }
 }
+
+/// An audio file played into a pipeline in place of a device (`--file`), to
+/// measure transcription and speaker labels without a microphone or a call.
+/// `speed` above 1 feeds it faster than real time.
+final class FileCapture: AudioCapture {
+  private let file: AVAudioFile
+  private let speed: Double
+  private var task: Task<Void, Never>?
+  /// Called once the whole file has been fed.
+  var onEnd: (@Sendable () -> Void)?
+
+  init(url: URL, speed: Double) throws {
+    file = try AVAudioFile(forReading: url)
+    self.speed = max(0.1, speed)
+  }
+
+  func start(_ onBuffer: @escaping (AVAudioPCMBuffer) -> Void) throws {
+    let file = file
+    let speed = speed
+    let onEnd = onEnd
+    nonisolated(unsafe) let deliver = onBuffer
+    task = Task.detached(priority: .userInitiated) {
+      let format = file.processingFormat
+      let chunk = AVAudioFrameCount(format.sampleRate / 10)
+      let started = Date()
+      var fed = 0.0
+      while !Task.isCancelled {
+        guard
+          let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: chunk),
+          (try? file.read(into: buffer)) != nil, buffer.frameLength > 0
+        else {
+          onEnd?()
+          return
+        }
+        deliver(buffer)
+        fed += Double(buffer.frameLength) / format.sampleRate
+        let wait = fed / speed - Date().timeIntervalSince(started)
+        if wait > 0 { try? await Task.sleep(for: .seconds(wait)) }
+      }
+    }
+  }
+
+  func stop() {
+    task?.cancel()
+    task = nil
+  }
+}

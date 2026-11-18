@@ -2,12 +2,16 @@
 // them on device with SpeechAnalyzer, and writes JSON Lines to stdout.
 //
 // Commands arrive as JSON Lines on stdin:
-//   {"type":"start","sources":["mic","system"],"locale":"zh-CN"}
+//   {"type":"start","sources":["mic","system"],"locale":"zh-CN",
+//    "speakers":{"segmentation":"…/x.onnx","embedding":"…/y.onnx"}}
 //   {"type":"pause"} {"type":"resume"} {"type":"stop"} {"type":"check"}
 // Closing stdin stops the capture and exits, so the helper never outlives Pine.
+// `speakers` is optional; without it nothing about diarization is loaded.
 //
 // For a terminal test, `--start --sources mic,system --locale zh-CN` starts
-// at once, and `--check` prints what this Mac supports.
+// at once, and `--check` prints what this Mac supports. `--file x.wav`
+// (with `--speed 4`) plays a file into the first source instead of a device;
+// `--segmentation a.onnx --embedding b.onnx` turns speaker labels on.
 import AVFoundation
 import Foundation
 import Speech
@@ -20,6 +24,10 @@ final class Controller: @unchecked Sendable {
   private var state = "idle"
   private var startedAt = Date()
   private var silenceTask: Task<Void, Never>?
+  private var diarization: DiarizationEngine?
+  /// Testing: feed this file instead of a device.
+  var fileInput: (url: URL, speed: Double)?
+  var onFileEnd: (@Sendable () -> Void)?
 
   func handle(_ command: [String: Any]) async {
     switch command["type"] as? String {
@@ -27,7 +35,8 @@ final class Controller: @unchecked Sendable {
     case "start":
       let sources = (command["sources"] as? [String]) ?? ["mic"]
       let locale = (command["locale"] as? String) ?? Locale.current.identifier
-      await start(sources: sources, localeIdentifier: locale)
+      let speakers = (command["speakers"] as? [String: Any]).flatMap(DiarizationOptions.init)
+      await start(sources: sources, localeIdentifier: locale, speakers: speakers)
     case "pause": await pause()
     case "resume": resume()
     case "stop": await stop()
@@ -49,7 +58,9 @@ final class Controller: @unchecked Sendable {
     ])
   }
 
-  func start(sources: [String], localeIdentifier: String) async {
+  func start(sources: [String], localeIdentifier: String, speakers: DiarizationOptions? = nil)
+    async
+  {
     guard state == "idle" else {
       Output.error("already_started", "A capture is already running.")
       return
@@ -82,13 +93,26 @@ final class Controller: @unchecked Sendable {
       Output.error("permission_denied", "Microphone access is off for Pine.", source: "mic")
       wanted.removeAll { $0 == "mic" }
     }
+    // Speakers are a bonus: without them the capture goes on as before.
+    if let speakers {
+      do {
+        diarization = try DiarizationEngine.load(speakers)
+      } catch let error as HelperError {
+        Output.error(error.code, error.message)
+      } catch {
+        Output.error("speakers_unavailable", error.localizedDescription)
+      }
+    }
     startedAt = Date()
     for source in wanted {
       do {
         let pipeline = try await SourcePipeline.start(
           source: source, locale: locale, startedAt: startedAt)
         pipelines[source] = pipeline
-        let capture: AudioCapture = source == "mic" ? MicrophoneCapture() : SystemAudioCapture()
+        if let diarization {
+          pipeline.tracker = SpeakerTracker(source: source, engine: diarization)
+        }
+        let capture = try makeCapture(source, fromFile: source == wanted.first)
         try capture.start { pipeline.append($0) }
         captures[source] = capture
       } catch let error as HelperError {
@@ -110,8 +134,18 @@ final class Controller: @unchecked Sendable {
         "startedAt": (startedAt.timeIntervalSince1970 * 1000).rounded(),
         "sources": captures.keys.sorted(),
         "locale": locale.identifier(.bcp47),
+        "speakers": diarization != nil,
       ])
     watchSilence()
+  }
+
+  private func makeCapture(_ source: String, fromFile: Bool) throws -> AudioCapture {
+    if let fileInput, fromFile {
+      let capture = try FileCapture(url: fileInput.url, speed: fileInput.speed)
+      capture.onEnd = onFileEnd
+      return capture
+    }
+    return source == "mic" ? MicrophoneCapture() : SystemAudioCapture()
   }
 
   private func installAssets(for locale: Locale) async throws {
@@ -196,6 +230,7 @@ final class Controller: @unchecked Sendable {
   private func finishPipelines() async {
     for pipeline in pipelines.values { await pipeline.finish() }
     pipelines.removeAll()
+    diarization = nil
   }
 }
 
@@ -214,6 +249,20 @@ if CommandLine.arguments.contains("--check") {
   exit(0)
 }
 
+// Testing: `--file` stands in for the first source's device, whether the
+// capture starts from the command line or from Pine.
+if let file = argument("--file") {
+  controller.fileInput = (URL(fileURLWithPath: file), argument("--speed").flatMap(Double.init) ?? 1)
+  controller.onFileEnd = {
+    Task {
+      // Let the last words settle before stopping.
+      try? await Task.sleep(for: .seconds(2))
+      await controller.stop()
+      exit(0)
+    }
+  }
+}
+
 let stopSignal = DispatchSource.makeSignalSource(signal: SIGINT, queue: .main)
 signal(SIGINT, SIG_IGN)
 stopSignal.setEventHandler {
@@ -225,9 +274,18 @@ stopSignal.setEventHandler {
 stopSignal.resume()
 
 if CommandLine.arguments.contains("--start") {
+  var speakers: DiarizationOptions?
+  if let segmentation = argument("--segmentation"), let embedding = argument("--embedding") {
+    speakers = DiarizationOptions(
+      library: argument("--speaker-library") ?? DiarizationOptions.defaultLibrary,
+      segmentationModel: segmentation, embeddingModel: embedding)
+    if let threshold = argument("--speaker-threshold").flatMap(Float.init) {
+      speakers?.threshold = threshold
+    }
+  }
   await controller.start(
     sources: (argument("--sources") ?? "mic").split(separator: ",").map(String.init),
-    localeIdentifier: argument("--locale") ?? Locale.current.identifier)
+    localeIdentifier: argument("--locale") ?? Locale.current.identifier, speakers: speakers)
   if let seconds = argument("--seconds").flatMap(Double.init) {
     Task {
       try? await Task.sleep(for: .seconds(seconds))
