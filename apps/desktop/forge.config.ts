@@ -29,6 +29,8 @@ const MAIN_RUNTIME_ENTRYPOINTS = [
   "node-datachannel",
 ] as const;
 
+const LIVE_CONTEXT_HELPER = "native/live-context/build/pine-live-context";
+
 function locateWorkspaceNodeModules(): string {
   let dir = process.cwd();
   for (;;) {
@@ -159,6 +161,26 @@ function signMacPackage(outputPaths: string[]): void {
       '=designated => identifier "munim-computer-use"',
       computerUseHelper,
     ]);
+    // Optional: an Xcode without the macOS 26 SDK skips it, and the app
+    // then reports Live Context as unavailable. Pine spawns it, so macOS
+    // asks for microphone and system audio access on Pine's behalf.
+    const liveContextHelper = path.join(
+      appPath,
+      "Contents/Resources/pine-live-context",
+    );
+    if (existsSync(liveContextHelper)) {
+      execFileSync("codesign", [
+        "--force",
+        "--sign",
+        "-",
+        "--timestamp=none",
+        "--identifier",
+        "com.electron.pine.live-context",
+        "--requirements",
+        '=designated => identifier "com.electron.pine.live-context"',
+        liveContextHelper,
+      ]);
+    }
     execFileSync("codesign", [
       "--force",
       "--deep",
@@ -250,7 +272,19 @@ const config: ForgeConfig = {
             path.join(__dirname, "native/app-context/build/app_context.node"),
           ]
         : []),
+      // Built by scripts/build-native.mjs when the macOS 26 SDK is present.
+      ...(process.platform === "darwin" &&
+      existsSync(path.join(__dirname, LIVE_CONTEXT_HELPER))
+        ? [path.join(__dirname, LIVE_CONTEXT_HELPER)]
+        : []),
     ],
+    // The prompts macOS shows when Live Context first listens.
+    extendInfo: {
+      NSMicrophoneUsageDescription:
+        "Pine transcribes what you say into the conversation's live context.",
+      NSAudioCaptureUsageDescription:
+        "Pine transcribes the meeting or class audio playing on this Mac into the conversation's live context.",
+    },
     afterPrune: [
       (
         buildPath: string,

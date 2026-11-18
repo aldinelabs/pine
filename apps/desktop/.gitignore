@@ -32,6 +32,8 @@ coverage
 # Compiled binary addons (https://nodejs.org/api/addons.html)
 build/Release
 native/*/build/
+# SwiftPM build products of native helpers.
+native/*/.build/
 # Fetched by scripts/fetch-geoip.mjs.
 resources/geoip/
 
