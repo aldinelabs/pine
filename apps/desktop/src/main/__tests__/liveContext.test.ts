@@ -1,17 +1,18 @@
 import { EventEmitter } from "node:events";
-import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, readFile, rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { PassThrough } from "node:stream";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { encodeFloat16 } from "../liveContextDiarizer";
 import type { LiveContextEvent } from "../../shared/liveContext";
 import {
   deleteLiveTranscript,
   LiveContextService,
   liveTranscriptPath,
-  liveVoicesPath,
+  liveSpeakersPath,
+  readSpeakerRecords,
   readTranscript,
-  voicesForCapture,
   type LiveContextHelperProcess,
 } from "../liveContext";
 
@@ -319,27 +320,7 @@ describe("LiveContextService", () => {
 
     const target = { projectId: PROJECT_ID, sessionId: "session-1" };
 
-    it("downloads the models first, then starts with them and the session's voices", async () => {
-      // A merge from an earlier capture folds those two voices into one.
-      await mkdir(path.dirname(liveVoicesPath(root, "session-1")), {
-        recursive: true,
-      });
-      await writeFile(
-        liveVoicesPath(root, "session-1"),
-        JSON.stringify({
-          v: 1,
-          voices: {
-            system: [
-              { speaker: 1, centroid: [1, 0], count: 3 },
-              { speaker: 2, centroid: [1, 0], count: 1 },
-            ],
-          },
-        }),
-      );
-      await writeFile(
-        liveTranscriptPath(root, "session-1"),
-        `${JSON.stringify({ v: 1, type: "speaker-merge", from: "system-2", into: "system-1" })}\n`,
-      );
+    it("downloads the models first, then starts with them", async () => {
       await startWithSpeakers();
       expect(
         events.some(
@@ -353,11 +334,7 @@ describe("LiveContextService", () => {
       expect(helper.commands[0]).toMatchObject({
         type: "start",
         sources: ["system"],
-        speakers: {
-          segmentation: "/m/seg.onnx",
-          embedding: "/m/emb.onnx",
-          voices: { system: [{ speaker: 1, centroid: [1, 0], count: 4 }] },
-        },
+        speakers: { segmentation: "/m/seg.onnx", embedding: "/m/emb.onnx" },
       });
       expect(service.status()).toMatchObject({
         state: "listening",
@@ -398,93 +375,170 @@ describe("LiveContextService", () => {
       expect(service.status().state).toBe("idle");
     });
 
-    it("saves labels with final segments and appends later relabels", async () => {
-      await startWithSpeakers();
-      // A label for text still forming waits for the final version.
+    /** One voice talking for `seconds`, as the helper measures it. */
+    function speak(
+      vector: Float32Array,
+      from: number,
+      seconds: number,
+      firstId: number,
+    ) {
+      const vectorText = encodeFloat16(vector);
+      let id = firstId;
       helper.write({
-        type: "speaker",
-        id: "system-0",
+        type: "window",
         source: "system",
-        speaker: 1,
-        turns: [{ offset: 0, speaker: 1 }],
+        id,
+        t0: Math.max(0, from - 7),
+        t1: from + 3,
+        slow: true,
+        turns: [[from, from + 3, 0]],
       });
+      helper.write({
+        type: "embedding",
+        source: "system",
+        window: id,
+        local: 0,
+        t0: from,
+        t1: from + 3,
+        seconds: 3,
+        quality: 1,
+        vector: vectorText,
+      });
+      for (let end = from + 4.5; end <= from + seconds; end += 1.5) {
+        id += 1;
+        helper.write({
+          type: "window",
+          source: "system",
+          id,
+          t0: end - 3,
+          t1: end,
+          slow: false,
+          turns: [[end - 3, end, 0]],
+          after: id - 1,
+        });
+        helper.write({
+          type: "embedding",
+          source: "system",
+          window: id,
+          local: 0,
+          t0: end - 3,
+          t1: end,
+          seconds: 3,
+          quality: 1,
+          vector: vectorText,
+        });
+      }
+      return id + 1;
+    }
+
+    const voiceA = Float32Array.from({ length: 16 }, (_, i) =>
+      i === 0 ? 1 : 0.05,
+    );
+    const voiceB = Float32Array.from({ length: 16 }, (_, i) =>
+      i === 1 ? 1 : 0.05,
+    );
+
+    it("labels segments from the helper's measurements, saves them, and finishes at stop", async () => {
+      await startWithSpeakers();
+      const next = speak(voiceA, 0.5, 9, 0);
       helper.write({
         type: "segment",
         id: "system-0",
         source: "system",
-        t0: 0,
-        t1: 3000,
+        t0: 500,
+        t1: 9000,
+        a0: 0.5,
+        a1: 9,
+        words: [
+          [0, 0.5, 4],
+          [4, 4, 9],
+        ],
         text: "大家好。好的。",
         final: true,
       });
       await tick();
-      // Then the speaker change inside it is found.
+      speak(voiceB, 10, 9, next);
       helper.write({
-        type: "speaker",
-        id: "system-0",
+        type: "segment",
+        id: "system-1",
         source: "system",
-        speaker: 1,
-        turns: [
-          { offset: 0, speaker: 1 },
-          { offset: 4, speaker: 2 },
-        ],
-        confidence: 0.8,
+        t0: 10000,
+        t1: 19000,
+        a0: 10,
+        a1: 19,
+        words: [[0, 10, 19]],
+        text: "我补充一下。",
+        final: true,
       });
       await tick();
-
-      const turnsEvents = events.flatMap((event) =>
-        event.kind === "turns" ? [event.turns] : [],
+      const final = events.flatMap((event) =>
+        event.kind === "segment" && event.segment.final ? [event.segment] : [],
       );
-      expect(turnsEvents).toEqual([
-        [{ offset: 0, speaker: "system-1" }],
-        [
-          { offset: 0, speaker: "system-1" },
-          { offset: 4, speaker: "system-2" },
-        ],
+      expect(final.map((segment) => segment.turns?.[0]?.speaker)).toEqual([
+        "system-1",
+        "system-2",
       ]);
-      const finalSegment = events.find(
-        (event) => event.kind === "segment" && event.segment.final,
-      );
-      expect(finalSegment).toMatchObject({
-        segment: { turns: [{ offset: 0, speaker: "system-1" }] },
-      });
-
-      const lines = (
-        await readFile(liveTranscriptPath(root, "session-1"), "utf8")
-      )
-        .trim()
-        .split("\n")
-        .map((line) => JSON.parse(line) as Record<string, unknown>);
-      expect(lines).toHaveLength(2);
-      expect(lines[0]).toMatchObject({ text: "大家好。好的。" });
-      expect(lines[0]).not.toHaveProperty("type");
-      expect(lines[1]).toMatchObject({ type: "turns" });
-
-      const { segments } = await service.transcript(target);
-      expect(segments[0]?.turns).toEqual([
-        { offset: 0, speaker: "system-1" },
-        { offset: 4, speaker: "system-2" },
-      ]);
-    });
-
-    it("keeps the helper's voice prints per session and deletes them with it", async () => {
-      await startWithSpeakers();
-      helper.write({
-        type: "voices",
-        source: "system",
-        voices: [{ speaker: 1, centroid: [0.6, 0.8], count: 4 }],
-      });
       await service.stop();
-      const saved = JSON.parse(
-        await readFile(liveVoicesPath(root, "session-1"), "utf8"),
-      ) as { voices: Record<string, unknown> };
-      expect(saved.voices.system).toEqual([
-        { speaker: 1, centroid: [0.6, 0.8], count: 4 },
+      const { segments } = await service.transcript(target);
+      expect(segments.map((segment) => segment.turns)).toEqual([
+        [{ offset: 0, speaker: "system-1" }],
+        [{ offset: 0, speaker: "system-2" }],
       ]);
+      // The speaker file keeps the measurements and the final pass, not audio.
+      const records = readSpeakerRecords(
+        await readFile(liveSpeakersPath(root, "session-1"), "utf8"),
+      );
+      expect(new Set(records.map((record) => record.type))).toEqual(
+        new Set(["capture", "window", "embedding", "segment", "relabel"]),
+      );
       await deleteLiveTranscript(root, "session-1");
       await expect(
-        readFile(liveVoicesPath(root, "session-1"), "utf8"),
+        readFile(liveSpeakersPath(root, "session-1"), "utf8"),
       ).rejects.toThrow();
+    });
+
+    it("keeps the same speaker numbers in a later capture of the session", async () => {
+      await startWithSpeakers();
+      speak(voiceA, 0.5, 9, 0);
+      speak(voiceB, 10, 9, 100);
+      await tick();
+      await service.stop();
+      events.length = 0;
+      await startWithSpeakers();
+      // Window ids and analyzer time restart with each capture.
+      speak(voiceB, 0.5, 6, 0);
+      helper.write({
+        type: "segment",
+        id: "system-0",
+        source: "system",
+        t0: 500,
+        t1: 6000,
+        a0: 0.5,
+        a1: 6,
+        words: [[0, 0.5, 6]],
+        text: "又是我。",
+        final: true,
+      });
+      await tick();
+      const final = events.find(
+        (event) => event.kind === "segment" && event.segment.final,
+      );
+      expect(final).toMatchObject({
+        segment: { turns: [{ offset: 0, speaker: "system-2" }] },
+      });
+    });
+
+    it("reports when labels are scaled back to keep the Mac cool", async () => {
+      await startWithSpeakers();
+      helper.write({ type: "speakers-state", level: 2, reason: "thermal" });
+      await tick();
+      expect(service.status().speakersDegraded).toBe("reduced");
+      helper.write({ type: "speakers-state", level: 4, reason: "thermal" });
+      await tick();
+      expect(service.status().speakersDegraded).toBe("paused");
+      helper.write({ type: "speakers-state", level: 0, reason: null });
+      await tick();
+      expect(service.status().speakersDegraded).toBeUndefined();
     });
 
     it("renames and merges speakers by appending records", async () => {
@@ -538,6 +592,12 @@ describe("LiveContextService", () => {
           speaker: "mic-2",
           name: "Kim",
         }),
+        JSON.stringify({
+          v: 1,
+          type: "speaker-alias",
+          from: "mic-3",
+          into: "mic-2",
+        }),
         JSON.stringify({ v: 1, type: "future-thing" }),
       ].join("\n"),
     );
@@ -553,24 +613,38 @@ describe("LiveContextService", () => {
       },
     ]);
     expect(transcript.speakers.names).toEqual({ "mic-2": "Kim" });
+    expect(transcript.speakers.aliases).toEqual({ "mic-3": "mic-2" });
   });
 
-  it("folds merged voices within a source before the next capture", () => {
-    const voices = voicesForCapture(
-      {
-        system: [
-          { speaker: 1, centroid: [1, 0], count: 1 },
-          { speaker: 2, centroid: [0, 1], count: 1 },
-          { speaker: 3, centroid: [0, 1], count: 2 },
-        ],
-      },
-      { "system-2": "system-1", "system-3": "mic-1" },
+  it("reads unknown, provisional, overlapping and echo labels", () => {
+    const { segments } = readTranscript(
+      [
+        JSON.stringify({
+          v: 1,
+          id: "a",
+          source: "mic",
+          start: 1,
+          end: 2,
+          text: "嗯，对对对",
+        }),
+        JSON.stringify({
+          v: 1,
+          type: "turns",
+          id: "a",
+          echo: true,
+          turns: [
+            { offset: 0, provisional: true },
+            { offset: 2, speaker: "mic-1", overlap: "mic-2" },
+          ],
+        }),
+      ].join("\n"),
     );
-    expect(voices.system).toHaveLength(2);
-    expect(voices.system?.[0]?.speaker).toBe(1);
-    expect(voices.system?.[0]?.count).toBe(2);
-    expect(voices.system?.[0]?.centroid[0]).toBeCloseTo(Math.SQRT1_2);
-    // Merged into the other source: kept as it was.
-    expect(voices.system?.[1]).toMatchObject({ speaker: 3, count: 2 });
+    expect(segments[0]).toMatchObject({
+      echo: true,
+      turns: [
+        { offset: 0, provisional: true },
+        { offset: 2, speaker: "mic-1", overlap: "mic-2" },
+      ],
+    });
   });
 });

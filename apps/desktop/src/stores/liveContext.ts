@@ -38,12 +38,19 @@ export const useLiveContextStore = defineStore("liveContext", () => {
     sessionId: string,
     segmentId: string,
     turns: LiveContextTurn[],
+    echo: boolean,
   ): void {
+    const label = (segment: LiveContextSegment): LiveContextSegment => {
+      const next: LiveContextSegment = { ...segment, turns };
+      if (echo) next.echo = true;
+      else delete next.echo;
+      return next;
+    };
     for (const [source, segment] of volatile)
-      if (segment.id === segmentId) volatile.set(source, { ...segment, turns });
+      if (segment.id === segmentId) volatile.set(source, label(segment));
     const list = transcripts.get(sessionId);
     const index = list?.findIndex(({ id }) => id === segmentId) ?? -1;
-    if (list && index >= 0) list[index] = { ...list[index], turns };
+    if (list && index >= 0) list[index] = label(list[index]);
   }
 
   function apply(event: LiveContextEvent): void {
@@ -53,7 +60,12 @@ export const useLiveContextStore = defineStore("liveContext", () => {
       return;
     }
     if (event.kind === "turns") {
-      applyTurns(event.sessionId, event.segmentId, event.turns);
+      applyTurns(
+        event.sessionId,
+        event.segmentId,
+        event.turns,
+        event.echo === true,
+      );
       return;
     }
     if (event.kind === "speakers") {
@@ -69,7 +81,10 @@ export const useLiveContextStore = defineStore("liveContext", () => {
     const forming = volatile.get(segment.source);
     if (forming?.id === segment.id) {
       volatile.delete(segment.source);
-      if (!segment.turns && forming.turns) segment.turns = forming.turns;
+      if (!segment.turns && forming.turns) {
+        segment.turns = forming.turns;
+        if (forming.echo) segment.echo = true;
+      }
     }
     const list = transcripts.get(sessionId);
     if (list && segment.text && !list.some(({ id }) => id === segment.id))

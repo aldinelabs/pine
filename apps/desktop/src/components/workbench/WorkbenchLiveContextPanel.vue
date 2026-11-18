@@ -26,6 +26,7 @@ import {
 import {
   parseSpeakerKey,
   segmentTurns,
+  speakerMap,
   speakersOf,
 } from "@/shared/liveContextSpeakers";
 import { useLiveContextStore } from "@/stores/liveContext";
@@ -76,6 +77,8 @@ const speakers = computed(() =>
     ? liveContext.speakersOf(target.value.sessionId)
     : { names: {}, merges: {} },
 );
+/** Pine's own merges and the user's, together. */
+const merges = computed(() => speakerMap(speakers.value));
 
 function speakerLabel(speaker: LiveContextSpeakerKey): string {
   return (
@@ -88,21 +91,30 @@ function speakerLabel(speaker: LiveContextSpeakerKey): string {
 
 /** Everyone heard so far, after merges, for the merge menu. */
 const knownSpeakers = computed(() =>
-  speakersOf([...segments.value, ...pending.value], speakers.value.merges).map(
+  speakersOf([...segments.value, ...pending.value], merges.value).map(
     (speaker) => ({ speaker, label: speakerLabel(speaker) }),
   ),
 );
 
 /**
  * Each segment as rows: one per speaker turn, each starting with who
- * speaks. Without speaker labels a segment is one row, labeled by source.
+ * speaks. Without speaker labels a segment is one row, labeled by source;
+ * a labeled segment whose voice is not known yet shows "?".
  */
 function rowsOf(segment: LiveContextSegment) {
-  return segmentTurns(segment, speakers.value.merges).map((piece, index) => ({
+  const labeled = Boolean(segment.turns?.length);
+  return segmentTurns(segment, merges.value).map((piece, index) => ({
     key: `${segment.id}-${index}`,
     speaker: piece.speaker,
+    overlap: piece.overlap,
+    unknown: labeled && !piece.speaker,
+    provisional: !segment.final || piece.provisional === true,
     text: piece.text,
   }));
+}
+
+function othersThan(speaker: LiveContextSpeakerKey) {
+  return knownSpeakers.value.filter((known) => known.speaker !== speaker);
 }
 
 function rename(speaker: LiveContextSpeakerKey, name: string): void {
@@ -366,6 +378,17 @@ watch(
       </div>
 
       <p
+        v-if="isHere && status.speakersDegraded"
+        class="text-muted-foreground px-1 text-xs"
+        data-testid="live-context-speakers-degraded"
+      >
+        {{
+          t(
+            `project.workbench.liveContext.speakers.degraded.${status.speakersDegraded}`,
+          )
+        }}
+      </p>
+      <p
         v-if="isHere && status.systemSilent"
         class="text-muted-foreground px-1 text-xs"
       >
@@ -401,17 +424,34 @@ watch(
             <span
               class="text-muted-foreground flex min-w-0 items-center gap-1 text-xs tabular-nums"
             >
-              <LiveContextSpeakerChip
-                v-if="row.speaker"
-                :speaker="row.speaker"
-                :label="speakerLabel(row.speaker)"
-                :others="
-                  knownSpeakers.filter(({ speaker }) => speaker !== row.speaker)
-                "
-                :provisional="!segment.final"
-                @rename="(name) => row.speaker && rename(row.speaker, name)"
-                @merge="(into) => row.speaker && merge(row.speaker, into)"
-              />
+              <template v-if="row.speaker">
+                <LiveContextSpeakerChip
+                  :speaker="row.speaker"
+                  :label="speakerLabel(row.speaker)"
+                  :others="othersThan(row.speaker)"
+                  :provisional="row.provisional"
+                  @rename="(name) => row.speaker && rename(row.speaker, name)"
+                  @merge="(into) => row.speaker && merge(row.speaker, into)"
+                />
+                <template v-if="row.overlap">
+                  <span aria-hidden="true">+</span>
+                  <LiveContextSpeakerChip
+                    :speaker="row.overlap"
+                    :label="speakerLabel(row.overlap)"
+                    :others="othersThan(row.overlap)"
+                    :provisional="row.provisional"
+                    @rename="(name) => row.overlap && rename(row.overlap, name)"
+                    @merge="(into) => row.overlap && merge(row.overlap, into)"
+                  />
+                </template>
+              </template>
+              <span
+                v-else-if="row.unknown"
+                class="px-1 font-medium"
+                :title="t('project.workbench.liveContext.speakers.unknown')"
+                data-testid="live-context-speaker-unknown"
+                >?</span
+              >
               <template v-else>
                 {{
                   t(`project.workbench.liveContext.speaker.${segment.source}`)
@@ -420,9 +460,18 @@ watch(
               <template v-if="index === 0"
                 >· {{ time(segment.start) }}</template
               >
+              <span
+                v-if="index === 0 && segment.echo"
+                data-testid="live-context-echo"
+                >· {{ t("project.workbench.liveContext.speakers.echo") }}</span
+              >
             </span>
             <span
-              :class="segment.final ? undefined : 'text-muted-foreground'"
+              :class="
+                !segment.final || segment.echo
+                  ? 'text-muted-foreground'
+                  : undefined
+              "
               class="select-text"
             >
               {{ row.text }}

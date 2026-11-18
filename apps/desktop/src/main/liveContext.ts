@@ -1,4 +1,4 @@
-import { appendFile, mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import { appendFile, mkdir, readFile, rm } from "node:fs/promises";
 import path from "node:path";
 import { createInterface } from "node:readline";
 import type { Readable, Writable } from "node:stream";
@@ -19,14 +19,18 @@ import {
   type LiveContextUnavailableReason,
 } from "../shared/liveContext";
 import {
+  aliasSpeaker,
   emptySpeakers,
   isSpeakerKey,
   mergeSpeakers,
-  parseSpeakerKey,
   parseTurns,
   renameSpeaker,
-  resolveSpeaker,
 } from "../shared/liveContextSpeakers";
+import {
+  SpeakerSession,
+  type SourcedLabel,
+  type SpeakerRecord,
+} from "./liveContextDiarizer";
 import type { SpeakerModelPaths } from "./liveContextSpeakerModels";
 
 /** The helper process, as much of a ChildProcess as the service uses. */
@@ -75,13 +79,17 @@ export function liveTranscriptPath(
 }
 
 /**
- * The session's voice prints, one per speaker and source (a vector of
- * numbers derived from speech, never audio), so a later capture of the
- * session keeps the same speaker numbers. Deleted with the session.
+ * What the session's speaker labels were made from: analysis windows,
+ * voice embeddings (192 numbers derived from speech, never audio, about
+ * 1 MB an hour) and the final pass's result, so a later capture keeps the
+ * same speakers and the labels can be recomputed. Deleted with the session.
  */
-export function liveVoicesPath(projectRoot: string, sessionId: string): string {
+export function liveSpeakersPath(
+  projectRoot: string,
+  sessionId: string,
+): string {
   if (!SESSION_ID.test(sessionId)) throw new Error("Invalid session id.");
-  return path.join(projectRoot, "live-context", `${sessionId}.voices.json`);
+  return path.join(projectRoot, "live-context", `${sessionId}.speakers.jsonl`);
 }
 
 export async function deleteLiveTranscript(
@@ -89,32 +97,19 @@ export async function deleteLiveTranscript(
   sessionId: string,
 ): Promise<void> {
   await rm(liveTranscriptPath(projectRoot, sessionId), { force: true });
-  await rm(liveVoicesPath(projectRoot, sessionId), { force: true });
+  await rm(liveSpeakersPath(projectRoot, sessionId), { force: true });
 }
 
 function isSource(value: unknown): value is LiveContextSource {
   return LIVE_CONTEXT_SOURCES.some((source) => source === value);
 }
 
-/** Stored turns already carry speaker keys. */
-function parseStoredTurns(value: unknown): LiveContextTurn[] | undefined {
-  if (!Array.isArray(value)) return undefined;
-  const turns = (value as unknown[]).filter(
-    (turn): turn is LiveContextTurn =>
-      typeof turn === "object" &&
-      turn !== null &&
-      Number.isInteger((turn as LiveContextTurn).offset) &&
-      (turn as LiveContextTurn).offset >= 0 &&
-      isSpeakerKey((turn as LiveContextTurn).speaker),
-  );
-  return turns.length ? turns : undefined;
-}
-
 /**
  * Reads the transcript's records in order. Lines without a `type` are
  * final segments; later records relabel segments (`turns`), name speakers
- * (`speaker-name`) or merge them (`speaker-merge`). History is never
- * rewritten, only appended to.
+ * (`speaker-name`), merge them (`speaker-merge`, the user's) or alias them
+ * (`speaker-alias`, Pine's: one voice found under two numbers). History is
+ * never rewritten, only appended to.
  */
 export function readTranscript(text: string): LiveContextTranscript {
   const segments: LiveContextSegment[] = [];
@@ -138,7 +133,7 @@ export function readTranscript(text: string): LiveContextTranscript {
           typeof value.text !== "string"
         )
           continue;
-        const turns = parseStoredTurns(value.turns);
+        const turns = parseTurns(value.turns);
         const segment: LiveContextSegment = {
           id: value.id,
           source: value.source,
@@ -147,6 +142,7 @@ export function readTranscript(text: string): LiveContextTranscript {
           text: value.text,
           final: true,
           ...(turns ? { turns } : {}),
+          ...(value.echo === true ? { echo: true } : {}),
         };
         segments.push(segment);
         byId.set(segment.id, segment);
@@ -155,10 +151,18 @@ export function readTranscript(text: string): LiveContextTranscript {
       case "turns": {
         const segment =
           typeof value.id === "string" ? byId.get(value.id) : undefined;
-        const turns = parseStoredTurns(value.turns);
-        if (segment && turns) segment.turns = turns;
+        const turns = parseTurns(value.turns);
+        if (segment && turns) {
+          segment.turns = turns;
+          if (value.echo === true) segment.echo = true;
+          else delete segment.echo;
+        }
         continue;
       }
+      case "speaker-alias":
+        if (isSpeakerKey(value.from) && isSpeakerKey(value.into))
+          speakers = aliasSpeaker(speakers, value.from, value.into);
+        continue;
       case "speaker-name":
         if (isSpeakerKey(value.speaker) && typeof value.name === "string")
           speakers = renameSpeaker(speakers, value.speaker, value.name);
@@ -174,62 +178,24 @@ export function readTranscript(text: string): LiveContextTranscript {
   return { segments, speakers };
 }
 
-interface StoredVoice {
-  speaker: number;
-  centroid: number[];
-  count: number;
-}
-type StoredVoices = Partial<Record<LiveContextSource, StoredVoice[]>>;
-
-function parseVoices(value: unknown): StoredVoice[] {
-  if (!Array.isArray(value)) return [];
-  return (value as unknown[]).filter(
-    (voice): voice is StoredVoice =>
-      typeof voice === "object" &&
-      voice !== null &&
-      Number.isInteger((voice as StoredVoice).speaker) &&
-      Array.isArray((voice as StoredVoice).centroid) &&
-      (voice as StoredVoice).centroid.every((x) => typeof x === "number") &&
-      Number.isInteger((voice as StoredVoice).count),
-  );
-}
-
-/**
- * Voice prints for the next capture, with the user's merges within a
- * source applied, so merged speakers come back as one.
- */
-export function voicesForCapture(
-  stored: StoredVoices,
-  merges: LiveContextSpeakers["merges"],
-): StoredVoices {
-  const result: StoredVoices = {};
-  for (const source of LIVE_CONTEXT_SOURCES) {
-    const byKey = new Map<number, StoredVoice>();
-    for (const voice of stored[source] ?? []) {
-      const target = parseSpeakerKey(
-        resolveSpeaker(`${source}-${voice.speaker}`, merges),
-      );
-      // Merged into the other source: the helper cannot use it there.
-      const speaker = target.source === source ? target.speaker : voice.speaker;
-      const existing = byKey.get(speaker);
-      if (!existing) {
-        byKey.set(speaker, { ...voice, speaker });
-        continue;
-      }
-      const total = existing.count + voice.count;
-      const sum = existing.centroid.map(
-        (x, i) => x * existing.count + (voice.centroid[i] ?? 0) * voice.count,
-      );
-      const norm = Math.hypot(...sum) || 1;
-      byKey.set(speaker, {
-        speaker,
-        centroid: sum.map((x) => x / norm),
-        count: total,
-      });
+/** The speaker file's records, oldest first; damaged lines are skipped. */
+export function readSpeakerRecords(text: string): SpeakerRecord[] {
+  const records: SpeakerRecord[] = [];
+  for (const line of text.split("\n")) {
+    if (!line) continue;
+    try {
+      const value = JSON.parse(line) as Record<string, unknown>;
+      if (typeof value.type === "string") records.push(value as SpeakerRecord);
+    } catch {
+      continue;
     }
-    if (byKey.size) result[source] = [...byKey.values()];
   }
-  return result;
+  return records;
+}
+
+interface PendingLabel {
+  turns: LiveContextTurn[];
+  echo?: boolean;
 }
 
 interface Capture {
@@ -239,11 +205,13 @@ interface Capture {
   helper: LiveContextHelperProcess;
   exited: Promise<void>;
   file: string;
-  voicesFile: string;
   /** Final segments written to the transcript (full ids). */
   saved: Set<string>;
   /** Labels for segments not final yet (full ids). */
-  pendingTurns: Map<string, LiveContextTurn[]>;
+  pendingTurns: Map<string, PendingLabel>;
+  /** Speaker clustering, when this capture labels speakers. */
+  speakers?: SpeakerSession;
+  speakersFile: string;
 }
 
 /**
@@ -319,7 +287,7 @@ export class LiveContextService {
     };
     const projectRoot = this.options.projectRoot(request.projectId);
     const file = liveTranscriptPath(projectRoot, request.sessionId);
-    const voicesFile = liveVoicesPath(projectRoot, request.sessionId);
+    const speakersFile = liveSpeakersPath(projectRoot, request.sessionId);
     await mkdir(path.dirname(file), { recursive: true });
     const sources = [...new Set(request.sources)];
     this.current = {
@@ -334,6 +302,7 @@ export class LiveContextService {
     // Speaker labels are a bonus: if their models cannot be had, the
     // capture runs without them and says why.
     let speakers: Record<string, unknown> | undefined;
+    let session: SpeakerSession | undefined;
     if (request.speakers && this.options.speakers && this.speakersAvailable()) {
       const token = { target };
       this.starting = token;
@@ -353,13 +322,15 @@ export class LiveContextService {
               downloadProgress: progress,
             });
         });
-        const stored = await this.readVoices(voicesFile);
-        const { speakers: names } = await this.readTranscriptFile(file);
         speakers = {
           segmentation: models.segmentation,
           embedding: models.embedding,
-          voices: voicesForCapture(stored, names.merges),
         };
+        session = await this.loadSpeakerSession(
+          file,
+          speakersFile,
+          request.expectedSpeakers,
+        );
       } catch (error) {
         this.current.lastError = {
           code: "speaker_models_failed",
@@ -390,11 +361,14 @@ export class LiveContextService {
       helper,
       exited,
       file,
-      voicesFile,
       saved: new Set(),
       pendingTurns: new Map(),
+      speakersFile,
+      ...(session && speakers ? { speakers: session } : {}),
     };
     this.capture = capture;
+    if (capture.speakers)
+      this.appendSpeakerRecords(capture, [capture.speakers.beginCapture()]);
     createInterface({ input: helper.stdout }).on("line", (line) =>
       this.handleLine(capture, line),
     );
@@ -481,7 +455,11 @@ export class LiveContextService {
     return this.changeSpeakers(
       request,
       { type: "speaker-merge", from: request.from, into: request.into },
-      (speakers) => mergeSpeakers(speakers, request.from, request.into),
+      (speakers) => {
+        if (this.capture?.target.sessionId === request.sessionId)
+          this.capture.speakers?.userMerged(request.from, request.into);
+        return mergeSpeakers(speakers, request.from, request.into);
+      },
     );
   }
 
@@ -515,20 +493,120 @@ export class LiveContextService {
     return result;
   }
 
-  private async readVoices(file: string): Promise<StoredVoices> {
+  /**
+   * The session's speakers so far, replayed from its speaker file, with
+   * what the transcript already shows as the starting point.
+   */
+  private async loadSpeakerSession(
+    file: string,
+    speakersFile: string,
+    expectedSpeakers?: number,
+  ): Promise<SpeakerSession> {
+    const session = new SpeakerSession(
+      expectedSpeakers ? { expectedSpeakers } : {},
+    );
+    let text = "";
     try {
-      const value = JSON.parse(await readFile(file, "utf8")) as {
-        voices?: Record<string, unknown>;
-      };
-      const voices: StoredVoices = {};
-      for (const source of LIVE_CONTEXT_SOURCES) {
-        const list = parseVoices(value.voices?.[source]);
-        if (list.length) voices[source] = list;
-      }
-      return voices;
+      text = await readFile(speakersFile, "utf8");
     } catch {
-      return {};
+      // A first capture with speakers.
     }
+    session.replay(readSpeakerRecords(text));
+    const transcript = await this.readTranscriptFile(file);
+    for (const segment of transcript.segments)
+      if (segment.turns)
+        session.setEmitted(segment.source, segment.id, {
+          turns: segment.turns,
+          ...(segment.echo ? { echo: true } : {}),
+        });
+    for (const [from, into] of Object.entries(transcript.speakers.merges))
+      if (into) session.userMerged(from, into);
+    return session;
+  }
+
+  private appendSpeakerRecords(
+    capture: Capture,
+    records: readonly SpeakerRecord[],
+  ): void {
+    if (!records.length) return;
+    const text = records
+      .map(
+        (record) => `${JSON.stringify({ v: TRANSCRIPT_VERSION, ...record })}\n`,
+      )
+      .join("");
+    this.writes = this.writes
+      .then(() => appendFile(capture.speakersFile, text))
+      .catch((error: unknown) =>
+        console.error("Failed to save Live Context speakers.", error),
+      );
+  }
+
+  /** A measurement from the helper: store it, then show changed labels. */
+  private handleSpeakerEvent(
+    capture: Capture,
+    event: Record<string, unknown>,
+    segmentId?: string,
+  ): void {
+    const session = capture.speakers;
+    if (!session) return;
+    const { record, labels, aliases } = session.handle(event, segmentId);
+    if (record) this.appendSpeakerRecords(capture, [record]);
+    this.applyLabels(capture, labels);
+    for (const [from, into] of aliases)
+      void this.changeSpeakers(
+        capture.target,
+        { type: "speaker-alias", from, into },
+        (speakers) =>
+          isSpeakerKey(from) && isSpeakerKey(into)
+            ? aliasSpeaker(speakers, from, into)
+            : speakers,
+      ).catch((error: unknown) =>
+        console.error("Failed to save a Live Context speaker alias.", error),
+      );
+  }
+
+  private applyLabels(capture: Capture, labels: readonly SourcedLabel[]): void {
+    for (const { id, turns, echo } of labels) {
+      this.options.emit({
+        kind: "turns",
+        sessionId: capture.target.sessionId,
+        segmentId: id,
+        turns,
+        ...(echo ? { echo: true } : {}),
+      });
+      if (!capture.saved.has(id)) {
+        capture.pendingTurns.set(id, {
+          turns,
+          ...(echo ? { echo: true } : {}),
+        });
+        continue;
+      }
+      this.append(capture, {
+        type: "turns",
+        id,
+        turns,
+        ...(echo ? { echo: true } : {}),
+      });
+    }
+  }
+
+  /**
+   * The capture ended: the final pass over the session's embeddings, with
+   * the user's renames and merges as hard constraints.
+   */
+  private finishSpeakers(capture: Capture): void {
+    const session = capture.speakers;
+    if (!session) return;
+    this.writes = this.writes
+      .then(async () => {
+        const { speakers } = await this.readTranscriptFile(capture.file);
+        const { labels, records } = session.finish(speakers);
+        this.applyLabels(capture, labels);
+        this.appendSpeakerRecords(capture, records);
+      })
+      .catch((error: unknown) =>
+        console.error("Failed to finish Live Context speakers.", error),
+      );
   }
 
   /** Quitting: no flush, the helper must not outlive Pine. */
@@ -551,6 +629,7 @@ export class LiveContextService {
   ): void {
     if (this.capture?.helper !== helper) return;
     this.flushVolatile();
+    this.finishSpeakers(this.capture);
     const unexpected = this.current.state !== "stopping" && code !== 0;
     this.capture = undefined;
     this.current = this.idleStatus(
@@ -586,60 +665,30 @@ export class LiveContextService {
         });
         return;
       case "segment":
+        // Labels first, so a final segment is saved with them.
+        if (typeof event.id === "string")
+          this.handleSpeakerEvent(capture, event, `${capture.id}-${event.id}`);
         this.handleSegment(capture, event);
         return;
-      case "speaker":
-        this.handleSpeaker(capture, event);
+      case "window":
+      case "embedding":
+      case "echo":
+      case "device":
+        this.handleSpeakerEvent(capture, event);
         return;
-      case "voices":
-        this.handleVoices(capture, event);
+      case "speakers-state":
+        this.update({
+          speakersDegraded:
+            event.level === 4
+              ? "paused"
+              : typeof event.level === "number" && event.level > 0
+                ? "reduced"
+                : undefined,
+        });
         return;
       default:
         return;
     }
-  }
-
-  /** New labels for a segment; saved once the segment is final. */
-  private handleSpeaker(
-    capture: Capture,
-    event: Record<string, unknown>,
-  ): void {
-    if (typeof event.id !== "string" || !isSource(event.source)) return;
-    const turns =
-      parseTurns(event.source, event.turns) ??
-      parseTurns(event.source, [{ offset: 0, speaker: event.speaker }]);
-    if (!turns) return;
-    const segmentId = `${capture.id}-${event.id}`;
-    this.options.emit({
-      kind: "turns",
-      sessionId: capture.target.sessionId,
-      segmentId,
-      turns,
-    });
-    if (!capture.saved.has(segmentId)) {
-      capture.pendingTurns.set(segmentId, turns);
-      return;
-    }
-    this.append(capture, { type: "turns", id: segmentId, turns });
-  }
-
-  /** The helper's voice prints at the end of a capture, kept per source. */
-  private handleVoices(capture: Capture, event: Record<string, unknown>): void {
-    if (!isSource(event.source)) return;
-    const source = event.source;
-    const voices = parseVoices(event.voices);
-    this.writes = this.writes
-      .then(async () => {
-        const stored = await this.readVoices(capture.voicesFile);
-        stored[source] = voices;
-        await writeFile(
-          capture.voicesFile,
-          `${JSON.stringify({ v: TRANSCRIPT_VERSION, voices: stored })}\n`,
-        );
-      })
-      .catch((error: unknown) =>
-        console.error("Failed to save Live Context voices.", error),
-      );
   }
 
   private append(capture: Capture, record: Record<string, unknown>): void {
@@ -727,6 +776,11 @@ export class LiveContextService {
     )
       this.update({ systemSilent: false });
     const sessionId = capture.target.sessionId;
+    const label = capture.pendingTurns.get(segment.id);
+    if (label) {
+      segment.turns = label.turns;
+      if (label.echo) segment.echo = true;
+    }
     if (!segment.final) {
       this.pendingVolatile.set(segment.source, segment);
       this.volatileTimer ??= setTimeout(
@@ -737,9 +791,7 @@ export class LiveContextService {
     }
     if (this.pendingVolatile.get(segment.source)?.id === segment.id)
       this.pendingVolatile.delete(segment.source);
-    const turns = capture.pendingTurns.get(segment.id);
     capture.pendingTurns.delete(segment.id);
-    if (turns) segment.turns = turns;
     this.options.emit({ kind: "segment", sessionId, segment });
     if (!segment.text) return;
     capture.saved.add(segment.id);
@@ -749,7 +801,8 @@ export class LiveContextService {
       start: segment.start,
       end: segment.end,
       text: segment.text,
-      ...(turns ? { turns } : {}),
+      ...(label ? { turns: label.turns } : {}),
+      ...(label?.echo ? { echo: true } : {}),
     });
   }
 

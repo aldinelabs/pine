@@ -1044,6 +1044,15 @@ export default {
           mergeInto: "Combinar con",
           failed:
             "Las etiquetas de hablantes están desactivadas en esta captura: {message}",
+
+          unknown: "Aún no se sabe quién es",
+          echo: "Eco del audio del sistema",
+          degraded: {
+            reduced:
+              "Las etiquetas de hablantes funcionan en modo reducido para ahorrar energía o no quedarse atrás; pueden ser menos precisas.",
+            paused:
+              "Las etiquetas de hablantes están en pausa para ahorrar energía o no quedarse atrás; se reanudan solas.",
+          },
         },
         noSession:
           "Abre una conversación para capturar su contexto en directo.",

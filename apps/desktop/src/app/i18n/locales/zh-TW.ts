@@ -973,6 +973,13 @@ export default {
           rename: "重新命名",
           mergeInto: "合併到",
           failed: "這次記錄未啟用說話者辨識：{message}",
+          unknown: "暫不確定是誰",
+          echo: "系統音訊的回音",
+          degraded: {
+            reduced:
+              "為節省電量或跟上進度，說話者辨識已降級，標籤可能不夠準確。",
+            paused: "為節省電量或跟上進度，說話者辨識已暫停，稍後會自動恢復。",
+          },
         },
         noSession: "開啟一個對話後即可為其記錄即時上下文。",
         elsewhere: "另一個對話正在記錄即時上下文。",

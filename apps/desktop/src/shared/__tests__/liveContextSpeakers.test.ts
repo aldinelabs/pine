@@ -1,31 +1,61 @@
 import { describe, expect, it } from "vitest";
 import {
+  aliasSpeaker,
   emptySpeakers,
   mergeSpeakers,
   parseTurns,
   renameSpeaker,
   resolveSpeaker,
   segmentTurns,
+  speakerMap,
   speakersOf,
 } from "../liveContextSpeakers";
 
 describe("Live Context speakers", () => {
-  it("turns the helper's numbers into per-source keys and drops bad entries", () => {
+  it("reads stored turns and drops bad entries", () => {
     expect(
-      parseTurns("system", [
-        { offset: 12, speaker: 2 },
-        { offset: 0, speaker: 1 },
-        { offset: -1, speaker: 3 },
-        { offset: 4, speaker: 0 },
-        { offset: 5.5, speaker: 1 },
+      parseTurns([
+        { offset: 12, speaker: "system-2", overlap: "system-1" },
+        { offset: 0, speaker: "system-1" },
+        { offset: 5, provisional: true },
+        { offset: -1, speaker: "system-3" },
+        { offset: 4, speaker: "system-0" },
+        { offset: 5.5, speaker: "system-1" },
         "nope",
       ]),
     ).toEqual([
       { offset: 0, speaker: "system-1" },
-      { offset: 12, speaker: "system-2" },
+      { offset: 5, provisional: true },
+      { offset: 12, speaker: "system-2", overlap: "system-1" },
     ]);
-    expect(parseTurns("mic", [])).toBeUndefined();
-    expect(parseTurns("mic", "x")).toBeUndefined();
+    expect(parseTurns([])).toBeUndefined();
+    expect(parseTurns("x")).toBeUndefined();
+  });
+
+  it("resolves Pine's aliases before the user's merges", () => {
+    let speakers = aliasSpeaker(emptySpeakers(), "mic-3", "mic-1");
+    expect(resolveSpeaker("mic-3", speakerMap(speakers))).toBe("mic-1");
+    // The user says 3 is really 2: that wins.
+    speakers = { ...speakers, merges: { "mic-3": "mic-2" } };
+    expect(resolveSpeaker("mic-3", speakerMap(speakers))).toBe("mic-2");
+    expect(aliasSpeaker(speakers, "mic-1", "mic-1")).toBe(speakers);
+  });
+
+  it("keeps unknown, provisional and overlapping turns apart", () => {
+    expect(
+      segmentTurns({
+        text: "嗯。对对对，我也这么想。",
+        turns: [
+          { offset: 0, provisional: true },
+          { offset: 2, speaker: "mic-1", overlap: "mic-2" },
+          { offset: 6, speaker: "mic-1" },
+        ],
+      }),
+    ).toEqual([
+      { provisional: true, text: "嗯。" },
+      { speaker: "mic-1", overlap: "mic-2", text: "对对对，" },
+      { speaker: "mic-1", text: "我也这么想。" },
+    ]);
   });
 
   it("renames the speaker a key resolves to, and clears with an empty name", () => {

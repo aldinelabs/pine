@@ -1045,6 +1045,15 @@ export default {
           mergeInto: "Fusionner avec",
           failed:
             "Les étiquettes de locuteurs sont désactivées pour cette capture : {message}",
+
+          unknown: "Locuteur pas encore identifié",
+          echo: "Écho du son système",
+          degraded: {
+            reduced:
+              "Les étiquettes de locuteurs tournent en mode allégé pour économiser l’énergie ou suivre le rythme ; elles peuvent être moins précises.",
+            paused:
+              "Les étiquettes de locuteurs sont en pause pour économiser l’énergie ou suivre le rythme ; elles reprendront d’elles-mêmes.",
+          },
         },
         noSession:
           "Ouvrez une conversation pour y capturer le contexte en direct.",

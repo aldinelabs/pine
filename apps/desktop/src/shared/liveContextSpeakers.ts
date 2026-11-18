@@ -43,6 +43,16 @@ export function emptySpeakers(): LiveContextSpeakers {
   return { names: {}, merges: {} };
 }
 
+/**
+ * Where each speaker resolves to: Pine's own aliases (speakers found to be
+ * one voice) first, then the user's merges, which win.
+ */
+export function speakerMap(
+  speakers: LiveContextSpeakers,
+): LiveContextSpeakers["merges"] {
+  return { ...speakers.aliases, ...speakers.merges };
+}
+
 /** The speaker a key ends up as after the user's merges. */
 export function resolveSpeaker(
   key: LiveContextSpeakerKey,
@@ -63,12 +73,12 @@ export function renameSpeaker(
   key: LiveContextSpeakerKey,
   name: string,
 ): LiveContextSpeakers {
-  const target = resolveSpeaker(key, speakers.merges);
+  const target = resolveSpeaker(key, speakerMap(speakers));
   const names = { ...speakers.names };
   const trimmed = name.trim().slice(0, LIVE_CONTEXT_SPEAKER_NAME_MAX);
   if (trimmed) names[target] = trimmed;
   else delete names[target];
-  return { names, merges: { ...speakers.merges } };
+  return { ...speakers, names, merges: { ...speakers.merges } };
 }
 
 /**
@@ -81,37 +91,78 @@ export function mergeSpeakers(
   from: LiveContextSpeakerKey,
   into: LiveContextSpeakerKey,
 ): LiveContextSpeakers {
-  const source = resolveSpeaker(from, speakers.merges);
-  const target = resolveSpeaker(into, speakers.merges);
+  const map = speakerMap(speakers);
+  const source = resolveSpeaker(from, map);
+  const target = resolveSpeaker(into, map);
   if (source === target) return speakers;
   const names = { ...speakers.names };
   if (!names[target] && names[source]) names[target] = names[source];
   delete names[source];
-  return { names, merges: { ...speakers.merges, [source]: target } };
+  return {
+    ...speakers,
+    names,
+    merges: { ...speakers.merges, [source]: target },
+  };
+}
+
+/** Pine found `from` to be `into`'s voice; the user's own merges still win. */
+export function aliasSpeaker(
+  speakers: LiveContextSpeakers,
+  from: LiveContextSpeakerKey,
+  into: LiveContextSpeakerKey,
+): LiveContextSpeakers {
+  if (from === into || resolveSpeaker(into, speakerMap(speakers)) === from)
+    return speakers;
+  const names = { ...speakers.names };
+  if (!names[into] && names[from]) names[into] = names[from];
+  return { ...speakers, names, aliases: { ...speakers.aliases, [from]: into } };
+}
+
+export interface LiveContextTurnPiece {
+  /** Undefined while the voice is not known yet. */
+  speaker?: LiveContextSpeakerKey;
+  provisional?: boolean;
+  /** Someone else talks at the same time. */
+  overlap?: LiveContextSpeakerKey;
+  text: string;
 }
 
 /** The segment's text, piece by piece, with who said it. */
 export function segmentTurns(
   segment: Pick<LiveContextSegment, "text" | "turns">,
   merges: LiveContextSpeakers["merges"] = {},
-): { speaker?: LiveContextSpeakerKey; text: string }[] {
+): LiveContextTurnPiece[] {
   const turns = (segment.turns ?? [])
     .filter(({ offset }) => offset >= 0 && offset < segment.text.length)
     .sort((a, b) => a.offset - b.offset);
   if (!turns.length) return [{ text: segment.text }];
-  const pieces: { speaker?: LiveContextSpeakerKey; text: string }[] = [];
-  if (turns[0].offset > 0)
-    pieces.push({
-      speaker: resolveSpeaker(turns[0].speaker, merges),
-      text: segment.text.slice(0, turns[0].offset),
-    });
-  turns.forEach((turn, index) => {
-    const speaker = resolveSpeaker(turn.speaker, merges);
-    const text = segment.text.slice(turn.offset, turns[index + 1]?.offset);
+  const resolve = (key: LiveContextSpeakerKey | undefined) =>
+    key && resolveSpeaker(key, merges);
+  const pieces: LiveContextTurnPiece[] = [];
+  const push = (turn: LiveContextTurn, text: string) => {
+    const speaker = resolve(turn.speaker);
+    const overlap = resolve(turn.overlap);
+    const piece: LiveContextTurnPiece = {
+      ...(speaker ? { speaker } : {}),
+      ...(turn.provisional ? { provisional: true } : {}),
+      ...(overlap && overlap !== speaker ? { overlap } : {}),
+      text,
+    };
     const last = pieces.at(-1);
-    if (last && last.speaker === speaker) last.text += text;
-    else pieces.push({ speaker, text });
-  });
+    if (
+      last &&
+      last.speaker === piece.speaker &&
+      last.overlap === piece.overlap
+    ) {
+      last.text += text;
+      if (!piece.provisional) delete last.provisional;
+    } else pieces.push(piece);
+  };
+  if (turns[0].offset > 0)
+    push(turns[0], segment.text.slice(0, turns[0].offset));
+  turns.forEach((turn, index) =>
+    push(turn, segment.text.slice(turn.offset, turns[index + 1]?.offset)),
+  );
   return pieces.filter(({ text }) => text.trim());
 }
 
@@ -123,31 +174,30 @@ export function speakersOf(
   const seen = new Set<LiveContextSpeakerKey>();
   for (const segment of segments)
     for (const turn of segment.turns ?? [])
-      seen.add(resolveSpeaker(turn.speaker, merges));
+      for (const key of [turn.speaker, turn.overlap])
+        if (key) seen.add(resolveSpeaker(key, merges));
   return [...seen];
 }
 
-/** Turns from the helper's numbers to keys; invalid entries are dropped. */
-export function parseTurns(
-  source: LiveContextSource,
-  value: unknown,
-): LiveContextTurn[] | undefined {
+/** Turns as stored or sent: invalid entries are dropped. */
+export function parseTurns(value: unknown): LiveContextTurn[] | undefined {
   if (!Array.isArray(value)) return undefined;
   const turns: LiveContextTurn[] = [];
   for (const entry of value as unknown[]) {
     if (typeof entry !== "object" || entry === null) continue;
-    const { offset, speaker } = entry as Record<string, unknown>;
-    if (
-      typeof offset !== "number" ||
-      !Number.isInteger(offset) ||
-      offset < 0 ||
-      typeof speaker !== "number" ||
-      !Number.isInteger(speaker) ||
-      speaker < 1 ||
-      speaker > 9999
-    )
+    const { offset, speaker, provisional, overlap } = entry as Record<
+      string,
+      unknown
+    >;
+    if (typeof offset !== "number" || !Number.isInteger(offset) || offset < 0)
       continue;
-    turns.push({ offset, speaker: speakerKey(source, speaker) });
+    if (speaker !== undefined && !isSpeakerKey(speaker)) continue;
+    turns.push({
+      offset,
+      ...(speaker !== undefined ? { speaker } : {}),
+      ...(provisional === true ? { provisional: true } : {}),
+      ...(isSpeakerKey(overlap) ? { overlap } : {}),
+    });
   }
   return turns.length ? turns.sort((a, b) => a.offset - b.offset) : undefined;
 }

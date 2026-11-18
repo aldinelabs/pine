@@ -969,6 +969,13 @@ export default {
           rename: "重命名",
           mergeInto: "合并到",
           failed: "本次记录未启用说话人识别：{message}",
+          unknown: "暂不确定是谁",
+          echo: "系统音频的回声",
+          degraded: {
+            reduced:
+              "为节省电量或跟上进度，说话人识别已降级，标签可能不够准确。",
+            paused: "为节省电量或跟上进度，说话人识别已暂停，稍后会自动恢复。",
+          },
         },
         noSession: "打开一个对话后即可为其记录实时上下文。",
         elsewhere: "另一个对话正在记录实时上下文。",

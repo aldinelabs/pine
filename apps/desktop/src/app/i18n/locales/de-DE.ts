@@ -1049,6 +1049,15 @@ export default {
           mergeInto: "Zusammenführen mit",
           failed:
             "Sprecherbeschriftungen sind für diese Aufnahme aus: {message}",
+
+          unknown: "Noch unklar, wer spricht",
+          echo: "Echo des Systemtons",
+          degraded: {
+            reduced:
+              "Sprecherbeschriftungen laufen reduziert, um Energie zu sparen oder mitzuhalten; sie können ungenauer sein.",
+            paused:
+              "Sprecherbeschriftungen sind pausiert, um Energie zu sparen oder mitzuhalten; sie setzen von selbst wieder ein.",
+          },
         },
         noSession:
           "Öffne eine Unterhaltung, um Live-Kontext dafür aufzunehmen.",

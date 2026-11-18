@@ -1026,6 +1026,14 @@ export default {
           rename: "Rename",
           mergeInto: "Merge into",
           failed: "Speaker labels are off for this capture: {message}",
+          unknown: "Not sure who this is yet",
+          echo: "Echo of system audio",
+          degraded: {
+            reduced:
+              "Speaker labels are running lighter to save power or keep up; they may be less exact.",
+            paused:
+              "Speaker labels are paused to save power or keep up; they resume on their own.",
+          },
         },
         noSession: "Open a conversation to capture live context for it.",
         elsewhere: "Another conversation is capturing live context.",

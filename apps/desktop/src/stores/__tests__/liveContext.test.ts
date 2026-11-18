@@ -171,6 +171,23 @@ describe("useLiveContextStore", () => {
       turns: relabeled,
     });
     expect(store.segmentsOf(TARGET.sessionId)[1]?.turns).toEqual(relabeled);
+    expect(store.segmentsOf(TARGET.sessionId)[1]?.echo).toBeUndefined();
+
+    emit({
+      kind: "turns",
+      sessionId: TARGET.sessionId,
+      segmentId: "c-mic-0",
+      turns: relabeled,
+      echo: true,
+    });
+    expect(store.segmentsOf(TARGET.sessionId)[1]?.echo).toBe(true);
+    emit({
+      kind: "turns",
+      sessionId: TARGET.sessionId,
+      segmentId: "c-mic-0",
+      turns: relabeled,
+    });
+    expect(store.segmentsOf(TARGET.sessionId)[1]?.echo).toBeUndefined();
   });
 
   it("renames and merges speakers through the API", async () => {

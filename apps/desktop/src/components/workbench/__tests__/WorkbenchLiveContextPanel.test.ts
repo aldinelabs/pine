@@ -197,4 +197,58 @@ describe("WorkbenchLiveContextPanel", () => {
     ]);
     expect(wrapper.text()).toContain("好的。我补充。");
   });
+
+  it("shows unknown voices, people talking at once, echo and the aliases Pine made", async () => {
+    stubApi(idle, {
+      segments: [
+        {
+          id: "a",
+          source: "system",
+          start: 0,
+          end: 1,
+          text: "嗯。对对。",
+          final: true,
+          turns: [
+            { offset: 0 },
+            { offset: 2, speaker: "system-4", overlap: "system-1" },
+          ],
+        },
+        {
+          id: "b",
+          source: "mic",
+          start: 1,
+          end: 2,
+          text: "你好",
+          final: true,
+          echo: true,
+          turns: [{ offset: 0, speaker: "mic-1" }],
+        },
+      ],
+      speakers: {
+        names: {},
+        merges: {},
+        aliases: { "system-4": "system-2" },
+      },
+    });
+    const wrapper = await mountPanel();
+    expect(
+      wrapper.find("[data-testid=live-context-speaker-unknown]").text(),
+    ).toBe("?");
+    expect(
+      wrapper
+        .findAll("[data-testid=live-context-speaker]")
+        .map((chip) => chip.attributes("data-speaker")),
+    ).toEqual(["system-2", "system-1", "mic-1"]);
+    expect(wrapper.get("[data-testid=live-context-echo]").text()).toContain(
+      "Echo of system audio",
+    );
+  });
+
+  it("says when speaker labels run lighter", async () => {
+    stubApi({ ...listeningHere, speakersDegraded: "paused" });
+    const wrapper = await mountPanel();
+    expect(
+      wrapper.get("[data-testid=live-context-speakers-degraded]").text(),
+    ).toContain("Speaker labels are paused");
+  });
 });

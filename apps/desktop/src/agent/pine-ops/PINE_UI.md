@@ -661,6 +661,22 @@ close the card. The panels are:
   Open in tab. For a submitted file, the header also has Version history (a
   clock button; see Artifact versions below).
 - Files: the project's file tree, with its folders and access levels.
+- Live context (macOS 26 or later, experimental; listed only when available):
+  transcribes the microphone and/or system audio on this Mac for the active
+  conversation. Pick Sources (Microphone, System audio) and Language, then
+  Start; while capturing it has Pause/Resume and Stop. Only one conversation
+  captures at a time; others show "Another conversation is capturing live
+  context." with Stop. Audio is never saved, only the text.
+  Identify speakers (a switch below the controls, off by default) labels
+  voices within each source: each row starts with a colored "Speaker n"
+  label (a microphone or speaker icon shows the source). Labels appear a
+  few seconds late, look faded while they may still change, and are
+  revised once more after Stop. "?" means the voice is not known yet;
+  "Speaker 1 + Speaker 2" marks people talking at once; "· Echo of system
+  audio" with dimmed text marks other people's audio picked up by the
+  microphone. Clicking a label offers Rename and Merge into. A note under
+  the controls says when labels run lighter or pause to save power or keep
+  up; they recover on their own.
 - Details and Comments: shown only while a file tab is in front, in place of
   the session's cards (see File tab); they have no panel switcher or Add
   card.

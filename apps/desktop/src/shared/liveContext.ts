@@ -93,6 +93,11 @@ export interface LiveContextStatus {
   speakersAvailable?: boolean;
   /** The current capture labels speakers. */
   speakers?: boolean;
+  /**
+   * Speaker labels are scaled back to keep the Mac cool or fast: "reduced"
+   * labels less often, "paused" not at all (transcription goes on).
+   */
+  speakersDegraded?: "reduced" | "paused";
   /** The system source has heard nothing for a while: access may be off. */
   systemSilent?: boolean;
   lastError?: LiveContextError;
@@ -104,10 +109,17 @@ export interface LiveContextStatus {
  */
 export type LiveContextSpeakerKey = `${LiveContextSource}-${number}`;
 
-/** From `offset` (UTF-16, into the segment's text) on, this speaker talks. */
+/**
+ * From `offset` (UTF-16, into the segment's text) on, this speaker talks.
+ * Without `speaker` the voice is not known yet ("?").
+ */
 export interface LiveContextTurn {
   offset: number;
-  speaker: LiveContextSpeakerKey;
+  speaker?: LiveContextSpeakerKey;
+  /** A best guess that may still change. */
+  provisional?: boolean;
+  /** Someone else talks at the same time. */
+  overlap?: LiveContextSpeakerKey;
 }
 
 /** A stretch of speech. Volatile ones (`final: false`) may still change. */
@@ -125,6 +137,8 @@ export interface LiveContextSegment {
    * at 0. Labels arrive a moment after the text and may still change.
    */
   turns?: LiveContextTurn[];
+  /** Mic text that is mostly the loudspeaker (the other side, again). */
+  echo?: boolean;
 }
 
 /** The user's names for speakers and the speakers they merged. */
@@ -132,6 +146,11 @@ export interface LiveContextSpeakers {
   names: Partial<Record<LiveContextSpeakerKey, string>>;
   /** Each merged speaker and the one it became. */
   merges: Partial<Record<LiveContextSpeakerKey, LiveContextSpeakerKey>>;
+  /**
+   * Speakers Pine found to be one voice after labeling them apart; old
+   * labels resolve through this before the user's merges.
+   */
+  aliases?: Partial<Record<LiveContextSpeakerKey, LiveContextSpeakerKey>>;
 }
 
 export interface LiveContextTranscript {
@@ -150,6 +169,8 @@ export interface LiveContextStartRequest extends LiveContextTarget {
   locale: string;
   /** Label speakers within each source (downloads the models once). */
   speakers?: boolean;
+  /** "About N people", if the user knows. */
+  expectedSpeakers?: number;
 }
 
 export interface LiveContextRenameSpeakerRequest extends LiveContextTarget {
@@ -173,6 +194,7 @@ export type LiveContextEvent =
       sessionId: string;
       segmentId: string;
       turns: LiveContextTurn[];
+      echo?: boolean;
     }
   | { kind: "speakers"; sessionId: string; speakers: LiveContextSpeakers };
 
