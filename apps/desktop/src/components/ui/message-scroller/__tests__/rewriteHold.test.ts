@@ -5,6 +5,7 @@ import { animateScrollTop } from "@/lib/animateScroll";
 import { provideMessageScroller } from "../useMessageScroller";
 
 vi.mock("@/lib/animateScroll", () => ({
+  prefersReducedMotion: vi.fn(() => false),
   animateScrollTop: vi.fn(),
   isScrollAnimating: vi.fn(() => false),
 }));

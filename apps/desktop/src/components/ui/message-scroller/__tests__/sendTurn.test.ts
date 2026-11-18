@@ -1,10 +1,11 @@
 import { mount } from "@vue/test-utils";
 import { defineComponent } from "vue";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import { animateScrollTop } from "@/lib/animateScroll";
+import { animateScrollTop, isScrollAnimating } from "@/lib/animateScroll";
 import { provideMessageScroller } from "../useMessageScroller";
 
 vi.mock("@/lib/animateScroll", () => ({
+  prefersReducedMotion: vi.fn(() => false),
   animateScrollTop: vi.fn(),
   isScrollAnimating: vi.fn(() => false),
 }));
@@ -179,5 +180,37 @@ it("shows the scroll-to-end state away from the bottom and follows again from it
   expect(transcript.context.isFollowingBottom()).toBe(true);
   await new Promise((resolve) => requestAnimationFrame(resolve));
   expect(transcript.context.scrollable.value.end).toBe(false);
+  transcript.destroy();
+});
+
+it("pins the tail only once a smooth scroll to the end arrives", async () => {
+  const transcript = createTranscript();
+  let animating = false;
+  vi.mocked(animateScrollTop).mockImplementation(() => {
+    animating = true;
+    return () => {};
+  });
+  vi.mocked(isScrollAnimating).mockImplementation(() => animating);
+  const frame = () => new Promise((resolve) => requestAnimationFrame(resolve));
+
+  transcript.context.scrollToEnd({ behavior: "smooth" });
+  await frame();
+  // Following already, but the tail stays in flow while the view travels.
+  expect(transcript.context.isFollowingBottom()).toBe(true);
+  expect(transcript.context.tailPinned.value).toBe(false);
+
+  transcript.viewport.scrollTop = 2000 - 500;
+  animating = false;
+  transcript.context.syncAfterScroll();
+  await frame();
+  expect(transcript.context.tailPinned.value).toBe(true);
+  vi.mocked(isScrollAnimating).mockImplementation(() => false);
+  transcript.destroy();
+});
+
+it("pins the tail at once for a jump to the end", () => {
+  const transcript = createTranscript();
+  transcript.context.scrollToEnd({ behavior: "auto" });
+  expect(transcript.context.tailPinned.value).toBe(true);
   transcript.destroy();
 });

@@ -11,7 +11,7 @@ const props = defineProps<{
 
 const {
   handleContentChange,
-  followingBottom,
+  tailPinned,
   handleResize,
   setContentElement,
   setSpacerElement,
@@ -24,9 +24,10 @@ const {
  * A new turn's anchor hold leaves it in flow: the anchor spacer already
  * rests it at the bottom, and a reply that runs past the fold must not be
  * covered by it. The reader's first scroll releases it, so it moves with the
- * transcript from the first pixel.
+ * transcript from the first pixel. A smooth scroll back to the bottom pins
+ * it only on arrival, so it scrolls into view rather than jumping there.
  */
-const pinsTail = computed(() => followingBottom.value);
+const pinsTail = computed(() => tailPinned.value);
 
 const contentRef = useTemplateRef<HTMLElement>("content");
 const spacerRef = useTemplateRef<HTMLElement>("spacer");

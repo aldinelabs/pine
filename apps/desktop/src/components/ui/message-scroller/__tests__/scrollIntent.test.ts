@@ -9,6 +9,7 @@ import {
 
 // The mocked tween lands at once, so no follow tween is ever in flight.
 vi.mock("@/lib/animateScroll", () => ({
+  prefersReducedMotion: vi.fn(() => false),
   animateScrollTop: vi.fn(),
   isScrollAnimating: vi.fn(() => false),
 }));

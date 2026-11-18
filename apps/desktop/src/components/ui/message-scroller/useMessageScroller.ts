@@ -9,7 +9,11 @@ import {
   shallowRef,
   watch,
 } from "vue";
-import { animateScrollTop, isScrollAnimating } from "@/lib/animateScroll";
+import {
+  animateScrollTop,
+  isScrollAnimating,
+  prefersReducedMotion,
+} from "@/lib/animateScroll";
 import { DURATION_MS } from "@/lib/motion";
 
 // -----------------------------------------------------------------------------
@@ -503,6 +507,12 @@ export interface MessageScrollerContext {
    * The reader's first scroll ends it.
    */
   followingBottom: Readonly<ShallowRef<boolean>>;
+  /**
+   * Whether the tail sticks to the viewport's bottom: while following the
+   * bottom, except while a smooth scroll is still on its way there, so the
+   * tail scrolls into view with the transcript instead of jumping ahead.
+   */
+  tailPinned: Readonly<ShallowRef<boolean>>;
   scrollable: Readonly<ShallowRef<MessageScrollerScrollable>>;
   scrollableAttr: ComputedRef<string | undefined>;
   visibility: Readonly<ShallowRef<MessageScrollerVisibilityState>>;
@@ -620,6 +630,10 @@ function createEngine(props: MessageScrollerProviderProps) {
   let rewriteHold = false;
   /** Sent turns still to arrive that should not move the view. */
   let heldTurns = 0;
+  /** A smooth scroll to the end is still travelling there. */
+  let arrivingAtEnd = false;
+  /** Its tween has started, so a stopped tween means it is over. */
+  let arrivalStarted = false;
   let visibilityObserver: IntersectionObserver | null = null;
   let visibilityConsumers = 0;
   /** Content or size changes that arrived while the transcript was hidden. */
@@ -634,6 +648,7 @@ function createEngine(props: MessageScrollerProviderProps) {
   const isProgrammaticScroll = shallowRef(false);
   const userScrollRevision = shallowRef(0);
   const followingBottom = shallowRef(isFollowingBottom());
+  const tailPinned = shallowRef(followingBottom.value);
   const scrollable = shallowRef<MessageScrollerScrollable>(EMPTY_SCROLLABLE);
   const visibility =
     shallowRef<MessageScrollerVisibilityState>(EMPTY_VISIBILITY);
@@ -726,7 +741,25 @@ function createEngine(props: MessageScrollerProviderProps) {
     }
   }
 
+  function syncTailPinned(): void {
+    const pinned = followingBottom.value && !arrivingAtEnd;
+    if (tailPinned.value !== pinned) tailPinned.value = pinned;
+  }
+
+  function settleArrival(): void {
+    if (
+      !arrivingAtEnd ||
+      (viewport &&
+        !isAtScrollEnd(viewport) &&
+        (!arrivalStarted || isScrollAnimating(viewport)))
+    )
+      return;
+    arrivingAtEnd = false;
+    syncTailPinned();
+  }
+
   function commitScrollState() {
+    settleArrival();
     if (viewport && content && isEngineFollowing()) {
       // While following, the measured end is discarded below. It only
       // matters for leaving follow mode on an upward scroll the engine did
@@ -1040,6 +1073,13 @@ function createEngine(props: MessageScrollerProviderProps) {
     // Enter follow mode so later resizes stop re-anchoring to the old user
     // message.
     streamingTurn = null;
+    // A smooth trip from further up leaves the tail in flow until it lands,
+    // so it arrives with the transcript rather than at the click.
+    arrivingAtEnd =
+      behavior === "smooth" &&
+      !prefersReducedMotion() &&
+      maxScrollTop(viewport) - viewport.scrollTop > SCROLL_EPSILON;
+    arrivalStarted = false;
     setMode(autoScroll() ? "following-bottom" : "free-scrolling");
     clearSpacer();
     scrollTo(maxScrollTop(viewport), {
@@ -1047,6 +1087,8 @@ function createEngine(props: MessageScrollerProviderProps) {
       behavior,
       animated,
     });
+    arrivalStarted = true;
+    settleArrival();
     scheduleVisibilitySync();
     return true;
   }
@@ -1545,6 +1587,7 @@ function createEngine(props: MessageScrollerProviderProps) {
     )
       return;
     rewriteHold = false;
+    arrivingAtEnd = false;
     releaseCollapseHold();
     userScrollRevision.value += 1;
     setProgrammaticScroll(false);
@@ -1617,6 +1660,8 @@ function createEngine(props: MessageScrollerProviderProps) {
     mode = next;
     const following = isFollowingBottom();
     if (followingBottom.value !== following) followingBottom.value = following;
+    if (!following) arrivingAtEnd = false;
+    syncTailPinned();
   }
 
   /** Catch up once a hidden transcript is shown again. */
@@ -1685,6 +1730,7 @@ function createEngine(props: MessageScrollerProviderProps) {
     isProgrammaticScroll,
     userScrollRevision,
     followingBottom,
+    tailPinned,
     scrollable,
     scrollableAttr,
     visibility,
