@@ -17,6 +17,19 @@ export default {
       previous: "Previous",
       next: "Next",
     },
+    datePicker: {
+      placeholder: "Pick a date",
+    },
+    timer: {
+      start: "Start",
+      pause: "Pause",
+      reset: "Reset",
+    },
+    flashcard: {
+      flip: "Click to flip",
+      showFront: "Show the front",
+      showBack: "Show the back",
+    },
     rules: {
       required: "Required",
       email: "Enter a valid email address",

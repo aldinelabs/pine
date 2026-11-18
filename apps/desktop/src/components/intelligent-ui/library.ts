@@ -12,13 +12,17 @@ import IuiCallout from "./IuiCallout.vue";
 import IuiCaption from "./IuiCaption.vue";
 import IuiCard from "./IuiCard.vue";
 import IuiCarousel from "./IuiCarousel.vue";
+import IuiCelebration from "./IuiCelebration.vue";
 import IuiChart from "./IuiChart.vue";
 import IuiCheckbox from "./IuiCheckbox.vue";
 import IuiCode from "./IuiCode.vue";
+import IuiDatePicker from "./IuiDatePicker.vue";
+import IuiFlashcard from "./IuiFlashcard.vue";
 import IuiForm from "./IuiForm.vue";
 import IuiGrid from "./IuiGrid.vue";
 import IuiHeading from "./IuiHeading.vue";
 import IuiIcon from "./IuiIcon.vue";
+import IuiIconButton from "./IuiIconButton.vue";
 import IuiImage from "./IuiImage.vue";
 import IuiInput from "./IuiInput.vue";
 import IuiLabel from "./IuiLabel.vue";
@@ -28,6 +32,7 @@ import IuiListItem from "./IuiListItem.vue";
 import IuiMarkdown from "./IuiMarkdown.vue";
 import IuiMath from "./IuiMath.vue";
 import IuiPopover from "./IuiPopover.vue";
+import IuiPressable from "./IuiPressable.vue";
 import IuiProgress from "./IuiProgress.vue";
 import IuiQuote from "./IuiQuote.vue";
 import IuiRadioGroup from "./IuiRadioGroup.vue";
@@ -39,12 +44,15 @@ import IuiSlider from "./IuiSlider.vue";
 import IuiSpacer from "./IuiSpacer.vue";
 import IuiStack from "./IuiStack.vue";
 import IuiStat from "./IuiStat.vue";
+import IuiStep from "./IuiStep.vue";
+import IuiSteps from "./IuiSteps.vue";
 import IuiSwitch from "./IuiSwitch.vue";
 import IuiTab from "./IuiTab.vue";
 import IuiTable from "./IuiTable.vue";
 import IuiTabs from "./IuiTabs.vue";
 import IuiText from "./IuiText.vue";
 import IuiTextarea from "./IuiTextarea.vue";
+import IuiTimer from "./IuiTimer.vue";
 
 const renderers: Record<IntelligentUiComponentName, unknown> = {
   Stack: IuiStack,
@@ -77,18 +85,26 @@ const renderers: Record<IntelligentUiComponentName, unknown> = {
   Stat: IuiStat,
   Callout: IuiCallout,
   Button: IuiButton,
+  IconButton: IuiIconButton,
+  Pressable: IuiPressable,
   Form: IuiForm,
   Input: IuiInput,
   Textarea: IuiTextarea,
   Select: IuiSelect,
+  DatePicker: IuiDatePicker,
   Slider: IuiSlider,
   Switch: IuiSwitch,
   Checkbox: IuiCheckbox,
   RadioGroup: IuiRadioGroup,
   SegmentedControl: IuiSegmentedControl,
+  Timer: IuiTimer,
   Table: IuiTable,
   Progress: IuiProgress,
   Chart: IuiChart,
+  Steps: IuiSteps,
+  Step: IuiStep,
+  Flashcard: IuiFlashcard,
+  Celebration: IuiCelebration,
 };
 
 type Renderer = Library["components"][string]["component"];

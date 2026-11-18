@@ -17,6 +17,19 @@ export default {
       previous: "Назад",
       next: "Далее",
     },
+    datePicker: {
+      placeholder: "Выберите дату",
+    },
+    timer: {
+      start: "Запустить",
+      pause: "Пауза",
+      reset: "Сбросить",
+    },
+    flashcard: {
+      flip: "Нажмите, чтобы перевернуть",
+      showFront: "Показать лицевую сторону",
+      showBack: "Показать оборотную сторону",
+    },
     rules: {
       required: "Обязательное поле",
       email: "Введите корректный адрес электронной почты",

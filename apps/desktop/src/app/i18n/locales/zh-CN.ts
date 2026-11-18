@@ -17,6 +17,19 @@ export default {
       previous: "上一项",
       next: "下一项",
     },
+    datePicker: {
+      placeholder: "选择日期",
+    },
+    timer: {
+      start: "开始",
+      pause: "暂停",
+      reset: "重置",
+    },
+    flashcard: {
+      flip: "点击翻面",
+      showFront: "显示正面",
+      showBack: "显示背面",
+    },
     rules: {
       required: "必填",
       email: "请输入有效的邮箱地址",

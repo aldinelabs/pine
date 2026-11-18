@@ -245,12 +245,15 @@ From top to bottom:
      Settings › Agent: layout (cards, grids, tabs, accordions, a horizontally
      scrolling carousel with Previous/Next arrows, popovers that open on
      clicking a dotted-underlined term), text (headings, quotes, highlighted
-     code with a copy button, KaTeX formulas, lists and timelines, links,
-     images), inputs (buttons, text fields, pickers, sliders), forms that
-     show a message under each field that still needs an answer and only
-     send once they are complete, and data (tables,
-     bar/line/area/pie/donut/scatter charts). A link in a block asks "Open
-     external link?" before it opens in the browser.
+     code with a copy button, KaTeX formulas, timelines, links, images),
+     inputs (buttons, text fields, pickers, sliders, a date picker, a
+     countdown timer with Start, Pause and Reset), forms that show a
+     message under each field that still needs an answer and only send once
+     they are complete, data (tables, bar/line/area/pie/donut/scatter
+     charts, numbered steps) and study aids (flashcards that flip when
+     clicked, confetti when a goal is reached, none with reduced motion).
+     A link in a block asks "Open external link?" before it opens in the
+     browser.
      "Load earlier messages" appears at the top of long sessions. The
      Conversation outline lists the user's turns for quick jumping.
      Selecting text in the transcript shows a popover with Quote (adds it to

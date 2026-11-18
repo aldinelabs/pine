@@ -17,6 +17,19 @@ export default {
       previous: "上一項",
       next: "下一項",
     },
+    datePicker: {
+      placeholder: "選擇日期",
+    },
+    timer: {
+      start: "開始",
+      pause: "暫停",
+      reset: "重設",
+    },
+    flashcard: {
+      flip: "點擊翻面",
+      showFront: "顯示正面",
+      showBack: "顯示背面",
+    },
     rules: {
       required: "必填",
       email: "請輸入有效的電子郵件地址",

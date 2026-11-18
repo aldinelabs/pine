@@ -17,6 +17,19 @@ export default {
       previous: "Zurück",
       next: "Weiter",
     },
+    datePicker: {
+      placeholder: "Datum wählen",
+    },
+    timer: {
+      start: "Starten",
+      pause: "Pausieren",
+      reset: "Zurücksetzen",
+    },
+    flashcard: {
+      flip: "Zum Umdrehen klicken",
+      showFront: "Vorderseite zeigen",
+      showBack: "Rückseite zeigen",
+    },
     rules: {
       required: "Erforderlich",
       email: "Gib eine gültige E-Mail-Adresse ein",

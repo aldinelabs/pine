@@ -17,6 +17,19 @@ export default {
       previous: "이전",
       next: "다음",
     },
+    datePicker: {
+      placeholder: "날짜 선택",
+    },
+    timer: {
+      start: "시작",
+      pause: "일시정지",
+      reset: "재설정",
+    },
+    flashcard: {
+      flip: "클릭하여 뒤집기",
+      showFront: "앞면 보기",
+      showBack: "뒷면 보기",
+    },
     rules: {
       required: "필수 항목입니다",
       email: "올바른 이메일 주소를 입력하세요",

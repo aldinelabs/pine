@@ -87,6 +87,10 @@ const ListItem = z.object({
   children: children.optional(),
 });
 const AccordionItem = z.object({ title: z.string(), children });
+const Step = z.object({
+  title: z.string(),
+  description: z.string().optional(),
+});
 
 export const intelligentUiSchemas = {
   Stack: z.object({
@@ -210,6 +214,17 @@ export const intelligentUiSchemas = {
     icon: z.string().optional(),
     block: z.boolean().optional(),
   }),
+  IconButton: z.object({
+    icon: z.string(),
+    action: action.optional(),
+    label: z.string().optional(),
+    variant: z.enum(["outline", "ghost", "default"]).optional(),
+  }),
+  Pressable: z.object({
+    children,
+    action: action.optional(),
+    selected: z.boolean().optional(),
+  }),
   Form: z.object({ children }),
   Input: z.object({
     value: binding(z.union([z.string(), z.number()])),
@@ -229,6 +244,13 @@ export const intelligentUiSchemas = {
     options,
     label: z.string().optional(),
     placeholder: z.string().optional(),
+    rules: rules.optional(),
+  }),
+  DatePicker: z.object({
+    value: binding(z.string()),
+    label: z.string().optional(),
+    min: z.string().optional(),
+    max: z.string().optional(),
     rules: rules.optional(),
   }),
   Slider: z.object({
@@ -263,6 +285,10 @@ export const intelligentUiSchemas = {
     value: binding(z.string()),
     options: z.array(z.string()),
   }),
+  Timer: z.object({
+    seconds: binding(z.number()),
+    label: z.string().optional(),
+  }),
   Table: z.object({
     columns: z.array(z.string()),
     rows: z.array(z.array(z.union([cell, node]))),
@@ -282,6 +308,17 @@ export const intelligentUiSchemas = {
     format: z.enum(["number", "percent"]).optional(),
     height: z.number().optional(),
   }),
+  Steps: z.object({
+    items: z.array(Step),
+    current: z.number().int().min(1).optional(),
+  }),
+  Step,
+  Flashcard: z.object({
+    front: slot,
+    back: slot,
+    hint: z.string().optional(),
+  }),
+  Celebration: z.object({ when: z.boolean() }),
 } as const;
 
 export type IntelligentUiComponentName = keyof typeof intelligentUiSchemas;
@@ -366,10 +403,14 @@ const descriptions: Record<IntelligentUiComponentName, string> = {
   Callout: "Highlighted note, tip or warning.",
   Button:
     "Runs its action on click. Without an action it sends its label to the assistant. color danger for destructive steps.",
+  IconButton: "Icon-only button; label is read aloud and shown on hover.",
+  Pressable:
+    "Makes any content clickable, such as a tile or swatch; selected highlights it.",
   Form: "Groups fields; a Button inside that sends a message first checks every field's rules.",
   Input: "Single-line text field; a number field stores numbers.",
   Textarea: "Multi-line text field.",
   Select: "Dropdown that picks one option.",
+  DatePicker: 'Date field; value, min and max are "YYYY-MM-DD".',
   Slider:
     'Picks a number in a range; unit like "%" or "kg" follows the value, marks label points on the track.',
   Switch: "On/off toggle for a setting.",
@@ -378,11 +419,20 @@ const descriptions: Record<IntelligentUiComponentName, string> = {
     "Picks one option from a short visible list; pills for short choices, cards for options with a description.",
   SegmentedControl:
     "Compact one-of-few picker that filters or switches a view.",
+  Timer:
+    "Countdown the user starts and pauses; it counts the bound seconds down to 0, so other statements can react, e.g. $left == 0.",
   Table:
     "Rows and columns of values; a cell may be a component such as a Badge. Number columns align right.",
   Progress: "Bar from 0 to 100.",
   Chart:
     'Chart over a list of objects: x names the category key (a number key for scatter), series the numeric keys (default: every number key). Every series entry must be a key spelled exactly as in the data objects, never a separate display name; the legend shows these keys, so name the keys the way the reader should see them. Pie and donut use the first series; format "percent" shows their slices as shares. stacked stacks bar and area series; height is in px.',
+  Steps:
+    "Numbered steps of a procedure; current (1-based) marks progress, earlier steps show as done.",
+  Step: "One step of Steps.",
+  Flashcard:
+    "Card that flips between front and back when clicked, for study and quizzes. Put several in a Carousel or Grid.",
+  Celebration:
+    "Bursts confetti once when its condition turns true, e.g. Celebration($score == 5) at the end of a quiz.",
 };
 
 const componentGroups = [
@@ -429,15 +479,19 @@ const componentGroups = [
     name: "Inputs",
     components: [
       "Button",
+      "IconButton",
+      "Pressable",
       "Form",
       "Input",
       "Textarea",
       "Select",
+      "DatePicker",
       "Slider",
       "Switch",
       "Checkbox",
       "RadioGroup",
       "SegmentedControl",
+      "Timer",
     ],
     notes: [
       "- An input's first argument is its value, a $variable that other statements read.",

@@ -17,6 +17,19 @@ export default {
       previous: "前へ",
       next: "次へ",
     },
+    datePicker: {
+      placeholder: "日付を選択",
+    },
+    timer: {
+      start: "開始",
+      pause: "一時停止",
+      reset: "リセット",
+    },
+    flashcard: {
+      flip: "クリックで裏返す",
+      showFront: "表を表示",
+      showBack: "裏を表示",
+    },
     rules: {
       required: "必須です",
       email: "有効なメールアドレスを入力してください",
