@@ -315,6 +315,32 @@ describe("ProjectSessionComposer", () => {
     );
   });
 
+  it("lets a narrow footer compact the model control instead of overlapping", () => {
+    const wrapper = mountComposer();
+    const footer = wrapper.get('[data-slot="session-composer-footer"]');
+    // The footer is the container its compact states query.
+    expect(footer.classes()).toContain("@container/composer-footer");
+    expect(footer.get("div").classes()).toContain("shrink-0");
+
+    const model = footer.get('[data-slot="model-selector-trigger"]');
+    // Buttons default to shrink-0; the Model control must give way.
+    expect(model.classes()).toEqual(
+      expect.arrayContaining(["min-w-0", "shrink"]),
+    );
+    expect(model.attributes("aria-label")).toBe("Claude Sonnet · 高");
+    expect(model.get('[data-slot="model-selector-name"]').classes()).toEqual(
+      expect.arrayContaining([
+        "session-composer-model-name",
+        "min-w-0",
+        "truncate",
+      ]),
+    );
+    expect(
+      model.get('[data-slot="model-selector-thinking-level"]').classes(),
+    ).toContain("session-composer-thinking-level");
+    wrapper.unmount();
+  });
+
   it("opens the approval mode menu with Cmd+R and the model menu with Cmd+I", async () => {
     const wrapper = mountComposer({ isActive: true });
     const approval = wrapper.get('[data-slot="approval-mode-trigger"]');

@@ -200,6 +200,19 @@ describe("ContextUsageIndicator", () => {
     ).toBe("$0.42");
   });
 
+  it("keeps the percentage and cost in the trigger's accessible name", async () => {
+    const { wrapper } = await mountWithCost(0.4249);
+    const trigger = wrapper.get('[data-slot="context-usage-trigger"]');
+    // A narrow composer footer hides these two by their slots.
+    expect(trigger.get('[data-slot="context-usage-percent"]').text()).toBe(
+      "10%",
+    );
+    expect(trigger.find('[data-slot="context-usage-cost"]').exists()).toBe(
+      true,
+    );
+    expect(trigger.attributes("aria-label")).toBe("Context usage, 10%, $0.42");
+  });
+
   it("shows tiny costs as less than one cent", async () => {
     const { wrapper } = await mountWithCost(0.0004);
     expect(

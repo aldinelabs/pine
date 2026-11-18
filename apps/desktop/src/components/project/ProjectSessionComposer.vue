@@ -204,6 +204,18 @@ const selection = computed(() => modelsStore.selectionFor(props.sessionId));
 const selectedModel = computed(() =>
   modelsStore.selectedModelFor(props.sessionId),
 );
+/**
+ * The Model control's accessible name: a narrow footer hides the reasoning
+ * effort and then the model name, so they stay readable here.
+ */
+const modelTriggerLabel = computed(() => {
+  const model = selectedModel.value;
+  if (!model) return t("project.composer.selectModel");
+  const level = selection.value?.thinkingLevel;
+  return level
+    ? `${model.name} · ${t(`models.thinkingLevels.${level}`)}`
+    : model.name;
+});
 const messageId = useId();
 const isModelPickerOpen = ref(false);
 const isApprovalMenuOpen = ref(false);
@@ -1405,9 +1417,12 @@ function handleRootSubmit(event: Event): void {
       v-if="!hasPendingInterruption"
       data-slot="session-composer-footer"
       :class="edgeInset && 'session-composer-footer--edge-inset'"
-      class="session-composer-footer flex min-w-0 items-center justify-between gap-3 pt-2"
+      class="session-composer-footer @container/composer-footer flex min-w-0 items-center justify-between gap-3 pt-2"
     >
-      <div class="flex min-w-0 items-center gap-1">
+      <!-- The left group keeps its size; the Model control gives way first,
+           and the container queries below compact both as the footer
+           narrows. -->
+      <div class="flex shrink-0 items-center gap-1">
         <DropdownMenu v-model:open="isApprovalMenuOpen">
           <DropdownMenuTrigger as-child>
             <Button
@@ -1499,7 +1514,8 @@ function handleRootSubmit(event: Event): void {
         <DropdownMenuTrigger as-child>
           <Button
             data-slot="model-selector-trigger"
-            class="min-w-0"
+            class="min-w-0 shrink"
+            :aria-label="modelTriggerLabel"
             type="button"
             variant="ghost"
             size="sm"
@@ -1511,7 +1527,10 @@ function handleRootSubmit(event: Event): void {
               :provider-id="selectedModel.providerId"
               :provider-name="selectedModel.providerName"
             />
-            <span class="truncate">
+            <span
+              data-slot="model-selector-name"
+              class="session-composer-model-name min-w-0 truncate"
+            >
               {{ selectedModel?.name ?? t("project.composer.selectModel") }}
             </span>
             <span
@@ -1519,7 +1538,7 @@ function handleRootSubmit(event: Event): void {
               data-slot="model-selector-thinking-level"
               :class="
                 cn(
-                  'shrink-0 text-muted-foreground',
+                  'session-composer-thinking-level shrink-0 text-muted-foreground',
                   thinkingLevelTextClass(selection.thinkingLevel),
                 )
               "
@@ -1785,6 +1804,35 @@ function handleRootSubmit(event: Event): void {
 
   .session-composer-approval-label,
   .session-composer-row :deep(.composer-optimize-label) {
+    display: none;
+  }
+}
+
+/* A narrow footer (a phone, a split or narrow window) compacts its controls
+   step by step: the session cost goes first, then the reasoning effort, then
+   the context percentage, and at the narrowest the Model control keeps only
+   its provider icon. In between, the model name truncates. Everything hidden
+   stays in the controls' accessible names and their menus. */
+@container composer-footer (width < 26rem) {
+  .session-composer-footer :deep([data-slot="context-usage-cost"]) {
+    display: none;
+  }
+}
+
+@container composer-footer (width < 24rem) {
+  .session-composer-thinking-level {
+    display: none;
+  }
+}
+
+@container composer-footer (width < 19rem) {
+  .session-composer-footer :deep([data-slot="context-usage-percent"]) {
+    display: none;
+  }
+}
+
+@container composer-footer (width < 15rem) {
+  [data-icon="inline-start"] + .session-composer-model-name {
     display: none;
   }
 }

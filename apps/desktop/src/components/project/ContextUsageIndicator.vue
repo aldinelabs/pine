@@ -142,6 +142,20 @@ const triggerCostText = computed(() => {
     : currencyStore.format(cost, 2, options);
 });
 
+/**
+ * The trigger's accessible name carries the percentage and cost too: a
+ * narrow composer footer hides them from view.
+ */
+const triggerLabel = computed(() =>
+  [
+    t("project.composer.contextUsage.label"),
+    `${usagePercentText.value}%`,
+    triggerCostText.value,
+  ]
+    .filter(Boolean)
+    .join(", "),
+);
+
 const cacheHitRateText = computed(() =>
   usage.value?.cacheHitRate == null
     ? t("project.composer.contextUsage.unknown")
@@ -174,7 +188,7 @@ async function compactContext(): Promise<void> {
         variant="ghost"
         size="sm"
         :class="usageToneClass"
-        :aria-label="t('project.composer.contextUsage.label')"
+        :aria-label="triggerLabel"
       >
         <svg
           data-icon="inline-start"
@@ -203,9 +217,12 @@ async function compactContext(): Promise<void> {
             transform="rotate(-90 10 10)"
           />
         </svg>
-        <span class="tabular-nums">{{ usagePercentText }}%</span>
+        <span data-slot="context-usage-percent" class="tabular-nums">
+          {{ usagePercentText }}%
+        </span>
         <span
           v-if="triggerCostText"
+          data-slot="context-usage-cost"
           data-testid="context-usage-trigger-cost"
           class="ml-1 tabular-nums"
         >

@@ -405,6 +405,14 @@ From top to bottom:
      menu's shortcut in beside its arrow. The Model control starts with the
      selected model's provider icon (e.g. OpenRouter), drawn in a single
      colour that matches the control's text.
+   - Narrow composer (a phone, a split or narrow window): the footer
+     compacts step by step instead of letting controls overlap. The approval
+     mode shows only its icon, then Context usage drops the session cost, the
+     Model control drops the reasoning effort ("· High"), Context usage drops
+     its percentage (leaving the ring), and at the narrowest the Model control
+     shows only the provider icon and arrow. In between, the model name is
+     cut short with "…". The hidden details stay in the Context usage
+     popover and the Model menu.
    - Approval modes: Let Me Review (ask before risky actions), Auto Approve
      (balance autonomy and control), Autonomous Work (maximize autonomy
      without user action), YOLO (no permission constraints; asks the user to
