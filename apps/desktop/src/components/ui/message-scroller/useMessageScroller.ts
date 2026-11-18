@@ -1310,7 +1310,9 @@ function createEngine(props: MessageScrollerProviderProps) {
   }
 
   /** Record the current items; returns the new ones and those after every
-   * previously known item. */
+   * previously known message. A known item without a message id (such as
+   * a status row kept after the last message) does not mark where new
+   * content starts: a turn sent in front of it is still appended. */
   function syncItems(children: HTMLElement[]): {
     added: HTMLElement[];
     appended: HTMLElement[];
@@ -1318,8 +1320,8 @@ function createEngine(props: MessageScrollerProviderProps) {
     const added: HTMLElement[] = [];
     let lastKnownIndex = -1;
     children.forEach((child, index) => {
-      if (knownItems.has(child)) lastKnownIndex = index;
-      else added.push(child);
+      if (!knownItems.has(child)) added.push(child);
+      else if (child.dataset.messageId) lastKnownIndex = index;
     });
     for (const child of added) knownItems.add(child);
     itemCount = children.length;
