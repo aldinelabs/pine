@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import { useIsStreaming, type ComponentRenderProps } from "@openuidev/vue-lang";
 import { computed, useId } from "vue";
-import { Field, FieldLabel } from "@/components/ui/field";
+import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import type { IntelligentUiProps } from "@/shared/intelligentUi";
-import { useBoundValue } from "./context";
+import { useBoundValue, useFieldRules } from "./context";
 
 const props = defineProps<ComponentRenderProps<IntelligentUiProps<"Input">>>();
 const id = useId();
@@ -14,16 +14,20 @@ const isNumber = computed(() => props.props.type === "number");
 const model = computed({
   get: () => bound.value ?? "",
   set: (value: string | number) => {
-    bound.value =
-      isNumber.value && value !== "" && !Number.isNaN(Number(value))
-        ? Number(value)
-        : value;
+    if (isNumber.value && value === "") bound.value = null;
+    else
+      bound.value =
+        isNumber.value && !Number.isNaN(Number(value)) ? Number(value) : value;
   },
 });
+const error = useFieldRules(
+  () => props.props.rules,
+  () => bound.value,
+);
 </script>
 
 <template>
-  <Field data-iui="input">
+  <Field data-iui="input" :data-invalid="error ? true : undefined">
     <FieldLabel v-if="props.props.label" :for="id">
       {{ props.props.label }}
     </FieldLabel>
@@ -33,6 +37,8 @@ const model = computed({
       :type="isNumber ? 'number' : 'text'"
       :placeholder="props.props.placeholder"
       :disabled="isStreaming"
+      :aria-invalid="error ? true : undefined"
     />
+    <FieldError v-if="error" :errors="[error]" />
   </Field>
 </template>

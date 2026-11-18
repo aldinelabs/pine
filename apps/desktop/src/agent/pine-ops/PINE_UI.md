@@ -241,8 +241,12 @@ From top to bottom:
      provider's availability if it stays for tens of seconds. It
      disappears at once when the first content arrives or the run ends, fails or
      is stopped, and is not kept in the conversation;
-   - interactive answer blocks (checklists, tables, charts, inputs) when
-     interactive answers are enabled in Pine Settings › Agent.
+   - interactive answer blocks when interactive answers are enabled in Pine
+     Settings › Agent: cards, grids, tabs, headings, text, lists and
+     timelines, badges, buttons, text fields, pickers (lists, pills or
+     option cards), sliders, tables, bar/line/area/pie/donut/scatter charts
+     and forms that show a message under each field that still needs an
+     answer and only send once they are complete.
      "Load earlier messages" appears at the top of long sessions. The
      Conversation outline lists the user's turns for quick jumping.
      Selecting text in the transcript shows a popover with Quote (adds it to

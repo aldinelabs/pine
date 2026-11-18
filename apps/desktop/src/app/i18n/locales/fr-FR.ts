@@ -13,6 +13,17 @@ export default {
   },
   intelligentUi: {
     sendUnavailable: "Cette réponse ne peut pas envoyer de messages ici.",
+    rules: {
+      required: "Obligatoire",
+      email: "Saisissez une adresse e-mail valide",
+      url: "Saisissez une URL valide",
+      numeric: "Saisissez un nombre",
+      min: "Doit être au moins {arg}",
+      max: "Doit être au plus {arg}",
+      minLength: "Au moins {arg} caractères",
+      maxLength: "Au plus {arg} caractères",
+      pattern: "Ne correspond pas au format attendu",
+    },
   },
   markdown: {
     copyCode: "Copier le code",

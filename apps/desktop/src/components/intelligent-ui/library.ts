@@ -9,10 +9,12 @@ import IuiCallout from "./IuiCallout.vue";
 import IuiCard from "./IuiCard.vue";
 import IuiChart from "./IuiChart.vue";
 import IuiCheckbox from "./IuiCheckbox.vue";
+import IuiForm from "./IuiForm.vue";
 import IuiGrid from "./IuiGrid.vue";
 import IuiHeading from "./IuiHeading.vue";
 import IuiInput from "./IuiInput.vue";
 import IuiList from "./IuiList.vue";
+import IuiListItem from "./IuiListItem.vue";
 import IuiMarkdown from "./IuiMarkdown.vue";
 import IuiProgress from "./IuiProgress.vue";
 import IuiRadioGroup from "./IuiRadioGroup.vue";
@@ -40,10 +42,12 @@ const renderers: Record<IntelligentUiComponentName, unknown> = {
   Text: IuiText,
   Markdown: IuiMarkdown,
   List: IuiList,
+  ListItem: IuiListItem,
   Badge: IuiBadge,
   Stat: IuiStat,
   Callout: IuiCallout,
   Button: IuiButton,
+  Form: IuiForm,
   Input: IuiInput,
   Textarea: IuiTextarea,
   Select: IuiSelect,

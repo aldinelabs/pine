@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import { useIsStreaming, type ComponentRenderProps } from "@openuidev/vue-lang";
 import { computed, useId } from "vue";
-import { Field, FieldLabel } from "@/components/ui/field";
+import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import { Textarea } from "@/components/ui/textarea";
 import type { IntelligentUiProps } from "@/shared/intelligentUi";
-import { useBoundValue } from "./context";
+import { useBoundValue, useFieldRules } from "./context";
 
 const props =
   defineProps<ComponentRenderProps<IntelligentUiProps<"Textarea">>>();
@@ -17,10 +17,14 @@ const model = computed({
     bound.value = value;
   },
 });
+const error = useFieldRules(
+  () => props.props.rules,
+  () => bound.value,
+);
 </script>
 
 <template>
-  <Field data-iui="textarea">
+  <Field data-iui="textarea" :data-invalid="error ? true : undefined">
     <FieldLabel v-if="props.props.label" :for="id">
       {{ props.props.label }}
     </FieldLabel>
@@ -29,6 +33,8 @@ const model = computed({
       v-model="model"
       :placeholder="props.props.placeholder"
       :disabled="isStreaming"
+      :aria-invalid="error ? true : undefined"
     />
+    <FieldError v-if="error" :errors="[error]" />
   </Field>
 </template>

@@ -39,7 +39,7 @@ describe("intelligentUiSystemPrompt", () => {
     const parser = createParser(library.toJSONSchema(), library.root);
     const examples = examplesFrom(prompt);
 
-    expect(examples).toHaveLength(3);
+    expect(examples).toHaveLength(4);
     for (const example of examples) {
       const result = parser.parse(example);
       expect(result.root, example).toBeTruthy();

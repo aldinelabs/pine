@@ -13,6 +13,17 @@ export default {
   },
   intelligentUi: {
     sendUnavailable: "这里的回答无法发送消息。",
+    rules: {
+      required: "必填",
+      email: "请输入有效的邮箱地址",
+      url: "请输入有效的网址",
+      numeric: "请输入数字",
+      min: "不能小于 {arg}",
+      max: "不能大于 {arg}",
+      minLength: "至少 {arg} 个字符",
+      maxLength: "最多 {arg} 个字符",
+      pattern: "格式不正确",
+    },
   },
   markdown: {
     copyCode: "复制代码",

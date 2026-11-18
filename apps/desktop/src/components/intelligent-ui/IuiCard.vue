@@ -20,7 +20,12 @@ const surface = useSurface();
   <Card
     data-iui="card"
     size="sm"
-    :class="['min-w-0', CARD_SURFACE_CLASS[surface]]"
+    :class="[
+      'min-w-0',
+      props.props.variant === 'soft'
+        ? 'bg-muted shadow-none ring-0 dark:bg-muted/60'
+        : CARD_SURFACE_CLASS[surface],
+    ]"
   >
     <CardHeader v-if="props.props.title || props.props.description">
       <CardTitle v-if="props.props.title">{{ props.props.title }}</CardTitle>

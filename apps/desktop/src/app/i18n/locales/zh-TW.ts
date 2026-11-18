@@ -13,6 +13,17 @@ export default {
   },
   intelligentUi: {
     sendUnavailable: "這裡的回答無法傳送訊息。",
+    rules: {
+      required: "必填",
+      email: "請輸入有效的電子郵件地址",
+      url: "請輸入有效的網址",
+      numeric: "請輸入數字",
+      min: "不能小於 {arg}",
+      max: "不能大於 {arg}",
+      minLength: "至少 {arg} 個字元",
+      maxLength: "最多 {arg} 個字元",
+      pattern: "格式不正確",
+    },
   },
   markdown: {
     copyCode: "複製程式碼",

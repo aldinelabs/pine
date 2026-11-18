@@ -13,6 +13,17 @@ export default {
   },
   intelligentUi: {
     sendUnavailable: "이 답변에서는 메시지를 보낼 수 없습니다.",
+    rules: {
+      required: "필수 항목입니다",
+      email: "올바른 이메일 주소를 입력하세요",
+      url: "올바른 URL을 입력하세요",
+      numeric: "숫자를 입력하세요",
+      min: "{arg} 이상이어야 합니다",
+      max: "{arg} 이하여야 합니다",
+      minLength: "{arg}자 이상 입력하세요",
+      maxLength: "{arg}자 이하로 입력하세요",
+      pattern: "형식이 올바르지 않습니다",
+    },
   },
   markdown: {
     copyCode: "코드 복사",

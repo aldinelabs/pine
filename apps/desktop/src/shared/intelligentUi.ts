@@ -34,27 +34,76 @@ const children = z.array(node);
 const action = z.any();
 tagSchemaId(action, "ActionExpression");
 
-const options = z.array(z.string());
+/** A string, or `{value, label, description?}` when the shown text differs. */
+const option = z.union([
+  z.string(),
+  z.object({
+    value: z.string(),
+    label: z.string(),
+    description: z.string().optional(),
+  }),
+]);
+const options = z.array(option);
 const cell = z.union([z.string(), z.number(), z.boolean(), z.null()]);
 const datum = z.record(z.string(), z.union([z.string(), z.number(), z.null()]));
+/** Text, or a list mixing strings and inline components such as Icon or Badge. */
+const richText = z.union([z.string(), children]);
+
+/** A field's checks inside a Form: `{required: true, min: 1, email: true}`. */
+const rules = z.object({
+  required: z.boolean().optional(),
+  email: z.boolean().optional(),
+  url: z.boolean().optional(),
+  numeric: z.boolean().optional(),
+  min: z.number().optional(),
+  max: z.number().optional(),
+  minLength: z.number().optional(),
+  maxLength: z.number().optional(),
+  pattern: z.string().optional(),
+});
+tagSchemaId(rules, "Rules");
+
+const gap = z.enum(["none", "sm", "md", "lg"]);
+const align = z.enum(["start", "center", "end", "stretch"]);
+const justify = z.enum(["start", "center", "end", "between"]);
+const tone = z.enum(["default", "muted", "success", "warning", "danger"]);
+/** Semantic colours shared by Badge and Icon. */
+const color = z.enum([
+  "neutral",
+  "info",
+  "success",
+  "warning",
+  "danger",
+  "purple",
+  "pink",
+]);
+
+const ListItem = z.object({
+  title: z.string(),
+  description: z.string().optional(),
+  marker: z.string().optional(),
+  children: children.optional(),
+});
 
 export const intelligentUiSchemas = {
   Stack: z.object({
     children,
     direction: z.enum(["column", "row"]).optional(),
-    gap: z.enum(["none", "sm", "md", "lg"]).optional(),
-    align: z.enum(["start", "center", "end", "stretch"]).optional(),
-    justify: z.enum(["start", "center", "end", "between"]).optional(),
+    gap: gap.optional(),
+    align: align.optional(),
+    justify: justify.optional(),
     wrap: z.boolean().optional(),
   }),
   Grid: z.object({
     children,
-    columns: z.number().int().min(1).max(4).optional(),
+    columns: z.number().int().min(1).max(12).optional(),
+    minChildWidth: z.number().optional(),
   }),
   Card: z.object({
     children,
     title: z.string().optional(),
     description: z.string().optional(),
+    variant: z.enum(["outline", "soft"]).optional(),
   }),
   Tabs: z.object({ tabs: z.array(node) }),
   Tab: z.object({ label: z.string(), children }),
@@ -62,25 +111,31 @@ export const intelligentUiSchemas = {
   Heading: z.object({
     text: z.string(),
     level: z.number().int().min(1).max(3).optional(),
+    size: z.enum(["sm", "md", "lg", "xl", "2xl", "3xl"]).optional(),
   }),
   Text: z.object({
-    text: z.string(),
-    tone: z
-      .enum(["default", "muted", "success", "warning", "danger"])
-      .optional(),
-    size: z.enum(["sm", "md"]).optional(),
+    text: richText,
+    tone: tone.optional(),
+    size: z.enum(["xs", "sm", "md", "lg"]).optional(),
     weight: z.enum(["normal", "medium", "semibold"]).optional(),
+    italic: z.boolean().optional(),
+    lineThrough: z.boolean().optional(),
+    maxLines: z.number().int().min(1).optional(),
   }),
   Markdown: z.object({ source: z.string() }),
   List: z.object({
-    items: z.array(z.string()),
+    items: z.array(z.union([z.string(), ListItem])),
     ordered: z.boolean().optional(),
+    timeline: z.boolean().optional(),
   }),
+  ListItem,
   Badge: z.object({
     text: z.string(),
     variant: z
       .enum(["default", "secondary", "outline", "destructive"])
       .optional(),
+    color: color.optional(),
+    icon: z.string().optional(),
   }),
   Stat: z.object({
     label: z.string(),
@@ -96,25 +151,35 @@ export const intelligentUiSchemas = {
   Button: z.object({
     label: z.string(),
     action: action.optional(),
-    variant: z.enum(["default", "secondary", "outline", "ghost"]).optional(),
+    variant: z
+      .enum(["default", "secondary", "outline", "ghost", "soft"])
+      .optional(),
     disabled: z.boolean().optional(),
+    color: z.enum(["primary", "danger", "success"]).optional(),
+    size: z.enum(["sm", "md", "lg"]).optional(),
+    icon: z.string().optional(),
+    block: z.boolean().optional(),
   }),
+  Form: z.object({ children }),
   Input: z.object({
-    value: binding(z.string()),
+    value: binding(z.union([z.string(), z.number()])),
     label: z.string().optional(),
     placeholder: z.string().optional(),
     type: z.enum(["text", "number"]).optional(),
+    rules: rules.optional(),
   }),
   Textarea: z.object({
     value: binding(z.string()),
     label: z.string().optional(),
     placeholder: z.string().optional(),
+    rules: rules.optional(),
   }),
   Select: z.object({
     value: binding(z.string()),
     options,
     label: z.string().optional(),
     placeholder: z.string().optional(),
+    rules: rules.optional(),
   }),
   Slider: z.object({
     value: binding(z.number()),
@@ -122,6 +187,10 @@ export const intelligentUiSchemas = {
     max: z.number(),
     step: z.number().optional(),
     label: z.string().optional(),
+    unit: z.string().optional(),
+    marks: z
+      .array(z.object({ value: z.number(), label: z.string() }))
+      .optional(),
   }),
   Switch: z.object({
     value: binding(z.boolean()),
@@ -131,19 +200,22 @@ export const intelligentUiSchemas = {
     value: binding(z.boolean()),
     label: z.string(),
     description: z.string().optional(),
+    rules: rules.optional(),
   }),
   RadioGroup: z.object({
     value: binding(z.string()),
     options,
     label: z.string().optional(),
+    variant: z.enum(["list", "pills", "cards"]).optional(),
+    rules: rules.optional(),
   }),
   SegmentedControl: z.object({
     value: binding(z.string()),
-    options,
+    options: z.array(z.string()),
   }),
   Table: z.object({
     columns: z.array(z.string()),
-    rows: z.array(z.array(cell)),
+    rows: z.array(z.array(z.union([cell, node]))),
     caption: z.string().optional(),
   }),
   Progress: z.object({
@@ -151,11 +223,14 @@ export const intelligentUiSchemas = {
     label: z.string().optional(),
   }),
   Chart: z.object({
-    type: z.enum(["bar", "line", "area", "donut"]),
+    type: z.enum(["bar", "line", "area", "donut", "pie", "scatter"]),
     data: z.array(datum),
-    x: z.string(),
-    series: z.array(z.string()),
+    x: z.string().optional(),
+    series: z.array(z.string()).optional(),
     title: z.string().optional(),
+    stacked: z.boolean().optional(),
+    format: z.enum(["number", "percent"]).optional(),
+    height: z.number().optional(),
   }),
 } as const;
 
@@ -165,37 +240,81 @@ export type IntelligentUiProps<N extends IntelligentUiComponentName> = z.infer<
   (typeof intelligentUiSchemas)[N]
 >;
 
+export type IntelligentUiRules = z.infer<typeof rules>;
+
+/** An option as the pickers use it: a string value and the text shown. */
+export interface IntelligentUiOption {
+  value: string;
+  label: string;
+  description?: string;
+}
+
+/**
+ * Options as written are loose: a string, a number, or an object with only a
+ * label. Each becomes a string value and label; one with neither is dropped.
+ */
+export function intelligentUiOptions(raw: unknown): IntelligentUiOption[] {
+  if (!Array.isArray(raw)) return [];
+  return raw.flatMap((item: unknown): IntelligentUiOption[] => {
+    if (item === null || item === undefined) return [];
+    if (typeof item === "string" || typeof item === "number")
+      return item === "" ? [] : [{ value: String(item), label: String(item) }];
+    if (typeof item !== "object") return [];
+    const { value, label, description } = item as Record<string, unknown>;
+    const scalar = (part: unknown) =>
+      typeof part === "string" || typeof part === "number"
+        ? String(part)
+        : undefined;
+    const text = scalar(label) ?? scalar(value);
+    if (!text) return [];
+    return [
+      {
+        value: scalar(value) ?? text,
+        label: text,
+        ...(typeof description === "string" && { description }),
+      },
+    ];
+  });
+}
+
 const descriptions: Record<IntelligentUiComponentName, string> = {
   Stack:
     "Flex layout, a column by default. Use as the root. Leave gap unset on the root; set it on rows.",
-  Grid: "Equal columns that collapse to fewer on narrow widths.",
-  Card: "Bordered group with an optional title and description.",
+  Grid: "Equal columns (1 to 12) that collapse on narrow widths; minChildWidth (px) sets when.",
+  Card: "Bordered group with an optional title and description; soft is a filled panel for summaries.",
   Tabs: "Switches between Tab panels.",
   Tab: "One panel of Tabs.",
   Separator: "Thin divider line.",
-  Heading: "Heading; level 1 is the largest. Use level 2 or 3 inside a Card.",
-  Text: "Paragraph of plain text.",
+  Heading:
+    "Heading; level 1 is the largest. Use level 2 or 3 inside a Card. size overrides the look, e.g. 2xl for a big number.",
+  Text: 'Paragraph of plain text, or a list mixing strings and inline components: [Icon("clock", "sm"), " 25 min · ", Badge("Easy")].',
   Markdown:
     "Rich text with **bold**, lists, links and `code`. Prefer Text for short lines.",
-  List: "Bulleted or numbered list of short strings.",
-  Badge: "Short label for a quick fact or status.",
+  List: "Bulleted or numbered list of strings or ListItems; timeline joins the markers with a line, for schedules and histories.",
+  ListItem:
+    "List entry with a description; marker replaces the bullet, e.g. a time or an emoji.",
+  Badge: "Short label for a quick fact or status; icon is a Lucide name.",
   Stat: "Key number with a label, for KPIs and totals.",
   Callout: "Highlighted note, tip or warning.",
   Button:
-    "Runs its action on click. Without an action it sends its label to the assistant.",
-  Input: "Single-line text field.",
+    "Runs its action on click. Without an action it sends its label to the assistant. color danger for destructive steps.",
+  Form: "Groups fields; a Button inside that sends a message first checks every field's rules.",
+  Input: "Single-line text field; a number field stores numbers.",
   Textarea: "Multi-line text field.",
   Select: "Dropdown that picks one option.",
-  Slider: "Picks a number in a range.",
+  Slider:
+    'Picks a number in a range; unit like "%" or "kg" follows the value, marks label points on the track.',
   Switch: "On/off toggle for a setting.",
   Checkbox: "Tickable item; use for checklists.",
-  RadioGroup: "Picks one option from a short visible list.",
+  RadioGroup:
+    "Picks one option from a short visible list; pills for short choices, cards for options with a description.",
   SegmentedControl:
     "Compact one-of-few picker that filters or switches a view.",
-  Table: "Rows and columns of plain values.",
+  Table:
+    "Rows and columns of values; a cell may be a component such as a Badge. Number columns align right.",
   Progress: "Bar from 0 to 100.",
   Chart:
-    "Chart over a list of objects: x names the category key, series the numeric keys. Every series entry must be a key spelled exactly as in the data objects, never a separate display name; the legend shows these keys, so name the keys the way the reader should see them. Donut uses the first series.",
+    'Chart over a list of objects: x names the category key (a number key for scatter), series the numeric keys (default: every number key). Every series entry must be a key spelled exactly as in the data objects, never a separate display name; the legend shows these keys, so name the keys the way the reader should see them. Pie and donut use the first series; format "percent" shows their slices as shares. stacked stacks bar and area series; height is in px.',
 };
 
 const componentGroups = [
@@ -210,6 +329,7 @@ const componentGroups = [
       "Text",
       "Markdown",
       "List",
+      "ListItem",
       "Badge",
       "Stat",
       "Callout",
@@ -219,6 +339,7 @@ const componentGroups = [
     name: "Inputs",
     components: [
       "Button",
+      "Form",
       "Input",
       "Textarea",
       "Select",
@@ -232,9 +353,14 @@ const componentGroups = [
       "- An input's first argument is its value, a $variable that other statements read.",
       "- Every input changes something shown in the block, or feeds a Button whose @ToAssistant message continues the conversation. No dead inputs.",
       "- You cannot see what the user picked or typed unless they send it: a block's values reach you only with the message of a Button that runs @ToAssistant, which appends every $variable's current value. So whenever you need the user's choice or answer (a RadioGroup, Select, Checkbox, Input and the like), put a submit Button with @ToAssistant in the same block, and do not ask the user to just pick something. If one click should answer, use one Button per option instead of a picker.",
+      "- When some answers are needed before sending, wrap the fields and the submit Button in a Form and give the fields rules. Rules is an object of required, email, url, numeric (booleans), min, max (numbers), minLength, maxLength (characters) and pattern (a regex string), e.g. {required: true, min: 1}.",
     ],
   },
-  { name: "Data", components: ["Table", "Progress", "Chart"] },
+  {
+    name: "Data",
+    components: ["Table", "Progress", "Chart", "Steps", "Step"],
+  },
+  { name: "Interactive", components: ["Flashcard", "Celebration"] },
 ];
 
 /** Stand-in renderer for prompt generation, where nothing renders. */
@@ -274,6 +400,14 @@ $months = 24
 inputs = Stack([Slider($monthly, 50, 2000, 50, "Saved per month"), Slider($months, 6, 60, 6, "Months")], "column", "md")
 result = Grid([Stat("Total saved", "$" + $monthly * $months), Stat("Per year", "$" + $monthly * 12)], 2)`;
 
+const exampleForm = `root = Card([form], "Set up your workspace")
+$name = ""
+$size = ""
+$plan = "pro"
+form = Form([Input($name, "Workspace name", "Acme", "text", {required: true}), size, plan, Button("Continue", @ToAssistant("Set up my workspace"))])
+size = RadioGroup($size, ["1-5", "6-20", "21+"], "Team size", "pills", {required: true})
+plan = RadioGroup($plan, [{value: "free", label: "Free", description: "Up to 3 projects"}, {value: "pro", label: "Pro", description: "Unlimited projects"}], "Plan", "cards")`;
+
 const exampleCompare = `root = Stack([intro, view, shown])
 $view = "Chart"
 intro = Text("Quarterly revenue by product line.", "muted")
@@ -282,7 +416,7 @@ chart = Chart("bar", data, "quarter", ["cloud", "devices"])
 shown = $view == "Chart" ? chart : Table(["Quarter", "Cloud", "Devices"], [["Q1", 120, 80], ["Q2", 150, 95], ["Q3", 170, 90]])
 data = [{quarter: "Q1", cloud: 120, devices: 80}, {quarter: "Q2", cloud: 150, devices: 95}, {quarter: "Q3", cloud: 170, devices: 90}]`;
 
-const rules = [
+const promptRules = [
   'A block that collects a choice or answer from the user always ends with a Button that sends it with @ToAssistant (for example "Continue" or "Confirm"); without it the answer never reaches you and the user has no way to submit.',
   "Use @ToAssistant only for what the block cannot compute itself, such as a follow-up request. Its message is short and first person, written as the user would type it.",
   "Keep inputs and lists in $variables, compute what is shown from them with expressions, and change them with @Set and @Reset, so the block works without another message.",
@@ -325,8 +459,13 @@ export function intelligentUiSystemPrompt(): string {
   if (cachedSystemPrompt !== undefined) return cachedSystemPrompt;
   const generated = createIntelligentUiLibrary().prompt({
     preamble: "",
-    additionalRules: rules,
-    examples: [exampleChecklist, exampleCalculator, exampleCompare],
+    additionalRules: promptRules,
+    examples: [
+      exampleChecklist,
+      exampleCalculator,
+      exampleForm,
+      exampleCompare,
+    ],
     bindings: true,
   });
   const nested = generated

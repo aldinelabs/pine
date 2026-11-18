@@ -5,7 +5,7 @@ import {
   type ActionEvent,
   type ParseResult,
 } from "@openuidev/vue-lang";
-import { computed, inject, ref } from "vue";
+import { computed, inject, provide, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import { toast } from "vue-sonner";
 import {
@@ -21,7 +21,7 @@ import { Button } from "@/components/ui/button";
 import DialogScrollArea from "@/components/dialogs/DialogScrollArea.vue";
 import { INTELLIGENT_UI_FENCE_LANGUAGE } from "@/shared/intelligentUi";
 import CodeBlock from "@/components/markdown/CodeBlock.vue";
-import { intelligentUiHostKey } from "./context";
+import { intelligentUiHostKey, isWebUrl, iuiOpenUrlKey } from "./context";
 import {
   interactionMessage,
   readBlockState,
@@ -77,10 +77,14 @@ function handleAction(event: ActionEvent): void {
     host.send(message);
   } else if (event.type === BuiltinActionType.OpenUrl) {
     const url: unknown = event.params?.url;
-    if (typeof url === "string" && /^https?:\/\//iu.test(url))
-      pendingUrl.value = url;
+    if (isWebUrl(url)) pendingUrl.value = url;
   }
 }
+
+// Link components ask through the same confirmation as @OpenUrl.
+provide(iuiOpenUrlKey, (url) => {
+  pendingUrl.value = url;
+});
 
 async function openPendingUrl(): Promise<void> {
   const url = pendingUrl.value;

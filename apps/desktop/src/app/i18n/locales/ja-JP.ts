@@ -13,6 +13,17 @@ export default {
   },
   intelligentUi: {
     sendUnavailable: "この回答からはメッセージを送信できません。",
+    rules: {
+      required: "必須です",
+      email: "有効なメールアドレスを入力してください",
+      url: "有効な URL を入力してください",
+      numeric: "数値を入力してください",
+      min: "{arg} 以上にしてください",
+      max: "{arg} 以下にしてください",
+      minLength: "{arg} 文字以上で入力してください",
+      maxLength: "{arg} 文字以内で入力してください",
+      pattern: "形式が正しくありません",
+    },
   },
   markdown: {
     copyCode: "コードをコピー",

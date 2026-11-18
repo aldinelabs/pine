@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { chartSeriesKeys } from "../intelligentUiChart";
+import { chartAxes, chartSeriesKeys } from "../intelligentUiChart";
 
 describe("chartSeriesKeys", () => {
   const rows = [
@@ -21,5 +21,32 @@ describe("chartSeriesKeys", () => {
   it("leaves series alone when the numeric keys do not line up", () => {
     expect(chartSeriesKeys(rows, "species", ["全脑"])).toEqual(["全脑"]);
     expect(chartSeriesKeys([], "species", ["全脑"])).toEqual(["全脑"]);
+  });
+});
+
+describe("chartAxes", () => {
+  const rows = [
+    { month: "Jan", sales: 3, costs: 2 },
+    { month: "Feb", sales: 5, costs: 4 },
+  ];
+
+  it("keeps an x and series the block gives", () => {
+    expect(chartAxes(rows, "bar", "month", ["sales"])).toEqual({
+      x: "month",
+      series: ["sales"],
+    });
+  });
+
+  it("infers the category key and every numeric series", () => {
+    expect(chartAxes(rows, "line", undefined, undefined)).toEqual({
+      x: "month",
+      series: ["sales", "costs"],
+    });
+  });
+
+  it("plots the first number key on x for scatter", () => {
+    expect(
+      chartAxes([{ height: 170, weight: 65 }], "scatter", undefined, []),
+    ).toEqual({ x: "height", series: ["weight"] });
   });
 });
