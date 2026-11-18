@@ -13,6 +13,10 @@ export default {
   },
   intelligentUi: {
     sendUnavailable: "这里的回答无法发送消息。",
+    carousel: {
+      previous: "上一项",
+      next: "下一项",
+    },
     rules: {
       required: "必填",
       email: "请输入有效的邮箱地址",

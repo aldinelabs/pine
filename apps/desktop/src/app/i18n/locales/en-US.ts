@@ -13,6 +13,10 @@ export default {
   },
   intelligentUi: {
     sendUnavailable: "This answer can't send messages here.",
+    carousel: {
+      previous: "Previous",
+      next: "Next",
+    },
     rules: {
       required: "Required",
       email: "Enter a valid email address",

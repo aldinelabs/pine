@@ -48,6 +48,8 @@ const cell = z.union([z.string(), z.number(), z.boolean(), z.null()]);
 const datum = z.record(z.string(), z.union([z.string(), z.number(), z.null()]));
 /** Text, or a list mixing strings and inline components such as Icon or Badge. */
 const richText = z.union([z.string(), children]);
+/** Plain text, or components. */
+const slot = z.union([z.string(), children]);
 
 /** A field's checks inside a Form: `{required: true, min: 1, email: true}`. */
 const rules = z.object({
@@ -84,6 +86,7 @@ const ListItem = z.object({
   marker: z.string().optional(),
   children: children.optional(),
 });
+const AccordionItem = z.object({ title: z.string(), children });
 
 export const intelligentUiSchemas = {
   Stack: z.object({
@@ -94,6 +97,26 @@ export const intelligentUiSchemas = {
     justify: justify.optional(),
     wrap: z.boolean().optional(),
   }),
+  Row: z.object({
+    children,
+    gap: gap.optional(),
+    align: align.optional(),
+    justify: justify.optional(),
+    wrap: z.boolean().optional(),
+  }),
+  Box: z.object({
+    children,
+    padding: gap.optional(),
+    background: z
+      .enum(["none", "muted", "info", "success", "warning", "danger"])
+      .optional(),
+    border: z.boolean().optional(),
+    radius: z.enum(["none", "sm", "md", "lg", "full"]).optional(),
+    direction: z.enum(["column", "row"]).optional(),
+    gap: gap.optional(),
+    align: align.optional(),
+  }),
+  Spacer: z.object({}),
   Grid: z.object({
     children,
     columns: z.number().int().min(1).max(12).optional(),
@@ -107,6 +130,16 @@ export const intelligentUiSchemas = {
   }),
   Tabs: z.object({ tabs: z.array(node) }),
   Tab: z.object({ label: z.string(), children }),
+  Accordion: z.object({
+    items: z.array(AccordionItem),
+    multiple: z.boolean().optional(),
+  }),
+  AccordionItem,
+  Carousel: z.object({
+    children,
+    itemWidth: z.number().optional(),
+  }),
+  Popover: z.object({ trigger: slot, content: slot }),
   Separator: z.object({}),
   Heading: z.object({
     text: z.string(),
@@ -122,6 +155,8 @@ export const intelligentUiSchemas = {
     lineThrough: z.boolean().optional(),
     maxLines: z.number().int().min(1).optional(),
   }),
+  Caption: z.object({ text: z.string(), tone: tone.optional() }),
+  Label: z.object({ text: z.string() }),
   Markdown: z.object({ source: z.string() }),
   List: z.object({
     items: z.array(z.union([z.string(), ListItem])),
@@ -129,6 +164,10 @@ export const intelligentUiSchemas = {
     timeline: z.boolean().optional(),
   }),
   ListItem,
+  Link: z.object({ text: z.string(), url: z.string() }),
+  Quote: z.object({ text: z.string(), cite: z.string().optional() }),
+  Code: z.object({ code: z.string(), language: z.string().optional() }),
+  Math: z.object({ tex: z.string(), inline: z.boolean().optional() }),
   Badge: z.object({
     text: z.string(),
     variant: z
@@ -136,6 +175,17 @@ export const intelligentUiSchemas = {
       .optional(),
     color: color.optional(),
     icon: z.string().optional(),
+  }),
+  Icon: z.object({
+    name: z.string(),
+    size: z.enum(["sm", "md", "lg", "xl"]).optional(),
+    color: color.optional(),
+  }),
+  Image: z.object({
+    src: z.string(),
+    alt: z.string(),
+    aspectRatio: z.number().optional(),
+    fit: z.enum(["cover", "contain"]).optional(),
   }),
   Stat: z.object({
     label: z.string(),
@@ -280,20 +330,38 @@ export function intelligentUiOptions(raw: unknown): IntelligentUiOption[] {
 const descriptions: Record<IntelligentUiComponentName, string> = {
   Stack:
     "Flex layout, a column by default. Use as the root. Leave gap unset on the root; set it on rows.",
+  Row: "Horizontal layout, items vertically centered; a Spacer pushes items apart.",
+  Box: "Container with optional padding, fill, border and radius, for custom tiles.",
+  Spacer: "Fills the free space in a Row.",
   Grid: "Equal columns (1 to 12) that collapse on narrow widths; minChildWidth (px) sets when.",
   Card: "Bordered group with an optional title and description; soft is a filled panel for summaries.",
   Tabs: "Switches between Tab panels.",
   Tab: "One panel of Tabs.",
+  Accordion: "Collapsible sections for FAQs or optional details.",
+  AccordionItem: "One section of an Accordion.",
+  Carousel:
+    "Horizontal row that scrolls, each child an item itemWidth px wide (default 240): photos, cards, flashcards.",
+  Popover:
+    "Shows content in a small panel when the trigger is clicked: a definition, a source. The trigger is text or an Icon, never a Button.",
   Separator: "Thin divider line.",
   Heading:
     "Heading; level 1 is the largest. Use level 2 or 3 inside a Card. size overrides the look, e.g. 2xl for a big number.",
   Text: 'Paragraph of plain text, or a list mixing strings and inline components: [Icon("clock", "sm"), " 25 min · ", Badge("Easy")].',
+  Caption: "Small secondary text, such as a footnote or source.",
+  Label: "Short label above a group of content.",
   Markdown:
     "Rich text with **bold**, lists, links and `code`. Prefer Text for short lines.",
   List: "Bulleted or numbered list of strings or ListItems; timeline joins the markers with a line, for schedules and histories.",
   ListItem:
     "List entry with a description; marker replaces the bullet, e.g. a time or an emoji.",
+  Link: "Link to an http(s) URL, opened in the browser.",
+  Quote: "Quotation with a side rule; cite names the source.",
+  Code: "Short highlighted snippet that illustrates the block; code to copy goes in a normal fence.",
+  Math: 'LaTeX formula, e.g. Math("E = mc^2"); inline true to sit in a Text list.',
   Badge: "Short label for a quick fact or status; icon is a Lucide name.",
+  Icon: 'Lucide icon by kebab-case name, e.g. "map-pin"; unknown names show nothing.',
+  Image:
+    "Picture from a URL or file path the user or a tool gave; never invent one. aspectRatio is width / height (default 1.5).",
   Stat: "Key number with a label, for KPIs and totals.",
   Callout: "Highlighted note, tip or warning.",
   Button:
@@ -320,17 +388,39 @@ const descriptions: Record<IntelligentUiComponentName, string> = {
 const componentGroups = [
   {
     name: "Layout",
-    components: ["Stack", "Grid", "Card", "Tabs", "Tab", "Separator"],
+    components: [
+      "Stack",
+      "Row",
+      "Box",
+      "Spacer",
+      "Grid",
+      "Card",
+      "Tabs",
+      "Tab",
+      "Accordion",
+      "AccordionItem",
+      "Carousel",
+      "Popover",
+      "Separator",
+    ],
   },
   {
     name: "Content",
     components: [
       "Heading",
       "Text",
+      "Caption",
+      "Label",
       "Markdown",
       "List",
       "ListItem",
+      "Link",
+      "Quote",
+      "Code",
+      "Math",
       "Badge",
+      "Icon",
+      "Image",
       "Stat",
       "Callout",
     ],

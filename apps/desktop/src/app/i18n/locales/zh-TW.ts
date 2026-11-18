@@ -13,6 +13,10 @@ export default {
   },
   intelligentUi: {
     sendUnavailable: "這裡的回答無法傳送訊息。",
+    carousel: {
+      previous: "上一項",
+      next: "下一項",
+    },
     rules: {
       required: "必填",
       email: "請輸入有效的電子郵件地址",

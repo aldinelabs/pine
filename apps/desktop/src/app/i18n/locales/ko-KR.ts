@@ -13,6 +13,10 @@ export default {
   },
   intelligentUi: {
     sendUnavailable: "이 답변에서는 메시지를 보낼 수 없습니다.",
+    carousel: {
+      previous: "이전",
+      next: "다음",
+    },
     rules: {
       required: "필수 항목입니다",
       email: "올바른 이메일 주소를 입력하세요",

@@ -13,6 +13,10 @@ export default {
   },
   intelligentUi: {
     sendUnavailable: "Cette réponse ne peut pas envoyer de messages ici.",
+    carousel: {
+      previous: "Précédent",
+      next: "Suivant",
+    },
     rules: {
       required: "Obligatoire",
       email: "Saisissez une adresse e-mail valide",

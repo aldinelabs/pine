@@ -13,6 +13,10 @@ export default {
   },
   intelligentUi: {
     sendUnavailable: "この回答からはメッセージを送信できません。",
+    carousel: {
+      previous: "前へ",
+      next: "次へ",
+    },
     rules: {
       required: "必須です",
       email: "有効なメールアドレスを入力してください",

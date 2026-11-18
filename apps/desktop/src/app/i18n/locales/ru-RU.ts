@@ -13,6 +13,10 @@ export default {
   },
   intelligentUi: {
     sendUnavailable: "Этот ответ не может отправлять сообщения здесь.",
+    carousel: {
+      previous: "Назад",
+      next: "Далее",
+    },
     rules: {
       required: "Обязательное поле",
       email: "Введите корректный адрес электронной почты",
