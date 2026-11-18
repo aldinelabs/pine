@@ -1031,9 +1031,20 @@ export default {
         state: {
           preparing: "Préparation…",
           downloading: "Téléchargement du modèle vocal… {percent} %",
+          downloadingSpeakers:
+            "Téléchargement des modèles de locuteurs… {percent} %",
           listening: "Écoute en cours",
           paused: "En pause",
           stopping: "Arrêt…",
+        },
+        speakers: {
+          identify: "Identifier les locuteurs",
+          note: "Distingue les voix sur ce Mac, pour chaque source. Télécharge environ 35 Mo une fois et utilise un peu plus de processeur ; les étiquettes arrivent quelques secondes plus tard et peuvent se tromper.",
+          numbered: "Locuteur {n}",
+          rename: "Renommer",
+          mergeInto: "Fusionner avec",
+          failed:
+            "Les étiquettes de locuteurs sont désactivées pour cette capture : {message}",
         },
         noSession:
           "Ouvrez une conversation pour y capturer le contexte en direct.",

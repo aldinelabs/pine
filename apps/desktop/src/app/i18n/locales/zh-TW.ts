@@ -961,9 +961,18 @@ export default {
         state: {
           preparing: "正在準備…",
           downloading: "正在下載語音模型… {percent}%",
+          downloadingSpeakers: "正在下載說話者模型… {percent}%",
           listening: "正在收聽",
           paused: "已暫停",
           stopping: "正在停止…",
+        },
+        speakers: {
+          identify: "辨識說話者",
+          note: "在本機區分不同的聲音（麥克風和系統音訊分開辨識）。首次開啟需下載約 35 MB，會多佔用一些 CPU；標籤會晚幾秒出現，也可能出錯。",
+          numbered: "說話者 {n}",
+          rename: "重新命名",
+          mergeInto: "合併到",
+          failed: "這次記錄未啟用說話者辨識：{message}",
         },
         noSession: "開啟一個對話後即可為其記錄即時上下文。",
         elsewhere: "另一個對話正在記錄即時上下文。",

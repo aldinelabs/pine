@@ -27,7 +27,10 @@ const listeningHere: LiveContextStatus = {
   startedAt: 0,
 };
 
-function stubApi(status: LiveContextStatus) {
+function stubApi(
+  status: LiveContextStatus,
+  transcript?: { segments: unknown[]; speakers: unknown },
+) {
   let emit: (event: LiveContextEvent) => void = () => undefined;
   const api = {
     status: vi.fn().mockResolvedValue(status),
@@ -35,16 +38,21 @@ function stubApi(status: LiveContextStatus) {
     pause: vi.fn().mockResolvedValue({ ...listeningHere, state: "paused" }),
     resume: vi.fn().mockResolvedValue(listeningHere),
     stop: vi.fn().mockResolvedValue(idle),
-    transcript: vi.fn().mockResolvedValue([
-      {
-        id: "a",
-        source: "system",
-        start: 0,
-        end: 1,
-        text: "期末考第五章",
-        final: true,
+    transcript: vi.fn().mockResolvedValue(
+      transcript ?? {
+        segments: [
+          {
+            id: "a",
+            source: "system",
+            start: 0,
+            end: 1,
+            text: "期末考第五章",
+            final: true,
+          },
+        ],
+        speakers: { names: {}, merges: {} },
       },
-    ]),
+    ),
     subscribe: vi.fn((listener: (event: LiveContextEvent) => void) => {
       emit = listener;
       return () => undefined;
@@ -133,5 +141,60 @@ describe("WorkbenchLiveContextPanel", () => {
     expect(wrapper.find("[data-testid=live-context-start]").exists()).toBe(
       false,
     );
+  });
+
+  it("offers speaker labels off by default and asks for them when turned on", async () => {
+    const { api } = stubApi({ ...idle, speakersAvailable: true });
+    const wrapper = await mountPanel();
+    const toggle = wrapper.get("[data-testid=live-context-identify-speakers]");
+    expect(toggle.attributes("aria-checked")).toBe("false");
+    expect(wrapper.text()).toContain("Identify speakers");
+    await toggle.trigger("click");
+    await wrapper.get("[data-testid=live-context-start]").trigger("click");
+    await flushPromises();
+    expect(api.start).toHaveBeenCalledWith(
+      expect.objectContaining({ speakers: true }),
+    );
+  });
+
+  it("hides the speaker option when this build cannot label speakers", async () => {
+    stubApi(idle);
+    const wrapper = await mountPanel();
+    expect(
+      wrapper.find("[data-testid=live-context-identify-speakers]").exists(),
+    ).toBe(false);
+  });
+
+  it("splits labeled segments by speaker, with names and merges applied", async () => {
+    stubApi(idle, {
+      segments: [
+        {
+          id: "a",
+          source: "system",
+          start: 0,
+          end: 1,
+          text: "大家好。好的。我补充。",
+          final: true,
+          turns: [
+            { offset: 0, speaker: "system-1" },
+            { offset: 4, speaker: "system-2" },
+            { offset: 7, speaker: "system-3" },
+          ],
+        },
+      ],
+      speakers: {
+        names: { "system-1": "Alice" },
+        merges: { "system-3": "system-2" },
+      },
+    });
+    const wrapper = await mountPanel();
+    const chips = wrapper.findAll("[data-testid=live-context-speaker]");
+    expect(
+      chips.map((chip) => [chip.attributes("data-speaker"), chip.text()]),
+    ).toEqual([
+      ["system-1", "Alice"],
+      ["system-2", "Speaker 2"],
+    ]);
+    expect(wrapper.text()).toContain("好的。我补充。");
   });
 });

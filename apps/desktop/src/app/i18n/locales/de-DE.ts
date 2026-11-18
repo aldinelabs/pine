@@ -1036,9 +1036,19 @@ export default {
         state: {
           preparing: "Wird vorbereitet …",
           downloading: "Sprachmodell wird geladen … {percent} %",
+          downloadingSpeakers: "Sprechermodelle werden geladen … {percent} %",
           listening: "Hört zu",
           paused: "Pausiert",
           stopping: "Wird beendet …",
+        },
+        speakers: {
+          identify: "Sprecher erkennen",
+          note: "Unterscheidet Stimmen auf diesem Mac, getrennt nach Quelle. Lädt einmalig etwa 35 MB und braucht etwas mehr CPU; Beschriftungen erscheinen einige Sekunden später und können falsch sein.",
+          numbered: "Sprecher {n}",
+          rename: "Umbenennen",
+          mergeInto: "Zusammenführen mit",
+          failed:
+            "Sprecherbeschriftungen sind für diese Aufnahme aus: {message}",
         },
         noSession:
           "Öffne eine Unterhaltung, um Live-Kontext dafür aufzunehmen.",

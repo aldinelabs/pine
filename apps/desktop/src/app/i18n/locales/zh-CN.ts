@@ -957,9 +957,18 @@ export default {
         state: {
           preparing: "正在准备…",
           downloading: "正在下载语音模型… {percent}%",
+          downloadingSpeakers: "正在下载说话人模型… {percent}%",
           listening: "正在收听",
           paused: "已暂停",
           stopping: "正在停止…",
+        },
+        speakers: {
+          identify: "识别说话人",
+          note: "在本机区分不同的声音（麦克风和系统音频分开识别）。首次开启需下载约 35 MB，会多占用一些 CPU；标签会晚几秒出现，也可能出错。",
+          numbered: "说话人 {n}",
+          rename: "重命名",
+          mergeInto: "合并到",
+          failed: "本次记录未启用说话人识别：{message}",
         },
         noSession: "打开一个对话后即可为其记录实时上下文。",
         elsewhere: "另一个对话正在记录实时上下文。",

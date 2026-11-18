@@ -19,7 +19,9 @@ import {
 } from "./shared/piProviders";
 import {
   LIVE_CONTEXT_EVENT_CHANNEL,
+  LIVE_CONTEXT_MERGE_SPEAKERS_CHANNEL,
   LIVE_CONTEXT_PAUSE_CHANNEL,
+  LIVE_CONTEXT_RENAME_SPEAKER_CHANNEL,
   LIVE_CONTEXT_RESUME_CHANNEL,
   LIVE_CONTEXT_START_CHANNEL,
   LIVE_CONTEXT_STATUS_CHANNEL,
@@ -153,6 +155,10 @@ const pineApi: PineDesktopApi = {
     stop: () => ipcRenderer.invoke(LIVE_CONTEXT_STOP_CHANNEL),
     transcript: (target) =>
       ipcRenderer.invoke(LIVE_CONTEXT_TRANSCRIPT_CHANNEL, target),
+    renameSpeaker: (request) =>
+      ipcRenderer.invoke(LIVE_CONTEXT_RENAME_SPEAKER_CHANNEL, request),
+    mergeSpeakers: (request) =>
+      ipcRenderer.invoke(LIVE_CONTEXT_MERGE_SPEAKERS_CHANNEL, request),
     subscribe: (listener) => {
       const handler = (_event: unknown, event: LiveContextEvent) =>
         listener(event);

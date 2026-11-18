@@ -1024,9 +1024,18 @@ export default {
         state: {
           preparing: "準備中…",
           downloading: "音声モデルをダウンロード中… {percent}%",
+          downloadingSpeakers: "話者モデルをダウンロード中… {percent}%",
           listening: "聞き取り中",
           paused: "一時停止中",
           stopping: "停止中…",
+        },
+        speakers: {
+          identify: "話者を識別",
+          note: "この Mac 上で声を聞き分けます（マイクとシステム音声は別々に識別）。初回は約 35 MB をダウンロードし、CPU を少し多く使います。ラベルは数秒遅れて表示され、誤ることもあります。",
+          numbered: "話者 {n}",
+          rename: "名前を変更",
+          mergeInto: "統合先",
+          failed: "今回の記録では話者識別がオフです: {message}",
         },
         noSession: "会話を開くと、その会話のライブコンテキストを記録できます。",
         elsewhere: "別の会話がライブコンテキストを記録しています。",

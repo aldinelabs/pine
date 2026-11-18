@@ -1014,9 +1014,18 @@ export default {
         state: {
           preparing: "Preparing…",
           downloading: "Downloading speech model… {percent}%",
+          downloadingSpeakers: "Downloading speaker models… {percent}%",
           listening: "Listening",
           paused: "Paused",
           stopping: "Stopping…",
+        },
+        speakers: {
+          identify: "Identify speakers",
+          note: "Tells voices apart on this Mac, within each source. Downloads about 35 MB once and uses a little more CPU; labels appear a few seconds late and can be wrong.",
+          numbered: "Speaker {n}",
+          rename: "Rename",
+          mergeInto: "Merge into",
+          failed: "Speaker labels are off for this capture: {message}",
         },
         noSession: "Open a conversation to capture live context for it.",
         elsewhere: "Another conversation is capturing live context.",

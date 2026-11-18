@@ -1007,9 +1007,18 @@ export default {
         state: {
           preparing: "준비 중…",
           downloading: "음성 모델 다운로드 중… {percent}%",
+          downloadingSpeakers: "화자 모델 다운로드 중… {percent}%",
           listening: "듣는 중",
           paused: "일시정지됨",
           stopping: "중지하는 중…",
+        },
+        speakers: {
+          identify: "화자 구분",
+          note: "이 Mac에서 목소리를 구분합니다(마이크와 시스템 오디오는 따로 구분). 처음 켤 때 약 35MB를 내려받고 CPU를 조금 더 사용합니다. 라벨은 몇 초 늦게 표시되며 틀릴 수 있습니다.",
+          numbered: "화자 {n}",
+          rename: "이름 변경",
+          mergeInto: "병합 대상",
+          failed: "이번 기록에서는 화자 구분이 꺼져 있습니다: {message}",
         },
         noSession:
           "대화를 열면 해당 대화의 실시간 컨텍스트를 기록할 수 있습니다.",

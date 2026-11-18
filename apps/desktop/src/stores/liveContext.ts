@@ -5,9 +5,13 @@ import {
   type LiveContextEvent,
   type LiveContextSegment,
   type LiveContextSource,
+  type LiveContextSpeakerKey,
+  type LiveContextSpeakers,
   type LiveContextStatus,
   type LiveContextTarget,
+  type LiveContextTurn,
 } from "@/shared/liveContext";
+import { emptySpeakers } from "@/shared/liveContextSpeakers";
 
 /**
  * The app-wide Live Context capture and the transcripts of the sessions the
@@ -22,9 +26,25 @@ export const useLiveContextStore = defineStore("liveContext", () => {
   const transcripts = reactive(new Map<string, LiveContextSegment[]>());
   /** The text still forming, per source, for the capturing session. */
   const volatile = reactive(new Map<LiveContextSource, LiveContextSegment>());
+  /** Speaker names and merges per session. */
+  const speakers = reactive(new Map<string, LiveContextSpeakers>());
+  /** Whether the next capture labels speakers; off until the user opts in. */
+  const identifySpeakers = ref(false);
 
   const available = computed(() => Boolean(api) && status.value.available);
   const isCapturing = computed(() => status.value.state !== "idle");
+
+  function applyTurns(
+    sessionId: string,
+    segmentId: string,
+    turns: LiveContextTurn[],
+  ): void {
+    for (const [source, segment] of volatile)
+      if (segment.id === segmentId) volatile.set(source, { ...segment, turns });
+    const list = transcripts.get(sessionId);
+    const index = list?.findIndex(({ id }) => id === segmentId) ?? -1;
+    if (list && index >= 0) list[index] = { ...list[index], turns };
+  }
 
   function apply(event: LiveContextEvent): void {
     if (event.kind === "status") {
@@ -32,13 +52,25 @@ export const useLiveContextStore = defineStore("liveContext", () => {
       if (event.status.state === "idle") volatile.clear();
       return;
     }
+    if (event.kind === "turns") {
+      applyTurns(event.sessionId, event.segmentId, event.turns);
+      return;
+    }
+    if (event.kind === "speakers") {
+      speakers.set(event.sessionId, event.speakers);
+      return;
+    }
     const { segment, sessionId } = event;
     if (!segment.final) {
       volatile.set(segment.source, segment);
       return;
     }
-    if (volatile.get(segment.source)?.id === segment.id)
+    // A label that reached the volatile text first carries over.
+    const forming = volatile.get(segment.source);
+    if (forming?.id === segment.id) {
       volatile.delete(segment.source);
+      if (!segment.turns && forming.turns) segment.turns = forming.turns;
+    }
     const list = transcripts.get(sessionId);
     if (list && segment.text && !list.some(({ id }) => id === segment.id))
       list.push(segment);
@@ -57,15 +89,44 @@ export const useLiveContextStore = defineStore("liveContext", () => {
     const saved = await api.transcript(target);
     // Segments that arrived while reading stay, without duplicates.
     const live = transcripts.get(target.sessionId) ?? [];
-    const ids = new Set(saved.map(({ id }) => id));
+    const ids = new Set(saved.segments.map(({ id }) => id));
     transcripts.set(target.sessionId, [
-      ...saved,
+      ...saved.segments,
       ...live.filter(({ id }) => !ids.has(id)),
     ]);
+    speakers.set(target.sessionId, saved.speakers);
   }
 
   function segmentsOf(sessionId: string): LiveContextSegment[] {
     return transcripts.get(sessionId) ?? [];
+  }
+
+  function speakersOf(sessionId: string): LiveContextSpeakers {
+    return speakers.get(sessionId) ?? emptySpeakers();
+  }
+
+  async function renameSpeaker(
+    target: LiveContextTarget,
+    speaker: LiveContextSpeakerKey,
+    name: string,
+  ): Promise<void> {
+    if (!api) return;
+    speakers.set(
+      target.sessionId,
+      await api.renameSpeaker({ ...target, speaker, name }),
+    );
+  }
+
+  async function mergeSpeakers(
+    target: LiveContextTarget,
+    from: LiveContextSpeakerKey,
+    into: LiveContextSpeakerKey,
+  ): Promise<void> {
+    if (!api) return;
+    speakers.set(
+      target.sessionId,
+      await api.mergeSpeakers({ ...target, from, into }),
+    );
   }
 
   /** Volatile text, shown only in the capturing session. */
@@ -82,7 +143,12 @@ export const useLiveContextStore = defineStore("liveContext", () => {
     if (!api) return;
     if (!transcripts.has(target.sessionId))
       transcripts.set(target.sessionId, []);
-    status.value = await api.start({ ...target, sources, locale });
+    status.value = await api.start({
+      ...target,
+      sources,
+      locale,
+      speakers: identifySpeakers.value && status.value.speakersAvailable,
+    });
   }
 
   async function pause(): Promise<void> {
@@ -101,8 +167,12 @@ export const useLiveContextStore = defineStore("liveContext", () => {
     status,
     available,
     isCapturing,
+    identifySpeakers,
     load,
     segmentsOf,
+    speakersOf,
+    renameSpeaker,
+    mergeSpeakers,
     volatileOf,
     start,
     pause,

@@ -12,12 +12,22 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import LiveContextSpeakerChip from "@/components/workbench/LiveContextSpeakerChip.vue";
 import {
   LIVE_CONTEXT_LOCALES,
   LIVE_CONTEXT_SOURCES,
+  type LiveContextSegment,
   type LiveContextSource,
+  type LiveContextSpeakerKey,
 } from "@/shared/liveContext";
+import {
+  parseSpeakerKey,
+  segmentTurns,
+  speakersOf,
+} from "@/shared/liveContextSpeakers";
 import { useLiveContextStore } from "@/stores/liveContext";
 import { useProjectStore } from "@/stores/project";
 import { useSessionStore } from "@/stores/session";
@@ -61,6 +71,54 @@ const pending = computed(() =>
   target.value ? liveContext.volatileOf(target.value.sessionId) : [],
 );
 
+const speakers = computed(() =>
+  target.value
+    ? liveContext.speakersOf(target.value.sessionId)
+    : { names: {}, merges: {} },
+);
+
+function speakerLabel(speaker: LiveContextSpeakerKey): string {
+  return (
+    speakers.value.names[speaker] ??
+    t("project.workbench.liveContext.speakers.numbered", {
+      n: parseSpeakerKey(speaker).speaker,
+    })
+  );
+}
+
+/** Everyone heard so far, after merges, for the merge menu. */
+const knownSpeakers = computed(() =>
+  speakersOf([...segments.value, ...pending.value], speakers.value.merges).map(
+    (speaker) => ({ speaker, label: speakerLabel(speaker) }),
+  ),
+);
+
+/**
+ * Each segment as rows: one per speaker turn, each starting with who
+ * speaks. Without speaker labels a segment is one row, labeled by source.
+ */
+function rowsOf(segment: LiveContextSegment) {
+  return segmentTurns(segment, speakers.value.merges).map((piece, index) => ({
+    key: `${segment.id}-${index}`,
+    speaker: piece.speaker,
+    text: piece.text,
+  }));
+}
+
+function rename(speaker: LiveContextSpeakerKey, name: string): void {
+  const next = target.value;
+  if (next) void run(() => liveContext.renameSpeaker(next, speaker, name));
+}
+
+function merge(from: LiveContextSpeakerKey, into: LiveContextSpeakerKey): void {
+  const next = target.value;
+  if (next) void run(() => liveContext.mergeSpeakers(next, from, into));
+}
+
+function updateIdentifySpeakers(value: unknown): void {
+  liveContext.identifySpeakers = value === true;
+}
+
 const languageNames = computed(
   () => new Intl.DisplayNames([uiLocale.value], { type: "language" }),
 );
@@ -70,9 +128,12 @@ const stateLabel = computed(() => {
     case "preparing":
       return t("project.workbench.liveContext.state.preparing");
     case "downloading":
-      return t("project.workbench.liveContext.state.downloading", {
-        percent: Math.round((status.value.downloadProgress ?? 0) * 100),
-      });
+      return t(
+        status.value.download === "speakers"
+          ? "project.workbench.liveContext.state.downloadingSpeakers"
+          : "project.workbench.liveContext.state.downloading",
+        { percent: Math.round((status.value.downloadProgress ?? 0) * 100) },
+      );
     case "listening":
       return t("project.workbench.liveContext.state.listening");
     case "paused":
@@ -242,6 +303,25 @@ watch(
           }}
         </Button>
       </div>
+      <div
+        v-if="!isHere && !isElsewhere && status.speakersAvailable"
+        class="flex flex-col gap-1 px-1"
+      >
+        <div class="flex items-center gap-2">
+          <Switch
+            id="live-context-identify-speakers"
+            :model-value="liveContext.identifySpeakers"
+            data-testid="live-context-identify-speakers"
+            @update:model-value="updateIdentifySpeakers"
+          />
+          <Label for="live-context-identify-speakers" class="text-sm">
+            {{ t("project.workbench.liveContext.speakers.identify") }}
+          </Label>
+        </div>
+        <p class="text-muted-foreground text-xs">
+          {{ t("project.workbench.liveContext.speakers.note") }}
+        </p>
+      </div>
       <div v-else class="flex items-center gap-2 px-1">
         <span
           class="text-muted-foreground flex min-w-0 flex-1 items-center gap-2 text-sm"
@@ -296,7 +376,14 @@ watch(
         class="text-destructive px-1 text-xs"
         data-testid="live-context-error"
       >
-        {{ status.lastError.message }}
+        {{
+          status.lastError.code === "speaker_models_failed" ||
+          status.lastError.code === "speakers_unavailable"
+            ? t("project.workbench.liveContext.speakers.failed", {
+                message: status.lastError.message,
+              })
+            : status.lastError.message
+        }}
       </p>
 
       <ol
@@ -308,18 +395,39 @@ watch(
           v-for="segment in [...segments, ...pending]"
           :key="segment.id"
           :data-final="segment.final || undefined"
-          class="flex flex-col gap-0.5"
+          class="flex flex-col gap-1"
         >
-          <span class="text-muted-foreground text-xs tabular-nums">
-            {{ t(`project.workbench.liveContext.speaker.${segment.source}`) }}
-            · {{ time(segment.start) }}
-          </span>
-          <span
-            :class="segment.final ? undefined : 'text-muted-foreground'"
-            class="select-text"
-          >
-            {{ segment.text }}
-          </span>
+          <template v-for="(row, index) in rowsOf(segment)" :key="row.key">
+            <span
+              class="text-muted-foreground flex min-w-0 items-center gap-1 text-xs tabular-nums"
+            >
+              <LiveContextSpeakerChip
+                v-if="row.speaker"
+                :speaker="row.speaker"
+                :label="speakerLabel(row.speaker)"
+                :others="
+                  knownSpeakers.filter(({ speaker }) => speaker !== row.speaker)
+                "
+                :provisional="!segment.final"
+                @rename="(name) => row.speaker && rename(row.speaker, name)"
+                @merge="(into) => row.speaker && merge(row.speaker, into)"
+              />
+              <template v-else>
+                {{
+                  t(`project.workbench.liveContext.speaker.${segment.source}`)
+                }}
+              </template>
+              <template v-if="index === 0"
+                >· {{ time(segment.start) }}</template
+              >
+            </span>
+            <span
+              :class="segment.final ? undefined : 'text-muted-foreground'"
+              class="select-text"
+            >
+              {{ row.text }}
+            </span>
+          </template>
         </li>
       </ol>
       <p
