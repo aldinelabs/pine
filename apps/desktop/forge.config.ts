@@ -1,5 +1,12 @@
 import { execFileSync } from "node:child_process";
-import { cpSync, existsSync, mkdirSync, readFileSync, rmSync } from "node:fs";
+import {
+  cpSync,
+  existsSync,
+  mkdirSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+} from "node:fs";
 import path from "node:path";
 import type { ForgeConfig } from "@electron-forge/shared-types";
 import { MakerDMG } from "@electron-forge/maker-dmg";
@@ -30,6 +37,8 @@ const MAIN_RUNTIME_ENTRYPOINTS = [
 ] as const;
 
 const LIVE_CONTEXT_HELPER = "native/live-context/build/pine-live-context";
+/** sherpa-onnx and ONNX Runtime for speaker labels, beside the helper. */
+const LIVE_CONTEXT_LIB = "native/live-context/build/live-context-lib";
 
 function locateWorkspaceNodeModules(): string {
   let dir = process.cwd();
@@ -137,7 +146,36 @@ function injectRuntimeDeps(buildPath: string): void {
   }
 }
 
-function signMacPackage(outputPaths: string[]): void {
+/**
+ * The speaker-label libraries arrive universal; each package keeps only its
+ * own architecture (about half the size) and signs them before the helper
+ * that opens them.
+ */
+function prepareLiveContextLibraries(appPath: string, arch: string): void {
+  const folder = path.join(appPath, "Contents/Resources/live-context-lib");
+  if (!existsSync(folder)) return;
+  const slice = arch === "x64" ? "x86_64" : arch;
+  for (const name of readdirSync(folder)) {
+    if (!name.endsWith(".dylib")) continue;
+    const library = path.join(folder, name);
+    const archs = execFileSync("lipo", ["-archs", library], {
+      encoding: "utf8",
+    })
+      .trim()
+      .split(/\s+/);
+    if (archs.length > 1 && archs.includes(slice))
+      execFileSync("lipo", [library, "-thin", slice, "-output", library]);
+    execFileSync("codesign", [
+      "--force",
+      "--sign",
+      "-",
+      "--timestamp=none",
+      library,
+    ]);
+  }
+}
+
+function signMacPackage(outputPaths: string[], arch: string): void {
   for (const outputPath of outputPaths) {
     const appPath = path.join(outputPath, "Pine.app");
     if (!existsSync(appPath)) continue;
@@ -168,6 +206,7 @@ function signMacPackage(outputPaths: string[]): void {
       appPath,
       "Contents/Resources/pine-live-context",
     );
+    prepareLiveContextLibraries(appPath, arch);
     if (existsSync(liveContextHelper)) {
       execFileSync("codesign", [
         "--force",
@@ -277,6 +316,13 @@ const config: ForgeConfig = {
       existsSync(path.join(__dirname, LIVE_CONTEXT_HELPER))
         ? [path.join(__dirname, LIVE_CONTEXT_HELPER)]
         : []),
+      // Fetched (pinned, checksummed) by scripts/build-native.mjs; the models
+      // themselves download on first use.
+      ...(process.platform === "darwin" &&
+      existsSync(path.join(__dirname, LIVE_CONTEXT_HELPER)) &&
+      existsSync(path.join(__dirname, LIVE_CONTEXT_LIB))
+        ? [path.join(__dirname, LIVE_CONTEXT_LIB)]
+        : []),
     ],
     // The prompts macOS shows when Live Context first listens.
     extendInfo: {
@@ -311,7 +357,7 @@ const config: ForgeConfig = {
     },
     postPackage: (_forgeConfig, packageResult) => {
       if (packageResult.platform === "darwin") {
-        signMacPackage(packageResult.outputPaths);
+        signMacPackage(packageResult.outputPaths, packageResult.arch);
       }
       return Promise.resolve();
     },
