@@ -229,10 +229,11 @@ async function compactContext(): Promise<void> {
           <!-- A drawn bar rather than "|", which reaches past the digits. A
                thin, light line reads shorter than the figures' strokes, so it
                is drawn a little taller (0.85em) than their 0.73em to look
-               the same height. -->
+               the same height, and about as thick as their 1.6px stems
+               (0.11em). -->
           <span
             data-slot="context-usage-divider"
-            class="h-[0.85em] w-px shrink-0 bg-current opacity-60"
+            class="h-[0.85em] w-[0.11em] shrink-0 bg-current opacity-55"
             aria-hidden="true"
           />
           <span data-testid="context-usage-trigger-cost" class="tabular-nums">
