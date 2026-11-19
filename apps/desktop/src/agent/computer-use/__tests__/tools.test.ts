@@ -12,6 +12,7 @@ import {
   ComputerUseController,
   computerUseProfile,
   createComputerUseExtension,
+  fileUploadPathsForCall,
   MUNIM_COMPUTER_USE_TOOL_NAMES,
   resolveComputerUseSupportDirectory,
 } from "../tools";
@@ -323,6 +324,81 @@ describe("Computer Use identity", () => {
       ]);
     },
   );
+});
+
+describe("Computer Use file uploads", () => {
+  it("finds attachments directly and inside run_steps", () => {
+    expect(
+      fileUploadPathsForCall("browser_upload_file", { paths: ["/a.pdf"] }),
+    ).toEqual(["/a.pdf"]);
+    expect(
+      fileUploadPathsForCall("run_steps", {
+        steps: [
+          { tool: "browser_click", args: { index: 1 } },
+          { tool: "browser_upload_file", args: { paths: ["/b.png"] } },
+        ],
+      }),
+    ).toEqual(["/b.png"]);
+    expect(
+      fileUploadPathsForCall("run_steps", { steps: [{ tool: "click" }] }),
+    ).toBeNull();
+    expect(fileUploadPathsForCall("browser_click", {})).toBeNull();
+  });
+
+  it("reviews every attachment even inside an authorized task", async () => {
+    const client = fakeClient();
+    const review = vi
+      .fn<ToolGate["reviewPrivilegedCall"]>()
+      .mockResolvedValueOnce({ kind: "allow" })
+      .mockResolvedValueOnce({ kind: "allow" })
+      .mockResolvedValueOnce({ kind: "deny", reason: "Not that file" });
+    const controller = new ComputerUseController({
+      client,
+      getApprovalMode: () => "auto-approve",
+      getGate: () => fakeGate(review),
+    });
+
+    await controller.call("grant", "click", {});
+    await controller.call("upload", "browser_upload_file", {
+      tab_id: 3,
+      index: 4,
+      paths: ["/Users/u/report.pdf"],
+    });
+    await expect(
+      controller.call("batch", "run_steps", {
+        steps: [
+          { tool: "browser_upload_file", args: { paths: ["/etc/hosts"] } },
+        ],
+      }),
+    ).rejects.toThrow("Not that file");
+    await controller.call("read", "browser_read", { tab_id: 3 });
+
+    expect(review).toHaveBeenCalledTimes(3);
+    expect(review).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        toolName: "browser_upload_file",
+        subject: "Attach local files to a web page: /Users/u/report.pdf",
+      }),
+    );
+    expect(client.callTool).toHaveBeenCalledTimes(3);
+    expect(client.callTool).not.toHaveBeenCalledWith(
+      "run_steps",
+      expect.anything(),
+      undefined,
+    );
+  });
+
+  it("leaves attachments unreviewed in YOLO mode", async () => {
+    const review = vi.fn(() => Promise.resolve({ kind: "allow" as const }));
+    const controller = new ComputerUseController({
+      client: fakeClient(),
+      getApprovalMode: () => "YOLO",
+      getGate: () => fakeGate(review),
+    });
+    await controller.call("upload", "browser_upload_file", { paths: ["/a"] });
+    expect(review).not.toHaveBeenCalled();
+  });
 });
 
 describe("createComputerUseExtension", () => {

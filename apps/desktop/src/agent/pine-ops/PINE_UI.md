@@ -517,8 +517,11 @@ From top to bottom:
      task grant automatically. Ordinary clicks, typing, scrolling, app switching,
      and navigation then continue without per-action reviews. The grant ends
      when the run finishes, Stop response is used, or the approval mode changes;
-     it is not restored when reopening a session. OS permission requests and
-     browser extension installation are approved separately. When the agent needs a sign-in in a Pine browser tab, a
+     it is not restored when reopening a session. OS permission requests,
+     browser extension installation, and attaching files from this computer to
+     a web page are approved separately; every file attachment shows its own
+     Approval required card listing the files, even during an approved task
+     (YOLO excepted). When the agent needs a sign-in in a Pine browser tab, a
      small Chrome window naming the site asks the user for the credentials;
      what the user types goes straight into the page and is never shown to the
      agent. A previously registered Pine browser extension is re-pointed at the

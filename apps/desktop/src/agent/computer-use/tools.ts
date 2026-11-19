@@ -62,6 +62,32 @@ const OBSERVATION_TOOLS = new Set([
   "wait",
 ]);
 
+/** Sends local files to a web page, outside the project sandbox: reviewed on every call. */
+const FILE_UPLOAD_TOOL = "browser_upload_file";
+
+function uploadPaths(params: Record<string, unknown>): string[] {
+  return Array.isArray(params.paths)
+    ? params.paths.filter((item): item is string => typeof item === "string")
+    : [];
+}
+
+/** Local files a call would attach to a page, including inside `run_steps`; null when none. */
+export function fileUploadPathsForCall(
+  name: string,
+  params: Record<string, unknown>,
+): string[] | null {
+  if (name === FILE_UPLOAD_TOOL) return uploadPaths(params);
+  if (name !== "run_steps" || !Array.isArray(params.steps)) return null;
+  const uploads = params.steps.filter(
+    (step): step is Record<string, unknown> =>
+      isRecord(step) && step.tool === FILE_UPLOAD_TOOL,
+  );
+  if (uploads.length === 0) return null;
+  return uploads.flatMap((step) =>
+    isRecord(step.args) ? uploadPaths(step.args) : [],
+  );
+}
+
 /** The vendored Munim Computer Use release; see packages/computer-use-runtime/NOTICE.md. */
 export const MUNIM_COMPUTER_USE_VERSION = "0.14.1";
 
@@ -444,7 +470,10 @@ export class ComputerUseController {
     const setup =
       name === REQUEST_COMPUTER_USE_PERMISSIONS_TOOL_NAME ||
       name === INSTALL_PINE_BROWSER_EXTENSION_TOOL_NAME;
-    if (!setup && this.authorizedMode === mode) return;
+    if (!setup && this.authorizedMode === mode) {
+      await this.reviewFileUpload(toolCallId, name, params, signal);
+      return;
+    }
     const gate = this.options.getGate();
     if (!gate)
       throw new Error(
@@ -475,6 +504,36 @@ export class ComputerUseController {
       );
     }
     if (!setup) this.authorizedMode = mode;
+    if (!setup) await this.reviewFileUpload(toolCallId, name, params, signal);
+  }
+
+  private async reviewFileUpload(
+    toolCallId: string,
+    name: string,
+    params: Record<string, unknown>,
+    signal?: AbortSignal,
+  ): Promise<void> {
+    const paths = fileUploadPathsForCall(name, params);
+    if (!paths) return;
+    const gate = this.options.getGate();
+    if (!gate)
+      throw new Error(
+        "Computer control is unavailable without an approval gate.",
+      );
+    const generation = this.taskGeneration;
+    const decision = await gate.reviewPrivilegedCall({
+      toolCallId,
+      toolName: name,
+      subject: `Attach local files to a web page: ${paths.length > 0 ? paths.join(", ") : "(no paths given)"}`,
+      description: "Use Computer Use: Attach Files In Browser",
+      evidence:
+        "This stages files from this computer, outside the project filesystem sandbox, in a web page's file input, from where the site can receive them. Every file attachment needs its own approval, even during an authorized computer-control task.",
+      signal,
+    });
+    if (decision.kind === "deny") {
+      throw new Error(decision.reason ?? "This file attachment was denied.");
+    }
+    this.checkTask(generation, signal);
   }
 }
 
