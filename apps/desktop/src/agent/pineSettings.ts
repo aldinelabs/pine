@@ -47,6 +47,8 @@ export interface PineAgentSettings {
   approximateLocationEnabled?: boolean;
   /** Long-term memory; absent means on. */
   memoryEnabled?: boolean;
+  /** Computer Use tools for the agent; absent means on. */
+  computerUseEnabled?: boolean;
   contextCompactionStrategy?: PineContextCompactionStrategy;
   contextCompactionRoute?: PineContextCompactionRoute;
   imageModel?: PineImageModelSelection;
@@ -218,6 +220,9 @@ export async function readPineAgentSettings(
       ...(typeof settings.memoryEnabled === "boolean"
         ? { memoryEnabled: settings.memoryEnabled }
         : {}),
+      ...(typeof settings.computerUseEnabled === "boolean"
+        ? { computerUseEnabled: settings.computerUseEnabled }
+        : {}),
       ...(isPineContextCompactionStrategy(contextCompactionStrategy)
         ? { contextCompactionStrategy }
         : {}),
@@ -363,6 +368,13 @@ export async function writeMemoryEnabled(
   memoryEnabled: boolean,
 ): Promise<void> {
   await writePineAgentSettings(agentDir, { memoryEnabled });
+}
+
+export async function writeComputerUseEnabled(
+  agentDir: string,
+  computerUseEnabled: boolean,
+): Promise<void> {
+  await writePineAgentSettings(agentDir, { computerUseEnabled });
 }
 
 export async function writePiProvidersSetting(

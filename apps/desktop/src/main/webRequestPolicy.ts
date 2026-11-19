@@ -27,6 +27,10 @@ import {
   SET_APPROXIMATE_LOCATION_CHANNEL,
 } from "../shared/approximateLocation";
 import {
+  GET_COMPUTER_USE_ENABLED_CHANNEL,
+  SET_COMPUTER_USE_ENABLED_CHANNEL,
+} from "../shared/computerUse";
+import {
   GET_TINYFISH_CREDENTIAL_STATUS_CHANNEL,
   SET_TINYFISH_API_KEY_CHANNEL,
 } from "../shared/tinyfish";
@@ -116,6 +120,8 @@ export function createWebChannels(
     [SET_USER_PROFILE_CHANNEL, command("none")],
     [GET_APPROXIMATE_LOCATION_CHANNEL, query("none")],
     [SET_APPROXIMATE_LOCATION_CHANNEL, command("none")],
+    [GET_COMPUTER_USE_ENABLED_CHANNEL, query("none")],
+    [SET_COMPUTER_USE_ENABLED_CHANNEL, command("none")],
     [GET_TINYFISH_CREDENTIAL_STATUS_CHANNEL, query("none")],
     [SET_TINYFISH_API_KEY_CHANNEL, command("none")],
 

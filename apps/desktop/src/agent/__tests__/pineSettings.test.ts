@@ -9,6 +9,7 @@ import {
   writeContextCompactionStrategy,
   writeDiagnosticLoggingEnabled,
   writeMemoryEnabled,
+  writeComputerUseEnabled,
   writePineUserProfile,
   writeRemoteKeepAwake,
   writeApprovalModelSelection,
@@ -218,6 +219,27 @@ describe("Pine agent settings", () => {
     await writeFile(
       path.join(agentDir, "pine-settings.json"),
       JSON.stringify({ memoryEnabled: "no" }),
+    );
+    await expect(readPineAgentSettings(agentDir)).resolves.toEqual({});
+  });
+
+  it("persists the Computer Use switch and ignores a malformed value", async () => {
+    const agentDir = await mkdtemp(
+      path.join(os.tmpdir(), "pine-computer-use-settings-"),
+    );
+    temporaryDirectories.push(agentDir);
+    await expect(readPineAgentSettings(agentDir)).resolves.toEqual({});
+    await writeComputerUseEnabled(agentDir, false);
+    await expect(readPineAgentSettings(agentDir)).resolves.toEqual({
+      computerUseEnabled: false,
+    });
+    await writeComputerUseEnabled(agentDir, true);
+    await expect(readPineAgentSettings(agentDir)).resolves.toEqual({
+      computerUseEnabled: true,
+    });
+    await writeFile(
+      path.join(agentDir, "pine-settings.json"),
+      JSON.stringify({ computerUseEnabled: "off" }),
     );
     await expect(readPineAgentSettings(agentDir)).resolves.toEqual({});
   });

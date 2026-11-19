@@ -63,7 +63,10 @@ import {
   type PineAttachment,
 } from "../../shared/attachments";
 import { TINYFISH_TOOL_NAMES } from "../tinyfishTools";
-import { COMPUTER_USE_DYNAMIC_TOOL_NAMES } from "../computer-use/tools";
+import {
+  ACTIVATE_COMPUTER_USE_TOOL_NAME,
+  COMPUTER_USE_DYNAMIC_TOOL_NAMES,
+} from "../computer-use/tools";
 import { SKILL_AUTHORING_DYNAMIC_TOOL_NAMES } from "../skills/tools";
 import { MEDIA_GENERATION_DYNAMIC_TOOL_NAMES } from "../media/tools";
 
@@ -113,6 +116,8 @@ export interface LiveAgentSession {
   interimAnswersEnabled: boolean;
   /** Preferences › Agent › Memory, read at each run start. */
   memoryEnabled: boolean;
+  /** Preferences › Agent › Computer use, read at each run start. */
+  computerUseEnabled: boolean;
   /** Set for a read-only side chat forked from another conversation. */
   sideChat?: { parentSessionId: string; persistent: boolean };
   /** Set for an unattended automation run; its envelope replaces the tool list. */
@@ -282,6 +287,23 @@ export function toolNamesForMemory(
   return toolNames.filter(
     (name) =>
       !MEMORY_TOOL_NAMES.includes(name as (typeof MEMORY_TOOL_NAMES)[number]),
+  );
+}
+
+/**
+ * The Preferences switch for Computer Use; off removes the activation tool
+ * and every tool it enables, so neither reaches the model's tool list or
+ * system prompt.
+ */
+export function toolNamesForComputerUse(
+  toolNames: readonly string[],
+  enabled: boolean,
+): string[] {
+  if (enabled) return [...toolNames];
+  return toolNames.filter(
+    (name) =>
+      name !== ACTIVATE_COMPUTER_USE_TOOL_NAME &&
+      !COMPUTER_USE_DYNAMIC_TOOL_NAMES.includes(name),
   );
 }
 

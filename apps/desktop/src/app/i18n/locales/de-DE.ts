@@ -336,6 +336,15 @@ export default {
       saveFailed: "Die Erinnerung konnte nicht gespeichert werden",
       deleteFailed: "Die Erinnerung konnte nicht gelöscht werden",
     },
+    computerUse: {
+      title: "Computersteuerung",
+      description:
+        "Pine kann Ihren Bildschirm sehen und Apps sowie Browser-Tabs bedienen, wenn eine Aufgabe es erfordert. Ausgeschaltet erhält Pine diese Werkzeuge gar nicht; die Änderung gilt ab der nächsten Antwort.",
+      loadFailed:
+        "Die Einstellung zur Computersteuerung konnte nicht geladen werden",
+      saveFailed:
+        "Die Einstellung zur Computersteuerung konnte nicht gespeichert werden",
+    },
     projectManagement: {
       title: "Projekte",
       description:

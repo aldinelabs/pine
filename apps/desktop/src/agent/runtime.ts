@@ -206,6 +206,7 @@ import { PineMemoryRepository } from "./memory/repository";
 import { memoryNotice } from "./memory/prompt";
 import { createMemoryToolDefinitions } from "./memory/tools";
 import { DEFAULT_MEMORY_ENABLED } from "../shared/memory";
+import { DEFAULT_COMPUTER_USE_ENABLED } from "../shared/computerUse";
 import {
   filterPineManagedSkills,
   piProjectSkillPaths,
@@ -272,6 +273,7 @@ import {
   toolNamesForSkillAuthoringState,
   toolNamesForInterimAnswers,
   toolNamesForMemory,
+  toolNamesForComputerUse,
   toolNamesForSubSession,
   toolNamesForAutomationAuthoringState,
   toolNamesForAutomationRun,
@@ -1502,6 +1504,8 @@ export class PineAgentRuntime {
       interimAnswersEnabled:
         pineSettings.userProfile?.interimAnswersEnabled ?? true,
       memoryEnabled: pineSettings.memoryEnabled ?? DEFAULT_MEMORY_ENABLED,
+      computerUseEnabled:
+        pineSettings.computerUseEnabled ?? DEFAULT_COMPUTER_USE_ENABLED,
       computerUseActive: computerUseActiveFromSessionEntries(
         sessionManager.getEntries(),
       ),
@@ -1678,6 +1682,10 @@ export class PineAgentRuntime {
                 !live.automation &&
                 (settings.memoryEnabled ?? DEFAULT_MEMORY_ENABLED);
               this.applyMemorySetting(live, memoryEnabled);
+              this.applyComputerUseSetting(
+                live,
+                settings.computerUseEnabled ?? DEFAULT_COMPUTER_USE_ENABLED,
+              );
               if (memoryEnabled)
                 notices.memory = memoryNotice(await memoryRepository.list());
               const networkRegion = networkRegionSystemPrompt(
@@ -2080,13 +2088,25 @@ export class PineAgentRuntime {
     this.syncActiveTools(live);
   }
 
+  /** Preferences › Agent › Computer use, read at each run start. */
+  private applyComputerUseSetting(
+    live: LiveAgentSession,
+    enabled: boolean,
+  ): void {
+    if (live.computerUseEnabled === enabled) return;
+    live.computerUseEnabled = enabled;
+    // A grant from before the switch was turned off never carries over.
+    if (!enabled) live.computerUseController?.resetTaskAuthorization();
+    this.syncActiveTools(live);
+  }
+
   private syncActiveTools(live: LiveAgentSession): void {
     const activeToolNames = live.session.getActiveToolNames();
     const mcpToolNames = live.session
       .getAllTools()
       .filter((tool) => tool.sourceInfo.path === "<inline:pi-mcp-adapter>")
       .map((tool) => tool.name);
-    const nextToolNames = live.automation
+    const toolNamesForState = live.automation
       ? toolNamesForTinyFishCredential(
           toolNamesForAutomationRun(
             live.availableToolNames,
@@ -2126,6 +2146,10 @@ export class PineAgentRuntime {
           ),
           live.tinyFishApiKey !== undefined,
         );
+    const nextToolNames = toolNamesForComputerUse(
+      toolNamesForState,
+      live.computerUseEnabled,
+    );
     if (
       nextToolNames.length === activeToolNames.length &&
       nextToolNames.every((name, index) => name === activeToolNames[index])

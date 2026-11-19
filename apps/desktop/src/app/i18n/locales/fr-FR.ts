@@ -332,6 +332,15 @@ export default {
       saveFailed: "Impossible d’enregistrer le souvenir",
       deleteFailed: "Impossible de supprimer le souvenir",
     },
+    computerUse: {
+      title: "Contrôle de l’ordinateur",
+      description:
+        "Permet à Pine de voir votre écran et d’utiliser vos applications et onglets de navigateur quand une tâche l’exige. Désactivé, Pine ne reçoit pas du tout ces outils ; le changement s’applique dès la prochaine réponse.",
+      loadFailed:
+        "Impossible de charger le réglage du contrôle de l’ordinateur",
+      saveFailed:
+        "Impossible d’enregistrer le réglage du contrôle de l’ordinateur",
+    },
     projectManagement: {
       title: "Projets",
       description:

@@ -53,11 +53,12 @@ import {
 } from "../../shared/attachments";
 import {
   ACTIVATE_COMPUTER_USE_TOOL_NAME,
+  COMPUTER_USE_DYNAMIC_TOOL_NAMES,
   type ComputerUseController,
 } from "../computer-use/tools";
 import { UI_WORKBENCH_STATE_TOOL_NAME } from "../../shared/workbench";
 import { TODO_REMINDER_HEADING } from "../runtime/progress-reminders";
-import { writePineUserProfile } from "../pineSettings";
+import { writeComputerUseEnabled, writePineUserProfile } from "../pineSettings";
 
 const temporaryDirectories: string[] = [];
 
@@ -2070,6 +2071,65 @@ describe("PineAgentRuntime", () => {
       await runtime.disposeSession(child.session.id);
       const reopened = await runtime.openSession(location, child.sessionFile!);
       expect(activeTools(reopened.session.id)).not.toContain("report_progress");
+    } finally {
+      await runtime.dispose();
+    }
+  });
+
+  it("leaves Computer Use out of the tools and prompt while its switch is off", async () => {
+    const root = await mkdtemp(path.join(os.tmpdir(), "pine-agent-runtime-"));
+    temporaryDirectories.push(root);
+    const location = {
+      agentDir: path.join(root, "agent"),
+      cwd: path.join(root, "source"),
+      folders: [
+        {
+          access: "read-write" as const,
+          path: path.join(root, "source"),
+        },
+      ],
+      sessionsRoot: path.join(root, "sessions"),
+    };
+    await mkdir(location.cwd, { recursive: true });
+    await writeComputerUseEnabled(location.agentDir, false);
+    const runtime = new PineAgentRuntime({ emit: () => undefined });
+
+    try {
+      const internals = runtime as unknown as {
+        liveSessions: Map<string, LiveAgentSession>;
+        applyComputerUseSetting(live: LiveAgentSession, enabled: boolean): void;
+      };
+      const created = await runtime.createSession(location);
+      const live = internals.liveSessions.get(created.session.id)!;
+      const computerUseTools = [
+        ACTIVATE_COMPUTER_USE_TOOL_NAME,
+        ...COMPUTER_USE_DYNAMIC_TOOL_NAMES,
+      ];
+      const visibleComputerUse = () =>
+        live.session
+          .getActiveToolNames()
+          .filter((name) => computerUseTools.includes(name));
+      expect(visibleComputerUse()).toEqual([]);
+      // Pine replaces pi's prompt, so tools reach the model only as tool
+      // definitions; this guards against a future prompt mentioning them.
+      expect(live.session.systemPrompt).not.toMatch(
+        /activate_computer_use|computer use/i,
+      );
+      expect(live.session.getActiveToolNames()).toContain("datetime");
+
+      // Run start applies the saved value for the next turn of open sessions.
+      internals.applyComputerUseSetting(live, true);
+      expect(visibleComputerUse()).toEqual([ACTIVATE_COMPUTER_USE_TOOL_NAME]);
+
+      // Turning it off also hides tools a session had already activated.
+      live.computerUseActive = true;
+      const reset = vi.spyOn(
+        live.computerUseController!,
+        "resetTaskAuthorization",
+      );
+      internals.applyComputerUseSetting(live, false);
+      expect(visibleComputerUse()).toEqual([]);
+      expect(reset).toHaveBeenCalledOnce();
     } finally {
       await runtime.dispose();
     }

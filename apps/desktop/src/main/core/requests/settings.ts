@@ -6,6 +6,7 @@ import {
   writeAttentionNotificationsEnabled,
   writeAutoApprovalSettings,
   writeCompletionSignalMode,
+  writeComputerUseEnabled,
   writeContextCompactionRoute,
   writeContextCompactionStrategy,
   writeDiagnosticLoggingEnabled,
@@ -17,6 +18,12 @@ import {
   SET_PI_PROVIDERS_CHANNEL,
   type PiProvidersStatus,
 } from "../../../shared/piProviders";
+import {
+  DEFAULT_COMPUTER_USE_ENABLED,
+  GET_COMPUTER_USE_ENABLED_CHANNEL,
+  SET_COMPUTER_USE_ENABLED_CHANNEL,
+  type SetComputerUseEnabledResult,
+} from "../../../shared/computerUse";
 import {
   DEFAULT_APPROXIMATE_LOCATION_ENABLED,
   GET_APPROXIMATE_LOCATION_CHANNEL,
@@ -246,6 +253,24 @@ export function registerSettingsRequests(core: PineCore): void {
       await writeAttentionNotificationsEnabled(core.agentDirectory, enabled);
       core.attentionNotificationsEnabled = enabled;
       core.host.attentionNotificationsChanged?.(enabled);
+      return { enabled };
+    },
+  );
+
+  core.handle(
+    GET_COMPUTER_USE_ENABLED_CHANNEL,
+    async (): Promise<boolean> =>
+      (await settings()).computerUseEnabled ?? DEFAULT_COMPUTER_USE_ENABLED,
+  );
+
+  core.handle(
+    SET_COMPUTER_USE_ENABLED_CHANNEL,
+    async (
+      _context,
+      request: unknown,
+    ): Promise<SetComputerUseEnabledResult> => {
+      const { enabled } = z.object({ enabled: z.boolean() }).parse(request);
+      await writeComputerUseEnabled(core.agentDirectory, enabled);
       return { enabled };
     },
   );

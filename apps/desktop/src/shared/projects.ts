@@ -129,6 +129,10 @@ import type {
   SetApproximateLocationRequest,
   SetApproximateLocationResult,
 } from "./approximateLocation";
+import type {
+  SetComputerUseEnabledRequest,
+  SetComputerUseEnabledResult,
+} from "./computerUse";
 import type { PineUserProfile, SetUserProfileResult } from "./userProfile";
 import type {
   ListSkillsResult,
@@ -590,6 +594,10 @@ export interface PineDesktopApi
   setApproximateLocation: (
     request: SetApproximateLocationRequest,
   ) => Promise<SetApproximateLocationResult>;
+  getComputerUseEnabled: () => Promise<boolean>;
+  setComputerUseEnabled: (
+    request: SetComputerUseEnabledRequest,
+  ) => Promise<SetComputerUseEnabledResult>;
   getAttentionNotifications: () => Promise<boolean>;
   setAttentionNotifications: (
     request: SetAttentionNotificationsRequest,

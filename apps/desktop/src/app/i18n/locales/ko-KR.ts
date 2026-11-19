@@ -324,6 +324,13 @@ export default {
       saveFailed: "메모리를 저장할 수 없습니다",
       deleteFailed: "메모리를 삭제할 수 없습니다",
     },
+    computerUse: {
+      title: "컴퓨터 제어",
+      description:
+        "작업에 필요할 때 Pine이 화면을 보고 앱과 브라우저 탭을 조작할 수 있게 합니다. 끄면 Pine은 이 도구를 전혀 받지 않으며, 변경 사항은 다음 응답부터 적용됩니다.",
+      loadFailed: "컴퓨터 제어 설정을 불러올 수 없습니다",
+      saveFailed: "컴퓨터 제어 설정을 저장할 수 없습니다",
+    },
     projectManagement: {
       title: "프로젝트",
       description:

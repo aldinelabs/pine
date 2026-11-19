@@ -337,6 +337,13 @@ export default {
       saveFailed: "メモリを保存できませんでした",
       deleteFailed: "メモリを削除できませんでした",
     },
+    computerUse: {
+      title: "コンピュータ操作",
+      description:
+        "タスクに必要なとき、Pine が画面を見てアプリやブラウザのタブを操作できるようにします。オフにすると、Pine はこれらのツールを一切使えません。変更は次の返信から適用されます。",
+      loadFailed: "コンピュータ操作の設定を読み込めませんでした",
+      saveFailed: "コンピュータ操作の設定を保存できませんでした",
+    },
     projectManagement: {
       title: "プロジェクト",
       description:

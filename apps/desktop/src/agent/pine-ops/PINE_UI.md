@@ -511,7 +511,8 @@ From top to bottom:
      change applies at once, even alongside a rename (the icon in the sidebar
      and project pickers, the accent color across the window while that
      project is active), and restarts nothing.
-   - Computer Use: the first control action requests permission to control
+   - Computer Use (only while Settings › Agent › Computer use is on): the
+     first control action requests permission to control
      desktop apps and browser tabs for the current task. Let Me Review shows
      one Approval required card; Auto Approve and Autonomous Work review the
      task grant automatically. Ordinary clicks, typing, scrolling, app switching,
@@ -813,7 +814,11 @@ the user opens themselves do not pulse.
     message in the composer after the agent answers; on by default),
     Remember across sessions switch (enabled by default, applies from the
     next message; off, Pine neither reads nor saves memory notes, which stay
-    and can still be managed in the Memory manager), automatic approval
+    and can still be managed in the Memory manager), Computer use switch
+    (enabled by default; applies from the next message, including in open
+    conversations; off, the agent gets no desktop or browser control tools
+    at all, cannot activate Computer Use and does not see it offered),
+    automatic approval
     path, context compaction strategy and method, TinyFish web tools key
     (shows Configured or Not configured), approximate location.
   - User profile: nickname, pronouns (a dropdown: Not specified, he/him,

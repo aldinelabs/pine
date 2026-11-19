@@ -309,6 +309,13 @@ export default {
       saveFailed: "無法儲存記憶",
       deleteFailed: "無法刪除記憶",
     },
+    computerUse: {
+      title: "電腦操作",
+      description:
+        "任務需要時，讓 Pine 查看螢幕並操作應用程式和瀏覽器分頁。關閉後，Pine 完全拿不到這些工具；變更從下一次回覆起生效。",
+      loadFailed: "無法載入電腦操作設定",
+      saveFailed: "無法儲存電腦操作設定",
+    },
     projectManagement: {
       title: "專案管理",
       description:

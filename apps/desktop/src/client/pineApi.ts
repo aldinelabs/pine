@@ -111,6 +111,12 @@ import {
   type SetApproximateLocationResult,
 } from "../shared/approximateLocation";
 import {
+  GET_COMPUTER_USE_ENABLED_CHANNEL,
+  SET_COMPUTER_USE_ENABLED_CHANNEL,
+  type SetComputerUseEnabledRequest,
+  type SetComputerUseEnabledResult,
+} from "../shared/computerUse";
+import {
   INSPECT_ATTACHMENTS_CHANNEL,
   OPEN_ATTACHMENT_CHANNEL,
   PICK_ATTACHMENT_FOLDERS_CHANNEL,
@@ -646,6 +652,12 @@ export function createPineApi(transport: PineTransport): PineDesktopApi {
       request: SetApproximateLocationRequest,
     ): Promise<SetApproximateLocationResult> =>
       transport.invoke(SET_APPROXIMATE_LOCATION_CHANNEL, request),
+    getComputerUseEnabled: (): Promise<boolean> =>
+      transport.invoke(GET_COMPUTER_USE_ENABLED_CHANNEL),
+    setComputerUseEnabled: (
+      request: SetComputerUseEnabledRequest,
+    ): Promise<SetComputerUseEnabledResult> =>
+      transport.invoke(SET_COMPUTER_USE_ENABLED_CHANNEL, request),
     getAttentionNotifications: (): Promise<boolean> =>
       transport.invoke(GET_ATTENTION_NOTIFICATIONS_CHANNEL),
     setAttentionNotifications: (

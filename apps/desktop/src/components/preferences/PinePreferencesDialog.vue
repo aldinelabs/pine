@@ -43,6 +43,7 @@ import WeChatRemoteSettings from "./WeChatRemoteSettings.vue";
 import AutoApprovalSettings from "./AutoApprovalSettings.vue";
 import DecisionsModelSettings from "./DecisionsModelSettings.vue";
 import MemoryEnabledSetting from "./MemoryEnabledSetting.vue";
+import ComputerUseEnabledSetting from "./ComputerUseEnabledSetting.vue";
 import PiProvidersSettings from "./PiProvidersSettings.vue";
 import ProjectManagementSettings from "./ProjectManagementSettings.vue";
 import ModelPickerDialog from "@/components/models/ModelPickerDialog.vue";
@@ -1866,6 +1867,7 @@ defineExpose({ open });
                 />
               </Field>
               <MemoryEnabledSetting />
+              <ComputerUseEnabledSetting />
 
               <FieldSeparator />
               <FieldSet>

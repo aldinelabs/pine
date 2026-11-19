@@ -326,6 +326,13 @@ export default {
       saveFailed: "Could not save the memory",
       deleteFailed: "Could not delete the memory",
     },
+    computerUse: {
+      title: "Computer use",
+      description:
+        "Lets Pine see your screen and operate apps and browser tabs when a task needs it. Off, Pine doesn't get these tools at all; the change applies from the next reply.",
+      loadFailed: "Could not load the computer use setting",
+      saveFailed: "Could not save the computer use setting",
+    },
     projectManagement: {
       title: "Projects",
       description:

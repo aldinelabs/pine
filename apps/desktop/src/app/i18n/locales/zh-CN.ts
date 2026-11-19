@@ -306,6 +306,13 @@ export default {
       saveFailed: "无法保存记忆",
       deleteFailed: "无法删除记忆",
     },
+    computerUse: {
+      title: "电脑操作",
+      description:
+        "任务需要时，让 Pine 查看屏幕并操作应用和浏览器标签页。关闭后，Pine 完全拿不到这些工具；更改从下一次回复起生效。",
+      loadFailed: "无法加载电脑操作设置",
+      saveFailed: "无法保存电脑操作设置",
+    },
     projectManagement: {
       title: "项目管理",
       description:

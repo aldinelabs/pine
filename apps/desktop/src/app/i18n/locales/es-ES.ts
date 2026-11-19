@@ -333,6 +333,13 @@ export default {
       saveFailed: "No se pudo guardar el recuerdo",
       deleteFailed: "No se pudo eliminar el recuerdo",
     },
+    computerUse: {
+      title: "Uso del ordenador",
+      description:
+        "Permite a Pine ver tu pantalla y manejar aplicaciones y pestañas del navegador cuando una tarea lo necesita. Desactivado, Pine no recibe estas herramientas; el cambio se aplica desde la siguiente respuesta.",
+      loadFailed: "No se pudo cargar el ajuste de uso del ordenador",
+      saveFailed: "No se pudo guardar el ajuste de uso del ordenador",
+    },
     projectManagement: {
       title: "Proyectos",
       description:
