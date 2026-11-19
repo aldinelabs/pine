@@ -530,6 +530,24 @@ describe("WorkbenchLiveContextPanel", () => {
     );
   });
 
+  it("scrolls only the transcript, with the controls outside its scroll region", async () => {
+    stubApi(listeningHere);
+    const wrapper = await mountPanel();
+    const scroll = wrapper.get("[data-testid=live-context-scroll]");
+    expect(scroll.classes()).toEqual(
+      expect.arrayContaining(["overflow-y-auto", "overscroll-contain"]),
+    );
+    expect(scroll.find("[data-testid=live-context-transcript]").exists()).toBe(
+      true,
+    );
+    expect(scroll.find("[data-testid=live-context-controls]").exists()).toBe(
+      false,
+    );
+    expect(wrapper.find("[data-testid=live-context-controls]").exists()).toBe(
+      true,
+    );
+  });
+
   it("pauses and resumes from the status bar", async () => {
     const { api } = stubApi(listeningHere);
     const wrapper = await mountPanel();

@@ -9,8 +9,7 @@ import {
   UsersRoundIcon,
   Volume2Icon,
 } from "@lucide/vue";
-import { useElementSize } from "@vueuse/core";
-import { computed, ref, useTemplateRef, watch } from "vue";
+import { computed, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { errorReason, handleError } from "@/app/errors/errorHandler";
 import { Button } from "@/components/ui/button";
@@ -60,14 +59,6 @@ const locale = ref<string>(
     "en-US",
 );
 const isBusy = ref(false);
-// "Jump to latest" floats just above the controls.
-const { height: footerHeight } = useElementSize(
-  useTemplateRef("footer"),
-  undefined,
-  {
-    box: "border-box",
-  },
-);
 
 const target = computed(() => {
   const sessionId = sessionStore.activeSession?.id;
@@ -310,13 +301,12 @@ function retrySpeakers(): void {
 
 <template>
   <div
-    class="flex min-h-full flex-col px-(--workbench-inset) [--live-context-text-inset:calc(0.75rem+1px)]"
-    :style="{ '--live-context-footer-height': `${footerHeight}px` }"
+    class="flex h-full min-h-0 flex-col [--live-context-text-inset:calc(0.75rem+1px)]"
     data-testid="workbench-live-context"
   >
     <Empty
       v-if="!liveContext.available"
-      class="flex-1 border-0"
+      class="flex-1 border-0 px-(--workbench-inset)"
       data-testid="live-context-unavailable"
     >
       <EmptyHeader>
@@ -334,7 +324,7 @@ function retrySpeakers(): void {
     </Empty>
     <Empty
       v-else-if="!target && !draftTab"
-      class="flex-1 border-0"
+      class="flex-1 border-0 px-(--workbench-inset)"
       data-testid="live-context-no-session"
     >
       <EmptyHeader>
@@ -347,20 +337,26 @@ function retrySpeakers(): void {
       </EmptyHeader>
     </Empty>
     <template v-else>
-      <LiveContextTranscript
-        :segments="segments"
-        :pending="pending"
-        :speakers="speakers"
-        :capture="capture"
-        :loading="loading"
-        @rename="rename"
-        @merge="merge"
-      />
+      <!-- Only the transcript scrolls (and bounces); the controls below it
+           stay put, as the side chat's composer does. -->
+      <div
+        class="scroll-fade-y no-scrollbar flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain px-(--workbench-inset)"
+        data-testid="live-context-scroll"
+      >
+        <LiveContextTranscript
+          :segments="segments"
+          :pending="pending"
+          :speakers="speakers"
+          :capture="capture"
+          :loading="loading"
+          @rename="rename"
+          @merge="merge"
+        />
+      </div>
       <!-- Like the composer: the controls stay at the foot of the card,
            below a long transcript, with any notice right above them. -->
       <div
-        ref="footer"
-        class="bg-card sticky bottom-0 z-10 mt-auto flex flex-col gap-2 pt-2 pb-(--workbench-inset)"
+        class="flex shrink-0 flex-col gap-2 px-(--workbench-inset) pt-2 pb-(--workbench-inset)"
         data-testid="live-context-controls"
       >
         <!-- Speaker labels failing is a side note to a capture that goes

@@ -179,12 +179,17 @@ const summary = computed(() => {
         enter-active-class="transition-opacity duration-500 ease-out-expo"
         enter-from-class="opacity-0"
       >
-        <!-- Live context pins its controls to the bottom, so only the top
-             fades there. -->
+        <!-- Live context scrolls its transcript itself, so its controls
+             stay put under it instead of riding the card's scroll and
+             elastic overscroll. -->
         <div
           :key="panel"
-          class="scroll-fade-y no-scrollbar absolute inset-0 overflow-y-auto"
-          :class="panel === LIVE_CONTEXT_PANEL && '[--_scroll-fade-size-b:0px]'"
+          class="absolute inset-0"
+          :class="
+            panel === LIVE_CONTEXT_PANEL
+              ? 'flex flex-col overflow-hidden'
+              : 'scroll-fade-y no-scrollbar overflow-y-auto'
+          "
         >
           <component
             :is="

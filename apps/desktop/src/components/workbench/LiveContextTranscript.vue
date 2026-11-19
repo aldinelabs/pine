@@ -200,9 +200,10 @@ onMounted(() => {
   void nextTick(() => scrollToEnd());
 });
 onBeforeUnmount(() => scroller?.removeEventListener("scroll", onScroll));
-// The panel also grows when notices or the controls change: stay at the end.
+// The transcript grows, and its scroll region shrinks when a notice shows
+// up under it: either way, stay at the end while following.
 useResizeObserver(
-  () => root.value?.parentElement ?? null,
+  () => [root.value, root.value?.parentElement ?? null],
   () => {
     if (following.value) scrollToEnd();
   },
@@ -373,7 +374,7 @@ const isEmpty = computed(
     </ol>
     <div
       v-if="missed && !following"
-      class="pointer-events-none sticky bottom-[calc(var(--live-context-footer-height,0px)+0.5rem)] mt-auto flex justify-center"
+      class="pointer-events-none sticky bottom-2 mt-auto flex justify-center"
     >
       <Button
         size="xs"
