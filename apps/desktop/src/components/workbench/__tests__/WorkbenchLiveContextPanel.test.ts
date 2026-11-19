@@ -548,6 +548,27 @@ describe("WorkbenchLiveContextPanel", () => {
     );
   });
 
+  it("fades the transcript only at the edges that hide more of it", async () => {
+    stubApi(listeningHere);
+    const wrapper = await mountPanel();
+    const scroll = wrapper.get("[data-testid=live-context-scroll]");
+    const element = scroll.element as HTMLElement;
+    const place = async (scrollTop: number) => {
+      Object.defineProperties(element, {
+        scrollHeight: { configurable: true, value: 600 },
+        clientHeight: { configurable: true, value: 200 },
+        scrollTop: { configurable: true, value: scrollTop, writable: true },
+      });
+      await scroll.trigger("scroll");
+    };
+    await place(400);
+    expect(scroll.attributes("data-scrollable")).toBe("start");
+    await place(150);
+    expect(scroll.attributes("data-scrollable")).toBe("start end");
+    await place(0);
+    expect(scroll.attributes("data-scrollable")).toBe("end");
+  });
+
   it("pauses and resumes from the status bar", async () => {
     const { api } = stubApi(listeningHere);
     const wrapper = await mountPanel();

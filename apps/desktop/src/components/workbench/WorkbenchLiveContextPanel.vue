@@ -337,22 +337,15 @@ function retrySpeakers(): void {
       </EmptyHeader>
     </Empty>
     <template v-else>
-      <!-- Only the transcript scrolls (and bounces); the controls below it
-           stay put, as the side chat's composer does. -->
-      <div
-        class="scroll-fade-y no-scrollbar flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain px-(--workbench-inset)"
-        data-testid="live-context-scroll"
-      >
-        <LiveContextTranscript
-          :segments="segments"
-          :pending="pending"
-          :speakers="speakers"
-          :capture="capture"
-          :loading="loading"
-          @rename="rename"
-          @merge="merge"
-        />
-      </div>
+      <LiveContextTranscript
+        :segments="segments"
+        :pending="pending"
+        :speakers="speakers"
+        :capture="capture"
+        :loading="loading"
+        @rename="rename"
+        @merge="merge"
+      />
       <!-- Like the composer: the controls stay at the foot of the card,
            below a long transcript, with any notice right above them. -->
       <div
