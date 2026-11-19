@@ -226,7 +226,13 @@ async function compactContext(): Promise<void> {
           data-slot="context-usage-cost"
           class="flex items-center gap-1.5"
         >
-          <span class="opacity-50" aria-hidden="true">|</span>
+          <!-- A drawn bar rather than "|", which reaches past the digits:
+               as tall as Inter's figures (0.73em) and centred on them. -->
+          <span
+            data-slot="context-usage-divider"
+            class="h-[0.73em] w-px shrink-0 rounded-full bg-current opacity-40"
+            aria-hidden="true"
+          />
           <span data-testid="context-usage-trigger-cost" class="tabular-nums">
             {{ triggerCostText }}
           </span>

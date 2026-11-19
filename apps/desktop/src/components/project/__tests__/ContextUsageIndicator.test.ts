@@ -207,9 +207,11 @@ describe("ContextUsageIndicator", () => {
     expect(trigger.get('[data-slot="context-usage-percent"]').text()).toBe(
       "10%",
     );
-    expect(trigger.find('[data-slot="context-usage-cost"]').exists()).toBe(
-      true,
-    );
+    const cost = trigger.get('[data-slot="context-usage-cost"]');
+    // The bar between them hides with the cost and is not read out.
+    expect(
+      cost.get('[data-slot="context-usage-divider"]').attributes("aria-hidden"),
+    ).toBe("true");
     expect(trigger.attributes("aria-label")).toBe("Context usage, 10%, $0.42");
   });
 
