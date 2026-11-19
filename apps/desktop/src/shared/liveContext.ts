@@ -4,6 +4,7 @@
  * (macOS 26+) with the helper built in. See docs/live-context.md.
  */
 
+import type { PineApprovalMode } from "./agent";
 import type { PineSessionSummary } from "./sessions";
 
 export const LIVE_CONTEXT_STATUS_CHANNEL = "live-context:status" as const;
@@ -217,9 +218,14 @@ export interface PineLiveContextApi {
   subscribe(listener: (event: LiveContextEvent) => void): () => void;
   /**
    * Starts an empty session in the project to capture into, as a first
-   * message would, saved and kept although no one has written in it.
+   * message would, saved and kept although no one has written in it. It
+   * takes the approval mode the draft picked; the model is the default a
+   * draft's model picker sets, as for a first message.
    */
-  createSession(request: { projectId: string }): Promise<PineSessionSummary>;
+  createSession(request: {
+    projectId: string;
+    approvalMode?: PineApprovalMode;
+  }): Promise<PineSessionSummary>;
 }
 
 export const IDLE_LIVE_CONTEXT_STATUS: LiveContextStatus = {

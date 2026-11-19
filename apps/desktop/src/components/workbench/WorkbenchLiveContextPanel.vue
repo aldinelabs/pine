@@ -30,6 +30,7 @@ import {
   speakerMap,
   speakersOf,
 } from "@/shared/liveContextSpeakers";
+import { useContentTabsStore } from "@/stores/contentTabs";
 import { useLiveContextStore } from "@/stores/liveContext";
 import { useProjectStore } from "@/stores/project";
 import { useSessionStore } from "@/stores/session";
@@ -45,6 +46,7 @@ const liveContext = useLiveContextStore();
 const sessionStore = useSessionStore();
 const projectStore = useProjectStore();
 const tabNavigation = useContentTabNavigation();
+const contentTabsStore = useContentTabsStore();
 
 const sources = ref<LiveContextSource[]>(["mic", "system"]);
 const locale = ref<string>(
@@ -216,7 +218,11 @@ async function startInNewSession(
 ): Promise<void> {
   const opened = await projectStore.ensureOpen(projectId);
   if (!opened.opened) throw new Error("The project is open elsewhere.");
-  const session = await sessionStore.createLiveContextSession(projectId);
+  // The approval mode the draft's composer would send its first message with.
+  const session = await sessionStore.createLiveContextSession(
+    projectId,
+    contentTabsStore.draftApprovalModeFor(tabId),
+  );
   tabNavigation.bindSession(tabId, session);
   await liveContext.start(
     { projectId, sessionId: session.id },

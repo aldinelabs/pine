@@ -1353,11 +1353,15 @@ export const useSessionStore = defineStore("session", () => {
    */
   async function createLiveContextSession(
     projectId: string,
+    approvalMode?: PineApprovalMode,
   ): Promise<PineSessionSummary> {
     const api = window.pine.liveContext;
     if (!api) throw new Error("Live Context is unavailable.");
     const sequence = activationSequence;
-    const session = await api.createSession({ projectId });
+    const session = await api.createSession({
+      projectId,
+      ...(approvalMode ? { approvalMode } : {}),
+    });
     sessionProjects.set(session.id, projectId);
     const summary = withoutAutomationRun(
       upsertRecentSession(projectId, session),

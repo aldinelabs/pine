@@ -3,6 +3,7 @@ import { createPinia, setActivePinia } from "pinia";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createAppI18n } from "@/app/i18n";
 import type { LiveContextEvent, LiveContextStatus } from "@/shared/liveContext";
+import { useContentTabsStore } from "@/stores/contentTabs";
 import WorkbenchLiveContextPanel from "../WorkbenchLiveContextPanel.vue";
 
 const PROJECT_ID = "00000000-0000-4000-8000-000000000001";
@@ -181,7 +182,10 @@ describe("WorkbenchLiveContextPanel", () => {
       await flushPromises();
 
       expect(mocks.ensureOpen).toHaveBeenCalledWith(PROJECT_ID);
-      expect(mocks.createLiveContextSession).toHaveBeenCalledWith(PROJECT_ID);
+      expect(mocks.createLiveContextSession).toHaveBeenCalledWith(
+        PROJECT_ID,
+        "auto-approve",
+      );
       expect(mocks.bindSession).toHaveBeenCalledWith("session-3", session);
       expect(api.start).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -192,6 +196,21 @@ describe("WorkbenchLiveContextPanel", () => {
       );
       expect(mocks.bindSession.mock.invocationCallOrder[0]).toBeLessThan(
         api.start.mock.invocationCallOrder[0],
+      );
+    });
+
+    it("starts the conversation with the approval mode the draft picked", async () => {
+      stubApi(idle);
+      mocks.createLiveContextSession.mockResolvedValue({ id: NEW_SESSION_ID });
+      const wrapper = await mountPanel();
+      useContentTabsStore().setDraftApprovalMode("session-3", "let-me-review");
+
+      await wrapper.get("[data-testid=live-context-start]").trigger("click");
+      await flushPromises();
+
+      expect(mocks.createLiveContextSession).toHaveBeenCalledWith(
+        PROJECT_ID,
+        "let-me-review",
       );
     });
 

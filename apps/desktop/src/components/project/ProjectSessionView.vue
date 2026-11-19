@@ -334,7 +334,6 @@ const attachments = computed<PineAttachment[]>({
     contentTabsStore.setAttachments(props.tabId, value);
   },
 });
-const draftApprovalMode = ref<PineApprovalMode>("auto-approve");
 const approvalMode = computed<PineApprovalMode>({
   get: () =>
     props.sessionId
@@ -342,10 +341,11 @@ const approvalMode = computed<PineApprovalMode>({
         (sessionStore.automationRunOf(props.sessionId)
           ? "autonomous"
           : "auto-approve"))
-      : draftApprovalMode.value,
+      : contentTabsStore.draftApprovalModeFor(props.tabId),
   set: (value) => {
     contentTabsStore.keepTab(props.tabId);
-    if (!props.sessionId) draftApprovalMode.value = value;
+    if (!props.sessionId)
+      contentTabsStore.setDraftApprovalMode(props.tabId, value);
     else
       void sessionStore
         .setApprovalMode(value, props.sessionId)

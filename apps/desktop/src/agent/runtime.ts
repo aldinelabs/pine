@@ -496,6 +496,11 @@ export class PineAgentRuntime {
       });
     if (location.liveContext) {
       manager.appendCustomEntry(PINE_LIVE_CONTEXT_ENTRY, {});
+      // Saved now, it must reopen with the mode it was started in.
+      if (location.approvalMode)
+        manager.appendCustomEntry(PINE_APPROVAL_MODE_ENTRY, {
+          approvalMode: location.approvalMode,
+        });
       await saveEmptySession(manager);
     }
     return this.registerSession(location, manager);

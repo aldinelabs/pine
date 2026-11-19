@@ -24,6 +24,7 @@ import {
   LIVE_CONTEXT_SPEAKER_KEY,
   LIVE_CONTEXT_SPEAKER_NAME_MAX,
 } from "../../shared/liveContextSpeakers";
+import type { PineApprovalMode } from "../../shared/agent";
 import type { PineSessionSummary } from "../../shared/sessions";
 import { LiveContextService } from "../liveContext";
 import { ensureSpeakerModels } from "../liveContextSpeakerModels";
@@ -96,6 +97,12 @@ const startSchema = targetSchema.extend({
     .max(35),
   speakers: z.boolean().optional(),
 });
+const createSessionSchema = z.object({
+  projectId: z.uuid(),
+  approvalMode: z
+    .enum(["let-me-review", "auto-approve", "autonomous", "YOLO"])
+    .optional(),
+});
 const speakerKeySchema = z
   .string()
   .regex(LIVE_CONTEXT_SPEAKER_KEY)
@@ -119,6 +126,7 @@ export function createLiveContext(options: {
   createSession(
     clientId: number,
     projectId: string,
+    approvalMode?: PineApprovalMode,
   ): Promise<PineSessionSummary>;
 }): LiveContextService {
   const service = new LiveContextService({
@@ -155,11 +163,10 @@ export function createLiveContext(options: {
   );
   ipcMain.handle(
     LIVE_CONTEXT_CREATE_SESSION_CHANNEL,
-    (event, request: unknown) =>
-      options.createSession(
-        event.sender.id,
-        z.object({ projectId: z.uuid() }).parse(request).projectId,
-      ),
+    (event, request: unknown) => {
+      const { projectId, approvalMode } = createSessionSchema.parse(request);
+      return options.createSession(event.sender.id, projectId, approvalMode);
+    },
   );
   ipcMain.handle(LIVE_CONTEXT_PAUSE_CHANNEL, () => service.pause());
   ipcMain.handle(LIVE_CONTEXT_RESUME_CHANNEL, () => service.resume());

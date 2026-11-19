@@ -599,9 +599,15 @@ describe("session store", () => {
     });
     const store = useSessionStore();
 
-    const created = await store.createLiveContextSession(PROJECT_ID);
+    const created = await store.createLiveContextSession(
+      PROJECT_ID,
+      "let-me-review",
+    );
 
-    expect(createSession).toHaveBeenCalledWith({ projectId: PROJECT_ID });
+    expect(createSession).toHaveBeenCalledWith({
+      projectId: PROJECT_ID,
+      approvalMode: "let-me-review",
+    });
     expect(created.id).toBe(session.id);
     expect(store.activeSession?.id).toBe(session.id);
     expect(store.projectOf(session.id)).toBe(PROJECT_ID);

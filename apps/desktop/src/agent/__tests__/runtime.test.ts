@@ -40,6 +40,7 @@ import type { GateDecision } from "../protocol";
 import type { PineAgentEvent } from "../../shared/agent";
 import {
   PINE_APPROVAL_DECISION_ENTRY,
+  PINE_APPROVAL_MODE_ENTRY,
   PINE_LIVE_CONTEXT_ENTRY,
 } from "../../shared/sessions";
 import {
@@ -1720,19 +1721,44 @@ describe("PineAgentRuntime", () => {
     }
   });
 
-  it("saves a Live Context session before its first message", async () => {
+  it("saves a Live Context session before its first message, with the draft's approval mode and model", async () => {
     const root = await mkdtemp(path.join(os.tmpdir(), "pine-agent-runtime-"));
     temporaryDirectories.push(root);
     const cwd = path.join(root, "source");
+    const agentDir = path.join(root, "agent");
     await mkdir(cwd, { recursive: true });
+    await mkdir(agentDir, { recursive: true });
+    // A draft's model picker sets this default, which every new session takes.
+    await writeFile(
+      path.join(agentDir, "models.json"),
+      JSON.stringify({
+        providers: {
+          verify: {
+            api: "openai-completions",
+            apiKey: "verify-key",
+            baseUrl: "http://127.0.0.1:1/v1",
+            models: [{ id: "picked", input: ["text"] }],
+          },
+        },
+      }),
+    );
+    await writeFile(
+      path.join(agentDir, "settings.json"),
+      JSON.stringify({ defaultProvider: "verify", defaultModel: "picked" }),
+    );
     const runtime = new PineAgentRuntime({ emit: () => undefined });
     try {
       const created = await runtime.createSession({
-        agentDir: path.join(root, "agent"),
+        agentDir,
         cwd,
         folders: [{ access: "read-write", path: cwd }],
         sessionsRoot: path.join(root, "sessions"),
+        approvalMode: "let-me-review",
         liveContext: true,
+      });
+      expect(created.session).toMatchObject({
+        approvalMode: "let-me-review",
+        modelSelection: { providerId: "verify", modelId: "picked" },
       });
       const { session } = (
         runtime as unknown as {
@@ -1757,6 +1783,13 @@ describe("PineAgentRuntime", () => {
         expect.objectContaining({
           type: "custom",
           customType: PINE_LIVE_CONTEXT_ENTRY,
+        }),
+      );
+      expect(saved).toContainEqual(
+        expect.objectContaining({
+          type: "custom",
+          customType: PINE_APPROVAL_MODE_ENTRY,
+          data: { approvalMode: "let-me-review" },
         }),
       );
 

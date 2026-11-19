@@ -3,6 +3,7 @@ import { reactive, ref, watch } from "vue";
 import { readContentTabs, writeContentTabs } from "@/lib/contentTabStorage";
 import { TEMPORARY_WORKSPACE_PROJECT_ID } from "@/shared/projects";
 import { isQuickComposerHandoffWindow } from "@/stores/quickComposerHandoff";
+import type { PineApprovalMode } from "@/shared/agent";
 import type { PineSessionSummary } from "@/shared/sessions";
 import type {
   FilePreviewTarget,
@@ -147,6 +148,11 @@ export const useContentTabsStore = defineStore("content-tabs", () => {
   // Keys are opaque: a presentation's tool call id, or a submitted artifact's
   // key (`artifactKey` in shared/artifacts.ts).
   const presentedTargets = reactive(new Map<string, FilePreviewTarget>());
+  /**
+   * The approval mode each draft picked for its first message, or for the
+   * session Live Context starts from it. Not saved, like a draft's text.
+   */
+  const draftApprovalModes = reactive(new Map<string, PineApprovalMode>());
   /** Presentation or artifact keys whose file was trashed from the artifacts list. */
   const removedPresentations = reactive(new Set<string>());
   const composerAttachments = ref<Record<string, PineAttachment[]>>({});
@@ -483,6 +489,14 @@ export const useContentTabsStore = defineStore("content-tabs", () => {
     return true;
   }
 
+  function draftApprovalModeFor(tabId: string): PineApprovalMode {
+    return draftApprovalModes.get(tabId) ?? "auto-approve";
+  }
+
+  function setDraftApprovalMode(tabId: string, mode: PineApprovalMode): void {
+    draftApprovalModes.set(tabId, mode);
+  }
+
   function mutatorsFor(tabId: string): PineSessionMutator[] {
     const target = tabs.value.find((tab) => tab.id === tabId);
     return target?.kind === "session" && target.state !== "bound"
@@ -619,6 +633,7 @@ export const useContentTabsStore = defineStore("content-tabs", () => {
       return existing;
     }
 
+    draftApprovalModes.delete(tabId);
     const bound: BoundSessionTab = {
       id: tabId,
       kind: "session",
@@ -657,6 +672,7 @@ export const useContentTabsStore = defineStore("content-tabs", () => {
     if (closingIndex < 0) return activeTabId;
 
     const wasActive = activeTabId === tabId;
+    draftApprovalModes.delete(tabId);
     const nextTabs = tabs.value.filter((tab) => tab.id !== tabId);
     const closing = tabs.value[closingIndex];
     // Drafts hold nothing to come back to, and a presented file's access
@@ -781,6 +797,8 @@ export const useContentTabsStore = defineStore("content-tabs", () => {
   }
 
   return {
+    draftApprovalModeFor,
+    setDraftApprovalMode,
     addAttachments,
     addQuotes,
     attachmentsFor,

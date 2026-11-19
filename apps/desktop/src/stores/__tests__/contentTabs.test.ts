@@ -15,6 +15,19 @@ const firstSession: PineSessionSummary = {
 };
 
 describe("content tabs store", () => {
+  it("keeps a draft's approval mode per tab until it becomes a session", () => {
+    const store = useContentTabsStore();
+    const draft = store.createSessionTab({ reuseDraft: false });
+    const other = store.createSessionTab({ reuseDraft: false });
+
+    store.setDraftApprovalMode(draft.id, "let-me-review");
+
+    expect(store.draftApprovalModeFor(draft.id)).toBe("let-me-review");
+    expect(store.draftApprovalModeFor(other.id)).toBe("auto-approve");
+    store.bindSession(draft.id, firstSession);
+    expect(store.draftApprovalModeFor(draft.id)).toBe("auto-approve");
+  });
+
   it("keeps pending composer attachments separate, deduplicates them, and releases closed tabs", () => {
     const store = useContentTabsStore();
     store.bindSession("session-1", firstSession);
