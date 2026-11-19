@@ -1189,6 +1189,28 @@ const presentation = computed(() => {
       after: `${t(`project.transcript.tools.fileSearch.${operation}.${tense}.after`)}${found}`,
     };
   }
+  if (kind === "liveTranscript") {
+    const tense = state === "running" || state === "error" ? state : "complete";
+    const from = firstString(input, ["from"]);
+    const to = firstString(input, ["to"]);
+    const target = [
+      from || to ? `${from ?? ""}–${to ?? ""}` : undefined,
+      firstString(input, ["speaker"]),
+      firstString(input, ["query"]),
+    ]
+      .filter(Boolean)
+      .join(" · ");
+    return {
+      before: t(`project.transcript.tools.liveTranscript.${tense}`),
+      operation: undefined,
+      separator: target ? " " : "",
+      target,
+      targetMono: false,
+      purpose: undefined,
+      faviconDataUrl: undefined,
+      after: "",
+    };
+  }
   if (kind === "datetime") {
     const tense = state === "running" || state === "error" ? state : "complete";
     const localIso = inputRecord(

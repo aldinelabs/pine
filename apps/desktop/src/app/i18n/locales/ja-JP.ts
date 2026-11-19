@@ -1812,6 +1812,10 @@ export default {
           active: "時刻を {count} 回確認中",
           complete: "時刻を {count} 回確認しました",
         },
+        liveTranscript: {
+          active: "ライブコンテキストを {count} 回読み込み中",
+          complete: "ライブコンテキストを {count} 回読み込みました",
+        },
         memory: {
           active: "メモリを {count} 回使用中",
           complete: "メモリを {count} 回使用しました",
@@ -1868,6 +1872,7 @@ export default {
         automation: "自動化の操作",
         model: "モデルの確認",
         datetime: "日時",
+        liveTranscript: "ライブコンテキスト",
         mcpConfig: "MCP 設定",
         memory: "メモリ",
         project: "プロジェクト操作",
@@ -2108,6 +2113,11 @@ export default {
           running: "日時を取得中",
           complete: "日時を取得しました",
           error: "日時を取得できませんでした",
+        },
+        liveTranscript: {
+          running: "ライブコンテキストの文字起こしを読み込み中",
+          complete: "ライブコンテキストの文字起こしを読み込みました",
+          error: "ライブコンテキストの文字起こしを読み込めませんでした",
         },
         memory: {
           list: {

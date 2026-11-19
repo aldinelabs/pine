@@ -760,7 +760,8 @@ close the card. The panels are:
   sends carries the lines finalized since the previous message (only the
   most recent part when there is a lot), with the speaker names the card
   shows and the capture's state, and the agent can read earlier or complete ranges
-  itself, which shows in the transcript as a tool call. Nothing shows in the conversation
+  itself, which shows in the transcript as "Read the live context
+  transcript" with an audio-lines icon. Nothing shows in the conversation
   when lines are attached. Other conversations, side chats and
   sub-sessions do not see it; after the transcript is deleted the agent is
   told to disregard it.

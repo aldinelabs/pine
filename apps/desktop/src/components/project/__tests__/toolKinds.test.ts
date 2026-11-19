@@ -1,4 +1,5 @@
 import {
+  AudioLinesIcon,
   BrainIcon,
   CalendarClockIcon,
   ClapperboardIcon,
@@ -90,6 +91,11 @@ describe("Computer Use tool kinds", () => {
   it("gives the datetime tool its own kind and clock icon", () => {
     expect(toolKind("datetime")).toBe("datetime");
     expect(toolIconForName("datetime")).toBe(ClockIcon);
+  });
+
+  it("gives the live transcript tool its own kind and icon", () => {
+    expect(toolKind("read_live_transcript")).toBe("liveTranscript");
+    expect(toolIconForName("read_live_transcript")).toBe(AudioLinesIcon);
   });
 
   it("gives memory tools their own kind and tells their operations apart", () => {

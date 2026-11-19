@@ -1836,6 +1836,10 @@ export default {
           active: "Consultation de l’heure {count} fois",
           complete: "Heure consultée {count} fois",
         },
+        liveTranscript: {
+          active: "Lecture du contexte en direct {count} fois",
+          complete: "Contexte en direct lu {count} fois",
+        },
         memory: {
           active: "Utilisation de la mémoire ({count} fois)",
           complete: "Mémoire utilisée ({count} fois)",
@@ -1892,6 +1896,7 @@ export default {
         automation: "action d’automatisation",
         model: "consultation des modèles",
         datetime: "date et heure",
+        liveTranscript: "contexte en direct",
         mcpConfig: "Configuration MCP",
         memory: "mémoire",
         project: "action de projet",
@@ -2135,6 +2140,11 @@ export default {
           running: "Consultation de la date et de l’heure",
           complete: "Date et heure consultées",
           error: "Impossible d’obtenir la date et l’heure",
+        },
+        liveTranscript: {
+          running: "Lecture de la transcription du contexte en direct",
+          complete: "Transcription du contexte en direct lue",
+          error: "Impossible de lire la transcription du contexte en direct",
         },
         memory: {
           list: {

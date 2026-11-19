@@ -1720,6 +1720,10 @@ export default {
           active: "正在查看 {count} 次時間",
           complete: "查看了 {count} 次時間",
         },
+        liveTranscript: {
+          active: "正在讀取 {count} 次即時上下文",
+          complete: "讀取了 {count} 次即時上下文",
+        },
         memory: {
           active: "正在使用 {count} 次記憶",
           complete: "使用了 {count} 次記憶",
@@ -1776,6 +1780,7 @@ export default {
         automation: "自動化操作",
         model: "模型查詢",
         datetime: "日期時間",
+        liveTranscript: "即時上下文",
         mcpConfig: "MCP 設定",
         memory: "記憶",
         project: "專案操作",
@@ -2010,6 +2015,11 @@ export default {
           running: "正在取得日期和時間",
           complete: "已取得日期和時間",
           error: "無法取得日期和時間",
+        },
+        liveTranscript: {
+          running: "正在讀取即時上下文轉寫",
+          complete: "已讀取即時上下文轉寫",
+          error: "無法讀取即時上下文轉寫",
         },
         memory: {
           list: {

@@ -1843,6 +1843,10 @@ export default {
           active: "Uhrzeit wird {count}-mal abgefragt",
           complete: "Uhrzeit {count}-mal abgefragt",
         },
+        liveTranscript: {
+          active: "Live-Kontext wird {count}-mal gelesen",
+          complete: "Live-Kontext {count}-mal gelesen",
+        },
         memory: {
           active: "Nutze Gedächtnis ({count}×)",
           complete: "Gedächtnis genutzt ({count}×)",
@@ -1899,6 +1903,7 @@ export default {
         automation: "Automatisierungsaktion",
         model: "Modellabfrage",
         datetime: "Datum und Uhrzeit",
+        liveTranscript: "Live-Kontext",
         mcpConfig: "MCP-Konfiguration",
         memory: "Gedächtnis",
         project: "Projektaktion",
@@ -2141,6 +2146,11 @@ export default {
           running: "Datum und Uhrzeit werden abgefragt",
           complete: "Datum und Uhrzeit abgefragt",
           error: "Datum und Uhrzeit konnten nicht abgefragt werden",
+        },
+        liveTranscript: {
+          running: "Live-Kontext-Transkript wird gelesen",
+          complete: "Live-Kontext-Transkript gelesen",
+          error: "Live-Kontext-Transkript konnte nicht gelesen werden",
         },
         memory: {
           list: {

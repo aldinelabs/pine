@@ -1788,6 +1788,10 @@ export default {
           active: "시간을 {count}회 확인하는 중",
           complete: "시간을 {count}회 확인했습니다",
         },
+        liveTranscript: {
+          active: "실시간 컨텍스트를 {count}회 읽는 중",
+          complete: "실시간 컨텍스트를 {count}회 읽었습니다",
+        },
         memory: {
           active: "메모리를 {count}회 사용하는 중",
           complete: "메모리를 {count}회 사용함",
@@ -1844,6 +1848,7 @@ export default {
         automation: "자동화 작업",
         model: "모델 조회",
         datetime: "날짜 및 시간",
+        liveTranscript: "실시간 컨텍스트",
         mcpConfig: "MCP 구성",
         memory: "메모리",
         project: "프로젝트 작업",
@@ -2083,6 +2088,11 @@ export default {
           running: "날짜와 시간을 가져오는 중",
           complete: "날짜와 시간을 가져왔습니다",
           error: "날짜와 시간을 가져오지 못했습니다",
+        },
+        liveTranscript: {
+          running: "실시간 컨텍스트 기록을 읽는 중",
+          complete: "실시간 컨텍스트 기록을 읽었습니다",
+          error: "실시간 컨텍스트 기록을 읽지 못했습니다",
         },
         memory: {
           list: {

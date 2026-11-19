@@ -1813,6 +1813,10 @@ export default {
           active: "Проверка времени: {count}",
           complete: "Время проверено: {count}",
         },
+        liveTranscript: {
+          active: "Чтение живого контекста: {count}",
+          complete: "Живой контекст прочитан: {count}",
+        },
         memory: {
           active: "Работа с памятью: {count}",
           complete: "Обращений к памяти: {count}",
@@ -1869,6 +1873,7 @@ export default {
         automation: "действие автоматизации",
         model: "просмотр моделей",
         datetime: "дата и время",
+        liveTranscript: "живой контекст",
         mcpConfig: "Настройка MCP",
         memory: "память",
         project: "действие с проектом",
@@ -2112,6 +2117,11 @@ export default {
           running: "Получение даты и времени",
           complete: "Дата и время получены",
           error: "Не удалось получить дату и время",
+        },
+        liveTranscript: {
+          running: "Чтение расшифровки живого контекста",
+          complete: "Расшифровка живого контекста прочитана",
+          error: "Не удалось прочитать расшифровку живого контекста",
         },
         memory: {
           list: {

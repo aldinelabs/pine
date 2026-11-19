@@ -1831,6 +1831,10 @@ export default {
           active: "Consultando la hora {count} veces",
           complete: "Hora consultada {count} veces",
         },
+        liveTranscript: {
+          active: "Leyendo el contexto en directo {count} veces",
+          complete: "Contexto en directo leído {count} veces",
+        },
         memory: {
           active: "Usando la memoria {count} veces",
           complete: "Se usó la memoria {count} veces",
@@ -1887,6 +1891,7 @@ export default {
         automation: "acción de automatización",
         model: "consulta de modelos",
         datetime: "fecha y hora",
+        liveTranscript: "contexto en directo",
         mcpConfig: "Configuración de MCP",
         memory: "memoria",
         project: "acción del proyecto",
@@ -2130,6 +2135,11 @@ export default {
           running: "Consultando la fecha y la hora",
           complete: "Fecha y hora consultadas",
           error: "No se pudo obtener la fecha y la hora",
+        },
+        liveTranscript: {
+          running: "Leyendo la transcripción del contexto en directo",
+          complete: "Transcripción del contexto en directo leída",
+          error: "No se pudo leer la transcripción del contexto en directo",
         },
         memory: {
           list: {

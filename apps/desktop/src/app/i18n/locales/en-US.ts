@@ -1798,6 +1798,10 @@ export default {
           active: "Checking the time {count} times",
           complete: "Checked the time {count} times",
         },
+        liveTranscript: {
+          active: "Reading the live context {count} times",
+          complete: "Read the live context {count} times",
+        },
         memory: {
           active: "Using memory {count} times",
           complete: "Used memory {count} times",
@@ -1854,6 +1858,7 @@ export default {
         automation: "automation action",
         model: "model lookup",
         datetime: "date and time",
+        liveTranscript: "live context",
         mcpConfig: "MCP configuration",
         memory: "memory",
         project: "project action",
@@ -2092,6 +2097,11 @@ export default {
           running: "Checking the date and time",
           complete: "Checked the date and time",
           error: "Couldn’t get the date and time",
+        },
+        liveTranscript: {
+          running: "Reading the live context transcript",
+          complete: "Read the live context transcript",
+          error: "Couldn’t read the live context transcript",
         },
         memory: {
           list: {
