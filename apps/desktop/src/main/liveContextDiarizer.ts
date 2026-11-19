@@ -1260,31 +1260,55 @@ function finalPass(
     if (first === undefined) firstOfGroup.set(group, i);
     else merge(first, i);
   }
-  for (;;) {
+  // Each row's best partner to its right, so a step costs O(n) instead of
+  // a scan of every pair. Ties go to the first pair, as a full scan would.
+  const rowBest = new Float64Array(n).fill(-Infinity);
+  const rowPartner = new Int32Array(n).fill(-1);
+  const refresh = (i: number) => {
     let best = -Infinity;
-    let pair: [number, number] | undefined;
-    for (let i = 0; i < n; i += 1) {
-      if (!alive[i]) continue;
+    let partner = -1;
+    if (alive[i])
       for (let j = i + 1; j < n; j += 1) {
         if (!alive[j]) continue;
         const value = similarity[i * n + j];
-        if (value > best) {
+        if (partner < 0 || value > best) {
           best = value;
-          pair = [i, j];
+          partner = j;
         }
       }
-    }
-    if (!pair || best < stop) break;
-    const [i, j] = pair;
+    rowBest[i] = best;
+    rowPartner[i] = partner;
+  };
+  for (let i = 0; i < n; i += 1) refresh(i);
+  for (;;) {
+    let i = -1;
+    for (let k = 0; k < n; k += 1)
+      if (rowPartner[k] >= 0 && (i < 0 || rowBest[k] > rowBest[i])) i = k;
+    if (i < 0 || rowBest[i] < stop) break;
+    const j = rowPartner[i];
     const gi = groupOf[i];
     const gj = groupOf[j];
     if (gi !== undefined && gj !== undefined && gi !== gj) {
       // Two speakers the user kept apart.
       similarity[i * n + j] = -Infinity;
       similarity[j * n + i] = -Infinity;
+      refresh(i);
       continue;
     }
     merge(i, j);
+    rowPartner[j] = -1;
+    refresh(i);
+    for (let k = 0; k < n; k += 1) {
+      if (k === i || !alive[k] || rowPartner[k] < 0) continue;
+      if (rowPartner[k] === i || rowPartner[k] === j) refresh(k);
+      else if (k < i) {
+        const value = similarity[k * n + i];
+        if (value > rowBest[k] || (value === rowBest[k] && i < rowPartner[k])) {
+          rowBest[k] = value;
+          rowPartner[k] = i;
+        }
+      }
+    }
   }
 
   // Tiny clusters (under 2 s) join their closest neighbor rather than
