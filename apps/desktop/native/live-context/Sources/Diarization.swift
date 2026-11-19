@@ -8,8 +8,9 @@ struct DiarizationOptions {
   var library: String
   var segmentationModel: String
   var embeddingModel: String
-  /// ONNX Runtime's execution provider ("cpu", or "coreml" to try).
-  var provider = ProcessInfo.processInfo.environment["PINE_LIVE_CONTEXT_PROVIDER"] ?? "cpu"
+  /// ONNX Runtime's execution provider. CoreML takes about 15% less CPU
+  /// and energy than "cpu" for ~90 MB more memory; CPU is the fallback.
+  var provider = ProcessInfo.processInfo.environment["PINE_LIVE_CONTEXT_PROVIDER"] ?? "coreml"
   var threads = 1
   /// A chunk this similar to the voice just heard continues it (fast path).
   var continuity: Float = 0.65
@@ -71,9 +72,12 @@ final class DiarizationEngine: @unchecked Sendable {
     if let error = pine_sherpa_load(options.library) {
       throw HelperError("speakers_unavailable", String(cString: error))
     }
+    let providers = options.provider == "cpu" ? ["cpu"] : [options.provider, "cpu"]
     guard
-      let engine = pine_sherpa_create(
-        options.segmentationModel, options.embeddingModel, Int32(options.threads), options.provider)
+      let engine = providers.lazy.compactMap({ provider in
+        pine_sherpa_create(
+          options.segmentationModel, options.embeddingModel, Int32(options.threads), provider)
+      }).first
     else {
       throw HelperError("speakers_unavailable", "The speaker models could not be loaded.")
     }

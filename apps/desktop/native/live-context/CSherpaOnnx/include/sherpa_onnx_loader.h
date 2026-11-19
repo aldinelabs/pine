@@ -25,7 +25,7 @@ const char *pine_sherpa_load(const char *library_path);
 
 /**
  * NULL when a model fails to load (the library logs why to stderr).
- * `provider` is ONNX Runtime's execution provider: "cpu" or "coreml".
+ * `provider` is ONNX Runtime's execution provider: "coreml" or "cpu".
  */
 PineSherpaEngine *pine_sherpa_create(const char *segmentation_model,
                                      const char *embedding_model,
