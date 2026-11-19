@@ -12,7 +12,7 @@ import {
 import { useElementSize } from "@vueuse/core";
 import { computed, ref, useTemplateRef, watch } from "vue";
 import { useI18n } from "vue-i18n";
-import { handleError } from "@/app/errors/errorHandler";
+import { errorReason, handleError } from "@/app/errors/errorHandler";
 import { Button } from "@/components/ui/button";
 import {
   Empty,
@@ -161,9 +161,11 @@ async function run(action: () => Promise<void>): Promise<void> {
   try {
     await action();
   } catch (error) {
+    // The reason goes under the title, so a failure never hides its cause.
     handleError(error, {
       id: "live-context.action",
       title: t("project.workbench.liveContext.actionFailed"),
+      description: errorReason(error),
     });
   } finally {
     isBusy.value = false;
