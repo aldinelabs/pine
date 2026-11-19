@@ -1,3 +1,6 @@
+import { chmodSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import path from "node:path";
 import { describe, expect, it, vi } from "vitest";
 import type { ToolDefinition } from "@earendil-works/pi-coding-agent";
 import type { PineApprovalMode } from "../../../shared/agent";
@@ -7,8 +10,10 @@ import {
   ACTIVATE_COMPUTER_USE_TOOL_NAME,
   COMPUTER_USE_DYNAMIC_TOOL_NAMES,
   ComputerUseController,
+  computerUseProfile,
   createComputerUseExtension,
   MUNIM_COMPUTER_USE_TOOL_NAMES,
+  resolveComputerUseSupportDirectory,
 } from "../tools";
 
 function fakeClient() {
@@ -45,6 +50,7 @@ describe("ComputerUseController", () => {
     const controller = new ComputerUseController({
       client,
       executablePath: "/mock/pine-computer-use",
+      supportDirectory: mkdtempSync(path.join(tmpdir(), "pine-cu-")),
       getApprovalMode: () => "auto-approve",
       getGate: () => fakeGate(),
     });
@@ -242,6 +248,83 @@ describe("ComputerUseController", () => {
   });
 });
 
+describe("Computer Use identity", () => {
+  it("keeps Pine's runtime files under a Pine support directory", () => {
+    expect(resolveComputerUseSupportDirectory("darwin", {}, "/Users/u")).toBe(
+      "/Users/u/Library/Application Support/Pine/computer-use",
+    );
+    expect(
+      resolveComputerUseSupportDirectory(
+        "win32",
+        { LOCALAPPDATA: "C:\\Users\\u\\AppData\\Local" },
+        "C:\\Users\\u",
+      ),
+    ).toBe("C:\\Users\\u\\AppData\\Local\\Pine\\computer-use");
+    expect(
+      resolveComputerUseSupportDirectory(
+        "linux",
+        { XDG_DATA_HOME: "/data" },
+        "/home/u",
+      ),
+    ).toBe("/data/pine/computer-use");
+    expect(resolveComputerUseSupportDirectory("linux", {}, "/home/u")).toBe(
+      "/home/u/.local/share/pine/computer-use",
+    );
+  });
+
+  it("runs the server under Pine's own host, extension and cursor", () => {
+    expect(computerUseProfile("/support")).toEqual({
+      name: "pine-computer-use",
+      supportDir: "/support",
+      agentCursorName: "PineAgentCursor",
+      agentCursorBundleId: "com.pine.computer-use.agent-cursor",
+      nativeHostNames: ["com.pine.computer_use"],
+      extensionIds: ["limncohahkklkbhmhohkhdfdbakpnkei"],
+      nativeHostDescription: "Pine Computer Use browser bridge",
+    });
+  });
+
+  it.skipIf(process.platform === "win32")(
+    "refreshes an already-registered browser bridge on activation",
+    async () => {
+      const directory = mkdtempSync(path.join(tmpdir(), "pine-cu-"));
+      const log = path.join(directory, "args.log");
+      const executable = path.join(directory, "fake-computer-use");
+      writeFileSync(executable, `#!/bin/sh\nprintf '%s\\n' "$@" >> '${log}'\n`);
+      chmodSync(executable, 0o755);
+      const controller = new ComputerUseController({
+        client: fakeClient(),
+        executablePath: executable,
+        supportDirectory: directory,
+        getApprovalMode: () => "auto-approve",
+        getGate: () => fakeGate(),
+      });
+
+      await controller.activate(vi.fn());
+      expect(() => readFileSync(log, "utf8")).toThrow();
+
+      writeFileSync(path.join(directory, "native-host"), "#!/bin/sh\n");
+      const refreshed = new ComputerUseController({
+        client: fakeClient(),
+        executablePath: executable,
+        supportDirectory: directory,
+        getApprovalMode: () => "auto-approve",
+        getGate: () => fakeGate(),
+      });
+      await refreshed.activate(vi.fn());
+      await refreshed.activate(vi.fn());
+      const args = readFileSync(log, "utf8").trim().split("\n");
+      expect(args).toEqual([
+        "--profile",
+        JSON.stringify(computerUseProfile(directory)),
+        "install-native-host",
+        "--binary",
+        executable,
+      ]);
+    },
+  );
+});
+
 describe("createComputerUseExtension", () => {
   it("registers all tools and activates the hidden tools additively", async () => {
     const registered: Array<{
@@ -271,7 +354,7 @@ describe("createComputerUseExtension", () => {
       ACTIVATE_COMPUTER_USE_TOOL_NAME,
       ...COMPUTER_USE_DYNAMIC_TOOL_NAMES,
     ]);
-    expect(MUNIM_COMPUTER_USE_TOOL_NAMES).toHaveLength(28);
+    expect(MUNIM_COMPUTER_USE_TOOL_NAMES).toHaveLength(41);
 
     await registered[0]?.execute();
 

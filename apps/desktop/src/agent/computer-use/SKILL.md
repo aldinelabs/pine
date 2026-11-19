@@ -11,16 +11,23 @@ same task more reliably.
 
 ## Workflow
 
-1. Look before acting. Use `list_apps` and `get_app_state`; use
-   `browser_snapshot` for a Pine-owned browser tab.
+1. Look before acting. Use `list_apps` and `get_app_state` (pass `query` to
+   list only matching elements); use `browser_snapshot` for a Pine-owned
+   browser tab's controls and `browser_read` for its text.
 2. Prefer accessibility element ids over screen coordinates. Element ids belong
    to the latest app snapshot and become stale after the UI changes.
-3. Act once, then verify with a fresh state or snapshot. Use `screenshot` only
-   for visual content the accessibility tree cannot describe, and `zoom` for a
-   small dense region.
-4. Use `wait` after navigation, animation, or launching an app. Never infer that
+3. Act, then verify. Pass `return_state: true` on an action to get the
+   resulting state in the same call instead of reading again. Use `screenshot`
+   only for visual content the accessibility tree cannot describe, and `zoom`
+   for a small dense region.
+4. Use `run_steps` for a short sequence you already know follows from the
+   latest snapshot (click a field, type, press return); it stops at the first
+   failing step.
+5. Use `wait` after navigation, animation, or launching an app. Never infer that
    a click succeeded from the call alone.
-5. Keep the user's focus undisturbed when background interaction is available.
+6. Keep the user's focus undisturbed when background interaction is available.
+   Read the clipboard with `clipboard_read` only for text that was deliberately
+   copied for the task.
 
 ## Safety and ownership
 
@@ -38,8 +45,12 @@ same task more reliably.
   irreversible deletion, changing security settings, and sharing sensitive
   information with a new recipient. Ordinary interaction needed to complete
   the requested task does not need repeated confirmation.
-- Do not enter passwords or other authentication secrets. Secure fields are
-  rejected by default; hand control back to the user for authentication.
+- Do not enter passwords or other authentication secrets yourself, and never
+  ask the user to paste one into the conversation. Secure fields are rejected
+  by default. For a sign-in in a Pine-owned tab, use
+  `browser_request_credentials`: the user types the values into a Chrome
+  prompt that names the site, and they never reach you. Elsewhere, hand
+  control back to the user for authentication.
 - Do not confirm purchases, publish content, send messages, delete data, change
   security settings, or make another consequential commitment unless the user
   clearly authorized that exact action.

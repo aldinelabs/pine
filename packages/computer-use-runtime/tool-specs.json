@@ -1,486 +1,1668 @@
 [
   {
-    "name": "list_apps",
-    "description": "List running applications with their bundle id, pid, window count, and which is frontmost. Note that one app can have several running instances and only some may own windows.",
+    "annotations": {
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false,
+      "readOnlyHint": true,
+      "title": "List running apps"
+    },
+    "description": "List running applications with their bundle id, pid, window count, and which one is frontmost. Call it first to learn the exact `app` value that get_app_state, screenshot and activate_app accept. One app can have several running instances and only some own windows, so prefer the instance that has windows. Instances that share a name each show their main window title, and a closing note lists their pids: pass the pid to choose one. Read-only: no window or input is touched.",
     "inputSchema": {
-      "type": "object",
-      "properties": {}
-    }
+      "properties": {},
+      "type": "object"
+    },
+    "name": "list_apps",
+    "title": "List running apps"
   },
   {
-    "description": "Read an app's accessibility tree as an indented outline. Interactive elements are prefixed with an id like [e12] that you pass to click/type_text/scroll. Call this before interacting, and again after the UI changes, since ids are per-snapshot.",
-    "name": "get_app_state",
+    "annotations": {
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false,
+      "readOnlyHint": true,
+      "title": "Read accessibility tree"
+    },
+    "description": "Read an app's accessibility tree as an indented outline in which interactive elements carry ids like [e12] that click, type_text, set_value, scroll, hover and select_text accept. Use it instead of screenshot whenever you intend to act: it is far cheaper in tokens and gives exact targets. Call it before interacting and again after the UI changes, because ids are per-snapshot. Each id is rechecked before an action: one whose element is gone or has changed fails instead of acting on something else. The outline lists what is on screen: rows of long lists and content scrolled out of view are skipped (scroll, or pass offscreen), and while a dialog, sheet or popover blocks a window only its controls are listed. When an app exposes little to accessibility, its on-screen text is read with OCR and listed with ids too. Read-only; it does not change focus.",
     "inputSchema": {
       "properties": {
-        "window": {
-          "description": "Limit to one window: a 0-based index, or \"agent\" for the browser window this agent owns"
-        },
-        "max_depth": {
-          "type": "integer",
-          "description": "Max tree depth (default 18)"
-        },
         "app": {
-          "type": "string",
-          "description": "App name, bundle id, or pid"
-        },
-        "query": {
-          "description": "Only list elements whose role, label or value contains this text (case-insensitive). Ids stay valid. Use it instead of raising max_elements when you know what you are looking for.",
+          "description": "App name, bundle id, or pid exactly as reported by list_apps, or \"frontmost\" for the app the user is looking at",
           "type": "string"
         },
+        "max_depth": {
+          "description": "Maximum nesting depth to descend (default 18). Lower it for a quick overview of a large window.",
+          "type": "integer"
+        },
         "max_elements": {
-          "type": "integer",
-          "description": "Max elements to emit (default 800)"
+          "description": "Maximum elements to emit before the outline is truncated (default 800). With `query`, the maximum matches to list instead: a query searches past this cap. Prefer `query` over raising this.",
+          "type": "integer"
+        },
+        "ocr": {
+          "description": "Read on-screen text with OCR and list it with ids that click, hover, right_click and drag accept: auto (default) only when the app exposes no labelled controls to accessibility, always, or never. macOS and Windows; macOS needs Screen Recording permission.",
+          "enum": [
+            "auto",
+            "always",
+            "never"
+          ],
+          "type": "string"
+        },
+        "offscreen": {
+          "description": "Also list elements scrolled out of view, such as every row of a long list (default false). Prefer scrolling or `query`: this can make the outline far larger.",
+          "type": "boolean"
+        },
+        "query": {
+          "description": "Only list elements whose role, label or value contains this text (case-insensitive). Ids stay valid. It searches the whole outline, not just the first max_elements elements, and says when the read stopped early. Use it instead of raising max_elements when you know what you are looking for.",
+          "type": "string"
+        },
+        "window": {
+          "description": "Limit to one window: a 0-based index, or \"agent\" for the browser window this agent owns",
+          "type": [
+            "integer",
+            "string"
+          ]
         }
       },
-      "required": ["app"],
+      "required": [
+        "app"
+      ],
       "type": "object"
-    }
+    },
+    "name": "get_app_state",
+    "title": "Read accessibility tree"
   },
   {
+    "annotations": {
+      "destructiveHint": true,
+      "idempotentHint": false,
+      "openWorldHint": false,
+      "readOnlyHint": false,
+      "title": "Click"
+    },
+    "description": "Click an element by element_id (preferred: it uses the accessibility press action, so it works even when the element is scrolled out of view) or at absolute screen coordinates taken from a screenshot or zoom. Pass element_id or x and y, not both. When element_id is clicked by position (web content, or no press action), the point is checked with the app's own hit test first, and the element is scrolled into view if needed; if something else is there the call fails without clicking. A checkbox or radio button says what it is now, and a click that left it unchanged is reported as an error. Use browser_click for pages in the agent's Chrome tabs, right_click for context menus, and drag for press-move-release. The click reaches the target app for real and can trigger any action the user could, so read the target with get_app_state first. The agent's own pointer overlay moves to the target. On macOS the user's mouse pointer never moves; on Windows and Linux a target that ignores background input gets real mouse input, which moves the user's pointer, and the result then says via cursor.",
     "inputSchema": {
       "properties": {
         "click_count": {
-          "type": "integer",
-          "description": "1 for single, 2 for double-click"
+          "description": "1 for a single click (default), 2 for a double-click",
+          "type": "integer"
         },
         "element_id": {
-          "description": "Element id from get_app_state, e.g. e12",
+          "description": "Element id from the most recent get_app_state snapshot, e.g. e12. Preferred over coordinates.",
+          "type": "string"
+        },
+        "return_state": {
+          "description": "After acting, wait for the app to finish reacting (up to 2 s) and append a fresh get_app_state of the app you last read, so you can check the result and pick the next target in the same call. Its ids replace every earlier id.",
+          "type": "boolean"
+        },
+        "state_query": {
+          "description": "With return_state, list only elements whose role, label or value contains this text, like get_app_state's query",
           "type": "string"
         },
         "x": {
+          "description": "Screen x coordinate in points, used together with y when no element_id is given",
           "type": "number"
         },
         "y": {
+          "description": "Screen y coordinate in points, used together with x when no element_id is given",
           "type": "number"
         }
       },
       "type": "object"
     },
     "name": "click",
-    "description": "Click an element by element_id (preferred, uses the accessibility press action) or at absolute screen coordinates. The agent pointer overlay moves to the target without moving the user's mouse."
+    "title": "Click"
   },
   {
-    "description": "Type literal text into the focused element, optionally focusing element_id first.",
+    "annotations": {
+      "destructiveHint": true,
+      "idempotentHint": false,
+      "openWorldHint": false,
+      "readOnlyHint": false,
+      "title": "Type text"
+    },
+    "description": "Type literal text as keystrokes into the field that currently has focus, optionally focusing element_id first. Use it for short entries and for fields that reject set_value; use set_value to replace a long value in one step, and press_key for shortcuts or keys such as return and tab. Never use it for a Chrome tab the agent works in (it goes to whichever Chrome window is in front, which can be the user's); use browser_type or browser_fill there. Text is inserted at the caret without clearing what is already there. It does not take over the user's keyboard: on macOS and Windows the text goes to the app you are working in, not the window the user is typing in, so do not call activate_app first. Typing into password fields is refused by default (see COMPUTER_USE_ALLOW_SECURE_FIELD_INPUT).",
     "inputSchema": {
-      "required": ["text"],
-      "type": "object",
       "properties": {
-        "text": {
+        "element_id": {
+          "description": "Element to focus before typing, from get_app_state. Omit to type into whatever currently has focus.",
           "type": "string"
         },
-        "element_id": {
-          "type": "string",
-          "description": "Focus this element before typing"
+        "return_state": {
+          "description": "After acting, wait for the app to finish reacting (up to 2 s) and append a fresh get_app_state of the app you last read, so you can check the result and pick the next target in the same call. Its ids replace every earlier id.",
+          "type": "boolean"
+        },
+        "state_query": {
+          "description": "With return_state, list only elements whose role, label or value contains this text, like get_app_state's query",
+          "type": "string"
+        },
+        "text": {
+          "description": "Exact text to type, character by character",
+          "type": "string"
         }
-      }
+      },
+      "required": [
+        "text"
+      ],
+      "type": "object"
     },
-    "name": "type_text"
+    "name": "type_text",
+    "title": "Type text"
   },
   {
-    "name": "press_key",
+    "annotations": {
+      "destructiveHint": true,
+      "idempotentHint": false,
+      "openWorldHint": false,
+      "readOnlyHint": false,
+      "title": "Press key"
+    },
+    "description": "Press one named key, optionally with modifiers held, e.g. key='s' modifiers=['cmd'] to save or key='return' to submit. Use it for shortcuts and navigation keys; use type_text for literal text. Never use it for a Chrome tab the agent works in: it goes to whichever Chrome window is in front, which can be the user's; use browser_press_key, browser_type or browser_fill there. The key goes to the app you are working in (the one you last clicked or focused); on macOS and Windows the user can keep typing elsewhere meanwhile, so call activate_app only when nothing has targeted the app yet. Shortcuts can close windows or delete content, so confirm the target before pressing.",
     "inputSchema": {
-      "type": "object",
       "properties": {
+        "key": {
+          "description": "Key name: a single character such as 's' or '/' (resolved through the current keyboard layout), or a named key: return, tab, escape, space, delete, backspace, forwarddelete, up, down, left, right, home, end, pageup, pagedown, insert, f1 to f20, punctuation names (minus, equal, leftbracket, rightbracket, backslash, semicolon, quote, comma, period, slash, grave), numpad0 to numpad9, numpadadd, numpadsubtract, numpadmultiply, numpaddivide, numpaddecimal, numpadenter",
+          "type": "string"
+        },
         "modifiers": {
-          "type": "array",
+          "description": "Modifier keys to hold while pressing: any of cmd, shift, alt, ctrl, fn. cmd maps to the Windows/Super key off macOS.",
           "items": {
             "type": "string"
           },
-          "description": "Any of cmd, shift, alt, ctrl, fn"
+          "type": "array"
         },
-        "key": {
+        "return_state": {
+          "description": "After acting, wait for the app to finish reacting (up to 2 s) and append a fresh get_app_state of the app you last read, so you can check the result and pick the next target in the same call. Its ids replace every earlier id.",
+          "type": "boolean"
+        },
+        "state_query": {
+          "description": "With return_state, list only elements whose role, label or value contains this text, like get_app_state's query",
           "type": "string"
         }
       },
-      "required": ["key"]
+      "required": [
+        "key"
+      ],
+      "type": "object"
     },
-    "description": "Press a named key with optional modifiers, e.g. key='s' modifiers=['cmd'] to save, or key='return'."
+    "name": "press_key",
+    "title": "Press key"
   },
   {
+    "annotations": {
+      "destructiveHint": false,
+      "idempotentHint": false,
+      "openWorldHint": false,
+      "readOnlyHint": false,
+      "title": "Scroll"
+    },
+    "description": "Scroll up, down, left or right by a number of lines, over element_id when given so the right pane scrolls. Use it to bring off-screen content into view before get_app_state or screenshot. It only scrolls; nothing is clicked or selected. On macOS it scrolls the target app in the background without moving the user's pointer. On Windows and Linux, without element_id it scrolls whatever is under the user's pointer, and an element with no background route gets the real pointer moved onto it (the result then says via cursor).",
     "inputSchema": {
-      "type": "object",
       "properties": {
-        "element_id": {
-          "type": "string"
+        "amount": {
+          "description": "Number of scroll lines, 1 to 100 (default 5)",
+          "type": "integer"
         },
         "direction": {
-          "enum": ["up", "down", "left", "right"],
+          "description": "Scroll direction (default down)",
+          "enum": [
+            "up",
+            "down",
+            "left",
+            "right"
+          ],
           "type": "string"
         },
-        "amount": {
-          "type": "integer",
-          "description": "Scroll lines (default 5)"
-        }
-      }
-    },
-    "name": "scroll",
-    "description": "Scroll up, down, left, or right, optionally positioning the cursor over element_id first."
-  },
-  {
-    "description": "Bring an app to the foreground.",
-    "inputSchema": {
-      "properties": {
-        "app": {
+        "element_id": {
+          "description": "Element to scroll, from get_app_state; the nearest scrollable area around it moves. Omit to scroll the last inspected app (macOS) or whatever is under the pointer (Windows, Linux).",
           "type": "string"
-        }
-      },
-      "type": "object",
-      "required": ["app"]
-    },
-    "name": "activate_app"
-  },
-  {
-    "description": "Capture the app's largest window (or a whole display) as a PNG image. The result text states the capture's screen origin and pixels-per-point so you can convert an image pixel into click/hover coordinates. Prefer get_app_state for interaction, which is cheaper and gives clickable element ids; use a screenshot to verify an outcome or to see content the accessibility tree does not describe (canvas, video, custom drawing). Use zoom to read small text.",
-    "inputSchema": {
-      "properties": {
-        "display": {
-          "type": "integer",
-          "description": "Capture a whole display by index (see list_displays) instead of an app window"
         },
-        "max_width": {
-          "type": "integer",
-          "description": "Downscale to this width in pixels (default 1400)"
+        "return_state": {
+          "description": "After acting, wait for the app to finish reacting (up to 2 s) and append a fresh get_app_state of the app you last read, so you can check the result and pick the next target in the same call. Its ids replace every earlier id.",
+          "type": "boolean"
         },
-        "app": {
-          "description": "App name, bundle id, or pid",
+        "state_query": {
+          "description": "With return_state, list only elements whose role, label or value contains this text, like get_app_state's query",
           "type": "string"
+        },
+        "x": {
+          "description": "Screen x to scroll over. Remote control only: the pointer moves there first. Ignored otherwise.",
+          "type": "number"
+        },
+        "y": {
+          "description": "Screen y to scroll over. Remote control only: the pointer moves there first. Ignored otherwise.",
+          "type": "number"
         }
       },
       "type": "object"
     },
-    "name": "screenshot"
+    "name": "scroll",
+    "title": "Scroll"
   },
   {
-    "description": "List every attached display with its index, resolution and position, for use with screenshot(display: N).",
-    "name": "list_displays",
+    "annotations": {
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false,
+      "readOnlyHint": false,
+      "title": "Activate app"
+    },
+    "description": "Bring an app's windows to the foreground and give it keyboard focus. type_text, press_key and element-id actions such as click and set_value do not need it; use it only when the app itself must be in front. Side effect: the window the user was working in loses focus.",
     "inputSchema": {
-      "type": "object",
-      "properties": {}
-    }
-  },
-  {
-    "inputSchema": {
-      "type": "object",
       "properties": {
+        "app": {
+          "description": "App name, bundle id, or pid exactly as reported by list_apps",
+          "type": "string"
+        }
+      },
+      "required": [
+        "app"
+      ],
+      "type": "object"
+    },
+    "name": "activate_app",
+    "title": "Activate app"
+  },
+  {
+    "annotations": {
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false,
+      "readOnlyHint": false,
+      "title": "Launch app"
+    },
+    "description": "Start an installed app that is not running yet, by the name the system's app list shows (the Start menu on Windows, the app launcher on Linux, Applications on macOS) or its id (bundle id on macOS, Start menu AppID on Windows, desktop file id on Linux), then wait for its first window. A unique start of a name is enough (\"calc\" for Calculator); several matches are listed instead of guessed. If the app is already running, nothing is started and the reply gives its pid: use get_app_state or activate_app. The reply names the running app and its pid for get_app_state. macOS opens it without bringing it to the front; on Windows and Linux its first window may come to the front, so the user's foreground rule applies. The user's app rules apply as they do to every app.",
+    "inputSchema": {
+      "properties": {
+        "app": {
+          "description": "App name as the system lists installed apps (\"Calculator\", \"Visual Studio Code\"), or its bundle id, Start menu AppID or desktop file id",
+          "type": "string"
+        },
+        "wait_seconds": {
+          "description": "How long to wait for the app's first window (default 10). 0 starts it and returns at once.",
+          "maximum": 30,
+          "minimum": 0,
+          "type": "number"
+        }
+      },
+      "required": [
+        "app"
+      ],
+      "type": "object"
+    },
+    "name": "launch_app",
+    "title": "Launch app"
+  },
+  {
+    "annotations": {
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false,
+      "readOnlyHint": true,
+      "title": "Screenshot"
+    },
+    "description": "Capture an app's largest window, or a whole display, as an image. The result text states the capture's screen origin and pixels-per-point so an image pixel can be converted into click or hover coordinates. Prefer get_app_state for interaction, which is cheaper and returns clickable element ids; for a Chrome tab the agent works in, use browser_screenshot instead, which sees the tab without bringing it to front. Use screenshot to verify an outcome or to see content the accessibility tree cannot describe (canvas, video, custom drawing), and zoom to read small text. Read-only; the captured window is not raised or focused.",
+    "inputSchema": {
+      "properties": {
+        "app": {
+          "description": "App name, bundle id, or pid exactly as reported by list_apps. Captures that app's largest window. Provide either app or display, or \"frontmost\" for the app the user is looking at",
+          "type": "string"
+        },
+        "display": {
+          "description": "0-based display index from list_displays. Captures the whole display instead of an app window.",
+          "type": "integer"
+        },
+        "format": {
+          "description": "Image encoding (default png). Use jpeg for live remote viewing.",
+          "enum": [
+            "png",
+            "jpeg"
+          ],
+          "type": "string"
+        },
+        "max_width": {
+          "description": "Downscale the image to this width in pixels (default 1400). Lower it to save tokens.",
+          "type": "integer"
+        },
+        "quality": {
+          "description": "JPEG quality from 1 to 100 (default 55). Ignored for png. Raise it when small text must stay sharp.",
+          "maximum": 100,
+          "minimum": 1,
+          "type": "integer"
+        }
+      },
+      "type": "object"
+    },
+    "name": "screenshot",
+    "title": "Screenshot"
+  },
+  {
+    "annotations": {
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false,
+      "readOnlyHint": true,
+      "title": "List displays"
+    },
+    "description": "List every attached display with its index, resolution and position, for use with screenshot(display: N) and for interpreting screen coordinates on multi-monitor setups. Read-only.",
+    "inputSchema": {
+      "properties": {},
+      "type": "object"
+    },
+    "name": "list_displays",
+    "title": "List displays"
+  },
+  {
+    "annotations": {
+      "destructiveHint": true,
+      "idempotentHint": false,
+      "openWorldHint": false,
+      "readOnlyHint": false,
+      "title": "Right-click"
+    },
+    "description": "Right-click (secondary click) an element or screen position to open its context menu. Follow with get_app_state to read the menu items, then click one. Use click for normal activation. Pass element_id or x and y, not both. The user's pointer is treated as for click.",
+    "inputSchema": {
+      "properties": {
+        "element_id": {
+          "description": "Element id from the most recent get_app_state snapshot, e.g. e12",
+          "type": "string"
+        },
+        "return_state": {
+          "description": "After acting, wait for the app to finish reacting (up to 2 s) and append a fresh get_app_state of the app you last read, so you can check the result and pick the next target in the same call. Its ids replace every earlier id.",
+          "type": "boolean"
+        },
+        "state_query": {
+          "description": "With return_state, list only elements whose role, label or value contains this text, like get_app_state's query",
+          "type": "string"
+        },
         "x": {
+          "description": "Screen x coordinate in points, used together with y when no element_id is given",
           "type": "number"
         },
         "y": {
+          "description": "Screen y coordinate in points, used together with x when no element_id is given",
           "type": "number"
-        },
-        "element_id": {
-          "type": "string"
         }
-      }
+      },
+      "type": "object"
     },
-    "description": "Right-click (secondary click) an element or screen position to open a context menu.",
-    "name": "right_click"
+    "name": "right_click",
+    "title": "Right-click"
   },
   {
+    "annotations": {
+      "destructiveHint": true,
+      "idempotentHint": false,
+      "openWorldHint": false,
+      "readOnlyHint": false,
+      "title": "Drag"
+    },
+    "description": "Press at one point, move, and release at another to drag and drop, move a slider, or select a range. Give each end as an element id or as screen coordinates; the two ends may use different forms. A drop can move or reorder items in the app, so verify the result with get_app_state. On macOS a drag must stay inside one app window and never moves the user's pointer; on Windows and Linux most drags use real mouse input, which moves the user's pointer (the result then says via cursor).",
     "inputSchema": {
       "properties": {
-        "from_y": {
-          "type": "number"
+        "from_element_id": {
+          "description": "Element to start the drag on, from get_app_state",
+          "type": "string"
         },
         "from_x": {
+          "description": "Screen x to start at, used with from_y when no from_element_id is given",
           "type": "number"
         },
-        "to_y": {
+        "from_y": {
+          "description": "Screen y to start at, used with from_x when no from_element_id is given",
           "type": "number"
+        },
+        "return_state": {
+          "description": "After acting, wait for the app to finish reacting (up to 2 s) and append a fresh get_app_state of the app you last read, so you can check the result and pick the next target in the same call. Its ids replace every earlier id.",
+          "type": "boolean"
+        },
+        "state_query": {
+          "description": "With return_state, list only elements whose role, label or value contains this text, like get_app_state's query",
+          "type": "string"
         },
         "to_element_id": {
+          "description": "Element to release on, from get_app_state",
           "type": "string"
         },
         "to_x": {
+          "description": "Screen x to release at, used with to_y when no to_element_id is given",
           "type": "number"
         },
-        "from_element_id": {
-          "type": "string"
+        "to_y": {
+          "description": "Screen y to release at, used with to_x when no to_element_id is given",
+          "type": "number"
         }
       },
       "type": "object"
     },
     "name": "drag",
-    "description": "Press at one point, drag, and release at another. Accepts element ids or coordinates on each end."
+    "title": "Drag"
   },
   {
-    "description": "Replace a text field's contents directly. More reliable than select-all-then-type for long values, though some fields reject it and need click + type_text.",
+    "annotations": {
+      "destructiveHint": true,
+      "idempotentHint": true,
+      "openWorldHint": false,
+      "readOnlyHint": false,
+      "title": "Set field value"
+    },
+    "description": "Replace a text field's entire contents in one step through the accessibility API, without keystrokes. Prefer it over type_text for long values or when the field already holds text; fall back to click plus type_text if the field rejects it, which the result reports. The previous value is discarded.",
     "inputSchema": {
-      "required": ["element_id", "value"],
       "properties": {
         "element_id": {
+          "description": "Text field to set, from get_app_state",
+          "type": "string"
+        },
+        "return_state": {
+          "description": "After acting, wait for the app to finish reacting (up to 2 s) and append a fresh get_app_state of the app you last read, so you can check the result and pick the next target in the same call. Its ids replace every earlier id.",
+          "type": "boolean"
+        },
+        "state_query": {
+          "description": "With return_state, list only elements whose role, label or value contains this text, like get_app_state's query",
           "type": "string"
         },
         "value": {
+          "description": "New complete value for the field",
           "type": "string"
         }
       },
+      "required": [
+        "element_id",
+        "value"
+      ],
       "type": "object"
     },
-    "name": "set_value"
+    "name": "set_value",
+    "title": "Set field value"
   },
   {
-    "inputSchema": {
-      "type": "object",
-      "properties": {
-        "url": {
-          "description": "URL to open (default about:blank)",
-          "type": "string"
-        }
-      }
+    "annotations": {
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false,
+      "readOnlyHint": true,
+      "title": "Zoom into region"
     },
-    "description": "Open a URL in a new background tab inside the agent's own labelled tab group, in the user's signed-in Chrome. The user keeps browsing their tabs undisturbed. Returns a tab_id for browser_snapshot / browser_click.",
-    "name": "browser_open_tab"
-  },
-  {
-    "name": "browser_list_tabs",
-    "description": "List the tabs in the agent's own Chrome window, marking the active one. Pass all=true to see every tab open in the browser, including the user's, so you can pick one to drive with browser_use_tab.",
+    "description": "Capture one region of the screen at full resolution, to read small text, dense tables, file names or tiny controls that a normal screenshot blurs. Give the region as two corners in screen coordinates (the same space click uses); the result text explains how to map pixels in the zoomed image back to screen coordinates. Use screenshot for a whole window and get_app_state when the text is exposed by accessibility. Read-only.",
     "inputSchema": {
-      "type": "object",
       "properties": {
-        "all": {
-          "type": "boolean",
-          "description": "List every tab in the browser, not just the agent's (default false)"
-        }
-      }
-    }
-  },
-  {
-    "inputSchema": {
-      "type": "object",
-      "required": ["tab_id"],
-      "properties": {
-        "tab_id": {
-          "type": "integer",
-          "description": "From browser_list_tabs all=true"
-        }
-      }
-    },
-    "description": "Take over a tab the user already has open, instead of opening a new one. Use this when the page is already signed in or mid-flow — a checkout, a draft, a dashboard behind SSO — and re-opening the URL would lose that state. Find the tab_id with browser_list_tabs all=true. The tab stays exactly where it is in the user's window; it is not moved into the agent's group, not activated, and not reloaded. It is never closed by cleanup — call browser_release_tab to hand it back. Ask the user before taking over a tab they are actively working in.",
-    "name": "browser_use_tab"
-  },
-  {
-    "inputSchema": {
-      "type": "object",
-      "required": ["tab_id"],
-      "properties": {
-        "tab_id": {
+        "max_width": {
+          "description": "Downscale the zoomed image to this width in pixels (default 1400)",
           "type": "integer"
-        }
-      }
-    },
-    "name": "browser_release_tab",
-    "description": "Hand a tab taken over with browser_use_tab back to the user: the agent stops driving it and the page is left exactly as it is."
-  },
-  {
-    "inputSchema": {
-      "type": "object",
-      "properties": {
-        "index": {
-          "description": "1-based index, fallback mode only",
-          "type": "integer"
-        },
-        "tab_id": {
-          "description": "From browser_list_tabs",
-          "type": "integer"
-        }
-      }
-    },
-    "description": "Make one of the agent's tabs the visible one. Does not affect the user's tabs.",
-    "name": "browser_select_tab"
-  },
-  {
-    "name": "browser_close_tab",
-    "inputSchema": {
-      "properties": {
-        "tab_id": {
-          "type": "integer",
-          "description": "From browser_list_tabs"
-        },
-        "index": {
-          "type": "integer",
-          "description": "1-based index, fallback mode only"
-        }
-      },
-      "type": "object"
-    },
-    "description": "Close one of the agent's tabs. A tab taken over with browser_use_tab is released rather than closed — it belongs to the user."
-  },
-  {
-    "inputSchema": {
-      "properties": {
-        "tab_id": {
-          "description": "From browser_open_tab or browser_list_tabs",
-          "type": "integer"
-        }
-      },
-      "type": "object",
-      "required": ["tab_id"]
-    },
-    "name": "browser_snapshot",
-    "description": "List the interactive elements on a page in one of the agent's tabs, with indices to pass to browser_click. Works on a background tab, so the user can be looking at something else."
-  },
-  {
-    "description": "Click in one of the agent's tabs, by element index from browser_snapshot or by page coordinates. Works on a background tab.",
-    "inputSchema": {
-      "properties": {
-        "y": {
-          "type": "number"
-        },
-        "index": {
-          "description": "Element index from browser_snapshot",
-          "type": "integer"
-        },
-        "tab_id": {
-          "type": "integer"
-        },
-        "x": {
-          "type": "number"
-        }
-      },
-      "required": ["tab_id"],
-      "type": "object"
-    },
-    "name": "browser_click"
-  },
-  {
-    "description": "Type text into the focused field of one of the agent's tabs. Click the field first.",
-    "inputSchema": {
-      "type": "object",
-      "required": ["tab_id", "text"],
-      "properties": {
-        "tab_id": {
-          "type": "integer"
-        },
-        "text": {
-          "type": "string"
-        }
-      }
-    },
-    "name": "browser_type"
-  },
-  {
-    "description": "Press Enter, Tab, Escape or Backspace in one of the agent's tabs.",
-    "name": "browser_press_key",
-    "inputSchema": {
-      "properties": {
-        "tab_id": {
-          "type": "integer"
-        },
-        "key": {
-          "enum": ["Enter", "Tab", "Escape", "Backspace"],
-          "type": "string"
-        }
-      },
-      "required": ["tab_id", "key"],
-      "type": "object"
-    }
-  },
-  {
-    "name": "browser_close_all_tabs",
-    "description": "Close every tab the agent opened and remove its tab group. Tabs taken over with browser_use_tab are released back to the user, not closed. Call this when finished with the browser so no empty group is left in the user's tab strip. The MCP process also runs this automatically when the Computer Use session ends.",
-    "inputSchema": {
-      "properties": {},
-      "type": "object"
-    }
-  },
-  {
-    "name": "browser_navigate",
-    "description": "Point one of the agent's tabs at a different URL.",
-    "inputSchema": {
-      "required": ["tab_id", "url"],
-      "type": "object",
-      "properties": {
-        "url": {
-          "type": "string"
-        },
-        "tab_id": {
-          "type": "integer"
-        }
-      }
-    }
-  },
-  {
-    "inputSchema": {
-      "type": "object",
-      "required": ["x0", "y0", "x1", "y1"],
-      "properties": {
-        "y1": {
-          "description": "Bottom edge, screen coordinates",
-          "type": "number"
-        },
-        "y0": {
-          "type": "number",
-          "description": "Top edge, screen coordinates"
-        },
-        "x1": {
-          "description": "Right edge, screen coordinates",
-          "type": "number"
         },
         "x0": {
           "description": "Left edge, screen coordinates",
           "type": "number"
         },
-        "max_width": {
-          "description": "Downscale the zoomed image to this width in pixels (default 1400)",
-          "type": "integer"
+        "x1": {
+          "description": "Right edge, screen coordinates",
+          "type": "number"
+        },
+        "y0": {
+          "description": "Top edge, screen coordinates",
+          "type": "number"
+        },
+        "y1": {
+          "description": "Bottom edge, screen coordinates",
+          "type": "number"
         }
-      }
+      },
+      "required": [
+        "x0",
+        "y0",
+        "x1",
+        "y1"
+      ],
+      "type": "object"
     },
-    "description": "Capture one region of the screen at full resolution, to read small text, dense tables, file names or tiny controls that a normal screenshot blurs. Give the region as two corners in screen coordinates (the same space click uses); the result text explains how to map pixels in the zoomed image back to screen coordinates.",
-    "name": "zoom"
+    "name": "zoom",
+    "title": "Zoom into region"
   },
   {
-    "description": "Move the agent pointer over an element or screen position without clicking, to reveal hover menus, toolbars, tooltips or drag handles. Follow with get_app_state or screenshot to see what appeared.",
-    "name": "hover",
+    "annotations": {
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false,
+      "readOnlyHint": false,
+      "title": "Hover"
+    },
+    "description": "Move the agent pointer over an element or screen position without clicking, to reveal hover menus, toolbars, tooltips or drag handles. Follow with get_app_state or screenshot to see what appeared. Use click to activate. Pass element_id or x and y, not both. On macOS the user's own mouse pointer is not moved; on Windows and Linux it may be, and the result then says via cursor.",
     "inputSchema": {
       "properties": {
         "element_id": {
-          "type": "string",
-          "description": "Element id from get_app_state"
+          "description": "Element id from the most recent get_app_state snapshot, e.g. e12",
+          "type": "string"
+        },
+        "return_state": {
+          "description": "After acting, wait for the app to finish reacting (up to 2 s) and append a fresh get_app_state of the app you last read, so you can check the result and pick the next target in the same call. Its ids replace every earlier id.",
+          "type": "boolean"
+        },
+        "state_query": {
+          "description": "With return_state, list only elements whose role, label or value contains this text, like get_app_state's query",
+          "type": "string"
         },
         "x": {
+          "description": "Screen x coordinate in points, used together with y when no element_id is given",
           "type": "number"
         },
         "y": {
-          "type": "number"
-        }
-      },
-      "type": "object"
-    }
-  },
-  {
-    "description": "Pause before the next action so the UI can catch up: page loads, animations, dialogs opening, apps launching. Follow with get_app_state or screenshot to confirm the new state instead of guessing.",
-    "inputSchema": {
-      "properties": {
-        "seconds": {
-          "description": "Seconds to wait (default 1, max 30)",
+          "description": "Screen y coordinate in points, used together with x when no element_id is given",
           "type": "number"
         }
       },
       "type": "object"
     },
-    "name": "wait"
+    "name": "hover",
+    "title": "Hover"
   },
   {
-    "name": "select_text",
-    "description": "Select a character range inside a text element. Defaults to selecting from 'start' to the end of the value.",
+    "annotations": {
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false,
+      "readOnlyHint": true,
+      "title": "Wait"
+    },
+    "description": "Pause before the next action so the UI can catch up: page loads, animations, dialogs opening, apps launching. Follow with get_app_state or screenshot to confirm the new state instead of guessing. Sends no input.",
     "inputSchema": {
-      "type": "object",
-      "required": ["element_id"],
       "properties": {
-        "start": {
-          "description": "Start offset (default 0)",
-          "type": "integer"
+        "seconds": {
+          "description": "Seconds to wait (default 1, maximum 30)",
+          "type": "number"
+        }
+      },
+      "type": "object"
+    },
+    "name": "wait",
+    "title": "Wait"
+  },
+  {
+    "annotations": {
+      "destructiveHint": true,
+      "idempotentHint": false,
+      "openWorldHint": true,
+      "readOnlyHint": false,
+      "title": "Run steps"
+    },
+    "description": "Run a sequence of actions in one call, in order, stopping at the first step that fails. Each step names another tool and its arguments, and runs exactly as if you had called it: the same app and site rules, element id checks and password-field refusals apply. Use it for steps you already know will follow each other, like click a field, type, press return, after reading the app with get_app_state. Element ids from that snapshot stay valid until a step reads the app again. The result lists every step's outcome; when a step fails, the steps after it do not run and the call reports an error. Put return_state on run_steps, not on a step, to get the state after the last step. At most 20 steps; run_steps cannot contain run_steps.",
+    "inputSchema": {
+      "properties": {
+        "return_state": {
+          "description": "Pass return_state to the last step, so the result ends with the state after it (the app you last read, or the page for a browser step)",
+          "type": "boolean"
+        },
+        "state_query": {
+          "description": "With return_state, list only elements whose role, label or value contains this text, like get_app_state's query",
+          "type": "string"
+        },
+        "steps": {
+          "description": "The actions to run, in order",
+          "items": {
+            "properties": {
+              "args": {
+                "description": "That tool's arguments, as you would pass them to it directly",
+                "type": "object"
+              },
+              "tool": {
+                "description": "Name of the tool to call, e.g. click, type_text, press_key, wait, browser_click",
+                "type": "string"
+              }
+            },
+            "required": [
+              "tool"
+            ],
+            "type": "object"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "steps"
+      ],
+      "type": "object"
+    },
+    "name": "run_steps",
+    "title": "Run steps"
+  },
+  {
+    "annotations": {
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false,
+      "readOnlyHint": false,
+      "title": "Select text"
+    },
+    "description": "Select a character range inside a text element through the accessibility API, for example to copy part of a value or to replace just that part with type_text. Defaults to selecting from `start` to the end of the value. Use set_value to replace the whole value instead. Only the selection changes; the text is not modified.",
+    "inputSchema": {
+      "properties": {
+        "element_id": {
+          "description": "Text element to select in, from get_app_state",
+          "type": "string"
         },
         "length": {
-          "type": "integer",
-          "description": "Characters to select (default: to end)"
+          "description": "Number of characters to select (default: through the end of the value)",
+          "type": "integer"
         },
-        "element_id": {
+        "return_state": {
+          "description": "After acting, wait for the app to finish reacting (up to 2 s) and append a fresh get_app_state of the app you last read, so you can check the result and pick the next target in the same call. Its ids replace every earlier id.",
+          "type": "boolean"
+        },
+        "start": {
+          "description": "Zero-based character offset to start the selection at (default 0)",
+          "type": "integer"
+        },
+        "state_query": {
+          "description": "With return_state, list only elements whose role, label or value contains this text, like get_app_state's query",
           "type": "string"
         }
-      }
-    }
+      },
+      "required": [
+        "element_id"
+      ],
+      "type": "object"
+    },
+    "name": "select_text",
+    "title": "Select text"
+  },
+  {
+    "annotations": {
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false,
+      "readOnlyHint": true,
+      "title": "Read clipboard"
+    },
+    "description": "Read the plain text on the system clipboard, for example after press_key cmd+c (ctrl+c off macOS) copied a selection, or when the user says they copied something for you. Prefer get_app_state, browser_snapshot or screenshot to read what is on screen; use this for text that was deliberately copied. Images and files on the clipboard are reported as no text. Read-only, but the clipboard can hold private data the user copied, such as passwords, so do not repeat it beyond what the task needs.",
+    "inputSchema": {
+      "properties": {
+        "max_chars": {
+          "description": "Maximum characters to return (default 20000, maximum 200000). Longer text is cut off with a note giving its full length.",
+          "type": "integer"
+        }
+      },
+      "type": "object"
+    },
+    "name": "clipboard_read",
+    "title": "Read clipboard"
+  },
+  {
+    "annotations": {
+      "destructiveHint": true,
+      "idempotentHint": true,
+      "openWorldHint": false,
+      "readOnlyHint": false,
+      "title": "Write clipboard"
+    },
+    "description": "Replace the system clipboard with plain text, typically so a long or multi-line value can be pasted with press_key cmd+v (ctrl+v off macOS) where set_value is rejected and type_text would be slow. This tool does not paste anything itself. Side effect: whatever the user had on the clipboard is overwritten and not restored, so tell the user when you use it. Prefer set_value or type_text when they work.",
+    "inputSchema": {
+      "properties": {
+        "text": {
+          "description": "Exact text to place on the clipboard, replacing its current contents",
+          "type": "string"
+        }
+      },
+      "required": [
+        "text"
+      ],
+      "type": "object"
+    },
+    "name": "clipboard_write",
+    "title": "Write clipboard"
+  },
+  {
+    "annotations": {
+      "destructiveHint": false,
+      "idempotentHint": false,
+      "openWorldHint": true,
+      "readOnlyHint": false,
+      "title": "Open browser tab"
+    },
+    "description": "Open a URL in a new background tab inside the agent's own labelled tab group in the user's signed-in Chrome, and return its tab_id for browser_snapshot, browser_click, browser_type and browser_navigate. The tab opens in the background, so the user's browsing is not interrupted. Use browser_use_tab instead when the user already has the page open and signed in. Requires the Computer Use Chrome extension; a limited fallback mode applies without it.",
+    "inputSchema": {
+      "properties": {
+        "session_id": {
+          "description": "Stable task or thread ID. Pass the same value on every browser call for this task. Different IDs isolate tabs and cleanup within one MCP process. Omit for the default process session.",
+          "maxLength": 128,
+          "minLength": 1,
+          "type": "string"
+        },
+        "url": {
+          "description": "Absolute URL to open (default about:blank)",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "name": "browser_open_tab",
+    "title": "Open browser tab"
+  },
+  {
+    "annotations": {
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false,
+      "readOnlyHint": true,
+      "title": "List browser tabs"
+    },
+    "description": "List the tabs in the agent's own Chrome tab group, marking the active one, with the tab_id each other browser tool needs. Pass all=true to see every tab open in the browser, including the user's, so you can pick one to drive with browser_use_tab. Read-only.",
+    "inputSchema": {
+      "properties": {
+        "all": {
+          "description": "List every tab in the browser, not just the agent's (default false)",
+          "type": "boolean"
+        },
+        "session_id": {
+          "description": "Stable task or thread ID. Pass the same value on every browser call for this task. Different IDs isolate tabs and cleanup within one MCP process. Omit for the default process session.",
+          "maxLength": 128,
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "name": "browser_list_tabs",
+    "title": "List browser tabs"
+  },
+  {
+    "annotations": {
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": true,
+      "readOnlyHint": false,
+      "title": "Adopt user's tab"
+    },
+    "description": "Take over a tab the user already has open, instead of opening a new one. Use this when the page is already signed in or mid-flow — a checkout, a draft, a dashboard behind SSO — and re-opening the URL would lose that state. Find the tab_id with browser_list_tabs all=true. The tab stays exactly where it is in the user's window; it is not moved into the agent's group, not activated, and not reloaded. It is never closed by cleanup — call browser_release_tab to hand it back. Ask the user before taking over a tab they are actively working in.",
+    "inputSchema": {
+      "properties": {
+        "session_id": {
+          "description": "Stable task or thread ID. Pass the same value on every browser call for this task. Different IDs isolate tabs and cleanup within one MCP process. Omit for the default process session.",
+          "maxLength": 128,
+          "minLength": 1,
+          "type": "string"
+        },
+        "tab_id": {
+          "description": "tab_id of the user's tab, from browser_list_tabs all=true",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "tab_id"
+      ],
+      "type": "object"
+    },
+    "name": "browser_use_tab",
+    "title": "Adopt user's tab"
+  },
+  {
+    "annotations": {
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false,
+      "readOnlyHint": false,
+      "title": "Release adopted tab"
+    },
+    "description": "Hand a tab taken over with browser_use_tab back to the user: the agent stops driving it and the page is left exactly as it is. Call it as soon as you are done with an adopted tab. Use browser_close_tab for tabs the agent opened itself.",
+    "inputSchema": {
+      "properties": {
+        "session_id": {
+          "description": "Stable task or thread ID. Pass the same value on every browser call for this task. Different IDs isolate tabs and cleanup within one MCP process. Omit for the default process session.",
+          "maxLength": 128,
+          "minLength": 1,
+          "type": "string"
+        },
+        "tab_id": {
+          "description": "tab_id of a tab previously adopted with browser_use_tab",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "tab_id"
+      ],
+      "type": "object"
+    },
+    "name": "browser_release_tab",
+    "title": "Release adopted tab"
+  },
+  {
+    "annotations": {
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false,
+      "readOnlyHint": false,
+      "title": "Select browser tab"
+    },
+    "description": "Make one of the agent's tabs the visible one in its window. Rarely needed: browser_snapshot, browser_read, browser_screenshot, browser_click, browser_type, browser_fill and browser_press_key all work on a background tab, frames included, so the user can keep using their own tab. By default the tab is only shown when the user is already looking at one of the agent's tabs; otherwise it stays in the background, the user keeps their tab, and the reply says it was not brought to front. bring_to_front=true switches the user's window to this tab and raises it over whatever they are doing, which interrupts them: it is a last resort, only for native keyboard input or a desktop capture that cannot work any other way, never to look at a page (use browser_screenshot). The user's own tabs are never selected.",
+    "inputSchema": {
+      "properties": {
+        "bring_to_front": {
+          "description": "Show the tab and raise its Chrome window even when the user is on one of their own tabs. This interrupts the user; last resort only, never to look at the page (browser_screenshot does that in the background). Default false: the tab is only shown when the user is already on an agent tab.",
+          "type": "boolean"
+        },
+        "index": {
+          "description": "1-based position within the agent's tabs; fallback mode only, when tab_id is unavailable",
+          "type": "integer"
+        },
+        "session_id": {
+          "description": "Stable task or thread ID. Pass the same value on every browser call for this task. Different IDs isolate tabs and cleanup within one MCP process. Omit for the default process session.",
+          "maxLength": 128,
+          "minLength": 1,
+          "type": "string"
+        },
+        "tab_id": {
+          "description": "tab_id of one of the agent's tabs, from browser_open_tab or browser_list_tabs",
+          "type": "integer"
+        }
+      },
+      "type": "object"
+    },
+    "name": "browser_select_tab",
+    "title": "Select browser tab"
+  },
+  {
+    "annotations": {
+      "destructiveHint": true,
+      "idempotentHint": true,
+      "openWorldHint": false,
+      "readOnlyHint": false,
+      "title": "Close browser tab"
+    },
+    "description": "Close one of the agent's tabs, discarding any unsaved page state. A tab taken over with browser_use_tab is released rather than closed — it belongs to the user. Use browser_close_all_tabs to clean up everything at the end of a task.",
+    "inputSchema": {
+      "properties": {
+        "index": {
+          "description": "1-based position within the agent's tabs; fallback mode only, when tab_id is unavailable",
+          "type": "integer"
+        },
+        "session_id": {
+          "description": "Stable task or thread ID. Pass the same value on every browser call for this task. Different IDs isolate tabs and cleanup within one MCP process. Omit for the default process session.",
+          "maxLength": 128,
+          "minLength": 1,
+          "type": "string"
+        },
+        "tab_id": {
+          "description": "tab_id of one of the agent's tabs, from browser_open_tab or browser_list_tabs",
+          "type": "integer"
+        }
+      },
+      "type": "object"
+    },
+    "name": "browser_close_tab",
+    "title": "Close browser tab"
+  },
+  {
+    "annotations": {
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": true,
+      "readOnlyHint": true,
+      "title": "Snapshot page elements"
+    },
+    "description": "List the interactive elements (links, buttons, inputs, tabs, checkboxes, table and grid rows listed as row with their cell text, and other clickable elements) on the page in one of the agent's tabs, with the index each one has for browser_click, plus the page title and URL. Inputs show their type, such as input[password], and text the page lets you edit in place shows as [editable], such as span[editable] (click it, or browser_fill it); checkboxes, radios and switches are named by their label and show their state, such as (checked) or (unchecked, disabled). Controls inside frames (iframes), such as an embedded support chat, payment form or sign-in box, are listed after the page's own, each marked with the frame it is in; their indices work with browser_click, browser_fill and browser_upload_file like any other. Works on a background tab, so the user can be looking at something else. Use it before every browser_click, because indices change when the page changes; use browser_read for the page's text. Read-only. Automatically scopes to the topmost visible dialog when one is open, naming it on a dialog: line, excluding hidden/inert controls but retaining reachable offscreen controls. Results report scope, total and truncation. Continue with offset and limit on the same tab/session; indices stay global across pages of an unchanged UI. Snapshot again after UI changes. While the page has a JavaScript dialog open (alert, confirm, prompt), the snapshot shows the dialog's type, message and dialog_id instead, for browser_handle_dialog.",
+    "inputSchema": {
+      "properties": {
+        "limit": {
+          "description": "Maximum controls returned per page (default 250, maximum 250).",
+          "maximum": 250,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "offset": {
+          "description": "Control offset for pagination (default 0). Use the continuation offset from the previous result on an unchanged UI.",
+          "maximum": 2147483647,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "session_id": {
+          "description": "Stable task or thread ID. Pass the same value on every browser call for this task. Different IDs isolate tabs and cleanup within one MCP process. Omit for the default process session.",
+          "maxLength": 128,
+          "minLength": 1,
+          "type": "string"
+        },
+        "tab_id": {
+          "description": "tab_id of one of the agent's tabs, from browser_open_tab or browser_list_tabs",
+          "type": "integer"
+        },
+        "wait_for_selector": {
+          "description": "Wait for any visible element matching this CSS selector in the page or any of its frames (iframes), including open shadow roots (web components); a timeout says how many frames could not be searched. On actions requires return_state=true. Returns readiness met, timeout or error; only this condition is checked, not general app readiness. Prefer a selector specific to the expected new UI.",
+          "maxLength": 2000,
+          "minLength": 1,
+          "type": "string"
+        },
+        "wait_timeout_ms": {
+          "description": "Bound for wait_for_selector in milliseconds (default 8000, maximum 10000; 0 checks once). Requires wait_for_selector. Timeout preserves action success and returns current state. Use browser_snapshot with the same wait to re-observe without repeating an action.",
+          "maximum": 10000,
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "tab_id"
+      ],
+      "type": "object"
+    },
+    "name": "browser_snapshot",
+    "title": "Snapshot page elements"
+  },
+  {
+    "annotations": {
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": true,
+      "readOnlyHint": true,
+      "title": "Read page text"
+    },
+    "description": "Read the text of the page in one of the agent's tabs: headings marked with #, then paragraphs, lists and table text in reading order, including content scrolled out of view. Text inside frames (an embedded chat, a form from another site) follows the page's, each under a [frame \"name\"] line. Use it to read an article, results or documentation; use browser_snapshot to find something to click. Works on a background tab. Long pages come back in chunks: the result says where it stopped, and offset continues from there. Read-only.",
+    "inputSchema": {
+      "properties": {
+        "include_links": {
+          "description": "Also list the page's links as text and URL (up to 150)",
+          "type": "boolean"
+        },
+        "max_chars": {
+          "description": "Characters to return (default 20000, at most 200000)",
+          "type": "integer"
+        },
+        "offset": {
+          "description": "Character offset to start from, to continue a page that was cut off (default 0)",
+          "type": "integer"
+        },
+        "query": {
+          "description": "Only return lines containing this text (case-insensitive), each with its neighbouring lines and the heading above it",
+          "type": "string"
+        },
+        "session_id": {
+          "description": "Stable task or thread ID. Pass the same value on every browser call for this task. Different IDs isolate tabs and cleanup within one MCP process. Omit for the default process session.",
+          "maxLength": 128,
+          "minLength": 1,
+          "type": "string"
+        },
+        "tab_id": {
+          "description": "tab_id of one of the agent's tabs, from browser_open_tab or browser_list_tabs",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "tab_id"
+      ],
+      "type": "object"
+    },
+    "name": "browser_read",
+    "title": "Read page text"
+  },
+  {
+    "annotations": {
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": true,
+      "readOnlyHint": true,
+      "title": "Screenshot browser tab"
+    },
+    "description": "See one of the agent's tabs as an image while it stays in the background: the visible part of the page as Chrome renders it for that tab alone, frames included (an embedded chat, a payment form, a canvas or video). The tab is not selected, its window is not raised and the screen is not captured, so the user keeps working in their own tab; never bring a tab to front to look at it. Use it to check a result or to see what browser_snapshot and browser_read cannot describe. The result text gives the page's size in CSS pixels and how to turn an image pixel into browser_click x and y. Read-only.",
+    "inputSchema": {
+      "properties": {
+        "format": {
+          "description": "Image encoding (default png). jpeg is smaller.",
+          "enum": [
+            "png",
+            "jpeg"
+          ],
+          "type": "string"
+        },
+        "max_width": {
+          "description": "Downscale the image to this width in pixels (default 1400). Lower it to save tokens.",
+          "type": "integer"
+        },
+        "quality": {
+          "description": "JPEG quality from 1 to 100 (default 55). Ignored for png. Raise it when small text must stay sharp.",
+          "maximum": 100,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "session_id": {
+          "description": "Stable task or thread ID. Pass the same value on every browser call for this task. Different IDs isolate tabs and cleanup within one MCP process. Omit for the default process session.",
+          "maxLength": 128,
+          "minLength": 1,
+          "type": "string"
+        },
+        "tab_id": {
+          "description": "tab_id of one of the agent's tabs, from browser_open_tab or browser_list_tabs",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "tab_id"
+      ],
+      "type": "object"
+    },
+    "name": "browser_screenshot",
+    "title": "Screenshot browser tab"
+  },
+  {
+    "annotations": {
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": true,
+      "readOnlyHint": true,
+      "title": "List page errors"
+    },
+    "description": "List the problems the page in one of the agent's tabs has reported: uncaught JavaScript exceptions and console errors the page has logged since it loaded (Chrome keeps a limited number), and requests that failed since the agent attached to the tab (network errors and HTTP status 400 or above), oldest first, with how long ago each happened. Use it when a page is empty, broken or ignores an action, before navigating again or assuming a sign-in problem. The reply says when watching for failed requests began; ones Chrome still held from before are marked as earlier. Exceptions and console errors are read from what Chrome keeps for the page during this call only, so the page is not watched for them in between. The latest 50 are listed. URLs are shown without query strings, fragments or credentials, and request headers, cookies and bodies are never read. Read-only: it does not reload, navigate or show the tab.",
+    "inputSchema": {
+      "properties": {
+        "session_id": {
+          "description": "Stable task or thread ID. Pass the same value on every browser call for this task. Different IDs isolate tabs and cleanup within one MCP process. Omit for the default process session.",
+          "maxLength": 128,
+          "minLength": 1,
+          "type": "string"
+        },
+        "tab_id": {
+          "description": "tab_id of one of the agent's tabs, from browser_open_tab or browser_list_tabs",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "tab_id"
+      ],
+      "type": "object"
+    },
+    "name": "browser_page_errors",
+    "title": "List page errors"
+  },
+  {
+    "annotations": {
+      "destructiveHint": true,
+      "idempotentHint": false,
+      "openWorldHint": true,
+      "readOnlyHint": false,
+      "title": "Click in browser"
+    },
+    "description": "Click in one of the agent's tabs, either an element by its index from browser_snapshot (preferred) or a point given in page coordinates. Pass index or x and y, not both; an index can name an element inside a frame, which is pressed at its place on the page. Works on a background tab with real (trusted) mouse input, without selecting the tab or raising its window. An element out of view is scrolled into view first; when something else covers it (a banner, a dialog, another control) nothing is pressed and the call fails, naming what is in front. A checkbox, radio or switch reports what it is now. A tab the click opens (a target=_blank link or a popup) becomes one of the agent's tabs; find it with browser_list_tabs. Use click for native app windows. A click can submit forms or follow links, so snapshot first.",
+    "inputSchema": {
+      "properties": {
+        "index": {
+          "description": "Element index from the latest browser_snapshot of this tab. Preferred over coordinates.",
+          "type": "integer"
+        },
+        "return_state": {
+          "description": "Append a current snapshot and readiness status after acting. Without wait_for_selector, only a short pause and bounded navigation wait are used; SPA readiness is not guaranteed. Snapshot indices replace earlier ones. A timeout does not mean the action failed: re-observe with browser_snapshot before repeating it.",
+          "type": "boolean"
+        },
+        "session_id": {
+          "description": "Stable task or thread ID. Pass the same value on every browser call for this task. Different IDs isolate tabs and cleanup within one MCP process. Omit for the default process session.",
+          "maxLength": 128,
+          "minLength": 1,
+          "type": "string"
+        },
+        "tab_id": {
+          "description": "tab_id of one of the agent's tabs, from browser_open_tab or browser_list_tabs",
+          "type": "integer"
+        },
+        "wait_for_selector": {
+          "description": "Wait for any visible element matching this CSS selector in the page or any of its frames (iframes), including open shadow roots (web components); a timeout says how many frames could not be searched. On actions requires return_state=true. Returns readiness met, timeout or error; only this condition is checked, not general app readiness. Prefer a selector specific to the expected new UI.",
+          "maxLength": 2000,
+          "minLength": 1,
+          "type": "string"
+        },
+        "wait_timeout_ms": {
+          "description": "Bound for wait_for_selector in milliseconds (default 8000, maximum 10000; 0 checks once). Requires wait_for_selector. Timeout preserves action success and returns current state. Use browser_snapshot with the same wait to re-observe without repeating an action.",
+          "maximum": 10000,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "x": {
+          "description": "Page x coordinate in CSS pixels, used together with y when no index is given",
+          "type": "number"
+        },
+        "y": {
+          "description": "Page y coordinate in CSS pixels, used together with x when no index is given",
+          "type": "number"
+        }
+      },
+      "required": [
+        "tab_id"
+      ],
+      "type": "object"
+    },
+    "name": "browser_click",
+    "title": "Click in browser"
+  },
+  {
+    "annotations": {
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false,
+      "readOnlyHint": false,
+      "title": "Hover in browser"
+    },
+    "description": "Rest the agent's pointer on an element in one of the agent's tabs, by its browser_snapshot index (preferred) or at a point in page coordinates, to open a menu, submenu or tooltip that appears on hover. Nothing is pressed. Works on a background tab with real (trusted) mouse movement, without selecting the tab or raising its window; the element is scrolled into view and checked the way browser_click checks it, and when something else covers it the call fails, naming what is in front. Pass return_state with wait_for_selector to see what the hover opened in the same call. Use hover for native app windows.",
+    "inputSchema": {
+      "properties": {
+        "index": {
+          "description": "Element index from the latest browser_snapshot of this tab. Preferred over coordinates.",
+          "type": "integer"
+        },
+        "return_state": {
+          "description": "Append a current snapshot and readiness status after acting. Without wait_for_selector, only a short pause and bounded navigation wait are used; SPA readiness is not guaranteed. Snapshot indices replace earlier ones. A timeout does not mean the action failed: re-observe with browser_snapshot before repeating it.",
+          "type": "boolean"
+        },
+        "session_id": {
+          "description": "Stable task or thread ID. Pass the same value on every browser call for this task. Different IDs isolate tabs and cleanup within one MCP process. Omit for the default process session.",
+          "maxLength": 128,
+          "minLength": 1,
+          "type": "string"
+        },
+        "tab_id": {
+          "description": "tab_id of one of the agent's tabs, from browser_open_tab or browser_list_tabs",
+          "type": "integer"
+        },
+        "wait_for_selector": {
+          "description": "Wait for any visible element matching this CSS selector in the page or any of its frames (iframes), including open shadow roots (web components); a timeout says how many frames could not be searched. On actions requires return_state=true. Returns readiness met, timeout or error; only this condition is checked, not general app readiness. Prefer a selector specific to the expected new UI.",
+          "maxLength": 2000,
+          "minLength": 1,
+          "type": "string"
+        },
+        "wait_timeout_ms": {
+          "description": "Bound for wait_for_selector in milliseconds (default 8000, maximum 10000; 0 checks once). Requires wait_for_selector. Timeout preserves action success and returns current state. Use browser_snapshot with the same wait to re-observe without repeating an action.",
+          "maximum": 10000,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "x": {
+          "description": "Page x coordinate in CSS pixels, used together with y when no index is given",
+          "type": "number"
+        },
+        "y": {
+          "description": "Page y coordinate in CSS pixels, used together with x when no index is given",
+          "type": "number"
+        }
+      },
+      "required": [
+        "tab_id"
+      ],
+      "type": "object"
+    },
+    "name": "browser_hover",
+    "title": "Hover in browser"
+  },
+  {
+    "annotations": {
+      "destructiveHint": true,
+      "idempotentHint": false,
+      "openWorldHint": false,
+      "readOnlyHint": false,
+      "title": "Type in browser"
+    },
+    "description": "Type text into the field that currently has focus in one of the agent's tabs; browser_click the field first. Text is inserted at the caret without clearing existing content: to replace a field's whole value use browser_fill. Use browser_press_key for Enter, Tab, Backspace, arrows and shortcuts such as Cmd+A, and type_text for native apps. Never use the desktop press_key or type_text for a Chrome tab: those go to whichever Chrome window is in front, which can be the user's.",
+    "inputSchema": {
+      "properties": {
+        "return_state": {
+          "description": "Append a current snapshot and readiness status after acting. Without wait_for_selector, only a short pause and bounded navigation wait are used; SPA readiness is not guaranteed. Snapshot indices replace earlier ones. A timeout does not mean the action failed: re-observe with browser_snapshot before repeating it.",
+          "type": "boolean"
+        },
+        "session_id": {
+          "description": "Stable task or thread ID. Pass the same value on every browser call for this task. Different IDs isolate tabs and cleanup within one MCP process. Omit for the default process session.",
+          "maxLength": 128,
+          "minLength": 1,
+          "type": "string"
+        },
+        "tab_id": {
+          "description": "tab_id of one of the agent's tabs, from browser_open_tab or browser_list_tabs",
+          "type": "integer"
+        },
+        "text": {
+          "description": "Exact text to type into the focused field",
+          "type": "string"
+        },
+        "wait_for_selector": {
+          "description": "Wait for any visible element matching this CSS selector in the page or any of its frames (iframes), including open shadow roots (web components); a timeout says how many frames could not be searched. On actions requires return_state=true. Returns readiness met, timeout or error; only this condition is checked, not general app readiness. Prefer a selector specific to the expected new UI.",
+          "maxLength": 2000,
+          "minLength": 1,
+          "type": "string"
+        },
+        "wait_timeout_ms": {
+          "description": "Bound for wait_for_selector in milliseconds (default 8000, maximum 10000; 0 checks once). Requires wait_for_selector. Timeout preserves action success and returns current state. Use browser_snapshot with the same wait to re-observe without repeating an action.",
+          "maximum": 10000,
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "tab_id",
+        "text"
+      ],
+      "type": "object"
+    },
+    "name": "browser_type",
+    "title": "Type in browser"
+  },
+  {
+    "annotations": {
+      "destructiveHint": true,
+      "idempotentHint": true,
+      "openWorldHint": false,
+      "readOnlyHint": false,
+      "title": "Fill field in browser"
+    },
+    "description": "Replace the whole value of a text field in one of the agent's tabs: focuses the element by its browser_snapshot index, selects everything in it and puts the text in through Chrome's own text input, so the page sees the same trusted input events as typing. Works on input, textarea and contenteditable fields, including inside web components (open shadow roots), in a background tab without selecting it or raising its window. Pass an empty string to clear the field. The reply says whether the field now holds exactly the text, and what it holds when the page changed or limited it (not for password fields). Use browser_type to add at the caret instead, and browser_request_credentials for passwords and codes. Never use the desktop press_key or type_text for a Chrome tab: those go to whichever Chrome window is in front, which can be the user's.",
+    "inputSchema": {
+      "properties": {
+        "index": {
+          "description": "Element index of the field from the latest browser_snapshot of this tab. An index naming a wrapper that holds exactly one field fills that field.",
+          "type": "integer"
+        },
+        "return_state": {
+          "description": "Append a current snapshot and readiness status after acting. Without wait_for_selector, only a short pause and bounded navigation wait are used; SPA readiness is not guaranteed. Snapshot indices replace earlier ones. A timeout does not mean the action failed: re-observe with browser_snapshot before repeating it.",
+          "type": "boolean"
+        },
+        "session_id": {
+          "description": "Stable task or thread ID. Pass the same value on every browser call for this task. Different IDs isolate tabs and cleanup within one MCP process. Omit for the default process session.",
+          "maxLength": 128,
+          "minLength": 1,
+          "type": "string"
+        },
+        "tab_id": {
+          "description": "tab_id of one of the agent's tabs, from browser_open_tab or browser_list_tabs",
+          "type": "integer"
+        },
+        "text": {
+          "description": "The field's new value, replacing everything in it. Empty clears the field.",
+          "type": "string"
+        },
+        "wait_for_selector": {
+          "description": "Wait for any visible element matching this CSS selector in the page or any of its frames (iframes), including open shadow roots (web components); a timeout says how many frames could not be searched. On actions requires return_state=true. Returns readiness met, timeout or error; only this condition is checked, not general app readiness. Prefer a selector specific to the expected new UI.",
+          "maxLength": 2000,
+          "minLength": 1,
+          "type": "string"
+        },
+        "wait_timeout_ms": {
+          "description": "Bound for wait_for_selector in milliseconds (default 8000, maximum 10000; 0 checks once). Requires wait_for_selector. Timeout preserves action success and returns current state. Use browser_snapshot with the same wait to re-observe without repeating an action.",
+          "maximum": 10000,
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "tab_id",
+        "index",
+        "text"
+      ],
+      "type": "object"
+    },
+    "name": "browser_fill",
+    "title": "Fill field in browser"
+  },
+  {
+    "annotations": {
+      "destructiveHint": true,
+      "idempotentHint": true,
+      "openWorldHint": false,
+      "readOnlyHint": false,
+      "title": "Choose option in browser"
+    },
+    "description": "Choose an option of a native select (dropdown) in one of the agent's tabs, by the select's browser_snapshot index and the option's value or visible label, the way a person's choice in Chrome's dropdown lands: the selection changes and the page gets its input and change events. Chrome draws a select's dropdown outside the page, where browser_snapshot and browser_click cannot reach it, so use this instead of clicking. A label matches whole, ignoring case when nothing matches exactly. Several values choose several options of a select that allows multiple. Nothing is chosen when an option is missing or disabled, and the reply lists the options. Snapshots show each select's current choice. Works in a background tab without selecting it or raising its window. For a custom dropdown built from other elements, open it with browser_click and click its option.",
+    "inputSchema": {
+      "properties": {
+        "index": {
+          "description": "Element index of the select from the latest browser_snapshot of this tab.",
+          "type": "integer"
+        },
+        "return_state": {
+          "description": "Append a current snapshot and readiness status after acting. Without wait_for_selector, only a short pause and bounded navigation wait are used; SPA readiness is not guaranteed. Snapshot indices replace earlier ones. A timeout does not mean the action failed: re-observe with browser_snapshot before repeating it.",
+          "type": "boolean"
+        },
+        "session_id": {
+          "description": "Stable task or thread ID. Pass the same value on every browser call for this task. Different IDs isolate tabs and cleanup within one MCP process. Omit for the default process session.",
+          "maxLength": 128,
+          "minLength": 1,
+          "type": "string"
+        },
+        "tab_id": {
+          "description": "tab_id of one of the agent's tabs, from browser_open_tab or browser_list_tabs",
+          "type": "integer"
+        },
+        "values": {
+          "description": "Option values or visible labels to choose. One for an ordinary select; several only for a select that allows multiple, which then holds exactly these.",
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 100,
+          "minItems": 1,
+          "type": "array"
+        },
+        "wait_for_selector": {
+          "description": "Wait for any visible element matching this CSS selector in the page or any of its frames (iframes), including open shadow roots (web components); a timeout says how many frames could not be searched. On actions requires return_state=true. Returns readiness met, timeout or error; only this condition is checked, not general app readiness. Prefer a selector specific to the expected new UI.",
+          "maxLength": 2000,
+          "minLength": 1,
+          "type": "string"
+        },
+        "wait_timeout_ms": {
+          "description": "Bound for wait_for_selector in milliseconds (default 8000, maximum 10000; 0 checks once). Requires wait_for_selector. Timeout preserves action success and returns current state. Use browser_snapshot with the same wait to re-observe without repeating an action.",
+          "maximum": 10000,
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "tab_id",
+        "index",
+        "values"
+      ],
+      "type": "object"
+    },
+    "name": "browser_select_option",
+    "title": "Choose option in browser"
+  },
+  {
+    "annotations": {
+      "destructiveHint": true,
+      "idempotentHint": true,
+      "openWorldHint": false,
+      "readOnlyHint": false,
+      "title": "Attach files in browser"
+    },
+    "description": "Attach local files to a file input in one of the agent's tabs, by its browser_snapshot index, as if the user had picked them: Chrome sets the input's files and the page gets its usual input and change events. No file picker opens, the tab is not selected or raised, and no keyboard or mouse input is used. Snapshots list file inputs as input[file], including ones a page hides behind a styled upload button; the index of a label for one works too, and any other element is refused. Paths are absolute paths of regular files on the computer running Chrome and this server, which may not be the machine you run on; each is checked before anything is sent. Several paths need an input that takes several files (multiple). This only stages the files in the input: it never submits the form, and the site has not received them until the page shows it has. Submit or press the page's upload button yourself when the user wants that, then check the page. The reply names the files the input now holds. Never click a file input or its upload button to open the picker: the native dialog cannot be driven from here.",
+    "inputSchema": {
+      "properties": {
+        "index": {
+          "description": "Element index of the file input (input[file]), or of a label for one, from the latest browser_snapshot of this tab.",
+          "type": "integer"
+        },
+        "paths": {
+          "description": "Absolute paths of the files to attach, on the computer running Chrome and this server. Each must exist and be a regular file, not a folder. More than one needs an input with the multiple attribute. Replaces whatever files the input held.",
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 50,
+          "minItems": 1,
+          "type": "array"
+        },
+        "return_state": {
+          "description": "Append a current snapshot and readiness status after acting. Without wait_for_selector, only a short pause and bounded navigation wait are used; SPA readiness is not guaranteed. Snapshot indices replace earlier ones. A timeout does not mean the action failed: re-observe with browser_snapshot before repeating it.",
+          "type": "boolean"
+        },
+        "session_id": {
+          "description": "Stable task or thread ID. Pass the same value on every browser call for this task. Different IDs isolate tabs and cleanup within one MCP process. Omit for the default process session.",
+          "maxLength": 128,
+          "minLength": 1,
+          "type": "string"
+        },
+        "tab_id": {
+          "description": "tab_id of one of the agent's tabs, from browser_open_tab or browser_list_tabs",
+          "type": "integer"
+        },
+        "wait_for_selector": {
+          "description": "Wait for any visible element matching this CSS selector in the page or any of its frames (iframes), including open shadow roots (web components); a timeout says how many frames could not be searched. On actions requires return_state=true. Returns readiness met, timeout or error; only this condition is checked, not general app readiness. Prefer a selector specific to the expected new UI.",
+          "maxLength": 2000,
+          "minLength": 1,
+          "type": "string"
+        },
+        "wait_timeout_ms": {
+          "description": "Bound for wait_for_selector in milliseconds (default 8000, maximum 10000; 0 checks once). Requires wait_for_selector. Timeout preserves action success and returns current state. Use browser_snapshot with the same wait to re-observe without repeating an action.",
+          "maximum": 10000,
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "tab_id",
+        "index",
+        "paths"
+      ],
+      "type": "object"
+    },
+    "name": "browser_upload_file",
+    "title": "Attach files in browser"
+  },
+  {
+    "annotations": {
+      "destructiveHint": false,
+      "idempotentHint": false,
+      "openWorldHint": true,
+      "readOnlyHint": false,
+      "title": "Ask the user to sign in"
+    },
+    "description": "Ask the user to sign in on the page in one of the agent's tabs without the values passing through you. Chrome shows the user a small window naming the site's real origin, with one field per input you list; what they type goes straight into those inputs and is never returned to you. Use it for passwords, verification codes and any secret instead of browser_type, and never ask the user to paste a secret into the conversation. Take the input indices from browser_snapshot (password inputs show as input[password]), then click the page's sign-in button yourself. Waits until the user answers, cancels, or the time runs out.",
+    "inputSchema": {
+      "properties": {
+        "fields": {
+          "description": "The inputs to fill, in the order the user should see them (1 to 6)",
+          "items": {
+            "properties": {
+              "index": {
+                "description": "Input index from the latest browser_snapshot of this tab",
+                "type": "integer"
+              },
+              "kind": {
+                "description": "What the user is asked for; inferred from the input's type when omitted",
+                "enum": [
+                  "username",
+                  "email",
+                  "password",
+                  "code",
+                  "text"
+                ],
+                "type": "string"
+              }
+            },
+            "required": [
+              "index"
+            ],
+            "type": "object"
+          },
+          "type": "array"
+        },
+        "reason": {
+          "description": "One sentence the user sees explaining why you need to sign in",
+          "type": "string"
+        },
+        "session_id": {
+          "description": "Stable task or thread ID. Pass the same value on every browser call for this task. Different IDs isolate tabs and cleanup within one MCP process. Omit for the default process session.",
+          "maxLength": 128,
+          "minLength": 1,
+          "type": "string"
+        },
+        "tab_id": {
+          "description": "tab_id of one of the agent's tabs, from browser_open_tab or browser_list_tabs",
+          "type": "integer"
+        },
+        "timeout_seconds": {
+          "description": "How long to wait for the user (default 180, at most 600)",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "tab_id",
+        "fields"
+      ],
+      "type": "object"
+    },
+    "name": "browser_request_credentials",
+    "title": "Ask the user to sign in"
+  },
+  {
+    "annotations": {
+      "destructiveHint": true,
+      "idempotentHint": false,
+      "openWorldHint": false,
+      "readOnlyHint": false,
+      "title": "Press key in browser"
+    },
+    "description": "Press a key in one of the agent's tabs, optionally with modifiers held: Enter to submit, Tab to move to the next field, Escape, Backspace, Delete, arrows, Home/End, PageUp/PageDown, F1-F12, a character, or a shortcut such as key='a' modifiers=['cmd'] to select all in the focused field. Works in a background tab: the key goes to that tab's page only, never to the user's windows, and browser shortcuts (close tab, quit) never reach Chrome itself. Editing shortcuts (select all, copy, cut, paste, undo) work with cmd or ctrl on every platform. The reply says where focus is and how many characters are selected. Tab fails rather than leave focus where it was, and Backspace checks the focused field changed. Use browser_type for text and browser_fill to replace a field's value. Never use the desktop press_key or type_text for a Chrome tab: those go to whichever Chrome window is in front, which can be the user's. Enter can submit forms and Backspace deletes, so check the page state with browser_snapshot first.",
+    "inputSchema": {
+      "properties": {
+        "key": {
+          "description": "Key to press: Enter, Tab, Escape, Backspace, Delete, ArrowUp, ArrowDown, ArrowLeft, ArrowRight, Home, End, PageUp, PageDown, Space, F1-F12 or a single character. A combination such as 'cmd+a' is accepted too.",
+          "maxLength": 40,
+          "minLength": 1,
+          "type": "string"
+        },
+        "modifiers": {
+          "description": "Modifier keys held during the press. cmd is Command on macOS and the Windows key elsewhere; for editing shortcuts cmd and ctrl mean the same on every platform.",
+          "items": {
+            "enum": [
+              "cmd",
+              "ctrl",
+              "alt",
+              "shift"
+            ],
+            "type": "string"
+          },
+          "maxItems": 4,
+          "type": "array"
+        },
+        "return_state": {
+          "description": "Append a current snapshot and readiness status after acting. Without wait_for_selector, only a short pause and bounded navigation wait are used; SPA readiness is not guaranteed. Snapshot indices replace earlier ones. A timeout does not mean the action failed: re-observe with browser_snapshot before repeating it.",
+          "type": "boolean"
+        },
+        "session_id": {
+          "description": "Stable task or thread ID. Pass the same value on every browser call for this task. Different IDs isolate tabs and cleanup within one MCP process. Omit for the default process session.",
+          "maxLength": 128,
+          "minLength": 1,
+          "type": "string"
+        },
+        "tab_id": {
+          "description": "tab_id of one of the agent's tabs, from browser_open_tab or browser_list_tabs",
+          "type": "integer"
+        },
+        "wait_for_selector": {
+          "description": "Wait for any visible element matching this CSS selector in the page or any of its frames (iframes), including open shadow roots (web components); a timeout says how many frames could not be searched. On actions requires return_state=true. Returns readiness met, timeout or error; only this condition is checked, not general app readiness. Prefer a selector specific to the expected new UI.",
+          "maxLength": 2000,
+          "minLength": 1,
+          "type": "string"
+        },
+        "wait_timeout_ms": {
+          "description": "Bound for wait_for_selector in milliseconds (default 8000, maximum 10000; 0 checks once). Requires wait_for_selector. Timeout preserves action success and returns current state. Use browser_snapshot with the same wait to re-observe without repeating an action.",
+          "maximum": 10000,
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "tab_id",
+        "key"
+      ],
+      "type": "object"
+    },
+    "name": "browser_press_key",
+    "title": "Press key in browser"
+  },
+  {
+    "annotations": {
+      "destructiveHint": true,
+      "idempotentHint": false,
+      "openWorldHint": true,
+      "readOnlyHint": false,
+      "title": "Answer JavaScript dialog"
+    },
+    "description": "Answer the JavaScript dialog (alert, confirm, prompt or leave-page) open in one of the agent's tabs. While one is open the page is paused: browser_snapshot shows the dialog's type, message and dialog_id instead of the page, and other browser commands on the tab say a dialog is open. accept presses OK and dismiss presses Cancel. prompt_text is entered into a prompt before accepting it; without it, a prompt is accepted with its default text. Pass the dialog_id from the snapshot, so a dialog that replaced the one you read is refused instead of answered. Works on a background tab without showing it or using the keyboard. A dialog that opened before the agent attached to the tab cannot be seen or answered; the user answers that one in Chrome. Accepting a confirm can submit, delete or leave a page with unsaved changes, so read the message, and ask the user before confirming anything irreversible.",
+    "inputSchema": {
+      "properties": {
+        "action": {
+          "description": "accept (OK) or dismiss (Cancel)",
+          "enum": [
+            "accept",
+            "dismiss"
+          ],
+          "type": "string"
+        },
+        "dialog_id": {
+          "description": "dialog_id of the dialog being answered, from browser_snapshot (such as d3). A different dialog open now is refused instead of answered",
+          "type": "string"
+        },
+        "prompt_text": {
+          "description": "Text to enter into a prompt dialog before accepting it. Only with action=accept on a prompt",
+          "type": "string"
+        },
+        "session_id": {
+          "description": "Stable task or thread ID. Pass the same value on every browser call for this task. Different IDs isolate tabs and cleanup within one MCP process. Omit for the default process session.",
+          "maxLength": 128,
+          "minLength": 1,
+          "type": "string"
+        },
+        "tab_id": {
+          "description": "tab_id of one of the agent's tabs, from browser_open_tab or browser_list_tabs",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "tab_id",
+        "action"
+      ],
+      "type": "object"
+    },
+    "name": "browser_handle_dialog",
+    "title": "Answer JavaScript dialog"
+  },
+  {
+    "annotations": {
+      "destructiveHint": true,
+      "idempotentHint": true,
+      "openWorldHint": false,
+      "readOnlyHint": false,
+      "title": "Close all agent tabs"
+    },
+    "description": "Close every tab the agent opened, including tabs its clicks opened, and remove its tab group. Tabs taken over with browser_use_tab are released back to the user, not closed. Call this when finished with the browser so no empty group is left in the user's tab strip. The MCP process also runs this automatically when the Computer Use session ends. Unsaved state in the agent's tabs is lost.",
+    "inputSchema": {
+      "properties": {
+        "session_id": {
+          "description": "Stable task or thread ID. Pass the same value on every browser call for this task. Different IDs isolate tabs and cleanup within one MCP process. Omit for the default process session.",
+          "maxLength": 128,
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "name": "browser_close_all_tabs",
+    "title": "Close all agent tabs"
+  },
+  {
+    "annotations": {
+      "destructiveHint": true,
+      "idempotentHint": false,
+      "openWorldHint": true,
+      "readOnlyHint": false,
+      "title": "Navigate browser tab"
+    },
+    "description": "Point one of the agent's tabs at a different URL, replacing the current page; unsaved page state is lost. Use browser_open_tab to keep the current page and open another. Follow with browser_snapshot, since element indices reset after navigation.",
+    "inputSchema": {
+      "properties": {
+        "return_state": {
+          "description": "Append a current snapshot and readiness status after acting. Without wait_for_selector, only a short pause and bounded navigation wait are used; SPA readiness is not guaranteed. Snapshot indices replace earlier ones. A timeout does not mean the action failed: re-observe with browser_snapshot before repeating it.",
+          "type": "boolean"
+        },
+        "session_id": {
+          "description": "Stable task or thread ID. Pass the same value on every browser call for this task. Different IDs isolate tabs and cleanup within one MCP process. Omit for the default process session.",
+          "maxLength": 128,
+          "minLength": 1,
+          "type": "string"
+        },
+        "tab_id": {
+          "description": "tab_id of one of the agent's tabs, from browser_open_tab or browser_list_tabs",
+          "type": "integer"
+        },
+        "url": {
+          "description": "Absolute URL to load in the tab",
+          "type": "string"
+        },
+        "wait_for_selector": {
+          "description": "Wait for any visible element matching this CSS selector in the page or any of its frames (iframes), including open shadow roots (web components); a timeout says how many frames could not be searched. On actions requires return_state=true. Returns readiness met, timeout or error; only this condition is checked, not general app readiness. Prefer a selector specific to the expected new UI.",
+          "maxLength": 2000,
+          "minLength": 1,
+          "type": "string"
+        },
+        "wait_timeout_ms": {
+          "description": "Bound for wait_for_selector in milliseconds (default 8000, maximum 10000; 0 checks once). Requires wait_for_selector. Timeout preserves action success and returns current state. Use browser_snapshot with the same wait to re-observe without repeating an action.",
+          "maximum": 10000,
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "tab_id",
+        "url"
+      ],
+      "type": "object"
+    },
+    "name": "browser_navigate",
+    "title": "Navigate browser tab"
   }
 ]

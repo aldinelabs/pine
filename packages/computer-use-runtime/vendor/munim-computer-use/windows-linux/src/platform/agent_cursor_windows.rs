@@ -29,7 +29,6 @@ use windows::Win32::UI::WindowsAndMessaging::{
     WM_USER, WNDCLASSEXW, WS_EX_LAYERED, WS_EX_NOACTIVATE, WS_EX_TOOLWINDOW, WS_EX_TOPMOST,
     WS_EX_TRANSPARENT, WS_POPUP,
 };
-use windows::core::w;
 
 const SIDE: i32 = 112;
 const HOTSPOT: f64 = 56.0;
@@ -184,7 +183,7 @@ fn ensure_fade_watcher() {
 }
 
 fn task_fade_grace() -> Duration {
-    match std::env::var("COMPUTER_USE_AGENT_CURSOR_TASK_FADE_SECS") {
+    match crate::identity::env_var("AGENT_CURSOR_TASK_FADE_SECS").ok_or(()) {
         Ok(raw) => {
             if let Ok(secs) = raw.trim().parse::<f64>() {
                 // from_secs_f64 panics on inf/NaN/overflow — reject those.
@@ -236,12 +235,17 @@ fn travel_wait_micros(from: Option<(f64, f64)>, x: f64, y: f64) -> u64 {
     if dist < 2.0 {
         return 60_000;
     }
-    let seconds = (0.18 + dist / 900.0).clamp(0.28, 0.95);
+    let seconds = (0.10 + dist / 1800.0).clamp(0.12, 0.45);
     ((seconds + 0.05) * 1_000_000.0) as u64
 }
 
 fn agent_cursor_enabled() -> bool {
-    match std::env::var("COMPUTER_USE_AGENT_CURSOR") {
+    // Remote control steers the real pointer, so the overlay would be a second
+    // cursor chasing the first one.
+    if crate::identity::remote_control() {
+        return false;
+    }
+    match crate::identity::env_var("AGENT_CURSOR").ok_or(()) {
         Ok(value) => {
             let v = value.trim();
             !(v == "0" || v.eq_ignore_ascii_case("false") || v.eq_ignore_ascii_case("off"))
@@ -313,7 +317,17 @@ struct Framebuf {
 
 fn ui_thread() {
     unsafe {
-        let class = w!("PineAgentCursorOverlay");
+        // Named after the identity so an embedding app's overlay is its own
+        // window class (and title) rather than the standalone server's.
+        let identity = crate::identity::get();
+        let class_name = windows::core::HSTRING::from(format!("{}Overlay", identity.agent_cursor_name));
+        let class = windows::core::PCWSTR(class_name.as_ptr());
+        let title_text = if identity.agent_cursor_name == crate::identity::DEFAULT_AGENT_CURSOR_NAME {
+            "Munim Agent Cursor".to_string()
+        } else {
+            identity.agent_cursor_name.clone()
+        };
+        let title = windows::core::HSTRING::from(title_text);
         let module = GetModuleHandleW(None).unwrap_or_default();
         let wc = WNDCLASSEXW {
             cbSize: std::mem::size_of::<WNDCLASSEXW>() as u32,
@@ -328,7 +342,7 @@ fn ui_thread() {
         let hwnd = match CreateWindowExW(
             WS_EX_LAYERED | WS_EX_TRANSPARENT | WS_EX_TOPMOST | WS_EX_TOOLWINDOW | WS_EX_NOACTIVATE,
             class,
-            w!("Pine Agent Cursor"),
+            windows::core::PCWSTR(title.as_ptr()),
             WS_POPUP,
             0,
             0,
@@ -478,7 +492,7 @@ fn begin(state: &mut Anim, x: f64, y: f64, _popping: bool) {
     );
     let approach = (handle * 0.9).min((dist * 0.28).max(28.0));
     state.path_c2 = (x, y + approach);
-    state.path_duration = (0.18 + dist / 900.0).clamp(0.28, 0.95);
+    state.path_duration = (0.10 + dist / 1800.0).clamp(0.12, 0.45);
     state.path_elapsed = 0.0;
     state.path_active = true;
     state.vel = (0.0, 0.0);

@@ -1,14 +1,9 @@
-import {
-  cpSync,
-  existsSync,
-  mkdirSync,
-  readdirSync,
-  rmSync,
-  statSync,
-} from "node:fs";
+import { cpSync, existsSync, mkdirSync, readdirSync, statSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawnSync } from "node:child_process";
+import { buildExtension } from "../vendor/munim-computer-use/scripts/build-extension.mjs";
+import pineIdentity from "../pine-identity.json" with { type: "json" };
 
 const packageRoot = path.resolve(fileURLToPath(import.meta.url), "../..");
 const vendorRoot = path.join(packageRoot, "vendor", "munim-computer-use");
@@ -127,10 +122,20 @@ if (!nativeIsCurrent) {
 }
 
 const extensionOutput = path.join(outputRoot, "chrome-extension");
-rmSync(extensionOutput, { recursive: true, force: true });
-cpSync(path.join(vendorRoot, "chrome-extension"), extensionOutput, {
-  recursive: true,
+const { profile, browserExtension } = pineIdentity;
+const { extensionId } = buildExtension({
+  out: extensionOutput,
+  hosts: profile.nativeHostNames,
+  groupTitle: browserExtension.groupTitle,
+  name: browserExtension.name,
+  description: browserExtension.description,
+  key: browserExtension.key,
 });
+if (!profile.extensionIds.includes(extensionId)) {
+  throw new Error(
+    `Pine browser extension id ${extensionId} is not in pine-identity.json extensionIds.`,
+  );
+}
 cpSync(
   path.join(packageRoot, "LICENSE.upstream"),
   path.join(outputRoot, "LICENSE.munim"),

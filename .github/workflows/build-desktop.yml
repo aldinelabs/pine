@@ -135,7 +135,7 @@ jobs:
         uses: actions/cache@v6
         with:
           path: packages/computer-use-runtime/pine-computer-use
-          key: computer-use-${{ runner.os }}-${{ matrix.arch }}-${{ hashFiles('packages/computer-use-runtime/vendor/**', 'packages/computer-use-runtime/scripts/build.mjs', 'packages/computer-use-runtime/LICENSE.upstream', 'packages/computer-use-runtime/NOTICE.md') }}
+          key: computer-use-${{ runner.os }}-${{ matrix.arch }}-${{ hashFiles('packages/computer-use-runtime/vendor/**', 'packages/computer-use-runtime/scripts/build.mjs', 'packages/computer-use-runtime/pine-identity.json', 'packages/computer-use-runtime/LICENSE.upstream', 'packages/computer-use-runtime/NOTICE.md') }}
 
       - name: Build computer-use runtime
         if: steps.computer-use-cache.outputs.cache-hit != 'true'
@@ -256,7 +256,7 @@ jobs:
         uses: actions/cache@v6
         with:
           path: packages/computer-use-runtime/pine-computer-use
-          key: computer-use-${{ runner.os }}-x64-${{ hashFiles('packages/computer-use-runtime/vendor/**', 'packages/computer-use-runtime/scripts/build.mjs', 'packages/computer-use-runtime/LICENSE.upstream', 'packages/computer-use-runtime/NOTICE.md') }}
+          key: computer-use-${{ runner.os }}-x64-${{ hashFiles('packages/computer-use-runtime/vendor/**', 'packages/computer-use-runtime/scripts/build.mjs', 'packages/computer-use-runtime/pine-identity.json', 'packages/computer-use-runtime/LICENSE.upstream', 'packages/computer-use-runtime/NOTICE.md') }}
 
       - name: Build computer-use runtime
         if: steps.computer-use-cache.outputs.cache-hit != 'true'

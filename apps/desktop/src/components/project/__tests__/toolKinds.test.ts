@@ -24,6 +24,7 @@ import {
   toolIconForName,
   toolKind,
 } from "../toolKinds";
+import computerUseToolSpecs from "@pine/computer-use-runtime/tool-specs.json";
 
 describe("Computer Use tool kinds", () => {
   it("uses dedicated desktop and browser kinds", () => {
@@ -32,6 +33,15 @@ describe("Computer Use tool kinds", () => {
     expect(toolKind("browser_snapshot")).toBe("browser");
     expect(TOOL_KIND_ICON.computer).toBe(MonitorCogIcon);
     expect(TOOL_KIND_ICON.browser).toBe(PanelTopIcon);
+  });
+
+  it("classifies every bundled Computer Use tool", () => {
+    for (const { name } of computerUseToolSpecs) {
+      expect([name, toolKind(name)]).toEqual([
+        name,
+        name.startsWith("browser_") ? "browser" : "computer",
+      ]);
+    }
   });
 
   it("uses a dedicated kind for submitted artifacts", () => {

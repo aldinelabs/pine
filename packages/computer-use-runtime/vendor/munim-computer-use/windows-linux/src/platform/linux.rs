@@ -12,20 +12,22 @@
 use std::collections::HashMap;
 
 use atspi::proxy::accessible::AccessibleProxy;
-use atspi::{connection::AccessibilityConnection, Role};
-use futures_lite::future::block_on;
+use atspi::{connection::AccessibilityConnection, CoordType, Role, State};
+use futures_lite::future::{block_on, zip};
 use x11rb::connection::Connection;
 use x11rb::protocol::xproto::{
-    ClientMessageEvent, ConfigureWindowAux, ConnectionExt as _, EventMask, GetKeyboardMappingReply,
+    AtomEnum, ClientMessageEvent, ConfigureWindowAux, ConnectionExt as _, EventMask, GetKeyboardMappingReply,
     InputFocus, Keycode, StackMode,
 };
 use x11rb::protocol::xtest::ConnectionExt as _;
 use x11rb::rust_connection::RustConnection;
 use xcap::Window;
 
-use super::{Desktop, DesktopError, Point, Result, ScrollDirection, format_app_list};
+use super::{Desktop, DesktopError, Point, Result, ScrollDirection, StateOptions, format_app_list};
 use super::agent_cursor::AgentCursor;
+use super::outline::{self, Bounds, Fingerprint, OcrMode, truncate};
 use crate::apps;
+use crate::keys::{Key, Named};
 
 /// X11 button numbers.
 const BUTTON_LEFT: u8 = 1;
@@ -35,9 +37,12 @@ const BUTTON_SCROLL_DOWN: u8 = 5;
 const BUTTON_SCROLL_LEFT: u8 = 6;
 const BUTTON_SCROLL_RIGHT: u8 = 7;
 
+/// How long a pointer rests on its target before a button press.
+const POINTER_SETTLE: std::time::Duration = std::time::Duration::from_millis(20);
+
 /// Where an element lives on the AT-SPI bus. Proxies borrow their connection,
 /// so the registry stores addresses and rebuilds a proxy on demand.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 struct ElementRef {
     bus: String,
     path: String,
@@ -46,7 +51,54 @@ struct ElementRef {
 pub struct LinuxDesktop {
     accessibility: Option<AccessibilityConnection>,
     x11: Option<(RustConnection, usize)>,
-    registry: HashMap<u32, ElementRef>,
+    /// Elements from the latest `get_app_state`, with what each was when listed.
+    registry: HashMap<u32, (ElementRef, Fingerprint)>,
+}
+
+/// What visiting one node of the tree came to.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Visit {
+    Listed,
+    /// Left out as off screen, with its subtree.
+    Skipped,
+    /// Unreadable, or past a limit.
+    Nothing,
+}
+
+/// Running totals of one `get_app_state` walk.
+struct Walk {
+    options: StateOptions,
+    next_id: u32,
+    /// Nodes inspected, which is what `max_elements` caps: every one costs
+    /// D-Bus round trips whether or not it prints.
+    visited: usize,
+    rows: Vec<String>,
+    /// Subtree roots left out as off screen.
+    skipped: usize,
+    /// Collect modal dialogs (first pass only), with the depth each was at.
+    find_dialogs: bool,
+    dialogs: Vec<(ElementRef, usize)>,
+    /// The app's top-level windows (depth 1), dialogs included.
+    frames: usize,
+    /// The last printed table cell: its line, its row's top and height, and
+    /// the names already on that line, so the rest of its row joins it.
+    cell_row: Option<(usize, i32, i32, Vec<String>)>,
+}
+
+impl Walk {
+    fn new(options: StateOptions, find_dialogs: bool) -> Self {
+        Self { options, next_id: 0, visited: 0, rows: Vec::new(), skipped: 0, find_dialogs, dialogs: Vec::new(), frames: 0, cell_row: None }
+    }
+
+    /// A modal dialog blocks something only when there is something behind
+    /// it: a dialog inside a window, or one of several top-level windows. A
+    /// dialog that is the app's only window (zenity, a GTK prompt) is the app.
+    fn blocking_dialogs(&mut self) -> Vec<ElementRef> {
+        let top_level = self.dialogs.iter().filter(|(_, depth)| *depth == 1).count();
+        let blocks = self.dialogs.iter().any(|(_, depth)| *depth > 1) || self.frames > top_level;
+        let dialogs = std::mem::take(&mut self.dialogs);
+        if blocks { dialogs.into_iter().map(|(dialog, _)| dialog).collect() } else { Vec::new() }
+    }
 }
 
 impl LinuxDesktop {
@@ -93,22 +145,48 @@ impl LinuxDesktop {
         element: &ElementRef,
     ) -> Result<AccessibleProxy<'a>> {
         let connection = self.bus()?;
+        // No property cache: a cached proxy subscribes to PropertiesChanged
+        // and fetches every property when it is built, two extra bus round
+        // trips per element for the one property (Name) a read wants.
         block_on(
             AccessibleProxy::builder(connection.connection())
                 .destination(element.bus.clone())
                 .and_then(|builder| builder.path(element.path.clone()))
                 .map_err(|error| DesktopError::new(format!("bad element address: {error}")))?
+                .cache_properties(zbus::proxy::CacheProperties::No)
                 .build(),
         )
         .map_err(|error| DesktopError::new(format!("element is gone: {error}")))
     }
 
+    /// Resolve an id, rechecking that the element is still what was listed:
+    /// acting on whatever now sits at a stale path is worse than failing.
     fn element(&self, id: u32) -> Result<ElementRef> {
-        self.registry.get(&id).cloned().ok_or_else(|| {
+        let (reference, recorded) = self.registry.get(&id).cloned().ok_or_else(|| {
             DesktopError::new(format!(
                 "element e{id} is not in the current snapshot — call get_app_state again, ids are per-snapshot"
             ))
-        })
+        })?;
+        let current = self.proxy(&reference).ok().and_then(|proxy| {
+            let role = block_on(proxy.get_role()).ok().filter(|role| *role != Role::Invalid)?;
+            let name = block_on(proxy.name()).ok()?;
+            Some(Fingerprint { role: format!("{role:?}"), name })
+        });
+        outline::check_fresh(id, &recorded, current.as_ref())?;
+        Ok(reference)
+    }
+
+    /// A Component proxy for an element, built without a bus round trip.
+    fn component(&self, element: &ElementRef) -> Option<atspi::proxy::component::ComponentProxy<'_>> {
+        block_on(
+            atspi::proxy::component::ComponentProxy::builder(self.bus().ok()?.connection())
+                .destination(element.bus.clone())
+                .and_then(|builder| builder.path(element.path.clone()))
+                .ok()?
+                .cache_properties(zbus::proxy::CacheProperties::No)
+                .build(),
+        )
+        .ok()
     }
 
     /// Screen rectangle centre of an element, via the Component interface.
@@ -119,6 +197,7 @@ impl LinuxDesktop {
                 .destination(element.bus.clone())
                 .and_then(|builder| builder.path(element.path.clone()))
                 .map_err(|error| DesktopError::new(format!("bad element address: {error}")))?
+                .cache_properties(zbus::proxy::CacheProperties::No)
                 .build(),
         )
         .map_err(|error| DesktopError::new(format!("element has no geometry: {error}")))?;
@@ -148,6 +227,7 @@ impl LinuxDesktop {
                 .destination(element.bus.clone())
                 .and_then(|builder| builder.path(element.path.clone()))
                 .map_err(|error| DesktopError::new(format!("bad element address: {error}")))?
+                .cache_properties(zbus::proxy::CacheProperties::No)
                 .build(),
         )
         .map_err(|error| DesktopError::new(format!("element is not editable: {error}")))?;
@@ -184,6 +264,7 @@ impl LinuxDesktop {
                 .destination(element.bus.clone())
                 .and_then(|builder| builder.path(element.path.clone()))
                 .map_err(|error| DesktopError::new(format!("bad element address: {error}")))?
+                .cache_properties(zbus::proxy::CacheProperties::No)
                 .build(),
         )
         .map_err(|error| DesktopError::new(format!("element exposes no text: {error}")))
@@ -201,6 +282,16 @@ impl LinuxDesktop {
             .map_err(|error| DesktopError::new(format!("could not read character count: {error}")))
     }
 
+    /// A password field the agent must not write into (AT-SPI role
+    /// `PasswordText`), unless the user opted in.
+    fn refuses_secure_input(&self, element: &ElementRef) -> bool {
+        !super::secure_field_input_allowed()
+            && matches!(
+                self.proxy(element).ok().and_then(|proxy| block_on(proxy.get_role()).ok()),
+                Some(Role::PasswordText)
+            )
+    }
+
     /// Ask the toolkit to focus an element, which also raises its window on most
     /// desktops — the closest portable equivalent to activating an app.
     fn grab_focus(&self, element: &ElementRef) -> Result<bool> {
@@ -209,6 +300,7 @@ impl LinuxDesktop {
                 .destination(element.bus.clone())
                 .and_then(|builder| builder.path(element.path.clone()))
                 .map_err(|error| DesktopError::new(format!("bad element address: {error}")))?
+                .cache_properties(zbus::proxy::CacheProperties::No)
                 .build(),
         )
         .map_err(|error| DesktopError::new(format!("element cannot take focus: {error}")))?;
@@ -228,7 +320,9 @@ impl LinuxDesktop {
 
         // Best-effort restore/raise before the EWMH request — harmless if the
         // window is already mapped and on top.
-        let _ = connection.map_window(window_id).and_then(|cookie| cookie.check());
+        if let Ok(cookie) = connection.map_window(window_id) {
+            let _ = cookie.check();
+        }
         connection
             .configure_window(
                 window_id,
@@ -263,6 +357,19 @@ impl LinuxDesktop {
                 DesktopError::new(format!("could not send _NET_ACTIVE_WINDOW: {error}"))
             })?;
 
+        // EWMH is asynchronous: bspwm must map a window on another desktop
+        // before SetInputFocus is legal. Let the WM finish activation first.
+        let deadline = std::time::Instant::now() + std::time::Duration::from_millis(250);
+        while std::time::Instant::now() < deadline {
+            if let Ok(cookie) = connection.get_property(false, root, atom, AtomEnum::WINDOW, 0, 1)
+                && let Ok(reply) = cookie.reply()
+                && reply.value32().and_then(|mut values| values.next()) == Some(window_id)
+            {
+                return Ok(());
+            }
+            std::thread::sleep(std::time::Duration::from_millis(10));
+        }
+
         // Nudge for WMs (Openbox under Xvfb) that ignore the client message.
         connection
             .set_input_focus(InputFocus::PARENT, window_id, 0u32)
@@ -282,6 +389,7 @@ impl LinuxDesktop {
                 .destination(element.bus.clone())
                 .and_then(|builder| builder.path(element.path.clone()))
                 .map_err(|error| DesktopError::new(format!("bad element address: {error}")))?
+                .cache_properties(zbus::proxy::CacheProperties::No)
                 .build(),
         )
         .map_err(|error| DesktopError::new(format!("element exposes no actions: {error}")))?;
@@ -384,6 +492,8 @@ impl LinuxDesktop {
     }
 
     fn move_pointer(&self, x: f64, y: f64) -> Result<()> {
+        // Every pointer action here moves the real pointer (#55).
+        crate::policy::check_foreground("act there with the real pointer")?;
         // XTEST MotionNotify takes i16 screen coords — reject out-of-range or
         // non-finite values instead of silently clamping via `as i16`.
         let xi = to_xtest_coord(x, "x")?;
@@ -398,6 +508,15 @@ impl LinuxDesktop {
         connection
             .flush()
             .map_err(|error| DesktopError::new(format!("X11 flush failed: {error}")))?;
+        Ok(())
+    }
+
+    /// Move the pointer to where a press will land. GTK can drop a press that
+    /// arrives before it has handled the pointer crossing into the widget
+    /// (seen with plain buttons under bspwm), so give it a moment first.
+    fn move_pointer_to_press(&self, x: f64, y: f64) -> Result<()> {
+        self.move_pointer(x, y)?;
+        std::thread::sleep(POINTER_SETTLE);
         Ok(())
     }
 
@@ -559,37 +678,94 @@ impl LinuxDesktop {
         }
     }
 
-    fn walk(
-        &mut self,
-        element: &ElementRef,
-        depth: usize,
-        max_depth: usize,
-        max_elements: usize,
-        next_id: &mut u32,
-        visited: &mut usize,
-        lines: &mut Vec<String>,
-    ) {
+    /// `clip` is the visible part of the window and the scroll containers
+    /// around `element`, in window coordinates (which native Wayland clients
+    /// report too). Off-screen nodes are skipped with their subtrees unless
+    /// `offscreen` asked for everything; nothing in a minimized window is.
+    fn walk(&mut self, walk: &mut Walk, element: &ElementRef, depth: usize, clip: Option<Bounds>, iconified: bool) -> Visit {
+        let limits = walk.options;
         // Count every node we inspect — unnamed non-interactive parents still
         // cost D-Bus round-trips and must not bypass `max_elements`.
-        if depth > max_depth || *visited >= max_elements {
-            return;
+        if depth > limits.max_depth || walk.visited >= limits.max_elements {
+            return Visit::Nothing;
         }
         // Read everything the proxy can tell us, then drop it: it borrows
         // `self`, and the registry below needs that borrow released.
-        let Some((name, role, children)) = ({
+        // The five requests go out together and their answers are awaited
+        // together: one round trip per element instead of five. The rectangle
+        // is asked for whether or not it is used below; asking costs the app
+        // little, waiting for it separately cost a round trip.
+        let component = (depth > 0)
+            .then(|| self.component(element))
+            .flatten();
+        let Some((name, role, children, state, extents, screen)) = ({
             match self.proxy(element) {
                 Ok(proxy) => {
-                    let name = block_on(proxy.name()).unwrap_or_default();
-                    let role = block_on(proxy.get_role()).unwrap_or(Role::Invalid);
-                    let children = block_on(proxy.get_children()).unwrap_or_default();
-                    Some((name, role, children))
+                    let component = component.as_ref();
+                    let rect = |coords| async move {
+                        match component {
+                            Some(component) => component.get_extents(coords).await.ok(),
+                            None => None,
+                        }
+                    };
+                    let ((name, role), ((children, state), (extents, screen))) = block_on(zip(
+                        zip(proxy.name(), proxy.get_role()),
+                        zip(
+                            zip(proxy.get_children(), proxy.get_state()),
+                            zip(rect(CoordType::Window), rect(CoordType::Screen)),
+                        ),
+                    ));
+                    Some((
+                        name.unwrap_or_default(),
+                        role.unwrap_or(Role::Invalid),
+                        children.ok(),
+                        state.ok(),
+                        extents,
+                        screen,
+                    ))
                 }
                 Err(_) => None,
             }
         }) else {
-            return;
+            return Visit::Nothing;
         };
-        *visited += 1;
+        drop(component);
+        walk.visited += 1;
+
+        let has = |flag: State| state.is_some_and(|state| state.contains(flag));
+        let iconified = iconified || has(State::Iconified);
+        let floats = matches!(
+            role,
+            Role::Menu | Role::PopupMenu | Role::Dialog | Role::Alert | Role::FileChooser | Role::Window | Role::ToolTip
+        );
+        // SHOWING is VISIBLE with every ancestor visible too, which toolkits
+        // clear for content scrolled out of view. An unreadable state says
+        // nothing either way.
+        let not_showing = state.is_some() && !has(State::Showing);
+        let row = matches!(role, Role::ListItem | Role::TreeItem | Role::TableRow | Role::TableCell);
+        // A showing leaf that is not a row is not checked against the view:
+        // its container already was, and leaves are most of a tree.
+        let bounds = if depth > 0 && (children.as_ref().is_none_or(|children| !children.is_empty()) || row || floats || not_showing) {
+            extents.map(|(x, y, width, height)| Bounds::new(f64::from(x), f64::from(y), f64::from(width), f64::from(height)))
+        } else {
+            None
+        };
+        if depth > 0 && !limits.offscreen && !iconified && outline::is_off_screen(bounds, clip, not_showing, floats, row) {
+            walk.skipped += 1;
+            return Visit::Skipped;
+        }
+        // Only windows on screen (or minimized) count as something a dialog
+        // could block.
+        if depth == 1 {
+            walk.frames += 1;
+        }
+        if depth > 0
+            && walk.find_dialogs
+            && matches!(role, Role::Dialog | Role::Alert | Role::FileChooser)
+            && has(State::Modal)
+        {
+            walk.dialogs.push((element.clone(), depth));
+        }
 
         let interactive = matches!(
             role,
@@ -606,14 +782,18 @@ impl LinuxDesktop {
                 | Role::Text
                 | Role::ToggleButton
                 | Role::TreeItem
-        );
+        ) || (role == Role::TableCell && !name.is_empty());
+        // GTK tree views (file managers, settings lists) expose each row as
+        // table cells with no row object, so a named cell is how a model
+        // picks a row; see `click`, which selects it rather than activating.
 
         if !name.is_empty() || interactive {
             let mut row = "  ".repeat(depth);
             if interactive {
-                *next_id += 1;
-                row.push_str(&format!("[e{next_id}] "));
-                self.registry.insert(*next_id, element.clone());
+                walk.next_id += 1;
+                row.push_str(&format!("[e{}] ", walk.next_id));
+                let fingerprint = Fingerprint { role: format!("{role:?}"), name: name.clone() };
+                self.registry.insert(walk.next_id, (element.clone(), fingerprint));
             }
             row.push_str(&format!("{role:?}"));
             if !name.is_empty() {
@@ -621,34 +801,97 @@ impl LinuxDesktop {
             }
             // Screen bounds let a model fall back to coordinates when an element
             // has no usable action, and make a wrong-looking click diagnosable.
-            if interactive && let Ok((x, y)) = self.center(element) {
+            if interactive && let Some((x, y, width, height)) = screen.filter(|(_, _, w, h)| *w > 0 && *h > 0) {
+                let (x, y) = (f64::from(x) + f64::from(width) / 2.0, f64::from(y) + f64::from(height) / 2.0);
                 row.push_str(&format!(" @({x:.0},{y:.0})"));
             }
-            lines.push(row);
+            // GTK tree views have no row objects: a row is a run of cells at
+            // the same height. Its cells print on the first one's line, the
+            // way a person reads the row; their ids stay valid.
+            let cell_rect = (role == Role::TableCell && !name.is_empty())
+                .then_some(extents)
+                .flatten()
+                .filter(|(_, _, _, height)| *height > 0);
+            let same_row = match (&walk.cell_row, cell_rect) {
+                (Some((line, top, height, _)), Some((_, y, _, h))) => *line + 1 == walk.rows.len() && *top == y && *height == h,
+                _ => false,
+            };
+            if same_row {
+                let (line, _, _, names) = walk.cell_row.as_mut().expect("checked above");
+                if names.contains(&name) {
+                    // The same text again (a sidebar's icon and label cells): keep the
+                    // line that says where to click.
+                    if !walk.rows[*line].contains(" @(") && row.contains(" @(") {
+                        walk.rows[*line] = row;
+                    }
+                } else {
+                    walk.rows[*line].push_str(&format!(", \"{}\"", truncate(&name, 120)));
+                    names.push(name.clone());
+                }
+            } else {
+                walk.rows.push(row);
+                walk.cell_row = cell_rect.map(|(_, y, _, h)| (walk.rows.len() - 1, y, h, vec![name.clone()]));
+            }
         }
 
-        for child in children {
-            if *visited >= max_elements {
-                lines.push(format!(
-                    "{}… truncated at {max_elements} elements — raise max_elements or target a child",
-                    "  ".repeat(depth + 1)
+        // The window itself is the first clip; floating popups start their own.
+        let clip = if floats {
+            bounds.filter(Bounds::has_area)
+        } else if clip.is_none() || matches!(role, Role::ScrollPane | Role::Viewport) {
+            outline::narrow_clip(clip, bounds)
+        } else {
+            clip
+        };
+        // Rows of a list come in order, so once they run past the bottom of
+        // the view the rest are off screen too: count them without a D-Bus
+        // round trip per row.
+        let ordered = matches!(role, Role::List | Role::ListBox | Role::Table | Role::Tree | Role::TreeTable);
+        let mut seen_visible = false;
+        // AT-SPI refuses GetChildren past 65,536 children (a 20,000-file
+        // folder in a four-column tree view). Those are walked one index at a
+        // time instead, which stops at the bottom of the view like the rest.
+        let by_index = match &children {
+            Some(_) => None,
+            None => self
+                .proxy(element)
+                .ok()
+                .and_then(|proxy| block_on(proxy.child_count()).ok())
+                .map(|count| count.max(0) as usize)
+                .filter(|count| *count > 0),
+        };
+        let mut children = children.unwrap_or_default().into_iter();
+        let total = by_index.unwrap_or(children.len());
+        for index in 0..total {
+            let child = match by_index {
+                Some(_) => self
+                    .proxy(element)
+                    .ok()
+                    .and_then(|proxy| block_on(proxy.get_child_at_index(index as i32)).ok()),
+                None => children.next(),
+            };
+            let Some(child) = child else { break };
+            if walk.visited >= limits.max_elements {
+                walk.rows.push(format!(
+                    "{}… truncated at {} elements — raise max_elements or target a child",
+                    "  ".repeat(depth + 1),
+                    limits.max_elements
                 ));
-                return;
+                break;
             }
             let reference = ElementRef {
                 bus: child.name().map(|name| name.to_string()).unwrap_or_default(),
                 path: child.path().to_string(),
             };
-            self.walk(
-                &reference,
-                depth + 1,
-                max_depth,
-                max_elements,
-                next_id,
-                visited,
-                lines,
-            );
+            match self.walk(walk, &reference, depth + 1, clip, iconified) {
+                Visit::Skipped if ordered && seen_visible => {
+                    walk.skipped += total - index - 1;
+                    break;
+                }
+                Visit::Listed => seen_visible = true,
+                _ => {}
+            }
         }
+        Visit::Listed
     }
 
     /// Top-level application objects on the a11y bus, with their pids.
@@ -659,7 +902,7 @@ impl LinuxDesktop {
             .destination("org.a11y.atspi.Registry")
             .and_then(|builder| builder.path("/org/a11y/atspi/accessible/root"))
             .map_err(|error| DesktopError::new(format!("bad registry address: {error}")))?;
-        let root = block_on(root.build())
+        let root = block_on(root.cache_properties(zbus::proxy::CacheProperties::No).build())
             .map_err(|error| DesktopError::new(format!("no a11y registry: {error}")))?;
 
         let children = block_on(root.get_children())
@@ -692,14 +935,6 @@ impl LinuxDesktop {
         }
         Ok(applications)
     }
-}
-
-fn truncate(value: &str, limit: usize) -> String {
-    let cleaned = value.replace(['\n', '\r'], " ");
-    if cleaned.chars().count() <= limit {
-        return cleaned;
-    }
-    cleaned.chars().take(limit).collect::<String>() + "…"
 }
 
 /// Prefer PID when the query is numeric, then an exact AT-SPI name match;
@@ -864,35 +1099,36 @@ fn char_to_keysym(character: char) -> u32 {
 
 /// Named keys the model can send, in X11 keysym terms.
 fn named_keysym(key: &str) -> Option<u32> {
-    Some(match key.to_lowercase().as_str() {
-        "return" | "enter" => 0xff0d,
-        "tab" => 0xff09,
-        "escape" | "esc" => 0xff1b,
-        "space" => 0x0020,
-        "backspace" => 0xff08,
-        "delete" => 0xffff,
-        "up" => 0xff52,
-        "down" => 0xff54,
-        "left" => 0xff51,
-        "right" => 0xff53,
-        "home" => 0xff50,
-        "end" => 0xff57,
-        "page_up" | "pageup" => 0xff55,
-        "page_down" | "pagedown" => 0xff56,
-        "f1" => 0xffbe,
-        "f2" => 0xffbf,
-        "f3" => 0xffc0,
-        "f4" => 0xffc1,
-        "f5" => 0xffc2,
-        "f6" => 0xffc3,
-        "f7" => 0xffc4,
-        "f8" => 0xffc5,
-        "f9" => 0xffc6,
-        "f10" => 0xffc7,
-        "f11" => 0xffc8,
-        "f12" => 0xffc9,
-        _ => return None,
-    })
+    match crate::keys::parse(key)? {
+        Key::Char(character) => Some(char_to_keysym(character)),
+        Key::Named(named) => Some(match named {
+            Named::Return => 0xff0d,
+            Named::Tab => 0xff09,
+            Named::Escape => 0xff1b,
+            Named::Space => 0x0020,
+            Named::Backspace => 0xff08,
+            Named::Delete | Named::ForwardDelete => 0xffff,
+            Named::Up => 0xff52,
+            Named::Down => 0xff54,
+            Named::Left => 0xff51,
+            Named::Right => 0xff53,
+            Named::Home => 0xff50,
+            Named::End => 0xff57,
+            Named::PageUp => 0xff55,
+            Named::PageDown => 0xff56,
+            Named::Insert => 0xff63,
+            // XK_F1 is 0xffbe and the function keys run contiguously to F35.
+            Named::F(n) => 0xffbe + u32::from(n) - 1,
+            Named::Numpad(digit) => 0xffb0 + u32::from(digit),
+            Named::NumpadAdd => 0xffab,
+            Named::NumpadSubtract => 0xffad,
+            Named::NumpadMultiply => 0xffaa,
+            Named::NumpadDivide => 0xffaf,
+            Named::NumpadDecimal => 0xffae,
+            Named::NumpadEnter => 0xff8d,
+            Named::NumpadEquals => 0xffbd,
+        }),
+    }
 }
 
 /// Modifier names to keysyms. `cmd` becomes Super, matching the Windows path.
@@ -923,48 +1159,62 @@ fn to_xtest_coord(value: f64, axis: &str) -> Result<i16> {
     Ok(value as i16)
 }
 
-impl Desktop for LinuxDesktop {
-    fn list_apps(&mut self) -> Result<String> {
-        // Window enumeration needs EWMH properties that minimal window managers
-        // (WSLg included) do not publish, and the accessibility bus is the more
-        // relevant view here anyway: an app absent from it cannot be driven.
-        let focused = apps::list_apps().ok().and_then(|apps| {
-            apps.into_iter().find(|app| app.frontmost)
-        });
-        let focused_name = focused
-            .as_ref()
-            .map(|app| app.name.to_lowercase())
-            .unwrap_or_default();
-        let focused_pid = focused.map(|app| app.pid);
+// AT-SPI can contain only some running apps. Keep X11-only windows available
+// for screenshots and coordinate input, even while the accessibility bus works.
+fn format_linux_app_list(accessible: Vec<(String, u32)>, windows: Vec<super::AppInfo>) -> String {
+    let accessible: Vec<(String, u32)> =
+        accessible.into_iter().filter(|(name, _)| !name.is_empty()).collect();
+    // A window whose pid the bus also reports is listed once, as the bus entry.
+    let (merged, remaining): (Vec<_>, Vec<_>) = windows
+        .into_iter()
+        .partition(|app| app.pid != 0 && accessible.iter().any(|(_, pid)| *pid == app.pid));
+    // The marker follows the focused window: onto its bus entry when the pids
+    // match, otherwise it stays on the window's own line, so it appears once.
+    let focused_pid = merged.iter().find(|app| app.frontmost).map(|app| app.pid);
 
-        if let Ok(applications) = self.applications()
-            && !applications.is_empty()
-        {
-            let mut lines: Vec<String> = applications
-                .into_iter()
-                .filter(|(_, name, _)| !name.is_empty())
-                .map(|(_, name, pid)| {
-                    // Prefer pid equality — xcap and AT-SPI names often disagree
-                    // (`Code` vs `Visual Studio Code`). Exact name is the fallback.
-                    let is_frontmost = focused_pid
-                        .filter(|front| *front != 0 && *front == pid)
-                        .is_some()
-                        || (!focused_name.is_empty() && name.to_lowercase() == focused_name);
-
-                    let marker = if is_frontmost { "  FRONTMOST" } else { "" };
-                    if pid == 0 {
-                        format!("{name}  [a11y]{marker}")
-                    } else {
-                        format!("{name}  [a11y]  pid={pid}{marker}")
-                    }
-                })
-                .collect();
-            if !lines.is_empty() {
-                lines.sort_by_key(|line| (!line.contains("FRONTMOST"), line.to_lowercase()));
-                return Ok(lines.join("\n"));
+    let mut entries: Vec<(bool, String)> = accessible
+        .iter()
+        .map(|(name, pid)| {
+            let frontmost = focused_pid == Some(*pid);
+            let marker = if frontmost { "  FRONTMOST" } else { "" };
+            let name = super::escape_app_field(name);
+            let line = if *pid == 0 {
+                format!("{name}  [a11y]{marker}")
+            } else {
+                format!("{name}  [a11y]  pid={pid}{marker}")
+            };
+            (frontmost, line)
+        })
+        .collect();
+    let mut notes = Vec::new();
+    if !remaining.is_empty() {
+        // Window lines end in `windows=N` or a quoted title unless marked.
+        for line in format_app_list(remaining).lines() {
+            if line.starts_with("note: ") {
+                notes.push(line.to_owned());
+            } else {
+                entries.push((line.ends_with("  FRONTMOST"), line.to_owned()));
             }
         }
-        Ok(format_app_list(apps::list_apps()?))
+    }
+    entries.sort_by_key(|(frontmost, line)| (!frontmost, line.to_lowercase()));
+    entries.into_iter().map(|(_, line)| line).chain(notes).collect::<Vec<_>>().join("\n")
+}
+
+impl Desktop for LinuxDesktop {
+    fn list_apps(&mut self) -> Result<String> {
+        let windows = apps::list_apps();
+        let accessible: Vec<(String, u32)> = self
+            .applications()
+            .unwrap_or_default()
+            .into_iter()
+            .map(|(_, name, pid)| (name, pid))
+            .collect();
+        // Minimal WMs may not publish the EWMH properties xcap needs.
+        if accessible.iter().all(|(name, _)| name.is_empty()) {
+            return Ok(format_app_list(windows?));
+        }
+        Ok(format_linux_app_list(accessible, windows.unwrap_or_default()))
     }
 
     fn resolve_pid(&mut self, app: &str) -> Result<u32> {
@@ -974,8 +1224,8 @@ impl Desktop for LinuxDesktop {
         // or the name is simply absent from the bus.
         match self.applications() {
             Ok(applications) => match match_application(&applications, app) {
-                Ok((_, _, pid)) if pid != 0 => Ok(pid),
                 Ok((_, _, 0)) => apps::resolve_pid(app),
+                Ok((_, _, pid)) => Ok(pid),
                 Err(error) if error.0.contains("matches several apps") => Err(error),
                 Err(_) => apps::resolve_pid(app),
             },
@@ -983,25 +1233,46 @@ impl Desktop for LinuxDesktop {
         }
     }
 
-    fn get_app_state(&mut self, app: &str, max_depth: usize, max_elements: usize) -> Result<String> {
+    fn get_app_state(&mut self, app: &str, options: &StateOptions) -> Result<String> {
         // Invalidate prior snapshot IDs even if this refresh fails to find `app`.
         self.registry.clear();
         let applications = self.applications()?;
         let (reference, name, _) = match_application(&applications, app)?;
 
-        let mut next_id = 0u32;
-        let mut visited = 0usize;
-        let mut lines = vec![format!("{name}")];
-        self.walk(
-            &reference,
-            0,
-            max_depth,
-            max_elements,
-            &mut next_id,
-            &mut visited,
-            &mut lines,
-        );
-        if next_id == 0 {
+        let mut walk = Walk::new(*options, true);
+        self.walk(&mut walk, &reference, 0, None, false);
+        // A modal dialog blocks the window behind it: list only the dialog,
+        // since nothing else takes input until it is dismissed.
+        let dialogs = walk.blocking_dialogs();
+        let scoped = !dialogs.is_empty();
+        // Which dialogs scoped the read, named in the note (#44).
+        let mut blockers = Vec::new();
+        if scoped {
+            self.registry.clear();
+            walk = Walk::new(*options, false);
+            for dialog in dialogs {
+                if let Ok(proxy) = self.proxy(&dialog) {
+                    let title = block_on(proxy.name()).unwrap_or_default();
+                    let role = block_on(proxy.get_role()).map(|role| format!("{role:?}")).unwrap_or_else(|_| "Dialog".into());
+                    blockers.push(outline::dialog_label(&role, &title, None));
+                }
+                self.walk(&mut walk, &dialog, 0, None, false);
+            }
+        }
+
+        let mut lines = vec![name];
+        if scoped {
+            lines.push(outline::dialog_note(&blockers));
+        }
+        if options.ocr == OcrMode::Always {
+            lines.push("note: OCR is not available on Linux".to_string());
+        }
+        lines.push(String::new());
+        lines.extend(walk.rows);
+        if walk.skipped > 0 {
+            lines.push(outline::offscreen_line(walk.skipped));
+        }
+        if walk.next_id == 0 {
             lines.push(
                 "no interactive elements exposed — use screenshot and click with coordinates"
                     .to_string(),
@@ -1011,6 +1282,7 @@ impl Desktop for LinuxDesktop {
     }
 
     fn activate_app(&mut self, app: &str) -> Result<String> {
+        crate::policy::check_foreground(&format!("bring {app} to the front"))?;
         // Prefer AT-SPI grab_focus (portable), then fall back to EWMH raise —
         // dialogs often refuse Component.grab_focus even when X11 can activate.
         if app.trim().is_empty() {
@@ -1116,7 +1388,11 @@ impl Desktop for LinuxDesktop {
         // Windows backend does with the Invoke pattern.
         if let Point::Element(id) = target {
             let reference = self.element(id)?;
-            if click_count <= 1 {
+            // A table cell's action is "activate", which in a GTK tree view
+            // is a double-click (Thunar opens the file). A single click
+            // selects, so it goes through the pointer like a person's would.
+            let cell = self.registry.get(&id).is_some_and(|(_, recorded)| recorded.role == "TableCell");
+            if click_count <= 1 && !cell {
                 // Wait for the agent pointer to land before invoking, matching Win/Mac.
                 // Skip native Wayland — AT-SPI bounds are window-relative and would mis-fly.
                 if !crate::capture::on_wayland() || self.element_is_x11_backed(&reference) {
@@ -1141,12 +1417,12 @@ impl Desktop for LinuxDesktop {
 
         let (x, y) = self.point_coordinates(target)?;
         AgentCursor::shared().press(x, y);
-        self.move_pointer(x, y)?;
+        self.move_pointer_to_press(x, y)?;
         for _ in 0..click_count.max(1) {
             self.tap_button(BUTTON_LEFT)?;
         }
         Ok(format!(
-            "clicked at ({x:.0}, {y:.0}){}",
+            "clicked at ({x:.0}, {y:.0}) via cursor{}",
             if click_count > 1 {
                 format!(" x{click_count}")
             } else {
@@ -1159,13 +1435,13 @@ impl Desktop for LinuxDesktop {
         self.ensure_accessibility();
         let (x, y) = self.point_coordinates(target)?;
         AgentCursor::shared().press(x, y);
-        self.move_pointer(x, y)?;
+        self.move_pointer_to_press(x, y)?;
         self.button(BUTTON_RIGHT, true)?;
         if let Err(error) = self.button(BUTTON_RIGHT, false) {
             let _ = self.button(BUTTON_RIGHT, false);
             return Err(error);
         }
-        Ok(format!("right-clicked at ({x:.0}, {y:.0})"))
+        Ok(format!("right-clicked at ({x:.0}, {y:.0}) via cursor"))
     }
 
     fn hover(&mut self, target: Point) -> Result<String> {
@@ -1174,7 +1450,7 @@ impl Desktop for LinuxDesktop {
         AgentCursor::shared().show(x, y);
         self.move_pointer(x, y)?;
         Ok(format!(
-            "hovering at ({x:.0}, {y:.0}) — call get_app_state or screenshot to see what appeared"
+            "hovering at ({x:.0}, {y:.0}) via cursor — call get_app_state or screenshot to see what appeared"
         ))
     }
 
@@ -1183,7 +1459,7 @@ impl Desktop for LinuxDesktop {
         let (from_x, from_y) = self.point_coordinates(from)?;
         let (to_x, to_y) = self.point_coordinates(to)?;
         AgentCursor::shared().show(from_x, from_y);
-        self.move_pointer(from_x, from_y)?;
+        self.move_pointer_to_press(from_x, from_y)?;
         // Fly the overlay to the destination *before* button-down so the
         // blocking wait cannot hold a stationary press (Bugbot: drag timing).
         AgentCursor::shared().press(to_x, to_y);
@@ -1207,7 +1483,7 @@ impl Desktop for LinuxDesktop {
         motion?;
         release?;
         Ok(format!(
-            "dragged ({from_x:.0}, {from_y:.0}) → ({to_x:.0}, {to_y:.0})"
+            "dragged ({from_x:.0}, {from_y:.0}) → ({to_x:.0}, {to_y:.0}) via cursor"
         ))
     }
 
@@ -1218,6 +1494,10 @@ impl Desktop for LinuxDesktop {
         // synthetic keys are not.
         if let Some(id) = element {
             let reference = self.element(id)?;
+            if self.refuses_secure_input(&reference) {
+                let _ = self.grab_focus(&reference);
+                return Ok(super::secure_field_handback(id));
+            }
             if self.insert_text(&reference, text, false).is_ok() {
                 return Ok(format!("typed {} characters into e{id}", text.chars().count()));
             }
@@ -1234,7 +1514,7 @@ impl Desktop for LinuxDesktop {
                     )));
                 }
                 let clicked = if let Ok((x, y)) = self.center(&reference) {
-                    self.move_pointer(x, y)
+                    self.move_pointer_to_press(x, y)
                         .and_then(|()| self.tap_button(BUTTON_LEFT))
                         .is_ok()
                 } else {
@@ -1287,20 +1567,14 @@ impl Desktop for LinuxDesktop {
                  element, or run under X11",
             ));
         }
-        let keysym = if let Some(named) = named_keysym(key) {
-            named
-        } else {
-            let mut chars = key.chars();
-            let Some(first) = chars.next() else {
-                return Err(DesktopError::new("missing required argument 'key'"));
-            };
-            if chars.next().is_some() {
-                return Err(DesktopError::new(format!(
-                    "unsupported key '{key}' — use a single character or a named key (enter, escape, …)"
-                )));
-            }
-            char_to_keysym(first)
-        };
+        if key.is_empty() {
+            return Err(DesktopError::new("missing required argument 'key'"));
+        }
+        let keysym = named_keysym(key).ok_or_else(|| {
+            DesktopError::new(format!(
+                "unsupported key '{key}' — use a single character or a named key (enter, pageup, f5, comma, numpad1, …)"
+            ))
+        })?;
         let (keycode, needs_shift) = self.keycode_for(keysym)?.ok_or_else(|| {
             DesktopError::new(format!("'{key}' is not on the current keyboard layout"))
         })?;
@@ -1373,12 +1647,15 @@ impl Desktop for LinuxDesktop {
         element: Option<u32>,
     ) -> Result<String> {
         self.ensure_accessibility();
+        // XTEST scrolls whatever is under the real pointer, so an element
+        // target means moving the pointer there first.
+        let moved = element.is_some();
         if let Some(id) = element {
             // Route through point_coordinates so Wayland refuses window-relative
             // AT-SPI bounds the same way click / right_click / drag do.
             let (x, y) = self.point_coordinates(Point::Element(id))?;
             AgentCursor::shared().show(x, y);
-            self.move_pointer(x, y)?;
+            self.move_pointer_to_press(x, y)?;
         }
         let button = match direction {
             ScrollDirection::Up => BUTTON_SCROLL_UP,
@@ -1389,12 +1666,17 @@ impl Desktop for LinuxDesktop {
         for _ in 0..amount.max(1) {
             self.tap_button(button)?;
         }
-        Ok(format!("scrolled {direction:?} by {amount}").to_lowercase())
+        let label = format!("scrolled {direction:?} by {amount}").to_lowercase();
+        Ok(if moved { format!("{label} via cursor") } else { format!("{label} at the pointer") })
     }
 
     fn set_value(&mut self, element: u32, value: &str) -> Result<String> {
         self.ensure_accessibility();
         let reference = self.element(element)?;
+        if self.refuses_secure_input(&reference) {
+            let _ = self.grab_focus(&reference);
+            return Ok(super::secure_field_handback(element));
+        }
         self.insert_text(&reference, value, true).map_err(|error| {
             DesktopError::new(format!(
                 "{error} — not every toolkit allows a direct write; click e{element}, select all \
@@ -1436,7 +1718,45 @@ impl Desktop for LinuxDesktop {
 
 #[cfg(test)]
 mod tests {
-    use super::{char_to_keysym, modifier_keysym, named_keysym, to_xtest_coord, truncate};
+    use super::{
+        char_to_keysym, match_application, modifier_keysym, named_keysym, to_xtest_coord, truncate,
+        ElementRef,
+    };
+
+    #[test]
+    fn mixed_accessibility_listing_keeps_x11_windows_and_correct_focus() {
+        let window = |pid, focused| super::super::AppInfo {
+            name: "Editor".into(), id: "editor".into(), pid, windows: 1,
+            frontmost: focused, title: format!("Document {pid}"),
+        };
+        let listing = super::format_linux_app_list(
+            vec![("Editor".into(), 11), ("Panel".into(), 33)],
+            vec![window(11, false), window(22, true)],
+        );
+        assert_eq!(listing.matches("pid=11").count(), 1, "{listing}");
+        assert!(listing.contains("pid=22  windows=1  FRONTMOST"), "{listing}");
+        assert!(listing.contains("Panel  [a11y]  pid=33"), "{listing}");
+        assert_eq!(listing.matches("FRONTMOST").count(), 1, "{listing}");
+        let headless = super::format_linux_app_list(vec![("Panel".into(), 33)], vec![]);
+        assert_eq!(headless, "Panel  [a11y]  pid=33");
+        let unknown = super::format_linux_app_list(vec![("Unknown".into(), 0)], vec![window(22, false)]);
+        assert!(unknown.contains("pid=22"));
+
+        // A pid-less bus entry with the focused app's name must not take a
+        // second marker from the window line that stays listed.
+        let pidless = super::format_linux_app_list(vec![("Editor".into(), 0)], vec![window(22, true)]);
+        assert_eq!(pidless.matches("FRONTMOST").count(), 1, "{pidless}");
+        assert!(pidless.starts_with("Editor  [editor]  pid=22"), "{pidless}");
+
+        // The duplicate-instance note stays after every app line.
+        let twins = super::format_linux_app_list(
+            vec![("Panel".into(), 33), ("Zeta".into(), 55)],
+            vec![window(22, false), window(44, false)],
+        );
+        let last = twins.lines().last().unwrap_or_default();
+        assert!(last.starts_with("note: 2 instances of Editor"), "{twins}");
+        assert_eq!(twins.lines().filter(|line| line.starts_with("note: ")).count(), 1, "{twins}");
+    }
 
     #[test]
     fn latin1_characters_map_to_themselves() {
@@ -1465,6 +1785,13 @@ mod tests {
         assert_eq!(named_keysym("return"), Some(0xff0d));
         assert_eq!(named_keysym("Escape"), Some(0xff1b));
         assert_eq!(named_keysym("nonsense"), None);
+        assert_eq!(named_keysym("pageup"), Some(0xff55));
+        assert_eq!(named_keysym("f13"), Some(0xffca));
+        assert_eq!(named_keysym("f20"), Some(0xffd1));
+        assert_eq!(named_keysym("numpad7"), Some(0xffb7));
+        assert_eq!(named_keysym("numpadenter"), Some(0xff8d));
+        assert_eq!(named_keysym("comma"), Some(0x2c));
+        assert_eq!(named_keysym("{"), Some(0x7b));
     }
 
     #[test]

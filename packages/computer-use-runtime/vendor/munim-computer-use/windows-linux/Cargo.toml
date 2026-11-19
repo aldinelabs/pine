@@ -1,6 +1,6 @@
 [package]
 name = "munim-computer-use-native"
-version = "0.3.0"
+version = "0.14.1"
 edition = "2024"
 license = "Apache-2.0"
 publish = false
@@ -13,30 +13,73 @@ name = "munim-computer-use"
 path = "src/main.rs"
 
 [dependencies]
-serde = { version = "1.0.228", features = ["derive"] }
-serde_json = "1.0.150"
-base64 = "0.22.1"
-# Window capture on both targets; encodes to PNG through `image`.
+serde = { version = "1.0.229", features = ["derive"] }
+serde_json = "1.0.154"
+base64 = { version = "0.23.1", default-features = false, features = ["std"] }
+# Window capture on both targets; encodes to PNG through `image` (JPEG goes
+# through `jpeg-encoder`, below).
 xcap = "0.9.8"
 # Local IPC for the Chrome bridge: named pipes on Windows, Unix sockets on Linux.
-interprocess = "2.4.3"
-image = { version = "0.25.10", default-features = false, features = ["png", "jpeg"] }
+interprocess = "2.4.8"
+image = { version = "0.25.10", default-features = false, features = ["png"] }
+# SIMD (AVX2/SSE4.1/NEON) downscaling for screenshots and OCR input; the
+# `image` crate's scalar filter was most of a screenshot's encode time.
+fast_image_resize = "6.1.0"
+# JPEG screenshots: SIMD (AVX2, run-time detected) and RGBA in, about a third
+# of the `image` crate's JPEG encoder time.
+jpeg-encoder = { version = "0.7.1", features = ["simd"] }
 
 [target.'cfg(windows)'.dependencies]
 # Friendly wrapper over the UI Automation COM API. Raw `windows` bindings would
 # put several hundred lines of COM plumbing between us and every tool call.
-uiautomation = "0.25.0"
+uiautomation = "0.25.1"
+# The LocalSystem service behind secure-desktop capture (secure_desktop.rs).
+windows-service = "0.8.1"
 windows = { version = "0.62.2", features = [
   "Win32_Foundation",
   "Win32_UI_Input_KeyboardAndMouse",
   "Win32_UI_WindowsAndMessaging",
   "Win32_System_Threading",
+  "Win32_System_SystemInformation",
+  "Win32_System_Diagnostics_ToolHelp",
   "Win32_System_LibraryLoader",
   "Win32_Graphics_Gdi",
+  # Cloaked windows are not on top for input (platform/windows.rs, #50).
+  "Win32_Graphics_Dwm",
+  # Desktop Duplication for the live view (live.rs).
+  "Win32_Graphics_Direct3D",
+  "Win32_Graphics_Direct3D11",
+  "Win32_Graphics_Dxgi",
+  "Win32_Graphics_Dxgi_Common",
+  "Win32_UI_HiDpi",
+  # Why a sandboxed server sees empty trees and black captures, and why a
+  # registration Chrome cannot see (platform/session.rs, host_check.rs).
+  "Win32_Security",
+  # The secure desktop helper: its service, pipe and elevation (secure_desktop.rs).
+  "Win32_Security_Authorization",
+  "Win32_Storage_FileSystem",
+  "Win32_System_IO",
+  "Win32_UI_Shell",
+  "Win32_Storage_Packaging_Appx",
+  "Win32_System_RemoteDesktop",
+  "Win32_System_StationsAndDesktops",
+  "Win32_System_Pipes",
+  # return_state settles on the app's WinEvents (settle.rs).
+  "Win32_UI_Accessibility",
+  # On-screen text for apps that expose little to UI Automation (platform/ocr.rs).
+  "Foundation",
+  "Graphics_Imaging",
+  "Media_Ocr",
+  "Storage_Streams",
 ] }
 
+[target.'cfg(any(windows, target_os = "linux"))'.dependencies]
+# clipboard_read / clipboard_write: the Win32 clipboard and the X11 CLIPBOARD
+# selection. Text only, so the image feature (and its dependencies) stay off.
+arboard = { version = "3.7.0", default-features = false }
+
 [target.'cfg(unix)'.dependencies]
-libc = "0.2"
+libc = "0.2.191"
 
 [target.'cfg(target_os = "linux")'.dependencies]
 # AT-SPI is the only general accessibility surface on Linux. It is async-first,
@@ -47,7 +90,7 @@ zbus = { version = "5", default-features = false }
 futures-lite = "2.6.1"
 # XTEST for synthetic input. Wayland deliberately refuses this, which
 # `platform::linux` reports as an actionable error rather than a silent no-op.
-x11rb = { version = "0.14.0", features = ["xtest", "shape"] }
+x11rb = { version = "0.14.0", features = ["xtest", "shape", "randr"] }
 
 [profile.release]
 codegen-units = 1

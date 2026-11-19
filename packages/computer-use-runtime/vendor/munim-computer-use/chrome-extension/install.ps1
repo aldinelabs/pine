@@ -1,82 +1,37 @@
 # Register the native messaging host so Chrome can reach the desktop server.
 #
-# The Windows counterpart to install.sh. Chrome finds hosts through the registry
-# here rather than a directory of manifests, and it runs the host with no
-# arguments, so the manifest points at a small .cmd that re-execs the server in
-# host mode.
+# The Windows counterpart to install.sh. The server registers itself
+# (`munim-computer-use install-native-host`): it writes a small .cmd that Chrome
+# runs in host mode, a host manifest per host name, and the registry keys
+# Chrome reads. This script only finds a checkout's build.
 #
 # The extension id is pinned by the "key" in manifest.json, which is why this
 # can be registered before the extension is ever loaded.
 
 $ErrorActionPreference = 'Stop'
 
-$ExtensionId = 'limncohahkklkbhmhohkhdfdbakpnkei'
-$HostName = 'com.pine.computer_use'
+$ExtensionId = 'kgdolgnijopbghhomnblabjkmjhnoage'
 
 $here = Split-Path -Parent $MyInvocation.MyCommand.Path
 $binary = $env:COMPUTER_USE_PATH
 if (-not $binary) {
-  $binary = Join-Path $here '..\bin\pine-computer-use.exe'
+  $binary = Join-Path $here '..\windows-linux\target\release\munim-computer-use.exe'
 }
 if (-not (Test-Path $binary)) {
   Write-Error "desktop server binary not found at: $binary`nbuild it first:  cargo build --release --manifest-path windows-linux/Cargo.toml"
 }
 $binary = (Resolve-Path $binary).Path
 
-$support = Join-Path $env:LOCALAPPDATA 'Pine\computer-use'
-New-Item -ItemType Directory -Force -Path $support | Out-Null
-
-# Chrome passes no arguments to a host, so the wrapper supplies the mode.
-# Write UTF-8 without BOM: ASCII would corrupt non-ASCII path characters, and
-# PowerShell's "UTF8" encoding inserts a BOM that some hosts mishandle.
-$wrapper = Join-Path $support 'native-host.cmd'
-$utf8NoBom = New-Object System.Text.UTF8Encoding $false
-[System.IO.File]::WriteAllText(
-  $wrapper,
-  "@echo off`r`n`"$binary`" native-host",
-  $utf8NoBom
-)
-
-$manifestPaths = @{}
-foreach ($name in @($HostName)) {
-  $path = Join-Path $support "$name.json"
-  $manifest = [ordered]@{
-    name            = $name
-    description     = 'Pine Computer Use browser bridge'
-    path            = $wrapper
-    type            = 'stdio'
-    allowed_origins = @("chrome-extension://$ExtensionId/")
-  }
-  # Chrome rejects native-host manifests with a UTF-8 BOM (PowerShell's UTF8
-  # encoding inserts one). Write UTF-8 without BOM explicitly.
-  [System.IO.File]::WriteAllText(
-    $path,
-    ($manifest | ConvertTo-Json -Depth 4),
-    $utf8NoBom
-  )
-  $manifestPaths[$name] = $path
-}
-$manifestPath = $manifestPaths[$HostName]
-
-# Chrome and Chromium read separate registry trees; register wherever the
-# browser is actually installed.
-$installed = 0
-foreach ($vendor in @('Google\Chrome', 'Google\Chrome Beta', 'Chromium')) {
-  try {
-    foreach ($name in @($HostName)) {
-      $key = "HKCU:\Software\$vendor\NativeMessagingHosts\$name"
-      New-Item -Path $key -Force | Out-Null
-      Set-ItemProperty -Path $key -Name '(default)' -Value $manifestPaths[$name]
-    }
-    Write-Host "registered host in: HKCU\Software\$vendor"
-    $installed++
-  } catch {
-    # A browser that is not installed simply has no tree; not an error.
-  }
+& $binary install-native-host --binary $binary
+if ($LASTEXITCODE -ne 0) {
+  Write-Error 'install-native-host failed'
 }
 
-if ($installed -eq 0) {
-  Write-Error 'no Chrome registry location could be written'
+# Writing the keys is not the same as Chrome finding them: retrace Chrome's
+# lookup and start the host the way Chrome would.
+& $binary check-native-host
+if ($LASTEXITCODE -ne 0) {
+  Write-Warning 'Chrome would not reach the host yet; see the FAIL / WARN lines above'
 }
 
 Write-Host ''

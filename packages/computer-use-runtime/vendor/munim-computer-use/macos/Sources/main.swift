@@ -1,5 +1,6 @@
 import AppKit
 import ApplicationServices
+import Carbon.HIToolbox
 import CoreGraphics
 import Foundation
 import ScreenCaptureKit
@@ -24,8 +25,10 @@ extension String: @retroactive Error {}
 
 /// Host settings pass `COMPUTER_USE_AGENT_CURSOR=0` / `COMPUTER_USE_BROWSER=0` when
 /// the matching Computer Use toggle is off. Missing or empty means enabled.
+/// `name` is the tunable without its prefix (`BROWSER`); an embedder's
+/// `envPrefix` is read first (see Identity.swift).
 func envFlagDisabled(_ name: String) -> Bool {
-    guard let raw = ProcessInfo.processInfo.environment[name]?
+    guard let raw = Identity.current.tunable(name)?
         .trimmingCharacters(in: .whitespacesAndNewlines)
         .lowercased(),
         !raw.isEmpty
@@ -35,8 +38,23 @@ func envFlagDisabled(_ name: String) -> Bool {
     return raw == "0" || raw == "false" || raw == "off" || raw == "no"
 }
 
-var agentCursorEnabled: Bool { !envFlagDisabled("COMPUTER_USE_AGENT_CURSOR") }
-var browserControlEnabled: Bool { !envFlagDisabled("COMPUTER_USE_BROWSER") }
+/// The opt-in counterpart of `envFlagDisabled`, for tunables that are off
+/// unless the host asks for them.
+func envFlagEnabled(_ name: String) -> Bool {
+    guard let raw = Identity.current.tunable(name)?
+        .trimmingCharacters(in: .whitespacesAndNewlines)
+        .lowercased(),
+        !raw.isEmpty
+    else {
+        return false
+    }
+    return raw == "1" || raw == "true" || raw == "on" || raw == "yes"
+}
+
+/// Remote control drives the real pointer, so the agent's overlay cursor would
+/// be a second pointer chasing the first one.
+var agentCursorEnabled: Bool { !envFlagDisabled("AGENT_CURSOR") && !RemoteControl.isEnabled }
+var browserControlEnabled: Bool { !envFlagDisabled("BROWSER") }
 
 func axCopy(_ el: AXUIElement, _ attr: String) -> AnyObject? {
     var value: AnyObject?
@@ -94,8 +112,35 @@ func elementCenter(_ el: AXUIElement) -> CGPoint? {
 // Snapshots hand out short ids ("e12") that later calls reference, so the model
 // clicks a named element instead of guessing pixel coordinates.
 
+/// What an element was when it was listed: an action rechecks it, so an id
+/// whose element was replaced (a list re-sorted, a dialog swapped its buttons)
+/// fails instead of pressing whatever now sits there.
+struct Fingerprint: Equatable {
+    let role: String
+    /// Title or description. Not the value, which typing legitimately changes.
+    let name: String?
+
+    var described: String {
+        role.replacingOccurrences(of: "AX", with: "") + (name.map { " \"\(truncate($0, 60))\"" } ?? "")
+    }
+}
+
+/// Text read by OCR. Its place is kept relative to its window, so it still
+/// lands right after the window moves (parked for background control and back).
+struct OCRText {
+    let text: String
+    let pid: pid_t
+    let windowID: UInt32
+    let offset: CGRect
+}
+
+enum Registered {
+    case element(AXUIElement, Fingerprint?)
+    case text(OCRText)
+}
+
 final class Registry {
-    static var map: [String: AXUIElement] = [:]
+    static var map: [String: Registered] = [:]
     static var counter = 0
     /// App most recently inspected. Subsequent input is delivered to this
     /// process by default, so interaction stays in the background.
@@ -107,14 +152,92 @@ final class Registry {
         targetPid = nil
     }
 
-    static func add(_ el: AXUIElement) -> String {
+    private static func next() -> String {
         counter += 1
-        let id = "e\(counter)"
-        map[id] = el
+        return "e\(counter)"
+    }
+
+    static func add(_ el: AXUIElement, _ facts: AXFacts? = nil) -> String {
+        let id = next()
+        map[id] = .element(el, facts.map { Fingerprint(role: $0.role, name: $0.title ?? $0.description) })
         return id
     }
 
-    static func get(_ id: String) -> AXUIElement? { map[id] }
+    static func add(_ text: OCRText) -> String {
+        let id = next()
+        map[id] = .text(text)
+        return id
+    }
+
+    /// The element behind an id, without rechecking it.
+    static func get(_ id: String) -> AXUIElement? {
+        if case .element(let el, _) = map[id] { return el }
+        return nil
+    }
+
+    /// The element behind an id, rechecked against what was listed.
+    static func fresh(_ id: String) -> Result<AXUIElement, String> {
+        switch map[id] {
+        case nil:
+            return .failure("error: unknown element_id \(id) — call get_app_state again to refresh ids")
+        case .text:
+            return .failure("error: \(id) is text read by OCR — click it, then use type_text")
+        case .element(let el, let listed):
+            var role: AnyObject?
+            let err = AXUIElementCopyAttributeValue(el, kAXRoleAttribute as CFString, &role)
+            if err == .invalidUIElement {
+                return .failure("error: \(id) no longer exists — the app changed; call get_app_state again")
+            }
+            // A busy app may not answer in time; that says nothing about the element.
+            guard err == .success, let listed else { return .success(el) }
+            let now = Fingerprint(
+                role: (role as? String) ?? "AXUnknown",
+                name: axString(el, kAXTitleAttribute as String) ?? axString(el, kAXDescriptionAttribute as String))
+            if now != listed {
+                return .failure(
+                    "error: \(id) changed since get_app_state (was \(listed.described), now \(now.described)); "
+                        + "call get_app_state again")
+            }
+            return .success(el)
+        }
+    }
+
+    /// The screen point an id stands for: an element's visible centre, or the
+    /// middle of OCR text in its window as it is now.
+    static func point(_ id: String) -> Result<CGPoint, String> {
+        // Pointer input reaches a minimized window or hidden app only once it
+        // is parked where it renders, which also moves it: park, then measure.
+        if case .text(let text) = map[id] {
+            if let refusal = WindowParking.shared.reach(pid: text.pid, window: nil) {
+                return .failure("error: cannot use \(id): \(refusal)")
+            }
+            guard let frame = ocrScreenFrame(text) else {
+                return .failure("error: the window \(id) was read from is gone — call get_app_state again")
+            }
+            return .success(CGPoint(x: frame.midX, y: frame.midY))
+        }
+        switch fresh(id) {
+        case .failure(let message):
+            return .failure(message)
+        case .success(let el):
+            if let pid = pidOf(el),
+               let refusal = WindowParking.shared.reach(pid: pid, window: axElement(el, kAXWindowAttribute as String))
+            {
+                return .failure("error: cannot use \(id): \(refusal)")
+            }
+            guard let point = visibleCenter(of: el) else {
+                return .failure(
+                    "error: \(id) is not visible in its window — scroll it into view and call get_app_state again")
+            }
+            return .success(point)
+        }
+    }
+
+    /// The OCR text behind an id, if that is what it is.
+    static func text(_ id: String) -> OCRText? {
+        if case .text(let text) = map[id] { return text }
+        return nil
+    }
 }
 
 // MARK: - App resolution
@@ -134,6 +257,11 @@ func resolveApp(_ query: String) -> ResolvedApp? {
     guard !trimmed.isEmpty else { return nil }
     let running = NSWorkspace.shared.runningApplications
     let lowered = trimmed.lowercased()
+    // "frontmost" is the app the user is looking at.
+    if lowered == "frontmost" {
+        guard let front = NSWorkspace.shared.frontmostApplication else { return nil }
+        return ResolvedApp(app: front, note: "frontmost app: \(front.localizedName ?? "?")")
+    }
 
     var matches: [NSRunningApplication]
     if let pid = Int32(trimmed), running.contains(where: { $0.processIdentifier == pid }) {
@@ -185,47 +313,6 @@ func truncate(_ s: String, _ n: Int) -> String {
     return flat.count <= n ? flat : String(flat.prefix(n)) + "…"
 }
 
-func walk(_ el: AXUIElement, depth: Int, lines: inout [String], budget: inout Int, maxDepth: Int) {
-    guard budget > 0, depth <= maxDepth else { return }
-
-    let role = axString(el, kAXRoleAttribute as String) ?? "AXUnknown"
-    let title = axString(el, kAXTitleAttribute as String)
-    let desc = axString(el, kAXDescriptionAttribute as String)
-    let value = axString(el, kAXValueAttribute as String)
-    let actions = axActions(el).filter { $0 != "AXShowMenu" }
-    let isInteractive = interactiveRoles.contains(role) || !actions.isEmpty
-    let label = title ?? desc ?? value
-
-    // Emit a node only if it carries information: something actionable, or text.
-    // Pure layout containers are traversed but not printed, which keeps the
-    // outline small enough to be worth putting in a prompt.
-    if isInteractive || label != nil {
-        var parts = ["\(String(repeating: "  ", count: depth))"]
-        if isInteractive {
-            parts.append("[\(Registry.add(el))] ")
-        } else {
-            parts.append("     ")
-        }
-        parts.append(role.replacingOccurrences(of: "AX", with: ""))
-        if let l = label { parts.append(" \"\(truncate(l, 120))\"") }
-        // Show the current contents whenever they are not already the label.
-        // Fields commonly label themselves with AXDescription ("Address and
-        // search bar") and keep the typed text in AXValue, so gating this on
-        // AXTitle hid what the field actually contains.
-        if let v = value, v != label {
-            parts.append(" value=\"\(truncate(v, 80))\"")
-        }
-        if axBool(el, kAXEnabledAttribute as String) == false { parts.append(" (disabled)") }
-        if axBool(el, kAXFocusedAttribute as String) == true { parts.append(" (focused)") }
-        lines.append(parts.joined())
-        budget -= 1
-    }
-
-    for child in axChildren(el) {
-        walk(child, depth: depth + 1, lines: &lines, budget: &budget, maxDepth: maxDepth)
-    }
-}
-
 // MARK: - Input synthesis
 
 // MOUSE_TARGETING
@@ -258,80 +345,32 @@ func walk(_ el: AXUIElement, depth: Int, lines: inout [String], budget: inout In
 //   * click/drag by coordinates  -> SkyLight background path, cursor stays put
 //   * any of the above, degraded -> global HID tap, takes over the pointer
 
-/// Whether a human is currently using this machine.
+/// Deliver an event to one process.
 ///
-/// Everything below degrades to the global HID tap when the background path
-/// does not apply, and that path takes over: it warps the physical cursor and
-/// delivers events to whatever window the user has focused. Pulling the pointer
-/// out from under someone mid-sentence is the worst thing this tool can do, so
-/// a takeover yields to a human who is mid-action instead of fighting them for
-/// it. Background-routed actions are unaffected — they never disturb anyone.
-///
-/// Tune with `COMPUTER_USE_COMPUTER_USE_YIELD_SECS`; `0` disables the guard.
-enum UserPresence {
-    static let yieldWindow: TimeInterval = {
-        if let raw = ProcessInfo.processInfo.environment["COMPUTER_USE_COMPUTER_USE_YIELD_SECS"],
-            let parsed = Double(raw), parsed >= 0
-        {
-            return parsed
-        }
-        return 2.0
-    }()
-
-    /// `kCGAnyInputEventType` has no CGEventType case in Swift, so take the most
-    /// recent of the event types a person actually produces.
-    private static let humanEvents: [CGEventType] = [
-        .keyDown, .flagsChanged, .mouseMoved, .leftMouseDown, .rightMouseDown,
-        .otherMouseDown, .leftMouseDragged, .scrollWheel,
-    ]
-
-    /// Monotonic timestamp of our own last takeover, so the guard can tell the
-    /// user's input apart from the events we just synthesized.
-    private static var lastTakeoverAt: TimeInterval = -.greatestFiniteMagnitude
-
-    static func secondsSinceInput() -> TimeInterval {
-        humanEvents
-            .map { CGEventSource.secondsSinceLastEventType(.hidSystemState, eventType: $0) }
-            .min() ?? .greatestFiniteMagnitude
-    }
-
-    static func noteTakeover() { lastTakeoverAt = ProcessInfo.processInfo.systemUptime }
-
-    /// Non-nil when a takeover should be refused, carrying the message to return.
-    static func refuseTakeover(_ action: String) -> String? {
-        guard yieldWindow > 0 else { return nil }
-        let idle = secondsSinceInput()
-        guard idle < yieldWindow else { return nil }
-        // Events we post to the global tap also reset the HID idle timer, so a
-        // multi-step takeover would otherwise block itself after its first
-        // click. When our own takeover is at least as recent as the newest
-        // input, that input was ours and no human is being interrupted.
-        let sinceOurs = ProcessInfo.processInfo.systemUptime - lastTakeoverAt
-        if sinceOurs <= idle + 0.25 { return nil }
-        return
-            "error: not taking over the pointer to \(action) — the user typed or moved the mouse "
-            + String(format: "%.1f", idle)
-            + "s ago, and the background path does not apply here, so this would warp the real "
-            + "cursor and steal focus. Wait a moment and retry, or target a window "
-            + "(get_app_state, or an element_id) so it runs in the background instead."
-    }
+/// Every synthetic event this server makes is addressed to a specific pid.
+/// Nothing is ever posted to the global HID or session event tap and the real
+/// cursor is never warped, so the user keeps their own mouse and keyboard — and
+/// can go on clicking and typing elsewhere — while the agent works. When no
+/// target process is known, callers refuse instead of falling back to a global
+/// takeover.
+func post(_ event: CGEvent?, to pid: pid_t) {
+    event?.postToPid(pid)
 }
 
-/// Deliver an event to a specific process when we know one, otherwise to the
-/// global HID tap.
-///
-/// Targeting a pid is what lets the agent work in the background: the event goes
-/// straight to that application, so the physical cursor does not jump, focus is
-/// not stolen, and the user can keep working in another app meanwhile. The global
-/// tap is a fallback for raw-coordinate calls where no app is known, and it does
-/// take over the machine.
-func post(_ event: CGEvent?, to pid: pid_t?) {
-    guard let event else { return }
-    if let pid {
-        event.postToPid(pid)
-    } else {
-        event.post(tap: .cghidEventTap)
-    }
+/// Source for every synthetic event. A private state keeps the user's own held
+/// modifiers and buttons out of the agent's events (a combined-session source
+/// would turn the agent's click into a cmd-click while the user holds cmd).
+func agentEventSource() -> CGEventSource? {
+    let source = CGEventSource(stateID: .privateState)
+    // Marks the agent's events, so the key hold lets them through.
+    source?.userData = agentEventMark
+    return source
+}
+
+/// Why an action was refused rather than taking over the user's pointer.
+func refuseGlobalInput(_ action: String, _ hint: String) -> String {
+    "error: cannot \(action) without taking over the user's mouse pointer, which this server never "
+        + "does — the user may be working at the same time. \(hint)"
 }
 
 func pidOf(_ element: AXUIElement) -> pid_t? {
@@ -351,6 +390,7 @@ enum SkyLight {
     typealias PostEventRecordFn = @convention(c) (UnsafeMutableRawPointer, UnsafeMutablePointer<UInt8>) -> Int32
     typealias GetFrontProcessFn = @convention(c) (UnsafeMutableRawPointer) -> Int32
     typealias GetProcessForPIDFn = @convention(c) (pid_t, UnsafeMutablePointer<ProcessSerialNumber>) -> OSStatus
+    typealias GetProcessPIDFn = @convention(c) (UnsafeRawPointer, UnsafeMutablePointer<pid_t>) -> OSStatus
     typealias AXGetWindowFn = @convention(c) (AXUIElement, UnsafeMutablePointer<UInt32>) -> AXError
 
     static let skyHandle = dlopen(
@@ -365,6 +405,7 @@ enum SkyLight {
     static let postEventRecord: PostEventRecordFn? = load("SLPSPostEventRecordTo", skyHandle)
     static let getFrontProcess: GetFrontProcessFn? = load("_SLPSGetFrontProcess", skyHandle)
     static let getProcessForPID: GetProcessForPIDFn? = load("GetProcessForPID", appServices)
+    static let getProcessPID: GetProcessPIDFn? = load("GetProcessPID", appServices)
     static let axGetWindow: AXGetWindowFn? = load("_AXUIElementGetWindow", appServices)
 
     static func load<T>(_ name: String, _ handle: UnsafeMutableRawPointer?) -> T? {
@@ -407,6 +448,14 @@ enum SkyLight {
         guard forPID(pid, &psn) == 0 else { return false }
         withUnsafeBytes(of: &psn) { raw in for i in 0..<8 { target[i] = raw[i] } }
 
+        // defocus the outgoing front process, then focus the target
+        let defocused = postFocusRecord(post, psn: &previous, wid: wid, focus: false)
+        let focused = postFocusRecord(post, psn: &target, wid: wid, focus: true)
+        return defocused && focused
+    }
+
+    /// One focus-change event record: 0x01 focuses `wid` in the process, 0x02 defocuses it.
+    static func postFocusRecord(_ post: PostEventRecordFn, psn: inout [UInt8], wid: UInt32, focus: Bool) -> Bool {
         var record = [UInt8](repeating: 0, count: 0xF8)
         record[0x04] = 0xF8
         record[0x08] = 0x0D
@@ -414,21 +463,117 @@ enum SkyLight {
         record[0x3D] = UInt8((wid >> 8) & 0xFF)
         record[0x3E] = UInt8((wid >> 16) & 0xFF)
         record[0x3F] = UInt8((wid >> 24) & 0xFF)
-
-        record[0x8A] = 0x02  // defocus the outgoing front process
-        let defocused = previous.withUnsafeMutableBufferPointer { p in
+        record[0x8A] = focus ? 0x01 : 0x02
+        return psn.withUnsafeMutableBufferPointer { p in
             record.withUnsafeMutableBufferPointer { r in
                 post(UnsafeMutableRawPointer(p.baseAddress!), r.baseAddress!) == 0
             }
         }
-        record[0x8A] = 0x01  // focus the target
-        let focused = target.withUnsafeMutableBufferPointer { p in
-            record.withUnsafeMutableBufferPointer { r in
-                post(UnsafeMutableRawPointer(p.baseAddress!), r.baseAddress!) == 0
-            }
-        }
-        return defocused && focused
     }
+
+    /// The window that has the user's keyboard: the front process and its
+    /// focused window.
+    static func userFocus() -> (psn: [UInt8], pid: pid_t, wid: UInt32)? {
+        guard let front = getFrontProcess, let pidOfPSN = getProcessPID else { return nil }
+        var psn = [UInt8](repeating: 0, count: 8)
+        let got = psn.withUnsafeMutableBufferPointer { front(UnsafeMutableRawPointer($0.baseAddress!)) == 0 }
+        guard got else { return nil }
+        var pid: pid_t = 0
+        let resolved = psn.withUnsafeBufferPointer { pidOfPSN(UnsafeRawPointer($0.baseAddress!), &pid) == noErr }
+        guard resolved, pid > 0,
+              let window = axElement(AXUIElementCreateApplication(pid), kAXFocusedWindowAttribute as String),
+              let wid = windowID(window)
+        else { return nil }
+        return (psn, pid, wid)
+    }
+
+    /// `activateWithoutRaise` for the length of one action. Routed input needs
+    /// the target focused, but that focus takes the user's keyboard with it, so
+    /// this waits for a pause in their typing first and the returned loan hands
+    /// their window its focus back. Nil when the target cannot be activated.
+    static func borrowFocus(pid: pid_t, wid: UInt32) -> FocusLoan? {
+        waitForUserPause()
+        let user = userFocus()
+        // Keys the person presses while their focus is lent out are held and
+        // given back to their window (see UserKeyHold). Nothing to hold when
+        // the agent works in the window they are already in.
+        let hold = user.flatMap { $0.wid == wid ? nil : UserKeyHold.start() }
+        guard activateWithoutRaise(pid: pid, wid: wid) else {
+            hold?.finish(replay: true)
+            return nil
+        }
+        return FocusLoan(pid: pid, wid: wid, user: user, hold: hold)
+    }
+}
+
+/// Focus lent to the agent's window by `SkyLight.borrowFocus`.
+struct FocusLoan {
+    let pid: pid_t
+    let wid: UInt32
+    let user: (psn: [UInt8], pid: pid_t, wid: UInt32)?
+    /// The person's keys held while the agent has their focus.
+    let hold: UserKeyHold?
+
+    /// Give the user's window its keyboard focus back, once the target has
+    /// taken the routed events. Kept with the agent when there was nothing to
+    /// return to, when the user was in that very window, or when the action
+    /// opened a menu: an app closes its menus as soon as it loses focus.
+    func giveBack(afterKeys keys: Int = 0) {
+        // Held keys go back to the person's window once it has focus again;
+        // when the agent's window keeps focus (a menu it opened), replaying
+        // them would type into that menu, so they are dropped instead.
+        let returned = giveFocusBack(afterKeys: keys)
+        hold?.finish(replay: returned)
+    }
+
+    private func giveFocusBack(afterKeys keys: Int) -> Bool {
+        guard let user, user.wid != wid, let post = SkyLight.postEventRecord,
+              let forPID = SkyLight.getProcessForPID
+        else { return false }
+        // Posted keys are handled after they are posted; let the app finish
+        // them while it still has focus.
+        usleep(useconds_t(min(60 + keys * 2, 1500)) * 1000)
+        // A click's menu opens a moment after the click, so look a few times.
+        for attempt in 0..<(keys == 0 ? 8 : 1) {
+            if attempt > 0 { usleep(15_000) }
+            if menuOpen(in: pid) { return false }
+        }
+        var psn = ProcessSerialNumber()
+        guard forPID(pid, &psn) == 0 else { return false }
+        var target = [UInt8](repeating: 0, count: 8)
+        withUnsafeBytes(of: &psn) { raw in for i in 0..<8 { target[i] = raw[i] } }
+        var theirs = user.psn
+        _ = SkyLight.postFocusRecord(post, psn: &target, wid: wid, focus: false)
+        return SkyLight.postFocusRecord(post, psn: &theirs, wid: user.wid, focus: true)
+    }
+}
+
+/// Whether the app has a menu open. Context, pop-up and menu-bar menus are
+/// all windows at the pop-up menu level, whichever element owns them (a
+/// context menu sits under the text area it was opened on, for one).
+func menuOpen(in pid: pid_t) -> Bool {
+    let menuLevel = Int(CGWindowLevelForKey(.popUpMenuWindow))
+    let windows = CGWindowListCopyWindowInfo([.optionOnScreenOnly], kCGNullWindowID) as? [[String: Any]] ?? []
+    return windows.contains {
+        ($0[kCGWindowOwnerPID as String] as? pid_t) == pid && ($0[kCGWindowLayer as String] as? Int) == menuLevel
+    }
+}
+
+/// Wait until the user has stopped typing (no modifier held, no key for
+/// 0.3 s, up to 10 s), so lending focus to the agent cannot catch their
+/// keystrokes. Reads the hardware state, which the agent's own posted events
+/// never reach.
+func waitForUserPause() {
+    let deadline = Date().addingTimeInterval(10)
+    let held: CGEventFlags = [.maskShift, .maskControl, .maskAlternate, .maskCommand]
+    while Date() < deadline {
+        let idle = CGEventSource.secondsSinceLastEventType(.hidSystemState, eventType: .keyDown)
+        if idle >= 0.3 && CGEventSource.flagsState(.hidSystemState).isDisjoint(with: held) { return }
+        usleep(25_000)
+    }
+}
+
+extension SkyLight {
 
     /// Stamp the window-routing fields and deliver down both paths.
     static func postMouse(
@@ -499,16 +644,17 @@ func windowTarget(under point: CGPoint) -> WindowTarget? {
         else { continue }
         let pid = pid_t(pidValue.int32Value)
         let number = numberValue.uint32Value
-        // Skip this process and the separate PineAgentCursor overlay, which sits
+        // Skip this process and the separate agent-cursor overlay, which sits
         // above the click point by design and would steal hit-testing.
         if pid == getpid() { continue }
+        let overlayName = Identity.current.agentCursorName
         if let owner = window[kCGWindowOwnerName as String] as? String,
-           owner == "PineAgentCursor" || owner.hasPrefix("PineAgentCursor")
+           owner == overlayName || owner.hasPrefix(overlayName)
         {
             continue
         }
         if let app = NSRunningApplication(processIdentifier: pid),
-           app.bundleIdentifier == "com.pine.computer-use.agent-cursor"
+           app.bundleIdentifier == Identity.current.agentCursorBundleId
         {
             continue
         }
@@ -570,6 +716,158 @@ func visibleCenter(of element: AXUIElement) -> CGPoint? {
     return CGPoint(x: visible.midX, y: visible.midY)
 }
 
+/// The part of an element a person can see: its frame clipped to its window
+/// and to every scroll area and web page it sits inside. A checkbox scrolled
+/// below a dialog's list is inside the window but not visible, and clipping
+/// to the window alone gave two such checkboxes the same point.
+func viewportRect(of element: AXUIElement) -> CGRect? {
+    guard let position = axPoint(element, kAXPositionAttribute as String),
+          let size = axSize(element, kAXSizeAttribute as String), size.width > 0, size.height > 0 else { return nil }
+    var rect = CGRect(origin: position, size: size)
+    if let target = windowTarget(for: element), !target.frame.isEmpty { rect = rect.intersection(target.frame) }
+    var node = axElement(element, kAXParentAttribute as String)
+    var depth = 0
+    while let current = node, depth < 60, !rect.isNull, !rect.isEmpty {
+        let role = axString(current, kAXRoleAttribute as String)
+        if role == "AXScrollArea" || role == "AXWebArea",
+           let origin = axPoint(current, kAXPositionAttribute as String),
+           let extent = axSize(current, kAXSizeAttribute as String), extent.width > 0, extent.height > 0 {
+            rect = rect.intersection(CGRect(origin: origin, size: extent))
+        }
+        if role == "AXWindow" { break }
+        node = axElement(current, kAXParentAttribute as String)
+        depth += 1
+    }
+    return rect.isNull || rect.isEmpty ? nil : rect
+}
+
+/// Whether `node` is `ancestor` or sits somewhere inside it.
+func isWithin(_ node: AXUIElement, _ ancestor: AXUIElement) -> Bool {
+    var current: AXUIElement? = node
+    var depth = 0
+    while let at = current, depth < 80 {
+        if CFEqual(at, ancestor) { return true }
+        current = axElement(at, kAXParentAttribute as String)
+        depth += 1
+    }
+    return false
+}
+
+func describeHit(_ element: AXUIElement) -> String {
+    let role = axString(element, kAXRoleAttribute as String) ?? "an element"
+    let name = axString(element, kAXTitleAttribute as String) ?? axString(element, kAXDescriptionAttribute as String) ?? ""
+    return name.isEmpty ? role : "\(role) \"\(truncate(name, 50))\""
+}
+
+/// A point where a press reaches this element, checked with the app's own hit
+/// test rather than assumed from its frame. A frame says where an element
+/// would be; only the hit test says what a press there would land on: the
+/// element, or a sticky header, a dialog, another checkbox. Scrolls the
+/// element into view first when it is out of sight. `nil` hit-test support
+/// (an app that does not answer) keeps the frame's centre outside web content.
+func verifiedClickPoint(_ element: AXUIElement, id: String) -> Result<CGPoint, String> {
+    let web = isInWebContent(element)
+    let fullArea: CGFloat = {
+        guard let size = axSize(element, kAXSizeAttribute as String) else { return 0 }
+        return size.width * size.height
+    }()
+    let canScroll = axActions(element).contains("AXScrollToVisible")
+    let mostlyHidden = { (rect: CGRect?) -> Bool in
+        guard let rect else { return true }
+        return fullArea > 0 && rect.width * rect.height < fullArea * 0.5
+    }
+    var scrolled = false
+    var cover: AXUIElement?
+    var answered = false
+    var lastRect: CGRect?
+    // First as it stands; then, if the hit test says something else is there
+    // (a list that is not an AXScrollArea clips without saying so), scrolled
+    // into view and measured again, giving the page time to report its new
+    // positions.
+    for attempt in 0..<3 {
+        var visible = viewportRect(of: element)
+        if canScroll, !scrolled, attempt > 0 || mostlyHidden(visible) {
+            AXUIElementPerformAction(element, "AXScrollToVisible" as CFString)
+            scrolled = true
+            usleep(300_000)
+            visible = viewportRect(of: element)
+        } else if attempt > 0 {
+            usleep(300_000)
+            visible = viewportRect(of: element)
+        }
+        guard let rect = visible else {
+            if canScroll, !scrolled { continue }
+            return .failure("error: not clicked: \(id) is scrolled out of view and could not be brought into view — "
+                + "scroll it into view and call get_app_state again")
+        }
+        lastRect = rect
+        guard let pid = pidOf(element) else { return .success(CGPoint(x: rect.midX, y: rect.midY)) }
+        let app = AXUIElementCreateApplication(pid)
+        let points = [(0.5, 0.5), (0.3, 0.5), (0.7, 0.5), (0.5, 0.3), (0.5, 0.7), (0.25, 0.25), (0.75, 0.75)]
+            .map { CGPoint(x: rect.minX + rect.width * $0.0, y: rect.minY + rect.height * $0.1) }
+        cover = nil
+        for point in points {
+            var hit: AXUIElement?
+            guard AXUIElementCopyElementAtPosition(app, Float(point.x), Float(point.y), &hit) == .success, let hit else { continue }
+            answered = true
+            if isWithin(hit, element) { return .success(point) }
+            // A small wrapper around the element (a web checkbox's group) is
+            // the same target; a large one (the whole page) is not.
+            if isWithin(element, hit), let size = axSize(hit, kAXSizeAttribute as String),
+               size.width * size.height <= max(fullArea, 48 * 48) * 4 {
+                return .success(point)
+            }
+            if cover == nil { cover = hit }
+        }
+        if !answered { break }
+        if !canScroll && attempt > 0 { break }
+    }
+    if !answered, let rect = lastRect {
+        // No hit test to check against. Outside web content keep the old
+        // behaviour; in a web page a guessed point is how a stale position
+        // clicked the wrong checkbox, so refuse.
+        if !web { return .success(CGPoint(x: rect.midX, y: rect.midY)) }
+        return .failure("error: not clicked: the app would not say what is at \(id)'s position, so the click could land "
+            + "on something else — use browser_click for Chrome tabs, or call get_app_state again")
+    }
+    let at = lastRect.map { " at (\(Int($0.midX)), \(Int($0.midY)))" } ?? ""
+    let what = cover.map(describeHit) ?? "another element"
+    return .failure("error: not clicked: \(id) is covered\(at) by \(what), or is out of view. Nothing was pressed. "
+        + "Scroll it into view or close what is in front, then call get_app_state again")
+}
+
+/// A checkbox, radio button or switch's value (0, 1, 2 for mixed), or nil
+/// for anything else.
+func toggleValue(_ element: AXUIElement) -> Int? {
+    let role = axString(element, kAXRoleAttribute as String)
+    guard role == "AXCheckBox" || role == "AXRadioButton" else { return nil }
+    var value: CFTypeRef?
+    guard AXUIElementCopyAttributeValue(element, kAXValueAttribute as CFString, &value) == .success else { return nil }
+    return (value as? NSNumber)?.intValue
+}
+
+/// After a coordinate click on a checkbox, radio button or switch: what it is
+/// now, or an error when it did not change. A hit test cannot see everything
+/// painted in front (an unlabelled banner over a web page is invisible to
+/// accessibility), so the box itself is the check: a click that changed
+/// nothing went somewhere else. Nil for other elements.
+func checkedToggle(_ element: AXUIElement, id: String, before: Int?, at point: CGPoint) -> String? {
+    guard let before else { return nil }
+    var after = before
+    for _ in 0..<6 {
+        usleep(100_000)
+        after = toggleValue(element) ?? before
+        if after != before { break }
+    }
+    let word = { (value: Int) -> String in value == 1 ? "checked" : value == 2 ? "mixed" : "unchecked" }
+    let role = axString(element, kAXRoleAttribute as String)
+    if after == before && !(role == "AXRadioButton" && before == 1) {
+        return "error: clicked at (\(Int(point.x)), \(Int(point.y))), but \(id) did not change (still \(word(before))): "
+            + "something in front of it may have taken the click. Look with screenshot before clicking again"
+    }
+    return "clicked \(id) at (\(Int(point.x)), \(Int(point.y))) — it is now \(word(after))"
+}
+
 var clickGroupCounter: Int64 = 0x4000
 
 /// Background click. Returns false if the SkyLight path is unavailable, so the
@@ -577,12 +875,13 @@ var clickGroupCounter: Int64 = 0x4000
 func backgroundClick(_ target: WindowTarget, at point: CGPoint, clickCount: Int) -> Bool {
     guard SkyLight.available else { return false }
     CursorOverlay.shared.press(at: point)
-    guard SkyLight.activateWithoutRaise(pid: target.pid, wid: target.wid) else { return false }
+    guard let loan = SkyLight.borrowFocus(pid: target.pid, wid: target.wid) else { return false }
+    defer { loan.giveBack() }
     usleep(80_000)
 
     clickGroupCounter += 1
     let group = clickGroupCounter
-    let src = CGEventSource(stateID: .combinedSessionState)
+    let src = agentEventSource()
 
     // A background window has stale cursor-tracking state, so a bare mouseDown
     // hit-tests "outside" the control and never fires.
@@ -615,14 +914,15 @@ func backgroundScroll(_ target: WindowTarget, at point: CGPoint, dx: Int32, dy: 
           let setWindowLocation = SkyLight.setWindowLocation
     else { return false }
     CursorOverlay.shared.show(at: point)
-    guard SkyLight.activateWithoutRaise(pid: target.pid, wid: target.wid) else { return false }
+    guard let loan = SkyLight.borrowFocus(pid: target.pid, wid: target.wid) else { return false }
+    defer { loan.giveBack() }
     usleep(80_000)
     clickGroupCounter += 1
     let group = clickGroupCounter
 
     // Prime the window's hit-test location. A background window keeps a stale
     // one, and the wheel then lands on nothing even though it is delivered.
-    if let move = CGEvent(mouseEventSource: CGEventSource(stateID: .hidSystemState),
+    if let move = CGEvent(mouseEventSource: agentEventSource(),
                           mouseType: .mouseMoved, mouseCursorPosition: point, mouseButton: .left) {
         SkyLight.postMouse(move, pid: target.pid, wid: target.wid, windowOrigin: target.origin,
                            screen: point, clickState: 0, button: 0, subtype: 3, groupID: group)
@@ -632,7 +932,7 @@ func backgroundScroll(_ target: WindowTarget, at point: CGPoint, dx: Int32, dy: 
     let local = CGPoint(x: point.x - target.origin.x, y: point.y - target.origin.y)
     var delivered = 0
     for _ in 0..<max(1, steps) {
-        guard let wheel = CGEvent(scrollWheelEvent2Source: CGEventSource(stateID: .hidSystemState),
+        guard let wheel = CGEvent(scrollWheelEvent2Source: agentEventSource(),
                                   units: .line, wheelCount: 2, wheel1: dy, wheel2: dx, wheel3: 0)
         else { continue }
         // Scroll events are created at (0, 0) and the receiver hit-tests the
@@ -658,11 +958,12 @@ func backgroundScroll(_ target: WindowTarget, at point: CGPoint, dx: Int32, dy: 
 func backgroundRightClick(_ target: WindowTarget, at point: CGPoint) -> Bool {
     guard SkyLight.available else { return false }
     CursorOverlay.shared.press(at: point)
-    guard SkyLight.activateWithoutRaise(pid: target.pid, wid: target.wid) else { return false }
+    guard let loan = SkyLight.borrowFocus(pid: target.pid, wid: target.wid) else { return false }
+    defer { loan.giveBack() }
     usleep(80_000)
     clickGroupCounter += 1
     let group = clickGroupCounter
-    let src = CGEventSource(stateID: .combinedSessionState)
+    let src = agentEventSource()
     // Prime hit-testing the same way left-click and scroll do; a bare
     // rightMouseDown against a background window often lands outside the control.
     if let moved = CGEvent(mouseEventSource: src, mouseType: .mouseMoved, mouseCursorPosition: point, mouseButton: .left) {
@@ -696,11 +997,12 @@ func backgroundDrag(_ target: WindowTarget, from start: CGPoint, to end: CGPoint
         }
     }
     CursorOverlay.shared.press(at: start)
-    guard SkyLight.activateWithoutRaise(pid: target.pid, wid: target.wid) else { return false }
+    guard let loan = SkyLight.borrowFocus(pid: target.pid, wid: target.wid) else { return false }
+    defer { loan.giveBack() }
     usleep(80_000)
     clickGroupCounter += 1
     let group = clickGroupCounter
-    let src = CGEventSource(stateID: .combinedSessionState)
+    let src = agentEventSource()
     var delivered = false
 
     func send(_ type: CGEventType, _ point: CGPoint, _ clickState: Int64, _ subtype: Int64) {
@@ -730,9 +1032,11 @@ func backgroundDrag(_ target: WindowTarget, from start: CGPoint, to end: CGPoint
     return delivered
 }
 
-func postClick(at point: CGPoint, clickCount: Int = 1, pid: pid_t?) {
+/// Plain per-process click, for when SkyLight window routing is unavailable.
+/// The app hit-tests the event's screen location itself; the cursor stays put.
+func postClick(at point: CGPoint, clickCount: Int = 1, pid: pid_t) {
     CursorOverlay.shared.press(at: point)
-    let src = CGEventSource(stateID: .combinedSessionState)
+    let src = agentEventSource()
     for i in 1...clickCount {
         let down = CGEvent(mouseEventSource: src, mouseType: .leftMouseDown, mouseCursorPosition: point, mouseButton: .left)
         let up = CGEvent(mouseEventSource: src, mouseType: .leftMouseUp, mouseCursorPosition: point, mouseButton: .left)
@@ -744,8 +1048,11 @@ func postClick(at point: CGPoint, clickCount: Int = 1, pid: pid_t?) {
     }
 }
 
-func typeText(_ text: String, pid: pid_t?) {
-    let src = CGEventSource(stateID: .combinedSessionState)
+/// Build the keystrokes for `text` and hand each one to `deliver`, which
+/// decides where it goes: a single process (the agent) or the global HID tap
+/// (remote control).
+func synthesizeTypedText(_ text: String, deliver: (CGEvent?) -> Void) {
+    let src = agentEventSource()
     // Send in small UTF-16 chunks: keyboardSetUnicodeString has a length cap,
     // and per-chunk events keep long strings from being dropped.
     for chunk in Array(text).chunked(into: 16) {
@@ -754,10 +1061,33 @@ func typeText(_ text: String, pid: pid_t?) {
               let up = CGEvent(keyboardEventSource: src, virtualKey: 0, keyDown: false) else { continue }
         down.keyboardSetUnicodeString(stringLength: utf16.count, unicodeString: &utf16)
         up.keyboardSetUnicodeString(stringLength: utf16.count, unicodeString: &utf16)
-        post(down, to: pid)
-        post(up, to: pid)
+        deliver(down)
+        deliver(up)
         usleep(8_000)
     }
+}
+
+/// Keys posted to a process reach its key window, which it only has while it
+/// is focused. Lend it focus for the keystrokes and hand it back after, so the
+/// user's own typing keeps going to their window. Without the private focus
+/// calls the keys are posted as before.
+func withKeyboardFocus(pid: pid_t, window: AXUIElement?, keys: Int, _ body: () -> Void) {
+    let app = AXUIElementCreateApplication(pid)
+    let target = window ?? axElement(app, kAXFocusedWindowAttribute as String)
+        ?? (axCopy(app, kAXWindowsAttribute as String) as? [AXUIElement])?.first
+    guard SkyLight.available, let target, let wid = SkyLight.windowID(target),
+          let loan = SkyLight.borrowFocus(pid: pid, wid: wid)
+    else {
+        body()
+        return
+    }
+    usleep(40_000)
+    body()
+    loan.giveBack(afterKeys: keys)
+}
+
+func typeText(_ text: String, pid: pid_t) {
+    synthesizeTypedText(text) { post($0, to: pid) }
 }
 
 extension Array {
@@ -766,20 +1096,149 @@ extension Array {
     }
 }
 
-let keyCodes: [String: CGKeyCode] = [
-    "return": 36, "enter": 36, "tab": 48, "space": 49, "delete": 51, "backspace": 51,
-    "escape": 53, "esc": 53, "left": 123, "right": 124, "down": 125, "up": 126,
-    "home": 115, "end": 119, "pageup": 116, "pagedown": 121, "forwarddelete": 117,
+// MARK: - Key names
+//
+// The same names are accepted on every platform (see keys.rs in the Rust
+// server). Named keys map to fixed virtual key codes; characters resolve
+// through the user's current keyboard layout so that "z" on a German layout,
+// or "/" on AZERTY, presses the key that actually produces it. The ANSI table
+// is the fallback when the layout cannot be read.
+
+/// Fixed-position keys: their codes do not depend on the layout.
+let namedKeyCodes: [String: CGKeyCode] = [
+    "return": 36, "enter": 36, "tab": 48, "space": 49, "spacebar": 49,
+    // "delete" is the Mac key of that name, which deletes backwards.
+    "delete": 51, "backspace": 51, "del": 51,
+    "forwarddelete": 117, "fwddelete": 117, "deleteforward": 117,
+    "escape": 53, "esc": 53,
+    "left": 123, "leftarrow": 123, "arrowleft": 123,
+    "right": 124, "rightarrow": 124, "arrowright": 124,
+    "down": 125, "downarrow": 125, "arrowdown": 125,
+    "up": 126, "uparrow": 126, "arrowup": 126,
+    "home": 115, "end": 119, "pageup": 116, "pgup": 116, "pagedown": 121, "pgdn": 121, "pgdown": 121,
+    // Insert shares the Help key's code on Mac keyboards.
+    "insert": 114, "ins": 114, "help": 114,
     "f1": 122, "f2": 120, "f3": 99, "f4": 118, "f5": 96, "f6": 97, "f7": 98, "f8": 100,
-    "f9": 101, "f10": 109, "f11": 103, "f12": 111,
+    "f9": 101, "f10": 109, "f11": 103, "f12": 111, "f13": 105, "f14": 107, "f15": 113,
+    "f16": 106, "f17": 64, "f18": 79, "f19": 80, "f20": 90,
+]
+
+/// Keypad keys, looked up after stripping a numpad/keypad/kp prefix.
+let numpadKeyCodes: [String: CGKeyCode] = [
+    "0": 82, "1": 83, "2": 84, "3": 85, "4": 86, "5": 87, "6": 88, "7": 89, "8": 91, "9": 92,
+    "add": 69, "plus": 69, "+": 69,
+    "subtract": 78, "minus": 78, "-": 78, "": 78,
+    "multiply": 67, "times": 67, "*": 67,
+    "divide": 75, "/": 75,
+    "decimal": 65, "period": 65, "dot": 65, ".": 65,
+    "enter": 76, "return": 76,
+    "equal": 81, "equals": 81, "=": 81,
+]
+
+/// Spelled-out punctuation, for models that avoid sending bare symbols.
+let punctuationNames: [String: Character] = [
+    "minus": "-", "hyphen": "-", "dash": "-", "equal": "=", "equals": "=", "plus": "+",
+    "leftbracket": "[", "bracketleft": "[", "openbracket": "[",
+    "rightbracket": "]", "bracketright": "]", "closebracket": "]",
+    "backslash": "\\", "semicolon": ";", "quote": "'", "apostrophe": "'", "singlequote": "'",
+    "comma": ",", "period": ".", "dot": ".", "fullstop": ".", "slash": "/", "forwardslash": "/",
+    "grave": "`", "backtick": "`", "backquote": "`",
+]
+
+/// US ANSI positions, used when the current layout cannot be read.
+let ansiKeyCodes: [Character: CGKeyCode] = [
     "a": 0, "b": 11, "c": 8, "d": 2, "e": 14, "f": 3, "g": 5, "h": 4, "i": 34, "j": 38,
     "k": 40, "l": 37, "m": 46, "n": 45, "o": 31, "p": 35, "q": 12, "r": 15, "s": 1,
     "t": 17, "u": 32, "v": 9, "w": 13, "x": 7, "y": 16, "z": 6,
     "0": 29, "1": 18, "2": 19, "3": 20, "4": 21, "5": 23, "6": 22, "7": 26, "8": 28, "9": 25,
+    "-": 27, "=": 24, "[": 33, "]": 30, "\\": 42, ";": 41, "'": 39, ",": 43, ".": 47,
+    "/": 44, "`": 50,
 ]
 
-func pressKey(_ key: String, modifiers: [String], pid: pid_t?) -> String? {
-    guard let code = keyCodes[key.lowercased()] else { return "unknown key: \(key)" }
+enum KeySpec: Equatable {
+    case code(CGKeyCode)
+    case character(Character)
+}
+
+/// Parse a press_key name. nil means the name is not recognised.
+func parseKeyName(_ raw: String) -> KeySpec? {
+    if raw.count == 1, let only = raw.first {
+        switch only {
+        case " ": return .code(49)
+        case "\n", "\r": return .code(36)
+        case "\t": return .code(48)
+        default: return .character(only)
+        }
+    }
+    // Case-insensitive, and "Page_Down" / "page down" / "page-down" all match.
+    let compact = raw.trimmingCharacters(in: .whitespaces).lowercased()
+        .filter { $0 != "_" && $0 != " " }
+    for prefix in ["numpad", "keypad", "kp"] where compact.hasPrefix(prefix) {
+        var rest = String(compact.dropFirst(prefix.count))
+        while rest.hasPrefix("-") && rest.count > 1 { rest.removeFirst() }
+        if rest == "-" { rest = "" }
+        return numpadKeyCodes[rest].map { .code($0) }
+    }
+    let name = compact.filter { $0 != "-" }
+    if let code = namedKeyCodes[name] { return .code(code) }
+    if let character = punctuationNames[name] { return .character(character) }
+    return nil
+}
+
+/// Map every character the current keyboard layout can type (unshifted or with
+/// Shift) to the key that types it. Text Input Sources must be read on the main
+/// thread on macOS 14 and later.
+func currentLayoutKeyMap() -> [String: (code: CGKeyCode, shift: Bool)] {
+    var map: [String: (code: CGKeyCode, shift: Bool)] = [:]
+    let build = {
+        guard let source = TISCopyCurrentKeyboardLayoutInputSource()?.takeRetainedValue()
+            ?? TISCopyCurrentASCIICapableKeyboardLayoutInputSource()?.takeRetainedValue(),
+            let raw = TISGetInputSourceProperty(source, kTISPropertyUnicodeKeyLayoutData)
+        else { return }
+        let data = Unmanaged<CFData>.fromOpaque(raw).takeUnretainedValue()
+        guard let bytes = CFDataGetBytePtr(data) else { return }
+        let layout = UnsafeRawPointer(bytes).assumingMemoryBound(to: UCKeyboardLayout.self)
+        let keyboardType = UInt32(LMGetKbdType())
+        let shiftState = UInt32((shiftKey >> 8) & 0xFF)
+        for code in 0..<128 {
+            for (shift, state) in [(false, UInt32(0)), (true, shiftState)] {
+                var deadKeys: UInt32 = 0
+                var length = 0
+                var chars = [UniChar](repeating: 0, count: 4)
+                let status = UCKeyTranslate(
+                    layout, UInt16(code), UInt16(kUCKeyActionDown), state, keyboardType,
+                    OptionBits(kUCKeyTranslateNoDeadKeysMask), &deadKeys, chars.count, &length, &chars)
+                guard status == noErr, length > 0 else { continue }
+                let typed = String(utf16CodeUnits: chars, count: length)
+                // Lowest key code wins, which prefers the main block over the keypad.
+                if map[typed] == nil { map[typed] = (CGKeyCode(code), shift) }
+            }
+        }
+    }
+    if Thread.isMainThread { build() } else { DispatchQueue.main.sync(execute: build) }
+    return map
+}
+
+/// Resolve a key name to a key code plus whether Shift must be held.
+func resolveKey(_ key: String) -> Result<(code: CGKeyCode, shift: Bool), String> {
+    guard let spec = parseKeyName(key) else {
+        return .failure("unknown key: \(key) — use a single character or a named key (return, pageup, f5, comma, numpad1, …)")
+    }
+    switch spec {
+    case .code(let code):
+        return .success((code, false))
+    case .character(let raw):
+        // Letters name the key, not the case: "S" with cmd is cmd+s, as before.
+        let character = raw.isLetter ? Character(raw.lowercased()) : raw
+        if let hit = currentLayoutKeyMap()[String(character)] { return .success(hit) }
+        if let code = ansiKeyCodes[character] { return .success((code, false)) }
+        return .failure("'\(key)' is not on the current keyboard layout")
+    }
+}
+
+/// Key-press counterpart of `synthesizeTypedText`. Returns a message when the
+/// key or a modifier cannot be resolved, and nothing when it was sent.
+func synthesizeKeyPress(_ key: String, modifiers: [String], deliver: (CGEvent?) -> Void) -> String? {
     var flags: CGEventFlags = []
     for m in modifiers.map({ $0.lowercased() }) {
         switch m {
@@ -791,14 +1250,24 @@ func pressKey(_ key: String, modifiers: [String], pid: pid_t?) -> String? {
         default: return "unknown modifier: \(m)"
         }
     }
-    let src = CGEventSource(stateID: .combinedSessionState)
-    let down = CGEvent(keyboardEventSource: src, virtualKey: code, keyDown: true)
-    let up = CGEvent(keyboardEventSource: src, virtualKey: code, keyDown: false)
+    let resolved: (code: CGKeyCode, shift: Bool)
+    switch resolveKey(key) {
+    case .failure(let message): return message
+    case .success(let hit): resolved = hit
+    }
+    if resolved.shift { flags.insert(.maskShift) }
+    let src = CGEventSource(stateID: .privateState)
+    let down = CGEvent(keyboardEventSource: src, virtualKey: resolved.code, keyDown: true)
+    let up = CGEvent(keyboardEventSource: src, virtualKey: resolved.code, keyDown: false)
     down?.flags = flags
     up?.flags = flags
-    post(down, to: pid)
-    post(up, to: pid)
+    deliver(down)
+    deliver(up)
     return nil
+}
+
+func pressKey(_ key: String, modifiers: [String], pid: pid_t) -> String? {
+    synthesizeKeyPress(key, modifiers: modifiers) { $0?.postToPid(pid) }
 }
 
 // MARK: - Tool implementations
@@ -809,80 +1278,261 @@ func toolListApps() -> String {
         .filter { $0.activationPolicy == .regular }
         .sorted { ($0.localizedName ?? "") < ($1.localizedName ?? "") }
 
+    // Several instances of one app (two Chrome profiles, say) share a name and
+    // bundle id: each such row also carries its main window title, and a closing
+    // note says how a name resolves, as the Rust server does (#29).
+    let key = { (app: NSRunningApplication) in app.bundleIdentifier ?? app.localizedName ?? "?" }
+    var instances: [String: [pid_t]] = [:]
+    for app in apps { instances[key(app), default: []].append(app.processIdentifier) }
+
     for app in apps {
         let ax = AXUIElementCreateApplication(app.processIdentifier)
         let windows = (axCopy(ax, kAXWindowsAttribute as String) as? [AXUIElement]) ?? []
         var line = "\(app.localizedName ?? "?")  [\(app.bundleIdentifier ?? "-")]  pid=\(app.processIdentifier)  windows=\(windows.count)"
+        if instances[key(app)]!.count > 1 {
+            let main = axElement(ax, kAXMainWindowAttribute as String) ?? windows.first
+            if let title = main.flatMap({ axString($0, kAXTitleAttribute as String) }), !title.isEmpty {
+                let escaped = truncate(title, 80)
+                    .replacingOccurrences(of: "[", with: "\\[").replacingOccurrences(of: "]", with: "\\]")
+                line += "  window=\"\(escaped)\""
+            }
+        }
         if app.isActive { line += "  FRONTMOST" }
         out.append(line)
+    }
+    var noted: Set<String> = []
+    for app in apps {
+        let pids = instances[key(app)]!
+        guard pids.count > 1, noted.insert(key(app)).inserted else { continue }
+        out.append("note: \(pids.count) instances of \(app.localizedName ?? key(app)) are running (pids "
+            + pids.map(String.init).joined(separator: ", ")
+            + "); by name, get_app_state picks the frontmost one with windows, so pass the pid to choose")
     }
     return out.isEmpty ? "No apps found." : out.joined(separator: "\n")
 }
 
+/// `max_width` for screenshot and zoom, bounded like the Rust server. 0 keeps
+/// full resolution.
+func clampedMaxWidth(_ args: [String: Any]) -> Int {
+    min(max((args["max_width"] as? Int) ?? 1400, 0), 8000)
+}
+
+/// The arguments of the latest successful get_app_state, which `return_state`
+/// repeats after an action: element ids only ever come from that snapshot, so
+/// it is the app the action was aimed at. Pinned to the pid it resolved to.
+var lastAppStateArgs: [String: Any]?
+
+/// Tools that act on an app and accept `return_state`.
+let statefulActions: Set<String> = [
+    "click", "type_text", "press_key", "scroll", "right_click", "drag", "set_value", "hover", "select_text",
+]
+
 func toolGetAppState(_ args: [String: Any]) -> String {
     guard let query = args["app"] as? String else { return "error: missing required argument 'app'" }
     guard let resolved = resolveApp(query) else { return "error: no running app matching \(query)" }
+    if let refusal = PolicyStore.checkApp(resolved.app) { return refusal }
+    let ocrMode = ((args["ocr"] as? String) ?? "auto").lowercased()
+    guard ["auto", "always", "never"].contains(ocrMode) else { return "error: ocr must be auto, always or never" }
+    var remembered = args
+    remembered["app"] = String(resolved.app.processIdentifier)
+    remembered["query"] = nil
+    lastAppStateArgs = remembered
 
     let app = resolved.app
-    let maxDepth = (args["max_depth"] as? Int) ?? 18
-    var budget = (args["max_elements"] as? Int) ?? 800
+    // Same bounds as the Rust server: a huge depth or budget can walk an
+    // Electron app's tree for minutes and blow the client's context.
+    let maxDepth = min(max((args["max_depth"] as? Int) ?? 18, 1), 60)
+    let budget = min(max((args["max_elements"] as? Int) ?? 800, 1), 5000)
+    // A query narrows what is printed, not what is read: walking only
+    // max_elements and then filtering would miss every match past the cap and
+    // still report "no match". max_elements caps the matches printed instead.
+    let filterQuery = ((args["query"] as? String) ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+    let walkBudget = filterQuery.isEmpty ? budget : queryWalkElements
 
     Registry.reset()
     Registry.targetPid = app.processIdentifier
+    // An Electron app builds its tree only once asked (see FullTreeRequest).
+    let justAsked = FullTreeRequest.ask(app.processIdentifier)
     let ax = AXUIElementCreateApplication(app.processIdentifier)
-    var windows = (axCopy(ax, kAXWindowsAttribute as String) as? [AXUIElement]) ?? []
+    let all = (axCopy(ax, kAXWindowsAttribute as String) as? [AXUIElement]) ?? []
+    var windows = Array(all.enumerated())
 
-    var header = "\(app.localizedName ?? "?") [\(app.bundleIdentifier ?? "-")] pid=\(app.processIdentifier) frontmost=\(app.isActive) windows=\(windows.count)"
+    var header = "\(app.localizedName ?? "?") [\(app.bundleIdentifier ?? "-")] pid=\(app.processIdentifier) frontmost=\(app.isActive) windows=\(all.count)"
     if let note = resolved.note { header += "\nnote: \(note)" }
 
     // Narrow to one window. "agent" is the Chrome window this server owns, which
     // keeps the tree (and any clicks derived from it) off the user's own tabs.
+    var dialogOpen = false
+    var dialogNames: [String] = []
     if let scope = args["window"] {
         if let name = scope as? String, name == "agent" {
             guard let agent = Chrome.agentAXWindow() else {
                 return header + "\n\n(no agent window yet — call browser_open_tab first)"
             }
-            windows = [agent.element]
+            windows = [(0, agent.element)]
             Registry.targetPid = agent.pid
             header += "\nscope: agent window only"
         } else if let index = scope as? Int {
-            guard index >= 0, index < windows.count else {
+            guard index >= 0, index < all.count else {
                 return header + "\n\n(window \(index) is out of range)"
             }
-            windows = [windows[index]]
+            windows = [(index, all[index])]
             header += "\nscope: window \(index) only"
+        }
+    } else {
+        // An alert or modal window blocks every other window of the app.
+        let blocking = blockingWindows(ax, all)
+        if !blocking.isEmpty, blocking.count < all.count {
+            windows = windows.filter { entry in blocking.contains { CFEqual($0, entry.element) } }
+            dialogOpen = true
+            dialogNames = windows.map { entry in
+                dialogLabel(axString(entry.element, kAXSubroleAttribute as String) ?? "Window",
+                            axString(entry.element, kAXTitleAttribute as String), in: "window \(entry.offset)")
+            }
         }
     }
 
     if windows.isEmpty {
+        // A hidden app (Cmd+H) can list no windows for a moment, such as
+        // right after it was hidden mid-animation.
+        if app.isHidden {
+            return header + "\n\n(\(app.localizedName ?? "the app") is hidden and lists no windows right now; call get_app_state again in a moment, or activate_app to show it in front of the user)"
+        }
         return header + "\n\n(this process has no accessibility windows — if you expected one, another instance of the same app may own it; check list_apps)"
     }
 
-    var lines: [String] = []
-    for (i, w) in windows.enumerated() {
-        let title = axString(w, kAXTitleAttribute as String) ?? "<untitled>"
-        lines.append("── window \(i): \"\(title)\"")
-        walk(w, depth: 1, lines: &lines, budget: &budget, maxDepth: maxDepth)
+    func read() -> (OutlineWalk, Bool) {
+        // Each read starts the ids over; only the last one's ids are handed out.
+        let target = Registry.targetPid
+        Registry.reset()
+        Registry.targetPid = target
+        let walk = OutlineWalk(maxDepth: maxDepth, budget: walkBudget, offscreen: (args["offscreen"] as? Bool) ?? false)
+        var narrowed = false
+        for (i, w) in windows {
+            let title = axString(w, kAXTitleAttribute as String) ?? "<untitled>"
+            let minimized = axBool(w, kAXMinimizedAttribute as String) == true
+            walk.lines.append("── window \(i): \"\(title)\"" + (minimized ? " (minimized)" : ""))
+            let start = walk.lines.count
+            walk.walk(w, depth: 1, clip: nil)
+            if walk.narrowToDialogs(from: start) { narrowed = true }
+        }
+        return (walk, narrowed)
     }
-    if budget <= 0 {
+    var (walk, narrowed) = read()
+    // A background Electron window can take seconds to build its tree. Look
+    // again briefly; if it is still building, say so rather than block, and
+    // do not mistake the empty window for an app that needs OCR.
+    var stillBuilding = false
+    if walk.appControls == 0, FullTreeRequest.mayStillBeBuilding(app.processIdentifier) {
+        let deadline = Date().addingTimeInterval(justAsked ? 1.5 : 0.5)
+        while walk.appControls == 0, Date() < deadline {
+            usleep(300_000)
+            (walk, narrowed) = read()
+        }
+        stillBuilding = walk.appControls == 0
+    }
+    if narrowed {
+        dialogOpen = true
+        dialogNames += walk.dialogNames
+    }
+    // Watched from here on, so return_state can tell background notifications apart.
+    _ = AXEventMonitor.shared.watch(app.processIdentifier)
+    AXEventMonitor.shared.watchWebAreas(walk.webAreas, pid: app.processIdentifier)
+    var lines = walk.lines
+    if walk.budget <= 0 {
         lines.append("… element budget reached; raise max_elements for more")
     }
-    // A filtered outline keeps the same ids: every element was registered while
-    // walking, only the printout is narrowed. Window headers stay for context.
-    if let query = (args["query"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines),
-       !query.isEmpty
-    {
-        let needle = query.lowercased()
-        let matching = lines.filter { $0.hasPrefix("── window") || $0.lowercased().contains(needle) }
-        let count = matching.filter { !$0.hasPrefix("── window") }.count
-        header += "\nfilter: \"\(query)\" — \(count) matching element\(count == 1 ? "" : "s")"
-        if count == 0 {
-            return header + "\n\n(no elements match; drop the query or scroll the content into view)"
+    if walk.skipped > 0 {
+        lines.append("… \(walk.skipped) off-screen elements skipped; scroll, or pass offscreen=true to list them")
+    }
+    if stillBuilding {
+        header += "\nnote: this app builds its accessibility tree on request and is still doing so; call get_app_state again in a few seconds"
+    }
+    if dialogOpen {
+        header += "\n" + dialogNote(dialogNames)
+    }
+
+    // Apps that describe themselves poorly (Spotify, games, canvases) get their
+    // on-screen text read with OCR, listed with ids like any element.
+    lastReadUsedOCR = false
+    if ocrMode == "always" || (ocrMode == "auto" && walk.appControls == 0 && !walk.depthLimited && !stillBuilding) {
+        let focused = axElement(ax, kAXFocusedWindowAttribute as String)
+        let window = windows.first { entry in focused.map { CFEqual($0, entry.element) } == true }?.element
+            ?? windows[0].element
+        switch ScreenText.read(pid: app.processIdentifier, window: window, labelled: walk.labelled,
+                               limit: min(max(walk.budget, 0), 400)) {
+        case .success(let found):
+            lastReadUsedOCR = true
+            if !found.isEmpty {
+                lines.append("── on-screen text (OCR)")
+                lines += found
+            }
+        case .failure(let reason):
+            if reason == ScreenText.preparingMessage {
+                header += "\nnote: \(reason)"
+            } else if ocrMode == "always" {
+                header += "\nnote: OCR unavailable: \(reason)"
+            }
         }
-        return header + "\n\n" + matching.joined(separator: "\n")
+    }
+
+    // A filtered outline keeps the same ids: every element was registered while
+    // walking, only the printout is narrowed. Section headers stay for context.
+    if !filterQuery.isEmpty {
+        return header + filterAppState(lines, query: filterQuery, limit: budget, incomplete: walk.budget <= 0,
+                                       skippedOffscreen: walk.skipped > 0)
     }
     return header + "\n\n" + lines.joined(separator: "\n")
 }
+
+/// How many elements a read with a `query` may walk (the Rust server's
+/// QUERY_WALK_ELEMENTS); `max_elements` caps the matches printed instead.
+let queryWalkElements = 5000
+
+/// The filter line and filtered body of an outline, matching the Rust server's
+/// `filter_app_state`. A walk that ran out of budget is reported as an
+/// incomplete search, never as a definitive empty result.
+func filterAppState(_ lines: [String], query: String, limit: Int, incomplete: Bool, skippedOffscreen: Bool) -> String {
+    let needle = query.lowercased()
+    let budgetMarker = { (line: String) in line.hasPrefix("… element budget reached") }
+    let context = { (line: String) in line.hasPrefix("── ") || (line.hasPrefix("… ") && !budgetMarker(line)) }
+    var count = 0
+    var shown: [String] = []
+    for line in lines {
+        if context(line) {
+            shown.append(line)
+        } else if !budgetMarker(line), line.lowercased().contains(needle) {
+            count += 1
+            if count <= limit { shown.append(line) }
+        }
+    }
+    var out = "\nfilter: \"\(query)\" — \(count) matching element\(count == 1 ? "" : "s")"
+    if count > limit {
+        out += ", showing the first \(limit); raise max_elements to see the rest"
+    }
+    if incomplete {
+        out += "\nnote: the read stopped at \(queryWalkElements) elements before the end of the app, so elements past "
+            + "that point were not searched; read a smaller part of it (a dialog, or one window) to search the rest"
+    }
+    if count == 0 {
+        // The section headers still say what was read (#44).
+        let sections = lines.filter { $0.hasPrefix("── ") }
+        if !sections.isEmpty { out += "\n\n" + sections.joined(separator: "\n") }
+        if incomplete {
+            return out + "\n\n(no match among the elements read; the search is incomplete, so this does not mean the control is absent)"
+        }
+        if skippedOffscreen {
+            return out + "\n\n(no on-screen element matches; off-screen elements were not searched: pass offscreen=true to include them, "
+                + "or scroll the content into view)"
+        }
+        return out + "\n\n(no elements match; drop the query or scroll the content into view)"
+    }
+    return out + "\n\n" + shown.joined(separator: "\n")
+}
+
+/// Whether the last get_app_state read text with OCR. Such an app may change
+/// only its pixels, so settling after an action also watches the window image.
+var lastReadUsedOCR = false
 
 /// Which process should receive synthetic input.
 ///
@@ -908,8 +1558,13 @@ func toolClick(_ args: [String: Any]) -> String {
     }
 
     if let id = args["element_id"] as? String {
-        guard let el = Registry.get(id) else {
-            return "error: unknown element_id \(id) — call get_app_state again to refresh ids"
+        if let text = Registry.text(id) { return clickText(id, text, clickCount: clickCount) }
+        let el: AXUIElement
+        switch Registry.fresh(id) {
+        case .failure(let message):
+            return message
+        case .success(let fresh):
+            el = fresh
         }
         // Prefer the semantic action; it works even when the element is scrolled
         // out of view or overlapped, where a synthetic click would hit the wrong thing.
@@ -920,7 +1575,6 @@ func toolClick(_ args: [String: Any]) -> String {
         // Show the pointer before acting, not after: AXPress returns early, so
         // placing this later meant the overlay never appeared for the common
         // case of pressing a button.
-        let elementCenter = visibleCenter(of: el)
         // Point the overlay at the element's own frame, not its visible rect:
         // visibleCenter is nil whenever the window is occluded, which is the
         // normal case for background control and meant the pointer never showed.
@@ -930,8 +1584,6 @@ func toolClick(_ args: [String: Any]) -> String {
             AgentCursor.shared.press(
                 at: CGPoint(x: origin.x + size.width / 2, y: origin.y + size.height / 2)
             )
-        } else if let elementCenter {
-            AgentCursor.shared.press(at: elementCenter)
         }
         if axActions(el).contains(kAXPressAction as String), clickCount == 1, !isInWebContent(el) {
             if AXUIElementPerformAction(el, kAXPressAction as CFString) == .success {
@@ -939,17 +1591,31 @@ func toolClick(_ args: [String: Any]) -> String {
                 return "pressed \(id) \"\(label)\" via AXPress"
             }
         }
-        // Coordinate fallback: see MOUSE_TARGETING.
-        guard let center = elementCenter else {
-            return "error: \(id) is not visible in its window — scroll it into view and call get_app_state again"
+        // Coordinate fallback: see MOUSE_TARGETING. A minimized or hidden
+        // window takes no clicks until it is parked where it renders.
+        if let pid = pidOf(el),
+           let refusal = WindowParking.shared.reach(pid: pid, window: axElement(el, kAXWindowAttribute as String))
+        {
+            return "error: cannot click \(id): \(refusal)"
         }
+        // Never click a point that is not the element: an offscreen checkbox's
+        // clipped frame pointed at a different one (#61 follow-up).
+        let center: CGPoint
+        switch verifiedClickPoint(el, id: id) {
+        case .failure(let message): return message
+        case .success(let point): center = point
+        }
+        let toggleBefore = toggleValue(el)
         if let target = windowTarget(for: el), backgroundClick(target, at: center, clickCount: clickCount) {
-            return "clicked \(id) at (\(Int(center.x)), \(Int(center.y))) in background"
+            return checkedToggle(el, id: id, before: toggleBefore, at: center)
+                ?? "clicked \(id) at (\(Int(center.x)), \(Int(center.y))) in background"
         }
-        if let refusal = UserPresence.refuseTakeover("click \(id)") { return refusal }
-        UserPresence.noteTakeover()
-        postClick(at: center, clickCount: clickCount, pid: nil)
-        return "clicked \(id) at (\(Int(center.x)), \(Int(center.y))) via cursor"
+        guard let pid = pidOf(el) else {
+            return refuseGlobalInput("click \(id)", "Its app could not be identified; call get_app_state again.")
+        }
+        postClick(at: center, clickCount: clickCount, pid: pid)
+        return checkedToggle(el, id: id, before: toggleBefore, at: center)
+            ?? "clicked \(id) at (\(Int(center.x)), \(Int(center.y))) by posting to its app"
     }
 
     if let x = args["x"] as? Double, let y = args["y"] as? Double {
@@ -958,6 +1624,10 @@ func toolClick(_ args: [String: Any]) -> String {
             return "error: coordinates must be finite and representable as integers"
         }
         let point = CGPoint(x: x, y: y)
+        if RemoteControl.isEnabled {
+            RemoteControl.click(at: point, clickCount: clickCount)
+            return "clicked at (\(Int(x)), \(Int(y)))"
+        }
         AgentCursor.shared.press(at: point)
         // Prefer the window under the point. Only constrain to an app PID when the
         // caller passed `app` explicitly — Registry.targetPid from get_app_state
@@ -982,30 +1652,74 @@ func toolClick(_ args: [String: Any]) -> String {
         if let target, backgroundClick(target, at: point, clickCount: clickCount) {
             return "clicked at (\(Int(x)), \(Int(y))) in background"
         }
-        if let refusal = UserPresence.refuseTakeover("click (\(Int(x)), \(Int(y)))") {
-            return refusal
+        guard let pid = target?.pid else {
+            return refuseGlobalInput(
+                "click (\(Int(x)), \(Int(y)))",
+                "No app window was found at that point. Pass `app`, or click an element_id from get_app_state.")
         }
-        UserPresence.noteTakeover()
-        postClick(at: point, clickCount: clickCount, pid: nil)
-        return "clicked at (\(Int(x)), \(Int(y))) via cursor"
+        postClick(at: point, clickCount: clickCount, pid: pid)
+        return "clicked at (\(Int(x)), \(Int(y))) by posting to pid \(pid)"
     }
     return "error: provide either element_id, or both x and y"
 }
 
+/// Click text read by OCR, in its window as it is now.
+func clickText(_ id: String, _ text: OCRText, clickCount: Int) -> String {
+    if let refusal = WindowParking.shared.reach(pid: text.pid, window: nil) {
+        return "error: cannot click \(id): \(refusal)"
+    }
+    guard let target = ocrWindowTarget(text), let frame = ocrScreenFrame(text) else {
+        return "error: the window \(id) was read from is gone — call get_app_state again"
+    }
+    let center = CGPoint(x: frame.midX, y: frame.midY)
+    AgentCursor.shared.press(at: center)
+    let where_ = "\(id) \"\(truncate(text.text, 60))\" at (\(Int(center.x)), \(Int(center.y)))"
+    if backgroundClick(target, at: center, clickCount: clickCount) {
+        return "clicked \(where_) in background"
+    }
+    postClick(at: center, clickCount: clickCount, pid: text.pid)
+    return "clicked \(where_) by posting to its app"
+}
+
 func toolTypeText(_ args: [String: Any]) -> String {
     guard let text = args["text"] as? String else { return "error: missing required argument 'text'" }
+    // Remote control types into whatever the machine has focused, which is
+    // what the person watching its screen expects: they just clicked there.
+    if RemoteControl.isEnabled {
+        RemoteControl.typeText(text)
+        return "typed \(text.count) characters"
+    }
     var element: AXUIElement?
-    if let id = args["element_id"] as? String {
-        guard let el = Registry.get(id) else { return "error: unknown element_id \(id)" }
+    var textPid: pid_t?
+    if let id = args["element_id"] as? String, let text = Registry.text(id) {
+        // Text read by OCR has no field to focus: click it, as a person would.
+        let clicked = clickText(id, text, clickCount: 1)
+        if clicked.hasPrefix("error:") { return clicked }
+        textPid = text.pid
+        usleep(100_000)
+    } else if let id = args["element_id"] as? String {
+        let el: AXUIElement
+        switch Registry.fresh(id) {
+        case .failure(let message):
+            return message
+        case .success(let fresh):
+            el = fresh
+        }
         if let refusal = refuseSecureFieldInput(el, id) { return refusal }
         element = el
+        // A minimized window takes keys only once parked; park before focusing.
+        if let owner = pidOf(el), let refusal = WindowParking.shared.reach(
+            pid: owner, window: axElement(el, kAXWindowAttribute as String))
+        {
+            return "error: cannot type: \(refusal)"
+        }
         // Focus the field within its own app rather than raising the app, so a
         // background window still receives the text.
         AXUIElementSetAttributeValue(el, kAXFocusedAttribute as CFString, kCFBooleanTrue)
         usleep(60_000)
     }
-    let pid: pid_t?
-    switch resolveTargetPid(args, element: element) {
+    let pid: pid_t
+    switch textPid.map({ Result<pid_t?, String>.success($0) }) ?? resolveTargetPid(args, element: element) {
     case .failure(let message):
         return message
     case .success(let resolved):
@@ -1019,14 +1733,27 @@ func toolTypeText(_ args: [String: Any]) -> String {
         }
         pid = resolved
     }
-    typeText(text, pid: pid)
+    // Keys reach a minimized window or hidden app only once it is parked.
+    if let refusal = WindowParking.shared.reach(
+        pid: pid, window: element.flatMap { axElement($0, kAXWindowAttribute as String) })
+    {
+        return "error: cannot type: \(refusal)"
+    }
+    withKeyboardFocus(pid: pid, window: element.flatMap { axElement($0, kAXWindowAttribute as String) },
+                      keys: text.count) {
+        typeText(text, pid: pid)
+    }
     return "typed \(text.count) characters"
 }
 
 func toolPressKey(_ args: [String: Any]) -> String {
     guard let key = args["key"] as? String else { return "error: missing required argument 'key'" }
     let mods = (args["modifiers"] as? [String]) ?? []
-    let pid: pid_t?
+    if RemoteControl.isEnabled {
+        if let err = RemoteControl.pressKey(key, modifiers: mods) { return "error: \(err)" }
+        return "pressed \(mods.isEmpty ? key : mods.joined(separator: "+") + "+" + key)"
+    }
+    let pid: pid_t
     switch resolveTargetPid(args) {
     case .failure(let message):
         return message
@@ -1041,14 +1768,54 @@ func toolPressKey(_ args: [String: Any]) -> String {
         }
         pid = resolved
     }
-    if let err = pressKey(key, modifiers: mods, pid: pid) { return "error: \(err)" }
-    return "pressed \(mods.isEmpty ? key : mods.joined(separator: "+") + "+" + key)"
+    let chord = mods.isEmpty ? key : mods.joined(separator: "+") + "+" + key
+    // A background app ignores posted menu key equivalents; run its menu item,
+    // which needs no window, so a minimized or hidden app is not parked for it.
+    if NSRunningApplication(processIdentifier: pid)?.isActive == false,
+       let path = MenuShortcut.press(pid: pid, key: key, modifiers: mods)
+    {
+        return "pressed \(chord) through the app's menu (\(path))"
+    }
+    if let refusal = WindowParking.shared.reach(pid: pid, window: nil) {
+        return "error: cannot press \(key): \(refusal)"
+    }
+    var err: String?
+    withKeyboardFocus(pid: pid, window: nil, keys: 1) { err = pressKey(key, modifiers: mods, pid: pid) }
+    if let err { return "error: \(err)" }
+    return "pressed \(chord)"
+}
+
+/// Scroll through accessibility when events cannot be routed: step the scroll
+/// bar of the nearest scroll area around `element`.
+func axScroll(_ element: AXUIElement, vertical: Bool, towardStart: Bool, lines: Int) -> Bool {
+    var node: AXUIElement? = element
+    while let current = node {
+        if axString(current, kAXRoleAttribute as String) == (kAXScrollAreaRole as String) {
+            let barAttribute = vertical ? kAXVerticalScrollBarAttribute : kAXHorizontalScrollBarAttribute
+            guard let bar = axElement(current, barAttribute as String) else { return false }
+            let action = (towardStart ? kAXDecrementAction : kAXIncrementAction) as String
+            if axActions(bar).contains(action) {
+                for _ in 0..<lines { AXUIElementPerformAction(bar, action as CFString) }
+                return true
+            }
+            if let value = axCopy(bar, kAXValueAttribute as String) as? Double {
+                let step = 0.02 * Double(lines)
+                let next = min(1, max(0, value + (towardStart ? -step : step)))
+                return AXUIElementSetAttributeValue(bar, kAXValueAttribute as CFString, next as CFNumber) == .success
+            }
+            return false
+        }
+        node = axElement(current, kAXParentAttribute as String)
+    }
+    return false
 }
 
 func toolScroll(_ args: [String: Any]) -> String {
     let direction = ((args["direction"] as? String) ?? "down").lowercased()
-    let amount = (args["amount"] as? Int) ?? 5
-    guard amount != Int.min else { return "error: amount is out of range" }
+    let requested = (args["amount"] as? Int) ?? 5
+    guard requested > 0 else { return "error: amount must be a positive number of lines" }
+    // Same ceiling as the Rust server.
+    let amount = min(requested, 100)
 
     var dy: Int32 = 0
     var dx: Int32 = 0
@@ -1060,49 +1827,95 @@ func toolScroll(_ args: [String: Any]) -> String {
     default: return "error: direction must be up, down, left, or right"
     }
 
-    if let elementID = args["element_id"] as? String, Registry.get(elementID) == nil {
-        return "error: unknown element_id \(elementID) — call get_app_state again to refresh ids"
+    if RemoteControl.isEnabled {
+        // The wheel goes wherever the pointer is; `x`/`y` move it there first
+        // so a viewer scrolling over a pane scrolls that pane.
+        let point: CGPoint? =
+            if let x = args["x"] as? Double, let y = args["y"] as? Double {
+                CGPoint(x: x, y: y)
+            } else {
+                nil
+            }
+        RemoteControl.scroll(at: point, dx: dx, dy: dy, steps: amount)
+        return "scrolled \(direction) by \(amount)"
     }
-    let element = (args["element_id"] as? String).flatMap { Registry.get($0) }
+    var element: AXUIElement?
+    var textPoint: CGPoint?
+    if let elementID = args["element_id"] as? String {
+        if Registry.text(elementID) != nil {
+            switch Registry.point(elementID) {
+            case .failure(let message):
+                return message
+            case .success(let point):
+                textPoint = point
+            }
+        } else {
+            switch Registry.fresh(elementID) {
+            case .failure(let message):
+                return message
+            case .success(let fresh):
+                element = fresh
+            }
+        }
+    }
     let target: WindowTarget?
-    if let element {
+    let pid: pid_t?
+    if let elementID = args["element_id"] as? String, let text = Registry.text(elementID) {
+        target = ocrWindowTarget(text)
+        pid = text.pid
+    } else if let element {
+        if let owner = pidOf(element), let refusal = WindowParking.shared.reach(
+            pid: owner, window: axElement(element, kAXWindowAttribute as String))
+        {
+            return "error: cannot scroll: \(refusal)"
+        }
         target = windowTarget(for: element)
+        pid = pidOf(element)
     } else {
         switch resolveTargetPid(args) {
         case .failure(let message):
             return message
-        case .success(let pid):
-            target = pid.flatMap { windowTarget(forPid: $0) }
+        case .success(let resolved):
+            if let resolved, let refusal = WindowParking.shared.reach(pid: resolved, window: nil) {
+                return "error: cannot scroll: \(refusal)"
+            }
+            target = resolved.flatMap { windowTarget(forPid: $0) }
+            pid = resolved
         }
     }
 
-    if let target {
-        // Scroll follows the pointer, so aim at the element when given one and
-        // otherwise at the middle of the window.
-        let point = element.flatMap { visibleCenter(of: $0) }
-            ?? CGPoint(x: target.origin.x + 200, y: target.origin.y + 200)
-        if backgroundScroll(target, at: point, dx: dx, dy: dy, steps: abs(amount)) {
-            return "scrolled \(direction) by \(amount) in background"
-        }
+    // Scroll follows the pointer, so aim at the element when given one and
+    // otherwise at the middle of the window.
+    let point = textPoint ?? element.flatMap { visibleCenter(of: $0) }
+        ?? target.map { CGPoint(x: $0.frame.midX, y: $0.frame.midY) }
+    if let target, let point, backgroundScroll(target, at: point, dx: dx, dy: dy, steps: amount) {
+        return "scrolled \(direction) by \(amount) in background"
     }
-
-    // Fallback: drive the real pointer.
-    if let el = element, let center = elementCenter(el) {
-        CGWarpMouseCursorPosition(center)
-        usleep(30_000)
+    if let element, axScroll(element, vertical: dy != 0, towardStart: dy > 0 || dx > 0, lines: amount) {
+        return "scrolled \(direction) by \(amount) through its scroll bar"
     }
-    let src = CGEventSource(stateID: .combinedSessionState)
-    for _ in 0..<abs(amount) {
-        post(CGEvent(scrollWheelEvent2Source: src, units: .line, wheelCount: 2,
-                     wheel1: dy, wheel2: dx, wheel3: 0), to: nil)
+    guard let pid, let point else {
+        return refuseGlobalInput(
+            "scroll", "Call get_app_state first (or pass `app` or element_id) so the scroll can go to that app.")
+    }
+    let src = agentEventSource()
+    for _ in 0..<amount {
+        let wheel = CGEvent(scrollWheelEvent2Source: src, units: .line, wheelCount: 2,
+                            wheel1: dy, wheel2: dx, wheel3: 0)
+        wheel?.location = point
+        post(wheel, to: pid)
         usleep(15_000)
     }
-    return "scrolled \(direction) by \(amount) via cursor"
+    return "scrolled \(direction) by \(amount) by posting to pid \(pid)"
 }
 
 func toolActivateApp(_ args: [String: Any]) -> String {
     guard let query = args["app"] as? String else { return "error: missing required argument 'app'" }
     guard let resolved = resolveApp(query) else { return "error: no running app matching \(query)" }
+    if let refusal = PolicyStore.checkApp(resolved.app) { return refusal }
+    if let refusal = PolicyStore.checkForeground("bring \(resolved.app.localizedName ?? query) to the front") {
+        return refusal
+    }
     // Requests are handled off the main thread; NSRunningApplication.activate is
     // AppKit and belongs on main.
     DispatchQueue.main.sync { resolved.app.activate(options: []) }
@@ -1110,13 +1923,190 @@ func toolActivateApp(_ args: [String: Any]) -> String {
     return "activated \(resolved.app.localizedName ?? query) (pid \(resolved.app.processIdentifier))"
 }
 
+// MARK: - Launching apps
+
+/// The folders macOS keeps apps in, searched for an app by name.
+let applicationFolders: [URL] = {
+    var folders = [
+        "/Applications", "/Applications/Utilities", "/System/Applications",
+        "/System/Applications/Utilities", "/System/Library/CoreServices/Applications",
+    ].map { URL(fileURLWithPath: $0) }
+    folders.append(FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Applications"))
+    return folders
+}()
+
+struct InstalledApp {
+    let url: URL
+    /// The bundle's file name without .app: what Finder and list_apps show.
+    let name: String
+    let bundleId: String
+}
+
+func installedApps() -> [InstalledApp] {
+    var apps: [InstalledApp] = []
+    for folder in applicationFolders {
+        guard let items = try? FileManager.default.contentsOfDirectory(at: folder, includingPropertiesForKeys: nil) else { continue }
+        for url in items where url.pathExtension == "app" {
+            apps.append(InstalledApp(
+                url: url, name: url.deletingPathExtension().lastPathComponent,
+                bundleId: Bundle(url: url)?.bundleIdentifier ?? ""))
+        }
+    }
+    return apps
+}
+
+/// The one installed app `query` names: an exact name or bundle id (ignoring
+/// case), then a unique name that starts with it, then a unique name that
+/// contains it. Same rules and wording as the Rust server's launch::choose.
+func chooseInstalledApp(_ query: String, _ apps: [InstalledApp]) -> Result<InstalledApp, StepPlanError> {
+    let wanted = query.lowercased()
+    if let exact = apps.first(where: { $0.name.lowercased() == wanted || $0.bundleId.lowercased() == wanted }) {
+        return .success(exact)
+    }
+    let tests: [(String) -> Bool] = [{ $0.hasPrefix(wanted) }, { $0.contains(wanted) }]
+    for test in tests {
+        let found = apps.filter { test($0.name.lowercased()) }
+        if found.isEmpty { continue }
+        if found.count == 1 { return .success(found[0]) }
+        let names = Array(Set(found.map { $0.name })).sorted()
+        let shown = names.prefix(10).map { "\"\($0)\"" }.joined(separator: ", ")
+        let more = names.count > 10 ? " and \(names.count - 10) more" : ""
+        return .failure(StepPlanError(
+            "'\(query)' matches \(names.count) installed apps: \(shown)\(more) — pass the full name of the one you mean"))
+    }
+    return .failure(StepPlanError(
+        "no installed app is named '\(query)' — pass the name Applications lists, or call list_apps if it is already running"))
+}
+
+/// On-screen windows a process has at the normal window level.
+func onScreenWindowCount(pid: pid_t) -> Int {
+    let windows = CGWindowListCopyWindowInfo([.optionOnScreenOnly, .excludeDesktopElements], kCGNullWindowID) as? [[String: Any]] ?? []
+    return windows.filter {
+        ($0[kCGWindowOwnerPID as String] as? Int).map { pid_t($0) } == pid && ($0[kCGWindowLayer as String] as? Int) == 0
+    }.count
+}
+
+/// What `openApplication` answered, handed from its completion queue.
+final class LaunchAnswer: @unchecked Sendable {
+    var app: NSRunningApplication?
+    var error: Error?
+}
+
+/// launch_app: open an installed app through Launch Services without
+/// activating it, then wait for its first window. A running app is reported,
+/// not opened again.
+func toolLaunchApp(_ args: [String: Any]) -> String {
+    guard let query = (args["app"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines), !query.isEmpty else {
+        return "error: missing required argument 'app'"
+    }
+    let wait = (args["wait_seconds"] as? Double) ?? 10
+    guard wait.isFinite, wait >= 0, wait <= 30 else { return "error: wait_seconds must be between 0 and 30" }
+    let app: InstalledApp
+    if let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: query) {
+        app = InstalledApp(url: url, name: url.deletingPathExtension().lastPathComponent, bundleId: query)
+    } else {
+        switch chooseInstalledApp(query, installedApps()) {
+        case .success(let found): app = found
+        case .failure(let error): return "error: \(error.message)"
+        }
+    }
+    let target = app.url.standardizedFileURL
+    if let running = NSWorkspace.shared.runningApplications.first(where: {
+        (!app.bundleId.isEmpty && $0.bundleIdentifier == app.bundleId) || $0.bundleURL?.standardizedFileURL == target
+    }) {
+        let pid = running.processIdentifier
+        return "\(running.localizedName ?? app.name) is already running (pid \(pid)) — nothing was started. "
+            + "Read it with get_app_state app=\"\(pid)\", or bring it forward with activate_app"
+    }
+    if let refusal = PolicyStore.checkApp(name: app.name, id: app.bundleId.isEmpty ? app.name : app.bundleId) {
+        return refusal
+    }
+    let configuration = NSWorkspace.OpenConfiguration()
+    // In the background: the user keeps the app they are in.
+    configuration.activates = false
+    configuration.addsToRecentItems = false
+    configuration.promptsUserIfNeeded = false
+    let answered = DispatchSemaphore(value: 0)
+    let answer = LaunchAnswer()
+    NSWorkspace.shared.openApplication(at: app.url, configuration: configuration) { running, error in
+        answer.app = running
+        answer.error = error
+        answered.signal()
+    }
+    if answered.wait(timeout: .now() + 30) == .timedOut {
+        return "error: macOS did not answer the request to open \(app.name) within 30 s"
+    }
+    if let error = answer.error { return "error: could not open \(app.name): \(error.localizedDescription)" }
+    guard let opened = answer.app else { return "error: macOS opened nothing for \(app.name)" }
+    let pid = opened.processIdentifier
+    let deadline = Date().addingTimeInterval(wait)
+    var windows = onScreenWindowCount(pid: pid)
+    while windows == 0, Date() < deadline {
+        usleep(250_000)
+        windows = onScreenWindowCount(pid: pid)
+    }
+    let name = opened.localizedName ?? app.name
+    if windows > 0 {
+        return "launched \(app.name) — it is running as \(name) (pid \(pid)) with \(windows) window\(windows == 1 ? "" : "s"). "
+            + "Read it with get_app_state app=\"\(pid)\""
+    }
+    return "launched \(app.name) — it is running as \(name) (pid \(pid)), but showed no window within \(Int(wait)) s: "
+        + "it may still be loading, or run without one. Call wait, then list_apps"
+}
+
 // MARK: - Screen capture
 
-/// Synchronizes capture results so a timed-out waiter never races a late write.
+/// How a capture is encoded. PNG by default: agents read UI text, and PNG keeps
+/// it sharp. JPEG is for live remote viewing, where every frame is replaced a
+/// moment later and bytes matter more than exact pixels. Mirrors the
+/// Windows/Linux server's `format` and `quality`.
+enum ImageEncoding: Equatable {
+    case png
+    /// JPEG at this quality (1-100).
+    case jpeg(Int)
+
+    /// JPEG quality when the caller does not ask for one, as on Windows/Linux.
+    static let defaultJPEGQuality = 55
+
+    static func parse(_ args: [String: Any]) throws -> ImageEncoding {
+        let format = ((args["format"] as? String) ?? "png").lowercased()
+        switch format {
+        case "png":
+            return .png
+        case "jpeg", "jpg":
+            let quality = (args["quality"] as? Int).map { min(max($0, 1), 100) } ?? defaultJPEGQuality
+            return .jpeg(quality)
+        default:
+            throw "error: unsupported screenshot format '\(format)' — use png or jpeg"
+        }
+    }
+
+    var mimeType: String {
+        switch self {
+        case .png: return "image/png"
+        case .jpeg: return "image/jpeg"
+        }
+    }
+
+    func encode(_ image: CGImage) -> Data? {
+        let data = NSMutableData()
+        let type = (self == .png ? "public.png" : "public.jpeg") as CFString
+        guard let destination = CGImageDestinationCreateWithData(data, type, 1, nil) else { return nil }
+        var options: [CFString: Any] = [:]
+        if case .jpeg(let quality) = self {
+            options[kCGImageDestinationLossyCompressionQuality] = Double(quality) / 100
+        }
+        CGImageDestinationAddImage(destination, image, options as CFDictionary)
+        guard CGImageDestinationFinalize(destination) else { return nil }
+        return data as Data
+    }
+}
+
 /// One capture plus the geometry a model needs to turn image pixels back into
 /// the screen coordinates that click/hover/zoom accept.
 struct CaptureShot {
     let data: Data
+    let mimeType: String
     /// Captured area in global screen points (the coordinate space of click x/y).
     let frame: CGRect
     let pixelWidth: Int
@@ -1124,9 +2114,12 @@ struct CaptureShot {
     let title: String?
 }
 
+/// Synchronizes capture results so a timed-out waiter never races a late write.
 private final class CaptureBox: @unchecked Sendable {
     private let lock = NSLock()
     private var value: CaptureShot?
+    private var failure: String?
+    private var failureFromSystem = false
     func set(_ shot: CaptureShot?) {
         lock.lock()
         value = shot
@@ -1136,6 +2129,133 @@ private final class CaptureBox: @unchecked Sendable {
         lock.lock()
         defer { lock.unlock() }
         return value
+    }
+    /// Keeps why the capture failed, for the caller's error message.
+    /// `system` marks a ScreenCaptureKit refusal rather than a bad request.
+    func fail(_ reason: String, system: Bool = false) {
+        lock.lock()
+        failure = reason
+        failureFromSystem = system
+        lock.unlock()
+    }
+    func failureReason() -> (reason: String, system: Bool)? {
+        lock.lock()
+        defer { lock.unlock() }
+        return failure.map { ($0, failureFromSystem) }
+    }
+}
+
+/// Why the most recent screenshot, display or region capture came back empty,
+/// or nil when it succeeded. The capture functions return nil on any failure,
+/// so the tool error reads this to say what actually went wrong instead of
+/// guessing at Screen Recording permission.
+private let lastCaptureFailureLock = NSLock()
+private var lastCaptureFailureReason: (reason: String, system: Bool)?
+
+func lastCaptureFailure() -> (reason: String, system: Bool)? {
+    lastCaptureFailureLock.lock()
+    defer { lastCaptureFailureLock.unlock() }
+    return lastCaptureFailureReason
+}
+
+private func finishCapture(_ box: CaptureBox, timedOut: Bool, after seconds: Int) -> CaptureShot? {
+    let shot = timedOut ? nil : box.get()
+    let reason: (reason: String, system: Bool)?
+    if shot != nil {
+        reason = nil
+    } else if timedOut {
+        reason = ("ScreenCaptureKit did not answer within \(seconds) s", true)
+    } else {
+        reason = box.failureReason() ?? ("ScreenCaptureKit returned no image", true)
+    }
+    lastCaptureFailureLock.lock()
+    lastCaptureFailureReason = reason
+    lastCaptureFailureLock.unlock()
+    return shot
+}
+
+/// A capture through screencapture instead of ScreenCaptureKit (see
+/// CaptureFallback.swift), recording the outcome for the tool error the way
+/// finishCapture does. `timedOutAfter` is set when ScreenCaptureKit just timed
+/// out on this very capture.
+private func fallbackCapture(timedOutAfter seconds: Int?, _ capture: () -> CaptureShot?) -> CaptureShot? {
+    let shot = capture()
+    let lead = seconds.map { "ScreenCaptureKit did not answer within \($0) s" }
+        ?? "ScreenCaptureKit stopped answering"
+    lastCaptureFailureLock.lock()
+    lastCaptureFailureReason = shot == nil ? ("\(lead), and the screencapture fallback failed too", true) : nil
+    lastCaptureFailureLock.unlock()
+    return shot
+}
+
+/// A ScreenCaptureKit error as one line: its description plus domain and code,
+/// which tell a refusal (permission, TCC) apart from a failed stream.
+private func describeCaptureError(_ error: Error) -> String {
+    let ns = error as NSError
+    return "\(ns.localizedDescription) (\(ns.domain) \(ns.code))"
+}
+
+/// The tool error for a failed capture: the recorded reason, then a hint only
+/// when ScreenCaptureKit itself refused. The Screen Recording hint is given
+/// only when macOS reports the permission missing; with it granted, a refusal
+/// is usually a stale grant that reopening the host app clears.
+func captureErrorText(_ what: String) -> String {
+    let failure = lastCaptureFailure()
+    var text = "error: could not capture \(what)"
+    if let failure {
+        text += ": \(failure.reason)"
+    }
+    guard failure?.system ?? true else { return text + "." }
+    if !CGPreflightScreenCaptureAccess() {
+        text += ". Screen Recording is not granted to the app that runs this server"
+            + " (System Settings > Privacy & Security > Screen & System Audio Recording)."
+    } else {
+        text += ". Screen Recording is granted; if this persists, quit and reopen the app"
+            + " that runs this server."
+    }
+    return text
+}
+
+/// The attached displays, kept between captures. Asking ScreenCaptureKit for
+/// shareable content walks every window on screen, which costs more than the
+/// display capture itself when a viewer asks for frames back to back. Displays
+/// only change when one is attached, removed or rearranged, which AppKit
+/// announces, so the list is dropped then (and after a short lifetime, in case
+/// a notification is missed). Window captures still query fresh: windows open,
+/// close and move all the time, and a stale frame would put clicks in the
+/// wrong place.
+final class DisplayCache: @unchecked Sendable {
+    static let shared = DisplayCache()
+    private static let lifetime: TimeInterval = 30
+    private let lock = NSLock()
+    private var displays: [SCDisplay]?
+    private var fetchedAt = Date.distantPast
+
+    private init() {
+        NotificationCenter.default.addObserver(
+            forName: NSApplication.didChangeScreenParametersNotification, object: nil, queue: nil
+        ) { [weak self] _ in self?.invalidate() }
+    }
+
+    func invalidate() {
+        lock.withLock { displays = nil }
+    }
+
+    func current(fresh: Bool = false) async throws -> [SCDisplay] {
+        // The invisible display minimized windows are parked on is nobody's screen.
+        let parking = WindowParking.shared.displayID
+        if !fresh, let cached = lock.withLock({
+            -fetchedAt.timeIntervalSinceNow < Self.lifetime ? displays : nil
+        }) {
+            return cached.filter { $0.displayID != parking }
+        }
+        let content = try await SCShareableContent.excludingDesktopWindows(
+            false, onScreenWindowsOnly: true)
+        lock.withLock {
+            displays = content.displays
+            fetchedAt = Date()
+        }
+        return content.displays.filter { $0.displayID != parking }
     }
 }
 
@@ -1158,7 +2278,7 @@ func captureMappingText(_ shot: CaptureShot, label: String) -> String {
 func imageResult(_ shot: CaptureShot, label: String) -> [String: Any] {
     return [
         "content": [
-            ["type": "image", "data": shot.data.base64EncodedString(), "mimeType": "image/png"],
+            ["type": "image", "data": shot.data.base64EncodedString(), "mimeType": shot.mimeType],
             ["type": "text", "text": captureMappingText(shot, label: label)],
         ],
         "isError": false,
@@ -1174,15 +2294,18 @@ func backingScale(for display: SCDisplay) -> CGFloat {
     }?.backingScaleFactor ?? 2
 }
 
-/// Capture a window as PNG. Runs the async ScreenCaptureKit call on a background
+/// Capture a window. Runs the async ScreenCaptureKit call on a background
 /// executor and blocks the JSON-RPC loop until it lands, with a timeout so a
 /// wedged capture can never hang the server.
-func captureWindowPNG(pid: pid_t, maxWidth: Int) -> CaptureShot? {
+func captureWindow(pid: pid_t, maxWidth: Int, encoding: ImageEncoding) -> CaptureShot? {
+    let fallback = { ScreencaptureFallback.window(pid: pid, maxWidth: maxWidth, encoding: encoding) }
+    if !ScreenCaptureHealth.usable { return fallbackCapture(timedOutAfter: nil, fallback) }
     let semaphore = DispatchSemaphore(value: 0)
     let box = CaptureBox()
 
     let task = Task.detached {
         defer { semaphore.signal() }
+        if await ScreenCaptureHealth.hangIfSimulated() { return }
         do {
             let content = try await SCShareableContent.excludingDesktopWindows(
                 false, onScreenWindowsOnly: true)
@@ -1191,7 +2314,10 @@ func captureWindowPNG(pid: pid_t, maxWidth: Int) -> CaptureShot? {
             let candidates = content.windows
                 .filter { $0.owningApplication?.processID == pid }
                 .sorted { ($0.frame.width * $0.frame.height) > ($1.frame.width * $1.frame.height) }
-            guard let window = candidates.first else { return }
+            guard let window = candidates.first else {
+                box.fail("the app has no on-screen window")
+                return
+            }
 
             let config = SCStreamConfiguration()
             let scale: Double
@@ -1207,13 +2333,16 @@ func captureWindowPNG(pid: pid_t, maxWidth: Int) -> CaptureShot? {
             let image = try await SCScreenshotManager.captureImage(
                 contentFilter: SCContentFilter(desktopIndependentWindow: window),
                 configuration: config)
-            guard let png = NSBitmapImageRep(cgImage: image).representation(using: .png, properties: [:])
-            else { return }
+            guard let data = encoding.encode(image) else {
+                box.fail("could not encode the image as \(encoding.mimeType)")
+                return
+            }
             box.set(CaptureShot(
-                data: png, frame: window.frame, pixelWidth: image.width, pixelHeight: image.height,
-                title: window.title))
+                data: data, mimeType: encoding.mimeType, frame: window.frame,
+                pixelWidth: image.width, pixelHeight: image.height, title: window.title))
         } catch {
             box.set(nil)
+            box.fail(describeCaptureError(error), system: true)
         }
     }
 
@@ -1221,110 +2350,137 @@ func captureWindowPNG(pid: pid_t, maxWidth: Int) -> CaptureShot? {
     if waited == .timedOut {
         task.cancel()
         // Do not read `box` after cancel — the task may still be writing.
-        return nil
+        ScreenCaptureHealth.noteTimeout()
+        return fallbackCapture(timedOutAfter: 15, fallback)
     }
-    return box.get()
+    ScreenCaptureHealth.noteAnswered()
+    return finishCapture(box, timedOut: false, after: 15)
 }
 
 /// Capture a whole display. Window capture covers one app; this is for seeing
 /// the desktop as a whole, including every monitor the user has attached.
-func captureDisplayPNG(index: Int, maxWidth: Int) -> CaptureShot? {
+func captureDisplay(index: Int, maxWidth: Int, encoding: ImageEncoding) -> CaptureShot? {
+    let fallback = { ScreencaptureFallback.display(index: index, maxWidth: maxWidth, encoding: encoding) }
+    if !ScreenCaptureHealth.usable { return fallbackCapture(timedOutAfter: nil, fallback) }
     let semaphore = DispatchSemaphore(value: 0)
-    let lock = NSLock()
-    var result: CaptureShot?
-    Task.detached {
+    let box = CaptureBox()
+    let task = Task.detached {
         defer { semaphore.signal() }
-        do {
-            let content = try await SCShareableContent.excludingDesktopWindows(
-                false, onScreenWindowsOnly: true)
-            let displays = content.displays
-            guard index >= 0, index < displays.count else { return }
-            let display = displays[index]
-            let config = SCStreamConfiguration()
-            let scale: Double
-            if maxWidth > 0 {
-                scale = min(1.0, Double(maxWidth) / max(1.0, Double(display.width)))
-            } else {
-                scale = 1.0
+        if await ScreenCaptureHealth.hangIfSimulated() { return }
+        // The cached display list first; if that display is gone or the
+        // capture fails, once more with a fresh list.
+        for fresh in [false, true] {
+            do {
+                let displays = try await DisplayCache.shared.current(fresh: fresh)
+                guard index >= 0, index < displays.count else {
+                    box.fail("no display \(index); \(displays.count) attached")
+                    continue
+                }
+                let display = displays[index]
+                let config = SCStreamConfiguration()
+                let scale: Double
+                if maxWidth > 0 {
+                    scale = min(1.0, Double(maxWidth) / max(1.0, Double(display.width)))
+                } else {
+                    scale = 1.0
+                }
+                config.width = Int(Double(display.width) * scale)
+                config.height = Int(Double(display.height) * scale)
+                config.showsCursor = false
+                let image = try await SCScreenshotManager.captureImage(
+                    contentFilter: SCContentFilter(display: display, excludingWindows: []),
+                    configuration: config)
+                guard let data = encoding.encode(image) else {
+                    box.fail("could not encode the image as \(encoding.mimeType)")
+                    return
+                }
+                box.set(CaptureShot(
+                    data: data, mimeType: encoding.mimeType, frame: display.frame,
+                    pixelWidth: image.width, pixelHeight: image.height, title: nil))
+                return
+            } catch {
+                box.fail(describeCaptureError(error), system: true)
+                continue
             }
-            config.width = Int(Double(display.width) * scale)
-            config.height = Int(Double(display.height) * scale)
-            config.showsCursor = false
-            let image = try await SCScreenshotManager.captureImage(
-                contentFilter: SCContentFilter(display: display, excludingWindows: []),
-                configuration: config)
-            if let png = NSBitmapImageRep(cgImage: image).representation(using: .png, properties: [:]) {
-                lock.lock()
-                result = CaptureShot(
-                    data: png, frame: display.frame, pixelWidth: image.width, pixelHeight: image.height,
-                    title: nil)
-                lock.unlock()
-            }
-        } catch {
-            lock.lock()
-            result = nil
-            lock.unlock()
         }
     }
-    // On timeout the task may still write `result` — do not read it.
     if semaphore.wait(timeout: .now() + 20) == .timedOut {
-        return nil
+        task.cancel()
+        // Do not read `box` after cancel — the task may still be writing.
+        ScreenCaptureHealth.noteTimeout()
+        return fallbackCapture(timedOutAfter: 20, fallback)
     }
-    lock.lock()
-    defer { lock.unlock() }
-    return result
+    ScreenCaptureHealth.noteAnswered()
+    return finishCapture(box, timedOut: false, after: 20)
 }
 
 /// Capture one region of the screen at full physical resolution. `rect` is in
 /// global screen points, the same space click/hover take, so a model can zoom
 /// straight from the coordinates it already knows.
-func captureRegionPNG(rect: CGRect, maxWidth: Int) -> CaptureShot? {
+func captureRegion(rect: CGRect, maxWidth: Int, encoding: ImageEncoding) -> CaptureShot? {
+    let fallback = { ScreencaptureFallback.region(rect: rect, maxWidth: maxWidth, encoding: encoding) }
+    if !ScreenCaptureHealth.usable { return fallbackCapture(timedOutAfter: nil, fallback) }
     let semaphore = DispatchSemaphore(value: 0)
     let box = CaptureBox()
     let task = Task.detached {
         defer { semaphore.signal() }
-        do {
-            let content = try await SCShareableContent.excludingDesktopWindows(
-                false, onScreenWindowsOnly: true)
-            let center = CGPoint(x: rect.midX, y: rect.midY)
-            guard let display = content.displays.first(where: { $0.frame.contains(center) })
-                ?? content.displays.first
-            else { return }
-            let clipped = rect.intersection(display.frame)
-            guard clipped.width >= 4, clipped.height >= 4 else { return }
-            let scale = backingScale(for: display)
-            var width = clipped.width * scale
-            var height = clipped.height * scale
-            if maxWidth > 0, width > CGFloat(maxWidth) {
-                let ratio = CGFloat(maxWidth) / width
-                width *= ratio
-                height *= ratio
+        if await ScreenCaptureHealth.hangIfSimulated() { return }
+        for fresh in [false, true] {
+            do {
+                let displays = try await DisplayCache.shared.current(fresh: fresh)
+                let center = CGPoint(x: rect.midX, y: rect.midY)
+                guard let display = displays.first(where: { $0.frame.contains(center) })
+                    ?? displays.first
+                else {
+                    box.fail("no display is attached")
+                    continue
+                }
+                let clipped = rect.intersection(display.frame)
+                guard clipped.width >= 4, clipped.height >= 4 else {
+                    box.fail("the region is not on an attached display")
+                    continue
+                }
+                let scale = backingScale(for: display)
+                var width = clipped.width * scale
+                var height = clipped.height * scale
+                if maxWidth > 0, width > CGFloat(maxWidth) {
+                    let ratio = CGFloat(maxWidth) / width
+                    width *= ratio
+                    height *= ratio
+                }
+                let config = SCStreamConfiguration()
+                config.sourceRect = CGRect(
+                    x: clipped.origin.x - display.frame.origin.x,
+                    y: clipped.origin.y - display.frame.origin.y,
+                    width: clipped.width, height: clipped.height)
+                config.width = max(1, Int(width.rounded()))
+                config.height = max(1, Int(height.rounded()))
+                config.showsCursor = false
+                if #available(macOS 14.0, *) { config.captureResolution = .best }
+                let image = try await SCScreenshotManager.captureImage(
+                    contentFilter: SCContentFilter(display: display, excludingWindows: []),
+                    configuration: config)
+                guard let data = encoding.encode(image) else {
+                    box.fail("could not encode the image as \(encoding.mimeType)")
+                    return
+                }
+                box.set(CaptureShot(
+                    data: data, mimeType: encoding.mimeType, frame: clipped,
+                    pixelWidth: image.width, pixelHeight: image.height, title: nil))
+                return
+            } catch {
+                box.fail(describeCaptureError(error), system: true)
+                continue
             }
-            let config = SCStreamConfiguration()
-            config.sourceRect = CGRect(
-                x: clipped.origin.x - display.frame.origin.x,
-                y: clipped.origin.y - display.frame.origin.y,
-                width: clipped.width, height: clipped.height)
-            config.width = max(1, Int(width.rounded()))
-            config.height = max(1, Int(height.rounded()))
-            config.showsCursor = false
-            if #available(macOS 14.0, *) { config.captureResolution = .best }
-            let image = try await SCScreenshotManager.captureImage(
-                contentFilter: SCContentFilter(display: display, excludingWindows: []),
-                configuration: config)
-            guard let png = NSBitmapImageRep(cgImage: image).representation(using: .png, properties: [:])
-            else { return }
-            box.set(CaptureShot(
-                data: png, frame: clipped, pixelWidth: image.width, pixelHeight: image.height, title: nil))
-        } catch {
-            box.set(nil)
         }
     }
     if semaphore.wait(timeout: .now() + 15) == .timedOut {
         task.cancel()
-        return nil
+        ScreenCaptureHealth.noteTimeout()
+        return fallbackCapture(timedOutAfter: 15, fallback)
     }
-    return box.get()
+    ScreenCaptureHealth.noteAnswered()
+    return finishCapture(box, timedOut: false, after: 15)
 }
 
 func toolListDisplays(_ args: [String: Any]) -> String {
@@ -1334,17 +2490,16 @@ func toolListDisplays(_ args: [String: Any]) -> String {
     let task = Task.detached {
         defer { semaphore.signal() }
         var collected: [String] = []
-        if let content = try? await SCShareableContent.excludingDesktopWindows(
-            false, onScreenWindowsOnly: true) {
-            for (i, display) in content.displays.enumerated() {
+        // Fresh, and it refreshes the cache the captures read: a viewer lists
+        // displays once, then asks for frames by index.
+        if let displays = try? await DisplayCache.shared.current(fresh: true) {
+            for (i, display) in displays.enumerated() {
                 let frame = display.frame
                 collected.append("[\(i)] \(display.width)x\(display.height) "
                     + "at (\(Int(frame.origin.x)), \(Int(frame.origin.y)))")
             }
         }
-        lock.lock()
-        lines = collected
-        lock.unlock()
+        lock.withLock { lines = collected }
     }
     if semaphore.wait(timeout: .now() + 20) == .timedOut {
         task.cancel()
@@ -1362,24 +2517,19 @@ func toolListDisplays(_ args: [String: Any]) -> String {
 
 // MARK: - Additional input synthesis
 
-func postRightClick(at point: CGPoint, pid: pid_t?) {
+func postRightClick(at point: CGPoint, pid: pid_t) {
     CursorOverlay.shared.press(at: point)
-    let src = CGEventSource(stateID: .combinedSessionState)
+    let src = agentEventSource()
     post(CGEvent(mouseEventSource: src, mouseType: .rightMouseDown, mouseCursorPosition: point, mouseButton: .right), to: pid)
     post(CGEvent(mouseEventSource: src, mouseType: .rightMouseUp, mouseCursorPosition: point, mouseButton: .right), to: pid)
 }
 
-func postDrag(from start: CGPoint, to end: CGPoint, pid: pid_t?) {
-    let src = CGEventSource(stateID: .combinedSessionState)
+func postDrag(from start: CGPoint, to end: CGPoint, pid: pid_t) {
+    let src = agentEventSource()
     // Deliver a move to the press location first: many views only begin drag
     // tracking when the press arrives where the pointer already is, and without
-    // it the gesture degrades into a plain click.
-    //
-    // When targeting a pid this is a synthetic move sent to that app only, so
-    // the user's real cursor stays put. Only the no-pid fallback warps it.
-    if pid == nil {
-        CGWarpMouseCursorPosition(start)
-    }
+    // it the gesture degrades into a plain click. It is a synthetic move sent
+    // to that app only, so the user's real cursor stays put.
     post(CGEvent(mouseEventSource: src, mouseType: .mouseMoved, mouseCursorPosition: start, mouseButton: .left), to: pid)
     usleep(80_000)
     post(CGEvent(mouseEventSource: src, mouseType: .leftMouseDown, mouseCursorPosition: start, mouseButton: .left), to: pid)
@@ -1401,15 +2551,7 @@ func postDrag(from start: CGPoint, to end: CGPoint, pid: pid_t?) {
 
 func resolvePoint(_ args: [String: Any], xKey: String, yKey: String, idKey: String) -> Result<CGPoint, String> {
     if let id = args[idKey] as? String {
-        guard let el = Registry.get(id) else {
-            return .failure("error: unknown element_id \(id) — call get_app_state again to refresh ids")
-        }
-        guard let point = visibleCenter(of: el) else {
-            return .failure(
-                "error: \(id) is not visible in its window — scroll it into view and call get_app_state again"
-            )
-        }
-        return .success(point)
+        return Registry.point(id)
     }
     if let x = args[xKey] as? Double, let y = args[yKey] as? Double {
         guard x.isFinite, y.isFinite,
@@ -1430,6 +2572,10 @@ func toolRightClick(_ args: [String: Any]) -> String {
     case .success(let resolved):
         point = resolved
     }
+    if RemoteControl.isEnabled {
+        RemoteControl.click(at: point, button: .right)
+        return "right-clicked at (\(Int(point.x)), \(Int(point.y)))"
+    }
     let element = (args["element_id"] as? String).flatMap { Registry.get($0) }
     let target: WindowTarget?
     if let element {
@@ -1445,14 +2591,19 @@ func toolRightClick(_ args: [String: Any]) -> String {
     if let target, backgroundRightClick(target, at: point) {
         return "right-clicked at (\(Int(point.x)), \(Int(point.y))) in background"
     }
-    if let refusal = UserPresence.refuseTakeover(
-        "right-click (\(Int(point.x)), \(Int(point.y)))")
+    // The accessibility way to open a context menu, with no pointer at all.
+    if let element, axActions(element).contains(kAXShowMenuAction as String),
+       AXUIElementPerformAction(element, kAXShowMenuAction as CFString) == .success
     {
-        return refusal
+        return "opened the context menu of \(args["element_id"] as? String ?? "the element") via AXShowMenu"
     }
-    UserPresence.noteTakeover()
-    postRightClick(at: point, pid: nil)
-    return "right-clicked at (\(Int(point.x)), \(Int(point.y))) via cursor"
+    guard let pid = target?.pid ?? element.flatMap({ pidOf($0) }) else {
+        return refuseGlobalInput(
+            "right-click (\(Int(point.x)), \(Int(point.y)))",
+            "No app window was found there. Pass `app`, or use an element_id from get_app_state.")
+    }
+    postRightClick(at: point, pid: pid)
+    return "right-clicked at (\(Int(point.x)), \(Int(point.y))) by posting to pid \(pid)"
 }
 
 /// Move the pointer without pressing. Hover-revealed UI (menus, toolbars that
@@ -1461,10 +2612,11 @@ func toolRightClick(_ args: [String: Any]) -> String {
 func backgroundHover(_ target: WindowTarget, at point: CGPoint) -> Bool {
     guard SkyLight.available else { return false }
     CursorOverlay.shared.show(at: point)
-    guard SkyLight.activateWithoutRaise(pid: target.pid, wid: target.wid) else { return false }
+    guard let loan = SkyLight.borrowFocus(pid: target.pid, wid: target.wid) else { return false }
+    defer { loan.giveBack() }
     usleep(60_000)
     clickGroupCounter += 1
-    let src = CGEventSource(stateID: .combinedSessionState)
+    let src = agentEventSource()
     guard let move = CGEvent(mouseEventSource: src, mouseType: .mouseMoved,
                              mouseCursorPosition: point, mouseButton: .left)
     else { return false }
@@ -1480,6 +2632,10 @@ func toolHover(_ args: [String: Any]) -> String {
         return message
     case .success(let resolved):
         point = resolved
+    }
+    if RemoteControl.isEnabled {
+        RemoteControl.move(to: point)
+        return "moved the pointer to (\(Int(point.x)), \(Int(point.y)))"
     }
     let element = (args["element_id"] as? String).flatMap { Registry.get($0) }
     let target: WindowTarget?
@@ -1498,15 +2654,15 @@ func toolHover(_ args: [String: Any]) -> String {
     if let target, backgroundHover(target, at: point) {
         return "hovering at (\(Int(point.x)), \(Int(point.y))) in background — call get_app_state or screenshot to see what appeared"
     }
-    if let refusal = UserPresence.refuseTakeover("hover (\(Int(point.x)), \(Int(point.y)))") {
-        return refusal
+    guard let pid = target?.pid ?? element.flatMap({ pidOf($0) }) else {
+        return refuseGlobalInput(
+            "hover at (\(Int(point.x)), \(Int(point.y)))",
+            "No app window was found there. Pass `app`, or use an element_id from get_app_state.")
     }
-    UserPresence.noteTakeover()
     CursorOverlay.shared.show(at: point)
-    CGWarpMouseCursorPosition(point)
-    post(CGEvent(mouseEventSource: CGEventSource(stateID: .combinedSessionState), mouseType: .mouseMoved,
-                 mouseCursorPosition: point, mouseButton: .left), to: nil)
-    return "hovering at (\(Int(point.x)), \(Int(point.y))) via cursor — call get_app_state or screenshot to see what appeared"
+    post(CGEvent(mouseEventSource: agentEventSource(), mouseType: .mouseMoved,
+                 mouseCursorPosition: point, mouseButton: .left), to: pid)
+    return "hovering at (\(Int(point.x)), \(Int(point.y))) by posting to pid \(pid) — call get_app_state or screenshot to see what appeared"
 }
 
 /// Blocks the request loop on purpose: the client is waiting on this call, and
@@ -1533,6 +2689,10 @@ func toolDrag(_ args: [String: Any]) -> String {
         return message
     case .success(let resolved):
         end = resolved
+    }
+    if RemoteControl.isEnabled {
+        RemoteControl.drag(from: start, to: end)
+        return "dragged (\(Int(start.x)), \(Int(start.y))) → (\(Int(end.x)), \(Int(end.y)))"
     }
     let element = (args["from_element_id"] as? String).flatMap { Registry.get($0) }
     let underStart = windowTarget(under: start)
@@ -1574,10 +2734,14 @@ func toolDrag(_ args: [String: Any]) -> String {
     if let target, backgroundDrag(target, from: start, to: end) {
         return "dragged from (\(Int(start.x)), \(Int(start.y))) to (\(Int(end.x)), \(Int(end.y))) in background"
     }
-    if let refusal = UserPresence.refuseTakeover("drag") { return refusal }
-    UserPresence.noteTakeover()
-    postDrag(from: start, to: end, pid: nil)
-    return "dragged from (\(Int(start.x)), \(Int(start.y))) to (\(Int(end.x)), \(Int(end.y))) via cursor"
+    guard let pid = target?.pid else {
+        return refuseGlobalInput(
+            "drag there",
+            "Drags must start in a window of a known app and stay inside it; dragging between apps or "
+                + "onto the desktop needs the real pointer. Use from_element_id, or pass `app`.")
+    }
+    postDrag(from: start, to: end, pid: pid)
+    return "dragged from (\(Int(start.x)), \(Int(start.y))) to (\(Int(end.x)), \(Int(end.y))) by posting to pid \(pid)"
 }
 
 /// Refuse to write into a macOS password field unless explicitly allowed.
@@ -1590,7 +2754,7 @@ func toolDrag(_ args: [String: Any]) -> String {
 ///
 /// Set `COMPUTER_USE_ALLOW_SECURE_FIELD_INPUT=1` to opt out.
 func refuseSecureFieldInput(_ element: AXUIElement, _ id: String) -> String? {
-    if ProcessInfo.processInfo.environment["COMPUTER_USE_ALLOW_SECURE_FIELD_INPUT"] == "1" {
+    if Identity.current.tunable("ALLOW_SECURE_FIELD_INPUT") == "1" {
         return nil
     }
     guard axString(element, kAXRoleAttribute as String) == "AXSecureTextField" else { return nil }
@@ -1603,14 +2767,17 @@ func refuseSecureFieldInput(_ element: AXUIElement, _ id: String) -> String? {
     // the agent picks the task back up afterwards.
     AXUIElementSetAttributeValue(element, kAXFocusedAttribute as CFString, kCFBooleanTrue)
     var handedBackTo = "the app"
+    // A user who keeps the agent in the background (#55) brings it forward
+    // themselves; the field is focused either way.
+    let raise = RemoteControl.isEnabled || PolicyStore.current().foregroundRule == .allow
     if let pid = pidOf(element),
         let app = NSRunningApplication(processIdentifier: pid)
     {
-        DispatchQueue.main.sync { app.activate(options: []) }
+        if raise { DispatchQueue.main.sync { app.activate(options: []) } }
         handedBackTo = app.localizedName ?? handedBackTo
     }
     return "handed control to the user: \(id) is a password field, so it was focused in "
-        + "\(handedBackTo) and brought to the front for them to type into. The credential is "
+        + "\(handedBackTo)\(raise ? " and brought to the front" : " (left where it is: the user's policy keeps the agent in the background)") for them to type into. The credential is "
         + "deliberately not routed through the model. Tell the user it is ready, wait for them to "
         + "say they are done, then continue — do not retry this call. "
         + "(COMPUTER_USE_ALLOW_SECURE_FIELD_INPUT=1 lets the agent type throwaway credentials.)"
@@ -1619,7 +2786,13 @@ func refuseSecureFieldInput(_ element: AXUIElement, _ id: String) -> String? {
 func toolSetValue(_ args: [String: Any]) -> String {
     guard let id = args["element_id"] as? String else { return "error: missing required argument 'element_id'" }
     guard let value = args["value"] as? String else { return "error: missing required argument 'value'" }
-    guard let el = Registry.get(id) else { return "error: unknown element_id \(id)" }
+    let el: AXUIElement
+    switch Registry.fresh(id) {
+    case .failure(let message):
+        return message
+    case .success(let fresh):
+        el = fresh
+    }
     if let refusal = refuseSecureFieldInput(el, id) { return refusal }
     // Setting AXValue replaces field contents atomically, which is far more
     // reliable than select-all-then-type for long strings.
@@ -1632,7 +2805,13 @@ func toolSetValue(_ args: [String: Any]) -> String {
 
 func toolSelectText(_ args: [String: Any]) -> String {
     guard let id = args["element_id"] as? String else { return "error: missing required argument 'element_id'" }
-    guard let el = Registry.get(id) else { return "error: unknown element_id \(id)" }
+    let el: AXUIElement
+    switch Registry.fresh(id) {
+    case .failure(let message):
+        return message
+    case .success(let fresh):
+        el = fresh
+    }
 
     let text = axString(el, kAXValueAttribute as String) ?? ""
     let start = (args["start"] as? Int) ?? 0
@@ -2120,15 +3299,99 @@ enum Chrome {
     }
 }
 
+/// Explicit task scope allows multiple threads to share a single MCP process.
+func browserSessionCall(_ command: String, _ params: [String: Any] = [:], args: [String: Any]) -> BridgeOutcome {
+    var params = params
+    if let session = args["session_id"] { params["sessionId"] = session }
+    // The extension enforces the user's site rules, because only it knows
+    // which page a tab is on at the moment of the action.
+    let policy = PolicyStore.current()
+    if let error = policy.error { return .failure("\(error) — fix it before using the browser") }
+    if policy.hasSiteRules { params["sites"] = policy.sitesPayload }
+    switch BrowserBridge.shared.reply(command, params, timeout: browserCallTimeout(command, args, sitesAsk: policy.sitesAsk)) {
+    case .success(let result): return .success(result)
+    case .failure(let message): return .failure(message)
+    // Say which link to Chrome is down and what to do, not just "disconnected" (#28).
+    case .link(let link): return .failure(BrowserBridge.shared.explain(command, args, link))
+    }
+}
+
+/// Default wait for a user answering browser_request_credentials, and the cap.
+let credentialWaitSeconds = 180
+let credentialMaxWaitSeconds = 600
+/// Headroom over the extension's own waits, so it answers before we give up.
+let promptGrace: TimeInterval = 15
+
+/// How long to wait for the extension. Anything that can put a prompt in front
+/// of the user, or wait for a page to load, needs longer than a plain command.
+func browserCallTimeout(_ command: String, _ args: [String: Any], sitesAsk: Bool) -> TimeInterval {
+    var timeout: TimeInterval = 20
+    if command == "request_credentials" {
+        timeout = TimeInterval(min(max((args["timeout_seconds"] as? Int) ?? credentialWaitSeconds, 10), credentialMaxWaitSeconds)) + promptGrace
+    }
+    // The extension's site approval prompt waits up to two minutes.
+    if sitesAsk { timeout = max(timeout, 120 + promptGrace) }
+    if args["return_state"] as? Bool == true || args["wait_for_selector"] != nil { timeout += 15 }
+    return timeout
+}
+
+/// `return_state` for browser actions: ask the extension for a fresh snapshot.
+func withReturnState(_ params: [String: Any], _ args: [String: Any]) -> [String: Any] {
+    var params = params
+    if args["return_state"] as? Bool == true { params["returnState"] = true }
+    if let selector = args["wait_for_selector"] { params["waitForSelector"] = selector }
+    if let timeout = args["wait_timeout_ms"] { params["waitTimeoutMs"] = timeout }
+    return params
+}
+
+/// The line for an action, plus the page as it stands after it when the
+/// extension sent one back (return_state).
+func withPageAfter(_ line: String, _ payload: [String: Any]) -> String {
+    guard let snapshot = payload["snapshot"] as? [String: Any] else { return line }
+    return line + "\n\n" + describeReadiness(payload) + "page after the action (earlier indices are no longer valid):\n" + describeSnapshot(snapshot)
+}
+
+/// Readiness is separate from action success; never imply a retry is safe.
+func describeReadiness(_ payload: [String: Any]) -> String {
+    guard let readiness = payload["readiness"] as? [String: Any] else {
+        // A current extension always reports readiness with an action's
+        // snapshot, and a total with a snapshot. Without them the extension is
+        // older than this server and silently ignored the new arguments; say so
+        // rather than let the agent believe it waited or paged.
+        let stale = payload["snapshot"] != nil || (payload["elements"] != nil && payload["total"] == nil)
+        return stale ? "note: the Chrome extension is older than this server, so wait_for_selector, offset and limit were ignored — update it and reload it at chrome://extensions.\n" : ""
+    }
+    let status = readiness["status"] as? String ?? "unknown"
+    let condition = readiness["condition"] as? String ?? "unknown"
+    let elapsed = readiness["elapsedMs"] as? Int ?? 0
+    var line = "readiness: \(status) (\(condition), \(elapsed) ms)"
+    if let selector = readiness["selector"] as? String { line += " selector=\(selector)" }
+    if let frame = readiness["frame"] as? String { line += " in frame \"\(frame)\"" }
+    if let error = readiness["error"] as? String { line += " — \(error)" }
+    if let frames = readiness["frames"] as? Int, frames > 0 { line += " — not searched: \(framesPhrase(frames))" }
+    if let note = readiness["note"] as? String { line += " — \(note)" }
+    return line + "; only the stated condition was checked, not general app readiness. Re-observe with browser_snapshot before repeating a non-idempotent action.\n"
+}
+
 func toolBrowserOpenTab(_ args: [String: Any]) -> String {
     let url = (args["url"] as? String) ?? "about:blank"
     // The extension is the good path: it opens an inactive tab in a labelled
     // group inside the user's own signed-in Chrome. Without it, fall back to a
     // separate window driven through the accessibility API.
     if BrowserBridge.shared.isConnected {
-        return bridgeText(BrowserBridge.shared.call("open_tab", ["url": url])) { payload in
-            "opened \(url) in the agent tab group (tab_id=\(payload["tabId"] as? Int ?? -1))"
+        return bridgeText(browserSessionCall("open_tab", ["url": url], args: args)) { payload in
+            let tab = payload["tabId"] as? Int ?? -1
+            // The tab opened but is not in the group (#59): say both.
+            if let note = payload["note"] as? String { return "opened \(url) as tab_id=\(tab) — \(note)" }
+            return "opened \(url) in the agent tab group (tab_id=\(tab))"
         }
+    }
+    // Site rules are enforced by the extension; the accessibility fallback
+    // cannot tell which page a window ends up on, so it must not run under them.
+    let policy = PolicyStore.current()
+    if let error = policy.error { return "error: \(error) — fix it before using the browser" }
+    if policy.hasSiteRules {
+        return "error: the user's Computer Use policy has site rules, which need the Chrome extension — ask the user to install it (see chrome-extension in the README)"
     }
     return Chrome.preservingFocus {
         switch Chrome.ensureAgentWindow() {
@@ -2159,7 +3422,7 @@ func toolBrowserOpenTab(_ args: [String: Any]) -> String {
 func toolBrowserListTabs(_ args: [String: Any]) -> String {
     let all = args["all"] as? Bool ?? false
     if BrowserBridge.shared.isConnected {
-        return bridgeText(BrowserBridge.shared.call("list_tabs", ["all": all]), describeTabs)
+        return bridgeText(browserSessionCall("list_tabs", ["all": all], args: args), describeTabs)
     }
     if all { return listEveryChromeTabViaAppleScript() }
     guard let id = Chrome.liveAgentWindowID() else {
@@ -2188,13 +3451,42 @@ func toolBrowserListTabs(_ args: [String: Any]) -> String {
     }
 }
 
+/// What browser_select_tab actually did (#43). The extension only shows an
+/// agent tab on its own when the user is already looking at one of the
+/// agent's tabs, so "switched" would often be false. Worded as the Windows and
+/// Linux server words it.
+func describeSelectTab(_ tabId: Int, _ payload: [String: Any]) -> String {
+    guard let activated = payload["activated"] as? Bool else {
+        return "asked Chrome to select tab \(tabId); this browser extension is too old to report whether it became "
+            + "visible — check browser_list_tabs, or update the extension"
+    }
+    if activated {
+        return payload["windowFocused"] as? Bool == true
+            ? "tab \(tabId) is reported active by Chrome and its window was brought to front; page rendering is not verified"
+            : "tab \(tabId) is reported active by Chrome; page rendering is not verified"
+    }
+    return "tab \(tabId) was NOT brought to front: the user is on one of their own tabs in that window, "
+        + "so it stays in the background (browser_list_tabs still shows their tab as active). "
+        + "browser_snapshot, browser_read, browser_screenshot, browser_click, browser_type, browser_fill and browser_press_key "
+        + "work on it as it is, so leave the user on their tab; bring_to_front=true interrupts them and is only for native "
+        + "keyboard input that cannot work any other way"
+}
+
 func toolBrowserSelectTab(_ args: [String: Any]) -> String {
     if BrowserBridge.shared.isConnected {
         guard let tabId = args["tab_id"] as? Int ?? args["index"] as? Int else {
             return "error: missing required argument 'tab_id'"
         }
-        return bridgeText(BrowserBridge.shared.call("select_tab", ["tabId": tabId])) { _ in
-            "switched the agent group to tab \(tabId)"
+        var params: [String: Any] = ["tabId": tabId]
+        if let force = args["bring_to_front"] as? Bool { params["bringToFront"] = force }
+        // Raising the tab's window takes the screen from the user: the one
+        // browser call the user's "foreground" rule covers (#55).
+        if args["bring_to_front"] as? Bool == true,
+           let refusal = PolicyStore.checkForeground("raise the tab's Chrome window over what the user is doing") {
+            return refusal
+        }
+        return bridgeText(browserSessionCall("select_tab", params, args: args)) { payload in
+            describeSelectTab(tabId, payload)
         }
     }
     guard let index = args["index"] as? Int else { return "error: missing required argument 'index'" }
@@ -2225,7 +3517,7 @@ func toolBrowserCloseTab(_ args: [String: Any]) -> String {
         guard let tabId = args["tab_id"] as? Int ?? args["index"] as? Int else {
             return "error: missing required argument 'tab_id'"
         }
-        return bridgeText(BrowserBridge.shared.call("close_tab", ["tabId": tabId])) { _ in
+        return bridgeText(browserSessionCall("close_tab", ["tabId": tabId], args: args)) { _ in
             "closed tab \(tabId)"
         }
     }
@@ -2261,19 +3553,284 @@ func bridgeText(_ result: BridgeOutcome, _ describe: ([String: Any]) -> String) 
     }
 }
 
+/// Snapshots and selector waits see the page and its open shadow roots, not
+/// the documents inside frames; say how many visible frames were left out.
+func framesPhrase(_ frames: Int) -> String { frames == 1 ? "1 embedded frame" : "\(frames) embedded frames" }
+
+/// Frames a snapshot could not search: Chrome would not reach them, or the
+/// user's site rules do not allow them (`blocked` of them). An extension older
+/// than this server searched no frame at all. Worded as the Windows and Linux
+/// server words it.
+func framesNote(_ frames: Int, blocked: Int = 0) -> String {
+    let rules = blocked > 0 ? " (\(blocked) of them not allowed by the user's site rules)" : ""
+    return "note: \(framesPhrase(frames)) on the page \(frames == 1 ? "was" : "were") not searched\(rules) — "
+        + "controls inside \(frames == 1 ? "it are" : "them are") not listed here; browser_screenshot shows the tab, "
+        + "frames included, without bringing it to front"
+}
+
+/// browser_screenshot's caption: what was captured and how an image pixel
+/// becomes a browser_click point. Worded as the Windows and Linux server words it.
+func describeBrowserScreenshot(_ tabId: Int, _ payload: [String: Any]) -> String {
+    let number = { (key: String) in (payload[key] as? NSNumber)?.doubleValue }
+    var line = "tab \(tabId) as Chrome shows it, captured in the background"
+    if let width = number("width"), let height = number("height"),
+       let cssWidth = number("cssWidth"), let cssHeight = number("cssHeight"), cssWidth > 0 {
+        let ratio = String(format: "%.3f", width / cssWidth)
+        line += ": page \(Int(cssWidth.rounded()))×\(Int(cssHeight.rounded())) CSS px; image \(Int(width.rounded()))×\(Int(height.rounded())) px "
+            + "(\(ratio) px per CSS px). To click something seen at image pixel (px, py): browser_click x = px / \(ratio), "
+            + "y = py / \(ratio). Prefer an index from browser_snapshot when the target is listed there."
+    } else {
+        line += " (the Chrome extension is older than this server, so the image's scale is not reported — update it and reload it at chrome://extensions)."
+    }
+    if let note = payload["note"] as? String { line += "\nnote: \(note)" }
+    return line
+}
+
+/// browser_screenshot: the tab as Chrome renders it, as an image, without
+/// selecting the tab, raising its window or capturing the screen.
+func browserScreenshotResult(_ args: [String: Any]) -> [String: Any] {
+    if let refusal = browserPreamble("browser_screenshot", args) { return textResult(refusal, isError: true) }
+    guard let tabId = args["tab_id"] as? Int else {
+        return textResult("error: missing required argument 'tab_id'", isError: true)
+    }
+    guard BrowserBridge.shared.isConnected else {
+        return textResult("error: " + BrowserBridge.shared.explain("screenshot", args, .noHost), isError: true)
+    }
+    var params: [String: Any] = ["tabId": tabId]
+    // Passed through as given: the extension checks them, the same on every platform.
+    if let value = args["format"] { params["format"] = value }
+    if let value = args["quality"] { params["quality"] = value }
+    if let value = args["max_width"] { params["maxWidth"] = value }
+    switch browserSessionCall("screenshot", params, args: args) {
+    case .failure(let message):
+        return textResult("error: \(message)", isError: true)
+    case .success(let payload):
+        guard let encoded = payload["data"] as? String, !encoded.isEmpty, Data(base64Encoded: encoded) != nil else {
+            return textResult("error: Chrome returned no image for tab \(tabId)", isError: true)
+        }
+        return [
+            "content": [
+                ["type": "image", "data": encoded, "mimeType": payload["mimeType"] as? String ?? "image/png"],
+                ["type": "text", "text": describeBrowserScreenshot(tabId, payload)],
+            ],
+            "isError": false,
+        ]
+    }
+}
+
+/// ` — note` for a reply that carries one (a dialog the action made the page
+/// open, for instance), or nothing.
+func noteSuffix(_ payload: [String: Any]) -> String {
+    (payload["note"] as? String).map { " — \($0)" } ?? ""
+}
+
+/// A JavaScript dialog as the extension reports it: type, id, message, and a
+/// prompt's default text. Worded as the Windows and Linux server words it.
+func dialogPhrase(_ dialog: [String: Any]) -> String {
+    var phrase = "JavaScript \(dialog["type"] as? String ?? "?") dialog \(dialog["id"] as? String ?? "?"): \"\(dialog["message"] as? String ?? "")\""
+    if let text = dialog["defaultPrompt"] as? String, !text.isEmpty { phrase += " (default text \"\(text)\")" }
+    return phrase
+}
+
+/// browser_handle_dialog: what was answered, and whether the page opened
+/// another dialog straight after.
+func describeHandledDialog(_ payload: [String: Any], tabId: Int) -> String {
+    let tab = payload["tabId"] as? Int ?? tabId
+    let verb = payload["action"] as? String == "accept" ? "accepted" : "dismissed"
+    var line = "\(verb) the dialog in tab \(tab) — \((payload["dialog"] as? [String: Any]).map(dialogPhrase) ?? "")"
+    if let chars = payload["promptChars"] as? Int {
+        line += ", entering \(chars) character\(chars == 1 ? "" : "s")"
+    } else if payload["promptDefault"] as? Bool == true {
+        line += ", keeping its default text"
+    }
+    if let next = payload["next"] as? [String: Any] {
+        line += ". The page opened another at once: \(dialogPhrase(next)) — it is paused until browser_handle_dialog answers that one too (dialog_id=\(next["id"] as? String ?? "?"))"
+    } else {
+        line += ". The page runs again; browser_snapshot to see it"
+    }
+    return line
+}
+
+/// browser_page_errors: the exceptions and console errors the page has logged
+/// since it loaded (as far as Chrome kept them), and the failed requests since
+/// the agent attached, oldest first. Worded as the Windows and Linux server words it.
+func describePageErrors(_ payload: [String: Any], tabId: Int) -> String {
+    let tab = payload["tabId"] as? Int ?? tabId
+    let fresh = payload["fresh"] as? Bool == true
+    let requests = fresh
+        ? "failed requests since the agent began watching it just now"
+        : "failed requests since the agent attached \(payload["since"] as? String ?? "?") ago"
+    // Why exceptions and console errors could not be read, when they could not.
+    let note = payload["note"] as? String
+    let entries = payload["entries"] as? [[String: Any]] ?? []
+    if entries.isEmpty {
+        if let note { return "no \(requests) in tab \(tab)\nnote: \(note)" }
+        var line = "no problems in tab \(tab): no uncaught exceptions or console errors logged since the page loaded, and no \(requests)"
+        if fresh { line += ". A request that failed before then is not seen: repeat what went wrong, then call browser_page_errors again" }
+        return line
+    }
+    var header = "\(entries.count) problem\(entries.count == 1 ? "" : "s") in tab \(tab): exceptions and console errors the page has logged since it loaded (Chrome keeps a limited number), and \(requests)"
+    let dropped = payload["dropped"] as? Int ?? 0
+    if dropped > 0 {
+        header += " (\(dropped) older one\(dropped == 1 ? "" : "s") dropped; the latest \(payload["limit"] as? Int ?? 50) are kept)"
+    }
+    header += ". URLs are shown without query strings or fragments:"
+    var lines = [header]
+    for entry in entries {
+        var line = "  \(entry["kind"] as? String ?? "") \(entry["ago"] as? String ?? "") ago"
+        if entry["earlier"] as? Bool == true { line += " (before the agent attached)" }
+        line += ": \(entry["text"] as? String ?? "")"
+        if let url = entry["url"] as? String, !url.isEmpty { line += "  [\(url)]" }
+        if let repeats = entry["repeats"] as? Int { line += " (repeated \(repeats) times)" }
+        lines.append(line)
+    }
+    if let note { lines.append("note: \(note)") }
+    return lines.joined(separator: "\n")
+}
+
+func toolBrowserHandleDialog(_ args: [String: Any]) -> String {
+    guard let tabId = args["tab_id"] as? Int else { return "error: missing required argument 'tab_id'" }
+    guard let action = args["action"] as? String else { return "error: missing required argument 'action' (accept or dismiss)" }
+    var params: [String: Any] = ["tabId": tabId, "action": action]
+    // Passed through as given: the extension checks them, the same on every platform.
+    if let text = args["prompt_text"] { params["promptText"] = text }
+    if let id = args["dialog_id"] { params["dialogId"] = id }
+    return bridgeText(browserSessionCall("handle_dialog", params, args: args)) { payload in
+        describeHandledDialog(payload, tabId: tabId)
+    }
+}
+
+func toolBrowserPageErrors(_ args: [String: Any]) -> String {
+    guard let tabId = args["tab_id"] as? Int else { return "error: missing required argument 'tab_id'" }
+    return bridgeText(browserSessionCall("page_errors", ["tabId": tabId], args: args)) { payload in
+        describePageErrors(payload, tabId: tabId)
+    }
+}
+
+func describeSnapshot(_ payload: [String: Any]) -> String {
+    let elements = payload["elements"] as? [[String: Any]] ?? []
+    var lines = ["\(payload["title"] as? String ?? "?")  [\(payload["url"] as? String ?? "")]"]
+    // A page paused behind a JavaScript dialog: the dialog comes first.
+    if let dialog = payload["jsDialog"] as? [String: Any] {
+        lines.append("dialog open: \(dialogPhrase(dialog)) — the page is paused until browser_handle_dialog answers it (dialog_id=\(dialog["id"] as? String ?? "?"))")
+    }
+    if let total = payload["total"] as? Int {
+        let offset = payload["offset"] as? Int ?? 0
+        let limit = payload["limit"] as? Int ?? 250
+        let scope = payload["scope"] as? String ?? "page"
+        lines.append("scope: \(scope); offset=\(offset), limit=\(limit), total=\(total)")
+        if let dialog = payload["dialog"] as? String, !dialog.isEmpty {
+            lines.append("dialog: \"\(dialog)\" — only its controls are listed")
+        }
+        if payload["truncated"] as? Bool == true, let next = payload["nextOffset"] as? Int {
+            lines.append("truncated — continue with browser_snapshot offset=\(next), limit=\(limit) (same tab_id/session_id; unchanged UI keeps indices)")
+        }
+        if let frames = payload["frames"] as? Int, frames > 0 {
+            lines.append(framesNote(frames, blocked: payload["framesBlocked"] as? Int ?? 0))
+        }
+        if let empty = payload["empty"] as? String { lines.append("note: \(empty)") }
+    }
+    for element in elements {
+        let index = element["i"] as? Int ?? -1
+        let tag = element["tag"] as? String ?? "?"
+        let label = element["label"] as? String ?? ""
+        let offscreen = (element["inView"] as? Bool == false) ? "  (scrolled out of view)" : ""
+        // Checked, selected, disabled: what a person sees on the control.
+        let state = (element["state"] as? String).map { $0.isEmpty ? "" : " (\($0))" } ?? ""
+        // An element inside a frame says which one, so a chat's Send is not
+        // taken for the page's own.
+        let frame = (element["frame"] as? String).map { " (in frame \"\($0)\")" } ?? ""
+        lines.append("  [\(index)] \(tag)\(label.isEmpty ? "" : " \"\(label)\"")\(state)\(frame)\(offscreen)")
+    }
+    return lines.joined(separator: "\n")
+}
+
 func toolBrowserSnapshot(_ args: [String: Any]) -> String {
     guard let tabId = args["tab_id"] as? Int else { return "error: missing required argument 'tab_id'" }
-    return bridgeText(BrowserBridge.shared.call("snapshot", ["tabId": tabId])) { payload in
-        let elements = payload["elements"] as? [[String: Any]] ?? []
-        var lines = ["\(payload["title"] as? String ?? "?")  [\(payload["url"] as? String ?? "")]"]
-        for element in elements {
-            let index = element["i"] as? Int ?? -1
-            let tag = element["tag"] as? String ?? "?"
-            let label = element["label"] as? String ?? ""
-            let offscreen = (element["inView"] as? Bool == false) ? "  (scrolled out of view)" : ""
-            lines.append("  [\(index)] \(tag)\(label.isEmpty ? "" : " \"\(label)\"")\(offscreen)")
+    var params: [String: Any] = ["tabId": tabId]
+    // Preserve invalid values too: the extension validates the same contract on
+    // every platform instead of silently replacing a malformed request.
+    for key in ["offset", "limit"] {
+        if let value = args[key] { params[key] = value }
+    }
+    return bridgeText(browserSessionCall("snapshot", withReturnState(params, args), args: args)) { payload in
+        describeReadiness(payload) + describeSnapshot(payload)
+    }
+}
+
+/// browser_read: the page text, and where to continue if it was cut off.
+func describeRead(_ payload: [String: Any]) -> String {
+    let text = payload["text"] as? String ?? ""
+    let total = payload["total"] as? Int ?? 0
+    let offset = payload["offset"] as? Int ?? 0
+    let end = payload["end"] as? Int ?? total
+    var out = "\(payload["title"] as? String ?? "?")  [\(payload["url"] as? String ?? "")]"
+    if let matches = payload["matches"] as? Int {
+        out += "\n\(matches) matching line\(matches == 1 ? "" : "s")"
+    }
+    out += "\n\n" + (text.isEmpty && total == 0 ? "(no readable text on this page)" : text)
+    // Why an empty page is empty: not drawn, or text hidden by CSS (#63).
+    if let note = payload["note"] as? String { out += "\nnote: \(note)" }
+    if let frames = payload["frames"] as? Int, frames > 0 {
+        out += "\nnote: \(framesPhrase(frames)) on the page could not be read (gone, or not allowed by the user's site rules) — "
+            + "browser_screenshot shows the tab, frames included, without bringing it to front"
+    }
+    if offset > 0 || end < total {
+        out += "\n\n… showing characters \(offset)–\(end) of \(total)"
+        if end < total { out += "; call browser_read again with offset=\(end) for more" }
+    }
+    if let links = payload["links"] as? [[String: Any]] {
+        out += "\n\nlinks (\(links.count)):"
+        for link in links {
+            out += "\n  \(link["text"] as? String ?? "")  [\(link["href"] as? String ?? "")]"
         }
-        return lines.joined(separator: "\n")
+    }
+    return out
+}
+
+func toolBrowserRead(_ args: [String: Any]) -> String {
+    guard let tabId = args["tab_id"] as? Int else { return "error: missing required argument 'tab_id'" }
+    var params: [String: Any] = ["tabId": tabId]
+    if let query = args["query"] as? String { params["query"] = query }
+    if let maxChars = args["max_chars"] as? Int { params["maxChars"] = maxChars }
+    if let offset = args["offset"] as? Int { params["offset"] = offset }
+    if let links = args["include_links"] as? Bool { params["includeLinks"] = links }
+    return bridgeText(browserSessionCall("read", params, args: args), describeRead)
+}
+
+/// browser_request_credentials: what happened, never what was typed.
+func describeCredentials(_ payload: [String: Any], tabId: Int) -> String {
+    let origin = payload["origin"] as? String ?? "the site"
+    if payload["timedOut"] as? Bool == true {
+        return "the user did not answer the sign-in prompt for \(origin) in time; nothing was filled"
+    }
+    if payload["cancelled"] as? Bool == true {
+        return "the user cancelled the sign-in prompt for \(origin); nothing was filled"
+    }
+    if let reason = payload["failed"] as? String { return "error: could not show the sign-in prompt: \(reason)" }
+    let filled = (payload["filled"] as? [Int] ?? []).map(String.init)
+    let missing = (payload["missing"] as? [Int] ?? []).map(String.init)
+    var line = "the user filled \(filled.count) field\(filled.count == 1 ? "" : "s") on \(origin) in tab \(tabId) "
+        + "(index \(filled.joined(separator: ", "))); the values are not shown to you. "
+        + "Submit the form yourself, for example by clicking its sign-in button."
+    if !missing.isEmpty {
+        line += " Index \(missing.joined(separator: ", ")) had left the page and was not filled."
+    }
+    return line
+}
+
+func toolBrowserRequestCredentials(_ args: [String: Any]) -> String {
+    guard let tabId = args["tab_id"] as? Int else { return "error: missing required argument 'tab_id'" }
+    guard let fields = args["fields"] as? [[String: Any]] else {
+        return "error: missing required argument 'fields' — list the inputs by browser_snapshot index"
+    }
+    var params: [String: Any] = ["tabId": tabId, "fields": fields]
+    if let reason = args["reason"] as? String { params["reason"] = reason }
+    if let seconds = args["timeout_seconds"] as? Int {
+        params["timeoutMs"] = min(max(seconds, 10), credentialMaxWaitSeconds) * 1000
+    }
+    return bridgeText(browserSessionCall("request_credentials", params, args: args)) { payload in
+        describeCredentials(payload, tabId: tabId)
     }
 }
 
@@ -2291,8 +3848,21 @@ func toolBrowserClick(_ args: [String: Any]) -> String {
     // The Chrome extension paints the same agent pointer into the page. Keep
     // that as the source of truth for tab clicks — background tabs are not
     // composited, so a desktop overlay at guessed screen coords would lie.
-    return bridgeText(BrowserBridge.shared.call("click", params)) { payload in
+    return bridgeText(browserSessionCall("click", withReturnState(params, args), args: args)) { payload in
         var line = "clicked in tab \(tabId)"
+        // Which element an indexed click pressed and how, so a click the page
+        // ignored can be told from one that went to a stale index.
+        if let target = payload["target"] as? String {
+            if payload["route"] as? String == "input" {
+                line += " — \(target), with real mouse input"
+            } else {
+                let why = payload["why"] as? String ?? "real input could not reach it"
+                line += " — \(target), as page events (\(why))"
+            }
+        }
+        // A checkbox, radio or switch says what it is now, and whether that changed.
+        if let state = payload["state"] as? String, !state.isEmpty { line += " — it is now \(state)" }
+        if let note = payload["note"] as? String { line += " — \(note)" }
         if let cursor = payload["cursor"] as? [String: Any] {
             if cursor["ok"] as? Bool == true {
                 let glow = cursor["hasGlow"] as? Bool == true ? "glow" : "no-glow"
@@ -2302,31 +3872,210 @@ func toolBrowserClick(_ args: [String: Any]) -> String {
                 line += " (pointer missing: \(reason))"
             }
         }
-        return line
+        return withPageAfter(line, payload)
     }
 }
 
 func toolBrowserType(_ args: [String: Any]) -> String {
     guard let tabId = args["tab_id"] as? Int else { return "error: missing required argument 'tab_id'" }
     guard let text = args["text"] as? String else { return "error: missing required argument 'text'" }
-    return bridgeText(BrowserBridge.shared.call("type", ["tabId": tabId, "text": text])) { _ in
-        "typed \(text.count) characters into tab \(tabId)"
+    return bridgeText(browserSessionCall("type", withReturnState(["tabId": tabId, "text": text], args), args: args)) { payload in
+        withPageAfter("typed \(text.count) characters into tab \(tabId)\(noteSuffix(payload))", payload)
     }
+}
+
+func toolBrowserHover(_ args: [String: Any]) -> String {
+    guard let tabId = args["tab_id"] as? Int else { return "error: missing required argument 'tab_id'" }
+    var params: [String: Any] = ["tabId": tabId]
+    if let index = args["index"] as? Int {
+        params["index"] = index
+    } else if let x = args["x"] as? Double, let y = args["y"] as? Double {
+        params["x"] = x
+        params["y"] = y
+    } else {
+        return "error: provide either index (from browser_snapshot), or both x and y"
+    }
+    return bridgeText(browserSessionCall("hover", withReturnState(params, args), args: args)) { payload in
+        withPageAfter(describeHover(payload, tabId: tabId), payload)
+    }
+}
+
+/// Where browser_hover rested the agent's pointer, and how it got there.
+/// Worded as the Windows and Linux server words it.
+func describeHover(_ payload: [String: Any], tabId: Int) -> String {
+    let at: String
+    if let target = payload["target"] as? String {
+        at = target
+    } else {
+        let x = (payload["x"] as? Double ?? 0).rounded()
+        let y = (payload["y"] as? Double ?? 0).rounded()
+        at = "(\(Int(x)), \(Int(y)))"
+    }
+    var line = "hovered over \(at) in tab \(tabId)"
+    if payload["route"] as? String == "input" {
+        line += " with the real mouse pointer; nothing was pressed"
+    } else {
+        let why = payload["why"] as? String ?? "real input could not reach it"
+        line += " as page events (\(why)); nothing was pressed. Hover handlers ran, CSS :hover styles do not apply"
+    }
+    return line + noteSuffix(payload)
+}
+
+func toolBrowserSelectOption(_ args: [String: Any]) -> String {
+    guard let tabId = args["tab_id"] as? Int else { return "error: missing required argument 'tab_id'" }
+    guard let index = args["index"] as? Int else { return "error: missing required argument 'index'" }
+    guard let values = args["values"] else { return "error: missing required argument 'values' (option values or labels)" }
+    // Passed through as given: the extension checks them, the same on every platform.
+    let params: [String: Any] = ["tabId": tabId, "index": index, "values": values]
+    return bridgeText(browserSessionCall("select_option", withReturnState(params, args), args: args)) { payload in
+        withPageAfter(describeSelectOption(payload, tabId: tabId), payload)
+    }
+}
+
+/// What browser_select_option chose, read back from the select, and whether
+/// the page saw a change. Worded as the Windows and Linux server words it.
+func describeSelectOption(_ payload: [String: Any], tabId: Int) -> String {
+    let target = payload["target"] as? String ?? "the select"
+    let selected = (payload["selected"] as? [Any] ?? []).compactMap { $0 as? String }.map { "\"\($0)\"" }
+    var line = "\(target) in tab \(tabId) now has \(selected.isEmpty ? "nothing" : selected.joined(separator: ", ")) selected"
+    line += payload["changed"] as? Bool == false
+        ? " — it already had that, so the page got no change event"
+        : " — the page got its input and change events"
+    return line + noteSuffix(payload)
+}
+
+func toolBrowserFill(_ args: [String: Any]) -> String {
+    guard let tabId = args["tab_id"] as? Int else { return "error: missing required argument 'tab_id'" }
+    guard let index = args["index"] as? Int else { return "error: missing required argument 'index'" }
+    guard let text = args["text"] as? String else { return "error: missing required argument 'text'" }
+    let params: [String: Any] = ["tabId": tabId, "index": index, "text": text]
+    return bridgeText(browserSessionCall("fill", withReturnState(params, args), args: args)) { payload in
+        withPageAfter(describeFill(payload, tabId: tabId, count: text.count), payload)
+    }
+}
+
+/// What browser_fill left in the field: exactly the text, or what the page
+/// made of it, so a mask, a length limit or a page that refused is visible.
+func describeFill(_ payload: [String: Any], tabId: Int, count: Int) -> String {
+    let target = payload["target"] as? String ?? "the field"
+    var line = count == 0
+        ? "cleared \(target) in tab \(tabId)"
+        : "filled \(target) in tab \(tabId) with \(count) characters, replacing its value"
+    if payload["matches"] as? Bool == false {
+        let actual = payload["actualLength"] as? Int ?? 0
+        line += " — but the field now holds \(actual) characters that differ from the text"
+        if let value = payload["value"] as? String { line += ": \"\(value)\"" }
+        line += " (the page changed or limited what was entered)"
+    }
+    if let note = payload["note"] as? String { line += " — \(note)" }
+    return line
+}
+
+/// Most files one browser_upload_file call attaches; the extension holds the same limit.
+let uploadMaxFiles = 50
+
+/// browser_upload_file's paths, checked before anything is sent: each must be
+/// an absolute path of a regular file this process can read. The extension
+/// reaches this server over native messaging, so this is the machine running
+/// Chrome, where Chrome will read the files. Chrome itself attaches a missing
+/// path without complaint, as a file the site then fails to read.
+func checkUploadPaths(_ value: Any?) -> String? {
+    guard let paths = value as? [Any] else {
+        return "missing required argument 'paths' (absolute paths of the files to attach)"
+    }
+    if paths.isEmpty || paths.count > uploadMaxFiles {
+        return "paths must list 1 to \(uploadMaxFiles) absolute file paths"
+    }
+    for (at, path) in paths.enumerated() {
+        guard let text = path as? String, !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            return "paths[\(at)] must be a nonempty string"
+        }
+        var problem: String?
+        if !text.hasPrefix("/") {
+            problem = "is not an absolute path; pass the full path of the file"
+        } else {
+            let resolved = URL(fileURLWithPath: text).resolvingSymlinksInPath().path
+            var isDirectory: ObjCBool = false
+            let type = (try? FileManager.default.attributesOfItem(atPath: resolved))?[.type] as? FileAttributeType
+            if !FileManager.default.fileExists(atPath: resolved, isDirectory: &isDirectory) {
+                problem = "does not exist on this computer"
+            } else if isDirectory.boolValue {
+                problem = "is a folder, not a file"
+            } else if type != .typeRegular {
+                problem = "is not a regular file"
+            } else if !FileManager.default.isReadableFile(atPath: resolved) {
+                problem = "cannot be read"
+            }
+        }
+        if let problem {
+            return "not attached: \(text) \(problem). Paths are on the computer running Chrome and this server; "
+                + "nothing was sent to the page"
+        }
+    }
+    return nil
+}
+
+func toolBrowserUploadFile(_ args: [String: Any]) -> String {
+    guard let tabId = args["tab_id"] as? Int else { return "error: missing required argument 'tab_id'" }
+    guard let index = args["index"] as? Int else { return "error: missing required argument 'index'" }
+    // Local paths are checked here, on the machine running Chrome, before
+    // anything reaches the extension.
+    if let problem = checkUploadPaths(args["paths"]) { return "error: \(problem)" }
+    let paths = args["paths"] as? [Any] ?? []
+    let params: [String: Any] = ["tabId": tabId, "index": index, "paths": paths]
+    return bridgeText(browserSessionCall("upload_file", withReturnState(params, args), args: args)) { payload in
+        withPageAfter(describeUpload(payload, tabId: tabId, sent: paths.count), payload)
+    }
+}
+
+/// What browser_upload_file left in the input: the files it holds, read back
+/// from the page, and whether the page saw them arrive. Staging is not
+/// sending, so the reply says the site has not received them.
+func describeUpload(_ payload: [String: Any], tabId: Int, sent: Int) -> String {
+    let target = payload["target"] as? String ?? "the file input"
+    let files = (payload["files"] as? [Any] ?? []).compactMap { $0 as? String }
+    var line = "attached \(files.count) file\(files.count == 1 ? "" : "s") to \(target) in tab \(tabId)"
+    if !files.isEmpty { line += ": " + files.joined(separator: ", ") }
+    if files.count != sent { line += " — but \(sent) were sent, so the input does not hold what was asked" }
+    let change = (payload["events"] as? [String: Any])?["change"] as? Bool == true
+    line += change ? " — the page got its change event" : " — the page got no change event, so it may not have noticed them"
+    line += ". Nothing was submitted: the files are staged in the input, and the site has not received them. "
+        + "Submit the form or press the page's upload button yourself when that is wanted, then check the page."
+    return line
 }
 
 func toolBrowserPressKey(_ args: [String: Any]) -> String {
     guard let tabId = args["tab_id"] as? Int else { return "error: missing required argument 'tab_id'" }
     guard let key = args["key"] as? String else { return "error: missing required argument 'key'" }
-    return bridgeText(BrowserBridge.shared.call("press", ["tabId": tabId, "key": key])) { _ in
-        "pressed \(key) in tab \(tabId)"
+    var params: [String: Any] = ["tabId": tabId, "key": key]
+    if let modifiers = args["modifiers"] { params["modifiers"] = modifiers }
+    return bridgeText(browserSessionCall("press", withReturnState(params, args), args: args)) { payload in
+        withPageAfter(describePress(payload, tabId: tabId, key: key), payload)
     }
+}
+
+func describePress(_ payload: [String: Any], tabId: Int, key: String) -> String {
+    var line = "pressed \(payload["pressed"] as? String ?? key) in tab \(tabId)"
+    // Tab says where focus went, so the next type is not a guess.
+    if payload["handledByPage"] as? Bool == true {
+        line += " — the page handled it itself"
+    } else if let focused = payload["focused"] as? String {
+        line += " — focus is now on \(focused)"
+        if let selected = payload["selected"] as? Int, selected > 0 {
+            line += " with \(selected) character\(selected == 1 ? "" : "s") selected"
+        }
+    }
+    // Backspace says when it could not check or had to edit itself, and a
+    // shortcut says when it was sent as this platform's version of it.
+    if let note = payload["note"] as? String { line += " — \(note)" }
+    return line
 }
 
 func toolBrowserCloseAllTabs(_ args: [String: Any]) -> String {
     guard BrowserBridge.shared.isConnected else {
         return "error: the Pine Computer Use Chrome extension is not connected"
     }
-    return bridgeText(BrowserBridge.shared.call("close_all_tabs")) { payload in
+    return bridgeText(browserSessionCall("close_all_tabs", args: args)) { payload in
         let closed = payload["closed"] as? Int ?? 0
         let released = payload["released"] as? Int ?? 0
         var parts: [String] = []
@@ -2339,8 +4088,8 @@ func toolBrowserCloseAllTabs(_ args: [String: Any]) -> String {
 func toolBrowserNavigate(_ args: [String: Any]) -> String {
     guard let tabId = args["tab_id"] as? Int else { return "error: missing required argument 'tab_id'" }
     guard let url = args["url"] as? String else { return "error: missing required argument 'url'" }
-    return bridgeText(BrowserBridge.shared.call("navigate", ["tabId": tabId, "url": url])) { _ in
-        "navigated tab \(tabId) to \(url)"
+    return bridgeText(browserSessionCall("navigate", withReturnState(["tabId": tabId, "url": url], args), args: args)) { payload in
+        withPageAfter("navigated tab \(tabId) to \(url)\(noteSuffix(payload))", payload)
     }
 }
 
@@ -2382,7 +4131,7 @@ func toolBrowserUseTab(_ args: [String: Any]) -> String {
             + "which is not connected. Without it, use browser_open_tab, or drive Chrome with "
             + "get_app_state + click."
     }
-    return bridgeText(BrowserBridge.shared.call("use_tab", ["tabId": tabId])) { payload in
+    return bridgeText(browserSessionCall("use_tab", ["tabId": tabId], args: args)) { payload in
         let title = payload["title"] as? String ?? ""
         let url = payload["url"] as? String ?? ""
         let adopted = payload["adopted"] as? Bool ?? false
@@ -2399,7 +4148,7 @@ func toolBrowserReleaseTab(_ args: [String: Any]) -> String {
     guard BrowserBridge.shared.isConnected else {
         return "error: the Pine Computer Use Chrome extension is not connected"
     }
-    return bridgeText(BrowserBridge.shared.call("release_tab", ["tabId": tabId])) { _ in
+    return bridgeText(browserSessionCall("release_tab", ["tabId": tabId], args: args)) { _ in
         "released tab \(tabId) back to the user"
     }
 }
@@ -2445,153 +4194,702 @@ func obj(_ d: [String: Any]) -> [String: Any] { d }
 let toolDefs: [[String: Any]] = [
     [
         "name": "list_apps",
-        "description": "List running applications with their bundle id, pid, window count, and which is frontmost. Note that one app can have several running instances and only some may own windows.",
-        "inputSchema": ["type": "object", "properties": [:] as [String: Any]],
+        "description": "List running applications with their bundle id, pid, window count, and which one is frontmost. Call it first to learn the exact `app` value that get_app_state, screenshot and activate_app accept. One app can have several running instances and only some own windows, so prefer the instance that has windows. Instances that share a name each show their main window title, and a closing note lists their pids: pass the pid to choose one. Read-only: no window or input is touched.",
+        "inputSchema": [
+            "type": "object",
+            "properties": [:] as [String: Any],
+        ],
+        "annotations": [
+            "title": "List running apps",
+            "readOnlyHint": true,
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": false,
+        ],
     ],
     [
         "name": "get_app_state",
-        "description": "Read an app's accessibility tree as an indented outline. Interactive elements are prefixed with an id like [e12] that you pass to click/type_text/scroll. Call this before interacting, and again after the UI changes, since ids are per-snapshot.",
+        "description": "Read an app's accessibility tree as an indented outline in which interactive elements carry ids like [e12] that click, type_text, set_value, scroll, hover and select_text accept. Use it instead of screenshot whenever you intend to act: it is far cheaper in tokens and gives exact targets. Call it before interacting and again after the UI changes, because ids are per-snapshot. Each id is rechecked before an action: one whose element is gone or has changed fails instead of acting on something else. The outline lists what is on screen: rows of long lists and content scrolled out of view are skipped (scroll, or pass offscreen), and while a dialog, sheet or popover blocks a window only its controls are listed. When an app exposes little to accessibility, its on-screen text is read with OCR and listed with ids too. Read-only; it does not change focus.",
         "inputSchema": [
             "type": "object",
             "properties": [
-                "app": ["type": "string", "description": "App name, bundle id, or pid"],
-                "max_depth": ["type": "integer", "description": "Max tree depth (default 18)"],
-                "max_elements": ["type": "integer", "description": "Max elements to emit (default 800)"],
-                "window": ["description": "Limit to one window: a 0-based index, or \"agent\" for the browser window this agent owns"],
-                "query": ["type": "string", "description": "Only list elements whose role, label or value contains this text (case-insensitive). Ids stay valid. Use it instead of raising max_elements when you know what you are looking for."],
+                "app": [
+                    "type": "string",
+                    "description": "App name, bundle id, or pid exactly as reported by list_apps, or \"frontmost\" for the app the user is looking at",
+                ],
+                "max_depth": [
+                    "type": "integer",
+                    "description": "Maximum nesting depth to descend (default 18). Lower it for a quick overview of a large window.",
+                ],
+                "max_elements": [
+                    "type": "integer",
+                    "description": "Maximum elements to emit before the outline is truncated (default 800). With `query`, the maximum matches to list instead: a query searches past this cap. Prefer `query` over raising this.",
+                ],
+                "window": [
+                    "type": ["integer", "string"],
+                    "description": "Limit to one window: a 0-based index, or \"agent\" for the browser window this agent owns",
+                ],
+                "query": [
+                    "type": "string",
+                    "description": "Only list elements whose role, label or value contains this text (case-insensitive). Ids stay valid. It searches the whole outline, not just the first max_elements elements, and says when the read stopped early. Use it instead of raising max_elements when you know what you are looking for.",
+                ],
+                "offscreen": [
+                    "type": "boolean",
+                    "description": "Also list elements scrolled out of view, such as every row of a long list (default false). Prefer scrolling or `query`: this can make the outline far larger.",
+                ],
+                "ocr": [
+                    "type": "string",
+                    "enum": ["auto", "always", "never"],
+                    "description": "Read on-screen text with OCR and list it with ids that click, hover, right_click and drag accept: auto (default) only when the app exposes no labelled controls to accessibility, always, or never. macOS and Windows; macOS needs Screen Recording permission.",
+                ],
             ],
             "required": ["app"],
+        ],
+        "annotations": [
+            "title": "Read accessibility tree",
+            "readOnlyHint": true,
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": false,
         ],
     ],
     [
         "name": "click",
-        "description": "Click an element by element_id (preferred, uses the accessibility press action) or at absolute screen coordinates. The agent pointer overlay moves to the target without moving the user's mouse.",
+        "description": "Click an element by element_id (preferred: it uses the accessibility press action, so it works even when the element is scrolled out of view) or at absolute screen coordinates taken from a screenshot or zoom. Pass element_id or x and y, not both. When element_id is clicked by position (web content, or no press action), the point is checked with the app's own hit test first, and the element is scrolled into view if needed; if something else is there the call fails without clicking. A checkbox or radio button says what it is now, and a click that left it unchanged is reported as an error. Use browser_click for pages in the agent's Chrome tabs, right_click for context menus, and drag for press-move-release. The click reaches the target app for real and can trigger any action the user could, so read the target with get_app_state first. The agent's own pointer overlay moves to the target. On macOS the user's mouse pointer never moves; on Windows and Linux a target that ignores background input gets real mouse input, which moves the user's pointer, and the result then says via cursor.",
         "inputSchema": [
             "type": "object",
             "properties": [
-                "element_id": ["type": "string", "description": "Element id from get_app_state, e.g. e12"],
-                "x": ["type": "number"], "y": ["type": "number"],
-                "click_count": ["type": "integer", "description": "1 for single, 2 for double-click"],
+                "element_id": [
+                    "type": "string",
+                    "description": "Element id from the most recent get_app_state snapshot, e.g. e12. Preferred over coordinates.",
+                ],
+                "x": [
+                    "type": "number",
+                    "description": "Screen x coordinate in points, used together with y when no element_id is given",
+                ],
+                "y": [
+                    "type": "number",
+                    "description": "Screen y coordinate in points, used together with x when no element_id is given",
+                ],
+                "click_count": [
+                    "type": "integer",
+                    "description": "1 for a single click (default), 2 for a double-click",
+                ],
+                "return_state": [
+                    "type": "boolean",
+                    "description": "After acting, wait for the app to finish reacting (up to 2 s) and append a fresh get_app_state of the app you last read, so you can check the result and pick the next target in the same call. Its ids replace every earlier id.",
+                ],
+                "state_query": [
+                    "type": "string",
+                    "description": "With return_state, list only elements whose role, label or value contains this text, like get_app_state's query",
+                ],
             ],
+        ],
+        "annotations": [
+            "title": "Click",
+            "readOnlyHint": false,
+            "destructiveHint": true,
+            "idempotentHint": false,
+            "openWorldHint": false,
         ],
     ],
     [
         "name": "type_text",
-        "description": "Type literal text into the focused element, optionally focusing element_id first.",
+        "description": "Type literal text as keystrokes into the field that currently has focus, optionally focusing element_id first. Use it for short entries and for fields that reject set_value; use set_value to replace a long value in one step, and press_key for shortcuts or keys such as return and tab. Never use it for a Chrome tab the agent works in (it goes to whichever Chrome window is in front, which can be the user's); use browser_type or browser_fill there. Text is inserted at the caret without clearing what is already there. It does not take over the user's keyboard: on macOS and Windows the text goes to the app you are working in, not the window the user is typing in, so do not call activate_app first. Typing into password fields is refused by default (see COMPUTER_USE_ALLOW_SECURE_FIELD_INPUT).",
         "inputSchema": [
             "type": "object",
             "properties": [
-                "text": ["type": "string"],
-                "element_id": ["type": "string", "description": "Focus this element before typing"],
+                "text": [
+                    "type": "string",
+                    "description": "Exact text to type, character by character",
+                ],
+                "element_id": [
+                    "type": "string",
+                    "description": "Element to focus before typing, from get_app_state. Omit to type into whatever currently has focus.",
+                ],
+                "return_state": [
+                    "type": "boolean",
+                    "description": "After acting, wait for the app to finish reacting (up to 2 s) and append a fresh get_app_state of the app you last read, so you can check the result and pick the next target in the same call. Its ids replace every earlier id.",
+                ],
+                "state_query": [
+                    "type": "string",
+                    "description": "With return_state, list only elements whose role, label or value contains this text, like get_app_state's query",
+                ],
             ],
             "required": ["text"],
+        ],
+        "annotations": [
+            "title": "Type text",
+            "readOnlyHint": false,
+            "destructiveHint": true,
+            "idempotentHint": false,
+            "openWorldHint": false,
         ],
     ],
     [
         "name": "press_key",
-        "description": "Press a named key with optional modifiers, e.g. key='s' modifiers=['cmd'] to save, or key='return'.",
+        "description": "Press one named key, optionally with modifiers held, e.g. key='s' modifiers=['cmd'] to save or key='return' to submit. Use it for shortcuts and navigation keys; use type_text for literal text. Never use it for a Chrome tab the agent works in: it goes to whichever Chrome window is in front, which can be the user's; use browser_press_key, browser_type or browser_fill there. The key goes to the app you are working in (the one you last clicked or focused); on macOS and Windows the user can keep typing elsewhere meanwhile, so call activate_app only when nothing has targeted the app yet. Shortcuts can close windows or delete content, so confirm the target before pressing.",
         "inputSchema": [
             "type": "object",
             "properties": [
-                "key": ["type": "string"],
-                "modifiers": ["type": "array", "items": ["type": "string"],
-                              "description": "Any of cmd, shift, alt, ctrl, fn"],
+                "key": [
+                    "type": "string",
+                    "description": "Key name: a single character such as 's' or '/' (resolved through the current keyboard layout), or a named key: return, tab, escape, space, delete, backspace, forwarddelete, up, down, left, right, home, end, pageup, pagedown, insert, f1 to f20, punctuation names (minus, equal, leftbracket, rightbracket, backslash, semicolon, quote, comma, period, slash, grave), numpad0 to numpad9, numpadadd, numpadsubtract, numpadmultiply, numpaddivide, numpaddecimal, numpadenter",
+                ],
+                "modifiers": [
+                    "type": "array",
+                    "items": [
+                        "type": "string",
+                    ],
+                    "description": "Modifier keys to hold while pressing: any of cmd, shift, alt, ctrl, fn. cmd maps to the Windows/Super key off macOS.",
+                ],
+                "return_state": [
+                    "type": "boolean",
+                    "description": "After acting, wait for the app to finish reacting (up to 2 s) and append a fresh get_app_state of the app you last read, so you can check the result and pick the next target in the same call. Its ids replace every earlier id.",
+                ],
+                "state_query": [
+                    "type": "string",
+                    "description": "With return_state, list only elements whose role, label or value contains this text, like get_app_state's query",
+                ],
             ],
             "required": ["key"],
+        ],
+        "annotations": [
+            "title": "Press key",
+            "readOnlyHint": false,
+            "destructiveHint": true,
+            "idempotentHint": false,
+            "openWorldHint": false,
         ],
     ],
     [
         "name": "scroll",
-        "description": "Scroll up, down, left, or right, optionally positioning the cursor over element_id first.",
+        "description": "Scroll up, down, left or right by a number of lines, over element_id when given so the right pane scrolls. Use it to bring off-screen content into view before get_app_state or screenshot. It only scrolls; nothing is clicked or selected. On macOS it scrolls the target app in the background without moving the user's pointer. On Windows and Linux, without element_id it scrolls whatever is under the user's pointer, and an element with no background route gets the real pointer moved onto it (the result then says via cursor).",
         "inputSchema": [
             "type": "object",
             "properties": [
-                "direction": ["type": "string", "enum": ["up", "down", "left", "right"]],
-                "amount": ["type": "integer", "description": "Scroll lines (default 5)"],
-                "element_id": ["type": "string"],
+                "direction": [
+                    "type": "string",
+                    "enum": ["up", "down", "left", "right"],
+                    "description": "Scroll direction (default down)",
+                ],
+                "amount": [
+                    "type": "integer",
+                    "description": "Number of scroll lines, 1 to 100 (default 5)",
+                ],
+                "element_id": [
+                    "type": "string",
+                    "description": "Element to scroll, from get_app_state; the nearest scrollable area around it moves. Omit to scroll the last inspected app (macOS) or whatever is under the pointer (Windows, Linux).",
+                ],
+                "x": [
+                    "type": "number",
+                    "description": "Screen x to scroll over. Remote control only: the pointer moves there first. Ignored otherwise.",
+                ],
+                "y": [
+                    "type": "number",
+                    "description": "Screen y to scroll over. Remote control only: the pointer moves there first. Ignored otherwise.",
+                ],
+                "return_state": [
+                    "type": "boolean",
+                    "description": "After acting, wait for the app to finish reacting (up to 2 s) and append a fresh get_app_state of the app you last read, so you can check the result and pick the next target in the same call. Its ids replace every earlier id.",
+                ],
+                "state_query": [
+                    "type": "string",
+                    "description": "With return_state, list only elements whose role, label or value contains this text, like get_app_state's query",
+                ],
             ],
+        ],
+        "annotations": [
+            "title": "Scroll",
+            "readOnlyHint": false,
+            "destructiveHint": false,
+            "idempotentHint": false,
+            "openWorldHint": false,
         ],
     ],
     [
         "name": "activate_app",
-        "description": "Bring an app to the foreground.",
+        "description": "Bring an app's windows to the foreground and give it keyboard focus. type_text, press_key and element-id actions such as click and set_value do not need it; use it only when the app itself must be in front. Side effect: the window the user was working in loses focus.",
         "inputSchema": [
             "type": "object",
-            "properties": ["app": ["type": "string"]],
+            "properties": [
+                "app": [
+                    "type": "string",
+                    "description": "App name, bundle id, or pid exactly as reported by list_apps",
+                ],
+            ],
             "required": ["app"],
+        ],
+        "annotations": [
+            "title": "Activate app",
+            "readOnlyHint": false,
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": false,
+        ],
+    ],
+    [
+        "name": "launch_app",
+        "description": "Start an installed app that is not running yet, by the name the system's app list shows (the Start menu on Windows, the app launcher on Linux, Applications on macOS) or its id (bundle id on macOS, Start menu AppID on Windows, desktop file id on Linux), then wait for its first window. A unique start of a name is enough (\"calc\" for Calculator); several matches are listed instead of guessed. If the app is already running, nothing is started and the reply gives its pid: use get_app_state or activate_app. The reply names the running app and its pid for get_app_state. macOS opens it without bringing it to the front; on Windows and Linux its first window may come to the front, so the user's foreground rule applies. The user's app rules apply as they do to every app.",
+        "inputSchema": [
+            "type": "object",
+            "properties": [
+                "app": [
+                    "type": "string",
+                    "description": "App name as the system lists installed apps (\"Calculator\", \"Visual Studio Code\"), or its bundle id, Start menu AppID or desktop file id",
+                ],
+                "wait_seconds": [
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 30,
+                    "description": "How long to wait for the app's first window (default 10). 0 starts it and returns at once.",
+                ],
+            ],
+            "required": ["app"],
+        ],
+        "annotations": [
+            "title": "Launch app",
+            "readOnlyHint": false,
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": false,
         ],
     ],
     [
         "name": "screenshot",
-        "description": "Capture the app's largest window (or a whole display) as a PNG image. The result text states the capture's screen origin and pixels-per-point so you can convert an image pixel into click/hover coordinates. Prefer get_app_state for interaction, which is cheaper and gives clickable element ids; use a screenshot to verify an outcome or to see content the accessibility tree does not describe (canvas, video, custom drawing). Use zoom to read small text.",
+        "description": "Capture an app's largest window, or a whole display, as an image. The result text states the capture's screen origin and pixels-per-point so an image pixel can be converted into click or hover coordinates. Prefer get_app_state for interaction, which is cheaper and returns clickable element ids; for a Chrome tab the agent works in, use browser_screenshot instead, which sees the tab without bringing it to front. Use screenshot to verify an outcome or to see content the accessibility tree cannot describe (canvas, video, custom drawing), and zoom to read small text. Read-only; the captured window is not raised or focused.",
         "inputSchema": [
             "type": "object",
             "properties": [
-                "app": ["type": "string", "description": "App name, bundle id, or pid"],
-                "display": ["type": "integer", "description": "Capture a whole display by index (see list_displays) instead of an app window"],
-                "max_width": ["type": "integer", "description": "Downscale to this width in pixels (default 1400)"],
+                "app": [
+                    "type": "string",
+                    "description": "App name, bundle id, or pid exactly as reported by list_apps. Captures that app's largest window. Provide either app or display, or \"frontmost\" for the app the user is looking at",
+                ],
+                "display": [
+                    "type": "integer",
+                    "description": "0-based display index from list_displays. Captures the whole display instead of an app window.",
+                ],
+                "max_width": [
+                    "type": "integer",
+                    "description": "Downscale the image to this width in pixels (default 1400). Lower it to save tokens.",
+                ],
+                "format": [
+                    "type": "string",
+                    "enum": ["png", "jpeg"],
+                    "description": "Image encoding (default png). Use jpeg for live remote viewing.",
+                ],
+                "quality": [
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 100,
+                    "description": "JPEG quality from 1 to 100 (default 55). Ignored for png. Raise it when small text must stay sharp.",
+                ],
             ],
+        ],
+        "annotations": [
+            "title": "Screenshot",
+            "readOnlyHint": true,
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": false,
         ],
     ],
     [
         "name": "list_displays",
-        "description": "List every attached display with its index, resolution and position, for use with screenshot(display: N).",
-        "inputSchema": ["type": "object", "properties": [:] as [String: Any]],
+        "description": "List every attached display with its index, resolution and position, for use with screenshot(display: N) and for interpreting screen coordinates on multi-monitor setups. Read-only.",
+        "inputSchema": [
+            "type": "object",
+            "properties": [:] as [String: Any],
+        ],
+        "annotations": [
+            "title": "List displays",
+            "readOnlyHint": true,
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": false,
+        ],
     ],
     [
         "name": "right_click",
-        "description": "Right-click (secondary click) an element or screen position to open a context menu.",
+        "description": "Right-click (secondary click) an element or screen position to open its context menu. Follow with get_app_state to read the menu items, then click one. Use click for normal activation. Pass element_id or x and y, not both. The user's pointer is treated as for click.",
         "inputSchema": [
             "type": "object",
             "properties": [
-                "element_id": ["type": "string"],
-                "x": ["type": "number"], "y": ["type": "number"],
+                "element_id": [
+                    "type": "string",
+                    "description": "Element id from the most recent get_app_state snapshot, e.g. e12",
+                ],
+                "x": [
+                    "type": "number",
+                    "description": "Screen x coordinate in points, used together with y when no element_id is given",
+                ],
+                "y": [
+                    "type": "number",
+                    "description": "Screen y coordinate in points, used together with x when no element_id is given",
+                ],
+                "return_state": [
+                    "type": "boolean",
+                    "description": "After acting, wait for the app to finish reacting (up to 2 s) and append a fresh get_app_state of the app you last read, so you can check the result and pick the next target in the same call. Its ids replace every earlier id.",
+                ],
+                "state_query": [
+                    "type": "string",
+                    "description": "With return_state, list only elements whose role, label or value contains this text, like get_app_state's query",
+                ],
             ],
+        ],
+        "annotations": [
+            "title": "Right-click",
+            "readOnlyHint": false,
+            "destructiveHint": true,
+            "idempotentHint": false,
+            "openWorldHint": false,
         ],
     ],
     [
         "name": "drag",
-        "description": "Press at one point, drag, and release at another. Accepts element ids or coordinates on each end.",
+        "description": "Press at one point, move, and release at another to drag and drop, move a slider, or select a range. Give each end as an element id or as screen coordinates; the two ends may use different forms. A drop can move or reorder items in the app, so verify the result with get_app_state. On macOS a drag must stay inside one app window and never moves the user's pointer; on Windows and Linux most drags use real mouse input, which moves the user's pointer (the result then says via cursor).",
         "inputSchema": [
             "type": "object",
             "properties": [
-                "from_element_id": ["type": "string"], "to_element_id": ["type": "string"],
-                "from_x": ["type": "number"], "from_y": ["type": "number"],
-                "to_x": ["type": "number"], "to_y": ["type": "number"],
+                "from_element_id": [
+                    "type": "string",
+                    "description": "Element to start the drag on, from get_app_state",
+                ],
+                "to_element_id": [
+                    "type": "string",
+                    "description": "Element to release on, from get_app_state",
+                ],
+                "from_x": [
+                    "type": "number",
+                    "description": "Screen x to start at, used with from_y when no from_element_id is given",
+                ],
+                "from_y": [
+                    "type": "number",
+                    "description": "Screen y to start at, used with from_x when no from_element_id is given",
+                ],
+                "to_x": [
+                    "type": "number",
+                    "description": "Screen x to release at, used with to_y when no to_element_id is given",
+                ],
+                "to_y": [
+                    "type": "number",
+                    "description": "Screen y to release at, used with to_x when no to_element_id is given",
+                ],
+                "return_state": [
+                    "type": "boolean",
+                    "description": "After acting, wait for the app to finish reacting (up to 2 s) and append a fresh get_app_state of the app you last read, so you can check the result and pick the next target in the same call. Its ids replace every earlier id.",
+                ],
+                "state_query": [
+                    "type": "string",
+                    "description": "With return_state, list only elements whose role, label or value contains this text, like get_app_state's query",
+                ],
             ],
+        ],
+        "annotations": [
+            "title": "Drag",
+            "readOnlyHint": false,
+            "destructiveHint": true,
+            "idempotentHint": false,
+            "openWorldHint": false,
         ],
     ],
     [
         "name": "set_value",
-        "description": "Replace a text field's contents directly. More reliable than select-all-then-type for long values, though some fields reject it and need click + type_text.",
+        "description": "Replace a text field's entire contents in one step through the accessibility API, without keystrokes. Prefer it over type_text for long values or when the field already holds text; fall back to click plus type_text if the field rejects it, which the result reports. The previous value is discarded.",
         "inputSchema": [
             "type": "object",
             "properties": [
-                "element_id": ["type": "string"],
-                "value": ["type": "string"],
+                "element_id": [
+                    "type": "string",
+                    "description": "Text field to set, from get_app_state",
+                ],
+                "value": [
+                    "type": "string",
+                    "description": "New complete value for the field",
+                ],
+                "return_state": [
+                    "type": "boolean",
+                    "description": "After acting, wait for the app to finish reacting (up to 2 s) and append a fresh get_app_state of the app you last read, so you can check the result and pick the next target in the same call. Its ids replace every earlier id.",
+                ],
+                "state_query": [
+                    "type": "string",
+                    "description": "With return_state, list only elements whose role, label or value contains this text, like get_app_state's query",
+                ],
             ],
             "required": ["element_id", "value"],
+        ],
+        "annotations": [
+            "title": "Set field value",
+            "readOnlyHint": false,
+            "destructiveHint": true,
+            "idempotentHint": true,
+            "openWorldHint": false,
+        ],
+    ],
+    [
+        "name": "zoom",
+        "description": "Capture one region of the screen at full resolution, to read small text, dense tables, file names or tiny controls that a normal screenshot blurs. Give the region as two corners in screen coordinates (the same space click uses); the result text explains how to map pixels in the zoomed image back to screen coordinates. Use screenshot for a whole window and get_app_state when the text is exposed by accessibility. Read-only.",
+        "inputSchema": [
+            "type": "object",
+            "properties": [
+                "x0": [
+                    "type": "number",
+                    "description": "Left edge, screen coordinates",
+                ],
+                "y0": [
+                    "type": "number",
+                    "description": "Top edge, screen coordinates",
+                ],
+                "x1": [
+                    "type": "number",
+                    "description": "Right edge, screen coordinates",
+                ],
+                "y1": [
+                    "type": "number",
+                    "description": "Bottom edge, screen coordinates",
+                ],
+                "max_width": [
+                    "type": "integer",
+                    "description": "Downscale the zoomed image to this width in pixels (default 1400)",
+                ],
+            ],
+            "required": ["x0", "y0", "x1", "y1"],
+        ],
+        "annotations": [
+            "title": "Zoom into region",
+            "readOnlyHint": true,
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": false,
+        ],
+    ],
+    [
+        "name": "hover",
+        "description": "Move the agent pointer over an element or screen position without clicking, to reveal hover menus, toolbars, tooltips or drag handles. Follow with get_app_state or screenshot to see what appeared. Use click to activate. Pass element_id or x and y, not both. On macOS the user's own mouse pointer is not moved; on Windows and Linux it may be, and the result then says via cursor.",
+        "inputSchema": [
+            "type": "object",
+            "properties": [
+                "element_id": [
+                    "type": "string",
+                    "description": "Element id from the most recent get_app_state snapshot, e.g. e12",
+                ],
+                "x": [
+                    "type": "number",
+                    "description": "Screen x coordinate in points, used together with y when no element_id is given",
+                ],
+                "y": [
+                    "type": "number",
+                    "description": "Screen y coordinate in points, used together with x when no element_id is given",
+                ],
+                "return_state": [
+                    "type": "boolean",
+                    "description": "After acting, wait for the app to finish reacting (up to 2 s) and append a fresh get_app_state of the app you last read, so you can check the result and pick the next target in the same call. Its ids replace every earlier id.",
+                ],
+                "state_query": [
+                    "type": "string",
+                    "description": "With return_state, list only elements whose role, label or value contains this text, like get_app_state's query",
+                ],
+            ],
+        ],
+        "annotations": [
+            "title": "Hover",
+            "readOnlyHint": false,
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": false,
+        ],
+    ],
+    [
+        "name": "wait",
+        "description": "Pause before the next action so the UI can catch up: page loads, animations, dialogs opening, apps launching. Follow with get_app_state or screenshot to confirm the new state instead of guessing. Sends no input.",
+        "inputSchema": [
+            "type": "object",
+            "properties": [
+                "seconds": [
+                    "type": "number",
+                    "description": "Seconds to wait (default 1, maximum 30)",
+                ],
+            ],
+        ],
+        "annotations": [
+            "title": "Wait",
+            "readOnlyHint": true,
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": false,
+        ],
+    ],
+    [
+        "name": "run_steps",
+        "description": "Run a sequence of actions in one call, in order, stopping at the first step that fails. Each step names another tool and its arguments, and runs exactly as if you had called it: the same app and site rules, element id checks and password-field refusals apply. Use it for steps you already know will follow each other, like click a field, type, press return, after reading the app with get_app_state. Element ids from that snapshot stay valid until a step reads the app again. The result lists every step's outcome; when a step fails, the steps after it do not run and the call reports an error. Put return_state on run_steps, not on a step, to get the state after the last step. At most 20 steps; run_steps cannot contain run_steps.",
+        "inputSchema": [
+            "type": "object",
+            "properties": [
+                "steps": [
+                    "type": "array",
+                    "description": "The actions to run, in order",
+                    "items": [
+                        "type": "object",
+                        "properties": [
+                            "tool": [
+                                "type": "string",
+                                "description": "Name of the tool to call, e.g. click, type_text, press_key, wait, browser_click",
+                            ],
+                            "args": [
+                                "type": "object",
+                                "description": "That tool's arguments, as you would pass them to it directly",
+                            ],
+                        ],
+                        "required": ["tool"],
+                    ],
+                ],
+                "return_state": [
+                    "type": "boolean",
+                    "description": "Pass return_state to the last step, so the result ends with the state after it (the app you last read, or the page for a browser step)",
+                ],
+                "state_query": [
+                    "type": "string",
+                    "description": "With return_state, list only elements whose role, label or value contains this text, like get_app_state's query",
+                ],
+            ],
+            "required": ["steps"],
+        ],
+        "annotations": [
+            "title": "Run steps",
+            "readOnlyHint": false,
+            "destructiveHint": true,
+            "idempotentHint": false,
+            "openWorldHint": true,
+        ],
+    ],
+    [
+        "name": "select_text",
+        "description": "Select a character range inside a text element through the accessibility API, for example to copy part of a value or to replace just that part with type_text. Defaults to selecting from `start` to the end of the value. Use set_value to replace the whole value instead. Only the selection changes; the text is not modified.",
+        "inputSchema": [
+            "type": "object",
+            "properties": [
+                "element_id": [
+                    "type": "string",
+                    "description": "Text element to select in, from get_app_state",
+                ],
+                "start": [
+                    "type": "integer",
+                    "description": "Zero-based character offset to start the selection at (default 0)",
+                ],
+                "length": [
+                    "type": "integer",
+                    "description": "Number of characters to select (default: through the end of the value)",
+                ],
+                "return_state": [
+                    "type": "boolean",
+                    "description": "After acting, wait for the app to finish reacting (up to 2 s) and append a fresh get_app_state of the app you last read, so you can check the result and pick the next target in the same call. Its ids replace every earlier id.",
+                ],
+                "state_query": [
+                    "type": "string",
+                    "description": "With return_state, list only elements whose role, label or value contains this text, like get_app_state's query",
+                ],
+            ],
+            "required": ["element_id"],
+        ],
+        "annotations": [
+            "title": "Select text",
+            "readOnlyHint": false,
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": false,
+        ],
+    ],
+    [
+        "name": "clipboard_read",
+        "description": "Read the plain text on the system clipboard, for example after press_key cmd+c (ctrl+c off macOS) copied a selection, or when the user says they copied something for you. Prefer get_app_state, browser_snapshot or screenshot to read what is on screen; use this for text that was deliberately copied. Images and files on the clipboard are reported as no text. Read-only, but the clipboard can hold private data the user copied, such as passwords, so do not repeat it beyond what the task needs.",
+        "inputSchema": [
+            "type": "object",
+            "properties": [
+                "max_chars": [
+                    "type": "integer",
+                    "description": "Maximum characters to return (default 20000, maximum 200000). Longer text is cut off with a note giving its full length.",
+                ],
+            ],
+        ],
+        "annotations": [
+            "title": "Read clipboard",
+            "readOnlyHint": true,
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": false,
+        ],
+    ],
+    [
+        "name": "clipboard_write",
+        "description": "Replace the system clipboard with plain text, typically so a long or multi-line value can be pasted with press_key cmd+v (ctrl+v off macOS) where set_value is rejected and type_text would be slow. This tool does not paste anything itself. Side effect: whatever the user had on the clipboard is overwritten and not restored, so tell the user when you use it. Prefer set_value or type_text when they work.",
+        "inputSchema": [
+            "type": "object",
+            "properties": [
+                "text": [
+                    "type": "string",
+                    "description": "Exact text to place on the clipboard, replacing its current contents",
+                ],
+            ],
+            "required": ["text"],
+        ],
+        "annotations": [
+            "title": "Write clipboard",
+            "readOnlyHint": false,
+            "destructiveHint": true,
+            "idempotentHint": true,
+            "openWorldHint": false,
         ],
     ],
     [
         "name": "browser_open_tab",
-        "description": "Open a URL in a new background tab inside the agent's own labelled tab group, in the user's signed-in Chrome. The user keeps browsing their tabs undisturbed. Returns a tab_id for browser_snapshot / browser_click.",
+        "description": "Open a URL in a new background tab inside the agent's own labelled tab group in the user's signed-in Chrome, and return its tab_id for browser_snapshot, browser_click, browser_type and browser_navigate. The tab opens in the background, so the user's browsing is not interrupted. Use browser_use_tab instead when the user already has the page open and signed in. Requires the Computer Use Chrome extension; a limited fallback mode applies without it.",
         "inputSchema": [
             "type": "object",
-            "properties": ["url": ["type": "string", "description": "URL to open (default about:blank)"]],
+            "properties": [
+                "session_id": [
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128,
+                    "description": "Stable task or thread ID. Pass the same value on every browser call for this task. Different IDs isolate tabs and cleanup within one MCP process. Omit for the default process session.",
+                ],
+                "url": [
+                    "type": "string",
+                    "description": "Absolute URL to open (default about:blank)",
+                ],
+            ],
+        ],
+        "annotations": [
+            "title": "Open browser tab",
+            "readOnlyHint": false,
+            "destructiveHint": false,
+            "idempotentHint": false,
+            "openWorldHint": true,
         ],
     ],
     [
         "name": "browser_list_tabs",
-        "description": "List the tabs in the agent's own Chrome window, marking the active one. Pass all=true to see every tab open in the browser, including the user's, so you can pick one to drive with browser_use_tab.",
+        "description": "List the tabs in the agent's own Chrome tab group, marking the active one, with the tab_id each other browser tool needs. Pass all=true to see every tab open in the browser, including the user's, so you can pick one to drive with browser_use_tab. Read-only.",
         "inputSchema": [
             "type": "object",
             "properties": [
+                "session_id": [
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128,
+                    "description": "Stable task or thread ID. Pass the same value on every browser call for this task. Different IDs isolate tabs and cleanup within one MCP process. Omit for the default process session.",
+                ],
                 "all": [
                     "type": "boolean",
                     "description": "List every tab in the browser, not just the agent's (default false)",
-                ]
+                ],
             ],
+        ],
+        "annotations": [
+            "title": "List browser tabs",
+            "readOnlyHint": true,
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": false,
         ],
     ],
     [
@@ -2599,161 +4897,941 @@ let toolDefs: [[String: Any]] = [
         "description": "Take over a tab the user already has open, instead of opening a new one. Use this when the page is already signed in or mid-flow — a checkout, a draft, a dashboard behind SSO — and re-opening the URL would lose that state. Find the tab_id with browser_list_tabs all=true. The tab stays exactly where it is in the user's window; it is not moved into the agent's group, not activated, and not reloaded. It is never closed by cleanup — call browser_release_tab to hand it back. Ask the user before taking over a tab they are actively working in.",
         "inputSchema": [
             "type": "object",
-            "properties": ["tab_id": ["type": "integer", "description": "From browser_list_tabs all=true"]],
+            "properties": [
+                "session_id": [
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128,
+                    "description": "Stable task or thread ID. Pass the same value on every browser call for this task. Different IDs isolate tabs and cleanup within one MCP process. Omit for the default process session.",
+                ],
+                "tab_id": [
+                    "type": "integer",
+                    "description": "tab_id of the user's tab, from browser_list_tabs all=true",
+                ],
+            ],
             "required": ["tab_id"],
+        ],
+        "annotations": [
+            "title": "Adopt user's tab",
+            "readOnlyHint": false,
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": true,
         ],
     ],
     [
         "name": "browser_release_tab",
-        "description": "Hand a tab taken over with browser_use_tab back to the user: the agent stops driving it and the page is left exactly as it is.",
+        "description": "Hand a tab taken over with browser_use_tab back to the user: the agent stops driving it and the page is left exactly as it is. Call it as soon as you are done with an adopted tab. Use browser_close_tab for tabs the agent opened itself.",
         "inputSchema": [
             "type": "object",
-            "properties": ["tab_id": ["type": "integer"]],
+            "properties": [
+                "session_id": [
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128,
+                    "description": "Stable task or thread ID. Pass the same value on every browser call for this task. Different IDs isolate tabs and cleanup within one MCP process. Omit for the default process session.",
+                ],
+                "tab_id": [
+                    "type": "integer",
+                    "description": "tab_id of a tab previously adopted with browser_use_tab",
+                ],
+            ],
             "required": ["tab_id"],
+        ],
+        "annotations": [
+            "title": "Release adopted tab",
+            "readOnlyHint": false,
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": false,
         ],
     ],
     [
         "name": "browser_select_tab",
-        "description": "Make one of the agent's tabs the visible one. Does not affect the user's tabs.",
+        "description": "Make one of the agent's tabs the visible one in its window. Rarely needed: browser_snapshot, browser_read, browser_screenshot, browser_click, browser_type, browser_fill and browser_press_key all work on a background tab, frames included, so the user can keep using their own tab. By default the tab is only shown when the user is already looking at one of the agent's tabs; otherwise it stays in the background, the user keeps their tab, and the reply says it was not brought to front. bring_to_front=true switches the user's window to this tab and raises it over whatever they are doing, which interrupts them: it is a last resort, only for native keyboard input or a desktop capture that cannot work any other way, never to look at a page (use browser_screenshot). The user's own tabs are never selected.",
         "inputSchema": [
             "type": "object",
             "properties": [
-                "tab_id": ["type": "integer", "description": "From browser_list_tabs"],
-                "index": ["type": "integer", "description": "1-based index, fallback mode only"],
+                "session_id": [
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128,
+                    "description": "Stable task or thread ID. Pass the same value on every browser call for this task. Different IDs isolate tabs and cleanup within one MCP process. Omit for the default process session.",
+                ],
+                "tab_id": [
+                    "type": "integer",
+                    "description": "tab_id of one of the agent's tabs, from browser_open_tab or browser_list_tabs",
+                ],
+                "bring_to_front": [
+                    "type": "boolean",
+                    "description": "Show the tab and raise its Chrome window even when the user is on one of their own tabs. This interrupts the user; last resort only, never to look at the page (browser_screenshot does that in the background). Default false: the tab is only shown when the user is already on an agent tab.",
+                ],
+                "index": [
+                    "type": "integer",
+                    "description": "1-based position within the agent's tabs; fallback mode only, when tab_id is unavailable",
+                ],
             ],
+        ],
+        "annotations": [
+            "title": "Select browser tab",
+            "readOnlyHint": false,
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": false,
         ],
     ],
     [
         "name": "browser_close_tab",
-        "description": "Close one of the agent's tabs. A tab taken over with browser_use_tab is released rather than closed — it belongs to the user.",
+        "description": "Close one of the agent's tabs, discarding any unsaved page state. A tab taken over with browser_use_tab is released rather than closed — it belongs to the user. Use browser_close_all_tabs to clean up everything at the end of a task.",
         "inputSchema": [
             "type": "object",
             "properties": [
-                "tab_id": ["type": "integer", "description": "From browser_list_tabs"],
-                "index": ["type": "integer", "description": "1-based index, fallback mode only"],
+                "session_id": [
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128,
+                    "description": "Stable task or thread ID. Pass the same value on every browser call for this task. Different IDs isolate tabs and cleanup within one MCP process. Omit for the default process session.",
+                ],
+                "tab_id": [
+                    "type": "integer",
+                    "description": "tab_id of one of the agent's tabs, from browser_open_tab or browser_list_tabs",
+                ],
+                "index": [
+                    "type": "integer",
+                    "description": "1-based position within the agent's tabs; fallback mode only, when tab_id is unavailable",
+                ],
             ],
+        ],
+        "annotations": [
+            "title": "Close browser tab",
+            "readOnlyHint": false,
+            "destructiveHint": true,
+            "idempotentHint": true,
+            "openWorldHint": false,
         ],
     ],
     [
         "name": "browser_snapshot",
-        "description": "List the interactive elements on a page in one of the agent's tabs, with indices to pass to browser_click. Works on a background tab, so the user can be looking at something else.",
+        "description": "List the interactive elements (links, buttons, inputs, tabs, checkboxes, table and grid rows listed as row with their cell text, and other clickable elements) on the page in one of the agent's tabs, with the index each one has for browser_click, plus the page title and URL. Inputs show their type, such as input[password], and text the page lets you edit in place shows as [editable], such as span[editable] (click it, or browser_fill it); checkboxes, radios and switches are named by their label and show their state, such as (checked) or (unchecked, disabled). Controls inside frames (iframes), such as an embedded support chat, payment form or sign-in box, are listed after the page's own, each marked with the frame it is in; their indices work with browser_click, browser_fill and browser_upload_file like any other. Works on a background tab, so the user can be looking at something else. Use it before every browser_click, because indices change when the page changes; use browser_read for the page's text. Read-only. Automatically scopes to the topmost visible dialog when one is open, naming it on a dialog: line, excluding hidden/inert controls but retaining reachable offscreen controls. Results report scope, total and truncation. Continue with offset and limit on the same tab/session; indices stay global across pages of an unchanged UI. Snapshot again after UI changes. While the page has a JavaScript dialog open (alert, confirm, prompt), the snapshot shows the dialog's type, message and dialog_id instead, for browser_handle_dialog.",
         "inputSchema": [
             "type": "object",
-            "properties": ["tab_id": ["type": "integer", "description": "From browser_open_tab or browser_list_tabs"]],
+            "properties": [
+                "session_id": [
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128,
+                    "description": "Stable task or thread ID. Pass the same value on every browser call for this task. Different IDs isolate tabs and cleanup within one MCP process. Omit for the default process session.",
+                ],
+                "tab_id": [
+                    "type": "integer",
+                    "description": "tab_id of one of the agent's tabs, from browser_open_tab or browser_list_tabs",
+                ],
+                "offset": [
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 2147483647,
+                    "description": "Control offset for pagination (default 0). Use the continuation offset from the previous result on an unchanged UI.",
+                ],
+                "limit": [
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 250,
+                    "description": "Maximum controls returned per page (default 250, maximum 250).",
+                ],
+                "wait_for_selector": [
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 2000,
+                    "description": "Wait for any visible element matching this CSS selector in the page or any of its frames (iframes), including open shadow roots (web components); a timeout says how many frames could not be searched. On actions requires return_state=true. Returns readiness met, timeout or error; only this condition is checked, not general app readiness. Prefer a selector specific to the expected new UI.",
+                ],
+                "wait_timeout_ms": [
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 10000,
+                    "description": "Bound for wait_for_selector in milliseconds (default 8000, maximum 10000; 0 checks once). Requires wait_for_selector. Timeout preserves action success and returns current state. Use browser_snapshot with the same wait to re-observe without repeating an action.",
+                ],
+            ],
             "required": ["tab_id"],
+        ],
+        "annotations": [
+            "title": "Snapshot page elements",
+            "readOnlyHint": true,
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": true,
+        ],
+    ],
+    [
+        "name": "browser_read",
+        "description": "Read the text of the page in one of the agent's tabs: headings marked with #, then paragraphs, lists and table text in reading order, including content scrolled out of view. Text inside frames (an embedded chat, a form from another site) follows the page's, each under a [frame \"name\"] line. Use it to read an article, results or documentation; use browser_snapshot to find something to click. Works on a background tab. Long pages come back in chunks: the result says where it stopped, and offset continues from there. Read-only.",
+        "inputSchema": [
+            "type": "object",
+            "properties": [
+                "session_id": [
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128,
+                    "description": "Stable task or thread ID. Pass the same value on every browser call for this task. Different IDs isolate tabs and cleanup within one MCP process. Omit for the default process session.",
+                ],
+                "tab_id": [
+                    "type": "integer",
+                    "description": "tab_id of one of the agent's tabs, from browser_open_tab or browser_list_tabs",
+                ],
+                "query": [
+                    "type": "string",
+                    "description": "Only return lines containing this text (case-insensitive), each with its neighbouring lines and the heading above it",
+                ],
+                "max_chars": [
+                    "type": "integer",
+                    "description": "Characters to return (default 20000, at most 200000)",
+                ],
+                "offset": [
+                    "type": "integer",
+                    "description": "Character offset to start from, to continue a page that was cut off (default 0)",
+                ],
+                "include_links": [
+                    "type": "boolean",
+                    "description": "Also list the page's links as text and URL (up to 150)",
+                ],
+            ],
+            "required": ["tab_id"],
+        ],
+        "annotations": [
+            "title": "Read page text",
+            "readOnlyHint": true,
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": true,
+        ],
+    ],
+    [
+        "name": "browser_screenshot",
+        "description": "See one of the agent's tabs as an image while it stays in the background: the visible part of the page as Chrome renders it for that tab alone, frames included (an embedded chat, a payment form, a canvas or video). The tab is not selected, its window is not raised and the screen is not captured, so the user keeps working in their own tab; never bring a tab to front to look at it. Use it to check a result or to see what browser_snapshot and browser_read cannot describe. The result text gives the page's size in CSS pixels and how to turn an image pixel into browser_click x and y. Read-only.",
+        "inputSchema": [
+            "type": "object",
+            "properties": [
+                "session_id": [
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128,
+                    "description": "Stable task or thread ID. Pass the same value on every browser call for this task. Different IDs isolate tabs and cleanup within one MCP process. Omit for the default process session.",
+                ],
+                "tab_id": [
+                    "type": "integer",
+                    "description": "tab_id of one of the agent's tabs, from browser_open_tab or browser_list_tabs",
+                ],
+                "max_width": [
+                    "type": "integer",
+                    "description": "Downscale the image to this width in pixels (default 1400). Lower it to save tokens.",
+                ],
+                "format": [
+                    "type": "string",
+                    "enum": ["png", "jpeg"],
+                    "description": "Image encoding (default png). jpeg is smaller.",
+                ],
+                "quality": [
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 100,
+                    "description": "JPEG quality from 1 to 100 (default 55). Ignored for png. Raise it when small text must stay sharp.",
+                ],
+            ],
+            "required": ["tab_id"],
+        ],
+        "annotations": [
+            "title": "Screenshot browser tab",
+            "readOnlyHint": true,
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": true,
+        ],
+    ],
+    [
+        "name": "browser_page_errors",
+        "description": "List the problems the page in one of the agent's tabs has reported: uncaught JavaScript exceptions and console errors the page has logged since it loaded (Chrome keeps a limited number), and requests that failed since the agent attached to the tab (network errors and HTTP status 400 or above), oldest first, with how long ago each happened. Use it when a page is empty, broken or ignores an action, before navigating again or assuming a sign-in problem. The reply says when watching for failed requests began; ones Chrome still held from before are marked as earlier. Exceptions and console errors are read from what Chrome keeps for the page during this call only, so the page is not watched for them in between. The latest 50 are listed. URLs are shown without query strings, fragments or credentials, and request headers, cookies and bodies are never read. Read-only: it does not reload, navigate or show the tab.",
+        "inputSchema": [
+            "type": "object",
+            "properties": [
+                "session_id": [
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128,
+                    "description": "Stable task or thread ID. Pass the same value on every browser call for this task. Different IDs isolate tabs and cleanup within one MCP process. Omit for the default process session.",
+                ],
+                "tab_id": [
+                    "type": "integer",
+                    "description": "tab_id of one of the agent's tabs, from browser_open_tab or browser_list_tabs",
+                ],
+            ],
+            "required": ["tab_id"],
+        ],
+        "annotations": [
+            "title": "List page errors",
+            "readOnlyHint": true,
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": true,
         ],
     ],
     [
         "name": "browser_click",
-        "description": "Click in one of the agent's tabs, by element index from browser_snapshot or by page coordinates. Works on a background tab.",
+        "description": "Click in one of the agent's tabs, either an element by its index from browser_snapshot (preferred) or a point given in page coordinates. Pass index or x and y, not both; an index can name an element inside a frame, which is pressed at its place on the page. Works on a background tab with real (trusted) mouse input, without selecting the tab or raising its window. An element out of view is scrolled into view first; when something else covers it (a banner, a dialog, another control) nothing is pressed and the call fails, naming what is in front. A checkbox, radio or switch reports what it is now. A tab the click opens (a target=_blank link or a popup) becomes one of the agent's tabs; find it with browser_list_tabs. Use click for native app windows. A click can submit forms or follow links, so snapshot first.",
         "inputSchema": [
             "type": "object",
             "properties": [
-                "tab_id": ["type": "integer"],
-                "index": ["type": "integer", "description": "Element index from browser_snapshot"],
-                "x": ["type": "number"], "y": ["type": "number"],
+                "session_id": [
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128,
+                    "description": "Stable task or thread ID. Pass the same value on every browser call for this task. Different IDs isolate tabs and cleanup within one MCP process. Omit for the default process session.",
+                ],
+                "tab_id": [
+                    "type": "integer",
+                    "description": "tab_id of one of the agent's tabs, from browser_open_tab or browser_list_tabs",
+                ],
+                "index": [
+                    "type": "integer",
+                    "description": "Element index from the latest browser_snapshot of this tab. Preferred over coordinates.",
+                ],
+                "x": [
+                    "type": "number",
+                    "description": "Page x coordinate in CSS pixels, used together with y when no index is given",
+                ],
+                "y": [
+                    "type": "number",
+                    "description": "Page y coordinate in CSS pixels, used together with x when no index is given",
+                ],
+                "return_state": [
+                    "type": "boolean",
+                    "description": "Append a current snapshot and readiness status after acting. Without wait_for_selector, only a short pause and bounded navigation wait are used; SPA readiness is not guaranteed. Snapshot indices replace earlier ones. A timeout does not mean the action failed: re-observe with browser_snapshot before repeating it.",
+                ],
+                "wait_for_selector": [
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 2000,
+                    "description": "Wait for any visible element matching this CSS selector in the page or any of its frames (iframes), including open shadow roots (web components); a timeout says how many frames could not be searched. On actions requires return_state=true. Returns readiness met, timeout or error; only this condition is checked, not general app readiness. Prefer a selector specific to the expected new UI.",
+                ],
+                "wait_timeout_ms": [
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 10000,
+                    "description": "Bound for wait_for_selector in milliseconds (default 8000, maximum 10000; 0 checks once). Requires wait_for_selector. Timeout preserves action success and returns current state. Use browser_snapshot with the same wait to re-observe without repeating an action.",
+                ],
             ],
             "required": ["tab_id"],
+        ],
+        "annotations": [
+            "title": "Click in browser",
+            "readOnlyHint": false,
+            "destructiveHint": true,
+            "idempotentHint": false,
+            "openWorldHint": true,
+        ],
+    ],
+    [
+        "name": "browser_hover",
+        "description": "Rest the agent's pointer on an element in one of the agent's tabs, by its browser_snapshot index (preferred) or at a point in page coordinates, to open a menu, submenu or tooltip that appears on hover. Nothing is pressed. Works on a background tab with real (trusted) mouse movement, without selecting the tab or raising its window; the element is scrolled into view and checked the way browser_click checks it, and when something else covers it the call fails, naming what is in front. Pass return_state with wait_for_selector to see what the hover opened in the same call. Use hover for native app windows.",
+        "inputSchema": [
+            "type": "object",
+            "properties": [
+                "session_id": [
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128,
+                    "description": "Stable task or thread ID. Pass the same value on every browser call for this task. Different IDs isolate tabs and cleanup within one MCP process. Omit for the default process session.",
+                ],
+                "tab_id": [
+                    "type": "integer",
+                    "description": "tab_id of one of the agent's tabs, from browser_open_tab or browser_list_tabs",
+                ],
+                "index": [
+                    "type": "integer",
+                    "description": "Element index from the latest browser_snapshot of this tab. Preferred over coordinates.",
+                ],
+                "x": [
+                    "type": "number",
+                    "description": "Page x coordinate in CSS pixels, used together with y when no index is given",
+                ],
+                "y": [
+                    "type": "number",
+                    "description": "Page y coordinate in CSS pixels, used together with x when no index is given",
+                ],
+                "return_state": [
+                    "type": "boolean",
+                    "description": "Append a current snapshot and readiness status after acting. Without wait_for_selector, only a short pause and bounded navigation wait are used; SPA readiness is not guaranteed. Snapshot indices replace earlier ones. A timeout does not mean the action failed: re-observe with browser_snapshot before repeating it.",
+                ],
+                "wait_for_selector": [
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 2000,
+                    "description": "Wait for any visible element matching this CSS selector in the page or any of its frames (iframes), including open shadow roots (web components); a timeout says how many frames could not be searched. On actions requires return_state=true. Returns readiness met, timeout or error; only this condition is checked, not general app readiness. Prefer a selector specific to the expected new UI.",
+                ],
+                "wait_timeout_ms": [
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 10000,
+                    "description": "Bound for wait_for_selector in milliseconds (default 8000, maximum 10000; 0 checks once). Requires wait_for_selector. Timeout preserves action success and returns current state. Use browser_snapshot with the same wait to re-observe without repeating an action.",
+                ],
+            ],
+            "required": ["tab_id"],
+        ],
+        "annotations": [
+            "title": "Hover in browser",
+            "readOnlyHint": false,
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": false,
         ],
     ],
     [
         "name": "browser_type",
-        "description": "Type text into the focused field of one of the agent's tabs. Click the field first.",
+        "description": "Type text into the field that currently has focus in one of the agent's tabs; browser_click the field first. Text is inserted at the caret without clearing existing content: to replace a field's whole value use browser_fill. Use browser_press_key for Enter, Tab, Backspace, arrows and shortcuts such as Cmd+A, and type_text for native apps. Never use the desktop press_key or type_text for a Chrome tab: those go to whichever Chrome window is in front, which can be the user's.",
         "inputSchema": [
             "type": "object",
-            "properties": ["tab_id": ["type": "integer"], "text": ["type": "string"]],
+            "properties": [
+                "session_id": [
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128,
+                    "description": "Stable task or thread ID. Pass the same value on every browser call for this task. Different IDs isolate tabs and cleanup within one MCP process. Omit for the default process session.",
+                ],
+                "tab_id": [
+                    "type": "integer",
+                    "description": "tab_id of one of the agent's tabs, from browser_open_tab or browser_list_tabs",
+                ],
+                "text": [
+                    "type": "string",
+                    "description": "Exact text to type into the focused field",
+                ],
+                "return_state": [
+                    "type": "boolean",
+                    "description": "Append a current snapshot and readiness status after acting. Without wait_for_selector, only a short pause and bounded navigation wait are used; SPA readiness is not guaranteed. Snapshot indices replace earlier ones. A timeout does not mean the action failed: re-observe with browser_snapshot before repeating it.",
+                ],
+                "wait_for_selector": [
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 2000,
+                    "description": "Wait for any visible element matching this CSS selector in the page or any of its frames (iframes), including open shadow roots (web components); a timeout says how many frames could not be searched. On actions requires return_state=true. Returns readiness met, timeout or error; only this condition is checked, not general app readiness. Prefer a selector specific to the expected new UI.",
+                ],
+                "wait_timeout_ms": [
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 10000,
+                    "description": "Bound for wait_for_selector in milliseconds (default 8000, maximum 10000; 0 checks once). Requires wait_for_selector. Timeout preserves action success and returns current state. Use browser_snapshot with the same wait to re-observe without repeating an action.",
+                ],
+            ],
             "required": ["tab_id", "text"],
+        ],
+        "annotations": [
+            "title": "Type in browser",
+            "readOnlyHint": false,
+            "destructiveHint": true,
+            "idempotentHint": false,
+            "openWorldHint": false,
+        ],
+    ],
+    [
+        "name": "browser_fill",
+        "description": "Replace the whole value of a text field in one of the agent's tabs: focuses the element by its browser_snapshot index, selects everything in it and puts the text in through Chrome's own text input, so the page sees the same trusted input events as typing. Works on input, textarea and contenteditable fields, including inside web components (open shadow roots), in a background tab without selecting it or raising its window. Pass an empty string to clear the field. The reply says whether the field now holds exactly the text, and what it holds when the page changed or limited it (not for password fields). Use browser_type to add at the caret instead, and browser_request_credentials for passwords and codes. Never use the desktop press_key or type_text for a Chrome tab: those go to whichever Chrome window is in front, which can be the user's.",
+        "inputSchema": [
+            "type": "object",
+            "properties": [
+                "session_id": [
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128,
+                    "description": "Stable task or thread ID. Pass the same value on every browser call for this task. Different IDs isolate tabs and cleanup within one MCP process. Omit for the default process session.",
+                ],
+                "tab_id": [
+                    "type": "integer",
+                    "description": "tab_id of one of the agent's tabs, from browser_open_tab or browser_list_tabs",
+                ],
+                "index": [
+                    "type": "integer",
+                    "description": "Element index of the field from the latest browser_snapshot of this tab. An index naming a wrapper that holds exactly one field fills that field.",
+                ],
+                "text": [
+                    "type": "string",
+                    "description": "The field's new value, replacing everything in it. Empty clears the field.",
+                ],
+                "return_state": [
+                    "type": "boolean",
+                    "description": "Append a current snapshot and readiness status after acting. Without wait_for_selector, only a short pause and bounded navigation wait are used; SPA readiness is not guaranteed. Snapshot indices replace earlier ones. A timeout does not mean the action failed: re-observe with browser_snapshot before repeating it.",
+                ],
+                "wait_for_selector": [
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 2000,
+                    "description": "Wait for any visible element matching this CSS selector in the page or any of its frames (iframes), including open shadow roots (web components); a timeout says how many frames could not be searched. On actions requires return_state=true. Returns readiness met, timeout or error; only this condition is checked, not general app readiness. Prefer a selector specific to the expected new UI.",
+                ],
+                "wait_timeout_ms": [
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 10000,
+                    "description": "Bound for wait_for_selector in milliseconds (default 8000, maximum 10000; 0 checks once). Requires wait_for_selector. Timeout preserves action success and returns current state. Use browser_snapshot with the same wait to re-observe without repeating an action.",
+                ],
+            ],
+            "required": ["tab_id", "index", "text"],
+        ],
+        "annotations": [
+            "title": "Fill field in browser",
+            "readOnlyHint": false,
+            "destructiveHint": true,
+            "idempotentHint": true,
+            "openWorldHint": false,
+        ],
+    ],
+    [
+        "name": "browser_select_option",
+        "description": "Choose an option of a native select (dropdown) in one of the agent's tabs, by the select's browser_snapshot index and the option's value or visible label, the way a person's choice in Chrome's dropdown lands: the selection changes and the page gets its input and change events. Chrome draws a select's dropdown outside the page, where browser_snapshot and browser_click cannot reach it, so use this instead of clicking. A label matches whole, ignoring case when nothing matches exactly. Several values choose several options of a select that allows multiple. Nothing is chosen when an option is missing or disabled, and the reply lists the options. Snapshots show each select's current choice. Works in a background tab without selecting it or raising its window. For a custom dropdown built from other elements, open it with browser_click and click its option.",
+        "inputSchema": [
+            "type": "object",
+            "properties": [
+                "session_id": [
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128,
+                    "description": "Stable task or thread ID. Pass the same value on every browser call for this task. Different IDs isolate tabs and cleanup within one MCP process. Omit for the default process session.",
+                ],
+                "tab_id": [
+                    "type": "integer",
+                    "description": "tab_id of one of the agent's tabs, from browser_open_tab or browser_list_tabs",
+                ],
+                "index": [
+                    "type": "integer",
+                    "description": "Element index of the select from the latest browser_snapshot of this tab.",
+                ],
+                "values": [
+                    "type": "array",
+                    "items": [
+                        "type": "string",
+                    ],
+                    "minItems": 1,
+                    "maxItems": 100,
+                    "description": "Option values or visible labels to choose. One for an ordinary select; several only for a select that allows multiple, which then holds exactly these.",
+                ],
+                "return_state": [
+                    "type": "boolean",
+                    "description": "Append a current snapshot and readiness status after acting. Without wait_for_selector, only a short pause and bounded navigation wait are used; SPA readiness is not guaranteed. Snapshot indices replace earlier ones. A timeout does not mean the action failed: re-observe with browser_snapshot before repeating it.",
+                ],
+                "wait_for_selector": [
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 2000,
+                    "description": "Wait for any visible element matching this CSS selector in the page or any of its frames (iframes), including open shadow roots (web components); a timeout says how many frames could not be searched. On actions requires return_state=true. Returns readiness met, timeout or error; only this condition is checked, not general app readiness. Prefer a selector specific to the expected new UI.",
+                ],
+                "wait_timeout_ms": [
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 10000,
+                    "description": "Bound for wait_for_selector in milliseconds (default 8000, maximum 10000; 0 checks once). Requires wait_for_selector. Timeout preserves action success and returns current state. Use browser_snapshot with the same wait to re-observe without repeating an action.",
+                ],
+            ],
+            "required": ["tab_id", "index", "values"],
+        ],
+        "annotations": [
+            "title": "Choose option in browser",
+            "readOnlyHint": false,
+            "destructiveHint": true,
+            "idempotentHint": true,
+            "openWorldHint": false,
+        ],
+    ],
+    [
+        "name": "browser_upload_file",
+        "description": "Attach local files to a file input in one of the agent's tabs, by its browser_snapshot index, as if the user had picked them: Chrome sets the input's files and the page gets its usual input and change events. No file picker opens, the tab is not selected or raised, and no keyboard or mouse input is used. Snapshots list file inputs as input[file], including ones a page hides behind a styled upload button; the index of a label for one works too, and any other element is refused. Paths are absolute paths of regular files on the computer running Chrome and this server, which may not be the machine you run on; each is checked before anything is sent. Several paths need an input that takes several files (multiple). This only stages the files in the input: it never submits the form, and the site has not received them until the page shows it has. Submit or press the page's upload button yourself when the user wants that, then check the page. The reply names the files the input now holds. Never click a file input or its upload button to open the picker: the native dialog cannot be driven from here.",
+        "inputSchema": [
+            "type": "object",
+            "properties": [
+                "session_id": [
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128,
+                    "description": "Stable task or thread ID. Pass the same value on every browser call for this task. Different IDs isolate tabs and cleanup within one MCP process. Omit for the default process session.",
+                ],
+                "tab_id": [
+                    "type": "integer",
+                    "description": "tab_id of one of the agent's tabs, from browser_open_tab or browser_list_tabs",
+                ],
+                "index": [
+                    "type": "integer",
+                    "description": "Element index of the file input (input[file]), or of a label for one, from the latest browser_snapshot of this tab.",
+                ],
+                "paths": [
+                    "type": "array",
+                    "items": [
+                        "type": "string",
+                    ],
+                    "minItems": 1,
+                    "maxItems": 50,
+                    "description": "Absolute paths of the files to attach, on the computer running Chrome and this server. Each must exist and be a regular file, not a folder. More than one needs an input with the multiple attribute. Replaces whatever files the input held.",
+                ],
+                "return_state": [
+                    "type": "boolean",
+                    "description": "Append a current snapshot and readiness status after acting. Without wait_for_selector, only a short pause and bounded navigation wait are used; SPA readiness is not guaranteed. Snapshot indices replace earlier ones. A timeout does not mean the action failed: re-observe with browser_snapshot before repeating it.",
+                ],
+                "wait_for_selector": [
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 2000,
+                    "description": "Wait for any visible element matching this CSS selector in the page or any of its frames (iframes), including open shadow roots (web components); a timeout says how many frames could not be searched. On actions requires return_state=true. Returns readiness met, timeout or error; only this condition is checked, not general app readiness. Prefer a selector specific to the expected new UI.",
+                ],
+                "wait_timeout_ms": [
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 10000,
+                    "description": "Bound for wait_for_selector in milliseconds (default 8000, maximum 10000; 0 checks once). Requires wait_for_selector. Timeout preserves action success and returns current state. Use browser_snapshot with the same wait to re-observe without repeating an action.",
+                ],
+            ],
+            "required": ["tab_id", "index", "paths"],
+        ],
+        "annotations": [
+            "title": "Attach files in browser",
+            "readOnlyHint": false,
+            "destructiveHint": true,
+            "idempotentHint": true,
+            "openWorldHint": false,
+        ],
+    ],
+    [
+        "name": "browser_request_credentials",
+        "description": "Ask the user to sign in on the page in one of the agent's tabs without the values passing through you. Chrome shows the user a small window naming the site's real origin, with one field per input you list; what they type goes straight into those inputs and is never returned to you. Use it for passwords, verification codes and any secret instead of browser_type, and never ask the user to paste a secret into the conversation. Take the input indices from browser_snapshot (password inputs show as input[password]), then click the page's sign-in button yourself. Waits until the user answers, cancels, or the time runs out.",
+        "inputSchema": [
+            "type": "object",
+            "properties": [
+                "session_id": [
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128,
+                    "description": "Stable task or thread ID. Pass the same value on every browser call for this task. Different IDs isolate tabs and cleanup within one MCP process. Omit for the default process session.",
+                ],
+                "tab_id": [
+                    "type": "integer",
+                    "description": "tab_id of one of the agent's tabs, from browser_open_tab or browser_list_tabs",
+                ],
+                "fields": [
+                    "type": "array",
+                    "description": "The inputs to fill, in the order the user should see them (1 to 6)",
+                    "items": [
+                        "type": "object",
+                        "properties": [
+                            "index": [
+                                "type": "integer",
+                                "description": "Input index from the latest browser_snapshot of this tab",
+                            ],
+                            "kind": [
+                                "type": "string",
+                                "enum": ["username", "email", "password", "code", "text"],
+                                "description": "What the user is asked for; inferred from the input's type when omitted",
+                            ],
+                        ],
+                        "required": ["index"],
+                    ],
+                ],
+                "reason": [
+                    "type": "string",
+                    "description": "One sentence the user sees explaining why you need to sign in",
+                ],
+                "timeout_seconds": [
+                    "type": "integer",
+                    "description": "How long to wait for the user (default 180, at most 600)",
+                ],
+            ],
+            "required": ["tab_id", "fields"],
+        ],
+        "annotations": [
+            "title": "Ask the user to sign in",
+            "readOnlyHint": false,
+            "destructiveHint": false,
+            "idempotentHint": false,
+            "openWorldHint": true,
         ],
     ],
     [
         "name": "browser_press_key",
-        "description": "Press Enter, Tab, Escape or Backspace in one of the agent's tabs.",
+        "description": "Press a key in one of the agent's tabs, optionally with modifiers held: Enter to submit, Tab to move to the next field, Escape, Backspace, Delete, arrows, Home/End, PageUp/PageDown, F1-F12, a character, or a shortcut such as key='a' modifiers=['cmd'] to select all in the focused field. Works in a background tab: the key goes to that tab's page only, never to the user's windows, and browser shortcuts (close tab, quit) never reach Chrome itself. Editing shortcuts (select all, copy, cut, paste, undo) work with cmd or ctrl on every platform. The reply says where focus is and how many characters are selected. Tab fails rather than leave focus where it was, and Backspace checks the focused field changed. Use browser_type for text and browser_fill to replace a field's value. Never use the desktop press_key or type_text for a Chrome tab: those go to whichever Chrome window is in front, which can be the user's. Enter can submit forms and Backspace deletes, so check the page state with browser_snapshot first.",
         "inputSchema": [
             "type": "object",
             "properties": [
-                "tab_id": ["type": "integer"],
-                "key": ["type": "string", "enum": ["Enter", "Tab", "Escape", "Backspace"]],
+                "session_id": [
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128,
+                    "description": "Stable task or thread ID. Pass the same value on every browser call for this task. Different IDs isolate tabs and cleanup within one MCP process. Omit for the default process session.",
+                ],
+                "tab_id": [
+                    "type": "integer",
+                    "description": "tab_id of one of the agent's tabs, from browser_open_tab or browser_list_tabs",
+                ],
+                "key": [
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 40,
+                    "description": "Key to press: Enter, Tab, Escape, Backspace, Delete, ArrowUp, ArrowDown, ArrowLeft, ArrowRight, Home, End, PageUp, PageDown, Space, F1-F12 or a single character. A combination such as 'cmd+a' is accepted too.",
+                ],
+                "modifiers": [
+                    "type": "array",
+                    "items": [
+                        "type": "string",
+                        "enum": ["cmd", "ctrl", "alt", "shift"],
+                    ],
+                    "maxItems": 4,
+                    "description": "Modifier keys held during the press. cmd is Command on macOS and the Windows key elsewhere; for editing shortcuts cmd and ctrl mean the same on every platform.",
+                ],
+                "return_state": [
+                    "type": "boolean",
+                    "description": "Append a current snapshot and readiness status after acting. Without wait_for_selector, only a short pause and bounded navigation wait are used; SPA readiness is not guaranteed. Snapshot indices replace earlier ones. A timeout does not mean the action failed: re-observe with browser_snapshot before repeating it.",
+                ],
+                "wait_for_selector": [
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 2000,
+                    "description": "Wait for any visible element matching this CSS selector in the page or any of its frames (iframes), including open shadow roots (web components); a timeout says how many frames could not be searched. On actions requires return_state=true. Returns readiness met, timeout or error; only this condition is checked, not general app readiness. Prefer a selector specific to the expected new UI.",
+                ],
+                "wait_timeout_ms": [
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 10000,
+                    "description": "Bound for wait_for_selector in milliseconds (default 8000, maximum 10000; 0 checks once). Requires wait_for_selector. Timeout preserves action success and returns current state. Use browser_snapshot with the same wait to re-observe without repeating an action.",
+                ],
             ],
             "required": ["tab_id", "key"],
+        ],
+        "annotations": [
+            "title": "Press key in browser",
+            "readOnlyHint": false,
+            "destructiveHint": true,
+            "idempotentHint": false,
+            "openWorldHint": false,
+        ],
+    ],
+    [
+        "name": "browser_handle_dialog",
+        "description": "Answer the JavaScript dialog (alert, confirm, prompt or leave-page) open in one of the agent's tabs. While one is open the page is paused: browser_snapshot shows the dialog's type, message and dialog_id instead of the page, and other browser commands on the tab say a dialog is open. accept presses OK and dismiss presses Cancel. prompt_text is entered into a prompt before accepting it; without it, a prompt is accepted with its default text. Pass the dialog_id from the snapshot, so a dialog that replaced the one you read is refused instead of answered. Works on a background tab without showing it or using the keyboard. A dialog that opened before the agent attached to the tab cannot be seen or answered; the user answers that one in Chrome. Accepting a confirm can submit, delete or leave a page with unsaved changes, so read the message, and ask the user before confirming anything irreversible.",
+        "inputSchema": [
+            "type": "object",
+            "properties": [
+                "session_id": [
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128,
+                    "description": "Stable task or thread ID. Pass the same value on every browser call for this task. Different IDs isolate tabs and cleanup within one MCP process. Omit for the default process session.",
+                ],
+                "tab_id": [
+                    "type": "integer",
+                    "description": "tab_id of one of the agent's tabs, from browser_open_tab or browser_list_tabs",
+                ],
+                "action": [
+                    "type": "string",
+                    "enum": ["accept", "dismiss"],
+                    "description": "accept (OK) or dismiss (Cancel)",
+                ],
+                "prompt_text": [
+                    "type": "string",
+                    "description": "Text to enter into a prompt dialog before accepting it. Only with action=accept on a prompt",
+                ],
+                "dialog_id": [
+                    "type": "string",
+                    "description": "dialog_id of the dialog being answered, from browser_snapshot (such as d3). A different dialog open now is refused instead of answered",
+                ],
+            ],
+            "required": ["tab_id", "action"],
+        ],
+        "annotations": [
+            "title": "Answer JavaScript dialog",
+            "readOnlyHint": false,
+            "destructiveHint": true,
+            "idempotentHint": false,
+            "openWorldHint": true,
         ],
     ],
     [
         "name": "browser_close_all_tabs",
-        "description": "Close every tab the agent opened and remove its tab group. Tabs taken over with browser_use_tab are released back to the user, not closed. Call this when finished with the browser so no empty group is left in the user's tab strip. The MCP process also runs this automatically when the Computer Use session ends.",
-        "inputSchema": ["type": "object", "properties": [:] as [String: Any]],
+        "description": "Close every tab the agent opened, including tabs its clicks opened, and remove its tab group. Tabs taken over with browser_use_tab are released back to the user, not closed. Call this when finished with the browser so no empty group is left in the user's tab strip. The MCP process also runs this automatically when the Computer Use session ends. Unsaved state in the agent's tabs is lost.",
+        "inputSchema": [
+            "type": "object",
+            "properties": [
+                "session_id": [
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128,
+                    "description": "Stable task or thread ID. Pass the same value on every browser call for this task. Different IDs isolate tabs and cleanup within one MCP process. Omit for the default process session.",
+                ],
+            ] as [String: Any],
+        ],
+        "annotations": [
+            "title": "Close all agent tabs",
+            "readOnlyHint": false,
+            "destructiveHint": true,
+            "idempotentHint": true,
+            "openWorldHint": false,
+        ],
     ],
     [
         "name": "browser_navigate",
-        "description": "Point one of the agent's tabs at a different URL.",
+        "description": "Point one of the agent's tabs at a different URL, replacing the current page; unsaved page state is lost. Use browser_open_tab to keep the current page and open another. Follow with browser_snapshot, since element indices reset after navigation.",
         "inputSchema": [
             "type": "object",
-            "properties": ["tab_id": ["type": "integer"], "url": ["type": "string"]],
+            "properties": [
+                "session_id": [
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128,
+                    "description": "Stable task or thread ID. Pass the same value on every browser call for this task. Different IDs isolate tabs and cleanup within one MCP process. Omit for the default process session.",
+                ],
+                "tab_id": [
+                    "type": "integer",
+                    "description": "tab_id of one of the agent's tabs, from browser_open_tab or browser_list_tabs",
+                ],
+                "url": [
+                    "type": "string",
+                    "description": "Absolute URL to load in the tab",
+                ],
+                "return_state": [
+                    "type": "boolean",
+                    "description": "Append a current snapshot and readiness status after acting. Without wait_for_selector, only a short pause and bounded navigation wait are used; SPA readiness is not guaranteed. Snapshot indices replace earlier ones. A timeout does not mean the action failed: re-observe with browser_snapshot before repeating it.",
+                ],
+                "wait_for_selector": [
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 2000,
+                    "description": "Wait for any visible element matching this CSS selector in the page or any of its frames (iframes), including open shadow roots (web components); a timeout says how many frames could not be searched. On actions requires return_state=true. Returns readiness met, timeout or error; only this condition is checked, not general app readiness. Prefer a selector specific to the expected new UI.",
+                ],
+                "wait_timeout_ms": [
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 10000,
+                    "description": "Bound for wait_for_selector in milliseconds (default 8000, maximum 10000; 0 checks once). Requires wait_for_selector. Timeout preserves action success and returns current state. Use browser_snapshot with the same wait to re-observe without repeating an action.",
+                ],
+            ],
             "required": ["tab_id", "url"],
         ],
-    ],
-    [
-        "name": "zoom",
-        "description": "Capture one region of the screen at full resolution, to read small text, dense tables, file names or tiny controls that a normal screenshot blurs. Give the region as two corners in screen coordinates (the same space click uses); the result text explains how to map pixels in the zoomed image back to screen coordinates.",
-        "inputSchema": [
-            "type": "object",
-            "properties": [
-                "x0": ["type": "number", "description": "Left edge, screen coordinates"],
-                "y0": ["type": "number", "description": "Top edge, screen coordinates"],
-                "x1": ["type": "number", "description": "Right edge, screen coordinates"],
-                "y1": ["type": "number", "description": "Bottom edge, screen coordinates"],
-                "max_width": ["type": "integer", "description": "Downscale the zoomed image to this width in pixels (default 1400)"],
-            ],
-            "required": ["x0", "y0", "x1", "y1"],
-        ],
-    ],
-    [
-        "name": "hover",
-        "description": "Move the agent pointer over an element or screen position without clicking, to reveal hover menus, toolbars, tooltips or drag handles. Follow with get_app_state or screenshot to see what appeared.",
-        "inputSchema": [
-            "type": "object",
-            "properties": [
-                "element_id": ["type": "string", "description": "Element id from get_app_state"],
-                "x": ["type": "number"],
-                "y": ["type": "number"],
-            ],
-        ],
-    ],
-    [
-        "name": "wait",
-        "description": "Pause before the next action so the UI can catch up: page loads, animations, dialogs opening, apps launching. Follow with get_app_state or screenshot to confirm the new state instead of guessing.",
-        "inputSchema": [
-            "type": "object",
-            "properties": [
-                "seconds": ["type": "number", "description": "Seconds to wait (default 1, max 30)"],
-            ],
-        ],
-    ],
-    [
-        "name": "select_text",
-        "description": "Select a character range inside a text element. Defaults to selecting from 'start' to the end of the value.",
-        "inputSchema": [
-            "type": "object",
-            "properties": [
-                "element_id": ["type": "string"],
-                "start": ["type": "integer", "description": "Start offset (default 0)"],
-                "length": ["type": "integer", "description": "Characters to select (default: to end)"],
-            ],
-            "required": ["element_id"],
+        "annotations": [
+            "title": "Navigate browser tab",
+            "readOnlyHint": false,
+            "destructiveHint": true,
+            "idempotentHint": false,
+            "openWorldHint": true,
         ],
     ],
 ]
 
 func advertisedToolDefs() -> [[String: Any]] {
-    if browserControlEnabled { return toolDefs }
-    return toolDefs.filter { tool in
+    let visible = browserControlEnabled ? toolDefs : toolDefs.filter { tool in
         guard let name = tool["name"] as? String else { return true }
         return !name.hasPrefix("browser_")
     }
+    // Newer protocol revisions read a top-level title; older clients read
+    // annotations.title. Derive one from the other so they cannot drift.
+    return visible.map { tool in
+        var tool = tool
+        if let title = (tool["annotations"] as? [String: Any])?["title"] { tool["title"] = title }
+        return tool
+    }
 }
 
+// MARK: - Server identity
+
+let serverVersion = "0.14.1"
+/// Who this server is, as `initialize` and every modern result say it.
+let serverInfo: [String: Any] = [
+    "name": "mt-desktop",
+    "title": "Munim Computer Use",
+    "version": serverVersion,
+    "websiteUrl": "https://munimtech.com/munim-computer-use",
+]
+/// The tools capability, the same under every protocol revision.
+let serverCapabilities: [String: Any] = ["tools": ["listChanged": false]]
+
+/// Returned in the `initialize` result; identical in the Rust server.
+let serverInstructions = "Munim Computer Use operates this computer's desktop apps and, through the browser_* tools, the user's signed-in Chrome. Look, act, verify: call list_apps to find the app, then get_app_state (narrow it with query) before acting, and act on element ids such as e12 rather than screen coordinates. Ids belong to one snapshot, so call get_app_state again after the UI changes. Use screenshot to check a result or to see content the accessibility tree cannot describe, and zoom to read small text. Where the platform allows, input is delivered to the target app in the background and the agent has its own pointer, so the user can keep working; call activate_app only when a keystroke needs keyboard focus. For web pages prefer the browser_* tools, which work in the agent's own tab group, and release any tab adopted with browser_use_tab when done. In a Chrome tab the agent works in, use browser_click, browser_type, browser_fill (to replace a field's value) and browser_press_key (keys and shortcuts such as cmd+a); they act on that tab in the background without bringing Chrome forward. Choose in a native select (dropdown) with browser_select_option, and open menus that appear on hover with browser_hover. Never use the desktop click, press_key or type_text on a Chrome tab: they go to whichever Chrome window is in front, which can be the user's. For concurrent tasks sharing this MCP server, pass a distinct session_id on every browser call for each task; keep it stable, including cleanup. Separate sessions share website logins and cookies. Desktop apps and clipboard are not session-isolated. Pass return_state on an action to get current state back in the same call. Use run_steps for several actions you already know, like click, type, press return: one call, stopping at the first that fails. For delayed browser UI, use wait_for_selector with return_state and inspect readiness; a loaded tab is not SPA readiness. A timeout does not undo the action: re-observe with browser_snapshot and the same wait before repeating a non-idempotent action. Use browser_read to read a page's text and browser_screenshot to see an agent tab; both work while the tab stays in the background and include frames, so never bring a tab to front to look at it. When a page opens a JavaScript alert, confirm or prompt, browser_snapshot shows it and browser_handle_dialog answers it; browser_page_errors lists a page's exceptions, console errors and failed requests. Never ask for, or type, a password or code yourself: browser_request_credentials lets the user enter it without you seeing it. The user's Computer Use policy can block apps and sites or require their approval; when a call says so, do not work around it. Ask the user before anything irreversible, such as sending, deleting, purchasing or submitting forms on their behalf."
+
+// MARK: - Clipboard
+
+func toolClipboardRead(_ args: [String: Any]) -> String {
+    let maxChars = min(max((args["max_chars"] as? Int) ?? 20_000, 1), 200_000)
+    // NSPasteboard is AppKit; keep it on the main thread like activate.
+    let text = DispatchQueue.main.sync { NSPasteboard.general.string(forType: .string) }
+    guard let text, !text.isEmpty else { return "(the clipboard holds no text)" }
+    let total = text.count
+    if total <= maxChars { return text }
+    return String(text.prefix(maxChars))
+        + "\n… truncated: showing \(maxChars) of \(total) characters; raise max_chars to read more"
+}
+
+func toolClipboardWrite(_ args: [String: Any]) -> String {
+    guard let text = args["text"] as? String else { return "error: missing required argument 'text'" }
+    let written = DispatchQueue.main.sync { () -> Bool in
+        let pasteboard = NSPasteboard.general
+        pasteboard.clearContents()
+        return pasteboard.setString(text, forType: .string)
+    }
+    guard written else { return "error: could not write the clipboard" }
+    return "copied \(text.count) characters to the clipboard, replacing what was there"
+}
+
+/// Pause between an action and the snapshot `return_state` takes, when the
+/// app's accessibility notifications cannot be watched (see Settle.swift).
+let returnStateSettle: useconds_t = 300_000
+
 func dispatch(_ name: String, _ args: [String: Any]) -> String {
-    if name.hasPrefix("browser_"), !browserControlEnabled {
+    let wantsState = statefulActions.contains(name) && args["return_state"] as? Bool == true
+    // Note which sources were posting before the action, so the wait after it
+    // sees the app react and then go quiet, past any background ticking.
+    var settle: (() -> Settled)?
+    if wantsState, let raw = lastAppStateArgs?["app"] as? String, let pid = pid_t(raw) {
+        let monitor = AXEventMonitor.shared
+        if monitor.watch(pid) {
+            let background = monitor.background()
+            let action = ProcessInfo.processInfo.systemUptime
+            let look = lastReadUsedOCR ? WindowLook(pid: pid) : nil
+            settle = {
+                waitForQuiet(before: 0, probe: { monitor.reactions(since: action, excluding: background) },
+                             look: look.map { l in { l.changed() } })
+            }
+        }
+    }
+    let out = dispatchTool(name, args)
+    guard wantsState, !out.hasPrefix("error:") else {
+        return out
+    }
+    guard var again = lastAppStateArgs else {
+        return out + "\n\n(return_state: no app has been read yet — call get_app_state first)"
+    }
+    if let settle { _ = settle() } else { usleep(returnStateSettle) }
+    if let query = args["state_query"] as? String { again["query"] = query }
+    let state = toolGetAppState(again)
+    if state.hasPrefix("error:") { return out + "\n\n(return_state: could not read the app again: \(state))" }
+    return out + "\n\nstate after the action (earlier ids are no longer valid):\n" + state
+}
+
+/// The checks every browser_* call gets before it reaches Chrome: browser
+/// control on, a well-formed session_id, and an extension for a scoped call.
+/// The refusal, or nil to go ahead.
+func browserPreamble(_ name: String, _ args: [String: Any]) -> String? {
+    if !browserControlEnabled {
         return "error: browser control is disabled in Computer Use settings"
+    }
+    BrowserBridge.shared.reconnectIfOrphaned()
+    if let value = args["session_id"] {
+        guard let session = value as? String, !session.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+              session.utf16.count <= 128 else {
+            return "error: session_id must be a nonblank string of at most 128 characters"
+        }
+        // The accessibility fallback has one shared window, so it cannot
+        // honor task isolation. Never silently route scoped calls there.
+        guard BrowserBridge.shared.isConnected else {
+            let command = String(name.dropFirst("browser_".count))
+            return "error: isolated browser sessions require the connected Chrome extension. "
+                + BrowserBridge.shared.explain(command, args, .noHost)
+        }
+    }
+    return nil
+}
+
+func dispatchTool(_ name: String, _ args: [String: Any]) -> String {
+    if name.hasPrefix("browser_"), let refusal = browserPreamble(name, args) {
+        return refusal
     }
     switch name {
     case "list_apps": return toolListApps()
@@ -2763,6 +5841,7 @@ func dispatch(_ name: String, _ args: [String: Any]) -> String {
     case "press_key": return toolPressKey(args)
     case "scroll": return toolScroll(args)
     case "activate_app": return toolActivateApp(args)
+    case "launch_app": return toolLaunchApp(args)
     case "list_displays": return toolListDisplays(args)
     case "right_click": return toolRightClick(args)
     case "drag": return toolDrag(args)
@@ -2770,6 +5849,8 @@ func dispatch(_ name: String, _ args: [String: Any]) -> String {
     case "select_text": return toolSelectText(args)
     case "hover": return toolHover(args)
     case "wait": return toolWait(args)
+    case "clipboard_read": return toolClipboardRead(args)
+    case "clipboard_write": return toolClipboardWrite(args)
     case "browser_open_tab": return toolBrowserOpenTab(args)
     case "browser_list_tabs": return toolBrowserListTabs(args)
     case "browser_use_tab": return toolBrowserUseTab(args)
@@ -2777,8 +5858,16 @@ func dispatch(_ name: String, _ args: [String: Any]) -> String {
     case "browser_select_tab": return toolBrowserSelectTab(args)
     case "browser_close_tab": return toolBrowserCloseTab(args)
     case "browser_snapshot": return toolBrowserSnapshot(args)
+    case "browser_read": return toolBrowserRead(args)
+    case "browser_page_errors": return toolBrowserPageErrors(args)
+    case "browser_handle_dialog": return toolBrowserHandleDialog(args)
     case "browser_click": return toolBrowserClick(args)
     case "browser_type": return toolBrowserType(args)
+    case "browser_fill": return toolBrowserFill(args)
+    case "browser_select_option": return toolBrowserSelectOption(args)
+    case "browser_hover": return toolBrowserHover(args)
+    case "browser_upload_file": return toolBrowserUploadFile(args)
+    case "browser_request_credentials": return toolBrowserRequestCredentials(args)
     case "browser_press_key": return toolBrowserPressKey(args)
     case "browser_navigate": return toolBrowserNavigate(args)
     case "browser_close_all_tabs": return toolBrowserCloseAllTabs(args)
@@ -2805,6 +5894,195 @@ final class CursorOverlay {
     func glide(at point: CGPoint) { AgentCursor.shared.glide(at: point) }
 }
 
+/// The most steps one `run_steps` call may hold.
+let maxSteps = 20
+
+/// Check a `run_steps` list before anything runs, so a typo in step 4 cannot
+/// leave steps 1–3 done and the rest not. Returns each step's tool and the
+/// arguments it will get: `return_state` belongs to the batch, so it is taken
+/// off every step and handed to the last one. Same rules and wording as the
+/// Rust server's `plan_steps`.
+func planSteps(_ args: [String: Any]) -> Result<[(String, [String: Any])], StepPlanError> {
+    guard let steps = args["steps"] as? [Any] else {
+        return .failure(StepPlanError("steps must be a list of {\"tool\": name, \"args\": {...}}"))
+    }
+    if steps.isEmpty { return .failure(StepPlanError("steps is empty — give at least one step")) }
+    if steps.count > maxSteps {
+        return .failure(StepPlanError("\(steps.count) steps is more than the \(maxSteps) one call may run — split them"))
+    }
+    let known = Set(advertisedToolDefs().compactMap { $0["name"] as? String })
+    var plan: [(String, [String: Any])] = []
+    for (index, raw) in steps.enumerated() {
+        let number = index + 1
+        guard let step = raw as? [String: Any], let tool = step["tool"] as? String else {
+            return .failure(StepPlanError("step \(number) has no tool — each step is {\"tool\": name, \"args\": {...}}"))
+        }
+        if tool == "run_steps" { return .failure(StepPlanError("step \(number): run_steps cannot contain run_steps")) }
+        guard known.contains(tool) else { return .failure(StepPlanError("step \(number): unknown tool '\(tool)'")) }
+        var stepArgs: [String: Any] = [:]
+        if let raw = step["args"], !(raw is NSNull) {
+            guard let map = raw as? [String: Any] else {
+                return .failure(StepPlanError("step \(number) (\(tool)): args must be an object"))
+            }
+            stepArgs = map
+        }
+        stepArgs["return_state"] = nil
+        stepArgs["state_query"] = nil
+        plan.append((tool, stepArgs))
+    }
+    if (args["return_state"] as? Bool) == true, var last = plan.popLast() {
+        last.1["return_state"] = true
+        if let query = args["state_query"] as? String { last.1["state_query"] = query }
+        plan.append(last)
+    }
+    return .success(plan)
+}
+
+struct StepPlanError: Error {
+    let message: String
+    init(_ message: String) { self.message = message }
+}
+
+/// Run each step through `callTool`, so a step gets exactly the checks a
+/// direct call would, and stop at the first one that fails. Every step's
+/// output is kept, labelled with its number: its first text leads, and its
+/// images and any further text follow.
+func runSteps(_ args: [String: Any]) -> [String: Any] {
+    let plan: [(String, [String: Any])]
+    switch planSteps(args) {
+    case .success(let steps): plan = steps
+    case .failure(let error): return textResult("error: \(error.message); nothing was run", isError: true)
+    }
+    var content: [[String: Any]] = []
+    var failed: (number: Int, tool: String)?
+    for (index, (tool, stepArgs)) in plan.enumerated() {
+        let number = index + 1
+        let result = callTool(tool, stepArgs)
+        var items = result["content"] as? [[String: Any]] ?? []
+        var text = "done"
+        if let at = items.firstIndex(where: { ($0["type"] as? String) == "text" }) {
+            text = items.remove(at: at)["text"] as? String ?? text
+        }
+        content.append(["type": "text", "text": "\(number). \(tool): \(text)"])
+        content.append(contentsOf: items)
+        if (result["isError"] as? Bool) == true {
+            failed = (number, tool)
+            break
+        }
+    }
+    let total = plan.count
+    let summary: String
+    switch failed {
+    case nil: summary = "ran all \(total) step\(total == 1 ? "" : "s")"
+    case let (number, tool)? where number == total: summary = "step \(number) of \(total) (\(tool)) failed"
+    case let (number, tool)? where number + 1 == total:
+        summary = "stopped at step \(number) of \(total): \(tool) failed, so step \(total) did not run"
+    case let (number, tool)?:
+        summary = "stopped at step \(number) of \(total): \(tool) failed, so steps \(number + 1)–\(total) did not run"
+    }
+    content.insert(["type": "text", "text": summary], at: 0)
+    return ["content": content, "isError": failed != nil]
+}
+
+/// One tool call's result, as `tools/call` answers it. `run_steps` calls this
+/// for every step, so a step gets exactly the checks a direct call would.
+func callTool(_ name: String, _ args: [String: Any]) -> [String: Any] {
+    // Handled ahead of the Accessibility check: screen capture is gated by
+    // Screen Recording, a separate permission, so screenshots should still
+    // work if only that one is granted.
+    if name == "wait" {
+        let out = toolWait(args)
+        return textResult(out, isError: out.hasPrefix("error:"))
+    }
+    if name == "zoom" {
+        guard let x0 = args["x0"] as? Double, let y0 = args["y0"] as? Double,
+              let x1 = args["x1"] as? Double, let y1 = args["y1"] as? Double,
+              x0.isFinite, y0.isFinite, x1.isFinite, y1.isFinite
+        else {
+            return textResult(
+                "error: zoom needs x0, y0, x1, y1 in screen coordinates (the space click uses)",
+                isError: true)
+        }
+        let rect = CGRect(x: min(x0, x1), y: min(y0, y1), width: abs(x1 - x0), height: abs(y1 - y0))
+        guard rect.width >= 4, rect.height >= 4 else {
+            return textResult(
+                "error: zoom region must be at least 4×4 points", isError: true)
+        }
+        let maxWidth = clampedMaxWidth(args)
+        let encoding: ImageEncoding
+        do { encoding = try ImageEncoding.parse(args) } catch {
+            return textResult("\(error)", isError: true)
+        }
+        guard let shot = captureRegion(rect: rect, maxWidth: maxWidth, encoding: encoding) else {
+            return textResult(
+                captureErrorText("that region"), isError: true)
+        }
+        return imageResult(shot, label: "zoomed region")
+    }
+    if name == "screenshot" {
+        let encoding: ImageEncoding
+        do { encoding = try ImageEncoding.parse(args) } catch {
+            return textResult("\(error)", isError: true)
+        }
+        if let display = args["display"] as? Int {
+            let maxWidth = clampedMaxWidth(args)
+            if (args["live"] as? Bool) == true {
+                return liveScreenshotResult(
+                    args, display: display, maxWidth: maxWidth, encoding: encoding)
+            }
+            guard let shot = captureDisplay(index: display, maxWidth: maxWidth, encoding: encoding) else {
+                return textResult(
+                    captureErrorText("display \(display)"), isError: true)
+            }
+            return imageResult(shot, label: "display \(display)")
+        }
+        guard let query = args["app"] as? String, let resolved = resolveApp(query) else {
+            return textResult(
+                "error: no running app matching \(args["app"] as? String ?? "<missing app argument>")",
+                isError: true)
+        }
+        if let refusal = PolicyStore.checkApp(resolved.app) {
+            return textResult(refusal, isError: true)
+        }
+        let maxWidth = clampedMaxWidth(args)
+        // A minimized window or hidden app has nothing to capture until parked.
+        if let refusal = WindowParking.shared.reach(pid: resolved.app.processIdentifier, window: nil) {
+            return textResult("error: cannot capture: \(refusal)", isError: true)
+        }
+        guard let shot = captureWindow(
+            pid: resolved.app.processIdentifier, maxWidth: maxWidth, encoding: encoding)
+        else {
+            return textResult(
+                captureErrorText("a window of \(resolved.app.localizedName ?? query)"),
+                isError: true)
+        }
+        return imageResult(
+            shot, label: "window of \(resolved.app.localizedName ?? query)")
+    }
+
+    // An image, not text: answered here rather than through dispatch.
+    if name == "browser_screenshot" {
+        return browserScreenshotResult(args)
+    }
+
+    // list_displays / browser_* do not need Accessibility — Screen
+    // Recording / Chrome bridge only. Keep them ahead of the AX gate so
+    // the Screen Recording-only flow can still recover (Bot finding).
+    if name == "list_displays" || name == "launch_app" || name.hasPrefix("browser_") || name.hasPrefix("clipboard_") {
+        let out = dispatch(name, args)
+        return textResult(out, isError: out.hasPrefix("error:"))
+    }
+
+    if !AXIsProcessTrusted() {
+        return textResult(
+            "Accessibility permission is not granted to the host app. Enable it in "
+            + "System Settings → Privacy & Security → Accessibility, then restart the app.",
+            isError: true)
+    }
+    let out = dispatch(name, args)
+    return textResult(out, isError: out.hasPrefix("error:"))
+}
+
 // MARK: - JSON-RPC over stdio
 
 func send(_ payload: [String: Any]) {
@@ -2818,24 +6096,45 @@ func respond(id: Any, result: [String: Any]) {
     send(["jsonrpc": "2.0", "id": id, "result": result])
 }
 
-func respondError(id: Any, code: Int, message: String) {
-    send(["jsonrpc": "2.0", "id": id, "error": ["code": code, "message": message]])
+func respondError(id: Any, code: Int, message: String, data: [String: Any]? = nil) {
+    var error: [String: Any] = ["code": code, "message": message]
+    if let data { error["data"] = data }
+    send(["jsonrpc": "2.0", "id": id, "error": error])
 }
 
 func textResult(_ s: String, isError: Bool = false) -> [String: Any] {
     ["content": [["type": "text", "text": s]], "isError": isError]
 }
 
+// `--profile` may appear anywhere; it is consumed first so every mode below
+// (server, native host, history recorder, overlay) runs under one identity.
+let cliArguments = Identity.bootstrap(CommandLine.arguments)
+let cliMode = cliArguments.count > 1 ? cliArguments[1] : nil
+
 // Chrome launches this same binary as its native messaging host; in that mode
 // it is a relay, not an MCP server.
-if CommandLine.arguments.contains("native-host") { NativeHost.run() }
+if cliArguments.contains("native-host") { NativeHost.run() }
+// Register this binary with Chrome for the current identity.
+if cliMode == "install-native-host" { NativeHostInstaller.run(Array(cliArguments.dropFirst(2))) }
+// Print the resolved identity (paths, names) as JSON, for embedders to check.
+if cliMode == "identity" {
+    if let data = try? JSONSerialization.data(
+        withJSONObject: Identity.current.describe(),
+        options: [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]),
+        let text = String(data: data, encoding: .utf8)
+    {
+        print(text)
+    }
+    exit(0)
+}
 // Computer History background recorder (Skysight-style interaction events).
-if CommandLine.arguments.contains("computer-history") {
-    let args = CommandLine.arguments
+if cliArguments.contains("computer-history") {
+    let args = cliArguments
     if let flag = args.firstIndex(of: "--root"), args.index(after: flag) < args.endIndex {
         ComputerHistoryDaemon.run(root: args[args.index(after: flag)])
     }
-    fputs("munim-computer-use: computer-history requires --root <dir>\n", stderr)
+    if let root = Identity.current.historyDirectory { ComputerHistoryDaemon.run(root: root) }
+    fputs("munim-computer-use: computer-history requires --root <dir> (or a historyDir in the profile)\n", stderr)
     exit(2)
 }
 // Ask macOS for the permissions Computer Use needs, from inside the app bundle
@@ -2845,7 +6144,7 @@ if CommandLine.arguments.contains("computer-history") {
 // after a re-sign, System Settings still shows the app enabled while tccd logs
 // "Failed to match existing code requirement" and every AX call is refused.
 // Prompting re-creates the row against the signature running now.
-if CommandLine.arguments.contains("request-permissions") {
+if cliArguments.contains("request-permissions") {
     _ = NSApplication.shared
     NSApp.setActivationPolicy(.accessory)
     let prompted = AXIsProcessTrustedWithOptions(
@@ -2868,8 +6167,8 @@ if CommandLine.arguments.contains("request-permissions") {
 
 // The agent pointer is a separate LSUIElement .app (see AgentCursor.swift)
 // launched via NSWorkspace with `--socket <path>` for move/hide commands.
-if CommandLine.arguments.contains("cursor-overlay") {
-    let args = CommandLine.arguments
+if cliArguments.contains("cursor-overlay") {
+    let args = cliArguments
     if let flag = args.firstIndex(of: "--socket"), args.index(after: flag) < args.endIndex {
         AgentCursorOverlay.run(socketPath: args[args.index(after: flag)])
     }
@@ -2877,14 +6176,20 @@ if CommandLine.arguments.contains("cursor-overlay") {
     exit(2)
 }
 
+// Server mode from here on. Give this process its own executable path before
+// anything starts, so ScreenCaptureKit's daemon does not confuse it with other
+// servers run from the same binary (see PrivateExecutable.swift).
+PrivateExecutable.adopt()
+
 BrowserBridge.shared.start()
 
 /// Best-effort: drop the agent Chrome tab group when this MCP process is going
 /// away so aborted / unfinished Computer Use turns do not leave an empty
 /// Pine group in the user's tab strip.
 func cleanupAgentBrowserTabsOnExit() {
+    WindowParking.shared.restore()
     guard browserControlEnabled, BrowserBridge.shared.isConnected else { return }
-    _ = BrowserBridge.shared.call("close_all_tabs", timeout: 2)
+    _ = BrowserBridge.shared.call("close_client_tabs", timeout: 2)
 }
 
 /// SIGTERM/SIGINT often arrive before stdin EOF when the host tears down the
@@ -2898,6 +6203,7 @@ func installExitCleanupSignals() {
         source.setEventHandler {
             cleanupAgentBrowserTabsOnExit()
             AgentCursor.shared.hide()
+            PrivateExecutable.removeLink()
             exit(0)
         }
         source.resume()
@@ -2921,22 +6227,69 @@ setvbuf(stdout, nil, _IOLBF, 0)
 func runJSONRPCLoop() {
 while let line = readLine(strippingNewline: true) {
     if line.trimmingCharacters(in: CharacterSet.whitespaces).isEmpty { continue }
-    guard let data = line.data(using: .utf8),
-          let msg = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
-          let method = msg["method"] as? String else { continue }
+    let parsed: Any
+    do {
+        parsed = try JSONSerialization.jsonObject(with: Data(line.utf8))
+    } catch {
+        // Same reply as the Rust server: a client that sent garbage should
+        // hear about it rather than wait forever on a request it thinks is live.
+        fputs("munim-computer-use: malformed JSON: \(error.localizedDescription)\n", stderr)
+        respondError(id: NSNull(), code: -32700, message: "Parse error: \(error.localizedDescription)")
+        continue
+    }
+    guard let msg = parsed as? [String: Any], let method = msg["method"] as? String else {
+        // Valid JSON that is not a request. Answer only when there is an id to
+        // answer to (or no way to tell), never a notification.
+        let id = (parsed as? [String: Any])?["id"]
+        if (parsed as? [String: Any]) == nil || id != nil {
+            respondError(id: id ?? NSNull(), code: -32600, message: "Invalid Request: expected a JSON-RPC object with a method")
+        }
+        continue
+    }
 
     let id = msg["id"]
+    let requestParams = msg["params"] as? [String: Any] ?? [:]
+
+    // A modern (2026-07-28) request names its revision in `_meta`; one that
+    // cannot be served under any revision is refused before anything runs.
+    // Notifications are never answered, so only requests are checked.
+    var era = ProtocolEra.legacy
+    if let id {
+        switch classifyRequest(method, requestParams) {
+        case .success(let chosen): era = chosen
+        case .failure(let refusal):
+            respondError(id: id, code: refusal.code, message: refusal.message, data: refusal.data)
+            continue
+        }
+    }
+    /// The answer in the envelope its revision expects: unchanged for legacy,
+    /// with `resultType` and the server's identity for modern.
+    func answer(_ result: [String: Any], cacheable: Bool = false) {
+        guard case .modern = era else { return respond(id: id ?? NSNull(), result: result) }
+        let body = cacheable ? cacheableResult(result) : result
+        respond(id: id ?? NSNull(), result: completeModernResult(body, serverInfo: serverInfo))
+    }
 
     switch method {
     case "initialize":
         respond(id: id ?? NSNull(), result: [
-            "protocolVersion": "2024-11-05",
-            "capabilities": ["tools": ["listChanged": false]],
-            "serverInfo": ["name": "pine-computer-use", "version": "0.3.0"],
+            "protocolVersion": negotiatedProtocolVersion(requestParams),
+            "capabilities": serverCapabilities,
+            "serverInfo": serverInfo,
+            "instructions": serverInstructions,
         ])
 
+    case "server/discover":
+        // Only a modern request gets here: classifyRequest refuses one without `_meta`.
+        guard id != nil else { break }
+        answer([
+            "supportedVersions": supportedProtocolVersions,
+            "capabilities": serverCapabilities,
+            "instructions": serverInstructions,
+        ], cacheable: true)
+
     case "tools/list":
-        respond(id: id ?? NSNull(), result: ["tools": advertisedToolDefs()])
+        answer(["tools": advertisedToolDefs()], cacheable: true)
 
     case "tools/call":
         // Pointer fade is keyed to Computer Use tool traffic: stay up while
@@ -2946,100 +6299,18 @@ while let line = readLine(strippingNewline: true) {
             defer { AgentCursor.shared.noteDesktopToolFinished() }
 
             guard let id else { break }
-            let params = msg["params"] as? [String: Any] ?? [:]
-            guard let name = params["name"] as? String else {
+            guard let name = requestParams["name"] as? String else {
                 respondError(id: id, code: -32602, message: "missing tool name")
                 break
             }
-            let args = params["arguments"] as? [String: Any] ?? [:]
+            let args = requestParams["arguments"] as? [String: Any] ?? [:]
 
-            // Handled ahead of the Accessibility check: screen capture is gated by
-            // Screen Recording, a separate permission, so screenshots should still
-            // work if only that one is granted.
-            if name == "wait" {
-                let out = toolWait(args)
-                respond(id: id, result: textResult(out, isError: out.hasPrefix("error:")))
-                break
-            }
-            if name == "zoom" {
-                guard let x0 = args["x0"] as? Double, let y0 = args["y0"] as? Double,
-                      let x1 = args["x1"] as? Double, let y1 = args["y1"] as? Double,
-                      x0.isFinite, y0.isFinite, x1.isFinite, y1.isFinite
-                else {
-                    respond(id: id, result: textResult(
-                        "error: zoom needs x0, y0, x1, y1 in screen coordinates (the space click uses)",
-                        isError: true))
-                    break
-                }
-                let rect = CGRect(x: min(x0, x1), y: min(y0, y1), width: abs(x1 - x0), height: abs(y1 - y0))
-                guard rect.width >= 4, rect.height >= 4 else {
-                    respond(id: id, result: textResult(
-                        "error: zoom region must be at least 4×4 points", isError: true))
-                    break
-                }
-                let maxWidth = (args["max_width"] as? Int) ?? 1400
-                guard let shot = captureRegionPNG(rect: rect, maxWidth: maxWidth) else {
-                    respond(id: id, result: textResult(
-                        "error: could not capture that region — check Screen Recording permission and "
-                        + "that the region lies on an attached display (list_displays).", isError: true))
-                    break
-                }
-                respond(id: id, result: imageResult(shot, label: "zoomed region"))
-                break
-            }
-            if name == "screenshot" {
-                if let display = args["display"] as? Int {
-                    let maxWidth = (args["max_width"] as? Int) ?? 1400
-                    guard let shot = captureDisplayPNG(index: display, maxWidth: maxWidth) else {
-                        respond(id: id, result: textResult(
-                            "error: could not capture display \(display) — check Screen Recording "
-                            + "permission, or call list_displays for valid indices.", isError: true))
-                        break
-                    }
-                    respond(id: id, result: imageResult(shot, label: "display \(display)"))
-                    break
-                }
-                guard let query = args["app"] as? String, let resolved = resolveApp(query) else {
-                    respond(id: id, result: textResult(
-                        "error: no running app matching \(args["app"] as? String ?? "<missing app argument>")",
-                        isError: true))
-                    break
-                }
-                let maxWidth = (args["max_width"] as? Int) ?? 1400
-                guard let shot = captureWindowPNG(pid: resolved.app.processIdentifier, maxWidth: maxWidth) else {
-                    respond(id: id, result: textResult(
-                        "error: screen capture failed. The host app may be missing Screen Recording "
-                        + "permission, or this app may have no on-screen window.",
-                        isError: true))
-                    break
-                }
-                respond(id: id, result: imageResult(
-                    shot, label: "window of \(resolved.app.localizedName ?? query)"))
-                break
-            }
-
-            // list_displays / browser_* do not need Accessibility — Screen
-            // Recording / Chrome bridge only. Keep them ahead of the AX gate so
-            // the Screen Recording-only flow can still recover (Bot finding).
-            if name == "list_displays" || name.hasPrefix("browser_") {
-                let out = dispatch(name, args)
-                respond(id: id, result: textResult(out, isError: out.hasPrefix("error:")))
-                break
-            }
-
-            if !AXIsProcessTrusted() {
-                respond(id: id, result: textResult(
-                    "Accessibility permission is not granted to the host app. Enable it in "
-                    + "System Settings → Privacy & Security → Accessibility, then restart the app.",
-                    isError: true))
-                break
-            }
-            let out = dispatch(name, args)
-            respond(id: id, result: textResult(out, isError: out.hasPrefix("error:")))
+            answer(name == "run_steps" ? runSteps(args) : callTool(name, args))
         }
 
     case "ping":
-        respond(id: id ?? NSNull(), result: [:])
+        // Gone from the modern revision; still answered for clients that probe with it.
+        answer([:])
 
     case "notifications/cancelled":
         // Host aborted the turn — drop the pointer immediately.
@@ -3053,8 +6324,10 @@ while let line = readLine(strippingNewline: true) {
     // stdin closed: the client is gone, so the process should follow.
     cleanupAgentBrowserTabsOnExit()
     AgentCursor.shared.hide()
+    PrivateExecutable.removeLink()
     exit(0)
 }
 
-DispatchQueue.global(qos: .userInitiated).async { runJSONRPCLoop() }
+// A dedicated thread: the loop blocks on stdin for the life of the process.
+spawnBlockingThread("mcp.stdin") { runJSONRPCLoop() }
 NSApp.run()

@@ -33,7 +33,7 @@
 &ensp;•&ensp;
   <a aria-label="report issues" href="https://github.com/munimtechnologies/munim-computer-use/issues">Report Issues</a>
 &ensp;•&ensp;
-  <a aria-label="website" href="https://munimtech.com/computer-use">munimtech.com/computer-use</a>
+  <a aria-label="website" href="https://munimtech.com/munim-computer-use">munimtech.com/munim-computer-use</a>
 </p>
 
 <h6 align="center">Follow Munim Technologies</h6>
@@ -53,18 +53,22 @@
 
 **Computer Use** is an open-source [MCP](https://modelcontextprotocol.io) server — a computer-use agent (CUA) backend — that lets any coding agent use your computer the way a person does. It reads the screen through accessibility trees, clicks and types **in the background** so your mouse stays yours, shows an agent pointer where it is working, zooms in on small text, and drives tabs in your signed-in Chrome — on **macOS, Windows and Linux**.
 
-**Works with Claude Code, Codex, Cursor and [MT Code](https://munimtech.com/mt-code)**, or any other MCP client, with any model — no vision model is required for interaction.
+**Works with Claude Code, Codex, Cursor and [MT Code](https://munimtech.com/mtcode)**, or any other MCP client, with any model — no vision model is required for interaction.
 
-**Built by [Munim Technologies](https://munimtech.com/computer-use)** as the Computer Use engine of MT Code, and published here on its own.
+**Built by [Munim Technologies](https://munimtech.com/munim-computer-use)** as the Computer Use engine of MT Code, and published here on its own.
 
 ## Table of contents
 
 - [Quick start](#quick-start)
 - [Capability matrix](#capability-matrix)
+- [Benchmarks](#benchmarks)
 - [Why it works well](#why-it-works-well)
-- [Tools](#tools-26)
+- [Works alongside you](#works-alongside-you)
+- [Apps and sites the agent may use](#apps-and-sites-the-agent-may-use)
+- [Tools](#tools-41)
 - [Repository layout](#repository-layout)
 - [Environment flags](#environment-flags)
+- [Embedding in an app](#embedding-in-an-app)
 - [Prompting your agent](#prompting-your-agent)
 - [Contributing](#contributing)
 - [Credits and license](#credits-and-license)
@@ -77,21 +81,36 @@
 4. Register it with your agent:
 
 ```sh
-# Claude Code — fastest: the npm launcher fetches the signed binary on first run
+# Claude Code — fastest: the npm launcher fetches the signed binary on first run.
+# Add `--scope user` to register it for every project instead of just this one.
 claude mcp add munim-computer-use -- npx -y munim-computer-use
 # or point at a downloaded binary
 claude mcp add munim-computer-use -- /usr/local/bin/munim-computer-use
 ```
 
+```sh
+# Codex — writes the entry below into ~/.codex/config.toml for you (needs a Codex CLI
+# with `codex mcp`; check with `codex mcp --help`)
+codex mcp add munim-computer-use -- npx -y munim-computer-use
+```
+
 ```toml
-# Codex — ~/.codex/config.toml
+# Codex — ~/.codex/config.toml, if you would rather edit it yourself
 [mcp_servers.munim-computer-use]
 command = "npx"
 args = ["-y", "munim-computer-use"]
 ```
 
+```sh
+# Cursor — no MCP subcommand in its CLI, so write the config. ~/.cursor/mcp.json applies
+# to every project; .cursor/mcp.json in a repo applies to that one.
+mkdir -p ~/.cursor && [ -s ~/.cursor/mcp.json ] || echo '{}' > ~/.cursor/mcp.json
+jq '.mcpServers["munim-computer-use"] = {"command":"npx","args":["-y","munim-computer-use"]}' \
+  ~/.cursor/mcp.json > ~/.cursor/mcp.json.tmp && mv ~/.cursor/mcp.json.tmp ~/.cursor/mcp.json
+```
+
 ```json
-// Cursor — .cursor/mcp.json
+// Cursor — the entry that produces, in .cursor/mcp.json
 { "mcpServers": { "munim-computer-use": { "command": "npx", "args": ["-y", "munim-computer-use"] } } }
 ```
 
@@ -99,47 +118,341 @@ Then ask: _"Open Safari, find the cheapest flight to Denver on Tuesday and put i
 
 ## Capability matrix
 
-**Munim Computer Use** is the highlighted first column; the others are the computer-use servers people reach for. each cell comes from that project's own README in September 2026 (sources under [Credits and license](#credits-and-license)). ✅ present · ❌ absent or not documented · ⚠️ partial.
+**Munim Computer Use** is the highlighted first column; the others are the computer-use servers people reach for. each cell comes from that project's own README or docs in September and October 2026 (sources under [Credits and license](#credits-and-license)). ✅ present · ❌ absent or not documented · ⚠️ partial.
 
-| Capability                                  | **Munim Computer Use** | Codex Computer Use | Anthropic reference demo | Windows-MCP | MacOS-MCP | open-computer-use | computer-use-mcp (zavora) | Notes                                                                                                                                                                                                                                           |
-| ------------------------------------------- | ---------------------- | ------------------ | ------------------------ | ----------- | --------- | ----------------- | ------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| macOS                                       | **✅**                 | ✅                 | ❌                       | ❌          | ✅        | ✅                | ✅                        | The Anthropic demo drives a Linux desktop inside Docker, not your machine.                                                                                                                                                                      |
-| Windows                                     | **✅**                 | ✅                 | ❌                       | ✅          | ❌        | ✅                | ✅                        | Windows-MCP is Windows only; MacOS-MCP is macOS only.                                                                                                                                                                                           |
-| Linux                                       | **✅**                 | ❌                 | ✅ (sandbox)             | ❌          | ❌        | ✅                | ✅                        | Munim Computer Use uses AT-SPI + X11; native Wayland apps get element actions but not coordinate clicks.                                                                                                                                        |
-| Accessibility tree with element ids         | **✅**                 | ❌                 | ❌                       | ✅          | ✅        | ✅                | ✅                        | Codex and the Anthropic demo are screenshot-driven. Ids let the agent press _the button_ instead of a pixel.                                                                                                                                    |
-| Background input (your mouse never moves)   | **✅**                 | ✅                 | n/a                      | ❌          | ❌        | ❌                | ❌                        | Munim Computer Use addresses events to the target window (SkyLight on macOS, posted window messages on Windows, XTEST on Linux). Codex does this too, with a second cursor of its own. Every other server in this table drives the real cursor. |
-| Agent pointer overlay                       | **✅**                 | ✅                 | ❌                       | ⚠️          | ❌        | ❌                | ❌                        | Windows-MCP flashes a border around captures; Codex draws its own cursor on your screen.                                                                                                                                                        |
-| Zoom into a region at full resolution       | **✅**                 | ❌                 | ✅                       | ❌          | ❌        | ❌                | ❌                        | Anthropic's toolset has `zoom`; here it is a tool on every platform.                                                                                                                                                                            |
-| Screenshots carry screen-coordinate mapping | **✅**                 | n/a                | n/a                      | ❌          | ❌        | ❌                | ❌                        | Origin and pixels-per-point in every capture, so clicks from Retina or downscaled images land.                                                                                                                                                  |
-| Hover, wait, label query                    | **✅**                 | ⚠️                 | ⚠️                       | ✅          | ⚠️        | ❌                | ⚠️                        | Windows-MCP has Wait/WaitFor; MacOS-MCP has Wait; Anthropic has `wait`/`mouse_move`.                                                                                                                                                            |
-| Your signed-in Chrome, own tab group or yours | **✅**                 | ⚠️                 | ❌                       | ⚠️          | ❌        | ❌                | ❌                        | Codex uses its in-app browser; Windows-MCP reads the DOM of open browsers. Munim Computer Use opens its own labelled tab group in your real Chrome, and can also take over a tab you already have open when you ask it to.                                                                 |
-| Works with any MCP client                   | **✅**                 | ❌                 | ❌                       | ✅          | ✅        | ✅                | ✅                        | Codex Computer Use is Codex only; the Anthropic demo is Claude only.                                                                                                                                                                            |
-| Identical tool surface on every platform    | **✅**                 | n/a                | n/a                      | n/a         | n/a       | ⚠️                | ✅                        | 28 tools with byte-identical schemas across the Swift and Rust servers.                                                                                                                                                                         |
-| Prebuilt signed binaries + npm launcher     | **✅**                 | ✅                 | ❌                       | ❌          | ❌        | ✅ (npm)          | ✅ (npm)                  | macOS universal (Developer ID signed) and Windows x64 on Releases.                                                                                                                                                                              |
-| Open source                                 | **✅ Apache-2.0**      | ❌                 | ✅                       | ✅ MIT      | ✅ MIT    | ✅ MIT            | ✅ MIT                    |                                                                                                                                                                                                                                                 |
+| Capability                                     | **Munim Computer Use** | Cua Driver  | Codex Computer Use | OpenAI Agents API | Anthropic reference demo | Windows-MCP | MacOS-MCP | open-computer-use | computer-use-mcp (zavora) | Notes                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| ---------------------------------------------- | ---------------------- | ----------- | ------------------ | ----------------- | ------------------------ | ----------- | --------- | ----------------- | ------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| macOS                                          | **✅**                 | ✅          | ✅                 | n/a               | ❌                       | ❌          | ✅        | ✅                | ✅                        | The Anthropic demo drives a Linux desktop inside Docker, not your machine. The OpenAI Agents API (September 2026) runs a browser OpenAI hosts, so it never drives your machine either.                                                                                                                                                                                                                                                                                                                                                    |
+| Windows                                        | **✅**                 | ✅          | ✅                 | n/a               | ❌                       | ✅          | ❌        | ✅                | ✅                        | Windows-MCP is Windows only; MacOS-MCP is macOS only.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| Linux                                          | **✅**                 | ✅          | ❌                 | n/a               | ✅ (sandbox)             | ❌          | ❌        | ✅                | ✅                        | Munim Computer Use uses AT-SPI + X11; native Wayland apps get element actions but not coordinate clicks.                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| Accessibility tree with element ids            | **✅**                 | ✅          | ⚠️                 | ❌                | ❌                       | ✅          | ✅        | ✅                | ✅                        | Codex reads the accessibility tree first on macOS and works from screenshots on Windows; the Agents API and the Anthropic demo are screenshot-driven. Ids let the agent press _the button_ instead of a pixel.                                                                                                                                                                                                                                                                                                                            |
+| Background input (your mouse never moves)      | **✅**                 | ✅          | ⚠️                 | n/a               | n/a                      | ❌          | ❌        | ❌                | ❌                        | Munim Computer Use addresses events to the target window: always on macOS (SkyLight and per-process events), for UI Automation patterns and classic Win32 controls on Windows; other Windows UI and all Linux pointer input (XTEST) still move the real pointer. Codex works in the background on macOS with cursors of its own, and takes over the pointer on Windows. Cua Driver delivers in the background by default and falls back to the foreground when that does not land. The other servers in this table drive the real cursor. |
+| Agent pointer overlay                          | **✅**                 | ✅          | ✅                 | ❌                | ❌                       | ⚠️          | ❌        | ❌                | ❌                        | Windows-MCP flashes a border around captures; Codex and Cua Driver draw their own cursor on your screen.                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| Zoom into a region at full resolution          | **✅**                 | ✅          | ❌                 | ❌                | ✅                       | ❌          | ❌        | ❌                | ❌                        | Anthropic's toolset has `zoom`; here it is a tool on every platform.                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| Screenshots carry screen-coordinate mapping    | **✅**                 | ⚠️          | n/a                | n/a               | n/a                      | ❌          | ❌        | ❌                | ❌                        | Origin and pixels-per-point in every capture, so clicks from Retina or downscaled images land.                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| Hover, wait, label query                       | **✅**                 | ⚠️          | ⚠️                 | ❌                | ⚠️                       | ✅          | ⚠️        | ❌                | ⚠️                        | Windows-MCP has Wait/WaitFor; MacOS-MCP has Wait; Anthropic has `wait`/`mouse_move`.                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| Your signed-in Chrome, own tab group or yours  | **✅**                 | ⚠️          | ⚠️                 | ❌                | ❌                       | ⚠️          | ❌        | ❌                | ❌                        | Codex uses its in-app browser; Cua Driver attaches to a browser over CDP; Windows-MCP reads the DOM of open browsers. Munim Computer Use opens its own labelled tab group in your real Chrome, and can also take over a tab you already have open when you ask it to.                                                                                                                                                                                                                                                                     |
+| Act and observe in one call                    | **✅**                 | ✅          | n/a                | n/a               | ✅                       | ❌          | ❌        | ❌                | ❌                        | `return_state` on any action appends the fresh accessibility tree or page snapshot, so one call acts and checks. Cua Driver's `run_steps` runs several actions and reports what changed. The Anthropic demo returns a screenshot after each action; Codex and the Agents API run the loop themselves.                                                                                                                                                                                                                                     |
+| Several actions in one call                    | **✅**                 | ✅          | n/a                | n/a               | ❌                       | ⚠️          | ❌        | ❌                | ✅                        | Cua Driver and computer-use-mcp (zavora) run a list of steps in one call with `run_steps`; Windows-MCP's `MultiSelect` and `MultiEdit` act on several elements at once. Munim Computer Use's `run_steps` does the same, checks the whole list before running any of it, and stops at the first failure.                                                                                                                                                                                                                                                                       |
+| Read a page's text in a signed-in tab          | **✅**                 | ⚠️          | ❌                 | ❌                | ❌                       | ⚠️          | ❌        | ❌                | ❌                        | `browser_read` returns the page as text with headings, in chunks, with a `query` filter, from a background tab. Windows-MCP scrapes pages.                                                                                                                                                                                                                                                                                                                                                                                                |
+| Sign-in without the model seeing the password  | **✅**                 | ❌          | ❌                 | ✅                | ❌                       | ❌          | ❌        | ❌                | ❌                        | `browser_request_credentials` opens a Chrome window naming the site's real origin; what the user types goes into the page and never into the conversation. The Agents API hands sign-in to the developer's app the same way. Desktop password fields refuse typing by default.                                                                                                                                                                                                                                                            |
+| Per-app and per-site allow / ask / block rules | **✅**                 | ❌          | ⚠️                 | ⚠️                | ❌                       | ❌          | ❌        | ❌                | ❌                        | A policy file the user controls; `ask` shows an approval prompt once per task. Codex asks before each new app and keeps an "Always allow" list; the Agents API asks the developer's app before each new website.                                                                                                                                                                                                                                                                                                                          |
+| Works with any MCP client                      | **✅**                 | ✅          | ❌                 | ❌                | ❌                       | ✅          | ✅        | ✅                | ✅                        | Codex Computer Use is Codex only; the Anthropic demo is Claude only.                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| Identical tool surface on every platform       | **✅**                 | ⚠️          | n/a                | n/a               | n/a                      | n/a         | n/a       | ⚠️                | ✅                        | 41 tools with byte-identical schemas across the Swift and Rust servers. Cua Driver keeps shared parameters in step with a CI check, with a few tools on one platform only.                                                                                                                                                                                                                                                                                                                                                                |
+| Prebuilt signed binaries + npm launcher        | **✅**                 | ✅ (script) | ✅                 | n/a               | ❌                       | ❌          | ❌        | ✅ (npm)          | ✅ (npm)                  | macOS universal (Developer ID signed) and Windows x64 on Releases.                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| Open source                                    | **✅ Apache-2.0**      | ✅ MIT      | ❌                 | ❌                | ✅                       | ✅ MIT      | ✅ MIT    | ✅ MIT            | ✅ MIT                    |                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
 
 Also looked at: [mediar-ai/mcp-server-macos-use](https://github.com/mediar-ai/mcp-server-macos-use) (macOS, accessibility, real input), [deploymenttheory/windows-mcp-server](https://github.com/deploymenttheory/windows-mcp-server) (Windows, UIA Invoke patterns, WaitFor), [nuphus-mcp](https://github.com/mrpulor-gh/nuphus-mcp) (OCR + bring-your-own vision model, CDP Chrome), [computer-control-mcp](https://github.com/AB498/computer-control-mcp) (PyAutoGUI + OCR), and [microsoft/playwright-mcp](https://github.com/microsoft/playwright-mcp) (browser only). Corrections welcome — open an issue with a link.
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="./.github/resources/chart-coverage-dark.svg">
+  <img alt="Capability coverage: Munim Computer Use 19 of 19 rows; Cua Driver 12 plus 5 partly of 19; computer-use-mcp (zavora) 9 plus 1 partly of 19; open-computer-use 7 plus 1 partly of 19; Windows-MCP 5 plus 4 partly of 18; Codex Computer Use 4 plus 5 partly of 15; Anthropic reference demo 4 plus 1 partly of 16; MacOS-MCP 4 plus 1 partly of 18; OpenAI Agents API 1 plus 1 partly of 10" src="./.github/resources/chart-coverage-light.svg" width="820">
+</picture>
+
+The chart counts the table above (`n/a` cells are left out), so it shares the table's bias: we picked the rows.
+
+## Benchmarks
+
+Reading a window is the step an agent repeats most, so every server we could run reads the same file manager window on each system as the folder grows from 100 to 20,000 files: File Explorer on Windows, Finder on macOS and Thunar on Linux. Each one ran its latest release on 4 November 2026. munim-computer-use is the fastest at every folder size on all three, and returns the fewest tokens on all three.
+
+### Windows 11 · File Explorer
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="./.github/resources/chart-scale-dark.svg">
+  <img alt="Five servers reading File Explorer with 100 to 20,000 files on Windows 11. Time per read: munim-computer-use 0.10.0 about 0.12 s, Cua Driver about 0.16 s, computer-use-mcp (zavora) about 0.42 s, open-computer-use about 3.1 s, Windows-MCP 0.8.8 about 15.5 s. Tokens per read: munim about 2.0K, Cua Driver and Windows-MCP about 3.9K, open-computer-use about 4.9K, zavora about 9.3K." src="./.github/resources/chart-scale-light.svg" width="820">
+</picture>
+
+| Server | Read tool | 100 files | 1,000 | 5,000 | 20,000 | Tokens per read (≈) | Files listed |
+| ------ | --------- | --------- | ----- | ----- | ------ | ------------------- | ------------ |
+| **munim-computer-use 0.10.0** | `get_app_state` | **0.12 s** | **0.12 s** | **0.13 s** | **0.12 s** | **2.0K** | 16 |
+| munim-computer-use 0.9.3 | `get_app_state` | 0.12 s | 0.12 s | 0.13 s | 0.13 s | 2.0K | 16 |
+| Cua Driver 0.38.0 | `get_window_state`, `include_screenshot: false` | 0.15 s | 0.16 s | 0.15 s | 0.16 s | 3.9K | 17 |
+| Windows-MCP 0.8.8 | `Snapshot` | 15.37 s | 15.71 s | 15.24 s | 15.59 s | 1.2–3.9K | 0 |
+| computer-use-mcp 7.8.0 (zavora) | `get_ui_tree` (`COMPUTER_USE_PROFILE=full`) | 0.44 s | 0.40 s | 0.43 s | 0.40 s | 9.3–9.4K | 17 |
+| open-computer-use 1.1.3 | `get_app_state`, `include_screenshot: false` | 3.09 s | 2.96 s | 3.23 s | 3.22 s | 4.9K | 17 |
+
+Windows-MCP 0.8.8 takes about 15 s per `Snapshot` on this PC, where 0.8.5 took 0.7 s on the same windows the same day (and in our 27 October run), so the slowdown is in that release. At 1,000 files its last read left the File Explorer window out (1.2K tokens, no files). munim lists 16 rows and the others 17: munim's on-screen check leaves out the row at the bottom edge of the list.
+
+### macOS 27 · Finder
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="./.github/resources/chart-scale-macos-dark.svg">
+  <img alt="Five servers reading a Finder list view with 100 to 20,000 files on macOS 27. Time per read: munim-computer-use 0.10.0 0.04 to 0.10 s, Cua Driver about 0.3 s, open-computer-use 0.13 s growing to 3.6 s, zavora about 1.2 s, MacOS-MCP 0.36 s growing to 74 s. Tokens per read: munim about 1.0K, open-computer-use about 1.1K, Cua Driver about 2.4K, MacOS-MCP 2.6 to 17K, zavora about 22K." src="./.github/resources/chart-scale-macos-light.svg" width="820">
+</picture>
+
+| Server | Read tool | 100 files | 1,000 | 5,000 | 20,000 | Tokens per read (≈) | Files listed |
+| ------ | --------- | --------- | ----- | ----- | ------ | ------------------- | ------------ |
+| **munim-computer-use 0.10.0** | `get_app_state`, `window: 0` | **0.04 s** | **0.05 s** | **0.06 s** | **0.10 s** | **1.0K** | 18 |
+| munim-computer-use 0.9.3 | `get_app_state`, `window: 0` | 0.04 s | 0.05 s | 0.06 s | 0.10 s | 2.3–2.4K | 18 |
+| Cua Driver 0.38.0 | `get_window_state`, `include_screenshot: false` | 0.29 s | 0.29 s | 0.30 s | 0.35 s | 2.4K | 13 |
+| computer-use-mcp 7.8.0 (zavora) | `get_ui_tree` (`COMPUTER_USE_PROFILE=full`) | 1.16 s | 1.18 s | 1.16 s | 1.17 s | 22.4K | 38 |
+| open-computer-use 1.1.3 | `get_app_state`, `include_screenshot: false` | 0.13 s | 0.30 s | 0.98 s | 3.59 s | 1.1K | 20 |
+| MacOS-MCP 0.4.7 | `Snapshot`, `use_vision: false` | 0.36 s | 2.26 s | 8.63 s | 73.91 s | 2.6–17.3K | 18 |
+
+A MacBook Air (M1) on macOS 27.2. munim reads one window here (`window: 0`), as the others do; without it, `get_app_state` lists every Finder window. Cua Driver ran with `mcp --direct` and open-computer-use with `OPEN_COMPUTER_USE_DISABLE_APP_AGENT_PROXY=1`, their documented switches for running inside the process that holds the permissions, since their own apps had none on this Mac. Cua Driver's read stops at 99 elements, which leaves out part of the file list; zavora lists rows scrolled out of view too. MacOS-MCP's reads swing between about 0.3 s and 17 s at 5,000 files and take over a minute at 20,000.
+
+### Linux · Thunar
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="./.github/resources/chart-scale-linux-dark.svg">
+  <img alt="Four servers reading Thunar's details view with 100 to 20,000 files on Linux. Time per read: munim-computer-use 0.10.0 about 0.2 s, Cua Driver 0.29 to 0.66 s, zavora about 0.9 s, open-computer-use 1.6 s growing to 12.9 s. Tokens per read: munim about 1.2K, Cua Driver 2.3 to 5.7K, zavora about 29K, open-computer-use 26 to 43K." src="./.github/resources/chart-scale-linux-light.svg" width="820">
+</picture>
+
+| Server | Read tool | 100 files | 1,000 | 5,000 | 20,000 | Tokens per read (≈) | Files listed |
+| ------ | --------- | --------- | ----- | ----- | ------ | ------------------- | ------------ |
+| **munim-computer-use 0.10.0** | `get_app_state` | **0.19 s** | **0.20 s** | **0.24 s** | **0.23 s** | **1.2K** | 33 |
+| munim-computer-use 0.9.3 | `get_app_state` | 0.51 s | 0.52 s | 0.55 s | 0.20 s | 0.4–1.9K | 33 |
+| Cua Driver 0.38.0 | `get_window_state`, `include_screenshot: false` | 0.66 s | 0.30 s | 0.29 s | 0.29 s | 2.3–5.7K | 0 |
+| computer-use-mcp 7.8.0 (zavora) | `get_ui_tree` (`COMPUTER_USE_PROFILE=full`) | 0.85 s | 0.91 s | 0.88 s | 0.86 s | 28.6K | 0 |
+| open-computer-use 1.1.3 | `get_app_state`, `include_screenshot: false` | 1.58 s | 2.89 s | 4.93 s | 12.90 s | 26.0–42.7K | 175 |
+
+Ubuntu in WSL 2 on the same laptop, X11 (Xvfb, 1920×1080) with bspwm and AT-SPI. Thunar's default icon view tells assistive technology nothing about its files, so every server read its details view. Only munim lists exactly the 33 rows in view: Cua Driver's read listed files only at 100 files, zavora's tree lists none of them, and open-computer-use lists every row it has, in or out of view, and timed out at 20,000 files on some calls. munim 0.9.3 read nothing of the 20,000-file folder, because AT-SPI refuses to hand over more than 65,536 children at once; 0.10.0 walks such a list by index.
+
+### How it was measured
+
+For each folder size a fresh file manager window was opened in front and every server was started once, called over stdio with its own read tool (text only where the tool has a switch for it), one warm-up call dropped, then 5 timed calls; the whole run was done twice, so each time is the median of 10. Tokens are estimates at 4 characters per token. "Files listed" counts the folder's file names in the 1,000-file read. [Terminator](https://github.com/mediar-ai/terminator) was left out: its `get_window_tree` picks the first `explorer` process, which is the taskbar, and it takes no pid. The scripts are in a scratch kit, not this repository; ask in an issue if you want them.
+
+### Acting
+
+On the same Windows PC: the five clicks of 1 + 2 = on Calculator (clear, 1, +, 2, =), each a separate call by element id, after one read. Median of 3 runs.
+
+| Server                        | Five clicks | Per click  |
+| ----------------------------- | ----------- | ---------- |
+| **munim-computer-use 0.10.0** | **1.70 s**  | **0.34 s** |
+| Cua Driver 0.38.0             | 2.31 s      | 0.46 s     |
+
+Most of a click is the agent pointer flying to the target so you can see where the agent acts. `run_steps` sends all five in one call.
+
+### Every Windows release
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="./.github/resources/chart-history-dark.svg">
+  <img alt="get_app_state on the same File Explorer window in every Windows release: about 0.4 s and 2.5K tokens from 0.2.0 through 0.6.1, about 0.25 s and 1.9K tokens from 0.7.0, and 0.16 s in 0.8.0; Windows-MCP 0.8.5 took 0.75 s and about 3.7K tokens" src="./.github/resources/chart-history-light.svg" width="820">
+</picture>
+
+The same window read by every Windows release, from the release binaries, in two rounds of all 17 with Windows-MCP in each round, plus 0.8.0 measured against 0.7.3 the same way, on 27 October 2026 (an earlier run than the ones above, so the times differ a little; Windows reads have not changed since 0.8.0, and 0.9.3 and 0.10.0 measured alike above). 0.7.0 is where `get_app_state` started reading only what is on screen and fetching each element's attributes in one request; 0.8.0 fetches the whole window in one request instead of one per element, with the same output.
+
+<details>
+<summary>The numbers</summary>
+
+| Release | Read time (median) | Characters | Tokens (≈) |
+| ------- | ------------------ | ---------- | ---------- |
+| 0.2.0   | 0.40 s              | 9,860      | 2.5K       |
+| 0.3.0   | 0.43 s              | 9,860      | 2.5K       |
+| 0.3.1   | 0.38 s              | 9,860      | 2.5K       |
+| 0.4.0   | 0.38 s              | 9,860      | 2.5K       |
+| 0.4.1   | 0.38 s              | 9,860      | 2.5K       |
+| 0.4.2   | 0.39 s              | 9,860      | 2.5K       |
+| 0.4.3   | 0.40 s              | 9,860      | 2.5K       |
+| 0.4.4   | 0.38 s              | 9,860      | 2.5K       |
+| 0.5.0   | 0.38 s              | 9,860      | 2.5K       |
+| 0.5.1   | 0.37 s              | 9,860      | 2.5K       |
+| 0.5.2   | 0.43 s              | 9,860      | 2.5K       |
+| 0.6.0   | 0.37 s              | 9,860      | 2.5K       |
+| 0.6.1   | 0.41 s              | 9,860      | 2.5K       |
+| 0.7.0   | 0.23 s              | 7,499      | 1.9K       |
+| 0.7.1   | 0.28 s              | 7,499      | 1.9K       |
+| 0.7.2   | 0.25 s              | 7,520      | 1.9K       |
+| 0.7.3   | 0.25 s              | 7,520      | 1.9K       |
+| 0.8.0   | 0.16 s              | 7,515      | 1.9K       |
+| Windows-MCP 0.8.5 `Snapshot` | 0.75 s | 14,929 | 3.7K |
+
+</details>
+
+`node scripts/readme-charts.mjs` redraws the charts; the coverage chart is counted from the capability matrix.
 
 ## Why it works well
 
 - **Accessibility first, pixels second.** `get_app_state` returns the app's accessibility tree with stable element ids, so the agent presses _the button_ instead of guessing at a coordinate. It costs a fraction of the tokens of a screenshot and it is what scores highest on OSWorld-style tasks. Screenshots are for verifying and for content the tree cannot describe.
-- **Background control.** Events are addressed to the target window (SkyLight on macOS, posted window messages on Windows, XTEST on Linux). No focus stealing, no hijacked mouse.
+- **What is on screen, fast.** `get_app_state` lists what is in view: a list or table gives its visible rows, and anything scrolled away is skipped and counted (`offscreen: true` lists it too). Attributes are read in one request per element, and on Windows the whole window comes back in a single request. Rows of a list print one to a line. A Finder window reads in about 0.05 s, File Explorer in about 0.12 s and Thunar in about 0.2 s, faster than any other server we measured on each system (see [Benchmarks](#benchmarks)).
+- **Dialogs first.** While a sheet, alert or popover blocks a window, only its controls are listed, with a note saying so, so the agent answers the dialog instead of clicking behind it.
+- **Electron and Chromium apps (macOS).** Slack, VS Code, Discord and other Chromium-based apps expose their tree only to a client that asks; `get_app_state` asks, and says so while a background app is still building it.
+- **Text the tree cannot describe.** When an app exposes no labelled controls, its window is read with on-device OCR (Apple Vision on macOS, Windows OCR on Windows) and the text is listed with ids that `click`, `hover`, `right_click` and `drag` accept. The image never leaves the machine. `ocr: "always"` or `"never"` overrides it.
+- **Ids that fail instead of misfiring.** Every id is rechecked before an action. If its element is gone, or its role or name changed (a dialog swapped its buttons, a list re-sorted), the action fails with a clear error instead of acting on whatever sits there now.
+- **Waits as long as the app takes.** `return_state` waits for the app's accessibility notifications to stop instead of a fixed pause: about 230 ms for a field edit (was 350 ms), and long enough for a sheet to finish sliding in.
+- **Background control.** Events are addressed to the target window (SkyLight on macOS, UI Automation patterns and posted window messages on Windows). On macOS the agent never takes your mouse or keyboard; see [Works alongside you](#works-alongside-you) for the exact guarantee on each platform.
 - **Pointer overlay, not your pointer.** A soft lavender agent pointer shows where the agent is acting. Your cursor is untouched.
 - **Coordinates that land.** Every screenshot and zoom carries its screen origin and pixels-per-point. `zoom` captures any region at full physical resolution.
 - **Your browser, your logins.** The Chrome extension gives the agent its own labelled tab group in your signed-in Chrome, and leaves your tabs alone unless you point it at one.
 - **Or the tab you already have open.** `browser_list_tabs all=true` shows every tab in the browser and `browser_use_tab` takes one over in place — useful when the page is already signed in or mid-flow and re-opening the URL would throw that away. An adopted tab is not moved into the agent's group, not activated and not reloaded; cleanup releases it rather than closing it, and `browser_release_tab` hands it back early.
+- **Tabs the agent's clicks open are the agent's too.** A `target=_blank` link or popup opened by an agent click or key press within 10 seconds joins that task's tabs and group, and its cleanup closes it. A tab opened from an agent tab without a recent agent action stays yours.
+- **Parallel tasks, one extension.** Every MCP process gets its own tab group, and one process can run several tasks by passing a stable `session_id` on its browser calls. A task cannot drive or adopt another task's tabs, and cleanup (including a process exiting) closes only its own. Any number of MCP processes share the one extension: the first owns it and the rest go through it, and if the owner exits another takes over without closing anyone's tabs. Tasks share Chrome's cookies and logins, and desktop apps and the clipboard are not isolated.
 - **Model-agnostic.** No vision model is required for interaction; local models work too.
 - **Look → act → verify.** `hover` for mouse-over menus, `wait` for loads, `query` to find a control by label without reading a whole tree.
+- **Act and look in one call.** Pass `return_state: true` to any action (`click`, `type_text`, `set_value`, `browser_click`, `browser_navigate`, …) and the result carries the app's fresh accessibility tree, or the page's current snapshot. Browser actions report readiness separately: a loaded tab is not proof that delayed SPA UI has rendered. Use `wait_for_selector` for an expected visible element (see below). `state_query` narrows the desktop tree the same way `query` does.
+- **Several steps, one call.** `run_steps` takes a list like click the field, type, press return and runs it in order, each step with the same checks as a direct call. The whole list is checked before anything runs, the first failing step stops the rest, and the result says what ran and what did not. Put `return_state` on it to see the app after the last step.
+- **Pages as text.** `browser_read` returns a page's readable text with its headings, including what is scrolled out of view, from a tab in the background. It comes in chunks you can continue with `offset`, `query` keeps only the matching lines under their heading, and `include_links` lists the links.
+- **Frames too.** A support chat, payment form or sign-in box embedded in a page is its own document, often from another site. `browser_snapshot` lists its controls after the page's, marked `(in frame "…")`, and their indices work with `browser_click`, `browser_fill` and `browser_upload_file`; `browser_read` adds each frame's text under a `[frame "…"]` line, and `wait_for_selector` looks inside frames. Your site rules apply to a frame's own site, and `browser_request_credentials` never fills a field inside a frame.
+- **See a tab without taking your window.** `browser_screenshot` captures what one of the agent's tabs shows, frames included, while it stays in the background: the tab is not selected, its window is not raised and the screen is not captured, so you keep working in your own tab. `browser_select_tab bring_to_front=true` is the only browser call that takes your window, and it is a last resort.
+- **JavaScript dialogs, answered on purpose.** When a page opens an alert, confirm or prompt, `browser_snapshot` shows its type, message and id, and other commands on that tab say a dialog is open instead of timing out. `browser_handle_dialog` accepts or dismisses it, with text for a prompt, in a background tab without the keyboard. A dialog that replaced the one the agent read is refused, and a dialog never counts as an answer on its own.
+- **Why a page is broken.** `browser_page_errors` lists the uncaught exceptions and console errors a tab's page has logged since it loaded (as far as Chrome keeps them), and the requests that failed (network errors and HTTP 400 or above) since the agent attached, the latest 50, with URLs stripped of query strings and fragments. Exceptions and console errors are read from Chrome's own record during the call, so the DevTools Runtime domain, which bot checks on signed-in sites look for, is not left on in between. Headers, cookies and bodies are never read, and the tab is not reloaded or shown.
+- **Passwords stay out of the conversation.** `browser_request_credentials` asks the user to sign in in a small Chrome window that shows the site's real origin. What they type goes straight into the page's fields and is never returned to the model. `browser_snapshot` never shows a password field's value, and on the desktop, typing into password fields is refused by default.
+- **Start the app it needs.** `launch_app` opens an installed app that is not running, by the name the system lists it under (Start menu, app launcher or Applications; "calc" is enough for Calculator) or its id, and waits for its first window, then names the running app and pid to read. A running app is reported instead of started twice, several matches are listed instead of guessed, and the user's app rules apply. macOS opens it without bringing it to the front.
+- **Dropdowns and hover menus in a page.** Chrome draws a native `<select>`'s dropdown outside the page, where no snapshot or click reaches it, so `browser_select_option` chooses by option value or visible label instead: the selection changes and the page gets its `input` and `change` events, in a background tab, and a missing or disabled option changes nothing and lists the options. Snapshots show each select's current choice (`select "Size" ("Medium" selected of 4 options)`). `browser_hover` rests the agent's pointer on an element to open a menu or tooltip that appears on hover, with real pointer movement, so CSS `:hover` menus open too; nothing is pressed.
+- **Current MCP, old clients too.** Both servers speak the stateless [2026-07-28](https://modelcontextprotocol.io/specification/2026-07-28) revision (per-request `_meta`, `server/discover`, `resultType`, cacheable `tools/list`) and the handshake revisions from 2024-11-05 to 2025-11-25, choosing per request, so an older client keeps working unchanged. Tools carry titles and read-only/destructive/idempotent hints.
+- **Pick up what you are looking at.** `get_app_state` and `screenshot` take `app: "frontmost"` for the app in front of the user, so a client can hand the agent "this window" in one step.
 
-## Tools (28)
+## Works alongside you
+
+The agent has its own pointer; yours stays yours.
+
+**macOS — guaranteed.** Every action goes through accessibility (press, set value, select text, show menu, scroll bars) or through events addressed to the target app's process and window. The server never moves your pointer, never posts into the system-wide input stream, and never holds or blocks your input, so you can keep clicking and typing in other apps while the agent works — even in the same app, on another window. Events come from a private source, so a modifier you are holding does not leak into the agent's clicks. The target app may be brought forward when that is the point of the step (`activate_app`, or handing you a password field), but not on every action.
+
+Command shortcuts sent to a background app run through its menu bar (macOS gives menu key equivalents only to the front app), so `cmd+W`, `cmd+S` and the like work without bringing it forward. A minimized window, or a hidden app, is moved for the moment it needs pixels or input (typing, a coordinate click, a screenshot, OCR) onto an invisible display, where it works while nobody sees it; it is minimized or hidden again after 20 idle seconds, when another app's window needs the display, or when the server exits. If you bring the app up yourself meanwhile, its windows come back on screen where they were. Accessibility actions on such a window (press, set value) need none of this. `COMPUTER_USE_PARK_WINDOWS=0` turns it off, and those actions then return an error asking for the window to be restored.
+
+The exceptions refuse instead of borrowing your pointer: a click, hover or scroll with no target app (coordinates over the desktop before any `get_app_state`), and drags that leave the source window (between apps, or onto the desktop). The error says what to pass instead.
+
+**Windows — best effort, reported.** Element presses (Invoke), `set_value`, `select_text` and scrolling through UI Automation's ScrollPattern never touch your pointer, and classic Win32 controls also take clicks, hovers, wheel and drags as posted window messages. Other UI (Chromium, Electron, WPF, UWP) only reacts to real mouse input, so those clicks, hovers and drags move your pointer, and `type_text`/`press_key` go to the focused window. Whenever the real pointer was used, the result says `via cursor`. A coordinate action on an element that another app's window covers is refused rather than clicking that window, and pointer and keyboard actions on a minimized window return an error asking for it to be restored (accessibility actions still work on it).
+
+**Linux — pointer actions use it.** XTEST input moves the real pointer and goes to the focused window, and results say `via cursor`. Element actions through AT-SPI (press, set value, insert text, select) do not move it.
+
+## Apps and sites the agent may use
+
+You decide which apps and websites the agent may touch. Put a `policy.json` in the server's support directory (`~/Library/Application Support/computer-use` on macOS, `%LOCALAPPDATA%\munim-computer-use` on Windows, `~/.local/share/munim-computer-use` on Linux; `munim-computer-use identity` prints it as `supportDir`), or point `COMPUTER_USE_POLICY` at a file anywhere. An app that [embeds](#embedding-in-an-app) the server under its own profile reads the file from its own support directory:
+
+```json
+{
+  "apps": { "Keychain Access": "block", "com.apple.MobileSMS": "ask" },
+  "sites": { "bank.example": "block", "mail.google.com": "ask", "*": "allow" },
+  "foreground": "allow"
+}
+```
+
+- **`allow`**, **`ask`** or **`block`** per app or site. `ask` shows the user a prompt the first time the agent reaches for it (a system dialog for apps, a small Chrome window for sites), and an approval lasts until that agent task ends. An unanswered prompt counts as no after two minutes.
+- **Apps** match their name or bundle id, ignoring case. The rule applies when the agent reads, captures or activates the app. Actions then target elements from a snapshot that was allowed.
+- **Sites** match a host and all its subdomains, and the most specific pattern wins. They are checked on every browser action against the page the tab is showing at that moment, so following a link into a blocked site does not get around it.
+- **`*`** sets the default, which is otherwise `allow`, so `{"apps": {"*": "block", "Notes": "allow"}}` is an allow-list.
+- **`"foreground"`** is one rule for the whole screen, not per app. Set it to `"block"` to keep the agent in the background, so it never takes the screen from you. It covers:
+  - `activate_app`, and `launch_app` on Windows and Linux, where a new app's window may come to the front;
+  - `browser_select_tab` with `bring_to_front`;
+  - on Windows, typing into a window that is not in front, and any action that would fall back to your real pointer;
+  - on Linux, every pointer action (they all move the real pointer).
+
+  Those calls fail with `foreground_required` before anything moves, and work that runs in the background goes ahead. `"ask"` prompts once per agent task. A tool argument cannot override the rule. Remote control from a viewer is exempt, because there you are the one driving.
+- Changes apply at once, with no restart. A file that is not valid blocks everything rather than being ignored, so a typo cannot quietly turn a block into an allow.
+
+This is a guard rail for an agent that follows its instructions, not a sandbox. A coordinate click lands wherever it points, and a whole-display screenshot shows every window.
+
+## Tools (41)
 
 | Area    | Tools                                                                                                                                                                                                      |
 | ------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | See     | `list_apps`, `get_app_state` (with `query`), `screenshot`, `zoom`, `list_displays`                                                                                                                         |
-| Act     | `click`, `right_click`, `hover`, `drag`, `scroll`, `type_text`, `set_value`, `select_text`, `press_key`, `activate_app`, `wait`                                                                            |
-| Browser | `browser_open_tab`, `browser_list_tabs`, `browser_use_tab`, `browser_release_tab`, `browser_select_tab`, `browser_navigate`, `browser_snapshot`, `browser_click`, `browser_type`, `browser_press_key`, `browser_close_tab`, `browser_close_all_tabs` |
+| Act     | `click`, `right_click`, `hover`, `drag`, `scroll`, `type_text`, `set_value`, `select_text`, `press_key`, `activate_app`, `launch_app`, `wait`, `run_steps`                                                               |
+| Clipboard | `clipboard_read`, `clipboard_write` (plain text)                                                                                                                                                         |
+| Browser | `browser_open_tab`, `browser_list_tabs`, `browser_use_tab`, `browser_release_tab`, `browser_select_tab`, `browser_navigate`, `browser_snapshot`, `browser_read`, `browser_screenshot`, `browser_page_errors`, `browser_click`, `browser_hover`, `browser_type`, `browser_fill`, `browser_select_option`, `browser_upload_file`, `browser_request_credentials`, `browser_press_key`, `browser_handle_dialog`, `browser_close_tab`, `browser_close_all_tabs` |
 
-Names, argument shapes and descriptions are identical on every platform; a model that learned them on a Mac needs nothing new on Windows.
+Every action tool also takes `return_state`, which returns current state after the action in the same call. `run_steps` runs a list of them in one call and stops at the first that fails.
+
+### Editing a page in a background tab
+
+The agent's tabs stay in the background: the browser tools never select them, raise Chrome's window, or send OS keystrokes. While the agent holds a tab, its DevTools session emulates focus, so Chrome keeps rendering the tab and real input reaches it:
+
+- `browser_click` presses with trusted mouse events, which frameworks that ignore synthetic clicks (Angular Material buttons, for example) respond to. Page events remain only as a fallback, and the reply says which route ran.
+- `browser_press_key` takes any key plus `modifiers` (`cmd`, `ctrl`, `alt`, `shift`): Delete, arrows, Home/End, PageUp/PageDown, F-keys, characters and shortcuts. Editing shortcuts such as select all (`key: "a", modifiers: ["cmd"]`) mean the same with `cmd` or `ctrl` on every platform. Browser shortcuts like close-tab never reach Chrome itself.
+- `browser_fill` replaces a field's whole value by its snapshot index: input, textarea or contenteditable, open shadow roots included. It selects everything, inserts the new text through Chrome's text input (trusted `beforeinput`/`input` events), and says whether the field now holds exactly that text.
+- `browser_upload_file` attaches local files to a file input by its snapshot index, or by the index of a label for one. Chrome sets the input's files (`DOM.setFileInputFiles`) and the page gets its usual `input`/`change` events. No file picker opens and no OS input is sent. Snapshots list file inputs as `input[file]`, including ones a page hides behind a styled button, and show how many files each holds. Paths are on the computer running Chrome and the server, and the server checks each is a readable regular file before sending it. Several files need an input with `multiple`. The tool only stages the files: it never submits the form, and the reply says the site has not received them yet.
+- `browser_snapshot` also lists table and grid rows (`row "Ana | Admin | Active"`), cells and other elements that are only clickable by handler or pointer cursor, so list rows can be found and clicked. Checkboxes, radios and switches are named by their label, never their value ("on"), and show their state: `input[checkbox] "Admin (all permissions)" (unchecked)`.
+- A click never lands on the wrong thing. An element out of view is scrolled into view, and the press goes only to a point where the element itself (or its own label) is on top. When a banner, dialog or another control covers it, nothing is pressed and the call fails naming what is in front. A checkbox click reports what the box is now.
+
+The desktop `press_key` and `type_text` go to whichever Chrome window is in front, which may be the user's, so never use them on an agent tab.
+
+### Typing alongside the user
+
+The person at the computer can keep typing in their own windows while the agent types elsewhere. Browser tools never touch the OS keyboard. On the desktop, delivering keys or a click to a background app lends that app keyboard focus for the length of the action. On macOS, keys the person presses during that moment are held in a short-lived session event tap and replayed, in order, to their own window once it has focus again (set `MUNIM_COMPUTER_USE_HOLD_USER_KEYS=0` to turn this off). Windows holds and replays them the same way. A desktop `click` by `element_id` that has to use a position checks it with the app's own hit test first, and fails instead of clicking whatever else is there.
+
+### Browser readiness and safe re-observation
+
+`browser_click`, `browser_type`, `browser_fill`, `browser_upload_file`, `browser_press_key`, and `browser_navigate` accept
+`wait_for_selector` together with `return_state: true`. `browser_snapshot` accepts
+the same wait **without performing an action**:
+
+```json
+{"tab_id": 42, "index": 0, "return_state": true,
+ "wait_for_selector": "[role=dialog] button", "wait_timeout_ms": 3000}
+```
+
+The extension polls for any matching visible element in the page, open shadow
+roots included (each root is matched on its own, so one selector cannot span a
+host and its shadow tree), independently of resource loading, including
+same-document rendering. It shares
+the snapshot's visibility rules: at least 2×2 CSS pixels; no hidden, aria-hidden,
+inert or fully transparent ancestor. Self-transparent native form controls remain
+available for styled upload/checkbox hit targets; transparent containers do not.
+This is not a guarantee of clickability or
+lack of occlusion. Frames are searched too (a match there names the frame);
+closed shadow roots are not, and a timeout says how many frames could not be searched. Choose a selector specific to the **new expected UI**;
+an element already present can satisfy it immediately. No arbitrary page script
+is accepted, and a selector may not test the `value` attribute: React mirrors a
+controlled input's value there, password fields included, so a wait could
+otherwise confirm a password one guessed character at a time.
+
+- `wait_timeout_ms`: defaults to `8000`, accepts integers `0`–`10000`; `0` checks
+  once. Requires `wait_for_selector`. The budget covers polling, not browser/API
+  latency or user site-approval prompts. Site rules are rechecked before every
+  observation and before the final snapshot.
+- `readiness: met (visible_selector, … ms)`: the specified condition was observed,
+  not a guarantee that all network requests, animations, or application work ended.
+- `readiness: timeout`: the condition was not observed within the budget. The
+  action's success remains separate, and the current snapshot is still returned.
+- `readiness: error`: the condition could not be evaluated (for example invalid
+  CSS); the action can still have succeeded. Correct the wait and re-observe.
+- Without a selector, `return_state` retains the short pause and bounded
+  navigation-load wait, but reports `not_requested (document_load, … ms)` rather
+  than claiming SPA readiness. A navigation-load budget expiry reports `timeout`.
+  A plain `browser_snapshot` without a wait remains an immediate observation.
+
+If a returned snapshot looks unchanged, **do not repeat a non-idempotent click**
+just because expected UI is absent. Wait/re-observe first:
+
+```json
+{"tab_id": 42, "wait_for_selector": "[role=dialog] button", "wait_timeout_ms": 3000}
+```
+
+Send this to `browser_snapshot`, inspect its readiness and fresh indices, then
+choose the next action. A timeout or tool error does not roll back a click,
+submission, typing, or navigation. Use current state to decide whether a retry is
+safe. Invalid wait types/bounds or an action wait without `return_state: true` are
+rejected before acting. `null` for an optional argument means the same as leaving
+it out. These options require an updated extension as well as the native server;
+when an older extension ignores them, the result says so and asks for a reload.
+
+Regression checks: `node --test chrome-extension/background.test.mjs` covers the
+wait contract and site-policy guards. The real-browser CI harness
+`scripts/e2e-browser.mjs` tests a dialog delayed by 1100 ms without navigation,
+one click only, plus timeout and read-only recovery. The dependency-free CDP
+regressions cover both snapshot scoping/pagination and SPA readiness. Run against
+an isolated Chrome/Chromium profile; no Playwright module is required:
+
+```bash
+node scripts/snapshot-dom.test.mjs --chrome /path/to/chrome
+# Extract the pre-fix source; each suite must fail independently:
+git show deb4c7a:chrome-extension/background.js > original-background.js
+node scripts/snapshot-dom.test.mjs --chrome /path/to/chrome --source original-background.js --suite snapshot
+node scripts/snapshot-dom.test.mjs --chrome /path/to/chrome --source original-background.js --suite readiness
+```
+
+`browser_snapshot` automatically scopes to the topmost visible dialog when one is
+open, so covered background controls cannot consume the dialog's budget. A
+dialog's portalled popups stay in scope: elements its controls point at through
+`aria-controls`/`aria-owns`, open popovers, and controls painted on top of the
+dialog, such as a select's options rendered at the end of `<body>`. Hidden
+and inert subtrees are excluded; reachable offscreen controls remain available.
+Native modeless dialogs and explicit `aria-modal="false"` do not scope the page.
+Native modal dialogs and explicit `aria-modal="true"` are definitive candidates.
+Implicit ARIA dialogs are heuristically scoped only when they cover the viewport
+centre and are topmost there, rather than merely at their own centre. With no
+hit-test stack, centre coverage is the fallback. Corner chat widgets and bottom
+cookie banners therefore retain the page's indexed controls.
+It returns up to `limit` controls (default and maximum `250`), reports `scope`,
+`offset`, `limit`, and `total`, and explicitly says when it is truncated and which
+`offset` to request next. Continue on the same `tab_id` and `session_id`. Indices
+are global within the selected scope and stay actionable across pages of an
+unchanged UI; after a UI change or navigation, take a fresh snapshot from
+`offset=0`. An action's `return_state` also starts at `offset=0` and uses the same
+scope and truncation reporting.
+
+Names, argument shapes and descriptions are identical on every platform, and CI enforces it (`node scripts/check-tool-parity.mjs`); a model that learned them on a Mac needs nothing new on Windows. To change a tool, edit both literals at once with `scripts/tool-defs.mjs` rather than by hand.
 
 ## Repository layout
 
@@ -148,8 +461,20 @@ Names, argument shapes and descriptions are identical on every platform; a model
 | `macos/`            | Swift server on the Accessibility API and ScreenCaptureKit (macOS 14+) | `swift build -c release` → `.build/release/munim-computer-use`          |
 | `windows-linux/`    | Rust server: UI Automation on Windows, AT-SPI + X11 on Linux           | `cargo build --release` → `target/release/munim-computer-use`           |
 | `chrome-extension/` | Chrome extension + native messaging host for the `browser_*` tools     | Load unpacked; `sh install.sh` / `install.ps1` registers the host; `node background.test.mjs` |
+| `Dockerfile`        | Headless Linux build of the Rust server for registry introspection (Glama and similar); no desktop control inside a container | `docker build -t munim-computer-use .` |
 
 ### Build from source
+
+On Fedora, install the native development libraries before building the Rust
+server (in addition to your Rust toolchain):
+
+```sh
+sudo dnf install gcc pkgconf-pkg-config clang-devel pipewire-devel \
+  libdrm-devel mesa-libgbm-devel mesa-libEGL-devel wayland-devel libxcb-devel
+```
+
+These are needed by the screen-capture dependencies even on X11. In particular,
+a missing `libpipewire-0.3.pc` during the build means `pipewire-devel` is missing.
 
 ```sh
 # macOS
@@ -160,10 +485,31 @@ cd windows-linux && cargo build --release
 
 Linux notes: element actions work everywhere; coordinate clicks need an X11 or XWayland client, since native Wayland apps do not expose absolute geometry.
 
+### Tests
+
+```sh
+cd windows-linux && cargo test                  # Rust server
+node chrome-extension/background.test.mjs       # extension, against a fake Chrome
+node scripts/check-tool-parity.mjs              # Swift and Rust tool lists match
+# Snapshot and SPA readiness regressions (dependency-free CDP, isolated profile):
+node scripts/snapshot-dom.test.mjs --chrome <Chrome for Testing binary>
+# The browser tools end to end, in a throwaway Chrome for Testing profile that
+# never touches your own Chrome (npx playwright install chromium to get one):
+node scripts/e2e-browser.mjs --server <munim-computer-use binary> --chrome <Chrome for Testing binary>
+```
+
 ### Chrome extension (optional)
 
 1. `chrome://extensions` → Developer mode → **Load unpacked** → select `chrome-extension/`.
-2. Register the native messaging host: `sh chrome-extension/install.sh` (macOS/Linux) or `powershell -File chrome-extension/install.ps1` (Windows). Point `COMPUTER_USE_PATH` at the binary if it is not in the default build location.
+2. Register the native messaging host: `munim-computer-use install-native-host` (for example `npx -y munim-computer-use install-native-host`), or from a checkout `sh chrome-extension/install.sh` (macOS/Linux) / `powershell -File chrome-extension/install.ps1` (Windows), which find the build and run the same command. Point `COMPUTER_USE_PATH` at the binary if it is not in the default build location.
+
+If the extension still gets `Specified native messaging host not found.`, or the browser tools say the extension is not connected, run `munim-computer-use check-native-host` in an ordinary terminal. It looks the host up the way Chrome does (on Windows: registry views and policies; everywhere: the manifest's encoding, name, type and allowed origins), starts it with Chrome's command line, and names the step that would fail. Two Windows causes look fine from the inside. An installer run by an MSIX-packaged app (some agent desktop apps are packaged) writes to a private, virtualised copy of HKCU and `%LOCALAPPDATA%` that Chrome never reads. One run by a sandbox with its own Windows account writes to that account's HKCU. The check detects both; run `install-native-host` again from your own terminal. `install-native-host` reports the same findings under `problems`.
+
+The standalone server's host is `com.munimtech.computer_use.desktop`; MT Code, which bundles this server, registers `com.munim.mtcode.desktop`. The extension connects to every host it knows at once and answers each on its own connection, so MT Code and a standalone server (npx, Claude Code, Cursor, a checkout) can both drive Chrome at the same time, each in its own tab groups.
+
+### Sandboxed agents (Windows)
+
+Some agents run their commands in a sandbox: a restricted or low-integrity token, a separate Windows account, or another desktop. A server started there can still list windows and their titles, but other apps' UI Automation refuses it and captures come back black, without any error. When that happens the server says so: `get_app_state` explains an empty tree, `screenshot` and `zoom` flag a capture that is one flat colour, and `activate_app` checks that the window really came forward. Each names the cause it found (for example "runs at low integrity" or "runs as another account"). Retrying from the same context will not help; configure the agent to start the MCP server in your own, unsandboxed context.
 
 ## Environment flags
 
@@ -173,18 +519,71 @@ Linux notes: element actions work everywhere; coordinate clicks need an X11 or X
 | `COMPUTER_USE_AGENT_CURSOR=0`              | Do not draw the agent pointer                                   |
 | `COMPUTER_USE_AGENT_CURSOR_TASK_FADE_SECS` | How long the pointer stays after the last tool call (default 8) |
 | `COMPUTER_USE_ALLOW_SECURE_FIELD_INPUT=1`  | Allow typing into password fields (refused by default)          |
-| `COMPUTER_USE_COMPUTER_USE_YIELD_SECS`     | Pause the agent while the user is actively using the machine    |
+| `COMPUTER_USE_REMOTE_CONTROL=1`            | Remote-desktop mode: input takes over the real pointer          |
+| `COMPUTER_USE_PARK_WINDOWS=0`              | macOS: do not move minimized or hidden windows to an invisible display to act on them |
+| `COMPUTER_USE_POLICY=<file>`               | Where to read the [app and site policy](#apps-and-sites-the-agent-may-use) (default `policy.json` in the support directory) |
+
+### Remote control
+
+Normally this server never touches the pointer: coordinate clicks are routed to
+a specific window, keystrokes are posted to a specific process, and an action
+that cannot be targeted is refused rather than taking over the machine. That is
+what lets an agent work while the user keeps using their computer.
+
+`COMPUTER_USE_REMOTE_CONTROL=1` inverts that contract for one process, for the
+case where a person is watching this machine's screen from another one and is
+steering it themselves. Then `click`, `right_click`, `drag`, `hover` and
+`scroll` move the real cursor and `type_text` and `press_key` go to whatever is
+focused, the way Chrome Remote Desktop or Screen Sharing behave. `scroll` also
+accepts `x`/`y` so the wheel acts over the point the viewer scrolled at, and the
+agent-cursor overlay stays hidden — there is only one pointer now.
+
+A host that runs both an agent and a viewer runs them as two processes, so
+turning this on for the viewer never takes the pointer away from the user on
+the agent's behalf.
+
+## Embedding in an app
+
+An app can ship this binary inside its own bundle and run it under its own identity, so it never shares a browser bridge, agent-cursor app or native-messaging host with a standalone install on the same machine. [MT Code](https://github.com/munimtechnologies/mtcode) does exactly this. Pass a profile, either as a JSON object or a path to a JSON file, with `--profile <json|file>` (any position) or `COMPUTER_USE_PROFILE`:
+
+```json
+{
+  "name": "example-desktop",
+  "envPrefix": "EXAMPLE_DESKTOP_",
+  "agentCursorName": "ExampleAgentCursor",
+  "agentCursorBundleId": "com.example.agent-cursor",
+  "nativeHostNames": ["com.example.desktop"],
+  "extensionIds": ["abcdefghijklmnopabcdefghijklmnop"],
+  "nativeHostDescription": "Example desktop control bridge"
+}
+```
+
+| Key                                        | Default                                                            | Meaning                                                                                              |
+| ------------------------------------------ | ------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------- |
+| `name`                                     | none (standalone paths)                                            | Moves the support dir, bridge socket and Windows pipe under this name                                |
+| `supportDir`                               | `~/Library/Application Support/computer-use`, `$XDG_DATA_HOME/munim-computer-use`, `%LOCALAPPDATA%\munim-computer-use` | Native-host wrapper, profile copy; on macOS also the bridge socket and a bare build's overlay app |
+| `bridgeSocket`                             | `<supportDir>/bridge.sock` (macOS), `$XDG_RUNTIME_DIR/<name>/bridge.sock` (Linux), `<name>-bridge-<user>` pipe (Windows) | Where the MCP server and the Chrome relay meet                                     |
+| `envPrefix`                                | none                                                               | Tunables are read as `<prefix>BROWSER`, `<prefix>AGENT_CURSOR`, … before `COMPUTER_USE_*`           |
+| `agentCursorName` / `agentCursorBundleId`  | `MunimAgentCursor` / `com.munimtech.computer-use.agent-cursor`     | The pointer overlay's app, executable and window-class name, and its macOS bundle id                 |
+| `historyDir`                               | none                                                               | Default `--root` for `computer-history`                                                              |
+| `nativeHostNames` / `extensionIds`         | `com.munimtech.computer_use.desktop`, `com.munim.mtcode.desktop` / `kgdolgnijopbghhomnblabjkmjhnoage` | What `install-native-host` registers, and for which extension. The first name is this identity's own; later ones are aliases, written only if no other installed app owns them |
+
+Each of `supportDir`, `bridgeSocket`, `envPrefix`, `agentCursorName`, `agentCursorBundleId` and `historyDir` can also be overridden by `COMPUTER_USE_<SNAKE_CASE>` (for example `COMPUTER_USE_SUPPORT_DIR`), which wins over the profile. `munim-computer-use identity` prints the resolved values.
+
+- **Browser bridge.** Run `munim-computer-use install-native-host` with the same profile. It writes a wrapper that relays Chrome into this identity's bridge (replaying the profile), and a host manifest for each name in every Chrome/Chromium profile directory (the registry on Windows). It rewrites nothing that is already current, so an app can call it on every launch.
+- **Extension.** Use the stock extension (it connects to `com.munim.mtcode.desktop` and `com.munimtech.computer_use.desktop`), or build a variant with its own host names, tab-group title and key: `node scripts/build-extension.mjs --out <dir> --host com.example.desktop --group-title "Example" --key <base64>`. It prints the variant's extension id for `extensionIds`.
+- **macOS permissions.** The MCP server is a bare executable, so Accessibility and Screen Recording are granted to the app that spawns it. Only the agent-cursor overlay has a bundle of its own; ship `<agentCursorName>.app` (a copy of the binary plus an `LSUIElement` Info.plist) beside the binary, or it is materialised under `supportDir` on first use.
 
 ## Prompting your agent
 
-Look → act → verify. `get_app_state` for ids, act by id, then `get_app_state` or `screenshot` again before the next step. Use `zoom` for small text, `hover` for menus that appear on mouse-over, `wait` after loads, keyboard shortcuts for stubborn widgets. The system-prompt text MT Code gives its agents lives in [`CodexDeveloperInstructions.ts`](https://github.com/munimtechnologies/mtcode/blob/main/apps/server/src/provider/CodexDeveloperInstructions.ts) and is a good starting point.
+Look → act → verify. `get_app_state` for ids, act by id with `return_state: true` to see the result in the same call, and `screenshot` when the tree cannot show it. Read pages with `browser_read`, and let the user type passwords through `browser_request_credentials`. Use `zoom` for small text, `hover` for menus that appear on mouse-over, `wait` after loads, keyboard shortcuts for stubborn widgets. The system-prompt text MT Code gives its agents lives in [`CodexDeveloperInstructions.ts`](https://github.com/munimtechnologies/mtcode/blob/main/apps/server/src/provider/CodexDeveloperInstructions.ts) and is a good starting point.
 
 ## Contributing
 
-This repository mirrors the `native/` tree of [munimtechnologies/mtcode](https://github.com/munimtechnologies/mtcode), where the server is developed and shipped inside MT Code. Issues and discussions are welcome here; code changes land in mtcode first and are synced.
+The server is developed here. [MT Code](https://github.com/munimtechnologies/mtcode) ships it by pinning a release of this repository (`native/munim-computer-use.json`), so changes reach MT Code with the next release. Issues and pull requests are welcome.
 
 ## Credits and license
 
-Designed and built by [Munim Technologies](https://munimtech.com) (Munim, Inc.) for MT Code. Copyright 2026 Munim, Inc. Licensed under the Apache License 2.0; see `LICENSE`.
+Designed and built by [Munim Technologies](https://munimtech.com) (Munim, Inc.) for MT Code. On-screen pruning, dialog scoping, notification-based settling, OCR fallback, menu shortcuts and window parking follow [arc-cua](https://github.com/shhivv/arc-cua) (MIT). Copyright 2026 Munim, Inc. Licensed under the Apache License 2.0; see `LICENSE`.
 
-Comparison sources: [Codex Computer Use](https://openai.com/index/codex-for-almost-everything/) · [Anthropic computer-use demo](https://github.com/anthropics/anthropic-quickstarts/tree/main/computer-use-demo) · [CursorTouch/Windows-MCP](https://github.com/CursorTouch/Windows-MCP) · [CursorTouch/MacOS-MCP](https://github.com/CursorTouch/MacOS-MCP) · [QwenLM/open-computer-use](https://github.com/QwenLM/open-computer-use) · [zavora-ai/computer-use-mcp](https://github.com/zavora-ai/computer-use-mcp) · [mediar-ai/mcp-server-macos-use](https://github.com/mediar-ai/mcp-server-macos-use) · [deploymenttheory/windows-mcp-server](https://github.com/deploymenttheory/windows-mcp-server) · [nuphus-mcp](https://github.com/mrpulor-gh/nuphus-mcp) · [computer-control-mcp](https://github.com/AB498/computer-control-mcp) · [microsoft/playwright-mcp](https://github.com/microsoft/playwright-mcp)
+Comparison sources: [Codex Computer Use](https://openai.com/index/codex-for-almost-everything/), [its docs](https://developers.openai.com/codex/app/computer-use), [its Windows notes](https://learn.chatgpt.com/docs/computer-use) and [MacStories on how it reads apps](https://www.macstories.net/notes/openais-new-codex-app-has-the-best-computer-use-feature-ive-ever-tested/) · [Cua Driver](https://github.com/trycua/cua) and [its tool reference](https://cua.ai/docs/cua-driver/reference/mcp-tools) · [OpenAI Agents API computer use](https://developers.openai.com/api/docs/guides/agents-api/tools/computer-use) · [Anthropic computer-use demo](https://github.com/anthropics/anthropic-quickstarts/tree/main/computer-use-demo) · [CursorTouch/Windows-MCP](https://github.com/CursorTouch/Windows-MCP) · [CursorTouch/MacOS-MCP](https://github.com/CursorTouch/MacOS-MCP) · [QwenLM/open-computer-use](https://github.com/QwenLM/open-computer-use) · [zavora-ai/computer-use-mcp](https://github.com/zavora-ai/computer-use-mcp) · [mediar-ai/mcp-server-macos-use](https://github.com/mediar-ai/mcp-server-macos-use) · [deploymenttheory/windows-mcp-server](https://github.com/deploymenttheory/windows-mcp-server) · [nuphus-mcp](https://github.com/mrpulor-gh/nuphus-mcp) · [computer-control-mcp](https://github.com/AB498/computer-control-mcp) · [microsoft/playwright-mcp](https://github.com/microsoft/playwright-mcp)

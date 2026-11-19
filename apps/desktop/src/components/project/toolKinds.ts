@@ -329,6 +329,10 @@ export function toolKind(name: string): ToolKind {
       "zoom",
       "list_displays",
       "wait",
+      "launch_app",
+      "run_steps",
+      "clipboard_read",
+      "clipboard_write",
     ].includes(normalized)
   ) {
     return "computer";

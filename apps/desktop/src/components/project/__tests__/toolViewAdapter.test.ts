@@ -9,6 +9,7 @@ import {
   fileSearchRows,
   webResults,
 } from "../toolViewAdapter";
+import computerUseToolSpecs from "@pine/computer-use-runtime/tool-specs.json";
 
 const project = {
   id: "project-1",
@@ -47,6 +48,15 @@ describe("tool view adapter", () => {
       toolViewAdapter({ id: "mcp", name: "mcp__read", status: "complete" })
         .detail,
     ).toBe("generic");
+  });
+
+  it("shows every bundled Computer Use tool with the computer view", () => {
+    for (const { name } of computerUseToolSpecs) {
+      expect([
+        name,
+        toolViewAdapter({ id: name, name, status: "running" }).detail,
+      ]).toEqual([name, "computer"]);
+    }
   });
 
   it("opens a submission's file directly only when it submitted one", () => {

@@ -14,6 +14,16 @@ pub mod linux;
 #[cfg(any(windows, target_os = "linux"))]
 pub mod agent_cursor;
 #[cfg(windows)]
+mod ocr;
+// OCR exists only on Windows; Linux uses the rest, macOS builds only test it.
+#[cfg_attr(not(windows), allow(dead_code))]
+pub mod outline;
+#[cfg(windows)]
+pub mod session;
+pub mod typed;
+#[cfg(windows)]
+mod user_keys;
+#[cfg(windows)]
 pub mod windows;
 
 /// A tool failure that is worth showing the model verbatim.
@@ -40,12 +50,26 @@ impl DesktopError {
 
 pub type Result<T> = std::result::Result<T, DesktopError>;
 
+/// Why this process may not see the signed-in user's desktop, when its token
+/// or desktop says so; attached to results that came back empty or black.
+pub fn desktop_access_warning() -> Option<String> {
+    #[cfg(windows)]
+    {
+        session::desktop_warning()
+    }
+    #[cfg(not(windows))]
+    {
+        None
+    }
+}
+
 /// Where a pointer action should land.
 #[derive(Debug, Clone, Copy)]
 pub enum Point {
     /// An element from the most recent `get_app_state` snapshot.
     Element(u32),
-    /// Absolute screen coordinates in logical pixels.
+    /// Absolute screen coordinates: physical pixels on Windows and X11, the
+    /// space screenshot and zoom report their frames in.
     Screen(f64, f64),
 }
 
@@ -90,6 +114,8 @@ pub struct AppInfo {
     pub pid: u32,
     pub windows: usize,
     pub frontmost: bool,
+    /// Title of the window that best identifies this instance; may be empty.
+    pub title: String,
 }
 
 /// Escape app name/id tokens so `format_app_list` lines stay one line and
@@ -136,15 +162,26 @@ pub fn unescape_app_field(value: &str) -> String {
 
 /// Renders `list_apps` output identically to the macOS server so the model sees
 /// one format everywhere.
+///
+/// Several instances of one app (two Chrome profiles, say) share a name, so the
+/// name alone is ambiguous: each such row also carries its main window title,
+/// and a closing note says to pick by pid (#29). FRONTMOST stays the last token.
 pub fn format_app_list(mut apps: Vec<AppInfo>) -> String {
     if apps.is_empty() {
         return "no running applications with windows".to_string();
     }
     apps.sort_by(|left, right| left.name.to_lowercase().cmp(&right.name.to_lowercase()));
-    apps.iter()
+    let instances = |id: &str| apps.iter().filter(|app| app.id == id).count();
+    let mut lines: Vec<String> = apps
+        .iter()
         .map(|app| {
+            let window = if instances(&app.id) > 1 && !app.title.trim().is_empty() {
+                format!("  window=\"{}\"", escape_app_field(&outline::truncate(&app.title, 80)))
+            } else {
+                String::new()
+            };
             format!(
-                "{}  [{}]  pid={}  windows={}{}",
+                "{}  [{}]  pid={}  windows={}{window}{}",
                 escape_app_field(&app.name),
                 escape_app_field(&app.id),
                 app.pid,
@@ -152,8 +189,61 @@ pub fn format_app_list(mut apps: Vec<AppInfo>) -> String {
                 if app.frontmost { "  FRONTMOST" } else { "" }
             )
         })
-        .collect::<Vec<_>>()
-        .join("\n")
+        .collect();
+    let mut noted: Vec<&str> = Vec::new();
+    for app in &apps {
+        if instances(&app.id) < 2 || noted.contains(&app.id.as_str()) {
+            continue;
+        }
+        noted.push(&app.id);
+        let pids: Vec<String> = apps
+            .iter()
+            .filter(|other| other.id == app.id)
+            .map(|other| other.pid.to_string())
+            .collect();
+        lines.push(format!(
+            "note: {} instances of {} are running (pids {}); its name matches all of them, so pass the pid",
+            pids.len(),
+            escape_app_field(&app.name),
+            pids.join(", ")
+        ));
+    }
+    lines.join("\n")
+}
+
+/// Whether the user opted in to typing into password fields
+/// (`COMPUTER_USE_ALLOW_SECURE_FIELD_INPUT=1`). Off by default, as on macOS: a
+/// credential typed by an agent is produced by the model and can stay in the
+/// transcript, so a password field is handed to the user instead.
+#[cfg_attr(not(any(windows, target_os = "linux")), allow(dead_code))]
+pub fn secure_field_input_allowed() -> bool {
+    secure_field_flag_allows(crate::identity::env_var("ALLOW_SECURE_FIELD_INPUT").as_deref())
+}
+
+fn secure_field_flag_allows(value: Option<&str>) -> bool {
+    value == Some("1")
+}
+
+/// What `type_text` / `set_value` say after focusing a password field for the
+/// user instead of writing into it. Worded as the macOS server words it.
+#[cfg_attr(not(any(windows, target_os = "linux")), allow(dead_code))]
+pub fn secure_field_handback(id: u32) -> String {
+    format!(
+        "handed control to the user: e{id} is a password field, so it was focused for them to type \
+         into. The credential is deliberately not routed through the model. Tell the user it is \
+         ready, wait for them to say they are done, then continue — do not retry this call. \
+         (COMPUTER_USE_ALLOW_SECURE_FIELD_INPUT=1 lets the agent type throwaway credentials.)"
+    )
+}
+
+/// How `get_app_state` reads an app, from the tool's arguments.
+#[derive(Clone, Copy, Debug)]
+pub struct StateOptions {
+    pub max_depth: usize,
+    pub max_elements: usize,
+    /// List elements scrolled out of view too (the old full walk).
+    pub offscreen: bool,
+    pub ocr: outline::OcrMode,
 }
 
 /// The operations every backend must provide.
@@ -162,8 +252,16 @@ pub fn format_app_list(mut apps: Vec<AppInfo>) -> String {
 /// registry that later calls resolve ids against.
 pub trait Desktop {
     fn list_apps(&mut self) -> Result<String>;
-    fn get_app_state(&mut self, app: &str, max_depth: usize, max_elements: usize) -> Result<String>;
+    fn get_app_state(&mut self, app: &str, options: &StateOptions) -> Result<String>;
     fn activate_app(&mut self, app: &str) -> Result<String>;
+    /// Bring one specific window of `app` forward: `activate_app` with a
+    /// `window_id` from get_app_state. Only Windows lists window ids.
+    fn activate_window(&mut self, app: &str, window_id: u64) -> Result<String> {
+        let _ = (app, window_id);
+        Err(DesktopError::new(
+            "window_id is supported on Windows only — call activate_app with just the app",
+        ))
+    }
     fn click(&mut self, target: Point, click_count: u32) -> Result<String>;
     fn right_click(&mut self, target: Point) -> Result<String>;
     /// Park the pointer on a target without pressing, for hover-revealed UI.
@@ -230,6 +328,7 @@ mod tests {
                 pid: 2,
                 windows: 1,
                 frontmost: false,
+                title: String::new(),
             },
             AppInfo {
                 name: "Chrome".into(),
@@ -237,12 +336,54 @@ mod tests {
                 pid: 1,
                 windows: 3,
                 frontmost: true,
+                title: "Docs".into(),
             },
         ]);
 
         let lines: Vec<&str> = rendered.lines().collect();
         assert!(lines[0].starts_with("Chrome  [chrome]  pid=1  windows=3  FRONTMOST"));
         assert!(lines[1].starts_with("zed"));
+    }
+
+    // #29: two instances of one app must be told apart in the inventory itself.
+    #[test]
+    fn app_list_tells_instances_of_one_app_apart() {
+        let instance = |pid, title: &str, frontmost| AppInfo {
+            name: "Google Chrome".into(),
+            id: "google-chrome".into(),
+            pid,
+            windows: 1,
+            frontmost,
+            title: title.into(),
+        };
+        let rendered = format_app_list(vec![
+            instance(28400, "New Tab - Google Chrome", true),
+            instance(14756, "GitHub [beta] - Google Chrome", false),
+            AppInfo { name: "Notepad".into(), id: "notepad".into(), pid: 7, windows: 1, frontmost: false, title: "notes.txt".into() },
+        ]);
+        let lines: Vec<&str> = rendered.lines().collect();
+        assert!(
+            lines.contains(&"Google Chrome  [google-chrome]  pid=28400  windows=1  window=\"New Tab - Google Chrome\"  FRONTMOST"),
+            "{rendered}"
+        );
+        // Brackets are escaped, so parse_app_line still finds the real `  [id]`.
+        assert!(rendered.contains("pid=14756  windows=1  window=\"GitHub \\[beta\\] - Google Chrome\""), "{rendered}");
+        assert!(lines.contains(&"Notepad  [notepad]  pid=7  windows=1"), "a single instance needs no title: {rendered}");
+        assert!(rendered.contains("note: 2 instances of Google Chrome are running (pids 28400, 14756)"), "{rendered}");
+        assert_eq!(rendered.matches("note: ").count(), 1, "{rendered}");
+    }
+
+    #[test]
+    fn password_fields_are_refused_unless_the_user_opts_in() {
+        use super::{secure_field_flag_allows, secure_field_handback};
+        assert!(!secure_field_flag_allows(None));
+        assert!(!secure_field_flag_allows(Some("0")));
+        assert!(!secure_field_flag_allows(Some("")));
+        assert!(secure_field_flag_allows(Some("1")));
+        let message = secure_field_handback(7);
+        assert!(message.contains("e7 is a password field"), "{message}");
+        assert!(message.contains("do not retry"), "{message}");
+        assert!(message.contains("COMPUTER_USE_ALLOW_SECURE_FIELD_INPUT=1"), "{message}");
     }
 
     #[test]
@@ -253,6 +394,7 @@ mod tests {
             pid: 1,
             windows: 1,
             frontmost: false,
+            title: String::new(),
         }]);
         assert!(!rendered.contains('\n') || rendered.lines().count() == 1);
         assert!(rendered.contains("Foo\\nBar"));

@@ -25,7 +25,10 @@ export class ComputerUseMcpClient {
   private readonly pending = new Map<number, PendingRequest>();
   private startPromise: Promise<void> | null = null;
 
-  constructor(private readonly executablePath: string) {}
+  constructor(
+    private readonly executablePath: string,
+    private readonly args: readonly string[] = [],
+  ) {}
 
   async start(): Promise<void> {
     if (this.startPromise) return this.startPromise;
@@ -71,7 +74,7 @@ export class ComputerUseMcpClient {
         `Pine Computer Use is not built for this platform. Expected executable: ${this.executablePath}`,
       );
     });
-    const child = spawn(this.executablePath, [], {
+    const child = spawn(this.executablePath, [...this.args], {
       env: {
         ...process.env,
         COMPUTER_USE_ALLOW_SECURE_FIELD_INPUT: "0",

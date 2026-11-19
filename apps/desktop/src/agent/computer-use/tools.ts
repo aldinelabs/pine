@@ -1,5 +1,6 @@
 import { spawn } from "node:child_process";
 import { existsSync } from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
@@ -11,6 +12,7 @@ import {
 import type { ImageContent, TextContent } from "@earendil-works/pi-ai";
 import { Type, type Static, type TSchema } from "typebox";
 import toolSpecs from "@pine/computer-use-runtime/tool-specs.json";
+import pineIdentity from "@pine/computer-use-runtime/pine-identity.json";
 import type { PineApprovalMode } from "../../shared/agent";
 import type { ToolGate } from "../gate";
 import COMPUTER_USE_SKILL from "./SKILL.md?raw";
@@ -37,6 +39,8 @@ export interface ComputerUseControllerOptions {
   getApprovalMode(): PineApprovalMode;
   getGate(): ToolGate | null;
   executablePath?: string;
+  /** Pine's runtime support directory; defaults to the per-platform location. */
+  supportDirectory?: string;
   client?: Pick<ComputerUseMcpClient, "start" | "callTool" | "dispose">;
 }
 
@@ -52,8 +56,14 @@ const OBSERVATION_TOOLS = new Set([
   "list_displays",
   "browser_list_tabs",
   "browser_snapshot",
+  "browser_read",
+  "browser_screenshot",
+  "browser_page_errors",
   "wait",
 ]);
+
+/** The vendored Munim Computer Use release; see packages/computer-use-runtime/NOTICE.md. */
+export const MUNIM_COMPUTER_USE_VERSION = "0.14.1";
 
 const nativeSpecs = toolSpecs as ComputerUseToolSpec[];
 export const MUNIM_COMPUTER_USE_TOOL_NAMES = nativeSpecs.map(
@@ -97,6 +107,50 @@ export function resolveComputerUseExecutable(): string {
       ? "pine-computer-use.exe"
       : "pine-computer-use",
   );
+}
+
+/**
+ * Pine's support directory for the native runtime: the native-host wrapper,
+ * the agent-cursor overlay app and the browser bridge socket live here, apart
+ * from any standalone Munim Computer Use install.
+ */
+export function resolveComputerUseSupportDirectory(
+  platform: NodeJS.Platform = process.platform,
+  env: NodeJS.ProcessEnv = process.env,
+  home: string = os.homedir(),
+): string {
+  if (platform === "darwin") {
+    return path.join(
+      home,
+      "Library",
+      "Application Support",
+      "Pine",
+      "computer-use",
+    );
+  }
+  if (platform === "win32") {
+    const localAppData =
+      env.LOCALAPPDATA?.trim() || path.win32.join(home, "AppData", "Local");
+    return path.win32.join(localAppData, "Pine", "computer-use");
+  }
+  const dataHome =
+    env.XDG_DATA_HOME?.trim() || path.join(home, ".local", "share");
+  return path.join(dataHome, "pine", "computer-use");
+}
+
+/**
+ * The embedder profile that runs the vendored server under Pine's identity:
+ * its own support directory, bridge socket, agent-cursor app, native-messaging
+ * host and browser extension id.
+ */
+export function computerUseProfile(
+  supportDir: string = resolveComputerUseSupportDirectory(),
+): Record<string, unknown> {
+  return { ...pineIdentity.profile, supportDir };
+}
+
+export function computerUseProfileArgs(supportDir?: string): readonly string[] {
+  return ["--profile", JSON.stringify(computerUseProfile(supportDir))];
 }
 
 export function resolvePineBrowserExtensionDirectory(): string {
@@ -190,25 +244,34 @@ async function runHelper(
 
 export class ComputerUseController {
   readonly executablePath: string;
+  readonly supportDirectory: string;
   readonly extensionDirectory = resolvePineBrowserExtensionDirectory();
   private readonly client: Pick<
     ComputerUseMcpClient,
     "start" | "callTool" | "dispose"
   >;
   private taskGeneration = 0;
+  private nativeHostRefreshed = false;
   private authorizedMode?: PineApprovalMode;
 
   constructor(private readonly options: ComputerUseControllerOptions) {
     this.executablePath =
       options.executablePath ?? resolveComputerUseExecutable();
+    this.supportDirectory =
+      options.supportDirectory ?? resolveComputerUseSupportDirectory();
     this.client =
-      options.client ?? new ComputerUseMcpClient(this.executablePath);
+      options.client ??
+      new ComputerUseMcpClient(
+        this.executablePath,
+        computerUseProfileArgs(this.supportDirectory),
+      );
   }
 
   async activate(
     enableTools: () => void,
   ): Promise<AgentToolResult<Record<string, unknown>>> {
     await this.client.start();
+    await this.refreshInstalledNativeHost();
     enableTools();
     return {
       content: [
@@ -219,7 +282,7 @@ export class ComputerUseController {
       ],
       details: {
         backend: "munim-computer-use",
-        upstreamVersion: "0.3.0",
+        upstreamVersion: MUNIM_COMPUTER_USE_VERSION,
         extensionDirectory: this.extensionDirectory,
         activatedToolCount: COMPUTER_USE_DYNAMIC_TOOL_NAMES.length,
       },
@@ -277,6 +340,7 @@ export class ComputerUseController {
       signal,
     );
     const output = await runHelper(this.executablePath, [
+      ...computerUseProfileArgs(this.supportDirectory),
       "request-permissions",
     ]);
     return {
@@ -297,21 +361,11 @@ export class ComputerUseController {
       {},
       signal,
     );
-    const installer = path.join(
-      this.extensionDirectory,
-      process.platform === "win32" ? "install.ps1" : "install.sh",
+    const output = await runHelper(
+      this.executablePath,
+      this.nativeHostInstallArgs(),
     );
-    const output =
-      process.platform === "win32"
-        ? await runHelper(
-            "powershell.exe",
-            ["-NoProfile", "-File", installer],
-            { ...process.env, COMPUTER_USE_PATH: this.executablePath },
-          )
-        : await runHelper("/bin/sh", [installer], {
-            ...process.env,
-            COMPUTER_USE_PATH: this.executablePath,
-          });
+    this.nativeHostRefreshed = true;
     return {
       content: [
         {
@@ -321,6 +375,39 @@ export class ComputerUseController {
       ],
       details: { extensionDirectory: this.extensionDirectory },
     };
+  }
+
+  /**
+   * Keep an already-registered browser bridge pointing at this runtime. The
+   * wrapper records the executable path and Pine's profile, so an app update
+   * or move would otherwise leave Chrome talking to a stale host. Only a host
+   * the user approved earlier (its wrapper exists) is rewritten; first-time
+   * registration still goes through `install_pine_browser_extension`.
+   */
+  private async refreshInstalledNativeHost(): Promise<void> {
+    if (this.nativeHostRefreshed) return;
+    this.nativeHostRefreshed = true;
+    const wrapper = path.join(
+      this.supportDirectory,
+      process.platform === "win32" ? "native-host.cmd" : "native-host",
+    );
+    if (!existsSync(wrapper)) return;
+    try {
+      await runHelper(this.executablePath, this.nativeHostInstallArgs());
+    } catch (error) {
+      console.warn(
+        `[Pine Computer Use] Could not refresh the browser bridge: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
+  }
+
+  private nativeHostInstallArgs(): string[] {
+    return [
+      ...computerUseProfileArgs(this.supportDirectory),
+      "install-native-host",
+      "--binary",
+      this.executablePath,
+    ];
   }
 
   dispose(): Promise<void> {

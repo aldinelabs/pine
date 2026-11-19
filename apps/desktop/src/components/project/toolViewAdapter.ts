@@ -82,6 +82,19 @@ const COMPUTER_TOOLS = new Set([
   "hover",
   "wait",
   "select_text",
+  "launch_app",
+  "run_steps",
+  "clipboard_read",
+  "clipboard_write",
+  "browser_read",
+  "browser_screenshot",
+  "browser_page_errors",
+  "browser_hover",
+  "browser_fill",
+  "browser_select_option",
+  "browser_upload_file",
+  "browser_request_credentials",
+  "browser_handle_dialog",
 ]);
 
 function record(value: unknown): Record<string, unknown> {

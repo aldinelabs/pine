@@ -10,53 +10,413 @@ use std::collections::HashMap;
 
 use uiautomation::UIAutomation;
 use uiautomation::UIElement;
-use uiautomation::inputs::{Keyboard, Mouse, MouseButton};
-use uiautomation::patterns::{UIInvokePattern, UITextPattern, UIValuePattern};
-use uiautomation::types::{Handle, Point as UIPoint};
-use windows::Win32::Foundation::{HWND, LPARAM, POINT, WPARAM};
+use uiautomation::core::{UICacheRequest, UICondition};
+use uiautomation::inputs::{Mouse, MouseButton};
+use uiautomation::patterns::{
+    UIInvokePattern, UIScrollItemPattern, UIScrollPattern, UISelectionItemPattern, UITextPattern, UITogglePattern,
+    UIValuePattern,
+};
+use uiautomation::types::{Handle, Point as UIPoint, ScrollAmount, TreeScope, UIProperty};
+use uiautomation::variants::Variant;
+use windows::Win32::Foundation::{HWND, LPARAM, POINT, RECT, WPARAM};
 use windows::core::BOOL;
-use windows::Win32::Graphics::Gdi::ScreenToClient;
+use windows::Win32::Graphics::Gdi::{
+    MONITOR_DEFAULTTONEAREST, MONITOR_DEFAULTTONULL, MonitorFromPoint, MonitorFromWindow, ScreenToClient,
+};
+use windows::Win32::UI::HiDpi::{
+    DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2, GetDpiForMonitor, GetDpiForWindow, MDT_EFFECTIVE_DPI,
+    SetProcessDpiAwarenessContext,
+};
+use windows::Win32::System::Threading::{AttachThreadInput, GetCurrentThreadId};
 use windows::Win32::UI::Input::KeyboardAndMouse::{
-    INPUT, INPUT_0, INPUT_MOUSE, MOUSEEVENTF_HWHEEL, MOUSEEVENTF_WHEEL, MOUSEINPUT, SendInput,
+    INPUT, INPUT_0, INPUT_KEYBOARD, INPUT_MOUSE, KEYBD_EVENT_FLAGS, KEYBDINPUT,
+    IsWindowEnabled, KEYEVENTF_EXTENDEDKEY, KEYEVENTF_KEYUP, KEYEVENTF_UNICODE, MAPVK_VK_TO_VSC,
+    MOUSE_EVENT_FLAGS, MOUSEEVENTF_HWHEEL, MOUSEEVENTF_LEFTDOWN, MOUSEEVENTF_LEFTUP, MOUSEEVENTF_WHEEL,
+    MOUSEINPUT, MapVirtualKeyW, SendInput, VIRTUAL_KEY, VkKeyScanW,
 };
 use windows::Win32::UI::WindowsAndMessaging::{
-    ChildWindowFromPointEx, CWP_SKIPDISABLED, CWP_SKIPINVISIBLE, EnumWindows, GetClassNameW,
-    GetWindowLongW, GetWindowThreadProcessId, IsWindowVisible, PostMessageW, SW_RESTORE,
-    SetForegroundWindow, ShowWindow, WindowFromPoint, WM_LBUTTONDOWN, WM_LBUTTONUP, WM_MOUSEMOVE,
-    WM_RBUTTONDOWN, WM_RBUTTONUP, GWL_STYLE,
+    ChildWindowFromPointEx, CWP_SKIPDISABLED, CWP_SKIPINVISIBLE, EnumWindows, GW_OWNER, GetClassNameW,
+    GA_ROOT, GA_ROOTOWNER, GetAncestor, GetWindow, GetWindowLongW, GetWindowRect, GetWindowTextW,
+    GetWindowThreadProcessId, IsIconic, IsWindow,
+    IsWindowVisible,
+    GetForegroundWindow, MSG, PM_NOREMOVE, PeekMessageW, PostMessageW, SMTO_ABORTIFHUNG, SW_RESTORE,
+    SendMessageTimeoutW, WM_NULL,
+    SetForegroundWindow, ShowWindow, WindowFromPoint, WM_LBUTTONDOWN, WM_LBUTTONUP, WM_MOUSEHWHEEL,
+    WM_MOUSEMOVE, WM_MOUSEWHEEL, WM_RBUTTONDOWN, WM_RBUTTONUP, GWL_STYLE, GWL_EXSTYLE, GW_HWNDNEXT,
+    WS_EX_LAYERED, WS_EX_TOPMOST, WS_EX_TRANSPARENT,
 };
+use windows::Win32::Graphics::Dwm::{DWMWA_CLOAKED, DwmGetWindowAttribute};
 
 use super::agent_cursor::AgentCursor;
-use super::{Desktop, DesktopError, Point, Result, ScrollDirection, format_app_list};
+use super::outline::{self, Bounds, Fingerprint, Listed, OcrMode, OcrText, truncate};
+use super::typed;
+use super::{Desktop, DesktopError, Point, Result, ScrollDirection, StateOptions, format_app_list};
 use crate::apps;
+use crate::identity;
+use crate::keys::{self, Key, Named};
 
 /// One wheel notch, as Windows defines it.
 const WHEEL_DELTA: i32 = 120;
 
+/// What an id from the latest `get_app_state` stands for.
+enum Entry {
+    /// An accessibility element, with what it was when listed and the
+    /// top-level window it lives in.
+    Element { element: UIElement, fingerprint: Fingerprint, window: HWND },
+    /// A line of on-screen text OCR found in `window`, acted on at its centre.
+    Ocr { center: (f64, f64), window: HWND },
+}
+
+/// A registry entry that passed the freshness check.
+enum Target {
+    Element { element: UIElement, window: HWND, minimized: bool },
+    Ocr { x: f64, y: f64, window: HWND },
+}
+
 pub struct WindowsDesktop {
     automation: UIAutomation,
-    /// Element handles from the most recent `get_app_state`, keyed by the
-    /// numeric part of the `e12` ids handed to the model.
-    registry: HashMap<u32, UIElement>,
+    /// Entries from the most recent `get_app_state`, keyed by the numeric
+    /// part of the `e12` ids handed to the model.
+    registry: HashMap<u32, Entry>,
+    /// Fetches a parent's children with every property the walk reads in one
+    /// cross-process call, instead of a round trip per property per element.
+    /// `None` if the request could not be built; the walk then reads live.
+    batch: Option<Batch>,
+    /// Top-level window of the last click or focus, as a raw handle. Clicks are
+    /// delivered in the background and leave the user's window in front, so
+    /// keystrokes that follow are steered here instead of to the foreground.
+    input_window: Option<isize>,
 }
+
+/// The foreground, lent to the agent's window by `borrow_foreground`.
+struct Lent {
+    previous: HWND,
+    /// Dropped once the foreground is back, which replays the user's keys.
+    _held: Option<super::user_keys::Hold>,
+}
+
+struct Batch {
+    request: UICacheRequest,
+    all: UICondition,
+    /// Children of a scroll container minus the rows UIA reports scrolled
+    /// away, so a long list costs its visible rows rather than all of them.
+    without_hidden_rows: UICondition,
+    /// Just those hidden rows, to count them without fetching their properties.
+    hidden_rows: UICondition,
+    /// A window's whole tree, in the same control view `request` walks, with
+    /// the same properties, in one round trip. Walking it a level per request
+    /// cost one cross-process call per element with children: about 200 calls
+    /// for a File Explorer window. What is off screen is still left out by
+    /// the walk, by the same rules; it is just already fetched.
+    tree: UICacheRequest,
+}
+
+/// The properties `Node::cached` reads.
+const BATCHED: [UIProperty; 10] = [
+    UIProperty::ControlType,
+    UIProperty::Name,
+    UIProperty::IsEnabled,
+    UIProperty::IsOffscreen,
+    UIProperty::BoundingRectangle,
+    UIProperty::ValueValue,
+    UIProperty::IsScrollPatternAvailable,
+    UIProperty::IsWindowPatternAvailable,
+    UIProperty::WindowIsModal,
+    UIProperty::IsDialog,
+];
 
 impl WindowsDesktop {
     pub fn new() -> Result<Self> {
         let automation = UIAutomation::new().map_err(|error| {
             DesktopError::new(format!("failed to initialise UI Automation: {error}"))
         })?;
+        let batch = Self::batch_request(&automation);
         Ok(Self {
             automation,
             registry: HashMap::new(),
+            batch,
+            input_window: None,
         })
     }
 
-    fn element(&self, id: u32) -> Result<&UIElement> {
-        self.registry.get(&id).ok_or_else(|| {
+    fn property_request(automation: &UIAutomation) -> Option<UICacheRequest> {
+        let request = automation.create_cache_request().ok()?;
+        for property in BATCHED {
+            // IsDialog needs Windows 10 1809; older systems just go without it.
+            if request.add_property(property).is_err() && property != UIProperty::IsDialog {
+                return None;
+            }
+        }
+        Some(request)
+    }
+
+    fn tree_request(automation: &UIAutomation) -> Option<UICacheRequest> {
+        let request = Self::property_request(automation)?;
+        request.set_tree_scope(TreeScope::Subtree).ok()?;
+        Some(request)
+    }
+
+    fn batch_request(automation: &UIAutomation) -> Option<Batch> {
+        let request = Self::property_request(automation)?;
+        // Rows as `Node::is_row` defines them: ListItem, TreeItem, DataItem.
+        let row_type = |id: i32| automation.create_property_condition(UIProperty::ControlType, Variant::from(id), None);
+        let rows = automation.create_or_condition(
+            automation.create_or_condition(row_type(50007).ok()?, row_type(50024).ok()?).ok()?,
+            row_type(50029).ok()?,
+        ).ok()?;
+        let offscreen = || automation.create_property_condition(UIProperty::IsOffscreen, Variant::from(true), None);
+        let hidden_rows = automation.create_and_condition(offscreen().ok()?, rows).ok()?;
+        let without_hidden_rows = automation.create_not_condition(hidden_rows.clone()).ok()?;
+        Some(Batch {
+            request,
+            tree: Self::tree_request(automation)?,
+            all: automation.create_true_condition().ok()?,
+            without_hidden_rows,
+            hidden_rows,
+        })
+    }
+
+    /// Resolve an id, rechecking that the element is still what was listed:
+    /// acting on whatever now sits at a stale handle is worse than failing.
+    fn resolve(&self, id: u32) -> Result<Target> {
+        let entry = self.registry.get(&id).ok_or_else(|| {
             DesktopError::new(format!(
                 "element e{id} is not in the current snapshot — call get_app_state again, ids are per-snapshot"
             ))
-        })
+        })?;
+        match entry {
+            Entry::Ocr { center, window } => Ok(Target::Ocr { x: center.0, y: center.1, window: *window }),
+            Entry::Element { element, fingerprint, window } => {
+                // A destroyed window's controls can still answer from a
+                // proxy's cache, so check the window itself first.
+                let current = if unsafe { IsWindow(Some(*window)) }.as_bool() { Self::fingerprint(element) } else { None };
+                outline::check_fresh(id, fingerprint, current.as_ref())?;
+                Ok(Target::Element {
+                    element: element.clone(),
+                    window: *window,
+                    minimized: unsafe { IsIconic(*window) }.as_bool(),
+                })
+            }
+        }
+    }
+
+    /// The element's role and name as it is now; `None` once it is gone.
+    fn fingerprint(element: &UIElement) -> Option<Fingerprint> {
+        let role = element.get_control_type().ok()?;
+        let name = element.get_name().ok()?;
+        Some(Fingerprint { role: format!("{role:?}"), name })
+    }
+
+    /// Where a coordinate action aims at a resolved target.
+    fn target_point(&self, id: u32, target: &Target) -> Result<(f64, f64)> {
+        let (x, y, window) = match target {
+            Target::Ocr { x, y, window } => (*x, *y, *window),
+            // A minimized window's controls sit far off screen: a click there
+            // would land on whatever is actually at those coordinates.
+            Target::Element { minimized: true, .. } => return Err(outline::minimized_error(id)),
+            Target::Element { element, window, .. } => {
+                let (mut x, mut y) = Self::center(element)?;
+                // Out of view, or something else in front: let the control
+                // scroll itself into view once, then measure again.
+                let placed = Self::check_on_screen(id, *window, x, y).and_then(|()| self.check_hit(id, element, x, y));
+                if let Err(error) = placed {
+                    let scrolled = element
+                        .get_pattern::<UIScrollItemPattern>()
+                        .and_then(|pattern| pattern.scroll_into_view())
+                        .is_ok();
+                    if !scrolled {
+                        return Err(error);
+                    }
+                    std::thread::sleep(std::time::Duration::from_millis(200));
+                    (x, y) = Self::center(element)?;
+                    Self::check_on_screen(id, *window, x, y)?;
+                    self.check_hit(id, element, x, y)?;
+                }
+                (x, y, *window)
+            }
+        };
+        Self::check_uncovered(id, window, x, y)?;
+        Ok((x, y))
+    }
+
+    /// What a press at the point would land on, from UI Automation's own hit
+    /// test. An element's bounds say where it would be; inside a scrolled
+    /// page or list that point can belong to a sticky header, a dialog or
+    /// another checkbox, and clicking it there acts on that instead. Accepts
+    /// the element, anything inside it, or a small wrapper around it; refuses
+    /// anything else. A hit test that does not answer changes nothing.
+    fn check_hit(&self, id: u32, element: &UIElement, x: f64, y: f64) -> Result<()> {
+        let Ok(hit) = self.automation.element_from_point(UIPoint::new(x.round() as i32, y.round() as i32)) else {
+            return Ok(());
+        };
+        let Ok(walker) = self.automation.get_raw_view_walker() else {
+            return Ok(());
+        };
+        let same = |a: &UIElement, b: &UIElement| self.automation.compare_elements(a, b).unwrap_or(false);
+        let mut at = Some(hit.clone());
+        for _ in 0..60 {
+            let Some(node) = at else { break };
+            if same(&node, element) {
+                return Ok(());
+            }
+            at = walker.get_parent(&node).ok();
+        }
+        let area = |el: &UIElement| {
+            el.get_bounding_rectangle()
+                .map(|rect| f64::from(rect.get_right() - rect.get_left()) * f64::from(rect.get_bottom() - rect.get_top()))
+                .unwrap_or(f64::MAX)
+        };
+        let mut at = walker.get_parent(element).ok();
+        for _ in 0..8 {
+            let Some(node) = at else { break };
+            if same(&node, &hit) {
+                if area(&hit) <= area(element).max(48.0 * 48.0) * 4.0 {
+                    return Ok(());
+                }
+                break;
+            }
+            at = walker.get_parent(&node).ok();
+        }
+        let kind = hit.get_localized_control_type().unwrap_or_default();
+        let name = hit.get_name().unwrap_or_default();
+        let what = match (kind.is_empty(), name.trim().is_empty()) {
+            (_, false) => format!("{} \"{}\"", if kind.is_empty() { "an element" } else { kind.as_str() }, name.trim().chars().take(50).collect::<String>()),
+            (false, true) => kind,
+            (true, true) => "another element".to_string(),
+        };
+        Err(DesktopError::new(format!(
+            "not clicked: e{id} is covered at ({x:.0}, {y:.0}) by {what}, or is scrolled out of view, so nothing was \
+             pressed. Scroll it into view or close what is in front, then call get_app_state again"
+        )))
+    }
+
+    /// A control can be listed with bounds far outside its window: an input
+    /// kept off screen on purpose (Google Docs' "Edit document" sits near
+    /// y = -9850), or content scrolled away and listed with offscreen. Pointer
+    /// input aimed there reaches whatever the clamped cursor lands on, so
+    /// refuse instead of reporting a click that never reached the control (#32).
+    fn check_on_screen(id: u32, window: HWND, x: f64, y: f64) -> Result<()> {
+        let mut rect = RECT::default();
+        let in_window = unsafe { GetWindowRect(window, &mut rect) }.is_ok()
+            && point_in_rect(x, y, &rect);
+        if in_window && on_display(x, y) {
+            return Ok(());
+        }
+        Err(DesktopError::new(format!(
+            "e{id} has no on-screen point to click: its centre ({x:.0}, {y:.0}) lies outside its window{}, so \
+             nothing was clicked and keyboard focus did not move. It is scrolled out of view or kept off screen \
+             on purpose (such as a hidden text input behind a canvas). Scroll it into view and call get_app_state \
+             again, click the visible content it belongs to, or reach it through accessibility: type_text or \
+             set_value with element_id focus the control itself",
+            if on_display(x, y) { "" } else { " and off every display" }
+        )))
+    }
+
+    /// A coordinate action reaches whatever window is on top at the point:
+    /// the real cursor clicks it, and posted messages go to it. When another
+    /// app's window covers the target there, refuse rather than act on it,
+    /// and say which window that is (#50).
+    fn check_uncovered(id: u32, window: HWND, x: f64, y: f64) -> Result<()> {
+        let owner = |hwnd: HWND| {
+            let mut pid = 0u32;
+            unsafe { GetWindowThreadProcessId(hwnd, Some(&mut pid)) };
+            pid
+        };
+        let Some(at) = Self::window_at(POINT { x: x.round() as i32, y: y.round() as i32 }) else {
+            return Ok(());
+        };
+        let root = unsafe { GetAncestor(at, GA_ROOT) };
+        let top = owner(root);
+        if top == owner(window) || top == std::process::id() {
+            return Ok(());
+        }
+        // A Windows Security prompt (a firewall or credential prompt) lays an
+        // invisible layer over the whole screen that takes every click until
+        // it is answered, which activating the app cannot get past.
+        let class = Self::class_name(root);
+        if class.starts_with("Shell_SystemDim") {
+            return Err(outline::system_prompt_error(id));
+        }
+        let ex_style = unsafe { GetWindowLongW(root, GWL_EXSTYLE) } as u32;
+        let foreground = unsafe { GetForegroundWindow() };
+        let cover = outline::Cover {
+            program: crate::bridge_diag::process_exe(owner(root))
+                .and_then(|path| path.file_name().map(|name| name.to_string_lossy().into_owned())),
+            class,
+            topmost: ex_style & WS_EX_TOPMOST.0 != 0,
+            target_in_front: !foreground.0.is_null() && owner(foreground) == owner(window),
+        };
+        Err(outline::covered_error(id, x, y, &cover))
+    }
+
+    fn class_name(hwnd: HWND) -> String {
+        let mut buf = [0u16; 128];
+        let len = unsafe { GetClassNameW(hwnd, &mut buf) };
+        String::from_utf16_lossy(&buf[..len.max(0) as usize])
+    }
+
+    /// The window a press at `point` reaches: WindowFromPoint's, looking past
+    /// top-level windows that are on top but not there for input. Those are
+    /// click-through overlays (another agent's pointer, a recorder's frame)
+    /// and windows DWM keeps cloaked (apps on another virtual desktop,
+    /// suspended Store apps). Below one, the answer is a top-level window.
+    fn window_at(point: POINT) -> Option<HWND> {
+        let at = unsafe { WindowFromPoint(point) };
+        if at.0.is_null() {
+            return None;
+        }
+        let mut root = unsafe { GetAncestor(at, GA_ROOT) };
+        if !Self::passes_input(root) {
+            return Some(at);
+        }
+        for _ in 0..64 {
+            root = Self::next_window_at(root, point)?;
+            if !Self::passes_input(root) {
+                return Some(root);
+            }
+        }
+        None
+    }
+
+    /// Whether input at any point of `hwnd` goes through it to the window below.
+    fn passes_input(hwnd: HWND) -> bool {
+        let ex_style = unsafe { GetWindowLongW(hwnd, GWL_EXSTYLE) } as u32;
+        if ex_style & WS_EX_TRANSPARENT.0 != 0 && ex_style & WS_EX_LAYERED.0 != 0 {
+            return true;
+        }
+        let mut cloaked = 0u32;
+        unsafe {
+            DwmGetWindowAttribute(
+                hwnd,
+                DWMWA_CLOAKED,
+                (&mut cloaked as *mut u32).cast(),
+                std::mem::size_of::<u32>() as u32,
+            )
+        }
+        .is_ok()
+            && cloaked != 0
+    }
+
+    /// The next visible top-level window below `hwnd` in z-order whose frame
+    /// holds `point`.
+    fn next_window_at(hwnd: HWND, point: POINT) -> Option<HWND> {
+        let mut at = hwnd;
+        for _ in 0..4096 {
+            at = unsafe { GetWindow(at, GW_HWNDNEXT) }.ok()?;
+            if at.0.is_null() {
+                return None;
+            }
+            if !unsafe { IsWindowVisible(at) }.as_bool() || unsafe { IsIconic(at) }.as_bool() {
+                continue;
+            }
+            let mut rect = RECT::default();
+            if unsafe { GetWindowRect(at, &mut rect) }.is_ok()
+                && point.x >= rect.left && point.x < rect.right && point.y >= rect.top && point.y < rect.bottom
+            {
+                return Some(at);
+            }
+        }
+        None
     }
 
     /// Centre of an element in screen coordinates.
@@ -79,9 +439,53 @@ impl WindowsDesktop {
 
     fn point_coordinates(&self, target: Point) -> Result<(f64, f64)> {
         match target {
-            Point::Screen(x, y) => Ok((x, y)),
-            Point::Element(id) => Self::center(self.element(id)?),
+            Point::Screen(x, y) => {
+                check_display_point(x, y)?;
+                Ok((x, y))
+            }
+            Point::Element(id) => self.target_point(id, &self.resolve(id)?),
         }
+    }
+
+    /// Press an element through its own patterns rather than a pointer. Invoke
+    /// is the control's own click handler. A minimized window cannot take a
+    /// pointer click at all, so there Toggle and SelectionItem stand in for
+    /// the click on checkboxes, list rows and tabs.
+    fn press_through_patterns(id: u32, element: &UIElement, minimized: bool) -> Option<String> {
+        if let Ok(invoke) = element.get_pattern::<UIInvokePattern>() {
+            // Wait for the agent pointer to land before invoking, matching Mac.
+            if !minimized && let Ok((x, y)) = Self::center(element) {
+                AgentCursor::shared().press(x, y);
+            }
+            if invoke.invoke().is_ok() {
+                return Some(format!("pressed e{id}"));
+            }
+        }
+        if minimized {
+            if let Ok(toggle) = element.get_pattern::<UITogglePattern>()
+                && toggle.toggle().is_ok()
+            {
+                return Some(format!("toggled e{id}"));
+            }
+            if let Ok(item) = element.get_pattern::<UISelectionItemPattern>()
+                && item.select().is_ok()
+            {
+                return Some(format!("selected e{id}"));
+            }
+        }
+        None
+    }
+
+    /// The control keystrokes will reach: the focused element, once the
+    /// target is in front.
+    fn typing_field(&self) -> Option<UIElement> {
+        self.automation.get_focused_element().ok()
+    }
+
+    /// A password field the agent must not write into (UIA `IsPassword`),
+    /// unless the user opted in.
+    fn refuses_secure_input(element: &UIElement) -> bool {
+        !super::secure_field_input_allowed() && element.is_password().unwrap_or(false)
     }
 
     /// Top-level visible windows belonging to `pid`.
@@ -127,10 +531,7 @@ impl WindowsDesktop {
     /// Resolve the deepest visible child HWND under a screen point.
     fn hwnd_at_screen(x: i32, y: i32) -> Option<HWND> {
         let point = POINT { x, y };
-        let mut hwnd = unsafe { WindowFromPoint(point) };
-        if hwnd.0.is_null() {
-            return None;
-        }
+        let mut hwnd = Self::window_at(point)?;
         // Walk into nested children — a single ChildWindowFromPointEx only
         // returns the immediate child, which misses grandchildren (Bot: nested
         // Win32 controls).
@@ -187,6 +588,83 @@ impl WindowsDesktop {
         ) || class.starts_with("WindowsForms")
     }
 
+    /// Top-level window under a screen point, unless it is one of ours (the
+    /// agent pointer overlay).
+    fn root_at(x: f64, y: f64) -> Option<HWND> {
+        let at = Self::window_at(POINT { x: x.round() as i32, y: y.round() as i32 })?;
+        let root = unsafe { GetAncestor(at, GA_ROOT) };
+        let mut pid = 0u32;
+        unsafe { GetWindowThreadProcessId(root, Some(&mut pid)) };
+        (!root.0.is_null() && pid != std::process::id()).then_some(root)
+    }
+
+    /// Put `window` in front for a keystroke. Returns the loan when the
+    /// foreground was taken from another window, and so has to be given back;
+    /// the user's keys are held until then. With no known target the keys go
+    /// wherever focus already is, as before.
+    fn borrow_foreground(&mut self, window: Option<HWND>, previous: HWND) -> Result<Option<Lent>> {
+        let Some(window) = window else { return Ok(None) };
+        if !unsafe { IsWindow(Some(window)) }.as_bool() {
+            self.input_window = None;
+            return Ok(None);
+        }
+        if window == previous {
+            return Ok(None);
+        }
+        crate::policy::check_foreground("type into a window that is not in front, which has to be brought forward for the keystrokes")?;
+        // Keys reaching the target from here on would be the user's, so hold
+        // them until their window is back.
+        let mut held = super::user_keys::hold();
+        if !bring_forward(window) {
+            // The UI Automation fallback can take seconds; do not keep the
+            // user's typing back that long.
+            drop(held.take());
+            if !self.activate(window) {
+                return Err(DesktopError::new(
+                    "Windows would not bring the target window forward, and typing now would land \
+                     in the window the user is working in — call activate_app, then try again",
+                ));
+            }
+            held = super::user_keys::hold();
+        }
+        // Let the window finish activating so the first keys reach its focused control.
+        settle_activation(window, 20);
+        Ok(Some(Lent { previous, _held: held }))
+    }
+
+    /// `bring_forward`, then UI Automation's focus as a fallback: UIA can
+    /// activate a window when the foreground lock refuses this process.
+    fn activate(&self, window: HWND) -> bool {
+        if bring_forward(window) {
+            return true;
+        }
+        if let Ok(element) = self.automation.element_from_handle(Handle::from(window.0 as isize)) {
+            let _ = element.set_focus();
+        }
+        unsafe { GetForegroundWindow() == window }
+    }
+
+    /// Return the foreground to the window the user had, once the keystrokes
+    /// have been routed. Input is routed to whichever window is in front when
+    /// it is processed, not when it is sent, so switching back at once could
+    /// deliver the tail of the burst to the user's window.
+    /// The user's keys held meanwhile are replayed after, into their window.
+    fn give_foreground_back(&self, lent: Lent, keys: usize) {
+        // type_text passes 0: it has already waited for its keys to land.
+        if keys > 0 {
+            let settle = (40 + keys as u64 / 4).min(1500);
+            std::thread::sleep(std::time::Duration::from_millis(settle));
+        }
+        if !lent.previous.0.is_null() && unsafe { IsWindow(Some(lent.previous)) }.as_bool() {
+            if self.activate(lent.previous) {
+                // Keys that reach a window before it has handled its
+                // activation can be lost or land before its caret is restored;
+                // keep holding the user's until it has.
+                settle_activation(lent.previous, 80);
+            }
+        }
+    }
+
     /// Deliver a left/right click via posted mouse messages so the system
     /// cursor does not move. Only used for known-good Win32 classes; callers
     /// fall back to the cursor path when this returns false.
@@ -203,6 +681,7 @@ impl WindowsDesktop {
         if !unsafe { ScreenToClient(hwnd, &mut client) }.as_bool() {
             return false;
         }
+        let client = message_point(hwnd, client);
         let lp = Self::pack_client_lparam(client.x, client.y);
         // MK_LBUTTON = 0x0001, MK_RBUTTON = 0x0002
         let (down, up, mk) = if right {
@@ -215,6 +694,59 @@ impl WindowsDesktop {
         let down_ok = unsafe { PostMessageW(Some(hwnd), down, WPARAM(mk), lp) }.is_ok();
         let up_ok = unsafe { PostMessageW(Some(hwnd), up, WPARAM(0), lp) }.is_ok();
         down_ok && up_ok
+    }
+
+    /// Remote control puts the real cursor exactly where the viewer's pointer
+    /// is, at once. uiautomation's `move_to` glides there over 500 ms, which
+    /// left every streamed pointer move half a second behind the viewer and
+    /// queued the rest behind it; it also normalises absolute coordinates
+    /// against the primary screen only, so a second monitor was unreachable.
+    /// `SetCursorPos` takes virtual-desktop coordinates and posts the
+    /// mouse-move itself, so hover states still follow. Every path that moves
+    /// the real cursor uses it for the same reason: `move_to`, `click`,
+    /// `right_click` and `drag_to` all clamp to the primary display.
+    fn jump_cursor(x: f64, y: f64) -> Result<()> {
+        // The last resort after background delivery; the user's policy may
+        // keep the agent off their pointer (#55).
+        crate::policy::check_foreground("act there with the real pointer, since input sent in the background did not reach it")?;
+        Mouse::set_cursor_pos(&UIPoint::new(x.round() as i32, y.round() as i32))
+            .map_err(|error| DesktopError::new(format!("could not move cursor: {error}")))
+    }
+
+    /// Press or release a mouse button where the cursor already is.
+    fn mouse_button(flags: MOUSE_EVENT_FLAGS) -> Result<()> {
+        let input = INPUT {
+            r#type: INPUT_MOUSE,
+            Anonymous: INPUT_0 {
+                mi: MOUSEINPUT { dx: 0, dy: 0, mouseData: 0, dwFlags: flags, time: 0, dwExtraInfo: 0 },
+            },
+        };
+        if unsafe { SendInput(&[input], std::mem::size_of::<INPUT>() as i32) } == 0 {
+            return Err(DesktopError::new(
+                "the system rejected the synthetic mouse button — a higher-integrity window may have focus",
+            ));
+        }
+        Ok(())
+    }
+
+    /// Drag with the real cursor: press at `from`, move there in steps, release
+    /// at `to`. The button is always released, even if a move fails, so it is
+    /// never left held down.
+    fn cursor_drag(from: (f64, f64), to: (f64, f64)) -> Result<()> {
+        Self::jump_cursor(from.0, from.1)?;
+        Self::mouse_button(MOUSEEVENTF_LEFTDOWN)?;
+        let steps = 12;
+        let mut moved = Ok(());
+        for step in 1..=steps {
+            std::thread::sleep(std::time::Duration::from_millis(10));
+            let t = f64::from(step) / f64::from(steps);
+            moved = Self::jump_cursor(from.0 + (to.0 - from.0) * t, from.1 + (to.1 - from.1) * t);
+            if moved.is_err() {
+                break;
+            }
+        }
+        let released = Self::mouse_button(MOUSEEVENTF_LEFTUP);
+        moved.and(released)
     }
 
     /// Hover counterpart of `background_click`: prime the window under the point
@@ -232,8 +764,106 @@ impl WindowsDesktop {
         if !unsafe { ScreenToClient(hwnd, &mut client) }.as_bool() {
             return false;
         }
+        let client = message_point(hwnd, client);
         let lp = Self::pack_client_lparam(client.x, client.y);
         unsafe { PostMessageW(Some(hwnd), WM_MOUSEMOVE, WPARAM(0), lp) }.is_ok()
+    }
+
+    /// Drag inside one classic Win32 control with posted messages, so the
+    /// user's cursor stays put. Both ends must land in the same window.
+    fn background_drag(from: (f64, f64), to: (f64, f64)) -> bool {
+        let start = (from.0.round() as i32, from.1.round() as i32);
+        let end = (to.0.round() as i32, to.1.round() as i32);
+        let Some(hwnd) = Self::hwnd_at_screen(start.0, start.1) else {
+            return false;
+        };
+        if !Self::accepts_posted_mouse(hwnd)
+            || Self::hwnd_at_screen(end.0, end.1).map(|other| other.0) != Some(hwnd.0)
+        {
+            return false;
+        }
+        let client = |x: i32, y: i32| {
+            let mut point = POINT { x, y };
+            unsafe { ScreenToClient(hwnd, &mut point) }.as_bool().then(|| {
+                let point = message_point(hwnd, point);
+                Self::pack_client_lparam(point.x, point.y)
+            })
+        };
+        let (Some(down_at), Some(up_at)) = (client(start.0, start.1), client(end.0, end.1)) else {
+            return false;
+        };
+        const MK_LBUTTON: usize = 0x0001;
+        let post = |message, wparam: usize, lparam| unsafe {
+            PostMessageW(Some(hwnd), message, WPARAM(wparam), lparam)
+        }
+        .is_ok();
+        let mut delivered = post(WM_MOUSEMOVE, 0, down_at) && post(WM_LBUTTONDOWN, MK_LBUTTON, down_at);
+        let steps = 12;
+        for step in 1..=steps {
+            let t = f64::from(step) / f64::from(steps);
+            let x = start.0 + ((end.0 - start.0) as f64 * t).round() as i32;
+            let y = start.1 + ((end.1 - start.1) as f64 * t).round() as i32;
+            if let Some(at) = client(x, y) {
+                delivered &= post(WM_MOUSEMOVE, MK_LBUTTON, at);
+            }
+            std::thread::sleep(std::time::Duration::from_millis(10));
+        }
+        delivered && post(WM_LBUTTONUP, 0, up_at)
+    }
+
+    /// Scroll through UI Automation: the nearest ScrollPattern at or above the
+    /// element that can move along the requested axis. No input is synthesised.
+    fn uia_scroll(&self, element: &UIElement, horizontal: i32, vertical: i32) -> bool {
+        let Ok(walker) = self.automation.create_tree_walker() else {
+            return false;
+        };
+        // Wheel deltas are positive for up/right; ScrollPattern increments move
+        // down/right, so the vertical sign flips.
+        let amount = |delta: i32, invert: bool| match (delta.signum(), invert) {
+            (0, _) => ScrollAmount::NoAmount,
+            (1, false) | (-1, true) => ScrollAmount::SmallIncrement,
+            _ => ScrollAmount::SmallDecrement,
+        };
+        let (h, v) = (amount(horizontal, false), amount(vertical, true));
+        let steps = horizontal.unsigned_abs().max(vertical.unsigned_abs());
+        let mut node = Some(element.clone());
+        for _ in 0..24 {
+            let Some(current) = node else { break };
+            if let Ok(pattern) = current.get_pattern::<UIScrollPattern>()
+                && pattern.scroll(h, v).is_ok()
+            {
+                for _ in 1..steps {
+                    if pattern.scroll(h, v).is_err() {
+                        break;
+                    }
+                }
+                return true;
+            }
+            node = walker.get_parent(&current).ok();
+        }
+        false
+    }
+
+    /// Post wheel messages to the classic Win32 control under a point, one per
+    /// notch, without moving the cursor. Wheel messages carry screen coordinates.
+    fn post_wheel(x: f64, y: f64, horizontal: i32, vertical: i32) -> bool {
+        let (sx, sy) = (x.round() as i32, y.round() as i32);
+        let Some(hwnd) = Self::hwnd_at_screen(sx, sy) else {
+            return false;
+        };
+        if !Self::accepts_posted_mouse(hwnd) {
+            return false;
+        }
+        let lparam = Self::pack_client_lparam(sx, sy);
+        let (message, delta) = if horizontal != 0 {
+            (WM_MOUSEHWHEEL, horizontal)
+        } else {
+            (WM_MOUSEWHEEL, vertical)
+        };
+        let notch = (delta.signum() * WHEEL_DELTA) as i16 as u16 as usize;
+        (0..delta.unsigned_abs()).all(|_| {
+            unsafe { PostMessageW(Some(hwnd), message, WPARAM(notch << 16), lparam) }.is_ok()
+        })
     }
 
     fn scroll_wheel(horizontal: bool, notches: i32) -> Result<()> {
@@ -263,28 +893,77 @@ impl WindowsDesktop {
         Ok(())
     }
 
+    /// The children of `node`, with their properties: from the cache when
+    /// its window's tree was fetched whole, otherwise one request. In that
+    /// case, with `skip_hidden_rows`, rows UIA reports scrolled away are left
+    /// out on the provider's side and only counted; the second number is that
+    /// count.
+    fn children(&self, node: &Node, skip_hidden_rows: bool) -> (Vec<Node>, usize) {
+        let element = &node.element;
+        if node.in_tree {
+            // Fetched with the window. Hidden rows are among them, and the
+            // walk skips and counts them one by one.
+            let found = element.get_cached_children().map(|found| found.into_iter().map(Node::in_tree).collect());
+            return (found.unwrap_or_default(), 0);
+        }
+        if let Some(batch) = &self.batch {
+            if skip_hidden_rows
+                && let Ok(found) = element.find_all_build_cache(TreeScope::Children, &batch.without_hidden_rows, &batch.request)
+            {
+                // Counting needs no properties, which is what makes it cheap:
+                // 3,000 ListBox rows count in about a fifth of the time it
+                // takes to fetch them.
+                let hidden = element.find_all(TreeScope::Children, &batch.hidden_rows).map_or(0, |rows| rows.len());
+                return (found.into_iter().map(Node::cached).collect(), hidden);
+            }
+            // A provider that cannot answer FindAll has no children to offer
+            // a walker either.
+            let found = element
+                .find_all_build_cache(TreeScope::Children, &batch.all, &batch.request)
+                .map(|found| found.into_iter().map(Node::cached).collect())
+                .unwrap_or_default();
+            return (found, 0);
+        }
+        let Ok(walker) = self.automation.create_tree_walker() else {
+            return (Vec::new(), 0);
+        };
+        let mut nodes = Vec::new();
+        let mut child = walker.get_first_child(element).ok();
+        while let Some(current) = child {
+            child = walker.get_next_sibling(&current).ok();
+            nodes.push(Node::live(current));
+        }
+        (nodes, 0)
+    }
+
+    /// A top-level window as the root of a walk, with its whole tree when
+    /// the provider can hand it over in one go.
+    fn window_node(&self, window: HWND) -> Option<Node> {
+        let handle = Handle::from(window.0 as isize);
+        if let Some(batch) = &self.batch {
+            if let Ok(element) = self.automation.element_from_handle_build_cache(handle, &batch.tree) {
+                return Some(Node::in_tree(element));
+            }
+            if let Ok(element) = self.automation.element_from_handle_build_cache(handle, &batch.request) {
+                return Some(Node::cached(element));
+            }
+        }
+        self.automation.element_from_handle(Handle::from(window.0 as isize)).ok().map(Node::live)
+    }
+
     /// Render one element as an outline row, registering it when it is
     /// interactive enough to be worth an id.
-    fn describe(&mut self, element: &UIElement, depth: usize, next_id: &mut u32) -> Option<String> {
-        let control_type = element
-            .get_control_type()
-            .map(|kind| format!("{kind:?}"))
-            .unwrap_or_else(|_| "Unknown".to_string());
-        let name = element.get_name().unwrap_or_default();
-        let value = element
-            .get_pattern::<UIValuePattern>()
-            .ok()
-            .and_then(|pattern| pattern.get_value().ok())
-            .filter(|value| !value.is_empty());
-
+    fn describe(&mut self, walk: &mut Walk, node: &Node, depth: usize, window: HWND, chrome: bool) -> Option<String> {
+        let control_type = node.control_type.as_str();
         // Rows with nothing to say are noise in an already large tree.
-        if name.is_empty() && value.is_none() && control_type == "Pane" {
+        if node.name.is_empty() && node.value.is_none() && control_type == "Pane" {
             return None;
         }
 
-        let interactive = element.is_enabled().unwrap_or(false)
+        let enabled = node.enabled.unwrap_or(false);
+        let interactive = enabled
             && matches!(
-                control_type.as_str(),
+                control_type,
                 "Button"
                     | "CheckBox"
                     | "ComboBox"
@@ -302,76 +981,382 @@ impl WindowsDesktop {
                     | "Tree"
                     | "TreeItem"
             );
+        if !chrome && is_app_control(control_type, &node.name, enabled) {
+            walk.app_control = true;
+        }
+        if let Some(bounds) = node.bounds {
+            walk.listed.push(Listed {
+                bounds,
+                name: node.name.clone(),
+                value: node.value.clone().unwrap_or_default(),
+                chrome: control_type == "TitleBar",
+            });
+        }
 
         let mut row = "  ".repeat(depth);
         if interactive {
-            *next_id += 1;
-            row.push_str(&format!("[e{next_id}] "));
-            self.registry.insert(*next_id, element.clone());
+            walk.next_id += 1;
+            row.push_str(&format!("[e{}] ", walk.next_id));
+            self.registry.insert(
+                walk.next_id,
+                Entry::Element {
+                    element: node.element.clone(),
+                    fingerprint: Fingerprint { role: node.control_type.clone(), name: node.name.clone() },
+                    window,
+                },
+            );
         }
-        row.push_str(&control_type);
-        if !name.is_empty() {
-            row.push_str(&format!(" \"{}\"", truncate(&name, 120)));
+        row.push_str(control_type);
+        if !node.name.is_empty() {
+            row.push_str(&format!(" \"{}\"", truncate(&node.name, 120)));
         }
-        if let Some(value) = value {
-            row.push_str(&format!(" = \"{}\"", truncate(&value, 120)));
+        if let Some(value) = &node.value {
+            row.push_str(&format!(" = \"{}\"", truncate(value, 120)));
         }
-        if !element.is_enabled().unwrap_or(true) {
+        if !node.enabled.unwrap_or(true) {
             row.push_str(" (disabled)");
         }
         Some(row)
     }
 
-    #[allow(clippy::too_many_arguments)]
-    fn walk(
-        &mut self,
-        element: &UIElement,
-        depth: usize,
-        max_depth: usize,
-        max_elements: usize,
-        next_id: &mut u32,
-        lines: &mut Vec<String>,
-    ) {
-        if depth > max_depth || lines.len() >= max_elements {
+    /// Walk one top-level window, or a dialog inside one.
+    fn walk_root(&mut self, walk: &mut Walk, root: &Node, window: &WindowInfo) {
+        // A minimized window reports every control as off screen, so nothing
+        // is left out of one.
+        let clip = if window.minimized { None } else { root.bounds.filter(Bounds::has_area) };
+        self.walk(walk, root, 0, clip, window, false);
+    }
+
+    /// `clip` is the visible part of the window and the scroll containers
+    /// around `node`. Children outside it are skipped with their subtrees,
+    /// unless `offscreen` asked for everything.
+    fn walk(&mut self, walk: &mut Walk, node: &Node, depth: usize, clip: Option<Bounds>, window: &WindowInfo, chrome: bool) {
+        let limits = walk.options;
+        if depth > limits.max_depth || walk.rows.len() >= limits.max_elements {
             return;
         }
-        if let Some(row) = self.describe(element, depth, next_id) {
-            lines.push(row);
+        if let Some(row) = self.describe(walk, node, depth, window.hwnd, chrome) {
+            walk.rows.push(row);
         }
         // At max_depth we still describe this node, but skip child enumeration —
         // walking siblings would only waste UIA work with no lines added.
-        if depth == max_depth {
+        if depth == limits.max_depth {
+            walk.cut_short = true;
             return;
         }
 
-        let walker = match self.automation.create_tree_walker() {
-            Ok(walker) => walker,
-            Err(_) => return,
+        let chrome = chrome || node.control_type == "TitleBar";
+        let clip = if node.floats() {
+            node.bounds.filter(Bounds::has_area)
+        } else if node.scrolls {
+            outline::narrow_clip(clip, node.bounds)
+        } else {
+            clip
         };
-        let mut child = walker.get_first_child(element).ok();
-        while let Some(current) = child {
-            if lines.len() >= max_elements {
-                lines.push(format!(
-                    "{}… truncated at {max_elements} elements — raise max_elements or target a child",
-                    "  ".repeat(depth + 1)
+        let prune = !limits.offscreen && !window.minimized;
+        // Long lists live in scroll containers. Without the whole tree in
+        // hand, leave their hidden rows to the provider rather than fetching
+        // every one.
+        let (children, hidden_rows) = self.children(node, prune && node.scrolls);
+        walk.skipped += hidden_rows;
+        for child in children {
+            if walk.rows.len() >= limits.max_elements {
+                walk.rows.push(format!(
+                    "{}… truncated at {} elements — raise max_elements or target a child",
+                    "  ".repeat(depth + 1),
+                    limits.max_elements
                 ));
                 return;
             }
-            self.walk(&current, depth + 1, max_depth, max_elements, next_id, lines);
-            child = walker.get_next_sibling(&current).ok();
+            if prune && outline::is_off_screen(child.bounds, clip, child.offscreen, child.floats(), child.is_row()) {
+                walk.skipped += 1;
+                continue;
+            }
+            if walk.find_dialogs && child.dialog {
+                walk.dialogs.push((window.clone(), child.element.clone()));
+            }
+            self.walk(walk, &child, depth + 1, clip, window, chrome);
+        }
+    }
+
+    /// Top-level dialogs that disable the window that owns them, the way a
+    /// modal dialog does: its owner is one of the app's windows and no longer
+    /// takes input.
+    fn blocking_dialogs(windows: &[HWND]) -> Vec<HWND> {
+        windows
+            .iter()
+            .copied()
+            .filter(|window| {
+                let Ok(owner) = (unsafe { GetWindow(*window, GW_OWNER) }) else {
+                    return false;
+                };
+                !owner.0.is_null()
+                    && windows.iter().any(|other| other.0 == owner.0)
+                    && !unsafe { IsWindowEnabled(owner) }.as_bool()
+            })
+            .collect()
+    }
+
+    /// Whether a dialog found during the walk still blocks its window when
+    /// read again live: it still exists, is still a modal dialog, and is on
+    /// screen inside the window. UIA trees (Chrome's above all, right after a
+    /// tab switch) can hand back a dialog that is already gone or hidden; that
+    /// one must not scope the read to nothing (#44).
+    fn dialog_still_blocks(window: HWND, dialog: &UIElement) -> bool {
+        let live = Node::live(dialog.clone());
+        if !live.dialog || live.offscreen {
+            return false;
+        }
+        let Some(bounds) = live.bounds.filter(Bounds::has_area) else {
+            return false;
+        };
+        let mut rect = RECT::default();
+        if unsafe { GetWindowRect(window, &mut rect) }.is_err() {
+            return true;
+        }
+        let frame = Bounds::from_edges(
+            f64::from(rect.left),
+            f64::from(rect.top),
+            f64::from(rect.right),
+            f64::from(rect.bottom),
+        );
+        bounds.overlaps(&frame)
+    }
+
+    /// Run OCR on one of `pid`'s windows (the largest when `window` is None).
+    fn read_text(pid: u32, window: Option<HWND>) -> std::result::Result<Vec<OcrText>, String> {
+        let wanted = window.map(|window| window.0 as usize as u32);
+        let (image, frame) = crate::capture::capture_window_image(pid, wanted).map_err(|error| error.0)?;
+        super::ocr::recognize(&image, &frame)
+    }
+}
+
+/// One element's properties, read in a batch (`cached`) or one by one (`live`).
+struct Node {
+    element: UIElement,
+    control_type: String,
+    name: String,
+    value: Option<String>,
+    enabled: Option<bool>,
+    /// UIA's IsOffscreen: scrolled out of view or collapsed away.
+    offscreen: bool,
+    bounds: Option<Bounds>,
+    /// Has a ScrollPattern, so it clips its children to its own bounds.
+    scrolls: bool,
+    /// A modal window or dialog: blocks the window it is in.
+    dialog: bool,
+    /// Fetched with its window's whole tree: its children are in the cache.
+    in_tree: bool,
+}
+
+/// Whether an element inside a window blocks the rest of it. A modal window
+/// does. So does an element that calls itself a dialog, unless its
+/// WindowPattern says it is not modal: Chrome exposes every web
+/// `role="dialog"` that way, and a cookie banner or a toast that is a
+/// non-modal dialog blocks nothing, so it must not hide the page (#44).
+fn is_blocking_dialog(control_type: &str, window_pattern: bool, modal: bool, is_dialog: bool) -> bool {
+    if window_pattern {
+        modal && (control_type == "Window" || is_dialog)
+    } else {
+        is_dialog
+    }
+}
+
+fn variant_bool(value: uiautomation::Result<Variant>) -> bool {
+    value.ok().and_then(|value| TryInto::<bool>::try_into(value).ok()).unwrap_or(false)
+}
+
+fn bounds_of(rect: uiautomation::Result<uiautomation::types::Rect>) -> Option<Bounds> {
+    rect.ok().map(|rect| {
+        Bounds::from_edges(
+            f64::from(rect.get_left()),
+            f64::from(rect.get_top()),
+            f64::from(rect.get_right()),
+            f64::from(rect.get_bottom()),
+        )
+    })
+}
+
+impl Node {
+    fn cached(element: UIElement) -> Self {
+        let control_type = element
+            .get_cached_control_type()
+            .map(|kind| format!("{kind:?}"))
+            .unwrap_or_else(|_| "Unknown".to_string());
+        let dialog = is_blocking_dialog(
+            &control_type,
+            variant_bool(element.get_cached_property_value(UIProperty::IsWindowPatternAvailable)),
+            variant_bool(element.get_cached_property_value(UIProperty::WindowIsModal)),
+            variant_bool(element.get_cached_property_value(UIProperty::IsDialog)),
+        );
+        Self {
+            name: element.get_cached_name().unwrap_or_default(),
+            value: element
+                .get_cached_property_value(UIProperty::ValueValue)
+                .ok()
+                .and_then(|value| TryInto::<String>::try_into(value).ok())
+                .filter(|value| !value.is_empty()),
+            enabled: element.is_cached_enabled().ok(),
+            offscreen: element.is_cached_offscreen().unwrap_or(false),
+            bounds: bounds_of(element.get_cached_bounding_rectangle()),
+            scrolls: variant_bool(element.get_cached_property_value(UIProperty::IsScrollPatternAvailable)),
+            dialog,
+            in_tree: false,
+            control_type,
+            element,
+        }
+    }
+
+    fn in_tree(element: UIElement) -> Self {
+        Self { in_tree: true, ..Self::cached(element) }
+    }
+
+    fn live(element: UIElement) -> Self {
+        let control_type = element
+            .get_control_type()
+            .map(|kind| format!("{kind:?}"))
+            .unwrap_or_else(|_| "Unknown".to_string());
+        let dialog = is_blocking_dialog(
+            &control_type,
+            variant_bool(element.get_property_value(UIProperty::IsWindowPatternAvailable)),
+            variant_bool(element.get_property_value(UIProperty::WindowIsModal)),
+            element.is_dialog().unwrap_or(false),
+        );
+        Self {
+            name: element.get_name().unwrap_or_default(),
+            value: element
+                .get_pattern::<UIValuePattern>()
+                .ok()
+                .and_then(|pattern| pattern.get_value().ok())
+                .filter(|value| !value.is_empty()),
+            enabled: element.is_enabled().ok(),
+            offscreen: element.is_offscreen().unwrap_or(false),
+            bounds: bounds_of(element.get_bounding_rectangle()),
+            scrolls: variant_bool(element.get_property_value(UIProperty::IsScrollPatternAvailable)),
+            dialog,
+            in_tree: false,
+            control_type,
+            element,
+        }
+    }
+
+    fn is_row(&self) -> bool {
+        matches!(self.control_type.as_str(), "ListItem" | "TreeItem" | "DataItem")
+    }
+
+    /// Menus, tooltips, popups and dialogs float outside their parents, so
+    /// they are never skipped as off screen and start a clip of their own.
+    fn floats(&self) -> bool {
+        self.dialog || matches!(self.control_type.as_str(), "Menu" | "ToolTip" | "Window")
+    }
+}
+
+#[cfg(test)]
+mod dialog_tests {
+    use super::is_blocking_dialog;
+
+    #[test]
+    fn a_dialog_that_says_it_is_not_modal_blocks_nothing() {
+        // Chrome: <dialog> opened with showModal(), or role=dialog aria-modal=true.
+        assert!(is_blocking_dialog("Window", true, true, true));
+        // Chrome: role=dialog without aria-modal (a cookie banner) — #44.
+        assert!(!is_blocking_dialog("Window", true, false, true));
+        // A modal window that does not set IsDialog still blocks.
+        assert!(is_blocking_dialog("Window", true, true, false));
+        // A provider without WindowPattern: IsDialog is all there is to go on.
+        assert!(is_blocking_dialog("Pane", false, false, true));
+        assert!(!is_blocking_dialog("Pane", false, false, false));
+    }
+}
+
+/// The top-level window a walk is in.
+#[derive(Clone)]
+struct WindowInfo {
+    hwnd: HWND,
+    index: usize,
+    title: String,
+    minimized: bool,
+}
+
+/// Running totals of one `get_app_state` walk.
+struct Walk {
+    options: StateOptions,
+    next_id: u32,
+    rows: Vec<String>,
+    /// Subtree roots left out as off screen.
+    skipped: usize,
+    /// Every listed element with bounds, so OCR does not repeat them.
+    listed: Vec<Listed>,
+    /// A labelled control of the app itself was listed (`ocr: auto`).
+    app_control: bool,
+    /// max_depth stopped the walk somewhere, so controls may lie deeper:
+    /// too little is known to call the app inaccessible (`ocr: auto`).
+    cut_short: bool,
+    /// Collect modal dialogs met inside windows (first pass only).
+    find_dialogs: bool,
+    dialogs: Vec<(WindowInfo, UIElement)>,
+}
+
+impl Walk {
+    fn new(options: StateOptions, find_dialogs: bool) -> Self {
+        Self {
+            options,
+            next_id: 0,
+            rows: Vec::new(),
+            skipped: 0,
+            listed: Vec::new(),
+            app_control: false,
+            cut_short: false,
+            find_dialogs,
+            dialogs: Vec::new(),
         }
     }
 }
 
-fn truncate(value: &str, limit: usize) -> String {
-    let cleaned = value.replace(['\n', '\r'], " ");
-    if cleaned.chars().count() <= limit {
-        return cleaned;
-    }
-    cleaned.chars().take(limit).collect::<String>() + "…"
+/// Whether an element is a control of the app itself, for `ocr: auto`: an
+/// enabled control with a label (text inputs need none). Static text and bare
+/// groups or panes do not count, and the caller leaves out the title bar's
+/// own buttons.
+fn is_app_control(control_type: &str, name: &str, enabled: bool) -> bool {
+    enabled
+        && match control_type {
+            "Edit" | "Document" => true,
+            "Button" | "CheckBox" | "ComboBox" | "DataItem" | "Hyperlink" | "ListItem" | "MenuItem"
+            | "RadioButton" | "Slider" | "Spinner" | "SplitButton" | "TabItem" | "TreeItem" => {
+                !name.trim().is_empty()
+            }
+            _ => false,
+        }
 }
 
-/// Translate the tool's modifier names into the `uiautomation` key syntax.
+/// What one `press_key` call sends, before it becomes `SendInput` records.
+///
+/// Built directly from virtual-key codes rather than the `uiautomation` key
+/// syntax: that syntax only knows a few dozen names (anything else was typed as
+/// literal text, so `pageup` typed "pageup") and treats `{`, `}`, `(` and `)` as
+/// markup. Virtual keys have neither problem.
+#[derive(Debug, PartialEq, Eq)]
+struct KeyPlan {
+    /// Virtual keys held for the duration of the press, in press order.
+    modifiers: Vec<u16>,
+    stroke: Stroke,
+}
+
+#[derive(Debug, PartialEq, Eq)]
+enum Stroke {
+    /// A virtual key; `extended` sets KEYEVENTF_EXTENDEDKEY, which navigation
+    /// keys need so they are not read as their numeric-keypad twins.
+    Vk { vk: u16, extended: bool },
+    /// A character the active layout has no key for; sent as KEYEVENTF_UNICODE.
+    Unicode(char),
+}
+
+const VK_SHIFT: u16 = 0x10;
+const VK_CONTROL: u16 = 0x11;
+const VK_MENU: u16 = 0x12;
+const VK_LWIN: u16 = 0x5B;
+
+/// Translate the tool's modifier names into virtual keys.
 ///
 /// `cmd` maps to Win rather than failing: models trained on macOS reach for it
 /// constantly, and Win is the closest analogue.
@@ -379,41 +1364,488 @@ fn truncate(value: &str, limit: usize) -> String {
 /// Unknown modifiers are rejected (except `fn`, which has no synthetic
 /// equivalent and is intentionally ignored) so a typo like `ctl` cannot
 /// silently send the bare key while reporting success.
-fn key_sequence(key: &str, modifiers: &[String]) -> Result<String> {
-    let mut sequence = String::new();
+fn modifier_vks(modifiers: &[String]) -> Result<Vec<u16>> {
+    let mut held = Vec::new();
     for modifier in modifiers {
-        let token = match modifier.to_lowercase().as_str() {
-            "cmd" | "command" | "win" | "super" | "meta" => "{win}",
-            "ctrl" | "control" => "{ctrl}",
-            "alt" | "option" => "{alt}",
-            "shift" => "{shift}",
+        let vk = match modifier.to_lowercase().as_str() {
+            "cmd" | "command" | "win" | "super" | "meta" => VK_LWIN,
+            "ctrl" | "control" => VK_CONTROL,
+            "alt" | "option" => VK_MENU,
+            "shift" => VK_SHIFT,
             // `fn` has no synthetic equivalent on Windows; dropping it is better
             // than refusing an otherwise valid chord.
-            "fn" => "",
+            "fn" => continue,
             other => {
                 return Err(DesktopError::new(format!(
                     "unsupported modifier '{other}' — use ctrl, shift, alt, or cmd"
                 )));
             }
         };
-        sequence.push_str(token);
+        if !held.contains(&vk) {
+            held.push(vk);
+        }
     }
-    sequence.push_str(&match key.to_lowercase().as_str() {
-        "return" | "enter" => "{enter}".to_string(),
-        "tab" => "{tab}".to_string(),
-        "escape" | "esc" => "{esc}".to_string(),
-        "space" => " ".to_string(),
-        "backspace" => "{backspace}".to_string(),
-        "delete" => "{delete}".to_string(),
-        "up" => "{up}".to_string(),
-        "down" => "{down}".to_string(),
-        "left" => "{left}".to_string(),
-        "right" => "{right}".to_string(),
-        "home" => "{home}".to_string(),
-        "end" => "{end}".to_string(),
-        other => other.to_string(),
-    });
-    Ok(sequence)
+    Ok(held)
+}
+
+/// Virtual key for a named key, and whether it is an extended key.
+fn named_vk(named: Named) -> Option<(u16, bool)> {
+    Some(match named {
+        Named::Return => (0x0D, false),
+        Named::Tab => (0x09, false),
+        Named::Escape => (0x1B, false),
+        Named::Space => (0x20, false),
+        Named::Backspace => (0x08, false),
+        Named::Delete | Named::ForwardDelete => (0x2E, true),
+        Named::PageUp => (0x21, true),
+        Named::PageDown => (0x22, true),
+        Named::End => (0x23, true),
+        Named::Home => (0x24, true),
+        Named::Left => (0x25, true),
+        Named::Up => (0x26, true),
+        Named::Right => (0x27, true),
+        Named::Down => (0x28, true),
+        Named::Insert => (0x2D, true),
+        // VK_F1 is 0x70 and F1–F24 are contiguous.
+        Named::F(n) if (1..=24).contains(&n) => (0x70 + u16::from(n) - 1, false),
+        Named::F(_) => return None,
+        Named::Numpad(digit) if digit <= 9 => (0x60 + u16::from(digit), false),
+        Named::Numpad(_) => return None,
+        Named::NumpadMultiply => (0x6A, false),
+        Named::NumpadAdd => (0x6B, false),
+        Named::NumpadSubtract => (0x6D, false),
+        Named::NumpadDecimal => (0x6E, false),
+        Named::NumpadDivide => (0x6F, true),
+        // The keypad Enter is VK_RETURN flagged as extended.
+        Named::NumpadEnter => (0x0D, true),
+        // PC keypads have no equals key.
+        Named::NumpadEquals => return None,
+    })
+}
+
+/// Resolve a character through the active keyboard layout: its virtual key plus
+/// the shift/ctrl/alt state VkKeyScanW says produces it. `None` when the layout
+/// has no key for it.
+fn layout_vk(character: char) -> Option<(u16, Vec<u16>)> {
+    let mut units = [0u16; 2];
+    let encoded = character.encode_utf16(&mut units);
+    if encoded.len() != 1 {
+        return None;
+    }
+    let scan = unsafe { VkKeyScanW(encoded[0]) };
+    if scan == -1 {
+        return None;
+    }
+    let vk = (scan as u16) & 0xFF;
+    let state = ((scan as u16) >> 8) & 0xFF;
+    let mut extra = Vec::new();
+    if state & 0x01 != 0 {
+        extra.push(VK_SHIFT);
+    }
+    if state & 0x02 != 0 {
+        extra.push(VK_CONTROL);
+    }
+    if state & 0x04 != 0 {
+        extra.push(VK_MENU);
+    }
+    Some((vk, extra))
+}
+
+fn key_plan(
+    key: &str,
+    modifiers: &[String],
+    layout: impl Fn(char) -> Option<(u16, Vec<u16>)>,
+) -> Result<KeyPlan> {
+    let mut held = modifier_vks(modifiers)?;
+    let parsed = keys::parse(key).ok_or_else(|| {
+        DesktopError::new(format!(
+            "unsupported key '{key}' — use a single character or a named key (enter, pageup, f5, comma, numpad1, …)"
+        ))
+    })?;
+    let stroke = match parsed {
+        Key::Named(named) => {
+            let (vk, extended) = named_vk(named).ok_or_else(|| {
+                DesktopError::new(format!("'{key}' has no equivalent key on Windows"))
+            })?;
+            Stroke::Vk { vk, extended }
+        }
+        Key::Char(character) => {
+            // A chord names the key, not the character: ctrl+S means ctrl+s,
+            // matching macOS, rather than ctrl+shift+s.
+            let character = if held.is_empty() {
+                character
+            } else {
+                character.to_ascii_lowercase()
+            };
+            match layout(character) {
+                Some((vk, extra)) => {
+                    for modifier in extra {
+                        if !held.contains(&modifier) {
+                            held.push(modifier);
+                        }
+                    }
+                    Stroke::Vk { vk, extended: false }
+                }
+                None if held.is_empty() => Stroke::Unicode(character),
+                None => {
+                    return Err(DesktopError::new(format!(
+                        "'{key}' is not on the current keyboard layout, so it cannot be combined with modifiers"
+                    )));
+                }
+            }
+        }
+    };
+    Ok(KeyPlan { modifiers: held, stroke })
+}
+
+fn keyboard_input(vk: u16, scan: u16, flags: KEYBD_EVENT_FLAGS) -> INPUT {
+    INPUT {
+        r#type: INPUT_KEYBOARD,
+        Anonymous: INPUT_0 {
+            ki: KEYBDINPUT {
+                wVk: VIRTUAL_KEY(vk),
+                wScan: scan,
+                dwFlags: flags,
+                time: 0,
+                dwExtraInfo: super::user_keys::AGENT_INPUT,
+            },
+        },
+    }
+}
+
+fn vk_input(vk: u16, extended: bool, up: bool) -> INPUT {
+    let scan = unsafe { MapVirtualKeyW(u32::from(vk), MAPVK_VK_TO_VSC) } as u16;
+    let mut flags = KEYBD_EVENT_FLAGS(0);
+    if extended || vk == VK_LWIN {
+        flags |= KEYEVENTF_EXTENDEDKEY;
+    }
+    if up {
+        flags |= KEYEVENTF_KEYUP;
+    }
+    keyboard_input(vk, scan, flags)
+}
+
+/// Send a plan as one `SendInput` batch, so the user's own keystrokes cannot
+/// interleave with the chord and modifiers are always released.
+fn send_key_plan(plan: &KeyPlan) -> Result<()> {
+    let mut inputs = Vec::new();
+    for vk in &plan.modifiers {
+        inputs.push(vk_input(*vk, false, false));
+    }
+    match plan.stroke {
+        Stroke::Vk { vk, extended } => {
+            inputs.push(vk_input(vk, extended, false));
+            inputs.push(vk_input(vk, extended, true));
+        }
+        Stroke::Unicode(character) => {
+            let mut units = [0u16; 2];
+            for unit in character.encode_utf16(&mut units).iter() {
+                inputs.push(keyboard_input(0, *unit, KEYEVENTF_UNICODE));
+                inputs.push(keyboard_input(0, *unit, KEYEVENTF_UNICODE | KEYEVENTF_KEYUP));
+            }
+        }
+    }
+    for vk in plan.modifiers.iter().rev() {
+        inputs.push(vk_input(*vk, false, true));
+    }
+    let sent = unsafe { SendInput(&inputs, std::mem::size_of::<INPUT>() as i32) };
+    if sent as usize != inputs.len() {
+        return Err(DesktopError::new(
+            "the system rejected the synthetic key press — a higher-integrity window (an elevated \
+             app or UAC prompt) may have focus",
+        ));
+    }
+    Ok(())
+}
+
+/// Every character of `text` as a KEYEVENTF_UNICODE press, except line breaks
+/// and tabs, which are sent as the Return and Tab keys because apps act on the
+/// key, not the character. "\r\n" is one Return.
+fn text_inputs(text: &str) -> Vec<INPUT> {
+    let mut inputs = Vec::new();
+    let mut previous = '\0';
+    for character in text.chars() {
+        let after_cr = previous == '\r';
+        previous = character;
+        let vk = match character {
+            '\n' if after_cr => continue,
+            '\r' | '\n' => 0x0D,
+            '\t' => 0x09,
+            _ => {
+                let mut units = [0u16; 2];
+                for unit in character.encode_utf16(&mut units).iter() {
+                    inputs.push(keyboard_input(0, *unit, KEYEVENTF_UNICODE));
+                    inputs.push(keyboard_input(0, *unit, KEYEVENTF_UNICODE | KEYEVENTF_KEYUP));
+                }
+                continue;
+            }
+        };
+        inputs.push(vk_input(vk, false, false));
+        inputs.push(vk_input(vk, false, true));
+    }
+    inputs
+}
+
+/// What a field holds, through UI Automation, for checking typed text. Never
+/// a password field: its value is not read at all, let alone compared.
+fn read_field(field: &UIElement) -> Option<String> {
+    if field.is_password().unwrap_or(true) {
+        return None;
+    }
+    if let Ok(value) = field.get_pattern::<UIValuePattern>().and_then(|pattern| pattern.get_value()) {
+        return Some(value);
+    }
+    field
+        .get_pattern::<UITextPattern>()
+        .and_then(|pattern| pattern.get_document_range())
+        .and_then(|range| range.get_text(-1))
+        .ok()
+}
+
+/// The fixed pause the foreground used to be held for after a burst, now the
+/// least time to watch a field that does not yet hold the text.
+fn typing_settle(text: &str) -> std::time::Duration {
+    std::time::Duration::from_millis((40 + text.chars().count() as u64 / 4).min(1500))
+}
+
+/// Watch `field` until it holds `text` or a budget scaled to the text runs
+/// out. There is no "stopped changing" shortcut: a browser fills in its
+/// accessibility tree only once the page's main thread is free, so while a
+/// slow page works through the burst the value can sit still for a second or
+/// more and then jump to the whole text. Anything short of verified waits at
+/// least `settle`, the fixed pause typing always had.
+fn await_typed(field: Option<&UIElement>, text: &str, before: Option<&str>, settle: std::time::Duration) -> typed::TypedCheck {
+    use std::time::{Duration, Instant};
+    let start = Instant::now();
+    let unverified = |check| {
+        if let Some(rest) = settle.checked_sub(start.elapsed()) {
+            std::thread::sleep(rest);
+        }
+        check
+    };
+    let mut last = field.and_then(read_field);
+    let (Some(field), Some(_)) = (field, &last) else {
+        return unverified(typed::check_typed(text, before, None));
+    };
+    let budget = Duration::from_millis((1500 + text.chars().count() as u64 * 10).min(6000));
+    loop {
+        let check = typed::check_typed(text, before, last.as_deref());
+        match check {
+            // An autocomplete fills in right after the keystroke that set it
+            // off: look once more before calling the field exactly typed (#69).
+            typed::TypedCheck::Verified => {
+                std::thread::sleep(Duration::from_millis(80));
+                let late = read_field(field).map(|now| typed::check_typed(text, before, Some(&now)));
+                return match late {
+                    Some(completed @ typed::TypedCheck::Completed { .. }) => completed,
+                    _ => check,
+                };
+            }
+            typed::TypedCheck::Completed { .. } => return check,
+            // Nothing waiting can change (a Tab in the text, say).
+            typed::TypedCheck::Unverified(_) => return unverified(check),
+            typed::TypedCheck::Incomplete { .. } if start.elapsed() >= budget => return check,
+            typed::TypedCheck::Incomplete { .. } => {}
+        }
+        std::thread::sleep(Duration::from_millis(40));
+        // A read that fails now and then (a browser rebuilding its tree) is
+        // not a change; keep the last value seen.
+        if let Some(now) = read_field(field) {
+            last = Some(now);
+        }
+    }
+}
+
+/// Send keystrokes in as few `SendInput` calls as possible. Each call is
+/// atomic: the user's own keys cannot land in the middle of it.
+fn send_inputs(inputs: &[INPUT]) -> Result<()> {
+    for chunk in inputs.chunks(2000) {
+        let sent = unsafe { SendInput(chunk, std::mem::size_of::<INPUT>() as i32) };
+        if sent as usize != chunk.len() {
+            return Err(DesktopError::new(
+                "the system rejected the synthetic keystrokes — a higher-integrity window (an \
+                 elevated app or UAC prompt) may have focus",
+            ));
+        }
+    }
+    Ok(())
+}
+
+/// Wait until `window`'s thread has handled the messages its activation sent
+/// it (a WM_NULL round trip is answered after them), plus a little time for
+/// the focus and caret changes those post.
+fn settle_activation(window: HWND, ms: u64) {
+    unsafe {
+        let _ = SendMessageTimeoutW(window, WM_NULL, WPARAM(0), LPARAM(0), SMTO_ABORTIFHUNG, 250, None);
+    }
+    std::thread::sleep(std::time::Duration::from_millis(ms));
+}
+
+/// An unassigned virtual key. Sending it makes this process the source of the
+/// last input event, which lets it take the foreground, and no app acts on it
+/// (UI Automation's SetFocus sends the same key for the same reason).
+pub(super) const UNLOCK_VK: u16 = 0xB9;
+
+/// Make `window` the foreground window. Windows refuses that to a process
+/// that does not own the foreground, so on refusal this sends `UNLOCK_VK` and
+/// tries again, then briefly attaches to the foreground thread's input, which
+/// also lifts the lock (AutoHotkey's WinActivate does the same).
+fn bring_forward(window: HWND) -> bool {
+    unsafe {
+        if GetForegroundWindow() == window {
+            return true;
+        }
+        if SetForegroundWindow(window).as_bool() && GetForegroundWindow() == window {
+            return true;
+        }
+        let unlock = [vk_input(UNLOCK_VK, false, false), vk_input(UNLOCK_VK, false, true)];
+        if SendInput(&unlock, std::mem::size_of::<INPUT>() as i32) == 2 {
+            for _ in 0..5 {
+                if SetForegroundWindow(window).as_bool() && GetForegroundWindow() == window {
+                    return true;
+                }
+                std::thread::sleep(std::time::Duration::from_millis(5));
+            }
+        }
+        let foreground = GetForegroundWindow();
+        let theirs = GetWindowThreadProcessId(foreground, None);
+        let ours = GetCurrentThreadId();
+        // AttachThreadInput fails for a thread with no message queue, and this
+        // server's thread has none until it peeks.
+        let mut message = MSG::default();
+        let _ = PeekMessageW(&mut message, None, 0, 0, PM_NOREMOVE);
+        if theirs != 0 && theirs != ours && AttachThreadInput(ours, theirs, true).as_bool() {
+            let _ = SetForegroundWindow(window);
+            let _ = AttachThreadInput(ours, theirs, false);
+        }
+        GetForegroundWindow() == window
+    }
+}
+
+impl WindowsDesktop {
+    /// Bring `window` forward with keyboard focus, and say which window is in
+    /// front afterwards. `requested` is the window_id the caller asked for.
+    fn bring_window_forward(&mut self, app: &str, pid: u32, window: HWND, requested: Option<u64>) -> Result<String> {
+        crate::policy::check_foreground(&format!("bring {app} to the front"))?;
+        // Only a minimized window needs restoring; SW_RESTORE on a maximized
+        // one would shrink it back to its normal size.
+        if unsafe { IsIconic(window) }.as_bool() {
+            unsafe {
+                let _ = ShowWindow(window, SW_RESTORE);
+            }
+        }
+        // Judged by what is in front afterwards, not by SetForegroundWindow's
+        // return value: a process that cannot reach the user's desktop is told
+        // yes and changes nothing. The window's own popup coming forward (an
+        // owned dialog taking activation) still counts; without a requested
+        // window, any window of the app does.
+        let raised = self.activate(window) || {
+            let front = unsafe { GetForegroundWindow() };
+            match requested {
+                Some(_) => (unsafe { GetAncestor(front, GA_ROOTOWNER) }) == window,
+                None => {
+                    let mut owner = 0u32;
+                    unsafe { GetWindowThreadProcessId(front, Some(&mut owner)) };
+                    owner == pid
+                }
+            }
+        };
+        let warning = super::desktop_access_warning();
+        if !raised {
+            // Windows refuses foreground changes from background processes in
+            // some states; say so rather than claim a success the model can see
+            // is false in the next screenshot.
+            return Err(DesktopError::new(match warning {
+                Some(warning) => format!("{app} did not come forward — {warning}"),
+                None => format!(
+                    "Windows refused to bring {app} forward — click its taskbar button, or try again \
+                     after interacting with the desktop"
+                ),
+            }));
+        }
+        self.input_window = Some(window.0 as isize);
+        // Name what is in front now, so focus-sensitive work (a global hotkey
+        // reading the foreground window) can be checked before it runs (#33).
+        let front = describe_window(unsafe { GetForegroundWindow() });
+        Ok(match warning {
+            Some(warning) => format!("activated {app} (pid {pid}); in front: {front}, but {warning}"),
+            None => format!("activated {app} (pid {pid}); in front: {front}"),
+        })
+    }
+}
+
+/// See every coordinate in physical pixels (#31). A process that is not DPI
+/// aware gets window, cursor and UI Automation coordinates scaled down by the
+/// display scale, while captures, and the DWM frame bounds xcap reports for
+/// them, stay physical: at 125% a point seen at screenshot pixel (600, 550)
+/// had to be clicked at (480, 440). Per-monitor awareness puts screenshots,
+/// element bounds, clicks and window lookups in one space. Call it before
+/// this process creates a window; it fails harmlessly if a manifest already
+/// set the awareness.
+pub fn use_physical_pixels() {
+    let _ = unsafe { SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2) };
+}
+
+/// The point to put in a mouse message posted to `hwnd`, from its physical
+/// client coordinates. A window that is not per-monitor DPI aware reads mouse
+/// messages in its own scaled coordinates, which Windows converts real input
+/// into for it; posted messages are not converted, so do it here.
+fn message_point(hwnd: HWND, client: POINT) -> POINT {
+    let window_dpi = unsafe { GetDpiForWindow(hwnd) };
+    let monitor = unsafe { MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST) };
+    let (mut dpi_x, mut dpi_y) = (0u32, 0u32);
+    if unsafe { GetDpiForMonitor(monitor, MDT_EFFECTIVE_DPI, &mut dpi_x, &mut dpi_y) }.is_err() {
+        return client;
+    }
+    scale_point(client, window_dpi, dpi_x)
+}
+
+/// A window's id as get_app_state lists it and activate_app takes it: its
+/// handle, which stays the same for as long as the window exists.
+fn window_id(window: HWND) -> usize {
+    window.0 as usize
+}
+
+/// `"title" (window_id N)`, for results that say where focus or keys went.
+fn describe_window(window: HWND) -> String {
+    if window.0.is_null() {
+        return "no window".to_string();
+    }
+    let mut buffer = [0u16; 256];
+    let len = unsafe { GetWindowTextW(window, &mut buffer) }.max(0) as usize;
+    let title = String::from_utf16_lossy(&buffer[..len]);
+    format!("\"{}\" (window_id {})", truncate(&title, 80), window_id(window))
+}
+
+/// Whether a screen point is on an attached display. The real cursor is
+/// clamped to the screens, so a point off them would click somewhere else.
+fn on_display(x: f64, y: f64) -> bool {
+    let point = POINT { x: x.round() as i32, y: y.round() as i32 };
+    !unsafe { MonitorFromPoint(point, MONITOR_DEFAULTTONULL) }.is_invalid()
+}
+
+fn check_display_point(x: f64, y: f64) -> Result<()> {
+    if on_display(x, y) {
+        return Ok(());
+    }
+    Err(DesktopError::new(format!(
+        "({x:.0}, {y:.0}) is not on any display, so nothing was done. Take coordinates from a screenshot's \
+         mapping line or from list_displays, or act on an element id from get_app_state"
+    )))
+}
+
+/// Whether `(x, y)` lies inside `rect` (right and bottom edges excluded).
+fn point_in_rect(x: f64, y: f64, rect: &RECT) -> bool {
+    x >= f64::from(rect.left) && x < f64::from(rect.right) && y >= f64::from(rect.top) && y < f64::from(rect.bottom)
+}
+
+/// `point` scaled from `from_dpi` to `to_dpi`; unchanged when either is unknown.
+fn scale_point(point: POINT, to_dpi: u32, from_dpi: u32) -> POINT {
+    if to_dpi == 0 || from_dpi == 0 || to_dpi == from_dpi {
+        return point;
+    }
+    let scale = |value: i32| (f64::from(value) * f64::from(to_dpi) / f64::from(from_dpi)).round() as i32;
+    POINT { x: scale(point.x), y: scale(point.y) }
 }
 
 impl Desktop for WindowsDesktop {
@@ -425,55 +1857,185 @@ impl Desktop for WindowsDesktop {
         apps::resolve_pid(app)
     }
 
-    fn get_app_state(&mut self, app: &str, max_depth: usize, max_elements: usize) -> Result<String> {
+    fn get_app_state(&mut self, app: &str, options: &StateOptions) -> Result<String> {
         // Ids are per-snapshot, so previous handles must not resolve — clear
         // before resolve_pid so a failed lookup cannot leave stale ids.
         self.registry.clear();
         let pid = apps::resolve_pid(app)?;
-        let windows = Self::top_level_windows(pid);
-        if windows.is_empty() {
+        // Hooked from here on, so return_state can tell background events apart.
+        crate::settle::observe(pid);
+        let all = Self::top_level_windows(pid);
+        if all.is_empty() {
             return Err(DesktopError::new(format!(
                 "{app} (pid {pid}) has no visible window"
             )));
         }
 
-        let mut next_id = 0u32;
-        let mut lines = vec![format!("{app} (pid {pid}), {} window(s)", windows.len())];
-        // One shared element budget across every window — recreating the walk
-        // buffer per window would let multi-window apps emit
-        // windows.len() * max_elements rows.
-        let mut element_lines = Vec::new();
+        // A modal dialog blocks the window that owns it: list only the dialog,
+        // since nothing behind it takes input until it is dismissed.
+        let blocking = Self::blocking_dialogs(&all);
+        let mut scoped = !blocking.is_empty();
+        let windows: Vec<WindowInfo> = if scoped { blocking } else { all.clone() }
+            .into_iter()
+            .enumerate()
+            .map(|(index, hwnd)| WindowInfo {
+                hwnd,
+                index,
+                title: String::new(),
+                minimized: unsafe { IsIconic(hwnd) }.as_bool(),
+            })
+            .collect();
 
-        for (index, window) in windows.iter().enumerate() {
-            let element = match self
-                .automation
-                .element_from_handle(Handle::from(window.0 as isize))
-            {
-                Ok(element) => element,
-                Err(_) => continue,
-            };
-            let title = element.get_name().unwrap_or_default();
-            lines.push(String::new());
-            lines.push(format!("── window {index}: \"{title}\""));
-            let window_start = element_lines.len();
-            self.walk(
-                &element,
-                0,
-                max_depth,
-                max_elements,
-                &mut next_id,
-                &mut element_lines,
-            );
-            lines.extend(element_lines[window_start..].iter().cloned());
+        // One shared walk across every window: its element budget caps the
+        // whole outline, not each window.
+        let mut walk = Walk::new(*options, !scoped);
+        let mut sections: Vec<(String, usize)> = Vec::new();
+        // Which dialogs scoped the read, named in the note (#44).
+        let mut blockers: Vec<String> = Vec::new();
+        for window in &windows {
+            let Some(root) = self.window_node(window.hwnd) else { continue };
+            let window = WindowInfo { title: root.name.clone(), ..window.clone() };
+            if scoped {
+                blockers.push(outline::dialog_label(
+                    "Window",
+                    &window.title,
+                    Some(&format!("window_id={}", window_id(window.hwnd))),
+                ));
+            }
+            sections.push((
+                format!("── window {}: \"{}\"  window_id={}", window.index, window.title, window_id(window.hwnd)),
+                walk.rows.len(),
+            ));
+            self.walk_root(&mut walk, &root, &window);
         }
 
-        if next_id == 0 {
+        // A dialog inside a window (a XAML ContentDialog, a modal web dialog)
+        // blocks that window the same way. Start again, listing only the
+        // dialogs of each window that has one; the app's other windows (a
+        // second Chrome window, say) take input as before and stay whole (#44).
+        let mut ocr_window = scoped.then(|| windows[0].hwnd);
+        let mut ocr_clip: Option<Bounds> = None;
+        let dialogs: Vec<(WindowInfo, UIElement)> = std::mem::take(&mut walk.dialogs)
+            .into_iter()
+            .filter(|(window, dialog)| Self::dialog_still_blocks(window.hwnd, dialog))
+            .collect();
+        if !dialogs.is_empty() {
+            self.registry.clear();
+            walk = Walk::new(*options, false);
+            sections.clear();
+            blockers.clear();
+            scoped = true;
+            for window in &windows {
+                let in_window: Vec<&(WindowInfo, UIElement)> =
+                    dialogs.iter().filter(|(owner, _)| owner.hwnd == window.hwnd).collect();
+                if in_window.is_empty() {
+                    let Some(root) = self.window_node(window.hwnd) else { continue };
+                    let window = WindowInfo { title: root.name.clone(), ..window.clone() };
+                    sections.push((
+                        format!("── window {}: \"{}\"  window_id={}", window.index, window.title, window_id(window.hwnd)),
+                        walk.rows.len(),
+                    ));
+                    self.walk_root(&mut walk, &root, &window);
+                    continue;
+                }
+                for (window, dialog) in in_window {
+                    let dialog = dialog.clone();
+                    let root = match &self.batch {
+                        Some(batch) => {
+                            dialog
+                                .build_updated_cache(&batch.tree)
+                                .map(Node::in_tree)
+                                .or_else(|_| dialog.build_updated_cache(&batch.request).map(Node::cached))
+                                .unwrap_or_else(|_| Node::live(dialog))
+                        }
+                        None => Node::live(dialog),
+                    };
+                    if ocr_window.is_none() {
+                        ocr_window = Some(window.hwnd);
+                        ocr_clip = root.bounds.filter(Bounds::has_area);
+                    }
+                    blockers.push(outline::dialog_label(
+                        &root.control_type,
+                        &root.name,
+                        Some(&format!("window {} (window_id={})", window.index, window_id(window.hwnd))),
+                    ));
+                    sections.push((
+                        format!(
+                            "── window {}: \"{}\"  window_id={} — dialog \"{}\"",
+                            window.index,
+                            window.title,
+                            window_id(window.hwnd),
+                            truncate(&root.name, 120)
+                        ),
+                        walk.rows.len(),
+                    ));
+                    self.walk_root(&mut walk, &root, window);
+                }
+            }
+        }
+
+        let mut notes = Vec::new();
+        if scoped {
+            notes.push(outline::dialog_note(&blockers));
+        }
+        let mut ocr_rows = Vec::new();
+        let run_ocr = match options.ocr {
+            OcrMode::Always => true,
+            OcrMode::Never => false,
+            OcrMode::Auto => !walk.app_control && !walk.cut_short,
+        };
+        if run_ocr {
+            // Any of the app's windows identifies the pid for the covered check.
+            let ocr_target = ocr_window.unwrap_or(all[0]);
+            match Self::read_text(pid, ocr_window) {
+                Ok(found) => {
+                    let found = found
+                        .into_iter()
+                        .filter(|line| {
+                            let (x, y) = line.bounds.center();
+                            ocr_clip.is_none_or(|clip| clip.contains(x, y))
+                        })
+                        .collect();
+                    for line in outline::dedupe_ocr(found, &walk.listed) {
+                        walk.next_id += 1;
+                        self.registry.insert(walk.next_id, Entry::Ocr { center: line.bounds.center(), window: ocr_target });
+                        ocr_rows.push(outline::ocr_row(walk.next_id, &line.text));
+                    }
+                }
+                Err(reason) if options.ocr == OcrMode::Always => notes.push(outline::ocr_unavailable_note(&reason)),
+                // Under auto, OCR is a bonus: say nothing when it cannot run.
+                Err(_) => {}
+            }
+        }
+
+        let mut lines = vec![format!("{app} (pid {pid}), {} window(s)", all.len())];
+        lines.extend(notes);
+        for (index, (header, start)) in sections.iter().enumerate() {
+            let end = sections.get(index + 1).map_or(walk.rows.len(), |next| next.1);
             lines.push(String::new());
-            lines.push(
-                "no interactive elements found — the app may render its own UI, so use screenshot \
-                 and click with coordinates"
+            lines.push(header.clone());
+            lines.extend(walk.rows[*start..end].iter().cloned());
+        }
+        if walk.skipped > 0 {
+            lines.push(outline::offscreen_line(walk.skipped));
+        }
+        if !ocr_rows.is_empty() {
+            lines.push(String::new());
+            lines.push(outline::OCR_HEADER.to_string());
+            lines.extend(ocr_rows);
+        }
+
+        if walk.next_id == 0 {
+            lines.push(String::new());
+            // A sandboxed or other-desktop process gets this same empty tree
+            // for every app; say why instead of suggesting a screenshot that
+            // will come back black too.
+            lines.push(match super::desktop_access_warning() {
+                Some(warning) => format!("no interactive elements found — {warning}"),
+                None => "no interactive elements found — the app may render its own UI, so use screenshot \
+                         and click with coordinates"
                     .to_string(),
-            );
+            });
         }
         Ok(lines.join("\n"))
     }
@@ -481,54 +2043,70 @@ impl Desktop for WindowsDesktop {
     fn activate_app(&mut self, app: &str) -> Result<String> {
         let pid = apps::resolve_pid(app)?;
         let windows = Self::top_level_windows(pid);
-        let window = windows.first().ok_or_else(|| {
+        let window = *windows.first().ok_or_else(|| {
             DesktopError::new(format!("{app} (pid {pid}) has no window to activate"))
         })?;
-        unsafe {
-            let _ = ShowWindow(*window, SW_RESTORE);
-        }
-        let raised = unsafe { SetForegroundWindow(*window) };
-        if !raised.as_bool() {
-            // Windows refuses foreground changes from background processes in
-            // some states; say so rather than claim a success the model can see
-            // is false in the next screenshot.
+        self.bring_window_forward(app, pid, window, None)
+    }
+
+    fn activate_window(&mut self, app: &str, id: u64) -> Result<String> {
+        let pid = apps::resolve_pid(app)?;
+        let window = HWND(id as usize as *mut _);
+        let mut owner = 0u32;
+        let open = unsafe { IsWindow(Some(window)) }.as_bool()
+            && unsafe { IsWindowVisible(window) }.as_bool()
+            && {
+                unsafe { GetWindowThreadProcessId(window, Some(&mut owner)) };
+                owner == pid
+            };
+        if !open {
             return Err(DesktopError::new(format!(
-                "Windows refused to bring {app} forward — click its taskbar button, or try again \
-                 after interacting with the desktop"
+                "window_id {id} is not an open window of {app} (pid {pid}) — call get_app_state on {app} to see \
+                 its windows and their window_id"
             )));
         }
-        Ok(format!("activated {app} (pid {pid})"))
+        self.bring_window_forward(app, pid, window, Some(id))
     }
 
     fn click(&mut self, target: Point, click_count: u32) -> Result<String> {
-        // An element press goes through the control's own Invoke handler, which
-        // is far more reliable than a synthetic click landing on the right pixel.
-        if let Point::Element(id) = target
-            && click_count == 1
-            && let Ok(element) = self.element(id)
-            && let Ok(invoke) = element.get_pattern::<UIInvokePattern>()
-        {
-            // Wait for the agent pointer to land before invoking, matching Mac.
-            if let Ok((x, y)) = Self::center(element) {
-                AgentCursor::shared().press(x, y);
+        let (x, y) = match target {
+            Point::Screen(x, y) => {
+                check_display_point(x, y)?;
+                self.input_window = Self::root_at(x, y).map(|root| root.0 as isize);
+                (x, y)
             }
-            if invoke.invoke().is_ok() {
-                return Ok(format!("pressed e{id}"));
+            Point::Element(id) => {
+                let resolved = self.resolve(id)?;
+                self.input_window = Some(match &resolved {
+                    Target::Element { window, .. } | Target::Ocr { window, .. } => window.0 as isize,
+                });
+                // An element press goes through the control's own Invoke
+                // handler, which is far more reliable than a synthetic click
+                // landing on the right pixel. Remote control skips it: the
+                // viewer is aiming at a pixel they can see, and an Invoke would
+                // fire a different control than the one under them.
+                if let Target::Element { element, minimized, .. } = &resolved
+                    && !identity::remote_control()
+                    && click_count == 1
+                    && let Some(done) = Self::press_through_patterns(id, element, *minimized)
+                {
+                    return Ok(done);
+                }
+                self.target_point(id, &resolved)?
             }
-        }
-
-        let (x, y) = self.point_coordinates(target)?;
+        };
         AgentCursor::shared().press(x, y);
-        // Prefer window-message delivery so the user's cursor stays put.
-        if click_count <= 1 && Self::background_click(x, y, false) {
+        // Prefer window-message delivery so the user's cursor stays put --
+        // unless this is remote control, where moving the cursor is the point.
+        if !identity::remote_control() && click_count <= 1 && Self::background_click(x, y, false) {
             return Ok(format!("clicked at ({x:.0}, {y:.0}) in background"));
         }
 
         let mouse = Mouse::default();
-        let point = UIPoint::new(x as i32, y as i32);
+        Self::jump_cursor(x, y)?;
         for _ in 0..click_count.max(1) {
             mouse
-                .click(&point)
+                .click_button(MouseButton::LEFT)
                 .map_err(|error| DesktopError::new(format!("click failed: {error}")))?;
         }
         Ok(format!(
@@ -545,12 +2123,16 @@ impl Desktop for WindowsDesktop {
 
     fn right_click(&mut self, target: Point) -> Result<String> {
         let (x, y) = self.point_coordinates(target)?;
+        // Keys that follow (arrows and Return through the menu) belong to the
+        // window that owns it.
+        self.input_window = Self::root_at(x, y).map(|root| root.0 as isize);
         AgentCursor::shared().press(x, y);
-        if Self::background_click(x, y, true) {
+        if !identity::remote_control() && Self::background_click(x, y, true) {
             return Ok(format!("right-clicked at ({x:.0}, {y:.0}) in background"));
         }
+        Self::jump_cursor(x, y)?;
         Mouse::default()
-            .right_click(&UIPoint::new(x as i32, y as i32))
+            .click_button(MouseButton::RIGHT)
             .map_err(|error| DesktopError::new(format!("right click failed: {error}")))?;
         Ok(format!("right-clicked at ({x:.0}, {y:.0}) via cursor"))
     }
@@ -560,14 +2142,12 @@ impl Desktop for WindowsDesktop {
         AgentCursor::shared().show(x, y);
         // A posted WM_MOUSEMOVE lets hover-revealed controls (menus, toolbars,
         // tooltips) react without moving the user's cursor.
-        if Self::background_hover(x, y) {
+        if !identity::remote_control() && Self::background_hover(x, y) {
             return Ok(format!(
                 "hovering at ({x:.0}, {y:.0}) in background — call get_app_state or screenshot to see what appeared"
             ));
         }
-        Mouse::default()
-            .move_to(&UIPoint::new(x as i32, y as i32))
-            .map_err(|error| DesktopError::new(format!("hover failed: {error}")))?;
+        Self::jump_cursor(x, y)?;
         Ok(format!(
             "hovering at ({x:.0}, {y:.0}) via cursor — call get_app_state or screenshot to see what appeared"
         ))
@@ -577,42 +2157,139 @@ impl Desktop for WindowsDesktop {
         let (from_x, from_y) = self.point_coordinates(from)?;
         let (to_x, to_y) = self.point_coordinates(to)?;
         AgentCursor::shared().show(from_x, from_y);
-        let mouse = Mouse::default();
-        mouse
-            .move_to(&UIPoint::new(from_x as i32, from_y as i32))
-            .map_err(|error| DesktopError::new(format!("could not reach the drag origin: {error}")))?;
+        if !identity::remote_control() && Self::background_drag((from_x, from_y), (to_x, to_y)) {
+            AgentCursor::shared().press(to_x, to_y);
+            return Ok(format!(
+                "dragged ({from_x:.0}, {from_y:.0}) → ({to_x:.0}, {to_y:.0}) in background"
+            ));
+        }
+        // Everything else (Chromium, WPF, UWP, drags between windows) only
+        // responds to real mouse input, which moves the user's pointer.
         // Fly overlay to the end before the real drag starts (button still up).
         AgentCursor::shared().press(to_x, to_y);
-        mouse
-            .drag_to(MouseButton::LEFT, &UIPoint::new(to_x as i32, to_y as i32))
+        Self::cursor_drag((from_x, from_y), (to_x, to_y))
             .map_err(|error| DesktopError::new(format!("drag failed: {error}")))?;
         Ok(format!(
-            "dragged ({from_x:.0}, {from_y:.0}) → ({to_x:.0}, {to_y:.0})"
+            "dragged ({from_x:.0}, {from_y:.0}) → ({to_x:.0}, {to_y:.0}) via cursor"
         ))
     }
 
     fn type_text(&mut self, text: &str, element: Option<u32>) -> Result<String> {
-        if let Some(id) = element {
-            self.element(id)?
-                .set_focus()
-                .map_err(|error| DesktopError::new(format!("could not focus e{id}: {error}")))?;
+        // Remote control types into whatever the viewer has focused: they
+        // just clicked there, and nobody else is at this keyboard.
+        if identity::remote_control() {
+            let mut named = None;
+            if let Some(id) = element
+                && let Target::Element { element: target, .. } = self.resolve(id)?
+            {
+                if Self::refuses_secure_input(&target) {
+                    let _ = target.set_focus();
+                    return Ok(super::secure_field_handback(id));
+                }
+                let _ = target.set_focus();
+                named = Some(target);
+            }
+            let field = named.or_else(|| self.typing_field());
+            let before = field.as_ref().and_then(read_field);
+            send_inputs(&text_inputs(text))?;
+            let check = await_typed(field.as_ref(), text, before.as_deref(), typing_settle(text));
+            return Ok(typed::describe_typed(text.chars().count(), "", &check));
         }
-        Keyboard::default()
-            .send_text(text)
-            .map_err(|error| DesktopError::new(format!("typing failed: {error}")))?;
-        Ok(format!("typed {} characters", text.chars().count()))
+
+        // Keystrokes only reach the foreground window, and that is usually the
+        // one the user is typing in. So: wait for a pause in their typing,
+        // bring the target forward, type in one uninterrupted burst, and hand
+        // the foreground straight back.
+        super::user_keys::wait_for_pause();
+        let previous = unsafe { GetForegroundWindow() };
+        let mut window = self.input_window.map(|raw| HWND(raw as *mut _));
+        // The element the agent named is the field to check, not whatever
+        // ends up focused: keys that land in another window must not read as
+        // having reached it.
+        let mut named = None;
+        if let Some(id) = element {
+            match self.resolve(id)? {
+                // OCR text has no focus to take: click it, as a person would.
+                ocr @ Target::Ocr { .. } => {
+                    let (x, y) = self.target_point(id, &ocr)?;
+                    self.click(Point::Screen(x, y), 1)?;
+                    std::thread::sleep(std::time::Duration::from_millis(60));
+                    window = self.input_window.map(|raw| HWND(raw as *mut _));
+                }
+                Target::Element { element: target, window: owner, minimized } => {
+                    // Focusing a control in a window behind the user's can
+                    // bring that window forward on its own.
+                    if owner != previous && !minimized {
+                        crate::policy::check_foreground("type into a window that is not in front, which has to be brought forward for the keystrokes")?;
+                    }
+                    if Self::refuses_secure_input(&target) {
+                        let _ = target.set_focus();
+                        return Ok(super::secure_field_handback(id));
+                    }
+                    // Keystrokes go to the foreground window, which a
+                    // minimized one is not.
+                    if minimized {
+                        return Err(outline::minimized_error(id));
+                    }
+                    target
+                        .set_focus()
+                        .map_err(|error| DesktopError::new(format!("could not focus e{id}: {error}")))?;
+                    self.input_window = Some(owner.0 as isize);
+                    window = Some(owner);
+                    named = Some(target);
+                }
+            }
+        }
+        let lent = self.borrow_foreground(window, previous)?;
+        let receiving = unsafe { GetForegroundWindow() };
+        // Where the keys will land, read before and after: the system taking
+        // the keystrokes is not the app having handled them (#47).
+        let field = named.or_else(|| self.typing_field());
+        let before = field.as_ref().and_then(read_field);
+        let inputs = text_inputs(text);
+        let mark = super::user_keys::agent_keys_mark();
+        let sent = send_inputs(&inputs);
+        // Keep the target in front until every key has been routed (the tail
+        // of a burst still being routed would go to the user's window), then
+        // until its field holds the text: an app that loses the foreground
+        // can drop keys it has not handled yet.
+        let check = match &sent {
+            Ok(()) => {
+                if let Some(mark) = mark {
+                    let limit = std::time::Duration::from_millis((500 + inputs.len() as u64 * 2).min(5000));
+                    super::user_keys::wait_routed(mark, inputs.len() as u64, limit);
+                }
+                await_typed(field.as_ref(), text, before.as_deref(), typing_settle(text))
+            }
+            Err(_) => typed::TypedCheck::Unverified("not sent"),
+        };
+        if let Some(lent) = lent {
+            // await_typed already waited out the settle, or saw the text arrive.
+            self.give_foreground_back(lent, 0);
+        }
+        sent?;
+        Ok(typed::describe_typed(text.chars().count(), &describe_window(receiving), &check))
     }
 
     fn press_key(&mut self, key: &str, modifiers: &[String]) -> Result<String> {
-        let sequence = key_sequence(key, modifiers)?;
-        Keyboard::default()
-            .send_keys(&sequence)
-            .map_err(|error| DesktopError::new(format!("key press failed: {error}")))?;
-        Ok(if modifiers.is_empty() {
-            format!("pressed {key}")
+        let plan = key_plan(key, modifiers, layout_vk)?;
+        let receiving = if identity::remote_control() {
+            send_key_plan(&plan)?;
+            unsafe { GetForegroundWindow() }
         } else {
-            format!("pressed {}+{key}", modifiers.join("+"))
-        })
+            super::user_keys::wait_for_pause();
+            let previous = unsafe { GetForegroundWindow() };
+            let lent = self.borrow_foreground(self.input_window.map(|raw| HWND(raw as *mut _)), previous)?;
+            let receiving = unsafe { GetForegroundWindow() };
+            let sent = send_key_plan(&plan);
+            if let Some(lent) = lent {
+                self.give_foreground_back(lent, 1);
+            }
+            sent?;
+            receiving
+        };
+        let combo = if modifiers.is_empty() { key.to_string() } else { format!("{}+{key}", modifiers.join("+")) };
+        Ok(format!("pressed {combo} in {}", describe_window(receiving)))
     }
 
     fn scroll(
@@ -621,26 +2298,59 @@ impl Desktop for WindowsDesktop {
         amount: i32,
         element: Option<u32>,
     ) -> Result<String> {
-        // The wheel goes to whatever is under the cursor, so move there first.
-        if let Some(id) = element {
-            let (x, y) = Self::center(self.element(id)?)?;
-            AgentCursor::shared().show(x, y);
-            Mouse::default()
-                .move_to(&UIPoint::new(x as i32, y as i32))
-                .map_err(|error| DesktopError::new(format!("could not move cursor: {error}")))?;
-        }
         let (horizontal, vertical) = direction.deltas(amount);
+        let label = format!("scrolled {direction:?} by {amount}").to_lowercase();
+        if let Some(id) = element {
+            let resolved = self.resolve(id)?;
+            let point = self.target_point(id, &resolved);
+            if let Ok((x, y)) = point {
+                AgentCursor::shared().show(x, y);
+            }
+            // Neither of these touches the user's cursor: the control's own
+            // ScrollPattern first (which works in a minimized window too), then
+            // wheel messages posted to its window.
+            if !identity::remote_control() {
+                if let Target::Element { element: target, .. } = &resolved
+                    && self.uia_scroll(target, horizontal, vertical)
+                {
+                    return Ok(format!("{label} in background (UI Automation)"));
+                }
+                if let Ok((x, y)) = point
+                    && Self::post_wheel(x, y, horizontal, vertical)
+                {
+                    return Ok(format!("{label} in background"));
+                }
+            }
+            // Last resort: the wheel goes to whatever is under the real
+            // pointer, so the pointer has to move there.
+            let (x, y) = point?;
+            Self::jump_cursor(x, y)?;
+            if horizontal != 0 {
+                Self::scroll_wheel(true, horizontal)?;
+            }
+            if vertical != 0 {
+                Self::scroll_wheel(false, vertical)?;
+            }
+            return Ok(format!("{label} via cursor"));
+        }
+        // No element: scroll whatever is under the pointer where it already is.
         if horizontal != 0 {
             Self::scroll_wheel(true, horizontal)?;
         }
         if vertical != 0 {
             Self::scroll_wheel(false, vertical)?;
         }
-        Ok(format!("scrolled {direction:?} by {amount}").to_lowercase())
+        Ok(format!("{label} at the pointer"))
     }
 
     fn set_value(&mut self, element: u32, value: &str) -> Result<String> {
-        let target = self.element(element)?;
+        let Target::Element { element: target, .. } = self.resolve(element)? else {
+            return Err(outline::ocr_id_error(element));
+        };
+        if Self::refuses_secure_input(&target) {
+            let _ = target.set_focus();
+            return Ok(super::secure_field_handback(element));
+        }
         let pattern = target.get_pattern::<UIValuePattern>().map_err(|_| {
             DesktopError::new(format!(
                 "e{element} does not accept a value directly — click it and use type_text"
@@ -653,10 +2363,14 @@ impl Desktop for WindowsDesktop {
     }
 
     fn select_text(&mut self, element: u32, start: usize, length: Option<usize>) -> Result<String> {
-        let target = self.element(element)?;
+        let Target::Element { element: target, window, .. } = self.resolve(element)? else {
+            return Err(outline::ocr_id_error(element));
+        };
         let pattern = target.get_pattern::<UITextPattern>().map_err(|_| {
             DesktopError::new(format!("e{element} does not expose selectable text"))
         })?;
+        // type_text that replaces the selection has to reach this window.
+        self.input_window = Some(window.0 as isize);
         let document = pattern
             .get_document_range()
             .map_err(|error| DesktopError::new(format!("could not read e{element}: {error}")))?;
@@ -687,41 +2401,213 @@ impl Desktop for WindowsDesktop {
     }
 }
 
+/// Real pointer and keyboard input with no UI Automation, for the secure
+/// desktop helper (secure_desktop.rs): UIA cannot reach the Winlogon desktop,
+/// and a remote viewer aims at pixels anyway.
+pub(crate) mod raw {
+    use super::*;
+    use windows::Win32::UI::Input::KeyboardAndMouse::{MOUSEEVENTF_RIGHTDOWN, MOUSEEVENTF_RIGHTUP};
+
+    pub(crate) fn hover(x: f64, y: f64) -> Result<String> {
+        check_display_point(x, y)?;
+        WindowsDesktop::jump_cursor(x, y)?;
+        Ok(format!("hovering at ({x:.0}, {y:.0})"))
+    }
+
+    pub(crate) fn click(x: f64, y: f64, count: u32, right: bool) -> Result<String> {
+        check_display_point(x, y)?;
+        WindowsDesktop::jump_cursor(x, y)?;
+        let (down, up) = if right {
+            (MOUSEEVENTF_RIGHTDOWN, MOUSEEVENTF_RIGHTUP)
+        } else {
+            (MOUSEEVENTF_LEFTDOWN, MOUSEEVENTF_LEFTUP)
+        };
+        for _ in 0..count.max(1) {
+            WindowsDesktop::mouse_button(down)?;
+            WindowsDesktop::mouse_button(up)?;
+        }
+        Ok(format!("{} at ({x:.0}, {y:.0})", if right { "right-clicked" } else { "clicked" }))
+    }
+
+    pub(crate) fn drag(from: (f64, f64), to: (f64, f64)) -> Result<String> {
+        check_display_point(from.0, from.1)?;
+        check_display_point(to.0, to.1)?;
+        WindowsDesktop::cursor_drag(from, to)?;
+        Ok(format!("dragged ({:.0}, {:.0}) → ({:.0}, {:.0})", from.0, from.1, to.0, to.1))
+    }
+
+    pub(crate) fn scroll(at: Option<(f64, f64)>, direction: ScrollDirection, amount: i32) -> Result<String> {
+        if let Some((x, y)) = at {
+            check_display_point(x, y)?;
+            WindowsDesktop::jump_cursor(x, y)?;
+        }
+        let (horizontal, vertical) = direction.deltas(amount);
+        if horizontal != 0 {
+            WindowsDesktop::scroll_wheel(true, horizontal)?;
+        }
+        if vertical != 0 {
+            WindowsDesktop::scroll_wheel(false, vertical)?;
+        }
+        Ok(format!("scrolled {direction:?} by {amount}").to_lowercase())
+    }
+
+    pub(crate) fn press_key(key: &str, modifiers: &[String]) -> Result<String> {
+        send_key_plan(&key_plan(key, modifiers, layout_vk)?)?;
+        Ok(if modifiers.is_empty() { format!("pressed {key}") } else { format!("pressed {}+{key}", modifiers.join("+")) })
+    }
+
+    pub(crate) fn type_text(text: &str) -> Result<String> {
+        send_inputs(&text_inputs(text))?;
+        Ok(format!("typed {} characters", text.chars().count()))
+    }
+}
+
 #[cfg(test)]
 mod tests {
-    use super::{key_sequence, truncate};
+    use super::{KeyPlan, Stroke, is_app_control, key_plan, on_display, point_in_rect, scale_point, text_inputs, truncate};
+    use windows::Win32::Foundation::{POINT, RECT};
+
+    // #32: the Docs input parked far above its window is not a click target.
+    #[test]
+    fn a_centre_outside_the_window_or_every_display_is_not_clickable() {
+        let window = RECT { left: 0, top: 0, right: 1920, bottom: 1040 };
+        assert!(point_in_rect(592.0, 400.0, &window));
+        assert!(!point_in_rect(592.0, -9850.0, &window));
+        assert!(!point_in_rect(1920.0, 10.0, &window), "the right edge is outside");
+        assert!(!on_display(592.0, -9850.0));
+    }
+
+    // #31: a DPI-unaware window at 125% reads physical (600, 550) as (480, 440).
+    #[test]
+    fn posted_points_follow_the_target_windows_dpi() {
+        let scaled = scale_point(POINT { x: 600, y: 550 }, 96, 120);
+        assert_eq!((scaled.x, scaled.y), (480, 440));
+        let same = scale_point(POINT { x: 600, y: 550 }, 120, 120);
+        assert_eq!((same.x, same.y), (600, 550), "a per-monitor aware window takes physical pixels");
+        let unknown = scale_point(POINT { x: 7, y: 9 }, 0, 120);
+        assert_eq!((unknown.x, unknown.y), (7, 9));
+    }
+
+    #[test]
+    fn text_inputs_are_literal_and_break_lines_with_return() {
+        let keys: Vec<(u16, u16, bool)> = text_inputs("f(x){}\r\nok\tz")
+            .iter()
+            .map(|input| {
+                let ki = unsafe { input.Anonymous.ki };
+                (ki.wVk.0, ki.wScan, ki.dwFlags.0 & 0x0004 != 0)
+            })
+            .collect();
+        // Braces and parentheses go out as themselves, not as key markup.
+        let typed: String = keys
+            .iter()
+            .filter(|(vk, _, unicode)| *unicode && *vk == 0)
+            .step_by(2)
+            .map(|(_, unit, _)| char::from_u32(u32::from(*unit)).unwrap())
+            .collect();
+        assert_eq!(typed, "f(x){}okz");
+        // "\r\n" is a single Return, and the tab is the Tab key.
+        let named: Vec<u16> = keys.iter().filter(|(vk, ..)| *vk != 0).map(|(vk, ..)| *vk).collect();
+        assert_eq!(named, vec![0x0D, 0x0D, 0x09, 0x09]);
+        assert_eq!(keys.len(), 2 * 9 + 4);
+    }
+
+    /// A US layout stand-in so the tests do not depend on the machine's layout.
+    fn us(character: char) -> Option<(u16, Vec<u16>)> {
+        match character {
+            'a'..='z' => Some((character.to_ascii_uppercase() as u16, vec![])),
+            'A'..='Z' => Some((character as u16, vec![0x10])),
+            '{' => Some((0xDB, vec![0x10])),
+            '(' => Some((0x39, vec![0x10])),
+            '/' => Some((0xBF, vec![])),
+            ',' => Some((0xBC, vec![])),
+            _ => None,
+        }
+    }
+
+    fn plan(key: &str, modifiers: &[&str]) -> KeyPlan {
+        let modifiers: Vec<String> = modifiers.iter().map(|m| m.to_string()).collect();
+        key_plan(key, &modifiers, us).unwrap()
+    }
 
     #[test]
     fn cmd_is_translated_to_the_windows_key() {
         // Models trained on macOS send cmd constantly; refusing it would make
         // every save and copy fail on Windows.
-        assert_eq!(key_sequence("s", &["cmd".to_string()]).unwrap(), "{win}s");
-        assert_eq!(key_sequence("s", &["ctrl".to_string()]).unwrap(), "{ctrl}s");
+        assert_eq!(plan("s", &["cmd"]).modifiers, vec![0x5B]);
+        assert_eq!(plan("s", &["ctrl"]).modifiers, vec![0x11]);
+        assert_eq!(plan("s", &["ctrl"]).stroke, Stroke::Vk { vk: 'S' as u16, extended: false });
     }
 
     #[test]
-    fn named_keys_become_uiautomation_tokens() {
-        assert_eq!(key_sequence("return", &[]).unwrap(), "{enter}");
-        assert_eq!(key_sequence("Escape", &[]).unwrap(), "{esc}");
-        assert_eq!(
-            key_sequence("a", &["ctrl".to_string(), "shift".to_string()]).unwrap(),
-            "{ctrl}{shift}a"
-        );
+    fn navigation_keys_are_virtual_keys_not_text() {
+        assert_eq!(plan("pageup", &[]).stroke, Stroke::Vk { vk: 0x21, extended: true });
+        assert_eq!(plan("pagedown", &[]).stroke, Stroke::Vk { vk: 0x22, extended: true });
+        assert_eq!(plan("home", &[]).stroke, Stroke::Vk { vk: 0x24, extended: true });
+        assert_eq!(plan("end", &[]).stroke, Stroke::Vk { vk: 0x23, extended: true });
+        assert_eq!(plan("forwarddelete", &[]).stroke, Stroke::Vk { vk: 0x2E, extended: true });
+        assert_eq!(plan("return", &[]).stroke, Stroke::Vk { vk: 0x0D, extended: false });
+        assert_eq!(plan("Escape", &[]).stroke, Stroke::Vk { vk: 0x1B, extended: false });
+    }
+
+    #[test]
+    fn function_and_numpad_keys_map_to_their_virtual_keys() {
+        assert_eq!(plan("f1", &[]).stroke, Stroke::Vk { vk: 0x70, extended: false });
+        assert_eq!(plan("F12", &[]).stroke, Stroke::Vk { vk: 0x7B, extended: false });
+        assert_eq!(plan("f20", &[]).stroke, Stroke::Vk { vk: 0x83, extended: false });
+        assert_eq!(plan("numpad0", &[]).stroke, Stroke::Vk { vk: 0x60, extended: false });
+        assert_eq!(plan("numpadenter", &[]).stroke, Stroke::Vk { vk: 0x0D, extended: true });
+        assert!(key_plan("numpadequals", &[], us).is_err());
+    }
+
+    #[test]
+    fn key_syntax_characters_are_sent_as_keys() {
+        // `{` and `(` were markup in the old key-sequence syntax.
+        let brace = plan("{", &[]);
+        assert_eq!(brace.stroke, Stroke::Vk { vk: 0xDB, extended: false });
+        assert_eq!(brace.modifiers, vec![0x10]);
+        assert_eq!(plan("(", &["ctrl"]).modifiers, vec![0x11, 0x10]);
+        assert_eq!(plan("comma", &[]).stroke, Stroke::Vk { vk: 0xBC, extended: false });
+    }
+
+    #[test]
+    fn a_chord_uses_the_unshifted_letter() {
+        let chord = plan("S", &["ctrl"]);
+        assert_eq!(chord.modifiers, vec![0x11]);
+        // Without modifiers the capital is typed with shift.
+        assert_eq!(plan("S", &[]).modifiers, vec![0x10]);
+    }
+
+    #[test]
+    fn characters_off_the_layout_fall_back_to_unicode_only_without_modifiers() {
+        assert_eq!(plan("é", &[]).stroke, Stroke::Unicode('é'));
+        assert!(key_plan("é", &["ctrl".to_string()], us).is_err());
     }
 
     #[test]
     fn fn_modifier_is_dropped_rather_than_breaking_the_chord() {
-        assert_eq!(
-            key_sequence("c", &["fn".to_string(), "ctrl".to_string()]).unwrap(),
-            "{ctrl}c"
-        );
+        assert_eq!(plan("c", &["fn", "ctrl"]).modifiers, vec![0x11]);
     }
 
     #[test]
-    fn unrecognized_modifiers_are_rejected() {
-        let error = key_sequence("c", &["ctl".to_string()]).unwrap_err();
-        assert!(error.contains("unsupported modifier"));
-        assert!(error.contains("ctl"));
+    fn unrecognized_modifiers_and_keys_are_rejected() {
+        let error = key_plan("c", &["ctl".to_string()], us).unwrap_err();
+        assert!(error.0.contains("unsupported modifier"));
+        assert!(error.0.contains("ctl"));
+        assert!(key_plan("pagedwn", &[], us).is_err());
+    }
+
+    #[test]
+    fn only_labelled_enabled_controls_keep_ocr_away() {
+        assert!(is_app_control("Button", "Play", true));
+        // Unlabelled buttons and disabled ones say nothing about the app.
+        assert!(!is_app_control("Button", "  ", true));
+        assert!(!is_app_control("Button", "Play", false));
+        // Text inputs need no label.
+        assert!(is_app_control("Edit", "", true));
+        // Static text, groups and panes are not controls.
+        assert!(!is_app_control("Text", "Now playing", true));
+        assert!(!is_app_control("Group", "Sidebar", true));
+        assert!(!is_app_control("Pane", "Main", true));
     }
 
     #[test]

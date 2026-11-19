@@ -29,9 +29,12 @@ import Foundation
 // arrow, spring follow with tilt/squash, idle breathe) — never a
 // system-style pointer. No click ring and no settle wobble.
 
-private let overlayAppName = "PineAgentCursor.app"
-private let overlayExecutableName = "PineAgentCursor"
-private let overlayBundleIdentifier = "com.pine.computer-use.agent-cursor"
+// Named by the identity (see Identity.swift) so an embedding app's overlay has
+// its own bundle id and does not share Launch Services state with a standalone
+// install. The defaults must not change: TCC keys on the bundle id.
+private var overlayAppName: String { Identity.current.agentCursorName + ".app" }
+private var overlayExecutableName: String { Identity.current.agentCursorName }
+private var overlayBundleIdentifier: String { Identity.current.agentCursorBundleId }
 
 /// Client side: owns the overlay process and speaks to it.
 final class AgentCursor {
@@ -135,7 +138,7 @@ final class AgentCursor {
     /// Brief grace so a follow-up tool in the same turn cancels before fade.
     /// Override with `COMPUTER_USE_AGENT_CURSOR_TASK_FADE_SECS`.
     private static func taskFadeGraceSeconds() -> TimeInterval {
-        if let raw = ProcessInfo.processInfo.environment["COMPUTER_USE_AGENT_CURSOR_TASK_FADE_SECS"],
+        if let raw = Identity.current.tunable("AGENT_CURSOR_TASK_FADE_SECS"),
            let value = Double(raw.trimmingCharacters(in: .whitespacesAndNewlines)),
            value.isFinite, value >= 0, value < 3600
         {
@@ -202,7 +205,7 @@ final class AgentCursor {
         let dist = hypot(point.x - from.x, point.y - from.y)
         if dist < 2 { return 60_000 }
         // Same duration formula as the overlay flight.
-        let seconds = min(0.85, max(0.28, 0.20 + Double(dist) / 1100.0))
+        let seconds = min(0.45, max(0.12, 0.10 + Double(dist) / 1800.0))
         return useconds_t((seconds + 0.04) * 1_000_000)
     }
 
@@ -440,14 +443,9 @@ private enum OverlayBundle {
             }
         }
 
-        // Dev / unsigned: materialise under Application Support so Launch Services
-        // sees a stable path across rebuilds.
-        guard
-            let support = fm.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
-        else { return nil }
-        let dir = support
-            .appendingPathComponent("Pine", isDirectory: true)
-            .appendingPathComponent("computer-use", isDirectory: true)
+        // Dev / unsigned: materialise under the support directory (Application
+        // Support) so Launch Services sees a stable path across rebuilds.
+        let dir = Identity.current.supportDirectory
         let appURL = dir.appendingPathComponent(overlayAppName, isDirectory: true)
         do {
             try fm.createDirectory(at: dir, withIntermediateDirectories: true)
@@ -521,6 +519,11 @@ private enum OverlayBundle {
         }
     }
 
+    private static var overlayDisplayName: String {
+        let name = Identity.current.agentCursorName
+        return name == Identity.defaultAgentCursorName ? "Munim Agent Cursor" : name
+    }
+
     private static func overlayInfoPlist() -> String {
         """
         <?xml version="1.0" encoding="UTF-8"?>
@@ -536,7 +539,7 @@ private enum OverlayBundle {
         	<key>CFBundleInfoDictionaryVersion</key>
         	<string>6.0</string>
         	<key>CFBundleName</key>
-        	<string>Pine Agent Cursor</string>
+        	<string>\(overlayDisplayName)</string>
         	<key>CFBundlePackageType</key>
         	<string>APPL</string>
         	<key>CFBundleShortVersionString</key>
@@ -791,7 +794,7 @@ private final class OverlayController: NSObject, NSApplicationDelegate {
         let approach = min(handle * 0.85, max(20, dist * 0.16))
         pathC2 = CGPoint(x: point.x, y: point.y + approach)
 
-        pathDuration = min(0.85, max(0.28, 0.20 + Double(dist) / 1100.0))
+        pathDuration = min(0.45, max(0.12, 0.10 + Double(dist) / 1800.0))
         pathElapsed = 0
         pathActive = true
         velocity = .zero

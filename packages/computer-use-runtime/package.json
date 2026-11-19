@@ -4,7 +4,8 @@
   "private": true,
   "type": "module",
   "exports": {
-    "./tool-specs.json": "./tool-specs.json"
+    "./tool-specs.json": "./tool-specs.json",
+    "./pine-identity.json": "./pine-identity.json"
   },
   "scripts": {
     "build": "bun run scripts/build.mjs",

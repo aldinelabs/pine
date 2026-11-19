@@ -518,7 +518,11 @@ From top to bottom:
      and navigation then continue without per-action reviews. The grant ends
      when the run finishes, Stop response is used, or the approval mode changes;
      it is not restored when reopening a session. OS permission requests and
-     browser extension installation are approved separately. The agent is
+     browser extension installation are approved separately. When the agent needs a sign-in in a Pine browser tab, a
+     small Chrome window naming the site asks the user for the credentials;
+     what the user types goes straight into the page and is never shown to the
+     agent. A previously registered Pine browser extension is re-pointed at the
+     current Pine app automatically when Computer Use starts. The agent is
      instructed to ask before consequential actions not already authorized,
      such as payments, sending, publishing, irreversible deletion, security
      changes, or sharing sensitive information with a new recipient. This

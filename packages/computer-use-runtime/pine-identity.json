@@ -1,0 +1,16 @@
+{
+  "profile": {
+    "name": "pine-computer-use",
+    "agentCursorName": "PineAgentCursor",
+    "agentCursorBundleId": "com.pine.computer-use.agent-cursor",
+    "nativeHostNames": ["com.pine.computer_use"],
+    "extensionIds": ["limncohahkklkbhmhohkhdfdbakpnkei"],
+    "nativeHostDescription": "Pine Computer Use browser bridge"
+  },
+  "browserExtension": {
+    "name": "Pine Computer Use",
+    "description": "Lets Pine work in its own tab group in your signed-in browser, or drive a tab you explicitly hand over.",
+    "groupTitle": "Pine",
+    "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAszq6hz56gZnozgywnV9g6PzByIXuSUmgV/RmD4lskvk5KNGxdmmP5xFLxMtm3AVa9iHP+JEYPEAqNz9lRRtcBz1vWKklgo8k5/DvxZA6lxEAWzBQDNH5jzBhZJC5l/M9LIS1NaOhj2u082Lx1m5Bp4STas1v/lJM4R4bNVOuES6fLYhdtLy/LPashVRndYo2aB5yzkj4CzqOQZMIBElr4JFmJQ1yrMxY82V0JIXd1lYcbayWQa1mAOscUckZs002522DZ8bSlpiWG6vifK+tim3EpyBnUM0H60TcdAwnN3KCmM9R3mC8a5l7lHSJ+hR53vy0JikjUWEd4RJunITKewIDAQAB"
+  }
+}

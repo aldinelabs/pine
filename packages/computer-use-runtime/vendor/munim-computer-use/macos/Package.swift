@@ -1,4 +1,4 @@
-// swift-tools-version:5.9
+// swift-tools-version:6.1
 import PackageDescription
 
 // Desktop control MCP server. macOS only: it talks to the Accessibility API,
@@ -10,9 +10,21 @@ let package = Package(
   // CGWindowListCreateImage path for window capture.
   platforms: [.macOS(.v14)],
   targets: [
+    // Private CoreGraphics API for the invisible display that background
+    // control parks minimized and hidden windows on. Objective-C, so ARC
+    // handles the private classes' init family.
+    .target(
+      name: "VirtualDisplay",
+      path: "VirtualDisplay",
+    ),
     .executableTarget(
       name: "munim-computer-use",
+      dependencies: ["VirtualDisplay"],
       path: "Sources",
     ),
   ],
+  // Swift 6 language mode would turn this server's main-thread hops and
+  // shared registries into strict-concurrency errors; the code is written for
+  // and tested in Swift 5 mode, which the 6.x toolchains keep supporting.
+  swiftLanguageModes: [.v5],
 )

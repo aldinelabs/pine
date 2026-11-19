@@ -17,17 +17,19 @@
 //! ```
 //!
 //! This mirrors the macOS Swift bridge exactly, including the wire messages, so
-//! one extension build serves all three platforms. The server binds the socket,
-//! so the first live server claims the browser and later ones fall back to the
-//! accessibility tools.
+//! one extension build serves all three platforms. The first live server binds
+//! the socket and owns the extension; later servers share it through the
+//! owner's `.rpc` endpoint, each with its own client id and tabs.
 
+use base64::Engine as _;
 use std::io::{BufRead, BufReader, Write};
 #[cfg(unix)]
 use std::path::PathBuf;
-use std::sync::atomic::{AtomicU64, Ordering};
-use std::sync::mpsc::{Receiver, Sender, channel};
+use std::collections::{HashMap, HashSet};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
+use std::sync::mpsc::{SyncSender, sync_channel};
 use std::sync::{Arc, Mutex};
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use interprocess::local_socket::{ListenerOptions, SendHalf, Stream};
 #[cfg(unix)]
@@ -37,6 +39,8 @@ use interprocess::local_socket::{GenericNamespaced, ToNsName};
 // Imported anonymously: the traits share their names with the enums above.
 use interprocess::local_socket::traits::{Listener as _, Stream as _};
 use serde_json::{Value, json};
+
+use crate::bridge_diag::{self, OwnerRecord};
 
 /// Timeout for extension replies; a stuck call must not wedge a turn.
 const CALL_TIMEOUT: Duration = Duration::from_secs(20);
@@ -54,16 +58,10 @@ fn new_browser_client_id() -> String {
 /// Abstract / global names are intentionally avoided — they have no ownership.
 #[cfg(unix)]
 fn bridge_socket_path() -> Option<PathBuf> {
-    let dir = if let Some(runtime) = std::env::var_os("XDG_RUNTIME_DIR") {
-        PathBuf::from(runtime).join("pine-computer-use")
-    } else if let Some(home) = std::env::var_os("HOME") {
-        PathBuf::from(home).join(".local/share/pine/computer-use")
-    } else {
-        // Prefer a UID-owned private dir over a USER-named /tmp path another
-        // local account can pre-create. Fail closed if we cannot claim it.
-        let uid = unsafe { libc::getuid() };
-        std::env::temp_dir().join(format!("pine-computer-use-{uid}"))
-    };
+    // The directory comes from the identity (`name` / `bridgeSocket`), so an app
+    // embedding this server gets its own bridge. Fail closed below if the
+    // directory cannot be claimed as private.
+    let (dir, file) = crate::identity::get().bridge_socket_path();
 
     use std::os::unix::fs::{MetadataExt, PermissionsExt};
 
@@ -128,25 +126,457 @@ fn bridge_socket_path() -> Option<PathBuf> {
         eprintln!("munim-computer-use: bridge dir mode {mode:o} is not 0700");
         return None;
     }
-    Some(dir.join("bridge.sock"))
+    Some(dir.join(file))
 }
 
 #[cfg(windows)]
 fn bridge_pipe_name() -> String {
-    let user = std::env::var("USERNAME")
-        .or_else(|_| std::env::var("USER"))
-        .unwrap_or_else(|_| "user".into());
-    // Named-pipe namespace is global; embed the username so sessions do not collide.
-    format!("pine-computer-use-bridge-{user}")
+    // Named-pipe namespace is global; the identity embeds the username so
+    // sessions do not collide, and its name so embedders do not either.
+    crate::identity::get().bridge_pipe_name()
+}
+
+const VERSION: &str = env!("CARGO_PKG_VERSION");
+
+/// Why a browser call got no answer from the extension.
+#[derive(Debug)]
+enum CallError {
+    /// The extension answered with an error (no such tab, a blocked site, ...).
+    Extension(String),
+    /// Nothing answered in time.
+    Timeout(String),
+    /// A link on the way to Chrome is down.
+    Link(Link),
+}
+
+/// The links a browser call crosses: a peer MCP server ─rpc─▶ the bridge owner
+/// ─local socket─▶ Chrome's native host ─stdio─▶ the extension. Each variant
+/// names the one that failed, so the error can say what to do about it (#28).
+#[derive(Debug, Clone, PartialEq)]
+enum Link {
+    /// This server owns the bridge, but no native host is connected to it.
+    NoHost,
+    /// The native host disconnected while the call was waiting.
+    HostDropped,
+    /// Writing the request failed (to the native host, or to the owner).
+    WriteFailed(String),
+    /// This server is a peer and its connection to the owner closed.
+    OwnerGone,
+    /// This server is a peer and the owner could not reach Chrome: the owner's
+    /// own account, with its pid and version when it is new enough to send them.
+    Owner { kind: String, pid: Option<u64>, version: Option<String>, detail: String },
+}
+
+impl Link {
+    /// Wire name, sent to peers along with an owner's link errors.
+    fn kind(&self) -> &str {
+        match self {
+            Link::NoHost => "no_host",
+            Link::HostDropped => "host_dropped",
+            Link::WriteFailed(_) => "write_failed",
+            Link::OwnerGone => "owner_gone",
+            Link::Owner { kind, .. } => kind,
+        }
+    }
+}
+
+type Waiter = SyncSender<Result<Value, CallError>>;
+
+/// Native host connections an owner has accepted, for error messages.
+#[derive(Default)]
+struct HostHistory {
+    connections: u32,
+    /// When the latest one connected or disconnected.
+    changed_at: Option<Instant>,
+}
+
+/// State shared by the MCP thread and the bridge threads. A process is either
+/// the owner (it holds the native host connection and serves peers over RPC)
+/// or a peer (it forwards every call to the owner); it can switch from peer to
+/// owner when the previous owner exits.
+struct Hub {
+    /// Owner: writer to the native host, once the extension connects.
+    extension: Mutex<Option<SendHalf>>,
+    /// Owner: calls waiting for an extension reply, keyed by wire id. Peer
+    /// calls go through here too, re-numbered, so ids never collide.
+    pending: Mutex<HashMap<u64, Waiter>>,
+    /// Peer: writer to the owner's RPC endpoint.
+    rpc: Mutex<Option<SendHalf>>,
+    rpc_pending: Mutex<HashMap<u64, Waiter>>,
+    next_id: AtomicU64,
+    /// Owner: when this process took the bridge.
+    owned_since: Mutex<Option<Instant>>,
+    host: Mutex<HostHistory>,
+    /// Owner: whether peers can reach it right now.
+    peer_endpoint: AtomicBool,
+    /// Not yet joined: why the last attempt to reach the owner failed.
+    join_error: Mutex<Option<String>>,
+}
+
+impl Hub {
+    fn new() -> Arc<Self> {
+        Arc::new(Self {
+            extension: Mutex::new(None),
+            pending: Mutex::new(HashMap::new()),
+            rpc: Mutex::new(None),
+            rpc_pending: Mutex::new(HashMap::new()),
+            next_id: AtomicU64::new(1),
+            owned_since: Mutex::new(None),
+            host: Mutex::new(HostHistory::default()),
+            peer_endpoint: AtomicBool::new(false),
+            join_error: Mutex::new(None),
+        })
+    }
+
+    fn connected(&self) -> bool {
+        self.rpc.lock().is_ok_and(|guard| guard.is_some())
+            || self.extension.lock().is_ok_and(|guard| guard.is_some())
+    }
+
+    fn call(&self, command: &str, params: Value, timeout: Duration) -> Result<Value, CallError> {
+        if self.rpc.lock().is_ok_and(|guard| guard.is_some()) {
+            // The owner applies its own timeout first; wait a little longer so
+            // its error, which says what actually went wrong, reaches us.
+            return self.send(&self.rpc, &self.rpc_pending, command, params, timeout + Duration::from_secs(5),
+                Link::OwnerGone);
+        }
+        self.direct_call(command, params, timeout)
+    }
+
+    fn direct_call(&self, command: &str, params: Value, timeout: Duration) -> Result<Value, CallError> {
+        self.send(&self.extension, &self.pending, command, params, timeout, Link::NoHost)
+    }
+
+    /// Write one request to `writer` and wait for the reply routed to its id.
+    /// Readers clear the writer before failing `pending`, so a request either
+    /// sees no writer or is failed by the drain; it is never stranded.
+    fn send(
+        &self,
+        writer: &Mutex<Option<SendHalf>>,
+        pending: &Mutex<HashMap<u64, Waiter>>,
+        command: &str,
+        params: Value,
+        timeout: Duration,
+        gone: Link,
+    ) -> Result<Value, CallError> {
+        let id = self.next_id.fetch_add(1, Ordering::Relaxed);
+        let (waiter, reply) = sync_channel(1);
+        lock(pending).insert(id, waiter);
+        let request = json!({ "id": id, "command": command, "params": params });
+        let written = {
+            let mut guard = lock(writer);
+            match guard.as_mut() {
+                None => Err(gone),
+                Some(stream) => writeln!(stream, "{request}")
+                    .and_then(|()| stream.flush())
+                    .map_err(|error| Link::WriteFailed(error.to_string())),
+            }
+        };
+        if let Err(link) = written {
+            lock(pending).remove(&id);
+            return Err(CallError::Link(link));
+        }
+        match reply.recv_timeout(timeout) {
+            Ok(outcome) => outcome,
+            Err(_) => {
+                lock(pending).remove(&id);
+                Err(CallError::Timeout(format!("browser_{command} timed out waiting for the extension")))
+            }
+        }
+    }
+
+    fn owns_bridge(&self) -> bool {
+        lock(&self.owned_since).is_some()
+    }
+
+    /// This owner, as `bridge-owner.json` and the `bridge_status` reply say it.
+    fn owner_record(&self) -> OwnerRecord {
+        let started_unix = lock(&self.owned_since)
+            .map_or(0, |at| bridge_diag::unix_now().saturating_sub(at.elapsed().as_secs()));
+        OwnerRecord {
+            pid: std::process::id(),
+            version: VERSION.into(),
+            exe: bridge_diag::current_exe(),
+            started_unix,
+            extension_connected: lock(&self.extension).is_some(),
+            host_connections: lock(&self.host).connections,
+            peer_endpoint: self.peer_endpoint.load(Ordering::Relaxed),
+        }
+    }
+
+    /// Rewrite `bridge-owner.json` after anything it reports changes.
+    fn record_owner(&self) {
+        if self.owns_bridge() {
+            bridge_diag::write_owner_record(&self.owner_record());
+        }
+    }
+
+    /// What the owner knows about its native host connections.
+    fn host_history(&self) -> String {
+        let since = lock(&self.owned_since).map(|at| ago(at.elapsed())).unwrap_or_else(|| "?".into());
+        let host = lock(&self.host);
+        match (host.connections, host.changed_at) {
+            (0, _) | (_, None) => format!("none has connected since it took the bridge {since} ago"),
+            (count, Some(at)) => format!(
+                "the last one disconnected {} ago, after {count} connection{} since it took the bridge {since} ago",
+                ago(at.elapsed()),
+                if count == 1 { "" } else { "s" }
+            ),
+        }
+    }
+
+    /// An owner's account of a link error, sent to the peer whose call it was.
+    fn owner_detail(&self, link: &Link) -> String {
+        match link {
+            Link::NoHost => format!("Chrome's native host is not connected to it — {}", self.host_history()),
+            Link::HostDropped => "Chrome's native host disconnected from it while the call was waiting".into(),
+            Link::WriteFailed(error) => format!("it could not write to Chrome's native host: {error}"),
+            Link::OwnerGone | Link::Owner { .. } => format!("{link:?}"),
+        }
+    }
+
+    /// The tool error for a failed browser call. Extension errors pass through;
+    /// a link error says which link broke, who holds it, and what to do next.
+    fn explain(&self, command: &str, args: &Value, error: CallError) -> String {
+        let link = match error {
+            CallError::Extension(message) | CallError::Timeout(message) => return message,
+            CallError::Link(link) => link,
+        };
+        let me = std::process::id();
+        let (what, next) = match &link {
+            Link::NoHost if self.owns_bridge() => {
+                let what = format!(
+                    "this MCP server (pid {me}) owns the browser bridge, but Chrome's native host is not connected \
+                     to it — {}",
+                    self.host_history()
+                );
+                let next = match extension_problem() {
+                    Some((said, step)) => format!("{said}, so {step}. {CHECK_HOST}. {DESKTOP_MEANWHILE}"),
+                    None => format!(
+                        "the extension is installed, so Chrome reconnects within a minute on its own, and reloading \
+                         it at chrome://extensions reconnects at once. {CHECK_HOST}. {DESKTOP_MEANWHILE}"
+                    ),
+                };
+                (what, next)
+            }
+            Link::NoHost => self.not_joined(),
+            Link::HostDropped => (
+                format!(
+                    "Chrome's native host disconnected from this MCP server (pid {me}), which owns the browser \
+                     bridge, while the call was waiting (the extension was reloaded or updated, or Chrome stopped \
+                     the host)"
+                ),
+                format!("{RETRY_ONCE}. If it keeps failing, {CHECK_HOST}"),
+            ),
+            Link::WriteFailed(error) => (
+                format!("this MCP server (pid {me}) could not pass the call on toward Chrome: {error}"),
+                format!("{RETRY_ONCE}. If it keeps failing, {CHECK_HOST}"),
+            ),
+            Link::OwnerGone => (
+                format!(
+                    "this MCP server (pid {me}) reaches Chrome through another MCP server that owned the browser \
+                     bridge, and that server exited"
+                ),
+                format!(
+                    "this server takes over the bridge within a couple of seconds and the extension reconnects to \
+                     it within seconds more, so {RETRY_ONCE}"
+                ),
+            ),
+            Link::Owner { kind, pid, version, detail } => {
+                let owner = pid.map_or_else(|| "another MCP server".to_string(), |pid| format!("pid {pid}"));
+                let build = match version {
+                    Some(version) if version != VERSION => {
+                        format!(", munim-computer-use {version} while this server is {VERSION}")
+                    }
+                    _ => String::new(),
+                };
+                let what = format!(
+                    "this MCP server (pid {me}) reaches Chrome through the browser bridge owner ({owner}{build}), \
+                     which reports: {detail}"
+                );
+                let stale = format!(
+                    "the bridge owner has no connection from Chrome. If {owner} is a stale MCP server, one from \
+                     another build, or one running in a sandbox Chrome cannot reach, ending it lets a working \
+                     server take over the bridge; otherwise reload the extension at chrome://extensions. \
+                     {CHECK_HOST}. {DESKTOP_MEANWHILE}"
+                );
+                let next = match kind.as_str() {
+                    "no_host" => match extension_problem() {
+                        Some((said, step)) => format!("{said}, so {step}. Then: {stale}"),
+                        None => stale,
+                    },
+                    // An owner too old to say which link failed.
+                    "unknown" => format!("retry once. If it fails the same way, {stale}"),
+                    _ => format!("{RETRY_ONCE}. If it keeps failing, {CHECK_HOST}"),
+                };
+                (what, next)
+            }
+        };
+        let mut message = format!("browser_{command} could not reach Chrome: {what}.");
+        if let Some(session) = args.get("session_id").and_then(Value::as_str) {
+            message.push_str(&format!(
+                "\nsession_id \"{session}\" is not the cause: a session only keeps its own tabs, and every session \
+                 of every MCP server on this computer shares the one extension connection."
+            ));
+        }
+        message.push_str(&format!("\nnext: {next}."));
+        message
+    }
+}
+
+impl Hub {
+    /// Why this server is not part of the bridge, naming whoever holds it and
+    /// whether the extension is even installed (#36).
+    fn not_joined(&self) -> (String, String) {
+        let me = std::process::id();
+        let owner = bridge_diag::read_owner_record().filter(|record| record.pid != me);
+        let holder = match &owner {
+            Some(record) => format!("it is held by {}, {}", record.describe(), record.extension_state()),
+            None => {
+                let servers = bridge_diag::running_servers();
+                if servers.is_empty() {
+                    "no other munim-computer-use process is visible to this one, so it is held by another \
+                     program, or by a server running as another user, elevated, or in a sandbox"
+                        .to_string()
+                } else {
+                    let listed: Vec<String> =
+                        servers.iter().take(6).map(|server| format!("pid {} ({})", server.pid, server.exe)).collect();
+                    format!(
+                        "its owner did not record itself (servers before 0.7.3 do not); the other \
+                         munim-computer-use processes running now, one of which is probably the owner: {}",
+                        listed.join(", ")
+                    )
+                }
+            }
+        };
+        let why = lock(&self.join_error)
+            .clone()
+            .unwrap_or_else(|| "this server is still starting its first attempt to join".into());
+        let what = format!(
+            "this MCP server (pid {me}) has not joined the browser bridge: {holder}; {why}. This server retries \
+             every 2 seconds."
+        );
+
+        let mut steps: Vec<String> = Vec::new();
+        let mut said = String::new();
+        if let Some((problem, step)) = extension_problem() {
+            said = format!("\n{problem}");
+            steps.push(step);
+        }
+        let denied = why.contains("different security contexts");
+        match &owner {
+            Some(record) if denied => steps.push(format!(
+                "start this MCP server and pid {} from the same context so they can share the bridge, or end pid {} \
+                 (it is munim-computer-use) so this server can take the bridge over",
+                record.pid, record.pid
+            )),
+            Some(record) if !record.extension_connected => steps.push(format!(
+                "end pid {} if it is a stale or sandboxed server; this server then takes the bridge over",
+                record.pid
+            )),
+            Some(record) => steps.push(format!(
+                "retry in a few seconds; if it keeps failing, end pid {} so this server can take the bridge over",
+                record.pid
+            )),
+            None if holder.contains("probably the owner") => steps.push(
+                "if one of the processes above is a stale or older server, ending it lets this server take the \
+                 bridge over; otherwise retry in a few seconds"
+                    .into(),
+            ),
+            None => steps.push("retry in a few seconds".into()),
+        }
+        steps.push(CHECK_HOST.into());
+        steps.push(DESKTOP_MEANWHILE.into());
+        // Each step after the first starts a sentence.
+        let steps: Vec<String> = steps
+            .into_iter()
+            .enumerate()
+            .map(|(index, step)| if index == 0 { step } else { capitalised(&step) })
+            .collect();
+        let what = if said.is_empty() { what.trim_end_matches('.').to_string() } else { format!("{what}{said}") };
+        (what, steps.join(". "))
+    }
+}
+
+fn capitalised(text: &str) -> String {
+    let mut chars = text.chars();
+    chars.next().map_or_else(String::new, |first| first.to_uppercase().chain(chars).collect())
+}
+
+/// The extension this identity talks to is missing or off, as a sentence and
+/// the step that fixes it.
+fn extension_problem() -> Option<(String, String)> {
+    let id = crate::identity::get().extension_ids.first()?.clone();
+    bridge_diag::Presence::look(&id).problem(&id)
+}
+
+const CHECK_HOST: &str =
+    "`munim-computer-use check-native-host` in the user's own terminal shows which step Chrome fails at";
+const DESKTOP_MEANWHILE: &str =
+    "The desktop tools still work meanwhile: get_app_state on the browser window, then click";
+const RETRY_ONCE: &str = "retry once in a few seconds (browser_list_tabs with the same session_id shows the link is \
+     back). The interrupted action may or may not have happened: check with browser_snapshot before repeating \
+     anything that is not safe to repeat";
+
+/// `12s`, `4m`, `3h`: precise enough to tell a fresh disconnect from a stale one.
+fn ago(elapsed: Duration) -> String {
+    let seconds = elapsed.as_secs();
+    match seconds {
+        0..90 => format!("{seconds}s"),
+        90..5400 => format!("{}m", seconds / 60),
+        _ => format!("{}h", seconds / 3600),
+    }
+}
+
+fn lock<T>(mutex: &Mutex<T>) -> std::sync::MutexGuard<'_, T> {
+    mutex.lock().unwrap_or_else(std::sync::PoisonError::into_inner)
+}
+
+/// Hand a reply line to the call waiting on its id. `from_owner` marks replies
+/// from the bridge owner, whose link errors are told apart from the extension's.
+fn route(pending: &Mutex<HashMap<u64, Waiter>>, line: &str, from_owner: bool) {
+    let Ok(reply) = serde_json::from_str::<Value>(line) else { return };
+    let Some(id) = reply.get("id").and_then(Value::as_u64) else { return };
+    let Some(waiter) = lock(pending).remove(&id) else { return };
+    let outcome = if reply.get("ok").and_then(Value::as_bool) == Some(true) {
+        Ok(reply.get("result").cloned().unwrap_or(json!({})))
+    } else {
+        let message = reply
+            .get("error")
+            .and_then(Value::as_str)
+            .unwrap_or("the extension reported an error")
+            .to_string();
+        match reply.get("link").filter(|_| from_owner) {
+            Some(link) => Err(CallError::Link(Link::Owner {
+                kind: link.get("kind").and_then(Value::as_str).unwrap_or("unknown").to_string(),
+                pid: link.get("pid").and_then(Value::as_u64),
+                version: link.get("version").and_then(Value::as_str).map(str::to_string),
+                detail: message,
+            })),
+            // What owners before 0.7.2 said for every lost or missing host.
+            None if from_owner && message == "the extension disconnected" => Err(CallError::Link(Link::Owner {
+                kind: "unknown".into(),
+                pid: None,
+                version: None,
+                detail: message,
+            })),
+            None => Err(CallError::Extension(message)),
+        }
+    };
+    let _ = waiter.send(outcome);
+}
+
+/// Clear a dropped connection's writer, then fail everything still waiting on it.
+fn drop_connection(writer: &Mutex<Option<SendHalf>>, pending: &Mutex<HashMap<u64, Waiter>>, link: &Link) {
+    *lock(writer) = None;
+    let stranded: Vec<Waiter> = lock(pending).drain().map(|(_, waiter)| waiter).collect();
+    for waiter in stranded {
+        let _ = waiter.send(Err(CallError::Link(link.clone())));
+    }
 }
 
 pub struct BrowserBridge {
-    /// Writer half of the accepted connection, once the extension shows up.
-    outgoing: Arc<Mutex<Option<SendHalf>>>,
-    replies: Receiver<Value>,
-    next_id: AtomicU64,
-    /// Bumped on every accept so disconnect sentinels from a prior host are ignored.
-    connection_gen: Arc<AtomicU64>,
+    hub: Arc<Hub>,
     /// Stable id for this MCP process — the Chrome extension keys tab ownership
     /// by client so one process's exit cleanup cannot close another's tabs.
     client_id: String,
@@ -154,32 +584,16 @@ pub struct BrowserBridge {
 
 impl BrowserBridge {
     pub fn new() -> Self {
-        let outgoing: Arc<Mutex<Option<SendHalf>>> = Arc::new(Mutex::new(None));
-        let connection_gen = Arc::new(AtomicU64::new(0));
-        let (sender, replies) = channel();
-        spawn_listener(Arc::clone(&outgoing), Arc::clone(&connection_gen), sender);
-        Self {
-            outgoing,
-            replies,
-            next_id: AtomicU64::new(1),
-            connection_gen,
-            client_id: new_browser_client_id(),
-        }
+        let hub = Hub::new();
+        let background = Arc::clone(&hub);
+        std::thread::spawn(move || run_bridge(&background));
+        Self { hub, client_id: new_browser_client_id() }
     }
 
     /// No listener — used when browser control is disabled so this process does
     /// not claim the single per-user bridge socket/pipe.
     pub fn inert() -> Self {
-        let outgoing: Arc<Mutex<Option<SendHalf>>> = Arc::new(Mutex::new(None));
-        let connection_gen = Arc::new(AtomicU64::new(0));
-        let (_sender, replies) = channel();
-        Self {
-            outgoing,
-            replies,
-            next_id: AtomicU64::new(1),
-            connection_gen,
-            client_id: new_browser_client_id(),
-        }
+        Self { hub: Hub::new(), client_id: new_browser_client_id() }
     }
 
     pub fn is_connected(&self) -> bool {
@@ -187,23 +601,69 @@ impl BrowserBridge {
     }
 
     fn connected(&self) -> bool {
-        self.outgoing.lock().is_ok_and(|guard| guard.is_some())
+        self.hub.connected()
     }
 
     /// Dispatch a `browser_*` call. `command` has the `browser_` prefix stripped.
     pub fn call(&mut self, command: &str, args: &Value) -> Result<String, String> {
+        let command = if command == "press_key" { "press" } else { command };
+        let result = self.call_value(command, args)?;
+        Ok(describe(command, &result, args))
+    }
+
+    /// browser_screenshot: the tab as Chrome renders it, without selecting it,
+    /// raising its window or capturing the screen. The image's bytes, its MIME
+    /// type, and the caption (how an image pixel becomes a browser_click point).
+    pub fn screenshot(&mut self, args: &Value) -> Result<(Vec<u8>, String, String), String> {
+        let result = self.call_value("screenshot", args)?;
+        let tab = args.get("tab_id").and_then(Value::as_i64).unwrap_or(-1);
+        let bytes = result
+            .get("data")
+            .and_then(Value::as_str)
+            .filter(|data| !data.is_empty())
+            .and_then(|data| base64::engine::general_purpose::STANDARD.decode(data).ok())
+            .ok_or_else(|| format!("Chrome returned no image for tab {tab}"))?;
+        let mime = result.get("mimeType").and_then(Value::as_str).unwrap_or("image/png").to_string();
+        Ok((bytes, mime, describe_browser_screenshot(tab, &result)))
+    }
+
+    /// Send a `browser_*` call to the extension and return its raw reply.
+    fn call_value(&mut self, command: &str, args: &Value) -> Result<Value, String> {
+        if let Some(session) = args.get("session_id") {
+            if !session.as_str().is_some_and(|id| !id.trim().is_empty() && id.encode_utf16().count() <= 128) {
+                return Err("session_id must be a nonblank string of at most 128 characters".into());
+            }
+        }
+        // Local paths are checked here, on the machine running Chrome, before
+        // anything reaches the extension.
+        if command == "upload_file" {
+            check_upload_paths(args)?;
+        }
         if !self.connected() {
-            return Err(format!(
-                "browser_{command} needs the Pine Computer Use Chrome extension, which is not connected. \
-                 Install Pine Computer Use from its bundled chrome-extension, or use the desktop tools instead: \
-                 get_app_state on the browser window, then click"
-            ));
+            return Err(self.hub.explain(command, args, CallError::Link(Link::NoHost)));
         }
 
-        let command = if command == "press_key" { "press" } else { command };
-        let params = self.params_for(command, args)?;
-        let result = self.dispatch(command, params)?;
-        Ok(describe(command, &result, args))
+        let mut params = self.params_for(command, args)?;
+        // The extension enforces the user's site rules, because only it knows
+        // which page a tab is on at the moment of the action.
+        let policy = crate::policy::current();
+        if let Some(error) = policy.error() {
+            return Err(format!("{error} — fix it before using the browser"));
+        }
+        if policy.has_site_rules()
+            && let Some(map) = params.as_object_mut()
+        {
+            map.insert("sites".into(), policy.sites_json());
+        }
+        // Raising the tab's window takes the screen from the user: the one
+        // browser call the user's "foreground" rule covers (#55).
+        if command == "select_tab" && args.get("bring_to_front").and_then(Value::as_bool) == Some(true) {
+            crate::policy::check_foreground("raise the tab's Chrome window over what the user is doing")
+                .map_err(|error| error.to_string())?;
+        }
+        let timeout = call_timeout(command, args, policy.sites_ask());
+        self.dispatch_with_timeout(command, params, timeout)
+            .map_err(|error| self.hub.explain(command, args, error))
     }
 
     /// Build extension params, resolving 1-based `index` to an owned `tabId`
@@ -217,7 +677,7 @@ impl BrowserBridge {
                 .is_none();
             if needs_tab {
                 if let Some(index) = args.get("index").and_then(Value::as_i64) {
-                    let tab_id = self.tab_id_for_index(index)?;
+                    let tab_id = self.tab_id_for_index(index, args)?;
                     if let Some(map) = params.as_object_mut() {
                         map.insert("tabId".into(), json!(tab_id));
                         map.remove("index");
@@ -228,11 +688,13 @@ impl BrowserBridge {
         Ok(params)
     }
 
-    fn tab_id_for_index(&mut self, index: i64) -> Result<i64, String> {
+    fn tab_id_for_index(&mut self, index: i64, args: &Value) -> Result<i64, String> {
         if index < 1 {
             return Err("index must be a 1-based tab position from browser_list_tabs".into());
         }
-        let listed = self.dispatch("list_tabs", json!({}))?;
+        let listed = self
+            .dispatch("list_tabs", normalise("list_tabs", &json!({"session_id": args.get("session_id")})))
+            .map_err(|error| self.hub.explain("list_tabs", args, error))?;
         let tabs = listed
             .get("tabs")
             .and_then(Value::as_array)
@@ -248,65 +710,17 @@ impl BrowserBridge {
             })
     }
 
-    fn dispatch(&mut self, command: &str, params: Value) -> Result<Value, String> {
-        let id = self.next_id.fetch_add(1, Ordering::Relaxed);
+    fn dispatch(&mut self, command: &str, params: Value) -> Result<Value, CallError> {
+        self.dispatch_with_timeout(command, params, CALL_TIMEOUT)
+    }
+
+    fn dispatch_with_timeout(&mut self, command: &str, params: Value, timeout: Duration) -> Result<Value, CallError> {
         let mut params = params;
         if let Some(map) = params.as_object_mut() {
             map.entry("clientId".to_string())
                 .or_insert_with(|| json!(self.client_id.clone()));
         }
-        let request = json!({ "id": id, "command": command, "params": params });
-
-        // Sample connection generation under the outgoing lock so a reconnect
-        // between load and write cannot pair a new SendHalf with an old gen.
-        let gen_at_send = {
-            let mut guard = self
-                .outgoing
-                .lock()
-                .map_err(|_| "the browser bridge is poisoned".to_string())?;
-            let stream = guard
-                .as_mut()
-                .ok_or_else(|| "the extension disconnected".to_string())?;
-            let generation = self.connection_gen.load(Ordering::SeqCst);
-            writeln!(stream, "{request}").map_err(|error| format!("could not reach the extension: {error}"))?;
-            stream
-                .flush()
-                .map_err(|error| format!("could not reach the extension: {error}"))?;
-            generation
-        };
-
-        // Replies carry the originating id, so a slow answer to an earlier call
-        // cannot be mistaken for this one's. Disconnect sentinels are scoped to
-        // connection_gen so a prior host drop cannot fail a call on the new socket.
-        let deadline = std::time::Instant::now() + CALL_TIMEOUT;
-        loop {
-            let remaining = deadline.saturating_duration_since(std::time::Instant::now());
-            if remaining.is_zero() {
-                return Err(format!("browser_{command} timed out waiting for the extension"));
-            }
-            let reply = self
-                .replies
-                .recv_timeout(remaining)
-                .map_err(|_| format!("browser_{command} timed out waiting for the extension"))?;
-            if reply.get("disconnected").and_then(Value::as_bool) == Some(true) {
-                let reply_gen = reply.get("connectionGen").and_then(Value::as_u64);
-                if reply_gen == Some(gen_at_send) {
-                    return Err("the extension disconnected".to_string());
-                }
-                continue;
-            }
-            if reply.get("id").and_then(Value::as_u64) != Some(id) {
-                continue;
-            }
-            if reply.get("ok").and_then(Value::as_bool) == Some(true) {
-                return Ok(reply.get("result").cloned().unwrap_or(json!({})));
-            }
-            return Err(reply
-                .get("error")
-                .and_then(Value::as_str)
-                .unwrap_or("the extension reported an error")
-                .to_string());
-        }
+        self.hub.call(command, params, timeout)
     }
 }
 
@@ -353,6 +767,10 @@ fn unlink_stale_bridge_socket(path: &std::path::Path) {
 #[cfg(unix)]
 struct BridgeSocketCleanup(std::path::PathBuf);
 
+/// Named pipes vanish with their process; nothing to clean up.
+#[cfg(windows)]
+struct BridgeSocketCleanup;
+
 #[cfg(unix)]
 impl Drop for BridgeSocketCleanup {
     fn drop(&mut self) {
@@ -360,117 +778,281 @@ impl Drop for BridgeSocketCleanup {
     }
 }
 
-/// Accept the native host and pump its replies onto `sender`.
-fn spawn_listener(
-    outgoing: Arc<Mutex<Option<SendHalf>>>,
-    connection_gen: Arc<AtomicU64>,
-    sender: Sender<Value>,
-) {
-    std::thread::spawn(move || {
-        #[cfg(unix)]
-        let path = match bridge_socket_path() {
-            Some(path) => path,
-            None => return,
-        };
-        #[cfg(unix)]
-        let name = match path.as_os_str().to_fs_name::<GenericFilePath>() {
-            Ok(name) => name,
-            Err(_) => return,
-        };
-        #[cfg(windows)]
-        let pipe = bridge_pipe_name();
-        #[cfg(windows)]
-        let name = match pipe.to_ns_name::<GenericNamespaced>() {
-            Ok(name) => name,
-            Err(_) => return,
-        };
+#[cfg(unix)]
+fn endpoint_name(path: &std::path::Path) -> std::io::Result<interprocess::local_socket::Name<'_>> {
+    path.as_os_str().to_fs_name::<GenericFilePath>()
+}
+
+/// Bind the bridge the native host connects to. Failing means another live
+/// server owns it (a stale Unix socket file is cleared and retried once).
+fn bind_bridge() -> Option<(interprocess::local_socket::Listener, Option<BridgeSocketCleanup>)> {
+    #[cfg(unix)]
+    {
+        let path = bridge_socket_path()?;
         // Create-first: never unlink based on a probe that can race another
         // server binding between `bridge_socket_is_live` and `remove_file`.
-        let listener = match ListenerOptions::new().name(name).create_sync() {
-            Ok(listener) => listener,
-            Err(_) => {
-                #[cfg(unix)]
-                {
-                    unlink_stale_bridge_socket(&path);
-                    let Ok(name) = path.as_os_str().to_fs_name::<GenericFilePath>() else {
-                        return;
-                    };
-                    let Ok(listener) = ListenerOptions::new().name(name).create_sync() else {
-                        return;
-                    };
-                    listener
-                }
-                #[cfg(not(unix))]
-                {
-                    // Another server already owns the browser; accessibility
-                    // tools still work, so this is not worth reporting.
-                    return;
-                }
-            }
-        };
-        #[cfg(unix)]
-        let _cleanup = BridgeSocketCleanup(path.clone());
-        #[cfg(unix)]
-        {
-            use std::os::unix::fs::PermissionsExt;
-            if let Err(error) =
-                std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o600))
-            {
-                eprintln!("munim-computer-use: bridge socket chmod failed: {error}");
-                return;
-            }
+        let listener = ListenerOptions::new().name(endpoint_name(&path).ok()?).create_sync().ok().or_else(|| {
+            unlink_stale_bridge_socket(&path);
+            ListenerOptions::new().name(endpoint_name(&path).ok()?).create_sync().ok()
+        })?;
+        use std::os::unix::fs::PermissionsExt;
+        if let Err(error) = std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o600)) {
+            eprintln!("munim-computer-use: bridge socket chmod failed: {error}");
+            return None;
         }
+        Some((listener, Some(BridgeSocketCleanup(path))))
+    }
+    #[cfg(windows)]
+    {
+        let name = bridge_pipe_name().to_ns_name::<GenericNamespaced>().ok()?;
+        ListenerOptions::new().name(name).create_sync().ok().map(|listener| (listener, None))
+    }
+}
 
-        let mut accept_failures: u32 = 0;
-        loop {
-            let stream = match listener.accept() {
-                Ok(stream) => {
-                    accept_failures = 0;
-                    stream
-                }
-                Err(_) => {
-                    accept_failures = accept_failures.saturating_add(1);
-                    if accept_failures >= 8 {
-                        // Persistent accept errors (listener torn down) — exit
-                        // instead of spinning a CPU core.
-                        return;
-                    }
-                    std::thread::sleep(Duration::from_millis(50 * u64::from(accept_failures)));
-                    continue;
-                }
-            };
+/// The owner's endpoint for peer MCP processes: the bridge name plus `.rpc`.
+#[cfg(unix)]
+fn rpc_socket_path() -> Option<PathBuf> {
+    let path = bridge_socket_path()?;
+    let mut name = path.file_name()?.to_os_string();
+    name.push(".rpc");
+    Some(path.with_file_name(name))
+}
+
+fn bind_rpc() -> Option<(interprocess::local_socket::Listener, Option<BridgeSocketCleanup>)> {
+    #[cfg(unix)]
+    {
+        let path = rpc_socket_path()?;
+        // Only the bridge owner reaches this, so any file here is a dead owner's.
+        let _ = std::fs::remove_file(&path);
+        let listener = ListenerOptions::new().name(endpoint_name(&path).ok()?).create_sync().ok()?;
+        use std::os::unix::fs::PermissionsExt;
+        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o600)).ok()?;
+        Some((listener, Some(BridgeSocketCleanup(path))))
+    }
+    #[cfg(windows)]
+    {
+        let name = format!("{}.rpc", bridge_pipe_name()).to_ns_name::<GenericNamespaced>().ok()?;
+        ListenerOptions::new().name(name).create_sync().ok().map(|listener| (listener, None))
+    }
+}
+
+/// The owner's peer endpoint, or why it could not be reached.
+pub(crate) fn connect_rpc() -> std::io::Result<Stream> {
+    #[cfg(unix)]
+    {
+        let path = rpc_socket_path().ok_or_else(|| {
+            std::io::Error::other("there is no private directory for the bridge socket (see the server's log)")
+        })?;
+        Stream::connect(endpoint_name(&path)?)
+    }
+    #[cfg(windows)]
+    {
+        let name = format!("{}.rpc", bridge_pipe_name()).to_ns_name::<GenericNamespaced>()?;
+        Stream::connect(name)
+    }
+}
+
+/// Owner election, repeated for the life of the process. The first server to
+/// bind the bridge owns the extension and serves later servers over RPC, so
+/// every MCP process gets the browser, each with its own tabs. When the owner
+/// exits its peers lose the RPC link and run the election again.
+fn run_bridge(hub: &Arc<Hub>) {
+    loop {
+        if let Some((listener, _cleanup)) = bind_bridge() {
+            *lock(&hub.owned_since) = Some(Instant::now());
+            *lock(&hub.join_error) = None;
+            hub.record_owner();
+            let peers = Arc::clone(hub);
+            std::thread::spawn(move || serve_peers_for_life(&peers));
+            serve_extension(hub, &listener);
+            return;
+        }
+        let joined = connect_rpc();
+        if let Err(error) = &joined {
+            *lock(&hub.join_error) = Some(bridge_diag::join_failure(error));
+        }
+        if let Ok(stream) = joined {
+            *lock(&hub.join_error) = None;
             let (recv, send) = stream.split();
-            // New generation: prior disconnect sentinels become stale and are
-            // ignored by dispatch (they carry the old connectionGen).
-            let generation = connection_gen.fetch_add(1, Ordering::SeqCst) + 1;
-            if let Ok(mut guard) = outgoing.lock() {
-                *guard = Some(send);
-            }
-
-            let reader = BufReader::new(recv);
-            for line in reader.lines() {
+            *lock(&hub.rpc) = Some(send);
+            for line in BufReader::new(recv).lines() {
                 let Ok(line) = line else { break };
-                if let Ok(value) = serde_json::from_str::<Value>(&line)
-                    && sender.send(value).is_err()
-                {
+                route(&hub.rpc_pending, &line, true);
+            }
+            drop_connection(&hub.rpc, &hub.rpc_pending, &Link::OwnerGone);
+            // The owner went away. Give another survivor a moment to bind,
+            // then take over ourselves if nobody did.
+            std::thread::sleep(Duration::from_secs(1));
+            continue;
+        }
+        // An owner is starting up, or one without the peer endpoint (an older
+        // build) holds the bridge; accessibility tools still work meanwhile.
+        std::thread::sleep(Duration::from_secs(2));
+    }
+}
+
+fn accept_loop(listener: &interprocess::local_socket::Listener, mut on_stream: impl FnMut(Stream)) {
+    let mut accept_failures: u32 = 0;
+    loop {
+        match listener.accept() {
+            Ok(stream) => {
+                accept_failures = 0;
+                on_stream(stream);
+            }
+            Err(_) => {
+                accept_failures = accept_failures.saturating_add(1);
+                if accept_failures >= 8 {
+                    // Persistent accept errors (listener torn down) — exit
+                    // instead of spinning a CPU core.
                     return;
                 }
+                std::thread::sleep(Duration::from_millis(50 * u64::from(accept_failures)));
             }
-
-            // The host went away; drop the writer so `call` reports honestly,
-            // and wake any in-flight `dispatch` wait instead of letting it sit
-            // until CALL_TIMEOUT. Tag with this connection's generation.
-            if let Ok(mut guard) = outgoing.lock() {
-                *guard = None;
-            }
-            let _ = sender.send(json!({
-                "disconnected": true,
-                "connectionGen": generation,
-                "ok": false,
-                "error": "the extension disconnected",
-            }));
         }
+    }
+}
+
+/// Keep the peer endpoint open for as long as this process owns the bridge: a
+/// closed one would lock every later MCP server out of the browser for good.
+fn serve_peers_for_life(hub: &Arc<Hub>) {
+    let mut reported = false;
+    loop {
+        match bind_rpc() {
+            Some((listener, _cleanup)) => {
+                hub.peer_endpoint.store(true, Ordering::Relaxed);
+                hub.record_owner();
+                reported = false;
+                serve_peers(hub, &listener);
+            }
+            None if !reported => {
+                eprintln!("munim-computer-use: could not open the bridge for other MCP servers; retrying");
+                reported = true;
+            }
+            None => {}
+        }
+        hub.peer_endpoint.store(false, Ordering::Relaxed);
+        hub.record_owner();
+        std::thread::sleep(Duration::from_secs(2));
+    }
+}
+
+/// Accept the native host and route its replies to the waiting calls.
+fn serve_extension(hub: &Arc<Hub>, listener: &interprocess::local_socket::Listener) {
+    accept_loop(listener, |stream| {
+        let (recv, send) = stream.split();
+        *lock(&hub.extension) = Some(send);
+        {
+            let mut host = lock(&hub.host);
+            host.connections += 1;
+            host.changed_at = Some(Instant::now());
+        }
+        hub.record_owner();
+        for line in BufReader::new(recv).lines() {
+            let Ok(line) = line else { break };
+            route(&hub.pending, &line, false);
+        }
+        // The host went away; clear the writer so `call` reports honestly, and
+        // wake any in-flight call instead of letting it sit until CALL_TIMEOUT.
+        drop_connection(&hub.extension, &hub.pending, &Link::HostDropped);
+        lock(&hub.host).changed_at = Some(Instant::now());
+        hub.record_owner();
     });
+}
+
+/// Serve each peer MCP process on its own thread: a peer stays connected for
+/// its whole life, so serving it inline would strand every later peer.
+fn serve_peers(hub: &Arc<Hub>, listener: &interprocess::local_socket::Listener) {
+    accept_loop(listener, |stream| {
+        let hub = Arc::clone(hub);
+        std::thread::spawn(move || serve_peer(&hub, stream));
+    });
+}
+
+fn serve_peer(hub: &Hub, stream: Stream) {
+    let (recv, mut send) = stream.split();
+    // Client ids seen on this peer, closed when it disconnects so only that
+    // MCP process's tabs go.
+    let mut client_ids: HashSet<String> = HashSet::new();
+    for line in BufReader::new(recv).lines() {
+        let Ok(line) = line else { break };
+        if line.trim().is_empty() {
+            continue;
+        }
+        let response = match serde_json::from_str::<Value>(&line) {
+            // Answered here, never forwarded: check-native-host asks it to say
+            // who owns the bridge and whether the extension is connected.
+            Ok(request) if request.get("command").and_then(Value::as_str) == Some("bridge_status") => json!({
+                "id": request.get("id").cloned().unwrap_or(json!(-1)),
+                "ok": true,
+                "result": hub.owner_record().to_json(),
+            }),
+            Ok(request) if request.get("command").and_then(Value::as_str).is_some() => {
+                let id = request.get("id").cloned().unwrap_or(json!(-1));
+                let command = request.get("command").and_then(Value::as_str).unwrap_or_default();
+                let mut params = request.get("params").cloned().filter(Value::is_object).unwrap_or(json!({}));
+                let client_id = match params.get("clientId").and_then(Value::as_str) {
+                    Some(client_id) if !client_id.is_empty() => client_id.to_string(),
+                    // A peer that sends no clientId still gets one stable id.
+                    _ => client_ids
+                        .iter()
+                        .find(|known| known.starts_with("rpc-"))
+                        .cloned()
+                        .unwrap_or_else(|| format!("rpc-{}", new_browser_client_id())),
+                };
+                params["clientId"] = json!(client_id);
+                client_ids.insert(client_id);
+                match hub.direct_call(command, params, CALL_TIMEOUT) {
+                    Ok(result) => json!({ "id": id, "ok": true, "result": result }),
+                    // Say which link failed and who we are, so the peer can tell
+                    // the user which server to look at (#28).
+                    Err(CallError::Link(link)) => json!({
+                        "id": id,
+                        "ok": false,
+                        "error": hub.owner_detail(&link),
+                        "link": { "kind": link.kind(), "pid": std::process::id(), "version": VERSION },
+                    }),
+                    Err(CallError::Extension(error) | CallError::Timeout(error)) => {
+                        json!({ "id": id, "ok": false, "error": error })
+                    }
+                }
+            }
+            _ => json!({ "id": -1, "ok": false, "error": "invalid RPC request" }),
+        };
+        if writeln!(send, "{response}").and_then(|()| send.flush()).is_err() {
+            break;
+        }
+    }
+    for client_id in client_ids {
+        let _ = hub.direct_call("close_client_tabs", json!({ "clientId": client_id }), Duration::from_secs(2));
+    }
+}
+
+/// Default wait for a user answering browser_request_credentials, and the cap.
+const CREDENTIAL_WAIT_SECS: u64 = 180;
+const CREDENTIAL_MAX_WAIT_SECS: u64 = 600;
+/// Headroom over the extension's own waits, so it answers before we give up.
+const PROMPT_GRACE: Duration = Duration::from_secs(15);
+
+/// How long to wait for the extension. Anything that can put a prompt in front
+/// of the user, or wait for a page to load, needs longer than a plain command.
+fn call_timeout(command: &str, args: &Value, sites_ask: bool) -> Duration {
+    let mut timeout = CALL_TIMEOUT;
+    if command == "request_credentials" {
+        let wait = args
+            .get("timeout_seconds")
+            .and_then(Value::as_u64)
+            .unwrap_or(CREDENTIAL_WAIT_SECS)
+            .clamp(10, CREDENTIAL_MAX_WAIT_SECS);
+        timeout = Duration::from_secs(wait) + PROMPT_GRACE;
+    }
+    if sites_ask {
+        // The extension's site approval prompt waits up to two minutes.
+        timeout = timeout.max(Duration::from_secs(120) + PROMPT_GRACE);
+    }
+    if args.get("return_state").and_then(Value::as_bool) == Some(true) || args.get("wait_for_selector").is_some() {
+        timeout += Duration::from_secs(15);
+    }
+    timeout
 }
 
 /// Translate tool arguments into the extension's parameter names.
@@ -480,14 +1062,60 @@ fn normalise(_command: &str, args: &Value) -> Value {
     if let Some(tab) = args.get("tab_id").and_then(Value::as_i64) {
         map.insert("tabId".into(), json!(tab));
     }
-    for key in ["url", "text", "key", "index", "x", "y", "all"] {
+    if let Some(session) = args.get("session_id").filter(|v| !v.is_null()) {
+        map.insert("sessionId".into(), session.clone());
+    }
+    for key in ["url", "text", "key", "modifiers", "index", "x", "y", "all", "query", "offset", "limit", "fields", "reason", "paths", "action", "format", "quality", "values"] {
         if let Some(value) = args.get(key) {
             map.insert(key.into(), value.clone());
         }
     }
+    for (from, to) in [
+        ("max_chars", "maxChars"),
+        ("include_links", "includeLinks"),
+        ("return_state", "returnState"),
+        ("wait_for_selector", "waitForSelector"),
+        ("wait_timeout_ms", "waitTimeoutMs"),
+        ("bring_to_front", "bringToFront"),
+        ("prompt_text", "promptText"),
+        ("dialog_id", "dialogId"),
+        ("max_width", "maxWidth"),
+    ] {
+        if let Some(value) = args.get(from) {
+            map.insert(to.into(), value.clone());
+        }
+    }
+    if let Some(seconds) = args.get("timeout_seconds").and_then(Value::as_u64) {
+        map.insert("timeoutMs".into(), json!(seconds.clamp(10, CREDENTIAL_MAX_WAIT_SECS) * 1000));
+    }
     // Keep `index` in the wire params for commands that still accept it; select_tab
     // / close_tab resolve index → tabId in `BrowserBridge::params_for` before dispatch.
     params
+}
+
+/// What browser_select_tab actually did (#43). The extension only shows an
+/// agent tab on its own when the user is already looking at one of the
+/// agent's tabs, so "switched" would often be false: say whether the tab is
+/// now the window's visible tab, and how to show it when it is not.
+fn describe_select(tab: i64, result: &Value) -> String {
+    match result.get("activated").and_then(Value::as_bool) {
+        Some(true) if result.get("windowFocused").and_then(Value::as_bool) == Some(true) => {
+            format!("tab {tab} is reported active by Chrome and its window was brought to front; page rendering is not verified")
+        }
+        Some(true) => format!("tab {tab} is reported active by Chrome; page rendering is not verified"),
+        Some(false) => format!(
+            "tab {tab} was NOT brought to front: the user is on one of their own tabs in that window, \
+             so it stays in the background (browser_list_tabs still shows their tab as active). \
+             browser_snapshot, browser_read, browser_screenshot, browser_click, browser_type, browser_fill and browser_press_key \
+             work on it as it is, so leave the user on their tab; bring_to_front=true interrupts them and is only for native \
+             keyboard input that cannot work any other way"
+        ),
+        // An extension older than 0.9.3 does not report the outcome.
+        None => format!(
+            "asked Chrome to select tab {tab}; this browser extension is too old to report whether it became \
+             visible — check browser_list_tabs, or update the extension"
+        ),
+    }
 }
 
 /// Render a reply as the tool text the macOS server produces.
@@ -505,11 +1133,16 @@ fn describe(command: &str, result: &Value, args: &Value) -> String {
                 .filter(|url| !url.is_empty() && *url != "about:blank")
                 .or_else(|| args.get("url").and_then(Value::as_str))
                 .unwrap_or("about:blank");
-            if title.is_empty() {
+            let mut line = if title.is_empty() {
                 format!("opened {url} in the agent tab group (tab_id={tab})")
             } else {
                 format!("opened tab_id={tab} — {title}  [{url}]")
+            };
+            // The tab opened but is not in the group (#59): say both.
+            if let Some(note) = result.get("note").and_then(Value::as_str) {
+                line = format!("opened {url} as tab_id={tab} — {note}");
             }
+            line
         }
         "list_tabs" => describe_tabs(result),
         "use_tab" => {
@@ -536,7 +1169,11 @@ fn describe(command: &str, result: &Value, args: &Value) -> String {
                 .unwrap_or(-1);
             format!("released tab {tab} back to the user")
         }
-        "snapshot" => describe_snapshot(result),
+        "snapshot" => format!("{}{}", describe_readiness(result), describe_snapshot(result)),
+        "read" => describe_read(result),
+        "page_errors" => describe_page_errors(result, args),
+        "handle_dialog" => describe_handled_dialog(result, args),
+        "request_credentials" => describe_credentials(result, args),
         "close_all_tabs" => {
             let closed = result.get("closed").and_then(Value::as_i64).unwrap_or(0);
             let released = result.get("released").and_then(Value::as_i64).unwrap_or(0);
@@ -575,30 +1212,400 @@ fn describe(command: &str, result: &Value, args: &Value) -> String {
             .or_else(|| args.get("tab_id").and_then(Value::as_i64))
             .or_else(|| args.get("index").and_then(Value::as_i64))
             .unwrap_or(-1);
-            match other {
-                "click" => format!("clicked in tab {tab}"),
+            let line = match other {
+                "click" => format!("clicked in tab {tab}{}", describe_click_route(result)),
                 "type" => format!(
-                    "typed {} characters into tab {tab}",
-                    args.get("text").and_then(Value::as_str).unwrap_or("").chars().count()
+                    "typed {} characters into tab {tab}{}",
+                    args.get("text").and_then(Value::as_str).unwrap_or("").chars().count(),
+                    note_suffix(result)
                 ),
-                "press" => format!(
-                    "pressed {} in tab {tab}",
-                    args.get("key").and_then(Value::as_str).unwrap_or("?")
-                ),
+                "fill" => describe_fill(tab, result, args),
+                "upload_file" => describe_upload(tab, result, args),
+                "select_option" => describe_select_option(tab, result),
+                "hover" => describe_hover(tab, result),
+                "press" => {
+                    let mut line = format!(
+                        "pressed {} in tab {tab}",
+                        result
+                            .get("pressed")
+                            .and_then(Value::as_str)
+                            .or_else(|| args.get("key").and_then(Value::as_str))
+                            .unwrap_or("?")
+                    );
+                    // Tab says where focus went, so the next type is not a guess.
+                    if result.get("handledByPage").and_then(Value::as_bool) == Some(true) {
+                        line.push_str(" — the page handled it itself");
+                    } else if let Some(focused) = result.get("focused").and_then(Value::as_str) {
+                        line.push_str(&format!(" — focus is now on {focused}"));
+                        if let Some(selected) = result.get("selected").and_then(Value::as_i64).filter(|n| *n > 0) {
+                            line.push_str(&format!(
+                                " with {selected} character{} selected",
+                                if selected == 1 { "" } else { "s" }
+                            ));
+                        }
+                    }
+                    // Backspace says when it could not check or had to edit itself, and a
+                    // shortcut says when it was sent as this platform's version of it.
+                    if let Some(note) = result.get("note").and_then(Value::as_str) {
+                        line.push_str(&format!(" — {note}"));
+                    }
+                    line
+                }
                 "navigate" => format!(
-                    "navigated tab {tab} to {}",
-                    args.get("url").and_then(Value::as_str).unwrap_or("")
+                    "navigated tab {tab} to {}{}",
+                    args.get("url").and_then(Value::as_str).unwrap_or(""),
+                    note_suffix(result)
                 ),
-                "select_tab" => format!("switched the agent group to tab {tab}"),
+                "select_tab" => describe_select(tab, result),
                 // An adopted tab comes back as a release, so say what happened.
                 "close_tab" if result.get("released").is_some() => {
                     format!("tab {tab} was the user's — released it instead of closing")
                 }
                 "close_tab" => format!("closed tab {tab}"),
                 _ => format!("{other} ok"),
+            };
+            // return_state: the page as it stands after the action.
+            match result.get("snapshot") {
+                Some(snapshot) => format!(
+                    "{line}\n\n{}page after the action (earlier indices are no longer valid):\n{}",
+                    describe_readiness(result),
+                    describe_snapshot(snapshot)
+                ),
+                None => line,
             }
         }
     }
+}
+
+/// What browser_fill left in the field: exactly the text, or what the page
+/// made of it, so a mask, a length limit or a page that refused is visible.
+/// Worded as the macOS server words it.
+fn describe_fill(tab: i64, result: &Value, args: &Value) -> String {
+    let target = result.get("target").and_then(Value::as_str).unwrap_or("the field");
+    let count = args.get("text").and_then(Value::as_str).unwrap_or("").chars().count();
+    let mut line = if count == 0 {
+        format!("cleared {target} in tab {tab}")
+    } else {
+        format!("filled {target} in tab {tab} with {count} characters, replacing its value")
+    };
+    if result.get("matches").and_then(Value::as_bool) == Some(false) {
+        let actual = result.get("actualLength").and_then(Value::as_i64).unwrap_or(0);
+        line.push_str(&format!(" — but the field now holds {actual} characters that differ from the text"));
+        if let Some(value) = result.get("value").and_then(Value::as_str) {
+            line.push_str(&format!(": \"{value}\""));
+        }
+        line.push_str(" (the page changed or limited what was entered)");
+    }
+    if let Some(note) = result.get("note").and_then(Value::as_str) {
+        line.push_str(&format!(" — {note}"));
+    }
+    line
+}
+
+/// What browser_select_option chose, read back from the select, and whether
+/// the page saw a change. Worded as the macOS server words it.
+fn describe_select_option(tab: i64, result: &Value) -> String {
+    let target = result.get("target").and_then(Value::as_str).unwrap_or("the select");
+    let selected: Vec<String> = result
+        .get("selected")
+        .and_then(Value::as_array)
+        .map(|labels| labels.iter().filter_map(Value::as_str).map(|label| format!("\"{label}\"")).collect())
+        .unwrap_or_default();
+    let chosen = if selected.is_empty() { "nothing".to_string() } else { selected.join(", ") };
+    let mut line = format!("{target} in tab {tab} now has {chosen} selected");
+    line.push_str(if result.get("changed").and_then(Value::as_bool) == Some(false) {
+        " — it already had that, so the page got no change event"
+    } else {
+        " — the page got its input and change events"
+    });
+    line.push_str(&note_suffix(result));
+    line
+}
+
+/// Where browser_hover rested the agent's pointer, and how it got there.
+fn describe_hover(tab: i64, result: &Value) -> String {
+    let at = match result.get("target").and_then(Value::as_str) {
+        Some(target) => target.to_string(),
+        None => format!(
+            "({}, {})",
+            result.get("x").and_then(Value::as_f64).unwrap_or(0.0).round(),
+            result.get("y").and_then(Value::as_f64).unwrap_or(0.0).round()
+        ),
+    };
+    let mut line = format!("hovered over {at} in tab {tab}");
+    match result.get("route").and_then(Value::as_str) {
+        Some("input") => line.push_str(" with the real mouse pointer; nothing was pressed"),
+        _ => {
+            let why = result.get("why").and_then(Value::as_str).unwrap_or("real input could not reach it");
+            line.push_str(&format!(
+                " as page events ({why}); nothing was pressed. Hover handlers ran, CSS :hover styles do not apply"
+            ));
+        }
+    }
+    line.push_str(&note_suffix(result));
+    line
+}
+
+/// Most files one browser_upload_file call attaches; the extension holds the same limit.
+const UPLOAD_MAX_FILES: usize = 50;
+
+/// browser_upload_file's paths, checked before anything is sent: each must be
+/// an absolute path of a regular file this process can read. The extension
+/// reaches this server over native messaging, so this is the machine running
+/// Chrome, where Chrome will read the files. Chrome itself attaches a missing
+/// path without complaint, as a file the site then fails to read.
+fn check_upload_paths(args: &Value) -> Result<(), String> {
+    let Some(paths) = args.get("paths").and_then(Value::as_array) else {
+        return Err("missing required argument 'paths' (absolute paths of the files to attach)".into());
+    };
+    if paths.is_empty() || paths.len() > UPLOAD_MAX_FILES {
+        return Err(format!("paths must list 1 to {UPLOAD_MAX_FILES} absolute file paths"));
+    }
+    for (at, path) in paths.iter().enumerate() {
+        let Some(text) = path.as_str().filter(|text| !text.trim().is_empty()) else {
+            return Err(format!("paths[{at}] must be a nonempty string"));
+        };
+        let file = std::path::Path::new(text);
+        let problem = if !file.is_absolute() {
+            Some("is not an absolute path; pass the full path of the file".to_string())
+        } else {
+            match std::fs::metadata(file) {
+                Ok(meta) if meta.is_dir() => Some("is a folder, not a file".to_string()),
+                Ok(meta) if !meta.is_file() => Some("is not a regular file".to_string()),
+                Ok(_) => std::fs::File::open(file).err().map(|error| format!("cannot be read: {error}")),
+                Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+                    Some("does not exist on this computer".to_string())
+                }
+                Err(error) => Some(format!("cannot be read: {error}")),
+            }
+        };
+        if let Some(problem) = problem {
+            return Err(format!(
+                "not attached: {text} {problem}. Paths are on the computer running Chrome and this server; \
+                 nothing was sent to the page"
+            ));
+        }
+    }
+    Ok(())
+}
+
+/// What browser_upload_file left in the input: the files it holds, read back
+/// from the page, and whether the page saw them arrive. Staging is not
+/// sending, so the reply says the site has not received them. Worded as the
+/// macOS server words it.
+fn describe_upload(tab: i64, result: &Value, args: &Value) -> String {
+    let target = result.get("target").and_then(Value::as_str).unwrap_or("the file input");
+    let files: Vec<&str> = result
+        .get("files")
+        .and_then(Value::as_array)
+        .map(|files| files.iter().filter_map(Value::as_str).collect())
+        .unwrap_or_default();
+    let sent = args.get("paths").and_then(Value::as_array).map_or(0, Vec::len);
+    let mut line = format!(
+        "attached {} file{} to {target} in tab {tab}",
+        files.len(),
+        if files.len() == 1 { "" } else { "s" }
+    );
+    if !files.is_empty() {
+        line.push_str(&format!(": {}", files.join(", ")));
+    }
+    if files.len() != sent {
+        line.push_str(&format!(" — but {sent} were sent, so the input does not hold what was asked"));
+    }
+    line.push_str(if result.pointer("/events/change").and_then(Value::as_bool) == Some(true) {
+        " — the page got its change event"
+    } else {
+        " — the page got no change event, so it may not have noticed them"
+    });
+    line.push_str(
+        ". Nothing was submitted: the files are staged in the input, and the site has not received them. \
+         Submit the form or press the page's upload button yourself when that is wanted, then check the page.",
+    );
+    line
+}
+
+/// Which element an indexed click pressed and how, so a click the page ignored
+/// can be told from one that went to a stale index. Coordinate clicks, and
+/// extensions older than 0.9.2, report neither.
+fn describe_click_route(result: &Value) -> String {
+    let Some(target) = result.get("target").and_then(Value::as_str) else {
+        // A coordinate click still says when it made the page open a dialog.
+        return note_suffix(result);
+    };
+    let mut line = match result.get("route").and_then(Value::as_str) {
+        Some("input") => format!(" — {target}, with real mouse input"),
+        _ => {
+            let why = result.get("why").and_then(Value::as_str).unwrap_or("real input could not reach it");
+            format!(" — {target}, as page events ({why})")
+        }
+    };
+    // A checkbox, radio or switch says what it is now, and whether that changed.
+    if let Some(state) = result.get("state").and_then(Value::as_str).filter(|state| !state.is_empty()) {
+        line.push_str(&format!(" — it is now {state}"));
+    }
+    if let Some(note) = result.get("note").and_then(Value::as_str) {
+        line.push_str(&format!(" — {note}"));
+    }
+    line
+}
+
+/// Readiness is separate from action success; never imply a retry is safe.
+fn describe_readiness(result: &Value) -> String {
+    let Some(readiness) = result.get("readiness") else {
+        // A current extension always reports readiness with an action's
+        // snapshot, and a total with a snapshot. Without them the extension is
+        // older than this server and silently ignored the new arguments; say so
+        // rather than let the agent believe it waited or paged.
+        let stale = result.get("snapshot").is_some()
+            || (result.get("elements").is_some() && result.get("total").is_none());
+        return if stale { "note: the Chrome extension is older than this server, so wait_for_selector, offset and limit were ignored — update it and reload it at chrome://extensions.\n".to_string() } else { String::new() };
+    };
+    let status = readiness.get("status").and_then(Value::as_str).unwrap_or("unknown");
+    let condition = readiness.get("condition").and_then(Value::as_str).unwrap_or("unknown");
+    let elapsed = readiness.get("elapsedMs").and_then(Value::as_u64).unwrap_or(0);
+    let mut line = format!("readiness: {status} ({condition}, {elapsed} ms)");
+    if let Some(selector) = readiness.get("selector").and_then(Value::as_str) {
+        line.push_str(&format!(" selector={selector}"));
+    }
+    if let Some(frame) = readiness.get("frame").and_then(Value::as_str) {
+        line.push_str(&format!(" in frame \"{frame}\""));
+    }
+    if let Some(error) = readiness.get("error").and_then(Value::as_str) {
+        line.push_str(&format!(" — {error}"));
+    }
+    if let Some(frames) = readiness.get("frames").and_then(Value::as_u64).filter(|&n| n > 0) {
+        line.push_str(&format!(" — not searched: {}", frames_phrase(frames)));
+    }
+    if let Some(note) = readiness.get("note").and_then(Value::as_str) {
+        line.push_str(&format!(" — {note}"));
+    }
+    line.push_str("; only the stated condition was checked, not general app readiness. Re-observe with browser_snapshot before repeating a non-idempotent action.\n");
+    line
+}
+
+/// Snapshots and selector waits see the page and its open shadow roots, not
+/// the documents inside frames; say how many visible frames were left out.
+fn frames_phrase(frames: u64) -> String {
+    if frames == 1 { "1 embedded frame".to_string() } else { format!("{frames} embedded frames") }
+}
+
+/// Frames a snapshot could not search: Chrome would not reach them, or the
+/// user's site rules do not allow them (`blocked` of them). An extension older
+/// than this server searched no frame at all. Worded as the macOS server words it.
+fn frames_note(frames: u64, blocked: u64) -> String {
+    let rules = if blocked > 0 { format!(" ({blocked} of them not allowed by the user's site rules)") } else { String::new() };
+    format!(
+        "note: {} on the page {} not searched{rules} — controls inside {} not listed here; browser_screenshot shows the tab, frames included, without bringing it to front",
+        frames_phrase(frames),
+        if frames == 1 { "was" } else { "were" },
+        if frames == 1 { "it are" } else { "them are" }
+    )
+}
+
+/// browser_screenshot's caption: what was captured and how an image pixel
+/// becomes a browser_click point. Worded as the macOS server words it.
+fn describe_browser_screenshot(tab: i64, result: &Value) -> String {
+    let number = |key: &str| result.get(key).and_then(Value::as_f64);
+    let mut line = format!("tab {tab} as Chrome shows it, captured in the background");
+    match (number("width"), number("height"), number("cssWidth"), number("cssHeight")) {
+        (Some(width), Some(height), Some(css_width), Some(css_height)) if css_width > 0.0 => {
+            let ratio = format!("{:.3}", width / css_width);
+            line.push_str(&format!(
+                ": page {}×{} CSS px; image {}×{} px ({ratio} px per CSS px). To click something seen at image pixel (px, py): \
+                 browser_click x = px / {ratio}, y = py / {ratio}. Prefer an index from browser_snapshot when the target is listed there.",
+                css_width.round() as i64,
+                css_height.round() as i64,
+                width.round() as i64,
+                height.round() as i64
+            ));
+        }
+        _ => line.push_str(" (the Chrome extension is older than this server, so the image's scale is not reported — update it and reload it at chrome://extensions)."),
+    }
+    if let Some(note) = result.get("note").and_then(Value::as_str) {
+        line.push_str(&format!("\nnote: {note}"));
+    }
+    line
+}
+
+/// browser_read: the page text, and where to continue if it was cut off.
+fn describe_read(result: &Value) -> String {
+    let text = result.get("text").and_then(Value::as_str).unwrap_or("");
+    let total = result.get("total").and_then(Value::as_u64).unwrap_or(0);
+    let offset = result.get("offset").and_then(Value::as_u64).unwrap_or(0);
+    let end = result.get("end").and_then(Value::as_u64).unwrap_or(total);
+    let mut out = format!(
+        "{}  [{}]",
+        result.get("title").and_then(Value::as_str).unwrap_or("?"),
+        result.get("url").and_then(Value::as_str).unwrap_or("")
+    );
+    if let Some(matches) = result.get("matches").and_then(Value::as_u64) {
+        out.push_str(&format!(
+            "\n{matches} matching line{}",
+            if matches == 1 { "" } else { "s" }
+        ));
+    }
+    out.push_str("\n\n");
+    out.push_str(if text.is_empty() && total == 0 { "(no readable text on this page)" } else { text });
+    // Why an empty page is empty: not drawn, or text hidden by CSS (#63).
+    if let Some(note) = result.get("note").and_then(Value::as_str) {
+        out.push_str(&format!("\nnote: {note}"));
+    }
+    if let Some(frames) = result.get("frames").and_then(Value::as_u64).filter(|&n| n > 0) {
+        out.push_str(&format!(
+            "\nnote: {} on the page could not be read (gone, or not allowed by the user's site rules) — browser_screenshot shows the tab, frames included, without bringing it to front",
+            frames_phrase(frames)
+        ));
+    }
+    if offset > 0 || end < total {
+        out.push_str(&format!("\n\n… showing characters {offset}–{end} of {total}"));
+        if end < total {
+            out.push_str(&format!("; call browser_read again with offset={end} for more"));
+        }
+    }
+    if let Some(links) = result.get("links").and_then(Value::as_array) {
+        out.push_str(&format!("\n\nlinks ({}):", links.len()));
+        for link in links {
+            out.push_str(&format!(
+                "\n  {}  [{}]",
+                link.get("text").and_then(Value::as_str).unwrap_or(""),
+                link.get("href").and_then(Value::as_str).unwrap_or("")
+            ));
+        }
+    }
+    out
+}
+
+/// browser_request_credentials: what happened, never what was typed.
+fn describe_credentials(result: &Value, args: &Value) -> String {
+    let origin = result.get("origin").and_then(Value::as_str).unwrap_or("the site");
+    if result.get("timedOut").and_then(Value::as_bool) == Some(true) {
+        return format!("the user did not answer the sign-in prompt for {origin} in time; nothing was filled");
+    }
+    if result.get("cancelled").and_then(Value::as_bool) == Some(true) {
+        return format!("the user cancelled the sign-in prompt for {origin}; nothing was filled");
+    }
+    if let Some(reason) = result.get("failed").and_then(Value::as_str) {
+        return format!("error: could not show the sign-in prompt: {reason}");
+    }
+    let ids = |key: &str| -> Vec<String> {
+        result
+            .get(key)
+            .and_then(Value::as_array)
+            .map(|list| list.iter().filter_map(Value::as_i64).map(|index| index.to_string()).collect())
+            .unwrap_or_default()
+    };
+    let (filled, missing) = (ids("filled"), ids("missing"));
+    let tab = args.get("tab_id").and_then(Value::as_i64).unwrap_or(-1);
+    let mut line = format!(
+        "the user filled {} field{} on {origin} in tab {tab} (index {}); the values are not shown to you. Submit the form yourself, for example by clicking its sign-in button.",
+        filled.len(),
+        if filled.len() == 1 { "" } else { "s" },
+        filled.join(", ")
+    );
+    if !missing.is_empty() {
+        line.push_str(&format!(" Index {} had left the page and was not filled.", missing.join(", ")));
+    }
+    line
 }
 
 fn describe_tabs(result: &Value) -> String {
@@ -652,12 +1659,164 @@ fn describe_tabs(result: &Value) -> String {
     lines.join("\n")
 }
 
+/// ` — note` for a reply that carries one (a dialog the action made the page
+/// open, for instance), or nothing.
+fn note_suffix(result: &Value) -> String {
+    result
+        .get("note")
+        .and_then(Value::as_str)
+        .map(|note| format!(" — {note}"))
+        .unwrap_or_default()
+}
+
+/// A JavaScript dialog as the extension reports it: type, id, message, and a
+/// prompt's default text. Worded as the macOS server words it.
+fn dialog_phrase(dialog: &Value) -> String {
+    let text = |key: &str| dialog.get(key).and_then(Value::as_str).unwrap_or("");
+    let mut phrase = format!(
+        "JavaScript {} dialog {}: \"{}\"",
+        dialog.get("type").and_then(Value::as_str).unwrap_or("?"),
+        dialog.get("id").and_then(Value::as_str).unwrap_or("?"),
+        text("message")
+    );
+    if !text("defaultPrompt").is_empty() {
+        phrase.push_str(&format!(" (default text \"{}\")", text("defaultPrompt")));
+    }
+    phrase
+}
+
+/// browser_handle_dialog: what was answered, and whether the page opened
+/// another dialog straight after.
+fn describe_handled_dialog(result: &Value, args: &Value) -> String {
+    let tab = result
+        .get("tabId")
+        .and_then(Value::as_i64)
+        .or_else(|| args.get("tab_id").and_then(Value::as_i64))
+        .unwrap_or(-1);
+    let verb = if result.get("action").and_then(Value::as_str) == Some("accept") { "accepted" } else { "dismissed" };
+    let mut line = format!(
+        "{verb} the dialog in tab {tab} — {}",
+        result.get("dialog").map(dialog_phrase).unwrap_or_default()
+    );
+    if let Some(chars) = result.get("promptChars").and_then(Value::as_u64) {
+        line.push_str(&format!(", entering {chars} character{}", if chars == 1 { "" } else { "s" }));
+    } else if result.get("promptDefault").and_then(Value::as_bool) == Some(true) {
+        line.push_str(", keeping its default text");
+    }
+    match result.get("next") {
+        Some(next) => line.push_str(&format!(
+            ". The page opened another at once: {} — it is paused until browser_handle_dialog answers that one too (dialog_id={})",
+            dialog_phrase(next),
+            next.get("id").and_then(Value::as_str).unwrap_or("?")
+        )),
+        None => line.push_str(". The page runs again; browser_snapshot to see it"),
+    }
+    line
+}
+
+/// browser_page_errors: the exceptions and console errors the page has logged
+/// since it loaded (as far as Chrome kept them), and the failed requests since
+/// the agent attached, oldest first. Worded as the macOS server words it.
+fn describe_page_errors(result: &Value, args: &Value) -> String {
+    let tab = result
+        .get("tabId")
+        .and_then(Value::as_i64)
+        .or_else(|| args.get("tab_id").and_then(Value::as_i64))
+        .unwrap_or(-1);
+    let fresh = result.get("fresh").and_then(Value::as_bool) == Some(true);
+    let requests = if fresh {
+        "failed requests since the agent began watching it just now".to_string()
+    } else {
+        format!(
+            "failed requests since the agent attached {} ago",
+            result.get("since").and_then(Value::as_str).unwrap_or("?")
+        )
+    };
+    // Why exceptions and console errors could not be read, when they could not.
+    let note = result.get("note").and_then(Value::as_str);
+    let entries = result.get("entries").and_then(Value::as_array).cloned().unwrap_or_default();
+    if entries.is_empty() {
+        if let Some(note) = note {
+            return format!("no {requests} in tab {tab}\nnote: {note}");
+        }
+        let mut line = format!(
+            "no problems in tab {tab}: no uncaught exceptions or console errors logged since the page loaded, and no {requests}"
+        );
+        if fresh {
+            line.push_str(". A request that failed before then is not seen: repeat what went wrong, then call browser_page_errors again");
+        }
+        return line;
+    }
+    let mut header = format!(
+        "{} problem{} in tab {tab}: exceptions and console errors the page has logged since it loaded (Chrome keeps a limited number), and {requests}",
+        entries.len(),
+        if entries.len() == 1 { "" } else { "s" }
+    );
+    let dropped = result.get("dropped").and_then(Value::as_u64).unwrap_or(0);
+    if dropped > 0 {
+        header.push_str(&format!(
+            " ({dropped} older one{} dropped; the latest {} are kept)",
+            if dropped == 1 { "" } else { "s" },
+            result.get("limit").and_then(Value::as_u64).unwrap_or(50)
+        ));
+    }
+    header.push_str(". URLs are shown without query strings or fragments:");
+    let mut lines = vec![header];
+    for entry in entries {
+        let text = |key: &str| entry.get(key).and_then(Value::as_str).unwrap_or("");
+        let mut line = format!("  {} {} ago", text("kind"), text("ago"));
+        if entry.get("earlier").and_then(Value::as_bool) == Some(true) {
+            line.push_str(" (before the agent attached)");
+        }
+        line.push_str(&format!(": {}", text("text")));
+        if !text("url").is_empty() {
+            line.push_str(&format!("  [{}]", text("url")));
+        }
+        if let Some(repeats) = entry.get("repeats").and_then(Value::as_u64) {
+            line.push_str(&format!(" (repeated {repeats} times)"));
+        }
+        lines.push(line);
+    }
+    if let Some(note) = note {
+        lines.push(format!("note: {note}"));
+    }
+    lines.join("\n")
+}
+
 fn describe_snapshot(result: &Value) -> String {
     let mut lines = vec![format!(
         "{}  [{}]",
         result.get("title").and_then(Value::as_str).unwrap_or("?"),
         result.get("url").and_then(Value::as_str).unwrap_or("")
     )];
+    // A page paused behind a JavaScript dialog: the dialog comes first.
+    if let Some(dialog) = result.get("jsDialog") {
+        lines.push(format!(
+            "dialog open: {} — the page is paused until browser_handle_dialog answers it (dialog_id={})",
+            dialog_phrase(dialog),
+            dialog.get("id").and_then(Value::as_str).unwrap_or("?")
+        ));
+    }
+    if let Some(total) = result.get("total").and_then(Value::as_u64) {
+        let offset = result.get("offset").and_then(Value::as_u64).unwrap_or(0);
+        let limit = result.get("limit").and_then(Value::as_u64).unwrap_or(250);
+        let scope = result.get("scope").and_then(Value::as_str).unwrap_or("page");
+        lines.push(format!("scope: {scope}; offset={offset}, limit={limit}, total={total}"));
+        if let Some(dialog) = result.get("dialog").and_then(Value::as_str).filter(|name| !name.is_empty()) {
+            lines.push(format!("dialog: \"{dialog}\" — only its controls are listed"));
+        }
+        if result.get("truncated").and_then(Value::as_bool) == Some(true) {
+            if let Some(next) = result.get("nextOffset").and_then(Value::as_u64) {
+                lines.push(format!("truncated — continue with browser_snapshot offset={next}, limit={limit} (same tab_id/session_id; unchanged UI keeps indices)"));
+            }
+        }
+        if let Some(frames) = result.get("frames").and_then(Value::as_u64).filter(|&n| n > 0) {
+            lines.push(frames_note(frames, result.get("framesBlocked").and_then(Value::as_u64).unwrap_or(0)));
+        }
+        if let Some(empty) = result.get("empty").and_then(Value::as_str) {
+            lines.push(format!("note: {empty}"));
+        }
+    }
     for element in result
         .get("elements")
         .and_then(Value::as_array)
@@ -665,8 +1824,22 @@ fn describe_snapshot(result: &Value) -> String {
         .unwrap_or_default()
     {
         let label = element.get("label").and_then(Value::as_str).unwrap_or("");
+        // Checked, selected, disabled: what a person sees on the control.
+        let state = element
+            .get("state")
+            .and_then(Value::as_str)
+            .filter(|state| !state.is_empty())
+            .map(|state| format!(" ({state})"))
+            .unwrap_or_default();
+        // An element inside a frame says which one, so a chat's Send is not
+        // taken for the page's own.
+        let frame = element
+            .get("frame")
+            .and_then(Value::as_str)
+            .map(|frame| format!(" (in frame \"{frame}\")"))
+            .unwrap_or_default();
         lines.push(format!(
-            "  [{}] {}{}{}",
+            "  [{}] {}{}{state}{frame}{}",
             element.get("i").and_then(Value::as_i64).unwrap_or(-1),
             element.get("tag").and_then(Value::as_str).unwrap_or("?"),
             if label.is_empty() {
@@ -721,6 +1894,11 @@ pub fn run_native_host() -> std::io::Result<()> {
                 break;
             }
         }
+        // Chrome keeps stdin open for the native port, so backend EOF must end
+        // this relay process too, or Chrome never observes disconnect and the
+        // extension retains a dead port instead of reconnecting. Linux relays
+        // block on stdin the same way Windows ones do.
+        std::process::exit(0);
     });
 
     // Chrome → server.
@@ -747,16 +1925,245 @@ pub fn run_native_host() -> std::io::Result<()> {
 
 #[cfg(test)]
 mod tests {
-    use super::{BrowserBridge, describe, describe_snapshot, describe_tabs, normalise};
+    use super::{BrowserBridge, CallError, Hub, Link, call_timeout, check_upload_paths, describe, describe_browser_screenshot, describe_snapshot, describe_tabs, drop_connection, normalise, route};
+    use std::time::Instant;
     use serde_json::json;
+    use std::time::Duration;
+
+    #[test]
+    fn select_option_and_hover_say_what_happened() {
+        let chosen = describe(
+            "select_option",
+            &json!({ "selected": ["Large"], "changed": true, "target": "[7] select \"Size\"" }),
+            &json!({ "tab_id": 9, "index": 7, "values": ["large"] }),
+        );
+        assert_eq!(chosen, "[7] select \"Size\" in tab 9 now has \"Large\" selected — the page got its input and change events");
+        let same = describe("select_option", &json!({ "selected": ["A", "B"], "changed": false, "target": "[2] select" }), &json!({ "tab_id": 9 }));
+        assert!(same.contains("\"A\", \"B\" selected — it already had that"), "{same}");
+        assert_eq!(normalise("select_option", &json!({ "tab_id": 9, "index": 7, "values": ["a"] }))["values"], json!(["a"]));
+
+        let real = describe("hover", &json!({ "hovered": true, "route": "input", "target": "[3] a \"Products\"" }), &json!({ "tab_id": 4 }));
+        assert_eq!(real, "hovered over [3] a \"Products\" in tab 4 with the real mouse pointer; nothing was pressed");
+        let events = describe("hover", &json!({ "route": "page-events", "why": "the tab is in the background", "x": 10.4, "y": 20 }), &json!({ "tab_id": 4 }));
+        assert!(events.starts_with("hovered over (10, 20) in tab 4 as page events (the tab is in the background)"), "{events}");
+        let after = describe("hover", &json!({ "route": "input", "target": "[3] a", "snapshot": { "title": "Shop", "url": "https://shop.example/", "elements": [] } }), &json!({ "tab_id": 4 }));
+        assert!(after.contains("page after the action"), "{after}");
+    }
+
+    #[test]
+    fn read_shows_the_text_and_where_to_continue() {
+        let text = describe(
+            "read",
+            &json!({ "title": "Docs", "url": "https://d.example/", "text": "# Intro\nHello", "offset": 0, "end": 13, "total": 40 }),
+            &json!({ "tab_id": 3 }),
+        );
+        assert!(text.starts_with("Docs  [https://d.example/]"), "{text}");
+        assert!(text.contains("# Intro\nHello"), "{text}");
+        assert!(text.contains("offset=13"), "{text}");
+    }
+
+    #[test]
+    fn a_complete_read_does_not_offer_more() {
+        let text = describe(
+            "read",
+            &json!({ "title": "T", "url": "u", "text": "all", "offset": 0, "end": 3, "total": 3, "matches": 1, "links": [{ "text": "Home", "href": "https://h.example/" }] }),
+            &json!({}),
+        );
+        assert!(!text.contains("offset="), "{text}");
+        assert!(text.contains("1 matching line\n"), "{text}");
+        assert!(text.contains("Home  [https://h.example/]"), "{text}");
+    }
+
+    #[test]
+    fn an_empty_read_says_why_it_is_empty() {
+        let text = describe(
+            "read",
+            &json!({ "title": "Call", "url": "u", "text": "", "offset": 0, "end": 0, "total": 0, "note": "Chrome is not drawing this tab" }),
+            &json!({}),
+        );
+        assert!(text.contains("(no readable text on this page)\nnote: Chrome is not drawing this tab"), "{text}");
+    }
+
+    #[test]
+    fn credentials_report_what_happened_but_never_values() {
+        let args = json!({ "tab_id": 7, "fields": [{ "index": 2 }, { "index": 4 }] });
+        let filled = describe("request_credentials", &json!({ "origin": "https://a.example", "filled": [2, 4], "missing": [] }), &args);
+        assert!(filled.contains("filled 2 fields on https://a.example in tab 7"), "{filled}");
+        assert!(filled.contains("not shown to you"), "{filled}");
+        let cancelled = describe("request_credentials", &json!({ "origin": "https://a.example", "cancelled": true }), &args);
+        assert!(cancelled.contains("cancelled"), "{cancelled}");
+        let timed_out = describe("request_credentials", &json!({ "origin": "https://a.example", "timedOut": true }), &args);
+        assert!(timed_out.contains("did not answer"), "{timed_out}");
+    }
+
+    #[test]
+    fn an_action_with_return_state_carries_the_new_page() {
+        let text = describe(
+            "click",
+            &json!({ "snapshot": { "title": "Next", "url": "https://n.example/", "elements": [{ "i": 0, "tag": "button", "label": "Go", "inView": true }] } }),
+            &json!({ "tab_id": 5 }),
+        );
+        assert!(text.starts_with("clicked in tab 5"), "{text}");
+        assert!(text.contains("page after the action"), "{text}");
+        assert!(text.contains("[0] button \"Go\""), "{text}");
+    }
+
+    #[test]
+    fn an_indexed_click_says_what_it_pressed_and_how() {
+        let args = json!({ "tab_id": 5, "index": 12 });
+        let real = describe("click", &json!({ "route": "input", "target": "[12] div \"More\"" }), &args);
+        assert_eq!(real, "clicked in tab 5 — [12] div \"More\", with real mouse input");
+        let events = describe(
+            "click",
+            &json!({ "route": "page-events", "why": "the tab is in the background", "target": "[12] div \"More\"" }),
+            &args,
+        );
+        assert_eq!(events, "clicked in tab 5 — [12] div \"More\", as page events (the tab is in the background)");
+        // An older extension sends neither.
+        assert_eq!(describe("click", &json!({}), &args), "clicked in tab 5");
+    }
+
+    #[test]
+    fn new_arguments_reach_the_extension_under_its_names() {
+        let params = normalise(
+            "read",
+            &json!({ "tab_id": 1, "query": "price", "max_chars": 500, "offset": 20, "include_links": true, "return_state": true, "timeout_seconds": 99999 }),
+        );
+        assert_eq!(params["maxChars"], json!(500));
+        assert_eq!(params["includeLinks"], json!(true));
+        assert_eq!(params["returnState"], json!(true));
+        assert_eq!(params["query"], json!("price"));
+        assert_eq!(params["timeoutMs"], json!(600_000), "the wait is capped");
+    }
+
+    #[test]
+    fn readiness_arguments_and_headroom_reach_every_stateful_browser_command() {
+        let args = json!({ "tab_id": 1, "return_state": true, "wait_for_selector": "[role=dialog] button", "wait_timeout_ms": 10000 });
+        for command in ["click", "type", "press", "navigate", "snapshot"] {
+            let params = normalise(command, &args);
+            assert_eq!(params["waitForSelector"], args["wait_for_selector"]);
+            assert_eq!(params["waitTimeoutMs"], json!(10000));
+            assert_eq!(call_timeout(command, &args, false), Duration::from_secs(35));
+        }
+        assert_eq!(call_timeout("snapshot", &json!({ "wait_for_selector": "#ready" }), false), Duration::from_secs(35));
+        // Invalid values are preserved for extension validation before acting.
+        assert_eq!(normalise("click", &json!({ "wait_timeout_ms": -1 }))["waitTimeoutMs"], json!(-1));
+    }
+
+    #[test]
+    fn readiness_status_survives_action_and_snapshot_text_rendering() {
+        for status in ["met", "timeout", "error", "not_requested"] {
+            let readiness = json!({ "status": status, "condition": "visible_selector", "selector": "#ready", "elapsedMs": 100, "error": "invalid CSS selector" });
+            let snapshot = json!({ "title": "Current", "url": "https://s.example", "elements": [] });
+            let action = describe("click", &json!({ "ok": true, "snapshot": snapshot, "readiness": readiness }), &json!({ "tab_id": 1 }));
+            assert!(action.starts_with("clicked in tab 1"), "{action}");
+            let observation = describe("snapshot", &json!({ "title": "Current", "elements": [], "readiness": readiness }), &json!({}));
+            for text in [action, observation] {
+                assert!(text.contains(&format!("readiness: {status} (visible_selector, 100 ms)")), "{text}");
+                assert!(text.contains("selector=#ready"), "{text}");
+                assert!(text.contains("invalid CSS selector"), "{text}");
+                assert!(text.contains("Re-observe with browser_snapshot"), "{text}");
+            }
+        }
+    }
+
+    #[test]
+    fn prompts_get_more_time_than_plain_commands() {
+        assert_eq!(call_timeout("click", &json!({}), false), Duration::from_secs(20));
+        assert!(call_timeout("request_credentials", &json!({ "timeout_seconds": 300 }), false) > Duration::from_secs(300));
+        assert!(call_timeout("click", &json!({}), true) > Duration::from_secs(120));
+        assert!(call_timeout("navigate", &json!({ "return_state": true }), false) > Duration::from_secs(20));
+    }
 
     #[test]
     fn an_unconnected_bridge_points_at_the_working_alternative() {
-        let mut bridge = BrowserBridge::new();
+        let mut bridge = BrowserBridge::inert();
         let error = bridge.call("open_tab", &json!({})).unwrap_err();
 
         assert!(error.contains("browser_open_tab"), "names the tool: {error}");
         assert!(error.contains("get_app_state"), "offers a path: {error}");
+    }
+
+    // #28: the owner of the bridge says so, and how long Chrome has been away.
+    #[test]
+    fn an_owner_without_a_native_host_says_which_link_is_missing() {
+        let hub = Hub::new();
+        *super::lock(&hub.owned_since) = Some(Instant::now() - Duration::from_secs(300));
+        let error = hub.explain("open_tab", &json!({ "session_id": "acceptance" }), CallError::Link(Link::NoHost));
+        assert!(error.contains(&format!("(pid {}) owns the browser bridge", std::process::id())), "{error}");
+        assert!(error.contains("none has connected since it took the bridge 5m ago"), "{error}");
+        assert!(error.contains("session_id \"acceptance\" is not the cause"), "{error}");
+        assert!(error.contains("check-native-host") && error.contains("chrome://extensions"), "{error}");
+
+        {
+            let mut host = super::lock(&hub.host);
+            host.connections = 2;
+            host.changed_at = Some(Instant::now() - Duration::from_secs(12));
+        }
+        let error = hub.explain("open_tab", &json!({}), CallError::Link(Link::NoHost));
+        assert!(error.contains("the last one disconnected 12s ago, after 2 connections"), "{error}");
+        assert!(!error.contains("session_id"), "no session, no session note: {error}");
+    }
+
+    // #28: the reported case — a peer whose owner has no extension connection.
+    #[test]
+    fn a_peer_names_the_bridge_owner_that_cannot_reach_chrome() {
+        let hub = Hub::new();
+        let (waiter, reply) = std::sync::mpsc::sync_channel(1);
+        super::lock(&hub.rpc_pending).insert(9, waiter);
+        let line = json!({
+            "id": 9,
+            "ok": false,
+            "error": "Chrome's native host is not connected to it — none has connected since it took the bridge 2h ago",
+            "link": { "kind": "no_host", "pid": 4242, "version": "0.6.1" },
+        });
+        route(&hub.rpc_pending, &line.to_string(), true);
+        let error = hub.explain("open_tab", &json!({ "session_id": "s1" }), reply.recv().unwrap().unwrap_err());
+        assert!(error.contains("through the browser bridge owner (pid 4242, munim-computer-use 0.6.1"), "{error}");
+        assert!(error.contains("none has connected since it took the bridge 2h ago"), "{error}");
+        assert!(error.contains("If pid 4242 is a stale MCP server"), "{error}");
+        assert!(error.contains("session_id \"s1\" is not the cause"), "{error}");
+    }
+
+    #[test]
+    fn an_old_owners_bare_disconnect_is_still_read_as_a_link_error() {
+        let hub = Hub::new();
+        let (waiter, reply) = std::sync::mpsc::sync_channel(1);
+        super::lock(&hub.rpc_pending).insert(3, waiter);
+        route(&hub.rpc_pending, r#"{"id":3,"ok":false,"error":"the extension disconnected"}"#, true);
+        let error = hub.explain("open_tab", &json!({}), reply.recv().unwrap().unwrap_err());
+        assert!(error.contains("through the browser bridge owner (another MCP server)"), "{error}");
+        assert!(error.contains("next: retry once. If it fails the same way"), "{error}");
+    }
+
+    #[test]
+    fn extension_errors_pass_through_unchanged() {
+        let hub = Hub::new();
+        let (waiter, reply) = std::sync::mpsc::sync_channel(1);
+        super::lock(&hub.pending).insert(1, waiter);
+        // A link-shaped field from the extension itself is not an owner's report.
+        route(&hub.pending, r#"{"id":1,"ok":false,"error":"no agent tab 5","link":{"kind":"no_host"}}"#, false);
+        let error = hub.explain("close_tab", &json!({}), reply.recv().unwrap().unwrap_err());
+        assert_eq!(error, "no agent tab 5");
+    }
+
+    #[test]
+    fn a_host_lost_mid_call_wakes_the_call_and_says_to_retry_once() {
+        let hub = Hub::new();
+        *super::lock(&hub.owned_since) = Some(Instant::now());
+        let (waiter, reply) = std::sync::mpsc::sync_channel(1);
+        super::lock(&hub.pending).insert(1, waiter);
+        drop_connection(&hub.extension, &hub.pending, &Link::HostDropped);
+        let error = hub.explain("click", &json!({}), reply.recv().unwrap().unwrap_err());
+        assert!(error.contains("disconnected from this MCP server"), "{error}");
+        assert!(error.contains("retry once") && error.contains("browser_snapshot"), "{error}");
+    }
+
+    #[test]
+    fn ages_read_at_a_glance() {
+        assert_eq!(super::ago(Duration::from_secs(12)), "12s");
+        assert_eq!(super::ago(Duration::from_secs(300)), "5m");
+        assert_eq!(super::ago(Duration::from_secs(7200)), "2h");
     }
 
     #[test]
@@ -871,6 +2278,84 @@ mod tests {
     }
 
     #[test]
+    fn frames_the_extension_could_not_search_are_named() {
+        let snapshot = describe("snapshot", &json!({ "title": "Profile", "elements": [], "total": 0, "frames": 2, "readiness": {
+            "status": "timeout", "condition": "visible_selector", "selector": "[role=dialog]", "elapsedMs": 3000, "frames": 1 } }), &json!({}));
+        assert!(snapshot.contains("note: 2 embedded frames on the page were not searched — controls inside them are not listed here; browser_screenshot shows the tab"), "{snapshot}");
+        assert!(!snapshot.contains("take a screenshot"), "{snapshot}");
+        assert!(snapshot.contains("selector=[role=dialog] — not searched: 1 embedded frame;"), "{snapshot}");
+        let plain = describe("snapshot", &json!({ "title": "Profile", "elements": [], "total": 0, "frames": 0 }), &json!({}));
+        assert!(!plain.contains("embedded frame"), "{plain}");
+    }
+
+    #[test]
+    fn elements_inside_frames_say_which_frame() {
+        let snapshot = describe(
+            "snapshot",
+            &json!({ "title": "Support", "url": "https://support.example/", "total": 2, "frames": 1, "framesBlocked": 1, "framesSearched": 1,
+                "elements": [
+                    { "i": 0, "tag": "button", "label": "Contact", "inView": true },
+                    { "i": 1, "tag": "button", "label": "Send", "frame": "Support Widget", "inView": true }
+                ],
+                "readiness": { "status": "met", "condition": "visible_selector", "selector": ".reply", "elapsedMs": 40, "frame": "Support Widget" } }),
+            &json!({}),
+        );
+        assert!(snapshot.contains("  [0] button \"Contact\"\n"), "{snapshot}");
+        assert!(snapshot.ends_with("  [1] button \"Send\" (in frame \"Support Widget\")"), "{snapshot}");
+        assert!(snapshot.contains("selector=.reply in frame \"Support Widget\";"), "{snapshot}");
+        assert!(snapshot.contains("1 embedded frame on the page was not searched (1 of them not allowed by the user's site rules)"), "{snapshot}");
+        let read = describe("read", &json!({ "title": "Support", "url": "u", "text": "Hi\n\n[frame \"Support Widget\"]\nHello", "total": 34, "frames": 2 }), &json!({}));
+        assert!(read.contains("[frame \"Support Widget\"]\nHello"), "{read}");
+        assert!(read.contains("note: 2 embedded frames on the page could not be read"), "{read}");
+    }
+
+    #[test]
+    fn a_browser_screenshot_says_how_to_click_what_it_shows() {
+        let caption = describe_browser_screenshot(
+            7,
+            &json!({ "width": 700, "height": 450, "cssWidth": 1400, "cssHeight": 900, "mimeType": "image/jpeg" }),
+        );
+        assert_eq!(
+            caption,
+            "tab 7 as Chrome shows it, captured in the background: page 1400×900 CSS px; image 700×450 px (0.500 px per CSS px). \
+             To click something seen at image pixel (px, py): browser_click x = px / 0.500, y = py / 0.500. \
+             Prefer an index from browser_snapshot when the target is listed there."
+        );
+        let old = describe_browser_screenshot(7, &json!({ "data": "aGk=" }));
+        assert!(old.contains("older than this server"), "{old}");
+    }
+
+    #[test]
+    fn screenshot_options_reach_the_extension_under_its_names() {
+        let params = normalise("screenshot", &json!({ "tab_id": 3, "format": "jpeg", "quality": 70, "max_width": 800, "session_id": "s" }));
+        assert_eq!(params, json!({ "tabId": 3, "format": "jpeg", "quality": 70, "maxWidth": 800, "sessionId": "s" }));
+    }
+
+    #[test]
+    fn snapshot_pagination_is_forwarded_and_described() {
+        let params = normalise("snapshot", &json!({"tab_id": 7, "offset": 250, "limit": 20}));
+        assert_eq!(params["offset"], 250);
+        assert_eq!(params["limit"], 20);
+        let result = json!({
+            "title": "Many controls", "url": "https://example.com/", "scope": "modal", "dialog": "Share Recording",
+            "offset": 250, "limit": 20, "total": 300, "truncated": true, "nextOffset": 270,
+            "elements": [{"i": 250, "tag": "button", "label": "Next", "inView": true}]
+        });
+        let text = describe_snapshot(&result);
+        assert!(text.contains("scope: modal; offset=250, limit=20, total=300"));
+        // #71: the dialog the snapshot is scoped to is named.
+        assert!(text.contains("dialog: \"Share Recording\" — only its controls are listed"), "{text}");
+        assert!(text.contains("truncated — continue with browser_snapshot offset=270, limit=20"));
+        assert!(text.contains("[250] button \"Next\""));
+        let last = describe_snapshot(&json!({"total": 300, "offset": 300, "truncated": false}));
+        // An extension older than the server answers without readiness/total.
+        assert!(super::describe_readiness(&json!({ "elements": [] })).contains("older than this server"));
+        assert!(super::describe_readiness(&json!({ "snapshot": {} })).contains("older than this server"));
+        assert_eq!(super::describe_readiness(&json!({ "elements": [], "total": 0 })), "");
+        assert!(!last.contains("continue with"));
+    }
+
+    #[test]
     fn snapshots_flag_offscreen_elements() {
         let rendered = describe_snapshot(&json!({
             "title": "Page",
@@ -907,15 +2392,84 @@ mod tests {
     }
 
     #[test]
+    fn fill_and_key_presses_say_what_the_field_holds_and_what_was_sent() {
+        let args = json!({ "tab_id": 9, "index": 4, "text": "New words" });
+        assert_eq!(
+            describe("fill", &json!({ "target": "[4] textarea \"About\"", "matches": true }), &args),
+            "filled [4] textarea \"About\" in tab 9 with 9 characters, replacing its value"
+        );
+        let limited = describe(
+            "fill",
+            &json!({ "target": "[4] input", "matches": false, "actualLength": 3, "value": "New" }),
+            &args,
+        );
+        assert!(limited.contains("but the field now holds 3 characters that differ from the text: \"New\""), "{limited}");
+        assert_eq!(
+            describe("fill", &json!({ "target": "[4] input", "matches": true }), &json!({ "tab_id": 9, "text": "" })),
+            "cleared [4] input in tab 9"
+        );
+        let pressed = describe(
+            "press",
+            &json!({ "pressed": "Ctrl+A", "focused": "[4] textarea", "selected": 1612, "note": "sent Cmd+A as Ctrl+A" }),
+            &json!({ "tab_id": 9, "key": "a", "modifiers": ["cmd"] }),
+        );
+        assert_eq!(
+            pressed,
+            "pressed Ctrl+A in tab 9 — focus is now on [4] textarea with 1612 characters selected — sent Cmd+A as Ctrl+A"
+        );
+        let params = normalise("press", &json!({ "tab_id": 9, "key": "a", "modifiers": ["cmd"] }));
+        assert_eq!(params["modifiers"], json!(["cmd"]));
+    }
+
+    #[test]
+    fn checkbox_state_shows_in_snapshots_and_after_a_click() {
+        let snapshot = describe_snapshot(&json!({
+            "title": "Users", "url": "https://play.example/users",
+            "elements": [
+                { "i": 3, "tag": "input[checkbox]", "label": "Admin (all permissions)", "state": "unchecked", "inView": true },
+                { "i": 10, "tag": "input[checkbox]", "label": "Release apps", "state": "checked, disabled", "inView": false }
+            ]
+        }));
+        assert!(snapshot.contains("[3] input[checkbox] \"Admin (all permissions)\" (unchecked)"), "{snapshot}");
+        assert!(snapshot.contains("[10] input[checkbox] \"Release apps\" (checked, disabled)  (scrolled out of view)"), "{snapshot}");
+        let clicked = describe(
+            "click",
+            &json!({ "route": "input", "target": "[10] input[checkbox] \"Release apps\"", "state": "checked" }),
+            &json!({ "tab_id": 9, "index": 10 }),
+        );
+        assert_eq!(clicked, "clicked in tab 9 — [10] input[checkbox] \"Release apps\", with real mouse input — it is now checked");
+    }
+
+    #[test]
     fn action_confirmations_name_the_tab_they_acted_on() {
         // "click ok" tells a model nothing; these mirror the macOS wording.
         let tab = json!({ "tab_id": 9 });
         assert_eq!(describe("click", &json!({}), &tab), "clicked in tab 9");
-        assert_eq!(describe("select_tab", &json!({}), &tab), "switched the agent group to tab 9");
+        assert!(describe("select_tab", &json!({}), &tab).starts_with("asked Chrome to select tab 9"));
+        assert_eq!(
+            describe("select_tab", &json!({ "tabId": 9, "activated": true }), &tab),
+            "tab 9 is reported active by Chrome; page rendering is not verified"
+        );
+        let background = describe("select_tab", &json!({ "tabId": 9, "activated": false }), &tab);
+        assert!(background.starts_with("tab 9 was NOT brought to front"), "{background}");
+        assert!(background.contains("bring_to_front=true interrupts them"), "{background}");
+        assert!(background.contains("browser_screenshot"), "{background}");
+        assert_eq!(
+            describe("select_tab", &json!({ "tabId": 9, "activated": true, "windowFocused": true }), &tab),
+            "tab 9 is reported active by Chrome and its window was brought to front; page rendering is not verified"
+        );
         assert_eq!(describe("close_tab", &json!({}), &tab), "closed tab 9");
         assert_eq!(
             describe("press", &json!({}), &json!({ "tab_id": 9, "key": "Enter" })),
             "pressed Enter in tab 9"
+        );
+        assert_eq!(
+            describe(
+                "press",
+                &json!({ "pressed": "Tab", "focused": "[7] input \"Privacy policy\"" }),
+                &json!({ "tab_id": 9, "key": "Tab" })
+            ),
+            "pressed Tab in tab 9 — focus is now on [7] input \"Privacy policy\""
         );
         assert_eq!(
             describe("type", &json!({}), &json!({ "tab_id": 9, "text": "hello" })),
@@ -935,5 +2489,202 @@ mod tests {
             &json!({}),
         );
         assert!(rendered.contains("Example Domain"), "{rendered}");
+    }
+
+    #[test]
+    fn upload_paths_are_checked_on_this_computer_before_anything_is_sent() {
+        let dir = std::env::temp_dir().join(format!("cu-upload-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).expect("temp dir");
+        let file = dir.join("resume.pdf");
+        std::fs::write(&file, b"%PDF-1.4").expect("temp file");
+        let file = file.to_string_lossy().into_owned();
+        let missing = dir.join("missing.pdf").to_string_lossy().into_owned();
+        let folder = dir.to_string_lossy().into_owned();
+        let check = |paths: serde_json::Value| check_upload_paths(&json!({ "tab_id": 1, "index": 2, "paths": paths }));
+
+        assert_eq!(check(json!([file.clone()])), Ok(()));
+        assert_eq!(check(json!([file.clone(), file.clone()])), Ok(()));
+        let error = check(json!([file.clone(), missing.clone()])).unwrap_err();
+        assert!(error.starts_with(&format!("not attached: {missing} does not exist on this computer")), "{error}");
+        assert!(error.contains("on the computer running Chrome and this server"), "{error}");
+        assert!(check(json!([folder])).unwrap_err().contains("is a folder, not a file"));
+        assert!(check(json!(["resume.pdf"])).unwrap_err().contains("is not an absolute path"));
+        assert!(check(json!([])).unwrap_err().starts_with("paths must list 1 to 50"));
+        assert!(check(json!(vec![file.clone(); 51])).unwrap_err().starts_with("paths must list 1 to 50"));
+        assert!(check(json!([""])).unwrap_err().starts_with("paths[0] must be a nonempty string"));
+        assert!(check(json!([7])).unwrap_err().starts_with("paths[0] must be a nonempty string"));
+        assert!(check_upload_paths(&json!({ "tab_id": 1, "index": 2 })).unwrap_err().contains("missing required argument 'paths'"));
+
+        // The check runs before the bridge is consulted: a missing file is
+        // reported as missing even with no Chrome connected.
+        let mut bridge = BrowserBridge::inert();
+        let error = bridge
+            .call("upload_file", &json!({ "tab_id": 1, "index": 2, "paths": [missing.clone()] }))
+            .unwrap_err();
+        assert!(error.contains("does not exist on this computer"), "{error}");
+        // The paths travel to the extension as given.
+        let params = normalise("upload_file", &json!({ "tab_id": 1, "index": 2, "paths": [file.clone()] }));
+        assert_eq!(params["paths"], json!([file]));
+        assert_eq!(params["index"], json!(2));
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn upload_says_what_the_input_holds_and_that_nothing_was_submitted() {
+        let args = json!({ "tab_id": 9, "index": 4, "paths": ["/tmp/a.txt", "/tmp/b.png"] });
+        let text = describe(
+            "upload_file",
+            &json!({ "attached": true, "target": "[4] input[file] \"Attachments\"", "files": ["a.txt", "b.png"], "count": 2,
+                     "events": { "input": true, "change": true } }),
+            &args,
+        );
+        assert!(
+            text.starts_with("attached 2 files to [4] input[file] \"Attachments\" in tab 9: a.txt, b.png — the page got its change event."),
+            "{text}"
+        );
+        assert!(text.contains("Nothing was submitted"), "{text}");
+        assert!(text.contains("the site has not received them"), "{text}");
+        let quiet = describe(
+            "upload_file",
+            &json!({ "target": "[4] input[file]", "files": ["a.txt"], "events": { "input": false, "change": false } }),
+            &args,
+        );
+        assert!(quiet.starts_with("attached 1 file to [4] input[file] in tab 9: a.txt — but 2 were sent"), "{quiet}");
+        assert!(quiet.contains("the page got no change event"), "{quiet}");
+        // return_state appends the page after the action, like every action.
+        let with_state = describe(
+            "upload_file",
+            &json!({ "target": "[4] input[file]", "files": ["a.txt", "b.png"], "events": { "change": true },
+                     "readiness": { "status": "not_requested", "condition": "document_load", "elapsedMs": 400 },
+                     "snapshot": { "title": "Upload", "url": "https://a.example/", "elements": [], "total": 0 } }),
+            &args,
+        );
+        assert!(with_state.contains("page after the action"), "{with_state}");
+    }
+
+    #[test]
+    fn dialog_arguments_reach_the_extension_under_its_names() {
+        let params = normalise(
+            "handle_dialog",
+            &json!({ "tab_id": 4, "action": "accept", "prompt_text": "Hardware", "dialog_id": "d3", "session_id": "t1" }),
+        );
+        assert_eq!(params, json!({ "tabId": 4, "action": "accept", "promptText": "Hardware", "dialogId": "d3", "sessionId": "t1" }));
+    }
+
+    #[test]
+    fn a_snapshot_of_a_paused_page_names_the_dialog_first() {
+        let dialog = json!({ "id": "d3", "type": "prompt", "message": "Name the list", "defaultPrompt": "Groceries" });
+        let snapshot = json!({ "title": "Lists", "url": "https://l.example/", "elements": [], "total": 0, "jsDialog": dialog,
+            "empty": "nothing is listed while the page waits on its JavaScript prompt dialog (d3); answer it with browser_handle_dialog" });
+        let text = describe("snapshot", &snapshot, &json!({ "tab_id": 2 }));
+        let lines: Vec<&str> = text.lines().collect();
+        assert_eq!(lines[0], "Lists  [https://l.example/]");
+        assert_eq!(
+            lines[1],
+            "dialog open: JavaScript prompt dialog d3: \"Name the list\" (default text \"Groceries\") — the page is paused until browser_handle_dialog answers it (dialog_id=d3)"
+        );
+        assert!(text.contains("note: nothing is listed while the page waits"), "{text}");
+        // The page after an action shows it the same way.
+        let after = describe(
+            "click",
+            &json!({ "snapshot": snapshot, "readiness": { "status": "not_requested", "condition": "document_load", "elapsedMs": 1 } }),
+            &json!({ "tab_id": 2 }),
+        );
+        assert!(after.contains("dialog open: JavaScript prompt dialog d3"), "{after}");
+    }
+
+    #[test]
+    fn an_action_that_opened_a_dialog_says_so() {
+        let note = "the page opened a JavaScript alert dialog d4: \"Saved\" and is paused until it is answered: call browser_handle_dialog with dialog_id=d4 to accept or dismiss it";
+        for command in ["click", "press", "type", "navigate"] {
+            let text = describe(
+                command,
+                &json!({ "jsDialog": { "id": "d4", "type": "alert", "message": "Saved" }, "note": note, "pressed": "Enter" }),
+                &json!({ "tab_id": 6, "text": "hi", "url": "https://a.test", "key": "Enter" }),
+            );
+            assert!(text.ends_with(&format!(" — {note}")), "{command}: {text}");
+        }
+    }
+
+    #[test]
+    fn an_answered_dialog_says_what_was_answered_and_what_came_next() {
+        let accepted = describe(
+            "handle_dialog",
+            &json!({ "tabId": 5, "action": "accept", "dialog": { "id": "d3", "type": "prompt", "message": "Name the list", "defaultPrompt": "" }, "promptChars": 8 }),
+            &json!({}),
+        );
+        assert_eq!(
+            accepted,
+            "accepted the dialog in tab 5 — JavaScript prompt dialog d3: \"Name the list\", entering 8 characters. The page runs again; browser_snapshot to see it"
+        );
+        let chained = describe(
+            "handle_dialog",
+            &json!({ "tabId": 5, "action": "dismiss", "dialog": { "id": "d5", "type": "confirm", "message": "Delete?" }, "next": { "id": "d6", "type": "alert", "message": "Kept" } }),
+            &json!({}),
+        );
+        assert_eq!(
+            chained,
+            "dismissed the dialog in tab 5 — JavaScript confirm dialog d5: \"Delete?\". The page opened another at once: JavaScript alert dialog d6: \"Kept\" — it is paused until browser_handle_dialog answers that one too (dialog_id=d6)"
+        );
+        let kept = describe(
+            "handle_dialog",
+            &json!({ "tabId": 5, "action": "accept", "dialog": { "id": "d7", "type": "prompt", "message": "Name", "defaultPrompt": "List" }, "promptDefault": true }),
+            &json!({}),
+        );
+        assert!(kept.contains("(default text \"List\"), keeping its default text."), "{kept}");
+    }
+
+    #[test]
+    fn page_errors_list_each_problem_and_when_watching_began() {
+        let text = describe(
+            "page_errors",
+            &json!({ "tabId": 8, "since": "4m", "limit": 50, "dropped": 2, "entries": [
+                { "kind": "request", "ago": "5m", "text": "HTTP 404 Not Found", "url": "https://s.example/old.png", "earlier": true },
+                { "kind": "console.error", "ago": "5m", "text": "boot failed" },
+                { "kind": "exception", "ago": "12s", "text": "Uncaught TypeError: x is null", "url": "https://s.example/app.js:12:5" },
+                { "kind": "request", "ago": "11s", "text": "HTTP 500 Internal Server Error", "url": "https://api.example/orders", "repeats": 3 }
+            ] }),
+            &json!({ "tab_id": 8 }),
+        );
+        assert_eq!(
+            text,
+            [
+                "4 problems in tab 8: exceptions and console errors the page has logged since it loaded (Chrome keeps a limited number), and failed requests since the agent attached 4m ago (2 older ones dropped; the latest 50 are kept). URLs are shown without query strings or fragments:",
+                "  request 5m ago (before the agent attached): HTTP 404 Not Found  [https://s.example/old.png]",
+                "  console.error 5m ago: boot failed",
+                "  exception 12s ago: Uncaught TypeError: x is null  [https://s.example/app.js:12:5]",
+                "  request 11s ago: HTTP 500 Internal Server Error  [https://api.example/orders] (repeated 3 times)",
+            ]
+            .join("\n")
+        );
+    }
+
+    #[test]
+    fn a_clean_page_says_so_and_a_fresh_capture_says_it_just_began() {
+        let clean = describe("page_errors", &json!({ "tabId": 8, "since": "2m", "limit": 50, "dropped": 0, "entries": [] }), &json!({}));
+        assert_eq!(
+            clean,
+            "no problems in tab 8: no uncaught exceptions or console errors logged since the page loaded, and no failed requests since the agent attached 2m ago"
+        );
+        let fresh = describe(
+            "page_errors",
+            &json!({ "tabId": 8, "since": "0s", "fresh": true, "limit": 50, "dropped": 0, "entries": [] }),
+            &json!({}),
+        );
+        assert!(fresh.contains("and no failed requests since the agent began watching it just now"), "{fresh}");
+        assert!(fresh.ends_with("repeat what went wrong, then call browser_page_errors again"), "{fresh}");
+    }
+
+    #[test]
+    fn page_errors_say_why_exceptions_could_not_be_read() {
+        let note = "exceptions and console errors cannot be read while the page waits on JavaScript dialog d2";
+        let empty = describe("page_errors", &json!({ "tabId": 8, "since": "1m", "note": note, "entries": [] }), &json!({}));
+        assert_eq!(empty, format!("no failed requests since the agent attached 1m ago in tab 8\nnote: {note}"));
+        let listed = describe(
+            "page_errors",
+            &json!({ "tabId": 8, "since": "1m", "note": note, "entries": [{ "kind": "request", "ago": "3s", "text": "HTTP 403 Forbidden" }] }),
+            &json!({}),
+        );
+        assert!(listed.ends_with(&format!("  request 3s ago: HTTP 403 Forbidden\nnote: {note}")), "{listed}");
     }
 }

@@ -8,7 +8,8 @@
 //! X11/`xcb` when `DISPLAY` is set. Display capture uses `xcap` only; list and
 //! capture stay consistent (no grim-only displays advertised without capture).
 
-use image::{ImageEncoder, RgbaImage, codecs::jpeg::JpegEncoder, codecs::png::PngEncoder, imageops::FilterType};
+use image::codecs::png::{CompressionType, FilterType as PngFilter, PngEncoder};
+use image::{ImageEncoder, RgbaImage, imageops::FilterType};
 use xcap::{Monitor, Window};
 
 use crate::platform::{DesktopError, Result};
@@ -37,14 +38,21 @@ pub const DEFAULT_MAX_WIDTH: u32 = 1400;
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum CaptureFormat {
     Png,
-    Jpeg,
+    /// JPEG at this quality (1-100).
+    Jpeg(u8),
 }
 
+/// JPEG quality when the caller does not ask for one: small enough for a live
+/// stream, still legible for text.
+pub const DEFAULT_JPEG_QUALITY: u8 = 55;
+
 impl CaptureFormat {
-    pub fn parse(value: Option<&str>) -> Result<Self> {
+    pub fn parse(value: Option<&str>, quality: Option<i64>) -> Result<Self> {
         match value.unwrap_or("png").to_ascii_lowercase().as_str() {
             "png" => Ok(Self::Png),
-            "jpeg" | "jpg" => Ok(Self::Jpeg),
+            "jpeg" | "jpg" => Ok(Self::Jpeg(
+                quality.map_or(DEFAULT_JPEG_QUALITY, |quality| quality.clamp(1, 100) as u8),
+            )),
             other => Err(DesktopError::new(format!(
                 "unsupported screenshot format '{other}' — use png or jpeg"
             ))),
@@ -54,44 +62,67 @@ impl CaptureFormat {
     pub fn mime_type(self) -> &'static str {
         match self {
             Self::Png => "image/png",
-            Self::Jpeg => "image/jpeg",
+            Self::Jpeg(_) => "image/jpeg",
         }
     }
 }
 
-fn encode_image(image: RgbaImage, max_width: u32, format: CaptureFormat) -> Result<Vec<u8>> {
-    let image = if max_width > 0 && image.width() > max_width {
-        let height = ((image.height() as f64) * (max_width as f64) / (image.width() as f64))
-            .round()
-            .max(1.0) as u32;
-        image::imageops::resize(&image, max_width, height, FilterType::Triangle)
-    } else {
-        image
-    };
+/// The size `width`×`height` becomes when scaled to `max_width`, keeping its
+/// aspect; unchanged when it already fits or `max_width` is 0.
+fn scaled_size(width: u32, height: u32, max_width: u32) -> Option<(u32, u32)> {
+    (max_width > 0 && width > max_width).then(|| {
+        let scaled = ((height as f64) * (max_width as f64) / (width as f64)).round().max(1.0) as u32;
+        (max_width, scaled)
+    })
+}
 
+/// Scale a capture down to `max_width`, keeping its aspect.
+///
+/// Bilinear, like the `image` crate's Triangle filter it replaces, but with
+/// SIMD convolution (AVX2/SSE4.1/NEON, picked at run time): a 2560-wide
+/// capture to 1400 went from ~57 ms to ~13 ms, and resizing was most of a
+/// screenshot's encode time. Channels are filtered independently, as before.
+pub(crate) fn downscale(image: RgbaImage, max_width: u32) -> RgbaImage {
+    let Some((width, height)) = scaled_size(image.width(), image.height(), max_width) else {
+        return image;
+    };
+    resize_rgba(&image, width, height)
+        .unwrap_or_else(|| image::imageops::resize(&image, width, height, FilterType::Triangle))
+}
+
+/// Resize RGBA pixels with `fast_image_resize`; None if it refuses the sizes.
+pub(crate) fn resize_rgba(image: &RgbaImage, width: u32, height: u32) -> Option<RgbaImage> {
+    use fast_image_resize as fr;
+    let source = fr::images::ImageRef::new(image.width(), image.height(), image.as_raw(), fr::PixelType::U8x4).ok()?;
+    let mut target = fr::images::Image::new(width, height, fr::PixelType::U8x4);
+    let options = fr::ResizeOptions::new().resize_alg(fr::ResizeAlg::Convolution(fr::FilterType::Bilinear));
+    fr::Resizer::new().resize(&source, &mut target, &options).ok()?;
+    RgbaImage::from_raw(width, height, target.into_vec())
+}
+
+fn encode_image(image: RgbaImage, max_width: u32, format: CaptureFormat) -> Result<Vec<u8>> {
+    let image = downscale(image, max_width);
+    let (width, height) = image.dimensions();
     let mut buffer = Vec::new();
     match format {
         CaptureFormat::Png => {
-            PngEncoder::new(&mut buffer)
-                .write_image(
-                    image.as_raw(),
-                    image.width(),
-                    image.height(),
-                    image::ExtendedColorType::Rgba8,
-                )
+            // RGBA as captured: dropping alpha first made PNGs ~10% smaller but
+            // cost more in conversion (fresh pages on Windows) than it saved.
+            PngEncoder::new_with_quality(&mut buffer, CompressionType::Fast, PngFilter::Adaptive)
+                .write_image(image.as_raw(), width, height, image::ExtendedColorType::Rgba8)
                 .map_err(|error| DesktopError::new(format!("failed to encode PNG: {error}")))?;
         }
-        CaptureFormat::Jpeg => {
-            // JPEG has no alpha; flatten onto black so translucent chrome does not
-            // become opaque white noise.
-            let rgb = image::DynamicImage::ImageRgba8(image).to_rgb8();
-            JpegEncoder::new_with_quality(&mut buffer, 55)
-                .write_image(
-                    rgb.as_raw(),
-                    rgb.width(),
-                    rgb.height(),
-                    image::ExtendedColorType::Rgb8,
-                )
+        CaptureFormat::Jpeg(quality) => {
+            // `jpeg-encoder` with its AVX2 path (picked at run time): about a
+            // third of the `image` crate's encoder time, and it reads RGBA
+            // as is. JPEG has no alpha channel, so alpha is dropped.
+            let (Ok(w), Ok(h)) = (u16::try_from(width), u16::try_from(height)) else {
+                return Err(DesktopError::new(format!(
+                    "a {width}×{height} capture is too large for JPEG — pass a smaller max_width"
+                )));
+            };
+            jpeg_encoder::Encoder::new(&mut buffer, quality.clamp(1, 100))
+                .encode(image.as_raw(), w, h, jpeg_encoder::ColorType::Rgba)
                 .map_err(|error| DesktopError::new(format!("failed to encode JPEG: {error}")))?;
         }
     }
@@ -117,19 +148,77 @@ fn list_displays_inner() -> Result<String> {
     }
 
     let mut lines = Vec::new();
-    for (index, monitor) in monitors.iter().enumerate() {
+    for (index, (monitor, frame)) in monitors.iter().zip(display_frames(&monitors)).enumerate() {
         let name = monitor.name().unwrap_or_else(|_| format!("display {index}"));
-        let width = monitor.width().unwrap_or(0);
-        let height = monitor.height().unwrap_or(0);
-        let x = monitor.x().unwrap_or(0);
-        let y = monitor.y().unwrap_or(0);
         let primary = monitor.is_primary().unwrap_or(false);
         lines.push(format!(
-            "[{index}] {name}  {width}x{height}  at ({x},{y}){}",
+            "[{index}] {name}  {:.0}x{:.0}  at ({:.0},{:.0}){}",
+            frame.width,
+            frame.height,
+            frame.x,
+            frame.y,
             if primary { "  PRIMARY" } else { "" }
         ));
     }
     Ok(lines.join("\n"))
+}
+
+/// Where each display sits, in the coordinates click/hover/drag take.
+///
+/// On Linux those are X screen pixels, because input goes through XTEST. xcap
+/// divides its monitor geometry by a scale factor (Xft.dpi / 96 on X11, the
+/// physical-to-logical ratio on Wayland), and GNOME runs Xwayland at a
+/// different size again, so read the RandR monitors ourselves (#41).
+fn display_frames(monitors: &[Monitor]) -> Vec<CaptureFrame> {
+    #[cfg(target_os = "linux")]
+    let randr = randr_monitors();
+    monitors
+        .iter()
+        .map(|monitor| {
+            #[cfg(target_os = "linux")]
+            if let Some(frame) = monitor.id().ok().and_then(|output| randr_frame(&randr, output)) {
+                return frame;
+            }
+            CaptureFrame {
+                x: f64::from(monitor.x().unwrap_or(0)),
+                y: f64::from(monitor.y().unwrap_or(0)),
+                width: f64::from(monitor.width().unwrap_or(0)),
+                height: f64::from(monitor.height().unwrap_or(0)),
+            }
+        })
+        .collect()
+}
+
+#[cfg(target_os = "linux")]
+fn randr_monitors() -> Vec<x11rb::protocol::randr::MonitorInfo> {
+    use x11rb::connection::Connection;
+    use x11rb::protocol::randr::ConnectionExt as _;
+
+    let Ok((connection, screen)) = x11rb::connect(None) else {
+        return Vec::new();
+    };
+    let Some(root) = connection.setup().roots.get(screen).map(|screen| screen.root) else {
+        return Vec::new();
+    };
+    connection
+        .randr_get_monitors(root, true)
+        .ok()
+        .and_then(|cookie| cookie.reply().ok())
+        .map(|reply| reply.monitors)
+        .unwrap_or_default()
+}
+
+/// The RandR monitor that drives `output`, which is what xcap's `Monitor::id`
+/// returns on Linux.
+#[cfg(target_os = "linux")]
+fn randr_frame(monitors: &[x11rb::protocol::randr::MonitorInfo], output: u32) -> Option<CaptureFrame> {
+    let monitor = monitors.iter().find(|monitor| monitor.outputs.contains(&output))?;
+    Some(CaptureFrame {
+        x: f64::from(monitor.x),
+        y: f64::from(monitor.y),
+        width: f64::from(monitor.width),
+        height: f64::from(monitor.height),
+    })
 }
 
 /// Where a capture sits on screen, so the tool text can tell the model how an
@@ -142,16 +231,59 @@ pub struct CaptureFrame {
     pub height: f64,
 }
 
+#[derive(Clone)]
 pub struct Capture {
     pub bytes: Vec<u8>,
     pub frame: CaptureFrame,
     pub pixel_width: u32,
     pub pixel_height: u32,
+    /// The one colour every pixel has, when the capture is a single flat fill.
+    pub solid: Option<[u8; 3]>,
+}
+
+/// The text every screenshot/zoom result carries: the mapping line, after a
+/// warning when the capture has nothing in it.
+pub fn caption(capture: &Capture, label: &str) -> String {
+    let mapping = mapping_text(capture, label);
+    match solid_note(capture) {
+        Some(note) => format!("{note}
+
+{mapping}"),
+        None => mapping,
+    }
+}
+
+/// A window or display that really is one flat colour is rare; a capture the
+/// OS withheld (a sandboxed process, another desktop, a locked screen, a
+/// window protected from capture) comes back exactly like this, without an
+/// error, and looks to the model like an app that failed to draw.
+fn solid_note(capture: &Capture) -> Option<String> {
+    let [r, g, b] = capture.solid?;
+    let colour = if [r, g, b] == [0, 0, 0] {
+        "entirely black".to_string()
+    } else {
+        format!("a single flat colour (#{r:02x}{g:02x}{b:02x})")
+    };
+    let why = crate::platform::desktop_access_warning().unwrap_or_else(|| {
+        "the window may be protected from capture (DRM video, some password managers) or not drawn yet,          or the screen may be locked or asleep. Use get_app_state to read it instead"
+            .to_string()
+    });
+    Some(format!("warning: this capture is {colour}, which usually means the pixels were withheld, not drawn: {why}"))
+}
+
+fn solid_colour(image: &RgbaImage) -> Option<[u8; 3]> {
+    let mut pixels = image.pixels();
+    let first = pixels.next()?;
+    let colour = [first[0], first[1], first[2]];
+    pixels.all(|pixel| pixel.0[..3] == colour).then_some(colour)
 }
 
 /// The mapping line every screenshot/zoom result carries. Screen coordinates on
-/// Windows and X11 are the physical pixels `xcap` captures, so a full-size
-/// capture maps 1:1 and only downscaling changes the ratio.
+/// Windows and X11 are the physical pixels `xcap` captures (on Windows because
+/// the process is per-monitor DPI aware, see `use_physical_pixels`), so a
+/// full-size capture maps 1:1 and only downscaling changes the ratio. A scaled
+/// Wayland session is the exception: its Xwayland screen, which XTEST clicks
+/// in, need not match the compositor's physical pixels (see `display_frames`).
 pub fn mapping_text(capture: &Capture, label: &str) -> String {
     let sx = f64::from(capture.pixel_width) / capture.frame.width.max(1.0);
     let sy = f64::from(capture.pixel_height) / capture.frame.height.max(1.0);
@@ -165,17 +297,11 @@ pub fn mapping_text(capture: &Capture, label: &str) -> String {
     )
 }
 
-fn finish(image: RgbaImage, frame: CaptureFrame, max_width: u32, format: CaptureFormat) -> Result<Capture> {
-    let image = if max_width > 0 && image.width() > max_width {
-        let height = ((image.height() as f64) * (max_width as f64) / (image.width() as f64))
-            .round()
-            .max(1.0) as u32;
-        image::imageops::resize(&image, max_width, height, FilterType::Triangle)
-    } else {
-        image
-    };
+pub(crate) fn finish(image: RgbaImage, frame: CaptureFrame, max_width: u32, format: CaptureFormat) -> Result<Capture> {
+    let image = downscale(image, max_width);
     let (pixel_width, pixel_height) = (image.width(), image.height());
-    Ok(Capture { bytes: encode_image(image, 0, format)?, frame, pixel_width, pixel_height })
+    let solid = solid_colour(&image);
+    Ok(Capture { bytes: encode_image(image, 0, format)?, frame, pixel_width, pixel_height, solid })
 }
 
 pub fn capture_display(index: usize, max_width: u32, format: CaptureFormat) -> Result<Capture> {
@@ -191,12 +317,7 @@ fn capture_display_inner(index: usize, max_width: u32, format: CaptureFormat) ->
             monitors.len()
         ))
     })?;
-    let frame = CaptureFrame {
-        x: f64::from(monitor.x().unwrap_or(0)),
-        y: f64::from(monitor.y().unwrap_or(0)),
-        width: f64::from(monitor.width().unwrap_or(0)),
-        height: f64::from(monitor.height().unwrap_or(0)),
-    };
+    let frame = display_frames(&monitors)[index];
     let image = monitor
         .capture_image()
         .map_err(|error| DesktopError::new(format!("failed to capture display: {error}")))?;
@@ -232,26 +353,21 @@ fn capture_region_inner(
     let monitors = Monitor::all()
         .map_err(|error| DesktopError::new(format!("failed to enumerate displays: {error}")))?;
     let (cx, cy) = ((left + right) / 2.0, (top + bottom) / 2.0);
-    let monitor = monitors
+    let frames = display_frames(&monitors);
+    let (monitor, display) = monitors
         .iter()
-        .find(|monitor| {
-            let mx = f64::from(monitor.x().unwrap_or(0));
-            let my = f64::from(monitor.y().unwrap_or(0));
-            let mw = f64::from(monitor.width().unwrap_or(0));
-            let mh = f64::from(monitor.height().unwrap_or(0));
-            cx >= mx && cx < mx + mw && cy >= my && cy < my + mh
-        })
-        .or_else(|| monitors.first())
+        .zip(frames.iter().copied())
+        .find(|(_, d)| cx >= d.x && cx < d.x + d.width && cy >= d.y && cy < d.y + d.height)
+        .or_else(|| monitors.first().zip(frames.first().copied()))
         .ok_or_else(|| DesktopError::new("no display contains that region — call list_displays"))?;
-    let mx = f64::from(monitor.x().unwrap_or(0));
-    let my = f64::from(monitor.y().unwrap_or(0));
+    let (mx, my) = (display.x, display.y);
     let image = monitor
         .capture_image()
         .map_err(|error| DesktopError::new(format!("failed to capture display: {error}")))?;
-    // The capture is in physical pixels; screen coordinates may be logical on a
-    // scaled display, so derive the ratio from the image itself.
-    let ratio_x = f64::from(image.width()) / f64::from(monitor.width().unwrap_or(image.width())).max(1.0);
-    let ratio_y = f64::from(image.height()) / f64::from(monitor.height().unwrap_or(image.height())).max(1.0);
+    // The capture is in physical pixels; screen coordinates may not be (a
+    // scaled Xwayland screen, say), so derive the ratio from the image itself.
+    let ratio_x = f64::from(image.width()) / if display.width > 0.0 { display.width } else { f64::from(image.width()) };
+    let ratio_y = f64::from(image.height()) / if display.height > 0.0 { display.height } else { f64::from(image.height()) };
     let px0 = (((left - mx) * ratio_x).floor().max(0.0) as u32).min(image.width().saturating_sub(1));
     let py0 = (((top - my) * ratio_y).floor().max(0.0) as u32).min(image.height().saturating_sub(1));
     let px1 = (((right - mx) * ratio_x).ceil().max(0.0) as u32).min(image.width());
@@ -282,10 +398,30 @@ pub fn capture_app_window(pid: u32, max_width: u32, format: CaptureFormat) -> Re
 fn capture_app_window_inner(pid: u32, max_width: u32, format: CaptureFormat) -> Result<(Capture, String)> {
     let windows = Window::all()
         .map_err(|error| DesktopError::new(format!("failed to enumerate windows: {error}")))?;
+    let window = pick_window(&windows, pid, None)?;
+    let title = window.title().unwrap_or_default();
+    let (image, frame) = window_pixels(window)?;
+    Ok((finish(image, frame, max_width, format)?, title))
+}
 
+/// The raw pixels of one of `pid`'s windows and where it sits on screen, for
+/// OCR. The largest window, unless `window` names one by its native id.
+#[cfg_attr(not(windows), allow(dead_code))]
+pub fn capture_window_image(pid: u32, window: Option<u32>) -> Result<(RgbaImage, CaptureFrame)> {
+    guarded("window capture", || {
+        let windows = Window::all()
+            .map_err(|error| DesktopError::new(format!("failed to enumerate windows: {error}")))?;
+        window_pixels(pick_window(&windows, pid, window)?)
+    })
+}
+
+fn pick_window(windows: &[Window], pid: u32, wanted: Option<u32>) -> Result<&Window> {
     let mut best: Option<(u32, &Window)> = None;
-    for window in &windows {
+    for window in windows {
         if window.pid().unwrap_or(0) != pid || window.is_minimized().unwrap_or(false) {
+            continue;
+        }
+        if wanted.is_some() && window.id().ok() != wanted {
             continue;
         }
         let area = window.width().unwrap_or(0).saturating_mul(window.height().unwrap_or(0));
@@ -297,12 +433,14 @@ fn capture_app_window_inner(pid: u32, max_width: u32, format: CaptureFormat) -> 
         }
     }
 
-    let (_, window) = best.ok_or_else(|| {
+    best.map(|(_, window)| window).ok_or_else(|| {
         DesktopError::new(format!(
             "pid {pid} has no capturable window — it may be minimized or have no UI"
         ))
-    })?;
-    let title = window.title().unwrap_or_default();
+    })
+}
+
+fn window_pixels(window: &Window) -> Result<(RgbaImage, CaptureFrame)> {
     let frame = CaptureFrame {
         x: f64::from(window.x().unwrap_or(0)),
         y: f64::from(window.y().unwrap_or(0)),
@@ -312,7 +450,7 @@ fn capture_app_window_inner(pid: u32, max_width: u32, format: CaptureFormat) -> 
     let image = window
         .capture_image()
         .map_err(|error| DesktopError::new(format!("failed to capture window: {error}")))?;
-    Ok((finish(image, frame, max_width, format)?, title))
+    Ok((image, frame))
 }
 
 #[cfg(test)]
@@ -329,7 +467,7 @@ mod tests {
 
     #[test]
     fn encodes_a_jpeg_signature() {
-        let jpeg = encode_image(RgbaImage::new(8, 8), DEFAULT_MAX_WIDTH, CaptureFormat::Jpeg)
+        let jpeg = encode_image(RgbaImage::new(8, 8), DEFAULT_MAX_WIDTH, CaptureFormat::Jpeg(55))
             .expect("encodes");
         assert_eq!(&jpeg[..2], b"\xff\xd8");
     }
@@ -355,6 +493,7 @@ mod tests {
             frame: super::CaptureFrame { x: 100.0, y: 50.0, width: 800.0, height: 600.0 },
             pixel_width: 400,
             pixel_height: 300,
+            solid: None,
         };
         let text = super::mapping_text(&capture, "window");
         assert!(text.contains("screen origin (100, 50)"), "{text}");
@@ -363,9 +502,146 @@ mod tests {
     }
 
     #[test]
+    fn a_flat_capture_is_flagged_and_a_drawn_one_is_not() {
+        let black = super::finish(RgbaImage::new(40, 30), frame(), 0, CaptureFormat::Png).expect("captures");
+        assert_eq!(black.solid, Some([0, 0, 0]));
+        let text = super::caption(&black, "window");
+        assert!(text.starts_with("warning: this capture is entirely black"), "{text}");
+        assert!(text.contains("screen origin (0, 0)"), "{text}");
+
+        let mut drawn = RgbaImage::new(40, 30);
+        drawn.put_pixel(7, 9, image::Rgba([255, 255, 255, 255]));
+        let drawn = super::finish(drawn, frame(), 0, CaptureFormat::Png).expect("captures");
+        assert_eq!(drawn.solid, None);
+        assert!(!super::caption(&drawn, "window").contains("warning"));
+    }
+
+    fn frame() -> super::CaptureFrame {
+        super::CaptureFrame { x: 0.0, y: 0.0, width: 40.0, height: 30.0 }
+    }
+
+    /// A deterministic stand-in for a desktop capture: flat panels, rows of
+    /// glyph-sized marks with anti-aliased edges, and one photo-like block.
+    pub(super) fn synthetic_screen(width: u32, height: u32) -> RgbaImage {
+        let mut seed: u32 = 0x9e37_79b9;
+        let mut next = move || {
+            seed ^= seed << 13;
+            seed ^= seed >> 17;
+            seed ^= seed << 5;
+            seed
+        };
+        let mut image = RgbaImage::from_pixel(width, height, image::Rgba([250, 250, 252, 255]));
+        // Sidebar, toolbar and a card.
+        for (x0, y0, x1, y1, shade) in [(0, 0, width / 6, height, 236u8), (0, 0, width, 64, 228), (width / 3, height / 5, width - 80, height / 2, 244)] {
+            for y in y0..y1.min(height) {
+                for x in x0..x1.min(width) {
+                    image.put_pixel(x, y, image::Rgba([shade, shade, shade.saturating_add(4), 255]));
+                }
+            }
+        }
+        // Lines of text: marks 4-9 px wide, 11 px tall, edges half-tone.
+        let mut y = 90;
+        while y + 14 < height {
+            let mut x = width / 6 + 24 + next() % 40;
+            let end = width - 60 - next() % (width / 3);
+            while x + 10 < end {
+                let w = 4 + next() % 6;
+                for dy in 0..11 {
+                    for dx in 0..w {
+                        let edge = dx == 0 || dx == w - 1 || dy == 0 || dy == 10;
+                        let ink = if edge { 150 } else { 32 + (next() % 24) as u8 };
+                        image.put_pixel(x + dx, y + dy, image::Rgba([ink, ink, ink.saturating_add(10), 255]));
+                    }
+                }
+                x += w + 1 + if next() % 7 == 0 { 6 } else { 0 };
+            }
+            y += 22 + if next() % 9 == 0 { 18 } else { 0 };
+        }
+        // A photo: smooth gradient with sensor noise.
+        let (px, py, pw, ph) = (width / 2, height * 3 / 5, width / 3, height / 3);
+        for y in py..(py + ph).min(height) {
+            for x in px..(px + pw).min(width) {
+                let noise = (next() % 9) as u8;
+                let r = ((x - px) * 200 / pw) as u8 + noise;
+                let g = ((y - py) * 180 / ph) as u8 + noise;
+                image.put_pixel(x, y, image::Rgba([r, g, 120 + noise, 255]));
+            }
+        }
+        image
+    }
+
+    /// Capture encode cost, by stage. Not run by default:
+    ///   cargo test --release -- --ignored --nocapture encode_benchmark
+    #[test]
+    #[ignore]
+    fn encode_benchmark() {
+        use base64::Engine as _;
+        use std::time::Instant;
+        let frame = super::CaptureFrame { x: 0.0, y: 0.0, width: 2560.0, height: 1600.0 };
+        let screen = synthetic_screen(2560, 1600);
+        let runs = 15;
+        let time = |label: &str, run: &dyn Fn() -> usize| {
+            run();
+            let mut samples = Vec::with_capacity(runs);
+            let mut bytes = 0;
+            for _ in 0..runs {
+                let start = Instant::now();
+                bytes = run();
+                samples.push(start.elapsed().as_secs_f64() * 1000.0);
+            }
+            samples.sort_by(f64::total_cmp);
+            println!("BENCH {label:<34} median {:>8.2} ms  min {:>8.2} ms  {bytes:>9} bytes", samples[runs / 2], samples[0]);
+        };
+        time("screenshot png 2560->1400", &|| super::finish(screen.clone(), frame, DEFAULT_MAX_WIDTH, CaptureFormat::Png).unwrap().bytes.len());
+        time("screenshot jpeg55 2560->1400", &|| super::finish(screen.clone(), frame, DEFAULT_MAX_WIDTH, CaptureFormat::Jpeg(55)).unwrap().bytes.len());
+        time("zoom png full res 640x400", &|| {
+            let region = image::imageops::crop_imm(&screen, 600, 300, 640, 400).to_image();
+            super::finish(region, frame, DEFAULT_MAX_WIDTH, CaptureFormat::Png).unwrap().bytes.len()
+        });
+        time("display png full res 2560", &|| super::finish(screen.clone(), frame, 0, CaptureFormat::Png).unwrap().bytes.len());
+        let png = super::finish(screen.clone(), frame, DEFAULT_MAX_WIDTH, CaptureFormat::Png).unwrap().bytes;
+        time("base64 of the 1400 png", &|| base64::engine::general_purpose::STANDARD.encode(&png).len());
+        time("clone only (baseline cost)", &|| screen.clone().len());
+    }
+
+    #[test]
     fn a_zero_max_width_disables_downscaling() {
         let png = encode_image(RgbaImage::new(80, 20), 0, CaptureFormat::Png).expect("encodes");
         let decoded = image::load_from_memory(&png).expect("decodes");
         assert_eq!((decoded.width(), decoded.height()), (80, 20));
+    }
+
+    /// #41: GNOME at 150% runs Xwayland at 5120x2880 for a 3840x2160 panel;
+    /// the frame must be the X screen XTEST clicks in, not xcap's 3413x1920.
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn a_display_frame_is_the_randr_monitor_driving_its_output() {
+        use x11rb::protocol::randr::MonitorInfo;
+        let monitor = |x, width, outputs: Vec<u32>| MonitorInfo {
+            name: 0,
+            primary: false,
+            automatic: true,
+            x,
+            y: 0,
+            width,
+            height: 2880,
+            width_in_millimeters: 0,
+            height_in_millimeters: 0,
+            outputs,
+        };
+        let monitors = [monitor(0, 5120, vec![71]), monitor(5120, 2560, vec![72, 73])];
+        let frame = super::randr_frame(&monitors, 73).expect("found");
+        assert_eq!(frame, super::CaptureFrame { x: 5120.0, y: 0.0, width: 2560.0, height: 2880.0 });
+        assert_eq!(super::randr_frame(&monitors, 71).map(|frame| frame.width), Some(5120.0));
+        assert_eq!(super::randr_frame(&monitors, 99), None);
+
+        let capture = super::Capture {
+            bytes: Vec::new(),
+            frame: super::randr_frame(&monitors, 71).expect("found"),
+            pixel_width: 3840,
+            pixel_height: 2160,
+            solid: None,
+        };
+        assert!(super::mapping_text(&capture, "display 0").contains("0.750 px per screen unit"));
     }
 }

@@ -16,6 +16,9 @@ struct Group {
     pid: u32,
     windows: usize,
     focused: bool,
+    /// The window that best identifies this instance, ranked by `title_rank`.
+    title: String,
+    title_rank: (bool, bool, u64),
 }
 
 fn grouped_windows() -> Result<Vec<Group>> {
@@ -41,26 +44,55 @@ fn grouped_windows() -> Result<Vec<Group>> {
         let name = window
             .app_name()
             .ok()
+            .map(|name| readable_app_name(&name))
             .filter(|name| !name.is_empty())
             .or_else(|| window.title().ok().filter(|title| !title.is_empty()))
             .unwrap_or_else(|| format!("pid {pid}"));
         let focused = window.is_focused().unwrap_or(false);
+        // Two instances of one app share a name; their main window titles are
+        // what tells them apart. Prefer the focused window, then the largest
+        // one that is not minimized; untitled popups never win.
+        let title = window.title().unwrap_or_default();
+        let area = u64::from(window.width().unwrap_or(0)) * u64::from(window.height().unwrap_or(0));
+        let rank = if title.trim().is_empty() {
+            (false, false, 0)
+        } else {
+            (focused, !window.is_minimized().unwrap_or(false), area)
+        };
 
-        groups
-            .entry(pid)
-            .and_modify(|group| {
-                group.windows += 1;
-                group.focused |= focused;
-            })
-            .or_insert(Group {
-                name,
-                pid,
-                windows: 1,
-                focused,
-            });
+        let group = groups.entry(pid).or_insert(Group {
+            name,
+            pid,
+            windows: 0,
+            focused: false,
+            title: String::new(),
+            title_rank: (false, false, 0),
+        });
+        group.windows += 1;
+        group.focused |= focused;
+        if group.title.is_empty() || rank > group.title_rank {
+            group.title = title;
+            group.title_rank = rank;
+        }
     }
 
     Ok(groups.into_values().collect())
+}
+
+/// xcap names a Windows app by its executable's file description, and by the
+/// executable's full path when it cannot read that, as for packaged apps under
+/// `C:\Program Files\WindowsApps` (Notepad, Terminal). A path is no name to
+/// ask for an app by, so keep its file name without the `.exe`.
+fn readable_app_name(name: &str) -> String {
+    let name = name.trim();
+    if !name.contains(['\\', '/']) {
+        return name.to_string();
+    }
+    let file = name.rsplit(['\\', '/']).next().unwrap_or(name);
+    match file.len().checked_sub(4) {
+        Some(stem) if file.is_char_boundary(stem) && file[stem..].eq_ignore_ascii_case(".exe") => file[..stem].to_string(),
+        _ => file.to_string(),
+    }
 }
 
 pub fn list_apps() -> Result<Vec<AppInfo>> {
@@ -74,6 +106,7 @@ pub fn list_apps() -> Result<Vec<AppInfo>> {
                     pid: group.pid,
                     windows: group.windows,
                     frontmost: group.focused,
+                    title: group.title,
                 })
                 .collect()
         })?)
@@ -127,22 +160,66 @@ fn pick_from_matches(query: &str, matches: &[&AppInfo]) -> Result<u32> {
         [] => Err(DesktopError::new(format!(
             "no running app matches '{query}' — call list_apps to see what is open"
         ))),
-        several => {
-            let names: Vec<String> = several
-                .iter()
-                .map(|app| format!("{} (pid {})", app.name, app.pid))
-                .collect();
-            Err(DesktopError::new(format!(
-                "'{query}' matches several apps: {} — pass a pid to pick one",
-                names.join(", ")
-            )))
-        }
+        several => Err(DesktopError::new(ambiguity_message(query, several))),
     }
+}
+
+/// Name every candidate well enough to choose from without another call: the
+/// windows can change between list_apps and this lookup, so the error, not an
+/// earlier inventory, has to carry each pid and what tells the instances apart.
+fn ambiguity_message(query: &str, several: &[&AppInfo]) -> String {
+    let candidates: Vec<String> = several
+        .iter()
+        .map(|app| {
+            let mut detail = format!("{} window{}", app.windows, if app.windows == 1 { "" } else { "s" });
+            if !app.title.trim().is_empty() {
+                detail.push_str(&format!(", \"{}\"", crate::platform::outline::truncate(&app.title, 80)));
+            }
+            if app.frontmost {
+                detail.push_str(", frontmost");
+            }
+            format!("pid {} ({detail})", app.pid)
+        })
+        .collect();
+    let same_app = several.iter().all(|app| app.id == several[0].id);
+    let what = if same_app {
+        format!("{} running instances of {}", several.len(), several[0].name)
+    } else {
+        format!("{} apps", several.len())
+    };
+    format!(
+        "'{query}' matches {what}: {} — pass the pid of the one you mean; list_apps lists each instance on its own row",
+        candidates.join(", ")
+    )
 }
 
 #[cfg(test)]
 mod tests {
-    use super::resolve_pid;
+    use super::{ambiguity_message, readable_app_name, resolve_pid};
+    use crate::platform::AppInfo;
+
+    fn chrome(pid: u32, title: &str, frontmost: bool) -> AppInfo {
+        AppInfo {
+            name: "Google Chrome".into(),
+            id: "google-chrome".into(),
+            pid,
+            windows: 1,
+            frontmost,
+            title: title.into(),
+        }
+    }
+
+    // #29: the error has to be enough to pick an instance on its own.
+    #[test]
+    fn an_ambiguous_alias_names_every_instance_with_its_pid_and_window() {
+        let first = chrome(14756, "GitHub - Google Chrome", false);
+        let second = chrome(28400, "New Tab - Google Chrome", true);
+        let message = ambiguity_message("google-chrome", &[&first, &second]);
+        assert!(message.contains("2 running instances of Google Chrome"), "{message}");
+        assert!(message.contains("pid 14756 (1 window, \"GitHub - Google Chrome\")"), "{message}");
+        assert!(message.contains("pid 28400 (1 window, \"New Tab - Google Chrome\", frontmost)"), "{message}");
+        assert!(message.contains("pass the pid"), "{message}");
+    }
 
     #[test]
     fn a_numeric_query_is_taken_as_a_pid_without_enumerating() {
@@ -155,6 +232,18 @@ mod tests {
     fn an_unmatched_name_points_at_list_apps() {
         let error = resolve_pid("definitely-not-running-xyzzy").unwrap_err().0;
         assert!(error.contains("list_apps"), "unhelpful: {error}");
+    }
+
+    #[test]
+    fn a_packaged_app_reported_by_path_is_named_by_its_file() {
+        assert_eq!(
+            readable_app_name(r"C:\Program Files\WindowsApps\Microsoft.WindowsNotepad_11.2607.14.0_x64__8wekyb3d8bbwe\Notepad\Notepad.exe"),
+            "Notepad"
+        );
+        assert_eq!(readable_app_name("/usr/bin/gnome-calculator"), "gnome-calculator");
+        assert_eq!(readable_app_name(r"C:\Tools\thing.EXE"), "thing");
+        assert_eq!(readable_app_name("Google Chrome"), "Google Chrome", "a real name is kept");
+        assert_eq!(readable_app_name("Setup.exe"), "Setup.exe", "only a path is shortened");
     }
 
     #[test]
