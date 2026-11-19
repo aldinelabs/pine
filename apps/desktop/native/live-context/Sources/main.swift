@@ -5,6 +5,8 @@
 //   {"type":"start","sources":["mic","system"],"locale":"zh-CN",
 //    "speakers":{"segmentation":"…/x.onnx","embedding":"…/y.onnx"}}
 //   {"type":"pause"} {"type":"resume"} {"type":"stop"} {"type":"check"}
+// While listening it also sends each source's input level 25 times a second:
+//   {"type":"level","levels":{"mic":{"rms":0.021,"peak":0.134}}}
 // Closing stdin stops the capture and exits, so the helper never outlives Pine.
 // `speakers` is optional; without it nothing about diarization is loaded.
 //
@@ -27,6 +29,7 @@ final class Controller: @unchecked Sendable {
   private var state = "idle"
   private var startedAt = Date()
   private var silenceTask: Task<Void, Never>?
+  private var levelTask: Task<Void, Never>?
   private var diarization: DiarizationEngine?
   /// Testing: feed these files instead of devices.
   var fileInputs: [String: URL] = [:]
@@ -143,6 +146,7 @@ final class Controller: @unchecked Sendable {
         "speakers": diarization != nil,
       ])
     watchSilence()
+    reportLevels()
   }
 
   private var filesPlaying = 0
@@ -207,6 +211,24 @@ final class Controller: @unchecked Sendable {
     }
   }
 
+  /// Each source's input level, 25 times a second while listening, for the
+  /// app's waveform. Nothing is kept; a paused capture sends none.
+  private func reportLevels() {
+    levelTask?.cancel()
+    levelTask = Task { [weak self] in
+      while !Task.isCancelled {
+        try? await Task.sleep(for: .milliseconds(40))
+        guard let self, self.state == "listening" else { continue }
+        var levels: [String: Any] = [:]
+        for (source, pipeline) in self.pipelines where self.captures[source] != nil {
+          let level = pipeline.takeLevel()
+          levels[source] = ["rms": roundedLevel(level.rms), "peak": roundedLevel(level.peak)]
+        }
+        if !levels.isEmpty { Output.emit(["type": "level", "levels": levels]) }
+      }
+    }
+  }
+
   func pause() async {
     guard state == "listening" else { return }
     for capture in captures.values { capture.stop() }
@@ -235,6 +257,7 @@ final class Controller: @unchecked Sendable {
   func stop() async {
     guard state == "listening" || state == "paused" else { return }
     silenceTask?.cancel()
+    levelTask?.cancel()
     for capture in captures.values { capture.stop() }
     captures.removeAll()
     await finishPipelines()
@@ -247,6 +270,12 @@ final class Controller: @unchecked Sendable {
     pipelines.removeAll()
     diarization = nil
   }
+}
+
+/// A level to three decimals: enough for a waveform, short on the wire (a
+/// Double would print as 0.54900000000000004).
+func roundedLevel(_ value: Float) -> NSDecimalNumber {
+  NSDecimalNumber(string: String(format: "%.3f", value.isFinite ? max(0, value) : 0))
 }
 
 func argument(_ name: String) -> String? {

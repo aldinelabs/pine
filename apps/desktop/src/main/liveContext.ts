@@ -6,6 +6,7 @@ import {
   LIVE_CONTEXT_SOURCES,
   type LiveContextError,
   type LiveContextEvent,
+  type LiveContextLevels,
   type LiveContextMergeSpeakersRequest,
   type LiveContextRenameSpeakerRequest,
   type LiveContextSegment,
@@ -676,6 +677,13 @@ export class LiveContextService {
       case "device":
         this.handleSpeakerEvent(capture, event);
         return;
+      case "level": {
+        // Only for the waveform: broadcast as it comes, never saved.
+        if (this.current.state !== "listening") return;
+        const levels = parseLevels(event.levels);
+        if (levels) this.options.emit({ kind: "levels", levels });
+        return;
+      }
       case "speakers-state":
         this.update({
           speakersDegraded:
@@ -815,4 +823,22 @@ export class LiveContextService {
         this.options.emit({ kind: "segment", sessionId, segment });
     this.pendingVolatile.clear();
   }
+}
+
+function clampLevel(value: unknown): number {
+  return typeof value === "number" && Number.isFinite(value)
+    ? Math.min(1, Math.max(0, value))
+    : 0;
+}
+
+/** The helper's `level` event, per source we know, levels kept to 0…1. */
+function parseLevels(value: unknown): LiveContextLevels | undefined {
+  if (!value || typeof value !== "object") return undefined;
+  const levels: LiveContextLevels = {};
+  for (const [source, level] of Object.entries(value)) {
+    if (!isSource(source) || !level || typeof level !== "object") continue;
+    const { rms, peak } = level as Record<string, unknown>;
+    levels[source] = { rms: clampLevel(rms), peak: clampLevel(peak) };
+  }
+  return Object.keys(levels).length > 0 ? levels : undefined;
 }

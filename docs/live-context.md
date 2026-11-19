@@ -74,6 +74,7 @@ stdout 事件：
 {"type":"status","state":"listening","startedAt":1795037277822,"sources":["system"],"locale":"zh-CN"}
 {"type":"status","state":"paused"} / {"type":"status","state":"stopped"}
 {"type":"status","state":"silent","source":"system","seconds":10}
+{"type":"level","levels":{"mic":{"rms":0.021,"peak":0.134},"system":{"rms":0,"peak":0}}}
 {"type":"permission","kind":"microphone","status":"prompting|granted|denied|restricted"}
 {"type":"segment","id":"system-3","source":"system","t0":16014,"t1":26874,"text":"…","final":true,"at":1795037372391}
 {"type":"error","code":"permission_denied|unsupported_locale|assets_failed|system_audio_failed|transcription_failed|…","message":"…","source":"mic"}
@@ -142,11 +143,13 @@ apps/desktop/native/live-context/build/pine-live-context --start --sources syste
 - 可用性：macOS ≥ 26（`process.getSystemVersion()`）且 helper 存在，缺一则 `available: false` 并给出 `unavailableReason`（`platform | helper-missing`），卡片菜单里不出现该卡片。`speakersAvailable` 另外要求 helper 旁边有 `live-context-lib/`（构建没取到 sherpa-onnx 时为 false，卡片不显示开关）。
 - 说话人：`start({ speakers: true })` 先确保模型就绪（缺失时下载，状态 `downloading` + `download: "speakers"`），再回放会话的 `<session>.speakers.jsonl`，让编号跨多次采集延续。模型拿不到时照常开始转写，`lastError.code = "speaker_models_failed"`。下载期间 `stop` 直接回到 idle，不启动 helper。
 - helper 的 `window`/`embedding`/`echo`/`device` 事件交给 `SpeakerSession`（`src/main/liveContextDiarizer.ts`，纯 TS、确定性、可回放）并追加写入 sidecar。它给出的标签以 `turns` 事件广播：段落还没 final 时只在内存里，final 段落落盘时带上，之后的修正追加 `turns` 记录；Pine 自己合并说话人时追加 `speaker-alias`。helper 退出后跑停止时的重整（§3.4 第 8 步），结果同样以 `turns` 记录追加。
+- `level`：helper 在 `listening` 时每 40 ms（25 Hz）发一次各来源的输入电平（自上次以来的 RMS 与峰值，0–1，隔 16 个采样取一个，保留三位小数；两次之间没有新缓冲时重复上一次的值，暂停时不发）。main 只在 `listening` 时把它夹到 0–1 后以 `{ kind: "levels" }` 广播，不写入转写文件，也不进入 `status`。
 - `speakers-state` 映射为 `status.speakersDegraded`：等级 1–3 为 `reduced`，4 为 `paused`，0 清除。
 
 ### 3.3 Renderer
 
 - `src/stores/liveContext.ts`（Pinia）：全局状态、每个会话的 final 段落、采集会话的 volatile 段落、每个会话的说话人名字、合并与别名、“识别说话人”开关（默认关）；订阅 preload 事件，按 id 去重，`turns` 事件（含 `echo`）同时作用于 volatile 和 final 段落。
+- 电平：store 把 `levels` 事件存在一个非响应式数组里（只留最近 6 秒，采集结束清空），工作台卡片底部的波形用 `requestAnimationFrame` 每帧读取并画在 canvas 上，不经过 Vue 响应式。
 - `src/shared/liveContextSpeakers.ts`：说话人 key、重命名/合并的折叠、按 `turns` 切分文本，main 与 renderer 共用。
 - `src/components/workbench/WorkbenchLiveContextPanel.vue`：工作台卡片 `live-context`。和侧边对话一样只由用户打开，不进入 agent 的 `ui_workbench_*` 工具，也暂不随布局保存。
 - Renderer 不接触 Node、文件系统或 helper；一切经 preload 暴露的最小 API。

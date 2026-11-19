@@ -26,6 +26,11 @@ final class SourcePipeline: @unchecked Sendable {
   private var segmentIndex = 0
   private let startedAt: Date
   private var peak: Float = 0
+  /// Input level since the last `takeLevel()`, for the app's waveform.
+  private var levelSquares: Double = 0
+  private var levelSamples = 0
+  private var levelPeak: Float = 0
+  private var lastLevel: (rms: Float, peak: Float) = (0, 0)
 
   private init(
     source: String, transcriber: SpeechTranscriber, analyzer: SpeechAnalyzer,
@@ -177,8 +182,30 @@ final class SourcePipeline: @unchecked Sendable {
     let frames = Int(buffer.frameLength)
     for channel in 0..<Int(buffer.format.channelCount) {
       for frame in stride(from: 0, to: frames, by: 16) {
-        peak = max(peak, abs(channels[channel][frame]))
+        let sample = channels[channel][frame]
+        let magnitude = abs(sample)
+        peak = max(peak, magnitude)
+        levelPeak = max(levelPeak, magnitude)
+        levelSquares += Double(sample * sample)
+        levelSamples += 1
       }
+    }
+  }
+
+  /// RMS and peak (0…1, every 16th sample) since the last call. Buffers
+  /// arrive less often than levels are read, so a read between two buffers
+  /// repeats the last level instead of dropping to silence.
+  func takeLevel() -> (rms: Float, peak: Float) {
+    lock.withLock {
+      if levelSamples > 0 {
+        lastLevel = (
+          Float((levelSquares / Double(levelSamples)).squareRoot()), min(1, levelPeak)
+        )
+      }
+      levelSquares = 0
+      levelSamples = 0
+      levelPeak = 0
+      return lastLevel
     }
   }
 
@@ -193,7 +220,10 @@ final class SourcePipeline: @unchecked Sendable {
 
   /// A restarted capture starts a new stream of buffers.
   func resetConverter() {
-    lock.withLock { converter = nil }
+    lock.withLock {
+      converter = nil
+      lastLevel = (0, 0)
+    }
     tracker?.restart()
   }
 

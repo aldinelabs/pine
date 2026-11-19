@@ -3,6 +3,7 @@ import { computed, reactive, ref } from "vue";
 import {
   IDLE_LIVE_CONTEXT_STATUS,
   type LiveContextEvent,
+  type LiveContextLevels,
   type LiveContextSegment,
   type LiveContextSource,
   type LiveContextSpeakerKey,
@@ -12,6 +13,15 @@ import {
   type LiveContextTurn,
 } from "@/shared/liveContext";
 import { emptySpeakers } from "@/shared/liveContextSpeakers";
+
+/** One reading of the input levels and when it arrived (performance.now). */
+export interface LiveContextLevelSample {
+  at: number;
+  levels: LiveContextLevels;
+}
+
+/** Levels kept for the waveform: a little over its few seconds. */
+export const LIVE_CONTEXT_LEVEL_HISTORY_MS = 6000;
 
 /**
  * The app-wide Live Context capture and the transcripts of the sessions the
@@ -33,6 +43,28 @@ export const useLiveContextStore = defineStore("liveContext", () => {
 
   const available = computed(() => Boolean(api) && status.value.available);
   const isCapturing = computed(() => status.value.state !== "idle");
+
+  /**
+   * Recent input levels, oldest first. A plain array, not reactive state:
+   * they arrive 25 times a second and only the waveform's frame loop reads
+   * them.
+   */
+  const levelSamples: LiveContextLevelSample[] = [];
+
+  function addLevels(levels: LiveContextLevels): void {
+    const at = performance.now();
+    levelSamples.push({ at, levels });
+    const cutoff = at - LIVE_CONTEXT_LEVEL_HISTORY_MS;
+    let stale = 0;
+    while (stale < levelSamples.length && levelSamples[stale].at < cutoff)
+      stale += 1;
+    if (stale > 0) levelSamples.splice(0, stale);
+  }
+
+  /** The levels heard in the last few seconds, oldest first. */
+  function levelHistory(): readonly LiveContextLevelSample[] {
+    return levelSamples;
+  }
 
   /** Time spent paused in this capture, and when the current pause began. */
   let pausedMs = 0;
@@ -84,9 +116,16 @@ export const useLiveContextStore = defineStore("liveContext", () => {
   }
 
   function apply(event: LiveContextEvent): void {
+    if (event.kind === "levels") {
+      addLevels(event.levels);
+      return;
+    }
     if (event.kind === "status") {
       setStatus(event.status);
-      if (event.status.state === "idle") volatile.clear();
+      if (event.status.state === "idle") {
+        volatile.clear();
+        levelSamples.length = 0;
+      }
       return;
     }
     if (event.kind === "turns") {
@@ -230,6 +269,7 @@ export const useLiveContextStore = defineStore("liveContext", () => {
     resume,
     stop,
     elapsedAt,
+    levelHistory,
     openPrivacySettings,
     apply,
   };

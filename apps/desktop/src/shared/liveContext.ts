@@ -191,8 +191,20 @@ export interface LiveContextMergeSpeakersRequest extends LiveContextTarget {
   into: LiveContextSpeakerKey;
 }
 
+/** One source's input level, 0…1, over the last ~40 ms. */
+export interface LiveContextLevel {
+  rms: number;
+  peak: number;
+}
+
+export type LiveContextLevels = Partial<
+  Record<LiveContextSource, LiveContextLevel>
+>;
+
 export type LiveContextEvent =
   | { kind: "status"; status: LiveContextStatus }
+  /** Input levels while listening, about 25 a second; never saved. */
+  | { kind: "levels"; levels: LiveContextLevels }
   | { kind: "segment"; sessionId: string; segment: LiveContextSegment }
   /** New or changed labels for a segment (volatile or final). */
   | {

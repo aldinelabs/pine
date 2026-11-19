@@ -142,6 +142,24 @@ describe("useLiveContextStore", () => {
     expect(store.volatileOf(TARGET.sessionId)).toEqual([]);
   });
 
+  it("keeps the last few seconds of input levels until the capture ends", async () => {
+    let now = 1_000;
+    vi.spyOn(performance, "now").mockImplementation(() => now);
+    const store = useLiveContextStore();
+    await store.start(TARGET, ["mic"], "en-US");
+    emit({ kind: "levels", levels: { mic: { rms: 0.1, peak: 0.2 } } });
+    now += 4_000;
+    emit({ kind: "levels", levels: { mic: { rms: 0.3, peak: 0.5 } } });
+    expect(store.levelHistory().map(({ at }) => at)).toEqual([1_000, 5_000]);
+    // Older than the history window: dropped.
+    now += 3_000;
+    emit({ kind: "levels", levels: { mic: { rms: 0, peak: 0 } } });
+    expect(store.levelHistory().map(({ at }) => at)).toEqual([5_000, 8_000]);
+    emit({ kind: "status", status: { ...listening, state: "idle" } });
+    expect(store.levelHistory()).toEqual([]);
+    vi.restoreAllMocks();
+  });
+
   it("asks for speaker labels only when the user opted in", async () => {
     const store = useLiveContextStore();
     await flushPromises();

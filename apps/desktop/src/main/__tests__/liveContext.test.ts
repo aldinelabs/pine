@@ -246,6 +246,38 @@ describe("LiveContextService", () => {
     });
   });
 
+  it("broadcasts input levels while listening and never saves them", async () => {
+    await startListening();
+    helper.write({
+      type: "level",
+      levels: {
+        mic: { rms: 0.02, peak: 0.4 },
+        system: { rms: 2, peak: "loud" },
+        other: { rms: 0.5, peak: 0.5 },
+      },
+    });
+    await tick();
+    expect(events.filter((event) => event.kind === "levels")).toEqual([
+      {
+        kind: "levels",
+        levels: {
+          mic: { rms: 0.02, peak: 0.4 },
+          system: { rms: 1, peak: 0 },
+        },
+      },
+    ]);
+    helper.write({ type: "status", state: "paused" });
+    helper.write({ type: "level", levels: { mic: { rms: 0.1, peak: 0.2 } } });
+    await tick();
+    expect(events.filter((event) => event.kind === "levels")).toHaveLength(1);
+    await service.stop();
+    const saved = await service.transcript({
+      projectId: PROJECT_ID,
+      sessionId: "session-1",
+    });
+    expect(saved.segments).toEqual([]);
+  });
+
   it("deletes a session's transcript and rejects unsafe session ids", async () => {
     await startListening();
     helper.write({
