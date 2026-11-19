@@ -323,7 +323,7 @@ describe("WorkbenchLiveContextPanel", () => {
     const toggle = wrapper.get("[data-testid=live-context-identify-speakers]");
     expect(toggle.attributes("aria-pressed")).toBe("false");
     expect(toggle.attributes("aria-label")).toBe("Identify speakers");
-    expect(toggle.attributes("title")).toContain("35 MB");
+    expect(toggle.attributes("title")).toContain("30 MB");
     await toggle.trigger("click");
     expect(toggle.attributes("aria-pressed")).toBe("true");
     await wrapper.get("[data-testid=live-context-start]").trigger("click");
@@ -582,6 +582,23 @@ describe("WorkbenchLiveContextPanel", () => {
     expect(wrapper.find("[data-testid=live-context-error]").exists()).toBe(
       false,
     );
+  });
+
+  it("says in plain words why speaker labels are off, not the raw error", async () => {
+    stubApi({
+      ...listeningHere,
+      lastError: {
+        code: "speaker_models_failed",
+        message:
+          "https://huggingface.co/…: more than the pinned 28281164 bytes",
+        reason: "size",
+      },
+    });
+    const wrapper = await mountPanel();
+    const notice = wrapper.get("[data-testid=live-context-error]");
+    expect(notice.text()).toContain("Speaker labels are off for this capture");
+    expect(notice.text()).toContain("wasn't the expected size");
+    expect(notice.text()).not.toContain("pinned");
   });
 
   it("explains other errors with the helper's message", async () => {

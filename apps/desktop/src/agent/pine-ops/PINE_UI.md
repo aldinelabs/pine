@@ -689,7 +689,7 @@ close the card. The panels are:
   audio (icons; each turns its source on or off on its own, and the last
   one on stays on), then Identify speakers (a people icon toggle, off by
   default, pressed when on; shown only when this build can label speakers;
-  its tooltip says the first use downloads about 35 MB and labels arrive a
+  its tooltip says the first use downloads about 30 MB and labels arrive a
   few seconds late), a language button showing the spoken language as a
   short code such as "EN (US)", "ZH (CN)" or "JA (JP)" (hover for the full
   name), and Start ("Continue" when the conversation already has a
@@ -717,7 +717,10 @@ close the card. The panels are:
   Privacy & Security pane) and Dismiss; "No system audio yet" with Open
   System Settings while capturing; other problems ("Live context ran into a
   problem", unsupported language, model download failed) with the details
-  and Dismiss; and a note when speaker labels run lighter or pause to save
+  and Dismiss; "Speaker labels are off for this capture" when the speaker
+  models could not be downloaded, saying why in plain words (no connection,
+  a file of the wrong size or failing its integrity check, or no disk
+  space), with Dismiss; and a note when speaker labels run lighter or pause to save
   power or keep up (they recover on their own).
   Before any text the transcript explains what live context does (or says
   "Listening for the first words…" while capturing). Each block starts

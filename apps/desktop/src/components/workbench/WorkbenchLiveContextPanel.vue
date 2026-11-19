@@ -260,7 +260,10 @@ const errorNotice = computed(() => {
       kind: "speakers" as const,
       icon: UsersRoundIcon,
       title: t("project.workbench.liveContext.speakers.failedTitle"),
-      description: last.message,
+      // The message is technical (it is in the log); say what it means.
+      description: t(
+        `project.workbench.liveContext.speakers.failed.${last.reason ?? "generic"}`,
+      ),
     };
   const known = ["unsupported_locale", "assets_failed"].includes(last.code)
     ? last.code

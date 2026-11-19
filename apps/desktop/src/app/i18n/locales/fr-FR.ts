@@ -1052,10 +1052,19 @@ export default {
         },
         speakers: {
           identify: "Identifier les locuteurs",
-          note: "La première fois, télécharge environ 35 Mo. Les étiquettes arrivent avec quelques secondes de retard.",
+          note: "La première fois, télécharge environ 30 Mo. Les étiquettes arrivent avec quelques secondes de retard.",
           numbered: "Locuteur {n}",
           rename: "Renommer",
           mergeInto: "Fusionner avec",
+          failed: {
+            network:
+              "Impossible de joindre le serveur de téléchargement. Vérifiez la connexion ou le proxy, puis réessayez.",
+            size: "Le fichier téléchargé n'a pas la taille attendue ; Pine ne l'a pas utilisé. Réessayez plus tard.",
+            checksum:
+              "Le fichier téléchargé n'a pas passé le contrôle d'intégrité ; Pine ne l'a pas utilisé. Réessayez plus tard.",
+            disk: "Impossible d'enregistrer les modèles. Vérifiez qu'il reste de l'espace disque sur votre Mac.",
+            generic: "Les modèles de locuteurs n'ont pas pu être préparés.",
+          },
           failedTitle:
             "Les étiquettes de locuteurs sont désactivées pour cette capture",
 

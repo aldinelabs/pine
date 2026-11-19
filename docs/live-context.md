@@ -209,8 +209,8 @@ apps/desktop/native/live-context/build/pine-live-context --start --sources syste
 **模型与库的分发**：
 
 - 库随应用打包：`scripts/build-native.mjs` 下载固定版本的 `sherpa-onnx-v2.0.1-osx-universal2-shared-no-tts-lib.tar.bz2`，先校验 SHA-256 再解出 `libsherpa-onnx-c-api.dylib` 和 `libonnxruntime.dylib` 到 `native/live-context/build/live-context-lib/`；失败时只是没有说话人识别（`PINE_REQUIRE_LIVE_CONTEXT=1` 时报错）。打包时 `forge.config.ts` 把它们 `lipo -thin` 到目标架构并单独签名，再签 helper 和整个 app。代码必须随应用签名，所以库不走运行时下载。
-- 模型首次开启时下载：`src/main/liveContextSpeakerModels.ts` 固定 URL（sherpa-onnx 的 GitHub release）、字节数和 SHA-256，经 Electron `net.fetch`（跟随系统代理，与 Pine 其他请求一致）下载到 `<userData>/models/live-context-speakers/`，超出字节数立即中止，校验不过不落地；分割模型在 tar.bz2 里，校验归档后用 `/usr/bin/tar` 只解出那一个文件，再校验文件本身。每次开始前重新校验哈希，损坏的会重下。下载的只是 ONNX 权重，从不执行。
-- 体积：每个架构的应用包增加约 32 MB（arm64 实测：ONNX Runtime 28.8 MB + C API 3.4 MB，未压缩；universal 原件为 68 MB）；首次开启下载约 35 MB（归档 7.0 MB + 声纹模型 28.3 MB），解出后约 30 MB。不随应用捆绑模型，是因为该开关默认关闭，没必要让每个用户多下载 30 MB。
+- 模型首次开启时下载：`src/main/liveContextSpeakerModels.ts` 固定字节数、SHA-256 和指向 Hugging Face 某个提交的 URL（`/resolve/<commit>/`，内容不可变；同一路径在 hf-mirror.com 作为后备，校验相同所以镜像无需信任），经 Electron `net.fetch`（跟随系统代理，与 Pine 其他请求一致）下载到 `<userData>/models/live-context-speakers/`，超出字节数立即中止，校验不过不落地，换下一个来源。不用 sherpa-onnx 的 GitHub release：release 资源可在同一 URL 下被替换——2026-11-19 上游把全部 CAM++ 资源重新上传，各多了 1 字节，固定的哈希全部失效。失败分为网络、大小、校验和、磁盘四类，界面按类给出本地化说明，技术细节只进日志。每次开始前重新校验哈希，损坏的会重下。下载的只是 ONNX 权重，从不执行。
+- 体积：每个架构的应用包增加约 32 MB（arm64 实测：ONNX Runtime 28.8 MB + C API 3.4 MB，未压缩；universal 原件为 68 MB）；首次开启下载约 30 MB（分割模型 1.5 MB + 声纹模型 28.3 MB）。不随应用捆绑模型，是因为该开关默认关闭，没必要让每个用户多下载 30 MB。
 - 许可证（详见 `native/live-context/NOTICE.md`，随库一起打包）：sherpa-onnx Apache-2.0、ONNX Runtime MIT、pyannote segmentation-3.0 MIT、3D-Speaker CAM++ Apache-2.0，均可随 AGPL-3.0 分发。
 
 ## 4. 数据模型
@@ -325,7 +325,7 @@ v1 待补：开始前的说明页（告诉用户将弹两个系统提示、音�
 
 ## 8. 工作台卡片
 
-- 开始：来源（麦克风 / 系统音频，可多选）、语言（默认取系统语言，中文默认 `zh-CN`）、“识别说话人”开关（默认关；本构建没有说话人库时不显示），下面一行说明成本与准确度（首次下载约 35 MB、多占一些 CPU、标签晚几秒且可能出错）。
+- 开始：来源（麦克风 / 系统音频，可多选）、语言（默认取系统语言，中文默认 `zh-CN`）、“识别说话人”开关（默认关；本构建没有说话人库时不显示），下面一行说明成本与准确度（首次下载约 30 MB、多占一些 CPU、标签晚几秒且可能出错）。
 - 说话人：开启后每段转写按说话人切成多行，每行前是彩色圆点 + 来源图标 + 名字（默认“说话人 N”）。点名字弹出菜单：重命名（行内输入框，回车保存、Esc 取消）、合并到另一位说话人。还可能变化的标签半透明；还不确定是谁时显示“?”；同时说话显示“说话人 1 + 说话人 2”；麦克风里的系统音频回声在时间后标“· 系统音频的回声”，正文变淡。降级时控件下方一行提示（“已降级”或“已暂停”，会自动恢复）。
 - 采集中：红点 + 状态、暂停 / 继续、停止；模型下载进度；系统音频静音提示；错误。
 - 转写：按时间排列，标注“我 / 其他人”与时间；volatile 文本用弱化颜色；用户停在底部时自动跟随。

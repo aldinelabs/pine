@@ -980,10 +980,17 @@ export default {
         },
         speakers: {
           identify: "辨識說話者",
-          note: "首次使用會下載約 35 MB，標籤會晚幾秒出現。",
+          note: "首次使用會下載約 30 MB，標籤會晚幾秒出現。",
           numbered: "說話者 {n}",
           rename: "重新命名",
           mergeInto: "合併到",
+          failed: {
+            network: "無法連線到下載伺服器。請檢查網路或代理後重試。",
+            size: "下載的檔案大小與預期不符，Pine 未使用它。請稍後重試。",
+            checksum: "下載的檔案未通過完整性檢查，Pine 未使用它。請稍後重試。",
+            disk: "無法儲存模型。請確認 Mac 仍有可用的磁碟空間。",
+            generic: "說話者模型準備失敗。",
+          },
           failedTitle: "這次記錄未啟用說話者辨識",
           unknown: "暫不確定是誰",
           echo: "系統音訊的回音",

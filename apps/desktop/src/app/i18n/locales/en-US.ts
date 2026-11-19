@@ -1033,10 +1033,19 @@ export default {
         },
         speakers: {
           identify: "Identify speakers",
-          note: "The first time, downloads about 35 MB. Labels arrive a few seconds late.",
+          note: "The first time, downloads about 30 MB. Labels arrive a few seconds late.",
           numbered: "Speaker {n}",
           rename: "Rename",
           mergeInto: "Merge into",
+          failed: {
+            network:
+              "Couldn't reach the download server. Check your connection or proxy, then try again.",
+            size: "The downloaded file wasn't the expected size, so Pine didn't use it. Try again later.",
+            checksum:
+              "The downloaded file failed its integrity check, so Pine didn't use it. Try again later.",
+            disk: "Couldn't save the models. Check that your Mac has free disk space.",
+            generic: "The speaker models couldn't be prepared.",
+          },
           failedTitle: "Speaker labels are off for this capture",
           unknown: "Not sure who this is yet",
           echo: "Echo of system audio",

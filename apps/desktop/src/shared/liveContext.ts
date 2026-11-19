@@ -76,8 +76,15 @@ export type LiveContextState =
 
 export interface LiveContextError {
   code: string;
+  /** Technical detail, for logs; the interface words it from the code. */
   message: string;
   source?: LiveContextSource;
+  /**
+   * Why the speaker models could not be had (`speaker_models_failed`):
+   * no connection, or a download that is too big, fails its checksum, or
+   * cannot be saved.
+   */
+  reason?: "network" | "size" | "checksum" | "disk";
 }
 
 export interface LiveContextStatus {

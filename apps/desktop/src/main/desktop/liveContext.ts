@@ -1,8 +1,6 @@
-import { execFile, spawn } from "node:child_process";
+import { spawn } from "node:child_process";
 import { existsSync } from "node:fs";
-import { mkdtemp, rename, rm } from "node:fs/promises";
 import path from "node:path";
-import { promisify } from "node:util";
 import { app, BrowserWindow, ipcMain, net, shell } from "electron";
 import { z } from "zod";
 import {
@@ -50,27 +48,6 @@ function speakerLibraryExists(): boolean {
       ),
     ),
   );
-}
-
-/** Unpacks one file of a checked .tar.bz2 archive with the system's tar. */
-async function extractMember(
-  archive: string,
-  member: string,
-  destination: string,
-): Promise<void> {
-  const folder = await mkdtemp(path.join(path.dirname(destination), ".tar-"));
-  try {
-    await promisify(execFile)("/usr/bin/tar", [
-      "-xjf",
-      archive,
-      "-C",
-      folder,
-      member,
-    ]);
-    await rename(path.join(folder, member), destination);
-  } finally {
-    await rm(folder, { recursive: true, force: true });
-  }
 }
 
 function unavailableReason(): LiveContextUnavailableReason | null {
@@ -153,7 +130,6 @@ export function createLiveContext(options: {
             "live-context-speakers",
           ),
           fetch: (url) => net.fetch(url),
-          extract: extractMember,
           onProgress,
         }),
     },

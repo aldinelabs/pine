@@ -1057,10 +1057,19 @@ export default {
         },
         speakers: {
           identify: "Sprecher erkennen",
-          note: "Lädt beim ersten Mal etwa 35 MB herunter. Beschriftungen erscheinen einige Sekunden später.",
+          note: "Lädt beim ersten Mal etwa 30 MB herunter. Beschriftungen erscheinen einige Sekunden später.",
           numbered: "Sprecher {n}",
           rename: "Umbenennen",
           mergeInto: "Zusammenführen mit",
+          failed: {
+            network:
+              "Der Download-Server ist nicht erreichbar. Prüfe Verbindung oder Proxy und versuche es erneut.",
+            size: "Die heruntergeladene Datei hat nicht die erwartete Größe und wird nicht verwendet. Versuche es später erneut.",
+            checksum:
+              "Die heruntergeladene Datei hat die Integritätsprüfung nicht bestanden und wird nicht verwendet. Versuche es später erneut.",
+            disk: "Die Modelle konnten nicht gespeichert werden. Prüfe, ob auf deinem Mac genug Speicherplatz frei ist.",
+            generic: "Die Sprechermodelle konnten nicht vorbereitet werden.",
+          },
           failedTitle: "Sprecherbeschriftungen sind für diese Aufnahme aus",
 
           unknown: "Noch unklar, wer spricht",

@@ -976,10 +976,17 @@ export default {
         },
         speakers: {
           identify: "识别说话人",
-          note: "首次使用会下载约 35 MB，标签会晚几秒出现。",
+          note: "首次使用会下载约 30 MB，标签会晚几秒出现。",
           numbered: "说话人 {n}",
           rename: "重命名",
           mergeInto: "合并到",
+          failed: {
+            network: "无法连接下载服务器。请检查网络或代理后重试。",
+            size: "下载的文件大小与预期不符，Pine 未使用它。请稍后重试。",
+            checksum: "下载的文件未通过完整性校验，Pine 未使用它。请稍后重试。",
+            disk: "无法保存模型。请确认 Mac 还有可用的磁盘空间。",
+            generic: "说话人模型准备失败。",
+          },
           failedTitle: "本次记录未启用说话人识别",
           unknown: "暂不确定是谁",
           echo: "系统音频的回声",

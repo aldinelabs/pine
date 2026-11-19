@@ -32,7 +32,10 @@ import {
   type SourcedLabel,
   type SpeakerRecord,
 } from "./liveContextDiarizer";
-import type { SpeakerModelPaths } from "./liveContextSpeakerModels";
+import {
+  SpeakerModelError,
+  type SpeakerModelPaths,
+} from "./liveContextSpeakerModels";
 
 /** The helper process, as much of a ChildProcess as the service uses. */
 export interface LiveContextHelperProcess {
@@ -333,9 +336,14 @@ export class LiveContextService {
           request.expectedSpeakers,
         );
       } catch (error) {
+        // The technical detail is for the log; the user sees the reason.
+        console.warn("Live Context speaker labels are off.", error);
         this.current.lastError = {
           code: "speaker_models_failed",
           message: error instanceof Error ? error.message : String(error),
+          ...(error instanceof SpeakerModelError
+            ? { reason: error.reason }
+            : {}),
         };
       }
       // Stopped while downloading.
