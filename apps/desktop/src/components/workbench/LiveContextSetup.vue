@@ -21,6 +21,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { localeShortLabel } from "@/lib/liveContextLocale";
 import {
   LIVE_CONTEXT_LOCALES,
   LIVE_CONTEXT_SOURCES,
@@ -62,24 +63,10 @@ const languageNames = computed(
       style: "short",
     }),
 );
-/** "Chinese (China)": for the menu, where every choice shows its region. */
+/** "Chinese (China)": in the menu and the button's tooltip and name. */
 function languageName(option: string): string {
   return languageNames.value.of(option) ?? option;
 }
-/**
- * The button's short name: the language alone ("English") unless another
- * choice speaks it too ("Chinese (China)" next to "Chinese (Taiwan)").
- */
-function shortLanguageName(option: string): string {
-  const base = option.split("-")[0];
-  const shared = LIVE_CONTEXT_LOCALES.filter(
-    (candidate) => candidate.split("-")[0] === base,
-  );
-  return shared.length > 1
-    ? languageName(option)
-    : (languageNames.value.of(base) ?? option);
-}
-
 function updateSources(value: unknown): void {
   if (!Array.isArray(value)) return;
   const next = LIVE_CONTEXT_SOURCES.filter((source) => value.includes(source));
@@ -132,10 +119,12 @@ const speakersOn = computed(
           class="min-w-0 shrink"
           :disabled="disabled"
           :aria-label="`${t('project.workbench.liveContext.options')}: ${languageName(locale)}`"
-          :title="t('project.workbench.liveContext.options')"
+          :title="languageName(locale)"
           data-testid="live-context-options"
         >
-          <span class="min-w-0 truncate">{{ shortLanguageName(locale) }}</span>
+          <span class="min-w-0 truncate" data-testid="live-context-language">{{
+            localeShortLabel(locale)
+          }}</span>
           <UsersRoundIcon
             v-if="speakersOn"
             class="text-muted-foreground"

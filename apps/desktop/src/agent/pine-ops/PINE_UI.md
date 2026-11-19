@@ -687,9 +687,11 @@ close the card. The panels are:
   the card, like the composer, and stay there while the transcript scrolls.
   Before a capture the row shows two toggle buttons, Microphone and System
   audio (icons; each turns its source on or off on its own, and the last
-  one on stays on), a language button showing the spoken language, and
-  Start ("Continue" when the conversation already has a transcript). The
-  language button opens a menu with Language (pick the spoken language)
+  one on stays on), a language button showing the spoken language as a
+  short code such as "EN (US)", "ZH (CN)" or "JA (JP)" (hover for the full
+  name), and Start ("Continue" when the conversation already has a
+  transcript). The language button opens a menu with Language (the spoken
+  language, each by its full name, such as "Chinese (China)")
   and Identify speakers (a checkbox item, off by default, shown only when
   this build can label speakers; when on, a people icon shows on the
   button).

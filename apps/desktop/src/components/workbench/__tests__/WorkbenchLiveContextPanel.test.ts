@@ -508,11 +508,17 @@ describe("WorkbenchLiveContextPanel", () => {
     const wrapper = await mountPanel();
     await wrapper.get("[data-testid=live-context-options]").trigger("click");
     await flushPromises();
-    document.querySelector<HTMLElement>("[data-locale=ja-JP]")?.click();
+    const item = document.querySelector<HTMLElement>("[data-locale=ja-JP]");
+    // The menu names the language in full; the button shows its short code.
+    expect(item?.textContent).toContain("Japanese (Japan)");
+    item?.click();
     await flushPromises();
-    expect(wrapper.get("[data-testid=live-context-options]").text()).toContain(
-      "Japanese",
+    const button = wrapper.get("[data-testid=live-context-options]");
+    expect(button.get("[data-testid=live-context-language]").text()).toBe(
+      "JA (JP)",
     );
+    expect(button.attributes("title")).toBe("Japanese (Japan)");
+    expect(button.attributes("aria-label")).toContain("Japanese (Japan)");
     await wrapper.get("[data-testid=live-context-start]").trigger("click");
     await flushPromises();
     expect(api.start).toHaveBeenCalledWith(
