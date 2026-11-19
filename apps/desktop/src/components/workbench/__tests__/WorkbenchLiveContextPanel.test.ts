@@ -651,6 +651,37 @@ describe("WorkbenchLiveContextPanel", () => {
     );
   });
 
+  it("puts Jump to latest away when the transcript is deleted", async () => {
+    const { emit } = stubApi(idle);
+    const wrapper = await mountPanel();
+    const scroll = wrapper.get("[data-testid=live-context-scroll]");
+    Object.defineProperties(scroll.element, {
+      scrollHeight: { configurable: true, value: 2000 },
+      clientHeight: { configurable: true, value: 200 },
+      scrollTop: { configurable: true, value: 0, writable: true },
+    });
+    await scroll.trigger("scroll");
+    emit({
+      kind: "segment",
+      sessionId: "session-1",
+      segment: {
+        id: "b",
+        source: "mic",
+        start: 2,
+        end: 3,
+        text: "again",
+        final: true,
+      },
+    });
+    await flushPromises();
+    expect(wrapper.find("[data-testid=live-context-jump]").exists()).toBe(true);
+    emit({ kind: "deleted", sessionId: "session-1" });
+    await flushPromises();
+    expect(wrapper.find("[data-testid=live-context-jump]").exists()).toBe(
+      false,
+    );
+  });
+
   it("pauses and resumes from the status bar", async () => {
     const { api } = stubApi(listeningHere);
     const wrapper = await mountPanel();

@@ -333,6 +333,7 @@ function retrySpeakers(): void {
     </Empty>
     <template v-else>
       <LiveContextTranscript
+        :key="target?.sessionId ?? 'draft'"
         :segments="segments"
         :pending="pending"
         :speakers="speakers"

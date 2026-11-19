@@ -251,6 +251,16 @@ watch(
 const isEmpty = computed(
   () => props.segments.length === 0 && props.pending.length === 0,
 );
+// Deleted or emptied: nothing is below any more, so follow again and put
+// Jump to latest away. (Another conversation remounts this component.)
+watch(isEmpty, async (empty) => {
+  if (!empty) return;
+  following.value = true;
+  missed.value = false;
+  await nextTick();
+  if (scroller) scroller.scrollTop = 0;
+  measureEdges();
+});
 </script>
 
 <template>
