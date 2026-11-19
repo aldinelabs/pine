@@ -294,7 +294,7 @@ From top to bottom:
      downward scroll cannot return to that discarded blank area or snap the
      conversation back to the bottom.
      Scrolled well up from the bottom (about a screen's height, at least
-     400px), a round "Scroll to bottom" button with a down arrow, the size of
+     400px), a round "Scroll to bottom" button with a down chevron, the size of
      the composer's Send button, fades in at the bottom right of the
      conversation (bottom left in right-to-left languages), lined up with the
      right edge of the messages, just above the composer; clicking it scrolls smoothly to
@@ -735,7 +735,7 @@ close the card. The panels are:
   still forming are grey with a blinking caret at the end. The card
   follows new text while it is scrolled to the bottom. Scrolled well up
   (a card height, at least 400px), the same round "Scroll to bottom"
-  button as the conversation's (a down arrow) fades in at the bottom right
+  button as the conversation's (a down chevron) fades in at the bottom right
   of the transcript, above the controls; it goes away near the bottom and
   when the transcript is deleted. The transcript's
   top and bottom edges fade wherever more text is hidden past them.

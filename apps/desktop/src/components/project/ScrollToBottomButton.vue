@@ -19,7 +19,7 @@ export function showsScrollToBottom(
 </script>
 
 <script setup lang="ts">
-import { ArrowDownIcon } from "@lucide/vue";
+import { ChevronDownIcon } from "@lucide/vue";
 import { Button } from "@/components/ui/button";
 
 /**
@@ -55,7 +55,7 @@ function onClick(event: MouseEvent): void {
     class="scroll-to-bottom-button bg-background text-foreground ring-foreground/10 hover:bg-muted hover:text-foreground rounded-full border-transparent shadow-md ring-1 data-[active=false]:pointer-events-none data-[active=false]:translate-y-full data-[active=false]:scale-95 data-[active=false]:opacity-0 data-[active=true]:scale-100 data-[active=true]:opacity-100 dark:hover:bg-[color-mix(in_srgb,var(--background),var(--foreground)_5%)]"
     @click="onClick"
   >
-    <ArrowDownIcon aria-hidden="true" />
+    <ChevronDownIcon class="size-5" aria-hidden="true" />
     <span class="sr-only">{{ label }}</span>
   </Button>
 </template>
