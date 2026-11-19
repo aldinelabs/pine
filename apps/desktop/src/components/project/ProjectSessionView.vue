@@ -973,7 +973,7 @@ async function handleDrop(event: DragEvent): Promise<void> {
               </template>
             </MessageScrollerContent>
           </MessageScrollerViewport>
-          <!-- Bottom-center above the composer, once the reader has scrolled
+          <!-- At the bottom end of the message column, once the reader has scrolled
                well away from the bottom; resumes following on click. -->
           <ProjectScrollToBottomButton v-if="renderedMessages.length > 0" />
         </MessageScroller>

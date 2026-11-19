@@ -289,8 +289,9 @@ From top to bottom:
      conversation back to the bottom.
      Scrolled well up from the bottom (about a screen's height, at least
      400px), a round "Scroll to bottom" button with a down arrow, the size of
-     the composer's Send button, fades in at the bottom center of the
-     conversation, just above the composer; clicking it scrolls smoothly to
+     the composer's Send button, fades in at the bottom right of the
+     conversation (bottom left in right-to-left languages), lined up with the
+     right edge of the messages, just above the composer; clicking it scrolls smoothly to
      the end and keeps following the reply. It fades out once the reader is
      back within half that distance of the bottom, never appears just
      because a reply grows below, and never shows in an empty session.

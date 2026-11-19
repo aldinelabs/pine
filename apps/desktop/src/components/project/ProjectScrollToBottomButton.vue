@@ -27,9 +27,11 @@ import { useMessageScrollerContext } from "@/components/ui/message-scroller/useM
 
 /**
  * The transcript's scroll-to-bottom button: shadcn-vue's message-scroller
- * button (same placement and enter/leave transition), at the size of the
- * composer's Send button, edged like a popover: a faint ring and shadow,
- * no border. The engine's at-bottom state still hides it, but
+ * button (same enter/leave transition), at the size of the composer's Send
+ * button, edged like a popover: a faint ring and shadow, no border. It sits
+ * at the bottom end of the message column. Hover and press match Pine's
+ * outline buttons, kept opaque over the text. The engine's at-bottom state
+ * still hides it, but
  * it only appears once the reader has scrolled a meaningful distance up.
  * Distance is measured on scroll only, so a reply growing below a reader
  * resting just above the bottom does not bring it in.
@@ -102,10 +104,50 @@ function onClick(event: MouseEvent): void {
     size="icon-lg"
     :inert="!active"
     :tabindex="active ? undefined : -1"
-    class="absolute bottom-4 left-1/2 -translate-x-1/2 rounded-full border-transparent bg-background text-foreground shadow-md ring-1 ring-foreground/10 transition-[translate,scale,opacity] duration-200 hover:bg-muted hover:text-foreground data-[active=false]:pointer-events-none data-[active=false]:translate-y-full data-[active=false]:scale-95 data-[active=false]:opacity-0 data-[active=false]:duration-400 data-[active=false]:ease-[cubic-bezier(0.7,0,0.84,0)] data-[active=true]:translate-y-0 data-[active=true]:scale-100 data-[active=true]:opacity-100 data-[active=true]:ease-[cubic-bezier(0.23,1,0.32,1)]"
+    class="scroll-to-bottom-button absolute bottom-4 rounded-full border-transparent bg-background text-foreground shadow-md ring-1 ring-foreground/10 hover:bg-muted hover:text-foreground dark:hover:bg-[color-mix(in_srgb,var(--background),var(--foreground)_5%)] data-[active=false]:pointer-events-none data-[active=false]:translate-y-full data-[active=false]:scale-95 data-[active=false]:opacity-0 data-[active=true]:scale-100 data-[active=true]:opacity-100"
     @click="onClick"
   >
     <ArrowDownIcon />
     <span class="sr-only">{{ t("project.transcript.scrollToBottom") }}</span>
   </Button>
 </template>
+
+<style scoped>
+/*
+ * Aligned with the end edge of the message column (see
+ * `.session-transcript-content`): the column is centred and capped, so its
+ * end edge is the larger of the side padding and half the leftover width.
+ * Logical insets keep it on the end side in RTL without a translate.
+ */
+.scroll-to-bottom-button {
+  inset-inline-end: max(
+    calc(var(--session-composer-gutter) + var(--session-input-padding-inline)),
+    calc((100% - var(--session-content-max-width)) / 2)
+  );
+  /*
+   * Show/hide keeps the official timing; colours and the press nudge keep
+   * the base button's, which `transition-all` would have given them.
+   */
+  transition-property:
+    translate, scale, opacity, background-color, color, box-shadow;
+  transition-duration:
+    200ms, 200ms, 200ms, var(--default-transition-duration),
+    var(--default-transition-duration), var(--default-transition-duration);
+  transition-timing-function:
+    cubic-bezier(0.23, 1, 0.32, 1), cubic-bezier(0.23, 1, 0.32, 1),
+    cubic-bezier(0.23, 1, 0.32, 1), var(--default-transition-timing-function),
+    var(--default-transition-timing-function),
+    var(--default-transition-timing-function);
+}
+
+.scroll-to-bottom-button[data-active="false"] {
+  transition-duration:
+    400ms, 400ms, 400ms, var(--default-transition-duration),
+    var(--default-transition-duration), var(--default-transition-duration);
+  transition-timing-function:
+    cubic-bezier(0.7, 0, 0.84, 0), cubic-bezier(0.7, 0, 0.84, 0),
+    cubic-bezier(0.7, 0, 0.84, 0), var(--default-transition-timing-function),
+    var(--default-transition-timing-function),
+    var(--default-transition-timing-function);
+}
+</style>

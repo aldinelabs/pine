@@ -111,4 +111,17 @@ describe("ProjectScrollToBottomButton", () => {
     expect(button().attributes("data-active")).toBe("false");
     wrapper.unmount();
   });
+
+  it("keeps the base button's press nudge and sits at the column end", () => {
+    const { wrapper, button } = mountButton(() => 3000);
+    const classes = button().classes();
+    // Show/hide must not pin translate while shown, or the base
+    // `active:translate-y-px` press feedback is lost.
+    expect(classes).not.toContain("data-[active=true]:translate-y-0");
+    expect(classes).toContain("active:not-aria-[haspopup]:translate-y-px");
+    // Placed by a logical end inset, not centred with a translate.
+    expect(classes).not.toContain("-translate-x-1/2");
+    expect(classes).toContain("scroll-to-bottom-button");
+    wrapper.unmount();
+  });
 });
