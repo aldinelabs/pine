@@ -1,28 +1,26 @@
 <script setup lang="ts">
-import {
-  MicIcon,
-  PauseIcon,
-  PlayIcon,
-  SquareIcon,
-  Volume2Icon,
-} from "@lucide/vue";
+import { PauseIcon, PlayIcon, SquareIcon } from "@lucide/vue";
 import { useIntervalFn } from "@vueuse/core";
 import { computed, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Spinner } from "@/components/ui/spinner";
+import LiveContextWaveform from "@/components/workbench/LiveContextWaveform.vue";
 import type { LiveContextStatus } from "@/shared/liveContext";
+import type { LiveContextLevelSample } from "@/stores/liveContext";
 import { formatDuration } from "@/lib/formatDuration";
 
 /**
- * The capture in this conversation: whether it is live, for how long, what
- * it hears, and Pause/Resume and Stop.
+ * The capture in this conversation, as a bar at the foot of the card like
+ * the composer: whether it is live and for how long, the last few seconds
+ * of sound, and Pause/Resume and Stop.
  */
 const props = defineProps<{
   status: LiveContextStatus;
   /** Listening time so far, paused time left out. */
   elapsedAt: (now: number) => number | undefined;
+  levels: () => readonly LiveContextLevelSample[];
   busy?: boolean;
 }>();
 const emit = defineEmits<{ pause: []; resume: []; stop: [] }>();
@@ -31,6 +29,9 @@ const now = ref(Date.now());
 useIntervalFn(() => (now.value = Date.now()), 1000);
 
 const state = computed(() => props.status.state);
+const live = computed(
+  () => state.value === "listening" || state.value === "paused",
+);
 const elapsed = computed(() => {
   const ms = props.elapsedAt(now.value);
   return ms === undefined ? undefined : formatDuration(ms / 1000);
@@ -60,122 +61,136 @@ const label = computed(() => {
   }
 });
 
-const language = computed(() => {
-  const locale = props.status.locale;
-  if (!locale) return undefined;
-  return (
-    new Intl.DisplayNames([uiLocale.value], { type: "language" }).of(locale) ??
-    locale
+/** What it hears, for the bar's tooltip. */
+const details = computed(() => {
+  const parts = props.status.sources.map((source) =>
+    t(`project.workbench.liveContext.source.${source}`),
   );
+  const locale = props.status.locale;
+  if (locale)
+    parts.push(
+      new Intl.DisplayNames([uiLocale.value], { type: "language" }).of(
+        locale,
+      ) ?? locale,
+    );
+  return parts.join(" · ");
 });
 </script>
 
 <template>
   <div
-    class="bg-muted/60 flex flex-col gap-2 rounded-2xl p-1.5 pl-3"
+    class="bg-muted flex flex-col rounded-(--workbench-inner-radius)"
     :data-state="state"
     data-testid="live-context-status"
   >
-    <div class="flex min-h-8 items-center gap-2.5">
+    <div class="flex h-8 min-w-0 items-center gap-2 pr-0.5 pl-3">
       <span
-        class="relative flex size-4 shrink-0 items-center justify-center"
+        class="flex size-3 shrink-0 items-center justify-center"
         aria-hidden="true"
       >
-        <template v-if="state === 'listening'">
-          <span
-            class="absolute size-2.5 animate-ping rounded-full bg-red-500/60 [animation-duration:2s]"
-          />
-          <span class="relative size-2.5 rounded-full bg-red-500" />
-        </template>
+        <span
+          v-if="state === 'listening'"
+          class="live-context-dot size-2 rounded-full bg-red-500"
+        />
         <span
           v-else-if="state === 'paused'"
-          class="size-2.5 rounded-full bg-amber-500"
+          class="size-2 rounded-full bg-amber-500"
         />
-        <Spinner v-else class="text-muted-foreground size-3.5" />
+        <Spinner v-else class="text-muted-foreground size-3" />
       </span>
-      <div class="flex min-w-0 flex-1 flex-col">
-        <span class="flex items-baseline gap-1.5 text-sm leading-5">
-          <span
-            class="truncate font-medium"
-            :title="label"
-            data-testid="live-context-state"
-          >
-            {{ label }}
-          </span>
-          <span
-            v-if="elapsed && (state === 'listening' || state === 'paused')"
-            class="text-muted-foreground font-mono text-xs tabular-nums"
-            data-testid="live-context-elapsed"
-            >{{ elapsed }}</span
-          >
-        </span>
+      <span
+        class="flex shrink-0 items-baseline gap-1.5 text-sm"
+        :title="details || undefined"
+      >
+        <!-- While listening the red dot and the time say it, so the
+             waveform gets the room; screen readers still hear it. -->
         <span
-          class="text-muted-foreground flex min-w-0 items-center gap-1 text-xs leading-4"
+          class="max-w-40 truncate font-medium"
+          :class="state === 'listening' && 'sr-only'"
+          data-testid="live-context-state"
+          >{{ label }}</span
         >
-          <MicIcon
-            v-if="status.sources.includes('mic')"
-            class="size-3 shrink-0"
-            :aria-label="t('project.workbench.liveContext.source.mic')"
-          />
-          <Volume2Icon
-            v-if="status.sources.includes('system')"
-            class="size-3 shrink-0"
-            :aria-label="t('project.workbench.liveContext.source.system')"
-          />
-          <span v-if="language" class="truncate">{{ language }}</span>
-        </span>
-      </div>
-      <Button
-        v-if="state === 'paused'"
-        size="icon-sm"
-        variant="ghost"
-        data-testid="live-context-resume"
-        :disabled="busy"
-        :aria-label="t('project.workbench.liveContext.resume')"
-        :title="t('project.workbench.liveContext.resume')"
-        @click="emit('resume')"
-      >
-        <PlayIcon aria-hidden="true" />
-      </Button>
-      <Button
-        v-else-if="state === 'listening'"
-        size="icon-sm"
-        variant="ghost"
-        data-testid="live-context-pause"
-        :disabled="busy"
-        :aria-label="t('project.workbench.liveContext.pause')"
-        :title="t('project.workbench.liveContext.pause')"
-        @click="emit('pause')"
-      >
-        <PauseIcon aria-hidden="true" />
-      </Button>
-      <Button
-        size="sm"
-        variant="outline"
-        data-testid="live-context-stop"
-        :disabled="busy || state === 'stopping'"
-        @click="emit('stop')"
-      >
-        <SquareIcon
-          data-icon="inline-start"
-          class="size-3 fill-current"
-          aria-hidden="true"
-        />
-        {{ t("project.workbench.liveContext.stop") }}
-      </Button>
-    </div>
-    <div
-      v-if="state === 'downloading'"
-      class="mr-1.5 mb-1 flex items-center gap-2"
-    >
-      <Progress
-        :model-value="percent"
-        class="h-1 flex-1"
-        data-testid="live-context-download"
+        <span
+          v-if="elapsed && live"
+          class="text-muted-foreground text-xs tabular-nums"
+          data-testid="live-context-elapsed"
+          >{{ elapsed }}</span
+        >
+      </span>
+      <LiveContextWaveform
+        v-if="live"
+        class="h-6 min-w-0 flex-1"
+        :history="levels"
+        :sources="status.sources"
+        :paused="state === 'paused'"
       />
-      <span class="text-muted-foreground w-8 text-right text-xs tabular-nums"
+      <span
+        v-else-if="state === 'downloading'"
+        class="text-muted-foreground ml-auto text-xs tabular-nums"
         >{{ percent }}%</span
       >
+      <div class="ml-auto flex shrink-0 items-center">
+        <Button
+          v-if="state === 'paused'"
+          size="icon-sm"
+          variant="ghost"
+          data-testid="live-context-resume"
+          :disabled="busy"
+          :aria-label="t('project.workbench.liveContext.resume')"
+          :title="t('project.workbench.liveContext.resume')"
+          @click="emit('resume')"
+        >
+          <PlayIcon aria-hidden="true" />
+        </Button>
+        <Button
+          v-else-if="state === 'listening'"
+          size="icon-sm"
+          variant="ghost"
+          data-testid="live-context-pause"
+          :disabled="busy"
+          :aria-label="t('project.workbench.liveContext.pause')"
+          :title="t('project.workbench.liveContext.pause')"
+          @click="emit('pause')"
+        >
+          <PauseIcon aria-hidden="true" />
+        </Button>
+        <Button
+          size="icon-sm"
+          variant="ghost"
+          data-testid="live-context-stop"
+          :disabled="busy || state === 'stopping'"
+          :aria-label="t('project.workbench.liveContext.stop')"
+          :title="t('project.workbench.liveContext.stop')"
+          @click="emit('stop')"
+        >
+          <SquareIcon class="size-3 fill-current" aria-hidden="true" />
+        </Button>
+      </div>
     </div>
+    <Progress
+      v-if="state === 'downloading'"
+      :model-value="percent"
+      class="mx-3 mb-2 h-1 w-auto"
+      data-testid="live-context-download"
+    />
   </div>
 </template>
+
+<style scoped>
+/* A slow breath rather than a ping: it sits next to the waveform. */
+.live-context-dot {
+  animation: live-context-dot 2s ease-in-out infinite;
+}
+
+@keyframes live-context-dot {
+  50% {
+    opacity: 0.45;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .live-context-dot {
+    animation: none;
+  }
+}
+</style>

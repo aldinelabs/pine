@@ -1041,11 +1041,8 @@ export default {
           },
         },
         elsewhere: "다른 대화에서 실시간 컨텍스트를 기록하고 있습니다.",
-        empty: {
-          title: "준비 완료",
-          description:
-            "이 Mac에서 회의나 수업을 받아 적어 이 대화에 사용합니다. 오디오는 저장하지 않습니다.",
-        },
+        empty:
+          "이 Mac에서 회의나 수업을 받아 적어 이 대화에 사용합니다. 오디오는 저장하지 않습니다.",
         systemSilent: {
           title: "아직 시스템 오디오가 없음",
           description:
@@ -1055,6 +1052,8 @@ export default {
         waiting: "첫 마디를 기다리는 중…",
         waitingPaused: "일시정지됨. 계속하면 이어서 받아 적습니다.",
         jumpToLatest: "최신으로 이동",
+        level: "입력 레벨",
+        levelBoth: "입력 레벨: 마이크는 글자 색, 시스템 오디오는 파란색",
         noSession:
           "대화를 열면 그 대화에 실시간 컨텍스트를 기록할 수 있습니다.",
         showElsewhere: "보기",
@@ -1080,7 +1079,6 @@ export default {
         loadFailed: "받아쓴 내용을 불러올 수 없습니다",
         actionFailed: "실시간 컨텍스트가 응답하지 않습니다",
         unavailable: {
-          title: "실시간 컨텍스트를 사용할 수 없음",
           platform: "실시간 컨텍스트에는 macOS 26 이상이 필요합니다.",
           "helper-missing": "이 Pine 빌드에는 실시간 컨텍스트가 없습니다.",
         },

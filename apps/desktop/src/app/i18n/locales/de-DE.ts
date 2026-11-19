@@ -1073,11 +1073,8 @@ export default {
           },
         },
         elsewhere: "Eine andere Unterhaltung nimmt gerade Live-Kontext auf.",
-        empty: {
-          title: "Bereit zum Zuhören",
-          description:
-            "Transkribiert ein Meeting oder eine Vorlesung auf diesem Mac für diese Unterhaltung. Audio wird nie gespeichert.",
-        },
+        empty:
+          "Transkribiert ein Meeting oder eine Vorlesung auf diesem Mac für diese Unterhaltung. Audio wird nie gespeichert.",
         systemSilent: {
           title: "Noch kein Systemaudio",
           description:
@@ -1087,6 +1084,8 @@ export default {
         waiting: "Warte auf die ersten Worte…",
         waitingPaused: "Pausiert. Fortsetzen, um weiter zu transkribieren.",
         jumpToLatest: "Zum Neuesten",
+        level: "Eingangspegel",
+        levelBoth: "Eingangspegel: Mikrofon in Textfarbe, Systemaudio in Blau",
         noSession:
           "Öffne eine Unterhaltung, um Live-Kontext dafür aufzunehmen.",
         showElsewhere: "Anzeigen",
@@ -1113,7 +1112,6 @@ export default {
         loadFailed: "Transkript konnte nicht geladen werden",
         actionFailed: "Live-Kontext reagiert nicht",
         unavailable: {
-          title: "Live-Kontext ist nicht verfügbar",
           platform: "Live-Kontext benötigt macOS 26 oder neuer.",
           "helper-missing": "Dieser Pine-Build enthält keinen Live-Kontext.",
         },

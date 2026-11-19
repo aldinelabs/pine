@@ -1048,11 +1048,8 @@ export default {
           },
         },
         elsewhere: "Another conversation is capturing live context.",
-        empty: {
-          title: "Ready to listen",
-          description:
-            "Transcribes a meeting or class on this Mac, for this conversation. Audio is never saved.",
-        },
+        empty:
+          "Transcribes a meeting or class on this Mac, for this conversation. Audio is never saved.",
         systemSilent: {
           title: "No system audio yet",
           description:
@@ -1062,6 +1059,9 @@ export default {
         waiting: "Listening for the first words…",
         waitingPaused: "Paused. Resume to keep transcribing.",
         jumpToLatest: "Jump to latest",
+        level: "Input level",
+        levelBoth:
+          "Input level: microphone in the text colour, system audio in blue",
         noSession: "Open a conversation to capture live context into it.",
         showElsewhere: "Show",
         openSettings: "Open System Settings",
@@ -1086,7 +1086,6 @@ export default {
         loadFailed: "Couldn't load the transcript",
         actionFailed: "Live context didn't respond",
         unavailable: {
-          title: "Live context isn't available",
           platform: "Live context needs macOS 26 or later.",
           "helper-missing": "This build of Pine doesn't include live context.",
         },

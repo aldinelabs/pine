@@ -9,7 +9,8 @@ import {
   Volume2Icon,
   XIcon,
 } from "@lucide/vue";
-import { computed, ref, watch } from "vue";
+import { useElementSize } from "@vueuse/core";
+import { computed, ref, useTemplateRef, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { handleError } from "@/app/errors/errorHandler";
 import { Button } from "@/components/ui/button";
@@ -18,7 +19,6 @@ import {
   EmptyDescription,
   EmptyHeader,
   EmptyMedia,
-  EmptyTitle,
 } from "@/components/ui/empty";
 import LiveContextNotice from "@/components/workbench/LiveContextNotice.vue";
 import LiveContextSetup from "@/components/workbench/LiveContextSetup.vue";
@@ -60,6 +60,14 @@ const locale = ref<string>(
     "en-US",
 );
 const isBusy = ref(false);
+// "Jump to latest" floats just above the controls.
+const { height: footerHeight } = useElementSize(
+  useTemplateRef("footer"),
+  undefined,
+  {
+    box: "border-box",
+  },
+);
 
 const target = computed(() => {
   const sessionId = sessionStore.activeSession?.id;
@@ -271,22 +279,20 @@ function dismissError(): void {
 
 <template>
   <div
-    class="flex min-h-full flex-col px-(--workbench-inset) pb-(--workbench-inset)"
+    class="flex min-h-full flex-col px-(--workbench-inset) [--live-context-text-inset:calc(0.75rem+1px)]"
+    :style="{ '--live-context-footer-height': `${footerHeight}px` }"
     data-testid="workbench-live-context"
   >
     <Empty
       v-if="!liveContext.available"
-      class="flex-1 border-0 p-6"
+      class="flex-1 border-0"
       data-testid="live-context-unavailable"
     >
       <EmptyHeader>
         <EmptyMedia variant="icon">
           <MicOffIcon aria-hidden="true" />
         </EmptyMedia>
-        <EmptyTitle class="text-sm">
-          {{ t("project.workbench.liveContext.unavailable.title") }}
-        </EmptyTitle>
-        <EmptyDescription class="text-xs">
+        <EmptyDescription>
           {{
             t(
               `project.workbench.liveContext.unavailable.${status.unavailableReason ?? "platform"}`,
@@ -297,76 +303,35 @@ function dismissError(): void {
     </Empty>
     <Empty
       v-else-if="!target && !draftTab"
-      class="flex-1 border-0 p-6"
+      class="flex-1 border-0"
       data-testid="live-context-no-session"
     >
       <EmptyHeader>
         <EmptyMedia variant="icon">
           <MessageSquareTextIcon aria-hidden="true" />
         </EmptyMedia>
-        <EmptyDescription class="text-xs">
+        <EmptyDescription>
           {{ t("project.workbench.liveContext.noSession") }}
         </EmptyDescription>
       </EmptyHeader>
     </Empty>
     <template v-else>
-      <!-- Controls stay in view above a long transcript. -->
+      <LiveContextTranscript
+        :segments="segments"
+        :pending="pending"
+        :speakers="speakers"
+        :capture="capture"
+        :loading="loading"
+        @rename="rename"
+        @merge="merge"
+      />
+      <!-- Like the composer: the controls stay at the foot of the card,
+           below a long transcript, with any notice right above them. -->
       <div
-        class="bg-card sticky top-0 z-10 flex flex-col gap-2 pb-3"
+        ref="footer"
+        class="bg-card sticky bottom-0 z-10 mt-auto flex flex-col gap-2 pt-2 pb-(--workbench-inset)"
         data-testid="live-context-controls"
       >
-        <LiveContextNotice
-          v-if="isElsewhere"
-          :icon="RadioIcon"
-          :title="t('project.workbench.liveContext.elsewhere')"
-          :description="elsewhereSession?.name || undefined"
-          data-testid="live-context-elsewhere"
-        >
-          <template #actions>
-            <Button
-              v-if="elsewhereSession"
-              size="xs"
-              variant="outline"
-              @click="showElsewhere"
-            >
-              {{ t("project.workbench.liveContext.showElsewhere") }}
-            </Button>
-            <Button
-              size="xs"
-              variant="outline"
-              :disabled="isBusy"
-              data-testid="live-context-stop"
-              @click="run(liveContext.stop)"
-            >
-              <SquareIcon
-                data-icon="inline-start"
-                class="size-3 fill-current"
-                aria-hidden="true"
-              />
-              {{ t("project.workbench.liveContext.stop") }}
-            </Button>
-          </template>
-        </LiveContextNotice>
-        <LiveContextStatusBar
-          v-else-if="isHere"
-          :status="status"
-          :elapsed-at="liveContext.elapsedAt"
-          :busy="isBusy"
-          @pause="run(liveContext.pause)"
-          @resume="run(liveContext.resume)"
-          @stop="run(liveContext.stop)"
-        />
-        <LiveContextSetup
-          v-else
-          v-model:sources="sources"
-          v-model:locale="locale"
-          v-model:identify-speakers="identifySpeakers"
-          :speakers-available="status.speakersAvailable"
-          :continues="segments.length > 0"
-          :disabled="isBusy"
-          @start="start"
-        />
-
         <LiveContextNotice
           v-if="errorNotice"
           :icon="errorNotice.icon"
@@ -428,17 +393,59 @@ function dismissError(): void {
           "
           data-testid="live-context-speakers-degraded"
         />
+        <LiveContextNotice
+          v-if="isElsewhere"
+          :icon="RadioIcon"
+          :title="t('project.workbench.liveContext.elsewhere')"
+          :description="elsewhereSession?.name || undefined"
+          data-testid="live-context-elsewhere"
+        >
+          <template #actions>
+            <Button
+              v-if="elsewhereSession"
+              size="xs"
+              variant="outline"
+              @click="showElsewhere"
+            >
+              {{ t("project.workbench.liveContext.showElsewhere") }}
+            </Button>
+            <Button
+              size="xs"
+              variant="outline"
+              :disabled="isBusy"
+              data-testid="live-context-stop"
+              @click="run(liveContext.stop)"
+            >
+              <SquareIcon
+                data-icon="inline-start"
+                class="size-3 fill-current"
+                aria-hidden="true"
+              />
+              {{ t("project.workbench.liveContext.stop") }}
+            </Button>
+          </template>
+        </LiveContextNotice>
+        <LiveContextStatusBar
+          v-else-if="isHere"
+          :status="status"
+          :elapsed-at="liveContext.elapsedAt"
+          :levels="liveContext.levelHistory"
+          :busy="isBusy"
+          @pause="run(liveContext.pause)"
+          @resume="run(liveContext.resume)"
+          @stop="run(liveContext.stop)"
+        />
+        <LiveContextSetup
+          v-else
+          v-model:sources="sources"
+          v-model:locale="locale"
+          v-model:identify-speakers="identifySpeakers"
+          :speakers-available="status.speakersAvailable"
+          :continues="segments.length > 0"
+          :disabled="isBusy"
+          @start="start"
+        />
       </div>
-
-      <LiveContextTranscript
-        :segments="segments"
-        :pending="pending"
-        :speakers="speakers"
-        :capture="capture"
-        :loading="loading"
-        @rename="rename"
-        @merge="merge"
-      />
     </template>
   </div>
 </template>

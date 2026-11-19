@@ -994,11 +994,7 @@ export default {
           },
         },
         elsewhere: "另一個對話正在記錄即時上下文。",
-        empty: {
-          title: "準備就緒",
-          description:
-            "在本機轉寫會議或課堂內容，供這個對話使用。不會儲存音訊。",
-        },
+        empty: "在本機轉寫會議或課堂內容，供這個對話使用。不會儲存音訊。",
         systemSilent: {
           title: "尚未收到系統音訊",
           description:
@@ -1008,6 +1004,8 @@ export default {
         waiting: "等待第一句話…",
         waitingPaused: "已暫停，繼續後接著轉寫。",
         jumpToLatest: "跳到最新",
+        level: "輸入音量",
+        levelBoth: "輸入音量：麥克風為文字顏色，系統音訊為藍色",
         noSession: "開啟一個對話，即可為它記錄即時上下文。",
         showElsewhere: "查看",
         openSettings: "開啟系統設定",
@@ -1032,7 +1030,6 @@ export default {
         loadFailed: "無法載入轉寫內容",
         actionFailed: "即時上下文沒有回應",
         unavailable: {
-          title: "即時上下文無法使用",
           platform: "即時上下文需要 macOS 26 或更新版本。",
           "helper-missing": "此版本的 Pine 不包含即時上下文。",
         },

@@ -1067,11 +1067,8 @@ export default {
           },
         },
         elsewhere: "Otra conversación está capturando contexto en directo.",
-        empty: {
-          title: "Listo para escuchar",
-          description:
-            "Transcribe una reunión o clase en este Mac para esta conversación. Nunca se guarda el audio.",
-        },
+        empty:
+          "Transcribe una reunión o clase en este Mac para esta conversación. Nunca se guarda el audio.",
         systemSilent: {
           title: "Aún no llega audio del sistema",
           description:
@@ -1081,6 +1078,9 @@ export default {
         waiting: "Esperando las primeras palabras…",
         waitingPaused: "En pausa. Reanuda para seguir transcribiendo.",
         jumpToLatest: "Ir a lo último",
+        level: "Nivel de entrada",
+        levelBoth:
+          "Nivel de entrada: micrófono en el color del texto, audio del sistema en azul",
         noSession:
           "Abre una conversación para capturar contexto en directo en ella.",
         showElsewhere: "Ver",
@@ -1106,7 +1106,6 @@ export default {
         loadFailed: "No se pudo cargar la transcripción",
         actionFailed: "El contexto en directo no responde",
         unavailable: {
-          title: "El contexto en directo no está disponible",
           platform: "El contexto en directo requiere macOS 26 o posterior.",
           "helper-missing":
             "Esta versión de Pine no incluye contexto en directo.",

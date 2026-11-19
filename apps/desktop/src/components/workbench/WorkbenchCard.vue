@@ -179,12 +179,12 @@ const summary = computed(() => {
         enter-active-class="transition-opacity duration-500 ease-out-expo"
         enter-from-class="opacity-0"
       >
-        <!-- Live context pins its controls to the top, so only the bottom
+        <!-- Live context pins its controls to the bottom, so only the top
              fades there. -->
         <div
           :key="panel"
           class="scroll-fade-y no-scrollbar absolute inset-0 overflow-y-auto"
-          :class="panel === LIVE_CONTEXT_PANEL && '[--_scroll-fade-size-t:0px]'"
+          :class="panel === LIVE_CONTEXT_PANEL && '[--_scroll-fade-size-b:0px]'"
         >
           <component
             :is="

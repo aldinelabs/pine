@@ -13,6 +13,7 @@ import {
   ref,
   watch,
 } from "vue";
+import { useResizeObserver } from "@vueuse/core";
 import { useI18n } from "vue-i18n";
 import { Button } from "@/components/ui/button";
 import {
@@ -20,7 +21,6 @@ import {
   EmptyDescription,
   EmptyHeader,
   EmptyMedia,
-  EmptyTitle,
 } from "@/components/ui/empty";
 import { Skeleton } from "@/components/ui/skeleton";
 import LiveContextSpeakerChip from "@/components/workbench/LiveContextSpeakerChip.vue";
@@ -200,6 +200,13 @@ onMounted(() => {
   void nextTick(() => scrollToEnd());
 });
 onBeforeUnmount(() => scroller?.removeEventListener("scroll", onScroll));
+// The panel also grows when notices or the controls change: stay at the end.
+useResizeObserver(
+  () => root.value?.parentElement ?? null,
+  () => {
+    if (following.value) scrollToEnd();
+  },
+);
 
 watch(
   () => [
@@ -233,7 +240,7 @@ const isEmpty = computed(
   <div ref="root" class="flex flex-1 flex-col">
     <div
       v-if="loading && isEmpty"
-      class="flex flex-col gap-4 px-1 pt-1"
+      class="flex flex-col gap-4 px-(--live-context-text-inset) pt-1"
       aria-hidden="true"
       data-testid="live-context-transcript-loading"
     >
@@ -243,50 +250,29 @@ const isEmpty = computed(
         <Skeleton class="h-3.5" :class="row === 2 ? 'w-2/5' : 'w-3/4'" />
       </div>
     </div>
-    <div
-      v-else-if="isEmpty && capture"
-      class="text-muted-foreground flex flex-1 flex-col items-center justify-center gap-3 py-10 text-sm"
-      data-testid="live-context-waiting"
-    >
-      <span
-        class="flex h-6 items-center gap-[3px]"
-        :class="capture !== 'listening' && 'opacity-40'"
-        aria-hidden="true"
-      >
-        <span
-          v-for="bar in 5"
-          :key="bar"
-          class="live-context-bar bg-muted-foreground/60 w-[3px] rounded-full"
-          :class="capture !== 'listening' && 'live-context-bar-still'"
-          :style="{ animationDelay: `${bar * 120}ms` }"
-        />
-      </span>
-      {{
-        capture === "paused"
-          ? t("project.workbench.liveContext.waitingPaused")
-          : t("project.workbench.liveContext.waiting")
-      }}
-    </div>
     <Empty
       v-else-if="isEmpty"
-      class="flex-1 border-0 p-6"
-      data-testid="live-context-empty"
+      class="flex-1 border-0"
+      :data-testid="capture ? 'live-context-waiting' : 'live-context-empty'"
     >
       <EmptyHeader>
         <EmptyMedia variant="icon">
           <AudioLinesIcon aria-hidden="true" />
         </EmptyMedia>
-        <EmptyTitle class="text-sm">
-          {{ t("project.workbench.liveContext.empty.title") }}
-        </EmptyTitle>
-        <EmptyDescription class="text-xs">
-          {{ t("project.workbench.liveContext.empty.description") }}
+        <EmptyDescription>
+          {{
+            capture === "paused"
+              ? t("project.workbench.liveContext.waitingPaused")
+              : capture
+                ? t("project.workbench.liveContext.waiting")
+                : t("project.workbench.liveContext.empty")
+          }}
         </EmptyDescription>
       </EmptyHeader>
     </Empty>
     <ol
       v-else
-      class="flex flex-col gap-4 px-1 pb-2 text-sm"
+      class="flex flex-col gap-4 px-(--live-context-text-inset) pt-1 pb-2 text-sm"
       :aria-label="t('project.workbench.liveContext.transcript')"
       data-testid="live-context-transcript"
     >
@@ -367,7 +353,7 @@ const isEmpty = computed(
           v-for="line in block.lines"
           :key="line.key"
           :data-final="line.final || undefined"
-          class="pl-0.5 leading-relaxed break-words whitespace-pre-wrap select-text"
+          class="leading-relaxed break-words whitespace-pre-wrap select-text"
           :class="
             !line.final
               ? 'text-muted-foreground'
@@ -387,7 +373,7 @@ const isEmpty = computed(
     </ol>
     <div
       v-if="missed && !following"
-      class="pointer-events-none sticky bottom-3 mt-auto flex justify-center"
+      class="pointer-events-none sticky bottom-[calc(var(--live-context-footer-height,0px)+0.5rem)] mt-auto flex justify-center"
     >
       <Button
         size="xs"
@@ -404,27 +390,6 @@ const isEmpty = computed(
 </template>
 
 <style scoped>
-.live-context-bar {
-  height: 100%;
-  transform-origin: center;
-  animation: live-context-bar 1.1s ease-in-out infinite;
-}
-
-.live-context-bar-still {
-  animation: none;
-  transform: scaleY(0.3);
-}
-
-@keyframes live-context-bar {
-  0%,
-  100% {
-    transform: scaleY(0.3);
-  }
-  50% {
-    transform: scaleY(1);
-  }
-}
-
 .live-context-caret {
   animation: live-context-caret 1s steps(2, start) infinite;
 }
@@ -436,7 +401,6 @@ const isEmpty = computed(
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .live-context-bar,
   .live-context-caret {
     animation: none;
   }

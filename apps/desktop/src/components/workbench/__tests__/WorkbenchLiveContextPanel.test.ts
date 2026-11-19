@@ -140,7 +140,7 @@ describe("WorkbenchLiveContextPanel", () => {
     stubApi({ ...idle, available: false, unavailableReason: "platform" });
     const wrapper = await mountPanel();
     const unavailable = wrapper.get("[data-testid=live-context-unavailable]");
-    expect(unavailable.text()).toContain("Live context isn't available");
+    expect(unavailable.text()).toContain("Live context needs macOS 26");
     expect(unavailable.text()).toContain(
       "Live context needs macOS 26 or later.",
     );
@@ -441,7 +441,7 @@ describe("WorkbenchLiveContextPanel", () => {
     stubApi(idle, { segments: [], speakers: { names: {}, merges: {} } });
     const wrapper = await mountPanel();
     expect(wrapper.get("[data-testid=live-context-empty]").text()).toContain(
-      "Ready to listen",
+      "Audio is never saved",
     );
     expect(wrapper.get("[data-testid=live-context-start]").text()).toBe(
       "Start",
@@ -483,6 +483,40 @@ describe("WorkbenchLiveContextPanel", () => {
     );
     expect(wrapper.get("[data-testid=live-context-waiting]").text()).toContain(
       "Listening for the first words",
+    );
+  });
+
+  it("draws the input level of both sources while listening and holds it when paused", async () => {
+    const { emit } = stubApi(listeningHere);
+    const wrapper = await mountPanel();
+    const waveform = wrapper.get("[data-testid=live-context-waveform]");
+    expect(waveform.attributes("aria-label")).toBe(
+      "Input level: microphone in the text colour, system audio in blue",
+    );
+    expect(waveform.attributes("data-paused")).toBeUndefined();
+    emit({ kind: "status", status: { ...listeningHere, state: "paused" } });
+    await flushPromises();
+    expect(
+      wrapper
+        .get("[data-testid=live-context-waveform]")
+        .attributes("data-paused"),
+    ).toBe("true");
+  });
+
+  it("picks the spoken language from the language menu", async () => {
+    const { api } = stubApi(idle);
+    const wrapper = await mountPanel();
+    await wrapper.get("[data-testid=live-context-options]").trigger("click");
+    await flushPromises();
+    document.querySelector<HTMLElement>("[data-locale=ja-JP]")?.click();
+    await flushPromises();
+    expect(wrapper.get("[data-testid=live-context-options]").text()).toContain(
+      "Japanese",
+    );
+    await wrapper.get("[data-testid=live-context-start]").trigger("click");
+    await flushPromises();
+    expect(api.start).toHaveBeenCalledWith(
+      expect.objectContaining({ locale: "ja-JP" }),
     );
   });
 

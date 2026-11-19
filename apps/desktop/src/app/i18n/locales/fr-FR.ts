@@ -1069,11 +1069,8 @@ export default {
           },
         },
         elsewhere: "Une autre conversation capture déjà le contexte en direct.",
-        empty: {
-          title: "Prêt à écouter",
-          description:
-            "Transcrit une réunion ou un cours sur ce Mac, pour cette conversation. L’audio n’est jamais enregistré.",
-        },
+        empty:
+          "Transcrit une réunion ou un cours sur ce Mac, pour cette conversation. L’audio n’est jamais enregistré.",
         systemSilent: {
           title: "Aucun audio système pour l’instant",
           description:
@@ -1083,6 +1080,9 @@ export default {
         waiting: "En attente des premiers mots…",
         waitingPaused: "En pause. Reprenez pour continuer la transcription.",
         jumpToLatest: "Aller au plus récent",
+        level: "Niveau d’entrée",
+        levelBoth:
+          "Niveau d’entrée : micro dans la couleur du texte, audio système en bleu",
         noSession:
           "Ouvrez une conversation pour y capturer le contexte en direct.",
         showElsewhere: "Afficher",
@@ -1108,7 +1108,6 @@ export default {
         loadFailed: "Impossible de charger la transcription",
         actionFailed: "Le contexte en direct ne répond pas",
         unavailable: {
-          title: "Le contexte en direct n’est pas disponible",
           platform:
             "Le contexte en direct nécessite macOS 26 ou version ultérieure.",
           "helper-missing":

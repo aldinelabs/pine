@@ -683,40 +683,48 @@ close the card. The panels are:
 - Live context (macOS 26 or later; listed only when available):
   transcribes the microphone and/or system audio on this Mac for the active
   conversation. Audio is never saved, only the text.
-  Before a capture the card shows a Microphone / System audio pill (each
-  half toggles that source; at least one stays on), a language button and
+  The transcript fills the card; the controls sit in a row at the bottom of
+  the card, like the composer, and stay there while the transcript scrolls.
+  Before a capture the row shows two toggle buttons, Microphone and System
+  audio (icons; each turns its source on or off on its own, and the last
+  one on stays on), a language button showing the spoken language, and
   Start ("Continue" when the conversation already has a transcript). The
-  language button opens Language (pick the spoken language) and Identify
-  speakers (a switch, off by default, shown only when this build can label
-  speakers; when on, a people icon shows on the button).
+  language button opens a menu with Language (pick the spoken language)
+  and Identify speakers (a checkbox item, off by default, shown only when
+  this build can label speakers; when on, a people icon shows on the
+  button).
   On a new session's page, Start first creates an empty conversation in the
   project the composer shows, opens it in that tab and captures into it;
   messages sent later go to that conversation, which stays in the session
   list even if no message is ever sent.
-  While capturing, a bar pinned to the top of the card shows a pulsing red
-  dot and "Listening" with the listening time (paused time not counted),
-  icons for the sources and the language, a pause button and Stop. Paused
-  shows an amber dot, "Paused" and a play button to resume. "Preparing…",
-  "Downloading speech model…" or "Downloading speaker models…" (with a
-  progress bar and percent) show while it gets ready.
+  While capturing, the row becomes a bar: a softly pulsing red dot and the
+  listening time (paused time not counted), a waveform of the last few
+  seconds of sound, a pause button and a stop button (square icon). The
+  waveform shows the microphone in the text colour and system audio in
+  blue; silence is a flat line. Hovering the time shows the sources and
+  the language.
+  Paused shows an amber dot, "Paused", a still waveform and a play button
+  to resume. "Preparing…", "Downloading speech model…" or "Downloading
+  speaker models…" (with the percent and a progress bar) show while it
+  gets ready.
   Only one conversation captures at a time; others show "Another
   conversation is capturing live context." with the capturing
-  conversation's name, Show (opens it) and Stop.
-  Notices under the controls: "Microphone access is off" or "System audio
-  access is off" with Open System Settings (opens the matching Privacy &
-  Security pane) and Dismiss; "No system audio yet" with Open System
-  Settings while capturing; other problems ("Live context ran into a
+  conversation's name, Show (opens it) and Stop, in place of the row.
+  Notices appear just above the row: "Microphone access is off" or "System
+  audio access is off" with Open System Settings (opens the matching
+  Privacy & Security pane) and Dismiss; "No system audio yet" with Open
+  System Settings while capturing; other problems ("Live context ran into a
   problem", unsupported language, model download failed) with the details
   and Dismiss; and a note when speaker labels run lighter or pause to save
   power or keep up (they recover on their own).
-  The transcript fills the rest of the card. Before any text it shows
-  "Ready to listen" (or "Listening for the first words…" with moving bars
-  while capturing). Each block starts with who spoke and the time; a
-  speaker's consecutive lines stay under one label until someone else
-  speaks or two minutes pass. Without speaker labels the label is "Me"
-  (microphone) or "Others" (system audio). Words still forming are grey
-  with a blinking caret at the end. The card follows new text while it is
-  scrolled to the bottom; scrolled up, a "Jump to latest" button appears.
+  Before any text the transcript explains what live context does (or says
+  "Listening for the first words…" while capturing). Each block starts
+  with who spoke and the time; a speaker's consecutive lines stay under
+  one label until someone else speaks or two minutes pass. Without speaker
+  labels the label is "Me" (microphone) or "Others" (system audio). Words
+  still forming are grey with a blinking caret at the end. The card
+  follows new text while it is scrolled to the bottom; scrolled up, a
+  "Jump to latest" button appears above the controls.
   With Identify speakers, labels are colored "Speaker n" pills (a
   microphone or speaker icon shows the source). Labels appear a few seconds
   late, look faded while they may still change, and are revised once more

@@ -1058,11 +1058,8 @@ export default {
           },
         },
         elsewhere: "別の会話がライブコンテキストを記録しています。",
-        empty: {
-          title: "準備完了",
-          description:
-            "この Mac で会議や授業を文字起こしし、この会話で使います。音声は保存しません。",
-        },
+        empty:
+          "この Mac で会議や授業を文字起こしし、この会話で使います。音声は保存しません。",
         systemSilent: {
           title: "システムオーディオがまだありません",
           description:
@@ -1072,6 +1069,8 @@ export default {
         waiting: "最初の言葉を待っています…",
         waitingPaused: "一時停止中です。再開すると文字起こしを続けます。",
         jumpToLatest: "最新へ移動",
+        level: "入力レベル",
+        levelBoth: "入力レベル：マイクは文字色、システムオーディオは青",
         noSession: "会話を開くと、その会話にライブコンテキストを記録できます。",
         showElsewhere: "表示",
         openSettings: "システム設定を開く",
@@ -1096,7 +1095,6 @@ export default {
         loadFailed: "文字起こしを読み込めませんでした",
         actionFailed: "ライブコンテキストが応答しません",
         unavailable: {
-          title: "ライブコンテキストは利用できません",
           platform: "ライブコンテキストには macOS 26 以降が必要です。",
           "helper-missing":
             "この Pine ビルドにはライブコンテキストが含まれていません。",
