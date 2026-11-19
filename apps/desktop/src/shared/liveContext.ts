@@ -25,6 +25,7 @@ export const LIVE_CONTEXT_CREATE_SESSION_CHANNEL =
   "live-context:create-session" as const;
 export const LIVE_CONTEXT_OPEN_PRIVACY_SETTINGS_CHANNEL =
   "live-context:open-privacy-settings" as const;
+export const LIVE_CONTEXT_DELETE_CHANNEL = "live-context:delete" as const;
 
 /** Desktop IPC only; never on the shared router, so browsers and phones cannot listen. */
 export const LIVE_CONTEXT_REQUEST_CHANNELS = [
@@ -38,6 +39,7 @@ export const LIVE_CONTEXT_REQUEST_CHANNELS = [
   LIVE_CONTEXT_MERGE_SPEAKERS_CHANNEL,
   LIVE_CONTEXT_CREATE_SESSION_CHANNEL,
   LIVE_CONTEXT_OPEN_PRIVACY_SETTINGS_CHANNEL,
+  LIVE_CONTEXT_DELETE_CHANNEL,
 ] as const;
 
 /**
@@ -225,7 +227,9 @@ export type LiveContextEvent =
       turns: LiveContextTurn[];
       echo?: boolean;
     }
-  | { kind: "speakers"; sessionId: string; speakers: LiveContextSpeakers };
+  | { kind: "speakers"; sessionId: string; speakers: LiveContextSpeakers }
+  /** The session's transcript and speakers were deleted. */
+  | { kind: "deleted"; sessionId: string };
 
 export interface PineLiveContextApi {
   status(): Promise<LiveContextStatus>;
@@ -243,6 +247,11 @@ export interface PineLiveContextApi {
   mergeSpeakers(
     request: LiveContextMergeSpeakersRequest,
   ): Promise<LiveContextSpeakers>;
+  /**
+   * Deletes the session's transcript and speaker data, stopping its capture
+   * first when it is the one capturing. Cannot be undone.
+   */
+  deleteTranscript(target: LiveContextTarget): Promise<LiveContextStatus>;
   subscribe(listener: (event: LiveContextEvent) => void): () => void;
   /**
    * Opens the System Settings privacy pane that lets Pine hear this source:

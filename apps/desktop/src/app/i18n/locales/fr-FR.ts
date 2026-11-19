@@ -1093,6 +1093,15 @@ export default {
         waiting: "En attente des premiers mots…",
         waitingPaused: "En pause. Reprenez pour continuer la transcription.",
         jumpToLatest: "Aller au plus récent",
+        delete: {
+          action: "Supprimer le contexte en direct",
+          title: "Supprimer ce contexte en direct ?",
+          description:
+            "La transcription et les noms des intervenants de cette conversation seront définitivement supprimés. Cette action est irréversible.",
+          stopsCapture: "La capture s’arrête d’abord.",
+          confirm: "Supprimer",
+          failed: "Impossible de supprimer le contexte en direct",
+        },
         level: "Niveau d’entrée",
         levelBoth:
           "Niveau d’entrée : micro dans la couleur du texte, audio système en gris",

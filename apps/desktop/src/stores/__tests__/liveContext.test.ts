@@ -59,6 +59,10 @@ describe("useLiveContextStore", () => {
         names: {},
         merges: { "mic-2": "mic-1" },
       }),
+      deleteTranscript: vi.fn().mockResolvedValue({
+        ...listening,
+        state: "idle",
+      }),
       subscribe: vi.fn((listener: (event: LiveContextEvent) => void) => {
         emit = listener;
         return () => undefined;
@@ -275,5 +279,22 @@ describe("useLiveContextStore", () => {
       speakers: { names: { "mic-1": "Bo" }, merges: {} },
     });
     expect(store.speakersOf(TARGET.sessionId).names).toEqual({ "mic-1": "Bo" });
+  });
+
+  it("deletes a transcript and forgets it, here and in other windows", async () => {
+    const store = useLiveContextStore();
+    await store.load(TARGET);
+    await store.renameSpeaker(TARGET, "mic-1", "Alice");
+    expect(store.segmentsOf(TARGET.sessionId)).toHaveLength(1);
+    await store.deleteTranscript(TARGET);
+    expect(api.deleteTranscript).toHaveBeenCalledWith(TARGET);
+    expect(store.status.state).toBe("idle");
+    expect(store.segmentsOf(TARGET.sessionId)).toEqual([]);
+    expect(store.speakersOf(TARGET.sessionId).names).toEqual({});
+
+    // Deleted in another window: the event clears this one's copy too.
+    await store.load(TARGET);
+    emit({ kind: "deleted", sessionId: TARGET.sessionId });
+    expect(store.segmentsOf(TARGET.sessionId)).toEqual([]);
   });
 });

@@ -4,6 +4,7 @@ import path from "node:path";
 import { app, BrowserWindow, ipcMain, net, shell } from "electron";
 import { z } from "zod";
 import {
+  LIVE_CONTEXT_DELETE_CHANNEL,
   LIVE_CONTEXT_EVENT_CHANNEL,
   LIVE_CONTEXT_MERGE_SPEAKERS_CHANNEL,
   LIVE_CONTEXT_OPEN_PRIVACY_SETTINGS_CHANNEL,
@@ -155,6 +156,9 @@ export function createLiveContext(options: {
   );
   ipcMain.handle(LIVE_CONTEXT_TRANSCRIPT_CHANNEL, (_event, request: unknown) =>
     service.transcript(targetSchema.parse(request)),
+  );
+  ipcMain.handle(LIVE_CONTEXT_DELETE_CHANNEL, (_event, request: unknown) =>
+    service.deleteTranscript(targetSchema.parse(request)),
   );
   ipcMain.handle(
     LIVE_CONTEXT_RENAME_SPEAKER_CHANNEL,

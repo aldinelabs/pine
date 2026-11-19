@@ -1065,6 +1065,15 @@ export default {
         waiting: "첫 마디를 기다리는 중…",
         waitingPaused: "일시정지됨. 계속하면 이어서 받아 적습니다.",
         jumpToLatest: "최신으로 이동",
+        delete: {
+          action: "실시간 컨텍스트 삭제",
+          title: "이 실시간 컨텍스트를 삭제할까요?",
+          description:
+            "이 대화의 전사본과 화자 이름이 영구적으로 삭제됩니다. 이 작업은 되돌릴 수 없습니다.",
+          stopsCapture: "먼저 기록을 중지합니다.",
+          confirm: "삭제",
+          failed: "실시간 컨텍스트를 삭제하지 못했습니다",
+        },
         level: "입력 레벨",
         levelBoth: "입력 레벨: 마이크는 글자 색, 시스템 오디오는 회색",
         noSession:

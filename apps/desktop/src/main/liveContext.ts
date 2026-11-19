@@ -461,6 +461,26 @@ export class LiveContextService {
     );
   }
 
+  /**
+   * Deletes the session's transcript and speaker data. A capture into it
+   * stops first, so nothing is written after the files are gone.
+   */
+  async deleteTranscript(
+    target: LiveContextTarget,
+  ): Promise<LiveContextStatus> {
+    const capturing =
+      this.capture?.target.sessionId === target.sessionId ||
+      this.starting?.target.sessionId === target.sessionId;
+    if (capturing) await this.stop();
+    await this.writes;
+    await deleteLiveTranscript(
+      this.options.projectRoot(target.projectId),
+      target.sessionId,
+    );
+    this.options.emit({ kind: "deleted", sessionId: target.sessionId });
+    return this.status();
+  }
+
   private async readTranscriptFile(
     file: string,
   ): Promise<LiveContextTranscript> {

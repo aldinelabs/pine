@@ -736,7 +736,8 @@ close the card. The panels are:
   labels the label is "Me" (microphone) or "Others" (system audio). Words
   still forming are grey with a blinking caret at the end. The card
   follows new text while it is scrolled to the bottom; scrolled up, a
-  "Jump to latest" button appears above the controls.
+  "Jump to latest" button appears above the controls. The transcript's
+  top and bottom edges fade wherever more text is hidden past them.
   With Identify speakers, labels are colored "Speaker n" pills (a
   microphone or speaker icon shows the source). Labels appear a few seconds
   late, look faded while they may still change, and are revised once more
@@ -744,6 +745,12 @@ close the card. The panels are:
   marks people talking at once; "· Echo of system audio" with dimmed text
   marks other people's audio picked up by the microphone. Clicking a label
   offers Rename and Merge into.
+  Once the conversation has a transcript, a trash button (Delete live
+  context) sits in the card header beside Add card. It asks first ("Delete
+  this live context?"): the conversation's transcript and speaker names
+  are permanently deleted and it can't be undone; while this conversation
+  is capturing, the dialog adds "The capture stops first." and Delete stops
+  it before deleting. The card then shows its setup row again.
 - Details and Comments: shown only while a file tab is in front, in place of
   the session's cards (see File tab); they have no panel switcher or Add
   card.

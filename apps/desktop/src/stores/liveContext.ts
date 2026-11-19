@@ -141,6 +141,10 @@ export const useLiveContextStore = defineStore("liveContext", () => {
       speakers.set(event.sessionId, event.speakers);
       return;
     }
+    if (event.kind === "deleted") {
+      forget(event.sessionId);
+      return;
+    }
     const { segment, sessionId } = event;
     if (!segment.final) {
       volatile.set(segment.source, segment);
@@ -275,6 +279,22 @@ export const useLiveContextStore = defineStore("liveContext", () => {
     if (locale) await start(target, sources, locale);
   }
 
+  /** Drops what this window holds of a deleted transcript. */
+  function forget(sessionId: string): void {
+    if (transcripts.has(sessionId)) transcripts.set(sessionId, []);
+    speakers.delete(sessionId);
+  }
+
+  /**
+   * Deletes the conversation's transcript and speaker names for good,
+   * stopping its capture first; the panel goes back to its setup.
+   */
+  async function deleteTranscript(target: LiveContextTarget): Promise<void> {
+    if (!api) return;
+    setStatus(await api.deleteTranscript({ ...target }));
+    forget(target.sessionId);
+  }
+
   async function openPrivacySettings(source: LiveContextSource): Promise<void> {
     await api?.openPrivacySettings(source);
   }
@@ -296,6 +316,7 @@ export const useLiveContextStore = defineStore("liveContext", () => {
     stop,
     skipSpeakers,
     retrySpeakers,
+    deleteTranscript,
     elapsedAt,
     levelHistory,
     openPrivacySettings,

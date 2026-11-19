@@ -1097,6 +1097,15 @@ export default {
         waiting: "Warte auf die ersten Worte…",
         waitingPaused: "Pausiert. Fortsetzen, um weiter zu transkribieren.",
         jumpToLatest: "Zum Neuesten",
+        delete: {
+          action: "Live-Kontext löschen",
+          title: "Diesen Live-Kontext löschen?",
+          description:
+            "Das Transkript und die Sprechernamen dieser Unterhaltung werden endgültig gelöscht. Das kann nicht rückgängig gemacht werden.",
+          stopsCapture: "Die Aufnahme wird zuerst beendet.",
+          confirm: "Löschen",
+          failed: "Live-Kontext konnte nicht gelöscht werden",
+        },
         level: "Eingangspegel",
         levelBoth: "Eingangspegel: Mikrofon in Textfarbe, Systemaudio in Grau",
         noSession:

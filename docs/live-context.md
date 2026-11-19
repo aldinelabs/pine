@@ -221,7 +221,7 @@ apps/desktop/native/live-context/build/pine-live-context --start --sources syste
 <userData>/projects/<project-id>/live-context/<session-id>.jsonl
 ```
 
-和 `side-chats/<session-id>/` 一样放在 Project 数据目录下按会话分文件，`ProjectRuntime.deleteSession` 删除会话时一并删除。
+和 `side-chats/<session-id>/` 一样放在 Project 数据目录下按会话分文件，`ProjectRuntime.deleteSession` 删除会话时一并删除。用户也可以只删除某个会话的实时上下文：卡片标题栏的删除按钮（有转写时才出现）确认后调用 `deleteTranscript`，main 先停止这个会话正在进行的采集、等写入落盘，再删掉转写和 sidecar，并广播 `{ kind: "deleted", sessionId }`，各窗口清空缓存，卡片回到开始前的状态。之后的注入（§7）读不到任何内容。
 
 > 与最初设想的差异：没有放进 `sessions/` 目录。`ProjectSessionService` 会扫描 `sessions/*/` 下所有 `.jsonl` 当作会话文件，并清理“没有用户消息”的会话文件，转写文件放进去会被误读甚至误删。
 
@@ -272,11 +272,13 @@ window.pine.liveContext?: {
   transcript({ projectId, sessionId }): Promise<{ segments: LiveContextSegment[]; speakers: { names; merges } }>;
   renameSpeaker({ projectId, sessionId, speaker, name }): Promise<LiveContextSpeakers>;
   mergeSpeakers({ projectId, sessionId, from, into }): Promise<LiveContextSpeakers>;
+  deleteTranscript({ projectId, sessionId }): Promise<LiveContextStatus>; // 先停止该会话的采集
   subscribe(listener: (event: LiveContextEvent) => void): () => void;
 }
 // start 的请求另有可选 speakers: boolean
 // LiveContextEvent = { kind: "status", status } | { kind: "segment", sessionId, segment }
 //   | { kind: "turns", sessionId, segmentId, turns } | { kind: "speakers", sessionId, speakers }
+//   | { kind: "deleted", sessionId }
 ```
 
 参数在 main 用 zod 校验（projectId 为 uuid，sessionId 同侧边对话的安全字符集，locale 为 BCP 47）。类型定义见 `src/shared/liveContext.ts`。

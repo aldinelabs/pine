@@ -1091,6 +1091,15 @@ export default {
         waiting: "Esperando las primeras palabras…",
         waitingPaused: "En pausa. Reanuda para seguir transcribiendo.",
         jumpToLatest: "Ir a lo último",
+        delete: {
+          action: "Eliminar contexto en directo",
+          title: "¿Eliminar este contexto en directo?",
+          description:
+            "La transcripción y los nombres de los hablantes de esta conversación se eliminarán de forma permanente. No se puede deshacer.",
+          stopsCapture: "Primero se detiene la captura.",
+          confirm: "Eliminar",
+          failed: "No se pudo eliminar el contexto en directo",
+        },
         level: "Nivel de entrada",
         levelBoth:
           "Nivel de entrada: micrófono en el color del texto, audio del sistema en gris",

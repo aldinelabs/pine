@@ -1011,6 +1011,15 @@ export default {
         waiting: "等待第一句话…",
         waitingPaused: "已暂停，继续后接着转写。",
         jumpToLatest: "跳到最新",
+        delete: {
+          action: "删除实时上下文",
+          title: "删除这段实时上下文？",
+          description:
+            "这个对话的转写和说话人名称将被永久删除，此操作无法撤销。",
+          stopsCapture: "会先停止当前采集。",
+          confirm: "删除",
+          failed: "无法删除实时上下文",
+        },
         level: "输入音量",
         levelBoth: "输入音量：麦克风为文字颜色，系统音频为灰色",
         noSession: "打开一个对话，即可为它记录实时上下文。",

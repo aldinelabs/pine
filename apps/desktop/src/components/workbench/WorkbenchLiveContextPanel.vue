@@ -24,6 +24,7 @@ import LiveContextSetup from "@/components/workbench/LiveContextSetup.vue";
 import LiveContextStatusBar from "@/components/workbench/LiveContextStatusBar.vue";
 import LiveContextTranscript from "@/components/workbench/LiveContextTranscript.vue";
 import { useContentTabNavigation } from "@/composables/useContentTabNavigation";
+import { useLiveContextTarget } from "@/composables/useLiveContextTarget";
 import {
   LIVE_CONTEXT_LOCALES,
   type LiveContextError,
@@ -60,13 +61,7 @@ const locale = ref<string>(
 );
 const isBusy = ref(false);
 
-const target = computed(() => {
-  const sessionId = sessionStore.activeSession?.id;
-  if (!sessionId) return undefined;
-  const projectId =
-    sessionStore.projectOf(sessionId) ?? projectStore.currentProjectId;
-  return projectId ? { projectId, sessionId } : undefined;
-});
+const target = useLiveContextTarget();
 /** The new-session tab in front, which Start turns into a conversation. */
 const draftTab = computed(() => {
   const tab = tabNavigation.activeSessionTab.value;

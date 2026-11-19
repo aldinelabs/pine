@@ -13,6 +13,7 @@ import {
   type WorkbenchPanel,
   type WorkbenchPosition,
 } from "@/shared/workbench";
+import LiveContextDeleteButton from "./LiveContextDeleteButton.vue";
 import WorkbenchCardAddMenu from "./WorkbenchCardAddMenu.vue";
 import WorkbenchCardPanelMenu from "./WorkbenchCardPanelMenu.vue";
 import WorkbenchFileCard from "./WorkbenchFileCard.vue";
@@ -162,6 +163,7 @@ const summary = computed(() => {
           <SquareArrowOutUpRight aria-hidden="true" />
         </Button>
         <WorkbenchCardAddMenu :panel="panel" :position="position" />
+        <LiveContextDeleteButton v-if="panel === LIVE_CONTEXT_PANEL" />
         <Button
           variant="ghost"
           size="icon"

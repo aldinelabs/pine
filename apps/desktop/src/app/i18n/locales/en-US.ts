@@ -1072,6 +1072,15 @@ export default {
         waiting: "Listening for the first words…",
         waitingPaused: "Paused. Resume to keep transcribing.",
         jumpToLatest: "Jump to latest",
+        delete: {
+          action: "Delete live context",
+          title: "Delete this live context?",
+          description:
+            "This conversation's transcript and speaker names will be permanently deleted. This can't be undone.",
+          stopsCapture: "The capture stops first.",
+          confirm: "Delete",
+          failed: "Couldn't delete the live context",
+        },
         level: "Input level",
         levelBoth:
           "Input level: microphone in the text colour, system audio in grey",

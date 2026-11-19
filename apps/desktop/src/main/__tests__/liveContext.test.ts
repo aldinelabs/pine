@@ -303,6 +303,45 @@ describe("LiveContextService", () => {
     expect(() => liveTranscriptPath(root, "../escape")).toThrow();
   });
 
+  it("deletes a transcript on request, stopping its capture first", async () => {
+    await startListening();
+    helper.write({
+      type: "segment",
+      id: "mic-0",
+      source: "mic",
+      t0: 0,
+      t1: 10,
+      text: "hi",
+      final: true,
+    });
+    await tick();
+    const target = { projectId: PROJECT_ID, sessionId: "session-1" };
+    const file = liveTranscriptPath(root, "session-1");
+    await expect(readFile(file, "utf8")).resolves.toContain("hi");
+    const status = await service.deleteTranscript(target);
+    expect(helper.commands.at(-1)).toEqual({ type: "stop" });
+    expect(status).toMatchObject({ state: "idle" });
+    await expect(readFile(file, "utf8")).rejects.toThrow();
+    await expect(
+      readFile(liveSpeakersPath(root, "session-1"), "utf8"),
+    ).rejects.toThrow();
+    expect((await service.transcript(target)).segments).toEqual([]);
+    expect(events.at(-1)).toEqual({ kind: "deleted", sessionId: "session-1" });
+  });
+
+  it("deletes another session's transcript without stopping the capture", async () => {
+    await startListening();
+    const status = await service.deleteTranscript({
+      projectId: PROJECT_ID,
+      sessionId: "session-2",
+    });
+    expect(status).toMatchObject({
+      state: "listening",
+      sessionId: "session-1",
+    });
+    expect(helper.commands.some(({ type }) => type === "stop")).toBe(false);
+  });
+
   describe("speaker labels", () => {
     let models: (
       onProgress: (received: number, total: number) => void,

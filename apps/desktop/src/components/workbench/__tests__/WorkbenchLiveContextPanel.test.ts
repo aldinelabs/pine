@@ -4,6 +4,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createAppI18n } from "@/app/i18n";
 import type { LiveContextEvent, LiveContextStatus } from "@/shared/liveContext";
 import { useContentTabsStore } from "@/stores/contentTabs";
+import { defineComponent, h } from "vue";
+import LiveContextDeleteButton from "../LiveContextDeleteButton.vue";
 import WorkbenchLiveContextPanel from "../WorkbenchLiveContextPanel.vue";
 
 const PROJECT_ID = "00000000-0000-4000-8000-000000000001";
@@ -82,6 +84,7 @@ function stubApi(
     resume: vi.fn().mockResolvedValue(listeningHere),
     stop: vi.fn().mockResolvedValue(idle),
     skipSpeakers: vi.fn().mockResolvedValue(listeningHere),
+    deleteTranscript: vi.fn().mockResolvedValue(idle),
     openPrivacySettings: vi.fn().mockResolvedValue(undefined),
     transcript: vi.fn().mockResolvedValue(
       transcript ?? {
@@ -119,6 +122,29 @@ async function mountPanel() {
 }
 
 const mounted: { unmount(): void }[] = [];
+
+/** The card's header button beside the panel, as WorkbenchCard shows them. */
+async function mountWithDelete() {
+  setActivePinia(createPinia());
+  const wrapper = mount(
+    defineComponent({
+      render: () => [h(LiveContextDeleteButton), h(WorkbenchLiveContextPanel)],
+    }),
+    {
+      attachTo: document.body,
+      global: { plugins: [createAppI18n("en-US")] },
+    },
+  );
+  mounted.push(wrapper);
+  await flushPromises();
+  return wrapper;
+}
+
+function deleteDialog(): HTMLElement | null {
+  return document.body.querySelector<HTMLElement>(
+    "[data-testid=live-context-delete-dialog]",
+  );
+}
 
 describe("WorkbenchLiveContextPanel", () => {
   beforeEach(() => {
@@ -567,6 +593,62 @@ describe("WorkbenchLiveContextPanel", () => {
     expect(scroll.attributes("data-scrollable")).toBe("start end");
     await place(0);
     expect(scroll.attributes("data-scrollable")).toBe("end");
+  });
+
+  it("deletes the transcript after a confirmation and returns to setup", async () => {
+    const { api } = stubApi(idle);
+    const wrapper = await mountWithDelete();
+    expect(wrapper.text()).toContain("期末考第五章");
+    await wrapper.get("[data-testid=live-context-delete]").trigger("click");
+    await flushPromises();
+    const dialog = deleteDialog();
+    expect(dialog?.textContent).toContain("permanently deleted");
+    expect(dialog?.textContent).not.toContain("The capture stops first.");
+    dialog
+      ?.querySelector<HTMLElement>("[data-testid=live-context-delete-confirm]")
+      ?.click();
+    await flushPromises();
+    expect(api.deleteTranscript).toHaveBeenCalledWith({
+      projectId: PROJECT_ID,
+      sessionId: "session-1",
+    });
+    expect(wrapper.text()).not.toContain("期末考第五章");
+    expect(wrapper.find("[data-testid=live-context-setup]").exists()).toBe(
+      true,
+    );
+    expect(wrapper.find("[data-testid=live-context-delete]").exists()).toBe(
+      false,
+    );
+  });
+
+  it("keeps the transcript when the deletion is cancelled", async () => {
+    const { api } = stubApi(idle);
+    const wrapper = await mountWithDelete();
+    await wrapper.get("[data-testid=live-context-delete]").trigger("click");
+    await flushPromises();
+    const cancel = [
+      ...(deleteDialog()?.querySelectorAll<HTMLElement>("button") ?? []),
+    ].find((button) => button.textContent?.trim() === "Cancel");
+    cancel?.click();
+    await flushPromises();
+    expect(api.deleteTranscript).not.toHaveBeenCalled();
+    expect(wrapper.text()).toContain("期末考第五章");
+  });
+
+  it("says a capture into the conversation stops before it is deleted", async () => {
+    stubApi(listeningHere);
+    const wrapper = await mountWithDelete();
+    await wrapper.get("[data-testid=live-context-delete]").trigger("click");
+    await flushPromises();
+    expect(deleteDialog()?.textContent).toContain("The capture stops first.");
+  });
+
+  it("offers no deletion before there is a transcript", async () => {
+    stubApi(idle, { segments: [], speakers: { names: {}, merges: {} } });
+    const wrapper = await mountWithDelete();
+    expect(wrapper.find("[data-testid=live-context-delete]").exists()).toBe(
+      false,
+    );
   });
 
   it("pauses and resumes from the status bar", async () => {

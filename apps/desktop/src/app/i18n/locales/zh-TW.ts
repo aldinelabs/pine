@@ -1015,6 +1015,15 @@ export default {
         waiting: "等待第一句話…",
         waitingPaused: "已暫停，繼續後接著轉寫。",
         jumpToLatest: "跳到最新",
+        delete: {
+          action: "刪除即時上下文",
+          title: "刪除這段即時上下文？",
+          description:
+            "這個對話的轉寫和說話人名稱將被永久刪除，此操作無法復原。",
+          stopsCapture: "會先停止目前的擷取。",
+          confirm: "刪除",
+          failed: "無法刪除即時上下文",
+        },
         level: "輸入音量",
         levelBoth: "輸入音量：麥克風為文字顏色，系統音訊為灰色",
         noSession: "開啟一個對話，即可為它記錄即時上下文。",
