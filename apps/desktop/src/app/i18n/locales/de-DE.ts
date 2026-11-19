@@ -1050,7 +1050,8 @@ export default {
         state: {
           preparing: "Wird vorbereitet …",
           downloading: "Sprachmodell wird geladen …",
-          downloadingSpeakers: "Sprechermodelle werden geladen …",
+          speakerModels: "Sprechermodelle",
+          downloadSize: "{received} / {total} MB",
           listening: "Hört zu",
           paused: "Pausiert",
           stopping: "Wird beendet …",
@@ -1061,6 +1062,9 @@ export default {
           numbered: "Sprecher {n}",
           rename: "Umbenennen",
           mergeInto: "Zusammenführen mit",
+          skip: "Überspringen",
+          skipHint: "Jetzt ohne Sprecherbeschriftungen aufnehmen",
+          retry: "Erneut versuchen",
           failed: {
             network:
               "Der Download-Server ist nicht erreichbar. Prüfe Verbindung oder Proxy und versuche es erneut.",

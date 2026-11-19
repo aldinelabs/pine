@@ -251,6 +251,30 @@ export const useLiveContextStore = defineStore("liveContext", () => {
     if (api) setStatus(await api.stop());
   }
 
+  /** Records on without speaker labels instead of waiting for their models. */
+  async function skipSpeakers(): Promise<void> {
+    if (api) setStatus(await api.skipSpeakers());
+  }
+
+  /**
+   * Tries speaker labels again: a capture in this session restarts with
+   * them (the transcript continues); otherwise the next Start asks for them.
+   */
+  async function retrySpeakers(target: LiveContextTarget): Promise<void> {
+    if (!api) return;
+    identifySpeakers.value = true;
+    const current = status.value;
+    if (
+      current.sessionId !== target.sessionId ||
+      (current.state !== "listening" && current.state !== "paused")
+    )
+      return;
+    const sources = [...current.sources];
+    const locale = current.locale;
+    await stop();
+    if (locale) await start(target, sources, locale);
+  }
+
   async function openPrivacySettings(source: LiveContextSource): Promise<void> {
     await api?.openPrivacySettings(source);
   }
@@ -270,6 +294,8 @@ export const useLiveContextStore = defineStore("liveContext", () => {
     pause,
     resume,
     stop,
+    skipSpeakers,
+    retrySpeakers,
     elapsedAt,
     levelHistory,
     openPrivacySettings,

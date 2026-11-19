@@ -1026,7 +1026,8 @@ export default {
         state: {
           preparing: "Preparing…",
           downloading: "Downloading speech model…",
-          downloadingSpeakers: "Downloading speaker models…",
+          speakerModels: "Speaker models",
+          downloadSize: "{received} / {total} MB",
           listening: "Listening",
           paused: "Paused",
           stopping: "Stopping…",
@@ -1037,6 +1038,9 @@ export default {
           numbered: "Speaker {n}",
           rename: "Rename",
           mergeInto: "Merge into",
+          skip: "Skip",
+          skipHint: "Record now, without speaker labels",
+          retry: "Retry",
           failed: {
             network:
               "Couldn't reach the download server. Check your connection or proxy, then try again.",

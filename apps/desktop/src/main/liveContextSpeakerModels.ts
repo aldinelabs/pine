@@ -75,9 +75,11 @@ export interface SpeakerModelOptions {
   /** Holds the models, e.g. `<userData>/models/live-context-speakers`. */
   directory: string;
   /** Pine's own outgoing requests (the desktop follows the system proxy). */
-  fetch: (url: string) => Promise<Response>;
-  /** 0–1 across all downloads. */
-  onProgress?(fraction: number): void;
+  fetch: (url: string, init: { signal?: AbortSignal }) => Promise<Response>;
+  /** Bytes so far across all downloads, of `total`. */
+  onProgress?(received: number, total: number): void;
+  /** Gives up: the download stops and `ensureSpeakerModels` rejects. */
+  signal?: AbortSignal;
   /** Tests only: other pins. */
   models?: Record<keyof typeof SPEAKER_MODELS, SpeakerModel>;
 }
@@ -119,6 +121,7 @@ async function onDisk<T>(action: () => Promise<T>): Promise<T> {
  */
 async function download(
   fetch: SpeakerModelOptions["fetch"],
+  signal: AbortSignal | undefined,
   url: string,
   file: string,
   model: SpeakerModel,
@@ -126,7 +129,7 @@ async function download(
 ): Promise<void> {
   let response: Response;
   try {
-    response = await fetch(url);
+    response = await fetch(url, { signal });
   } catch (error) {
     throw new SpeakerModelError("network", `${url}: ${String(error)}`, {
       cause: error,
@@ -227,10 +230,10 @@ export async function ensureSpeakerModels(
   const total = missing.reduce((sum, model) => sum + model.bytes, 0);
   let done = 0;
   const progress = (bytes: number) => {
-    done += bytes;
-    options.onProgress?.(Math.min(1, Math.max(0, done / total)));
+    done = Math.min(total, Math.max(0, done + bytes));
+    options.onProgress?.(done, total);
   };
-  options.onProgress?.(0);
+  options.onProgress?.(0, total);
   const staging = await onDisk(() =>
     mkdtemp(path.join(options.directory, ".download-")),
   );
@@ -239,12 +242,21 @@ export async function ensureSpeakerModels(
       const partial = path.join(staging, model.file);
       let failure: Error | undefined;
       for (const url of model.urls) {
+        options.signal?.throwIfAborted();
         try {
-          await download(options.fetch, url, partial, model, progress);
+          await download(
+            options.fetch,
+            options.signal,
+            url,
+            partial,
+            model,
+            progress,
+          );
           failure = undefined;
           break;
         } catch (error) {
-          // The disk will not do better with the next source.
+          // Given up, or the disk will not do better with the next source.
+          options.signal?.throwIfAborted();
           if (error instanceof SpeakerModelError && error.reason === "disk")
             throw error;
           failure = error instanceof Error ? error : new Error(String(error));

@@ -1019,7 +1019,8 @@ export default {
         state: {
           preparing: "준비 중…",
           downloading: "음성 모델 다운로드 중…",
-          downloadingSpeakers: "화자 모델 다운로드 중…",
+          speakerModels: "화자 모델",
+          downloadSize: "{received} / {total}MB",
           listening: "듣는 중",
           paused: "일시정지됨",
           stopping: "중지하는 중…",
@@ -1030,6 +1031,9 @@ export default {
           numbered: "화자 {n}",
           rename: "이름 변경",
           mergeInto: "병합 대상",
+          skip: "건너뛰기",
+          skipHint: "화자 구분 없이 바로 기록합니다",
+          retry: "다시 시도",
           failed: {
             network:
               "다운로드 서버에 연결할 수 없습니다. 네트워크나 프록시를 확인한 뒤 다시 시도하세요.",

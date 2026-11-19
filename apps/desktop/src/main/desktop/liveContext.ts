@@ -15,6 +15,7 @@ import {
   LIVE_CONTEXT_CREATE_SESSION_CHANNEL,
   LIVE_CONTEXT_STATUS_CHANNEL,
   LIVE_CONTEXT_STOP_CHANNEL,
+  LIVE_CONTEXT_SKIP_SPEAKERS_CHANNEL,
   LIVE_CONTEXT_TRANSCRIPT_CHANNEL,
   type LiveContextEvent,
   type LiveContextUnavailableReason,
@@ -122,15 +123,16 @@ export function createLiveContext(options: {
       available: speakerLibraryExists,
       // Downloaded once into Pine's data folder, through the system proxy
       // like Pine's other requests, and checked against pinned hashes.
-      models: (onProgress) =>
+      models: (onProgress, signal) =>
         ensureSpeakerModels({
           directory: path.join(
             app.getPath("userData"),
             "models",
             "live-context-speakers",
           ),
-          fetch: (url) => net.fetch(url),
+          fetch: (url, init) => net.fetch(url, init),
           onProgress,
+          signal,
         }),
     },
   });
@@ -148,6 +150,9 @@ export function createLiveContext(options: {
   ipcMain.handle(LIVE_CONTEXT_PAUSE_CHANNEL, () => service.pause());
   ipcMain.handle(LIVE_CONTEXT_RESUME_CHANNEL, () => service.resume());
   ipcMain.handle(LIVE_CONTEXT_STOP_CHANNEL, () => service.stop());
+  ipcMain.handle(LIVE_CONTEXT_SKIP_SPEAKERS_CHANNEL, () =>
+    service.skipSpeakers(),
+  );
   ipcMain.handle(LIVE_CONTEXT_TRANSCRIPT_CHANNEL, (_event, request: unknown) =>
     service.transcript(targetSchema.parse(request)),
   );

@@ -1036,7 +1036,8 @@ export default {
         state: {
           preparing: "準備中…",
           downloading: "音声モデルをダウンロード中…",
-          downloadingSpeakers: "話者モデルをダウンロード中…",
+          speakerModels: "話者モデル",
+          downloadSize: "{received} / {total} MB",
           listening: "聞き取り中",
           paused: "一時停止中",
           stopping: "停止中…",
@@ -1047,6 +1048,9 @@ export default {
           numbered: "話者 {n}",
           rename: "名前を変更",
           mergeInto: "統合先",
+          skip: "スキップ",
+          skipHint: "話者識別なしで今すぐ記録します",
+          retry: "再試行",
           failed: {
             network:
               "ダウンロードサーバーに接続できません。ネットワークまたはプロキシを確認して、もう一度お試しください。",

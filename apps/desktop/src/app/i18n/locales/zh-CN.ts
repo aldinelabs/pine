@@ -969,7 +969,8 @@ export default {
         state: {
           preparing: "正在准备…",
           downloading: "正在下载语音模型…",
-          downloadingSpeakers: "正在下载说话人模型…",
+          speakerModels: "说话人模型",
+          downloadSize: "{received} / {total} MB",
           listening: "正在收听",
           paused: "已暂停",
           stopping: "正在停止…",
@@ -980,6 +981,9 @@ export default {
           numbered: "说话人 {n}",
           rename: "重命名",
           mergeInto: "合并到",
+          skip: "跳过",
+          skipHint: "不等下载，直接记录（不识别说话人）",
+          retry: "重试",
           failed: {
             network: "无法连接下载服务器。请检查网络或代理后重试。",
             size: "下载的文件大小与预期不符，Pine 未使用它。请稍后重试。",

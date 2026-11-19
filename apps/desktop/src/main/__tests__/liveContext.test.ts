@@ -304,7 +304,10 @@ describe("LiveContextService", () => {
   });
 
   describe("speaker labels", () => {
-    let models: (onProgress: (fraction: number) => void) => Promise<{
+    let models: (
+      onProgress: (received: number, total: number) => void,
+      signal: AbortSignal,
+    ) => Promise<{
       segmentation: string;
       embedding: string;
     }>;
@@ -313,7 +316,7 @@ describe("LiveContextService", () => {
     beforeEach(() => {
       spawned = 0;
       models = async (onProgress) => {
-        onProgress(0.5);
+        onProgress(15_000_000, 30_000_000);
         await tick();
         return { segmentation: "/m/seg.onnx", embedding: "/m/emb.onnx" };
       };
@@ -328,7 +331,10 @@ describe("LiveContextService", () => {
         emit: (event) => events.push(event),
         volatileIntervalMs: 1,
         stopTimeoutMs: 50,
-        speakers: { available: () => true, models: (p) => models(p) },
+        speakers: {
+          available: () => true,
+          models: (progress, signal) => models(progress, signal),
+        },
       });
     });
 
@@ -360,7 +366,9 @@ describe("LiveContextService", () => {
             event.kind === "status" &&
             event.status.state === "downloading" &&
             event.status.download === "speakers" &&
-            event.status.downloadProgress === 0.5,
+            event.status.downloadProgress === 0.5 &&
+            event.status.downloadBytes?.received === 15_000_000 &&
+            event.status.downloadBytes.total === 30_000_000,
         ),
       ).toBe(true);
       expect(helper.commands[0]).toMatchObject({
@@ -385,10 +393,42 @@ describe("LiveContextService", () => {
       });
     });
 
+    /** A download that runs until it is given up. */
+    function pendingModels(): { signal: () => AbortSignal | undefined } {
+      let seen: AbortSignal | undefined;
+      models = (_progress, signal) => {
+        seen = signal;
+        return new Promise((_resolve, reject) =>
+          signal.addEventListener("abort", () => reject(new Error("aborted"))),
+        );
+      };
+      return { signal: () => seen };
+    }
+
+    it("records without labels, and without an error, when the download is skipped", async () => {
+      const download = pendingModels();
+      const starting = service.start({
+        projectId: PROJECT_ID,
+        sessionId: "session-1",
+        sources: ["mic"],
+        locale: "en-US",
+        speakers: true,
+      });
+      await tick();
+      await service.skipSpeakers();
+      await starting;
+      expect(download.signal()?.aborted).toBe(true);
+      expect(spawned).toBe(1);
+      expect(helper.commands[0]).not.toHaveProperty("speakers");
+      expect(service.status().lastError).toBeUndefined();
+    });
+
     it("stops while the models download without starting the helper", async () => {
       let release: () => void = () => undefined;
-      models = () =>
+      let seen: AbortSignal | undefined;
+      models = (_progress, signal) =>
         new Promise((resolve) => {
+          seen = signal;
           release = () => resolve({ segmentation: "/s", embedding: "/e" });
         });
       const starting = service.start({
@@ -401,6 +441,8 @@ describe("LiveContextService", () => {
       await tick();
       expect(service.status().state).toBe("preparing");
       await expect(service.stop()).resolves.toMatchObject({ state: "idle" });
+      // The download itself is given up too.
+      expect(seen?.aborted).toBe(true);
       release();
       await starting;
       expect(spawned).toBe(0);

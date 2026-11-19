@@ -1,10 +1,14 @@
 <script setup lang="ts">
+import { XIcon } from "@lucide/vue";
 import type { Component } from "vue";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 /**
  * A short message above the Live Context bar: what happened, what to do,
- * and up to two actions. "warning" needs the user; "destructive" stopped things.
+ * and up to two actions. "warning" needs the user; "destructive" stopped
+ * things; "neutral" is a side note (the icon can still carry a colour).
+ * With `dismissLabel` it closes from a small × at its top right.
  */
 withDefaults(
   defineProps<{
@@ -12,9 +16,18 @@ withDefaults(
     title: string;
     description?: string;
     tone?: "neutral" | "warning" | "destructive";
+    /** Tints the icon only, for a calm notice that still stands out. */
+    iconTone?: "warning";
+    dismissLabel?: string;
   }>(),
-  { tone: "neutral", description: undefined },
+  {
+    tone: "neutral",
+    description: undefined,
+    iconTone: undefined,
+    dismissLabel: undefined,
+  },
 );
+const emit = defineEmits<{ dismiss: [] }>();
 </script>
 
 <template>
@@ -29,6 +42,9 @@ withDefaults(
           'bg-amber-500/10 dark:bg-amber-400/10 [&_[data-notice-icon]]:text-amber-600 dark:[&_[data-notice-icon]]:text-amber-400',
         tone === 'destructive' &&
           'bg-destructive/10 dark:bg-destructive/15 [&_[data-notice-icon]]:text-destructive',
+        iconTone === 'warning' &&
+          '[&_[data-notice-icon]]:text-amber-600 dark:[&_[data-notice-icon]]:text-amber-400',
+        dismissLabel && 'py-2 pr-1.5',
       )
     "
   >
@@ -52,5 +68,17 @@ withDefaults(
         <slot name="actions" />
       </div>
     </div>
+    <Button
+      v-if="dismissLabel"
+      size="icon-xs"
+      variant="ghost"
+      class="text-muted-foreground -mt-0.5 shrink-0"
+      data-testid="live-context-dismiss-error"
+      :aria-label="dismissLabel"
+      :title="dismissLabel"
+      @click="emit('dismiss')"
+    >
+      <XIcon aria-hidden="true" />
+    </Button>
   </div>
 </template>

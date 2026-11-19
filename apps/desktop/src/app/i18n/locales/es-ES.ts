@@ -1043,7 +1043,8 @@ export default {
         state: {
           preparing: "Preparando…",
           downloading: "Descargando el modelo de voz…",
-          downloadingSpeakers: "Descargando modelos de hablantes…",
+          speakerModels: "Modelos de hablantes",
+          downloadSize: "{received} / {total} MB",
           listening: "Escuchando",
           paused: "En pausa",
           stopping: "Deteniendo…",
@@ -1054,6 +1055,9 @@ export default {
           numbered: "Hablante {n}",
           rename: "Cambiar nombre",
           mergeInto: "Combinar con",
+          skip: "Omitir",
+          skipHint: "Grabar ahora, sin etiquetas de hablantes",
+          retry: "Reintentar",
           failed: {
             network:
               "No se puede conectar con el servidor de descarga. Revisa la conexión o el proxy e inténtalo de nuevo.",

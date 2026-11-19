@@ -12,6 +12,8 @@ export const LIVE_CONTEXT_START_CHANNEL = "live-context:start" as const;
 export const LIVE_CONTEXT_PAUSE_CHANNEL = "live-context:pause" as const;
 export const LIVE_CONTEXT_RESUME_CHANNEL = "live-context:resume" as const;
 export const LIVE_CONTEXT_STOP_CHANNEL = "live-context:stop" as const;
+export const LIVE_CONTEXT_SKIP_SPEAKERS_CHANNEL =
+  "live-context:skip-speakers" as const;
 export const LIVE_CONTEXT_TRANSCRIPT_CHANNEL =
   "live-context:transcript" as const;
 export const LIVE_CONTEXT_EVENT_CHANNEL = "live-context:event" as const;
@@ -100,6 +102,8 @@ export interface LiveContextStatus {
   startedAt?: number;
   /** 0–1 while downloading. */
   downloadProgress?: number;
+  /** Bytes so far while the speaker models download. */
+  downloadBytes?: { received: number; total: number };
   /** What is downloading: the speech model or the speaker models. */
   download?: "speech" | "speakers";
   /** This build can label speakers (the library ships with it). */
@@ -229,6 +233,8 @@ export interface PineLiveContextApi {
   pause(): Promise<LiveContextStatus>;
   resume(): Promise<LiveContextStatus>;
   stop(): Promise<LiveContextStatus>;
+  /** Starts the capture without the speaker models still downloading. */
+  skipSpeakers(): Promise<LiveContextStatus>;
   /** The session's final segments, oldest first, and its speakers. */
   transcript(target: LiveContextTarget): Promise<LiveContextTranscript>;
   renameSpeaker(

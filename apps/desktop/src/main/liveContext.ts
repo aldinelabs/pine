@@ -62,8 +62,14 @@ export interface LiveContextServiceOptions {
   speakers?: {
     /** The library ships with this build. */
     available(): boolean;
-    /** The models' paths, downloading them first if needed. */
-    models(onProgress: (fraction: number) => void): Promise<SpeakerModelPaths>;
+    /**
+     * The models' paths, downloading them first if needed; rejects once
+     * `signal` aborts.
+     */
+    models(
+      onProgress: (received: number, total: number) => void,
+      signal: AbortSignal,
+    ): Promise<SpeakerModelPaths>;
   };
 }
 
@@ -227,7 +233,8 @@ interface Capture {
 export class LiveContextService {
   private capture: Capture | undefined;
   /** Set while speaker models download before the helper starts. */
-  private starting: { target: LiveContextTarget } | undefined;
+  private starting:
+    { target: LiveContextTarget; download: AbortController } | undefined;
   private current: LiveContextStatus;
   private writes: Promise<void> = Promise.resolve();
   private readonly pendingVolatile = new Map<
@@ -308,13 +315,14 @@ export class LiveContextService {
     let speakers: Record<string, unknown> | undefined;
     let session: SpeakerSession | undefined;
     if (request.speakers && this.options.speakers && this.speakersAvailable()) {
-      const token = { target };
+      const token = { target, download: new AbortController() };
       this.starting = token;
       this.options.emit({ kind: "status", status: this.status() });
       try {
-        const models = await this.options.speakers.models((fraction) => {
+        const models = await this.options.speakers.models((received, total) => {
           // Whole percents, so a download is about a hundred updates.
-          const progress = Math.floor(fraction * 100) / 100;
+          const progress =
+            total > 0 ? Math.floor((received / total) * 100) / 100 : 0;
           if (
             this.starting === token &&
             (this.current.state !== "downloading" ||
@@ -324,8 +332,9 @@ export class LiveContextService {
               state: "downloading",
               download: "speakers",
               downloadProgress: progress,
+              downloadBytes: { received, total },
             });
-        });
+        }, token.download.signal);
         speakers = {
           segmentation: models.segmentation,
           embedding: models.embedding,
@@ -336,15 +345,18 @@ export class LiveContextService {
           request.expectedSpeakers,
         );
       } catch (error) {
-        // The technical detail is for the log; the user sees the reason.
-        console.warn("Live Context speaker labels are off.", error);
-        this.current.lastError = {
-          code: "speaker_models_failed",
-          message: error instanceof Error ? error.message : String(error),
-          ...(error instanceof SpeakerModelError
-            ? { reason: error.reason }
-            : {}),
-        };
+        // Skipped by the user (or stopped): nothing went wrong.
+        if (!token.download.signal.aborted) {
+          // The technical detail is for the log; the user sees the reason.
+          console.warn("Live Context speaker labels are off.", error);
+          this.current.lastError = {
+            code: "speaker_models_failed",
+            message: error instanceof Error ? error.message : String(error),
+            ...(error instanceof SpeakerModelError
+              ? { reason: error.reason }
+              : {}),
+          };
+        }
       }
       // Stopped while downloading.
       if (this.starting !== token) return this.status();
@@ -354,6 +366,7 @@ export class LiveContextService {
         state: "preparing",
         download: undefined,
         downloadProgress: undefined,
+        downloadBytes: undefined,
       };
     }
 
@@ -405,9 +418,19 @@ export class LiveContextService {
     return Promise.resolve(this.status());
   }
 
+  /**
+   * Gives up on the speaker models while they download: the capture
+   * starts without labels, as if they had not been asked for.
+   */
+  skipSpeakers(): Promise<LiveContextStatus> {
+    this.starting?.download.abort();
+    return Promise.resolve(this.status());
+  }
+
   /** Stops and waits for the helper to flush its last segments. */
   async stop(): Promise<LiveContextStatus> {
     if (!this.capture && this.starting) {
+      this.starting.download.abort();
       this.starting = undefined;
       this.current = this.idleStatus(this.current.lastError);
       this.options.emit({ kind: "status", status: this.status() });

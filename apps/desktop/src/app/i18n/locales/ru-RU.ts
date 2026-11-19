@@ -1032,7 +1032,8 @@ export default {
         state: {
           preparing: "Подготовка…",
           downloading: "Загрузка речевой модели…",
-          downloadingSpeakers: "Загрузка моделей говорящих…",
+          speakerModels: "Модели говорящих",
+          downloadSize: "{received} / {total} МБ",
           listening: "Слушаю",
           paused: "На паузе",
           stopping: "Остановка…",
@@ -1043,6 +1044,9 @@ export default {
           numbered: "Говорящий {n}",
           rename: "Переименовать",
           mergeInto: "Объединить с",
+          skip: "Пропустить",
+          skipHint: "Записывать сейчас, без меток говорящих",
+          retry: "Повторить",
           failed: {
             network:
               "Не удаётся связаться с сервером загрузки. Проверьте подключение или прокси и повторите попытку.",

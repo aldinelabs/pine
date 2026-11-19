@@ -706,21 +706,26 @@ close the card. The panels are:
   grey; silence is a flat line. Hovering the time shows the sources and
   the language.
   Paused shows an amber dot, "Paused", a still waveform and a play button
-  to resume. "Preparing…", "Downloading speech model…" or "Downloading
-  speaker models…" (with the percent and a progress bar) show while it
-  gets ready.
+  to resume. "Preparing…" shows while it gets ready. While a model
+  downloads first, the same row shows a small progress ring with
+  "Downloading speech model…" and the percent, or "Speaker models" and
+  how much has come ("12 / 30 MB") with Skip, which records right away
+  without speaker labels; Stop cancels either.
   Only one conversation captures at a time; others show "Another
   conversation is capturing live context." with the capturing
   conversation's name, Show (opens it) and Stop, in place of the row.
   Notices appear just above the row: "Microphone access is off" or "System
   audio access is off" with Open System Settings (opens the matching
-  Privacy & Security pane) and Dismiss; "No system audio yet" with Open
+  Privacy & Security pane); "No system audio yet" with Open
   System Settings while capturing; other problems ("Live context ran into a
-  problem", unsupported language, model download failed) with the details
-  and Dismiss; "Speaker labels are off for this capture" when the speaker
-  models could not be downloaded, saying why in plain words (no connection,
-  a file of the wrong size or failing its integrity check, or no disk
-  space), with Dismiss; and a note when speaker labels run lighter or pause to save
+  problem", unsupported language, model download failed) with the details;
+  and "Speaker labels are off for this capture" (a plain grey notice with
+  an amber people icon) when the speaker models could not be downloaded,
+  saying why in plain words (no connection, a file of the wrong size or
+  failing its integrity check, or no disk space), with Retry (restarts the
+  capture with speaker labels, the transcript continues; when idle, starts
+  one). Error notices close with the × (Dismiss) at their top right.
+  There is also a note when speaker labels run lighter or pause to save
   power or keep up (they recover on their own).
   Before any text the transcript explains what live context does (or says
   "Listening for the first words…" while capturing). Each block starts

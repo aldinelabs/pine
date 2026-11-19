@@ -973,7 +973,8 @@ export default {
         state: {
           preparing: "正在準備…",
           downloading: "正在下載語音模型…",
-          downloadingSpeakers: "正在下載說話者模型…",
+          speakerModels: "說話者模型",
+          downloadSize: "{received} / {total} MB",
           listening: "正在收聽",
           paused: "已暫停",
           stopping: "正在停止…",
@@ -984,6 +985,9 @@ export default {
           numbered: "說話者 {n}",
           rename: "重新命名",
           mergeInto: "合併到",
+          skip: "略過",
+          skipHint: "不等下載，直接記錄（不辨識說話者）",
+          retry: "重試",
           failed: {
             network: "無法連線到下載伺服器。請檢查網路或代理後重試。",
             size: "下載的檔案大小與預期不符，Pine 未使用它。請稍後重試。",

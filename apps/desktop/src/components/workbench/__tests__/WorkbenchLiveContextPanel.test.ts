@@ -81,6 +81,7 @@ function stubApi(
     pause: vi.fn().mockResolvedValue({ ...listeningHere, state: "paused" }),
     resume: vi.fn().mockResolvedValue(listeningHere),
     stop: vi.fn().mockResolvedValue(idle),
+    skipSpeakers: vi.fn().mockResolvedValue(listeningHere),
     openPrivacySettings: vi.fn().mockResolvedValue(undefined),
     transcript: vi.fn().mockResolvedValue(
       transcript ?? {
@@ -543,19 +544,112 @@ describe("WorkbenchLiveContextPanel", () => {
     expect(api.resume).toHaveBeenCalled();
   });
 
-  it("shows how far a model download has come", async () => {
-    stubApi({
+  it("shows how much of the speaker models has come, in the row, and can skip them", async () => {
+    const { api } = stubApi({
       ...listeningHere,
       state: "downloading",
       download: "speakers",
       downloadProgress: 0.42,
+      downloadBytes: { received: 12_600_000, total: 29_821_670 },
     });
     const wrapper = await mountPanel();
     const bar = wrapper.get("[data-testid=live-context-status]");
-    expect(bar.text()).toContain("Downloading speaker models");
-    expect(bar.text()).toContain("42%");
-    expect(wrapper.find("[data-testid=live-context-download]").exists()).toBe(
-      true,
+    expect(bar.text()).toContain("Speaker models");
+    expect(wrapper.get("[data-testid=live-context-download]").text()).toBe(
+      "12 / 30 MB",
+    );
+    expect(
+      wrapper
+        .get("[data-testid=live-context-progress-ring]")
+        .attributes("aria-valuenow"),
+    ).toBe("42");
+    // No waveform and no separate bar: one row, like when listening.
+    expect(bar.find("[role=progressbar]:not(svg)").exists()).toBe(false);
+    await wrapper
+      .get("[data-testid=live-context-skip-speakers]")
+      .trigger("click");
+    await flushPromises();
+    expect(api.skipSpeakers).toHaveBeenCalled();
+  });
+
+  it("can skip or stop while Start waits for the speaker models", async () => {
+    const { api, emit } = stubApi(idle);
+    // Start resolves only once the models are in (or given up).
+    api.start.mockReturnValue(new Promise(() => undefined));
+    const wrapper = await mountPanel();
+    await wrapper.get("[data-testid=live-context-start]").trigger("click");
+    const downloading = async () => {
+      emit({
+        kind: "status",
+        status: {
+          ...listeningHere,
+          state: "downloading",
+          download: "speakers",
+          downloadProgress: 0.1,
+          downloadBytes: { received: 3_000_000, total: 30_000_000 },
+        },
+      });
+      await flushPromises();
+    };
+    await downloading();
+    const skip = wrapper.get("[data-testid=live-context-skip-speakers]");
+    expect(skip.attributes("disabled")).toBeUndefined();
+    await skip.trigger("click");
+    await flushPromises();
+    expect(api.skipSpeakers).toHaveBeenCalled();
+
+    await downloading();
+    const stop = wrapper.get("[data-testid=live-context-stop]");
+    expect(stop.attributes("disabled")).toBeUndefined();
+    await stop.trigger("click");
+    await flushPromises();
+    expect(api.stop).toHaveBeenCalled();
+  });
+
+  it("shows the speech model download as a percent", async () => {
+    stubApi({
+      ...listeningHere,
+      state: "downloading",
+      download: "speech",
+      downloadProgress: 0.42,
+    });
+    const wrapper = await mountPanel();
+    expect(wrapper.get("[data-testid=live-context-download]").text()).toBe(
+      "42%",
+    );
+    expect(
+      wrapper.find("[data-testid=live-context-skip-speakers]").exists(),
+    ).toBe(false);
+  });
+
+  it("retries speaker labels by restarting this capture with them", async () => {
+    const { api } = stubApi({
+      ...listeningHere,
+      locale: "zh-CN",
+      lastError: {
+        code: "speaker_models_failed",
+        message: "offline",
+        reason: "network",
+      },
+    });
+    const wrapper = await mountPanel();
+    expect(
+      wrapper.get("[data-testid=live-context-error]").attributes("data-tone"),
+    ).toBe("neutral");
+    await wrapper
+      .get("[data-testid=live-context-retry-speakers]")
+      .trigger("click");
+    await flushPromises();
+    expect(api.stop).toHaveBeenCalled();
+    expect(api.start).toHaveBeenCalledWith(
+      expect.objectContaining({
+        sessionId: "session-1",
+        sources: ["mic", "system"],
+        locale: "zh-CN",
+      }),
+    );
+    expect(wrapper.find("[data-testid=live-context-error]").exists()).toBe(
+      false,
     );
   });
 

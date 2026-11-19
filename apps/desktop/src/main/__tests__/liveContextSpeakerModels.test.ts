@@ -92,7 +92,7 @@ describe("speaker models", () => {
       directory,
       fetch,
       models: MODELS,
-      onProgress: (fraction) => progress.push(fraction),
+      onProgress: (received, total) => progress.push(received / total),
     });
     expect(await readFile(paths.segmentation)).toEqual(segmentation);
     expect(await readFile(paths.embedding)).toEqual(embedding);
@@ -141,10 +141,10 @@ describe("speaker models", () => {
       directory,
       fetch,
       models: MODELS,
-      onProgress: (fraction) => progress.push(fraction),
+      onProgress: (received, total) => progress.push(received / total),
     });
     expect(await readFile(paths.embedding)).toEqual(embedding);
-    expect(fetch).toHaveBeenCalledWith(MIRROR);
+    expect(fetch).toHaveBeenCalledWith(MIRROR, expect.anything());
     expect(progress.at(-1)).toBe(1);
     // The refused attempt's bytes were taken back before the mirror's.
     const total = segmentation.length + embedding.length;
@@ -172,12 +172,30 @@ describe("speaker models", () => {
     expect(fetch).not.toHaveBeenCalled();
   });
 
+  it("gives up when aborted, without trying the other sources", async () => {
+    const controller = new AbortController();
+    fetch.mockImplementationOnce((url) => {
+      controller.abort();
+      return Promise.reject(new DOMException(`${url} aborted`, "AbortError"));
+    });
+    await expect(
+      ensureSpeakerModels({
+        directory,
+        fetch,
+        models: MODELS,
+        signal: controller.signal,
+      }),
+    ).rejects.toThrow();
+    expect(fetch).toHaveBeenCalledTimes(1);
+    expect(await readySpeakerModels(directory, MODELS)).toBeUndefined();
+  });
+
   it("replaces a damaged model", async () => {
     await ensureSpeakerModels({ directory, fetch, models: MODELS });
     await writeFile(path.join(directory, "embedding.onnx"), "tampered");
     fetch.mockClear();
     await ensureSpeakerModels({ directory, fetch, models: MODELS });
     expect(fetch).toHaveBeenCalledTimes(1);
-    expect(fetch).toHaveBeenCalledWith(EMBEDDING);
+    expect(fetch).toHaveBeenCalledWith(EMBEDDING, expect.anything());
   });
 });

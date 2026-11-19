@@ -1045,7 +1045,8 @@ export default {
         state: {
           preparing: "Préparation…",
           downloading: "Téléchargement du modèle vocal…",
-          downloadingSpeakers: "Téléchargement des modèles de locuteurs…",
+          speakerModels: "Modèles de locuteurs",
+          downloadSize: "{received} / {total} Mo",
           listening: "Écoute en cours",
           paused: "En pause",
           stopping: "Arrêt…",
@@ -1056,6 +1057,9 @@ export default {
           numbered: "Locuteur {n}",
           rename: "Renommer",
           mergeInto: "Fusionner avec",
+          skip: "Ignorer",
+          skipHint: "Enregistrer maintenant, sans étiquettes de locuteurs",
+          retry: "Réessayer",
           failed: {
             network:
               "Impossible de joindre le serveur de téléchargement. Vérifiez la connexion ou le proxy, puis réessayez.",

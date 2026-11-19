@@ -4,8 +4,8 @@ import { useIntervalFn } from "@vueuse/core";
 import { computed, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import { Button } from "@/components/ui/button";
-import { Progress } from "@/components/ui/progress";
 import { Spinner } from "@/components/ui/spinner";
+import LiveContextProgressRing from "@/components/workbench/LiveContextProgressRing.vue";
 import LiveContextWaveform from "@/components/workbench/LiveContextWaveform.vue";
 import type { LiveContextStatus } from "@/shared/liveContext";
 import type { LiveContextLevelSample } from "@/stores/liveContext";
@@ -14,7 +14,9 @@ import { formatDuration } from "@/lib/formatDuration";
 /**
  * The capture in this conversation, as a bar at the foot of the card like
  * the composer: whether it is live and for how long, the last few seconds
- * of sound, and Pause/Resume and Stop.
+ * of sound, and Pause/Resume and Stop. While a model downloads before the
+ * capture starts, the same row shows a small ring and how much has come;
+ * the speaker models can be skipped to record without labels.
  */
 const props = defineProps<{
   status: LiveContextStatus;
@@ -23,7 +25,12 @@ const props = defineProps<{
   levels: () => readonly LiveContextLevelSample[];
   busy?: boolean;
 }>();
-const emit = defineEmits<{ pause: []; resume: []; stop: [] }>();
+const emit = defineEmits<{
+  pause: [];
+  resume: [];
+  stop: [];
+  skipSpeakers: [];
+}>();
 const { t, locale: uiLocale } = useI18n();
 const now = ref(Date.now());
 useIntervalFn(() => (now.value = Date.now()), 1000);
@@ -36,9 +43,23 @@ const elapsed = computed(() => {
   const ms = props.elapsedAt(now.value);
   return ms === undefined ? undefined : formatDuration(ms / 1000);
 });
-const percent = computed(() =>
-  Math.round((props.status.downloadProgress ?? 0) * 100),
+const progress = computed(() => props.status.downloadProgress ?? 0);
+const speakerDownload = computed(
+  () => state.value === "downloading" && props.status.download === "speakers",
 );
+/** "12 / 30 MB" for the speaker models, else the percent. */
+const downloaded = computed(() => {
+  const bytes = props.status.downloadBytes;
+  if (!speakerDownload.value || !bytes)
+    return `${Math.round(progress.value * 100)}%`;
+  const mb = new Intl.NumberFormat(uiLocale.value, {
+    maximumFractionDigits: 0,
+  });
+  return t("project.workbench.liveContext.state.downloadSize", {
+    received: mb.format(Math.floor(bytes.received / 1e6)),
+    total: mb.format(Math.round(bytes.total / 1e6)),
+  });
+});
 
 const label = computed(() => {
   switch (state.value) {
@@ -47,7 +68,7 @@ const label = computed(() => {
     case "downloading":
       return t(
         props.status.download === "speakers"
-          ? "project.workbench.liveContext.state.downloadingSpeakers"
+          ? "project.workbench.liveContext.state.speakerModels"
           : "project.workbench.liveContext.state.downloading",
       );
     case "listening":
@@ -96,6 +117,12 @@ const details = computed(() => {
           v-else-if="state === 'paused'"
           class="size-2 rounded-full bg-amber-500"
         />
+        <LiveContextProgressRing
+          v-else-if="state === 'downloading'"
+          :value="progress"
+          :label="label"
+          class="text-foreground"
+        />
         <Spinner v-else class="text-muted-foreground size-3" />
       </span>
       <span
@@ -116,6 +143,12 @@ const details = computed(() => {
           data-testid="live-context-elapsed"
           >{{ elapsed }}</span
         >
+        <span
+          v-else-if="state === 'downloading'"
+          class="text-muted-foreground text-xs whitespace-nowrap tabular-nums"
+          data-testid="live-context-download"
+          >{{ downloaded }}</span
+        >
       </span>
       <LiveContextWaveform
         v-if="live"
@@ -124,12 +157,18 @@ const details = computed(() => {
         :sources="status.sources"
         :paused="state === 'paused'"
       />
-      <span
-        v-else-if="state === 'downloading'"
-        class="text-muted-foreground ml-auto text-xs tabular-nums"
-        >{{ percent }}%</span
-      >
       <div class="ml-auto flex shrink-0 items-center">
+        <Button
+          v-if="speakerDownload"
+          size="xs"
+          variant="ghost"
+          class="text-muted-foreground"
+          data-testid="live-context-skip-speakers"
+          :title="t('project.workbench.liveContext.speakers.skipHint')"
+          @click="emit('skipSpeakers')"
+        >
+          {{ t("project.workbench.liveContext.speakers.skip") }}
+        </Button>
         <Button
           v-if="state === 'paused'"
           size="icon-sm"
@@ -158,7 +197,7 @@ const details = computed(() => {
           size="icon-sm"
           variant="ghost"
           data-testid="live-context-stop"
-          :disabled="busy || state === 'stopping'"
+          :disabled="(busy && state !== 'downloading') || state === 'stopping'"
           :aria-label="t('project.workbench.liveContext.stop')"
           :title="t('project.workbench.liveContext.stop')"
           @click="emit('stop')"
@@ -167,12 +206,6 @@ const details = computed(() => {
         </Button>
       </div>
     </div>
-    <Progress
-      v-if="state === 'downloading'"
-      :model-value="percent"
-      class="mx-3 mb-2 h-1 w-auto"
-      data-testid="live-context-download"
-    />
   </div>
 </template>
 

@@ -28,6 +28,7 @@ import {
   LIVE_CONTEXT_OPEN_PRIVACY_SETTINGS_CHANNEL,
   LIVE_CONTEXT_STATUS_CHANNEL,
   LIVE_CONTEXT_STOP_CHANNEL,
+  LIVE_CONTEXT_SKIP_SPEAKERS_CHANNEL,
   LIVE_CONTEXT_TRANSCRIPT_CHANNEL,
   type LiveContextEvent,
 } from "./shared/liveContext";
@@ -155,6 +156,7 @@ const pineApi: PineDesktopApi = {
     pause: () => ipcRenderer.invoke(LIVE_CONTEXT_PAUSE_CHANNEL),
     resume: () => ipcRenderer.invoke(LIVE_CONTEXT_RESUME_CHANNEL),
     stop: () => ipcRenderer.invoke(LIVE_CONTEXT_STOP_CHANNEL),
+    skipSpeakers: () => ipcRenderer.invoke(LIVE_CONTEXT_SKIP_SPEAKERS_CHANNEL),
     transcript: (target) =>
       ipcRenderer.invoke(LIVE_CONTEXT_TRANSCRIPT_CHANNEL, target),
     renameSpeaker: (request) =>
