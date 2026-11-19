@@ -991,7 +991,6 @@ export default {
         unavailable: {
           platform: "即時上下文需要 macOS 26 或更新版本。",
           "helper-missing": "此版本的 Pine 不包含即時上下文。",
-          disabled: "即時上下文是實驗功能，目前未開啟。",
         },
       },
       artifacts: {

@@ -1057,7 +1057,6 @@ export default {
           platform: "ライブコンテキストには macOS 26 以降が必要です。",
           "helper-missing":
             "この Pine ビルドにはライブコンテキストが含まれていません。",
-          disabled: "ライブコンテキストは試験的な機能で、現在オフです。",
         },
       },
       artifacts: {

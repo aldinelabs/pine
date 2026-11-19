@@ -64,7 +64,7 @@ describe("LiveContextService", () => {
   let helper: FakeHelper;
   let events: LiveContextEvent[];
   let service: LiveContextService;
-  let unavailable: "disabled" | null;
+  let unavailable: "platform" | null;
 
   beforeEach(async () => {
     root = await mkdtemp(path.join(os.tmpdir(), "pine-live-context-"));
@@ -106,10 +106,10 @@ describe("LiveContextService", () => {
   }
 
   it("reports why it is unavailable and refuses to start", async () => {
-    unavailable = "disabled";
+    unavailable = "platform";
     expect(service.status()).toMatchObject({
       available: false,
-      unavailableReason: "disabled",
+      unavailableReason: "platform",
       state: "idle",
     });
     await expect(

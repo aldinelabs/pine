@@ -1046,7 +1046,6 @@ export default {
         unavailable: {
           platform: "Live context needs macOS 26 or later.",
           "helper-missing": "This build of Pine doesn't include live context.",
-          disabled: "Live context is experimental and turned off.",
         },
       },
       artifacts: {

@@ -1,6 +1,6 @@
 # Pine Live Context（实时上下文）
 
-> 状态：设计 + Phase 0 spike + 可选说话人识别（均在实验开关后）  
+> 状态：设计 + Phase 0 spike + 可选说话人识别；已去掉实验开关，在支持的系统上默认可用  
 > 范围：桌面端会议/课堂实时转写、说话人识别、转写持久化、工作台卡片、向会话注入上下文
 
 ## 1. 目标
@@ -139,7 +139,7 @@ apps/desktop/native/live-context/build/pine-live-context --start --sources syste
 - 单采集：已有采集时 `start` 另一个会话会被拒绝；同一会话处于 `paused` 时 `start` 等同 `resume`。
 - volatile 段落按来源节流（150 ms，只保留最新一条）后广播；final 段落立即广播并追加写入转写文件。
 - `stop` 发送 `stop` 并关闭 stdin，最多等 5 秒让 helper 冲刷最后的 final，超时 kill。退出 Pine 时 `dispose` 直接结束 helper。
-- 可用性：`PINE_EXPERIMENTAL_LIVE_CONTEXT=1`、macOS ≥ 26（`process.getSystemVersion()`）、helper 存在，三者缺一则 `available: false` 并给出 `unavailableReason`（`disabled | platform | helper-missing`）。`speakersAvailable` 另外要求 helper 旁边有 `live-context-lib/`（构建没取到 sherpa-onnx 时为 false，卡片不显示开关）。
+- 可用性：macOS ≥ 26（`process.getSystemVersion()`）且 helper 存在，缺一则 `available: false` 并给出 `unavailableReason`（`platform | helper-missing`），卡片菜单里不出现该卡片。`speakersAvailable` 另外要求 helper 旁边有 `live-context-lib/`（构建没取到 sherpa-onnx 时为 false，卡片不显示开关）。
 - 说话人：`start({ speakers: true })` 先确保模型就绪（缺失时下载，状态 `downloading` + `download: "speakers"`），再回放会话的 `<session>.speakers.jsonl`，让编号跨多次采集延续。模型拿不到时照常开始转写，`lastError.code = "speaker_models_failed"`。下载期间 `stop` 直接回到 idle，不启动 helper。
 - helper 的 `window`/`embedding`/`echo`/`device` 事件交给 `SpeakerSession`（`src/main/liveContextDiarizer.ts`，纯 TS、确定性、可回放）并追加写入 sidecar。它给出的标签以 `turns` 事件广播：段落还没 final 时只在内存里，final 段落落盘时带上，之后的修正追加 `turns` 记录；Pine 自己合并说话人时追加 `speaker-alias`。helper 退出后跑停止时的重整（§3.4 第 8 步），结果同样以 `turns` 记录追加。
 - `speakers-state` 映射为 `status.speakersDegraded`：等级 1–3 为 `reduced`，4 为 `paused`，0 清除。
@@ -153,7 +153,7 @@ apps/desktop/native/live-context/build/pine-live-context --start --sources syste
 
 ### 3.4 说话人识别（diarization）
 
-目标：同一来源里的多个人分开标注（“说话人 1/2/3…”），可改名、可合并。实验开关后、卡片上的“识别说话人”开关打开才生效，默认关闭。
+目标：同一来源里的多个人分开标注（“说话人 1/2/3…”），可改名、可合并。卡片上的“识别说话人”开关打开才生效，默认关闭。
 
 **引擎**：[sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx) 2.0.1 的 C API（含 ONNX Runtime），在 helper 进程内运行，不新开进程：
 
@@ -207,7 +207,7 @@ apps/desktop/native/live-context/build/pine-live-context --start --sources syste
 
 - 库随应用打包：`scripts/build-native.mjs` 下载固定版本的 `sherpa-onnx-v2.0.1-osx-universal2-shared-no-tts-lib.tar.bz2`，先校验 SHA-256 再解出 `libsherpa-onnx-c-api.dylib` 和 `libonnxruntime.dylib` 到 `native/live-context/build/live-context-lib/`；失败时只是没有说话人识别（`PINE_REQUIRE_LIVE_CONTEXT=1` 时报错）。打包时 `forge.config.ts` 把它们 `lipo -thin` 到目标架构并单独签名，再签 helper 和整个 app。代码必须随应用签名，所以库不走运行时下载。
 - 模型首次开启时下载：`src/main/liveContextSpeakerModels.ts` 固定 URL（sherpa-onnx 的 GitHub release）、字节数和 SHA-256，经 Electron `net.fetch`（跟随系统代理，与 Pine 其他请求一致）下载到 `<userData>/models/live-context-speakers/`，超出字节数立即中止，校验不过不落地；分割模型在 tar.bz2 里，校验归档后用 `/usr/bin/tar` 只解出那一个文件，再校验文件本身。每次开始前重新校验哈希，损坏的会重下。下载的只是 ONNX 权重，从不执行。
-- 体积：每个架构的应用包增加约 32 MB（arm64 实测：ONNX Runtime 28.8 MB + C API 3.4 MB，未压缩；universal 原件为 68 MB）；首次开启下载约 35 MB（归档 7.0 MB + 声纹模型 28.3 MB），解出后约 30 MB。不随应用捆绑模型，是因为功能默认关闭、只在实验开关后，没必要让每个用户多下载 30 MB。
+- 体积：每个架构的应用包增加约 32 MB（arm64 实测：ONNX Runtime 28.8 MB + C API 3.4 MB，未压缩；universal 原件为 68 MB）；首次开启下载约 35 MB（归档 7.0 MB + 声纹模型 28.3 MB），解出后约 30 MB。不随应用捆绑模型，是因为该开关默认关闭，没必要让每个用户多下载 30 MB。
 - 许可证（详见 `native/live-context/NOTICE.md`，随库一起打包）：sherpa-onnx Apache-2.0、ONNX Runtime MIT、pyannote segmentation-3.0 MIT、3D-Speaker CAM++ Apache-2.0，均可随 AGPL-3.0 分发。
 
 ## 4. 数据模型
@@ -334,21 +334,13 @@ v1 待补：开始前的说明页（告诉用户将弹两个系统提示、音�
 | 阶段                | 内容                                                                                                                                                                                                 |
 | ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **0 spike（本次）** | Swift helper（mic + 系统音频 → SpeechTranscriber → JSONL）；dev 与打包构建集成；`LiveContextService` start/pause/resume/stop + 段落持久化；preload IPC；实验开关后的最小卡片；可选说话人识别（§3.4） |
-| **1**               | `live_context` 追加型通知 + `read_live_transcript` 工具 + 发送时快照；引用到输入框；录音指示与关标签确认；权限引导页；卡片布局持久化；去掉实验开关（或改为设置项）；`PINE_UI.md` 与用户文档          |
+| **1**               | `live_context` 追加型通知 + `read_live_transcript` 工具 + 发送时快照；引用到输入框；录音指示与关标签确认；权限引导页；卡片布局持久化；`PINE_UI.md` 与用户文档                                        |
 | **2**               | 滚动摘要（按时间窗由小模型生成，存 `summary.json`，注入时摘要 + 近期原文）；导出 Markdown；搜索                                                                                                      |
 | **3**               | Windows/Linux（WASAPI loopback / PipeWire + 其他 ASR）；可选云端 ASR；更多语言与自定义词表（`AnalysisContext.contextualStrings`）                                                                    |
 
-## 10. 实验开关
+## 10. 可用性
 
-Phase 0 不对用户可见。启用方式：
-
-```sh
-PINE_EXPERIMENTAL_LIVE_CONTEXT=1 bun run dev
-# 打包后的 app：
-open --env PINE_EXPERIMENTAL_LIVE_CONTEXT=1 /Applications/Pine.app
-```
-
-开启后工作台卡片菜单出现“实时上下文 / Live context”。未开启时卡片不出现在任何菜单里；`PINE_UI.md` 里的说明标注了它只在可用时出现。
+Live Context 不再需要实验开关。在 macOS 26 及以上、构建包含 helper 时，工作台卡片菜单直接出现“实时上下文 / Live context”；不满足条件时卡片不出现在任何菜单里，`PINE_UI.md` 里的说明标注了它只在可用时出现。构建严格性仍由 `PINE_REQUIRE_LIVE_CONTEXT` 控制。
 
 ## 11. Spike 实测（macOS 27.0.1，Apple Silicon，Xcode SDK 26.2）
 

@@ -1067,8 +1067,6 @@ export default {
           platform: "El contexto en directo requiere macOS 26 o posterior.",
           "helper-missing":
             "Esta versión de Pine no incluye contexto en directo.",
-          disabled:
-            "El contexto en directo es experimental y está desactivado.",
         },
       },
       artifacts: {

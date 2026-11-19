@@ -987,7 +987,6 @@ export default {
         unavailable: {
           platform: "实时上下文需要 macOS 26 或更高版本。",
           "helper-missing": "此版本的 Pine 不包含实时上下文。",
-          disabled: "实时上下文是实验功能，目前未开启。",
         },
       },
       artifacts: {

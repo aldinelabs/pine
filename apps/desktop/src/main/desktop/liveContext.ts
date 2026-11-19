@@ -26,9 +26,6 @@ import {
 import { LiveContextService } from "../liveContext";
 import { ensureSpeakerModels } from "../liveContextSpeakerModels";
 
-/** While experimental, Live Context only exists with this set to 1. */
-export const LIVE_CONTEXT_FLAG = "PINE_EXPERIMENTAL_LIVE_CONTEXT";
-
 /** Packaged apps carry it in Resources; dev runs use the build folder. */
 function helperPath(): string | undefined {
   return [
@@ -73,7 +70,6 @@ async function extractMember(
 }
 
 function unavailableReason(): LiveContextUnavailableReason | null {
-  if (process.env[LIVE_CONTEXT_FLAG] !== "1") return "disabled";
   if (process.platform !== "darwin") return "platform";
   const major = Number.parseInt(process.getSystemVersion(), 10);
   if (!(major >= 26)) return "platform";

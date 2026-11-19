@@ -1040,7 +1040,6 @@ export default {
         unavailable: {
           platform: "실시간 컨텍스트에는 macOS 26 이상이 필요합니다.",
           "helper-missing": "이 Pine 빌드에는 실시간 컨텍스트가 없습니다.",
-          disabled: "실시간 컨텍스트는 실험 기능이며 현재 꺼져 있습니다.",
         },
       },
       artifacts: {

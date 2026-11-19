@@ -666,7 +666,7 @@ close the card. The panels are:
   Open in tab. For a submitted file, the header also has Version history (a
   clock button; see Artifact versions below).
 - Files: the project's file tree, with its folders and access levels.
-- Live context (macOS 26 or later, experimental; listed only when available):
+- Live context (macOS 26 or later; listed only when available):
   transcribes the microphone and/or system audio on this Mac for the active
   conversation. Pick Sources (Microphone, System audio) and Language, then
   Start; while capturing it has Pause/Resume and Stop. Only one conversation

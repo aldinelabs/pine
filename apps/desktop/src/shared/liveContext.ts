@@ -1,8 +1,7 @@
 /**
  * Live Context: a meeting or class transcribed on device, bound to one
  * session, so the conversation can draw on what is being said. Desktop only
- * (macOS 26+), and while experimental only with PINE_EXPERIMENTAL_LIVE_CONTEXT=1.
- * See docs/live-context.md.
+ * (macOS 26+) with the helper built in. See docs/live-context.md.
  */
 
 export const LIVE_CONTEXT_STATUS_CHANNEL = "live-context:status" as const;
@@ -55,9 +54,7 @@ export type LiveContextUnavailableReason =
   /** Not macOS 26 or later. */
   | "platform"
   /** This build has no helper (built without the macOS 26 SDK). */
-  | "helper-missing"
-  /** The experimental flag is off. */
-  | "disabled";
+  | "helper-missing";
 
 export type LiveContextState =
   | "idle"
