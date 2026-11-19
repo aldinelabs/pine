@@ -220,13 +220,16 @@ async function compactContext(): Promise<void> {
         <span data-slot="context-usage-percent" class="tabular-nums">
           {{ usagePercentText }}%
         </span>
+        <!-- The divider goes with the cost, so a narrow footer hides both. -->
         <span
           v-if="triggerCostText"
           data-slot="context-usage-cost"
-          data-testid="context-usage-trigger-cost"
-          class="ml-1 tabular-nums"
+          class="flex items-center gap-1.5"
         >
-          {{ triggerCostText }}
+          <span class="opacity-50" aria-hidden="true">|</span>
+          <span data-testid="context-usage-trigger-cost" class="tabular-nums">
+            {{ triggerCostText }}
+          </span>
         </span>
       </Button>
     </PopoverTrigger>

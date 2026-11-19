@@ -515,7 +515,7 @@ From top to bottom:
      depends on the agent's judgment, not an independent check on each click.
    - Context usage: the button shows a ring and the share of the context
      window in use, followed by the conversation's cost so far (e.g.
-     "10% ¥0.63", with the bare currency symbol, "<¥0.01" for tiny amounts)
+     "10% | ¥0.63", with the bare currency symbol, "<¥0.01" for tiny amounts)
      once a priced model has
      charged anything; models without pricing show no cost. It opens a
      popover with a Context section (tokens used, context
