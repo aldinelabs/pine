@@ -1009,10 +1009,13 @@ export default {
       liveContext: {
         start: "開始",
         resume: "再開",
+        continue: "続けて記録",
         pause: "一時停止",
         stop: "停止",
         sources: "ソース",
         language: "言語",
+        options: "記録オプション",
+        languageNote: "話されている言語です。開始前に選んでください。",
         source: {
           mic: "マイク",
           system: "システムオーディオ",
@@ -1023,8 +1026,8 @@ export default {
         },
         state: {
           preparing: "準備中…",
-          downloading: "音声モデルをダウンロード中… {percent}%",
-          downloadingSpeakers: "話者モデルをダウンロード中… {percent}%",
+          downloading: "音声モデルをダウンロード中…",
+          downloadingSpeakers: "話者モデルをダウンロード中…",
           listening: "聞き取り中",
           paused: "一時停止中",
           stopping: "停止中…",
@@ -1035,7 +1038,7 @@ export default {
           numbered: "話者 {n}",
           rename: "名前を変更",
           mergeInto: "統合先",
-          failed: "今回の記録では話者識別がオフです: {message}",
+          failedTitle: "今回の記録では話者識別がオフです",
           unknown: "まだ誰か分かりません",
           echo: "システム音声のエコー",
           degraded: {
@@ -1046,13 +1049,45 @@ export default {
           },
         },
         elsewhere: "別の会話がライブコンテキストを記録しています。",
-        empty:
-          "この Mac で会議や授業を文字起こしし、この会話で使います。音声は保存しません。",
-        systemSilent:
-          "システムオーディオをまだ受け取っていません。音声を再生中なら、システム設定 › プライバシーとセキュリティ › 画面収録とシステムオーディオ録音 で Pine を許可してください。",
+        empty: {
+          title: "準備完了",
+          description:
+            "この Mac で会議や授業を文字起こしし、この会話で使います。音声は保存しません。",
+        },
+        systemSilent: {
+          title: "システムオーディオがまだありません",
+          description:
+            "音声を再生中なら、システム設定 › プライバシーとセキュリティ › 画面収録とシステムオーディオ録音 で Pine を許可してください。",
+        },
+        transcript: "文字起こし",
+        waiting: "最初の言葉を待っています…",
+        waitingPaused: "一時停止中です。再開すると文字起こしを続けます。",
+        jumpToLatest: "最新へ移動",
+        noSession: "会話を開くと、その会話にライブコンテキストを記録できます。",
+        showElsewhere: "表示",
+        openSettings: "システム設定を開く",
+        dismiss: "閉じる",
+        error: {
+          permission: {
+            mic: {
+              title: "マイクへのアクセスがオフです",
+              description:
+                "システム設定 › プライバシーとセキュリティ › マイク で Pine を許可してから、もう一度開始してください。",
+            },
+            system: {
+              title: "システムオーディオへのアクセスがオフです",
+              description:
+                "システム設定 › プライバシーとセキュリティ › 画面収録とシステムオーディオ録音 で Pine を許可してから、もう一度開始してください。",
+            },
+          },
+          unsupported_locale: "この Mac ではこの言語を文字起こしできません",
+          assets_failed: "音声モデルをダウンロードできませんでした",
+          generic: "ライブコンテキストで問題が発生しました",
+        },
         loadFailed: "文字起こしを読み込めませんでした",
         actionFailed: "ライブコンテキストが応答しません",
         unavailable: {
+          title: "ライブコンテキストは利用できません",
           platform: "ライブコンテキストには macOS 26 以降が必要です。",
           "helper-missing":
             "この Pine ビルドにはライブコンテキストが含まれていません。",

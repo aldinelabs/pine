@@ -946,10 +946,13 @@ export default {
       liveContext: {
         start: "開始",
         resume: "繼續",
+        continue: "繼續記錄",
         pause: "暫停",
         stop: "停止",
         sources: "來源",
         language: "語言",
+        options: "記錄選項",
+        languageNote: "對話所用的語言，開始前選好。",
         source: {
           mic: "麥克風",
           system: "系統音訊",
@@ -960,8 +963,8 @@ export default {
         },
         state: {
           preparing: "正在準備…",
-          downloading: "正在下載語音模型… {percent}%",
-          downloadingSpeakers: "正在下載說話者模型… {percent}%",
+          downloading: "正在下載語音模型…",
+          downloadingSpeakers: "正在下載說話者模型…",
           listening: "正在收聽",
           paused: "已暫停",
           stopping: "正在停止…",
@@ -972,7 +975,7 @@ export default {
           numbered: "說話者 {n}",
           rename: "重新命名",
           mergeInto: "合併到",
-          failed: "這次記錄未啟用說話者辨識：{message}",
+          failedTitle: "這次記錄未啟用說話者辨識",
           unknown: "暫不確定是誰",
           echo: "系統音訊的回音",
           degraded: {
@@ -982,12 +985,45 @@ export default {
           },
         },
         elsewhere: "另一個對話正在記錄即時上下文。",
-        empty: "在本機轉寫會議或課堂內容，供這個對話使用。不會儲存音訊。",
-        systemSilent:
-          "尚未收到系統音訊。如果正在播放聲音，請在 系統設定 › 隱私權與安全性 › 螢幕與系統錄音 中允許 Pine。",
+        empty: {
+          title: "準備就緒",
+          description:
+            "在本機轉寫會議或課堂內容，供這個對話使用。不會儲存音訊。",
+        },
+        systemSilent: {
+          title: "尚未收到系統音訊",
+          description:
+            "如果正在播放聲音，請在 系統設定 › 隱私權與安全性 › 螢幕與系統錄音 中允許 Pine。",
+        },
+        transcript: "轉寫內容",
+        waiting: "等待第一句話…",
+        waitingPaused: "已暫停，繼續後接著轉寫。",
+        jumpToLatest: "跳到最新",
+        noSession: "開啟一個對話，即可為它記錄即時上下文。",
+        showElsewhere: "查看",
+        openSettings: "開啟系統設定",
+        dismiss: "關閉",
+        error: {
+          permission: {
+            mic: {
+              title: "麥克風權限已關閉",
+              description:
+                "請在 系統設定 › 隱私權與安全性 › 麥克風 中允許 Pine，然後重新開始。",
+            },
+            system: {
+              title: "系統音訊權限已關閉",
+              description:
+                "請在 系統設定 › 隱私權與安全性 › 螢幕與系統錄音 中允許 Pine，然後重新開始。",
+            },
+          },
+          unsupported_locale: "這台 Mac 無法轉寫此語言",
+          assets_failed: "無法下載語音模型",
+          generic: "即時上下文遇到問題",
+        },
         loadFailed: "無法載入轉寫內容",
         actionFailed: "即時上下文沒有回應",
         unavailable: {
+          title: "即時上下文無法使用",
           platform: "即時上下文需要 macOS 26 或更新版本。",
           "helper-missing": "此版本的 Pine 不包含即時上下文。",
         },

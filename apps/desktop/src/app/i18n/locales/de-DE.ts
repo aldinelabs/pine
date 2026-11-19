@@ -1021,10 +1021,13 @@ export default {
       liveContext: {
         start: "Starten",
         resume: "Fortsetzen",
+        continue: "Weiter aufnehmen",
         pause: "Pausieren",
         stop: "Beenden",
         sources: "Quellen",
         language: "Sprache",
+        options: "Aufnahmeoptionen",
+        languageNote: "Die gesprochene Sprache. Vor dem Start auswählen.",
         source: {
           mic: "Mikrofon",
           system: "Systemaudio",
@@ -1035,8 +1038,8 @@ export default {
         },
         state: {
           preparing: "Wird vorbereitet …",
-          downloading: "Sprachmodell wird geladen … {percent} %",
-          downloadingSpeakers: "Sprechermodelle werden geladen … {percent} %",
+          downloading: "Sprachmodell wird geladen …",
+          downloadingSpeakers: "Sprechermodelle werden geladen …",
           listening: "Hört zu",
           paused: "Pausiert",
           stopping: "Wird beendet …",
@@ -1047,8 +1050,7 @@ export default {
           numbered: "Sprecher {n}",
           rename: "Umbenennen",
           mergeInto: "Zusammenführen mit",
-          failed:
-            "Sprecherbeschriftungen sind für diese Aufnahme aus: {message}",
+          failedTitle: "Sprecherbeschriftungen sind für diese Aufnahme aus",
 
           unknown: "Noch unklar, wer spricht",
           echo: "Echo des Systemtons",
@@ -1060,13 +1062,47 @@ export default {
           },
         },
         elsewhere: "Eine andere Unterhaltung nimmt gerade Live-Kontext auf.",
-        empty:
-          "Transkribiert ein Meeting oder eine Vorlesung auf diesem Mac für diese Unterhaltung. Audio wird nie gespeichert.",
-        systemSilent:
-          "Noch kein Systemaudio. Wenn etwas abgespielt wird, erlaube Pine unter Systemeinstellungen › Datenschutz & Sicherheit › Bildschirm- & Systemaudioaufnahme.",
+        empty: {
+          title: "Bereit zum Zuhören",
+          description:
+            "Transkribiert ein Meeting oder eine Vorlesung auf diesem Mac für diese Unterhaltung. Audio wird nie gespeichert.",
+        },
+        systemSilent: {
+          title: "Noch kein Systemaudio",
+          description:
+            "Wenn etwas abgespielt wird, erlaube Pine unter Systemeinstellungen › Datenschutz & Sicherheit › Bildschirm- & Systemaudioaufnahme.",
+        },
+        transcript: "Transkript",
+        waiting: "Warte auf die ersten Worte…",
+        waitingPaused: "Pausiert. Fortsetzen, um weiter zu transkribieren.",
+        jumpToLatest: "Zum Neuesten",
+        noSession:
+          "Öffne eine Unterhaltung, um Live-Kontext dafür aufzunehmen.",
+        showElsewhere: "Anzeigen",
+        openSettings: "Systemeinstellungen öffnen",
+        dismiss: "Schließen",
+        error: {
+          permission: {
+            mic: {
+              title: "Mikrofonzugriff ist aus",
+              description:
+                "Erlaube Pine unter Systemeinstellungen › Datenschutz & Sicherheit › Mikrofon und starte dann erneut.",
+            },
+            system: {
+              title: "Zugriff auf Systemaudio ist aus",
+              description:
+                "Erlaube Pine unter Systemeinstellungen › Datenschutz & Sicherheit › Bildschirm- & Systemaudioaufnahme und starte dann erneut.",
+            },
+          },
+          unsupported_locale:
+            "Diese Sprache kann auf diesem Mac nicht transkribiert werden",
+          assets_failed: "Das Sprachmodell konnte nicht geladen werden",
+          generic: "Beim Live-Kontext ist ein Problem aufgetreten",
+        },
         loadFailed: "Transkript konnte nicht geladen werden",
         actionFailed: "Live-Kontext reagiert nicht",
         unavailable: {
+          title: "Live-Kontext ist nicht verfügbar",
           platform: "Live-Kontext benötigt macOS 26 oder neuer.",
           "helper-missing": "Dieser Pine-Build enthält keinen Live-Kontext.",
         },

@@ -1016,10 +1016,13 @@ export default {
       liveContext: {
         start: "Démarrer",
         resume: "Reprendre",
+        continue: "Continuer",
         pause: "Pause",
         stop: "Arrêter",
         sources: "Sources",
         language: "Langue",
+        options: "Options de capture",
+        languageNote: "La langue parlée. Choisissez-la avant de démarrer.",
         source: {
           mic: "Micro",
           system: "Audio système",
@@ -1030,9 +1033,8 @@ export default {
         },
         state: {
           preparing: "Préparation…",
-          downloading: "Téléchargement du modèle vocal… {percent} %",
-          downloadingSpeakers:
-            "Téléchargement des modèles de locuteurs… {percent} %",
+          downloading: "Téléchargement du modèle vocal…",
+          downloadingSpeakers: "Téléchargement des modèles de locuteurs…",
           listening: "Écoute en cours",
           paused: "En pause",
           stopping: "Arrêt…",
@@ -1043,8 +1045,8 @@ export default {
           numbered: "Locuteur {n}",
           rename: "Renommer",
           mergeInto: "Fusionner avec",
-          failed:
-            "Les étiquettes de locuteurs sont désactivées pour cette capture : {message}",
+          failedTitle:
+            "Les étiquettes de locuteurs sont désactivées pour cette capture",
 
           unknown: "Locuteur pas encore identifié",
           echo: "Écho du son système",
@@ -1056,13 +1058,46 @@ export default {
           },
         },
         elsewhere: "Une autre conversation capture déjà le contexte en direct.",
-        empty:
-          "Transcrit une réunion ou un cours sur ce Mac, pour cette conversation. L’audio n’est jamais enregistré.",
-        systemSilent:
-          "Aucun audio système pour l’instant. Si un son est en cours, autorisez Pine dans Réglages Système › Confidentialité et sécurité › Enregistrement de l’écran et de l’audio système.",
+        empty: {
+          title: "Prêt à écouter",
+          description:
+            "Transcrit une réunion ou un cours sur ce Mac, pour cette conversation. L’audio n’est jamais enregistré.",
+        },
+        systemSilent: {
+          title: "Aucun audio système pour l’instant",
+          description:
+            "Si un son est en cours, autorisez Pine dans Réglages Système › Confidentialité et sécurité › Enregistrement de l’écran et de l’audio système.",
+        },
+        transcript: "Transcription",
+        waiting: "En attente des premiers mots…",
+        waitingPaused: "En pause. Reprenez pour continuer la transcription.",
+        jumpToLatest: "Aller au plus récent",
+        noSession:
+          "Ouvrez une conversation pour y capturer le contexte en direct.",
+        showElsewhere: "Afficher",
+        openSettings: "Ouvrir Réglages Système",
+        dismiss: "Fermer",
+        error: {
+          permission: {
+            mic: {
+              title: "L’accès au micro est désactivé",
+              description:
+                "Autorisez Pine dans Réglages Système › Confidentialité et sécurité › Microphone, puis recommencez.",
+            },
+            system: {
+              title: "L’accès à l’audio système est désactivé",
+              description:
+                "Autorisez Pine dans Réglages Système › Confidentialité et sécurité › Enregistrement de l’écran et de l’audio système, puis recommencez.",
+            },
+          },
+          unsupported_locale: "Ce Mac ne peut pas transcrire cette langue",
+          assets_failed: "Impossible de télécharger le modèle vocal",
+          generic: "Le contexte en direct a rencontré un problème",
+        },
         loadFailed: "Impossible de charger la transcription",
         actionFailed: "Le contexte en direct ne répond pas",
         unavailable: {
+          title: "Le contexte en direct n’est pas disponible",
           platform:
             "Le contexte en direct nécessite macOS 26 ou version ultérieure.",
           "helper-missing":

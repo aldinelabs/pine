@@ -1016,10 +1016,13 @@ export default {
       liveContext: {
         start: "Iniciar",
         resume: "Reanudar",
+        continue: "Seguir capturando",
         pause: "Pausar",
         stop: "Detener",
         sources: "Fuentes",
         language: "Idioma",
+        options: "Opciones de captura",
+        languageNote: "El idioma que se habla. Elígelo antes de empezar.",
         source: {
           mic: "Micrófono",
           system: "Audio del sistema",
@@ -1030,8 +1033,8 @@ export default {
         },
         state: {
           preparing: "Preparando…",
-          downloading: "Descargando el modelo de voz… {percent} %",
-          downloadingSpeakers: "Descargando modelos de hablantes… {percent} %",
+          downloading: "Descargando el modelo de voz…",
+          downloadingSpeakers: "Descargando modelos de hablantes…",
           listening: "Escuchando",
           paused: "En pausa",
           stopping: "Deteniendo…",
@@ -1042,8 +1045,8 @@ export default {
           numbered: "Hablante {n}",
           rename: "Cambiar nombre",
           mergeInto: "Combinar con",
-          failed:
-            "Las etiquetas de hablantes están desactivadas en esta captura: {message}",
+          failedTitle:
+            "Las etiquetas de hablantes están desactivadas en esta captura",
 
           unknown: "Aún no se sabe quién es",
           echo: "Eco del audio del sistema",
@@ -1055,13 +1058,46 @@ export default {
           },
         },
         elsewhere: "Otra conversación está capturando contexto en directo.",
-        empty:
-          "Transcribe una reunión o clase en este Mac para esta conversación. Nunca se guarda el audio.",
-        systemSilent:
-          "Aún no llega audio del sistema. Si algo se está reproduciendo, permite Pine en Ajustes del Sistema › Privacidad y seguridad › Grabación de pantalla y audio del sistema.",
+        empty: {
+          title: "Listo para escuchar",
+          description:
+            "Transcribe una reunión o clase en este Mac para esta conversación. Nunca se guarda el audio.",
+        },
+        systemSilent: {
+          title: "Aún no llega audio del sistema",
+          description:
+            "Si algo se está reproduciendo, permite Pine en Ajustes del Sistema › Privacidad y seguridad › Grabación de pantalla y audio del sistema.",
+        },
+        transcript: "Transcripción",
+        waiting: "Esperando las primeras palabras…",
+        waitingPaused: "En pausa. Reanuda para seguir transcribiendo.",
+        jumpToLatest: "Ir a lo último",
+        noSession:
+          "Abre una conversación para capturar contexto en directo en ella.",
+        showElsewhere: "Ver",
+        openSettings: "Abrir Ajustes del Sistema",
+        dismiss: "Cerrar",
+        error: {
+          permission: {
+            mic: {
+              title: "El acceso al micrófono está desactivado",
+              description:
+                "Permite Pine en Ajustes del Sistema › Privacidad y seguridad › Micrófono y vuelve a empezar.",
+            },
+            system: {
+              title: "El acceso al audio del sistema está desactivado",
+              description:
+                "Permite Pine en Ajustes del Sistema › Privacidad y seguridad › Grabación de pantalla y audio del sistema y vuelve a empezar.",
+            },
+          },
+          unsupported_locale: "Este Mac no puede transcribir este idioma",
+          assets_failed: "No se pudo descargar el modelo de voz",
+          generic: "El contexto en directo tuvo un problema",
+        },
         loadFailed: "No se pudo cargar la transcripción",
         actionFailed: "El contexto en directo no responde",
         unavailable: {
+          title: "El contexto en directo no está disponible",
           platform: "El contexto en directo requiere macOS 26 o posterior.",
           "helper-missing":
             "Esta versión de Pine no incluye contexto en directo.",

@@ -19,8 +19,9 @@ import {
 } from "@/shared/liveContextSpeakers";
 
 /**
- * One speaker's label in the Live Context transcript: a colored name that
- * opens a menu to rename the speaker or merge it into another one.
+ * One speaker's label in the Live Context transcript: a pill tinted in the
+ * speaker's color, with the source's icon. It opens a menu to rename the
+ * speaker or merge it into another one.
  */
 const props = defineProps<{
   speaker: LiveContextSpeakerKey;
@@ -37,14 +38,14 @@ const emit = defineEmits<{
 const { t } = useI18n();
 
 const COLORS = [
-  "bg-sky-500",
-  "bg-amber-500",
-  "bg-emerald-500",
-  "bg-rose-500",
-  "bg-violet-500",
-  "bg-teal-500",
-  "bg-orange-500",
-  "bg-fuchsia-500",
+  "bg-sky-500/12 text-sky-700 dark:bg-sky-400/15 dark:text-sky-300",
+  "bg-amber-500/14 text-amber-800 dark:bg-amber-400/15 dark:text-amber-300",
+  "bg-emerald-500/12 text-emerald-700 dark:bg-emerald-400/15 dark:text-emerald-300",
+  "bg-rose-500/12 text-rose-700 dark:bg-rose-400/15 dark:text-rose-300",
+  "bg-violet-500/12 text-violet-700 dark:bg-violet-400/15 dark:text-violet-300",
+  "bg-teal-500/12 text-teal-700 dark:bg-teal-400/15 dark:text-teal-300",
+  "bg-orange-500/12 text-orange-700 dark:bg-orange-400/15 dark:text-orange-300",
+  "bg-fuchsia-500/12 text-fuchsia-700 dark:bg-fuchsia-400/15 dark:text-fuchsia-300",
 ];
 const { source, speaker: number } = parseSpeakerKey(props.speaker);
 // Mic and system speakers start at different colors, so "1" and "1" differ.
@@ -78,7 +79,7 @@ function finishRename(save: boolean): void {
     v-if="editing"
     ref="input"
     v-model="draft"
-    class="h-6 w-40 px-1.5 text-xs"
+    class="h-6 w-40 rounded-full px-2 text-xs"
     :maxlength="LIVE_CONTEXT_SPEAKER_NAME_MAX"
     :aria-label="t('project.workbench.liveContext.speakers.rename')"
     data-testid="live-context-speaker-name"
@@ -90,19 +91,14 @@ function finishRename(save: boolean): void {
     <DropdownMenuTrigger as-child>
       <button
         type="button"
-        class="hover:bg-muted text-foreground inline-flex max-w-full items-center gap-1.5 rounded-sm px-1 py-0.5 text-xs font-medium"
-        :class="provisional ? 'opacity-60' : undefined"
+        class="focus-visible:ring-ring/30 inline-flex h-5 max-w-full items-center gap-1 rounded-full px-2 text-xs font-medium transition-[opacity,filter] outline-none hover:brightness-95 focus-visible:ring-3 dark:hover:brightness-125"
+        :class="[color, provisional && 'opacity-60']"
         :data-speaker="speaker"
         data-testid="live-context-speaker"
       >
-        <span
-          class="size-2 shrink-0 rounded-full"
-          :class="color"
-          aria-hidden="true"
-        />
         <component
           :is="source === 'mic' ? MicIcon : Volume2Icon"
-          class="text-muted-foreground size-3 shrink-0"
+          class="size-3 shrink-0 opacity-70"
           :aria-label="t(`project.workbench.liveContext.source.${source}`)"
         />
         <span class="truncate">{{ label }}</span>

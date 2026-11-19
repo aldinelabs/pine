@@ -992,10 +992,13 @@ export default {
       liveContext: {
         start: "시작",
         resume: "계속",
+        continue: "이어서 기록",
         pause: "일시정지",
         stop: "중지",
         sources: "소스",
         language: "언어",
+        options: "기록 옵션",
+        languageNote: "말하는 언어입니다. 시작하기 전에 선택하세요.",
         source: {
           mic: "마이크",
           system: "시스템 오디오",
@@ -1006,8 +1009,8 @@ export default {
         },
         state: {
           preparing: "준비 중…",
-          downloading: "음성 모델 다운로드 중… {percent}%",
-          downloadingSpeakers: "화자 모델 다운로드 중… {percent}%",
+          downloading: "음성 모델 다운로드 중…",
+          downloadingSpeakers: "화자 모델 다운로드 중…",
           listening: "듣는 중",
           paused: "일시정지됨",
           stopping: "중지하는 중…",
@@ -1018,7 +1021,7 @@ export default {
           numbered: "화자 {n}",
           rename: "이름 변경",
           mergeInto: "병합 대상",
-          failed: "이번 기록에서는 화자 구분이 꺼져 있습니다: {message}",
+          failedTitle: "이번 기록에서는 화자 구분이 꺼져 있습니다",
           unknown: "아직 누구인지 알 수 없음",
           echo: "시스템 오디오의 에코",
           degraded: {
@@ -1029,13 +1032,46 @@ export default {
           },
         },
         elsewhere: "다른 대화에서 실시간 컨텍스트를 기록하고 있습니다.",
-        empty:
-          "이 Mac에서 회의나 수업을 받아 적어 이 대화에 사용합니다. 오디오는 저장하지 않습니다.",
-        systemSilent:
-          "아직 시스템 오디오가 들어오지 않습니다. 소리가 재생 중이라면 시스템 설정 › 개인정보 보호 및 보안 › 화면 및 시스템 오디오 녹음에서 Pine을 허용하세요.",
+        empty: {
+          title: "준비 완료",
+          description:
+            "이 Mac에서 회의나 수업을 받아 적어 이 대화에 사용합니다. 오디오는 저장하지 않습니다.",
+        },
+        systemSilent: {
+          title: "아직 시스템 오디오가 없음",
+          description:
+            "소리가 재생 중이라면 시스템 설정 › 개인정보 보호 및 보안 › 화면 및 시스템 오디오 녹음에서 Pine을 허용하세요.",
+        },
+        transcript: "받아 적은 내용",
+        waiting: "첫 마디를 기다리는 중…",
+        waitingPaused: "일시정지됨. 계속하면 이어서 받아 적습니다.",
+        jumpToLatest: "최신으로 이동",
+        noSession:
+          "대화를 열면 그 대화에 실시간 컨텍스트를 기록할 수 있습니다.",
+        showElsewhere: "보기",
+        openSettings: "시스템 설정 열기",
+        dismiss: "닫기",
+        error: {
+          permission: {
+            mic: {
+              title: "마이크 접근이 꺼져 있음",
+              description:
+                "시스템 설정 › 개인정보 보호 및 보안 › 마이크에서 Pine을 허용한 뒤 다시 시작하세요.",
+            },
+            system: {
+              title: "시스템 오디오 접근이 꺼져 있음",
+              description:
+                "시스템 설정 › 개인정보 보호 및 보안 › 화면 및 시스템 오디오 녹음에서 Pine을 허용한 뒤 다시 시작하세요.",
+            },
+          },
+          unsupported_locale: "이 Mac에서는 이 언어를 받아 적을 수 없습니다",
+          assets_failed: "음성 모델을 내려받지 못했습니다",
+          generic: "실시간 컨텍스트에 문제가 생겼습니다",
+        },
         loadFailed: "받아쓴 내용을 불러올 수 없습니다",
         actionFailed: "실시간 컨텍스트가 응답하지 않습니다",
         unavailable: {
+          title: "실시간 컨텍스트를 사용할 수 없음",
           platform: "실시간 컨텍스트에는 macOS 26 이상이 필요합니다.",
           "helper-missing": "이 Pine 빌드에는 실시간 컨텍스트가 없습니다.",
         },

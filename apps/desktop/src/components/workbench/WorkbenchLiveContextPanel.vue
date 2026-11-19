@@ -1,35 +1,36 @@
 <script setup lang="ts">
-import { MicIcon, PauseIcon, PlayIcon, SquareIcon } from "@lucide/vue";
-import { computed, nextTick, ref, watch } from "vue";
+import {
+  CircleAlertIcon,
+  MessageSquareTextIcon,
+  MicOffIcon,
+  RadioIcon,
+  SquareIcon,
+  UsersRoundIcon,
+  Volume2Icon,
+  XIcon,
+} from "@lucide/vue";
+import { computed, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { handleError } from "@/app/errors/errorHandler";
 import { Button } from "@/components/ui/button";
 import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
-import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
-import LiveContextSpeakerChip from "@/components/workbench/LiveContextSpeakerChip.vue";
+  Empty,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "@/components/ui/empty";
+import LiveContextNotice from "@/components/workbench/LiveContextNotice.vue";
+import LiveContextSetup from "@/components/workbench/LiveContextSetup.vue";
+import LiveContextStatusBar from "@/components/workbench/LiveContextStatusBar.vue";
+import LiveContextTranscript from "@/components/workbench/LiveContextTranscript.vue";
 import { useContentTabNavigation } from "@/composables/useContentTabNavigation";
 import {
   LIVE_CONTEXT_LOCALES,
-  LIVE_CONTEXT_SOURCES,
-  type LiveContextSegment,
+  type LiveContextError,
   type LiveContextSource,
   type LiveContextSpeakerKey,
 } from "@/shared/liveContext";
-import {
-  parseSpeakerKey,
-  segmentTurns,
-  speakerMap,
-  speakersOf,
-} from "@/shared/liveContextSpeakers";
 import { useContentTabsStore } from "@/stores/contentTabs";
 import { useLiveContextStore } from "@/stores/liveContext";
 import { useProjectStore } from "@/stores/project";
@@ -49,10 +50,14 @@ const tabNavigation = useContentTabNavigation();
 const contentTabsStore = useContentTabsStore();
 
 const sources = ref<LiveContextSource[]>(["mic", "system"]);
+/** The last capture's language, else the one Pine's interface speaks. */
 const locale = ref<string>(
-  LIVE_CONTEXT_LOCALES.find((option) =>
-    option.startsWith(navigator.language.slice(0, 2)),
-  ) ?? "en-US",
+  liveContext.status.locale ??
+    LIVE_CONTEXT_LOCALES.find((option) => option === uiLocale.value) ??
+    LIVE_CONTEXT_LOCALES.find((option) =>
+      option.startsWith(uiLocale.value.slice(0, 2)),
+    ) ??
+    "en-US",
 );
 const isBusy = ref(false);
 
@@ -81,104 +86,65 @@ const segments = computed(() =>
 const pending = computed(() =>
   target.value ? liveContext.volatileOf(target.value.sessionId) : [],
 );
-
 const speakers = computed(() =>
   target.value
     ? liveContext.speakersOf(target.value.sessionId)
     : { names: {}, merges: {} },
 );
-/** Pine's own merges and the user's, together. */
-const merges = computed(() => speakerMap(speakers.value));
 
-function speakerLabel(speaker: LiveContextSpeakerKey): string {
-  return (
-    speakers.value.names[speaker] ??
-    t("project.workbench.liveContext.speakers.numbered", {
-      n: parseSpeakerKey(speaker).speaker,
-    })
-  );
-}
-
-/** Everyone heard so far, after merges, for the merge menu. */
-const knownSpeakers = computed(() =>
-  speakersOf([...segments.value, ...pending.value], merges.value).map(
-    (speaker) => ({ speaker, label: speakerLabel(speaker) }),
-  ),
-);
-
-/**
- * Each segment as rows: one per speaker turn, each starting with who
- * speaks. Without speaker labels a segment is one row, labeled by source;
- * a labeled segment whose voice is not known yet shows "?".
- */
-function rowsOf(segment: LiveContextSegment) {
-  const labeled = Boolean(segment.turns?.length);
-  return segmentTurns(segment, merges.value).map((piece, index) => ({
-    key: `${segment.id}-${index}`,
-    speaker: piece.speaker,
-    overlap: piece.overlap,
-    unknown: labeled && !piece.speaker,
-    provisional: !segment.final || piece.provisional === true,
-    text: piece.text,
-  }));
-}
-
-function othersThan(speaker: LiveContextSpeakerKey) {
-  return knownSpeakers.value.filter((known) => known.speaker !== speaker);
-}
-
-function rename(speaker: LiveContextSpeakerKey, name: string): void {
-  const next = target.value;
-  if (next) void run(() => liveContext.renameSpeaker(next, speaker, name));
-}
-
-function merge(from: LiveContextSpeakerKey, into: LiveContextSpeakerKey): void {
-  const next = target.value;
-  if (next) void run(() => liveContext.mergeSpeakers(next, from, into));
-}
-
-function updateIdentifySpeakers(value: unknown): void {
-  liveContext.identifySpeakers = value === true;
-}
-
-const languageNames = computed(
-  () => new Intl.DisplayNames([uiLocale.value], { type: "language" }),
-);
-
-const stateLabel = computed(() => {
-  switch (status.value.state) {
-    case "preparing":
-      return t("project.workbench.liveContext.state.preparing");
-    case "downloading":
-      return t(
-        status.value.download === "speakers"
-          ? "project.workbench.liveContext.state.downloadingSpeakers"
-          : "project.workbench.liveContext.state.downloading",
-        { percent: Math.round((status.value.downloadProgress ?? 0) * 100) },
-      );
-    case "listening":
-      return t("project.workbench.liveContext.state.listening");
-    case "paused":
-      return t("project.workbench.liveContext.state.paused");
-    case "stopping":
-      return t("project.workbench.liveContext.state.stopping");
-    default:
-      return "";
-  }
+/** What the transcript shows while this conversation captures. */
+const capture = computed(() => {
+  if (!isHere.value) return undefined;
+  if (status.value.state === "listening") return "listening";
+  if (status.value.state === "paused") return "paused";
+  return "starting";
 });
 
+/** The capturing conversation, when it is another one. */
+const elsewhereSession = computed(() =>
+  isElsewhere.value
+    ? sessionStore.allRecentSessions.find(
+        (session) => session.id === status.value.sessionId,
+      )
+    : undefined,
+);
+
+function showElsewhere(): void {
+  const session = elsewhereSession.value;
+  if (session) tabNavigation.openSession(session, session.projectId);
+}
+
+const identifySpeakers = computed({
+  get: () => liveContext.identifySpeakers,
+  set: (value: boolean) => (liveContext.identifySpeakers = value),
+});
+
+// The transcript loads once per conversation shown.
+const loadingSessionId = ref<string>();
 watch(
   target,
   (next) => {
-    if (next)
-      void liveContext.load(next).catch((error: unknown) =>
+    if (!next) return;
+    loadingSessionId.value = next.sessionId;
+    void liveContext
+      .load(next)
+      .catch((error: unknown) =>
         handleError(error, {
           id: "live-context.load",
           title: t("project.workbench.liveContext.loadFailed"),
         }),
-      );
+      )
+      .finally(() => {
+        if (loadingSessionId.value === next.sessionId)
+          loadingSessionId.value = undefined;
+      });
   },
   { immediate: true },
+);
+const loading = computed(
+  () =>
+    target.value !== undefined &&
+    loadingSessionId.value === target.value.sessionId,
 );
 
 async function run(action: () => Promise<void>): Promise<void> {
@@ -198,6 +164,7 @@ async function run(action: () => Promise<void>): Promise<void> {
 
 function start(): void {
   if (sources.value.length === 0) return;
+  dismissedError.value = undefined;
   const next = target.value;
   if (next) {
     void run(() => liveContext.start(next, sources.value, locale.value));
@@ -231,296 +198,247 @@ async function startInNewSession(
   );
 }
 
-function updateSources(value: unknown): void {
-  if (Array.isArray(value))
-    sources.value = LIVE_CONTEXT_SOURCES.filter((source) =>
-      value.includes(source),
-    );
+function rename(speaker: LiveContextSpeakerKey, name: string): void {
+  const next = target.value;
+  if (next) void run(() => liveContext.renameSpeaker(next, speaker, name));
 }
 
-function updateLocale(value: unknown): void {
-  if (typeof value === "string") locale.value = value;
+function merge(from: LiveContextSpeakerKey, into: LiveContextSpeakerKey): void {
+  const next = target.value;
+  if (next) void run(() => liveContext.mergeSpeakers(next, from, into));
 }
 
-function time(ms: number): string {
-  return new Date(ms).toLocaleTimeString(uiLocale.value, {
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-  });
+function openSettings(source: LiveContextSource): void {
+  void run(() => liveContext.openPrivacySettings(source));
 }
 
-// Follow new text while the user is at the bottom.
-const list = ref<HTMLElement | null>(null);
-watch(
-  () => [segments.value.length, pending.value.map(({ text }) => text).join()],
-  async () => {
-    const scroller = list.value?.closest(".overflow-y-auto");
-    if (!scroller) return;
-    const atBottom =
-      scroller.scrollHeight - scroller.scrollTop - scroller.clientHeight < 48;
-    await nextTick();
-    if (atBottom) scroller.scrollTop = scroller.scrollHeight;
-  },
-);
+// The last error, until the user dismisses it or starts again.
+const dismissedError = ref<LiveContextError>();
+const SPEAKER_ERRORS = new Set([
+  "speaker_models_failed",
+  "speakers_unavailable",
+]);
+const error = computed(() => {
+  const last = status.value.lastError;
+  if (!last) return undefined;
+  if (!isHere.value && liveContext.isCapturing) return undefined;
+  // Compared by content: each status update is a new object.
+  const dismissed = dismissedError.value;
+  if (
+    dismissed &&
+    dismissed.code === last.code &&
+    dismissed.message === last.message
+  )
+    return undefined;
+  return last;
+});
+/** The error, as a notice: a permission to grant, or what went wrong. */
+const errorNotice = computed(() => {
+  const last = error.value;
+  if (!last) return undefined;
+  const key = "project.workbench.liveContext.error";
+  if (last.code === "permission_denied")
+    return {
+      kind: "permission" as const,
+      source: last.source ?? "mic",
+      icon: MicOffIcon,
+      title: t(`${key}.permission.${last.source ?? "mic"}.title`),
+      description: t(`${key}.permission.${last.source ?? "mic"}.description`),
+    };
+  if (SPEAKER_ERRORS.has(last.code))
+    return {
+      kind: "speakers" as const,
+      icon: UsersRoundIcon,
+      title: t("project.workbench.liveContext.speakers.failedTitle"),
+      description: last.message,
+    };
+  const known = ["unsupported_locale", "assets_failed"].includes(last.code)
+    ? last.code
+    : "generic";
+  return {
+    kind: "error" as const,
+    source: last.code === "capture_failed" ? last.source : undefined,
+    icon: CircleAlertIcon,
+    title: t(`${key}.${known}`),
+    description: last.message,
+  };
+});
+
+function dismissError(): void {
+  dismissedError.value = status.value.lastError;
+}
 </script>
 
 <template>
   <div
-    class="flex min-h-full flex-col gap-3 px-(--workbench-inset) pb-(--workbench-inset)"
+    class="flex min-h-full flex-col px-(--workbench-inset) pb-(--workbench-inset)"
     data-testid="workbench-live-context"
   >
-    <p
+    <Empty
       v-if="!liveContext.available"
-      class="text-muted-foreground px-1 text-sm"
+      class="flex-1 border-0 p-6"
       data-testid="live-context-unavailable"
     >
-      {{
-        t(
-          `project.workbench.liveContext.unavailable.${status.unavailableReason ?? "platform"}`,
-        )
-      }}
-    </p>
-    <template v-else-if="target || draftTab">
-      <div
-        v-if="isElsewhere"
-        class="flex items-center gap-2 px-1 text-sm"
-        data-testid="live-context-elsewhere"
-      >
-        <span class="text-muted-foreground min-w-0 flex-1">
-          {{ t("project.workbench.liveContext.elsewhere") }}
-        </span>
-        <Button
-          variant="outline"
-          size="sm"
-          :disabled="isBusy"
-          @click="run(liveContext.stop)"
-        >
-          <SquareIcon data-icon="inline-start" aria-hidden="true" />
-          {{ t("project.workbench.liveContext.stop") }}
-        </Button>
-      </div>
-      <div v-else-if="!isHere" class="flex flex-wrap items-center gap-2 px-1">
-        <ToggleGroup
-          type="multiple"
-          variant="outline"
-          size="sm"
-          :model-value="sources"
-          :aria-label="t('project.workbench.liveContext.sources')"
-          @update:model-value="updateSources"
-        >
-          <ToggleGroupItem
-            v-for="source in LIVE_CONTEXT_SOURCES"
-            :key="source"
-            :value="source"
-          >
-            {{ t(`project.workbench.liveContext.source.${source}`) }}
-          </ToggleGroupItem>
-        </ToggleGroup>
-        <Select :model-value="locale" @update:model-value="updateLocale">
-          <SelectTrigger
-            size="sm"
-            class="w-fit"
-            :aria-label="t('project.workbench.liveContext.language')"
-          >
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectGroup>
-              <SelectItem
-                v-for="option in LIVE_CONTEXT_LOCALES"
-                :key="option"
-                :value="option"
-              >
-                {{ languageNames.of(option) ?? option }}
-              </SelectItem>
-            </SelectGroup>
-          </SelectContent>
-        </Select>
-        <Button
-          size="sm"
-          data-testid="live-context-start"
-          :disabled="isBusy || sources.length === 0"
-          @click="start"
-        >
-          <MicIcon data-icon="inline-start" aria-hidden="true" />
+      <EmptyHeader>
+        <EmptyMedia variant="icon">
+          <MicOffIcon aria-hidden="true" />
+        </EmptyMedia>
+        <EmptyTitle class="text-sm">
+          {{ t("project.workbench.liveContext.unavailable.title") }}
+        </EmptyTitle>
+        <EmptyDescription class="text-xs">
           {{
-            segments.length
-              ? t("project.workbench.liveContext.resume")
-              : t("project.workbench.liveContext.start")
+            t(
+              `project.workbench.liveContext.unavailable.${status.unavailableReason ?? "platform"}`,
+            )
           }}
-        </Button>
-      </div>
+        </EmptyDescription>
+      </EmptyHeader>
+    </Empty>
+    <Empty
+      v-else-if="!target && !draftTab"
+      class="flex-1 border-0 p-6"
+      data-testid="live-context-no-session"
+    >
+      <EmptyHeader>
+        <EmptyMedia variant="icon">
+          <MessageSquareTextIcon aria-hidden="true" />
+        </EmptyMedia>
+        <EmptyDescription class="text-xs">
+          {{ t("project.workbench.liveContext.noSession") }}
+        </EmptyDescription>
+      </EmptyHeader>
+    </Empty>
+    <template v-else>
+      <!-- Controls stay in view above a long transcript. -->
       <div
-        v-if="!isHere && !isElsewhere && status.speakersAvailable"
-        class="flex flex-col gap-1 px-1"
+        class="bg-card sticky top-0 z-10 flex flex-col gap-2 pb-3"
+        data-testid="live-context-controls"
       >
-        <div class="flex items-center gap-2">
-          <Switch
-            id="live-context-identify-speakers"
-            :model-value="liveContext.identifySpeakers"
-            data-testid="live-context-identify-speakers"
-            @update:model-value="updateIdentifySpeakers"
-          />
-          <Label for="live-context-identify-speakers" class="text-sm">
-            {{ t("project.workbench.liveContext.speakers.identify") }}
-          </Label>
-        </div>
-        <p class="text-muted-foreground text-xs">
-          {{ t("project.workbench.liveContext.speakers.note") }}
-        </p>
-      </div>
-      <div v-else class="flex items-center gap-2 px-1">
-        <span
-          class="text-muted-foreground flex min-w-0 flex-1 items-center gap-2 text-sm"
+        <LiveContextNotice
+          v-if="isElsewhere"
+          :icon="RadioIcon"
+          :title="t('project.workbench.liveContext.elsewhere')"
+          :description="elsewhereSession?.name || undefined"
+          data-testid="live-context-elsewhere"
         >
-          <span
-            v-if="status.state === 'listening'"
-            class="size-2 shrink-0 animate-pulse rounded-full bg-red-500"
-            aria-hidden="true"
-          />
-          {{ stateLabel }}
-        </span>
-        <Button
-          v-if="status.state === 'paused'"
-          variant="outline"
-          size="sm"
-          :disabled="isBusy"
-          @click="run(liveContext.resume)"
-        >
-          <PlayIcon data-icon="inline-start" aria-hidden="true" />
-          {{ t("project.workbench.liveContext.resume") }}
-        </Button>
-        <Button
-          v-else
-          variant="outline"
-          size="sm"
-          :disabled="isBusy || status.state !== 'listening'"
-          @click="run(liveContext.pause)"
-        >
-          <PauseIcon data-icon="inline-start" aria-hidden="true" />
-          {{ t("project.workbench.liveContext.pause") }}
-        </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          data-testid="live-context-stop"
-          :disabled="isBusy || status.state === 'stopping'"
-          @click="run(liveContext.stop)"
-        >
-          <SquareIcon data-icon="inline-start" aria-hidden="true" />
-          {{ t("project.workbench.liveContext.stop") }}
-        </Button>
-      </div>
-
-      <p
-        v-if="isHere && status.speakersDegraded"
-        class="text-muted-foreground px-1 text-xs"
-        data-testid="live-context-speakers-degraded"
-      >
-        {{
-          t(
-            `project.workbench.liveContext.speakers.degraded.${status.speakersDegraded}`,
-          )
-        }}
-      </p>
-      <p
-        v-if="isHere && status.systemSilent"
-        class="text-muted-foreground px-1 text-xs"
-      >
-        {{ t("project.workbench.liveContext.systemSilent") }}
-      </p>
-      <p
-        v-if="status.lastError && (isHere || !liveContext.isCapturing)"
-        class="text-destructive px-1 text-xs"
-        data-testid="live-context-error"
-      >
-        {{
-          status.lastError.code === "speaker_models_failed" ||
-          status.lastError.code === "speakers_unavailable"
-            ? t("project.workbench.liveContext.speakers.failed", {
-                message: status.lastError.message,
-              })
-            : status.lastError.message
-        }}
-      </p>
-
-      <ol
-        ref="list"
-        class="flex flex-col gap-2 px-1 text-sm"
-        data-testid="live-context-transcript"
-      >
-        <li
-          v-for="segment in [...segments, ...pending]"
-          :key="segment.id"
-          :data-final="segment.final || undefined"
-          class="flex flex-col gap-1"
-        >
-          <template v-for="(row, index) in rowsOf(segment)" :key="row.key">
-            <span
-              class="text-muted-foreground flex min-w-0 items-center gap-1 text-xs tabular-nums"
+          <template #actions>
+            <Button
+              v-if="elsewhereSession"
+              size="xs"
+              variant="outline"
+              @click="showElsewhere"
             >
-              <template v-if="row.speaker">
-                <LiveContextSpeakerChip
-                  :speaker="row.speaker"
-                  :label="speakerLabel(row.speaker)"
-                  :others="othersThan(row.speaker)"
-                  :provisional="row.provisional"
-                  @rename="(name) => row.speaker && rename(row.speaker, name)"
-                  @merge="(into) => row.speaker && merge(row.speaker, into)"
-                />
-                <template v-if="row.overlap">
-                  <span aria-hidden="true">+</span>
-                  <LiveContextSpeakerChip
-                    :speaker="row.overlap"
-                    :label="speakerLabel(row.overlap)"
-                    :others="othersThan(row.overlap)"
-                    :provisional="row.provisional"
-                    @rename="(name) => row.overlap && rename(row.overlap, name)"
-                    @merge="(into) => row.overlap && merge(row.overlap, into)"
-                  />
-                </template>
-              </template>
-              <span
-                v-else-if="row.unknown"
-                class="px-1 font-medium"
-                :title="t('project.workbench.liveContext.speakers.unknown')"
-                data-testid="live-context-speaker-unknown"
-                >?</span
-              >
-              <template v-else>
-                {{
-                  t(`project.workbench.liveContext.speaker.${segment.source}`)
-                }}
-              </template>
-              <template v-if="index === 0"
-                >· {{ time(segment.start) }}</template
-              >
-              <span
-                v-if="index === 0 && segment.echo"
-                data-testid="live-context-echo"
-                >· {{ t("project.workbench.liveContext.speakers.echo") }}</span
-              >
-            </span>
-            <span
-              :class="
-                !segment.final || segment.echo
-                  ? 'text-muted-foreground'
-                  : undefined
-              "
-              class="select-text"
+              {{ t("project.workbench.liveContext.showElsewhere") }}
+            </Button>
+            <Button
+              size="xs"
+              variant="outline"
+              :disabled="isBusy"
+              data-testid="live-context-stop"
+              @click="run(liveContext.stop)"
             >
-              {{ row.text }}
-            </span>
+              <SquareIcon
+                data-icon="inline-start"
+                class="size-3 fill-current"
+                aria-hidden="true"
+              />
+              {{ t("project.workbench.liveContext.stop") }}
+            </Button>
           </template>
-        </li>
-      </ol>
-      <p
-        v-if="!segments.length && !pending.length && !isHere"
-        class="text-muted-foreground px-1 text-sm"
-      >
-        {{ t("project.workbench.liveContext.empty") }}
-      </p>
+        </LiveContextNotice>
+        <LiveContextStatusBar
+          v-else-if="isHere"
+          :status="status"
+          :elapsed-at="liveContext.elapsedAt"
+          :busy="isBusy"
+          @pause="run(liveContext.pause)"
+          @resume="run(liveContext.resume)"
+          @stop="run(liveContext.stop)"
+        />
+        <LiveContextSetup
+          v-else
+          v-model:sources="sources"
+          v-model:locale="locale"
+          v-model:identify-speakers="identifySpeakers"
+          :speakers-available="status.speakersAvailable"
+          :continues="segments.length > 0"
+          :disabled="isBusy"
+          @start="start"
+        />
+
+        <LiveContextNotice
+          v-if="errorNotice"
+          :icon="errorNotice.icon"
+          :title="errorNotice.title"
+          :description="errorNotice.description"
+          :tone="errorNotice.kind === 'speakers' ? 'warning' : 'destructive'"
+          data-testid="live-context-error"
+          :data-code="error?.code"
+        >
+          <template #actions>
+            <Button
+              v-if="errorNotice.kind !== 'speakers' && errorNotice.source"
+              size="xs"
+              variant="outline"
+              data-testid="live-context-open-settings"
+              @click="openSettings(errorNotice.source)"
+            >
+              {{ t("project.workbench.liveContext.openSettings") }}
+            </Button>
+            <Button
+              size="xs"
+              variant="ghost"
+              data-testid="live-context-dismiss-error"
+              @click="dismissError"
+            >
+              <XIcon data-icon="inline-start" aria-hidden="true" />
+              {{ t("project.workbench.liveContext.dismiss") }}
+            </Button>
+          </template>
+        </LiveContextNotice>
+        <LiveContextNotice
+          v-if="isHere && status.systemSilent"
+          :icon="Volume2Icon"
+          tone="warning"
+          :title="t('project.workbench.liveContext.systemSilent.title')"
+          :description="
+            t('project.workbench.liveContext.systemSilent.description')
+          "
+          data-testid="live-context-system-silent"
+        >
+          <template #actions>
+            <Button
+              size="xs"
+              variant="outline"
+              data-testid="live-context-open-settings"
+              @click="openSettings('system')"
+            >
+              {{ t("project.workbench.liveContext.openSettings") }}
+            </Button>
+          </template>
+        </LiveContextNotice>
+        <LiveContextNotice
+          v-if="isHere && status.speakersDegraded"
+          :icon="UsersRoundIcon"
+          :title="
+            t(
+              `project.workbench.liveContext.speakers.degraded.${status.speakersDegraded}`,
+            )
+          "
+          data-testid="live-context-speakers-degraded"
+        />
+      </div>
+
+      <LiveContextTranscript
+        :segments="segments"
+        :pending="pending"
+        :speakers="speakers"
+        :capture="capture"
+        :loading="loading"
+        @rename="rename"
+        @merge="merge"
+      />
     </template>
   </div>
 </template>

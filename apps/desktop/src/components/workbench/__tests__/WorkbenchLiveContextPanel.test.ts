@@ -26,6 +26,7 @@ const mocks = vi.hoisted(() => {
   return Object.assign(state, {
     createLiveContextSession: vi.fn(),
     bindSession: vi.fn(),
+    openSession: vi.fn(),
     ensureOpen: vi.fn(),
   });
 });
@@ -36,6 +37,9 @@ vi.mock("@/stores/session", () => ({
       return mocks.activeSession;
     },
     projectOf: () => PROJECT_ID,
+    allRecentSessions: [
+      { id: "session-2", name: "Design review", projectId: PROJECT_ID },
+    ],
     createLiveContextSession: mocks.createLiveContextSession,
   }),
 }));
@@ -51,6 +55,7 @@ vi.mock("@/composables/useContentTabNavigation", async () => {
     useContentTabNavigation: () => ({
       activeSessionTab: computed(() => mocks.activeSessionTab),
       bindSession: mocks.bindSession,
+      openSession: mocks.openSession,
     }),
   };
 });
@@ -76,6 +81,7 @@ function stubApi(
     pause: vi.fn().mockResolvedValue({ ...listeningHere, state: "paused" }),
     resume: vi.fn().mockResolvedValue(listeningHere),
     stop: vi.fn().mockResolvedValue(idle),
+    openPrivacySettings: vi.fn().mockResolvedValue(undefined),
     transcript: vi.fn().mockResolvedValue(
       transcript ?? {
         segments: [
@@ -103,11 +109,15 @@ function stubApi(
 async function mountPanel() {
   setActivePinia(createPinia());
   const wrapper = mount(WorkbenchLiveContextPanel, {
+    attachTo: document.body,
     global: { plugins: [createAppI18n("en-US")] },
   });
+  mounted.push(wrapper);
   await flushPromises();
   return wrapper;
 }
+
+const mounted: { unmount(): void }[] = [];
 
 describe("WorkbenchLiveContextPanel", () => {
   beforeEach(() => {
@@ -116,15 +126,22 @@ describe("WorkbenchLiveContextPanel", () => {
     mocks.activeSessionTab = null;
     mocks.createLiveContextSession.mockReset();
     mocks.bindSession.mockReset();
+    mocks.openSession.mockReset();
     mocks.ensureOpen.mockReset();
     mocks.ensureOpen.mockResolvedValue({ opened: true });
   });
-  afterEach(() => vi.unstubAllGlobals());
+  afterEach(() => {
+    mounted.splice(0).forEach((wrapper) => wrapper.unmount());
+    document.body.innerHTML = "";
+    vi.unstubAllGlobals();
+  });
 
   it("explains why it is unavailable", async () => {
     stubApi({ ...idle, available: false, unavailableReason: "platform" });
     const wrapper = await mountPanel();
-    expect(wrapper.get("[data-testid=live-context-unavailable]").text()).toBe(
+    const unavailable = wrapper.get("[data-testid=live-context-unavailable]");
+    expect(unavailable.text()).toContain("Live context isn't available");
+    expect(unavailable.text()).toContain(
       "Live context needs macOS 26 or later.",
     );
   });
@@ -268,31 +285,53 @@ describe("WorkbenchLiveContextPanel", () => {
       expect.stringContaining("Others"),
       expect.stringContaining("Me"),
     ]);
-    expect(items[1]?.attributes("data-final")).toBeUndefined();
+    expect(items[0]?.get("p").attributes("data-final")).toBe("true");
+    expect(items[1]?.get("p").attributes("data-final")).toBeUndefined();
 
     await wrapper.get("[data-testid=live-context-stop]").trigger("click");
     await flushPromises();
     expect(api.stop).toHaveBeenCalled();
   });
 
-  it("offers to stop a capture that belongs to another session", async () => {
-    stubApi({ ...listeningHere, sessionId: "session-2" });
+  it("names a capture in another session, opens it and offers to stop it", async () => {
+    const { api } = stubApi({ ...listeningHere, sessionId: "session-2" });
     const wrapper = await mountPanel();
-    expect(
-      wrapper.get("[data-testid=live-context-elsewhere]").text(),
-    ).toContain("Another conversation is capturing live context.");
+    const notice = wrapper.get("[data-testid=live-context-elsewhere]");
+    expect(notice.text()).toContain(
+      "Another conversation is capturing live context.",
+    );
+    expect(notice.text()).toContain("Design review");
     expect(wrapper.find("[data-testid=live-context-start]").exists()).toBe(
       false,
     );
+    const show = notice
+      .findAll("button")
+      .find((button) => button.text() === "Show");
+    await show?.trigger("click");
+    expect(mocks.openSession).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "session-2" }),
+      PROJECT_ID,
+    );
+    await wrapper.get("[data-testid=live-context-stop]").trigger("click");
+    await flushPromises();
+    expect(api.stop).toHaveBeenCalled();
   });
 
   it("offers speaker labels off by default and asks for them when turned on", async () => {
     const { api } = stubApi({ ...idle, speakersAvailable: true });
     const wrapper = await mountPanel();
-    const toggle = wrapper.get("[data-testid=live-context-identify-speakers]");
-    expect(toggle.attributes("aria-checked")).toBe("false");
-    expect(wrapper.text()).toContain("Identify speakers");
-    await toggle.trigger("click");
+    await wrapper.get("[data-testid=live-context-options]").trigger("click");
+    await flushPromises();
+    const toggle = document.querySelector<HTMLElement>(
+      "[data-testid=live-context-identify-speakers]",
+    );
+    expect(toggle?.getAttribute("aria-checked")).toBe("false");
+    expect(document.body.textContent).toContain("Identify speakers");
+    toggle?.click();
+    await flushPromises();
+    expect(
+      wrapper.find("[data-testid=live-context-speakers-on]").exists(),
+    ).toBe(true);
     await wrapper.get("[data-testid=live-context-start]").trigger("click");
     await flushPromises();
     expect(api.start).toHaveBeenCalledWith(
@@ -303,9 +342,12 @@ describe("WorkbenchLiveContextPanel", () => {
   it("hides the speaker option when this build cannot label speakers", async () => {
     stubApi(idle);
     const wrapper = await mountPanel();
+    await wrapper.get("[data-testid=live-context-options]").trigger("click");
+    await flushPromises();
+    expect(document.body.textContent).toContain("Language");
     expect(
-      wrapper.find("[data-testid=live-context-identify-speakers]").exists(),
-    ).toBe(false);
+      document.querySelector("[data-testid=live-context-identify-speakers]"),
+    ).toBeNull();
   });
 
   it("splits labeled segments by speaker, with names and merges applied", async () => {
@@ -393,5 +435,183 @@ describe("WorkbenchLiveContextPanel", () => {
     expect(
       wrapper.get("[data-testid=live-context-speakers-degraded]").text(),
     ).toContain("Speaker labels are paused");
+  });
+
+  it("invites a first capture when there is no transcript yet", async () => {
+    stubApi(idle, { segments: [], speakers: { names: {}, merges: {} } });
+    const wrapper = await mountPanel();
+    expect(wrapper.get("[data-testid=live-context-empty]").text()).toContain(
+      "Ready to listen",
+    );
+    expect(wrapper.get("[data-testid=live-context-start]").text()).toBe(
+      "Start",
+    );
+  });
+
+  it("continues an existing transcript", async () => {
+    stubApi(idle);
+    const wrapper = await mountPanel();
+    expect(wrapper.get("[data-testid=live-context-start]").text()).toBe(
+      "Continue",
+    );
+  });
+
+  it("keeps at least one source on", async () => {
+    const { api } = stubApi(idle);
+    const wrapper = await mountPanel();
+    const mic = wrapper.get("[data-source=mic]");
+    const system = wrapper.get("[data-source=system]");
+    await mic.trigger("click");
+    expect(mic.attributes("aria-pressed")).toBe("false");
+    await system.trigger("click");
+    expect(system.attributes("aria-pressed")).toBe("true");
+    await wrapper.get("[data-testid=live-context-start]").trigger("click");
+    await flushPromises();
+    expect(api.start).toHaveBeenCalledWith(
+      expect.objectContaining({ sources: ["system"] }),
+    );
+  });
+
+  it("waits for the first words while listening", async () => {
+    stubApi(listeningHere, {
+      segments: [],
+      speakers: { names: {}, merges: {} },
+    });
+    const wrapper = await mountPanel();
+    expect(wrapper.get("[data-testid=live-context-state]").text()).toBe(
+      "Listening",
+    );
+    expect(wrapper.get("[data-testid=live-context-waiting]").text()).toContain(
+      "Listening for the first words",
+    );
+  });
+
+  it("pauses and resumes from the status bar", async () => {
+    const { api } = stubApi(listeningHere);
+    const wrapper = await mountPanel();
+    await wrapper.get("[data-testid=live-context-pause]").trigger("click");
+    await flushPromises();
+    expect(api.pause).toHaveBeenCalled();
+    expect(wrapper.get("[data-testid=live-context-state]").text()).toBe(
+      "Paused",
+    );
+    await wrapper.get("[data-testid=live-context-resume]").trigger("click");
+    await flushPromises();
+    expect(api.resume).toHaveBeenCalled();
+  });
+
+  it("shows how far a model download has come", async () => {
+    stubApi({
+      ...listeningHere,
+      state: "downloading",
+      download: "speakers",
+      downloadProgress: 0.42,
+    });
+    const wrapper = await mountPanel();
+    const bar = wrapper.get("[data-testid=live-context-status]");
+    expect(bar.text()).toContain("Downloading speaker models");
+    expect(bar.text()).toContain("42%");
+    expect(wrapper.find("[data-testid=live-context-download]").exists()).toBe(
+      true,
+    );
+  });
+
+  it("asks for microphone access, opens its settings and can be dismissed", async () => {
+    const { api } = stubApi({
+      ...idle,
+      lastError: {
+        code: "permission_denied",
+        message: "Microphone access is off for Pine.",
+        source: "mic",
+      },
+    });
+    const wrapper = await mountPanel();
+    const notice = wrapper.get("[data-testid=live-context-error]");
+    expect(notice.text()).toContain("Microphone access is off");
+    await wrapper
+      .get("[data-testid=live-context-open-settings]")
+      .trigger("click");
+    await flushPromises();
+    expect(api.openPrivacySettings).toHaveBeenCalledWith("mic");
+    await wrapper
+      .get("[data-testid=live-context-dismiss-error]")
+      .trigger("click");
+    expect(wrapper.find("[data-testid=live-context-error]").exists()).toBe(
+      false,
+    );
+  });
+
+  it("explains other errors with the helper's message", async () => {
+    stubApi({
+      ...idle,
+      lastError: { code: "helper_exited", message: "The helper stopped (1)." },
+    });
+    const wrapper = await mountPanel();
+    const notice = wrapper.get("[data-testid=live-context-error]");
+    expect(notice.text()).toContain("Live context ran into a problem");
+    expect(notice.text()).toContain("The helper stopped (1).");
+    expect(
+      wrapper.find("[data-testid=live-context-open-settings]").exists(),
+    ).toBe(false);
+  });
+
+  it("points to the system audio setting when nothing is heard", async () => {
+    const { api } = stubApi({ ...listeningHere, systemSilent: true });
+    const wrapper = await mountPanel();
+    expect(
+      wrapper.get("[data-testid=live-context-system-silent]").text(),
+    ).toContain("No system audio yet");
+    await wrapper
+      .get("[data-testid=live-context-open-settings]")
+      .trigger("click");
+    await flushPromises();
+    expect(api.openPrivacySettings).toHaveBeenCalledWith("system");
+  });
+
+  it("keeps one speaker's consecutive lines under one label", async () => {
+    stubApi(idle, {
+      segments: [
+        {
+          id: "a",
+          source: "system",
+          start: 0,
+          end: 1,
+          text: "一",
+          final: true,
+        },
+        {
+          id: "b",
+          source: "system",
+          start: 2,
+          end: 3,
+          text: "二",
+          final: true,
+        },
+        { id: "c", source: "mic", start: 4, end: 5, text: "三", final: true },
+        {
+          id: "d",
+          source: "mic",
+          start: 10 * 60 * 1000,
+          end: 10 * 60 * 1000 + 1,
+          text: "四",
+          final: true,
+        },
+      ],
+      speakers: { names: {}, merges: {} },
+    });
+    const wrapper = await mountPanel();
+    const items = wrapper.findAll("[data-testid=live-context-transcript] li");
+    expect(items.map((item) => item.findAll("p").map((p) => p.text()))).toEqual(
+      [["一", "二"], ["三"], ["四"]],
+    );
+  });
+
+  it("holds the transcript's place while it loads", async () => {
+    const { api } = stubApi(idle);
+    api.transcript.mockReturnValue(new Promise(() => undefined));
+    const wrapper = await mountPanel();
+    expect(
+      wrapper.find("[data-testid=live-context-transcript-loading]").exists(),
+    ).toBe(true);
   });
 });

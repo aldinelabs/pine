@@ -999,10 +999,13 @@ export default {
       liveContext: {
         start: "Start",
         resume: "Resume",
+        continue: "Continue",
         pause: "Pause",
         stop: "Stop",
         sources: "Sources",
         language: "Language",
+        options: "Capture options",
+        languageNote: "The language being spoken. Pick it before you start.",
         source: {
           mic: "Microphone",
           system: "System audio",
@@ -1013,8 +1016,8 @@ export default {
         },
         state: {
           preparing: "Preparing…",
-          downloading: "Downloading speech model… {percent}%",
-          downloadingSpeakers: "Downloading speaker models… {percent}%",
+          downloading: "Downloading speech model…",
+          downloadingSpeakers: "Downloading speaker models…",
           listening: "Listening",
           paused: "Paused",
           stopping: "Stopping…",
@@ -1025,7 +1028,7 @@ export default {
           numbered: "Speaker {n}",
           rename: "Rename",
           mergeInto: "Merge into",
-          failed: "Speaker labels are off for this capture: {message}",
+          failedTitle: "Speaker labels are off for this capture",
           unknown: "Not sure who this is yet",
           echo: "Echo of system audio",
           degraded: {
@@ -1036,13 +1039,45 @@ export default {
           },
         },
         elsewhere: "Another conversation is capturing live context.",
-        empty:
-          "Transcribes a meeting or class on this Mac, for this conversation. Audio is never saved.",
-        systemSilent:
-          "No system audio yet. If something is playing, allow Pine under System Settings › Privacy & Security › Screen & System Audio Recording.",
+        empty: {
+          title: "Ready to listen",
+          description:
+            "Transcribes a meeting or class on this Mac, for this conversation. Audio is never saved.",
+        },
+        systemSilent: {
+          title: "No system audio yet",
+          description:
+            "If something is playing, allow Pine under System Settings › Privacy & Security › Screen & System Audio Recording.",
+        },
+        transcript: "Transcript",
+        waiting: "Listening for the first words…",
+        waitingPaused: "Paused. Resume to keep transcribing.",
+        jumpToLatest: "Jump to latest",
+        noSession: "Open a conversation to capture live context into it.",
+        showElsewhere: "Show",
+        openSettings: "Open System Settings",
+        dismiss: "Dismiss",
+        error: {
+          permission: {
+            mic: {
+              title: "Microphone access is off",
+              description:
+                "Allow Pine under System Settings › Privacy & Security › Microphone, then start again.",
+            },
+            system: {
+              title: "System audio access is off",
+              description:
+                "Allow Pine under System Settings › Privacy & Security › Screen & System Audio Recording, then start again.",
+            },
+          },
+          unsupported_locale: "This language can't be transcribed on this Mac",
+          assets_failed: "Couldn't download the speech model",
+          generic: "Live context ran into a problem",
+        },
         loadFailed: "Couldn't load the transcript",
         actionFailed: "Live context didn't respond",
         unavailable: {
+          title: "Live context isn't available",
           platform: "Live context needs macOS 26 or later.",
           "helper-missing": "This build of Pine doesn't include live context.",
         },

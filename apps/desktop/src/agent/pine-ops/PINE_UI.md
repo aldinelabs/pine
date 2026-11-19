@@ -668,23 +668,48 @@ close the card. The panels are:
 - Files: the project's file tree, with its folders and access levels.
 - Live context (macOS 26 or later; listed only when available):
   transcribes the microphone and/or system audio on this Mac for the active
-  conversation. Pick Sources (Microphone, System audio) and Language, then
-  Start; while capturing it has Pause/Resume and Stop. On a new session's
-  page, Start first creates an empty conversation in the project the
-  composer shows, opens it in that tab and captures into it; messages sent
-  later go to that conversation, which stays in the session list even if no
-  message is ever sent. Only one conversation captures at a time; others show "Another conversation is capturing live
-  context." with Stop. Audio is never saved, only the text.
-  Identify speakers (a switch below the controls, off by default) labels
-  voices within each source: each row starts with a colored "Speaker n"
-  label (a microphone or speaker icon shows the source). Labels appear a
-  few seconds late, look faded while they may still change, and are
-  revised once more after Stop. "?" means the voice is not known yet;
-  "Speaker 1 + Speaker 2" marks people talking at once; "· Echo of system
-  audio" with dimmed text marks other people's audio picked up by the
-  microphone. Clicking a label offers Rename and Merge into. A note under
-  the controls says when labels run lighter or pause to save power or keep
-  up; they recover on their own.
+  conversation. Audio is never saved, only the text.
+  Before a capture the card shows a Microphone / System audio pill (each
+  half toggles that source; at least one stays on), a language button and
+  Start ("Continue" when the conversation already has a transcript). The
+  language button opens Language (pick the spoken language) and Identify
+  speakers (a switch, off by default, shown only when this build can label
+  speakers; when on, a people icon shows on the button).
+  On a new session's page, Start first creates an empty conversation in the
+  project the composer shows, opens it in that tab and captures into it;
+  messages sent later go to that conversation, which stays in the session
+  list even if no message is ever sent.
+  While capturing, a bar pinned to the top of the card shows a pulsing red
+  dot and "Listening" with the listening time (paused time not counted),
+  icons for the sources and the language, a pause button and Stop. Paused
+  shows an amber dot, "Paused" and a play button to resume. "Preparing…",
+  "Downloading speech model…" or "Downloading speaker models…" (with a
+  progress bar and percent) show while it gets ready.
+  Only one conversation captures at a time; others show "Another
+  conversation is capturing live context." with the capturing
+  conversation's name, Show (opens it) and Stop.
+  Notices under the controls: "Microphone access is off" or "System audio
+  access is off" with Open System Settings (opens the matching Privacy &
+  Security pane) and Dismiss; "No system audio yet" with Open System
+  Settings while capturing; other problems ("Live context ran into a
+  problem", unsupported language, model download failed) with the details
+  and Dismiss; and a note when speaker labels run lighter or pause to save
+  power or keep up (they recover on their own).
+  The transcript fills the rest of the card. Before any text it shows
+  "Ready to listen" (or "Listening for the first words…" with moving bars
+  while capturing). Each block starts with who spoke and the time; a
+  speaker's consecutive lines stay under one label until someone else
+  speaks or two minutes pass. Without speaker labels the label is "Me"
+  (microphone) or "Others" (system audio). Words still forming are grey
+  with a blinking caret at the end. The card follows new text while it is
+  scrolled to the bottom; scrolled up, a "Jump to latest" button appears.
+  With Identify speakers, labels are colored "Speaker n" pills (a
+  microphone or speaker icon shows the source). Labels appear a few seconds
+  late, look faded while they may still change, and are revised once more
+  after Stop. "?" means the voice is not known yet; "Speaker 1 + Speaker 2"
+  marks people talking at once; "· Echo of system audio" with dimmed text
+  marks other people's audio picked up by the microphone. Clicking a label
+  offers Rename and Merge into.
 - Details and Comments: shown only while a file tab is in front, in place of
   the session's cards (see File tab); they have no panel switcher or Add
   card.
