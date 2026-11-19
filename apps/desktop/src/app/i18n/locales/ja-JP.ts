@@ -1007,6 +1007,7 @@ export default {
       resizeCards: "カードのサイズを変更",
       addCard: "カードを追加",
       closeCard: "カードを閉じる",
+      beta: "ベータ",
       panels: {
         artifacts: "成果物",
         tasks: "バックグラウンドプロセス",

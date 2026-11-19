@@ -1021,6 +1021,7 @@ export default {
       resizeCards: "Größe der Karten ändern",
       addCard: "Karte hinzufügen",
       closeCard: "Karte schließen",
+      beta: "Beta",
       panels: {
         artifacts: "Artefakte",
         tasks: "Hintergrundprozesse",

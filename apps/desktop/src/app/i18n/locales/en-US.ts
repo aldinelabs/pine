@@ -997,6 +997,7 @@ export default {
       resizeCards: "Resize cards",
       addCard: "Add card",
       closeCard: "Close card",
+      beta: "Beta",
       panels: {
         artifacts: "Artifacts",
         tasks: "Background processes",

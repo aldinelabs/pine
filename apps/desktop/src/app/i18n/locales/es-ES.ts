@@ -1014,6 +1014,7 @@ export default {
       resizeCards: "Cambiar el tamaño de las tarjetas",
       addCard: "Añadir tarjeta",
       closeCard: "Cerrar tarjeta",
+      beta: "Beta",
       panels: {
         artifacts: "Artefactos",
         tasks: "Procesos en segundo plano",

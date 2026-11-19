@@ -2,6 +2,7 @@
 import { ChevronDownIcon } from "@lucide/vue";
 import { computed } from "vue";
 import { useI18n } from "vue-i18n";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -33,6 +34,11 @@ const sessionStore = useSessionStore();
 const liveContext = useLiveContextStore();
 const sideChat = useSideChat();
 
+/** Panels still in beta carry a badge beside their name. */
+function isBeta(panel: WorkbenchPanel): boolean {
+  return panel === LIVE_CONTEXT_PANEL;
+}
+
 /** A side chat needs a conversation to fork. */
 const panels = computed(() =>
   WORKBENCH_CARD_PANELS.filter(
@@ -63,6 +69,14 @@ const selected = computed({
         :aria-label="t('project.workbench.switchPanel')"
       >
         {{ label ?? t(`project.workbench.panels.${panel}`) }}
+        <Badge
+          v-if="isBeta(panel)"
+          variant="outline"
+          class="text-muted-foreground px-1.5 tracking-wide uppercase"
+          data-testid="workbench-panel-beta"
+        >
+          {{ t("project.workbench.beta") }}
+        </Badge>
         <ChevronDownIcon data-icon="inline-end" aria-hidden="true" />
       </Button>
     </DropdownMenuTrigger>
@@ -73,7 +87,18 @@ const selected = computed({
           :key="option"
           :value="option"
         >
-          {{ t(`project.workbench.panels.${option}`) }}
+          <!-- One line of text with the badge, so a narrow menu moves the
+               badge to the next line rather than splitting the name. -->
+          <span>
+            {{ t(`project.workbench.panels.${option}`) }}
+            <Badge
+              v-if="isBeta(option)"
+              variant="outline"
+              class="text-muted-foreground ml-1 inline-flex px-1.5 align-middle tracking-wide uppercase"
+            >
+              {{ t("project.workbench.beta") }}
+            </Badge>
+          </span>
         </DropdownMenuRadioItem>
       </DropdownMenuRadioGroup>
     </DropdownMenuContent>

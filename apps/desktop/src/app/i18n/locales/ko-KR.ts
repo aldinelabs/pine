@@ -990,6 +990,7 @@ export default {
       resizeCards: "카드 크기 조절",
       addCard: "카드 추가",
       closeCard: "카드 닫기",
+      beta: "베타",
       panels: {
         artifacts: "결과물",
         tasks: "백그라운드 프로세스",

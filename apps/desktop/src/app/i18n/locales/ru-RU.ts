@@ -1003,6 +1003,7 @@ export default {
       resizeCards: "Изменить размер карточек",
       addCard: "Добавить карточку",
       closeCard: "Закрыть карточку",
+      beta: "Бета",
       panels: {
         artifacts: "Артефакты",
         tasks: "Фоновые процессы",

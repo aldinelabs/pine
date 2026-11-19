@@ -680,9 +680,11 @@ close the card. The panels are:
   Open in tab. For a submitted file, the header also has Version history (a
   clock button; see Artifact versions below).
 - Files: the project's file tree, with its folders and access levels.
-- Live context (macOS 26 or later; listed only when available):
-  transcribes the microphone and/or system audio on this Mac for the active
-  conversation. Audio is never saved, only the text.
+- Live context (macOS 26 or later; listed only when available): marked
+  with a small grey "BETA" badge beside its name, both in the card title
+  and in the panel switcher's menu. It transcribes the microphone and/or
+  system audio on this Mac for the active conversation. Audio is never
+  saved, only the text.
   The transcript fills the card; the controls sit in a row at the bottom of
   the card, like the composer, and stay there while the transcript scrolls.
   Before a capture the row shows two toggle buttons, Microphone and System

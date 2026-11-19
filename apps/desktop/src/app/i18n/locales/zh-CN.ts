@@ -940,6 +940,7 @@ export default {
       resizeCards: "调整卡片高度",
       addCard: "添加卡片",
       closeCard: "关闭卡片",
+      beta: "Beta",
       panels: {
         artifacts: "产出文件",
         tasks: "后台进程",
