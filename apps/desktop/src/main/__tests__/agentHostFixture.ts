@@ -66,6 +66,15 @@ export function createAgentHost(sessionSummary: PineSessionSummary): AgentHost {
       .mockImplementation((sessionId) =>
         Promise.resolve({ session: { ...sessionSummary, id: sessionId } }),
       ),
+    setReplySuggestion: vi.fn().mockImplementation((sessionId, suggestion) =>
+      Promise.resolve({
+        session: {
+          ...sessionSummary,
+          id: sessionId,
+          ...(suggestion ? { replySuggestion: suggestion } : {}),
+        },
+      }),
+    ),
     respondApproval: vi.fn(),
     respondQuestionnaire: vi.fn(),
     setApprovalMode: vi.fn().mockResolvedValue({ updated: true }),

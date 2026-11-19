@@ -837,6 +837,25 @@ export class ProjectRuntimeRegistry {
     return runtime.sessions.replyTitleSuggestion(sessionId, reply);
   }
 
+  async setReplySuggestion(
+    webContentsId: number,
+    projectId: string,
+    sessionId: string,
+    suggestion: string | null,
+  ): Promise<PineSessionSummary> {
+    const runtime = this.get(webContentsId, projectId);
+    const live = runtime.liveSessions.get(sessionId);
+    if (live) {
+      const result = await this.agentHost.setReplySuggestion(
+        sessionId,
+        suggestion,
+      );
+      live.summary = result.session;
+      return result.session;
+    }
+    return runtime.sessions.setReplySuggestion(sessionId, suggestion);
+  }
+
   async projectEntryPaths(
     webContentsId: number,
     entries: ProjectEntryReference[],

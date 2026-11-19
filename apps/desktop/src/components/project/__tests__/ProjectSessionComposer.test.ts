@@ -1562,6 +1562,76 @@ describe("ProjectSessionComposer", () => {
     wrapper.unmount();
   });
 
+  it("keeps the suggestion with the session and shows it again on reopen", async () => {
+    const wrapper = mountComposer(
+      { sessionId: "session-1", isRunning: true },
+      "high",
+      "zh-CN",
+      { suggestReply: vi.fn().mockResolvedValue({ suggestion: "继续" }) },
+    );
+    const sessionStore = useSessionStore();
+    sessionStore.stateFor("session-1").messages = [
+      {
+        id: "m1",
+        createdAt: "2026-11-17T00:00:00.000Z",
+        role: "user",
+        status: "complete",
+        blocks: [{ type: "text", text: "开始" }],
+      },
+    ];
+    const keep = vi
+      .spyOn(sessionStore, "setReplySuggestion")
+      .mockResolvedValue(undefined);
+    await wrapper.setProps({ isRunning: false });
+    await flushPromises();
+    expect(keep).toHaveBeenCalledWith("session-1", "继续");
+
+    // Tab uses it up, also in the session's data.
+    await wrapper.get("textarea").trigger("keydown", { key: "Tab" });
+    expect(keep).toHaveBeenLastCalledWith("session-1", null);
+    wrapper.unmount();
+  });
+
+  it("restores a kept suggestion without asking the model again", async () => {
+    const suggestReply = vi.fn().mockResolvedValue({ suggestion: "新的" });
+    const wrapper = mountComposer(
+      { sessionId: "session-1", isRunning: false },
+      "high",
+      "zh-CN",
+      { suggestReply },
+    );
+    const sessionStore = useSessionStore();
+    const kept = vi
+      .spyOn(sessionStore, "replySuggestionFor")
+      .mockImplementation((sessionId) =>
+        sessionId === "session-1" ? "按日期排序" : undefined,
+      );
+    const keep = vi
+      .spyOn(sessionStore, "setReplySuggestion")
+      .mockResolvedValue(undefined);
+    // The summary arrives after the composer opened the session.
+    await wrapper.setProps({ sessionId: "session-2" });
+    await wrapper.setProps({ sessionId: "session-1" });
+    await flushPromises();
+
+    const suggestion = wrapper.find('[data-slot="reply-suggestion"]');
+    expect(suggestion.text()).toContain("按日期排序");
+    // Arriving over the placeholder, it fades in like a fresh one.
+    expect(wrapper.get("textarea").classes()).toContain(
+      "session-composer-input--suggestion-fades",
+    );
+    expect(suggestReply).not.toHaveBeenCalled();
+
+    // Turning suggestions off hides it and drops the kept one.
+    useAppearanceStore().setReplySuggestions(false);
+    await flushPromises();
+    expect(wrapper.find('[data-slot="reply-suggestion"]').exists()).toBe(false);
+    expect(keep).toHaveBeenLastCalledWith("session-1", null);
+    useAppearanceStore().setReplySuggestions(true);
+    kept.mockRestore();
+    wrapper.unmount();
+  });
+
   it("does not ask for a suggestion while reply suggestions are off", async () => {
     const suggestReply = vi.fn().mockResolvedValue({ suggestion: "继续" });
     const wrapper = mountComposer(

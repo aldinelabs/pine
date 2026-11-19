@@ -2,7 +2,11 @@ import { describe, expect, it } from "vitest";
 import {
   parseContentBlocks,
   parseMessageBlocks,
+  PINE_REPLY_SUGGESTION_ENTRY,
   progressReportText,
+  replySuggestionEntryData,
+  replySuggestionField,
+  replySuggestionFromBranch,
 } from "../sessions";
 
 describe("parseMessageBlocks", () => {
@@ -119,5 +123,84 @@ describe("progress reports", () => {
         errorMessage: "Request was aborted",
       }),
     ).toEqual([{ type: "text", text: "Probably the ca" }, { type: "stopped" }]);
+  });
+});
+
+describe("reply suggestion entries", () => {
+  const user = (id: string) => ({
+    type: "message",
+    id,
+    message: { role: "user" },
+  });
+  const assistant = (id: string) => ({
+    type: "message",
+    id,
+    message: { role: "assistant" },
+  });
+  const kept = (text: string | null, messageId?: string) => ({
+    type: "custom",
+    id: `s-${text}`,
+    customType: PINE_REPLY_SUGGESTION_ENTRY,
+    data: { text, messageId },
+  });
+
+  it("keeps the suggestion for the last assistant message", () => {
+    const branch = [user("u1"), assistant("a1")];
+    const data = replySuggestionEntryData(branch, "继续");
+    expect(data).toEqual({ text: "继续", messageId: "a1" });
+    const withKept = [
+      ...branch,
+      { type: "custom", id: "t", customType: "pine.approval-mode", data: {} },
+      kept("继续", "a1"),
+      { type: "custom_message", id: "n" },
+    ];
+    expect(replySuggestionFromBranch(withKept)).toBe("继续");
+    expect(replySuggestionField(withKept)).toEqual({
+      replySuggestion: "继续",
+    });
+    // Writing the same one again is a no-op.
+    expect(replySuggestionEntryData(withKept, "继续")).toBeUndefined();
+  });
+
+  it("drops it once used, sent past, answered again, rewound or compacted", () => {
+    const base = [user("u1"), assistant("a1"), kept("继续", "a1")];
+    expect(replySuggestionFromBranch([...base, kept(null)])).toBeUndefined();
+    expect(replySuggestionFromBranch([...base, user("u2")])).toBeUndefined();
+    expect(
+      replySuggestionFromBranch([...base, user("u2"), assistant("a2")]),
+    ).toBeUndefined();
+    expect(
+      replySuggestionFromBranch([...base, { type: "compaction", id: "c" }]),
+    ).toBeUndefined();
+    expect(
+      replySuggestionFromBranch([...base, { type: "context_edit", id: "e" }]),
+    ).toBeUndefined();
+    // Rewound to the user message: the kept entry is off the branch.
+    expect(replySuggestionFromBranch([user("u1")])).toBeUndefined();
+    // A suggestion written after the user had already sent the next message
+    // names an older assistant message and does not count.
+    expect(
+      replySuggestionFromBranch([
+        user("u1"),
+        assistant("a1"),
+        user("u2"),
+        kept("继续", "a1"),
+      ]),
+    ).toBeUndefined();
+    expect(replySuggestionField([...base, kept(null)])).toEqual({});
+  });
+
+  it("writes nothing unless the branch ends with an assistant message", () => {
+    expect(replySuggestionEntryData([user("u1")], "继续")).toBeUndefined();
+    expect(replySuggestionEntryData([], "继续")).toBeUndefined();
+    expect(
+      replySuggestionEntryData([user("u1"), assistant("a1")], null),
+    ).toBeUndefined();
+    expect(
+      replySuggestionEntryData(
+        [user("u1"), assistant("a1"), kept("继续", "a1")],
+        null,
+      ),
+    ).toEqual({ text: null });
   });
 });

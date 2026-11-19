@@ -6,6 +6,8 @@ import {
   PINE_SESSION_NOTICE_TYPE,
   PINE_SUB_SESSION_ENTRY,
   PINE_TITLE_SUGGESTION_ENTRY,
+  PINE_REPLY_SUGGESTION_ENTRY,
+  replySuggestionEntryData,
   PINE_TITLE_SUGGESTION_REPLY_ENTRY,
   PINE_USER_TITLE_ENTRY,
   approvalModeFromEntries,
@@ -1085,6 +1087,21 @@ export class PineAgentRuntime {
       PINE_TITLE_SUGGESTION_REPLY_ENTRY,
       { reply },
     );
+    return { session: this.emitSummary(session) };
+  }
+
+  /** Keeps the composer's reply suggestion, or drops it once used. */
+  setReplySuggestion(
+    sessionId: string,
+    suggestion: string | null,
+  ): AgentWorkerSessionResult {
+    const session = this.getSession(sessionId).session;
+    const data = replySuggestionEntryData(
+      session.sessionManager.getBranch(),
+      suggestion,
+    );
+    if (!data) return { session: sessionSummary(session) };
+    session.sessionManager.appendCustomEntry(PINE_REPLY_SUGGESTION_ENTRY, data);
     return { session: this.emitSummary(session) };
   }
 

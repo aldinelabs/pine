@@ -981,6 +981,8 @@ export const useSessionStore = defineStore("session", () => {
     // Every summary states the open title suggestion; without one, an
     // earlier suggestion has been answered.
     if (!session.titleSuggestion) delete merged.titleSuggestion;
+    // Likewise the kept reply suggestion.
+    if (!session.replySuggestion) delete merged.replySuggestion;
     return merged;
   }
 
@@ -1627,6 +1629,34 @@ export const useSessionStore = defineStore("session", () => {
       )?.titleSuggestion ??
       sessionCache.get(sessionId)?.summary?.titleSuggestion
     );
+  }
+
+  /** The reply suggestion kept with a session, if it is still unused. */
+  function replySuggestionFor(sessionId: string): string | undefined {
+    if (activeSession.value?.id === sessionId)
+      return activeSession.value.replySuggestion;
+    return (
+      recentSessionsFor(sessionProjects.get(sessionId)).find(
+        (session) => session.id === sessionId,
+      )?.replySuggestion ??
+      sessionCache.get(sessionId)?.summary?.replySuggestion
+    );
+  }
+
+  /** Keeps a reply suggestion with the session, or drops it (null). */
+  async function setReplySuggestion(
+    sessionId: string,
+    suggestion: string | null,
+  ): Promise<PineSessionSummary | undefined> {
+    if (!window.pine.setReplySuggestion) return undefined;
+    const projectId = projectOf(sessionId);
+    if (!projectId) return undefined;
+    const result = await window.pine.setReplySuggestion({
+      projectId,
+      sessionId,
+      suggestion,
+    });
+    return applyChangedSummary(projectId, sessionId, result.session);
   }
 
   /**
@@ -2374,6 +2404,8 @@ export const useSessionStore = defineStore("session", () => {
     renameSession,
     replyTitleSuggestion,
     titleSuggestionFor,
+    replySuggestionFor,
+    setReplySuggestion,
     reset,
     respondApproval,
     respondQuestionnaire,

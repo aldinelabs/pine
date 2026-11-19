@@ -84,6 +84,106 @@ export function titleSuggestionField(
   return suggestion ? { titleSuggestion: suggestion } : {};
 }
 
+/** The latest reply suggestion, or `text: null` once it has been used. */
+export const PINE_REPLY_SUGGESTION_ENTRY = "pine.reply-suggestion" as const;
+export const SET_REPLY_SUGGESTION_CHANNEL =
+  "sessions:set-reply-suggestion" as const;
+
+export interface SetReplySuggestionRequest extends ProjectSessionReference {
+  /** The suggestion to keep, or null to drop the kept one. */
+  suggestion: string | null;
+}
+
+export interface SetReplySuggestionResult {
+  session: PineSessionSummary;
+}
+
+interface ReplySuggestionBranchEntry {
+  type: string;
+  id?: string;
+  customType?: string;
+  data?: unknown;
+  message?: { role?: unknown };
+}
+
+/** Entries that change what the conversation ends with. */
+function endsConversationTurn(entry: ReplySuggestionBranchEntry): boolean {
+  return (
+    entry.type === "message" ||
+    entry.type === "compaction" ||
+    entry.type === "branch_summary" ||
+    entry.type === "context_edit"
+  );
+}
+
+/**
+ * The reply suggestion kept for the end of this branch. It stays valid only
+ * while the assistant message it was made for is still the last message:
+ * a sent message, a newer turn, a rewind or a compaction leaves it behind.
+ */
+export function replySuggestionFromBranch(
+  branch: readonly ReplySuggestionBranchEntry[],
+): string | undefined {
+  let suggestion: { text: string | null; messageId?: unknown } | undefined;
+  for (let index = branch.length - 1; index >= 0; index -= 1) {
+    const entry = branch[index];
+    if (
+      !suggestion &&
+      entry.type === "custom" &&
+      entry.customType === PINE_REPLY_SUGGESTION_ENTRY
+    ) {
+      const data = entry.data as
+        { text?: unknown; messageId?: unknown } | undefined;
+      suggestion = {
+        text: typeof data?.text === "string" && data.text ? data.text : null,
+        messageId: data?.messageId,
+      };
+      continue;
+    }
+    if (!endsConversationTurn(entry)) continue;
+    if (!suggestion?.text) return undefined;
+    return entry.type === "message" &&
+      entry.message?.role === "assistant" &&
+      entry.id === suggestion.messageId
+      ? suggestion.text
+      : undefined;
+  }
+  return undefined;
+}
+
+/**
+ * The entry data that keeps `suggestion` for this branch, or undefined when
+ * nothing needs writing: the branch does not end with an assistant message,
+ * or the kept suggestion already matches.
+ */
+export function replySuggestionEntryData(
+  branch: readonly ReplySuggestionBranchEntry[],
+  suggestion: string | null,
+): { text: string | null; messageId?: string } | undefined {
+  const text = suggestion?.trim() ? suggestion : null;
+  const kept = replySuggestionFromBranch(branch);
+  if (text === (kept ?? null)) return undefined;
+  if (text === null) return { text: null };
+  for (let index = branch.length - 1; index >= 0; index -= 1) {
+    const entry = branch[index];
+    if (!endsConversationTurn(entry)) continue;
+    return entry.type === "message" &&
+      entry.message?.role === "assistant" &&
+      typeof entry.id === "string"
+      ? { text, messageId: entry.id }
+      : undefined;
+  }
+  return undefined;
+}
+
+/** The kept reply suggestion as a session summary field. */
+export function replySuggestionField(
+  branch: readonly ReplySuggestionBranchEntry[],
+): { replySuggestion?: string } {
+  const suggestion = replySuggestionFromBranch(branch);
+  return suggestion ? { replySuggestion: suggestion } : {};
+}
+
 /** Who renames a session: the user's own title is never replaced by the agent. */
 export type SessionRenamer = "user" | "agent";
 
@@ -533,6 +633,11 @@ export interface PineSessionSummary {
    * once the user accepts it.
    */
   titleSuggestion?: string;
+  /**
+   * The unused reply suggestion for the session's last assistant message,
+   * shown again in the empty composer when the session reopens.
+   */
+  replySuggestion?: string;
   updatedAt: string;
 }
 

@@ -790,16 +790,56 @@ watch(showsReplySuggestion, (shows) => {
   if (!shows) replySuggestionFades.value = false;
 });
 
+/*
+ * The unused suggestion is kept with the session, tied to the assistant
+ * message it answers, so reopening the session shows it again without
+ * asking the model. Sending, a newer turn, a rewind or a compaction makes
+ * the kept one stale on its own; Tab and turning suggestions off drop it.
+ * Only the first kept value after the session opens is restored: once this
+ * composer has asked for, used or dropped one, it decides for itself.
+ */
+const keptReplySuggestion = computed(() =>
+  props.sessionId && appearanceStore.replySuggestions
+    ? (useSessionStore().replySuggestionFor(props.sessionId) ?? "")
+    : "",
+);
+let replySuggestionSettled = false;
+
+function restoreReplySuggestion(): void {
+  if (
+    replySuggestionSettled ||
+    props.isRunning ||
+    replySuggestion.value ||
+    !keptReplySuggestion.value
+  )
+    return;
+  replySuggestionSettled = true;
+  replySuggestion.value = keptReplySuggestion.value;
+}
+
+function keepReplySuggestion(suggestion: string | null): void {
+  const sessionId = props.sessionId;
+  if (!sessionId) return;
+  useSessionStore()
+    .setReplySuggestion(sessionId, suggestion)
+    .catch(() => {
+      // Keeping it is a convenience; the suggestion still shows here.
+    });
+}
+
 async function requestReplySuggestion(): Promise<void> {
   const run = ++suggestionRun;
+  replySuggestionSettled = true;
   replySuggestion.value = "";
   if (!props.sessionId || !appearanceStore.replySuggestions) return;
   const context = conversationContext();
   if (!context.conversation?.length || !window.pine.suggestReply) return;
   try {
     const { suggestion } = await window.pine.suggestReply({ context });
-    if (run === suggestionRun && !props.isRunning)
+    if (run === suggestionRun && !props.isRunning) {
       replySuggestion.value = suggestion;
+      if (suggestion) keepReplySuggestion(suggestion);
+    }
   } catch {
     // A suggestion is optional; the placeholder simply stays.
   }
@@ -817,17 +857,29 @@ watch(
     else if (wasRunning) void requestReplySuggestion();
   },
 );
-watch(() => props.sessionId, clearReplySuggestion);
+watch(
+  () => props.sessionId,
+  () => {
+    clearReplySuggestion();
+    replySuggestionSettled = false;
+    restoreReplySuggestion();
+  },
+);
+watch(keptReplySuggestion, restoreReplySuggestion, { immediate: true });
 watch(
   () => appearanceStore.replySuggestions,
   (enabled) => {
-    if (!enabled) clearReplySuggestion();
+    if (enabled) return;
+    clearReplySuggestion();
+    replySuggestionSettled = true;
+    keepReplySuggestion(null);
   },
 );
 
 function acceptReplySuggestion(): void {
   const suggestion = replySuggestion.value;
   clearReplySuggestion();
+  keepReplySuggestion(null);
   message.value = suggestion;
   void nextTick(() => {
     const textarea = messageInput.value?.$el;

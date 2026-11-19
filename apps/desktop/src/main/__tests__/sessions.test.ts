@@ -21,6 +21,7 @@ import {
   PINE_APPROVAL_DECISION_ENTRY,
   PINE_APPROVAL_MODE_ENTRY,
   type PineTextMessage,
+  replySuggestionFromBranch,
 } from "../../shared/sessions";
 import { ProjectSessionService } from "../sessions";
 
@@ -183,6 +184,41 @@ describe("ProjectSessionService", () => {
       await expect(service.search("Continued message")).resolves.toHaveLength(
         1,
       );
+    } finally {
+      await service.dispose();
+    }
+  });
+
+  it("keeps a closed session's reply suggestion in its own file until used", async () => {
+    const rootPath = await createTemporaryProjectData();
+    const options = serviceOptions(rootPath);
+    await mkdir(options.cwd, { recursive: true });
+    const manager = SessionManager.create(
+      options.cwd,
+      path.join(options.sessionsRoot, "suggested"),
+    );
+    manager.appendMessage({
+      role: "user",
+      content: "Sort the files",
+      timestamp: Date.now(),
+    });
+    manager.appendMessage(fauxAssistantMessage("Sorted."));
+    const sessionId = manager.getSessionId();
+    const sessionFile = manager.getSessionFile()!;
+    const service = await ProjectSessionService.create(options);
+
+    try {
+      const kept = await service.setReplySuggestion(sessionId, "By date too");
+      expect(kept.replySuggestion).toBe("By date too");
+      expect(
+        replySuggestionFromBranch(SessionManager.open(sessionFile).getBranch()),
+      ).toBe("By date too");
+
+      const used = await service.setReplySuggestion(sessionId, null);
+      expect(used.replySuggestion).toBeUndefined();
+      expect(
+        replySuggestionFromBranch(SessionManager.open(sessionFile).getBranch()),
+      ).toBeUndefined();
     } finally {
       await service.dispose();
     }

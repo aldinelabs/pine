@@ -36,6 +36,7 @@ import {
   LOAD_SESSION_MESSAGES_CHANNEL,
   RENAME_SESSION_CHANNEL,
   REPLY_TITLE_SUGGESTION_CHANNEL,
+  SET_REPLY_SUGGESTION_CHANNEL,
   RESUME_SESSION_CHANNEL,
   SEARCH_ALL_SESSIONS_CHANNEL,
   SEARCH_SESSIONS_CHANNEL,
@@ -46,6 +47,7 @@ import {
   type PineSessionSummary,
   type RenameSessionResult,
   type ReplyTitleSuggestionResult,
+  type SetReplySuggestionResult,
   type ResumeSessionResult,
   type SearchAllSessionsResult,
   type SearchSessionsResult,
@@ -89,6 +91,7 @@ import {
   PromptSessionRequestSchema,
   RenameSessionRequestSchema,
   ReplyTitleSuggestionRequestSchema,
+  SetReplySuggestionRequestSchema,
   RespondApprovalRequestSchema,
   RespondQuestionnaireRequestSchema,
   SearchAllSessionsRequestSchema,
@@ -949,6 +952,21 @@ export function registerSessionRequests(core: PineCore): void {
         projectId,
         sessionId,
         reply,
+      );
+      return { session };
+    },
+  );
+
+  core.handle(
+    SET_REPLY_SUGGESTION_CHANNEL,
+    async (context, request: unknown): Promise<SetReplySuggestionResult> => {
+      const { projectId, sessionId, suggestion } =
+        SetReplySuggestionRequestSchema.parse(request);
+      const session = await runtimes.setReplySuggestion(
+        context.clientId,
+        projectId,
+        sessionId,
+        suggestion,
       );
       return { session };
     },

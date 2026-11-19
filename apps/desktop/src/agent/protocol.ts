@@ -271,6 +271,12 @@ export type AgentWorkerRequest =
     }
   | {
       id: string;
+      type: "session:set-reply-suggestion";
+      sessionId: string;
+      suggestion: string | null;
+    }
+  | {
+      id: string;
       /** Tells a session about one of its sub-sessions, waking it if idle. */
       type: "session:notify";
       sessionId: string;

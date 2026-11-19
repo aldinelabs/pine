@@ -101,6 +101,8 @@ import type {
   RenameSessionResult,
   ReplyTitleSuggestionRequest,
   ReplyTitleSuggestionResult,
+  SetReplySuggestionRequest,
+  SetReplySuggestionResult,
   ResumeSessionRequest,
   ResumeSessionResult,
   SearchSessionsRequest,
@@ -677,6 +679,10 @@ export interface PineDesktopApi
   replyTitleSuggestion: (
     request: ReplyTitleSuggestionRequest,
   ) => Promise<ReplyTitleSuggestionResult>;
+  /** Keeps the composer's unused reply suggestion with the session. */
+  setReplySuggestion: (
+    request: SetReplySuggestionRequest,
+  ) => Promise<SetReplySuggestionResult>;
   searchSessions: (
     request: SearchSessionsRequest,
   ) => Promise<SearchSessionsResult>;

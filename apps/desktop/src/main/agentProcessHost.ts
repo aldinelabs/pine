@@ -118,6 +118,10 @@ export interface AgentHost {
     sessionId: string,
     reply: TitleSuggestionReply,
   ): Promise<AgentWorkerSessionResult>;
+  setReplySuggestion(
+    sessionId: string,
+    suggestion: string | null,
+  ): Promise<AgentWorkerSessionResult>;
   notifySession(
     sessionId: string,
     notice: PineSessionNotice,
@@ -379,6 +383,17 @@ export class AgentProcessHost implements AgentHost {
       type: "session:reply-title-suggestion",
       sessionId,
       reply,
+    });
+  }
+
+  setReplySuggestion(
+    sessionId: string,
+    suggestion: string | null,
+  ): Promise<AgentWorkerSessionResult> {
+    return this.request({
+      type: "session:set-reply-suggestion",
+      sessionId,
+      suggestion,
     });
   }
 

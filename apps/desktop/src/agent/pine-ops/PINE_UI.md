@@ -403,7 +403,11 @@ From top to bottom:
      in the text box and uses it up. Any typing, including text an input
      method is still composing, replaces it at once; if the text box is
      emptied without using Tab, it comes back at once, without the
-     placeholder showing in between, until a new run starts. It can be
+     placeholder showing in between, until a new run starts. An unused
+     suggestion is kept with the conversation: closing its tab or quitting
+     Pine and reopening it later shows the same suggestion again, until the
+     user sends a message, uses it with Tab, or the conversation changes
+     (a newer reply, a rewind or a compaction). It can be
      turned off with Reply suggestions in Pine Settings › Agent.
    - While the agent is working, a thin light runs clockwise along the text
      box's border, in the project's accent color (or, with "Pine Default",
