@@ -1054,8 +1054,6 @@ export default {
               "Las etiquetas de hablantes están en pausa para ahorrar energía o no quedarse atrás; se reanudan solas.",
           },
         },
-        noSession:
-          "Abre una conversación para capturar su contexto en directo.",
         elsewhere: "Otra conversación está capturando contexto en directo.",
         empty:
           "Transcribe una reunión o clase en este Mac para esta conversación. Nunca se guarda el audio.",

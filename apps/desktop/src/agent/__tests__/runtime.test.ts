@@ -1,4 +1,4 @@
-import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import type {
@@ -38,7 +38,10 @@ import type { JudgeRequest, JudgeRuling, UserApprovalRequest } from "../gate";
 import type { LiveAgentSession } from "../runtime/session-state";
 import type { GateDecision } from "../protocol";
 import type { PineAgentEvent } from "../../shared/agent";
-import { PINE_APPROVAL_DECISION_ENTRY } from "../../shared/sessions";
+import {
+  PINE_APPROVAL_DECISION_ENTRY,
+  PINE_LIVE_CONTEXT_ENTRY,
+} from "../../shared/sessions";
 import {
   createDefaultPineUserProfile,
   type PineUserProfile,
@@ -1712,6 +1715,60 @@ describe("PineAgentRuntime", () => {
           ]),
         );
       });
+    } finally {
+      await runtime.dispose();
+    }
+  });
+
+  it("saves a Live Context session before its first message", async () => {
+    const root = await mkdtemp(path.join(os.tmpdir(), "pine-agent-runtime-"));
+    temporaryDirectories.push(root);
+    const cwd = path.join(root, "source");
+    await mkdir(cwd, { recursive: true });
+    const runtime = new PineAgentRuntime({ emit: () => undefined });
+    try {
+      const created = await runtime.createSession({
+        agentDir: path.join(root, "agent"),
+        cwd,
+        folders: [{ access: "read-write", path: cwd }],
+        sessionsRoot: path.join(root, "sessions"),
+        liveContext: true,
+      });
+      const { session } = (
+        runtime as unknown as {
+          liveSessions: Map<string, { session: AgentSession }>;
+        }
+      ).liveSessions.get(created.session.id)!;
+      const file = session.sessionManager.getSessionFile()!;
+      const lines = () =>
+        readFile(file, "utf8").then((text) =>
+          text
+            .trim()
+            .split("\n")
+            .map((line) => JSON.parse(line) as Record<string, unknown>),
+        );
+
+      const saved = await lines();
+      expect(saved[0]).toMatchObject({
+        type: "session",
+        id: created.session.id,
+      });
+      expect(saved).toContainEqual(
+        expect.objectContaining({
+          type: "custom",
+          customType: PINE_LIVE_CONTEXT_ENTRY,
+        }),
+      );
+
+      // Later entries append to the saved file rather than replacing it.
+      session.sessionManager.appendMessage({
+        role: "user",
+        content: "What was decided?",
+        timestamp: Date.now(),
+      });
+      const after = await lines();
+      expect(after).toHaveLength(saved.length + 1);
+      expect(after.at(-1)).toMatchObject({ type: "message" });
     } finally {
       await runtime.dispose();
     }

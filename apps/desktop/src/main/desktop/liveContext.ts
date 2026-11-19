@@ -13,6 +13,7 @@ import {
   LIVE_CONTEXT_RESUME_CHANNEL,
   LIVE_CONTEXT_SOURCES,
   LIVE_CONTEXT_START_CHANNEL,
+  LIVE_CONTEXT_CREATE_SESSION_CHANNEL,
   LIVE_CONTEXT_STATUS_CHANNEL,
   LIVE_CONTEXT_STOP_CHANNEL,
   LIVE_CONTEXT_TRANSCRIPT_CHANNEL,
@@ -23,6 +24,7 @@ import {
   LIVE_CONTEXT_SPEAKER_KEY,
   LIVE_CONTEXT_SPEAKER_NAME_MAX,
 } from "../../shared/liveContextSpeakers";
+import type { PineSessionSummary } from "../../shared/sessions";
 import { LiveContextService } from "../liveContext";
 import { ensureSpeakerModels } from "../liveContextSpeakerModels";
 
@@ -113,6 +115,11 @@ const mergeSchema = targetSchema.extend({
  */
 export function createLiveContext(options: {
   projectRoot(projectId: string): string;
+  /** Starts an empty session for the window to capture into. */
+  createSession(
+    clientId: number,
+    projectId: string,
+  ): Promise<PineSessionSummary>;
 }): LiveContextService {
   const service = new LiveContextService({
     unavailableReason,
@@ -145,6 +152,14 @@ export function createLiveContext(options: {
   ipcMain.handle(LIVE_CONTEXT_STATUS_CHANNEL, () => service.status());
   ipcMain.handle(LIVE_CONTEXT_START_CHANNEL, (_event, request: unknown) =>
     service.start(startSchema.parse(request)),
+  );
+  ipcMain.handle(
+    LIVE_CONTEXT_CREATE_SESSION_CHANNEL,
+    (event, request: unknown) =>
+      options.createSession(
+        event.sender.id,
+        z.object({ projectId: z.uuid() }).parse(request).projectId,
+      ),
   );
   ipcMain.handle(LIVE_CONTEXT_PAUSE_CHANNEL, () => service.pause());
   ipcMain.handle(LIVE_CONTEXT_RESUME_CHANNEL, () => service.resume());

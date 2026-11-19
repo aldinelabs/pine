@@ -1348,6 +1348,30 @@ export const useSessionStore = defineStore("session", () => {
   }
 
   /**
+   * Start an empty session for Live Context to capture into and show it,
+   * the way a draft's first message starts and shows its new session.
+   */
+  async function createLiveContextSession(
+    projectId: string,
+  ): Promise<PineSessionSummary> {
+    const api = window.pine.liveContext;
+    if (!api) throw new Error("Live Context is unavailable.");
+    const sequence = activationSequence;
+    const session = await api.createSession({ projectId });
+    sessionProjects.set(session.id, projectId);
+    const summary = withoutAutomationRun(
+      upsertRecentSession(projectId, session),
+    );
+    const state = stateFor(summary.id);
+    state.summary = mergeSessionSummary(summary, state.summary ?? undefined);
+    // Nothing is saved in it yet; later messages arrive as live events.
+    state.historyLoaded = true;
+    modelsStore.setSessionSelection(summary.id, summary.modelSelection);
+    if (sequence === activationSequence) currentSessionId.value = summary.id;
+    return summary;
+  }
+
+  /**
    * Replace an earlier user message and continue the session from it. The
    * edited message and everything after it leave the transcript immediately;
    * the rewritten message arrives back through the normal agent events.
@@ -2400,6 +2424,7 @@ export const useSessionStore = defineStore("session", () => {
     outlineMessages,
     pendingApprovals,
     pendingQuestionnaires,
+    createLiveContextSession,
     prompt,
     renameSession,
     replyTitleSuggestion,

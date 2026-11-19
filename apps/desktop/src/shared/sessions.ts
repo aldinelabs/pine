@@ -353,6 +353,21 @@ export interface PineCompaction {
 export const PINE_SESSION_NOTICE_TYPE = "pine.session-notice" as const;
 /** Marks a session file as a sub-session of the session that started it. */
 export const PINE_SUB_SESSION_ENTRY = "pine.sub-session" as const;
+/**
+ * Marks a session started for Live Context: it is saved before its first
+ * message, and an index refresh keeps it although no one has written in it.
+ */
+export const PINE_LIVE_CONTEXT_ENTRY = "pine.live-context" as const;
+
+/** Whether a session file was started for Live Context. */
+export function isLiveContextSession(
+  entries: readonly { type: string; customType?: string }[],
+): boolean {
+  return entries.some(
+    (entry) =>
+      entry.type === "custom" && entry.customType === PINE_LIVE_CONTEXT_ENTRY,
+  );
+}
 
 export interface PineSessionNotice {
   sessionId: string;

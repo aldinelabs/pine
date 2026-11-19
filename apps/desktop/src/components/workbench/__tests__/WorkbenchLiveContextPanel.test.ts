@@ -7,15 +7,52 @@ import WorkbenchLiveContextPanel from "../WorkbenchLiveContextPanel.vue";
 
 const PROJECT_ID = "00000000-0000-4000-8000-000000000001";
 
+interface MockState {
+  activeSession: { id: string } | null;
+  activeSessionTab: {
+    id: string;
+    kind: "session";
+    projectId: string;
+    state: "draft" | "bound";
+  } | null;
+}
+
+const mocks = vi.hoisted(() => {
+  const state: MockState = {
+    activeSession: { id: "session-1" },
+    activeSessionTab: null,
+  };
+  return Object.assign(state, {
+    createLiveContextSession: vi.fn(),
+    bindSession: vi.fn(),
+    ensureOpen: vi.fn(),
+  });
+});
+
 vi.mock("@/stores/session", () => ({
   useSessionStore: () => ({
-    activeSession: { id: "session-1" },
+    get activeSession() {
+      return mocks.activeSession;
+    },
     projectOf: () => PROJECT_ID,
+    createLiveContextSession: mocks.createLiveContextSession,
   }),
 }));
 vi.mock("@/stores/project", () => ({
-  useProjectStore: () => ({ currentProjectId: PROJECT_ID }),
+  useProjectStore: () => ({
+    currentProjectId: PROJECT_ID,
+    ensureOpen: mocks.ensureOpen,
+  }),
 }));
+vi.mock("@/composables/useContentTabNavigation", async () => {
+  const { computed } = await import("vue");
+  return {
+    useContentTabNavigation: () => ({
+      activeSessionTab: computed(() => mocks.activeSessionTab),
+      bindSession: mocks.bindSession,
+    }),
+  };
+});
 
 const idle: LiveContextStatus = { available: true, state: "idle", sources: [] };
 const listeningHere: LiveContextStatus = {
@@ -72,7 +109,15 @@ async function mountPanel() {
 }
 
 describe("WorkbenchLiveContextPanel", () => {
-  beforeEach(() => vi.unstubAllGlobals());
+  beforeEach(() => {
+    vi.unstubAllGlobals();
+    mocks.activeSession = { id: "session-1" };
+    mocks.activeSessionTab = null;
+    mocks.createLiveContextSession.mockReset();
+    mocks.bindSession.mockReset();
+    mocks.ensureOpen.mockReset();
+    mocks.ensureOpen.mockResolvedValue({ opened: true });
+  });
   afterEach(() => vi.unstubAllGlobals());
 
   it("explains why it is unavailable", async () => {
@@ -102,6 +147,85 @@ describe("WorkbenchLiveContextPanel", () => {
       }),
     );
     expect(wrapper.find("[data-testid=live-context-stop]").exists()).toBe(true);
+  });
+
+  describe("on a new session's page", () => {
+    const NEW_SESSION_ID = "11111111-1111-4111-8111-111111111111";
+
+    beforeEach(() => {
+      mocks.activeSession = null;
+      mocks.activeSessionTab = {
+        id: "session-3",
+        kind: "session",
+        projectId: PROJECT_ID,
+        state: "draft",
+      };
+    });
+
+    it("shows the controls without loading a transcript", async () => {
+      const { api } = stubApi(idle);
+      const wrapper = await mountPanel();
+      expect(
+        wrapper.get("[data-testid=live-context-start]").attributes("disabled"),
+      ).toBeUndefined();
+      expect(api.transcript).not.toHaveBeenCalled();
+    });
+
+    it("creates a conversation in the draft's project, binds the tab and captures into it", async () => {
+      const { api } = stubApi(idle);
+      const session = { id: NEW_SESSION_ID };
+      mocks.createLiveContextSession.mockResolvedValue(session);
+      const wrapper = await mountPanel();
+
+      await wrapper.get("[data-testid=live-context-start]").trigger("click");
+      await flushPromises();
+
+      expect(mocks.ensureOpen).toHaveBeenCalledWith(PROJECT_ID);
+      expect(mocks.createLiveContextSession).toHaveBeenCalledWith(PROJECT_ID);
+      expect(mocks.bindSession).toHaveBeenCalledWith("session-3", session);
+      expect(api.start).toHaveBeenCalledWith(
+        expect.objectContaining({
+          projectId: PROJECT_ID,
+          sessionId: NEW_SESSION_ID,
+          sources: ["mic", "system"],
+        }),
+      );
+      expect(mocks.bindSession.mock.invocationCallOrder[0]).toBeLessThan(
+        api.start.mock.invocationCallOrder[0],
+      );
+    });
+
+    it("creates only one conversation on a double click", async () => {
+      stubApi(idle);
+      let resolve: (value: { id: string }) => void = () => undefined;
+      mocks.createLiveContextSession.mockReturnValue(
+        new Promise((done) => (resolve = done)),
+      );
+      const wrapper = await mountPanel();
+      const button = wrapper.get("[data-testid=live-context-start]");
+
+      await button.trigger("click");
+      await button.trigger("click");
+      resolve({ id: NEW_SESSION_ID });
+      await flushPromises();
+
+      expect(mocks.createLiveContextSession).toHaveBeenCalledTimes(1);
+    });
+
+    it("starts nothing when the conversation cannot be created", async () => {
+      const { api } = stubApi(idle);
+      mocks.createLiveContextSession.mockRejectedValue(new Error("boom"));
+      const wrapper = await mountPanel();
+
+      await wrapper.get("[data-testid=live-context-start]").trigger("click");
+      await flushPromises();
+
+      expect(mocks.bindSession).not.toHaveBeenCalled();
+      expect(api.start).not.toHaveBeenCalled();
+      expect(
+        wrapper.get("[data-testid=live-context-start]").attributes("disabled"),
+      ).toBeUndefined();
+    });
   });
 
   it("shows volatile text muted after the final text, and stops", async () => {

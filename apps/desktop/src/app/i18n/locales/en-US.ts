@@ -1035,7 +1035,6 @@ export default {
               "Speaker labels are paused to save power or keep up; they resume on their own.",
           },
         },
-        noSession: "Open a conversation to capture live context for it.",
         elsewhere: "Another conversation is capturing live context.",
         empty:
           "Transcribes a meeting or class on this Mac, for this conversation. Audio is never saved.",

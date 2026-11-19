@@ -669,8 +669,11 @@ close the card. The panels are:
 - Live context (macOS 26 or later; listed only when available):
   transcribes the microphone and/or system audio on this Mac for the active
   conversation. Pick Sources (Microphone, System audio) and Language, then
-  Start; while capturing it has Pause/Resume and Stop. Only one conversation
-  captures at a time; others show "Another conversation is capturing live
+  Start; while capturing it has Pause/Resume and Stop. On a new session's
+  page, Start first creates an empty conversation in the project the
+  composer shows, opens it in that tab and captures into it; messages sent
+  later go to that conversation, which stays in the session list even if no
+  message is ever sent. Only one conversation captures at a time; others show "Another conversation is capturing live
   context." with Stop. Audio is never saved, only the text.
   Identify speakers (a switch below the controls, off by default) labels
   voices within each source: each row starts with a colored "Speaker n"

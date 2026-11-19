@@ -681,6 +681,10 @@ const liveContext = createLiveContext({
     if (!core) throw new Error("Pine is still starting.");
     return core.repository.dataPaths(projectId).projectRoot;
   },
+  createSession: (clientId, projectId) => {
+    if (!core) throw new Error("Pine is still starting.");
+    return core.runtimes.createLiveContextSession(clientId, projectId);
+  },
 });
 
 /** A section asked for before the window's renderer could listen. */

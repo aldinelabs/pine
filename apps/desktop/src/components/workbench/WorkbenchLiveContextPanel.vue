@@ -16,6 +16,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import LiveContextSpeakerChip from "@/components/workbench/LiveContextSpeakerChip.vue";
+import { useContentTabNavigation } from "@/composables/useContentTabNavigation";
 import {
   LIVE_CONTEXT_LOCALES,
   LIVE_CONTEXT_SOURCES,
@@ -36,12 +37,14 @@ import { useSessionStore } from "@/stores/session";
 /**
  * Live Context for the active session: start, pause, or stop transcribing
  * the microphone and system audio, and follow the transcript. The capture is
- * app-wide, so another session's capture shows here as busy.
+ * app-wide, so another session's capture shows here as busy. On a new
+ * session's page, Start first creates the conversation it captures into.
  */
 const { t, locale: uiLocale } = useI18n();
 const liveContext = useLiveContextStore();
 const sessionStore = useSessionStore();
 const projectStore = useProjectStore();
+const tabNavigation = useContentTabNavigation();
 
 const sources = ref<LiveContextSource[]>(["mic", "system"]);
 const locale = ref<string>(
@@ -57,6 +60,11 @@ const target = computed(() => {
   const projectId =
     sessionStore.projectOf(sessionId) ?? projectStore.currentProjectId;
   return projectId ? { projectId, sessionId } : undefined;
+});
+/** The new-session tab in front, which Start turns into a conversation. */
+const draftTab = computed(() => {
+  const tab = tabNavigation.activeSessionTab.value;
+  return !target.value && tab?.state === "draft" ? tab : undefined;
 });
 const status = computed(() => liveContext.status);
 const isHere = computed(
@@ -187,9 +195,34 @@ async function run(action: () => Promise<void>): Promise<void> {
 }
 
 function start(): void {
+  if (sources.value.length === 0) return;
   const next = target.value;
-  if (!next || sources.value.length === 0) return;
-  void run(() => liveContext.start(next, sources.value, locale.value));
+  if (next) {
+    void run(() => liveContext.start(next, sources.value, locale.value));
+    return;
+  }
+  const draft = draftTab.value;
+  if (draft) void run(() => startInNewSession(draft.id, draft.projectId));
+}
+
+/**
+ * Create the conversation the way the composer's first message does, show
+ * it in the draft's tab, then capture into it. A failed creation leaves the
+ * draft as it was and starts nothing.
+ */
+async function startInNewSession(
+  tabId: string,
+  projectId: string,
+): Promise<void> {
+  const opened = await projectStore.ensureOpen(projectId);
+  if (!opened.opened) throw new Error("The project is open elsewhere.");
+  const session = await sessionStore.createLiveContextSession(projectId);
+  tabNavigation.bindSession(tabId, session);
+  await liveContext.start(
+    { projectId, sessionId: session.id },
+    sources.value,
+    locale.value,
+  );
 }
 
 function updateSources(value: unknown): void {
@@ -242,10 +275,7 @@ watch(
         )
       }}
     </p>
-    <p v-else-if="!target" class="text-muted-foreground px-1 text-sm">
-      {{ t("project.workbench.liveContext.noSession") }}
-    </p>
-    <template v-else>
+    <template v-else-if="target || draftTab">
       <div
         v-if="isElsewhere"
         class="flex items-center gap-2 px-1 text-sm"

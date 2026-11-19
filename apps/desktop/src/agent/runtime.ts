@@ -4,6 +4,7 @@ import {
 } from "../shared/promptRewrite";
 import {
   PINE_SESSION_NOTICE_TYPE,
+  PINE_LIVE_CONTEXT_ENTRY,
   PINE_SUB_SESSION_ENTRY,
   PINE_TITLE_SUGGESTION_ENTRY,
   PINE_REPLY_SUGGESTION_ENTRY,
@@ -33,6 +34,7 @@ import {
 } from "@earendil-works/pi-coding-agent";
 import { type AssistantMessage, type Context } from "@earendil-works/pi-ai";
 import { randomUUID } from "node:crypto";
+import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import {
   createMcpAdapter,
@@ -407,6 +409,25 @@ function userMessageText(message: unknown): string | undefined {
     .join("");
 }
 
+/**
+ * pi writes a session file only once it has a message. Write this one now
+ * and reopen it, so later entries append to the file instead of creating it.
+ */
+async function saveEmptySession(manager: SessionManager): Promise<void> {
+  const file = manager.getSessionFile();
+  const header = manager.getHeader();
+  if (!file || !header) return;
+  await mkdir(path.dirname(file), { recursive: true });
+  await writeFile(
+    file,
+    [header, ...manager.getEntries()]
+      .map((entry) => `${JSON.stringify(entry)}\n`)
+      .join(""),
+    { flag: "wx" },
+  );
+  manager.setSessionFile(file);
+}
+
 /** Shell tools whose running command can move to the background. */
 const SHELL_TOOL_NAMES = new Set([
   "bash",
@@ -473,6 +494,10 @@ export class PineAgentRuntime {
       manager.appendCustomEntry(PINE_SUB_SESSION_ENTRY, {
         parentSessionId: location.parentSessionId,
       });
+    if (location.liveContext) {
+      manager.appendCustomEntry(PINE_LIVE_CONTEXT_ENTRY, {});
+      await saveEmptySession(manager);
+    }
     return this.registerSession(location, manager);
   }
 

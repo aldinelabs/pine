@@ -2,6 +2,7 @@ import {
   PINE_TITLE_SUGGESTION_REPLY_ENTRY,
   PINE_USER_TITLE_ENTRY,
   approvalModeFromEntries,
+  isLiveContextSession,
   sessionNoticeOf,
   titleSuggestionField,
   replySuggestionField,
@@ -206,6 +207,8 @@ function entryTimestamp(entry: Entry): number {
 interface SessionDocument extends PineSessionSummary {
   body: string;
   hasUserMessage: boolean;
+  /** Started for Live Context: kept even before anyone writes in it. */
+  liveContext: boolean;
   path: string;
   sourceMtimeMs: number;
 }
@@ -1147,20 +1150,19 @@ export class ProjectSessionService {
         const sourceMtimeMs = metadata.mtimeMs;
         const indexedSession = indexedSessions.get(metadata.id);
         if (indexedSession?.source_mtime_ms === sourceMtimeMs) {
+          // An empty row is a Live Context session; reading it again
+          // decides whether it stays.
           if (Number(indexedSession.message_count) > 0) {
             retainedSessionIds.add(metadata.id);
-          } else {
-            await unlink(metadata.path);
-            this.parseCache.invalidate(metadata.path);
+            continue;
           }
-          continue;
         }
 
         const document = await this.readSessionDocument(
           metadata,
           sourceMtimeMs,
         );
-        if (!document.hasUserMessage) {
+        if (!document.hasUserMessage && !document.liveContext) {
           await unlink(metadata.path);
           this.parseCache.invalidate(metadata.path);
           continue;
@@ -1245,6 +1247,7 @@ export class ProjectSessionService {
       ),
       messageCount: entries.filter((entry) => entry.type === "message").length,
       hasUserMessage: hasUserMessage(entries),
+      liveContext: isLiveContextSession(openedSession.getEntries()),
       sourceMtimeMs: resolvedSourceMtimeMs,
       body: sessionBody(entries),
       ...(name ? { name } : {}),

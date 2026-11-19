@@ -20,6 +20,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   PINE_APPROVAL_DECISION_ENTRY,
   PINE_APPROVAL_MODE_ENTRY,
+  PINE_LIVE_CONTEXT_ENTRY,
   type PineTextMessage,
   replySuggestionFromBranch,
 } from "../../shared/sessions";
@@ -1216,6 +1217,42 @@ describe("ProjectSessionService", () => {
           ],
         }),
       ]);
+    } finally {
+      await service.dispose();
+    }
+  });
+
+  it("keeps an empty Live Context session but removes other empty ones", async () => {
+    const rootPath = await createTemporaryProjectData();
+    const options = serviceOptions(rootPath);
+    await mkdir(options.cwd, { recursive: true });
+    const repository = createRepository(options.sessionsRoot);
+    // Saved before any message, as the worker saves a Live Context session.
+    const saveEmpty = async (session: TestSession) => {
+      await mkdir(path.dirname(session.metadata.path), { recursive: true });
+      await writeFile(
+        session.metadata.path,
+        [session.manager.getHeader(), ...session.manager.getEntries()]
+          .map((entry) => `${JSON.stringify(entry)}\n`)
+          .join(""),
+      );
+    };
+    const live = await createSession(repository, options.cwd);
+    await appendCustomEntry(live, PINE_LIVE_CONTEXT_ENTRY, {});
+    await saveEmpty(live);
+    const stray = await createSession(repository, options.cwd);
+    await saveEmpty(stray);
+    const service = await ProjectSessionService.create(options);
+
+    try {
+      const listed = await service.search("");
+      expect(listed.map(({ id }) => id)).toEqual([live.metadata.id]);
+      // An unchanged empty row is checked again, not dropped.
+      await expect(service.search("")).resolves.toHaveLength(1);
+      await expect(readFile(live.metadata.path, "utf8")).resolves.toContain(
+        PINE_LIVE_CONTEXT_ENTRY,
+      );
+      await expect(readFile(stray.metadata.path, "utf8")).rejects.toThrow();
     } finally {
       await service.dispose();
     }

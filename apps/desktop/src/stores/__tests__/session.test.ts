@@ -589,6 +589,51 @@ describe("session store", () => {
     });
   });
 
+  it("starts and shows an empty session for Live Context", async () => {
+    const empty = { ...session, messageCount: 0, name: undefined };
+    const createSession = vi.fn().mockResolvedValue(empty);
+    const loadSessionMessages = vi.fn();
+    Object.defineProperty(window, "pine", {
+      configurable: true,
+      value: { liveContext: { createSession }, loadSessionMessages },
+    });
+    const store = useSessionStore();
+
+    const created = await store.createLiveContextSession(PROJECT_ID);
+
+    expect(createSession).toHaveBeenCalledWith({ projectId: PROJECT_ID });
+    expect(created.id).toBe(session.id);
+    expect(store.activeSession?.id).toBe(session.id);
+    expect(store.projectOf(session.id)).toBe(PROJECT_ID);
+    expect(store.recentSessionsFor(PROJECT_ID)).toEqual([
+      expect.objectContaining({ id: session.id }),
+    ]);
+    expect(loadSessionMessages).not.toHaveBeenCalled();
+  });
+
+  it("leaves the newer tab in front when Live Context's session arrives late", async () => {
+    let resolve: (value: PineSessionSummary) => void = () => undefined;
+    Object.defineProperty(window, "pine", {
+      configurable: true,
+      value: {
+        liveContext: {
+          createSession: vi.fn(
+            () => new Promise<PineSessionSummary>((done) => (resolve = done)),
+          ),
+        },
+      },
+    });
+    const store = useSessionStore();
+
+    const creating = store.createLiveContextSession(PROJECT_ID);
+    store.activate("another-session");
+    resolve(session);
+    await creating;
+
+    expect(store.activeSession?.id).not.toBe(session.id);
+    expect(store.projectOf(session.id)).toBe(PROJECT_ID);
+  });
+
   it("sends a draft's mutators as plain objects the desktop IPC can clone", async () => {
     // Electron clones IPC arguments and rejects a Vue proxy; do the same here.
     const promptSession = vi.fn((request: unknown) => {

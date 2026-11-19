@@ -1059,8 +1059,6 @@ export default {
               "Sprecherbeschriftungen sind pausiert, um Energie zu sparen oder mitzuhalten; sie setzen von selbst wieder ein.",
           },
         },
-        noSession:
-          "Öffne eine Unterhaltung, um Live-Kontext dafür aufzunehmen.",
         elsewhere: "Eine andere Unterhaltung nimmt gerade Live-Kontext auf.",
         empty:
           "Transkribiert ein Meeting oder eine Vorlesung auf diesem Mac für diese Unterhaltung. Audio wird nie gespeichert.",

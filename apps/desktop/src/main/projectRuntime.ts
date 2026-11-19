@@ -976,6 +976,7 @@ export class ProjectRuntimeRegistry {
     approvalMode: PineApprovalMode,
     focus: boolean,
     parentSessionId?: string,
+    liveContext = false,
   ): Promise<PineSessionSummary> {
     const runtime = this.get(webContentsId, projectId);
     const creation = this.agentHost
@@ -983,6 +984,7 @@ export class ProjectRuntimeRegistry {
         ...this.location(runtime),
         approvalMode,
         ...(parentSessionId ? { parentSessionId } : {}),
+        ...(liveContext ? { liveContext } : {}),
       })
       .then(({ session }) => {
         runtime.liveSessions.set(session.id, {
@@ -1002,6 +1004,26 @@ export class ProjectRuntimeRegistry {
     } finally {
       runtime.pendingCreations.delete(creation);
     }
+  }
+
+  /**
+   * Start an empty session for Live Context to capture into, the way a first
+   * message would. It is saved at once and kept until deleted, though no one
+   * has written in it yet.
+   */
+  async createLiveContextSession(
+    webContentsId: number,
+    projectId: string,
+    approvalMode: PineApprovalMode = "auto-approve",
+  ): Promise<PineSessionSummary> {
+    return this.createNewSession(
+      webContentsId,
+      projectId,
+      approvalMode,
+      true,
+      undefined,
+      true,
+    );
   }
 
   /**

@@ -1055,8 +1055,6 @@ export default {
               "Les étiquettes de locuteurs sont en pause pour économiser l’énergie ou suivre le rythme ; elles reprendront d’elles-mêmes.",
           },
         },
-        noSession:
-          "Ouvrez une conversation pour y capturer le contexte en direct.",
         elsewhere: "Une autre conversation capture déjà le contexte en direct.",
         empty:
           "Transcrit une réunion ou un cours sur ce Mac, pour cette conversation. L’audio n’est jamais enregistré.",

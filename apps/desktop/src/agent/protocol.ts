@@ -110,6 +110,11 @@ export interface AgentSessionLocation {
   parentSessionId?: string;
   /** Set only for an unattended automation run; see docs/automation.md. */
   automation?: AgentAutomationRun;
+  /**
+   * A new session started for Live Context. The worker marks it and saves it
+   * right away, before any message, so it outlives Pine like any other.
+   */
+  liveContext?: boolean;
 }
 
 export interface AgentAutomationRun {
