@@ -1039,7 +1039,6 @@ export default {
         sources: "Quellen",
         language: "Sprache",
         options: "Aufnahmeoptionen",
-        languageNote: "Die gesprochene Sprache. Vor dem Start auswählen.",
         source: {
           mic: "Mikrofon",
           system: "Systemaudio",

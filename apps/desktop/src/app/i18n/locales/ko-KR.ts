@@ -1008,7 +1008,6 @@ export default {
         sources: "소스",
         language: "언어",
         options: "기록 옵션",
-        languageNote: "말하는 언어입니다. 시작하기 전에 선택하세요.",
         source: {
           mic: "마이크",
           system: "시스템 오디오",

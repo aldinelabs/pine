@@ -1015,7 +1015,6 @@ export default {
         sources: "Sources",
         language: "Language",
         options: "Capture options",
-        languageNote: "The language being spoken. Pick it before you start.",
         source: {
           mic: "Microphone",
           system: "System audio",

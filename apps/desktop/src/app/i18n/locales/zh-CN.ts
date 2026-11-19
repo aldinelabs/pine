@@ -958,7 +958,6 @@ export default {
         sources: "来源",
         language: "语言",
         options: "记录选项",
-        languageNote: "对话所用的语言，开始前选好。",
         source: {
           mic: "麦克风",
           system: "系统音频",

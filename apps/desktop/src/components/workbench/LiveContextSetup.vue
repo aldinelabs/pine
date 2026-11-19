@@ -187,11 +187,8 @@ function updateLocale(value: unknown): void {
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent side="top" align="start" class="w-64">
-        <DropdownMenuLabel class="flex flex-col gap-0.5">
-          <span>{{ t("project.workbench.liveContext.language") }}</span>
-          <span class="text-muted-foreground/80 font-normal">
-            {{ t("project.workbench.liveContext.languageNote") }}
-          </span>
+        <DropdownMenuLabel>
+          {{ t("project.workbench.liveContext.language") }}
         </DropdownMenuLabel>
         <DropdownMenuRadioGroup
           :model-value="locale"

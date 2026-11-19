@@ -1025,7 +1025,6 @@ export default {
         sources: "ソース",
         language: "言語",
         options: "記録オプション",
-        languageNote: "話されている言語です。開始前に選んでください。",
         source: {
           mic: "マイク",
           system: "システムオーディオ",

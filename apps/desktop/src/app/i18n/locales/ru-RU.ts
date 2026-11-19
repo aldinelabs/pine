@@ -1021,7 +1021,6 @@ export default {
         sources: "Источники",
         language: "Язык",
         options: "Параметры записи",
-        languageNote: "Язык, на котором говорят. Выберите его до начала.",
         source: {
           mic: "Микрофон",
           system: "Системный звук",

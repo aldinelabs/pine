@@ -962,7 +962,6 @@ export default {
         sources: "來源",
         language: "語言",
         options: "記錄選項",
-        languageNote: "對話所用的語言，開始前選好。",
         source: {
           mic: "麥克風",
           system: "系統音訊",
