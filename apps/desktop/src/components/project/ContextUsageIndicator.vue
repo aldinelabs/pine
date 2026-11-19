@@ -226,11 +226,13 @@ async function compactContext(): Promise<void> {
           data-slot="context-usage-cost"
           class="flex items-center gap-1.5"
         >
-          <!-- A drawn bar rather than "|", which reaches past the digits:
-               as tall as Inter's figures (0.73em) and centred on them. -->
+          <!-- A drawn bar rather than "|", which reaches past the digits. A
+               thin, light line reads shorter than the figures' strokes, so it
+               is drawn a little taller (0.85em) than their 0.73em to look
+               the same height. -->
           <span
             data-slot="context-usage-divider"
-            class="h-[0.73em] w-px shrink-0 rounded-full bg-current opacity-40"
+            class="h-[0.85em] w-px shrink-0 bg-current opacity-60"
             aria-hidden="true"
           />
           <span data-testid="context-usage-trigger-cost" class="tabular-nums">
