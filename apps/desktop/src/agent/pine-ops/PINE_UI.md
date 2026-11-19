@@ -174,7 +174,7 @@ Tab bar ("Open content"):
 
 From top to bottom:
 
-1. Transcript. Empty sessions show "Imagine what's possible". Otherwise it lists
+1. Transcript. Empty sessions show "Dare the impossible". Otherwise it lists
    messages in order:
    - user messages, with Copy message and Edit message (editing resends);
    - assistant replies, with reasoning markers ("Thinking…", "Worked for …");

@@ -1715,8 +1715,8 @@ export default {
         hint: "Si este mensaje no desaparece tras varias decenas de segundos, comprueba tu conexión de red y la disponibilidad del proveedor del modelo.",
       },
       emptyDescription:
-        "Empieza con una pregunta, una tarea o una idea atrevida.",
-      emptyTitle: "Imagina lo que es posible",
+        "Haz una pregunta, delega una tarea o persigue una idea descabellada.",
+      emptyTitle: "Atrévete con lo imposible",
       loadHistory: "Cargar mensajes anteriores",
       loadingHistory: "Cargando",
       scrollToBottom: "Desplazarse hasta abajo",

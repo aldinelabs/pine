@@ -1726,8 +1726,8 @@ export default {
         hint: "Wenn diese Meldung länger als einige Dutzend Sekunden bleibt, prüfen Sie Ihre Netzwerkverbindung und die Verfügbarkeit des Modellanbieters.",
       },
       emptyDescription:
-        "Beginnen Sie mit einer Frage, einer Aufgabe oder einer kühnen Idee.",
-      emptyTitle: "Stellen Sie sich vor, was möglich ist",
+        "Stellen Sie eine Frage, übergeben Sie eine Aufgabe oder verfolgen Sie eine verrückte Idee.",
+      emptyTitle: "Wagen Sie das Unmögliche",
       loadHistory: "Frühere Nachrichten laden",
       loadingHistory: "Wird geladen",
       scrollToBottom: "Nach unten scrollen",

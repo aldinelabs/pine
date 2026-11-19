@@ -1605,7 +1605,7 @@ export default {
         hint: "若這則訊息持續數十秒仍未消失，請考慮檢查您的網路狀況與模型服務商的可用性。",
       },
       emptyDescription: "從一個問題、一項任務，或一個大膽的想法開始。",
-      emptyTitle: "不妨大膽想象",
+      emptyTitle: "不妨大膽想像",
       loadHistory: "載入更早的訊息",
       loadingHistory: "正在載入",
       scrollToBottom: "捲動到底部",

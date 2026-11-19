@@ -1719,8 +1719,8 @@ export default {
         hint: "Si ce message reste affiché pendant plusieurs dizaines de secondes, vérifiez votre connexion réseau et la disponibilité du fournisseur de modèles.",
       },
       emptyDescription:
-        "Commencez par une question, une tâche ou une idée audacieuse.",
-      emptyTitle: "Imaginez ce qui est possible",
+        "Posez une question, confiez une tâche ou lancez-vous dans une idée folle.",
+      emptyTitle: "Osez l’impossible",
       loadHistory: "Charger les messages précédents",
       loadingHistory: "Chargement",
       scrollToBottom: "Défiler jusqu’en bas",
