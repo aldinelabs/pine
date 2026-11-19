@@ -39,6 +39,8 @@ const MAIN_RUNTIME_ENTRYPOINTS = [
 const LIVE_CONTEXT_HELPER = "native/live-context/build/pine-live-context";
 /** sherpa-onnx and ONNX Runtime for speaker labels, beside the helper. */
 const LIVE_CONTEXT_LIB = "native/live-context/build/live-context-lib";
+/** The speaker-label models (about 30 MB) and their licenses. */
+const LIVE_CONTEXT_MODELS = "native/live-context/build/live-context-models";
 
 function locateWorkspaceNodeModules(): string {
   let dir = process.cwd();
@@ -316,12 +318,17 @@ const config: ForgeConfig = {
       existsSync(path.join(__dirname, LIVE_CONTEXT_HELPER))
         ? [path.join(__dirname, LIVE_CONTEXT_HELPER)]
         : []),
-      // Fetched (pinned, checksummed) by scripts/build-native.mjs; the models
-      // themselves download on first use.
+      // Fetched (pinned, checksummed) by scripts/build-native.mjs: the
+      // library and the models speaker labels need, macOS only. Without
+      // both, the app has no speaker labels.
       ...(process.platform === "darwin" &&
       existsSync(path.join(__dirname, LIVE_CONTEXT_HELPER)) &&
-      existsSync(path.join(__dirname, LIVE_CONTEXT_LIB))
-        ? [path.join(__dirname, LIVE_CONTEXT_LIB)]
+      existsSync(path.join(__dirname, LIVE_CONTEXT_LIB)) &&
+      existsSync(path.join(__dirname, LIVE_CONTEXT_MODELS))
+        ? [
+            path.join(__dirname, LIVE_CONTEXT_LIB),
+            path.join(__dirname, LIVE_CONTEXT_MODELS),
+          ]
         : []),
     ],
     // The prompts macOS shows when Live Context first listens.

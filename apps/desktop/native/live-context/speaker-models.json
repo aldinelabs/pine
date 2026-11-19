@@ -1,0 +1,21 @@
+{
+  "$comment": "Speaker-label models bundled into the macOS app. scripts/build-native.mjs fetches them at build time into build/live-context-models (the first URL, then the mirror) and checks size and SHA-256; the main process loads them from there or from Resources. The URLs name a Hugging Face commit, so their bytes cannot change. Changing a pin changes the CI cache key.",
+  "segmentation": {
+    "file": "pyannote-segmentation-3.0.int8.onnx",
+    "urls": [
+      "https://huggingface.co/csukuangfj/sherpa-onnx-pyannote-segmentation-3-0/resolve/9403a6902bb58e3d5ae8c7e77c3422de279db2e0/model.int8.onnx",
+      "https://hf-mirror.com/csukuangfj/sherpa-onnx-pyannote-segmentation-3-0/resolve/9403a6902bb58e3d5ae8c7e77c3422de279db2e0/model.int8.onnx"
+    ],
+    "sha256": "d582f4b4c6b48205de7e0643c57df0df5615a3c176189be3fc461e9d18827b5d",
+    "bytes": 1540506
+  },
+  "embedding": {
+    "file": "3dspeaker-campplus-zh-en-16k-advanced.onnx",
+    "urls": [
+      "https://huggingface.co/csukuangfj/speaker-embedding-models/resolve/0743f301363dec56491a490f6d6cbc9d67f9a3bf/3dspeaker_speech_campplus_sv_zh_en_16k-common_advanced.onnx",
+      "https://hf-mirror.com/csukuangfj/speaker-embedding-models/resolve/0743f301363dec56491a490f6d6cbc9d67f9a3bf/3dspeaker_speech_campplus_sv_zh_en_16k-common_advanced.onnx"
+    ],
+    "sha256": "aa3cfc16963a10586a9393f5035d6d6b57e98d358b347f80c2a30bf4f00ceba2",
+    "bytes": 28281164
+  }
+}

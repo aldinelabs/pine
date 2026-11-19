@@ -143,6 +143,14 @@ jobs:
           PINE_COMPUTER_USE_ARCH: ${{ matrix.arch }}
         run: bun run --filter @pine/computer-use-runtime build
 
+      # The speaker-label models are bundled; build-native.mjs fetches them
+      # (pinned by SHA-256) only when this cache misses or no longer matches.
+      - name: Restore Live Context speaker models
+        uses: actions/cache@v6
+        with:
+          path: apps/desktop/native/live-context/build/live-context-models
+          key: live-context-models-${{ hashFiles('apps/desktop/native/live-context/speaker-models.json') }}
+
       - name: Build native addons
         run: node apps/desktop/scripts/build-native.mjs
 

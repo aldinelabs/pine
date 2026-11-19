@@ -5,6 +5,7 @@ import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import {
   copyFileSync,
+  cpSync,
   existsSync,
   mkdirSync,
   readdirSync,
@@ -284,5 +285,96 @@ async function fetchDiarizationLibrary() {
   );
 }
 
+/**
+ * The speaker-label models, bundled into the app (see
+ * native/live-context/speaker-models.json for the pins). Each is checked
+ * by size and SHA-256 on every build, so a cached copy (local or CI's
+ * actions/cache) is reused only while it matches, and fetched again
+ * otherwise: the pinned Hugging Face commit first, then its mirror. Like
+ * the library, a failure only makes speaker labels unavailable unless
+ * PINE_REQUIRE_LIVE_CONTEXT=1.
+ */
+async function fetchSpeakerModels() {
+  const root = path.join(nativeRoot, "live-context");
+  const output = path.join(root, "build", "live-context-models");
+  const pins = JSON.parse(
+    readFileSync(path.join(root, "speaker-models.json"), "utf8"),
+  );
+  const models = [pins.segmentation, pins.embedding];
+  const fail = (reason) => {
+    rmSync(output, { force: true, recursive: true });
+    const message = `Skipping speaker labels for Live Context: ${reason}`;
+    if (process.env.PINE_REQUIRE_LIVE_CONTEXT === "1") {
+      console.error(message);
+      process.exit(1);
+    }
+    console.warn(message);
+  };
+  // Without the helper or the library the models would never be used.
+  if (
+    !existsSync(path.join(root, "build", "pine-live-context")) ||
+    !existsSync(path.join(root, "build", "live-context-lib"))
+  ) {
+    rmSync(output, { force: true, recursive: true });
+    return;
+  }
+  const matches = (file, model) =>
+    existsSync(file) &&
+    statSync(file).size === model.bytes &&
+    createHash("sha256").update(readFileSync(file)).digest("hex") ===
+      model.sha256;
+
+  mkdirSync(output, { recursive: true });
+  // Only the pinned files and their licenses: a model dropped from the
+  // pins leaves no copy.
+  const expected = new Set([
+    ...models.map((model) => model.file),
+    "NOTICE.md",
+    "licenses",
+  ]);
+  for (const name of readdirSync(output))
+    if (!expected.has(name))
+      rmSync(path.join(output, name), { force: true, recursive: true });
+
+  for (const model of models) {
+    const file = path.join(output, model.file);
+    if (matches(file, model)) continue;
+    rmSync(file, { force: true });
+    const problems = [];
+    for (const url of model.urls) {
+      try {
+        const response = await fetch(url, {
+          signal: AbortSignal.timeout(5 * 60_000),
+        });
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        writeFileSync(
+          `${file}.partial`,
+          Buffer.from(await response.arrayBuffer()),
+        );
+        if (!matches(`${file}.partial`, model))
+          throw new Error("size or SHA-256 differs from the pin");
+        renameSync(`${file}.partial`, file);
+        console.log(
+          `Fetched ${model.file} into ${path.relative(process.cwd(), output)}`,
+        );
+        break;
+      } catch (error) {
+        rmSync(`${file}.partial`, { force: true });
+        problems.push(`${new URL(url).host}: ${error.message}`);
+      }
+    }
+    if (!existsSync(file)) {
+      fail(`could not fetch ${model.file} (${problems.join("; ")}).`);
+      return;
+    }
+  }
+  // Their licenses travel with them (MIT and Apache-2.0 ask for it).
+  copyFileSync(path.join(root, "NOTICE.md"), path.join(output, "NOTICE.md"));
+  cpSync(path.join(root, "licenses"), path.join(output, "licenses"), {
+    recursive: true,
+  });
+}
+
 buildLiveContextHelper();
 await fetchDiarizationLibrary();
+await fetchSpeakerModels();
