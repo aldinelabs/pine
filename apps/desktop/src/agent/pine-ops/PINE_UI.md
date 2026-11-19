@@ -177,7 +177,7 @@ From top to bottom:
 1. Transcript. Empty sessions show "Dare the impossible". Otherwise it lists
    messages in order:
    - user messages, with Copy message and Edit message (editing resends);
-   - assistant replies, with reasoning markers ("Thinking…", "Worked for …");
+   - assistant replies, with reasoning markers ("Thinking…", "Thought for …");
      consecutive reasoning summaries share one marker, and empty reasoning
      payloads do not add markers. Reasoning separated by a reply or tool call
      has its own expandable content and live timing. A reasoning panel opens

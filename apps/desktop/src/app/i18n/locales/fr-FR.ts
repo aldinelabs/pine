@@ -1730,8 +1730,8 @@ export default {
         "Vos tours de parole apparaîtront ici après l'envoi d'un message.",
       thinking: "Raisonnement",
       thinkingActive: "Réflexion ({duration})",
-      thinkingComplete: "Travail effectué en {duration}",
-      thinkingCompleteWithoutDuration: "Travail effectué",
+      thinkingComplete: "A réfléchi pendant {duration}",
+      thinkingCompleteWithoutDuration: "A réfléchi",
       thinkingDuration: {
         lessThanSecond: "<1 s",
         minutes: "{minutes} min {seconds} s",

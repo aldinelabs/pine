@@ -1682,8 +1682,8 @@ export default {
       outlineEmpty: "메시지를 보내면 내 발언이 여기에 표시됩니다.",
       thinking: "추론",
       thinkingActive: "생각하는 중({duration})",
-      thinkingComplete: "{duration} 동안 작업함",
-      thinkingCompleteWithoutDuration: "작업함",
+      thinkingComplete: "{duration} 동안 생각함",
+      thinkingCompleteWithoutDuration: "생각함",
       thinkingDuration: {
         lessThanSecond: "1초 미만",
         minutes: "{minutes}분 {seconds}초",

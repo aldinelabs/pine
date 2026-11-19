@@ -1737,8 +1737,8 @@ export default {
         "Ihre Beiträge erscheinen hier, sobald Sie eine Nachricht senden.",
       thinking: "Denkprozess",
       thinkingActive: "Denkt nach ({duration})",
-      thinkingComplete: "Gearbeitet: {duration}",
-      thinkingCompleteWithoutDuration: "Gearbeitet",
+      thinkingComplete: "Nachgedacht: {duration}",
+      thinkingCompleteWithoutDuration: "Nachgedacht",
       thinkingDuration: {
         lessThanSecond: "<1 s",
         minutes: "{minutes} min {seconds} s",

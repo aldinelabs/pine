@@ -1614,8 +1614,8 @@ export default {
       outlineEmpty: "傳送訊息後，回合會顯示在這裡。",
       thinking: "思考過程",
       thinkingActive: "正在思考（{duration}）",
-      thinkingComplete: "已工作 {duration}",
-      thinkingCompleteWithoutDuration: "已工作",
+      thinkingComplete: "已思考 {duration}",
+      thinkingCompleteWithoutDuration: "已思考",
       thinkingDuration: {
         lessThanSecond: "不到 1 秒",
         minutes: "{minutes} 分 {seconds} 秒",

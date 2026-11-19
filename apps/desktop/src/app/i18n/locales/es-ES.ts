@@ -1725,8 +1725,8 @@ export default {
       outlineEmpty: "Tus turnos aparecerán aquí después de enviar un mensaje.",
       thinking: "Razonamiento",
       thinkingActive: "Pensando ({duration})",
-      thinkingComplete: "Trabajó durante {duration}",
-      thinkingCompleteWithoutDuration: "Trabajó",
+      thinkingComplete: "Pensó durante {duration}",
+      thinkingCompleteWithoutDuration: "Pensó",
       thinkingDuration: {
         lessThanSecond: "<1 s",
         minutes: "{minutes} min {seconds} s",

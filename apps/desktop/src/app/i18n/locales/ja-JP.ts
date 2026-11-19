@@ -1706,8 +1706,8 @@ export default {
         "メッセージを送信すると、あなたの発言がここに表示されます。",
       thinking: "推論",
       thinkingActive: "考え中（{duration}）",
-      thinkingComplete: "{duration} 作業しました",
-      thinkingCompleteWithoutDuration: "作業しました",
+      thinkingComplete: "{duration} 考えました",
+      thinkingCompleteWithoutDuration: "考えました",
       thinkingDuration: {
         lessThanSecond: "1 秒未満",
         minutes: "{minutes} 分 {seconds} 秒",

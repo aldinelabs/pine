@@ -1692,8 +1692,8 @@ export default {
       outlineEmpty: "Your turns will appear here after you send a message.",
       thinking: "Reasoning",
       thinkingActive: "Thinking ({duration})",
-      thinkingComplete: "Worked for {duration}",
-      thinkingCompleteWithoutDuration: "Worked",
+      thinkingComplete: "Thought for {duration}",
+      thinkingCompleteWithoutDuration: "Thought",
       thinkingDuration: {
         lessThanSecond: "<1s",
         minutes: "{minutes}m {seconds}s",

@@ -1610,8 +1610,8 @@ export default {
       outlineEmpty: "发送消息后，回合会显示在这里。",
       thinking: "思考过程",
       thinkingActive: "正在思考（{duration}）",
-      thinkingComplete: "已工作 {duration}",
-      thinkingCompleteWithoutDuration: "已工作",
+      thinkingComplete: "已思考 {duration}",
+      thinkingCompleteWithoutDuration: "已思考",
       thinkingDuration: {
         lessThanSecond: "不到 1 秒",
         minutes: "{minutes} 分 {seconds} 秒",

@@ -284,7 +284,7 @@ describe("ProjectTranscriptMessage", () => {
     try {
       const markers = wrapper.findAllComponents(ProjectThinkingMarker);
       expect(markers).toHaveLength(1);
-      expect(markers[0].text()).toContain("已工作 18 秒");
+      expect(markers[0].text()).toContain("已思考 18 秒");
       await markers[0].get("button").trigger("click");
       expect(
         wrapper

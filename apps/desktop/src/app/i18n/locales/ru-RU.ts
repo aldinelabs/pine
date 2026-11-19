@@ -1707,8 +1707,8 @@ export default {
       outlineEmpty: "Ваши реплики появятся здесь после отправки сообщения.",
       thinking: "Рассуждения",
       thinkingActive: "Думает ({duration})",
-      thinkingComplete: "Работал {duration}",
-      thinkingCompleteWithoutDuration: "Работал",
+      thinkingComplete: "Думал {duration}",
+      thinkingCompleteWithoutDuration: "Думал",
       thinkingDuration: {
         lessThanSecond: "<1 с",
         minutes: "{minutes} мин {seconds} с",

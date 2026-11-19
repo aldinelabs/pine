@@ -210,7 +210,7 @@ describe("project transcript markers", () => {
     });
 
     const trigger = wrapper.get('button[data-slot="marker"]');
-    expect(trigger.text()).toContain("已工作 2.5 秒");
+    expect(trigger.text()).toContain("已思考 2.5 秒");
     await trigger.trigger("click");
     expect(trigger.attributes("aria-expanded")).toBe("true");
     expect(wrapper.get("[data-thinking-content]").text()).toContain(
